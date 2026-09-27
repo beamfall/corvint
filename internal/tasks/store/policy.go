@@ -5,11 +5,9 @@ import (
 	"errors"
 	"io/fs"
 	"os"
-	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
-	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -36,7 +34,7 @@ func policyUpdate(ctx context.Context, repo *intent.Repository, actor mutation.B
 	if err != nil || proof == nil {
 		return report, err
 	}
-	report.OldPolicySha256 = wire.Sum(proof.Records["intent/policy.json"].Raw)
+	report.OldPolicySha256 = wire.Sum(proof.raw("intent/policy.json"))
 	report.NewPolicySha256 = wire.Sum(choice.Policy)
 	return report, nil
 }
@@ -45,7 +43,7 @@ func policyUpdate(ctx context.Context, repo *intent.Repository, actor mutation.B
 // the §5.2 writer: guards, redo, request-index replay, a fresh audit of every
 // intent record, the model, the branch and observation checks, and apply. It
 // returns the audit a committed request was planned against.
-func administrativeWrite(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, beforeCommit func() error) (*Report, *journal.Result, error) {
+func administrativeWrite(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, beforeCommit func() error) (*Report, *auditView, error) {
 	report := &Report{}
 	if repo == nil {
 		return report, nil, wire.Errorf(wire.CodeMalformed, "repository", "missing repository")
@@ -88,44 +86,19 @@ func administrativeWrite(ctx context.Context, repo *intent.Repository, request t
 	if report.Redone, err = redoPending(repo, session); err != nil {
 		return guardFailureAudit(report, request.RequestID, err)
 	}
-	reader := journalReader(repo, head)
-	index := journal.RequestIndex{Reader: reader}
-	entry, found, err := index.Lookup(request.RequestID)
+	proof, replay, err := writerView(repo, head, request.RequestID, false)
 	if err != nil {
 		return report, nil, err
 	}
-	if found {
-		result := replayResult(request, entry)
+	if replay != nil {
+		result := replayResult(request, replay.entry)
 		report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
 		return report, nil, nil
 	}
-	inv, err := inventory(repo)
-	if err != nil {
-		return report, nil, err
-	}
-	paths := []string{"intent/queue.json", "intent/policy.json"}
-	for _, file := range inv.Files() {
-		if strings.HasPrefix(file.Path, "intent/tickets/") || strings.HasPrefix(file.Path, "intent/releases/") {
-			paths = append(paths, file.Path)
-		}
-	}
-	proof, err := reader.Audit(paths...)
-	if err != nil {
-		return report, nil, err
-	}
-	if proof.StagingPresent {
+	if proof.staging {
 		return report, nil, wire.Errorf(wire.CodeUnsupported, "staging", "active staging recovery is not implemented")
 	}
-	tickets := make([][]byte, 0, len(paths)-2)
-	releases := [][]byte{}
-	for _, path := range paths[2:] {
-		if strings.HasPrefix(path, "intent/releases/") {
-			releases = append(releases, proof.Records[path].Raw)
-		} else {
-			tickets = append(tickets, proof.Records[path].Raw)
-		}
-	}
-	q, err := intent.DecodeQueue(proof.Records["intent/queue.json"].Raw)
+	q, err := intent.DecodeQueue(proof.raw("intent/queue.json"))
 	if err != nil {
 		return report, nil, err
 	}
@@ -137,10 +110,10 @@ func administrativeWrite(ctx context.Context, repo *intent.Repository, request t
 	if err != nil {
 		return report, nil, err
 	}
-	if wire.Sum(headRaw) != proof.Identity.HeadSha256 {
+	if wire.Sum(headRaw) != proof.identity.HeadSha256 {
 		return report, nil, wire.Errorf(wire.CodeSnapshotMoved, "head.json", "validated head changed")
 	}
-	result := transaction.Model(request, transaction.Input{Inventory: inv, Head: headRaw, Queue: proof.Records["intent/queue.json"].Raw, Policy: proof.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, CanonicalTickets: tickets, CanonicalReleases: releases, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now})
+	result := transaction.Model(request, transaction.Input{Inventory: proof.inv, Head: headRaw, Queue: proof.raw("intent/queue.json"), Policy: proof.raw("intent/policy.json"), Barrier: barrier, Reservations: reservations, CanonicalTickets: proof.tickets, CanonicalReleases: proof.releases, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now})
 	report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
 	if result.Kind != "Transaction" || result.Plan == nil {
 		return report, nil, nil
@@ -148,17 +121,18 @@ func administrativeWrite(ctx context.Context, repo *intent.Repository, request t
 	if err = requireBranch(repo, q.IntentBranch); err != nil {
 		return guardFailureAudit(report, request.RequestID, err)
 	}
-	if err = bindObservation(repo, proof.Identity, request.Operation); err != nil {
+	if err = bindObservation(repo, proof.identity, request.Operation); err != nil {
 		return guardFailureAudit(report, request.RequestID, err)
 	}
 	report.Receipt, err = applyBeforeCommit(repo, session, result.Plan, beforeCommit)
 	if err != nil {
 		return report, nil, err
 	}
+	proof.commit(repo, result.Plan)
 	return report, proof, nil
 }
 
-func guardFailureAudit(report *Report, requestID string, err error) (*Report, *journal.Result, error) {
+func guardFailureAudit(report *Report, requestID string, err error) (*Report, *auditView, error) {
 	report, err = guardFailure(report, requestID, err)
 	return report, nil, err
 }

@@ -6,11 +6,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
-	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
@@ -71,39 +69,23 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 	}
 	report.Redone = redone
 
-	reader := journalReader(repo, headState)
-	index := journal.RequestIndex{Reader: reader}
-	entry, found, err := index.Lookup(env.RequestID)
+	view, replay, err := writerView(repo, headState, env.RequestID, false)
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
-	if found {
-		result := replayResult(request, entry)
+	if replay != nil {
+		result := replayResult(request, replay.entry)
 		report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
 		if result.Kind == "Replay" {
-			report.Ticket = index.TicketID
+			report.Ticket = replay.ticket
 		}
 		return report, nil
 	}
-	inv, err := inventory(repo)
-	if err != nil {
-		return guardFailure(report, env.RequestID, err)
-	}
-	paths := []string{"intent/queue.json", "intent/policy.json"}
-	for _, file := range inv.Files() {
-		if strings.HasPrefix(file.Path, "intent/tickets/") || strings.HasPrefix(file.Path, "intent/releases/") {
-			paths = append(paths, file.Path)
-		}
-	}
-	canonical, err := reader.Audit(paths...)
-	if err != nil {
-		return guardFailure(report, env.RequestID, err)
-	}
-	if canonical.StagingPresent {
+	if view.staging {
 		return report, wire.Errorf(wire.CodeUnsupported, "staging", "active staging recovery is not implemented")
 	}
-	queue := canonical.Records["intent/queue.json"].Raw
-	policy := canonical.Records["intent/policy.json"].Raw
+	queue := view.raw("intent/queue.json")
+	policy := view.raw("intent/policy.json")
 	q, err := intent.DecodeQueue(queue)
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
@@ -112,33 +94,24 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
-	tickets := make([][]byte, 0, len(paths)-2)
-	releases := [][]byte{}
-	for _, path := range paths[2:] {
-		if strings.HasPrefix(path, "intent/releases/") {
-			releases = append(releases, canonical.Records[path].Raw)
-		} else {
-			tickets = append(tickets, canonical.Records[path].Raw)
-		}
-	}
 	head, barrier, reservations, err := journalBytes(repo)
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
-	if wire.Sum(head) != canonical.Identity.HeadSha256 {
+	if wire.Sum(head) != view.identity.HeadSha256 {
 		return report, wire.Errorf(wire.CodeSnapshotMoved, "head.json", "validated head changed")
 	}
 	result := transaction.Model(
 		request,
 		transaction.Input{
-			Inventory:         inv,
+			Inventory:         view.inv,
 			Head:              head,
 			Queue:             queue,
 			Policy:            policy,
 			Barrier:           barrier,
 			Reservations:      reservations,
-			CanonicalTickets:  tickets,
-			CanonicalReleases: releases,
+			CanonicalTickets:  view.tickets,
+			CanonicalReleases: view.releases,
 			Premise:           transaction.LocalOperator,
 			Branch:            branch,
 			Replay:            transaction.ReplayObservation{State: "ABSENT"},
@@ -156,13 +129,14 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 	if err = requireBranch(repo, q.IntentBranch); err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
-	if err = bindObservation(repo, canonical.Identity, transaction.Mutate); err != nil {
+	if err = bindObservation(repo, view.identity, transaction.Mutate); err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
 	report.Receipt, err = apply(repo, session, result.Plan)
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
+	view.commit(repo, result.Plan)
 	receipt, err := snapshot.DecodeReceipt(result.Plan.Receipt())
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)

@@ -11,7 +11,6 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/importer"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
-	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -30,9 +29,14 @@ type ImportReport struct {
 // Import writes a foreign export's new and changed items as shadow IMPORT
 // records (CTS-V0-003). The whole export is decoded and planned against one
 // audit before the first write; the planned records then commit in
-// IMPORT_APPLY batches under one lock and session, each batch re-audited so
-// its receipt binds the head it extends.
+// IMPORT_APPLY batches under one lock and session. The audit is taken once
+// (CAL-V0-018); each batch re-checks only the head it extends and the
+// destinations it posts, and the view advances past each committed batch.
 func Import(ctx context.Context, repo *intent.Repository, actor mutation.Binding, queueID string, export []byte, now wire.Timestamp) (*ImportReport, error) {
+	return importWithFaults(ctx, repo, actor, queueID, export, now, nil)
+}
+
+func importWithFaults(ctx context.Context, repo *intent.Repository, actor mutation.Binding, queueID string, export []byte, now wire.Timestamp, beforeCommit func() error) (*ImportReport, error) {
 	out := &ImportReport{}
 	probe := transaction.Request{Operation: transaction.ImportApply, QueueID: queueID, Actor: actor}
 	if actor.Role != "OWNER" && actor.Role != "OPERATOR" {
@@ -78,17 +82,25 @@ func Import(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 	if err != nil {
 		return importRefused(out, "", err)
 	}
-	st, err := auditImport(repo, head)
+	view, err := storeView(repo, head)
 	if err != nil {
 		return out, err
 	}
-	records, err := importer.Plan(exp, st.store, actor.ID, now)
+	if view.staging {
+		return out, wire.Errorf(wire.CodeUnsupported, "staging", "active staging recovery is not implemented")
+	}
+	st, err := importStore(view)
+	if err != nil {
+		return out, err
+	}
+	records, err := importer.Plan(exp, st, actor.ID, now)
 	if err != nil {
 		return out, err
 	}
 	out.Planned = len(records)
+	defer view.save(repo)
 	for _, batch := range packImport(queueID, records) {
-		report, err := importBatch(repo, session, actor, queueID, batch, now)
+		report, err := importBatch(repo, session, actor, queueID, batch, now, view, st.Queue.IntentBranch, beforeCommit)
 		if err != nil {
 			return out, err
 		}
@@ -110,81 +122,56 @@ func importRefused(out *ImportReport, requestID string, err error) (*ImportRepor
 	return out, err
 }
 
-// importAudit is one audited view of the intent store.
-type importAudit struct {
-	inv      *transaction.Inventory
-	proof    *journal.Result
-	tickets  [][]byte
-	releases [][]byte
-	store    importer.Store
-}
-
-func auditImport(repo *intent.Repository, head *snapshot.Head) (*importAudit, error) {
-	inv, err := inventory(repo)
-	if err != nil {
-		return nil, err
-	}
-	paths := []string{"intent/queue.json", "intent/policy.json"}
-	for _, file := range inv.Files() {
-		if strings.HasPrefix(file.Path, "intent/tickets/") || strings.HasPrefix(file.Path, "intent/releases/") {
-			paths = append(paths, file.Path)
-		}
-	}
-	proof, err := journalReader(repo, head).Audit(paths...)
-	if err != nil {
-		return nil, err
-	}
-	if proof.StagingPresent {
-		return nil, wire.Errorf(wire.CodeUnsupported, "staging", "active staging recovery is not implemented")
-	}
-	a := &importAudit{inv: inv, proof: proof}
+// importStore decodes the view's intent records for the import planner.
+func importStore(view *auditView) (importer.Store, error) {
+	st := importer.Store{}
 	recs := []*ticket.Record{}
-	for _, path := range paths[2:] {
-		raw := proof.Records[path].Raw
-		if strings.HasPrefix(path, "intent/releases/") {
-			a.releases = append(a.releases, raw)
-			continue
-		}
-		a.tickets = append(a.tickets, raw)
+	for _, raw := range view.tickets {
 		rec, err := ticket.Decode(raw)
 		if err != nil {
-			return nil, err
+			return st, err
 		}
 		recs = append(recs, rec)
 	}
-	if a.store.Queue, err = intent.DecodeQueue(proof.Records["intent/queue.json"].Raw); err != nil {
-		return nil, err
+	var err error
+	if st.Queue, err = intent.DecodeQueue(view.raw("intent/queue.json")); err != nil {
+		return st, err
 	}
-	if a.store.Policy, err = intent.DecodePolicy(proof.Records["intent/policy.json"].Raw); err != nil {
-		return nil, err
+	if st.Policy, err = intent.DecodePolicy(view.raw("intent/policy.json")); err != nil {
+		return st, err
 	}
-	a.store.Tickets, err = ticket.NewInventory(a.store.Queue.QueueID, recs)
-	return a, err
+	st.Tickets, err = ticket.NewInventory(st.Queue.QueueID, recs)
+	return st, err
 }
 
-// importBatch commits one IMPORT_APPLY batch through the §5.2 writer against
-// a fresh audit of the current head.
-func importBatch(repo *intent.Repository, session *authority.Session, actor mutation.Binding, queueID string, records [][]byte, now wire.Timestamp) (*Report, error) {
+// importBatch commits one IMPORT_APPLY batch through the §5.2 writer. While
+// the import's view is maintained (it can list what it vouches for), the
+// batch plans against it and re-checks only the head digest it expects and
+// the destinations it posts, then advances it. Otherwise the batch takes the
+// ordinary per-write lookup and audit.
+func importBatch(repo *intent.Repository, session *authority.Session, actor mutation.Binding, queueID string, records [][]byte, now wire.Timestamp, view *auditView, branchName string, beforeCommit func() error) (*Report, error) {
 	report := &Report{}
 	request := transaction.Request{Operation: transaction.ImportApply, QueueID: queueID, RequestID: importRequestID(records), Actor: actor, Records: records}
 	head, err := writerGuards(repo, request.Operation)
 	if err != nil {
 		return guardFailure(report, request.RequestID, err)
 	}
-	reader := journalReader(repo, head)
-	index := journal.RequestIndex{Reader: reader}
-	entry, found, err := index.Lookup(request.RequestID)
+	a, replay := view, (*replayed)(nil)
+	if view.state != nil {
+		replay, err = view.lookup(repo, request.RequestID)
+	} else {
+		a, replay, err = writerView(repo, head, request.RequestID, false)
+	}
 	if err != nil {
 		return report, err
 	}
-	if found {
-		result := replayResult(request, entry)
+	if replay != nil {
+		result := replayResult(request, replay.entry)
 		report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
 		return report, nil
 	}
-	a, err := auditImport(repo, head)
-	if err != nil {
-		return report, err
+	if a.staging {
+		return report, wire.Errorf(wire.CodeUnsupported, "staging", "active staging recovery is not implemented")
 	}
 	branch, err := primaryBranch(repo)
 	if err != nil {
@@ -194,22 +181,38 @@ func importBatch(repo *intent.Repository, session *authority.Session, actor muta
 	if err != nil {
 		return report, err
 	}
-	if wire.Sum(headRaw) != a.proof.Identity.HeadSha256 {
+	if wire.Sum(headRaw) != a.identity.HeadSha256 {
 		return report, wire.Errorf(wire.CodeSnapshotMoved, "head.json", "validated head changed")
 	}
-	result := transaction.Model(request, transaction.Input{Inventory: a.inv, Head: headRaw, Queue: a.proof.Records["intent/queue.json"].Raw, Policy: a.proof.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, CanonicalTickets: a.tickets, CanonicalReleases: a.releases, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now})
+	result := transaction.Model(request, transaction.Input{Inventory: a.inv, Head: headRaw, Queue: a.raw("intent/queue.json"), Policy: a.raw("intent/policy.json"), Barrier: barrier, Reservations: reservations, CanonicalTickets: a.tickets, CanonicalReleases: a.releases, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now})
 	report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
 	if result.Kind != "Transaction" || result.Plan == nil {
 		return report, nil
 	}
-	if err = requireBranch(repo, a.store.Queue.IntentBranch); err != nil {
+	if err = requireBranch(repo, branchName); err != nil {
 		return guardFailure(report, request.RequestID, err)
 	}
-	if err = bindObservation(repo, a.proof.Identity, request.Operation); err != nil {
+	if a == view {
+		err = view.recheckPosts(repo, result.Plan)
+		if err == nil {
+			_, err = writerGuards(repo, request.Operation)
+		}
+	} else {
+		err = bindObservation(repo, a.identity, request.Operation)
+	}
+	if err != nil {
 		return guardFailure(report, request.RequestID, err)
 	}
-	report.Receipt, err = apply(repo, session, result.Plan)
-	return report, err
+	report.Receipt, err = applyBeforeCommit(repo, session, result.Plan, beforeCommit)
+	if err != nil {
+		return report, err
+	}
+	if a == view {
+		view.advance(repo, result.Plan)
+	} else {
+		a.commit(repo, result.Plan)
+	}
+	return report, nil
 }
 
 // importRequestID names a batch by its records: "import-" and the first 128
