@@ -455,6 +455,7 @@ func evictSnapshotsAt(directory, keep string, bound int, now time.Time) int {
 	currentEngine := snapshotEngineOf(keep)
 	files := make([]aged, 0, len(entries))
 	staleTemporaryCutoff := now.Add(-snapshotTemporaryStaleAfter)
+	sweepBlobShardTemporaries(directory, staleTemporaryCutoff)
 	for _, entry := range entries {
 		info, err := entry.Info()
 		if err != nil || !info.Mode().IsRegular() {

@@ -12,6 +12,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 func runGitProcess(ctx context.Context, identity gitIdentity, root string, limit int, input []byte, args ...string) ([]byte, error) {
@@ -44,19 +46,18 @@ func runGitProcess(ctx context.Context, identity gitIdentity, root string, limit
 	go func() { _, _ = io.Copy(stdout, stdoutRead); copied.Done() }()
 	go func() { _, _ = io.Copy(stderr, stderrRead); copied.Done() }()
 	done := make(chan error, 1)
-	go func() { done <- command.Wait() }()
+	// Git may exit while a hostile descendant retains its process group.
+	// groupreap.Wait kills that group on every terminal path before the reap.
+	go func() { done <- groupreap.Wait(command) }()
 	var runErr error
 	select {
 	case err := <-done:
-		// Git may exit while a hostile descendant retains its process group.
-		// Kill that group on every terminal path; a non-existent group is benign.
 		runErr = err
 	case <-ctx.Done():
 		_ = syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
 		<-done
 		runErr = ctx.Err()
 	}
-	_ = syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
 	_ = stdoutWrite.Close()
 	_ = stderrWrite.Close()
 	copied.Wait()

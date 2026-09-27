@@ -392,9 +392,11 @@ function invokeCorvint(cwd, event, input, timeoutMs) {
     child.once("close", (status) => {
       clearTimeout(timeout);
       clearTimeout(hardKill);
-      // An EPERM before the leader's exit was observed is decided now that it is reaped: a gone
-      // group answers ESRCH, while a member this process may not signal still answers EPERM.
-      if (cleanupUndecided && terminateProcessTree(child, "SIGKILL", false)) cleanupFailed = true;
+      // The owned group outlives its leader's close: a same-group descendant that ignored SIGTERM
+      // and closed its stdio still runs, so the group is killed now, with no pending timer to cancel
+      // (V1-0371). An EPERM before the leader's exit was observed is decided here too: a gone group
+      // answers ESRCH, while a member this process may not signal still answers EPERM.
+      if (terminateProcessTree(child, "SIGKILL", !cleanupUndecided)) cleanupFailed = true;
       for (const [signal, handler] of signalHandlers) {
         process.removeListener(signal, handler);
       }

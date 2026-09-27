@@ -99,9 +99,11 @@ output directories outside the checkout; the reproducibility script refuses one 
    bash -o pipefail -c 'script/check-hostile-regressions.sh 2>&1 | tee "$1"' _ "/abs/release/X.Y.Z/hostile-regressions.txt"
    ```
 
-   Then the CCF-V1-007 N-1 replay (proposed, decision 0398): every frozen Core mode also runs under
-   the previous release tag, which must still carry each member, identifier and registered value this
-   commit emits. It must end `ok`; retain its output.
+   Then the CCF-V1-007 N-1 replay (accepted 2026-09-26, decision 0422; from decision 0398): every
+   frozen Core mode except the skips CCF-V1-007 names also runs under the previous release tag over a
+   fresh fixture; it must exit alike and keep the CCF-V1-002 identifiers, every member it emits must
+   still be emitted by this commit with the same JSON type, and every value it writes at a registered
+   path must still be registered here. It must end `ok`; retain its output.
 
    ```sh
    bash -o pipefail -c 'make core-n1-replay CORE_N1_TAG=vW.V.U 2>&1 | tee "$1"' _ "/abs/release/X.Y.Z/core-n1-replay.txt"

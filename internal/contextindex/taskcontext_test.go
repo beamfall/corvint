@@ -99,6 +99,55 @@ func TestTaskContextAdmitsReverseImportersAndMentionedPaths(t *testing.T) {
 	}
 }
 
+// TCP-V0-004 (V1-0365): a token equal to a tracked path names it outright,
+// whatever its shape, so an extensionless or dot-prefixed path is admitted as
+// mentioned and, when the index did not read it, discloses the gap
+// (TCP-V0-003). A bare word still never resolves as a basename.
+func TestTaskContextAdmitsExplicitExtensionlessAndDotPrefixedPaths(t *testing.T) {
+	root := impactRepositoryWithFiles(t, map[string]string{
+		"go.mod":                   "module example.test/fixture\n\ngo 1.27.0\n",
+		"main.go":                  "package main\n\nfunc main() {}\n",
+		"Dockerfile":               "FROM scratch\n",
+		"Makefile":                 "all:\n\tgo test ./...\n",
+		".gitignore":               "/bin/\n",
+		".github/workflows/ci.yml": "name: ci\n",
+		"scripts/build":            "#!/bin/sh\necho release\n",
+	})
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, named := range []string{"Dockerfile", "Makefile", ".gitignore", ".github/workflows/ci.yml"} {
+		t.Run(named, func(t *testing.T) {
+			packet, err := TaskContext(context.Background(), index, "Inspect "+named+".", "", 20)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var evidence map[string]any
+			for _, item := range mapsFromAny(packet["results"]) {
+				if item["kind"] == "mentioned" && item["id"] == named {
+					evidence = mapsFromAny(item["evidence"])[0]
+				}
+			}
+			if evidence == nil {
+				t.Fatalf("mentioned rows = %v, want %s named by full path", contextRowsByKind(t, packet)["mentioned"], named)
+			}
+			gap, gapped := evidence["evidence_gap"].(string)
+			pinned := evidence["blob_hash"] != ""
+			if evidence["authority"] != "task-text" || pinned == gapped || (!pinned && (evidence["confidence"] != "low" || gap == "")) {
+				t.Fatalf("mentioned evidence = %v, want task-text with a blob_hash or a low-confidence evidence_gap", evidence)
+			}
+		})
+	}
+	prose, err := TaskContext(context.Background(), index, "build the release", "", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mentioned := contextRowsByKind(t, prose)["mentioned"]; len(mentioned) != 0 {
+		t.Fatalf("mentioned rows = %v, want a bare word never resolved as the basename of scripts/build", mentioned)
+	}
+}
+
 func TestTaskContextRetrievalShapeAndNoCandidates(t *testing.T) {
 	index := taskContextFixture(t)
 	packet, err := TaskContext(context.Background(), index, "Where is `Other` defined?", "", 5)

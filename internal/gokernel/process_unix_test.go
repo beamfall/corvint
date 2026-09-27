@@ -122,32 +122,3 @@ func TestProbeRetriesAConcurrentCleanToDirtyTransition(t *testing.T) {
 		t.Fatalf("stale repository snapshot: %#v", repository)
 	}
 }
-
-// The group is signalled while the exited leader is still unreaped, so its
-// PID, and with it the group ID, cannot have been reused by another process.
-func TestProcessGroupIsSignalledBeforeLeaderIsReaped(t *testing.T) {
-	command := exec.CommandContext(t.Context(), "/bin/sh", "-c", "exit 0")
-	configureProcess(command)
-	if err := command.Start(); err != nil {
-		t.Fatal(err)
-	}
-	leader := command.Process.Pid
-	observed := errors.New("process group was not signalled")
-	previous := signalProcessGroup
-	t.Cleanup(func() { signalProcessGroup = previous })
-	signalProcessGroup = func(processID int, signal syscall.Signal) error {
-		if processID == -leader {
-			observed = waitLeaderUnreaped(leader)
-		}
-		return previous(processID, signal)
-	}
-	if err := waitGroupLeader(command); err != nil {
-		t.Fatal(err)
-	}
-	if errors.Is(observed, errors.ErrUnsupported) {
-		t.Skip("waitid is unavailable on this platform")
-	}
-	if observed != nil {
-		t.Fatalf("group signalled after the leader was reaped: %v", observed)
-	}
-}

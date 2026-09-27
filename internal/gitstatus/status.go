@@ -353,6 +353,9 @@ func StatusIn(ctx context.Context, root, temporaryParent string, limit int, run 
 			}
 		}
 	}
+	if err := worktreeInputsOpen(ctx, root, index); err != nil {
+		return nil, err
+	}
 	for _, name := range []string{"objects", "refs"} {
 		source := filepath.Join(common, name)
 		info, err := os.Lstat(source)

@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 // offlineHints are the go command's ways of saying it needs the network. The
@@ -175,10 +177,7 @@ func runGoTest(ctx context.Context, timeout time.Duration, space workspace, pack
 		command.Stdout, command.Stderr = sink, sink
 	}
 	configureProcess(command)
-	err := command.Run()
-	if command.Process != nil {
-		terminateProcessGroup(command.Process.Pid)
-	}
+	err := groupreap.Run(command)
 	if attributable {
 		return sink.classify(err), output.String(), sink.outcomes
 	}

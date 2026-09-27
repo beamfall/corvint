@@ -248,13 +248,13 @@ admitted by `corvint-harness-event/0`" (`agent-harness-integration-v0.md:140-142
 One option that looks available is not: the harness cannot recover the session's own start revision,
 because it persists nothing — `outcome-persistence-unavailable` is emitted whenever a session-end
 carries an outcome (`internal/gokernel/harness.go:398-401`). Every receipt binds `commitRevision` and
-`treeRevision` (`internal/gokernel/repository.go:31-39`, `:43-51`), but nothing stores them for later.
+`treeRevision` (`internal/gokernel/repository.go:32-40`, `:44-52`), but nothing stores them for later.
 
 **Options.**
 
 1. **Read a committed CEM/OCM pair from a declared repository path.** The convention exists
    (`.corvint/change.cem.json`, `.corvint/change.ocm.json` — `cmd/corvint/ocm.go:248`,
-   `cmd/corvint/help.go:951@e432ec24`, workflow at `README.md:188-198@3297e31e`). Cost: this supplies two of four inputs.
+   `cmd/corvint/help.go:951@e432ec24`, workflow at `README.md:192-202@3297e31e`). Cost: this supplies two of four inputs.
    Taking base and target *from the artifact* is what `CF-V0-001` calls inferred revision authority and
    fails `unsupported-frontier-context` (`change-frontier-v0.md:82-87`), so this option is incomplete
    on its own and must be paired with option 2 for the revisions.

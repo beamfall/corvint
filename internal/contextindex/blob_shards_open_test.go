@@ -110,3 +110,50 @@ func TestBlobShardReadRefusesInRootLeafSymlink(t *testing.T) {
 		t.Fatal("in-root leaf symlink opened")
 	}
 }
+
+// TestEvictSnapshotsRemovesStaleShardAndIgnoreTemporaries is V1-0361: a killed
+// writer's shard publication and .gitignore rewrite temporaries are swept with
+// the snapshot temporaries' age cutoff, and fresh ones survive.
+func TestEvictSnapshotsRemovesStaleShardAndIgnoreTemporaries(t *testing.T) {
+	t.Run("IDX-SNAP-V0-007", func(t *testing.T) {
+		directory := t.TempDir()
+		shard := filepath.Join(directory, "blobs", "engine")
+		if err := os.MkdirAll(shard, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		now := time.Unix(1_700_000_000, 0)
+		old := now.Add(-2 * snapshotTemporaryStaleAfter)
+		young := now.Add(-snapshotTemporaryStaleAfter / 2)
+		plant := func(path string, when time.Time) string {
+			t.Helper()
+			if err := os.WriteFile(path, nil, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chtimes(path, when, when); err != nil {
+				t.Fatal(err)
+			}
+			return path
+		}
+		stale := []string{
+			plant(filepath.Join(shard, "blob-stale.tmp"), old),
+			plant(filepath.Join(directory, ".gitignore-stale.tmp"), old),
+		}
+		fresh := []string{
+			plant(filepath.Join(shard, "blob-fresh.tmp"), young),
+			plant(filepath.Join(directory, ".gitignore-fresh.tmp"), young),
+			plant(filepath.Join(shard, "published.afs"), old),
+		}
+
+		evictSnapshotsAt(directory, "", snapshotKeep, now)
+		for _, path := range stale {
+			if _, err := os.Lstat(path); !os.IsNotExist(err) {
+				t.Errorf("stale temporary %s survived: %v", path, err)
+			}
+		}
+		for _, path := range fresh {
+			if _, err := os.Lstat(path); err != nil {
+				t.Errorf("%s was reclaimed: %v", path, err)
+			}
+		}
+	})
+}

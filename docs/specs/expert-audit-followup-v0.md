@@ -124,6 +124,14 @@ execution claim, Frontier closure rule or mandatory service is introduced here.
   resolves to the handle that was read, is refused as a replaced metadata directory. This matches
   what Git's own path-based reads observe; a replacement undone entirely between the brackets is
   invisible to both. A metadata file's own directory still needs read access.
+- `EAF-V0-013`: Before status runs, a `.gitignore` or `.gitattributes` that is a FIFO or a device,
+  in the worktree root or in the directory of any index entry, MUST be refused as
+  `metadata-unreadable` with the reason `worktree file <name> is a FIFO` (`is not a regular file`
+  for a device). Git opens these files without `O_NONBLOCK`, so status would otherwise wait for the
+  caller's Git deadline. The reason names only the file's base name. A symlink or a directory is
+  admitted, because Git neither follows nor blocks on it. Index versions 2 to 4 with SHA-1 or
+  SHA-256 object IDs are decoded; an index that does not frame lists only the root. A file in an
+  untracked directory is not inspected and stays bounded by the caller's Git deadline.
 
 ## Verified starting state
 
@@ -177,6 +185,7 @@ savings. A failing development experiment is visible evidence, never a default-g
 | EAF-V0-009 | opt-in scope development check in `internal/lrfrepo/scope_development_test.go`; independently supplied labels, immutable source checks and explicit unsupported outcomes |
 | EAF-V0-011 | `internal/gitstatus` refusal reasons; `TestStatusRefusesUnsupportedMetadataBeforeLiveStatus`, `TestStandaloneReadNamesUnsupportedRepositoryFeature`, `TestStandaloneReadsRefuseGitFiltersWithoutMutation` |
 | EAF-V0-012 | `internal/gitstatus/read_posix.go` search-only ancestor pinning; `TestStatusReadsThroughSearchOnlyParent` |
+| EAF-V0-013 | `internal/gitstatus/worktree_posix.go`; `TestStatusRefusesBlockingWorktreeInputsPromptly`, `TestStatusAdmitsSymlinkedWorktreeInputs`, `TestWorktreeInputsListEveryIndexDirectory`, `TestStandaloneBuildRefusesFIFOIgnoreFilePromptly` |
 | EAF-V0-010 | `internal/secretscreen`, `internal/observations`; `TestUnterminatedQuotedValueRedactsThroughEOF`, `TestAppendRedactsUnterminatedQuotedCredentialPath`, `internal/secretscreen/testdata/parity.json` unterminated cases |
 
 Run focused regressions, the canonical gate, fresh independent review, and post-commit CEM/OCM

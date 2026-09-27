@@ -122,6 +122,35 @@ func TestDocumentStatusReadsEveryFieldShapeAndCapturesTheTokenAlone(t *testing.T
 	}
 }
 
+// FPK-V0-029 (V1-0363): a status inside a fenced example is instructional
+// content, not the document's own field, so it can neither make a draft binding
+// nor shadow the genuine field that follows it.
+func TestDocumentStatusIgnoresFencedExamples(t *testing.T) {
+	for _, testCase := range []struct{ name, body, status, authority string }{
+		{"backtick example only", "# T\n\n```yaml\nStatus: accepted\n```\n", "", "repository-spec"},
+		{"tilde example only", "# T\n\n~~~yaml\nStatus: accepted\n~~~\n", "", "repository-spec"},
+		{"shorter fence does not close", "# T\n\n````md\n```\nStatus: accepted\n```\n````\n", "", "repository-spec"},
+		{"example before a genuine proposed status", "# T\n\n```yaml\nStatus: accepted\n```\n\nStatus: proposed\n", "proposed", "repository-spec"},
+		{"genuine status after an example", "# T\n\n~~~\nStatus: draft\n~~~\n\nStatus: accepted\n", "accepted", "accepted-spec"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			source := Source{Path: "docs/specs/draft.md", BlobHash: strings.Repeat("0", 40), Data: []byte(testCase.body)}
+			body, valid, loaded := source.Text()
+			if !loaded || !valid {
+				t.Fatal("test source is not loaded valid text")
+			}
+			record, ok := documentRecord(source, body, map[string]Source{source.Path: source})
+			if !ok {
+				t.Fatal("document was not recognized")
+			}
+			authority, _ := documentAuthority(record)
+			if record.Fields["status"] != testCase.status || authority != testCase.authority {
+				t.Fatalf("status = %q authority = %q, want %q %q", record.Fields["status"], authority, testCase.status, testCase.authority)
+			}
+		})
+	}
+}
+
 func TestDocumentTitleUsesFirstH1WhenItEqualsStem(t *testing.T) {
 	source := Source{Path: "docs/specs/token.md", Data: []byte("# token\n# wrong\n")}
 	body, valid, loaded := source.Text()

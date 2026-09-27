@@ -82,6 +82,41 @@ func TestAuthorityTriggersFireOnlyForCitedRequestedPaths(t *testing.T) {
 	}
 }
 
+// ATI-V0-007 (V1-0364): a tilde fence is a fenced code block too, and a fence
+// closes only on its own character at least as long, so an illustrative citation
+// inside either kind never fires, while a real citation on the line after a
+// closing fence keeps its own evidence handle.
+func TestAuthorityTriggersSkipTildeAndNestedFences(t *testing.T) {
+	root := impactRepositoryWithFiles(t, map[string]string{
+		"go.mod":      "module example.test/fixture\n\ngo 1.27.0\n",
+		"pkg/core.go": coreSource,
+		"docs/specs/accepted.md": "# Accepted\n\nStatus: accepted\n\n" +
+			"~~~md\nAn example cites `pkg/core.go:3`.\n~~~\n" +
+			"The rule cites `pkg/core.go:5`.\n\n" +
+			"````md\n```\n`pkg/core.go:1`\n```\nStill fenced: `pkg/core.go:2`.\n````\n" +
+			"After the fence: `pkg/core.go:3`.\n",
+	})
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := LookupAuthorityTriggers(index, []string{"pkg/core.go"}, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := make([]any, 0)
+	for _, row := range triggerRows(t, result) {
+		handle := row["evidence"].([]any)[0].(map[string]any)
+		if handle["path"] != "docs/specs/accepted.md" || handle["blob_hash"] != index.Documents["docs/specs/accepted.md"].BlobHash || row["authority"] != "accepted-spec" {
+			t.Fatalf("trigger evidence = %v", row)
+		}
+		lines = append(lines, handle["line"])
+	}
+	if len(lines) != 2 || lines[0] != 8 || lines[1] != 16 {
+		t.Fatalf("trigger lines = %v, want [8 16]: only the citations outside every fence", lines)
+	}
+}
+
 // ATI-V0-006: the three anchor states a cited path can be in, computed the way
 // script/check-line-citations.sh computes them, including over a written range.
 func TestAuthorityTriggerAnchorStatesMatchTheCitationGate(t *testing.T) {

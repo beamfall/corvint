@@ -130,21 +130,21 @@ run >/dev/null && fail "a line past the end of an extensionless path passed"
 cite "notafile:3"
 run >/dev/null || fail "an untracked extensionless token was treated as a citation"
 
-# 11. A line citation into a prepended backlog file (BUILD-LOG.md, agent-memory/*.md) is
-#    unstable by construction and must carry a content anchor; a bare line number is
+# 11. A line citation into a log or backlog file (BUILD-LOG.md, agent-memory/*.md) is
+#    a position, not an entry, and must carry a content anchor; a bare line number is
 #    rejected, and the same citation once pinned passes.
 printf '%s\n' '# Other backlog file' '' 'A stable-looking line.' 'A second line.' \
   > "$test_root/docs/agent-memory/other.md"
 stage docs/agent-memory/other.md
 cite "docs/agent-memory/other.md:3"
-output=$(run) && fail "an unpinned citation into a prepended agent-memory file passed"
+output=$(run) && fail "an unpinned citation into an agent-memory backlog file passed"
 case "$output" in
-  *"is prepended"*) ;;
-  *) fail "the prepended-doc failure did not explain why: $output" ;;
+  *"is a log or backlog file"*) ;;
+  *) fail "the log-or-backlog failure did not explain why: $output" ;;
 esac
 pin=$(cd "$test_root" && script/check-line-citations.sh --hash docs/agent-memory/other.md:3)
 cite "$pin"
-run >/dev/null || fail "a pinned citation into a prepended agent-memory file still failed"
+run >/dev/null || fail "a pinned citation into an agent-memory backlog file still failed"
 
 # 12. A leading-slash absolute path is a citation too, not invisible prose: it never resolves
 #     through the Git index (an absolute host path is never tracked), so it must fail loudly

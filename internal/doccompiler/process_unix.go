@@ -22,13 +22,8 @@ func configureProcess(command *exec.Cmd) {
 		}
 		return err
 	}
-	command.WaitDelay = time.Second
-}
-
-func terminateProcessGroup(processID int) {
-	if processID > 0 {
-		_ = syscall.Kill(-processID, syscall.SIGKILL)
-	}
+	// The bound detects a descendant holding the output pipes, not a slow reader (V1-0391).
+	command.WaitDelay = time.Minute
 }
 
 func descendantCleanupQualification() (bool, string) {

@@ -13,9 +13,9 @@ in `public-release-v0.md`, ARTIFACT-RDY-V0-001 and ARTIFACT-GO-V0-008 in
 
 ## Agent digest
 - Claim: One canonical JSON record binds a verified Core candidate to digested gate, platform, compliance and policy evidence before any tag.
-- Status: accepted (decision 0422, 2026-09-26); experimental delivery; SRR-V1-001 to SRR-V1-011 are coded as an internal package. SRR-V1-012's command shape is accepted and not yet implemented.
-- Exists: `BuildReadinessRecord` and `VerifyReadinessRecord` in `internal/releasecandidate`, with tests named after each requirement.
-- Blocked on: the SRR-V1-012 command; no command exposes the package yet.
+- Status: accepted (decision 0422, 2026-09-26); experimental delivery; SRR-V1-001 to SRR-V1-012 are coded: the internal package and the `corvint-readiness-record` command.
+- Exists: `BuildReadinessRecord` and `VerifyReadinessRecord` in `internal/releasecandidate`, `cmd/corvint-readiness-record` over them, and tests named after each requirement.
+- Blocked on: first use on the `1.0.0-rc.1` candidate (V1-0018 AC2, V1-0020 AC3); no release has used the record yet.
 - Read next: Requirements; Failure modes; Traceability.
 
 ## User and boundary
@@ -43,6 +43,9 @@ Non-goals:
 - signing, tagging, publishing, promoting or uploading;
 - computing an overall release verdict;
 - verifying the task-store candidate digest against `.taskman/`;
+- guarding the output against a concurrent writer that controls an ancestor of the candidate or
+  the source root, or a directory inside one: such a writer can already replace the root or write
+  inside it;
 - a new spec language or database.
 
 ## Requirements
@@ -100,16 +103,64 @@ Non-goals:
 - `SRR-V1-011`: Building and verifying MUST NOT write to the candidate, the source root or the
   evidence files, and MUST NOT use the network. The builder returns the canonical bytes, and the
   operator-named output path is the only place a caller may write them. Source-root git reads MUST
-  run with lazy fetching from a promisor remote disabled (`GIT_NO_LAZY_FETCH=1`). The candidate
+  run with lazy fetching from a promisor remote disabled (`GIT_NO_LAZY_FETCH=1`), and (V1-0362) with
+  an empty credential helper and no transport (`GIT_ALLOW_PROTOCOL=`). The candidate
   verifier's transient host-probe directory is created and removed inside the system temporary
   directory.
-- `SRR-V1-012`: (accepted command shape, decision 0422; not implemented) A new operator binary,
+- `SRR-V1-012`: (command shape accepted by decision 0422) A new operator binary,
   `cmd/corvint-readiness-record`, MUST expose the builder and the verifier as two modes of one flag
   set. Build mode, `-candidate DIR -source-root DIR -evidence-file TSV [-store-release ID
   -store-candidate-sha256 HEX] -output FILE`, MUST write the canonical record to FILE and MUST refuse
   an existing FILE rather than replace it. Verify mode, `-verify FILE -candidate DIR -evidence-file
-  TSV`, MUST write nothing. The evidence file names each supplied row's evidence explicitly.
-  `cmd/corvint-release-candidate` keeps its single flag set unchanged.
+  TSV`, MUST write nothing. Passing `-verify` selects verify mode, so an empty `-verify` value is
+  a usage error, never build mode. The evidence file names each supplied row's evidence explicitly.
+  `cmd/corvint-release-candidate` keeps its single flag set unchanged. Implementation detail: each
+  line of the evidence file is `ROW`, `STATUS`, `PATH`, `DECISION` and `REASON` separated by tabs,
+  with an absent value left empty. A CRLF line ending is read as LF. An error that names a row from
+  the evidence file quotes it, so a hidden character in the row shows. Every reason must be valid
+  UTF-8 without a control, format, line or paragraph separator, private-use, noncharacter,
+  variation selector or other default-ignorable code point, and only a reason with a letter or
+  digit explains a row. By design this refuses text that needs a format character or a variation
+  selector: a zero-width joiner or non-joiner (emoji sequences, Persian, Devanagari conjuncts), a
+  soft hyphen, the LRM, RLM and ALM marks, and the emoji presentation selector U+FE0F, as in a
+  red heart emoji. A reason is plain release evidence, so write the words without them. A record
+  built from a CRLF file before CRLF was read as LF stored reasons ending in a carriage return and
+  no longer verifies; rebuild it. A relative `PATH` is appended to the evidence file's directory
+  as spelled, without lexical cleaning, so each `..` is resolved after the symlinks before it, as
+  opening the path resolves it; build and verify read it the same way. A line without exactly five
+  fields, or a row named twice, is refused. Before building, build mode refuses a FILE whose name
+  is empty, `.` or `..`, or whose temporary name (a dot, the name, a dot and 26 random characters)
+  would exceed 255 bytes. Build mode resolves FILE's directory once to an absolute path free of
+  symlinks: a relative directory is appended to the
+  working directory's resolved path, and each component, `..` included, is resolved in order. The
+  resolver follows up to 255 symlinks and the kernel far fewer, so build refuses FILE unless its
+  directory as spelled (`.` when FILE has none) opens that same directory; otherwise the record
+  would land where the reported path cannot reach. Build opens the resolved directory once,
+  confirms the handle is that directory, and refuses it when it is, or lies below, the candidate
+  or the source root, compared by file identity, so a symlink, a symlinked working directory, a
+  `..` segment or a case alias cannot hide the overlap. A mount alias of a directory below a root
+  (a Linux bind mount, a Windows `subst` drive, an SMB or NFS mount) has its own parents and is
+  outside this guard. The parents are found by path, not from the open handle, because `os.Root`
+  cannot open a handle's parent and Go has no portable `openat`. So after opening, build resolves
+  the directory again, confirms that settled path is the handle's directory, and compares the
+  settled path's parents, so an ancestor swapped for a link before the open is walked through the
+  link's target. A concurrent writer that controls an ancestor of a root, or a directory inside
+  one, is outside this guard, a non-goal. Go reads a
+  Windows junction or volume mount point as neither a directory nor a symlink, so the resolver
+  cannot pass one, and an output directory that passes through or ends in one is refused; this
+  over-refusal is known. A directory that does not resolve is named as spelled in the error. On
+  Windows the resolver's not-a-directory error is `ERROR_PATH_NOT_FOUND`, which a missing drive
+  also gives, so the error names a file, a junction or mount point, and a missing drive as the
+  possible causes. A
+  Windows directory rooted on a drive or a separator but not absolute is refused (SRR-V1-011).
+  Build then writes a completed temporary file and hard-links it to FILE, both through the open
+  handle, so a partial record never appears at FILE and a path component replaced by a symlink
+  during the build cannot redirect the write. A temporary name already taken is skipped, never
+  truncated. A link refused because FILE exists is reported as an existing record; any other link
+  failure is reported as a failed publication. A directory moved whole into a root during the
+  build is not detected. Verify mode also rebuilds the rows from the evidence file and refuses a
+  record whose rows differ. Without that check, a record that relabels a FAIL log as PASS would
+  still reproduce its digest. Supplying only one of the two store flags is a usage error.
 
 ## Failure modes
 
@@ -124,16 +175,27 @@ Non-goals:
 | Record edited to reorder, duplicate or drop rows, or to empty the store binding | Verifier refuses (SRR-V1-004, 005). |
 | Source root is a partial clone missing the bound objects | Git read fails without fetching; builder refuses (SRR-V1-011). |
 | Store candidate digest is stale | Not detected; the owner cross-checks it (SRR-V1-004, open). |
+| Output file already exists | Build mode refuses, reporting the existing record, and leaves it unchanged (SRR-V1-012). |
+| Output file name is empty, `.` or `..`, or its temporary name would exceed 255 bytes | Build mode refuses before building; nothing is written (SRR-V1-012). |
+| Output path is inside the candidate or the source root | Build mode refuses before building; nothing is written there. A symlink alias is caught; a mount alias of a directory below a root (bind mount, `subst` drive, network mount) is outside the guard (SRR-V1-011, 012). |
+| Output directory does not resolve: it is missing, or passes through a file, a Windows junction or volume mount point, or a missing Windows drive | Build mode refuses before building, naming the directory as spelled; nothing is written (SRR-V1-012). |
+| Output directory as spelled does not open the resolved directory: a symlink chain longer than the kernel follows, or a spelled link or the resolved directory replaced between resolving and opening | Build mode refuses before building; nothing is written (SRR-V1-012). |
+| An ancestor of the output directory is swapped for a link into a root before opening, whether or not it is swapped back | Build mode refuses before building: the directory is resolved again after opening and the settled path's parents are compared; nothing is written (SRR-V1-012). |
+| A concurrent writer that controls an ancestor of a root, or a directory inside one, moves directories during the check | Not detected, a non-goal: such a writer can already replace the root or write inside it (SRR-V1-012). |
+| A path component of the output directory is replaced by a symlink during the build | The record is written through the directory handle opened before the check, never through the new link (SRR-V1-012). |
+| Output directory's filesystem has no hard links | Build mode refuses, reporting a failed publication, and removes its temporary file; no record is published (SRR-V1-012). |
+| Evidence file has CRLF endings, a reason that is invalid UTF-8 or carries a hidden character, or a reason with no letter or digit | CRLF is read as LF; a reason with invalid UTF-8 or a hidden character, a variation selector or a joiner included, is refused on every row; a reason with no letter or digit explains nothing, so NOT_RUN or FALLBACK without a decision is refused (SRR-V1-006). |
+| Record relabels a supplied row, such as FAIL evidence as PASS | Verify mode refuses: the rows differ from the evidence file (SRR-V1-012). |
 
 ## Acceptance and rollback
 
-SRR-V1-001 to SRR-V1-011 are covered by the focused tests below, which run against a git fixture
+SRR-V1-001 to SRR-V1-012 are covered by the focused tests below, which run against a git fixture
 and a Core-only 1.0.0-rc.1 candidate fixture. Decision 0422 accepts this spec, and decision 0420 is
-accepted. No release uses the record until SRR-V1-012 is implemented with its own tests.
+accepted. No release has used the record yet; its first use is the `1.0.0-rc.1` candidate.
 
-Rollback deletes `internal/releasecandidate/readiness.go` and its test, and inlines
-`runSourceGit` back into `sourceBuildNumber`. No record, candidate, store or wire state depends on
-the package yet.
+Rollback deletes `cmd/corvint-readiness-record`, `internal/releasecandidate/readiness.go` and
+their tests, and inlines `runSourceGit` back into `sourceBuildNumber`. No record, candidate, store or
+wire state depends on the package yet.
 
 ## Traceability
 
@@ -149,5 +211,5 @@ the package yet.
 | SRR-V1-008 | `readiness.go` (`readinessVulnerability`, `requireDirectives`, `vulnerabilityStatus`) | TestSRRV1008VulnerabilityRuleIsRequireFreeAndPinnedToolchain |
 | SRR-V1-009 | `readiness.go` (`readinessRules`, `fixedRule`) | TestSRRV1009PolicyRowsFollowDecision0420 |
 | SRR-V1-010 | `readiness.go` (`fixedRule`, `validateReadinessRow`) | TestSRRV1010OwnerActionsStayNotRun |
-| SRR-V1-011 | `readiness.go` (no writer) | TestSRRV1011BuildAndVerifyWriteNothing |
-| SRR-V1-012 | accepted shape (decision 0422); no implementation | none until implemented |
+| SRR-V1-011 | `readiness.go` (no writer), `candidate.go` (`runSourceGit`) | TestSRRV1011BuildAndVerifyWriteNothing, TestSRRV1011SourceGitHasNoCredentialHelperOrTransport |
+| SRR-V1-012 | `readiness.go` (`ReadReadinessEvidence`, `WriteReadinessRecord`, `outputName`, `physical`, `unresolvedDirectory`, `sameDirectory`, `within`, `publishNoReplace`, `linkFailure`, `createTemporary`, `temporaryName`, `VerifyReadinessFile`), `cmd/corvint-readiness-record/main.go` | TestSRRV1012EvidenceFileAndNoReplaceRecord, TestSRRV1012ModesTakeTheirOwnFlagsOnly, TestSRRV1012ReportNamesRecordAndEveryRow |

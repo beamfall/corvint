@@ -253,11 +253,11 @@ requirements below have evidence. File existence is not parity.
   truncation then makes evidence *content* depend on index build order rather than on the repository.
   Observed byte parity on named Corvint and Beamfall fixtures is dogfood
   evidence, not universal Python parity or authority to cut over the production `corvint` command.
-  Amendment (proposed, decision 0398; V1-0339): the aggregate-bound refusal keeps its code and
-  names no language. Its message states the admitted source bytes, the file count, the total with
-  the per-file framing allowance, the 128 MiB bound, and the remedy that paths under `vendor/`,
-  `node_modules/`, `dist/`, `build/`, `target/` or `generated/` are not admitted (`IDX-SNAP-V0-018`).
-  The `feature` and query paths rename only its leading subject.
+  Amendment (accepted 2026-09-26, decision 0424; from decision 0398; V1-0339): the aggregate-bound refusal names no language.
+  Its message states the admitted source bytes, the file count, the total with the per-file framing allowance, the 128 MiB
+  bound, and the remedy that paths under `vendor/`, `node_modules/`, `dist/`, `build/`, `target/` or `generated/` are not
+  admitted (`IDX-SNAP-V0-018`). Each path keeps its own code (impact `unsupported-impact-repository`, `feature` `unsupported-feature-repository`,
+  query `unsupported-query-repository`) and replaces only the subject `repository index` with `feature index`, `query index` or `authority-start query index`.
 - `GPK-V0-028`: Before the complete Phase 2 query port, `corvint` MAY expose one experimental
   authority-start `query` slice for immediate agent-task orientation. The only supported success
   profile is Darwin or Linux; a UTF-8 task of 1--8,000 characters (decision 0023; the oracle stops
@@ -1075,7 +1075,7 @@ must be added to the traceability and compatibility ledgers before the slice can
   This is `python-defect` under `GPK-V0-033` and known-divergent: the oracle's per-line
   `_go_symbols` (`src/context_corvint_index.py` (historical Git `9ca27f9a62a2add263ff559fd711feea5cdfd93d`, lines 1058)) emits nothing for a name declared inside a
   group, which contradicts this clause, and the candidate's `go/parser` scan
-  (`internal/contextindex/parse.go:295`) satisfies it unchanged. `src/` is NOT repaired: the oracle
+  (`internal/contextindex/parse.go:300`) satisfies it unchanged. `src/` is NOT repaired: the oracle
   is frozen, and the divergence is recorded rather than closed. It changes no contract metric --
   0/31 critical misses and recall 1.0 hold under both engines -- and moves only non-critical ranked
   selectors on the cobra active-help and Beamfall exact-feature-pairing cases.

@@ -99,7 +99,7 @@ for my $file (tracked_spec_docs()) {
         if ($line =~ /^(#{1,6})\s+(.+)/) {
             my ($next_level, $title) = (length($1), $2);
             $active = 0 if $active && $next_level <= $level;
-            ($active, $level) = (1, $next_level) if $title =~ /traceability/i;
+            ($active, $level) = (1, $next_level) if !$active && $title =~ /traceability/i;
             next;
         }
         next unless $active && $line =~ /^\s*\|/;

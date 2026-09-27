@@ -2,16 +2,24 @@ package releasecandidate
 
 import (
 	"bytes"
+	"cmp"
 	"context"
+	"crypto/rand"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
+	"syscall"
+	"unicode"
+	"unicode/utf8"
 )
 
-// The stable-readiness record (SRR-V1, proposed under decision 0420) binds one
+// The stable-readiness record (SRR-V1, accepted by decision 0422) binds one
 // verified Core candidate to operator-supplied gate, platform, compliance,
 // external and policy evidence digests before any tag or publication. It
 // never runs a gate: missing evidence is recorded as NOT_RUN, never PASS.
@@ -22,10 +30,14 @@ const (
 	firstStableCandidate = "1.0.0-rc.1"
 )
 
+// openOutputDirectory and temporaryText are indirect so a test can change a
+// path between resolving and opening it, and choose the temporary name.
 var (
 	decisionPattern     = regexp.MustCompile(`^[0-9]{4}$`)
 	storeReleasePattern = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 	goToolchainProbe    = probeLocalToolchain
+	openOutputDirectory = os.OpenRoot
+	temporaryText       = rand.Text
 )
 
 type ReadinessRecord struct {
@@ -262,7 +274,7 @@ func readinessRows(rules []readinessRule, evidence map[string]ReadinessEvidence)
 	}
 	for id := range evidence {
 		if rule, known := byID[id]; !known || rule.fixed {
-			return nil, fmt.Errorf("readiness row %s does not take operator evidence", id)
+			return nil, fmt.Errorf("readiness row %q does not take operator evidence", id)
 		}
 	}
 	rows := make([]ReadinessRow, 0, len(rules))
@@ -296,9 +308,13 @@ func readinessRow(rule readinessRule, evidence map[string]ReadinessEvidence) (Re
 // digest; NOT_RUN carries none and names its decision or reason; FALLBACK is
 // admitted only on platform rows and also names its decision or reason. A
 // platform row is never NOT_RUN, and a platform row whose default names a
-// decision keeps that decision while it falls back (SRR-V1-007).
+// decision keeps that decision while it falls back (SRR-V1-007). Every row's
+// reason must be legible, and only a reason with a letter or digit explains.
 func validateReadinessRow(rule readinessRule, row ReadinessRow) error {
-	explained := row.Decision != "" || row.Reason != ""
+	if !legible(row.Reason) {
+		return fmt.Errorf("readiness row %s has a reason with an invalid or hidden character", rule.id)
+	}
+	explained := row.Decision != "" || strings.IndexFunc(row.Reason, meaningful) >= 0
 	valid := map[string]bool{
 		"PASS":     digestPattern.MatchString(row.SHA256),
 		"FAIL":     digestPattern.MatchString(row.SHA256),
@@ -386,4 +402,302 @@ func verifyReadinessEvidence(rows []ReadinessRow, evidence map[string]string) er
 		}
 	}
 	return nil
+}
+
+// ReadReadinessEvidence parses the operator evidence file (SRR-V1-012): one
+// row per line, ROW<TAB>STATUS<TAB>PATH<TAB>DECISION<TAB>REASON, with absent
+// values left empty. A relative PATH is appended to the file's directory as
+// spelled, not cleaned, so the kernel resolves a ".." after the symlinks before
+// it, as opening the path would. A CRLF line ending is read as LF.
+func ReadReadinessEvidence(path string) (map[string]ReadinessEvidence, error) {
+	raw, err := readRegular(path, maxInputBytes)
+	if err != nil {
+		return nil, err
+	}
+	directory, _ := filepath.Split(path)
+	evidence := map[string]ReadinessEvidence{}
+	number := 0
+	for line := range strings.Lines(string(raw)) {
+		number++
+		fields := strings.Split(strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r"), "\t")
+		if len(fields) != 5 {
+			return nil, fmt.Errorf("evidence file line %d does not have five tab-separated fields", number)
+		}
+		if _, duplicate := evidence[fields[0]]; duplicate {
+			return nil, fmt.Errorf("evidence file names row %q twice", fields[0])
+		}
+		location := fields[2]
+		if location != "" && !filepath.IsAbs(location) {
+			location = directory + location
+		}
+		evidence[fields[0]] = ReadinessEvidence{Status: fields[1], Path: location, Decision: fields[3], Reason: fields[4]}
+	}
+	return evidence, nil
+}
+
+// WriteReadinessRecord builds the record and publishes it at output. An
+// existing output is refused, never replaced, and so is an output inside the
+// candidate or the source root, which build must not write (SRR-V1-011,
+// SRR-V1-012). A file name the record cannot be published under is refused
+// before the build. The output's directory is resolved and opened once before
+// the guard, and the write goes through that handle, so a path component
+// replaced during the build cannot redirect it. After the open the directory is
+// resolved again, that settled path must still be the handle's, and the guard
+// walks it, so an ancestor swapped for a link before the open is walked through
+// the link's target.
+func WriteReadinessRecord(ctx context.Context, options ReadinessOptions, output string) (*ReadinessRecord, error) {
+	spelled, name := filepath.Split(output)
+	if err := outputName(name); err != nil {
+		return nil, err
+	}
+	directory, err := physical(spelled)
+	if err != nil {
+		return nil, unresolvedDirectory(cmp.Or(spelled, "."), err)
+	}
+	handle, err := openOutputDirectory(directory)
+	if err != nil {
+		return nil, err
+	}
+	defer handle.Close()
+	if err := sameDirectory(handle, directory, cmp.Or(spelled, ".")); err != nil {
+		return nil, err
+	}
+	settled, err := filepath.EvalSymlinks(directory)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errOutputDirectory, err)
+	}
+	if err := sameDirectory(handle, settled, cmp.Or(spelled, ".")); err != nil {
+		return nil, err
+	}
+	if err := refuseInside(output, settled, options.CandidateDirectory, options.SourceRoot); err != nil {
+		return nil, err
+	}
+	record, raw, err := BuildReadinessRecord(ctx, options)
+	if err != nil {
+		return nil, err
+	}
+	return record, publishNoReplace(handle, name, raw)
+}
+
+// errOutputDirectory refuses an output whose directory, as spelled, is not the
+// directory that was resolved, checked and opened for the write.
+var errOutputDirectory = errors.New("readiness record directory as spelled is not the directory resolved for the write")
+
+// sameDirectory refuses unless the resolved directory, taken as it stands, and
+// the directory as spelled are the directory the handle holds. EvalSymlinks
+// follows up to 255 links but the kernel far fewer, so a long chain can resolve
+// while the spelled path, which the command reports, cannot be opened. A
+// Windows junction never reaches this check: physical refuses it.
+func sameDirectory(handle *os.Root, directory, spelled string) error {
+	opened, err := handle.Stat(".")
+	if err != nil {
+		return err
+	}
+	resolved, resolvedErr := os.Lstat(directory)
+	reached, reachedErr := os.Stat(spelled)
+	if err := errors.Join(resolvedErr, reachedErr); err != nil {
+		return fmt.Errorf("%w: %w", errOutputDirectory, err)
+	}
+	if !os.SameFile(opened, resolved) || !os.SameFile(opened, reached) {
+		return fmt.Errorf("%w: %s", errOutputDirectory, spelled)
+	}
+	return nil
+}
+
+// hiddenCharacters are the classes a reason must not carry, because they can
+// hide, reorder or blank what it says: controls, format characters, line and
+// paragraph separators, private-use code points, noncharacters, variation
+// selectors, and code points that render as nothing.
+var hiddenCharacters = []*unicode.RangeTable{unicode.Cc, unicode.Cf, unicode.Zl, unicode.Zp, unicode.Co, unicode.Noncharacter_Code_Point, unicode.Variation_Selector, unicode.Other_Default_Ignorable_Code_Point}
+
+// legible reports whether a reason is valid UTF-8 with no hidden character.
+func legible(reason string) bool {
+	return utf8.ValidString(reason) && strings.IndexFunc(reason, hidden) < 0
+}
+
+func hidden(r rune) bool { return unicode.IsOneOf(hiddenCharacters, r) }
+
+// meaningful is a letter or a digit; a reason with neither explains nothing.
+func meaningful(r rune) bool { return unicode.IsLetter(r) || unicode.IsNumber(r) }
+
+// physical returns directory as an absolute path free of symlinks. A relative
+// directory is appended to the working directory's own resolved path, and every
+// component, ".." included, is resolved in order as a write resolves it. A
+// directory rooted on a drive or a separator but not absolute (Windows "C:x"
+// or "\x") is refused rather than guessed. Go reads a Windows junction or
+// volume mount point as neither a directory nor a symlink, so EvalSymlinks
+// fails with ENOTDIR at one that has a component or a separator after it. The
+// directory filepath.Split leaves ends in a separator, so every junction on an
+// output directory fails here.
+func physical(directory string) (string, error) {
+	if filepath.IsAbs(directory) {
+		return filepath.EvalSymlinks(directory)
+	}
+	if filepath.VolumeName(directory) != "" || strings.HasPrefix(filepath.ToSlash(directory), "/") {
+		return "", errors.New("rooted but not absolute")
+	}
+	working, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	working, err = filepath.EvalSymlinks(working)
+	if err != nil {
+		return "", err
+	}
+	return filepath.EvalSymlinks(working + string(filepath.Separator) + directory)
+}
+
+// unresolvedDirectory names the output directory, as spelled, that physical
+// could not resolve. On Windows, ENOTDIR is ERROR_PATH_NOT_FOUND, which reads
+// "The system cannot find the path specified" and is also what a missing drive
+// gives, so the possible causes are named here.
+func unresolvedDirectory(spelled string, err error) error {
+	if errors.Is(err, syscall.ENOTDIR) {
+		return fmt.Errorf("readiness record directory %s does not resolve as a directory: it passes through a file, a Windows junction or volume mount point, or a missing Windows drive: %w", spelled, err)
+	}
+	return fmt.Errorf("readiness record directory %s does not resolve: %w", spelled, err)
+}
+
+func refuseInside(output, directory string, roots ...string) error {
+	for _, root := range roots {
+		inside, err := within(directory, root)
+		if err != nil {
+			return err
+		}
+		if inside {
+			return fmt.Errorf("readiness record %s is inside %s, which build must not write", output, root)
+		}
+	}
+	return nil
+}
+
+// within reports whether directory, an absolute path free of symlinks, is root
+// or lies below it. It compares file identity at each parent, so a symlink or a
+// case alias of root cannot hide the overlap. A mount alias of a directory
+// below root (a bind mount, a Windows subst drive, a network mount) has its own
+// parents, so it is outside this guard. The parents are found by path, not
+// from an open handle, because os.Root cannot open a handle's parent and Go has
+// no portable openat. The caller resolves directory after opening it and checks
+// it against the handle, so an ancestor swapped for a link before the open is
+// walked through its target. A writer that controls an ancestor of root itself
+// is outside this guard.
+func within(directory, root string) (bool, error) {
+	rootInfo, err := os.Stat(root)
+	if err != nil {
+		return false, nil
+	}
+	for {
+		info, err := os.Stat(directory)
+		if err != nil {
+			return false, err
+		}
+		if os.SameFile(info, rootInfo) {
+			return true, nil
+		}
+		parent := filepath.Dir(directory)
+		if parent == directory {
+			return false, nil
+		}
+		directory = parent
+	}
+}
+
+// publishNoReplace writes raw to a temporary file in the directory handle and
+// hard-links it to name there, so an existing file is refused and a partial
+// record never appears at name. Every step goes through the handle.
+func publishNoReplace(handle *os.Root, name string, raw []byte) error {
+	path := filepath.Join(handle.Name(), name)
+	temporary, file, err := createTemporary(handle, name)
+	if err != nil {
+		return err
+	}
+	defer handle.Remove(temporary)
+	_, writeErr := file.Write(raw)
+	syncErr := file.Sync()
+	closeErr := file.Close()
+	if err := errors.Join(writeErr, syncErr, closeErr); err != nil {
+		return err
+	}
+	if err := handle.Link(temporary, name); err != nil {
+		return linkFailure(path, err)
+	}
+	return nil
+}
+
+// linkFailure words a refused publication by its cause: a file already at
+// path, which is kept, or any other link error, such as a filesystem without
+// hard links.
+func linkFailure(path string, err error) error {
+	if errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("readiness record %s already exists and was not replaced: %w", path, err)
+	}
+	return fmt.Errorf("readiness record %s was not published: linking its temporary file failed: %w", path, err)
+}
+
+// temporaryAttempts bounds the random names tried for the temporary file.
+const temporaryAttempts = 16
+
+// maxNameBytes is NAME_MAX on Linux and macOS. A name within it also fits the
+// 255 UTF-16 units Windows allows.
+const maxNameBytes = 255
+
+// outputName refuses a file name the record cannot be published under: none,
+// a dot entry, or one whose temporary name would exceed maxNameBytes.
+func outputName(name string) error {
+	if slices.Contains([]string{"", ".", ".."}, name) {
+		return fmt.Errorf("readiness record file name %q is empty or a dot entry", name)
+	}
+	if len(temporaryName(name)) > maxNameBytes {
+		return fmt.Errorf("readiness record file name %s is too long: its temporary name would exceed %d bytes", name, maxNameBytes)
+	}
+	return nil
+}
+
+// temporaryName is a random hidden name beside name.
+func temporaryName(name string) string { return "." + name + "." + temporaryText() }
+
+// createTemporary creates a new file with a random name beside name,
+// refusing any name that already exists.
+func createTemporary(handle *os.Root, name string) (string, *os.File, error) {
+	for range temporaryAttempts {
+		temporary := temporaryName(name)
+		file, err := handle.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		if errors.Is(err, os.ErrExist) {
+			continue
+		}
+		return temporary, file, err
+	}
+	return "", nil, fmt.Errorf("readiness record %s: no unused temporary name", name)
+}
+
+// VerifyReadinessFile verifies the record at path, then refuses rows that
+// differ from the rows the evidence file builds, so a record cannot relabel
+// its evidence (a FAIL log as PASS, say) and still verify (SRR-V1-012).
+func VerifyReadinessFile(ctx context.Context, path, candidateDirectory string, evidence map[string]ReadinessEvidence) (*ReadinessRecord, error) {
+	raw, err := readRegular(path, maxInputBytes)
+	if err != nil {
+		return nil, err
+	}
+	record, err := VerifyReadinessRecord(ctx, raw, candidateDirectory, evidencePaths(evidence))
+	if err != nil {
+		return nil, err
+	}
+	rows, err := readinessRows(readinessRules(record.Identity.Version), evidence)
+	if err != nil {
+		return nil, err
+	}
+	if !reflect.DeepEqual(rows, record.Rows) {
+		return nil, fmt.Errorf("readiness record rows differ from the evidence file")
+	}
+	return record, nil
+}
+
+func evidencePaths(evidence map[string]ReadinessEvidence) map[string]string {
+	paths := map[string]string{}
+	for id, supplied := range evidence {
+		if supplied.Path != "" {
+			paths[id] = supplied.Path
+		}
+	}
+	return paths
 }

@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `CCF-V1`
-Intent status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401
+Intent status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424
 Delivery status: experimental
 Authoritative inputs: ticket V1-0007, accepted decision 0332 (the Core set), decision 0358, `AGENTS.md` invariants 1, 2, 4 and 8,
 `conformance/cli-parity-v0/manifest.json`, and the owning specs of each Core verb listed in CCF-V1-002.
 
 ## Agent digest
 - Claim: The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.
-- Status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; experimental delivery; the Core set is taken from accepted decision 0332
+- Status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; experimental delivery; the Core set is taken from accepted decision 0332
 - Exists: this contract, decision 0358, the root-help `Command maturity:` section (`commandMaturityHelp`), `cmd/corvint/core_freeze_test.go` and its per-mode goldens in `cmd/corvint/testdata/core-freeze/`
 - Blocked on: pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
 - Read next: Requirements; Breaking-change rule; Traceability
@@ -208,8 +208,8 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 
   | Member | `tool` | Values | Status | Source |
   |---|---|---|---|---|
-  | `state` | `context` | `READY`, `NO_CANDIDATES` | closed | `internal/contextindex/taskcontext.go:1949@3f21cab9` |
-  | `coverage.governance` | `context` | `reserved`, `spec-mentioned`, `unresolved` | closed | `internal/contextindex/taskcontext.go:1714@9847248b` |
+  | `state` | `context` | `READY`, `NO_CANDIDATES` | closed | `internal/contextindex/taskcontext.go:1954@3f21cab9` |
+  | `coverage.governance` | `context` | `reserved`, `spec-mentioned`, `unresolved` | closed | `internal/contextindex/taskcontext.go:1719@9847248b` |
   | `coverage.budget_shortage` | `context` | `slots`, `work`, `none` | closed | TCP-V0-011 |
   | `coverage.unexamined[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed`, `pair`, `mentioned`, `definition`, `reverse-import`, `reference`, `cochange`, `sibling`, `test`, `lexical`, `documentation` | open | TCP-V0-011 |
   | `coverage.unexamined[].state` | `context` | `examined`, `capped`, `empty-history`, `subject-absent`, `subject-symbols-incomplete`, `not-applicable` | closed | TCP-V0-011 |
@@ -223,7 +223,7 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   | `advice.status` | `affected` | `PLAN_ONLY` | closed | `cmd/corvint/affected.go:112@7320d4cb` |
   | `provider.go.state` | `affected` | `RUNNABLE`, `EMPTY_SELECTION`, `MODULE_PATH_UNRESOLVED`, `PACKAGE_BOUND_EXCEEDED` | closed | `cmd/corvint/affected.go:131@797e536b` |
   | `state` | `prove` | `READY`, `OUT_OF_SCOPE`, `NEEDS_WIDENING`, `BUDGETED`, `CRITICAL_EVIDENCE_OVERFLOW`, `WORKTREE_EVIDENCE`, `PARTIAL`, `CITED`, `UNPROVEN` | closed | `cmd/corvint/prove.go:1697@b984fed9` |
-  | `coverage.answerability.verdict` | `context` | `no-specific-terms`, `relations-answer`, `unsupported-conjunction`, `not-withheld`, `supported` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/taskcontext.go:2807@c020e4b8` |
+  | `coverage.answerability.verdict` | `context` | `no-specific-terms`, `relations-answer`, `unsupported-conjunction`, `not-withheld`, `supported` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/taskcontext.go:2812@c020e4b8` |
   | `context.intent.id` | `query` | `repository`, `project-operations`, `agent-tooling` | open | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/query.go:201@56442382` |
   | `context.intent.confidence` | `query` | `default`, `high` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/eval_query.go:488@1f684e46` |
   | `context.learning.local_trace_state` | `query` | `absent`, `ready`, `blocked-mixed-worktree` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/eval_query.go:62@4b83d4fe` |
@@ -240,8 +240,8 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   | `proof.rows[].falsified` | `prove` | `PASS`, `FAIL`, `NOT_RUN` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `cmd/corvint/prove.go:48@7313a787` |
   | `proof.affected.scope` | `prove` | `BOUNDED`, `UNKNOWN` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `cmd/corvint/prove.go:671@f6741c9b`, `internal/liveverify/affected/select.go:55@884d7796` |
   | `context.exclusions.samples[].reason` | `query`, `impact` | `unsafe-or-non-utf8-path`, `vendor/build excluded`, `protected path`, `generated path`, `source exceeds size bound`, `generated-file header excluded`, `git-lfs pointer, content not in the tree` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/git.go:364@56698a09`, `internal/contextindex/index.go:1310@f6b4c05b`, `internal/contextindex/index.go:1314@14914a09`, `internal/contextindex/index.go:1317@f91f4e9c`, `internal/contextindex/index.go:506@4b59a221`, `internal/contextindex/index.go:692@e27ec283`, `internal/contextindex/index.go:34@b7c4315f` |
-  | `coverage.critical[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/taskcontext.go:1796@f3806eef`, `internal/contextindex/taskcontext.go:199@7b32d74a`, `internal/contextindex/taskcontext.go:200@4da20476`, `internal/contextindex/taskcontext.go:201@73a4650c` |
-  | `coverage.critical_missing[].relation` | `context` | `spec-mentioned`, `instruction-routed` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/taskcontext.go:1796@f3806eef`, `internal/contextindex/taskcontext.go:200@4da20476`, `internal/contextindex/taskcontext.go:201@73a4650c` |
+  | `coverage.critical[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/taskcontext.go:1801@f3806eef`, `internal/contextindex/taskcontext.go:199@7b32d74a`, `internal/contextindex/taskcontext.go:200@4da20476`, `internal/contextindex/taskcontext.go:201@73a4650c` |
+  | `coverage.critical_missing[].relation` | `context` | `spec-mentioned`, `instruction-routed` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/taskcontext.go:1801@f3806eef`, `internal/contextindex/taskcontext.go:200@4da20476`, `internal/contextindex/taskcontext.go:201@73a4650c` |
 
   The `graph` relation that the experimental `CORVINT_CONTEXT_GRAPH=on` switch appends
   (`internal/contextindex/ppr.go:43@fd7e5f2f`) is outside the frozen default mode. So is the `prove --cem` state
@@ -275,16 +275,16 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   `governing` is never missing: it is reserved first, graph rows are placed after it, and truncation
   keeps a prefix of at least one row. Both rows are `open`: a reader decides on
   `exclusions.count` and `coverage.governance`, not on a reason or a relation. A critical row carries
-  no `trust` member (`internal/contextindex/taskcontext.go:1796@f3806eef`). Commit 53c02369 (panel B9,
+  no `trust` member (`internal/contextindex/taskcontext.go:1801@f3806eef`). Commit 53c02369 (panel B9,
   IDX-SNAP-V0-024) added `unsafe-or-non-utf8-path` after 0.8.1, which refused a repository with such
   a path (`git show v0.8.1:internal/contextindex/git.go`, line 384); under the `open` status that
   addition is compatible. NOT_PRODUCED: the `relation` and `trust` of `coverage.governance_refused`,
   because no generator writes such a row. `compiler.reserved` is set only from `reservedRows`
-  (`internal/contextindex/taskcontext.go:1226@fa0fd17b`), whose rows carry the authorities
+  (`internal/contextindex/taskcontext.go:1231@fa0fd17b`), whose rows carry the authorities
   `project-instructions`, `instruction-reference` and `repository-spec`
-  (`internal/contextindex/taskcontext.go:1290@f63e111d`,
-  `internal/contextindex/taskcontext.go:1389@2b27d92a`,
-  `internal/contextindex/taskcontext.go:1567@fb467aad`).
+  (`internal/contextindex/taskcontext.go:1295@f63e111d`,
+  `internal/contextindex/taskcontext.go:1394@2b27d92a`,
+  `internal/contextindex/taskcontext.go:1572@fb467aad`).
   `trustByAuthority` maps all three to `project-authority`
   (`internal/contextindex/trust.go:30@85e0d739`, `internal/contextindex/trust.go:31@cf0b32e7`,
   `internal/contextindex/trust.go:32@5fc23f25`), which is not
@@ -303,10 +303,12 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   and carry the same CCF-V1-002 identifiers. Every member path it emits, arrays spread, MUST be emitted
   here with the same JSON type. Every value it writes at a registered path MUST be a value of this
   register. `index --if-stale` on a fresh snapshot is skipped: its setup writes the snapshot with this
-  build, and an engine mismatch is a miss by design under (a). The target is opt-in, like
-  `companion-release-gate`: release-runbook step 8 runs it, and it is not a `make gate` prerequisite.
-  Making it one is an owner decision. This replaces the second NOT_PRODUCED above. A member, value or
-  order that no fixture exercises stays unreplayed.
+  build, and an engine mismatch is a miss by design under (a). (accepted 2026-09-26, decision 0424)
+  `impact path non-utf8 source` is also skipped: 0.8.1 refuses a repository with a non-UTF-8 path,
+  and IDX-SNAP-V0-024 added the `unsafe-or-non-utf8-path` exclusion after that release. The target
+  is opt-in, like `companion-release-gate`: release-runbook step 8 runs it, and it is not a
+  `make gate` prerequisite. Making it one is an owner decision. This replaces the second NOT_PRODUCED
+  above. A member, value or order that no fixture exercises stays unreplayed.
 - **CCF-V1-008:** Root help MUST carry a `Command maturity:` section that lists the Core verbs of
   CCF-V1-001 and labels every other dispatched top-level verb `Experimental` with the requirement
   prefix of its owning spec, which `docs/specs/INDEX.json` MUST index. Every dispatched verb is exactly

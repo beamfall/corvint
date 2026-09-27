@@ -513,7 +513,9 @@ func (compiler *taskContextCompiler) mentionRows() []contextRow {
 }
 
 // mentionedPaths is the sorted tracked paths the task names by full path or
-// by an unambiguous basename.
+// by an unambiguous basename. A full tracked path is explicit whatever its
+// shape (`Dockerfile`, `.github/workflows/ci.yml`); only a basename must carry
+// a dot after its first byte, so a bare word never resolves as one.
 func (compiler *taskContextCompiler) mentionedPaths() []string {
 	byBase := map[string][]string{}
 	for candidate := range compiler.trackedPaths() {
@@ -523,6 +525,9 @@ func (compiler *taskContextCompiler) mentionedPaths() []string {
 	for _, token := range contextPathTokens(compiler.task) {
 		if _, tracked := compiler.trackedPaths()[token]; tracked {
 			mentioned = append(mentioned, token)
+			continue
+		}
+		if !strings.Contains(token, ".") || strings.HasPrefix(token, ".") {
 			continue
 		}
 		if owners := byBase[token]; len(owners) == 1 {
@@ -540,7 +545,7 @@ func contextPathTokens(task string) []string {
 		return r == ' ' || r == '\n' || r == '\t' || r == '`' || r == '"' || r == '\'' || r == '(' || r == ')' || r == ',' || r == ':'
 	}) {
 		token := strings.TrimRight(strings.TrimPrefix(field, "./"), ".;")
-		if !strings.Contains(token, ".") || strings.HasPrefix(token, ".") {
+		if token == "" {
 			continue
 		}
 		if _, ok := seen[token]; ok {

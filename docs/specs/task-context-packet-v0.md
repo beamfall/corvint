@@ -79,7 +79,10 @@ it must read, each with the relation that admitted it, without naming the task's
   `test-convention`, high, except that a counterpart found anywhere in the tree by stem alone is
   medium, decision 0026), `mentioned`
   (a tracked path the task names by full path or by an unambiguous basename, and that path's
-  counterparts; `task-text`, high), `definition` (a file whose indexed symbol defines an identifier
+  counterparts; `task-text`, high; a task token equal to a tracked path names it whatever its
+  shape, such as `Dockerfile` or `.github/workflows/ci.yml`, while a basename resolves only when it
+  carries a dot after its first byte, so a bare word never names a file; amended 2026-09-26,
+  V1-0365), `definition` (a file whose indexed symbol defines an identifier
   the task names: a backticked name, weighted three, or an unbackticked word shaped like code,
   with an underscore, a digit, or camelCase, never a plain prose word; rarer definers first, names
   with more than 50 definers ignored; `syntax`, high), `reverse-import` (the `impact` reverse-import rules applied
@@ -265,10 +268,10 @@ it must read, each with the relation that admitted it, without naming the task's
   TCP-V0-014 tree and edit2ripple recall@20 must stay at or above the grep arm's; either
   failure removes the slot.
   - (proposed, decision 0398; V1-0343) A link whose only fired signal is (c) is a candidate only
-    when it names two or more distinct declared names, or one name of two or more camel-split
-    tokens (`EncodeFrame`, `encode_frame`); one plain word such as `down` in a comment binds
-    nothing. Such a lexical-only row's action says to check the test and update it only if it
-    asserts on that name, not to update it.
+    when it names two or more distinct declared names, or one name of two or more camel-split tokens
+    (`EncodeFrame`, `encode_frame`); one plain word such as `down` in a comment binds nothing. Such
+    a lexical-only test row's action says to check the test and update it only if it asserts on that
+    name, not to update it.
 - `TCP-V0-017`: (proposed 2026-09-05, not accepted; experimental) `context` offers three read-only
   structural lookups over the index the packet reads, `corvint [--root PATH] context defs
   IDENTIFIER [--limit N]`, `context refs IDENTIFIER [--limit N]`, and `context grep TERM...
@@ -1115,7 +1118,7 @@ wire never changed.
 | TCP-V0-001 | `runTaskContext` (the tree's snapshot when `corvint index` wrote one, else one `contextindex.Build`; no writer, index-snapshot-v0) | `TestRunTaskContextIsReadOnlyAndKeepsTheSubjectOut` |
 | TCP-V0-002 | `parseTaskContextInvocation`, `TaskContext` (limit, task, subject checks) | `TestParseTaskContextInvocation`, `TestTaskContextRetrievalShapeAndNoCandidates` |
 | TCP-V0-003 | `taskContextCompiler.packet`, `rowAction`, `contextRow` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestTaskContextRowsCarryAnAction` |
-| TCP-V0-004 | `compile`, `corroborate`, `pairRows`, `pairConfidence`, `mentionRows`, `symbolRows`, `importerRows`, `referenceRows`, `subjectSymbols`, `readCoChangeHistory`, `dropGraftedCommits`, `cochangeCommitCap`, `cochangeRows`, `siblingRows`, `identifierEvidence`, `lexicalRows`, `buildTermTable`, `countTerms`, `scanWords` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestTaskContextAdmitsReverseImportersAndMentionedPaths`, `TestTaskContextAdmitsFilesNamingASubjectSymbol`, `TestTaskContextAdmitsCoChangedPathsAndIgnoresBulkCommits`, `TestTaskContextCochangeSkipsTheShallowBoundaryCommit`, `TestCochangeCommitCapTightensWithRepositoryAge`, `TestTaskContextRanksCorroboratedRowsFirst`, `TestTaskContextRetrievalShapeAndNoCandidates`, `TestCountTermsMatchesTheRegexTokeniser`, `TestLexicalRowsMatchWholeTokensFromTheTable`, `TestIdentifierEvidenceCountsWholeWordsByWeight`, `TestContextEqualIDFTestEvidenceIsStable` |
+| TCP-V0-004 | `compile`, `corroborate`, `pairRows`, `pairConfidence`, `mentionRows`, `mentionedPaths`, `contextPathTokens`, `symbolRows`, `importerRows`, `referenceRows`, `subjectSymbols`, `readCoChangeHistory`, `dropGraftedCommits`, `cochangeCommitCap`, `cochangeRows`, `siblingRows`, `identifierEvidence`, `lexicalRows`, `buildTermTable`, `countTerms`, `scanWords` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestTaskContextAdmitsReverseImportersAndMentionedPaths`, `TestTaskContextAdmitsExplicitExtensionlessAndDotPrefixedPaths`, `TestTaskContextAdmitsFilesNamingASubjectSymbol`, `TestTaskContextAdmitsCoChangedPathsAndIgnoresBulkCommits`, `TestTaskContextCochangeSkipsTheShallowBoundaryCommit`, `TestCochangeCommitCapTightensWithRepositoryAge`, `TestTaskContextRanksCorroboratedRowsFirst`, `TestTaskContextRetrievalShapeAndNoCandidates`, `TestCountTermsMatchesTheRegexTokeniser`, `TestLexicalRowsMatchWholeTokensFromTheTable`, `TestIdentifierEvidenceCountsWholeWordsByWeight`, `TestContextEqualIDFTestEvidenceIsStable` |
 | TCP-V0-005 | `take` (subject skipped), `packet` (`subject` member), `subjectEvidenceGap` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestRunTaskContextIsReadOnlyAndKeepsTheSubjectOut`, `TestTaskContextRetrievalShapeAndNoCandidates` |
 | TCP-V0-006 | `packet` (`state`, `coverage`) | `TestTaskContextRetrievalShapeAndNoCandidates` |
 | TCP-V0-007 | `runTaskContext` (`gokernel.CanonicalJSON`) | `TestRunTaskContextIsReadOnlyAndKeepsTheSubjectOut` |
@@ -1136,7 +1139,7 @@ wire never changed.
 | TCP-V0-022 | `configureContextAnchors`, `taskAnchors`, `anchorCandidates`, `countAnchor`, `anchorOccurrences`, `anchorReason`, `lexicalHits`, `queryTermGain` | `TestContextAnchorClassesMatchVerbatim`, `TestContextAnchorsExtractionBounds`, `TestContextAnchorsExplainAndNeverOutrankAuthority`, `TestContextAnchorsDefaultBytes` |
 | TCP-V0-023 | `trustByAuthority`, `TrustClass`, `TrustTainted`, `governanceRows`, `governanceRefused` (`internal/contextindex/trust.go`); the `trust` stamp in `taskContextCompiler.packet` | `TestTrustClassIsClosedAndDeterministic`, `TestTaskContextRowsCarryOneTrustClass`, `TestTaskContextGovernanceRefusesATaintedReservedRow`, `TestTaskContextWireIsAdditiveForAnOldConsumer`, `TestContextRecipeDefaultPathIsByteIdentical` (re-captured golden) |
 | TCP-V0-030 | `buildIdentGraph`, `identGraphDefiners`, `identGraphName`, `mergeIdentGraphArcs`, `identGraph.check`, `MarshalBinary`/`UnmarshalBinary` (`internal/contextindex/identgraph.go`); the `IdentGraph` member, `packSectionGraph` and the compile hooks | `TestIdentGraphIsDerivedDeterministicallyFromTheIndex`, `TestIdentGraphRefusesDamagedEncodings`, `TestIdentGraphNameEligibility`, `TestPackSnapshotDecodesEverySectionToTheGobValues`, `TestAnalyzerSchemaInputs` |
-| TCP-V0-031 | `placeGraphRows`, `graphFloor`, `graphHeld`, `takeGraph`, `graphCandidates`, `graphSeeds`, `personalizedPageRank`, `rankGraphNodes` (`internal/contextindex/ppr.go`) | `TestContextGraphSlotRanksFromTheTaskAnchors` |
+| TCP-V0-031 | `placeGraphRows`, `graphFloor`, `graphHeld`, `takeGraph`, `graphCandidates`, `graphSeeds`, `personalizedPageRank`, `rankGraphNodes` (`internal/contextindex/ppr.go`) | `TestContextGraphSlotRanksFromTheTaskAnchors`, `TestPersonalizedPageRankScansEachDegreeOnce`, `TestPersonalizedPageRankMatchesTheUnmemoizedWalk` |
 | TCP-V0-032 | `graphHops`, `graphRow`, `graphLine`, `graphAction` | `TestContextGraphSlotRanksFromTheTaskAnchors` |
 | TCP-V0-033 | the `identGraphMaxNodes`/`identGraphMaxArcs` bounds and `boundedIdentGraph` in `buildIdentGraph`, the push bound in `personalizedPageRank`, the abstention states in `placeGraphRows` | `TestIdentGraphBounds`, `TestIdentGraphBoundedSnapshotReloads`, `TestContextGraphSlotAbstains` |
 | TCP-V0-034 | `configureContextGraph`, `contextRelations` | `TestContextGraphDefaultBytes`, `TestContextGraphSlotRanksFromTheTaskAnchors`, `TestContextGraphSlotAbstains` |

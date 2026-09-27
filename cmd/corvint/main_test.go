@@ -725,8 +725,8 @@ func testFreshProcessCLICompatibilityEdgesHaveStableNativeResults(t *testing.T) 
 	}
 }
 
-// CCF-V1-004 (proposed, decision 0398): a repository or object-format refusal
-// keeps the oracle's message and adds its optional code.
+// CCF-V1-004 (accepted 2026-09-26, decision 0422; from decision 0398): a repository or
+// object-format refusal keeps the oracle's message and adds its optional code.
 func TestRepositoryFailureEnvelopeCarriesItsCode(t *testing.T) {
 	t.Parallel()
 	for _, failure := range []*gokernel.Error{

@@ -409,6 +409,7 @@ export function createCorvintRunner(options = {}) {
       let forceTimer
       let reapTimer
       let terminationCode
+      let leaderExited = false
       const child = spawn(binary, args, {
         cwd: root,
         detached: true,
@@ -417,6 +418,19 @@ export function createCorvintRunner(options = {}) {
         stdio: ["pipe", "pipe", "pipe"],
         windowsHide: true,
       })
+      // The leader's close does not end its group: a same-group descendant that ignored SIGTERM and
+      // closed its stdio still runs, so every completion first kills the owned group (V1-0371). A
+      // delivered SIGKILL or ESRCH confirms cleanup; Darwin also answers EPERM for a group whose
+      // members have all exited but are not yet reaped, which is benign only after the leader's exit.
+      const groupCleaned = () => {
+        if (!Number.isInteger(child.pid)) return true
+        try {
+          process.kill(-child.pid, "SIGKILL")
+          return true
+        } catch (error) {
+          return error?.code === "ESRCH" || (leaderExited && error?.code === "EPERM")
+        }
+      }
       const finish = (value) => {
         if (settled) return
         settled = true
@@ -424,7 +438,7 @@ export function createCorvintRunner(options = {}) {
         clearTimeout(forceTimer)
         clearTimeout(reapTimer)
         if (signal) signal.removeEventListener("abort", abort)
-        resolve(value)
+        resolve(groupCleaned() ? value : degradation(event, "corvint-process-cleanup-unconfirmed"))
       }
       const killGroup = (signalName) => {
         if (!Number.isInteger(child.pid)) return
@@ -455,6 +469,9 @@ export function createCorvintRunner(options = {}) {
         else signal.addEventListener("abort", abort, { once: true })
       }
       child.on("error", () => finish(degradation(event, "corvint-unavailable")))
+      child.once("exit", () => {
+        leaderExited = true
+      })
       child.stdout.on("data", (chunk) => {
         outputBytes += chunk.length
         if (outputBytes > MAX_OUTPUT_BYTES) {

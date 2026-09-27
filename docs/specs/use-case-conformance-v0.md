@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-23
-Intent status: proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332)
+Intent status: proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332) and UCV0-014 (decision 0424)
 Delivery status: experimental
 Authoritative inputs: `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
 `docs/specs/applied-intelligence-breakthroughs-v0.md`,
@@ -10,8 +10,8 @@ Authoritative inputs: `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
 
 ## Agent digest
 - Claim: Headline Corvint jobs remain UNPROVEN until each has complete content-addressed promotion evidence.
-- Status: proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332); experimental
-- Exists: `conformance/use-cases-v0/ledger.json` and deterministic validator; `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE` and `UC-EVIDENCE-CARRYING-COMPLETION` are `verified`/`VERIFIED` for releases including decision 0387, not for `0.8.1` (decision 0389); the other nineteen jobs stay `specified`/`UNPROVEN`.
+- Status: proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332) and UCV0-014 (decision 0424); experimental
+- Exists: `conformance/use-cases-v0/ledger.json` and deterministic validator; `UC-TASK-ORIENTATION` is `verified`/`VERIFIED` for releases including decision 0387, not for `0.8.1` (decision 0389); `UC-CHANGE-CONSEQUENCE` and `UC-EVIDENCE-CARRYING-COMPLETION` returned to `experimental`/`UNPROVEN` (V1-0341); the other nineteen jobs stay `specified`/`UNPROVEN`.
 - Blocked on: complete promotion receipts, Corvint and Beamfall dogfood, and sealed outcome benchmarks.
 - Read next: Verified current state; Status and claim model; Acceptance matrix.
 
@@ -144,9 +144,10 @@ cannot be interpreted as success.
   it adds the new rows as `specified`/`UNPROVEN` with no evidence. Historical readers reject `/1`;
   archives retain `/0` bytes instead of pretending forward compatibility. Evidence `/0` and
   result `/0` schemas, the six evidence classes, and promotion requirements remain unchanged by
-  this migration; `UCV0-014` and `UCV0-015` tighten promotion (proposed, decision 0398).
-- `UCV0-014`: (proposed 2026-09-25, not accepted; decision 0398, V1-0341) On a `verified` row, the
-  runner MUST derive each dogfood receipt's `PASS` from its retained report subjects instead of
+  this migration; `UCV0-014` (accepted 2026-09-26, decision 0424; from decision 0398) and `UCV0-015`
+  (proposed, decision 0398) tighten promotion.
+- `UCV0-014`: (accepted 2026-09-26, decision 0424; from decision 0398; V1-0341) On a `verified` row,
+  the runner MUST derive each dogfood receipt's `PASS` from its retained report subjects instead of
   trusting the attested token. At least one subject MUST be a recognized report, and every
   recognized report MUST pass: a tool packet (non-empty `tool`) needs `ok` true, `context.state`
   `READY` and no active `context.abstention`; a `corvint-dogfood-change/0` report needs `complete`

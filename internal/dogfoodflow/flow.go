@@ -19,6 +19,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
 // ErrInterrupted reports that the context ended before the flow finished; the
@@ -135,12 +137,13 @@ func (f *flow) say(format string, values ...any) {
 	_, _ = fmt.Fprintf(f.stderr, format, values...)
 }
 
-// git runs one Git command in the repository and returns its stdout and exit
-// status; its stderr reaches the caller unless quiet.
+// git runs one Git read in the repository under Core's sanitized Git
+// environment, with no credential helper and no transport, and returns its
+// stdout and exit status; its stderr reaches the caller unless quiet.
 func (f *flow) git(quiet bool, args ...string) (string, int) {
 	var stdout bytes.Buffer
-	command := exec.CommandContext(f.ctx, "git", append([]string{"-C", f.root}, args...)...)
-	command.Env = append(os.Environ(), "LC_ALL=C", "GIT_NO_LAZY_FETCH=1", "GIT_ALLOW_PROTOCOL=")
+	command := exec.CommandContext(f.ctx, "git", append([]string{"-C", f.root, "-c", "credential.helper="}, args...)...)
+	command.Env = gokernel.SanitizedGitEnvironment()
 	command.Stdout = &stdout
 	if !quiet {
 		command.Stderr = f.stderr

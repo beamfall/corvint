@@ -28,6 +28,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/procgroup"
 )
 
@@ -166,8 +167,12 @@ func querySummary(request Request, seeds []string) map[string]any {
 	return map[string]any{"provider": ProviderID, "sha256": hex.EncodeToString(digest[:]), "seeds": seeds, "bounds": bounds}
 }
 
+// rootCommit reads the revision's root commit under Core's sanitized Git
+// environment, with no credential helper and no transport, so replace refs,
+// ambient configuration and a promisor remote cannot change the origin.
 func rootCommit(ctx context.Context, root, revision string) (string, error) {
-	command := exec.CommandContext(ctx, "git", "-C", root, "rev-list", "--max-parents=0", revision)
+	command := exec.CommandContext(ctx, "git", "-C", root, "-c", "credential.helper=", "rev-list", "--max-parents=0", revision)
+	command.Env = gokernel.SanitizedGitEnvironment()
 	output, err := command.Output()
 	if err != nil {
 		return "", err

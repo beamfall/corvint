@@ -51,17 +51,17 @@ set -eu
 # `script/check-decision-numbers.sh` already uses. A dirty worktree therefore cannot change
 # this gate's result in either direction; `git add` is what publishes a change to it.
 #
-# `docs/BUILD-LOG.md` and every `docs/agent-memory/*.md` backlog file are written
-# newest-entry-on-top: prepending an entry shifts every existing line down, so a bare line
-# citation into one of them (from any other document) is wrong the moment the next entry
-# lands, and the three checks above cannot see it -- the old line number still exists, still
-# resolves to a real line, and is rarely blank. A citation into one of these files is
-# therefore REQUIRED to carry the `@<hash>` content anchor described above (`--hash
-# docs/agent-memory/fixes.md:108-110`, say); an unpinned one is now a failure. This reuses
-# the anchor check as the drift detector: the pin fails the next time the file is prepended,
-# forcing a repin (and a read) instead of silently citing the wrong entry. Self-citation
-# (a citation inside `docs/BUILD-LOG.md` pointing at `docs/BUILD-LOG.md` itself, or inside a
-# given `docs/agent-memory/X.md` pointing at that same `X.md`) is exempt from this rule.
+# `docs/BUILD-LOG.md` was appended to, apart from a few entries inserted at its top, and decision
+# 0423 closes it to new entries, which go to write-once `docs/build-log/` files; every
+# `docs/agent-memory/*.md` backlog lists entries newest first and removes them when done. A bare
+# line citation into one of them (from any other document) names a position, not an entry, and
+# the three checks above cannot see an in-place edit, a removal or an out-of-order insertion move
+# the text under it. A citation into one of these files is therefore REQUIRED to carry the
+# `@<hash>` content anchor described above (`--hash docs/agent-memory/fixes.md:108-110`, say); an
+# unpinned one is a failure. The pin binds the citation to the lines it cites, so any later
+# change to them fails it, forcing a repin (and a read) instead of silently citing the wrong text.
+# Self-citation (a citation inside `docs/BUILD-LOG.md` pointing at `docs/BUILD-LOG.md` itself, or
+# inside a given `docs/agent-memory/X.md` pointing at that same `X.md`) is exempt from this rule.
 
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
@@ -172,9 +172,9 @@ sub anchor_of {
     return sha256_hex(join("\n", @text));
 }
 
-# A prepended backlog document: every insertion shifts existing lines down, so a bare line
-# number into one is not a stable citation. See the header comment for the reasoning.
-sub prepended_doc {
+# A log or backlog document: a bare line number into one names a position, not an entry, so
+# a citation into it must be pinned. See the header comment for the reasoning.
+sub log_or_backlog_doc {
     my ($path) = @_;
     return $path eq 'docs/BUILD-LOG.md' || $path =~ m{^docs/agent-memory/[^/]+\.md$};
 }
@@ -235,8 +235,8 @@ sub check {
             return;
         }
     }
-    if (!defined $pin && $doc ne $path && prepended_doc($path)) {
-        push @failures, "$doc:$line_number  $token  $path is prepended (newest entry on top): "
+    if (!defined $pin && $doc ne $path && log_or_backlog_doc($path)) {
+        push @failures, "$doc:$line_number  $token  $path is a log or backlog file: "
             . "pin this citation with \@<hash> (script/check-line-citations.sh --hash $path:$first"
             . (defined $last ? "-$last" : '') . ") or cite a stable anchor instead of a line number";
         return;

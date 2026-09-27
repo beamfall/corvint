@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 type boundedBuffer struct {
@@ -81,9 +83,7 @@ func runCommand(ctx context.Context, executable string, arguments []string, dire
 		}
 		return commandResult{}, failure("command-start-failed", "cannot start pinned command")
 	}
-	processID := command.Process.Pid
-	defer terminateProcessGroup(processID)
-	waitErr := command.Wait()
+	waitErr := groupreap.Wait(command)
 	result := commandResult{stdout: strings.TrimSpace(stdout.String()), stderr: strings.TrimSpace(stderr.String())}
 	if stdout.exceeded || stderr.exceeded {
 		return result, failure("command-output-too-large", "command output exceeds its stdout or stderr byte limit")

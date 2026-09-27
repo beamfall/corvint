@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -794,6 +795,41 @@ func TestSummarizeRefusesUnknownArmsAndMergesNullArms(t *testing.T) {
 	}
 	if details := report["details"].([]sampleReport); len(details[0].Arms) != 1 || details[0].Metrics["grep"]["recall@10"] != 1 {
 		t.Fatalf("merged details = %+v", details)
+	}
+}
+
+func TestSummarizeRefusesMixedLimitsOrBinariesAndKeepsTheMeasuredIdentity(t *testing.T) {
+	directory := t.TempDir()
+	writeReport := func(name string, limit int, sha, arm string) string {
+		path := filepath.Join(directory, name)
+		body := fmt.Sprintf(`{"samples_sha256":"s","limit":%d,"corvint":{"version":"v-%s","sha256":%q},"details":[{"id":"a","repo":"gin-gonic/gin","stratum":"positive","arms":{%q:{"ranked":["x"]}},"metrics":{%q:{"recall@10":1}}}]}`, limit, sha, sha, arm, arm)
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	measured := writeReport("context.json", 5, "aaaa", "context")
+	lexical := writeReport("lexical.json", 5, "NOT_RUN", "grep")
+	wider := writeReport("wider.json", 20, "aaaa", "impact")
+	rebuilt := writeReport("rebuilt.json", 5, "bbbb", "impact")
+	if _, err := resummarize(options{summaries: []string{measured, wider}}); err == nil || !strings.Contains(err.Error(), "limit") {
+		t.Errorf("mixed limits merged: %v", err)
+	}
+	if _, err := resummarize(options{summaries: []string{measured, rebuilt}}); err == nil || !strings.Contains(err.Error(), "binary") {
+		t.Errorf("mixed Corvint binaries merged: %v", err)
+	}
+	for _, order := range [][]string{{lexical, measured}, {measured, lexical}} {
+		report, err := resummarize(options{summaries: order})
+		if err != nil {
+			t.Fatal(err)
+		}
+		identity := report["corvint"].(map[string]any)
+		if identity["sha256"] != "aaaa" || identity["version"] != "v-aaaa" || report["registration"].(map[string]any)["corvint_sha256"] != "aaaa" {
+			t.Errorf("merge of %s then %s names binary %v, registration %v", filepath.Base(order[0]), filepath.Base(order[1]), identity, report["registration"])
+		}
+		if arms := report["details"].([]sampleReport)[0].Arms; len(arms) != 2 {
+			t.Errorf("disjoint arms not merged: %v", arms)
+		}
 	}
 }
 

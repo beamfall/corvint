@@ -23,8 +23,12 @@
 </p>
 
 **One native Go binary.** No account, hosted service, database, embeddings, or permanent daemon.
-`go.mod` declares no module requirements. Read commands change nothing. Version `1.0.0-rc.1` is an
-experimental prerelease; [what works today and what is still an open gate](#status-stated-plainly).
+`go.mod` declares no module requirements. Read commands do not mutate repository or trace state;
+the two bounded exceptions are a local `.corvint/self-observations.jsonl` ledger and, only while
+the operator marker `.corvint/unplanned-reads.enabled` exists, `.corvint/unplanned-reads.jsonl` —
+neither ever feeds ranking, evidence, or authority ([AGENTS.md](AGENTS.md) invariant 4). Version
+`1.0.0-rc.1` is an experimental prerelease; [what works today and what is still an open
+gate](#status-stated-plainly).
 
 ## Why Corvint
 
@@ -316,13 +320,15 @@ connection and holds no database ([Local Admin Console V0](docs/specs/local-admi
 
 ### Agent-facing servers
 
-Three stdio MCP servers, each bound to one repository root, each read-only:
+Four stdio MCP servers, each bound to one repository root, each read-only. The optional workflow
+bundle ships `corvint-mcp`, `corvint-docs-mcp`, and `corvint-test-validity-mcp`; `corvint-corpus-mcp`
+is source-only and experimental, not distributed in that bundle:
 
 | Server | Tools |
 |---|---|
 | `corvint-mcp` | `corvint.query`, `corvint.impact` and `corvint.status`: the same bounded context, Go impact and repository-status receipts as the CLI; with `--tool-profile task-review`, `corvint.context` and `corvint.cem.report` also return the task-context packet and a non-publishing CEM report preview |
 | `corvint-docs-mcp` | `corvint.docs_draft` writes source-pinned documentation from owner prose and indexed Go declarations; `corvint.docs_consume` rechecks a draft's exact bytes against source |
-| `corvint-corpus-mcp` | Experimental [revision-pinned documentation corpus](docs/DOCUMENTATION-CORPUS.md); capability-gated read tools over one explicitly supplied local artifact |
+| `corvint-corpus-mcp` (source-only) | Experimental [revision-pinned documentation corpus](docs/DOCUMENTATION-CORPUS.md); capability-gated read tools over one explicitly supplied local artifact |
 | `corvint-test-validity-mcp` | Discovery and projection of retained test evidence in one five-axis shape |
 
 `corvint docs maintain --watch` is the foreground companion to the docs server: it refreshes a

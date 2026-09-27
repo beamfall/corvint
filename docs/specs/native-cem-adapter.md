@@ -4,7 +4,7 @@ Intent status: proposed
 Delivery status: experimental (checked by `TestCEMSeamsDependOnlyOnStdlibAndGit`)
 
 ## Agent digest
-- Claim: CEM seams depend only on the Go standard library and local Git, not kernel, provider, analyzer, or network surfaces.
+- Claim: CEM seams depend only on the Go standard library, `internal/groupreap` and local Git, not kernel, provider, analyzer, or network surfaces.
 - Status: proposed/experimental (checked by `TestCEMSeamsDependOnlyOnStdlibAndGit`)
 - Exists: standard-library-only CEM seams checked by `TestCEMSeamsDependOnlyOnStdlibAndGit`.
 - Blocked on: none stated; the claim excludes the rest of the `corvint` binary.
@@ -14,8 +14,10 @@ Delivery status: experimental (checked by `TestCEMSeamsDependOnlyOnStdlibAndGit`
 
 The CEM seams and their command dispatch —
 `internal/cem/{cemcode,wire,patch,sim,gitrun,gitauth,verify,publish,mdreport,coverprofile,workflow,cli}` —
-depend only on the Go standard library and the local Git executable. They
-import no `internal/gokernel`, runtime, provider, analyzer, or network
+depend only on the Go standard library, the local Git executable and
+`internal/groupreap`, the process-group wait helper `gitrun` shares with the
+other Git runners (V1-0373), which itself imports only the standard library.
+They import no `internal/gokernel`, runtime, provider, analyzer, or network
 surface, and make no network request. Actions served from outside that
 closure are injected hooks the binary installs: `cemcli.GitNotes`
 (`internal/gitnotes`, `cem anchor` and `cem provenance`, installed by

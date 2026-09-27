@@ -440,7 +440,7 @@ above stands with that substitution.
   (`internal/liveverify/affected/dirty.go:46@abebde5b` is the entry point; the deduplication and sort happen
   in `DecodeStatus` at `internal/liveverify/affected/dirty.go:195@a543bfa1` via `NormalizePaths`,
   `internal/liveverify/affected/select.go:426-439@eadff8fe`), by the same construction
-  `internal/gokernel/repository.go:399-400@425ed3ff` and `internal/gokernel/repository.go:410@54fe2926` already take — cited as a construction
+  `internal/gokernel/repository.go:403-404@425ed3ff` and `internal/gokernel/repository.go:414@54fe2926` already take — cited as a construction
   precedent only, since that digest's input is gokernel's own status list, whereas this digest's
   input is the `affected.DirtyPaths` list the run already reads (`cmd/corvint/prove.go:508-510@6b81d3a5`). It hashes
   path names, never
@@ -579,7 +579,7 @@ above stands with that substitution.
   `dirty-set-moved` (FPK-V0-020's digest, recomputed by that one construction over the current
   dirty path list, differs from the checkpoint's `dirty_paths_sha256`; both hash names only,
   never content, the digest being taken over the path list alone
-  (`internal/gokernel/repository.go:399-400@425ed3ff`), which collects status path names (`internal/gokernel/repository.go:231@e2af9ea7`), so
+  (`internal/gokernel/repository.go:403-404@425ed3ff`), which collects status path names (`internal/gokernel/repository.go:235@e2af9ea7`), so
   equal dirty sets yield equal digests and the flag is not set);
   `authority-changed` (the current blob of a `critical` handle differs from `blob_hash` AND
   the handle's authority class — re-derived at the CURRENT snapshot from the live classifier
@@ -838,8 +838,8 @@ above stands with that substitution.
   index path calls `contextindex.ProbeSnapshot` directly
   (`cmd/corvint/index_snapshot.go:118-119@9a7d60f2`); none passes through the `cmd/corvint`
   `loadSnapshot` variables. Internally, `LoadEventSnapshot` reaches the private `loadSnapshot`
-  (`internal/contextindex/snapshot.go:588-611@cd5ffb8c`), while `ProbeSnapshot` opens and validates
-  the snapshot itself (`internal/contextindex/snapshot.go:543-586@7875d1d5`). A checkpoint compile
+  (`internal/contextindex/snapshot.go:589-612@cd5ffb8c`), while `ProbeSnapshot` opens and validates
+  the snapshot itself (`internal/contextindex/snapshot.go:544-587@7875d1d5`). A checkpoint compile
   function written to call either would therefore register zero calls on the dynamic seam. The
   load-bearing source guard scans every non-test Go file in `cmd/corvint`, rejects direct
   `LoadSnapshot` or `LoadSnapshotDeferred` references outside their seam bindings, and additionally rejects `LoadEventSnapshot`,
@@ -855,7 +855,7 @@ above stands with that substitution.
   partial one: it consults the `cat-file` map alone (`cmd/corvint/prove.go:1132-1143@c20da0d4`) and makes no
   `ls-tree` check, so the tree-entry half of the FPK-V0-021 test is new work here. Neither rests
   on index omission; `dirty_paths_sha256` itself hashes path names only, not content
-  (`internal/gokernel/repository.go:400@8febb932`).
+  (`internal/gokernel/repository.go:404@8febb932`).
 - **FPK-V0-025:** (accepted 2026-09-04 for AT-06 by decision 0052) This clause activates no SESSION-V0 lifecycle: SESSION-V0-001 through SESSION-V0-016
   stay deferred and unimplemented (`docs/specs/session-context-dividend-v0.md:6`, `:29`), and
   `prove --checkpoint` MUST NOT persist, cache, or index a checkpoint document server-side. The
@@ -962,7 +962,11 @@ above stands with that substitution.
   alone — letters, digits and hyphens, optionally followed by `:argument` with optional spaces after
   that colon, so both `partially-superseded-by:0031` and a quoted `"partially-superseded-by: 0042"`
   survive with the colon the prefix test needs — and never the remainder of the sentence, because
-  `binding` compares it against a fixed vocabulary by equality. The Go pattern and the Python
+  `binding` compares it against a fixed vocabulary by equality. A line inside a fenced code block
+  (a backtick or tilde fence, closed only by a fence of the same character, at least as long, with
+  no info string), the fence lines included, is an example rather than the document's own field and
+  MUST NOT supply the status, so an example can neither make a document binding nor shadow the
+  genuine field after it (amended 2026-09-26, V1-0363). The Go pattern and the Python
   oracle's pattern MUST remain the same pattern (`GPK-V0-002`).
 
 - **FPK-V0-030:** (experimental prototype, not advertised) A CEM MUST be attestable in the same DSSE
@@ -1568,7 +1572,7 @@ which is the whole of what the row asserts.
 | FPK-V0-026 | implemented experimentally in `prove_checkpoint.go` and `contextindex/checkpoint.go`; focused tests pass, full gate and Claude review pending | `TestCheckpointVerdictBytesAreReproducible`, `TestCheckpointCallerProseAndVerificationAreInert`, and the FPK-V0-021/022/024 tests named above |
 | FPK-V0-027 | `proofClaims`, `proveState`, `citedSyntaxOnly` | `TestProveEmbedsTheQueryPacketUnchangedAndWritesNothing` and `TestProveCEMAcceptedMapProvesSupportedHunksAndWritesNothing` (exact always-present legend and rerun byte identity), `TestProveVocabularyOnlyPacketIsCitedNotProven` (`CITED` with zero authoritative results) |
 | FPK-V0-028 | `proveRow.Witness`, `mutationWitnessFromReport`, `citedPaths`; `mutate.Report.Witness`, mutation site byte spans, grouped test attribution | `TestProveMutationWitnessReplaysKillOnSecondCheckout` (second checkout, original blob, baseline pass, recorded operator/span, exact named-test kill), `TestMutationWitnessDisclosesNotProducedWhenRunnerUnavailable`, `TestMutationBudgetExhaustionDisclosesTypedWitness`, `TestMutationInputUnavailableDisclosesTypedWitness`, `TestNoMutantInRangeDisclosesTypedWitness`; 19-of-20 second-checkout acceptance cohort `NOT_RUN` because the repository has one focused replay fixture, not the required 20-witness cohort |
-| FPK-V0-029 | `documentStatus` (`internal/contextindex/parse.go`) and its oracle twin in `src/context_corvint_index.py`; consumed by `documentAuthority` | `TestDocumentStatusReadsEveryFieldShapeAndCapturesTheTokenAlone`, `TestDocumentStatusIsAnchoredAndHeadingsTruncateByRune`, `test_document_status_reads_every_field_shape_and_captures_the_token_alone`, `conformance/cli-parity-v0` with unchanged stdout digests |
+| FPK-V0-029 | `documentStatus` (`internal/contextindex/parse.go`) and its oracle twin in `src/context_corvint_index.py`; fenced examples skipped through `nextFence`; consumed by `documentAuthority` | `TestDocumentStatusReadsEveryFieldShapeAndCapturesTheTokenAlone`, `TestDocumentStatusIsAnchoredAndHeadingsTruncateByRune`, `TestDocumentStatusIgnoresFencedExamples`, `test_document_status_reads_every_field_shape_and_captures_the_token_alone`, `conformance/cli-parity-v0` with unchanged stdout digests |
 | FPK-V0-030 | experimental prototype: `CEMStatement`, `VerifyCEM`, `ErrCEMBytesMismatch` (`internal/attest/cem.go`); wired by FPK-V0-031 | `TestCEMAttestationRoundTripsThroughTheExistingEnvelope` (predicate type, single subject with independently computed digest, no embedded bytes, `VERIFIED`), `TestCEMAttestationRefusesTamperedMapBytes` (flipped, empty, and appended bytes refused; non-CEM input not attested), `TestCEMAttestationDisclosesMissingMapBytes` (`NOT_RUN` with reason), `TestCEMAttestationRefusesASignedStatementThatIsNotACEMClaim` (validly signed statement with another `_type` or `predicateType`, zero or two subjects, or a subject name or digest that disagrees with the predicate refused with and without bytes, never as a byte mismatch), `TestCEMAttestationRefusesAMalformedSignedClaim` (validly signed empty, 63-digit, and uppercase sha256, negative size, empty spec, and empty name refused with and without bytes), `TestCEMAttestationRefusesADuplicateStatementMember` (repeated `predicateType` and predicate `size`), `TestCEMAttestationRefusesACaseVariantStatementMember` (`PredicateType` beside `predicateType`, predicate `Spec` beside `spec`), `TestCEMAttestationAcceptsUnknownStatementMembers` (undefined top-level and predicate members still `VERIFIED`); each refusal test fails with its refusal branch disabled |
 | FPK-V0-031 | experimental prototype: `attestProof`, `cemAttestationInput`, `parseProveCEMArguments` (`--attest-cem`), `parseProveVerifyCEMArguments`, `runVerifyCEMAttestation`, `verifyCEMAttestation` (`cmd/corvint/prove_attest_cem.go`), `attest.ReadPublicKey` | `TestProveCEMAttestOutputIsUnchangedWithoutAttestCEM` (`--attest` and `--attest-key` bytes equal the FPK-V0-015 statement and envelope rebuilt in-test, and are the first of two lines under `--attest-cem`), `TestProveCEMAttestationRoundTripsThroughTheCLI` (emit, verify `VERIFIED` with independently computed digest and size, tree digest unchanged), `TestProveCEMAttestationVerifyRefusesAChangedMap` (exit 2 `attest-cem-mismatch`, empty stdout), `TestProveCEMAttestationVerifyDisclosesMissingMapBytes` (`NOT_RUN` with reason), `TestProveCEMAttestationVerifyRefusesAnUnusablePublicKey` (missing, private-key PEM, and over-16-KiB key exit 2 `attest-public-key-unavailable`, empty stdout), `TestProveCEMAttestationVerifyRefusesAnUnreadableEnvelope` (missing envelope and the valid envelope whitespace-padded past 8 MiB exit 2 `attest-envelope-unavailable`), `TestProveCEMAttestationVerifyRefusesAnEnvelopeThatDoesNotVerify` (other signer's key, changed `payloadType`, changed payload, and the same-key FPK-V0-015 envelope exit 2 `attest-verification-failed`), `TestProveCEMAttestationVerifyRefusesInvalidArguments` (missing key flag, empty `--cem=`, repeated and unknown flags exit 2 `invalid-arguments`), `TestProveCEMAttestCEMRefusesInvalidArguments` (`--attest-cem=yes`, repeated `--attest-cem`, and `--attest-cem` in impact mode exit 2 `invalid-arguments`, empty stdout), `TestProveCEMAttestationVerifyRefusesAnUnavailableMap` (absolute, climbing with the signed map present at its target, missing, and over-4-MiB `--cem` exit 2 `map-unavailable`), `TestProveCEMAttestationVerifyRefusesASymlinkedOrCaseFoldedGitMap` (a symlinked parent, whether it resolves inside or outside `--root`, and a path component that case-folds equal to `.git`, exit 2 `map-unavailable`), `TestProveCEMAttestFailsWhenTheCEMStatementCannotBeBuilt` (`attestProof` with an attestable proof document and an empty CEM name or non-CEM bytes returns `attest-failed` and no output; the CLI reaches this branch only after the CEM verifier accepted the map, so the test calls `attestProof` directly), `TestReadBoundedFileRefusesFIFO`, `TestReadBoundedFileRefusesDirectory`; each refusal test fails with its refusal branch disabled |
 | FPK-V0-032 | `classifyTrust` (`cmd/corvint/prove_trust.go`), `proveRow.Trust`, `proveRow.Refusal`; `contextindex.TrustClass`, `contextindex.TrustTainted` | `TestProveRowsCarryOneTrustClassAndOldConsumersDecode` (every row of a real proof carries the class its label derives, none refused, and the previous row shape decodes the wire to the wire minus `trust` and `refusal`), `TestProveRefusesATaintedRowAsBasis` (a learned-ledger row and an unlisted label keep falsifier `none` and are refused by name even when marked `PASS`, so they count as unproven; a `syntax` row and an affected-test row are untouched) |

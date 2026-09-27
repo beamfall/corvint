@@ -251,10 +251,11 @@ var coreN1Skips = map[string]string{
 	"TestCoreVerbsEmitTheFrozenProfiles/impact_path_non-utf8_source": "0.8.1 refused a repository with a non-UTF-8 path; IDX-SNAP-V0-024 added the exclusion after it",
 }
 
-// replayCoreModeN1 is the opt-in CCF-V1-007 N-1 replay (proposed, decision 0398): the N-1 release
-// binary runs the same mode over a fresh fixture. It must exit alike and keep the identifiers; every
-// member it emits must still be emitted here with the same JSON type; and every value it writes at a
-// registered path must be in this register, so no registered value was removed or renamed.
+// replayCoreModeN1 is the opt-in CCF-V1-007 N-1 replay (accepted 2026-09-26, decision 0422; from
+// decision 0398): the N-1 release binary runs the same mode over a fresh fixture. It must exit alike
+// and keep the identifiers; every member it emits must still be emitted here with the same JSON type;
+// and every value it writes at a registered path must be in this register, so no registered value
+// was removed or renamed.
 func replayCoreModeN1(t *testing.T, binary string, invoke func(*testing.T) []string, exit int, current, want map[string]any, register *coreEnumerationObserver) {
 	if reason, skipped := coreN1Skips[strings.TrimSuffix(t.Name(), "/N-1")]; skipped {
 		t.Skip(reason)
@@ -732,7 +733,8 @@ func observeCoreEnumerations(t *testing.T) *coreEnumerationObserver {
 }
 
 // provePacketTools maps the mode of the packet `prove` embeds to the tool whose register rows govern
-// it (proposed, decision 0398): `prove` embeds the query or impact packet unchanged as `packet`.
+// it (accepted 2026-09-26, decision 0422; from decision 0398): `prove` embeds the query or impact
+// packet unchanged as `packet`.
 var provePacketTools = map[string]string{"query": "query", "impact": "impact", "range-impact": "impact"}
 
 func (observer *coreEnumerationObserver) observe(t *testing.T, document map[string]any) {

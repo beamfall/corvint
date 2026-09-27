@@ -130,6 +130,11 @@ do not reinterpret this Frontier result.
   the degraded reason `unsupported-hook-event`, and oversized or malformed hook input as
   `hook-input-too-large` or `malformed-hook-json`, each in a `systemMessage` that says coding
   continues (`cmd/corvint/host_adapter.go:39,126,130@b3341e84`). These are faults under `AHI-021`.
+  The OpenCode and Gemini adapters MUST SIGKILL their owned process group before completing a
+  timeout, a cancellation, or a normal leader exit, since the leader's close does not end a
+  same-group descendant that ignored SIGTERM and closed its stdio. Only a delivered signal, `ESRCH`,
+  or `EPERM` after the leader's observed exit confirms that kill; any other answer completes as the
+  visible degradation `corvint-process-cleanup-unconfirmed` instead of the timeout or the receipt.
 - `AHI-010`: Each release MUST publish tested host-version ranges, adapter and protocol versions,
   unavailable capabilities, known degradations, and the last conformance result. The adapter version
   in a published matrix row and in its shipped declaration identifies the host package the record
@@ -599,14 +604,14 @@ there, which is the whole of what the row asserts.
 | `invalid-repository-root` | `internal/gokernel/harness.go:376` | "cannot resolve repository root" |
 | `malformed-corvint-output` | `cmd/corvint/host_adapter.go:614@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
 | `project-root-unavailable` | `cmd/corvint/host_adapter.go:307@2100b4c9` | Claude adapter: the project root (`CLAUDE_PROJECT_DIR`, else the working directory) cannot be made absolute; the degraded `systemMessage` names this reason |
-| `repository-identity-malformed` | `internal/gokernel/repository.go:174` | "Git object identity is malformed" |
-| `repository-probe-cancelled` | `internal/gokernel/repository.go:163` | "Git repository probe was cancelled" |
-| `repository-probe-timeout` | `internal/gokernel/repository.go:161` | "Git repository probe exceeded its 10-second deadline" |
-| `repository-probe-too-large` | `internal/gokernel/repository.go:144` | "Git output exceeds its byte limit" |
-| `repository-profile-malformed` | `internal/gokernel/repository.go:264` | "Git profile path is not valid UTF-8" |
-| `repository-status-malformed` | `internal/gokernel/repository.go:211` | "Git status output is malformed" |
-| `repository-status-too-large` | `internal/gokernel/repository.go:234` | "Git status exceeds the <value>-path limit" |
-| `unsupported-git-object-format` | `internal/gokernel/repository.go:188` | "unsupported Git object format: <value>" |
+| `repository-identity-malformed` | `internal/gokernel/repository.go:178` | "Git object identity is malformed" |
+| `repository-probe-cancelled` | `internal/gokernel/repository.go:167` | "Git repository probe was cancelled" |
+| `repository-probe-timeout` | `internal/gokernel/repository.go:165` | "Git repository probe exceeded its 10-second deadline" |
+| `repository-probe-too-large` | `internal/gokernel/repository.go:148` | "Git output exceeds its byte limit" |
+| `repository-profile-malformed` | `internal/gokernel/repository.go:268` | "Git profile path is not valid UTF-8" |
+| `repository-status-malformed` | `internal/gokernel/repository.go:215` | "Git status output is malformed" |
+| `repository-status-too-large` | `internal/gokernel/repository.go:238` | "Git status exceeds the <value>-path limit" |
+| `unsupported-git-object-format` | `internal/gokernel/repository.go:192` | "unsupported Git object format: <value>" |
 
 ## Over-bound prompts
 
@@ -708,7 +713,7 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 | `AHI-031` | `cmd/corvint/local_completion_event.go` (`dogfoodExpiryCode`, snapshot-miss flag in `localEventContext`, `dogfoodMissOutlastsDeadline`), `cmd/corvint/host_adapter.go` (`withSnapshotRemediation`, `adapterDegradationReason`, `snapshotRemediation`, `withCodexSnapshotRemediation`), `internal/observations` rejection registry | `TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot`, `TestClaudeAdapterStaleSnapshotNamesRemediation` (fail at base 489701ca with `dogfood-event-deadline` and no argv); V1-0286 amendment (accepted, decision 0422): `TestDogfoodEventSnapshotMissUsesRecordedBuildCost`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
 | `AHI-004` | native adapter renderers, shared lifecycle command, `internal/repoenvelope`, and the JavaScript envelope builders | byte-identical untrusted-data envelope with hidden-character escaping and terminator refusal (`internal/repoenvelope`, `cmd/corvint`, `tools/native-hook-observer` and `integrations/host-adapters.test.mjs` tests), injection bounds, authority order, and query fixtures |
 | `AHI-011`, `015` | embedded `internal/gokernel/host-schema.json` admission table and shared lifecycle command | schema/admission tests plus one host-keyed golden fixture per admitted host |
-| `AHI-002`, `006..010` | four native packages and release matrix | install/uninstall, lifecycle, degradation, and version fixtures; for `AHI-010`, the `integrations/host-adapters.test.mjs` test under `TestHostAdapterJavaScriptHosts` binding each `integrations/compatibility.json` row to its shipped declaration and its row's adapter version to the package manifest version, and asserting `globalDegradations` disjoint from `receiptDegradationPolicy.recognised` |
+| `AHI-002`, `006..010` | four native packages and release matrix | install/uninstall, lifecycle, degradation, and version fixtures; for `AHI-010`, the `integrations/host-adapters.test.mjs` test under `TestHostAdapterJavaScriptHosts` binding each `integrations/compatibility.json` row to its shipped declaration and its row's adapter version to the package manifest version, and asserting `globalDegradations` disjoint from `receiptDegradationPolicy.recognised`; for the `AHI-009` owned-group kill, the `V1-0371` OpenCode and Gemini timeout-and-cancellation and normal-exit tests in that file, whose `orphan-hang` and `orphan-valid` fixture descendant ignores SIGTERM and closes its stdio |
 | `AHI-016` | `cmd/corvint/prompt_bound.go`, Claude and Codex native wrappers; `integrations/gemini-cli/hooks/prompt-bound.mjs` and `integrations/opencode/src/prompt-bound.js` in the Gemini CLI hook and OpenCode `corvint_context` tool | `TestAHI016OverBoundPromptDerivesVerbatimAnchorQuery`, `TestAHI016OverBoundPromptKeepsRefusalWhenAnchorsCannotServe`, `TestAHI016ClaudeOverBoundPromptInjectsDisclosedContextWithoutStoring`, `TestAHI016OverBoundPromptMatchesCrossHostBoundaryCases`, and the `AHI-016` cross-host test in `integrations/host-adapters.test.mjs` under `TestHostAdapterJavaScriptHosts` |
 | `AHI-017` | `cmd/corvint/host_adapter.go` declared-kill table and watchdog; `integrations/gemini-cli/hooks/corvint-hook.mjs` derived budget | `TestAHI017AdapterHostKillMatchesDeclaredHooks` (which also fails on a matcherless `FileChanged` group), `TestAHI017HostAdapterWatchdogDegradesBeforeHostKill`, and the two `AHI-017` Gemini tests in `integrations/host-adapters.test.mjs` under `TestHostAdapterJavaScriptHosts` |
 | `AHI-018` | `integrations/gemini-cli/hooks/corvint-hook.mjs` argument parser and the `host-adapters.test.mjs` fixture harness | the `AHI-017` Gemini declared-kill test, which pins the shipped command to carry no override, under `TestHostAdapterJavaScriptHosts` |

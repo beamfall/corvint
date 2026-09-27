@@ -16,5 +16,3 @@ func configureProcess(command *exec.Cmd) {
 	}
 	command.WaitDelay = pipeDrainDelay
 }
-
-func waitGroupLeader(command *exec.Cmd) error { return command.Wait() }

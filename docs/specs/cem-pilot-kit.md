@@ -151,8 +151,8 @@ within 15 minutes.
   a base or patch mismatch, or `the existing map is not a valid CEM document; pass --replace to
   regenerate` for an unparseable map, never the parser detail. An absent or unreadable map MUST keep
   the fixed `cannot read CEM map` text byte-for-byte. Exit status and error code are unchanged
-  (decision 0092). (proposed, decision 0398) The refusal also carries `code` `map-unavailable`
-  (CCF-V1-004).
+  (decision 0092). (accepted 2026-09-26, decision 0424; from decision 0398) The refusal also carries
+  `code` `map-unavailable` (CCF-V1-004).
 - `CEM-PILOT-019`: `cem verify` same-path drift MUST use only the five frozen statuses. A target entry
   whose blob OID equals the evidence `blobOid` MUST be `stable` whatever its mode. A target entry with
   a different OID that is not a regular-file blob (mode `100644` or `100755`), such as a symlink,

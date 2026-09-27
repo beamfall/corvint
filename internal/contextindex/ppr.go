@@ -182,6 +182,17 @@ func (compiler *taskContextCompiler) graphSeeds(rows []contextRow, table *TermTa
 func personalizedPageRank(graph *identGraph, seeds []contextGraphSeed, maxPushes int) (map[uint32]float64, bool) {
 	rank, residual := map[uint32]float64{}, map[uint32]float64{}
 	queued := map[uint32]bool{}
+	// The graph cannot change during the walk, so each node's weighted degree
+	// is scanned once rather than on every push that reaches it (V1-0372).
+	degrees := map[uint32]float64{}
+	degreeOf := func(node uint32) float64 {
+		degree, known := degrees[node]
+		if !known {
+			degree = graphDegree(graph, node)
+			degrees[node] = degree
+		}
+		return degree
+	}
 	queue := make([]uint32, 0, len(seeds))
 	for _, seed := range seeds {
 		residual[seed.node] += 1 / float64(len(seeds))
@@ -194,7 +205,7 @@ func personalizedPageRank(graph *identGraph, seeds []contextGraphSeed, maxPushes
 		}
 		node := queue[0]
 		queue, queued[node] = queue[1:], false
-		degree := graph.degree(node)
+		degree := degreeOf(node)
 		if degree == 0 || residual[node] < contextGraphEpsilon*degree {
 			continue
 		}
@@ -206,7 +217,7 @@ func personalizedPageRank(graph *identGraph, seeds []contextGraphSeed, maxPushes
 		for edge := low; edge < high; edge++ {
 			target := graph.Targets[edge]
 			residual[target] += float64(spread * float64(graph.Weights[edge]))
-			if !queued[target] && residual[target] >= contextGraphEpsilon*graph.degree(target) {
+			if !queued[target] && residual[target] >= contextGraphEpsilon*degreeOf(target) {
 				queue = append(queue, target)
 				queued[target] = true
 			}
@@ -214,6 +225,10 @@ func personalizedPageRank(graph *identGraph, seeds []contextGraphSeed, maxPushes
 	}
 	return rank, true
 }
+
+// graphDegree is the weighted-degree scan, a variable only so a test can
+// count how often a walk rescans a node's adjacency (V1-0372).
+var graphDegree = (*identGraph).degree
 
 func (graph *identGraph) degree(node uint32) float64 {
 	low, high := graph.edges(node)
