@@ -268,10 +268,10 @@ it must read, each with the relation that admitted it, without naming the task's
   TCP-V0-014 tree and edit2ripple recall@20 must stay at or above the grep arm's; either
   failure removes the slot.
   - (proposed, decision 0398; V1-0343) A link whose only fired signal is (c) is a candidate only
-    when it names two or more distinct declared names, or one name of two or more camel-split
-    tokens (`EncodeFrame`, `encode_frame`); one plain word such as `down` in a comment binds
-    nothing. Such a lexical-only row's action says to check the test and update it only if it
-    asserts on that name, not to update it.
+    when it names two or more distinct declared names, or one name of two or more camel-split tokens
+    (`EncodeFrame`, `encode_frame`); one plain word such as `down` in a comment binds nothing. Such
+    a lexical-only test row's action says to check the test and update it only if it asserts on that
+    name, not to update it.
 - `TCP-V0-017`: (proposed 2026-09-05, not accepted; experimental) `context` offers three read-only
   structural lookups over the index the packet reads, `corvint [--root PATH] context defs
   IDENTIFIER [--limit N]`, `context refs IDENTIFIER [--limit N]`, and `context grep TERM...

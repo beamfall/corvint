@@ -253,11 +253,11 @@ requirements below have evidence. File existence is not parity.
   truncation then makes evidence *content* depend on index build order rather than on the repository.
   Observed byte parity on named Corvint and Beamfall fixtures is dogfood
   evidence, not universal Python parity or authority to cut over the production `corvint` command.
-  Amendment (proposed, decision 0398; V1-0339): the aggregate-bound refusal keeps its code and
-  names no language. Its message states the admitted source bytes, the file count, the total with
-  the per-file framing allowance, the 128 MiB bound, and the remedy that paths under `vendor/`,
-  `node_modules/`, `dist/`, `build/`, `target/` or `generated/` are not admitted (`IDX-SNAP-V0-018`).
-  The `feature` and query paths rename only its leading subject.
+  Amendment (accepted 2026-09-26, decision 0424; from decision 0398; V1-0339): the aggregate-bound refusal names no language.
+  Its message states the admitted source bytes, the file count, the total with the per-file framing allowance, the 128 MiB
+  bound, and the remedy that paths under `vendor/`, `node_modules/`, `dist/`, `build/`, `target/` or `generated/` are not
+  admitted (`IDX-SNAP-V0-018`). Each path keeps its own code (impact `unsupported-impact-repository`, `feature` `unsupported-feature-repository`,
+  query `unsupported-query-repository`) and replaces only the subject `repository index` with `feature index`, `query index` or `authority-start query index`.
 - `GPK-V0-028`: Before the complete Phase 2 query port, `corvint` MAY expose one experimental
   authority-start `query` slice for immediate agent-task orientation. The only supported success
   profile is Darwin or Linux; a UTF-8 task of 1--8,000 characters (decision 0023; the oracle stops

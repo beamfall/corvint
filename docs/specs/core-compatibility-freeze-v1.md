@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `CCF-V1`
-Intent status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401
+Intent status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424
 Delivery status: experimental
 Authoritative inputs: ticket V1-0007, accepted decision 0332 (the Core set), decision 0358, `AGENTS.md` invariants 1, 2, 4 and 8,
 `conformance/cli-parity-v0/manifest.json`, and the owning specs of each Core verb listed in CCF-V1-002.
 
 ## Agent digest
 - Claim: The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.
-- Status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; experimental delivery; the Core set is taken from accepted decision 0332
+- Status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; experimental delivery; the Core set is taken from accepted decision 0332
 - Exists: this contract, decision 0358, the root-help `Command maturity:` section (`commandMaturityHelp`), `cmd/corvint/core_freeze_test.go` and its per-mode goldens in `cmd/corvint/testdata/core-freeze/`
 - Blocked on: pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
 - Read next: Requirements; Breaking-change rule; Traceability
@@ -303,10 +303,12 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   and carry the same CCF-V1-002 identifiers. Every member path it emits, arrays spread, MUST be emitted
   here with the same JSON type. Every value it writes at a registered path MUST be a value of this
   register. `index --if-stale` on a fresh snapshot is skipped: its setup writes the snapshot with this
-  build, and an engine mismatch is a miss by design under (a). The target is opt-in, like
-  `companion-release-gate`: release-runbook step 8 runs it, and it is not a `make gate` prerequisite.
-  Making it one is an owner decision. This replaces the second NOT_PRODUCED above. A member, value or
-  order that no fixture exercises stays unreplayed.
+  build, and an engine mismatch is a miss by design under (a). (accepted 2026-09-26, decision 0424)
+  `impact path non-utf8 source` is also skipped: 0.8.1 refuses a repository with a non-UTF-8 path,
+  and IDX-SNAP-V0-024 added the `unsafe-or-non-utf8-path` exclusion after that release. The target
+  is opt-in, like `companion-release-gate`: release-runbook step 8 runs it, and it is not a
+  `make gate` prerequisite. Making it one is an owner decision. This replaces the second NOT_PRODUCED
+  above. A member, value or order that no fixture exercises stays unreplayed.
 - **CCF-V1-008:** Root help MUST carry a `Command maturity:` section that lists the Core verbs of
   CCF-V1-001 and labels every other dispatched top-level verb `Experimental` with the requirement
   prefix of its owning spec, which `docs/specs/INDEX.json` MUST index. Every dispatched verb is exactly
