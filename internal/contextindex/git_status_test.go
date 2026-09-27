@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -129,5 +130,27 @@ func TestStandaloneStatusClassifiesMalformedPrivateConfig(t *testing.T) {
 	}
 	if failure.Message != "Git error: "+strings.TrimSpace(string(details.Stderr)) {
 		t.Fatalf("private config failure changed diagnostics: %q", failure.Message)
+	}
+}
+
+// V1-0388: a FIFO .gitignore is refused by name before Git status opens it,
+// not after the Git deadline.
+func TestStandaloneBuildRefusesFIFOIgnoreFilePromptly(t *testing.T) {
+	root := authorityRepository(t)
+	path := filepath.Join(root, ".gitignore")
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	if err := syscall.Mkfifo(path, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	started := time.Now()
+	_, err := BuildQuery(context.Background(), root, queryTaskFixture)
+	var failure *Error
+	if !errors.As(err, &failure) || failure.Code != "repository-probe-failed" || failure.ReasonClass != "metadata-unreadable" {
+		t.Fatalf("FIFO ignore file error=%#v", err)
+	}
+	if elapsed := time.Since(started); elapsed >= gitDeadline {
+		t.Fatalf("FIFO ignore file refused after %s, not before the Git deadline", elapsed)
 	}
 }

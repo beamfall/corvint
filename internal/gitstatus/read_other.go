@@ -2,7 +2,10 @@
 
 package gitstatus
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 var errPlatform = unsupported(classMetadataUnreadable, "cannot be read without no-follow support on this platform")
 
@@ -15,3 +18,5 @@ func (*metadataReader) unchangedDirectories() error { return errPlatform }
 func (*metadataReader) readRegular(string, int) ([]byte, bool, time.Time, error) {
 	return nil, false, time.Time{}, errPlatform
 }
+
+func worktreeInputsOpen(context.Context, string, []byte) error { return errPlatform }
