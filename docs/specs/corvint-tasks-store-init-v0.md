@@ -34,7 +34,8 @@ CTS-V0-002 remains a proposal and still waits on owner acceptance and V1-0310.
 
 Non-goals: adopting committed native records into a new genesis, a journal-optional read mode, a new
 wire code, any change to genesis bytes, projection checks or the closed code set, any other change to
-the journal format than the one `IMPORT_APPLY` stage operation and receipt kind below, any automatic
+the journal format than the one `IMPORT_APPLY` stage operation below (its receipt kind is already in
+the closed receipt-kind set), any automatic
 repair of an existing frozen store, and, for CTS-V0-003, the cutover verb, admission, attempts and
 drains, the import-map writer, and writing or changing the foreign export.
 
@@ -123,8 +124,10 @@ record with the same `ticketId`, and the `IMPORT` source rules of the ticket rec
 owner acceptance, the recovered task-store contract, and its own tests before any implementation.
 Rollback of CTS-V0-001 removes the `existingRecord` guard in `internal/tasks/store/store.go`; no
 journal, intent or wire migration is needed, because the guard only refuses before anything is
-written. Rollback of CTS-V0-003 removes the `import` verb; records it wrote stay valid `IMPORT`
-shadow records that are never eligible, and nothing else in the store refers to them.
+written. Rollback of CTS-V0-003 removes the `import` verb and the `IMPORT_APPLY` stage operation;
+records it wrote stay valid `IMPORT` shadow records that are never eligible, their receipts stay
+decodable, and nothing else in the store refers to them. A store with a pending `IMPORT_APPLY` stage
+from an interrupted run is finished by a rerun before rollback.
 
 CTS-V0-004 is accepted by a CLI test that initializes a repository through a symlinked ancestor,
 checks that `head.json` records the canonical path, and reads the queue through both spellings.
