@@ -204,14 +204,30 @@ func Release(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 	return report, err
 }
 
+// gitOutput runs one Git observation in root under Core's sanitized Git
+// environment (gokernel.SanitizedGitEnvironment, restated because Tasks
+// imports no Core package), with no credential helper and no transport.
 func gitOutput(root string, args ...string) ([]byte, error) {
-	c := exec.Command("git", args...)
+	c := exec.Command("git", append([]string{"-c", "credential.helper="}, args...)...)
 	c.Dir = root
+	c.Env = gitEnvironment()
 	out, err := c.Output()
 	if err != nil {
 		return nil, wire.Errorf(wire.CodeUnsupported, "git", "git observation failed: %v", err)
 	}
 	return out, nil
+}
+
+func gitEnvironment() []string {
+	environment := []string{}
+	for _, name := range []string{"PATH", "SystemRoot", "TMPDIR", "TEMP", "TMP", "USERPROFILE"} {
+		if value, exists := os.LookupEnv(name); exists {
+			environment = append(environment, name+"="+value)
+		}
+	}
+	return append(environment, "LANG=C", "LC_ALL=C", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull,
+		"GIT_CONFIG_SYSTEM="+os.DevNull, "GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_NO_LAZY_FETCH=1",
+		"GIT_NO_REPLACE_OBJECTS=1", "GCM_INTERACTIVE=never", "GIT_ASKPASS=", "GIT_ALLOW_PROTOCOL=")
 }
 
 func CaptureSource(root string) (string, string, wire.Digest, error) {

@@ -1015,10 +1015,10 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `canonical-json-too-large` | `internal/doccompiler/canonical.go:18` | 2 | "canonical JSON exceeds <value> bytes" |
 | `canonical-json-unencodable` | `internal/doccompiler/canonical.go:193` | 1 | "value cannot be encoded as JSON" |
 | `clause-limit-exceeded` | `internal/doccompiler/admission.go:99` | 2 | "more than <value> clauses" |
-| `command-cancelled` | `internal/doccompiler/process.go:80` | 1 | "command was cancelled before start" |
+| `command-cancelled` | `internal/doccompiler/process.go:82` | 1 | "command was cancelled before start" |
 | `command-failed` | `internal/doccompiler/process.go:97@ab57d596` | 2 | "pinned command exited with status <value>" |
 | `command-output-too-large` | `internal/doccompiler/process.go:89` | 1 | "command output exceeds its stdout or stderr byte limit" |
-| `command-start-failed` | `internal/doccompiler/process.go:82` | 1 | "cannot start pinned command" |
+| `command-start-failed` | `internal/doccompiler/process.go:84` | 1 | "cannot start pinned command" |
 | `command-timeout` | `internal/doccompiler/process.go:92` | 1 | "command exceeded its deadline" |
 | `corpus-too-large` | `internal/doccompiler/build.go:255` | 2 | "staged corpus exceeds its byte limit" |
 | `corpus-unavailable` | `internal/doccompiler/build.go:244` | 3 | "cannot read staged document target" |

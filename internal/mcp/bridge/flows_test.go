@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -104,5 +105,67 @@ func TestAFUV1034FlowsLeaveRepositoryBytesUnchanged(t *testing.T) {
 	}
 	if after := rootDigest(t, root); after != before {
 		t.Fatal("a flows tool changed repository bytes")
+	}
+}
+
+// V1-0349: in a blob:none sparse clone whose blobs outside the root cone stay on the promisor
+// remote, no MCP read tool reaches the remote and every flows tool refuses with a coded error,
+// including through a Git that ignores GIT_NO_LAZY_FETCH, as Git before 2.46 does for a diff's
+// blob prefetch (invariant 4, MCPV0-017). The remote's upload-pack touches a sentinel first, so a
+// fetch attempt leaves it even though the removed source cannot serve one. It sets PATH, so it is
+// not parallel.
+func TestMCPReadsRefuseAMissingPromisorObjectWithoutFetching(t *testing.T) {
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dropsLazyFetchGuard := range []bool{false, true} {
+		source := flowsRepository(t)
+		base := strings.TrimSpace(string(gitOutput(t, source, "rev-parse", "HEAD")))
+		gitOutput(t, source, "config", "uploadpack.allowFilter", "true")
+		sentinel := filepath.Join(t.TempDir(), "fetch-attempted")
+		clone, err := filepath.EvalSymlinks(t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		gitOutput(t, source, "clone", "-q", "-c", "protocol.file.allow=always", "--filter=blob:none", "--sparse", "file://"+source, clone)
+		gitOutput(t, clone, "config", "remote.origin.uploadpack", "touch '"+sentinel+"' && git-upload-pack")
+		if err := os.RemoveAll(source); err != nil {
+			t.Fatal(err)
+		}
+		if dropsLazyFetchGuard {
+			shim := t.TempDir()
+			writeFile(t, filepath.Join(shim, "git"), "#!/bin/sh\nunset GIT_NO_LAZY_FETCH\nexec '"+realGit+"' \"$@\"\n")
+			if err := os.Chmod(filepath.Join(shim, "git"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))
+		}
+		registry, callErr := NewFlows(clone)
+		if callErr != nil {
+			t.Fatal(callErr)
+		}
+		review, callErr := NewTaskReview(clone)
+		if callErr != nil {
+			t.Fatal(callErr)
+		}
+		task := `{"task":"orient contributor roadmap ticket workflow"}`
+		for _, call := range []struct {
+			registry        *Registry
+			tool, arguments string
+		}{
+			{registry, ToolQuery, task}, {registry, ToolImpact, `{"paths":["internal/widget/widget.go"]}`},
+			{registry, ToolStatus, `{}`}, {review, ToolContext, task}, {review, ToolCEMReport, cemArguments(t, clone)},
+			{registry, ToolFlowsMap, `{"flows":"flows"}`}, {registry, ToolFlowsGaps, `{"flows":"flows"}`},
+			{registry, ToolFlowsImpact, `{"flows":"flows","base":"` + base + `"}`}, {registry, ToolFlowsNavigate, `{"flows":"flows"}`},
+		} {
+			_, callErr := call.registry.Call(context.Background(), call.tool, []byte(call.arguments))
+			if _, err := os.Stat(sentinel); !os.IsNotExist(err) {
+				t.Fatalf("drops guard %v: %s reached the promisor remote (sentinel stat: %v)", dropsLazyFetchGuard, call.tool, err)
+			}
+			if strings.HasPrefix(call.tool, "corvint.flows.") && (callErr == nil || callErr.Code == "") {
+				t.Fatalf("drops guard %v: %s served flows whose intent blob is missing: %#v", dropsLazyFetchGuard, call.tool, callErr)
+			}
+		}
 	}
 }

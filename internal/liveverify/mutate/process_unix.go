@@ -26,9 +26,3 @@ func configureProcess(command *exec.Cmd) {
 	}
 	command.WaitDelay = time.Second
 }
-
-func terminateProcessGroup(processID int) {
-	if processID > 0 {
-		_ = syscall.Kill(-processID, syscall.SIGKILL)
-	}
-}

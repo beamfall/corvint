@@ -101,12 +101,12 @@ AFU-V1-031	docs/specs/application-flow-understanding-v1.md	525	A claim is `PROVE
 AFU-V1-032	docs/specs/application-flow-understanding-v1.md	528	`corvint flows docs --check` MUST fail when a committed claim that was `PROVEN`
 AFU-V1-033	docs/specs/application-flow-understanding-v1.md	532	Hand-written Markdown under the declared docs root MAY opt in with a claim ancho
 AFU-V1-034	docs/specs/application-flow-understanding-v1.md	582	`corvint-mcp --tool-profile flows` MUST advertise read-only `corvint.flows.map`,
-AFU-V1-035	docs/specs/application-flow-understanding-v1.md	586	Repository-authored text in any flows response is returned inside the untrusted-
-AFU-V1-036	docs/specs/application-flow-understanding-v1.md	591	Every write MUST resolve under the repository root without following a symlink.
-AFU-V1-037	docs/specs/application-flow-understanding-v1.md	596	Byte, record, attempt, link and traversal bounds apply before decode and walk. W
-AFU-V1-038	docs/specs/application-flow-understanding-v1.md	598	Recorded evidence MUST drop cookies, authorization headers, tokens and request o
-AFU-V1-039	docs/specs/application-flow-understanding-v1.md	604	A committed fixture application MUST carry one UI flow and one API flow that rea
-AFU-V1-040	docs/specs/application-flow-understanding-v1.md	607	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing
+AFU-V1-035	docs/specs/application-flow-understanding-v1.md	589	Repository-authored text in any flows response is returned inside the untrusted-
+AFU-V1-036	docs/specs/application-flow-understanding-v1.md	594	Every write MUST resolve under the repository root without following a symlink.
+AFU-V1-037	docs/specs/application-flow-understanding-v1.md	599	Byte, record, attempt, link and traversal bounds apply before decode and walk. W
+AFU-V1-038	docs/specs/application-flow-understanding-v1.md	601	Recorded evidence MUST drop cookies, authorization headers, tokens and request o
+AFU-V1-039	docs/specs/application-flow-understanding-v1.md	607	A committed fixture application MUST carry one UI flow and one API flow that rea
+AFU-V1-040	docs/specs/application-flow-understanding-v1.md	610	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing
 AFU-V1-041	docs/specs/application-flow-understanding-v1.md	210	The planned repetition ordinals, the planned or manual run kind, the infrastruct
 AFU-V1-042	docs/specs/application-flow-understanding-v1.md	215	`corvint flows stability` MUST report, per registry aggregate, the selected scop
 AGW-V0-001	docs/specs/corvint-witness-v0.md	33	`corvint witness` MUST be read-only, per AGENTS.md invariant 4: on every path —
@@ -604,22 +604,22 @@ DCW-V0-012	docs/specs/daily-change-evidence-workflow-v0.md	65	Final version/buil
 DCW-V0-013	docs/specs/daily-change-evidence-workflow-v0.md	69	The daily adopter path MUST be one ordered sequence in `docs/DOGFOOD.md` from th
 DCW-V0-014	docs/specs/daily-change-evidence-workflow-v0.md	74	A `dogfood-change` not-complete row caused by a malformed or missing input, or b
 DCW-V0-015	docs/specs/daily-change-evidence-workflow-v0.md	83	Dirty, stale, interrupted, unsupported and unknown evidence MUST each end the lo
-DCW-V0-016	docs/specs/daily-change-evidence-workflow-v0.md	92	(proposed 2026-09-23, V1-0200, not accepted) the `corvint-dogfood-change/0`
-DCW-V0-017	docs/specs/daily-change-evidence-workflow-v0.md	104	The `dogfood-check` verifier set and its `outputsAgree` result are author-only
-DCW-V0-018	docs/specs/daily-change-evidence-workflow-v0.md	113	`dogfood-change` MUST link an OCM obligation only from a row of the optional,
-DCW-V0-019	docs/specs/daily-change-evidence-workflow-v0.md	122	Before any cite, `dogfood-change` MUST bind a nonempty `DOGFOOD_CITATIONS` plan
-DCW-V0-020	docs/specs/daily-change-evidence-workflow-v0.md	138	(V1-0236, owner decision 2026-09-24) The daily change, check and seal MUST run a
-DCW-V0-021	docs/specs/daily-change-evidence-workflow-v0.md	151	The subverbs MUST run at the worktree top level: the root is `--root` or the wor
-DCW-V0-022	docs/specs/daily-change-evidence-workflow-v0.md	154	Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-ch
-DCW-V0-023	docs/specs/daily-change-evidence-workflow-v0.md	166	`docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for a
-DCW-V0-024	docs/specs/daily-change-evidence-workflow-v0.md	172	(V1-0259, owner decision 2026-09-25) A change that no `## Requirements` spec
-DCW-V0-025	docs/specs/daily-change-evidence-workflow-v0.md	190	(accepted 2026-09-25, decision 0388, V1-0264) The `coordination-time-impact` ste
-DCW-V0-026	docs/specs/daily-change-evidence-workflow-v0.md	209	(accepted 2026-09-25 by decision 0395, panel finding M1) `dogfood change` MUST N
-DCW-V0-027	docs/specs/daily-change-evidence-workflow-v0.md	225	(proposed 2026-09-25, V1-0137, not accepted) `dogfood seal` and
-DCW-V0-028	docs/specs/daily-change-evidence-workflow-v0.md	233	(proposed 2026-09-25, V1-0227, not accepted) When an intent's `ocm-prepare-NNN`
-DCW-V0-029	docs/specs/daily-change-evidence-workflow-v0.md	238	(proposed 2026-09-25, V1-0239, not accepted) Each time `dogfood change` accepts
-DCW-V0-030	docs/specs/daily-change-evidence-workflow-v0.md	246	(proposed 2026-09-25, V1-0145, not accepted; not implemented) `dogfood check`
-DCW-V0-031	docs/specs/daily-change-evidence-workflow-v0.md	255	(proposed 2026-09-25, V1-0316, not accepted) After its steps run, `dogfood chang
+DCW-V0-016	docs/specs/daily-change-evidence-workflow-v0.md	96	(proposed 2026-09-23, V1-0200, not accepted) the `corvint-dogfood-change/0`
+DCW-V0-017	docs/specs/daily-change-evidence-workflow-v0.md	108	The `dogfood-check` verifier set and its `outputsAgree` result are author-only
+DCW-V0-018	docs/specs/daily-change-evidence-workflow-v0.md	117	`dogfood-change` MUST link an OCM obligation only from a row of the optional,
+DCW-V0-019	docs/specs/daily-change-evidence-workflow-v0.md	126	Before any cite, `dogfood-change` MUST bind a nonempty `DOGFOOD_CITATIONS` plan
+DCW-V0-020	docs/specs/daily-change-evidence-workflow-v0.md	142	(V1-0236, owner decision 2026-09-24) The daily change, check and seal MUST run a
+DCW-V0-021	docs/specs/daily-change-evidence-workflow-v0.md	155	The subverbs MUST run at the worktree top level: the root is `--root` or the wor
+DCW-V0-022	docs/specs/daily-change-evidence-workflow-v0.md	158	Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-ch
+DCW-V0-023	docs/specs/daily-change-evidence-workflow-v0.md	170	`docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for a
+DCW-V0-024	docs/specs/daily-change-evidence-workflow-v0.md	176	(V1-0259, owner decision 2026-09-25) A change that no `## Requirements` spec
+DCW-V0-025	docs/specs/daily-change-evidence-workflow-v0.md	194	(accepted 2026-09-25, decision 0388, V1-0264) The `coordination-time-impact` ste
+DCW-V0-026	docs/specs/daily-change-evidence-workflow-v0.md	213	(accepted 2026-09-25 by decision 0395, panel finding M1) `dogfood change` MUST N
+DCW-V0-027	docs/specs/daily-change-evidence-workflow-v0.md	229	(proposed 2026-09-25, V1-0137, not accepted) `dogfood seal` and
+DCW-V0-028	docs/specs/daily-change-evidence-workflow-v0.md	237	(proposed 2026-09-25, V1-0227, not accepted) When an intent's `ocm-prepare-NNN`
+DCW-V0-029	docs/specs/daily-change-evidence-workflow-v0.md	242	(proposed 2026-09-25, V1-0239, not accepted) Each time `dogfood change` accepts
+DCW-V0-030	docs/specs/daily-change-evidence-workflow-v0.md	250	(proposed 2026-09-25, V1-0145, not accepted; not implemented) `dogfood check`
+DCW-V0-031	docs/specs/daily-change-evidence-workflow-v0.md	259	(proposed 2026-09-25, V1-0316, not accepted) After its steps run, `dogfood chang
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map
@@ -812,8 +812,8 @@ EEP-V0-021	docs/specs/external-evidence-provider-v0.md	167	The kit MUST carry a 
 EEP-V0-022	docs/specs/external-evidence-provider-v0.md	175	The kit MUST carry a clean-checkout authoring proof script that checks out only
 EEP-V0-023	docs/specs/external-evidence-provider-v0.md	182	A Core-owned local provider MAY produce one `external-evidence-provider/2` recor
 EEP-V0-024	docs/specs/external-evidence-provider-v0.md	190	Each invocation owns one `gopls serve` process: the executable found on `PATH`,
-EEP-V0-025	docs/specs/external-evidence-provider-v0.md	205	The expansion is at most two hops. Seeds are at most three `.go` paths whose
-EEP-V0-026	docs/specs/external-evidence-provider-v0.md	219	An absent or failing provider yields no record and no partial rows: the section
+EEP-V0-025	docs/specs/external-evidence-provider-v0.md	208	The expansion is at most two hops. Seeds are at most three `.go` paths whose
+EEP-V0-026	docs/specs/external-evidence-provider-v0.md	222	An absent or failing provider yields no record and no partial rows: the section
 EEP-V1-001	docs/specs/external-evidence-provider-v1.md	54	A record whose top-level `schema` is `external-evidence-provider/1` MUST decode
 EEP-V1-002	docs/specs/external-evidence-provider-v1.md	60	`repositories` MUST list 1 to 8 entries with unique identifier `id`s, each with
 EEP-V1-003	docs/specs/external-evidence-provider-v1.md	66	An endpoint MUST be exactly one of the two shapes in Definitions. A mixed, strin
@@ -1225,23 +1225,23 @@ IDX-SNAP-V0-004	docs/specs/index-snapshot-v0.md	78	a dirty worktree reads the sa
 IDX-SNAP-V0-005	docs/specs/index-snapshot-v0.md	84	`index` is the only verb that writes under `.corvint/index/`; `context` and ever
 IDX-SNAP-V0-006	docs/specs/index-snapshot-v0.md	102	a hit and a miss produce byte-identical `context` output for the same
 IDX-SNAP-V0-007	docs/specs/index-snapshot-v0.md	104	`index` keeps the newest eight snapshot files in the directory and removes
-IDX-SNAP-V0-008	docs/specs/index-snapshot-v0.md	114	the two per-prompt query verbs read the snapshot on the same terms as
-IDX-SNAP-V0-009	docs/specs/index-snapshot-v0.md	135	a repository with no `.corvint/index/` directory is a miss without a Git
-IDX-SNAP-V0-010	docs/specs/index-snapshot-v0.md	138	the two index-building harness events read the snapshot on the same terms as IDX
-IDX-SNAP-V0-011	docs/specs/index-snapshot-v0.md	139	`corvint [--root PATH] index --if-stale` reads the header of the file
-IDX-SNAP-V0-012	docs/specs/index-snapshot-v0.md	148	the Claude Code plugin's lifecycle hooks do not automatically invoke a
-IDX-SNAP-V0-013	docs/specs/index-snapshot-v0.md	177	During committed-source pinning, a blob whose bytes begin with
-IDX-SNAP-V0-014	docs/specs/index-snapshot-v0.md	204	under `CORVINT_SNAPSHOT_FORMAT=sectioned`, `index` writes beside the gob
-IDX-SNAP-V0-015	docs/specs/index-snapshot-v0.md	245	under `CORVINT_SNAPSHOT_FORMAT=pack`, `index` writes beside the gob snapshot a
-IDX-SNAP-V0-016	docs/specs/index-snapshot-v0.md	319	under `CORVINT_INDEX_SHARDS=1`, `index` additionally publishes immutable,
-IDX-SNAP-V0-017	docs/specs/index-snapshot-v0.md	357	(accepted 2026-09-05 by decision 0074 within the experimental pack profile) Unde
-IDX-SNAP-V0-018	docs/specs/index-snapshot-v0.md	182	(accepted 2026-09-12 by decision 0095) Before suffix and size admission,
-IDX-SNAP-V0-019	docs/specs/index-snapshot-v0.md	388	(accepted 2026-09-13 by decision 0177) standalone path `impact` (no `--base`, no
-IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	406	(proposed 2026-09-13, accepted 2026-09-13 by decision 0180) `corvint prove`'s
-IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	433	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact
-IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	461	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
-IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	475	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
-IDX-SNAP-V0-024	docs/specs/index-snapshot-v0.md	497	(accepted 2026-09-25 by decision 0394, panel blocker B9) a tracked path whose Gi
+IDX-SNAP-V0-008	docs/specs/index-snapshot-v0.md	117	the two per-prompt query verbs read the snapshot on the same terms as
+IDX-SNAP-V0-009	docs/specs/index-snapshot-v0.md	138	a repository with no `.corvint/index/` directory is a miss without a Git
+IDX-SNAP-V0-010	docs/specs/index-snapshot-v0.md	141	the two index-building harness events read the snapshot on the same terms as IDX
+IDX-SNAP-V0-011	docs/specs/index-snapshot-v0.md	142	`corvint [--root PATH] index --if-stale` reads the header of the file
+IDX-SNAP-V0-012	docs/specs/index-snapshot-v0.md	151	the Claude Code plugin's lifecycle hooks do not automatically invoke a
+IDX-SNAP-V0-013	docs/specs/index-snapshot-v0.md	180	During committed-source pinning, a blob whose bytes begin with
+IDX-SNAP-V0-014	docs/specs/index-snapshot-v0.md	207	under `CORVINT_SNAPSHOT_FORMAT=sectioned`, `index` writes beside the gob
+IDX-SNAP-V0-015	docs/specs/index-snapshot-v0.md	248	under `CORVINT_SNAPSHOT_FORMAT=pack`, `index` writes beside the gob snapshot a
+IDX-SNAP-V0-016	docs/specs/index-snapshot-v0.md	322	under `CORVINT_INDEX_SHARDS=1`, `index` additionally publishes immutable,
+IDX-SNAP-V0-017	docs/specs/index-snapshot-v0.md	360	(accepted 2026-09-05 by decision 0074 within the experimental pack profile) Unde
+IDX-SNAP-V0-018	docs/specs/index-snapshot-v0.md	185	(accepted 2026-09-12 by decision 0095) Before suffix and size admission,
+IDX-SNAP-V0-019	docs/specs/index-snapshot-v0.md	391	(accepted 2026-09-13 by decision 0177) standalone path `impact` (no `--base`, no
+IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	409	(proposed 2026-09-13, accepted 2026-09-13 by decision 0180) `corvint prove`'s
+IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	436	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact
+IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	464	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
+IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	478	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
+IDX-SNAP-V0-024	docs/specs/index-snapshot-v0.md	500	(accepted 2026-09-25 by decision 0394, panel blocker B9) a tracked path whose Gi
 KA-V0-001	docs/specs/kotlin-android-candidate-v0.md	28	The command and its package remain isolated, unregistered, and unreachable from
 KA-V0-002	docs/specs/kotlin-android-candidate-v0.md	30	A request is one UTF-8, canonical-JSON object followed by one LF. It has the clo
 KA-V0-003	docs/specs/kotlin-android-candidate-v0.md	34	The target is exactly Android/arm64/none. The twelve input rows below occur once
@@ -1994,7 +1994,7 @@ SRR-V1-008	docs/specs/stable-readiness-record-v1.md	84	The vulnerability section
 SRR-V1-009	docs/specs/stable-readiness-record-v1.md	92	For version `1.0.0-rc.1`, `policy/signing` MUST be the fixed row NOT_RUN, decisi
 SRR-V1-010	docs/specs/stable-readiness-record-v1.md	97	`owner/tag`, `owner/publication` and `owner/promotion` MUST be fixed NOT_RUN
 SRR-V1-011	docs/specs/stable-readiness-record-v1.md	100	Building and verifying MUST NOT write to the candidate, the source root or the
-SRR-V1-012	docs/specs/stable-readiness-record-v1.md	106	(accepted command shape, decision 0422; not implemented) A new operator binary,
+SRR-V1-012	docs/specs/stable-readiness-record-v1.md	107	(accepted command shape, decision 0422; not implemented) A new operator binary,
 TCP-V0-001	docs/specs/task-context-packet-v0.md	49	`context` MUST be read-only. It builds one index over the committed tree and
 TCP-V0-002	docs/specs/task-context-packet-v0.md	52	The invocation is `corvint [--root PATH] context --task TEXT [--subject PATH]
 TCP-V0-003	docs/specs/task-context-packet-v0.md	58	Results are files. Each result row carries `kind`, `id` (the path), `score`,
@@ -2123,9 +2123,9 @@ TJAA-V0-017	docs/specs/typescript-javascript-affected-adapter-v0.md	148	Qualific
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	34	`corvint [--root PATH] surprise --task TEXT --base REV --target REV
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	42	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	49	The actual set MUST be the changed paths of the committed range, read as
-TSS-V0-004	docs/specs/touch-set-surprise-v0.md	58	`touchsurprise.Compute(predicted, actual []string) Report` MUST be a pure functi
-TSS-V0-005	docs/specs/touch-set-surprise-v0.md	65	Each `actual_only` path MUST appear in `misses` with `tracked_at_target` (its
-TSS-V0-006	docs/specs/touch-set-surprise-v0.md	71	The verb MUST be read-only (invariant 4): it loads the snapshot through
+TSS-V0-004	docs/specs/touch-set-surprise-v0.md	61	`touchsurprise.Compute(predicted, actual []string) Report` MUST be a pure functi
+TSS-V0-005	docs/specs/touch-set-surprise-v0.md	68	Each `actual_only` path MUST appear in `misses` with `tracked_at_target` (its
+TSS-V0-006	docs/specs/touch-set-surprise-v0.md	74	The verb MUST be read-only (invariant 4): it loads the snapshot through
 TTG-V0-001	docs/specs/traceability-test-gate-v0.md	43	The gate MUST build its set of known Go verification function names by listing
 TTG-V0-002	docs/specs/traceability-test-gate-v0.md	49	TTG-V0-001 MUST resolve both test paths and test-file content from the Git index
 TTG-V0-003	docs/specs/traceability-test-gate-v0.md	54	The gate MUST treat a heading of level 1 to 6 as opening a traceability section

@@ -86,7 +86,11 @@ func committedBlob(ctx context.Context, root string, e treeEntry) ([]byte, error
 		return nil, fmt.Errorf("%s: flow input must be a regular committed file", e.name)
 	}
 	size, err := strconv.Atoi(e.size)
-	if err != nil || size > MaxBytes {
+	if err != nil {
+		// ls-tree -l prints BAD, not a size, for an object missing from a partial clone (V1-0349).
+		return nil, fmt.Errorf("%s: committed flow input unavailable", e.name)
+	}
+	if size > MaxBytes {
 		return nil, fmt.Errorf("%s: flow input exceeds byte limit", e.name)
 	}
 	raw, err := git(ctx, root, "cat-file", "blob", e.oid)

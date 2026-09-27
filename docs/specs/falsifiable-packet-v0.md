@@ -440,7 +440,7 @@ above stands with that substitution.
   (`internal/liveverify/affected/dirty.go:46@abebde5b` is the entry point; the deduplication and sort happen
   in `DecodeStatus` at `internal/liveverify/affected/dirty.go:195@a543bfa1` via `NormalizePaths`,
   `internal/liveverify/affected/select.go:426-439@eadff8fe`), by the same construction
-  `internal/gokernel/repository.go:399-400@425ed3ff` and `internal/gokernel/repository.go:410@54fe2926` already take — cited as a construction
+  `internal/gokernel/repository.go:403-404@425ed3ff` and `internal/gokernel/repository.go:414@54fe2926` already take — cited as a construction
   precedent only, since that digest's input is gokernel's own status list, whereas this digest's
   input is the `affected.DirtyPaths` list the run already reads (`cmd/corvint/prove.go:508-510@6b81d3a5`). It hashes
   path names, never
@@ -579,7 +579,7 @@ above stands with that substitution.
   `dirty-set-moved` (FPK-V0-020's digest, recomputed by that one construction over the current
   dirty path list, differs from the checkpoint's `dirty_paths_sha256`; both hash names only,
   never content, the digest being taken over the path list alone
-  (`internal/gokernel/repository.go:399-400@425ed3ff`), which collects status path names (`internal/gokernel/repository.go:231@e2af9ea7`), so
+  (`internal/gokernel/repository.go:403-404@425ed3ff`), which collects status path names (`internal/gokernel/repository.go:235@e2af9ea7`), so
   equal dirty sets yield equal digests and the flag is not set);
   `authority-changed` (the current blob of a `critical` handle differs from `blob_hash` AND
   the handle's authority class — re-derived at the CURRENT snapshot from the live classifier
@@ -838,8 +838,8 @@ above stands with that substitution.
   index path calls `contextindex.ProbeSnapshot` directly
   (`cmd/corvint/index_snapshot.go:118-119@9a7d60f2`); none passes through the `cmd/corvint`
   `loadSnapshot` variables. Internally, `LoadEventSnapshot` reaches the private `loadSnapshot`
-  (`internal/contextindex/snapshot.go:588-611@cd5ffb8c`), while `ProbeSnapshot` opens and validates
-  the snapshot itself (`internal/contextindex/snapshot.go:543-586@7875d1d5`). A checkpoint compile
+  (`internal/contextindex/snapshot.go:589-612@cd5ffb8c`), while `ProbeSnapshot` opens and validates
+  the snapshot itself (`internal/contextindex/snapshot.go:544-587@7875d1d5`). A checkpoint compile
   function written to call either would therefore register zero calls on the dynamic seam. The
   load-bearing source guard scans every non-test Go file in `cmd/corvint`, rejects direct
   `LoadSnapshot` or `LoadSnapshotDeferred` references outside their seam bindings, and additionally rejects `LoadEventSnapshot`,
@@ -855,7 +855,7 @@ above stands with that substitution.
   partial one: it consults the `cat-file` map alone (`cmd/corvint/prove.go:1132-1143@c20da0d4`) and makes no
   `ls-tree` check, so the tree-entry half of the FPK-V0-021 test is new work here. Neither rests
   on index omission; `dirty_paths_sha256` itself hashes path names only, not content
-  (`internal/gokernel/repository.go:400@8febb932`).
+  (`internal/gokernel/repository.go:404@8febb932`).
 - **FPK-V0-025:** (accepted 2026-09-04 for AT-06 by decision 0052) This clause activates no SESSION-V0 lifecycle: SESSION-V0-001 through SESSION-V0-016
   stay deferred and unimplemented (`docs/specs/session-context-dividend-v0.md:6`, `:29`), and
   `prove --checkpoint` MUST NOT persist, cache, or index a checkpoint document server-side. The

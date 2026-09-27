@@ -17,5 +17,3 @@ func configureProcess(command *exec.Cmd) {
 	}
 	command.WaitDelay = time.Second
 }
-
-func waitGroupLeader(command *exec.Cmd) error { return command.Wait() }

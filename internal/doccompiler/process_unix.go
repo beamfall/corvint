@@ -25,12 +25,6 @@ func configureProcess(command *exec.Cmd) {
 	command.WaitDelay = time.Second
 }
 
-func terminateProcessGroup(processID int) {
-	if processID > 0 {
-		_ = syscall.Kill(-processID, syscall.SIGKILL)
-	}
-}
-
 func descendantCleanupQualification() (bool, string) {
 	return false, "UNQUALIFIED: process-group cleanup does not contain setsid/session escapes"
 }

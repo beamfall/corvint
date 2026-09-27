@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -289,6 +290,25 @@ func TestSurpriseRefusesDirtyWorktree(t *testing.T) {
 	writeFixtureFile(t, root, "internal/new/existing.go", "package newpkg\n\nfunc Existing() string { return \"dirty\" }\n")
 	err := Render(context.Background(), index, fixtureOptions(root, base, target), &bytes.Buffer{})
 	requireCode(t, err, "unsupported-surprise-dirty-worktree")
+}
+
+// TSS-V0-003 (V1-0362): a clean filter configured after the loader finished
+// never runs, because the dirty-worktree status reads private metadata through
+// gitstatus.Status and refuses with the verb's Git code.
+func TestSurpriseStatusNeverRunsAFilterConfiguredAfterLoading(t *testing.T) {
+	root, base, target, index := fixture(t)
+	marker := filepath.Join(t.TempDir(), "filter-ran")
+	runGit(t, root, "config", "filter.probe.clean", "touch '"+marker+"'; cat")
+	writeFixtureFile(t, root, ".git/info/attributes", "* filter=probe\n")
+	later := time.Now().Add(time.Hour)
+	if err := os.Chtimes(filepath.Join(root, "go.mod"), later, later); err != nil {
+		t.Fatal(err)
+	}
+	err := Render(context.Background(), index, fixtureOptions(root, base, target), &bytes.Buffer{})
+	if _, statErr := os.Stat(marker); !os.IsNotExist(statErr) {
+		t.Fatalf("status ran the repository clean filter: %v", statErr)
+	}
+	requireCode(t, err, "unsupported-surprise-git")
 }
 
 // TSS-V0-006: the verb writes nothing; `git status` and `.corvint/` are untouched.

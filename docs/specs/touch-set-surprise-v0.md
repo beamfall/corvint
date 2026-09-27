@@ -54,7 +54,10 @@ input, and no reviewer-grade judgement of whether a miss mattered.
   `git rev-parse --verify --quiet REV^{commit}`, and the receipt MUST carry the resolved commit
   object ids under `range`. An unresolvable revision MUST be refused with
   `unsupported-surprise-revision`, and a worktree with uncommitted tracked changes with
-  `unsupported-surprise-dirty-worktree`: this verb compares committed evidence only.
+  `unsupported-surprise-dirty-worktree`: this verb compares committed evidence only. Amendment
+  (V1-0362): the worktree status read MUST go through the shared isolated `gitstatus.Status`
+  (private metadata copy, filters refused), so a clean or process filter configured after the
+  loader finished is never executed; that refusal is `unsupported-surprise-git`.
 - **TSS-V0-004:** `touchsurprise.Compute(predicted, actual []string) Report` MUST be a pure function
   of its two arguments and MUST report, over the deduplicated sets in path order (paths compared by
   their literal spelling: only an empty string is dropped, and edge whitespace is never trimmed),
@@ -109,7 +112,7 @@ cancellation envelope, exit 2, empty stdout (`TSS-V0-006`).
 |---|---|---|
 | TSS-V0-001 | `cmd/corvint/surprise.go` `parseSurpriseInvocation`, `runSurprise` | `TestSurpriseRefusesIncompleteArguments`, `TestSurpriseIgnoresOtherVerbs` |
 | TSS-V0-002 | `internal/touchsurprise/touchsurprise.go` `predictedPaths` | `TestSurpriseSeparatesPacketAndImpactPredictions`, `TestSurprisePredictsOnlyTrackedImpactPaths` |
-| TSS-V0-003 | `internal/touchsurprise/git.go` `resolveCommit`, `requireCleanWorktree`, `changedPaths` | `TestSurpriseRefusesUnresolvableRevision`, `TestSurpriseRefusesDirtyWorktree`, `TestSurpriseReadsLiteralNonASCIIPaths`; `changedPaths` over a real range in `TestSurpriseReportsActualOnlyPathsAsMisses` |
+| TSS-V0-003 | `internal/touchsurprise/git.go` `resolveCommit`, `requireCleanWorktree`, `changedPaths` | `TestSurpriseRefusesUnresolvableRevision`, `TestSurpriseRefusesDirtyWorktree`, `TestSurpriseStatusNeverRunsAFilterConfiguredAfterLoading`, `TestSurpriseReadsLiteralNonASCIIPaths`; `changedPaths` over a real range in `TestSurpriseReportsActualOnlyPathsAsMisses` |
 | TSS-V0-004 | `internal/touchsurprise/compute.go` `Compute` | `TestComputeReportsSetArithmetic`, `TestComputeAndRenderReportEmptyActualRange`, `TestComputeKeepsEdgeWhitespacePaths` |
 | TSS-V0-005 | `missRow`, `isTestPath`, `isDocPath`; `trackedPaths` | `TestSurpriseReportsActualOnlyPathsAsMisses`, `TestSurpriseReadsLiteralNonASCIIPaths` |
 | TSS-V0-006 | `runSurprise` load path; no write path in the package | `TestSurpriseWritesNothing`, `TestRunSurpriseHonorsCancellation`; `cmd/corvint`: `TestCLIReadVerbsLeaveTheRepositoryByteIdentical` (CLI-level repository-byte assertion) |

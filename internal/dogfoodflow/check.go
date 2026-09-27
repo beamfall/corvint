@@ -111,7 +111,10 @@ func (c *check) unarchivedBaseCEM(bind string) string {
 	return c.gitValue("log", "-1", "--format=%H", c.base, "--", ".corvint/change.cem.json")
 }
 
-// gitPassthrough runs one Git command whose output reaches the caller.
+// gitPassthrough runs one Git command whose output reaches the caller. It is
+// the seal's git mv and git commit, so it keeps the caller's environment: the
+// commit takes its author identity, signing and hooks from the user's
+// configuration, and a sanitized environment would reach those hooks.
 func (c *check) gitPassthrough(args ...string) int {
 	command := exec.CommandContext(c.ctx, "git", append([]string{"-C", c.root}, args...)...)
 	command.Env = append(os.Environ(), "LC_ALL=C")

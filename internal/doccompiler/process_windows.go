@@ -18,8 +18,6 @@ func configureProcess(command *exec.Cmd) {
 	command.WaitDelay = time.Second
 }
 
-func terminateProcessGroup(_ int) {}
-
 func descendantCleanupQualification() (bool, string) {
 	return false, "UNKNOWN: Windows Job Object containment is not implemented"
 }

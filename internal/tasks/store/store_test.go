@@ -3,7 +3,9 @@ package store_test
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -242,5 +244,53 @@ func TestCTSV0001_InitRefusesOverExistingRecords(t *testing.T) {
 				t.Errorf("a refused init created the state dir: %v", err)
 			}
 		})
+	}
+}
+
+// TestObserveSourceIgnoresAmbientConfigurationAndReplaceRefs: the release
+// source observation reads the commit's own tree and runs no hook from the
+// caller's global Git configuration (V1-0362).
+func TestObserveSourceIgnoresAmbientConfigurationAndReplaceRefs(t *testing.T) {
+	root := t.TempDir()
+	marker := filepath.Join(t.TempDir(), "fsmonitor-ran")
+	global := filepath.Join(t.TempDir(), "gitconfig")
+	hook := filepath.Join(t.TempDir(), "fsmonitor.sh")
+	if err := os.WriteFile(hook, []byte("#!/bin/sh\ntouch "+marker+"\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(global, []byte("[core]\n\tfsmonitor = "+hook+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git := func(args ...string) string {
+		t.Helper()
+		command := exec.Command("git", append([]string{"-C", root, "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid"}, args...)...)
+		command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
+		output, err := command.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, output)
+		}
+		return strings.TrimSpace(string(output))
+	}
+	git("init", "-q")
+	if err := os.WriteFile(filepath.Join(root, "file"), []byte("first\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git("add", "file")
+	git("commit", "-qm", "first")
+	first, tree := git("rev-parse", "HEAD"), git("rev-parse", "HEAD^{tree}")
+	if err := os.WriteFile(filepath.Join(root, "file"), []byte("second\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git("commit", "-qam", "second")
+	second := git("rev-parse", "HEAD")
+	git("reset", "-q", "--hard", first)
+	git("replace", first, second)
+	t.Setenv("GIT_CONFIG_GLOBAL", global)
+	head, observed, _, err := store.ObserveSource(root, false)
+	if err != nil || head != first || observed != tree {
+		t.Fatalf("observed %s %s, %v; want %s %s", head, observed, err, first, tree)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("global fsmonitor hook ran: %v", err)
 	}
 }

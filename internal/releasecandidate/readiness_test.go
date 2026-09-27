@@ -427,6 +427,22 @@ func TestSRRV1011BuildAndVerifyWriteNothing(t *testing.T) {
 	t.Run("SRR-V1-011 building and verifying leave candidate, source and evidence unchanged", testSRRV1011BuildAndVerifyWriteNothing)
 }
 
+func TestSRRV1011SourceGitHasNoCredentialHelperOrTransport(t *testing.T) {
+	t.Run("SRR-V1-011 source-root git reads run with no credential helper and no transport", testSRRV1011SourceGitHasNoCredentialHelperOrTransport)
+}
+
+func testSRRV1011SourceGitHasNoCredentialHelperOrTransport(t *testing.T) {
+	source := readinessSource(t, firstStableCandidate, cleanGoMod)
+	readinessGit(t, source, "config", "credential.helper", "store")
+	options := Options{SourceRoot: source, Scratch: t.TempDir()}
+	if helper, err := runSourceGit(t.Context(), options, "config", "--get", "credential.helper"); err != nil || helper != "" {
+		t.Fatalf("effective credential helper %q, %v; want empty", helper, err)
+	}
+	if _, err := runSourceGit(t.Context(), options, "ls-remote", "file://"+source); err == nil {
+		t.Fatal("source-root git read reached a file transport")
+	}
+}
+
 func testSRRV1011BuildAndVerifyWriteNothing(t *testing.T) {
 	fixture := newReadinessFixture(t, cleanGoMod)
 	log := fixture.file(t, "full-gate.log", "ok\n")

@@ -407,3 +407,27 @@ func TestNonCompactSessionStartNeedsNoProvider(t *testing.T) {
 		})
 	}
 }
+
+// TestSanitizedGitEnvironmentRefusesAPromisorFetch drops GIT_NO_LAZY_FETCH, as
+// Git before 2.46 does for a diff's blob prefetch, and reads a blob that a
+// blob:none clone left on its promisor remote: the empty GIT_ALLOW_PROTOCOL
+// alone must refuse the fetch (V1-0349). The remote's upload-pack touches a
+// sentinel first, so any fetch attempt leaves it.
+func TestSanitizedGitEnvironmentRefusesAPromisorFetch(t *testing.T) {
+	source := testRepository(t)
+	runGit(t, source, "config", "uploadpack.allowFilter", "true")
+	blob := runGit(t, source, "rev-parse", "HEAD:src/main.go")
+	clone := filepath.Join(t.TempDir(), "clone")
+	runGit(t, source, "clone", "-q", "-c", "protocol.file.allow=always", "--filter=blob:none", "--no-checkout", "file://"+source, clone)
+	sentinel := filepath.Join(t.TempDir(), "fetch-attempted")
+	runGit(t, clone, "config", "remote.origin.uploadpack", "touch '"+sentinel+"' && git-upload-pack")
+	command := exec.Command("git", "-C", clone, "cat-file", "blob", blob)
+	command.Env = slices.DeleteFunc(SanitizedGitEnvironment(), func(entry string) bool { return entry == "GIT_NO_LAZY_FETCH=1" })
+	output, err := command.CombinedOutput()
+	if _, statErr := os.Stat(sentinel); !os.IsNotExist(statErr) {
+		t.Fatalf("the sanitized environment let Git reach the promisor remote (sentinel stat: %v)", statErr)
+	}
+	if err == nil {
+		t.Fatalf("a blob missing from the partial clone was read: %s", output)
+	}
+}

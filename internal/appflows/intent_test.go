@@ -215,6 +215,44 @@ func TestAFUV1IntentCountBoundedBeforeRead(t *testing.T) {
 	}
 }
 
+// AFU-V1-034 (V1-0349): in a blob:none sparse clone whose intent blob stays on the promisor
+// remote, a committed flows read refuses and never reaches the remote, including through a Git
+// that ignores GIT_NO_LAZY_FETCH, as Git before 2.46 does for a diff's blob prefetch. The remote's
+// upload-pack touches a sentinel first, so a fetch attempt leaves it even though the removed
+// source cannot serve one. It sets PATH, so it cannot run in parallel.
+func TestAFUV1034CommittedFlowsReadNeverFetchesAPromisorObject(t *testing.T) {
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dropsLazyFetchGuard := range []bool{false, true} {
+		source := intentRepo(t)
+		gitTest(t, source, "config", "uploadpack.allowFilter", "true")
+		sentinel := filepath.Join(t.TempDir(), "fetch-attempted")
+		clone := filepath.Join(t.TempDir(), "clone")
+		gitTest(t, source, "clone", "-q", "-c", "protocol.file.allow=always", "--filter=blob:none", "--sparse", "file://"+source, clone)
+		gitTest(t, clone, "config", "remote.origin.uploadpack", "touch '"+sentinel+"' && git-upload-pack")
+		if err := os.RemoveAll(source); err != nil {
+			t.Fatal(err)
+		}
+		if dropsLazyFetchGuard {
+			shim := t.TempDir()
+			writeRaw(t, shim, "git", []byte("#!/bin/sh\nunset GIT_NO_LAZY_FETCH\nexec '"+realGit+"' \"$@\"\n"))
+			if err := os.Chmod(filepath.Join(shim, "git"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))
+		}
+		_, err := LoadIntentsAt(context.Background(), clone, "flows", "HEAD")
+		if _, statErr := os.Stat(sentinel); !os.IsNotExist(statErr) {
+			t.Fatalf("drops guard %v: the flows read reached the promisor remote (sentinel stat: %v)", dropsLazyFetchGuard, statErr)
+		}
+		if err == nil || !strings.Contains(err.Error(), "unavailable") && !strings.Contains(err.Error(), "unreadable") {
+			t.Fatalf("drops guard %v: a missing intent blob was not refused as unavailable: %v", dropsLazyFetchGuard, err)
+		}
+	}
+}
+
 // AFU-V1-037
 func TestAFUV1IntentCountBoundedWithoutRetired(t *testing.T) {
 	root := t.TempDir()
