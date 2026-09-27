@@ -28,9 +28,10 @@ corvint-tasks already holds the ticket inventory, dependencies, holds, releases,
 shadow import of the Beamfall export. TCP-00 defines the rest of the execution model around a
 supervisor: `admit` reserves the ticket, a supervisor forks a `lane-leader`, a `.boot`/`.ack`
 handshake proves whether the runtime ran, and process-group liveness decides when a reservation may
-be released (§6.2 to §6.4). None of that is built in tree: the writer requires an empty
-reservation set (`internal/tasks/transaction/model.go:712@62694c5b`) and refuses every queue that is
-not a fixture (`internal/tasks/transaction/model.go:681@2635d775`).
+be released (§6.2 to §6.4). None of that is built in tree: the only reservations are S3's
+`external-agent` leases, `cutover` requires an empty reservation set
+(`internal/tasks/transaction/model.go:532@afae0d34`), and the writer refuses every queue that is
+not a fixture (`internal/tasks/transaction/model.go:719@2635d775`).
 
 The agents that use these queues are not processes corvint-tasks starts. They are interactive or
 orchestrated sessions that call the task tool themselves. This spec keeps TCP-00's attempt,
@@ -268,7 +269,7 @@ Before S7 closes, a rehearsal in a throwaway non-fixture store holding the cut-o
 claims, gates and completes one real Beamfall ticket, and lets one lease expire and be reaped.
 
 Rollback, per slice: S1 restores the fixture-only check at
-`internal/tasks/transaction/model.go:681@2635d775`; S2 removes `cutover` (a queue it already
+`internal/tasks/transaction/model.go:719@2635d775`; S2 removes `cutover` (a queue it already
 switched stays `NATIVE`, and its imported records stay eligible `IMPORT` records; reversing a switch
 is TCP-00's §5.4 revert, which this spec does not build); S3 to S5 remove the lease verbs, and a
 store that holds live `external-agent` attempts must first `release` or `reap` them, because a
