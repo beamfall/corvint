@@ -37,6 +37,6 @@ of contextindex and `cmd/corvint`, and `go vet` on all of them; the documentatio
 admit untracked declarations failed `traceability-tests-test`.
 
 NOT_RUN: `go test ./...`, `make gate`, `make dogfood-*`, and the Windows runtime. The full
-contextindex package did not complete at host load ~490: unrelated tests hit git subprocess
-deadline errors, then the 30m timeout. CI does not yet invoke `traceability-tests-test`, and
-`.github/` was out of scope.
+contextindex package passes (129 s at host load ~65); an earlier attempt at load ~490 hit unrelated
+Git subprocess deadlines. CI does not yet invoke `traceability-tests-test` (V1-0389), and `.github/`
+was out of scope.
