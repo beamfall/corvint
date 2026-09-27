@@ -315,6 +315,11 @@ func TestDogfoodEventGoPythonWireAndSession(t *testing.T) {
 		if host["decision"] != "block" || !strings.Contains(host["reason"].(string), "Frontier authority remains unavailable") {
 			t.Fatalf("native Stop output=%v", host)
 		}
+		// V1-0298: the block names the closed unmet categories and the status argv, never a caller check ID.
+		reason := host["reason"].(string)
+		if !strings.Contains(reason, "Unmet: selected-check-unverified.") || !strings.Contains(reason, `"dogfood","status","--session-key","`+session+`"`) || strings.Contains(reason, "private-check") {
+			t.Fatalf("native Stop reason=%q", reason)
+		}
 		var decoded map[string]any
 		if err := json.Unmarshal(encoded, &decoded); err != nil {
 			t.Fatal(err)

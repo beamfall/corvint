@@ -554,9 +554,10 @@ func renderAdapterResult(host, eventName, event, root string, input, result map[
 	if event == "stop" {
 		completion, _ := result["completion"].(map[string]any)
 		if completion["decision"] == "block" {
-			reason := completionBlockText
+			key := input["sessionIdSha256"].(string)
+			reason := completionBlockText + blockUnmet(result) + "\n" + blockNextArgv(root, key)
 			if host == "claude-code" {
-				reason += "\n" + claudeGuidance(root, input["sessionIdSha256"].(string))
+				reason += "\n" + claudeGuidance(root, key)
 			}
 			return map[string]any{"decision": "block", "reason": reason}
 		}
@@ -584,6 +585,26 @@ func renderAdapterResult(host, eventName, event, root string, input, result map[
 		return codexDegraded(eventName, repoenvelope.CollisionCode)
 	}
 	return map[string]any{"hookSpecificOutput": map[string]any{"hookEventName": eventName, "additionalContext": context}}
+}
+
+// blockUnmet names the closed unmet categories of a blocked Stop, so the
+// continuation says what remains rather than only that something does
+// (LCP-V0-008, V1-0298).
+func blockUnmet(result map[string]any) string {
+	policy, _ := result["policy"].(map[string]any)
+	raw, _ := json.Marshal(policy["unmet"])
+	var unmet []string
+	_ = json.Unmarshal(raw, &unmet)
+	if len(unmet) == 0 {
+		return ""
+	}
+	return " Unmet: " + strings.Join(unmet, ", ") + "."
+}
+
+// blockNextArgv is the status argv that lists the unmet conditions in full.
+func blockNextArgv(root, key string) string {
+	status, _ := json.Marshal([]string{"corvint", "--root", root, "dogfood", "status", "--session-key", key})
+	return "Next: " + string(status)
 }
 
 func renderClaudeContext(event, receipt, guidance string) map[string]any {
