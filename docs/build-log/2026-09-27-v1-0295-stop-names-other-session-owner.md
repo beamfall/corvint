@@ -20,6 +20,10 @@ evaluating itself, and a cancelled owner. `TestDogfoodEventStopLifecycle` covers
 non-Stop case and a forged owner. The `LCP-V0-008 other session` subtest of
 `TestDogfoodEventReadOnlyEnrolledStopAndPrompt` runs a real Stop event for a second key over an
 enrolled worktree and checks the completion and the rendered notice. `TestQualifiedLifecycleStopComposition`
-checks the qualified completion stays closed and passes the native wire validator.
+checks the qualified completion stays closed and passes the native wire validator. Locally, at host
+load about 200 to 290, the owner test, the Stop lifecycle, qualified composition, Go/Python wire, pi
+native Stop receipt and direct Stop tests passed. `TestDogfoodEventReadOnlyEnrolledStopAndPrompt`
+failed there in its existing subtests and the new one alike on the fixed 10-second Git probe deadline
+(`dogfood-event-unavailable`), so its result is the change's `go-product` run.
 
 Rollback: revert the change; such a Stop again releases silently as `local-policy-inactive`.
