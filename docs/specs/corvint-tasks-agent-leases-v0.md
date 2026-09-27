@@ -30,8 +30,8 @@ supervisor: `admit` reserves the ticket, a supervisor forks a `lane-leader`, a `
 handshake proves whether the runtime ran, and process-group liveness decides when a reservation may
 be released (§6.2 to §6.4). None of that is built in tree: the only reservations are S3's
 `external-agent` leases, `cutover` requires an empty reservation set
-(`internal/tasks/transaction/model.go:532@afae0d34`), and the writer refuses every queue that is
-not a fixture (`internal/tasks/transaction/model.go:719@2635d775`).
+(`internal/tasks/transaction/model.go:538@afae0d34`), and the writer refuses every queue that is
+not a fixture (`internal/tasks/transaction/model.go:732@2635d775`).
 
 The agents that use these queues are not processes corvint-tasks starts. They are interactive or
 orchestrated sessions that call the task tool themselves. This spec keeps TCP-00's attempt,
@@ -124,11 +124,14 @@ S3, leases.
   `FENCED` and remove its reservation entry. `reap` MUST move every non-terminal `external-agent`
   attempt whose lease expired at its own `recordedAt` to `FAILED` with cause `LEASE_EXPIRED` and
   quiescence `FENCED`, and remove their entries. `claim` MUST reap, in its own transaction and
-  receipt, every expired lease whose reservation would otherwise block it.
+  receipt, every expired lease whose reservation would otherwise block it. An `ALL` barrier lets
+  `release` and `reap` through as it lets `cancel` through (TCP-00 §3.4), and refuses `renew`,
+  `claim` and `widen` `PAUSED`.
 - `CAL-V0-012`: A lease is `{holder:label, grantedSeq:Size, expiresAt:Timestamp}`. The default is
   60 minutes, the minimum 5 and the maximum 1,440; a request outside that range is `MALFORMED`. A
-  transaction whose `recordedAt` is earlier than the head receipt's refuses `STORAGE_FAILED`
-  before it writes, so a clock that steps backward cannot revive an expired lease.
+  transaction of any operation whose `recordedAt` is earlier than the head receipt's refuses
+  `STORAGE_FAILED` before it writes, so a clock that steps backward cannot record a receipt that
+  later makes an expired lease look live.
 - `CAL-V0-013`: A ticket whose last attempt is `FAILED` or `CANCELLED` MUST be claimable again as
   that attempt's next generation (TCP-00 §6.2 `retry`, `retryCount < 3`), and after three retries
   only an `OWNER` `ticket reopen` makes it claimable.
@@ -201,7 +204,8 @@ silently shared.
 - `CAL-V0-025`: `widen --attempt <id> --generation <G> --scope PATH...` MUST add the paths to a live
   attempt's scope and reservation in one transaction, and refuse `RESOURCE_COLLISION` without
   writing when any added path collides with another live attempt. Widening to `WHOLE_REPOSITORY`
-  is allowed only when no other attempt is live.
+  is allowed only when no other attempt is live. An `ADMISSION` barrier refuses `widen` `PAUSED`,
+  as it refuses scope-expand (TCP-00 §3.4).
 - `CAL-V0-026`: Each lease command (`claim`, `renew`, `release`, `reap`, `widen`, `submit`, `gate
   run` excluding the gate's own run time, and `complete`) MUST hold the store lock for work that
   does not grow with the number of tickets in the store, beyond the records it writes: the full
@@ -269,7 +273,7 @@ Before S7 closes, a rehearsal in a throwaway non-fixture store holding the cut-o
 claims, gates and completes one real Beamfall ticket, and lets one lease expire and be reaped.
 
 Rollback, per slice: S1 restores the fixture-only check at
-`internal/tasks/transaction/model.go:719@2635d775`; S2 removes `cutover` (a queue it already
+`internal/tasks/transaction/model.go:732@2635d775`; S2 removes `cutover` (a queue it already
 switched stays `NATIVE`, and its imported records stay eligible `IMPORT` records; reversing a switch
 is TCP-00's §5.4 revert, which this spec does not build); S3 to S5 remove the lease verbs, and a
 store that holds live `external-agent` attempts must first `release` or `reap` them, because a
@@ -290,13 +294,13 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-008 | NOT_RUN; `claim --next` answers `UNSUPPORTED` until the S4 plan is wired |
 | CAL-V0-009 | `TestCALV0009_StaleGenerationIsFencedAndRecorded` (`internal/tasks/store`) |
 | CAL-V0-010 | `TestCALV0010_RenewExtendsAndIsFencedAfterExpiry` (`internal/tasks/store`) |
-| CAL-V0-011 | `TestCALV0011_ExpiredLeaseIsReapedByACollidingClaim`, `TestCALV0011_ReapAndRelease` (`internal/tasks/store`) |
-| CAL-V0-012 | `TestCALV0012_LeaseBoundsAndBackwardClock` (`internal/tasks/store`) |
+| CAL-V0-011 | `TestCALV0011_ExpiredLeaseIsReapedByACollidingClaim`, `TestCALV0011_ReapAndRelease`, `TestCALV0011_ReleaseAndReapPassAnAllBarrier` (`internal/tasks/store`) |
+| CAL-V0-012 | `TestCALV0012_LeaseBoundsAndBackwardClock`, `TestCALV0012_BackwardClockRefusesEveryWriter` (`internal/tasks/store`) |
 | CAL-V0-013 | `TestCALV0013_RetryAsNextGenerationUpToThree` (`internal/tasks/store`) |
 | CAL-V0-014..020 | NOT_RUN; accepted, not started |
 | CAL-V0-021 | `TestCALV0021_WholeRepositoryBlocksEverything`, `TestCALV0021_DeclaredNonPathResourcesJoinTheScope` (`internal/tasks/store`) |
 | CAL-V0-022 | Claim side only: `TestCALV0022_DerivedScopeWhenTheTicketDeclaresNone` (`internal/tasks/store`), with an injected deriver; the context-index deriver is NOT_RUN |
 | CAL-V0-023 | `TestCALV0023_CollisionNormalization` (`internal/tasks/ticket`), `TestCALV0023_CollidingClaimsAdmitOne`, `TestCALV0023_DisjointPathScopesAreBothAdmitted` (`internal/tasks/store`) |
 | CAL-V0-024 | NOT_RUN; S5 |
-| CAL-V0-025 | `TestCALV0025_WidenAddsPathsAndRefusesCollision` (`internal/tasks/store`) |
+| CAL-V0-025 | `TestCALV0025_WidenAddsPathsAndRefusesCollision`, `TestCALV0025_WidenRefusedUnderAdmissionBarrier` (`internal/tasks/store`) |
 | CAL-V0-026 | NOT_RUN; not measured |

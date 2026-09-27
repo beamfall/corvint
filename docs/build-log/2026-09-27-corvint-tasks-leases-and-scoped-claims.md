@@ -27,6 +27,21 @@ Decisions and spec amendments made while building:
 - The stage descriptor limit for a lease is 6 artifacts and 1677 bytes, and the request cap is 579
   bytes, both measured on the widest descriptor.
 
+Independent review of the change found three defects, fixed before merge:
+
+- The backward-clock check ran only for lease transactions, so a non-lease writer with a clock set
+  back could record an earlier head receipt, and a later `renew` compared against it would extend
+  an expired lease. Every store writer now hands the model the head receipt, and the model refuses
+  any transaction earlier than it (CAL-V0-012).
+- `widen` was allowed under an `ADMISSION` barrier, which refuses scope-expand. It now refuses
+  `PAUSED` (CAL-V0-025).
+- An `ALL` barrier refused `release` and `reap`, although it lets `cancel` through. Both now pass
+  it, in the model and in the store's writer guard (CAL-V0-011).
+
+Two lower findings are left as follow-ups: `widen` appends the added resources to the scope
+without sorting them, and `queue status` now fails outright when its attempt audit fails instead of
+reporting the queue without attempts.
+
 Found in passing: `TestCALV0004_CutoverSwitchesWriterInOneReceipt` compared the barrier time with a
 second clock read and failed when a second boundary fell between them. It now bounds the time by
 reads taken before and after the switch.
