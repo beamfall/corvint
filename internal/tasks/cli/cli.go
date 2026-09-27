@@ -252,7 +252,8 @@ func helpResult() *wire.Result {
 		"corvint-tasks archive verify [FILE|-]           (stdin when absent)",
 		"corvint-tasks init [--role ROLE] [--request-id ID]",
 		"corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR]",
-		"corvint-tasks ticket <mutation> --request-id ID (--payload JSON | --payload-stdin) [--target TICKET --expected-revision N] [--issued-at TS] [--role ROLE]",
+		"corvint-tasks ticket <mutation> --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
+		"corvint-tasks ticket <mutation> --help   (its payload keys)",
 		"corvint-tasks release create|update|candidate|record-gate|promote --request-id ID --target RELEASE [--expected-revision N] [--payload JSON] [--role ROLE]",
 		"corvint-tasks release list|show RELEASE|readiness RELEASE",
 		"corvint-tasks version",
@@ -840,12 +841,18 @@ func gateShow(env Env, args []string) *wire.Result {
 	return res
 }
 
-func resolveTicketArg(rc *readCtx, arg string) (string, error) {
-	raw := arg
-	if !strings.HasPrefix(arg, "ticket:") {
-		raw = rc.store.Queue.QueueID.Raw[len("queue:"):]
-		raw = "ticket:" + raw + ":" + arg
+// qualifyTicket expands a local ticket token to its full ID in the queue; a
+// full ID passes through. Reads and mutations share it, so both accept the
+// same forms (V1-0329).
+func qualifyTicket(queueID, arg string) string {
+	if strings.HasPrefix(arg, "ticket:") {
+		return arg
 	}
+	return "ticket:" + strings.TrimPrefix(queueID, "queue:") + ":" + arg
+}
+
+func resolveTicketArg(rc *readCtx, arg string) (string, error) {
+	raw := qualifyTicket(rc.store.Queue.QueueID.Raw, arg)
 	id, err := wire.ParseTicketID("argv", raw)
 	if err != nil {
 		return "", err

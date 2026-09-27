@@ -109,3 +109,42 @@ func TestTMV0008_AS07_MutationsRefuseOnAnUninitializedStore(t *testing.T) {
 		t.Errorf("codes = %v, want %s", x.res.Codes, wire.CodeUninitialized)
 	}
 }
+
+// TestMutationTargetTakesTheLocalIDAndHelpNamesThePayload is V1-0329: a
+// mutation resolves the local ticket ID that `ticket show` accepts, and a
+// verb's --help names the payload keys its refusal would otherwise demand.
+func TestMutationTargetTakesTheLocalIDAndHelpNamesThePayload(t *testing.T) {
+	r := fixture.TempRepo(t)
+	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
+	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
+	atm(t, r.Root, nil, "init")
+	created := atm(t, r.Root, nil, "ticket", "create",
+		"--request-id", "req-1", "--issued-at", "2026-09-07T12:00:00Z", "--payload", createPayloadJSON)
+	if created.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("ticket create: %+v", created.res)
+	}
+	id := field(created.res.Items[0], "ticketId").Str
+	local := id[strings.LastIndex(id, ":")+1:]
+	revision := field(created.res.Items[0], "resultingRevision").Str
+
+	moved := atm(t, r.Root, nil, "ticket", "prioritize", "--request-id", "req-2",
+		"--target", local, "--expected-revision", revision, "--payload", `{"order":"1","priority":"P1"}`)
+	if moved.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("prioritize --target %s: %+v", local, moved.res)
+	}
+	if got := field(moved.res.Items[0], "ticketId").Str; got != id {
+		t.Errorf("prioritize --target %s changed %q, want %q", local, got, id)
+	}
+
+	help := atm(t, r.Root, nil, "ticket", "prioritize", "--help")
+	if help.res.Outcome != wire.OutcomeOK || len(help.res.Items) != 1 {
+		t.Fatalf("ticket prioritize --help: %+v", help.res)
+	}
+	keys := []string{}
+	for _, k := range field(help.res.Items[0], "payloadKeys").Arr {
+		keys = append(keys, k.Str)
+	}
+	if strings.Join(keys, ",") != "order,priority" {
+		t.Errorf("payloadKeys = %v, want [order priority]", keys)
+	}
+}

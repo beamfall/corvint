@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"slices"
 	"strings"
 	"time"
 
@@ -37,7 +38,7 @@ var mutationVerbs = map[string]string{
 type mutateFlags struct {
 	role, requestID, target, expected, payload string
 	issuedAt                                   string
-	payloadFromStdin                           bool
+	payloadFromStdin, help                     bool
 }
 
 // mutateCommand runs one ticket mutation against the real journal. The
@@ -50,6 +51,9 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 	flags, res := parseMutateFlags(cmd, args)
 	if res != nil {
 		return res
+	}
+	if flags.help {
+		return mutationHelp(cmd, operation)
 	}
 	actor, err := initActor(flags.role)
 	if err != nil {
@@ -104,6 +108,10 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 	for i := 0; i < len(args); i++ {
 		if args[i] == "--payload-stdin" {
 			f.payloadFromStdin = true
+			continue
+		}
+		if args[i] == "--help" {
+			f.help = true
 			continue
 		}
 		dest, ok := set[args[i]]
@@ -169,7 +177,7 @@ func buildEnvelope(operation, queueID string, actor mutation.Binding, f mutateFl
 		if f.target == "" || f.expected == "" {
 			return nil, wire.Errorf(wire.CodeMalformed, "targetId", "%s needs --target and --expected-revision", operation)
 		}
-		target = wire.String(f.target)
+		target = wire.String(qualifyTicket(queueID, f.target))
 		expected = wire.String(f.expected)
 	}
 	o := wire.NewObject()
@@ -186,6 +194,19 @@ func buildEnvelope(operation, queueID string, actor mutation.Binding, f mutateFl
 	o.Set("payload", payload)
 	o.Set("issuedAt", wire.String(string(now)))
 	return wire.EncodeFile(wire.ObjectValue(o)), nil
+}
+
+// mutationHelp names one verb's flags and its closed payload keys, sorted as
+// the canonical payload spells them, so a caller can compose a valid payload
+// without the spec (V1-0329).
+func mutationHelp(cmd []string, operation string) *wire.Result {
+	o := wire.NewObject()
+	o.Set("operation", wire.String(operation))
+	o.Set("payloadKeys", wire.Strings(slices.Sorted(slices.Values(mutation.PayloadKeys[operation]))))
+	o.Set("usage", wire.String("corvint-tasks "+strings.Join(cmd, " ")+
+		" --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]"))
+	o.Set("note", wire.String("the payload is canonical JSON with exactly these keys; CREATE may add localToken, and REFINE takes a non-empty subset"))
+	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 
 // mutateResult renders one applied mutation. A replay and a fresh commit are
