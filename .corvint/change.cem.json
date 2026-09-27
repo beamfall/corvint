@@ -1,0 +1,60 @@
+{
+  "baseRevision": "c6616ac4b7041f69c85ec9a60a290134e347dce0",
+  "evidence": [
+    {
+      "blobOid": "e2a71e526bb3b2a1bee8516a7d10d269087e471b",
+      "id": "evidence:sha256:58f5aa131cc1101558be6222872e5c3a328db1655cda81c47cd012b812cd63fd",
+      "path": "docs/specs/index-snapshot-v0.md",
+      "span": {
+        "end": 32735,
+        "start": 31987
+      },
+      "spanSha256": "6d7a5500c320eb41f4d0a0b16cafae90cb47d153a79c86c66a1d0243bb372b7e"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:58f5aa131cc1101558be6222872e5c3a328db1655cda81c47cd012b812cd63fd",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6a0c09d35a217005cb3542afa887e89213c1760d3d8ea158f2d48d55ba3ea4ba",
+      "newRange": {
+        "count": 9,
+        "start": 16
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 16
+      },
+      "path": "docs/build-log/2026-09-26-v1-0390-pipe-drain-bound.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:58f5aa131cc1101558be6222872e5c3a328db1655cda81c47cd012b812cd63fd",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:54a5e4b9386097cfa2b5c2008dc5adf6a396bd671e78cdff2d3c7ec780791aad",
+      "newRange": {
+        "count": 7,
+        "start": 18
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 18
+      },
+      "path": "internal/contextindex/analyzer_schema_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "6b5b27f5b04efc1c9bf63f9de23c1208d47cee88596ee59cb3f6e83ca6082c7c",
+  "spec": "cem/0.2"
+}
