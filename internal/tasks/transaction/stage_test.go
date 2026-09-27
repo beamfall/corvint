@@ -94,7 +94,7 @@ func TestTMV0002_AS10_UnpauseActualCodecParity(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	plan, out, e := freeze(r, d, timestamp, in.Inventory, h, map[string][]byte{"barrier.json": nil}, nil, nil)
+	plan, out, e := freeze(r, d, timestamp, in.Inventory, h, map[string][]byte{"barrier.json": nil}, nil, nil, nil)
 	if e != nil {
 		t.Fatal(e)
 	}

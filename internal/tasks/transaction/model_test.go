@@ -421,7 +421,7 @@ func TestTMV0007_AS35_AdoptReducerParityAndAcceptance(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		oracle := mutation.Adopt(mutation.Context{Binding: r.Actor, Queue: st.queue, Policy: st.policy, Inventory: st.tickets, Requests: absentIndex{}, Attempts: zeroAttempts{}, Now: timestamp}, r.RequestID, c, r.File)
+		oracle := mutation.Adopt(mutation.Context{Binding: r.Actor, Queue: st.queue, Policy: st.policy, Inventory: st.tickets, Requests: absentIndex{}, Attempts: entryOracle{st.reservations}, Now: timestamp}, r.RequestID, c, r.File)
 		got := result.Plan.posts["intent/tickets/T-1.json"]
 		if !bytes.Equal(got, oracle.Post.Encode()) {
 			t.Fatal("ADOPT reducer drift")

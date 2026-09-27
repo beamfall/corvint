@@ -404,7 +404,7 @@ func TestTMV0008_AS08_ShowBlockersAndQueueStatus(t *testing.T) {
 	if field(it, "tickets").Str != "3" || field(by, "OPEN").Str != "2" || field(by, "HELD").Str != "1" || field(it, "blocked").Str != "2" || field(it, "intentChecksPassed").Str != "1" {
 		t.Errorf("counts: %s", wire.Encode(it))
 	}
-	if field(it, "publication").Str != "NOT_OBSERVED" || field(it, "attempts").Str != "NOT_OBSERVED" || field(it, "headSeq").Str != "1" {
+	if field(it, "publication").Str != "NOT_OBSERVED" || field(it, "attempts").Str != "0" || field(it, "headSeq").Str != "1" {
 		t.Errorf("status facts: %s", wire.Encode(it))
 	}
 	// Head queue differing from queue.json is MALFORMED.

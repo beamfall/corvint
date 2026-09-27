@@ -126,7 +126,7 @@ func retainedBound(p string) (uint64, error) {
 		}
 		return wire.MaxReceiptFileBytes, nil
 	}
-	if strings.HasPrefix(p, "attempts/") || strings.HasPrefix(p, "effects/") || strings.HasPrefix(p, "worktrees/") || p == "intent/import-map.json" {
+	if strings.HasPrefix(p, "effects/") || strings.HasPrefix(p, "worktrees/") || p == "intent/import-map.json" {
 		return 0, wire.Errorf(wire.CodeUnsupported, p, "outside no-runtime fixture subset")
 	}
 	n, e := snapshot.PostBound(p)

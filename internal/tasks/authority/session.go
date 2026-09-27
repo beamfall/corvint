@@ -27,6 +27,7 @@ const (
 	RoleImportMap    = Role(fixtureImportMap)
 	RoleTicket       = Role(fixtureTicket)
 	RoleRelease      = Role(fixtureRelease)
+	RoleAttempt      = Role(fixtureAttempt)
 )
 
 // Target is one publication destination: a role plus the exact entry name

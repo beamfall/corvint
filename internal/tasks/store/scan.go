@@ -21,7 +21,7 @@ var stateFiles = []string{"VERSION", "head.json", "reservations.json", "barrier.
 // scanDirectories are the state-dir children scanned for retained files.
 // `staging` is deliberately absent: §5.6 staging is transient, excluded from
 // the retained inventory, and re-added by the capacity model itself.
-var scanDirectories = []string{"receipts", "requests", "evidence", "pinned"}
+var scanDirectories = []string{"receipts", "requests", "evidence", "pinned", "attempts"}
 
 // inventory builds the complete transaction inventory of an initialized store:
 // every retained state-dir file, every Git-tracked intent file, and the state

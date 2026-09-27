@@ -86,6 +86,8 @@ type Request struct {
 	ExpectedPolicyVersion wire.Size
 	// Records are the canonical post ticket records, set only for ImportApply.
 	Records [][]byte
+	// Lease is the lease command, set only for Lease.
+	Lease *LeaseRequest
 }
 
 // ReplayObservation is mandatory; zero/unknown/error never means absence.
@@ -109,6 +111,11 @@ type Input struct {
 	Premise, Branch                            string
 	Replay                                     ReplayObservation
 	RecordedAt                                 wire.Timestamp
+	// Attempts are every attempts/ record, HeadReceipt the head receipt's
+	// bytes and LeaseFacts the caller's claim observations; Lease only.
+	Attempts    [][]byte
+	HeadReceipt []byte
+	LeaseFacts  LeaseFacts
 }
 
 type Result struct {
@@ -117,6 +124,11 @@ type Result struct {
 	Coverage Coverage
 	Detail   string
 	Plan     *Plan
+	// AttemptID and Generation name the attempt a lease transaction wrote;
+	// Expired lists the expired leases a claim or reap survey needs reaped.
+	AttemptID  string
+	Generation wire.Size
+	Expired    []ExpiredLease
 }
 
 // Plan is immutable; accessors return copies. Its bytes remain hypothetical.
@@ -217,6 +229,9 @@ func Digest(r Request) (wire.Digest, error) {
 	if r.Operation != ImportApply && r.Records != nil {
 		return "", malformed("inapplicable import records")
 	}
+	if (r.Operation == Lease) != (r.Lease != nil) {
+		return "", malformed("inapplicable lease command")
+	}
 	o := object("actor", object("id", s(r.Actor.ID), "role", s(r.Actor.Role)), "operation", s(r.Operation), "queueId", s(r.QueueID), "requestId", s(r.RequestID))
 	switch r.Operation {
 	case Init:
@@ -280,6 +295,12 @@ func Digest(r Request) (wire.Digest, error) {
 		}
 		o.Obj.Set("recordSha256s", wire.Array(digests...))
 	case AuthoritySwitch:
+	case Lease:
+		v, e := leaseValue(r.Lease, q)
+		if e != nil {
+			return "", e
+		}
+		o.Obj.Set("lease", v)
 	case Pause:
 		o.Obj.Set("reason", s("OPERATOR"))
 		o.Obj.Set("scope", s("ADMISSION"))
@@ -451,12 +472,14 @@ func Model(r Request, in Input) Result {
 	if r.Operation == Unpause && state.barrier == nil {
 		return noChange(r.RequestID)
 	}
-	if (r.Operation == Init || r.Operation == KeepJournal || r.Operation == AdoptFile || r.Operation == Mutate || r.Operation == Release || r.Operation == PolicyUpdate || r.Operation == ImportApply || r.Operation == AuthoritySwitch) && in.Branch != state.queue.IntentBranch {
+	if (r.Operation == Init || r.Operation == KeepJournal || r.Operation == AdoptFile || r.Operation == Mutate || r.Operation == Release || r.Operation == PolicyUpdate || r.Operation == ImportApply || r.Operation == AuthoritySwitch || r.Operation == Lease) && in.Branch != state.queue.IntentBranch {
 		return refused(r.RequestID, mutation.OutcomeBlocked, wire.CodeIntentBranchMismatch, "primary intent branch differs")
 	}
 	posts := map[string][]byte{}
 	var effect *ticketEffect
 	var relEffect *releaseEffect
+	var lease *leaseEffect
+	detail := ""
 	switch r.Operation {
 	case Init:
 		for path := range in.Inventory.files {
@@ -501,10 +524,13 @@ func Model(r Request, in Input) Result {
 		if r.Actor.Role != "OWNER" {
 			return refused(r.RequestID, mutation.OutcomeUnauthorized, "", "an authority switch needs an OWNER binding")
 		}
-		// A stand-alone switch under any barrier is refused (§5.4 A5); the
-		// empty reservation set validateInput requires is the quiescence A2 proves.
+		// A stand-alone switch under any barrier is refused (§5.4 A5), and
+		// an empty reservation set is the quiescence A2 proves.
 		if state.barrier != nil {
 			return refused(r.RequestID, mutation.OutcomeBlocked, wire.CodePaused, "a stand-alone authority switch under a barrier")
+		}
+		if len(state.reservations.Entries) != 0 {
+			return refused(r.RequestID, mutation.OutcomeBlocked, wire.CodeQuiescenceUnproved, "live attempts hold reservations")
 		}
 		if state.queue.CanonicalWriter == "NATIVE" {
 			return refused(r.RequestID, mutation.OutcomeBlocked, "", "canonicalWriter is already NATIVE")
@@ -522,7 +548,7 @@ func Model(r Request, in Input) Result {
 		// The replay decision was already made above against this request's
 		// digest, so the pure library is handed an absent index: consulting a
 		// second index here could only disagree with that decision.
-		ctx := mutation.Context{Binding: r.Actor, Queue: state.queue, Policy: state.policy, Inventory: state.tickets, Attempts: zeroAttempts{}, Requests: absentIndex{}, Now: in.RecordedAt}
+		ctx := mutation.Context{Binding: r.Actor, Queue: state.queue, Policy: state.policy, Inventory: state.tickets, Attempts: entryOracle{state.reservations}, Requests: absentIndex{}, Now: in.RecordedAt}
 		applied := mutation.Apply(ctx, env)
 		if !applied.Planned() {
 			return Result{Kind: "Refused", Outcome: applied.Outcome, Coverage: coverage(), Detail: applied.Detail}
@@ -612,7 +638,7 @@ func Model(r Request, in Input) Result {
 			posts["evidence/"+string(wire.Sum(r.File))] = bytes.Clone(r.File)
 			effect = &ticketEffect{pre: target, post: target, kind: "RECONCILE"}
 		} else {
-			ctx := mutation.Context{Binding: r.Actor, Queue: state.queue, Policy: state.policy, Inventory: state.tickets, Attempts: zeroAttempts{}, Requests: absentIndex{}, Now: in.RecordedAt}
+			ctx := mutation.Context{Binding: r.Actor, Queue: state.queue, Policy: state.policy, Inventory: state.tickets, Attempts: entryOracle{state.reservations}, Requests: absentIndex{}, Now: in.RecordedAt}
 			adopted := mutation.Adopt(ctx, r.RequestID, target, r.File)
 			if !adopted.Planned() {
 				return Result{Kind: "Refused", Outcome: adopted.Outcome, Coverage: coverage(), Detail: adopted.Detail}
@@ -620,20 +646,29 @@ func Model(r Request, in Input) Result {
 			posts[path] = bytes.Clone(wire.EncodeFile(adopted.Post.Value()))
 			effect = &ticketEffect{pre: target, post: adopted.Post, kind: "RECONCILE"}
 		}
+	case Lease:
+		planned := planLease(r, in, state)
+		if planned.result != nil {
+			return *planned.result
+		}
+		for path, raw := range planned.posts {
+			posts[path] = raw
+		}
+		lease, detail = planned.effect, planned.detail
 	}
-	p, out, e := freeze(r, d, in.RecordedAt, in.Inventory, state.head, posts, effect, relEffect)
+	p, out, e := freeze(r, d, in.RecordedAt, in.Inventory, state.head, posts, effect, relEffect, lease)
 	if e != nil {
 		return failed(r.RequestID, e)
 	}
 	if _, e = CheckCapacity(p); e != nil {
 		return refused(r.RequestID, mutation.OutcomeCapacityExhausted, wire.CodeOf(e), e.Error())
 	}
-	return Result{Kind: "Transaction", Outcome: out, Coverage: coverage(), Plan: p}
+	res := Result{Kind: "Transaction", Outcome: out, Coverage: coverage(), Plan: p, Detail: detail}
+	if lease != nil {
+		res.AttemptID, res.Generation = lease.attemptID, lease.generation
+	}
+	return res
 }
-
-type zeroAttempts struct{}
-
-func (zeroAttempts) LiveAttempt(string) ticket.Observation { return ticket.Unsatisfied }
 
 type absentIndex struct{}
 
@@ -651,6 +686,9 @@ type inputState struct {
 	policy   *intent.Policy
 	tickets  *ticket.Inventory
 	releases map[string]*release.Record
+	// reservations is the validated set; attempts is loaded for Lease only.
+	reservations *snapshot.ReservationSet
+	attempts     map[string]*snapshot.Attempt
 }
 
 func (s inputState) ticketIDs() map[string]bool {
@@ -709,8 +747,8 @@ func validateInput(r Request, in Input) (inputState, error) {
 		if !in.Inventory.matches("intent/queue.json", qraw) || !in.Inventory.matches("intent/policy.json", praw) {
 			return st, malformed("queue/policy inventory binding")
 		}
-		if !bytes.Equal(in.Reservations, emptyReservations(r.QueueID)) || !in.Inventory.matches("reservations.json", in.Reservations) {
-			return st, malformed("empty reservations required")
+		if st.reservations, e = loadReservations(r, in); e != nil {
+			return st, e
 		}
 		if e = in.Inventory.chain(st.head); e != nil {
 			return st, e
@@ -804,7 +842,10 @@ func validateInput(r Request, in Input) (inputState, error) {
 	if e = release.ValidateGraph(all); e != nil {
 		return st, e
 	}
-	return st, nil
+	if r.Operation == Lease && st.head != nil {
+		st.attempts, e = loadAttempts(in, st.reservations)
+	}
+	return st, e
 }
 
 func cloneRequest(r Request) Request {
@@ -907,7 +948,7 @@ func receiptKind(op string) string {
 	return "MUTATION"
 }
 
-func freeze(r Request, d wire.Digest, now wire.Timestamp, inv *Inventory, base *snapshot.Head, posts map[string][]byte, eff *ticketEffect, rel *releaseEffect) (*Plan, mutation.Outcome, error) {
+func freeze(r Request, d wire.Digest, now wire.Timestamp, inv *Inventory, base *snapshot.Head, posts map[string][]byte, eff *ticketEffect, rel *releaseEffect, lease *leaseEffect) (*Plan, mutation.Outcome, error) {
 	seq := uint64(1)
 	generation := wire.Size("0")
 	var prev *wire.Digest
@@ -932,6 +973,14 @@ func freeze(r Request, d wire.Digest, now wire.Timestamp, inv *Inventory, base *
 		// operation chains from the record it read.
 		if eff.pre != nil {
 			expected = &eff.pre.Revision
+		}
+	}
+	attemptVal, generationVal := wire.Null(), wire.Null()
+	if lease != nil {
+		out.Outcome, out.Codes = lease.outcome, lease.codes
+		attemptVal, generationVal = s(lease.attemptID), s(string(lease.generation))
+		if lease.bumpHead {
+			generation = lease.generation
 		}
 	}
 	if rel != nil {
@@ -1004,7 +1053,10 @@ func freeze(r Request, d wire.Digest, now wire.Timestamp, inv *Inventory, base *
 	if rel != nil && rel.kind != "" {
 		kind = rel.kind
 	}
-	receiptValue := object("profile", s(snapshot.ProfileReceipt), "seq", s(string(n)), "prev", digestValue(prev), "kind", s(kind), "requestId", s(r.RequestID), "actor", object("id", s(r.Actor.ID), "role", s(r.Actor.Role)), "ticketId", ticketVal, "attemptId", wire.Null(), "generation", wire.Null(), "expectedRevision", countValue(expected), "headGeneration", s(string(generation)), "pre", wire.Array(pre...), "post", wire.Array(post...), "outcome", s(out.Outcome), "codes", wire.Array(), "recordedAt", s(string(now)))
+	if lease != nil {
+		kind = lease.kind
+	}
+	receiptValue := object("profile", s(snapshot.ProfileReceipt), "seq", s(string(n)), "prev", digestValue(prev), "kind", s(kind), "requestId", s(r.RequestID), "actor", object("id", s(r.Actor.ID), "role", s(r.Actor.Role)), "ticketId", ticketVal, "attemptId", attemptVal, "generation", generationVal, "expectedRevision", countValue(expected), "headGeneration", s(string(generation)), "pre", wire.Array(pre...), "post", wire.Array(post...), "outcome", s(out.Outcome), "codes", wire.Strings(out.Codes), "recordedAt", s(string(now)))
 	if rel != nil {
 		receiptValue.Obj.Set("releaseId", s(rel.post.ReleaseID))
 	}
