@@ -102,15 +102,17 @@ const maxAdapterCodes = 8
 
 var admittedAdapterHosts = codeSet("claude-code", "codex")
 
-var admittedAdapterEvents = codeSet("file-change", "post-tool", "session-end", "session-start", "stop", "user-prompt")
+var admittedAdapterEvents = codeSet("file-change", "post-compact", "post-tool", "pre-compact", "session-end", "session-start", "stop", "user-prompt")
 
 // admittedAdapterCodes is the closed set of degradation reasons the codex and
 // claude-code adapters return after resolving the project root.
 var admittedAdapterCodes = codeSet(
-	"adapter-host-kill-deadline", "corvint-envelope-terminator-collision", "corvint-event-rejected",
-	"file-change-path-not-project-relative", "invalid-input", "invalid-session-identity",
-	"invalid-start-source", "invalid-stop-hook-active", "malformed-corvint-output", "missing-prompt",
-	"missing-session-identity", "prompt-over-query-bound",
+	"adapter-host-kill-deadline", "compaction-block-unavailable", "compaction-pin-not-preserved",
+	"compaction-pin-revision-unavailable", "compaction-pin-verification-unavailable",
+	"corvint-degradations-unrecognised", "corvint-envelope-terminator-collision", "corvint-event-rejected",
+	"file-change-path-not-project-relative", "git-unavailable", "invalid-compaction-trigger", "invalid-input",
+	"invalid-session-identity", "invalid-start-source", "invalid-stop-hook-active", "malformed-corvint-output",
+	"missing-prompt", "missing-session-identity", "prompt-over-query-bound",
 )
 
 // admittedAdapterRejections are the `dogfood event` codes a `corvint-event-rejected:<code>`

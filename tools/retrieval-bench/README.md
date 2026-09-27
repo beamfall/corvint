@@ -27,7 +27,9 @@ the temporary snapshot copies it makes.
   also name a directory: a Git worktree must be clean at the base commit, and it is copied like a
   plain tree rather than used in place, so no arm can write into the caller's snapshot (an
   unsupported `impact` call would otherwise append to its `.corvint/self-observations.jsonl`). Temporary copies are removed when the run ends, or
-  on SIGINT/SIGTERM; a snapshot is never modified.
+  on SIGINT/SIGTERM; a snapshot is never modified. Because `base_commit` names the chunk file, it
+  must be a full lowercase hex object id (40 or 64 characters); any other value, in a plain sample
+  or a ContextBench row, refuses the samples file with its line number.
 - **Corvint arm:** one `corvint query --task TEXT --limit K` per sample; the ranking is each
   result's own path in packet order, distinct. `state: OUT_OF_SCOPE` or an empty packet is an
   abstention. A failed invocation is recorded as an error, not an abstention.
