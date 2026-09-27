@@ -1,0 +1,150 @@
+{
+  "baseRevision": "87e10444ad158ea285987fd4f334432b4e6908fb",
+  "evidence": [
+    {
+      "blobOid": "1ba90dee7c4edfb09a84180970ea5226da68e397",
+      "id": "evidence:sha256:df08e95df7cf6deb87dadc58b34575ddbe7f4e98577b9cfce9a5c4396770294a",
+      "path": "docs/specs/proof-carrying-context-optimization-v0.md",
+      "span": {
+        "end": 8511,
+        "start": 8135
+      },
+      "spanSha256": "8369761c69e811aadb3474d615771a437b2a4f2247920c8702327beda9fb388a"
+    },
+    {
+      "blobOid": "3061f76c420bd0aa7168a283128b11ac7c582877",
+      "id": "evidence:sha256:87a310b825d4757ca5ee96d9ba1c34c26ef24ea61cb802114f536d6809654d19",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3118,
+        "start": 2775
+      },
+      "spanSha256": "46e69c5e97297b36c204ff585b335a484633ade4ec166dbc695fd46e7c6dc76c"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:df08e95df7cf6deb87dadc58b34575ddbe7f4e98577b9cfce9a5c4396770294a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f22835b5ce6a6bd72a2eba4f8a7aaabd1cea2ee0dd02f8529c8d623a4385e7a1",
+      "newRange": {
+        "count": 780,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "benchmarks/daily-loop-v1/harness.py",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:87a310b825d4757ca5ee96d9ba1c34c26ef24ea61cb802114f536d6809654d19",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d26b1c1355715f21fe12d39703223f39ec86c74e36277e22eb3c7cd8f760c1b8",
+      "newRange": {
+        "count": 65,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-27-v1-0382-daily-loop-v1-harness.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:df08e95df7cf6deb87dadc58b34575ddbe7f4e98577b9cfce9a5c4396770294a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a1bb2072f0774fef0c80ed2299496d2e7d9cc125f2ecdacd89b9ab79baa06cb0",
+      "newRange": {
+        "count": 8,
+        "start": 1559
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 1559
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:df08e95df7cf6deb87dadc58b34575ddbe7f4e98577b9cfce9a5c4396770294a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:67adf23c6c8b02788887e81baacb81e16521b23680d5845765d2a4d6ac16907e",
+      "newRange": {
+        "count": 8,
+        "start": 1586
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 1586
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:df08e95df7cf6deb87dadc58b34575ddbe7f4e98577b9cfce9a5c4396770294a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1c7ed0e3ac85317ef82533e447099d6443b00013ed7827f10c72da5f21ed0955",
+      "newRange": {
+        "count": 22,
+        "start": 116
+      },
+      "oldRange": {
+        "count": 17,
+        "start": 116
+      },
+      "path": "docs/specs/proof-carrying-context-optimization-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:df08e95df7cf6deb87dadc58b34575ddbe7f4e98577b9cfce9a5c4396770294a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e0a77baf7c5d18dc608bfe3533b950f3df4fcbbcacfe08a98e4ed48d93f62149",
+      "newRange": {
+        "count": 4,
+        "start": 176
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 171
+      },
+      "path": "docs/specs/proof-carrying-context-optimization-v0.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "ecfc1090d25f2366d27f854e9e6f85de0e4226bda7c2d95e8b3dfd05b29cd94b",
+  "spec": "cem/0.2"
+}
