@@ -1441,7 +1441,7 @@ LTPM-V0-008	docs/specs/local-trace-producer-migration-v0.md	90	Source, existing 
 LTPM-V0-009	docs/specs/local-trace-producer-migration-v0.md	101	Apply is resumable rather than globally atomic. Interruption MAY leave verified
 LTPM-V0-010	docs/specs/local-trace-producer-migration-v0.md	105	Query, impact, dashboard acquisition, and ordinary trace reads MUST never invoke
 LTPM-V0-011	docs/specs/local-trace-producer-migration-v0.md	209	public `record` semantics MUST remain unchanged. `--changed` is required
-LTPM-V0-012	docs/specs/local-trace-producer-migration-v0.md	320	(proposed 2026-09-27, not accepted; V1-0144) After an amend or rebase, a trace
+LTPM-V0-012	docs/specs/local-trace-producer-migration-v0.md	320	(accepted by the owner 2026-09-27; V1-0144) After an amend or rebase, a trace
 MCPV0-001	docs/specs/mcp-server-2026-07-28-v0.md	107	The executable MUST run as `corvint-mcp --root ABSOLUTE_ROOT`. It owns exactly o
 MCPV0-002	docs/specs/mcp-server-2026-07-28-v0.md	117	P0 transport is stdio only. Each message is one UTF-8 JSON object followed by LF
 MCPV0-003	docs/specs/mcp-server-2026-07-28-v0.md	123	The decoder MUST reject invalid UTF-8, invalid JSON, duplicate object names at a

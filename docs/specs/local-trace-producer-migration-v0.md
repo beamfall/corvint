@@ -11,7 +11,7 @@ Authoritative inputs: the 2026-08-23 owner delegation; `docs/DOGFOOD.md`;
 
 ## Agent digest
 - Claim: Commit-bound production and digest-bound migration preserve trace identity without automatic legacy mutation; LTPM-V0-011 is implemented experimentally.
-- Status: accepted/experimental; LTPM-V0-011 accepted and implemented experimentally 2026-09-01; LTPM-V0-012 proposed and implemented experimentally 2026-09-27, awaiting owner acceptance
+- Status: accepted/experimental; LTPM-V0-011 accepted and implemented experimentally 2026-09-01; LTPM-V0-012 accepted by the owner and implemented experimentally 2026-09-27
 - Exists: the trace producer, bounded legacy reader, explicit migration contract, and exact dogfood changed-path admission.
 - Blocked on: independent migration qualification and promotion; automatic migration remains unauthorized.
 - Read next: User and measurable job; Verified current state; Public commands.
@@ -158,7 +158,7 @@ exit 2.
 | `LTPM-V0-003,005,006,009` | `TestPlanMigrationCountsOrphanTemporaryAtCandidateLimit` proves an unrelated regex-shaped temporary consumes the bound; `TestApplyMigrationAtCandidateLimitDoesNotCountOperationLock` proves an exact staged target resumes at that bound without the confirmed operation lock or qualified temporary becoming a false overage |
 | `LTPM-V0-009` | interruption after staging/quarantine/unlink boundaries, fresh dry-run, idempotent resume, byte preservation |
 | `LTPM-V0-010` | fixture-root CLI dogfood and before/after fingerprint of the real trace store |
-| `LTPM-V0-012` (proposed) | stranded dry-run without writing, byte-preserved apply, non-commit refusal, probe failure, quarantine collision, identical-copy resume, CLI amend fixture |
+| `LTPM-V0-012` | stranded dry-run without writing, byte-preserved apply, non-commit refusal, probe failure, quarantine collision, identical-copy resume, CLI amend fixture |
 
 ## Rollout, rollback, and traceability
 
@@ -179,7 +179,7 @@ non-authoritative and slated for separate removal. The Go producer row below is 
 | Go producer and migration support for `LTPM-V0-001..004,008,010` | `internal/trace`, `internal/tracerecordrepo`, `internal/tracemigraterepo`, `cmd/corvint` | Python-oracle success, argument, Git-failure, store-state, and write-nothing CLI tests plus Go format, bound, hostile-store, rollback, migration-transform, and `TestAccuracyTraceReadIgnoresRepositoryGrafts` / `TestAccuracyMigrationDryRunIgnoresRepositoryGrafts` SHA-1/SHA-256 tests; command inventory remains `UNSUPPORTED` pending the complete parity matrix |
 | `LTPM-V0-010` | public CLI and test harness | real-store fingerprint plus fixture-only dogfood |
 | `LTPM-V0-011` | `internal/trace`, `internal/tracerecordrepo`, `cmd/corvint`, `script/dogfood-change.sh`, `script/dogfood-check.sh` | shared tri-state admission tests; `TestTracePathScreenIsTheIndexScreen`; `TestRecordUnsupportedVerifySyntaxAppendsOneObservation` (verification refusal `code`) (`IDX-SNAP-V0-018` screen); mixed and source-free CLI fixtures; NUL-safe line-feed path fixture; malformed and over-bound refusal; `TestTraceTaskMustBeValidUTF8`; target/digest stability checks; shell coordination, evidence-drift, and interruption tests |
-| `LTPM-V0-012` (proposed) | `internal/trace`, `internal/tracemigraterepo`, `cmd/corvint` | `TestMigrationQuarantinesStrandedCommitTrace`; `TestMigrationRefusesUnknownOrCollidingStrandedTrace`; `TestMigrateTracesQuarantinesTraceStrandedByAmend` |
+| `LTPM-V0-012` | `internal/trace`, `internal/tracemigraterepo`, `cmd/corvint` | `TestMigrationQuarantinesStrandedCommitTrace`; `TestMigrationRefusesUnknownOrCollidingStrandedTrace`; `TestMigrateTracesQuarantinesTraceStrandedByAmend` |
 
 ## Accepted amendment: dogfood changed-path admission
 
@@ -315,11 +315,11 @@ only recorded index sources, and a source-free dogfood state is not learning evi
 Python-oracle, conformance, fixture, or manifest change is authorized. The implementation-time
 reconciliation of `docs/DOGFOOD.md` section 7 is authorized. Nothing else is newly accepted.”
 
-## Proposed amendment: stranded commit traces
+## Amendment: stranded commit traces
 
-- `LTPM-V0-012`: (proposed 2026-09-27, not accepted; V1-0144) After an amend or rebase, a trace
+- `LTPM-V0-012`: (accepted by the owner 2026-09-27; V1-0144) After an amend or rebase, a trace
   file named for a commit that is no longer reachable from `HEAD` makes every later dogfood pass
-  refuse (`local trace store contains unreachable revision`), and no command retires it. Proposed:
+  refuse (`local trace store contains unreachable revision`), and no command retires it. Rule:
   dry-run treats a candidate name as stranded when it is an exact object ID, is neither a reachable
   commit nor a reachable legacy tree, and `git cat-file --batch-check` reports it as a commit
   object. A stranded file is read, bounded and split into rows under the same store bounds as other
@@ -328,5 +328,5 @@ reconciliation of `docs/DOGFOOD.md` section 7 is authorized. Nothing else is new
   under `LTPM-V0-007` and `LTPM-V0-008`, verifies both copies, then unlinks the trace. A different
   quarantine copy is a collision; a failed object probe refuses; a name that is not a commit keeps
   the `LTPM-V0-004` refusal; `LTPM-V0-009` resume applies. A plan with no stranded file keeps its
-  digest. Owner decision needed: accept this retirement path or keep the refusal and close V1-0144.
+  digest. The owner accepted this retirement path on 2026-09-27 instead of keeping the refusal.
   Rollback: move the quarantined file back into `.context-corvint/traces/`, and revert the change.
