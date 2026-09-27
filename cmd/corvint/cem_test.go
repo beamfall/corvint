@@ -244,8 +244,9 @@ func TestCEMEndToEndAndGoldenEnvelope(t *testing.T) {
 }
 
 // TestCEMSeamsDependOnlyOnStdlibAndGit enforces the native-cem-adapter
-// dependency claim: the CEM seams import nothing beyond the standard library
-// and each other.
+// dependency claim: the CEM seams import nothing beyond the standard library,
+// each other and the process-group helper groupreap, whose own imports this
+// closure also checks.
 func TestCEMSeamsDependOnlyOnStdlibAndGit(t *testing.T) {
 	t.Parallel()
 	goTool, err := exec.LookPath("go")
@@ -263,6 +264,9 @@ func TestCEMSeamsDependOnlyOnStdlibAndGit(t *testing.T) {
 			continue // standard library: no dot in the first path segment
 		}
 		if strings.HasPrefix(dependency, "github.com/Beamfall/corvint/internal/cem") {
+			continue
+		}
+		if dependency == "github.com/Beamfall/corvint/internal/groupreap" {
 			continue
 		}
 		t.Errorf("CEM seams depend on %s", dependency)

@@ -27,6 +27,11 @@ holds stdout or stderr, that descendant is now killed before `Wait`. The runner 
 leader's status and the captured output, where it used to return `ErrWaitDelay` or time out. No spec or
 test encodes the old outcome, and the new one matches `gokernel`.
 
+`cem/gitrun` importing `groupreap` broke `TestCEMSeamsDependOnlyOnStdlibAndGit`, which the integration
+run of `cmd/corvint` caught. `groupreap` imports only the standard library, so the proposed
+`native-cem-adapter.md` claim now names it, and the test admits that one path. The same `go list -deps`
+closure still checks `groupreap`'s own imports, so a non-standard import there fails the test.
+
 Two runners are excluded: `worksource/git.go` and `contextindex/git.go`. Their contracts classify a
 pipe-holder that outlives the leader as incomplete capture (`ErrWaitDelay`): `VPO-V0-010` and
 `WQO-V0-005`, `WQO-V0-015` and `WQO-V0-032` for worksource, and

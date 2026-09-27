@@ -1425,7 +1425,7 @@
     "reqPrefix": "",
     "intent": "proposed",
     "delivery": "experimental (checked by `TestCEMSeamsDependOnlyOnStdlibAndGit`)",
-    "claim": "CEM seams depend only on the Go standard library and local Git, not kernel, provider, analyzer, or network surfaces.",
+    "claim": "CEM seams depend only on the Go standard library, `internal/groupreap` and local Git, not kernel, provider, analyzer, or network surfaces.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
