@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -145,6 +146,40 @@ func TestAHI027ClaudePreCompactEmitsPinFromCompactionBlock(t *testing.T) {
 	bounded, ok := parseCompactionPin(compactionPinLine(over))
 	if !ok || len(bounded.Paths) != compactionPinPathLimit || bounded.Elided != 6 {
 		t.Fatalf("over-bound pin: %+v ok=%v", bounded, ok)
+	}
+}
+
+// AHI-027/028 (V1-0293): a clean or untracked-only tree carries no impact block, yet PreCompact
+// still pins the receipt's revision and PostCompact reports it without a fault.
+func TestAHI027ClaudeCompactionPinsCleanAndUntrackedOnlyTrees(t *testing.T) {
+	t.Parallel()
+	for name, untracked := range map[string]int{"clean": 0, "untracked-only": 1} {
+		root := cliGoModuleRepository(t)
+		if untracked > 0 {
+			writeFixtureFile(t, root, "extra.md", "# extra\n")
+		}
+		ctx := adapterEnvContext(lifecycleDeadlineContext(), map[string]string{"CLAUDE_PROJECT_DIR": root})
+		stdout := compactionHookStdout(t, ctx, root, "pre-compact", map[string]any{"hook_event_name": "PreCompact", "custom_instructions": ""})
+		lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
+		if len(lines) != 2 || lines[0]+"\n" != compactionPinInstruction {
+			t.Fatalf("%s: pre-compact stdout is not the instruction plus one pin line: %q", name, stdout)
+		}
+		tree := headTree(t, root)
+		pin, ok := parseCompactionPin(lines[1])
+		want := compactionPin{Revision: tree, Untracked: untracked, Paths: []string{}}
+		if !ok || !reflect.DeepEqual(pin, want) {
+			t.Fatalf("%s: pin=%+v ok=%v want %+v", name, pin, ok, want)
+		}
+		report := compactionHookStdout(t, ctx, root, "post-compact", map[string]any{"hook_event_name": "PostCompact", "compact_summary": lines[1]})
+		wantReport := fmt.Sprintf("%s pinned=%s current=matches rehydrated=0 non-rehydratable=none elided=0 untracked=%d current-dirty=0\n", compactionReportProfile, tree, untracked)
+		if report != wantReport {
+			t.Fatalf("%s: report=%q want %q", name, report, wantReport)
+		}
+	}
+	bounded := compactionBlock{Revision: strings.Repeat("a", 40)}
+	bounded.Rehydration.Tracked = 300
+	if pin, ok := parseCompactionPin(compactionPinLine(bounded)); !ok || pin.Tracked != 300 || len(pin.Paths) != 0 || pin.Elided != 300 {
+		t.Fatalf("over-budget pin: %+v ok=%v", pin, ok)
 	}
 }
 
