@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -60,6 +61,38 @@ func TestGateScriptsPassOnlyDefinedFlags(t *testing.T) {
 				t.Errorf("%s passes undefined flag %s", script, name)
 			}
 		}
+	}
+}
+
+// TestLocalConsoleGateBuildsFromRepositoryRoot pins V1-0353: the gate builds
+// the release command in the checkout that holds the script, whatever the
+// caller's working directory. A fake go on PATH records where it ran and stops
+// the gate before any real build.
+func TestLocalConsoleGateBuildsFromRepositoryRoot(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if root, err = filepath.EvalSymlinks(root); err != nil {
+		t.Fatal(err)
+	}
+	bin := t.TempDir()
+	record := filepath.Join(bin, "go-dir")
+	if err := os.WriteFile(filepath.Join(bin, "go"), []byte("#!/bin/sh\npwd -P > '"+record+"'\nexit 3\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(filepath.Join(root, "script", "local-console-release-gate"))
+	cmd.Dir = t.TempDir()
+	cmd.Env = append(os.Environ(), "PATH="+bin+":/usr/bin:/bin", "CORVINT_COMPANION_SCRATCH="+t.TempDir(), "CORVINT_COMPANION_OUTPUT="+t.TempDir())
+	if out, err := cmd.CombinedOutput(); err == nil {
+		t.Fatalf("fake go did not stop the gate:\n%s", out)
+	}
+	dir, err := os.ReadFile(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(string(dir)); got != root {
+		t.Fatalf("gate built in %s, want %s", got, root)
 	}
 }
 
