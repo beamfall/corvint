@@ -128,17 +128,14 @@ func readReceipt(repo *intent.Repository, seq uint64) (*snapshot.Receipt, error)
 	return snapshot.DecodeReceipt(raw)
 }
 
-// leaseInput adds the audited attempts, the head receipt and the claim facts
-// to a Lease model input.
-func leaseInput(repo *intent.Repository, head *snapshot.Head, proof *journal.Result, attempts [][]byte, facts claimObserver, input *transaction.Input) error {
-	receipt, err := readReceiptBytes(repo, head.LastSeq.Uint64())
-	if err != nil {
-		return err
-	}
-	input.Attempts, input.HeadReceipt = attempts, receipt
+// leaseInput adds the audited attempts and the claim facts to a Lease model
+// input.
+func leaseInput(proof *journal.Result, attempts [][]byte, facts claimObserver, input *transaction.Input) error {
+	input.Attempts = attempts
 	if facts == nil {
 		return nil
 	}
+	var err error
 	input.LeaseFacts, err = facts(proof)
 	return err
 }

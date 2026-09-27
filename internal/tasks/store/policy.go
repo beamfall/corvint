@@ -85,7 +85,7 @@ func administrativeWriteWith(ctx context.Context, repo *intent.Repository, reque
 		return report, nil, err
 	}
 	defer session.Close()
-	head, err := writerGuards(repo, request.Operation)
+	head, err := writerGuards(repo, guardOperation(request))
 	if err != nil {
 		return guardFailureAudit(report, request.RequestID, err)
 	}
@@ -150,9 +150,13 @@ func administrativeWriteWith(ctx context.Context, repo *intent.Repository, reque
 	if wire.Sum(headRaw) != proof.Identity.HeadSha256 {
 		return report, nil, wire.Errorf(wire.CodeSnapshotMoved, "head.json", "validated head changed")
 	}
-	input := transaction.Input{Inventory: inv, Head: headRaw, Queue: proof.Records["intent/queue.json"].Raw, Policy: proof.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, CanonicalTickets: tickets, CanonicalReleases: releases, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now}
+	headRc, err := headReceipt(repo, headRaw)
+	if err != nil {
+		return report, nil, err
+	}
+	input := transaction.Input{Inventory: inv, Head: headRaw, HeadReceipt: headRc, Queue: proof.Records["intent/queue.json"].Raw, Policy: proof.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, CanonicalTickets: tickets, CanonicalReleases: releases, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now}
 	if request.Operation == transaction.Lease {
-		if err = leaseInput(repo, head, proof, attempts, facts, &input); err != nil {
+		if err = leaseInput(proof, attempts, facts, &input); err != nil {
 			return report, nil, err
 		}
 	}
@@ -165,7 +169,7 @@ func administrativeWriteWith(ctx context.Context, repo *intent.Repository, reque
 	if err = requireBranch(repo, q.IntentBranch); err != nil {
 		return guardFailureAudit(report, request.RequestID, err)
 	}
-	if err = bindObservation(repo, proof.Identity, request.Operation); err != nil {
+	if err = bindObservation(repo, proof.Identity, guardOperation(request)); err != nil {
 		return guardFailureAudit(report, request.RequestID, err)
 	}
 	report.Receipt, err = applyBeforeCommit(repo, session, result.Plan, beforeCommit)

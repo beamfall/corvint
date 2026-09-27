@@ -432,3 +432,67 @@ func TestCALV0025_WidenAddsPathsAndRefusesCollision(t *testing.T) {
 	}
 	auditOK(t, s.repo)
 }
+
+// TestCALV0012_BackwardClockRefusesEveryWriter: a ticket mutation recorded
+// earlier than the head receipt refuses STORAGE_FAILED without a receipt, so
+// a lease a later write has outlived cannot be renewed.
+func TestCALV0012_BackwardClockRefusesEveryWriter(t *testing.T) {
+	s := newLeaseStore(t)
+	claim := s.claim(t, "claim-1", s.ticket(t, "one"), 0, "src")
+	later, err := store.Mutate(context.Background(), s.repo, operator(), envelope("create-later", "CREATE", "", "", createPayload("later")), s.at(t, 70))
+	if err != nil || later.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("later write: %+v %v", later, err)
+	}
+	back, err := store.Mutate(context.Background(), s.repo, operator(), envelope("create-back", "CREATE", "", "", createPayload("back")), s.at(t, 1))
+	if err != nil || back.Outcome.Outcome != mutation.OutcomeStorageFailed || back.Receipt != "" {
+		t.Fatalf("backward write: %+v %v", back, err)
+	}
+	if r := s.lease(t, "renew-back", renewOf(claim), 2, nil); r.Outcome.Outcome != mutation.OutcomeStorageFailed || r.Receipt != "" {
+		t.Fatalf("backward renew: %+v", r)
+	}
+	refusedWith(t, s.lease(t, "renew-1", renewOf(claim), 71, nil), mutation.OutcomeRevisionConflict, wire.CodeFenced)
+	auditOK(t, s.repo)
+}
+
+// TestCALV0025_WidenRefusedUnderAdmissionBarrier: pause refuses
+// scope-expand (TCP-00 §3.4) without writing, while renew proceeds.
+func TestCALV0025_WidenRefusedUnderAdmissionBarrier(t *testing.T) {
+	s := newLeaseStore(t)
+	a := s.claim(t, "claim-1", s.ticket(t, "one"), 0, "src/a")
+	pause, err := store.Barrier(context.Background(), s.repo, operator(), barrierRequest(transaction.Pause, "pause-1"), s.at(t, 1))
+	if err != nil || pause.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("pause: %+v %v", pause, err)
+	}
+	before := storeDigest(t, s.repo)
+	widen := transaction.LeaseRequest{Verb: transaction.LeaseWiden, AttemptID: a.AttemptID, Generation: a.Generation, Scope: []string{"docs"}}
+	refusedWith(t, s.lease(t, "widen-1", widen, 2, nil), mutation.OutcomeBlocked, wire.CodePaused)
+	widen.Scope, widen.WholeRepository = nil, true
+	refusedWith(t, s.lease(t, "widen-2", widen, 2, nil), mutation.OutcomeBlocked, wire.CodePaused)
+	if storeDigest(t, s.repo) != before {
+		t.Fatal("refused widen wrote")
+	}
+	if r := s.lease(t, "renew-1", renewOf(a), 3, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("renew under pause: %+v", r)
+	}
+	auditOK(t, s.repo)
+}
+
+// TestCALV0011_ReleaseAndReapPassAnAllBarrier: an ALL barrier lets release
+// and reap through, as it does cancel (TCP-00 §3.4), and still refuses
+// claim and renew.
+func TestCALV0011_ReleaseAndReapPassAnAllBarrier(t *testing.T) {
+	s := newLeaseStore(t)
+	one, two := s.ticket(t, "one"), s.ticket(t, "two")
+	a := s.claim(t, "claim-1", one, 0, "src/a")
+	b := s.claim(t, "claim-2", two, 0, "src/b")
+	reconciliationBarrier(t, s.repo, "ALL")
+	refusedWith(t, s.lease(t, "renew-1", renewOf(a), 1, nil), mutation.OutcomeBlocked, wire.CodePaused)
+	if r := s.lease(t, "release-1", releaseOf(a), 1, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("release under ALL: %+v", r)
+	}
+	reap := transaction.LeaseRequest{Verb: transaction.LeaseReap}
+	if r := s.lease(t, "reap-1", reap, 61, nil); len(r.Reaped) != 1 || r.Reaped[0].AttemptID != b.AttemptID {
+		t.Fatalf("reap under ALL: %+v", r)
+	}
+	auditOK(t, s.repo)
+}

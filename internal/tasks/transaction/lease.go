@@ -263,15 +263,12 @@ var leasePlanners = map[string]func(leaseContext) leaseOutcome{
 
 func planLease(r Request, in Input, st inputState) leaseOutcome {
 	c := leaseContext{r: r, l: r.Lease, in: in, st: st, seq: wire.SizeOf(st.head.LastSeq.Uint64() + 1)}
-	if e := checkClock(in, st.head); e != nil {
-		return c.refuse(mutation.OutcomeStorageFailed, "", e.Error())
-	}
 	return leasePlanners[r.Lease.Verb](c)
 }
 
 // checkClock refuses a transaction recorded earlier than the head receipt,
-// so a clock that steps backward cannot revive an expired lease
-// (CAL-V0-012).
+// whatever its operation, so a clock that steps backward cannot revive an
+// expired lease (CAL-V0-012).
 func checkClock(in Input, head *snapshot.Head) error {
 	if head.LastReceiptSha256 == nil || wire.Sum(in.HeadReceipt) != *head.LastReceiptSha256 {
 		return malformed("head receipt observation differs from the head")

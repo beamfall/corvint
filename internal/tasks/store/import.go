@@ -197,7 +197,11 @@ func importBatch(repo *intent.Repository, session *authority.Session, actor muta
 	if wire.Sum(headRaw) != a.proof.Identity.HeadSha256 {
 		return report, wire.Errorf(wire.CodeSnapshotMoved, "head.json", "validated head changed")
 	}
-	result := transaction.Model(request, transaction.Input{Inventory: a.inv, Head: headRaw, Queue: a.proof.Records["intent/queue.json"].Raw, Policy: a.proof.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, CanonicalTickets: a.tickets, CanonicalReleases: a.releases, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now})
+	headRc, err := headReceipt(repo, headRaw)
+	if err != nil {
+		return report, err
+	}
+	result := transaction.Model(request, transaction.Input{Inventory: a.inv, Head: headRaw, HeadReceipt: headRc, Queue: a.proof.Records["intent/queue.json"].Raw, Policy: a.proof.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, CanonicalTickets: a.tickets, CanonicalReleases: a.releases, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now})
 	report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
 	if result.Kind != "Transaction" || result.Plan == nil {
 		return report, nil

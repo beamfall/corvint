@@ -111,8 +111,9 @@ type Input struct {
 	Premise, Branch                            string
 	Replay                                     ReplayObservation
 	RecordedAt                                 wire.Timestamp
-	// Attempts are every attempts/ record, HeadReceipt the head receipt's
-	// bytes and LeaseFacts the caller's claim observations; Lease only.
+	// HeadReceipt is the head receipt's bytes: every store writer supplies it
+	// and Lease requires it. Attempts are every attempts/ record and
+	// LeaseFacts the caller's claim observations; Lease only.
 	Attempts    [][]byte
 	HeadReceipt []byte
 	LeaseFacts  LeaseFacts
@@ -460,13 +461,18 @@ func Model(r Request, in Input) Result {
 	if r.Operation != Init && state.head == nil {
 		return refused(r.RequestID, mutation.OutcomeBlocked, wire.CodeUninitialized, "no initialized base")
 	}
+	if r.Operation == Lease || (r.Operation != Init && in.HeadReceipt != nil) {
+		if e := checkClock(in, state.head); e != nil {
+			return refused(r.RequestID, mutation.OutcomeStorageFailed, "", e.Error())
+		}
+	}
 	if r.Operation == Pause && state.barrier != nil {
 		if state.barrier.Scope == "ADMISSION" && state.barrier.Reason == "OPERATOR" {
 			return noChange(r.RequestID)
 		}
 		return refused(r.RequestID, mutation.OutcomeBlocked, wire.CodePaused, "barrier replacement forbidden")
 	}
-	if state.barrier != nil && state.barrier.Scope == "ALL" && r.Operation != KeepJournal && r.Operation != AdoptFile && r.Operation != Unpause {
+	if state.barrier != nil && state.barrier.Scope == "ALL" && r.Operation != KeepJournal && r.Operation != AdoptFile && r.Operation != Unpause && !Cancels(r) {
 		return refused(r.RequestID, mutation.OutcomeBlocked, wire.CodePaused, "ALL barrier forbids mutation")
 	}
 	if r.Operation == Unpause && state.barrier == nil {
@@ -675,6 +681,13 @@ type absentIndex struct{}
 func (absentIndex) Lookup(string) (mutation.IndexEntry, bool, error) {
 	return mutation.IndexEntry{}, false, nil
 }
+
+// Cancels reports a lease release or reap, which an ALL barrier lets through
+// as it does cancel (TCP-00 §3.4).
+func Cancels(r Request) bool {
+	return r.Operation == Lease && (r.Lease.Verb == LeaseRelease || r.Lease.Verb == LeaseReap)
+}
+
 func emptyReservations(q string) []byte {
 	return wire.EncodeFile(object("profile", s("taskman-reservation-set/0"), "queueId", s(q), "entries", wire.Array()))
 }

@@ -316,6 +316,10 @@ func planWiden(c leaseContext) leaseOutcome {
 	if a.Scope.Source == "WHOLE_REPOSITORY" {
 		return c.unchanged()
 	}
+	// An admission barrier refuses scope-expand (TCP-00 §3.4).
+	if c.st.barrier != nil {
+		return c.refuse(mutation.OutcomeBlocked, wire.CodePaused, "an admission barrier is present")
+	}
 	if c.l.WholeRepository {
 		return c.widenWhole(a)
 	}
