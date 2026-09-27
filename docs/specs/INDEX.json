@@ -2373,6 +2373,20 @@
     ]
   },
   {
+    "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+    "title": "Corvint Tasks agent leases V0",
+    "reqPrefix": "CAL-V0",
+    "intent": "proposed",
+    "delivery": "not-started",
+    "claim": "Coding agents claim, renew, gate and complete tickets through leased `corvint-tasks` attempts, so a non-fixture queue can replace a repository's own task runner without a process supervisor.",
+    "dependsOn": [
+      "docs/specs/corvint-tasks-store-init-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
     "path": "docs/specs/protected-pi-runtime-v0.md",
     "title": "Protected Pi Runtime V0",
     "reqPrefix": "PPI-V0",

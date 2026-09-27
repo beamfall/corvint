@@ -234,6 +234,26 @@ BSD-004	docs/specs/beamfall-shadow-dogfood-v1.md	33	Manifest and artifact reads 
 BSD-005	docs/specs/beamfall-shadow-dogfood-v1.md	37	A new private `0600` receipt is emitted for every outcome after a
 BSD-006	docs/specs/beamfall-shadow-dogfood-v1.md	40	Literal external fixture artifacts and source inputs exist for Go;
 BSD-007	docs/specs/beamfall-shadow-dogfood-v1.md	44	The one-pass artifact byte count and non-race allocation ceiling
+CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	69	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and
+CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	73	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow
+CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	76	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom
+CAL-V0-004	docs/specs/corvint-tasks-agent-leases-v0.md	81	`corvint-tasks cutover --source-queue <queueId> --decision <ref>` MUST, under an
+CAL-V0-005	docs/specs/corvint-tasks-agent-leases-v0.md	88	`cutover` MUST plan every record against one audit, under one lock and one
+CAL-V0-006	docs/specs/corvint-tasks-agent-leases-v0.md	93	Records that `cutover` writes MUST keep their dependencies, holds, gates and
+CAL-V0-007	docs/specs/corvint-tasks-agent-leases-v0.md	98	`corvint-tasks claim <ticketId> --holder <label> [--lease-minutes N]
+CAL-V0-008	docs/specs/corvint-tasks-agent-leases-v0.md	104	`claim --next --holder <label>` MUST claim the first `SELECTED` entry of the
+CAL-V0-009	docs/specs/corvint-tasks-agent-leases-v0.md	107	Every command that names an attempt (`renew`, `release`, `submit`, `gate run`,
+CAL-V0-010	docs/specs/corvint-tasks-agent-leases-v0.md	111	`renew` MUST extend a live lease to `recordedAt + lease` and refuse `FENCED` onc
+CAL-V0-011	docs/specs/corvint-tasks-agent-leases-v0.md	113	`release [--reason <code>]` MUST move the attempt to `CANCELLED` with quiescence
+CAL-V0-012	docs/specs/corvint-tasks-agent-leases-v0.md	118	A lease is `{holder:label, grantedSeq:Size, expiresAt:Timestamp}`. The default i
+CAL-V0-013	docs/specs/corvint-tasks-agent-leases-v0.md	122	A ticket whose last attempt is `FAILED` or `CANCELLED` MUST be claimable again a
+CAL-V0-014	docs/specs/corvint-tasks-agent-leases-v0.md	130	`corvint-tasks plan preview` MUST implement `taskman-priority-first/0` (TCP-00
+CAL-V0-015	docs/specs/corvint-tasks-agent-leases-v0.md	136	`submit --tree <oid>` MUST record the candidate tree and move `RUNNING` to `BUIL
+CAL-V0-016	docs/specs/corvint-tasks-agent-leases-v0.md	139	`gate run --gate <gateId> --worktree <path>` MUST refuse unless the worktree's
+CAL-V0-017	docs/specs/corvint-tasks-agent-leases-v0.md	144	`complete --commit <oid>` MUST refuse unless the commit is reachable from the
+CAL-V0-018	docs/specs/corvint-tasks-agent-leases-v0.md	153	A first import MUST cost one full audit plus work proportional to the records it
+CAL-V0-019	docs/specs/corvint-tasks-agent-leases-v0.md	160	A named test suite MUST show, for `external-agent` attempts: two concurrent
+CAL-V0-020	docs/specs/corvint-tasks-agent-leases-v0.md	165	`cutover --execution --decision <ref> --qualification <digest>` MUST, under an
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla
