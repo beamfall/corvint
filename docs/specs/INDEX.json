@@ -2376,7 +2376,7 @@
     "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
     "title": "Corvint Tasks agent leases V0",
     "reqPrefix": "CAL-V0",
-    "intent": "proposed",
+    "intent": "accepted (owner decision 2026-09-27)",
     "delivery": "not-started",
     "claim": "Coding agents claim, renew, gate and complete tickets through leased `corvint-tasks` attempts, replacing a repository's own task runner without a supervisor.",
     "dependsOn": [

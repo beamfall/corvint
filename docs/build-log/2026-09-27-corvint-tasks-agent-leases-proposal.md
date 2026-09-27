@@ -2,7 +2,8 @@
 
 The owner asked for corvint-tasks to reach a level where it can replace Beamfall's
 `script/roadmap.sh`, then asked which execution model is the better long-term one. This entry
-records the proposal, `docs/specs/corvint-tasks-agent-leases-v0.md`; nothing in it is accepted.
+records the proposal, `docs/specs/corvint-tasks-agent-leases-v0.md`. The owner accepted it as written
+the same day, including amendments A8 to A11, choosing to build S2 to S6 on a fixture queue first.
 
 Findings.
 

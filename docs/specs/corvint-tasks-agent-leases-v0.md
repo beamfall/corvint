@@ -1,8 +1,8 @@
 # Corvint Tasks agent leases V0
 
 Owner: Russell Lewis
-Date: 2026-09-27
-Intent status: proposed
+Date: 2026-09-27 (accepted the same day)
+Intent status: accepted (owner decision 2026-09-27)
 Delivery status: not-started
 Authoritative inputs: the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
 §3.4, §4, §6 and §7.4), decision 0397 (corvint-tasks built in tree), decision 0423 A10,
@@ -11,9 +11,9 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Coding agents claim, renew, gate and complete tickets through leased `corvint-tasks` attempts, replacing a repository's own task runner without a supervisor.
-- Status: proposed; not-started. Drafted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`; nothing here is accepted.
+- Status: accepted (owner decision 2026-09-27); not-started. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture queues, and the CTS-V0-003 shadow import.
-- Blocked on: owner acceptance of this spec and of the TCP-00 amendments below; the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
+- Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
 - Read next: Slices; Requirements; Amendments to TCP-00; Failure modes.
 
 ## User and boundary
@@ -221,4 +221,4 @@ keeps `roadmap.sh` untouched until TCP-09, so its runner stays available as the 
 
 | Requirement | Evidence |
 |---|---|
-| CAL-V0-001..020 | NOT_RUN; proposal only |
+| CAL-V0-001..020 | NOT_RUN; accepted, not started |
