@@ -62,6 +62,13 @@ one.
 | S6 | CAL-V0-018 | Linear first import |
 | S7 | CAL-V0-019..020 | Lease race and crash qualification, and the execution cutover record |
 
+Corvint's own queue is a fixture queue written daily through the same §5.2 writer, and a fixture
+queue admits in mode `DEVELOPMENT` without an execution cutover (TCP-00 §4.1 step 2). S2 to S6
+therefore work on a fixture queue, and they land first, before S1. A repository can switch to them
+in `DEVELOPMENT` mode, as Corvint runs today. S1 and S7 then turn that queue into a qualified,
+non-fixture one. Whether a repository switches before S1 and S7 is an owner decision for that
+repository.
+
 ## Requirements
 
 S1, non-fixture writer.
