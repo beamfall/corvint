@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
-	"time"
 )
 
 func configureProcess(command *exec.Cmd) {
@@ -22,7 +21,7 @@ func configureProcess(command *exec.Cmd) {
 		}
 		return err
 	}
-	command.WaitDelay = time.Second
+	command.WaitDelay = pipeDrainDelay
 }
 
 // signalProcessGroup is syscall.Kill; tests observe when the group is signalled.

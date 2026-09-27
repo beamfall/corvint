@@ -192,6 +192,26 @@ func TestRecordIndexErrorNamesThePythonIdentityCommand(t *testing.T) {
 	}
 }
 
+// V1-0390: a Git call with no exit status keeps its cause instead of
+// rendering the -1 placeholder as a Python exit status.
+func TestRecordIndexErrorKeepsASignalCause(t *testing.T) {
+	root := newAdapterFixture(t)
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bin := t.TempDir()
+	script := "#!/bin/sh\ncase \" $* \" in *\" --show-object-format \"*) kill -9 $$;; esac\nexec " + realGit + " \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	_, _, err = recordIndex(context.Background(), root)
+	if err == nil || err.Error() != "Git error: signal: killed" {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 // LTPM-V0-002, GPK-V0-044.
 func TestReadBoundsTraceReplayWithoutRefusingLargeRepositories(t *testing.T) {
 	previousLimit := replayAncestryLimit
