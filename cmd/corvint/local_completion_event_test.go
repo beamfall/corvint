@@ -129,6 +129,17 @@ func TestDogfoodEventStrictInputAndDeadline(t *testing.T) {
 			t.Fatal("expired event waited for a read that ignores cancellation")
 		}
 	})
+	t.Run("LCP-V0-008 Git probe expiry", func(t *testing.T) {
+		// The Git probe's own bound can expire before a longer event deadline (V1-0396).
+		ctx := context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
+		ctx = context.WithValue(ctx, dogfoodEventReadKey{}, func(context.Context, options, map[string]any) (map[string]any, error) {
+			return nil, &gokernel.Error{Code: "repository-probe-timeout", Message: "Git repository probe exceeded its 10-second deadline"}
+		})
+		var stdout, stderr bytes.Buffer
+		if runLocalCompletionEvent(ctx, queryCLIRepository(t), dogfoodEventArguments("session-start"), strings.NewReader(`{}`), &stdout, &stderr) != 2 || !strings.Contains(stderr.String(), `"dogfood-event-deadline"`) {
+			t.Fatalf("an expired Git probe was not reported as a time bound: %s", &stderr)
+		}
+	})
 }
 
 // AHI-031: an event whose deadline expires in the in-memory build of a snapshot miss names the

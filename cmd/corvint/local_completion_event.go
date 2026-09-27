@@ -144,7 +144,7 @@ func runLocalCompletionEvent(parent context.Context, root string, args []string,
 		return 2
 	}
 	result, err := dogfoodEventWithin(ctx, options, input)
-	if err != nil && (errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, errDogfoodSnapshotStale)) {
+	if err != nil && (errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, errDogfoodSnapshotStale) || probeExpired(err)) {
 		// An expired deadline surfaces in later reads as unrelated drift or unavailability, and a
 		// skipped miss build (AHI-031) forecasts one; report the time bound, not a diagnosed fault.
 		emitError(stderr, dogfoodEventError(dogfoodExpiryCode(missed)))
@@ -522,4 +522,12 @@ func dogfoodMissOutlastsDeadline(ctx context.Context, root string) bool {
 	deadline, bounded := ctx.Deadline()
 	cost, recorded := contextindex.RecordedBuildCost(root)
 	return bounded && recorded && cost >= time.Until(deadline)
+}
+
+// probeExpired reports a Git repository probe that expired on its own fixed
+// bound before the event's deadline: a time bound, not an unavailable
+// repository (LCP-V0-008, V1-0396).
+func probeExpired(err error) bool {
+	var failure *gokernel.Error
+	return errors.As(err, &failure) && failure.Code == "repository-probe-timeout"
 }

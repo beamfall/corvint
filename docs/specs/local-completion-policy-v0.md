@@ -146,7 +146,9 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   claim. An automatic event whose deadline expires reports the fixed `dogfood-event-deadline` code
   (or `dogfood-event-index-snapshot-stale` once the read fell back to the in-memory build of a
   snapshot miss; accepted 2026-09-25 with `AHI-031`, decision 0400), never the generic `dogfood-event-unavailable`, even when the expiry first surfaces as a failed
-  repository or policy read. That code MUST be returned once the deadline passes, without waiting
+  repository or policy read. The Git repository probe's own fixed bound expiring first
+  (`repository-probe-timeout`) is the same time bound and reports the same code (V1-0396). That code
+  MUST be returned once the deadline passes, without waiting
   for a read stage that does not observe cancellation (the in-memory index compile of a snapshot
   miss); the abandoned read writes nothing. `dogfood-event-policy-drift` is reserved for an observed
   change: the policy target moved or both policy reads succeeded and disagree. A failed policy re-read
@@ -286,7 +288,7 @@ elsewhere are not repeated.
 | `completion-evidence-drift` | `internal/localcompletion/finish.go:337` | after finishing, the tree is not clean, the target or tree differs from the pre-finish snapshot, or the saved report is no longer current |
 | `dogfood-coordination-failed` | `internal/localcompletion/finish.go:371` | the in-process `dogfood change` coordination run did not pass (`LCP-V0-014`) |
 | `dogfood-event-context-drift` | `cmd/corvint/local_completion_event.go:375` | the loaded index commit or tree revision, or the dirty-path digest, differs from the probed repository context |
-| `dogfood-event-deadline` | `cmd/corvint/local_completion_event.go:129` | the event's context deadline expired or was cancelled |
+| `dogfood-event-deadline` | `cmd/corvint/local_completion_event.go:129` | the event's context deadline expired or was cancelled, or the Git repository probe's own fixed bound expired first (V1-0396) |
 | `dogfood-event-index-snapshot-stale` | `cmd/corvint/local_completion_event.go:81` | the event's deadline expired after the read found no matching index snapshot and fell back to its in-memory build (`AHI-031`, decision 0400); proposed 2026-09-26, not accepted: also reported before that build when the recorded `index` build cost does not fit the time left (`IDX-SNAP-V0-012`) |
 | `dogfood-event-input-unavailable` | `cmd/corvint/local_completion_event.go:117` | reading the event input from stdin failed |
 | `dogfood-event-native-budget` | `cmd/corvint/local_completion_event.go:462` | eight prompt-context attempts, each shrinking the budget, never fit the natively escaped response within the byte budget |
