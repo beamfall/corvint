@@ -11,7 +11,7 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Coding agents claim, renew, gate and complete tickets through leased `corvint-tasks` attempts, replacing a repository's own task runner without a supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S2 experimental). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S2 CAL-V0-004..006 experimental). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
 - Read next: Slices; Requirements; Amendments to TCP-00; Failure modes.
@@ -29,8 +29,8 @@ shadow import of the Beamfall export. TCP-00 defines the rest of the execution m
 supervisor: `admit` reserves the ticket, a supervisor forks a `lane-leader`, a `.boot`/`.ack`
 handshake proves whether the runtime ran, and process-group liveness decides when a reservation may
 be released (§6.2 to §6.4). None of that is built in tree: the writer requires an empty
-reservation set (`internal/tasks/transaction/model.go:687@62694c5b`) and refuses every queue that is
-not a fixture (`internal/tasks/transaction/model.go:656@2635d775`).
+reservation set (`internal/tasks/transaction/model.go:712@62694c5b`) and refuses every queue that is
+not a fixture (`internal/tasks/transaction/model.go:681@2635d775`).
 
 The agents that use these queues are not processes corvint-tasks starts. They are interactive or
 orchestrated sessions that call the task tool themselves. This spec keeps TCP-00's attempt,
@@ -208,7 +208,7 @@ the cut-over Beamfall export claims, gates and completes one real Beamfall ticke
 lease expire and be reaped.
 
 Rollback, per slice: S1 restores the fixture-only check at
-`internal/tasks/transaction/model.go:656@2635d775`; S2 removes `cutover` (a queue it already
+`internal/tasks/transaction/model.go:681@2635d775`; S2 removes `cutover` (a queue it already
 switched stays `NATIVE`, and its imported records stay eligible `IMPORT` records; reversing a switch
 is TCP-00's §5.4 revert, which this spec does not build); S3 to S5 remove the lease verbs, and a
 store that holds live `external-agent` attempts must first `release` or `reap` them, because a
