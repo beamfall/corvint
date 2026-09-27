@@ -79,7 +79,9 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   the receiving native hook evaluates only its own natural key and cannot take over an enrollment.
 - `LCP-V0-003`: `status` and automatic event evaluation MUST be read-only. They derive unmet
   conditions from the enrolled plan and current repository/artifacts. Missing enrollment is inactive,
-  not satisfied. Persistent lifecycle is only active, satisfied or explicitly cancelled; cancellation
+  not satisfied. When this key has no enrollment and the worktree owner is another key whose
+  enrollment is active, the inactive evaluation adds that key as `owner` (V1-0295); the member grants
+  nothing and never takes over the enrollment. Persistent lifecycle is only active, satisfied or explicitly cancelled; cancellation
   never becomes successful completion. Invalid, stale, missing, oversized or cross-session evidence
   cannot satisfy the policy. Dirty or untracked work is incomplete and is never discarded.
   `nextActions` MUST name only the next eligible workflow phase: unqualified selected checks,
@@ -142,11 +144,19 @@ frozen broad query profile. None of those legacy profile meanings is changed her
 - `LCP-V0-008`: Codex and Claude Code Stop MAY request one bounded remediation continuation for an explicitly enrolled
   incomplete change. If `stop_hook_active` is true, the adapter MUST release with a visible fixed
   unresolved-policy notice instead of looping. Inactive, satisfied and cancelled states are distinct.
+  A Stop whose evaluation names another session's active `owner` releases with
+  `local-policy-other-session-active`, and its completion carries that `owner`. The Codex and Claude
+  Code adapters then show a fixed notice that this session is not gated, followed by the keyed
+  `dogfood status` argv for that owner, so a session that lost its key (for example after `/clear`)
+  does not pass Stop silently (V1-0295). The qualified lifecycle's closed completion keeps only the
+  decision and reason.
   Timeouts, malformed input and unsupported hosts fail open with explicit failure, not a satisfied
   claim. An automatic event whose deadline expires reports the fixed `dogfood-event-deadline` code
   (or `dogfood-event-index-snapshot-stale` once the read fell back to the in-memory build of a
   snapshot miss; accepted 2026-09-25 with `AHI-031`, decision 0400), never the generic `dogfood-event-unavailable`, even when the expiry first surfaces as a failed
-  repository or policy read. That code MUST be returned once the deadline passes, without waiting
+  repository or policy read. The Git repository probe's own fixed bound expiring first
+  (`repository-probe-timeout`) is the same time bound and reports the same code (V1-0396). That code
+  MUST be returned once the deadline passes, without waiting
   for a read stage that does not observe cancellation (the in-memory index compile of a snapshot
   miss); the abandoned read writes nothing. `dogfood-event-policy-drift` is reserved for an observed
   change: the policy target moved or both policy reads succeeded and disagree. A failed policy re-read
@@ -260,7 +270,8 @@ Complete host qualification remains separately unproven.
 Missing citations, caller-assessed unknowns, an uncommitted sidecar, failed selected checks,
 unread reports, stale targets, changed plan/intent/report/log bytes, malformed state, cancellation,
 timeout and unsupported cleanup remain distinct unmet conditions. Missing enrollment releases ordinary
-questions. A continuation limit releases with an unresolved notice rather than pretending success.
+questions; while another session's enrollment of the worktree is active, that release shows a notice
+naming the owner key. A continuation limit releases with an unresolved notice rather than pretending success.
 Original pre-change receipts and failed test runs are retained; later coordination receipts cannot
 retroactively establish pre-change chronology.
 Unassessed rows require reviewer judgment: changed obligations must receive adequate links before
@@ -286,7 +297,7 @@ elsewhere are not repeated.
 | `completion-evidence-drift` | `internal/localcompletion/finish.go:337` | after finishing, the tree is not clean, the target or tree differs from the pre-finish snapshot, or the saved report is no longer current |
 | `dogfood-coordination-failed` | `internal/localcompletion/finish.go:371` | the in-process `dogfood change` coordination run did not pass (`LCP-V0-014`) |
 | `dogfood-event-context-drift` | `cmd/corvint/local_completion_event.go:375` | the loaded index commit or tree revision, or the dirty-path digest, differs from the probed repository context |
-| `dogfood-event-deadline` | `cmd/corvint/local_completion_event.go:129` | the event's context deadline expired or was cancelled |
+| `dogfood-event-deadline` | `cmd/corvint/local_completion_event.go:129` | the event's context deadline expired or was cancelled, or the Git repository probe's own fixed bound expired first (V1-0396) |
 | `dogfood-event-index-snapshot-stale` | `cmd/corvint/local_completion_event.go:81` | the event's deadline expired after the read found no matching index snapshot and fell back to its in-memory build (`AHI-031`, decision 0400); proposed 2026-09-26, not accepted: also reported before that build when the recorded `index` build cost does not fit the time left (`IDX-SNAP-V0-012`) |
 | `dogfood-event-input-unavailable` | `cmd/corvint/local_completion_event.go:117` | reading the event input from stdin failed |
 | `dogfood-event-native-budget` | `cmd/corvint/local_completion_event.go:462` | eight prompt-context attempts, each shrinking the budget, never fit the natively escaped response within the byte budget |
@@ -359,7 +370,7 @@ elsewhere are not repeated.
 | `repository-unavailable` | `internal/localcompletion/storage.go:38` | the Git authority for the repository root cannot be opened; the session key was already checked |
 | `secret-shaped-plan` | `internal/localcompletion/storage.go:148` | a plan intent matches the secret screen |
 | `selected-check-unverified` | `internal/localcompletion/finish.go:341` | a plan check has no qualifying observation for the current snapshot |
-| `session-identity-required` | `internal/localcompletion/types.go:154` | no explicit session key and neither `CODEX_THREAD_ID` nor `CODEX_SESSION_ID` is set |
+| `session-identity-required` | `internal/localcompletion/types.go:155` | no explicit session key and neither `CODEX_THREAD_ID` nor `CODEX_SESSION_ID` is set |
 | `uncommitted-work` | `internal/localcompletion/lifecycle.go:393` | the tree is not clean before verification |
 | `unknown-selected-check` | `internal/localcompletion/lifecycle.go:383` | the selected check id is not in the plan |
 | `verification-attempt-bound-exceeded` | `internal/localcompletion/lifecycle.go` | Verify refuses at 64 saved observations; evaluation also exposes this unmet reason when any selected check remains unqualified |
@@ -382,6 +393,7 @@ Each row cites the first emitting site and states only the condition checked the
 | `anchor-worktree-changed` | `internal/contextindex/local_completion_context.go:586@37e9b097` | the resolution `reason` when no earlier case applies and a task-evidence path is among the index's dirty paths |
 | `local-policy-continuation-limit` | `cmd/corvint/local_completion_event.go:361@50f727f3` | a `stop` event that would block has `stopHookActive` true; decision `release` |
 | `local-policy-incomplete` | `cmd/corvint/local_completion_event.go:359@3862af35` | a `stop` event whose lifecycle is `active`, or `satisfied` without the evaluation satisfied; decision `block` |
+| `local-policy-other-session-active` | `cmd/corvint/local_completion_event.go:541@65149f9c` | a `stop` event whose inactive evaluation names another session's active enrollment as `owner`; decision `release`, and the completion carries `owner` |
 
 ## Resource and trust boundaries
 
@@ -401,12 +413,12 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 |---|---|
 | LCP-V0-001 | `TestDogfoodEventReadOnlyEnrolledStopAndPrompt`; legacy CLI/harness frozen parity |
 | LCP-V0-002 | `TestEnrollmentAndReadOnlyPolicy`; `TestLocalStateBoundsAndContention`; `TestDogfoodEventGoPythonWireAndSession`; `TestEnrollmentRefusesIntentAbsentFromBase`; `TestRefusedEnrollmentConsumesNoGeneration`; `TestEnrollmentPinsSameChangeIntentAtHead`; `TestEnrollmentRefusesHeadNotDescendedFromBase`; `TestFinishRefusesHeadMovedToUnrelatedHistory` |
-| LCP-V0-003 | `TestEnrollmentAndReadOnlyPolicy`; `TestCompletionNextActions`; `TestFinishRefusesHeadMovedToUnrelatedHistory`; `TestLocalCompletionRealEvidenceWorkflow`; `TestDogfoodEventReadOnlyEnrolledStopAndPrompt` |
+| LCP-V0-003 | `TestEnrollmentAndReadOnlyPolicy`; `TestInactiveKeyNamesActiveWorktreeOwner`; `TestCompletionNextActions`; `TestFinishRefusesHeadMovedToUnrelatedHistory`; `TestLocalCompletionRealEvidenceWorkflow`; `TestDogfoodEventReadOnlyEnrolledStopAndPrompt` |
 | LCP-V0-004 | `TestActualVerificationAndSecretRefusal`; `TestVerificationCancellationCleansDescendant`; `TestExplicitSidecarReuseRequiresCanonicalMap` |
 | LCP-V0-005 | `TestLocalCompletionRealEvidenceWorkflow`; actual CEM/OCM/coordinator/checker fixture |
 | LCP-V0-006 | `TestLocalCompletionRealEvidenceWorkflow`; generated-but-unread/stale report refusals |
 | LCP-V0-007 | `TestLocalCompletionRealEvidenceWorkflow`; strict-check and repeated-finish assertions |
-| LCP-V0-008 | `TestDogfoodEventStopLifecycle`; `TestDogfoodEventStrictInputAndDeadline` deadline code and uncancellable-read expiry; native first/recursive Stop regressions |
+| LCP-V0-008 | `TestDogfoodEventStopLifecycle`; `TestDogfoodEventReadOnlyEnrolledStopAndPrompt` other-session release and notice; `TestQualifiedLifecycleStopComposition` closed completion; `TestDogfoodEventStrictInputAndDeadline` deadline code and uncancellable-read expiry; native first/recursive Stop regressions |
 | LCP-V0-009 | `TestDogfoodEventGoPythonWireAndSession`; `TestDogfoodEventStrictInputAndDeadline`; `TestAdapterRejectedReasonSurfacesEngineErrorCode`; `TestRejectedEventReasonAppendsEngineCode`; `TestAdapterErrorTailIsBounded` |
 | LCP-V0-010 | `TestDogfoodPromptFrozenAnchors`; `TestDogfoodPromptScopeDoesNotResolveAndPreservesStaleness`; frozen follow-up and explicit/unknown/ambiguous anchors |
 | LCP-V0-011 | `TestDogfoodPromptPrivacyNoHistoryAndNonmutation`; `TestDogfoodPromptCriticalBudgetAndImpossibleEnvelope` |

@@ -124,7 +124,7 @@ local append-only diagnostic proposal stream and `corvint observations` is its r
   most once per hour window. `SOL-V0-001`'s ignore and symlink refusals and `SOL-V0-002`/`003`'s
   bounds apply unchanged. The append MUST NOT alter the hook output or exit status and waits no
   longer than the later of the invocation's work deadline and 50 ms, so a
-  `dogfood-event-deadline` row, returned only once that deadline has expired, is still attempted;
+  `dogfood-event-deadline` row, even one returned after that deadline has expired, is still attempted;
   the Claude Code `adapter-host-kill-deadline` row is attempted after the watchdog fires, waits at
   most 50 ms, and is abandoned past it. A reason
   returned before root resolution (`unsupported-hook-event`, `hook-input-too-large`,

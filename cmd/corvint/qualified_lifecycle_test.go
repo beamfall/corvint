@@ -108,6 +108,22 @@ func TestQualifiedLifecycleStopComposition(t *testing.T) {
 			}
 		}
 		scope := qualifiedTestScope("/test-only")
+		// The closed qualified shape drops the local owner key (LCP-V0-008).
+		owned := qualifiedEnvelope(options{event: "stop"}, map[string]any{}, qualifiedTestRepo(), localcompletion.Evaluation{Lifecycle: "inactive", Owner: strings.Repeat("ab", 32)}, scope)
+		empty := authorityevent.Resolution{RootCurrent: true, State: "EMPTY", UniverseSHA256: strings.Repeat("b", 64), QualifiedHostSHA256: scope.QualifiedHostSHA256}
+		if err := qualifiedStop(owned, map[string]any{}, authoritystore.LifecycleResolution{Scope: scope, Stop: empty}); err != nil {
+			t.Fatal(err)
+		}
+		if want := map[string]any{"decision": "release", "reason": "local-policy-other-session-active"}; !reflect.DeepEqual(owned["completion"], want) {
+			t.Fatalf("qualified completion=%#v", owned["completion"])
+		}
+		encoded, err := qualifiedLifecycleBytes(owned, 8000)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = qualifiedNativeBytes(encoded); err != nil {
+			t.Fatalf("owner wire: %v %s", err, encoded)
+		}
 		for _, stop := range []authorityevent.Resolution{{}, {RootCurrent: true, State: "UNKNOWN"}, {RootCurrent: true, State: "EMPTY", UniverseSHA256: strings.Repeat("b", 64), QualifiedHostSHA256: strings.Repeat("c", 64)}} {
 			result := qualifiedEnvelope(options{event: "stop"}, map[string]any{}, qualifiedTestRepo(), localcompletion.Evaluation{Lifecycle: "inactive"}, scope)
 			if qualifiedStop(result, map[string]any{}, authoritystore.LifecycleResolution{Scope: scope, Stop: stop}) == nil {
