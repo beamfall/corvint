@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S8 claim side CAL-V0-021..023 and 025 experimental)
+Delivery status: partial (S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S8 claim side CAL-V0-021..023 and 025 experimental)
 Authoritative inputs: the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
 §3.4, §4, §6 and §7.4), decision 0397 (corvint-tasks built in tree), decision 0423 A10,
 `docs/specs/corvint-tasks-store-init-v0.md`, tickets V1-0398, V1-0184 and V1-0310, and the in-tree
@@ -11,7 +11,7 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Coding agents claim, renew, gate and complete tickets through leased `corvint-tasks` attempts, replacing a repository's own task runner without a supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S8 claim side CAL-V0-021..023 and 025 experimental). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S8 claim side CAL-V0-021..023 and 025 experimental). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
 - Read next: Slices; Requirements (S8 for parallel claims); Amendments to TCP-00; Failure modes.
@@ -30,8 +30,8 @@ supervisor: `admit` reserves the ticket, a supervisor forks a `lane-leader`, a `
 handshake proves whether the runtime ran, and process-group liveness decides when a reservation may
 be released (§6.2 to §6.4). None of that is built in tree: the only reservations are S3's
 `external-agent` leases, `cutover` requires an empty reservation set
-(`internal/tasks/transaction/model.go:538@afae0d34`), and the writer refuses every queue that is
-not a fixture (`internal/tasks/transaction/model.go:732@2635d775`).
+(`internal/tasks/transaction/model.go:539@afae0d34`), and the writer refuses every queue that is
+not a fixture (`internal/tasks/transaction/model.go:733@2635d775`).
 
 The agents that use these queues are not processes corvint-tasks starts. They are interactive or
 orchestrated sessions that call the task tool themselves. This spec keeps TCP-00's attempt,
@@ -246,10 +246,12 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
 - A8: runtime `external-agent`. An attempt with this runtime has `supervisor` and `lane` null in
   every generation, never has a `PROCESS_SPAWN` effect, and is exempt from the §6.4 rows.
 - A9: `taskman-attempt/0` gains `lease:{holder, grantedSeq, expiresAt}|null`, non-null exactly for
-  `external-agent` attempts. A lease receipt (`claim`, `renew`, `release`, `reap`, `widen`) has
-  `ticketId` null and names its attempt by `attemptId` and `generation`, because TCP-00 binds a
-  ticket afterimage to every completed receipt that names a ticket, and a lease writes no ticket
-  file.
+  `external-agent` attempts. A lease receipt (`claim`, `renew`, `release`, `reap`, `widen`,
+  `submit`, `gate run`) has `ticketId` null and names its attempt by `attemptId` and `generation`,
+  because TCP-00 binds a ticket afterimage to every completed receipt that names a ticket, and a
+  lease writes no ticket file. A completed `complete` receipt is the exception: it writes the
+  ticket file, so it names the ticket and carries its resulting revision like any ticket
+  mutation.
 - A10: cause `LEASE_EXPIRED` joins the closed cause set, and quiescence `FENCED` covers a generation
   closed by `release`, `reap` or `complete`: no command of that generation can take effect after it.
 - A11: for a queue whose admissions are all `external-agent`, the §7.4 execution permission needs a
@@ -259,6 +261,30 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
   that runtime, with `derivationSha256` non-null exactly for `DERIVED`. A ticket without `QUALIFIED`
   coverage is admissible under such a scope regardless of the policy's `serialFallback`, because
   the scope is enforced at submit (CAL-V0-024).
+- A13: S5 for `external-agent` attempts. A `gate run` supports `COMMAND` gates with an expected
+  exit code, `cwd` `WORKTREE`, no reducer, no `sharedResource`, no declared `inputs` and no
+  evidence label beyond the captured output; any other gate refuses `UNSUPPORTED` before it runs.
+  The gate runs in the caller's worktree (`executedCwd` `WORKTREE`) with only the environment
+  names the gate's `env` declares, taken from the caller, so a gate whose commands need `PATH`
+  must declare it. The first argv element is resolved on `corvint-tasks`' own `PATH`, not the
+  declared one. An interrupt kills the gate's process group and records nothing. The CAL-V0-024
+  scope check at `submit` counts only paths that differ from both the base commit's tree and the
+  intent branch tip's tree, so a candidate rebased onto a later `main` is not charged with paths
+  other tickets merged. The check therefore guards what a lease completion certifies, not the
+  branch itself: a path an agent commits straight to the intent branch before `submit` is
+  identical at the tip and is not counted. A result's staleness is its tree binding: after a new
+  `submit`, earlier results stay in `gateResults` unchanged and count as `GATE_STALE` because
+  their `candidateTreeOid` differs, which is how CAL-V0-015's "marks every earlier gate result
+  `STALE`" is met without rewriting evidence. A `gate run` repeated under the same request id runs
+  the gate again before the replay is found, and the replay returns the original receipt.
+  `complete` refuses unless the commit is reachable and carries the candidate tree, the ticket is
+  `OPEN` and not held at the acceptance revision the attempt read, the policy is the one the claim
+  read, the scope check is `WITHIN`, an `APPROVAL_REQUIRED` ticket has a `COMPLETE` grant at that
+  revision, and every required gate (the policy's `required` gates plus the ticket's
+  `requiredGates`) has a `PASSED` result at the candidate tree. It completes the ticket `VERIFIED`
+  with a `MANIFEST` evidence record; the supervisor, lane, spawn and review checks of §7.3 do not
+  apply to this runtime. The lease verbs read Git in the caller's checkout, else the primary
+  worktree.
 
 ## Failure modes
 
@@ -287,7 +313,7 @@ Before S7 closes, a rehearsal in a throwaway non-fixture store holding the cut-o
 claims, gates and completes one real Beamfall ticket, and lets one lease expire and be reaped.
 
 Rollback, per slice: S1 restores the fixture-only check at
-`internal/tasks/transaction/model.go:732@2635d775`; S2 removes `cutover` (a queue it already
+`internal/tasks/transaction/model.go:733@2635d775`; S2 removes `cutover` (a queue it already
 switched stays `NATIVE`, and its imported records stay eligible `IMPORT` records; reversing a switch
 is TCP-00's §5.4 revert, which this spec does not build); S3 to S5 remove the lease verbs, and a
 store that holds live `external-agent` attempts must first `release` or `reap` them, because a
@@ -312,10 +338,13 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-012 | `TestCALV0012_LeaseBoundsAndBackwardClock`, `TestCALV0012_BackwardClockRefusesEveryWriter` (`internal/tasks/store`) |
 | CAL-V0-013 | `TestCALV0013_RetryAsNextGenerationUpToThree` (`internal/tasks/store`) |
 | CAL-V0-014 | `TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan` (`internal/tasks/cli`); `plan preview` in `TestTMV0008_AS07_ReadsLeaveStoreByteIdentical` (`internal/tasks/cli`) |
-| CAL-V0-015..020 | NOT_RUN; accepted, not started |
+| CAL-V0-015 | `TestCALV0015_SubmitRecordsTheCandidateTree` (`internal/tasks/store`) |
+| CAL-V0-016 | `TestCALV0016_GateRunRecordsEachResult`, `TestCALV0016_GateRunRefusesWithoutRunning` (`internal/tasks/store`), `TestCALV0016_GateResultRoundTrips`, `TestCALV0016_PassedNeedsACleanExitAtTheCandidate` (`internal/tasks/snapshot`) |
+| CAL-V0-017 | `TestCALV0017_CompleteVerifiesTheTicket`, `TestCALV0017_CompletionRefusals`, `TestCALV0017_CompletionNeedsEveryRequiredGateAndApproval` (`internal/tasks/store`), `TestCALV0017_ManifestRoundTrips` (`internal/tasks/snapshot`); live CLI run in `docs/build-log/2026-09-27-corvint-tasks-lease-gates.md` |
+| CAL-V0-018..020 | NOT_RUN; accepted, not started |
 | CAL-V0-021 | `TestCALV0021_WholeRepositoryBlocksEverything`, `TestCALV0021_DeclaredNonPathResourcesJoinTheScope` (`internal/tasks/store`) |
 | CAL-V0-022 | Claim side only: `TestCALV0022_DerivedScopeWhenTheTicketDeclaresNone` (`internal/tasks/store`), with an injected deriver; the context-index deriver is NOT_RUN |
 | CAL-V0-023 | `TestCALV0023_CollisionNormalization` (`internal/tasks/ticket`), `TestCALV0023_CollidingClaimsAdmitOne`, `TestCALV0023_DisjointPathScopesAreBothAdmitted` (`internal/tasks/store`) |
-| CAL-V0-024 | NOT_RUN; S5 |
+| CAL-V0-024 | `TestCALV0024_SubmitOutsideTheScopeIsRefused` (`internal/tasks/store`) |
 | CAL-V0-025 | `TestCALV0025_WidenAddsPathsAndRefusesCollision`, `TestCALV0025_WidenRefusedUnderAdmissionBarrier` (`internal/tasks/store`) |
 | CAL-V0-026 | NOT_RUN; not measured |

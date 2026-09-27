@@ -433,7 +433,8 @@ func Model(r Request, in Input) Result {
 			return refused(r.RequestID, mutation.OutcomeRequestIDConflict, wire.CodeRequestIDConflict, "different original request")
 		}
 		if req.Entry.Outcome.Outcome == mutation.OutcomeCompleted {
-			ticketOperation := r.Operation == KeepJournal || r.Operation == AdoptFile || r.Operation == Mutate
+			completion := r.Operation == Lease && r.Lease.Verb == LeaseComplete
+			ticketOperation := r.Operation == KeepJournal || r.Operation == AdoptFile || r.Operation == Mutate || completion
 			releaseOperation := r.Operation == Release
 			if ticketOperation != (req.Entry.Outcome.ResultingRevision != nil) || releaseOperation != (req.Entry.Outcome.ReleaseID != nil) || len(req.Entry.Outcome.Codes) != 0 {
 				return failed(r.RequestID, malformed("replay outcome shape"))
@@ -660,7 +661,7 @@ func Model(r Request, in Input) Result {
 		for path, raw := range planned.posts {
 			posts[path] = raw
 		}
-		lease, detail = planned.effect, planned.detail
+		lease, effect, detail = planned.effect, planned.ticket, planned.detail
 	}
 	p, out, e := freeze(r, d, in.RecordedAt, in.Inventory, state.head, posts, effect, relEffect, lease)
 	if e != nil {

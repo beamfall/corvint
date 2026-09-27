@@ -42,15 +42,18 @@ type LeaseRequest struct {
 	AttemptID              string
 	Generation             wire.Size
 	Reason                 string
+	Tree, Gate, Commit     string
 }
 
 // LeaseFacts are the caller's observations for a CLAIM: the fresh attempt
 // identity it minted, the resolved base commit, and the CAL-V0-022
-// derivation (nil paths when the deriver abstained).
+// derivation (nil paths when the deriver abstained). SUBMIT, GATE_RUN and
+// COMPLETE add their git and gate observations (gateFacts).
 type LeaseFacts struct {
 	AttemptID, BaseCommit string
 	DerivedPaths          []string
 	DerivationSha256      wire.Digest
+	gateFacts
 }
 
 // ExpiredLease names a live attempt whose lease has expired.
@@ -70,6 +73,9 @@ const (
 	fieldAttempt
 	fieldGeneration
 	fieldReason
+	fieldTree
+	fieldGate
+	fieldCommit
 )
 
 type leaseShape struct{ required, allowed int }
@@ -81,10 +87,13 @@ var leaseShapes = map[string]leaseShape{
 	LeaseRelease:   {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldReason},
 	LeaseReap:      {0, fieldAttempt | fieldGeneration},
 	LeaseWiden:     {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldScope | fieldWhole},
+	LeaseSubmit:    {fieldAttempt | fieldGeneration | fieldTree, fieldAttempt | fieldGeneration | fieldTree},
+	LeaseGateRun:   {fieldAttempt | fieldGeneration | fieldGate, fieldAttempt | fieldGeneration | fieldGate},
+	LeaseComplete:  {fieldAttempt | fieldGeneration | fieldCommit, fieldAttempt | fieldGeneration | fieldCommit},
 }
 
 func (l *LeaseRequest) present() int {
-	flags := map[int]bool{fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != ""}
+	flags := map[int]bool{fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != ""}
 	bits := 0
 	for bit, set := range flags {
 		if set {
@@ -202,7 +211,7 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 	if l.Reason != "" && !wire.IsCode(l.Reason) {
 		return malformed("release reason is not a closed code")
 	}
-	return nil
+	return checkGateFields(l)
 }
 
 func optionalString(v string) wire.Value {
@@ -225,7 +234,15 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 	if l.Scope != nil {
 		scope = wire.Strings(l.Scope)
 	}
-	return object("verb", s(l.Verb), "ticketId", optionalString(l.TicketID), "holder", optionalString(l.Holder), "leaseMinutes", optionalString(string(l.LeaseMinutes)), "branch", optionalString(l.Branch), "base", optionalString(l.Base), "scope", scope, "wholeRepository", wire.Bool(l.WholeRepository), "attemptId", optionalString(l.AttemptID), "generation", optionalString(string(l.Generation)), "reason", optionalString(l.Reason)), nil
+	v := object("verb", s(l.Verb), "ticketId", optionalString(l.TicketID), "holder", optionalString(l.Holder), "leaseMinutes", optionalString(string(l.LeaseMinutes)), "branch", optionalString(l.Branch), "base", optionalString(l.Base), "scope", scope, "wholeRepository", wire.Bool(l.WholeRepository), "attemptId", optionalString(l.AttemptID), "generation", optionalString(string(l.Generation)), "reason", optionalString(l.Reason))
+	// The S5 fields join the preimage only for the S5 verbs, so an earlier
+	// lease command keeps its digest and still replays.
+	if gateVerbs[l.Verb] {
+		v.Obj.Set("tree", optionalString(l.Tree))
+		v.Obj.Set("gate", optionalString(l.Gate))
+		v.Obj.Set("commit", optionalString(l.Commit))
+	}
+	return v, nil
 }
 
 // leaseEffect is what a lease transaction records: the receipt kind, the
@@ -243,6 +260,7 @@ type leaseEffect struct {
 type leaseOutcome struct {
 	posts  map[string][]byte
 	effect *leaseEffect
+	ticket *ticketEffect
 	detail string
 	result *Result
 }
@@ -262,6 +280,9 @@ var leasePlanners = map[string]func(leaseContext) leaseOutcome{
 	LeaseRelease:   planRelease,
 	LeaseReap:      planReap,
 	LeaseWiden:     planWiden,
+	LeaseSubmit:    planSubmit,
+	LeaseGateRun:   planGateRun,
+	LeaseComplete:  planComplete,
 }
 
 func planLease(r Request, in Input, st inputState) leaseOutcome {

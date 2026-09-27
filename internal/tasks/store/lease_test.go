@@ -20,7 +20,8 @@ import (
 
 // leaseStore is an initialized store whose policy requires no enforced
 // budget field and admits four live attempts, plus a real Git checkout with
-// one commit for claims to resolve their base against.
+// one commit for claims to resolve their base against. Given gates replace
+// the policy's.
 type leaseStore struct {
 	repo *intent.Repository
 	root string
@@ -37,10 +38,13 @@ func gitRun(t *testing.T, dir string, args ...string) {
 	}
 }
 
-func newLeaseStore(t *testing.T) *leaseStore {
+func newLeaseStore(t *testing.T, gates ...wire.Value) *leaseStore {
 	t.Helper()
 	repo, _ := initialized(t)
 	v := fixture.PolicyValue()
+	if len(gates) > 0 {
+		v.Obj.Set("gates", wire.Array(gates...))
+	}
 	v.Obj.Set("policyVersion", str("2"))
 	v.Obj.Set("capacity", obj("maxActiveAttempts", str("4"), "maxWorkersTotal", str("4"), "classes", wire.Array()))
 	budgets, _ := v.Obj.Get("budgets")

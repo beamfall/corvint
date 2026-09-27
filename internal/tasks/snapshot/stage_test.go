@@ -75,6 +75,12 @@ func maximalDescriptor(op string) StageDescriptor {
 		add("POST", "attempts/attempt:a:"+strings.Repeat("q", 71)+":"+strings.Repeat("a", 32)+".json", wire.MaxAttemptRecordBytes, hash)
 		add("POST", "reservations.json", wire.MaxReservationSetBytes, wire.Sum([]byte("reservations")))
 		add("EVIDENCE", "evidence/"+string(hash), wire.MaxReservationSetBytes, hash)
+		// A 79-byte queue id leaves a 47-byte ticket local token.
+		ticketHash := wire.Sum([]byte("ticket"))
+		add("POST", "intent/tickets/"+strings.Repeat("t", 47)+".json", 131072, ticketHash)
+		add("EVIDENCE", "evidence/"+string(ticketHash), wire.MaxReservationSetBytes, ticketHash)
+		manifest := wire.Sum([]byte("manifest"))
+		add("POST", "evidence/"+string(manifest), wire.MaxGateOutputBytes, manifest)
 	case StageKeepJournal, StageAdoptFile:
 		add("POST", "intent/tickets/"+strings.Repeat("t", 64)+".json", 131072, hash)
 		add("EVIDENCE", "evidence/"+string(hash), 131072, hash)

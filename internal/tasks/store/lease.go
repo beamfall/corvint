@@ -35,6 +35,7 @@ type LeaseChoice struct {
 	QueueID, RequestID, Root string
 	Lease                    transaction.LeaseRequest
 	Derive                   ScopeDeriver
+	gate                     *gateRun
 }
 
 // claimObserver computes the claim facts from the audit taken under the
@@ -72,7 +73,7 @@ func Lease(ctx context.Context, repo *intent.Repository, actor mutation.Binding,
 func leaseOnce(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, now wire.Timestamp) (*Report, error) {
 	lease := choice.Lease
 	request := transaction.Request{Operation: transaction.Lease, QueueID: choice.QueueID, RequestID: choice.RequestID, Actor: actor, Lease: &lease}
-	var facts claimObserver
+	facts := gateFacts(repo, choice)
 	if lease.Verb == transaction.LeaseClaim || lease.Verb == transaction.LeaseClaimNext {
 		facts = claimFacts(ctx, repo, choice)
 	}
@@ -188,12 +189,18 @@ func claimedRecord(proof *journal.Result, ticketID string) *ticket.Record {
 	return rec
 }
 
+// leaseRoot is the checkout a lease command reads Git from: the caller's,
+// else the primary worktree.
+func leaseRoot(repo *intent.Repository, choice LeaseChoice) string {
+	if choice.Root == "" {
+		return repo.PrimaryWorktree
+	}
+	return choice.Root
+}
+
 func claimFacts(ctx context.Context, repo *intent.Repository, choice LeaseChoice) claimObserver {
 	return func(proof *journal.Result) (transaction.LeaseFacts, error) {
-		root := choice.Root
-		if root == "" {
-			root = repo.PrimaryWorktree
-		}
+		root := leaseRoot(repo, choice)
 		rev := choice.Lease.Base
 		if rev == "" {
 			rev = "HEAD"
