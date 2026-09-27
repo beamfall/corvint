@@ -1,0 +1,27 @@
+{
+  "attestation": {
+    "corpusSha256": "2cce3e8bb2e55b5ae69b6d9da91af641e427ff77f0b7ac9f5820ca16342d79c3",
+    "outcome": "FAIL",
+    "preregistrationSha256": "27625e854faf7dfb2379f59d38c7c082aeea19758e744874a52b20f200551e29",
+    "resultSha256": "3a518374754dc757a0e140ac859b9b29d7bd0a6b6ad6473b87081ffac515843a"
+  },
+  "evidenceClass": "sealed-benchmark",
+  "repositoryRevision": "b967f6bbe33c5eba367a07d7eeb2bd1e372e9162",
+  "result": "FAIL",
+  "spec": "corvint-use-case-evidence/0",
+  "subjects": [
+    {
+      "path": "benchmarks/untouched-repository-v1/preregistration.json",
+      "sha256": "27625e854faf7dfb2379f59d38c7c082aeea19758e744874a52b20f200551e29"
+    },
+    {
+      "path": "benchmarks/untouched-repository-v1/corpus.json",
+      "sha256": "2cce3e8bb2e55b5ae69b6d9da91af641e427ff77f0b7ac9f5820ca16342d79c3"
+    },
+    {
+      "path": "benchmarks/untouched-repository-v1/runs/run-001.json",
+      "sha256": "3a518374754dc757a0e140ac859b9b29d7bd0a6b6ad6473b87081ffac515843a"
+    }
+  ],
+  "useCaseId": "UC-TASK-ORIENTATION"
+}
