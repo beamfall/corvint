@@ -1,6 +1,12 @@
 #!/bin/sh
 # Focused, offline verification for the standalone Go analyzer candidate.
 # This script intentionally does not run a repository-wide gate.
+#
+# Historical record, not a gate (V1-0434): it accepted the candidate against
+# integration parent 718dfc7d with a pinned Homebrew go 1.27.0 keg, BSD stat
+# descriptors and exact binary receipts. That parent predates the public
+# history (decision 0331), so the script no longer runs; it is kept unchanged
+# below as provenance. Nothing calls it.
 set -eu
 
 budget_tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-analyzer-go.XXXXXX")

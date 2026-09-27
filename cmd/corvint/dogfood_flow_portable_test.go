@@ -370,6 +370,34 @@ func TestDogfoodChangeNamesVerifySyntaxRemediation(t *testing.T) {
 	}
 }
 
+// V1-0435, DCW-V0-014: a verification line over the recorder's 512-character
+// bound is refused record-failed, its fix line names the stderr file and the
+// bounds, and that file names the cause.
+func TestDogfoodChangeNamesVerifyLengthRemediation(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	root, base := portableDogfoodRepo(t)
+	verify := filepath.Join(t.TempDir(), "verify")
+	if err := os.WriteFile(verify, []byte("go test ./fixture -run "+strings.Repeat("A", 500)+"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_OUTCOME=passed", "DOGFOOD_VERIFY_FILE=" + verify}
+	// The recorder refuses an uncommitted sidecar before it reads the commands.
+	run.exec(t, root, inputs, "dogfood", "change", base)
+	cemGit(t, root, "add", ".corvint/change.cem.json")
+	cemGit(t, root, "commit", "-qm", "chore: bind change evidence")
+	code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base)
+	fix := "\n  local-outcome: record-failed\n    fix: read "
+	bounds := "/local-outcome.stderr for the cause; DOGFOOD_VERIFY_FILE holds at most 50 commands of at most 512 characters each, so split a longer command into several lines\n"
+	if code != 1 || !strings.Contains(stderr, fix) || !strings.Contains(stderr, bounds) {
+		t.Fatalf("verify length exit=%d stderr=%s", code, stderr)
+	}
+	cause, err := os.ReadFile(filepath.Join(root, ".git/corvint/local-outcome.stderr"))
+	if err != nil || !strings.Contains(string(cause), "verification command exceeds 512 characters") {
+		t.Fatalf("local-outcome.stderr=%q err=%v", cause, err)
+	}
+}
+
 // impactAbstentionRepo is a repository whose one change native Go impact
 // refuses: a text file with no Go module, or a Go file at the module root.
 func impactAbstentionRepo(t *testing.T, module bool) (string, string) {
