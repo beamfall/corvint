@@ -254,6 +254,26 @@ var createKeys = []string{
 	"executionClass", "dueDate", "estimateMinutes", "supersedes", "supersededBy",
 }
 
+// PayloadKeys is each operation's closed payload key set, which decodePayload
+// enforces and help prints. CREATE also takes an optional localToken, and
+// REFINE takes a non-empty subset of its keys.
+var PayloadKeys = map[string][]string{
+	OpCreate:          createKeys,
+	OpRefine:          RefineFields,
+	OpPrioritize:      {"priority", "order"},
+	OpSetDependencies: {"dependencies"},
+	OpSetGates:        {"requiredGates"},
+	OpSetEffects:      {"effects", "capabilities", "executionClass"},
+	OpHold:            {"holdId", "reason"},
+	OpReleaseHold:     {"holdId"},
+	OpReopen:          {"reason"},
+	OpArchive:         {"reason"},
+	OpRestore:         {"reason"},
+	OpCompleteManual:  {"reason", "evidence"},
+	OpGrantApproval:   {"grantId", "actor", "operation", "targetRevision", "scope"},
+	OpRevokeApproval:  {"grantId", "reason"},
+}
+
 // Decode parses and validates one mutation envelope (canonical bytes with
 // trailing LF, ≤256 KiB). Every key is checked against the closed schema of
 // §3.3, the payload against the closed table for its operation, and the
@@ -350,39 +370,39 @@ func decodePayload(op string, r *wire.Reader) (Payload, error) {
 	case OpRefine:
 		p = readRefine(r)
 	case OpPrioritize:
-		r.Closed("priority", "order")
+		r.Closed(PayloadKeys[op]...)
 		p = &PrioritizePayload{Priority: readPriority(r.Field("priority")), Order: r.Field("order").Count()}
 	case OpSetDependencies:
-		r.Closed("dependencies")
+		r.Closed(PayloadKeys[op]...)
 		p = &SetDependenciesPayload{Dependencies: readDependencies(r.Field("dependencies"))}
 	case OpSetGates:
-		r.Closed("requiredGates")
+		r.Closed(PayloadKeys[op]...)
 		p = &SetGatesPayload{RequiredGates: readGates(r.Field("requiredGates"))}
 	case OpSetEffects:
-		r.Closed("effects", "capabilities", "executionClass")
+		r.Closed(PayloadKeys[op]...)
 		p = &SetEffectsPayload{
 			Effects:        readEffects(r.Field("effects")),
 			Capabilities:   readCapabilities(r.Field("capabilities")),
 			ExecutionClass: r.Field("executionClass").Enum(ticket.ExecutionClasses...),
 		}
 	case OpHold:
-		r.Closed("holdId", "reason")
+		r.Closed(PayloadKeys[op]...)
 		p = &HoldPayload{HoldID: r.Field("holdId").Label(), Reason: r.Field("reason").Prose(0, wire.MaxProseBytes)}
 	case OpReleaseHold:
-		r.Closed("holdId")
+		r.Closed(PayloadKeys[op]...)
 		p = &ReleaseHoldPayload{HoldID: r.Field("holdId").Label()}
 	case OpReopen, OpArchive, OpRestore:
-		r.Closed("reason")
+		r.Closed(PayloadKeys[op]...)
 		p = &ReasonPayload{Op: op, Reason: r.Field("reason").Prose(0, wire.MaxProseBytes)}
 	case OpCompleteManual:
-		r.Closed("reason", "evidence")
+		r.Closed(PayloadKeys[op]...)
 		cm := &CompleteManualPayload{Reason: r.Field("reason").Prose(0, wire.MaxProseBytes), Evidence: []wire.Digest{}}
 		for _, e := range r.Field("evidence").Array(-1, false) {
 			cm.Evidence = append(cm.Evidence, e.Digest())
 		}
 		p = cm
 	case OpGrantApproval:
-		r.Closed("grantId", "actor", "operation", "targetRevision", "scope")
+		r.Closed(PayloadKeys[op]...)
 		g := &GrantApprovalPayload{}
 		g.GrantID = r.Field("grantId").Label()
 		g.Actor = r.Field("actor").Label()
@@ -391,7 +411,7 @@ func decodePayload(op string, r *wire.Reader) (Payload, error) {
 		g.Scope = nonNil(r.Field("scope").Strings(-1, false, (*wire.Reader).Identifier))
 		p = g
 	case OpRevokeApproval:
-		r.Closed("grantId", "reason")
+		r.Closed(PayloadKeys[op]...)
 		p = &RevokeApprovalPayload{GrantID: r.Field("grantId").Label(), Reason: r.Field("reason").Prose(0, wire.MaxProseBytes)}
 	default:
 		return nil, wire.Errorf(wire.CodeMalformed, r.Where(), "unknown operation %q", op)

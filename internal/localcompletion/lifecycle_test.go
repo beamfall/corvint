@@ -160,6 +160,31 @@ func TestEnrollmentAndReadOnlyPolicy(t *testing.T) {
 	})
 }
 
+func TestInactiveKeyNamesActiveWorktreeOwner(t *testing.T) {
+	root, key, plan := fixture(t, []string{"true"})
+	other := HashSession("cleared-session")
+	result, err := Evaluate(context.Background(), root, other)
+	if err != nil || result.Owner != "" {
+		t.Fatalf("unenrolled worktree: %#v %v", result, err)
+	}
+	beginFixture(t, root, key, plan)
+	result, err = Evaluate(context.Background(), root, other)
+	if err != nil || result.Lifecycle != "inactive" || result.Satisfied || result.Owner != key {
+		t.Fatalf("active owner: %#v %v", result, err)
+	}
+	owned, err := Evaluate(context.Background(), root, key)
+	if err != nil || owned.Owner != "" {
+		t.Fatalf("the owner named itself: %#v %v", owned, err)
+	}
+	if _, err = Cancel(context.Background(), root, key); err != nil {
+		t.Fatal(err)
+	}
+	result, err = Evaluate(context.Background(), root, other)
+	if err != nil || result.Owner != "" {
+		t.Fatalf("cancelled owner: %#v %v", result, err)
+	}
+}
+
 func TestEnrollmentRefusesIntentAbsentFromBase(t *testing.T) {
 	t.Run("LCP-V0-002 unresolvable intent", func(t *testing.T) {
 		root, key, plan := fixture(t, []string{"true"})

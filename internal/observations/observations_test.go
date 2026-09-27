@@ -444,7 +444,7 @@ func TestAppendSerializesConcurrentProcesses(t *testing.T) {
 	writeIgnore(t, root)
 	barrier := filepath.Join(root, "start")
 	const writers = 24
-	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Minute) // hang detector, not a latency budget (decision 0082)
 	defer cancel()
 	commands := make([]*exec.Cmd, 0, writers)
 	for index := 0; index < writers; index++ {
@@ -488,7 +488,7 @@ func TestAppendHelperProcess(t *testing.T) {
 		return
 	}
 	barrier := os.Getenv("CORVINT_OBSERVATIONS_BARRIER")
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(2 * time.Minute) // hang detector, not a latency budget (decision 0082)
 	for {
 		_, err := os.Stat(barrier)
 		if err == nil {

@@ -569,7 +569,7 @@ func renderAdapterResult(host, eventName, event, root string, input, result map[
 		if completion["reason"] == "local-policy-continuation-limit" {
 			return map[string]any{"systemMessage": continuationLimitMsg}
 		}
-		return map[string]any{}
+		return otherSessionNotice(root, completion)
 	}
 	if event == "session-end" {
 		return map[string]any{}
@@ -935,3 +935,16 @@ const claudeHostVersion = "unreported-by-hook-api"
 
 // dogfoodHostVersions is the one admitted host-version spelling per plugin host (LCP-V0-009).
 var dogfoodHostVersions = map[string]string{"codex": "unknown", "claude-code": claudeHostVersion}
+
+const otherSessionMsg = "Corvint local completion is not evaluated for this session: another session's enrollment of this worktree is active and still gates its own Stop. Inspect it with: "
+
+// otherSessionNotice renders a released Stop's owner key, when valid, as a
+// fixed notice with that owner's keyed status argv (LCP-V0-008).
+func otherSessionNotice(root string, completion map[string]any) map[string]any {
+	owner, _ := completion["owner"].(string)
+	if !dogfoodSessionPattern.MatchString(owner) {
+		return map[string]any{}
+	}
+	status, _ := json.Marshal([]string{"corvint", "--root", root, "dogfood", "status", "--session-key", owner})
+	return map[string]any{"systemMessage": otherSessionMsg + string(status)}
+}

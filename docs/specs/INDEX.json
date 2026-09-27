@@ -1559,7 +1559,8 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "benchmarks/daily-loop-v0/harness.py"
+      "benchmarks/daily-loop-v0/harness.py",
+      "benchmarks/daily-loop-v1/harness.py"
     ]
   },
   {

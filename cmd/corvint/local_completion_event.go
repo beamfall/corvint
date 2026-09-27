@@ -144,7 +144,7 @@ func runLocalCompletionEvent(parent context.Context, root string, args []string,
 		return 2
 	}
 	result, err := dogfoodEventWithin(ctx, options, input)
-	if err != nil && (errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, errDogfoodSnapshotStale)) {
+	if err != nil && (errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, errDogfoodSnapshotStale) || probeExpired(err)) {
 		// An expired deadline surfaces in later reads as unrelated drift or unavailability, and a
 		// skipped miss build (AHI-031) forecasts one; report the time bound, not a diagnosed fault.
 		emitError(stderr, dogfoodEventError(dogfoodExpiryCode(missed)))
@@ -361,7 +361,7 @@ func dogfoodCompletion(event string, input map[string]any, evaluation localcompl
 			decision, reason = "release", "local-policy-continuation-limit"
 		}
 	}
-	return map[string]any{"decision": decision, "reason": reason}
+	return withOtherSessionOwner(map[string]any{"decision": decision, "reason": reason}, event, evaluation)
 }
 
 func dogfoodEventContext(ctx context.Context, options options, input map[string]any, evaluation localcompletion.Evaluation, envelope map[string]any, repo gokernel.Repository) (map[string]any, error) {
@@ -522,4 +522,21 @@ func dogfoodMissOutlastsDeadline(ctx context.Context, root string) bool {
 	deadline, bounded := ctx.Deadline()
 	cost, recorded := contextindex.RecordedBuildCost(root)
 	return bounded && recorded && cost >= time.Until(deadline)
+}
+
+// probeExpired reports a Git repository probe that expired on its own fixed
+// bound before the event's deadline: a time bound, not an unavailable
+// repository (LCP-V0-008, V1-0396).
+func probeExpired(err error) bool {
+	var failure *gokernel.Error
+	return errors.As(err, &failure) && failure.Code == "repository-probe-timeout"
+}
+
+// withOtherSessionOwner names another session's active enrollment on a Stop
+// that releases because this key has none (LCP-V0-008).
+func withOtherSessionOwner(completion map[string]any, event string, evaluation localcompletion.Evaluation) map[string]any {
+	if event != "stop" || evaluation.Owner == "" {
+		return completion
+	}
+	return map[string]any{"decision": "release", "reason": "local-policy-other-session-active", "owner": evaluation.Owner}
 }

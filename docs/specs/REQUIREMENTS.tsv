@@ -1300,18 +1300,18 @@ LAC-V0-036	docs/specs/local-admin-console-v0.md	272	The pane MUST be reachable f
 LCP-V0-001	docs/specs/local-completion-policy-v0.md	40	The local policy MUST remain caller-owned and non-authoritative. Its positive st
 LCP-V0-002	docs/specs/local-completion-policy-v0.md	44	Enrollment MUST be explicit through `corvint dogfood begin`. One bounded plan pi
 LCP-V0-003	docs/specs/local-completion-policy-v0.md	80	`status` and automatic event evaluation MUST be read-only. They derive unmet
-LCP-V0-004	docs/specs/local-completion-policy-v0.md	93	`verify` MUST execute only an explicitly selected plan check, as argv without sh
-LCP-V0-005	docs/specs/local-completion-policy-v0.md	102	`finish` MUST reuse the public CEM/OCM and daily dogfood workflow (`LCP-V0-014`)
-LCP-V0-006	docs/specs/local-completion-policy-v0.md	123	Once maps are ready, `finish` MUST generate the CEM reviewer report and every sc
-LCP-V0-007	docs/specs/local-completion-policy-v0.md	131	Terminal success MUST require all selected checks to pass, current report inspec
-LCP-V0-008	docs/specs/local-completion-policy-v0.md	142	Codex and Claude Code Stop MAY request one bounded remediation continuation for
-LCP-V0-009	docs/specs/local-completion-policy-v0.md	158	`corvint dogfood event` MUST use a separate `corvint-dogfood-event/0` envelope a
-LCP-V0-010	docs/specs/local-completion-policy-v0.md	179	New-profile prompt context MUST separate project governance, declared enrollment
-LCP-V0-011	docs/specs/local-completion-policy-v0.md	189	Prompt context MUST project only allowlisted, Git-reextractable evidence and fix
-LCP-V0-012	docs/specs/local-completion-policy-v0.md	202	Private plans, observations and report sets MUST have explicit byte/count limits
-LCP-V0-013	docs/specs/local-completion-policy-v0.md	208	Prompt context MUST accept a task mention as an explicit anchor. A mention is on
-LCP-V0-014	docs/specs/local-completion-policy-v0.md	233	`finish` MUST run the daily change (coordination) and the final strict check in
-LCP-V0-015	docs/specs/local-completion-policy-v0.md	246	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
+LCP-V0-004	docs/specs/local-completion-policy-v0.md	95	`verify` MUST execute only an explicitly selected plan check, as argv without sh
+LCP-V0-005	docs/specs/local-completion-policy-v0.md	104	`finish` MUST reuse the public CEM/OCM and daily dogfood workflow (`LCP-V0-014`)
+LCP-V0-006	docs/specs/local-completion-policy-v0.md	125	Once maps are ready, `finish` MUST generate the CEM reviewer report and every sc
+LCP-V0-007	docs/specs/local-completion-policy-v0.md	133	Terminal success MUST require all selected checks to pass, current report inspec
+LCP-V0-008	docs/specs/local-completion-policy-v0.md	144	Codex and Claude Code Stop MAY request one bounded remediation continuation for
+LCP-V0-009	docs/specs/local-completion-policy-v0.md	168	`corvint dogfood event` MUST use a separate `corvint-dogfood-event/0` envelope a
+LCP-V0-010	docs/specs/local-completion-policy-v0.md	189	New-profile prompt context MUST separate project governance, declared enrollment
+LCP-V0-011	docs/specs/local-completion-policy-v0.md	199	Prompt context MUST project only allowlisted, Git-reextractable evidence and fix
+LCP-V0-012	docs/specs/local-completion-policy-v0.md	212	Private plans, observations and report sets MUST have explicit byte/count limits
+LCP-V0-013	docs/specs/local-completion-policy-v0.md	218	Prompt context MUST accept a task mention as an explicit anchor. A mention is on
+LCP-V0-014	docs/specs/local-completion-policy-v0.md	243	`finish` MUST run the daily change (coordination) and the final strict check in
+LCP-V0-015	docs/specs/local-completion-policy-v0.md	256	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	1309	Every displayed metric and source-derived value MUST derive through the compiled
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	1313	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	1316	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the
@@ -1586,8 +1586,8 @@ PCCO-V0-012	docs/specs/proof-carrying-context-optimization-v0.md	105	The primary
 PCCO-V0-013	docs/specs/proof-carrying-context-optimization-v0.md	109	Training artifacts remain repository-local, owner-readable, secret-screened,
 PCCO-V0-014	docs/specs/proof-carrying-context-optimization-v0.md	113	Profiles are advisory performance artifacts, never project authority, accepted
 PCCO-V0-015	docs/specs/proof-carrying-context-optimization-v0.md	115	(proposed for V1-0012, not accepted) A correctness or cost comparison of the dai
-PCCO-V0-016	docs/specs/proof-carrying-context-optimization-v0.md	121	(proposed for V1-0012, not accepted) Each run MUST emit one result binding the
-PCCO-V0-017	docs/specs/proof-carrying-context-optimization-v0.md	126	(proposed for V1-0012, not accepted) A cost-reduction claim is retained only whe
+PCCO-V0-016	docs/specs/proof-carrying-context-optimization-v0.md	125	(proposed for V1-0012, not accepted) Each run MUST emit one result binding the
+PCCO-V0-017	docs/specs/proof-carrying-context-optimization-v0.md	130	(proposed for V1-0012, not accepted) A cost-reduction claim is retained only whe
 PLE-V0-001	docs/specs/protected-local-execution-v0.md	27	The optional `corvint-protected-execution/0` profile MUST preserve all legacy pr
 PLE-V0-002	docs/specs/protected-local-execution-v0.md	28	A protected immutable release and independently admitted root/policy MUST bind t
 PLE-V0-003	docs/specs/protected-local-execution-v0.md	29	Ingestion MUST bound and independently bind expected Git base/target/tree, CEM,
