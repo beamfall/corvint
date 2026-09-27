@@ -300,5 +300,8 @@ A reproduced Gemini group-signal race now preserves unexpected cleanup errors as
 leader's exit is observed is decided at close: the group is signalled once more, and only a delivered
 signal or `ESRCH` confirms cleanup; a repeated `EPERM` stays unconfirmed. The adapter still
 waits for close and pipe drain; it does not report uncertain cleanup as successful containment.
+Close is not group exit: a same-group descendant that ignores SIGTERM and closes its stdio outlives
+it, so Gemini and OpenCode now SIGKILL the owned group at every completion under the same rule,
+rather than cancelling a pending kill when the leader closes (V1-0371).
 The test supervisor composes caller cancellation with shutdown and includes an outer-supervisor
 interruption regression proving its detached native descendant exits.
