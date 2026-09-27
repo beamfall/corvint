@@ -16,6 +16,9 @@ value `work-queue-observation-v0.md` already states for its "pipe-drain detector
 cancelled call does not wait out the bound. `contextindex` keeps the bound in a variable so the
 held-pipe test can shorten it. `recordIndexError` no longer renders the `-1` placeholder of a
 signal or a drain expiry as a Python exit status; it returns the underlying cause.
+The `contextindex` source change re-pins the audited-input digest in `TestAnalyzerSchemaInputs` to
+`2caf1cb939661a0b71aa3f2c7bb7f2d6c4fe4120f717c7fbd446ebed9d38035b`. The schema stays
+`corvint-analyzer/87`, because extraction and encoding are unchanged, as for V1-0339.
 
 Out of scope: the one-second `WaitDelay` in `doccompiler`, `taskman`, `liveverify` mutation and the
 work executable binding. They are not Git acquisition, and the last has tests that depend on the
