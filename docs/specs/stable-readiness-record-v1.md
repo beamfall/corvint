@@ -100,7 +100,8 @@ Non-goals:
 - `SRR-V1-011`: Building and verifying MUST NOT write to the candidate, the source root or the
   evidence files, and MUST NOT use the network. The builder returns the canonical bytes, and the
   operator-named output path is the only place a caller may write them. Source-root git reads MUST
-  run with lazy fetching from a promisor remote disabled (`GIT_NO_LAZY_FETCH=1`). The candidate
+  run with lazy fetching from a promisor remote disabled (`GIT_NO_LAZY_FETCH=1`), and (V1-0362) with
+  an empty credential helper and no transport (`GIT_ALLOW_PROTOCOL=`). The candidate
   verifier's transient host-probe directory is created and removed inside the system temporary
   directory.
 - `SRR-V1-012`: (accepted command shape, decision 0422; not implemented) A new operator binary,
@@ -149,5 +150,5 @@ the package yet.
 | SRR-V1-008 | `readiness.go` (`readinessVulnerability`, `requireDirectives`, `vulnerabilityStatus`) | TestSRRV1008VulnerabilityRuleIsRequireFreeAndPinnedToolchain |
 | SRR-V1-009 | `readiness.go` (`readinessRules`, `fixedRule`) | TestSRRV1009PolicyRowsFollowDecision0420 |
 | SRR-V1-010 | `readiness.go` (`fixedRule`, `validateReadinessRow`) | TestSRRV1010OwnerActionsStayNotRun |
-| SRR-V1-011 | `readiness.go` (no writer) | TestSRRV1011BuildAndVerifyWriteNothing |
+| SRR-V1-011 | `readiness.go` (no writer), `candidate.go` (`runSourceGit`) | TestSRRV1011BuildAndVerifyWriteNothing, TestSRRV1011SourceGitHasNoCredentialHelperOrTransport |
 | SRR-V1-012 | accepted shape (decision 0422); no implementation | none until implemented |

@@ -3,6 +3,7 @@ package dogfoodflow
 import (
 	"bytes"
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -55,5 +56,33 @@ func TestSealRefusesToDropAnUnarchivedBaseCEM(t *testing.T) {
 	testGit(t, root, "commit", "-q", "-m", "bind with the earlier CEM archived")
 	if code, stderr = seal(); code != 0 {
 		t.Fatalf("archived seal exit=%d stderr=%q", code, stderr)
+	}
+}
+
+// TestFlowGitIgnoresAmbientConfigurationAndReplaceRefs reproduces V1-0362: the
+// flow's Git reads run under Core's sanitized environment, so a global
+// fsmonitor hook never runs and a replace ref never rewrites a read commit.
+func TestFlowGitIgnoresAmbientConfigurationAndReplaceRefs(t *testing.T) {
+	root, scratch := t.TempDir(), t.TempDir()
+	testGit(t, root, "init", "-q")
+	testGit(t, root, "commit", "-q", "--allow-empty", "-m", "first")
+	first := testGit(t, root, "rev-parse", "HEAD")
+	testGit(t, root, "commit", "-q", "--allow-empty", "-m", "second")
+	testGit(t, root, "replace", first, testGit(t, root, "rev-parse", "HEAD"))
+	marker, hook, global := filepath.Join(scratch, "hook-ran"), filepath.Join(scratch, "fsmonitor"), filepath.Join(scratch, "gitconfig")
+	if err := os.WriteFile(hook, []byte("#!/bin/sh\ntouch '"+marker+"'\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(global, []byte("[core]\n\tfsmonitor = "+hook+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", global)
+	run := &flow{ctx: context.Background(), root: root, stderr: io.Discard}
+	if subject := run.gitValue("log", "-1", "--format=%s", first); subject != "first" {
+		t.Fatalf("replace ref rewrote the read commit: subject %q", subject)
+	}
+	run.gitValue("status", "--porcelain", "--untracked-files=all")
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("global fsmonitor hook ran: %v", err)
 	}
 }

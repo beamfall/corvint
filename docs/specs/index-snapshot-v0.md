@@ -110,7 +110,10 @@ what any packet says.
   bound, the published `*.gob` files in one store stay within 1 GiB. Eviction orders files whose
   engine matches the snapshot just written first, newest first, then every other engine's files,
   newest first, and removes each file past the entry bound or past the byte budget; the snapshot
-  just written is never removed, even when it alone exceeds the budget.
+  just written is never removed, even when it alone exceeds the budget. Amendment (V1-0361): the
+  same cutoff sweeps the other temporaries a killed writer can leave, `blob-*.tmp` in the store and
+  in each `blobs/<engine>/` shard directory (reached through the shard writer's no-follow walk) and
+  the `.gitignore-*.tmp` rewrite temporary.
 - `IDX-SNAP-V0-008`: the two per-prompt query verbs read the snapshot on the same terms as
   `context`: `corvint query` in place of its authority-only query build, and the harness
   `user-prompt` event (with the standalone repository and agent-tooling query intents that share
@@ -635,7 +638,7 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-004 | `buildEvidence`, `buildQueryAttempt`, `adoptStatus`, `LoadSnapshot` | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSnapshotHitAndMissUseStatusDirtyPaths` |
 | IDX-SNAP-V0-005 | `runTaskContext` (no writer), `WriteSnapshot` (`.gitignore`), `snapshotDirectoryPresent` (readers) | `TestIndexWritesTheSnapshotThatContextReadsWithoutChangingAByte`, `TestWriteSnapshotDoesNotRewriteMatchingGitIgnore`, `TestWriteSnapshotRefusesCommittedSymlinkedSnapshotDirectory`, `TestSnapshotReadersMissThroughCommittedSymlinkedSnapshotDirectory` |
 | IDX-SNAP-V0-006 | `runTaskContext`, status-only `DirtyPaths` builders and loader | `TestIndexWritesTheSnapshotThatContextReadsWithoutChangingAByte`, `TestSnapshotHitAndMissUseStatusDirtyPaths` |
-| IDX-SNAP-V0-007 | `evictSnapshots` | `TestEvictSnapshotsKeepsNewestEightIncludingCurrent`, `TestEvictSnapshotsRemovesStaleTemporaries`, `TestEvictSnapshotsBoundsBytesAndEvictsOtherEnginesFirst` |
+| IDX-SNAP-V0-007 | `evictSnapshots` | `TestEvictSnapshotsKeepsNewestEightIncludingCurrent`, `TestEvictSnapshotsRemovesStaleTemporaries`, `TestEvictSnapshotsBoundsBytesAndEvictsOtherEnginesFirst`, `TestEvictSnapshotsRemovesStaleShardAndIgnoreTemporaries` |
 | IDX-SNAP-V0-008 | `snapshotIndex`, `authorityStartQueryContext`, `repositoryQueryContext`, `evalLearnedCandidates` | `TestQueryVerbsReadTheSnapshotWithoutChangingAByte`, `TestEvalQueryAcceptsStatusCleanIdentCheckout` |
 | IDX-SNAP-V0-009 | `LoadSnapshot` | measured by the Beamfall miss-path reading; no unit test yet |
 | IDX-SNAP-V0-010 | `snapshotIndex`, `harnessIndexedContext` | `TestHarnessIndexBuildingEventsReadTheSnapshotWithoutChangingAByte` |

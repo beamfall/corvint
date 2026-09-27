@@ -77,9 +77,11 @@ func buildCostTarget(root string) (base, target string, present bool) {
 }
 
 // isStoreTemporary names the temporaries the writer sweeps once stale: snapshot
-// writes, and the record's confined publication, which a killed writer can leave.
+// writes, the record's confined publication and the .gitignore rewrite, which a
+// killed writer can leave.
 func isStoreTemporary(name string) bool {
 	snapshot, _ := filepath.Match("snapshot-*.tmp", name)
 	record, _ := filepath.Match("blob-*.tmp", name)
-	return snapshot || record
+	ignore, _ := filepath.Match(".gitignore-*.tmp", name)
+	return snapshot || record || ignore
 }

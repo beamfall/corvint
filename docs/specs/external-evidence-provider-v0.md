@@ -201,7 +201,10 @@ each cited path still exists at that revision, and what was omitted or could not
   executable is only an absolute `PATH` match; a `PATH` lookup error, including a match relative to
   the working directory, is `gopls executable not found`. The query digest is SHA-256 over the canonical JSON of the provider id, the index
   commit, the seeds and the bounds; it is reported as `query.sha256` and opens every relation's
-  `reference`.
+  `reference`. Amendment (V1-0362): the root commit that anchors the record is read with
+  `git rev-list --max-parents=0` under Core's sanitized Git environment
+  (`gokernel.SanitizedGitEnvironment`) with an empty credential helper and no transport, so replace
+  refs, ambient Git configuration and a promisor remote cannot change it.
 - `EEP-V0-025`: The expansion is at most two hops. Seeds are at most three `.go` paths whose
   indexed text equals the working tree. Hop one queries each seed at up to eight top-level
   function, method and type declarations (`textDocument/references`, declarations excluded,
@@ -335,7 +338,7 @@ their tests, the fixture `lsp-gopls.json`, the one `attachLSPEvidence` call in
 | `EEP-V0-021` | `examples/evidence-provider/v0/conformance/main.go` | `TestProviderKitConformanceRunner` |
 | `EEP-V0-022` | `examples/evidence-provider/v0/authoring-proof.sh` | recorded run in the kit README and `docs/BUILD-LOG.md` |
 | `EEP-V0-023` | `InlineSection`, `sectionOf` in `internal/extevidence/section.go`; `attachLSPEvidence` in `cmd/corvint/context_lsp.go` | `TestLSPRecordConformance`, `TestContextLSPOffKeepsTheGoldenAndOnDegrades` |
-| `EEP-V0-024` | `Expand`, `run`, `environment`, `querySummary`, `serverVersion`, `serverName` in `internal/lspprovider/provider.go`; `internal/lspprovider/session.go` | `TestExpandLiveGopls`, `TestExpandEveryQueryFailedIsUnavailable`, `TestSessionAnswersServerRequests` |
+| `EEP-V0-024` | `Expand`, `run`, `environment`, `querySummary`, `serverVersion`, `serverName`, `rootCommit` in `internal/lspprovider/provider.go`; `internal/lspprovider/session.go` | `TestExpandLiveGopls`, `TestExpandEveryQueryFailedIsUnavailable`, `TestSessionAnswersServerRequests`, `TestRootCommitIgnoresReplaceRefs` |
 | `EEP-V0-025` | `dialogue`, `walker`, `record`, `relation` in `internal/lspprovider/provider.go`; `targets` in `internal/lspprovider/targets.go` | `TestExpandLiveGopls`, `TestTargets`, `TestLSPRecordConformance` |
 | `EEP-V0-026` | `Expand`, `run` in `internal/lspprovider/provider.go`; `InlineSection` | `TestExpandDegrades`, `TestExpandEveryQueryFailedIsUnavailable`, `TestLSPUnavailableIsVisible`, `TestContextLSPOffKeepsTheGoldenAndOnDegrades` |
 

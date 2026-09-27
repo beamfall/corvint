@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 // Frozen operational bounds.
@@ -239,15 +240,13 @@ func runReservedStream(ctx context.Context, perOp time.Duration, options Options
 		return nil, cemcode.NewGitStartFailure(fmt.Sprintf("Git could not start: %v", err), err)
 	}
 	waited := make(chan error, 1)
-	go func() { waited <- command.Wait() }()
+	go func() { waited <- groupreap.Wait(command) }()
 
 	timer := time.NewTimer(perOp)
 	defer timer.Stop()
 	var failure *cemcode.Error
 	select {
 	case runErr := <-waited:
-		// Normal completion path: sweep the group immediately after the reap.
-		killDescendants(command)
 		if streamErr := stream.failure(); streamErr != nil {
 			return nil, streamErr
 		}

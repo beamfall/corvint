@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 // Pin each directory with a no-follow descriptor, then open the leaf without
@@ -112,6 +113,50 @@ func publishBlobFactAt(directory *os.Root, name string, data []byte) error {
 		return err
 	}
 	return directory.Rename(temporary, name)
+}
+
+// sweepBlobShardTemporaries removes the publication temporaries a killed writer
+// left in the engine shard directories, through the writer's no-follow walk.
+func sweepBlobShardTemporaries(directory string, cutoff time.Time) {
+	blobs, err := openBlobShardDirectory(directory, "blobs", false)
+	if err != nil {
+		return
+	}
+	defer blobs.Close()
+	for _, engine := range readRootEntries(blobs) {
+		if !engine.IsDir() {
+			continue
+		}
+		shard, err := descendBlobShardDirectory(blobs, engine.Name(), false)
+		if err != nil {
+			continue
+		}
+		removeStaleBlobTemporaries(shard, cutoff)
+		shard.Close()
+	}
+}
+
+func removeStaleBlobTemporaries(shard *os.Root, cutoff time.Time) {
+	for _, entry := range readRootEntries(shard) {
+		if temporary, _ := filepath.Match("blob-*.tmp", entry.Name()); !temporary {
+			continue
+		}
+		info, err := shard.Lstat(entry.Name())
+		if err != nil || !info.Mode().IsRegular() || info.ModTime().After(cutoff) {
+			continue
+		}
+		_ = shard.Remove(entry.Name())
+	}
+}
+
+func readRootEntries(root *os.Root) []os.DirEntry {
+	directory, err := root.Open(".")
+	if err != nil {
+		return nil
+	}
+	defer directory.Close()
+	entries, _ := directory.ReadDir(-1)
+	return entries
 }
 
 // writeAndClose closes the file exactly once: on the happy path after Sync, so

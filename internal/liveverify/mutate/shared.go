@@ -4,6 +4,8 @@ import (
 	"context"
 	"os/exec"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 // This file is the seam a sibling runner (internal/liveverify/pymutate) uses
@@ -38,10 +40,7 @@ func (exported *Export) Run(ctx context.Context, timeout time.Duration, dir stri
 	output := &boundedBuffer{limit: outputLimit}
 	command.Stdout, command.Stderr = output, output
 	configureProcess(command)
-	err := command.Run()
-	if command.Process != nil {
-		terminateProcessGroup(command.Process.Pid)
-	}
+	err := groupreap.Run(command)
 	timedOut := commandCtx.Err() != nil && ctx.Err() == nil
 	return output.String(), timedOut, err
 }

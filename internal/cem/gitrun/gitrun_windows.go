@@ -14,5 +14,3 @@ func killGroup(command *exec.Cmd) {
 	}
 	_ = command.Process.Kill()
 }
-
-func killDescendants(command *exec.Cmd) {}

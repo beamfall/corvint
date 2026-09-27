@@ -599,14 +599,14 @@ there, which is the whole of what the row asserts.
 | `invalid-repository-root` | `internal/gokernel/harness.go:376` | "cannot resolve repository root" |
 | `malformed-corvint-output` | `cmd/corvint/host_adapter.go:614@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
 | `project-root-unavailable` | `cmd/corvint/host_adapter.go:307@2100b4c9` | Claude adapter: the project root (`CLAUDE_PROJECT_DIR`, else the working directory) cannot be made absolute; the degraded `systemMessage` names this reason |
-| `repository-identity-malformed` | `internal/gokernel/repository.go:174` | "Git object identity is malformed" |
-| `repository-probe-cancelled` | `internal/gokernel/repository.go:163` | "Git repository probe was cancelled" |
-| `repository-probe-timeout` | `internal/gokernel/repository.go:161` | "Git repository probe exceeded its 10-second deadline" |
-| `repository-probe-too-large` | `internal/gokernel/repository.go:144` | "Git output exceeds its byte limit" |
-| `repository-profile-malformed` | `internal/gokernel/repository.go:264` | "Git profile path is not valid UTF-8" |
-| `repository-status-malformed` | `internal/gokernel/repository.go:211` | "Git status output is malformed" |
-| `repository-status-too-large` | `internal/gokernel/repository.go:234` | "Git status exceeds the <value>-path limit" |
-| `unsupported-git-object-format` | `internal/gokernel/repository.go:188` | "unsupported Git object format: <value>" |
+| `repository-identity-malformed` | `internal/gokernel/repository.go:178` | "Git object identity is malformed" |
+| `repository-probe-cancelled` | `internal/gokernel/repository.go:167` | "Git repository probe was cancelled" |
+| `repository-probe-timeout` | `internal/gokernel/repository.go:165` | "Git repository probe exceeded its 10-second deadline" |
+| `repository-probe-too-large` | `internal/gokernel/repository.go:148` | "Git output exceeds its byte limit" |
+| `repository-profile-malformed` | `internal/gokernel/repository.go:268` | "Git profile path is not valid UTF-8" |
+| `repository-status-malformed` | `internal/gokernel/repository.go:215` | "Git status output is malformed" |
+| `repository-status-too-large` | `internal/gokernel/repository.go:238` | "Git status exceeds the <value>-path limit" |
+| `unsupported-git-object-format` | `internal/gokernel/repository.go:192` | "unsupported Git object format: <value>" |
 
 ## Over-bound prompts
 

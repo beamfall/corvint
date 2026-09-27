@@ -164,6 +164,9 @@ func TestBuildWithGitExecutionRejectsTruncatedOutput(t *testing.T) {
 // leader exit; cancellation kills the owned descendants. These children remain
 // in their Git process group, so this does not qualify escaped-child containment.
 func TestBuildWithGitExecutionOwnsPipesAndCancellation(t *testing.T) {
+	previous := pipeDrainDelay
+	pipeDrainDelay = time.Second
+	t.Cleanup(func() { pipeDrainDelay = previous })
 	for _, cancelBuild := range []bool{false, true} {
 		t.Run(fmt.Sprintf("cancel-%t", cancelBuild), func(t *testing.T) {
 			root := testRepository(t)
@@ -227,6 +230,22 @@ func TestBuildWithGitExecutionOwnsPipesAndCancellation(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// V1-0390: output still draining after Git exits is captured, because the
+// drain bound detects a pipe holder that never lets go rather than timing a
+// reader a loaded host has not scheduled yet.
+func TestGitCapturesOutputThatDrainsAfterGitExits(t *testing.T) {
+	wrapper := filepath.Join(t.TempDir(), "git")
+	body := "#!/bin/sh\nprintf 'sha1\\n'\n/bin/sleep 2 &\nexit 0\n"
+	if err := os.WriteFile(wrapper, []byte(body), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.WithValue(context.Background(), gitExecutionKey{}, gitExecution{executable: wrapper, environment: sanitizedGitEnvironment()})
+	raw, err := gitRaw(ctx, t.TempDir(), maxIdentityBytes, 0, nil, "rev-parse", "--show-object-format")
+	if err != nil || string(raw) != "sha1\n" {
+		t.Fatalf("output drained after exit = %q, %v", raw, err)
 	}
 }
 

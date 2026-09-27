@@ -582,7 +582,10 @@ paths, and `--page` and `--claims` differ.
 - `AFU-V1-034`: `corvint-mcp --tool-profile flows` MUST advertise read-only `corvint.flows.map`,
   `corvint.flows.gaps`, `corvint.flows.impact` and `corvint.flows.navigate`, following the
   closed-selector rule of `MCPV0-026`, which this requirement amends to admit the value `flows`. Without the selector,
-  `corvint-mcp` output is unchanged.
+  `corvint-mcp` output is unchanged. Amendment (V1-0349): a committed flows read never fetches. Its
+  Git runs under Core's sanitized environment (`GIT_NO_LAZY_FETCH=1` and an empty
+  `GIT_ALLOW_PROTOCOL`), and an intent blob missing from a partial clone is refused as unavailable
+  (`flows-refused` over MCP), never as a byte-limit breach.
 - `AFU-V1-035`: Repository-authored text in any flows response is returned inside the untrusted-data
   envelope, and is never an instruction to the calling agent.
 
@@ -694,7 +697,7 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-031 | `TestAFUV1031ClaimStateOrder`, `TestAFUV1030DocsRenderGoldenAndByteStable` (every state marked on the page, `PROVEN` unmarked) |
 | AFU-V1-032 | `TestAFUV1032DocsCheckDrift` (a lost `PROVEN` and a hand-edited page fail; the check is read-only), `TestAFUV1032WaiverExpiry` (unexpired, expired and malformed waivers), `TestAFUV1032WaiverExpiryBoundary` (expired on its expiry date), `TestAFUV1032WaiverKeepsUnrenderedClaim` (a waived claim that is no longer rendered keeps its committed form) |
 | AFU-V1-033 | `TestAFUV1033AnchoredMarkdown` (a changed unanchored document passes, an unknown anchor fails the check and refuses the render), `TestAFUV1033AnchorParsing`, `TestAFUV1032DocsCheckDrift` (the coverage row and the anchored claim's lost `PROVEN`), `TestAFUV1033NonRegularMarkdownSkipped` (a symlinked `.md` is unanchored, not a failure) |
-| AFU-V1-034 | `TestAFUV1034FlowsToolProfile` (golden default and task-review `tools/list` bytes without the selector, the four tools read-only under it, unknown, empty, duplicate and mixed selectors refused, flows tools `-32602` under the other profiles), `TestAFUV1034FlowsToolsMatchCLIVerbs` (each tool's receipt equals its CLI verb's output on the shop and navigation fixtures, the CLI's argument refusals are `-32602`, a verb refusal is `flows-refused`); partial: no compiled-process MCP conformance vectors |
+| AFU-V1-034 | `TestAFUV1034FlowsToolProfile` (golden default and task-review `tools/list` bytes without the selector, the four tools read-only under it, unknown, empty, duplicate and mixed selectors refused, flows tools `-32602` under the other profiles), `TestAFUV1034FlowsToolsMatchCLIVerbs` (each tool's receipt equals its CLI verb's output on the shop and navigation fixtures, the CLI's argument refusals are `-32602`, a verb refusal is `flows-refused`), `TestAFUV1034CommittedFlowsReadNeverFetchesAPromisorObject` (V1-0349: a missing intent blob in a blob:none clone is refused with no fetch, also through a Git that drops `GIT_NO_LAZY_FETCH`), `TestSanitizedGitEnvironmentRefusesAPromisorFetch` (the shared environment's empty `GIT_ALLOW_PROTOCOL` alone refuses the fetch); partial: no compiled-process MCP conformance vectors |
 | AFU-V1-035 | `TestAFUV1035FlowsTextStaysInsideEnvelope` (a hostile navigation step string returns only between the envelope prefix and suffix, with no `structuredContent`) |
 | AFU-V1-036 | `TestAFUV1036DocsReplaceConfined`, `TestAFUV1036DocsGitPathRefused`, `TestAFUV1InputRegularBeforeOpen`, `TestAFUV1InputSwapAfterLstatRefused`, `TestAFUV1ManifestRegularBeforeOpen`, `TestAFUV1ImportRefusesCaseVariantName`, `TestAFUV1RecordConfinedToRoot`, `TestAFUV1RecordGitPathRefused`, `TestAFUV1ImportNeverOverwrites`, `TestAFUV1IntentClosedSchema` (symlinked `--flows`) |
 | AFU-V1-037 | `TestAFUV1IntentBoundsRefused`, `TestAFUV1IntentCountBoundedBeforeRead`, `TestAFUV1IntentCountBoundedWithoutRetired`, `TestAFUV1ImportCombinedFlowBound`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceBoundsIncomplete`, `TestAFUV1FlowsCLIIngest`, `TestAFUV1ReadRunEvidenceDiscipline` |

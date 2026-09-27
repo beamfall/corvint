@@ -284,7 +284,8 @@ func workBoundExecutableVersion(parent context.Context, object *workExecutable, 
 	command.Stdout, command.Stderr = stdout, stderr
 	workContain(command)
 	command.Cancel = func() error { workKillGroup(command); return nil }
-	command.WaitDelay = time.Second
+	// The bound detects a descendant holding the output pipes, not a slow reader (V1-0391).
+	command.WaitDelay = time.Minute
 	if err := command.Run(); err != nil {
 		return "", fmt.Errorf("Corvint version identity failed: %w", err)
 	}

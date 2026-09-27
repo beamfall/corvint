@@ -1596,8 +1596,8 @@ func TestMarkStructuralReasonWrongClassIsRefused(t *testing.T) {
 
 // TestSpec03UpgradeNeverReplacesACoreMap pins V1-0335: structural mark,
 // cover and discriminate never write a cem/0.3 map over their cem/0.2 input or
-// onto the Core sidecar path that frontier and OCM read as cem/0.2, and a
-// refusal leaves the input untouched.
+// onto the Core sidecar path that frontier and OCM read as cem/0.2, nor does a
+// cite or plain mark of a cem/0.3 map, and a refusal leaves the input untouched.
 func TestSpec03UpgradeNeverReplacesACoreMap(t *testing.T) {
 	root, base, target := makeGoRepo(t, importReorderBase, importReorderTarget)
 	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
@@ -1625,14 +1625,37 @@ func TestSpec03UpgradeNeverReplacesACoreMap(t *testing.T) {
 		_, err := openSession(t, root).Discriminate(ctx(), DiscriminateOptions{MapPath: mapPath, Target: target, Output: output})
 		return err
 	}
+	if err := structural("staged.cem.json", "upgraded.cem.json"); err != nil {
+		t.Fatal(err)
+	}
+	cite := func(output string) error {
+		_, err := openSession(t, root).Cite(ctx(), CiteOptions{
+			MapPath: "upgraded.cem.json", Hunk: "1", EvidencePath: "pkg/a.go", Lines: "8:9", Relation: "specification", Output: output,
+		})
+		return err
+	}
+	plain := func(output string) error {
+		_, err := openSession(t, root).Mark(ctx(), MarkOptions{
+			MapPath: "upgraded.cem.json", Hunk: "1", Disposition: "unknown", Reason: "no-evidence", Output: output,
+		})
+		return err
+	}
+	if err := cite("cited.cem.json"); err != nil {
+		t.Fatalf("cite of a cem/0.3 map onto another path: %v", err)
+	}
+	if err := plain("plain.cem.json"); err != nil {
+		t.Fatalf("plain mark of a cem/0.3 map onto another path: %v", err)
+	}
 	cases := map[string]error{
-		"mark-sidecar-in-place":         structural(wire.ExcludedCEMPath, ""),
-		"mark-other-map-in-place":       structural("staged.cem.json", ""),
-		"mark-onto-sidecar":             structural("staged.cem.json", wire.ExcludedCEMPath),
-		"cover-sidecar-in-place":        cover(wire.ExcludedCEMPath, ""),
-		"cover-onto-sidecar":            cover("staged.cem.json", wire.ExcludedCEMPath),
-		"discriminate-sidecar-in-place": discriminate(wire.ExcludedCEMPath, ""),
-		"discriminate-onto-sidecar":     discriminate("staged.cem.json", wire.ExcludedCEMPath),
+		"cite-spec03-onto-sidecar":       cite(wire.ExcludedCEMPath),
+		"plain-mark-spec03-onto-sidecar": plain(wire.ExcludedCEMPath),
+		"mark-sidecar-in-place":          structural(wire.ExcludedCEMPath, ""),
+		"mark-other-map-in-place":        structural("staged.cem.json", ""),
+		"mark-onto-sidecar":              structural("staged.cem.json", wire.ExcludedCEMPath),
+		"cover-sidecar-in-place":         cover(wire.ExcludedCEMPath, ""),
+		"cover-onto-sidecar":             cover("staged.cem.json", wire.ExcludedCEMPath),
+		"discriminate-sidecar-in-place":  discriminate(wire.ExcludedCEMPath, ""),
+		"discriminate-onto-sidecar":      discriminate("staged.cem.json", wire.ExcludedCEMPath),
 	}
 	for name, err := range cases {
 		if cemcode.CodeOf(err) != cemcode.InvalidArguments {

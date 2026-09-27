@@ -17,6 +17,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/gitstatus"
+	"github.com/Beamfall/corvint/internal/groupreap"
 	"github.com/Beamfall/corvint/internal/projectprofile"
 )
 
@@ -71,6 +72,9 @@ func (buffer *boundedBuffer) Write(value []byte) (int, error) {
 	return buffer.Buffer.Write(value)
 }
 
+// SanitizedGitEnvironment is the environment of every Core Git read. An empty
+// GIT_ALLOW_PROTOCOL refuses every transport, so a Git that ignores
+// GIT_NO_LAZY_FETCH still cannot fetch a missing promisor object (V1-0349).
 func SanitizedGitEnvironment() []string {
 	environment := make([]string, 0, 16)
 	for _, name := range []string{"PATH", "SystemRoot", "TMPDIR", "TEMP", "TMP", "USERPROFILE"} {
@@ -83,7 +87,7 @@ func SanitizedGitEnvironment() []string {
 		"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull,
 		"GIT_CONFIG_SYSTEM="+os.DevNull, "GIT_TERMINAL_PROMPT=0",
 		"GIT_OPTIONAL_LOCKS=0", "GIT_NO_LAZY_FETCH=1", "GIT_NO_REPLACE_OBJECTS=1",
-		"GCM_INTERACTIVE=never", "GIT_ASKPASS=",
+		"GCM_INTERACTIVE=never", "GIT_ASKPASS=", "GIT_ALLOW_PROTOCOL=",
 	)
 }
 
@@ -134,9 +138,9 @@ func gitRaw(ctx context.Context, root string, outputLimit int, arguments ...stri
 		}
 		return nil, newError("repository-probe-failed", "cannot start Git")
 	}
-	// waitGroupLeader signals the process group before it reaps the leader, so
+	// groupreap.Wait signals the process group before it reaps the leader, so
 	// the group ID cannot name a process that reused the leader's PID.
-	err := waitGroupLeader(command)
+	err := groupreap.Wait(command)
 	if ctx.Err() != nil {
 		return nil, probeContextError(ctx)
 	}
@@ -483,3 +487,9 @@ func probeRepositorySharing(parent context.Context, root string, run gitRunner, 
 	}
 	return Repository{}, newError("repository-state-unstable", "repository HEAD changed while probing repository state")
 }
+
+// pipeDrainDelay bounds how long a Git call waits for its output pipes after
+// Git exits or is cancelled. It detects a descendant that keeps them open and
+// is not a latency budget: on a loaded host the reader can need seconds to
+// drain output Git already wrote (V1-0390).
+const pipeDrainDelay = time.Minute

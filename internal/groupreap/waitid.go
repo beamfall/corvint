@@ -1,16 +1,16 @@
 //go:build darwin || linux
 
-package gokernel
+package groupreap
 
 import (
 	"syscall"
 	"unsafe"
 )
 
-// waitLeaderUnreaped blocks until the process exits and leaves it unreaped
+// leaderUnreaped blocks until the process exits and leaves it unreaped
 // (waitid WEXITED|WNOWAIT), so its PID -- and with it the process group ID --
 // cannot be reused until Wait reaps it.
-func waitLeaderUnreaped(processID int) error {
+func leaderUnreaped(processID int) error {
 	var info [128]byte
 	for {
 		_, _, errno := syscall.Syscall6(syscall.SYS_WAITID, uintptr(1), uintptr(processID),

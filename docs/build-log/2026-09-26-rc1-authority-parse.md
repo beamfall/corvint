@@ -22,8 +22,10 @@ one walk. The walk now keeps each node's degree for the walk, computed by the sa
 Ranks, convergence and push-bound refusals are bit-identical to a verbatim copy of the old walk.
 No latency claim is made.
 
-Schema pin. `corvint-analyzer/87` moves once to `/88`, in the V1-0363 commit. Each later commit
-re-pins the audited-input digest in `TestAnalyzerSchemaInputs`. No cmd package pins the schema.
+Schema pin. The branch merges the rc1 Git runner hardening change, which already moves the schema
+to `corvint-analyzer/88`, so these extraction changes move it once more, to `/89`, with the
+audited-input digest `873598aff4e88f0b3b2b7d254fef9ea25e9e32eade7376f9d138bf07b1950187` in
+`TestAnalyzerSchemaInputs`. No cmd package pins the schema.
 
 Checks. PENDING
 

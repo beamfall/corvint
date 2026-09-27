@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 // sessionHeaderLimit bounds one `git cat-file --batch` header line; a real
@@ -134,7 +135,7 @@ func (s *Session) start(options Options, args []string) bool {
 		return false
 	}
 	waited := make(chan error, 1)
-	go func() { waited <- command.Wait() }()
+	go func() { waited <- groupreap.Wait(command) }()
 	s.binary, s.dir, s.env, s.args = binary, options.Dir, slices.Clone(env), slices.Clone(args)
 	s.command, s.stdin, s.stdout, s.overrun, s.waited = command, stdinWrite, stdoutRead, overrun, waited
 	s.reader = bufio.NewReaderSize(stdoutRead, sessionHeaderLimit)
@@ -170,8 +171,7 @@ func exchange(stdin io.Writer, reader *bufio.Reader, request string, admit func(
 
 // stop kills the child's group before reaping it, closes both pipes so a
 // pending exchange fails even when a descendant that left the group still
-// holds their other ends, waits for that exchange, and sweeps the group after
-// the reap like Run.
+// holds their other ends, and waits for that exchange.
 func (s *Session) stop(pending <-chan sessionReply) {
 	if s.command == nil {
 		return
@@ -182,7 +182,6 @@ func (s *Session) stop(pending <-chan sessionReply) {
 	if pending != nil {
 		<-pending
 	}
-	killDescendants(s.command)
 	s.release()
 }
 
@@ -206,7 +205,6 @@ func (s *Session) Close() {
 	defer timer.Stop()
 	select {
 	case <-s.waited:
-		killDescendants(s.command)
 	case <-timer.C:
 		killGroupThenReap(s.command, s.waited)
 	}

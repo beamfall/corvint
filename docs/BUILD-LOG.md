@@ -1,8 +1,8 @@
 # Build log
 
-Append-only record of material design decisions, independent findings, failed evaluations, and
-promotion evidence. Add new entries at the end so no cited line moves; each entry carries a date
-heading and its requirement or decision IDs, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
+Closed record, through 2026-09-26, of material design decisions, independent findings, failed
+evaluations, and promotion evidence; no line here moves. Each new entry is its own file under
+`docs/build-log/` (decision 0423); `rg -n '^## ' docs/BUILD-LOG.md docs/build-log/` is the index.
 
 ## 2026-09-25 decision 0411: corvint-tasks qualifies Linux ext4 from mountinfo
 

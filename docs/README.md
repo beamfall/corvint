@@ -39,8 +39,8 @@ guidance from historical records.
 - `plans/` holds the two planning inputs that current specifications and scripts still read.
 - `agent-memory/` holds the six cross-session backlogs (bugs, fixes, tests, optimizations, ideas,
   questions) that the console's backlog pane lists; they start empty in the public tree.
-- `BUILD-LOG.md` is the append-only evidence log for this repository; it starts empty in the public
-  tree.
+- `BUILD-LOG.md` is the closed evidence log through 2026-09-26; each later entry is its own file
+  under `build-log/` (decision 0423).
 
 Decision records and specifications were written against internal working records (build logs,
 reviews, evidence transcripts, plans, and backlog entries) that are not part of the public tree.

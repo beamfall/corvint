@@ -13,17 +13,13 @@ func containChild(command *exec.Cmd) {
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 }
 
-// killGroup SIGKILLs the child's entire process group before the child is
-// reaped, so the group ID cannot have been recycled.
+// killGroup SIGKILLs the child's entire process group to end a run early,
+// while the leader is normally still running. On every exit, groupreap.Wait in
+// the waiting goroutine SIGKILLs the group again while the exited leader is
+// still unreaped, so that sweep cannot reach a recycled group ID.
 func killGroup(command *exec.Cmd) {
 	if command.Process == nil {
 		return
 	}
 	_ = syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
-}
-
-// killDescendants sweeps the group after a normal exit; surviving descendants
-// keep the group alive, and ESRCH means there is nothing to clean.
-func killDescendants(command *exec.Cmd) {
-	killGroup(command)
 }

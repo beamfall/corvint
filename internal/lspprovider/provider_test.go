@@ -270,3 +270,21 @@ func TestExpandEveryQueryFailedIsUnavailable(t *testing.T) {
 		t.Fatalf("foreign: failure %q, record %s", foreign.Failure, foreign.Record)
 	}
 }
+
+// TestRootCommitIgnoresReplaceRefs: a replace ref that grafts a foreign root
+// under the revision does not change the root commit the record is anchored
+// on, because the read runs under Core's sanitized Git environment
+// (EEP-V0-024, V1-0362).
+func TestRootCommitIgnoresReplaceRefs(t *testing.T) {
+	t.Parallel()
+	m := newModule(t)
+	foreign := gitOutput(t, m.root, "commit-tree", m.head+"^{tree}", "-m", "foreign root")
+	gitOutput(t, m.root, "replace", "--graft", m.head, foreign)
+	if replaced := gitOutput(t, m.root, "rev-list", "--max-parents=0", m.head); replaced != foreign {
+		t.Fatalf("fixture replace ref not in effect: root %q, want %q", replaced, foreign)
+	}
+	origin, err := rootCommit(context.Background(), m.root, m.head)
+	if err != nil || origin != m.head {
+		t.Fatalf("root commit %q, %v; want %q", origin, err, m.head)
+	}
+}

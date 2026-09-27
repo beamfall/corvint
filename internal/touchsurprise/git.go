@@ -3,10 +3,12 @@ package touchsurprise
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
@@ -49,6 +51,11 @@ func sanitizedGitEnvironment() []string {
 // git runs one read-only Git command under the sanitized environment and the
 // same configuration overrides the index builder uses.
 func git(ctx context.Context, root, code string, arguments ...string) ([]byte, error) {
+	return gitBounded(ctx, root, code, maxGitOutputBytes, arguments...)
+}
+
+// gitBounded is git with the caller's stdout bound, the gitstatus.Runner shape.
+func gitBounded(ctx context.Context, root, code string, limit int, arguments ...string) ([]byte, error) {
 	commandArguments := append([]string{
 		"--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false",
 		"-c", "core.excludesFile=", "-c", "credential.helper=", "-c", "submodule.recurse=false",
@@ -56,7 +63,7 @@ func git(ctx context.Context, root, code string, arguments ...string) ([]byte, e
 	}, arguments...)
 	command := exec.CommandContext(ctx, "git", commandArguments...)
 	command.Env = sanitizedGitEnvironment()
-	stdout, stderr := &boundedWriter{limit: maxGitOutputBytes}, &boundedWriter{limit: 8 << 10}
+	stdout, stderr := &boundedWriter{limit: limit}, &boundedWriter{limit: 8 << 10}
 	command.Stdout, command.Stderr = stdout, stderr
 	err := command.Run()
 	if err != nil {
@@ -93,16 +100,31 @@ func resolveCommit(ctx context.Context, root, revision string) (string, error) {
 }
 
 // requireCleanWorktree refuses a comparison over uncommitted edits: the actual
-// set is committed evidence only.
+// set is committed evidence only. The status runs through gitstatus.Status on
+// private metadata, so configuration changed after the loader's checks cannot
+// make it run a clean or process filter.
 func requireCleanWorktree(ctx context.Context, root string) error {
-	output, err := git(ctx, root, "unsupported-surprise-git", "status", "--porcelain", "--untracked-files=no")
+	run := func(ctx context.Context, root string, limit int, arguments ...string) ([]byte, error) {
+		return gitBounded(ctx, root, "unsupported-surprise-git", limit, arguments...)
+	}
+	output, err := gitstatus.Status(ctx, root, maxGitOutputBytes, run, "status", "--porcelain", "--untracked-files=no")
 	if err != nil {
-		return err
+		return statusRefusal(err)
 	}
 	if status := strings.TrimSpace(string(output)); status != "" {
 		return dirtyWorktreeRefusal(strings.Count(status, "\n") + 1)
 	}
 	return nil
+}
+
+// statusRefusal keeps the runner's coded failure and codes an isolation
+// refusal the way internal/gokernel/repository.go codes a Core status refusal.
+func statusRefusal(err error) error {
+	var failure *gokernel.Error
+	if errors.As(err, &failure) {
+		return err
+	}
+	return &gokernel.Error{Code: "unsupported-surprise-git", Message: gitstatus.RefusalMessage(err), ReasonClass: gitstatus.RefusalClass(err)}
 }
 
 func changedPaths(ctx context.Context, root, base, target string) ([]string, error) {
