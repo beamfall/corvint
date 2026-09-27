@@ -2,6 +2,7 @@ package tracerecordrepo
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -26,9 +27,14 @@ func TestAccuracyTraceReadIgnoresRepositoryGrafts(t *testing.T) {
 func TestAccuracyMigrationDryRunIgnoresRepositoryGrafts(t *testing.T) {
 	t.Run("LTPM-V0-003 LTPM-V0-004 migration authority ignores repository grafts", func(t *testing.T) {
 		testAccuracyGrafts(t, func(ctx context.Context, root string) (string, error) {
-			_, err := tracemigraterepo.Evaluate(ctx, root, tracemigraterepo.Options{})
+			result, err := tracemigraterepo.Evaluate(ctx, root, tracemigraterepo.Options{})
 			if err != nil {
 				return "", err
+			}
+			// LTPM-V0-012 (proposed): dry-run plans an unreachable commit's trace as stranded
+			// instead of refusing, so a graft that invented its ancestry would drop it from this list.
+			if len(result.StrandedRevisions) != 0 {
+				return "", fmt.Errorf("unreachable revisions stranded: %s", strings.Join(result.StrandedRevisions, ","))
 			}
 			return "ready", nil
 		})

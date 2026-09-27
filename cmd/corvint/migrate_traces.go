@@ -121,7 +121,7 @@ func migrateTracesPayload(result trace.MigrationResult) map[string]any {
 		"plan_digest":           result.PlanDigest,
 		"repository":            map[string]any{"commit_revision": result.CommitRevision, "tree_revision": result.TreeRevision},
 		"candidate_trace_files": result.CandidateTraceFiles, "legacy_trace_files": result.LegacyTraceFiles,
-		"trace_rows": result.TraceRows, "entries": entries,
+		"trace_rows": result.TraceRows, "entries": entries, "stranded_revisions": result.StrandedRevisions,
 	}
 }
 

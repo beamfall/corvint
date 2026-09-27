@@ -22,6 +22,9 @@ type MigrationAuthority struct {
 	Commits        map[string]Revision
 	Trees          map[string][]string
 	TrackedPaths   func(string) ([]string, error)
+	// CommitObject reports whether an unreachable name is still a commit
+	// object, which makes its trace file stranded rather than unknown.
+	CommitObject func(string) (bool, error)
 }
 
 // MigrationEntry is one legacy tree file and its canonical commit replacement.
@@ -62,6 +65,7 @@ type MigrationResult struct {
 	LegacyTraceFiles    int
 	TraceRows           int
 	Entries             []MigrationEntry
+	StrandedRevisions   []string
 }
 
 // PlanMigration validates the entire trace store without writing it.
@@ -118,6 +122,20 @@ func planMigrationPinned(root string, directory *heldDirectory, authority Migrat
 		revision := strings.TrimSuffix(name, ".jsonl")
 		if !exactObjectID(revision, objectIDLength(authority.ObjectFormat)) {
 			return MigrationPlan{}, fmt.Errorf("local trace store contains unreachable revision: %s", revision)
+		}
+		isStranded, err := stranded(authority, revision)
+		if err != nil {
+			return MigrationPlan{}, err
+		}
+		if isStranded {
+			candidate, err := planStranded(directory, quarantine, name, MaxTraces-totalRows, MaxTraceStoreBytes-totalBytes)
+			if err != nil {
+				return MigrationPlan{}, err
+			}
+			totalBytes += len(candidate.source)
+			totalRows += candidate.RowCount
+			plan.Candidates = append(plan.Candidates, candidate)
+			continue
 		}
 		policy, canonical := authority.Commits[revision]
 		kind, commit := "canonical", revision
@@ -221,27 +239,64 @@ func confirmMigrationCollision(directory, quarantine *heldDirectory, entry Migra
 			return fmt.Errorf("staged trace collision: .migrate-%s.tmp", entry.CommitRevision)
 		}
 	}
+	return confirmQuarantineCollision(quarantine, entry.TreeRevision, entry.sourceBytes)
+}
+
+func confirmQuarantineCollision(quarantine *heldDirectory, revision string, source []byte) error {
 	if quarantine == nil {
 		return nil
 	}
-	legacyName := entry.TreeRevision + ".jsonl"
-	preserved, err := readOptionalPublished(quarantine, legacyName, ".migrate-"+entry.TreeRevision+".tmp")
+	legacyName := revision + ".jsonl"
+	preserved, err := readOptionalPublished(quarantine, legacyName, ".migrate-"+revision+".tmp")
 	if err != nil {
 		return err
 	}
-	if preserved != nil && !bytes.Equal(preserved, entry.sourceBytes) {
+	if preserved != nil && !bytes.Equal(preserved, source) {
 		return fmt.Errorf("legacy trace quarantine collision: %s", legacyName)
 	}
 	if preserved == nil {
-		staged, err := readOptionalRegular(quarantine, ".migrate-"+entry.TreeRevision+".tmp")
+		staged, err := readOptionalRegular(quarantine, ".migrate-"+revision+".tmp")
 		if err != nil {
 			return err
 		}
-		if staged != nil && !bytes.Equal(staged, entry.sourceBytes) {
-			return fmt.Errorf("staged trace collision: .migrate-%s.tmp", entry.TreeRevision)
+		if staged != nil && !bytes.Equal(staged, source) {
+			return fmt.Errorf("staged trace collision: .migrate-%s.tmp", revision)
 		}
 	}
 	return nil
+}
+
+// stranded reports a trace name that is neither a reachable commit nor a
+// reachable legacy tree but is still a commit object: history was rewritten
+// after the trace was recorded (LTPM-V0-012).
+func stranded(authority MigrationAuthority, revision string) (bool, error) {
+	if _, reachable := authority.Commits[revision]; reachable {
+		return false, nil
+	}
+	if len(authority.Trees[revision]) != 0 {
+		return false, nil
+	}
+	if authority.CommitObject == nil {
+		return false, nil
+	}
+	return authority.CommitObject(revision)
+}
+
+// planStranded bounds and frames a stranded trace file without decoding it:
+// apply only moves its exact bytes into quarantine.
+func planStranded(directory, quarantine *heldDirectory, name string, remainingRows, remainingBytes int) (migrationCandidate, error) {
+	data, err := directory.readRegular(name, MaxTraceStoreBytes)
+	if err != nil {
+		return migrationCandidate{}, err
+	}
+	rows, err := splitRows(data, remainingRows, remainingBytes, name)
+	if err != nil {
+		return migrationCandidate{}, err
+	}
+	if err := confirmQuarantineCollision(quarantine, strings.TrimSuffix(name, ".jsonl"), data); err != nil {
+		return migrationCandidate{}, err
+	}
+	return migrationCandidate{Name: name, Kind: "stranded", SHA256: sha256Hex(data), RowCount: len(rows), source: data}, nil
 }
 
 func migrationDigest(plan MigrationPlan) (string, error) {
@@ -382,7 +437,53 @@ func ApplyMigration(root string, authority MigrationAuthority, digest string, ch
 			return MigrationPlan{}, err
 		}
 	}
+	for _, candidate := range plan.Candidates {
+		if candidate.Kind != "stranded" {
+			continue
+		}
+		if err := confirmMigrationState(directory, operationLock, checkStable); err != nil {
+			return MigrationPlan{}, err
+		}
+		if err := confirmPlanCandidates(plan, directory, removed, true); err != nil {
+			return MigrationPlan{}, err
+		}
+		if err := quarantineStranded(directory, quarantine, candidate); err != nil {
+			return MigrationPlan{}, err
+		}
+		removed[candidate.Name] = struct{}{}
+		if err := confirmMigrationState(directory, operationLock, checkStable); err != nil {
+			return MigrationPlan{}, err
+		}
+	}
 	return plan, nil
+}
+
+// quarantineStranded stages a byte-preserved copy of a stranded trace beneath
+// legacy-traces, verifies both copies, then unlinks the candidate (LTPM-V0-012).
+func quarantineStranded(directory, quarantine *heldDirectory, candidate migrationCandidate) error {
+	if err := quarantine.confirm(); err != nil {
+		return err
+	}
+	revision := strings.TrimSuffix(candidate.Name, ".jsonl")
+	if err := stagePrivateFile(quarantine, candidate.Name, ".migrate-"+revision+".tmp", candidate.source); err != nil {
+		return err
+	}
+	if err := requireBytes(directory, candidate.Name, candidate.source); err != nil {
+		return fmt.Errorf("trace migration verification drift: %s", candidate.Name)
+	}
+	if err := requireBytes(quarantine, candidate.Name, candidate.source); err != nil {
+		return fmt.Errorf("trace migration verification drift: %s", candidate.Name)
+	}
+	if err := quarantine.confirm(); err != nil {
+		return err
+	}
+	if err := directory.traceRoot.Remove(candidate.Name); err != nil {
+		return fmt.Errorf("cannot quarantine stranded trace: %w", err)
+	}
+	if err := directory.traceFile.Sync(); err != nil {
+		return fmt.Errorf("cannot quarantine stranded trace: %w", err)
+	}
+	return nil
 }
 
 func confirmPlanCandidates(plan MigrationPlan, directory *heldDirectory, removed map[string]struct{}, allowTargets bool) error {
@@ -684,6 +785,12 @@ func (plan MigrationPlan) Result(apply bool) MigrationResult {
 	for _, entry := range plan.Entries {
 		rows += entry.RowCount
 	}
+	strandedRevisions := []string{}
+	for _, candidate := range plan.Candidates {
+		if candidate.Kind == "stranded" {
+			strandedRevisions = append(strandedRevisions, strings.TrimSuffix(candidate.Name, ".jsonl"))
+		}
+	}
 	mode := "dry-run"
 	if apply {
 		mode = "apply"
@@ -692,7 +799,7 @@ func (plan MigrationPlan) Result(apply bool) MigrationResult {
 		Mutates: apply, Mode: mode, PlanDigest: plan.Digest,
 		CommitRevision: plan.Authority.CommitRevision, TreeRevision: plan.Authority.TreeRevision,
 		CandidateTraceFiles: len(plan.Candidates), LegacyTraceFiles: len(plan.Entries), TraceRows: rows,
-		Entries: append([]MigrationEntry(nil), plan.Entries...),
+		Entries: append([]MigrationEntry(nil), plan.Entries...), StrandedRevisions: strandedRevisions,
 	}
 }
 

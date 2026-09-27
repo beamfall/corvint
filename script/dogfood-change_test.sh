@@ -728,6 +728,7 @@ phase_jobs="$phase_jobs $!"
     DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2>&1) || :
   rg -Fxq -- '  coordination-time-query: unsupported-query-trace-state' <<< "$unreachable_output"
   rg -q '^  local trace store: a recorded trace names a commit no longer reachable from HEAD; ' <<< "$unreachable_output"
+  rg -Fq 'corvint migrate-traces --dry-run then --apply --plan-digest DIGEST (LTPM-V0-012)' <<< "$unreachable_output"
   if rg -q '^  local trace store:' <<< "$wording_output"; then
     printf 'dogfood-change blamed history for a wording refusal\n' >&2
     exit 1
