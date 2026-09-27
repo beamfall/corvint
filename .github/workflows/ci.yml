@@ -40,9 +40,16 @@ jobs:
           make -s use-case-receipts-check use-case-receipts-test
           go run ./conformance/use-cases-v0
 
-  go-product:
+  go-product-shard:
+    # V1-0357: the full race suite took about 58 of go-product's 75 minutes in one job. Each
+    # shard runs every strategy.job-total-th root package from `go list ./...`, so the shard
+    # count comes from the matrix alone. The go-product job below is the required check.
     runs-on: ubuntu-24.04
     timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
     # Protected workflow/ruleset NOT_VERIFIED: owner review is required before enabling pins.
     # Promotion requires reviewed immutable tool/artifact pins. Empty pins keep full CI.
     env:
@@ -84,7 +91,7 @@ jobs:
           git --version
       - name: Capture trusted tool source outside tested checkout
         continue-on-error: true
-        if: github.event_name == 'pull_request' && env.CORVINT_PR_TOOL_SOURCE != ''
+        if: github.event_name == 'pull_request' && env.CORVINT_PR_TOOL_SOURCE != '' && strategy.job-index == 0
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: trusted-tools
@@ -92,7 +99,7 @@ jobs:
           persist-credentials: false
       - name: Capture separately pinned qualification artifact
         continue-on-error: true
-        if: github.event_name == 'pull_request' && env.CORVINT_PR_QUALIFICATION_SOURCE != ''
+        if: github.event_name == 'pull_request' && env.CORVINT_PR_QUALIFICATION_SOURCE != '' && strategy.job-index == 0
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: trusted-qualification
@@ -101,7 +108,7 @@ jobs:
           persist-credentials: false
       - name: Build pinned planner, selector, and driver
         continue-on-error: true
-        if: github.event_name == 'pull_request' && env.CORVINT_PR_TOOL_SOURCE != ''
+        if: github.event_name == 'pull_request' && env.CORVINT_PR_TOOL_SOURCE != '' && strategy.job-index == 0
         working-directory: trusted-tools
         run: |
           test "$(git rev-parse HEAD)" = "$CORVINT_PR_TOOL_SOURCE"
@@ -115,13 +122,24 @@ jobs:
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
           TESTED_MERGE: ${{ github.sha }}
+          SHARD: ${{ strategy.job-index }}
+          SHARDS: ${{ strategy.job-total }}
         run: |
           test "$(go env GOVERSION)" = "go1.27.1"
+          # With trusted pins, shard 0 alone runs the driver, or the whole suite when the driver
+          # did not build, exactly as the single job did; the other shards have nothing to run.
+          packages=./...
+          if [ "$GITHUB_EVENT_NAME" != pull_request ] || [ -z "$CORVINT_PR_TOOL_SOURCE" ]; then
+            packages=$(go list ./... | awk -v n="$SHARDS" -v i="$SHARD" 'NR % n == i')
+          elif [ "$SHARD" != 0 ]; then
+            echo "corvint-pr-tests: shard $SHARD idle; shard 0 runs the pinned driver"
+            exit 0
+          fi
           if [ "$GITHUB_EVENT_NAME" = pull_request ] && [ -x "$RUNNER_TEMP/corvint-pr-bin/driver" ]; then
             "$RUNNER_TEMP/corvint-pr-bin/driver" --root "$PWD" --base "$PR_BASE" --head "$PR_HEAD" --target "$TESTED_MERGE" --source "$CORVINT_PR_TOOL_SOURCE" --planner "$RUNNER_TEMP/corvint-pr-bin/corvint" --selector "$RUNNER_TEMP/corvint-pr-bin/selector" --out "$RUNNER_TEMP/corvint-pr-result" --qualification "$GITHUB_WORKSPACE/trusted-qualification/.github/qualifications/pr-go-race.json" --qualification-sha256 "$CORVINT_PR_QUALIFICATION_SHA256"
           else
-            echo 'corvint-pr-tests: FULL (main/release or trusted tool pin unavailable)'
-            go test -json -p 1 -count=1 -race -timeout 50m ./...
+            echo "corvint-pr-tests: FULL (main/release or trusted tool pin unavailable), shard $SHARD of $SHARDS"
+            go test -json -p 1 -count=1 -race -timeout 50m $packages
           fi
       - name: Selection audit
         if: always()
@@ -133,16 +151,30 @@ jobs:
             head -c 262144 "$RUNNER_TEMP/corvint-pr-result/go.stderr"
           fi
       - name: Full static, formatting and build checks
+        if: strategy.job-index == 0
         working-directory: source
         run: |
           test -z "$(gofmt -l cmd internal tools)"
           go vet ./...
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
       - name: Independent interop under production toolchain
+        if: strategy.job-index == 0
         working-directory: source/interop/cem01-go
         run: |
           go test -count=1 -timeout 30m ./...
           go vet ./...
+
+  go-product:
+    # The required check. A needed job that fails, is cancelled or is skipped is not success.
+    if: always()
+    needs: go-product-shard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Every go-product shard succeeded
+        env:
+          SHARDS_RESULT: ${{ needs.go-product-shard.result }}
+        run: test "$SHARDS_RESULT" = success
 
   go-interop:
     runs-on: ubuntu-24.04
