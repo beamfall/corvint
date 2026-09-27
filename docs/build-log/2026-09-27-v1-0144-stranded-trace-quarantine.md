@@ -27,6 +27,10 @@ Evidence: `TestMigrationQuarantinesStrandedCommitTrace` (dry-run writes nothing;
 bytes at mode 0600 and a replan is empty), `TestMigrationRefusesUnknownOrCollidingStrandedTrace`
 (a non-commit keeps the exact refusal, a probe failure refuses, a different quarantine copy is a
 collision, an identical copy resumes), and `TestMigrateTracesQuarantinesTraceStrandedByAmend` (a
-real `git commit --amend` through the CLI). The owner has not accepted the requirement, so V1-0144
+real `git commit --amend` through the CLI). CI then failed
+`TestAccuracyMigrationDryRunIgnoresRepositoryGrafts`, whose control expected dry-run to refuse the
+unreachable commit it invents. Under this change that commit is stranded instead, so the test now
+reads `stranded_revisions`: the invented commit must be stranded before and after a graft that names
+it as a parent, and never planned as reachable. The owner has not accepted the requirement, so V1-0144
 stays open until that decision. Rollback: move the quarantined file back into
 `.context-corvint/traces/` and revert the change.
