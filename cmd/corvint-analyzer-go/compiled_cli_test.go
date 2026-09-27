@@ -364,28 +364,45 @@ func buildCompiledCLIWithOptions(t testing.TB, options ...string) string {
 
 func pinnedGoBuildEnvironment(t testing.TB, root string) (string, []string) {
 	t.Helper()
-	tool := pinnedGoTool
-	env := []string{
+	if runtime.GOOS != "darwin" {
+		// The exact Homebrew receipt belongs to the Darwin performance harness.
+		// Command conformance itself must also run in Linux CI, where its own
+		// provisioned Go executable is the correct host toolchain.
+		tool, err := exec.LookPath("go")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return tool, append(os.Environ(), "GOTOOLCHAIN=local", "GOWORK=off", "CGO_ENABLED=0")
+	}
+	tool, goRoot := darwinGoTool(t)
+	return tool, []string{
 		"HOME=" + filepath.Join(root, "home"),
 		"PATH=/usr/bin:/bin",
-		"GOROOT=/opt/homebrew/Cellar/go/1.27.1/libexec",
+		"GOROOT=" + goRoot,
 		"GOPATH=" + filepath.Join(root, "gopath"),
 		"GOMODCACHE=" + filepath.Join(root, "modcache"),
 		"GOENV=off", "GOWORK=off", "GOPROXY=off", "GOSUMDB=off", "GOTOOLCHAIN=local", "CGO_ENABLED=0",
 		"GOCACHE=" + filepath.Join(root, "cache"),
 	}
-	if runtime.GOOS != "darwin" {
-		// The exact Homebrew receipt belongs to the Darwin performance harness.
-		// Command conformance itself must also run in Linux CI, where its own
-		// provisioned Go executable is the correct host toolchain.
-		var err error
-		tool, err = exec.LookPath("go")
-		if err != nil {
-			t.Fatal(err)
-		}
-		env = append(os.Environ(), "GOTOOLCHAIN=local", "GOWORK=off", "CGO_ENABLED=0")
+}
+
+// darwinGoTool is the exact Homebrew receipt the Darwin performance harness
+// pins, with its GOROOT. A Darwin host without that receipt, such as a hosted
+// macos-15 runner, uses the Go on PATH and the GOROOT it reports (V1-0429).
+func darwinGoTool(t testing.TB) (string, string) {
+	t.Helper()
+	if _, err := os.Stat(pinnedGoTool); err == nil {
+		return pinnedGoTool, filepath.Dir(filepath.Dir(pinnedGoTool))
 	}
-	return tool, env
+	tool, err := exec.LookPath("go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	goRoot, err := exec.Command(tool, "env", "GOROOT").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tool, strings.TrimSpace(string(goRoot))
 }
 
 func runCompiledCLI(t testing.TB, binary string, raw []byte) []byte {

@@ -1,0 +1,90 @@
+{
+  "baseRevision": "a785c329070d731e66d83e5082736ab3024a9b0a",
+  "evidence": [
+    {
+      "blobOid": "6d2d0e85fde34977fb9c23272943947e06d0f8c5",
+      "id": "evidence:sha256:1da650ceaddfaffb059b383d97571f7c0b347a62c6ed83bf5beb468396f756f8",
+      "path": "docs/specs/analyzer-candidate-profiles.md",
+      "span": {
+        "end": 68936,
+        "start": 68642
+      },
+      "spanSha256": "3f59d3960956fd777c0d89dd8a58056a3d01f6311c21c6323b8aa6c5b37251a1"
+    },
+    {
+      "blobOid": "6d2d0e85fde34977fb9c23272943947e06d0f8c5",
+      "id": "evidence:sha256:655f6e8f1e0e271fb6ab435550094a6492d102393743d5bb7d9ce881c247f5a8",
+      "path": "docs/specs/analyzer-candidate-profiles.md",
+      "span": {
+        "end": 3226,
+        "start": 2976
+      },
+      "spanSha256": "63f0f0599bdfe750127a02147ad816f5ff5f5d54fcb65d7a8fb51179505d9d1f"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1da650ceaddfaffb059b383d97571f7c0b347a62c6ed83bf5beb468396f756f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3a6d7fc9e09b78050d03494a4b24081502e4df95258c06b57e8c630fbe70f325",
+      "newRange": {
+        "count": 45,
+        "start": 364
+      },
+      "oldRange": {
+        "count": 28,
+        "start": 364
+      },
+      "path": "cmd/corvint-analyzer-go/compiled_cli_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1da650ceaddfaffb059b383d97571f7c0b347a62c6ed83bf5beb468396f756f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cfa9f1b85ea3dd777d868651244db171a8706593c8735a652d710d46fa710fea",
+      "newRange": {
+        "count": 7,
+        "start": 124
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 124
+      },
+      "path": "cmd/corvint-analyzer-go/production_attempt_spy_darwin_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:655f6e8f1e0e271fb6ab435550094a6492d102393743d5bb7d9ce881c247f5a8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1abd6baaf953eb5557633b13823129634496087ac1718d8a1deb2b23de02e8d9",
+      "newRange": {
+        "count": 33,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-27-v1-0429-analyzer-go-hosted-darwin.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "e0a4736a05576e8ca1252c7f8b1f32be08a6fdf71e4b77f6e4096fe0affe36f0",
+  "spec": "cem/0.2"
+}
