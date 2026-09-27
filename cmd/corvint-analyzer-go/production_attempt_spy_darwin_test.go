@@ -124,7 +124,7 @@ func TestProductionGoRuntimeGetenvTrap(t *testing.T) {
 
 func getenvTrapOverlay(t testing.TB, root string) string {
 	t.Helper()
-	goRoot := filepath.Dir(filepath.Dir(pinnedGoTool))
+	_, goRoot := darwinGoTool(t)
 	originalPath := filepath.Join(goRoot, "src", "os", "env.go")
 	source, err := os.ReadFile(originalPath)
 	if err != nil {
