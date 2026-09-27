@@ -45,7 +45,7 @@ type Repo struct {
 
 // TempRepo creates a primary worktree with a `.git` directory under a
 // symlink-resolved temp path (macOS's /var is a symlink; the §3.4 resolver
-// refuses symlinked paths). `head.primaryWorktree` is a PathText bounded to
+// records the canonical path, so Root equals it). `head.primaryWorktree` is a PathText bounded to
 // 4096 bytes (§2). It removes everything at test cleanup.
 func TempRepo(t *testing.T) *Repo {
 	t.Helper()

@@ -2359,12 +2359,13 @@
     "reqPrefix": "CTS-V0",
     "intent": "proposed",
     "delivery": "experimental",
-    "claim": "`corvint-tasks init` refuses an intent store that already holds records, instead of creating a journal that freezes it.",
+    "claim": "`corvint-tasks init` refuses an intent store that already holds records, instead of creating a journal that freezes it, and works in a repository reached through a symlinked ancestor such as macOS `/tmp`.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
       "internal/tasks/cli",
+      "internal/tasks/intent",
       "internal/tasks/store"
     ]
   },

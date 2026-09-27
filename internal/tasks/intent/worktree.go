@@ -70,8 +70,9 @@ func checkNoSymlink(path string) error {
 // Resolve walks up from cwd to the first `.git` and resolves the common
 // directory exactly as §3.4 prescribes: a `.git` directory is the common
 // dir; a `.git` file names a `gitdir:` whose `commondir` file, if present,
-// names the common dir. Windows is unsupported; no environment variable or
-// flag relocates the state dir.
+// names the common dir. Symlinks above the primary worktree are resolved;
+// one at or below it is refused. Windows is unsupported; no environment
+// variable or flag relocates the state dir.
 func Resolve(cwd string) (*Repository, error) {
 	abs, err := filepath.Abs(cwd)
 	if err != nil {
@@ -140,6 +141,10 @@ func resolveGitFile(dotGit string) (*Repository, error) {
 }
 
 func finish(common string, linked bool) (*Repository, error) {
+	common, err := canonicalAncestors(common)
+	if err != nil {
+		return nil, err
+	}
 	if err := checkNoSymlink(common); err != nil {
 		return nil, err
 	}
@@ -158,6 +163,20 @@ func finish(common string, linked bool) (*Repository, error) {
 		LockPath:           filepath.Join(common, "taskman.lock"),
 		FromLinkedWorktree: linked,
 	}, nil
+}
+
+// canonicalAncestors resolves symlinks in the directories above the primary
+// worktree, such as macOS /tmp and /var, which are system symlinks into
+// /private (V1-0331). The primary worktree and everything below it stay
+// literal, so checkNoSymlink still refuses a symlink there, and one
+// repository has one primary-worktree path however cwd spelled it.
+func canonicalAncestors(common string) (string, error) {
+	primary := filepath.Dir(common)
+	parent, err := filepath.EvalSymlinks(filepath.Dir(primary))
+	if err != nil {
+		return "", wire.Errorf(wire.CodeUnsupportedFilesystem, primary, "cannot resolve the directories above the primary worktree: %v", err)
+	}
+	return filepath.Join(parent, filepath.Base(primary), filepath.Base(common)), nil
 }
 
 // readBounded reads a whole file refusing anything larger than max. It opens
