@@ -125,6 +125,37 @@ func TestTMV0008_AS11_InitMakesTheStoreReadable(t *testing.T) {
 	}
 }
 
+// CTS-V0-004 (V1-0331): a repository reached through a symlinked ancestor,
+// as under macOS /tmp or /var, initializes and records its canonical path,
+// so reads through either spelling see the same primary worktree.
+func TestCTSV0004_InitThroughSymlinkedAncestor(t *testing.T) {
+	r := fixture.TempRepo(t)
+	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
+	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
+	alias := filepath.Join(fixture.TempDirOutside(t), "alias")
+	if err := os.Symlink(filepath.Dir(r.Root), alias); err != nil {
+		t.Skip("symlinks unavailable")
+	}
+	viaAlias := filepath.Join(alias, filepath.Base(r.Root))
+
+	x := atm(t, viaAlias, nil, "init")
+	if x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("init through a symlinked ancestor: %+v", x.res)
+	}
+	head, err := os.ReadFile(filepath.Join(r.StateDir, "head.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(head), `"primaryWorktree":"`+r.Root+`"`) {
+		t.Errorf("head.json does not record the canonical primary worktree %q: %s", r.Root, head)
+	}
+	for _, cwd := range []string{r.Root, viaAlias} {
+		if status := atm(t, cwd, nil, "queue", "status"); status.res.Outcome != wire.OutcomeOK {
+			t.Errorf("queue status from %s: %+v", cwd, status.res)
+		}
+	}
+}
+
 func TestTMV0009_AS11_InvalidInitRoleThenRetry(t *testing.T) {
 	r := fixture.TempRepo(t)
 	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())

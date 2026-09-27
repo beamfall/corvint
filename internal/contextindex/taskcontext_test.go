@@ -405,6 +405,28 @@ func TestTaskContextAdmitsSwiftModuleImportersThatNameASubjectSymbol(t *testing.
 	}
 }
 
+func TestTaskContextSwiftImporterNeedsMoreThanAnInitializerOrAMember(t *testing.T) {
+	root := impactRepositoryWithFiles(t, map[string]string{
+		"Package.swift":            "// swift-tools-version:5.9\n",
+		"Sources/Kit/Play.swift":   "public struct PlaybackStart {\n    var width = 0\n    init() {}\n}\n",
+		"Sources/App/Main.swift":   "import Kit\n\nlet start = PlaybackStart()\n",
+		"Sources/App/Layout.swift": "import Kit\n\nstruct Box {\n    var width = 1\n    init() {}\n}\n",
+	})
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	packet, err := TaskContext(context.Background(), index, "TCP-V0-004 swift corroboration: change `PlaybackStart`", "Sources/Kit/Play.swift", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := contextRowsByKind(t, packet)
+	want := []string{"Sources/App/Main.swift"}
+	if !slices.Equal(found["reverse-import"], want) {
+		t.Fatalf("reverse-import rows = %v, want %v: an importer that spells only `init` or `width` names nothing the subject owns", found["reverse-import"], want)
+	}
+}
+
 func TestSiblingsSharingASubjectTermRankFirst(t *testing.T) {
 	root := impactRepositoryWithFiles(t, map[string]string{
 		"go.mod":                "module example.test/sib\n\ngo 1.27.0\n",

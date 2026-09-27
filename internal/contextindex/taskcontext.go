@@ -793,14 +793,41 @@ func swiftModule(value string) string {
 	return ""
 }
 
+// swiftSubjectSymbols is the names the subject defines that corroborate an
+// import: a type or function name at least four bytes long that at most
+// contextMaxDefiners sources name. A property such as `width`, and `init`,
+// `deinit` and `subscript`, which name themselves, are spelled by nearly every
+// client of the module, so they corroborate nothing (V1-0292). A symbol
+// records no enclosing declaration, so a top-level `let` is dropped with the
+// members and a method still counts.
 func (compiler *taskContextCompiler) swiftSubjectSymbols() []string {
+	table := compiler.index.vocabulary()
 	names := make([]string, 0)
 	for _, symbol := range compiler.index.Symbols {
-		if symbol.Path == compiler.subject {
-			names = append(names, symbol.Name)
+		if symbol.Path != compiler.subject {
+			continue
 		}
+		if !swiftCorroborates(symbol) {
+			continue
+		}
+		low, high, found := table.Words.find(symbol.Name)
+		if found && high-low > contextMaxDefiners {
+			continue
+		}
+		names = append(names, symbol.Name)
 	}
 	return names
+}
+
+func swiftCorroborates(symbol Symbol) bool {
+	if symbol.Kind == "var" {
+		return false
+	}
+	if len(symbol.Name) < 4 {
+		return false
+	}
+	_, keyword := swiftSpec.keywords[symbol.Name]
+	return !keyword
 }
 
 // swiftImportsModule reports the 1-based line of `import module`, or 0.
