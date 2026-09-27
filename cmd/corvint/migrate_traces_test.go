@@ -111,6 +111,41 @@ func TestMigrateTracesPlanDigestMismatchWritesNothing(t *testing.T) {
 	}
 }
 
+func TestMigrateTracesQuarantinesTraceStrandedByAmend(t *testing.T) {
+	t.Parallel()
+	root := bareMigrationRepository(t)
+	stranded := gitOutput(t, root, "rev-parse", "HEAD")
+	row := independentlyAuthoredTraceRow(stranded)
+	directory := filepath.Join(root, ".context-corvint", "traces")
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(directory, stranded+".jsonl"), row, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	amend := exec.Command("git", "commit", "-q", "--amend", "-m", "amended")
+	amend.Dir = root
+	amend.Env = append(os.Environ(), "GIT_AUTHOR_DATE=2000-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2000-01-01T00:00:00Z")
+	if output, err := amend.CombinedOutput(); err != nil {
+		t.Fatalf("git commit --amend: %v\n%s", err, output)
+	}
+	dry := execute(t, candidateCommand("--root", root, "migrate-traces", "--dry-run"))
+	if dry.exit != 0 || len(dry.stderr) != 0 || !bytes.Contains(dry.stdout, []byte(`"stranded_revisions":["`+stranded+`"]`)) {
+		t.Fatalf("dry-run=%#v stdout=%s", dry, dry.stdout)
+	}
+	apply := execute(t, candidateCommand("--root", root, "migrate-traces", "--apply", "--plan-digest", planDigest(t, dry.stdout)))
+	if apply.exit != 0 || len(apply.stderr) != 0 {
+		t.Fatalf("apply=%#v stderr=%s", apply, apply.stderr)
+	}
+	if _, err := os.Stat(filepath.Join(directory, stranded+".jsonl")); !os.IsNotExist(err) {
+		t.Fatalf("stranded trace survived apply: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(root, ".context-corvint", "legacy-traces", stranded+".jsonl"))
+	if err != nil || !bytes.Equal(got, row) {
+		t.Fatalf("quarantine bytes=%q error=%v", got, err)
+	}
+}
+
 func newLegacyTraceFixture(t *testing.T) string {
 	t.Helper()
 	root := bareMigrationRepository(t)

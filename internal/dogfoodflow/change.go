@@ -1056,7 +1056,7 @@ func (c *change) reportFailures() int {
 	// the recorder then refuse every later run with this message.
 	stranded := []byte(`"error": "local trace store contains unreachable revision: `)
 	if bytes.Contains(query, stranded) || bytes.Contains(readFile(c.evidence+"/local-outcome.stderr"), stranded) {
-		c.say("  local trace store: a recorded trace names a commit no longer reachable from HEAD; restore that commit as an ancestor and add new commits instead of amending or rebasing (docs/DOGFOOD.md \"Daily adopter path\")\n")
+		c.say("  local trace store: a recorded trace names a commit no longer reachable from HEAD; restore that commit as an ancestor, or retire the trace with corvint migrate-traces --dry-run then --apply --plan-digest DIGEST (LTPM-V0-012); add new commits instead of amending or rebasing (docs/DOGFOOD.md \"Daily adopter path\")\n")
 	}
 	c.say("  full report: %s\n", c.path(".corvint/dogfood-report.json"))
 	return 1

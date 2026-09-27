@@ -104,6 +104,9 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    local trace for its `HEAD`, and once that commit is no longer an ancestor of `HEAD` the query and
    the recorder refuse every later pass (`coordination-time-query: unsupported-query-trace-state`,
    `local-outcome: record-failed`, both reading `local trace store contains unreachable revision`).
+   If that commit is gone for good, `corvint migrate-traces --dry-run` lists it in
+   `stranded_revisions`, and `corvint migrate-traces --apply --plan-digest DIGEST` moves the trace,
+   byte-preserved, to `.context-corvint/legacy-traces/` (LTPM-V0-012).
 6. Run `make dogfood-change BASE=$BASE` again. Expected: no output but non-blocking `NOTE` lines
    (section 1), exit 0, and
    `.corvint/dogfood-report.json` contains `"complete": true`. An uncited hunk instead leaves
@@ -175,7 +178,7 @@ produces `"complete": true` or `dogfood-check: PASS`.
 | Unsupported | run from a subdirectory of the worktree (reproduced for V1-0236) | `REFUSE not-repository-root` (exit 2) | `REFUSE not-repository-root` (exit 2) |
 | Unsupported | intent without exactly one `## Requirements` heading | `ocm-prepare-001: invalid-requirements-section`, `ocm-aggregate: intent-scope-drift` | NOT_OBSERVED |
 | Drift | OCM map marked or linked without a rerun | not applicable | `FAIL intent-scope-drift`, `fix:` reruns `dogfood-change` |
-| Rewritten | amend or rebase after a recorded pass | `coordination-time-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor clears it | not reached |
+| Rewritten | amend or rebase after a recorded pass | `coordination-time-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor, or quarantining the trace with `corvint migrate-traces`, clears it | not reached |
 | Sealed | check on the seal commit, or a change containing a seal | `REFUSE sealed-cem-in-change` | `REFUSE sealed-head` |
 
 Test-claim linkage through `DOGFOOD_OCM_LINKS` needs a Go test that names the requirement ID. It was
