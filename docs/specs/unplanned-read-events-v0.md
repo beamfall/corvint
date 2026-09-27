@@ -113,7 +113,10 @@ by legitimate exploration that no packet could have anticipated.
   refused packet row for that session. A packet row that cannot be written (over-bound or
   failed) is refused: `RecordPacket` persists the error row and then, best-effort, a refused packet
   row for the session, so later reads in that session abstain rather than score against a truncated
-  planned set or the session's older packet.
+  planned set or the session's older packet. When the adapter watchdog degrades the output because
+  the event outlived its budget, the packet was not delivered: the adapter MUST refuse the session's
+  packet if its identity is already valid, and a worker that finishes after the watchdog MUST NOT
+  record a packet (amended 2026-09-27, V1-0297).
 - **URE-V0-009.** `corvint host-adapter claude-code post-tool` MUST call
   `HookPostToolSession(root, sessionIdSha256, payload)` before its existing harness event, and the
   call MUST NOT change that event's output. The hook judges the read against the newest retained
@@ -205,7 +208,7 @@ from `cmd/corvint/host_adapter.go`; no other output depends on them.
 | `URE-V0-005` | experimental | `TestDigestMath`, `TestSymlinkedLedgerIsRefused`, `TestDroppedHookErrorSurfacesAcrossProcesses` |
 | `URE-V0-006` | experimental | `TestHookPostToolNeverErrors`, `TestDroppedHookErrorSurfacesAcrossProcesses` |
 | `URE-V0-007` | experimental | `TestRunReadsDigestAndToggle`, `TestRunReadsRefusesLimitBesideAToggleInEitherOrder` |
-| `URE-V0-008` | experimental | `TestSessionPacketDenominator`, `TestRefusedPacketAbstains`; `cmd/corvint`: `TestClaudeAdapterUnplannedReadCallSites` |
+| `URE-V0-008` | experimental | `TestSessionPacketDenominator`, `TestRefusedPacketAbstains`; `cmd/corvint`: `TestClaudeAdapterUnplannedReadCallSites`, `TestURE008WatchdogSettlesPacketOnce` |
 | `URE-V0-009` | experimental | `TestSessionPacketDenominator`; `TestSymlinkedLedgerIsRefused`; `TestNewestPacketBoundsOversizeLedger`; `cmd/corvint`: `TestClaudeAdapterUnplannedReadCallSites` |
 
 ## Unresolved decisions

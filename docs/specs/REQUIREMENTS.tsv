@@ -2161,7 +2161,7 @@ URE-V0-005	docs/specs/unplanned-read-events-v0.md	88	`Read(root)` MUST be read-o
 URE-V0-006	docs/specs/unplanned-read-events-v0.md	95	`HookPostTool(root, packetPaths, payload)` MUST return `nil` on every path,
 URE-V0-007	docs/specs/unplanned-read-events-v0.md	100	`corvint [--root PATH] reads [--limit N]` MUST print the digest and write
 URE-V0-008	docs/specs/unplanned-read-events-v0.md	106	After a Claude Code `user-prompt` event renders a delivered context,
-URE-V0-009	docs/specs/unplanned-read-events-v0.md	117	`corvint host-adapter claude-code post-tool` MUST call
+URE-V0-009	docs/specs/unplanned-read-events-v0.md	120	`corvint host-adapter claude-code post-tool` MUST call
 VAF-001	docs/specs/verified-absence-frontier-v0.md	58	every result MUST bind the repository identity, base revision, target revision,
 VAF-002	docs/specs/verified-absence-frontier-v0.md	60	Corvint MUST distinguish `missing`, `stale`, `unobserved`, and `out-of-scope`. I
 VAF-003	docs/specs/verified-absence-frontier-v0.md	62	a closed frontier MUST be scoped to a named, finite obligation universe. The CLI
