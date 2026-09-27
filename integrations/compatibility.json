@@ -1,7 +1,7 @@
 {
   "profile": "corvint-harness-matrix/0",
   "adapterProtocol": "corvint-harness-event/0",
-  "generatedAt": "2026-09-24",
+  "generatedAt": "2026-09-27",
   "entries": [
     {
       "adapterVersion": "0.2.3",
@@ -12,9 +12,9 @@
       "hostVersionEvidence": "installed-host-lifecycle",
       "hostVersionEvidenceAdapterVersion": "0.2.3",
       "lifecycleConformance": {
-        "corvint": "0.8.1",
+        "corvint": "1.0.0-rc.1",
         "profile": "host-lifecycle-qualification-v1",
-        "report": "conformance/host-lifecycle-v1/results/0.8.1-darwin-arm64/claude-code.txt",
+        "report": "conformance/host-lifecycle-v1/results/1.0.0-rc.1-darwin-arm64/claude-code.txt",
         "result": "PASS"
       },
       "operatingSystem": "darwin-arm64",
@@ -32,9 +32,9 @@
       "hostVersionEvidence": "installed-host-lifecycle",
       "hostVersionEvidenceAdapterVersion": "0.2.2",
       "lifecycleConformance": {
-        "corvint": "0.8.1",
+        "corvint": "1.0.0-rc.1",
         "profile": "host-lifecycle-qualification-v1",
-        "report": "conformance/host-lifecycle-v1/results/0.8.1-darwin-arm64/codex.txt",
+        "report": "conformance/host-lifecycle-v1/results/1.0.0-rc.1-darwin-arm64/codex.txt",
         "result": "PASS"
       },
       "operatingSystem": "darwin-arm64",

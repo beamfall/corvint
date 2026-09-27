@@ -13,7 +13,7 @@ decision 0373 (items 5 and 6), and `AGENTS.md` invariants 2, 4 and 7.
 ## Agent digest
 - Claim: Each Core host tuple passes nine lifecycle cases on exact versions in isolated host homes, and a result binds only the tuple that produced it.
 - Status: accepted intent (decision 0381 item 1), experimental delivery; the host scope it qualifies is accepted in decision 0373
-- Exists: this contract and `conformance/host-lifecycle-v1`; all three tuples PASS on darwin/arm64 with corvint 0.8.1, reports retained (see Results)
+- Exists: this contract and `conformance/host-lifecycle-v1`; all three tuples PASS on darwin/arm64 with the corvint `1.0.0-rc.1` candidate build, reports retained (see Results)
 - Blocked on: linux tuples and live model-session cases are NOT_RUN; each result is stale at the next release (`HLQ-V1-008`)
 - Read next: Requirements; Results; Known gaps
 
@@ -104,13 +104,14 @@ GOTOOLCHAIN=local go run ./conformance/host-lifecycle-v1 \
 
 ## Results
 
-Run on 2026-09-24 on darwin/arm64 (Darwin 25.6.0) against the 0.8.1 release build. Plugin sources
-came from a clean checkout of the 0.8.1 release commit `1281e2695ee87ff29009a97f913a0e6f0d0f530d`.
-The current binary is the `corvint` from the v0.8.1 `corvint_darwin_arm64.tar.gz` (archive sha256
-`826e1b1e92a803a575ff705121f899259ff865c501911e3fa43f614e7c323943`), binary sha256
+Run on 2026-09-27 on darwin/arm64 (Darwin 25.6.0) against the `1.0.0-rc.1` candidate build. Plugin
+sources came from a clean checkout of the candidate commit
+`b967f6bbe33c5eba367a07d7eeb2bd1e372e9162`. The current binary is the `corvint` from the candidate's
+`corvint_darwin_arm64.tar.gz` (archive sha256
+`15d059f1af7cbf9a2ab4aa9bb1b1f11afa1e00e79229365ce540c74f8493aad5`), binary sha256
+`baac338555524a741fe70327cd95d56b5abf0186cac0cc14e199239639053ebf` (`Corvint 1.0.0-rc.1 (build
+163)`). The N-1 binary is the `corvint` from the published v0.8.1 archive, sha256
 `e8c24949d978bf9af3f5535dcdc22c960d3c2f94ebe48c8d3bd220f2b7836df5` (`Corvint 0.8.1 (build 82)`).
-The N-1 binary is the `corvint` from the published v0.8.0 archive, sha256
-`95ae7446dd249c659db3a0571b39e05dee5ba83f113cf061f1a20cd0604a710e` (`Corvint 0.8.0 (build 65)`).
 
 | Tuple | Host version | Adapter | install | discovery | context | expansion | change | frontier | degradation | upgrade | uninstall |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -118,17 +119,18 @@ The N-1 binary is the `corvint` from the published v0.8.0 archive, sha256
 | Codex CLI, plugin | 0.153.2 | 0.2.2 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | Claude Code, plugin | 2.1.267 | 0.2.3 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 
-The runner reports are kept under `conformance/host-lifecycle-v1/results/0.8.1-darwin-arm64/`
+The runner reports are kept under `conformance/host-lifecycle-v1/results/1.0.0-rc.1-darwin-arm64/`
 (`HLQ-V1-008`):
 
 | Tuple | Report | sha256 |
 |---|---|---|
-| plain CLI, native | `cli.txt` | `6bcc228cc7fdb2a13e72382adb9d15a8946b092bc9dc41c744ce943d56ce91bb` |
-| Codex CLI, plugin | `codex.txt` | `7e72f58ead6ad454e45e8af4276cbe289316659549b9f0f5af42b1997d1b8384` |
-| Claude Code, plugin | `claude-code.txt` | `e17639d4ec71a6e7502e52b75965354173ced67399615087f4af3e4816bd8ad1` |
+| plain CLI, native | `cli.txt` | `067c63e7ea85ba4ae127acd559de2cd8fd1e5f07c748887bb907d6429da56b3a` |
+| Codex CLI, plugin | `codex.txt` | `110fda04e9fbf6f1e4735428fb3318e04464d7826a9dcae11e599c9a44798d9d` |
+| Claude Code, plugin | `claude-code.txt` | `2844e6eddee6a61988520c18c7959a887a1596180a3b1fdbddc3e172a52968e7` |
 
-This run supersedes the 0.8.0 results, which were transcribed without retained reports. It becomes
-stale at the next corvint release or a change of host or adapter version.
+This run supersedes the 0.8.1 results, whose reports stay under `results/0.8.1-darwin-arm64/`,
+and the 0.8.0 results, which were transcribed without retained reports. It becomes stale at the
+next corvint release or a change of host or adapter version.
 
 Every other tuple is `NOT_RUN`. This includes linux/amd64 and linux/arm64, other host versions, and
 the Gemini CLI, OpenCode and Pi adapters.
