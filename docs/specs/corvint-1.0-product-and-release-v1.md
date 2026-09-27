@@ -16,7 +16,7 @@ scope, `PUB-V0-001..026` and the 2026-09-16 Core release scope amendment),
 - Claim: Accepted scope: 1.0 Core is the local change-evidence loop and proof wire; companions, host FULL and independent interop leave the Core path (decision 0373).
 - Status: accepted (decision 0373, V1-0001) / not-started
 - Exists: this spec, decision 0373 with the eleven owner answers, and the prospective amendment section in `public-release-v0.md`; the candidate reader and installer admit a Core-only profile (V1-0125), and `corvint-release-candidate` assembles one when `-companion-dir` is omitted (V1-0229).
-- Blocked on: the V1-0018 Core freeze with its decision 0421 blockers, V1-0019 external validation and V1-0020 `1.0.0-rc.1` qualification; the untouched repository for V1-0019 is `github.com/go-chi/chi` (decision 0422), with its cases not yet frozen; the native linux/amd64 host is a GitHub-hosted `ubuntu-24.04` runner (decision 0420).
+- Blocked on: the V1-0018 Core freeze with its decision 0421 blockers, V1-0019 external validation and V1-0020 `1.0.0-rc.1` qualification; the untouched repository for V1-0019 is `github.com/go-chi/chi` (decision 0422), and the V1-0019 cases for go-chi/chi, Corvint and beamfall/core are frozen under `benchmarks/untouched-repository-v1/` (Frozen cases) and not yet run; the native linux/amd64 host is a GitHub-hosted `ubuntu-24.04` runner (decision 0420).
 - Read next: Decisions the owner must make; Classification of shipped surfaces; Externally dependent gates.
 
 ## Human intent
@@ -177,6 +177,23 @@ accepted by decision 0373 and the amendment it requires are stated.
   one sentence: "The 1.0 Core candidate additionally requires the three Core jobs on one
   owner-selected untouched public repository with cases frozen before execution." The ticket
   type of V1-0019 changes from EXTERNAL to MANUAL.
+- Frozen cases: one harness, `benchmarks/untouched-repository-v1/harness.py`, runs the three Core
+  jobs on each PRS-V1-008 repository from its own preregistration. It computes the
+  preregistration digest from the file and refuses to run when it differs from the sealed
+  `preregistration.sha256` or from `--prereg-sha256`.
+  - go-chi/chi (decision 0422), held out: pinned at `3d1777a1ef8881f7d1da0b02c76ca8f0a29cd2bc` in
+    `benchmarks/untouched-repository-v1/`, preregistration digest
+    `27625e854faf7dfb2379f59d38c7c082aeea19758e744874a52b20f200551e29`.
+  - Corvint, a development repository: pinned at the first `1.0.0-rc.1` candidate commit
+    `94ca556f52c0349c0a48e0c3a3274f8a0b5e6db3` in `benchmarks/untouched-repository-v1/corvint/`,
+    preregistration digest `58d68a6f5a2c3297683249a953da28c7e8efb5786f665776d0ad9165a56e74f6`.
+    Task-store, dogfood, build-log and generated index paths are never critical.
+  - beamfall/core, a private development repository: pinned at
+    `e8655b084d1658087004af8f7b235ea4e7675dff`, over the 20 most recent first-parent commits that
+    change a `.go` file. Its preregistration, corpus, runs and receipts stay in the owner's local
+    release evidence. This spec publishes its preregistration digest
+    `867f51a01609d1587122d4186775f2557bcf4ec5c064ec12004edf3de8d35a40` before any run, and its
+    outcomes after.
 
 ### Host FULL and authority tuples
 
