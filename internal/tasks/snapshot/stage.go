@@ -33,6 +33,11 @@ const (
 // under one IMPORT_APPLY receipt; the operation name is the receipt kind.
 const StageImportApply = "IMPORT_APPLY"
 
+// StageAuthoritySwitch posts intent/queue.json with canonicalWriter NATIVE
+// under one AUTHORITY_SWITCH receipt (TCP-00 §5.4 A5, CAL-V0-004); the
+// operation name is the receipt kind.
+const StageAuthoritySwitch = "AUTHORITY_SWITCH"
+
 type StageBase struct {
 	LastSeq           wire.Size
 	LastReceiptSha256 wire.Digest
@@ -70,6 +75,8 @@ func StageLimits(op string) (int, int) {
 		return 5, 1470
 	case StageImportApply:
 		return 11, MaxStageDescriptorBytes
+	case StageAuthoritySwitch:
+		return 5, 1474
 	}
 	return 0, 0
 }
@@ -107,7 +114,7 @@ func DecodeStageDescriptor(raw []byte) (*StageDescriptor, error) {
 	if e = wire.CheckProfile("stage/profile", r.Field("profile").String(), "taskman-stage/0"); e != nil {
 		return nil, e
 	}
-	d := &StageDescriptor{QueueID: r.Field("queueId").QueueID().Raw, Operation: r.Field("operation").Enum(StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate, StageImportApply), RequestID: r.Field("requestId").String(), RequestSha256: r.Field("requestSha256").Digest(), RecordedAt: r.Field("recordedAt").Timestamp()}
+	d := &StageDescriptor{QueueID: r.Field("queueId").QueueID().Raw, Operation: r.Field("operation").Enum(StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate, StageImportApply, StageAuthoritySwitch), RequestID: r.Field("requestId").String(), RequestSha256: r.Field("requestSha256").Digest(), RecordedAt: r.Field("recordedAt").Timestamp()}
 	b := r.Field("base")
 	if !b.IsNull() {
 		b.Closed("lastSeq", "lastReceiptSha256")
@@ -196,6 +203,9 @@ func (d StageDescriptor) shape() error {
 			if d.Operation == StagePolicyUpdate {
 				cap = wire.MaxPolicyFileBytes
 			}
+			if d.Operation == StageAuthoritySwitch {
+				cap = wire.MaxQueueFileBytes
+			}
 		case "POST":
 			switch {
 			case a.Target == requestPath:
@@ -204,7 +214,7 @@ func (d StageDescriptor) shape() error {
 				if d.Operation == StageInit {
 					cap = 551
 				}
-				if d.Operation == StageKeepJournal || d.Operation == StageAdoptFile || d.Operation == StageMutate || d.Operation == StageRelease || d.Operation == StagePolicyUpdate || d.Operation == StageImportApply {
+				if d.Operation == StageKeepJournal || d.Operation == StageAdoptFile || d.Operation == StageMutate || d.Operation == StageRelease || d.Operation == StagePolicyUpdate || d.Operation == StageImportApply || d.Operation == StageAuthoritySwitch {
 					cap = 579
 				}
 			case a.Target == "barrier.json" && d.Operation == StagePause:
@@ -232,7 +242,7 @@ func (d StageDescriptor) shape() error {
 				}
 				key = "discard"
 				cap = 131072
-			case a.Target == "intent/queue.json" && d.Operation == StageMutate:
+			case a.Target == "intent/queue.json" && (d.Operation == StageMutate || d.Operation == StageAuthoritySwitch):
 				// CREATE advances nextSerial; no other mutation posts the manifest.
 				key = "queue"
 				cap = 1048576
@@ -286,6 +296,8 @@ func (d StageDescriptor) shape() error {
 		required["ticket"] = 1
 	case StagePolicyUpdate:
 		required["policy"] = 1
+	case StageAuthoritySwitch:
+		required["queue"] = 1
 	case StageRelease:
 		required["release"] = 1
 		if counts["discard"] != 0 {
@@ -316,7 +328,7 @@ func (d StageDescriptor) shape() error {
 	switch d.Operation {
 	case StageInit:
 		maxEvidence = 3
-	case StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate:
+	case StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate, StageAuthoritySwitch:
 		maxEvidence = 1
 	case StageImportApply:
 		// A ticket record over the inline post bound is carried as a blob.
