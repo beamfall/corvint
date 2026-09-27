@@ -28,9 +28,9 @@ corvint-tasks already holds the ticket inventory, dependencies, holds, releases,
 shadow import of the Beamfall export. TCP-00 defines the rest of the execution model around a
 supervisor: `admit` reserves the ticket, a supervisor forks a `lane-leader`, a `.boot`/`.ack`
 handshake proves whether the runtime ran, and process-group liveness decides when a reservation may
-be released (§6.2 to §6.4). None of that is built in tree: the writer requires an empty reservation
-set (`internal/tasks/transaction/model.go:687`) and refuses every queue that is not a fixture
-(`model.go:656`).
+be released (§6.2 to §6.4). None of that is built in tree: the writer requires an empty
+reservation set (`internal/tasks/transaction/model.go:687@62694c5b`) and refuses every queue that is
+not a fixture (`internal/tasks/transaction/model.go:656@2635d775`).
 
 The agents that use these queues are not processes corvint-tasks starts. They are interactive or
 orchestrated sessions that call the task tool themselves. This spec keeps TCP-00's attempt,
@@ -202,7 +202,8 @@ import of the real export. Before S7 closes, a rehearsal in a throwaway non-fixt
 the cut-over Beamfall export claims, gates and completes one real Beamfall ticket, and lets one
 lease expire and be reaped.
 
-Rollback, per slice: S1 restores the fixture-only check at `model.go:656`; S2 removes `cutover`
+Rollback, per slice: S1 restores the fixture-only check at
+`internal/tasks/transaction/model.go:656@2635d775`; S2 removes `cutover`
 (records it already rewrote stay valid native records); S3 to S5 remove the lease verbs, and a store
 that holds live `external-agent` attempts must first `release` or `reap` them, because a rolled-back
 reader reports them `NOT_OBSERVED`; S6 restores the per-batch audit; S7 removes the execution
