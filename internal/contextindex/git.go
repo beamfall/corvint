@@ -259,12 +259,6 @@ func gitRaw(ctx context.Context, root string, outputLimit, expected int, stdin [
 	return stdout.Bytes(), nil
 }
 
-// pipeDrainDelay bounds how long a Git call waits for its output pipes after
-// Git exits or is cancelled. It detects a descendant that keeps them open and
-// is not a latency budget: on a loaded host the reader can need seconds to
-// drain output Git already wrote (V1-0390). Tests shorten it.
-var pipeDrainDelay = time.Minute
-
 func contextError(ctx context.Context) error {
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return &Error{Message: "Git repository index exceeded its deadline"}
@@ -685,3 +679,9 @@ func readStatusSnapshotRaw(ctx context.Context, root string) ([]string, string, 
 	digest := sha256.Sum256(raw)
 	return paths, fmt.Sprintf("%x", digest), raw, nil
 }
+
+// pipeDrainDelay bounds how long a Git call waits for its output pipes after
+// Git exits or is cancelled. It detects a descendant that keeps them open and
+// is not a latency budget: on a loaded host the reader can need seconds to
+// drain output Git already wrote (V1-0390). Tests shorten it.
+var pipeDrainDelay = time.Minute

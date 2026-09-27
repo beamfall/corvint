@@ -107,12 +107,6 @@ func git(ctx context.Context, root string, outputLimit int, arguments ...string)
 	return gitRaw(ctx, root, outputLimit, arguments...)
 }
 
-// pipeDrainDelay bounds how long a Git call waits for its output pipes after
-// Git exits or is cancelled. It detects a descendant that keeps them open and
-// is not a latency budget: on a loaded host the reader can need seconds to
-// drain output Git already wrote (V1-0390).
-const pipeDrainDelay = time.Minute
-
 func gitRaw(ctx context.Context, root string, outputLimit int, arguments ...string) ([]byte, error) {
 	commandArguments := []string{
 		"--no-optional-locks",
@@ -489,3 +483,9 @@ func probeRepositorySharing(parent context.Context, root string, run gitRunner, 
 	}
 	return Repository{}, newError("repository-state-unstable", "repository HEAD changed while probing repository state")
 }
+
+// pipeDrainDelay bounds how long a Git call waits for its output pipes after
+// Git exits or is cancelled. It detects a descendant that keeps them open and
+// is not a latency budget: on a loaded host the reader can need seconds to
+// drain output Git already wrote (V1-0390).
+const pipeDrainDelay = time.Minute
