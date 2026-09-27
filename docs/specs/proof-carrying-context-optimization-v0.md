@@ -116,17 +116,22 @@ research direction only.
   change-evidence loop MUST be preregistered before its first corpus observation. The
   preregistration names the jobs, an immutable corpus of commit IDs with its deterministic
   derivation rule, the fixed baseline, thresholds, exclusions, invalidation rules, and the SHA-256
-  of the corpus and harness. Its own SHA-256 is the seal, committed before any run. A run refuses
-  when a sealed digest or the corpus re-derivation differs.
+  of the corpus and harness. Its own SHA-256 is the seal, committed as `preregistration.sha256`
+  before any run. A run computes that digest and refuses when it differs from the committed seal or
+  the operator-supplied digest, when a sealed digest or the corpus re-derivation differs, or when
+  its run identifier was already used. No host Git configuration or inherited `DOGFOOD_*` or
+  `CORVINT_*` input reaches a step, and a bind or mutation that did not happen is a harness
+  failure, never a measured outcome.
 - `PCCO-V0-016`: (proposed for V1-0012, not accepted) Each run MUST emit one result binding the
   preregistration, corpus, candidate commit, and candidate binary digests, and one
   `corvint-use-case-evidence/0` sealed-benchmark receipt per job whose outcome is that job's
   measured PASS or FAIL. Every run file and receipt is kept, including failing ones. A harness
   change after the first observation is a new run with the deviation recorded.
 - `PCCO-V0-017`: (proposed for V1-0012, not accepted) A cost-reduction claim is retained only when
-  complete task cost is observed for both arms and meets this spec's promotion-gate cost thresholds
-  with zero treatment-only critical misses; otherwise the result reads "measured, no savings
-  claim". Complete task tokens and human failure rate stay `NOT_OBSERVED` without a live
+  complete task cost is observed for both arms on the same unique cases, every observation is well
+  formed, no treatment case is a human failure, and the result meets this spec's promotion-gate
+  cost thresholds with zero treatment-only critical misses; otherwise the result reads "measured,
+  no savings claim". Complete task tokens and human failure rate stay `NOT_OBSERVED` without a live
   model-driven agent or human reviewer and are never estimated from latency or byte counts.
 
 ## Promotion gate
@@ -171,3 +176,4 @@ local dogfood and held-out evaluation.
 |---|---|---|
 | `PCCO-V0-001..014` | not started | observation authority, frozen corpus, hostile manifest vectors, three-baseline held-out trial |
 | `PCCO-V0-015..017` (proposed, not accepted) | `benchmarks/daily-loop-v0/harness.py` with the sealed `preregistration.json` and `corpus.json` | run results and receipts under `benchmarks/daily-loop-v0/runs/` and `receipts/`; `docs/BUILD-LOG.md` V1-0012 entry |
+| `PCCO-V0-015..017` (proposed, not accepted) | `benchmarks/daily-loop-v1/harness.py`, unsealed; `run` refuses until `preregistration.json` and `preregistration.sha256` are committed | none yet; `docs/build-log/2026-09-27-v1-0382-daily-loop-v1-harness.md` |
