@@ -15,7 +15,8 @@ func configureProcess(command *exec.Cmd) {
 		}
 		return command.Process.Kill()
 	}
-	command.WaitDelay = time.Second
+	// The bound detects a descendant holding the output pipes, not a slow reader (V1-0391).
+	command.WaitDelay = time.Minute
 }
 
 func descendantCleanupQualification() (bool, string) {

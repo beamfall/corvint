@@ -1,4 +1,4 @@
-## 2026-09-26 V1-0373 V1-0362 V1-0349 V1-0361: Git runners signal their group before reaping, run isolated, and never fetch a promisor object
+## 2026-09-26 V1-0373 V1-0391 V1-0362 V1-0349 V1-0361: Git runners signal their group before reaping, run isolated, and never fetch a promisor object
 
 Base `b29d35e53a535723624c692aa98b00692a6a8d04`.
 
@@ -40,6 +40,21 @@ With host load between 390 and 500, the descendant-cleanup tests in `gitrun`, `d
 `taskman` failed identically at the base and with this change, on PID-handoff timeouts. Run on their
 own, they pass with this change, as do the whole `mutate`, `groupreap`, `doccompiler` and
 `releasegate` packages.
+
+### V1-0391: pipe-drain bounds outside Git acquisition
+
+V1-0390 raised the `WaitDelay` of `contextindex` and `gokernel` from one second to one minute. The same
+one-second value remained in `doccompiler`, `taskman`, `liveverify/mutate` and the work executable
+version probe. `os/exec` starts that timer when the process exits. A successful subprocess therefore
+failed with `ErrWaitDelay` whenever the goroutine copying its output was not scheduled within one
+second, which a loaded host does. All four now use one minute. The bound still detects a pipe held by
+a descendant that escaped the group kill; it is not a latency budget.
+
+A scratch check ran `taskman` `runRead` on a script that prints `ok`, then starts a `setsid` descendant
+that holds stdout for two seconds, and exits 0. With one minute, it returned `ok` after 2.2 seconds.
+With the bound set back to one second, it failed after 1.2 seconds. The existing cancellation,
+descendant and group tests of `doccompiler`, `taskman` and `mutate` pass, because cancellation kills
+the group and so closes the pipes without waiting out the bound.
 
 ### V1-0362: isolated Git runners
 

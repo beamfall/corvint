@@ -30,7 +30,8 @@ func runRead(ctx context.Context, binary, root string, args []string) ([]byte, e
 		}
 		return e
 	}
-	cmd.WaitDelay = time.Second
+	// The bound detects a descendant holding the output pipes, not a slow reader (V1-0391).
+	cmd.WaitDelay = time.Minute
 	out, stderr := &limitedBuffer{limit: 16 << 20}, &limitedBuffer{limit: 1 << 20}
 	cmd.Stdout = out
 	cmd.Stderr = stderr
