@@ -1,0 +1,200 @@
+{
+  "baseRevision": "87e10444ad158ea285987fd4f334432b4e6908fb",
+  "evidence": [
+    {
+      "blobOid": "e5ae0f28d8f041fe884547559d4f23d23531c873",
+      "id": "evidence:sha256:c93d53f57109035ab700367f7eaf61420db3023bb1b7cc178c318e038c358a33",
+      "path": "docs/specs/task-context-packet-v0.md",
+      "span": {
+        "end": 9653,
+        "start": 9242
+      },
+      "spanSha256": "075b4b126bf9d1827c26146781a75e7912925a6ce6e1a5d74221e709d2193169"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c93d53f57109035ab700367f7eaf61420db3023bb1b7cc178c318e038c358a33",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5bae07776dbc361418c662f87298ead86909cbed560db30b73e6ce5c416ed908",
+      "newRange": {
+        "count": 21,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-27-v1-0292-swift-corroboration.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c93d53f57109035ab700367f7eaf61420db3023bb1b7cc178c318e038c358a33",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c46e1caa2cc10119173c604b34409b105df9683c39ade1f26e488b5075d30dd7",
+      "newRange": {
+        "count": 52,
+        "start": 2000
+      },
+      "oldRange": {
+        "count": 52,
+        "start": 2000
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c93d53f57109035ab700367f7eaf61420db3023bb1b7cc178c318e038c358a33",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:246cd44145989271cde7a2bdb63cc87a9e103c86ce12416aafd63cbcc1e0213d",
+      "newRange": {
+        "count": 8,
+        "start": 208
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 208
+      },
+      "path": "docs/specs/core-compatibility-freeze-v1.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c93d53f57109035ab700367f7eaf61420db3023bb1b7cc178c318e038c358a33",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:98c4a9c166c497fee2617bf0852167cbc8f0dc25795a4c14c3a422315be7b2c7",
+      "newRange": {
+        "count": 7,
+        "start": 223
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 223
+      },
+      "path": "docs/specs/core-compatibility-freeze-v1.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c93d53f57109035ab700367f7eaf61420db3023bb1b7cc178c318e038c358a33",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:bdfb9c0ea0c821165f4836d4c1c700b786d7c06c608d2e674d9a1696dd40c418",
+      "newRange": {
+        "count": 8,
+        "start": 240
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 240
+      },
+      "path": "docs/specs/core-compatibility-freeze-v1.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c93d53f57109035ab700367f7eaf61420db3023bb1b7cc178c318e038c358a33",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d2128d38f93af3f8643e42258045e2a41fd0edb0da54d7cf7bd8f8cb894a1cd6",
+      "newRange": {
+        "count": 16,
+        "start": 275
+      },
+      "oldRange": {
+        "count": 16,
+        "start": 275
+      },
+      "path": "docs/specs/core-compatibility-freeze-v1.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c93d53f57109035ab700367f7eaf61420db3023bb1b7cc178c318e038c358a33",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:263eb202b5b1fbe9ffd7b50dd3705f3fd00fc35ca71462e0fd2c3c7851b1819f",
+      "newRange": {
+        "count": 9,
+        "start": 89
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 89
+      },
+      "path": "docs/specs/task-context-packet-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c93d53f57109035ab700367f7eaf61420db3023bb1b7cc178c318e038c358a33",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9954f266b07cbf52cf0ae39ff6cc06c51e60f9067c1fdb248370642b84789761",
+      "newRange": {
+        "count": 43,
+        "start": 793
+      },
+      "oldRange": {
+        "count": 16,
+        "start": 793
+      },
+      "path": "internal/contextindex/taskcontext.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c93d53f57109035ab700367f7eaf61420db3023bb1b7cc178c318e038c358a33",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c812ddd4947e48e45b93c947dc0de09c11da762e28b05b26c953165b5f1b572c",
+      "newRange": {
+        "count": 28,
+        "start": 405
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 405
+      },
+      "path": "internal/contextindex/taskcontext_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "e399adfc4f89d8d3035206bf7e3a5488c38018b312870f0d652d6c3d7ffb0b6a",
+  "spec": "cem/0.2"
+}
