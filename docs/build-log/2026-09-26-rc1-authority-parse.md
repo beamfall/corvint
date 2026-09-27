@@ -27,8 +27,12 @@ to `corvint-analyzer/88`, so these extraction changes move it once more, to `/89
 audited-input digest `873598aff4e88f0b3b2b7d254fef9ea25e9e32eade7376f9d138bf07b1950187` in
 `TestAnalyzerSchemaInputs`. No cmd package pins the schema.
 
-Checks. PENDING
+Checks. After merging the Git runner hardening branch (0d4651c6, on origin/main 4c607266),
+`go test ./internal/contextindex ./internal/specindex` passes (contextindex 163 s at load ~75).
+With the fence, status and path fixes reverted, their three new tests fail. With the degree memo
+disabled, `TestPersonalizedPageRankScansEachDegreeOnce` fails (7905 hub scans); the bit-identity
+test is an equivalence check and passes either way. The documentation checks and `go vet` pass.
 
-NOT_RUN. `make gate`, `go test ./...`, the interop module, `make dogfood-*`, and the full
-`corvint context` command with the graph flag on a synthetic star. The branch is based on
-b29d35e5, the primary checkout's `origin/main`, which predates decision 0423.
+NOT_RUN. `make gate`, `go test ./...`, the interop module, and the full `corvint context` command
+with the graph flag on a synthetic star. Only `internal/contextindex` Go code changed; CI runs the
+full suite.
