@@ -1,0 +1,247 @@
+name: Release gates
+
+# Owner-dispatched release-policy-v3 gates on hosted runners (decision 0415), on the same hosted
+# platform as CI (decision 0320, AFP-V0-017). Each gate runs in its own job at the exact `sha`
+# input; `full-gate` runs on ubuntu-24.04 and macos-15. `release-checklist` reads the private
+# witnesses `make gate` records in its own clone, so it runs after `make gate` in each full-gate
+# job. `linux-core` runs the linux/amd64 Core platform evidence natively (decision 0420 item 2).
+# Every log is an artifact with its sha256 beside it; nothing here pins, commits, or publishes.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Full 40-hex commit to gate
+        required: true
+      release:
+        description: Release label, used only in artifact names
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  GOTOOLCHAIN: local
+  GOPROXY: "off"
+  GOSUMDB: "off"
+  GOWORK: "off"
+  GOFLAGS: ""
+  CGO_ENABLED: "1"
+  SHA: ${{ inputs.sha }}
+  RELEASE: ${{ inputs.release }}
+
+jobs:
+  gate:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: ${{ matrix.timeout }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - gate: focused-docs
+            os: ubuntu-24.04
+            timeout: 30
+            command: make spec-requirements-check requirement-definitions-check traceability-tests-check decision-numbers-check line-citations-check
+          - gate: full-gate
+            os: ubuntu-24.04
+            timeout: 300
+            command: make gate
+          - gate: full-gate
+            os: macos-15
+            timeout: 300
+            command: make gate
+          - gate: interop-gate
+            os: ubuntu-24.04
+            timeout: 60
+            command: make interop-gate
+          # The companion bundle targets darwin/arm64 and smoke-runs its installed binaries.
+          - gate: companion-release
+            os: macos-15
+            timeout: 120
+            command: make companion-release-gate
+    env:
+      RUNNER_LABEL: ${{ matrix.os }}
+    steps:
+      - &check-inputs
+        name: Check inputs
+        run: |
+          printf '%s\n' "$SHA" | grep -Eqx '[0-9a-f]{40}' || { echo "sha must be a full 40-hex commit" >&2; exit 2; }
+          printf '%s\n' "$RELEASE" | grep -Eqx '[0-9A-Za-z._-]{1,64}' || { echo "release must match [0-9A-Za-z._-]{1,64}" >&2; exit 2; }
+      - &checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - &verify-checkout
+        name: Verify the checkout is the named commit
+        run: test "$(git rev-parse HEAD)" = "$SHA"
+      - &setup-go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.1"
+      - &provision
+        name: Provision the host tools the product's fixed PATH resolves
+        # Linux is exactly ci.yml's go-product step. macOS gets ripgrep from Homebrew instead, and
+        # proves that worksource.PlatformPath's darwin search path resolves go1.27.1 first.
+        run: |
+          sudo rm -rf /usr/local/go
+          sudo ln -s "$(go env GOROOT)" /usr/local/go
+          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.1"
+          if [ "$RUNNER_OS" = Linux ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq --no-install-recommends ripgrep
+          else
+            HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install --quiet ripgrep
+            test "$(PATH=/opt/homebrew/bin:/usr/local/bin:/usr/local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin go env GOVERSION)" = "go1.27.1"
+          fi
+          git config --global user.name corvint-ci
+          git config --global user.email corvint-ci@users.noreply.github.com
+          git config --global maintenance.auto false
+          git config --global gc.auto 0
+          git --version
+      - &gate-log-helper
+        name: Write the gate log helper
+        # Logs live under RUNNER_TEMP: `make gate` refuses its receipt unless the checkout is clean.
+        run: |
+          mkdir -p "$RUNNER_TEMP/evidence"
+          cat >"$RUNNER_TEMP/run-gate" <<'EOF'
+          #!/usr/bin/env bash
+          # usage: run-gate GATE COMMAND...; exits with COMMAND's code.
+          gate=$1
+          shift
+          name="$gate-$RELEASE-$RUNNER_LABEL.log"
+          log="$RUNNER_TEMP/evidence/$name"
+          printf '%s sha=%s runner=%s image=%s utc=%s\n' "$gate" "$SHA" "$RUNNER_LABEL" "${ImageVersion:-unknown}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$log"
+          printf 'run: %s/%s/actions/runs/%s/attempts/%s\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >>"$log"
+          printf 'tools: %s; %s; node %s\n' "$(go version)" "$(git --version)" "$(node --version 2>&1)" >>"$log"
+          printf 'command: %s\n' "$*" >>"$log"
+          "$@" 2>&1 | tee -a "$log"
+          code=${PIPESTATUS[0]}
+          printf '%s EXIT %s\n' "$gate" "$code" | tee -a "$log"
+          (cd "$RUNNER_TEMP/evidence" && shasum -a 256 "$name" >"$name.sha256")
+          exit "$code"
+          EOF
+          chmod 0755 "$RUNNER_TEMP/run-gate"
+      - name: Run ${{ matrix.gate }}
+        env:
+          GATE: ${{ matrix.gate }}
+          COMMAND: ${{ matrix.command }}
+        # COMMAND is a fixed matrix value, split on spaces into argv.
+        run: |
+          # shellcheck disable=SC2086
+          "$RUNNER_TEMP/run-gate" "$GATE" $COMMAND
+      - name: Run release-checklist on this clone's gate witnesses
+        if: ${{ !cancelled() && matrix.gate == 'full-gate' }}
+        run: |
+          "$RUNNER_TEMP/run-gate" release-checklist script/release-checklist --pre-promotion
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ matrix.gate }}-${{ inputs.release }}-${{ matrix.os }}
+          path: ${{ runner.temp }}/evidence/${{ matrix.gate }}-*
+          if-no-files-found: error
+      - if: ${{ always() && matrix.gate == 'full-gate' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-checklist-${{ inputs.release }}-${{ matrix.os }}
+          path: ${{ runner.temp }}/evidence/release-checklist-*
+          if-no-files-found: error
+
+  # linux/amd64 Core platform evidence (decision 0420 item 2, PRS-V1-004, PRS-V1-006): release
+  # runbook steps 5, 6 and 8 and the HLQ-V1 host tuples, run natively on this sha's own
+  # linux/amd64 archive. The setup steps are the gate job's, by YAML alias.
+  linux-core:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      RUNNER_LABEL: ubuntu-24.04
+    steps:
+      - *check-inputs
+      - *checkout
+      - *verify-checkout
+      - *setup-go
+      - *provision
+      - *gate-log-helper
+      - name: Produce this sha's release archives and extract linux/amd64
+        id: candidate
+        # Runbook steps 5 and 6. The log carries SHA256SUMS: the archive is the candidate's bytes
+        # only when its row equals the one in the release's own SHA256SUMS.
+        run: |
+          mkdir -m 0700 "$RUNNER_TEMP/release" "$RUNNER_TEMP/current"
+          # The inner sh expands the single-quoted script.
+          # shellcheck disable=SC2016
+          "$RUNNER_TEMP/run-gate" release-archive sh -euc '
+            go run ./conformance/release-artifact-v0 archive --revision "$SHA" --output "$RUNNER_TEMP/release/core"
+            cd "$RUNNER_TEMP/release/core"
+            cat SHA256SUMS
+            sha256sum -c SHA256SUMS
+            tar -xzf corvint_linux_amd64.tar.gz -C "$RUNNER_TEMP/current" --strip-components=1
+            cd "$RUNNER_TEMP/current"
+            sha256sum corvint
+            sha256sum -c SHA256SUMS
+            ./corvint --version'
+      - name: Fetch the previous release's published linux/amd64 archive (N-1)
+        id: n1
+        # N-1 is the newest v* tag strictly before this sha (CCF-V1-006). Its archive is checked
+        # against that release's own published SHA256SUMS.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          n1=$(git tag --merged "$SHA" --no-contains "$SHA" --list 'v[0-9]*' --sort=-v:refname | head -n 1)
+          mkdir -m 0700 "$RUNNER_TEMP/n1" "$RUNNER_TEMP/previous"
+          # The inner sh expands the single-quoted script.
+          # shellcheck disable=SC2016
+          "$RUNNER_TEMP/run-gate" n1-archive sh -euc '
+            gh release download "$1" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/n1" --pattern corvint_linux_amd64.tar.gz --pattern SHA256SUMS
+            cd "$RUNNER_TEMP/n1"
+            grep -F corvint_linux_amd64.tar.gz SHA256SUMS
+            sha256sum -c --ignore-missing SHA256SUMS
+            tar -xzf corvint_linux_amd64.tar.gz -C "$RUNNER_TEMP/previous" --strip-components=1
+            cd "$RUNNER_TEMP/previous"
+            sha256sum corvint
+            sha256sum -c SHA256SUMS
+            ./corvint --version' sh "$n1"
+      - name: Install the Codex CLI and Claude Code hosts
+        # The exact versions of the Core plugin rows in integrations/compatibility.json. The HLQ
+        # runner gives each host a private HOME and config directory and calls the installed hook
+        # commands itself, so no credential, secret or model call is used (HLQ-V1-003, HLQ-V1-004).
+        run: npm install --global --no-audit --no-fund @openai/codex@0.153.2 @anthropic-ai/claude-code@2.1.267
+      - name: Install lifecycle on this sha's archive (runbook step 8)
+        if: ${{ !cancelled() && steps.candidate.outcome == 'success' }}
+        env:
+          CORVINT_LIFECYCLE_ARCHIVE: ${{ runner.temp }}/release/core/corvint_linux_amd64.tar.gz
+        run: |
+          "$RUNNER_TEMP/run-gate" install-lifecycle script/check-install-lifecycle.sh
+      - name: N-1 install lifecycle upgraded to this sha's corvint (runbook step 8)
+        if: ${{ !cancelled() && steps.n1.outcome == 'success' }}
+        env:
+          CORVINT_LIFECYCLE_ARCHIVE: ${{ runner.temp }}/n1/corvint_linux_amd64.tar.gz
+          CORVINT_LIFECYCLE_UPGRADE_BINARY: ${{ runner.temp }}/current/corvint
+        run: |
+          "$RUNNER_TEMP/run-gate" install-lifecycle-n1 script/check-install-lifecycle.sh
+      - name: Host lifecycle qualification of the three Core tuples (HLQ-V1)
+        # Each raw --report is kept for conformance/host-lifecycle-v1/results/ (HLQ-V1-008).
+        if: ${{ !cancelled() && steps.n1.outcome == 'success' }}
+        run: |
+          mkdir "$RUNNER_TEMP/host-lifecycle"
+          status=0
+          for host in cli codex claude-code; do
+            "$RUNNER_TEMP/run-gate" "host-lifecycle-$host" go run ./conformance/host-lifecycle-v1 --host "$host" \
+              --corvint "$RUNNER_TEMP/current/corvint" --base-corvint "$RUNNER_TEMP/previous/corvint" \
+              --source "$GITHUB_WORKSPACE" --report "$RUNNER_TEMP/host-lifecycle/$host.txt" || status=1
+          done
+          exit "$status"
+      - name: Hostile regression matrix (runbook step 8)
+        if: ${{ !cancelled() }}
+        run: |
+          "$RUNNER_TEMP/run-gate" hostile-regressions script/check-hostile-regressions.sh
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: linux-core-${{ inputs.release }}-ubuntu-24.04
+          path: |
+            ${{ runner.temp }}/evidence/
+            ${{ runner.temp }}/host-lifecycle/
+          if-no-files-found: error
