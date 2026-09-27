@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: not-started
+Delivery status: partial (S2 CAL-V0-004..006 experimental)
 Authoritative inputs: the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
 §3.4, §4, §6 and §7.4), decision 0397 (corvint-tasks built in tree), decision 0423 A10,
 `docs/specs/corvint-tasks-store-init-v0.md`, tickets V1-0398, V1-0184 and V1-0310, and the in-tree
@@ -11,7 +11,7 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Coding agents claim, renew, gate and complete tickets through leased `corvint-tasks` attempts, replacing a repository's own task runner without a supervisor.
-- Status: accepted (owner decision 2026-09-27); not-started. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S2 experimental). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
 - Read next: Slices; Requirements; Amendments to TCP-00; Failure modes.
@@ -55,7 +55,7 @@ one.
 | Slice | Requirements | Delivers |
 |---|---|---|
 | S1 | CAL-V0-001..003 | Durable writes to a non-fixture queue (resolves V1-0398) |
-| S2 | CAL-V0-004..006 | `cutover`: imported shadow records become native records |
+| S2 | CAL-V0-004..006 | `cutover`: one authority switch publishes the imported shadow records |
 | S3 | CAL-V0-007..013 | `claim`, `renew`, `release`, `reap` and `attempt show` |
 | S4 | CAL-V0-014 | `plan preview` (`taskman-priority-first/0`, read-only) |
 | S5 | CAL-V0-015..017 | `submit`, `gate run` and `complete` |
@@ -85,20 +85,18 @@ S1, non-fixture writer.
 
 S2, cutover of imported records.
 
-- `CAL-V0-004`: `corvint-tasks cutover --source-queue <queueId> --decision <ref>` MUST, under an
-  `OWNER` binding, rewrite every `IMPORT` record from that source queue as a `NATIVE` record with the
-  same `ticketId`: `source` becomes `NATIVE` with null source fields, `shadowOverlay` becomes false,
-  the revision advances with `previousRecordSha256` naming the imported record (the provenance), and
-  `acceptanceRevision` advances because `source` is acceptance-relevant. The queue's
-  `canonicalWriter` becomes `NATIVE`, and a `CUTOVER` write barrier holds from the first batch until
-  the last. Receipts use the existing `AUTHORITY_SWITCH` kind and name the decision reference.
-- `CAL-V0-005`: `cutover` MUST plan every record against one audit, under one lock and one
-  authority session, before the first write, and refuse the whole run on any record it cannot
-  rewrite. It commits in batches like `import` (CTS-V0-003), and a rerun resumes. A later `import`
-  of an item whose record is already `NATIVE` MUST refuse that item with a named conflict and never
-  overwrite it.
-- `CAL-V0-006`: Records that `cutover` writes MUST keep their dependencies, holds, gates and
-  completion; an imported completion stays completed, and an imported hold stays held.
+- `CAL-V0-004`: `corvint-tasks cutover --decision <ref>` MUST, under an `OWNER` binding, commit one
+  `AUTHORITY_SWITCH` receipt whose `requestId` is the decision reference and whose only post is
+  `queue.json` with `canonicalWriter` `NATIVE`, a null `foreignAdapterId`, and a `CUTOVER` write
+  barrier on the old source from the receipt's time (TCP-00 §5.4 A5). That receipt is the single
+  publication boundary: every `IMPORT` shadow record stops reading `CUTOVER_MISSING` and is judged
+  by the ordinary eligibility rules. It MUST refuse `UNAUTHORIZED` under any other role, `PAUSED`
+  while a barrier is present, and `BLOCKED` once the queue is already `NATIVE`; the same decision
+  reference replays.
+- `CAL-V0-005`: After the switch, `import` MUST refuse and write nothing, so a later foreign export
+  can never overwrite a record.
+- `CAL-V0-006`: The switch MUST leave every record file byte-identical: imported records keep their
+  `IMPORT` source as provenance, and their dependencies, holds, gates and completion.
 
 S3, leases.
 
@@ -197,8 +195,8 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
 | Wall clock steps backward | An expired lease could look live | A transaction earlier than the head refuses before writing (CAL-V0-012) |
 | Gate command hangs | Holder waits | The declared gate timeout records `FAILED`; the attempt stays `CHECKING` for another `gate run` or `submit` |
 | Candidate rebased before merge | Tree changes | `complete` refuses until the new tree is submitted and gated |
-| Cutover interrupted | Some records native, some imported | A rerun resumes from the first unwritten batch |
-| Re-import after cutover | Foreign export disagrees with native records | The native record wins; the item is refused with a named conflict |
+| Cutover interrupted | One receipt either committed or not | A rerun with the same decision replays or commits it |
+| Re-import after cutover | Foreign export disagrees with the published records | `import` refuses the whole export and writes nothing |
 | Non-fixture queue before execution cutover | Agents try to claim | `claim` refuses; ticket writes still work |
 
 ## Acceptance and rollback
@@ -210,15 +208,21 @@ the cut-over Beamfall export claims, gates and completes one real Beamfall ticke
 lease expire and be reaped.
 
 Rollback, per slice: S1 restores the fixture-only check at
-`internal/tasks/transaction/model.go:656@2635d775`; S2 removes `cutover`
-(records it already rewrote stay valid native records); S3 to S5 remove the lease verbs, and a store
-that holds live `external-agent` attempts must first `release` or `reap` them, because a rolled-back
-reader reports them `NOT_OBSERVED`; S6 restores the per-batch audit; S7 removes the execution
-cutover verb, and an owner decision clears `executionCutover` on any queue that has it. Beamfall
-keeps `roadmap.sh` untouched until TCP-09, so its runner stays available as the fallback throughout.
+`internal/tasks/transaction/model.go:656@2635d775`; S2 removes `cutover` (a queue it already
+switched stays `NATIVE`, and its imported records stay eligible `IMPORT` records; reversing a switch
+is TCP-00's §5.4 revert, which this spec does not build); S3 to S5 remove the lease verbs, and a
+store that holds live `external-agent` attempts must first `release` or `reap` them, because a
+rolled-back reader reports them `NOT_OBSERVED`; S6 restores the per-batch audit; S7 removes the
+execution cutover verb, and an owner decision clears `executionCutover` on any queue that has it.
+Beamfall keeps `roadmap.sh` untouched until TCP-09, so its runner stays available as the fallback
+throughout.
 
 ## Traceability
 
 | Requirement | Evidence |
 |---|---|
-| CAL-V0-001..020 | NOT_RUN; accepted, not started |
+| CAL-V0-001..003 | NOT_RUN; accepted, not started |
+| CAL-V0-004 | `TestCALV0004_CutoverSwitchesWriterInOneReceipt`, `TestCALV0004_CutoverRefusals` (`internal/tasks/store`), `TestCALV0004_CLICutoverPublishesImportedRecords` (`internal/tasks/cli`) |
+| CAL-V0-005 | `TestCALV0005_ImportAfterCutoverRefusesAndWritesNothing` (`internal/tasks/store`) |
+| CAL-V0-006 | `TestCALV0004_CutoverSwitchesWriterInOneReceipt` (imported record bytes unchanged) |
+| CAL-V0-007..020 | NOT_RUN; accepted, not started |

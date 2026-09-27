@@ -2377,14 +2377,19 @@
     "title": "Corvint Tasks agent leases V0",
     "reqPrefix": "CAL-V0",
     "intent": "accepted (owner decision 2026-09-27)",
-    "delivery": "not-started",
+    "delivery": "partial (S2 CAL-V0-004..006 experimental)",
     "claim": "Coding agents claim, renew, gate and complete tickets through leased `corvint-tasks` attempts, replacing a repository's own task runner without a supervisor.",
     "dependsOn": [
       "docs/specs/corvint-tasks-store-init-v0.md"
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [
+      "internal/tasks/cli",
+      "internal/tasks/snapshot",
+      "internal/tasks/store",
+      "internal/tasks/transaction"
+    ]
   },
   {
     "path": "docs/specs/protected-pi-runtime-v0.md",
