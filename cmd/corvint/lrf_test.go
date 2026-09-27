@@ -171,6 +171,31 @@ func TestLRFOCMPlusCEM01IsUnsupportedBeforeOCMVerification(t *testing.T) {
 	}
 }
 
+// V1-0352, LRF-V0-001: a cem/0.3 map is refused unsupported-spec naming its
+// profile before any explicit, missing or default patch is read.
+func TestLRFRefusesCEM03BeforeAnyPatchPath(t *testing.T) {
+	t.Parallel()
+	fixture := newLRFFixture(t, wire.Spec02)
+	raw := bytes.Replace(fixture.cemRaw, []byte(`"cem/0.2"`), []byte(`"cem/0.3"`), 1)
+	if bytes.Equal(raw, fixture.cemRaw) {
+		t.Fatal("fixture map names no cem/0.2 spec")
+	}
+	if err := os.WriteFile(filepath.Join(fixture.root, filepath.FromSlash(fixture.mapPath)), raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for name, extra := range map[string][]string{
+		"no-patch":      nil,
+		"missing-patch": {"--patch", "absent.patch"},
+		"patch":         {"--patch", fixture.patchPath, "--target", fixture.target},
+	} {
+		args := append([]string{"--root", fixture.root, "lrf", "--cem", fixture.mapPath}, extra...)
+		code, stdout, stderr := runCLI(t, args...)
+		if code != 2 || stdout != "" || !strings.Contains(stderr, `"code": "unsupported-spec"`) || !strings.Contains(stderr, "not cem/0.3") {
+			t.Fatalf("%s: exit=%d stdout=%q stderr=%q", name, code, stdout, stderr)
+		}
+	}
+}
+
 func TestLRFStructuralFailurePreservesVerifierCodeAndNoStdout(t *testing.T) {
 	t.Parallel()
 	fixture := newLRFFixture(t, wire.Spec01)

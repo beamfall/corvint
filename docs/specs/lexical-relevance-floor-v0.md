@@ -152,7 +152,8 @@ cannot change candidate decisions or canonical output.
 
 - `LRF-V0-001`: the profile MUST accept only a structurally valid CEM and, for obligation checks, a
   structurally valid OCM that binds a canonical `cem/0.2` CEM. CEM-only evaluation MAY use 0.1 or
-  0.2. OCM plus 0.1 fails `unsupported-lrf-context`, exit `2`, with no LRF stdout, after CEM
+  0.2. A map of any other profile, such as `cem/0.3`, fails `unsupported-spec` naming that profile,
+  exit `2`, with no LRF stdout, before any patch is read. OCM plus 0.1 fails `unsupported-lrf-context`, exit `2`, with no LRF stdout, after CEM
   verification and before the OCM is read or verified; it is not a relevance miss. Structural
   failure retains the underlying verifier result, exit `2`, and no LRF stdout. This profile MUST NOT reinterpret invalid or unsupported input as a rejected edge.
 - `LRF-V0-002`: every term set MUST use the frozen identifier algorithm and subject text. A
@@ -860,6 +861,8 @@ four-row issue list byte-identical (`claim.reuse-issue-order`,
 `LRF-V0-001` context precedence: an OCM supplied with CEM 0.1 refuses `unsupported-lrf-context`
 before OCM verification, whether that OCM is valid or not
 (`cmd/corvint/lrf_test.go:TestLRFOCMPlusCEM01IsUnsupportedBeforeOCMVerification`).
+A `cem/0.3` map refuses `unsupported-spec` naming `cem/0.3` with no patch, a missing `--patch`, or
+a real `--patch` (V1-0352, `cmd/corvint/lrf_test.go:TestLRFRefusesCEM03BeforeAnyPatchPath`).
 
 `LRF-V0-002` frozen algorithm step 4 admits only an ASCII byte outside `[A-Za-z0-9_]` as a
 content-ID boundary: a content ID beside a non-ASCII byte is tokenized, not redacted

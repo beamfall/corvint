@@ -79,6 +79,10 @@ func Evaluate(ctx context.Context, root string, options Options) (lrf.Result, er
 	if err != nil {
 		return lrf.Result{}, err
 	}
+	// LRF-V0-001: refuse another profile before any patch path runs (V1-0352).
+	if document.Spec != wire.Spec01 && document.Spec != wire.Spec02 {
+		return lrf.Result{}, cemcode.New(cemcode.UnsupportedSpec, "lrf accepts cem/0.1 or cem/0.2, not %s", document.Spec)
+	}
 	if document.Spec == wire.Spec02 && options.PatchGiven {
 		return lrf.Result{}, fail(cemcode.InvalidArguments, "cem/0.2 lrf does not accept --patch")
 	}

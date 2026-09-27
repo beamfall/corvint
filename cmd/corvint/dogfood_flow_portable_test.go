@@ -348,6 +348,28 @@ func TestDogfoodChangeNamesAlternatesRemediation(t *testing.T) {
 	}
 }
 
+// V1-0354, DCW-V0-014: a verification line with shell anchors is refused
+// unsupported-verify-syntax, and its fix line names the admitted syntax.
+func TestDogfoodChangeNamesVerifySyntaxRemediation(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	root, base := portableDogfoodRepo(t)
+	verify := filepath.Join(t.TempDir(), "verify")
+	if err := os.WriteFile(verify, []byte("go test ./fixture -run ^TestAnswer$\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	fix := "\n  local-outcome: unsupported-verify-syntax\n    fix: each DOGFOOD_VERIFY_FILE line is one command of ASCII letters, digits and _./:@=+, - only, with no quotes, ^, $, |, parentheses or other shell syntax; write -run TestName instead of -run '^TestName$'\n"
+	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_OUTCOME=passed", "DOGFOOD_VERIFY_FILE=" + verify}
+	// The recorder refuses an uncommitted sidecar before it reads the commands.
+	run.exec(t, root, inputs, "dogfood", "change", base)
+	cemGit(t, root, "add", ".corvint/change.cem.json")
+	cemGit(t, root, "commit", "-qm", "chore: bind change evidence")
+	code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base)
+	if code != 1 || !strings.Contains(stderr, fix) {
+		t.Fatalf("verify syntax exit=%d stderr=%s", code, stderr)
+	}
+}
+
 // impactAbstentionRepo is a repository whose one change native Go impact
 // refuses: a text file with no Go module, or a Go file at the module root.
 func impactAbstentionRepo(t *testing.T, module bool) (string, string) {
