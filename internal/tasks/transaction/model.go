@@ -44,6 +44,13 @@ const (
 // canonical bytes; it posts nothing else.
 const PolicyUpdate = snapshot.StagePolicyUpdate
 
+// ImportApply posts one batch of CTS-V0-003 shadow-imported ticket records.
+// Request.Records carries each post record's canonical bytes in ascending
+// ticketId order; the caller computed them, and the model only checks that
+// each one chains from the record it replaces and never displaces a native or
+// differently sourced ticket.
+const ImportApply = snapshot.StageImportApply
+
 type Coverage struct {
 	ActorAuthentication, AdministrativeAuthorization       string
 	InventoryObservation, Durability, RuntimeQualification string
@@ -70,6 +77,8 @@ type Request struct {
 	// ExpectedPolicyVersion is the policyVersion the caller read, set only for
 	// PolicyUpdate.
 	ExpectedPolicyVersion wire.Size
+	// Records are the canonical post ticket records, set only for ImportApply.
+	Records [][]byte
 }
 
 // ReplayObservation is mandatory; zero/unknown/error never means absence.
@@ -198,6 +207,9 @@ func Digest(r Request) (wire.Digest, error) {
 	if r.Operation != Mutate && r.Operation != Release && r.Envelope != nil {
 		return "", malformed("inapplicable mutation envelope")
 	}
+	if r.Operation != ImportApply && r.Records != nil {
+		return "", malformed("inapplicable import records")
+	}
 	o := object("actor", object("id", s(r.Actor.ID), "role", s(r.Actor.Role)), "operation", s(r.Operation), "queueId", s(r.QueueID), "requestId", s(r.RequestID))
 	switch r.Operation {
 	case Init:
@@ -236,6 +248,30 @@ func Digest(r Request) (wire.Digest, error) {
 		}
 		o.Obj.Set("expectedPolicyVersion", s(string(r.ExpectedPolicyVersion)))
 		o.Obj.Set("policySha256", s(string(wire.Sum(r.Policy))))
+	case ImportApply:
+		if len(r.Records) == 0 {
+			return "", malformed("empty import batch")
+		}
+		digests := make([]wire.Value, 0, len(r.Records))
+		last := ""
+		for _, raw := range r.Records {
+			rec, e := ticket.Decode(raw)
+			if e != nil {
+				return "", e
+			}
+			if e = canonical(raw); e != nil {
+				return "", e
+			}
+			if rec.TicketID.QueueID() != q.Raw {
+				return "", malformed("import record queue")
+			}
+			if rec.TicketID.Raw <= last {
+				return "", malformed("import records not in ascending ticketId order")
+			}
+			last = rec.TicketID.Raw
+			digests = append(digests, s(string(wire.Sum(raw))))
+		}
+		o.Obj.Set("recordSha256s", wire.Array(digests...))
 	case Pause:
 		o.Obj.Set("reason", s("OPERATOR"))
 		o.Obj.Set("scope", s("ADMISSION"))
@@ -407,7 +443,7 @@ func Model(r Request, in Input) Result {
 	if r.Operation == Unpause && state.barrier == nil {
 		return noChange(r.RequestID)
 	}
-	if (r.Operation == Init || r.Operation == KeepJournal || r.Operation == AdoptFile || r.Operation == Mutate || r.Operation == Release || r.Operation == PolicyUpdate) && in.Branch != state.queue.IntentBranch {
+	if (r.Operation == Init || r.Operation == KeepJournal || r.Operation == AdoptFile || r.Operation == Mutate || r.Operation == Release || r.Operation == PolicyUpdate || r.Operation == ImportApply) && in.Branch != state.queue.IntentBranch {
 		return refused(r.RequestID, mutation.OutcomeBlocked, wire.CodeIntentBranchMismatch, "primary intent branch differs")
 	}
 	posts := map[string][]byte{}
@@ -449,6 +485,10 @@ func Model(r Request, in Input) Result {
 			return failed(r.RequestID, malformed("runtime inventory outside subset"))
 		}
 		posts["intent/policy.json"] = bytes.Clone(r.Policy)
+	case ImportApply:
+		if e = importPosts(r, in, state, posts); e != nil {
+			return failed(r.RequestID, e)
+		}
 	case Mutate:
 		env, e := mutation.Decode(r.Envelope)
 		if e != nil {
@@ -747,7 +787,73 @@ func cloneRequest(r Request) Request {
 	r.Policy = bytes.Clone(r.Policy)
 	r.File = bytes.Clone(r.File)
 	r.Envelope = bytes.Clone(r.Envelope)
+	if r.Records != nil {
+		records := make([][]byte, len(r.Records))
+		for i, raw := range r.Records {
+			records[i] = bytes.Clone(raw)
+		}
+		r.Records = records
+	}
 	return r
+}
+
+// importPosts checks one CTS-V0-003 batch against the canonical inventory and
+// adds its ticket posts. A record either creates an absent ticket at revision
+// 1 or is the next revision of an IMPORT record from the same source item; a
+// native holder, a different source, or a native canonical writer refuses.
+func importPosts(r Request, in Input, state inputState, posts map[string][]byte) error {
+	if state.queue.CanonicalWriter == "NATIVE" {
+		return wire.Errorf(wire.CodeUnsupported, "canonicalWriter", "import into a NATIVE-written queue would make imported records eligible without a cutover")
+	}
+	prospective := map[string]*ticket.Record{}
+	for _, id := range state.tickets.IDs() {
+		prospective[id], _ = state.tickets.Get(id)
+	}
+	for _, raw := range r.Records {
+		rec, e := ticket.Decode(raw)
+		if e != nil {
+			return e
+		}
+		if e = importChain(rec, prospective[rec.TicketID.Raw], in.Inventory); e != nil {
+			return e
+		}
+		prospective[rec.TicketID.Raw] = rec
+		posts["intent/tickets/"+rec.TicketID.Local+".json"] = bytes.Clone(raw)
+	}
+	all := make([]*ticket.Record, 0, len(prospective))
+	for _, rec := range prospective {
+		all = append(all, rec)
+	}
+	_, e := ticket.NewInventory(state.queue.QueueID, all)
+	return e
+}
+
+// importChain checks that post is a shadow IMPORT record that follows pre.
+func importChain(post, pre *ticket.Record, inv *Inventory) error {
+	where := "/tickets/" + post.TicketID.Raw
+	if post.Source.Kind != "IMPORT" || !post.ShadowOverlay || post.Source.SourceRevisionSha256 == nil {
+		return wire.Errorf(wire.CodeMalformed, where, "an imported record is a shadow IMPORT record with a source revision")
+	}
+	path := "intent/tickets/" + post.TicketID.Local + ".json"
+	if pre == nil {
+		if _, exists := inv.files[path]; exists {
+			return malformed("imported ticket already has a projection")
+		}
+		if post.Revision != "1" || post.AcceptanceRevision != "1" {
+			return wire.Errorf(wire.CodeMalformed, where, "a new imported ticket starts at revision 1")
+		}
+		return nil
+	}
+	if pre.Source.Kind != "IMPORT" {
+		return wire.Errorf(wire.CodeDuplicateID, where, "ticket is held by a %s record", pre.Source.Kind)
+	}
+	if pre.Source.SourceQueueID != post.Source.SourceQueueID || *pre.Source.SourceItemID != *post.Source.SourceItemID {
+		return wire.Errorf(wire.CodeDuplicateID, where, "ticket is held by source item %s of %s", *pre.Source.SourceItemID, pre.Source.SourceQueueID)
+	}
+	if post.Revision.Int() != pre.Revision.Int()+1 || post.PreviousRecordSha256 == nil || *post.PreviousRecordSha256 != pre.FileDigest() || post.CreatedAt != pre.CreatedAt {
+		return wire.Errorf(wire.CodeMalformed, where, "an imported revision chains from the record it replaces")
+	}
+	return nil
 }
 
 // ticketEffect names the ticket a transaction changes. pre is the record the

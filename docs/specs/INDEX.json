@@ -2365,8 +2365,11 @@
     "closableToday": false,
     "implementation": [
       "internal/tasks/cli",
+      "internal/tasks/importer",
       "internal/tasks/intent",
-      "internal/tasks/store"
+      "internal/tasks/snapshot",
+      "internal/tasks/store",
+      "internal/tasks/transaction"
     ]
   },
   {

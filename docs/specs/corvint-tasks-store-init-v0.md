@@ -6,14 +6,15 @@ Intent status: accepted for CTS-V0-001, CTS-V0-003 and CTS-V0-004 (owner decisio
 Delivery status: experimental
 Authoritative inputs: decision 0397 (corvint-tasks built in tree), `AGENTS.md`,
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`, tickets V1-0323, V1-0310 and V1-0331, and the in-tree sources under
-`internal/tasks/store`, `internal/tasks/journal`, `internal/tasks/intent` and `internal/tasks/cli`.
+`internal/tasks/store`, `internal/tasks/journal`, `internal/tasks/intent`, `internal/tasks/importer`,
+`internal/tasks/transaction` and `internal/tasks/cli`.
 
 ## Agent digest
 - Claim: `corvint-tasks init` refuses an intent store that already holds records, and works in a repository reached through a symlinked ancestor such as macOS `/tmp`.
-- Status: accepted for CTS-V0-001, CTS-V0-003 and CTS-V0-004 (owner decisions 2026-09-27); CTS-V0-002 proposed; experimental. CTS-V0-001 and CTS-V0-004 are implemented, CTS-V0-003 (shadow import) is accepted and not yet implemented, CTS-V0-002 is a proposal only.
-- Exists: the coded init refusal, the ancestor resolution, and their store and CLI tests.
-- Blocked on: CTS-V0-003 implementation and tests; owner acceptance and the recovered task-store contract (V1-0310) for CTS-V0-002.
-- Read next: Requirements; Failure modes; Traceability.
+- Status: accepted for CTS-V0-001, CTS-V0-003 and CTS-V0-004 (owner decisions 2026-09-27); CTS-V0-002 proposed; experimental. CTS-V0-001, CTS-V0-003 (shadow import) and CTS-V0-004 are implemented, CTS-V0-002 is a proposal only.
+- Exists: the coded init refusal, the ancestor resolution, the `corvint-tasks import` verb with its `IMPORT_APPLY` stage operation, and their store, transaction and CLI tests.
+- Blocked on: owner acceptance and the recovered task-store contract (V1-0310) for CTS-V0-002; for a non-fixture import writer, owner decision pending, ticket not yet filed.
+- Read next: Requirements; Import export and batching; Failure modes; Traceability.
 
 ## User and boundary
 
@@ -32,9 +33,10 @@ session "Work progress orchestration". The owner accepted CTS-V0-001 and CTS-V0-
 CTS-V0-002 remains a proposal and still waits on owner acceptance and V1-0310.
 
 Non-goals: adopting committed native records into a new genesis, a journal-optional read mode, a new
-wire code, any change to genesis bytes, journal format, projection checks or the closed code set, any
-automatic repair of an existing frozen store, and, for CTS-V0-003, the cutover verb, admission,
-attempts and drains, the import-map writer, and writing or changing the foreign export.
+wire code, any change to genesis bytes, projection checks or the closed code set, any other change to
+the journal format than the one `IMPORT_APPLY` stage operation and receipt kind below, any automatic
+repair of an existing frozen store, and, for CTS-V0-003, the cutover verb, admission, attempts and
+drains, the import-map writer, and writing or changing the foreign export.
 
 ## Requirements
 
@@ -49,7 +51,7 @@ attempts and drains, the import-map writer, and writing or changing the foreign 
   MUST NOT report receipts or audit identities it cannot bind, and every mutation MUST still require
   an initialized journal.
 - `CTS-V0-003`: (accepted 2026-09-27, owner decision relayed by the orchestrator session "Work
-  progress orchestration"; not yet implemented) An explicit `corvint-tasks import` verb MUST read a
+  progress orchestration") An explicit `corvint-tasks import` verb MUST read a
   JSON export of foreign tickets into an initialized store and write one `taskman-ticket/0` record
   per item. Each record MUST carry `source.kind` `IMPORT`, `sourceItemId` equal to the foreign
   primary ID, the export's `sourceQueueId`, `sourceRevisionSha256` equal to the SHA-256 of the
@@ -68,6 +70,33 @@ attempts and drains, the import-map writer, and writing or changing the foreign 
   primary worktree. A symbolic link at the primary worktree or in its `.git` path MUST still refuse
   as `UNSUPPORTED_FILESYSTEM`, and so MUST an ancestor that cannot be resolved.
 
+## Import export and batching
+
+The export (profile `corvint-tasks-import/0`, at most `MaxIntentTreeBytes`) is JSON lines, each
+ending in LF. Line 1 is the closed header `{"profile","sourceQueueId"}`; every later line is the
+closed item `{"sourceItemId","block","ticket"}`, at most `MaxTicketsPerQueue` items. `block` is the
+verbatim foreign block that `sourceRevisionSha256` hashes. `ticket` holds exactly the 23 exporter-
+mapped `taskman-ticket/0` fields: `acceptanceCriteria`, `archivedFrom`, `body`, `capabilities`,
+`completion`, `dependencies`, `dueDate`, `effects`, `estimateMinutes`, `executionClass`, `holds`,
+`kind`, `labels`, `milestone`, `order`, `owner`, `priority`, `requiredGates`, `requirementRefs`,
+`status`, `supersededBy`, `supersedes` and `title`. Each hold is `{holdId, actor, reason}` and a
+completion is `{actor, reason}` or null. The importer owns every other field: it sets `ticketId`
+from the local queue and `sourceItemId`, the `source` object, `shadowOverlay`, empty `approvals`,
+the revision chain and the timestamps, stamps each hold's `placedAt` (kept per `holdId` across
+revisions), and turns a completion into a `MANUAL` completion with no evidence or manifest. Every
+dependency and supersession target must be in the export or the store, and every gate must be
+declared by the store's policy; a dependency cycle is recorded, not refused, and reads report it as
+for any store.
+
+The whole export is planned against one audit, under one lock and one authority session, before the
+first write. The planned records then commit in ascending `ticketId` order as `IMPORT_APPLY`
+batches: each batch is one receipt of kind `IMPORT_APPLY` with a null `ticketId`, posting up to the
+existing stage limits (11 staged artifacts, 8 inline receipt posts, a 2422-byte stage descriptor), so
+about seven records per batch. Each batch passes the full writer: it is re-audited against the head
+it extends and replays by a request ID derived from its records. The `IMPORT_APPLY` transaction model
+independently refuses a `NATIVE` writer, a non-shadow or non-`IMPORT` record, a new ticket past
+revision 1, a broken revision chain, and a target held by a native record or another source item.
+
 ## Failure modes
 
 | Failure | Behavior |
@@ -82,6 +111,8 @@ attempts and drains, the import-map writer, and writing or changing the foreign 
 | Import target held by a native record or another source item | Refused before the first write; nothing is written (CTS-V0-003). |
 | Import into a queue whose `canonicalWriter` is `NATIVE` | Refused before the first write, so no imported record can become eligible without a cutover (CTS-V0-003). |
 | Import interrupted after some writes | Each written record is complete and journaled; rerunning the same export skips the unchanged items and finishes the rest (CTS-V0-003). |
+| Import batch refused after earlier batches committed (for example store capacity) | Earlier batches stay committed and the CLI reports the refused batch with a warning; a rerun of the same export skips the committed items (CTS-V0-003). |
+| Dependency or supersession target absent from both the export and the store, or a gate not declared by policy | Refused before the first write with `DEPENDENCY_MISSING` or `GATE_UNKNOWN`; nothing is written (CTS-V0-003). |
 
 ## Acceptance and rollback
 
@@ -106,5 +137,5 @@ symlinked ancestor is then refused again, and a journal it already wrote keeps t
 |---|---|---|
 | CTS-V0-001 | `internal/tasks/store/store.go` (`Init`, `existingRecord`, `firstEntry`), `internal/tasks/cli/init.go` | TestCTSV0001_InitRefusesOverExistingRecords, TestCTSV0001_InitRefusesOverCommittedTickets |
 | CTS-V0-002 | proposed; no implementation | none until accepted |
-| CTS-V0-003 | accepted 2026-09-27; not yet implemented | none yet |
+| CTS-V0-003 | `internal/tasks/importer/importer.go` (`Decode`, `Plan`), `internal/tasks/store/import.go` (`Import`, `importBatch`, `packImport`), `internal/tasks/transaction/model.go` (`ImportApply`, `importPosts`, `importChain`), `internal/tasks/snapshot/stage.go` (`StageImportApply`), `internal/tasks/cli/import.go` | TestCTSV0003_ImportWritesShadowRecordsAndReimportIsIdempotent, TestCTSV0003_ChangedBlockWritesNextRevision, TestCTSV0003_ImportRefusesOverNativeRecord, TestCTSV0003_ImportRefusesWithNothingWritten, TestCTSV0003_ImportBatchesWithinStageLimits, TestCTSV0003_ImportApplyPostsAndChainsRevisions, TestCTSV0003_ImportApplyRefusals, TestCTSV0003_CLIImportWritesShadowRecordsBlockedOnCutover; IMPORT source rules: TestTMV0003_AS02_FieldRelationships, TestTMV0004_AS05_EligibilityDerived |
 | CTS-V0-004 | `internal/tasks/intent/worktree.go` (`finish`, `canonicalAncestors`) | TestCTSV0004_InitThroughSymlinkedAncestor |
