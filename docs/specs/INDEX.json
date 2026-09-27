@@ -2378,7 +2378,7 @@
     "reqPrefix": "CAL-V0",
     "intent": "proposed",
     "delivery": "not-started",
-    "claim": "Coding agents claim, renew, gate and complete tickets through leased `corvint-tasks` attempts, so a non-fixture queue can replace a repository's own task runner without a process supervisor.",
+    "claim": "Coding agents claim, renew, gate and complete tickets through leased `corvint-tasks` attempts, replacing a repository's own task runner without a supervisor.",
     "dependsOn": [
       "docs/specs/corvint-tasks-store-init-v0.md"
     ],

@@ -10,7 +10,7 @@ Authoritative inputs: the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks
 sources under `internal/tasks`.
 
 ## Agent digest
-- Claim: Coding agents claim, renew, gate and complete tickets through leased `corvint-tasks` attempts, so a non-fixture queue can replace a repository's own task runner without a process supervisor.
+- Claim: Coding agents claim, renew, gate and complete tickets through leased `corvint-tasks` attempts, replacing a repository's own task runner without a supervisor.
 - Status: proposed; not-started. Drafted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`; nothing here is accepted.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: owner acceptance of this spec and of the TCP-00 amendments below; the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
