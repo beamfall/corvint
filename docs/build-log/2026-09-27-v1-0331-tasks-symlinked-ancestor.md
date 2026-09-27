@@ -23,6 +23,9 @@ link to its parent directory, checks that `head.json` records the canonical path
 `queue status` through both spellings. The existing `internal/tasks/intent` and `internal/tasks/cli`
 tests still pass.
 
+Owner acceptance: the owner accepted CTS-V0-001 and CTS-V0-004 on 2026-09-27. CTS-V0-002 and
+CTS-V0-003 stay proposals.
+
 Rollback: remove `canonicalAncestors` in `internal/tasks/intent/worktree.go`. A repository under a
 symlinked ancestor is refused again; a journal it already wrote keeps the canonical path and stays
 readable through that path.

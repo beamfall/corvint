@@ -9,10 +9,10 @@ Authoritative inputs: decision 0397 (corvint-tasks built in tree), `AGENTS.md`,
 `internal/tasks/store`, `internal/tasks/journal`, `internal/tasks/intent` and `internal/tasks/cli`.
 
 ## Agent digest
-- Claim: `corvint-tasks init` refuses an intent store that already holds records, instead of creating a journal that freezes it, and works in a repository reached through a symlinked ancestor such as macOS `/tmp`.
-- Status: proposed/experimental; CTS-V0-001 and CTS-V0-004 are implemented, CTS-V0-002 and CTS-V0-003 are proposals only.
+- Claim: `corvint-tasks init` refuses an intent store that already holds records, and works in a repository reached through a symlinked ancestor such as macOS `/tmp`.
+- Status: proposed/experimental; CTS-V0-001 and CTS-V0-004 are implemented and owner-accepted (2026-09-27), CTS-V0-002 and CTS-V0-003 are proposals only.
 - Exists: the coded init refusal, the ancestor resolution, and their store and CLI tests.
-- Blocked on: owner acceptance of this spec; the recovered task-store contract (V1-0310) for CTS-V0-002/003.
+- Blocked on: owner acceptance of CTS-V0-002/003 and the recovered task-store contract (V1-0310).
 - Read next: Requirements; Failure modes; Traceability.
 
 ## User and boundary
@@ -24,8 +24,8 @@ afterimage, and every later read refuses the whole store as `INTENT_DIVERGED` (V
 operator's only recovery was to delete the new journal by hand.
 
 This spec owns store initialization until the task-store contract is recovered (V1-0310); it does not
-restate or replace that contract, and it adds no wire code. It is a proposal: only CTS-V0-001 and
-CTS-V0-004 are implemented, and nothing here is accepted until the owner accepts it.
+restate or replace that contract, and it adds no wire code. Only CTS-V0-001 and CTS-V0-004 are
+implemented; the owner accepted both on 2026-09-27, and the rest stays a proposal until accepted.
 
 Non-goals: adopting or importing existing records, a journal-optional read mode, a new wire code, any
 change to genesis bytes, journal format, projection checks or the closed code set, and any automatic
