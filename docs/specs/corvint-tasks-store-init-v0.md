@@ -13,7 +13,7 @@ Authoritative inputs: decision 0397 (corvint-tasks built in tree), `AGENTS.md`,
 - Claim: `corvint-tasks init` refuses an intent store that already holds records, and works in a repository reached through a symlinked ancestor such as macOS `/tmp`.
 - Status: accepted for CTS-V0-001, CTS-V0-003 and CTS-V0-004 (owner decisions 2026-09-27); CTS-V0-002 proposed; experimental. CTS-V0-001, CTS-V0-003 (shadow import) and CTS-V0-004 are implemented, CTS-V0-002 is a proposal only.
 - Exists: the coded init refusal, the ancestor resolution, the `corvint-tasks import` verb with its `IMPORT_APPLY` stage operation, and their store, transaction and CLI tests.
-- Blocked on: owner acceptance and the recovered task-store contract (V1-0310) for CTS-V0-002; for a non-fixture import writer, owner decision pending, ticket not yet filed.
+- Blocked on: owner acceptance and the recovered task-store contract (V1-0310) for CTS-V0-002; for a non-fixture import writer, V1-0398.
 - Read next: Requirements; Import export and batching; Failure modes; Traceability.
 
 ## User and boundary

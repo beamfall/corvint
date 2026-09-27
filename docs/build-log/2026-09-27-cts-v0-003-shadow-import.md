@@ -29,18 +29,29 @@ Decisions.
 - A dependency cycle among imported records is recorded, not refused; reads report it as for any
   store. Missing dependency or supersession targets and gates not declared by policy refuse before
   the first write.
-- No import-map writer, cutover, admission, attempt or drain. A non-fixture import writer is an
-  owner decision pending, ticket not yet filed.
+- No import-map writer, cutover, admission, attempt or drain. A non-fixture import writer is
+  V1-0398, which V1-0184 depends on.
 
 Cost. Every batch re-audits every ticket file and walks the whole receipt chain, as every §5.2
 write already does, so a first import costs about (store size × batch count) and grows
 quadratically. Measured on a host at load 80 to 150 on 12 CPUs with 2,894 synthetic items,
 imported as six successive 500-item exports (the last 394) into one store: 72 batches per full
-chunk, taking 41 s, 2 m 11 s, 4 m 55 s, 6 m 53 s, 7 m 37 s and 8 m 32 s (57 batches), about 30 m 48 s
-in total and 419 batches. Re-importing the unchanged full export planned nothing and took 3.2 s. Reusing the audit's inventory for the model removed one of the two scans per
-batch. Re-importing an unchanged export is one audit and writes nothing. An incremental audit within
-one locked session, or a larger import stage, would change the writer or the stage contract and is
-left to an owner decision.
+chunk, taking 41 s, 2 m 11 s, 4 m 55 s, 6 m 53 s, 7 m 37 s and 8 m 32 s (57 batches), about
+30 m 48 s in total and 419 batches. Reusing the audit's inventory for the model removed one of the
+two scans per batch. Re-importing the unchanged export is one audit, planned nothing and took 3.2 s.
+The cost is accepted for the one-off fixture rehearsal. The chosen follow-up, not yet filed, carries
+the audit across batches within one locked import session, re-checking the head and the files each
+batch writes; a larger import stage would only shrink the constant.
+
+Real export. The orchestrator session reported a fixture rehearsal of the real Beamfall export
+(2,894 items, 14 MB) with a binary built from this branch before its rebase, into a throwaway
+`ROADMAP`-written fixture store with 23 command gates: the first import committed in 415 receipts
+in about 21 minutes at load 80 to 150, slowing from 3.5 to 1.4 items per second; the receipt audit
+read `CONSISTENT` and `AGREES`; every record read `CUTOVER_MISSING`; the unchanged re-import took
+3.3 s and wrote nothing. Six real-data issues (a prose identifier, empty titles, directory paths
+ending in `/`, free-text repository names, dependencies on alias identifiers with nine unresolved
+targets, and holds and completions without source values) were fixed in the Beamfall exporter, not
+in the importer. This run is reported, not reproduced here.
 
 Evidence: `TestCTSV0003_*` in `internal/tasks/store`, `internal/tasks/transaction` and
 `internal/tasks/cli`, and the existing `IMPORT` source-rule tests
