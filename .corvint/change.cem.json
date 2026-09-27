@@ -1,0 +1,130 @@
+{
+  "baseRevision": "c9019c4b2773ccf0b69876f18c6d5534cc9a0968",
+  "evidence": [
+    {
+      "blobOid": "adebd114d564e191a0a62106203b709ee4b84c59",
+      "id": "evidence:sha256:5dd3190229007b5d7451040c7f189734363cf9525baa2f1d15466599184999e0",
+      "path": "docs/specs/snapshot-batch-v0.md",
+      "span": {
+        "end": 41163,
+        "start": 40871
+      },
+      "spanSha256": "6026351c18b8de1a2c9d88b9d3df672aa956d5ed5e9bf3b7b338b7892476322c"
+    },
+    {
+      "blobOid": "17605477475d63c4fda16c2df15ee544e8c36fba",
+      "id": "evidence:sha256:ac3314ec99997c9df5c2ab519d4dbea25585a2187c43ee86fa339fdbf191fa6a",
+      "path": "docs/specs/expert-audit-followup-v0.md",
+      "span": {
+        "end": 10127,
+        "start": 9743
+      },
+      "spanSha256": "923a7e48e4f0dd9077e882a8992deafcc60a1a4b4fa5130a26e152e237d409cf"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5dd3190229007b5d7451040c7f189734363cf9525baa2f1d15466599184999e0",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e2701a06fea827c01d5b6bab1f7ec6aa07ad4c9bcf0cead084e0a1277ed2bd98",
+      "newRange": {
+        "count": 15,
+        "start": 52
+      },
+      "oldRange": {
+        "count": 15,
+        "start": 52
+      },
+      "path": "benchmarks/selfuse-batch/descendants_posix.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5dd3190229007b5d7451040c7f189734363cf9525baa2f1d15466599184999e0",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2b63060b331f48ca9b1e78315c8a405781185e05efe15356c1c2042c07057b3e",
+      "newRange": {
+        "count": 9,
+        "start": 23
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 23
+      },
+      "path": "benchmarks/selfuse-batch/process_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5dd3190229007b5d7451040c7f189734363cf9525baa2f1d15466599184999e0",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e557093122732e5536a9fde0356c2790f0cba2b134bd7a71cf44a7f6e5e8aea2",
+      "newRange": {
+        "count": 7,
+        "start": 87
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 85
+      },
+      "path": "benchmarks/selfuse-batch/process_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5dd3190229007b5d7451040c7f189734363cf9525baa2f1d15466599184999e0",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1f55a8a8dc0bbfdd409f3ace963a1317b8e06c3ab58d000d935f615e4353f611",
+      "newRange": {
+        "count": 46,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-27-v1-0427-0428-hosted-gate-races.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ac3314ec99997c9df5c2ab519d4dbea25585a2187c43ee86fa339fdbf191fa6a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:fda66bc8cccf5cd01ed21c2ad4d1f6253eeafe9c3280adcdcd3a7cc6738fafb6",
+      "newRange": {
+        "count": 7,
+        "start": 17
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 17
+      },
+      "path": "internal/gitstatus/status_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "609869e628c7ed6c0b463274ca173f3a0ab5e0dc6450d4164e828442bd4ca648",
+  "spec": "cem/0.2"
+}
