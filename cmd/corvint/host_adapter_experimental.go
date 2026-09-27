@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/compactionkernel"
@@ -118,6 +119,59 @@ func refuseUndeliveredPacket(root, event string, payload map[string]any) {
 		return
 	}
 	unplannedread.RefusePacket(root, claudeSessionHash(session))
+}
+
+type packetLedgerKey struct{}
+
+// packetLedger settles a prompt packet's URE-V0-008 row once the watchdog knows
+// whether the host receives the worker's output: a delivered output applies the
+// worker's staged record, and an abandoned worker's session is refused instead,
+// so a late worker never records a packet the host did not see (V1-0297).
+type packetLedger struct {
+	mu      sync.Mutex
+	settled bool
+	refuse  func()
+	record  func()
+}
+
+func withPacketLedger(ctx context.Context) (context.Context, *packetLedger) {
+	ledger := &packetLedger{}
+	return context.WithValue(ctx, packetLedgerKey{}, ledger), ledger
+}
+
+// stagePacket holds the worker's refusal and record for the watchdog to settle.
+// Without a watchdog the record applies at once; after the watchdog abandoned
+// the worker only the refusal applies.
+func stagePacket(ctx context.Context, refuse, record func()) {
+	ledger, watched := ctx.Value(packetLedgerKey{}).(*packetLedger)
+	if !watched {
+		if record != nil {
+			record()
+		}
+		return
+	}
+	ledger.mu.Lock()
+	defer ledger.mu.Unlock()
+	if ledger.settled {
+		refuse()
+		return
+	}
+	ledger.refuse, ledger.record = refuse, record
+}
+
+// settle applies the staged record when the worker's output was delivered, or
+// the staged refusal when the watchdog abandoned the worker.
+func (ledger *packetLedger) settle(delivered bool) {
+	ledger.mu.Lock()
+	defer ledger.mu.Unlock()
+	ledger.settled = true
+	action := ledger.refuse
+	if delivered {
+		action = ledger.record
+	}
+	if action != nil {
+		action()
+	}
 }
 
 // deliveredPacketPaths is the union of the path members of the prompt packet's

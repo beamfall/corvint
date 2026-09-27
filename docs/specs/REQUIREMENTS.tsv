@@ -1306,13 +1306,13 @@ LCP-V0-005	docs/specs/local-completion-policy-v0.md	104	`finish` MUST reuse the 
 LCP-V0-006	docs/specs/local-completion-policy-v0.md	125	Once maps are ready, `finish` MUST generate the CEM reviewer report and every sc
 LCP-V0-007	docs/specs/local-completion-policy-v0.md	133	Terminal success MUST require all selected checks to pass, current report inspec
 LCP-V0-008	docs/specs/local-completion-policy-v0.md	144	Codex and Claude Code Stop MAY request one bounded remediation continuation for
-LCP-V0-009	docs/specs/local-completion-policy-v0.md	166	`corvint dogfood event` MUST use a separate `corvint-dogfood-event/0` envelope a
-LCP-V0-010	docs/specs/local-completion-policy-v0.md	187	New-profile prompt context MUST separate project governance, declared enrollment
-LCP-V0-011	docs/specs/local-completion-policy-v0.md	197	Prompt context MUST project only allowlisted, Git-reextractable evidence and fix
-LCP-V0-012	docs/specs/local-completion-policy-v0.md	210	Private plans, observations and report sets MUST have explicit byte/count limits
-LCP-V0-013	docs/specs/local-completion-policy-v0.md	216	Prompt context MUST accept a task mention as an explicit anchor. A mention is on
-LCP-V0-014	docs/specs/local-completion-policy-v0.md	241	`finish` MUST run the daily change (coordination) and the final strict check in
-LCP-V0-015	docs/specs/local-completion-policy-v0.md	254	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
+LCP-V0-009	docs/specs/local-completion-policy-v0.md	168	`corvint dogfood event` MUST use a separate `corvint-dogfood-event/0` envelope a
+LCP-V0-010	docs/specs/local-completion-policy-v0.md	189	New-profile prompt context MUST separate project governance, declared enrollment
+LCP-V0-011	docs/specs/local-completion-policy-v0.md	199	Prompt context MUST project only allowlisted, Git-reextractable evidence and fix
+LCP-V0-012	docs/specs/local-completion-policy-v0.md	212	Private plans, observations and report sets MUST have explicit byte/count limits
+LCP-V0-013	docs/specs/local-completion-policy-v0.md	218	Prompt context MUST accept a task mention as an explicit anchor. A mention is on
+LCP-V0-014	docs/specs/local-completion-policy-v0.md	243	`finish` MUST run the daily change (coordination) and the final strict check in
+LCP-V0-015	docs/specs/local-completion-policy-v0.md	256	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	1309	Every displayed metric and source-derived value MUST derive through the compiled
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	1313	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	1316	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the
@@ -2162,7 +2162,7 @@ URE-V0-005	docs/specs/unplanned-read-events-v0.md	88	`Read(root)` MUST be read-o
 URE-V0-006	docs/specs/unplanned-read-events-v0.md	95	`HookPostTool(root, packetPaths, payload)` MUST return `nil` on every path,
 URE-V0-007	docs/specs/unplanned-read-events-v0.md	100	`corvint [--root PATH] reads [--limit N]` MUST print the digest and write
 URE-V0-008	docs/specs/unplanned-read-events-v0.md	106	After a Claude Code `user-prompt` event renders a delivered context,
-URE-V0-009	docs/specs/unplanned-read-events-v0.md	117	`corvint host-adapter claude-code post-tool` MUST call
+URE-V0-009	docs/specs/unplanned-read-events-v0.md	120	`corvint host-adapter claude-code post-tool` MUST call
 VAF-001	docs/specs/verified-absence-frontier-v0.md	58	every result MUST bind the repository identity, base revision, target revision,
 VAF-002	docs/specs/verified-absence-frontier-v0.md	60	Corvint MUST distinguish `missing`, `stale`, `unobserved`, and `out-of-scope`. I
 VAF-003	docs/specs/verified-absence-frontier-v0.md	62	a closed frontier MUST be scoped to a named, finite obligation universe. The CLI

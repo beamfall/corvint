@@ -71,11 +71,13 @@ func TestHostAdapterJavaScriptHarnessInterruption(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
+	// The harness builds two Go binaries before the witness exists, so this bound is a hang
+	// detector like theirs, not a budget (decision 0082): 20 s expired under host load.
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Minute)
 	t.Cleanup(cancel)
 	done := make(chan procgroup.Observation, 1)
 	go func() {
-		done <- procgroup.Run(ctx, procgroup.Spec{Argv: []string{os.Args[0], "-test.run=^TestHostAdapterJavaScriptHosts$"}, Dir: directory, Env: testEnvironment("CORVINT_TEST_HOST_INTERRUPT_WITNESS=" + witness), Timeout: 20 * time.Second, OutputLimit: 1 << 20})
+		done <- procgroup.Run(ctx, procgroup.Spec{Argv: []string{os.Args[0], "-test.run=^TestHostAdapterJavaScriptHosts$"}, Dir: directory, Env: testEnvironment("CORVINT_TEST_HOST_INTERRUPT_WITNESS=" + witness), Timeout: 30 * time.Minute, OutputLimit: 1 << 20})
 	}()
 	var pid int
 	for pid == 0 {

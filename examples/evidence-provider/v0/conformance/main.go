@@ -252,14 +252,26 @@ func (h *harness) exercise(ctx context.Context, c testCase, baseline map[string]
 	return summary(fileExternal), nil
 }
 
+// refusalTimeout bounds the direct refusal probe, so a provider that never
+// exits is reported as a timeout refusal instead of hanging the runner.
+var refusalTimeout = time.Minute
+
 // refusal requests an unsupported profile: the provider must exit nonzero
 // with no record, and the command transport must report it unavailable.
 func (h *harness) refusal(ctx context.Context) error {
 	args := h.args("3", h.head, h.first)
+	probe, cancel := context.WithTimeout(ctx, refusalTimeout)
+	defer cancel()
 	var stdout bytes.Buffer
-	command := exec.CommandContext(ctx, h.provider, args...)
+	command := exec.CommandContext(probe, h.provider, args...)
 	command.Stdout = &stdout
-	if err := command.Run(); err == nil || stdout.Len() != 0 {
+	command.Cancel = func() error { return command.Process.Signal(os.Interrupt) }
+	command.WaitDelay = 10 * time.Second
+	err := command.Run()
+	if probe.Err() != nil {
+		return fmt.Errorf("timeout refusal: provider did not exit within %s", refusalTimeout)
+	}
+	if err == nil || stdout.Len() != 0 {
 		return fmt.Errorf("provider emitted %d bytes, exit error %v", stdout.Len(), err)
 	}
 	encoded, _ := json.Marshal(append([]string{h.provider}, args...))

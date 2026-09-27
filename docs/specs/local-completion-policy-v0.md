@@ -143,7 +143,9 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   verifier requirements above remain unchanged. Its malformed, missing, stale or untyped form fails.
 - `LCP-V0-008`: Codex and Claude Code Stop MAY request one bounded remediation continuation for an explicitly enrolled
   incomplete change. If `stop_hook_active` is true, the adapter MUST release with a visible fixed
-  unresolved-policy notice instead of looping. Inactive, satisfied and cancelled states are distinct.
+  unresolved-policy notice instead of looping. A blocking Stop reason MUST name the closed unmet
+  categories of `policy.unmet` and the `dogfood status` argv for the session key, and never a
+  caller check ID (amended 2026-09-27, V1-0298). Inactive, satisfied and cancelled states are distinct.
   A Stop whose evaluation names another session's active `owner` releases with
   `local-policy-other-session-active`, and its completion carries that `owner`. The Codex and Claude
   Code adapters then show a fixed notice that this session is not gated, followed by the keyed
