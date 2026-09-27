@@ -18,4 +18,9 @@ names the subject's type and refuses one that spells only `init` and `width`. Th
 test still admits the same two importers. The beamfall-apple corpus that decision 0030 measured is
 outside this repository and was not rerun, so the effect on its 17-in-127 result is not measured.
 
+`taskcontext.go` is one of the inputs that `TestAnalyzerSchemaInputs` deliberately over-audits, and
+CI failed the pin (IDX-SNAP-V0-017). The change reads facts and does not extract them, but the audit
+rule is to bump rather than argue: `analyzerSchemaID` is now `corvint-analyzer/90` with the new input
+digest, so an existing analyzer pack is rebuilt once.
+
 Rollback: revert the change. Corroboration again accepts every subject symbol.
