@@ -89,7 +89,9 @@ it must read, each with the relation that admitted it, without naming the task's
   to the subject; `syntax`, high; plus, for a Swift subject under a SwiftPM `Sources/<module>/` or
   `Tests/<module>/` layout, a Swift source in another module that has an `import <module>` line and
   names a symbol the subject defines as a whole word, medium because the import names the module
-  rather than the file, decision 0030), `reference` (a source that names, as a whole word in the
+  rather than the file, decision 0030; the symbol is a type or function name at least four bytes
+  long that at most 50 sources name, never a `var` or `let` or `init`, `deinit` or `subscript`,
+  V1-0292), `reference` (a source that names, as a whole word in the
   term table, a symbol at least four bytes long that the subject defines (`index.Symbols` with
   `Path` equal to the subject), weighted by the symbol's rarity across sources; a name more than 50
   sources use is a common word and admits nothing; rows are ordered by summed weight then path,
