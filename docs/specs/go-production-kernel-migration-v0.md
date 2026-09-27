@@ -702,10 +702,10 @@ which is the whole of what the row asserts.
 ### Licensing, rollout, dogfood, and retirement
 
 - `GPK-V0-020`: The migration MUST NOT alter `LICENSE`, `LICENSING.md`, `PROVENANCE.md`, or the
-  path-based split-license boundary. New production Go paths remain Apache-2.0 subject to Commons
-  Clause v1.0; existing `conformance/**`, `interop/**`, examples, schemas, and listed protocol docs
-  retain plain Apache-2.0. Binary archives carry the exact applicable notices. Commercial Corvint
-  Pulse terms and legal conclusions are separate owner/legal decisions, not inferred from Go.
+  path-based split-license boundary. New production Go paths are AGPL-3.0-or-later per
+  `LICENSING.md`; `conformance/**`, `interop/**`, examples, schemas, and listed protocol docs keep
+  plain Apache-2.0. Binary archives carry the exact applicable notices. Commercial Corvint Pulse
+  terms and legal conclusions are separate owner/legal decisions, not inferred from Go.
 - `GPK-V0-021`: Corvint self-dogfood MUST first use the candidate to orient to this migration, run its
   supported context/harness operations, preserve a private measurement receipt, and compare exact
   outputs with Python. Once CEM/OCM are ported, the final committed Go migration diff MUST be
