@@ -24,6 +24,8 @@ set -eu
 
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
+# Without jq every version reads as absent, which reports a misleading stale bump.
+command -v jq >/dev/null 2>&1 || { printf 'host package versions: jq is required\n' >&2; exit 1; }
 
 # git_field_at REV PATH JQFILTER: the field value at REV, or the sentinel "\x01ABSENT" when
 # the path does not exist at REV (git show exits non-zero) so "absent" can never collide with

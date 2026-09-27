@@ -1,0 +1,150 @@
+{
+  "baseRevision": "9a32830452ebe095e816c9f8181a53830f0ab8ae",
+  "evidence": [
+    {
+      "blobOid": "989d43315a1dc574e1ea2c7138ab8d5f9de162f0",
+      "id": "evidence:sha256:2096421e02c63b37b5d4b4cbec89c53285c58897a68507d03269a5032988db04",
+      "path": "docs/specs/go-archive-gate-v0.md",
+      "span": {
+        "end": 12908,
+        "start": 12710
+      },
+      "spanSha256": "1a5de0811727894c04786b4651e112391f5d96b16bae1325c9d8b680f3e0e022"
+    },
+    {
+      "blobOid": "77a20880cda6c42003c542a16b8d19b4fd61cb4e",
+      "id": "evidence:sha256:956072aa09edac52d2e761505ed81e7ad86caf730f3738e54539cc2b86a3139f",
+      "path": "docs/specs/error-code-ownership-gate-v0.md",
+      "span": {
+        "end": 3563,
+        "start": 2389
+      },
+      "spanSha256": "8234987bd9543fd475f345dc099613f777a9a999f2e9992785ddf9c2d2d4b454"
+    },
+    {
+      "blobOid": "5daad085d550dd2d0f3f8a19e7c532576fcc43a4",
+      "id": "evidence:sha256:20205e30d5410ca9217e75b81dac968107f5adb89f47317e1bc2e937916d9d3b",
+      "path": "docs/specs/agent-harness-integration-v0.md",
+      "span": {
+        "end": 20409,
+        "start": 20196
+      },
+      "spanSha256": "6564cf0c003527bd91ef39cbd47d741c7bcd45709a8d3b48fd89aefbb740a1cd"
+    },
+    {
+      "blobOid": "cee35ed601eb89577f80e1d4415424b35a412697",
+      "id": "evidence:sha256:0548a315747594a9b08c20e8bba85b3db113b7c1c1cd7b5e60f861738573c9bb",
+      "path": "docs/specs/go-only-cutover-v0.md",
+      "span": {
+        "end": 7856,
+        "start": 7679
+      },
+      "spanSha256": "1bfbe5252bcab3e878180e2bed49dc8935dafa0746782021139595aaa3a8e601"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:2096421e02c63b37b5d4b4cbec89c53285c58897a68507d03269a5032988db04",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cbc302ead880500354d78e95cef315a2c4fcf44043e2bfb82c776952b2c6fbbf",
+      "newRange": {
+        "count": 33,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-27-v1-0430-gate-scripts-gnu-linux.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:956072aa09edac52d2e761505ed81e7ad86caf730f3738e54539cc2b86a3139f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2a5518775d314ee4b1f767a6fc25ffb61580bcf9660694b06665c1e4fc156a19",
+      "newRange": {
+        "count": 17,
+        "start": 105
+      },
+      "oldRange": {
+        "count": 13,
+        "start": 105
+      },
+      "path": "script/check-error-code-ownership.sh",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:20205e30d5410ca9217e75b81dac968107f5adb89f47317e1bc2e937916d9d3b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:692a338cf5556264578de909c4b465f9d97400ceed6452809cfa286ffda77cf4",
+      "newRange": {
+        "count": 8,
+        "start": 24
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 24
+      },
+      "path": "script/check-host-package-versions.sh",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0548a315747594a9b08c20e8bba85b3db113b7c1c1cd7b5e60f861738573c9bb",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d82ecc0363056b0d2e6a94a098e243934a4d0e3a321c89c1c30edfd83b1847a4",
+      "newRange": {
+        "count": 9,
+        "start": 76
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 76
+      },
+      "path": "script/gate-receipt_test.sh",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:2096421e02c63b37b5d4b4cbec89c53285c58897a68507d03269a5032988db04",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5c2ef843d116bac22853f82003d6de71a1941adffb7948262121462aa46c7518",
+      "newRange": {
+        "count": 9,
+        "start": 71
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 71
+      },
+      "path": "script/go-archive-gate_test.sh",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "a684e8f9fd42498d3cc8ed16015fb69fe2e39c8a38fa6596d0681734cc6f4140",
+  "spec": "cem/0.2"
+}

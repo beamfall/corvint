@@ -71,7 +71,9 @@ archive)
         [ "$output" = "$parent/corvint-go-release" ]
         [ "$(find "$parent" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')" = 4 ]
         for directory in "$parent" "$HOME" "$TMPDIR" "$GOTMPDIR" "$GOCACHE"; do
-            mode=$(stat -f '%Lp' "$directory" 2>/dev/null || stat -c '%a' "$directory")
+            # GNU form first: GNU `stat -f` prints file-system status and exits 1, which would
+            # prefix the fallback's mode; BSD `stat -c` fails without output.
+            mode=$(stat -c '%a' "$directory" 2>/dev/null || stat -f '%Lp' "$directory")
             [ "$mode" = 700 ]
         done
     fi

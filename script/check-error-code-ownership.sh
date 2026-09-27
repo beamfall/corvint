@@ -105,13 +105,17 @@ set +f
 # names grouped by index.
 ARG=$arg awk -F'\t' '$1 > 0 {
         key = $3 "\t" $1
-        group[key] = (key in group) ? group[key] "|" $2 : $2
+        # Test membership before assigning: mawk creates group[key] before it evaluates the
+        # right-hand side, so a combined test sees every key and leads with an empty alternative.
+        if (key in group) group[key] = group[key] "|" $2
+        else group[key] = $2
     }
     END {
         for (key in group) {
             split(key, part, "\t")
             call = "(" group[key] ")\\((" ENVIRON["ARG"] ",[[:space:]]*){" part[2] "}"
-            calls[part[1]] = (part[1] in calls) ? calls[part[1]] "|" call : call
+            if (part[1] in calls) calls[part[1]] = calls[part[1]] "|" call
+            else calls[part[1]] = call
         }
         for (directory in calls) printf "%s\t%s\n", directory, calls[directory]
     }' "$work/names" >"$work/directories"
