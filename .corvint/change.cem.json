@@ -1,0 +1,160 @@
+{
+  "baseRevision": "f4e6c9130107fe81abc5425ca823a603373c974d",
+  "evidence": [
+    {
+      "blobOid": "8c34e77325b0bdbe828cf223f0a17bf397618678",
+      "id": "evidence:sha256:9ef4b2bc2456db5d29f537964c4c94c6b5d1e2d56c08356b4e316e6157d876f6",
+      "path": "docs/specs/affected-plan-v0.md",
+      "span": {
+        "end": 27024,
+        "start": 25802
+      },
+      "spanSha256": "f6ff083aa18548140fa104bc504e29cf7dce2dbe1ea689e364cfa2b3deb24c49"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9ef4b2bc2456db5d29f537964c4c94c6b5d1e2d56c08356b4e316e6157d876f6",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1852d4ad5bea0eced797f4198ce5159f41bdf9a22ed1d939a25920c23f87e04c",
+      "newRange": {
+        "count": 16,
+        "start": 40
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 40
+      },
+      "path": ".github/workflows/ci.yml",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9ef4b2bc2456db5d29f537964c4c94c6b5d1e2d56c08356b4e316e6157d876f6",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a1a40d0527897f8e1afa8234f181d9af2fe1bc9d99301ea443f08a041e44cccb",
+      "newRange": {
+        "count": 7,
+        "start": 91
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 84
+      },
+      "path": ".github/workflows/ci.yml",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9ef4b2bc2456db5d29f537964c4c94c6b5d1e2d56c08356b4e316e6157d876f6",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5142dce49396f1f84e68b88652e955088d304e33ae57ef23818875ac2543bb97",
+      "newRange": {
+        "count": 7,
+        "start": 99
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 92
+      },
+      "path": ".github/workflows/ci.yml",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9ef4b2bc2456db5d29f537964c4c94c6b5d1e2d56c08356b4e316e6157d876f6",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9e96cf37a28fbb5a74e328d8875d5685a8f702059023e6e891b5908d2ac0a177",
+      "newRange": {
+        "count": 7,
+        "start": 108
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 101
+      },
+      "path": ".github/workflows/ci.yml",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9ef4b2bc2456db5d29f537964c4c94c6b5d1e2d56c08356b4e316e6157d876f6",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:997a76cfaab97d6a9ce2bf8664e1258fe4e19a99ae98113e84db6a75f3e15cff",
+      "newRange": {
+        "count": 24,
+        "start": 122
+      },
+      "oldRange": {
+        "count": 13,
+        "start": 115
+      },
+      "path": ".github/workflows/ci.yml",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9ef4b2bc2456db5d29f537964c4c94c6b5d1e2d56c08356b4e316e6157d876f6",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0fcb5189a17bd61532327e24609d17be4c632b0c5414f47077cc975282f61292",
+      "newRange": {
+        "count": 31,
+        "start": 151
+      },
+      "oldRange": {
+        "count": 17,
+        "start": 133
+      },
+      "path": ".github/workflows/ci.yml",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9ef4b2bc2456db5d29f537964c4c94c6b5d1e2d56c08356b4e316e6157d876f6",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ff40bf10f54e98f548fb77e62208111b3db5831a324a5afdd20f9307b58f97b0",
+      "newRange": {
+        "count": 38,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-26-v1-0357-go-product-shards.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "7b9f05fdc72b78aa7012fed8bb3895035c24fe223353c3c9d14ecd897e195c75",
+  "spec": "cem/0.2"
+}
