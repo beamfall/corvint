@@ -44,9 +44,9 @@ Corvint replaces the guess with a receipt and the opaque diff with a map.
 - **Your repository is the authority.** Agent instructions, accepted decisions, and specs you
   already keep outrank syntax matches, history correlations, and learned traces. Corvint uses
   the documents you have; it introduces no new spec language.
-- **It says what it does not know.** Coverage, omissions, uncertainty, freshness, and explicit
-  abstention are fields in the receipt, not an afterthought. Missing evidence produces an
-  unknown, never invented certainty.
+- **It says what it does not know.** Coverage, omissions, uncertainty, and freshness are fields
+  in the receipt, and a hunk without cited evidence is an explicit unknown. Task-level retrieval
+  abstention is experimental and unqualified; see [Status](#status-stated-plainly).
 - **Reviewers get a disposition for every hunk.** A Change Evidence Map (CEM) links each textual
   hunk of a diff to cited evidence, an explicit unknown, or a mechanical exception. The verifier
   checks patch, hunk, blob, and span identity locally, with no LLM, no index, and no shared
