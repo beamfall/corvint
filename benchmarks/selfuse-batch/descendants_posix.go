@@ -52,15 +52,15 @@ func (d *descendantCleanup) remember(rows map[int]processRow, pid int) {
 	}
 }
 
-// descendantMonitorTick paces the background /bin/ps probe used to catch a
-// descendant that starts and exits entirely between polls, while the child is
-// still running. stop() takes its own snapshot before signalling (see below),
-// so this tick buys nothing beyond narrowing that start-and-exit race window;
-// widening it from 20ms to 250ms cuts probe volume by 12.5x (roughly 40 forks
-// instead of 500 over a ten-second child) at the cost of that window growing
-// to 250ms. It has no effect on the stop path's own timing: stop cancels this
-// ticker before doing anything else, and the 350ms SIGTERM grace and its
-// retries below use their own fixed 20ms cadence, independent of this value.
+// descendantMonitorTick paces the background /bin/ps probe that owns each
+// descendant while the leader still reaches it. stop() snapshots again before
+// signalling, but that snapshot reaches descendants only through a live leader:
+// a child orphaned when the leader dies first (SIGPIPE once the output limit
+// closes its pipe) is cleaned only if a probe saw it, and stop otherwise reports
+// NOT_OBSERVED: leader-exit-race. Widening the tick from 20ms to 250ms cut probe
+// volume by 12.5x (roughly 40 forks instead of 500 over a ten-second child) and
+// grew that window to 250ms. stop cancels this ticker first; its 350ms SIGTERM
+// grace and retries keep their own fixed 20ms cadence.
 const descendantMonitorTick = 250 * time.Millisecond
 
 func (d *descendantCleanup) start(ctx context.Context, pid int) error {

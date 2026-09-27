@@ -23,7 +23,9 @@ func fakeProcessFault(root, mode string) {
 	defer func() { _ = cmd.Process.Kill(); _ = cmd.Wait() }()
 	must(true, os.WriteFile(filepath.Join(root, ".git", "fault-child"), []byte(strconv.Itoa(cmd.Process.Pid)), 0600))
 	if mode == "flood" {
-		time.Sleep(raceScale * 60 * time.Millisecond)
+		// The leader dies by SIGPIPE once the output limit closes its pipe, so a
+		// probe must see the child first: stop reaches it only through a live leader.
+		time.Sleep(raceScale*60*time.Millisecond + 2*descendantMonitorTick)
 		for {
 			if _, err := os.Stdout.Write(make([]byte, 8192)); err != nil {
 				return
@@ -85,7 +87,7 @@ func TestSelfuseSeparateGroupsCleanedBeforeFallback(t *testing.T) {
 			go func() {
 				var r result
 				defer func() { r.failure = recover(); done <- r }()
-				r.receipt = investigate(context.Background(), options{root: root, plan: plan, out: out, corvint: must(os.Executable()), mode: "batch", timeout: raceScale * 500 * time.Millisecond, limit: 65536})
+				r.receipt = investigate(context.Background(), options{root: root, plan: plan, out: out, corvint: must(os.Executable()), mode: "batch", timeout: raceScale*500*time.Millisecond + 4*descendantMonitorTick, limit: 65536})
 			}()
 			pid := childPID(t, root)
 			birth := ownedChild(t, pid)
