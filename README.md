@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img alt="Status: extraction alpha" src="https://img.shields.io/badge/status-extraction%20alpha-d9a441">
+  <img alt="Status: 1.0 release candidate" src="https://img.shields.io/badge/status-1.0%20release%20candidate-1971c2">
   <img alt="Architecture: local first" src="https://img.shields.io/badge/architecture-local--first-0b7285">
   <img alt="Runtime: single Go binary" src="https://img.shields.io/badge/runtime-single%20Go%20binary-00add8">
   <img alt="Module dependencies: none" src="https://img.shields.io/badge/module%20dependencies-none-2f9e44">
@@ -27,8 +27,8 @@
 the two bounded exceptions are a local `.corvint/self-observations.jsonl` ledger and, only while
 the operator marker `.corvint/unplanned-reads.enabled` exists, `.corvint/unplanned-reads.jsonl` —
 neither ever feeds ranking, evidence, or authority ([AGENTS.md](AGENTS.md) invariant 4). Version
-`1.0.0-rc.1` is an experimental prerelease; [what works today and what is still an open
-gate](#status-stated-plainly).
+`1.0.0-rc.1` is the release candidate for Corvint 1.0; [what 1.0 promises and what is still being
+qualified](#status-stated-plainly).
 
 ## Why Corvint
 
@@ -218,23 +218,24 @@ The [wire format, schemas, and conformance vectors](docs/CHANGE-EVIDENCE-MAP.md)
 
 ## Works where agents work
 
-The host adapters run `corvint` from `PATH`, so install it there first. Every adapter is a
-developer preview reporting `FALLBACK`, not `FULL` ([compatibility matrix](integrations/README.md)):
+The host adapters run `corvint` from `PATH`, so install it there first. Every adapter reports
+`FALLBACK`, not `FULL` ([compatibility matrix](integrations/README.md)). The Codex and Claude Code
+adapters are Core host rows; Gemini CLI, OpenCode and Pi are companions:
 
 - [Codex](integrations/codex/README.md), [Claude Code](integrations/claude-code/README.md),
   [Gemini CLI](integrations/gemini-cli/README.md), [OpenCode](integrations/opencode/README.md),
   and [Pi](integrations/pi/README.md) share one bounded lifecycle receipt
   (`corvint help harness event`).
-- [VS Code](extensions/vscode/README.md): evidence views plus opt-in automatic unit/E2E reruns on
-  editor saves. Install the VSIX and providers, configure the project's toolchains and suite, then
+- [VS Code](extensions/vscode/README.md), deferred and not part of 1.0: evidence views plus opt-in
+  automatic unit/E2E reruns on editor saves. Install the VSIX and providers, configure the project's toolchains and suite, then
   enable `corvint.liveTests.enabled`. It reruns the configured suite; passing tests do not
   establish test adequacy or authority. [Setup and stop instructions](docs/INSTALL.md#editor-and-test-feedback).
-- [MCP](docs/MCP-SERVER.md): `corvint-mcp` is an **experimental** local stdio server that exposes
+- [MCP](docs/MCP-SERVER.md): `corvint-mcp` is a **companion** local stdio server that exposes
   read-only receipts (`GOTOOLCHAIN=local go build -o ./bin/corvint-mcp ./cmd/corvint-mcp`).
   `corvint-docs-mcp` drafts source-bound documentation and checks a draft against source;
   `corvint-test-validity-mcp` lets agents inspect retained test observations. Both need a
   compatible client and an explicit root; [setup and boundaries](docs/INSTALL.md#agent-tools-and-source-documentation).
-- Source-bound documentation: the experimental `docs maintain --watch` command refreshes a
+- Source-bound documentation: the companion `docs maintain --watch` command refreshes a
   generated page block as eligible source commits land, preserves surrounding prose, and stops on
   outside page edits. It runs explicitly in the foreground on macOS/Linux with time and write
   limits; [preview, apply, and watch](docs/INSTALL.md#agent-tools-and-source-documentation).
@@ -366,23 +367,30 @@ profile and is admitted to the product only through its own accepted profile ([c
 ## Status, stated plainly
 
 > [!IMPORTANT]
-> Corvint is an extraction alpha (`Corvint 1.0.0-rc.1` prerelease); its three daily-workflow jobs are still
-> `UNPROVEN`. Platform status comes from each release's exact assets and qualification evidence.
+> `1.0.0-rc.1` is the release candidate for Corvint 1.0. The 1.0 stability promise (frozen
+> contracts, N-1 readers or deterministic migrations) covers the Core surfaces below and nothing
+> else ([1.0 scope](docs/specs/corvint-1.0-product-and-release-v1.md), decision 0373). 1.0.0 is
+> final only after the three Core jobs pass on Corvint, Beamfall and one untouched public
+> repository (`PRS-V1-008`). Platform status comes from each release's exact assets and
+> qualification evidence.
 
-| Surface | Current state |
-|---|---|
-| Receipts, coverage, abstention | Experimental, the delivery state recorded in the [specification index](docs/specs/README.md); the shapes above are what the binary emits today. |
-| `context`, `affected`, `prove`, `index` | Experimental under their specs: Task-Context Packet, Affected Plan, Falsifiable Packet, and Index Snapshot V0. |
-| Retrieval quality | **Experimental and unqualified.** Bounded receipts around a named path or subject are the product today. Broad task-to-evidence retrieval has not passed held-out evaluation: the latest held-out attempt beat the exact-search baseline on top-5 (0.571 vs 0.343) and met the abstention and latency bars, but returned forbidden results on 7 of 36 must-exclude checks. Do not rely on ranking or abstention. |
-| CEM `0.1` / `0.2` | Experimental: reference producer, verifier, schemas, and conformance vectors. Independent third-party interoperability is still unproven. |
-| Does CEM help a reviewer? | **Unproven.** A five-pair pilot scored mean missed evidence of 0.90 for control and 0.86 with CEM. It is a pilot, not a held-out outcome study. |
-| Performance | Unmeasured for the current Go-only revision. Earlier measurements compared against the retired Python runtime and do not qualify this one. |
-| Host adapters, VS Code, MCP | Developer preview or experimental, reporting `FALLBACK`. |
-| Tickets, work queue, dashboard, console, test providers, Pulse | Experimental under their specs; the console and dashboard present evidence and never hold authority over it. |
-| Learned traces | Experimental and advisory; a learned-path change is admitted only through a pinned two-arm evaluation, and none is qualified for this release. |
+| Surface | 1.0 label | State at `1.0.0-rc.1` |
+|---|---|---|
+| `init`, `adopt`, `index`, `query`, `context`, `impact`, `affected`, `prove` | Core | Command, wire and migration contracts frozen; `init`, `adopt` and the deterministic index lifecycle qualified. Receipts carry coverage, omissions and uncertainty as specified. |
+| CEM `0.1` / `0.2`, OCM, change frontier | Core | Frozen with canonical conformance vectors. `interop/cem01-go` is an in-repo second consumer for `cem/0.1` only; 1.0 claims no third-party interoperability. |
+| Dogfood loop | Core | Substantive Corvint changes are bound to a CEM and sealed with a retained local outcome ([dogfood contract](docs/DOGFOOD.md)). |
+| Core jobs | Core | Task orientation is `VERIFIED`. Change consequence and evidence-carrying completion stay `UNPROVEN` until the untouched-repository run passes. |
+| Native release artifact and install lifecycle | Core | darwin/arm64 is a Core platform. linux/amd64 is Core once native install-lifecycle evidence is retained on the candidate bytes, and reports `FALLBACK` until then. linux/arm64 and darwin/amd64 are `FALLBACK`; Windows is unsupported. |
+| Retrieval quality | Core surface, unqualified ranking | Bounded receipts around a named path or subject are the product. Broad task-to-evidence retrieval has not passed held-out evaluation: the latest held-out attempt beat the exact-search baseline on top-5 (0.571 vs 0.343) and met the abstention and latency bars, but returned forbidden results on 7 of 36 must-exclude checks. Do not rely on ranking or abstention. |
+| Does CEM help a reviewer? | Not claimed | **Unproven.** A five-pair pilot scored mean missed evidence of 0.90 for control and 0.86 with CEM. It is a pilot, not a held-out outcome study. |
+| Performance | Not claimed | Unmeasured for the current Go-only revision. Earlier measurements compared against the retired Python runtime and do not qualify this one. |
+| Host adapters | Core (Codex, Claude Code), companion (Gemini CLI, OpenCode, Pi) | All report `FALLBACK`; formal `FULL` host authority is post-1.0. The VS Code extension is deferred. |
+| MCP servers, `corvint-tasks`, dashboard, console, test providers, docs | Companion | Optional and qualified separately, with no 1.0 stability promise; the console and dashboard present evidence and never hold authority over it. |
+| Learned traces, work queue, Pulse, evaluation verbs | Experimental | Shipped without a promise. A learned-path change is admitted only through a pinned two-arm evaluation, and none is qualified for this release. |
 
-These boundaries are backed by committed artifacts: the [release notes](docs/RELEASE-NOTES-alpha.md),
-the [specification index](docs/specs/README.md), and [`benchmarks/`](benchmarks/).
+These boundaries are backed by committed artifacts: the [1.0 scope](docs/specs/corvint-1.0-product-and-release-v1.md),
+the [release notes](docs/RELEASE-NOTES.md), the [specification index](docs/specs/README.md), and
+[`benchmarks/`](benchmarks/).
 
 ## Read next
 
