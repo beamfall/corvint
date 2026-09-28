@@ -561,6 +561,8 @@ def loop_rehearsal(b, base, target):
 
     def rewrite_cem(d, fn, encode, message):
         p = os.path.join(d, ".corvint", "change.cem.json")
+        if not os.path.isfile(p):
+            return False
         with open(p, "rb") as f:
             raw = f.read()
         cem = json.loads(raw)
@@ -577,11 +579,20 @@ def loop_rehearsal(b, base, target):
         return rewrite_cem(d, lambda cem: cem["hunks"][0].update(basis=[]), canonical, "tamper change evidence")
 
     def outcome_removed(d):
-        os.remove(os.path.join(d, ".git", "corvint", "local-outcome.json"))
+        p = os.path.join(d, ".git", "corvint", "local-outcome.json")
+        if not os.path.isfile(p):
+            return False
+        os.remove(p)
         return True
-    controls = [loop.mutate_and_check(source, pristine, "loop-L0c-restored-in-place-control", env, lambda d: True, False),
-                loop.mutate_and_check(source, pristine, "loop-L3c-reencoded-control", env, reencoded, True)]
-    copies = [loop.mutate_and_check(source, pristine, n, env, fn, rebind) for n, fn, rebind in
+
+    # Without the L0 run 1 bind no variant has evidence to remove, so every one is HARNESS-FAILURE.
+    bound = positives[0][2]["bindCommitted"]
+
+    def variant(name, fn, rebind):
+        return loop.mutate_and_check(source, pristine, name, env, lambda d: bound and fn(d), rebind)
+    controls = [variant("loop-L0c-restored-in-place-control", lambda d: True, False),
+                variant("loop-L3c-reencoded-control", reencoded, True)]
+    copies = [variant(n, fn, rebind) for n, fn, rebind in
               [("loop-L1-stale-after-bind", stale, True), ("loop-L2-cem-removed", cem_removed, True),
                ("loop-L3-cem-tampered", cem_tampered, True), ("loop-L4-local-outcome-removed", outcome_removed, False)]]
     loop.restore(source, pristine)
@@ -793,6 +804,7 @@ def cmd_run(args):
     if os.path.exists(out) or os.path.exists(marker):
         refuse("run-id-already-used")
     # Corvint runs with each worktree as cwd, so a relative --work would not reach the extracted binary.
+    os.makedirs(os.path.abspath(args.work), mode=0o700, exist_ok=True)
     work = tempfile.mkdtemp(prefix="untouched-repository-", dir=os.path.abspath(args.work))
     corvint, candidate = extract_candidate(args.candidate_dir, work, prereg["targetVersion"])
     b = Bench(args.repo, work, prereg["runsPerMeasurement"], corvint, exclusions=prereg.get("pathExclusions"))
@@ -811,7 +823,8 @@ def cmd_run(args):
     cases = corpus["cases"]
     orientation = [orientation_case(b, c) for c in cases if c["orientation"]["eligible"]]
     consequence = [consequence_case(b, c) for c in cases]
-    target = corpus["head"]
+    # A preregistration may name loopTarget when a merge at PIN adds committed change evidence.
+    target = git(args.repo, "rev-parse", prereg.get("loopTarget", corpus["head"])).strip()
     base = git(args.repo, "rev-parse", target + "^").strip()
     source, loop = loop_rehearsal(b, base, target)
     cems = cem_level(b, source, base, target)

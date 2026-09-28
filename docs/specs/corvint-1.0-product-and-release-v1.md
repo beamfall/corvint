@@ -181,19 +181,27 @@ accepted by decision 0373 and the amendment it requires are stated.
   jobs on each PRS-V1-008 repository from its own preregistration. It computes the
   preregistration digest from the file and refuses to run when it differs from the sealed
   `preregistration.sha256` or from `--prereg-sha256`.
-  - go-chi/chi (decision 0422), held out: pinned at `3d1777a1ef8881f7d1da0b02c76ca8f0a29cd2bc` in
-    `benchmarks/untouched-repository-v1/`, preregistration digest
-    `27625e854faf7dfb2379f59d38c7c082aeea19758e744874a52b20f200551e29`.
+  - go-chi/chi (decision 0422), held out for run-001: pinned at
+    `3d1777a1ef8881f7d1da0b02c76ca8f0a29cd2bc` in `benchmarks/untouched-repository-v1/`,
+    preregistration digest `27625e854faf7dfb2379f59d38c7c082aeea19758e744874a52b20f200551e29`.
+    Decision 0425 keeps run-001 as evidence and does not rerun it, so its preregistration keeps
+    harness `f24533a1`.
+  - spf13/cobra (decision 0425), held out for the `1.0.0-rc.2` run: pinned at
+    `adbc8813901bba65827259daa8e22ff94ec1f30e` in `benchmarks/untouched-repository-v1/cobra/`,
+    preregistration digest `9631e4ce822d4d17443e5c3bfe98e82c4685a70d6289f854ae5b8c730b98e5a4`.
   - Corvint, a development repository: pinned at the first `1.0.0-rc.1` candidate commit
     `94ca556f52c0349c0a48e0c3a3274f8a0b5e6db3` in `benchmarks/untouched-repository-v1/corvint/`,
-    preregistration digest `58d68a6f5a2c3297683249a953da28c7e8efb5786f665776d0ad9165a56e74f6`.
-    Task-store, dogfood, build-log and generated index paths are never critical.
+    with loop target `a5a7412c91857773ccc3e61bf197bc22725ac57c`. Preregistration digest
+    `5e44a9efe6bf86189e166c516962db5fe921d40ab63c9ae5a76c25eac721543b` supersedes `58d68a6f`
+    by its deviation 1 (V1-0432, V1-0433). Task-store, dogfood, build-log and generated index
+    paths are never critical.
   - beamfall/core, a private development repository: pinned at
     `e8655b084d1658087004af8f7b235ea4e7675dff`, over the 20 most recent first-parent commits that
     change a `.go` file. Its preregistration, corpus, runs and receipts stay in the owner's local
-    release evidence. This spec publishes its preregistration digest
-    `867f51a01609d1587122d4186775f2557bcf4ec5c064ec12004edf3de8d35a40` before any run, and its
-    outcomes after.
+    release evidence. This spec publishes its preregistration digest before any run, and its
+    outcomes after: `c91b3a3cb4b3b769a7bc8c3caf050df399566544833699e08bd54588d30b2697` supersedes
+    `867f51a01609d1587122d4186775f2557bcf4ec5c064ec12004edf3de8d35a40` by its deviation 1
+    (V1-0432).
 - Run-001 on `1.0.0-rc.1` (`b967f6bbe33c5eba367a07d7eeb2bd1e372e9162`, build 163) failed; by
   decision 0425 it is a known issue of that prerelease and V1-0019 gates 1.0 final.
   - go-chi/chi: orientation FAIL (3 treatment-only critical misses in 20, all test files, V1-0431),
@@ -206,7 +214,8 @@ accepted by decision 0373 and the amendment it requires are stated.
   - Corvint: aborted before scoring (V1-0432, V1-0433); only
     `benchmarks/untouched-repository-v1/corvint/runs/run-001.started.json` exists.
   - spf13/cobra replaces go-chi/chi as the held-out repository for the next run, with its cases
-    frozen and published first (decision 0425).
+    frozen and published first (decision 0425). All three preregistrations now name
+    `1.0.0-rc.2` and harness `b67cc95abd92ffffeef9bf1bccfce4d0316e270716d6cd065948e802994f9eb2`.
 
 ### Host FULL and authority tuples
 
