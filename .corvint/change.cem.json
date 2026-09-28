@@ -1,0 +1,160 @@
+{
+  "baseRevision": "cec1edbb6995a022dd7e2d336a66eb42c1fdc3c6",
+  "evidence": [
+    {
+      "blobOid": "fb3d114db65d1ead2fcbf67db85b969d295a39d2",
+      "id": "evidence:sha256:de38904b2c5fc8459f2998613f0ac3b5ca4ad70d0322017d328e02cc1055c283",
+      "path": "docs/specs/agent-harness-integration-v0.md",
+      "span": {
+        "end": 12419,
+        "start": 11048
+      },
+      "spanSha256": "5c7a7344fb17ce6e50b779cb935b58718976cd4191e5ee91f30bd23c33d95b74"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:de38904b2c5fc8459f2998613f0ac3b5ca4ad70d0322017d328e02cc1055c283",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2a2af64ab8527146c8c9acc54ca0d0a16e02e7a329635f85fe078a68808e8be7",
+      "newRange": {
+        "count": 25,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-28-opencode-adapter-version.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:de38904b2c5fc8459f2998613f0ac3b5ca4ad70d0322017d328e02cc1055c283",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f1d44aa806d81bf92a73e782b032a373feab86af4c55df39c5198a836146a5f5",
+      "newRange": {
+        "count": 7,
+        "start": 62
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 62
+      },
+      "path": "integrations/compatibility.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:de38904b2c5fc8459f2998613f0ac3b5ca4ad70d0322017d328e02cc1055c283",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2e2b77496cce3b6d0ebd4f8676e94cd6fa062079a1b5f35a8baac97312b53ef0",
+      "newRange": {
+        "count": 12,
+        "start": 97
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 97
+      },
+      "path": "integrations/host-adapters.test.mjs",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:de38904b2c5fc8459f2998613f0ac3b5ca4ad70d0322017d328e02cc1055c283",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9d036081e7bedfd4d070d566e03d10b9a514b47bf56eeb32d48702464ce4a110",
+      "newRange": {
+        "count": 7,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 1
+      },
+      "path": "integrations/opencode/package.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:de38904b2c5fc8459f2998613f0ac3b5ca4ad70d0322017d328e02cc1055c283",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7a9857b3c05fe31dd3dc57ec0b11d3e1a2750b166544c0dcaa13a06d30fcdf10",
+      "newRange": {
+        "count": 7,
+        "start": 23
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 23
+      },
+      "path": "integrations/opencode/package.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:de38904b2c5fc8459f2998613f0ac3b5ca4ad70d0322017d328e02cc1055c283",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2c969ef9c9172a72e58d14cdf06c4efe0314f7457d249e694e4ad1674de6aac1",
+      "newRange": {
+        "count": 7,
+        "start": 4
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 4
+      },
+      "path": "integrations/opencode/src/runtime.js",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:de38904b2c5fc8459f2998613f0ac3b5ca4ad70d0322017d328e02cc1055c283",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:46e80fbcfea784ea9a5e4981e0ef4e070a98084fcd1b80d65d83528808d6309f",
+      "newRange": {
+        "count": 7,
+        "start": 135
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 135
+      },
+      "path": "integrations/testfixture/main.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "210f70d6dc9613288685a7eace5057796232e2fc7a490ef1f137bfa88a3b8221",
+  "spec": "cem/0.2"
+}
