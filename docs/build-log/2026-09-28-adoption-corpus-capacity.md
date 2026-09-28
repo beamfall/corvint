@@ -35,3 +35,14 @@ the private evidence. Repository-wide `make gate` is NOT_RUN under the owner's s
 Original corpus promotion, independent external utility, live browser verification, authenticated
 review and source completeness remain NOT_OBSERVED. Rollback removes the optional `/2` imports and
 read extensions; old corpus bytes and native commands need no migration.
+
+## Frozen qualification
+
+Source commit `5ebb216b` passed the actual CLI Build/Open, info, late inventory page, get, trace,
+search and coverage commands on the complete synthetic corpus. Native query/context/impact/affected/
+test-validity bytes were unchanged after removing the separately attributed documentation member.
+The built stdio MCP inventory response exactly matched the CLI structured page. Every command
+exited zero. Artifact size was 93,134,239 bytes; SHA-256
+`5fcf00638d6604e6b1330acdfc2a18a94a20e9ffaba132ce055da06ca8c2876c`.
+The actual command receipts and per-command timings are retained with `scale-final/report.json`
+in the private stage evidence. No persistent process remains after the qualification harness.
