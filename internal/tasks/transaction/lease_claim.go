@@ -216,10 +216,13 @@ func (c leaseContext) admitted(rec *ticket.Record, prior *snapshot.Attempt, sc *
 }
 
 // planClaim admits one external-agent attempt by TCP-00 §4.1 steps 1, 2,
-// 5, 6 and 8 (CAL-V0-007, CAL-V0-021, CAL-V0-023).
+// 5, 6 and 8 (CAL-V0-002, CAL-V0-007, CAL-V0-021, CAL-V0-023).
 func planClaim(c leaseContext) leaseOutcome {
 	if c.st.barrier != nil {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodePaused, "an admission barrier is present")
+	}
+	if !c.st.queue.Fixture {
+		return c.refuse(mutation.OutcomeBlocked, wire.CodeCutoverMissing, "a non-fixture queue admits no claim before its execution cutover")
 	}
 	rec, _ := c.st.tickets.Get(c.l.TicketID)
 	if rec == nil {

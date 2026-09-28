@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S8 claim side CAL-V0-021..023 and 025 experimental)
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S8 claim side CAL-V0-021..023 and 025 experimental)
 Authoritative inputs: the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
 §3.4, §4, §6 and §7.4), decision 0397 (corvint-tasks built in tree), decision 0423 A10,
 `docs/specs/corvint-tasks-store-init-v0.md`, tickets V1-0398, V1-0184 and V1-0310, and the in-tree
@@ -11,8 +11,8 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Coding agents claim, renew, gate and complete tickets through leased `corvint-tasks` attempts, replacing a repository's own task runner without a supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S8 claim side CAL-V0-021..023 and 025 experimental). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
-- Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture queues, and the CTS-V0-003 shadow import.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S8 claim side CAL-V0-021..023 and 025 experimental). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
 - Read next: Slices; Requirements (S8 for parallel claims); Amendments to TCP-00; Failure modes.
 
@@ -30,8 +30,8 @@ supervisor: `admit` reserves the ticket, a supervisor forks a `lane-leader`, a `
 handshake proves whether the runtime ran, and process-group liveness decides when a reservation may
 be released (§6.2 to §6.4). None of that is built in tree: the only reservations are S3's
 `external-agent` leases, `cutover` requires an empty reservation set
-(`internal/tasks/transaction/model.go:541@afae0d34`), and the writer refuses every queue that is
-not a fixture (`internal/tasks/transaction/model.go:738@2635d775`).
+(`internal/tasks/transaction/model.go:541@afae0d34`), and until S1 the writer refused every queue
+that was not a fixture.
 
 The agents that use these queues are not processes corvint-tasks starts. They are interactive or
 orchestrated sessions that call the task tool themselves. This spec keeps TCP-00's attempt,
@@ -285,6 +285,14 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
   with a `MANIFEST` evidence record; the supervisor, lane, spawn and review checks of §7.3 do not
   apply to this runtime. The lease verbs read Git in the caller's checkout, else the primary
   worktree.
+- A14: S1. `init` accepts a queue whose `fixture` is false, with `importMapSha256` and
+  `executionCutover` null, so that a non-fixture store exists to write to; the INIT digest keeps its
+  `MALFORMED` refusal for every other queue shape. Until S7 records an execution cutover
+  (CAL-V0-020), `executionCutover` stays refused on every queue, so on a non-fixture queue `claim`
+  and `claim --next` refuse `BLOCKED` `CUTOVER_MISSING`, and `plan preview` plans each ticket
+  `BLOCKED` with `CUTOVER_MISSING` after `PAUSED` and before `BUDGET_UNKNOWN`. Staging an
+  observation, release mutations and `reconcile` stay fixture-only: CAL-V0-001 does not name
+  them.
 
 ## Failure modes
 
@@ -299,7 +307,7 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
 | Cutover interrupted | One receipt either committed or not | A rerun with the same decision replays or commits it |
 | Store edited outside corvint-tasks during an import (`git pull`, an editor) | Batches after the first check only the head and the files they post | A ticket the batch posts refuses `INTENT_DIVERGED` and a moved head refuses `SNAPSHOT_MOVED`; other drift is not seen until the next command audits the store (CAL-V0-018) |
 | Re-import after cutover | Foreign export disagrees with the published records | `import` refuses the whole export and writes nothing |
-| Non-fixture queue before execution cutover | Agents try to claim | `claim` refuses; ticket writes still work |
+| Non-fixture queue before execution cutover | Agents try to claim | `claim` and `claim --next` refuse `BLOCKED` `CUTOVER_MISSING` and `plan preview` plans every ticket `BLOCKED`; ticket writes still work |
 | Derived scope misses a file the agent needs | Agent edits outside its scope | `submit` refuses `OUT_OF_SCOPE`; the agent `widen`s, or releases and reclaims with `--scope` |
 | Two disjoint scopes interfere semantically | Each passes alone, the merge breaks | Gates run at the exact rebased candidate tree before `complete` (CAL-V0-016, CAL-V0-017) |
 | Context index absent or stale | No derivation | The scope is `WHOLE_REPOSITORY`, which serializes that claim as today |
@@ -313,10 +321,11 @@ core tickets could hold concurrent claims under CAL-V0-023 against the runner's 
 Before S7 closes, a rehearsal in a throwaway non-fixture store holding the cut-over Beamfall export
 claims, gates and completes one real Beamfall ticket, and lets one lease expire and be reaped.
 
-Rollback, per slice: S1 restores the fixture-only check at
-`internal/tasks/transaction/model.go:738@2635d775`; S2 removes `cutover` (a queue it already
-switched stays `NATIVE`, and its imported records stay eligible `IMPORT` records; reversing a switch
-is TCP-00's §5.4 revert, which this spec does not build); S3 to S5 remove the lease verbs, and a
+Rollback, per slice: S1 restores the fixture-only checks in the INIT digest and `validateInput`
+(`internal/tasks/transaction/model.go`) and removes the `CUTOVER_MISSING` claim check (a
+non-fixture store it initialized then refuses every write until it is removed); S2 removes
+`cutover` (a queue it already switched stays `NATIVE`, and its imported records stay eligible
+`IMPORT` records; reversing a switch is TCP-00's §5.4 revert, which this spec does not build); S3 to S5 remove the lease verbs, and a
 store that holds live `external-agent` attempts must first `release` or `reap` them, because a
 rolled-back reader reports them `NOT_OBSERVED`; S6 restores the per-batch audit; S8 removes `widen`
 and the scope check, and every claim reverts to `WHOLE_REPOSITORY`; S7 removes the execution cutover
@@ -327,7 +336,9 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 
 | Requirement | Evidence |
 |---|---|
-| CAL-V0-001..003 | NOT_RUN; accepted, not started |
+| CAL-V0-001 | `TestCALV0001_NonFixtureQueueTakesEveryWrite`, `TestCALV0001_ImportMappedQueueStaysRefused` (`internal/tasks/store`) |
+| CAL-V0-002 | `TestCALV0002_NonFixtureQueueRefusesClaims` (`internal/tasks/store`), `TestCALV0002_PlanPreviewBlocksANonFixtureQueue` (`internal/tasks/cli`); the cutover and `QUALIFICATION` side is S7 (CAL-V0-020) |
+| CAL-V0-003 | The fixture tests under `internal/tasks` pass unchanged |
 | CAL-V0-004 | `TestCALV0004_CutoverSwitchesWriterInOneReceipt`, `TestCALV0004_CutoverRefusals` (`internal/tasks/store`), `TestCALV0004_CLICutoverPublishesImportedRecords` (`internal/tasks/cli`) |
 | CAL-V0-005 | `TestCALV0005_ImportAfterCutoverRefusesAndWritesNothing` (`internal/tasks/store`) |
 | CAL-V0-006 | `TestCALV0004_CutoverSwitchesWriterInOneReceipt` (imported record bytes unchanged) |
