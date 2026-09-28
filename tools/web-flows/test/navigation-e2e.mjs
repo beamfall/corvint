@@ -4,12 +4,13 @@ import {mkdtemp,writeFile,copyFile,readFile,mkdir,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {createServer} from 'node:net';
+import {createServer,createConnection} from 'node:net';
+import {createServer as createHTTPServer} from 'node:http';
 const core=process.env.CORVINT_CORE_BIN,observer=process.env.CORVINT_FLOW_BIN;
 if(!core||!observer)throw Error('compiled binaries required');
 const assets=fileURLToPath(new URL('..',import.meta.url)),fixture=fileURLToPath(new URL('./navigation-fixture/',import.meta.url));
-const children=new Set(),servers=new Set(),directories=[];let interrupted=false;
-const stop=()=>{interrupted=true;for(const c of children)c.kill('SIGTERM');for(const server of servers)server.close();};
+const children=new Set(),servers=new Set(),sockets=new Set(),directories=[];let interrupted=false;
+const stop=()=>{interrupted=true;for(const c of children)c.kill('SIGTERM');for(const socket of sockets)socket.destroy();for(const server of servers)server.close();};
 process.once('SIGINT',stop);process.once('SIGTERM',stop);process.on('exit',stop);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function run(command,args,cwd){return new Promise((resolve,reject)=>{
@@ -20,13 +21,13 @@ function run(command,args,cwd){return new Promise((resolve,reject)=>{
  c.once('error',reject);c.once('close',code=>{clearTimeout(timer);children.delete(c);resolve({code,out,err});});
  });}
 const commit=root=>execFileSync('git',['-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qam','fixture'],{cwd:root,stdio:'ignore'});
-async function prepare({mode='good',effect='write-irreversible',origin=true}={}){
+async function prepare({mode='good',effect='write-irreversible',origin=true,externalOrigin='http://127.0.0.1:1'}={}){
  const root=await mkdtemp(join(tmpdir(),'corvint-navigation-'));directories.push(root);
  await mkdir(join(root,'flows'));await mkdir(join(root,'execution'));
  for(const f of ['server.cjs','index.html'])await copyFile(join(fixture,f),join(root,f));
  await writeFile(join(root,'flow.spec.ts'),"test('fixture', async () => {});\n");
  const server=createServer();servers.add(server);await new Promise(r=>server.listen(0,'127.0.0.1',r));const port=server.address().port;await new Promise(r=>server.close(r));servers.delete(server);
- const manifest={profile:'application-flow-intent/0',application:'fixture',origin:`http://127.0.0.1:${port}`,sources:['index.html','server.cjs'],tests:['flow.spec.ts'],backendSource:'server.cjs',fixture:'navigation',identityPath:'/identity',resetPath:'/reset',server:[process.execPath,'server.cjs',String(port),mode],scenarios:[{id:'unused',role:'editor',path:'/',basis:'declared',actions:[],checks:[{id:'unused',kind:'visible',selector:'#unused',want:true}]}]};
+ const manifest={profile:'application-flow-intent/0',application:'fixture',origin:`http://127.0.0.1:${port}`,sources:['index.html','server.cjs'],tests:['flow.spec.ts'],backendSource:'server.cjs',fixture:'navigation',identityPath:'/identity',resetPath:'/reset',server:[process.execPath,'server.cjs',String(port),mode,externalOrigin],scenarios:[{id:'unused',role:'editor',path:'/',basis:'declared',actions:[],checks:[{id:'unused',kind:'visible',selector:'#unused',want:true}]}]};
  const ids=['open','fill','save'],expected=['ready','filled','saved'];
  const flow={schema:'application-flow-intent/1',flow_id:'save-item',revision:1,kind:'ui',actor:'editor',preconditions:[],steps:ids.map(step_id=>({step_id,action:'Prose is never executed'})),outcomes:expected.map(outcome_id=>({outcome_id,behavior:'Declared fixture outcome',matcher:'toBeVisible',locator:'#declared',value:'visible'})),variations:[{variation_id:'happy',preconditions:[],steps:ids,observable_facts:['saved'],outcomes:expected,projects:['chromium']}],links:[],navigation:{precondition_flows:[],steps:ids.map((step_id,i)=>({step_id,state:'/',locator:i===1?{role:'textbox',name:'Item'}:{test_id:i===0?'ready':'save'},ready:{test_id:'ready'},...(i===1?{input_fixture:'item'}:{}),expect:[expected[i]],effect:i===2?effect:'read'}))}};
  const execution={schema:'application-navigation-execution-input/0',steps:ids.map((step_id,i)=>({flow_id:'save-item',step_id,operation:['navigate','fill','click'][i],observations:[{outcome_id:expected[i],condition:'visible',locator:{test_id:i===2?'saved':'ready'}}]}))};
@@ -66,7 +67,24 @@ async function interrupt(f,signal){
   return owned.length;
  }finally{child.kill('SIGTERM');await done;}
 }
+async function sentinel(){
+ let http=0,upgrade=0;
+ const server=createHTTPServer((_req,res)=>{http++;res.writeHead(200,{'access-control-allow-origin':'*'});res.end('sentinel');});
+ servers.add(server);server.on('connection',socket=>{sockets.add(socket);socket.once('close',()=>sockets.delete(socket));});
+ server.on('upgrade',(_request,socket)=>{upgrade++;socket.destroy();});
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));const port=server.address().port,origin=`http://127.0.0.1:${port}`;
+ assert.equal(await (await fetch(origin+'/calibrate')).text(),'sentinel');
+ await new Promise((resolve,reject)=>{
+  const socket=createConnection(port,'127.0.0.1');sockets.add(socket);
+  const timer=setTimeout(()=>{socket.destroy();reject(Error('sentinel upgrade calibration timeout'));},1000);
+  socket.once('connect',()=>socket.write('GET /calibrate HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n'));
+  socket.once('error',reject);socket.once('close',()=>{clearTimeout(timer);sockets.delete(socket);resolve();});
+ });
+ assert.equal(http,1);assert.equal(upgrade,1);http=0;upgrade=0;
+ return {origin,counts:()=>({http,upgrade})};
+}
 try {
+ const external=await sentinel();
  const good=await prepare();await packet(good.root);
  const result=await run(observer,args(good.root),good.root);assert.equal(result.code,0,result.err+' '+result.out);
  const receipt=JSON.parse(result.out);assert.equal(receipt.status,'passed');assert.equal(receipt.steps.length,3);assert.equal(receipt.cleanup,true);assert.deepEqual(await writes(good.root),['/write']);assert.ok(!result.out.includes('private-navigation-value'));
@@ -82,11 +100,16 @@ try {
   await packet(f.root);const r=await run(observer,args(f.root),f.root);assert.equal(r.code,2,r.out);assert.deepEqual(await writes(f.root),[]);cases.push('origin-'+mode);
  }
  for(const mode of ['background','redirect','cross','websocket']){
-  const f=await prepare({mode,effect:'read'});await packet(f.root,'read');const r=await run(observer,args(f.root,'read'),f.root);assert.equal(r.code,1,r.err+' '+r.out);assert.deepEqual(await writes(f.root),[]);cases.push(mode+'-blocked');
+  const f=await prepare({mode,effect:'read',externalOrigin:external.origin});await packet(f.root,'read');const r=await run(observer,args(f.root,'read'),f.root);assert.equal(r.code,1,r.err+' '+r.out);assert.deepEqual(await writes(f.root),[]);assert.deepEqual(external.counts(),{http:0,upgrade:0},mode+' escaped before refusal');cases.push(mode+'-blocked');
  }
  for(const target of ['form','direct']){
   const f=await prepare({effect:'read'});f.flow.navigation.steps[2].locator={test_id:target};await update(f);await packet(f.root,'read');
   const r=await run(observer,args(f.root,'read'),f.root);assert.equal(r.code,1,r.err+' '+r.out);assert.deepEqual(await writes(f.root),[]);cases.push('get-'+target+'-blocked');
+ }
+ for(const [mode,byRole,expectedCode] of [['good',false,0],['good',true,0],['hidden-remove',false,1],['hidden-missing',false,1]]){
+  const f=await prepare({mode});f.execution.steps[2].observations=[{outcome_id:'saved',condition:'hidden',locator:byRole?{role:'button',name:'Hidden status'}:{test_id:'hidden-target'}}];
+  await update(f);await packet(f.root);const r=await run(observer,args(f.root),f.root);assert.equal(r.code,expectedCode,r.err+' '+r.out);
+  cases.push('hidden-'+mode+(byRole?'-role':'-test-id'));
  }
  const recovered=await prepare({mode:'recover'});
  recovered.flow.steps.push({step_id:'recover',action:'Recovery prose'});
@@ -102,5 +125,5 @@ try {
  const unknown=await prepare();await packet(unknown.root);await writeFile(join(unknown.root,'fixtures.json'),'{}');const missing=await run(observer,args(unknown.root),unknown.root);assert.equal(missing.code,2);assert.deepEqual(await writes(unknown.root),[]);cases.push('unknown-fixture');
  const slow=await prepare({mode:'slow'});await packet(slow.root);
  const cleanup={};for(const signal of ['SIGINT','SIGTERM','timeout'])cleanup[signal]=await interrupt(slow,signal);
- console.log(JSON.stringify({navigation:'PASS',cases,cleanup}));
+ console.log(JSON.stringify({navigation:'PASS',cases,externalAttempts:external.counts(),cleanup}));
 }finally{stop();await Promise.all([...children].map(c=>new Promise(r=>c.once('close',r))));for(const d of directories)await rm(d,{recursive:true,force:true});}

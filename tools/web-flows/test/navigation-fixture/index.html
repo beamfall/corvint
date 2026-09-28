@@ -3,15 +3,19 @@
 <button data-testid="save" type="button">Save</button><div data-testid="saved" hidden>Saved</div>
 <form action="/write" method="get"><button type="submit" data-testid="form">Form</button></form>
 <button data-testid="direct" type="button">Direct</button><div data-testid="recovered">Recovered</div>
+<button data-testid="hidden-target" aria-label="Hidden status" hidden>Hidden</button>
 <script>
 const mode='FIXTURE_MODE';
 if(mode==='not-ready')document.querySelector('[data-testid=ready]').hidden=true;
+if(mode==='hidden-remove'){const target=document.querySelector('[data-testid=hidden-target]');target.hidden=false;target.setAttribute('aria-label','Hidden status');}
+if(mode==='hidden-missing')document.querySelector('[data-testid=hidden-target]').remove();
 if(mode==='background')fetch('/write',{method:'POST'});
 document.querySelector('[data-testid=save]').onclick=async()=>{
+ if(mode==='hidden-remove'){setTimeout(()=>document.querySelector('[data-testid=hidden-target]').remove(),150);return;}
  if(mode==='slow')return new Promise(()=>{});
  if(mode==='redirect'){await fetch('/redirect');return;}
- if(mode==='cross'){await fetch('http://127.0.0.1:9/outside');return;}
- if(mode==='websocket'){new WebSocket('ws://127.0.0.1:9/outside');return;}
+ if(mode==='cross'){await fetch('FOREIGN_ORIGIN/outside');return;}
+ if(mode==='websocket'){new WebSocket('FOREIGN_ORIGIN/outside'.replace('http:','ws:'));return;}
  if(mode==='recover')return;
  const response=await fetch('/write',{method:'POST',body:document.querySelector('[data-testid=item]').value});
  if(response.ok)document.querySelector('[data-testid=saved]').hidden=false;

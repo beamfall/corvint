@@ -38,3 +38,10 @@ Enrollment accepts only the base-present AFU-V1 contract; the new profile is pro
 not retroactively accepted authority. Initial dogfood change retained missing CEM/intent-scope and
 outcome inputs as NOT_PRODUCED. Native task completion, full release gate and integration remain
 root-owned. No API observer or AFU-V1-014 per-test LOCALLY_OBSERVED claim is made.
+
+Independent review of c10b676 found no HIGH and two MED findings. Repair1 makes hidden assertions
+include hidden role/name targets and recheck exact-one/non-visible after the wait; removal and
+missing-target browser negatives accompany positive test-ID and role/name cases. The external
+traffic negatives now use an owned listening HTTP/WebSocket-upgrade sentinel, calibrate both
+listeners, and assert zero dispatch. All three enrolled checks passed before these repairs; only
+invalidated browser qualification is rerun for the new candidate. Root owns final review/closure.

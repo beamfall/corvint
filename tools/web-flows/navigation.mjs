@@ -8,13 +8,14 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const MAX=5*1024*1024;
 async function input(){const chunks=[];let size=0;for await(const c of process.stdin){size+=c.length;if(size>MAX+65536)throw Error('input-budget');chunks.push(c);}return JSON.parse(Buffer.concat(chunks));}
 async function body(response,max=MAX){const chunks=[];let size=0;for await(const c of response.body??[]){size+=c.length;if(size>max)throw Error('response-budget');chunks.push(c);}return Buffer.concat(chunks);}
-const locator=(page,l)=>l.test_id?page.getByTestId(l.test_id):page.getByRole(l.role,{name:l.name,exact:true});
+const locator=(page,l,includeHidden=false)=>l.test_id?page.getByTestId(l.test_id):page.getByRole(l.role,{name:l.name,exact:true,includeHidden});
 async function visible(page,l,condition='visible'){
- const target=locator(page,l);
+ const target=locator(page,l,condition==='hidden');
  // A missing hidden target is unknown rather than evidence of the expected state.
  await target.waitFor({state:'attached',timeout:1200});
  if(await target.count()!==1)throw Error('ambiguous-locator');
  await target.waitFor({state:condition,timeout:1200});
+ if(condition==='hidden' && (await target.count()!==1 || await target.isVisible()))throw Error('hidden-target-unobserved');
 }
 async function main(){
  const incoming=await input();
