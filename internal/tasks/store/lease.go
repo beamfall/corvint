@@ -21,7 +21,7 @@ import (
 // ScopeDeriver is the CAL-V0-022 derivation: the paths a ticket's title and
 // body touch at baseTree, the SHA-256 of the derivation's inputs, and
 // ok=false when the index is absent, stale or abstains. It runs in process
-// under the store lock and must not write outside the task store.
+// before the store lock and must not write outside the task store.
 type ScopeDeriver func(ctx context.Context, root, baseTree, title, body string) (paths []string, inputSha256 string, ok bool)
 
 // NoScopeDeriver always abstains, so an undeclared claim is WHOLE_REPOSITORY.
@@ -39,7 +39,7 @@ type LeaseChoice struct {
 }
 
 // claimObserver computes the claim facts from the audit taken under the
-// write lock.
+// optimistic observation.
 type claimObserver func(*journal.Result, *transaction.Input) (transaction.LeaseFacts, error)
 
 // Lease commits one lease command. A claim or reap survey the model answers

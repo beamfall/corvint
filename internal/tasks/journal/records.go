@@ -174,7 +174,7 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 				}
 			}
 			canonical[p.Path] = latest{seq: rc.Seq, digest: p.Sha256, pendingPre: rc.Pre[j].Sha256, pending: seq > headSeq}
-			if selected[p.Path] {
+			if selected[p.Path] || (r.writerCache && writerRecord(p.Path)) {
 				old := result.Records[p.Path]
 				selectedBytes -= len(old.Raw)
 				if len(post) > lim.selected-selectedBytes {
@@ -210,8 +210,13 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 	if result.SemanticCoverage != "UNKNOWN" {
 		result.SemanticCoverage = "KNOWN_CODECS"
 	}
-	if err := r.projections(o, canonical, checkIntent); err != nil {
+	if err := r.projections(o, canonical, checkIntent && !r.writerCache); err != nil {
 		return result, err
+	}
+	if r.writerCache {
+		onlyIntent := r
+		onlyIntent.intentOnly = true
+		result.IntentError = onlyIntent.projections(o, canonical, true)
 	}
 	if o.head == nil {
 		if err := r.validateStage(o, genesisQueue); err != nil {
@@ -219,6 +224,9 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 		}
 	}
 	result.ProjectionAgreement = "AGREES"
+	if r.writerCache && result.IntentError != nil {
+		result.ProjectionAgreement = "PRIVATE_AGREES_INTENT_NOT_OBSERVED"
+	}
 	if r.divergentIntent != "" {
 		result.ProjectionAgreement = "ALL_EXCEPT_TARGET_AGREE"
 	}
@@ -229,10 +237,17 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 		result.ProjectionAgreement = "PRIVATE_AGREES_INTENT_NOT_OBSERVED"
 	}
 	if result.Pending {
+		if result.IntentError != nil {
+			return result, result.IntentError
+		}
 		result.ProjectionAgreement = "PRE_OR_POST"
 		return result, wire.Errorf(wire.CodeRedoPending, "receipts", "one fully validated linked receipt awaits head projection; no redo performed")
 	}
 	return result, nil
+}
+
+func writerRecord(path string) bool {
+	return strings.HasPrefix(path, "intent/") || strings.HasPrefix(path, "requests/") || strings.HasPrefix(path, "attempts/") || path == "reservations.json" || path == "barrier.json"
 }
 
 func (r Reader) postBytes(p snapshot.PostEntry) ([]byte, error) {
@@ -430,6 +445,9 @@ func checkScope(v wire.Value, q wire.QueueID) error {
 
 func (r Reader) projections(o *observation, canonical map[string]latest, checkIntent bool) error {
 	for p, record := range canonical {
+		if r.intentOnly && !strings.HasPrefix(p, "intent/") {
+			continue
+		}
 		if r.unpauseTickets && strings.HasPrefix(p, "intent/tickets/") {
 			info, present := o.files[p]
 			if !present || !info.Mode().IsRegular() {
@@ -469,6 +487,9 @@ func (r Reader) projections(o *observation, canonical map[string]latest, checkIn
 		return wire.Errorf(code, p, "projection differs from latest canonical afterimage")
 	}
 	for p, info := range o.files {
+		if r.intentOnly && !strings.HasPrefix(p, "intent/") {
+			continue
+		}
 		if !checkIntent && strings.HasPrefix(p, "intent/") {
 			continue
 		}

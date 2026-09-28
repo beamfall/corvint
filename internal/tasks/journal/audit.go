@@ -43,8 +43,11 @@ type Result struct {
 	Liveness              string
 	RuntimeQualification  string
 	Records               map[string]Record
-	request               *snapshot.Request
-	requestTicket         string
+	// IntentError is populated only by AuditForWrite. Private consistency is
+	// still mandatory; stable intent divergence permits request replay only.
+	IntentError   error
+	request       *snapshot.Request
+	requestTicket string
 }
 
 // Reader always streams receipt bytes, retaining only bounded path/digest
@@ -56,6 +59,16 @@ type Reader struct {
 	afterCapture    func() // deterministic capture/body boundary witness
 	divergentIntent string // set only on a value copy by Reconciliation
 	unpauseTickets  bool   // set only on a value copy by BarrierRemoval
+	writerCache     bool
+	intentOnly      bool
+}
+
+// AuditForWrite carries one verified snapshot through request lookup and
+// planning. It retains canonical mutable records and request afterimages,
+// with the same aggregate bound as selected Audit records. It writes nothing.
+func (r Reader) AuditForWrite() (*Result, error) {
+	r.writerCache = true
+	return r.Audit()
 }
 
 type limits struct{ scan, selected int }
