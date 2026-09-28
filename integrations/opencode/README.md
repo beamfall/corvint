@@ -1,6 +1,6 @@
 # Corvint for OpenCode
 
-Version 0.5.0 targets unmodified OpenCode 2.0.18. It supplies awaited task context, on-demand
+Version 0.6.0 targets unmodified OpenCode 2.0.18. It supplies awaited task context, on-demand
 query and exact source expansion, edit/evidence/verification observations, explicit outcomes, and
 compaction recovery from current Git state. OpenCode 1.x requires the older 0.2.9 adapter.
 
@@ -27,18 +27,31 @@ without asking a model. The panel also accepts these keys:
 
 | Key | Action |
 | --- | --- |
-| Up / Down | Select an evidence location |
-| Enter | Open its pinned source through Core |
-| g | Show gaps, limitations and receipt identities |
+| Up / Down | Select evidence in the list, scroll in the source/details pane |
+| Enter / click a location | Open its pinned source through Core |
+| Tab | Switch between evidence and source without losing selection |
+| / | Find evidence by file, symbol, reason or authority |
+| x | Clear the filter and return to the list |
+| Page Up / Page Down | Move through evidence or scroll a page |
+| Left / Right | Scroll long source lines horizontally |
+| h | Enable host syntax highlighting (may download a language parser), or return to plain text |
+| l | Return to the cited source line |
+| g | Show gaps and limitations |
+| i | Show the full inclusion reason, summary and immutable identities |
 | r | Request context for an explicit task |
-| f | Switch between side panel and full-screen when space permits |
+| f | Toggle full-screen; wide panels show evidence beside source |
 | Escape | Close the panel |
 
 Each location shows its inclusion reason, authority and confidence. The source reader preserves
 Core's tree/blob verification. Control characters are escaped for display. Freshness describes the
 last observation; this UI does not continuously check Git. Observed edits or compaction mark the
-view stale until another context request. Missing/unsupported evidence stays visible. Scrolling
-uses the host's native scroll area; a narrow terminal uses the full-screen panel.
+view stale until another context request. Missing/unsupported evidence stays visible. Source uses native line numbers and a cited-line marker. Plain rendering is immediate and requests
+no syntax parser. Press h or click Enable syntax to opt into OpenCode highlighting for this panel;
+the host may download missing language parsers. Source text is parsed locally.
+Unrecognized languages stay readable as plain text. Long lines scroll horizontally to preserve
+line alignment. At 96 or more panel columns the list stays beside the source; compact panels use
+Evidence/Source/Gaps/Details views. Theme colors always have text labels. Selection survives
+receipt reorder, while source is cleared when its receipt or observed state changes.
 
 The view is bounded and held in memory, with no receipt or prompt journal. Its RPC runs through the
 existing OpenCode server and inherits that server's client trust boundary. The terminal plugin

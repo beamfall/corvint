@@ -61,3 +61,36 @@ test("AHI-033 RPC has a closed bounded request surface and no execution or persi
   }
   assert.equal(INSPECTOR_RPC.methods.expand.input.properties.handle.maxLength, 1024)
 })
+
+import { evidenceKey, filterEvidence, selectedEvidence, evidenceStatus, sourceDocument } from "./src/inspector-view.js"
+
+test("AHI-033 filtering matches each term across evidence fields without changing order or handles", () => {
+  const a = projectReceipt(receipt(), [handle]).rows[0]
+  const b = { ...a, path: "parser/scan.go", title: "Scan", reason: "Governing requirement", authority: "project-spec" }
+  assert.deepEqual(filterEvidence([a, b], "PARSER requirement"), [b])
+  assert.deepEqual(filterEvidence([a, b], "no such evidence"), [])
+  assert.deepEqual(filterEvidence([a, b], ""), [a, b])
+  assert.equal(b.handle, handle)
+})
+test("AHI-033 selection identifies distinct citations in one file and survives reorder", () => {
+  const a = projectReceipt(receipt(), [handle]).rows[0], b = { ...a, line: 12 }
+  assert.notEqual(evidenceKey(a), evidenceKey(b))
+  assert.equal(selectedEvidence([b, a], evidenceKey(a)), a)
+  assert.equal(selectedEvidence([b], evidenceKey(a)), b)
+  assert.equal(selectedEvidence([], evidenceKey(a)), undefined)
+})
+test("AHI-033 source presentation preserves line mapping, CRLF, hostile text and unknown file types", () => {
+  const doc = sourceDocument('first\r\n\t\x1b[31msecond\u202e\nlast\n', 'example.go', 2)
+  assert.equal(doc.lineCount, 3); assert.equal(doc.citation, 2); assert.equal(doc.filetype, 'go')
+  assert.equal(doc.content, 'first\n\\u0009\\u001b[31msecond\\u202e\nlast')
+  for (const n of [0,-1,4,NaN,undefined]) assert.equal(sourceDocument('one\ntwo\nthree', 'file.unknown', n).citation, null)
+  assert.equal(sourceDocument('', 'file.unknown', 1).lineCount, 0)
+  assert.equal(sourceDocument('text', 'file.unknown', 1).filetype, undefined)
+})
+test("AHI-033 state labels keep freshness and recovery explicit without inventing success", () => {
+  assert.equal(evidenceStatus({state:'stale'}).tone, 'warning')
+  assert.match(evidenceStatus({state:'stale'}).action, /fresh context/)
+  assert.equal(evidenceStatus({state:'unavailable'}).tone, 'error')
+  assert.equal(evidenceStatus({state:'ready'}).label, 'Ready')
+  assert.notEqual(evidenceStatus({state:'ready'}).tone, 'success')
+})

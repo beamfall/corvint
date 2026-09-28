@@ -617,9 +617,27 @@ do not reinterpret this Frontier result.
   Presentation MUST visibly escape terminal controls, invisible and bidi characters; exact source
   selectors remain unchanged. Repository text MUST NOT become markup, commands or instructions.
 
+  The owner requested a stronger terminal experience on 2026-09-28 after the first slice. The
+  browser MUST filter the supplied evidence by filename, symbol, reason or authority, preserve
+  distinct citation selection through receipt reorder, and provide explicit no-match recovery.
+  At wide panel widths it MUST show a scrollable evidence list beside details; compact terminals
+  MUST expose one pane at a time with visible return navigation. Source reading MUST show line
+  numbers, distinguish the cited line when valid, support keyboard scrolling and return-to-citation,
+  and use host syntax support only after an explicit per-panel opt-in that discloses possible
+  parser downloads. Default source reading MUST use plain rendering without requesting a parser. Presentation normalizes CRLF only;
+  escaped controls MUST preserve line mapping and out-of-range citations MUST be disclosed.
+  Host theme colors accompany text labels, never replace them. Query/search dialogs MUST isolate
+  inspector shortcuts and discard results if their captured session/location is no longer current.
+  Source caching is bounded to one expanded source in the mounted panel, invalidated by
+  session/location/receipt/state changes and removed on disposal; no panel history is persisted.
+  Pointer opening and visible actions MUST provide the same navigation as keyboard controls.
+
   Acceptance requires focused hostile-text/bounds/race/session tests and the real stock 2.0.18 TUI
   showing sidebar, context request, keyboard selection, pinned source and gap navigation at wide
-  and narrow terminal widths. The native witness MUST retain source identity and demonstrate
+  and narrow terminal widths, including short height, both theme modes, filtering/no-match recovery,
+  pointer opening, dialog focus isolation, source scrolling, citation alignment and source invalidation.
+  Acceptance uses current rendered frames, not accumulated terminal output. The native witness MUST
+  retain source identity and demonstrate
   interruption leaves no owned descendants. It is UI evidence only and MUST NOT promote AHI-032
   integration support or execution authority. Failure leaves coding available with an explicit
   unavailable state. Rollback removes `src/tui.tsx`, the inspector RPC/view and its package export,
