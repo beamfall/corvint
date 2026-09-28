@@ -7,7 +7,7 @@ import {tmpdir} from 'node:os';
 import {dirname,join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {run,ownNativeGroup} from './process.mjs';
-import {readSettings,guardAuth,guardedAuthBackend,createCredentials,parseArguments} from './settings.mjs';
+import {readSettings,mergeSettings,guardAuth,guardedAuthBackend,createCredentials,parseArguments} from './settings.mjs';
 const here=dirname(fileURLToPath(import.meta.url)),root=resolve(here,'../..');
 const binary=join(here,'build/release/pi-protected');
 
@@ -21,6 +21,9 @@ test('PPI-V0-003 configuration rejects executable resources and shell credential
    writeFileSync(file,JSON.stringify(value));assert.throws(()=>readSettings(file));
   }
   writeFileSync(file,'{"theme":"dark","theme":"light"}');assert.throws(()=>readSettings(file));
+  assert.equal(mergeSettings(valid,{mode:'rpc',model:'other'}).model,'other');
+  assert.throws(()=>mergeSettings(valid,{provider:'anthropic'}),/endpoint-provider-override/);
+  assert.equal(mergeSettings({provider:'fixture',model:'fixture'},{provider:'anthropic'}).provider,'anthropic');
   assert.throws(()=>guardAuth('{"fixture":{"type":"api_key","key":"!echo bad"}}'));
   assert.equal(guardAuth('{"fixture":{"type":"api_key","key":"literal"}}'),'{"fixture":{"type":"api_key","key":"literal"}}');
   let written=false;

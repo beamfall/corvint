@@ -4,7 +4,7 @@
   "adapter": {
     "host": "codex",
     "surface": "plugin",
-    "version": "0.2.2"
+    "version": "0.2.3"
   },
   "host": {
     "minimumStaticallyValidatedVersion": "0.149.0",

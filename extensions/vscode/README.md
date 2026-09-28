@@ -16,7 +16,7 @@ matrix and promotion requirements are frozen in
 - VS Code desktop `1.95.0` or newer. Web and virtual workspaces are unsupported.
 - A trusted, file-backed workspace on macOS or Linux. Windows execution is unsupported in V0.
 - One separately installed Corvint engine in the workspace extension host:
-  - `cli` transport: an absolute `corvint` or `corvint` path,
+  - `cli` transport: an absolute `corvint` path,
     with the exact V0-admitted version token `1.0.0-rc.1` plus unchanged executable digest/identity
     (the token alone is not capability proof); or
   - `mcp-stdio` transport: an absolute `corvint-mcp` path implementing the experimental
@@ -110,7 +110,7 @@ qualification record before treating a host/platform tuple as supported.
 | Setting | Default | Meaning |
 |---|---:|---|
 | `corvint.transport` | `cli` | Exact local transport: `cli` or `mcp-stdio`; no fallback. |
-| `corvint.executablePath` | empty | Absolute `corvint` or `corvint` candidate for the CLI transport. |
+| `corvint.executablePath` | empty | Absolute `corvint` candidate for the CLI transport. |
 | `corvint.mcpExecutablePath` | empty | Absolute `corvint-mcp` candidate for MCP `2026-07-28` stdio. |
 | `corvint.testObservationPath` | empty | Contained workspace-relative observation file imported only on command. |
 | `corvint.maxOutputBytes` | `262144` | Complete stdout bound; range 4 KiB–1 MiB. |

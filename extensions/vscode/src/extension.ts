@@ -356,7 +356,7 @@ class CorvintRuntime implements vscode.Disposable {
       return;
     }
     const relationToRoot = path.relative(root, resolvedFile);
-    if (relationToRoot.startsWith("..") || path.isAbsolute(relationToRoot)) {
+    if (relationToRoot === ".." || relationToRoot.startsWith(`..${path.sep}`) || path.isAbsolute(relationToRoot)) {
       this.fail("Degraded", new Error("PATH_REJECTED: active file real path escapes the selected workspace"));
       return;
     }

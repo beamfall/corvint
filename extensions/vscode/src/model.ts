@@ -111,7 +111,7 @@ export function decodeContextReceipt(
   snapshotBytes: Uint8Array,
 ): CorvintSnapshot {
   exactAllowedKeys(context, ["schema_version", "mode", "request", "revision", "freshness", "state", "results", "exclusions", "verification", "coverage"],
-    operation === "query" ? ["abstention", "intent", "learning"] : [], "context");
+    operation === "query" ? ["abstention", "intent", "learning", "unparsed", "extraction"] : ["unparsed", "extraction"], "context");
   if (context.schema_version !== 1 || string(context.mode, "context.mode", 16) !== operation) {
     throw new Error("UNSUPPORTED_PROFILE: only Corvint context schema_version 1 is supported");
   }
@@ -148,6 +148,14 @@ export function decodeContextReceipt(
   const exclusionCount = integer(exclusions.count, "context.exclusions.count", 1_000_000);
   if (exclusionCount > 0) {
     uncertainty.push(`Excluded source count: ${exclusionCount}`);
+  }
+  if (context.unparsed !== undefined) {
+    const unparsedCount = integer(object(context.unparsed, "context.unparsed").count, "context.unparsed.count", 1_000_000);
+    uncertainty.push(`Unparsed source count: ${unparsedCount}`);
+  }
+  if (context.extraction !== undefined) {
+    const extractionCount = integer(object(context.extraction, "context.extraction").count, "context.extraction.count", 1_000_000);
+    uncertainty.push(`Incomplete extraction count: ${extractionCount}`);
   }
   if (context.abstention !== undefined) {
     const abstention = object(context.abstention, "context.abstention");
@@ -496,7 +504,10 @@ function validateEchoedRequest(
   if (typeof expected === "string") {
     throw new Error("INVALID_JSON: impact expectation is invalid");
   }
-  exactKeys(request, ["limit", "paths"], "context.request");
+  exactAllowedKeys(request, ["limit", "paths"], ["budget_bytes"], "context.request");
+  if (request.budget_bytes !== undefined) {
+    integer(request.budget_bytes, "context.request.budget_bytes", 1_048_576, 1);
+  }
   const paths = stringArray(request.paths, "context.request.paths", 256, 4_096);
   if (request.limit !== 20 ||
     paths.length !== expected.length || paths.some((entry, index) => entry !== expected[index])) {

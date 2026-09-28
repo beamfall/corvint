@@ -134,7 +134,7 @@ above stands with that substitution.
   MAY leave partial bytes on stdout, so a consumer MUST read the exit status, never stdout
   emptiness, as the signal that no verdict was produced — the same exit-2 signal the harness
   gives for its own write failure (`cmd/corvint/main.go:1192-1194@f3b5fd7c`), which the adapter contract
-  converts into a visible host-valid no-op (`docs/specs/agent-harness-integration-v0.md:64-65`).
+  converts into a visible host-valid no-op (`docs/specs/agent-harness-integration-v0.md:68-69`).
   This clause's code list is also extended, under `--checkpoint` only, by the six codes FPK-V0-024
   enumerates: `unreadable-checkpoint-document`, `invalid-checkpoint-document`,
   `checkpoint-bound-exceeded`, `object-format-mismatch`, `unsupported-prove-index`, and

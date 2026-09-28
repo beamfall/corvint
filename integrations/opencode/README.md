@@ -1,33 +1,38 @@
 # Corvint for OpenCode (developer preview)
 
 Support is `FALLBACK`. No OpenCode release has passed Corvint safe-frontier and continuation
-conformance. The adapter was written against the official `@opencode-ai/plugin` 1.18.21 API; this is
-an API reference, not a tested host-version claim. This preview runs only on macOS and Linux: it
+conformance. Version 0.3.0 targets the OpenCode 2 plugin API (`@opencode/plugin` 2.0.18) and no
+longer loads in OpenCode 1.x; use adapter 0.2.9 there. A development smoke run with OpenCode 2.0.18
+loaded the plugin and exercised its events, tools and edit hooks; that is not a tested host-version
+claim. This preview runs only on macOS and Linux: it
 uses a detached POSIX process group so timeout and interruption can kill and reap Corvint descendants.
 Windows is `UNSUPPORTED` until equivalent process-tree cleanup is implemented and tested.
 
 ## Install, discover, upgrade, disable, uninstall
 
-The package is not published to npm yet. From a Corvint checkout, run `npm install` in
-`integrations/opencode`, then use a local file URL in OpenCode's native `plugin` array:
+The package is not published to npm yet and has no runtime dependencies. From a Corvint checkout,
+add a `file://` URL for its `src` directory to OpenCode's `plugins` array:
 
 ```json
 {
-  "plugin": ["file:///absolute/path/to/corvint/integrations/opencode/src/index.js"]
+  "plugins": [
+    { "package": "file:///absolute/path/to/corvint/integrations/opencode/src", "options": {} }
+  ]
 }
 ```
 
-Replace the absolute path with your checkout. `opencode.example.json` uses this installable
-local-source form. Alternatively, put a loader in `.opencode/plugins/corvint.js` that exports
-`{ CorvintPlugin }` from that same absolute source path. Use one discovery method to avoid
-registering the adapter twice. Upgrade by updating the checkout and reinstalling its dependencies.
-Disable or uninstall by removing the plugin entry or loader; remove the checkout only when it is
-no longer needed.
+Replace the absolute path with your checkout. `opencode.example.json` uses this local-source form;
+a plain string entry works when no options are needed. OpenCode 2.0.18 loads a local entry only
+from a directory, through its `server.js` or `index.js`: an entry naming `src/index.js` itself is
+skipped with the warning "configured plugin path must be a directory", and one naming
+`integrations/opencode` is dropped without a message. Configure the adapter once to avoid registering it
+twice. Upgrade by updating the checkout. Disable or uninstall by removing the `plugins` entry;
+remove the checkout only when it is no longer needed.
 
 ## MCP servers
 
 MCP servers are configured separately from the lifecycle plugin. Copy the entries from
-`mcp.example.json` into the `mcp` object in `opencode.json`, replacing executable and repository
+`mcp.example.json` into the `mcp.servers` object in `opencode.json`, replacing executable and repository
 paths. Each command needs its own absolute repository root. The strict MCP profile currently
 requires a repository with a `.git` directory; linked Git worktrees are not admitted.
 
@@ -48,8 +53,8 @@ docs servers built from this checkout and completed one call per tool through th
 clients send `notifications/cancelled` after each completed call, which the server ignores. These
 probes are transport evidence only, not a host-version support claim.
 The optional docs and experimental corpus servers accept the same selector, but remain separately
-configured companions with their existing prerequisites. Disabling a server uses `enabled: false`;
-uninstalling it removes its `mcp` entry.
+configured companions with their existing prerequisites. Disabling a server uses `disabled: true`;
+uninstalling it removes its `mcp.servers` entry.
 
 See the [MCP transport contract](../../docs/specs/mcp-server-2026-07-28-v0.md) for the exact
 supported profiles, recorded host probes and remaining qualification boundaries.
@@ -70,7 +75,7 @@ prerequisites for ordinary code context and test evidence.
 
 ## Lifecycle options
 
-Corvint must be available as the `corvint` executable. Package options may set `corvintBinary`,
+Corvint must be available as the `corvint` executable. Plugin `options` may set `corvintBinary`,
 `hostVersion`, `automaticTimeoutMs`, `queryTimeoutMs`, and `enableBetaContext`; equivalent explicit
 environment settings are `CORVINT_BIN`, `CORVINT_OPENCODE_HOST_VERSION`,
 `CORVINT_OPENCODE_TIMEOUT_MS`, `CORVINT_OPENCODE_QUERY_TIMEOUT_MS`, and
@@ -78,7 +83,8 @@ environment settings are `CORVINT_BIN`, `CORVINT_OPENCODE_HOST_VERSION`,
 receives only a small non-secret environment allowlist.
 
 Explicit `corvintBinary`, `hostVersion`, `automaticTimeoutMs`, and `queryTimeoutMs` options take
-precedence over the ambient `CORVINT_BIN` and `CORVINT_OPENCODE_*` variables.
+precedence over the ambient `CORVINT_BIN` and `CORVINT_OPENCODE_*` variables. Without a `hostVersion`
+option the version OpenCode reports to the plugin is used, then `CORVINT_OPENCODE_HOST_VERSION`.
 
 Automatic events and explicit context queries default to 2,000 ms. Automatic overrides accept
 integers from 25 to 2,000 ms; query overrides accept 25 to 10,000 ms. Invalid values use the default.
@@ -86,14 +92,17 @@ These are complete-command deadlines, separate from latency targets. A timeout w
 the applied deadline; it does not diagnose the underlying cause. `FALLBACK` also appears on successful
 receipts when authoritative frontier evidence is unavailable, so inspect `ok` and the named code.
 
-Stable `session.created`, `session.idle`, `session.deleted`, and `file.edited` events plus
-`tool.execute.after` are translated to `corvint harness event`. Raw session IDs are hashed; raw
-prompts, transcripts, tool arguments, tool output, and environment maps are never sent. The
-adapter serializes `file.edited` subprocesses and coalesces duplicate paths for one session so an
-editor burst cannot overlap Corvint invocations. An `unsupported-impact-path-suffix` or
-`unsupported-impact-repository` refusal from that best-effort event keeps its structured code in
-OpenCode's log instead of becoming a terminal warning. Opened in a directory outside any Git
-repository, the plugin registers no hooks or tools and runs no Corvint command (decision 0378). The
+The `session.created`, `session.execution.succeeded`, `session.execution.failed`, `session.idle`
+and `session.deleted` events and the tool `execute.after` hook are translated to
+`corvint harness event`. Raw session IDs are hashed; raw prompts, transcripts, tool arguments, tool
+output, and environment maps are never sent. A completed built-in `write`, `edit` or `patch` call
+reports its target files as a session-scoped `file-change`; the adapter serializes those
+subprocesses and coalesces duplicate paths for one session so an edit burst cannot overlap Corvint
+invocations. An `unsupported-impact-path-suffix` or `unsupported-impact-repository` refusal from that
+best-effort event is recorded at info level instead of as a warning. Opened in a directory outside
+any Git repository, the plugin registers no hooks or tools and runs no Corvint command (decision
+0378). OpenCode 2 exposes plugin tools to the model through its code-mode `execute` tool; that outer
+call is not reported, its inner tool calls are. The
 `corvint_context` tool is the only prompt-bearing path and requires an explicit task. A task over the
 2,000-character/16,384-byte bound is served by its disclosed anchor query (`AHI-016`) or refused as
 `prompt-over-query-bound`, never truncated. Only the `metadata.corvint` namespace can contribute evidence handles or verification observations.
@@ -102,9 +111,10 @@ the caller also supplies a bounded task, changed paths, and closed-schema verifi
 The task is hashed locally; only `taskSha256` enters the non-persistent session-end receipt.
 
 The optional beta context hook is isolated in `src/beta-hooks.js`, disabled by default, bounded,
-receipt-linked, and injects only cached session-start context. Failures are reported with an
-`[corvint/opencode]` warning; a successful receipt's degradations and the expected session-eviction
-and stop-recursion guards go to OpenCode's log through `client.app.log` instead. Neither blocks
-unrelated OpenCode work. Corvint currently
-has no accepted authoritative stop decision: `session.idle` performs one guarded frontier check,
-does not continue or stop the host, and suppresses duplicate/recursive invocations.
+receipt-linked, and adds only the cached session-start context to each model request through the
+session `context` hook; it never runs Corvint itself. Failures are reported with an
+`[corvint/opencode]` `console.warn` line; a successful receipt's degradations and the expected
+session-eviction and stop-recursion guards use `console.info`. OpenCode 2 has no plugin log API, so
+both reach the OpenCode server log. Neither blocks unrelated OpenCode work. Corvint currently has no
+accepted authoritative stop decision: the end of a session execution performs one guarded frontier
+check, does not continue or stop the host, and suppresses duplicate/recursive invocations.

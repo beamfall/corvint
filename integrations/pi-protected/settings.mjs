@@ -25,6 +25,13 @@ export function readSettings(path) {
  }
  return data;
 }
+// mergeSettings lets the command line choose the model, but a configured endpoint stays bound to
+// its own provider: a different provider would carry that provider's stored credentials to it.
+export function mergeSettings(file,cli) {
+ const settings={...file,...Object.fromEntries(Object.entries(cli).filter(([k])=>['provider','model','thinkingLevel'].includes(k)))};
+ if(file.endpoint&&settings.provider!==file.provider)throw Error('endpoint-provider-override');
+ return settings;
+}
 export function guardAuth(raw) {
  if(raw===undefined)return raw;
  if(Buffer.byteLength(raw)>1048576)throw Error('protected-auth-bound');

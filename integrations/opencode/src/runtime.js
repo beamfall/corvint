@@ -338,34 +338,21 @@ function envelopeFault(value, event, hostVersion, input) {
 
 export function createCorvintRunner(options = {}) {
   const environment = options.environment ?? process.env
-  const binarySetting = { conflict: false, value: options.corvintBinary ?? environment.CORVINT_BIN }
-  const hostVersionSetting = { conflict: false, value: options.hostVersion ?? environment.CORVINT_OPENCODE_HOST_VERSION }
-  const automaticTimeoutSetting = { conflict: false, value: options.automaticTimeoutMs ?? environment.CORVINT_OPENCODE_TIMEOUT_MS }
-  const queryTimeoutSetting = { conflict: false, value: options.queryTimeoutMs ?? environment.CORVINT_OPENCODE_QUERY_TIMEOUT_MS }
-  const configurationConflict = [
-    binarySetting,
-    hostVersionSetting,
-    automaticTimeoutSetting,
-    queryTimeoutSetting,
-  ].some((setting) => setting.conflict)
-  const binary = executable(binarySetting.value)
-  const hostVersion = boundedToken(
-    hostVersionSetting.value,
-  )
+  const binary = executable(options.corvintBinary ?? environment.CORVINT_BIN)
+  const hostVersion = boundedToken(options.hostVersion ?? environment.CORVINT_OPENCODE_HOST_VERSION)
   const automaticTimeoutMs = boundedInteger(
-    automaticTimeoutSetting.value,
+    options.automaticTimeoutMs ?? environment.CORVINT_OPENCODE_TIMEOUT_MS,
     AUTOMATIC_TIMEOUT_MS,
     MAX_AUTOMATIC_TIMEOUT_MS,
   )
   const queryTimeoutMs = boundedInteger(
-    queryTimeoutSetting.value,
+    options.queryTimeoutMs ?? environment.CORVINT_OPENCODE_QUERY_TIMEOUT_MS,
     QUERY_TIMEOUT_MS,
     MAX_QUERY_TIMEOUT_MS,
   )
   const platform = options.platform ?? process.platform
 
   return async function runCorvint({ root, event, input, query = false, signal }) {
-    if (configurationConflict) return degradation(event, "corvint-config-conflict")
     if (platform === "win32") return degradation(event, "unsupported-process-tree-cleanup")
     let serialized
     try {

@@ -8,8 +8,9 @@ tree (version stamp; `hooks/hooks.json` replaced by the `prepare-qualified-hooks
 installed root release; `scripts/` omitted because the adapter lives in the root release). Add that
 marketplace with `codex plugin marketplace add ~/.local/share/corvint/codex-marketplace/corvint-full-candidate`,
 install with `codex plugin add corvint@corvint-full-candidate`, then review and trust its lifecycle hooks
-with `/hooks`. After a republish, upgrade with `codex plugin marketplace upgrade corvint-full-candidate`;
-disable or uninstall with `codex plugin remove corvint@corvint-full-candidate`. Removing the plugin
+with `/hooks`. After a republish, rerun `codex plugin add corvint@corvint-full-candidate`; `codex plugin
+marketplace upgrade` refuses a local marketplace (`is not configured as a Git marketplace`). Disable or
+uninstall with `codex plugin remove corvint@corvint-full-candidate`. Removing the plugin
 leaves Corvint repository data unchanged.
 
 To try the preview without that publish step, put `corvint` on `PATH` (see
@@ -35,8 +36,9 @@ Stop remediation; formal closing Frontier authority remains unavailable.
 
 The hook routes all four native events to `corvint`, including `UserPromptSubmit` and
 `SessionStart(source=compact)`. Prompt input is trimmed to the core's canonical task and carries
-only that task plus an optional session-ID hash. A missing Go binary emits a visible host-valid
-fallback and does not block unrelated coding; no event routes to a legacy runtime. Every runtime
+only that task plus an optional session-ID hash. A missing `corvint` binary makes the hook command
+exit 127, which Codex shows as a failed hook (`hook exited with code 127`) without blocking the event;
+no event routes to a legacy runtime. Every runtime
 response passes the separate `corvint-dogfood-event/0` full-result digest, adapter, event, repository,
 support-level, prompt-privacy and local-policy validation boundary before repository data is placed
 in the fixed untrusted-data envelope. The legacy `corvint-harness-event/0` CLI profile stays unchanged.
@@ -66,7 +68,7 @@ explicit count/digest gap rather than invented evidence. This restores repositor
 the adapter never reads Codex's transcript or persists prompt/model text, so decisions and other
 uncommitted task state remain an explicit gap.
 
-Tested source adapter version: `0.2.2`. The shipped compatibility metadata records Codex `0.149.0`
+Adapter version: `0.2.3`; the last tested source adapter version is `0.2.2`. The shipped compatibility metadata records Codex `0.149.0`
 static manifest validation, the state at package build. The published matrix
 (`../compatibility.json`) records the later installed-lifecycle PASS for Codex CLI `0.153.2` with
 adapter `0.2.2` on darwin-arm64 against Corvint 0.8.1. Every other host version, adapter version and
