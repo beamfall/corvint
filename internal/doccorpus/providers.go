@@ -40,6 +40,12 @@ func (c *compiler) importRecords(p Provider) error {
 	if err := decode(source.Data, &record); err != nil {
 		return err
 	}
+	if record.Schema == BehaviorProviderSchemaV2 {
+		if record.ID != p.ID || record.Version != p.Version || record.Source != c.manifest.Repository {
+			return fail("provider revision, version or repository mismatch")
+		}
+		return c.importBehaviorV2(record)
+	}
 	validSchema := record.Schema == ProviderSchema && record.BehaviorContracts == nil || record.Schema == BehaviorProviderSchema && record.BehaviorContracts != nil && record.BehaviorContracts.Stability == nil || record.Schema == BehaviorStabilityProviderSchema && record.BehaviorContracts != nil && record.BehaviorContracts.Stability != nil
 	if !validSchema || record.ID != p.ID || record.Version != p.Version || record.Source != c.manifest.Repository {
 		return fail("provider revision, version or repository mismatch")

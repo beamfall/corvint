@@ -41,8 +41,17 @@ One invocation has a 60-second global deadline, 2,048 contained Git operations, 
 limit, 64 MiB aggregate Git output, 8 MiB aggregate source blobs, 256 KiB per source, 4,096 inventory
 entries, 256 candidates, 16 evidence rows/candidate, 1,024 local refs in the full map, 16,384 target
 paths and 1 MiB final JSON. Overlarge immutable output or unsafe layout refuses; source omissions
-remain unknown. Unsupported syntax has no completeness claim. Index fields are currently omitted
-with state UNKNOWN/not-read. `unsupported-repository-guidance` includes dirty, drift, ancestry,
+remain unknown. Unsupported syntax has no completeness claim. Overview reads only an existing native snapshot and reports MATCHING with the captured commit/tree,
+or UNKNOWN with the native miss reason and an index omission. A missing matching filename cannot
+distinguish absent data, another tree or an unsupported engine; that combined reason stays explicit.
+Corrupt or unsupported bytes, unsafe layouts and unreadable stores remain UNKNOWN. No index is built.
+
+Markers use whole-line `feature:` or `scenario:` syntax, optionally in `//`, `#`, `--`, `/* */`,
+`*` or `<!-- -->` comments. Labels start with a letter or number and contain at most 120 characters
+from letters, numbers, spaces, underscore, dot, slash, parentheses and hyphen (also at most 120 bytes).
+Go markers come only from comment tokens; string literals cannot become markers. JSON/JSONL markers
+are excluded. Other formats retain this bounded heuristic, with no syntax-completeness claim.
+C++ suffixes include `.cpp`, `.cc`, `.cxx` and `.hpp`; `.h` is an explicit ambiguous-language omission. `unsupported-repository-guidance` includes dirty, drift, ancestry,
 layout, source, deadline and output refusal reasons. Rollback removes the three command routes and
 this advisory composition without changing explicit feature authority or existing gates.
 
@@ -62,8 +71,8 @@ Genesis Git containment retains the existing `TestDescendantCleanupOnCancellatio
 | RGV-V0-001 | TestRepositoryGuidanceCLIAndLiteralRegistration |
 | RGV-V0-002 | TestRepositoryGuidanceRefusalsDoNotObserve; TestRepositoryGuidanceRefBoundsAndDrift |
 | RGV-V0-003 | TestRepositoryGuidanceImmutableDiscovery |
-| RGV-V0-004 | TestRepositoryGuidanceCLIAndLiteralRegistration; TestRepositoryGuidanceCandidateAndOverlapBounds |
-| RGV-V0-005 | TestRepositoryGuidanceImmutableDiscovery |
+| RGV-V0-004 | TestRepositoryGuidanceCLIAndLiteralRegistration; TestRepositoryGuidanceCandidateAndOverlapBounds; TestRepositoryGuidanceMarkerBoundaries |
+| RGV-V0-005 | TestRepositoryGuidanceImmutableDiscovery; TestRepositoryGuidanceIndexFreshness; TestRepositoryGuidanceSourceSuffixes |
 | RGV-V0-006 | TestRepositoryGuidanceCLIAndLiteralRegistration |
 | RGV-V0-007 | TestRepositoryGuidanceReviewBranches; TestRepositoryGuidanceDeletedFeatureIsExplicitUnknown |
 | RGV-V0-008 | TestRepositoryGuidanceRefBoundsAndDrift; TestRepositoryGuidanceCandidateAndOverlapBounds |

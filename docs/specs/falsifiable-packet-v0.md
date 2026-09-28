@@ -119,7 +119,7 @@ above stands with that substitution.
   `loadContextSnapshot` seam (`cmd/corvint/taskcontext.go:240-247@73708428`), backed by `LoadContextSnapshotDeferred` and the private loader (`internal/contextindex/observed_build.go:42-49@d916a414`).
   The `cmd/corvint` seam does not cover `LoadEventSnapshot` or `ProbeSnapshot`, called directly by the harness and index paths (`cmd/corvint/harness_context.go:33-35@44bd361a`, `cmd/corvint/index_snapshot.go:118-119@9a7d60f2`); the harness calls `LoadEventSnapshotDeferred` there too.
   The load-bearing guard scans every non-test Go file in `cmd/corvint`, rejects direct `LoadSnapshot` or `LoadSnapshotDeferred` references outside their seam bindings, and additionally rejects `LoadEventSnapshot`, `LoadEventSnapshotDeferred` and `ProbeSnapshot` in `prove*` files
-  (`cmd/corvint/prove_checkpoint_test.go:704-771@0c2b29a4`); the counting test asserts the checkpoint run traverses neither dynamic seam
+  (`cmd/corvint/prove_checkpoint_test.go:704-771@54881720`); the counting test asserts the checkpoint run traverses neither dynamic seam
   (`cmd/corvint/prove_checkpoint_test.go:666-681@62a5f8d6`) (FPK-V0-024).
   End of accepted amendment.
 - **FPK-V0-008:** Failures MUST be typed and exit 2 with nothing on stdout: query compile errors
@@ -838,13 +838,13 @@ above stands with that substitution.
   index path calls `contextindex.ProbeSnapshot` directly
   (`cmd/corvint/index_snapshot.go:118-119@9a7d60f2`); none passes through the `cmd/corvint`
   `loadSnapshot` variables. Internally, `LoadEventSnapshot` reaches the private `loadSnapshot`
-  (`internal/contextindex/snapshot.go:589-612@cd5ffb8c`), while `ProbeSnapshot` opens and validates
-  the snapshot itself (`internal/contextindex/snapshot.go:544-587@7875d1d5`). A checkpoint compile
+  (`internal/contextindex/snapshot.go:617-640@cd5ffb8c`), while `ProbeSnapshot` delegates to `SnapshotFreshness`, which opens and validates
+  the snapshot (`internal/contextindex/snapshot.go:544-615@807ae8a9`). A checkpoint compile
   function written to call either would therefore register zero calls on the dynamic seam. The
   load-bearing source guard scans every non-test Go file in `cmd/corvint`, rejects direct
   `LoadSnapshot` or `LoadSnapshotDeferred` references outside their seam bindings, and additionally rejects `LoadEventSnapshot`,
-  `LoadEventSnapshotDeferred` or `ProbeSnapshot` references in `prove*` files
-  (`cmd/corvint/prove_checkpoint_test.go:704-771@0c2b29a4`). A separate test substitutes a counting
+  `LoadEventSnapshotDeferred`, `ProbeSnapshot` or `SnapshotFreshness` references in `prove*` files
+  (`cmd/corvint/prove_checkpoint_test.go:704-771@54881720`). A separate test substitutes a counting
   function for both dynamic seams and asserts zero calls during a `prove --checkpoint` run
   (`cmd/corvint/prove_checkpoint_test.go:666-681@62a5f8d6`), a secondary `LoadSnapshot`-specific
   check consistent with the guard but not a substitute for it. The

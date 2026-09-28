@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/scanner"
+	"go/token"
 	"io"
 	"os"
 	"path"
@@ -14,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/genesis"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -165,6 +168,22 @@ func compileGuidance(ctx context.Context, in guidanceInvocation, beforeCheck fun
 		return nil, err
 	}
 	receipt := discoverGuidance(snapshot, in.Command)
+	if in.Command == "overview" {
+		probe, reason, probeErr := contextindex.SnapshotFreshness(ctx, in.Root)
+		if probeErr != nil {
+			reason = "snapshot-read-failed"
+		}
+		receipt.Index = map[string]string{"state": "UNKNOWN", "reason": reason}
+		if reason == "matching" && probe.Commit == snapshot.Revision && probe.Tree == snapshot.Tree {
+			receipt.Index = map[string]string{"state": "MATCHING", "reason": "captured-tree", "revision": probe.Commit, "tree": probe.Tree}
+		} else {
+			if reason == "matching" {
+				receipt.Index["reason"] = "snapshot-revision-drift"
+			}
+			receipt.Omissions["index"] = 1
+			receipt.Unknown = append(receipt.Unknown, "index-derived fields omitted: "+receipt.Index["reason"])
+		}
+	}
 	refs := ""
 	if in.Command == "review" {
 		refs, err = snapshot.RefTips(ctx)
@@ -211,9 +230,9 @@ func compileGuidance(ctx context.Context, in guidanceInvocation, beforeCheck fun
 	return raw, nil
 }
 
-var guidanceMarkers = regexp.MustCompile(`(?i)\b(feature|scenario)\s*:\s*([^\r\n]{1,120})`)
+var guidanceMarkers = regexp.MustCompile(`(?i)^\s*(?://+|#|--|/\*+|\*|<!--)?\s*(feature|scenario)\s*:\s*([\p{L}\p{N}][\p{L}\p{N} _./()-]{0,119}?)\s*(?:\*/|-->)?\s*$`)
 var guidanceRegistrations = regexp.MustCompile(`\b(HandleFunc|Handle|Get|Post|Put|Delete|Patch|get|post|put|delete|patch|route|AddTool|addTool|registerTool|register_tool|tool)\s*\(\s*["']([^"'\r\n]{1,120})["']`)
-var guidanceLanguages = map[string]string{".go": "Go", ".js": "JavaScript", ".jsx": "JavaScript", ".ts": "TypeScript", ".tsx": "TypeScript", ".py": "Python", ".rb": "Ruby", ".rs": "Rust", ".java": "Java", ".kt": "Kotlin", ".swift": "Swift", ".cs": "C#", ".c": "C", ".cpp": "C++"}
+var guidanceLanguages = map[string]string{".go": "Go", ".js": "JavaScript", ".jsx": "JavaScript", ".ts": "TypeScript", ".tsx": "TypeScript", ".py": "Python", ".rb": "Ruby", ".rs": "Rust", ".java": "Java", ".kt": "Kotlin", ".swift": "Swift", ".cs": "C#", ".c": "C", ".cpp": "C++", ".cc": "C++", ".cxx": "C++", ".hpp": "C++"}
 var guidanceManifests = map[string]bool{"package.json": true, "go.mod": true, "Cargo.toml": true, "pyproject.toml": true, "Package.swift": true, "AndroidManifest.xml": true, "Info.plist": true, "Gemfile": true, "pom.xml": true}
 
 func discoverGuidance(s *genesis.GuidanceSnapshot, command string) guidanceReceipt {
@@ -230,6 +249,9 @@ func discoverGuidance(s *genesis.GuidanceSnapshot, command string) guidanceRecei
 			continue
 		}
 		p := *r.Path
+		if path.Ext(p) == ".h" {
+			out.Omissions["ambiguous-header-language"]++
+		}
 		if language := guidanceLanguages[path.Ext(p)]; language != "" {
 			languages[language] = true
 		}
@@ -256,12 +278,17 @@ func discoverGuidance(s *genesis.GuidanceSnapshot, command string) guidanceRecei
 			e.Rule = "test-convention"
 			appendGuidanceEvidence(&out.Tests, e, &out)
 		}
+		markers := guidanceMarkerLines(p, body)
 		for line, text := range strings.Split(body, "\n") {
 			for _, rule := range []struct {
 				id      string
 				pattern *regexp.Regexp
 			}{{"literal-marker", guidanceMarkers}, {"literal-registration", guidanceRegistrations}} {
-				matches := rule.pattern.FindAllStringSubmatch(text, -1)
+				candidate := text
+				if rule.id == "literal-marker" {
+					candidate = markers[line+1]
+				}
+				matches := rule.pattern.FindAllStringSubmatch(candidate, -1)
 				if len(matches) > 16 {
 					out.Omissions["line-matches"] += len(matches) - 16
 					matches = matches[:16]
@@ -274,6 +301,9 @@ func discoverGuidance(s *genesis.GuidanceSnapshot, command string) guidanceRecei
 				}
 			}
 		}
+	}
+	if out.Omissions["ambiguous-header-language"] > 0 {
+		out.Unknown = append(out.Unknown, ".h headers may belong to C, C++ or Objective-C; language omitted")
 	}
 	for language := range languages {
 		out.Languages = append(out.Languages, language)
@@ -556,4 +586,37 @@ func cleanupGuidanceScratch(root string, original error, remove func(string) err
 		return errors.Join(original, fmt.Errorf("scratch cleanup failed for %q: %w", root, err))
 	}
 	return original
+}
+
+// Go's lexer distinguishes real comments from marker-shaped strings, including
+// multiline raw strings. Other formats retain the bounded whole-line heuristic.
+func guidanceMarkerLines(p, body string) map[int]string {
+	lines := map[int]string{}
+	if path.Ext(p) != ".go" {
+		if path.Ext(p) == ".json" || path.Ext(p) == ".jsonl" {
+			return lines
+		}
+		for i, line := range strings.Split(body, "\n") {
+			lines[i+1] = line
+		}
+		return lines
+	}
+	set := token.NewFileSet()
+	file := set.AddFile(p, -1, len(body))
+	var lexer scanner.Scanner
+	lexer.Init(file, []byte(body), nil, scanner.ScanComments)
+	for {
+		pos, kind, value := lexer.Scan()
+		if kind == token.EOF {
+			break
+		}
+		if kind != token.COMMENT {
+			continue
+		}
+		start := set.PositionFor(pos, false).Line
+		for i, line := range strings.Split(value, "\n") {
+			lines[start+i] = line
+		}
+	}
+	return lines
 }

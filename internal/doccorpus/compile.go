@@ -146,6 +146,9 @@ func Build(ctx context.Context, root string, m Manifest) (*Artifact, error) {
 }
 
 func validateManifest(m Manifest) error {
+	if m.BehaviorRepositories != nil && !validBehaviorRepositories(m.BehaviorRepositories) {
+		return fail("invalid expected behavior repository set")
+	}
 	if m.Schema != ManifestSchema || !wire.IsGitOid(m.Repository.ID) || !wire.IsGitOid(m.Repository.Revision) {
 		return fail("invalid manifest identity")
 	}

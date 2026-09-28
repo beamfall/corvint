@@ -45,15 +45,16 @@ type Provider struct {
 	Record   string `json:"record"`
 }
 type Manifest struct {
-	BehaviorRevisions *BehaviorRevisions `json:"behavior_revisions,omitempty"`
-	Schema            string             `json:"schema"`
-	Repository        Repository         `json:"repository"`
-	BuiltAt           string             `json:"built_at"`
-	Profile           Profile            `json:"profile"`
-	Scopes            []Scope            `json:"scopes"`
-	Inputs            []Input            `json:"inputs"`
-	Providers         []Provider         `json:"providers"`
-	MergeRule         string             `json:"merge_rule"`
+	BehaviorRepositories []BehaviorRepository `json:"behavior_repositories,omitempty"`
+	BehaviorRevisions    *BehaviorRevisions   `json:"behavior_revisions,omitempty"`
+	Schema               string               `json:"schema"`
+	Repository           Repository           `json:"repository"`
+	BuiltAt              string               `json:"built_at"`
+	Profile              Profile              `json:"profile"`
+	Scopes               []Scope              `json:"scopes"`
+	Inputs               []Input              `json:"inputs"`
+	Providers            []Provider           `json:"providers"`
+	MergeRule            string               `json:"merge_rule"`
 }
 type Builder struct {
 	Version  string `json:"version"`
