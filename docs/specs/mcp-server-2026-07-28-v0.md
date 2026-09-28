@@ -108,7 +108,10 @@ receipt, cache, and denial policy; the local source-content-free policy does not
 child process and one repository root. At startup, `ABSOLUTE_ROOT` MUST be absolute, clean, bounded,
 free of control characters, and resolved through existing symlinks once to a canonical absolute
 root. The supplied root is at most 4,096 UTF-8 bytes. Its `.git` marker MUST be a non-symlink
-directory. A regular-file `.git` marker, including a linked worktree, is rejected in strict V0.
+ directory or a bounded regular gitfile with reciprocal linked-worktree metadata. The owner repair
+ scope of 2026-09-28 (#334) admits linked roots through the existing CEM worktree validator.
+ The root, marker, per-worktree directory and common directory identities remain pinned;
+ pointer retargeting or directory replacement before or during a call MUST abstain.
 Requests cannot replace the root. The canonical root MUST resolve to the Git worktree observed by
 Corvint before a tool can return repository evidence. A path escape, repository identity drift, or an
 unavailable Git snapshot MUST fail closed for the Corvint operation. Clean and mixed worktrees are
@@ -550,11 +553,11 @@ Each row cites the first emitting site and states only the condition checked the
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `invalid-registry` | `internal/mcp/bridge/bridge.go:347@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
-| `unsupported-tool` | `internal/mcp/bridge/bridge.go:356@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the four `ToolFlows*` tools under `flows` (`MCPV0-026`) |
-| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:556@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
-| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:556@f5156052` | the map is a legacy `cem/0.1` map that needs an out-of-band patch |
-| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:557@b2fd0644` | the map fails CEM strict decoding or field validation |
+| `invalid-registry` | `internal/mcp/bridge/bridge.go:365@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
+| `unsupported-tool` | `internal/mcp/bridge/bridge.go:374@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the four `ToolFlows*` tools under `flows` (`MCPV0-026`) |
+| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:590@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
+| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:590@f5156052` | the map is a legacy `cem/0.1` map that needs an out-of-band patch |
+| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:591@b2fd0644` | the map fails CEM strict decoding or field validation |
 | `flows-refused` | `internal/mcp/bridge/flows.go:264@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
 
 ## Acceptance matrix

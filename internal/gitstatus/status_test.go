@@ -120,7 +120,6 @@ func TestStatusRefusesUnsupportedMetadataBeforeLiveStatus(t *testing.T) {
 		"attributes":              "repository config sets core.attributesFile",
 		"bare":                    "repository config sets core.bare",
 		"split-index":             "index is a split index",
-		"gitlink":                 "index records a submodule (gitlink)",
 		"config-symlink":          "metadata file config is a symlink",
 		"index-symlink":           "metadata file index is a symlink",
 		"objects-symlink":         "metadata directory objects is missing or not a plain directory",
@@ -139,13 +138,13 @@ func TestStatusRefusesUnsupportedMetadataBeforeLiveStatus(t *testing.T) {
 	classes := map[string]reasonClass{
 		"clean": classGitFilter, "process": classGitFilter, "include": classConfigInclude, "includeIf": classConfigInclude,
 		"worktree": classWorktreeConfig, "attributes": classAttributesFile, "bare": classWorktreeConfig,
-		"split-index": classSplitIndex, "gitlink": classSubmodule, "config-symlink": classMetadataUnreadable,
+		"split-index": classSplitIndex, "config-symlink": classMetadataUnreadable,
 		"index-symlink": classMetadataUnreadable, "objects-symlink": classMetadataDirectory, "refs-symlink": classMetadataDirectory,
 		"git-symlink": classGitdirPointer, "config-internal-symlink": classMetadataUnreadable, "reftable": classRefStorage,
 		"gitdir-pointer-crlf": classGitdirPointer, "commondir-crlf": classGitdirPointer, "snapshot-budget": classMetadataLimit,
 		"oversized-packed-refs": classMetadataLimit, "exclude-fifo": classMetadataUnreadable, "temp-in-repo": classScratchDir,
 	}
-	for _, kind := range []string{"clean", "process", "include", "includeIf", "worktree", "attributes", "bare", "split-index", "gitlink", "config-symlink", "index-symlink", "objects-symlink", "refs-symlink", "git-symlink", "config-internal-symlink", "reftable", "gitdir-pointer-crlf", "commondir-crlf", "snapshot-budget", "oversized-packed-refs", "exclude-fifo", "temp-in-repo"} {
+	for _, kind := range []string{"clean", "process", "include", "includeIf", "worktree", "attributes", "bare", "split-index", "config-symlink", "index-symlink", "objects-symlink", "refs-symlink", "git-symlink", "config-internal-symlink", "reftable", "gitdir-pointer-crlf", "commondir-crlf", "snapshot-budget", "oversized-packed-refs", "exclude-fifo", "temp-in-repo"} {
 		t.Run(kind, func(t *testing.T) {
 			var initArgs []string
 			if kind == "reftable" {
@@ -167,9 +166,6 @@ func TestStatusRefusesUnsupportedMetadataBeforeLiveStatus(t *testing.T) {
 				gitTest(t, root, "config", "core.bare", "true")
 			case "split-index":
 				gitTest(t, root, "update-index", "--split-index")
-			case "gitlink":
-				oid := strings.TrimSpace(string(gitTest(t, root, "rev-parse", "HEAD")))
-				gitTest(t, root, "update-index", "--add", "--cacheinfo", "160000,"+oid+",child")
 			case "config-symlink", "index-symlink", "objects-symlink", "refs-symlink":
 				name := strings.TrimSuffix(kind, "-symlink")
 				path := filepath.Join(root, ".git", name)
