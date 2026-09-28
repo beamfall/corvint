@@ -2,6 +2,16 @@
   "baseRevision": "2e281305c49badc68d1a46035ca4ff966cbaff7c",
   "evidence": [
     {
+      "blobOid": "f3ad1a76a27af995798123f93d5fa6e826b67735",
+      "id": "evidence:sha256:e38d9fa2b40fa59c44bf3bcf2e7f9c6b8eee8f4f2de97ba95202965a15d9c878",
+      "path": "docs/specs/mcp-server-2026-07-28-v0.md",
+      "span": {
+        "end": 16181,
+        "start": 14112
+      },
+      "spanSha256": "08770e1af925493764d6e82042eda9374ce86a57dd7e753516270a34ecf18b9c"
+    },
+    {
       "blobOid": "17605477475d63c4fda16c2df15ee544e8c36fba",
       "id": "evidence:sha256:fbf548722b6a3a34af70633279594e80ac4bf03568e783fa722f9a71067056a8",
       "path": "docs/specs/expert-audit-followup-v0.md",
@@ -117,6 +127,86 @@
     {
       "basis": [
         {
+          "evidenceId": "evidence:sha256:e38d9fa2b40fa59c44bf3bcf2e7f9c6b8eee8f4f2de97ba95202965a15d9c878",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3146b17f057df8c3e4d0d2bc12b48ec44f33d368fd738d33122eea9f35430c07",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 1,
+        "start": 1
+      },
+      "path": "cmd/corvint-mcp/testdata/tools-list-default.golden.jsonl",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:e38d9fa2b40fa59c44bf3bcf2e7f9c6b8eee8f4f2de97ba95202965a15d9c878",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:193a5475fde9b2d553678120e8022f26e2817061ba4fa3994438ebd24b91e152",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 1,
+        "start": 1
+      },
+      "path": "cmd/corvint-mcp/testdata/tools-list-task-review.golden.jsonl",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:e38d9fa2b40fa59c44bf3bcf2e7f9c6b8eee8f4f2de97ba95202965a15d9c878",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d09c4e9dc1d9ac6cab34cf26d791da9390f83ac14047adbcfde8f3c1b349701e",
+      "newRange": {
+        "count": 7,
+        "start": 32
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 32
+      },
+      "path": "conformance/vscode-extension-v0/fixtures/oracle-driver.mjs",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:e38d9fa2b40fa59c44bf3bcf2e7f9c6b8eee8f4f2de97ba95202965a15d9c878",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:53b2fe5b7db55dcffc44f12ed2c4d82a575a31a78777c79ef2e8dc661723004f",
+      "newRange": {
+        "count": 7,
+        "start": 283
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 283
+      },
+      "path": "conformance/vscode-extension-v0/run.mjs",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
           "evidenceId": "evidence:sha256:fbf548722b6a3a34af70633279594e80ac4bf03568e783fa722f9a71067056a8",
           "relation": "specification"
         }
@@ -162,9 +252,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:d04b92a19fdd0220a200d6987c1da84ec3a201b5e1b1fb9352f56e5a5f3a9f82",
+      "id": "hunk:sha256:fc16a76bc4e686c6c37651ae5380209da44908099d98caa0aa3ce101af2ab14b",
       "newRange": {
-        "count": 43,
+        "count": 45,
         "start": 1
       },
       "oldRange": {
@@ -522,7 +612,7 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:01e6cd29985eacc2d67f9e13482726b68dc611430d179db05543d70756fc7d6a",
+      "id": "hunk:sha256:28f5a5c1722a8c3b4bc05520ebc431fd7ca63433e36343ae4cf55be288d2c91a",
       "newRange": {
         "count": 35,
         "start": 255
@@ -895,6 +985,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "aa733cf5a6a487a71d5d51a883c21edcb6fd4a30ae3a8a20d95985e776e1d0e7",
+  "patchSha256": "b5f61418b3bbac00bd2c9aa0000d4e90f04679e24dd36f709f072e46b833f5ef",
   "spec": "cem/0.2"
 }
