@@ -30,6 +30,14 @@ func importViolation(rel, path string) string {
 	if strings.HasPrefix(rel, "internal/tasks/wire/") {
 		return "the Tasks wire package imports no module package"
 	}
+	// CAL-V0-022's accepted in-process pack adapter is the sole production
+	// exception to decision 0397; its Core dependencies remain explicit.
+	if strings.HasPrefix(rel, "internal/tasks/scopes/") && (path == modulePrefix+"internal/contextindex" || path == modulePrefix+"internal/runtimeenv") {
+		return ""
+	}
+	if rel == "internal/tasks/cli/scope_test.go" && path == modulePrefix+"internal/contextindex" {
+		return ""
+	}
 	if tasksSide && !strings.HasPrefix(path, tasksPrefix) {
 		return "Tasks imports no Core package"
 	}
@@ -66,6 +74,9 @@ func TestImportViolationControls(t *testing.T) {
 		{"internal/tasks/wire/codes.go", tasksPrefix + "ticket"},
 		{"internal/taskman/decode.go", tasksPrefix + "store"},
 		{"cmd/corvint/main.go", tasksWire},
+		{"internal/tasks/scopes/derive.go", modulePrefix + "internal/gitstatus"},
+		{"internal/tasks/cli/cli.go", modulePrefix + "internal/contextindex"},
+		{"internal/tasks/cli/scope_test.go", modulePrefix + "internal/runtimeenv"},
 	}
 	for _, c := range cases {
 		if importViolation(c.rel, c.path) == "" {
@@ -75,9 +86,19 @@ func TestImportViolationControls(t *testing.T) {
 	if got := importViolation("internal/taskman/decode.go", tasksWire); got != "" {
 		t.Errorf("Core import of the wire package refused: %s", got)
 	}
+	for _, c := range []struct{ rel, path string }{
+		{"internal/tasks/scopes/derive.go", modulePrefix + "internal/contextindex"},
+		{"internal/tasks/scopes/derive.go", modulePrefix + "internal/runtimeenv"},
+		{"internal/tasks/cli/scope_test.go", modulePrefix + "internal/contextindex"},
+	} {
+		if got := importViolation(c.rel, c.path); got != "" {
+			t.Errorf("accepted pack adapter refused: %s", got)
+		}
+	}
 }
 
-// Decision 0397: Tasks imports no Core package, Core imports only the Tasks
+// Decision 0397 and its CAL-V0-022 addendum: apart from the pack adapter,
+// Tasks imports no Core package, Core imports only the Tasks
 // wire package (which imports no module package), and cmd/corvint imports no
 // Tasks package, so the corvint binary links no Tasks mutation code.
 func TestImportDirection(t *testing.T) {

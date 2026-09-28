@@ -125,6 +125,34 @@ func (p *Policy) GateIDs() map[string]bool {
 	return m
 }
 
+// Gate returns the definition of gateId, or nil.
+func (p *Policy) Gate(gateID string) *GateDefinition {
+	for i := range p.Gates {
+		if p.Gates[i].GateID == gateID {
+			return &p.Gates[i]
+		}
+	}
+	return nil
+}
+
+// GateDefinitionSha256 is the SHA-256 of the canonical bytes of gateId's
+// entry in the policy's gates array, the §7.1 definitionSha256. It is empty
+// when the policy defines no such gate.
+func (p *Policy) GateDefinitionSha256(gateID string) wire.Digest {
+	v, err := wire.Parse(p.Raw)
+	if err != nil {
+		return ""
+	}
+	gates, _ := v.Obj.Get("gates")
+	for _, g := range gates.Arr {
+		id, _ := g.Obj.Get("gateId")
+		if id.Str == gateID {
+			return wire.Sum(wire.EncodeFile(g))
+		}
+	}
+	return ""
+}
+
 func boundCount(r *wire.Reader, min, max int64) wire.Count {
 	c := r.Count()
 	if r.Err() != nil {

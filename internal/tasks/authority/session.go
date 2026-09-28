@@ -121,6 +121,18 @@ func (s *Session) Replace(stage *Stage, t Target, expected *wire.Digest) error {
 // each slot it used.
 func (s *Session) RemoveStage(slot Slot) error { return s.inner.removeStage(fixtureSlot(slot)) }
 
+// RemoveOrphanStages clears the staging slots "a00".."a10" that a writer
+// killed between its first Prepare and its own cleanup left behind
+// (CAL-V0-019). It removes nothing while either descriptor ("active.json" or
+// "active.json.tmp") exists, leaving that staging for the journal audit, and
+// refuses while this session owns a stage: the native writer
+// never writes a descriptor, so under the held lock every such slot is an
+// orphan. An unpublished slot never reached a destination, a replaced one was
+// consumed by its rename, and a linked one leaves its destination as a second
+// link, so removing the slot changes no published state. It reports how many
+// slots it removed.
+func (s *Session) RemoveOrphanStages() (int, error) { return s.inner.removeOrphanStages() }
+
 // RemoveBarrier unlinks only barrier.json after checking its exact pre digest,
 // then syncs the retained parent directory. The caller must first commit the
 // UNPAUSE receipt. An already absent barrier is synced as an idempotent removal.

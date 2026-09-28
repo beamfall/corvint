@@ -1,0 +1,325 @@
+{
+  "coldCLICommandMS": {
+    "baseline.claim": 3079.182834,
+    "baseline.release": 2967.008917,
+    "baseline.renew": 2853.984625,
+    "candidate.claim": 2458.860583,
+    "candidate.release": 2032.802458,
+    "candidate.renew": 2021.33925
+  },
+  "cpuCount": 12,
+  "hostLoad": "NOT_OBSERVED: capture host load externally alongside this run",
+  "nonGrowingWork": "verified process-local audit cache; inventory, full audit, model and monitor teardown run outside the lock",
+  "p95HoldMS": {
+    "claim": 119.680917,
+    "renew": 100.099458
+  },
+  "requirement": "CAL-V0-026",
+  "samples": [
+    {
+      "Verb": "claim",
+      "HoldMS": 109.007209,
+      "CommandMS": 2109.802875
+    },
+    {
+      "Verb": "renew",
+      "HoldMS": 91.981916,
+      "CommandMS": 2069.672708
+    },
+    {
+      "Verb": "release",
+      "HoldMS": 119.266042,
+      "CommandMS": 2327.4585
+    },
+    {
+      "Verb": "claim",
+      "HoldMS": 106.839542,
+      "CommandMS": 2171.64875
+    },
+    {
+      "Verb": "renew",
+      "HoldMS": 98.323667,
+      "CommandMS": 2046.685292
+    },
+    {
+      "Verb": "release",
+      "HoldMS": 108.776,
+      "CommandMS": 2206.619291
+    },
+    {
+      "Verb": "claim",
+      "HoldMS": 108.316375,
+      "CommandMS": 2212.909291
+    },
+    {
+      "Verb": "renew",
+      "HoldMS": 92.324625,
+      "CommandMS": 2226.050208
+    },
+    {
+      "Verb": "release",
+      "HoldMS": 113.82925,
+      "CommandMS": 2154.61875
+    },
+    {
+      "Verb": "claim",
+      "HoldMS": 112.424375,
+      "CommandMS": 2309.008042
+    },
+    {
+      "Verb": "renew",
+      "HoldMS": 92.707292,
+      "CommandMS": 2165.358625
+    },
+    {
+      "Verb": "release",
+      "HoldMS": 196.5355,
+      "CommandMS": 2577.496666
+    },
+    {
+      "Verb": "claim",
+      "HoldMS": 116.869583,
+      "CommandMS": 2394.51075
+    },
+    {
+      "Verb": "renew",
+      "HoldMS": 93.578208,
+      "CommandMS": 2088.205667
+    },
+    {
+      "Verb": "release",
+      "HoldMS": 110.923458,
+      "CommandMS": 2258.576041
+    },
+    {
+      "Verb": "claim",
+      "HoldMS": 109.884959,
+      "CommandMS": 2139.063125
+    },
+    {
+      "Verb": "renew",
+      "HoldMS": 94.488541,
+      "CommandMS": 2168.402375
+    },
+    {
+      "Verb": "release",
+      "HoldMS": 109.4495,
+      "CommandMS": 2157.085958
+    },
+    {
+      "Verb": "claim",
+      "HoldMS": 119.613875,
+      "CommandMS": 2328.039792
+    },
+    {
+      "Verb": "renew",
+      "HoldMS": 94.343333,
+      "CommandMS": 2436.396583
+    },
+    {
+      "Verb": "release",
+      "HoldMS": 114.0085,
+      "CommandMS": 2166.204375
+    },
+    {
+      "Verb": "claim",
+      "HoldMS": 111.146792,
+      "CommandMS": 2389.543959
+    },
+    {
+      "Verb": "renew",
+      "HoldMS": 92.036125,
+      "CommandMS": 2154.984958
+    },
+    {
+      "Verb": "release",
+      "HoldMS": 117.481791,
+      "CommandMS": 2312.74375
+    },
+    {
+      "Verb": "claim",
+      "HoldMS": 112.576167,
+      "CommandMS": 2190.40875
+    },
+    {
+      "Verb": "renew",
+      "HoldMS": 98.162916,
+      "CommandMS": 2163.459917
+    },
+    {
+      "Verb": "release",
+      "HoldMS": 109.362958,
+      "CommandMS": 2200.042125
+    },
+    {
+      "Verb": "claim",
+      "HoldMS": 119.680917,
+      "CommandMS": 2227.767042
+    },
+    {
+      "Verb": "renew",
+      "HoldMS": 96.503875,
+      "CommandMS": 2205.925417
+    },
+    {
+      "Verb": "release",
+      "HoldMS": 111.748458,
+      "CommandMS": 2213.006667
+    },
+    {
+      "Verb": "claim",
+      "HoldMS": 116.513208,
+      "CommandMS": 2282.570917
+    },
+    {
+      "Verb": "renew",
+      "HoldMS": 100.099458,
+      "CommandMS": 2336.08225
+    },
+    {
+      "Verb": "release",
+      "HoldMS": 111.912708,
+      "CommandMS": 2264.074
+    },
+    {
+      "Verb": "claim",
+      "HoldMS": 116.181334,
+      "CommandMS": 2234.303333
+    },
+    {
+      "Verb": "renew",
+      "HoldMS": 95.110416,
+      "CommandMS": 2223.988083
+    },
+    {
+      "Verb": "release",
+      "HoldMS": 112.875375,
+      "CommandMS": 2224.060542
+    },
+    {
+      "Verb": "claim",
+      "HoldMS": 113.563959,
+      "CommandMS": 2260.475041
+    },
+    {
+      "Verb": "renew",
+      "HoldMS": 99.924208,
+      "CommandMS": 2213.514084
+    },
+    {
+      "Verb": "release",
+      "HoldMS": 113.223541,
+      "CommandMS": 2302.906791
+    },
+    {
+      "Verb": "claim",
+      "HoldMS": 112.5645,
+      "CommandMS": 2233.993834
+    },
+    {
+      "Verb": "renew",
+      "HoldMS": 93.963792,
+      "CommandMS": 2176.043209
+    },
+    {
+      "Verb": "release",
+      "HoldMS": 109.796958,
+      "CommandMS": 2200.52275
+    },
+    {
+      "Verb": "claim",
+      "HoldMS": 117.413958,
+      "CommandMS": 2260.748209
+    },
+    {
+      "Verb": "renew",
+      "HoldMS": 91.860791,
+      "CommandMS": 2227.837334
+    },
+    {
+      "Verb": "release",
+      "HoldMS": 106.393541,
+      "CommandMS": 2211.3745
+    },
+    {
+      "Verb": "claim",
+      "HoldMS": 107.901167,
+      "CommandMS": 2238.576208
+    },
+    {
+      "Verb": "renew",
+      "HoldMS": 100.778834,
+      "CommandMS": 2229.555875
+    },
+    {
+      "Verb": "release",
+      "HoldMS": 112.665292,
+      "CommandMS": 2475.50875
+    },
+    {
+      "Verb": "claim",
+      "HoldMS": 122.002958,
+      "CommandMS": 2392.350083
+    },
+    {
+      "Verb": "renew",
+      "HoldMS": 93.014708,
+      "CommandMS": 2272.681958
+    },
+    {
+      "Verb": "release",
+      "HoldMS": 115.850416,
+      "CommandMS": 2362.557459
+    },
+    {
+      "Verb": "claim",
+      "HoldMS": 112.036,
+      "CommandMS": 2593.527833
+    },
+    {
+      "Verb": "renew",
+      "HoldMS": 96.021417,
+      "CommandMS": 2388.139625
+    },
+    {
+      "Verb": "release",
+      "HoldMS": 114.404375,
+      "CommandMS": 2302.943916
+    },
+    {
+      "Verb": "claim",
+      "HoldMS": 107.635917,
+      "CommandMS": 2205.104917
+    },
+    {
+      "Verb": "renew",
+      "HoldMS": 97.964375,
+      "CommandMS": 2154.452
+    },
+    {
+      "Verb": "release",
+      "HoldMS": 117.755334,
+      "CommandMS": 2286.278
+    },
+    {
+      "Verb": "claim",
+      "HoldMS": 113.333917,
+      "CommandMS": 2233.457458
+    },
+    {
+      "Verb": "renew",
+      "HoldMS": 88.92325,
+      "CommandMS": 2046.147625
+    },
+    {
+      "Verb": "release",
+      "HoldMS": 102.672334,
+      "CommandMS": 2077.274375
+    }
+  ],
+  "samplesPerVerb": 20,
+  "setupSeconds": 159.734244666,
+  "smokeOnly": false,
+  "testFailed": false,
+  "tickets": 3000
+}

@@ -76,11 +76,21 @@ func entryValue(f FileEntry) wire.Value {
 }
 
 // SortFiles orders entries as §2 requires of a non-semantic array:
-// canonical element bytes ascending.
+// canonical element bytes ascending. Each element is encoded once.
 func SortFiles(files []FileEntry) {
-	sort.SliceStable(files, func(i, j int) bool {
-		return string(wire.Encode(entryValue(files[i]))) < string(wire.Encode(entryValue(files[j])))
-	})
+	keyed := make([]keyedFile, len(files))
+	for i, f := range files {
+		keyed[i] = keyedFile{key: string(wire.Encode(entryValue(f))), file: f}
+	}
+	sort.SliceStable(keyed, func(i, j int) bool { return keyed[i].key < keyed[j].key })
+	for i, k := range keyed {
+		files[i] = k.file
+	}
+}
+
+type keyedFile struct {
+	key  string
+	file FileEntry
 }
 
 // Value renders the manifest with `files` in canonical order.

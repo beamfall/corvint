@@ -15,6 +15,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/archive"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/scopes"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -39,7 +40,7 @@ type Env struct {
 	Stdout    io.Writer
 	Stderr    io.Writer
 	// ScopeDeriver derives a claim scope for a ticket that declares none
-	// (CAL-V0-022); nil abstains.
+	// (CAL-V0-022); nil uses the explicitly enabled pack deriver.
 	ScopeDeriver store.ScopeDeriver
 }
 
@@ -59,6 +60,7 @@ var ReadVerbs = []string{
 	"ticket revoke-approval",
 	"release create", "release update", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
 	"claim", "renew", "release", "reap", "widen", "attempt show", "plan preview",
+	"submit", "gate run", "complete",
 }
 
 // OmittedVerbs are the verb paths the SPEC names that this binary does not
@@ -75,6 +77,9 @@ var OmittedVerbs = []string{
 // Run executes one command and returns the process exit code: 0 iff the
 // envelope outcome is OK.
 func Run(env Env) int {
+	if env.ScopeDeriver == nil {
+		env.ScopeDeriver = scopes.Derive
+	}
 	if env.Stdout == nil {
 		env.Stdout = io.Discard
 	}
@@ -122,7 +127,7 @@ func Run(env Env) int {
 			return emit(env.Stdout, leaseCommand(env, "release", args[1:]))
 		}
 		return emit(env.Stdout, releaseCommand(env, args[1], args[2:]))
-	case "claim", "renew", "reap", "widen":
+	case "claim", "renew", "reap", "widen", "submit", "complete":
 		return emit(env.Stdout, leaseCommand(env, args[0], args[1:]))
 	case "attempt":
 		return emit(env.Stdout, attemptCommand(env, args[1:]))
@@ -147,13 +152,15 @@ func Run(env Env) int {
 		return emit(env.Stdout, planCommand(env, args[1:]))
 	case "gate":
 		if len(args) < 2 {
-			return emit(env.Stdout, usage([]string{"gate"}, "gate needs a verb: list, show <gateId>"))
+			return emit(env.Stdout, usage([]string{"gate"}, "gate needs a verb: list, show <gateId>, run"))
 		}
 		switch args[1] {
 		case "list":
 			return emit(env.Stdout, gateList(env, args[2:]))
 		case "show":
 			return emit(env.Stdout, gateShow(env, args[2:]))
+		case "run":
+			return emit(env.Stdout, leaseCommand(env, "gate run", args[2:]))
 		}
 		return emit(env.Stdout, usage([]string{"gate"}, "unknown gate verb"))
 
@@ -280,6 +287,10 @@ func helpResult() *wire.Result {
 		"corvint-tasks reap --request-id ID [--attempt ID --generation G]",
 		"corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository)",
 		"corvint-tasks attempt show <attemptId>",
+		"corvint-tasks plan preview",
+		"corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID",
+		"corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR]",
+		"corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID",
 		"corvint-tasks version",
 	}))
 	o.Set("note", wire.String("every read takes no lock and writes nothing, and reports journal facts it cannot observe as NOT_OBSERVED; `init`, `policy update` and the fourteen `ticket` mutations commit through the §5.2 writer (TCP-02/TCP-02b); the administrative verbs answer NOT_RUN"))
