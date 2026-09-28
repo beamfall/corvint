@@ -8,7 +8,7 @@ Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
-- Claim: Corvint exposes a shared bounded lifecycle-event contract whose native harness adapters remain experimental and unqualified.
+- Claim: Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.
 - Status: accepted direction/experimental
 - Exists: `internal/gokernel`, `cmd/corvint`, and native adapter previews.
 - Blocked on: black-box release-matrix qualification with accepted closing authority.
@@ -140,7 +140,7 @@ do not reinterpret this Frontier result.
   An OpenCode 1.x host refuses it at load ("must default export an object with server()"), and an
   OpenCode 2 `plugins` entry that names a file rather than the package's `src` directory is skipped
   with "configured plugin path must be a directory". Both refusals appear only in the OpenCode
-  server log. The package MUST NOT claim more than `FALLBACK` for either host line, and its install
+  server log. The legacy receipt MUST NOT claim more than `FALLBACK` for either host line. Native integration qualification is separately scoped by AHI-032, and its install
   documentation MUST name the `src` directory entry.
 - `AHI-010`: Each release MUST publish tested host-version ranges, adapter and protocol versions,
   unavailable capabilities, known degradations, and the last conformance result. The adapter version
@@ -534,6 +534,50 @@ do not reinterpret this Frontier result.
   here" item; the other two stay open. Rollback: remove `withCodexSnapshotRemediation` and the
   record-based skip; neither changes stored state beyond the inert `build-cost.json`.
 
+- `AHI-032`: At the owner’s request (2026-09-28), stock OpenCode native integration qualification
+  MUST be reported separately from execution authority. The `opencode-native-integration/1`
+  profile may report integration support `FULL` only for the exact host, adapter, OS and architecture
+  whose retained native evidence passes every conformance case and AHI-012/013. Untested tuples
+  remain `UNQUALIFIED`. Legacy `corvint-harness-event/0` receipts remain `FALLBACK`; execution
+  authority is `NONE`, Frontier is `UNAVAILABLE`, and enforcement/continuation is not provided.
+  This does not qualify protected lifecycle, admit an authority root, or change Core semantics.
+
+  For this profile, AHI-006 pre-completion enforcement is unavailable. Cases 6 and 10 mean an advisory frontier observation at the strongest available
+  native post-execution completion event and bounded duplicate/recursive invocation suppression. A host that
+  cannot await continuation MUST disclose that limitation and retain the negative continuation
+  probe; it MUST NOT claim an enforced stop, successful continuation or verified completion.
+  All other conformance cases and the latency/recall gates remain required. Fault and cross-host
+  normalization regressions may use the real adapter with deterministic transport fixtures;
+  native discovery, prompt delivery, tool execution, edits, compaction and completion require the
+  unmodified host and real Corvint binary. A loopback scripted provider is sufficient for transport
+  qualification, but is not model-quality or real-world task-success evidence.
+
+  The default awaited `session.prompt` hook MUST append bounded, framed, receipt-linked context
+  to that same prompt only while its text is unchanged and its session remains active. The complete
+  addition, including disclosure and separators, MUST be at most 8000 UTF-8 bytes. It MUST deduplicate
+  event reentry and message identities, bound concurrent calls and session state, cancel deleted or
+  evicted sessions, and discard late responses. The adapter MUST NOT persist prompts or inspect
+  transcripts; OpenCode itself may store the augmented native prompt as normal conversation history.
+  `corvint_expand` encodes supplied pinned tree/blob/path tuples as cv1 selectors and delegates
+  selection, identity validation and exact expansion to the existing Core command. It MUST refuse
+  malformed, stale, oversized or envelope-colliding results without substituting worktree text.
+
+  `session.compaction.ended` MUST invalidate prior startup context. The next awaited context hook
+  requests `session-start` with `startSource: compact`; only a successfully framed bounded response
+  may consume pending recovery. Overlapping recovery is serialized per generation, newer compaction
+  invalidates older responses, and failures keep recovery pending without restoring stale context.
+  Recovery uses current Git state only and makes no claim of complete task-state restoration.
+
+  Promotion evidence MUST bind source digest, host executable digest, Corvint executable digest,
+  exact version/platform tuple, case results, latency samples and byte/critical-recall measurements.
+  `corvint_status` MUST verify the complete recorded gates, package contents, actual host image,
+  configured Corvint image resolved from the invocation root, and version/platform tuple. Any drift
+  reports `UNQUALIFIED`. This is maintainer evidence, not a tamper-resistant authority claim.
+  Package declarations describe build-time capability; post-build qualification belongs outside the
+  package so recording evidence does not change the tested package. A later source change invalidates
+  qualification. Rollback is removal of the native plugin entry or reverting the package; no host
+  fork, daemon, account, authority installation or durable outcome migration is required.
+
 ## Native platform profiles
 
 | Platform | Embedded host-admission key | Maintained Corvint package | Native surfaces | Stability rule |
@@ -542,7 +586,7 @@ do not reinterpret this Frontier result.
 | Codex IDE | `codex` (shared host; separate surface status) | standalone Codex integration | standalone skill, shared MCP, supported hooks | plugins are unavailable; never inherit CLI/Desktop status |
 | Claude Code | `claude-code` | Claude Code plugin | skills, hooks, MCP | publish minimum/maximum tested plugin API versions; `PreCompact`/`PostCompact` pin hooks verified against 2.1.267 only, live cycle `NOT_RUN` |
 | Gemini CLI | `gemini-cli` | Gemini CLI extension | context file, commands, skills, hooks, MCP | validate extension environment filtering and hook schemas |
-| OpenCode | `opencode` | OpenCode 2 plugin (`@corvint/opencode` 0.3.0 and later, OpenCode `^2.0.18`; 1.x unsupported) | stable `session.created`/`session.execution.*`/`session.deleted` events, `tool.hook("execute.after")`, plugin tools, MCP `mcp.servers`; beta `session.hook("context")` isolated | remain `FALLBACK` until a pinned version passes safe frontier/continuation conformance |
+| OpenCode | `opencode` | OpenCode 2 plugin (`@corvint/opencode` 0.3.0 and later, OpenCode `^2.0.18`; 1.x unsupported) | stable `session.created`/`session.execution.*`/`session.deleted` events, `tool.hook("execute.after")`, plugin tools, MCP `mcp.servers`; beta `session.hook("context")` isolated | legacy receipts remain `FALLBACK`; native integration qualification uses AHI-032 |
 | Pi | `pi` (experimental; AHI-024) | Pi extension | native session/tool lifecycle plus Corvint protocol | claim only the Pi releases in the tested matrix |
 | DeepSeek Harness | not admitted | Cordis plugin | services/events and append-only trajectory observations | treat developer-preview API changes as adapter changes |
 

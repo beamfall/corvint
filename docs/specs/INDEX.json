@@ -104,7 +104,7 @@
     "reqPrefix": "AHI",
     "intent": "accepted direction",
     "delivery": "experimental",
-    "claim": "Corvint exposes a shared bounded lifecycle-event contract whose native harness adapters remain experimental and unqualified.",
+    "claim": "Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.",
     "dependsOn": [
       "docs/specs/cem-0.2-canonical-binding.md"
     ],

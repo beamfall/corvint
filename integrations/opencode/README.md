@@ -1,12 +1,22 @@
-# Corvint for OpenCode (developer preview)
+# Corvint for OpenCode
 
-Support is `FALLBACK`. No OpenCode release has passed Corvint safe-frontier and continuation
-conformance. Version 0.3.0 targets the OpenCode 2 plugin API (`@opencode/plugin` 2.0.18) and no
-longer loads in OpenCode 1.x; use adapter 0.2.9 there. A development smoke run with OpenCode 2.0.18
-loaded the plugin and exercised its events, tools and edit hooks; that is not a tested host-version
-claim. This preview runs only on macOS and Linux: it
-uses a detached POSIX process group so timeout and interruption can kill and reap Corvint descendants.
-Windows is `UNSUPPORTED` until equivalent process-tree cleanup is implemented and tested.
+Version 0.4.0 targets unmodified OpenCode 2.0.18. It supplies awaited task context, on-demand
+query and exact source expansion, edit/evidence/verification observations, explicit outcomes, and
+compaction recovery from current Git state. OpenCode 1.x requires the older 0.2.9 adapter.
+
+Call `corvint_status` to check the installed package, host executable, Corvint executable, OS and
+architecture against `../opencode-qualification.json`. Only an exact passing tuple reports
+`integrationSupport: FULL`; changed or untested builds report `UNQUALIFIED`. Qualification is
+maintainer test evidence, not execution attestation. Its scope is the stock native integration
+under AHI-032, including the retained functional, latency and critical-evidence recall checks.
+
+Execution authority is `NONE`. Core lifecycle receipts remain `FALLBACK`, and
+`frontier-authority-unavailable` describes that authority boundary. Completion observations are
+advisory; the plugin cannot enforce completion or keep the CLI alive for a continuation. No fork,
+replacement OpenCode distribution or privileged authority service is installed.
+
+The runner supports macOS and Linux process groups. Only tuples in the qualification report are
+qualified; Windows remains unsupported until process-tree cleanup is implemented and tested.
 
 ## Install, discover, upgrade, disable, uninstall
 
@@ -103,18 +113,30 @@ best-effort event is recorded at info level instead of as a warning. Opened in a
 any Git repository, the plugin registers no hooks or tools and runs no Corvint command (decision
 0378). OpenCode 2 exposes plugin tools to the model through its code-mode `execute` tool; that outer
 call is not reported, its inner tool calls are. The
-`corvint_context` tool is the only prompt-bearing path and requires an explicit task. A task over the
+prompt hook and `corvint_context` tool query the current bounded task. A task over the
 2,000-character/16,384-byte bound is served by its disclosed anchor query (`AHI-016`) or refused as
 `prompt-over-query-bound`, never truncated. Only the `metadata.corvint` namespace can contribute evidence handles or verification observations.
 `corvint_record_outcome` records a caller-reported `passed`, `failed`, or `blocked` outcome only when
 the caller also supplies a bounded task, changed paths, and closed-schema verification observations.
 The task is hashed locally; only `taskSha256` enters the non-persistent session-end receipt.
 
-The optional beta context hook is isolated in `src/beta-hooks.js`, disabled by default, bounded,
-receipt-linked, and adds only the cached session-start context to each model request through the
-session `context` hook; it never runs Corvint itself. Failures are reported with an
-`[corvint/opencode]` `console.warn` line; a successful receipt's degradations and the expected
-session-eviction and stop-recursion guards use `console.info`. OpenCode 2 has no plugin log API, so
-both reach the OpenCode server log. Neither blocks unrelated OpenCode work. Corvint currently has no
-accepted authoritative stop decision: the end of a session execution performs one guarded frontier
-check, does not continue or stop the host, and suppresses duplicate/recursive invocations.
+The optional `enableBetaContext` setting repeats cached startup context. Default prompt context
+and compaction recovery use awaited native hooks; all injected additions are bounded and framed.
+
+## Automatic context and exact expansion
+
+The prompt hook awaits Corvint and appends at most 8000 UTF-8 bytes, including framing and any
+anchor-query disclosure, to the same unchanged prompt. Repeated events/messages are deduplicated;
+deleted or evicted sessions cancel pending work. OpenCode may retain the augmented prompt in its
+normal conversation history. The adapter writes no prompt files and reads no transcript.
+
+`corvint_context` returns `expansionHandles` encoded from the evidence's pinned Git tree/blob/path.
+Pass a handle to `corvint_expand`; replace its `all` range with an explicit `START-END` when a full
+file exceeds the 6000-byte source cap. The core verifies identity and returns exact selected bytes;
+invalid, stale, oversized or unsafe output is refused. Selection does not read changed worktree bytes.
+
+After `session.compaction.ended`, the next context hook awaits fresh `startSource: compact` context.
+Failure keeps recovery pending and never restores an old packet. Recovery covers current dirty
+paths; it does not reconstruct previous conversation decisions. `enableBetaContext` additionally
+repeats startup context on model requests; ordinary task context and compaction recovery are enabled
+by default.

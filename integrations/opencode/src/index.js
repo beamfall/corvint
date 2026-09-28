@@ -1,4 +1,5 @@
 import path from "node:path"
+import { qualificationStatus } from "./qualification.js"
 import {
   boundedPaths,
   boundedTask,
@@ -16,6 +17,8 @@ import { promptQuery, trimSpace } from "./prompt-bound.js"
 
 const MAX_TRACKED_PATHS = 256
 const MAX_SESSIONS = 128
+const MAX_ADDITION_BYTES = 8_000
+const MAX_IN_FLIGHT = 16
 // AHI-022: best-effort file-change impact that does not apply to this path or repository is
 // expected, not a fault the user can act on (decision 0379).
 const EXPECTED_FILE_CHANGE_REFUSALS = new Set(["unsupported-impact-path-suffix", "unsupported-impact-repository"])
@@ -37,7 +40,10 @@ async function setup(ctx) {
   const startupContexts = new Map()
   const pendingFileChanges = new Map()
   const events = new AbortController()
+  const lifetime = new AbortController()
   let fileChangeDrain
+  let inFlight = 0
+  const promptEvents = new WeakSet()
 
   // OpenCode 2 reports a built-in edit tool's target in its completed result; `edit` returns only
   // diffs, so its input path is resolved the way the host resolves it, against the location.
@@ -71,7 +77,7 @@ async function setup(ctx) {
   const runVisible = async (request) => {
     let response
     try {
-      response = await runCorvint({ root, ...request })
+      response = await runCorvint({ root, ...request, signal: request.signal ? AbortSignal.any([lifetime.signal, request.signal]) : lifetime.signal })
     } catch {
       response = { code: "adapter-internal-error", event: request.event, ok: false }
     }
@@ -82,7 +88,7 @@ async function setup(ctx) {
       } else {
         report(code, request.event, undefined, response.deadlineMs)
       }
-    } else if (response.degradations.length > 0) {
+    } else if (response.degradations?.length > 0) {
       record(response.degradations.join(","), request.event, response.receiptId)
     }
     return response
@@ -127,14 +133,62 @@ async function setup(ctx) {
     if (!state) {
       if (sessions.size >= MAX_SESSIONS) {
         const oldest = sessions.keys().next().value
+        retire(sessions.get(oldest))
         sessions.delete(oldest)
         startupContexts.delete(oldest)
         record("session-state-evicted", "session-start")
       }
-      state = { changedPaths: new Set(), stopActive: false, stopArmed: true }
+      state = { changedPaths: new Set(), stopActive: false, stopArmed: true, active: true, calls: new Set(), prompts: new Set(), pendingPrompts: new Set(), generation: 0 }
       sessions.set(key, state)
     }
     return { key, state }
+  }
+
+  const retire = (state) => {
+    if (!state) return
+    state.active = false
+    for (const call of state.calls) call.abort()
+  }
+
+  const runForSession = async (bound, request) => {
+    if (!bound) return runVisible(request)
+    if (!bound.state.active) return { ok: false, code: "host-aborted" }
+    const call = new AbortController()
+    bound.state.calls.add(call)
+    try {
+      return await runVisible({ ...request, signal: request.signal ? AbortSignal.any([request.signal, call.signal]) : call.signal })
+    } finally {
+      bound.state.calls.delete(call)
+    }
+  }
+
+  // Encode existing pinned evidence as the core's cv1 selector; only the core may expand it.
+  const expansionHandles = (response) => {
+    const tree = response.repository?.treeRevision
+    if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(tree ?? "")) return []
+    const handles = new Set()
+    for (const row of Array.isArray(response.context?.results) ? response.context.results : []) {
+      for (const evidence of Array.isArray(row?.evidence) ? row.evidence : []) {
+        if (typeof evidence.path !== "string" || !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(evidence.blob_hash ?? "")) continue
+        const handle = `cv1:${tree}:${evidence.blob_hash}:all:${evidence.path}`
+        if (handle.length <= 1024 && handles.size < 32) handles.add(handle)
+      }
+    }
+    return [...handles]
+  }
+
+  const boundedFrame = (response, event, disclosure = "") => {
+    const output = frameRepositoryData(response)
+    if (!output) {
+      report(ENVELOPE_COLLISION, event, response.receiptId)
+      return undefined
+    }
+    const content = disclosure + output
+    if (Buffer.byteLength(content, "utf8") > MAX_ADDITION_BYTES) {
+      report("context-too-large", event, response.receiptId)
+      return undefined
+    }
+    return content
   }
 
   const rememberPath = (value, rawSessionId) => {
@@ -179,13 +233,15 @@ async function setup(ctx) {
   const sessionStart = async (rawSessionId) => {
     const bound = stateFor(rawSessionId)
     const input = bound ? { sessionIdSha256: bound.key } : {}
-    const response = await runVisible({ event: "session-start", input })
-    if (bound && response.ok && response.context) startupContexts.set(bound.key, response)
+    const generation = bound?.state.generation
+    const response = await runForSession(bound, { event: "session-start", input, budgetBytes: 7000 })
+    if (bound?.state.active && bound.state.generation === generation && response.ok && response.context) startupContexts.set(bound.key, response)
   }
 
   const sessionEnd = async (rawSessionId) => {
     const key = hashSessionId(rawSessionId)
     const state = key ? sessions.get(key) : undefined
+    retire(state)
     await runVisible({
       event: "session-end",
       input: {
@@ -201,7 +257,16 @@ async function setup(ctx) {
     }
   }
 
+  const compacted = (rawSessionId) => {
+    const bound = stateFor(rawSessionId)
+    if (!bound) return
+    bound.state.generation++
+    bound.state.needsCompaction = true
+    startupContexts.delete(bound.key)
+  }
+
   const EVENT_HANDLERS = {
+    "session.compaction.ended": compacted,
     "session.created": sessionStart,
     "session.deleted": sessionEnd,
     "session.execution.failed": stop,
@@ -274,26 +339,117 @@ async function setup(ctx) {
         event: "user-prompt",
         input: { ...(sessionIdSha256 ? { sessionIdSha256 } : {}), task },
         query: true,
+        budgetBytes: 7000,
         signal: context?.signal,
       })
       if (!response.ok) {
         return { content: `Corvint FALLBACK unavailable (${response.code}); unrelated coding may continue.` }
       }
-      const output = frameRepositoryData(response)
-      if (!output) {
-        report(ENVELOPE_COLLISION, "user-prompt", response.receiptId)
-        return { content: `Corvint FALLBACK unavailable (${ENVELOPE_COLLISION}); unrelated coding may continue.` }
-      }
+      const handles = expansionHandles(response)
+      const output = boundedFrame({ ...response, expansionHandles: handles }, "user-prompt", query.disclosure)
+      if (!output) return { content: `Corvint context unavailable (${frameRepositoryData(response) ? "context-too-large" : ENVELOPE_COLLISION}).` }
       return {
-        content: query.disclosure + output,
+        content: output,
         metadata: {
           corvint: {
-            observedEvidenceHandles: suppliedEvidenceHandles(response),
+            observedEvidenceHandles: [...suppliedEvidenceHandles(response), ...handles],
             receiptId: response.receiptId,
           },
         },
       }
     },
+  }
+
+  const corvintExpand = {
+    name: "corvint_expand",
+    description: "Expand an exact cv1 evidence handle from Corvint context. Reads its immutable Git blob; refuses invalid or oversized evidence.",
+    input: { type: "object", properties: { handle: { type: "string" } }, required: ["handle"], additionalProperties: false },
+    async execute(args, context) {
+      const response = await runVisible({ event: "expand", input: {}, expand: args?.handle ?? "", query: true, signal: context?.signal })
+      if (!response.ok) return { content: `Corvint expansion unavailable (${response.code}).` }
+      const content = boundedFrame(response, "expand")
+      if (!content) return { content: "Corvint expansion unavailable (unsafe or oversized envelope)." }
+      return { content, metadata: { corvint: { observedEvidenceHandles: [response.handle] } } }
+    },
+  }
+
+  const onPrompt = async (event) => {
+    if (events.signal.aborted || !event?.prompt || typeof event.prompt.text !== "string" || promptEvents.has(event)) return
+    promptEvents.add(event)
+    const bound = stateFor(event.sessionID)
+    if (!bound || !bound.state.active) return
+    const identity = hashSessionId(event.messageID)
+    if (identity && (bound.state.prompts.has(identity) || bound.state.pendingPrompts.has(identity))) return
+    if (inFlight >= MAX_IN_FLIGHT || bound.state.calls.size >= 2) {
+      report("prompt-context-busy", "user-prompt")
+      return
+    }
+    if (identity) bound.state.pendingPrompts.add(identity)
+    const original = event.prompt.text
+    const call = new AbortController()
+    bound.state.calls.add(call)
+    inFlight++
+    try {
+      const result = await corvintContext.execute({ task: original }, { sessionID: event.sessionID, signal: call.signal })
+      if (!bound.state.active || call.signal.aborted || events.signal.aborted || event.prompt.text !== original) return
+      if (!result.metadata?.corvint?.receiptId) {
+        report("prompt-context-unavailable", "user-prompt")
+        return
+      }
+      const addition = "\n\n" + result.content
+      if (Buffer.byteLength(addition, "utf8") > MAX_ADDITION_BYTES) {
+        report("context-too-large", "user-prompt")
+        return
+      }
+      event.prompt.text = original + addition
+      bound.state.stopArmed = true
+      if (identity) {
+        bound.state.prompts.add(identity)
+        if (bound.state.prompts.size > 64) bound.state.prompts.delete(bound.state.prompts.values().next().value)
+      }
+      record("prompt-context-supplied", "user-prompt", result.metadata.corvint.receiptId)
+    } catch {
+      report("prompt-context-failed", "user-prompt")
+    } finally {
+      if (identity) bound.state.pendingPrompts.delete(identity)
+      inFlight--
+      bound.state.calls.delete(call)
+    }
+  }
+
+  const onContext = async (request) => {
+    if (!Array.isArray(request?.system)) return
+    const bound = stateFor(request?.sessionID)
+    if (!bound?.state.active || events.signal.aborted) return
+    const { state, key } = bound
+    const generation = state.generation
+    if (state.needsCompaction) {
+      if (!state.recovery || state.recovery.generation !== generation) {
+        state.recovery = {
+          generation,
+          promise: runForSession(bound, { event: "session-start", input: { sessionIdSha256: key, startSource: "compact" }, budgetBytes: 7000 }),
+        }
+      }
+      const response = await state.recovery.promise
+      if (!state.active || events.signal.aborted || generation !== state.generation) return
+      state.recovery = undefined
+      if (!response.ok || !response.context) return
+      startupContexts.set(key, response)
+    } else if (!state.rehydrated && !betaEnabled(options, environment)) return
+    const response = startupContexts.get(key)
+    if (!response) return
+    const content = boundedFrame({ context: response.context, receiptId: response.receiptId, support: response.support }, "session-start")
+    if (!content) return
+    const text = `[Corvint FALLBACK context; receipt-linked, non-authoritative]\n${content}`
+    if (Buffer.byteLength(text, "utf8") > MAX_ADDITION_BYTES) {
+      report("context-too-large", "session-start", response.receiptId)
+      return
+    }
+    if (!request.system.some(item => item.text === text)) request.system.push({ type: "text", text })
+    if (state.needsCompaction) {
+      state.needsCompaction = false
+      state.rehydrated = true
+    }
   }
 
   const corvintRecordOutcome = {
@@ -343,16 +499,14 @@ async function setup(ctx) {
           verification,
         },
         query: true,
+        budgetBytes: 7000,
         signal: context?.signal,
       })
       if (!response.ok) {
         return { content: `Corvint FALLBACK unavailable (${response.code}); unrelated coding may continue.` }
       }
-      const output = frameRepositoryData(response)
-      if (!output) {
-        report(ENVELOPE_COLLISION, "session-end", response.receiptId)
-        return { content: `Corvint FALLBACK unavailable (${ENVELOPE_COLLISION}); unrelated coding may continue.` }
-      }
+      const output = boundedFrame(response, "session-end")
+      if (!output) return { content: `Corvint context unavailable (${frameRepositoryData(response) ? "context-too-large" : ENVELOPE_COLLISION}).` }
       return { content: output, metadata: { corvint: { receiptId: response.receiptId } } }
     },
   }
@@ -366,25 +520,35 @@ async function setup(ctx) {
   })()
   await ctx.tool.hook("execute.after", afterTool)
   await ctx.tool.transform((editor) => {
+    editor.add({
+      name: "corvint_status",
+      description: "Check this installed OpenCode integration against its exact qualification evidence. Reports integration support separately from execution authority.",
+      input: { type: "object", properties: {}, additionalProperties: false },
+      async execute(_args, context) {
+        return { content: JSON.stringify(await qualificationStatus({
+          hostVersion: options.hostVersion ?? ctx.app?.version,
+          corvintBinary: options.corvintBinary ?? environment.CORVINT_BIN ?? "corvint",
+          environment,
+          signal: context?.signal,
+          root,
+        })) }
+      },
+    })
     editor.add(corvintContext)
+    editor.add(corvintExpand)
     editor.add(corvintRecordOutcome)
   })
 
-  if (betaEnabled(options, environment)) {
-    const { createBetaContextHook } = await import("./beta-hooks.js")
-    await ctx.session.hook(
-      "context",
-      createBetaContextHook({
-        startupContext: (sessionKey) => startupContexts.get(sessionKey),
-        hashSessionId,
-        report,
-      }),
-    )
-  }
+  await ctx.session.hook("prompt", onPrompt)
+  await ctx.session.hook("context", onContext)
 
   return async () => {
     events.abort()
+    for (const state of sessions.values()) retire(state)
+    // Finish an already observed advisory stop within its normal deadline; cancel task context now.
     await subscription
+    pendingFileChanges.clear()
+    lifetime.abort()
     if (fileChangeDrain) await fileChangeDrain
     pendingFileChanges.clear()
     sessions.clear()
