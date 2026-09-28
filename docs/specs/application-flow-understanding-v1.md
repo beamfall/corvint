@@ -774,3 +774,14 @@ both live changes, reported per basis. A basis with a nonzero rate is withdrawn 
 profile keeps the other. The companion surfaces are promoted by the Beamfall qualification. Kill: if the
 corpus cannot reach an unsafe-narrowing rate of 0 with a nonzero reduction, `e2e-safe` is withdrawn
 and selection stays at `strict`. The companion surfaces ship without it.
+
+## Owned emitted attempt-ingest error codes
+
+These refusals describe the existing `playwright-receipt` ingest boundary (AFU-V1-012 and
+PWP-V3-005); they add no new receipt state or execution authority.
+
+| Code | Meaning |
+| --- | --- |
+| `external-attempt-run-incomplete` | The receipt reports infrastructure failure or cancellation, lacks external lifecycle evidence, changed its inputs, or did not retire runner descendants. |
+| `external-attempt-runner-identity-mismatch` | The canonical receipt cannot be decoded, has no runner version, or disagrees with the ingest header's runner version. |
+| `external-attempt-test-identity-missing` | A retained test has no test ID or named project. |

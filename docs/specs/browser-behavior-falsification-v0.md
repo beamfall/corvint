@@ -141,6 +141,12 @@ always attempted with its own bounded context even after execution failure or ca
 | --- | --- |
 | `operator-authorization-required` | Execution lacks approval of the exact plan digest. |
 | `approved-plan-drift` | Rebuilding current immutable inputs does not reproduce the approved plan. |
+| `receipt-invalid-control` | Offline verification cannot reproduce the retained receipt's shape, pinned identities, digests, inventories, observations or outcome. |
+| `receipt-native-path-invalid` | A declared native-report path is absolute, noncanonical, parent-relative or longer than the path bound. |
+| `receipt-native-report-invalid` | Reading the native report fails, exceeds the retained-byte bound or does not match its declared digest. |
+| `receipt-plan-unsafe` | The canonical plan preimage cannot be encoded or fails the secret screen. |
+| `receipt-secret-shaped-data` | The envelope, raw hook output or native report contains secret-shaped data; export refuses without echoing the value. |
+| `receipt-tool-identity-invalid` | The executing companion's name, version, revision or executable digest is missing or malformed. |
 
 ## Acceptance matrix
 
