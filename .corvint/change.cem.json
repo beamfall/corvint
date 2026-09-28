@@ -327,6 +327,26 @@
     {
       "basis": [
         {
+          "evidenceId": "evidence:sha256:0e749dc28b4e8cb4b3a3ef2618fd638e51456b97708df865c2ae7d97d8da2aef",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e50fa73ab59814d607e142264d16b46f27f051714e35085abeba99907746925a",
+      "newRange": {
+        "count": 7,
+        "start": 347
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 342
+      },
+      "path": "docs/specs/local-completion-policy-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
           "evidenceId": "evidence:sha256:5c7e6361b6553a6000d5c07cf5f5b8092ea0a002f65e5cf4826fb4750e865ae6",
           "relation": "specification"
         }
@@ -661,6 +681,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "9e4e1ee3b73255f7bf0ffad295057620fab73e4377edf6f362367acfa47d300e",
+  "patchSha256": "a80a9003d29bb08eb8ba5e35de9ebae296e345d237867bc6c98abda8cff51a97",
   "spec": "cem/0.2"
 }
