@@ -32,6 +32,11 @@ and corrupt pack regressions. The general loaders retain their existing fallback
 CLI tests cover named and next claims, declared/requested precedence, conservative default
 and unselective queries, and unchanged index files.
 
+The first measurement at `156d9aab` stopped after claim/renew because the test supplied an
+invalid free-text release reason. It produced no complete latency result. The fixture now
+uses the existing release constructor, retains partial samples on failure, and has a three-ticket
+`-short` smoke mode; only the normal 3,000-ticket mode counts as the planned measurement.
+
 Measurement: pending execution on frozen source.
 
 Verification: focused scope/claim/lock regressions, the required documentation checks and one

@@ -25,7 +25,10 @@ func TestCALV0026_LockHoldMeasurement(t *testing.T) {
 	if output == "" {
 		t.Skip("set CORVINT_TASKS_LOCK_MEASUREMENT to a report path")
 	}
-	const count, samples = 3000, 20
+	count, samples := 3000, 20
+	if testing.Short() {
+		count, samples = 3, 1
+	}
 	repo := importStore(t, "ROADMAP")
 	items := make([]string, count)
 	for i := range items {
@@ -47,6 +50,30 @@ func TestCALV0026_LockHoldMeasurement(t *testing.T) {
 		HoldMS, CommandMS float64
 	}
 	rows := []sample{}
+	defer func() {
+		p95 := map[string]float64{}
+		for _, verb := range []string{"claim", "renew"} {
+			times := []float64{}
+			for _, s := range rows {
+				if s.Verb == verb {
+					times = append(times, s.HoldMS)
+				}
+			}
+			sort.Float64s(times)
+			if len(times) > 0 {
+				p95[verb] = times[(95*len(times)+99)/100-1]
+			}
+		}
+		report := map[string]any{"requirement": "CAL-V0-026", "smokeOnly": testing.Short(), "testFailed": t.Failed(), "tickets": count, "samplesPerVerb": samples, "cpuCount": runtime.NumCPU(), "setupSeconds": setupSeconds, "samples": rows, "p95HoldMS": p95, "nonGrowingWork": "NOT_MET: each lease inventories, audits and decodes every ticket; no verified audit cache", "hostLoad": "NOT_OBSERVED: capture host load externally alongside this run"}
+		raw, err := json.MarshalIndent(report, "", "  ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = os.WriteFile(output, append(raw, '\n'), 0600); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("CAL-V0-026 p95 hold ms: %v; non-growing-work NOT_MET", p95)
+	}()
 	call := func(verb string, lease transaction.LeaseRequest, n int) *store.Report {
 		held := time.Duration(0)
 		calls := 0
@@ -66,27 +93,8 @@ func TestCALV0026_LockHoldMeasurement(t *testing.T) {
 	for i := 0; i < samples; i++ {
 		claim := call("claim", claimOf(fixture.TicketID(fmt.Sprintf("PERF-%04d", i))), i)
 		call("renew", transaction.LeaseRequest{Verb: transaction.LeaseRenew, AttemptID: claim.AttemptID, Generation: claim.Generation, LeaseMinutes: "60"}, i)
-		call("release", transaction.LeaseRequest{Verb: transaction.LeaseRelease, AttemptID: claim.AttemptID, Generation: claim.Generation, Reason: "measurement complete"}, i)
+		call("release", releaseOf(claim), i)
 	}
-	p95 := map[string]float64{}
-	for _, verb := range []string{"claim", "renew"} {
-		times := []float64{}
-		for _, s := range rows {
-			if s.Verb == verb {
-				times = append(times, s.HoldMS)
-			}
-		}
-		sort.Float64s(times)
-		p95[verb] = times[(95*len(times)+99)/100-1]
-	}
-	report := map[string]any{"requirement": "CAL-V0-026", "tickets": count, "samplesPerVerb": samples, "cpuCount": runtime.NumCPU(), "setupSeconds": setupSeconds, "samples": rows, "p95HoldMS": p95, "nonGrowingWork": "NOT_MET: each lease inventories, audits and decodes every ticket; no verified audit cache", "hostLoad": "NOT_OBSERVED: capture host load externally alongside this run"}
-	raw, err := json.MarshalIndent(report, "", "  ")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = os.WriteFile(output, append(raw, '\n'), 0600); err != nil {
-		t.Fatal(err)
-	}
+
 	auditOK(t, repo)
-	t.Logf("CAL-V0-026 p95 hold ms: %v; non-growing-work NOT_MET", p95)
 }
