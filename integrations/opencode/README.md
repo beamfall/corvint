@@ -1,6 +1,6 @@
 # Corvint for OpenCode
 
-Version 0.4.0 targets unmodified OpenCode 2.0.18. It supplies awaited task context, on-demand
+Version 0.7.1 targets unmodified OpenCode 2.0.18. It supplies awaited task context, on-demand
 query and exact source expansion, edit/evidence/verification observations, explicit outcomes, and
 compaction recovery from current Git state. OpenCode 1.x requires the older 0.2.9 adapter.
 
@@ -18,9 +18,87 @@ replacement OpenCode distribution or privileged authority service is installed.
 The runner supports macOS and Linux process groups. Only tuples in the qualification report are
 qualified; Windows remains unsupported until process-tree cleanup is implemented and tested.
 
+
+## Change cockpit
+
+`/corvint` opens the change cockpit. Follow a changed file into its affected-test dependency
+paths, inspect recorded check commands/output, and open the existing evidence reader for context.
+No model call or test execution is needed to inspect these records.
+
+| Key | Action |
+| --- | --- |
+| 1 / 2 / 3 / 4 | Files / Impact / Proof / Gaps |
+| Up / Down; Page Up / Down | Select rows or scroll details |
+| Enter / click | Follow file impact or read a selected check's output |
+| Tab | Switch list/details in a compact panel |
+| x | Clear the selected-file impact filter |
+| b | Choose a branch, tag or commit to compare from |
+| r | Refresh the observed change and verification state |
+| e | Inspect context for the selected file, or open evidence |
+| f; Escape | Toggle full-screen; close |
+
+The base is pinned to the recorded workflow's base when present, otherwise HEAD. Selecting HEAD
+shows working-tree changes; another ref includes its committed range and current worktree changes.
+Affected tests are advisory selections. Declarations are displayed separately from execution results.
+A passing individual check does not establish workflow completion or complete test coverage.
+Proof reads display Core's qualification, tested/current commits and bounded local output; stale,
+unrun, failed and withheld observations remain explicit. Logs are caller-owned local records, not
+attested execution. Missing records and unsupported impact remain visible under Gaps.
+
+Refresh is explicit. The cockpit does not poll, execute displayed commands, refresh indexes, scan
+transcripts, or write evidence. Observed host edits invalidate its view; external edits require a
+refresh. Reads use existing Core commands and the current worktree's private completion owner.
+Output is capped at 64 KiB per stream; each file/impact/check list at 64 rows, with omissions shown.
+
+## Context inspector
+
+The native terminal sidebar shows **Corvint context** for the current session. Click it or run
+`/corvint` to open Change and press e for evidence. Run `/corvint Locate Add in add.go` to request context
+without asking a model. The panel also accepts these keys:
+
+| Key | Action |
+| --- | --- |
+| Up / Down | Select evidence in the list, scroll in the source/details pane |
+| Enter / click a location | Open its pinned source through Core |
+| Tab | Switch between evidence and source without losing selection |
+| / | Find evidence by file, symbol, reason or authority |
+| x | Clear the filter and return to the list |
+| Page Up / Page Down | Move through evidence or scroll a page |
+| Left / Right | Scroll long source lines horizontally |
+| h | Enable host syntax highlighting (may download a language parser), or return to plain text |
+| l | Return to the cited source line |
+| g | Show gaps and limitations |
+| i | Show the full inclusion reason, summary and immutable identities |
+| r | Request context for an explicit task |
+| f | Toggle full-screen; wide panels show evidence beside source |
+| c | Return to the change cockpit |
+| Escape | Close the panel |
+
+Each location shows its inclusion reason, authority and confidence. The source reader preserves
+Core's tree/blob verification. Control characters are escaped for display. Freshness describes the
+last observation; this UI does not continuously check Git. Observed edits or compaction mark the
+view stale until another context request. Missing/unsupported evidence stays visible. Source uses native line numbers and a cited-line marker. Plain rendering is immediate and requests
+no syntax parser. Press h or click Enable syntax to opt into OpenCode highlighting for this panel;
+the host may download missing language parsers. Source text is parsed locally.
+Unrecognized languages stay readable as plain text. Long lines scroll horizontally to preserve
+line alignment. At 96 or more panel columns the list stays beside the source; compact panels use
+Evidence/Source/Gaps/Details views. Theme colors always have text labels. Selection survives
+receipt reorder, while source is cleared when its receipt or observed state changes.
+
+The view is bounded and held in memory, with no receipt or prompt journal. Its RPC runs through the
+existing OpenCode server and inherits that server's client trust boundary. The terminal plugin
+receives only context/evidence views and hashed-session update notices, not transcripts. Removing
+or disabling the plugin disposes the view and its subscriptions. Desktop/web custom panels, revision comparisons, review mode and portable handoff remain outside this slice.
+
+`script/qualify-opencode-inspector.py --host /absolute/opencode --corvint /absolute/corvint
+--output /absolute/evidence` exercises the actual 2.0.18 terminal in isolated temporary Git and XDG
+locations, without a model call. It requires Python 3, Git, a POSIX PTY and permission to start the
+host's temporary loopback server, plus Go for the recorded fixture test. Its UI witness is separate from full native integration
+qualification; it never writes `opencode-qualification.json` or grants execution authority.
+
 ## Install, discover, upgrade, disable, uninstall
 
-The package is not published to npm yet and has no runtime dependencies. From a Corvint checkout,
+The package is not published to npm yet. OpenCode supplies the terminal renderer and Solid runtime. From a Corvint checkout,
 add a `file://` URL for its `src` directory to OpenCode's `plugins` array:
 
 ```json
