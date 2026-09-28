@@ -1,3 +1,6 @@
+import { visibleText } from "./display.js"
+export { visibleText } from "./display.js"
+import { cockpitSchema } from "./cockpit.js"
 // The view keeps Core's evidence labels and exact handles separate from terminal presentation.
 const object = properties => ({ type: "object", properties, required: Object.keys(properties), additionalProperties: false })
 const string = { type: "string" }
@@ -8,6 +11,9 @@ const session = { type: "string", minLength: 1, maxLength: 256 }
 export const INSPECTOR_RPC = {
   id: "corvint.inspector",
   methods: {
+    cockpitSnapshot: { input: object({ sessionID: session }), output: cockpitSchema },
+    cockpitRefresh: { input: object({ sessionID: session, base: { type: "string", maxLength: 256 } }), output: cockpitSchema },
+    cockpitProof: { input: object({ sessionID: session, receiptId: { type: "string", maxLength: 128 }, checkID: { type: "string", maxLength: 256 } }), output: object({ state: string, text: string }) },
     snapshot: { input: object({ sessionID: session }), output: snapshotSchema },
     query: { input: object({ sessionID: session, task: { type: "string", minLength: 1, maxLength: 16384 } }), output: snapshotSchema },
     expand: { input: object({ sessionID: session, receiptId: string, handle: { type: "string", maxLength: 1024 } }), output: object({ state: string, text: string }) },
@@ -15,12 +21,6 @@ export const INSPECTOR_RPC = {
   events: { updated: { schema: object({ sessionIdSha256: string }) } },
 }
 
-export function visibleText(value, limit = 1600) {
-  if (typeof value !== "string") return ""
-  const text = value.replace(/[\x00-\x1f\x7f-\x9f\u061c\u200b-\u200f\u2028-\u202e\u2060-\u2064\u2066-\u2069\ufeff]/gu,
-    ch => `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`)
-  return text.length > limit ? text.slice(0, limit) + "… [display shortened]" : text
-}
 
 export function emptySnapshot(state = "empty", reason = "Request context for this session to see its evidence.") {
   return { state, reason, receiptId: "", revision: "", freshness: "unknown", support: "FALLBACK", rows: [], gaps: [] }
@@ -55,6 +55,10 @@ export function projectReceipt(response, handles = []) {
 }
 
 export function invalidateInspection(state, reason) {
+  state.cockpitGeneration = (state.cockpitGeneration || 0) + 1
+  state.cockpitRequest?.abort()
+  state.cockpitBinding = undefined
+  if (state.cockpit) state.cockpit = { ...state.cockpit, state: "stale", reason }
   state.inspectorGeneration = (state.inspectorGeneration || 0) + 1
   if (state.inspection) state.inspection = { ...state.inspection, state: "stale", reason }
 }

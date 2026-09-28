@@ -84,7 +84,7 @@ async function openCode(t,directory,options,project=directory){
   session:{get:async({sessionID})=>({id:sessionID,projectID:'fixture',location:{directory}}),hook:async(name,callback)=>{hooks['session.'+name]=callback;return registration}},rpc:{register:async(definition,handlers)=>{Object.assign(rpc,handlers);return {...registration,events:{emit:async(name,data)=>updates.push({name,data})}}}}}
  const cleanup=await openCodePlugin.setup(ctx);if(cleanup)t.after(cleanup)
  const emit=(type,data)=>new Promise(resolve=>{inbox.push([{type,data,location:null},resolve]);wake()})
- return {cleanup,tools,hooks,emit,rpc,updates}
+ return {cleanup,tools,hooks,emit,rpc,updates,ctx}
 }
 // The completed OpenCode 2 `write` tool call the host hands to `execute.after`.
 const written=(root,file,sessionID)=>({tool:'write',sessionID,id:'call-'+file,status:'completed',input:{path:file,content:''},result:{output:{operation:'write',target:join(root,file)}}})
@@ -737,4 +737,30 @@ test('AHI-033 RPC context concurrency remains bounded and deletion drops late re
  const run=host.rpc.query({sessionID:'deleted',task:'inspect deleted'},call)
  await new Promise(resolve=>setTimeout(resolve,10));await host.emit('session.deleted',{sessionID:'deleted'});await run
  assert.equal((await host.rpc.snapshot({sessionID:'deleted'})).state,'empty')
+})
+
+
+test('AHI-034 cockpit RPC admits only its location and invalidates edits and deleted sessions',async t=>{
+ const dir=mkdtempSync(join(tmpdir(),'corvint-cockpit-rpc-'));t.after(()=>rmSync(dir,{recursive:true,force:true}))
+ const git=(...args)=>execFileSync('git',['-C',dir,'-c','user.name=fixture','-c','user.email=fixture@example.invalid','-c','commit.gpgsign=false',...args],{encoding:'utf8'}).trim()
+ git('init','-q');writeFileSync(join(dir,'go.mod'),'module example.com/cockpit\n\ngo 1.27.1\n');mkdirSync(join(dir,'math'))
+ writeFileSync(join(dir,'math/add.go'),'package math\nfunc Add(a,b int) int { return a+b }\n')
+ writeFileSync(join(dir,'math/add_test.go'),'package math\nimport "testing"\nfunc TestAdd(t *testing.T) { if Add(1,2)!=3 { t.Fatal("sum") } }\n')
+ git('add','.');git('commit','-qm','fixture')
+ spyConsole(t,'info');spyConsole(t,'warn');const host=await openCode(t,dir,{corvintBinary:process.env.CORVINT_TEST_REAL_BINARY,...OPEN_TIMEOUTS})
+ const call={signal:new AbortController().signal},get=host.ctx.session.get
+ host.ctx.session.get=async x=>x.sessionID==='cross'?{projectID:'other',location:{directory:'/other'}}:get(x)
+ assert.equal((await host.rpc.cockpitSnapshot({sessionID:'a'},call)).state,'empty')
+ assert.equal((await host.rpc.cockpitRefresh({sessionID:'cross',base:''},call)).state,'unavailable')
+ const clean=await host.rpc.cockpitRefresh({sessionID:'a',base:''},call)
+ assert.equal(clean.state,'ready',JSON.stringify(clean));assert.equal(clean.files.length,0)
+ writeFileSync(join(dir,'math/add.go'),'package math\nfunc Add(a,b int) int { return a+b } // edited\n')
+ await host.hooks['execute.after'](written(dir,'math/add.go','a'))
+ assert.equal((await host.rpc.cockpitSnapshot({sessionID:'a'},call)).state,'stale')
+ const dirty=await host.rpc.cockpitRefresh({sessionID:'a',base:''},call)
+ assert.equal(dirty.state,'ready',JSON.stringify(dirty));assert.ok(dirty.files.includes('math/add.go'));assert.ok(dirty.impacts.some(x=>x.path==='math/add.go'))
+ assert.equal((await host.rpc.cockpitProof({sessionID:'a',receiptId:dirty.receiptId,checkID:'../../private'},call)).state,'unavailable')
+ const pending=host.rpc.cockpitRefresh({sessionID:'a',base:''},call)
+ await new Promise(resolve=>setTimeout(resolve,5));await host.emit('session.deleted',{sessionID:'a'});await pending
+ assert.equal((await host.rpc.cockpitSnapshot({sessionID:'a'},call)).state,'empty')
 })

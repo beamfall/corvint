@@ -1,6 +1,6 @@
 # Corvint for OpenCode
 
-Version 0.6.0 targets unmodified OpenCode 2.0.18. It supplies awaited task context, on-demand
+Version 0.7.0 targets unmodified OpenCode 2.0.18. It supplies awaited task context, on-demand
 query and exact source expansion, edit/evidence/verification observations, explicit outcomes, and
 compaction recovery from current Git state. OpenCode 1.x requires the older 0.2.9 adapter.
 
@@ -19,10 +19,41 @@ The runner supports macOS and Linux process groups. Only tuples in the qualifica
 qualified; Windows remains unsupported until process-tree cleanup is implemented and tested.
 
 
+## Change cockpit
+
+`/corvint` opens the change cockpit. Follow a changed file into its affected-test dependency
+paths, inspect recorded check commands/output, and open the existing evidence reader for context.
+No model call or test execution is needed to inspect these records.
+
+| Key | Action |
+| --- | --- |
+| 1 / 2 / 3 / 4 | Files / Impact / Proof / Gaps |
+| Up / Down; Page Up / Down | Select rows or scroll details |
+| Enter / click | Follow file impact or read a selected check's output |
+| Tab | Switch list/details in a compact panel |
+| x | Clear the selected-file impact filter |
+| b | Choose a branch, tag or commit to compare from |
+| r | Refresh the observed change and verification state |
+| e | Inspect context for the selected file, or open evidence |
+| f; Escape | Toggle full-screen; close |
+
+The base is pinned to the recorded workflow's base when present, otherwise HEAD. Selecting HEAD
+shows working-tree changes; another ref includes its committed range and current worktree changes.
+Affected tests are advisory selections. Declarations are displayed separately from execution results.
+A passing individual check does not establish workflow completion or complete test coverage.
+Proof reads display Core's qualification, tested/current commits and bounded local output; stale,
+unrun, failed and withheld observations remain explicit. Logs are caller-owned local records, not
+attested execution. Missing records and unsupported impact remain visible under Gaps.
+
+Refresh is explicit. The cockpit does not poll, execute displayed commands, refresh indexes, scan
+transcripts, or write evidence. Observed host edits invalidate its view; external edits require a
+refresh. Reads use existing Core commands and the current worktree's private completion owner.
+Output is capped at 64 KiB per stream; each file/impact/check list at 64 rows, with omissions shown.
+
 ## Context inspector
 
 The native terminal sidebar shows **Corvint context** for the current session. Click it or run
-`/corvint` to open the evidence panel. Run `/corvint Locate Add in add.go` to request context
+`/corvint` to open Change and press e for evidence. Run `/corvint Locate Add in add.go` to request context
 without asking a model. The panel also accepts these keys:
 
 | Key | Action |
@@ -40,6 +71,7 @@ without asking a model. The panel also accepts these keys:
 | i | Show the full inclusion reason, summary and immutable identities |
 | r | Request context for an explicit task |
 | f | Toggle full-screen; wide panels show evidence beside source |
+| c | Return to the change cockpit |
 | Escape | Close the panel |
 
 Each location shows its inclusion reason, authority and confidence. The source reader preserves
@@ -56,13 +88,12 @@ receipt reorder, while source is cleared when its receipt or observed state chan
 The view is bounded and held in memory, with no receipt or prompt journal. Its RPC runs through the
 existing OpenCode server and inherits that server's client trust boundary. The terminal plugin
 receives only context/evidence views and hashed-session update notices, not transcripts. Removing
-or disabling the plugin disposes the view and its subscriptions. Desktop/web custom panels and the
-proposed Impact/Proof views are outside this first slice.
+or disabling the plugin disposes the view and its subscriptions. Desktop/web custom panels, revision comparisons, review mode and portable handoff remain outside this slice.
 
 `script/qualify-opencode-inspector.py --host /absolute/opencode --corvint /absolute/corvint
 --output /absolute/evidence` exercises the actual 2.0.18 terminal in isolated temporary Git and XDG
 locations, without a model call. It requires Python 3, Git, a POSIX PTY and permission to start the
-host's temporary loopback server. Its UI witness is separate from full native integration
+host's temporary loopback server, plus Go for the recorded fixture test. Its UI witness is separate from full native integration
 qualification; it never writes `opencode-qualification.json` or grants execution authority.
 
 ## Install, discover, upgrade, disable, uninstall

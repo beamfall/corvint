@@ -1,5 +1,6 @@
+import { collectCockpit, emptyCockpit, inspectProof } from "./cockpit.js"
 import path from "node:path"
-import { INSPECTOR_RPC, emptySnapshot, beginInspection, completeInspection, invalidateInspection, inspectionMatches } from "./inspector.js"
+import { INSPECTOR_RPC, emptySnapshot, beginInspection, completeInspection, invalidateInspection, inspectionMatches, visibleText } from "./inspector.js"
 import { qualificationStatus } from "./qualification.js"
 import {
   boundedPaths,
@@ -547,8 +548,52 @@ async function setup(ctx) {
     },
   }
 
+  const cockpitSession = async (sessionID, signal) => {
+    if (events.signal.aborted || signal.aborted) return false
+    try {
+      const info = await ctx.session.get({ sessionID }, { signal })
+      return info.projectID === ctx.location.project?.id && path.resolve(info.location?.directory || "/") === path.resolve(directory)
+    } catch { return false }
+  }
+  const cockpitCall = async (bound, signal, action) => {
+    if (!bound?.state.active || inFlight >= MAX_IN_FLIGHT || bound.state.calls.size >= 2) throw new Error("context-busy")
+    const controller = new AbortController()
+    const combined = AbortSignal.any([signal, controller.signal, lifetime.signal, AbortSignal.timeout(20_000)])
+    inFlight++; bound.state.calls.add(controller)
+    try { return await action(read => runCorvint({ root, event: "cockpit", input: {}, read, signal: combined })) }
+    finally { controller.abort(); bound.state.calls.delete(controller); inFlight-- }
+  }
+
   // RPC is a trusted OpenCode-client surface. Session/location checks prevent accidental cross-view reads.
   if (ctx.rpc?.register) inspectorRPC = await ctx.rpc.register(INSPECTOR_RPC, {
+    cockpitSnapshot: async ({ sessionID }, context) => await cockpitSession(sessionID, context.signal)
+      ? sessions.get(hashSessionId(sessionID))?.cockpit || emptyCockpit() : emptyCockpit("unavailable", "Session is unavailable at this location."),
+    cockpitRefresh: async ({ sessionID, base }, context) => {
+      if (!await cockpitSession(sessionID, context.signal)) return emptyCockpit("unavailable", "Session is unavailable at this location.")
+      const bound = stateFor(sessionID), state = bound.state
+      state.cockpitRequest?.abort(); state.cockpitRequest = new AbortController()
+      const signal = AbortSignal.any([context.signal, state.cockpitRequest.signal])
+      const generation = state.cockpitGeneration = (state.cockpitGeneration || 0) + 1
+      state.cockpitBinding = undefined; state.cockpit = emptyCockpit("loading", "Reading change and verification evidence…"); changed(bound.key)
+      try {
+        const result = await cockpitCall(bound, signal, run => collectCockpit(run, base))
+        if (state.active && generation === state.cockpitGeneration && !signal.aborted) { state.cockpit = result.view; state.cockpitBinding = result.binding }
+      } catch (error) {
+        if (state.active && generation === state.cockpitGeneration) state.cockpit = emptyCockpit("unavailable", visibleText(error.message || "Change inspection unavailable."))
+      }
+      changed(bound.key)
+      return state.cockpit || emptyCockpit()
+    },
+    cockpitProof: async ({ sessionID, receiptId, checkID }, context) => {
+      if (!await cockpitSession(sessionID, context.signal)) return { state: "unavailable", text: "Session is unavailable at this location." }
+      const key = hashSessionId(sessionID), state = sessions.get(key)
+      const current = () => state?.active && state.cockpit?.state === "ready" && state.cockpit.receiptId === receiptId
+      if (!current() || !state.cockpit.checks.some(c => c.id === checkID)) return { state: "unavailable", text: "Verification is no longer current. Refresh the change view." }
+      try {
+        const text = await cockpitCall({ key, state }, context.signal, run => inspectProof(run, state.cockpitBinding, checkID))
+        return current() ? { state: "ready", text } : { state: "unavailable", text: "Change view changed while reading verification." }
+      } catch (error) { return { state: "unavailable", text: visibleText(error.message || "Verification unavailable. Refresh the change view.") } }
+    },
     snapshot: async ({ sessionID }) => sessions.get(hashSessionId(sessionID))?.inspection || emptySnapshot(),
     query: async ({ sessionID, task }, rpcContext) => {
       let info

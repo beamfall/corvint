@@ -1,3 +1,4 @@
+import { createCockpit } from "./cockpit-tui.tsx"
 import { Plugin } from "@opencode/plugin/tui"
 import { SyntaxStyle } from "@opentui/core"
 import { createEffect, createMemo, createSignal, For, onCleanup, Show, untrack } from "solid-js"
@@ -13,6 +14,7 @@ const directory = path => path.includes("/") ? path.slice(0, path.lastIndexOf("/
 export default Plugin.define({
   id: "corvint.inspector.ui",
   setup(ctx) {
+    const [mode, setMode] = createSignal("change")
     const rpc = ctx.client.rpc(INSPECTOR_RPC)
     const lifetime = new AbortController()
     const location = () => ctx.location ?? ctx.data.location.default()
@@ -50,7 +52,7 @@ export default Plugin.define({
 
     function Sidebar(props) {
       const snapshot = useSnapshot(() => props.sessionID)
-      return <box flexDirection="column" marginTop={1} onMouseDown={() => ctx.ui.panel.open(PANEL)}>
+      return <box flexDirection="column" marginTop={1} onMouseDown={() => { setMode("evidence"); ctx.ui.panel.open(PANEL) }}>
         <text fg={ctx.theme.text.base}><b>Corvint context</b></text>
         <text fg={tone(snapshot())}>{() => `${evidenceStatus(snapshot()).label} · ${snapshot().rows.length} locations`}</text>
         <Show when={snapshot().revision}><text fg={ctx.theme.text.muted}>{() => `Observed ${snapshot().freshness} · ${snapshot().revision.slice(0, 8)}`}</text></Show>
@@ -59,7 +61,7 @@ export default Plugin.define({
       </box>
     }
 
-    function Inspector(props) {
+    function EvidenceInspector(props) {
       const snapshot = useSnapshot(() => props.panel.sessionID)
       const [selected, setSelected] = createSignal("")
       const [filter, setFilter] = createSignal("")
@@ -158,7 +160,7 @@ export default Plugin.define({
         { bind: "g", run: () => setView(view() === "gaps" ? "evidence" : "gaps") },
         { bind: "i", run: () => setView(view() === "details" ? "evidence" : "details") },
         { bind: "h", run: () => setHighlight(value => !value) }, { bind: "l", run: cited }, { bind: "r", run: () => prompt(false) },
-        { bind: "f", run: props.panel.toggleFullscreen }, { bind: "escape", run: props.panel.close },
+        { bind: "c", run: () => setMode("change") }, { bind: "f", run: props.panel.toggleFullscreen }, { bind: "escape", run: props.panel.close },
       ] }))
 
       const tab = (name, label) => <text fg={view() === name ? accent() : ctx.theme.text.muted} onMouseDown={() => { props.panel.focus(); setView(name) }}>{() => `${view() === name ? "● " : ""}${label}`}</text>
@@ -219,7 +221,7 @@ export default Plugin.define({
         </box>
       }
       return <box flexDirection="column" flexGrow={1} minHeight={0} padding={1}>
-        <box flexDirection="row" justifyContent="space-between" flexShrink={0}><text fg={ctx.theme.text.base}><b>Corvint · Evidence</b></text><text fg={ctx.theme.text.muted} onMouseDown={props.panel.close}>esc close</text></box>
+        <box flexDirection="row" justifyContent="space-between" flexShrink={0}><text fg={ctx.theme.text.base}><b>Corvint · Evidence</b></text><text fg={accent()} onMouseDown={() => setMode("change")}>c Change</text></box>
         <box flexDirection="row" gap={2} flexShrink={0}><text fg={tone(snapshot())}>{() => evidenceStatus(snapshot()).label}</text><text fg={ctx.theme.text.muted}>{() => `Observed ${snapshot().freshness}`}</text><text fg={ctx.theme.text.feedback.warning.base} onMouseDown={() => setView("gaps")}>{() => `${snapshot().gaps.length} gaps`}</text></box>
         <Show when={snapshot().reason}><text fg={tone(snapshot())} maxHeight={2}>{() => visibleText(snapshot().reason)}</text></Show>
         <box flexDirection="row" gap={2} marginY={1} flexShrink={0}>{tab("evidence", "Evidence")}{tab("source", "Source")}{tab("gaps", "Gaps")}{tab("details", "Details")}</box>
@@ -233,11 +235,18 @@ export default Plugin.define({
         </box>
       </box>
     }
+    const Cockpit = createCockpit(ctx, { rpc, lifetime, location, accent, openEvidence: async (file, signal, current) => {
+      if (file) await query(ctx.ui.panel.current()?.sessionID, `Locate governing requirements and context for ${file}`, location(), signal)
+      if (current() && !signal.aborted) setMode("evidence")
+    } })
+    const Inspector = props => <Show when={mode() === "change"} fallback={<EvidenceInspector panel={props.panel} />}><Cockpit panel={props.panel} /></Show>
+
     const dispose = [
       ctx.ui.slot({ append: "sidebar.content", render: props => <Sidebar {...props} /> }),
       ctx.ui.slot({ append: "session.panel", render: panel => <Show when={panel.name === PANEL}><Inspector panel={panel} /></Show> }),
       ctx.ui.slot({ append: "app", render: () => {
         ctx.keymap.layer(() => ({ mode: "global", commands: [{ id: "corvint.context", title: "Corvint: inspect context", group: "Corvint", palette: true, slash: { name: "corvint", arguments: true }, run: async task => {
+          setMode(task?.trim() ? "evidence" : "change")
           if (!ctx.ui.panel.open(PANEL)) { ctx.ui.toast.show({ message: "Open a session to inspect its context.", variant: "info" }); return }
           const sessionID = ctx.ui.panel.current()?.sessionID
           if (sessionID && task?.trim()) await query(sessionID, task, location())

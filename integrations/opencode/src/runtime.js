@@ -5,7 +5,7 @@ import path from "node:path"
 import { StringDecoder } from "node:string_decoder"
 import { overQueryBound, trimSpace } from "./prompt-bound.js"
 
-export const ADAPTER_VERSION = "0.6.0"
+export const ADAPTER_VERSION = "0.7.0"
 export const PROTOCOL = "corvint-harness-event/0"
 export const SUPPORT = "FALLBACK"
 
@@ -337,6 +337,31 @@ function envelopeFault(value, event, hostVersion, input) {
   return degradationsFault(value.degradations)
 }
 
+// Internal read kinds have fixed argv; the RPC surface never accepts a command or executable.
+export function cockpitReadArguments(root, read) {
+  const oid = value => /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(value ?? "")
+  if (read?.kind === "repository") return { git: true, args: ["-C", root, "rev-parse", "--show-toplevel", "--absolute-git-dir", "HEAD", "HEAD^{tree}"] }
+  if (read?.kind === "resolve" && typeof read.ref === "string" && read.ref.length > 0 && read.ref.length <= 256 && !/[\x00-\x20\x7f]/u.test(read.ref)) return { git: true, args: ["-C", root, "rev-parse", "--verify", "--end-of-options", `${read.ref}^{commit}`] }
+  if (read?.kind === "affected" && oid(read.base)) return { args: ["--root", root, "affected", "--base", read.base] }
+  if (read?.kind === "completion" && /^[0-9a-f]{64}$/.test(read.key ?? "")) return { args: ["--root", root, "dogfood", "status", "--session-key", read.key] }
+  return undefined
+}
+
+function cockpitReadResult(kind, output) {
+  const oid = value => /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(value ?? "")
+  if (kind === "repository") {
+    const lines = output.trimEnd().split("\n")
+    if (lines.length === 4 && lines.slice(0, 2).every(x => path.isAbsolute(x) && !/[\x00-\x1f]/u.test(x)) && lines.slice(2).every(oid)) return { ok: true, root: lines[0], gitdir: lines[1], target: lines[2], tree: lines[3] }
+  } else if (kind === "resolve") {
+    if (oid(output.trim())) return { ok: true, commit: output.trim() }
+  } else {
+    const value = JSON.parse(output)
+    if (value?.ok !== true || value.mutates !== false) return undefined
+    if (kind === "affected" && value.profile === "affected-plan/0" && oid(value.revision) && Array.isArray(value.plan?.dirty) && Array.isArray(value.plan?.selected) && Array.isArray(value.plan?.unknown) && Array.isArray(value.advice?.checks)) return value
+    if (kind === "completion" && value.profile === "corvint-local-completion/0" && value.tool === "dogfood-status" && typeof value.policy?.lifecycle === "string" && Array.isArray(value.policy.unmet)) return value
+  }
+}
+
 export function createCorvintRunner(options = {}) {
   const environment = options.environment ?? process.env
   const binary = executable(options.corvintBinary ?? environment.CORVINT_BIN)
@@ -353,11 +378,14 @@ export function createCorvintRunner(options = {}) {
   )
   const platform = options.platform ?? process.platform
 
-  return async function runCorvint({ root, event, input, query = false, signal, expand, budgetBytes = 8000 }) {
+  return async function runCorvint({ root, event, input, query = false, signal, expand, read, budgetBytes = 8000 }) {
     if (platform === "win32") return degradation(event, "unsupported-process-tree-cleanup")
     if (expand !== undefined && (typeof expand !== "string" || expand.length > 1024 || !/^cv1:[0-9a-f]{40,64}:[0-9a-f]{40,64}:(?:all|[1-9][0-9]*-[1-9][0-9]*):[^\0\r\n]+$/.test(expand))) {
       return degradation(event, "invalid-expansion-handle")
     }
+    const reading = read === undefined ? undefined : cockpitReadArguments(root, read)
+    if (read !== undefined && (!reading || expand !== undefined)) return degradation(event, "invalid-cockpit-read")
+    if (signal?.aborted) return degradation(event, "host-aborted")
     let serialized
     try {
       serialized = JSON.stringify(input)
@@ -368,7 +396,7 @@ export function createCorvintRunner(options = {}) {
       return degradation(event, "input-too-large")
     }
 
-    const args = expand !== undefined ? ["--root", root, "context", "--expand", expand, "--max-bytes", "6000"] : [
+    const args = reading ? reading.args : expand !== undefined ? ["--root", root, "context", "--expand", expand, "--max-bytes", "6000"] : [
       "--root",
       root,
       "harness",
@@ -388,7 +416,7 @@ export function createCorvintRunner(options = {}) {
       "--budget-bytes",
       String(budgetBytes === 7000 ? 7000 : 8000),
     ]
-    const timeoutMs = query ? queryTimeoutMs : automaticTimeoutMs
+    const timeoutMs = reading ? MAX_QUERY_TIMEOUT_MS : query ? queryTimeoutMs : automaticTimeoutMs
 
     return await new Promise((resolve) => {
       let settled = false
@@ -402,7 +430,7 @@ export function createCorvintRunner(options = {}) {
       let reapTimer
       let terminationCode
       let leaderExited = false
-      const child = spawn(binary, args, {
+      const child = spawn(reading?.git ? executable(options.gitBinary ?? "git") : binary, args, {
         cwd: root,
         detached: true,
         env: childEnvironment(environment),
@@ -466,7 +494,7 @@ export function createCorvintRunner(options = {}) {
       })
       child.stdout.on("data", (chunk) => {
         outputBytes += chunk.length
-        if (outputBytes > MAX_OUTPUT_BYTES) {
+        if (outputBytes > (reading ? 1_048_576 : MAX_OUTPUT_BYTES)) {
           overflow = true
           terminate("output-too-large")
           return
@@ -492,6 +520,12 @@ export function createCorvintRunner(options = {}) {
           return
         }
         output += decoder.end()
+        if (reading) {
+          let value
+          try { value = cockpitReadResult(read.kind, output) } catch {}
+          finish(value || degradation(event, "malformed-cockpit-output"))
+          return
+        }
         let envelope
         try {
           envelope = JSON.parse(output)

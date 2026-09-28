@@ -10,7 +10,7 @@ Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 ## Agent digest
 - Claim: Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.
 - Status: accepted direction/experimental
-- Exists: `internal/gokernel`, `cmd/corvint`, native adapter previews, and the experimental OpenCode terminal context inspector (AHI-033).
+- Exists: `internal/gokernel`, `cmd/corvint`, native adapter previews, and the experimental OpenCode terminal context inspector (AHI-033) and change cockpit (AHI-034).
 - Blocked on: black-box release-matrix qualification with accepted closing authority.
 - Read next: `harness-authority-relation-v0.md` (superseded by accepted decision 0009 option 2; no execution authority root) and `change-frontier-profile-1.md`.
 
@@ -643,6 +643,56 @@ do not reinterpret this Frontier result.
   unavailable state. Rollback removes `src/tui.tsx`, the inspector RPC/view and its package export,
   restores the prior adapter under a new version, and keeps prior qualification evidence invalid.
 
+- `AHI-034`: The owner-approved change cockpit (2026-09-28, “do it” after the change
+  cockpit, impact navigation and proof-inspection proposal) MUST let an operator follow changed
+  files → affected-test dependency witnesses → recorded verification without a model call. It
+  MUST reuse the existing context/source inspector for governing evidence. Other proposed review,
+  revision-diff and export modes are outside this slice. The optional native OpenCode UI remains
+  a client of existing read commands, with no Core execution or authority change.
+
+  `/corvint` MUST open the change view; an explicit task MUST retain the context-query behavior.
+  The change view MUST expose files, impact witnesses, proof observations and unresolved gaps,
+  with keyboard/pointer parity, wide list/details and narrow single-pane navigation, scoped dialogs,
+  explicit refresh, base selection and a visible route to the evidence reader. The default base
+  is the current worktree's recorded completion base when available, otherwise captured HEAD;
+  an operator-selected ref MUST resolve to a full immutable commit before collection. `plan.dirty`
+  supplies the advisory changed set; `range.paths` alone MUST NOT stand for dirty changes.
+  Unit selection MUST retain its source path, witness kind and ordered dependency path. Suggested
+  or declared checks MUST remain visibly distinct from observed executions, and absent connections
+  MUST NOT imply unaffected files, safe test omission or complete requirements/coverage.
+
+  The server MAY invoke only closed fixed-argv Git metadata/ref reads, `affected --base FULL_SHA`
+  and `dogfood status --session-key HASH`, using the existing bounded owned-process runner. No
+  shell, client command/path execution, test execution, index refresh, transcript scan, polling,
+  persistence, provider or new daemon is admitted. Explicit reads MUST have a 1 MiB output and
+  ten-second command bound, with a twenty-second aggregate call bound, shared 16-global/two-session
+  admission, cancellation and descendant cleanup. Existing automatic-event bounds remain unchanged.
+  One latest volatile cockpit per existing bounded session MAY retain at most 64 file, impact and
+  check rows each and 128 gaps; every display omission MUST be disclosed. Snapshot reads MUST NOT
+  allocate sessions or spawn processes. Host session/project/location admission MUST precede reads.
+
+  Verification discovery MUST use only the fixed private Git directory's completion owner and
+  Core status. A per-check `qualified` result MUST NOT become workflow satisfaction; `unmet`
+  remains visible, and failed, stale, unrun, cancelled, timed-out and withheld observations remain
+  distinct. Qualification binds the committed target: uncommitted work MUST mark prior check results
+  stale for the displayed worktree even when Core still qualifies their committed target. Check commands are inert displayed text. Output reads MUST accept only a check ID from
+  the current receipt, restrict paths to that owner's exact generation/check-log pattern, reject
+  symlink directory components and symlink/nonregular/hardlinked files, validate the opened inode,
+  and read at most 64 KiB per stream with visible truncation. Secret-screened output is withheld.
+  Repository/session/receipt changes MUST discard late reads. Before and after log reading, the
+  owner, Core policy/check projection, and Git identity MUST still match the captured view; check
+  reruns or reenrollment require refresh. Logs remain caller-owned local bytes with no content
+  attestation from the status API, and same-user concurrent mutation is not an authenticated boundary.
+  Terminal controls/bidi remain escaped; output line breaks may be preserved for reading.
+
+  Failure MUST retain a recoverable unavailable/stale state without interrupting coding. Observed
+  freshness MUST NOT claim continuous monitoring of external edits. Acceptance requires focused
+  input/bounds/path/owner-race/check-rerun/stale-result/admission tests and a real stock 2.0.18 native
+  witness for file → impact → command/output, edit invalidation, both themes, narrow/pointer/dialog
+  use and interruption without descendants. Check qualification with an unsatisfied workflow MUST
+  be covered. Rollback restores the retained 0.6.0 package/configuration and leaves existing evidence
+  records intact. UI witnesses do not promote harness support or execution authority.
+
 ## Native platform profiles
 
 | Platform | Embedded host-admission key | Maintained Corvint package | Native surfaces | Stability rule |
@@ -845,6 +895,7 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 |---|---|---|
 | `AHI-001`, `003`, `005`, `014` | shared `corvint harness event` core and `internal/projectpath` | canonical receipt, bounds, privacy, revision, and event fixtures; `TestHostAdapterAbsentPathContainment` and `TestRelativeAliasesAndUncertainty` cover `AHI-014` path containment, and the `integrations/host-adapters.test.mjs` test `AHI-014 Gemini classifies changed paths on resolved symlinks like internal/projectpath` under `TestHostAdapterJavaScriptHosts` covers the Gemini hook's symlink resolution; `TestClaudeAdapterForkSessionStartIsResume` covers the Claude `fork` start source; `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` drives the Claude `SessionStart(source=compact)` hook entrypoint over a mixed dirty worktree and requires the tracked impact, the untracked count and `compaction-untracked-paths-not-rehydratable` from the receipt's own snapshot; `TestQualifiedLifecycleCompactSessionStartRehydratesDirtyPaths` requires the same for the qualified profile under FULL and FALLBACK and refuses a reordered, extra or dropped code; `TestAHI014EventExpectationsAreHostConsistent` (`conformance/harness-event-v0/host_schema_test.go`) pins each `common-logical-interaction.json` event's closed host set and requires every present host's golden `expected` object to be byte-identical, so a per-host field or host-membership mutation of that fixture fails here |
 | `AHI-033` | `integrations/opencode/src/inspector.js`, `src/tui.tsx`, and inspector RPC in `src/index.js` | `integrations/opencode/inspector.test.mjs`, AHI-033 cases under `TestHostAdapterJavaScriptHosts`, and `script/qualify-opencode-inspector.py` (stock native rendering, pinned source, narrow keyboard use and interruption cleanup) |
+| `AHI-034` | `integrations/opencode/src/cockpit.js`, `cockpit-tui.tsx`, `index.js`, `runtime.js` | `integrations/opencode/cockpit.test.mjs` and `script/qualify-opencode-inspector.py`: bounded fixed reads, safe output paths, stale/owner/check-rerun races, advisory impact navigation, independent workflow/check state and real native change/proof workflow |
 | `AHI-025` | `cmd/corvint/pi_tools.go`, `integrations/pi/tools.js` | `TestPiToolContextExpansion`, `TestPiToolRecord`, `TestPiToolClosedInput` and native Pi tool/RPC fixtures |
 | `AHI-026` | `integrations/claude-code/plugins/corvint/hooks/hooks.json`, `compatibility.json` `compactionHooks`, `cmd/corvint/host_adapter.go` declared-kill table | `TestAHI026ClaudeCompactionHooksRegisteredAgainstHostAPI` (matcherless `PreCompact`/`PostCompact` groups, verified host version equals the tested maximum, closed trigger set) and `TestAHI017AdapterHostKillMatchesDeclaredHooks` (the two new declared kills) |
 | `AHI-027` | `cmd/corvint/host_adapter_compaction.go` (`runClaudeCompactionEvent`, `compactionBlockFor`, `compactionPinLine`), `emitAdapterOutput` plain-stdout branch | `TestAHI027ClaudePreCompactEmitsPinFromCompactionBlock` (instruction plus pin as text, pin equals the fixture's HEAD tree and tracked dirty path, 24-path bound with hostile paths elided); `TestAHI027ClaudeCompactionPinsCleanAndUntrackedOnlyTrees` (clean and untracked-only trees pin the HEAD tree and report without a fault; an over-budget block elides its unlisted tracked paths); `TestClaudeCompactionDegradationIsPlainText` (degradations print frame text through `compactionPlainOutput`, an empty summary prints an empty line) |

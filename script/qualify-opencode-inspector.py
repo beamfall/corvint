@@ -95,7 +95,7 @@ def command(argv, cwd, env=None):
     global CHILD
     CHILD = subprocess.Popen(argv, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
     try:
-        stdout, stderr = CHILD.communicate(timeout=45)
+        stdout, stderr = CHILD.communicate(timeout=90)
         if CHILD.returncode:
             raise RuntimeError(str(argv)+': '+stderr)
         return stdout
@@ -143,10 +143,12 @@ def capture(name):
     (RUN/(name+'.json')).write_text(json.dumps(frame()))
 
 
-def click_text(value):
+def click_text(value, before_column=None):
     for y, line in enumerate(text().splitlines(), 1):
         if value in line:
             x = line.index(value)+1
+            if before_column is not None and x >= before_column:
+                continue
             send(('\x1b[<0;%d;%dM\x1b[<0;%d;%dm' % (x,y,x,y)).encode())
             return
     raise RuntimeError('Clickable text not visible: '+value)
@@ -174,10 +176,21 @@ try:
     (root/'multiply.go').write_text('package inspector\n\n'+''.join('// Before citation %02d\n'%i for i in range(35))+'// Multiply preserves the NATIVE_MULTIPLY_WITNESS contract.\nfunc Multiply(a, b int) int { return a * b }\n'+''.join('// After citation %02d\n'%i for i in range(45)))
     (root/'examples').mkdir()
     (root/'examples/multiply.go').write_text('package examples\n\n// Multiply uses NATIVE_SECOND_WITNESS.\nfunc Multiply(a, b int) int { return a * b }\n')
+    (root/'multiply_test.go').write_text('package inspector\n\nimport "testing"\n\nfunc TestMultiply(t *testing.T) { if Multiply(3, 4) != 12 { t.Fatal("wrong product") }; t.Log("COCKPIT_PROOF_WITNESS") }\n')
     (root/'AGENTS.md').write_text('# Inspector fixture\nUse Add in add.go for addition.\n')
     (root/'.gitignore').write_text('opencode.json\n.corvint/\n.context-corvint/\n')
     command(['git', 'add', '.'], root)
     command(['git', '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'fixture'], root)
+    base_revision = command(['git', 'rev-parse', 'HEAD'], root).strip()
+    verification_key = 'c' * 64
+    verification_plan = RUN/'verification-plan.json'
+    verification_plan.write_text(json.dumps({'base': base_revision, 'intents': ['AGENTS.md'], 'checks': [{'id': 'unit', 'argv': ['go', 'test', '-v', './...'], 'timeoutSeconds': 60}]}))
+    command([A.corvint, 'dogfood', 'begin', '--plan', str(verification_plan), '--session-key', verification_key], root, env)
+    with (root/'multiply.go').open('a') as changed_source:
+        changed_source.write('// Committed change for the cockpit witness.\n')
+    command(['git', 'add', 'multiply.go'], root)
+    command(['git', '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'change'], root)
+    command([A.corvint, 'dogfood', 'verify', '--session-key', verification_key, '--check', 'unit'], root, env)
     command([A.corvint, 'index', '--if-stale'], root, env)
     (root/'opencode.json').write_text(json.dumps({'plugins': [{'package': (SOURCE/'integrations/opencode/src').as_uri(), 'options': {'corvintBinary': A.corvint, 'queryTimeoutMs': 10000}}]}))
     log = RUN/'witness.jsonl'
@@ -200,6 +213,7 @@ export default Plugin.define({id:"inspector-witness",setup(ctx){
  ctx.keymap.layer(()=>({mode:"global",commands:[
  {bind:"f6",run:async()=>{try{const s=await ctx.client.session.create({title:"Inspector fixture",location:{directory:ROOT}});ctx.ui.router.navigate({type:"session",sessionID:s.id});log({stage:"session",id:s.id})}catch(e){log({error:String(e)})}}},
  {bind:"f7",run:()=>{ctx.keymap.dispatch("corvint.context","Locate Multiply in multiply.go");log({stage:"requested"})}},
+ {bind:"f8",run:()=>ctx.keymap.dispatch("corvint.context")},
  ]}));return null}})
  return ()=>{ctx.renderer.off("frame",flush);ctx.renderer.removePostProcessFn(capture);stop()}
 }})
@@ -276,6 +290,42 @@ export default Plugin.define({id:"inspector-witness",setup(ctx){
     read_until(lambda: 'Ready' in text() and 'Receipt:' in text(), 'fresh query')
     send(b'\t'); send(b'\t')
     read_until(lambda: 'Enter Open pinned source' in text() and 'NATIVE_SECOND_WITNESS' not in text(), 'source invalidation')
+    fcntl.ioctl(MASTER, termios.TIOCSWINSZ, struct.pack('HHHH', 48, 160, 0, 0))
+    os.kill(CHILD.pid, signal.SIGWINCH)
+    send(b'\x1b[19~')
+    read_until(lambda: 'Corvint · Change' in text() and '1 files' in text(), 'change cockpit')
+    if 'obligations open' not in text():
+        raise RuntimeError('Qualified fixture check incorrectly implied workflow completion')
+    send(b'f')
+    read_until(lambda: 'Recorded intent scopes' in text(), 'wide change details')
+    capture('cockpit-files')
+    send(b'\r')
+    read_until(lambda: 'Why selected:' in text() and 'multiply_test.go' in text(), 'affected dependency witness')
+    capture('cockpit-impact')
+    send(b'3')
+    read_until(lambda: 'PASS · unit' in text(), 'observed verification result')
+    click_text('PASS · unit', before_column=40)
+    read_until(lambda: 'COCKPIT_PROOF_WITNESS' in text(), 'recorded verification output')
+    capture('cockpit-proof')
+    send(b'b')
+    read_until(lambda: 'Compare from revision' in text(), 'base selection dialog')
+    send(b'HEAD\x1b')
+    read_until(lambda: 'Compare from revision' not in text(), 'base dialog cancel isolation')
+    fcntl.ioctl(MASTER, termios.TIOCSWINSZ, struct.pack('HHHH', 24, 72, 0, 0))
+    os.kill(CHILD.pid, signal.SIGWINCH)
+    read_until(lambda: frame()['width'] == 72 and 'Tab list/details' in text(), 'compact cockpit proof')
+    capture('cockpit-narrow')
+    send(b'e')
+    read_until(lambda: 'Corvint · Evidence' in text() and 'c Change' in text(), 'cockpit to governing context')
+    send(b'c')
+    read_until(lambda: 'Corvint · Change' in text() and '1 files' in text(), 'return to cockpit')
+    with (root/'multiply.go').open('a') as changed_source:
+        changed_source.write('// External edit invalidates the recorded check.\n')
+    send(b'r')
+    read_until(lambda: '1 files' in text(), 'refresh external edit')
+    send(b'3')
+    read_until(lambda: ('STALE · unit' in text() or 'UNVERIFIED · unit' in text()) and 'PASS · unit' not in text(), 'old verification is not current after edit')
+    capture('cockpit-stale')
     survivors = cleanup()
     if survivors:
         raise RuntimeError('Owned processes survived: '+str(survivors))
@@ -295,7 +345,7 @@ export default Plugin.define({id:"inspector-witness",setup(ctx){
     interruption = json.loads((Path(probe['run'])/'cleanup.json').read_text())
     if exit_code != 143 or not interruption['observed'] or interruption['survivors']:
         raise RuntimeError('Interruption cleanup failed: '+stderr)
-    report = {'profile': 'corvint-opencode-inspector-witness/0', 'result': 'PASS', 'host': version, 'theme': A.theme, 'sourceCommit': command(['git', 'rev-parse', 'HEAD'], SOURCE).strip(), 'sourceSHA256': {str(p.relative_to(SOURCE)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((SOURCE/'integrations/opencode/src').glob('*')) if p.is_file()}, 'checks': ['native-sidebar', 'context-rpc', 'evidence-panel', 'pinned-source', 'keyboard-source-selection', 'narrow-width', 'keyboard-gaps', 'native-frame-capture', 'cited-line', 'source-scroll', 'filter', 'empty-filter', 'dialog-focus', 'pointer-open', 'short-height', 'source-invalidation', 'cold-cache-plain-source', 'explicit-syntax-opt-in', 'interruption-no-descendants'], 'root': str(RUN), 'interruption': interruption, 'authority': 'NONE', 'qualification': 'UI witness only; does not promote integration support'}
+    report = {'profile': 'corvint-opencode-inspector-witness/0', 'result': 'PASS', 'host': version, 'theme': A.theme, 'sourceCommit': command(['git', 'rev-parse', 'HEAD'], SOURCE).strip(), 'sourceSHA256': {str(p.relative_to(SOURCE)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((SOURCE/'integrations/opencode/src').glob('*')) if p.is_file()}, 'checks': ['native-sidebar', 'context-rpc', 'evidence-panel', 'pinned-source', 'keyboard-source-selection', 'narrow-width', 'keyboard-gaps', 'native-frame-capture', 'cited-line', 'source-scroll', 'filter', 'empty-filter', 'dialog-focus', 'pointer-open', 'short-height', 'source-invalidation', 'cold-cache-plain-source', 'explicit-syntax-opt-in', 'cockpit-files', 'cockpit-impact', 'cockpit-proof', 'cockpit-unsatisfied-workflow', 'cockpit-base-dialog', 'cockpit-narrow', 'cockpit-context', 'cockpit-stale-check', 'interruption-no-descendants'], 'root': str(RUN), 'interruption': interruption, 'authority': 'NONE', 'qualification': 'UI witness only; does not promote integration support'}
     if A.theme == 'dark':
         light_out = OUT/'light'
         command([os.sys.executable, '-B', __file__, '--host', A.host, '--corvint', A.corvint, '--output', str(light_out), '--theme', 'light'], SOURCE)
