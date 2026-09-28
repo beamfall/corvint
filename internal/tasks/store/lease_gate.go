@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
@@ -32,7 +33,13 @@ type gateRun struct{ record, output []byte }
 // rechecks the attempt, tree and definition under the lock. A repeated
 // request id reruns the gate before the replay is found. A stale or
 // unsubmitted attempt is not run: the model answers it with no gate facts.
+// Before reading, it settles the journal under the lock, so a gate run
+// retried after a crash recovers as any other writer does (CAL-V0-019).
 func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, worktree string, clock func() time.Time) (*Report, error) {
+	redone, err := settle(ctx, repo)
+	if err != nil {
+		return &Report{}, err
+	}
 	a, policy, err := unlockedAttempt(repo, choice.Lease.AttemptID)
 	if err != nil {
 		return &Report{}, err
@@ -58,7 +65,34 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 	if err != nil {
 		return &Report{}, err
 	}
-	return Lease(ctx, repo, actor, choice, now)
+	report, err := Lease(ctx, repo, actor, choice, now)
+	if report != nil {
+		report.Redone = report.Redone || redone
+	}
+	return report, err
+}
+
+// settle takes the lock only to clear the staging slots a killed writer left
+// and redo a committed receipt. A store the writer guards refuse is left for
+// the lease write to report.
+func settle(ctx context.Context, repo *intent.Repository) (bool, error) {
+	if _, err := authority.Qualify(repo.CommonDir); err != nil {
+		return false, err
+	}
+	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})
+	if err != nil {
+		return false, err
+	}
+	defer lock.Close()
+	session, err := authority.NewSession(repo, lock)
+	if err != nil {
+		return false, err
+	}
+	defer session.Close()
+	if _, err = writerGuards(repo, transaction.Lease); err != nil {
+		return false, nil
+	}
+	return redoPending(repo, session)
 }
 
 // unlockedAttempt reads the attempt and policy without the store lock; the
@@ -278,11 +312,11 @@ func gateFacts(repo *intent.Repository, choice LeaseChoice) claimObserver {
 	l := choice.Lease
 	switch l.Verb {
 	case transaction.LeaseSubmit:
-		return func(proof *journal.Result) (transaction.LeaseFacts, error) {
+		return func(proof *journal.Result, _ *transaction.Input) (transaction.LeaseFacts, error) {
 			return submitFacts(leaseRoot(repo, choice), proof, l)
 		}
 	case transaction.LeaseGateRun:
-		return func(proof *journal.Result) (transaction.LeaseFacts, error) {
+		return func(proof *journal.Result, _ *transaction.Input) (transaction.LeaseFacts, error) {
 			results, err := attemptGateResults(repo, proof, l.AttemptID)
 			if choice.gate == nil || err != nil {
 				return transaction.GateFacts(nil, nil, nil, "", false, results), err
@@ -290,7 +324,7 @@ func gateFacts(repo *intent.Repository, choice LeaseChoice) claimObserver {
 			return transaction.GateFacts(nil, choice.gate.record, choice.gate.output, "", false, results), nil
 		}
 	case transaction.LeaseComplete:
-		return func(proof *journal.Result) (transaction.LeaseFacts, error) {
+		return func(proof *journal.Result, _ *transaction.Input) (transaction.LeaseFacts, error) {
 			return completeFacts(repo, leaseRoot(repo, choice), proof, l)
 		}
 	}

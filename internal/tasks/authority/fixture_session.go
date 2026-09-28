@@ -886,6 +886,67 @@ func (s *fixtureSession) removeStage(slot fixtureSlot) error {
 		return fixtureRefused
 	})
 }
+func (s *fixtureSession) removeOrphanStages() (removed int, err error) {
+	err = s.operation(func() error {
+		p := s.parents["staging"]
+		if p == nil {
+			return nil
+		}
+		if len(s.stages) != 0 {
+			return fixtureRefused
+		}
+		// A staging descriptor marks active staging, not orphans: it is left
+		// for the journal audit to refuse.
+		for _, name := range []string{"active.json", "active.json.tmp"} {
+			if _, err := p.root.Lstat(name); !os.IsNotExist(err) {
+				return err
+			}
+		}
+		for i := 0; i <= 10; i++ {
+			name := fmt.Sprintf("a%02d", i)
+			_, err := p.root.Lstat(name)
+			if os.IsNotExist(err) {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			if err = s.unlinkOrphan(name); err != nil {
+				return err
+			}
+			removed++
+		}
+		return nil
+	})
+	return removed, err
+}
+func (s *fixtureSession) unlinkOrphan(name string) (err error) {
+	f, info, digest, err := s.readCurrent("staging", name, wire.MaxEvidenceBlobBytes)
+	if err != nil {
+		return err
+	}
+	performed := false
+	defer func() {
+		err = errors.Join(err, s.closeFile(f))
+		if performed {
+			err = fixtureAfter("unlink", err)
+		}
+	}()
+	if err = s.boundary("orphan-unlink"); err != nil {
+		return err
+	}
+	if err = s.checkCurrent("staging", name, f, info, digest); err != nil {
+		return err
+	}
+	if err = s.boundary("native:unlink"); err != nil {
+		return err
+	}
+	if err = fixtureUnlink(s.parents["staging"].file, name, f); err != nil {
+		return err
+	}
+	performed = true
+	return s.syncParent("staging", func() error { return s.absent("staging", name) })
+}
 func (s *fixtureSession) mkdir(key string) error {
 	parent, name, ok := fixtureDirectory(key)
 	if !ok || key == "common" {

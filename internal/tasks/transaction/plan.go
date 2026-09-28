@@ -127,7 +127,7 @@ func claimBlockers(in PlanInput, rec *ticket.Record) []ticket.Blocker {
 	if in.Barrier {
 		out = append(out, ticket.Blocker{Code: wire.CodePaused})
 	}
-	if !in.Queue.Fixture {
+	if !in.Queue.Fixture && in.Queue.ExecutionCutover == nil {
 		out = append(out, ticket.Blocker{Code: wire.CodeCutoverMissing})
 	}
 	if len(in.Policy.RequireEnforcedFields) != 0 {

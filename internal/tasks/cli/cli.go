@@ -39,7 +39,7 @@ type Env struct {
 	Stdout    io.Writer
 	Stderr    io.Writer
 	// ScopeDeriver derives a claim scope for a ticket that declares none
-	// (CAL-V0-022); nil abstains.
+	// (CAL-V0-022); nil conservatively uses WHOLE_REPOSITORY.
 	ScopeDeriver store.ScopeDeriver
 }
 

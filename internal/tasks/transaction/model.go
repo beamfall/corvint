@@ -58,6 +58,12 @@ const ImportApply = snapshot.StageImportApply
 // owner's decision.
 const AuthoritySwitch = snapshot.StageAuthoritySwitch
 
+// Qualification records the execution cutover (CAL-V0-020): one receipt
+// posts the passing CAL-V0-019 run as evidence and intent/queue.json with
+// executionCutover naming the owner's decision and the run's digest. The
+// requestId names the decision; File carries the run.
+const Qualification = snapshot.StageQualification
+
 type Coverage struct {
 	ActorAuthentication, AdministrativeAuthorization       string
 	InventoryObservation, Durability, RuntimeQualification string
@@ -208,6 +214,9 @@ func Digest(r Request) (wire.Digest, error) {
 	if r.Operation == Release {
 		fileLimit = wire.MaxReleaseFileBytes
 	}
+	if r.Operation == Qualification {
+		fileLimit = wire.MaxGateOutputBytes
+	}
 	if len(r.File) > fileLimit {
 		return "", limit("offered file")
 	}
@@ -223,7 +232,7 @@ func Digest(r Request) (wire.Digest, error) {
 	if r.Operation != KeepJournal && r.Operation != Release && r.CanonicalSha256 != "" {
 		return "", malformed("inapplicable canonical choice")
 	}
-	if r.Operation != KeepJournal && r.Operation != AdoptFile && r.Operation != Release && (r.TargetID != "" || r.File != nil) {
+	if r.Operation != KeepJournal && r.Operation != AdoptFile && r.Operation != Release && r.Operation != Qualification && (r.TargetID != "" || r.File != nil) {
 		return "", malformed("inapplicable ticket inputs")
 	}
 	if r.Operation != Mutate && r.Operation != Release && r.Envelope != nil {
@@ -298,6 +307,11 @@ func Digest(r Request) (wire.Digest, error) {
 		}
 		o.Obj.Set("recordSha256s", wire.Array(digests...))
 	case AuthoritySwitch:
+	case Qualification:
+		if r.TargetID != "" {
+			return "", malformed("inapplicable ticket inputs")
+		}
+		o.Obj.Set("fileSha256", s(string(wire.Sum(r.File))))
 	case Lease:
 		v, e := leaseValue(r.Lease, q)
 		if e != nil {
@@ -481,7 +495,7 @@ func Model(r Request, in Input) Result {
 	if r.Operation == Unpause && state.barrier == nil {
 		return noChange(r.RequestID)
 	}
-	if (r.Operation == Init || r.Operation == KeepJournal || r.Operation == AdoptFile || r.Operation == Mutate || r.Operation == Release || r.Operation == PolicyUpdate || r.Operation == ImportApply || r.Operation == AuthoritySwitch || r.Operation == Lease) && in.Branch != state.queue.IntentBranch {
+	if (r.Operation == Init || r.Operation == KeepJournal || r.Operation == AdoptFile || r.Operation == Mutate || r.Operation == Release || r.Operation == PolicyUpdate || r.Operation == ImportApply || r.Operation == AuthoritySwitch || r.Operation == Qualification || r.Operation == Lease) && in.Branch != state.queue.IntentBranch {
 		return refused(r.RequestID, mutation.OutcomeBlocked, wire.CodeIntentBranchMismatch, "primary intent branch differs")
 	}
 	posts := map[string][]byte{}
@@ -549,6 +563,10 @@ func Model(r Request, in Input) Result {
 		next.CanonicalWriter, next.ForeignAdapterID = "NATIVE", nil
 		next.WriteBarrier = intent.WriteBarrier{Reason: "CUTOVER", Since: &since}
 		posts["intent/queue.json"] = wire.EncodeFile(next.Value())
+	case Qualification:
+		if refusal := qualificationPosts(r, in, state, posts); refusal != nil {
+			return *refusal
+		}
 	case Mutate:
 		env, e := mutation.Decode(r.Envelope)
 		if e != nil {
@@ -735,7 +753,10 @@ func validateInput(r Request, in Input) (inputState, error) {
 		return st, e
 	}
 	st.queue = q
-	if q.QueueID.Raw != r.QueueID || q.ImportMapSha256 != nil || q.ExecutionCutover != nil {
+	// Only a QUALIFICATION receipt sets an execution cutover, and only on a
+	// non-fixture queue (CAL-V0-020); INIT never takes one (A14).
+	cutover := q.ExecutionCutover != nil && (q.Fixture || r.Operation == Init)
+	if q.QueueID.Raw != r.QueueID || q.ImportMapSha256 != nil || cutover {
 		return st, malformed("unsupported queue identity/state")
 	}
 	p, e := intent.DecodePolicy(praw)

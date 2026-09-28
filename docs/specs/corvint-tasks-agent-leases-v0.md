@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S8 claim side CAL-V0-021..023 and 025 experimental)
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021, 023 and 025 experimental; CAL-V0-022 automatic derivation deferred; CAL-V0-026 NOT_MET)
 Authoritative inputs: the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
 §3.4, §4, §6 and §7.4), decision 0397 (corvint-tasks built in tree), decision 0423 A10,
 `docs/specs/corvint-tasks-store-init-v0.md`, tickets V1-0398, V1-0184 and V1-0310, and the in-tree
@@ -11,7 +11,7 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Coding agents claim, renew, gate and complete tickets through leased `corvint-tasks` attempts, replacing a repository's own task runner without a supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S8 claim side CAL-V0-021..023 and 025 experimental). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021, 023 and 025 experimental; CAL-V0-022 automatic derivation deferred; CAL-V0-026 NOT_MET). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
 - Read next: Slices; Requirements (S8 for parallel claims); Amendments to TCP-00; Failure modes.
@@ -30,7 +30,7 @@ supervisor: `admit` reserves the ticket, a supervisor forks a `lane-leader`, a `
 handshake proves whether the runtime ran, and process-group liveness decides when a reservation may
 be released (§6.2 to §6.4). None of that is built in tree: the only reservations are S3's
 `external-agent` leases, `cutover` requires an empty reservation set
-(`internal/tasks/transaction/model.go:541@afae0d34`), and until S1 the writer refused every queue
+(`internal/tasks/transaction/model.go:555@afae0d34`), and until S1 the writer refused every queue
 that was not a fixture.
 
 The agents that use these queues are not processes corvint-tasks starts. They are interactive or
@@ -205,7 +205,11 @@ silently shared.
   outside the task store, bounded to at most `MaxTouchPaths` paths. The attempt records the
   derivation's input digest. When the index is absent, stale for that tree, or abstains, the scope
   is `WHOLE_REPOSITORY`; a derivation never widens authority and is never an input to ranking or
-  evidence.
+  evidence. Automatic index integration is deferred by owner decision 2026-09-28 to preserve
+  decision 0397: Tasks imports no Core package. The shipped CLI abstains even with
+  `CORVINT_SNAPSHOT_FORMAT=pack`; an injected deriver remains available for conformance. For
+  `claim --next`, derive only the ticket selected by the existing conservative priority plan,
+  bind the facts to that ticket, and recheck collisions; a blocked plan stays blocked.
 - `CAL-V0-023`: Two live attempts MUST collide exactly when their resource sets collide under
   TCP-00 §4.2 path normalization; `WHOLE_REPOSITORY` collides with every live entry and every live
   entry collides with it. A colliding `claim` refuses `RESOURCE_COLLISION` naming the other
@@ -234,10 +238,14 @@ S7, qualification and execution cutover.
   racing each other leave one consistent head; a fenced generation cannot move or complete an
   attempt; and a crash at each commit point of every lease verb leaves the whole transaction or
   none of it (the §5.3 crash matrix, lease rows).
-- `CAL-V0-020`: `cutover --execution --decision <ref> --qualification <digest>` MUST, under an
+- `CAL-V0-020`: `cutover --execution --decision <ref> --qualification <file>` MUST, under an
   `OWNER` binding, record a `QUALIFICATION` receipt naming the CAL-V0-019 run and set the queue's
-  `executionCutover` with that `decisionRef` and the run's digest in `gateEvidence`. It refuses when
-  the named run is absent or not passing.
+  `executionCutover` with that `decisionRef` and the run's digest in `gateEvidence`. The file is the
+  `go test -json` output of the suite, with each named test run and pass and the final package
+  pass; it is posted as an evidence blob under its digest. It
+  refuses when the run is absent (`MISSING_EVIDENCE`), has a failing test (`GATE_FAILED`), or is
+  not `go test -json` output (`MALFORMED`); on a fixture queue, before the authority switch
+  (`CUTOVER_MISSING`), and when `executionCutover` is already recorded.
 
 ## Amendments to TCP-00
 
@@ -288,8 +296,8 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
 - A14: S1. `init` accepts a queue whose `fixture` is false, with `importMapSha256` and
   `executionCutover` null, so that a non-fixture store exists to write to; a queue that names an
   import map or an execution cutover still refuses `MALFORMED`. Such a store also takes ticket
-  `reconcile` and the S2 writer `cutover`. Until S7 records an execution cutover (CAL-V0-020),
-  `executionCutover` stays refused on every queue, so on a non-fixture queue `claim` and
+  `reconcile` and the S2 writer `cutover`. Only S7's `QUALIFICATION` receipt (CAL-V0-020) sets
+  `executionCutover`, and `init` still refuses one; until it is set, on a non-fixture queue `claim` and
   `claim --next` refuse `BLOCKED` `CUTOVER_MISSING` for the missing execution cutover, and
   `plan preview` plans each ticket `BLOCKED` with `CUTOVER_MISSING` after `PAUSED` and before
   `BUDGET_UNKNOWN`. Staging an observation, release mutations and release reconciliation stay
@@ -308,8 +316,8 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
 | Cutover interrupted | One receipt either committed or not | A rerun with the same decision replays or commits it |
 | Store edited outside corvint-tasks during an import (`git pull`, an editor) | Batches after the first check only the head and the files they post | A ticket the batch posts refuses `INTENT_DIVERGED` and a moved head refuses `SNAPSHOT_MOVED`; other drift is not seen until the next command audits the store (CAL-V0-018) |
 | Re-import after cutover | Foreign export disagrees with the published records | `import` refuses the whole export and writes nothing |
-| Non-fixture queue before execution cutover | Agents try to claim | `claim` and `claim --next` refuse `BLOCKED` `CUTOVER_MISSING` and `plan preview` plans every ticket `BLOCKED`; ticket writes still work |
-| Writer killed between its first staged artifact and its head | Staging slots stay behind with no `staging/active.json` | Every later read and write refuses `MALFORMED` `unassigned stage slot` until recovery; S7 removes the orphan slots under the writer lock and redoes a committed receipt (CAL-V0-019) |
+| Non-fixture queue before execution cutover | Agents try to claim | `claim` and `claim --next` refuse `BLOCKED` `CUTOVER_MISSING` and `plan preview` plans every ticket `BLOCKED` until `cutover --execution` records a passing qualification run; ticket writes still work |
+| Writer killed between its first staged artifact and its head | Staging slots stay behind with no `staging/active.json` | Reads refuse `MALFORMED` `unassigned stage slot` until the next writer. Every ticket, lease and administrative write, and `gate run` before it runs a gate, first removes the orphan slots under the writer lock and redoes a receipt already linked in (CAL-V0-019). Barrier and reconcile writes do not recover: another writer must run first. Slots beside a `staging/active.json` descriptor are active staging, which stays refused `UNSUPPORTED` |
 | Derived scope misses a file the agent needs | Agent edits outside its scope | `submit` refuses `OUT_OF_SCOPE`; the agent `widen`s, or releases and reclaims with `--scope` |
 | Two disjoint scopes interfere semantically | Each passes alone, the merge breaks | Gates run at the exact rebased candidate tree before `complete` (CAL-V0-016, CAL-V0-017) |
 | Context index absent or stale | No derivation | The scope is `WHOLE_REPOSITORY`, which serializes that claim as today |
@@ -339,7 +347,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | Requirement | Evidence |
 |---|---|
 | CAL-V0-001 | `TestCALV0001_NonFixtureQueueTakesEveryWrite`, `TestCALV0001_ImportMappedQueueStaysRefused` (`internal/tasks/store`) |
-| CAL-V0-002 | `TestCALV0002_NonFixtureQueueRefusesClaims` (`internal/tasks/store`), `TestCALV0002_PlanPreviewBlocksANonFixtureQueue` (`internal/tasks/cli`); the cutover and `QUALIFICATION` side is S7 (CAL-V0-020) |
+| CAL-V0-002 | `TestCALV0002_NonFixtureQueueRefusesClaims` (`internal/tasks/store`), `TestCALV0002_PlanPreviewBlocksANonFixtureQueue` (`internal/tasks/cli`); the cutover side is `TestCALV0020_ExecutionCutoverAdmitsClaims` (`internal/tasks/store`) |
 | CAL-V0-003 | The fixture tests under `internal/tasks` pass unchanged |
 | CAL-V0-004 | `TestCALV0004_CutoverSwitchesWriterInOneReceipt`, `TestCALV0004_CutoverRefusals` (`internal/tasks/store`), `TestCALV0004_CLICutoverPublishesImportedRecords` (`internal/tasks/cli`) |
 | CAL-V0-005 | `TestCALV0005_ImportAfterCutoverRefusesAndWritesNothing` (`internal/tasks/store`) |
@@ -356,10 +364,11 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-016 | `TestCALV0016_GateRunRecordsEachResult`, `TestCALV0016_GateRunRefusesWithoutRunning` (`internal/tasks/store`), `TestCALV0016_GateResultRoundTrips`, `TestCALV0016_PassedNeedsACleanExitAtTheCandidate` (`internal/tasks/snapshot`) |
 | CAL-V0-017 | `TestCALV0017_CompleteVerifiesTheTicket`, `TestCALV0017_CompletionRefusals`, `TestCALV0017_CompletionNeedsEveryRequiredGateAndApproval` (`internal/tasks/store`), `TestCALV0017_ManifestRoundTrips` (`internal/tasks/snapshot`); live CLI run in `docs/build-log/2026-09-27-corvint-tasks-lease-gates.md` |
 | CAL-V0-018 | `TestCALV0018_LaterBatchesCheckTheirHeadAndPosts` (`internal/tasks/store`); first import of the 2,894-item Beamfall export in 271 s in `docs/build-log/2026-09-27-corvint-tasks-import-cost.md`, taken at load 37 to 60 on 12 CPUs, so the load condition is NOT_MET; each batch still re-validates every stored ticket in `transaction.Model` |
-| CAL-V0-019..020 | NOT_RUN; accepted, not started |
+| CAL-V0-019 | `TestCALV0019_ConcurrentCollidingClaimsAdmitOne`, `TestCALV0019_RacingLeaseVerbsLeaveOneConsistentHead`, `TestCALV0019_FencedGenerationCannotMoveOrComplete`, `TestCALV0019_FaultAtEveryArtifactIsAllOrNothing`, `TestCALV0019_KilledWriterRecovers` (`internal/tasks/store`) |
+| CAL-V0-020 | `TestCALV0020_ExecutionCutoverAdmitsClaims`, `TestCALV0020_ExecutionCutoverRefusals` (`internal/tasks/store`), `TestCALV0020_CLIExecutionCutover` (`internal/tasks/cli`); rehearsal on the Beamfall export in `docs/build-log/2026-09-27-corvint-tasks-qualification.md` |
 | CAL-V0-021 | `TestCALV0021_WholeRepositoryBlocksEverything`, `TestCALV0021_DeclaredNonPathResourcesJoinTheScope` (`internal/tasks/store`) |
-| CAL-V0-022 | Claim side only: `TestCALV0022_DerivedScopeWhenTheTicketDeclaresNone` (`internal/tasks/store`), with an injected deriver; the context-index deriver is NOT_RUN |
+| CAL-V0-022 | `TestCALV0022_DerivedScopeWhenTheTicketDeclaresNone`, `TestCALV0022_NextDerivesOnlySelectedTicket` (`internal/tasks/store`), `TestCALV0022_DerivedFactsBindSelectedTicket` (`internal/tasks/transaction`), `TestCALV0022_CLIDefaultScopeFallback` (`internal/tasks/cli`); automatic index integration deferred |
 | CAL-V0-023 | `TestCALV0023_CollisionNormalization` (`internal/tasks/ticket`), `TestCALV0023_CollidingClaimsAdmitOne`, `TestCALV0023_DisjointPathScopesAreBothAdmitted` (`internal/tasks/store`) |
 | CAL-V0-024 | `TestCALV0024_SubmitOutsideTheScopeIsRefused` (`internal/tasks/store`) |
 | CAL-V0-025 | `TestCALV0025_WidenAddsPathsAndRefusesCollision`, `TestCALV0025_WidenRefusedUnderAdmissionBarrier` (`internal/tasks/store`) |
-| CAL-V0-026 | NOT_RUN; not measured |
+| CAL-V0-026 | NOT_MET: full-store audit cache absent. `TestCALV0026_LockObserverReportsOnceAfterRelease` validates observation; opt-in `TestCALV0026_LockHoldMeasurement` records the 3,000-ticket measurement in the S8 build log. |

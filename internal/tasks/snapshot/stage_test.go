@@ -43,7 +43,7 @@ func maximalDescriptor(op string) StageDescriptor {
 	if op == StageInit {
 		requestBytes = 551
 	}
-	if op == StageKeepJournal || op == StageAdoptFile || op == StageMutate || op == StagePolicyUpdate || op == StageAuthoritySwitch || op == StageLease {
+	if op == StageKeepJournal || op == StageAdoptFile || op == StageMutate || op == StagePolicyUpdate || op == StageAuthoritySwitch || op == StageQualification || op == StageLease {
 		requestBytes = 579
 	}
 	add("POST", rp, requestBytes, hash)
@@ -63,6 +63,11 @@ func maximalDescriptor(op string) StageDescriptor {
 		add("POST", "barrier.json", 4096, hash)
 	case StageAuthoritySwitch:
 		add("POST", "intent/queue.json", 1048576, hash)
+		add("EVIDENCE", "evidence/"+string(hash), 1048576, hash)
+	case StageQualification:
+		add("POST", "intent/queue.json", 1048576, hash)
+		run := wire.Sum([]byte("run"))
+		add("POST", "evidence/"+string(run), 16777216, run)
 		add("EVIDENCE", "evidence/"+string(hash), 1048576, hash)
 	case StagePolicyUpdate:
 		add("POST", "intent/policy.json", 262144, hash)
@@ -102,7 +107,7 @@ func maximalDescriptor(op string) StageDescriptor {
 	return d
 }
 func TestTMV0002_AS10_StageCodecActualMaxima(t *testing.T) {
-	for _, op := range []string{StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StagePolicyUpdate, StageAuthoritySwitch, StageLease} {
+	for _, op := range []string{StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StagePolicyUpdate, StageAuthoritySwitch, StageLease, StageQualification} {
 		d := maximalDescriptor(op)
 		raw, e := d.Encode()
 		if e != nil {
