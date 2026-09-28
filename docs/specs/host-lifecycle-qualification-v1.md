@@ -151,6 +151,32 @@ Supplementary live observations from the 0.8.0 run, not part of the nine cases:
   UserPromptSubmit hook responses with Corvint context. The model call itself failed on an expired
   OAuth session, so no model turn was observed.
 
+### V1-0397 diagnostic qualification, 2026-09-28
+
+Three consecutive Claude Code 2.1.267 / adapter 0.2.3 runs on darwin/arm64 passed all
+nine cases with exit 0 at frozen source `79b2ef0e151e46628a095d03e4dfb62926b1e04e`.
+Candidate: `Corvint 1.0.0-rc.1 (build 176)`, SHA-256
+`ad38842c14162a46b06887df601f5385c49adc85b540fb498296b385bd1eefef`.
+Prior binary: `Corvint 1.0.0-rc.1 (build 163)`, SHA-256
+`4bb95d984436f2ac9d040a27f00523dda553301fe352df03bd1817b84ab9eed2`.
+Runner SHA-256: `90fd6ae2fe055a248fbcfef91472d49790e3cd4cfbf8557828b95fce1d9ccaf9`.
+This is qualification of that diagnostic candidate, not a new release or support promotion.
+
+Runs lasted 12:41:28–12:41:42, 12:41:42–12:41:52, and 12:41:52–12:42:03 UTC.
+Recorded one-minute start/end loads were 93.87/92.53, 92.53/95.70 and 95.70/94.68.
+All recorded one/five/fifteen-minute values exceeded 80. Sampling was at run boundaries;
+continuous load was NOT_OBSERVED, and no load was manufactured. These successful runs do
+not identify the lost historical failure's cause or establish a safe load threshold.
+
+Raw reports and matching `claude-code-N-load.txt` readings are retained under
+`conformance/host-lifecycle-v1/results/2026-09-28-hlq-diagnostics/`.
+
+| Run | Report | Report SHA-256 | Load-reading SHA-256 |
+|---|---|---|---|
+| 1 | `claude-code-1.tsv` | `8322436aae5dbe4465a2a8b8417319296e5506003e57af2435bc1d2a809a3073` | `738b1f589b208013fbc241bcb55dbb0ff02ce4cb567baaefda931b7ab9c1e172` |
+| 2 | `claude-code-2.tsv` | `8322436aae5dbe4465a2a8b8417319296e5506003e57af2435bc1d2a809a3073` | `557c1c2844f7f984016f534c016ee51e4a08ac865c0f572bdb543de9fd7fcfc3` |
+| 3 | `claude-code-3.tsv` | `8322436aae5dbe4465a2a8b8417319296e5506003e57af2435bc1d2a809a3073` | `7c0c9971cd32f19dd0c403c7c60fc73b722cee60317736df56a62fe03a898980` |
+
 ## Known gaps
 
 - V1-0397: the historical Claude Code 2.1.267 / adapter 0.2.3 upgrade failure on
@@ -159,8 +185,8 @@ Supplementary live observations from the 0.8.0 run, not part of the nine cases:
   load 97–125; these observations establish neither a safe threshold nor load causation.
   A prior PostToolUse run reported `adapter-host-kill-deadline`, making watchdog degradation
   a testable hypothesis, not a diagnosis of the lost upgrade event. The deterministic fallback
-  regression retains that cause text; live qualification above load 80 remains NOT_OBSERVED
-  until three consecutive frozen-candidate reports and actual load observations are retained.
+  regression retains that cause text. Three subsequent consecutive diagnostic-candidate runs
+  passed with recorded boundary loads above 80 (Results); the historical cause remains unknown.
 
 - Codex runs a plugin hook only after the user trusts it interactively. An isolated home has no
   trust, so the Codex hook cases call the registered command directly (`HLQ-V1-004`).
