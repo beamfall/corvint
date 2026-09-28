@@ -84,7 +84,7 @@ func StageLimits(op string) (int, int) {
 	case StageAuthoritySwitch:
 		return 5, 1474
 	case StageLease:
-		return 6, 1677
+		return 9, 2300
 	}
 	return 0, 0
 }
@@ -242,7 +242,7 @@ func (d StageDescriptor) shape() error {
 			case a.Target == "barrier.json" && d.Operation == StagePause:
 				key = "barrier"
 				cap = 4096
-			case strings.HasPrefix(a.Target, "intent/tickets/") && (d.Operation == StageKeepJournal || d.Operation == StageAdoptFile || d.Operation == StageMutate || d.Operation == StageImportApply):
+			case strings.HasPrefix(a.Target, "intent/tickets/") && (d.Operation == StageKeepJournal || d.Operation == StageAdoptFile || d.Operation == StageMutate || d.Operation == StageImportApply || d.Operation == StageLease):
 				local := strings.TrimSuffix(strings.TrimPrefix(a.Target, "intent/tickets/"), ".json")
 				q := strings.TrimPrefix(d.QueueID, "queue:")
 				id, e := wire.ParseTicketID("target", "ticket:"+q+":"+local)
@@ -264,6 +264,14 @@ func (d StageDescriptor) shape() error {
 				}
 				key = "discard"
 				cap = 131072
+			case strings.HasPrefix(a.Target, "evidence/") && d.Operation == StageLease:
+				// A gate run posts its captured output and its gate result; a
+				// completion posts its manifest (CAL-V0-016, CAL-V0-017).
+				if a.Target != "evidence/"+string(a.Sha256) {
+					return stageMalformed("gate evidence identity")
+				}
+				key = "gate"
+				cap = wire.MaxGateOutputBytes
 			case a.Target == "intent/queue.json" && (d.Operation == StageMutate || d.Operation == StageAuthoritySwitch):
 				// CREATE advances nextSerial; no other mutation posts the manifest.
 				key = "queue"
@@ -332,10 +340,14 @@ func (d StageDescriptor) shape() error {
 		delete(counts, "queue")
 	}
 	// A lease transaction posts at most one attempt and one reservation set;
-	// a recorded FENCED refusal posts neither.
-	if d.Operation == StageLease && counts["attempt"] <= 1 && counts["reservations"] <= 1 {
+	// a gate run adds its output and result, and a completion its ticket and
+	// manifest, so the three optional kinds together stay within three. A
+	// recorded FENCED refusal posts none of them.
+	if d.Operation == StageLease && counts["attempt"] <= 1 && counts["reservations"] <= 1 && counts["ticket"] <= 1 && counts["gate"] <= 2 && counts["reservations"]+counts["ticket"]+counts["gate"] <= 3 {
 		delete(counts, "attempt")
 		delete(counts, "reservations")
+		delete(counts, "ticket")
+		delete(counts, "gate")
 	}
 	// An import batch posts one or more ticket records; the slot cap bounds it.
 	if d.Operation == StageImportApply && counts["ticket"] >= 1 {
@@ -356,8 +368,11 @@ func (d StageDescriptor) shape() error {
 	switch d.Operation {
 	case StageInit:
 		maxEvidence = 3
-	case StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate, StageAuthoritySwitch, StageLease:
+	case StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate, StageAuthoritySwitch:
 		maxEvidence = 1
+	case StageLease:
+		// A reservation set or a completed ticket over the inline post bound.
+		maxEvidence = 2
 	case StageImportApply:
 		// A ticket record over the inline post bound is carried as a blob.
 		maxEvidence = 8
