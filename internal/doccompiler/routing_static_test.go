@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -95,13 +96,43 @@ func TestProductionEntrypointsCannotReachNativeExecution(t *testing.T) {
 		}
 	}
 
+	// TPN-V0-001 permits the fixed probe and read-only Git edges only from the
+	// explicit trusted entrypoints. Default entrypoints retain the full guard.
+	trustedRoots := map[string]bool{
+		"func:InspectTrustedNavigation": true,
+		"func:TrustedNavigation":        true,
+	}
+	for root := range trustedRoots {
+		if _, exists := roots[root]; !exists {
+			t.Fatalf("trusted entrypoint %s is missing", root)
+		}
+	}
+	trustedFunctions := maps.Clone(functions)
+	for _, caller := range []string{"func:navProbe", "func:navGitText"} {
+		function := functions[caller]
+		if function == nil {
+			t.Fatalf("trusted execution caller %s is missing", caller)
+		}
+		if _, exists := function.edges["func:runCommand"]; !exists {
+			t.Fatalf("trusted execution edge %s -> runCommand is missing", caller)
+		}
+		copy := *function
+		copy.edges = maps.Clone(function.edges)
+		delete(copy.edges, "func:runCommand")
+		trustedFunctions[caller] = &copy
+	}
+
 	rootKeys := make([]string, 0, len(roots))
 	for root := range roots {
 		rootKeys = append(rootKeys, root)
 	}
 	sort.Strings(rootKeys)
 	for _, root := range rootKeys {
-		if path := routeToSink(root, functions, sinks, nil); len(path) > 0 {
+		graph := functions
+		if trustedRoots[root] {
+			graph = trustedFunctions
+		}
+		if path := routeToSink(root, graph, sinks, nil); len(path) > 0 {
 			t.Fatalf("production entrypoint reaches native host execution: %s", strings.Join(path, " -> "))
 		}
 	}

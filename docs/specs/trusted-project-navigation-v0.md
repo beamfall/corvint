@@ -1,11 +1,11 @@
 # Trusted Project Navigation V0
 
-Intent: accepted by the repository owner in the 2026-09-28 issue #328 conversation.
-Delivery: TPN-V0-001..006 implemented; real local MkDocs qualification and independent review passed.
+Intent status: accepted (owner approval, 2026-09-28)
+Delivery status: experimental
 
 ## Agent digest
-- Claim: An explicitly trusted pinned MkDocs environment validates exact proposed navigation edits in an isolated copy of committed source.
-- Status: accepted / delivered in the bounded trusted-project profile.
+- Claim: Explicitly trusted pinned MkDocs validates exact navigation proposals in an isolated committed-source copy.
+- Status: accepted (owner approval, 2026-09-28) / experimental.
 - Exists: separate `corvint docs nav --trusted-project` profile; no change to admitted plan-only or capsule execution.
 - Blocked on: no blocked requirement in this profile; capsule, site-build and offline qualification remain separate.
 - Read next: Requirements; Wire and execution; Acceptance and rollback.

@@ -128,8 +128,7 @@ func TrustedNavigation(ctx context.Context, root string, raw []byte, trusted boo
 		return nil, err
 	}
 	gitRun := func(args ...string) (string, error) {
-		r, e := runCommand(ctx, git, append([]string{"--no-optional-locks", "-C", root}, args...), temp, append(isolatedEnvironment(git, temp), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_OPTIONAL_LOCKS=0", "GIT_NO_REPLACE_OBJECTS=1", "GIT_NO_LAZY_FETCH=1"), 40<<20, 64<<10)
-		return r.stdout, e
+		return navGitText(ctx, git, root, temp, args...)
 	}
 	replacements, e := gitRun("for-each-ref", "--format=%(refname)", "refs/replace")
 	if e != nil || replacements != "" {

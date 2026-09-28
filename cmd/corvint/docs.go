@@ -154,7 +154,7 @@ const docsHelp = `Experimental source documentation orientation
 
 Usage:
   corvint [--root PATH] docs nav --trusted-project --request FILE
-  corvint docs nav --trusted-project --inspect-python ABSOLUTE_PYTHON
+  corvint [--root PATH] docs nav --trusted-project --inspect-python ABSOLUTE_PYTHON
   corvint [--root PATH] docs draft --source PATH --package DIRECTORY
   corvint [--root PATH] docs consume --source PATH --package DIRECTORY --task TEXT < draft.md
 
