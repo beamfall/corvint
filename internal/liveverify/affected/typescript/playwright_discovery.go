@@ -146,7 +146,7 @@ func validPlaywrightDiscovery(receipt PlaywrightDiscovery) bool {
 		return false
 	}
 	for index, unit := range receipt.Units {
-		if unit.Project == "" || strings.ContainsAny(unit.Project, "\x00\r\n") || !affected.ValidRelativePath(unit.Test) || !hasSourceExtension(unit.Test) {
+		if strings.ContainsAny(unit.Project, "\x00\r\n") || !affected.ValidRelativePath(unit.Test) || !hasSourceExtension(unit.Test) {
 			return false
 		}
 		if index > 0 && !discoveryUnitLess(receipt.Units[index-1], unit) {

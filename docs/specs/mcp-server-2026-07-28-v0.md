@@ -555,7 +555,7 @@ Each row cites the first emitting site and states only the condition checked the
 | `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:556@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
 | `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:556@f5156052` | the map is a legacy `cem/0.1` map that needs an out-of-band patch |
 | `cem-map-invalid` | `internal/mcp/bridge/bridge.go:557@b2fd0644` | the map fails CEM strict decoding or field validation |
-| `flows-refused` | `internal/mcp/bridge/flows.go:259@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
+| `flows-refused` | `internal/mcp/bridge/flows.go:264@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
 
 ## Acceptance matrix
 

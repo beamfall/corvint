@@ -32,6 +32,11 @@ const (
 	GapNegativeControlMissing = "negative-control-missing"
 	GapCleanupUnverified      = "cleanup-unverified"
 	GapUnreviewed             = "unreviewed"
+	GapStabilityMissing       = "stability-missing"
+	GapStabilityInvalid       = "stability-invalid"
+	GapStabilityIncomplete    = "stability-incomplete"
+	GapStabilityStale         = "stability-stale"
+	GapStabilityFailed        = "stability-failed"
 )
 
 // evidenceGaps maps every evidence state except verified onto its gap code; a failed run has no
@@ -39,6 +44,8 @@ const (
 var evidenceGaps = map[string]string{
 	"missing": GapEvidenceMissing, "failed": GapEvidenceMissing, "stale": GapEvidenceStale, "flaky": GapEvidenceFlaky,
 	"negative-control-missing": GapNegativeControlMissing, "cleanup-unverified": GapCleanupUnverified,
+	GapStabilityMissing: GapStabilityMissing, GapStabilityInvalid: GapStabilityInvalid,
+	GapStabilityIncomplete: GapStabilityIncomplete, GapStabilityStale: GapStabilityStale, GapStabilityFailed: GapStabilityFailed,
 }
 
 // authorityRank orders the authority ladder; an absent authority ranks below STATIC.
@@ -81,10 +88,11 @@ type MapVariation struct {
 
 // TestEvidence is the evidence state of one required test key and project pair.
 type TestEvidence struct {
-	TestKey   string `json:"test_key"`
-	Project   string `json:"project,omitempty"`
-	State     string `json:"state"`
-	Authority string `json:"authority"`
+	TestKey         string `json:"test_key"`
+	Project         string `json:"project,omitempty"`
+	State           string `json:"state"`
+	Authority       string `json:"authority"`
+	StabilityDetail string `json:"stability_detail,omitempty"`
 }
 
 // LookupReport is a reverse lookup derived at query time from the forward links (AFU-V1-010).
@@ -120,7 +128,10 @@ type Gap struct {
 }
 
 // head is the evaluated commit and its tree; run evidence holds only for exactly this source.
-type head struct{ commit, tree string }
+type head struct {
+	commit, tree string
+	stability    *flowStability
+}
 
 // ReadRunEvidence reads --evidence files of canonical test-run-evidence/0 records, one per line,
 // each with the flow-input discipline: regular file before open, byte bound, strict decode and the
@@ -148,11 +159,12 @@ func ReadRunEvidence(filenames []string) ([]TestRunEvidence, error) {
 
 // FlowMap reports every flow, member, link and variation evidence state at the set's revision
 // (AFU-V1-015), with the reviewed denominator and its self-attestation limitation (AFU-V1-008, 009).
-func FlowMap(ctx context.Context, root string, set IntentSet, evidence []TestRunEvidence) ([]byte, error) {
+func FlowMap(ctx context.Context, root string, set IntentSet, evidence []TestRunEvidence, registry string) ([]byte, error) {
 	links, at, err := evaluateSet(ctx, root, set)
 	if err != nil {
 		return nil, err
 	}
+	at.stability = readFlowStability(ctx, root, registry, evidence, at)
 	report := MapReport{Schema: MapSchema, Revision: at.commit, Review: Summarize(at.commit, links), Flows: []MapFlow{}}
 	for _, intent := range set.Flows {
 		own := flowLinks(links, intent.FlowID)
@@ -193,11 +205,12 @@ func FlowLookup(ctx context.Context, root string, set IntentSet, path, testKey s
 }
 
 // FlowGaps reports each flow's closed-code gaps at the set's revision (AFU-V1-016).
-func FlowGaps(ctx context.Context, root string, set IntentSet, evidence []TestRunEvidence) ([]byte, error) {
+func FlowGaps(ctx context.Context, root string, set IntentSet, evidence []TestRunEvidence, registry string) ([]byte, error) {
 	links, at, err := evaluateSet(ctx, root, set)
 	if err != nil {
 		return nil, err
 	}
+	at.stability = readFlowStability(ctx, root, registry, evidence, at)
 	report := GapsReport{Schema: GapsSchema, Revision: at.commit, Flows: []GapFlow{}}
 	for _, intent := range set.Flows {
 		gaps := flowGaps(intent, flowLinks(links, intent.FlowID), evidence, at)
@@ -287,7 +300,7 @@ func variationGaps(intent FlowIntent, v FlowVariation, links []EvaluatedLink, ev
 	}
 	for _, e := range variationEvidence(intent, v, links, evidence, at) {
 		if code, ok := evidenceGaps[e.State]; ok {
-			gaps = append(gaps, Gap{Code: code, Member: v.VariationID, TestKey: e.TestKey, Project: e.Project, Detail: "run evidence is " + e.State})
+			gaps = append(gaps, Gap{Code: code, Member: v.VariationID, TestKey: e.TestKey, Project: e.Project, Detail: strings.TrimSpace("run evidence is " + e.State + " " + e.StabilityDetail)})
 		}
 	}
 	return gaps
@@ -322,13 +335,18 @@ func variationEvidence(intent FlowIntent, v FlowVariation, links []EvaluatedLink
 			matching := slices.DeleteFunc(slices.Clone(evidence), func(r TestRunEvidence) bool {
 				return r.TestKey != key || (project != "" && r.Project != project)
 			})
-			pairs = append(pairs, TestEvidence{TestKey: key, Project: project, State: evidenceState(matching, controls, at), Authority: topAuthority(matching)})
+			state := evidenceState(matching, controls, at)
+			detail := ""
+			if state == "passed" {
+				state, detail = at.stability.qualify(key, project, matching, controls, at)
+			}
+			pairs = append(pairs, TestEvidence{TestKey: key, Project: project, State: state, Authority: topAuthority(matching), StabilityDetail: detail})
 		}
 	}
 	return pairs
 }
 
-// evidenceState names the first unmet condition of the Verified rule for the records of one pair.
+// evidenceState evaluates run evidence only; a pass still needs registry qualification.
 // A record holds only when it ran exactly the evaluated commit and tree from a clean worktree; STATIC
 // records never count (AFU-V1-014). Current records whose classifications diverge under the shared
 // TCQ-V0-049 rule, such as one passed and one failed run, are flaky; every passed one needs cleanup done.
@@ -359,7 +377,7 @@ func evidenceState(records []TestRunEvidence, controls []string, at head) string
 	case slices.ContainsFunc(passed, func(r TestRunEvidence) bool { return r.Cleanup != "done" }):
 		return "cleanup-unverified"
 	}
-	return "verified"
+	return "passed"
 }
 
 // carriesControls reports whether every control the flow adapter declares was run and every control

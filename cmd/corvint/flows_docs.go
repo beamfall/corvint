@@ -16,7 +16,7 @@ import (
 const flowDocsCheckFailed = "flow-docs-check-failed"
 
 func runFlowsDocs(ctx context.Context, root string, args []string, out io.Writer) error {
-	f, dir, evidence := flowQueryFlags("flows docs")
+	f, dir, evidence, registry := flowQueryFlags("flows docs")
 	var o appflows.DocOptions
 	f.StringVar(&o.Page, "page", "", "rendered page, repository-relative")
 	f.StringVar(&o.Claims, "claims", "", "flow-doc-claims/0 sidecar, repository-relative")
@@ -24,7 +24,7 @@ func runFlowsDocs(ctx context.Context, root string, args []string, out io.Writer
 	check := f.Bool("check", false, "compare the committed page and sidecar with regeneration")
 	waivers := f.String("waivers", "", "committed flow-doc-waivers/0 file, repository-relative")
 	if f.Parse(args) != nil || *dir == "" || o.Page == "" || o.Claims == "" || f.NArg() != 0 || (*waivers != "" && !*check) {
-		return errors.New("flows docs requires --flows DIR --page FILE --claims FILE, optional --docs-root DIR and repeatable --evidence FILE, and --waivers FILE only with --check")
+		return errors.New("flows docs requires --flows DIR --page FILE --claims FILE, optional --registry FILE, --docs-root DIR and repeatable --evidence FILE, and --waivers FILE only with --check")
 	}
 	set, err := appflows.LoadIntentsAt(ctx, root, *dir, "HEAD")
 	if err != nil {
@@ -33,6 +33,7 @@ func runFlowsDocs(ctx context.Context, root string, args []string, out io.Writer
 	if o.Evidence, err = appflows.ReadRunEvidence(*evidence); err != nil {
 		return err
 	}
+	o.Registry = *registry
 	if *check {
 		return flowDocsCheck(ctx, root, set, o, *waivers, out)
 	}

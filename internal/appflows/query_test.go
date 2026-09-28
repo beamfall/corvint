@@ -76,7 +76,7 @@ func TestAFUV1EvidenceStateOrder(t *testing.T) {
 		{"cleanup-unverified", []TestRunEvidence{record(func(r *TestRunEvidence) { r.Cleanup = "failed" })}},
 		{"flaky", []TestRunEvidence{record(func(r *TestRunEvidence) { r.Attempts = []RunAttempt{attempt(1, "failed")} }), record(func(*TestRunEvidence) {})}},
 		{"cleanup-unverified", []TestRunEvidence{record(func(r *TestRunEvidence) { r.Cleanup = "failed" }), record(func(*TestRunEvidence) {})}},
-		{"verified", []TestRunEvidence{record(func(*TestRunEvidence) {})}},
+		{"passed", []TestRunEvidence{record(func(*TestRunEvidence) {})}},
 	}
 	for _, c := range cases {
 		if got := evidenceState(c.records, []string{"c"}, at); got != c.state {
