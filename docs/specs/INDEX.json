@@ -2495,5 +2495,22 @@
     "implementation": [
       "internal/releasecandidate"
     ]
+  },
+  {
+    "path": "docs/specs/trusted-project-navigation-v0.md",
+    "title": "Trusted Project Navigation V0",
+    "reqPrefix": "TPN-V0",
+    "intent": "accepted (owner approval, 2026-09-28)",
+    "delivery": "experimental",
+    "claim": "Explicitly trusted pinned MkDocs validates exact navigation proposals in an isolated committed-source copy.",
+    "dependsOn": [
+      "docs/specs/human-documentation-compiler-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/doccompiler/trusted_nav.go",
+      "cmd/corvint/docs.go"
+    ]
   }
 ]

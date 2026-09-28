@@ -81,6 +81,14 @@ independent review, or external outcome result was claimed. The 2026-09-13 indep
 any later delivered requirement IDs are recorded in the header and Traceability; nothing else is
 claimed.
 
+### Owner-approved trusted navigation profile (2026-09-28)
+
+The owner approved the separate [Trusted Project Navigation V0](trusted-project-navigation-v0.md)
+profile for issue #328. Its explicit trusted-project execution on Darwin/Linux is an exception to
+HDCV0-CAP-003 only within that named profile. It uses real pinned MkDocs authority and candidate
+reloads, but claims no capsule, build or offline qualification. The admitted plan-only wire and
+its navigation refusal remain unchanged.
+
 ### Experimental planning boundary (2026-09-06)
 
 The current `internal/doccompiler` planning API has no immutable evidence/acceptance verifier or

@@ -105,3 +105,8 @@ make no savings claim. Native host use in another checkout stays `NOT_OBSERVED` 
 Update this guide's affected route/status and its relevant evidence in the same future feature
 change. Rollback removes these routing additions without weakening the existing completion policy,
 removing old traces, or reclassifying a failed or unqualified experiment.
+
+For owner-trusted MkDocs navigation work, use the separate explicit `docs nav --trusted-project`
+profile and retain the real pinned loader/reload artifact. See
+[Trusted Project Navigation V0](specs/trusted-project-navigation-v0.md). This does not authorize
+execution through ordinary docs reads or qualify the HDC capsule, site build or offline behavior.
