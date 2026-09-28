@@ -120,7 +120,18 @@ it must read, each with the relation that admitted it, without naming the task's
   corroborating relations, slot order among equals, raises `score` by 50 per relation, and names
   the relations in `summary` after "; also"; the evidence row stays the admitting relation's
   (decision 0027). Without `--subject` the packet has the retrieval shape: `mentioned`,
-  `definition`, `lexical`. (A) The rows reserved by
+  `definition`, `test`, `lexical`. Outside the opt-in named-test frame, after final reservation
+  and ranking, up to three additional
+  `pair` rows may replace the weakest unrelated lexical test rows: their anchors must be
+  selected non-test lexical sources, and the counterpart must satisfy the existing naming
+  convention. Counterparts already selected are retained; a lexical counterpart behind unrelated lexical
+  tests can be promoted in place to `pair` within the same cap. Selected counterpart tests are never
+  victims. New pairs precede remaining unrelated lexical tests, while every selected source,
+  governing row and other non-lexical row is retained. Unfilled budget may admit a pair directly.
+  Remaining lexical rows retain their BM25 order; their public score remains a relation weight,
+  not the BM25 value reported in their evidence. Pair generators and cap/budget omissions are
+  disclosed by TCP-V0-011; a subjectless pair relation is examined when lexical anchors are scanned.
+  (A) The rows reserved by
   TCP-V0-008, TCP-V0-009 and TCP-V0-047 precede this order and each costs one row of `--limit`, and TCP-V0-010 narrows which
   identifiers the `definition` slot may use; the caps, weights and relative slot order above are otherwise unchanged.
 - `TCP-V0-005`: The subject is never a result. It is carried under `subject` with its path and a
@@ -134,7 +145,7 @@ it must read, each with the relation that admitted it, without naming the task's
   `coverage` reports the candidates admitted across slots, the results included, and the results
   omitted by the limit. The packet carries no exclusion or unparsed-path samples: nothing in it
   can be mistaken for a result that is not one. (A) TCP-V0-011 adds sample-free `coverage` members; this ban and the two `state` values are
-  unchanged. Its `critical` and `critical_missing` are exhaustive over a bounded reserved set (at most one `governing` plus three `spec-mentioned`
+  unchanged. Its `critical` and `critical_missing` are exhaustive over a bounded reserved set (at most fifty `governing` plus three `spec-mentioned`
   plus two `instruction-routed` rows), so they state completely what was reserved and what did not fit rather than sampling a larger unshown population.
   Accepted amendment (AT-07, decision 0052): `included_results`, `omitted_results`, `candidates` and
   the top-level `state` are computed before possession suppression and frozen; a new coverage
@@ -144,15 +155,27 @@ it must read, each with the relation that admitted it, without naming the task's
 - `TCP-V0-007`: Output is canonical JSON (`gokernel.CanonicalJSON`), byte-identical over an
   identical tree, recent history (the 200 commits the `cochange` slot reads), task, subject, and
   limit.
-- `TCP-V0-008`: (A) V0 reserves at most one `governing` row. The implementation MUST build a governing-row generator, since `documentKind` classifies
-  without establishing applicability. It ranks every tracked path classified `instructions` by one precedence — the literal order `AGENTS.md`,
-  `CLAUDE.md`, `GEMINI.md`, `copilot-instructions.md`, `.github/copilot-instructions.md`, then `.github/instructions/*.instructions.md` by ascending
-  path. No other nested path is eligible. Project-operation query admission MUST apply this same eligibility check before treating a path classified
-  `instructions` as operational; it MAY remain a narrower instruction subset. It skips the subject (TCP-V0-005) and takes the highest-precedence remainder. If that
-  candidate exceeds `maxSourceBytes` or is listed in `Index.Exclusions` it is unread: nothing is reserved, no lower-precedence file substitutes, and
-  TCP-V0-011's `unexamined` records `governing` with state `capped`. Otherwise it becomes the first result, with TCP-V0-003's one evidence row,
-  costing one row of `--limit`. The reservation never consults the task's vocabulary; it is applied after TCP-V0-004's corroboration sort and before
-  the final truncation, so neither can reorder or drop it.
+- `TCP-V0-008`: (A) The governing generator establishes applicability independently of vocabulary.
+  With `--subject`, every tracked `AGENTS.md` and `CLAUDE.md` from the subject's directory
+  through the repository root is an applicable candidate, skipping the subject itself. Directories
+  are ordered closest first, with `AGENTS.md` before `CLAUDE.md` in each directory. Sibling,
+  descendant and similarly prefixed directories do not govern. Each readable candidate among
+  the first 50 reserves its own `governing` row with TCP-V0-003's fixed fields and one pinned
+  evidence row identifying its ancestor directory. The 50-candidate bound matches the maximum
+  packet limit: further candidates remain counted as withheld, with state `capped` and
+  `budget_shortage` `slots`. An unread candidate (source bound, absent indexed text or exclusion)
+  reserves nothing and leaves `governing` state `capped`; other readable ancestors remain
+  independently applicable, never substitutes for the missing authority.
+  Without a subject, or when no applicable ancestor `AGENTS.md`/`CLAUDE.md` remains, the original
+  single-row root fallback applies: rank eligible instruction paths by literal precedence
+  `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `copilot-instructions.md`, `.github/copilot-instructions.md`,
+  then `.github/instructions/*.instructions.md` by path. Take only the first non-subject candidate;
+  if unread, reserve nothing and report `capped`, without substituting a lower-precedence file.
+  Subjectless project-operation queries retain this same root eligibility and MAY use a narrower
+  subset; subject-scoped ancestor admission does not make sibling instructions operational.
+  Governing rows precede every other relation after corroboration. Every reservation costs one
+  row of `--limit`; final-limit omissions appear exhaustively in `critical_missing`. Neither
+  vocabulary nor corroboration may reorder the governing precedence.
 - `TCP-V0-009`: (A) The implementation MUST build a definition-owner resolver; no existing helper carries ownership. A spec defines an id when its
   body carries that id's clause line in the grammar `script/check-requirement-definitions.sh` uses: a list-leading, optionally bolded or backticked id
   followed by a colon or a period. The pass reads exactly the tracked `docs/specs/*.md` paths at the captured tree, non-recursive, excluding
@@ -165,7 +188,7 @@ it must read, each with the relation that admitted it, without naming the task's
   its evidence `reason` names the matched id then `ambiguous-definition (N specs)`. A tracked `docs/specs/*.md` path the task names is admitted the
   same way, its `reason` naming the path. Paths are deduplicated before the cap of three `spec-mentioned` rows. Title-term overlap alone MUST NOT
   admit a `spec-mentioned` row — discovery relevance is not governing authority — scoped to this relation only: lexical admission of specs is
-  unchanged. Spec-mentioned rows are placed immediately after the governing row and before every slot row; corroboration cannot outrank them.
+  unchanged. Spec-mentioned rows are placed immediately after the governing rows and before every slot row; corroboration cannot outrank them.
   `coverage` carries the receipt member `governance`: `reserved` when a governing row exists, else `spec-mentioned` when any spec-mentioned row
   exists, else `unresolved`, which means no instruction file and no defining spec was found for this task, and never that none exists (invariant 2).
 - `TCP-V0-010`: (A) The implementation MUST build a definition-eligibility predicate applied inside the `definition` row generator only, as a filter
@@ -180,9 +203,9 @@ it must read, each with the relation that admitted it, without naming the task's
   `reference`, `cochange`, `sibling`, `test`, `lexical`, `documentation`; `state` is `examined`, `capped`, `empty-history`, `subject-absent` (the relation needs a
   subject and the retrieval shape has none), `subject-symbols-incomplete` (amended 2026-09-12, invariant 2: `reference` only, when
   `Index.Unparsed` records the subject with facts other than `imports` or `Index.ExtractionNotes` records it, so the slot read a
-  missing or partial symbol table for the subject; `withheld` is still counted), or `not-applicable`; `withheld` is an integer, or `null` when not counted. A task-named path runs the
+  missing or partial symbol table for the subject; `withheld` is still counted), or `not-applicable`; `withheld` is an integer, or `null` when not counted. A task-named path or a selected non-test lexical source runs the
   `pair` generator even without `--subject`, so that relation is `examined`, including when no counterpart is found. Its count includes counterparts
-  materialised through the mention slot under the same admission accounting; without a subject or a named path it remains `subject-absent` / `null`.
+  materialised through the mention slot under the same admission accounting; without a subject, a named path or a selected lexical source it remains `subject-absent` / `null`.
   `withheld` is the candidates a
   relation's existing generator materialised, minus every candidate admitted under any relation (a corroborated path is not withheld), minus the
   subject, except a row dropped by TCP-V0-003's promote-in-place rule, which is withheld for its own relation. It MUST be measured from existing
@@ -255,7 +278,8 @@ it must read, each with the relation that admitted it, without naming the task's
   one half, and each mention its inverse document frequency), then fired signals, then path;
   at most one `test` row is
   admitted (`test-convention`; high with two or more signals, else medium; score 650), placed
-  after the `definition` slot and before the lexical fill. The evidence reason is
+  after the `definition` slot and before the lexical fill. TCP-V0-004 separately admits bounded
+  naming counterparts of selected lexical sources without broadening this multi-signal slot. The evidence reason is
   `tests <anchor>: <signals>` or `is tested by <anchor>: <signals>` with the fired signals in the
   order (a)-(d), the mention signal naming the rarest name and its inverse document frequency.
   Equal-IDF witness names use lexical order, and mention weights accumulate in sorted
@@ -767,7 +791,7 @@ it must read, each with the relation that admitted it, without naming the task's
   the gold file appears among `external.path_relations` endpoints is reported as a diagnostic,
   not as a retrieval claim. Letting these relations change `results` needs its own requirement
   and decision 0070's paired ladder.
-- `TCP-V0-047`: When a governing row exists (TCP-V0-008), the governing file's text is split into
+- `TCP-V0-047`: When governing rows exist (TCP-V0-008), each governing file's text is split into
   passages -- runs of non-blank lines, where a Markdown list item opens a new passage. A fenced
   code block is literal text, not routing prose: its lines, fences included, end a passage and
   belong to none; a fence closes only with the opening character, at least as long, and no info
@@ -776,7 +800,9 @@ it must read, each with the relation that admitted it, without naming the task's
   over N indexed sources of which n hold the term in their body, is at least 2.0. A term held
   by more than about 13.5% of sources therefore never counts toward routing, and neither does a term
   the body term table does not hold (such as a camelCase compound, which that table splits). Routing passages are
-  ordered by the summed body idf of those terms, highest first, then by line. Each backtick-quoted span in a routing passage that
+  processed in governing-row order (closest directory first), then within each file ordered by the
+  summed body idf of those terms, highest first, then by line. The two-row cap is shared across all
+  governing files. Each backtick-quoted span in a routing passage that
   is exactly an indexed source path, other than the subject and a path already reserved, is a
   candidate in that order; the first two are reserved as `instruction-routed` rows after the
   `spec-mentioned` rows and before every slot row, each costing one row of `--limit`, with the
@@ -1120,14 +1146,14 @@ wire never changed.
 | TCP-V0-001 | `runTaskContext` (the tree's snapshot when `corvint index` wrote one, else one `contextindex.Build`; no writer, index-snapshot-v0) | `TestRunTaskContextIsReadOnlyAndKeepsTheSubjectOut` |
 | TCP-V0-002 | `parseTaskContextInvocation`, `TaskContext` (limit, task, subject checks) | `TestParseTaskContextInvocation`, `TestTaskContextRetrievalShapeAndNoCandidates` |
 | TCP-V0-003 | `taskContextCompiler.packet`, `rowAction`, `contextRow` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestTaskContextRowsCarryAnAction` |
-| TCP-V0-004 | `compile`, `corroborate`, `pairRows`, `pairConfidence`, `mentionRows`, `mentionedPaths`, `contextPathTokens`, `symbolRows`, `importerRows`, `referenceRows`, `subjectSymbols`, `readCoChangeHistory`, `dropGraftedCommits`, `cochangeCommitCap`, `cochangeRows`, `siblingRows`, `identifierEvidence`, `lexicalRows`, `buildTermTable`, `countTerms`, `scanWords` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestTaskContextAdmitsReverseImportersAndMentionedPaths`, `TestTaskContextAdmitsExplicitExtensionlessAndDotPrefixedPaths`, `TestTaskContextAdmitsFilesNamingASubjectSymbol`, `TestTaskContextAdmitsCoChangedPathsAndIgnoresBulkCommits`, `TestTaskContextCochangeSkipsTheShallowBoundaryCommit`, `TestCochangeCommitCapTightensWithRepositoryAge`, `TestTaskContextRanksCorroboratedRowsFirst`, `TestTaskContextRetrievalShapeAndNoCandidates`, `TestCountTermsMatchesTheRegexTokeniser`, `TestLexicalRowsMatchWholeTokensFromTheTable`, `TestIdentifierEvidenceCountsWholeWordsByWeight`, `TestContextEqualIDFTestEvidenceIsStable` |
+| TCP-V0-004 | `admitLexicalPairs`, `compile`, `corroborate`, `pairRows`, `pairConfidence`, `mentionRows`, `mentionedPaths`, `contextPathTokens`, `symbolRows`, `importerRows`, `referenceRows`, `subjectSymbols`, `readCoChangeHistory`, `dropGraftedCommits`, `cochangeCommitCap`, `cochangeRows`, `siblingRows`, `identifierEvidence`, `lexicalRows`, `buildTermTable`, `countTerms`, `scanWords` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestTaskContextAdmitsReverseImportersAndMentionedPaths`, `TestTaskContextAdmitsExplicitExtensionlessAndDotPrefixedPaths`, `TestTaskContextAdmitsFilesNamingASubjectSymbol`, `TestTaskContextAdmitsCoChangedPathsAndIgnoresBulkCommits`, `TestTaskContextCochangeSkipsTheShallowBoundaryCommit`, `TestCochangeCommitCapTightensWithRepositoryAge`, `TestTaskContextRanksCorroboratedRowsFirst`, `TestTaskContextRetrievalShapeAndNoCandidates`, `TestCountTermsMatchesTheRegexTokeniser`, `TestLexicalRowsMatchWholeTokensFromTheTable`, `TestIdentifierEvidenceCountsWholeWordsByWeight`, `TestContextEqualIDFTestEvidenceIsStable`, `TestRunTaskContextSubjectlessCounterparts`, `TestTaskContextSelectedLexicalPairs`, `TestTaskContextLexicalPairPromotion` |
 | TCP-V0-005 | `take` (subject skipped), `packet` (`subject` member), `subjectEvidenceGap` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestRunTaskContextIsReadOnlyAndKeepsTheSubjectOut`, `TestTaskContextRetrievalShapeAndNoCandidates` |
 | TCP-V0-006 | `packet` (`state`, `coverage`) | `TestTaskContextRetrievalShapeAndNoCandidates` |
 | TCP-V0-007 | `runTaskContext` (`gokernel.CanonicalJSON`) | `TestRunTaskContextIsReadOnlyAndKeepsTheSubjectOut` |
-| TCP-V0-008 | `taskContextCompiler.governingRow`, `instructionCandidates`, `instructionRank`, `projectOperationPath`, `readable`, `reserve`, `reservedRows` | `TestTaskContextReservesInstructionsForUnrelatedVocabulary` (falsifier a), `TestTaskContextKeepsTheSubjectOutUnderReservedRelations` (falsifier f), `TestTCPV0008NestedInstructionEligibilityIsShared` |
+| TCP-V0-008 | `taskContextCompiler.governingRows`, `ancestorInstructions`, `governingRow`, `instructionCandidates`, `instructionRank`, `projectOperationPath`, `readable`, `reserve`, `reservedRows` | `TestTaskContextReservesInstructionsForUnrelatedVocabulary` (falsifier a), `TestTaskContextKeepsTheSubjectOutUnderReservedRelations` (falsifier f), `TestTCPV0008NestedInstructionEligibilityIsShared`, `TestRunTaskContextReservesAncestorInstructions`, `TestTaskContextAncestorInstructions`, `TestTaskContextAncestorInstructionCap` |
 | TCP-V0-009 | `specMentionedRows`, `specPaths`, `specDefinitions`, `requirementIDs`, `requirementIDTokens`, `idBoundary`, `namedSpecPaths`, `governance` | `TestTaskContextAdmitsSpecsNamedByIdOrPath`, `TestTaskContextEqualByteLexicalControlLosesOnlySpecMentionedRows` (falsifier b) |
 | TCP-V0-010 | `definitionEligible` (applied in `symbolRows` only) | `TestTaskContextProseIdentifierControlAdmitsNoDefinitions` (falsifier d), `TestSymbolRowsDefinerCountsExact` |
-| TCP-V0-011 | `criticalSelectors`, `unexamined`, `withheld`, `budgetShortage`, `markRan`, `markState`, `markSubjectSymbols`, `subjectSymbolsIncomplete`, `pairRows`, `takeSlot`, `anyEligible`, `packet` (`coverage`) | `TestTaskContextReportsCriticalMissingAndSlotShortage` (falsifier c), `TestTaskContextReportsUnexaminedScopePerRelation`, `TestTaskContextReportsNamedPathPairScope`, `TestTaskContextReportsNamedPathPairSlotOmissions`, `TestTaskContextDisclosesAnUnparsedSubjectsSymbols` |
+| TCP-V0-011 | `criticalSelectors`, `unexamined`, `withheld`, `budgetShortage`, `markRan`, `markState`, `markSubjectSymbols`, `subjectSymbolsIncomplete`, `pairRows`, `takeSlot`, `anyEligible`, `packet` (`coverage`) | `TestTaskContextReportsCriticalMissingAndSlotShortage` (falsifier c), `TestTaskContextReportsUnexaminedScopePerRelation`, `TestTaskContextReportsNamedPathPairScope`, `TestTaskContextReportsNamedPathPairSlotOmissions`, `TestTaskContextDisclosesAnUnparsedSubjectsSymbols`, `TestTaskContextSelectedLexicalPairs`, `TestTaskContextAncestorInstructions`, `TestTaskContextAncestorInstructionCap` |
 | TCP-V0-012 | `internal/contextindex/taskcontext_widening_test.go` | the six cases above plus `TestTaskContextAmendedPacketIsByteIdenticalAcrossRuns` (falsifier e) |
 | TCP-V0-013 | `lexicalRows`, `isDocumentationSuffix`, `contextRelationOrder` | `TestTaskContextPlacesDocumentationAfterFiveCodeRows` |
 | TCP-V0-014 | `lexicalRows`, `taskLexicalTerms`, `TermTable.documentLengths` | `TestLexicalRowsMatchWholeTokensFromTheTable`, `TestLexicalRowsOrderByBM25AndAnswerWholeIdentifiers` |
@@ -1166,4 +1192,4 @@ wire never changed.
 | TCP-V0-044 | `attachLSPEvidence`, `extevidence.InlineSection`, `lspprovider.Expand` | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestExpandLiveGopls` |
 | TCP-V0-045 | `attachLSPEvidence`, `lspprovider.Expand` failure reasons | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestExpandDegrades`, `TestExpandEveryQueryFailedIsUnavailable` |
 | TCP-V0-046 | `tools/retrieval-bench` `context` arm, flag unset and `gopls` | V1-0099 entry in `docs/BUILD-LOG.md` (measured off/on reports) |
-| TCP-V0-047 | `instructionRoutedRows`, `routedPassages`, `instructionPassages`, `nextFence`, `reservedRelation`, `rowAction`, `coreSpans` | `TestTaskContextRoutesPathsTheGoverningInstructionsNameForTheTask`, `TestTaskContextCapsInstructionRoutedRows`, `TestContextSpansSkipInstructionRoutedRows`, `TestTaskContextRoutingIsNotApplicableWithoutAGoverningRow`, `TestTaskContextRoutingSkipsTheSubject`, `TestTaskContextOrdersRoutingPassagesByIDF`, `TestTaskContextRoutingPromotesAnExistingRow`, `TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld`, `TestTaskContextRoutingIgnoresCommonTerms`, `TestTaskContextRoutingSkipsFencedCodeBlocks`, `TestTaskContextRoutingClosesFencesAsCommonMark`, `TestTaskContextRoutingSkipsCompoundsTheTableSplits`; V1-0186 and V1-0205 entries in `docs/BUILD-LOG.md` (frozen bench before/after) |
+| TCP-V0-047 | `instructionRoutedRows`, `routedPassages`, `instructionPassages`, `nextFence`, `reservedRelation`, `rowAction`, `coreSpans` | `TestTaskContextRoutesPathsTheGoverningInstructionsNameForTheTask`, `TestTaskContextCapsInstructionRoutedRows`, `TestContextSpansSkipInstructionRoutedRows`, `TestTaskContextRoutingIsNotApplicableWithoutAGoverningRow`, `TestTaskContextRoutingSkipsTheSubject`, `TestTaskContextOrdersRoutingPassagesByIDF`, `TestTaskContextRoutingPromotesAnExistingRow`, `TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld`, `TestTaskContextRoutingIgnoresCommonTerms`, `TestTaskContextRoutingSkipsFencedCodeBlocks`, `TestTaskContextRoutingClosesFencesAsCommonMark`, `TestTaskContextRoutingSkipsCompoundsTheTableSplits`, `TestTaskContextRoutesFromAncestorInstructions`; V1-0186 and V1-0205 entries in `docs/BUILD-LOG.md` (frozen bench before/after) |

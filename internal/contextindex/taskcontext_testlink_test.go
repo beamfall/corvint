@@ -2,6 +2,7 @@ package contextindex
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -141,4 +142,95 @@ func TestTaskContextRefusesAOnePlainWordTestLink(t *testing.T) {
 		}
 	}
 	t.Fatal("the one-compound-name link stays admitted")
+}
+
+func TestTaskContextSelectedLexicalPairs(t *testing.T) {
+	files := map[string]string{"go.mod": "module example.test/pairs\n\ngo 1.27.0\n", "AGENTS.md": "Follow repository instructions.\n"}
+	for i := 0; i < 5; i++ {
+		files[fmt.Sprintf("source%d.go", i)] = fmt.Sprintf("package fixture\n// Record response status when flushing.\nfunc Action%d() {}\n", i)
+		files[fmt.Sprintf("source%d_test.go", i)] = fmt.Sprintf("package fixture\nfunc TestAction%d() {}\n", i)
+	}
+	for i := 0; i < 12; i++ {
+		files[fmt.Sprintf("unrelated%02d_test.go", i)] = fmt.Sprintf("package fixture\n// response status\nfunc TestUnrelated%d() {}\n", i)
+	}
+	index, err := Build(context.Background(), impactRepositoryWithFiles(t, files))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Run("TCP-V0-004 counterpart admission respects limit and anchor", func(t *testing.T) {
+		for _, limit := range []int{1, 2, 4, 8, 12, 30} {
+			packet, err := TaskContext(context.Background(), index, "record response status when flushing", "", limit)
+			if err != nil {
+				t.Fatal(err)
+			}
+			rows := mapsFromAny(packet["results"])
+			if len(rows) > limit || rows[0]["id"] != "AGENTS.md" {
+				t.Fatalf("limit %d: %v", limit, rows)
+			}
+			present := map[string]bool{}
+			for _, row := range rows {
+				present[row["id"].(string)] = true
+			}
+			pairs := 0
+			for _, row := range rows {
+				if row["kind"] != "pair" {
+					continue
+				}
+				pairs++
+				evidence := mapsFromAny(row["evidence"])[0]
+				anchor := strings.TrimPrefix(evidence["reason"].(string), "test counterpart of ")
+				if !present[anchor] || evidence["authority"] != "test-convention" {
+					t.Fatalf("orphaned or mislabeled counterpart: %v", row)
+				}
+			}
+			if pairs > contextPairCap {
+				t.Fatalf("unbounded pairs: %d", pairs)
+			}
+			if limit == 12 && pairs != contextPairCap {
+				t.Fatalf("pair cap was not exercised: %v", rows)
+			}
+		}
+	})
+	t.Run("TCP-V0-011 pair shortage remains visible", func(t *testing.T) {
+		packet, err := TaskContext(context.Background(), index, "record response status when flushing", "", 12)
+		if err != nil {
+			t.Fatal(err)
+		}
+		states, withheld := contextUnexamined(t, contextCoverage(t, packet))
+		if states["pair"] != "examined" || contextIntValue(withheld["pair"]) < 1 {
+			t.Fatalf("missing pair shortage: %v / %v", states, withheld)
+		}
+	})
+}
+
+func TestTaskContextLexicalPairPromotion(t *testing.T) {
+	t.Run("TCP-V0-004 existing lexical counterpart precedes unrelated tests", func(t *testing.T) {
+		compiler := newTaskContextCompiler(testLinkFixture(t), "render", "")
+		rows := []contextRow{{kind: "lexical", path: "src/render/render.go"}, {kind: "lexical", path: "probe/probe_test.go"}, {kind: "lexical", path: "tests/render/render_test.go"}}
+		for _, row := range rows {
+			compiler.chosen[row.path] = struct{}{}
+		}
+		got := compiler.admitLexicalPairs(rows, 3)
+		if len(got) != 3 || got[1].path != "tests/render/render_test.go" || got[1].kind != "pair" || got[2].path != "probe/probe_test.go" {
+			t.Fatalf("promotion: %v", got)
+		}
+	})
+}
+
+func TestTaskContextLexicalStrengthOrder(t *testing.T) {
+	t.Run("TCP-V0-014 BM25 strength survives subjectless final ordering", func(t *testing.T) {
+		root := impactRepositoryWithFiles(t, map[string]string{"go.mod": "module example.test/lexical\n\ngo 1.27.0\n", "a.go": "package fixture\n// response\nfunc Alpha() {}\n", "z.go": "package fixture\n// record response status when flushing\nfunc Zeta() {}\n"})
+		index, err := Build(context.Background(), root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		packet, err := TaskContext(context.Background(), index, "record response status when flushing", "", 2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows := mapsFromAny(packet["results"])
+		if len(rows) != 2 || rows[0]["id"] != "z.go" || rows[1]["id"] != "a.go" {
+			t.Fatalf("lexical order: %v", rows)
+		}
+	})
 }

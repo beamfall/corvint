@@ -183,6 +183,8 @@ const (
 	contextDocumentationQuota   = 2
 	// contextSpecMentionCap bounds the reserved spec rows (TCP-V0-009).
 	contextSpecMentionCap = 3
+	// No packet can carry more than maxLimit governing rows.
+	contextGoverningCap = maxLimit
 	// contextRoutedCap bounds the reserved instruction-routed rows, and a
 	// passage of the governing file routes only when it shares at least
 	// contextRoutedMinTerms distinct task terms whose body idf reaches
@@ -275,11 +277,90 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 	rows = compiler.corroborate(rows)
 	rows = compiler.reserve(rows)
 	rows = compiler.placeGraphRows(rows, limit)
+	if compiler.subject == "" && !frameActive {
+		rows = compiler.admitLexicalPairs(rows, limit)
+	}
 	// `candidates` is the distinct paths the slots admitted (TCP-V0-006); a
 	// row a slot cap held back is `withheld`, not a candidate.
 	compiler.admitted = len(rows)
 	if len(rows) > limit {
 		rows, compiler.truncated = rows[:limit], true
+	}
+	return rows
+}
+
+// admitLexicalPairs keeps selected source anchors and authority intact while
+// replacing the weakest unrelated lexical tests with bounded naming counterparts.
+// The remaining lexical rows retain their BM25 order; relation scores are not BM25.
+func (compiler *taskContextCompiler) admitLexicalPairs(rows []contextRow, limit int) []contextRow {
+	selected := rows[:min(len(rows), limit)]
+	candidates := []contextRow{}
+	protected := map[string]bool{}
+	for _, row := range selected {
+		if row.kind != "lexical" || contextIsTest(row.path) {
+			continue
+		}
+		for _, pair := range compiler.pairRows(row.path) {
+			if !contextIsTest(pair.path) {
+				continue
+			}
+			protected[pair.path] = true
+			candidates = append(candidates, pair)
+			compiler.candidates["pair"] = append(compiler.candidates["pair"], pair.path)
+		}
+	}
+	admitted := 0
+	for _, pair := range candidates {
+		at := slices.IndexFunc(rows, func(row contextRow) bool { return row.path == pair.path })
+		if at >= 0 && at < limit && rows[at].kind != "lexical" {
+			continue
+		}
+		if admitted == contextPairCap {
+			compiler.slotOmitted = true
+			continue
+		}
+		first, last := -1, -1
+		for i, row := range rows[:min(len(rows), limit)] {
+			if row.kind == "lexical" && contextIsTest(row.path) && !protected[row.path] {
+
+				if first < 0 {
+					first = i
+				}
+				last = i
+			}
+		}
+		if at >= 0 && at < limit {
+			if first < 0 || at < first {
+				continue
+			}
+			compiler.promoted[pair.path] = rows[at].kind
+			rows = slices.Delete(rows, at, at+1)
+			rows = slices.Insert(rows, first, pair)
+			admitted++
+			continue
+		}
+
+		if first < 0 {
+			if len(rows) < limit {
+				rows = append(rows, pair)
+				compiler.chosen[pair.path] = struct{}{}
+				admitted++
+			} else {
+				compiler.slotOmitted = true
+			}
+			continue
+		}
+		// Remove an already materialised tail row before promoting its relation.
+		if at >= limit {
+			compiler.promoted[pair.path] = rows[at].kind
+			rows = slices.Delete(rows, at, at+1)
+		}
+		displaced := rows[last]
+		rows = slices.Delete(rows, last, last+1)
+		rows = slices.Insert(rows, first, pair)
+		rows = slices.Insert(rows, min(limit, len(rows)), displaced)
+		compiler.chosen[pair.path] = struct{}{}
+		admitted++
 	}
 	return rows
 }
@@ -1242,8 +1323,8 @@ func (compiler *taskContextCompiler) trackedPaths() map[string]struct{} {
 }
 
 // contextInstructionPrecedence is TCP-V0-008's literal file precedence, ahead
-// of `.github/instructions/*.instructions.md`; no other nested instruction
-// path is eligible.
+// of `.github/instructions/*.instructions.md` for subjectless/root fallback
+// queries. Subject ancestors are selected separately.
 var contextInstructionPrecedence = []string{
 	"AGENTS.md", "CLAUDE.md", "GEMINI.md", "copilot-instructions.md", ".github/copilot-instructions.md",
 }
@@ -1291,36 +1372,78 @@ func orderRelations(relations []string) []string {
 }
 
 func (compiler *taskContextCompiler) reservedRows() []contextRow {
-	rows := make([]contextRow, 0, 1+contextSpecMentionCap+contextRoutedCap)
-	if row, ok := compiler.governingRow(); ok {
-		rows = append(rows, row)
-	}
+	rows := compiler.governingRows()
 	rows = append(rows, compiler.specMentionedRows(rows)...)
 	return append(rows, compiler.instructionRoutedRows(rows)...)
 }
 
-// governingRow reserves the repository's standing instructions (TCP-V0-008).
-// `documentKind` classifies an instruction file without establishing which one
-// governs, so precedence is decided here. A candidate the index did not read --
-// over `maxSourceBytes`, or excluded -- reserves nothing and no lower-precedence
-// file substitutes for it; the packet says so through `unexamined`.
+// governingRow keeps the subjectless local-prompt caller's single-row API.
 func (compiler *taskContextCompiler) governingRow() (contextRow, bool) {
-	candidates := compiler.instructionCandidates()
+	rows := compiler.governingRows()
+	if len(rows) == 0 {
+		return contextRow{}, false
+	}
+	return rows[0], true
+}
+
+// governingRows reserves each applicable ancestor independently. An unread
+// ancestor remains a capped candidate; readable parents do not stand in for it.
+// Without ancestor instructions, the original root precedence has no fallback
+// past its first unread candidate.
+func (compiler *taskContextCompiler) governingRows() []contextRow {
+	candidates := compiler.ancestorInstructions()
+	scoped := len(candidates) > 0
+	cap := contextGoverningCap
+	if !scoped {
+		candidates = compiler.instructionCandidates()
+		cap = 1
+	}
 	compiler.candidates[governingRelation] = candidates
 	compiler.relationState[governingRelation] = "examined"
-	if len(candidates) == 0 {
-		return contextRow{}, false
+	rows := make([]contextRow, 0, min(len(candidates), cap))
+	for i, governing := range candidates {
+		if i >= cap {
+			if scoped {
+				compiler.relationState[governingRelation] = "capped"
+				compiler.slotOmitted = true
+			}
+			break
+		}
+		if !compiler.readable(governing) {
+			compiler.relationState[governingRelation] = "capped"
+			continue
+		}
+		reason := "the highest-precedence tracked instruction file"
+		if scoped && (len(candidates) > 1 || path.Dir(governing) != ".") {
+			reason = "tracked instructions for subject ancestor " + path.Dir(governing) + "; closest directory first"
+		}
+		rows = append(rows, contextRow{
+			kind: governingRelation, path: governing, score: 1000, line: 1,
+			summary: "this project's standing instructions", reason: reason,
+			confidence: "high", authority: "project-instructions",
+		})
 	}
-	governing := candidates[0]
-	if !compiler.readable(governing) {
-		compiler.relationState[governingRelation] = "capped"
-		return contextRow{}, false
+	return rows
+}
+
+func (compiler *taskContextCompiler) ancestorInstructions() []string {
+	if compiler.subject == "" {
+		return nil
 	}
-	return contextRow{
-		kind: governingRelation, path: governing, score: 1000, line: 1,
-		summary: "this project's standing instructions", reason: "the highest-precedence tracked instruction file",
-		confidence: "high", authority: "project-instructions",
-	}, true
+	tracked := compiler.trackedPaths()
+	files := []string{}
+	for directory := path.Dir(compiler.subject); ; directory = path.Dir(directory) {
+		for _, name := range []string{"AGENTS.md", "CLAUDE.md"} {
+			candidate := path.Join(directory, name)
+			if _, exists := tracked[candidate]; exists && candidate != compiler.subject {
+				files = append(files, candidate)
+			}
+		}
+		if directory == "." {
+			break
+		}
+	}
+	return files
 }
 
 // instructionPassage is one paragraph or list item of the governing file: a
@@ -1388,38 +1511,43 @@ func (compiler *taskContextCompiler) instructionRoutedRows(taken []contextRow) [
 		compiler.relationState[instructionRoutedRelation] = "not-applicable"
 		return nil
 	}
-	governing := taken[0].path
 	compiler.relationState[instructionRoutedRelation] = "examined"
-	text, _ := sourceTextBounded(compiler.index.Sources[governing])
 	seen := map[string]struct{}{}
 	for _, row := range taken {
 		seen[row.path] = struct{}{}
 	}
 	materialised := make([]string, 0)
 	rows := make([]contextRow, 0, contextRoutedCap)
-	for _, passage := range compiler.routedPassages(text) {
-		for offset, line := range passage.lines {
-			for _, match := range contextBackquoted.FindAllStringSubmatch(line, -1) {
-				candidate := match[1]
-				if _, tracked := compiler.index.Sources[candidate]; !tracked {
-					continue
+	for _, instruction := range taken {
+		if instruction.kind != governingRelation {
+			continue
+		}
+		governing := instruction.path
+		text, _ := sourceTextBounded(compiler.index.Sources[governing])
+		for _, passage := range compiler.routedPassages(text) {
+			for offset, line := range passage.lines {
+				for _, match := range contextBackquoted.FindAllStringSubmatch(line, -1) {
+					candidate := match[1]
+					if _, tracked := compiler.index.Sources[candidate]; !tracked {
+						continue
+					}
+					if _, done := seen[candidate]; done || candidate == compiler.subject {
+						continue
+					}
+					seen[candidate] = struct{}{}
+					materialised = append(materialised, candidate)
+					if len(rows) == contextRoutedCap {
+						compiler.slotOmitted = true
+						continue
+					}
+					reason := fmt.Sprintf("named by the governing instructions for this task: %s:%d shares `%s`",
+						governing, passage.line+offset, strings.Join(passage.shared, "`, `"))
+					rows = append(rows, contextRow{
+						kind: instructionRoutedRelation, path: candidate, score: 850, line: 1,
+						summary: "named by the governing instructions for this task", reason: reason,
+						confidence: "medium", authority: "instruction-reference",
+					})
 				}
-				if _, done := seen[candidate]; done || candidate == compiler.subject {
-					continue
-				}
-				seen[candidate] = struct{}{}
-				materialised = append(materialised, candidate)
-				if len(rows) == contextRoutedCap {
-					compiler.slotOmitted = true
-					continue
-				}
-				reason := fmt.Sprintf("named by the governing instructions for this task: %s:%d shares `%s`",
-					governing, passage.line+offset, strings.Join(passage.shared, "`, `"))
-				rows = append(rows, contextRow{
-					kind: instructionRoutedRelation, path: candidate, score: 850, line: 1,
-					summary: "named by the governing instructions for this task", reason: reason,
-					confidence: "medium", authority: "instruction-reference",
-				})
 			}
 		}
 	}
