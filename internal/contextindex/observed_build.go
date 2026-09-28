@@ -49,6 +49,16 @@ func LoadContextSnapshotDeferred(ctx context.Context, root string) (*Index, bool
 	return loadSnapshot(ctx, root, loadContext)
 }
 
+// LoadContextPackSnapshotDeferred loads only the explicitly enabled pack profile.
+// Missing or refused packs are misses even when an executable-specific gob exists.
+// Callers must abstain on TaskContext refusal rather than reload another format.
+func LoadContextPackSnapshotDeferred(ctx context.Context, root string) (*Index, bool, *LoaderObservation, error) {
+	if !packEnabled() {
+		return nil, false, nil, nil
+	}
+	return loadSnapshot(ctx, root, loadContext|loadPackOnly)
+}
+
 // LoadSnapshotDeferred is LoadSnapshot whose pack hit verifies each body when
 // a read first touches it. The caller checks SnapshotRefusal after its reads
 // and, on a refusal, discards the result and reloads through LoadSnapshot.

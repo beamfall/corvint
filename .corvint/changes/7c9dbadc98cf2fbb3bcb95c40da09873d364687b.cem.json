@@ -1,0 +1,70 @@
+{
+  "baseRevision": "b4028d4a17f2fb7fae9061d341fa98d6df317937",
+  "evidence": [
+    {
+      "blobOid": "3061f76c420bd0aa7168a283128b11ac7c582877",
+      "id": "evidence:sha256:87a310b825d4757ca5ee96d9ba1c34c26ef24ea61cb802114f536d6809654d19",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3118,
+        "start": 2775
+      },
+      "spanSha256": "46e69c5e97297b36c204ff585b335a484633ade4ec166dbc695fd46e7c6dc76c"
+    },
+    {
+      "blobOid": "6791284ea19a70a60612741e2fc2e7429fffdeba",
+      "id": "evidence:sha256:e0dd45751f74791fdaa1b83c2f1a49e68be4d662cc3ee3d1fdae37149592f914",
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "span": {
+        "end": 13094,
+        "start": 12553
+      },
+      "spanSha256": "66902ff632f5a57809406c2979917ca6dc057e80e8467e7f1d18e2b3de9ac2ef"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:87a310b825d4757ca5ee96d9ba1c34c26ef24ea61cb802114f536d6809654d19",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:839850bc9eef4e5b30fd6903d6850aed0a163d5b415855221abb8d8a6a7b5758",
+      "newRange": {
+        "count": 38,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-28-corvint-tasks-lease-integration.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:e0dd45751f74791fdaa1b83c2f1a49e68be4d662cc3ee3d1fdae37149592f914",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d34127e6bec5957319adc6cbe9cb7db5f49310e1e222104421c2f0425c9d1bdf",
+      "newRange": {
+        "count": 7,
+        "start": 323
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 323
+      },
+      "path": "internal/tasks/store/lease_gate_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "1694cffa416eb40b1fc52da10ea3f34b6a4cb754b41d76857d3dce68ec8d7a6c",
+  "spec": "cem/0.2"
+}

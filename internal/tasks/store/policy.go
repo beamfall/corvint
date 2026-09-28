@@ -53,6 +53,9 @@ func administrativeWrite(ctx context.Context, repo *intent.Repository, request t
 // also audits every attempt record, hands the model the head receipt, and
 // takes the claim facts observed from the audit under the same lock.
 func administrativeWriteWith(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, beforeCommit func() error, facts claimObserver) (*Report, *journal.Result, error) {
+	if request.Operation == transaction.Lease {
+		return leaseWrite(ctx, repo, request, now, beforeCommit, facts)
+	}
 	report := &Report{}
 	if repo == nil {
 		return report, nil, wire.Errorf(wire.CodeMalformed, "repository", "missing repository")

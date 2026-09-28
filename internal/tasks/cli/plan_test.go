@@ -97,3 +97,25 @@ func TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan(t *testing.T) {
 		t.Fatalf("plan preview took an argument: %+v", u.res)
 	}
 }
+
+// TestCALV0002_PlanPreviewBlocksANonFixtureQueue: before its execution
+// cutover a non-fixture queue plans every ticket BLOCKED CUTOVER_MISSING.
+func TestCALV0002_PlanPreviewBlocksANonFixtureQueue(t *testing.T) {
+	r := fixture.TempRepo(t)
+	q := fixture.QueueValue()
+	q.Obj.Set("fixture", wire.Bool(false))
+	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), wire.EncodeFile(q))
+	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
+	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("init: %+v", x.res)
+	}
+	id := planTicket(t, r.Root, "only", "P1", `["src/"]`)
+	x := atm(t, r.Root, nil, "plan", "preview")
+	if x.res.Outcome != wire.OutcomeOK || len(x.res.Items) != 1 {
+		t.Fatalf("plan preview: %+v", x.res)
+	}
+	entries := field(x.res.Items[0], "entries").Arr
+	if len(entries) != 1 || field(entries[0], "ticketId").Str != id || field(entries[0], "state").Str != "BLOCKED" || field(entries[0], "reason").Str != wire.CodeCutoverMissing {
+		t.Fatalf("entries: %+v", entries)
+	}
+}

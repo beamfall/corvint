@@ -140,6 +140,12 @@ func (i *Inventory) Files() []archive.FileEntry {
 	archive.SortFiles(out)
 	return out
 }
+
+// Has reports whether the inventory holds a file at p.
+func (i *Inventory) Has(p string) bool {
+	_, ok := i.files[p]
+	return ok
+}
 func (i *Inventory) Directories() []string {
 	out := make([]string, 0, len(i.dirs))
 	for d := range i.dirs {

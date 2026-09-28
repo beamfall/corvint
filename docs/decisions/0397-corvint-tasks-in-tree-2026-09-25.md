@@ -69,3 +69,17 @@ two-root `Options`.
 
 The old repository at `800682d` is untouched. There is no data migration: the `.taskman/` store
 format and journal are unchanged.
+
+## CAL-V0-022 addendum — explicit pack derivation
+
+The owner's S8 approval on 2026-09-27 accepts in-process scope derivation with explicit
+`CORVINT_SNAPSHOT_FORMAT=pack` opt-in and conservative default claims. The adapter in
+`internal/tasks/scopes` may import `internal/contextindex` and `internal/runtimeenv`;
+`internal/tasks/cli/scope_test.go` may import `internal/contextindex` to construct its pack fixture.
+These are the only exceptions to rule 2. Other Tasks packages still import no Core package,
+Tasks wire still imports no module package, and Core still links no Tasks mutation code.
+`TestImportViolationControls` retains negative controls for imports outside those exact edges.
+
+The rule 5 source-archive subset does not include these Core dependencies. Its advertised standalone
+rebuild is blocked by ticket V1-0456 until the export includes and verifies the required dependency
+closure and notices. A passing import-direction test does not qualify that release artifact.
