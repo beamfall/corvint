@@ -60,10 +60,17 @@ func EncodeQualified(r Receipt) ([]byte, error) {
 }
 
 func qualifiedProfileShapeError(r Receipt) error {
-	if r.Profile != "" && hasAttemptDetails(r) {
+	if r.Profile != "" && r.Profile != AttemptExternalProfile && hasAttemptDetails(r) {
 		return errors.New("external-profile-has-attempt-details")
 	}
 	switch r.Profile {
+	case AttemptExternalProfile:
+		if r.ApplicationAttestation != nil || r.TestRepositoryAtStart != nil || r.TestRepositoryAtPublish != nil || hasSensitiveInputEvidence(r) {
+			return errors.New("external-attempt-details-composition-unsupported")
+		}
+		if err := ValidateAttemptDetails(r.Tests); err != nil {
+			return err
+		}
 	case ExternalProfile:
 		if r.ApplicationAttestation != nil || r.TestRepositoryAtStart != nil || r.TestRepositoryAtPublish != nil {
 			return errors.New("legacy-external-profile-has-attested-fields")

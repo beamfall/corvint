@@ -74,6 +74,7 @@ func runTestHelper() {
 	}
 	receipt := matchingReceipt(invocation)
 	receipt.Artifacts = []Artifact{{Path: "artifact.json", SHA256: hashBytes(artifactData)}}
+	receipt.NativeReceiptSHA256 = hashBytes(artifactData)
 	switch scenario {
 	case "survived":
 		receipt.TestOutcome = "passed"
@@ -82,6 +83,19 @@ func runTestHelper() {
 	case "unrelated-failure":
 		receipt.Unrelated[0].State = "failed"
 		receipt.Unrelated[0].FailureKind = "assertion"
+	case "setup-failure":
+		receipt.Setup[0].State = "failed"
+	case "native-missing":
+		receipt.Artifacts = nil
+	case "secret-output":
+		_, _ = os.Stdout.Write([]byte(`{"unknown":"password=synthetic-credential-value"}`))
+		return
+	case "malformed-secret-output":
+		_, _ = os.Stdout.Write([]byte(`password=synthetic-credential-value {`))
+		return
+	case "failed-secret-output":
+		_, _ = os.Stdout.Write([]byte(`password=synthetic-credential-value`))
+		os.Exit(9)
 	case "wrong-assertion":
 		receipt.TargetObservation.AssertionID = "assertion:other"
 	case "retry":

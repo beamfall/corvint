@@ -30,8 +30,11 @@ func TestContainedRunnerKillsDescendantOnCancellation(t *testing.T) {
 	for deadline := time.Now().Add(30 * time.Second); time.Now().Before(deadline); {
 		raw, err := os.ReadFile(pidFile)
 		if err == nil {
-			childPID, _ = strconv.Atoi(string(raw))
-			break
+			pid, parseErr := strconv.Atoi(string(raw))
+			if parseErr == nil && pid > 0 {
+				childPID = pid
+				break
+			}
 		}
 		time.Sleep(10 * time.Millisecond)
 	}

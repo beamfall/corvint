@@ -103,6 +103,9 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 		return Receipt{}, err
 	}
 	profile := ExternalProfile
+	if cfg.RetainAttemptDetails {
+		profile = AttemptExternalProfile
+	}
 	if cfg.ApplicationAttestation != nil {
 		profile = AttestedExternalProfile
 	}
@@ -278,8 +281,13 @@ func decodeQualifiedReport(data []byte, profile string) (qualifiedReport, *Infra
 	if _, err := decoder.Token(); err != io.EOF {
 		return qualifiedReport{}, externalReportFailure(profile, "report-unparseable", "trailing report data")
 	}
-	if hasAttemptDetails(Receipt{Tests: report.Tests}) {
+	if profile != AttemptExternalProfile && hasAttemptDetails(Receipt{Tests: report.Tests}) {
 		return qualifiedReport{}, externalReportFailure(profile, "report-unparseable", "unknown field \"attemptDetails\"")
+	}
+	if profile == AttemptExternalProfile {
+		if err := ValidateAttemptDetails(report.Tests); err != nil {
+			return qualifiedReport{}, externalReportFailure(profile, "external-attempt-details-invalid", "attempt inventory disagrees with retained details")
+		}
 	}
 	return report, nil
 }
@@ -379,7 +387,11 @@ func externalCommand(c E2EConfig, scratch string) (string, []string, string, err
 	reportPath := filepath.Join(scratch, "report.json")
 	quoted := func(s string) string { b, _ := json.Marshal(s); return string(b) }
 	policy, _ := json.Marshal(c.SensitiveInputPolicy)
-	config := "const imported = require(" + quoted(c.ConfigFile) + ");\nconst original = imported.default || imported;\nconst base = " + quoted(filepath.Dir(c.ConfigFile)) + ";\nconst resolve = value => require('node:path').resolve(base, value);\nconst modulePath = value => Array.isArray(value) ? value.map(modulePath) : typeof value === 'string' ? require.resolve(value, {paths:[base]}) : value;\nconst paths = object => { const result = {...object}; for (const key of ['testDir', 'outputDir', 'snapshotDir', 'tsconfig']) if (typeof result[key] === 'string') result[key] = resolve(result[key]); return result; };\nmodule.exports = {...paths(original), testDir: original.testDir ? resolve(original.testDir) : base, globalSetup: modulePath(original.globalSetup), globalTeardown: modulePath(original.globalTeardown), projects: original.projects?.map(paths), webServer: undefined, reporter: [[" + quoted(reporterPath) + ", {output:" + quoted(reportPath) + ", sensitiveInputPolicy:" + string(policy) + "}]]};\n"
+	attemptOption := ""
+	if c.RetainAttemptDetails {
+		attemptOption = ", retainAttemptDetails:true"
+	}
+	config := "const imported = require(" + quoted(c.ConfigFile) + ");\nconst original = imported.default || imported;\nconst base = " + quoted(filepath.Dir(c.ConfigFile)) + ";\nconst resolve = value => require('node:path').resolve(base, value);\nconst modulePath = value => Array.isArray(value) ? value.map(modulePath) : typeof value === 'string' ? require.resolve(value, {paths:[base]}) : value;\nconst paths = object => { const result = {...object}; for (const key of ['testDir', 'outputDir', 'snapshotDir', 'tsconfig']) if (typeof result[key] === 'string') result[key] = resolve(result[key]); return result; };\nmodule.exports = {...paths(original), testDir: original.testDir ? resolve(original.testDir) : base, globalSetup: modulePath(original.globalSetup), globalTeardown: modulePath(original.globalTeardown), projects: original.projects?.map(paths), webServer: undefined, reporter: [[" + quoted(reporterPath) + ", {output:" + quoted(reportPath) + ", sensitiveInputPolicy:" + string(policy) + attemptOption + "}]]};\n"
 	if err := os.WriteFile(reporterPath, qualifiedReporter, 0600); err != nil {
 		return "", nil, "", err
 	}
@@ -533,7 +545,7 @@ func qualifiedUnknown(r Receipt, t TestOutcome) bool {
 	if r.Profile == SensitiveExternalProfile {
 		return true
 	}
-	if (r.Profile == ExternalProfile || (r.Profile == SensitiveExternalProfile && r.ApplicationAttestation == nil)) && strings.TrimSpace(x.DeclaredAppIdentity) == "" {
+	if (r.Profile == ExternalProfile || r.Profile == AttemptExternalProfile || (r.Profile == SensitiveExternalProfile && r.ApplicationAttestation == nil)) && strings.TrimSpace(x.DeclaredAppIdentity) == "" {
 		return true
 	}
 	if (r.Profile == AttestedExternalProfile || (r.Profile == SensitiveExternalProfile && r.ApplicationAttestation != nil)) && (x.DeclaredAppIdentity != "" || applicationAttestationUnknown(r.ApplicationAttestation) || testRepositoryUnknown(r.TestRepositoryAtStart, r.TestRepositoryAtPublish)) {
@@ -597,7 +609,7 @@ func qualifiedUnknown(r Receipt, t TestOutcome) bool {
 
 func qualifiedPlaywrightTuple(r Receipt, t TestOutcome) bool {
 	if r.Identity.RunnerVersion == "1.60.0" {
-		return true
+		return r.Profile != AttemptExternalProfile
 	}
 	if r.Identity.RunnerVersion != "1.63.0" || r.Identity.NodeVersion != "v22.23.2" {
 		return false
@@ -617,6 +629,9 @@ func qualifiedPlaywrightTuple(r Receipt, t TestOutcome) bool {
 		return false
 	}
 	if browser.ExecutableSource == nil {
+		if r.Profile == AttemptExternalProfile {
+			return false
+		}
 		return qualifiedSystemPlaywrightBrowser(use.LaunchOptions.ExecutablePath, browser.BrowserVersion, browser.ExecutablePath)
 	}
 	return qualifiedBundledPlaywrightBrowser(use.Headless, use.LaunchOptions.ExecutablePath, browser)

@@ -1,0 +1,90 @@
+{
+  "baseRevision": "0954ea188e676b714bd6a979a5278bde0baa15e0",
+  "evidence": [
+    {
+      "blobOid": "ebe8426e22e853141dc41065f202232c751a9635",
+      "id": "evidence:sha256:b0026120389375346d0156eb1862adb9531eaf5aef9a0dacd107b6fedbaedc58",
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "span": {
+        "end": 12867,
+        "start": 12210
+      },
+      "spanSha256": "108aece37e38b79b79d0b20da1474ba9b063994388227b7bd9822ed4056d151e"
+    },
+    {
+      "blobOid": "bb344eaba30949b54afa0791766512883999d113",
+      "id": "evidence:sha256:e66c182d57c47ca5f4c6123ec61b4ad2621721d91d39c2355147d27691f7b138",
+      "path": "internal/tasks/store/lease_gate_test.go",
+      "span": {
+        "end": 1572,
+        "start": 1449
+      },
+      "spanSha256": "eb0652fa3ef1cfc2ec94ad7361358ea6ad62eb04862b3dea04bc2eb510085628"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b0026120389375346d0156eb1862adb9531eaf5aef9a0dacd107b6fedbaedc58",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c8c56475beba081e81a53409eca7ffd0e576206370941c2195aad270b78a5695",
+      "newRange": {
+        "count": 23,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-28-pr-completion-fixture-identity.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:e66c182d57c47ca5f4c6123ec61b4ad2621721d91d39c2355147d27691f7b138",
+          "relation": "implementation"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:af1a8df7f817d4503498f8000af1fdeafa7816ba5aaaae61809003d58d872054",
+      "newRange": {
+        "count": 11,
+        "start": 43
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 43
+      },
+      "path": "internal/tasks/store/lease_gate_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b0026120389375346d0156eb1862adb9531eaf5aef9a0dacd107b6fedbaedc58",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6a9dde3717749a32c2e2a04b80055a6c55181d3c2a9450b146d33a5383341f21",
+      "newRange": {
+        "count": 7,
+        "start": 327
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 323
+      },
+      "path": "internal/tasks/store/lease_gate_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "f5992faaf8d79a45c6f7896c7ff2bca75e293bf4a59692d26d9ba1804b36e804",
+  "spec": "cem/0.2"
+}

@@ -1,0 +1,26 @@
+{
+  "beamfall": {
+    "base": "363a2fd3423ee755f7eba72541f85c1bc6861fbb",
+    "target": "14b14a9dd6740314177f9d9609a727d9e0e110ea",
+    "fault": "phase id changes to qualification-fault",
+    "beforePassed": 2,
+    "afterPassed": 1,
+    "afterFailed": 3,
+    "selectedFailingTest": "api-phase",
+    "selectionState": "full-relevant-suite-required",
+    "omitted": 0,
+    "ownedDescendantsGone": true
+  },
+  "corvint": {
+    "fixtureSource": "cec1edbb6995a022dd7e2d336a66eb42c1fdc3c6",
+    "base": "45755a111e6436df414fc02cb0a44da1ee7ef6cf",
+    "target": "1dc517386983ebdd5c5a49f9a4cc1643956d3a5f",
+    "fault": "counter increments two instead of one",
+    "beforePassed": 1,
+    "afterFailed": 1,
+    "selectedFailingTest": "counter-test",
+    "selectionState": "full-relevant-suite-required",
+    "omitted": 0,
+    "ownedDescendantsGone": true
+  }
+}
