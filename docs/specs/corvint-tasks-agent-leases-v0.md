@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
 Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification))
-Authoritative inputs: the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
+Authoritative inputs: owner request [issue 336](https://github.com/beamfall/corvint/issues/336), the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
 §3.4, §4, §6 and §7.4), decision 0397 (corvint-tasks built in tree), decision 0423 A10,
 `docs/specs/corvint-tasks-store-init-v0.md`, tickets V1-0398, V1-0184 and V1-0310, and the in-tree
 sources under `internal/tasks`.
@@ -256,6 +256,14 @@ S7, qualification and execution cutover.
   not `go test -json` output (`MALFORMED`); on a fixture queue, before the authority switch
   (`CUTOVER_MISSING`), and when `executionCutover` is already recorded.
 
+- `CAL-V0-027`: A separate `corvint-tasks-archive/0` build path MUST package the Tasks binary,
+  corresponding immutable source, license/notices, manifest, and checksums without changing the
+  Core archive or claiming workflow-bundle qualification. The initial target is native macOS arm64;
+  others remain NOT_RUN. Two isolated builds and two archive assemblies MUST agree, and the
+  extracted binary MUST expose plan, claim, submit, gate and completion in a native help smoke.
+  The manifest MUST retain the unverified version label, source commit/tree and pinned build count.
+  This does not publish a release, authenticate an operator or qualify a task queue.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -381,3 +389,4 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-024 | `TestCALV0024_SubmitOutsideTheScopeIsRefused` (`internal/tasks/store`) |
 | CAL-V0-025 | `TestCALV0025_WidenAddsPathsAndRefusesCollision`, `TestCALV0025_WidenRefusedUnderAdmissionBarrier` (`internal/tasks/store`) |
 | CAL-V0-026 | MET on macOS with Go 1.27.1 and `GOMAXPROCS=2`: 3,000 tickets, 20 samples per verb, claim p95 121.136 ms and renew 104.774 ms; every sampled load average below 12 CPUs. `TestCALV0026_VerifiedAuditReuse`, `TestCALV0026_PreparationFailureWaitsForWriter` (`internal/tasks/store`) and `TestCALV0026_ChangeGuardDescriptorExhaustion` (`internal/tasks/authority`) cover cache trust, concurrency and cleanup. Opt-in `TestCALV0026_LockHoldMeasurement` retains 3,000-ticket timings; see `docs/build-log/2026-09-28-corvint-tasks-lease-lock-qualification.md`. |
+| CAL-V0-027 | `internal/companionrelease/tasks_archive.go`, companion release `-tasks-only`; `TestTasksArchiveAssembly`, `TestTasksArchiveHelpRefusesOldRuntime`; native archive build retained in change evidence |

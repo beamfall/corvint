@@ -9,6 +9,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -26,6 +27,7 @@ func main() {
 func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("corvint-companion-release", flag.ContinueOnError)
 	fs.SetOutput(stderr)
+	tasksOnly := fs.Bool("tasks-only", false, "build only the standalone Tasks archive; no full bundle qualification")
 	sourceRoot := fs.String("source-root", "", "clean Corvint source checkout (required)")
 	target := fs.String("target", "darwin/arm64", "GOOS/GOARCH pair to build (only darwin/arm64 is supported)")
 	scratch := fs.String("scratch", "", "scratch working directory (required)")
@@ -43,14 +45,26 @@ func run(args []string, stdout, stderr io.Writer) int {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	report, err := companionrelease.Run(ctx, companionrelease.Options{
+	opts := companionrelease.Options{
 		CorvintRoot:  *sourceRoot,
 		Target:       *target,
 		Scratch:      *scratch,
 		OutputParent: *outputParent,
 		BundleName:   *bundleName,
 		NPMCache:     *npmCache,
-	})
+	}
+	if *tasksOnly {
+		report, err := companionrelease.RunTasksArchive(ctx, opts)
+		if err != nil {
+			fmt.Fprintln(stderr, "corvint-companion-release:", err)
+			return 1
+		}
+		if err := json.NewEncoder(stdout).Encode(report); err != nil {
+			return 1
+		}
+		return 0
+	}
+	report, err := companionrelease.Run(ctx, opts)
 	if err != nil {
 		fmt.Fprintf(stderr, "corvint-companion-release: %v\n", err)
 		return 1

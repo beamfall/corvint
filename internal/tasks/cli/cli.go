@@ -263,6 +263,7 @@ func helpResult() *wire.Result {
 	// own list that silently drops an unrecognized value.
 	o.Set("statuses", wire.Strings(ticket.Statuses))
 	o.Set("eligibility", wire.Strings([]string{ticket.EligibilityBlocked, ticket.EligibilityUnknown}))
+	o.Set("releaseReasonCodes", wire.Strings(wire.Codes))
 	o.Set("usage", wire.Strings([]string{
 		"corvint-tasks ticket list [--offset N] [--limit N]",
 		"corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N]",
@@ -288,12 +289,14 @@ func helpResult() *wire.Result {
 		"corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository)",
 		"corvint-tasks attempt show <attemptId>",
 		"corvint-tasks plan preview",
+		"corvint-tasks claim --next --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...]",
+		"corvint-tasks cutover --execution --decision REF --qualification FILE",
 		"corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID",
 		"corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR]",
 		"corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID",
 		"corvint-tasks version",
 	}))
-	o.Set("note", wire.String("every read takes no lock and writes nothing, and reports journal facts it cannot observe as NOT_OBSERVED; `init`, `policy update` and the fourteen `ticket` mutations commit through the §5.2 writer (TCP-02/TCP-02b); the administrative verbs answer NOT_RUN"))
+	o.Set("note", wire.String("every read takes no lock and writes nothing, and reports journal facts it cannot observe as NOT_OBSERVED; `init`, `policy update` and the fourteen `ticket` mutations commit through the §5.2 writer (TCP-02/TCP-02b); new external-agent queue setup: docs/TASKS-EXTERNAL-AGENTS.md; ticket blockers reports static intent checks, while plan preview reports claim selection; releaseReasonCodes lists every accepted --reason value"))
 	return &wire.Result{Command: []string{"help"}, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 

@@ -173,8 +173,12 @@ func runGoBuild(ctx context.Context, goPath, moduleRoot, pkgPath, out string, en
 }
 
 func sourceBuildNumber(ctx context.Context, gitPath, root, scratch string) (string, error) {
+	return sourceBuildNumberAt(ctx, gitPath, root, scratch, "HEAD")
+}
+
+func sourceBuildNumberAt(ctx context.Context, gitPath, root, scratch, revision string) (string, error) {
 	stdout, _, err := runCaptured(ctx, root, closedGitEnv(scratch), subprocessTimeout,
-		gitPath, "rev-list", "--first-parent", "--count", "HEAD")
+		gitPath, "rev-list", "--first-parent", "--count", revision)
 	if err != nil {
 		return "", fmt.Errorf("resolve first-parent build number: %w", err)
 	}
