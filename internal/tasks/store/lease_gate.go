@@ -312,11 +312,11 @@ func gateFacts(repo *intent.Repository, choice LeaseChoice) claimObserver {
 	l := choice.Lease
 	switch l.Verb {
 	case transaction.LeaseSubmit:
-		return func(proof *journal.Result) (transaction.LeaseFacts, error) {
+		return func(proof *journal.Result, _ *transaction.Input) (transaction.LeaseFacts, error) {
 			return submitFacts(leaseRoot(repo, choice), proof, l)
 		}
 	case transaction.LeaseGateRun:
-		return func(proof *journal.Result) (transaction.LeaseFacts, error) {
+		return func(proof *journal.Result, _ *transaction.Input) (transaction.LeaseFacts, error) {
 			results, err := attemptGateResults(repo, proof, l.AttemptID)
 			if choice.gate == nil || err != nil {
 				return transaction.GateFacts(nil, nil, nil, "", false, results), err
@@ -324,7 +324,7 @@ func gateFacts(repo *intent.Repository, choice LeaseChoice) claimObserver {
 			return transaction.GateFacts(nil, choice.gate.record, choice.gate.output, "", false, results), nil
 		}
 	case transaction.LeaseComplete:
-		return func(proof *journal.Result) (transaction.LeaseFacts, error) {
+		return func(proof *journal.Result, _ *transaction.Input) (transaction.LeaseFacts, error) {
 			return completeFacts(repo, leaseRoot(repo, choice), proof, l)
 		}
 	}

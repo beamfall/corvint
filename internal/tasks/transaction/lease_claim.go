@@ -71,6 +71,9 @@ func (c leaseContext) claimScope(rec *ticket.Record) (*snapshot.Scope, error) {
 	if facts.DerivedPaths == nil {
 		return &snapshot.Scope{Source: "WHOLE_REPOSITORY", Resources: wholeRepository}, nil
 	}
+	if facts.DerivedTicketID != rec.TicketID.Raw {
+		return nil, malformed("derived scope belongs to another ticket")
+	}
 	if e := checkScopePaths(facts.DerivedPaths); e != nil {
 		return nil, e
 	}
@@ -248,8 +251,8 @@ func planClaim(c leaseContext) leaseOutcome {
 // planClaimNext claims the first SELECTED entry of the plan computed in this
 // transaction, or refuses BLOCKED with the plan's first reason (CAL-V0-008).
 // Every expired lease is reaped first, since any of them can decide the plan
-// through a collision or the capacity. The claim takes the plan's
-// resources, so it never derives a scope.
+// through a collision or the capacity. Derived facts apply only to the
+// independently selected ticket; planClaim rechecks its final scope.
 func planClaimNext(c leaseContext) leaseOutcome {
 	if c.st.barrier != nil {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodePaused, "an admission barrier is present")
@@ -271,7 +274,6 @@ func planClaimNext(c leaseContext) leaseOutcome {
 	next := *c.l
 	next.Verb, next.TicketID = LeaseClaim, chosen.Ticket.TicketID.Raw
 	c.l = &next
-	c.in.LeaseFacts.DerivedPaths, c.in.LeaseFacts.DerivationSha256 = nil, ""
 	return planClaim(c)
 }
 
