@@ -1,6 +1,6 @@
 # Corvint for OpenCode
 
-Version 0.7.0 targets unmodified OpenCode 2.0.18. It supplies awaited task context, on-demand
+Version 0.7.1 targets unmodified OpenCode 2.0.18. It supplies awaited task context, on-demand
 query and exact source expansion, edit/evidence/verification observations, explicit outcomes, and
 compaction recovery from current Git state. OpenCode 1.x requires the older 0.2.9 adapter.
 

@@ -51,3 +51,7 @@ wide/compact layouts, pointer/keyboard proof inspection and interruption with ze
 The final frozen selected-check run repeats native verification after the scope-reset repair.
 OCM's Go-only claim extraction cannot assess these JavaScript/native requirements; they remain
 unassessed, with explicit focused and native test evidence retained separately. Full gate is NOT_RUN.
+
+The first frozen UI/host/native checks passed, but package chronology validation refused the
+formatting-only shipped-file commit after the 0.7.0 bump. Release 0.7.1 corrects that ordering;
+the final selected checks run again on its exact binding. The failed release check is retained.

@@ -5,7 +5,7 @@ import path from "node:path"
 import { StringDecoder } from "node:string_decoder"
 import { overQueryBound, trimSpace } from "./prompt-bound.js"
 
-export const ADAPTER_VERSION = "0.7.0"
+export const ADAPTER_VERSION = "0.7.1"
 export const PROTOCOL = "corvint-harness-event/0"
 export const SUPPORT = "FALLBACK"
 
