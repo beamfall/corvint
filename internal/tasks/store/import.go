@@ -30,9 +30,15 @@ type ImportReport struct {
 // Import writes a foreign export's new and changed items as shadow IMPORT
 // records (CTS-V0-003). The whole export is decoded and planned against one
 // audit before the first write; the planned records then commit in
-// IMPORT_APPLY batches under one lock and session, each batch re-audited so
-// its receipt binds the head it extends.
+// IMPORT_APPLY batches under one lock and session. The audit is carried
+// across the batches (CAL-V0-018): each batch checks only the head it
+// expects, and apply checks each file it posts against its receipt.
 func Import(ctx context.Context, repo *intent.Repository, actor mutation.Binding, queueID string, export []byte, now wire.Timestamp) (*ImportReport, error) {
+	return importWith(ctx, repo, actor, queueID, export, now, nil)
+}
+
+// importWith is Import with a hook run before each batch commits.
+func importWith(ctx context.Context, repo *intent.Repository, actor mutation.Binding, queueID string, export []byte, now wire.Timestamp, beforeBatch func([][]byte) error) (*ImportReport, error) {
 	out := &ImportReport{}
 	probe := transaction.Request{Operation: transaction.ImportApply, QueueID: queueID, Actor: actor}
 	if actor.Role != "OWNER" && actor.Role != "OPERATOR" {
@@ -88,7 +94,12 @@ func Import(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 	}
 	out.Planned = len(records)
 	for _, batch := range packImport(queueID, records) {
-		report, err := importBatch(repo, session, actor, queueID, batch, now)
+		if beforeBatch != nil {
+			if err = beforeBatch(batch); err != nil {
+				return out, err
+			}
+		}
+		report, err := importBatch(repo, session, actor, queueID, st, batch, now)
 		if err != nil {
 			return out, err
 		}
@@ -110,13 +121,17 @@ func importRefused(out *ImportReport, requestID string, err error) (*ImportRepor
 	return out, err
 }
 
-// importAudit is one audited view of the intent store.
+// importAudit is one audited view of the intent store. bound records that
+// the whole observation has been bound once; slots maps each ticket path to
+// its index in tickets.
 type importAudit struct {
 	inv      *transaction.Inventory
 	proof    *journal.Result
 	tickets  [][]byte
 	releases [][]byte
 	store    importer.Store
+	bound    bool
+	slots    map[string]int
 }
 
 func auditImport(repo *intent.Repository, head *snapshot.Head) (*importAudit, error) {
@@ -137,7 +152,7 @@ func auditImport(repo *intent.Repository, head *snapshot.Head) (*importAudit, er
 	if proof.StagingPresent {
 		return nil, wire.Errorf(wire.CodeUnsupported, "staging", "active staging recovery is not implemented")
 	}
-	a := &importAudit{inv: inv, proof: proof}
+	a := &importAudit{inv: inv, proof: proof, slots: map[string]int{}}
 	recs := []*ticket.Record{}
 	for _, path := range paths[2:] {
 		raw := proof.Records[path].Raw
@@ -145,6 +160,7 @@ func auditImport(repo *intent.Repository, head *snapshot.Head) (*importAudit, er
 			a.releases = append(a.releases, raw)
 			continue
 		}
+		a.slots[path] = len(a.tickets)
 		a.tickets = append(a.tickets, raw)
 		rec, err := ticket.Decode(raw)
 		if err != nil {
@@ -163,17 +179,15 @@ func auditImport(repo *intent.Repository, head *snapshot.Head) (*importAudit, er
 }
 
 // importBatch commits one IMPORT_APPLY batch through the §5.2 writer against
-// a fresh audit of the current head.
-func importBatch(repo *intent.Repository, session *authority.Session, actor mutation.Binding, queueID string, records [][]byte, now wire.Timestamp) (*Report, error) {
+// the carried audit a, and advances a past the batch.
+func importBatch(repo *intent.Repository, session *authority.Session, actor mutation.Binding, queueID string, a *importAudit, records [][]byte, now wire.Timestamp) (*Report, error) {
 	report := &Report{}
 	request := transaction.Request{Operation: transaction.ImportApply, QueueID: queueID, RequestID: importRequestID(records), Actor: actor, Records: records}
 	head, err := writerGuards(repo, request.Operation)
 	if err != nil {
 		return guardFailure(report, request.RequestID, err)
 	}
-	reader := journalReader(repo, head)
-	index := journal.RequestIndex{Reader: reader}
-	entry, found, err := index.Lookup(request.RequestID)
+	entry, found, err := a.lookup(repo, head, request.RequestID)
 	if err != nil {
 		return report, err
 	}
@@ -181,10 +195,6 @@ func importBatch(repo *intent.Repository, session *authority.Session, actor muta
 		result := replayResult(request, entry)
 		report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
 		return report, nil
-	}
-	a, err := auditImport(repo, head)
-	if err != nil {
-		return report, err
 	}
 	branch, err := primaryBranch(repo)
 	if err != nil {
@@ -209,11 +219,62 @@ func importBatch(repo *intent.Repository, session *authority.Session, actor muta
 	if err = requireBranch(repo, a.store.Queue.IntentBranch); err != nil {
 		return guardFailure(report, request.RequestID, err)
 	}
-	if err = bindObservation(repo, a.proof.Identity, request.Operation); err != nil {
+	if err = a.bind(repo, request.Operation); err != nil {
 		return guardFailure(report, request.RequestID, err)
 	}
-	report.Receipt, err = apply(repo, session, result.Plan)
-	return report, err
+	if report.Receipt, err = apply(repo, session, result.Plan); err != nil {
+		return report, err
+	}
+	return report, a.advance(result.Plan, result.Final, records)
+}
+
+// lookup walks the journal for a request only when the carried inventory
+// holds its request file; a request absent from it was never recorded.
+func (a *importAudit) lookup(repo *intent.Repository, head *snapshot.Head, id string) (mutation.IndexEntry, bool, error) {
+	path, err := snapshot.RequestPath(id)
+	if err != nil {
+		return mutation.IndexEntry{}, false, err
+	}
+	if !a.inv.Has(path) {
+		return mutation.IndexEntry{}, false, nil
+	}
+	index := journal.RequestIndex{Reader: journalReader(repo, head)}
+	return index.Lookup(id)
+}
+
+// bind checks the whole audited observation once, before the first write.
+// Later batches rely on the held lock and session: their head is checked
+// against the one the previous batch wrote, and apply checks each post.
+func (a *importAudit) bind(repo *intent.Repository, operation string) error {
+	if a.bound {
+		return nil
+	}
+	if err := bindObservation(repo, a.proof.Identity, operation); err != nil {
+		return err
+	}
+	a.bound = true
+	return nil
+}
+
+// advance moves the audit past a committed batch: the plan's final
+// inventory, its head, and the ticket records it posted.
+func (a *importAudit) advance(plan *transaction.Plan, final *transaction.Inventory, records [][]byte) error {
+	a.inv = final
+	a.proof.Identity.HeadSha256 = wire.Sum(plan.Head())
+	for _, raw := range records {
+		rec, err := ticket.Decode(raw)
+		if err != nil {
+			return err
+		}
+		path := "intent/tickets/" + rec.TicketID.Local + ".json"
+		if i, ok := a.slots[path]; ok {
+			a.tickets[i] = raw
+			continue
+		}
+		a.slots[path] = len(a.tickets)
+		a.tickets = append(a.tickets, raw)
+	}
+	return nil
 }
 
 // importRequestID names a batch by its records: "import-" and the first 128

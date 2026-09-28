@@ -103,6 +103,9 @@ const (
 	MinEvidenceDays     = 30
 	MaxLaneWallMinutes  = 240
 	MaxGateTimeoutSecs  = 120 * 60
+	// MaxGateOutputBytes bounds one gate run's captured output; a run that
+	// writes more ends OUTPUT_LIMIT (CAL-V0-016).
+	MaxGateOutputBytes = 16 * MiB
 
 	PageDefault = 100
 	PageMax     = 1000

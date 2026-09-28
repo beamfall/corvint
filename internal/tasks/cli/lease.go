@@ -2,8 +2,12 @@ package cli
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -23,6 +27,10 @@ var leaseVerbs = map[string]string{
 	"release": transaction.LeaseRelease,
 	"reap":    transaction.LeaseReap,
 	"widen":   transaction.LeaseWiden,
+	// S5 (CAL-V0-015..017).
+	"submit":   transaction.LeaseSubmit,
+	"gate run": transaction.LeaseGateRun,
+	"complete": transaction.LeaseComplete,
 }
 
 // leaseArgs is the parsed argv of one lease command. --scope takes every
@@ -38,6 +46,7 @@ type leaseArgs struct {
 var leaseValueFlags = map[string]bool{
 	"--request-id": true, "--role": true, "--holder": true, "--lease-minutes": true, "--branch": true,
 	"--base": true, "--attempt": true, "--generation": true, "--reason": true,
+	"--tree": true, "--gate": true, "--commit": true, "--worktree": true,
 }
 
 func parseLeaseArgs(args []string) (leaseArgs, error) {
@@ -102,7 +111,7 @@ func (a leaseArgs) request(verb, queueID string) (transaction.LeaseRequest, erro
 	if a.next {
 		verb = transaction.LeaseClaimNext
 	}
-	req := transaction.LeaseRequest{Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), Reason: a.values["--reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"])}
+	req := transaction.LeaseRequest{Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), Reason: a.values["--reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"]}
 	if verb == transaction.LeaseClaim {
 		if len(a.pos) != 1 {
 			return req, wire.Errorf(wire.CodeMalformed, "argv", "claim takes exactly one ticket id or local token")
@@ -123,10 +132,14 @@ func (a leaseArgs) request(verb, queueID string) (transaction.LeaseRequest, erro
 // under the store lock; a claim first reaps, one receipt each, the expired
 // leases that would block it.
 func leaseCommand(env Env, name string, args []string) *wire.Result {
-	cmd := []string{name}
+	cmd := strings.Fields(name)
 	parsed, err := parseLeaseArgs(args)
 	if err != nil {
 		return errorResult(cmd, err)
+	}
+	worktree, hasWorktree := parsed.values["--worktree"]
+	if hasWorktree && name != "gate run" {
+		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--worktree belongs to gate run"))
 	}
 	role := parsed.values["--role"]
 	if role == "" {
@@ -158,7 +171,15 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 		return errorResult(cmd, err)
 	}
 	choice := store.LeaseChoice{QueueID: queueID, RequestID: requestID, Root: env.Cwd, Lease: lease, Derive: env.ScopeDeriver}
-	report, err := store.Lease(context.Background(), repo, actor, choice, now)
+	var report *store.Report
+	if name == "gate run" {
+		// An interrupt kills the gate's process group and records nothing.
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		report, err = store.GateRun(ctx, repo, actor, choice, gateWorktree(env.Cwd, worktree), time.Now)
+	} else {
+		report, err = store.Lease(context.Background(), repo, actor, choice, now)
+	}
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -293,4 +314,13 @@ func liveAttemptsValue(list []*snapshot.Attempt) wire.Value {
 		out = append(out, wire.ObjectValue(o))
 	}
 	return wire.Array(out...)
+}
+
+// gateWorktree resolves --worktree against the working directory, which it
+// defaults to.
+func gateWorktree(cwd, worktree string) string {
+	if filepath.IsAbs(worktree) {
+		return worktree
+	}
+	return filepath.Join(cwd, worktree)
 }

@@ -35,11 +35,12 @@ type LeaseChoice struct {
 	QueueID, RequestID, Root string
 	Lease                    transaction.LeaseRequest
 	Derive                   ScopeDeriver
+	gate                     *gateRun
 }
 
 // claimObserver computes the claim facts from the audit taken under the
 // write lock.
-type claimObserver func(*journal.Result) (transaction.LeaseFacts, error)
+type claimObserver func(*journal.Result, *transaction.Input) (transaction.LeaseFacts, error)
 
 // Lease commits one lease command. A claim or reap survey the model answers
 // with expired leases reaps each one in its own transaction and receipt,
@@ -72,7 +73,7 @@ func Lease(ctx context.Context, repo *intent.Repository, actor mutation.Binding,
 func leaseOnce(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, now wire.Timestamp) (*Report, error) {
 	lease := choice.Lease
 	request := transaction.Request{Operation: transaction.Lease, QueueID: choice.QueueID, RequestID: choice.RequestID, Actor: actor, Lease: &lease}
-	var facts claimObserver
+	facts := gateFacts(repo, choice)
 	if lease.Verb == transaction.LeaseClaim || lease.Verb == transaction.LeaseClaimNext {
 		facts = claimFacts(ctx, repo, choice)
 	}
@@ -155,7 +156,7 @@ func leaseInput(proof *journal.Result, attempts [][]byte, facts claimObserver, i
 		return nil
 	}
 	var err error
-	input.LeaseFacts, err = facts(proof)
+	input.LeaseFacts, err = facts(proof, input)
 	return err
 }
 
@@ -188,12 +189,18 @@ func claimedRecord(proof *journal.Result, ticketID string) *ticket.Record {
 	return rec
 }
 
+// leaseRoot is the checkout a lease command reads Git from: the caller's,
+// else the primary worktree.
+func leaseRoot(repo *intent.Repository, choice LeaseChoice) string {
+	if choice.Root == "" {
+		return repo.PrimaryWorktree
+	}
+	return choice.Root
+}
+
 func claimFacts(ctx context.Context, repo *intent.Repository, choice LeaseChoice) claimObserver {
-	return func(proof *journal.Result) (transaction.LeaseFacts, error) {
-		root := choice.Root
-		if root == "" {
-			root = repo.PrimaryWorktree
-		}
+	return func(proof *journal.Result, input *transaction.Input) (transaction.LeaseFacts, error) {
+		root := leaseRoot(repo, choice)
 		rev := choice.Lease.Base
 		if rev == "" {
 			rev = "HEAD"
@@ -208,6 +215,12 @@ func claimFacts(ctx context.Context, repo *intent.Repository, choice LeaseChoice
 		}
 		facts := transaction.LeaseFacts{AttemptID: id, BaseCommit: base}
 		rec := claimedRecord(proof, choice.Lease.TicketID)
+		if choice.Lease.Verb == transaction.LeaseClaimNext {
+			rec, err = transaction.NextClaimTicket(choice.QueueID, *input)
+			if err != nil {
+				return facts, err
+			}
+		}
 		if rec == nil || choice.Lease.Scope != nil || len(transaction.Declared(rec)) > 0 {
 			return facts, nil
 		}
@@ -216,6 +229,7 @@ func claimFacts(ctx context.Context, repo *intent.Repository, choice LeaseChoice
 			return transaction.LeaseFacts{}, err
 		}
 		facts.DerivedPaths, facts.DerivationSha256 = derive(ctx, choice.Derive, root, tree, rec)
+		facts.DerivedTicketID = rec.TicketID.Raw
 		return facts, nil
 	}
 }

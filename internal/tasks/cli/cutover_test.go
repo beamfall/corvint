@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
+	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -44,6 +45,50 @@ func TestCALV0004_CLICutoverPublishesImportedRecords(t *testing.T) {
 	}
 	status := atm(t, r.Root, nil, "queue", "status")
 	if field(status.res.Items[0], "canonicalWriter").Str != "NATIVE" || field(status.res.Items[0], "writeBarrier").Str != "CUTOVER" {
+		t.Fatalf("status: %s", wire.Encode(status.res.Items[0]))
+	}
+}
+
+// TestCALV0020_CLIExecutionCutover: `cutover --execution --decision REF
+// --qualification FILE` records the execution cutover from a passing
+// CAL-V0-019 run, and refuses an incomplete form or an unreadable run.
+func TestCALV0020_CLIExecutionCutover(t *testing.T) {
+	r := fixture.TempRepo(t)
+	q := fixture.QueueValue()
+	q.Obj.Set("fixture", wire.Bool(false))
+	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), wire.EncodeFile(q))
+	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
+	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("init: %+v", x.res)
+	}
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var run strings.Builder
+	run.WriteString(`{"Action":"start","Package":"` + transaction.QualificationPackage + `"}` + "\n")
+	for _, name := range transaction.QualificationSuite {
+		run.WriteString(`{"Action":"run","Package":"` + transaction.QualificationPackage + `","Test":"` + name + `"}` + "\n")
+		run.WriteString(`{"Action":"pass","Package":"` + transaction.QualificationPackage + `","Test":"` + name + `"}` + "\n")
+	}
+	run.WriteString(`{"Action":"pass","Package":"` + transaction.QualificationPackage + `"}` + "\n")
+	path := filepath.Join(dir, "run.json")
+	fixture.Write(t, path, []byte(run.String()))
+	for _, args := range [][]string{
+		{"cutover", "--execution", "--decision", "decision-exec"},
+		{"cutover", "--execution", "--decision", "decision-exec", "--qualification", filepath.Join(dir, "absent.json")},
+		{"cutover", "--decision", "decision-exec", "--qualification", path},
+	} {
+		if bad := atm(t, r.Root, nil, args...); bad.res.Outcome != wire.OutcomeError {
+			t.Fatalf("%v: %+v", args, bad.res)
+		}
+	}
+	x := atm(t, r.Root, nil, "cutover", "--execution", "--decision", "decision-exec", "--qualification", path)
+	if x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("cutover: %s", wire.Encode(x.res.Items[0]))
+	}
+	status := atm(t, r.Root, nil, "queue", "status")
+	if !field(status.res.Items[0], "executionCutover").Bool {
 		t.Fatalf("status: %s", wire.Encode(status.res.Items[0]))
 	}
 }

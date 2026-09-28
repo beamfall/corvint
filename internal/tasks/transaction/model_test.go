@@ -483,7 +483,7 @@ func TestTMV0002_AS10_ImmutableInputsAndExplicitScope(t *testing.T) {
 	}
 	for _, change := range []func(*Input){func(x *Input) { x.Premise = "" }, func(x *Input) { x.Reservations = []byte("unknown") }, func(x *Input) { x.Inventory = nil }, func(x *Input) { x.Barrier = []byte{} }, func(x *Input) {
 		v, _ := wire.Parse(x.Queue)
-		v.Obj.Set("fixture", wire.Bool(false))
+		v.Obj.Set("importMapSha256", wire.String(string(wire.Sum([]byte("map")))))
 		x.Queue = wire.EncodeFile(v)
 	}} {
 		x := in

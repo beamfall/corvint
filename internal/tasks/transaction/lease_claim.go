@@ -71,6 +71,9 @@ func (c leaseContext) claimScope(rec *ticket.Record) (*snapshot.Scope, error) {
 	if facts.DerivedPaths == nil {
 		return &snapshot.Scope{Source: "WHOLE_REPOSITORY", Resources: wholeRepository}, nil
 	}
+	if facts.DerivedTicketID != rec.TicketID.Raw {
+		return nil, malformed("derived scope belongs to another ticket")
+	}
 	if e := checkScopePaths(facts.DerivedPaths); e != nil {
 		return nil, e
 	}
@@ -215,11 +218,18 @@ func (c leaseContext) admitted(rec *ticket.Record, prior *snapshot.Attempt, sc *
 	return a, nil
 }
 
+// noExecutionCutover names the execution cutover (CAL-V0-020), not the S2
+// writer cutover that ticket views also report as CUTOVER_MISSING.
+const noExecutionCutover = "a non-fixture queue admits no claim before its execution cutover"
+
 // planClaim admits one external-agent attempt by TCP-00 §4.1 steps 1, 2,
-// 5, 6 and 8 (CAL-V0-007, CAL-V0-021, CAL-V0-023).
+// 5, 6 and 8 (CAL-V0-002, CAL-V0-007, CAL-V0-021, CAL-V0-023).
 func planClaim(c leaseContext) leaseOutcome {
 	if c.st.barrier != nil {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodePaused, "an admission barrier is present")
+	}
+	if !c.st.queue.Fixture && c.st.queue.ExecutionCutover == nil {
+		return c.refuse(mutation.OutcomeBlocked, wire.CodeCutoverMissing, noExecutionCutover)
 	}
 	rec, _ := c.st.tickets.Get(c.l.TicketID)
 	if rec == nil {
@@ -241,11 +251,14 @@ func planClaim(c leaseContext) leaseOutcome {
 // planClaimNext claims the first SELECTED entry of the plan computed in this
 // transaction, or refuses BLOCKED with the plan's first reason (CAL-V0-008).
 // Every expired lease is reaped first, since any of them can decide the plan
-// through a collision or the capacity. The claim takes the plan's
-// resources, so it never derives a scope.
+// through a collision or the capacity. Derived facts apply only to the
+// independently selected ticket; planClaim rechecks its final scope.
 func planClaimNext(c leaseContext) leaseOutcome {
 	if c.st.barrier != nil {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodePaused, "an admission barrier is present")
+	}
+	if !c.st.queue.Fixture && c.st.queue.ExecutionCutover == nil {
+		return c.refuse(mutation.OutcomeBlocked, wire.CodeCutoverMissing, noExecutionCutover)
 	}
 	if reap := c.expiredAll(); len(reap) != 0 {
 		out := c.refuse(mutation.OutcomeBlocked, wire.CodeAttemptLive, "expired leases block this claim until reaped")
@@ -261,7 +274,6 @@ func planClaimNext(c leaseContext) leaseOutcome {
 	next := *c.l
 	next.Verb, next.TicketID = LeaseClaim, chosen.Ticket.TicketID.Raw
 	c.l = &next
-	c.in.LeaseFacts.DerivedPaths, c.in.LeaseFacts.DerivationSha256 = nil, ""
 	return planClaim(c)
 }
 
