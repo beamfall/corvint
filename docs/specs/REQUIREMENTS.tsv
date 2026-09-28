@@ -515,9 +515,9 @@ CTR-V0-010	docs/specs/compat-trial-v0.md	115	Containment and harness reuse. Repl
 CTR-V0-011	docs/specs/compat-trial-v0.md	122	Proposed; unaccepted and does not authorize implementation. Changed-executable a
 CTR-V0-012	docs/specs/compat-trial-v0.md	124	Proposed; unaccepted and does not authorize implementation. Observation record s
 CTS-V0-001	docs/specs/corvint-tasks-store-init-v0.md	44	`corvint-tasks init` MUST refuse, before it creates the state directory or any
-CTS-V0-002	docs/specs/corvint-tasks-store-init-v0.md	49	(proposed, not implemented) A read verb (`queue status`, `roadmap`, `ticket show
-CTS-V0-003	docs/specs/corvint-tasks-store-init-v0.md	54	(accepted 2026-09-27, owner decision relayed by the orchestrator session "Work
-CTS-V0-004	docs/specs/corvint-tasks-store-init-v0.md	68	Store resolution MUST resolve symbolic links in the directories above the primar
+CTS-V0-002	docs/specs/corvint-tasks-store-init-v0.md	49	Only `queue status`, `roadmap`, `ticket show` and `ticket search` MUST
+CTS-V0-003	docs/specs/corvint-tasks-store-init-v0.md	63	(accepted 2026-09-27, owner decision relayed by the orchestrator session "Work
+CTS-V0-004	docs/specs/corvint-tasks-store-init-v0.md	77	Store resolution MUST resolve symbolic links in the directories above the primar
 CWC-X0-001	docs/specs/correlated-witness-collapse-x0.md	55	X0 MUST consume one exact bounded `cem/0.1` or `cem/0.2` byte document through t
 CWC-X0-002	docs/specs/correlated-witness-collapse-x0.md	58	Common causes MUST use exactly `source`, `generator`, `parser`, `oracle`, or
 CWC-X0-003	docs/specs/correlated-witness-collapse-x0.md	61	Every witness and membership-attestation reference MUST identify evidence presen
@@ -1328,19 +1328,19 @@ LAC-V0-035	docs/specs/local-admin-console-v0.md	257	An edge the artifacts do not
 LAC-V0-036	docs/specs/local-admin-console-v0.md	272	The pane MUST be reachable from the primary navigation and operable by keyboard
 LCP-V0-001	docs/specs/local-completion-policy-v0.md	40	The local policy MUST remain caller-owned and non-authoritative. Its positive st
 LCP-V0-002	docs/specs/local-completion-policy-v0.md	44	Enrollment MUST be explicit through `corvint dogfood begin`. One bounded plan pi
-LCP-V0-003	docs/specs/local-completion-policy-v0.md	80	`status` and automatic event evaluation MUST be read-only. They derive unmet
-LCP-V0-004	docs/specs/local-completion-policy-v0.md	95	`verify` MUST execute only an explicitly selected plan check, as argv without sh
-LCP-V0-005	docs/specs/local-completion-policy-v0.md	104	`finish` MUST reuse the public CEM/OCM and daily dogfood workflow (`LCP-V0-014`)
-LCP-V0-006	docs/specs/local-completion-policy-v0.md	125	Once maps are ready, `finish` MUST generate the CEM reviewer report and every sc
-LCP-V0-007	docs/specs/local-completion-policy-v0.md	133	Terminal success MUST require all selected checks to pass, current report inspec
-LCP-V0-008	docs/specs/local-completion-policy-v0.md	144	Codex and Claude Code Stop MAY request one bounded remediation continuation for
-LCP-V0-009	docs/specs/local-completion-policy-v0.md	168	`corvint dogfood event` MUST use a separate `corvint-dogfood-event/0` envelope a
-LCP-V0-010	docs/specs/local-completion-policy-v0.md	189	New-profile prompt context MUST separate project governance, declared enrollment
-LCP-V0-011	docs/specs/local-completion-policy-v0.md	199	Prompt context MUST project only allowlisted, Git-reextractable evidence and fix
-LCP-V0-012	docs/specs/local-completion-policy-v0.md	212	Private plans, observations and report sets MUST have explicit byte/count limits
-LCP-V0-013	docs/specs/local-completion-policy-v0.md	218	Prompt context MUST accept a task mention as an explicit anchor. A mention is on
-LCP-V0-014	docs/specs/local-completion-policy-v0.md	243	`finish` MUST run the daily change (coordination) and the final strict check in
-LCP-V0-015	docs/specs/local-completion-policy-v0.md	256	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
+LCP-V0-003	docs/specs/local-completion-policy-v0.md	85	`status` and automatic event evaluation MUST be read-only. They derive unmet
+LCP-V0-004	docs/specs/local-completion-policy-v0.md	100	`verify` MUST execute only an explicitly selected plan check, as argv without sh
+LCP-V0-005	docs/specs/local-completion-policy-v0.md	109	`finish` MUST reuse the public CEM/OCM and daily dogfood workflow (`LCP-V0-014`)
+LCP-V0-006	docs/specs/local-completion-policy-v0.md	130	Once maps are ready, `finish` MUST generate the CEM reviewer report and every sc
+LCP-V0-007	docs/specs/local-completion-policy-v0.md	138	Terminal success MUST require all selected checks to pass, current report inspec
+LCP-V0-008	docs/specs/local-completion-policy-v0.md	149	Codex and Claude Code Stop MAY request one bounded remediation continuation for
+LCP-V0-009	docs/specs/local-completion-policy-v0.md	173	`corvint dogfood event` MUST use a separate `corvint-dogfood-event/0` envelope a
+LCP-V0-010	docs/specs/local-completion-policy-v0.md	194	New-profile prompt context MUST separate project governance, declared enrollment
+LCP-V0-011	docs/specs/local-completion-policy-v0.md	204	Prompt context MUST project only allowlisted, Git-reextractable evidence and fix
+LCP-V0-012	docs/specs/local-completion-policy-v0.md	217	Private plans, observations and report sets MUST have explicit byte/count limits
+LCP-V0-013	docs/specs/local-completion-policy-v0.md	223	Prompt context MUST accept a task mention as an explicit anchor. A mention is on
+LCP-V0-014	docs/specs/local-completion-policy-v0.md	248	`finish` MUST run the daily change (coordination) and the final strict check in
+LCP-V0-015	docs/specs/local-completion-policy-v0.md	261	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	1309	Every displayed metric and source-derived value MUST derive through the compiled
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	1313	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	1316	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the

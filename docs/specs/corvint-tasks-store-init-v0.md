@@ -1,8 +1,8 @@
 # Corvint Tasks store initialization V0
 
 Owner: Russell Lewis
-Date: 2026-09-25 (CTS-V0-001, CTS-V0-003 and CTS-V0-004 accepted 2026-09-27)
-Intent status: accepted for CTS-V0-001, CTS-V0-003 and CTS-V0-004 (owner decisions 2026-09-27); CTS-V0-002 proposed
+Date: 2026-09-25 (CTS-V0-001, CTS-V0-003 and CTS-V0-004 accepted 2026-09-27; CTS-V0-002 accepted 2026-09-28)
+Intent status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28)
 Delivery status: experimental
 Authoritative inputs: decision 0397 (corvint-tasks built in tree), `AGENTS.md`,
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`, tickets V1-0323, V1-0310 and V1-0331, and the in-tree sources under
@@ -11,9 +11,9 @@ Authoritative inputs: decision 0397 (corvint-tasks built in tree), `AGENTS.md`,
 
 ## Agent digest
 - Claim: `corvint-tasks init` refuses an intent store that already holds records, and works in a repository reached through a symlinked ancestor such as macOS `/tmp`.
-- Status: accepted for CTS-V0-001, CTS-V0-003 and CTS-V0-004 (owner decisions 2026-09-27); CTS-V0-002 proposed; experimental. CTS-V0-001, CTS-V0-003 (shadow import) and CTS-V0-004 are implemented, CTS-V0-002 is a proposal only.
-- Exists: the coded init refusal, the ancestor resolution, the `corvint-tasks import` verb with its `IMPORT_APPLY` stage operation, and their store, transaction and CLI tests.
-- Blocked on: owner acceptance and the recovered task-store contract (V1-0310) for CTS-V0-002; for a non-fixture import writer, V1-0398.
+- Status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28); experimental. CTS-V0-001 through CTS-V0-004 are implemented; CTS-V0-002 permits only four unaudited inventory reads when the journal directory is absent.
+- Exists: journal-absent inventory reads with no audit identity, the coded init refusal, the ancestor resolution, the `corvint-tasks import` verb with its `IMPORT_APPLY` stage operation, and their store, transaction and CLI tests.
+- Blocked on: broader task-store authority recovery (V1-0310) remains open; CTS-V0-002 has narrow independent owner acceptance. For a non-fixture import writer, V1-0398.
 - Read next: Requirements; Import export and batching; Failure modes; Traceability.
 
 ## User and boundary
@@ -30,9 +30,9 @@ recovered (V1-0310); it does not restate or replace that contract, and it adds n
 On 2026-09-27 the owner accepted CTS-V0-003 as a shadow import of a foreign roadmap export, detached
 from V1-0310, because it adds no wire code. The decision was relayed to this build by the orchestrator
 session "Work progress orchestration". The owner accepted CTS-V0-001 and CTS-V0-004 the same day;
-CTS-V0-002 remains a proposal and still waits on owner acceptance and V1-0310.
+the explicit owner request to fix the journal-absent reads on 2026-09-28 accepts CTS-V0-002 below. This narrow amendment does not accept or recover the broader missing authority in V1-0310.
 
-Non-goals: adopting committed native records into a new genesis, a journal-optional read mode, a new
+Non-goals: adopting committed native records into a new genesis, journal-optional reads beyond the four CTS-V0-002 verbs, a new
 wire code, any change to genesis bytes, projection checks or the closed code set, any other change to
 the journal format than the one `IMPORT_APPLY` stage operation below (its receipt kind is already in
 the closed receipt-kind set), any automatic
@@ -46,11 +46,20 @@ drains, the import-map writer, and writing or changing the foreign export.
   refusal MUST carry outcome `BLOCKED` in the store report, `REFUSED` at the CLI, the existing code
   `INTENT_DIVERGED`, and a reason naming the first record found. An absent or empty directory MUST
   NOT refuse. An unreadable directory MUST refuse as `UNSUPPORTED_FILESYSTEM`.
-- `CTS-V0-002`: (proposed, not implemented) A read verb (`queue status`, `roadmap`, `ticket show`,
-  `ticket search`) run where the journal is absent SHOULD answer from the committed intent store
-  alone, labelled journal-absent and unaudited, instead of failing. It MUST NOT create the journal,
-  MUST NOT report receipts or audit identities it cannot bind, and every mutation MUST still require
-  an initialized journal.
+- `CTS-V0-002`: Only `queue status`, `roadmap`, `ticket show` and `ticket search` MUST
+  answer from the validated current primary-worktree intent projection when the journal directory
+  itself is absent. Stable uncommitted intent edits are visible; this is not a committed-Git claim.
+  Success MUST retain the closed result envelope with `snapshot: null` and a warning identifying
+  journal absence, the unaudited worktree projection, and unobserved journal history and liveness.
+  Queue `headSeq`, `generation` and `attempts` MUST be `NOT_OBSERVED`; `barrier` and `liveAttempts`
+  MUST be null, meaning unobserved rather than absent. No receipt, audit identity or eligibility
+  authority may be invented. Reads MUST NOT create or alter intent or journal state. Existing,
+  partial, corrupt, symlinked or unreadable journals MUST retain strict read failures; a missing
+  journal file inside an existing directory never qualifies. Each read MUST validate the captured
+  intent, recheck its digest and journal absence after assembly, retry intent drift at most four
+  attempts, and refuse `SNAPSHOT_MOVED` on persistent drift or journal appearance. All other reads,
+  receipt audits and mutations MUST retain their initialized-journal requirements; CTS-V0-001
+  still refuses init over populated native records.
 - `CTS-V0-003`: (accepted 2026-09-27, owner decision relayed by the orchestrator session "Work
   progress orchestration") An explicit `corvint-tasks import` verb MUST read a
   JSON export of foreign tickets into an initialized store and write one `taskman-ticket/0` record
@@ -106,6 +115,9 @@ revision 1, a broken revision chain, and a target held by a native record or ano
 | Intent directory unreadable | Refused with `UNSUPPORTED_FILESYSTEM`; nothing is created. |
 | Repository reached through a symlinked ancestor | Resolved; the canonical primary worktree is recorded (CTS-V0-004). |
 | Primary worktree or `.git` is a symbolic link | Refused with `UNSUPPORTED_FILESYSTEM`, unchanged (CTS-V0-004). |
+| Journal directory absent | Only the four inventory verbs return a validated unaudited projection with no snapshot or journal facts (CTS-V0-002). |
+| Journal exists but is partial, corrupt, symlinked or unreadable | Strict failure; no fallback and no repair (CTS-V0-002). |
+| Intent changes repeatedly or journal appears during inventory read | Bounded refusal with `SNAPSHOT_MOVED`; no mixed result (CTS-V0-002). |
 | Journal already initialized | Unchanged: the existing already-initialized refusal applies first. |
 | Store already frozen by an earlier init | Not repaired here; the operator removes `.git/taskman`. CTS-V0-003 imports foreign exports only and does not adopt committed native records. |
 | Import item invalid or duplicated in the export | Refused before the first write; nothing is written (CTS-V0-003). |
@@ -120,8 +132,12 @@ revision 1, a broken revision chain, and a target held by a native record or ano
 CTS-V0-001 is accepted by the focused store and CLI tests below: a refused init leaves no state
 directory, and the same init succeeds once the record is removed. CTS-V0-003 is accepted by focused
 tests for idempotent re-import, a changed item writing the next revision, refusal over a native
-record with the same `ticketId`, and the `IMPORT` source rules of the ticket record. CTS-V0-002 needs
-owner acceptance, the recovered task-store contract, and its own tests before any implementation.
+record with the same `ticketId`, and the `IMPORT` source rules of the ticket record. CTS-V0-002 is accepted by the four read verbs, strict negative controls, bounded race tests and
+a standalone clone proof. Receipt audit remains evidence of the local journal in its primary
+checkout: a clone may validate published intent and compare committed bytes and ticket status,
+but cannot reproduce primary `headSeq`, `projectionAgreement`, receipts or history without that
+journal. Rollback of CTS-V0-002 routes the four verbs back through `withStore`; no migration or
+journal deletion is required.
 Rollback of CTS-V0-001 removes the `existingRecord` guard in `internal/tasks/store/store.go`; no
 journal, intent or wire migration is needed, because the guard only refuses before anything is
 written. Rollback of CTS-V0-003 removes the `import` verb and the `IMPORT_APPLY` stage operation;
@@ -139,6 +155,6 @@ symlinked ancestor is then refused again, and a journal it already wrote keeps t
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | CTS-V0-001 | `internal/tasks/store/store.go` (`Init`, `existingRecord`, `firstEntry`), `internal/tasks/cli/init.go` | TestCTSV0001_InitRefusesOverExistingRecords, TestCTSV0001_InitRefusesOverCommittedTickets |
-| CTS-V0-002 | proposed; no implementation | none until accepted |
+| CTS-V0-002 | `internal/tasks/cli/inventory.go` (`withInventoryStore`), `internal/tasks/cli/cli.go` | TestCTS002JournalAbsentReads, TestCTS002NoFallbackForExistingJournal, TestCTS002ProjectionRaces |
 | CTS-V0-003 | `internal/tasks/importer/importer.go` (`Decode`, `Plan`), `internal/tasks/store/import.go` (`Import`, `importBatch`, `packImport`), `internal/tasks/transaction/model.go` (`ImportApply`, `importPosts`, `importChain`), `internal/tasks/snapshot/stage.go` (`StageImportApply`), `internal/tasks/cli/import.go` | TestCTSV0003_ImportWritesShadowRecordsAndReimportIsIdempotent, TestCTSV0003_ChangedBlockWritesNextRevision, TestCTSV0003_ImportRefusesOverNativeRecord, TestCTSV0003_ImportRefusesWithNothingWritten, TestCTSV0003_ImportBatchesWithinStageLimits, TestCTSV0003_ImportApplyPostsAndChainsRevisions, TestCTSV0003_ImportApplyRefusals, TestCTSV0003_CLIImportWritesShadowRecordsBlockedOnCutover; IMPORT source rules: TestTMV0003_AS02_FieldRelationships, TestTMV0004_AS05_EligibilityDerived |
 | CTS-V0-004 | `internal/tasks/intent/worktree.go` (`finish`, `canonicalAncestors`) | TestCTSV0004_InitThroughSymlinkedAncestor |

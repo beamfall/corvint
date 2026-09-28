@@ -407,11 +407,14 @@ func (repo *repository) lock() (func(), error) {
 		return nil, err
 	}
 	if err := os.MkdirAll(repo.directory, 0700); err != nil {
-		return nil, err
+		return nil, operationLockFailure(err)
 	}
 	name := filepath.Join(repo.directory, "operation.lock")
 	if err := os.Mkdir(name, 0700); err != nil {
-		return nil, errors.New("operation-in-progress")
+		if errors.Is(err, os.ErrExist) {
+			return nil, errors.New("operation-in-progress")
+		}
+		return nil, operationLockFailure(err)
 	}
 	return func() { _ = os.Remove(name) }, nil
 }
@@ -545,4 +548,20 @@ func artifactsCurrent(items []artifact) bool {
 // final check itself (LCP-V0-015).
 func runsDogfoodCheck(args []string) bool {
 	return len(args) > 1 && args[0] == "dogfood" && (args[1] == "check" || args[1] == "seal")
+}
+
+// Keep the public diagnostic bounded while preserving the filesystem cause.
+type operationLockError struct {
+	cause error
+	code  string
+}
+
+func (err *operationLockError) Error() string { return err.code }
+func (err *operationLockError) Unwrap() error { return err.cause }
+func operationLockFailure(err error) error {
+	code := "operation-lock-create-failed"
+	if errors.Is(err, os.ErrPermission) {
+		code = "operation-lock-permission-denied"
+	}
+	return &operationLockError{cause: err, code: code}
 }

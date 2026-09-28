@@ -320,9 +320,10 @@ func outcomeFor(code string) string {
 
 // readCtx is what a read verb sees inside the snapshot.
 type readCtx struct {
-	repo  *intent.Repository
-	snap  *snapshot.Snapshot
-	store *intent.Store
+	repo          *intent.Repository
+	snap          *snapshot.Snapshot
+	store         *intent.Store
+	journalAbsent bool
 }
 
 // withStore resolves the repository, runs the TM-V0-008 protocol and loads
@@ -373,6 +374,9 @@ func failure(cmd []string, rc *readCtx, err error) *wire.Result {
 }
 
 func success(cmd []string, rc *readCtx) *wire.Result {
+	if rc.journalAbsent {
+		return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Warnings: []string{"journal-absent; unaudited current worktree intent projection; journal history and liveness NOT_OBSERVED"}}
+	}
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Snapshot: rc.snap.EnvelopeSnapshot(rc.repo.PrimaryWorktreeSha256(), false)}
 }
 
@@ -631,7 +635,7 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	}
 	var items []wire.Value
 	var pg *wire.Page
-	rc, err := withStore(env, func(rc *readCtx) error {
+	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		var ids []string
 		for _, id := range rc.store.Inventory.Sorted() {
 			rec, _ := rc.store.Inventory.Get(id)
@@ -714,7 +718,7 @@ func roadmap(env Env, args []string) *wire.Result {
 	}
 	var items []wire.Value
 	var pg *wire.Page
-	rc, err := withStore(env, func(rc *readCtx) error {
+	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		ids := rc.store.Inventory.Sorted()
 		milestone := func(id string) (string, bool) {
 			rec, _ := rc.store.Inventory.Get(id)
@@ -909,7 +913,11 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 	}
 	var item *wire.Value
 	notFound := ""
-	rc, err := withStore(env, func(rc *readCtx) error {
+	read := withStore
+	if includeRecord {
+		read = withInventoryStore
+	}
+	rc, err := read(env, func(rc *readCtx) error {
 		item = nil
 		notFound = ""
 		id, err := resolveTicketArg(rc, args[0])
@@ -931,7 +939,7 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 	res := success(cmd, rc)
 	if notFound != "" {
 		res.Outcome = wire.OutcomeRefused
-		res.Warnings = []string{"ticket " + notFound + " does not exist in this queue"}
+		res.Warnings = append(res.Warnings, "ticket "+notFound+" does not exist in this queue")
 		return res
 	}
 	res.Items = []wire.Value{*item}
@@ -945,7 +953,7 @@ func queueStatus(env Env, args []string) *wire.Result {
 		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "argv", "queue status takes no argument"))
 	}
 	var item wire.Value
-	rc, err := withStore(env, func(rc *readCtx) error {
+	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		st := rc.store
 		by := map[string]int{}
 		unknown, blocked := 0, 0
@@ -975,22 +983,30 @@ func queueStatus(env Env, args []string) *wire.Result {
 		o.Set("byStatus", wire.ObjectValue(bo))
 		o.Set("intentChecksPassed", wire.String(string(wire.CountOf(int64(unknown)))))
 		o.Set("blocked", wire.String(string(wire.CountOf(int64(blocked)))))
-		o.Set("headSeq", wire.String(string(rc.snap.Head.LastSeq)))
-		o.Set("generation", wire.String(string(rc.snap.Head.Generation)))
-		if rc.snap.Barrier == nil {
+		if rc.journalAbsent {
+			for _, key := range []string{"headSeq", "generation", "attempts"} {
+				o.Set(key, wire.String("NOT_OBSERVED"))
+			}
 			o.Set("barrier", wire.Null())
+			o.Set("liveAttempts", wire.Null())
 		} else {
-			b := wire.NewObject()
-			b.Set("scope", wire.String(rc.snap.Barrier.Scope))
-			b.Set("reason", wire.String(rc.snap.Barrier.Reason))
-			o.Set("barrier", wire.ObjectValue(b))
+			o.Set("headSeq", wire.String(string(rc.snap.Head.LastSeq)))
+			o.Set("generation", wire.String(string(rc.snap.Head.Generation)))
+			if rc.snap.Barrier == nil {
+				o.Set("barrier", wire.Null())
+			} else {
+				b := wire.NewObject()
+				b.Set("scope", wire.String(rc.snap.Barrier.Scope))
+				b.Set("reason", wire.String(rc.snap.Barrier.Reason))
+				o.Set("barrier", wire.ObjectValue(b))
+			}
+			live, err := liveAttempts(rc)
+			if err != nil {
+				return err
+			}
+			o.Set("attempts", wire.String(string(wire.CountOf(int64(len(live))))))
+			o.Set("liveAttempts", liveAttemptsValue(live))
 		}
-		live, err := liveAttempts(rc)
-		if err != nil {
-			return err
-		}
-		o.Set("attempts", wire.String(string(wire.CountOf(int64(len(live))))))
-		o.Set("liveAttempts", liveAttemptsValue(live))
 		o.Set("publication", wire.String(string(ticket.NotObserved)))
 		item = wire.ObjectValue(o)
 		return nil

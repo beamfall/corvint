@@ -62,6 +62,11 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   coordinator writes worktree-global artifacts, at most one active worktree-wide owner is allowed;
   another session refuses enrollment until that owner satisfies or explicitly cancels. A separate
   bounded operation lock serializes same-owner mutations; stale locks never authorize takeover.
+  Only an existing final lock path (`EEXIST`) reports `operation-in-progress`. Permission denial
+  while creating the lock or its parent reports `operation-lock-permission-denied`; other creation
+  failures report `operation-lock-create-failed`. These public codes MUST remain bounded and
+  path-free while preserving the filesystem cause for `errors.Is` and `errors.As`. A failure MUST
+  NOT remove an existing lock or modify enrollment/owner state (owner bug-fix request 2026-09-28).
   No new raw host prompt, transcript, credential or inferred task meaning is captured.
   The sole provenance exception is a preexisting caller-owned explicit query/impact receipt: it may
   already contain its caller-entered task and is archived under LCP-V0-005, never used for ranking.
@@ -357,7 +362,9 @@ elsewhere are not repeated.
 | `log-secret-screened` | `internal/localcompletion/finish.go:421` | a process's stdout or stderr matches the secret screen |
 | `missing-local-completion-field` | `internal/localcompletion/storage.go:346` | a required field is absent from the JSON input |
 | `ocm-bindings-required` | `internal/localcompletion/finish.go:147` | the dogfood OCM aggregate status is not OK |
-| `operation-in-progress` | `internal/localcompletion/storage.go:414` | the operation lock directory cannot be created |
+| `operation-in-progress` | `internal/localcompletion/storage.go` (`lock`) | the final operation lock path already exists |
+| `operation-lock-permission-denied` | `internal/localcompletion/storage.go` (`operationLockFailure`) | permission denied creating the lock or its parent; underlying cause retained |
+| `operation-lock-create-failed` | `internal/localcompletion/storage.go` (`operationLockFailure`) | another lock creation failure; underlying cause retained |
 | `output-bound-exceeded` | `internal/localcompletion/finish.go:243` | a bounded output buffer would exceed the artifact byte bound |
 | `plan-bound-exceeded` | `internal/localcompletion/storage.go:140` | the plan has fewer than 1 or more than 16 intents or checks |
 | `plan-unavailable` | `internal/localcompletion/storage.go:236` | the plan file's parent directory does not resolve |
@@ -414,7 +421,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | Requirement | Implementation/evidence to produce |
 |---|---|
 | LCP-V0-001 | `TestDogfoodEventReadOnlyEnrolledStopAndPrompt`; legacy CLI/harness frozen parity |
-| LCP-V0-002 | `TestEnrollmentAndReadOnlyPolicy`; `TestLocalStateBoundsAndContention`; `TestDogfoodEventGoPythonWireAndSession`; `TestEnrollmentRefusesIntentAbsentFromBase`; `TestRefusedEnrollmentConsumesNoGeneration`; `TestEnrollmentPinsSameChangeIntentAtHead`; `TestEnrollmentRefusesHeadNotDescendedFromBase`; `TestFinishRefusesHeadMovedToUnrelatedHistory` |
+| LCP-V0-002 | `TestOperationLockFilesystemErrors`; `TestOperationLockFailureCauses`; `TestEnrollmentAndReadOnlyPolicy`; `TestLocalStateBoundsAndContention`; `TestDogfoodEventGoPythonWireAndSession`; `TestEnrollmentRefusesIntentAbsentFromBase`; `TestRefusedEnrollmentConsumesNoGeneration`; `TestEnrollmentPinsSameChangeIntentAtHead`; `TestEnrollmentRefusesHeadNotDescendedFromBase`; `TestFinishRefusesHeadMovedToUnrelatedHistory` |
 | LCP-V0-003 | `TestEnrollmentAndReadOnlyPolicy`; `TestInactiveKeyNamesActiveWorktreeOwner`; `TestCompletionNextActions`; `TestFinishRefusesHeadMovedToUnrelatedHistory`; `TestLocalCompletionRealEvidenceWorkflow`; `TestDogfoodEventReadOnlyEnrolledStopAndPrompt` |
 | LCP-V0-004 | `TestActualVerificationAndSecretRefusal`; `TestVerificationCancellationCleansDescendant`; `TestExplicitSidecarReuseRequiresCanonicalMap` |
 | LCP-V0-005 | `TestLocalCompletionRealEvidenceWorkflow`; actual CEM/OCM/coordinator/checker fixture |
