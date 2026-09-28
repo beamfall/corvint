@@ -14,9 +14,9 @@ decisions 0374, 0385 and 0416.
 
 ## Agent digest
 - Claim: Reviewed flows link to source, tests and run evidence; Corvint selects E2E tests with exclusion proofs, maps navigation and proves documentation claims.
-- Status: S1-S4, S6-S8 delivered with local issue-175 evidence in `evidence/issues-167-175/`. AFU-V1-012 now retains and consumes the qualified `/3` external attempt inventory. The Beamfall UI/API lifecycle and both semantic-change qualifications pass; the latter use conservative full-suite fallback, not reduced selections. Compiled MCP conformance covers both protocols and the pinned official schema. AFU-V1-006 remains a validated `/2` wire profile without a producer; S5's AFU-V1-029 observer integration remains partial; AFU-V1-014 retains its accepted observer gap.
+- Status: accepted (decision 0385); partially delivered; original issue-175 flows qualified locally. S1-S4, S6-S8 delivered with local issue-175 evidence in `evidence/issues-167-175/`. AFU-V1-012 now retains and consumes the qualified `/3` external attempt inventory. The Beamfall UI/API lifecycle and both semantic-change qualifications pass; the latter use conservative full-suite fallback, not reduced selections. Compiled MCP conformance covers both protocols and the pinned official schema. AFU-V1-006 remains a validated `/2` wire profile without a producer; S5's AFU-V1-029 observer integration remains partial; AFU-V1-014 retains its accepted observer gap.
 - Exists: the AFU-V0 experimental `corvint flows` report and `record`, the issue-53 behavior adapter, ETS-V1 selection and the Playwright provider this spec extends.
-- Remaining: AFU-V1-006 producer and AFU-V1-029 observer integration; production backend and hosted-CI qualification are not observed.
+- Blocked on: AFU-V1-006 producer and AFU-V1-029 observer integration; production backend and hosted-CI qualification are not observed.
 - Read next: Requirements; Trust boundary, limits, and failure modes; Deterministic acceptance.
 
 ## User and measurable job

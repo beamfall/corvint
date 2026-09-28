@@ -152,6 +152,14 @@
     "review.md": {
       "sha256": "bb5cbe5c6fcde808949201f87cf36c30295942faf309864d3504a029dfced57b",
       "bytes": 922
+    },
+    "failed-cases-serial.log": {
+      "sha256": "f1e1f19c90ebf503fdeb313fd75e294f8021c1897c9235ac1cecdd1105875c05",
+      "bytes": 521
+    },
+    "terminal-first-failure.md": {
+      "sha256": "281e4e1cf9c86e8029d212b7c682e00502c1105fb2d6277c032e5dbfb88ed142",
+      "bytes": 1328
     }
   },
   "unsupported": [
