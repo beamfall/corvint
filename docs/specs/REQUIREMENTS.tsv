@@ -253,7 +253,7 @@ CAL-V0-016	docs/specs/corvint-tasks-agent-leases-v0.md	167	`gate run --gate <gat
 CAL-V0-017	docs/specs/corvint-tasks-agent-leases-v0.md	172	`complete --commit <oid>` MUST refuse unless the commit is reachable from the
 CAL-V0-018	docs/specs/corvint-tasks-agent-leases-v0.md	181	A first import MUST cost one full audit plus work proportional to the records it
 CAL-V0-019	docs/specs/corvint-tasks-agent-leases-v0.md	232	A named test suite MUST show, for `external-agent` attempts: two concurrent
-CAL-V0-020	docs/specs/corvint-tasks-agent-leases-v0.md	237	`cutover --execution --decision <ref> --qualification <digest>` MUST, under an
+CAL-V0-020	docs/specs/corvint-tasks-agent-leases-v0.md	237	`cutover --execution --decision <ref> --qualification <file>` MUST, under an
 CAL-V0-021	docs/specs/corvint-tasks-agent-leases-v0.md	195	Every `external-agent` attempt MUST carry a scope: a set of `PATH` resources wit
 CAL-V0-022	docs/specs/corvint-tasks-agent-leases-v0.md	203	A `DERIVED` scope MUST come from Corvint's local context index for the ticket's
 CAL-V0-023	docs/specs/corvint-tasks-agent-leases-v0.md	209	Two live attempts MUST collide exactly when their resource sets collide under

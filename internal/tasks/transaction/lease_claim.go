@@ -225,7 +225,7 @@ func planClaim(c leaseContext) leaseOutcome {
 	if c.st.barrier != nil {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodePaused, "an admission barrier is present")
 	}
-	if !c.st.queue.Fixture {
+	if !c.st.queue.Fixture && c.st.queue.ExecutionCutover == nil {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeCutoverMissing, noExecutionCutover)
 	}
 	rec, _ := c.st.tickets.Get(c.l.TicketID)
@@ -254,7 +254,7 @@ func planClaimNext(c leaseContext) leaseOutcome {
 	if c.st.barrier != nil {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodePaused, "an admission barrier is present")
 	}
-	if !c.st.queue.Fixture {
+	if !c.st.queue.Fixture && c.st.queue.ExecutionCutover == nil {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeCutoverMissing, noExecutionCutover)
 	}
 	if reap := c.expiredAll(); len(reap) != 0 {
