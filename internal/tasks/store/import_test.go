@@ -222,3 +222,55 @@ func TestCTSV0003_ImportBatchesWithinStageLimits(t *testing.T) {
 		t.Fatalf("re-import wrote: %+v", again)
 	}
 }
+
+// TestCALV0018_LaterBatchesCheckTheirHeadAndPosts: the audit is carried
+// across batches, yet a batch still refuses a head other than the one the
+// previous batch wrote, and a ticket file that changed before it is posted.
+func TestCALV0018_LaterBatchesCheckTheirHeadAndPosts(t *testing.T) {
+	items := []string{}
+	for i := 0; i < 24; i++ {
+		id := "BF-" + string(wire.CountOf(int64(i)))
+		items = append(items, importItem(id, id+"\n", nil))
+	}
+	export := importExport(items...)
+	want := map[string]string{"head": "SNAPSHOT_MOVED", "post": "INTENT_DIVERGED"}
+	for name, spoil := range map[string]func(t *testing.T, repo *intent.Repository, first []byte, batch [][]byte){
+		"head": func(t *testing.T, repo *intent.Repository, first []byte, _ [][]byte) {
+			fixture.Write(t, filepath.Join(repo.StateDir, "head.json"), first)
+		},
+		"post": func(t *testing.T, repo *intent.Repository, _ []byte, batch [][]byte) {
+			rec, err := ticket.Decode(batch[0])
+			if err != nil {
+				t.Fatal(err)
+			}
+			fixture.Write(t, filepath.Join(repo.PrimaryWorktree, intent.Dir, "tickets", rec.TicketID.Local+".json"), []byte("{}\n"))
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			repo := importStore(t, "ROADMAP")
+			var first []byte
+			seen := 0
+			hook := func(batch [][]byte) error {
+				seen++
+				raw, err := os.ReadFile(filepath.Join(repo.StateDir, "head.json"))
+				if err != nil {
+					return err
+				}
+				if seen == 1 {
+					first = raw
+				}
+				if seen == 2 {
+					spoil(t, repo, first, batch)
+				}
+				return nil
+			}
+			report, err := store.ImportBeforeBatchForTest(context.Background(), repo, operator(), fixture.QueueID, export, now(t), hook)
+			if err == nil || len(report.Batches) != 1 {
+				t.Fatalf("second batch committed: %d batches, %v", len(report.Batches), err)
+			}
+			if !strings.Contains(err.Error(), want[name]) {
+				t.Fatalf("refusal = %v, want %s", err, want[name])
+			}
+		})
+	}
+}
