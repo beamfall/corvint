@@ -29,6 +29,10 @@
         {
           "evidenceId": "evidence:sha256:26dfd0a08459dc67cd8ebdfbf24caa45b88499cdeee8c05f44259c940b9ed799",
           "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:20a89a20743ffff56a46c4b6206a567e7e1178cd0697b8812a098b2b8f9bb291",
+          "relation": "specification"
         }
       ],
       "disposition": "supported",
@@ -48,6 +52,10 @@
       "basis": [
         {
           "evidenceId": "evidence:sha256:26dfd0a08459dc67cd8ebdfbf24caa45b88499cdeee8c05f44259c940b9ed799",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:20a89a20743ffff56a46c4b6206a567e7e1178cd0697b8812a098b2b8f9bb291",
           "relation": "specification"
         }
       ],
@@ -69,6 +77,10 @@
         {
           "evidenceId": "evidence:sha256:26dfd0a08459dc67cd8ebdfbf24caa45b88499cdeee8c05f44259c940b9ed799",
           "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:20a89a20743ffff56a46c4b6206a567e7e1178cd0697b8812a098b2b8f9bb291",
+          "relation": "specification"
         }
       ],
       "disposition": "supported",
@@ -88,6 +100,10 @@
       "basis": [
         {
           "evidenceId": "evidence:sha256:26dfd0a08459dc67cd8ebdfbf24caa45b88499cdeee8c05f44259c940b9ed799",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:20a89a20743ffff56a46c4b6206a567e7e1178cd0697b8812a098b2b8f9bb291",
           "relation": "specification"
         }
       ],
@@ -109,6 +125,10 @@
         {
           "evidenceId": "evidence:sha256:26dfd0a08459dc67cd8ebdfbf24caa45b88499cdeee8c05f44259c940b9ed799",
           "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:20a89a20743ffff56a46c4b6206a567e7e1178cd0697b8812a098b2b8f9bb291",
+          "relation": "specification"
         }
       ],
       "disposition": "supported",
@@ -128,6 +148,10 @@
       "basis": [
         {
           "evidenceId": "evidence:sha256:26dfd0a08459dc67cd8ebdfbf24caa45b88499cdeee8c05f44259c940b9ed799",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:20a89a20743ffff56a46c4b6206a567e7e1178cd0697b8812a098b2b8f9bb291",
           "relation": "specification"
         }
       ],
@@ -149,6 +173,10 @@
         {
           "evidenceId": "evidence:sha256:26dfd0a08459dc67cd8ebdfbf24caa45b88499cdeee8c05f44259c940b9ed799",
           "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:20a89a20743ffff56a46c4b6206a567e7e1178cd0697b8812a098b2b8f9bb291",
+          "relation": "specification"
         }
       ],
       "disposition": "supported",
@@ -168,6 +196,10 @@
       "basis": [
         {
           "evidenceId": "evidence:sha256:26dfd0a08459dc67cd8ebdfbf24caa45b88499cdeee8c05f44259c940b9ed799",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:20a89a20743ffff56a46c4b6206a567e7e1178cd0697b8812a098b2b8f9bb291",
           "relation": "specification"
         }
       ],
