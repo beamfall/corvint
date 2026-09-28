@@ -1,6 +1,6 @@
 # Corvint for OpenCode
 
-Version 0.4.0 targets unmodified OpenCode 2.0.18. It supplies awaited task context, on-demand
+Version 0.5.0 targets unmodified OpenCode 2.0.18. It supplies awaited task context, on-demand
 query and exact source expansion, edit/evidence/verification observations, explicit outcomes, and
 compaction recovery from current Git state. OpenCode 1.x requires the older 0.2.9 adapter.
 
@@ -18,9 +18,43 @@ replacement OpenCode distribution or privileged authority service is installed.
 The runner supports macOS and Linux process groups. Only tuples in the qualification report are
 qualified; Windows remains unsupported until process-tree cleanup is implemented and tested.
 
+
+## Context inspector
+
+The native terminal sidebar shows **Corvint context** for the current session. Click it or run
+`/corvint` to open the evidence panel. Run `/corvint Locate Add in add.go` to request context
+without asking a model. The panel also accepts these keys:
+
+| Key | Action |
+| --- | --- |
+| Up / Down | Select an evidence location |
+| Enter | Open its pinned source through Core |
+| g | Show gaps, limitations and receipt identities |
+| r | Request context for an explicit task |
+| f | Switch between side panel and full-screen when space permits |
+| Escape | Close the panel |
+
+Each location shows its inclusion reason, authority and confidence. The source reader preserves
+Core's tree/blob verification. Control characters are escaped for display. Freshness describes the
+last observation; this UI does not continuously check Git. Observed edits or compaction mark the
+view stale until another context request. Missing/unsupported evidence stays visible. Scrolling
+uses the host's native scroll area; a narrow terminal uses the full-screen panel.
+
+The view is bounded and held in memory, with no receipt or prompt journal. Its RPC runs through the
+existing OpenCode server and inherits that server's client trust boundary. The terminal plugin
+receives only context/evidence views and hashed-session update notices, not transcripts. Removing
+or disabling the plugin disposes the view and its subscriptions. Desktop/web custom panels and the
+proposed Impact/Proof views are outside this first slice.
+
+`script/qualify-opencode-inspector.py --host /absolute/opencode --corvint /absolute/corvint
+--output /absolute/evidence` exercises the actual 2.0.18 terminal in isolated temporary Git and XDG
+locations, without a model call. It requires Python 3, Git, a POSIX PTY and permission to start the
+host's temporary loopback server. Its UI witness is separate from full native integration
+qualification; it never writes `opencode-qualification.json` or grants execution authority.
+
 ## Install, discover, upgrade, disable, uninstall
 
-The package is not published to npm yet and has no runtime dependencies. From a Corvint checkout,
+The package is not published to npm yet. OpenCode supplies the terminal renderer and Solid runtime. From a Corvint checkout,
 add a `file://` URL for its `src` directory to OpenCode's `plugins` array:
 
 ```json

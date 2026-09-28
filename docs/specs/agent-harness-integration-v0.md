@@ -10,7 +10,7 @@ Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 ## Agent digest
 - Claim: Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.
 - Status: accepted direction/experimental
-- Exists: `internal/gokernel`, `cmd/corvint`, and native adapter previews.
+- Exists: `internal/gokernel`, `cmd/corvint`, native adapter previews, and the experimental OpenCode terminal context inspector (AHI-033).
 - Blocked on: black-box release-matrix qualification with accepted closing authority.
 - Read next: `harness-authority-relation-v0.md` (superseded by accepted decision 0009 option 2; no execution authority root) and `change-frontier-profile-1.md`.
 
@@ -587,6 +587,44 @@ do not reinterpret this Frontier result.
   identity drift and interruption. Rollback is removal of the native plugin entry or reverting the package; no host
   fork, daemon, account, authority installation or durable outcome migration is required.
 
+
+- `AHI-033`: The owner-approved first OpenCode UI slice (2026-09-28, “looks good. build it”
+  following the context-sidebar and clickable-evidence proposal) MUST expose an optional native
+  OpenCode 2.0.18 terminal sidebar and session panel. It MUST show the latest observed session
+  context, inclusion reasons, authority/confidence labels, exact tree/blob identities, supplied
+  omissions and gaps, and Core-expanded pinned source. `/corvint` opens the panel;
+  `/corvint TASK` or the panel query action requests context explicitly. Keyboard and pointer
+  selection, loading, empty, unavailable and stale states MUST remain usable at narrow widths.
+  The measurable job is sidebar → evidence → exact cited source without a model call or manual
+  CLI composition. This UI does not implement the proposed impact graph, requirement/proof tabs,
+  verification timeline, desktop/web panels, or authority/coverage scoring.
+
+  The inspector MUST retain only one bounded latest view per existing session, within the
+  adapter's 128-session limit, and at most 32 evidence locations and 32 gap rows per view; display
+  omissions MUST be disclosed. It MUST NOT scan transcripts, persist query text or receipts, start
+  a daemon, refresh an index automatically, or create sessions during snapshot reads. RPC query
+  admission MUST check the requested session's host project/location and reuse the existing bounded
+  Corvint runner with cancellation, at most 16 simultaneous context/expansion operations and two
+  per session, with no waiting queue. RPC is available to clients already trusted by OpenCode;
+  session identifiers are routing inputs, not authentication credentials. The event bridge MUST
+  disclose only hashed session identity; UI state remains client-local and volatile.
+
+  Newer context requests, observed edits, compaction, deletion, eviction and disposal MUST prevent
+  late publication and invalidate expansion from a replaced view. Expanding a source MUST require
+  an exact handle from that session's currently ready receipt and recheck its identity after Core
+  returns. Source reads MUST use Core's existing selector/identity verification and never substitute
+  worktree bytes. Freshness is explicitly the state when observed, not a background live-HEAD check.
+  Presentation MUST visibly escape terminal controls, invisible and bidi characters; exact source
+  selectors remain unchanged. Repository text MUST NOT become markup, commands or instructions.
+
+  Acceptance requires focused hostile-text/bounds/race/session tests and the real stock 2.0.18 TUI
+  showing sidebar, context request, keyboard selection, pinned source and gap navigation at wide
+  and narrow terminal widths. The native witness MUST retain source identity and demonstrate
+  interruption leaves no owned descendants. It is UI evidence only and MUST NOT promote AHI-032
+  integration support or execution authority. Failure leaves coding available with an explicit
+  unavailable state. Rollback removes `src/tui.tsx`, the inspector RPC/view and its package export,
+  restores the prior adapter under a new version, and keeps prior qualification evidence invalid.
+
 ## Native platform profiles
 
 | Platform | Embedded host-admission key | Maintained Corvint package | Native surfaces | Stability rule |
@@ -788,6 +826,7 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 | Requirement | Implementation surface | Required evidence |
 |---|---|---|
 | `AHI-001`, `003`, `005`, `014` | shared `corvint harness event` core and `internal/projectpath` | canonical receipt, bounds, privacy, revision, and event fixtures; `TestHostAdapterAbsentPathContainment` and `TestRelativeAliasesAndUncertainty` cover `AHI-014` path containment, and the `integrations/host-adapters.test.mjs` test `AHI-014 Gemini classifies changed paths on resolved symlinks like internal/projectpath` under `TestHostAdapterJavaScriptHosts` covers the Gemini hook's symlink resolution; `TestClaudeAdapterForkSessionStartIsResume` covers the Claude `fork` start source; `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` drives the Claude `SessionStart(source=compact)` hook entrypoint over a mixed dirty worktree and requires the tracked impact, the untracked count and `compaction-untracked-paths-not-rehydratable` from the receipt's own snapshot; `TestQualifiedLifecycleCompactSessionStartRehydratesDirtyPaths` requires the same for the qualified profile under FULL and FALLBACK and refuses a reordered, extra or dropped code; `TestAHI014EventExpectationsAreHostConsistent` (`conformance/harness-event-v0/host_schema_test.go`) pins each `common-logical-interaction.json` event's closed host set and requires every present host's golden `expected` object to be byte-identical, so a per-host field or host-membership mutation of that fixture fails here |
+| `AHI-033` | `integrations/opencode/src/inspector.js`, `src/tui.tsx`, and inspector RPC in `src/index.js` | `integrations/opencode/inspector.test.mjs`, AHI-033 cases under `TestHostAdapterJavaScriptHosts`, and `script/qualify-opencode-inspector.py` (stock native rendering, pinned source, narrow keyboard use and interruption cleanup) |
 | `AHI-025` | `cmd/corvint/pi_tools.go`, `integrations/pi/tools.js` | `TestPiToolContextExpansion`, `TestPiToolRecord`, `TestPiToolClosedInput` and native Pi tool/RPC fixtures |
 | `AHI-026` | `integrations/claude-code/plugins/corvint/hooks/hooks.json`, `compatibility.json` `compactionHooks`, `cmd/corvint/host_adapter.go` declared-kill table | `TestAHI026ClaudeCompactionHooksRegisteredAgainstHostAPI` (matcherless `PreCompact`/`PostCompact` groups, verified host version equals the tested maximum, closed trigger set) and `TestAHI017AdapterHostKillMatchesDeclaredHooks` (the two new declared kills) |
 | `AHI-027` | `cmd/corvint/host_adapter_compaction.go` (`runClaudeCompactionEvent`, `compactionBlockFor`, `compactionPinLine`), `emitAdapterOutput` plain-stdout branch | `TestAHI027ClaudePreCompactEmitsPinFromCompactionBlock` (instruction plus pin as text, pin equals the fixture's HEAD tree and tracked dirty path, 24-path bound with hostile paths elided); `TestAHI027ClaudeCompactionPinsCleanAndUntrackedOnlyTrees` (clean and untracked-only trees pin the HEAD tree and report without a fault; an over-budget block elides its unlisted tracked paths); `TestClaudeCompactionDegradationIsPlainText` (degradations print frame text through `compactionPlainOutput`, an empty summary prints an empty line) |
