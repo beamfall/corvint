@@ -777,8 +777,9 @@ to remove repeated lifecycle glue while preserving the same receipts and explici
 ### Failure codes
 
 Beyond the codes named above, the shared `harness event` core (`internal/gokernel/harness.go`), its
-repository probe (`internal/gokernel/repository.go`), and the native adapter
-(`cmd/corvint/host_adapter.go`) emits the kebab-case codes below (decision 0100). Each row cites
+repository probe (`internal/gokernel/repository.go`), native adapter
+(`cmd/corvint/host_adapter.go`), and OpenCode qualification producer emit the kebab-case codes below
+(decision 0100). Each row cites
 the first emitting site and quotes the message returned there or states the condition checked
 there, which is the whole of what the row asserts.
 
@@ -799,6 +800,7 @@ there, which is the whole of what the row asserts.
 | `invalid-repository-root` | `internal/gokernel/harness.go:376` | "cannot resolve repository root" |
 | `malformed-corvint-output` | `cmd/corvint/host_adapter.go:657@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
 | `project-root-unavailable` | `cmd/corvint/host_adapter.go:327@2100b4c9` | Claude adapter: the project root (`CLAUDE_PROJECT_DIR`, else the working directory) cannot be made absolute; the degraded `systemMessage` names this reason |
+| `qualification-in-progress` | `internal/opencodequalification/record.go:366@c5ab6d80` | AHI-032: the producer atomically writes the active record as `INCOMPLETE` after preserving any previous record; integration support stays `UNQUALIFIED` until complete passing evidence replaces it |
 | `repository-identity-malformed` | `internal/gokernel/repository.go:178` | "Git object identity is malformed" |
 | `repository-probe-cancelled` | `internal/gokernel/repository.go:167` | "Git repository probe was cancelled" |
 | `repository-probe-timeout` | `internal/gokernel/repository.go:165` | "Git repository probe exceeded its 10-second deadline" |
