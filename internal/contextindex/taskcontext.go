@@ -1414,7 +1414,7 @@ func (compiler *taskContextCompiler) governingRows() []contextRow {
 			continue
 		}
 		reason := "the highest-precedence tracked instruction file"
-		if scoped {
+		if scoped && (len(candidates) > 1 || path.Dir(governing) != ".") {
 			reason = "tracked instructions for subject ancestor " + path.Dir(governing) + "; closest directory first"
 		}
 		rows = append(rows, contextRow{
