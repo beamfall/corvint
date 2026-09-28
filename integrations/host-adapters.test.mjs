@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { execFileSync, spawn } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, symlinkSync, cpSync, readdirSync, lstatSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, symlinkSync, chmodSync, cpSync, readdirSync, lstatSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { pathToFileURL, fileURLToPath } from 'node:url'
@@ -664,4 +664,36 @@ test('AHI-032 deleting a session cancels its active compaction child',async t=>{
  await host.emit('session.deleted',{sessionID:'deleted-compact'});await pending
  assert.deepEqual(request.system,[])
  assert.throws(()=>process.kill(pid,0),/ESRCH/)
+})
+
+
+test('AHI-032 native OpenCode normalizations match every common logical event golden',async t=>{
+ const logical=JSON.parse(readFileSync(join(here,'../conformance/harness-event-v0/common-logical-interaction.json'),'utf8'))
+ spyConsole(t,'info');spyConsole(t,'warn')
+ for(const {event,expected} of logical.events){
+  const f=fixture(t),host=await openCode(t,f.root,{corvintBinary:f.binary,...OPEN_TIMEOUTS}),sessionID='shared-native-session'
+  if(event==='session-start')await host.emit('session.created',{sessionID})
+  else if(event==='user-prompt')await host.hooks['session.prompt']({sessionID,messageID:'fixture-message',prompt:{text:'inspect the parser'}})
+  else if(event==='file-change')await host.hooks['execute.after'](written(f.root,'src/../src/parser.py',sessionID))
+  else if(event==='post-tool')await host.hooks['execute.after']({sessionID,tool:'fixture',status:'completed',result:{metadata:{corvint:{changedPaths:['src/../src/parser.py']}}}})
+  else if(event==='stop')await host.emit('session.execution.succeeded',{sessionID})
+  else if(event==='session-end')await host.emit('session.deleted',{sessionID})
+  const actual=f.captured().filter(r=>r.argv[r.argv.indexOf('--event')+1]===event)
+  assert.equal(actual.length,1,event)
+  for(const [other,value] of Object.entries(expected))assert.equal(canonical(actual[0].input),canonical(value),event+':'+other)
+ }
+})
+
+test('AHI-032 missing and non-executable Corvint leave the native prompt unchanged with a visible fault',async t=>{
+ spyConsole(t,'info');const warnings=spyConsole(t,'warn')
+ for(const mode of ['missing','permission-denied']){
+  const f=fixture(t);let binary=f.binary
+  if(mode==='missing')binary=join(f.dir,'not-installed')
+  else chmodSync(binary,0o600)
+  const host=await openCode(t,f.root,{corvintBinary:binary,...OPEN_TIMEOUTS})
+  const event={sessionID:mode,messageID:mode,prompt:{text:'continue ordinary coding'}}
+  await host.hooks['session.prompt'](event)
+  assert.equal(event.prompt.text,'continue ordinary coding');assert.equal(f.captured().length,0)
+ }
+ assert.equal(warnings.filter(line=>line.includes('"code":"corvint-unavailable"')).length,2)
 })
