@@ -4,4 +4,3 @@ export function visibleText(value, limit = 1600) {
     ch => `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`)
   return text.length > limit ? text.slice(0, limit) + "… [display shortened]" : text
 }
-
