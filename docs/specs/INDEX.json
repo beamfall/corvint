@@ -43,7 +43,7 @@
   },
   {
     "path": "docs/specs/application-flow-understanding-v1.md",
-    "title": "Application Flow Understanding V1 — proven flows, safe E2E selection, navigation and documentation",
+    "title": "Application Flow Understanding V1 \u2014 proven flows, safe E2E selection, navigation and documentation",
     "reqPrefix": "AFU-V1",
     "intent": "accepted (decision 0385)",
     "delivery": "partially delivered; original issue-175 flows qualified locally",
@@ -67,7 +67,7 @@
   },
   {
     "path": "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
-    "title": "Frontier decision brief — 2026-08-29",
+    "title": "Frontier decision brief \u2014 2026-08-29",
     "reqPrefix": "",
     "intent": "not-applicable (reading aid; decides nothing)",
     "delivery": "not-applicable",
@@ -780,7 +780,7 @@
   },
   {
     "path": "docs/specs/external-evidence-provider-v1.md",
-    "title": "External Evidence Provider V1 — repository identity",
+    "title": "External Evidence Provider V1 \u2014 repository identity",
     "reqPrefix": "EEP-V1",
     "intent": "accepted (decision 0310)",
     "delivery": "experimental (file transport only)",
@@ -797,7 +797,7 @@
   },
   {
     "path": "docs/specs/external-evidence-provider-v2.md",
-    "title": "External Evidence Provider V2 — opt-in path-to-path relations",
+    "title": "External Evidence Provider V2 \u2014 opt-in path-to-path relations",
     "reqPrefix": "EEP-V2",
     "intent": "accepted (decision 0312)",
     "delivery": "experimental (file transport only)",
@@ -815,7 +815,7 @@
   },
   {
     "path": "docs/specs/external-frontier-obligations-v0.md",
-    "title": "External Frontier Obligations V0 — a reference-only Change Frontier sidecar",
+    "title": "External Frontier Obligations V0 \u2014 a reference-only Change Frontier sidecar",
     "reqPrefix": "EFO-V0",
     "intent": "accepted (decision 0313)",
     "delivery": "experimental (file transport only)",
@@ -833,7 +833,7 @@
   },
   {
     "path": "docs/specs/external-test-selection-v0.md",
-    "title": "External Test Selection V0 — fail-closed advice from verification relations",
+    "title": "External Test Selection V0 \u2014 fail-closed advice from verification relations",
     "reqPrefix": "ETS-V0",
     "intent": "accepted (decision 0311)",
     "delivery": "experimental (file transport only)",
@@ -851,7 +851,7 @@
   },
   {
     "path": "docs/specs/external-test-selection-v1.md",
-    "title": "External Test Selection V1 — transitive obligations and checkout worktree reads",
+    "title": "External Test Selection V1 \u2014 transitive obligations and checkout worktree reads",
     "reqPrefix": "ETS-V1",
     "intent": "accepted (decision 0315)",
     "delivery": "experimental (file transport only)",
@@ -2511,6 +2511,24 @@
     "implementation": [
       "internal/doccompiler/trusted_nav.go",
       "cmd/corvint/docs.go"
+    ]
+  },
+  {
+    "path": "docs/specs/application-flow-navigation-execution-v0.md",
+    "title": "Application Flow Navigation Execution V0",
+    "reqPrefix": "NEX-V0",
+    "intent": "proposed technical profile under AFU-V1-029",
+    "delivery": "experimental; qualification pending",
+    "claim": "An explicit companion can execute a bounded UI navigation packet against an owned cooperative local fixture.",
+    "dependsOn": [
+      "docs/specs/application-flow-understanding-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/appflows/navigation_execution.go",
+      "cmd/corvint-web-flows",
+      "tools/web-flows/navigation.mjs"
     ]
   }
 ]

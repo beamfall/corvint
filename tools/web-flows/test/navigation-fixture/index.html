@@ -1,0 +1,20 @@
+<!doctype html><html><body>
+<div data-testid="ready">Ready</div><label>Item<input data-testid="item" aria-label="Item"></label>
+<button data-testid="save" type="button">Save</button><div data-testid="saved" hidden>Saved</div>
+<form action="/write" method="get"><button type="submit" data-testid="form">Form</button></form>
+<button data-testid="direct" type="button">Direct</button><div data-testid="recovered">Recovered</div>
+<script>
+const mode='FIXTURE_MODE';
+if(mode==='not-ready')document.querySelector('[data-testid=ready]').hidden=true;
+if(mode==='background')fetch('/write',{method:'POST'});
+document.querySelector('[data-testid=save]').onclick=async()=>{
+ if(mode==='slow')return new Promise(()=>{});
+ if(mode==='redirect'){await fetch('/redirect');return;}
+ if(mode==='cross'){await fetch('http://127.0.0.1:9/outside');return;}
+ if(mode==='websocket'){new WebSocket('ws://127.0.0.1:9/outside');return;}
+ if(mode==='recover')return;
+ const response=await fetch('/write',{method:'POST',body:document.querySelector('[data-testid=item]').value});
+ if(response.ok)document.querySelector('[data-testid=saved]').hidden=false;
+};
+document.querySelector('[data-testid=direct]').onclick=()=>document.querySelector('form').submit();
+</script></body></html>

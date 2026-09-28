@@ -96,17 +96,17 @@ AFU-V1-026	docs/specs/application-flow-understanding-v1.md	491	Locators MUST com
 AFU-V1-027	docs/specs/application-flow-understanding-v1.md	493	Every transition MUST carry an effect class. A declared class MAY be raised by
 AFU-V1-028	docs/specs/application-flow-understanding-v1.md	496	`flows navigate --goal FLOW_ID` MUST return a bounded packet: the ordered steps,
 AFU-V1-029	docs/specs/application-flow-understanding-v1.md	501	The Corvint observer MUST NOT perform a `write-irreversible` or
-AFU-V1-030	docs/specs/application-flow-understanding-v1.md	546	`corvint flows docs` MUST render user documentation from flow intents with fixed
-AFU-V1-031	docs/specs/application-flow-understanding-v1.md	549	A claim is `PROVEN` only when its variation is verified at the evaluated revisio
-AFU-V1-032	docs/specs/application-flow-understanding-v1.md	552	`corvint flows docs --check` MUST fail when a committed claim that was `PROVEN`
-AFU-V1-033	docs/specs/application-flow-understanding-v1.md	556	Hand-written Markdown under the declared docs root MAY opt in with a claim ancho
-AFU-V1-034	docs/specs/application-flow-understanding-v1.md	606	`corvint-mcp --tool-profile flows` MUST advertise read-only `corvint.flows.map`,
-AFU-V1-035	docs/specs/application-flow-understanding-v1.md	613	Repository-authored text in any flows response is returned inside the untrusted-
-AFU-V1-036	docs/specs/application-flow-understanding-v1.md	618	Every write MUST resolve under the repository root without following a symlink.
-AFU-V1-037	docs/specs/application-flow-understanding-v1.md	623	Byte, record, attempt, link and traversal bounds apply before decode and walk. W
-AFU-V1-038	docs/specs/application-flow-understanding-v1.md	625	Recorded evidence MUST drop cookies, authorization headers, tokens and request o
-AFU-V1-039	docs/specs/application-flow-understanding-v1.md	631	A committed fixture application MUST carry one UI flow and one API flow that rea
-AFU-V1-040	docs/specs/application-flow-understanding-v1.md	634	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing
+AFU-V1-030	docs/specs/application-flow-understanding-v1.md	552	`corvint flows docs` MUST render user documentation from flow intents with fixed
+AFU-V1-031	docs/specs/application-flow-understanding-v1.md	555	A claim is `PROVEN` only when its variation is verified at the evaluated revisio
+AFU-V1-032	docs/specs/application-flow-understanding-v1.md	558	`corvint flows docs --check` MUST fail when a committed claim that was `PROVEN`
+AFU-V1-033	docs/specs/application-flow-understanding-v1.md	562	Hand-written Markdown under the declared docs root MAY opt in with a claim ancho
+AFU-V1-034	docs/specs/application-flow-understanding-v1.md	612	`corvint-mcp --tool-profile flows` MUST advertise read-only `corvint.flows.map`,
+AFU-V1-035	docs/specs/application-flow-understanding-v1.md	619	Repository-authored text in any flows response is returned inside the untrusted-
+AFU-V1-036	docs/specs/application-flow-understanding-v1.md	624	Every write MUST resolve under the repository root without following a symlink.
+AFU-V1-037	docs/specs/application-flow-understanding-v1.md	629	Byte, record, attempt, link and traversal bounds apply before decode and walk. W
+AFU-V1-038	docs/specs/application-flow-understanding-v1.md	631	Recorded evidence MUST drop cookies, authorization headers, tokens and request o
+AFU-V1-039	docs/specs/application-flow-understanding-v1.md	637	A committed fixture application MUST carry one UI flow and one API flow that rea
+AFU-V1-040	docs/specs/application-flow-understanding-v1.md	640	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing
 AFU-V1-041	docs/specs/application-flow-understanding-v1.md	206	The planned repetition ordinals, the planned or manual run kind, the infrastruct
 AFU-V1-042	docs/specs/application-flow-understanding-v1.md	211	`corvint flows stability` MUST report, per registry aggregate, the selected scop
 AGW-V0-001	docs/specs/corvint-witness-v0.md	33	`corvint witness` MUST be read-only, per AGENTS.md invariant 4: on every path —
@@ -1527,6 +1527,13 @@ NEC-V0-005	docs/specs/necessity-labels-v0.md	62	Counterfactual work MUST be boun
 NEC-V0-006	docs/specs/necessity-labels-v0.md	65	When the packet carries no answer — `state` is not `READY`, or the answerability
 NEC-V0-007	docs/specs/necessity-labels-v0.md	68	Every emitted `necessity` block MUST carry the fixed disclosure stating that the
 NEC-V0-008	docs/specs/necessity-labels-v0.md	71	The verb MUST be read-only: no index, snapshot, trace, ledger or self-observatio
+NEX-V0-001	docs/specs/application-flow-navigation-execution-v0.md	23	Execution MUST require explicit experimental, trusted-local and observe flags, a
+NEX-V0-002	docs/specs/application-flow-navigation-execution-v0.md	26	The execution input MUST be a separate closed committed document with exact
+NEX-V0-003	docs/specs/application-flow-navigation-execution-v0.md	30	Every effect and request MUST pass the independent grant and committed origins
+NEX-V0-004	docs/specs/application-flow-navigation-execution-v0.md	35	Preconditions MUST follow packet order. At most one declared recovery may execut
+NEX-V0-005	docs/specs/application-flow-navigation-execution-v0.md	38	The bounded receipt MUST bind revision/tree, packet, execution input, committed
+NEX-V0-006	docs/specs/application-flow-navigation-execution-v0.md	41	Receipts MUST contain only closed results/reasons and bounded IDs/methods, never
+NEX-V0-007	docs/specs/application-flow-navigation-execution-v0.md	44	The compiled companion MUST prove real-browser success and pre-dispatch refusal,
 NJB-001	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	44	each family is one exact profile/target tuple and a standalone CLI package; no
 NJB-002	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	46	canonical one-LF JSON input/output is bounded before decode, base64 decode, fact
 NJB-003	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	54	facts are typed, ordered, and digest-bound by the bridge-owned 14-field evidence
