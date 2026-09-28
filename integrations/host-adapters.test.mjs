@@ -1,4 +1,3 @@
-import './opencode-qualification.test.mjs'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { execFileSync, spawn } from 'node:child_process'
@@ -575,6 +574,20 @@ test('AHI-023 host-version disclosure matches what each plugin adapter sends',()
  assert.ok(codex.includes('host-version-unknown')&&!codex.includes('host-version-unreported-by-hook-api'),'codex sends unknown')
 })
 
+
+test('AHI-032 first prompt obtains context while session startup is still running',async t=>{
+ const f=fixture(t,'delayed');spyConsole(t,'info');spyConsole(t,'warn')
+ const host=await openCode(t,f.root,{corvintBinary:f.binary,...OPEN_TIMEOUTS})
+ const startup=host.emit('session.created',{sessionID:'starting'})
+ const deadline=Date.now()+4000
+ while(!f.captured().some(row=>row.argv.includes('session-start'))&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,2))
+ assert.ok(f.captured().some(row=>row.argv.includes('session-start')))
+ const event={sessionID:'starting',messageID:'first',prompt:{text:'inspect first prompt'}}
+ await host.hooks['session.prompt'](event)
+ await startup
+ assert.ok(event.prompt.text.includes('harness-receipt:sha256:'))
+ assert.equal(f.captured().filter(row=>row.argv.includes('user-prompt')).length,1)
+})
 
 test('AHI-032 awaited prompt context stays with its prompt, deduplicates and drops cancelled work',async t=>{
  const f=fixture(t,'delayed');spyConsole(t,'info');spyConsole(t,'warn')

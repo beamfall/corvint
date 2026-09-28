@@ -1,0 +1,31 @@
+import {appendFileSync,createReadStream} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+const log=x=>appendFileSync(EVENTS,JSON.stringify(x)+'\n');
+export default {id:'qualification-probe',async setup(ctx){
+ const image=createHash('sha256');for await(const chunk of createReadStream(process.execPath))image.update(chunk);
+ log({kind:'setup',version:ctx.app.version,executableSHA256:image.digest('hex'),architecture:process.arch,os:process.platform});
+ const stop=new AbortController();
+ await ctx.session.hook('title',e=>{e.result='Qualification'});
+ await ctx.session.hook('compaction',async e=>{e.result={summary:'Fixture compaction summary. Inspect the supplied current repository evidence.'};await ctx.session.synthetic({sessionID:e.sessionID,text:'After compaction, locate Add in add.go.',description:'qualification follow-up',resume:true});log({kind:'compaction-hook'})});
+ await ctx.session.hook('prompt',e=>log({kind:'prompt',text:e.prompt.text}));
+ await ctx.session.hook('context',e=>log({kind:'context',system:e.system}));
+ await ctx.tool.hook('execute.after',e=>log({kind:'tool',name:e.tool,status:e.status,result:e.result}));
+ await ctx.tool.transform(editor=>{
+  editor.add({name:'qualification_prompts',description:'Measure awaited native prompt hooks on idle fixture sessions.',input:{type:'object',properties:{},additionalProperties:false},async execute(){
+   for(let i=0;i<21;i++){
+    const session=await ctx.session.create({});
+    await ctx.session.prompt({sessionID:session.id,text:'Locate Add in add.go.',resume:false});
+   }
+   return {content:'native prompt samples complete'};
+  }});
+  editor.add({name:'qualification_noop',description:'Measure native post-tool observations.',input:{type:'object',properties:{},additionalProperties:false},async execute(){return {content:'fixture observation'}}});
+  editor.add({name:'qualification_verify',description:'Verify the fixture diff.',input:{type:'object',properties:{},additionalProperties:false},async execute(){
+   execFileSync('git',['diff','--check'],{cwd:ctx.location.directory,timeout:5000});
+   return {content:'git diff --check passed',metadata:{corvint:{verification:[{commandSha256:VERIFY,status:'passed'}]}}};
+  }});
+
+ });
+ const watching=(async()=>{for await(const e of ctx.event.subscribe({signal:stop.signal}))if(e.type.startsWith('session.execution.')||e.type.startsWith('session.compaction.'))log({kind:'event',type:e.type})})();
+ return async()=>{stop.abort();await watching;log({kind:'cleanup'})};
+}};

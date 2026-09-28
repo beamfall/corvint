@@ -1,0 +1,22 @@
+import { Plugin } from "@opencode/plugin/tui"
+import { appendFileSync, writeFileSync, renameSync } from "node:fs"
+const log = value => appendFileSync(LOG, JSON.stringify(value)+"\n")
+export default Plugin.define({id:"inspector-witness",setup(ctx){
+ let last = "", pending = ""
+ const capture = buffer => {
+  pending = JSON.stringify({width:buffer.width,height:buffer.height,lines:buffer.getSpanLines().map(line=>line.spans.map(span=>({text:span.text,width:span.width,fg:span.fg.toInts(),bg:span.bg.toInts(),attributes:span.attributes})))})
+ }
+ const flush = () => {
+  if(pending!==last){writeFileSync(SCREEN+".tmp",pending);renameSync(SCREEN+".tmp",SCREEN);last=pending}
+ }
+ ctx.renderer.on("frame",flush)
+ ctx.renderer.addPostProcessFn(capture)
+ log({stage:"loaded",version:ctx.app.version})
+ const stop=ctx.ui.slot({append:"app",render:()=>{
+ ctx.keymap.layer(()=>({mode:"global",commands:[
+ {bind:"f6",run:async()=>{try{const s=await ctx.client.session.create({title:"Inspector fixture",location:{directory:ROOT}});ctx.ui.router.navigate({type:"session",sessionID:s.id});log({stage:"session",id:s.id})}catch(e){log({error:String(e)})}}},
+ {bind:"f7",run:()=>{ctx.keymap.dispatch("corvint.context","Locate Multiply in multiply.go");log({stage:"requested"})}},
+ {bind:"f8",run:()=>ctx.keymap.dispatch("corvint.context")},
+ ]}));return null}})
+ return ()=>{ctx.renderer.off("frame",flush);ctx.renderer.removePostProcessFn(capture);stop()}
+}})

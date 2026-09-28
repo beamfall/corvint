@@ -1,6 +1,6 @@
 # Corvint for OpenCode
 
-Version 0.7.1 targets unmodified OpenCode 2.0.18. It supplies awaited task context, on-demand
+Version 0.7.2 targets unmodified OpenCode 2.0.18. It supplies awaited task context, on-demand
 query and exact source expansion, edit/evidence/verification observations, explicit outcomes, and
 compaction recovery from current Git state. OpenCode 1.x requires the older 0.2.9 adapter.
 
@@ -90,7 +90,7 @@ existing OpenCode server and inherits that server's client trust boundary. The t
 receives only context/evidence views and hashed-session update notices, not transcripts. Removing
 or disabling the plugin disposes the view and its subscriptions. Desktop/web custom panels, revision comparisons, review mode and portable handoff remain outside this slice.
 
-`script/qualify-opencode-inspector.py --host /absolute/opencode --corvint /absolute/corvint
+`go run ./tools/qualify-opencode --inspector --host /absolute/opencode --corvint /absolute/corvint
 --output /absolute/evidence` exercises the actual 2.0.18 terminal in isolated temporary Git and XDG
 locations, without a model call. It requires Python 3, Git, a POSIX PTY and permission to start the
 host's temporary loopback server, plus Go for the recorded fixture test. Its UI witness is separate from full native integration
@@ -120,23 +120,23 @@ remove the checkout only when it is no longer needed.
 ## Qualify this installation
 
 From a clean, committed Corvint checkout, run the first-party command below. It requires Git,
-Python 3.9 or later, Node.js 20 or later, Go 1.27.1, the real Corvint executable, and the actual
+Node.js 20 or later, Go 1.27.1, the real Corvint executable, and the actual
 OpenCode 2.0.18 executable on macOS or Linux. If `opencode2` is a shell launcher, pass the
 executable it launches; the command rejects shell launchers rather than recording the wrong image.
 
 ```sh
-python3 script/qualify-opencode.py \
+GOTOOLCHAIN=local go run ./tools/qualify-opencode \
   --host /absolute/path/to/opencode \
   --corvint /absolute/path/to/corvint \
   --output /tmp/corvint-opencode-qualification
 ```
 
 This command runs the focused adapter/cleanup tests and the real native campaign itself. It freezes
-package, executable, collector and test inputs across both gates, then atomically writes
+package, executable, complete Go collector (including its running binary) and test inputs across both gates, then atomically writes
 `integrations/opencode-qualification.json`, exactly where `corvint_status` reads it. It retains the
 same accepted report and gate logs under `--output`, which must be outside the checkout. No manual
 conversion or supplied PASS assertions are accepted. The lower-level
-`script/qualify-opencode-native.py` produces native campaign evidence only and cannot qualify an
+`go run ./tools/qualify-opencode --native-only` produces native campaign evidence only and cannot qualify an
 installation by itself.
 
 A requalification saves the previous record with its new evidence and first sets the active record

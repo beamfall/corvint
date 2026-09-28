@@ -555,7 +555,8 @@ do not reinterpret this Frontier result.
   The default awaited `session.prompt` hook MUST append bounded, framed, receipt-linked context
   to that same prompt only while its text is unchanged and its session remains active. The complete
   addition, including disclosure and separators, MUST be at most 8000 UTF-8 bytes. It MUST deduplicate
-  event reentry and message identities, bound concurrent calls and session state, cancel deleted or
+  event reentry and message identities, count each in-flight request once (including when the first
+  prompt overlaps session startup), bound concurrent calls and session state, cancel deleted or
   evicted sessions, and discard late responses. The adapter MUST NOT persist prompts or inspect
   transcripts; OpenCode itself may store the augmented native prompt as normal conversation history.
   `corvint_expand` encodes supplied pinned tree/blob/path tuples as cv1 selectors and delegates
@@ -583,6 +584,12 @@ do not reinterpret this Frontier result.
   evidence and atomically invalidate the active record before execution, so failure/interruption
   cannot leave stale FULL active. Final publication MUST be atomic. The record is ignored local
   derived evidence; the command documents its prerequisites and actual executable requirement.
+  Under GOC-V0-008, the maintained producer, native campaign, PTY driver and their safety
+  regressions MUST execute in Go. Collector identity MUST cover its entrypoint, implementation,
+  embedded observers, build inputs and executing binary. Invalid executable admission MUST
+  invalidate prior PASS after the source/output paths are admitted. Interrupted-child evidence
+  MUST observe descendant absence before any witness rescue cleanup; a deliberately broken
+  cleanup negative control MUST fail. Architecture names MUST match the Node consumer tuple.
   A producer-to-consumer regression MUST cover successful publication, all retained failure classes,
   identity drift and interruption. Rollback is removal of the native plugin entry or reverting the package; no host
   fork, daemon, account, authority installation or durable outcome migration is required.
@@ -894,8 +901,9 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 | Requirement | Implementation surface | Required evidence |
 |---|---|---|
 | `AHI-001`, `003`, `005`, `014` | shared `corvint harness event` core and `internal/projectpath` | canonical receipt, bounds, privacy, revision, and event fixtures; `TestHostAdapterAbsentPathContainment` and `TestRelativeAliasesAndUncertainty` cover `AHI-014` path containment, and the `integrations/host-adapters.test.mjs` test `AHI-014 Gemini classifies changed paths on resolved symlinks like internal/projectpath` under `TestHostAdapterJavaScriptHosts` covers the Gemini hook's symlink resolution; `TestClaudeAdapterForkSessionStartIsResume` covers the Claude `fork` start source; `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` drives the Claude `SessionStart(source=compact)` hook entrypoint over a mixed dirty worktree and requires the tracked impact, the untracked count and `compaction-untracked-paths-not-rehydratable` from the receipt's own snapshot; `TestQualifiedLifecycleCompactSessionStartRehydratesDirtyPaths` requires the same for the qualified profile under FULL and FALLBACK and refuses a reordered, extra or dropped code; `TestAHI014EventExpectationsAreHostConsistent` (`conformance/harness-event-v0/host_schema_test.go`) pins each `common-logical-interaction.json` event's closed host set and requires every present host's golden `expected` object to be byte-identical, so a per-host field or host-membership mutation of that fixture fails here |
-| `AHI-033` | `integrations/opencode/src/inspector.js`, `src/tui.tsx`, and inspector RPC in `src/index.js` | `integrations/opencode/inspector.test.mjs`, AHI-033 cases under `TestHostAdapterJavaScriptHosts`, and `script/qualify-opencode-inspector.py` (stock native rendering, pinned source, narrow keyboard use and interruption cleanup) |
-| `AHI-034` | `integrations/opencode/src/cockpit.js`, `cockpit-tui.tsx`, `index.js`, `runtime.js` | `integrations/opencode/cockpit.test.mjs` and `script/qualify-opencode-inspector.py`: bounded fixed reads, safe output paths, stale/owner/check-rerun races, advisory impact navigation, independent workflow/check state and real native change/proof workflow |
+| `AHI-032` | `internal/opencodequalification`, `tools/qualify-opencode`, native prompt hook and qualification consumer | `internal/opencodequalification/record_test.go::TestRecordValidation`, `::TestAtomicRecord`, `::TestArchitecture`, `::TestProducerConsumer`; `internal/opencodequalification/command_test.go::TestInvalidHostInvalidatesQualification`; `internal/opencodequalification/witness_posix_test.go::TestGateInterruptionWitness`; first-prompt startup overlap in `TestHostAdapterJavaScriptHosts`; exact-tuple native campaign required |
+| `AHI-033` | `integrations/opencode/src/inspector.js`, `src/tui.tsx`, and inspector RPC in `src/index.js` | `integrations/opencode/inspector.test.mjs`, AHI-033 cases under `TestHostAdapterJavaScriptHosts`, and `tools/qualify-opencode --inspector` (stock native rendering, pinned source, narrow keyboard use and interruption cleanup) |
+| `AHI-034` | `integrations/opencode/src/cockpit.js`, `cockpit-tui.tsx`, `index.js`, `runtime.js` | `integrations/opencode/cockpit.test.mjs` and `tools/qualify-opencode --inspector`: bounded fixed reads, safe output paths, stale/owner/check-rerun races, advisory impact navigation, independent workflow/check state and real native change/proof workflow |
 | `AHI-025` | `cmd/corvint/pi_tools.go`, `integrations/pi/tools.js` | `TestPiToolContextExpansion`, `TestPiToolRecord`, `TestPiToolClosedInput` and native Pi tool/RPC fixtures |
 | `AHI-026` | `integrations/claude-code/plugins/corvint/hooks/hooks.json`, `compatibility.json` `compactionHooks`, `cmd/corvint/host_adapter.go` declared-kill table | `TestAHI026ClaudeCompactionHooksRegisteredAgainstHostAPI` (matcherless `PreCompact`/`PostCompact` groups, verified host version equals the tested maximum, closed trigger set) and `TestAHI017AdapterHostKillMatchesDeclaredHooks` (the two new declared kills) |
 | `AHI-027` | `cmd/corvint/host_adapter_compaction.go` (`runClaudeCompactionEvent`, `compactionBlockFor`, `compactionPinLine`), `emitAdapterOutput` plain-stdout branch | `TestAHI027ClaudePreCompactEmitsPinFromCompactionBlock` (instruction plus pin as text, pin equals the fixture's HEAD tree and tracked dirty path, 24-path bound with hostile paths elided); `TestAHI027ClaudeCompactionPinsCleanAndUntrackedOnlyTrees` (clean and untracked-only trees pin the HEAD tree and report without a fault; an over-budget block elides its unlisted tracked paths); `TestClaudeCompactionDegradationIsPlainText` (degradations print frame text through `compactionPlainOutput`, an empty summary prints an empty line) |

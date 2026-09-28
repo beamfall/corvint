@@ -426,7 +426,6 @@ async function setup(ctx) {
     if (identity) bound.state.pendingPrompts.add(identity)
     const original = event.prompt.text
     const call = new AbortController()
-    bound.state.calls.add(call)
     try {
       const result = await corvintContext.execute({ task: original }, { sessionID: event.sessionID, signal: call.signal })
       if (!bound.state.active || call.signal.aborted || events.signal.aborted || event.prompt.text !== original) return
@@ -450,7 +449,6 @@ async function setup(ctx) {
       report("prompt-context-failed", "user-prompt")
     } finally {
       if (identity) bound.state.pendingPrompts.delete(identity)
-      bound.state.calls.delete(call)
     }
   }
 

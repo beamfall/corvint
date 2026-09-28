@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@corvint/opencode",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Native OpenCode integration for Corvint",
   "type": "module",
   "exports": {
@@ -26,7 +26,7 @@
     "plugin"
   ],
   "corvintIntegration": {
-    "adapterVersion": "0.7.1",
+    "adapterVersion": "0.7.2",
     "apiReferenceVersion": "2.0.18",
     "host": "opencode",
     "lastConformance": {

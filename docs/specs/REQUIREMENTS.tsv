@@ -144,8 +144,8 @@ AHI-029	docs/specs/agent-harness-integration-v0.md	495	Neither compaction event 
 AHI-030	docs/specs/agent-harness-integration-v0.md	497	Every compact `SessionStart` context MUST begin with a fixed trusted disclosure
 AHI-031	docs/specs/agent-harness-integration-v0.md	501	(accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot
 AHI-032	docs/specs/agent-harness-integration-v0.md	537	At the owner’s request (2026-09-28), stock OpenCode native integration qualifica
-AHI-033	docs/specs/agent-harness-integration-v0.md	591	The owner-approved first OpenCode UI slice (2026-09-28, “looks good. build it”
-AHI-034	docs/specs/agent-harness-integration-v0.md	646	The owner-approved change cockpit (2026-09-28, “do it” after the change
+AHI-033	docs/specs/agent-harness-integration-v0.md	598	The owner-approved first OpenCode UI slice (2026-09-28, “looks good. build it”
+AHI-034	docs/specs/agent-harness-integration-v0.md	653	The owner-approved change cockpit (2026-09-28, “do it” after the change
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,
