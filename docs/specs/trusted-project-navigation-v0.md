@@ -123,3 +123,25 @@ live qualification sets `CORVINT_TRUSTED_NAV_PYTHON`; missing fixture tooling is
 Independent review checks the owning span and trust boundary. Full HDC capsule/build/offline gates
 remain NOT_RUN. Revert the separate implementation and this exception to roll back; emitted
 artifacts are proposals and require no migration or repository repair.
+
+## Diagnostic codes
+
+| Code | Meaning |
+|---|---|
+| `trusted-project-required` | Explicit project/toolchain trust was not granted. |
+| `trusted-nav-platform` | The host lacks this profile's supported process-group lifecycle. |
+| `trusted-nav-request` | The closed request, pins or request-level limits are invalid. |
+| `trusted-nav-input` | An input is unavailable, nonregular, changed during acquisition or too large. |
+| `trusted-nav-limit` | Request, source, candidate or result bytes exceed the profile's bounds. |
+| `trusted-nav-stale` | The requested revision or config hash does not match captured source. |
+| `trusted-nav-dirty` | The repository is not clean. |
+| `trusted-nav-source` | Replacement refs, unsupported/ambiguous paths or invalid Git blobs prevent immutable staging. |
+| `trusted-nav-source-changed` | Worktree paths/bytes or HEAD changed during verification. |
+| `trusted-nav-environment` | The interpreter or project lock is unavailable or fails its pin. |
+| `trusted-nav-probe` | The fixed probe returned an invalid authority snapshot. |
+| `trusted-nav-probe-refused` | The pinned probe refused its input or exceeded execution/output bounds. |
+| `trusted-nav-authority` | Config ownership, span or inventory identity is inconsistent. |
+| `trusted-nav-document` | A proposed document is invalid, empty or overlaps another source path. |
+| `trusted-nav-entry` | A navigation entry is invalid, duplicated or names a missing page. |
+| `trusted-nav-reload` | Reloaded candidate navigation differs from the proposed value. |
+| `trusted-nav-cleanup` | Temporary cleanup failed; no success artifact is emitted and the retained path is diagnosed. |

@@ -83,3 +83,10 @@ Genesis Git containment retains the existing `TestDescendantCleanupOnCancellatio
 
 Focused results and independent review are recorded in BUILD-LOG. Root owns final frozen full gate,
 CEM/OCM and first-release integration; focused results alone do not assert promotion.
+
+## Index observation labels
+
+Overview index observations use `captured-tree` as the matching reason when both index commit
+and tree equal the captured repository revision and tree.
+An index-probe read error is retained as `snapshot-read-failed`; it leaves index state unknown and
+does not authorize a rebuild or imply freshness.
