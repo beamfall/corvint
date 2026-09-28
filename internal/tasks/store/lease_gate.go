@@ -28,12 +28,18 @@ type gateRun struct{ record, output []byte }
 
 // GateRun runs one policy command gate in worktree at the attempt's
 // candidate tree, then records it (CAL-V0-016). The gate runs before the
-// store lock is taken, so a long gate never holds it; the model then
-// rechecks the attempt, tree and definition under the lock. A repeated
+// store lock is taken, so a long gate never holds it; the prepared model
+// rechecks the attempt, tree and definition, then binds them under lock. A repeated
 // request id reruns the gate before the replay is found. A stale or
 // unsubmitted attempt is not run: the model answers it with no gate facts.
+// Before reading, it settles the journal through guarded recovery, so a gate run
+// retried after a crash recovers as any other writer does (CAL-V0-019).
 func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, worktree string, clock func() time.Time) (*Report, error) {
-	a, policy, err := unlockedAttempt(repo, choice.Lease.AttemptID)
+	redone, err := settleLease(ctx, repo)
+	if err != nil {
+		return &Report{}, err
+	}
+	a, policy, err := unlockedAttempt(ctx, repo, choice.Lease.AttemptID)
 	if err != nil {
 		return &Report{}, err
 	}
@@ -58,18 +64,18 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 	if err != nil {
 		return &Report{}, err
 	}
-	return Lease(ctx, repo, actor, choice, now)
+	report, err := Lease(ctx, repo, actor, choice, now)
+	if report != nil {
+		report.Redone = report.Redone || redone
+	}
+	return report, err
 }
 
 // unlockedAttempt reads the attempt and policy without the store lock; the
-// model rechecks both under it.
-func unlockedAttempt(repo *intent.Repository, attemptID string) (*snapshot.Attempt, *intent.Policy, error) {
-	observed, err := snapshot.Probe(repo.StateDir)
-	if err != nil {
-		return nil, nil, err
-	}
+// prepared model and locked guard recheck both before committing.
+func unlockedAttempt(ctx context.Context, repo *intent.Repository, attemptID string) (*snapshot.Attempt, *intent.Policy, error) {
 	path := "attempts/" + attemptID + ".json"
-	proof, err := journalReader(repo, observed.Head).Audit("intent/policy.json", path)
+	proof, err := readLeaseProof(ctx, repo)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -278,11 +284,11 @@ func gateFacts(repo *intent.Repository, choice LeaseChoice) claimObserver {
 	l := choice.Lease
 	switch l.Verb {
 	case transaction.LeaseSubmit:
-		return func(proof *journal.Result) (transaction.LeaseFacts, error) {
+		return func(proof *journal.Result, _ *transaction.Input) (transaction.LeaseFacts, error) {
 			return submitFacts(leaseRoot(repo, choice), proof, l)
 		}
 	case transaction.LeaseGateRun:
-		return func(proof *journal.Result) (transaction.LeaseFacts, error) {
+		return func(proof *journal.Result, _ *transaction.Input) (transaction.LeaseFacts, error) {
 			results, err := attemptGateResults(repo, proof, l.AttemptID)
 			if choice.gate == nil || err != nil {
 				return transaction.GateFacts(nil, nil, nil, "", false, results), err
@@ -290,7 +296,7 @@ func gateFacts(repo *intent.Repository, choice LeaseChoice) claimObserver {
 			return transaction.GateFacts(nil, choice.gate.record, choice.gate.output, "", false, results), nil
 		}
 	case transaction.LeaseComplete:
-		return func(proof *journal.Result) (transaction.LeaseFacts, error) {
+		return func(proof *journal.Result, _ *transaction.Input) (transaction.LeaseFacts, error) {
 			return completeFacts(repo, leaseRoot(repo, choice), proof, l)
 		}
 	}

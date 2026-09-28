@@ -46,6 +46,7 @@ type Lock struct {
 	path     string
 	acquired time.Time
 	closed   bool
+	observe  func(time.Duration)
 }
 
 // AcquireLock takes the exclusive flock on the repository authority's lock
@@ -151,6 +152,7 @@ func AcquireLock(ctx context.Context, repo *intent.Repository, opts LockOptions)
 		poll = DefaultLockPoll
 	}
 	deadline := start.Add(wait)
+	var acquired time.Time
 	for {
 		if err := ctx.Err(); err != nil {
 			f.Close()
@@ -162,6 +164,7 @@ func AcquireLock(ctx context.Context, repo *intent.Repository, opts LockOptions)
 		}
 		err := withFD(f, flockNB)
 		if err == nil {
+			acquired = time.Now()
 			break
 		}
 		if isInterrupted(err) {
@@ -227,7 +230,8 @@ func AcquireLock(ctx context.Context, repo *intent.Repository, opts LockOptions)
 		f.Close()
 		return nil, wire.Errorf(wire.CodeLockTimeout, wantLock, "lock acquisition exceeded %v", wait)
 	}
-	return &Lock{f: f, path: wantLock, acquired: time.Now()}, nil
+	observe, _ := ctx.Value(lockObserverKey{}).(func(time.Duration))
+	return &Lock{f: f, path: wantLock, acquired: acquired, observe: observe}, nil
 }
 
 // Path is the lock file path.
@@ -248,12 +252,16 @@ func (l *Lock) Close() error {
 	}
 	l.closed = true
 	relErr := withFD(l.f, flockRelease)
+	released := time.Now()
 	closeErr := l.f.Close()
 	if relErr != nil {
 		return withCleanup(fsErr(l.path, "flock(LOCK_UN) failed: %v", relErr), closeErr)
 	}
 	if closeErr != nil {
 		return fsErr(l.path, "closing the lock descriptor failed: %v", closeErr)
+	}
+	if l.observe != nil {
+		l.observe(released.Sub(l.acquired))
 	}
 	return nil
 }

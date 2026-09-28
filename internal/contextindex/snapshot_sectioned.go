@@ -66,13 +66,16 @@ const (
 // (packBody) instead of at open; every other format ignores it.
 const loadDeferredBodies snapshotLoad = 1 << 4
 
+// loadPackOnly prevents fallback to an executable-specific snapshot.
+const loadPackOnly snapshotLoad = 1 << 5
+
 const (
 	loadContext       = loadFull | loadDeferredBodies
 	loadEventDeferred = loadEvent | loadDeferredBodies
 )
 
-// tables is the load without its body-verification mark.
-func (load snapshotLoad) tables() snapshotLoad { return load &^ loadDeferredBodies }
+// tables is the load without format and body-verification marks.
+func (load snapshotLoad) tables() snapshotLoad { return load &^ (loadDeferredBodies | loadPackOnly) }
 
 func (load snapshotLoad) deferredBodies() bool { return load&loadDeferredBodies != 0 }
 

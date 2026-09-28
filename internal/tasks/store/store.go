@@ -213,6 +213,11 @@ func applyBeforeCommit(repo *intent.Repository, session *authority.Session, plan
 	return applyWithFaults(repo, session, plan, beforeCommit, nil)
 }
 
+// publishFault, when a test sets it, runs before each artifact of every
+// transaction is published; an error stops the transaction there, as a crash
+// at that point would (CAL-V0-019). It is nil outside tests.
+var publishFault func(transaction.Artifact) error
+
 func applyWithFaults(repo *intent.Repository, session *authority.Session, plan *transaction.Plan, beforeCommit, beforeBarrierDelete func() error) (receipt string, err error) {
 	arts := plan.Artifacts()
 	record, err := snapshot.DecodeReceipt(plan.Receipt())
@@ -252,6 +257,11 @@ func applyWithFaults(repo *intent.Repository, session *authority.Session, plan *
 	}()
 	for phaseIndex, phase := range staged {
 		for _, a := range phase {
+			if publishFault != nil {
+				if err := publishFault(a); err != nil {
+					return receipt, err
+				}
+			}
 			if a.Role == "RECEIPT" && beforeCommit != nil {
 				if err := beforeCommit(); err != nil {
 					return receipt, err

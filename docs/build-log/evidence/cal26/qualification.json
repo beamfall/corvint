@@ -1,0 +1,55 @@
+{
+  "requirement": "CAL-V0-026",
+  "qualified": true,
+  "source": "5061de48d2854415c4fe8054c67033f2ff11ffa3",
+  "started": "2026-09-28T10:25:55.644473+00:00",
+  "finished": "2026-09-28T10:30:48.388904+00:00",
+  "tickets": 3000,
+  "samplesByVerb": {
+    "claim": 20,
+    "renew": 20,
+    "release": 20
+  },
+  "p95HoldMS": {
+    "claim": 121.136125,
+    "renew": 104.773667
+  },
+  "cpuCount": 12,
+  "goMaxProcs": "2",
+  "hostLoad": {
+    "1Minute": {
+      "min": 5.57373046875,
+      "max": 9.349609375
+    },
+    "5Minute": {
+      "min": 8.0927734375,
+      "max": 9.9248046875
+    },
+    "15Minute": {
+      "min": 8.29248046875,
+      "max": 8.88134765625
+    }
+  },
+  "hostSampleCount": 146,
+  "interval": "Entire go test process, including fixture construction and final cleanup; no samples excluded",
+  "builds": {
+    "candidate": {
+      "sha256": "89573033e07a9f7ac18f3c9f9c27ffbb94430f59ce2f2244593bc5e1e81e1478",
+      "goVersion": "go1.27.1",
+      "vcs": [
+        "build\tvcs.revision=5061de48d2854415c4fe8054c67033f2ff11ffa3",
+        "build\tvcs.time=2026-09-28T04:09:43Z",
+        "build\tvcs.modified=false"
+      ]
+    },
+    "baseline": {
+      "sha256": "0b2e9d48ac8f20e3d05c39503093866ecbe5664c50e22353168226c838e2877a",
+      "goVersion": "go1.27.1",
+      "vcs": [
+        "build\tvcs.revision=40f7d7e9b4c65da5660e42261c1c6e4c4ae31fe8",
+        "build\tvcs.time=2026-09-28T02:41:45Z",
+        "build\tvcs.modified=false"
+      ]
+    }
+  }
+}

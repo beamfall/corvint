@@ -119,13 +119,16 @@ func planEntry(in PlanInput, rec *ticket.Record) PlanEntry {
 }
 
 // claimBlockers are the facts that refuse a claim of rec whatever the
-// reservations: planClaim's barrier, budget, eligibility and retry checks
-// in its order. The coverage blocker is not one, because an undeclared
-// ticket claims WHOLE_REPOSITORY.
+// reservations: planClaim's barrier, execution cutover, budget, eligibility
+// and retry checks in its order. The coverage blocker is not one, because an
+// undeclared ticket claims WHOLE_REPOSITORY.
 func claimBlockers(in PlanInput, rec *ticket.Record) []ticket.Blocker {
 	out := []ticket.Blocker{}
 	if in.Barrier {
 		out = append(out, ticket.Blocker{Code: wire.CodePaused})
+	}
+	if !in.Queue.Fixture && in.Queue.ExecutionCutover == nil {
+		out = append(out, ticket.Blocker{Code: wire.CodeCutoverMissing})
 	}
 	if len(in.Policy.RequireEnforcedFields) != 0 {
 		out = append(out, ticket.Blocker{Code: wire.CodeBudgetUnknown})

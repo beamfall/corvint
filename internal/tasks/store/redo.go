@@ -13,7 +13,8 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// redoPending completes a transaction whose receipt was linked in but whose
+// redoPending first clears any staging slots a killed writer left, then
+// completes a transaction whose receipt was linked in but whose
 // post files or head were not written (§5.2 crash point C2). It runs under
 // the lock, before any new transaction is modelled.
 //
@@ -22,6 +23,11 @@ import (
 // completing it needs nothing but the receipt itself. Redo is applied by the
 // same rule as a first write, and it never overwrites a third value.
 func redoPending(repo *intent.Repository, session *authority.Session) (bool, error) {
+	// A writer killed part-way leaves staging slots that every reader refuses
+	// as unassigned; under the lock they are orphans (CAL-V0-019).
+	if _, err := session.RemoveOrphanStages(); err != nil {
+		return false, err
+	}
 	head, err := readHead(repo)
 	if err != nil {
 		return false, err
