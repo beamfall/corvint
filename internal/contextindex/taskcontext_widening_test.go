@@ -581,10 +581,13 @@ func TestTaskContextReportsUnexaminedScopePerRelation(t *testing.T) {
 			t.Fatalf("unexamined order = %v, want %v", relations, contextRelationOrder)
 		}
 		states, withheld := contextUnexamined(t, coverage)
-		for _, relation := range []string{"pair", "reverse-import", "reference", "cochange", "sibling"} {
+		for _, relation := range []string{"reverse-import", "reference", "cochange", "sibling"} {
 			if states[relation] != "subject-absent" || withheld[relation] != nil {
 				t.Fatalf("%s = %v / %v, want subject-absent and an uncounted withheld", relation, states[relation], withheld[relation])
 			}
+		}
+		if states["pair"] != "examined" || withheld["pair"] == nil {
+			t.Fatalf("lexical anchor pair = %v / %v", states["pair"], withheld["pair"])
 		}
 		// No id token and no named spec path: the resolver never ran.
 		if states["spec-mentioned"] != "not-applicable" || withheld["spec-mentioned"] != nil {

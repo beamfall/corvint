@@ -120,7 +120,18 @@ it must read, each with the relation that admitted it, without naming the task's
   corroborating relations, slot order among equals, raises `score` by 50 per relation, and names
   the relations in `summary` after "; also"; the evidence row stays the admitting relation's
   (decision 0027). Without `--subject` the packet has the retrieval shape: `mentioned`,
-  `definition`, `lexical`. (A) The rows reserved by
+  `definition`, `test`, `lexical`. Outside the opt-in named-test frame, after final reservation
+  and ranking, up to three additional
+  `pair` rows may replace the weakest unrelated lexical test rows: their anchors must be
+  selected non-test lexical sources, and the counterpart must satisfy the existing naming
+  convention. Counterparts already selected are retained; a lexical counterpart behind unrelated lexical
+  tests can be promoted in place to `pair` within the same cap. Selected counterpart tests are never
+  victims. New pairs precede remaining unrelated lexical tests, while every selected source,
+  governing row and other non-lexical row is retained. Unfilled budget may admit a pair directly.
+  Remaining lexical rows retain their BM25 order; their public score remains a relation weight,
+  not the BM25 value reported in their evidence. Pair generators and cap/budget omissions are
+  disclosed by TCP-V0-011; a subjectless pair relation is examined when lexical anchors are scanned.
+  (A) The rows reserved by
   TCP-V0-008, TCP-V0-009 and TCP-V0-047 precede this order and each costs one row of `--limit`, and TCP-V0-010 narrows which
   identifiers the `definition` slot may use; the caps, weights and relative slot order above are otherwise unchanged.
 - `TCP-V0-005`: The subject is never a result. It is carried under `subject` with its path and a
@@ -180,7 +191,7 @@ it must read, each with the relation that admitted it, without naming the task's
   `reference`, `cochange`, `sibling`, `test`, `lexical`, `documentation`; `state` is `examined`, `capped`, `empty-history`, `subject-absent` (the relation needs a
   subject and the retrieval shape has none), `subject-symbols-incomplete` (amended 2026-09-12, invariant 2: `reference` only, when
   `Index.Unparsed` records the subject with facts other than `imports` or `Index.ExtractionNotes` records it, so the slot read a
-  missing or partial symbol table for the subject; `withheld` is still counted), or `not-applicable`; `withheld` is an integer, or `null` when not counted. A task-named path runs the
+  missing or partial symbol table for the subject; `withheld` is still counted), or `not-applicable`; `withheld` is an integer, or `null` when not counted. A task-named path or a selected non-test lexical source runs the
   `pair` generator even without `--subject`, so that relation is `examined`, including when no counterpart is found. Its count includes counterparts
   materialised through the mention slot under the same admission accounting; without a subject or a named path it remains `subject-absent` / `null`.
   `withheld` is the candidates a
@@ -255,7 +266,8 @@ it must read, each with the relation that admitted it, without naming the task's
   one half, and each mention its inverse document frequency), then fired signals, then path;
   at most one `test` row is
   admitted (`test-convention`; high with two or more signals, else medium; score 650), placed
-  after the `definition` slot and before the lexical fill. The evidence reason is
+  after the `definition` slot and before the lexical fill. TCP-V0-004 separately admits bounded
+  naming counterparts of selected lexical sources without broadening this multi-signal slot. The evidence reason is
   `tests <anchor>: <signals>` or `is tested by <anchor>: <signals>` with the fired signals in the
   order (a)-(d), the mention signal naming the rarest name and its inverse document frequency.
   Equal-IDF witness names use lexical order, and mention weights accumulate in sorted
@@ -1120,14 +1132,14 @@ wire never changed.
 | TCP-V0-001 | `runTaskContext` (the tree's snapshot when `corvint index` wrote one, else one `contextindex.Build`; no writer, index-snapshot-v0) | `TestRunTaskContextIsReadOnlyAndKeepsTheSubjectOut` |
 | TCP-V0-002 | `parseTaskContextInvocation`, `TaskContext` (limit, task, subject checks) | `TestParseTaskContextInvocation`, `TestTaskContextRetrievalShapeAndNoCandidates` |
 | TCP-V0-003 | `taskContextCompiler.packet`, `rowAction`, `contextRow` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestTaskContextRowsCarryAnAction` |
-| TCP-V0-004 | `compile`, `corroborate`, `pairRows`, `pairConfidence`, `mentionRows`, `mentionedPaths`, `contextPathTokens`, `symbolRows`, `importerRows`, `referenceRows`, `subjectSymbols`, `readCoChangeHistory`, `dropGraftedCommits`, `cochangeCommitCap`, `cochangeRows`, `siblingRows`, `identifierEvidence`, `lexicalRows`, `buildTermTable`, `countTerms`, `scanWords` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestTaskContextAdmitsReverseImportersAndMentionedPaths`, `TestTaskContextAdmitsExplicitExtensionlessAndDotPrefixedPaths`, `TestTaskContextAdmitsFilesNamingASubjectSymbol`, `TestTaskContextAdmitsCoChangedPathsAndIgnoresBulkCommits`, `TestTaskContextCochangeSkipsTheShallowBoundaryCommit`, `TestCochangeCommitCapTightensWithRepositoryAge`, `TestTaskContextRanksCorroboratedRowsFirst`, `TestTaskContextRetrievalShapeAndNoCandidates`, `TestCountTermsMatchesTheRegexTokeniser`, `TestLexicalRowsMatchWholeTokensFromTheTable`, `TestIdentifierEvidenceCountsWholeWordsByWeight`, `TestContextEqualIDFTestEvidenceIsStable` |
+| TCP-V0-004 | `admitLexicalPairs`, `compile`, `corroborate`, `pairRows`, `pairConfidence`, `mentionRows`, `mentionedPaths`, `contextPathTokens`, `symbolRows`, `importerRows`, `referenceRows`, `subjectSymbols`, `readCoChangeHistory`, `dropGraftedCommits`, `cochangeCommitCap`, `cochangeRows`, `siblingRows`, `identifierEvidence`, `lexicalRows`, `buildTermTable`, `countTerms`, `scanWords` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestTaskContextAdmitsReverseImportersAndMentionedPaths`, `TestTaskContextAdmitsExplicitExtensionlessAndDotPrefixedPaths`, `TestTaskContextAdmitsFilesNamingASubjectSymbol`, `TestTaskContextAdmitsCoChangedPathsAndIgnoresBulkCommits`, `TestTaskContextCochangeSkipsTheShallowBoundaryCommit`, `TestCochangeCommitCapTightensWithRepositoryAge`, `TestTaskContextRanksCorroboratedRowsFirst`, `TestTaskContextRetrievalShapeAndNoCandidates`, `TestCountTermsMatchesTheRegexTokeniser`, `TestLexicalRowsMatchWholeTokensFromTheTable`, `TestIdentifierEvidenceCountsWholeWordsByWeight`, `TestContextEqualIDFTestEvidenceIsStable`, `TestRunTaskContextSubjectlessCounterparts`, `TestTaskContextSelectedLexicalPairs`, `TestTaskContextLexicalPairPromotion` |
 | TCP-V0-005 | `take` (subject skipped), `packet` (`subject` member), `subjectEvidenceGap` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestRunTaskContextIsReadOnlyAndKeepsTheSubjectOut`, `TestTaskContextRetrievalShapeAndNoCandidates` |
 | TCP-V0-006 | `packet` (`state`, `coverage`) | `TestTaskContextRetrievalShapeAndNoCandidates` |
 | TCP-V0-007 | `runTaskContext` (`gokernel.CanonicalJSON`) | `TestRunTaskContextIsReadOnlyAndKeepsTheSubjectOut` |
 | TCP-V0-008 | `taskContextCompiler.governingRow`, `instructionCandidates`, `instructionRank`, `projectOperationPath`, `readable`, `reserve`, `reservedRows` | `TestTaskContextReservesInstructionsForUnrelatedVocabulary` (falsifier a), `TestTaskContextKeepsTheSubjectOutUnderReservedRelations` (falsifier f), `TestTCPV0008NestedInstructionEligibilityIsShared` |
 | TCP-V0-009 | `specMentionedRows`, `specPaths`, `specDefinitions`, `requirementIDs`, `requirementIDTokens`, `idBoundary`, `namedSpecPaths`, `governance` | `TestTaskContextAdmitsSpecsNamedByIdOrPath`, `TestTaskContextEqualByteLexicalControlLosesOnlySpecMentionedRows` (falsifier b) |
 | TCP-V0-010 | `definitionEligible` (applied in `symbolRows` only) | `TestTaskContextProseIdentifierControlAdmitsNoDefinitions` (falsifier d), `TestSymbolRowsDefinerCountsExact` |
-| TCP-V0-011 | `criticalSelectors`, `unexamined`, `withheld`, `budgetShortage`, `markRan`, `markState`, `markSubjectSymbols`, `subjectSymbolsIncomplete`, `pairRows`, `takeSlot`, `anyEligible`, `packet` (`coverage`) | `TestTaskContextReportsCriticalMissingAndSlotShortage` (falsifier c), `TestTaskContextReportsUnexaminedScopePerRelation`, `TestTaskContextReportsNamedPathPairScope`, `TestTaskContextReportsNamedPathPairSlotOmissions`, `TestTaskContextDisclosesAnUnparsedSubjectsSymbols` |
+| TCP-V0-011 | `criticalSelectors`, `unexamined`, `withheld`, `budgetShortage`, `markRan`, `markState`, `markSubjectSymbols`, `subjectSymbolsIncomplete`, `pairRows`, `takeSlot`, `anyEligible`, `packet` (`coverage`) | `TestTaskContextReportsCriticalMissingAndSlotShortage` (falsifier c), `TestTaskContextReportsUnexaminedScopePerRelation`, `TestTaskContextReportsNamedPathPairScope`, `TestTaskContextReportsNamedPathPairSlotOmissions`, `TestTaskContextDisclosesAnUnparsedSubjectsSymbols`, `TestTaskContextSelectedLexicalPairs` |
 | TCP-V0-012 | `internal/contextindex/taskcontext_widening_test.go` | the six cases above plus `TestTaskContextAmendedPacketIsByteIdenticalAcrossRuns` (falsifier e) |
 | TCP-V0-013 | `lexicalRows`, `isDocumentationSuffix`, `contextRelationOrder` | `TestTaskContextPlacesDocumentationAfterFiveCodeRows` |
 | TCP-V0-014 | `lexicalRows`, `taskLexicalTerms`, `TermTable.documentLengths` | `TestLexicalRowsMatchWholeTokensFromTheTable`, `TestLexicalRowsOrderByBM25AndAnswerWholeIdentifiers` |

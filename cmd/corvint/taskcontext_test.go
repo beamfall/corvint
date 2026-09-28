@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -95,4 +96,62 @@ func repositoryListing(t *testing.T, root string) string {
 		t.Fatal(err)
 	}
 	return string(output)
+}
+
+func TestRunTaskContextSubjectlessCounterparts(t *testing.T) {
+	t.Run("TCP-V0-004 selected lexical sources retain paired tests", func(t *testing.T) {
+		root := taskContextRepository(t)
+		files := map[string]string{
+			"alpha.go":      "package fixture\n// Record response status when flushing.\nfunc Alpha() {}\n",
+			"beta.go":       "package fixture\n// Record response status when flushing.\nfunc Beta() {}\n",
+			"alpha_test.go": "package fixture\nfunc TestAlpha() {}\n",
+			"beta_test.go":  "package fixture\nfunc TestBeta() {}\n",
+		}
+		for i := 0; i < 12; i++ {
+			files[fmt.Sprintf("unrelated%02d_test.go", i)] = fmt.Sprintf("package fixture\n// response status\nfunc TestUnrelated%d() {}\n", i)
+		}
+		for name, content := range files {
+			if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		for _, args := range [][]string{{"add", "."}, {"-c", "user.name=t", "-c", "user.email=t@x", "commit", "-qm", "counterparts"}} {
+			cmd := exec.Command("git", args...)
+			cmd.Dir = root
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("%v: %s", err, out)
+			}
+		}
+		var stdout, stderr bytes.Buffer
+		code := runContext(context.Background(), []string{"--root", root, "context", "--task", "record response status when flushing", "--limit", "8"}, strings.NewReader(""), &stdout, &stderr)
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, &stderr)
+		}
+		var packet struct {
+			Results []struct {
+				Kind, ID string
+				Evidence []struct{ Reason, Authority string }
+			}
+		}
+		if err := json.Unmarshal(stdout.Bytes(), &packet); err != nil {
+			t.Fatal(err)
+		}
+		positions := map[string]int{}
+		for i, row := range packet.Results {
+			positions[row.ID] = i
+		}
+		for _, name := range []string{"alpha.go", "beta.go", "alpha_test.go", "beta_test.go"} {
+			if _, ok := positions[name]; !ok {
+				t.Fatalf("missing %s: %s", name, &stdout)
+			}
+		}
+		if len(packet.Results) != 8 || positions["alpha.go"] >= positions["beta.go"] {
+			t.Fatalf("limit or lexical strength order changed: %s", &stdout)
+		}
+		for _, row := range packet.Results {
+			if strings.HasPrefix(row.ID, "unrelated") && positions[row.ID] < positions["beta_test.go"] {
+				t.Fatalf("unrelated test precedes counterpart: %s", &stdout)
+			}
+		}
+	})
 }

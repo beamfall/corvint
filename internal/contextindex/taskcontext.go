@@ -275,11 +275,90 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 	rows = compiler.corroborate(rows)
 	rows = compiler.reserve(rows)
 	rows = compiler.placeGraphRows(rows, limit)
+	if compiler.subject == "" && !frameActive {
+		rows = compiler.admitLexicalPairs(rows, limit)
+	}
 	// `candidates` is the distinct paths the slots admitted (TCP-V0-006); a
 	// row a slot cap held back is `withheld`, not a candidate.
 	compiler.admitted = len(rows)
 	if len(rows) > limit {
 		rows, compiler.truncated = rows[:limit], true
+	}
+	return rows
+}
+
+// admitLexicalPairs keeps selected source anchors and authority intact while
+// replacing the weakest unrelated lexical tests with bounded naming counterparts.
+// The remaining lexical rows retain their BM25 order; relation scores are not BM25.
+func (compiler *taskContextCompiler) admitLexicalPairs(rows []contextRow, limit int) []contextRow {
+	selected := rows[:min(len(rows), limit)]
+	candidates := []contextRow{}
+	protected := map[string]bool{}
+	for _, row := range selected {
+		if row.kind != "lexical" || contextIsTest(row.path) {
+			continue
+		}
+		for _, pair := range compiler.pairRows(row.path) {
+			if !contextIsTest(pair.path) {
+				continue
+			}
+			protected[pair.path] = true
+			candidates = append(candidates, pair)
+			compiler.candidates["pair"] = append(compiler.candidates["pair"], pair.path)
+		}
+	}
+	admitted := 0
+	for _, pair := range candidates {
+		at := slices.IndexFunc(rows, func(row contextRow) bool { return row.path == pair.path })
+		if at >= 0 && at < limit && rows[at].kind != "lexical" {
+			continue
+		}
+		if admitted == contextPairCap {
+			compiler.slotOmitted = true
+			continue
+		}
+		first, last := -1, -1
+		for i, row := range rows[:min(len(rows), limit)] {
+			if row.kind == "lexical" && contextIsTest(row.path) && !protected[row.path] {
+
+				if first < 0 {
+					first = i
+				}
+				last = i
+			}
+		}
+		if at >= 0 && at < limit {
+			if first < 0 || at < first {
+				continue
+			}
+			compiler.promoted[pair.path] = rows[at].kind
+			rows = slices.Delete(rows, at, at+1)
+			rows = slices.Insert(rows, first, pair)
+			admitted++
+			continue
+		}
+
+		if first < 0 {
+			if len(rows) < limit {
+				rows = append(rows, pair)
+				compiler.chosen[pair.path] = struct{}{}
+				admitted++
+			} else {
+				compiler.slotOmitted = true
+			}
+			continue
+		}
+		// Remove an already materialised tail row before promoting its relation.
+		if at >= limit {
+			compiler.promoted[pair.path] = rows[at].kind
+			rows = slices.Delete(rows, at, at+1)
+		}
+		displaced := rows[last]
+		rows = slices.Delete(rows, last, last+1)
+		rows = slices.Insert(rows, first, pair)
+		rows = slices.Insert(rows, min(limit, len(rows)), displaced)
+		compiler.chosen[pair.path] = struct{}{}
+		admitted++
 	}
 	return rows
 }
