@@ -33,3 +33,6 @@ benchmarks/results/*.partial.json
 
 # Installed JavaScript dependencies (extensions/, integrations/).
 node_modules/
+
+# Exact local OpenCode qualification; produced after the frozen gates.
+/integrations/opencode-qualification.json

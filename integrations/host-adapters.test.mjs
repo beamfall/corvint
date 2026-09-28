@@ -1,3 +1,4 @@
+import './opencode-qualification.test.mjs'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { execFileSync, spawn } from 'node:child_process'
