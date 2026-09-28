@@ -286,13 +286,14 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
   apply to this runtime. The lease verbs read Git in the caller's checkout, else the primary
   worktree.
 - A14: S1. `init` accepts a queue whose `fixture` is false, with `importMapSha256` and
-  `executionCutover` null, so that a non-fixture store exists to write to; the INIT digest keeps its
-  `MALFORMED` refusal for every other queue shape. Until S7 records an execution cutover
-  (CAL-V0-020), `executionCutover` stays refused on every queue, so on a non-fixture queue `claim`
-  and `claim --next` refuse `BLOCKED` `CUTOVER_MISSING`, and `plan preview` plans each ticket
-  `BLOCKED` with `CUTOVER_MISSING` after `PAUSED` and before `BUDGET_UNKNOWN`. Staging an
-  observation, release mutations and `reconcile` stay fixture-only: CAL-V0-001 does not name
-  them.
+  `executionCutover` null, so that a non-fixture store exists to write to; a queue that names an
+  import map or an execution cutover still refuses `MALFORMED`. Such a store also takes ticket
+  `reconcile` and the S2 writer `cutover`. Until S7 records an execution cutover (CAL-V0-020),
+  `executionCutover` stays refused on every queue, so on a non-fixture queue `claim` and
+  `claim --next` refuse `BLOCKED` `CUTOVER_MISSING` for the missing execution cutover, and
+  `plan preview` plans each ticket `BLOCKED` with `CUTOVER_MISSING` after `PAUSED` and before
+  `BUDGET_UNKNOWN`. Staging an observation, release mutations and release reconciliation stay
+  fixture-only: CAL-V0-001 does not name them.
 
 ## Failure modes
 
@@ -308,6 +309,7 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
 | Store edited outside corvint-tasks during an import (`git pull`, an editor) | Batches after the first check only the head and the files they post | A ticket the batch posts refuses `INTENT_DIVERGED` and a moved head refuses `SNAPSHOT_MOVED`; other drift is not seen until the next command audits the store (CAL-V0-018) |
 | Re-import after cutover | Foreign export disagrees with the published records | `import` refuses the whole export and writes nothing |
 | Non-fixture queue before execution cutover | Agents try to claim | `claim` and `claim --next` refuse `BLOCKED` `CUTOVER_MISSING` and `plan preview` plans every ticket `BLOCKED`; ticket writes still work |
+| Writer killed between its first staged artifact and its head | Staging slots stay behind with no `staging/active.json` | Every later read and write refuses `MALFORMED` `unassigned stage slot` until recovery; S7 removes the orphan slots under the writer lock and redoes a committed receipt (CAL-V0-019) |
 | Derived scope misses a file the agent needs | Agent edits outside its scope | `submit` refuses `OUT_OF_SCOPE`; the agent `widen`s, or releases and reclaims with `--scope` |
 | Two disjoint scopes interfere semantically | Each passes alone, the merge breaks | Gates run at the exact rebased candidate tree before `complete` (CAL-V0-016, CAL-V0-017) |
 | Context index absent or stale | No derivation | The scope is `WHOLE_REPOSITORY`, which serializes that claim as today |

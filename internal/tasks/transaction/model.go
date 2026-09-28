@@ -246,7 +246,7 @@ func Digest(r Request) (wire.Digest, error) {
 			return "", e
 		}
 		if queue.QueueID != q {
-			return "", malformed("INIT fixture identity")
+			return "", malformed("INIT queue identity")
 		}
 		if _, e = intent.DecodePolicy(r.Policy); e != nil {
 			return "", e

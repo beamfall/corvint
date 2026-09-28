@@ -36,8 +36,8 @@ func nonFixture(t *testing.T, writer string) *intent.Repository {
 
 // TestCALV0001_NonFixtureQueueTakesEveryWrite: a queue with fixture false and
 // a null importMapSha256 initializes and then commits a ticket create and
-// edit, an import, pause, unpause and a policy update, and its journal
-// audits CONSISTENT.
+// edit, an import, pause, unpause, a policy update and the writer cutover,
+// and its journal audits CONSISTENT.
 func TestCALV0001_NonFixtureQueueTakesEveryWrite(t *testing.T) {
 	repo := nonFixture(t, "ROADMAP")
 	created := mutate(t, repo, envelope("create-a", mutation.OpCreate, "", "", createPayload("a")))
@@ -61,27 +61,39 @@ func TestCALV0001_NonFixtureQueueTakesEveryWrite(t *testing.T) {
 	if err != nil || policy.Outcome.Outcome != mutation.OutcomeCompleted {
 		t.Fatalf("policy: %+v %v", policy, err)
 	}
+	if report := cutover(t, repo, operator(), "decision-1"); report.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("cutover: %+v", report)
+	}
 	auditOK(t, repo)
 }
 
-// TestCALV0001_ImportMappedQueueStaysRefused: a queue that names an import map
-// cannot be initialized: init refuses it VALIDATION_FAILED MALFORMED.
+// TestCALV0001_ImportMappedQueueStaysRefused: a non-fixture queue that names
+// an import map or an execution cutover cannot be initialized: init refuses
+// it VALIDATION_FAILED MALFORMED.
 func TestCALV0001_ImportMappedQueueStaysRefused(t *testing.T) {
-	repo := fixture.TempRepo(t)
-	q := fixture.QueueValue()
-	q.Obj.Set("fixture", wire.Bool(false))
-	q.Obj.Set("importMapSha256", str(string(wire.Sum([]byte("map")))))
-	fixture.Write(t, filepath.Join(repo.IntentDir, "queue.json"), wire.EncodeFile(q))
-	fixture.Write(t, filepath.Join(repo.IntentDir, "policy.json"), fixture.PolicyBytes())
-	resolved, err := intent.Resolve(repo.Root)
-	if err != nil {
-		t.Fatalf("resolve: %v", err)
+	enabled := obj("enabledBy", str("owner"), "decisionRef", str("decision-1"), "gateEvidence", wire.Strings([]string{string(wire.Sum([]byte("run")))}))
+	for field, value := range map[string]wire.Value{
+		"importMapSha256":  str(string(wire.Sum([]byte("map")))),
+		"executionCutover": enabled,
+	} {
+		t.Run(field, func(t *testing.T) {
+			repo := fixture.TempRepo(t)
+			q := fixture.QueueValue()
+			q.Obj.Set("fixture", wire.Bool(false))
+			q.Obj.Set(field, value)
+			fixture.Write(t, filepath.Join(repo.IntentDir, "queue.json"), wire.EncodeFile(q))
+			fixture.Write(t, filepath.Join(repo.IntentDir, "policy.json"), fixture.PolicyBytes())
+			resolved, err := intent.Resolve(repo.Root)
+			if err != nil {
+				t.Fatalf("resolve: %v", err)
+			}
+			report, err := store.Init(context.Background(), resolved, operator(), "req-init", now(t))
+			if err != nil {
+				t.Fatal(err)
+			}
+			refusedWith(t, report, mutation.OutcomeValidationFailed, wire.CodeMalformed)
+		})
 	}
-	report, err := store.Init(context.Background(), resolved, operator(), "req-init", now(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	refusedWith(t, report, mutation.OutcomeValidationFailed, wire.CodeMalformed)
 }
 
 // TestCALV0002_NonFixtureQueueRefusesClaims: before an execution cutover a
