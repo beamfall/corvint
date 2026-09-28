@@ -47,7 +47,11 @@ corvint --root /path/to/repo docs corpus build --manifest /existing/parent/corpu
 
 Finalization checks the provider's exact committed bytes and compiles the returned manifest before
 returning it. The source stays at A; provider input and its scope use B. Generated paragraph IDs and
-claim kinds use the existing corpus adoption contract. No source or provider commit is automatic.
+claim kinds use the existing corpus adoption contract. No source or provider commit is automatic. Opaque gitlink path/commit identities remain explicit
+unknown module records with nested contents outside coverage. Finalize scopes each regular
+superproject source file separately so a gitlink is never submitted as a missing blob. The generic
+`docs corpus manifest` scope rules remain unchanged; use flow finalization for this profile.
+Gitlink identity changes appear separately in `opaque_changes` and make check fail closed.
 
 ## Original journeys, tests and accepted variations
 

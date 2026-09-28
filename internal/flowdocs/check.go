@@ -26,7 +26,14 @@ type BindingCheck struct {
 	Reason   string            `json:"reason"`
 	Evidence []AnchorCheck     `json:"evidence"`
 }
+type OpaqueChange struct {
+	Path   string `json:"path"`
+	Before string `json:"before"`
+	After  string `json:"after"`
+}
+
 type Check struct {
+	OpaqueChanges     []OpaqueChange       `json:"opaque_changes"`
 	Source            doccorpus.Repository `json:"source"`
 	Target            doccorpus.Repository `json:"target"`
 	Bindings          []BindingCheck       `json:"bindings"`
@@ -67,6 +74,24 @@ func CheckRevision(ctx context.Context, root string, previous []byte, revision, 
 		return Check{}, err
 	}
 	result := Check{Source: old.Manifest.Source, Target: current.Manifest.Source, Bindings: []BindingCheck{}, Added: []string{}, Retired: []string{}, OutputDifferences: []string{}, Clean: true}
+	oldLinks, newLinks := map[string]string{}, map[string]string{}
+	paths := map[string]bool{}
+	for _, link := range old.Manifest.OpaqueGitlinks {
+		oldLinks[link.Path] = link.Commit
+		paths[link.Path] = true
+	}
+	for _, link := range current.Manifest.OpaqueGitlinks {
+		newLinks[link.Path] = link.Commit
+		paths[link.Path] = true
+	}
+	result.OpaqueChanges = []OpaqueChange{}
+	for name := range paths {
+		if oldLinks[name] != newLinks[name] {
+			result.OpaqueChanges = append(result.OpaqueChanges, OpaqueChange{Path: name, Before: oldLinks[name], After: newLinks[name]})
+			result.Clean = false
+		}
+	}
+	sort.Slice(result.OpaqueChanges, func(i, j int) bool { return result.OpaqueChanges[i].Path < result.OpaqueChanges[j].Path })
 	before, after := collectBindings(old.Manifest), collectBindings(current.Manifest)
 	keys := []string{}
 	for id := range before {

@@ -45,15 +45,16 @@ type Flow struct {
 }
 type Output struct{ Path, SHA256 string }
 type Manifest struct {
-	Schema   string                   `json:"schema"`
-	Version  string                   `json:"version"`
-	Source   doccorpus.Repository     `json:"source"`
-	Scope    string                   `json:"scope"`
-	Flows    []Flow                   `json:"flows"`
-	Provider doccorpus.ProviderRecord `json:"provider"`
-	Corpus   *doccorpus.Artifact      `json:"corpus,omitempty"`
-	Gaps     []string                 `json:"gaps"`
-	Outputs  []Output                 `json:"outputs"`
+	OpaqueGitlinks []OpaqueGitlink          `json:"opaque_gitlinks"`
+	Schema         string                   `json:"schema"`
+	Version        string                   `json:"version"`
+	Source         doccorpus.Repository     `json:"source"`
+	Scope          string                   `json:"scope"`
+	Flows          []Flow                   `json:"flows"`
+	Provider       doccorpus.ProviderRecord `json:"provider"`
+	Corpus         *doccorpus.Artifact      `json:"corpus,omitempty"`
+	Gaps           []string                 `json:"gaps"`
+	Outputs        []Output                 `json:"outputs"`
 }
 type Result struct {
 	Manifest Manifest
@@ -122,6 +123,10 @@ func Generate(ctx context.Context, root string, o Options) (*Result, error) {
 		return nil, err
 	}
 	m := Manifest{Schema: Schema, Version: Version, Source: doccorpus.Repository{ID: repository, Revision: o.Revision}, Scope: o.Scope, Flows: []Flow{}, Outputs: []Output{}, Gaps: []string{"Source-only lexical candidates: dynamic dispatch, metaprogramming, regex literals, interpolation, unsupported templates and runtime order are unresolved.", "Accepted variation denominator and runtime coverage are unknown unless separately supplied by revalidated corpus evidence.", "Gitlinks are opaque superproject identities; their contents are not inspected."}}
+	m.OpaqueGitlinks, err = opaqueGitlinks(ctx, auth, index, o.Revision, o.Scope)
+	if err != nil {
+		return nil, err
+	}
 	if len(o.Corpus) > 0 {
 		m.Corpus, err = doccorpus.Open(ctx, root, o.Corpus)
 		if err != nil {
@@ -132,6 +137,12 @@ func Generate(ctx context.Context, root string, o Options) (*Result, error) {
 		}
 	}
 	p := doccorpus.ProviderRecord{Schema: doccorpus.AdoptionProviderSchema, ID: "flowdocs", Version: Version, Source: m.Source, Subjects: []doccorpus.Subject{}, Claims: []doccorpus.Claim{}, Relations: []doccorpus.Relation{}, Journeys: []doccorpus.Journey{}, Observations: []doccorpus.ObservationLink{}, Details: map[string]doccorpus.RecordDetails{}}
+	for _, link := range m.OpaqueGitlinks {
+		text := "Opaque gitlink " + link.Path + " at " + link.Commit + "; nested contents outside coverage"
+		m.Gaps = append(m.Gaps, text)
+		p.Subjects = append(p.Subjects, doccorpus.Subject{ID: identity("gitlink", link.Path), Kind: "module", Name: text, Provider: p.ID, Evidence: doccorpus.Evidence{Derivation: "source-derived", Trust: "generated", State: "unknown", Freshness: "unknown", Anchors: []doccorpus.Anchor{}, Unknown: text, Limitations: []string{"Superproject commit identity only; no submodule source or runtime evidence"}}})
+	}
+
 	for _, name := range []string{"subjects", "claims", "relations"} {
 		p.Capabilities = append(p.Capabilities, doccorpus.CapabilityDeclaration{Name: name, State: "present", Reason: "bounded source-derived inventory, not runtime completeness"})
 	}
@@ -405,7 +416,7 @@ func Open(ctx context.Context, root string, raw []byte) (*Result, error) {
 // Finalize is read-only: after the caller commits provider.json, it binds that
 // later provider commit while preserving the original source revision.
 func Finalize(ctx context.Context, root string, r *Result, revision, providerPath string) (doccorpus.Manifest, error) {
-	m, err := doccorpus.Inventory(ctx, root, r.Manifest.Source.Revision, r.Manifest.Scope, "2000-01-01T00:00:00Z")
+	m, err := sourceInventory(ctx, root, r.Manifest)
 	if err != nil {
 		return m, err
 	}
@@ -428,12 +439,15 @@ func Finalize(ctx context.Context, root string, r *Result, revision, providerPat
 				m.Inputs = append(m.Inputs, in)
 			}
 		}
-		hasScope := false
+		scopeSet := map[doccorpus.Scope]bool{}
 		for _, scope := range m.Scopes {
-			hasScope = hasScope || scope == sourceInventory.Scopes[0]
+			scopeSet[scope] = true
 		}
-		if !hasScope {
-			m.Scopes = append(m.Scopes, sourceInventory.Scopes[0])
+		for _, scope := range sourceInventory.Scopes {
+			if !scopeSet[scope] {
+				m.Scopes = append(m.Scopes, scope)
+				scopeSet[scope] = true
+			}
 		}
 
 	}

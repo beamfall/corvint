@@ -873,6 +873,10 @@ accepted variation, or a replacement for independent application/browser qualifi
   successfully compiling it. Source A and later provider B remain distinct immutable revisions.
   No automatic commit, rewritten source anchor or provider self-reference is permitted. Caller-owned
   corpus inputs/providers are retained with missing generation source inputs added explicitly.
+  Finalization enumerates regular superproject files into exact file scopes; opaque gitlinks retain
+  their superproject path/commit identity as unknown provider module records, never blob inputs or
+  nested source coverage. Other unsupported entries still refuse. Changes to opaque identities are
+  reported separately and make the read-only check nonzero. Generic corpus inventory stays strict.
 
 ### Failure modes, evidence and rollback
 

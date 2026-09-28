@@ -106,6 +106,51 @@ func TestFlowDocsScaleDeterminismSafetyAndGitlink(t *testing.T) {
 	if git(t, root, "status", "--porcelain") != before {
 		t.Fatal("check mutated repository")
 	}
+	if len(r.Manifest.OpaqueGitlinks) != 1 || r.Manifest.OpaqueGitlinks[0].Path != "app/opaque" {
+		t.Fatal("gitlink identity lost")
+	}
+	git(t, root, "add", "output")
+	git(t, root, "commit", "-qm", "generated provider with opaque gitlink")
+	finalized, e := Finalize(context.Background(), root, r, git(t, root, "rev-parse", "HEAD"), "output/provider.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	artifact, e := doccorpus.Build(context.Background(), root, finalized)
+	if e != nil {
+		t.Fatal(e)
+	}
+	encoded, e := doccorpus.Encode(artifact)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = doccorpus.Open(context.Background(), root, encoded); e != nil {
+		t.Fatal(e)
+	}
+	for _, in := range finalized.Inputs {
+		if in.Path == "app/opaque" || strings.HasPrefix(in.Path, "app/opaque/") {
+			t.Fatal("gitlink contents became corpus input")
+		}
+	}
+	foundOpaque := false
+	for _, subject := range artifact.Subjects {
+		if subject.ID == identity("gitlink", "app/opaque") {
+			foundOpaque = subject.Evidence.State == "unknown" && strings.Contains(subject.Name, r.Manifest.OpaqueGitlinks[0].Commit)
+		}
+	}
+	if !foundOpaque {
+		t.Fatal("corpus lost opaque commit identity/uncertainty")
+	}
+	nextLink := git(t, root, "rev-parse", "HEAD")
+	git(t, root, "update-index", "--cacheinfo", "160000,"+nextLink+",app/opaque")
+	git(t, root, "commit", "-qm", "changed opaque gitlink identity")
+	drift, e := CheckRevision(context.Background(), root, r.Files["generation.json"], git(t, root, "rev-parse", "HEAD"), out)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if drift.Clean || len(drift.OpaqueChanges) != 1 || drift.OpaqueChanges[0].After != nextLink || len(drift.Added) > 0 || len(drift.Retired) > 0 {
+		t.Fatal("opaque identity drift lost or nested contents inferred")
+	}
+
 	if e = Materialize(out, r); e == nil {
 		t.Fatal("clobbered existing directory")
 	}
@@ -547,5 +592,21 @@ func TestFlowDocsUnchangedRepeatedImportedSpan(t *testing.T) {
 	row, e = relocateAnchor(ctx, auth, index, doccorpus.Repository{ID: id, Revision: later}, a, &scan)
 	if e != nil || row.State != "fresh" || row.After.Start != 2 || scan != 0 {
 		t.Fatalf("untouched file in later commit: %+v %v", row, e)
+	}
+}
+
+func TestFlowDocsSourceInventoryStillRefusesSymlink(t *testing.T) {
+	root, _ := fixture(t, map[string]string{"app/view.js": "function View() {}\n"})
+	if e := os.Symlink("view.js", filepath.Join(root, "app/link.js")); e != nil {
+		t.Fatal(e)
+	}
+	git(t, root, "add", "app/link.js")
+	git(t, root, "commit", "-qm", "unsupported symlink")
+	r, e := Generate(context.Background(), root, Options{Revision: git(t, root, "rev-parse", "HEAD"), Scope: "app"})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = sourceInventory(context.Background(), root, r.Manifest); e == nil {
+		t.Fatal("non-gitlink unsupported entry admitted")
 	}
 }
