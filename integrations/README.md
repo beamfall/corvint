@@ -9,7 +9,7 @@ silently changes Corvint evidence semantics.
 | Codex CLI/Desktop | [`codex/`](codex/) | `FALLBACK` |
 | Claude Code | [`claude-code/`](claude-code/) | `FALLBACK` |
 | Gemini CLI | [`gemini-cli/`](gemini-cli/) | `FALLBACK` |
-| OpenCode | [`opencode/`](opencode/) | `FALLBACK` |
+| OpenCode | [`opencode/`](opencode/) | Native integration: exact AHI-032 qualification; legacy receipts: `FALLBACK` |
 
 `FALLBACK` is deliberate: query and lifecycle adapters exist, but Corvint has no accepted closing
 Frontier authority, exact-handle expansion command, or conformed MCP server yet. The exact tested

@@ -13,6 +13,8 @@ are separate installations.
 | Need | Tool and boundary |
 | --- | --- |
 | Understand a task before broad source search | Native `corvint_context` with the actual task. It accepts Unicode and returns bounded evidence, omissions and explicit degradations. |
+| Expand exact pinned source | Native `corvint_expand` with a returned cv1 handle. Narrow `all` to `START-END` for large files; stale or invalid selectors refuse. |
+| Check native qualification | Native `corvint_status` verifies the exact installed tuple against retained evidence. |
 | Locate repository instructions or workflow authority without the plugin | MCP `corvint.query`, with an ASCII task of at most 2,000 characters. This narrow profile fixes the result limit at one; it is not general code search. |
 | Assess tracked Go changes | MCP `corvint.impact` with explicit repository-relative `.go` paths and a bounded limit. Keep non-Go, untracked and unsupported scope unresolved. |
 | Check the repository identity or stale evidence | MCP `corvint.status`. Compare the receipt's commit/tree with the work being assessed. |
@@ -32,5 +34,6 @@ Corvint's default protocol remains `2026-07-28`. Never change configuration with
 normal authorization.
 
 For Corvint development itself, follow its `docs/SELF-DEVELOPMENT.md` and `docs/DOGFOOD.md` when
-present. An available tool, successful transport or explicit outcome never upgrades the native
-integration's `FALLBACK` status to `FULL`.
+present. An available tool, successful transport or explicit outcome does not qualify the integration.
+Only `corvint_status` with matching complete AHI-032 evidence reports native integration `FULL`.
+Legacy receipts remain `FALLBACK`; execution authority is `NONE` and frontier completion is unavailable.

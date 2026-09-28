@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { execFileSync, spawn } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, symlinkSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, symlinkSync, chmodSync, cpSync, readdirSync, lstatSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { pathToFileURL, fileURLToPath } from 'node:url'
 import test, { after } from 'node:test'
 import { createCorvintRunner, hashSessionId, boundedTask, insideGitRepository, normalizeRepositoryPath, RECOGNISED_DEGRADATIONS } from './opencode/src/runtime.js'
 import openCodePlugin from './opencode/src/index.js'
@@ -97,7 +97,12 @@ const spyConsole=(t,level)=>{const rows=[],original=console[level];console[level
 
 test('CRB-V0-012 OpenCode exact transport, unicode bounds, receipt and env',async t=>{
  const f=fixture(t);const result=await f.runOpen(request(f.root));assert.equal(result.ok,true)
- const [row]=f.captured();assert.deepEqual(row.argv,['--root',f.root,'harness','event','--host','opencode','--host-version','unknown','--surface','plugin','--adapter-version','0.1.0','--event','session-start','--input','-','--budget-bytes','8000']);noSecret(row)
+ const manifest=JSON.parse(readFileSync(join(here,'opencode/package.json'),'utf8'))
+ const matrix=JSON.parse(readFileSync(join(here,'compatibility.json'),'utf8')).entries.find(entry=>entry.host==='opencode')
+ assert.equal(manifest.corvintIntegration.adapterVersion,manifest.version)
+ assert.equal(matrix.adapterVersion,manifest.version)
+ assert.equal(result.adapter.adapterVersion,manifest.version)
+ const [row]=f.captured();assert.deepEqual(row.argv,['--root',f.root,'harness','event','--host','opencode','--host-version','unknown','--surface','plugin','--adapter-version',manifest.version,'--event','session-start','--input','-','--budget-bytes','8000']);noSecret(row)
  assert.equal(result.receiptId,'harness-receipt:sha256:'+sha(canonical({adapter:result.adapter,event:'session-start',input:row.input,repository:result.repository})))
  assert.equal(boundedTask('🙂'.repeat(2000)).length,4000);assert.equal(boundedTask('x'.repeat(2001)),undefined)
  assert.equal(normalizeRepositoryPath(f.root,'src/../src/parser.py'),'src/parser.py');assert.equal(normalizeRepositoryPath(f.root,'../escape'),undefined)
@@ -413,7 +418,7 @@ test('CRB-V0-010 CRB-V0-011 OpenCode loaded plugin keeps exact aliases, option p
  const post=rows.find(r=>event(r)==='post-tool'&&r.input.sessionIdSha256===sha('session-b'));assert.deepEqual(post.input.changedPaths,['b.js']);assert.deepEqual(post.input.verification,verification)
  const outcome=rows.find(r=>event(r)==='session-end');assert.equal(outcome.input.taskSha256,sha('inspect code'));assert.equal(outcome.input.task,undefined)
  assert.ok(!JSON.stringify(rows).includes('never-send'));assert.ok(!JSON.stringify(rows).includes('raw tool output'));assert.ok(infos.some(v=>v.includes('stop-recursion-protected')))
- assert.equal(host.hooks['session.context'],undefined)
+ assert.equal(typeof host.hooks['session.context'],'function')
  const beta=await openCode(t,f.root,{...options,environment:{CORVINT_OPENCODE_BETA_CONTEXT:'0'},enableBetaContext:true})
  assert.equal(typeof beta.hooks['session.context'],'function','explicit beta option retains precedence over the ambient setting')
  // Without an explicit option the adapter reports the version the host states for itself.
@@ -567,4 +572,128 @@ test('AHI-023 host-version disclosure matches what each plugin adapter sends',()
  const claude=degradations('claude-code/plugins/corvint/compatibility.json'),codex=degradations('codex/plugins/corvint/compatibility.json')
  assert.ok(claude.includes('host-version-unreported-by-hook-api')&&!claude.includes('host-version-unknown'),'claude-code sends unreported-by-hook-api')
  assert.ok(codex.includes('host-version-unknown')&&!codex.includes('host-version-unreported-by-hook-api'),'codex sends unknown')
+})
+
+
+test('AHI-032 awaited prompt context stays with its prompt, deduplicates and drops cancelled work',async t=>{
+ const f=fixture(t,'delayed');spyConsole(t,'info');spyConsole(t,'warn')
+ const host=await openCode(t,f.root,{corvintBinary:f.binary,...OPEN_TIMEOUTS})
+ const a={sessionID:'a',messageID:'m-a',prompt:{text:'inspect alpha'}},b={sessionID:'b',messageID:'m-b',prompt:{text:'inspect beta'}}
+ await Promise.all([host.hooks['session.prompt'](a),host.hooks['session.prompt'](b)])
+ for(const event of [a,b]){assert.ok(event.prompt.text.includes('harness-receipt:sha256:'));assert.ok(Buffer.byteLength(event.prompt.text)<8000)}
+ const count=f.captured().length,original=a.prompt.text
+ await host.hooks['session.prompt'](a);await host.hooks['session.prompt']({...a,prompt:{text:original}})
+ assert.equal(f.captured().length,count);assert.equal(a.prompt.text,original)
+ const sameA={sessionID:'same',messageID:'same-id',prompt:{text:'same prompt'}},sameB={...sameA,prompt:{text:'same prompt'}}
+ const initial=f.captured().length
+ await Promise.all([host.hooks['session.prompt'](sameA),host.hooks['session.prompt'](sameB)])
+ assert.equal(f.captured().length,initial+1);assert.ok(sameA.prompt.text.includes('harness-receipt'));assert.equal(sameB.prompt.text,'same prompt')
+ const changed={sessionID:'c',messageID:'m-c',prompt:{text:'first'}}
+ const pending=host.hooks['session.prompt'](changed);changed.prompt.text='newer';await pending;assert.equal(changed.prompt.text,'newer')
+ const deleted={sessionID:'d',messageID:'m-d',prompt:{text:'deleted'}}
+ const running=host.hooks['session.prompt'](deleted);await host.emit('session.deleted',{sessionID:'d'});await running
+ assert.equal(deleted.prompt.text,'deleted')
+ for(const row of f.captured())noSecret(row)
+})
+
+test('AHI-032 compaction recovery uses compact source, deduplicates, and retries failures',async t=>{
+ const f=fixture(t);spyConsole(t,'info');spyConsole(t,'warn')
+ const host=await openCode(t,f.root,{corvintBinary:f.binary,...OPEN_TIMEOUTS})
+ await host.emit('session.created',{sessionID:'compact'})
+ const before={sessionID:'compact',system:[]};await host.hooks['session.context'](before);assert.deepEqual(before.system,[])
+ await host.emit('session.compaction.ended',{sessionID:'compact'})
+ const request={sessionID:'compact',system:[]}
+ await host.hooks['session.context'](request);await host.hooks['session.context'](request)
+ assert.equal(request.system.length,1);assert.ok(Buffer.byteLength(request.system[0].text)<=8000)
+ assert.equal(f.captured().filter(r=>r.input.startSource==='compact').length,1)
+ const bad=fixture(t,'malformed'),broken=await openCode(t,bad.root,{corvintBinary:bad.binary,...OPEN_TIMEOUTS})
+ await broken.emit('session.compaction.ended',{sessionID:'bad'})
+ for(let i=0;i<2;i++)await broken.hooks['session.context']({sessionID:'bad',system:[]})
+ assert.equal(bad.captured().filter(r=>r.input.startSource==='compact').length,2)
+})
+
+test('AHI-032 exact expansion reads pinned bytes and refuses malformed and stale selectors',async t=>{
+ const binary=process.env.CORVINT_TEST_REAL_BINARY
+ const dir=mkdtempSync(join(tmpdir(),'corvint-stock-expand-'));t.after(()=>rmSync(dir,{recursive:true,force:true}))
+ const git=(...args)=>execFileSync('git',['-C',dir,'-c','user.name=fixture','-c','user.email=fixture@example.invalid','-c','commit.gpgsign=false',...args],{encoding:'utf8'}).trim()
+ git('init','-q');writeFileSync(join(dir,'add.go'),'package fixture\nfunc Add() {}\n');git('add','.');git('commit','-qm','fixture')
+ spyConsole(t,'info');spyConsole(t,'warn');const host=await openCode(t,dir,{corvintBinary:binary,...OPEN_TIMEOUTS})
+ const context={sessionID:'expand',signal:new AbortController().signal}
+ const decode=result=>JSON.parse(result.content.split('\n').slice(3,-1).join('\n'))
+ const packet=decode(await host.tools.corvint_context.execute({task:'locate Add in add.go'},context))
+ const handle=packet.expansionHandles.find(h=>h.endsWith(':add.go'));assert.ok(handle)
+ writeFileSync(join(dir,'add.go'),'package fixture\nfunc Changed() {}\n')
+ const expanded=decode(await host.tools.corvint_expand.execute({handle},context))
+ assert.equal(expanded.selection.text,'package fixture\nfunc Add() {}\n')
+ assert.equal(expanded.selection.sha256,sha(expanded.selection.text))
+ assert.ok((await host.tools.corvint_expand.execute({handle:'../../private'},context)).content.includes('invalid-expansion-handle'))
+ git('add','.');git('commit','-qm','changed')
+ assert.ok((await host.tools.corvint_expand.execute({handle},context)).content.includes('stale-handle'))
+})
+
+
+test('AHI-032 qualification refuses tuple, gate, source and executable drift and resolves binary at the project root',async t=>{
+ const dir=mkdtempSync(join(tmpdir(),'corvint-qualification-status-'));t.after(()=>rmSync(dir,{recursive:true,force:true}))
+ const pkg=join(dir,'integrations/opencode');mkdirSync(dirname(pkg),{recursive:true});cpSync(join(here,'opencode'),pkg,{recursive:true})
+ const {qualificationStatus}=await import(pathToFileURL(join(pkg,'src/qualification.js')).href)
+ const manifest=JSON.parse(readFileSync(join(pkg,'package.json'),'utf8'))
+ const sourceFiles=Object.fromEntries(readdirSync(pkg,{recursive:true}).filter(p=>lstatSync(join(pkg,p)).isFile()).sort().map(p=>['integrations/opencode/'+p,sha(readFileSync(join(pkg,p)))]))
+ const report={profile:'opencode-native-integration/1',result:'PASS',adapterVersion:manifest.version,hostVersion:'2.0.18',os:process.platform,architecture:process.arch,executionAuthority:'NONE',sourceFiles,hostSHA256:sha(readFileSync(process.execPath)),corvintSHA256:sha(readFileSync(process.execPath)),conformance:Object.fromEntries(['install','snapshot','context','expansion','observations','frontier','degradation','privacy','normalization','recursion','compaction','latency','recall','cleanup'].map(k=>[k,'PASS']))}
+ mkdirSync(join(dir,'bin'));symlinkSync(process.execPath,join(dir,'bin/corvint'))
+ const options={root:dir,hostVersion:'2.0.18',corvintBinary:'./bin/corvint',environment:{PATH:'bin'}}
+ const save=()=>writeFileSync(join(dir,'integrations/opencode-qualification.json'),JSON.stringify(report))
+ assert.equal((await qualificationStatus(options)).integrationSupport,'UNQUALIFIED');save()
+ assert.equal((await qualificationStatus(options)).integrationSupport,'FULL')
+ assert.equal((await qualificationStatus({...options,corvintBinary:'corvint'})).integrationSupport,'FULL')
+ assert.equal((await qualificationStatus({...options,root:process.cwd()})).integrationSupport,'UNQUALIFIED')
+ assert.equal((await qualificationStatus({...options,hostVersion:'2.0.19'})).integrationSupport,'UNQUALIFIED')
+ report.conformance.compaction='FAIL';save();assert.equal((await qualificationStatus(options)).integrationSupport,'UNQUALIFIED')
+ report.conformance.compaction='PASS';report.corvintSHA256='0'.repeat(64);save();assert.equal((await qualificationStatus(options)).integrationSupport,'UNQUALIFIED')
+ report.corvintSHA256=report.hostSHA256;save();writeFileSync(join(pkg,'README.md'),'changed')
+ assert.equal((await qualificationStatus(options)).reason,'qualification-package-changed')
+})
+
+test('AHI-032 deleting a session cancels its active compaction child',async t=>{
+ const slow=fixture(t,'hang'),valid=fixture(t),binary=join(slow.dir,'route')
+ writeFileSync(binary,`#!/bin/sh\ncase " $* " in *" --event session-start "*) exec ${shellQuote(slow.binary)} "$@";; esac\nexec ${shellQuote(valid.binary)} "$@"\n`,{mode:0o700})
+ spyConsole(t,'info');spyConsole(t,'warn');const host=await openCode(t,slow.root,{corvintBinary:binary,...OPEN_TIMEOUTS})
+ await host.emit('session.compaction.ended',{sessionID:'deleted-compact'})
+ const request={sessionID:'deleted-compact',system:[]};const pending=host.hooks['session.context'](request)
+ for(let i=0;i<100&&!existsSync(slow.childPID);i++)await new Promise(r=>setTimeout(r,10))
+ assert.ok(existsSync(slow.childPID));const pid=Number(readFileSync(slow.childPID,'utf8'))
+ await host.emit('session.deleted',{sessionID:'deleted-compact'});await pending
+ assert.deepEqual(request.system,[])
+ assert.throws(()=>process.kill(pid,0),/ESRCH/)
+})
+
+
+test('AHI-032 native OpenCode normalizations match every common logical event golden',async t=>{
+ const logical=JSON.parse(readFileSync(join(here,'../conformance/harness-event-v0/common-logical-interaction.json'),'utf8'))
+ spyConsole(t,'info');spyConsole(t,'warn')
+ for(const {event,expected} of logical.events){
+  const f=fixture(t),host=await openCode(t,f.root,{corvintBinary:f.binary,...OPEN_TIMEOUTS}),sessionID='shared-native-session'
+  if(event==='session-start')await host.emit('session.created',{sessionID})
+  else if(event==='user-prompt')await host.hooks['session.prompt']({sessionID,messageID:'fixture-message',prompt:{text:'inspect the parser'}})
+  else if(event==='file-change')await host.hooks['execute.after'](written(f.root,'src/../src/parser.py',sessionID))
+  else if(event==='post-tool')await host.hooks['execute.after']({sessionID,tool:'fixture',status:'completed',result:{metadata:{corvint:{changedPaths:['src/../src/parser.py']}}}})
+  else if(event==='stop')await host.emit('session.execution.succeeded',{sessionID})
+  else if(event==='session-end')await host.emit('session.deleted',{sessionID})
+  const actual=f.captured().filter(r=>r.argv[r.argv.indexOf('--event')+1]===event)
+  assert.equal(actual.length,1,event)
+  for(const [other,value] of Object.entries(expected))assert.equal(canonical(actual[0].input),canonical(value),event+':'+other)
+ }
+})
+
+test('AHI-032 missing and non-executable Corvint leave the native prompt unchanged with a visible fault',async t=>{
+ spyConsole(t,'info');const warnings=spyConsole(t,'warn')
+ for(const mode of ['missing','permission-denied']){
+  const f=fixture(t);let binary=f.binary
+  if(mode==='missing')binary=join(f.dir,'not-installed')
+  else chmodSync(binary,0o600)
+  const host=await openCode(t,f.root,{corvintBinary:binary,...OPEN_TIMEOUTS})
+  const event={sessionID:mode,messageID:mode,prompt:{text:'continue ordinary coding'}}
+  await host.hooks['session.prompt'](event)
+  assert.equal(event.prompt.text,'continue ordinary coding');assert.equal(f.captured().length,0)
+ }
+ assert.equal(warnings.filter(line=>line.includes('"code":"corvint-unavailable"')).length,2)
 })

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@corvint/opencode",
-  "version": "0.3.0",
-  "description": "FALLBACK OpenCode lifecycle adapter for Corvint",
+  "version": "0.4.0",
+  "description": "Native OpenCode integration for Corvint",
   "type": "module",
   "exports": "./src/index.js",
   "files": [
@@ -23,7 +23,7 @@
     "plugin"
   ],
   "corvintIntegration": {
-    "adapterVersion": "0.3.0",
+    "adapterVersion": "0.4.0",
     "apiReferenceVersion": "2.0.18",
     "host": "opencode",
     "lastConformance": {
@@ -44,10 +44,14 @@
     },
     "unavailableCapabilities": [
       "authoritative frontier stop or continuation",
-      "stable automatic context injection",
-      "exact handle expansion",
       "bundled Corvint MCP server",
       "Windows process-tree cleanup conformance"
-    ]
+    ],
+    "nativeQualification": {
+      "profile": "opencode-native-integration/1",
+      "status": "external-evidence-required",
+      "executionAuthority": "NONE",
+      "statusTool": "corvint_status"
+    }
   }
 }

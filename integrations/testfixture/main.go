@@ -135,7 +135,7 @@ func main() {
 		time.Sleep(750 * time.Millisecond)
 	}
 	event := at("--event")
-	adapter := map[string]any{"adapterVersion": "0.1.0", "host": at("--host"), "hostVersion": at("--host-version"), "surface": at("--surface")}
+	adapter := map[string]any{"adapterVersion": at("--adapter-version"), "host": at("--host"), "hostVersion": at("--host-version"), "surface": at("--surface")}
 	repository := map[string]any{"commitRevision": strings.Repeat("a", 40), "dirtyPathCount": 0, "dirtyPathsSha256": strings.Repeat("b", 64), "extensions": map[string]any{"z": "café", "a": map[string]any{"β": 1, "a": 2}}, "objectFormat": "sha1", "treeRevision": strings.Repeat("a", 40), "worktreeState": "clean"}
 	context := map[string]any{"state": "READY"}
 	response := map[string]any{"adapter": adapter, "context": context, "degradations": config.Codes, "event": event, "ok": true, "profile": "corvint-harness-event/0", "repository": repository, "support": "FALLBACK"}

@@ -2,9 +2,10 @@ import { createHash } from "node:crypto"
 import { spawn } from "node:child_process"
 import { realpathSync, statSync } from "node:fs"
 import path from "node:path"
+import { StringDecoder } from "node:string_decoder"
 import { overQueryBound, trimSpace } from "./prompt-bound.js"
 
-export const ADAPTER_VERSION = "0.1.0"
+export const ADAPTER_VERSION = "0.4.0"
 export const PROTOCOL = "corvint-harness-event/0"
 export const SUPPORT = "FALLBACK"
 
@@ -352,8 +353,11 @@ export function createCorvintRunner(options = {}) {
   )
   const platform = options.platform ?? process.platform
 
-  return async function runCorvint({ root, event, input, query = false, signal }) {
+  return async function runCorvint({ root, event, input, query = false, signal, expand, budgetBytes = 8000 }) {
     if (platform === "win32") return degradation(event, "unsupported-process-tree-cleanup")
+    if (expand !== undefined && (typeof expand !== "string" || expand.length > 1024 || !/^cv1:[0-9a-f]{40,64}:[0-9a-f]{40,64}:(?:all|[1-9][0-9]*-[1-9][0-9]*):[^\0\r\n]+$/.test(expand))) {
+      return degradation(event, "invalid-expansion-handle")
+    }
     let serialized
     try {
       serialized = JSON.stringify(input)
@@ -364,7 +368,7 @@ export function createCorvintRunner(options = {}) {
       return degradation(event, "input-too-large")
     }
 
-    const args = [
+    const args = expand !== undefined ? ["--root", root, "context", "--expand", expand, "--max-bytes", "6000"] : [
       "--root",
       root,
       "harness",
@@ -382,13 +386,14 @@ export function createCorvintRunner(options = {}) {
       "--input",
       "-",
       "--budget-bytes",
-      "8000",
+      String(budgetBytes === 7000 ? 7000 : 8000),
     ]
     const timeoutMs = query ? queryTimeoutMs : automaticTimeoutMs
 
     return await new Promise((resolve) => {
       let settled = false
       let output = ""
+      const decoder = new StringDecoder("utf8")
       let outputBytes = 0
       let overflow = false
       let stderrOutput = ""
@@ -466,7 +471,7 @@ export function createCorvintRunner(options = {}) {
           terminate("output-too-large")
           return
         }
-        output += chunk.toString("utf8")
+        output += decoder.write(chunk)
       })
       child.stderr.on("data", (chunk) => {
         // Bounded capture, drained past the bound so a noisy failure cannot apply
@@ -486,11 +491,22 @@ export function createCorvintRunner(options = {}) {
           finish(degradation(event, stderrFailureCode(stderrOutput) ?? "corvint-command-failed"))
           return
         }
+        output += decoder.end()
         let envelope
         try {
           envelope = JSON.parse(output)
         } catch {
           finish(degradation(event, "malformed-corvint-output"))
+          return
+        }
+        if (expand !== undefined) {
+          const selection = envelope?.selection
+          const valid = envelope?.ok === true && envelope.mutates === false && envelope.handle === expand &&
+            envelope.schema_version === 1 && envelope.view === "experimental-evidence-expand/0" &&
+            envelope.source?.blob_verified === true && typeof selection?.text === "string" &&
+            selection.bytes === utf8Bytes(selection.text) &&
+            selection.sha256 === createHash("sha256").update(selection.text, "utf8").digest("hex")
+          finish(valid ? envelope : degradation(event, "malformed-expansion-output"))
           return
         }
         const fault = envelopeFault(envelope, event, hostVersion, input)
