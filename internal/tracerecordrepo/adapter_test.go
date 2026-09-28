@@ -14,6 +14,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/trace"
+	"github.com/Beamfall/corvint/internal/tracerepopaths"
 )
 
 // GPK-V0-050.
@@ -93,7 +94,7 @@ func TestDogfoodStabilityBindsCandidateAndAdmittedDigests(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	admitted, err := trace.AdmissibleCurrentPaths(candidates, sortedSourcePaths(index.Sources))
+	admitted, err := trace.AdmissibleCurrentPaths(candidates, tracerepopaths.Paths(index))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,7 +266,7 @@ func TestReadBoundsTraceReplayWithoutRefusingLargeRepositories(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		revisions, _, err := bindRevisions(context.Background(), root, index, recordPaths(index), strictRevisionBinding)
+		revisions, _, err := bindRevisions(context.Background(), root, index, tracerepopaths.Paths(index), strictRevisionBinding)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -409,7 +410,7 @@ func TestBindRevisionsUsesShortestAncestryDistanceAcrossMergeParents(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	revisions, _, err := bindRevisions(context.Background(), root, index, recordPaths(index), strictRevisionBinding)
+	revisions, _, err := bindRevisions(context.Background(), root, index, tracerepopaths.Paths(index), strictRevisionBinding)
 	if err != nil {
 		t.Fatal(err)
 	}
