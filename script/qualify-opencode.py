@@ -26,6 +26,8 @@ P.add_argument('--corvint', required=True)
 P.add_argument('--output', required=True)
 P.add_argument('--interrupt-probe', action='store_true')
 A = P.parse_args()
+A.host = str(Path(A.host).resolve())
+A.corvint = str(Path(A.corvint).resolve())
 SOURCE = Path(__file__).resolve().parents[1]
 OUT = Path(A.output).resolve()
 OUT.mkdir(parents=True, exist_ok=True)
@@ -159,6 +161,10 @@ class Provider(http.server.BaseHTTPRequestHandler):
             ('execute', {'code': 'return await tools.corvint_record_outcome('+json.dumps({'task': task, 'changedPaths': ['add.go'], 'verification': verification, 'outcome': 'passed'})+')'}),
             ('execute', {'code': 'await tools.qualification_prompts({}); for(let i=0;i<21;i++)await tools.qualification_noop({}); return \"native samples complete\"'}),
         ]
+        if getattr(self.server, 'benchmark', False):
+            calls = [calls[-1]]
+        else:
+            calls = calls[:-1]
         if step < len(calls):
             name, args = calls[step]
             delta = {'role': 'assistant', 'tool_calls': [{'index': 0, 'id': 'call_'+str(step), 'type': 'function', 'function': {'name': name, 'arguments': json.dumps(args)}}]}
@@ -265,18 +271,25 @@ instrumented = RUN/'instrumented'
 instrumented.mkdir()
 (instrumented/'index.js').write_text("""import plugin from CANDIDATE;
 import {appendFileSync} from 'node:fs';
-const timing=(kind,ms)=>appendFileSync(TIMINGS,JSON.stringify({kind,ms})+'\\n');
+const timing=(kind,ms,delivered)=>appendFileSync(TIMINGS,JSON.stringify({kind,ms,delivered})+'\\n');
 export default {...plugin,async setup(ctx){
- const wrap=(kind,fn)=>async(...args)=>{const t=performance.now();try{return await fn(...args)}finally{timing(typeof kind==='function'?kind(...args):kind,performance.now()-t)}};
- return plugin.setup({...ctx,
+ const warn=console.warn;
+ console.warn=(...args)=>{if(String(args[0]).startsWith('[corvint/opencode]'))appendFileSync(FAULTS,JSON.stringify({message:String(args[0])})+'\\n');warn(...args)};
+ const wrap=(kind,fn)=>async(...args)=>{const t=performance.now();let complete=false;try{const result=await fn(...args);complete=true;return result}finally{
+  const label=typeof kind==='function'?kind(...args):kind;
+  const delivered=label==='session.prompt'?complete&&args[0].prompt.text.includes('harness-receipt:sha256:'):complete;
+  timing(label,performance.now()-t,delivered);
+ }};
+ const dispose=await plugin.setup({...ctx,
   session:{...ctx.session,hook:(name,fn)=>ctx.session.hook(name,wrap('session.'+name,fn))},
   tool:{...ctx.tool,hook:(name,fn)=>ctx.tool.hook(name,wrap(call=>'tool.'+name+':'+call.tool,fn))},
   event:{...ctx.event,subscribe:async function* (options){for await(const event of ctx.event.subscribe(options)){
    const t=performance.now();yield event;timing('event.'+event.type,performance.now()-t);
   }}}
  });
+ return async()=>{try{await dispose?.()}finally{console.warn=warn}};
 }};
-""".replace('CANDIDATE',json.dumps((SOURCE/'integrations/opencode/src/index.js').as_uri())).replace('TIMINGS',json.dumps(str(RUN/'timings.jsonl'))))
+""".replace('CANDIDATE',json.dumps((SOURCE/'integrations/opencode/src/index.js').as_uri())).replace('TIMINGS',json.dumps(str(RUN/'timings.jsonl'))).replace('FAULTS',json.dumps(str(RUN/'faults.jsonl'))))
 config = {'model':'local/probe','plugins':[{'package':instrumented.as_uri(),'options':{'corvintBinary':str(wrapper)}},{'package':probe.as_uri(),'options':{}}],'providers':{'local':{'name':'Qualification loopback provider','package':'@opencode/ai/providers/openai-compatible','settings':{'baseURL':'http://127.0.0.1:'+str(SERVER.server_port)+'/v1','apiKey':'local-fixture'},'models':{'probe':{'modelID':'probe','capabilities':{'tools':True,'input':['text'],'output':['text']},'limit':{'context':131072,'output':1024}}}}}}
 # OpenCode config is untracked fixture setup, not a change to the pinned source baseline.
 (repo/'.git/info/exclude').write_text('opencode.json\n')
@@ -307,10 +320,25 @@ checks = {
  'bounded-prompt':all(len(x.split('\n\n',1)[1].encode())+2<=8000 for x in prompts if '\n\n' in x),
  'native-exit':code==0,
 }
-timings = rows(RUN/'timings.jsonl')
-query_times=[x['ms'] for x in timings if x['kind']=='session.prompt']
+# Capture wrappers are useful for normalized-request evidence but their Python startup is
+# not shipped overhead. Measure the real executable in a separate native callback campaign.
+STOP.clear()
+SERVER=http.server.ThreadingHTTPServer(('127.0.0.1',0),Provider)
+SERVER.daemon_threads=True; SERVER.step=0; SERVER.benchmark=True; SERVER.handle=handle
+threading.Thread(target=SERVER.serve_forever,daemon=True).start()
+config['providers']['local']['settings']['baseURL']='http://127.0.0.1:'+str(SERVER.server_port)+'/v1'
+config['plugins'][0]['options']['corvintBinary']=A.corvint
+(repo/'opencode.json').write_text(json.dumps(config))
+timing_start=len(rows(RUN/'timings.jsonl'))
+fault_start=len(rows(RUN/'faults.jsonl'))
+run([A.host,'run','--standalone','--format','json','--model','local/probe','--title','Qualification timing','Locate Add in add.go.'],repo,env)
+cleanup()
+timings = rows(RUN/'timings.jsonl')[timing_start:]
+query_rows=[x for x in timings if x['kind']=='session.prompt']
+query_times=[x['ms'] for x in query_rows]
+checks['timed-delivery']=bool(query_rows) and all(x['delivered'] for x in query_rows) and len(rows(RUN/'faults.jsonl'))==fault_start
 lifecycle_times=[x['ms'] for x in timings if x['kind'] in ('event.session.created','event.session.execution.succeeded','event.session.execution.failed','event.session.deleted') or (x['kind'].startswith('tool.execute.after:') and not x['kind'].endswith(':execute'))]
-metrics={'query':query_times[1:],'lifecycle':lifecycle_times[1:],'surface':'real stock host callbacks, including normalization, spawn, framing and delivery','observer':'transparent registration wrapper; candidate source unchanged'}
+metrics={'query':query_times[1:],'lifecycle':lifecycle_times[1:],'surface':'real stock host callbacks, including normalization, spawn, framing and delivery','observer':'transparent registration wrapper; candidate source unchanged; direct Corvint executable, no capture subprocess'}
 def p95(values):
     return sorted(values)[math.ceil(len(values)*0.95)-1]
 checks['latency']=len(metrics['query'])>=20 and len(metrics['lifecycle'])>=20 and p95(metrics['query'])<=500 and p95(metrics['lifecycle'])<=250

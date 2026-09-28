@@ -31,3 +31,12 @@ used to trigger actual host compaction and is never reported as measured token c
 Repository-wide make gate is NOT_RUN under the owner's scoped-issue preference. The affected plan's
 broader unresolved scope stays visible in the retained scratch report; focused adapter/spec checks,
 the native campaign and independent review are the selected completion evidence.
+
+A final captured run failed the 250ms non-query limit at 361ms. The collector was timing its own
+Python capture process in addition to the shipped adapter. Functional capture is retained, while a
+separate real-host campaign now measures callbacks using the real Corvint executable directly.
+The first direct campaign measured query p95 226ms and lifecycle p95 135ms. These are fixture
+measurements, not a claim that load variability has been removed. The targeted review required
+successful receipt-linked prompt delivery and zero adapter fault notices for those samples, so a
+fast fail-open path cannot satisfy the performance gate. Executable paths are resolved identically
+for both campaigns. Final promotion still depends on the frozen campaign's actual result.
