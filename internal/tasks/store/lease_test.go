@@ -41,6 +41,13 @@ func gitRun(t *testing.T, dir string, args ...string) {
 func newLeaseStore(t *testing.T, gates ...wire.Value) *leaseStore {
 	t.Helper()
 	repo, _ := initialized(t)
+	return leaseStoreOn(t, repo, gates...)
+}
+
+// leaseStoreOn widens repo's policy to four attempts with no enforced budget
+// fields, so its claims reach the lease checks.
+func leaseStoreOn(t *testing.T, repo *intent.Repository, gates ...wire.Value) *leaseStore {
+	t.Helper()
 	v := fixture.PolicyValue()
 	if len(gates) > 0 {
 		v.Obj.Set("gates", wire.Array(gates...))

@@ -245,8 +245,8 @@ func Digest(r Request) (wire.Digest, error) {
 		if e != nil {
 			return "", e
 		}
-		if queue.QueueID != q || !queue.Fixture {
-			return "", malformed("INIT fixture identity")
+		if queue.QueueID != q {
+			return "", malformed("INIT queue identity")
 		}
 		if _, e = intent.DecodePolicy(r.Policy); e != nil {
 			return "", e
@@ -735,7 +735,7 @@ func validateInput(r Request, in Input) (inputState, error) {
 		return st, e
 	}
 	st.queue = q
-	if q.QueueID.Raw != r.QueueID || !q.Fixture || q.ImportMapSha256 != nil || q.ExecutionCutover != nil {
+	if q.QueueID.Raw != r.QueueID || q.ImportMapSha256 != nil || q.ExecutionCutover != nil {
 		return st, malformed("unsupported queue identity/state")
 	}
 	p, e := intent.DecodePolicy(praw)
