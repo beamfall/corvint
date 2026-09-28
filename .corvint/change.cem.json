@@ -352,14 +352,14 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:c054ebeceaeb4484b5118d2ed15e55fe435a7670d356cd73ff38b32d88f14ff5",
+      "id": "hunk:sha256:4db7357f40463230c0262f5855b78cd20959e1738adb3d67d9ac90af713a6454",
       "newRange": {
-        "count": 54,
-        "start": 67
+        "count": 12,
+        "start": 109
       },
       "oldRange": {
-        "count": 48,
-        "start": 67
+        "count": 6,
+        "start": 109
       },
       "path": "docs/specs/REQUIREMENTS.tsv",
       "reason": "evidence-backed"
@@ -372,13 +372,13 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:f19ff5a1173ec0782c79d2256ed758ce991c38ecc4ec45324cb649b3f2434da2",
+      "id": "hunk:sha256:805c1e825582395dd890bf509a19984e5967417bad21096551b46d39d813c261",
       "newRange": {
-        "count": 14,
+        "count": 12,
         "start": 10
       },
       "oldRange": {
-        "count": 13,
+        "count": 12,
         "start": 10
       },
       "path": "docs/specs/application-flow-understanding-v1.md",
@@ -392,10 +392,10 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:e8fd04109b34211162118377c1c672ba102ea1b60efddd53f9f9e282d9e28008",
+      "id": "hunk:sha256:9319e63066fb0f7d91100ca4b33d48677d9cae22a1f2ef335cf03755db677493",
       "newRange": {
         "count": 78,
-        "start": 824
+        "start": 823
       },
       "oldRange": {
         "count": 3,
@@ -785,6 +785,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "11b4b675b9230854bc64cf37d819b2ec6118cab8a9b4768465be0a854042a02f",
+  "patchSha256": "d5003054b30559b4eef92af40f89b2c8140c61d0580f3c9308b2b3d58f03aa1a",
   "spec": "cem/0.2"
 }
