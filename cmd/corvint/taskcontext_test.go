@@ -155,3 +155,58 @@ func TestRunTaskContextSubjectlessCounterparts(t *testing.T) {
 		}
 	})
 }
+
+func TestRunTaskContextReservesAncestorInstructions(t *testing.T) {
+	t.Run("TCP-V0-008 subject ancestors govern closest first", func(t *testing.T) {
+		root := taskContextRepository(t)
+		files := map[string]string{"AGENTS.md": "Root policy.\n", "CLAUDE.md": "Root addendum.\n", "cache/AGENTS.md": "Local policy.\n", "cache/CLAUDE.md": "Local addendum.\n", "other/AGENTS.md": "Sibling policy.\n"}
+		for name, content := range files {
+			p := filepath.Join(root, name)
+			if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		for _, args := range [][]string{{"add", "."}, {"-c", "user.name=t", "-c", "user.email=t@x", "commit", "-qm", "instructions"}} {
+			cmd := exec.Command("git", args...)
+			cmd.Dir = root
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("%v: %s", err, out)
+			}
+		}
+		var stdout, stderr bytes.Buffer
+		code := runContext(context.Background(), []string{"--root", root, "context", "--task", "change the empty key behavior", "--subject", "cache/demux.go", "--limit", "8"}, strings.NewReader(""), &stdout, &stderr)
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, &stderr)
+		}
+		var packet struct {
+			Results []struct {
+				Kind, ID string
+				Evidence []struct {
+					Path, Authority string
+					BlobHash        string `json:"blob_hash"`
+				}
+			}
+		}
+		if err := json.Unmarshal(stdout.Bytes(), &packet); err != nil {
+			t.Fatal(err)
+		}
+		want := []string{"cache/AGENTS.md", "cache/CLAUDE.md", "AGENTS.md", "CLAUDE.md"}
+		if len(packet.Results) < len(want) {
+			t.Fatalf("short packet: %s", &stdout)
+		}
+		for i, path := range want {
+			row := packet.Results[i]
+			if row.Kind != "governing" || row.ID != path || len(row.Evidence) != 1 || row.Evidence[0].Path != path || row.Evidence[0].Authority != "project-instructions" || row.Evidence[0].BlobHash == "" {
+				t.Fatalf("governing row %d: %s", i, &stdout)
+			}
+		}
+		for _, row := range packet.Results {
+			if row.Kind == "governing" && row.ID == "other/AGENTS.md" {
+				t.Fatalf("sibling governed: %s", &stdout)
+			}
+		}
+	})
+}
