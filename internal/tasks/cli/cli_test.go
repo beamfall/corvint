@@ -134,6 +134,7 @@ var readCommands = [][]string{
 	{"gate", "list"},
 	{"gate", "show", "verify"},
 	{"archive", "export"},
+	{"plan", "preview"},
 }
 
 // TestTMV0008_AS07_ReadsLeaveStoreByteIdentical: every read on an

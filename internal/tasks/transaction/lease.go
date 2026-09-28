@@ -18,6 +18,7 @@ const Lease = snapshot.StageLease
 // Lease verbs and bounds (CAL-V0-012, CAL-V0-013).
 const (
 	LeaseClaim          = "CLAIM"
+	LeaseClaimNext      = "CLAIM_NEXT"
 	LeaseRenew          = "RENEW"
 	LeaseRelease        = "RELEASE"
 	LeaseReap           = "REAP"
@@ -74,11 +75,12 @@ const (
 type leaseShape struct{ required, allowed int }
 
 var leaseShapes = map[string]leaseShape{
-	LeaseClaim:   {fieldTicket | fieldHolder | fieldMinutes, fieldTicket | fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope},
-	LeaseRenew:   {fieldAttempt | fieldGeneration | fieldMinutes, fieldAttempt | fieldGeneration | fieldMinutes},
-	LeaseRelease: {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldReason},
-	LeaseReap:    {0, fieldAttempt | fieldGeneration},
-	LeaseWiden:   {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldScope | fieldWhole},
+	LeaseClaim:     {fieldTicket | fieldHolder | fieldMinutes, fieldTicket | fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope},
+	LeaseClaimNext: {fieldHolder | fieldMinutes, fieldHolder | fieldMinutes | fieldBranch | fieldBase},
+	LeaseRenew:     {fieldAttempt | fieldGeneration | fieldMinutes, fieldAttempt | fieldGeneration | fieldMinutes},
+	LeaseRelease:   {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldReason},
+	LeaseReap:      {0, fieldAttempt | fieldGeneration},
+	LeaseWiden:     {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldScope | fieldWhole},
 }
 
 func (l *LeaseRequest) present() int {
@@ -254,11 +256,12 @@ type leaseContext struct {
 }
 
 var leasePlanners = map[string]func(leaseContext) leaseOutcome{
-	LeaseClaim:   planClaim,
-	LeaseRenew:   planRenew,
-	LeaseRelease: planRelease,
-	LeaseReap:    planReap,
-	LeaseWiden:   planWiden,
+	LeaseClaim:     planClaim,
+	LeaseClaimNext: planClaimNext,
+	LeaseRenew:     planRenew,
+	LeaseRelease:   planRelease,
+	LeaseReap:      planReap,
+	LeaseWiden:     planWiden,
 }
 
 func planLease(r Request, in Input, st inputState) leaseOutcome {

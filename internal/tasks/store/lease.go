@@ -50,7 +50,7 @@ func Lease(ctx context.Context, repo *intent.Repository, actor mutation.Binding,
 		report, err := leaseOnce(ctx, repo, actor, choice, now)
 		if err != nil || len(report.Expired) == 0 {
 			report.Reaped = reaped
-			return report, err
+			return report, claimedTicket(repo, choice.Lease.Verb, report, err)
 		}
 		for _, x := range report.Expired {
 			done, err := reapOne(ctx, repo, actor, choice.QueueID, x, now)
@@ -73,7 +73,7 @@ func leaseOnce(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 	lease := choice.Lease
 	request := transaction.Request{Operation: transaction.Lease, QueueID: choice.QueueID, RequestID: choice.RequestID, Actor: actor, Lease: &lease}
 	var facts claimObserver
-	if lease.Verb == transaction.LeaseClaim {
+	if lease.Verb == transaction.LeaseClaim || lease.Verb == transaction.LeaseClaimNext {
 		facts = claimFacts(ctx, repo, choice)
 	}
 	report, _, err := administrativeWriteWith(ctx, repo, request, now, nil, facts)
@@ -81,6 +81,25 @@ func leaseOnce(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 		return report, err
 	}
 	return report, replayedAttempt(repo, report)
+}
+
+// claimedTicket names the ticket a completed claim holds, which `claim
+// --next` did not name. An attempt's ticket never changes, so reading its
+// record after the commit is enough.
+func claimedTicket(repo *intent.Repository, verb string, report *Report, err error) error {
+	if err != nil || report.AttemptID == "" || (verb != transaction.LeaseClaim && verb != transaction.LeaseClaimNext) {
+		return err
+	}
+	raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "attempts", report.AttemptID+".json"), wire.MaxAttemptRecordBytes)
+	if err != nil {
+		return err
+	}
+	a, err := snapshot.DecodeAttempt(raw)
+	if err != nil {
+		return err
+	}
+	report.Ticket = a.TicketID.Raw
+	return nil
 }
 
 // reapID is the deterministic request id of one reap, so a repeated reap of

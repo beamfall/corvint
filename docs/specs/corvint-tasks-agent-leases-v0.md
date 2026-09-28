@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S8 claim side CAL-V0-021..023 and 025 experimental)
+Delivery status: partial (S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S8 claim side CAL-V0-021..023 and 025 experimental)
 Authoritative inputs: the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
 §3.4, §4, §6 and §7.4), decision 0397 (corvint-tasks built in tree), decision 0423 A10,
 `docs/specs/corvint-tasks-store-init-v0.md`, tickets V1-0398, V1-0184 and V1-0310, and the in-tree
@@ -11,7 +11,7 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Coding agents claim, renew, gate and complete tickets through leased `corvint-tasks` attempts, replacing a repository's own task runner without a supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S8 claim side CAL-V0-021..023 and 025 experimental). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S8 claim side CAL-V0-021..023 and 025 experimental). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
 - Read next: Slices; Requirements (S8 for parallel claims); Amendments to TCP-00; Failure modes.
@@ -114,6 +114,10 @@ S3, leases.
 - `CAL-V0-008`: `claim --next --holder <label>` MUST claim the first `SELECTED` entry of the
   CAL-V0-014 plan computed inside the same transaction, or answer `BLOCKED` with the plan's reasons
   when none is selected.
+  Because the plan reads every reservation, `claim --next` first reaps every expired lease, not only
+  the colliding ones, then plans and claims the ticket under its `DECLARED` or `WHOLE_REPOSITORY`
+  scope; it takes no `--scope` and derives none. With nothing selected it answers the first
+  entry's reason, or `TICKET_STATE` when no ticket is `OPEN` or `HELD`.
 - `CAL-V0-009`: Every command that names an attempt (`renew`, `release`, `submit`, `gate run`,
   `complete`) MUST carry `--attempt <attemptId> --generation <G>`, and a generation other than the
   attempt's current one, or an attempt in a terminal phase, MUST refuse `REVISION_CONFLICT` with
@@ -144,6 +148,16 @@ S4, planning.
 - `CAL-V0-014`: `corvint-tasks plan preview` MUST implement `taskman-priority-first/0` (TCP-00
   §4.3) over the current inventory and live reservations, as a pure read with
   `mutationAuthority:false`; `deferredSinceSeq` is null because this spec pins no plans.
+  The plan covers `OPEN` and `HELD` tickets, and its eligibility predicate is the claim's, so a
+  `SELECTED` entry is exactly a ticket `claim` would admit. Each entry is `BLOCKED` with the first
+  of: `PAUSED` under an admission barrier, `BUDGET_UNKNOWN` when the policy requires an enforced
+  budget field, the ticket's own blockers and unknowns except `COVERAGE_UNKNOWN` (an undeclared
+  ticket claims `WHOLE_REPOSITORY`), and `RETRY_EXHAUSTED`. An eligible entry is `DEFERRED
+  RESOURCE_COLLISION`, naming the colliding ticket, when its resources collide with a live
+  reservation or an earlier selection, and `DEFERRED LIMIT_EXCEEDED` once reservations plus
+  selections reach `maxActiveAttempts`; otherwise it is `SELECTED` with reason `DEVELOPMENT_MODE`.
+  `availableWorkers` is reported and never decides, because an `external-agent` attempt holds no
+  worker.
 
 S5, gates and completion.
 
@@ -291,13 +305,14 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-005 | `TestCALV0005_ImportAfterCutoverRefusesAndWritesNothing` (`internal/tasks/store`) |
 | CAL-V0-006 | `TestCALV0004_CutoverSwitchesWriterInOneReceipt` (imported record bytes unchanged) |
 | CAL-V0-007 | `TestCALV0007_ClaimAdmitsOneRunningAttempt`, `TestCALV0007_ClaimRefusesBudgetUnknown` (`internal/tasks/store`) |
-| CAL-V0-008 | NOT_RUN; `claim --next` answers `UNSUPPORTED` until the S4 plan is wired |
+| CAL-V0-008 | `TestCALV0008_ClaimNextTakesThePlanInPriorityOrder`, `TestCALV0008_ClaimNextRefusesWithoutACandidate`, `TestCALV0008_ClaimNextReapsEveryExpiredLeaseFirst` (`internal/tasks/store`) |
 | CAL-V0-009 | `TestCALV0009_StaleGenerationIsFencedAndRecorded` (`internal/tasks/store`) |
 | CAL-V0-010 | `TestCALV0010_RenewExtendsAndIsFencedAfterExpiry` (`internal/tasks/store`) |
 | CAL-V0-011 | `TestCALV0011_ExpiredLeaseIsReapedByACollidingClaim`, `TestCALV0011_ReapAndRelease`, `TestCALV0011_ReleaseAndReapPassAnAllBarrier` (`internal/tasks/store`) |
 | CAL-V0-012 | `TestCALV0012_LeaseBoundsAndBackwardClock`, `TestCALV0012_BackwardClockRefusesEveryWriter` (`internal/tasks/store`) |
 | CAL-V0-013 | `TestCALV0013_RetryAsNextGenerationUpToThree` (`internal/tasks/store`) |
-| CAL-V0-014..020 | NOT_RUN; accepted, not started |
+| CAL-V0-014 | `TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan` (`internal/tasks/cli`); `plan preview` in `TestTMV0008_AS07_ReadsLeaveStoreByteIdentical` (`internal/tasks/cli`) |
+| CAL-V0-015..020 | NOT_RUN; accepted, not started |
 | CAL-V0-021 | `TestCALV0021_WholeRepositoryBlocksEverything`, `TestCALV0021_DeclaredNonPathResourcesJoinTheScope` (`internal/tasks/store`) |
 | CAL-V0-022 | Claim side only: `TestCALV0022_DerivedScopeWhenTheTicketDeclaresNone` (`internal/tasks/store`), with an injected deriver; the context-index deriver is NOT_RUN |
 | CAL-V0-023 | `TestCALV0023_CollisionNormalization` (`internal/tasks/ticket`), `TestCALV0023_CollidingClaimsAdmitOne`, `TestCALV0023_DisjointPathScopesAreBothAdmitted` (`internal/tasks/store`) |

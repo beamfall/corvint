@@ -31,6 +31,7 @@ type leaseArgs struct {
 	values map[string]string
 	scope  []string
 	whole  bool
+	next   bool
 	pos    []string
 }
 
@@ -47,7 +48,7 @@ func parseLeaseArgs(args []string) (leaseArgs, error) {
 		case a == "--whole-repository":
 			out.whole = true
 		case a == "--next":
-			return out, wire.Errorf(wire.CodeUnsupported, "--next", "claim --next arrives with the CAL-V0-014 plan (S4)")
+			out.next = true
 		case a == "--scope":
 			n := scopeRun(args[i+1:])
 			if n == 0 {
@@ -95,16 +96,24 @@ func scopePaths(paths []string) []string {
 }
 
 func (a leaseArgs) request(verb, queueID string) (transaction.LeaseRequest, error) {
+	if a.next && verb != transaction.LeaseClaim {
+		return transaction.LeaseRequest{}, wire.Errorf(wire.CodeMalformed, "argv", "--next belongs to claim")
+	}
+	if a.next {
+		verb = transaction.LeaseClaimNext
+	}
 	req := transaction.LeaseRequest{Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), Reason: a.values["--reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"])}
 	if verb == transaction.LeaseClaim {
 		if len(a.pos) != 1 {
 			return req, wire.Errorf(wire.CodeMalformed, "argv", "claim takes exactly one ticket id or local token")
 		}
 		req.TicketID = qualifyTicket(queueID, a.pos[0])
+	} else if len(a.pos) != 0 && a.next {
+		return req, wire.Errorf(wire.CodeMalformed, "argv", "claim --next takes no ticket id")
 	} else if len(a.pos) != 0 {
 		return req, wire.Errorf(wire.CodeMalformed, "argv", "%s takes no positional argument", strings.ToLower(verb))
 	}
-	if req.LeaseMinutes == "" && (verb == transaction.LeaseClaim || verb == transaction.LeaseRenew) {
+	if req.LeaseMinutes == "" && (verb == transaction.LeaseClaim || verb == transaction.LeaseClaimNext || verb == transaction.LeaseRenew) {
 		req.LeaseMinutes = wire.SizeOf(transaction.DefaultLeaseMinutes)
 	}
 	return req, nil
