@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import test from 'node:test';
 import {spawn,execFileSync} from 'node:child_process';
 import {mkdtemp,writeFile,copyFile,readFile,mkdir,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -83,6 +84,7 @@ async function sentinel(){
  assert.equal(http,1);assert.equal(upgrade,1);http=0;upgrade=0;
  return {origin,counts:()=>({http,upgrade})};
 }
+await test('AFU-V1-029 observer execution at committed disposable origin', async()=>{
 try {
  const external=await sentinel();
  const good=await prepare();await packet(good.root);
@@ -127,3 +129,4 @@ try {
  const cleanup={};for(const signal of ['SIGINT','SIGTERM','timeout'])cleanup[signal]=await interrupt(slow,signal);
  console.log(JSON.stringify({navigation:'PASS',cases,externalAttempts:external.counts(),cleanup}));
 }finally{stop();await Promise.all([...children].map(c=>new Promise(r=>c.once('close',r))));for(const d of directories)await rm(d,{recursive:true,force:true});}
+});
