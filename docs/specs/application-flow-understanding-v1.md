@@ -60,7 +60,7 @@ At `978b37b`:
   attempt. The external reporter emits the same complete inventory only under the separate `/3`
   profile (`internal/jstestprovider/attempt_details.go`); earlier profiles continue to refuse it.
 - The issue-53 adapter reconciles flows, variations, tests and assertions in both directions, and
-  never has narrowing authority (`docs/specs/documentation-corpus-v1.md:191-196@cea38e20`). S4
+  never has narrowing authority (`docs/specs/documentation-corpus-v1.md:192-197@cea38e20`). S4
   leaves it so: only `internal/appflows/selection.go` produces an `e2e-safe` omission.
 
 ## Definitions

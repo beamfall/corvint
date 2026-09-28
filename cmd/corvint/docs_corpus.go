@@ -14,7 +14,7 @@ import (
 type corpusOptions struct {
 	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, cem string
 	apply                                                                                                 bool
-	limit                                                                                                 int
+	limit, offset                                                                                         int
 }
 
 func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
@@ -50,7 +50,7 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 			o.apply = true
 			continue
 		}
-		if flag == "--limit" {
+		if flag == "--limit" || flag == "--offset" {
 			if !inline {
 				if i+1 >= len(args) {
 					return o, true, argumentError("missing corpus limit")
@@ -59,10 +59,14 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 				value = args[i]
 			}
 			n, err := strconv.Atoi(value)
-			if err != nil || n < 1 || n > doccorpus.MaxResults {
+			if err != nil || flag == "--limit" && (n < 1 || n > doccorpus.MaxResults) || flag == "--offset" && (n < 0 || n > doccorpus.MaxCorpusRecords*4) {
 				return o, true, argumentError("invalid corpus limit")
 			}
-			o.limit = n
+			if flag == "--limit" {
+				o.limit = n
+			} else {
+				o.offset = n
+			}
 			continue
 		}
 		target, ok := flags[flag]
@@ -87,7 +91,11 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 		"get": "--artifact --id --limit", "trace": "--artifact --id --limit", "related": "--artifact --id --limit",
 		"journey": "--artifact --id --limit", "stability": "--artifact --id --limit", "locate": "--artifact --path --limit", "coverage": "--artifact --limit", "gaps": "--artifact --id --limit",
 	}
+	allowed["inventory"] = "--artifact --limit --offset"
 	valid, ok := allowed[o.op]
+	if strings.Contains(valid, "--limit") {
+		valid += " --offset"
+	}
 	if !ok {
 		return o, true, argumentError("unsupported corpus operation")
 	}
@@ -144,7 +152,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 		return doccorpus.Encode(m)
 	}
 	if o.op == "build" {
-		raw, err := doccorpus.ReadFile(o.root, o.manifest)
+		raw, err := doccorpus.ReadCorpusFile(o.root, o.manifest)
 		if err != nil {
 			return nil, err
 		}
@@ -187,7 +195,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 		}
 		return doccorpus.Encode(result)
 	}
-	raw, err := doccorpus.ReadFile(o.root, o.artifact)
+	raw, err := doccorpus.ReadCorpusFile(o.root, o.artifact)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +242,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	receipt, err := doccorpus.Query(a, doccorpus.Request{Operation: o.op, Query: o.query, ID: o.id, Path: o.path, Limit: o.limit}, fresh, limits)
+	receipt, err := doccorpus.Query(a, doccorpus.Request{Operation: o.op, Query: o.query, ID: o.id, Path: o.path, Limit: o.limit, Offset: o.offset}, fresh, limits)
 	if err != nil {
 		return nil, err
 	}
