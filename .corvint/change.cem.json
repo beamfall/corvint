@@ -1,0 +1,90 @@
+{
+  "baseRevision": "947d66bf8e1230f3996008debe2d90c1efd72f47",
+  "evidence": [
+    {
+      "blobOid": "9508d4097b28ea377c02a26896e7809497d31f50",
+      "id": "evidence:sha256:c5144d0efa5298c3ee2535a1a3bd8fcbf7e5425ecc63ed6c54eac12f14f0d787",
+      "path": "docs/specs/index-snapshot-v0.md",
+      "span": {
+        "end": 33818,
+        "start": 32352
+      },
+      "spanSha256": "d5d93bf0085bea645a7412183f9845d9ed0a84816fadf5a9ebf74db0d8d0ed65"
+    },
+    {
+      "blobOid": "e5a9e8025337d65e4ec53d22cfb0c5143e5c138d",
+      "id": "evidence:sha256:937046ebeb76ba9f33e7d8291700cfe73b5fb602c90f1196d5f3efb30b4e8116",
+      "path": "docs/specs/task-context-packet-v0.md",
+      "span": {
+        "end": 16581,
+        "start": 15633
+      },
+      "spanSha256": "397d9227f75ee99876ea1b149dea2e75e35eabf7a085e8d5cc1f3963e921739e"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c5144d0efa5298c3ee2535a1a3bd8fcbf7e5425ecc63ed6c54eac12f14f0d787",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:65d442510a8cd909e897f4662f0b906551ea06cb45ebb1e7468978aa0b328b15",
+      "newRange": {
+        "count": 7,
+        "start": 13
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 13
+      },
+      "path": "internal/contextindex/analyzer_schema.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c5144d0efa5298c3ee2535a1a3bd8fcbf7e5425ecc63ed6c54eac12f14f0d787",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:02431b675e67e8b52e6811047cc406b85c91c638fe3a6f2775ef3e9db75662d3",
+      "newRange": {
+        "count": 8,
+        "start": 17
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 17
+      },
+      "path": "internal/contextindex/analyzer_schema_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:937046ebeb76ba9f33e7d8291700cfe73b5fb602c90f1196d5f3efb30b4e8116",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3243e59b148db02497b668278e97fa053951a6d60c6d4c1d83568cd318a144dd",
+      "newRange": {
+        "count": 7,
+        "start": 1414
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 1414
+      },
+      "path": "internal/contextindex/taskcontext.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "ab0f39d59f0e695a64c53e94253ff7352f401311ba810d094d007dbaa869aaeb",
+  "spec": "cem/0.2"
+}
