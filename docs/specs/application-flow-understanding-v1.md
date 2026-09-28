@@ -56,13 +56,9 @@ At `978b37b`:
   (`internal/jstestprovider/playwright.go:193-200@f01509c4`). Since S2 it keeps every attempt's
   duration, failure message, anchor and attachments in memory
   (`internal/jstestprovider/playwright.go:131-133@9ab61026`). The unprofiled receipt carries them
-  as the additive `attemptDetails` member (`internal/jstestprovider/receipt.go:65-68@1afda4df`),
-  scrubbed per attempt by the shared run-evidence hygiene and the product secret screen
-  (`internal/jstestprovider/playwright.go:134-158@17847d1b`). The `corvint-playwright-external`
-  profiles refuse the member on encode and on reporter decode
-  (`internal/jstestprovider/projection.go:63-65@df31a2ae`,
-  `internal/jstestprovider/external.go:281-283@d54a4a23`), because a profiled wire field needs
-  another profile revision; their reporter still emits the last attempt's detail only.
+  as `attemptDetails` (`internal/jstestprovider/receipt.go`). The shared hygiene scrubs each
+  attempt. The external reporter emits the same complete inventory only under the separate `/3`
+  profile (`internal/jstestprovider/attempt_details.go`); earlier profiles continue to refuse it.
 - The issue-53 adapter reconciles flows, variations, tests and assertions in both directions, and
   never has narrowing authority (`docs/specs/documentation-corpus-v1.md:191-196@cea38e20`). S4
   leaves it so: only `internal/appflows/selection.go` produces an `e2e-safe` omission.

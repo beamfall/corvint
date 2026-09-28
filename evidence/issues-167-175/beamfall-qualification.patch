@@ -310,23 +310,14 @@ diff --git a/server/mockApi.ts b/server/mockApi.ts
 index 205b428..4ba55e5 100644
 --- a/server/mockApi.ts
 +++ b/server/mockApi.ts
-@@ -197,7 +197,7 @@ export function createMockApi(phaseId = "invite-beta"): BffApi {
- 
-   return {
-     getPhase() {
+@@ -200 +200 @@ export function createMockApi(phaseId = "invite-beta"): BffApi {
 -      return Promise.resolve(phase);
 +      return Promise.resolve({ ...phase, id: "qualification-fault" });
-     },
- 
-     requestMagicLink({ email }: { email: string }) {
 diff --git a/src/shared/phase.ts b/src/shared/phase.ts
 index de1632a..4c549c5 100644
 --- a/src/shared/phase.ts
 +++ b/src/shared/phase.ts
-@@ -36,3 +36,7 @@ const PHASE_CONFIG: Record<string, PhaseConfig> = {
- export function getPhaseConfig(phaseId = 'invite-beta'): PhaseConfig {
-   return PHASE_CONFIG[phaseId] ?? PHASE_CONFIG['invite-beta']!
- }
+@@ -38,0 +39,4 @@ export function getPhaseConfig(phaseId = 'invite-beta'): PhaseConfig {
 +
 +// Corvint qualification: deliberate post-review source change.
 +
