@@ -82,41 +82,43 @@ func (s *leaseStore) consistent(t *testing.T) {
 // tickets over one path, sent at once, admit exactly one; the rest refuse
 // RESOURCE_COLLISION. Two claims of one ticket admit one too.
 func TestCALV0019_ConcurrentCollidingClaimsAdmitOne(t *testing.T) {
-	s := newLeaseStore(t)
-	ids := []string{}
-	for i := range 8 {
-		ids = append(ids, s.ticket(t, "t"+strconv.Itoa(i)))
-	}
-	calls := []func() (*store.Report, error){}
-	for i, id := range ids {
-		calls = append(calls, func() (*store.Report, error) { return s.try("claim-"+strconv.Itoa(i), claimOf(id, "src/"), s.at(t, 0)) })
-	}
-	admitted := 0
-	for _, r := range race(t, calls...) {
-		switch {
-		case r.Outcome.Outcome == mutation.OutcomeCompleted:
-			admitted++
-		case !has(r.Outcome.Codes, wire.CodeResourceCollision):
-			t.Fatalf("unexpected refusal: %+v", r)
+	t.Run("CAL-V0-019 ConcurrentCollidingClaimsAdmitOne", func(t *testing.T) {
+		s := newLeaseStore(t)
+		ids := []string{}
+		for i := range 8 {
+			ids = append(ids, s.ticket(t, "t"+strconv.Itoa(i)))
 		}
-	}
-	if admitted != 1 || len(s.entries(t)) != 1 {
-		t.Fatalf("admitted %d, entries %d", admitted, len(s.entries(t)))
-	}
-	one := s.ticket(t, "same")
-	same := func(req string) func() (*store.Report, error) {
-		return func() (*store.Report, error) { return s.try(req, claimOf(one, "docs/"), s.at(t, 0)) }
-	}
-	admitted = 0
-	for _, r := range race(t, same("same-1"), same("same-2")) {
-		if r.Outcome.Outcome == mutation.OutcomeCompleted {
-			admitted++
+		calls := []func() (*store.Report, error){}
+		for i, id := range ids {
+			calls = append(calls, func() (*store.Report, error) { return s.try("claim-"+strconv.Itoa(i), claimOf(id, "src/"), s.at(t, 0)) })
 		}
-	}
-	if admitted != 1 {
-		t.Fatalf("one ticket admitted %d claims", admitted)
-	}
-	s.consistent(t)
+		admitted := 0
+		for _, r := range race(t, calls...) {
+			switch {
+			case r.Outcome.Outcome == mutation.OutcomeCompleted:
+				admitted++
+			case !has(r.Outcome.Codes, wire.CodeResourceCollision):
+				t.Fatalf("unexpected refusal: %+v", r)
+			}
+		}
+		if admitted != 1 || len(s.entries(t)) != 1 {
+			t.Fatalf("admitted %d, entries %d", admitted, len(s.entries(t)))
+		}
+		one := s.ticket(t, "same")
+		same := func(req string) func() (*store.Report, error) {
+			return func() (*store.Report, error) { return s.try(req, claimOf(one, "docs/"), s.at(t, 0)) }
+		}
+		admitted = 0
+		for _, r := range race(t, same("same-1"), same("same-2")) {
+			if r.Outcome.Outcome == mutation.OutcomeCompleted {
+				admitted++
+			}
+		}
+		if admitted != 1 {
+			t.Fatalf("one ticket admitted %d claims", admitted)
+		}
+		s.consistent(t)
+	})
 }
 
 // TestCALV0019_RacingLeaseVerbsLeaveOneConsistentHead: claim, renew, reap,
@@ -124,80 +126,84 @@ func TestCALV0019_ConcurrentCollidingClaimsAdmitOne(t *testing.T) {
 // once, each commit or refuse, and the store audits CONSISTENT with no
 // reservation left to a fenced attempt.
 func TestCALV0019_RacingLeaseVerbsLeaveOneConsistentHead(t *testing.T) {
-	s := newGateStore(t)
-	a, b, c, d := s.ticket(t, "a"), s.ticket(t, "b"), s.ticket(t, "c"), s.ticket(t, "d")
-	built, commit := s.submitted(t, a, "src", 0)
-	tree := gitOut(t, s.root, "rev-parse", "HEAD^{tree}")
-	short := claimOf(b, "docs/")
-	short.LeaseMinutes = "5"
-	s.lease(t, "claim-b", short, 1, nil)
-	live := s.claim(t, "claim-d", d, 1, "web/")
-	at := s.at(t, 10)
-	widen := transaction.LeaseRequest{Verb: transaction.LeaseWiden, AttemptID: live.AttemptID, Generation: live.Generation, Scope: []string{"web2/"}}
-	race(t,
-		func() (*store.Report, error) { return s.try("renew-a", renewOf(built), at) },
-		func() (*store.Report, error) { return s.try("submit-a", submitOf(built, tree), at) },
-		func() (*store.Report, error) { return s.tryGate("gate-a", gateOf(built, "verify"), at) },
-		func() (*store.Report, error) { return s.try("complete-a", completeOf(built, commit), at) },
-		func() (*store.Report, error) {
-			return s.try("reap-all", transaction.LeaseRequest{Verb: transaction.LeaseReap}, at)
-		},
-		func() (*store.Report, error) { return s.try("claim-c", claimOf(c, "docs/"), at) },
-		func() (*store.Report, error) { return s.try("renew-d", renewOf(live), at) },
-		func() (*store.Report, error) { return s.try("widen-d", widen, at) },
-		func() (*store.Report, error) { return s.try("release-d", releaseOf(live), at) },
-	)
-	s.consistent(t)
+	t.Run("CAL-V0-019 RacingLeaseVerbsLeaveOneConsistentHead", func(t *testing.T) {
+		s := newGateStore(t)
+		a, b, c, d := s.ticket(t, "a"), s.ticket(t, "b"), s.ticket(t, "c"), s.ticket(t, "d")
+		built, commit := s.submitted(t, a, "src", 0)
+		tree := gitOut(t, s.root, "rev-parse", "HEAD^{tree}")
+		short := claimOf(b, "docs/")
+		short.LeaseMinutes = "5"
+		s.lease(t, "claim-b", short, 1, nil)
+		live := s.claim(t, "claim-d", d, 1, "web/")
+		at := s.at(t, 10)
+		widen := transaction.LeaseRequest{Verb: transaction.LeaseWiden, AttemptID: live.AttemptID, Generation: live.Generation, Scope: []string{"web2/"}}
+		race(t,
+			func() (*store.Report, error) { return s.try("renew-a", renewOf(built), at) },
+			func() (*store.Report, error) { return s.try("submit-a", submitOf(built, tree), at) },
+			func() (*store.Report, error) { return s.tryGate("gate-a", gateOf(built, "verify"), at) },
+			func() (*store.Report, error) { return s.try("complete-a", completeOf(built, commit), at) },
+			func() (*store.Report, error) {
+				return s.try("reap-all", transaction.LeaseRequest{Verb: transaction.LeaseReap}, at)
+			},
+			func() (*store.Report, error) { return s.try("claim-c", claimOf(c, "docs/"), at) },
+			func() (*store.Report, error) { return s.try("renew-d", renewOf(live), at) },
+			func() (*store.Report, error) { return s.try("widen-d", widen, at) },
+			func() (*store.Report, error) { return s.try("release-d", releaseOf(live), at) },
+		)
+		s.consistent(t)
+	})
 }
 
 // TestCALV0019_FencedGenerationCannotMoveOrComplete: once a generation is
 // released or reaped, and on a live attempt named by a wrong generation,
 // every verb refuses FENCED and the attempt file keeps its bytes.
 func TestCALV0019_FencedGenerationCannotMoveOrComplete(t *testing.T) {
-	s := newGateStore(t)
-	one, two, three := s.ticket(t, "one"), s.ticket(t, "two"), s.ticket(t, "three")
-	released, commit := s.submitted(t, one, "src", 0)
-	tree := gitOut(t, s.root, "rev-parse", "HEAD^{tree}")
-	s.passes(t, "gate-1", gateOf(released, "verify"), 2)
-	if r := s.lease(t, "release-1", releaseOf(released), 3, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
-		t.Fatalf("release: %+v", r)
-	}
-	short := claimOf(two, "docs/")
-	short.LeaseMinutes = "5"
-	reaped := s.lease(t, "claim-2", short, 3, nil)
-	wrong := s.claim(t, "claim-3", three, 4, "lib/")
-	if r := s.lease(t, "reap-2", transaction.LeaseRequest{Verb: transaction.LeaseReap, AttemptID: reaped.AttemptID, Generation: reaped.Generation}, 10, nil); r.Kind != "Transaction" {
-		t.Fatalf("reap: %+v", r)
-	}
-	wrong.Generation = wire.SizeOf(wrong.Generation.Uint64() + 1)
-	for _, fenced := range []*store.Report{released, reaped, wrong} {
-		file := filepath.Join(s.repo.StateDir, "attempts", fenced.AttemptID+".json")
-		before, err := os.ReadFile(file)
-		if err != nil {
-			t.Fatal(err)
+	t.Run("CAL-V0-019 FencedGenerationCannotMoveOrComplete", func(t *testing.T) {
+		s := newGateStore(t)
+		one, two, three := s.ticket(t, "one"), s.ticket(t, "two"), s.ticket(t, "three")
+		released, commit := s.submitted(t, one, "src", 0)
+		tree := gitOut(t, s.root, "rev-parse", "HEAD^{tree}")
+		s.passes(t, "gate-1", gateOf(released, "verify"), 2)
+		if r := s.lease(t, "release-1", releaseOf(released), 3, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
+			t.Fatalf("release: %+v", r)
 		}
-		widen := transaction.LeaseRequest{Verb: transaction.LeaseWiden, AttemptID: fenced.AttemptID, Generation: fenced.Generation, Scope: []string{"other/"}}
-		verbs := map[string]transaction.LeaseRequest{
-			"renew": renewOf(fenced), "widen": widen, "submit": submitOf(fenced, tree),
-			"complete": completeOf(fenced, commit), "release": releaseOf(fenced),
+		short := claimOf(two, "docs/")
+		short.LeaseMinutes = "5"
+		reaped := s.lease(t, "claim-2", short, 3, nil)
+		wrong := s.claim(t, "claim-3", three, 4, "lib/")
+		if r := s.lease(t, "reap-2", transaction.LeaseRequest{Verb: transaction.LeaseReap, AttemptID: reaped.AttemptID, Generation: reaped.Generation}, 10, nil); r.Kind != "Transaction" {
+			t.Fatalf("reap: %+v", r)
 		}
-		for name, l := range verbs {
-			r, err := s.try(name+"-"+fenced.AttemptID, l, s.at(t, 20))
+		wrong.Generation = wire.SizeOf(wrong.Generation.Uint64() + 1)
+		for _, fenced := range []*store.Report{released, reaped, wrong} {
+			file := filepath.Join(s.repo.StateDir, "attempts", fenced.AttemptID+".json")
+			before, err := os.ReadFile(file)
 			if err != nil {
-				t.Fatalf("%s: %v", name, err)
+				t.Fatal(err)
+			}
+			widen := transaction.LeaseRequest{Verb: transaction.LeaseWiden, AttemptID: fenced.AttemptID, Generation: fenced.Generation, Scope: []string{"other/"}}
+			verbs := map[string]transaction.LeaseRequest{
+				"renew": renewOf(fenced), "widen": widen, "submit": submitOf(fenced, tree),
+				"complete": completeOf(fenced, commit), "release": releaseOf(fenced),
+			}
+			for name, l := range verbs {
+				r, err := s.try(name+"-"+fenced.AttemptID, l, s.at(t, 20))
+				if err != nil {
+					t.Fatalf("%s: %v", name, err)
+				}
+				refusedWith(t, r, mutation.OutcomeRevisionConflict, wire.CodeFenced)
+			}
+			r, err := s.tryGate("gate-"+fenced.AttemptID, gateOf(fenced, "verify"), s.at(t, 20))
+			if err != nil {
+				t.Fatalf("gate: %v", err)
 			}
 			refusedWith(t, r, mutation.OutcomeRevisionConflict, wire.CodeFenced)
+			if after, _ := os.ReadFile(file); !bytes.Equal(before, after) {
+				t.Fatalf("fenced verbs changed %s", fenced.AttemptID)
+			}
 		}
-		r, err := s.tryGate("gate-"+fenced.AttemptID, gateOf(fenced, "verify"), s.at(t, 20))
-		if err != nil {
-			t.Fatalf("gate: %v", err)
-		}
-		refusedWith(t, r, mutation.OutcomeRevisionConflict, wire.CodeFenced)
-		if after, _ := os.ReadFile(file); !bytes.Equal(before, after) {
-			t.Fatalf("fenced verbs changed %s", fenced.AttemptID)
-		}
-	}
-	s.consistent(t)
+		s.consistent(t)
+	})
 }
 
 // verbCase builds a fresh store up to one lease verb and returns the call
@@ -291,44 +297,46 @@ func roles(t *testing.T, v verbCase) []string {
 // commits afresh, and from the receipt on the next writer redoes it and the
 // retry replays it (the §5.3 crash matrix, lease rows).
 func TestCALV0019_FaultAtEveryArtifactIsAllOrNothing(t *testing.T) {
-	for _, v := range leaseVerbs {
-		t.Run(v.name, func(t *testing.T) {
-			order := roles(t, v)
-			receiptAt := -1
-			for i, role := range order {
-				if role == "RECEIPT" {
-					receiptAt = i
-				}
-			}
-			for k := range order {
-				s := newGateStore(t)
-				run := v.setup(t, s)
-				head, count := journalState(t, s.repo)
-				n := 0
-				restore := store.SetPublishFaultForTest(func(transaction.Artifact) error {
-					if n++; n > k {
-						return errInjected
+	t.Run("CAL-V0-019 FaultAtEveryArtifactIsAllOrNothing", func(t *testing.T) {
+		for _, v := range leaseVerbs {
+			t.Run(v.name, func(t *testing.T) {
+				order := roles(t, v)
+				receiptAt := -1
+				for i, role := range order {
+					if role == "RECEIPT" {
+						receiptAt = i
 					}
-					return nil
-				})
-				_, err := run("verb")
-				restore()
-				if !errors.Is(err, errInjected) {
-					t.Fatalf("fault %d (%s): %v", k, order[k], err)
 				}
-				gotHead, gotCount := journalState(t, s.repo)
-				committed := k > receiptAt
-				if gotHead != head || gotCount != count+btoi(committed) {
-					t.Fatalf("fault %d (%s): head moved or receipts %d -> %d", k, order[k], count, gotCount)
+				for k := range order {
+					s := newGateStore(t)
+					run := v.setup(t, s)
+					head, count := journalState(t, s.repo)
+					n := 0
+					restore := store.SetPublishFaultForTest(func(transaction.Artifact) error {
+						if n++; n > k {
+							return errInjected
+						}
+						return nil
+					})
+					_, err := run("verb")
+					restore()
+					if !errors.Is(err, errInjected) {
+						t.Fatalf("fault %d (%s): %v", k, order[k], err)
+					}
+					gotHead, gotCount := journalState(t, s.repo)
+					committed := k > receiptAt
+					if gotHead != head || gotCount != count+btoi(committed) {
+						t.Fatalf("fault %d (%s): head moved or receipts %d -> %d", k, order[k], count, gotCount)
+					}
+					r, err := run("verb")
+					if err != nil || r.Outcome.Outcome != mutation.OutcomeCompleted || r.Redone != committed || replayed(r.Kind) != committed {
+						t.Fatalf("fault %d (%s) retry: %+v %v", k, order[k], r, err)
+					}
+					s.consistent(t)
 				}
-				r, err := run("verb")
-				if err != nil || r.Outcome.Outcome != mutation.OutcomeCompleted || r.Redone != committed || replayed(r.Kind) != committed {
-					t.Fatalf("fault %d (%s) retry: %+v %v", k, order[k], r, err)
-				}
-				s.consistent(t)
-			}
-		})
-	}
+			})
+		}
+	})
 }
 
 func btoi(b bool) int {
@@ -379,41 +387,43 @@ func TestCALV0019KillChild(t *testing.T) {
 // the retry, in a new process, clears them, completes the transaction and
 // audits CONSISTENT, and a later write commits.
 func TestCALV0019_KilledWriterRecovers(t *testing.T) {
-	for _, verb := range []string{"claim", "gate-run"} {
-		t.Run(verb, func(t *testing.T) {
-			for k := 0; ; k++ {
-				s := newGateStore(t)
-				target, generation, at := s.ticket(t, "one"), "", s.at(t, 0)
-				if verb == "gate-run" {
-					c, _ := s.submitted(t, target, "src", 0)
-					target, generation, at = c.AttemptID, string(c.Generation), s.at(t, 2)
-				}
-				child := exec.Command(os.Args[0], "-test.run=^TestCALV0019KillChild$", "-test.count=1")
-				child.Env = append(os.Environ(), "KILL_REPO="+s.repo.PrimaryWorktree, "KILL_GIT="+s.root, "KILL_AT="+strconv.Itoa(k),
-					"KILL_VERB="+verb, "KILL_TARGET="+target, "KILL_GEN="+generation, "KILL_T="+string(at))
-				out, err := child.CombinedOutput()
-				var exit *exec.ExitError
-				if err == nil {
-					if k == 0 {
-						t.Fatal("the child published nothing")
+	t.Run("CAL-V0-019 KilledWriterRecovers", func(t *testing.T) {
+		for _, verb := range []string{"claim", "gate-run"} {
+			t.Run(verb, func(t *testing.T) {
+				for k := 0; ; k++ {
+					s := newGateStore(t)
+					target, generation, at := s.ticket(t, "one"), "", s.at(t, 0)
+					if verb == "gate-run" {
+						c, _ := s.submitted(t, target, "src", 0)
+						target, generation, at = c.AttemptID, string(c.Generation), s.at(t, 2)
 					}
-					return
+					child := exec.Command(os.Args[0], "-test.run=^TestCALV0019KillChild$", "-test.count=1")
+					child.Env = append(os.Environ(), "KILL_REPO="+s.repo.PrimaryWorktree, "KILL_GIT="+s.root, "KILL_AT="+strconv.Itoa(k),
+						"KILL_VERB="+verb, "KILL_TARGET="+target, "KILL_GEN="+generation, "KILL_T="+string(at))
+					out, err := child.CombinedOutput()
+					var exit *exec.ExitError
+					if err == nil {
+						if k == 0 {
+							t.Fatal("the child published nothing")
+						}
+						return
+					}
+					if !errors.As(err, &exit) || exit.ExitCode() != 7 {
+						t.Fatalf("child at %d: %v\n%s", k, err, out)
+					}
+					r, err := killCall(s, verb, target, generation, at)
+					if err != nil || r.Outcome.Outcome != mutation.OutcomeCompleted {
+						t.Fatalf("retry after kill at %d: %+v %v", k, r, err)
+					}
+					s.consistent(t)
+					later, err := store.Mutate(context.Background(), s.repo, operator(), envelope("after", "CREATE", "", "", createPayload("after")), s.at(t, 60))
+					if err != nil || later.Outcome.Outcome != mutation.OutcomeCompleted {
+						t.Fatalf("write after kill at %d: %+v %v", k, later, err)
+					}
 				}
-				if !errors.As(err, &exit) || exit.ExitCode() != 7 {
-					t.Fatalf("child at %d: %v\n%s", k, err, out)
-				}
-				r, err := killCall(s, verb, target, generation, at)
-				if err != nil || r.Outcome.Outcome != mutation.OutcomeCompleted {
-					t.Fatalf("retry after kill at %d: %+v %v", k, r, err)
-				}
-				s.consistent(t)
-				later, err := store.Mutate(context.Background(), s.repo, operator(), envelope("after", "CREATE", "", "", createPayload("after")), s.at(t, 60))
-				if err != nil || later.Outcome.Outcome != mutation.OutcomeCompleted {
-					t.Fatalf("write after kill at %d: %+v %v", k, later, err)
-				}
-			}
-		})
-	}
+			})
+		}
+	})
 }
 
 // replayed reports a retry answered from the committed receipt. A reap
