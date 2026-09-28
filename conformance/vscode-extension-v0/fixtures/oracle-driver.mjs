@@ -32,7 +32,7 @@ const mcpTools = [
     inputSchema: mcpSchema({ task: { type: 'string', minLength: 1, maxLength: 2000, pattern: '^[ -~]+$' } }, ['task']), annotations: mcpAnnotations,
   },
   {
-    name: 'corvint.status', description: 'Observe Git commit, tree, worktree state, and a privacy-preserving dirty-path digest.',
+    name: 'corvint.status', description: 'Observe Git commit, tree, worktree state, and a privacy-preserving dirty-path digest. Gitlinks bind commit IDs; nested submodule contents are outside coverage.',
     inputSchema: mcpSchema({}, []), annotations: mcpAnnotations,
   },
 ];

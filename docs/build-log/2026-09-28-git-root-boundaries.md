@@ -18,7 +18,9 @@ metadata refusals remain explicit. No CLI status verb was added; that was an opt
 Verification before final binding: failing-then-passing regressions, complete gitstatus and bridge
 package tests, and added Genesis/SHA-256/drift tests passed. Candidate binaries replayed context,
 index, init and MCP stdio on both primary and linked roots. Init is PARTIAL only for the explicit
-`gitlink` content gap; declaring the prefix excluded yields COMPLETE. Final selected package tests
+`gitlink` content gap; declaring the prefix excluded yields COMPLETE. The first selected gate passed every package except the MCP golden tool-list response, whose
+status description needed the explicit nested-content boundary. Golden responses were updated;
+a short duplicate Genesis claim anchor was made descriptive for OCM extraction. Final selected package tests
 and vet are enrolled in the private dogfood plan and must pass before completion. Repository-wide
 `make gate` is NOT_RUN under the owner's scoped-issue policy; no retrieval ranking changed.
 Independent review found a Windows compilation gap and rejection of the inert `--ignored=no`

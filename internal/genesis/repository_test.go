@@ -257,7 +257,7 @@ func TestSummaryOrdersUnsafePathSamplesWithoutPanicking(t *testing.T) {
 }
 
 func TestInventoryOpaqueGitlinkBoundary(t *testing.T) {
-	t.Run("GENESIS-002", func(t *testing.T) {
+	t.Run("GENESIS-002 opaque gitlink inventory", func(t *testing.T) {
 		// GENESIS-002: an opaque entry retains its OID and can be explicitly excluded.
 		git, err := exec.LookPath("git")
 		if err != nil {
