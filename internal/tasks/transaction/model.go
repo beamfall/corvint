@@ -673,6 +673,8 @@ func Model(r Request, in Input) Result {
 	if e != nil {
 		return refused(r.RequestID, mutation.OutcomeCapacityExhausted, wire.CodeOf(e), e.Error())
 	}
+	// The capacity check reserves staging; a scanned inventory never holds it.
+	delete(capacity.Final.dirs, "staging")
 	res := Result{Kind: "Transaction", Outcome: out, Coverage: coverage(), Plan: p, Final: capacity.Final, Detail: detail}
 	if lease != nil {
 		res.AttemptID, res.Generation = lease.attemptID, lease.generation

@@ -5,12 +5,16 @@ taken before the first write is carried across batches under the held lock and s
 - The whole observation is bound once, before the first batch commits.
 - Each later batch checks that `head.json` is still the head the previous batch wrote, and refuses
   `SNAPSHOT_MOVED` otherwise.
-- `apply` checks each posted file against its receipt, so a ticket file changed between batches
-  refuses `INTENT_DIVERGED`.
+- `apply` checks each posted file against its receipt, so a ticket file that the batch posts and
+  that changed since the previous batch refuses `INTENT_DIVERGED`.
+- Dropped protection: the lock excludes only corvint-tasks writers. A `git pull`, reset or editor
+  that changes `queue.json`, `policy.json` or a ticket the batch does not post is no longer refused
+  between batches; the next command's audit sees it. The spec's failure-mode table records this.
 - The request-replay lookup walks the journal only when the carried inventory holds the batch's
   request file.
 - After each commit the audit advances to the plan's final inventory (now returned as
-  `transaction.Result.Final` from the capacity check), its head, and the posted ticket records.
+  `transaction.Result.Final` from the capacity check, less the `staging` directory the check
+  reserves and a scan never records), its head, and the posted ticket records.
 `TestCALV0018_LaterBatchesCheckTheirHeadAndPosts` spoils the head, and separately one posted ticket,
 before the second batch. Each case commits exactly one batch and refuses with the named code.
 
