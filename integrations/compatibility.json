@@ -24,7 +24,7 @@
       "validation": "installed-lifecycle-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.2.2",
+      "adapterVersion": "0.2.3",
       "documentedAgainstHostVersion": "0.149.0",
       "fullSupport": "external-dependent",
       "host": "codex",
@@ -62,12 +62,13 @@
       "validation": "native-static-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.2.9",
-      "documentedAgainstHostVersion": "1.18.21",
+      "adapterVersion": "0.3.0",
+      "documentedAgainstHostVersion": "2.0.18",
       "fullSupport": "external-dependent",
       "host": "opencode",
-      "hostVersion": "1.18.20",
-      "hostVersionEvidence": "local-binary-observed; plugin-not-installed",
+      "hostVersion": "2.0.18",
+      "hostVersionEvidence": "local-plugin-load-and-stub-turn; evidence-not-committed",
+      "hostVersionEvidenceAdapterVersion": "unknown",
       "hostForcedRuntime": {
         "name": "node",
         "versionRange": ">=20"

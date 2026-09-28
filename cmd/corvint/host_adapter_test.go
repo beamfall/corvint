@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -695,12 +696,52 @@ func TestAHI017HostAdapterWatchdogDegradesBeforeHostKill(t *testing.T) {
 	}
 }
 
-// Claude Code 2.1.267 sends SessionStart source "fork" for a forked resume;
-// the adapter maps it to resume instead of a fault notice per forked session.
+// panickingReader stands in for any adapter defect that panics mid-event.
+type panickingReader struct{}
+
+func (panickingReader) Read([]byte) (int, error) { panic("adapter defect") }
+
+// A panic on either the direct or the watchdog path is a degraded exit-0 output, never exit 2,
+// which Codex and Claude Code read as a block on UserPromptSubmit and Stop.
+func TestHostAdapterPanicDegradesInsteadOfBlocking(t *testing.T) {
+	t.Parallel()
+	bounded, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	for _, ctx := range []context.Context{context.Background(), bounded} {
+		for _, arguments := range [][]string{{"codex"}, {"claude-code", "stop"}} {
+			var stdout bytes.Buffer
+			code := runHostAdapter(ctx, arguments, panickingReader{}, &stdout)
+			if code != 0 || !strings.Contains(stdout.String(), "Corvint FALLBACK degraded: adapter-internal-error") {
+				t.Fatalf("%v: code=%d output=%q", arguments, code, stdout.String())
+			}
+		}
+	}
+}
+
+// Claude Code 2.1.267 and Codex 0.153 send SessionStart source "fork" for a
+// forked resume; the adapter maps it to resume instead of a fault notice per
+// forked session, and the Codex SessionStart matcher lets fork reach it.
 func TestClaudeAdapterForkSessionStartIsResume(t *testing.T) {
-	normalized, reason := normalizeAdapterInput("claude-code", "session-start", map[string]any{"session_id": "s", "source": "fork"}, t.TempDir())
-	if reason != "" || normalized["startSource"] != "resume" {
-		t.Fatalf("fork source: normalized=%v reason=%s", normalized, reason)
+	for _, host := range []string{"claude-code", "codex"} {
+		normalized, reason := normalizeAdapterInput(host, "session-start", map[string]any{"session_id": "s", "source": "fork"}, t.TempDir())
+		if reason != "" || normalized["startSource"] != "resume" {
+			t.Fatalf("%s fork source: normalized=%v reason=%s", host, normalized, reason)
+		}
+	}
+	raw, err := os.ReadFile(filepath.Join("..", "..", "integrations", "codex", "plugins", "corvint", "hooks", "hooks.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var parsed struct {
+		Hooks map[string][]struct {
+			Matcher string `json:"matcher"`
+		} `json:"hooks"`
+	}
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		t.Fatal(err)
+	}
+	if groups := parsed.Hooks["SessionStart"]; len(groups) != 1 || !slices.Contains(strings.Split(groups[0].Matcher, "|"), "fork") {
+		t.Fatalf("Codex SessionStart matcher does not admit fork: %+v", groups)
 	}
 }
 

@@ -229,13 +229,18 @@ func (s *session) cleanup() {
 	s.master.Close()
 }
 
-// plain sends one prompt after a second and ends the TUI once the fixture responds.
+// plain sends one prompt once the TUI has drawn the fixture model, and ends the TUI once the
+// fixture responds. A fixed delay loses the prompt when a loaded host draws the editor late.
 type plain struct {
-	sent bool
+	sent    bool
+	readyAt time.Time
 }
 
 func (d *plain) step(s *session) error {
-	if !d.sent && time.Since(s.start) > time.Second {
+	if d.readyAt.IsZero() && s.seen("fixture") {
+		d.readyAt = time.Now()
+	}
+	if !d.sent && !d.readyAt.IsZero() && time.Since(d.readyAt) > 500*time.Millisecond {
 		d.sent = true
 		return s.send("inspect main.go\r")
 	}

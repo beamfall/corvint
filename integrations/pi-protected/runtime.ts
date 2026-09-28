@@ -11,7 +11,7 @@ import {setBedrockProviderModule} from '@corvint/pi-ai-internal/api/bedrock-conv
 import registerProtected from './extension.mjs';
 import {createQualifiedRunner} from './qualified-runner.mjs';
 import {createRunner} from '../pi/runtime.js';
-import {createCredentials,parseArguments,readSettings} from './settings.mjs';
+import {createCredentials,mergeSettings,parseArguments,readSettings} from './settings.mjs';
 
 class FixedResources {
  result;
@@ -42,7 +42,7 @@ async function main(){
  setBedrockProviderModule(bedrock);
  const dataDir=resolve(cli.dataDir??join(homedir(),'.corvint','pi-protected'));
  mkdirSync(dataDir,{recursive:true,mode:0o700});
- const settings={...readSettings(join(dataDir,'settings.json')),...Object.fromEntries(Object.entries(cli).filter(([k])=>['provider','model','thinkingLevel'].includes(k)))};
+ const settings=mergeSettings(readSettings(join(dataDir,'settings.json')),cli);
  const credentials=createCredentials(new FileAuthStorageBackend(join(dataDir,'auth.json')));
  const consumer=join(dirname(process.execPath),'corvint');
  const factory=async options=>{

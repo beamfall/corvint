@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@corvint/opencode",
-  "version": "0.2.9",
+  "version": "0.3.0",
   "description": "FALLBACK OpenCode lifecycle adapter for Corvint",
   "type": "module",
   "exports": "./src/index.js",
@@ -12,12 +12,9 @@
     "mcp.example.json",
     "skills"
   ],
-  "dependencies": {
-    "@opencode-ai/plugin": "1.18.21"
-  },
   "engines": {
     "node": ">=20",
-    "opencode": "1.18.21"
+    "opencode": "^2.0.18"
   },
   "license": "AGPL-3.0-or-later",
   "keywords": [
@@ -26,8 +23,8 @@
     "plugin"
   ],
   "corvintIntegration": {
-    "adapterVersion": "0.2.9",
-    "apiReferenceVersion": "1.18.21",
+    "adapterVersion": "0.3.0",
+    "apiReferenceVersion": "2.0.18",
     "host": "opencode",
     "lastConformance": {
       "status": "not-run",

@@ -78,6 +78,11 @@ func runClaudeCompactionEvent(ctx context.Context, root, event string, normalize
 
 func runClaudePostCompact(ctx context.Context, root string, normalized, payload map[string]any) map[string]any {
 	summary, _ := payload["compact_summary"].(string)
+	// The host's cached replacement compaction reports an empty summary: there is nothing to
+	// verify, and no summary dropped the pin.
+	if summary == "" {
+		return map[string]any{adapterPlainStdoutKey: ""}
+	}
 	pin, ok := parseCompactionPin(summary)
 	if !ok {
 		return degradedAdapterOutput("compaction-pin-not-preserved")
@@ -241,4 +246,20 @@ func compactSessionDisclosure(event string, normalized map[string]any) string {
 		return ""
 	}
 	return compactionDisclosure
+}
+
+// compactionPlainOutput makes every Claude Code compaction output plain stdout text. The host
+// joins PreCompact stdout into the compactor's instructions and shows PostCompact stdout to the
+// user, reading neither as hook JSON, so a degradation is its systemMessage frame text and any
+// other output without text is empty. The systemMessage field stays for the SOL-V0-010 reason.
+func compactionPlainOutput(arguments []string, output map[string]any) map[string]any {
+	if len(arguments) != 2 || arguments[0] != "claude-code" || (arguments[1] != "pre-compact" && arguments[1] != "post-compact") {
+		return output
+	}
+	if _, ok := output[adapterPlainStdoutKey]; ok {
+		return output
+	}
+	text, _ := output["systemMessage"].(string)
+	output[adapterPlainStdoutKey] = text
+	return output
 }

@@ -107,7 +107,7 @@ var admittedAdapterEvents = codeSet("file-change", "post-compact", "post-tool", 
 // admittedAdapterCodes is the closed set of degradation reasons the codex and
 // claude-code adapters return after resolving the project root.
 var admittedAdapterCodes = codeSet(
-	"adapter-host-kill-deadline", "compaction-block-unavailable", "compaction-pin-not-preserved",
+	"adapter-host-kill-deadline", "adapter-internal-error", "compaction-block-unavailable", "compaction-pin-not-preserved",
 	"compaction-pin-revision-unavailable", "compaction-pin-verification-unavailable",
 	"corvint-degradations-unrecognised", "corvint-envelope-terminator-collision", "corvint-event-rejected",
 	"file-change-path-not-project-relative", "git-unavailable", "invalid-compaction-trigger", "invalid-input",

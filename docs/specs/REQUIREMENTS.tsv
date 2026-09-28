@@ -112,37 +112,37 @@ AFU-V1-042	docs/specs/application-flow-understanding-v1.md	215	`corvint flows st
 AGW-V0-001	docs/specs/corvint-witness-v0.md	33	`corvint witness` MUST be read-only, per AGENTS.md invariant 4: on every path —
 AGW-V0-002	docs/specs/corvint-witness-v0.md	43	Committed-range ancestry MUST follow immutable commit parents. The bounded Git
 AGW-V0-003	docs/specs/corvint-witness-v0.md	51	(proposed 2026-09-23, V1-0200, not accepted) the report MUST carry
-AHI-001	docs/specs/agent-harness-integration-v0.md	76	Every adapter MUST consume and produce the transport-neutral Corvint request, re
-AHI-002	docs/specs/agent-harness-integration-v0.md	78	Installation, discovery, upgrade, disable, and uninstall MUST be documented and
-AHI-003	docs/specs/agent-harness-integration-v0.md	80	On session/task start, the adapter MUST resolve repository identity, exact Git
-AHI-004	docs/specs/agent-harness-integration-v0.md	96	Query and exact expansion operations MUST be available on demand. Automatic cont
-AHI-005	docs/specs/agent-harness-integration-v0.md	114	Session capture MUST record only Corvint evidence handles actually supplied or o
-AHI-006	docs/specs/agent-harness-integration-v0.md	118	Before a platform declares a change task complete, its safest available stop lif
-AHI-007	docs/specs/agent-harness-integration-v0.md	123	Change and merge lifecycle points MUST compute drift and re-verification against
-AHI-008	docs/specs/agent-harness-integration-v0.md	125	The adapter MUST obey the host's sandbox, approval, secret, environment, telemet
-AHI-009	docs/specs/agent-harness-integration-v0.md	127	Unsupported or changed host capabilities MUST fail closed for evidence capture a
-AHI-010	docs/specs/agent-harness-integration-v0.md	138	Each release MUST publish tested host-version ranges, adapter and protocol versi
-AHI-011	docs/specs/agent-harness-integration-v0.md	155	Native APIs MUST remain behind versioned adapters. Recognised host identifiers M
-AHI-012	docs/specs/agent-harness-integration-v0.md	162	The integration MUST meet a cold query p95 of 500 ms after the Corvint index is
-AHI-013	docs/specs/agent-harness-integration-v0.md	170	Default injected context MUST be smaller than the manual-search baseline at equa
-AHI-014	docs/specs/agent-harness-integration-v0.md	173	Host wrappers MUST NOT send raw session IDs, transcripts, environment maps, tool
-AHI-015	docs/specs/agent-harness-integration-v0.md	182	Adapter packages MUST share the lifecycle command above, and host admission MUST
-AHI-016	docs/specs/agent-harness-integration-v0.md	186	A native wrapper that receives a trimmed user prompt over either task bound MAY
-AHI-017	docs/specs/agent-harness-integration-v0.md	199	A native adapter that runs as a host-killed process MUST derive every Corvint de
-AHI-018	docs/specs/agent-harness-integration-v0.md	217	A test harness that stands in for the host MAY state a longer host kill only thr
-AHI-019	docs/specs/agent-harness-integration-v0.md	224	A Claude Code `post-tool` event whose Edit/Write/NotebookEdit target (the
-AHI-020	docs/specs/agent-harness-integration-v0.md	241	Each host package's own manifest version (`integrations/claude-code/plugins/corv
-AHI-021	docs/specs/agent-harness-integration-v0.md	252	The Claude Code adapter MUST NOT emit a user-visible `systemMessage` for a routi
-AHI-022	docs/specs/agent-harness-integration-v0.md	284	The Gemini CLI and OpenCode adapters MUST apply the `AHI-021` split. A routine
-AHI-023	docs/specs/agent-harness-integration-v0.md	316	An adapter MUST report the host version its host actually provides, and MUST NOT
-AHI-024	docs/specs/agent-harness-integration-v0.md	333	The experimental Pi extension MUST use runtime-provided version `0.85.1`, adapte
-AHI-025	docs/specs/agent-harness-integration-v0.md	400	The owner-requested complete Pi integration MUST expose native model-callable
-AHI-026	docs/specs/agent-harness-integration-v0.md	437	The Claude Code plugin MUST register the compaction hook events the installed ho
-AHI-027	docs/specs/agent-harness-integration-v0.md	447	`pre-compact` MUST emit, as plain stdout the host joins verbatim into the compac
-AHI-028	docs/specs/agent-harness-integration-v0.md	458	`post-compact` MUST re-read the last pin the untrusted `compact_summary` preserv
-AHI-029	docs/specs/agent-harness-integration-v0.md	469	Neither compaction event writes repository, index, trace, or store state; the on
-AHI-030	docs/specs/agent-harness-integration-v0.md	471	Every compact `SessionStart` context MUST begin with a fixed trusted disclosure
-AHI-031	docs/specs/agent-harness-integration-v0.md	475	(accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot
+AHI-001	docs/specs/agent-harness-integration-v0.md	77	Every adapter MUST consume and produce the transport-neutral Corvint request, re
+AHI-002	docs/specs/agent-harness-integration-v0.md	79	Installation, discovery, upgrade, disable, and uninstall MUST be documented and
+AHI-003	docs/specs/agent-harness-integration-v0.md	81	On session/task start, the adapter MUST resolve repository identity, exact Git
+AHI-004	docs/specs/agent-harness-integration-v0.md	97	Query and exact expansion operations MUST be available on demand. Automatic cont
+AHI-005	docs/specs/agent-harness-integration-v0.md	115	Session capture MUST record only Corvint evidence handles actually supplied or o
+AHI-006	docs/specs/agent-harness-integration-v0.md	119	Before a platform declares a change task complete, its safest available stop lif
+AHI-007	docs/specs/agent-harness-integration-v0.md	124	Change and merge lifecycle points MUST compute drift and re-verification against
+AHI-008	docs/specs/agent-harness-integration-v0.md	126	The adapter MUST obey the host's sandbox, approval, secret, environment, telemet
+AHI-009	docs/specs/agent-harness-integration-v0.md	128	Unsupported or changed host capabilities MUST fail closed for evidence capture a
+AHI-010	docs/specs/agent-harness-integration-v0.md	145	Each release MUST publish tested host-version ranges, adapter and protocol versi
+AHI-011	docs/specs/agent-harness-integration-v0.md	164	Native APIs MUST remain behind versioned adapters. Recognised host identifiers M
+AHI-012	docs/specs/agent-harness-integration-v0.md	171	The integration MUST meet a cold query p95 of 500 ms after the Corvint index is
+AHI-013	docs/specs/agent-harness-integration-v0.md	179	Default injected context MUST be smaller than the manual-search baseline at equa
+AHI-014	docs/specs/agent-harness-integration-v0.md	182	Host wrappers MUST NOT send raw session IDs, transcripts, environment maps, tool
+AHI-015	docs/specs/agent-harness-integration-v0.md	191	Adapter packages MUST share the lifecycle command above, and host admission MUST
+AHI-016	docs/specs/agent-harness-integration-v0.md	195	A native wrapper that receives a trimmed user prompt over either task bound MAY
+AHI-017	docs/specs/agent-harness-integration-v0.md	208	A native adapter that runs as a host-killed process MUST derive every Corvint de
+AHI-018	docs/specs/agent-harness-integration-v0.md	228	A test harness that stands in for the host MAY state a longer host kill only thr
+AHI-019	docs/specs/agent-harness-integration-v0.md	235	A Claude Code `post-tool` event whose Edit/Write/NotebookEdit target (the
+AHI-020	docs/specs/agent-harness-integration-v0.md	252	Each host package's own manifest version (`integrations/claude-code/plugins/corv
+AHI-021	docs/specs/agent-harness-integration-v0.md	263	The Claude Code adapter MUST NOT emit a user-visible `systemMessage` for a routi
+AHI-022	docs/specs/agent-harness-integration-v0.md	295	The Gemini CLI and OpenCode adapters MUST apply the `AHI-021` split. A routine
+AHI-023	docs/specs/agent-harness-integration-v0.md	335	An adapter MUST report the host version its host actually provides, and MUST NOT
+AHI-024	docs/specs/agent-harness-integration-v0.md	354	The experimental Pi extension MUST use runtime-provided version `0.85.1`, adapte
+AHI-025	docs/specs/agent-harness-integration-v0.md	421	The owner-requested complete Pi integration MUST expose native model-callable
+AHI-026	docs/specs/agent-harness-integration-v0.md	458	The Claude Code plugin MUST register the compaction hook events the installed ho
+AHI-027	docs/specs/agent-harness-integration-v0.md	468	`pre-compact` MUST emit, as plain stdout the host joins verbatim into the compac
+AHI-028	docs/specs/agent-harness-integration-v0.md	482	`post-compact` MUST re-read the last pin the untrusted `compact_summary` preserv
+AHI-029	docs/specs/agent-harness-integration-v0.md	495	Neither compaction event writes repository, index, trace, or store state; the on
+AHI-030	docs/specs/agent-harness-integration-v0.md	497	Every compact `SessionStart` context MUST begin with a fixed trusted disclosure
+AHI-031	docs/specs/agent-harness-integration-v0.md	501	(accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,
@@ -2272,63 +2272,63 @@ VSC-V0-016	docs/specs/vscode-extension-v0.md	231	The only automatic process is t
 VSC-V0-017	docs/specs/vscode-extension-v0.md	245	The probe timeout is 2 seconds. `corvint.timeoutMilliseconds` defaults to 15,000
 VSC-V0-018	docs/specs/vscode-extension-v0.md	252	Each operation owns one cancellation source. A newer operation for the same root
 VSC-V0-019	docs/specs/vscode-extension-v0.md	266	Only a complete successful process may be decoded. Stdout MUST be one valid UTF-
-VSC-V0-020	docs/specs/vscode-extension-v0.md	301	Exit nonzero, signal, cancellation, timeout, output overflow, malformed output,
-VSC-V0-021	docs/specs/vscode-extension-v0.md	308	The command IDs are exactly `corvint.selectExecutable`, `corvint.clearExecutable
-VSC-V0-022	docs/specs/vscode-extension-v0.md	314	The status bar has exactly one of `Restricted`, `No CLI`, `Incompatible`, `Ready
-VSC-V0-023	docs/specs/vscode-extension-v0.md	319	`corvint.evidence`, `corvint.impact`, and `corvint.why` are separate `TreeView`s
-VSC-V0-024	docs/specs/vscode-extension-v0.md	326	Tree nodes sort by source-defined ordinal when present, otherwise by
-VSC-V0-025	docs/specs/vscode-extension-v0.md	333	Every CLI/observation string is untrusted display data. Control/bidi characters,
-VSC-V0-026	docs/specs/vscode-extension-v0.md	338	Diagnostics are display-only projections of receipt items carrying a valid
-VSC-V0-027	docs/specs/vscode-extension-v0.md	346	Decorations are display-only projections of the same validated ranges in current
-VSC-V0-028	docs/specs/vscode-extension-v0.md	354	Until Corvint publishes and promotes a live-test CLI operation, V0 MUST NOT exec
-VSC-V0-029	docs/specs/vscode-extension-v0.md	360	The observation path MUST be a normalized workspace-relative path whose lexical
-VSC-V0-030	docs/specs/vscode-extension-v0.md	366	The importer accepts only a complete Corvint `go-live-event/0` sequence followed
-VSC-V0-031	docs/specs/vscode-extension-v0.md	373	Test items use the immutable Corvint test ID as `TestItem.id`; package and test
-VSC-V0-032	docs/specs/vscode-extension-v0.md	378	One imported observation creates one finite `TestRun` labelled with its Corvint
-VSC-V0-033	docs/specs/vscode-extension-v0.md	384	Test output is inert and bounded to 256 KiB per imported run and 8 KiB per test.
-VSC-V0-034	docs/specs/vscode-extension-v0.md	391	The extension performs no telemetry, analytics, crash upload, repository/source
-VSC-V0-035	docs/specs/vscode-extension-v0.md	395	The extension stores no evidence database, cache, index, history, prompt/task,
-VSC-V0-036	docs/specs/vscode-extension-v0.md	399	VS Code Marketplace/administrator policy exclusively owns extension installation
-VSC-V0-037	docs/specs/vscode-extension-v0.md	404	The extension MUST NOT edit source, apply a `WorkspaceEdit`, register a code act
-VSC-V0-038	docs/specs/vscode-extension-v0.md	408	Disable, uninstall, workspace close, trust loss, root removal, and deactivation
-VSC-V0-039	docs/specs/vscode-extension-v0.md	431	Hostile conformance MUST include: untrusted activation/commands; empty/relative
-VSC-V0-040	docs/specs/vscode-extension-v0.md	440	No hostile value may cause shell interpretation, PATH relookup, path escape,
-VSC-V0-041	docs/specs/vscode-extension-v0.md	446	Pure unit tests MUST cover discovery order, pin identity/drift, root/path
-VSC-V0-042	docs/specs/vscode-extension-v0.md	452	Process integration fixtures MUST assert the literal executable path,
-VSC-V0-043	docs/specs/vscode-extension-v0.md	457	`@vscode/test-electron` MUST run pinned supported VS Code versions in distinct
-VSC-V0-044	docs/specs/vscode-extension-v0.md	464	Static gates are lockfile-clean install, lint, TypeScript typecheck, unit tests,
-VSC-V0-045	docs/specs/vscode-extension-v0.md	473	Manual query/impact adds at most 50 ms p95 adapter overhead excluding Corvint ru
-VSC-V0-046	docs/specs/vscode-extension-v0.md	480	`corvint.transport` is exactly `cli|mcp-stdio` and defaults to `cli`. Transport
-VSC-V0-047	docs/specs/vscode-extension-v0.md	488	`mcp-stdio` requires a non-empty `corvint.mcpExecutablePath`. It is accepted onl
-VSC-V0-048	docs/specs/vscode-extension-v0.md	497	MCP V0 uses local stdio only. One explicit query or impact owns exactly one newl
-VSC-V0-049	docs/specs/vscode-extension-v0.md	505	The first request in every MCP process is `server/discover`; the extension never
-VSC-V0-050	docs/specs/vscode-extension-v0.md	527	Discovery MUST be one complete result that lists `2026-07-28` in
-VSC-V0-051	docs/specs/vscode-extension-v0.md	543	After discovery the client fetches `tools/list` in the same process. Discovery M
-VSC-V0-052	docs/specs/vscode-extension-v0.md	556	The MCP tool calls are closed read-only adapters. `corvint.query` receives the e
-VSC-V0-053	docs/specs/vscode-extension-v0.md	568	`tools/call` MUST return one complete result with `resultType:"complete"`,
-VSC-V0-054	docs/specs/vscode-extension-v0.md	584	MCP stdio uses one UTF-8 JSON-RPC object plus LF per frame and rejects batches,
-VSC-V0-055	docs/specs/vscode-extension-v0.md	599	VS Code cancellation, a newer operation, timeout, output overflow, root disposal
-VSC-V0-056	docs/specs/vscode-extension-v0.md	606	Stable MCP client failure codes are `MCP_MISSING`, `MCP_INCOMPATIBLE`,
-VSC-V0-057	docs/specs/vscode-extension-v0.md	613	The MCP client remains `FALLBACK` and its runtime evidence `NOT_RUN` until a
-VSC-V0-058	docs/specs/vscode-extension-v0.md	656	A live test-provider process MUST NOT be spawned unless `corvint.liveTests.enabl
-VSC-V0-059	docs/specs/vscode-extension-v0.md	663	The provider process MUST be started as its own process-group leader (POSIX
-VSC-V0-060	docs/specs/vscode-extension-v0.md	686	Each decoded per-test record's `projection.execution` state MUST map to exactly
-VSC-V0-061	docs/specs/vscode-extension-v0.md	700	When `projection.freshness.state` is `STALE`, the record's `kind` MUST be `stale
-VSC-V0-062	docs/specs/vscode-extension-v0.md	711	`projection.strength` (when not `NOT_MEASURED`/`UNSUPPORTED`) and `projection.hy
-VSC-V0-063	docs/specs/vscode-extension-v0.md	719	A JS-provider per-test record whose projection resolves a `file`/`line` anchor
-VSC-V0-064	docs/specs/vscode-extension-v0.md	733	A terminal Go session event (`passed`/`failed`/`stale`/`infrastructure`/`cancell
-VSC-V0-065	docs/specs/vscode-extension-v0.md	747	A provider record that fails to parse (malformed JSON, an unsupported record sha
-VSC-V0-066	docs/specs/vscode-extension-v0.md	762	When the live test-provider cannot be started (an invalid/empty
-VSC-V0-067	docs/specs/vscode-extension-v0.md	777	Each entry of a terminal Go session event's `testProjections` (GLTP-V0-051) MUST
-VSC-V0-068	docs/specs/vscode-extension-v0.md	795	The editor MUST decode a Go session event's session-level `projection`
-VSC-V0-069	docs/specs/vscode-extension-v0.md	806	A Go per-test entry's source location MUST be recovered only from a first
-VSC-V0-070	docs/specs/vscode-extension-v0.md	816	Producer retention (`LPCV-V0-055`) MUST be passed only on explicit opt-in
-VSC-V0-071	docs/specs/vscode-extension-v0.md	857	On the POSIX alpha profile, a one-shot JS result MUST remain visible after exit
-VSC-V0-072	docs/specs/vscode-extension-v0.md	863	In an explicitly enabled trusted file workspace, saving a file MUST trigger a
-VSC-V0-073	docs/specs/vscode-extension-v0.md	870	A relevant save, configuration change, disable, root removal or shutdown
-VSC-V0-074	docs/specs/vscode-extension-v0.md	875	Every provider termination, including a normal exit-zero leader, MUST await
-VSC-V0-075	docs/specs/vscode-extension-v0.md	882	The read-only extension export `liveTestSnapshot(root)` MUST return undefined
-VSC-V0-076	docs/specs/vscode-extension-v0.md	893	Only after trust and explicit enablement, resource-scoped/restricted
+VSC-V0-020	docs/specs/vscode-extension-v0.md	305	Exit nonzero, signal, cancellation, timeout, output overflow, malformed output,
+VSC-V0-021	docs/specs/vscode-extension-v0.md	312	The command IDs are exactly `corvint.selectExecutable`, `corvint.clearExecutable
+VSC-V0-022	docs/specs/vscode-extension-v0.md	318	The status bar has exactly one of `Restricted`, `No CLI`, `Incompatible`, `Ready
+VSC-V0-023	docs/specs/vscode-extension-v0.md	323	`corvint.evidence`, `corvint.impact`, and `corvint.why` are separate `TreeView`s
+VSC-V0-024	docs/specs/vscode-extension-v0.md	330	Tree nodes sort by source-defined ordinal when present, otherwise by
+VSC-V0-025	docs/specs/vscode-extension-v0.md	337	Every CLI/observation string is untrusted display data. Control/bidi characters,
+VSC-V0-026	docs/specs/vscode-extension-v0.md	342	Diagnostics are display-only projections of receipt items carrying a valid
+VSC-V0-027	docs/specs/vscode-extension-v0.md	350	Decorations are display-only projections of the same validated ranges in current
+VSC-V0-028	docs/specs/vscode-extension-v0.md	358	Until Corvint publishes and promotes a live-test CLI operation, V0 MUST NOT exec
+VSC-V0-029	docs/specs/vscode-extension-v0.md	364	The observation path MUST be a normalized workspace-relative path whose lexical
+VSC-V0-030	docs/specs/vscode-extension-v0.md	370	The importer accepts only a complete Corvint `go-live-event/0` sequence followed
+VSC-V0-031	docs/specs/vscode-extension-v0.md	377	Test items use the immutable Corvint test ID as `TestItem.id`; package and test
+VSC-V0-032	docs/specs/vscode-extension-v0.md	382	One imported observation creates one finite `TestRun` labelled with its Corvint
+VSC-V0-033	docs/specs/vscode-extension-v0.md	388	Test output is inert and bounded to 256 KiB per imported run and 8 KiB per test.
+VSC-V0-034	docs/specs/vscode-extension-v0.md	395	The extension performs no telemetry, analytics, crash upload, repository/source
+VSC-V0-035	docs/specs/vscode-extension-v0.md	399	The extension stores no evidence database, cache, index, history, prompt/task,
+VSC-V0-036	docs/specs/vscode-extension-v0.md	403	VS Code Marketplace/administrator policy exclusively owns extension installation
+VSC-V0-037	docs/specs/vscode-extension-v0.md	408	The extension MUST NOT edit source, apply a `WorkspaceEdit`, register a code act
+VSC-V0-038	docs/specs/vscode-extension-v0.md	412	Disable, uninstall, workspace close, trust loss, root removal, and deactivation
+VSC-V0-039	docs/specs/vscode-extension-v0.md	435	Hostile conformance MUST include: untrusted activation/commands; empty/relative
+VSC-V0-040	docs/specs/vscode-extension-v0.md	444	No hostile value may cause shell interpretation, PATH relookup, path escape,
+VSC-V0-041	docs/specs/vscode-extension-v0.md	450	Pure unit tests MUST cover discovery order, pin identity/drift, root/path
+VSC-V0-042	docs/specs/vscode-extension-v0.md	456	Process integration fixtures MUST assert the literal executable path,
+VSC-V0-043	docs/specs/vscode-extension-v0.md	461	`@vscode/test-electron` MUST run pinned supported VS Code versions in distinct
+VSC-V0-044	docs/specs/vscode-extension-v0.md	468	Static gates are lockfile-clean install, lint, TypeScript typecheck, unit tests,
+VSC-V0-045	docs/specs/vscode-extension-v0.md	477	Manual query/impact adds at most 50 ms p95 adapter overhead excluding Corvint ru
+VSC-V0-046	docs/specs/vscode-extension-v0.md	484	`corvint.transport` is exactly `cli|mcp-stdio` and defaults to `cli`. Transport
+VSC-V0-047	docs/specs/vscode-extension-v0.md	492	`mcp-stdio` requires a non-empty `corvint.mcpExecutablePath`. It is accepted onl
+VSC-V0-048	docs/specs/vscode-extension-v0.md	501	MCP V0 uses local stdio only. One explicit query or impact owns exactly one newl
+VSC-V0-049	docs/specs/vscode-extension-v0.md	509	The first request in every MCP process is `server/discover`; the extension never
+VSC-V0-050	docs/specs/vscode-extension-v0.md	531	Discovery MUST be one complete result that lists `2026-07-28` in
+VSC-V0-051	docs/specs/vscode-extension-v0.md	547	After discovery the client fetches `tools/list` in the same process. Discovery M
+VSC-V0-052	docs/specs/vscode-extension-v0.md	562	The MCP tool calls are closed read-only adapters. `corvint.query` receives the e
+VSC-V0-053	docs/specs/vscode-extension-v0.md	574	`tools/call` MUST return one complete result with `resultType:"complete"`,
+VSC-V0-054	docs/specs/vscode-extension-v0.md	592	MCP stdio uses one UTF-8 JSON-RPC object plus LF per frame and rejects batches,
+VSC-V0-055	docs/specs/vscode-extension-v0.md	607	VS Code cancellation, a newer operation, timeout, output overflow, root disposal
+VSC-V0-056	docs/specs/vscode-extension-v0.md	614	Stable MCP client failure codes are `MCP_MISSING`, `MCP_INCOMPATIBLE`,
+VSC-V0-057	docs/specs/vscode-extension-v0.md	621	The MCP client remains `FALLBACK` and its runtime evidence `NOT_RUN` until a
+VSC-V0-058	docs/specs/vscode-extension-v0.md	664	A live test-provider process MUST NOT be spawned unless `corvint.liveTests.enabl
+VSC-V0-059	docs/specs/vscode-extension-v0.md	671	The provider process MUST be started as its own process-group leader (POSIX
+VSC-V0-060	docs/specs/vscode-extension-v0.md	694	Each decoded per-test record's `projection.execution` state MUST map to exactly
+VSC-V0-061	docs/specs/vscode-extension-v0.md	708	When `projection.freshness.state` is `STALE`, the record's `kind` MUST be `stale
+VSC-V0-062	docs/specs/vscode-extension-v0.md	719	`projection.strength` (when not `NOT_MEASURED`/`UNSUPPORTED`) and `projection.hy
+VSC-V0-063	docs/specs/vscode-extension-v0.md	727	A JS-provider per-test record whose projection resolves a `file`/`line` anchor
+VSC-V0-064	docs/specs/vscode-extension-v0.md	741	A terminal Go session event (`passed`/`failed`/`stale`/`infrastructure`/`cancell
+VSC-V0-065	docs/specs/vscode-extension-v0.md	755	A provider record that fails to parse (malformed JSON, an unsupported record sha
+VSC-V0-066	docs/specs/vscode-extension-v0.md	770	When the live test-provider cannot be started (an invalid/empty
+VSC-V0-067	docs/specs/vscode-extension-v0.md	785	Each entry of a terminal Go session event's `testProjections` (GLTP-V0-051) MUST
+VSC-V0-068	docs/specs/vscode-extension-v0.md	803	The editor MUST decode a Go session event's session-level `projection`
+VSC-V0-069	docs/specs/vscode-extension-v0.md	814	A Go per-test entry's source location MUST be recovered only from a first
+VSC-V0-070	docs/specs/vscode-extension-v0.md	824	Producer retention (`LPCV-V0-055`) MUST be passed only on explicit opt-in
+VSC-V0-071	docs/specs/vscode-extension-v0.md	865	On the POSIX alpha profile, a one-shot JS result MUST remain visible after exit
+VSC-V0-072	docs/specs/vscode-extension-v0.md	871	In an explicitly enabled trusted file workspace, saving a file MUST trigger a
+VSC-V0-073	docs/specs/vscode-extension-v0.md	878	A relevant save, configuration change, disable, root removal or shutdown
+VSC-V0-074	docs/specs/vscode-extension-v0.md	883	Every provider termination, including a normal exit-zero leader, MUST await
+VSC-V0-075	docs/specs/vscode-extension-v0.md	890	The read-only extension export `liveTestSnapshot(root)` MUST return undefined
+VSC-V0-076	docs/specs/vscode-extension-v0.md	901	Only after trust and explicit enablement, resource-scoped/restricted
 WQO-V0-001	docs/specs/work-queue-observation-v0.md	258	Every V0 document and nested record MUST implement the exact closed registry in
 WQO-V0-002	docs/specs/work-queue-observation-v0.md	264	Every identity MUST use §4.3 exactly. Implementations MUST independently rederiv
 WQO-V0-003	docs/specs/work-queue-observation-v0.md	268	The only authority root is target-tree regular `100644` blob

@@ -97,7 +97,7 @@ independent verdict axes. Those are shipped and running in CI.
 
 What does not exist is the **closing decision**. `corvint frontier` is unimplemented, and the harness
 `stop` event returns `frontier.state: UNAVAILABLE` and "cannot continue or block the host"
-(`docs/specs/agent-harness-integration-v0.md:68-70@3208c7de`). Everything downstream of it is a solved
+(`docs/specs/agent-harness-integration-v0.md:69-71@3208c7de`). Everything downstream of it is a solved
 problem; that one gate is the whole bet.
 
 ## Staged adoption

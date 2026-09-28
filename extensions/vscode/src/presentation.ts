@@ -383,7 +383,7 @@ function orderedStrings(values: readonly string[]): string[] {
 async function containedFile(root: string, relativePath: string, isCurrent: () => boolean): Promise<vscode.Uri | undefined> {
   const candidate = path.resolve(root, ...relativePath.split("/"));
   const relation = path.relative(root, candidate);
-  if (relation.startsWith("..") || path.isAbsolute(relation)) {
+  if (relation === ".." || relation.startsWith(`..${path.sep}`) || path.isAbsolute(relation)) {
     return undefined;
   }
   try {

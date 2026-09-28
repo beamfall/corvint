@@ -51,6 +51,22 @@ test("strict CLI decoder produces deterministic snapshot identity", () => {
   assert.equal(first.evidence[0]?.resultId, "result-id");
 });
 
+test("strict CLI decoder admits the current CLI's unparsed, extraction, and impact budget_bytes (VSC-V0-019)", () => {
+  const response = JSON.parse(Buffer.from(receiptBytes("result-id")).toString("utf8")) as { context: Record<string, unknown>; tool: string };
+  const encode = () => Buffer.from(`${JSON.stringify(response)}\n`, "utf8");
+  response.context.unparsed = { count: 1, samples: [{ path: "bad.py", facts: 0, reason: "parse-error" }] };
+  response.context.extraction = { count: 2, samples: [{ path: "src/a.go", reason: "truncated" }] };
+  const query = decodeCorvintReceipt(encode(), "query", 262_144, "corvint", "project operations");
+  assert.ok(query.uncertainty.includes("Unparsed source count: 1"));
+  assert.ok(query.uncertainty.includes("Incomplete extraction count: 2"));
+  const { abstention: _abstention, intent: _intent, learning: _learning, ...native } = response.context;
+  response.tool = "impact";
+  response.context = { ...native, mode: "impact", request: { paths: ["src/a.go"], limit: 20, budget_bytes: 5952 } };
+  assert.equal(decodeCorvintReceipt(encode(), "impact", 262_144, "corvint", ["src/a.go"]).results[0]?.id, "result-id");
+  response.context = { ...native, mode: "impact", request: { paths: ["src/a.go"], limit: 20, budget_bytes: 0 } };
+  assert.throws(() => decodeCorvintReceipt(encode(), "impact", 262_144, "corvint", ["src/a.go"]));
+});
+
 test("strict CLI decoder rejects unsafe identities and non-Git blob widths", () => {
   assert.throws(
     () => decodeCorvintReceipt(receiptBytes("bad\u202eid"), "query", 262_144, "corvint", "project operations"),

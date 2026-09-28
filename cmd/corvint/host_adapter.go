@@ -49,9 +49,9 @@ func runHostAdapter(ctx context.Context, arguments []string, stdin io.Reader, st
 	}
 	deadline, bounded := ctx.Deadline()
 	if !bounded {
-		return emitAdapterOutput(stdout, hostAdapterOutput(ctx, arguments, stdin))
+		return emitAdapterOutput(stdout, compactionPlainOutput(arguments, recoveredHostAdapterOutput(ctx, arguments, stdin)))
 	}
-	return emitAdapterOutput(stdout, watchedHostAdapterOutput(ctx, deadline, arguments, stdin))
+	return emitAdapterOutput(stdout, compactionPlainOutput(arguments, watchedHostAdapterOutput(ctx, deadline, arguments, stdin)))
 }
 
 // AHI-017: the kill each shipped hooks.json declares for an adapter invocation, keyed by the
@@ -105,7 +105,7 @@ func watchedHostAdapterOutput(ctx context.Context, deadline time.Time, arguments
 	defer cancel()
 	work, ledger := withPacketLedger(work)
 	result := make(chan map[string]any, 1)
-	go func() { result <- hostAdapterOutput(work, arguments, stdin) }()
+	go func() { result <- recoveredHostAdapterOutput(work, arguments, stdin) }()
 	watchdog := time.NewTimer(time.Until(deadline))
 	defer watchdog.Stop()
 	select {
@@ -121,6 +121,23 @@ func watchedHostAdapterOutput(ctx context.Context, deadline time.Time, arguments
 		}
 		return degradedAdapterOutput("adapter-host-kill-deadline")
 	}
+}
+
+// recoveredHostAdapterOutput turns a panic in the adapter work into a degraded output, so the
+// hook still exits 0 with host JSON instead of exit 2, which Codex and Claude Code read as a block
+// on UserPromptSubmit and Stop.
+func recoveredHostAdapterOutput(ctx context.Context, arguments []string, stdin io.Reader) (output map[string]any) {
+	defer func() {
+		if recover() == nil {
+			return
+		}
+		if len(arguments) == 2 && arguments[0] == "claude-code" {
+			output = claudeDegradedOutput(arguments[1], "adapter-internal-error")
+			return
+		}
+		output = degradedAdapterOutput("adapter-internal-error")
+	}()
+	return hostAdapterOutput(ctx, arguments, stdin)
 }
 
 func hostAdapterOutput(ctx context.Context, arguments []string, stdin io.Reader) map[string]any {
@@ -449,8 +466,8 @@ func recordClaudeKillDeadline(ctx context.Context, event string, output map[stri
 }
 
 // adapterStartSources maps a host session-start source to the closed Corvint
-// startSource enum. Claude Code's "fork" resumes an existing transcript under
-// a new session id, so it is a resume.
+// startSource enum. A Claude Code or Codex "fork" resumes an existing transcript
+// under a new session id, so it is a resume.
 var adapterStartSources = map[string]string{"startup": "startup", "resume": "resume", "clear": "clear", "compact": "compact", "fork": "resume"}
 
 func normalizeAdapterInput(host, event string, payload map[string]any, root string) (map[string]any, string) {

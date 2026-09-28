@@ -145,9 +145,9 @@ evidence.
 
 1. use a non-empty `corvint.executablePath` only when it is an absolute native path whose final
    configured basename, before realpath resolution and with an optional `.exe` removed, is exactly
-   `corvint` or `corvint`; that basename fixes the CLI kind;
+   `corvint`; that basename fixes the CLI kind;
 2. otherwise read the extension-host `PATH` once, split it with the host delimiter, skip empty or
-   relative components, and inspect `corvint`, then `corvint`, in component order; and
+   relative components, and inspect `corvint` in component order; and
 3. if none qualifies, report `CLI_MISSING` without fallback execution.
 
 Discovery MUST use filesystem APIs, not `which`, `where`, a login shell, shell expansion, a package
@@ -280,7 +280,11 @@ The only admitted query/impact adapter is the current unprofiled envelope V1:
   `mutates` is `false`, and `tool` equals the requested `query|impact` operation;
 - `context` requires `schema_version:1`, matching `mode`, exact echoed `request`, lowercase 40- or
   64-hex `revision`, `freshness`, `state`, `results`, `exclusions`, `verification`, and `coverage`;
-  only query may additionally contain `abstention`, `intent`, and `learning`;
+  only query may additionally contain `abstention`, `intent`, and `learning`; either mode may
+  contain `unparsed` and `extraction`, each an object with an integral `count` that the adapter
+  surfaces as uncertainty (`internal/contextindex` adds them only when a source was left unparsed or
+  incompletely extracted); the echoed impact `request` is `paths` and `limit` plus an optional
+  positive integral `budget_bytes` of at most 1,048,576;
 - `state` is one of `READY`, `NEEDS_WIDENING`, `OUT_OF_SCOPE`, `STALE_INDEX` (no longer produced
   since `DIRTY-CACHE-005` moved worktree dirtiness to `freshness.state`), `BUDGETED`, or
   `CRITICAL_EVIDENCE_OVERFLOW`; `freshness.revision`, when present, equals `revision`, and
@@ -544,7 +548,9 @@ at either later response are incompatible and produce no projected receipt.
 match MCPV0-006, including `ttlMs:0`, `cacheScope:"public"`, the exact tools capability, and the
 standard server info. The tool-list result MUST match MCPV0-007..010, including
 `ttlMs:300000`, `cacheScope:"private"`, and exactly the three frozen, ordered definitions
-`corvint.impact`, `corvint.query`, and `corvint.status` with their closed schemas and annotations. The
+`corvint.impact`, `corvint.query`, and `corvint.status` with their closed schemas and annotations,
+including the optional MCPV0-020 planning `snapshot` property on impact and query, which the client
+pins but never sends. The
 client accepts exactly that one page and no `nextCursor`. Its bounded decoder can recognize an
 optional cursor only to reject the response as `MCP_TOOLSET_MISMATCH`; it MUST NOT request another
 page under V0. `ttlMs` and `cacheScope` are structurally validated but V0 performs no catalog cache:
@@ -574,9 +580,11 @@ directly, with no synthetic envelope or nested `context` requirement. `receipt:n
 for an MCPV0-008 wrapper state/reason that expressly admits it; the extension projects the wrapper's
 bounded abstention/gap, repository binding, epistemic class, authority class, and reason without
 inventing evidence. A valid null-receipt abstention is not `MCP_TOOL_ERROR`, an empty success, or a
-license to discard wrapper metadata. The result MUST have exactly one text content block whose text
-is the canonical compact JSON encoding of the same wrapper; after strict parsing it MUST equal
-`structuredContent` structurally and its canonical bytes MUST equal the text bytes. Neither copy is
+license to discard wrapper metadata. The result MUST have exactly one text content block. On success its
+text is the canonical compact JSON encoding of the same wrapper inside the MCPV0 untrusted-data
+envelope that `internal/repoenvelope` builds under `AHI-004` (fixed prefix, hidden characters as
+literal lowercase `\uXXXX`, terminator line), and the text bytes MUST equal that framing of the
+canonical encoding of `structuredContent`; a tool error's text is the bare canonical encoding. Neither copy is
 a second receipt. A protocol error, missing structured content, `isError:true`,
 `resultType:"input_required"`, sampling, elicitation, roots, resources, prompts, tasks,
 subscriptions, or a server request is rejected without UI projection or authority upgrade.

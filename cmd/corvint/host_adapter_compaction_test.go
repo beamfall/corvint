@@ -210,6 +210,24 @@ func TestAHI028ClaudePostCompactReportsNonRehydratablePaths(t *testing.T) {
 	}
 }
 
+// AHI-027/AHI-028: the host reads compaction stdout as text, so a degradation prints its frame
+// text rather than hook JSON, and the empty summary of a cached replacement compaction is silent.
+func TestClaudeCompactionDegradationIsPlainText(t *testing.T) {
+	t.Parallel()
+	root, ctx := compactionFixture(t)
+	pre := compactionHookStdout(t, ctx, root, "pre-compact", map[string]any{"trigger": "scheduled"})
+	if pre != "Corvint FALLBACK degraded: invalid-compaction-trigger; coding continues\n" {
+		t.Fatalf("pre-compact stdout=%q", pre)
+	}
+	post := compactionHookStdout(t, ctx, root, "post-compact", map[string]any{"compact_summary": "no pin in the summary"})
+	if post != "Corvint FALLBACK degraded: compaction-pin-not-preserved; coding continues\n" {
+		t.Fatalf("post-compact stdout=%q", post)
+	}
+	if empty := compactionHookStdout(t, ctx, root, "post-compact", map[string]any{"compact_summary": ""}); empty != "\n" {
+		t.Fatalf("empty summary stdout=%q", empty)
+	}
+}
+
 // AHI-029: neither compaction hook writes repository, index, or trace state.
 func TestAHI029ClaudeCompactionHooksMutateNothing(t *testing.T) {
 	t.Parallel()

@@ -6,6 +6,11 @@
   "private": true,
   "publisher": "corvint",
   "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/beamfall/corvint.git",
+    "directory": "extensions/vscode"
+  },
   "engines": {
     "vscode": "^1.95.0"
   },
@@ -47,14 +52,6 @@
       "supported": "limited",
       "description": "Corvint execution, discovery, configuration-path access, repository reads, and observation import are disabled until the workspace is trusted.",
       "restrictedConfigurations": [
-        "corvint.executablePath",
-        "corvint.mcpExecutablePath",
-        "corvint.testObservationPath",
-        "corvint.liveTests.enabled",
-        "corvint.liveTests.command",
-        "corvint.liveTests.retainEvidence",
-        "corvint.liveTests.watchPaths",
-        "corvint.liveTests.toolchainPaths",
         "corvint.executablePath",
         "corvint.mcpExecutablePath",
         "corvint.testObservationPath",

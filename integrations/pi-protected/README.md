@@ -20,7 +20,7 @@ the build rejects any SHA256 other than
 `make pi-protected-test` builds and signs an experimental release, then exercises
 native RPC/TUI, reload/replacement, image tools, hostile executable resources,
 startup injection positive controls and interruption cleanup. It needs loopback
-networking for a local model fixture, `sandbox-exec`, Python 3 and Apple command-line
+networking for a local model fixture, `sandbox-exec` and Apple command-line
 tools. It sends no prompts to an external model. The default Core gate does not
 download or install these optional dependencies.
 
