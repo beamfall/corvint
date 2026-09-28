@@ -115,13 +115,13 @@ func (s *ImportSequence) Close() {
 	}
 }
 func (s *ImportSequence) Has(path string) bool {
-	return s != nil && !s.closed && s.input.Inventory.Has(path)
+	return s != nil && !s.closed && s.input.Inventory != nil && s.input.Inventory.Has(path)
 }
 
 // Prepare refuses further use after any refusal or an outstanding publication.
 // The returned Result deliberately has neither a public Plan nor Final inventory.
 func (s *ImportSequence) Prepare(r Request, in Input) (Result, *ImportBatch) {
-	if s == nil || s.closed {
+	if s == nil || s.closed || s.input.Inventory == nil {
 		return failed(r.RequestID, malformed("closed import sequence")), nil
 	}
 	if s.pending != nil || r.Operation != ImportApply || r.Actor != s.actor {

@@ -107,6 +107,11 @@ func TestCALV0018_SequenceRefusalParity(t *testing.T) {
 	t.Run("CAL-V0-018 refusal parity", testCALV0018SequenceRefusal)
 }
 func testCALV0018SequenceRefusal(t *testing.T) {
+	zero := &ImportSequence{}
+	if _, batch := zero.Prepare(importRequest(imported("BF-1", "one")), Input{}); batch != nil || zero.Has("head.json") {
+		t.Fatal("zero cursor admitted")
+	}
+
 	for _, name := range []string{"native-holder", "revision", "actor", "branch", "replay", "queue", "clock"} {
 		t.Run(name, func(t *testing.T) {
 			in := roadmapInitialized(t)
