@@ -26,7 +26,8 @@
     "internal/behaviorfalsify/receipt_test.go": "1ba3763740c8ad96a71cecc77850a98c3e5d2f0c3b9ce2562844fea3ced4441c",
     "internal/jstestprovider/attempt_details.go": "0fa32cf03fca240cd4ad3adc4855bdce262f3dbbd3ec3af2ee6064d3886a4c1f",
     "internal/jstestprovider/attempt_details_test.go": "865d28384c23c49b40495f6d88dae219a19acd0f13444135772958de11d9b917",
-    "internal/jstestprovider/testdata/external/retry-infra.spec.cjs": "fb1471f38c99966051ebcdd82ccecfe68cfead67783f6d4dbf690e7bfecdcef8"
+    "internal/jstestprovider/testdata/external/retry-infra.spec.cjs": "fb1471f38c99966051ebcdd82ccecfe68cfead67783f6d4dbf690e7bfecdcef8",
+    "conformance/release-artifact-v0/archive_gate_posix_test.go": "cb95f1bf613da8e1edcd3656b1c1e2052a67152be9c14d8e38e1410a40bd254c"
   },
   "artifacts": {
     "167-focused.log": {
@@ -160,6 +161,14 @@
     "terminal-first-failure.md": {
       "sha256": "281e4e1cf9c86e8029d212b7c682e00502c1105fb2d6277c032e5dbfb88ed142",
       "bytes": 1328
+    },
+    "terminal-serial-failure.md": {
+      "sha256": "f5555734cd05de0eab6c75fafb40b2bfba1be618544d3ce62ab777bd948f2c2f",
+      "bytes": 1194
+    },
+    "pid-poll-regression.log": {
+      "sha256": "14db8bce086ebcc97bfb83822c59f56368a2f99850a86f637ca8826b096a4521",
+      "bytes": 72
     }
   },
   "unsupported": [
