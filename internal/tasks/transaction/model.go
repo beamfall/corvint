@@ -125,6 +125,8 @@ type Result struct {
 	Coverage Coverage
 	Detail   string
 	Plan     *Plan
+	// Final is the store inventory once Plan commits, from its capacity check.
+	Final *Inventory
 	// AttemptID and Generation name the attempt a lease transaction wrote;
 	// Expired lists the expired leases a claim or reap survey needs reaped.
 	AttemptID  string
@@ -667,10 +669,13 @@ func Model(r Request, in Input) Result {
 	if e != nil {
 		return failed(r.RequestID, e)
 	}
-	if _, e = CheckCapacity(p); e != nil {
+	capacity, e := CheckCapacity(p)
+	if e != nil {
 		return refused(r.RequestID, mutation.OutcomeCapacityExhausted, wire.CodeOf(e), e.Error())
 	}
-	res := Result{Kind: "Transaction", Outcome: out, Coverage: coverage(), Plan: p, Detail: detail}
+	// The capacity check reserves staging; a scanned inventory never holds it.
+	delete(capacity.Final.dirs, "staging")
+	res := Result{Kind: "Transaction", Outcome: out, Coverage: coverage(), Plan: p, Final: capacity.Final, Detail: detail}
 	if lease != nil {
 		res.AttemptID, res.Generation = lease.attemptID, lease.generation
 	}

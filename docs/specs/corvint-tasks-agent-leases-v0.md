@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S8 claim side CAL-V0-021..023 and 025 experimental)
+Delivery status: partial (S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S8 claim side CAL-V0-021..023 and 025 experimental)
 Authoritative inputs: the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
 §3.4, §4, §6 and §7.4), decision 0397 (corvint-tasks built in tree), decision 0423 A10,
 `docs/specs/corvint-tasks-store-init-v0.md`, tickets V1-0398, V1-0184 and V1-0310, and the in-tree
@@ -11,7 +11,7 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Coding agents claim, renew, gate and complete tickets through leased `corvint-tasks` attempts, replacing a repository's own task runner without a supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S8 claim side CAL-V0-021..023 and 025 experimental). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S8 claim side CAL-V0-021..023 and 025 experimental). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
 - Read next: Slices; Requirements (S8 for parallel claims); Amendments to TCP-00; Failure modes.
@@ -30,8 +30,8 @@ supervisor: `admit` reserves the ticket, a supervisor forks a `lane-leader`, a `
 handshake proves whether the runtime ran, and process-group liveness decides when a reservation may
 be released (§6.2 to §6.4). None of that is built in tree: the only reservations are S3's
 `external-agent` leases, `cutover` requires an empty reservation set
-(`internal/tasks/transaction/model.go:539@afae0d34`), and the writer refuses every queue that is
-not a fixture (`internal/tasks/transaction/model.go:733@2635d775`).
+(`internal/tasks/transaction/model.go:541@afae0d34`), and the writer refuses every queue that is
+not a fixture (`internal/tasks/transaction/model.go:738@2635d775`).
 
 The agents that use these queues are not processes corvint-tasks starts. They are interactive or
 orchestrated sessions that call the task tool themselves. This spec keeps TCP-00's attempt,
@@ -297,6 +297,7 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
 | Gate command hangs | Holder waits | The declared gate timeout records `FAILED`; the attempt stays `CHECKING` for another `gate run` or `submit` |
 | Candidate rebased before merge | Tree changes | `complete` refuses until the new tree is submitted and gated |
 | Cutover interrupted | One receipt either committed or not | A rerun with the same decision replays or commits it |
+| Store edited outside corvint-tasks during an import (`git pull`, an editor) | Batches after the first check only the head and the files they post | A ticket the batch posts refuses `INTENT_DIVERGED` and a moved head refuses `SNAPSHOT_MOVED`; other drift is not seen until the next command audits the store (CAL-V0-018) |
 | Re-import after cutover | Foreign export disagrees with the published records | `import` refuses the whole export and writes nothing |
 | Non-fixture queue before execution cutover | Agents try to claim | `claim` refuses; ticket writes still work |
 | Derived scope misses a file the agent needs | Agent edits outside its scope | `submit` refuses `OUT_OF_SCOPE`; the agent `widen`s, or releases and reclaims with `--scope` |
@@ -313,7 +314,7 @@ Before S7 closes, a rehearsal in a throwaway non-fixture store holding the cut-o
 claims, gates and completes one real Beamfall ticket, and lets one lease expire and be reaped.
 
 Rollback, per slice: S1 restores the fixture-only check at
-`internal/tasks/transaction/model.go:733@2635d775`; S2 removes `cutover` (a queue it already
+`internal/tasks/transaction/model.go:738@2635d775`; S2 removes `cutover` (a queue it already
 switched stays `NATIVE`, and its imported records stay eligible `IMPORT` records; reversing a switch
 is TCP-00's §5.4 revert, which this spec does not build); S3 to S5 remove the lease verbs, and a
 store that holds live `external-agent` attempts must first `release` or `reap` them, because a
@@ -341,7 +342,8 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-015 | `TestCALV0015_SubmitRecordsTheCandidateTree` (`internal/tasks/store`) |
 | CAL-V0-016 | `TestCALV0016_GateRunRecordsEachResult`, `TestCALV0016_GateRunRefusesWithoutRunning` (`internal/tasks/store`), `TestCALV0016_GateResultRoundTrips`, `TestCALV0016_PassedNeedsACleanExitAtTheCandidate` (`internal/tasks/snapshot`) |
 | CAL-V0-017 | `TestCALV0017_CompleteVerifiesTheTicket`, `TestCALV0017_CompletionRefusals`, `TestCALV0017_CompletionNeedsEveryRequiredGateAndApproval` (`internal/tasks/store`), `TestCALV0017_ManifestRoundTrips` (`internal/tasks/snapshot`); live CLI run in `docs/build-log/2026-09-27-corvint-tasks-lease-gates.md` |
-| CAL-V0-018..020 | NOT_RUN; accepted, not started |
+| CAL-V0-018 | `TestCALV0018_LaterBatchesCheckTheirHeadAndPosts` (`internal/tasks/store`); first import of the 2,894-item Beamfall export in 271 s in `docs/build-log/2026-09-27-corvint-tasks-import-cost.md`, taken at load 37 to 60 on 12 CPUs, so the load condition is NOT_MET; each batch still re-validates every stored ticket in `transaction.Model` |
+| CAL-V0-019..020 | NOT_RUN; accepted, not started |
 | CAL-V0-021 | `TestCALV0021_WholeRepositoryBlocksEverything`, `TestCALV0021_DeclaredNonPathResourcesJoinTheScope` (`internal/tasks/store`) |
 | CAL-V0-022 | Claim side only: `TestCALV0022_DerivedScopeWhenTheTicketDeclaresNone` (`internal/tasks/store`), with an injected deriver; the context-index deriver is NOT_RUN |
 | CAL-V0-023 | `TestCALV0023_CollisionNormalization` (`internal/tasks/ticket`), `TestCALV0023_CollidingClaimsAdmitOne`, `TestCALV0023_DisjointPathScopesAreBothAdmitted` (`internal/tasks/store`) |
