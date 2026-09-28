@@ -1,0 +1,54 @@
+{
+  "baseRevision": "0954ea188e676b714bd6a979a5278bde0baa15e0",
+  "evidence": [],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:c8c56475beba081e81a53409eca7ffd0e576206370941c2195aad270b78a5695",
+      "newRange": {
+        "count": 23,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-28-pr-completion-fixture-identity.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:af1a8df7f817d4503498f8000af1fdeafa7816ba5aaaae61809003d58d872054",
+      "newRange": {
+        "count": 11,
+        "start": 43
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 43
+      },
+      "path": "internal/tasks/store/lease_gate_test.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:6a9dde3717749a32c2e2a04b80055a6c55181d3c2a9450b146d33a5383341f21",
+      "newRange": {
+        "count": 7,
+        "start": 327
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 323
+      },
+      "path": "internal/tasks/store/lease_gate_test.go",
+      "reason": "no-evidence"
+    }
+  ],
+  "patchSha256": "f5992faaf8d79a45c6f7896c7ff2bca75e293bf4a59692d26d9ba1804b36e804",
+  "spec": "cem/0.2"
+}
