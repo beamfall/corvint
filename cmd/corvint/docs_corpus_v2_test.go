@@ -19,7 +19,7 @@ func TestBehaviorProviderV2CLI(t *testing.T) {
 	}
 	a := doccorpus.Anchor{Repository: m.Repository.ID, Revision: rev, Path: m.Inputs[0].Path, Blob: m.Inputs[0].Blob, SHA256: m.Inputs[0].SHA256, Start: 1, End: 1, SpanSHA256: strings.Repeat("a", 64), Authority: "external-provider", Kind: "declared", Reason: "producer declaration; consumer must verify bytes"}
 	request := doccorpus.BehaviorProviderRequestV2{Schema: doccorpus.BehaviorProviderRequestSchemaV2, ID: "behavior", Version: "2", Source: m.Repository,
-		Registry: doccorpus.BehaviorRegistry{Schema: 2, ContractID: "example", SourceRevision: rev, DocumentationRevision: rev, Repositories: []doccorpus.BehaviorRepository{{m.Repository.ID, rev}}, Discovery: a, Manifest: a, Flows: []doccorpus.BehaviorFlow{}, Tests: []doccorpus.BehaviorTest{}, Behaviors: []doccorpus.BehaviorSource{}}}
+		Registry: doccorpus.BehaviorRegistry{Schema: 2, ContractID: "example", SourceRevision: rev, DocumentationRevision: rev, Repositories: []doccorpus.BehaviorRepository{{RootCommit: m.Repository.ID, Revision: rev}}, Discovery: a, Manifest: a, Flows: []doccorpus.BehaviorFlow{}, Tests: []doccorpus.BehaviorTest{}, Behaviors: []doccorpus.BehaviorSource{}}}
 	raw, err := doccorpus.Encode(request)
 	if err != nil {
 		t.Fatal(err)
