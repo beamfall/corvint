@@ -136,13 +136,13 @@ exit 2.
 |---|---|---|
 | `admitted-path-limit` | `internal/trace/record.go:323` | more than 200 candidates were admitted as current source paths |
 | `candidate-limit` | `internal/trace/record.go:309` | `AdmissibleCurrentPaths` received more than 200,000 unique changed-path candidates |
-| `changed-path-acquisition-failed` | `internal/tracerecordrepo/adapter.go:96` | listing the base-to-target changed paths failed |
-| `changed-path-admission-failed` | `internal/tracerecordrepo/adapter.go:102@69bd23b7` | `trace.AdmissibleCurrentPaths` failed with an error `trace.AdmissionFailureReason` maps to no reason |
+| `changed-path-acquisition-failed` | `internal/tracerecordrepo/adapter.go:97` | listing the base-to-target changed paths failed |
+| `changed-path-admission-failed` | `internal/tracerecordrepo/adapter.go:103@69bd23b7` | `trace.AdmissibleCurrentPaths` failed with an error `trace.AdmissionFailureReason` maps to no reason |
 | `dogfood-record-failed` | `cmd/corvint/dogfood_record.go:146@d0afa17b` | the stderr `code` written when the dogfood-record error carries an empty reason |
-| `invalid-base-revision` | `internal/tracerecordrepo/adapter.go:85` | the base argument does not resolve to a commit |
+| `invalid-base-revision` | `internal/tracerecordrepo/adapter.go:86` | the base argument does not resolve to a commit |
 | `malformed-path` | `internal/trace/record.go:432` | a path is empty or `pythonString` rejects it (its value cannot be decoded as Python string units); also at `internal/trace/record.go:449`, a normalized, unforbidden path that is tracked (or any stored-row path) breaks the `corvint-dashboard-trace-path-witness/0` lexical profile: more than 4,096 bytes, not valid UTF-8 (an encoded surrogate), a Unicode control, a backslash, or an ASCII-letter-colon prefix (decision 0235) |
-| `record-failed` | `internal/tracerecordrepo/adapter.go:152` | the stability check or recording failed for a reason that is neither repository drift nor a verification reason |
-| `record-index-failed` | `internal/tracerecordrepo/adapter.go:81` | building the record index and tracked set failed |
+| `record-failed` | `internal/tracerecordrepo/adapter.go:153` | the stability check or recording failed for a reason that is neither repository drift nor a verification reason |
+| `record-index-failed` | `internal/tracerecordrepo/adapter.go:82` | building the record index and tracked set failed |
 | `secret-shaped-path` | `internal/trace/record.go:435` | a path matches the secret screen |
 | `unnormalized-path` | `internal/trace/record.go:438` | a path is absolute, contains `//`, is not `path.Clean`-equal to itself, or has a `..` part |
 | `unsupported-verify-syntax` | `internal/trace/record.go:225` | a verification command is empty or contains a byte outside ASCII letters, digits, and `_./:@=+, -` |
