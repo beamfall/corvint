@@ -924,7 +924,7 @@ func (r *runner) contextHook(event string, fields map[string]any) (map[string]an
 	}
 	receipt, text, err := envelopedReceipt(output)
 	if err != nil {
-		return nil, "", fmt.Errorf("%s: %w", event, err)
+		return nil, text, fmt.Errorf("%s: %w", event, err)
 	}
 	return receipt, text, nil
 }
@@ -944,7 +944,7 @@ func envelopedReceipt(output string) (map[string]any, string, error) {
 	begin := strings.Index(text, envelopeBegin+"\n")
 	end := strings.Index(text, envelopeEnd)
 	if begin < 0 || end < begin {
-		return nil, text, fmt.Errorf("additionalContext carries no repository-data envelope")
+		return nil, text, fmt.Errorf("additionalContext carries no repository-data envelope; received additionalContext=%s", quotedHookContext(text))
 	}
 	var receipt map[string]any
 	for _, line := range strings.Split(text[begin:end], "\n") {
@@ -959,6 +959,18 @@ func envelopedReceipt(output string) (map[string]any, string, error) {
 		return nil, text, fmt.Errorf("enveloped receipt is not a successful non-mutating corvint-dogfood-event/0 receipt")
 	}
 	return receipt, text, nil
+}
+
+// quotedHookContext preserves the diagnostic without allowing control bytes to
+// forge report rows. The full received text remains available to the caller.
+func quotedHookContext(text string) string {
+	const limit = 2048
+	prefix := text[:min(len(text), limit)]
+	quoted := fmt.Sprintf("%q", prefix)
+	if len(text) > limit {
+		quoted += fmt.Sprintf(" (%d bytes omitted)", len(text)-limit)
+	}
+	return quoted
 }
 
 // citesPath reports whether the receipt's task evidence names path at blob.

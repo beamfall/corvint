@@ -56,6 +56,12 @@ behaviour inside a live model session.
   | upgrade | after the N-1 binary indexes the fixture and is replaced, the current binary does not reuse its snapshot: `index --if-stale` rebuilds instead of reporting `state=fresh` (a snapshot is keyed by the binary that wrote it), and `context` succeeds | the registered hooks serve valid context under the N-1 binary and after its replacement by the current binary; the host's reinstall keeps the package byte-equal | `AHI-002` |
   | uninstall | the binary is removed and no longer resolves; the fixture worktree is unchanged | the host's disable (Claude Code: then enable), uninstall and marketplace-remove commands succeed; the host no longer lists the plugin; the installed root is gone or carries the host's own `.orphaned_at` retirement marker; no other file under the private `HOME`, whatever its size, names corvint; the fixture worktree is unchanged | `AHI-002` |
 
+  A missing repository-data envelope MUST retain the received `additionalContext` in the error
+  as a quoted prefix of at most 2048 bytes, with an explicit omitted-byte count when truncated.
+  The context-hook helper MUST also return the full received text on receipt-validation failure.
+  A visible `adapter-host-kill-deadline` fallback is thus distinguishable from malformed envelope
+  output; neither becomes a successful lifecycle case, and no deadline is widened.
+
 - **HLQ-V1-003:** Each run MUST happen in a fresh private workspace: `HOME`, `CLAUDE_CONFIG_DIR`
   and `CODEX_HOME` point inside it, and `PATH` holds only the private `corvint` directory, the host
   executable's directory, Git's directory and the system directories. Command names MUST resolve
@@ -85,7 +91,8 @@ behaviour inside a live model session.
   checked for their own predicates, not for a `mutates` field.
 - **HLQ-V1-007:** The runner MUST print one header line, then one `case` line for each case, then a
   `SUMMARY` line with the counts. Fields are tab-separated. It exits 0 only when all nine cases pass,
-  1 otherwise, and 2 on a usage or setup error.
+  1 otherwise, and 2 on a usage or setup error. Received diagnostic text is quoted so its control
+  bytes cannot add report rows or columns; truncation remains explicit.
 - **HLQ-V1-008:** A result MUST be recorded here with the digests of both binaries and the source
   revision. Each tuple's raw `--report` file MUST be kept under
   `conformance/host-lifecycle-v1/results/`, and its sha256 recorded with the result, so the verdict
@@ -146,6 +153,15 @@ Supplementary live observations from the 0.8.0 run, not part of the nine cases:
 
 ## Known gaps
 
+- V1-0397: the historical Claude Code 2.1.267 / adapter 0.2.3 upgrade failure on
+  rc1 build 154 occurred at reported host load 81–109 on 12 CPUs. Its received text was
+  discarded, so the exact cause remains UNKNOWN. The same tuple subsequently passed at
+  load 97–125; these observations establish neither a safe threshold nor load causation.
+  A prior PostToolUse run reported `adapter-host-kill-deadline`, making watchdog degradation
+  a testable hypothesis, not a diagnosis of the lost upgrade event. The deterministic fallback
+  regression retains that cause text; live qualification above load 80 remains NOT_OBSERVED
+  until three consecutive frozen-candidate reports and actual load observations are retained.
+
 - Codex runs a plugin hook only after the user trusts it interactively. An isolated home has no
   trust, so the Codex hook cases call the registered command directly (`HLQ-V1-004`).
 - Codex's plugin CLI has no disable verb. Its uninstall case covers remove and marketplace remove
@@ -160,8 +176,8 @@ Supplementary live observations from the 0.8.0 run, not part of the nine cases:
 
 | Requirement | Evidence |
 |---|---|
-| HLQ-V1-001, HLQ-V1-007 | `conformance/host-lifecycle-v1` header and report lines, and `prepare`; `TestSummaryExitRequiresAllNinePass`; a dirty `--source` exits 2 |
-| HLQ-V1-002 | Results table; `TestEnvelopedReceipt`, `TestMissingCoreVerbs`, `TestListed`, `TestRowIsScopedToSelector`, `TestSessionKeyPattern` |
+| HLQ-V1-001, HLQ-V1-007 | `conformance/host-lifecycle-v1` header and report lines, and `prepare`; `TestSummaryExitRequiresAllNinePass`, `TestMissingEnvelopeRetainsDiagnostic`; a dirty `--source` exits 2 |
+| HLQ-V1-002 | Results table; `TestEnvelopedReceipt`, `TestContextHookRetainsRejectedText`, `TestMissingCoreVerbs`, `TestListed`, `TestRowIsScopedToSelector`, `TestSessionKeyPattern` |
 | HLQ-V1-003 | the runner's private environment and `lookPath`; the uninstall case reporting the removed binary unresolvable |
 | HLQ-V1-004 | `TestReadHooks`; the discovery case |
 | HLQ-V1-005, HLQ-V1-008 | Results and the reports under `conformance/host-lifecycle-v1/results/`; support stays FALLBACK in both `compatibility.json` files |
