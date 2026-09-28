@@ -50,9 +50,9 @@ type LeaseRequest struct {
 // derivation (nil paths when the deriver abstained). SUBMIT, GATE_RUN and
 // COMPLETE add their git and gate observations (gateFacts).
 type LeaseFacts struct {
-	AttemptID, BaseCommit string
-	DerivedPaths          []string
-	DerivationSha256      wire.Digest
+	AttemptID, BaseCommit, DerivedTicketID string
+	DerivedPaths                           []string
+	DerivationSha256                       wire.Digest
 	gateFacts
 }
 
@@ -82,7 +82,7 @@ type leaseShape struct{ required, allowed int }
 
 var leaseShapes = map[string]leaseShape{
 	LeaseClaim:     {fieldTicket | fieldHolder | fieldMinutes, fieldTicket | fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope},
-	LeaseClaimNext: {fieldHolder | fieldMinutes, fieldHolder | fieldMinutes | fieldBranch | fieldBase},
+	LeaseClaimNext: {fieldHolder | fieldMinutes, fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope},
 	LeaseRenew:     {fieldAttempt | fieldGeneration | fieldMinutes, fieldAttempt | fieldGeneration | fieldMinutes},
 	LeaseRelease:   {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldReason},
 	LeaseReap:      {0, fieldAttempt | fieldGeneration},
