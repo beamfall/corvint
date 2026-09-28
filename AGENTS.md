@@ -96,6 +96,14 @@ file new bugs, fixes, test gaps, optimizations, ideas and open questions as tick
 `agent-memory` plus `bugs|fixes|tests|optimizations|ideas|questions`), never as Markdown entries
 under `docs/agent-memory/`, which stays only as a redirect.
 
+Ticket-backed work is finished only after its acceptance evidence is retained, the required
+integration is complete, and the native completion write succeeds. Use `submit`, `gate run`, and
+`complete` when the installed Tasks runtime and queue policy support them. Use `complete-manual`
+only for an explicitly evidenced manual disposition, never to bypass a failed gate. Read back
+`ticket show` and run `receipt audit` before reporting completion. If landing, qualification, or
+the completion write remains blocked, keep the ticket open and name the remaining closeout step
+in the handoff. A PR merge or CEM seal alone does not complete the ticket.
+
 Corvint is AGPL-3.0-or-later; `LICENSING.md` is the authoritative path boundary. A new Apache-2.0 file
 belongs in `protocol/**`; widening that boundary requires amending
 `docs/decisions/0002-future-publication-transition.md`. Preserve each path's terms, third-party
