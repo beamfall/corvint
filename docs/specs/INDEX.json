@@ -2357,7 +2357,7 @@
     "path": "docs/specs/corvint-tasks-store-init-v0.md",
     "title": "Corvint Tasks store initialization V0",
     "reqPrefix": "CTS-V0",
-    "intent": "accepted for CTS-V0-001, CTS-V0-003 and CTS-V0-004 (owner decisions 2026-09-27); CTS-V0-002 proposed",
+    "intent": "accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28)",
     "delivery": "experimental",
     "claim": "`corvint-tasks init` refuses an intent store that already holds records, and works in a repository reached through a symlinked ancestor such as macOS `/tmp`.",
     "dependsOn": [],

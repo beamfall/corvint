@@ -85,18 +85,18 @@ func TestTMV0008_AS07_ConflictingActorEnvironmentDoesNotGateReads(t *testing.T) 
 	fixture.AssertUntouched(t, r, stateBefore, intentBefore, "read with conflicting actor environment")
 }
 
-// TestTMV0008_AS11_InitMakesTheStoreReadable is the end of the
-// UNINITIALIZED refusal: after `atm init` the read verbs answer OK against a
-// real head instead of refusing, and a second init refuses without writing.
+// TestTMV0008_AS11_InitMakesTheStoreReadable verifies that init upgrades an
+// unaudited inventory projection to a journal-backed read and refuses a second init.
 func TestTMV0008_AS11_InitMakesTheStoreReadable(t *testing.T) {
 	r := fixture.TempRepo(t)
 	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
 	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
 
-	// Before init every read refuses: that is the state this slice ends.
+	// CTS-V0-002 permits inventory before init without inventing a journal snapshot.
 	before := atm(t, r.Root, nil, "queue", "status")
-	if before.res.Outcome != wire.OutcomeRefused {
-		t.Fatalf("an uninitialized store must refuse reads: %+v", before.res)
+	if before.res.Outcome != wire.OutcomeOK || before.res.Snapshot != nil ||
+		!strings.Contains(strings.Join(before.res.Warnings, " "), "journal-absent; unaudited") {
+		t.Fatalf("an absent journal must yield unaudited inventory: %+v", before.res)
 	}
 
 	x := atm(t, r.Root, nil, "init")
