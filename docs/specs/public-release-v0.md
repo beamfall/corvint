@@ -216,6 +216,11 @@ The proposed delivery sequence and acceptance criteria are in
   case-folds equal to a directory prefix of another entry's path, before any byte is written to
   disk; the same case-fold refusal MUST run again wherever an assembled archive's member
   inventory is independently re-verified.
+  The Tasks source subset MUST include the complete in-module dependency closure required by
+  `cmd/corvint-tasks`, including the CAL-V0-022 opt-in pack adapter's Core dependencies, while
+  retaining each selected path's exact bytes/blob identity and the source commit/tree identities.
+  Root LICENSE, LICENSE-APACHE-2.0, LICENSING.md and PROVENANCE.md and any notices within
+  selected package directories remain unchanged; archive inclusion does not widen import authority.
 - `PUB-V0-013`: Each of the nine bundled binaries (`corvint`, `corvint-console`,
   `corvint-dashboard-snapshot`, `corvint-mcp`, `corvint-docs-mcp`, `corvint-test-validity-mcp`,
   `corvint-js-test-provider`, `corvint-go-test-provider`, `corvint-tasks`) MUST be built from its module's `PUB-V0-012` exported tree,
@@ -226,6 +231,11 @@ The proposed delivery sequence and acceptance criteria are in
   the exact Go toolchain identity (`go env GOVERSION`) pinned by `requiredGoVersion`; the two
   builds MUST be byte-identical, and the retained binary's own embedded `debug/buildinfo` MUST be
   checked against the pinned Go version and requested `GOOS`/`GOARCH` before it is accepted.
+  Independently of npm/VSIX qualification, a regression MUST assemble and decode the actual
+  Tasks source tarball, verify the extracted paths against their exported Git blobs, and run
+  `go build ./cmd/corvint-tasks` in an isolated offline Go environment. A removed transitive
+  dependency MUST make that rebuild fail. This scoped proof does not replace the nine-component
+  double-build gate or permit Core to link Tasks mutation code.
   The VSIX MUST be compiled twice from separate materializations of that same Corvint export. Each
   build MUST install the exact lockfile through `npm ci --ignore-scripts --offline` from a separate
   private clone of the caller-supplied populated cache, verify Node 22.23.2, npm 10.9.8,
@@ -671,7 +681,7 @@ with named versions stays a separate, not-yet-exercised step that this command d
 | PUB-V0-010 | `internal/console` (`/roadmap`) | `TestRoadmapGroupingAndBlockers`; `atm roadmap`, planning-ticket seeding and duplicate avoidance live in the separate `corvint-taskman` repository and are not exercised by this repository's tests |
 | PUB-V0-011 | `internal/companionrelease/target.go`, `internal/companionrelease/clean.go`, `internal/companionrelease/companionrelease.go`, `internal/gitstatus/status.go`, `script/corvint-companion-release-gate`, `script/local-console-release-gate` | Existing path/cleanliness tests; `script/corvint-companion-release-gate_test.sh` proves a real linked worktree reaches the release command while preserving the clean clone boundary; `TestGateScriptsPassOnlyDefinedFlags` proves both gate scripts pass only flags the release command defines, including `-source-root` (V1-0346); `TestLocalConsoleGateBuildsFromRepositoryRoot` proves `script/local-console-release-gate` builds in its own checkout when run from outside it (V1-0353). |
 | PUB-V0-012 | `internal/companionrelease/export.go`, `internal/companionrelease/verify.go` | `TestListTreeEntriesRefusesSymlinkAndSubmodule`, `TestListTreeEntriesRefusesDuplicatePaths`, `TestListTreeEntriesRefusesCaseFoldCollisions`, `TestVerifyTarGzRefusesCaseFoldedMembers`, `TestExportSourceRefusesOversizedEntryCount`, `TestExportSourceRefusesTotalBytesBound`, `TestVerifyBlobDigestRefusesMismatch`, `TestRefuseUnsafePath`, `TestExportSourceRefusesDisagreeingPasses`, `TestBatchBlobsRefusesTrailingData` (data after the last requested object in either independent `cat-file --batch` pass is refused, not silently dropped from the byte-for-byte agreement check); `TestExportSourceAdmitsCountsAtTheirBounds` (exactly 10,000 entries and exactly 128 MiB are admitted), `TestBatchBlobsRefusesWrongRecordTerminator` |
-| PUB-V0-013 | `internal/companionrelease/build.go`, `internal/companionrelease/vsix.go`, `internal/companionrelease/npm_notices.go`, `internal/companionrelease/companionrelease.go` | Existing staged-export/double-Go-build tests plus `TestCanonicalVSIXRequiresClosedAgreeingMembers` and `TestBuildOnlyNPMNoticeIsExplicitlyUnshipped`; final exact-source nine-binary/VSIX build remains the retained companion gate. |
+| PUB-V0-013 | `internal/companionrelease/build.go`, `internal/companionrelease/vsix.go`, `internal/companionrelease/npm_notices.go`, `internal/companionrelease/companionrelease.go` | `TestCurrentTasksSourceArchiveBuildsOffline` (actual archive, offline default rebuild, removed-transitive-dependency negative control); existing staged-export/double-Go-build tests plus `TestCanonicalVSIXRequiresClosedAgreeingMembers` and `TestBuildOnlyNPMNoticeIsExplicitlyUnshipped`; final exact-source nine-binary/VSIX build remains the retained companion gate. |
 | PUB-V0-014 | `internal/companionrelease/archive.go`, `internal/companionrelease/verify.go`, `internal/companionrelease/manifest.go`, `internal/companionrelease/packages.go`, `internal/companionrelease/companionrelease.go` | Existing archive tests plus shared-source/manifest-reference and exact exported host-package-tree tests in `internal/companionrelease`. |
 | PUB-V0-015 | `internal/companionrelease/smoke.go`, `internal/companionrelease/workflow_smoke.go`, `internal/companionrelease/retain.go`, `internal/companionrelease/companionrelease.go`, `internal/companionrelease/proc.go` | Existing installed smoke/process tests plus `TestMCPDiscoveryRequiresExactProtocolAndIdentity` and `TestRetainedSmokeReportBindsArchiveOutsideArchive`; the retained exact-binary run remains the final companion gate. |
 | PUB-V0-016 | `extensions/vscode/test/installed`, `conformance/interactive-alpha`, `internal/companionrelease/installed.go`, `cmd/corvint-public-release-check`, `script/public-release-check` | retained verifier, no-overwrite and wrapper refusal tests (`script/public-release-check_test.sh`); the final exact retained installed run remains required. |

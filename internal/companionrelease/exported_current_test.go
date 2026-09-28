@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -82,4 +83,79 @@ func TestCurrentExportedTasksSmokeGenerator(t *testing.T) {
 		t.Fatal("empty smoke fixture")
 	}
 	t.Logf("Tasks commit=%s tree=%s queue=%s policy=%s", source.HeadCommit, source.HeadTree, sha256Hex(files.Queue), sha256Hex(files.Policy))
+}
+
+// This archive-only regression runs without npm or a VSIX cache. It uses the
+// shipped tar bytes, not stageBuildSource's parallel materialization path.
+func TestCurrentTasksSourceArchiveBuildsOffline(t *testing.T) {
+	t.Run("PUB-V0-012 PUB-V0-013 actual Tasks archive dependency closure", func(t *testing.T) {
+		ctx := context.Background()
+		scratch := t.TempDir()
+		root, err := filepath.Abs("../..")
+		if err != nil {
+			t.Fatal(err)
+		}
+		source, err := exportSource(ctx, "/usr/bin/git", root, scratch)
+		if err != nil {
+			t.Fatal(err)
+		}
+		subset := tasksExport(source)
+		for _, name := range []string{"LICENSE", "LICENSE-APACHE-2.0", "LICENSING.md", "PROVENANCE.md"} {
+			original, ok := findExportFile(source, name)
+			if !ok {
+				t.Fatalf("source notice missing: %s", name)
+			}
+			retained, ok := findExportFile(subset, name)
+			if !ok || original.OID != retained.OID || string(original.Data) != string(retained.Data) {
+				t.Fatalf("notice changed: %s", name)
+			}
+		}
+		if subset.HeadCommit != source.HeadCommit || subset.HeadTree != source.HeadTree {
+			t.Fatal("subset changed immutable identity")
+		}
+		extract := func(export Export, dir string) string {
+			t.Helper()
+			files, member, digest, err := assembleModuleSource("corvint-tasks", export)
+			if err != nil {
+				t.Fatal(err)
+			}
+			bundle := &VerifiedRetainedBundle{entries: files}
+			if err := bundle.ExtractSourceArchive(member, dir); err != nil {
+				t.Fatal(err)
+			}
+			if err := verifyStagedTree(export, dir); err != nil {
+				t.Fatal(err)
+			}
+			return digest
+		}
+		directory := filepath.Join(scratch, "source")
+		archiveDigest := extract(subset, directory)
+		goPath, err := goBinary()
+		if err != nil {
+			t.Fatal(err)
+		}
+		env := closedGoEnv(filepath.Join(scratch, "home"), "")
+		built := runWithStdin(ctx, directory, env, buildTimeout, nil, goPath, "build", "./cmd/corvint-tasks")
+		if built.err != nil {
+			t.Fatalf("offline archive rebuild: %v", built.err)
+		}
+		t.Logf("Tasks commit=%s tree=%s archive=%s files=%d; offline go build ./cmd/corvint-tasks PASS", subset.HeadCommit, subset.HeadTree, archiveDigest, len(subset.Files))
+		// diagnostic is transitive through contextindex, not a direct Tasks import.
+		broken := subset
+		broken.Files = nil
+		for _, f := range subset.Files {
+			if !strings.HasPrefix(f.Path, "internal/diagnostic/") {
+				broken.Files = append(broken.Files, f)
+			}
+		}
+		if len(broken.Files) == len(subset.Files) {
+			t.Fatal("negative control removed no dependency")
+		}
+		brokenDir := filepath.Join(scratch, "missing-dependency")
+		extract(broken, brokenDir)
+		failed := runWithStdin(ctx, brokenDir, env, buildTimeout, nil, goPath, "build", "./cmd/corvint-tasks")
+		if failed.err == nil || !strings.Contains(failed.err.Error(), "internal/diagnostic") {
+			t.Fatalf("ineffective missing-dependency control: %v", failed.err)
+		}
+	})
 }

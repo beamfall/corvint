@@ -55,11 +55,16 @@ func findExportFile(export Export, path string) (SourceFile, bool) {
 
 // tasksExportFiles and tasksExportPrefixes name the subset of the Corvint
 // commit tree that builds the in-tree corvint-tasks companion on its own
-// (decision 0397): the module file, the notices, and the Tasks packages,
-// which import no Core package.
+// (decision 0397): the module file, notices, Tasks packages, and the bounded
+// Core dependency closure of the explicit CAL-V0-022 pack adapter.
 var tasksExportFiles = map[string]bool{"go.mod": true, "LICENSE": true, "LICENSE-APACHE-2.0": true, "LICENSING.md": true, "PROVENANCE.md": true}
 
-var tasksExportPrefixes = []string{"cmd/corvint-tasks/", "internal/tasks/"}
+var tasksExportPrefixes = []string{
+	"cmd/corvint-tasks/", "internal/tasks/",
+	"internal/contextindex/", "internal/diagnostic/", "internal/gitstatus/",
+	"internal/projectprofile/", "internal/pythongrammar/", "internal/pythonsyntax/",
+	"internal/runtimeenv/", "internal/secretscreen/", "internal/untrackedallowance/",
+}
 
 // tasksExport filters export to the corvint-tasks subset. It keeps the same
 // commit and tree identity, since every kept file is that tree's exact bytes.
