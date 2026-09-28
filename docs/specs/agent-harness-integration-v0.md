@@ -575,7 +575,16 @@ do not reinterpret this Frontier result.
   reports `UNQUALIFIED`. This is maintainer evidence, not a tamper-resistant authority claim.
   Package declarations describe build-time capability; post-build qualification belongs outside the
   package so recording evidence does not change the tested package. A later source change invalidates
-  qualification. Rollback is removal of the native plugin entry or reverting the package; no host
+  qualification. The first-party qualification command MUST run both the focused adapter suite and
+  native campaign itself, freeze package/executable/collector/test identities across both, and
+  publish the exact consumer record at `integrations/opencode-qualification.json` only after every
+  required result passes. Missing, skipped, failed or changed evidence MUST NOT promote support;
+  callers cannot supply PASS overrides. A requalification MUST retain the previous record as
+  evidence and atomically invalidate the active record before execution, so failure/interruption
+  cannot leave stale FULL active. Final publication MUST be atomic. The record is ignored local
+  derived evidence; the command documents its prerequisites and actual executable requirement.
+  A producer-to-consumer regression MUST cover successful publication, all retained failure classes,
+  identity drift and interruption. Rollback is removal of the native plugin entry or reverting the package; no host
   fork, daemon, account, authority installation or durable outcome migration is required.
 
 ## Native platform profiles

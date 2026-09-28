@@ -39,6 +39,36 @@ skipped with the warning "configured plugin path must be a directory", and one n
 twice. Upgrade by updating the checkout. Disable or uninstall by removing the `plugins` entry;
 remove the checkout only when it is no longer needed.
 
+## Qualify this installation
+
+From a clean, committed Corvint checkout, run the first-party command below. It requires Git,
+Python 3.9 or later, Node.js 20 or later, Go 1.27.1, the real Corvint executable, and the actual
+OpenCode 2.0.18 executable on macOS or Linux. If `opencode2` is a shell launcher, pass the
+executable it launches; the command rejects shell launchers rather than recording the wrong image.
+
+```sh
+python3 script/qualify-opencode.py \
+  --host /absolute/path/to/opencode \
+  --corvint /absolute/path/to/corvint \
+  --output /tmp/corvint-opencode-qualification
+```
+
+This command runs the focused adapter/cleanup tests and the real native campaign itself. It freezes
+package, executable, collector and test inputs across both gates, then atomically writes
+`integrations/opencode-qualification.json`, exactly where `corvint_status` reads it. It retains the
+same accepted report and gate logs under `--output`, which must be outside the checkout. No manual
+conversion or supplied PASS assertions are accepted. The lower-level
+`script/qualify-opencode-native.py` produces native campaign evidence only and cannot qualify an
+installation by itself.
+
+A requalification saves the previous record with its new evidence and first sets the active record
+to INCOMPLETE. Failure or interruption therefore leaves native support UNQUALIFIED. Only complete,
+unchanged passing evidence replaces that record with PASS. The local record is ignored by Git;
+cloning this source does not transfer qualification to another machine. Run the command there for
+its exact tuple. If installing a copy of the package, copy it unchanged together with the record at
+its sibling `opencode-qualification.json` path. Then restart OpenCode and call `corvint_status`.
+Execution authority remains NONE, Frontier UNAVAILABLE, and legacy receipts FALLBACK.
+
 ## MCP servers
 
 MCP servers are configured separately from the lifecycle plugin. Copy the entries from
