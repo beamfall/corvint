@@ -216,6 +216,7 @@ type E2EConfig struct {
 	TestArgv               []string
 	ApplicationAttestation *ApplicationAttestationProvider
 	SensitiveInputPolicy   *SensitiveInputPolicy
+	RetainAttemptDetails   bool
 }
 
 // RunE2E starts the app server, waits for it to answer ServerReadyURL, runs
@@ -225,6 +226,9 @@ type E2EConfig struct {
 // and again after the test command completes; a mismatch is reported as
 // StaleAppBuild rather than silently trusted.
 func RunE2E(ctx context.Context, cfg E2EConfig) (Receipt, error) {
+	if cfg.RetainAttemptDetails && (!cfg.ExternalServer || cfg.ApplicationAttestation != nil || cfg.SensitiveInputPolicy != nil) {
+		return Receipt{}, errors.New("external-attempt-details-composition-unsupported")
+	}
 	if cfg.ApplicationAttestation != nil && !cfg.ExternalServer {
 		return Receipt{}, errors.New("application-attestation-requires-external-server")
 	}

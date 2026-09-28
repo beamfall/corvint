@@ -1,0 +1,163 @@
+{
+  "schema": "issue-qualification-observations/0",
+  "authority": "caller-owned-local-observation",
+  "sourceBase": "cec1edbb6995a022dd7e2d336a66eb42c1fdc3c6",
+  "sourceState": "precommit; source checks are separately bound by the final CEM",
+  "sourceFiles": {
+    "cmd/corvint-behavior-falsify/main.go": "c4e4937f471918f1797a1747edebb2654aae55fabea4350ba1619dad8e1248d8",
+    "cmd/corvint-js-test-provider/main.go": "6e5218a0ebe2da2f3fdf1125646104487bf3772ea2835d2ae0d93d590be40d17",
+    "cmd/corvint/flows.go": "717d50cb92a471d81780cea0670250e5e4a1ebc635fb4f842117c70f5053f919",
+    "internal/appflows/runingest.go": "5d5eb1a0101a1cd64c32b0ac21fe2ea761e1b29aa4b168f523feaa1146e46cd8",
+    "internal/behaviorfalsify/execute.go": "ff20ef65264687463a06031d5f3d3861111db7a9515339e9e93696cb8b91e91a",
+    "internal/behaviorfalsify/execute_test.go": "27845518adf20cb01b773d66b469aa1dc3933b74d54504baabb70e83bc0208ec",
+    "internal/jstestprovider/application_attestation.go": "c93f4059a54b84017ae128de79ba3049cf63c39ff8b83b17e03058120381946b",
+    "internal/jstestprovider/external.go": "2825f9ed84a1743267ad67d1232d93c40d8a9c226f417f7f54bb1d2613ecd4d6",
+    "internal/jstestprovider/external_live_test.go": "9c33f328e71f8c0ac038d6fd37da0f08307fa76610b65dca1af746d382321f82",
+    "internal/jstestprovider/projection.go": "6153f3f5e428a4238daf8d0dad019aaa6585f60072af16d7d6f3b86b39abe2bf",
+    "internal/jstestprovider/qualified-reporter.cjs": "05e9433acb08a7745176b967e73471ca48918897faba5639431228568187ea50",
+    "internal/jstestprovider/qualified-reporter_test.cjs": "bd8f6c0d4f4ed852976cf82385758fbc2e4253a697e7aa9bce0f958584b76d7b",
+    "internal/jstestprovider/receipt.go": "0cfdfdde8cf4d58a157cfc7363d5757fdbb997165ae140e12e0cc280b465d319",
+    "internal/jstestprovider/runner.go": "0e7a8ffbca501c4e6e9d16568c3663fc2dee202b73336922d5a1c058f8dfda47",
+    "internal/testvaliditydoc/discover.go": "3bf4a727340ef35ff48aee41f7c25115cc835ee866f1db5ad8bb2f142632e805",
+    "internal/testvaliditydoc/document.go": "dceedf59fa7b662f6084210e81bc259b35e0ff0780c7638d652a0ceda3b09108",
+    "conformance/mcp-2026-07-28/flows_test.go": "d4064973dd7900c9ac5f2ef7bb3dc2f08eb41d85b231816ef998d264b25d2287",
+    "internal/appflows/attempt_receipt_test.go": "7fdce1951c9accd039d425d2ccbbc68255d21cde17a301112047496d3627b8ef",
+    "internal/behaviorfalsify/receipt.go": "2e3f3677e0d53cc5077a25f316baba85e534310ed00645d03b4c4dd1097314e5",
+    "internal/behaviorfalsify/receipt_test.go": "1ba3763740c8ad96a71cecc77850a98c3e5d2f0c3b9ce2562844fea3ced4441c",
+    "internal/jstestprovider/attempt_details.go": "0fa32cf03fca240cd4ad3adc4855bdce262f3dbbd3ec3af2ee6064d3886a4c1f",
+    "internal/jstestprovider/attempt_details_test.go": "865d28384c23c49b40495f6d88dae219a19acd0f13444135772958de11d9b917",
+    "internal/jstestprovider/testdata/external/retry-infra.spec.cjs": "fb1471f38c99966051ebcdd82ccecfe68cfead67783f6d4dbf690e7bfecdcef8"
+  },
+  "artifacts": {
+    "167-focused.log": {
+      "sha256": "06ac45337d0e59f8c2930702f03e028abbca85ecdb09a4bd1fc4e7322ba1622f",
+      "bytes": 136
+    },
+    "beamfall-change-playwright.json": {
+      "sha256": "b0b24a377a0e865cf44753913b93c816c09f6e6a0835e2c6644417ce16da0325",
+      "bytes": 25045
+    },
+    "beamfall-change-selection.json": {
+      "sha256": "cce0c4dc5f193aeaa2aeadf581ef46838925528a272e27c996207e380291115c",
+      "bytes": 31742
+    },
+    "beamfall-companion-surfaces.json": {
+      "sha256": "8b1a0d8a6a0abb2bba4662768fa21349d4af0ac84c8faee304fe898fda731710",
+      "bytes": 336
+    },
+    "beamfall-doc-claims.json": {
+      "sha256": "beb419c82d945dd277bae03a487b41272c457d4bbce09e2849077639717014ac",
+      "bytes": 890
+    },
+    "beamfall-evidence.jsonl": {
+      "sha256": "cce51cb77bd6f4dbc49cef816fba66bafa20d11479f0f8afaa443ebacde2425c",
+      "bytes": 7907
+    },
+    "beamfall-export-inventory.json": {
+      "sha256": "959b0457781a1f6dd8095b5249eaa5e8d3aa533a0eedd20fa9cea1baa0f59204",
+      "bytes": 113
+    },
+    "beamfall-export-provider.json": {
+      "sha256": "1d25e8a8bfa8629eae0b661594eb3fd572321b4418eda177a942cc6f47764e77",
+      "bytes": 4351
+    },
+    "beamfall-flow-docs.md": {
+      "sha256": "90ffb05a171756c25e56db72daf26b0f83f13f15e35f9a6e1fd3f2b555a124fd",
+      "bytes": 1313
+    },
+    "beamfall-gaps.json": {
+      "sha256": "6bd3325be7ba589eff4d4a7bcaaf3b49de24e6692be73b0faad9370a45044476",
+      "bytes": 460
+    },
+    "beamfall-impact.json": {
+      "sha256": "c54a7305b039863e07ff3ff1c57ae6b864959d93049fd696143507a0ddc44546",
+      "bytes": 1677
+    },
+    "beamfall-live-manifest.json": {
+      "sha256": "8ece48679e94c23ae3ddc1bf57f297be7b3b26243572207255a38d73e83d6bca",
+      "bytes": 500
+    },
+    "beamfall-map.json": {
+      "sha256": "c7d9ce7949c66e31910c24820a8832dd28060843d7b0da712546379e2e755e53",
+      "bytes": 5210
+    },
+    "beamfall-mcp.jsonl": {
+      "sha256": "24a3ac844b0d5294f1ffb3ad9a0edbd29bcf0d28617ccd6e17cad1f18b18670d",
+      "bytes": 22053
+    },
+    "beamfall-navigate.json": {
+      "sha256": "3aeaa088ea508fcf82da89b72db375930ff72d3252c043b33c42fbc61d5ebf70",
+      "bytes": 1331
+    },
+    "beamfall-playwright.json": {
+      "sha256": "05e711b1c5a59bbea67d54fe6aa543090c4043ea80f2b504f661d76606edd911",
+      "bytes": 19136
+    },
+    "beamfall-qualification.patch": {
+      "sha256": "0abed6370120dd5227a6767fa8fc5448125088af43a02f6e3a9485296244b5c7",
+      "bytes": 9825
+    },
+    "change-qualifications.json": {
+      "sha256": "e2170a5e8c8708dd7bfe91d55a5c69151797daf1ac10028aa13d7c3519d0b34c",
+      "bytes": 852
+    },
+    "corvint-after-playwright.json": {
+      "sha256": "8958627c7368f915eb6cc2e27c2f3ccd5aeeee3e05902ffd07f5fc2939b877c3",
+      "bytes": 6613
+    },
+    "corvint-before-playwright.json": {
+      "sha256": "5be681733c4013e3909f727327ab5d75f2a4c389af2b9b1ebeecd793e54b941d",
+      "bytes": 2882
+    },
+    "corvint-change-selection.json": {
+      "sha256": "478e20be7bdf70af4940ed3b62e7b8200fd7f6c35b4f2eb9245610f9e51d9eef",
+      "bytes": 2819
+    },
+    "corvint-qualification.patch": {
+      "sha256": "551f3cf3ed24cfc452cacb84b216e3c48e9e2b0ea5799993aecd62489dec9eaa",
+      "bytes": 453
+    },
+    "falsify-plan.json": {
+      "sha256": "50a0c2cfeec36fed6c6f872fcf7cb3b08f86a0c629fee681fc2d0333c4995e22",
+      "bytes": 2379
+    },
+    "falsify-receipt.json": {
+      "sha256": "36303ee7b679ac173cd461b20b99342a65e41ea8cff46800a2fef7eb28ae8d52",
+      "bytes": 10194
+    },
+    "falsify-verification.json": {
+      "sha256": "81d2ecdd1dccd2ce9b3123eae089b3014df85e8508385931e7ed947902395bf6",
+      "bytes": 3806
+    },
+    "flows-conformance-repaired.log": {
+      "sha256": "290692f0eec96c54b316ec6e8d201028c508cf7fda1595de18a4f6e00d072bae",
+      "bytes": 67
+    },
+    "live-cleanup.json": {
+      "sha256": "ce00841de654ae4e58e99aa5a70adf74f5c6688ec2241e3ade36f9ab4a652672",
+      "bytes": 58
+    },
+    "pwp3-live-passed.log": {
+      "sha256": "a6c959090bd92833e4ec35c9ee0e5d7a0cfabe5bb862511c992fbacad08b2ae1",
+      "bytes": 3023
+    },
+    "reporter-node.log": {
+      "sha256": "44947a740217a4d5c5f4ae7f91a732f1c46d054d5994affcfecb65301fd19526",
+      "bytes": 2792
+    },
+    "review-repair.log": {
+      "sha256": "414585dc44f4692f1d55635cef987653abc00fa3541afbdedb153b66158e8416",
+      "bytes": 122
+    }
+  },
+  "unsupported": [
+    "authenticated hook/operator semantics",
+    "Beamfall production backend or hosted CI",
+    "selection reduction in either live fixture",
+    "AFU-V1-006 producer",
+    "AFU-V1-029 observer integration",
+    "AFU-V1-014 observer test records",
+    "PWP /3 composition with /1 or /2",
+    "PWP /3 legacy1.60/system-browser tuples"
+  ]
+}

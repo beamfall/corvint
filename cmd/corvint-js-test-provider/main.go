@@ -194,6 +194,7 @@ func runE2E(args []string) error {
 	appAttestationConfig := fs.String("app-attestation-config", "", "canonical application-attestation expectation config")
 	appAttestationTimeout := fs.Duration("app-attestation-timeout", 5*time.Second, "bound on each application-attestation provider observation")
 	sensitiveInputRedaction := fs.Bool("sensitive-input-redaction", false, "select the /2 profile and retain only redacted browser input-action steps")
+	retainAttemptDetails := fs.Bool("retain-attempt-details", false, "select the /3 profile and retain each attempt's detail")
 	serverReadyURL := fs.String("server-ready-url", "", "URL polled until it answers with status < 500")
 	serverReadyTimeout := fs.Duration("server-ready-timeout", 15*time.Second, "bound on waiting for server readiness")
 	timeout := fs.Duration("timeout", 5*time.Minute, "bound on the playwright test command")
@@ -272,6 +273,7 @@ func runE2E(args []string) error {
 		TestArgv:               testArgv,
 		ApplicationAttestation: attestationProvider,
 		SensitiveInputPolicy:   sensitivePolicy,
+		RetainAttemptDetails:   *retainAttemptDetails,
 	}
 	if watch != nil {
 		if attestationProvider != nil {
@@ -298,7 +300,7 @@ func retainFrom(retain bool, dir string) string {
 // emit writes the document to stdout and, when retainFrom is not empty,
 // retains the same bytes (LPCV-V0-055).
 func emit(stdout, stderr io.Writer, receipt jstestprovider.Receipt, retainFrom string) error {
-	if receipt.Profile == jstestprovider.ExternalProfile || receipt.Profile == jstestprovider.AttestedExternalProfile || receipt.Profile == jstestprovider.SensitiveExternalProfile {
+	if receipt.Profile == jstestprovider.ExternalProfile || receipt.Profile == jstestprovider.AttestedExternalProfile || receipt.Profile == jstestprovider.SensitiveExternalProfile || receipt.Profile == jstestprovider.AttemptExternalProfile {
 		data, err := jstestprovider.EncodeQualified(receipt)
 		if err != nil {
 			return err

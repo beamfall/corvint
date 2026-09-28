@@ -14,14 +14,17 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/jstestprovider"
 	"github.com/Beamfall/corvint/internal/runhygiene"
+	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
 // Run-evidence ingest formats (AFU-V1-012).
 const (
-	FormatPlaywrightJSON = "playwright-json"
-	FormatJUnitXML       = "junit-xml"
-	FormatGoTestJSON     = "go-test-json"
+	FormatPlaywrightJSON    = "playwright-json"
+	FormatJUnitXML          = "junit-xml"
+	FormatGoTestJSON        = "go-test-json"
+	FormatPlaywrightReceipt = "playwright-receipt"
 )
 
 // RunHeader is the run context a test report does not carry, declared by the caller.
@@ -85,9 +88,51 @@ type runAdapter struct {
 }
 
 var runAdapters = map[string]runAdapter{
-	FormatPlaywrightJSON: {"playwright", parsePlaywrightRun},
-	FormatJUnitXML:       {"junit", parseJUnitRun},
-	FormatGoTestJSON:     {"go-test", parseGoTestRun},
+	FormatPlaywrightJSON:    {"playwright", parsePlaywrightRun},
+	FormatJUnitXML:          {"junit", parseJUnitRun},
+	FormatGoTestJSON:        {"go-test", parseGoTestRun},
+	FormatPlaywrightReceipt: {"playwright", parsePlaywrightReceipt},
+}
+
+func parsePlaywrightReceipt(raw []byte) ([]*runTest, error) {
+	r, err := jstestprovider.DecodeAttemptReceipt(raw)
+	if err != nil {
+		return nil, err
+	}
+	if r.Infrastructure != nil || r.Cancelled || r.External == nil || !r.External.InputsUnchanged || !r.External.RunnerDescendantsGone {
+		return nil, errors.New("external-attempt-run-incomplete")
+	}
+	tests := []*runTest{}
+	for _, test := range r.Tests {
+		if jstestprovider.ReceiptTestProjection(r, test).Execution.State == testvalidity.ExecutionInfrastructure {
+			return nil, errors.New("external-attempt-test-unqualified")
+		}
+		if test.ID == "" || test.Project == nil || test.Project.Name == "" {
+			return nil, errors.New("external-attempt-test-identity-missing")
+		}
+		run := &runTest{key: test.ID, project: test.Project.Name}
+		for _, detail := range test.AttemptDetails {
+			outcome := string(detail.State)
+			if detail.State == jstestprovider.StateInfrastructure {
+				return nil, errors.New("external-attempt-infrastructure-unsupported")
+			}
+			a := RunAttempt{Outcome: outcome, DurationMS: durationMS(detail.DurationMS), Failure: detail.FailureMessage, AssertionAnchors: []RunAnchor{}, Attachments: []RunAttachment{}}
+			if detail.Anchor != nil {
+				a.AssertionAnchors = append(a.AssertionAnchors, RunAnchor{Path: detail.Anchor.File, Line: detail.Anchor.Line})
+			}
+			for _, artifact := range detail.Artifacts {
+				a.Attachments = append(a.Attachments, RunAttachment{Name: artifact.Name, Path: artifact.Path})
+			}
+			if err := run.add(a); err != nil {
+				return nil, err
+			}
+		}
+		tests, err = appendTest(tests, run)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return tests, nil
 }
 
 // IngestRunEvidence turns one test report into INGESTED test-run-evidence/0 records, one per test,
@@ -99,6 +144,12 @@ func IngestRunEvidence(format string, raw []byte, header RunHeader) (Ingested, e
 	}
 	if len(raw) > MaxBytes {
 		return Ingested{Incomplete: BoundBytes}, nil
+	}
+	if format == FormatPlaywrightReceipt {
+		receipt, err := jstestprovider.DecodeAttemptReceipt(raw)
+		if err != nil || receipt.Identity.RunnerVersion == "" || receipt.Identity.RunnerVersion != header.RunnerVersion {
+			return Ingested{}, errors.New("external-attempt-runner-identity-mismatch")
+		}
 	}
 	tests, err := adapter.parse(raw)
 	var bound boundError

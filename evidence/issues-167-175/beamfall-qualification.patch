@@ -1,0 +1,333 @@
+diff --git a/flows/checkout.json b/flows/checkout.json
+new file mode 100644
+index 0000000..dc7bc00
+--- /dev/null
++++ b/flows/checkout.json
+@@ -0,0 +1,72 @@
++{
++  "schema": "application-flow-intent/1",
++  "flow_id": "checkout",
++  "revision": 1,
++  "kind": "ui",
++  "actor": "qualification caller",
++  "preconditions": [
++    "loopback mock backend"
++  ],
++  "steps": [
++    {
++      "step_id": "act",
++      "action": "perform checkout"
++    }
++  ],
++  "outcomes": [
++    {
++      "outcome_id": "observed",
++      "behavior": "expected checkout",
++      "matcher": "toHaveText",
++      "locator": "checkout",
++      "value": "expected"
++    }
++  ],
++  "variations": [
++    {
++      "variation_id": "checkout.happy",
++      "preconditions": [],
++      "steps": [
++        "act"
++      ],
++      "observable_facts": [],
++      "outcomes": [
++        "observed"
++      ],
++      "projects": [
++        "chromium"
++      ]
++    }
++  ],
++  "links": [
++    {
++      "from": "act",
++      "basis": "declared",
++      "target": {
++        "type": "source",
++        "path": "server/server.ts"
++      },
++      "reviewed_at": "2596bc5881f38c31becdf2623ff8cc0475d50e66"
++    },
++    {
++      "from": "checkout.happy",
++      "basis": "declared",
++      "target": {
++        "type": "test",
++        "path": "qualification/flow.spec.cjs",
++        "test_key": "ui-checkout"
++      },
++      "reviewed_at": "2596bc5881f38c31becdf2623ff8cc0475d50e66"
++    },
++    {
++      "from": "observed",
++      "basis": "declared",
++      "target": {
++        "type": "assertion",
++        "path": "qualification/flow.spec.cjs",
++        "assertion": "checkout returns redirectUrl"
++      },
++      "reviewed_at": "2596bc5881f38c31becdf2623ff8cc0475d50e66"
++    }
++  ]
++}
+diff --git a/flows/phase.json b/flows/phase.json
+new file mode 100644
+index 0000000..06f6b93
+--- /dev/null
++++ b/flows/phase.json
+@@ -0,0 +1,72 @@
++{
++  "schema": "application-flow-intent/1",
++  "flow_id": "phase",
++  "revision": 1,
++  "kind": "api",
++  "actor": "qualification caller",
++  "preconditions": [
++    "loopback mock backend"
++  ],
++  "steps": [
++    {
++      "step_id": "act",
++      "action": "perform phase"
++    }
++  ],
++  "outcomes": [
++    {
++      "outcome_id": "observed",
++      "behavior": "expected phase",
++      "matcher": "toHaveText",
++      "locator": "phase",
++      "value": "expected"
++    }
++  ],
++  "variations": [
++    {
++      "variation_id": "phase.happy",
++      "preconditions": [],
++      "steps": [
++        "act"
++      ],
++      "observable_facts": [],
++      "outcomes": [
++        "observed"
++      ],
++      "projects": [
++        "chromium"
++      ]
++    }
++  ],
++  "links": [
++    {
++      "from": "act",
++      "basis": "declared",
++      "target": {
++        "type": "source",
++        "path": "server/mockApi.ts"
++      },
++      "reviewed_at": "2596bc5881f38c31becdf2623ff8cc0475d50e66"
++    },
++    {
++      "from": "phase.happy",
++      "basis": "declared",
++      "target": {
++        "type": "test",
++        "path": "qualification/flow.spec.cjs",
++        "test_key": "api-phase"
++      },
++      "reviewed_at": "2596bc5881f38c31becdf2623ff8cc0475d50e66"
++    },
++    {
++      "from": "observed",
++      "basis": "declared",
++      "target": {
++        "type": "assertion",
++        "path": "qualification/flow.spec.cjs",
++        "assertion": "phase identity"
++      },
++      "reviewed_at": "2596bc5881f38c31becdf2623ff8cc0475d50e66"
++    }
++  ]
++}
+diff --git a/flows/stale.json b/flows/stale.json
+new file mode 100644
+index 0000000..443552b
+--- /dev/null
++++ b/flows/stale.json
+@@ -0,0 +1,72 @@
++{
++  "schema": "application-flow-intent/1",
++  "flow_id": "stale",
++  "revision": 1,
++  "kind": "ui",
++  "actor": "qualification caller",
++  "preconditions": [
++    "loopback mock backend"
++  ],
++  "steps": [
++    {
++      "step_id": "act",
++      "action": "perform stale"
++    }
++  ],
++  "outcomes": [
++    {
++      "outcome_id": "observed",
++      "behavior": "expected stale",
++      "matcher": "toHaveText",
++      "locator": "stale",
++      "value": "expected"
++    }
++  ],
++  "variations": [
++    {
++      "variation_id": "stale.happy",
++      "preconditions": [],
++      "steps": [
++        "act"
++      ],
++      "observable_facts": [],
++      "outcomes": [
++        "observed"
++      ],
++      "projects": [
++        "chromium"
++      ]
++    }
++  ],
++  "links": [
++    {
++      "from": "act",
++      "basis": "declared",
++      "target": {
++        "type": "source",
++        "path": "src/shared/phase.ts"
++      },
++      "reviewed_at": "2596bc5881f38c31becdf2623ff8cc0475d50e66"
++    },
++    {
++      "from": "stale.happy",
++      "basis": "declared",
++      "target": {
++        "type": "test",
++        "path": "qualification/flow.spec.cjs",
++        "test_key": "ui-checkout"
++      },
++      "reviewed_at": "2596bc5881f38c31becdf2623ff8cc0475d50e66"
++    },
++    {
++      "from": "observed",
++      "basis": "declared",
++      "target": {
++        "type": "assertion",
++        "path": "qualification/flow.spec.cjs",
++        "assertion": "checkout returns redirectUrl"
++      },
++      "reviewed_at": "2596bc5881f38c31becdf2623ff8cc0475d50e66"
++    }
++  ]
++}
+diff --git a/flows/unmapped.json b/flows/unmapped.json
+new file mode 100644
+index 0000000..45b73fe
+--- /dev/null
++++ b/flows/unmapped.json
+@@ -0,0 +1,42 @@
++{
++  "schema": "application-flow-intent/1",
++  "flow_id": "unmapped",
++  "revision": 1,
++  "kind": "ui",
++  "actor": "qualification caller",
++  "preconditions": [
++    "loopback mock backend"
++  ],
++  "steps": [
++    {
++      "step_id": "act",
++      "action": "perform unmapped"
++    }
++  ],
++  "outcomes": [
++    {
++      "outcome_id": "observed",
++      "behavior": "expected unmapped",
++      "matcher": "toHaveText",
++      "locator": "unmapped",
++      "value": "expected"
++    }
++  ],
++  "variations": [
++    {
++      "variation_id": "unmapped.happy",
++      "preconditions": [],
++      "steps": [
++        "act"
++      ],
++      "observable_facts": [],
++      "outcomes": [
++        "observed"
++      ],
++      "projects": [
++        "chromium"
++      ]
++    }
++  ],
++  "links": []
++}
+diff --git a/qualification/flow.spec.cjs b/qualification/flow.spec.cjs
+new file mode 100644
+index 0000000..843643f
+--- /dev/null
++++ b/qualification/flow.spec.cjs
+@@ -0,0 +1,6 @@
++const {test,expect}=require('/tmp/corvint-issues-playwright/node_modules/@playwright/test');
++test.beforeEach(async ({context})=>{await context.route('**/*',r=>new URL(r.request().url()).hostname==='127.0.0.1'?r.continue():r.abort());});
++test('UI pricing checkout',async ({page},info)=>{info.annotations.push({type:'corvint-test-key',description:'ui-checkout'});await page.goto(process.env.CORVINT_LIVE_URL+'/pricing');await page.getByRole('button',{name:'Checkout preview — Monthly',exact:true}).click();await expect(page.locator('#checkout-output'),'checkout returns redirectUrl').toContainText('redirectUrl');});
++test('API phase read',async ({request},info)=>{info.annotations.push({type:'corvint-test-key',description:'api-phase'});const r=await request.get(process.env.CORVINT_LIVE_URL+'/api/mock/phase');expect(r.status(),'phase status').toBe(200);expect((await r.json()).id,'phase identity').toBe('invite-beta');});
++test('UI negative control',async ({page},info)=>{info.annotations.push({type:'corvint-test-key',description:'control-ui'});await page.goto(process.env.CORVINT_LIVE_URL+'/pricing');await expect(page.locator('#checkout-output'),'wrong checkout expectation').toContainText('deliberate-control-failure',{timeout:400});});
++test('API negative control',async ({request},info)=>{info.annotations.push({type:'corvint-test-key',description:'control-api'});const r=await request.get(process.env.CORVINT_LIVE_URL+'/api/mock/phase');expect(r.status(),'wrong API status').toBe(201);});
+diff --git a/qualification/playwright.config.cjs b/qualification/playwright.config.cjs
+new file mode 100644
+index 0000000..14cff92
+--- /dev/null
++++ b/qualification/playwright.config.cjs
+@@ -0,0 +1 @@
++module.exports={testDir:'.',testMatch:'flow.spec.cjs',workers:1,retries:0,timeout:10000,outputDir:'../.corvint/qualification/artifacts',projects:[{name:'chromium',use:{browserName:'chromium',headless:true}}]};
+diff --git a/qualification/selection.json b/qualification/selection.json
+new file mode 100644
+index 0000000..496f705
+--- /dev/null
++++ b/qualification/selection.json
+@@ -0,0 +1 @@
++{"schema": "application-flow-selection-provider/1", "flows": "flows", "runner_config": "qualification/playwright.config.cjs", "global_paths": [], "inventory": [{"test_key": "ui-checkout", "project": "chromium", "path": "qualification/flow.spec.cjs"}, {"test_key": "api-phase", "project": "chromium", "path": "qualification/flow.spec.cjs"}, {"test_key": "control-ui", "project": "chromium", "path": "qualification/flow.spec.cjs"}, {"test_key": "control-api", "project": "chromium", "path": "qualification/flow.spec.cjs"}]}
+diff --git a/server/mockApi.ts b/server/mockApi.ts
+index 205b428..4ba55e5 100644
+--- a/server/mockApi.ts
++++ b/server/mockApi.ts
+@@ -197,7 +197,7 @@ export function createMockApi(phaseId = "invite-beta"): BffApi {
+ 
+   return {
+     getPhase() {
+-      return Promise.resolve(phase);
++      return Promise.resolve({ ...phase, id: "qualification-fault" });
+     },
+ 
+     requestMagicLink({ email }: { email: string }) {
+diff --git a/src/shared/phase.ts b/src/shared/phase.ts
+index de1632a..4c549c5 100644
+--- a/src/shared/phase.ts
++++ b/src/shared/phase.ts
+@@ -36,3 +36,7 @@ const PHASE_CONFIG: Record<string, PhaseConfig> = {
+ export function getPhaseConfig(phaseId = 'invite-beta'): PhaseConfig {
+   return PHASE_CONFIG[phaseId] ?? PHASE_CONFIG['invite-beta']!
+ }
++
++// Corvint qualification: deliberate post-review source change.
++
++// Corvint qualification: deliberate post-review source change.

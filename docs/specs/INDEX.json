@@ -46,7 +46,7 @@
     "title": "Application Flow Understanding V1 — proven flows, safe E2E selection, navigation and documentation",
     "reqPrefix": "AFU-V1",
     "intent": "accepted (decision 0385)",
-    "delivery": "planned",
+    "delivery": "partially delivered; original issue-175 flows qualified locally",
     "claim": "Reviewed flows link to source, tests and run evidence; Corvint selects E2E tests with exclusion proofs, maps navigation and proves documentation claims.",
     "dependsOn": [
       "docs/specs/application-flow-understanding-v0.md",

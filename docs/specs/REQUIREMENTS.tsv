@@ -78,7 +78,7 @@ AFU-V1-008	docs/specs/application-flow-understanding-v1.md	140	A link is `review
 AFU-V1-009	docs/specs/application-flow-understanding-v1.md	146	`inferred` links MUST be reported separately and MUST NOT count toward any revie
 AFU-V1-010	docs/specs/application-flow-understanding-v1.md	149	Reverse lookups (source path to flows, test key to flows) MUST be derived at que
 AFU-V1-011	docs/specs/application-flow-understanding-v1.md	194	A `test-run-evidence/0` record MUST carry the run ID, the runner name and versio
-AFU-V1-012	docs/specs/application-flow-understanding-v1.md	200	The ingest adapters for Playwright JSON, JUnit XML (including `flakyFailure` and
+AFU-V1-012	docs/specs/application-flow-understanding-v1.md	200	The ingest adapters for Playwright JSON, the qualified `/3` Playwright receipt,
 AFU-V1-013	docs/specs/application-flow-understanding-v1.md	203	A test with a failed attempt and a later passed attempt MUST be `flaky`, never
 AFU-V1-014	docs/specs/application-flow-understanding-v1.md	205	Ingested evidence has authority `INGESTED`. Evidence that Corvint's own observer
 AFU-V1-015	docs/specs/application-flow-understanding-v1.md	306	`corvint flows map` MUST report each flow, variation, step and outcome with its
@@ -207,6 +207,7 @@ BBF-V0-009	docs/specs/browser-behavior-falsification-v0.md	67	The aggregate repo
 BBF-V0-010	docs/specs/browser-behavior-falsification-v0.md	70	Plans are bounded by at most 64 controls, 16 attempts per control, a 24-hour tot
 BBF-V0-011	docs/specs/browser-behavior-falsification-v0.md	76	Synthetic conformance covers a tautological assertion, hidden duplicate element,
 BBF-V0-012	docs/specs/browser-behavior-falsification-v0.md	79	Receipts are observations, not authenticated caller honesty, browser-behavior
+BBF-V0-013	docs/specs/browser-behavior-falsification-v0.md	83	The opt-in `execute-receipt` operation emits `corvint-browser-behavior-evidence/
 BRAIN-DOG-001	docs/specs/technical-brain-dogfood.md	27	butterfly-effect MUST return exact direct static references/dependencies,
 BRAIN-DOG-002	docs/specs/technical-brain-dogfood.md	30	E2E discovery MUST map requirements and journeys to exact scenario/test witnesse
 BRAIN-DOG-003	docs/specs/technical-brain-dogfood.md	32	selective-test guidance MUST name mandatory repository gates first and a smaller

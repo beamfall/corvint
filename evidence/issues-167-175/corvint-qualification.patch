@@ -1,0 +1,13 @@
+diff --git a/app/index.html b/app/index.html
+index 7f17083..23715c3 100644
+--- a/app/index.html
++++ b/app/index.html
+@@ -7,7 +7,7 @@
+     <script>
+       const count = document.querySelector("#count");
+       document.querySelector("#increment").addEventListener("click", () => {
+-        count.textContent = String(Number(count.textContent) + 1);
++        count.textContent = String(Number(count.textContent) + 2);
+       });
+     </script>
+   </body>
