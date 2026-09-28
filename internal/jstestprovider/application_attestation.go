@@ -60,7 +60,7 @@ type preparedApplicationAttestationProvider struct {
 }
 
 func isExternalProfile(profile string) bool {
-	return profile == ExternalProfile || profile == AttestedExternalProfile || profile == SensitiveExternalProfile
+	return profile == ExternalProfile || profile == AttestedExternalProfile || profile == SensitiveExternalProfile || profile == AttemptExternalProfile
 }
 
 func prepareApplicationAttestationProvider(cfg ApplicationAttestationProvider, dir, scratch string, environment map[string]string) (*preparedApplicationAttestationProvider, error) {

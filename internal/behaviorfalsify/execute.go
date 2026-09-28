@@ -33,6 +33,10 @@ var infrastructureReasons = map[string]bool{
 }
 
 func Execute(ctx context.Context, plan Plan, approvedDigest string) (Report, error) {
+	return execute(ctx, plan, approvedDigest, nil)
+}
+
+func execute(ctx context.Context, plan Plan, approvedDigest string, capture func(PlannedControl, int, []byte)) (Report, error) {
 	if approvedDigest == "" || approvedDigest != plan.Digest {
 		return Report{}, errors.New("operator-authorization-required")
 	}
@@ -76,7 +80,7 @@ func Execute(ctx context.Context, plan Plan, approvedDigest string) (Report, err
 				result.Status = StatusNotRun
 				result.Reasons = []string{"workspace-or-wall-clock-boundary-unavailable"}
 			} else {
-				result = executeControl(ctx, plan, control, deadline)
+				result = executeControl(ctx, plan, control, deadline, capture)
 				if controlExecuted(result) {
 					report.Executed++
 				}
@@ -101,13 +105,13 @@ func Execute(ctx context.Context, plan Plan, approvedDigest string) (Report, err
 	return report, nil
 }
 
-func executeControl(ctx context.Context, plan Plan, control PlannedControl, deadline time.Time) ControlResult {
+func executeControl(ctx context.Context, plan Plan, control PlannedControl, deadline time.Time, capture func(PlannedControl, int, []byte)) ControlResult {
 	result := ControlResult{ID: control.ID, Kind: control.Kind, Ordinal: control.Ordinal}
 	for attempt := 1; attempt <= plan.Request.Attempts; attempt++ {
 		if ctx.Err() != nil || time.Until(deadline) <= cleanupReserve {
 			break
 		}
-		attemptResult := executeAttempt(ctx, plan, control, attempt, deadline)
+		attemptResult := executeAttempt(ctx, plan, control, attempt, deadline, capture)
 		result.Attempts = append(result.Attempts, attemptResult)
 		if attemptResult.WorkspaceAfter == "" || attemptResult.WorkspaceAfter != attemptResult.WorkspaceBefore || ctx.Err() != nil {
 			break
@@ -117,7 +121,7 @@ func executeControl(ctx context.Context, plan Plan, control PlannedControl, dead
 	return result
 }
 
-func executeAttempt(ctx context.Context, plan Plan, control PlannedControl, attempt int, deadline time.Time) AttemptResult {
+func executeAttempt(ctx context.Context, plan Plan, control PlannedControl, attempt int, deadline time.Time, capture func(PlannedControl, int, []byte)) AttemptResult {
 	result := AttemptResult{Attempt: attempt}
 	before, err := workspaceDigest(plan.Request.DisposableRoot)
 	if err != nil || before != plan.WorkspaceSHA256 {
@@ -138,6 +142,9 @@ func executeAttempt(ctx context.Context, plan Plan, control PlannedControl, atte
 		return result
 	}
 	hookRaw, hookProcess := runPinned(ctx, *control.Hook, plan.Request.DisposableRoot, plan.Request.DeclaredEnvKeys, "control", input, timeout, receiptOutputLimit(plan, control))
+	if capture != nil {
+		capture(control, attempt, hookRaw)
+	}
 	result.HookProcess = hookProcess
 	var receipt HookReceipt
 	if processSucceeded(hookProcess) {

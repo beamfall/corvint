@@ -63,8 +63,7 @@ type TestOutcome struct {
 	FailureMessage string            `json:"failureMessage,omitempty"`
 	Artifacts      []FailureArtifact `json:"artifacts,omitempty"`
 	// AttemptDetails keeps every Playwright attempt in run order (AFU-V1-012), additive on the
-	// unprofiled receipt only: a corvint-playwright-external profile refuses it, and the
-	// sensitive-input boundary, which serves only such a profile, drops it.
+	// unprofiled receipt and explicit /3 profile. Earlier external profiles refuse it.
 	AttemptDetails []AttemptDetail `json:"attemptDetails,omitempty"`
 }
 

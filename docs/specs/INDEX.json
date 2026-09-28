@@ -46,7 +46,7 @@
     "title": "Application Flow Understanding V1 — proven flows, safe E2E selection, navigation and documentation",
     "reqPrefix": "AFU-V1",
     "intent": "accepted (decision 0385)",
-    "delivery": "planned",
+    "delivery": "partially delivered; original issue-175 flows qualified locally",
     "claim": "Reviewed flows link to source, tests and run evidence; Corvint selects E2E tests with exclusion proofs, maps navigation and proves documentation claims.",
     "dependsOn": [
       "docs/specs/application-flow-understanding-v0.md",
@@ -1177,7 +1177,7 @@
     "title": "Playwright External Provider V0/V1/V2/V3",
     "reqPrefix": "PWP-V0",
     "intent": "accepted",
-    "delivery": "`/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`; `/3` intent accepted, spec draft, not implemented",
+    "delivery": "`/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`; `/3` implemented; qualification evidence recorded with issue 175",
     "claim": "External-server Playwright receipts bind outcomes without owning the app; `/1` attests application identity and `/2` redacts sensitive input evidence.",
     "dependsOn": [
       "docs/specs/live-proof-carrying-verification-v0.md"

@@ -16,6 +16,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/jstestprovider"
 	"github.com/Beamfall/corvint/internal/mcp/testvaliditybridge"
+	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/testevidence"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 	"github.com/Beamfall/corvint/internal/testvaliditydoc"
@@ -24,6 +25,14 @@ import (
 // PWP-V0-001..007: explicit qualification requires real installed Playwright
 // and browser binaries. Ordinary Go gates do not silently download dependencies.
 func TestQualifiedPlaywrightLive(t *testing.T) {
+	runQualifiedPlaywrightLive(t, false)
+}
+
+func TestQualifiedPlaywrightAttemptsLive(t *testing.T) {
+	runQualifiedPlaywrightLive(t, true)
+}
+
+func runQualifiedPlaywrightLive(t *testing.T, retainAttempts bool) {
 	modules := os.Getenv("CORVINT_PLAYWRIGHT_MODULES")
 	if modules == "" {
 		t.Skip("NOT_RUN: set CORVINT_PLAYWRIGHT_MODULES to installed node_modules for live qualification")
@@ -32,7 +41,7 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"playwright.config.cjs", "external.spec.cjs", "override.spec.cjs", "headed.spec.cjs", "connect.spec.cjs", "identity.spec.cjs", "dynamic.spec.cjs", "custom.spec.cjs", "retry.spec.cjs", "interruption.spec.cjs", "setup.cjs", "setup-dependency.cjs", "teardown.cjs"} {
+	for _, name := range []string{"playwright.config.cjs", "external.spec.cjs", "override.spec.cjs", "headed.spec.cjs", "connect.spec.cjs", "identity.spec.cjs", "dynamic.spec.cjs", "custom.spec.cjs", "retry.spec.cjs", "retry-infra.spec.cjs", "interruption.spec.cjs", "setup.cjs", "setup-dependency.cjs", "teardown.cjs"} {
 		data, err := os.ReadFile(filepath.Join("testdata", "external", name))
 		if err != nil {
 			t.Fatal(err)
@@ -125,12 +134,21 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	t.Setenv("CORVINT_FIXTURE_MARKER", filepath.Join(root, "lifecycle"))
 	t.Setenv("CORVINT_FIXTURE_BROWSER_PATH", "")
 	cfg := jstestprovider.E2EConfig{Config: jstestprovider.Config{Dir: root, ConfigFile: filepath.Join(root, "playwright.config.cjs"), TestFiles: []string{filepath.Join(root, "external.spec.cjs"), filepath.Join(root, "override.spec.cjs")}, PackageJSON: packageJSON, Lockfile: lockfile, RunnerName: "playwright", RunnerVersion: pkg.Version, DeclaredEnvKeys: []string{"CORVINT_FIXTURE_URL", "CORVINT_FIXTURE_MARKER", "CORVINT_FIXTURE_BROWSER_PATH"}, Timeout: 45 * time.Second}, ExternalServer: true, AppIdentity: "fixture-v1", ServerReadyURL: server.URL, TestArgv: []string{"external.spec.cjs", "--project=chromium", "--project=react", "--grep-invert=cancellation"}}
+	cfg.RetainAttemptDetails = retainAttempts
+	cfg.DeclaredEnvKeys = append(cfg.DeclaredEnvKeys, "PLAYWRIGHT_BROWSERS_PATH")
 	r, err := jstestprovider.RunE2E(context.Background(), cfg)
 	if err != nil || r.Infrastructure != nil {
 		t.Fatalf("run error %v; infrastructure %+v", err, r.Infrastructure)
 	}
 	if len(r.Tests) != 6 {
 		t.Fatalf("want six real outcomes, got %+v", r.Tests)
+	}
+	if retainAttempts {
+		t.Run("PWP-V3-006 every live result retains its attempt detail", func(t *testing.T) {
+			if r.Profile != jstestprovider.AttemptExternalProfile || jstestprovider.ValidateAttemptDetails(r.Tests) != nil {
+				t.Fatal("missing live attempt detail")
+			}
+		})
 	}
 	states := map[jstestprovider.ExecutionState]int{}
 	ids := map[string]bool{}
@@ -283,6 +301,24 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 			t.Fatalf("repeat/retry state lost: %+v", outcome)
 		}
 	}
+	if retainAttempts {
+		t.Run("PWP-V3-006 retry detail and infrastructure remain distinct", func(t *testing.T) {
+			if err := jstestprovider.ValidateAttemptDetails(retried.Tests); err != nil {
+				t.Fatal(err)
+			}
+			infraCfg := cfg
+			infraCfg.TestFiles = []string{filepath.Join(root, "retry-infra.spec.cjs")}
+			infraCfg.TestArgv = []string{"retry-infra.spec.cjs", "--project=chromium", "--retries=1"}
+			infra, err := jstestprovider.RunE2E(context.Background(), infraCfg)
+			if err != nil || len(infra.Tests) != 1 {
+				t.Fatalf("infrastructure retry: %v %+v", err, infra.Infrastructure)
+			}
+			test := infra.Tests[0]
+			if jstestprovider.ValidateAttemptDetails(infra.Tests) != nil || len(test.AttemptDetails) != 2 || test.AttemptDetails[0].State != jstestprovider.StateInfrastructure || test.AttemptDetails[1].State != jstestprovider.StateFailed || jstestprovider.ReceiptTestProjection(infra, test).Execution.State == testvalidity.ExecutionPassed {
+				t.Fatalf("infrastructure erased: %+v", test)
+			}
+		})
+	}
 	cfg.TestFiles = append(cfg.TestFiles, filepath.Join(root, "interruption.spec.cjs"))
 	cfg.TestArgv = []string{"interruption.spec.cjs", "--project=chromium", "--workers=2", "--max-failures=1"}
 	interrupted, err := jstestprovider.RunE2E(context.Background(), cfg)
@@ -339,13 +375,36 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	cfg.TestFiles = []string{filepath.Join(root, "external.spec.cjs")}
 	cfg.TestArgv = []string{"external.spec.cjs", "--project=chromium", "--grep=passing page"}
 	system, err := jstestprovider.RunE2E(context.Background(), cfg)
-	if err != nil || system.Infrastructure != nil || len(system.Tests) != 1 || jstestprovider.ReceiptTestProjection(system, system.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
-		t.Fatalf("previously qualified system-browser tuple regressed: %v %+v", err, system)
+	if err != nil || len(system.Tests) != 1 || system.Tests[0].Project == nil {
+		t.Fatalf("system-browser observation unavailable: %v", err)
 	}
-	t.Logf("qualified real Playwright %s bundled headless-shell: pass/assertion/timeout/retry/browser infra, two projects, retained discovery, cancellation/server survival; system-browser smoke preserved", pkg.Version)
+	version := procgroup.Run(context.Background(), procgroup.Spec{Argv: []string{os.Getenv("CORVINT_FIXTURE_BROWSER_PATH"), "--version"}, Dir: root, Timeout: 5 * time.Second, OutputLimit: 4096})
+	if version.Err != nil || len(version.Stdout) == 0 {
+		t.Fatalf("system-browser version missing: %v", version.Err)
+	}
+	systemVersion := strings.TrimSpace(string(version.Stdout))
+	if !retainAttempts && systemVersion == "Google Chrome 153.0.8010.48" {
+		if system.Infrastructure != nil || jstestprovider.ReceiptTestProjection(system, system.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
+			t.Fatal("previously qualified system-browser tuple regressed")
+		}
+	} else {
+		if system.Infrastructure == nil || jstestprovider.ReceiptTestProjection(system, system.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+			t.Fatal("unqualified system-browser update projected passing execution")
+		}
+		t.Logf("PWP-V0-008 system browser %s remains unqualified; previous system tuple NOT_OBSERVED", systemVersion)
+	}
+	t.Logf("qualified real Playwright %s bundled headless-shell: pass/assertion/timeout/retry/browser infra, two projects, retained discovery, cancellation/server survival", pkg.Version)
 }
 
 func TestQualifiedPlaywrightLiveDevicesSpread(t *testing.T) {
+	runQualifiedPlaywrightDevicesSpread(t, false)
+}
+
+func TestQualifiedPlaywrightAttemptsLiveDevicesSpread(t *testing.T) {
+	runQualifiedPlaywrightDevicesSpread(t, true)
+}
+
+func runQualifiedPlaywrightDevicesSpread(t *testing.T, retainAttempts bool) {
 	modules := os.Getenv("CORVINT_PLAYWRIGHT_MODULES")
 	if modules == "" {
 		t.Skip("NOT_RUN: set CORVINT_PLAYWRIGHT_MODULES to installed node_modules for live qualification")
@@ -395,6 +454,8 @@ func TestQualifiedPlaywrightLiveDevicesSpread(t *testing.T) {
 		ExternalServer: true, AppIdentity: "devices-spread-v1", ServerReadyURL: server.URL,
 		TestArgv: []string{"devices.spec.cjs", "--project=chromium", "--no-deps"},
 	}
+	cfg.RetainAttemptDetails = retainAttempts
+	cfg.DeclaredEnvKeys = append(cfg.DeclaredEnvKeys, "PLAYWRIGHT_BROWSERS_PATH")
 	receipt, err := jstestprovider.RunE2E(context.Background(), cfg)
 	if err != nil || receipt.Infrastructure != nil {
 		t.Fatalf("standard devices spread did not qualify: %v %+v", err, receipt.Infrastructure)

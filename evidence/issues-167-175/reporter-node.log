@@ -1,0 +1,88 @@
+TAP version 13
+# Subtest: reporter removes input values from the complete emitted report
+ok 1 - reporter removes input values from the complete emitted report
+  ---
+  duration_ms: 14.610625
+  type: 'test'
+  ...
+# Subtest: short input values do not corrupt structural report strings
+ok 2 - short input values do not corrupt structural report strings
+  ---
+  duration_ms: 1.339041
+  type: 'test'
+  ...
+# Subtest: reporter enforces the aggregate retry step bound before recursion
+ok 3 - reporter enforces the aggregate retry step bound before recursion
+  ---
+  duration_ms: 0.570541
+  type: 'test'
+  ...
+# Subtest: reporter rejects over-depth raw steps before fixture recursion
+ok 4 - reporter rejects over-depth raw steps before fixture recursion
+  ---
+  duration_ms: 0.946875
+  type: 'test'
+  ...
+# Subtest: receiver-prefixed unquoted actions protect sibling and other-test errors
+ok 5 - receiver-prefixed unquoted actions protect sibling and other-test errors
+  ---
+  duration_ms: 5.885834
+  type: 'test'
+  ...
+# Subtest: already-redacted input protects arbitrary risk fields across retries
+ok 6 - already-redacted input protects arbitrary risk fields across retries
+  ---
+  duration_ms: 1.291083
+  type: 'test'
+  ...
+# Subtest: Unicode action grammar and custom arguments protect the entire report
+ok 7 - Unicode action grammar and custom arguments protect the entire report
+  ---
+  duration_ms: 8.848958
+  type: 'test'
+  ...
+# Subtest: assertion and navigation titles do not enter the action grammar
+ok 8 - assertion and navigation titles do not enter the action grammar
+  ---
+  duration_ms: 2.538583
+  type: 'test'
+  ...
+# Subtest: argument candidates respect quoted commas, escapes and nested expressions
+ok 9 - argument candidates respect quoted commas, escapes and nested expressions
+  ---
+  duration_ms: 0.575583
+  type: 'test'
+  ...
+# Subtest: every admitted additive pattern has matching Unicode separator semantics
+ok 10 - every admitted additive pattern has matching Unicode separator semantics
+  ---
+  duration_ms: 1.079292
+  type: 'test'
+  ...
+# Subtest: unsupported sensitive receiver calls reject without writing any report
+ok 11 - unsupported sensitive receiver calls reject without writing any report
+  ---
+  duration_ms: 2.42375
+  type: 'test'
+  ...
+# Subtest: a cached module that moved since load is skipped instead of aborting onBegin
+ok 12 - a cached module that moved since load is skipped instead of aborting onBegin
+  ---
+  duration_ms: 1.162042
+  type: 'test'
+  ...
+# Subtest: PWP-V3-002 retains ordered detail and the flaky first attempt
+ok 13 - PWP-V3-002 retains ordered detail and the flaky first attempt
+  ---
+  duration_ms: 0.665708
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 127.12625

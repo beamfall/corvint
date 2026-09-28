@@ -243,6 +243,13 @@ function scrubReportRiskFields(report, values) {
       artifact.path = scrubRiskText(artifact.path, values, protectedReport);
     }
     for (const attempt of test.attempts || []) scrubStepRiskFields(attempt.steps, values, protectedReport);
+    for (const attempt of test.attemptDetails || []) {
+      attempt.failureMessage = scrubRiskText(attempt.failureMessage, values, protectedReport);
+      for (const artifact of attempt.artifacts || []) {
+        artifact.name = scrubRiskText(artifact.name, values, protectedReport);
+        artifact.path = scrubRiskText(artifact.path, values, protectedReport);
+      }
+    }
   }
   report.errors = (report.errors || []).map(error => scrubRiskText(error, values, protectedReport));
   return report;
@@ -375,7 +382,7 @@ function effectiveUse(test, project, version) {
 
 // The config supplies only a private output path. Nothing is read from stdout.
 class Reporter {
-  constructor(options) { this.path = options.output; this.tests = new Map(); this.errors = []; this.sensitiveInputPolicy = options.sensitiveInputPolicy || null; this.policy = sensitivePolicy(this.sensitiveInputPolicy); this.hasSensitiveInput = false; this.sensitiveValues = new Set(); this.sensitiveStepCount = 0; }
+  constructor(options) { this.path = options.output; this.tests = new Map(); this.errors = []; this.sensitiveInputPolicy = options.sensitiveInputPolicy || null; this.policy = sensitivePolicy(this.sensitiveInputPolicy); this.hasSensitiveInput = false; this.sensitiveValues = new Set(); this.sensitiveStepCount = 0; this.retainAttemptDetails = options.retainAttemptDetails === true; if (this.retainAttemptDetails && this.policy) throw new Error('external-attempt-details-composition-unsupported'); }
   onBegin(config, suite) {
 	this.schedule = {workers: config.workers, starts: []};
     this.version = config.version;
@@ -421,13 +428,20 @@ class Reporter {
     this.hasSensitiveInput ||= sensitive;
     attempts.push({state, retry: result.retry, failureKind: infrastructure ? 'browser-or-fixture' : state === 'failed' ? 'assertion-or-test' : state === 'timedOut' ? 'test-timeout' : 'none', ...(this.policy ? {steps} : {})});
     const repeat = test.repeatEachIndex > 0 ? ` > repeat ${test.repeatEachIndex}` : '';
+    const artifacts = (result.attachments || []).filter(a => a.path).map(a => sensitive ? {name: redactionMarker, path: redactionMarker} : {name: a.name, path: a.path});
+    const anchor = {file: test.location.file, line: test.location.line};
+    const attemptDetails = previous?.attemptDetails || [];
+    if (this.retainAttemptDetails) {
+      if (result.retry !== attemptDetails.length || attemptDetails.length >= 32) throw new Error('external-attempt-details-invalid');
+      attemptDetails.push({state, retry: result.retry, durationMs: result.duration, failureMessage: message, anchor, artifacts: artifacts.map(a => ({...a}))});
+    }
     this.tests.set(test.id, {
       name: test.title, fullName: test.titlePath().join(' > ') + repeat, state,
       project: {name: project ? project.name : '', browser: use ? use.browserName : '', device: project && typeof project.metadata?.device === 'string' ? project.metadata.device : 'unknown', use},
       retries: result.retry, durationMs: result.duration,
-      anchor: {file: test.location.file, line: test.location.line},
+      anchor,
       failureMessage: message, attempts,
-      artifacts: (result.attachments || []).filter(a => a.path).map(a => sensitive ? {name: redactionMarker, path: redactionMarker} : {name: a.name, path: a.path})
+      artifacts, ...(this.retainAttemptDetails ? {attemptDetails} : {})
     });
   }
   onEnd(result) {

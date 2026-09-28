@@ -1,0 +1,110 @@
+{
+  "baseRevision": "0c0301fe53b70911c87483964bce5a21fbfe2ab1",
+  "evidence": [
+    {
+      "blobOid": "1862a80fbf50b3376a2dfdb17a05a3a31b0d3a29",
+      "id": "evidence:sha256:979cd18c0beb7d092b41b312f192d3be3bb881145af36b0b61aa5ec76238ea67",
+      "path": "docs/SPEC-DRIVEN-DEVELOPMENT.md",
+      "span": {
+        "end": 2217,
+        "start": 0
+      },
+      "spanSha256": "ea5f98884b6b021bbbd040a7f8ce861832e7982ddfda17ec050011284ed07758"
+    },
+    {
+      "blobOid": "77a20880cda6c42003c542a16b8d19b4fd61cb4e",
+      "id": "evidence:sha256:7c15f171d12c6d00038e5ff1928559c181427a777ccd226928218aa7264d15cc",
+      "path": "docs/specs/error-code-ownership-gate-v0.md",
+      "span": {
+        "end": 4197,
+        "start": 3748
+      },
+      "spanSha256": "cdd782a1ffff3126b9a82e33806a7f538e2dab733fcce538a37ea85075f25004"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:979cd18c0beb7d092b41b312f192d3be3bb881145af36b0b61aa5ec76238ea67",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c41155db3ab9df6072b625190e1a9a43b57972f0bea78441d0e56a7cb0117b2c",
+      "newRange": {
+        "count": 5,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-28-issues-167-175-error-code-ownership.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:7c15f171d12c6d00038e5ff1928559c181427a777ccd226928218aa7264d15cc",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:10574723be1995fa47a4aff74a5325af9784903edae0989b4e2eda4755a273b1",
+      "newRange": {
+        "count": 14,
+        "start": 774
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 774
+      },
+      "path": "docs/specs/application-flow-understanding-v1.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:7c15f171d12c6d00038e5ff1928559c181427a777ccd226928218aa7264d15cc",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d0b9d4e50f57d5f6d6395db7f74255bf5c2906c95290c8e694b7b969fb16e1cb",
+      "newRange": {
+        "count": 12,
+        "start": 141
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 141
+      },
+      "path": "docs/specs/browser-behavior-falsification-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:7c15f171d12c6d00038e5ff1928559c181427a777ccd226928218aa7264d15cc",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4f0e52a9e87fe64573317fdf7bf59cfa1ccb1cfca46ca78f13974708f8ec0d72",
+      "newRange": {
+        "count": 7,
+        "start": 245
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 245
+      },
+      "path": "docs/specs/playwright-external-provider-v0.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "dd3f8506e2e72df9f544034ef6ab023ac6ce45864173e0589a2d7091469ffd11",
+  "spec": "cem/0.2"
+}

@@ -310,7 +310,7 @@ func runFlowsImpact(ctx context.Context, root string, args []string, out io.Writ
 func runFlowsIngest(_ context.Context, _ string, args []string, out io.Writer) error {
 	f := flag.NewFlagSet("flows ingest", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
-	format := f.String("format", "", "playwright-json, junit-xml or go-test-json")
+	format := f.String("format", "", "playwright-json, playwright-receipt, junit-xml or go-test-json")
 	from := f.String("from", "", "test report")
 	h := appflows.RunHeader{}
 	f.StringVar(&h.RunID, "run-id", "", "run ID")
@@ -333,7 +333,7 @@ func runFlowsIngest(_ context.Context, _ string, args []string, out io.Writer) e
 		return nil
 	})
 	if f.Parse(args) != nil || *format == "" || *from == "" || f.NArg() != 0 {
-		return errors.New("flows ingest requires --format playwright-json|junit-xml|go-test-json --from FILE and the run header flags")
+		return errors.New("flows ingest requires --format playwright-json|playwright-receipt|junit-xml|go-test-json --from FILE and the run header flags")
 	}
 	ingested, err := appflows.IngestRunFile(*format, *from, h)
 	if err != nil {
@@ -373,7 +373,7 @@ Query usage:
   corvint [--root PATH] flows gaps --flows DIR [--evidence FILE]...
   corvint [--root PATH] flows impact --flows DIR --base SHA
   corvint [--root PATH] flows stability --registry FILE [--evidence FILE]...
-  corvint [--root PATH] flows ingest --format playwright-json|junit-xml|go-test-json --from FILE [header flags]
+  corvint [--root PATH] flows ingest --format playwright-json|playwright-receipt|junit-xml|go-test-json --from FILE [header flags]
 
 map writes application-flow-map/1: every link with its basis, review state and the
 self-attested review summary, and per variation the test-run-evidence/0 state and

@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-24
 Intent status: accepted (decision 0385)
-Delivery status: planned
+Delivery status: partially delivered; original issue-175 flows qualified locally
 Authoritative inputs: owner request [issue 175](https://github.com/beamfall/corvint/issues/175) and
 the owner's additions of 2026-09-24 (mapping E2E tests to code changes, an agent that can navigate
 and use a website, documentation proven accurate by the same evidence), `AGENTS.md`,
@@ -14,9 +14,9 @@ decisions 0374, 0385 and 0416.
 
 ## Agent digest
 - Claim: Reviewed flows link to source, tests and run evidence; Corvint selects E2E tests with exclusion proofs, maps navigation and proves documentation claims.
-- Status: accepted (decision 0385)/planned; S1-S3 implement AFU-V1-001..005, 007..011, 013, 014 (with its accepted observer gap), 015..018, 036..038 and 041..042 (unqualified), 012 partially, and AFU-V1-006 as a validated `/2` wire profile no producer emits yet; S4 implements AFU-V1-019..024 and the AFU-V1-040 frozen corpus (unsafe-narrowing rate 0 on both bases), with the two live changes `NOT_RUN`; S5 implements AFU-V1-025..028 and the AFU-V1-029 observer gate, which no observer calls yet (partial); S6 implements AFU-V1-030..033 (unqualified); S7 implements AFU-V1-034 and 035 (no MCP conformance vectors yet); S8 adds the AFU-V1-039 acceptance fixture (`cmd/corvint/testdata/flows/acceptance`, `TestAFUV1039AcceptanceFixture`), with the three live qualification runs `NOT_RUN`; nothing else is implemented or qualified.
+- Status: accepted (decision 0385); partially delivered; original issue-175 flows qualified locally. S1-S4, S6-S8 delivered with local issue-175 evidence in `evidence/issues-167-175/`. AFU-V1-012 now retains and consumes the qualified `/3` external attempt inventory. The Beamfall UI/API lifecycle and both semantic-change qualifications pass; the latter use conservative full-suite fallback, not reduced selections. Compiled MCP conformance covers both protocols and the pinned official schema. AFU-V1-006 remains a validated `/2` wire profile without a producer; S5's AFU-V1-029 observer integration remains partial; AFU-V1-014 retains its accepted observer gap.
 - Exists: the AFU-V0 experimental `corvint flows` report and `record`, the issue-53 behavior adapter, ETS-V1 selection and the Playwright provider this spec extends.
-- Blocked on: implementation slices S1-S8 (Rollout) and the acceptance evidence below.
+- Blocked on: AFU-V1-006 producer and AFU-V1-029 observer integration; production backend and hosted-CI qualification are not observed.
 - Read next: Requirements; Trust boundary, limits, and failure modes; Deterministic acceptance.
 
 ## User and measurable job
@@ -56,13 +56,9 @@ At `978b37b`:
   (`internal/jstestprovider/playwright.go:193-200@f01509c4`). Since S2 it keeps every attempt's
   duration, failure message, anchor and attachments in memory
   (`internal/jstestprovider/playwright.go:131-133@9ab61026`). The unprofiled receipt carries them
-  as the additive `attemptDetails` member (`internal/jstestprovider/receipt.go:65-68@1afda4df`),
-  scrubbed per attempt by the shared run-evidence hygiene and the product secret screen
-  (`internal/jstestprovider/playwright.go:134-158@17847d1b`). The `corvint-playwright-external`
-  profiles refuse the member on encode and on reporter decode
-  (`internal/jstestprovider/projection.go:63-65@df31a2ae`,
-  `internal/jstestprovider/external.go:281-283@d54a4a23`), because a profiled wire field needs
-  another profile revision; their reporter still emits the last attempt's detail only.
+  as `attemptDetails` (`internal/jstestprovider/receipt.go`). The shared hygiene scrubs each
+  attempt. The external reporter emits the same complete inventory only under the separate `/3`
+  profile (`internal/jstestprovider/attempt_details.go`); earlier profiles continue to refuse it.
 - The issue-53 adapter reconciles flows, variations, tests and assertions in both directions, and
   never has narrowing authority (`docs/specs/documentation-corpus-v1.md:191-196@cea38e20`). S4
   leaves it so: only `internal/appflows/selection.go` produces an `e2e-safe` omission.
@@ -197,7 +193,7 @@ This subsection fixes the S1 wire and argv shapes. It adds no requirement and no
   ordinal, its outcome (`passed`, `failed`, `timedOut`, `skipped` or `interrupted`), its duration and
   the assertion anchors it observed. The record also carries cleanup (`done`, `failed` or
   `not-declared`) and each negative control with its expected and observed outcome.
-- `AFU-V1-012`: The ingest adapters for Playwright JSON, JUnit XML (including `flakyFailure` and
+- `AFU-V1-012`: The ingest adapters for Playwright JSON, the qualified `/3` Playwright receipt, JUnit XML (including `flakyFailure` and
   `rerunFailure` elements) and `go test -json` MUST keep every attempt's outcome, duration, failure
   detail and attachments. The Playwright provider MUST stop keeping only the last attempt's detail.
 - `AFU-V1-013`: A test with a failed attempt and a later passed attempt MUST be `flaky`, never
@@ -674,7 +670,7 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-009 | `TestAFUV1InferredExcludedFromReviewed`, `TestAFUV1FlowsQueryGoldens` (inferred links outside the denominator, `inferred-only`, no evidence pair from an inferred test) |
 | AFU-V1-010 | `TestAFUV1ReverseLookupsDerived`, `TestAFUV1ExportLeavesRepositoryByteIdentical`, `TestAFUV1FlowsCLIExportIsReadOnly`, `TestAFUV1FlowsCLIReverseLookups` (a non-canonical `--path` refused), `TestAFUV1FlowsQueriesAreReadOnly` |
 | AFU-V1-011 | `TestAFUV1RunEvidenceClosedSchema`, `TestAFUV1NegativeControlFailed`, `TestAFUV1AdapterObservesFailedControl` (each of the three adapters observes a control failing, and Playwright and JUnit one timing out, in the same report and verifies the subject only against that expectation), `TestAFUV1FlowsCLIPassingControlNeverVerifies` (a control that passed never verifies) |
-| AFU-V1-012 | `TestAFUV1PlaywrightAdapterKeepsEveryAttempt`, `TestAFUV1AdapterObservesFailedControl`, `TestAFUV1JUnitAdapterKeepsEveryAttempt`, `TestAFUV1JUnitTimedOutAttempt` (the JUnit timed-out mapping), `TestAFUV1GoTestAdapterKeepsEveryAttempt`, `TestAFUV1PlaywrightProviderKeepsEveryAttempt` (the unprofiled receipt wire carries `attemptDetails`, and the external profiles refuse it); partial: the `corvint-playwright-external` reporter and profiles still carry only the last attempt's detail, which needs a `/3` profile revision and its live reporter qualification |
+| AFU-V1-012 | `TestAFUV1PlaywrightAdapterKeepsEveryAttempt`, `TestAFUV1AdapterObservesFailedControl`, `TestAFUV1JUnitAdapterKeepsEveryAttempt`, `TestAFUV1JUnitTimedOutAttempt` (the JUnit timed-out mapping), `TestAFUV1GoTestAdapterKeepsEveryAttempt`, `TestAFUV1PlaywrightProviderKeepsEveryAttempt` (unprofiled compatibility), `TestAFUV1012QualifiedReceiptIngest`, `TestAFUV1012QualifiedReceiptRefusals`; qualified `/3` carries every attempt, while `/0`, `/1`, `/2` keep refusing the field; live matrix retained under `evidence/issues-167-175/` |
 | AFU-V1-013 | `TestAFUV1FailedAttemptThenPassIsFlaky`, `TestAFUV1PlaywrightUnexpectedNeverPassed`, `TestAFUV1JUnitTimedOutAttempt` (a timed-out then passed JUnit test is flaky), the retry-passed case of each adapter test; repeated runs aggregate through the AFU-V1-041 run registry (`TestAFUV1RunStabilityCounts`) |
 | AFU-V1-014 | `TestAFUV1StaticNeverVerified`, `TestAFUV1PlaywrightUnexpectedNeverPassed`; ingest emits `INGESTED` and the schema accepts `LOCALLY_OBSERVED`; the flow-scoped AFU-V0-010 observer emits no per-test record, an accepted gap (decision 0417) |
 | AFU-V1-041, AFU-V1-042 | `TestAFUV1RunStabilityCounts` (counts, verdict, manual reruns kept out of the threshold, every attempt reported), `TestAFUV1RunStabilityRefusals` (each named refusal), `TestAFUV1RunRegistryReadAtHead` (the committed bytes, never the working tree), `TestAFUV1FlowsCLIStabilityIsReadOnly` |
@@ -697,22 +693,24 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-031 | `TestAFUV1031ClaimStateOrder`, `TestAFUV1030DocsRenderGoldenAndByteStable` (every state marked on the page, `PROVEN` unmarked) |
 | AFU-V1-032 | `TestAFUV1032DocsCheckDrift` (a lost `PROVEN` and a hand-edited page fail; the check is read-only), `TestAFUV1032WaiverExpiry` (unexpired, expired and malformed waivers), `TestAFUV1032WaiverExpiryBoundary` (expired on its expiry date), `TestAFUV1032WaiverKeepsUnrenderedClaim` (a waived claim that is no longer rendered keeps its committed form) |
 | AFU-V1-033 | `TestAFUV1033AnchoredMarkdown` (a changed unanchored document passes, an unknown anchor fails the check and refuses the render), `TestAFUV1033AnchorParsing`, `TestAFUV1032DocsCheckDrift` (the coverage row and the anchored claim's lost `PROVEN`), `TestAFUV1033NonRegularMarkdownSkipped` (a symlinked `.md` is unanchored, not a failure) |
-| AFU-V1-034 | `TestAFUV1034FlowsToolProfile` (golden default and task-review `tools/list` bytes without the selector, the four tools read-only under it, unknown, empty, duplicate and mixed selectors refused, flows tools `-32602` under the other profiles), `TestAFUV1034FlowsToolsMatchCLIVerbs` (each tool's receipt equals its CLI verb's output on the shop and navigation fixtures, the CLI's argument refusals are `-32602`, a verb refusal is `flows-refused`), `TestAFUV1034CommittedFlowsReadNeverFetchesAPromisorObject` (V1-0349: a missing intent blob in a blob:none clone is refused with no fetch, also through a Git that drops `GIT_NO_LAZY_FETCH`), `TestSanitizedGitEnvironmentRefusesAPromisorFetch` (the shared environment's empty `GIT_ALLOW_PROTOCOL` alone refuses the fetch); partial: no compiled-process MCP conformance vectors |
+| AFU-V1-034 | `TestAFUV1034FlowsToolProfile` (golden default and task-review `tools/list` bytes without the selector, the four tools read-only under it, unknown, empty, duplicate and mixed selectors refused, flows tools `-32602` under the other profiles), `TestAFUV1034FlowsToolsMatchCLIVerbs` (each tool's receipt equals its CLI verb's output on the shop and navigation fixtures, the CLI's argument refusals are `-32602`, a verb refusal is `flows-refused`), `TestAFUV1034CommittedFlowsReadNeverFetchesAPromisorObject` (V1-0349: a missing intent blob in a blob:none clone is refused with no fetch, also through a Git that drops `GIT_NO_LAZY_FETCH`), `TestSanitizedGitEnvironmentRefusesAPromisorFetch` (the shared environment's empty `GIT_ALLOW_PROTOCOL` alone refuses the fetch); `TestAFUV1034FlowsCompiledConformance`, `TestAFUV1034FlowsOfficialSchema` run the compiled process on both protocols and the pinned official schema |
 | AFU-V1-035 | `TestAFUV1035FlowsTextStaysInsideEnvelope` (a hostile navigation step string returns only between the envelope prefix and suffix, with no `structuredContent`) |
 | AFU-V1-036 | `TestAFUV1036DocsReplaceConfined`, `TestAFUV1036DocsGitPathRefused`, `TestAFUV1InputRegularBeforeOpen`, `TestAFUV1InputSwapAfterLstatRefused`, `TestAFUV1ManifestRegularBeforeOpen`, `TestAFUV1ImportRefusesCaseVariantName`, `TestAFUV1RecordConfinedToRoot`, `TestAFUV1RecordGitPathRefused`, `TestAFUV1ImportNeverOverwrites`, `TestAFUV1IntentClosedSchema` (symlinked `--flows`) |
 | AFU-V1-037 | `TestAFUV1IntentBoundsRefused`, `TestAFUV1IntentCountBoundedBeforeRead`, `TestAFUV1IntentCountBoundedWithoutRetired`, `TestAFUV1ImportCombinedFlowBound`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceBoundsIncomplete`, `TestAFUV1FlowsCLIIngest`, `TestAFUV1ReadRunEvidenceDiscipline` |
 | AFU-V1-038 | `TestAFUV1IntentSecretScreened`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceSecretsDropped`, `TestAFUV1PlaywrightProviderScrubsEveryAttempt` (the provider receipt scrubs every attempt and the last-attempt fields); the screen runs in `EncodeRunEvidence`, the only run-evidence encoding, and `flows ingest` writes only what it encodes (`TestAFUV1FlowsCLIIngest`) |
-| AFU-V1-039 | `TestAFUV1039AcceptanceFixture` over the committed fixture `cmd/corvint/testdata/flows/acceptance` (a synthetic, hand-written Playwright report ingested through `flows ingest`; observed runs are the `NOT_RUN` live qualification items below): the UI flow `checkout` and the API flow `orders-api` are complete with every variation verified in `map`; `returns` reports exactly `unmapped-flow` and `profile` exactly `stale-link` (its evidence verified) in `gaps`; both have flow status `incomplete` (step verification is evidence-only) in `map`, `gaps`, the `navigate` map and each one's `navigate --goal` packet, and `docs` renders them `UNPROVEN` and `STALE` while the two verified flows' claims are `PROVEN` |
+| AFU-V1-039 | `TestAFUV1039AcceptanceFixture` over the committed fixture `cmd/corvint/testdata/flows/acceptance` (a synthetic, hand-written report; separate real browser qualifications are retained below): the UI flow `checkout` and the API flow `orders-api` are complete with every variation verified in `map`; `returns` reports exactly `unmapped-flow` and `profile` exactly `stale-link` (its evidence verified) in `gaps`; both have flow status `incomplete` (step verification is evidence-only) in `map`, `gaps`, the `navigate` map and each one's `navigate --goal` packet, and `docs` renders them `UNPROVEN` and `STALE` while the two verified flows' claims are `PROVEN` |
 | AFU-V1-040 | `TestAFUV1040SelectionCorpusReport`: the frozen corpus `cmd/corvint/testdata/e2e-safe-corpus.json` (21 labelled, fault-injected cases over five tests, `spec-after-coverage` added by decision 0416) and its report `cmd/corvint/testdata/e2e-safe-corpus.report.json`; `coverage` omits 15 with 0 unsafe (reduction 15/105), `reviewed-links` omits 3 with 0 unsafe (reduction 3/105), no basis withdrawn |
 
 Live qualification: the companion surfaces are qualified on Beamfall with one UI flow and one API
 flow. The Core profile is qualified by the corpus report (AFU-V1-040) plus one real change against
 the Corvint Playwright fixture suite (`conformance/interactive-alpha/fixture`) and one on Beamfall.
-All three stay `NOT_RUN` until retained. S8 status, each `NOT_RUN`:
+All three were observed locally on 2026-09-28 and retained in `evidence/issues-167-175/`:
 
-- Companion surfaces on Beamfall: needs a Beamfall checkout and a networked browser E2E run.
-- Real change on `conformance/interactive-alpha/fixture`: needs a Playwright browser run.
-- Real change on Beamfall: needs a Beamfall checkout and a networked browser E2E run.
+- Beamfall companion: UI checkout and API phase read passed; two negative controls failed; reviewed/stale/unmapped links, retained run evidence, CLI/MCP equality and documentation labels verified. Application source `7caa4d1950a51a009928ea2d474e33a9ba074828`; tested fixture commit `363a2fd3423ee755f7eba72541f85c1bc6861fbb`. The backend is the in-process mock; production services are NOT_OBSERVED.
+- Corvint Playwright fixture: the selected counter test passed before the +1→+2 source fault and failed afterward.
+- Beamfall real change: the selected API test passed before the phase-ID source fault and failed afterward. Both live selections fall back to the full relevant suite and omit zero tests. The frozen corpus remains the evidence for exclusion-basis narrowing; these live runs claim no reduction.
+
+The companion browser uses the pinned Playwright 1.63.0 bundled Chromium tuple. Cleanup and SIGTERM interruption were checked. Host Chrome drift is explicitly refused. AFU-V1-006 producer, AFU-V1-029 observer integration and the accepted AFU-V1-014 gap remain outside this qualification.
 
 ## Rollout, rollback, and compatibility
 
@@ -722,15 +720,14 @@ Slices, each its own change with tests:
    fixes (AFU-V1-001..010, 036).
 2. S2 is run evidence and the three adapters (AFU-V1-011..014, 037, 038). It delivered the record,
    the adapters, the bounds and the hygiene, and the unprofiled provider receipt now carries and
-   scrubs every attempt; the AFU-V1-012 remainder named in the matrix stays open, decision 0417 accepts
+   scrubs every attempt; the qualified `/3` external profile closes AFU-V1-012, decision 0417 accepts
    the AFU-V1-014 observer gap and adds the JUnit timed-out mapping, and the AFU-V1-041 run registry
    and AFU-V1-042 `flows stability` close the AFU-V1-013 aggregation.
 3. S3 is `map`, `gaps` and `impact`, and the `/2` behavior provider (AFU-V1-006, 015..018).
 4. S4 is the Core `e2e-safe` profile and its corpus (AFU-V1-019..024, 040).
 5. S5 is the navigation map (AFU-V1-025..029).
 6. S6 is proven documentation (AFU-V1-030..033).
-7. S7 is the MCP tool profile (AFU-V1-034, 035). Delivered: `--tool-profile flows`, with no MCP
-   conformance vectors yet.
+7. S7 is the MCP tool profile (AFU-V1-034, 035). Delivered: `--tool-profile flows`, including compiled-process and official-schema conformance.
 8. S8 is the acceptance fixture and live qualification (AFU-V1-039).
 
 Rollback removes the `e2e-safe` value, the new `flows` subcommands and the MCP profile. Flow intents,
@@ -749,12 +746,12 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 | AFU-V1-015..018 | implemented: `internal/appflows/query.go`, `impact.go`, `runingest.go` (`IngestRunFile`), `cmd/corvint/flows.go` |
 | AFU-V1-025..029 | implemented, 029 partial (see the matrix): `internal/appflows/navigate.go`, `origins.go`, the `navigation` member in `intent.go`, `cmd/corvint/flows_navigate.go` |
 | AFU-V1-030..033 | implemented: `internal/appflows/docs.go` (`RenderDocs`, `CheckDocs`, `ReplaceConfined`), `cmd/corvint/flows_docs.go` |
-| AFU-V1-039 | implemented (fixture only; live qualification `NOT_RUN`): `cmd/corvint/testdata/flows/acceptance`, `cmd/corvint/flows_acceptance_test.go` |
+| AFU-V1-039 | implemented and locally qualified (limits above): `cmd/corvint/testdata/flows/acceptance`, `cmd/corvint/flows_acceptance_test.go` |
 | AFU-V1-006 | partial (see the matrix): `internal/doccorpus/behavior.go` |
 | AFU-V1-041, AFU-V1-042 | implemented: `internal/appflows/runregistry.go`, `cmd/corvint/flows.go` (`flows stability`) |
-| AFU-V1-011..014, 038 | implemented, 012 partial (see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/runhygiene/runhygiene.go`, `internal/jstestprovider/playwright.go`, `receipt.go`, `projection.go`, `external.go` |
+| AFU-V1-011..014, 038 | implemented (014 accepted observer gap; see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/runhygiene/runhygiene.go`, `internal/jstestprovider/playwright.go`, `receipt.go`, `projection.go`, `external.go` |
 | AFU-V1-019..024, 040 | implemented: `internal/appflows/selection.go` (`SelectE2E`), `cmd/corvint/affected.go`, `internal/liveverify/affected/typescript/playwright_discovery.go` (`VerifyPlaywrightDiscovery`), `internal/extevidence/selection.go` (`SelectionNote`); corpus `cmd/corvint/testdata/e2e-safe-corpus.json` |
-| AFU-V1-034..035 | implemented, 034 partial (see the matrix): `internal/mcp/bridge/flows.go`, `bridge.go`, `cmd/corvint-mcp/main.go`, `internal/appflows/impact.go` (`FlowImpactAt`) |
+| AFU-V1-034..035 | implemented and locally qualified: `internal/mcp/bridge/flows.go`, `bridge.go`, `cmd/corvint-mcp/main.go`, `internal/appflows/impact.go` (`FlowImpactAt`) |
 
 ## Unresolved decisions and promotion or kill criteria
 
@@ -777,3 +774,14 @@ both live changes, reported per basis. A basis with a nonzero rate is withdrawn 
 profile keeps the other. The companion surfaces are promoted by the Beamfall qualification. Kill: if the
 corpus cannot reach an unsafe-narrowing rate of 0 with a nonzero reduction, `e2e-safe` is withdrawn
 and selection stays at `strict`. The companion surfaces ship without it.
+
+## Owned emitted attempt-ingest error codes
+
+These refusals describe the existing `playwright-receipt` ingest boundary (AFU-V1-012 and
+PWP-V3-005); they add no new receipt state or execution authority.
+
+| Code | Meaning |
+| --- | --- |
+| `external-attempt-run-incomplete` | The receipt reports infrastructure failure or cancellation, lacks external lifecycle evidence, changed its inputs, or did not retire runner descendants. |
+| `external-attempt-runner-identity-mismatch` | The canonical receipt cannot be decoded, has no runner version, or disagrees with the ingest header's runner version. |
+| `external-attempt-test-identity-missing` | A retained test has no test ID or named project. |

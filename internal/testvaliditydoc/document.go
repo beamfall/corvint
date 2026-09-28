@@ -132,7 +132,7 @@ func Decode(data []byte) (Input, error) {
 			return Input{}, errors.New("kind is neither unit nor e2e")
 		}
 		if document.Receipt.Profile != "" {
-			if document.Receipt.Profile != jstestprovider.ExternalProfile && document.Receipt.Profile != jstestprovider.AttestedExternalProfile && document.Receipt.Profile != jstestprovider.SensitiveExternalProfile {
+			if document.Receipt.Profile != jstestprovider.ExternalProfile && document.Receipt.Profile != jstestprovider.AttestedExternalProfile && document.Receipt.Profile != jstestprovider.SensitiveExternalProfile && document.Receipt.Profile != jstestprovider.AttemptExternalProfile {
 				return Input{}, errors.New("unknown JavaScript receipt profile")
 			}
 			if document.Receipt.Profile == jstestprovider.SensitiveExternalProfile {
@@ -203,7 +203,7 @@ func projectJavaScript(receipt jstestprovider.Receipt) Document {
 		tests = append(tests, Test{ID: outcome.ID, Project: outcome.Project, Attempts: outcome.Attempts, Name: outcome.Name, State: string(outcome.State), Projection: jstestprovider.ReceiptTestProjection(receipt, outcome)})
 	}
 	var playwright *jstestprovider.Receipt
-	if receipt.Profile == jstestprovider.ExternalProfile || receipt.Profile == jstestprovider.AttestedExternalProfile || receipt.Profile == jstestprovider.SensitiveExternalProfile {
+	if receipt.Profile == jstestprovider.ExternalProfile || receipt.Profile == jstestprovider.AttestedExternalProfile || receipt.Profile == jstestprovider.SensitiveExternalProfile || receipt.Profile == jstestprovider.AttemptExternalProfile {
 		playwright = &receipt
 	}
 	return Document{

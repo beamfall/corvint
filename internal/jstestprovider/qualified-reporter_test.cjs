@@ -234,3 +234,24 @@ test('a cached module that moved since load is skipped instead of aborting onBeg
     delete require.cache[moved];
   }
 });
+
+test('PWP-V3-002 retains ordered detail and the flaky first attempt', () => {
+  const Reporter = loadReporter();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'corvint-attempts-'));
+  try {
+    const output = path.join(dir, 'report.json');
+    const reporter = new Reporter({output, retainAttemptDetails: true});
+    const project = {name: 'chromium', use: {}, metadata: {}};
+    const item = {id:'retry', title:'retry', retries:1, repeatEachIndex:0, location:{file:'/repo/test.cjs',line:8}, _testType:{fixtures:[]}, parent:{project:()=>project}, titlePath:()=>['retry']};
+    reporter.onTestEnd(item, {status:'failed',retry:0,duration:7,errors:[{message:'first assertion failed'}],attachments:[{name:'screen',path:'/tmp/first.png'}],steps:[]});
+    reporter.onTestEnd(item, {status:'passed',retry:1,duration:3,errors:[],attachments:[],steps:[]});
+    reporter.onEnd({status:'passed'});
+    const result = JSON.parse(fs.readFileSync(output,'utf8')).tests[0];
+    assert.equal(result.state,'flaky');
+    assert.deepEqual(result.attemptDetails.map(a=>[a.state,a.retry,a.durationMs]),[['failed',0,7],['passed',1,3]]);
+    assert.equal(result.attemptDetails[0].failureMessage,'first assertion failed');
+    assert.equal(result.attemptDetails[0].artifacts[0].path,'/tmp/first.png');
+    assert.equal(result.attemptDetails[1].failureMessage,result.failureMessage);
+    assert.throws(()=>new Reporter({output,retainAttemptDetails:true,sensitiveInputPolicy:{}}),/composition-unsupported/);
+  } finally { fs.rmSync(dir,{recursive:true,force:true}); }
+});
