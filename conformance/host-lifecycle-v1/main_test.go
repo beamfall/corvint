@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -132,4 +135,48 @@ func TestSummaryExitRequiresAllNinePass(t *testing.T) {
 	if summaryExit(results[:8]) != 1 {
 		t.Fatal("a missing case exited 0")
 	}
+}
+
+func TestMissingEnvelopeRetainsDiagnostic(t *testing.T) {
+	t.Run("HLQ-V1-007 missing envelope quotes bounded received context", func(t *testing.T) {
+		for _, text := range []string{"Corvint FALLBACK degraded: adapter-host-kill-deadline; coding continues.", "first\nsecond\t\"quoted\"\x1b", strings.Repeat("x", 2048) + "tail", ""} {
+			output, _ := json.Marshal(map[string]any{"hookSpecificOutput": map[string]any{"additionalContext": text}})
+			receipt, received, err := envelopedReceipt(string(output))
+			if receipt != nil || received != text || err == nil {
+				t.Fatalf("receipt=%v received=%q err=%v", receipt, received, err)
+			}
+			prefix := text[:min(len(text), 2048)]
+			if !strings.Contains(err.Error(), fmt.Sprintf("received additionalContext=%q", prefix)) || strings.ContainsAny(err.Error(), "\n\t\x1b") {
+				t.Fatalf("lost or unquoted diagnostic: %v", err)
+			}
+			if len(text) > 2048 && (!strings.Contains(err.Error(), "4 bytes omitted") || strings.Contains(err.Error(), "tail")) {
+				t.Fatalf("unbounded diagnostic: %v", err)
+			}
+		}
+	})
+}
+
+func TestContextHookRetainsRejectedText(t *testing.T) {
+	t.Run("HLQ-V1-002 fallback reaches the case report", func(t *testing.T) {
+		text := "Corvint FALLBACK degraded: adapter-host-kill-deadline; coding continues."
+		output, _ := json.Marshal(map[string]any{"hookSpecificOutput": map[string]any{"additionalContext": text}})
+		directory := t.TempDir()
+		filename := filepath.Join(directory, "hook.json")
+		if err := os.WriteFile(filename, output, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		cat, err := exec.LookPath("cat")
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := &runner{fixture: directory, environment: os.Environ(), hooks: map[string][]string{"SessionStart": {cat, filename}}}
+		receipt, received, err := r.contextHook("SessionStart", nil)
+		if receipt != nil || received != text || err == nil || !strings.Contains(err.Error(), "SessionStart: additionalContext carries no repository-data envelope") || !strings.Contains(err.Error(), "adapter-host-kill-deadline") {
+			t.Fatalf("receipt=%v received=%q err=%v", receipt, received, err)
+		}
+		r.results = []result{{"upgrade", "FAIL", err.Error()}}
+		if !strings.Contains(r.render(), "adapter-host-kill-deadline") {
+			t.Fatal("report discarded diagnostic")
+		}
+	})
 }

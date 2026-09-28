@@ -56,6 +56,12 @@ behaviour inside a live model session.
   | upgrade | after the N-1 binary indexes the fixture and is replaced, the current binary does not reuse its snapshot: `index --if-stale` rebuilds instead of reporting `state=fresh` (a snapshot is keyed by the binary that wrote it), and `context` succeeds | the registered hooks serve valid context under the N-1 binary and after its replacement by the current binary; the host's reinstall keeps the package byte-equal | `AHI-002` |
   | uninstall | the binary is removed and no longer resolves; the fixture worktree is unchanged | the host's disable (Claude Code: then enable), uninstall and marketplace-remove commands succeed; the host no longer lists the plugin; the installed root is gone or carries the host's own `.orphaned_at` retirement marker; no other file under the private `HOME`, whatever its size, names corvint; the fixture worktree is unchanged | `AHI-002` |
 
+  A missing repository-data envelope MUST retain the received `additionalContext` in the error
+  as a quoted prefix of at most 2048 bytes, with an explicit omitted-byte count when truncated.
+  The context-hook helper MUST also return the full received text on receipt-validation failure.
+  A visible `adapter-host-kill-deadline` fallback is thus distinguishable from malformed envelope
+  output; neither becomes a successful lifecycle case, and no deadline is widened.
+
 - **HLQ-V1-003:** Each run MUST happen in a fresh private workspace: `HOME`, `CLAUDE_CONFIG_DIR`
   and `CODEX_HOME` point inside it, and `PATH` holds only the private `corvint` directory, the host
   executable's directory, Git's directory and the system directories. Command names MUST resolve
@@ -85,7 +91,8 @@ behaviour inside a live model session.
   checked for their own predicates, not for a `mutates` field.
 - **HLQ-V1-007:** The runner MUST print one header line, then one `case` line for each case, then a
   `SUMMARY` line with the counts. Fields are tab-separated. It exits 0 only when all nine cases pass,
-  1 otherwise, and 2 on a usage or setup error.
+  1 otherwise, and 2 on a usage or setup error. Received diagnostic text is quoted so its control
+  bytes cannot add report rows or columns; truncation remains explicit.
 - **HLQ-V1-008:** A result MUST be recorded here with the digests of both binaries and the source
   revision. Each tuple's raw `--report` file MUST be kept under
   `conformance/host-lifecycle-v1/results/`, and its sha256 recorded with the result, so the verdict
@@ -144,7 +151,42 @@ Supplementary live observations from the 0.8.0 run, not part of the nine cases:
   UserPromptSubmit hook responses with Corvint context. The model call itself failed on an expired
   OAuth session, so no model turn was observed.
 
+### V1-0397 diagnostic qualification, 2026-09-28
+
+Three consecutive Claude Code 2.1.267 / adapter 0.2.3 runs on darwin/arm64 passed all
+nine cases with exit 0 at frozen source `79b2ef0e151e46628a095d03e4dfb62926b1e04e`.
+Candidate: `Corvint 1.0.0-rc.1 (build 176)`, SHA-256
+`ad38842c14162a46b06887df601f5385c49adc85b540fb498296b385bd1eefef`.
+Prior binary: `Corvint 1.0.0-rc.1 (build 163)`, SHA-256
+`4bb95d984436f2ac9d040a27f00523dda553301fe352df03bd1817b84ab9eed2`.
+Runner SHA-256: `90fd6ae2fe055a248fbcfef91472d49790e3cd4cfbf8557828b95fce1d9ccaf9`.
+This is qualification of that diagnostic candidate, not a new release or support promotion.
+
+Runs lasted 12:41:28–12:41:42, 12:41:42–12:41:52, and 12:41:52–12:42:03 UTC.
+Recorded one-minute start/end loads were 93.87/92.53, 92.53/95.70 and 95.70/94.68.
+All recorded one/five/fifteen-minute values exceeded 80. Sampling was at run boundaries;
+continuous load was NOT_OBSERVED, and no load was manufactured. These successful runs do
+not identify the lost historical failure's cause or establish a safe load threshold.
+
+Raw reports and matching `claude-code-N-load.txt` readings are retained under
+`conformance/host-lifecycle-v1/results/2026-09-28-hlq-diagnostics/`.
+
+| Run | Report | Report SHA-256 | Load-reading SHA-256 |
+|---|---|---|---|
+| 1 | `claude-code-1.tsv` | `8322436aae5dbe4465a2a8b8417319296e5506003e57af2435bc1d2a809a3073` | `738b1f589b208013fbc241bcb55dbb0ff02ce4cb567baaefda931b7ab9c1e172` |
+| 2 | `claude-code-2.tsv` | `8322436aae5dbe4465a2a8b8417319296e5506003e57af2435bc1d2a809a3073` | `557c1c2844f7f984016f534c016ee51e4a08ac865c0f572bdb543de9fd7fcfc3` |
+| 3 | `claude-code-3.tsv` | `8322436aae5dbe4465a2a8b8417319296e5506003e57af2435bc1d2a809a3073` | `7c0c9971cd32f19dd0c403c7c60fc73b722cee60317736df56a62fe03a898980` |
+
 ## Known gaps
+
+- V1-0397: the historical Claude Code 2.1.267 / adapter 0.2.3 upgrade failure on
+  rc1 build 154 occurred at reported host load 81–109 on 12 CPUs. Its received text was
+  discarded, so the exact cause remains UNKNOWN. The same tuple subsequently passed at
+  load 97–125; these observations establish neither a safe threshold nor load causation.
+  A prior PostToolUse run reported `adapter-host-kill-deadline`, making watchdog degradation
+  a testable hypothesis, not a diagnosis of the lost upgrade event. The deterministic fallback
+  regression retains that cause text. Three subsequent consecutive diagnostic-candidate runs
+  passed with recorded boundary loads above 80 (Results); the historical cause remains unknown.
 
 - Codex runs a plugin hook only after the user trusts it interactively. An isolated home has no
   trust, so the Codex hook cases call the registered command directly (`HLQ-V1-004`).
@@ -160,8 +202,8 @@ Supplementary live observations from the 0.8.0 run, not part of the nine cases:
 
 | Requirement | Evidence |
 |---|---|
-| HLQ-V1-001, HLQ-V1-007 | `conformance/host-lifecycle-v1` header and report lines, and `prepare`; `TestSummaryExitRequiresAllNinePass`; a dirty `--source` exits 2 |
-| HLQ-V1-002 | Results table; `TestEnvelopedReceipt`, `TestMissingCoreVerbs`, `TestListed`, `TestRowIsScopedToSelector`, `TestSessionKeyPattern` |
+| HLQ-V1-001, HLQ-V1-007 | `conformance/host-lifecycle-v1` header and report lines, and `prepare`; `TestSummaryExitRequiresAllNinePass`, `TestMissingEnvelopeRetainsDiagnostic`; a dirty `--source` exits 2 |
+| HLQ-V1-002 | Results table; `TestEnvelopedReceipt`, `TestContextHookRetainsRejectedText`, `TestMissingCoreVerbs`, `TestListed`, `TestRowIsScopedToSelector`, `TestSessionKeyPattern` |
 | HLQ-V1-003 | the runner's private environment and `lookPath`; the uninstall case reporting the removed binary unresolvable |
 | HLQ-V1-004 | `TestReadHooks`; the discovery case |
 | HLQ-V1-005, HLQ-V1-008 | Results and the reports under `conformance/host-lifecycle-v1/results/`; support stays FALLBACK in both `compatibility.json` files |
