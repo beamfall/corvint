@@ -292,9 +292,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:82a899dd6d81a9e3c10f79b3554bb5ee205a84903a7b00f58f097d479d20a16a",
+      "id": "hunk:sha256:4a341a14db85c17e856055987949fedb390e358d1a930e1220f58f28f4eee978",
       "newRange": {
-        "count": 11,
+        "count": 13,
         "start": 1
       },
       "oldRange": {
@@ -332,7 +332,27 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:9af63c36a1dc7a8259b7db5b1ad4ae9f0d75e4fa7ac5fea7222291c45cefc47e",
+      "id": "hunk:sha256:3ce705a60bfb0461a6c1bd71553a1c732097afda8e057173a87413dfab286cc6",
+      "newRange": {
+        "count": 7,
+        "start": 1177
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 1177
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:979cd18c0beb7d092b41b312f192d3be3bb881145af36b0b61aa5ec76238ea67",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f2b434c039b65220e0c711626923ae8e8b424c1358a270b0f01140221e6b81f0",
       "newRange": {
         "count": 7,
         "start": 17
@@ -372,7 +392,7 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:339d3114db2e8e178dd0542c28e0713bbcc654aa0efd81dbab64a4a69eeab278",
+      "id": "hunk:sha256:9cc46837621a6ce1f4143b3b83078bd76a12fd5f6546c5d49a2cabec0da60a79",
       "newRange": {
         "count": 7,
         "start": 136
@@ -452,7 +472,7 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:b3ec13be92b14f2449fb114b2f1df80cb7ad0f2a099a93c30f1109a040fe6392",
+      "id": "hunk:sha256:034e608ffae0f014fbad2b691b26dfe41cbbac46ddc4f639cf54c69a0bf80866",
       "newRange": {
         "count": 9,
         "start": 14
@@ -1227,6 +1247,26 @@
     {
       "basis": [
         {
+          "evidenceId": "evidence:sha256:6e4671a87db5e7244c8f361965ad0f18392f7a5481d89a6c9333fc11d8040d67",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7a78bc4515d13bb314f550b2893d7910049ac234a1c250cfb1c588a91de883ac",
+      "newRange": {
+        "count": 8,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "evidence/issues-167-175/failed-cases-serial.log",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
           "evidenceId": "evidence:sha256:b062cda12891ecdec3c9c4c2226ea098effed044a3d6133350c48f7e51c575c4",
           "relation": "specification"
         }
@@ -1332,9 +1372,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:7bf208bc35e959db5dd5b8cde5018253403641504e514f2fe3696636dc89d8e3",
+      "id": "hunk:sha256:a1d91b91b25976167dc847fe01819ca3d44fa6a84b7348d2da4ecfb75906c95f",
       "newRange": {
-        "count": 167,
+        "count": 175,
         "start": 1
       },
       "oldRange": {
@@ -1422,6 +1462,26 @@
         "start": 0
       },
       "path": "evidence/issues-167-175/review.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:6e4671a87db5e7244c8f361965ad0f18392f7a5481d89a6c9333fc11d8040d67",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9146f462d487dc92c2ff3fd76a89582c46ab6405e548586f34a88ac6ba7a1fc8",
+      "newRange": {
+        "count": 9,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "evidence/issues-167-175/terminal-first-failure.md",
       "reason": "evidence-backed"
     },
     {
@@ -2265,6 +2325,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "04ec020f858491f6785a924259bcb9d43fb7f0d1564e42ffb65a7013c8e8fcf3",
+  "patchSha256": "9da5d5d87a4a00c8f07ba53a506713a483c999ccb1a3d124174be8c33579b310",
   "spec": "cem/0.2"
 }
