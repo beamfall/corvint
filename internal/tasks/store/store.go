@@ -205,11 +205,11 @@ func mutable(t authority.Target) bool {
 // post file and before the head, so a crash can leave a committed receipt
 // with unwritten projections (which redo completes) but never a projection
 // or a head with no receipt.
-func apply(repo *intent.Repository, session *authority.Session, plan *transaction.Plan) (receipt string, err error) {
+func apply(repo *intent.Repository, session *authority.Session, plan transaction.Publication) (receipt string, err error) {
 	return applyBeforeCommit(repo, session, plan, nil)
 }
 
-func applyBeforeCommit(repo *intent.Repository, session *authority.Session, plan *transaction.Plan, beforeCommit func() error) (receipt string, err error) {
+func applyBeforeCommit(repo *intent.Repository, session *authority.Session, plan transaction.Publication, beforeCommit func() error) (receipt string, err error) {
 	return applyWithFaults(repo, session, plan, beforeCommit, nil)
 }
 
@@ -218,7 +218,7 @@ func applyBeforeCommit(repo *intent.Repository, session *authority.Session, plan
 // at that point would (CAL-V0-019). It is nil outside tests.
 var publishFault func(transaction.Artifact) error
 
-func applyWithFaults(repo *intent.Repository, session *authority.Session, plan *transaction.Plan, beforeCommit, beforeBarrierDelete func() error) (receipt string, err error) {
+func applyWithFaults(repo *intent.Repository, session *authority.Session, plan transaction.Publication, beforeCommit, beforeBarrierDelete func() error) (receipt string, err error) {
 	arts := plan.Artifacts()
 	record, err := snapshot.DecodeReceipt(plan.Receipt())
 	if err != nil {

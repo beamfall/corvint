@@ -269,3 +269,58 @@ func addWithin(a, b, limit uint64, where string) (uint64, error) {
 func addArchiveBytes(a, b uint64) (uint64, error) {
 	return addWithin(a, b, wire.MaxArchiveBytes, "stream")
 }
+
+// FileEncoding is a single validated entry's independent encoder contribution.
+// It carries no inventory or content authority.
+type FileEncoding struct{ Payload, JSON, Tar uint64 }
+
+func MeasureFileEncoding(f FileEntry) (FileEncoding, error) {
+	payload, err := validateManifestFiles([]FileEntry{f})
+	if err != nil {
+		return FileEncoding{}, err
+	}
+	header, err := measureHeaderBytes(f.Path, payload)
+	if err != nil {
+		return FileEncoding{}, err
+	}
+	body, err := roundTarBody(payload)
+	if err != nil {
+		return FileEncoding{}, err
+	}
+	total, err := checkedAdd(header, body, f.Path)
+	return FileEncoding{Payload: payload, JSON: uint64(len(wire.Encode(entryValue(f)))), Tar: total}, err
+}
+
+// MeasureManifestTotals measures metadata and supplied entry sums. The sums are
+// arithmetic inputs, not validated inventory; callers own their derivation.
+func MeasureManifestTotals(m *Manifest, count int, sum FileEncoding) (ManifestEncoding, error) {
+	if m == nil {
+		return ManifestEncoding{}, wire.Errorf(wire.CodeMalformed, ManifestName, "nil manifest")
+	}
+	if count < 0 {
+		return ManifestEncoding{}, wire.Errorf(wire.CodeMalformed, ManifestName, "negative count")
+	}
+	if err := validateManifestFileCount(count); err != nil {
+		return ManifestEncoding{}, err
+	}
+	empty, err := validateManifestMetadata(m)
+	if err != nil {
+		return ManifestEncoding{}, err
+	}
+	size, err := addWithin(uint64(len(empty)), sum.JSON, uint64(MaxManifestBytes), ManifestName)
+	if err != nil {
+		return ManifestEncoding{}, err
+	}
+	if count > 0 {
+		size, err = addWithin(size, uint64(count-1), uint64(MaxManifestBytes), ManifestName)
+		if err != nil {
+			return ManifestEncoding{}, err
+		}
+	}
+	framing, err := measureTarBytes(size, nil)
+	if err != nil {
+		return ManifestEncoding{}, err
+	}
+	total, err := addArchiveBytes(framing, sum.Tar)
+	return ManifestEncoding{Files: count, PayloadBytes: sum.Payload, ManifestBytes: size, TarBytes: total}, err
+}

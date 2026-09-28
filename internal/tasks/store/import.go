@@ -93,6 +93,11 @@ func importWith(ctx context.Context, repo *intent.Repository, actor mutation.Bin
 		return out, err
 	}
 	out.Planned = len(records)
+	defer func() {
+		if st.sequence != nil {
+			st.sequence.Close()
+		}
+	}()
 	for _, batch := range packImport(queueID, records) {
 		if beforeBatch != nil {
 			if err = beforeBatch(batch); err != nil {
@@ -125,6 +130,7 @@ func importRefused(out *ImportReport, requestID string, err error) (*ImportRepor
 // the whole observation has been bound once; slots maps each ticket path to
 // its index in tickets.
 type importAudit struct {
+	sequence *transaction.ImportSequence
 	inv      *transaction.Inventory
 	proof    *journal.Result
 	tickets  [][]byte
@@ -211,9 +217,16 @@ func importBatch(repo *intent.Repository, session *authority.Session, actor muta
 	if err != nil {
 		return report, err
 	}
-	result := transaction.Model(request, transaction.Input{Inventory: a.inv, Head: headRaw, HeadReceipt: headRc, Queue: a.proof.Records["intent/queue.json"].Raw, Policy: a.proof.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, CanonicalTickets: a.tickets, CanonicalReleases: a.releases, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now})
+	input := transaction.Input{Inventory: a.inv, Head: headRaw, HeadReceipt: headRc, Queue: a.proof.Records["intent/queue.json"].Raw, Policy: a.proof.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, CanonicalTickets: a.tickets, CanonicalReleases: a.releases, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now}
+	if a.sequence == nil {
+		a.sequence, err = transaction.NewImportSequence(queueID, actor, input)
+		if err != nil {
+			return guardFailure(report, request.RequestID, err)
+		}
+	}
+	result, batch := a.sequence.Prepare(request, input)
 	report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
-	if result.Kind != "Transaction" || result.Plan == nil {
+	if result.Kind != "Transaction" || batch == nil {
 		return report, nil
 	}
 	if err = requireBranch(repo, a.store.Queue.IntentBranch); err != nil {
@@ -222,10 +235,14 @@ func importBatch(repo *intent.Repository, session *authority.Session, actor muta
 	if err = a.bind(repo, request.Operation); err != nil {
 		return guardFailure(report, request.RequestID, err)
 	}
-	if report.Receipt, err = apply(repo, session, result.Plan); err != nil {
+	if report.Receipt, err = apply(repo, session, batch); err != nil {
 		return report, err
 	}
-	return report, a.advance(result.Plan, result.Final, records)
+	if err = a.sequence.Advance(batch); err != nil {
+		return report, err
+	}
+	a.proof.Identity.HeadSha256 = wire.Sum(batch.Head())
+	return report, nil
 }
 
 // lookup walks the journal for a request only when the carried inventory
@@ -235,7 +252,11 @@ func (a *importAudit) lookup(repo *intent.Repository, head *snapshot.Head, id st
 	if err != nil {
 		return mutation.IndexEntry{}, false, err
 	}
-	if !a.inv.Has(path) {
+	present := a.inv.Has(path)
+	if a.sequence != nil {
+		present = a.sequence.Has(path)
+	}
+	if !present {
 		return mutation.IndexEntry{}, false, nil
 	}
 	index := journal.RequestIndex{Reader: journalReader(repo, head)}

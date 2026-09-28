@@ -409,7 +409,9 @@ func noChange(id string) Result {
 
 // Model produces one closed template and proves its modeled capacity closure.
 // Replay is consulted before fresh-transition preconditions. No output grants I/O.
-func Model(r Request, in Input) Result {
+func Model(r Request, in Input) Result { return model(r, in, nil) }
+
+func model(r Request, in Input, sequence *ImportSequence) Result {
 	if _, e := wire.ParseLabel("actor", r.Actor.ID); e != nil {
 		return refused(r.RequestID, mutation.OutcomeUnauthorized, "", "hypothetical actor malformed")
 	}
@@ -468,7 +470,12 @@ func Model(r Request, in Input) Result {
 	if _, e = wire.ParseTimestamp("recordedAt", string(in.RecordedAt)); e != nil {
 		return failed(r.RequestID, e)
 	}
-	state, e := validateInput(r, in)
+	var state inputState
+	if sequence == nil {
+		state, e = validateInput(r, in)
+	} else {
+		state, e = sequence.validate(r, in)
+	}
 	if e != nil {
 		return failed(r.RequestID, e)
 	}
@@ -540,7 +547,12 @@ func Model(r Request, in Input) Result {
 		}
 		posts["intent/policy.json"] = bytes.Clone(r.Policy)
 	case ImportApply:
-		if e = importPosts(r, in, state, posts); e != nil {
+		if sequence == nil {
+			e = importPosts(r, in, state, posts)
+		} else {
+			e = sequence.posts(r, posts)
+		}
+		if e != nil {
 			return failed(r.RequestID, e)
 		}
 	case AuthoritySwitch:
@@ -691,8 +703,13 @@ func Model(r Request, in Input) Result {
 	if e != nil {
 		return refused(r.RequestID, mutation.OutcomeCapacityExhausted, wire.CodeOf(e), e.Error())
 	}
+	if sequence != nil {
+		sequence.prefixes = capacity.Prefixes
+	}
 	// The capacity check reserves staging; a scanned inventory never holds it.
-	delete(capacity.Final.dirs, "staging")
+	if sequence == nil {
+		delete(capacity.Final.dirs, "staging")
+	}
 	res := Result{Kind: "Transaction", Outcome: out, Coverage: coverage(), Plan: p, Final: capacity.Final, Detail: detail}
 	if lease != nil {
 		res.AttemptID, res.Generation = lease.attemptID, lease.generation

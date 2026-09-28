@@ -20,8 +20,11 @@ const MaxJournalBytes uint64 = 4 * wire.GiB
 // directories (without the state root). It cannot verify physical existence or
 // authentication. Only regular retained files belong here; staging is separate.
 type Inventory struct {
-	files map[string]archive.FileEntry
-	dirs  map[string]bool
+	files       map[string]archive.FileEntry
+	dirs        map[string]bool
+	incremental *importCost
+	undoFiles   map[string]*archive.FileEntry
+	undoDirs    map[string]bool
 }
 
 func NewInventory(files []archive.FileEntry, stateDirectories []string) (*Inventory, error) {
@@ -159,6 +162,10 @@ func (i *Inventory) matches(p string, raw []byte) bool {
 	return ok && f.Sha256 == wire.Sum(raw) && f.Bytes.Uint64() == uint64(len(raw))
 }
 func (i *Inventory) clone() *Inventory {
+	if i.incremental != nil {
+		c := *i.incremental
+		return &Inventory{files: i.files, dirs: i.dirs, incremental: &c, undoFiles: map[string]*archive.FileEntry{}, undoDirs: map[string]bool{}}
+	}
 	out := &Inventory{files: map[string]archive.FileEntry{}, dirs: map[string]bool{}}
 	for p, f := range i.files {
 		out.files[p] = f
@@ -205,9 +212,29 @@ func (i *Inventory) put(f archive.FileEntry, exclusive bool) error {
 		}
 		return malformed("non-overwriting publication conflict")
 	}
+	if i.incremental != nil {
+		if i.undoFiles != nil {
+			if _, saved := i.undoFiles[f.Path]; !saved {
+				if exists {
+					copy := old
+					i.undoFiles[f.Path] = &copy
+				} else {
+					i.undoFiles[f.Path] = nil
+				}
+			}
+		}
+		if err := i.incremental.replace(old, exists, f); err != nil {
+			return err
+		}
+	}
 	i.files[f.Path] = f
 	if !strings.HasPrefix(f.Path, "intent/") {
 		for d := path.Dir(f.Path); d != "."; d = path.Dir(d) {
+			if i.undoDirs != nil {
+				if _, saved := i.undoDirs[d]; !saved {
+					i.undoDirs[d] = i.dirs[d]
+				}
+			}
 			i.dirs[d] = true
 		}
 	}
@@ -265,6 +292,9 @@ func journalReserve(c Cost, barrier bool, l limits) error {
 	return check(c, l)
 }
 func measure(i *Inventory, h *snapshot.Head, temporary, promised, stageNames uint64) (Cost, error) {
+	if i.incremental != nil {
+		return i.incremental.measure(i, h, temporary, promised, stageNames)
+	}
 	c := Cost{TemporaryBytes: temporary, PromisedBytes: promised, ScannedEntries: uint64(len(i.dirs))}
 	var e error
 	intentHash := sha256.New()
@@ -346,7 +376,8 @@ func checkCapacity(p *Plan, l limits) (Capacity, error) {
 		return out, e
 	}
 	working := p.base.clone()
-	working.dirs["staging"] = true
+	defer working.rollback()
+	working.stageDirectory()
 	baseHead := p.baseHead
 	if baseHead == nil {
 		baseHead = h
@@ -485,7 +516,8 @@ func checkCapacity(p *Plan, l limits) (Capacity, error) {
 // absent shard if available, then an unoccupied fixed-length digest path.
 func unpausePeak(base *Inventory, h *snapshot.Head, l limits) (Cost, error) {
 	i := base.clone()
-	i.dirs["staging"] = true
+	defer i.rollback()
+	i.stageDirectory()
 	c, e := measure(i, h, 0, 0, 0)
 	if e != nil {
 		return c, e
