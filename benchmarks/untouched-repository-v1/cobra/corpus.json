@@ -1,0 +1,389 @@
+{
+  "cases": [
+    {
+      "branchTip": null,
+      "changedFiles": 3,
+      "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          ".github/workflows/test.yml",
+          ".golangci.yml",
+          "Makefile"
+        ],
+        "eligible": true
+      },
+      "parent": "ad460ea8f249db69c943a365fb84f3a59042d54e",
+      "task": "resolve macOS test link failure and update lint rules"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 3,
+      "commit": "ad460ea8f249db69c943a365fb84f3a59042d54e",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/cobra"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "args.go",
+          "args_test.go",
+          "site/content/user_guide.md"
+        ],
+        "eligible": true
+      },
+      "parent": "746ef07158728502482cea9f880a6f4b21ef29a9",
+      "task": "Add cobra unique args validator"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 2,
+      "commit": "746ef07158728502482cea9f880a6f4b21ef29a9",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/cobra"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "completions.go",
+          "completions_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "f2878bab8c96afd6e36968af96343b35dbb82a82",
+      "task": "prevent completions from mutating os.Args via append side effect"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "f2878bab8c96afd6e36968af96343b35dbb82a82",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/cobra"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "completions.go"
+        ],
+        "eligible": true
+      },
+      "parent": "85c12c2201a7d2bb8d2a731d41cfd8557a025c90",
+      "task": "Ignore the linter error"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "85c12c2201a7d2bb8d2a731d41cfd8557a025c90",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "site/content/projects_using_cobra.md"
+        ],
+        "eligible": true
+      },
+      "parent": "61968e893eee2f27696c2fbc8e34fa5c4afaf7c4",
+      "task": "projects_using_cobra: add Ollama"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "61968e893eee2f27696c2fbc8e34fa5c4afaf7c4",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/cobra"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "fish_completions.go"
+        ],
+        "eligible": true
+      },
+      "parent": "10d4b48a79be3d4e89e6c45cb59f4d32a3d2ae19",
+      "task": "quote args in fish shell completion"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "10d4b48a79be3d4e89e6c45cb59f4d32a3d2ae19",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/cobra"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "bash_completionsV2.go"
+        ],
+        "eligible": true
+      },
+      "parent": "88b30ab89da2d0d0abb153818746c5a2d30eccec",
+      "task": "Loop over the bash variable directly instead of starting subprocesses."
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 3,
+      "commit": "88b30ab89da2d0d0abb153818746c5a2d30eccec",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/cobra/doc"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "doc/yaml_docs.go",
+          "go.mod",
+          "go.sum"
+        ],
+        "eligible": true
+      },
+      "parent": "346d408fe7d4be00ff9481ea4d43c4abb5e5f77d",
+      "task": "Migrate from gopkg.in/yaml.v3 to go.yaml.in/yaml/v3"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "346d408fe7d4be00ff9481ea4d43c4abb5e5f77d",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          ".github/workflows/test.yml"
+        ],
+        "eligible": true
+      },
+      "parent": "fc81d2003469e2a5c440306d04a6d82a54065979",
+      "task": "actions/setup-go v6"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "fc81d2003469e2a5c440306d04a6d82a54065979",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/cobra"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "command.go"
+        ],
+        "eligible": true
+      },
+      "parent": "117698a604b65e80a1ad5b76df67b604bcd992e0",
+      "task": "change minUsagePadding from var to const"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "117698a604b65e80a1ad5b76df67b604bcd992e0",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/cobra"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "command.go"
+        ],
+        "eligible": true
+      },
+      "parent": "e2dd29ddc39acacf3af13013b06e1fe58b5c3599",
+      "task": "replace several vars with consts"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "e2dd29ddc39acacf3af13013b06e1fe58b5c3599",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "site/content/user_guide.md"
+        ],
+        "eligible": true
+      },
+      "parent": "062989255670f5e100abf70fa5e291a394915f89",
+      "task": "Add documentation for repeated flags functionality"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "062989255670f5e100abf70fa5e291a394915f89",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          ".golangci.yml"
+        ],
+        "eligible": true
+      },
+      "parent": "7da941c3547e93b8c9f70bbd3befca79c6335388",
+      "task": "Fix linter"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 2,
+      "commit": "7da941c3547e93b8c9f70bbd3befca79c6335388",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "go.mod",
+          "go.sum"
+        ],
+        "eligible": true
+      },
+      "parent": "51d675196729be769ce235b710ab7058b3aad03a",
+      "task": "Bump pflag to v1.0.9"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 3,
+      "commit": "51d675196729be769ce235b710ab7058b3aad03a",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/cobra"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "command.go",
+          "go.mod",
+          "go.sum"
+        ],
+        "eligible": true
+      },
+      "parent": "3f3b81882534a51628f3286e93c6842d9b2e29ea",
+      "task": "Bump pflag to 1.0.8"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "3f3b81882534a51628f3286e93c6842d9b2e29ea",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "README.md"
+        ],
+        "eligible": true
+      },
+      "parent": "dcaf42e2633496bf97d5476d7419071e5c48f40a",
+      "task": "Update README.md with new logo"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "dcaf42e2633496bf97d5476d7419071e5c48f40a",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "site/content/projects_using_cobra.md"
+        ],
+        "eligible": true
+      },
+      "parent": "6dec1ae26659a130bdb4c985768d1853b0e1bc06",
+      "task": "Add Periscope to the list of projects using Cobra"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 3,
+      "commit": "6dec1ae26659a130bdb4c985768d1853b0e1bc06",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/cobra"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "completions.go",
+          "completions_test.go",
+          "site/content/completions/_index.md"
+        ],
+        "eligible": true
+      },
+      "parent": "c8289c10302063b9a2e26357e7e0f0bb599f29ce",
+      "task": "The default ShellCompDirective can be customized for a command and its subcommands"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "c8289c10302063b9a2e26357e7e0f0bb599f29ce",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          ".golangci.yml"
+        ],
+        "eligible": true
+      },
+      "parent": "4af7b64d31989e78e86d65304f693a6d9c77c932",
+      "task": "add some exclusion presets"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 6,
+      "commit": "4af7b64d31989e78e86d65304f693a6d9c77c932",
+      "consequence": {
+        "critical": [
+          "github.com/spf13/cobra",
+          "github.com/spf13/cobra/doc"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "completions.go",
+          "completions_test.go",
+          "doc/man_docs.go",
+          "doc/md_docs.go",
+          "doc/rest_docs.go",
+          "doc/yaml_docs.go"
+        ],
+        "eligible": true
+      },
+      "parent": "75790e48fb73c8ba027e0163157a86ce8604ca3e",
+      "task": "apply golangci-lint autofixes, work around false positives"
+    }
+  ],
+  "excluded": [],
+  "head": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+  "module": "github.com/spf13/cobra",
+  "profile": "corvint-untouched-repository-corpus/0",
+  "window": 20
+}

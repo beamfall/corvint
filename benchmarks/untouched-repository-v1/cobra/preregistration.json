@@ -1,11 +1,18 @@
 {
   "profile": "corvint-untouched-repository-preregistration/0",
+  "benchmark": "untouched-repository-v1/cobra",
   "ticket": "V1-0019",
   "requirements": [
     "PRS-V1-008"
   ],
+  "authoredAt": "2026-09-27",
+  "repository": "https://github.com/spf13/cobra.git",
+  "repositorySelection": "owner-selected untouched public repository named by decision 0425 as the held-out repository after go-chi/chi; the pin is the head of main when the corpus was derived; the commit and the cases are frozen before any execution",
+  "pin": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+  "module": "github.com/spf13/cobra",
   "targetVersion": "1.0.0-rc.2",
   "candidate": "no source build: run --candidate-dir DIR takes the verified 1.0.0-rc.2 release-artifact-v0 directory; the harness selects the host corvint_<goos>_<goarch>.tar.gz, requires its SHA-256 to equal its SHA256SUMS line and the retainedArchive.sha256 of that target in verification-report.json whose verdict is PASS (a missing archive refuses candidate-archive-missing, a missing SHA256SUMS candidate-checksums-missing, a missing verification-report.json candidate-report-missing, a report that is not a JSON object candidate-report-malformed, a verdict other than PASS, no revision or another retained digest candidate-report-mismatch), extracts the single regular-file member whose basename is corvint (zero, several or a link refuses), refuses candidate-binary-not-executable when --version cannot execute, times out after 60 s or exits non-zero, refuses candidate-version-mismatch unless the --version output reads Corvint targetVersion, and records the archive SHA-256, the binary SHA-256, the --version output and the report revision as candidateCommit; no other binary is scored",
+  "harness": "benchmarks/untouched-repository-v1/harness.py run --benchmark-dir DIR; sealed.harnessSha256 is the harness that the Corvint and beamfall/core preregistrations name in their deviation 1",
   "runsPerMeasurement": 3,
   "jobs": {
     "orientation": {
@@ -53,13 +60,13 @@
         "verdict": "COMPLETE iff exit status 0; any other exit is REFUSED"
       },
       "loopLevel": {
-        "base": "PIN^ = b1c9ab47626cc46b34393ad4d35779c4363c4e1e",
+        "base": "PIN^ = ad460ea8f249db69c943a365fb84f3a59042d54e",
         "target": "PIN",
         "sequence": "fresh plain clone of --repo on branch rehearsal at PIN; append the six adopter ignore entries docs/DOGFOOD.md gives under DCW-V0-023 (.corvint/dogfood-report.json, .corvint/change.ocm-intents, .corvint/change.ocm-status.json, .corvint/change.ocm.*.json, .corvint/self-observations.jsonl, .context-corvint/) to the clone's .git/info/exclude, which no commit carries, so the repository content stays untouched; corvint dogfood change BASE; write citations (one README.md 1:3 specification row per worklist hunk); corvint dogfood change BASE; git add -f .corvint/change.cem.json and commit 'chore: bind change evidence'; corvint dogfood change BASE; corvint dogfood check BASE; a failed add or bind commit makes the run HARNESS-FAILURE whatever dogfood check prints",
         "inputs": "DOGFOOD_TASK is PIN's subject verbatim; DOGFOOD_INTENTS_FILE holds #no-intent-declared; DOGFOOD_VERIFY_FILE holds go test -count=1 ./...; DOGFOOD_OUTCOME=passed; DOGFOOD_CITATIONS as above; every other inherited DOGFOOD_* variable is removed",
         "gitIsolation": "every Git and Corvint subprocess the harness starts runs without inherited GIT_* or CORVINT_* variables and with GIT_CONFIG_GLOBAL=/dev/null, GIT_CONFIG_NOSYSTEM=1, GIT_CONFIG_SYSTEM=/dev/null and author and committer bench <bench@invalid>, so no host Git configuration or identity reaches a run; commit dates are not fixed because no score depends on a commit SHA",
         "observations": "every Corvint invocation records its exit status, wall time, stdout size and digest, stdout and stderr tails, every dogfood output line containing NOT_PRODUCED (notProduced) and the coordination-time-impact NOT_PRODUCED reason (impactAbstention, null when impact produced)",
-        "citationSpan": "README.md lines 1-3 at PIN^ are the title line and two blank lines; README.md is not in PIN^..PIN, so the cited span is unchanged over the range",
+        "citationSpan": "README.md lines 1-3 at PIN^ open the centered logo block (<div align=\"center\">, the cobra.dev link and the logo image); README.md is not in PIN^..PIN, so the cited span is unchanged over the range",
         "positiveRuns": "L0 runsPerMeasurement fresh runs",
         "controls": {
           "L0c-restored-in-place-control": "L0 run 1 restored in place unchanged; controls for the restore itself",
@@ -68,7 +75,7 @@
         "harnessFailure": "a control or designated mutation whose mutation or commit does not happen, or whose re-encoded bytes equal the committed bytes, is HARNESS-FAILURE and neither dogfood change nor dogfood check is run for it; a non-zero dogfood change exit in a variant is recorded as data, not a harness failure; a HARNESS-FAILURE control or positive run is not COMPLETE and a HARNESS-FAILURE designated case is not informative; when L0 run 1 committed no bind, L0c, L3c and L1-L4 have no evidence to act on and are each HARNESS-FAILURE",
         "placement": "L0c, L3c and L1-L4 each run at the L0 run 1 path, restored in place beforehand from a copy of that clone taken after L0 run 1, and the clone is restored once more before the CEM level copies it; L3c and L1-L3, whose mutation commits past the bind, rerun corvint dogfood change BASE and then run corvint dogfood check BASE, as the adopter loop does after a commit (docs/DOGFOOD.md section 4, DCW-V0-023), and both steps are recorded while the verdict comes from dogfood check alone; L0c and L4 make no commit and run dogfood check only, because a check-only run after a new commit is refused dogfood-report-drift whatever its evidence; when impact abstains, dogfood check requires the --root recorded in the impact argv to name the checked worktree, so a copy at another path is refused context-abstention-evidence-drift whatever its evidence",
         "designatedMissingEvidence": {
-          "L1-stale-after-bind": "a commit after the bind appends to the first file PIN^..PIN added or modified (middleware/wrap_writer.go)",
+          "L1-stale-after-bind": "a commit after the bind appends to the first file PIN^..PIN added or modified (.github/workflows/test.yml)",
           "L2-cem-removed": "the committed map removed in a later commit",
           "L3-cem-tampered": "the committed map's first hunk basis emptied in a later commit",
           "L4-local-outcome-removed": ".git/corvint/local-outcome.json deleted",
@@ -91,17 +98,17 @@
     "differencesFromDailyLoop": [
       "corpus: the 20 most recent first-parent commits ending at the pin (git log --first-parent -n 20 PIN), single-parent commits included, instead of every first-parent merge; the corpus also records module and window",
       "task: a single-parent commit uses its subject with a trailing ' (#N)' removed and the conventional prefix stripped; merges keep the daily-loop rule; an empty task is excluded as E3-no-task",
-      "no path exclusions: chi has no task store, dogfood artifacts, build log or generated indexes, so the daily-loop E6 list has no analogue",
+      "no path exclusions: cobra has no task store, dogfood artifacts, build log or generated indexes, so the daily-loop E6 list has no analogue",
       "orientation critical has no CEM-cited evidence paths, and a case is eligible only with at most 100 changed files and a non-empty critical set (an add-only commit has no critical file to miss)",
-      "consequence critical reads the module path from go.mod at the commit (github.com/go-chi/chi/v5); scoring is otherwise identical, amendment 1 included",
-      "completion runs the product verbs corvint dogfood change/check BASE, because chi has no dogfood Makefile targets",
-      "loop base and target are PIN^ and PIN of chi, not candidateCommit and a --rehearsal-target; the clone is of --repo on branch rehearsal",
+      "consequence critical reads the module path from go.mod at the commit (github.com/spf13/cobra); scoring is otherwise identical, amendment 1 included",
+      "completion runs the product verbs corvint dogfood change/check BASE, because cobra has no dogfood Makefile targets",
+      "loop base and target are PIN^ and PIN of cobra, not candidateCommit and a --rehearsal-target; the clone is of --repo on branch rehearsal",
       "citations cite README.md 1:3 instead of AGENTS.md 26:28; intents are #no-intent-declared instead of a spec path; verify is go test -count=1 ./... instead of py_compile; DOGFOOD_TASK is PIN's subject",
       "the loop verdict needs the exact stdout line dogfood-check: PASS rather than any PASS text",
-      "each loop clone gets the DCW-V0-023 adopter ignore entries in .git/info/exclude, because chi, unlike Corvint, does not ignore Corvint's outputs",
+      "each loop clone gets the DCW-V0-023 adopter ignore entries in .git/info/exclude, because cobra, unlike Corvint, does not ignore Corvint's outputs",
       "loop controls and L1-L4 run at the L0 run 1 path restored from a pristine copy, not in copies at other paths (loopLevel.placement)",
       "L1 appends to the first file PIN^..PIN added or modified, with no exclusion filter",
-      "the CEM level runs on the L0 run 1 bind in a copy of that clone, because chi carries no sealed CEMs; the daily-loop E5 rule has no analogue",
+      "the CEM level runs on the L0 run 1 bind in a copy of that clone, because cobra carries no sealed CEMs; the daily-loop E5 rule has no analogue",
       "the candidate is the verified 1.0.0-rc.2 release archive, not a harness source build; receipts carry the report revision as repositoryRevision; the result records externalRepository and externalRepositoryRevision, and the receipt binds them through the result and preregistration digests, since the sealed-benchmark attestation is a closed field set",
       "run refuses unless the corpus head equals pin, the corpus module equals module, and the corpus re-derives byte-identically",
       "run computes the preregistration digest from the committed file and refuses preregistration-digest-mismatch when it differs from the sealed value in preregistration.sha256, and preregistration-digest-argument-mismatch when --prereg-sha256 differs from it; the daily loop trusts the operator-supplied digest",
@@ -136,6 +143,18 @@
     "E4": "orientation does not score cases with more than 100 changed files or with an empty critical set",
     "E5": "consequence cases without a changed root-module Go package run but are not scored"
   },
+  "partition": {
+    "orientation": "held-out: no Corvint output on any spf13/cobra commit was observed before this seal",
+    "consequence": "held-out: no Corvint output on any spf13/cobra commit was observed before this seal",
+    "completion": "held-out: before this seal the harness loop and CEM procedures ran only on the synthetic go-chi/chi smoke fixture and on the Corvint repository; none ran on spf13/cobra"
+  },
+  "preSealObservations": [
+    "the corpus was derived from spf13/cobra with git log, diff, ls-tree and show only; no Corvint binary ran against spf13/cobra or any clone of it",
+    "the harness is the go-chi/chi harness f24533a1d2ededdb6e6ba3bf3151ffc91ff68e0114fb02a363cf0051720f8e15 with the V1-0432 change (a loop variant whose L0 run 1 bind committed nothing is HARNESS-FAILURE instead of a crash, and --work is created when missing) and the V1-0433 change (an optional loopTarget key; this preregistration names none, so the loop target is PIN)",
+    "loop smoke of this harness with the 1.0.0-rc.1 binary on a plain clone of Corvint, not of spf13/cobra, and not a result: at Corvint 94ca556f every L0 run refused sealed-cem-in-change and committed no bind, and L0c, L3c and L1-L6 were HARNESS-FAILURE with no crash; at Corvint a5a7412c L0 three times, L0c and L3c were COMPLETE, and L1-L6 and M1-M6 were REFUSED with their expectedRefusal (12 designated, 12 informative, 0 false complete)",
+    "the 1.0.0-rc.2 candidate did not exist at this seal; V1-0431, the rc.2 context ranking change, first runs against these cases in the rc.2 V1-0019 run"
+  ],
+  "freeze": "Sealed before any Corvint execution against spf13/cobra. A Corvint change after the first run invalidates the candidate for V1-0019; a harness change after the first run invalidates this preregistration.",
   "invalidation": [
     "the digest of this committed file differs from preregistration.sha256 or from --prereg-sha256, or the digest of corpus.json or harness.py differs from the sealed value: the run refuses",
     "corpus.json differs from a fresh derivation of the 20 first-parent commits ending at pin, or its head or module differs from pin or module: the run refuses",
@@ -145,76 +164,15 @@
     "no run file or receipt is deleted",
     "no Corvint change is made to improve this benchmark's score (no tuning of the candidate)"
   ],
-  "benchmark": "untouched-repository-v1/corvint",
-  "authoredAt": "2026-09-27",
-  "harness": "benchmarks/untouched-repository-v1/harness.py run --benchmark-dir DIR; since deviation 1 the go-chi/chi harness with the V1-0432 and V1-0433 changes, the harness the spf13/cobra preregistration seals; the go-chi/chi preregistration keeps f24533a1 for its run-001",
+  "deviations": [],
   "outputs": {
-    "result": "benchmarks/untouched-repository-v1/corvint/runs/RUN_ID.json (corvint-untouched-repository-result/0)",
-    "receipts": "benchmarks/untouched-repository-v1/corvint/receipts/RUN_ID/USE_CASE_ID.json in corvint-use-case-evidence/0 sealed-benchmark form; result and attestation outcome are PASS or FAIL per job, repositoryRevision is candidateCommit, the attestation is the closed sealed-benchmark set, and subjects are this file, corpus.json and the result",
-    "startedMarker": "benchmarks/untouched-repository-v1/corvint/runs/RUN_ID.started.json (corvint-untouched-repository-started/0), written after the candidate is verified and before any execution against the repository, never removed; a marker without a result records an aborted run, and a run id with a marker or a result refuses run-id-already-used",
+    "result": "benchmarks/untouched-repository-v1/cobra/runs/RUN_ID.json (corvint-untouched-repository-result/0)",
+    "receipts": "benchmarks/untouched-repository-v1/cobra/receipts/RUN_ID/USE_CASE_ID.json in corvint-use-case-evidence/0 sealed-benchmark form; result and attestation outcome are PASS or FAIL per job, repositoryRevision is candidateCommit, the attestation is the closed sealed-benchmark set, and subjects are this file, corpus.json and the result",
+    "startedMarker": "benchmarks/untouched-repository-v1/cobra/runs/RUN_ID.started.json (corvint-untouched-repository-started/0), written after the candidate is verified and before any execution against the repository, never removed; a marker without a result records an aborted run, and a run id with a marker or a result refuses run-id-already-used",
     "losingRuns": "every run file, started marker and receipt is kept, whatever its outcome"
   },
-  "deviations": [
-    {
-      "number": 1,
-      "date": "2026-09-27",
-      "ticket": "V1-0433",
-      "supersedesPreregistrationSha256": "58d68a6f5a2c3297683249a953da28c7e8efb5786f665776d0ad9165a56e74f6",
-      "supersedesHarnessSha256": "f24533a1d2ededdb6e6ba3bf3151ffc91ff68e0114fb02a363cf0051720f8e15",
-      "changes": [
-        "loopTarget a5a7412c91857773ccc3e61bf197bc22725ac57c replaces PIN as the loop target, so the loop base is 39cd16733a24bd3a903b51929ff53979a052c036; the corpus, its head and every scored orientation and consequence case are unchanged (repositoryDifferences[3], V1-0433)",
-        "targetVersion is 1.0.0-rc.2: run-001 used the 1.0.0-rc.1 candidate, and the rerun takes the release candidate that carries the fixes found since (candidate, invalidation[2])",
-        "harness: a loop variant whose L0 run 1 bind committed nothing is HARNESS-FAILURE instead of raising FileNotFoundError; run --work is created when it does not exist; an optional loopTarget key sets the loop target (V1-0432, V1-0433, loopLevel.harnessFailure)",
-        "repositoryDifferences names the loop base and target, the L1 file and the README.md span that hold for Corvint, where the text inherited from go-chi/chi named the chi values"
-      ],
-      "earlierRuns": [
-        "run-001 (candidate 1.0.0-rc.1, harness f24533a1) ran orientation and consequence and then aborted in the loop rehearsal: every L0 run's dogfood change refused sealed-cem-in-change at PIN, and the L3c control raised FileNotFoundError on the missing map; runs/run-001.started.json (sha256 f26d96f16e0e0a65a2f3f6f36e78d71409fe42b3b5997f3c72005330f5d25506) is kept and no result or receipt was written"
-      ]
-    }
-  ],
-  "repository": "https://github.com/beamfall/corvint.git",
-  "repositorySelection": "PRS-V1-008 names Corvint itself; the pin is the 1.0.0-rc.1 candidate commit, so the corpus is the 20 first-parent commits that end at the candidate; the cases are frozen before the candidate runs against them",
-  "pin": "94ca556f52c0349c0a48e0c3a3274f8a0b5e6db3",
-  "loopTarget": "a5a7412c91857773ccc3e61bf197bc22725ac57c",
-  "module": "github.com/Beamfall/corvint",
-  "pathExclusions": {
-    "prefixes": [
-      ".corvint/",
-      ".taskman/",
-      "docs/build-log/"
-    ],
-    "files": [
-      "docs/BUILD-LOG.md",
-      "docs/decisions/README.md",
-      "docs/specs/INDEX.json",
-      "docs/specs/README.md",
-      "docs/specs/REQUIREMENTS.tsv"
-    ]
-  },
-  "repositoryDifferences": [
-    "jobs.differencesFromDailyLoop[2] does not hold here: pathExclusions is the daily-loop E6 list (the task store, dogfood artifacts, build log and generated indexes), so an excluded path is never critical and never a baseline hit; a commit with nothing left after the exclusions is E2; the treatment packet is not filtered, so an excluded path in it still takes one of its slots, which can only add treatment misses",
-    "the module path is github.com/Beamfall/corvint (differencesFromDailyLoop[4])",
-    "completion runs the product verbs corvint dogfood change/check BASE and not Corvint's make targets, so the three repositories run one procedure (differencesFromDailyLoop[5])",
-    "loop base and target are loopTarget^ = 39cd16733a24bd3a903b51929ff53979a052c036 and loopTarget = a5a7412c91857773ccc3e61bf197bc22725ac57c, not PIN^ and PIN: PIN is the PR #287 merge, whose range adds that PR's sealed CEM, so dogfood change refuses sealed-cem-in-change there; loopTarget is the last PR #287 commit before its bind and seal, and loopTarget^..loopTarget changes four docs files and no .corvint path (deviation 1, differencesFromDailyLoop[6]); the CEM level uses the same base (cemLevel.cases)",
-    "L1 appends to the first file loopTarget^..loopTarget added or modified that pathExclusions does not exclude (docs/specs/corvint-tasks-store-init-v0.md), as in the daily loop (differencesFromDailyLoop[11])",
-    "the adopter ignore entries are still added to each loop clone; Corvint's own .gitignore already covers them (differencesFromDailyLoop[9])",
-    "the CEM level runs on the L0 run 1 bind, which the harness looks for only among first-parent commits after loopTarget, so the CEMs Corvint committed are never inputs (differencesFromDailyLoop[12], cemLevel.cases)",
-    "README.md lines 1-3 at loopTarget^ open the centered logo block (<p align=\"center\">, <picture> and its first <source>), not a title line and two blank lines; README.md is not in loopTarget^..loopTarget, so the cited span is unchanged over the range (loopLevel.citationSpan)"
-  ],
-  "partition": {
-    "orientation": "development: Corvint is developed with Corvint, and its sessions queried this history before this seal; the 1.0.0-rc.1 archive binary ran these cases in the aborted run-001 with no result; no 1.0.0-rc.2 binary ran against them",
-    "consequence": "development: Corvint is developed with Corvint, and its sessions queried this history before this seal; the 1.0.0-rc.1 archive binary ran these cases in the aborted run-001 with no result; no 1.0.0-rc.2 binary ran against them",
-    "completion": "development: the dogfood loop runs on every Corvint change; the harness loop and CEM procedures ran only on the synthetic go-chi/chi smoke fixture before this seal"
-  },
-  "preSealObservations": [
-    "the corpus was derived with git log, diff, ls-tree and show only; no 1.0.0-rc.1 archive binary ran against Corvint through this harness before this seal",
-    "the harness was smoked only on the synthetic fixture recorded in the go-chi/chi preregistration's preSealObservations; no smoke ran on this repository",
-    "run-001 (candidate 1.0.0-rc.1, harness f24533a1) ran orientation and consequence and then aborted in the loop rehearsal: every L0 run's dogfood change refused sealed-cem-in-change at PIN, and the L3c control raised FileNotFoundError on the missing map; runs/run-001.started.json (sha256 f26d96f16e0e0a65a2f3f6f36e78d71409fe42b3b5997f3c72005330f5d25506) is kept and no result or receipt was written",
-    "loop smoke with the 1.0.0-rc.1 binary and this harness on a plain clone, not a result: at PIN every L0 run refused sealed-cem-in-change and committed no bind, and L0c, L3c and L1-L6 were HARNESS-FAILURE with no crash; at loopTarget L0 three times, L0c and L3c were COMPLETE, and L1-L6 and M1-M6 were REFUSED with their expectedRefusal (12 designated, 12 informative, 0 false complete)"
-  ],
-  "freeze": "Sealed before the 1.0.0-rc.1 candidate runs against these cases, and resealed by deviation 1 before any 1.0.0-rc.2 candidate runs against them. A Corvint change after the first run invalidates the candidate for V1-0019; a harness change after the first run invalidates this preregistration.",
   "sealed": {
-    "corpusSha256": "fdce0dec477a32662f986d63a34f3592ed5b9d4ec736dbb4a6881d936d6afd6e",
+    "corpusSha256": "cccd80ecb0414e2df518b540aca75ed1c9033974d9fc0a694c3021dd1122e64e",
     "harnessSha256": "b67cc95abd92ffffeef9bf1bccfce4d0316e270716d6cd065948e802994f9eb2"
   }
 }
