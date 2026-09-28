@@ -30,7 +30,7 @@ async function setup(t){
  const pkg=join(root,'integrations/opencode');mkdirSync(dirname(pkg),{recursive:true});cpSync(join(here,'opencode'),pkg,{recursive:true})
  const sourceFiles=Object.fromEntries(readdirSync(pkg,{recursive:true}).filter(p=>lstatSync(join(pkg,p)).isFile()).sort().map(p=>['integrations/opencode/'+p,hash(readFileSync(join(pkg,p)))]))
  const native=structuredClone(fixture)
- Object.assign(native,{sourceFiles,hostSHA256:hash(readFileSync(process.execPath)),corvintSHA256:hash(readFileSync(process.execPath)),os:process.platform,architecture:producerArchitecture()})
+ Object.assign(native,{adapterVersion:JSON.parse(readFileSync(join(pkg,'package.json'),'utf8')).version,sourceFiles,hostSHA256:hash(readFileSync(process.execPath)),corvintSHA256:hash(readFileSync(process.execPath)),os:process.platform,architecture:producerArchitecture()})
  const tuple=Object.fromEntries(['adapterVersion','hostVersion','os','architecture'].map(k=>[k,native[k]]))
  const before={...Object.fromEntries(['sourceCommit','sourceFiles','hostSHA256','corvintSHA256'].map(k=>[k,native[k]])),tuple,inputs:{'script/qualify-opencode-native.py':native.harnessSHA256}}
  const record=join(root,'integrations/opencode-qualification.json')
