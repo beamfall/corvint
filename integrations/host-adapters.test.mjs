@@ -97,7 +97,12 @@ const spyConsole=(t,level)=>{const rows=[],original=console[level];console[level
 
 test('CRB-V0-012 OpenCode exact transport, unicode bounds, receipt and env',async t=>{
  const f=fixture(t);const result=await f.runOpen(request(f.root));assert.equal(result.ok,true)
- const [row]=f.captured();assert.deepEqual(row.argv,['--root',f.root,'harness','event','--host','opencode','--host-version','unknown','--surface','plugin','--adapter-version','0.1.0','--event','session-start','--input','-','--budget-bytes','8000']);noSecret(row)
+ const manifest=JSON.parse(readFileSync(join(here,'opencode/package.json'),'utf8'))
+ const matrix=JSON.parse(readFileSync(join(here,'compatibility.json'),'utf8')).entries.find(entry=>entry.host==='opencode')
+ assert.equal(manifest.corvintIntegration.adapterVersion,manifest.version)
+ assert.equal(matrix.adapterVersion,manifest.version)
+ assert.equal(result.adapter.adapterVersion,manifest.version)
+ const [row]=f.captured();assert.deepEqual(row.argv,['--root',f.root,'harness','event','--host','opencode','--host-version','unknown','--surface','plugin','--adapter-version',manifest.version,'--event','session-start','--input','-','--budget-bytes','8000']);noSecret(row)
  assert.equal(result.receiptId,'harness-receipt:sha256:'+sha(canonical({adapter:result.adapter,event:'session-start',input:row.input,repository:result.repository})))
  assert.equal(boundedTask('🙂'.repeat(2000)).length,4000);assert.equal(boundedTask('x'.repeat(2001)),undefined)
  assert.equal(normalizeRepositoryPath(f.root,'src/../src/parser.py'),'src/parser.py');assert.equal(normalizeRepositoryPath(f.root,'../escape'),undefined)

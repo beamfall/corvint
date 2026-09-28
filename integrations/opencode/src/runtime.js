@@ -4,7 +4,7 @@ import { realpathSync, statSync } from "node:fs"
 import path from "node:path"
 import { overQueryBound, trimSpace } from "./prompt-bound.js"
 
-export const ADAPTER_VERSION = "0.1.0"
+export const ADAPTER_VERSION = "0.3.1"
 export const PROTOCOL = "corvint-harness-event/0"
 export const SUPPORT = "FALLBACK"
 
