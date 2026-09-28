@@ -32,6 +32,9 @@ func TestCALV0020_QualificationRequiresCompletePassingRun(t *testing.T) {
 		name, run, code string
 	}{
 		{"complete", complete, ""},
+		{"go 1.27 output", strings.Replace(complete, `{"Action":"run"`, `{"Action":"output","Package":"`+QualificationPackage+`","Output":"=== RUN   test\n","OutputType":"frame"}`+"\n"+`{"Action":"run"`, 1), ""},
+		{"go build output", `{"Action":"build-output","ImportPath":"other/package","Output":"compiler output\n"}` + "\n" + complete, ""},
+		{"go build failure", `{"Action":"build-fail","ImportPath":"other/package"}` + "\n" + complete, wire.CodeGateFailed},
 		{"empty", "", wire.CodeMissingEvidence},
 		{"truncated package", partial, wire.CodeMissingEvidence},
 		{"other package", strings.ReplaceAll(complete, QualificationPackage, "other/package"), wire.CodeMissingEvidence},

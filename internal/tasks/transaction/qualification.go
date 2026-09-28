@@ -120,6 +120,7 @@ func runVerdict(requestID string, run []byte) *Result {
 // case-folded Action fields cannot hide a failure behind a later pass.
 func qualificationEvent(line []byte) (testEvent, bool) {
 	var ev testEvent
+	var importPath string
 	d := json.NewDecoder(bytes.NewReader(line))
 	if tok, err := d.Token(); err != nil || tok != json.Delim('{') {
 		return ev, false
@@ -156,13 +157,18 @@ func qualificationEvent(line []byte) (testEvent, bool) {
 			ev.Package = text
 		case "Test":
 			ev.Test = text
-		case "Time", "Output", "FailedBuild":
+		case "ImportPath":
+			importPath = text
+		case "Time", "Output", "OutputType", "FailedBuild":
 		default:
 			return ev, false
 		}
 	}
 	if tok, err := d.Token(); err != nil || tok != json.Delim('}') {
 		return ev, false
+	}
+	if (ev.Action == "build-output" || ev.Action == "build-fail") && ev.Package == "" {
+		ev.Package = importPath
 	}
 	if _, err := d.Token(); err != io.EOF || ev.Package == "" {
 		return ev, false

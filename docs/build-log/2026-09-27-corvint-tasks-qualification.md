@@ -69,3 +69,9 @@ binding; its report retained missing pre-change agent receipts. Final CEM/OCM bi
 after commit in the handoff's plain clone. Repository-wide `make gate` is `NOT_RUN` under the
 owner's scoped-work instruction; focused task tests and document checks are the selected checks.
 Retrieval/ranking evaluations and optional providers are not applicable to this task-store change.
+
+Final parser compatibility was checked against the preserved real Go 1.27 qualification output:
+the repaired CLI initialized a fresh non-fixture store and admitted the execution cutover.
+Go 1.27 `OutputType` and build-event `ImportPath` fields have explicit regression coverage.
+The focused task package gate passed at `3c5116b9`; the line-citation gate found an S7-shifted
+reservation-check anchor, which was read and repinned before the final gate.
