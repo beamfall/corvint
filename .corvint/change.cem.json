@@ -1,0 +1,288 @@
+{
+  "baseRevision": "c73929e1b11ce5d642d3cdd86b5957359980b00b",
+  "evidence": [
+    {
+      "blobOid": "334b1e79021e71a83de6758168cfb21852c49227",
+      "id": "evidence:sha256:b5c04167b12b3f99e4e273dc51a6a7f7768dda92292e58e5553e184a78898789",
+      "path": "docs/specs/agent-harness-integration-v0.md",
+      "span": {
+        "end": 50182,
+        "start": 49787
+      },
+      "spanSha256": "6589099128e507836d1bf0c484a7926fe09b3dcf366165015d7e10f4ef2a8fb9"
+    },
+    {
+      "blobOid": "334b1e79021e71a83de6758168cfb21852c49227",
+      "id": "evidence:sha256:5ebc924844dcbafaba7d6971da6806afae77e40cff8587e91dbf3907bd1602b4",
+      "path": "docs/specs/agent-harness-integration-v0.md",
+      "span": {
+        "end": 48407,
+        "start": 46815
+      },
+      "spanSha256": "e0eaff578509900db3842857c495792d70e4606d13dd021614f33c751861f790"
+    },
+    {
+      "blobOid": "334b1e79021e71a83de6758168cfb21852c49227",
+      "id": "evidence:sha256:f498bc15a5f4019945e9aa6933d485222268312a109b17d31b9b9e7efe3a84b4",
+      "path": "docs/specs/agent-harness-integration-v0.md",
+      "span": {
+        "end": 53882,
+        "start": 52290
+      },
+      "spanSha256": "16f0c0dee4dcb69ecec3ec27503e850b128a8d3cfc4433b3eb7918a521d54111"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b5c04167b12b3f99e4e273dc51a6a7f7768dda92292e58e5553e184a78898789",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:60936a1eab6db7245b882a9c4ef04e74a9b52ef87ced275c3e63b828543774d8",
+      "newRange": {
+        "count": 6,
+        "start": 33
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 33
+      },
+      "path": ".gitignore",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b5c04167b12b3f99e4e273dc51a6a7f7768dda92292e58e5553e184a78898789",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b560ecbce73a75367b409b69ab6447d682f4e5a7417a30b2ccd34db860778216",
+      "newRange": {
+        "count": 32,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-28-opencode-qualification-handoff.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b5c04167b12b3f99e4e273dc51a6a7f7768dda92292e58e5553e184a78898789",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:791e1bb4218ba612d9012b9646ef60394e9a9403ffdc1338fce931a45e28469e",
+      "newRange": {
+        "count": 16,
+        "start": 575
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 575
+      },
+      "path": "docs/specs/agent-harness-integration-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b5c04167b12b3f99e4e273dc51a6a7f7768dda92292e58e5553e184a78898789",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:5ebc924844dcbafaba7d6971da6806afae77e40cff8587e91dbf3907bd1602b4",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:f498bc15a5f4019945e9aa6933d485222268312a109b17d31b9b9e7efe3a84b4",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c62a5c66e405eed09f5a91ec5e4a630bf4bba3935063db28d3143c048b0109e6",
+      "newRange": {
+        "count": 160,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "integrations/fixtures/opencode-native-report.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b5c04167b12b3f99e4e273dc51a6a7f7768dda92292e58e5553e184a78898789",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:5ebc924844dcbafaba7d6971da6806afae77e40cff8587e91dbf3907bd1602b4",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:f498bc15a5f4019945e9aa6933d485222268312a109b17d31b9b9e7efe3a84b4",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f7454ef93b5621d9999bffaab9b57b607d6dd7a7dcf4110506b1e992c553506c",
+      "newRange": {
+        "count": 4,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 1
+      },
+      "path": "integrations/host-adapters.test.mjs",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b5c04167b12b3f99e4e273dc51a6a7f7768dda92292e58e5553e184a78898789",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:5ebc924844dcbafaba7d6971da6806afae77e40cff8587e91dbf3907bd1602b4",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:f498bc15a5f4019945e9aa6933d485222268312a109b17d31b9b9e7efe3a84b4",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:41650e5c1a86e1e513ac21533bd4229299862aa76a51c7443e0c75f7e4bf36cb",
+      "newRange": {
+        "count": 106,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "integrations/opencode-qualification.test.mjs",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b5c04167b12b3f99e4e273dc51a6a7f7768dda92292e58e5553e184a78898789",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ce317eb6922c95e6d9029be19b2f88d78bae007853dcfe4178e1a3f5c246a4d2",
+      "newRange": {
+        "count": 36,
+        "start": 39
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 39
+      },
+      "path": "integrations/opencode/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b5c04167b12b3f99e4e273dc51a6a7f7768dda92292e58e5553e184a78898789",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:5ebc924844dcbafaba7d6971da6806afae77e40cff8587e91dbf3907bd1602b4",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:f498bc15a5f4019945e9aa6933d485222268312a109b17d31b9b9e7efe3a84b4",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:246ebe92c6b1e7e0c93dff2dc02ae94e82ec55c3833a8338375158650f4d9776",
+      "newRange": {
+        "count": 132,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "script/opencode_qualification.py",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b5c04167b12b3f99e4e273dc51a6a7f7768dda92292e58e5553e184a78898789",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:5ebc924844dcbafaba7d6971da6806afae77e40cff8587e91dbf3907bd1602b4",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:f498bc15a5f4019945e9aa6933d485222268312a109b17d31b9b9e7efe3a84b4",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:75b2b3a1ce3ba47e124613ecc1fe2b3c78f94d6786daed2a7cadaf7d56be7b5e",
+      "newRange": {
+        "count": 411,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "script/qualify-opencode-native.py",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b5c04167b12b3f99e4e273dc51a6a7f7768dda92292e58e5553e184a78898789",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:5ebc924844dcbafaba7d6971da6806afae77e40cff8587e91dbf3907bd1602b4",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:f498bc15a5f4019945e9aa6933d485222268312a109b17d31b9b9e7efe3a84b4",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b6c9d9ab7e1b2f2dbaf964325c84847ab1c0bba05ca8b0a67fe4bc91c3575d2d",
+      "newRange": {
+        "count": 117,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 404,
+        "start": 1
+      },
+      "path": "script/qualify-opencode.py",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "fdad779149fc5284faf613aa63f9a8457bde16d00c496f818c146f0a537f012e",
+  "spec": "cem/0.2"
+}
