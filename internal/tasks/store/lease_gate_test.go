@@ -323,7 +323,7 @@ func TestCALV0017_CompletionRefusals(t *testing.T) {
 	id := s.ticket(t, "one")
 	claim, commit := s.submitted(t, id, "src", 0)
 	tree := gitOut(t, s.root, "rev-parse", "HEAD^{tree}")
-	dangling := gitOut(t, s.root, "commit-tree", tree, "-p", commit, "-m", "off-branch")
+	dangling := gitOut(t, s.root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit-tree", tree, "-p", commit, "-m", "off-branch")
 	before := storeDigest(t, s.repo)
 	refuse := func(requestID, commit, code string) {
 		t.Helper()
