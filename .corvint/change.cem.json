@@ -82,9 +82,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:b4241f9b8414eba2d88ec8211999b906c8caf0bd804f7ecc452dd2d49e53b88b",
+      "id": "hunk:sha256:014215b7a698dc06d1d64193a8752a0c3d08da0883a5131e8fd902c0e80ab13b",
       "newRange": {
-        "count": 53,
+        "count": 57,
         "start": 1
       },
       "oldRange": {
@@ -182,7 +182,7 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:db3daf066a3b19c1c395d827093e5a90d1107a42b4ce4d2e383852b64b8c07c2",
+      "id": "hunk:sha256:a343ed7796d2534d79fbf998c5e08e80b16bda95d673b64349eebbc60b608cfc",
       "newRange": {
         "count": 7,
         "start": 62
@@ -242,7 +242,7 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:79ffe2770c2a501127a6fcd27096449120e1ceae9d0acabf591314d68b4c5051",
+      "id": "hunk:sha256:bb08d5d3ae30c6f3f187273e63200fb14d0f8756433fca6088bb22edc1a75637",
       "newRange": {
         "count": 6,
         "start": 1
@@ -362,7 +362,7 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:cc9f99c8e1a65b977fb8c0401b14c9afe6d31a86cfcf8d7e7eba06da36e4e1ec",
+      "id": "hunk:sha256:04e61a7ee833b6e4f154fb2bfd0d5c5ce7118b46064b39e46ab174d02ee21ae6",
       "newRange": {
         "count": 7,
         "start": 1
@@ -382,7 +382,7 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:a84c61b83697c911c29bd5a6dca0fccdbb537700e84fc4c827c2392980aa4b9f",
+      "id": "hunk:sha256:9900f08d4359fbf7700941495ca03d805e01eb6b76ab335a1201e7fc9b40f5e0",
       "newRange": {
         "count": 7,
         "start": 26
@@ -602,7 +602,7 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:d962b1274e74c8bd9a208f063b516063d12fd504a5e2eab294ee3514e4a9c62f",
+      "id": "hunk:sha256:4ffb011061da88717282dbb2ea48f5743440ceb74be57ec35a21a2e4a8b3a6b6",
       "newRange": {
         "count": 7,
         "start": 5
@@ -1015,6 +1015,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "b58a6a43be407481b0ebad617221e646f2f83cdd807def3ad2dc89eb54b6ea3f",
+  "patchSha256": "e01f8fe22b684c03b8226cc55c274c16f2e863b41c6ddc3141ceff262a6b9c04",
   "spec": "cem/0.2"
 }
