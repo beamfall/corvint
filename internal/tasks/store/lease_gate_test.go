@@ -43,7 +43,11 @@ func gitOut(t *testing.T, dir string, args ...string) string {
 	c.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
 	out, err := c.Output()
 	if err != nil {
-		t.Fatalf("git %v: %v", args, err)
+		var stderr []byte
+		if exit, ok := err.(*exec.ExitError); ok {
+			stderr = exit.Stderr
+		}
+		t.Fatalf("git %v: %v %s", args, err, stderr)
 	}
 	return strings.TrimSpace(string(out))
 }
@@ -323,7 +327,7 @@ func TestCALV0017_CompletionRefusals(t *testing.T) {
 	id := s.ticket(t, "one")
 	claim, commit := s.submitted(t, id, "src", 0)
 	tree := gitOut(t, s.root, "rev-parse", "HEAD^{tree}")
-	dangling := gitOut(t, s.root, "commit-tree", tree, "-p", commit, "-m", "off-branch")
+	dangling := gitOut(t, s.root, "-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "user.useConfigOnly=true", "commit-tree", tree, "-p", commit, "-m", "off-branch")
 	before := storeDigest(t, s.repo)
 	refuse := func(requestID, commit, code string) {
 		t.Helper()

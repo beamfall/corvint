@@ -688,10 +688,6 @@ func loadSnapshot(ctx context.Context, root string, load snapshotLoad, closing .
 // snapshot when the file is absent or refused, so the accepted format
 // always answers.
 func readSnapshotIndex(directory string, identity repositoryIdentity, engineID string, load snapshotLoad) (*Index, error) {
-	if load&loadPackOnly != 0 {
-		packEngineID := analyzerEngine()
-		return readPackSnapshot(packPath(directory, identity.objectFormat, identity.treeRevision, packEngineID), identity, packEngineID, load)
-	}
 	if packEnabled() {
 		packEngineID := analyzerEngine()
 		index, err := readPackSnapshot(packPath(directory, identity.objectFormat, identity.treeRevision, packEngineID), identity, packEngineID, load)

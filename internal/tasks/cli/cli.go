@@ -15,7 +15,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/archive"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
-	"github.com/Beamfall/corvint/internal/tasks/scopes"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -40,7 +39,7 @@ type Env struct {
 	Stdout    io.Writer
 	Stderr    io.Writer
 	// ScopeDeriver derives a claim scope for a ticket that declares none
-	// (CAL-V0-022); nil uses the explicitly enabled pack deriver.
+	// (CAL-V0-022); nil conservatively uses WHOLE_REPOSITORY.
 	ScopeDeriver store.ScopeDeriver
 }
 
@@ -77,9 +76,6 @@ var OmittedVerbs = []string{
 // Run executes one command and returns the process exit code: 0 iff the
 // envelope outcome is OK.
 func Run(env Env) int {
-	if env.ScopeDeriver == nil {
-		env.ScopeDeriver = scopes.Derive
-	}
 	if env.Stdout == nil {
 		env.Stdout = io.Discard
 	}
