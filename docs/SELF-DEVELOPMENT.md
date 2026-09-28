@@ -112,3 +112,9 @@ For owner-trusted MkDocs navigation work, use the separate explicit `docs nav --
 profile and retain the real pinned loader/reload artifact. See
 [Trusted Project Navigation V0](specs/trusted-project-navigation-v0.md). This does not authorize
 execution through ordinary docs reads or qualify the HDC capsule, site build or offline behavior.
+
+For issue338 source-derived documentation, use `docs flows generate`, retain the emitted generation
+manifest, then use `docs flows check` for read-only per-item span drift and byte regeneration checks.
+Commit provider bytes only at the caller's explicit boundary and use `docs flows finalize` before
+corpus build/Open. This route produces generated lexical observations; existing accepted-outcome
+AFU docs and original Playwright witnesses keep their separate meaning. See [flow generation](FLOW-DOCUMENTATION.md).

@@ -10,13 +10,14 @@ and use a website, documentation proven accurate by the same evidence), `AGENTS.
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/specs/application-flow-understanding-v0.md`,
 `docs/specs/documentation-corpus-v1.md` (issue 53, `DCP-V1-027..032`),
 `docs/specs/external-test-selection-v1.md`, `docs/specs/corvint-1.0-product-and-release-v1.md`,
-decisions 0374, 0385 and 0416.
+decisions 0374, 0385 and 0416; source-generation extension [issue 338](https://github.com/beamfall/corvint/issues/338).
 
 ## Agent digest
 - Claim: Reviewed flows link to source, tests and run evidence; Corvint selects E2E tests with exclusion proofs, maps navigation and proves documentation claims.
 - Status: accepted (decision 0385); partially delivered; original issue-175 flows qualified locally. S1-S4, S6-S8 delivered with local issue-175 evidence in `evidence/issues-167-175/`. AFU-V1-012 now retains and consumes the qualified `/3` external attempt inventory. The Beamfall UI/API lifecycle and both semantic-change qualifications pass; the latter use conservative full-suite fallback, not reduced selections. Compiled MCP conformance covers both protocols and the pinned official schema. AFU-V1-006 has a bounded `/2` producer and declaration-only corpus ingestion; external runtime qualification remains unobserved; S5's AFU-V1-029 observer integration remains partial; AFU-V1-014 retains its accepted observer gap.
 - Exists: the AFU-V0 experimental `corvint flows` report and `record`, the issue-53 behavior adapter, ETS-V1 selection and the Playwright provider this spec extends.
 - Blocked on: AFU-V1-006 external runtime qualification and AFU-V1-029 observer integration; production backend and hosted-CI qualification are not observed.
+- Source-generation extension: AFU-V1-043..048 defines the separately generated non-Go documentation profile; it never upgrades the existing accepted-outcome documentation truth table.
 - Read next: Requirements; Trust boundary, limits, and failure modes; Deterministic acceptance.
 
 ## User and measurable job
@@ -823,3 +824,74 @@ report incomplete evidence to callers that omit a registry. The opt-in MCP flow 
 inputs accept the same optional repository-relative `registry`; map lookup selectors exclude it.
 No evidence record, registry or strict/coverage selection wire shape changes. Rollback reverts this
 slice; per-run evidence must remain labelled unqualified until the stability gate is restored.
+
+
+## Source-derived non-Go documentation (issue 338)
+
+Human-owned intent: generate and maintain source-anchored application flow documentation in the
+fixed eight-section layout, with generated trust and independently retained runtime evidence.
+This source producer is separate from the accepted-outcome `appflows/docs.go` renderer.
+No source observation is accepted intent, a runtime sequence, proof of a side effect, an inferred
+accepted variation, or a replacement for independent application/browser qualification.
+
+### Requirements
+
+- **AFU-V1-043**: `docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR`
+  reads immutable native-index source, emits an adoption provider and generation manifest, and
+  materializes eight Markdown files per logical flow. Literal Ruby/Rails routes, named methods/jobs,
+  class-level validation/hooks, JavaScript/TypeScript named functions/arrows and literal route or
+  Angular registrations, React JSX conditional candidates and literal Angular HTML attributes form
+  the closed construct matrix. Calls to the recognized validation, permission, error, persistence
+  and integration vocabulary are observations of source only. Native lexical masks exclude comments,
+  strings and Ruby heredocs; web regex/arithmetic suffixes and JSX text are conservatively masked.
+- **AFU-V1-044**: Logical flow and paragraph IDs depend on provider namespace, repository-relative
+  path, declaration identity and claim kind/callee, never line, revision or output ordering. Repeated
+  logical declarations/claim identities remain unresolved. Removal is retirement, never inferred
+  rename. Every claim has an operation-span anchor and, when available, a separate declaration
+  symbol anchor. Source-derived corpus subjects, claims and structural/same-file lexical dependency
+  relations retain generated trust and explicit unresolved dispatch limits.
+- **AFU-V1-045**: `docs flows check --revision FULL_SHA --previous GENERATION_JSON
+  [--output-dir DIR]` strictly rederives the closed predecessor from original immutable source before
+  reporting each flow, paragraph and claim fresh/stale/unresolved. Same identity plus same span hash
+  remains fresh after relocation; changed spans are stale; absent/ambiguous identities are unresolved
+  and appear in retirement delta. Optional byte checking compares the original rendered directory,
+  including missing/extra/changed files, without writing anything. Exit 1 means drift; exit 2 refusal.
+- **AFU-V1-046**: Materialization requires a new directory under existing nonsymlink parents and
+  exclusively creates confined files. Refuse human-file overwrite, symlinks, malformed paths and
+  bounds above 256 flows, 2,048 Markdown pages plus two metadata files, 64 MiB rendered payload and
+  256 MiB generation manifest (including an existing corpus up to 128 MiB), for a 320 MiB total
+  output ceiling. Corpus input retains the corpus profile's 128 MiB bound. Render escaped prose and local generated links; diagrams use fixed
+  Mermaid syntax labelled static/unresolved. Never dump arbitrary source bodies or literals.
+- **AFU-V1-047**: Optional `--corpus FILE` is revalidated with corpus Open and must retain the exact
+  source repository/revision. Original journeys, ordered steps, navigating/asserting test links,
+  join confidence, explicit coverage members, tickets and intent comparison records remain available
+  under original corpus identities. Span overlap is only a locator; it never upgrades semantic join
+  confidence. Missing accepted variation inventory/runtime observations remain unknown. Security
+  rendering uses only admitted severity/total summaries, never restricted local detail.
+- **AFU-V1-048**: `docs flows finalize --previous GENERATION_JSON --provider-revision FULL_SHA
+  --provider-path PATH` verifies committed provider bytes and returns a usable corpus manifest after
+  successfully compiling it. Source A and later provider B remain distinct immutable revisions.
+  No automatic commit, rewritten source anchor or provider self-reference is permitted. Caller-owned
+  corpus inputs/providers are retained with missing generation source inputs added explicitly.
+
+### Failure modes, evidence and rollback
+
+Extraction is bounded lexical analysis, not a Ruby/JS/HTML interpreter or full parser. Dynamic
+routes, metaprogramming, computed registrations, unsupported templates, multiline declaration forms,
+ambiguous duplicate calls and body extents above 512 lines remain unknown. Gitlinks are opaque.
+The generated variation denominator never treats each source conditional as an accepted variation.
+Source-span overlap cannot prove that a Playwright test validates a generated flow. A supplied
+original runtime record may prove only its own accepted variation under the existing corpus rules.
+
+Imported rendered records receive stable paragraph IDs and retain all original anchors. Freshness
+checks revalidate every dependency anchor, conservatively marking repeated span matches unresolved;
+historical runtime-only anchors cannot establish current source behavior. Added identities are drift.
+
+Executable acceptance: `TestFlowDocsCLIEndToEnd` exercises the actual CLI, eight files, source A /
+provider B, Build/Open and changed-authorization-only staleness across line insertion.
+`TestFlowDocsLexicalFalsePositives`, `TestFlowDocsScaleDeterminismSafetyAndGitlink` and
+`TestFlowDocsNoRawSourceSecrets` cover exclusion, 150-flow/1,200-page scale, opaque gitlinks,
+strict predecessor rederivation, read-only determinism and output safety. Broader runtime/parity
+qualification must retain its own original receipt and cannot be inferred from these fixtures.
+Rollback removes the `docs flows` dispatch and generated producer; existing accepted-outcome AFU,
+corpus adoption artifacts and their original trust/evidence contracts remain unchanged.
