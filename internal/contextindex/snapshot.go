@@ -302,7 +302,6 @@ func WriteSnapshot(index *Index) (SnapshotReceipt, error) {
 		}
 		receipt.SectionedPath, receipt.SectionedBytes = sectionedTarget, sectionedBytes
 	}
-
 	if packEnabled() {
 		packEngineID := analyzerEngine()
 		packTarget := packPath(directory, index.ObjectFormat, index.Revision, packEngineID)
