@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
@@ -29,18 +28,18 @@ type gateRun struct{ record, output []byte }
 
 // GateRun runs one policy command gate in worktree at the attempt's
 // candidate tree, then records it (CAL-V0-016). The gate runs before the
-// store lock is taken, so a long gate never holds it; the model then
-// rechecks the attempt, tree and definition under the lock. A repeated
+// store lock is taken, so a long gate never holds it; the prepared model
+// rechecks the attempt, tree and definition, then binds them under lock. A repeated
 // request id reruns the gate before the replay is found. A stale or
 // unsubmitted attempt is not run: the model answers it with no gate facts.
-// Before reading, it settles the journal under the lock, so a gate run
+// Before reading, it settles the journal through guarded recovery, so a gate run
 // retried after a crash recovers as any other writer does (CAL-V0-019).
 func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, worktree string, clock func() time.Time) (*Report, error) {
-	redone, err := settle(ctx, repo)
+	redone, err := settleLease(ctx, repo)
 	if err != nil {
 		return &Report{}, err
 	}
-	a, policy, err := unlockedAttempt(repo, choice.Lease.AttemptID)
+	a, policy, err := unlockedAttempt(ctx, repo, choice.Lease.AttemptID)
 	if err != nil {
 		return &Report{}, err
 	}
@@ -72,38 +71,11 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 	return report, err
 }
 
-// settle takes the lock only to clear the staging slots a killed writer left
-// and redo a committed receipt. A store the writer guards refuse is left for
-// the lease write to report.
-func settle(ctx context.Context, repo *intent.Repository) (bool, error) {
-	if _, err := authority.Qualify(repo.CommonDir); err != nil {
-		return false, err
-	}
-	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})
-	if err != nil {
-		return false, err
-	}
-	defer lock.Close()
-	session, err := authority.NewSession(repo, lock)
-	if err != nil {
-		return false, err
-	}
-	defer session.Close()
-	if _, err = writerGuards(repo, transaction.Lease); err != nil {
-		return false, nil
-	}
-	return redoPending(repo, session)
-}
-
 // unlockedAttempt reads the attempt and policy without the store lock; the
-// model rechecks both under it.
-func unlockedAttempt(repo *intent.Repository, attemptID string) (*snapshot.Attempt, *intent.Policy, error) {
-	observed, err := snapshot.Probe(repo.StateDir)
-	if err != nil {
-		return nil, nil, err
-	}
+// prepared model and locked guard recheck both before committing.
+func unlockedAttempt(ctx context.Context, repo *intent.Repository, attemptID string) (*snapshot.Attempt, *intent.Policy, error) {
 	path := "attempts/" + attemptID + ".json"
-	proof, err := journalReader(repo, observed.Head).Audit("intent/policy.json", path)
+	proof, err := readLeaseProof(ctx, repo)
 	if err != nil {
 		return nil, nil, err
 	}

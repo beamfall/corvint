@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 NOT_MET)
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification))
 Authoritative inputs: the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
 §3.4, §4, §6 and §7.4), decision 0397 (corvint-tasks built in tree), decision 0423 A10,
 `docs/specs/corvint-tasks-store-init-v0.md`, tickets V1-0398, V1-0184 and V1-0310, and the in-tree
@@ -11,7 +11,7 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Coding agents claim, renew, gate and complete tickets through leased `corvint-tasks` attempts, replacing a repository's own task runner without a supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 NOT_MET). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification)). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
 - Read next: Slices; Requirements (S8 for parallel claims); Amendments to TCP-00; Failure modes.
@@ -210,6 +210,8 @@ silently shared.
   promote the experimental pack profile. Incomplete context packets also abstain. For
   `claim --next`, derive only the ticket selected by the existing conservative priority plan,
   bind the facts to that ticket, and recheck collisions; a blocked plan stays blocked.
+  Decision 0397's CAL-V0-022 addendum permits only the scope adapter's Core imports and its
+  pack-fixture test import. Standalone source-archive rebuild remains blocked by V1-0456.
 - `CAL-V0-023`: Two live attempts MUST collide exactly when their resource sets collide under
   TCP-00 §4.2 path normalization; `WHOLE_REPOSITORY` collides with every live entry and every live
   entry collides with it. A colliding `claim` refuses `RESOURCE_COLLISION` naming the other
@@ -230,6 +232,13 @@ silently shared.
   audit is reused from a verified cache keyed by the head receipt digest and the intent tree
   digest, and is otherwise taken once. Measured on a synthetic 3,000-ticket fixture store, the p95
   lock hold of `claim` and `renew` MUST be under 500 ms on a host with a load below the CPU count.
+
+  The cache is process-local and retains one successful audit; fresh CLI processes audit once.
+  Reuse also verifies every physical content digest and path membership under a transient native
+  change monitor. Inventory, audit, model construction and monitor teardown run outside the lock.
+  Locked guards bind the prepared result to the unchanged head and monitored bytes before applying
+  the bounded writes. A changed observation retries; unavailable monitoring refuses. Pending-receipt
+  recovery prepares its full proof outside the lock before bounded redo. This changes no store format.
 
 S7, qualification and execution cutover.
 
@@ -371,4 +380,4 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-023 | `TestCALV0023_CollisionNormalization` (`internal/tasks/ticket`), `TestCALV0023_CollidingClaimsAdmitOne`, `TestCALV0023_DisjointPathScopesAreBothAdmitted` (`internal/tasks/store`) |
 | CAL-V0-024 | `TestCALV0024_SubmitOutsideTheScopeIsRefused` (`internal/tasks/store`) |
 | CAL-V0-025 | `TestCALV0025_WidenAddsPathsAndRefusesCollision`, `TestCALV0025_WidenRefusedUnderAdmissionBarrier` (`internal/tasks/store`) |
-| CAL-V0-026 | NOT_MET: full-store audit cache absent. `TestCALV0026_LockObserverReportsOnceAfterRelease` validates observation; opt-in `TestCALV0026_LockHoldMeasurement` records the 3,000-ticket measurement in the S8 build log. |
+| CAL-V0-026 | MET on macOS with Go 1.27.1 and `GOMAXPROCS=2`: 3,000 tickets, 20 samples per verb, claim p95 121.136 ms and renew 104.774 ms; every sampled load average below 12 CPUs. `TestCALV0026_VerifiedAuditReuse`, `TestCALV0026_PreparationFailureWaitsForWriter` (`internal/tasks/store`) and `TestCALV0026_ChangeGuardDescriptorExhaustion` (`internal/tasks/authority`) cover cache trust, concurrency and cleanup. Opt-in `TestCALV0026_LockHoldMeasurement` retains 3,000-ticket timings; see `docs/build-log/2026-09-28-corvint-tasks-lease-lock-qualification.md`. |
