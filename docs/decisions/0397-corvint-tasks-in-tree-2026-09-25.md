@@ -80,6 +80,11 @@ These are the only exceptions to rule 2. Other Tasks packages still import no Co
 Tasks wire still imports no module package, and Core still links no Tasks mutation code.
 `TestImportViolationControls` retains negative controls for imports outside those exact edges.
 
-The rule 5 source-archive subset does not include these Core dependencies. Its advertised standalone
-rebuild is blocked by ticket V1-0456 until the export includes and verifies the required dependency
-closure and notices. A passing import-direction test does not qualify that release artifact.
+V1-0456 amends rule 5's source-archive subset to retain the pack adapter's dependency closure:
+`internal/contextindex`, `internal/diagnostic`, `internal/gitstatus`, `internal/projectprofile`,
+`internal/pythongrammar`, `internal/pythonsyntax`, `internal/runtimeenv`, `internal/secretscreen`
+and `internal/untrackedallowance`, including their files and notices at the same immutable source
+commit/tree. The module and root licensing/provenance files remain exact. This changes packaging,
+not the allowed import edges above. The actual exported tarball must rebuild offline using
+`go build ./cmd/corvint-tasks`, independently of the npm/VSIX gate; a passing import-direction
+test alone does not qualify the artifact. The full companion release remains separately gated.
