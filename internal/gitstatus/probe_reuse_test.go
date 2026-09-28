@@ -39,7 +39,7 @@ func TestProbeReuseAnswersRepeatedProbesFromUnchangedMetadata(t *testing.T) {
 		}
 		return calls
 	}
-	probed := []string{"--list", "-z", "--shared-index-path", "--ignore-submodules=all"}
+	probed := []string{"--list", "-z", "--shared-index-path", "--ignore-submodules=dirty"}
 	if got := status(context.Background()); !slices.Equal(got, probed) {
 		t.Fatalf("first read ran %q, want %q", got, probed)
 	}

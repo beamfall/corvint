@@ -74,10 +74,19 @@ execution claim, Frontier closure rule or mandatory service is introduced here.
   remain. The existing normal-path ceilings of seven Git processes, 500,000 allocated bytes and
   3,600 allocations MUST pass unchanged. A fast recognizer may accept only a strict proven subset
   of safe config and SHA-1 index v2/v3 framing; ambiguous config, SHA-256, v4 or unknown index
-  extensions MUST use the existing private Git validation path. Live-index gitlinks and split
-  index MUST retain their safe refusal before snapshot loading. Successfully loaded snapshots
-  MUST retain committed skipped paths as unframable under SBQ-V0-008; this does not admit a live
-  index containing gitlinks. Stored output and snapshot formats remain unchanged; source changes
+  extensions MUST use the existing private Git validation path. Split index MUST retain its safe refusal before snapshot loading. Under the owner's
+  2026-09-28 opaque-gitlink repair scope (#335), NUL-terminated porcelain v1/v2 status
+  MUST admit bounded gitlinks as path/commit-ID boundaries. Private status MUST report staged
+  additions, removals and OID/type changes and checkout-commit changes without running Git against
+  nested live metadata or inspecting nested file contents. Only bounded no-follow `.git`, HEAD,
+  loose-ref and packed-ref reads may observe a checkout; absent/uninitialized checkouts remain
+  distinct from deleted or changed checkouts. Captured metadata and absence must be rechecked.
+  At most 1,024 non-overlapping gitlink paths and eight symbolic-ref hops are admitted, within
+  the shared 64 MiB metadata budget. Unmerged gitlinks, unsupported status formats/pathspecs,
+  unsafe metadata, unresolved HEADs and exceeded bounds retain typed refusal. Rename detection
+  is disabled in the gitlink path; both paths remain observable as add/delete records.
+  Nested submodule contents are outside coverage, even when superproject status is clean.
+  Successfully loaded snapshots MUST retain committed skipped paths as unframable under SBQ-V0-008. Stored output and snapshot formats remain unchanged; source changes
   require the normal analyzer identity bump. This narrows standalone compatibility with unsafe
   configuration; it does not authorize configuration edits or executions.
 

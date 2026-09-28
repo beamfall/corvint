@@ -57,6 +57,10 @@ separate run envelope; it is not inserted into immutable Git facts or canonical 
 - `GENESIS-002`: zero-execution inventory MUST classify every tracked path as included, excluded,
   unsupported, or unknown and identify languages, manifests, entry points, routes, jobs, schemas,
   configuration, tests, specs, decisions, ownership, and generated/vendor boundaries.
+  Opaque gitlinks retain their recorded path and commit OID as an unsupported-content boundary;
+  they do not prevent superproject status or indexing (EAF-V0-007). The inventory remains PARTIAL
+  unless the caller explicitly excludes that path, in which case it is EXCLUDED. Neither result
+  makes a claim about nested submodule contents.
 - `GENESIS-003`: Git history enrichment MUST recover cited change, ownership, ticket/PR reference,
   co-change, migration, deprecation, and release candidates without treating history as product
   intent.

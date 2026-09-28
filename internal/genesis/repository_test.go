@@ -108,8 +108,9 @@ func TestInventoryBudgetCoversSparseIndexStatusProbes(t *testing.T) {
 		t.Fatalf("sparse-index inventory degraded: %#v", receipt["gaps"])
 	}
 	calls, err := os.ReadFile(counter)
-	if err != nil || len(calls) != inventoryReads+gitstatus.MaxProcesses {
-		t.Fatalf("git calls=%d err=%v; want the full probe plan %d", len(calls), err, inventoryReads+gitstatus.MaxProcesses)
+	// This fixture has no gitlinks, so the two opaque-observation processes do not run.
+	if err != nil || len(calls) != inventoryReads+gitstatus.MaxProcesses-2 {
+		t.Fatalf("git calls=%d err=%v; want the full probe plan %d", len(calls), err, inventoryReads+gitstatus.MaxProcesses-2)
 	}
 	repo, err := openRepository(context.Background(), root, defaultLimits(), "HEAD")
 	if err != nil {
@@ -253,4 +254,36 @@ func TestSummaryOrdersUnsafePathSamplesWithoutPanicking(t *testing.T) {
 	if len(samples) != 2 || samples[0].(map[string]any)["path"].(*string) != nil {
 		t.Fatalf("unclassified samples=%#v", samples)
 	}
+}
+
+func TestInventoryOpaqueGitlinkBoundary(t *testing.T) {
+	t.Run("GENESIS-002", func(t *testing.T) {
+		// GENESIS-002: an opaque entry retains its OID and can be explicitly excluded.
+		git, err := exec.LookPath("git")
+		if err != nil {
+			t.Fatal(err)
+		}
+		root := genesisRepository(t, git, "sha1")
+		command := exec.Command(git, "-C", root, "rev-parse", "HEAD")
+		raw, err := command.Output()
+		if err != nil {
+			t.Fatal(err)
+		}
+		oid := strings.TrimSpace(string(raw))
+		genesisGit(t, git, root, "update-index", "--add", "--cacheinfo", "160000,"+oid+",vendored")
+		genesisGit(t, git, root, "commit", "-qm", "opaque gitlink")
+		if err := os.Mkdir(filepath.Join(root, "vendored"), 0700); err != nil {
+			t.Fatal(err)
+		}
+		for _, exclude := range [][]string{nil, {"vendored"}} {
+			receipt := CompileRepositoryInventory(context.Background(), root, "init", nil, "HEAD", exclude)
+			want := "PARTIAL"
+			if len(exclude) > 0 {
+				want = "COMPLETE"
+			}
+			if receipt["operationalState"] != want {
+				t.Fatalf("inventory=%+v", receipt)
+			}
+		}
+	})
 }

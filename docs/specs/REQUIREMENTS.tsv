@@ -783,12 +783,12 @@ EAF-V0-004	docs/specs/expert-audit-followup-v0.md	46	Source-documentation rederi
 EAF-V0-005	docs/specs/expert-audit-followup-v0.md	49	Query help MUST describe safe trace-state refusal recovery: retain the original
 EAF-V0-006	docs/specs/expert-audit-followup-v0.md	52	The uncertainty perturbation development screen MUST retain the unchanged-task
 EAF-V0-007	docs/specs/expert-audit-followup-v0.md	56	Native Corvint and its selected Go provider MUST observe Git status only through
-EAF-V0-008	docs/specs/expert-audit-followup-v0.md	84	The opt-in finite-policy development check MUST bind its independently frozen
-EAF-V0-009	docs/specs/expert-audit-followup-v0.md	90	The opt-in scope development check MUST retain the frozen candidate algorithm
-EAF-V0-010	docs/specs/expert-audit-followup-v0.md	97	Malformed quoted-value redaction boundary. When a credential-vocabulary quoted k
-EAF-V0-011	docs/specs/expert-audit-followup-v0.md	108	An `EAF-V0-007` refusal of unsafe or unsupported metadata MUST name its specific
-EAF-V0-012	docs/specs/expert-audit-followup-v0.md	118	An ancestor directory of the repository or Git directory that the caller can
-EAF-V0-013	docs/specs/expert-audit-followup-v0.md	127	Before status runs, a `.gitignore` or `.gitattributes` that is a FIFO or a devic
+EAF-V0-008	docs/specs/expert-audit-followup-v0.md	93	The opt-in finite-policy development check MUST bind its independently frozen
+EAF-V0-009	docs/specs/expert-audit-followup-v0.md	99	The opt-in scope development check MUST retain the frozen candidate algorithm
+EAF-V0-010	docs/specs/expert-audit-followup-v0.md	106	Malformed quoted-value redaction boundary. When a credential-vocabulary quoted k
+EAF-V0-011	docs/specs/expert-audit-followup-v0.md	117	An `EAF-V0-007` refusal of unsafe or unsupported metadata MUST name its specific
+EAF-V0-012	docs/specs/expert-audit-followup-v0.md	127	An ancestor directory of the repository or Git directory that the caller can
+EAF-V0-013	docs/specs/expert-audit-followup-v0.md	136	Before status runs, a `.gitignore` or `.gitattributes` that is a FIFO or a devic
 ECO-V0-001	docs/specs/error-code-ownership-gate-v0.md	42	An emitted code is a string literal matching `[a-z][a-z0-9]*(-[a-z0-9]+)+` in a
 ECO-V0-002	docs/specs/error-code-ownership-gate-v0.md	54	A code is owned when any tracked `docs/specs/*.md` file (direct children only)
 ECO-V0-003	docs/specs/error-code-ownership-gate-v0.md	56	`script/error-code-ownership.allowlist` MUST hold, one per line, sorted under th
@@ -990,29 +990,29 @@ GAG-V0-007	docs/specs/go-archive-gate-v0.md	155	The gate MUST cross-check the bu
 GAG-V0-008	docs/specs/go-archive-gate-v0.md	159	The gate MUST exit non-zero when any of its build, closed-set, or witness checks
 GENESIS-001	docs/specs/genesis-backfill.md	53	`corvint init` and `corvint adopt` MUST accept one or more local Git repositorie
 GENESIS-002	docs/specs/genesis-backfill.md	57	zero-execution inventory MUST classify every tracked path as included, excluded,
-GENESIS-003	docs/specs/genesis-backfill.md	60	Git history enrichment MUST recover cited change, ownership, ticket/PR reference
-GENESIS-004	docs/specs/genesis-backfill.md	63	Jira MUST be an optional read-only adapter that ingests stable issue/project IDs
-GENESIS-005	docs/specs/genesis-backfill.md	66	Confluence MUST be an optional read-only adapter for versioned pages, spaces,
-GENESIS-006	docs/specs/genesis-backfill.md	69	external sources MUST use one adapter envelope with source kind/instance, stable
-GENESIS-007	docs/specs/genesis-backfill.md	75	adapter execution MUST be opt-in, least-privilege, bounded, resumable, rate-limi
-GENESIS-008	docs/specs/genesis-backfill.md	78	composition MUST obey ACL non-interference: a caller receives no path, identifie
-GENESIS-009	docs/specs/genesis-backfill.md	84	the backfill MUST build durable cited claims and deterministic views for archite
-GENESIS-010	docs/specs/genesis-backfill.md	87	`corvint spec backfill` MUST emit repository-native Markdown with status
-GENESIS-011	docs/specs/genesis-backfill.md	89	Jira/PR/Confluence relationships MUST retain both exact links and the extraction
-GENESIS-012	docs/specs/genesis-backfill.md	91	incremental sync MUST process only changed Git blobs and changed external versio
-GENESIS-013	docs/specs/genesis-backfill.md	94	multi-repository answers MUST compose immutable per-repository receipts without
-GENESIS-014	docs/specs/genesis-backfill.md	97	answers MUST use progressive disclosure and minimum witnesses so agents can expa
-GENESIS-015	docs/specs/genesis-backfill.md	99	all caches, external snapshots, generated documents, and indexes MUST be disposa
-GENESIS-016	docs/specs/genesis-backfill.md	101	all external bodies MUST remain inert untrusted data. Their contents MUST NOT al
-GENESIS-017	docs/specs/genesis-backfill.md	104	after the initial build, query serving MUST use content-addressed incremental in
-GENESIS-018	docs/specs/genesis-backfill.md	108	Genesis MUST accept independently verifiable session deltas containing evidence
-GENESIS-019	docs/specs/genesis-backfill.md	112	before any model is eligible, Genesis MUST exhaust the deterministic resolvers
-GENESIS-020	docs/specs/genesis-backfill.md	118	model use MUST be opt-in and provider-neutral. A repository policy supplies an
-GENESIS-021	docs/specs/genesis-backfill.md	124	every model call MUST be restricted to immutable handles needed for one unresolv
-GENESIS-022	docs/specs/genesis-backfill.md	130	a model result MAY create only a `MODEL_PROPOSED_ANCHORED`/`INFERRED` candidate
-GENESIS-023	docs/specs/genesis-backfill.md	135	unchanged immutable inputs and an unchanged routing profile MUST reuse the prior
-GENESIS-024	docs/specs/genesis-backfill.md	143	activation MUST emit a canonical, source-content-free receipt whose operational
-GENESIS-025	docs/specs/genesis-backfill.md	149	(proposed 2026-09-22, V1-0008, not accepted) an activation MUST end within its t
+GENESIS-003	docs/specs/genesis-backfill.md	64	Git history enrichment MUST recover cited change, ownership, ticket/PR reference
+GENESIS-004	docs/specs/genesis-backfill.md	67	Jira MUST be an optional read-only adapter that ingests stable issue/project IDs
+GENESIS-005	docs/specs/genesis-backfill.md	70	Confluence MUST be an optional read-only adapter for versioned pages, spaces,
+GENESIS-006	docs/specs/genesis-backfill.md	73	external sources MUST use one adapter envelope with source kind/instance, stable
+GENESIS-007	docs/specs/genesis-backfill.md	79	adapter execution MUST be opt-in, least-privilege, bounded, resumable, rate-limi
+GENESIS-008	docs/specs/genesis-backfill.md	82	composition MUST obey ACL non-interference: a caller receives no path, identifie
+GENESIS-009	docs/specs/genesis-backfill.md	88	the backfill MUST build durable cited claims and deterministic views for archite
+GENESIS-010	docs/specs/genesis-backfill.md	91	`corvint spec backfill` MUST emit repository-native Markdown with status
+GENESIS-011	docs/specs/genesis-backfill.md	93	Jira/PR/Confluence relationships MUST retain both exact links and the extraction
+GENESIS-012	docs/specs/genesis-backfill.md	95	incremental sync MUST process only changed Git blobs and changed external versio
+GENESIS-013	docs/specs/genesis-backfill.md	98	multi-repository answers MUST compose immutable per-repository receipts without
+GENESIS-014	docs/specs/genesis-backfill.md	101	answers MUST use progressive disclosure and minimum witnesses so agents can expa
+GENESIS-015	docs/specs/genesis-backfill.md	103	all caches, external snapshots, generated documents, and indexes MUST be disposa
+GENESIS-016	docs/specs/genesis-backfill.md	105	all external bodies MUST remain inert untrusted data. Their contents MUST NOT al
+GENESIS-017	docs/specs/genesis-backfill.md	108	after the initial build, query serving MUST use content-addressed incremental in
+GENESIS-018	docs/specs/genesis-backfill.md	112	Genesis MUST accept independently verifiable session deltas containing evidence
+GENESIS-019	docs/specs/genesis-backfill.md	116	before any model is eligible, Genesis MUST exhaust the deterministic resolvers
+GENESIS-020	docs/specs/genesis-backfill.md	122	model use MUST be opt-in and provider-neutral. A repository policy supplies an
+GENESIS-021	docs/specs/genesis-backfill.md	128	every model call MUST be restricted to immutable handles needed for one unresolv
+GENESIS-022	docs/specs/genesis-backfill.md	134	a model result MAY create only a `MODEL_PROPOSED_ANCHORED`/`INFERRED` candidate
+GENESIS-023	docs/specs/genesis-backfill.md	139	unchanged immutable inputs and an unchanged routing profile MUST reuse the prior
+GENESIS-024	docs/specs/genesis-backfill.md	147	activation MUST emit a canonical, source-content-free receipt whose operational
+GENESIS-025	docs/specs/genesis-backfill.md	153	(proposed 2026-09-22, V1-0008, not accepted) an activation MUST end within its t
 GFG-V0-001	docs/specs/go-format-gate-v0.md	46	The gate MUST check every Go file in the repository's tracked set, obtained from
 GFG-V0-002	docs/specs/go-format-gate-v0.md	50	The tracked set spans every Go module in the repository. The gate MUST NOT carry
 GFG-V0-003	docs/specs/go-format-gate-v0.md	52	The formatter MUST be the `gofmt` of the toolchain `go env GOROOT` names under
@@ -1471,33 +1471,33 @@ LTPM-V0-010	docs/specs/local-trace-producer-migration-v0.md	105	Query, impact, d
 LTPM-V0-011	docs/specs/local-trace-producer-migration-v0.md	209	public `record` semantics MUST remain unchanged. `--changed` is required
 LTPM-V0-012	docs/specs/local-trace-producer-migration-v0.md	320	(accepted by the owner 2026-09-27; V1-0144) After an amend or rebase, a trace
 MCPV0-001	docs/specs/mcp-server-2026-07-28-v0.md	107	The executable MUST run as `corvint-mcp --root ABSOLUTE_ROOT`. It owns exactly o
-MCPV0-002	docs/specs/mcp-server-2026-07-28-v0.md	117	P0 transport is stdio only. Each message is one UTF-8 JSON object followed by LF
-MCPV0-003	docs/specs/mcp-server-2026-07-28-v0.md	123	The decoder MUST reject invalid UTF-8, invalid JSON, duplicate object names at a
-MCPV0-004	docs/specs/mcp-server-2026-07-28-v0.md	131	A valid request has exactly JSON-RPC `2.0`, a string or integer `id`, a method,
-MCPV0-005	docs/specs/mcp-server-2026-07-28-v0.md	146	The only supported protocol version is exactly `2026-07-28`. Every request, incl
-MCPV0-006	docs/specs/mcp-server-2026-07-28-v0.md	165	`server/discover` MUST return only the implemented surface:
-MCPV0-007	docs/specs/mcp-server-2026-07-28-v0.md	196	`tools/list` is paginated even when one page currently contains all tools. Its c
-MCPV0-008	docs/specs/mcp-server-2026-07-28-v0.md	205	V0 advertises exactly these three tools, subject to the implementation schemas f
-MCPV0-009	docs/specs/mcp-server-2026-07-28-v0.md	277	Query `task` contains 1 through 2,000 printable ASCII characters and has no `lim
-MCPV0-010	docs/specs/mcp-server-2026-07-28-v0.md	284	`corvint.status` reports only the exact repository binding already defined by th
-MCPV0-011	docs/specs/mcp-server-2026-07-28-v0.md	294	The dispatcher MUST continue reading frames while a tool request runs. A valid
-MCPV0-012	docs/specs/mcp-server-2026-07-28-v0.md	309	If a request carries a `progressToken`, the server MAY emit
-MCPV0-013	docs/specs/mcp-server-2026-07-28-v0.md	315	V0 does not advertise logging and emits no `notifications/message`. The 2026-07-
-MCPV0-014	docs/specs/mcp-server-2026-07-28-v0.md	321	V0 pagination is deterministic, stable within the process, and never used to con
-MCPV0-015	docs/specs/mcp-server-2026-07-28-v0.md	326	Repository authority comes only from `--root`. The server does not request
-MCPV0-016	docs/specs/mcp-server-2026-07-28-v0.md	334	Repository files, Git output, Corvint receipts, MCP metadata, request IDs, paths
-MCPV0-017	docs/specs/mcp-server-2026-07-28-v0.md	340	All calls are read-only. The server MUST NOT write the repository, Git index, Co
-MCPV0-018	docs/specs/mcp-server-2026-07-28-v0.md	346	Per-call repository and revision identity is acquired once and bound to the Corv
-MCPV0-019	docs/specs/mcp-server-2026-07-28-v0.md	352	Frame allocation, tool arguments, Corvint output, stderr, concurrent requests, p
-MCPV0-020	docs/specs/mcp-server-2026-07-28-v0.md	359	`corvint.query` and `corvint.impact` MAY accept an explicit
-MCPV0-021	docs/specs/mcp-server-2026-07-28-v0.md	386	All four existing MCP commands MUST accept at most one
-MCPV0-022	docs/specs/mcp-server-2026-07-28-v0.md	392	A legacy connection MUST initialize independently for each Serve invocation. It
-MCPV0-023	docs/specs/mcp-server-2026-07-28-v0.md	408	Legacy calls MUST reuse each existing command's closed tool registry and native
-MCPV0-024	docs/specs/mcp-server-2026-07-28-v0.md	472	`corvint.context` MUST compile the same packet as `corvint context` in process,
-MCPV0-025	docs/specs/mcp-server-2026-07-28-v0.md	484	`corvint.cem.report` MUST render the `corvint cem report` Markdown, counts, poli
-MCPV0-026	docs/specs/mcp-server-2026-07-28-v0.md	455	`corvint-mcp` MUST accept at most one `--tool-profile` selector, following the
-MCPV0-027	docs/specs/mcp-server-2026-07-28-v0.md	529	`corvint-mcp` MUST accept at most one `--error-profile reason-class` selector,
-MCPV0-028	docs/specs/mcp-server-2026-07-28-v0.md	537	`reasonClass` MUST be one of the closed values `git-filter`, `config-include`,
+MCPV0-002	docs/specs/mcp-server-2026-07-28-v0.md	120	P0 transport is stdio only. Each message is one UTF-8 JSON object followed by LF
+MCPV0-003	docs/specs/mcp-server-2026-07-28-v0.md	126	The decoder MUST reject invalid UTF-8, invalid JSON, duplicate object names at a
+MCPV0-004	docs/specs/mcp-server-2026-07-28-v0.md	134	A valid request has exactly JSON-RPC `2.0`, a string or integer `id`, a method,
+MCPV0-005	docs/specs/mcp-server-2026-07-28-v0.md	149	The only supported protocol version is exactly `2026-07-28`. Every request, incl
+MCPV0-006	docs/specs/mcp-server-2026-07-28-v0.md	168	`server/discover` MUST return only the implemented surface:
+MCPV0-007	docs/specs/mcp-server-2026-07-28-v0.md	199	`tools/list` is paginated even when one page currently contains all tools. Its c
+MCPV0-008	docs/specs/mcp-server-2026-07-28-v0.md	208	V0 advertises exactly these three tools, subject to the implementation schemas f
+MCPV0-009	docs/specs/mcp-server-2026-07-28-v0.md	280	Query `task` contains 1 through 2,000 printable ASCII characters and has no `lim
+MCPV0-010	docs/specs/mcp-server-2026-07-28-v0.md	287	`corvint.status` reports only the exact repository binding already defined by th
+MCPV0-011	docs/specs/mcp-server-2026-07-28-v0.md	297	The dispatcher MUST continue reading frames while a tool request runs. A valid
+MCPV0-012	docs/specs/mcp-server-2026-07-28-v0.md	312	If a request carries a `progressToken`, the server MAY emit
+MCPV0-013	docs/specs/mcp-server-2026-07-28-v0.md	318	V0 does not advertise logging and emits no `notifications/message`. The 2026-07-
+MCPV0-014	docs/specs/mcp-server-2026-07-28-v0.md	324	V0 pagination is deterministic, stable within the process, and never used to con
+MCPV0-015	docs/specs/mcp-server-2026-07-28-v0.md	329	Repository authority comes only from `--root`. The server does not request
+MCPV0-016	docs/specs/mcp-server-2026-07-28-v0.md	337	Repository files, Git output, Corvint receipts, MCP metadata, request IDs, paths
+MCPV0-017	docs/specs/mcp-server-2026-07-28-v0.md	343	All calls are read-only. The server MUST NOT write the repository, Git index, Co
+MCPV0-018	docs/specs/mcp-server-2026-07-28-v0.md	349	Per-call repository and revision identity is acquired once and bound to the Corv
+MCPV0-019	docs/specs/mcp-server-2026-07-28-v0.md	355	Frame allocation, tool arguments, Corvint output, stderr, concurrent requests, p
+MCPV0-020	docs/specs/mcp-server-2026-07-28-v0.md	362	`corvint.query` and `corvint.impact` MAY accept an explicit
+MCPV0-021	docs/specs/mcp-server-2026-07-28-v0.md	389	All four existing MCP commands MUST accept at most one
+MCPV0-022	docs/specs/mcp-server-2026-07-28-v0.md	395	A legacy connection MUST initialize independently for each Serve invocation. It
+MCPV0-023	docs/specs/mcp-server-2026-07-28-v0.md	411	Legacy calls MUST reuse each existing command's closed tool registry and native
+MCPV0-024	docs/specs/mcp-server-2026-07-28-v0.md	475	`corvint.context` MUST compile the same packet as `corvint context` in process,
+MCPV0-025	docs/specs/mcp-server-2026-07-28-v0.md	487	`corvint.cem.report` MUST render the `corvint cem report` Markdown, counts, poli
+MCPV0-026	docs/specs/mcp-server-2026-07-28-v0.md	458	`corvint-mcp` MUST accept at most one `--tool-profile` selector, following the
+MCPV0-027	docs/specs/mcp-server-2026-07-28-v0.md	532	`corvint-mcp` MUST accept at most one `--error-profile reason-class` selector,
+MCPV0-028	docs/specs/mcp-server-2026-07-28-v0.md	540	`reasonClass` MUST be one of the closed values `git-filter`, `config-include`,
 MER-V0-001	docs/specs/migration-evidence-ratchet-v0.md	33	The profile MUST bind baseline and candidate repository IDs, immutable commit an
 MER-V0-002	docs/specs/migration-evidence-ratchet-v0.md	37	A snapshot MUST carry stable `(kind,id)` identities for legacy cases, discovered
 MER-V0-003	docs/specs/migration-evidence-ratchet-v0.md	41	The receipt MUST expose raw baseline and candidate totals by kind and state, the
