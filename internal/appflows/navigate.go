@@ -173,8 +173,8 @@ func decodeTraffic(line []byte) (TrafficRecord, error) {
 }
 
 // FlowNavigationMap derives the navigation map at the set's revision (AFU-V1-025..027).
-func FlowNavigationMap(ctx context.Context, root string, set IntentSet, evidence []TestRunEvidence, traffic []TrafficRecord) ([]byte, error) {
-	m, err := navigationMap(ctx, root, set, evidence, traffic)
+func FlowNavigationMap(ctx context.Context, root string, set IntentSet, evidence []TestRunEvidence, traffic []TrafficRecord, registry string) ([]byte, error) {
+	m, err := navigationMap(ctx, root, set, evidence, traffic, registry)
 	if err != nil {
 		return nil, err
 	}
@@ -183,11 +183,11 @@ func FlowNavigationMap(ctx context.Context, root string, set IntentSet, evidence
 
 // FlowNavigationPacket returns the bounded packet for one goal flow, each step above maxEffect
 // marked requires-grant with the class it needs (AFU-V1-028).
-func FlowNavigationPacket(ctx context.Context, root string, set IntentSet, evidence []TestRunEvidence, traffic []TrafficRecord, goal, maxEffect string) ([]byte, error) {
+func FlowNavigationPacket(ctx context.Context, root string, set IntentSet, evidence []TestRunEvidence, traffic []TrafficRecord, goal, maxEffect, registry string) ([]byte, error) {
 	if effectRank[maxEffect] == 0 {
 		return nil, errors.New("--max-effect must be read, write-reversible, write-irreversible or external-side-effect")
 	}
-	m, err := navigationMap(ctx, root, set, evidence, traffic)
+	m, err := navigationMap(ctx, root, set, evidence, traffic, registry)
 	if err != nil {
 		return nil, err
 	}
@@ -220,11 +220,12 @@ func navigationBound(message string) error {
 	return &gokernel.Error{Code: "navigation-bound-exceeded", Message: message}
 }
 
-func navigationMap(ctx context.Context, root string, set IntentSet, evidence []TestRunEvidence, traffic []TrafficRecord) (NavigationMap, error) {
+func navigationMap(ctx context.Context, root string, set IntentSet, evidence []TestRunEvidence, traffic []TrafficRecord, registry string) (NavigationMap, error) {
 	links, at, err := evaluateSet(ctx, root, set)
 	if err != nil {
 		return NavigationMap{}, err
 	}
+	at.stability = readFlowStability(ctx, root, registry, evidence, at)
 	m := NavigationMap{Schema: NavigationMapSchema, Revision: at.commit, States: navStates(set.Flows), Flows: []NavFlow{}}
 	for _, intent := range set.Flows {
 		own := flowLinks(links, intent.FlowID)

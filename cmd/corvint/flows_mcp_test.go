@@ -23,27 +23,30 @@ func TestAFUV1034FlowsToolsMatchCLIVerbs(t *testing.T) {
 	registry := flowsRegistry(t, shop.root)
 	// Impact runs before an evidence copy makes the worktree differ from HEAD.
 	assertFlowsParity(t, shop.root, registry, bridge.ToolFlowsImpact, map[string]any{"flows": "flows", "base": shop.b}, "impact", "--flows", "flows", "--base", shop.b)
+	qualifyFixtureEvidence(t, shop.root, shop.evidence)
 	evidence := copyIntoRoot(t, shop.root, shop.evidence, "runs/runs.jsonl")
-	assertFlowsParity(t, shop.root, registry, bridge.ToolFlowsMap, map[string]any{"flows": "flows", "evidence": []any{"runs/runs.jsonl"}}, "map", "--flows", "flows", "--evidence", evidence)
+	assertFlowsParity(t, shop.root, registry, bridge.ToolFlowsMap, map[string]any{"flows": "flows", "evidence": []any{"runs/runs.jsonl"}, "registry": "runs/registry.json"}, "map", "--flows", "flows", "--evidence", evidence, "--registry", "runs/registry.json")
 	assertFlowsParity(t, shop.root, registry, bridge.ToolFlowsMap, map[string]any{"flows": "flows", "path": "profile/profile.go"}, "map", "--flows", "flows", "--path", "profile/profile.go")
 	assertFlowsParity(t, shop.root, registry, bridge.ToolFlowsMap, map[string]any{"flows": "flows", "testKey": "wishlist.spec.ts > adds"}, "map", "--flows", "flows", "--test-key", "wishlist.spec.ts > adds")
-	assertFlowsParity(t, shop.root, registry, bridge.ToolFlowsGaps, map[string]any{"flows": "flows", "evidence": []any{"runs/runs.jsonl"}}, "gaps", "--flows", "flows", "--evidence", evidence)
+	assertFlowsParity(t, shop.root, registry, bridge.ToolFlowsGaps, map[string]any{"flows": "flows", "evidence": []any{"runs/runs.jsonl"}, "registry": "runs/registry.json"}, "gaps", "--flows", "flows", "--evidence", evidence, "--registry", "runs/registry.json")
 
 	nav := newNavFixture(t)
 	nav.root = resolvedRoot(t, nav.root)
 	registry = flowsRegistry(t, nav.root)
 	evidence = copyIntoRoot(t, nav.root, nav.evidence, "runs/runs.jsonl")
 	traffic := copyIntoRoot(t, nav.root, nav.traffic, "runs/traffic.jsonl")
-	files := map[string]any{"flows": "flows", "evidence": []any{"runs/runs.jsonl"}, "traffic": []any{"runs/traffic.jsonl"}}
-	assertFlowsParity(t, nav.root, registry, bridge.ToolFlowsNavigate, files, "navigate", "--flows", "flows", "--evidence", evidence, "--traffic", traffic)
+	files := map[string]any{"flows": "flows", "evidence": []any{"runs/runs.jsonl"}, "traffic": []any{"runs/traffic.jsonl"}, "registry": "runs/registry.json"}
+	assertFlowsParity(t, nav.root, registry, bridge.ToolFlowsNavigate, files, "navigate", "--flows", "flows", "--evidence", evidence, "--traffic", traffic, "--registry", "runs/registry.json")
 	packet := map[string]any{"goal": "checkout", "maxEffect": "write-irreversible"}
 	for key, value := range files {
 		packet[key] = value
 	}
-	assertFlowsParity(t, nav.root, registry, bridge.ToolFlowsNavigate, packet, "navigate", "--flows", "flows", "--evidence", evidence, "--traffic", traffic, "--goal", "checkout", "--max-effect", "write-irreversible")
+	assertFlowsParity(t, nav.root, registry, bridge.ToolFlowsNavigate, packet, "navigate", "--flows", "flows", "--evidence", evidence, "--traffic", traffic, "--goal", "checkout", "--max-effect", "write-irreversible", "--registry", "runs/registry.json")
 
 	// The CLI's argument refusals are the tools' invalid-arguments; a verb refusal is flows-refused.
 	for name, arguments := range map[string]map[string]any{
+		"map lookup with registry":  {"flows": "flows", "path": "a", "registry": "runs/registry.json"},
+		"map absolute registry":     {"flows": "flows", "registry": "/runs/registry.json"},
 		"map path and testKey":      {"flows": "flows", "path": "a", "testKey": "b"},
 		"map lookup with evidence":  {"flows": "flows", "path": "a", "evidence": []any{"runs/runs.jsonl"}},
 		"navigate maxEffect only":   {"flows": "flows", "maxEffect": "read"},

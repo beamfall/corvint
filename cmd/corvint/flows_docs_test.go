@@ -13,7 +13,7 @@ import (
 	"github.com/Beamfall/corvint/internal/appflows"
 )
 
-var docsArgs = []string{"docs", "--flows", "flows", "--page", "docs/flows.md", "--claims", "docs/flows.claims.json", "--docs-root", "docs"}
+var docsArgs = []string{"docs", "--flows", "flows", "--registry", "runs/registry.json", "--page", "docs/flows.md", "--claims", "docs/flows.claims.json", "--docs-root", "docs"}
 
 const docsGuide = "# Guide\n\nPaying completes the order.\n<!-- corvint-claim flow=checkout variation=checkout.happy outcome=paid -->\n"
 
@@ -51,6 +51,7 @@ func docsEvidence(t *testing.T, fx shopFixture, checkout string) string {
 func newDocsFixture(t *testing.T) shopFixture {
 	t.Helper()
 	fx := newShopFixture(t)
+	qualifyFixtureEvidence(t, fx.root, fx.evidence)
 	shopWrite(t, fx.root, map[string]string{"docs/guide.md": docsGuide, "docs/faq.md": "# FAQ\n\nNo anchor here.\n"})
 	shopCommit(t, fx.root, "D: hand-written docs")
 	code, out, diagnostic := runFlowsCLI(fx.root, append(docsArgs, "--evidence", docsEvidence(t, fx, "passed"))...)

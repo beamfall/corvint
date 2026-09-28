@@ -92,6 +92,23 @@ type InventoryTest struct {
 	Path    string `json:"path"`
 }
 
+// UnmarshalJSON keeps an omitted or null project distinct from Playwright's explicit default identity.
+func (t *InventoryTest) UnmarshalJSON(raw []byte) error {
+	var input struct {
+		TestKey string  `json:"test_key"`
+		Project *string `json:"project"`
+		Path    string  `json:"path"`
+	}
+	if err := Decode(raw, &input); err != nil {
+		return err
+	}
+	if input.Project == nil {
+		return errors.New("selection inventory requires an explicit project string")
+	}
+	*t = InventoryTest{TestKey: input.TestKey, Project: *input.Project, Path: input.Path}
+	return nil
+}
+
 // CoverageRecord is one test's ingested per-tier coverage from its run at Commit.
 type CoverageRecord struct {
 	TestKey string         `json:"test_key"`
@@ -277,7 +294,7 @@ func validSelectionProvider(p SelectionProvider) error {
 	}
 	keys := map[string]bool{}
 	for _, t := range p.Inventory {
-		if !flowText(t.TestKey) || !flowText(t.Project) || !safePath(t.Path) || keys[t.TestKey] {
+		if !flowText(t.TestKey) || (t.Project != "" && !flowText(t.Project)) || !safePath(t.Path) || keys[t.TestKey] {
 			return errors.New("invalid selection inventory")
 		}
 		keys[t.TestKey] = true

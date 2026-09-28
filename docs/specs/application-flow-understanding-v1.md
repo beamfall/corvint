@@ -304,7 +304,8 @@ This subsection fixes the S2 wire shape. It adds no requirement and no root verb
 - `AFU-V1-016`: `corvint flows gaps` MUST report each gap with one closed code: `unmapped-flow`,
   `no-test`, `test-without-assertion`, `assertion-unlinked`, `stale-link`, `inferred-only`,
   `evidence-missing`, `evidence-stale`, `evidence-flaky`, `negative-control-missing`,
-  `cleanup-unverified` or `unreviewed`. A flow with any gap is `incomplete`.
+  `cleanup-unverified`, `stability-missing`, `stability-invalid`, `stability-incomplete`,
+  `stability-stale`, `stability-failed` or `unreviewed`. A flow with any gap is `incomplete`.
 - `AFU-V1-017`: `corvint flows impact --base SHA` MUST name the flows, variations and test keys that
   the changed paths reach through links and through the Corvint impact graph, with the path of each.
 - `AFU-V1-018`: All of these commands are read commands under product invariant 4. Only `import`,
@@ -316,7 +317,7 @@ This subsection fixes the S3 wire and argv shapes. It adds no requirement and no
 query reads the intents committed in `DIR` at `HEAD` through Git, as `export` does, and writes one
 compact JSON document to stdout.
 
-- `corvint [--root PATH] flows map --flows DIR [--evidence FILE]...` writes `application-flow-map/1`:
+- `corvint [--root PATH] flows map --flows DIR [--evidence FILE]... [--registry FILE]` writes `application-flow-map/1`:
   `schema`, `revision`, `review` (the `Summarize` denominator: `revision`, `reviewed`,
   `reviewed_denominator`, `stale`, `inferred`, `review_attestation` `self` and the `limitation` text
   stating that review identity is not verified) and `flows`. Each flow has `flow_id`, `proposed`,
@@ -324,11 +325,12 @@ compact JSON document to stdout.
   and `variations` (`id`, `steps`, `outcomes`, `projects`, `links`, `evidence`, `verified`). A link is
   the evaluated link: `flow`, `from`, `basis`, `review_state`, `target`, `blob`, `revision`,
   `reviewed_at` and `review_attestation` on reviewed links. An `evidence` row has `test_key`, the
-  optional `project`, `state` and `authority` (the highest of `STATIC`, `INGESTED` and
+  optional `project`, `state`, optional `stability_detail` (the blocking aggregate ID or registry refusal),
+  and `authority` (the highest of `STATIC`, `INGESTED` and
   `LOCALLY_OBSERVED` among its matched records, or `none`).
 - `flows map --flows DIR --path P` or `--test-key K` writes `application-flow-lookup/1` (`schema`,
   `revision`, `path` or `test_key`, and `flows`, each hit `flow`, `from`, `basis`, `review_state`),
-  derived from the forward links at `HEAD`. The two selectors exclude each other and `--evidence`.
+  derived from the forward links at `HEAD`. The two selectors exclude each other, `--evidence` and `--registry`.
   A `--path` that is not a canonical repository-relative path (a leading `./` or `/`, an empty or
   `..` segment) exits 2 as `invalid-arguments`, never an empty answer.
 - Evidence files are `test-run-evidence/0` JSONL as `ingest` writes it, read through the same
@@ -340,13 +342,25 @@ compact JSON document to stdout.
   `flaky` (any is `flaky`, or their classifications diverge under the shared TCQ-V0-049 rule, such
   as one `passed` and one `failed`), `failed` (none `passed`), `negative-control-missing` (no passed
   record observed every control failing as expected and ran every `adapter.negative_controls` key),
-  `cleanup-unverified` (any passed record has cleanup other than `done`), else `verified`. Across
-  records this is the per-pair rule only; DCP-V1-023/024 aggregation is `flows stability` (AFU-V1-042). A
-  variation is `verified` only when it has at least one pair and every pair is `verified`. S3 does
-  not carry evidence forward
+  `cleanup-unverified` (any passed record has cleanup other than `done`). Passing these run checks
+  alone does not verify a pair. `--registry FILE` names the committed `flows-run-registry/0` at the
+  same captured revision as the intents. Working-tree policy edits are ignored. The shared
+  AFU-V1-041/042 validator and threshold evaluator apply; every aggregate naming the exact test key
+  and actual project must qualify, so a caller cannot choose a weaker scope while another fails.
+  A variation without declared projects requires qualification for each actual current project.
+  No registry, absent committed file or missing matching aggregate yields `stability-missing`;
+  malformed policy or invalid contributions yield `stability-invalid`; missing planned ordinals or
+  missing records yield `stability-incomplete`; an aggregate bound to another source commit/tree
+  yields `stability-stale`; a non-clean threshold verdict yields `stability-failed`.
+  Every joined contribution, including manual reruns, must also pass the existing run checks with
+  cleanup done and the variation's applicable controls. A permissive threshold never overrides
+  flakiness, missing controls or cleanup failure. Only then is the pair `verified`. A variation is
+  `verified` only when it has at least one pair and every pair is `verified`.
+  `flows navigate` and `flows docs` accept the same optional `--registry` and use this same rule;
+  no per-run pass alone verifies navigation or proves a documentation claim. S3 does not carry evidence forward
 from an earlier commit as the Verified definition allows; such evidence is `stale`, which can
 under-report and never over-report.
-- `corvint [--root PATH] flows gaps --flows DIR [--evidence FILE]...` writes `application-flow-gaps/1`:
+- `corvint [--root PATH] flows gaps --flows DIR [--evidence FILE]... [--registry FILE]` writes `application-flow-gaps/1`:
   `schema`, `revision` and `flows`, each `flow_id`, `status` and `gaps` (`code`, the optional
   `member`, `test_key` and `project`, and `detail`). A flow with no link has only `unmapped-flow`. A
   flow whose every link is `inferred` has `inferred-only`. Each `stale` link is `stale-link`; any other
@@ -355,7 +369,9 @@ under-report and never over-report.
   `no-test`; declared tests with no declared assertion link from the variation or its outcomes is
   `test-without-assertion`; each of its outcomes with no declared assertion link is
   `assertion-unlinked`; and each evidence pair maps `missing` and `failed` to `evidence-missing`,
-  `stale`, `flaky`, `negative-control-missing` and `cleanup-unverified` to the like-named code.
+  `stale`, `flaky`, `negative-control-missing` and `cleanup-unverified` to the like-named code;
+  stability states map to their identically named gap code, with the registry refusal or aggregate
+  ID in `detail` when available.
 - `corvint [--root PATH] flows impact --flows DIR --base SHA` writes `application-flow-impact/1`:
   `schema`, `base`, `revision`, `changed_paths` (the `base..HEAD` tree diff), `graph` (`digest`,
   `scope` and `unknown`, each `REASON: detail` from the affected plan; an `UNKNOWN` scope means the
@@ -430,7 +446,13 @@ This subsection fixes the S4 wire shape. It adds no requirement and no root verb
   the optional `discovery` (a `playwright-discovery/0` record; `--playwright-discovery` overrides it
   and needs no `--playwright-config`), `global_paths` (directory or file prefixes, for example named
   fixtures and seeds), `inventory` (`test_key`, `project`, `path`), the optional `flow_tiers` (flow ID
-  to the tiers its coverage must complete) and the optional `coverage` path. `--repository` is
+  to the tiers its coverage must complete) and the optional `coverage` path. Every inventory
+  `project` must be an explicitly present string. The empty string is Playwright's unnamed/default
+  project identity and is valid when the complete canonical discovery carries that same empty
+  identity. Missing/null inventory or discovery project fields are refused; project names are
+  never filled in or normalized. Revision, config-byte and source-digest binding and exact
+  project/test reconciliation remain mandatory; missing or inconsistent discovery retains the
+  existing full-suite fallback. The `strict` and `coverage` outputs are unchanged. `--repository` is
   refused. Inventory and each path list are bounded (1,024 tests, 4,096 paths); exceeding a bound is
   `e2e-bound-exceeded`.
 - Coverage: the named file is a closed `application-flow-coverage/0` record list (`test_key`,
@@ -674,11 +696,11 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-013 | `TestAFUV1FailedAttemptThenPassIsFlaky`, `TestAFUV1PlaywrightUnexpectedNeverPassed`, `TestAFUV1JUnitTimedOutAttempt` (a timed-out then passed JUnit test is flaky), the retry-passed case of each adapter test; repeated runs aggregate through the AFU-V1-041 run registry (`TestAFUV1RunStabilityCounts`) |
 | AFU-V1-014 | `TestAFUV1StaticNeverVerified`, `TestAFUV1PlaywrightUnexpectedNeverPassed`; ingest emits `INGESTED` and the schema accepts `LOCALLY_OBSERVED`; the flow-scoped AFU-V0-010 observer emits no per-test record, an accepted gap (decision 0417) |
 | AFU-V1-041, AFU-V1-042 | `TestAFUV1RunStabilityCounts` (counts, verdict, manual reruns kept out of the threshold, every attempt reported), `TestAFUV1RunStabilityRefusals` (each named refusal), `TestAFUV1RunRegistryReadAtHead` (the committed bytes, never the working tree), `TestAFUV1FlowsCLIStabilityIsReadOnly` |
-| AFU-V1-015 | `TestAFUV1FlowsQueryGoldens` (`map.golden.json`), `TestAFUV1EvidenceStateOrder` (including mixed pass and fail across current records, and a passed record without cleanup `done`), `TestAFUV1ReadRunEvidenceDiscipline` |
-| AFU-V1-016 | `TestAFUV1FlowsQueryGoldens` (`gaps.golden.json`, every gap code reached), `TestAFUV1EvidenceStateOrder`, `TestAFUV1ReadRunEvidenceDiscipline`, `TestAFUV1ZeroVariationFlowIncomplete` |
+| AFU-V1-015 | `TestAFUV1FlowsQueryGoldens` (`map.golden.json`), `TestAFUV1EvidenceStateOrder`, `TestAFUV1VerificationRequiresStability`, `TestAFUV1PassingRunNeedsStability`, `TestAFUV1MapAndGapsRegistryQualification` (including mixed pass and fail across current records, and a passed record without cleanup `done`), `TestAFUV1ReadRunEvidenceDiscipline` |
+| AFU-V1-016 | `TestAFUV1FlowsQueryGoldens` (`gaps.golden.json`, every gap code reached), `TestAFUV1EvidenceStateOrder`, `TestAFUV1VerificationRequiresStability`, `TestAFUV1PassingRunNeedsStability`, `TestAFUV1MapAndGapsRegistryQualification`, `TestAFUV1ReadRunEvidenceDiscipline`, `TestAFUV1ZeroVariationFlowIncomplete` |
 | AFU-V1-017 | `TestAFUV1FlowsQueryGoldens` (`impact.golden.json`: a direct hit and a hit through the impact graph), `TestAFUV1FlowsCLIReverseLookups` (unresolvable base), `TestAFUV1FlowsImpactDirtyWorktreeUnknown` (an uncommitted edit makes the scope `UNKNOWN`, never a confident no-hit) |
 | AFU-V1-018 | `TestAFUV1FlowsQueriesAreReadOnly` (`map`, lookup, `gaps`, `impact`, `ingest` and `export` leave the repository, `.git` included, byte-identical) |
-| AFU-V1-019 | `TestAFUV1019UndiscoveredTestForbidsNarrowing`, `TestAFUV1040SelectionCorpusReport` (the `undiscovered-test`, `missing-discovery`, `stale-discovery` and `test-file` cases) |
+| AFU-V1-019 | `TestPlaywrightDiscoveryUnnamedProject`, `TestAFUV1SelectionInventoryDefaultProject`, `TestAFUV1019UnnamedProjectSelection`, `TestAFUV1019UndiscoveredTestForbidsNarrowing`, `TestAFUV1040SelectionCorpusReport` (the `undiscovered-test`, `missing-discovery`, `stale-discovery` and `test-file` cases) |
 | AFU-V1-020 | `TestAFUV1020ExclusionProofsPerBasis` (a reviewed-links proof, a declared link without a review anchor, an inferred-only link), `TestAFUV1040SelectionCorpusReport` |
 | AFU-V1-021 | `TestAFUV1020ExclusionProofsPerBasis` (a coverage proof, stale coverage evidence, an incomplete tier), `TestAFUV1021CoverageStaleWhenStaticReachChanged` (the `spec-after-coverage` corpus case: a test file changed after its coverage run, outside its covered paths), `TestAFUV1040SelectionCorpusReport` |
 | AFU-V1-022 | `TestAFUV1022EveryFallbackCodeYieldsFullSuite` (one subtest per closed code), `TestAFUV1040SelectionCorpusReport` (global-path cases) |
@@ -748,7 +770,7 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 | AFU-V1-030..033 | implemented: `internal/appflows/docs.go` (`RenderDocs`, `CheckDocs`, `ReplaceConfined`), `cmd/corvint/flows_docs.go` |
 | AFU-V1-039 | implemented and locally qualified (limits above): `cmd/corvint/testdata/flows/acceptance`, `cmd/corvint/flows_acceptance_test.go` |
 | AFU-V1-006 | partial (see the matrix): `internal/doccorpus/behavior.go` |
-| AFU-V1-041, AFU-V1-042 | implemented: `internal/appflows/runregistry.go`, `cmd/corvint/flows.go` (`flows stability`) |
+| AFU-V1-041, AFU-V1-042 | implemented: `internal/appflows/runregistry.go`, `internal/appflows/query_stability.go`, `cmd/corvint/flows.go` (`flows stability` and query qualification) |
 | AFU-V1-011..014, 038 | implemented (014 accepted observer gap; see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/runhygiene/runhygiene.go`, `internal/jstestprovider/playwright.go`, `receipt.go`, `projection.go`, `external.go` |
 | AFU-V1-019..024, 040 | implemented: `internal/appflows/selection.go` (`SelectE2E`), `cmd/corvint/affected.go`, `internal/liveverify/affected/typescript/playwright_discovery.go` (`VerifyPlaywrightDiscovery`), `internal/extevidence/selection.go` (`SelectionNote`); corpus `cmd/corvint/testdata/e2e-safe-corpus.json` |
 | AFU-V1-034..035 | implemented and locally qualified: `internal/mcp/bridge/flows.go`, `bridge.go`, `cmd/corvint-mcp/main.go`, `internal/appflows/impact.go` (`FlowImpactAt`) |
@@ -785,3 +807,13 @@ PWP-V3-005); they add no new receipt state or execution authority.
 | `external-attempt-run-incomplete` | The receipt reports infrastructure failure or cancellation, lacks external lifecycle evidence, changed its inputs, or did not retire runner descendants. |
 | `external-attempt-runner-identity-mismatch` | The canonical receipt cannot be decoded, has no runner version, or disagrees with the ingest header's runner version. |
 | `external-attempt-test-identity-missing` | A retained test has no test ID or named project. |
+
+### Issue 316/317 compatibility and rollback
+
+The owner-requested corrections in issues 316 and 317 admit Playwright's explicit empty identity and
+restore the defined stability requirement for verified flows. Existing map/gaps schemas retain their
+names, add the closed stability states above and optional `stability_detail`, and conservatively
+report incomplete evidence to callers that omit a registry. The opt-in MCP flow map/gaps/navigation
+inputs accept the same optional repository-relative `registry`; map lookup selectors exclude it.
+No evidence record, registry or strict/coverage selection wire shape changes. Rollback reverts this
+slice; per-run evidence must remain labelled unqualified until the stability gate is restored.

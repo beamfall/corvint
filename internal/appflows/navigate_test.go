@@ -52,7 +52,7 @@ func TestAFUV1025PreconditionFlowsResolve(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err = FlowNavigationMap(ctx, root, set, nil, nil); err == nil || !strings.Contains(err.Error(), "precondition") {
+		if _, err = FlowNavigationMap(ctx, root, set, nil, nil, ""); err == nil || !strings.Contains(err.Error(), "precondition") {
 			t.Errorf("%s: %v", name, err)
 		}
 	}
@@ -167,13 +167,13 @@ func TestAFUV1028PacketBound(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = FlowNavigationPacket(ctx, root, set, nil, nil, "sign-in", EffectRead); err != nil {
+	if _, err = FlowNavigationPacket(ctx, root, set, nil, nil, "sign-in", EffectRead, ""); err != nil {
 		t.Fatalf("small packet: %v", err)
 	}
-	if _, err = FlowNavigationPacket(ctx, root, set, nil, nil, "checkout", EffectRead); codeOf(err) != "navigation-bound-exceeded" {
+	if _, err = FlowNavigationPacket(ctx, root, set, nil, nil, "checkout", EffectRead, ""); codeOf(err) != "navigation-bound-exceeded" {
 		t.Fatalf("oversized packet: %v", err)
 	}
-	if _, err = FlowNavigationPacket(ctx, root, set, nil, nil, "sign-in", "write"); err == nil {
+	if _, err = FlowNavigationPacket(ctx, root, set, nil, nil, "sign-in", "write", ""); err == nil {
 		t.Fatal("unknown --max-effect accepted")
 	}
 }

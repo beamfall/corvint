@@ -191,7 +191,7 @@ func runFlowsImport(_ context.Context, root string, args []string, out io.Writer
 }
 
 // flowQueryFlags declares the --flows directory and the repeatable --evidence files map and gaps share.
-func flowQueryFlags(name string) (*flag.FlagSet, *string, *[]string) {
+func flowQueryFlags(name string) (*flag.FlagSet, *string, *[]string, *string) {
 	f := flag.NewFlagSet(name, flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	dir := f.String("flows", "", "intent directory inside the root")
@@ -200,17 +200,17 @@ func flowQueryFlags(name string) (*flag.FlagSet, *string, *[]string) {
 		*evidence = append(*evidence, s)
 		return nil
 	})
-	return f, dir, evidence
+	return f, dir, evidence, f.String("registry", "", "committed flows-run-registry/0 stability policy")
 }
 
 func runFlowsMap(ctx context.Context, root string, args []string, out io.Writer) error {
-	f, dir, evidence := flowQueryFlags("flows map")
+	f, dir, evidence, registry := flowQueryFlags("flows map")
 	path := f.String("path", "", "reverse lookup from a source path")
 	testKey := f.String("test-key", "", "reverse lookup from a test key")
 	parseErr := f.Parse(args)
 	lookup := *path != "" || *testKey != ""
-	if parseErr != nil || *dir == "" || f.NArg() != 0 || (*path != "" && *testKey != "") || (lookup && len(*evidence) != 0) {
-		return errors.New("flows map requires --flows DIR, then --evidence FILE (repeatable) or one of --path P or --test-key K")
+	if parseErr != nil || *dir == "" || f.NArg() != 0 || (*path != "" && *testKey != "") || (lookup && (len(*evidence) != 0 || *registry != "")) {
+		return errors.New("flows map requires --flows DIR, then --registry FILE and/or --evidence FILE (repeatable) or one of --path P or --test-key K")
 	}
 	set, err := appflows.LoadIntentsAt(ctx, root, *dir, "HEAD")
 	if err != nil {
@@ -220,7 +220,7 @@ func runFlowsMap(ctx context.Context, root string, args []string, out io.Writer)
 	if lookup {
 		data, err = appflows.FlowLookup(ctx, root, set, *path, *testKey)
 	} else {
-		data, err = flowMap(ctx, root, set, *evidence)
+		data, err = flowMap(ctx, root, set, *evidence, *registry)
 	}
 	if err != nil {
 		return err
@@ -229,18 +229,18 @@ func runFlowsMap(ctx context.Context, root string, args []string, out io.Writer)
 	return err
 }
 
-func flowMap(ctx context.Context, root string, set appflows.IntentSet, evidence []string) ([]byte, error) {
+func flowMap(ctx context.Context, root string, set appflows.IntentSet, evidence []string, registry string) ([]byte, error) {
 	records, err := appflows.ReadRunEvidence(evidence)
 	if err != nil {
 		return nil, err
 	}
-	return appflows.FlowMap(ctx, root, set, records)
+	return appflows.FlowMap(ctx, root, set, records, registry)
 }
 
 func runFlowsGaps(ctx context.Context, root string, args []string, out io.Writer) error {
-	f, dir, evidence := flowQueryFlags("flows gaps")
+	f, dir, evidence, registry := flowQueryFlags("flows gaps")
 	if f.Parse(args) != nil || *dir == "" || f.NArg() != 0 {
-		return errors.New("flows gaps requires --flows DIR and optional repeatable --evidence FILE")
+		return errors.New("flows gaps requires --flows DIR and optional --registry FILE and repeatable --evidence FILE")
 	}
 	set, err := appflows.LoadIntentsAt(ctx, root, *dir, "HEAD")
 	if err != nil {
@@ -250,7 +250,7 @@ func runFlowsGaps(ctx context.Context, root string, args []string, out io.Writer
 	if err != nil {
 		return err
 	}
-	data, err := appflows.FlowGaps(ctx, root, set, records)
+	data, err := appflows.FlowGaps(ctx, root, set, records, *registry)
 	if err != nil {
 		return err
 	}
@@ -369,8 +369,9 @@ review identity is not verified. import writes new proposed intents with inferre
 links, never overwrites an intent, and prints the written paths.
 
 Query usage:
-  corvint [--root PATH] flows map --flows DIR [--evidence FILE]... [--path P | --test-key K]
-  corvint [--root PATH] flows gaps --flows DIR [--evidence FILE]...
+  corvint [--root PATH] flows map --flows DIR [--evidence FILE]... [--registry FILE]
+  corvint [--root PATH] flows map --flows DIR [--path P | --test-key K]
+  corvint [--root PATH] flows gaps --flows DIR [--evidence FILE]... [--registry FILE]
   corvint [--root PATH] flows impact --flows DIR --base SHA
   corvint [--root PATH] flows stability --registry FILE [--evidence FILE]...
   corvint [--root PATH] flows ingest --format playwright-json|playwright-receipt|junit-xml|go-test-json --from FILE [header flags]

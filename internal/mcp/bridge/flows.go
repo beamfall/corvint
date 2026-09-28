@@ -74,7 +74,7 @@ func flowsToolDescriptors() []ToolDescriptor {
 			Name:        ToolFlowsGaps,
 			Description: "Report the flows at HEAD without passing test evidence and the tests no flow names (application-flow-gaps/1).",
 			Annotations: readAnnotations(),
-			InputSchema: objectSchema(map[string]any{"flows": relative, "evidence": files}, []any{"flows"}),
+			InputSchema: objectSchema(map[string]any{"flows": relative, "evidence": files, "registry": relative}, []any{"flows"}),
 		},
 		{
 			Name:        ToolFlowsImpact,
@@ -90,10 +90,12 @@ func flowsToolDescriptors() []ToolDescriptor {
 			Description: "Map the flow intents at HEAD to their links and test evidence, or look up the flows one path or test key reaches (application-flow-map/1, application-flow-lookup/1).",
 			Annotations: readAnnotations(),
 			InputSchema: constrained(objectSchema(map[string]any{
-				"flows": relative, "evidence": files, "path": relative,
+				"flows": relative, "evidence": files, "registry": relative, "path": relative,
 				"testKey": map[string]any{"type": "string", "minLength": 1, "maxLength": maxPathRunes, "pattern": `^[^\x00-\x1f\x7f-\x9f]+$`},
 			}, []any{"flows"}), map[string]any{"not": map[string]any{"anyOf": []any{
 				map[string]any{"required": []any{"path", "testKey"}},
+				map[string]any{"required": []any{"path", "registry"}},
+				map[string]any{"required": []any{"testKey", "registry"}},
 				map[string]any{"required": []any{"path", "evidence"}, "properties": map[string]any{"evidence": map[string]any{"minItems": 1}}},
 				map[string]any{"required": []any{"testKey", "evidence"}, "properties": map[string]any{"evidence": map[string]any{"minItems": 1}}},
 			}}}),
@@ -103,7 +105,7 @@ func flowsToolDescriptors() []ToolDescriptor {
 			Description: "Compile the navigation map of the flow intents at HEAD, or the ordered packet that reaches one goal flow with each step above maxEffect marked requires-grant (application-navigation-map/0, application-navigation-packet/0).",
 			Annotations: readAnnotations(),
 			InputSchema: constrained(objectSchema(map[string]any{
-				"flows": relative, "evidence": files, "traffic": files,
+				"flows": relative, "evidence": files, "registry": relative, "traffic": files,
 				"goal":      map[string]any{"type": "string", "minLength": 1, "maxLength": maxFlowGoalRunes},
 				"maxEffect": map[string]any{"type": "string", "enum": []any{effectClasses[0], effectClasses[1], effectClasses[2], effectClasses[3]}},
 			}, []any{"flows"}), map[string]any{"dependentRequired": map[string]any{"maxEffect": []any{"goal"}}}),
@@ -119,6 +121,7 @@ func constrained(schema, rules map[string]any) map[string]any {
 }
 
 type flowsMapInput struct {
+	Registry *string  `json:"registry"`
 	Flows    string   `json:"flows"`
 	Evidence []string `json:"evidence"`
 	Path     *string  `json:"path"`
@@ -126,6 +129,7 @@ type flowsMapInput struct {
 }
 
 type flowsGapsInput struct {
+	Registry *string  `json:"registry"`
 	Flows    string   `json:"flows"`
 	Evidence []string `json:"evidence"`
 }
@@ -136,6 +140,7 @@ type flowsImpactInput struct {
 }
 
 type flowsNavigateInput struct {
+	Registry  *string  `json:"registry"`
 	Flows     string   `json:"flows"`
 	Evidence  []string `json:"evidence"`
 	Traffic   []string `json:"traffic"`
@@ -159,13 +164,13 @@ func (registry *Registry) callFlowsMap(ctx context.Context, arguments []byte) (R
 		if err != nil {
 			return nil, err
 		}
-		return appflows.FlowMap(ctx, root, set, records)
+		return appflows.FlowMap(ctx, root, set, records, deref(input.Registry))
 	})
 }
 
 func (registry *Registry) callFlowsGaps(ctx context.Context, arguments []byte) (Result, *Error) {
 	var input flowsGapsInput
-	if decodeClosed(arguments, &input) != nil || !validFlowFiles(input.Flows, input.Evidence) {
+	if decodeClosed(arguments, &input) != nil || (!validFlowFiles(input.Flows, input.Evidence) || (input.Registry != nil && !validFlowPath(*input.Registry))) {
 		return Result{}, failure("invalid-arguments")
 	}
 	return registry.runFlows(ctx, ToolFlowsGaps, input.Flows, func(ctx context.Context, root string, set appflows.IntentSet) ([]byte, error) {
@@ -173,7 +178,7 @@ func (registry *Registry) callFlowsGaps(ctx context.Context, arguments []byte) (
 		if err != nil {
 			return nil, err
 		}
-		return appflows.FlowGaps(ctx, root, set, records)
+		return appflows.FlowGaps(ctx, root, set, records, deref(input.Registry))
 	})
 }
 
@@ -212,9 +217,9 @@ func (registry *Registry) callFlowsNavigate(ctx context.Context, arguments []byt
 			return nil, err
 		}
 		if input.Goal == nil {
-			return appflows.FlowNavigationMap(ctx, root, set, records, observed)
+			return appflows.FlowNavigationMap(ctx, root, set, records, observed, deref(input.Registry))
 		}
-		return appflows.FlowNavigationPacket(ctx, root, set, records, observed, *input.Goal, maxEffect)
+		return appflows.FlowNavigationPacket(ctx, root, set, records, observed, *input.Goal, maxEffect, deref(input.Registry))
 	})
 }
 
@@ -302,7 +307,7 @@ func validFlowPath(value string) bool {
 // validFlowsMap is the `flows map` rule: evidence files, or one of path and testKey without evidence.
 func validFlowsMap(input flowsMapInput) bool {
 	lookup := input.Path != nil || input.TestKey != nil
-	if !validFlowFiles(input.Flows, input.Evidence) || (input.Path != nil && input.TestKey != nil) || (lookup && len(input.Evidence) != 0) {
+	if (!validFlowFiles(input.Flows, input.Evidence) || (input.Registry != nil && !validFlowPath(*input.Registry))) || (input.Path != nil && input.TestKey != nil) || (lookup && (len(input.Evidence) != 0 || input.Registry != nil)) {
 		return false
 	}
 	if input.Path != nil && !validFlowPath(*input.Path) {
@@ -313,7 +318,7 @@ func validFlowsMap(input flowsMapInput) bool {
 
 // validFlowsNavigate is the `flows navigate` rule: maxEffect only beside a goal.
 func validFlowsNavigate(input flowsNavigateInput) bool {
-	if !validFlowFiles(input.Flows, input.Evidence) || !validFlowFiles(input.Flows, input.Traffic) {
+	if (!validFlowFiles(input.Flows, input.Evidence) || (input.Registry != nil && !validFlowPath(*input.Registry))) || !validFlowFiles(input.Flows, input.Traffic) {
 		return false
 	}
 	if input.Goal == nil {

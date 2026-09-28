@@ -63,6 +63,7 @@ func newAcceptanceFixture(t *testing.T) (string, string) {
 	if err = os.WriteFile(evidence, []byte(out), 0600); err != nil {
 		t.Fatal(err)
 	}
+	qualifyFixtureEvidence(t, root, evidence)
 	return root, evidence
 }
 
@@ -87,6 +88,9 @@ func sortedIDs[T any](items []T, id func(T) string) []string {
 
 func acceptanceCLI(t *testing.T, root string, v any, args ...string) string {
 	t.Helper()
+	if len(args) > 0 && (args[0] == "map" || args[0] == "gaps" || args[0] == "navigate" || args[0] == "docs") {
+		args = append(args, "--registry", "runs/registry.json")
+	}
 	code, out, diagnostic := runFlowsCLI(root, args...)
 	if code != 0 {
 		t.Fatalf("%v exited %d: %s", args, code, diagnostic)

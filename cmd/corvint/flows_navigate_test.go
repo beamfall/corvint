@@ -130,6 +130,7 @@ func newNavFixture(t *testing.T) navFixture {
 	if err := os.WriteFile(fx.traffic, []byte(traffic), 0600); err != nil {
 		t.Fatal(err)
 	}
+	qualifyFixtureEvidence(t, root, fx.evidence)
 	return fx
 }
 
@@ -143,7 +144,7 @@ func navGolden(t *testing.T, name, out string) {
 
 func navigate(t *testing.T, fx navFixture, args ...string) string {
 	t.Helper()
-	code, out, diagnostic := runFlowsCLI(fx.root, append([]string{"navigate", "--flows", "flows", "--evidence", fx.evidence, "--traffic", fx.traffic}, args...)...)
+	code, out, diagnostic := runFlowsCLI(fx.root, append([]string{"navigate", "--flows", "flows", "--evidence", fx.evidence, "--traffic", fx.traffic, "--registry", "runs/registry.json"}, args...)...)
 	if code != 0 {
 		t.Fatalf("navigate %v exited %d: %s", args, code, diagnostic)
 	}

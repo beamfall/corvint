@@ -192,3 +192,21 @@ func assertDiscoveryFallback(t *testing.T, plan PlaywrightPlan, state string) {
 		t.Fatalf("%+v", plan)
 	}
 }
+
+func TestPlaywrightDiscoveryUnnamedProject(t *testing.T) {
+	t.Run("AFU-V1-019 explicit default project identity", func(t *testing.T) {
+		root := t.TempDir()
+		write(t, root, "playwright.config.ts", `export default {testDir:"tests"}`)
+		write(t, root, "tests/a.spec.ts", `test("a",()=>{})`)
+		raw := discoveryFixtureBytes(t, root, []PlaywrightDiscoveryUnit{{Project: "", Test: "tests/a.spec.ts"}})
+		units, state := VerifyPlaywrightDiscovery(root, "playwright.config.ts", discoveryFixtureRevision, raw)
+		if state != "MATCHED" || len(units) != 1 || units[0].Project != "" {
+			t.Fatalf("default project: %s %+v", state, units)
+		}
+		for _, bad := range [][]byte{bytes.Replace(raw, []byte(`"project":"",`), nil, 1), bytes.Replace(raw, []byte(`"project":""`), []byte(`"project":null`), 1)} {
+			if _, state := VerifyPlaywrightDiscovery(root, "playwright.config.ts", discoveryFixtureRevision, bad); state != "MALFORMED" {
+				t.Fatalf("missing/null project: %s", state)
+			}
+		}
+	})
+}

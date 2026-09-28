@@ -14,7 +14,7 @@ func init() { flowSubcommands["navigate"] = runFlowsNavigate }
 // flowsNavigateHelp documents `flows navigate`; help.go appends it to flowsHelp.
 const flowsNavigateHelp = `
 Navigation usage:
-  corvint [--root PATH] flows navigate --flows DIR [--evidence FILE]... [--traffic FILE]... [--goal FLOW_ID [--max-effect CLASS]]
+  corvint [--root PATH] flows navigate --flows DIR [--evidence FILE]... [--registry FILE] [--traffic FILE]... [--goal FLOW_ID [--max-effect CLASS]]
 
 navigate writes application-navigation-map/0 from the intents' navigation blocks at
 HEAD: states, and per step its locator, readiness condition, input fixture ID,
@@ -27,7 +27,7 @@ marked requires-grant. It writes nothing to the repository.
 `
 
 func runFlowsNavigate(ctx context.Context, root string, args []string, out io.Writer) error {
-	f, dir, evidence := flowQueryFlags("flows navigate")
+	f, dir, evidence, registry := flowQueryFlags("flows navigate")
 	traffic := &[]string{}
 	f.Func("traffic", "application-flow-traffic/0 JSONL file", func(s string) error {
 		*traffic = append(*traffic, s)
@@ -39,7 +39,7 @@ func runFlowsNavigate(ctx context.Context, root string, args []string, out io.Wr
 	effectSet := false
 	f.Visit(func(fl *flag.Flag) { effectSet = effectSet || fl.Name == "max-effect" })
 	if parseErr != nil || *dir == "" || f.NArg() != 0 || (effectSet && *goal == "") {
-		return errors.New("flows navigate requires --flows DIR, optional repeatable --evidence FILE and --traffic FILE, and --max-effect CLASS only with --goal FLOW_ID")
+		return errors.New("flows navigate requires --flows DIR, optional --registry FILE and repeatable --evidence FILE and --traffic FILE, and --max-effect CLASS only with --goal FLOW_ID")
 	}
 	set, err := appflows.LoadIntentsAt(ctx, root, *dir, "HEAD")
 	if err != nil {
@@ -55,9 +55,9 @@ func runFlowsNavigate(ctx context.Context, root string, args []string, out io.Wr
 	}
 	var data []byte
 	if *goal == "" {
-		data, err = appflows.FlowNavigationMap(ctx, root, set, records, observed)
+		data, err = appflows.FlowNavigationMap(ctx, root, set, records, observed, *registry)
 	} else {
-		data, err = appflows.FlowNavigationPacket(ctx, root, set, records, observed, *goal, *maxEffect)
+		data, err = appflows.FlowNavigationPacket(ctx, root, set, records, observed, *goal, *maxEffect, *registry)
 	}
 	if err != nil {
 		return err

@@ -58,8 +58,8 @@ var (
 // DocOptions names the committed page, its claim sidecar, the optional hand-written docs root and the
 // run evidence, all repository-relative except the evidence files, which are already read.
 type DocOptions struct {
-	Page, Claims, DocsRoot string
-	Evidence               []TestRunEvidence
+	Page, Claims, DocsRoot, Registry string
+	Evidence                         []TestRunEvidence
 }
 
 // DocClaims is the flow-doc-claims/0 sidecar: every rendered and anchored claim, sorted by ID.
@@ -205,6 +205,7 @@ func buildDocs(ctx context.Context, root string, set IntentSet, o DocOptions) (d
 	if err != nil {
 		return docBuild{}, err
 	}
+	at.stability = readFlowStability(ctx, root, o.Registry, o.Evidence, at)
 	b := docBuild{set: set, claims: docClaims(set, links, o.Evidence, at, o.Page), failures: []DocFailure{}, revision: at.commit}
 	if o.DocsRoot == "" {
 		return b, nil

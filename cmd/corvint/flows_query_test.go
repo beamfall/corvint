@@ -378,3 +378,21 @@ func TestAFUV1FlowsQueriesAreReadOnly(t *testing.T) {
 		}
 	}
 }
+
+func TestAFUV1PassingRunNeedsStability(t *testing.T) {
+	t.Run("AFU-V1-015 no registry cannot verify", func(t *testing.T) {
+		fx := newShopFixture(t)
+		code, out, diag := runFlowsCLI(fx.root, "map", "--flows", "flows", "--evidence", fx.evidence)
+		var report appflows.MapReport
+		if code != 0 || json.Unmarshal([]byte(out), &report) != nil {
+			t.Fatalf("map: %d %s", code, diag)
+		}
+		for _, f := range report.Flows {
+			if f.FlowID == "checkout" {
+				if f.Variations[0].Verified || f.Variations[0].Evidence[0].State != "stability-missing" {
+					t.Fatalf("one passing run verified without stability: %+v", f.Variations[0])
+				}
+			}
+		}
+	})
+}

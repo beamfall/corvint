@@ -466,3 +466,42 @@ func TestAFUV1024E2ESafeRefusesMalformedInput(t *testing.T) {
 		}
 	}
 }
+
+func TestAFUV1019UnnamedProjectSelection(t *testing.T) {
+	t.Run("AFU-V1-019 exact empty identity and full-suite fallback", func(t *testing.T) {
+		corpus := loadE2ECorpus(t)
+		corpus.Files["playwright.config.ts"] = `export default { testDir: "e2e" };`
+		corpus.Files["e2e-provider.json"] = strings.ReplaceAll(corpus.Files["e2e-provider.json"], `"project": "chromium"`, `"project": ""`)
+		root, base, _ := buildE2ECase(t, corpus, corpus.find(t, "search-source"))
+		path := filepath.Join(root, "discovery.json")
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw = bytes.ReplaceAll(raw, []byte(`"project":"chromium"`), []byte(`"project":""`))
+		if err = os.WriteFile(path, raw, 0600); err != nil {
+			t.Fatal(err)
+		}
+		got := runE2ESelection(t, root, base)
+		if got.Discovery.State != "MATCHED" || got.State != "narrow-selection-allowed" || len(got.OmittedTests) == 0 {
+			t.Fatalf("default project not reconciled: %+v", got)
+		}
+		if !slices.ContainsFunc(got.Selected, func(test appflows.E2ETest) bool { return test.Path == "e2e/search.spec.ts" && test.Project == "" }) {
+			t.Fatalf("affected unnamed test missing: %+v", got.Selected)
+		}
+		for _, c := range []struct {
+			name string
+			raw  []byte
+		}{{"missing", nil}, {"mismatched", bytes.ReplaceAll(raw, []byte(`"project":""`), []byte(`"project":"other"`))}, {"incomplete", bytes.Replace(raw, []byte(`"project":"","test":"e2e/search.spec.ts"`), []byte(`"project":"","test":"e2e/unknown.spec.ts"`), 1)}} {
+			t.Run(c.name, func(t *testing.T) {
+				if err := os.WriteFile(path, c.raw, 0600); err != nil {
+					t.Fatal(err)
+				}
+				got := runE2ESelection(t, root, base)
+				if got.State != "full-relevant-suite-required" || len(got.OmittedTests) != 0 || !slices.Contains(e2eCodes(got), appflows.CodeInventoryIncomplete) {
+					t.Fatalf("unsafe narrowing: %+v", got)
+				}
+			})
+		}
+	})
+}
