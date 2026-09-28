@@ -38,8 +38,7 @@ type LeaseChoice struct {
 	gate                     *gateRun
 }
 
-// claimObserver computes the claim facts from the audit taken under the
-// optimistic observation.
+// claimObserver computes claim facts from the guarded audit before locking.
 type claimObserver func(*journal.Result, *transaction.Input) (transaction.LeaseFacts, error)
 
 // Lease commits one lease command. A claim or reap survey the model answers

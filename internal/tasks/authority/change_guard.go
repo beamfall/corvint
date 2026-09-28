@@ -4,8 +4,10 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -76,10 +78,25 @@ func WatchChanges(repo *intent.Repository) (_ *ChangeGuard, err error) {
 		if !info.IsDir() {
 			return nil
 		}
-		entries, err := os.ReadDir(path)
+		dir, err := os.Open(path)
 		if err != nil {
 			return err
 		}
+		remaining := wire.MaxArchiveScanEntries + wire.MaxTicketsPerQueue + wire.MaxReleasesPerQueue + 256 - count
+		entries, err := dir.ReadDir(remaining + 1)
+		if errors.Is(err, io.EOF) {
+			err = nil
+		}
+		if closeErr := dir.Close(); closeErr != nil {
+			return errors.Join(err, closeErr)
+		}
+		if err != nil {
+			return err
+		}
+		if len(entries) > remaining {
+			return wire.Errorf(wire.CodeLimitExceeded, path, "change observation entry bound")
+		}
+		sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
 		for _, entry := range entries {
 			if err := visit(filepath.Join(path, entry.Name())); err != nil {
 				return err

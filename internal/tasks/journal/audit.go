@@ -43,6 +43,9 @@ type Result struct {
 	Liveness              string
 	RuntimeQualification  string
 	Records               map[string]Record
+	// RequestDigests retains bounded metadata, not historical afterimage bytes.
+	// A writer reads the one requested projection under its change guard.
+	RequestDigests map[string]wire.Digest
 	// IntentError is populated only by AuditForWrite. Private consistency is
 	// still mandatory; stable intent divergence permits request replay only.
 	IntentError   error
@@ -64,8 +67,8 @@ type Reader struct {
 }
 
 // AuditForWrite carries one verified snapshot through request lookup and
-// planning. It retains canonical mutable records and request afterimages,
-// with the same aggregate bound as selected Audit records. It writes nothing.
+// planning. It retains canonical mutable records with the existing selection
+// budget, and only digests for historical requests. It writes nothing.
 func (r Reader) AuditForWrite() (*Result, error) {
 	r.writerCache = true
 	return r.Audit()

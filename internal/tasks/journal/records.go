@@ -25,6 +25,9 @@ func equalDigest(a, b *wire.Digest) bool {
 
 func (r Reader) walk(o *observation, selected map[string]bool, request string, lim limits, checkIntent bool) (*Result, error) {
 	result := &Result{Identity: o.identity, Head: o.head, StagingPresent: o.staging, Records: map[string]Record{}, StructuralConsistency: "NOT_OBSERVED", ProjectionAgreement: "NOT_OBSERVED", SemanticCoverage: "NOT_OBSERVED", HistoricalAcceptance: "NOT_OBSERVED", ActorAuthentication: "NOT_OBSERVED", Liveness: "NOT_OBSERVED", RuntimeQualification: "NOT_OBSERVED"}
+	if r.writerCache {
+		result.RequestDigests = map[string]wire.Digest{}
+	}
 	if o.stageErr != nil {
 		return result, o.stageErr
 	}
@@ -166,6 +169,9 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 				}
 				requestCount++
 				boundRequest = req
+				if r.writerCache {
+					result.RequestDigests[p.Path] = wire.Sum(post)
+				}
 				if req.Entry.RequestID == request {
 					result.request = req
 					if rc.TicketID != nil {
@@ -247,7 +253,7 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 }
 
 func writerRecord(path string) bool {
-	return strings.HasPrefix(path, "intent/") || strings.HasPrefix(path, "requests/") || strings.HasPrefix(path, "attempts/") || path == "reservations.json" || path == "barrier.json"
+	return path == "intent/queue.json" || path == "intent/policy.json" || strings.HasPrefix(path, "intent/tickets/") || strings.HasPrefix(path, "intent/releases/") || strings.HasPrefix(path, "attempts/")
 }
 
 func (r Reader) postBytes(p snapshot.PostEntry) ([]byte, error) {

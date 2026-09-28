@@ -15,7 +15,8 @@ import (
 )
 
 // CAL-V0-026: reuse is real and private corruption cannot borrow a valid key.
-func TestCALV0026_VerifiedAuditReuse(t *testing.T) {
+func cachedLeaseRepo(t *testing.T) *intent.Repository {
+	t.Helper()
 	r := fixture.TempRepo(t)
 	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
 	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
@@ -26,6 +27,11 @@ func TestCALV0026_VerifiedAuditReuse(t *testing.T) {
 	if _, err = Init(context.Background(), repo, mutation.Binding{ID: "tester", Role: "OWNER"}, "cache-init", wire.Timestamp("2026-09-27T00:00:00Z")); err != nil {
 		t.Fatal(err)
 	}
+	return repo
+}
+
+func TestCALV0026_VerifiedAuditReuse(t *testing.T) {
+	repo := cachedLeaseRepo(t)
 	read := func() (*journal.Result, error) {
 		g, err := authority.WatchChanges(repo)
 		if err != nil {
@@ -49,6 +55,10 @@ func TestCALV0026_VerifiedAuditReuse(t *testing.T) {
 	b, err := read()
 	if err != nil || a != b {
 		t.Fatalf("same-head cache was not reused: %v", err)
+	}
+	gate, err := readLeaseProof(context.Background(), repo)
+	if err != nil || gate != a {
+		t.Fatalf("gate pre-read did not reuse audit: %v", err)
 	}
 	request, _ := filepath.Glob(filepath.Join(repo.StateDir, "requests", "*", "*"))
 	if len(request) != 1 {

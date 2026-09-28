@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -38,6 +39,7 @@ type preparedLease struct {
 	branch  string
 	result  transaction.Result
 	pending bool
+	failure error
 }
 
 func leaseAudit(repo *intent.Repository, guard *authority.ChangeGuard, inv *transaction.Inventory, headRaw []byte) (*journal.Result, error) {
@@ -82,7 +84,7 @@ func leaseAudit(repo *intent.Repository, guard *authority.ChangeGuard, inv *tran
 	return proof, nil
 }
 
-func prepareLease(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, facts claimObserver) (_ *preparedLease, err error) {
+func prepareLease(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, facts claimObserver) (prepared *preparedLease, err error) {
 	g, err := authority.WatchChanges(repo)
 	if err != nil {
 		return nil, err
@@ -93,9 +95,10 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 			if moved := g.Check(); moved != nil {
 				err = moved
 			}
-			if cleanup := g.Close(); cleanup != nil {
-				err = errors.Join(err, cleanup)
-			}
+			// A failed read can be a live writer's intermediate state. Keep
+			// its monitor until that writer has released the lock too.
+			p.failure = err
+			prepared, err = p, nil
 		}
 	}()
 	inv, err := inventory(repo)
@@ -116,13 +119,24 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 		return nil, err
 	}
 	if p.proof.StagingPresent {
-		return nil, wire.Errorf(wire.CodeSnapshotMoved, "staging", "orphan staging requires settlement")
+		return nil, wire.Errorf(wire.CodeUnsupported, "staging", "active staging requires settlement")
 	}
 	path, err := snapshot.RequestPath(request.RequestID)
 	if err != nil {
 		return nil, err
 	}
-	if raw := p.proof.Records[path].Raw; raw != nil {
+	if digest, found := p.proof.RequestDigests[path]; found {
+		bound, err := snapshot.PostBound(path)
+		if err != nil {
+			return nil, err
+		}
+		raw, err := intent.ReadFile(filepath.Join(repo.StateDir, path), bound)
+		if err != nil {
+			return nil, err
+		}
+		if wire.Sum(raw) != digest {
+			return nil, wire.Errorf(wire.CodeSnapshotMoved, path, "audited request changed")
+		}
 		rc, err := snapshot.DecodeRequest(raw)
 		if err != nil {
 			return nil, err
@@ -243,12 +257,6 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	if err != nil {
 		return err
 	}
-	if head.QueueID.Raw != request.QueueID {
-		return wire.Errorf(wire.CodeOutOfScope, "queueId", "request queue differs")
-	}
-	if wire.Sum(wire.EncodeFile(head.Value())) != wire.Sum(p.head) {
-		return wire.Errorf(wire.CodeSnapshotMoved, "head", "prepared head changed")
-	}
 	if p.branch != "" {
 		branch, err := primaryBranch(repo)
 		if err != nil {
@@ -260,6 +268,19 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	}
 	if err := p.guard.Check(); err != nil {
 		return err
+	}
+	if p.failure != nil {
+		return p.failure
+	}
+	if head.QueueID.Raw != request.QueueID {
+		return wire.Errorf(wire.CodeOutOfScope, "queueId", "request queue differs")
+	}
+	current, err := intent.ReadFile(filepath.Join(repo.StateDir, "head.json"), wire.MaxJournalHeadBytes)
+	if err != nil {
+		return err
+	}
+	if wire.Sum(current) != wire.Sum(p.head) {
+		return wire.Errorf(wire.CodeSnapshotMoved, "head", "prepared head changed")
 	}
 	if !p.pending && (p.result.Kind != "Transaction" || p.result.Plan == nil) {
 		setLeaseReport(report, p.result)

@@ -210,6 +210,8 @@ silently shared.
   promote the experimental pack profile. Incomplete context packets also abstain. For
   `claim --next`, derive only the ticket selected by the existing conservative priority plan,
   bind the facts to that ticket, and recheck collisions; a blocked plan stays blocked.
+  Decision 0397's CAL-V0-022 addendum permits only the scope adapter's Core imports and its
+  pack-fixture test import. Standalone source-archive rebuild remains blocked by V1-0456.
 - `CAL-V0-023`: Two live attempts MUST collide exactly when their resource sets collide under
   TCP-00 §4.2 path normalization; `WHOLE_REPOSITORY` collides with every live entry and every live
   entry collides with it. A colliding `claim` refuses `RESOURCE_COLLISION` naming the other
@@ -230,6 +232,13 @@ silently shared.
   audit is reused from a verified cache keyed by the head receipt digest and the intent tree
   digest, and is otherwise taken once. Measured on a synthetic 3,000-ticket fixture store, the p95
   lock hold of `claim` and `renew` MUST be under 500 ms on a host with a load below the CPU count.
+
+  The cache is process-local and retains one successful audit; fresh CLI processes audit once.
+  Reuse also verifies every physical content digest and path membership under a transient native
+  change monitor. Inventory, audit, model construction and monitor teardown run outside the lock.
+  Locked guards bind the prepared result to the unchanged head and monitored bytes before applying
+  the bounded writes. A changed observation retries; unavailable monitoring refuses. Pending-receipt
+  recovery prepares its full proof outside the lock before bounded redo. This changes no store format.
 
 S7, qualification and execution cutover.
 
@@ -371,4 +380,4 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-023 | `TestCALV0023_CollisionNormalization` (`internal/tasks/ticket`), `TestCALV0023_CollidingClaimsAdmitOne`, `TestCALV0023_DisjointPathScopesAreBothAdmitted` (`internal/tasks/store`) |
 | CAL-V0-024 | `TestCALV0024_SubmitOutsideTheScopeIsRefused` (`internal/tasks/store`) |
 | CAL-V0-025 | `TestCALV0025_WidenAddsPathsAndRefusesCollision`, `TestCALV0025_WidenRefusedUnderAdmissionBarrier` (`internal/tasks/store`) |
-| CAL-V0-026 | NOT_MET: full-store audit cache absent. `TestCALV0026_LockObserverReportsOnceAfterRelease` validates observation; opt-in `TestCALV0026_LockHoldMeasurement` records the 3,000-ticket measurement in the S8 build log. |
+| CAL-V0-026 | Qualification pending. `TestCALV0026_VerifiedAuditReuse`, `TestCALV0026_PreparationFailureWaitsForWriter` (`internal/tasks/store`) and `TestCALV0026_ChangeGuardDescriptorExhaustion` (`internal/tasks/authority`) cover cache trust, concurrency and cleanup. Opt-in `TestCALV0026_LockHoldMeasurement` retains 3,000-ticket timings; see `docs/build-log/2026-09-28-corvint-tasks-lease-lock-cost.md`. |

@@ -94,33 +94,21 @@ func settleLease(ctx context.Context, repo *intent.Repository) (bool, error) {
 		if err != nil || !pending {
 			return redone, err
 		}
-		g, err := authority.WatchChanges(repo)
+		p, err := prepareLeaseRecovery(repo)
 		if err != nil {
+			if wire.CodeOf(err) == wire.CodeSnapshotMoved || os.IsNotExist(err) {
+				continue
+			}
 			return redone, err
 		}
-		err = func() error {
-			head, err := readHead(repo)
-			if err != nil {
-				return err
-			}
-			proof, err := journalReader(repo, head).AuditForWrite()
-			if err == nil {
-				return wire.Errorf(wire.CodeSnapshotMoved, "redo", "another writer settled receipt")
-			}
-			if wire.CodeOf(err) != wire.CodeRedoPending {
-				return err
-			}
-			p := &preparedLease{guard: g, proof: proof, head: wire.EncodeFile(head.Value()), pending: true}
-			report := &Report{}
-			r := transaction.Request{Operation: transaction.Lease, QueueID: head.QueueID.Raw, Lease: &transaction.LeaseRequest{}}
-			if err := commitLease(ctx, repo, r, p, report, nil); err != nil {
-				return err
-			}
-			redone = redone || report.Redone
-			return nil
-		}()
-		closeErr := g.Close()
-		if closeErr != nil {
+		r := transaction.Request{Operation: transaction.Lease, Lease: &transaction.LeaseRequest{}}
+		if p.proof != nil && p.proof.Head != nil {
+			r.QueueID = p.proof.Head.QueueID.Raw
+		}
+		report := &Report{}
+		err = commitLease(ctx, repo, r, p, report, nil)
+		redone = redone || report.Redone
+		if closeErr := p.guard.Close(); closeErr != nil {
 			return redone, errors.Join(err, closeErr)
 		}
 		if err != nil && wire.CodeOf(err) != wire.CodeSnapshotMoved {
@@ -128,6 +116,33 @@ func settleLease(ctx context.Context, repo *intent.Repository) (bool, error) {
 		}
 	}
 	return redone, wire.Errorf(wire.CodeSnapshotMoved, "redo", "store changed during all recovery attempts")
+}
+
+// Recovery failures are observations too: a live writer may still be replacing
+// staging and projections. Preserve the guard for the locked failure recheck.
+func prepareLeaseRecovery(repo *intent.Repository) (*preparedLease, error) {
+	g, err := authority.WatchChanges(repo)
+	if err != nil {
+		return nil, err
+	}
+	p := &preparedLease{guard: g}
+	p.failure = func() error {
+		head, err := readHead(repo)
+		if err != nil {
+			return err
+		}
+		p.head = wire.EncodeFile(head.Value())
+		p.proof, err = journalReader(repo, head).AuditForWrite()
+		if err == nil {
+			return wire.Errorf(wire.CodeSnapshotMoved, "redo", "another writer settled receipt")
+		}
+		if wire.CodeOf(err) != wire.CodeRedoPending {
+			return err
+		}
+		p.pending = true
+		return nil
+	}()
+	return p, nil
 }
 
 func probeLeaseRecovery(ctx context.Context, repo *intent.Repository) (_ bool, err error) {
