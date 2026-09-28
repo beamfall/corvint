@@ -16,7 +16,7 @@ scope, `PUB-V0-001..026` and the 2026-09-16 Core release scope amendment),
 - Claim: Accepted scope: 1.0 Core is the local change-evidence loop and proof wire; companions, host FULL and independent interop leave the Core path (decision 0373).
 - Status: accepted (decision 0373, V1-0001) / not-started
 - Exists: this spec, decision 0373 with the eleven owner answers, and the prospective amendment section in `public-release-v0.md`; the candidate reader and installer admit a Core-only profile (V1-0125), and `corvint-release-candidate` assembles one when `-companion-dir` is omitted (V1-0229).
-- Blocked on: the V1-0018 Core freeze with its decision 0421 blockers, V1-0019 external validation and V1-0020 `1.0.0-rc.1` qualification; the untouched repository for V1-0019 is `github.com/go-chi/chi` (decision 0422), and the V1-0019 cases for go-chi/chi, Corvint and beamfall/core are frozen under `benchmarks/untouched-repository-v1/` (Frozen cases) and not yet run; the native linux/amd64 host is a GitHub-hosted `ubuntu-24.04` runner (decision 0420).
+- Blocked on: V1-0019 external validation and V1-0020 qualification of the next candidate. `1.0.0-rc.1` (build 163, `b967f6bb`) is published as a prerelease with V1-0019 run-001 as a known issue (decision 0425): orientation FAIL on go-chi/chi (3 of 20) and beamfall/core (1 of 20), consequence and completion PASS on both, and the Corvint run aborted (V1-0431..V1-0433). The next run uses spf13/cobra in place of go-chi/chi (decision 0425); the native linux/amd64 host is a GitHub-hosted `ubuntu-24.04` runner (decision 0420).
 - Read next: Decisions the owner must make; Classification of shipped surfaces; Externally dependent gates.
 
 ## Human intent
@@ -194,6 +194,19 @@ accepted by decision 0373 and the amendment it requires are stated.
     release evidence. This spec publishes its preregistration digest
     `867f51a01609d1587122d4186775f2557bcf4ec5c064ec12004edf3de8d35a40` before any run, and its
     outcomes after.
+- Run-001 on `1.0.0-rc.1` (`b967f6bbe33c5eba367a07d7eeb2bd1e372e9162`, build 163) failed; by
+  decision 0425 it is a known issue of that prerelease and V1-0019 gates 1.0 final.
+  - go-chi/chi: orientation FAIL (3 treatment-only critical misses in 20, all test files, V1-0431),
+    consequence PASS (0 in 19), completion PASS (12 informative, none false-complete). Result
+    `benchmarks/untouched-repository-v1/runs/run-001.json`, sha256
+    `3a518374754dc757a0e140ac859b9b29d7bd0a6b6ad6473b87081ffac515843a`.
+  - beamfall/core: orientation FAIL (1 in 20), consequence PASS (0 in 20), completion PASS
+    (12 informative, none false-complete). Private result sha256
+    `43fbcdfd0800724b8944caaca3ed6a65dd5cf3d2433ac7706efa0e8c751b3f8b`.
+  - Corvint: aborted before scoring (V1-0432, V1-0433); only
+    `benchmarks/untouched-repository-v1/corvint/runs/run-001.started.json` exists.
+  - spf13/cobra replaces go-chi/chi as the held-out repository for the next run, with its cases
+    frozen and published first (decision 0425).
 
 ### Host FULL and authority tuples
 
@@ -324,7 +337,7 @@ is `github.com/go-chi/chi` (decision 0422). The questions stay as asked.
 | `PRS-V1-004` | Native install lifecycle on each Core platform | darwin/arm64 retained for 0.7.0; linux/amd64 `NOT_RUN` |
 | `PRS-V1-006` | Host lifecycle qualification, nine cases per tuple (`host-lifecycle-qualification-v1.md`, V1-0016) | PASS for plain CLI, Codex CLI 0.153.2 and Claude Code 2.1.267 on darwin/arm64 with 0.8.0, all FALLBACK; linux `NOT_RUN` |
 | `PRS-V1-007` | V1-0014 | `NOT_RUN` |
-| `PRS-V1-008` | V1-0019 | `NOT_RUN` |
+| `PRS-V1-008` | V1-0019 run-001 on `1.0.0-rc.1` (`b967f6bb`), `benchmarks/untouched-repository-v1/runs/run-001.json` | FAIL: orientation on go-chi/chi (3 of 20) and beamfall/core (1 of 20); Corvint aborted; known issue of `1.0.0-rc.1` (decision 0425) |
 
 ## Sections not applicable to a scope spec
 
