@@ -85,28 +85,28 @@ AFU-V1-015	docs/specs/application-flow-understanding-v1.md	302	`corvint flows ma
 AFU-V1-016	docs/specs/application-flow-understanding-v1.md	304	`corvint flows gaps` MUST report each gap with one closed code: `unmapped-flow`,
 AFU-V1-017	docs/specs/application-flow-understanding-v1.md	309	`corvint flows impact --base SHA` MUST name the flows, variations and test keys
 AFU-V1-018	docs/specs/application-flow-understanding-v1.md	311	All of these commands are read commands under product invariant 4. Only `import`
-AFU-V1-019	docs/specs/application-flow-understanding-v1.md	406	`corvint affected --provider FILE --selection-profile e2e-safe` MUST select ever
-AFU-V1-020	docs/specs/application-flow-understanding-v1.md	412	An exclusion proof with basis `reviewed-links` MUST require that every link of t
-AFU-V1-021	docs/specs/application-flow-understanding-v1.md	418	An `observed` coverage link MAY add tests to the selection. An exclusion proof w
-AFU-V1-022	docs/specs/application-flow-understanding-v1.md	426	No test may be omitted when any changed path is a global path. When narrowing is
-AFU-V1-023	docs/specs/application-flow-understanding-v1.md	432	Every omitted test MUST appear with its exclusion proof and basis in the result,
-AFU-V1-024	docs/specs/application-flow-understanding-v1.md	436	The profile is an additive value of the frozen `--selection-profile` option. The
-AFU-V1-025	docs/specs/application-flow-understanding-v1.md	479	`corvint flows navigate` MUST derive an `application-navigation-map/0` from flow
-AFU-V1-026	docs/specs/application-flow-understanding-v1.md	485	Locators MUST come from the flow intent or test source: an accessible role and n
-AFU-V1-027	docs/specs/application-flow-understanding-v1.md	487	Every transition MUST carry an effect class. A declared class MAY be raised by
-AFU-V1-028	docs/specs/application-flow-understanding-v1.md	490	`flows navigate --goal FLOW_ID` MUST return a bounded packet: the ordered steps,
-AFU-V1-029	docs/specs/application-flow-understanding-v1.md	495	The Corvint observer MUST NOT perform a `write-irreversible` or
-AFU-V1-030	docs/specs/application-flow-understanding-v1.md	540	`corvint flows docs` MUST render user documentation from flow intents with fixed
-AFU-V1-031	docs/specs/application-flow-understanding-v1.md	543	A claim is `PROVEN` only when its variation is verified at the evaluated revisio
-AFU-V1-032	docs/specs/application-flow-understanding-v1.md	546	`corvint flows docs --check` MUST fail when a committed claim that was `PROVEN`
-AFU-V1-033	docs/specs/application-flow-understanding-v1.md	550	Hand-written Markdown under the declared docs root MAY opt in with a claim ancho
-AFU-V1-034	docs/specs/application-flow-understanding-v1.md	600	`corvint-mcp --tool-profile flows` MUST advertise read-only `corvint.flows.map`,
-AFU-V1-035	docs/specs/application-flow-understanding-v1.md	607	Repository-authored text in any flows response is returned inside the untrusted-
-AFU-V1-036	docs/specs/application-flow-understanding-v1.md	612	Every write MUST resolve under the repository root without following a symlink.
-AFU-V1-037	docs/specs/application-flow-understanding-v1.md	617	Byte, record, attempt, link and traversal bounds apply before decode and walk. W
-AFU-V1-038	docs/specs/application-flow-understanding-v1.md	619	Recorded evidence MUST drop cookies, authorization headers, tokens and request o
-AFU-V1-039	docs/specs/application-flow-understanding-v1.md	625	A committed fixture application MUST carry one UI flow and one API flow that rea
-AFU-V1-040	docs/specs/application-flow-understanding-v1.md	628	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing
+AFU-V1-019	docs/specs/application-flow-understanding-v1.md	412	`corvint affected --provider FILE --selection-profile e2e-safe` MUST select ever
+AFU-V1-020	docs/specs/application-flow-understanding-v1.md	418	An exclusion proof with basis `reviewed-links` MUST require that every link of t
+AFU-V1-021	docs/specs/application-flow-understanding-v1.md	424	An `observed` coverage link MAY add tests to the selection. An exclusion proof w
+AFU-V1-022	docs/specs/application-flow-understanding-v1.md	432	No test may be omitted when any changed path is a global path. When narrowing is
+AFU-V1-023	docs/specs/application-flow-understanding-v1.md	438	Every omitted test MUST appear with its exclusion proof and basis in the result,
+AFU-V1-024	docs/specs/application-flow-understanding-v1.md	442	The profile is an additive value of the frozen `--selection-profile` option. The
+AFU-V1-025	docs/specs/application-flow-understanding-v1.md	485	`corvint flows navigate` MUST derive an `application-navigation-map/0` from flow
+AFU-V1-026	docs/specs/application-flow-understanding-v1.md	491	Locators MUST come from the flow intent or test source: an accessible role and n
+AFU-V1-027	docs/specs/application-flow-understanding-v1.md	493	Every transition MUST carry an effect class. A declared class MAY be raised by
+AFU-V1-028	docs/specs/application-flow-understanding-v1.md	496	`flows navigate --goal FLOW_ID` MUST return a bounded packet: the ordered steps,
+AFU-V1-029	docs/specs/application-flow-understanding-v1.md	501	The Corvint observer MUST NOT perform a `write-irreversible` or
+AFU-V1-030	docs/specs/application-flow-understanding-v1.md	546	`corvint flows docs` MUST render user documentation from flow intents with fixed
+AFU-V1-031	docs/specs/application-flow-understanding-v1.md	549	A claim is `PROVEN` only when its variation is verified at the evaluated revisio
+AFU-V1-032	docs/specs/application-flow-understanding-v1.md	552	`corvint flows docs --check` MUST fail when a committed claim that was `PROVEN`
+AFU-V1-033	docs/specs/application-flow-understanding-v1.md	556	Hand-written Markdown under the declared docs root MAY opt in with a claim ancho
+AFU-V1-034	docs/specs/application-flow-understanding-v1.md	606	`corvint-mcp --tool-profile flows` MUST advertise read-only `corvint.flows.map`,
+AFU-V1-035	docs/specs/application-flow-understanding-v1.md	613	Repository-authored text in any flows response is returned inside the untrusted-
+AFU-V1-036	docs/specs/application-flow-understanding-v1.md	618	Every write MUST resolve under the repository root without following a symlink.
+AFU-V1-037	docs/specs/application-flow-understanding-v1.md	623	Byte, record, attempt, link and traversal bounds apply before decode and walk. W
+AFU-V1-038	docs/specs/application-flow-understanding-v1.md	625	Recorded evidence MUST drop cookies, authorization headers, tokens and request o
+AFU-V1-039	docs/specs/application-flow-understanding-v1.md	631	A committed fixture application MUST carry one UI flow and one API flow that rea
+AFU-V1-040	docs/specs/application-flow-understanding-v1.md	634	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing
 AFU-V1-041	docs/specs/application-flow-understanding-v1.md	206	The planned repetition ordinals, the planned or manual run kind, the infrastruct
 AFU-V1-042	docs/specs/application-flow-understanding-v1.md	211	`corvint flows stability` MUST report, per registry aggregate, the selected scop
 AGW-V0-001	docs/specs/corvint-witness-v0.md	33	`corvint witness` MUST be read-only, per AGENTS.md invariant 4: on every path —
@@ -1174,72 +1174,72 @@ HAR-V0-008	docs/specs/harness-authority-relation-v0.md	142	with a root accepted,
 HAR-V0-009	docs/specs/harness-authority-relation-v0.md	146	closure remains scoped to execution. An attested passing run establishes that th
 HAR-V0-010	docs/specs/harness-authority-relation-v0.md	150	`HARNESS_ATTESTED` MUST NOT be reachable by policy. `CF-V0-005` excludes
 HAR-V0-011	docs/specs/harness-authority-relation-v0.md	158	this relation adds no daemon, service, account, network call, key store, remote
-HDCV0-001	docs/specs/human-documentation-compiler-v0.md	612	The caller MUST supply one approved environment root and expected exact versions
-HDCV0-002	docs/specs/human-documentation-compiler-v0.md	617	Before configuration loading, Corvint MUST execute bounded identity probes in th
-HDCV0-003	docs/specs/human-documentation-compiler-v0.md	624	Discovery is not installation. P0 MUST NOT run `pip`, `uv`, `poetry`, a package
-HDCV0-004	docs/specs/human-documentation-compiler-v0.md	628	The environment receipt MUST bind an existing project lock or pin-manifest diges
-HDCV0-005	docs/specs/human-documentation-compiler-v0.md	634	A non-authoritative lexical safety phase MUST run before any Python project code
-HDCV0-006	docs/specs/human-documentation-compiler-v0.md	639	After preflight, a fixed probe running from the pinned interpreter MUST use the
-HDCV0-007	docs/specs/human-documentation-compiler-v0.md	644	The snapshot MUST bind the root config and every inherited config byte actually
-HDCV0-008	docs/specs/human-documentation-compiler-v0.md	653	Every config, docs, nav page, extension include, extra asset, theme override, an
-HDCV0-009	docs/specs/human-documentation-compiler-v0.md	658	Effective `docs_dir` MAY differ from `docs`; Corvint MUST use only the MkDocs-re
-HDCV0-010	docs/specs/human-documentation-compiler-v0.md	667	Candidate builds MUST override `site_dir` on the command line to a fresh directo
-HDCV0-011	docs/specs/human-documentation-compiler-v0.md	673	The first qualified P0 profile requires effective `theme.name` to equal `materia
-HDCV0-012	docs/specs/human-documentation-compiler-v0.md	677	Effective `site_url` MUST be recorded exactly. The profile MUST distinguish its
-HDCV0-013	docs/specs/human-documentation-compiler-v0.md	682	The exact ordered `theme.features` list, including every `navigation.*` entry, M
-HDCV0-014	docs/specs/human-documentation-compiler-v0.md	687	If the effective `plugins` key is omitted, the authority snapshot MUST show whet
-HDCV0-015	docs/specs/human-documentation-compiler-v0.md	693	P0 execution allows only the exact pinned built-in `search` plugin unless a late
-HDCV0-016	docs/specs/human-documentation-compiler-v0.md	698	Hooks are executable project code. Any effective `hooks` entry prevents P0 execu
-HDCV0-017	docs/specs/human-documentation-compiler-v0.md	702	The authority snapshot MUST record Markdown extensions and option digests in exa
-HDCV0-018	docs/specs/human-documentation-compiler-v0.md	707	Every `extra_css`, `extra_javascript`, image, font, favicon, logo, and other ref
-HDCV0-019	docs/specs/human-documentation-compiler-v0.md	713	A Material `theme.custom_dir` override is input to the build and MUST be fully
-HDCV0-020	docs/specs/human-documentation-compiler-v0.md	719	Privacy configuration MUST be captured from the MkDocs authority. Effective
-HDCV0-021	docs/specs/human-documentation-compiler-v0.md	725	Offline-plugin configuration MUST be captured exactly, including changes to dire
-HDCV0-022	docs/specs/human-documentation-compiler-v0.md	730	Strict validation is the resolved MkDocs 1.6+ configuration plus the mandatory C
-HDCV0-023	docs/specs/human-documentation-compiler-v0.md	737	Every output clause MUST have a stable clause ID (1..256 bytes of UTF-8 with no
-HDCV0-024	docs/specs/human-documentation-compiler-v0.md	751	Authority is artifact-class-specific. An anchor `authority` is exactly
-HDCV0-025	docs/specs/human-documentation-compiler-v0.md	762	Tests and build output establish only the exact observed behavior at the pinned
-HDCV0-026	docs/specs/human-documentation-compiler-v0.md	768	Model-generated prose is a candidate transformation only. Each behavioral senten
-HDCV0-027	docs/specs/human-documentation-compiler-v0.md	773	The plan profile is `corvint-human-documentation-plan/0`. It is closed and conta
-HDCV0-028	docs/specs/human-documentation-compiler-v0.md	780	An operation is exactly `create_file`, `insert_after`, or `edit_nav`. It names o
-HDCV0-029	docs/specs/human-documentation-compiler-v0.md	793	P0 does not replace existing accepted prose. `edit_nav` under `HDCV0-030` is the
-HDCV0-030	docs/specs/human-documentation-compiler-v0.md	800	`edit_nav` MUST bind both the exact config-source bytes and the authority snapsh
-HDCV0-031	docs/specs/human-documentation-compiler-v0.md	806	The output root contains only `plan.json`, `proposal.patch`, `draft/`, `build/si
-HDCV0-032	docs/specs/human-documentation-compiler-v0.md	811	P0 MUST NOT expose an apply mode. It MUST perform no repository write, Git opera
-HDCV0-033	docs/specs/human-documentation-compiler-v0.md	818	The candidate snapshot MUST be created from the frozen manifest outside the repo
-HDCV0-034	docs/specs/human-documentation-compiler-v0.md	823	The build argv is an argument vector, never a shell string: the exact pinned MkD
-HDCV0-035	docs/specs/human-documentation-compiler-v0.md	828	Build environment is constructed from an allowlist, not inherited wholesale. It
-HDCV0-036	docs/specs/human-documentation-compiler-v0.md	834	One aggregate deadline covers identity probe, config authority load, candidate c
-HDCV0-037	docs/specs/human-documentation-compiler-v0.md	840	Exit zero is necessary but insufficient for `BUILD_STRICT_PASS`. Corvint MUST al
-HDCV0-038	docs/specs/human-documentation-compiler-v0.md	845	`OFFLINE_QUALIFIED=PASS` requires an independently identified external network-d
-HDCV0-039	docs/specs/human-documentation-compiler-v0.md	852	If executable JavaScript, custom templates, plugins, hooks, or extensions can co
-HDCV0-040	docs/specs/human-documentation-compiler-v0.md	858	The receipt profile is `corvint-human-documentation-receipt/0`. It MUST bind the
-HDCV0-041	docs/specs/human-documentation-compiler-v0.md	864	Canonical JSON is valid UTF-8: exactly one JSON value, no insignificant whitespa
-HDCV0-042	docs/specs/human-documentation-compiler-v0.md	875	Receipt limits, failures, `NOT_RUN`, `NOT_OBSERVED`, `UNKNOWN`, contradictions,
-HDCV0-043	docs/specs/human-documentation-compiler-v0.md	936	Unit and conformance suites MUST cover canonical plan/receipt bytes, closed sche
-HDCV0-044	docs/specs/human-documentation-compiler-v0.md	943	Config hostility MUST cover duplicate keys, tags, aliases, merges, recursive and
-HDCV0-045	docs/specs/human-documentation-compiler-v0.md	948	Material fixtures MUST cover minimal `theme.name: material`; exact `site_url`; a
-HDCV0-046	docs/specs/human-documentation-compiler-v0.md	954	Process hostility MUST cover pre-cancellation, timeout, endless stdout/stderr, o
-HDCV0-047	docs/specs/human-documentation-compiler-v0.md	960	Evidence hostility MUST cover stale Git blobs, dirty sources, out-of-range and o
-HDCV0-048	docs/specs/human-documentation-compiler-v0.md	964	Offline/privacy hostility MUST include a local network canary reached by a plugi
-HDCV0-049	docs/specs/human-documentation-compiler-v0.md	969	Verification for implementation promotion MUST pass focused Go tests after each
-HDCV0-050	docs/specs/human-documentation-compiler-v0.md	976	The first real delivery evidence MUST use a Corvint-contained Material corpus an
-HDCV0-051	docs/specs/human-documentation-compiler-v0.md	981	The implementation core and optional CLI MUST use Go 1.27 and its standard libra
-HDCV0-052	docs/specs/human-documentation-compiler-v0.md	987	Machine failures use exactly one primary code from `INVALID_REQUEST`,
-HDCV0-CAP-001	docs/specs/human-documentation-compiler-v0.md	255	`corvint-human-documentation-request/0` remains the request profile. Its
-HDCV0-CAP-002	docs/specs/human-documentation-compiler-v0.md	301	The request additionally binds the existing repository/config/intent/output/limi
-HDCV0-CAP-003	docs/specs/human-documentation-compiler-v0.md	311	Admission requires a native Linux host, kernel 5.12 or newer, systemd exactly 26
-HDCV0-CAP-004	docs/specs/human-documentation-compiler-v0.md	329	Corvint admits the root-owned static, CGO-disabled broker executable and owner-i
-HDCV0-CAP-005	docs/specs/human-documentation-compiler-v0.md	349	Corvint stages only frozen manifest bytes plus exact plan operations into fresh
-HDCV0-CAP-006	docs/specs/human-documentation-compiler-v0.md	363	Before start, the broker independently inspects and byte-compares effective imag
-HDCV0-CAP-007	docs/specs/human-documentation-compiler-v0.md	408	The runner is the sole initial container process, PID 1, a subreaper, and
-HDCV0-CAP-008	docs/specs/human-documentation-compiler-v0.md	441	Output is streamed while the runner remains alive; no post-stop export or second
-HDCV0-CAP-009	docs/specs/human-documentation-compiler-v0.md	453	One 120-second ledger covers admission through artifact persistence. Child stdou
-HDCV0-CAP-010	docs/specs/human-documentation-compiler-v0.md	482	P0 exposes no apply mode. Repository, Git, accepted prose, project environment,
-HDCV0-CAP-011	docs/specs/human-documentation-compiler-v0.md	493	The runner wire profile is `corvint-execution-capsule-wire/0`. Every frame is ex
-HDCV0-CAP-012	docs/specs/human-documentation-compiler-v0.md	529	A successful output root contains exactly `plan.json`, `proposal.patch`, `draft/
-HDCV0-CAP-013	docs/specs/human-documentation-compiler-v0.md	545	Canonical JSON retains `HDCV0-041`. A raw artifact digest is
-HDCV0-CAP-014	docs/specs/human-documentation-compiler-v0.md	557	The implementation core, broker, cleanup-only mode, runner, cgroup observer, and
+HDCV0-001	docs/specs/human-documentation-compiler-v0.md	620	The caller MUST supply one approved environment root and expected exact versions
+HDCV0-002	docs/specs/human-documentation-compiler-v0.md	625	Before configuration loading, Corvint MUST execute bounded identity probes in th
+HDCV0-003	docs/specs/human-documentation-compiler-v0.md	632	Discovery is not installation. P0 MUST NOT run `pip`, `uv`, `poetry`, a package
+HDCV0-004	docs/specs/human-documentation-compiler-v0.md	636	The environment receipt MUST bind an existing project lock or pin-manifest diges
+HDCV0-005	docs/specs/human-documentation-compiler-v0.md	642	A non-authoritative lexical safety phase MUST run before any Python project code
+HDCV0-006	docs/specs/human-documentation-compiler-v0.md	647	After preflight, a fixed probe running from the pinned interpreter MUST use the
+HDCV0-007	docs/specs/human-documentation-compiler-v0.md	652	The snapshot MUST bind the root config and every inherited config byte actually
+HDCV0-008	docs/specs/human-documentation-compiler-v0.md	661	Every config, docs, nav page, extension include, extra asset, theme override, an
+HDCV0-009	docs/specs/human-documentation-compiler-v0.md	666	Effective `docs_dir` MAY differ from `docs`; Corvint MUST use only the MkDocs-re
+HDCV0-010	docs/specs/human-documentation-compiler-v0.md	675	Candidate builds MUST override `site_dir` on the command line to a fresh directo
+HDCV0-011	docs/specs/human-documentation-compiler-v0.md	681	The first qualified P0 profile requires effective `theme.name` to equal `materia
+HDCV0-012	docs/specs/human-documentation-compiler-v0.md	685	Effective `site_url` MUST be recorded exactly. The profile MUST distinguish its
+HDCV0-013	docs/specs/human-documentation-compiler-v0.md	690	The exact ordered `theme.features` list, including every `navigation.*` entry, M
+HDCV0-014	docs/specs/human-documentation-compiler-v0.md	695	If the effective `plugins` key is omitted, the authority snapshot MUST show whet
+HDCV0-015	docs/specs/human-documentation-compiler-v0.md	701	P0 execution allows only the exact pinned built-in `search` plugin unless a late
+HDCV0-016	docs/specs/human-documentation-compiler-v0.md	706	Hooks are executable project code. Any effective `hooks` entry prevents P0 execu
+HDCV0-017	docs/specs/human-documentation-compiler-v0.md	710	The authority snapshot MUST record Markdown extensions and option digests in exa
+HDCV0-018	docs/specs/human-documentation-compiler-v0.md	715	Every `extra_css`, `extra_javascript`, image, font, favicon, logo, and other ref
+HDCV0-019	docs/specs/human-documentation-compiler-v0.md	721	A Material `theme.custom_dir` override is input to the build and MUST be fully
+HDCV0-020	docs/specs/human-documentation-compiler-v0.md	727	Privacy configuration MUST be captured from the MkDocs authority. Effective
+HDCV0-021	docs/specs/human-documentation-compiler-v0.md	733	Offline-plugin configuration MUST be captured exactly, including changes to dire
+HDCV0-022	docs/specs/human-documentation-compiler-v0.md	738	Strict validation is the resolved MkDocs 1.6+ configuration plus the mandatory C
+HDCV0-023	docs/specs/human-documentation-compiler-v0.md	745	Every output clause MUST have a stable clause ID (1..256 bytes of UTF-8 with no
+HDCV0-024	docs/specs/human-documentation-compiler-v0.md	759	Authority is artifact-class-specific. An anchor `authority` is exactly
+HDCV0-025	docs/specs/human-documentation-compiler-v0.md	770	Tests and build output establish only the exact observed behavior at the pinned
+HDCV0-026	docs/specs/human-documentation-compiler-v0.md	776	Model-generated prose is a candidate transformation only. Each behavioral senten
+HDCV0-027	docs/specs/human-documentation-compiler-v0.md	781	The plan profile is `corvint-human-documentation-plan/0`. It is closed and conta
+HDCV0-028	docs/specs/human-documentation-compiler-v0.md	788	An operation is exactly `create_file`, `insert_after`, or `edit_nav`. It names o
+HDCV0-029	docs/specs/human-documentation-compiler-v0.md	801	P0 does not replace existing accepted prose. `edit_nav` under `HDCV0-030` is the
+HDCV0-030	docs/specs/human-documentation-compiler-v0.md	808	`edit_nav` MUST bind both the exact config-source bytes and the authority snapsh
+HDCV0-031	docs/specs/human-documentation-compiler-v0.md	814	The output root contains only `plan.json`, `proposal.patch`, `draft/`, `build/si
+HDCV0-032	docs/specs/human-documentation-compiler-v0.md	819	P0 MUST NOT expose an apply mode. It MUST perform no repository write, Git opera
+HDCV0-033	docs/specs/human-documentation-compiler-v0.md	826	The candidate snapshot MUST be created from the frozen manifest outside the repo
+HDCV0-034	docs/specs/human-documentation-compiler-v0.md	831	The build argv is an argument vector, never a shell string: the exact pinned MkD
+HDCV0-035	docs/specs/human-documentation-compiler-v0.md	836	Build environment is constructed from an allowlist, not inherited wholesale. It
+HDCV0-036	docs/specs/human-documentation-compiler-v0.md	842	One aggregate deadline covers identity probe, config authority load, candidate c
+HDCV0-037	docs/specs/human-documentation-compiler-v0.md	848	Exit zero is necessary but insufficient for `BUILD_STRICT_PASS`. Corvint MUST al
+HDCV0-038	docs/specs/human-documentation-compiler-v0.md	853	`OFFLINE_QUALIFIED=PASS` requires an independently identified external network-d
+HDCV0-039	docs/specs/human-documentation-compiler-v0.md	860	If executable JavaScript, custom templates, plugins, hooks, or extensions can co
+HDCV0-040	docs/specs/human-documentation-compiler-v0.md	866	The receipt profile is `corvint-human-documentation-receipt/0`. It MUST bind the
+HDCV0-041	docs/specs/human-documentation-compiler-v0.md	872	Canonical JSON is valid UTF-8: exactly one JSON value, no insignificant whitespa
+HDCV0-042	docs/specs/human-documentation-compiler-v0.md	883	Receipt limits, failures, `NOT_RUN`, `NOT_OBSERVED`, `UNKNOWN`, contradictions,
+HDCV0-043	docs/specs/human-documentation-compiler-v0.md	944	Unit and conformance suites MUST cover canonical plan/receipt bytes, closed sche
+HDCV0-044	docs/specs/human-documentation-compiler-v0.md	951	Config hostility MUST cover duplicate keys, tags, aliases, merges, recursive and
+HDCV0-045	docs/specs/human-documentation-compiler-v0.md	956	Material fixtures MUST cover minimal `theme.name: material`; exact `site_url`; a
+HDCV0-046	docs/specs/human-documentation-compiler-v0.md	962	Process hostility MUST cover pre-cancellation, timeout, endless stdout/stderr, o
+HDCV0-047	docs/specs/human-documentation-compiler-v0.md	968	Evidence hostility MUST cover stale Git blobs, dirty sources, out-of-range and o
+HDCV0-048	docs/specs/human-documentation-compiler-v0.md	972	Offline/privacy hostility MUST include a local network canary reached by a plugi
+HDCV0-049	docs/specs/human-documentation-compiler-v0.md	977	Verification for implementation promotion MUST pass focused Go tests after each
+HDCV0-050	docs/specs/human-documentation-compiler-v0.md	984	The first real delivery evidence MUST use a Corvint-contained Material corpus an
+HDCV0-051	docs/specs/human-documentation-compiler-v0.md	989	The implementation core and optional CLI MUST use Go 1.27 and its standard libra
+HDCV0-052	docs/specs/human-documentation-compiler-v0.md	995	Machine failures use exactly one primary code from `INVALID_REQUEST`,
+HDCV0-CAP-001	docs/specs/human-documentation-compiler-v0.md	263	`corvint-human-documentation-request/0` remains the request profile. Its
+HDCV0-CAP-002	docs/specs/human-documentation-compiler-v0.md	309	The request additionally binds the existing repository/config/intent/output/limi
+HDCV0-CAP-003	docs/specs/human-documentation-compiler-v0.md	319	Admission requires a native Linux host, kernel 5.12 or newer, systemd exactly 26
+HDCV0-CAP-004	docs/specs/human-documentation-compiler-v0.md	337	Corvint admits the root-owned static, CGO-disabled broker executable and owner-i
+HDCV0-CAP-005	docs/specs/human-documentation-compiler-v0.md	357	Corvint stages only frozen manifest bytes plus exact plan operations into fresh
+HDCV0-CAP-006	docs/specs/human-documentation-compiler-v0.md	371	Before start, the broker independently inspects and byte-compares effective imag
+HDCV0-CAP-007	docs/specs/human-documentation-compiler-v0.md	416	The runner is the sole initial container process, PID 1, a subreaper, and
+HDCV0-CAP-008	docs/specs/human-documentation-compiler-v0.md	449	Output is streamed while the runner remains alive; no post-stop export or second
+HDCV0-CAP-009	docs/specs/human-documentation-compiler-v0.md	461	One 120-second ledger covers admission through artifact persistence. Child stdou
+HDCV0-CAP-010	docs/specs/human-documentation-compiler-v0.md	490	P0 exposes no apply mode. Repository, Git, accepted prose, project environment,
+HDCV0-CAP-011	docs/specs/human-documentation-compiler-v0.md	501	The runner wire profile is `corvint-execution-capsule-wire/0`. Every frame is ex
+HDCV0-CAP-012	docs/specs/human-documentation-compiler-v0.md	537	A successful output root contains exactly `plan.json`, `proposal.patch`, `draft/
+HDCV0-CAP-013	docs/specs/human-documentation-compiler-v0.md	553	Canonical JSON retains `HDCV0-041`. A raw artifact digest is
+HDCV0-CAP-014	docs/specs/human-documentation-compiler-v0.md	565	The implementation core, broker, cleanup-only mode, runner, cgroup observer, and
 HLQ-V1-001	docs/specs/host-lifecycle-qualification-v1.md	36	A tuple MUST be named by its surface (`native` or `plugin`), the host executable
 HLQ-V1-002	docs/specs/host-lifecycle-qualification-v1.md	44	The runner MUST execute the nine cases in this order, report each as `PASS`,
 HLQ-V1-003	docs/specs/host-lifecycle-qualification-v1.md	65	Each run MUST happen in a fresh private workspace: `HOME`, `CLAUDE_CONFIG_DIR`
@@ -2151,6 +2151,12 @@ TJAA-V0-014	docs/specs/typescript-javascript-affected-adapter-v0.md	129	Project 
 TJAA-V0-015	docs/specs/typescript-javascript-affected-adapter-v0.md	133	Per-file commands require a matching complete caller-owned discovery receipt.
 TJAA-V0-016	docs/specs/typescript-javascript-affected-adapter-v0.md	140	The profile MUST be read-only and bounded by the shared source-walk and source-r
 TJAA-V0-017	docs/specs/typescript-javascript-affected-adapter-v0.md	148	Qualification requires a fixture with Chromium plus Angular/React project varian
+TPN-V0-001	docs/specs/trusted-project-navigation-v0.md	29	Execution requires explicit `--trusted-project`. Accept only the closed canonica
+TPN-V0-002	docs/specs/trusted-project-navigation-v0.md	32	Stage only the complete admitted immutable Git manifest, with regular files and
+TPN-V0-003	docs/specs/trusted-project-navigation-v0.md	37	Before loading third-party configuration, check the interpreter and installed
+TPN-V0-004	docs/specs/trusted-project-navigation-v0.md	43	Bind source, environment, fixed probe, snapshot, span, replacement, candidate co
+TPN-V0-005	docs/specs/trusted-project-navigation-v0.md	48	Return a deterministic bounded canonical artifact on stdout: `NAVIGATION_VALIDAT
+TPN-V0-006	docs/specs/trusted-project-navigation-v0.md	52	Use one 120-second deadline, bounded input/output and process groups on Darwin/L
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	34	`corvint [--root PATH] surprise --task TEXT --base REV --target REV
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	42	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	49	The actual set MUST be the changed paths of the committed range, read as

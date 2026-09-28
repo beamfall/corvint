@@ -12,7 +12,10 @@ import (
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
-type docsOptions struct{ root, mode, source, directory, task string }
+type docsOptions struct {
+	root, mode, source, directory, task, request, inspectPython string
+	trusted                                                     bool
+}
 
 func parseDocsInvocation(arguments []string) (docsOptions, bool, error) {
 	position := commandPositionAfterRoots(arguments)
@@ -31,6 +34,11 @@ func parseDocsInvocation(arguments []string) (docsOptions, bool, error) {
 		return options, true, argumentError("docs requires draft or consume")
 	}
 	options.mode = arguments[position+1]
+	if options.mode == "nav" {
+		var err error
+		options, err = parseTrustedNavArgs(options, arguments[position+2:])
+		return options, true, err
+	}
 	if options.mode != "draft" && options.mode != "consume" {
 		return options, true, argumentError("docs requires draft or consume")
 	}
@@ -93,6 +101,16 @@ func runDocs(ctx context.Context, options docsOptions, stdin io.Reader, stdout, 
 
 func compileDocs(ctx context.Context, options docsOptions, stdin io.Reader) ([]byte, error) {
 	ctx = gitstatus.WithIsolation(ctx)
+	if options.mode == "nav" {
+		if options.inspectPython != "" {
+			return doccompiler.InspectTrustedNavigation(ctx, options.inspectPython, options.trusted)
+		}
+		raw, err := doccompiler.ReadTrustedNavFile(options.request, doccompiler.TrustedNavMaxInput)
+		if err != nil {
+			return nil, err
+		}
+		return doccompiler.TrustedNavigation(ctx, options.root, raw, options.trusted)
+	}
 	var provided []byte
 	if options.mode == "consume" {
 		input, err := readInputBounded(ctx, stdin, doccompiler.DraftMaxBytes)
@@ -135,8 +153,15 @@ func compileDocs(ctx context.Context, options docsOptions, stdin io.Reader) ([]b
 const docsHelp = `Experimental source documentation orientation
 
 Usage:
+  corvint [--root PATH] docs nav --trusted-project --request FILE
+  corvint [--root PATH] docs nav --trusted-project --inspect-python ABSOLUTE_PYTHON
   corvint [--root PATH] docs draft --source PATH --package DIRECTORY
   corvint [--root PATH] docs consume --source PATH --package DIRECTORY --task TEXT < draft.md
+
+Navigation is the separate explicitly trusted pinned MkDocs profile. It stages committed
+source, emits an exact proposal patch, and validates navigation by a full candidate reload.
+It never applies to source; build NOT_RUN, offline NOT_OBSERVED. See
+docs/specs/trusted-project-navigation-v0.md for pins and bounded configuration.
 
 Draft ordinary Markdown from immutable owner-source excerpts and tracked non-test Go
 exported-name declarations/import edges. Consume the actual draft after fresh original-source
@@ -162,6 +187,7 @@ Separate experimental corpus profile:
   corvint [--root PATH] docs corpus manifest --revision FULL_COMMIT --scope PATH --timestamp RFC3339
   corvint [--root PATH] docs corpus build --manifest INPUT.json
   corvint [--root PATH] docs corpus behavior-adapter --input REQUEST.json [--previous RESULT.json]
+  corvint [--root PATH] docs corpus behavior-provider --input REQUEST-V2.json
   corvint [--root PATH] docs corpus search --artifact CORPUS.json --query TEXT
   corvint [--root PATH] docs corpus render --artifact CORPUS.json
   corvint [--root PATH] docs corpus maintain --artifact CORPUS.json --page PAGE.md [--apply]
@@ -172,3 +198,42 @@ status/verify/report accept --corpus=CORPUS.json. Generated evidence grants no t
 or test-selection authority. Read commands print bounded JSON and never collect tests.
 Guide: docs/DOCUMENTATION-CORPUS.md; contract: docs/specs/documentation-corpus-v1.md
 `
+
+func parseTrustedNavArgs(options docsOptions, args []string) (docsOptions, error) {
+	seen := map[string]bool{}
+	for i := 0; i < len(args); i++ {
+		flag, value, inline := strings.Cut(args[i], "=")
+		if seen[flag] {
+			return options, argumentError("duplicate navigation argument")
+		}
+		seen[flag] = true
+		switch flag {
+		case "--trusted-project":
+			if inline {
+				return options, argumentError("--trusted-project takes no value")
+			}
+			options.trusted = true
+		case "--request", "--inspect-python":
+			if !inline {
+				if i+1 >= len(args) || argparseOptionLike(args[i+1]) {
+					return options, argumentError("missing navigation request")
+				}
+				i++
+				value = args[i]
+			}
+			if flag == "--request" {
+				options.request = value
+			} else {
+				options.inspectPython = value
+			}
+		default:
+			return options, argumentError("unrecognized navigation argument")
+		}
+	}
+	if !options.trusted || (options.request == "") == (options.inspectPython == "") {
+		return options, argumentError("docs nav requires --trusted-project and exactly one of --request or --inspect-python")
+	}
+	root, err := resolveExplicitRoot(options.root)
+	options.root = root
+	return options, err
+}

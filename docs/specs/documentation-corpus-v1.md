@@ -320,6 +320,35 @@ Acceptance: `TestBehaviorAdapterBuildOpen`, `TestBehaviorAdapterConformance`,
 `TestBehaviorAdapterCLI` exercise `DCP-V1-027..032`. Exact consumer inputs, live browser execution
 and external utility qualification remain `NOT_OBSERVED`.
 
+### Multi-repository behavior declarations (issue 330)
+
+`corvint docs corpus behavior-provider --input REQUEST.json` is a read-only producer for
+`corvint-corpus-behavior-provider/2` (AFU-V1-006). The closed request has `schema` equal to
+`corvint-behavior-provider-request/2`, `provider_id`, `provider_version`, `source` (repository ID
+and revision), and `registry` (the existing BehaviorRegistry shape). `registry.revisions` is absent;
+`registry.repositories` supplies root commits and revisions. `contract_sha256` must be empty;
+the producer sorts unique repository members and computes the declaration digest, excluding runtime.
+It never repairs a pre-signed registry. Other declaration order is preserved. Existing 4 MiB wire
+and MaxRecords bounds apply, including aggregate anchors and events. Invalid identities, paths,
+anchor shapes, conflicting root commits, and duplicate declarations refuse before output.
+
+A committed provider enters the existing manifest `records` boundary. The optional manifest
+`behavior_repositories` member is the caller's sorted unique expected repository/revision set;
+it is independent of the provider record. Ingestion validates local immutable anchor bytes and
+retains the original `/2` registry. Missing expectations, missing members, stale member/anchor
+revisions, unavailable external repository bytes and unresolved joins become explicit corpus gaps.
+Malformed records and forged local bindings refuse. External repositories are not opened, fetched
+or trusted from caller paths. `/2` has no fixed three-repository conversion and cannot invoke `/1`
+runtime reconciliation. Discovery, migration and runtime claims remain unqualified, every verified
+set stays empty, and `full-relevant-suite` fallback is unconditional. Legacy/stability registries and
+non-behavior provider record families are refused in this bounded `/2` producer/ingest profile.
+Existing `/1` wire bytes and behavior remain unchanged.
+
+Acceptance: `TestBehaviorV2ProducerCorpusRoundTrip`, `TestBehaviorV2RepositoryGaps`,
+`TestBehaviorV2RefusesMalformedOrConflictingRecords`, `TestBehaviorProviderV2CLI`, and the retained
+`TestAFUV1BehaviorProviderV1BytesUnchanged`. Rollback removes the `/2` command/dispatch and optional
+manifest member; `/1` remains available. No external runtime qualification follows from these tests.
+
 ### Experimental repeated Playwright stability evidence (issue 42)
 
 The opt-in `corvint-corpus-behavior-stability-provider/1` record retains the issue-40 behavior

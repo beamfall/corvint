@@ -544,6 +544,14 @@ func WithSharedQueryObservation(ctx context.Context) context.Context {
 // ProbeSnapshot reads only the current snapshot's header. It reports a miss
 // for a missing, corrupt, or mismatched file and never writes.
 func ProbeSnapshot(ctx context.Context, root string) (SnapshotProbe, bool, error) {
+	probe, reason, err := SnapshotFreshness(ctx, root)
+	return probe, reason == "matching", err
+}
+
+// SnapshotFreshness diagnoses the optional snapshot without building or writing.
+// A combined miss reason preserves uncertainty where an optional format's probe
+// does not distinguish absence, stale data and decoding failure.
+func SnapshotFreshness(ctx context.Context, root string) (SnapshotProbe, string, error) {
 	var engineID string
 	engineReady := make(chan struct{})
 	go func() {
@@ -553,37 +561,57 @@ func ProbeSnapshot(ctx context.Context, root string) (SnapshotProbe, bool, error
 	identity, err := readIdentity(ctx, root)
 	<-engineReady
 	if err != nil {
-		return SnapshotProbe{}, false, err
+		return SnapshotProbe{}, "repository-unreadable", err
 	}
 	if engineID == "" {
-		return SnapshotProbe{}, false, nil
+		return SnapshotProbe{}, "engine-unavailable", nil
 	}
-	directory, present := snapshotDirectoryPresent(root)
-	if !present {
-		return SnapshotProbe{}, false, nil
+	directory := SnapshotDirectory(root)
+	if err := refuseLinkedSnapshotDirectory(root, directory); err != nil {
+		return SnapshotProbe{}, "unsupported-store-layout", nil
+	}
+	if _, err := os.Stat(directory); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return SnapshotProbe{}, "absent", nil
+		}
+		return SnapshotProbe{}, "unreadable-store", nil
 	}
 	if packEnabled() {
-		return probeAnalyzerPack(directory, identity)
+		probe, hit, err := probeAnalyzerPack(directory, identity)
+		if hit {
+			return probe, "matching", err
+		}
+		return SnapshotProbe{}, "missing-stale-unreadable-or-unsupported-pack", err
 	}
 	path := snapshotPath(directory, identity.objectFormat, identity.treeRevision, engineID)
+	info, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return SnapshotProbe{}, "missing-matching-snapshot; absent-stale-or-unsupported-engine", nil
+	}
+	if err != nil {
+		return SnapshotProbe{}, "unreadable-snapshot", nil
+	}
+	if !info.Mode().IsRegular() {
+		return SnapshotProbe{}, "unsupported-snapshot-layout", nil
+	}
 	file, err := os.Open(path)
 	if err != nil {
-		return SnapshotProbe{}, false, nil
+		return SnapshotProbe{}, "unreadable-or-unsupported-snapshot", nil
 	}
 	defer file.Close()
 	// A header alone would call a torn body fresh, and `index --if-stale`
 	// would then never repair the file every loader misses on.
 	if _, err := decodeCompactEventSnapshot(file, identity, engineID); err != nil {
-		return SnapshotProbe{}, false, nil
+		return SnapshotProbe{}, "unreadable-or-unsupported-snapshot", nil
 	}
 	if sectionedEnabled() {
 		if _, err := readSectionedSnapshot(sectionedPath(directory, identity.objectFormat, identity.treeRevision, engineID), identity, engineID, loadCompact); err != nil {
-			return SnapshotProbe{}, false, nil
+			return SnapshotProbe{}, "unreadable-or-unsupported-snapshot", nil
 		}
 	}
 	return SnapshotProbe{
 		Path: path, Tree: identity.treeRevision, Commit: identity.commitRevision, Engine: engineID,
-	}, true, nil
+	}, "matching", nil
 }
 
 // LoadEventSnapshot reads only the tables used by file-change and compact

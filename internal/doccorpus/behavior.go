@@ -12,7 +12,7 @@ const BehaviorProviderSchema = "corvint-corpus-behavior-provider/1"
 
 // BehaviorProviderSchemaV2 names every participating repository in the
 // registry's repositories list instead of the three fixed revisions members
-// (AFU-V1-006). The corpus compiler reads only /1 and refuses /2.
+// (AFU-V1-006). Corpus ingestion keeps /2 declarations separate from /1 runtime reconciliation.
 const BehaviorProviderSchemaV2 = "corvint-corpus-behavior-provider/2"
 
 type BehaviorRegistry struct {
@@ -139,7 +139,8 @@ type BehaviorEvent struct {
 	Passed     bool   `json:"passed"`
 }
 type BehaviorReport struct {
-	Discovery           BehaviorDiscovery `json:"discovery"`
+	ProviderSchema      string            `json:"provider_schema,omitempty"`
+	Discovery           BehaviorDiscovery `json:"discovery,omitzero"`
 	Provider            string            `json:"provider"`
 	Registry            BehaviorRegistry  `json:"registry"`
 	VerifiedTests       []string          `json:"verified_tests"`
@@ -294,6 +295,9 @@ func ValidateBehaviorProviderV2(p ProviderRecord) error {
 	if !validBehaviorRepositories(r.Repositories) || !slices.Contains(r.Repositories, BehaviorRepository{p.Source.ID, p.Source.Revision}) || r.SourceRevision != p.Source.Revision {
 		return fail("invalid behavior provider /2 repositories")
 	}
+	if err := validateBehaviorV2Declarations(p); err != nil {
+		return err
+	}
 	declarations := *r
 	declarations.ContractSHA256 = ""
 	declarations.Tests = slices.Clone(r.Tests)
@@ -351,7 +355,9 @@ func (c *compiler) behaviorDiscovery(r *BehaviorRegistry) (BehaviorDiscovery, er
 
 func (c *compiler) compileBehaviors() {
 	for i := range c.artifact.BehaviorContracts {
-		c.compileBehavior(&c.artifact.BehaviorContracts[i])
+		if c.artifact.BehaviorContracts[i].ProviderSchema != BehaviorProviderSchemaV2 {
+			c.compileBehavior(&c.artifact.BehaviorContracts[i])
+		}
 	}
 }
 func (c *compiler) compileBehavior(report *BehaviorReport) {

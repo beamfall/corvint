@@ -142,3 +142,12 @@ Corpora contain repository text and paths. Keep them local according to reposito
 no automatic collection, telemetry, publication, database, daemon, test execution or authority upgrade.
 The small author-labelled evaluation measures only its frozen synthetic fixture and reports raw
 latency/bytes; it provides no external usefulness, savings or HDC qualification claim.
+
+## Multi-repository behavior records
+
+Use `corvint docs corpus behavior-provider --input REQUEST.json` for the bounded `/2` declaration
+profile. Supply the closed request described in [the corpus spec](specs/documentation-corpus-v1.md#multi-repository-behavior-declarations-issue-330),
+commit the emitted provider, and list it as a `records` input in the corpus manifest. Set
+`behavior_repositories` to the independently expected repository root commits and revisions.
+The corpus reports stale/missing members and unavailable external evidence as gaps. It preserves
+full-suite fallback and does not qualify runtime claims. The `/1` behavior adapter remains unchanged.

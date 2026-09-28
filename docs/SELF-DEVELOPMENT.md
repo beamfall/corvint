@@ -65,7 +65,9 @@ reads only where applicable; unsupported providers and absent journeys remain vi
 MCP server and generated-block writes require their own explicit invocation.
 The experimental behavior-provider profile additionally retains exact flow/test/project joins and
 ordered runtime witnesses; `docs corpus behavior-adapter` can produce and reconcile that profile
-from caller-mapped inventories without changing its legacy wire member or authority. Its reviewed
+from caller-mapped inventories without changing its legacy wire member or authority. The separate
+`docs corpus behavior-provider` route emits bounded `/2` multi-repository declarations for corpus
+ingestion; unavailable external bytes and runtime qualification stay explicit gaps. Its reviewed
 documentation projection is normative: source/test proposals cannot rewrite stable variation IDs or
 their preconditions, actions, facts and outcomes. Missing consumer fixtures, semantic joins or runtime
 evidence preserve gaps and unconditional full-suite fallback. See the
@@ -103,3 +105,8 @@ make no savings claim. Native host use in another checkout stays `NOT_OBSERVED` 
 Update this guide's affected route/status and its relevant evidence in the same future feature
 change. Rollback removes these routing additions without weakening the existing completion policy,
 removing old traces, or reclassifying a failed or unqualified experiment.
+
+For owner-trusted MkDocs navigation work, use the separate explicit `docs nav --trusted-project`
+profile and retain the real pinned loader/reload artifact. See
+[Trusted Project Navigation V0](specs/trusted-project-navigation-v0.md). This does not authorize
+execution through ordinary docs reads or qualify the HDC capsule, site build or offline behavior.
