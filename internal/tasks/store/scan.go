@@ -16,7 +16,7 @@ import (
 
 // stateFiles are the fixed state-dir files a transaction inventory carries.
 // `barrier.json` is optional; the rest exist in any initialized store.
-var stateFiles = []string{"VERSION", "head.json", "reservations.json", "barrier.json", "pools.json"}
+var stateFiles = []string{"VERSION", "head.json", "reservations.json", "barrier.json", "pools.json", "programs.json"}
 
 // scanDirectories are the state-dir children scanned for retained files.
 // `staging` is deliberately absent: §5.6 staging is transient, excluded from

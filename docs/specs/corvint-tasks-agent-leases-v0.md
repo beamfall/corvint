@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); S9 CAL-V0-028..034 implemented with local native qualification)
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification)
 Authoritative inputs: owner request [issue 342](https://github.com/beamfall/corvint/issues/342) and
 owner choice on 2026-09-28 to quarantine environments until confirmed safe reuse; owner request [issue 336](https://github.com/beamfall/corvint/issues/336), the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
 §3.4, §4, §6 and §7.4), decision 0397 (corvint-tasks built in tree), decision 0423 A10,
@@ -11,11 +11,11 @@ owner choice on 2026-09-28 to quarantine environments until confirmed safe reuse
 sources under `internal/tasks`.
 
 ## Agent digest
-- Claim: Coding agents claim, renew, gate and complete tickets through leased `corvint-tasks` attempts, replacing a repository's own task runner without a supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); S9 CAL-V0-028..034 implemented with local native qualification). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
-- Read next: Slices; Requirements (S8 for parallel claims; S9 for named pools); Amendments to TCP-00; Failure modes.
+- Read next: Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision); Amendments to TCP-00; Failure modes.
 
 ## User and boundary
 
@@ -41,7 +41,7 @@ calling agent is the runtime, and a lease it renews stands in for process livene
 number fences every later command from a holder that lost its lease, so a stale agent can go on
 editing its own worktree but can neither move its attempt nor complete the ticket.
 
-Non-goals: a supervisor, `lane-leader`, process-group signalling of external agents or any §6.4 spawn effect; creating,
+External-agent non-goals (S10 explicitly qualifies only its own Codex children): a supervisor, `lane-leader`, process-group signalling of external agents or any §6.4 spawn effect; creating,
 removing or inspecting worktrees; budgets beyond reporting them `NOT_OBSERVED`; review lanes (§7.2)
 and the completion-manifest reducer beyond the tree and gate check in CAL-V0-016; fanout (TCP-07) and
 routing (TCP-08); the import-map writer; automatic reaping by anything other than an invoked command
@@ -329,9 +329,69 @@ observation digest and reason. `taskman-pool-observation/0` is bounded to 4096 b
 allocation/definition, command kind, revision/tree, result class, passed/group-clean flags and
 output/environment digests. Missing inventory-bound state is corruption, never free capacity.
 
+### S10 — Foreground Codex programs (issue 341)
+
+Authoritative inputs: [issue 341](https://github.com/Beamfall/corvint/issues/341), the owner's
+2026-09-29 Codex-only direction, and the reviewed local exact-tree/expected-base integration
+boundary. Claude support and remote publication are outside this slice. The existing external-agent
+branch and absent optional-field bytes remain unchanged. Qualification is scoped to the pinned
+Codex executable and observed event vocabulary; it does not attest authentication or hostile-child
+containment. Frozen native qualification is recorded in docs/build-log/2026-09-29-tasks-codex-supervision.md.
+
+- `CAL-V0-035`: The optional `taskman-codex-supervisor/0` policy profile MUST dispatch a pinned
+  Codex executable through a journaled SPAWNING effect, exclusive durable boot record, validated
+  PID/start/group identity, RUNNING commit and exact acknowledgment before execution. Unsupported
+  platforms MUST compile and refuse. Truncated output MUST remain an invalid/unknown result.
+- `CAL-V0-036`: Implement, independent review, repair and integrate MUST be native attempt stages.
+  Optional acceptance-relevant `requiredRoles` maps implement/review/integrate to existing runtime
+  roles; enabled runtime roles and worker limits govern dispatch. Review MUST bind every acceptance
+  claim, exact candidate tree, distinct holder and distinct host session. Returned work retains
+  feedback and candidate; missing or failed required gates MUST block before any target mutation.
+- `CAL-V0-037`: A live owner MUST NOT be stolen. Explicit quiescent owner release or native identity
+  proof permits a fenced epoch transfer. Drain, cancel and recovery MUST retain uncertain scope,
+  worker and pool resources; proved stage shutdown releases workers and quarantines its physical
+  pool allocation. A subsequent role obtains a fresh allocation. Reused PGIDs and escaped anchors
+  MUST NOT authorize adoption or signaling of unknown processes.
+- `CAL-V0-038`: WAIT MUST preserve the exact session, worktree, partial candidate and handoff.
+  Questions and answers MUST bind attempt generation and acceptance revision. Read-only pending
+  state MUST expose questions and integration waits. Explicit resume/retry MUST retain feedback;
+  neither an answer nor a host result grants integration approval.
+- `CAL-V0-039`: Every dispatch MUST reserve a turn under the native writer lock. Concurrent lanes
+  share one program's cumulative counters and start time across ticket reassignment. Active
+  deadlines MUST respect lane and remaining program wall caps. Qualified JSONL token usage is
+  OBSERVED, missing dimensions NOT_OBSERVED; required hard token enforcement is unsupported.
+  Observed token cutoffs block subsequent dispatch, with at most one already-admitted turn per
+  active lane of overshoot. Refused pre-fork work leaves a resumable no-exec outcome.
+- `CAL-V0-040`: Every assignment/stage MUST use a distinct registered worktree/private Git directory.
+  Add/remove and integration effects MUST be durable before mutation. Exact directory/common-dir,
+  commit/tree and clean-state bindings govern recovery. Only an explicitly designated integration
+  checkout may advance, and its tip MUST still equal the candidate's original base and grant binding.
+  Advanced targets require a new candidate, review, gates and grant. Crash recovery recognizes only
+  the exact clean applied candidate, including the interval before native completion.
+- `CAL-V0-041`: Foreground role workers MUST pull eligible work without a daemon, select existing
+  review/integration attempts, and treat absence of eligible work as idle completion. Terminal proved
+  slots may be reassigned with exact attempt/generation and assignment fencing, preserving shared
+  budget history and journal handoffs. The 64-slot bound is concurrent retained state, not a lifetime
+  ticket limit. New program records and evidence MUST participate in native journal projection,
+  archive and audit, with no independent authority database.
+
+Wire amendment: optional policy `supervision` contains profile, contextRequired=true,
+maxRepairCycles (0..2), and program turns/wallClockMinutes/inputTokens/outputTokens caps.
+Optional ticket `requiredRoles` is a closed nonempty role array per stage. `programs.json` is a
+bounded 1 MiB, 64-slot journal-authoritative projection; program changes and handoffs are bounded
+64 KiB, with host stdout/stderr individually capped at 16 KiB. Stage context is a pinned native Core
+query against the isolated checkout: READY/fresh tree revision must equal the stage commit's tree;
+explicit uncertainty is carried unchanged. No inferred context becomes accepted intent.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
+
+- A16: S10 adds the named supervised branch, optional supervision/role fields and `programs.json`.
+  Program-only LEASE posts admit one bounded projection plus retained request/output evidence;
+  existing operation limits and external-agent semantics otherwise remain in force. Rollback requires
+  drained proved sessions and retained/migrated supervised records; an old reader must not silently
+  discard these fields. Read commands remain nonmutating.
 
 - A15: issue 342 adds S9's optional policy/ticket/attempt fields and the bounded `pools.json`
   projection. S9 opt-in health/cleanup signals its own trusted command process group; it does not

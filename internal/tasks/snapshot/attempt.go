@@ -23,7 +23,7 @@ const (
 
 // AttemptPhases is the §6.1 phase set; TerminalPhases its terminal subset.
 var (
-	AttemptPhases  = []string{"ADMITTED", "RUNNING", "BUILT", "CHECKING", "REVIEWING", "REPAIRING", "STOPPING", "QUARANTINED", "BLOCKED_RECOVERY", "FAILED", "CANCELLED", "READY_FOR_INTEGRATION", "COMPLETED"}
+	AttemptPhases  = []string{"ADMITTED", "RUNNING", "BUILT", "CHECKING", "REVIEWING", "REPAIRING", "STOPPING", "QUARANTINED", "BLOCKED_RECOVERY", "FAILED", "CANCELLED", "READY_FOR_INTEGRATION", "WAITING", "RETURNED", "COMPLETED"}
 	TerminalPhases = map[string]bool{"FAILED": true, "CANCELLED": true, "COMPLETED": true}
 	ScopeSources   = []string{"DECLARED", "REQUESTED", "DERIVED", "WHOLE_REPOSITORY"}
 )
@@ -66,6 +66,7 @@ type PriorGeneration struct {
 
 // Attempt is a validated taskman-attempt/0.
 type Attempt struct {
+	Supervision             *Supervision
 	Stage                   string
 	PoolAllocation          *PoolAllocation
 	AttemptID               string
@@ -212,7 +213,7 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
-	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation")...)
+	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation", "supervision")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -220,6 +221,9 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 		return nil, err
 	}
 	a := &Attempt{}
+	if wire.Has(v, "supervision") {
+		a.Supervision = readSupervision(r.Field("supervision"))
+	}
 	if wire.Has(v, "stage") {
 		a.Stage = r.Field("stage").Enum(intent.StageRoles...)
 	}
@@ -278,8 +282,15 @@ func (a *Attempt) check() error {
 		return wire.Errorf(wire.CodeMalformed, "/attemptId", "attempt and ticket name different queues")
 	}
 	external := a.RuntimeID == RuntimeExternalAgent
-	if external != (a.Lease != nil) || external != (a.Scope != nil) {
+	supervised := a.RuntimeID == SupervisedProfile
+	if (external || supervised) != (a.Lease != nil) || (external || supervised) != (a.Scope != nil) {
 		return wire.Errorf(wire.CodeMalformed, "/lease", "lease and scope are non-null exactly for %s", RuntimeExternalAgent)
+	}
+	if supervised != (a.Supervision != nil) {
+		return wire.Errorf(wire.CodeMalformed, "supervision", "runtime binding")
+	}
+	if external && (a.Phase == "WAITING" || a.Phase == "RETURNED") {
+		return wire.Errorf(wire.CodeMalformed, "phase", "supervised-only phase")
 	}
 	if external && (a.Supervisor != nil || a.Lane != nil) {
 		return wire.Errorf(wire.CodeMalformed, "/supervisor", "%s has no supervisor or lane", RuntimeExternalAgent)
@@ -351,6 +362,9 @@ func priorValue(ps []PriorGeneration) wire.Value {
 func (a *Attempt) Encode() ([]byte, error) {
 	o := wire.NewObject()
 	o.Set("profile", wire.String(ProfileAttempt))
+	if a.Supervision != nil {
+		o.Set("supervision", supervisionValue(a.Supervision))
+	}
 	if a.Stage != "" {
 		o.Set("stage", wire.String(a.Stage))
 	}

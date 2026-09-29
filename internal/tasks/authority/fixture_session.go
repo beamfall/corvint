@@ -51,6 +51,7 @@ const (
 	fixtureBarrier
 	fixtureReservations
 	fixturePools
+	fixturePrograms
 	fixtureQueue
 	fixturePolicy
 	fixtureImportMap
@@ -172,6 +173,10 @@ func (t fixtureTarget) location() (string, string, int, error) {
 		if name == "barrier.json" {
 			return "state", name, wire.MaxBarrierBytes, nil
 		}
+	case fixturePrograms:
+		if name == "programs.json" {
+			return "state", name, 1 << 20, nil
+		}
 	case fixturePools:
 		if name == "pools.json" {
 			return "state", name, 1 << 20, nil
@@ -224,7 +229,7 @@ func fixtureStageLimit(slot fixtureSlot, role fixtureRole) (int, error) {
 		fixtureReceipt: wire.MaxReceiptFileBytes, fixtureEvidence: wire.MaxEvidenceBlobBytes,
 		fixturePin: wire.MaxPinnedBytes, fixtureRequest: wire.MaxAttemptRecordBytes,
 		fixtureVersion: len("taskman-state/0\n"), fixtureHead: wire.MaxJournalHeadBytes,
-		fixturePools: 1 << 20, fixtureBarrier: wire.MaxBarrierBytes, fixtureReservations: wire.MaxReservationSetBytes,
+		fixturePrograms: 1 << 20, fixturePools: 1 << 20, fixtureBarrier: wire.MaxBarrierBytes, fixtureReservations: wire.MaxReservationSetBytes,
 		fixtureQueue: wire.MaxQueueFileBytes, fixturePolicy: wire.MaxPolicyFileBytes,
 		fixtureImportMap: wire.MaxImportMapBytes, fixtureTicket: wire.MaxTicketFileBytes, fixtureRelease: wire.MaxReleaseFileBytes,
 		fixtureAttempt: wire.MaxAttemptRecordBytes,
@@ -716,7 +721,7 @@ func (s *fixtureSession) link(stage *fixtureStage, t fixtureTarget) error {
 // directory sync (and a file sync) before clean success. No CAS is claimed.
 func (s *fixtureSession) replace(stage *fixtureStage, t fixtureTarget, expected *wire.Digest) error {
 	switch t.role {
-	case fixtureHead, fixtureBarrier, fixtureReservations, fixturePools, fixtureAttempt:
+	case fixtureHead, fixtureBarrier, fixtureReservations, fixturePools, fixturePrograms, fixtureAttempt:
 	case fixtureQueue, fixturePolicy, fixtureImportMap, fixtureTicket, fixtureRelease, fixtureVersion:
 		// An intent projection is replaced only under an explicit expected
 		// digest. The §5.2 redo rule decides what the destination must

@@ -435,3 +435,5 @@ without the copyleft attaching. See [LICENSING.md](LICENSING.md) for the exact p
 and [PROVENANCE.md](PROVENANCE.md).
 
 Flow-variation E2E completeness and safe documentation write-back: [coverage guide](docs/FLOW-COVERAGE.md). Proof binds immutable bytes and declared app identity; deployment attestation remains outside `/3`.
+
+Optional [Codex foreground task supervision](docs/TASKS-SUPERVISION.md) is in scoped qualification; external-agent leases remain available.

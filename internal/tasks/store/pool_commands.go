@@ -194,6 +194,9 @@ func PoolCommand(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 }
 
 func healthClaim(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, initial *Report) (*Report, error) {
+	return healthClaimWith(ctx, repo, actor, choice, initial, func(c LeaseChoice) (*Report, error) { return leaseOnce(ctx, repo, actor, c, poolClock()) })
+}
+func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, initial *Report, execute func(LeaseChoice) (*Report, error)) (*Report, error) {
 	report := initial
 	for round := 0; round < intent.MaxPoolMembers; round++ {
 		p, state, e := poolSnapshot(ctx, repo)
@@ -220,7 +223,7 @@ func healthClaim(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 		}
 		def := pool.MemberConfig[member].Health
 		if def == nil {
-			return leaseOnce(ctx, repo, actor, choice, poolClock())
+			return execute(choice)
 		}
 		prep := choice
 		prep.RequestID = poolChildID(choice.RequestID, member)
@@ -253,7 +256,7 @@ func healthClaim(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 		}
 		if observation.Passed {
 			choice.pool = transaction.PoolFacts{AllocationID: en.AllocationID, Observation: raw}
-			claimed, e := leaseOnce(ctx, repo, actor, choice, poolClock())
+			claimed, e := execute(choice)
 			if e == nil && claimed.Outcome.Outcome == mutation.OutcomeCompleted {
 				return claimed, nil
 			}
@@ -276,7 +279,7 @@ func healthClaim(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 			report.Detail = "health interrupted; bound observation recorded and member quarantined"
 			return report, nil
 		}
-		report, e = leaseOnce(ctx, repo, actor, choice, poolClock())
+		report, e = execute(choice)
 		if e != nil || !report.Outcome.HasCode(wire.CodeQuiescenceUnproved) {
 			return report, e
 		}

@@ -17,6 +17,8 @@ const Lease = snapshot.StageLease
 
 // Lease verbs and bounds (CAL-V0-012, CAL-V0-013).
 const (
+	LeaseSupervisor     = "SUPERVISOR"
+	LeaseProgram        = "PROGRAM"
 	LeasePoolPrepare    = "POOL_PREPARE"
 	LeasePoolObserve    = "POOL_OBSERVE"
 	LeasePoolCleanup    = "POOL_CLEANUP"
@@ -56,6 +58,7 @@ type LeaseRequest struct {
 // derivation (nil paths when the deriver abstained). SUBMIT, GATE_RUN and
 // COMPLETE add their git and gate observations (gateFacts).
 type LeaseFacts struct {
+	Program                                []byte
 	Pool                                   PoolFacts
 	AttemptID, BaseCommit, DerivedTicketID string
 	DerivedPaths                           []string
@@ -93,6 +96,8 @@ const (
 type leaseShape struct{ required, allowed int }
 
 var leaseShapes = map[string]leaseShape{
+	LeaseSupervisor:  {fieldAttempt | fieldGeneration | fieldEvidence, fieldAttempt | fieldGeneration | fieldEvidence | fieldPool | fieldStage | fieldHolder},
+	LeaseProgram:     {fieldEvidence, fieldEvidence},
 	LeasePoolPrepare: {fieldPool | fieldMember | fieldHolder | fieldEvidence, fieldPool | fieldMember | fieldHolder | fieldStage | fieldEvidence},
 	LeasePoolObserve: {fieldMember | fieldAllocation, fieldMember | fieldAllocation},
 	LeasePoolCleanup: {fieldMember | fieldAllocation, fieldMember | fieldAllocation},
@@ -283,6 +288,9 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 	if l.Stage != "" {
 		v.Obj.Set("stage", s(l.Stage))
 	}
+	if l.Verb == LeaseProgram || l.Verb == LeaseSupervisor {
+		v.Obj.Set("evidence", s(l.Evidence))
+	}
 	if l.Verb == LeasePoolSafe || l.Verb == LeasePoolPrepare || l.Verb == LeasePoolObserve || l.Verb == LeasePoolCleanup || l.Verb == LeasePoolRecover {
 		v.Obj.Set("member", s(l.Member))
 		v.Obj.Set("allocation", s(l.Allocation))
@@ -320,6 +328,8 @@ type leaseContext struct {
 }
 
 var leasePlanners = map[string]func(leaseContext) leaseOutcome{
+	LeaseSupervisor:  planSupervisor,
+	LeaseProgram:     planProgram,
 	LeasePoolSafe:    planPoolSafe,
 	LeasePoolPrepare: planPoolPrepare, LeasePoolObserve: planPoolObserve, LeasePoolCleanup: planPoolCleanup, LeasePoolRecover: planPoolRecover,
 	LeaseClaim:     planClaim,
@@ -335,6 +345,9 @@ var leasePlanners = map[string]func(leaseContext) leaseOutcome{
 
 func planLease(r Request, in Input, st inputState) leaseOutcome {
 	c := leaseContext{r: r, l: r.Lease, in: in, st: st, seq: wire.SizeOf(st.head.LastSeq.Uint64() + 1)}
+	if a := st.attempts[r.Lease.AttemptID]; a != nil && a.Supervision != nil && r.Lease.Verb != LeaseSupervisor && r.Lease.Verb != LeaseGateRun && r.Lease.Verb != LeaseComplete {
+		return c.refuse(mutation.OutcomeBlocked, wire.CodeQuiescenceUnproved, "supervised attempt requires owned lifecycle transition")
+	}
 	return leasePlanners[r.Lease.Verb](c)
 }
 
@@ -379,7 +392,7 @@ func (c leaseContext) named() (*snapshot.Attempt, error) {
 }
 
 func expired(a *snapshot.Attempt, now wire.Timestamp) bool {
-	return a.Lease != nil && a.Lease.ExpiresAt <= now
+	return a.Supervision == nil && a.Lease != nil && a.Lease.ExpiresAt <= now
 }
 
 func addMinutes(t wire.Timestamp, m wire.Size) wire.Timestamp {

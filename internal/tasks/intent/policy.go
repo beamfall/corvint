@@ -89,6 +89,7 @@ type CapacityClass struct {
 // Policy is a validated taskman-policy/0. Raw holds the exact file bytes;
 // the policy identity is derived from them.
 type Policy struct {
+	Supervision                *SupervisionPolicy
 	Pools                      []Pool
 	PolicyVersion              wire.Size
 	Roles                      map[string][]string
@@ -191,7 +192,7 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	r := wire.NewReader(v, "/")
 	r.Closed(wire.OptionalKeys(v, []string{"profile", "policyVersion", "roles", "capacity", "budgets", "retries", "retention", "gates",
 		"serialFallback", "integrationRequiredKinds", "allowEmptyObligationsKinds", "reviewLane", "docsLane",
-		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools")...)
+		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -199,6 +200,9 @@ func DecodePolicy(data []byte) (*Policy, error) {
 		return nil, err
 	}
 	p := &Policy{Roles: map[string][]string{}, Raw: append([]byte(nil), data...)}
+	if wire.Has(v, "supervision") {
+		p.Supervision = readSupervisionPolicy(r.Field("supervision"))
+	}
 	p.PolicyVersion = r.Field("policyVersion").Size()
 	roles := r.Field("roles")
 	if roles.Value().Kind != wire.KindObject {
