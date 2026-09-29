@@ -32,3 +32,15 @@ Rollback removes the optional mode/helper/tests and restores reviewed parent too
 definition development, user editor configuration and existing raw reports are unchanged. Candidate
 stops before final CEM/check/seal/publication; root owns bounded code review, actual two-client context
 proof, report inspection, draft publication and native ticket evidence. No nested delegation occurred.
+
+Independent review of `d5d7f8c` reproduced false passes for unknown evidence paths,
+multiple replacements and a close before reply. The first bounded repair validates every claimed
+path/blob and span/content against actual Git bytes, requires the single current full replacement
+and initial disk bytes, and rejects close/reopen before reply. Before/after reproductions remain
+private under `/tmp/lsp-context-probes-review-repro-*.log`. The positive fixture now uses the actual
+generic Core profile, receipt tool `context`, and closed READY abstention `{active:false,reason:"NONE"}`.
+The frozen capture wire uses a decimal uint64 string; numeric, zero, leading-zero and overflowing
+identifiers fail, while the maximum valid string passes. Focused adversarial checks include missing
+blob, out-of-blob line/span, forged content, extra valid tracked evidence and closed-envelope types.
+Actual context client execution remains NOT_RUN pending the repaired candidate's independent review
+and the root's immutable server. This repair does not promote any qualification tuple.

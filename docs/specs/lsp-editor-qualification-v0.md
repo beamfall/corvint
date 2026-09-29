@@ -56,7 +56,11 @@ The result's intact Core bridge envelope must remain separate from the opaque se
 URI/version/SHA256 overlay observation. Validator evidence joins packet commit/tree/blob identities
 to actual Git objects and expected fixture bytes, and requires the nested governance/spec/test
 witnesses. ABSTAINED is preserved as an observed response and fails the expected fixture proof.
-One capture can check capture identity format/positivity, not establish whole-session monotonicity.
+Capture IDs are decimal strings matching ASCII `[1-9][0-9]*`, bounded by uint64
+`18446744073709551615`; JSON numbers, zero, leading zeros and overflow are refused. One capture
+checks format and bounds; whole-session monotonicity remains NOT_OBSERVED. Every claimed packet
+path/blob and any line/span/content must match the fixture Git bytes, including additional tracked
+paths. Initial disk text, one exact full replacement and no close/reopen before reply bind the overlay.
 Private raw paths stay local; the publishable development summary uses repository-relative paths.
 All tuples remain UNQUALIFIED and actual context clients remain NOT_RUN until reviewed server execution.
 

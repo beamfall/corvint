@@ -11,8 +11,8 @@ spec = importlib.util.spec_from_file_location('context_probe', Path(__file__).wi
 probe = importlib.util.module_from_spec(spec); spec.loader.exec_module(probe)
 with tempfile.TemporaryDirectory(prefix='editor-context-check-') as td:
     root=Path(td).resolve();before=probe.fixture(root);after=probe.snapshot(root);uri=(root/'pkg/main.go').as_uri()
-    core={'schema':'corvint-mcp-bridge-result/0','tool':'corvint.context','mutates':False,'state':'READY','epistemicClass':'OBSERVED','authorityClass':'REPOSITORY_EVIDENCE','repository':{'commitRevision':before['commit'],'treeRevision':before['tree'],'objectFormat':'sha1','profileId':'fixture-profile','worktreeState':'CLEAN','dirtyPathCount':0,'dirtyPathsSha256':hashlib.sha256(b'').hexdigest()},'receipt':{'revision':before['tree'],'results':[{'evidence':[{'path':name,'blob_hash':before['files'][name]['blob'],'reason':'fixture governing witness'}]} for name in ['pkg/AGENTS.md','SPEC.md','pkg/main_test.go']]},'abstention':{'active':False,'reason':'none'}}
-    result={'schema':'corvint-editor-context/0','core':core,'overlayObservation':{'sessionID':'1'*32,'captureID':1,'uri':uri,'version':2,'digestAlgorithm':'sha256','digest':hashlib.sha256(probe.OVERLAY.encode()).hexdigest()},'inclusionReason':'requested-open-document-subject'}
+    core={'schema':'corvint-mcp-bridge-result/0','tool':'corvint.context','mutates':False,'state':'READY','epistemicClass':'OBSERVED','authorityClass':'REPOSITORY_EVIDENCE','repository':{'commitRevision':before['commit'],'treeRevision':before['tree'],'objectFormat':'sha1','profileId':'generic','worktreeState':'CLEAN','dirtyPathCount':0,'dirtyPathsSha256':hashlib.sha256(b'').hexdigest()},'receipt':{'tool':'context','revision':before['tree'],'results':[{'evidence':[{'path':name,'blob_hash':before['files'][name]['blob'],'line':1,'reason':'fixture governing witness'}]} for name in ['pkg/AGENTS.md','SPEC.md','pkg/main_test.go']]},'abstention':{'active':False,'reason':'NONE'}}
+    result={'schema':'corvint-editor-context/0','core':core,'overlayObservation':{'sessionID':'1'*32,'captureID':'1','uri':uri,'version':2,'digestAlgorithm':'sha256','digest':hashlib.sha256(probe.OVERLAY.encode()).hexdigest()},'inclusionReason':'requested-open-document-subject'}
     observation={'initializeResult':{'capabilities':{'experimental':{'corvintContext':{'method':'corvint/context','schema':'corvint-editor-context/0'}}}},'context':{'result':result,'version':2,'bufferModified':True}}
     def row(direction, message):return {'direction':direction,'message':message}
     rows=[row('client-to-server',{'method':'textDocument/didOpen','params':{'textDocument':{'uri':uri,'version':1,'text':probe.FILES['pkg/main.go']}}}),row('client-to-server',{'method':'textDocument/didChange','params':{'textDocument':{'uri':uri,'version':2},'contentChanges':[{'text':probe.OVERLAY}]}}),row('client-to-server',{'method':'corvint/context','id':5,'params':{'textDocument':{'uri':uri},'task':probe.TASK,'limit':20}}),row('server-to-client',{'id':5,'result':result})]
@@ -27,8 +27,37 @@ with tempfile.TemporaryDirectory(prefix='editor-context-check-') as td:
     assert not changed_result(lambda r:r['overlayObservation'].update(commitRevision=before['commit']))['valid']
     assert not changed_result(lambda r:r['overlayObservation'].update(version=1))['valid']
     assert not changed_result(lambda r:r['core'].update(state='ABSTAINED',abstention={'active':True,'reason':'unsupported'}))['valid']
+    forged = changed_result(lambda r:r['core']['receipt']['results'].append({'evidence':[{'path':'invented.md','blob_hash':'f'*40,'reason':'invented'}]}))
+    assert not forged['valid'], 'untracked invented evidence accepted'
+    multiple = copy.deepcopy(rows)
+    multiple[1]['message']['params']['contentChanges'].append({'text':'package p\nvar newer int\n'})
+    assert not probe.validate(multiple,observation,uri,before,after)['valid'], 'earlier replacement accepted as current'
+    closed = rows[:3]+[row('client-to-server',{'method':'textDocument/didClose','params':{'textDocument':{'uri':uri}}})]+rows[3:]
+    assert not probe.validate(closed,observation,uri,before,after)['valid'], 'closed source accepted'
+    reopened = rows[:2]+[row('client-to-server',{'method':'textDocument/didClose','params':{'textDocument':{'uri':uri}}}),rows[0]]+rows[2:]
+    assert not probe.validate(reopened,observation,uri,before,after)['valid'], 'reopened source accepted'
+    for capture in [0,1,2**80,'0','01',str(18446744073709551616),str(2**80)]:
+        assert not changed_result(lambda r:r['overlayObservation'].update(captureID=capture))['valid']
+    assert changed_result(lambda r:r['overlayObservation'].update(captureID='18446744073709551615'))['valid']
+    for abstention in [{'active':False},{'active':False,'reason':'none'},{'active':False,'reason':'NONE','extra':True}]:
+        assert not changed_result(lambda r:r['core'].update(abstention=abstention))['valid']
+    assert not changed_result(lambda r:r['core']['repository'].update(profileId='fixture-profile'))['valid']
+    assert not changed_result(lambda r:r['core']['receipt'].pop('tool'))['valid']
+    assert not changed_result(lambda r:r['core']['receipt']['results'][0]['evidence'][0].pop('blob_hash'))['valid']
+    assert not changed_result(lambda r:r['core']['receipt']['results'][0]['evidence'][0].update(start_line=999,end_line=1000))['valid']
+    assert not changed_result(lambda r:r['core']['receipt']['results'][0]['evidence'][0].update(line=999))['valid']
+    assert not changed_result(lambda r:r['core']['receipt']['results'][0]['evidence'][0].update(content='invented bytes'))['valid']
+    assert changed_result(lambda r:r['core']['receipt']['results'].append({'evidence':[{'path':'go.mod','blob_hash':before['files']['go.mod']['blob'],'line':1,'reason':'extra tracked evidence'}]}))['valid']
+    initial=copy.deepcopy(rows);initial[0]['message']['params']['textDocument']['text']='invented'
+    assert not probe.validate(initial,observation,uri,before,after)['valid']
+    multiple[1]['message']['params']['contentChanges'].append({'text':probe.OVERLAY})
+    assert not probe.validate(multiple,observation,uri,before,after)['valid']
     bad=copy.deepcopy(observation);bad['initializeResult']['capabilities']['experimental']['corvintContext']['schema']='invented'
     assert not probe.validate(rows,bad,uri,before,after)['valid']
+    assert not changed_result(lambda r:r['core']['abstention'].update(active=0))['valid']
+    assert not changed_result(lambda r:r['overlayObservation'].update(sessionID=int('1'*32)))['valid']
+    initial=copy.deepcopy(rows);initial[0]['message']['params']['textDocument']['extra']=True
+    assert not probe.validate(initial,observation,uri,before,after)['valid']
     (root/'SPEC.md').write_text('tampered')
     assert not probe.validate(rows,observation,uri,before,probe.snapshot(root))['valid']
 print('context incomplete/order/forged Git/tampered overlay/marker/disk checks passed; actual corvint/context clients NOT_RUN')
