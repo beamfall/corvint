@@ -2570,5 +2570,20 @@
     "implementation": [
       "tools/heading-nav-bench"
     ]
+  },
+  {
+    "path": "docs/specs/lsp-editor-qualification-v0.md",
+    "title": "LSP editor qualification tooling V0",
+    "reqPrefix": "LEQ-V0",
+    "intent": "proposed experimental tooling; owner selected VS Code and Neovim",
+    "delivery": "experimental; UNQUALIFIED",
+    "claim": "Actual editor development lifecycle probes retain wire observations without promotion claims.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "script/qualify-lsp-editors.py",
+      "tools/lsp-editors"
+    ]
   }
 ]

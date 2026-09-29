@@ -1390,6 +1390,10 @@ LCP-V0-012	docs/specs/local-completion-policy-v0.md	217	Private plans, observati
 LCP-V0-013	docs/specs/local-completion-policy-v0.md	223	Prompt context MUST accept a task mention as an explicit anchor. A mention is on
 LCP-V0-014	docs/specs/local-completion-policy-v0.md	248	`finish` MUST run the daily change (coordination) and the final strict check in
 LCP-V0-015	docs/specs/local-completion-policy-v0.md	261	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
+LEQ-V0-001	docs/specs/lsp-editor-qualification-v0.md	35	The harness MUST use the actual selected editor and explicit server executable,
+LEQ-V0-002	docs/specs/lsp-editor-qualification-v0.md	36	Editor state MUST be disposable and isolated from user configuration. Owned serv
+LEQ-V0-003	docs/specs/lsp-editor-qualification-v0.md	38	Unicode, rapid edits, multiple roots, stale responses, provider crashes, descend
+LEQ-V0-004	docs/specs/lsp-editor-qualification-v0.md	37	Semantic development mode MUST bind one actual unsaved Unicode definition to its
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	1309	Every displayed metric and source-derived value MUST derive through the compiled
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	1313	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	1316	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the
