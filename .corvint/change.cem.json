@@ -162,7 +162,7 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:1f7c9b34a5645694e53cafeea98e65dbd0fa8f8a656c24961a08a5ee3d6d4c74",
+      "id": "hunk:sha256:13cfa58001813ee62650a498dfae49a6542e91e86ba65ee0e4325a5d0ea09f02",
       "newRange": {
         "count": 20,
         "start": 473
@@ -562,7 +562,7 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:6b090230779f3fbe09ac5cfbfa8977ba2547af761d91ed6bc50c329271cca18d",
+      "id": "hunk:sha256:b0516f83a657330c29bc1ce3c3b8916cf740ca4a6da0e6edcca6266802c8299a",
       "newRange": {
         "count": 61,
         "start": 1
@@ -762,7 +762,7 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:2fb67292a2c72d1a5fba16fc80c53ee1c1b4ac9b0a94837586cbb846c750c2c5",
+      "id": "hunk:sha256:dbf65eaafdf008cd891a2c968bc177fe0dd0f259ac144d1b27798808e97fe0e6",
       "newRange": {
         "count": 442,
         "start": 1
@@ -782,9 +782,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:3ccc0912672eb2aca57c4a675cab41e3ed1c65a1ca233bf912198af8628de7a6",
+      "id": "hunk:sha256:1ab9094d1c8a0e913a9e7be16f4e1f9f5c9638db9595c85522d77ba02a9175e5",
       "newRange": {
-        "count": 327,
+        "count": 340,
         "start": 1
       },
       "oldRange": {
@@ -835,6 +835,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "6929d69ad82f0c8afd779a66a4b9b24b3de52f31291673b1bc2a9e155cd7af7b",
+  "patchSha256": "4e9b3903de156bfdb5bfc70f0a7c6273921bafd8e4c75e57a443b5cd2c188992",
   "spec": "cem/0.2"
 }
