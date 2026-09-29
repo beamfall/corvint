@@ -142,6 +142,46 @@
         }
       ],
       "disposition": "supported",
+      "id": "hunk:sha256:7a8fc11a3235fff400b631fa0a01552500ce7e16bbc2f77837f996aae980bc86",
+      "newRange": {
+        "count": 18,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-29-environment-pools-final-gate-repair.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:23c2ed2b8892ecd2bb201c2c16381743699108c076bb4b40dc9c95c1ffbc317c",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c14049890f6177dc92869a3470dd4a32167613c445656dbb3249457143911e24",
+      "newRange": {
+        "count": 7,
+        "start": 2377
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 2377
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:23c2ed2b8892ecd2bb201c2c16381743699108c076bb4b40dc9c95c1ffbc317c",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
       "id": "hunk:sha256:5d88285fee1784b18804ba53f8ac319cae5ae59582fbe11675121544db2d6a17",
       "newRange": {
         "count": 7,
@@ -722,9 +762,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:9ea85ab95e39d8cf13520a267b1317b6981efe0648cb349ba8e6c49115acded6",
+      "id": "hunk:sha256:9f386ba50da8e48381d2d3875fbc23f93325ba767e089a4adf9d3b067ed13c2d",
       "newRange": {
-        "count": 16,
+        "count": 18,
         "start": 74
       },
       "oldRange": {
@@ -2382,6 +2422,46 @@
         }
       ],
       "disposition": "supported",
+      "id": "hunk:sha256:d9897f0ec1f92c3482cb86490163451b68ad6c5b989d239a4c40075ddf6976e0",
+      "newRange": {
+        "count": 7,
+        "start": 204
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 204
+      },
+      "path": "internal/tasks/transaction/stage_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:e2666d3845951b3f96bad83da65b2360eac310243cf2482754d1ec7a12050c82",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ade6bd2dc08e9d3fcdba871a3dc641185576ea4538c3603c42a8dd6948fc5fda",
+      "newRange": {
+        "count": 7,
+        "start": 219
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 219
+      },
+      "path": "internal/tasks/transaction/stage_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:e2666d3845951b3f96bad83da65b2360eac310243cf2482754d1ec7a12050c82",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
       "id": "hunk:sha256:89fad657ebe0563fdb5ddc3d2fcd1b35f8c8c1dd48c80a28f9167fcc2d3b60bb",
       "newRange": {
         "count": 22,
@@ -2395,6 +2475,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "25e51c35ab875c2b28fd0e6ef4587a700310e618f490a138ae03487170ac298e",
+  "patchSha256": "f371b77f62484fdcec560c3441b1bd14dd09d71a81e154935a84158baef463a2",
   "spec": "cem/0.2"
 }
