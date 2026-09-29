@@ -99,6 +99,22 @@ output directories outside the checkout; the reproducibility script refuses one 
    bash -o pipefail -c 'script/check-hostile-regressions.sh 2>&1 | tee "$1"' _ "/abs/release/X.Y.Z/hostile-regressions.txt"
    ```
 
+   For the hosted `Release gates` workflow, lifecycle qualification normally selects the newest
+   prior reachable `v*` tag. If published tags were preserved across a history rewrite, supply
+   both `previous_release_tag` and `previous_release_oid` when dispatching. The OID is the exact
+   direct value of `refs/tags/TAG` (the commit OID for a lightweight tag), not a branch name or an
+   abbreviated commit. For example, inspect `git rev-parse refs/tags/vW.V.U` and
+   `git rev-parse 'refs/tags/vW.V.U^{commit}'` before supplying the chosen published predecessor.
+   The selector logs the candidate, tag, direct OID and peeled commit, rejects mismatches, missing
+   or malformed selection, the candidate itself and its descendants, and never falls back to an
+   older tag after refusal. Its ancestry reads ignore replacement objects and grafts.
+
+   An explicit disconnected tag is allowed; Git cannot prove its chronological precedence. The
+   operator owns the published lifecycle predecessor choice. Published checksums still verify the
+   downloaded archive, without independently proving it was built from the pinned tag. Keep that
+   lifecycle predecessor separate from the accepted Core compatibility baseline: after a rewrite,
+   explicitly name the Core tag in the replay below rather than relying on its ancestry default.
+
    Then the CCF-V1-007 N-1 replay (accepted 2026-09-26, decision 0422; from decision 0398): every
    frozen Core mode except the skips CCF-V1-007 names also runs under the previous release tag over a
    fresh fixture; it must exit alike and keep the CCF-V1-002 identifiers, every member it emits must

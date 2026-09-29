@@ -1,0 +1,180 @@
+{
+  "baseRevision": "1b6ac29fa9cb90a07fb5d9cef97e49cc0b1432f5",
+  "evidence": [
+    {
+      "blobOid": "a835476a01b2c54495b2f68609e715abedbf802c",
+      "id": "evidence:sha256:250da684adee227ad45365870259a495f72b9ef38584e6d9cfb206fcce1b65b8",
+      "path": "docs/RELEASE-RUNBOOK.md",
+      "span": {
+        "end": 4491,
+        "start": 3205
+      },
+      "spanSha256": "8250ada56c566711a3888627e5b9cc11f80cd1e56aec45c5b3fc9b0d7d9d7c1b"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:250da684adee227ad45365870259a495f72b9ef38584e6d9cfb206fcce1b65b8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b8e0a6137000124f45c78213ff3b94f7730d84f95c72649ecf117b8172f3469d",
+      "newRange": {
+        "count": 13,
+        "start": 17
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 17
+      },
+      "path": ".github/workflows/release-gates.yml",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:250da684adee227ad45365870259a495f72b9ef38584e6d9cfb206fcce1b65b8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:44d7a32ce1f8d30217e9c2c9bdff99401e63f84e5beb10f5e8f566f05cfd3bf5",
+      "newRange": {
+        "count": 8,
+        "start": 36
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 29
+      },
+      "path": ".github/workflows/release-gates.yml",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:250da684adee227ad45365870259a495f72b9ef38584e6d9cfb206fcce1b65b8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5610dd5cd18129d4d89ec6f9810513a968a1829f9e2f64705a660953152bf00b",
+      "newRange": {
+        "count": 18,
+        "start": 193
+      },
+      "oldRange": {
+        "count": 17,
+        "start": 184
+      },
+      "path": ".github/workflows/release-gates.yml",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:250da684adee227ad45365870259a495f72b9ef38584e6d9cfb206fcce1b65b8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d5cb596f848fa5153fce0ec9e82dd34fda159ca952878485d88c0d1ed8250641",
+      "newRange": {
+        "count": 7,
+        "start": 212
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 202
+      },
+      "path": ".github/workflows/release-gates.yml",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:250da684adee227ad45365870259a495f72b9ef38584e6d9cfb206fcce1b65b8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0ccf3e3c2e7bc18b535e4847d9eb7a0ec13f84c2fd139d8b74f90d6ec9f708b9",
+      "newRange": {
+        "count": 22,
+        "start": 99
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 99
+      },
+      "path": "docs/RELEASE-RUNBOOK.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:250da684adee227ad45365870259a495f72b9ef38584e6d9cfb206fcce1b65b8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7a4a40e13e07282e3487d12270487850a6f8fe0817de51c4dbd0b8c20c5f1a80",
+      "newRange": {
+        "count": 44,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-29-explicit-hosted-lifecycle-predecessor.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:250da684adee227ad45365870259a495f72b9ef38584e6d9cfb206fcce1b65b8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:eb22623c037a927098ecab3b193c84df172e4d29563e2412ae941bb0f59a0bd4",
+      "newRange": {
+        "count": 59,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "script/select-previous-release.sh",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:250da684adee227ad45365870259a495f72b9ef38584e6d9cfb206fcce1b65b8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1ccad477dc9c98f52dc0e323b51d7fb2a3c003c77756805b48b2880ff69d55cf",
+      "newRange": {
+        "count": 130,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "script/select-previous-release_test.sh",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "cb90bd6ffe82574c3c6f1c3915673b5dfb8c7c0166a1c1d4ab157cb1d3aef266",
+  "spec": "cem/0.2"
+}
