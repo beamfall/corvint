@@ -1,0 +1,762 @@
+{
+  "arms": {
+    "checkpoint": {
+      "agentReport": "# Checkpoint continuation result\n\nCompleted RETRY-001: negative inputs return zero, every value from zero through five is unchanged, and larger values return five. Added tests for minimum int, -1, every value 0..5, 6, 7, and maximum int. No remaining task obligations; no commit requested or created.\n\nCheckpoint revalidation reported `ok: true`, all four handles unchanged, and no missing critical evidence. Its task prose and historical verification were treated as caller-reported data. Directly read AGENTS.md and docs/specs/retry.md confirmed the obligation. No initial evidence drift was observed; the two implementation/test files subsequently changed intentionally.\n\nPrior verification: checkpoint reported a passing historical focused test covering only negative input. Fresh baseline: default-cache test was blocked by sandbox cache permissions; rerunning with `GOCACHE=/tmp/corvint-checkpoint-agent-go-cache` passed. New boundary tests then failed on 6, 7, and maximum int before the fix. After the fix, `GOCACHE=/tmp/corvint-checkpoint-agent-go-cache go test -count=1 -timeout 60s ./retry` passed. `git diff --check` passed and the final diff was inspected.\n\nLimitations: focused synthetic fixture only; no broader tests or independent reviewer. No sibling pilot files, parent plan, runner, or other agent output inspected. Temporary Go cache retained; no owned processes remain running. Account usage observed at 41% weekly consumption. Requested fixed model/effort was not independently inspected or changed.\n\nMeasured work interval: 12:38:21\u201312:39:01 UTC, 40 seconds, excluding initial call time before first timestamp and final report-writing overhead.\n\nCounts including report creation: 6 functions.exec orchestration calls; 11 nested tool calls (5 exec_command, 3 apply_patch, 2 clock, 1 usage); 5 shell invocations. Direct source-file reads: 2 via cat plus 2 via final diff, 4 read operations across 2 distinct Go files. Additional explicit document reads: checkpoint.json, AGENTS.md, retry spec. Internal source reads by prove, compiler, gofmt, patch, or Git were not instrumented and are unknown.\n",
+      "independentEvaluation": {
+        "behavior": "PASS",
+        "cases": [
+          [
+            -1,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            4,
+            4
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            6,
+            5
+          ],
+          [
+            7,
+            5
+          ],
+          [
+            100,
+            5
+          ]
+        ],
+        "obligationAndHistoricalAttribution": "REQUIRES_INDEPENDENT_REVIEW",
+        "sourceFiles": {
+          ".gitignore": "daaf1ff30884b5c28ba8fce708a99f97459bf7690c5e9d8cbce903bb6e0551b2",
+          "AGENTS.md": "cb81a0f1e6fb3e490e4191cb1a1e761fea9d93ecb292f59213abbc0c092495b8",
+          "docs/specs/retry.md": "313abbcc92c33df0c2a9373a13ec91a7c732175ef5f28032814dbc12960ba0f8",
+          "go.mod": "5254eb4f5c5355b80652054771e614d50a2fa51e550d7385724084f7bed41e30",
+          "retry/retry.go": "e06cd56edd7cd14f60ad5940384e7bca9bbffa5c1a1ad49da744e2c552c3b507",
+          "retry/retry_test.go": "d15027df27b79882e1aa87c8756c78a120394ec58edf83401f63d4581e87fdc4"
+        }
+      },
+      "repair": {
+        "retry/retry.go": "package retry\n\nfunc NormalizeRetries(n int) int {\n\tif n < 0 {\n\t\treturn 0\n\t}\n\tif n > 5 {\n\t\treturn 5\n\t}\n\treturn n\n}\n",
+        "retry/retry_test.go": "package retry\n\nimport \"testing\"\n\nfunc TestNormalizeRetries(t *testing.T) {\n\tmaxInt := int(^uint(0) >> 1)\n\tfor _, tc := range []struct{ input, want int }{\n\t\t{-maxInt - 1, 0}, {-1, 0},\n\t\t{0, 0}, {1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5},\n\t\t{6, 5}, {7, 5}, {maxInt, 5},\n\t} {\n\t\tif got := NormalizeRetries(tc.input); got != tc.want {\n\t\t\tt.Errorf(\"NormalizeRetries(%d) = %d; want %d\", tc.input, got, tc.want)\n\t\t}\n\t}\n}\n"
+      }
+    },
+    "notes": {
+      "agentReport": "# Notes-arm continuation report\n\nCompleted RETRY-001: negative values normalize to 0, every value 0 through 5 remains unchanged, and values above 5 normalize to 5. Only retry/retry.go and retry/retry_test.go changed inside the assigned repository. Added tests for minimum integer, -1, every integer 0 through 7, and maximum integer. No remaining implementation or focused-verification obligations; no commit requested or created.\n\nEvidence: the clean starting checkout matched builder commit e6eac2b7e6e78f348f43a546237b4621c850ae21 and tree 349afeb6c617fbe783f14d82a6e09ef58f7602ea. All four evidence handles (AGENTS.md, docs/specs/retry.md, retry/retry.go, retry/retry_test.go) matched the handoff's Git blob identities. No pre-change evidence drift was observed. The two retry files intentionally changed afterward; the other evidence files were not edited.\n\nPrior verification was caller-reported historical data only. Fresh verification: the original focused command first failed because the sandbox denied the default Go cache. Repeating with GOCACHE=/tmp/corvint-notes-agent-go-cache passed the original negative-only baseline. Added boundary tests then failed at 6, 7, and maximum integer, proving the defect. After correcting the cap, GOCACHE=/tmp/corvint-notes-agent-go-cache go test -count=1 -timeout 60s ./retry passed. gofmt was applied and git diff --check passed. Final diff/status showed exactly the two authorized source files changed.\n\nLimitations: focused package tests and direct source/diff inspection only; no broader tests, independent reviewer, or cross-platform execution. No sibling pilot files, parent plan, runner, or other agent output inspected. Temporary Go cache retained; no owned process remains running.\n\nMeasured wall time: 42 seconds from the first clock observation (12:38:40 UTC) through final verification (12:39:22 UTC), excluding initial note retrieval and report-writing overhead. Full-turn elapsed time was not measured.\n\nObserved calls, including this report write: 8 functions.exec invocations containing 13 nested tool calls (6 exec_command shell calls, 1 write_stdin poll, 3 apply_patch calls, 2 clock calls, 1 usage call). Thus 21 total tool invocations if wrappers and nested calls are both counted. Source reads: 2 unique Go source files; 2 full content reads via cat plus 2 source diff views, for 4 model-visible source read/view events. Git hash-object additionally read those 2 source files to verify identities. Other full-content reads: notes.md, AGENTS.md, docs/specs/retry.md, and go.mod (one each). Compiler, Git internals, and formatter filesystem read counts were not observed. Usage telemetry was fresh at 41% weekly consumed.\n",
+      "independentEvaluation": {
+        "behavior": "PASS",
+        "cases": [
+          [
+            -1,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            4,
+            4
+          ],
+          [
+            5,
+            5
+          ],
+          [
+            6,
+            5
+          ],
+          [
+            7,
+            5
+          ],
+          [
+            100,
+            5
+          ]
+        ],
+        "obligationAndHistoricalAttribution": "REQUIRES_INDEPENDENT_REVIEW",
+        "sourceFiles": {
+          ".gitignore": "daaf1ff30884b5c28ba8fce708a99f97459bf7690c5e9d8cbce903bb6e0551b2",
+          "AGENTS.md": "cb81a0f1e6fb3e490e4191cb1a1e761fea9d93ecb292f59213abbc0c092495b8",
+          "docs/specs/retry.md": "313abbcc92c33df0c2a9373a13ec91a7c732175ef5f28032814dbc12960ba0f8",
+          "go.mod": "5254eb4f5c5355b80652054771e614d50a2fa51e550d7385724084f7bed41e30",
+          "retry/retry.go": "e06cd56edd7cd14f60ad5940384e7bca9bbffa5c1a1ad49da744e2c552c3b507",
+          "retry/retry_test.go": "00d4aa74a32ab684e2f19e19fa64b6a9c05516e155e1c91abd39cd650c599b97"
+        }
+      },
+      "repair": {
+        "retry/retry.go": "package retry\n\nfunc NormalizeRetries(n int) int {\n\tif n < 0 {\n\t\treturn 0\n\t}\n\tif n > 5 {\n\t\treturn 5\n\t}\n\treturn n\n}\n",
+        "retry/retry_test.go": "package retry\n\nimport (\n\t\"strconv\"\n\t\"testing\"\n)\n\nfunc TestNegative(t *testing.T) {\n\tif NormalizeRetries(-1) != 0 {\n\t\tt.Fatal(\"negative retry count\")\n\t}\n}\n\nfunc TestNormalizeRetriesBoundaries(t *testing.T) {\n\tmaxInt := int(^uint(0) >> 1)\n\tfor _, tc := range []struct{ input, want int }{\n\t\t{-maxInt - 1, 0}, {-1, 0}, {0, 0}, {1, 1}, {2, 2},\n\t\t{3, 3}, {4, 4}, {5, 5}, {6, 5}, {7, 5}, {maxInt, 5},\n\t} {\n\t\tt.Run(strconv.Itoa(tc.input), func(t *testing.T) {\n\t\t\tif got := NormalizeRetries(tc.input); got != tc.want {\n\t\t\t\tt.Errorf(\"NormalizeRetries(%d) = %d, want %d\", tc.input, got, tc.want)\n\t\t\t}\n\t\t})\n\t}\n}\n"
+      }
+    }
+  },
+  "billedTokens": "NOT_OBSERVED",
+  "boundaries": {
+    "SIGINT": "NO_LIVE_DESCENDANTS",
+    "SIGTERM": "NO_LIVE_DESCENDANTS",
+    "existingOutput": "REFUSED",
+    "negativeControl": "FAILED_EXPECTED"
+  },
+  "boundaryObservations": {
+    "SIGINT": [
+      {
+        "argv": [
+          "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+          "/tmp/corvint-recovery-handoff-20260929/cleanup-child.py",
+          "/tmp/corvint-recovery-handoff-20260929/cleanup-output-Signals.SIGINT/pids"
+        ],
+        "artifact": "command-000",
+        "cwd": "/tmp/corvint-recovery-handoff-20260929",
+        "elapsedSeconds": 0.06249237500000001,
+        "exit": -9,
+        "interruption": "SystemExit",
+        "stderrSha256": "fc678720faa24b12669ad06f2d1d209d06d9df86ead6c3e8bbf8aab5def172f1",
+        "stdoutSha256": "e9ca3e09475b4b43441745c23e162612fbda387bd98624094b59b8abd3c46ccc"
+      }
+    ],
+    "SIGTERM": [
+      {
+        "argv": [
+          "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+          "/tmp/corvint-recovery-handoff-20260929/cleanup-child.py",
+          "/tmp/corvint-recovery-handoff-20260929/cleanup-output-Signals.SIGTERM/pids"
+        ],
+        "artifact": "command-000",
+        "cwd": "/tmp/corvint-recovery-handoff-20260929",
+        "elapsedSeconds": 0.07239458300000001,
+        "exit": -9,
+        "interruption": "SystemExit",
+        "stderrSha256": "fc678720faa24b12669ad06f2d1d209d06d9df86ead6c3e8bbf8aab5def172f1",
+        "stdoutSha256": "e9ca3e09475b4b43441745c23e162612fbda387bd98624094b59b8abd3c46ccc"
+      }
+    ],
+    "timeout": [
+      {
+        "argv": [
+          "python3",
+          "-c",
+          "import time; print(\"before-timeout\",flush=True); time.sleep(60)"
+        ],
+        "artifact": "command-000",
+        "cwd": "/tmp/corvint-recovery-handoff-20260929",
+        "elapsedSeconds": 0.20561979200000002,
+        "exit": -9,
+        "interruption": "TimeoutExpired",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutSha256": "a1e72e84ed3e2b0b8448096dd075ca1231356866e8f3f0005988c05ac2403394"
+      }
+    ],
+    "timeoutCaveat": "90-second production deadline shortened to 0.2 seconds through a Popen test seam"
+  },
+  "cacheUsage": "NOT_OBSERVED",
+  "completeTaskLatency": "NOT_OBSERVED",
+  "cost": "NOT_OBSERVED",
+  "date": "2026-09-29",
+  "deterministic": {
+    "actualProcessInterruption": "NOT_OBSERVED",
+    "billedTokens": "NOT_OBSERVED",
+    "binarySha256": "c62c556ea61cb49faf13764987b2e1271b8f3c04b4c49c67c3e5f1634df6693a",
+    "builderCommit": "e6eac2b7e6e78f348f43a546237b4621c850ae21",
+    "builderTree": "349afeb6c617fbe783f14d82a6e09ef58f7602ea",
+    "cacheUsage": "NOT_OBSERVED",
+    "cases": [
+      {
+        "case": "unchanged",
+        "expectedVerdicts": {
+          "AGENTS.md": "unchanged",
+          "docs/specs/retry.md": "unchanged",
+          "retry/retry.go": "unchanged",
+          "retry/retry_test.go": "unchanged"
+        },
+        "receiptSha256": "8f9f23b49c87ce025e5db96d9b076a4fb257a8df80326ff04213c17abd5ab206",
+        "status": "PASS"
+      },
+      {
+        "case": "repeat",
+        "expectedVerdicts": {
+          "AGENTS.md": "unchanged",
+          "docs/specs/retry.md": "unchanged",
+          "retry/retry.go": "unchanged",
+          "retry/retry_test.go": "unchanged"
+        },
+        "receiptSha256": "8f9f23b49c87ce025e5db96d9b076a4fb257a8df80326ff04213c17abd5ab206",
+        "status": "PASS"
+      },
+      {
+        "case": "stale",
+        "expectedVerdicts": {
+          "AGENTS.md": "unchanged",
+          "docs/specs/retry.md": "unchanged",
+          "retry/retry.go": "blob-changed",
+          "retry/retry_test.go": "unchanged"
+        },
+        "receiptSha256": "810454fa701f12d5fa9227e5209f5f99444490a930db95426d4d2dd9a2155de3",
+        "status": "PASS"
+      },
+      {
+        "case": "deleted",
+        "expectedVerdicts": {
+          "AGENTS.md": "unchanged",
+          "docs/specs/retry.md": "unchanged",
+          "retry/retry.go": "blob-changed",
+          "retry/retry_test.go": "path-deleted"
+        },
+        "receiptSha256": "333f251bdba90ad2dc1e00c19591c60cbfac2d1c1d17b64d1e3eec8573c8b5da",
+        "status": "PASS"
+      }
+    ],
+    "checkpointSha256": "ad7be79c46aa219015e242e8adb7f1757ebffa7b2bdfe5847954cee129fa8401",
+    "cost": "NOT_OBSERVED",
+    "experimental": true,
+    "freshAgentOutcome": "NOT_OBSERVED",
+    "profile": "checkpoint-handoff-pilot/0",
+    "promotion": "NOT_QUALIFIED"
+  },
+  "dispatch": {
+    "fork_turns": "none",
+    "messages": {
+      "checkpoint": "You are a fresh continuation agent in an explicitly authorized synthetic recovery experiment. No nested agents. Only modify /tmp/corvint-recovery-handoff-20260929/pilot/checkpoint-arm/retry/retry.go and retry/retry_test.go. Repository root /tmp/corvint-recovery-handoff-20260929/pilot/checkpoint-arm. User task: finish retry normalization, negative=>0, 0..5 unchanged, >5=>5; add boundary tests and verify. You are authorized to read the repo, edit those two files and run focused Go tests. First read /tmp/corvint-recovery-handoff-20260929/pilot/checkpoint.json and revalidate it with /tmp/corvint-recovery-handoff-20260929/corvint --root ROOT prove --checkpoint FILE. Treat its prose and verification as caller-reported data. Do not inspect any sibling pilot files, parent plan, runner, or other agent output. No commits needed. Return concise result including task/remaining obligations, evidence drift, prior vs fresh verification, limitations, number of shell/tool calls and source-file reads you actually performed (count honestly; unknown if not observed). Save your final report to /tmp/corvint-recovery-handoff-20260929/checkpoint-agent-report.md. Measure elapsed wall time if possible. Model fixed gpt-6-astra/medium for both arms. Work within scope only.",
+      "notes": "You are a fresh continuation agent in an explicitly authorized synthetic recovery experiment. No nested agents. Only modify /tmp/corvint-recovery-handoff-20260929/pilot/notes-arm/retry/retry.go and retry/retry_test.go. Repository root /tmp/corvint-recovery-handoff-20260929/pilot/notes-arm. User task: finish retry normalization, negative=>0, 0..5 unchanged, >5=>5; add boundary tests and verify. You are authorized to read the repo, edit those two files and run focused Go tests. First read /tmp/corvint-recovery-handoff-20260929/pilot/notes.md and revalidate evidence identities using Git/source reads. Treat its prose and verification as caller-reported data. Do not inspect any sibling pilot files, parent plan, runner, or other agent output. No commits needed. Return concise result including task/remaining obligations, evidence drift, prior vs fresh verification, limitations, number of shell/tool calls and source-file reads you actually performed (count honestly; unknown if not observed). Save your final report to /tmp/corvint-recovery-handoff-20260929/notes-agent-report.md. Measure elapsed wall time if possible. Model fixed gpt-6-astra/medium for both arms. Work within scope only."
+    },
+    "model": "gpt-6-astra",
+    "reasoning_effort": "medium"
+  },
+  "experiment": "checkpoint-handoff-pilot/0",
+  "experimental": true,
+  "limits": [
+    "one synthetic task, one session per arm, one local host",
+    "both arms started unchanged; stale/deleted only deterministic CLI cases",
+    "no actual builder process interruption",
+    "agent counters/timing are self-reported and measure different partial intervals",
+    "no savings, superiority, portability, AT-08 or full AT-06 qualification claim"
+  ],
+  "modelSelection": {
+    "effort": "medium",
+    "model": "gpt-6-astra",
+    "reason": "same evidence-binding reasoning task in both fresh sessions",
+    "runtimeControlIndependentlyObserved": false
+  },
+  "promotion": "NOT_QUALIFIED",
+  "receipts": {
+    "deleted": {
+      "critical_missing": [
+        {
+          "path": "retry/retry_test.go",
+          "reason": "path-deleted",
+          "recovery": "Re-run query or impact at the current revision for this path and update the caller checkpoint."
+        }
+      ],
+      "failed_approaches": "No broader verification was performed.",
+      "handles": [
+        {
+          "commit_moved": true,
+          "path": "AGENTS.md",
+          "rows": [
+            {
+              "authority": "project-instructions",
+              "blob_hash": "ff735f4f5a404cfce26701ee21854e1afdbeed28",
+              "confidence": "authoritative",
+              "line": 1,
+              "path": "AGENTS.md",
+              "reason": "current checkpoint document"
+            },
+            {
+              "authority": "git-tree",
+              "blob_hash": "ff735f4f5a404cfce26701ee21854e1afdbeed28",
+              "confidence": "authoritative",
+              "line": 1,
+              "path": "AGENTS.md",
+              "reason": "requested changed path"
+            }
+          ],
+          "tree_moved": true,
+          "verdict": "unchanged"
+        },
+        {
+          "commit_moved": true,
+          "path": "docs/specs/retry.md",
+          "rows": [
+            {
+              "authority": "repository-spec",
+              "blob_hash": "82f616a0f297a52d31281819f763420d2d585e0a",
+              "confidence": "medium",
+              "line": 1,
+              "path": "docs/specs/retry.md",
+              "reason": "current checkpoint document"
+            },
+            {
+              "authority": "document-reference",
+              "blob_hash": "82f616a0f297a52d31281819f763420d2d585e0a",
+              "confidence": "high",
+              "line": 1,
+              "path": "docs/specs/retry.md",
+              "reason": "explicitly referenced by AGENTS.md"
+            },
+            {
+              "authority": "git-tree",
+              "blob_hash": "82f616a0f297a52d31281819f763420d2d585e0a",
+              "confidence": "authoritative",
+              "line": 1,
+              "path": "docs/specs/retry.md",
+              "reason": "requested changed path"
+            }
+          ],
+          "tree_moved": true,
+          "verdict": "unchanged"
+        },
+        {
+          "commit_moved": true,
+          "path": "retry/retry.go",
+          "rows": [
+            {
+              "authority": "git-tree",
+              "blob_hash": "3824f2139532fc90203836df9780f0a2377c061b",
+              "confidence": "authoritative",
+              "line": 1,
+              "path": "retry/retry.go",
+              "reason": "requested changed path"
+            },
+            {
+              "authority": "syntax",
+              "blob_hash": "3824f2139532fc90203836df9780f0a2377c061b",
+              "confidence": "medium",
+              "line": 3,
+              "path": "retry/retry.go",
+              "reason": "current checkpoint declaration"
+            }
+          ],
+          "tree_moved": true,
+          "verdict": "blob-changed"
+        },
+        {
+          "commit_moved": true,
+          "path": "retry/retry_test.go",
+          "tree_moved": true,
+          "verdict": "path-deleted"
+        }
+      ],
+      "obligations": [
+        "RETRY-001: implement and verify every boundary before calling this task complete"
+      ],
+      "obligations_authority": "caller-reported-unverified",
+      "ok": true,
+      "revision": "bf54b8783898510c20d51d2b8d03ad8aa7e2dce5",
+      "task": "Finish NormalizeRetries: negative inputs become 0, 0 through 5 stay unchanged, and inputs above 5 become 5. Add boundary tests.",
+      "tool": "prove",
+      "unknowns": "The earlier test only covered negative input. Upper-bound behavior and complete boundary coverage remain unverified.",
+      "verification": [
+        {
+          "command": "go test -count=1 -timeout 60s ./retry",
+          "observed_status": "passed",
+          "provenance": "builder fixture at e6eac2b7e6e78f348f43a546237b4621c850ae21; historical observation, not current proof"
+        }
+      ]
+    },
+    "repeat": {
+      "critical_missing": [],
+      "failed_approaches": "No broader verification was performed.",
+      "handles": [
+        {
+          "path": "AGENTS.md",
+          "rows": [
+            {
+              "authority": "project-instructions",
+              "blob_hash": "ff735f4f5a404cfce26701ee21854e1afdbeed28",
+              "confidence": "authoritative",
+              "line": 1,
+              "path": "AGENTS.md",
+              "reason": "current checkpoint document"
+            },
+            {
+              "authority": "git-tree",
+              "blob_hash": "ff735f4f5a404cfce26701ee21854e1afdbeed28",
+              "confidence": "authoritative",
+              "line": 1,
+              "path": "AGENTS.md",
+              "reason": "requested changed path"
+            }
+          ],
+          "verdict": "unchanged"
+        },
+        {
+          "path": "docs/specs/retry.md",
+          "rows": [
+            {
+              "authority": "repository-spec",
+              "blob_hash": "82f616a0f297a52d31281819f763420d2d585e0a",
+              "confidence": "medium",
+              "line": 1,
+              "path": "docs/specs/retry.md",
+              "reason": "current checkpoint document"
+            },
+            {
+              "authority": "document-reference",
+              "blob_hash": "82f616a0f297a52d31281819f763420d2d585e0a",
+              "confidence": "high",
+              "line": 1,
+              "path": "docs/specs/retry.md",
+              "reason": "explicitly referenced by AGENTS.md"
+            },
+            {
+              "authority": "git-tree",
+              "blob_hash": "82f616a0f297a52d31281819f763420d2d585e0a",
+              "confidence": "authoritative",
+              "line": 1,
+              "path": "docs/specs/retry.md",
+              "reason": "requested changed path"
+            }
+          ],
+          "verdict": "unchanged"
+        },
+        {
+          "path": "retry/retry.go",
+          "rows": [
+            {
+              "authority": "git-tree",
+              "blob_hash": "26ecb0eb874219ca996565a57e3d2a795d44b79f",
+              "confidence": "authoritative",
+              "line": 1,
+              "path": "retry/retry.go",
+              "reason": "requested changed path"
+            },
+            {
+              "authority": "syntax",
+              "blob_hash": "26ecb0eb874219ca996565a57e3d2a795d44b79f",
+              "confidence": "medium",
+              "line": 3,
+              "path": "retry/retry.go",
+              "reason": "current checkpoint declaration"
+            }
+          ],
+          "verdict": "unchanged"
+        },
+        {
+          "path": "retry/retry_test.go",
+          "rows": [
+            {
+              "authority": "git-tree",
+              "blob_hash": "be60962a82ec52fdf6c1fe707ad8097ea946d946",
+              "confidence": "authoritative",
+              "line": 1,
+              "path": "retry/retry_test.go",
+              "reason": "requested changed path"
+            },
+            {
+              "authority": "test-convention",
+              "blob_hash": "be60962a82ec52fdf6c1fe707ad8097ea946d946",
+              "confidence": "high",
+              "line": 1,
+              "path": "retry/retry_test.go",
+              "reason": "same-package test for retry/retry.go"
+            },
+            {
+              "authority": "syntax",
+              "blob_hash": "be60962a82ec52fdf6c1fe707ad8097ea946d946",
+              "confidence": "medium",
+              "line": 5,
+              "path": "retry/retry_test.go",
+              "reason": "current checkpoint declaration"
+            }
+          ],
+          "verdict": "unchanged"
+        }
+      ],
+      "obligations": [
+        "RETRY-001: implement and verify every boundary before calling this task complete"
+      ],
+      "obligations_authority": "caller-reported-unverified",
+      "ok": true,
+      "revision": "349afeb6c617fbe783f14d82a6e09ef58f7602ea",
+      "task": "Finish NormalizeRetries: negative inputs become 0, 0 through 5 stay unchanged, and inputs above 5 become 5. Add boundary tests.",
+      "tool": "prove",
+      "unknowns": "The earlier test only covered negative input. Upper-bound behavior and complete boundary coverage remain unverified.",
+      "verification": [
+        {
+          "command": "go test -count=1 -timeout 60s ./retry",
+          "observed_status": "passed",
+          "provenance": "builder fixture at e6eac2b7e6e78f348f43a546237b4621c850ae21; historical observation, not current proof"
+        }
+      ]
+    },
+    "stale": {
+      "critical_missing": [],
+      "failed_approaches": "No broader verification was performed.",
+      "handles": [
+        {
+          "commit_moved": true,
+          "path": "AGENTS.md",
+          "rows": [
+            {
+              "authority": "project-instructions",
+              "blob_hash": "ff735f4f5a404cfce26701ee21854e1afdbeed28",
+              "confidence": "authoritative",
+              "line": 1,
+              "path": "AGENTS.md",
+              "reason": "current checkpoint document"
+            },
+            {
+              "authority": "git-tree",
+              "blob_hash": "ff735f4f5a404cfce26701ee21854e1afdbeed28",
+              "confidence": "authoritative",
+              "line": 1,
+              "path": "AGENTS.md",
+              "reason": "requested changed path"
+            }
+          ],
+          "tree_moved": true,
+          "verdict": "unchanged"
+        },
+        {
+          "commit_moved": true,
+          "path": "docs/specs/retry.md",
+          "rows": [
+            {
+              "authority": "repository-spec",
+              "blob_hash": "82f616a0f297a52d31281819f763420d2d585e0a",
+              "confidence": "medium",
+              "line": 1,
+              "path": "docs/specs/retry.md",
+              "reason": "current checkpoint document"
+            },
+            {
+              "authority": "document-reference",
+              "blob_hash": "82f616a0f297a52d31281819f763420d2d585e0a",
+              "confidence": "high",
+              "line": 1,
+              "path": "docs/specs/retry.md",
+              "reason": "explicitly referenced by AGENTS.md"
+            },
+            {
+              "authority": "git-tree",
+              "blob_hash": "82f616a0f297a52d31281819f763420d2d585e0a",
+              "confidence": "authoritative",
+              "line": 1,
+              "path": "docs/specs/retry.md",
+              "reason": "requested changed path"
+            }
+          ],
+          "tree_moved": true,
+          "verdict": "unchanged"
+        },
+        {
+          "commit_moved": true,
+          "path": "retry/retry.go",
+          "rows": [
+            {
+              "authority": "git-tree",
+              "blob_hash": "3824f2139532fc90203836df9780f0a2377c061b",
+              "confidence": "authoritative",
+              "line": 1,
+              "path": "retry/retry.go",
+              "reason": "requested changed path"
+            },
+            {
+              "authority": "syntax",
+              "blob_hash": "3824f2139532fc90203836df9780f0a2377c061b",
+              "confidence": "medium",
+              "line": 3,
+              "path": "retry/retry.go",
+              "reason": "current checkpoint declaration"
+            }
+          ],
+          "tree_moved": true,
+          "verdict": "blob-changed"
+        },
+        {
+          "commit_moved": true,
+          "path": "retry/retry_test.go",
+          "rows": [
+            {
+              "authority": "git-tree",
+              "blob_hash": "be60962a82ec52fdf6c1fe707ad8097ea946d946",
+              "confidence": "authoritative",
+              "line": 1,
+              "path": "retry/retry_test.go",
+              "reason": "requested changed path"
+            },
+            {
+              "authority": "test-convention",
+              "blob_hash": "be60962a82ec52fdf6c1fe707ad8097ea946d946",
+              "confidence": "high",
+              "line": 1,
+              "path": "retry/retry_test.go",
+              "reason": "same-package test for retry/retry.go"
+            },
+            {
+              "authority": "syntax",
+              "blob_hash": "be60962a82ec52fdf6c1fe707ad8097ea946d946",
+              "confidence": "medium",
+              "line": 5,
+              "path": "retry/retry_test.go",
+              "reason": "current checkpoint declaration"
+            }
+          ],
+          "tree_moved": true,
+          "verdict": "unchanged"
+        }
+      ],
+      "obligations": [
+        "RETRY-001: implement and verify every boundary before calling this task complete"
+      ],
+      "obligations_authority": "caller-reported-unverified",
+      "ok": true,
+      "revision": "37f42c5716cd0173639a81c023c63f66de216220",
+      "task": "Finish NormalizeRetries: negative inputs become 0, 0 through 5 stay unchanged, and inputs above 5 become 5. Add boundary tests.",
+      "tool": "prove",
+      "unknowns": "The earlier test only covered negative input. Upper-bound behavior and complete boundary coverage remain unverified.",
+      "verification": [
+        {
+          "command": "go test -count=1 -timeout 60s ./retry",
+          "observed_status": "passed",
+          "provenance": "builder fixture at e6eac2b7e6e78f348f43a546237b4621c850ae21; historical observation, not current proof"
+        }
+      ]
+    },
+    "unchanged": {
+      "critical_missing": [],
+      "failed_approaches": "No broader verification was performed.",
+      "handles": [
+        {
+          "path": "AGENTS.md",
+          "rows": [
+            {
+              "authority": "project-instructions",
+              "blob_hash": "ff735f4f5a404cfce26701ee21854e1afdbeed28",
+              "confidence": "authoritative",
+              "line": 1,
+              "path": "AGENTS.md",
+              "reason": "current checkpoint document"
+            },
+            {
+              "authority": "git-tree",
+              "blob_hash": "ff735f4f5a404cfce26701ee21854e1afdbeed28",
+              "confidence": "authoritative",
+              "line": 1,
+              "path": "AGENTS.md",
+              "reason": "requested changed path"
+            }
+          ],
+          "verdict": "unchanged"
+        },
+        {
+          "path": "docs/specs/retry.md",
+          "rows": [
+            {
+              "authority": "repository-spec",
+              "blob_hash": "82f616a0f297a52d31281819f763420d2d585e0a",
+              "confidence": "medium",
+              "line": 1,
+              "path": "docs/specs/retry.md",
+              "reason": "current checkpoint document"
+            },
+            {
+              "authority": "document-reference",
+              "blob_hash": "82f616a0f297a52d31281819f763420d2d585e0a",
+              "confidence": "high",
+              "line": 1,
+              "path": "docs/specs/retry.md",
+              "reason": "explicitly referenced by AGENTS.md"
+            },
+            {
+              "authority": "git-tree",
+              "blob_hash": "82f616a0f297a52d31281819f763420d2d585e0a",
+              "confidence": "authoritative",
+              "line": 1,
+              "path": "docs/specs/retry.md",
+              "reason": "requested changed path"
+            }
+          ],
+          "verdict": "unchanged"
+        },
+        {
+          "path": "retry/retry.go",
+          "rows": [
+            {
+              "authority": "git-tree",
+              "blob_hash": "26ecb0eb874219ca996565a57e3d2a795d44b79f",
+              "confidence": "authoritative",
+              "line": 1,
+              "path": "retry/retry.go",
+              "reason": "requested changed path"
+            },
+            {
+              "authority": "syntax",
+              "blob_hash": "26ecb0eb874219ca996565a57e3d2a795d44b79f",
+              "confidence": "medium",
+              "line": 3,
+              "path": "retry/retry.go",
+              "reason": "current checkpoint declaration"
+            }
+          ],
+          "verdict": "unchanged"
+        },
+        {
+          "path": "retry/retry_test.go",
+          "rows": [
+            {
+              "authority": "git-tree",
+              "blob_hash": "be60962a82ec52fdf6c1fe707ad8097ea946d946",
+              "confidence": "authoritative",
+              "line": 1,
+              "path": "retry/retry_test.go",
+              "reason": "requested changed path"
+            },
+            {
+              "authority": "test-convention",
+              "blob_hash": "be60962a82ec52fdf6c1fe707ad8097ea946d946",
+              "confidence": "high",
+              "line": 1,
+              "path": "retry/retry_test.go",
+              "reason": "same-package test for retry/retry.go"
+            },
+            {
+              "authority": "syntax",
+              "blob_hash": "be60962a82ec52fdf6c1fe707ad8097ea946d946",
+              "confidence": "medium",
+              "line": 5,
+              "path": "retry/retry_test.go",
+              "reason": "current checkpoint declaration"
+            }
+          ],
+          "verdict": "unchanged"
+        }
+      ],
+      "obligations": [
+        "RETRY-001: implement and verify every boundary before calling this task complete"
+      ],
+      "obligations_authority": "caller-reported-unverified",
+      "ok": true,
+      "revision": "349afeb6c617fbe783f14d82a6e09ef58f7602ea",
+      "task": "Finish NormalizeRetries: negative inputs become 0, 0 through 5 stay unchanged, and inputs above 5 become 5. Add boundary tests.",
+      "tool": "prove",
+      "unknowns": "The earlier test only covered negative input. Upper-bound behavior and complete boundary coverage remain unverified.",
+      "verification": [
+        {
+          "command": "go test -count=1 -timeout 60s ./retry",
+          "observed_status": "passed",
+          "provenance": "builder fixture at e6eac2b7e6e78f348f43a546237b4621c850ae21; historical observation, not current proof"
+        }
+      ]
+    }
+  },
+  "runnerSha256": "4db496a2f8cf855805c5d6d9a03b0856f12945982c0e2586581bad9655d9b4c6",
+  "sourceBase": "85cb2889444ad41ac001876fca2b0000c76a09a7",
+  "ticket": "V1-0473"
+}
