@@ -94,6 +94,8 @@ type Payload interface {
 // status, archivedFrom, completion, holds, approvals, createdAt, updatedAt,
 // updatedBy, shadowOverlay), plus an optional localToken.
 type CreatePayload struct {
+	RequiredRoles      map[string][]string
+	RequiresPool       string
 	LocalToken         *string
 	Title              string
 	Body               *string
@@ -122,12 +124,14 @@ func (*CreatePayload) operation() string { return OpCreate }
 // RefineFields are the keys a REFINE payload may carry (§3.3), sorted.
 var RefineFields = []string{
 	"acceptanceCriteria", "body", "dueDate", "estimateMinutes", "kind", "labels",
-	"milestone", "owner", "requirementRefs", "supersedes", "title",
+	"milestone", "owner", "requirementRefs", "requiredRoles", "requiresPool", "supersedes", "title",
 }
 
 // RefinePayload is a non-empty subset of RefineFields. Present names the
 // keys carried; a typed field is meaningful only when its key is present.
 type RefinePayload struct {
+	RequiredRoles      map[string][]string
+	RequiresPool       *string
 	Present            map[string]bool
 	Title              string
 	Body               *string
@@ -431,8 +435,14 @@ func readCreate(r *wire.Reader) *CreatePayload {
 			keys = append(append([]string{}, createKeys...), "localToken")
 		}
 	}
-	r.Closed(keys...)
+	r.Closed(wire.OptionalKeys(r.Value(), keys, "requiresPool", "requiredRoles")...)
 	p := &CreatePayload{}
+	if wire.Has(r.Value(), "requiredRoles") {
+		p.RequiredRoles = ticket.ReadStageRoles(r.Field("requiredRoles"))
+	}
+	if wire.Has(r.Value(), "requiresPool") {
+		p.RequiresPool = r.Field("requiresPool").Label()
+	}
 	if hasLocal {
 		lt := r.Field("localToken")
 		s := lt.String()
@@ -494,6 +504,12 @@ func readRefine(r *wire.Reader) *RefinePayload {
 		p.Present[k] = true
 		f := r.Field(k)
 		switch k {
+		case "requiredRoles":
+			if !f.IsNull() {
+				p.RequiredRoles = ticket.ReadStageRoles(f)
+			}
+		case "requiresPool":
+			p.RequiresPool = f.LabelOrNull()
 		case "title":
 			p.Title = f.Prose(1, wire.MaxTitleBytes)
 		case "body":
@@ -664,6 +680,12 @@ func PayloadValue(p Payload) wire.Value {
 	o := wire.NewObject()
 	switch p := p.(type) {
 	case *CreatePayload:
+		if p.RequiredRoles != nil {
+			o.Set("requiredRoles", ticket.StageRolesValue(p.RequiredRoles))
+		}
+		if p.RequiresPool != "" {
+			o.Set("requiresPool", wire.String(p.RequiresPool))
+		}
 		if p.LocalToken != nil {
 			o.Set("localToken", wire.String(*p.LocalToken))
 		}
@@ -690,6 +712,14 @@ func PayloadValue(p Payload) wire.Value {
 	case *RefinePayload:
 		for _, k := range p.Keys() {
 			switch k {
+			case "requiredRoles":
+				if p.RequiredRoles == nil {
+					o.Set(k, wire.Null())
+				} else {
+					o.Set(k, ticket.StageRolesValue(p.RequiredRoles))
+				}
+			case "requiresPool":
+				o.Set(k, wire.StringOrNull(p.RequiresPool))
 			case "title":
 				o.Set(k, wire.String(p.Title))
 			case "body":

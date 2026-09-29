@@ -181,6 +181,7 @@ func (g *GateResult) Encode() ([]byte, error) {
 // null docs, CEM and OCM results, because it applies only reducer rows 1-6
 // and 12 (CAL amendment A13).
 type Manifest struct {
+	Supervision        *Supervision
 	AttemptID          string
 	Generation         wire.Size
 	TicketID           wire.TicketID
@@ -200,6 +201,9 @@ type Manifest struct {
 func (m *Manifest) Encode() ([]byte, error) {
 	o := wire.NewObject()
 	o.Set("profile", wire.String(ProfileManifest))
+	if m.Supervision != nil {
+		o.Set("supervision", supervisionValue(m.Supervision))
+	}
 	o.Set("attemptId", wire.String(m.AttemptID))
 	o.Set("generation", wire.String(string(m.Generation)))
 	o.Set("ticketId", wire.String(m.TicketID.Raw))
@@ -240,7 +244,7 @@ func DecodeManifest(data []byte) (*Manifest, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
-	r.Closed(manifestFields...)
+	r.Closed(wire.OptionalKeys(v, manifestFields, "supervision")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -248,6 +252,9 @@ func DecodeManifest(data []byte) (*Manifest, error) {
 		return nil, err
 	}
 	m := &Manifest{}
+	if wire.Has(v, "supervision") {
+		m.Supervision = readSupervision(r.Field("supervision"))
+	}
 	m.AttemptID = r.Field("attemptId").Identifier()
 	m.Generation = r.Field("generation").Size()
 	m.TicketID = r.Field("ticketId").TicketID()

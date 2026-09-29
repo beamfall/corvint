@@ -207,6 +207,11 @@ func (c leaseContext) admitted(rec *ticket.Record, prior *snapshot.Attempt, sc *
 	}
 	policy := wire.Sum(c.st.policy.Raw)
 	a := &snapshot.Attempt{TicketID: rec.TicketID, TicketRevision: rec.AcceptanceRevision, TicketRecordSha256: rec.FileDigest(), Generation: wire.SizeOf(c.st.head.Generation.Uint64() + 1), Phase: "RUNNING", PhaseSinceSeq: c.seq, Mode: "DEVELOPMENT", PolicySha256: policy, ConfigSha256: policy, RuntimeID: snapshot.RuntimeExternalAgent, CapabilityProfileSha256: policy, BaseCommit: base, Branch: branch, Quiescence: "UNPROVED", SpawnNoExecCount: "0", PendingEffects: []string{}, RetryCount: "0", RepairRound: "0", Budget: notObservedBudget(), GateResults: []string{}, Reviews: []string{}, ScopeCheck: "UNKNOWN", PriorGenerations: []snapshot.PriorGeneration{}, Scope: sc}
+	a.Stage = c.l.Stage
+	a.PoolAllocation, e = c.allocate(a)
+	if e != nil {
+		return nil, e
+	}
 	a.Lease = &snapshot.Lease{Holder: c.l.Holder, GrantedSeq: c.seq, ExpiresAt: addMinutes(c.in.RecordedAt, c.l.LeaseMinutes)}
 	if prior == nil {
 		a.AttemptID, e = c.freshID()
@@ -241,6 +246,12 @@ func planClaim(c leaseContext) leaseOutcome {
 	if refusal := c.eligibility(rec.TicketID.Raw); refusal != nil {
 		return *refusal
 	}
+	if rec.RequiresPool != "" && c.l.Pool != rec.RequiresPool {
+		return c.refuse(mutation.OutcomeBlocked, wire.CodeResourceCollision, "ticket requires explicit matching --pool")
+	}
+	if c.l.Pool != "" && c.st.policy.Pool(c.l.Pool) == nil {
+		return c.fail(malformed("unknown pool"))
+	}
 	sc, e := c.claimScope(rec)
 	if e != nil {
 		return c.fail(e)
@@ -265,7 +276,7 @@ func planClaimNext(c leaseContext) leaseOutcome {
 		out.result.Expired = reap
 		return out
 	}
-	plan := PriorityFirst(PlanInput{Queue: c.st.queue, Policy: c.st.policy, Tickets: c.st.tickets, Reservations: c.st.reservations, Attempts: c.st.attempts})
+	plan := PriorityFirst(PlanInput{Pool: c.l.Pool, Stage: c.l.Stage, Pools: c.st.pools, Prepared: c.in.LeaseFacts.Pool.AllocationID, Queue: c.st.queue, Policy: c.st.policy, Tickets: c.st.tickets, Reservations: c.st.reservations, Attempts: c.st.attempts})
 	chosen := plan.Selected()
 	if chosen == nil {
 		code, detail := plan.refusal()

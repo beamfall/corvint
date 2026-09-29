@@ -2,7 +2,6 @@ package contextindex
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -315,14 +314,6 @@ func TestPossessionSkippedTreeRoundTrip_SBQ008(t *testing.T) {
 	commit := testGit(t, root, "rev-parse", "HEAD")
 	testGit(t, root, "update-index", "--add", "--cacheinfo", "160000,"+commit+",modules/only/sub")
 	testGit(t, root, "commit", "-qm", "possession paths")
-	_, err := Build(context.Background(), root)
-	var failure *Error
-	if !errors.As(err, &failure) || failure.Code != "repository-probe-failed" {
-		t.Fatalf("live gitlink index lost private status refusal: %v", err)
-	}
-	// EAF-V0-007 refuses live index gitlinks. A staged removal retains the
-	// committed non-blob tree evidence without requiring submodule traversal.
-	testGit(t, root, "update-index", "--force-remove", "modules/only/sub")
 	index, err := Build(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)

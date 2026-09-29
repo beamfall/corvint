@@ -45,6 +45,10 @@ func PostBound(p string) (int, error) {
 		return len(VersionBytes), nil
 	case "barrier.json":
 		return wire.MaxBarrierBytes, nil
+	case "programs.json":
+		return MaxProgramsBytes, nil
+	case "pools.json":
+		return MaxPoolStateBytes, nil
 	case "reservations.json":
 		return wire.MaxReservationSetBytes, nil
 	}

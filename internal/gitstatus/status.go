@@ -98,8 +98,9 @@ func (memo probeMemo) remember() {
 
 // MaxProcesses is the most Git processes one Status call starts: a config
 // probe for each of config and config.worktree, the two index probes of
-// validateIndex, and the status run. A caller's process budget covers it.
-const MaxProcesses = 5
+// validateIndex, and the status run, plus a tree read and private gitlink status
+// when gitlinks are present. A caller's process budget covers it.
+const MaxProcesses = 7
 
 const metadataLimit = 32 << 20
 const snapshotLimit = 64 << 20
@@ -368,7 +369,8 @@ func StatusIn(ctx context.Context, root, temporaryParent string, limit int, run 
 	}
 	// The private config copy may name a core.fsmonitor hook; the command-line
 	// override keeps it from executing whatever the caller's runner passes.
-	prefix := []string{"--git-dir=" + private, "--work-tree=" + root, "-c", "status.submoduleSummary=false", "-c", "core.hooksPath=" + os.DevNull, "-c", "core.fsmonitor=false"}
+	prefix := []string{"--no-optional-locks", "--git-dir=" + private, "--work-tree=" + root, "-c", "status.submoduleSummary=false", "-c", "core.hooksPath=" + os.DevNull, "-c", "core.fsmonitor=false"}
+	var entries indexEntries
 	if !(simpleConfigs && sha1Config && simpleIndex(index)) {
 		if linksSharedIndex(index, gitdir) {
 			return nil, errSplitIndex
@@ -376,17 +378,31 @@ func StatusIn(ctx context.Context, root, temporaryParent string, limit int, run 
 		parts := append([][]byte{[]byte("index"), []byte(root), []byte(gitdir)}, configs...)
 		memo := probeMemo{probeDigest(append(parts, index)...), reuse}
 		if !memo.known() {
-			if err := validateIndex(ctx, temp, prefix, run); err != nil {
+			var err error
+			entries, err = validateIndex(ctx, temp, prefix, run)
+			if err != nil {
 				return nil, err
 			}
-			memo.remember()
+			if !entries.hasGitlinks() {
+				memo.remember()
+			}
 		}
 	}
 	if err := reader.unchanged(files); err != nil {
 		return nil, err
 	}
 	statusArgs := append(append([]string(nil), prefix...), arguments...)
-	statusArgs = append(statusArgs, "--ignore-submodules=all")
+	var opaque []byte
+	if entries.hasGitlinks() {
+		var err error
+		opaque, err = opaqueGitlinkStatus(ctx, root, temp, prefix, arguments, entries, &reader, &files, run)
+		if err != nil {
+			return nil, err
+		}
+		statusArgs = append(statusArgs, "--ignore-submodules=all", "--no-renames")
+	} else {
+		statusArgs = append(statusArgs, "--ignore-submodules=dirty")
+	}
 	result, err := run(ctx, temp, limit, statusArgs...)
 	if err != nil {
 		return nil, err
@@ -394,29 +410,31 @@ func StatusIn(ctx context.Context, root, temporaryParent string, limit int, run 
 	if err := reader.unchanged(files); err != nil {
 		return nil, err
 	}
+	if entries.hasGitlinks() {
+		return mergeGitlinkStatus(result, opaque, arguments, limit)
+	}
 	return result, nil
 }
 
-func validateIndex(ctx context.Context, temp string, prefix []string, run Runner) error {
+func validateIndex(ctx context.Context, temp string, prefix []string, run Runner) (indexEntries, error) {
 	// The shared index is absent from private metadata, so a reference to one
 	// fails closed before any worktree or submodule traversal.
 	raw, err := run(ctx, temp, metadataLimit, append(append([]string(nil), prefix...), "ls-files", "--stage", "-z")...)
 	if err != nil {
-		return metadataProbeError(err)
+		return nil, metadataProbeError(err)
 	}
-	for row := range bytes.SplitSeq(raw, []byte{0}) {
-		if bytes.HasPrefix(row, []byte("160000 ")) {
-			return unsupported(classSubmodule, "index records a submodule (gitlink)")
-		}
+	entries, err := stagedEntries(raw)
+	if err != nil {
+		return nil, err
 	}
 	shared, err := run(ctx, temp, 4096, append(append([]string(nil), prefix...), "rev-parse", "--shared-index-path")...)
 	if err != nil {
-		return metadataProbeError(err)
+		return nil, metadataProbeError(err)
 	}
 	if len(bytes.TrimSpace(shared)) != 0 {
-		return errSplitIndex
+		return nil, errSplitIndex
 	}
-	return nil
+	return entries, nil
 }
 
 var errSplitIndex = unsupported(classSplitIndex, "index is a split index")

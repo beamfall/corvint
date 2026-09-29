@@ -565,3 +565,29 @@ func TestQualifiedReportRefusesConfigInputOverflow(t *testing.T) {
 		t.Fatalf("config input overflow err=%v", err)
 	}
 }
+
+func TestProfileAttemptEmptyProject(t *testing.T) {
+	r := qualifiedFixture(t)
+	r.Profile = AttemptExternalProfile
+	r.Identity.RunnerVersion = "1.63.0"
+	r.Identity.NodeVersion = "v22.23.2"
+	r.Tests[0].Project.Use = json.RawMessage(`{"browserName":"chromium","channel":"","headless":true,"launchOptions":{},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"v22.23.2","browserType":"chromium","browserVersion":"Google Chrome for Testing 153.0.8010.12","channel":"","executableSource":"playwright-bundled","executableName":"chromium-headless-shell","executablePath":"/portable/cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell","executableSha256":"a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282","browserRevision":"1243","manifestBrowserVersion":"153.0.8010.12","headlessShellAvailable":true}}`)
+	r.Tests[0].Project.Name = ""
+	r.Tests[0].AttemptDetails = []AttemptDetail{{State: StatePassed, Anchor: r.Tests[0].Anchor}}
+	r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+	if !QualifiedReceiptBindingReady(r, r.Tests[0]) {
+		t.Fatal("valid unnamed /3 project refused")
+	}
+	raw, err := EncodeQualified(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = DecodeAttemptReceipt(raw); err != nil {
+		t.Fatal(err)
+	}
+	r.Profile = ExternalProfile
+	r.Tests[0].AttemptDetails = nil
+	if QualifiedReceiptBindingReady(r, r.Tests[0]) {
+		t.Fatal("legacy empty-project boundary changed")
+	}
+}

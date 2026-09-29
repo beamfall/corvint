@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
+	"slices"
 )
 
 // planCommand dispatches `plan preview`; `plan record` stays NOT_RUN.
@@ -23,8 +25,30 @@ func planCommand(env Env, args []string) *wire.Result {
 // pure read. No plan is pinned, so deferredSinceSeq is null.
 func planPreview(env Env, args []string) *wire.Result {
 	cmd := []string{"plan", "preview"}
-	if len(args) != 0 {
-		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "argv", "plan preview takes no argument"))
+	pool, stage := "", ""
+	seen := map[string]bool{}
+	for i := 0; i < len(args); i += 2 {
+		if i+1 >= len(args) {
+			return usage(cmd, "missing pool or stage value")
+		}
+		if seen[args[i]] {
+			return usage(cmd, "duplicate plan flag")
+		}
+		seen[args[i]] = true
+		switch args[i] {
+		case "--pool":
+			pool = args[i+1]
+			if _, err := wire.ParseLabel("pool", pool); err != nil {
+				return usage(cmd, "invalid pool label")
+			}
+		case "--stage":
+			stage = args[i+1]
+			if !slices.Contains(intent.StageRoles, stage) {
+				return usage(cmd, "unknown pool stage")
+			}
+		default:
+			return usage(cmd, "unknown plan flag")
+		}
 	}
 	var item wire.Value
 	rc, err := withStore(env, func(rc *readCtx) error {
@@ -32,6 +56,7 @@ func planPreview(env Env, args []string) *wire.Result {
 		if err != nil {
 			return err
 		}
+		in.Pool, in.Stage = pool, stage
 		item, err = planValue(rc, digest, transaction.PriorityFirst(in))
 		return err
 	})
@@ -49,6 +74,18 @@ func planPreview(env Env, args []string) *wire.Result {
 // the empty one init wrote.
 func planInput(rc *readCtx) (transaction.PlanInput, wire.Digest, error) {
 	in := transaction.PlanInput{Queue: rc.store.Queue, Policy: rc.store.Policy, Tickets: rc.store.Inventory, Barrier: rc.snap.Barrier != nil, Attempts: map[string]*snapshot.Attempt{}}
+	if len(rc.store.Policy.Pools) > 0 {
+		proofPools, e := auditState(rc, "pools.json")
+		if e != nil {
+			return in, "", e
+		}
+		if raw := proofPools.Records["pools.json"].Raw; len(raw) > 0 {
+			in.Pools, e = snapshot.DecodePools(raw)
+			if e != nil {
+				return in, "", e
+			}
+		}
+	}
 	if rc.snap.Head.Generation.Uint64() == 0 {
 		in.Reservations = &snapshot.ReservationSet{QueueID: rc.snap.Head.QueueID, Entries: []snapshot.ReservationEntry{}}
 		raw, err := in.Reservations.Encode()

@@ -58,7 +58,7 @@ func (c leaseContext) checkable(a *snapshot.Attempt, running bool) *leaseOutcome
 	if running && a.Phase == "RUNNING" {
 		return nil
 	}
-	if a.Phase != "BUILT" && a.Phase != "CHECKING" {
+	if a.Phase != "BUILT" && a.Phase != "CHECKING" && !(a.Supervision != nil && a.Phase == "READY_FOR_INTEGRATION") {
 		out := c.refuse(mutation.OutcomeBlocked, wire.CodeTicketState, "the attempt is "+a.Phase)
 		return &out
 	}
@@ -299,6 +299,12 @@ func planComplete(c leaseContext) leaseOutcome {
 	if out := c.checkable(a, false); out != nil {
 		return *out
 	}
+	if a.Supervision != nil {
+		s := a.Supervision
+		if a.Phase != "READY_FOR_INTEGRATION" || a.Stage != "integrate" || s.Worker || a.Quiescence != "PROVED" || len(a.PendingEffects) != 0 || a.CandidateTreeOid == nil || s.ReviewTree != *a.CandidateTreeOid || s.ReviewDigest == "" || s.ReviewerHolder == s.AuthorHolder || s.ReviewerSession == s.AuthorSession || s.IntegrationGrant == "" || s.IntegrationCommit != c.l.Commit {
+			return c.refuse(mutation.OutcomeBlocked, wire.CodeMissingEvidence, "supervised completion obligations missing")
+		}
+	}
 	rec, ok := c.st.tickets.Get(a.TicketID.Raw)
 	if !ok {
 		return c.fail(malformed("attempt names an absent ticket"))
@@ -323,7 +329,7 @@ func planComplete(c leaseContext) leaseOutcome {
 }
 
 func (c leaseContext) completed(a *snapshot.Attempt, rec *ticket.Record, passed []string) leaseOutcome {
-	m := snapshot.Manifest{AttemptID: a.AttemptID, Generation: a.Generation, TicketID: a.TicketID, TicketRevision: a.TicketRevision, TicketRecordSha256: rec.FileDigest(), PolicySha256: a.PolicySha256, ConfigSha256: a.ConfigSha256, BaseCommit: a.BaseCommit, CandidateTreeOid: *a.CandidateTreeOid, GateResults: passed, Budget: a.Budget, ScopeCheck: a.ScopeCheck, Mode: a.Mode}
+	m := snapshot.Manifest{Supervision: snapshot.CloneSupervision(a.Supervision), AttemptID: a.AttemptID, Generation: a.Generation, TicketID: a.TicketID, TicketRevision: a.TicketRevision, TicketRecordSha256: rec.FileDigest(), PolicySha256: a.PolicySha256, ConfigSha256: a.ConfigSha256, BaseCommit: a.BaseCommit, CandidateTreeOid: *a.CandidateTreeOid, GateResults: passed, Budget: a.Budget, ScopeCheck: a.ScopeCheck, Mode: a.Mode}
 	manifest, e := m.Encode()
 	if e != nil {
 		return c.fail(e)
@@ -344,6 +350,9 @@ func (c leaseContext) completed(a *snapshot.Attempt, rec *ticket.Record, passed 
 	}
 	next := *a
 	next.Phase, next.PhaseSinceSeq, next.Quiescence, next.ManifestSha256 = "COMPLETED", c.seq, "FENCED", &digest
+	if a.Supervision != nil {
+		next.Quiescence = "PROVED"
+	}
 	out := c.write(&next, c.without(a.AttemptID), "MANIFEST", false)
 	if out.result != nil {
 		return out

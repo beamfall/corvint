@@ -17,6 +17,13 @@ const Lease = snapshot.StageLease
 
 // Lease verbs and bounds (CAL-V0-012, CAL-V0-013).
 const (
+	LeaseSupervisor     = "SUPERVISOR"
+	LeaseProgram        = "PROGRAM"
+	LeasePoolPrepare    = "POOL_PREPARE"
+	LeasePoolObserve    = "POOL_OBSERVE"
+	LeasePoolCleanup    = "POOL_CLEANUP"
+	LeasePoolRecover    = "POOL_RECOVER"
+	LeasePoolSafe       = "POOL_CONFIRM_SAFE"
 	LeaseClaim          = "CLAIM"
 	LeaseClaimNext      = "CLAIM_NEXT"
 	LeaseRenew          = "RENEW"
@@ -34,15 +41,16 @@ const (
 // LeaseRequest is one lease command. Fields a verb does not take stay empty;
 // the closed shape table below refuses any other combination.
 type LeaseRequest struct {
-	Verb, TicketID, Holder string
-	LeaseMinutes           wire.Size
-	Branch, Base           string
-	Scope                  []string
-	WholeRepository        bool
-	AttemptID              string
-	Generation             wire.Size
-	Reason                 string
-	Tree, Gate, Commit     string
+	Pool, Stage, Member, Allocation, Evidence string
+	Verb, TicketID, Holder                    string
+	LeaseMinutes                              wire.Size
+	Branch, Base                              string
+	Scope                                     []string
+	WholeRepository                           bool
+	AttemptID                                 string
+	Generation                                wire.Size
+	Reason                                    string
+	Tree, Gate, Commit                        string
 }
 
 // LeaseFacts are the caller's observations for a CLAIM: the fresh attempt
@@ -50,6 +58,8 @@ type LeaseRequest struct {
 // derivation (nil paths when the deriver abstained). SUBMIT, GATE_RUN and
 // COMPLETE add their git and gate observations (gateFacts).
 type LeaseFacts struct {
+	Program                                []byte
+	Pool                                   PoolFacts
 	AttemptID, BaseCommit, DerivedTicketID string
 	DerivedPaths                           []string
 	DerivationSha256                       wire.Digest
@@ -76,24 +86,36 @@ const (
 	fieldTree
 	fieldGate
 	fieldCommit
+	fieldPool
+	fieldStage
+	fieldMember
+	fieldAllocation
+	fieldEvidence
 )
 
 type leaseShape struct{ required, allowed int }
 
 var leaseShapes = map[string]leaseShape{
-	LeaseClaim:     {fieldTicket | fieldHolder | fieldMinutes, fieldTicket | fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope},
-	LeaseClaimNext: {fieldHolder | fieldMinutes, fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope},
-	LeaseRenew:     {fieldAttempt | fieldGeneration | fieldMinutes, fieldAttempt | fieldGeneration | fieldMinutes},
-	LeaseRelease:   {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldReason},
-	LeaseReap:      {0, fieldAttempt | fieldGeneration},
-	LeaseWiden:     {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldScope | fieldWhole},
-	LeaseSubmit:    {fieldAttempt | fieldGeneration | fieldTree, fieldAttempt | fieldGeneration | fieldTree},
-	LeaseGateRun:   {fieldAttempt | fieldGeneration | fieldGate, fieldAttempt | fieldGeneration | fieldGate},
-	LeaseComplete:  {fieldAttempt | fieldGeneration | fieldCommit, fieldAttempt | fieldGeneration | fieldCommit},
+	LeaseSupervisor:  {fieldAttempt | fieldGeneration | fieldEvidence, fieldAttempt | fieldGeneration | fieldEvidence | fieldPool | fieldStage | fieldHolder},
+	LeaseProgram:     {fieldEvidence, fieldEvidence},
+	LeasePoolPrepare: {fieldPool | fieldMember | fieldHolder | fieldEvidence, fieldPool | fieldMember | fieldHolder | fieldStage | fieldEvidence},
+	LeasePoolObserve: {fieldMember | fieldAllocation, fieldMember | fieldAllocation},
+	LeasePoolCleanup: {fieldMember | fieldAllocation, fieldMember | fieldAllocation},
+	LeasePoolRecover: {fieldMember | fieldAllocation | fieldReason, fieldMember | fieldAllocation | fieldReason},
+	LeasePoolSafe:    {fieldMember | fieldAllocation | fieldEvidence | fieldReason, fieldMember | fieldAllocation | fieldEvidence | fieldReason},
+	LeaseClaim:       {fieldTicket | fieldHolder | fieldMinutes, fieldTicket | fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage},
+	LeaseClaimNext:   {fieldHolder | fieldMinutes, fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage},
+	LeaseRenew:       {fieldAttempt | fieldGeneration | fieldMinutes, fieldAttempt | fieldGeneration | fieldMinutes},
+	LeaseRelease:     {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldReason},
+	LeaseReap:        {0, fieldAttempt | fieldGeneration},
+	LeaseWiden:       {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldScope | fieldWhole},
+	LeaseSubmit:      {fieldAttempt | fieldGeneration | fieldTree, fieldAttempt | fieldGeneration | fieldTree},
+	LeaseGateRun:     {fieldAttempt | fieldGeneration | fieldGate, fieldAttempt | fieldGeneration | fieldGate},
+	LeaseComplete:    {fieldAttempt | fieldGeneration | fieldCommit, fieldAttempt | fieldGeneration | fieldCommit},
 }
 
 func (l *LeaseRequest) present() int {
-	flags := map[int]bool{fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != ""}
+	flags := map[int]bool{fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != ""}
 	bits := 0
 	for bit, set := range flags {
 		if set {
@@ -171,6 +193,19 @@ func checkLabels(values map[string]string) error {
 }
 
 func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
+	if !checkPoolStage(l.Stage) {
+		return malformed("unknown pool stage")
+	}
+	if l.Allocation != "" {
+		if _, e := wire.ParseDigest("allocation", l.Allocation); e != nil {
+			return e
+		}
+	}
+	if l.Evidence != "" {
+		if _, e := wire.ParseIdentifier("evidence", l.Evidence); e != nil {
+			return e
+		}
+	}
 	if l.TicketID != "" {
 		id, e := wire.ParseTicketID("ticketId", l.TicketID)
 		if e != nil {
@@ -180,7 +215,7 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 			return malformed("lease ticket names another queue")
 		}
 	}
-	if e := checkLabels(map[string]string{"holder": l.Holder, "branch": l.Branch}); e != nil {
+	if e := checkLabels(map[string]string{"holder": l.Holder, "branch": l.Branch, "pool": l.Pool, "member": l.Member}); e != nil {
 		return e
 	}
 	if l.Base != "" {
@@ -208,8 +243,13 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 			return e
 		}
 	}
-	if l.Reason != "" && !wire.IsCode(l.Reason) {
+	if l.Reason != "" && l.Verb != LeasePoolSafe && l.Verb != LeasePoolRecover && !wire.IsCode(l.Reason) {
 		return malformed("release reason is not a closed code")
+	}
+	if l.Verb == LeasePoolSafe || l.Verb == LeasePoolRecover {
+		if _, e := wire.ParseProse("reason", l.Reason, 1, 4096); e != nil {
+			return e
+		}
 	}
 	return checkGateFields(l)
 }
@@ -241,6 +281,20 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 		v.Obj.Set("tree", optionalString(l.Tree))
 		v.Obj.Set("gate", optionalString(l.Gate))
 		v.Obj.Set("commit", optionalString(l.Commit))
+	}
+	if l.Pool != "" {
+		v.Obj.Set("pool", s(l.Pool))
+	}
+	if l.Stage != "" {
+		v.Obj.Set("stage", s(l.Stage))
+	}
+	if l.Verb == LeaseProgram || l.Verb == LeaseSupervisor {
+		v.Obj.Set("evidence", s(l.Evidence))
+	}
+	if l.Verb == LeasePoolSafe || l.Verb == LeasePoolPrepare || l.Verb == LeasePoolObserve || l.Verb == LeasePoolCleanup || l.Verb == LeasePoolRecover {
+		v.Obj.Set("member", s(l.Member))
+		v.Obj.Set("allocation", s(l.Allocation))
+		v.Obj.Set("evidence", s(l.Evidence))
 	}
 	return v, nil
 }
@@ -274,6 +328,10 @@ type leaseContext struct {
 }
 
 var leasePlanners = map[string]func(leaseContext) leaseOutcome{
+	LeaseSupervisor:  planSupervisor,
+	LeaseProgram:     planProgram,
+	LeasePoolSafe:    planPoolSafe,
+	LeasePoolPrepare: planPoolPrepare, LeasePoolObserve: planPoolObserve, LeasePoolCleanup: planPoolCleanup, LeasePoolRecover: planPoolRecover,
 	LeaseClaim:     planClaim,
 	LeaseClaimNext: planClaimNext,
 	LeaseRenew:     planRenew,
@@ -287,6 +345,9 @@ var leasePlanners = map[string]func(leaseContext) leaseOutcome{
 
 func planLease(r Request, in Input, st inputState) leaseOutcome {
 	c := leaseContext{r: r, l: r.Lease, in: in, st: st, seq: wire.SizeOf(st.head.LastSeq.Uint64() + 1)}
+	if a := st.attempts[r.Lease.AttemptID]; a != nil && a.Supervision != nil && r.Lease.Verb != LeaseSupervisor && r.Lease.Verb != LeaseGateRun && r.Lease.Verb != LeaseComplete {
+		return c.refuse(mutation.OutcomeBlocked, wire.CodeQuiescenceUnproved, "supervised attempt requires owned lifecycle transition")
+	}
 	return leasePlanners[r.Lease.Verb](c)
 }
 
@@ -331,7 +392,7 @@ func (c leaseContext) named() (*snapshot.Attempt, error) {
 }
 
 func expired(a *snapshot.Attempt, now wire.Timestamp) bool {
-	return a.Lease != nil && a.Lease.ExpiresAt <= now
+	return a.Supervision == nil && a.Lease != nil && a.Lease.ExpiresAt <= now
 }
 
 func addMinutes(t wire.Timestamp, m wire.Size) wire.Timestamp {
@@ -384,6 +445,9 @@ func (c leaseContext) write(a *snapshot.Attempt, entries []snapshot.ReservationE
 		return c.fail(e)
 	}
 	posts := map[string][]byte{attemptPath(a.AttemptID): raw}
+	if e = c.poolPosts(a, posts); e != nil {
+		return c.fail(e)
+	}
 	if entries != nil {
 		set := snapshot.ReservationSet{QueueID: c.st.reservations.QueueID, Entries: entries}
 		if posts["reservations.json"], e = set.Encode(); e != nil {

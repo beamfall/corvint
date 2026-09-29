@@ -18,6 +18,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/cem/workflow"
 	"github.com/Beamfall/corvint/internal/contextindex"
@@ -207,12 +208,14 @@ var taskReviewTools = map[string]bool{ToolContext: true, ToolCEMReport: true}
 
 // Registry binds every call to one canonical local repository root.
 type Registry struct {
-	root         string
-	rootIdentity os.FileInfo
-	gitIdentity  os.FileInfo
-	operations   repositoryOperations
-	taskReview   bool
-	flows        bool
+	root                   string
+	rootIdentity           os.FileInfo
+	gitIdentity            os.FileInfo
+	gitDirectories         []string
+	gitDirectoryIdentities []os.FileInfo
+	operations             repositoryOperations
+	taskReview             bool
+	flows                  bool
 }
 
 // New binds the default V0 registry: exactly query, impact, and status.
@@ -229,10 +232,25 @@ func New(root string) (*Registry, *Error) {
 		return nil, failure("invalid-root")
 	}
 	gitMarker, err := os.Lstat(filepath.Join(resolved, ".git"))
-	if err != nil || !gitMarker.IsDir() || gitMarker.Mode()&os.ModeSymlink != 0 {
+	if err != nil || (!gitMarker.IsDir() && !gitMarker.Mode().IsRegular()) || gitMarker.Mode()&os.ModeSymlink != 0 {
 		return nil, failure("invalid-root")
 	}
-	return &Registry{root: resolved, rootIdentity: rootIdentity, gitIdentity: gitMarker, operations: productionRepositoryOperations()}, nil
+	registry := &Registry{root: resolved, rootIdentity: rootIdentity, gitIdentity: gitMarker, operations: productionRepositoryOperations()}
+	if gitMarker.Mode().IsRegular() {
+		gitDir, commonDir, err := gitauth.WorktreeDirectories(resolved)
+		if err != nil {
+			return nil, failure("invalid-root")
+		}
+		registry.gitDirectories = []string{gitDir, commonDir}
+		for _, path := range registry.gitDirectories {
+			info, err := os.Lstat(path)
+			if err != nil || !info.IsDir() {
+				return nil, failure("invalid-root")
+			}
+			registry.gitDirectoryIdentities = append(registry.gitDirectoryIdentities, info)
+		}
+	}
+	return registry, nil
 }
 
 // NewTaskReview binds the opt-in task-review descendant profile, which adds
@@ -333,7 +351,7 @@ func (registry *Registry) allTools() []ToolDescriptor {
 		},
 		{
 			Name:        ToolStatus,
-			Description: "Observe Git commit, tree, worktree state, and a privacy-preserving dirty-path digest.",
+			Description: "Observe Git commit, tree, worktree state, and a privacy-preserving dirty-path digest. Gitlinks bind commit IDs; nested submodule contents are outside coverage.",
 			InputSchema: objectSchema(map[string]any{}, []any{}),
 			Annotations: readAnnotations(),
 		},
@@ -375,6 +393,8 @@ func (registry *Registry) Call(ctx context.Context, name string, arguments []byt
 		result, callErr = registry.callFlowsGaps(ctx, arguments)
 	case ToolFlowsImpact:
 		result, callErr = registry.callFlowsImpact(ctx, arguments)
+	case ToolFlowsCoverage:
+		result, callErr = registry.callFlowsCoverage(ctx, arguments)
 	case ToolFlowsNavigate:
 		result, callErr = registry.callFlowsNavigate(ctx, arguments)
 	default:
@@ -395,7 +415,23 @@ func (registry *Registry) sameRoot() bool {
 		return false
 	}
 	gitMarker, err := os.Lstat(filepath.Join(registry.root, ".git"))
-	return err == nil && gitMarker.IsDir() && gitMarker.Mode()&os.ModeSymlink == 0 && os.SameFile(registry.gitIdentity, gitMarker)
+	if err != nil || gitMarker.Mode()&os.ModeSymlink != 0 || !os.SameFile(registry.gitIdentity, gitMarker) {
+		return false
+	}
+	if len(registry.gitDirectories) == 0 {
+		return gitMarker.IsDir()
+	}
+	gitDir, commonDir, err := gitauth.WorktreeDirectories(registry.root)
+	if err != nil || gitDir != registry.gitDirectories[0] || commonDir != registry.gitDirectories[1] {
+		return false
+	}
+	for i, path := range registry.gitDirectories {
+		info, err := os.Lstat(path)
+		if err != nil || !info.IsDir() || !os.SameFile(info, registry.gitDirectoryIdentities[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 type queryInput struct {

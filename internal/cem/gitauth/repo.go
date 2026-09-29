@@ -70,6 +70,20 @@ func Open(root string, budget *gitrun.Budget) (*Repository, error) {
 	return repository, nil
 }
 
+// WorktreeDirectories validates only the primary/reciprocal worktree boundary.
+// It performs bounded metadata reads without executing Git or inspecting objects.
+func WorktreeDirectories(root string) (gitDir, commonDir string, err error) {
+	resolved, err := resolveRoot(root)
+	if err != nil {
+		return "", "", err
+	}
+	repository := &Repository{Root: resolved}
+	if err := repository.resolveGitDirs(); err != nil {
+		return "", "", err
+	}
+	return repository.GitDir, repository.CommonDir, nil
+}
+
 func resolveRoot(root string) (string, error) {
 	absolute, err := filepath.Abs(root)
 	if err != nil {

@@ -60,7 +60,8 @@ var ReadVerbs = []string{
 	"ticket revoke-approval",
 	"release create", "release update", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
 	"claim", "renew", "release", "reap", "widen", "attempt show", "plan preview",
-	"submit", "gate run", "complete",
+	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
+	"submit", "gate run", "complete", "health", "pool cleanup", "pool recover", "pool confirm-safe",
 }
 
 // OmittedVerbs are the verb paths the SPEC names that this binary does not
@@ -69,8 +70,7 @@ var ReadVerbs = []string{
 // `config show`, `plan record` and `receipt show|replay` remain
 // unimplemented; receipt audit exposes the native journal reader.
 var OmittedVerbs = []string{
-	"admit", "cancel", "retry", "resume", "drain",
-	"lane-leader", "config", "plan record", "receipt show", "receipt replay",
+	"config", "plan record", "receipt show", "receipt replay",
 	"archive restore",
 }
 
@@ -94,6 +94,17 @@ func Run(env Env) int {
 		return emit(env.Stdout, helpResult())
 	}
 	switch args[0] {
+	case "admit", "resume", "retry", "cancel", "drain", "answer":
+		return emit(env.Stdout, programCommand(env, args[0], args[1:]))
+	case "pending":
+		return emit(env.Stdout, programRead(env, true, args[1:]))
+	case "program":
+		if len(args) > 1 && args[1] == "show" {
+			return emit(env.Stdout, programRead(env, false, args[2:]))
+		}
+		return emit(env.Stdout, usage([]string{"program"}, "expected show"))
+	case "run":
+		return emit(env.Stdout, programRun(env, args[1:]))
 	case "version", "--version":
 		return emit(env.Stdout, versionResult())
 	case "ticket":
@@ -127,8 +138,16 @@ func Run(env Env) int {
 			return emit(env.Stdout, leaseCommand(env, "release", args[1:]))
 		}
 		return emit(env.Stdout, releaseCommand(env, args[1], args[2:]))
-	case "claim", "renew", "reap", "widen", "submit", "complete":
+	case "health", "claim", "renew", "reap", "widen", "submit", "complete":
 		return emit(env.Stdout, leaseCommand(env, args[0], args[1:]))
+	case "pool":
+		if len(args) == 2 && args[1] == "--help" {
+			return emit(env.Stdout, usage([]string{"pool"}, "pool confirm-safe --member MEMBER --allocation SHA256 --evidence LOCAL_REF --reason REASON"))
+		}
+		if len(args) > 1 && (args[1] == "confirm-safe" || args[1] == "cleanup" || args[1] == "recover") {
+			return emit(env.Stdout, leaseCommand(env, "pool "+args[1], args[2:]))
+		}
+		return emit(env.Stdout, usage([]string{"pool"}, "unknown pool verb"))
 	case "attempt":
 		return emit(env.Stdout, attemptCommand(env, args[1:]))
 	case "pause", "unpause":
@@ -263,7 +282,13 @@ func helpResult() *wire.Result {
 	// own list that silently drops an unrecognized value.
 	o.Set("statuses", wire.Strings(ticket.Statuses))
 	o.Set("eligibility", wire.Strings([]string{ticket.EligibilityBlocked, ticket.EligibilityUnknown}))
+	o.Set("releaseReasonCodes", wire.Strings(wire.Codes))
+	o.Set("supervisionLimits", wire.Strings([]string{"Codex-only optional policy profile; pinned executable and Core CLI required", "Token usage is observed, not hard-enforced; absent counters remain unknown", "Shared observed cutoffs permit one already-admitted turn per active lane of overshoot", "Explicit clean integration checkout and exact candidate/base grant required; no publication"}))
 	o.Set("usage", wire.Strings([]string{
+		"corvint-tasks run --program ID --config FILE --role implementer|reviewer|integrator --count N --host codex",
+		"corvint-tasks admit|resume|retry|drain|cancel --program ID --config FILE",
+		"corvint-tasks answer --program ID --config FILE --question SHA256 --revision N --answer TEXT",
+		"corvint-tasks pending; corvint-tasks program show",
 		"corvint-tasks ticket list [--offset N] [--limit N]",
 		"corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N]",
 		"corvint-tasks ticket show <ticketId|local>",
@@ -281,19 +306,25 @@ func helpResult() *wire.Result {
 		"corvint-tasks ticket <mutation> --help   (its payload keys)",
 		"corvint-tasks release create|update|candidate|record-gate|promote --request-id ID --target RELEASE [--expected-revision N] [--payload JSON] [--role ROLE]",
 		"corvint-tasks release list|show RELEASE|readiness RELEASE",
-		"corvint-tasks claim <ticketId|local> --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...]",
+		"corvint-tasks claim <ticketId|local> --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate]",
+		"corvint-tasks health --member ID [--stage STAGE] --request-id ID",
+		"corvint-tasks pool cleanup --member ID --allocation SHA256 --request-id ID",
+		"corvint-tasks pool recover --member ID --allocation SHA256 --reason TEXT --request-id ID",
+		"corvint-tasks pool confirm-safe --member ID --allocation SHA256 --evidence REF --reason TEXT --request-id ID",
 		"corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N]",
 		"corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE]",
 		"corvint-tasks reap --request-id ID [--attempt ID --generation G]",
 		"corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository)",
 		"corvint-tasks attempt show <attemptId>",
-		"corvint-tasks plan preview",
+		"corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate]",
+		"corvint-tasks claim --next --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate]",
+		"corvint-tasks cutover --execution --decision REF --qualification FILE",
 		"corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID",
 		"corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR]",
 		"corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID",
 		"corvint-tasks version",
 	}))
-	o.Set("note", wire.String("every read takes no lock and writes nothing, and reports journal facts it cannot observe as NOT_OBSERVED; `init`, `policy update` and the fourteen `ticket` mutations commit through the §5.2 writer (TCP-02/TCP-02b); the administrative verbs answer NOT_RUN"))
+	o.Set("note", wire.String("every read takes no lock and writes nothing, and reports journal facts it cannot observe as NOT_OBSERVED; `init`, `policy update` and the fourteen `ticket` mutations commit through the §5.2 writer (TCP-02/TCP-02b); new external-agent queue setup: docs/TASKS-EXTERNAL-AGENTS.md; ticket blockers reports static intent checks, while plan preview reports claim selection; releaseReasonCodes lists every accepted --reason value"))
 	return &wire.Result{Command: []string{"help"}, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 
@@ -1006,6 +1037,13 @@ func queueStatus(env Env, args []string) *wire.Result {
 			}
 			o.Set("attempts", wire.String(string(wire.CountOf(int64(len(live))))))
 			o.Set("liveAttempts", liveAttemptsValue(live))
+		}
+		if len(st.Policy.Pools) > 0 && !rc.journalAbsent {
+			occupancy, e := poolOccupancy(rc)
+			if e != nil {
+				return e
+			}
+			o.Set("pools", occupancy)
 		}
 		o.Set("publication", wire.String(string(ticket.NotObserved)))
 		item = wire.ObjectValue(o)

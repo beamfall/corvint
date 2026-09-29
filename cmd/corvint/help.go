@@ -78,6 +78,8 @@ func commandHelpTopic(rest []string) string {
 	switch {
 	case !known:
 		return ""
+	case len(rest) > 1 && rest[0] == "docs" && rest[1] == "flows":
+		return "docs-flows"
 	case len(rest) > 1 && rest[0] == "docs" && rest[1] == "maintain":
 		return "docs-maintain"
 	case nested && len(rest) > 1 && rest[1] != "--help" && rest[1] != "-h" && !choices[rest[1]]:
@@ -129,7 +131,9 @@ func publicHelpTopic(command string) (string, bool) {
 func helpText(topic string) string {
 	switch topic {
 	case "docs":
-		return docsHelp + "\n" + docsMaintainHelp
+		return docsHelp + "\n" + docsMaintainHelp + "\n" + docsFlowsHelp
+	case "docs-flows":
+		return docsFlowsHelp
 	case "docs-maintain":
 		return docsMaintainHelp
 	case "root":
@@ -355,7 +359,7 @@ Global options:
   Linux. All commands are local-only and make no network or telemetry request.
 
   init, adopt, query, impact, docs, harness, and lrf read without mutating repository or trace
-  state. impact, feature, docs, harness event, ocm, lrf, cem, dogfood-ocm, witness,
+  state, except explicit docs flows generate materialization and docs maintain writes. impact, feature, docs, harness event, ocm, lrf, cem, dogfood-ocm, witness,
   index, calibrate, frontier, and record best-effort append a bounded row to the local
   self-observation ledger (.corvint/self-observations.jsonl) on an unsupported-* failure, and
   harness event does so again on a successful session-start, user-prompt, or file-change

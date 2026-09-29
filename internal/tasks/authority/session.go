@@ -21,6 +21,8 @@ const (
 	RoleVersion      = Role(fixtureVersion)
 	RoleHead         = Role(fixtureHead)
 	RoleBarrier      = Role(fixtureBarrier)
+	RolePools        = Role(fixturePools)
+	RolePrograms     = Role(fixturePrograms)
 	RoleReservations = Role(fixtureReservations)
 	RoleQueue        = Role(fixtureQueue)
 	RolePolicy       = Role(fixturePolicy)

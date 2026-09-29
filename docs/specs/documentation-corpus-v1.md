@@ -7,7 +7,8 @@ Delivery status: experimental
 Authoritative inputs: owner request [issue 31](https://github.com/beamfall/corvint/issues/31),
 owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 [issue 42](https://github.com/beamfall/corvint/issues/42) and
-[issue 53](https://github.com/beamfall/corvint/issues/53),
+[issue 53](https://github.com/beamfall/corvint/issues/53), and the owner-authorized adoption slice
+[issue 339](https://github.com/beamfall/corvint/issues/339),
 `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/specs/deployment-neutral-index-platform-v0.md`,
 `docs/specs/source-documentation-draft-v0.md`, `docs/specs/external-evidence-provider-v0.md`.
 
@@ -211,6 +212,47 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   adopter-specific repository, product, organization or path terms; caller data and the legacy
   compatibility member remain attributed input.
 
+- `DCP-V1-033`: The opt-in `corvint-corpus-input/2` and `corvint-evidence-corpus/2`
+  profiles admit a lossless supplied-record import within explicit capacity limits: 100,000 each
+  subjects, claims and relations, 4,096 journeys, 100,000 typed details, 16 providers and 128 total
+  provider records/shards. Each adoption provider uses `corvint-corpus-adoption-provider/1` with
+  either one `record` or sorted unique `shards`, never both. Shards share provider ID, version and
+  source identity; every shard is an exact pinned manifest input. Validate aggregate counts,
+  global IDs and cross-shard joins. Refuse overflow, missing/reused shards and identity drift.
+  Provider shards remain at most 64 MiB each; all pinned inputs together and the artifact are
+  bounded to 128 MiB. Existing `/1` and independent behavior/receipt limits remain unchanged.
+- `DCP-V1-034`: Adoption records retain typed behavior, constraint, side-effect, integration and
+  permission claims; flows with all eight canonical sections; stable paragraph IDs and acyclic
+  retirement redirects; asserting versus navigating test links with explicit confidence and exact
+  file/title/project; reproducible explicit-membership coverage definitions; historical ticket
+  records; and reported-intent versus observed-claim comparisons. Each detail belongs to one owned
+  normalized record; the combined record and detail are at most 1 MiB. Validate referenced record kinds and active paragraph
+  membership. These are attributed declarations, never accepted intent, test adequacy or independent
+  runtime verification. Existing source-span rebinding and trust downgrade apply without exceptions.
+- `DCP-V1-035`: Restricted findings use a separate local-input family. Admit only aggregate count
+  and severity totals into artifacts, rendering and read projections. Never emit original finding
+  IDs, local detail paths or bodies. Preload all provider shards before admitting generic evidence;
+  refuse any public reference to restricted tokens, including cross-shard typed fields and manifest
+  metadata. Restriction input is bounded to 1 MiB in aggregate. The provider owns classification;
+  this is not a semantic secret detector or permission to publish the original local input. Live
+  freshness diagnostics redact paths outside the pinned inventory, including paths created later.
+- `DCP-V1-036`: Report supplied-record parity per provider and source kind with records in, admitted,
+  dropped and reasons; restricted drops are explicit. Do not infer completeness of the original
+  repository. `/2` inventory, get/trace/search and other read operations support stable bounded
+  offset pagination tied to the artifact digest, explicit total omissions and `next_offset`.
+  Every normalized record family is retrievable. Typed details and citations describe only the
+  returned page. Capability summaries retain totals with explicit omitted-ID counts; use inventory
+  for the full list. Freshness reason lists are deduplicated and bounded with explicit omissions. CLI, all existing `--corpus` consumers and corpus MCP open the larger artifact;
+  receipt bytes remain 4 MiB and result pages at most 256 records. Impact omissions retain the
+  mandatory full-check fallback and never silently narrow tests. Old profiles retain their wire
+  and capability behavior; inventory and MCP offset are advertised only for `/2`.
+- `DCP-V1-037`: Qualify the full Build/Open/read path with a labelled synthetic corpus containing at
+  least 150 flows, 10,000 claims, 20,000 paragraphs, 35,000 relationships, 30,000 inventory records,
+  200 journeys and 4,000 tickets. Retain exact counts, bytes, complete-command timings, CLI/native
+  consumer/MCP parity, stale-source behavior and hostile shard/restricted-input cases. Synthetic
+  qualification is not an external adopter utility claim. Focused checks and independent review
+  govern this scoped issue slice under the owner's standing repository policy.
+
 ## Input and authority boundary
 
 ### Experimental behavior contracts (issue 40)
@@ -406,9 +448,10 @@ The manifest can be generated by an explicit read-only inventory command and edi
 A profile is data, never code or a template interpreter. External/provider evidence remains attributed;
 structural rederivation proves identity, not semantic truth, human acceptance or provider honesty.
 
-Bounds: 4 MiB per manifest/provider/artifact/receipt, 4096 input paths, 4096 subjects/claims/relations
+Legacy `/1` bounds: 4 MiB per manifest/provider/artifact/receipt, 4096 input paths, 4096 subjects/claims/relations
 per collection, 128 journeys with 128 steps each, 64 KiB per evidence excerpt, 1024-byte paths/queries,
 256 results, 8 revisions and 16 providers. Whole-build output overflow refuses instead of truncating.
+The opt-in adoption `/2` capacity and read projection limits are defined by DCP-V1-033..037.
 Query limits disclose withheld rows. Unsupported analyzer input may be inventoried with an explicit
 gap; explicitly requesting an unavailable provider implementation fails the build.
 
@@ -436,8 +479,9 @@ closed schemas, closure before admission, non-vacuous spans, hostile trust promo
 bytes, native receipt joins, capability absence/zero, source/provider drift, symlinks, output bounds,
 CEM base binding, native opt-in parity, MCP gating/parity and human-prose preservation. Run the
 frozen labelled evaluation and real self-corpus proof, then independent integrated review and the
-repository's clean-commit `make gate` and dogfood CEM/OCM/strict completion loop. Test execution and
-pinned results belong in `docs/BUILD-LOG.md`; tests never accept this spec. Promotion requires owner
+repository's applicable clean-commit checks and dogfood CEM/OCM/strict completion loop. Scoped issue
+work uses focused checks under `AGENTS.md`; full release promotion retains its governing gate. Test
+execution and pinned results belong in one `docs/build-log/` entry; tests never accept this spec. Promotion requires owner
 acceptance and all scoped evidence; a failed bound/trust/parity case blocks completion. Rollback
 removes the optional corpus entry points/packages/profile artifacts; existing native commands,
 original sources, retained observations and human documentation require no migration.
@@ -453,6 +497,8 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-019..020 | Conformance fixtures and independent example adapter | Labelled evaluation and actual self-corpus receipt |
 | DCP-V1-021..026 | `internal/doccorpus/stability.go`, corpus reader and MCP bridge | End-to-end aggregate, policy scopes, prior-attempt retention, source rebinding, exact declared/observed topology, cleanup and adversarial controls |
 | DCP-V1-027..032 | `internal/doccorpus/behavior_adapter.go`, `cmd/corvint/docs_corpus.go` | Mapped bundle through existing Build/Open, denominators, frontier/delta, bounds and issue-53 adversarial fixtures |
+
+| DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 
 ## Open decisions
 

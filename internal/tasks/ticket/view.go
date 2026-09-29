@@ -304,6 +304,9 @@ func (v View) Value(includeRecord bool) wire.Value {
 	}
 	o.Set("holds", wire.Strings(holds))
 	o.Set("requiredGates", wire.Strings(rec.RequiredGates))
+	if rec.RequiredRoles != nil {
+		o.Set("requiredRoles", StageRolesValue(rec.RequiredRoles))
+	}
 	o.Set("gateResults", wire.String(string(v.GateResults)))
 	o.Set("currentAttempt", wire.String(string(v.CurrentAttempt)))
 	o.Set("publication", wire.String(string(v.Publication)))

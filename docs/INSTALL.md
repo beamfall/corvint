@@ -127,6 +127,27 @@ prints. Its `make dogfood-change`, `dogfood-check` and `dogfood-seal` coordinato
 `corvint cem`, `corvint ocm` and `corvint frontier` commands from that page's sections 4 to 6. A
 passing loop is structural closure, not proof that the change is correct.
 
+## Standalone Tasks archive
+
+Tasks has a separate `corvint-tasks_darwin_arm64.tar.gz` candidate builder. The Core archives
+remain unchanged. From a clean source checkout, build a candidate with:
+
+```sh
+go run ./cmd/corvint-companion-release -tasks-only \
+  -source-root "$PWD" -target darwin/arm64 \
+  -scratch /absolute/fresh/tasks-scratch \
+  -output-parent /absolute/release-output -bundle-name tasks-candidate
+```
+
+Both output directories must be outside the checkout. The builder independently builds the
+binary twice from the pinned Git export, includes its source and notices, verifies deterministic
+archive bytes, and runs the extracted version/help commands. The retained directory holds the
+archive and `SHA256SUMS`; verify that checksum before extracting into a fresh directory. Add its
+`bin/` to PATH and use the [external-agent setup guide](TASKS-EXTERNAL-AGENTS.md).
+The version keeps its explicit unverified label. This candidate is not an execution cutover,
+release promotion, or proof that the complete workflow bundle is qualified. Publishing it as a
+release asset remains an explicit operator action. Other Tasks archive targets are NOT_RUN.
+
 ## Optional workflow bundle
 
 The planned, separately assembled **macOS arm64** workflow bundle will contain nine native binaries:

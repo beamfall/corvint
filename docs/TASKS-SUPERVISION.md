@@ -1,0 +1,53 @@
+# Foreground Codex programs
+
+Enable the optional `taskman-codex-supervisor/0` runtime in the native policy and its
+`supervision` object before dispatch. The runtime pins executable path/content hashes and mode,
+existing BUILDER/REPAIR/REVIEWER/VERIFIER roles, and worker capacity. `supervision` contains
+`profile`, `contextRequired: true`, `maxRepairCycles` (0..2), and `program` caps for `turns`,
+`wallClockMinutes`, `inputTokens` and `outputTokens` (canonical decimal strings).
+
+A local JSON config contains `profile`, absolute resolved `executable`, `executableSha256`,
+explicit `model`, `effort: "low"`, `prompt` (reserved; generated stage prompts govern dispatch),
+absolute `workRoot`, numeric `wallSeconds` (1..3600), `coreExecutable`, `coreSha256`, and
+`ownIntegrationCheckout` (false unless the operator explicitly designates this clean checkout).
+Optional `pool` selects the implementation pool. The policy remains authoritative. Core context
+must be READY/fresh at the stage's exact Git tree; stated uncertainty is retained in prompts.
+
+```sh
+corvint-tasks run --program migration --config supervisor.json --role implementer --count 3 --host codex
+corvint-tasks run --program migration --config supervisor.json --role reviewer --count 2 --host codex
+corvint-tasks pending
+corvint-tasks program show
+corvint-tasks answer --program migration --config supervisor.json --question QUESTION_SHA --revision 1 --answer 'Approved clarification'
+corvint-tasks resume --program migration --config supervisor.json --role implementer
+corvint-tasks drain --program migration --config supervisor.json
+```
+
+Roles select eligible native attempts; an idle role exits without creating implementation work.
+The foreground batch is bounded, keeps shared program counters across ticket reassignment, and
+returns retained handoffs when no work is eligible or a cap stops dispatch. Required ticket roles
+are an optional acceptance-relevant map with implement/review/integrate arrays. Independent review
+requires both a different holder and different Codex session, plus every acceptance claim.
+
+Before integration, use the existing `ticket grant-approval` command with operation INTEGRATE,
+current acceptance revision and exact scope `taskman-integration:` followed by SHA256 of
+`baseCommit + NUL + candidateTree + NUL + intentBranch`. Then run the integrator role with
+`--grant GRANT_ID`. The designated checkout must still be clean at that original base; a later tip
+requires a fresh candidate/review/gates/grant. No remote push is performed. Native completion and
+receipt audit remain the delivery boundary.
+
+`drain` retains WAIT and scope; `cancel` releases scope only after proved shutdown. `retry` is an
+explicit operator continuation of a retained handoff. Exact process identity, group membership,
+worktree registry and generation fence recovery; uncertain processes/resources remain blocked.
+Pool allocations always enter quarantine after a stage and require explicit safe confirmation.
+Every stage acquires a health-qualified member under the same native pool protocol; the bounded
+stage prompt includes its exact allocation/member/config reference. Credentials are not inferred.
+
+Turns and active wall deadlines are enforced locally. Input/output tokens are observed from
+qualified JSONL, with missing/cache dimensions reported NOT_OBSERVED. Token cutoffs prevent later
+dispatch; they cannot stop provider consumption mid-turn and may overshoot by one admitted turn
+per active lane. Required hard token enforcement refuses. Prompts/context and runtime output are
+bounded and retained in the native journal evidence; truncated output never qualifies as success.
+
+Scoped local Codex qualification is recorded in [the build log](build-log/2026-09-29-tasks-codex-supervision.md), including output-limit and unobserved audit boundaries. See
+[the accepted contract](specs/corvint-tasks-agent-leases-v0.md#s10--foreground-codex-programs-issue-341).

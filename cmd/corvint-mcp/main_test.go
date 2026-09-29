@@ -482,7 +482,7 @@ func TestAFUV1034FlowsToolProfile(t *testing.T) {
 			t.Errorf("%s annotations=%+v", tool.Name, tool.Annotations)
 		}
 	}
-	want := []string{"corvint.flows.gaps", "corvint.flows.impact", "corvint.flows.map", "corvint.flows.navigate", "corvint.impact", "corvint.query", "corvint.status"}
+	want := []string{"corvint.flows.coverage", "corvint.flows.gaps", "corvint.flows.impact", "corvint.flows.map", "corvint.flows.navigate", "corvint.impact", "corvint.query", "corvint.status"}
 	if !reflect.DeepEqual(names, want) {
 		t.Fatalf("flows tools=%v want %v", names, want)
 	}
@@ -492,7 +492,7 @@ func TestAFUV1034FlowsToolProfile(t *testing.T) {
 		if handler.registry, err = newRegistry(root); err != nil {
 			t.Fatal(err)
 		}
-		for _, name := range want[:4] {
+		for _, name := range want[:5] {
 			if result, failure := handler.call(context.Background(), map[string]any{
 				"name": name, "arguments": map[string]any{"flows": "flows"},
 			}); result != nil || failure == nil || failure.Code != -32602 {
