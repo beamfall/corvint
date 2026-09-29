@@ -1,0 +1,40 @@
+{
+  "baseRevision": "7ce8afec73af9678a7aa28624502c65f88cf468b",
+  "evidence": [
+    {
+      "blobOid": "ed878a31dfa094262701f8061a34e94f5b949396",
+      "id": "evidence:sha256:a54e501fe32fc650467a8fbc0b33d327f7b1bbeb470df726c10fcbfdae2ff356",
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "span": {
+        "end": 2226,
+        "start": 95
+      },
+      "spanSha256": "185f8772201f5ac39cba075ba0521ca528b249238bb0f2a697961b8a03ba1198"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a54e501fe32fc650467a8fbc0b33d327f7b1bbeb470df726c10fcbfdae2ff356",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:304561cb2a6f82a3abdba2ac6d0ae5084d6ea1e510ed9dd6a4f71c6e7b11da46",
+      "newRange": {
+        "count": 7,
+        "start": 12
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 12
+      },
+      "path": "docs/specs/README.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "cda13144638a2a4a0970d238974d0a0bf70473e5ed02d4e66f0fbc893bf64940",
+  "spec": "cem/0.2"
+}
