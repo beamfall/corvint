@@ -1,0 +1,280 @@
+{
+  "baseRevision": "89bbe4bb27a98b6e28256d3bfcddabf6bba2fb46",
+  "evidence": [
+    {
+      "blobOid": "46c72e1129a0b65a0412fa38365316c0a8171a19",
+      "id": "evidence:sha256:ad7bc4e37bfc7ac12776ada4de093e44e361a78677badfbdf46ab75d0f1d0d98",
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "span": {
+        "end": 23334,
+        "start": 22346
+      },
+      "spanSha256": "da894554eeff6e46cc7660a25c78b72eccb9fbdef9aa004f23c9d93c8fa1331f"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ad7bc4e37bfc7ac12776ada4de093e44e361a78677badfbdf46ab75d0f1d0d98",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:930b87fbca666196b6dce70a9fef6240af3cf7297f6a15d0d1f71f4f9044d517",
+      "newRange": {
+        "count": 14,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-29-tasks-stage-reserved-pool-priority.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ad7bc4e37bfc7ac12776ada4de093e44e361a78677badfbdf46ab75d0f1d0d98",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:143daeb87fc219ef1cf3523e1525dd9b9320ea0381400ecb362032e93ce4c7c9",
+      "newRange": {
+        "count": 7,
+        "start": 12
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 12
+      },
+      "path": "docs/specs/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ad7bc4e37bfc7ac12776ada4de093e44e361a78677badfbdf46ab75d0f1d0d98",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:34dd0b8716430cbab34b8dbf6d3993d9c6452ddc6649d85e79705afeead84cb9",
+      "newRange": {
+        "count": 18,
+        "start": 278
+      },
+      "oldRange": {
+        "count": 18,
+        "start": 278
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ad7bc4e37bfc7ac12776ada4de093e44e361a78677badfbdf46ab75d0f1d0d98",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5e6cedbe1bc0996b4e498cb472bbaccb812c4adfe97378847f03ae8f5cd5c115",
+      "newRange": {
+        "count": 10,
+        "start": 304
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 304
+      },
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ad7bc4e37bfc7ac12776ada4de093e44e361a78677badfbdf46ab75d0f1d0d98",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:70840781f3b49f90611ee95a9303ca640403da2d4bceb23b2a6a0842160c2d6a",
+      "newRange": {
+        "count": 8,
+        "start": 337
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 333
+      },
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ad7bc4e37bfc7ac12776ada4de093e44e361a78677badfbdf46ab75d0f1d0d98",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4335a414df68a903e7ef3bfdc6381043cdf38fba93acf99ba408cee5ae2abc6b",
+      "newRange": {
+        "count": 8,
+        "start": 212
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 212
+      },
+      "path": "internal/tasks/store/pool_commands.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ad7bc4e37bfc7ac12776ada4de093e44e361a78677badfbdf46ab75d0f1d0d98",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a58411911c83621c32b15952ca9ec8e3c28090e75f4ff64bfa06835e37ac1e5c",
+      "newRange": {
+        "count": 7,
+        "start": 6
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 6
+      },
+      "path": "internal/tasks/store/pools_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ad7bc4e37bfc7ac12776ada4de093e44e361a78677badfbdf46ab75d0f1d0d98",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:64b7ce25b49b447dc85a8d79234bf836a467c01c80d9f9f7a7110aa8b711a114",
+      "newRange": {
+        "count": 40,
+        "start": 98
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 97
+      },
+      "path": "internal/tasks/store/pools_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ad7bc4e37bfc7ac12776ada4de093e44e361a78677badfbdf46ab75d0f1d0d98",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d739ab1cc88a3ffb4c861a9678ee8e39590d32d4810e3946acb9aeb690d0ce7e",
+      "newRange": {
+        "count": 37,
+        "start": 143
+      },
+      "oldRange": {
+        "count": 20,
+        "start": 108
+      },
+      "path": "internal/tasks/store/pools_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ad7bc4e37bfc7ac12776ada4de093e44e361a78677badfbdf46ab75d0f1d0d98",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:69730a576911f8071727c943297b05f2372713c402cee8031f6ddfe07157fb4d",
+      "newRange": {
+        "count": 7,
+        "start": 231
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 231
+      },
+      "path": "internal/tasks/transaction/plan.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ad7bc4e37bfc7ac12776ada4de093e44e361a78677badfbdf46ab75d0f1d0d98",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:79ce3cedc9eefd894f7aaa1ded6e76285d397adc7d811cbf3621edbde620ebdf",
+      "newRange": {
+        "count": 7,
+        "start": 90
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 90
+      },
+      "path": "internal/tasks/transaction/pools.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ad7bc4e37bfc7ac12776ada4de093e44e361a78677badfbdf46ab75d0f1d0d98",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:98525c0a3410a9010ef39653103513c19e7e3b2b0fc58ae637687eaf1265123d",
+      "newRange": {
+        "count": 25,
+        "start": 106
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 110
+      },
+      "path": "internal/tasks/transaction/pools.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ad7bc4e37bfc7ac12776ada4de093e44e361a78677badfbdf46ab75d0f1d0d98",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:208e761a53a06b0fdea0c3c3658e762c2551330980d7525375d7d6b597b95e5d",
+      "newRange": {
+        "count": 43,
+        "start": 65
+      },
+      "oldRange": {
+        "count": 16,
+        "start": 65
+      },
+      "path": "internal/tasks/transaction/pools_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "717c4a2bd17237c4e91d01487cfa791e10252e5bcca5bed9803ca7c62f22f883",
+  "spec": "cem/0.2"
+}
