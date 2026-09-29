@@ -61,6 +61,11 @@ with tempfile.TemporaryDirectory(prefix='editor-context-check-') as td:
         row=r['core']['receipt']['results'][0];row.update(kind='governing',id='pkg/AGENTS.md');row['evidence'][0].update(authority='project-instructions',trust='project-authority')
         r['core']['receipt']['coverage']={'critical':[{'path':'AGENTS.md','relation':'governing'},{'path':'pkg/AGENTS.md','relation':'governing'}],'critical_missing':[]}
     assert changed_result(with_critical)['valid']
+    for field in ['critical','critical_missing']:
+        for value in [None,0,True,'invented',{'path':'AGENTS.md','relation':'governing'},[['nested']],['scalar'],[0],[None]]:
+            def malformed_container(r,field=field,value=value):
+                with_critical(r);r['core']['receipt']['coverage'][field]=value
+            assert not changed_result(malformed_container)['valid'], (field,value)
     def missing_critical(r):
         with_critical(r);r['core']['receipt']['coverage']['critical_missing']=[{'path':'AGENTS.md','relation':'governing'}]
     assert not changed_result(missing_critical)['valid']

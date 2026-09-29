@@ -89,6 +89,10 @@ def validate(rows, observation, uri, before, after):
     if binding.get('profileId')!='generic':errors.append('fixture-core-profile-invalid')
     if receipt.get('tool')!='context':errors.append('core-receipt-tool-invalid')
     if receipt.get('revision')!=before['tree']:errors.append('core-receipt-revision-invalid')
+    for field in ['critical','critical_missing']:
+        coverage=receipt.get('coverage',{})
+        if field in coverage and (not isinstance(coverage[field],list) or any(not isinstance(item,dict) for item in coverage[field])):
+            errors.append('critical-selector-array-shape-invalid:'+field)
     if receipt.get('coverage',{}).get('critical_missing',[])!=[]:errors.append('missing-critical-governance-selector')
     evidence=[]
     for row in receipt.get('results',[]): evidence.extend(row.get('evidence',[]))
