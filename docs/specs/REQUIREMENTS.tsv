@@ -608,6 +608,14 @@ DCG-V0-017	docs/specs/documentation-citation-gate-v0.md	157	The gate MUST count 
 DCG-V0-018	docs/specs/documentation-citation-gate-v0.md	163	`script/line-citation-legacy-documents.txt` MUST be the closed allowlist of scan
 DCG-V0-019	docs/specs/documentation-citation-gate-v0.md	177	A citation a citing document explicitly frames as historical — reviewed once aga
 DCG-V0-020	docs/specs/documentation-citation-gate-v0.md	183	`script/line-citation-drift-waivers.txt` MAY name one citation, as
+DCI-V0-001	docs/specs/documentation-ci-v0.md	33	The classifier MUST read a clean checkout at the full captured target SHA, requi
+DCI-V0-002	docs/specs/documentation-ci-v0.md	40	The closed path scope MUST be modified existing mode-100644 `README.md` and,
+DCI-V0-003	docs/specs/documentation-ci-v0.md	44	README fenced and indented code bytes MUST remain identical. The admitted Markdo
+DCI-V0-004	docs/specs/documentation-ci-v0.md	50	Admitted documents MUST verify immutable local link targets and supported Markdo
+DCI-V0-005	docs/specs/documentation-ci-v0.md	55	Admission MUST require an approved `corvint-docs-ci-qualification/0` artifact re
+DCI-V0-006	docs/specs/documentation-ci-v0.md	62	CI MUST build the classifier from a separate checkout at the captured event base
+DCI-V0-007	docs/specs/documentation-ci-v0.md	67	Only the root Go race invocation may be omitted. Documentation gates, shard-0
+DCI-V0-008	docs/specs/documentation-ci-v0.md	73	Qualification MUST retain source-bound consumer review and actual adversarial
 DCLI-V0-001	docs/specs/direct-native-cli-authority-v0.md	26	**One real host.** Root-protected candidate/completed records bind host=`codex`,
 DCLI-V0-002	docs/specs/direct-native-cli-authority-v0.md	28	**Smallest parent topology.** Consumer's immediate kernel parent must be that ex
 DCLI-V0-003	docs/specs/direct-native-cli-authority-v0.md	30	**Current immutable image and existing admission boundary.** Bind exact executab
