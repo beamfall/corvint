@@ -17,6 +17,13 @@ on:
         description: Release label, used only in artifact names
         required: true
 
+      previous_release_tag:
+        description: Optional published lifecycle predecessor tag; requires previous_release_oid
+        required: false
+      previous_release_oid:
+        description: Exact 40-hex direct tag OID (commit OID for a lightweight tag)
+        required: false
+
 permissions:
   contents: read
 
@@ -29,6 +36,8 @@ env:
   CGO_ENABLED: "1"
   SHA: ${{ inputs.sha }}
   RELEASE: ${{ inputs.release }}
+  PREVIOUS_RELEASE_TAG: ${{ inputs.previous_release_tag }}
+  PREVIOUS_RELEASE_OID: ${{ inputs.previous_release_oid }}
 
 jobs:
   gate:
@@ -184,17 +193,18 @@ jobs:
             ./corvint --version'
       - name: Fetch the previous release's published linux/amd64 archive (N-1)
         id: n1
-        # N-1 is the newest v* tag strictly before this sha (CCF-V1-006). Its archive is checked
-        # against that release's own published SHA256SUMS.
+        # The operator may pin a preserved nonancestor tag for SOP-V0-003 lifecycle evidence.
+        # Otherwise choose the newest reachable prior tag. Identity stays in the archive log;
+        # Core's explicit CCF-V1-007 compatibility replay is a separate runbook step.
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          n1=$(git tag --merged "$SHA" --no-contains "$SHA" --list 'v[0-9]*' --sort=-v:refname | head -n 1)
           mkdir -m 0700 "$RUNNER_TEMP/n1" "$RUNNER_TEMP/previous"
           # The inner sh expands the single-quoted script.
           # shellcheck disable=SC2016
           "$RUNNER_TEMP/run-gate" n1-archive sh -euc '
-            gh release download "$1" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/n1" --pattern corvint_linux_amd64.tar.gz --pattern SHA256SUMS
+            n1=$(script/select-previous-release.sh "$SHA" "$PREVIOUS_RELEASE_TAG" "$PREVIOUS_RELEASE_OID")
+            gh release download "$n1" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/n1" --pattern corvint_linux_amd64.tar.gz --pattern SHA256SUMS
             cd "$RUNNER_TEMP/n1"
             grep -F corvint_linux_amd64.tar.gz SHA256SUMS
             sha256sum -c --ignore-missing SHA256SUMS
@@ -202,7 +212,7 @@ jobs:
             cd "$RUNNER_TEMP/previous"
             sha256sum corvint
             sha256sum -c SHA256SUMS
-            ./corvint --version' sh "$n1"
+            ./corvint --version' sh
       - name: Install the Codex CLI and Claude Code hosts
         # The exact versions of the Core plugin rows in integrations/compatibility.json. The HLQ
         # runner gives each host a private HOME and config directory and calls the installed hook
