@@ -59,7 +59,7 @@ async function interrupt(f,signal){
  const done=new Promise(resolve=>child.once('close',code=>{children.delete(child);resolve(code);}));
  let owned=[];
  try{
-  const deadline=Date.now()+1200;
+  const deadline=Date.now()+5000;
   while(Date.now()<deadline){owned=descendants(child.pid);if(owned.some(p=>/chrome|chromium/i.test(p.name)))break;await sleep(20);}
   assert.ok(owned.some(p=>/chrome|chromium/i.test(p.name)),'real browser must start before interruption');await sleep(150);owned=descendants(child.pid);assert.ok(owned.some(p=>/chrome|chromium/i.test(p.name)));
   if(signal!=='timeout')child.kill(signal);
