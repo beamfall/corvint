@@ -595,7 +595,7 @@ func TestTMV0022_AS07_ArchiveNativeHandlesAndFIFO(t *testing.T) {
 	}
 }
 
-func TestTMV0022_AS07_ArchiveStageFixtureRestriction(t *testing.T) {
+func TestTMV0022_AS07_ArchiveNonfixtureStageObservation(t *testing.T) {
 	r, repo := repoWithStore(t)
 	raw, e := os.ReadFile(filepath.Join(r.IntentDir, "queue.json"))
 	if e != nil {
@@ -614,11 +614,22 @@ func TestTMV0022_AS07_ArchiveStageFixtureRestriction(t *testing.T) {
 	if _, _, e = export(t, repo, fixture.TempDirOutside(t)); e != nil {
 		t.Fatal(e)
 	}
+	// CAL-V0-027 admits native staging observation without exporting or removing it.
 	fixture.Write(t, filepath.Join(dir, "active.json.tmp"), nil)
+	before, intents := fixture.TreeSnapshot(t, r.StateDir), fixture.TreeSnapshot(t, r.IntentDir)
 	out, res, e := export(t, repo, fixture.TempDirOutside(t))
-	if code(e) != wire.CodeUnsupported || len(out) != 0 || res != nil {
+	if e != nil || len(out) == 0 || res == nil {
+		t.Fatalf("native export: result=%v error=%v", res, e)
+	}
+	if _, e = Verify(bytes.NewReader(out)); e != nil {
 		t.Fatal(e)
 	}
+	for _, f := range res.Manifest.Files {
+		if strings.HasPrefix(f.Path, "staging/") {
+			t.Fatal("staged payload exported")
+		}
+	}
+	fixture.AssertUntouched(t, r, before, intents, "native stage observation")
 }
 
 func TestTMV0022_AS07_ArchiveFileClosureErrorsSurviveMovement(t *testing.T) {
