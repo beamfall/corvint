@@ -3,18 +3,19 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification))
-Authoritative inputs: owner request [issue 336](https://github.com/beamfall/corvint/issues/336), the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); S9 CAL-V0-028..034 implemented with local native qualification)
+Authoritative inputs: owner request [issue 342](https://github.com/beamfall/corvint/issues/342) and
+owner choice on 2026-09-28 to quarantine environments until confirmed safe reuse; owner request [issue 336](https://github.com/beamfall/corvint/issues/336), the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
 §3.4, §4, §6 and §7.4), decision 0397 (corvint-tasks built in tree), decision 0423 A10,
 `docs/specs/corvint-tasks-store-init-v0.md`, tickets V1-0398, V1-0184 and V1-0310, and the in-tree
 sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Coding agents claim, renew, gate and complete tickets through leased `corvint-tasks` attempts, replacing a repository's own task runner without a supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification)). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); S9 CAL-V0-028..034 implemented with local native qualification). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
-- Read next: Slices; Requirements (S8 for parallel claims); Amendments to TCP-00; Failure modes.
+- Read next: Slices; Requirements (S8 for parallel claims; S9 for named pools); Amendments to TCP-00; Failure modes.
 
 ## User and boundary
 
@@ -30,7 +31,7 @@ supervisor: `admit` reserves the ticket, a supervisor forks a `lane-leader`, a `
 handshake proves whether the runtime ran, and process-group liveness decides when a reservation may
 be released (§6.2 to §6.4). None of that is built in tree: the only reservations are S3's
 `external-agent` leases, `cutover` requires an empty reservation set
-(`internal/tasks/transaction/model.go:555@afae0d34`), and until S1 the writer refused every queue
+(`internal/tasks/transaction/model.go:560@afae0d34`), and until S1 the writer refused every queue
 that was not a fixture.
 
 The agents that use these queues are not processes corvint-tasks starts. They are interactive or
@@ -40,7 +41,7 @@ calling agent is the runtime, and a lease it renews stands in for process livene
 number fences every later command from a holder that lost its lease, so a stale agent can go on
 editing its own worktree but can neither move its attempt nor complete the ticket.
 
-Non-goals: a supervisor, `lane-leader`, process-group signalling or any §6.4 spawn effect; creating,
+Non-goals: a supervisor, `lane-leader`, process-group signalling of external agents or any §6.4 spawn effect; creating,
 removing or inspecting worktrees; budgets beyond reporting them `NOT_OBSERVED`; review lanes (§7.2)
 and the completion-manifest reducer beyond the tree and gate check in CAL-V0-016; fanout (TCP-07) and
 routing (TCP-08); the import-map writer; automatic reaping by anything other than an invoked command
@@ -264,9 +265,83 @@ S7, qualification and execution cutover.
   The manifest MUST retain the unverified version label, source commit/tree and pinned build count.
   This does not publish a release, authenticate an operator or qualify a task queue.
 
+### S9 — Named environment pools (issue 342)
+
+- `CAL-V0-028`: Policy MAY add optional `pools`; tickets MAY add acceptance-relevant
+  `requiresPool`; attempts MAY add `stage` and `poolAllocation`. Omission MUST preserve old
+  canonical bytes. Pool/member identities MUST be unique within the queue. The bound is 64 pools,
+  256 total members, the existing 256 KiB policy, and a 1 MiB `taskman-pool-state/0` projection. Lease staging permits 11 artifacts,
+  three blob afterimages and a 2658-byte descriptor; other operation limits remain unchanged.
+  The shared temporary descriptor admission bound is therefore 2658 bytes.
+  A member definition includes its pool, reservation stage, configuration reference and commands.
+  Removing or changing an occupied definition MUST refuse; unrelated policy changes MAY proceed.
+- `CAL-V0-029`: Claim and claim-next MUST atomically reserve one eligible free member of an
+  explicitly requested pool with the attempt and ordinary scope reservation. `requiresPool` MUST
+  match the explicit request. No request consumes no pool. Reserved members require matching
+  `implement|review|integrate` stage, an operator claim rather than authenticated identity.
+  Allocated state MUST agree with the complete attempt allocation tuple, holder and stage.
+  Replayed claims MUST return their original receipt-bound allocation, never a successor's.
+- `CAL-V0-030`: Release, expiry/reap and completion MUST quarantine the exact allocation while
+  freeing the ordinary scope reservation. A retry MUST acquire a new allocation. Only an
+  OWNER/OPERATOR `pool confirm-safe` naming the current allocation, an evidence reference and
+  reason MAY clear quarantine. Configured cleanup success is necessary but insufficient: the
+  confirmation is a local operator attestation of external revocation/reset, not observed physical
+  exclusivity. Stale confirmation MUST refuse. There is no TTL or implicit safe reuse.
+- `CAL-V0-031`: A configured health command MUST acquire durable PREPARING ownership before
+  execution outside the writer lock. Failed members MUST remain quarantined, be reported with
+  reason and observation digest, and be skipped for the current claim. A passing health result
+  MUST bind allocation, definition, immutable source revision/tree and command environment digest,
+  then be retained atomically with admission after rechecking current eligibility. Standalone
+  `health --member` MUST also leave quarantine, including on success, until operator confirmation.
+- `CAL-V0-032`: Cleanup MUST acquire durable CLEANING ownership before execution. Pending command
+  replay MUST NOT execute again. Explicit `pool recover` MUST refuse an observed live runner and
+  quarantine an orphan without implying cleanup. Interrupted or uncertain execution MUST never
+  make a member free. Journal redo publishes committed artifacts only. Runner PID/start observations
+  are local observations, not authentication or an exactly-once execution guarantee.
+- `CAL-V0-033`: Pool commands MUST use bounded trusted operator argv, declared environment keys,
+  a clean repository outside `.taskman`, a 1..300 second timeout and at most 64 KiB captured output.
+  Observations retain the output digest, not raw output. The implementation MUST join cancellation
+  handling and stop/check the owned process group after normal exit, timeout and interruption;
+  unproved cleanup MUST refuse admission. Detached processes, external services and a killed host
+  are outside this process-group qualification. Immutable configuration references MUST name exact
+  regular Git blobs, including for claims without a health command; symlinks and missing bytes refuse.
+- `CAL-V0-034`: Queue occupancy and plan preview MUST remain read-only and execute no probes.
+  Occupancy MUST distinguish free, preparing, allocated, cleaning and quarantined members, with
+  original allocation identity and retained command reason/observation where present. A selected
+  preview batch MUST consume eligible free member capacity, excluding other-stage reservations.
+  Archive, journal recovery and authority-confined projection publication MUST retain pool state.
+
+The optional policy shape is `pools:[{id,members:[MEMBER],reservedFor:{MEMBER:STAGE},
+memberConfig:{MEMBER:{configRef:{revision,path,blob},health:COMMAND,cleanup:COMMAND}}}]`.
+Each map is closed over declared member names; each nested addition is optional. A command is
+`{argv:[ARG],cwd:"REPOSITORY",env:[NAME],timeoutSeconds:"N"}`. Git references return only identity,
+never configuration bodies. Duplicate identical configuration references refuse; differently named
+references cannot prove distinct physical environments. The command interpreter and external services
+are operator-provided dependencies, not attested deployed lineage. Commands run in the caller's
+repository checkout, falling back to the primary worktree.
+
+`poolAllocation` contains `poolId`, `memberId`, `allocationId`, `definitionSha256`, `allocatedSeq`,
+and optional `configRef`. The allocation digest binds queue, request and member; it is not a secret
+capability. `pools.json` is a separate authoritative receipt projection, never an extra ordinary
+reservation. Its closed entries retain allocation, state, holder/stage, attempt/generation,
+changed sequence, policy/request digests, command kind/revision, runner observation, cleanup result,
+observation digest and reason. `taskman-pool-observation/0` is bounded to 4096 bytes and retains
+allocation/definition, command kind, revision/tree, result class, passed/group-clean flags and
+output/environment digests. Missing inventory-bound state is corruption, never free capacity.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
+
+- A15: issue 342 adds S9's optional policy/ticket/attempt fields and the bounded `pools.json`
+  projection. S9 opt-in health/cleanup signals its own trusted command process group; it does not
+  control external agents. LEASE staging expands to 11 artifacts, three blob afterimages and
+  a 2658-byte descriptor (shared temporary descriptor cap); other operation limits stay unchanged.
+  Pool-only TRANSITION receipts have no attempt/generation when none exists yet.
+  Observation, cleanup, recovery and safe confirmation are cancellation-class writes permitted
+  under an ALL barrier; preparation and admission remain blocked. Prior omitted-field /0 bytes
+  remain valid; old readers cannot consume new records. Pool-aware rollback requires stopping
+  claims, resolving quarantine and a recorded safe migration, not merely installing an old binary.
 
 - A8: runtime `external-agent`. An attempt with this runtime has `supervisor` and `lane` null in
   every generation, never has a `PROCESS_SPAWN` effect, and is exempt from the §6.4 rows.
@@ -340,6 +415,16 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
 | Context index absent or stale | No derivation | The scope is `WHOLE_REPOSITORY`, which serializes that claim as today |
 
 ## Acceptance and rollback
+
+S9 evidence: `TestPoolAllocationQuarantine`, `TestPoolAllocationTupleCorrespondence`,
+`TestPoolNoHealthConfigReference`, `TestPoolReplayReturnsOriginalAllocation`,
+`TestPoolHealthSkipsFailedMember`, `TestPoolProcessDescendants`,
+`TestPoolPlanConsumesEligibleSlots`, and `TestPoolPreviewConsumesMembersWithoutProbes` under
+`internal/tasks`. Native disposable queue qualification covers independent concurrent processes,
+reserved review capacity, required-pool refusal, read-only occupancy, health skip/pass,
+cleanup-before-confirmation, success/timeout/SIGTERM descendants and SIGKILL/replay/recovery.
+This qualifies trusted same-process-group commands on the observed native host, not hostile
+containment or real deployment isolation. Final frozen enrollment and closeout remain required.
 
 Acceptance evidence, per slice: named `TestCALV0NNN_*` tests for every requirement in that slice
 under `internal/tasks`, the unchanged fixture tests for CAL-V0-003, and for S6 the measured first

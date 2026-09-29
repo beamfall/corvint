@@ -36,6 +36,7 @@ type LeaseChoice struct {
 	Lease                    transaction.LeaseRequest
 	Derive                   ScopeDeriver
 	gate                     *gateRun
+	pool                     transaction.PoolFacts
 }
 
 // claimObserver computes claim facts from the guarded audit before locking.
@@ -48,6 +49,9 @@ func Lease(ctx context.Context, repo *intent.Repository, actor mutation.Binding,
 	reaped := []transaction.ExpiredLease{}
 	for round := 0; round <= wire.MaxActiveAttempts; round++ {
 		report, err := leaseOnce(ctx, repo, actor, choice, now)
+		if err == nil && (choice.Lease.Verb == transaction.LeaseClaim || choice.Lease.Verb == transaction.LeaseClaimNext) && choice.Lease.Pool != "" && report.Outcome.HasCode(wire.CodeQuiescenceUnproved) {
+			report, err = healthClaim(ctx, repo, actor, choice, report)
+		}
 		if err != nil || len(report.Expired) == 0 {
 			report.Reaped = reaped
 			return report, claimedTicket(repo, choice.Lease.Verb, report, err)
@@ -73,6 +77,9 @@ func leaseOnce(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 	lease := choice.Lease
 	request := transaction.Request{Operation: transaction.Lease, QueueID: choice.QueueID, RequestID: choice.RequestID, Actor: actor, Lease: &lease}
 	facts := gateFacts(repo, choice)
+	if strings.HasPrefix(lease.Verb, "POOL_") {
+		facts = poolFacts(repo, choice)
+	}
 	if lease.Verb == transaction.LeaseClaim || lease.Verb == transaction.LeaseClaimNext {
 		facts = claimFacts(ctx, repo, choice)
 	}
@@ -90,15 +97,39 @@ func claimedTicket(repo *intent.Repository, verb string, report *Report, err err
 	if err != nil || report.AttemptID == "" || (verb != transaction.LeaseClaim && verb != transaction.LeaseClaimNext) {
 		return err
 	}
-	raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "attempts", report.AttemptID+".json"), wire.MaxAttemptRecordBytes)
+	if report.Outcome.ReceiptSeq == nil {
+		return wire.Errorf(wire.CodeMissingEvidence, "claim", "receipt binding absent")
+	}
+	rc, err := readReceipt(repo, report.Outcome.ReceiptSeq.Uint64())
 	if err != nil {
 		return err
+	}
+	var raw []byte
+	for _, post := range rc.Post {
+		if post.Path != "attempts/"+report.AttemptID+".json" {
+			continue
+		}
+		if post.Record != nil {
+			raw = wire.EncodeFile(*post.Record)
+		} else if post.BlobSha256 != nil {
+			raw, err = intent.ReadFile(filepath.Join(repo.StateDir, "evidence", string(*post.BlobSha256)), wire.MaxAttemptRecordBytes)
+			if err != nil {
+				return err
+			}
+		}
+		if post.Sha256 == nil || wire.Sum(raw) != *post.Sha256 {
+			return wire.Errorf(wire.CodeJournalForked, "claim", "receipt attempt digest differs")
+		}
 	}
 	a, err := snapshot.DecodeAttempt(raw)
 	if err != nil {
 		return err
 	}
+	if a.AttemptID != report.AttemptID || a.Generation != report.Generation {
+		return wire.Errorf(wire.CodeFenced, "claim", "receipt generation differs")
+	}
 	report.Ticket = a.TicketID.Raw
+	report.PoolAllocation = a.PoolAllocation
 	return nil
 }
 
@@ -212,10 +243,36 @@ func claimFacts(ctx context.Context, repo *intent.Repository, choice LeaseChoice
 		if err != nil {
 			return transaction.LeaseFacts{}, err
 		}
-		facts := transaction.LeaseFacts{AttemptID: id, BaseCommit: base}
+		facts := transaction.LeaseFacts{AttemptID: id, BaseCommit: base, Pool: choice.pool}
+		if len(choice.pool.Observation) > 0 {
+			o, e := snapshot.DecodePoolObservation(choice.pool.Observation)
+			if e != nil {
+				return facts, e
+			}
+			rev, tree, e := poolSource(root)
+			if e != nil {
+				return facts, e
+			}
+			if rev != o.Revision || tree != o.Tree {
+				return facts, wire.Errorf(wire.CodeStaleTree, "pool claim", "command source changed before admission")
+			}
+		}
+		policy, e := intent.DecodePolicy(proof.Records["intent/policy.json"].Raw)
+		if e != nil {
+			return facts, e
+		}
+		if pool := policy.Pool(choice.Lease.Pool); pool != nil {
+			for _, member := range pool.Members {
+				if e := poolConfig(root, pool.MemberConfig[member].ConfigRef); e != nil {
+					return facts, e
+				}
+			}
+		}
 		rec := claimedRecord(proof, choice.Lease.TicketID)
 		if choice.Lease.Verb == transaction.LeaseClaimNext {
-			rec, err = transaction.NextClaimTicket(choice.QueueID, *input)
+			candidateInput := *input
+			candidateInput.LeaseFacts = facts
+			rec, err = transaction.NextClaimTicket(choice.QueueID, candidateInput, choice.Lease)
 			if err != nil {
 				return facts, err
 			}

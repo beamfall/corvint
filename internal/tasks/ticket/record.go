@@ -43,7 +43,7 @@ var (
 // same list.
 var AcceptanceRelevantFields = []string{
 	"kind", "acceptanceCriteria", "requirementRefs", "dependencies", "requiredGates",
-	"effects", "capabilities", "executionClass", "supersedes", "source",
+	"effects", "capabilities", "executionClass", "supersedes", "source", "requiresPool",
 }
 
 // Dependency is one `dependencies` entry.
@@ -106,6 +106,7 @@ type Completion struct {
 
 // Record is a validated taskman-ticket/0 record.
 type Record struct {
+	RequiresPool         string
 	TicketID             wire.TicketID
 	Revision             wire.Count
 	AcceptanceRevision   wire.Count
@@ -159,7 +160,7 @@ func Decode(data []byte) (*Record, error) {
 // FromValue validates a parsed value as a ticket record.
 func FromValue(v wire.Value) (*Record, error) {
 	r := wire.NewReader(v, "/")
-	r.Closed(recordKeys...)
+	r.Closed(wire.OptionalKeys(v, recordKeys, "requiresPool")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -180,6 +181,9 @@ func FromValue(v wire.Value) (*Record, error) {
 	rec.Title = r.Field("title").Prose(1, wire.MaxTitleBytes)
 	rec.Body = r.Field("body").ProseOrNull(wire.MaxBodyBytes)
 	rec.Kind = r.Field("kind").Enum(Kinds...)
+	if wire.Has(v, "requiresPool") {
+		rec.RequiresPool = r.Field("requiresPool").Label()
+	}
 	rec.Owner = r.Field("owner").LabelOrNull()
 	rec.Milestone = r.Field("milestone").LabelOrNull()
 	pr := r.Field("priority")
@@ -439,6 +443,9 @@ func (rec *Record) Value() wire.Value {
 	o.Set("title", wire.String(rec.Title))
 	o.Set("body", wire.StringOrNull(rec.Body))
 	o.Set("kind", wire.String(rec.Kind))
+	if rec.RequiresPool != "" {
+		o.Set("requiresPool", wire.String(rec.RequiresPool))
+	}
 	o.Set("owner", wire.StringOrNull(rec.Owner))
 	o.Set("milestone", wire.StringOrNull(rec.Milestone))
 	o.Set("priority", wire.String(rec.Priority))

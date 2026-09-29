@@ -280,6 +280,8 @@ unknown axes stay visible ([contract](docs/specs/js-live-test-provider-v0.md),
 `corvint-tasks` is the local ticket store and roadmap. It is a separate companion binary built
 from this repository's `cmd/corvint-tasks` (never a `corvint` subcommand), ships in the companion
 bundle beside `corvint`, and owns ticket state: the console delegates every ticket mutation to it. No server, no account, no agent dispatch.
+Optional named environment pools allocate isolated members with claims and quarantine them until
+explicit safe-reuse confirmation; see [external-agent usage](docs/TASKS-EXTERNAL-AGENTS.md#isolated-environment-pools).
 
 `corvint work observe` and `corvint work propose-wave` (also `corvint-work-queue`) read a
 queue snapshot and return deterministic shadow proposals: derived path clashes between tickets

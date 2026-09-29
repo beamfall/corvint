@@ -104,3 +104,52 @@ journal: current `queue status`, `roadmap`, `ticket show` and `ticket search` ca
 unvalidated-history intent projection and report its limits, but cannot claim or complete work.
 `receipt audit` still requires a journal. Do not run `init` over copied populated records;
 use the explicit import/authority-cutover route or a worktree of the existing primary checkout.
+
+## Isolated environment pools
+
+Add optional `pools` to policy through `policy update`, for example:
+
+```json
+{"pools":[{"id":"test-env","members":["env-0","env-1"],"reservedFor":{"env-1":"review"}}]}
+```
+
+A ticket's optional `requiresPool` is acceptance-relevant; create/refine validates the pool name.
+Explicitly request it when claiming. Unreserved members accept any stage; a reserved member requires
+its declared stage. The stage is an operator declaration, not an authenticated reviewer identity.
+
+```sh
+corvint-tasks claim AT-123 --pool test-env --stage implement --holder builder --request-id claim-123
+corvint-tasks claim --next --pool test-env --stage review --holder reviewer --request-id review-next
+corvint-tasks queue status
+corvint-tasks plan preview --pool test-env --stage implement
+```
+
+Retain the returned `poolAllocation` alongside attempt ID and generation. Replays return the original
+receipt-bound allocation, including after a retry has acquired a successor. Release, completion and
+reap free the source scope but quarantine the environment. Reads never probe or clean environments.
+
+Optional `memberConfig` supplies immutable regular Git `configRef:{revision,path,blob}` references and
+`health`/`cleanup` commands. Each command has `argv`, `cwd:"REPOSITORY"`, declared `env` names and
+`timeoutSeconds` from 1 to 300. Health failures are skipped and reported in occupancy with reason,
+command kind and observation digest. Commands require clean repository inputs outside `.taskman`.
+The runner bounds captured output to 64 KiB and retains its digest only. It cleans the owned process
+group; detached processes and external databases remain the operator's responsibility.
+
+```sh
+corvint-tasks health --member env-0 --request-id health-0
+corvint-tasks pool cleanup --member env-0 --allocation ALLOCATION_SHA256 --request-id cleanup-0
+corvint-tasks pool recover --member env-0 --allocation ALLOCATION_SHA256 --reason 'runner exited unexpectedly' --request-id recover-0
+corvint-tasks pool confirm-safe --member env-0 --allocation ALLOCATION_SHA256 --evidence local-reset-record --reason 'external owner revoked and environment reset' --request-id safe-0
+```
+
+Standalone health leaves quarantine even on success. Cleanup exit zero also leaves quarantine;
+configured cleanup must pass before confirmation. `confirm-safe` is your attributable assertion
+that the old external owner has been revoked/reset and reuse is safe. It requires the exact current
+allocation. Pending health/cleanup replay never reexecutes a command. `recover` refuses an observed
+live runner and quarantines an orphan; it does not prove physical termination. Do not confirm safety
+until independent cleanup is complete. No timeout automatically frees a member.
+
+Pools support up to 64 pools and 256 queue-unique members within the existing policy byte bound.
+Names alone cannot detect two configurations pointing at the same physical database. Old records
+remain readable, but older binaries do not understand the new state: stop claims and use a recorded
+safe migration before downgrading.

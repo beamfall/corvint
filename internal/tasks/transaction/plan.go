@@ -20,6 +20,9 @@ const (
 // intent inventory, whether an admission barrier is present, the live
 // reservations, and every attempt record, which decides retry exhaustion.
 type PlanInput struct {
+	Pool, Stage  string
+	Pools        *snapshot.PoolState
+	Prepared     wire.Digest
 	Queue        *intent.Queue
 	Policy       *intent.Policy
 	Tickets      *ticket.Inventory
@@ -124,6 +127,9 @@ func planEntry(in PlanInput, rec *ticket.Record) PlanEntry {
 // undeclared ticket claims WHOLE_REPOSITORY.
 func claimBlockers(in PlanInput, rec *ticket.Record) []ticket.Blocker {
 	out := []ticket.Blocker{}
+	if !poolAvailable(in, rec) {
+		out = append(out, ticket.Blocker{Code: wire.CodeResourceCollision, Detail: "required or requested pool has no eligible member"})
+	}
 	if in.Barrier {
 		out = append(out, ticket.Blocker{Code: wire.CodePaused})
 	}
@@ -168,6 +174,10 @@ func blockerRefs(blockers []ticket.Blocker) []string {
 // spent.
 func choose(in PlanInput, e PlanEntry, selected []PlanEntry) PlanEntry {
 	e.State, e.Reason = PlanDeferred, wire.CodeResourceCollision
+	if in.Pool != "" && len(selected) >= poolSlots(in) {
+		e.Blockers = []string{wire.CodeResourceCollision}
+		return e
+	}
 	for _, en := range in.Reservations.Entries {
 		if ticket.Collide(e.Resources, en.Resources) {
 			e.Blockers = []string{en.TicketID.Raw}
@@ -204,4 +214,38 @@ func lastAttemptOf(attempts map[string]*snapshot.Attempt, ticketID string) *snap
 func retryExhausted(attempts map[string]*snapshot.Attempt, rec *ticket.Record) bool {
 	last := lastAttemptOf(attempts, rec.TicketID.Raw)
 	return last != nil && last.Phase != "COMPLETED" && last.TicketRevision == rec.AcceptanceRevision && last.RetryCount.Int() >= MaxRetries
+}
+
+func poolAvailable(in PlanInput, rec *ticket.Record) bool {
+	if rec.RequiresPool != "" && rec.RequiresPool != in.Pool {
+		return false
+	}
+	if in.Pool == "" {
+		return true
+	}
+	return poolSlots(in) > 0
+}
+func poolSlots(in PlanInput) int {
+	p := in.Policy.Pool(in.Pool)
+	if p == nil {
+		return 0
+	}
+	slots := 0
+	for _, m := range p.Members {
+		if stage := p.ReservedFor[m]; stage != "" && stage != in.Stage {
+			continue
+		}
+		busy := false
+		if in.Pools != nil {
+			for _, en := range in.Pools.Entries {
+				if en.MemberID == m && en.AllocationID != in.Prepared {
+					busy = true
+				}
+			}
+		}
+		if !busy {
+			slots++
+		}
+	}
+	return slots
 }

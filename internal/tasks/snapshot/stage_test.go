@@ -77,6 +77,9 @@ func maximalDescriptor(op string) StageDescriptor {
 		add("EVIDENCE", "evidence/"+string(hash), 131072, hash)
 		add("POST", "intent/queue.json", 1048576, wire.Sum([]byte("queue")))
 	case StageLease:
+		poolHash := wire.Sum([]byte("pool"))
+		add("POST", "pools.json", MaxPoolStateBytes, poolHash)
+		add("EVIDENCE", "evidence/"+string(poolHash), wire.MaxReservationSetBytes, poolHash)
 		add("POST", "attempts/attempt:a:"+strings.Repeat("q", 71)+":"+strings.Repeat("a", 32)+".json", wire.MaxAttemptRecordBytes, hash)
 		add("POST", "reservations.json", wire.MaxReservationSetBytes, wire.Sum([]byte("reservations")))
 		add("EVIDENCE", "evidence/"+string(hash), wire.MaxReservationSetBytes, hash)

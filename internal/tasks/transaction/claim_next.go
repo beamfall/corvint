@@ -6,12 +6,16 @@ import "github.com/Beamfall/corvint/internal/tasks/ticket"
 // the store can derive only that ticket's scope outside the pure model.
 // The actual claim independently selects again and binds derived facts to
 // that ticket before checking collisions.
-func NextClaimTicket(queueID string, in Input) (*ticket.Record, error) {
+func NextClaimTicket(queueID string, in Input, choice ...LeaseRequest) (*ticket.Record, error) {
 	state, err := validateInput(Request{Operation: Lease, QueueID: queueID}, in)
 	if err != nil {
 		return nil, err
 	}
-	plan := PriorityFirst(PlanInput{Queue: state.queue, Policy: state.policy, Tickets: state.tickets, Barrier: state.barrier != nil, Reservations: state.reservations, Attempts: state.attempts})
+	l := LeaseRequest{}
+	if len(choice) > 0 {
+		l = choice[0]
+	}
+	plan := PriorityFirst(PlanInput{Pool: l.Pool, Stage: l.Stage, Pools: state.pools, Prepared: in.LeaseFacts.Pool.AllocationID, Queue: state.queue, Policy: state.policy, Tickets: state.tickets, Barrier: state.barrier != nil, Reservations: state.reservations, Attempts: state.attempts})
 	chosen := plan.Selected()
 	if chosen == nil {
 		return nil, nil
