@@ -80,3 +80,11 @@ billed tokens/cache cost, broad usefulness, extra gold retrieval, native-host FU
 V1-0168's older Caddy/etcd package-metadata benchmark question remains open. Synthetic qualification
 does not promote those missing outcomes. Ticket completion/landing remains separate from CEM
 closure and draft publication; the installed Tasks runtime does not expose submit/gate run/complete.
+
+Final binding surfaced two native evidence-format limits. OCM requirement anchors must occur in
+named test cases, not only function comments; repair round 2 wrapped six existing assertion bodies
+in requirement-named subtests. The reviewer found no assertion or execution-order changes, and the
+four affected test packages passed. The native OCM reader cannot verify Python claims, so
+TCP-V0-053 retains that explicit linkage gap alongside its required live-check report. The legacy
+outcome recorder also refuses a regex containing `|`; its summary lists the actual vet, docs and
+live commands while enrolled selected-check receipts retain the exact focused-test argv/results.
