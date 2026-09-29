@@ -2446,7 +2446,7 @@
     "reqPrefix": "PRS-V1",
     "intent": "accepted (decisions 0373 and 0426, V1-0001 and V1-0461)",
     "delivery": "partial; expanded 1.0 qualification pending",
-    "claim": "1.0 requires the Core change-evidence loop plus Flows, safe navigation, documentation, MCP, full Beamfall roadmap takeover by Tasks and automatic documentation (decisions 0373 and 0426). Core-only assembly remains independent; whole-product stable promotion requires the named capabilities.",
+    "claim": "1.0 requires Core change evidence, Flows, safe navigation, docs, MCP, full Beamfall roadmap takeover by Tasks and automatic documentation.",
     "dependsOn": [
       "docs/specs/public-release-v0.md",
       "docs/specs/daily-change-evidence-workflow-v0.md",

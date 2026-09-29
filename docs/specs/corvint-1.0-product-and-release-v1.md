@@ -13,8 +13,8 @@ scope, `PUB-V0-001..026` and the 2026-09-16 Core release scope amendment),
 (0.7.0 build 46), task-store tickets V1-0001..V1-0021.
 
 ## Agent digest
-- Claim: 1.0 requires the Core change-evidence loop plus Flows, safe navigation, documentation, MCP, full Beamfall roadmap takeover by Tasks and automatic documentation (decisions 0373 and 0426). Core-only assembly remains independent; whole-product stable promotion requires the named capabilities.
-- Status: accepted owner scope (decisions 0373 and 0426) / partial; capability qualification and production Tasks activation pending
+- Claim: 1.0 requires Core change evidence, Flows, safe navigation, docs, MCP, full Beamfall roadmap takeover by Tasks and automatic documentation.
+- Status: accepted (decisions 0373 and 0426, V1-0001 and V1-0461) / partial; expanded 1.0 qualification pending
 - Exists: this spec, decision 0373 with the eleven owner answers, and the prospective amendment section in `public-release-v0.md`; the candidate reader and installer admit a Core-only profile (V1-0125), and `corvint-release-candidate` assembles one when `-companion-dir` is omitted (V1-0229).
 - Blocked on: V1-0019 external validation and V1-0020 qualification of the next candidate. `1.0.0-rc.1` (build 163, `b967f6bb`) is published as a prerelease with V1-0019 run-001 as a known issue (decision 0425): orientation FAIL on go-chi/chi (3 of 20) and beamfall/core (1 of 20), consequence and completion PASS on both, and the Corvint run aborted (V1-0431..V1-0433). The next run uses spf13/cobra in place of go-chi/chi (decision 0425); the native linux/amd64 host is a GitHub-hosted `ubuntu-24.04` runner (decision 0420).
 - Read next: Expanded 1.0 product scope; Classification of shipped surfaces; Externally dependent gates.
