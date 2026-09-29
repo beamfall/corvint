@@ -316,7 +316,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks reap --request-id ID [--attempt ID --generation G]",
 		"corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository)",
 		"corvint-tasks attempt show <attemptId>",
-		"corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate]",
+		"corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--selected-only]",
 		"corvint-tasks claim --next --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate]",
 		"corvint-tasks cutover --execution --decision REF --qualification FILE",
 		"corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID",
