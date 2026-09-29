@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"slices"
 	"strings"
@@ -235,11 +236,22 @@ func mutateResult(cmd []string, report *store.Report) *wire.Result {
 			"a receipt left pending by an interrupted run was completed before this mutation (§5.2 redo)")
 	}
 	if report.Kind == "NoChange" {
-		res.Warnings = append(res.Warnings, "the mutation changed nothing; no receipt was written")
+		if len(report.Reaped) == 0 {
+			res.Warnings = append(res.Warnings, "the mutation changed nothing; no receipt was written")
+		} else {
+			res.Warnings = append(res.Warnings, reapSurveyWarning(len(report.Reaped)))
+		}
 	}
 	res.Warnings = append(res.Warnings,
 		"the actor binding is a recorded local-operator claim, not an authentication (decision 0003); a real queue still needs the §7.4 cutover record")
 	return res
+}
+
+func reapSurveyWarning(n int) string {
+	if n == 1 {
+		return "the reap survey wrote no receipt; 1 per-attempt reap transaction completed"
+	}
+	return fmt.Sprintf("the reap survey wrote no receipt; %d per-attempt reap transactions completed", n)
 }
 
 func nullableCount(c *wire.Count) wire.Value {

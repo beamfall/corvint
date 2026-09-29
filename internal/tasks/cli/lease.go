@@ -209,7 +209,22 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 	o.Set("generation", stringOrNull(string(report.Generation)))
 	o.Set("expired", expiredValue(report.Expired))
 	o.Set("reaped", expiredValue(report.Reaped))
+	if len(report.ReapReceipts) > 0 {
+		o.Set("reapReceipts", reapReceiptsValue(report.ReapReceipts))
+	}
 	return res
+}
+
+func reapReceiptsValue(list []store.ReapReceipt) wire.Value {
+	out := make([]wire.Value, 0, len(list))
+	for _, x := range list {
+		o := wire.NewObject()
+		o.Set("attemptId", wire.String(x.AttemptID))
+		o.Set("generation", wire.String(string(x.Generation)))
+		o.Set("receipt", wire.String(x.Receipt))
+		out = append(out, wire.ObjectValue(o))
+	}
+	return wire.Array(out...)
 }
 
 func stringOrNull(s string) wire.Value {

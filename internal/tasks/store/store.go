@@ -68,6 +68,16 @@ type Report struct {
 	AttemptID       string
 	Generation      wire.Size
 	Expired, Reaped []transaction.ExpiredLease
+	// ReapReceipts binds each fresh child transaction in Reaped to its
+	// published receipt. The top-level no-argument reap remains a receiptless
+	// survey; these entries never imply one aggregate transaction.
+	ReapReceipts []ReapReceipt
+}
+
+// ReapReceipt identifies one fresh per-attempt reap transaction.
+type ReapReceipt struct {
+	transaction.ExpiredLease
+	Receipt string
 }
 
 // target maps one plan artifact onto the publication destination its path

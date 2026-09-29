@@ -129,7 +129,9 @@ S3, leases.
 - `CAL-V0-011`: `release [--reason <code>]` MUST move the attempt to `CANCELLED` with quiescence
   `FENCED` and remove its reservation entry. `reap` MUST move every non-terminal `external-agent`
   attempt whose lease expired at its own `recordedAt` to `FAILED` with cause `LEASE_EXPIRED` and
-  quiescence `FENCED`, and remove their entries. `claim` MUST reap, in its own transaction and
+  quiescence `FENCED`, and remove their entries. A no-argument `reap` MUST report its receiptless
+  survey separately from the completed per-attempt transactions and name each fresh child receipt;
+  an empty survey retains the ordinary no-change warning. `claim` MUST reap, in its own transaction and
   receipt, every expired lease whose reservation would otherwise block it. An `ALL` barrier lets
   `release` and `reap` through as it lets `cancel` through (TCP-00 §3.4), and refuses `renew`,
   `claim` and `widen` `PAUSED`.
