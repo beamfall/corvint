@@ -570,3 +570,13 @@ the test operation keeps its 75-minute bound. Docker daemon logging is disabled 
 so PID1 file descriptors cannot bypass the retained-output bound. Both historical and PR
 container checkouts use `/work/checkout`; process capture cannot bypass limits via io.Copy.
 Run export requires only its actual selection/execution/Go outputs, not historical row files.
+
+## Bounded documentation CI exception (2026-09-29)
+
+The owner requested implementing a qualified README presentation path after PR #348. The separate
+[Documentation CI V0](documentation-ci-v0.md) contract defines the only documentation-specific
+exception to AFP-V0-013/014's root race invocation. It requires trusted-base source, exact merge
+binding, a closed document scope, independently reviewed source-bound consumer qualification and
+retained documentation checks. All other mandatory checks and AFP-V0-016 control-plane acceptance
+remain. It does not alter this planner's UNKNOWN scope or enable general Go selection; that driver
+still needs the full AFP-V0-014 historical campaign. Missing or stale DCI qualification runs FULL.

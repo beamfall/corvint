@@ -2517,5 +2517,22 @@
       "internal/doccompiler/trusted_nav.go",
       "cmd/corvint/docs.go"
     ]
+  },
+  {
+    "path": "docs/specs/documentation-ci-v0.md",
+    "title": "Documentation CI V0",
+    "reqPrefix": "DCI-V0",
+    "intent": "accepted direction (owner request, 2026-09-29); bounded admission requires reviewed qualification",
+    "delivery": "experimental",
+    "claim": "A separately qualified README presentation policy can omit the root Go race invocation while retaining documentation and other CI checks.",
+    "dependsOn": [
+      "docs/specs/affected-plan-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "tools/docs-ci-plan",
+      ".github/workflows/ci.yml"
+    ]
   }
 ]
