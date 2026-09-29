@@ -149,16 +149,39 @@ func detectHostVersion(ctx context.Context, c *Config, evidenceDir string) error
 		"TMPDIR=" + home,
 		"NO_COLOR=1",
 	}
-	result, e := runCommand(ctx, c.Source, env, []string{c.Host, "--version"}, filepath.Join(evidenceDir, "host-version"), time.Minute)
+	output, e := observedHostVersion(func(attempt int) (string, error) {
+		name := "host-version"
+		if attempt > 0 {
+			name = fmt.Sprintf("host-version-%d", attempt+1)
+		}
+		result, e := runCommand(ctx, c.Source, env, []string{c.Host, "--version"}, filepath.Join(evidenceDir, name), time.Minute)
+		return str(result["stdout"]), e
+	})
 	if e != nil {
 		return e
 	}
-	version, e := ParseSupportedHostVersion(str(result["stdout"]))
+	version, e := ParseSupportedHostVersion(output)
 	if e != nil {
 		return e
 	}
 	c.HostVersion = version
 	return nil
+}
+
+// A successful but empty stock-host version probe has occurred intermittently on this host.
+// The native campaign retains each probe output. Both campaigns accept only nonempty output;
+// callers then reject unsupported versions.
+func observedHostVersion(read func(attempt int) (string, error)) (string, error) {
+	for attempt := 0; attempt < 3; attempt++ {
+		version, err := read(attempt)
+		if err != nil {
+			return "", err
+		}
+		if strings.TrimSpace(version) != "" {
+			return version, nil
+		}
+	}
+	return "", errors.New("OpenCode version probe returned empty stdout on three attempts")
 }
 func qualify(ctx context.Context, c Config) (failure error) {
 	run, e := os.MkdirTemp(c.Output, "qualification-")
