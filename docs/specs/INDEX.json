@@ -2577,7 +2577,7 @@
     "reqPrefix": "LEQ-V0",
     "intent": "proposed experimental tooling; owner selected VS Code and Neovim",
     "delivery": "experimental; UNQUALIFIED",
-    "claim": "Actual editor lifecycle, unsaved definition and explicit Git-bound context development probes retain wire observations without promotion claims.",
+    "claim": "Actual editor lifecycle, definition, Git-bound context and edit-cancellation development probes retain wire evidence without promotion claims.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,

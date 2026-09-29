@@ -29,8 +29,8 @@ Unavailable client/server prerequisites refuse before launch.
 
 VS Code launches with a new window and isolated user-data, extension and workspace directories.
 The disposable development extension quits that isolated application after the probe. The harness
-retires only exact private-directory process seeds and their witnessed PID/PPID descendants,
-checking current command identity before each signal. Unretired processes fail the probe and keep
+signals only its unreaped owned Popen process group. Exact private-directory seeds and their
+witnessed descendants are observation-only; command changes and zombie states do not prove retirement. Unretired processes fail the probe and keep
 the original temporary directory as `cleanupHold`; resolve that exact hold before deleting it.
 The stdio proxy separately owns the selected server's process group. Neither process observation
 nor a focused mock transport regression qualifies real editor interruption behavior.
@@ -56,3 +56,10 @@ identity, exact Core bridge schema and actual Git commit/tree/blob/fixture-conte
 The fixture must stay unchanged. ABSTAINED is retained but fails this expected proof. Raw reports
 contain private paths and remain local. Only the relative-path summary is publication suitable;
 no tuple or whole-session freshness/monotonicity claim is promoted from a single request.
+
+The mutually exclusive `--context-freshness-development` mode makes one immediate actual edit
+attempt between a rapid context request and its reply, after a validated baseline, then awaits the
+reply before a healthy newest-overlay retry. Complete raw wire determines whether edit cancellation
+was witnessed; frontend pending alone is insufficient. Scheduling misses remain NOT_WITNESSED and
+exit nonzero. Defensive stale rejection is distinct from the expected cancellation. No artificial
+delay or repeat-until-pass loop occurs. All tuples remain UNQUALIFIED; actual new runs are NOT_RUN.

@@ -7,7 +7,7 @@
 - Authoritative inputs: owner scope selection retained in native V1-0478; proposed LQP-V0-011/012/017 contract in PR #360; AGENTS.md
 
 ## Agent digest
-- Claim: Actual editor lifecycle, unsaved definition and explicit Git-bound context development probes retain wire observations without promotion claims.
+- Claim: Actual editor lifecycle, definition, Git-bound context and edit-cancellation development probes retain wire evidence without promotion claims.
 - Status: proposed experimental tooling; owner selected VS Code and Neovim; experimental; UNQUALIFIED
 - Exists: `script/qualify-lsp-editors.py` and private disposable client assets under `tools/lsp-editors/`.
 - Blocked on: exact companion integration, full real-client conformance, protected baseline, human acceptance of numerical floors.
@@ -37,6 +37,8 @@ not frozen product resource or promotion floors.
 - `LEQ-V0-004`: Semantic development mode MUST bind one actual unsaved Unicode definition to its exact negotiated position encoding and wire transcript, verify disk remains unchanged, and preserve UNQUALIFIED status and all unrun cases.
 - `LEQ-V0-005`: Context development probes MUST verify exact ordered current-overlay wire binding, immutable Core packet evidence against the fixed fixture Git objects and bytes, unchanged fixture disk/repository, and separate non-Git overlay identity. ABSTAINED MUST remain visible without passing the expected governance fixture; no qualification or authority may be inferred from the mode flag.
 - `LEQ-V0-003`: Unicode, rapid edits, multiple roots, stale responses, provider crashes, descendant interruption, semantic outcomes and resource distributions MUST remain NOT_RUN until separately witnessed against the exact tuple. No method may be qualified by its mere presence in initialize.
+
+- `LEQ-V0-006`: Freshness development mode MUST inspect the complete transcript for one actual edit-driven cancellation between a rapid request and its reply, then validate a healthy retry against the newest unsaved overlay and strictly increasing successful captures in one session. Scheduling misses MUST remain NOT_WITNESSED with nonzero exit; malformed or incomplete evidence MUST fail. No artificial delay, explicit cancellation or competing document/request transition may establish the witness. All tuples remain UNQUALIFIED.
 
 The optional `--semantic-development` mode exercises one exact development witness in a private Go
 1.27.1 module. Disk contains `package p` and `var disk int`; the actual unsaved buffer contains
@@ -80,6 +82,21 @@ and command changes; unavailable setup remains UNKNOWN even after direct retirem
 three-second budgets before observation; the 1+3+3+5-second stage composition is not a universal five-second total.
 A surviving indirect child remains a failure. These bounds do not qualify editor interruption.
 
+The mutually exclusive `--context-freshness-development` mode uses the same tracked fixture and
+three direct requests: READY baseline A, immediate rapid request A plus real unsaved full replacement
+B, then a newest-overlay retry after the rapid reply. Its whole-transcript state machine requires
+three unique typed IDs, exact request/edit/reply ordering, full replacements, closed responses,
+unchanged disk/Git/Core bindings and increasing successful uint64 captures in the same session.
+For the frozen server the expected edit-driven response is exactly `-32800`, `Request cancelled`,
+`data:{reason:"CANCELLED"}`. `-32801/CONTENT_CHANGED` is separately observed stale rejection,
+not a cancellation pass. Competing edits, open/close, explicit cancellation, shutdown and semantic
+requests invalidate the interval. Frontend pending-at-edit observation is necessary but insufficient;
+the raw wire and admitted server error establish the bounded interpretation, not internal worker timing.
+A response-before-edit or edit-before-request scheduling miss remains NOT_WITNESSED/nonzero even
+with a healthy retry. There is one attempt per client, no barrier, repeat-until-pass or output delay.
+Broader freshness distributions and qualification remain NOT_RUN; actual new probes remain NOT_RUN
+until exact reviewed server/tool execution. Core's immutable packet remains separate from both overlays.
+
 ## Failure modes and evidence
 
 Unavailable executables or unpinned language-client modules refuse before startup. Client timeout,
@@ -87,8 +104,8 @@ server failure, missing client result or remaining owned editor processes produc
 The report contains a private bounded raw transcript: disposable machine paths are local evidence,
 not public diagnostics. Review before publication. Transcript truncation prevents a completeness
 claim. A development startup pass establishes only the recorded handshake and shutdown. Exact private
-editor process seeds and their witnessed PID/PPID descendants are retired after the disposable
-instance quits; each signal revalidates its command to reduce PID reuse risk. Any remaining
+editor process seeds and their witnessed PID/PPID descendants are observed after the disposable
+instance quits. Signals target only the unreaped owned Popen group; indirect descendants are observation-only. Any remaining
 process preserves the original temporary directory as an explicit cleanup hold.
 
 `--self-check` validates asset presence, transparent fragmented wire frames, EOF and

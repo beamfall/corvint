@@ -18,7 +18,41 @@ local id = vim.lsp.start({
     report.root = client.config.root_dir
     report.status = 'INITIALIZED'
     write()
-    if vim.env.CORVINT_EDITOR_CONTEXT == '1' then
+    if vim.env.CORVINT_EDITOR_FRESHNESS == '1' then
+      local params = {textDocument = {uri = vim.uri_from_bufnr(buffer)}, task = vim.env.CORVINT_EDITOR_CONTEXT_TASK, limit = 20}
+      local function observed(err, result)
+        if err then return {error = {code = err.code, message = err.message, data = err.data}} end
+        return {result = result}
+      end
+      vim.defer_fn(function()
+        vim.api.nvim_buf_set_lines(buffer, 0, -1, false, {'package p', '/*😀*/ var x int', 'var y = x'})
+        vim.defer_fn(function()
+          client:request('corvint/context', params, function(aerr, baseline, acontext)
+            vim.schedule(function()
+              local pending = true
+              report.freshness = {baseline = observed(aerr, baseline), versions = {acontext.version}}
+              local sent = client:request('corvint/context', params, function(rerr, rapid)
+                pending = false
+                vim.schedule(function()
+                  report.freshness.rapid = observed(rerr, rapid)
+                  client:request('corvint/context', params, function(berr, retry, bcontext)
+                    vim.schedule(function()
+                      report.freshness.retry = observed(berr, retry)
+                      report.freshness.versions[2] = bcontext.version
+                      report.freshness.bufferModified = vim.bo[buffer].modified
+                      write(); client:stop()
+                    end)
+                  end, buffer)
+                end)
+              end, buffer)
+              report.freshness.pendingBeforeEdit = pending
+              if not sent then report.error = 'rapid-request-not-sent'; write(); client:stop(); return end
+              vim.api.nvim_buf_set_lines(buffer, 0, -1, false, {'package p', '/*😀*/ var newest int', 'var y = newest'})
+            end)
+          end, buffer)
+        end, 200)
+      end, 200)
+    elseif vim.env.CORVINT_EDITOR_CONTEXT == '1' then
       vim.defer_fn(function()
         vim.api.nvim_buf_set_lines(buffer, 0, -1, false, {'package p', '/*😀*/ var x int', 'var y = x'})
         vim.defer_fn(function()

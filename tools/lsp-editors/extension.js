@@ -23,6 +23,27 @@ exports.activate = async function () {
     report.root = vscode.workspace.workspaceFolders[0].uri.toString();
     const document = await vscode.workspace.openTextDocument(process.env.CORVINT_EDITOR_DOCUMENT);
     await vscode.window.showTextDocument(document);
+    if (process.env.CORVINT_EDITOR_FRESHNESS === '1') {
+      const params = {textDocument: {uri: document.uri.toString()}, task: process.env.CORVINT_EDITOR_CONTEXT_TASK, limit: 20};
+      const replace = async text => {
+        const edit = new vscode.WorkspaceEdit();
+        edit.replace(document.uri, new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length)), text);
+        if (!await vscode.workspace.applyEdit(edit)) throw new Error('unsaved freshness fixture edit rejected');
+      };
+      const observed = promise => promise.then(result => ({result}), err => ({error: {code: err.code, message: err.message, data: err.data}}));
+      await replace('package p\n/*😀*/ var x int\nvar y = x\n');
+      const aVersion = document.version;
+      const baseline = await observed(client.sendRequest('corvint/context', params));
+      let pending = true;
+      const rapidPromise = observed(client.sendRequest('corvint/context', params)).then(value => { pending = false; return value; });
+      const pendingBeforeEdit = pending;
+      await replace('package p\n/*😀*/ var newest int\nvar y = newest\n');
+      const bVersion = document.version;
+      const rapid = await rapidPromise;
+      const retry = await observed(client.sendRequest('corvint/context', params));
+      report.freshness = {baseline, rapid, retry, pendingBeforeEdit, bufferModified: document.isDirty, versions: [aVersion, bVersion]};
+      await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
+    }
     if (process.env.CORVINT_EDITOR_CONTEXT === '1') {
       const edit = new vscode.WorkspaceEdit();
       edit.replace(document.uri, new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length)),

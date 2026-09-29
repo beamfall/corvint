@@ -68,12 +68,21 @@ def validate(rows, observation, uri, before, after):
         response_indexes=[i for i,r in enumerate(rows) if r.get('direction')=='server-to-client' and isinstance(r.get('message'),dict) and 'method' not in r['message'] and r['message'].get('id')==query_id]
         if opened and response_indexes and any(opened[0][0]<i<response_indexes[0] for i in closed):errors.append('context-source-closed-before-result')
     if not observation.get('context',{}).get('bufferModified'):errors.append('context-buffer-not-unsaved')
-    if not isinstance(result,dict):return {'valid':False,'errors':errors+['context-result-missing']}
+    version = fixture_changes[0][1]['params']['textDocument'].get('version') if fixture_changes else None
+    packet = validate_packet(result, uri, version, OVERLAY, before, after)
+    packet['errors'] = errors + packet['errors']
+    packet['valid'] = not packet['errors']
+    return packet
+
+def validate_packet(result, uri, version, text, before, after):
+    """Validate a packet against caller-owned text/version and fixture Git facts."""
+    errors = []
+    if not isinstance(result,dict):return {'valid':False,'errors':['context-result-missing']}
     if set(result)!={'schema','core','overlayObservation','inclusionReason'} or result.get('schema')!='corvint-editor-context/0' or result.get('inclusionReason')!='requested-open-document-subject':errors.append('context-envelope-invalid')
     overlay=result.get('overlayObservation',{})
     if set(overlay)!={'sessionID','captureID','uri','version','digestAlgorithm','digest'}:errors.append('overlay-closed-shape-invalid')
     if not isinstance(overlay.get('sessionID'),str) or not re.fullmatch('[0-9a-f]{32}',overlay.get('sessionID','')) or not isinstance(overlay.get('captureID'),str) or not re.fullmatch('[1-9][0-9]{0,19}',overlay.get('captureID','')) or int(overlay['captureID'])>18446744073709551615:errors.append('overlay-session-capture-invalid')
-    if type(overlay.get('version')) is not int or overlay.get('uri')!=uri or not fixture_changes or overlay.get('version')!=fixture_changes[0][1]['params']['textDocument'].get('version') or overlay.get('digestAlgorithm')!='sha256' or overlay.get('digest')!=hashlib.sha256(OVERLAY.encode()).hexdigest():errors.append('overlay-binding-invalid')
+    if type(overlay.get('version')) is not int or overlay.get('uri')!=uri or overlay.get('version')!=version or overlay.get('digestAlgorithm')!='sha256' or overlay.get('digest')!=hashlib.sha256(text.encode()).hexdigest():errors.append('overlay-binding-invalid')
     core=result.get('core',{})
     required={'schema','tool','mutates','state','epistemicClass','authorityClass','repository','receipt','abstention'}
     if set(core)!=required or core.get('schema')!='corvint-mcp-bridge-result/0' or core.get('tool')!='corvint.context' or core.get('mutates') is not False:errors.append('core-bridge-envelope-invalid')
