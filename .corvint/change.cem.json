@@ -12,16 +12,6 @@
       "spanSha256": "fa238b378dc9f4c650b0e297e43acc07f268e0203e3934694447ac1b6ca61923"
     },
     {
-      "blobOid": "a594b8e19be3c0a97fed767f25940ea6eaa6a03a",
-      "id": "evidence:sha256:568e146479b067f83b2f949db5a824f6a1742410807405d84a987cd6430cb2e2",
-      "path": "docs/specs/lsp-quality-platform-v0.md",
-      "span": {
-        "end": 11112,
-        "start": 9949
-      },
-      "spanSha256": "adff547786be530f917e1197c5cdca5a72619f0ca4d11448f84dd3edd94fd8fb"
-    },
-    {
       "blobOid": "1862a80fbf50b3376a2dfdb17a05a3a31b0d3a29",
       "id": "evidence:sha256:88881d84e5660cdff9d8d8f5033198f2751d873ae002cfaccdc206a1054e7e0e",
       "path": "docs/SPEC-DRIVEN-DEVELOPMENT.md",
@@ -30,6 +20,16 @@
         "start": 1925
       },
       "spanSha256": "503ac3b39825cf27ed6c5c2ea4ca1fba5613b5dd5405714b97c0cc7ef0a8ffe8"
+    },
+    {
+      "blobOid": "a594b8e19be3c0a97fed767f25940ea6eaa6a03a",
+      "id": "evidence:sha256:568e146479b067f83b2f949db5a824f6a1742410807405d84a987cd6430cb2e2",
+      "path": "docs/specs/lsp-quality-platform-v0.md",
+      "span": {
+        "end": 11112,
+        "start": 9949
+      },
+      "spanSha256": "adff547786be530f917e1197c5cdca5a72619f0ca4d11448f84dd3edd94fd8fb"
     },
     {
       "blobOid": "a594b8e19be3c0a97fed767f25940ea6eaa6a03a",
@@ -71,14 +71,18 @@
           "relation": "specification"
         },
         {
+          "evidenceId": "evidence:sha256:88881d84e5660cdff9d8d8f5033198f2751d873ae002cfaccdc206a1054e7e0e",
+          "relation": "specification"
+        },
+        {
           "evidenceId": "evidence:sha256:568e146479b067f83b2f949db5a824f6a1742410807405d84a987cd6430cb2e2",
           "relation": "specification"
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:8ed46ee1bf0b99356fced3b3fc4340e9dc1c1c21ec046d8869fb8f185d1918c4",
+      "id": "hunk:sha256:32fa10c1a81405747f48aa3b6fe0eff64a8ef441cb9056cfe5bdf94c521cc59a",
       "newRange": {
-        "count": 46,
+        "count": 52,
         "start": 1
       },
       "oldRange": {
@@ -91,7 +95,15 @@
     {
       "basis": [
         {
+          "evidenceId": "evidence:sha256:0a2f53c6a56448e89d984925debf5c624ab22b9a6df1c18d8e5dd722c7c1eb34",
+          "relation": "specification"
+        },
+        {
           "evidenceId": "evidence:sha256:88881d84e5660cdff9d8d8f5033198f2751d873ae002cfaccdc206a1054e7e0e",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:568e146479b067f83b2f949db5a824f6a1742410807405d84a987cd6430cb2e2",
           "relation": "specification"
         }
       ],
@@ -111,12 +123,20 @@
     {
       "basis": [
         {
+          "evidenceId": "evidence:sha256:0a2f53c6a56448e89d984925debf5c624ab22b9a6df1c18d8e5dd722c7c1eb34",
+          "relation": "specification"
+        },
+        {
           "evidenceId": "evidence:sha256:88881d84e5660cdff9d8d8f5033198f2751d873ae002cfaccdc206a1054e7e0e",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:568e146479b067f83b2f949db5a824f6a1742410807405d84a987cd6430cb2e2",
           "relation": "specification"
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:76f50fef1bf71cd5e53cc290ffc4ae91d6995ebb5f1b9ad2d9d4bf81b9b15cb6",
+      "id": "hunk:sha256:61649d73a4f54683b3408fb94f05c340a908abd92ff8069fc10d8beab0cc8330",
       "newRange": {
         "count": 7,
         "start": 6
@@ -131,7 +151,15 @@
     {
       "basis": [
         {
+          "evidenceId": "evidence:sha256:0a2f53c6a56448e89d984925debf5c624ab22b9a6df1c18d8e5dd722c7c1eb34",
+          "relation": "specification"
+        },
+        {
           "evidenceId": "evidence:sha256:88881d84e5660cdff9d8d8f5033198f2751d873ae002cfaccdc206a1054e7e0e",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:568e146479b067f83b2f949db5a824f6a1742410807405d84a987cd6430cb2e2",
           "relation": "specification"
         }
       ],
@@ -150,6 +178,38 @@
     },
     {
       "basis": [
+        {
+          "evidenceId": "evidence:sha256:0a2f53c6a56448e89d984925debf5c624ab22b9a6df1c18d8e5dd722c7c1eb34",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:88881d84e5660cdff9d8d8f5033198f2751d873ae002cfaccdc206a1054e7e0e",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:568e146479b067f83b2f949db5a824f6a1742410807405d84a987cd6430cb2e2",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d22c8572a598bb4a073eaa6084a2074e65b39bc14963be9ad6a012adef96810e",
+      "newRange": {
+        "count": 13,
+        "start": 2
+      },
+      "oldRange": {
+        "count": 13,
+        "start": 2
+      },
+      "path": "docs/specs/lsp-editor-qualification-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0a2f53c6a56448e89d984925debf5c624ab22b9a6df1c18d8e5dd722c7c1eb34",
+          "relation": "specification"
+        },
         {
           "evidenceId": "evidence:sha256:88881d84e5660cdff9d8d8f5033198f2751d873ae002cfaccdc206a1054e7e0e",
           "relation": "specification"
@@ -174,6 +234,10 @@
     },
     {
       "basis": [
+        {
+          "evidenceId": "evidence:sha256:0a2f53c6a56448e89d984925debf5c624ab22b9a6df1c18d8e5dd722c7c1eb34",
+          "relation": "specification"
+        },
         {
           "evidenceId": "evidence:sha256:88881d84e5660cdff9d8d8f5033198f2751d873ae002cfaccdc206a1054e7e0e",
           "relation": "specification"
@@ -433,10 +497,6 @@
         {
           "evidenceId": "evidence:sha256:dd2b87a07651d24e38896144b674deb4d4647f7b1b086bab72199d8bdc9adea9",
           "relation": "specification"
-        },
-        {
-          "evidenceId": "evidence:sha256:568e146479b067f83b2f949db5a824f6a1742410807405d84a987cd6430cb2e2",
-          "relation": "specification"
         }
       ],
       "disposition": "supported",
@@ -573,6 +633,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "3d08b1252dd8a1da8c4f5211d862234d966d6cb163465e2804c08042a2811aaa",
+  "patchSha256": "ab84070277ceefcaeaf23100b5eb6dca6540bd504cf41e18fe6b5f23e6564899",
   "spec": "cem/0.2"
 }
