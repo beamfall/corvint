@@ -69,6 +69,10 @@ prose line; it was reworded without changing a requirement. `make gate` is `NOT_
 The native claim was refused with `RESOURCE_COLLISION`: live attempt
 `attempt:corvint:main:4df9cd37dec30e656bfce759dfc0aac4` holds `docs/build-log/` and
 `docs/specs/`. This isolated operator-requested branch is not an admitted queue execution.
+The first enrolled pilot check exited zero but its verbose JSON stdout was secret-screened
+by the local completion recorder, so that check was not qualified. The runner now prints only
+the output directory and experimental pass status; complete result bytes remain in `result.json`.
+The failed check remains recorded and is rerun on the corrected target.
 The task remains open until the verified branch is integrated and the native completion write is
 available. The installed task runtime exposes no submit/gate-run/complete verbs; manual completion
 is not used to bypass that gap. Revert the task-owned runner/docs to roll back; no provider config,
