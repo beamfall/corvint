@@ -377,7 +377,10 @@ containment. Frozen native qualification is recorded in docs/build-log/2026-09-2
 - `CAL-V0-036`: Implement, independent review, repair and integrate MUST be native attempt stages.
   Optional acceptance-relevant `requiredRoles` maps implement/review/integrate to existing runtime
   roles; enabled runtime roles and worker limits govern dispatch. Review MUST bind every acceptance
-  claim, exact candidate tree, distinct holder and distinct host session. Returned work retains
+  claim, exact candidate tree, distinct holder and distinct host session.
+  Initial Core context queries preserve the exact ticket title followed by its canonical ticket ID
+  as one task argument; they add no inferred paths. Combined input exceeding Core's 8000-rune
+  UTF-8 task bound refuses without truncation. READY, freshness and exact-tree checks remain required. Returned work retains
   feedback and candidate; missing or failed required gates MUST block before any target mutation.
 - `CAL-V0-037`: A live owner MUST NOT be stolen. Explicit quiescent owner release or native identity
   proof permits a fenced epoch transfer. Drain, cancel and recovery MUST retain uncertain scope,
