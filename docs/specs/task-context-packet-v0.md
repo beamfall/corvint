@@ -885,6 +885,15 @@ and multi-language promotion are not inferred from that authorization.
   omission. Retain exact Go/gopls versions, binary digests, timing, bytes and fixture commits.
   These synthetic observations do not establish retrieval gain or agent productivity; the
   broader TCP-V0-046 promotion gate remains separate and unrun unless explicitly evidenced.
+- `TCP-V0-054`: (experimental, V1-0482) When Go LSP enrichment has an explicit task subject,
+  its `external.path_relations` MUST place relations touching that path in the bound root
+  repository before other admitted relations, matching either endpoint. Within each group the
+  existing deterministic total relation key MUST order the rows before the existing limit is
+  applied. A same-path endpoint in another repository MUST NOT receive subject priority.
+  Omission counts, endpoint verification, provenance, provider/query bounds and Core packet
+  results/ordering MUST remain unchanged. Without a subject, and for ordinary external-provider
+  projections, the existing order MUST remain unchanged. Priority does not guarantee retention
+  when subject relations themselves exceed the bound, and does not claim task-outcome gain.
 
 ## Non-goals and authority
 
@@ -1221,3 +1230,4 @@ wire never changed.
 | TCP-V0-051 | `parseTaskContextInvocation`, `attachLSPEvidence`, `lspevidence.Executable` | `TestContextLSPExplicitSelection`, `TestContextLSPExecutableRefusesRelativePATH` |
 | TCP-V0-052 | `lspevidence.Attach`, `callContext` | `TestContextLSPDriftWithholdsPacket`, `TestContextLSPPinAndDrift` |
 | TCP-V0-053 | `script/qualify-lsp.py` | required live compiled CLI/MCP module and workspace qualification |
+| TCP-V0-054 | `lspevidence.Attach`, `extevidence.InlineTaskSection`, `addPathRelations` | `TestTaskPathRelationsSubjectBeforeBound`, `TestInlineTaskSectionBoundRootSubject`; public development witnesses and live CLI/MCP parity |

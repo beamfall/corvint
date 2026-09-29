@@ -50,7 +50,7 @@ func Attach(ctx context.Context, index *contextindex.Index, subject string, pack
 		return err
 	}
 	anchors := append(append([]string{}, result.Query["seeds"].([]string)...), result.Origins...)
-	section := extevidence.InlineSection(ctx, index, Source, result.Record, result.Failure, anchors, limit)
+	section := extevidence.InlineTaskSection(ctx, index, Source, result.Record, result.Failure, anchors, subject, limit)
 	section["query"] = result.Query
 	if err := unchanged(ctx, index); err != nil {
 		return err

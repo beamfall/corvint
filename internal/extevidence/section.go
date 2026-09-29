@@ -44,7 +44,7 @@ type provider struct {
 func Section(ctx context.Context, index *contextindex.Index, sources []string, checkouts []Checkout, changedPaths []string, limit int) map[string]any {
 	root := indexRoot(index)
 	providers, repository, bound := loadAll(ctx, root, sources, checkouts)
-	return sectionOf(ctx, root, providers, repository, bound, checkouts, changedPaths, limit)
+	return sectionOf(ctx, root, providers, repository, bound, checkouts, changedPaths, endpoint{}, limit)
 }
 
 // InlineSection composes the section from one record a Core-owned in-process
@@ -52,6 +52,16 @@ func Section(ctx context.Context, index *contextindex.Index, sources []string, c
 // and verification as a file, command or MCP record; a nil record is an
 // unavailable provider row carrying reason, so absence stays visible.
 func InlineSection(ctx context.Context, index *contextindex.Index, source string, data []byte, reason string, changedPaths []string, limit int) map[string]any {
+	return composeInline(ctx, index, source, data, reason, changedPaths, "", limit)
+}
+
+// InlineTaskSection preserves relations touching the explicit root-repository
+// subject before bounding the task's external projection (TCP-V0-054).
+func InlineTaskSection(ctx context.Context, index *contextindex.Index, source string, data []byte, reason string, changedPaths []string, subject string, limit int) map[string]any {
+	return composeInline(ctx, index, source, data, reason, changedPaths, subject, limit)
+}
+
+func composeInline(ctx context.Context, index *contextindex.Index, source string, data []byte, reason string, changedPaths []string, subject string, limit int) map[string]any {
 	root := indexRoot(index)
 	entry := provider{source: source, state: StateUnavailable, reason: reason}
 	if data != nil {
@@ -60,11 +70,15 @@ func InlineSection(ctx context.Context, index *contextindex.Index, source string
 	providers := []provider{entry}
 	repository := repositoryTree(ctx, root, providers)
 	bound := bindV1(ctx, root, providers, nil)
-	return sectionOf(ctx, root, providers, repository, bound, nil, changedPaths, limit)
+	preferred := endpoint{}
+	if subject != "" && providers[0].view != nil {
+		preferred = endpoint{repository: providers[0].view.primary, path: subject}
+	}
+	return sectionOf(ctx, root, providers, repository, bound, nil, changedPaths, preferred, limit)
 }
 
 // sectionOf builds the section from decoded providers against the changed paths.
-func sectionOf(ctx context.Context, root rootRepository, providers []provider, repository tree, bound *bindings, checkouts []Checkout, changedPaths []string, limit int) map[string]any {
+func sectionOf(ctx context.Context, root rootRepository, providers []provider, repository tree, bound *bindings, checkouts []Checkout, changedPaths []string, preferred endpoint, limit int) map[string]any {
 	changed := make(map[string]struct{}, len(changedPaths))
 	for _, path := range changedPaths {
 		changed[path] = struct{}{}
@@ -83,7 +97,7 @@ func sectionOf(ctx context.Context, root rootRepository, providers []provider, r
 	}
 	section := assemble(providers, merged, limit)
 	if hasPathProfile(providers) {
-		addPathRelations(section, merged.paths, limit)
+		addPathRelations(section, merged.paths, preferred, limit)
 	}
 	if bound != nil && len(checkouts) != 0 {
 		section["checkouts"] = bound.checkoutRows(checkoutUse(providers))
@@ -436,8 +450,18 @@ func hasPathProfile(providers []provider) bool {
 
 // addPathRelations adds the bounded, sorted path-to-path items, their omission
 // count, and their untrusted text fields (EEP-V2-004, EEP-V2-005).
-func addPathRelations(section map[string]any, paths []item, limit int) {
-	sort.Slice(paths, func(i, j int) bool { return pathItemKey(paths[i]) < pathItemKey(paths[j]) })
+func addPathRelations(section map[string]any, paths []item, preferred endpoint, limit int) {
+	touches := func(entry item) bool {
+		return preferred.path != "" &&
+			(entry.link.from.repository == preferred.repository && entry.link.from.path == preferred.path ||
+				entry.link.to.repository == preferred.repository && entry.link.to.path == preferred.path)
+	}
+	sort.Slice(paths, func(i, j int) bool {
+		if touches(paths[i]) != touches(paths[j]) {
+			return touches(paths[i])
+		}
+		return pathItemKey(paths[i]) < pathItemKey(paths[j])
+	})
 	kept, omitted := boundItems(paths, limit)
 	section["path_relations"] = kept
 	section["omitted"].(map[string]any)["path_relations"] = omitted

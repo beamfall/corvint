@@ -56,6 +56,12 @@ Use `external.providers` for availability and its reason. `external.path_relatio
 hop provenance and a query digest. Follow those repository paths to the original code. These
 relationships are external evidence, not accepted intent or proof that every dependency was found.
 
+With an explicit `--subject` (or MCP `subject`), the final bounded relation list places edges
+touching that subject first, whether the subject is the caller or the definition. Other edges
+follow in deterministic order. This preserves useful subject evidence within the same output
+limit; subject edges can still exceed that limit, and the provider may omit an edge before
+projection. Without a subject, the existing relation order is retained.
+
 `external.query` reports query counts, failures, omissions and stopping reasons. Expansion is
 bounded to three seed files, two hops, 64 queries, 32 relationships and a 64 KiB provider record.
 There is a 15-second soft query deadline and a 20-second server deadline; total command time also
