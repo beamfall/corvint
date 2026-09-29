@@ -72,7 +72,10 @@ observation-only; a changed command or zombie state cannot imply retirement. The
 must be observed within a fixed five-second monotonic stage, with inventories and sleeps bounded
 by remaining time and polls at most 0.1 seconds. Sampled start/state/command describes lineage;
 it grants no atomic PID-generation or signal authority. Ambiguous lineage or unavailable inventory
-produces UNKNOWN and preserves the cleanup hold. A one-second pre-signal inventory retains initially attributable descendants across parent exit
+produces UNKNOWN and preserves the cleanup hold. Before the one-second pre-signal inventory, cached `Popen.returncode is None` pins the unreaped
+owner without polling under the single-thread/no-other-reaper invariant. Its valid census row is
+required; capture and descendant expansion precede any potentially reaping call. Already-reaped
+numeric PIDs never seed ownership. This inventory retains initially attributable descendants across parent exit
 and command changes; unavailable setup remains UNKNOWN even after direct retirement. Direct TERM/KILL communicate stages each have
 three-second budgets before observation; the 1+3+3+5-second stage composition is not a universal five-second total.
 A surviving indirect child remains a failure. These bounds do not qualify editor interruption.

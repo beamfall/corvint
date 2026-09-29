@@ -61,10 +61,15 @@ def cleanup_owned(proc, d, report):
         report['ownedCleanupPids'] = sorted(owned)
         return {pid:current[pid] for pid in owned if pid in current and pid not in ambiguous}
     setup_error = None
+    # Cached state pins this single-threaded owner's unreaped PID without reaping it.
+    unreaped_owner = proc is not None and proc.returncode is None
     try:
         initial = inventory(timeout=1)
-        if proc is not None and proc.poll() is None and proc.pid in initial: owned[proc.pid] = initial[proc.pid]
         remaining = capture(initial)
+        if unreaped_owner:
+            if proc.pid not in initial: raise ValueError('unreaped owner missing from setup inventory')
+            owned[proc.pid] = initial[proc.pid]
+            remaining = capture(initial)
         report['cleanupPreSignalPids'] = sorted(owned)
     except (OSError,ValueError,subprocess.SubprocessError) as exc:
         setup_error = str(exc)

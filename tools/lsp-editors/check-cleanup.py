@@ -53,7 +53,7 @@ class Owner:
             raise subprocess.TimeoutExpired('owned',timeout)
         if self.held:raise subprocess.TimeoutExpired('held-pipe',timeout)
         self.reaped=True;self.returncode=-9;return b'',b''
-signals=[];h.os.killpg=lambda pid,sig:signals.append((pid,sig));h.inventory=lambda timeout:{}
+signals=[];h.os.killpg=lambda pid,sig:signals.append((pid,sig));h.inventory=lambda timeout:{1001:fact(cmd='/direct-owner')} if not owner.reaped else {}
 owner=Owner();h.cleanup_owned(owner,root,{})
 assert signals==[(1001,signal.SIGTERM),(1001,signal.SIGKILL)]
 signals.clear();owner=Owner(reaped=True);h.cleanup_owned(owner,root,{})
@@ -72,9 +72,9 @@ print('delayed/late/live/ambiguous/timeout cleanup, zero indirect signals, and u
 for disappears in [False,True]:
     phase=[False];clock=[0.0];signals=[]
     class Parent:
-        pid=1001;returncode=0
+        pid=1001;returncode=None
         def poll(self):return 0 if phase[0] else None
-        def communicate(self,timeout):phase[0]=True;return b'',b''
+        def communicate(self,timeout):phase[0]=True;self.returncode=0;return b'',b''
     def snapshots(timeout):
         if not phase[0]:return {1001:fact(cmd='/direct-owner'),1002:fact(parent=1001)}
         if disappears and clock[0]>=.8:return {}
@@ -93,3 +93,47 @@ def failed_setup(timeout):
 h.inventory=failed_setup;r={};h.cleanup_owned(Parent(),root,r)
 assert r['cleanup']=='UNKNOWN' and calls==[1] and r['cleanupHold']==str(root)
 print('pre-signal orphan/changed-command retention and sticky setup UNKNOWN passed')
+
+# Exit before or during census still leaves the cached unreaped identity pinned.
+for pre_exited,disappears in [(False,False),(False,True),(True,False),(True,True)]:
+    calls=[0];clock=[0.0];signals=[]
+    class ExitedUnreaped:
+        pid=1001;returncode=None
+        def __init__(self):self.exited=pre_exited
+        def poll(self):
+            assert self.exited
+            self.returncode=0;return 0
+    def exit_census(timeout):
+        calls[0]+=1
+        if calls[0]==1:
+            owner.exited=True
+            return {1001:fact(cmd='/direct-owner'),1002:fact(parent=1001,cmd='/unscoped-child')}
+        if disappears and clock[0]>=.8:return {}
+        return {1002:fact(parent=1,cmd='(Code)')}
+    h.inventory=exit_census;h.time.monotonic=lambda:clock[0];h.time.sleep=lambda dt:clock.__setitem__(0,clock[0]+dt)
+    h.os.killpg=lambda *args:signals.append(args)
+    owner=ExitedUnreaped();r={};h.cleanup_owned(owner,root,r)
+    assert r['cleanup']==('OWNED_EDITOR_PROCESSES_RETIRED' if disappears else 'OWNED_EDITOR_PROCESS_REMAINS')
+    assert 1002 in r['cleanupPreSignalPids'] and not signals
+# An expected pinned row is mandatory; already-reaped numeric PID grants no lineage.
+for cached,expected in [(None,'UNKNOWN'),(0,'OWNED_EDITOR_PROCESSES_RETIRED')]:
+    class CachedOwner:
+        pid=1001;returncode=cached
+        def poll(self):self.returncode=0;return 0
+    h.inventory=lambda timeout:{1002:fact(parent=1001,cmd='/unrelated-child')}
+    r={};h.cleanup_owned(CachedOwner(),root,r)
+    assert r['cleanup']==expected and not signals
+class ReapedOwner:
+    pid=1001;returncode=0
+    def poll(self):return 0
+h.inventory=lambda timeout:{1001:fact(cmd='/reused-unrelated-owner'),1002:fact(parent=1001,cmd='/unrelated-child')}
+r={};h.cleanup_owned(ReapedOwner(),root,r)
+assert r['cleanup']=='OWNED_EDITOR_PROCESSES_RETIRED' and not r['cleanupPreSignalPids'] and not signals
+print('cached unreaped exit-census retention, missing-owner UNKNOWN, and reaped PID reuse exclusion passed')
+
+class InvalidPinnedOwner:
+    pid=1001;returncode=None
+    def poll(self):self.returncode=0;return 0
+h.inventory=lambda timeout:{1001:fact(start='')}
+r={};h.cleanup_owned(InvalidPinnedOwner(),root,r)
+assert r['cleanup']=='UNKNOWN' and not signals
