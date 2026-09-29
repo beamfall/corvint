@@ -11,7 +11,7 @@ owner choice on 2026-09-28 to quarantine environments until confirmed safe reuse
 sources under `internal/tasks`.
 
 ## Agent digest
-- Claim: Coding agents claim, renew, gate and complete tickets through leased `corvint-tasks` attempts, replacing a repository's own task runner with external leases or an explicitly enabled Codex supervisor.
+- Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
 - Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented, frozen actual qualification pending). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
