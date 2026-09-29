@@ -1,0 +1,390 @@
+{
+  "baseRevision": "624e9aecbf71993d26c57b2e20837282469cb02c",
+  "evidence": [
+    {
+      "blobOid": "a594b8e19be3c0a97fed767f25940ea6eaa6a03a",
+      "id": "evidence:sha256:568e146479b067f83b2f949db5a824f6a1742410807405d84a987cd6430cb2e2",
+      "path": "docs/specs/lsp-quality-platform-v0.md",
+      "span": {
+        "end": 11112,
+        "start": 9949
+      },
+      "spanSha256": "adff547786be530f917e1197c5cdca5a72619f0ca4d11448f84dd3edd94fd8fb"
+    },
+    {
+      "blobOid": "a594b8e19be3c0a97fed767f25940ea6eaa6a03a",
+      "id": "evidence:sha256:bb3a6bdf7b6b15b3835ec21e899fd2fd1260ebc9a2e775abcfedbb774cb2df4d",
+      "path": "docs/specs/lsp-quality-platform-v0.md",
+      "span": {
+        "end": 10837,
+        "start": 7628
+      },
+      "spanSha256": "3d6596b12ed06037b17b82662b30592e49d25b8b44798e2b29e000bec8aab2ff"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:568e146479b067f83b2f949db5a824f6a1742410807405d84a987cd6430cb2e2",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a48630452e3ddc28485de2cec838020d53be8807c5374eba3b4e96b24ff44895",
+      "newRange": {
+        "count": 35,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-29-lsp-editor-bound-evidence.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:568e146479b067f83b2f949db5a824f6a1742410807405d84a987cd6430cb2e2",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:dad019a399a7e7720eb45d8446a400fba97af293f8aa880fa6b7a85632a12a11",
+      "newRange": {
+        "count": 106,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-29-lsp-editor-development-probes.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:568e146479b067f83b2f949db5a824f6a1742410807405d84a987cd6430cb2e2",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7464ca169173257472185f2cb87dd79f8fc97be6c7bc87ed1a8bc6ab2e3a385c",
+      "newRange": {
+        "count": 51,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-29-lsp-editor-review-repair.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:568e146479b067f83b2f949db5a824f6a1742410807405d84a987cd6430cb2e2",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5734a8e4e6c9d7e57c6c81029cf7277828533a5f91ad1a1efa85d7d1ce111e71",
+      "newRange": {
+        "count": 52,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-29-lsp-editor-semantic-development.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:568e146479b067f83b2f949db5a824f6a1742410807405d84a987cd6430cb2e2",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f580f9175e53051674884ad3441040d2f42ba719774a7cb8842dc1c324d6250a",
+      "newRange": {
+        "count": 20,
+        "start": 2570
+      },
+      "oldRange": {
+        "count": 5,
+        "start": 2570
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:568e146479b067f83b2f949db5a824f6a1742410807405d84a987cd6430cb2e2",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0dfa84d2e65bad7fd2c0b58c66f62583e9a85af8ea2a8386dde5e4ef6faf1c39",
+      "newRange": {
+        "count": 7,
+        "start": 6
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 6
+      },
+      "path": "docs/specs/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:568e146479b067f83b2f949db5a824f6a1742410807405d84a987cd6430cb2e2",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9cea195ac841d29cdd4c65a7c35d4b40159ae2a48f832b197e8bd82cb30f30bc",
+      "newRange": {
+        "count": 10,
+        "start": 1390
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 1390
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:568e146479b067f83b2f949db5a824f6a1742410807405d84a987cd6430cb2e2",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e9745d2d597519c6c2b05c21371b6845efc5b87e5e878625b27208b3b00ee0bd",
+      "newRange": {
+        "count": 72,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/specs/lsp-editor-qualification-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:bb3a6bdf7b6b15b3835ec21e899fd2fd1260ebc9a2e775abcfedbb774cb2df4d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d1c6d82ce1a5307ae6c37f6b4cd81d56ab061054cf30abedc043bba49312d0b7",
+      "newRange": {
+        "count": 284,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "script/qualify-lsp-editors.py",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:bb3a6bdf7b6b15b3835ec21e899fd2fd1260ebc9a2e775abcfedbb774cb2df4d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8cafb9dd87188b42bcc0393049673436772740cb0030536b9d1adb10128198af",
+      "newRange": {
+        "count": 48,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "tools/lsp-editors/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:bb3a6bdf7b6b15b3835ec21e899fd2fd1260ebc9a2e775abcfedbb774cb2df4d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:76f72c968c2b239835fe127106a757f08520768f534eb51a2ba0e5bcaad820ad",
+      "newRange": {
+        "count": 56,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "tools/lsp-editors/check-harness.py",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:bb3a6bdf7b6b15b3835ec21e899fd2fd1260ebc9a2e775abcfedbb774cb2df4d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c3def45d41cb5d0c9a181cc46fa27f47cee3078d60945da8e170fdac0354f663",
+      "newRange": {
+        "count": 53,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "tools/lsp-editors/check-proxy.py",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:bb3a6bdf7b6b15b3835ec21e899fd2fd1260ebc9a2e775abcfedbb774cb2df4d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:82ff67374949ffff340b60d2b2641fc0639f5e4de5f72c5e2482631bfe46a1ab",
+      "newRange": {
+        "count": 33,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "tools/lsp-editors/check-semantic.py",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:bb3a6bdf7b6b15b3835ec21e899fd2fd1260ebc9a2e775abcfedbb774cb2df4d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d53702d8177fbe2fe937cc1533cc4352b6f159bc28a2d6cef926c1eb626dc982",
+      "newRange": {
+        "count": 45,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "tools/lsp-editors/extension.js",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:bb3a6bdf7b6b15b3835ec21e899fd2fd1260ebc9a2e775abcfedbb774cb2df4d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:af76abd98839bc18e3b2fe2a309fd697459da5321ac5dfcb1e321ed9f52c11dd",
+      "newRange": {
+        "count": 55,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "tools/lsp-editors/neovim.lua",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:bb3a6bdf7b6b15b3835ec21e899fd2fd1260ebc9a2e775abcfedbb774cb2df4d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:221c08a60a128d39a567d8f3cd5dc85e4c4ffbb06820a8c18fc0c3a0efdea772",
+      "newRange": {
+        "count": 107,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "tools/lsp-editors/vscode-client/package-lock.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:bb3a6bdf7b6b15b3835ec21e899fd2fd1260ebc9a2e775abcfedbb774cb2df4d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:71b18d847541981e7bfdc59d2dda0b650da5322357790259d5b5d433b27af11f",
+      "newRange": {
+        "count": 5,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "tools/lsp-editors/vscode-client/package.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:bb3a6bdf7b6b15b3835ec21e899fd2fd1260ebc9a2e775abcfedbb774cb2df4d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:dfaedf6d57789ad2afd47e8f6502858e0eb1ae67e865679505ac13ddf8236823",
+      "newRange": {
+        "count": 103,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "tools/lsp-editors/wire-proxy.py",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "feb6fdb727db0bd135066289904e8aeb0e0c8871b2ac0c2aaae45aedef13dbfd",
+  "spec": "cem/0.2"
+}
