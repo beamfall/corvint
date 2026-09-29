@@ -1,0 +1,180 @@
+{
+  "baseRevision": "6486abf505203a4161fa6069656c8c89f27aedb3",
+  "evidence": [
+    {
+      "blobOid": "b9b1df38d8c5fe2ee5d631f0997bd1d8977628ba",
+      "id": "evidence:sha256:58670d5a7ae11ffb811e2da178aea912328dc4bdee0034f83fb11d847aa61dad",
+      "path": "docs/specs/lsp-quality-platform-v0.md",
+      "span": {
+        "end": 10189,
+        "start": 9587
+      },
+      "spanSha256": "a9b9523a2b0fdd03e0959ffec800bcd3cbc6347ead76ed3327ddc02d950ef0e9"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:58670d5a7ae11ffb811e2da178aea912328dc4bdee0034f83fb11d847aa61dad",
+          "relation": "implementation"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3f741c6a70203be4bfdb4967501a444c2575b0c646ff2ad73341d5877b3e3eb8",
+      "newRange": {
+        "count": 54,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "benchmarks/lsp-quality/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:58670d5a7ae11ffb811e2da178aea912328dc4bdee0034f83fb11d847aa61dad",
+          "relation": "test-claim"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e5a98c900050dfc5d98dd4f6976d8c65dbe0a9c55075ca88bec1532dc920e31c",
+      "newRange": {
+        "count": 31,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "benchmarks/lsp-quality/public-v0.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:58670d5a7ae11ffb811e2da178aea912328dc4bdee0034f83fb11d847aa61dad",
+          "relation": "test-claim"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:46d28bbb0087e24d93afd2528980c93118c07b27511cc541f9c9f9eb442e3c50",
+      "newRange": {
+        "count": 22,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-29-lsp-public-baseline.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:58670d5a7ae11ffb811e2da178aea912328dc4bdee0034f83fb11d847aa61dad",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0beabdc8d2d0535407cc21290987da5ca3ff33cef99b2b8449306fff5b8f10d3",
+      "newRange": {
+        "count": 10,
+        "start": 2024
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 2024
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:58670d5a7ae11ffb811e2da178aea912328dc4bdee0034f83fb11d847aa61dad",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1968ae72bb15bc13a7208bd968e892de5b86494eea43051e9e3dbc2684a588c8",
+      "newRange": {
+        "count": 7,
+        "start": 57
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 57
+      },
+      "path": "docs/specs/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:58670d5a7ae11ffb811e2da178aea912328dc4bdee0034f83fb11d847aa61dad",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b1f95fa4a50e6b5cbe5b581ce3bb5fd0b3a0938bcb18b77c0ac02ea7ff8f72f3",
+      "newRange": {
+        "count": 7,
+        "start": 23
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 23
+      },
+      "path": "docs/specs/lsp-quality-platform-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:58670d5a7ae11ffb811e2da178aea912328dc4bdee0034f83fb11d847aa61dad",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d254452a9402992ffc6832a3429d625f1426acf30b400ed999d3c085c975668b",
+      "newRange": {
+        "count": 7,
+        "start": 89
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 89
+      },
+      "path": "docs/specs/lsp-quality-platform-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:58670d5a7ae11ffb811e2da178aea912328dc4bdee0034f83fb11d847aa61dad",
+          "relation": "implementation"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:38a2a076b6a126640e986e0344acb81a248224a2428830418fb8136b596015a4",
+      "newRange": {
+        "count": 209,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "script/measure-lsp-quality.py",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "8c58497c33718bcd9a0cb076525f9664e5e28191e4e4bdb9201aab2aba37294b",
+  "spec": "cem/0.2"
+}
