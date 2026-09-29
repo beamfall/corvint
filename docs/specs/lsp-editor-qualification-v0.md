@@ -72,8 +72,9 @@ observation-only; a changed command or zombie state cannot imply retirement. The
 must be observed within a fixed five-second monotonic stage, with inventories and sleeps bounded
 by remaining time and polls at most 0.1 seconds. Sampled start/state/command describes lineage;
 it grants no atomic PID-generation or signal authority. Ambiguous lineage or unavailable inventory
-produces UNKNOWN and preserves the cleanup hold. Direct TERM/KILL communicate stages each have
-three-second budgets before observation; their composition is not a universal five-second total.
+produces UNKNOWN and preserves the cleanup hold. A one-second pre-signal inventory retains initially attributable descendants across parent exit
+and command changes; unavailable setup remains UNKNOWN even after direct retirement. Direct TERM/KILL communicate stages each have
+three-second budgets before observation; the 1+3+3+5-second stage composition is not a universal five-second total.
 A surviving indirect child remains a failure. These bounds do not qualify editor interruption.
 
 ## Failure modes and evidence

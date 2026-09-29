@@ -15,7 +15,8 @@ A fixed5-second monotonic stage samples diagnostic start/state/command, retains 
 candidates until absence, and admits new children only through a currently unchanged sampled parent.
 PID-generation/lineage ambiguity, missing identity or timed-out inventory fails closed as UNKNOWN;
 a lasting live child fails with its hold. Zombies must disappear. Inventories/sleeps use remaining
-budget; new children cannot reset it. Existing3s+3s direct stages compose with observation and do
+budget; new children cannot reset it. A bounded1s pre-signal inventory retains attributable children before directTERM/drain; missing
+setup is sticky UNKNOWN. Existing3s+3s direct stages compose with5s observation and do
 not establish a universal aggregate5-second promise.
 
 The fresh cleanup worktree retains approved public-stack base `e9277132`; current origin/main

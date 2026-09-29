@@ -39,48 +39,60 @@ def signal_owned_group(proc, sig):
     return True
 
 def cleanup_owned(proc, d, report):
+    owned = {}; ambiguous = set(); observations = []; remaining = {}
+    report['cleanupObservations'] = observations
+    def capture(current):
+        for pid, fact in current.items():
+            if type(pid) is not int or pid<1 or not isinstance(fact,dict) or not isinstance(fact.get('start'),str) or not fact['start'] or not isinstance(fact.get('state'),str) or not fact['state'] or type(fact.get('parent')) is not int or not isinstance(fact.get('command'),str):
+                raise ValueError('process identity unavailable')
+            if pid in owned and fact['start'] != owned[pid]['start']: ambiguous.add(pid)
+            scoped = str(d) in fact['command'] and (fact['command'].startswith('/Applications/Visual Studio Code.app/') or str(ROOT / 'tools/lsp-editors/wire-proxy.py') in fact['command'])
+            if scoped and pid not in ambiguous: owned.setdefault(pid,fact)
+        while True:
+            added = {}
+            for pid, fact in current.items():
+                parent = fact['parent']
+                if pid not in owned and parent in owned and (parent not in current or parent in ambiguous or current[parent]['start']!=owned[parent]['start'] or current[parent]['command']!=owned[parent]['command']):
+                    ambiguous.add(pid)
+                if pid not in owned and parent in owned and parent in current and parent not in ambiguous and current[parent]['start']==owned[parent]['start'] and current[parent]['command']==owned[parent]['command']:
+                    added[pid]=fact
+            if not added: break
+            owned.update(added)
+        report['ownedCleanupPids'] = sorted(owned)
+        return {pid:current[pid] for pid in owned if pid in current and pid not in ambiguous}
+    setup_error = None
+    try:
+        initial = inventory(timeout=1)
+        if proc is not None and proc.poll() is None and proc.pid in initial: owned[proc.pid] = initial[proc.pid]
+        remaining = capture(initial)
+        report['cleanupPreSignalPids'] = sorted(owned)
+    except (OSError,ValueError,subprocess.SubprocessError) as exc:
+        setup_error = str(exc)
     if signal_owned_group(proc, signal.SIGTERM):
         try: out, err = proc.communicate(timeout=3)
         except subprocess.TimeoutExpired:
             signal_owned_group(proc, signal.SIGKILL)
             out, err = proc.communicate(timeout=3)
         report.update(exitCode=proc.returncode, stdout=out.decode(errors='replace')[-8192:], stderr=err.decode(errors='replace')[-8192:])
+    if setup_error is not None:
+        report.update(cleanup='UNKNOWN',cleanupError=setup_error,cleanupHold=str(d),remainingOwnedProcesses={pid:fact['command'] for pid,fact in owned.items()})
+        return
     started = time.monotonic(); deadline = started + 5
-    owned = {}; observations = []; ambiguous = set(); remaining = {}
-    report['cleanupObservations'] = observations
     try:
         while True:
             budget = deadline - time.monotonic()
             if budget <= 0: break
             current = inventory(timeout=budget)
             if time.monotonic() > deadline: raise subprocess.TimeoutExpired('process inventory', budget)
-            for pid, fact in current.items():
-                if type(pid) is not int or pid<1 or not isinstance(fact,dict) or not isinstance(fact.get('start'),str) or not fact['start'] or not isinstance(fact.get('state'),str) or not fact['state'] or type(fact.get('parent')) is not int or not isinstance(fact.get('command'),str):
-                    raise ValueError('process identity unavailable')
-                if pid in owned and fact['start'] != owned[pid]['start']: ambiguous.add(pid)
-                scoped = str(d) in fact['command'] and (fact['command'].startswith('/Applications/Visual Studio Code.app/') or str(ROOT / 'tools/lsp-editors/wire-proxy.py') in fact['command'])
-                if scoped and pid not in ambiguous: owned.setdefault(pid,fact)
-            # Expand only through a currently observed, unchanged sampled parent.
-            while True:
-                added = {}
-                for pid, fact in current.items():
-                    parent = fact['parent']
-                    if pid not in owned and parent in owned and (parent not in current or parent in ambiguous or current[parent]['start']!=owned[parent]['start'] or current[parent]['command']!=owned[parent]['command']):
-                        ambiguous.add(pid)
-                    if pid not in owned and parent in owned and parent in current and parent not in ambiguous and current[parent]['start']==owned[parent]['start'] and current[parent]['command']==owned[parent]['command']:
-                        added[pid]=fact
-                if not added: break
-                owned.update(added)
-            remaining = {pid:current[pid] for pid in owned if pid in current and pid not in ambiguous}
+            remaining = capture(current)
             observations.append({'elapsedSeconds':round(time.monotonic()-started,3), 'owned':{pid:{'parent':f['parent'],'start':f['start'],'state':f['state'],'command':f['command'][:512]} for pid,f in remaining.items()}, 'ambiguousPids':sorted(ambiguous)})
             if ambiguous: raise ValueError('sampled process identity changed')
             if not remaining: break
             time.sleep(min(.1,max(0,deadline-time.monotonic())))
-        report['ownedCleanupPids'] = sorted(owned)
         report['remainingOwnedProcesses'] = {pid:fact['command'] for pid,fact in remaining.items()}
         report['cleanup'] = 'OWNED_EDITOR_PROCESSES_RETIRED' if not remaining else 'OWNED_EDITOR_PROCESS_REMAINS'
     except (OSError,ValueError,subprocess.SubprocessError) as exc:
-        report.update(cleanup='UNKNOWN',cleanupError=str(exc),ownedCleanupPids=sorted(owned),remainingOwnedProcesses={pid:fact['command'] for pid,fact in owned.items()})
+        report.update(cleanup='UNKNOWN',cleanupError=str(exc),remainingOwnedProcesses={pid:fact['command'] for pid,fact in owned.items()})
     if report['cleanup'] != 'OWNED_EDITOR_PROCESSES_RETIRED': report['cleanupHold'] = str(d)
 
 def validate_wire(rows, server_digest, root_uri):
