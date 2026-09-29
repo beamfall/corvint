@@ -46,3 +46,13 @@ private fixture workspace. The fixture module declares Go 1.27.1. Its unsaved em
 buffer is applied through the actual editor; no save occurs. The report validates the definition
 URI and negotiated position plus didOpen/full-text didChange and unchanged disk. This observed
 witness does not qualify general Unicode, rapid edits, stale responses or semantic outcomes.
+
+The separate `--context-development` mode calls only experimental `corvint/context` after an
+actual unsaved buffer change. Use the same explicit server/root/provider arguments as the semantic
+example. It creates and commits a fixed offline Go fixture, root/nested AGENTS, numbered SPEC and
+test in its own canonical temporary workspace; no client-provided command executes. The validator
+checks ordered open/change/query/reply, matching current URI/version/text digest, separate overlay
+identity, exact Core bridge schema and actual Git commit/tree/blob/fixture-content witnesses.
+The fixture must stay unchanged. ABSTAINED is retained but fails this expected proof. Raw reports
+contain private paths and remain local. Only the relative-path summary is publication suitable;
+no tuple or whole-session freshness/monotonicity claim is promoted from a single request.

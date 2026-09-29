@@ -1392,8 +1392,9 @@ LCP-V0-014	docs/specs/local-completion-policy-v0.md	248	`finish` MUST run the da
 LCP-V0-015	docs/specs/local-completion-policy-v0.md	261	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
 LEQ-V0-001	docs/specs/lsp-editor-qualification-v0.md	35	The harness MUST use the actual selected editor and explicit server executable,
 LEQ-V0-002	docs/specs/lsp-editor-qualification-v0.md	36	Editor state MUST be disposable and isolated from user configuration. Owned serv
-LEQ-V0-003	docs/specs/lsp-editor-qualification-v0.md	38	Unicode, rapid edits, multiple roots, stale responses, provider crashes, descend
+LEQ-V0-003	docs/specs/lsp-editor-qualification-v0.md	39	Unicode, rapid edits, multiple roots, stale responses, provider crashes, descend
 LEQ-V0-004	docs/specs/lsp-editor-qualification-v0.md	37	Semantic development mode MUST bind one actual unsaved Unicode definition to its
+LEQ-V0-005	docs/specs/lsp-editor-qualification-v0.md	38	Context development probes MUST verify exact ordered current-overlay wire bindin
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	1309	Every displayed metric and source-derived value MUST derive through the compiled
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	1313	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	1316	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the

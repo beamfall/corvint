@@ -35,6 +35,7 @@ not frozen product resource or promotion floors.
 - `LEQ-V0-001`: The harness MUST use the actual selected editor and explicit server executable, report their identities and client observations, require an untruncated, ordered initialize/result/initialized/shutdown/result/exit exchange with root, encoding, configured server digest and proxy group retirement for successful exit, retain nonzero failure outcomes, and mark every tuple UNQUALIFIED.
 - `LEQ-V0-002`: Editor state MUST be disposable and isolated from user configuration. Owned server groups MUST be retired on EOF or interruption. INT/TERM, exceptions and malformed evidence MUST still retire owned processes and preserve a report or original cleanup hold. Cleanup gaps MUST be reported and MUST prevent a successful probe result; an ordinary successful lifecycle MUST NOT imply crash/interruption conformance.
 - `LEQ-V0-004`: Semantic development mode MUST bind one actual unsaved Unicode definition to its exact negotiated position encoding and wire transcript, verify disk remains unchanged, and preserve UNQUALIFIED status and all unrun cases.
+- `LEQ-V0-005`: Context development probes MUST verify exact ordered current-overlay wire binding, immutable Core packet evidence against the fixed fixture Git objects and bytes, unchanged fixture disk/repository, and separate non-Git overlay identity. ABSTAINED MUST remain visible without passing the expected governance fixture; no qualification or authority may be inferred from the mode flag.
 - `LEQ-V0-003`: Unicode, rapid edits, multiple roots, stale responses, provider crashes, descendant interruption, semantic outcomes and resource distributions MUST remain NOT_RUN until separately witnessed against the exact tuple. No method may be qualified by its mere presence in initialize.
 
 The optional `--semantic-development` mode exercises one exact development witness in a private Go
@@ -45,6 +46,19 @@ actual didOpen/full-text didChange/request/result bytes, the client unsaved-buff
 disk. Explicit `{workspace}` server arguments resolve to this private root. It neither negotiates
 nor infers wider method support. Broader Unicode, edit freshness, outcomes and qualification remain
 NOT_RUN and every tuple UNQUALIFIED.
+
+The optional `--context-development` mode is a separate one-request probe of the closed namespaced
+`corvint/context` request. It builds a tiny tracked Go fixture with root/nested AGENTS, numbered
+SPEC and test using fixed offline Git commands, never client-supplied shell or source commands.
+Actual clients change the unsaved buffer and request `{textDocument:{uri},task,limit:20}`.
+The exact experimental marker is `corvintContext:{method:"corvint/context",schema:"corvint-editor-context/0"}`.
+The result's intact Core bridge envelope must remain separate from the opaque session/capture,
+URI/version/SHA256 overlay observation. Validator evidence joins packet commit/tree/blob identities
+to actual Git objects and expected fixture bytes, and requires the nested governance/spec/test
+witnesses. ABSTAINED is preserved as an observed response and fails the expected fixture proof.
+One capture can check capture identity format/positivity, not establish whole-session monotonicity.
+Private raw paths stay local; the publishable development summary uses repository-relative paths.
+All tuples remain UNQUALIFIED and actual context clients remain NOT_RUN until reviewed server execution.
 
 ## Failure modes and evidence
 

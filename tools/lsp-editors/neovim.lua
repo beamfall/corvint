@@ -18,7 +18,20 @@ local id = vim.lsp.start({
     report.root = client.config.root_dir
     report.status = 'INITIALIZED'
     write()
-    if vim.env.CORVINT_EDITOR_SEMANTIC == '1' then
+    if vim.env.CORVINT_EDITOR_CONTEXT == '1' then
+      vim.defer_fn(function()
+        vim.api.nvim_buf_set_lines(buffer, 0, -1, false, {'package p', '/*😀*/ var x int', 'var y = x'})
+        vim.defer_fn(function()
+          client:request('corvint/context', {textDocument = {uri = vim.uri_from_bufnr(buffer)}, task = vim.env.CORVINT_EDITOR_CONTEXT_TASK, limit = 20},
+            function(err, receipt, context)
+              vim.schedule(function()
+                report.context = {error = err, result = receipt, version = context.version, bufferModified = vim.bo[buffer].modified}
+                write(); client:stop()
+              end)
+            end, buffer)
+        end, 200)
+      end, 200)
+    elseif vim.env.CORVINT_EDITOR_SEMANTIC == '1' then
       vim.defer_fn(function()
         vim.api.nvim_buf_set_lines(buffer, 0, -1, false, {'package p', '/*😀*/ var x int', 'var y = x'})
         vim.defer_fn(function()

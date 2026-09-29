@@ -3,6 +3,7 @@
 """Run actual editor clients in disposable state; never infer full qualification."""
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -148,13 +149,18 @@ def main():
     p.add_argument('--timeout', type=int, default=20)
     p.add_argument('--self-check', action='store_true')
     p.add_argument('--semantic-development', action='store_true', help='One unsaved Unicode definition observation; not qualification')
+    p.add_argument('--context-development', action='store_true', help='One Git-bound corvint/context observation; not qualification')
     a = p.parse_args()
+    if a.context_development and a.semantic_development: p.error('select only one development mode')
+    context_spec = importlib.util.spec_from_file_location('context_probe', ROOT / 'tools/lsp-editors/context-probe.py')
+    context_probe = importlib.util.module_from_spec(context_spec); context_spec.loader.exec_module(context_probe)
     if a.self_check:
         assert (ROOT / 'tools/lsp-editors/neovim.lua').is_file()
         assert (ROOT / 'tools/lsp-editors/extension.js').is_file()
         subprocess.run([sys.executable, str(ROOT / 'tools/lsp-editors/check-proxy.py')], check=True)
         subprocess.run([sys.executable, str(ROOT / 'tools/lsp-editors/check-harness.py')], check=True)
         subprocess.run([sys.executable, str(ROOT / 'tools/lsp-editors/check-semantic.py')], check=True)
+        subprocess.run([sys.executable, str(ROOT / 'tools/lsp-editors/check-context.py')], check=True)
         print('harness assets present; actual editor qualification NOT_RUN')
         return 0
     if not a.client or not a.server or not a.report or not 1 <= a.timeout <= 120:
@@ -168,7 +174,7 @@ def main():
               'client': a.client, 'clientExecutableSha256': digest(client),
               'harnessCommit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
               'harnessSha256': digest(__file__),
-              'harnessAssetsSha256': {name: digest(ROOT / 'tools/lsp-editors' / name) for name in ['wire-proxy.py', 'neovim.lua', 'extension.js']},
+              'harnessAssetsSha256': {name: digest(ROOT / 'tools/lsp-editors' / name) for name in ['wire-proxy.py', 'neovim.lua', 'extension.js', 'context-probe.py']},
               'harnessWorktreeDirty': bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT, text=True)),
               'serverSourceClaim': {'commit': a.server_source_commit, 'binding': 'NOT_PROVEN'},
               'serverExecutableSha256': digest(server), 'serverArgv': [str(server)] + a.server_arg,
@@ -184,6 +190,7 @@ def main():
     d = Path(tempfile.mkdtemp(prefix='corvint-editor-')).resolve()
     result, wire = d / 'client-result.json', d / 'wire.jsonl'
     proc = None
+    context_before = None
     report['temporaryDirectory'] = str(d)
     def interrupted(signum, frame):
         raise HarnessInterrupted('harness interrupted by signal ' + str(signum))
@@ -193,6 +200,12 @@ def main():
         document = workspace / 'main.go'
         disk_text = 'package p\nvar disk int\n' if a.semantic_development else 'package main\nfunc main() {}\n'
         document.write_text(disk_text)
+        if a.context_development:
+            document.unlink()
+            context_before = context_probe.fixture(workspace)
+            report['contextFixtureBefore'] = context_before
+            document = workspace / 'pkg/main.go'
+            disk_text = context_probe.FILES['pkg/main.go']
         if a.semantic_development: (workspace / 'go.mod').write_text('module example.com/corvint/editorprobe\n\ngo 1.27.1\n')
         result = d / 'client-result.json'
         env = os.environ.copy()
@@ -203,7 +216,7 @@ def main():
         server_argv = [sys.executable, str(ROOT / 'tools/lsp-editors/wire-proxy.py'), str(wire), str(server)] + resolved_args
         env.update(CORVINT_EDITOR_RESULT=str(result), CORVINT_EDITOR_ROOT=str(workspace),
                    CORVINT_EDITOR_DOCUMENT=str(document), CORVINT_EDITOR_TIMEOUT_MS=str(a.timeout * 1000),
-                   CORVINT_EDITOR_SERVER_ARGV=json.dumps(server_argv), CORVINT_EDITOR_SEMANTIC='1' if a.semantic_development else '0')
+                   CORVINT_EDITOR_SERVER_ARGV=json.dumps(server_argv), CORVINT_EDITOR_SEMANTIC='1' if a.semantic_development else '0', CORVINT_EDITOR_CONTEXT='1' if a.context_development else '0', CORVINT_EDITOR_CONTEXT_TASK=context_probe.TASK)
         for key in ['XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_STATE_HOME', 'XDG_CACHE_HOME']:
             env[key] = str(d / key)
         if a.client == 'neovim':
@@ -261,6 +274,15 @@ def main():
         try: report['wireEvidence'] = validate_wire(report['wireTranscript'], report['serverExecutableSha256'], (d / 'workspace').as_uri())
         except (AttributeError, TypeError, ValueError) as exc: report['wireEvidence'] = {'valid': False, 'errors': ['invalid-wire-structure: ' + str(exc)]}
         report['cases']['initialize-lifecycle-root-encoding'] = report['observation']
+        if a.context_development:
+            try:
+                if context_before is None: raise ValueError('context fixture setup incomplete')
+                context_after = context_probe.snapshot(workspace)
+                report['contextFixtureAfter'] = context_after
+                report['contextDevelopment'] = context_probe.validate(report['wireTranscript'], report['observation'], document.as_uri(), context_before, context_after)
+            except (OSError, AttributeError, KeyError, TypeError, ValueError, subprocess.SubprocessError) as exc:
+                report['contextDevelopment'] = {'valid': False, 'errors': ['invalid-context-evidence: ' + str(exc)]}
+            report['cases']['governing-context-development'] = report['contextDevelopment']
         if a.semantic_development:
             try:
                 report['semanticDevelopment'] = validate_semantic(report['wireTranscript'], report['observation'], document.as_uri(), document.read_text() == disk_text)
@@ -278,6 +300,7 @@ def main():
                  report['observation'].get('status') == 'LIFECYCLE_OBSERVED' and report.get('exitCode') == 0 and
                  report['cleanup'] == 'OWNED_EDITOR_PROCESSES_RETIRED' and report['wireEvidence']['valid'] and
                  (not a.semantic_development or report['semanticDevelopment']['valid']) and
+                 (not a.context_development or report['contextDevelopment']['valid']) and
                  report.get('serverExecutableSha256AfterRun') == report['serverExecutableSha256']) else 1
 
 if __name__ == '__main__':

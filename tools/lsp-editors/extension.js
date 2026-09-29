@@ -23,6 +23,16 @@ exports.activate = async function () {
     report.root = vscode.workspace.workspaceFolders[0].uri.toString();
     const document = await vscode.workspace.openTextDocument(process.env.CORVINT_EDITOR_DOCUMENT);
     await vscode.window.showTextDocument(document);
+    if (process.env.CORVINT_EDITOR_CONTEXT === '1') {
+      const edit = new vscode.WorkspaceEdit();
+      edit.replace(document.uri, new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length)),
+        'package p\n/*😀*/ var x int\nvar y = x\n');
+      if (!await vscode.workspace.applyEdit(edit)) throw new Error('unsaved context fixture edit rejected');
+      await new Promise(resolve => setTimeout(resolve, 200));
+      const result = await client.sendRequest('corvint/context', {textDocument: {uri: document.uri.toString()}, task: process.env.CORVINT_EDITOR_CONTEXT_TASK, limit: 20});
+      report.context = {result, bufferModified: document.isDirty, version: document.version};
+      await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
+    }
     if (process.env.CORVINT_EDITOR_SEMANTIC === '1') {
       const edit = new vscode.WorkspaceEdit();
       edit.replace(document.uri, new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length)),
