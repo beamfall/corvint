@@ -1,0 +1,110 @@
+{
+  "baseRevision": "39ce4c57e0eec0dbf83f35c370986268594337f5",
+  "evidence": [
+    {
+      "blobOid": "91df7aec5cab4bdf6ea2816a6fc10d41f7b6e2d1",
+      "id": "evidence:sha256:a561233b9723b92c23b910193077443661958d7d7ea62779a70b987951877b6c",
+      "path": "docs/specs/use-case-conformance-v0.md",
+      "span": {
+        "end": 9085,
+        "start": 7991
+      },
+      "spanSha256": "c1960f3b77b20a3a5a88c624b756b772439e8bd899e34b28af9d905c9040d6b9"
+    },
+    {
+      "blobOid": "1862a80fbf50b3376a2dfdb17a05a3a31b0d3a29",
+      "id": "evidence:sha256:d6004ea9e9f5bd45832d15d1d51d84d211b4e1a1df9fc030a92ba4fd483a1dd3",
+      "path": "docs/SPEC-DRIVEN-DEVELOPMENT.md",
+      "span": {
+        "end": 1980,
+        "start": 1317
+      },
+      "spanSha256": "9f8552bcf48eb852e8fb660a0e2dfd20d28bcd300c21ea023387668f6316bc4e"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a561233b9723b92c23b910193077443661958d7d7ea62779a70b987951877b6c",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1e3a6861ae0818331bd636668a1198428b8841c84afa8d7c758540fe156d4904",
+      "newRange": {
+        "count": 7,
+        "start": 188
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 188
+      },
+      "path": "conformance/use-cases-v0/ledger.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a561233b9723b92c23b910193077443661958d7d7ea62779a70b987951877b6c",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8506ae146f060c3dcbf4f6780322b880df56a93deeb6fe73391a8a19a72b7506",
+      "newRange": {
+        "count": 7,
+        "start": 6
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 6
+      },
+      "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/implementation.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a561233b9723b92c23b910193077443661958d7d7ea62779a70b987951877b6c",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:846bd7238eb4c5592c01776d853d5e621882695860665eef7c0eafd92c19190a",
+      "newRange": {
+        "count": 7,
+        "start": 20
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 20
+      },
+      "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/implementation.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d6004ea9e9f5bd45832d15d1d51d84d211b4e1a1df9fc030a92ba4fd483a1dd3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:baa6d85e387473c26b49c25ed52c892be70da0c6f566edd46d2efbc98b866ebe",
+      "newRange": {
+        "count": 7,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-29-lsp-receipt-repair.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "65bc80cea03d68f5c71244973fa495da01bf32fe0bb68dece3ab6296e5373709",
+  "spec": "cem/0.2"
+}
