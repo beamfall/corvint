@@ -62,13 +62,13 @@
       "validation": "native-static-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.7.2",
+      "adapterVersion": "0.7.3",
       "documentedAgainstHostVersion": "2.0.18",
       "fullSupport": "external-dependent",
       "host": "opencode",
-      "hostVersion": "2.0.18",
-      "hostVersionEvidence": "local-plugin-load-and-stub-turn; evidence-not-committed",
-      "hostVersionEvidenceAdapterVersion": "unknown",
+      "hostVersion": "2.0.19",
+      "hostVersionEvidence": "opencode-native-integration/1 exact local qualification; task evidence retained",
+      "hostVersionEvidenceAdapterVersion": "0.7.3",
       "hostForcedRuntime": {
         "name": "node",
         "versionRange": ">=20"
@@ -81,7 +81,7 @@
       "surface": "plugin",
       "status": "FALLBACK",
       "tier": "companion",
-      "validation": "adapter-fixtures-only"
+      "validation": "adapter-fixtures-plus-exact-native-qualification"
     },
     {
       "adapterVersion": "0.2.0",

@@ -542,6 +542,15 @@ do not reinterpret this Frontier result.
   authority is `NONE`, Frontier is `UNAVAILABLE`, and enforcement/continuation is not provided.
   This does not qualify protected lifecycle, admit an authority root, or change Core semantics.
 
+  Adapter 0.7.3 admits an exact qualification campaign for host versions in the closed compatibility
+  range `>=2.0.18 <2.1.0`. This range permits the producer to test a host; it does not transfer a
+  record between versions or executable images. The producer MUST derive the actual host version
+  from the executable, require the setup callback to report that same version, and bind the passing
+  record to the exact version and executable digest. A compatible host without that record remains
+  `UNQUALIFIED` and reports the qualification action. An earlier version, a 2.1-or-later version,
+  malformed version output, missing record, or drifted record MUST fail closed without running the
+  campaign from a status/read command.
+
   For this profile, AHI-006 pre-completion enforcement is unavailable. Cases 6 and 10 mean an advisory frontier observation at the strongest available
   native post-execution completion event and bounded duplicate/recursive invocation suppression. A host that
   cannot await continuation MUST disclose that limitation and retain the negative continuation
@@ -708,7 +717,7 @@ do not reinterpret this Frontier result.
 | Codex IDE | `codex` (shared host; separate surface status) | standalone Codex integration | standalone skill, shared MCP, supported hooks | plugins are unavailable; never inherit CLI/Desktop status |
 | Claude Code | `claude-code` | Claude Code plugin | skills, hooks, MCP | publish minimum/maximum tested plugin API versions; `PreCompact`/`PostCompact` pin hooks verified against 2.1.267 only, live cycle `NOT_RUN` |
 | Gemini CLI | `gemini-cli` | Gemini CLI extension | context file, commands, skills, hooks, MCP | validate extension environment filtering and hook schemas |
-| OpenCode | `opencode` | OpenCode 2 plugin (`@corvint/opencode` 0.3.0 and later, OpenCode `^2.0.18`; 1.x unsupported) | stable `session.created`/`session.execution.*`/`session.deleted` events, `tool.hook("execute.after")`, plugin tools, MCP `mcp.servers`; beta `session.hook("context")` isolated | legacy receipts remain `FALLBACK`; native integration qualification uses AHI-032 |
+| OpenCode | `opencode` | OpenCode 2 plugin (`@corvint/opencode` 0.3.0 and later; adapter 0.7.3 admits exact campaigns for `>=2.0.18 <2.1.0`; 1.x unsupported) | stable `session.created`/`session.execution.*`/`session.deleted` events, `tool.hook("execute.after")`, plugin tools, MCP `mcp.servers`; beta `session.hook("context")` isolated | legacy receipts remain `FALLBACK`; native integration qualification uses AHI-032 |
 | Pi | `pi` (experimental; AHI-024) | Pi extension | native session/tool lifecycle plus Corvint protocol | claim only the Pi releases in the tested matrix |
 | DeepSeek Harness | not admitted | Cordis plugin | services/events and append-only trajectory observations | treat developer-preview API changes as adapter changes |
 
@@ -800,7 +809,7 @@ there, which is the whole of what the row asserts.
 | `invalid-repository-root` | `internal/gokernel/harness.go:376` | "cannot resolve repository root" |
 | `malformed-corvint-output` | `cmd/corvint/host_adapter.go:657@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
 | `project-root-unavailable` | `cmd/corvint/host_adapter.go:327@2100b4c9` | Claude adapter: the project root (`CLAUDE_PROJECT_DIR`, else the working directory) cannot be made absolute; the degraded `systemMessage` names this reason |
-| `qualification-in-progress` | `internal/opencodequalification/record.go:366@c5ab6d80` | AHI-032: the producer atomically writes the active record as `INCOMPLETE` after preserving any previous record; integration support stays `UNQUALIFIED` until complete passing evidence replaces it |
+| `qualification-in-progress` | `internal/opencodequalification/record.go:406` | AHI-032: the producer atomically writes the active record as `INCOMPLETE` after preserving any previous record; integration support stays `UNQUALIFIED` until complete passing evidence replaces it |
 | `repository-identity-malformed` | `internal/gokernel/repository.go:178` | "Git object identity is malformed" |
 | `repository-probe-cancelled` | `internal/gokernel/repository.go:167` | "Git repository probe was cancelled" |
 | `repository-probe-timeout` | `internal/gokernel/repository.go:165` | "Git repository probe exceeded its 10-second deadline" |

@@ -148,6 +148,54 @@ func TestArchitecture(t *testing.T) {
 	})
 }
 
+func TestSupportedHostVersion(t *testing.T) {
+	t.Run("AHI-009 AHI-032 bounded OpenCode 2.0 compatibility", func(t *testing.T) {
+		for _, in := range []string{"opencode v2.0.18\n", "2.0.19", "2.0.999"} {
+			if _, e := ParseSupportedHostVersion(in); e != nil {
+				t.Fatalf("%q: %v", in, e)
+			}
+		}
+		for _, in := range []string{"2.0.17", "2.1.0", "1.18.31", "2.0.19-beta", "2.0.019", "02.00.19", "2.0.9999999999999999999", "unknown"} {
+			if _, e := ParseSupportedHostVersion(in); e == nil {
+				t.Fatalf("accepted unsupported version %q", in)
+			}
+		}
+	})
+}
+
+func TestQualificationRequiresCleanCheckout(t *testing.T) {
+	t.Run("AHI-032 dirty and mixed checkouts remain unqualified", func(t *testing.T) {
+		root := t.TempDir()
+		ctx := context.Background()
+		for _, args := range [][]string{{"git", "init", "-q"}, {"git", "config", "user.name", "Qualification"}, {"git", "config", "user.email", "qualification@example.invalid"}} {
+			if _, e := capture(ctx, root, nil, args); e != nil {
+				t.Fatal(e)
+			}
+		}
+		tracked := filepath.Join(root, "tracked.txt")
+		if e := os.WriteFile(tracked, []byte("clean\n"), 0600); e != nil {
+			t.Fatal(e)
+		}
+		for _, args := range [][]string{{"git", "add", "tracked.txt"}, {"git", "commit", "-qm", "fixture"}} {
+			if _, e := capture(ctx, root, nil, args); e != nil {
+				t.Fatal(e)
+			}
+		}
+		if e := requireCleanCheckout(ctx, root); e != nil {
+			t.Fatal(e)
+		}
+		if e := os.WriteFile(tracked, []byte("dirty\n"), 0600); e != nil {
+			t.Fatal(e)
+		}
+		if e := os.WriteFile(filepath.Join(root, "untracked.txt"), []byte("mixed\n"), 0600); e != nil {
+			t.Fatal(e)
+		}
+		if e := requireCleanCheckout(ctx, root); e == nil || !strings.Contains(e.Error(), "clean committed checkout") {
+			t.Fatalf("dirty checkout admitted: %v", e)
+		}
+	})
+}
+
 func TestProducerConsumer(t *testing.T) {
 	t.Run("GOC-V0-008 AHI-032 Go producer to Node consumer", func(t *testing.T) {
 		root := t.TempDir()
@@ -184,7 +232,8 @@ func TestProducerConsumer(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		id.Tuple = map[string]string{"adapterVersion": str(manifest["version"]), "hostVersion": "2.0.18", "os": runtime.GOOS, "architecture": arch}
+		id.Tuple = map[string]string{"adapterVersion": str(manifest["version"]), "hostVersion": "2.0.19", "os": runtime.GOOS, "architecture": arch}
+		n["hostVersion"] = "2.0.19"
 		for k, v := range identityFields(id) {
 			n[k] = v
 		}
@@ -203,9 +252,12 @@ func TestProducerConsumer(t *testing.T) {
 		module, _ := jsonBytes(filepath.Join(pkg, "src/qualification.js"))
 		rootJSON, _ := jsonBytes(root)
 		nodeJSON, _ := jsonBytes(node)
-		program := `import {pathToFileURL} from 'node:url'; const {qualificationStatus}=await import(pathToFileURL(` + string(module) + `).href); console.log(JSON.stringify(await qualificationStatus({hostVersion:'2.0.18',corvintBinary:` + string(nodeJSON) + `,environment:process.env,root:` + string(rootJSON) + `})))`
-		status := func() Object {
-			out, e := capture(ctx, root, nil, []string{node, "--input-type=module", "-e", program})
+		program := func(version string) string {
+			versionJSON, _ := jsonBytes(version)
+			return `import {pathToFileURL} from 'node:url'; const {qualificationStatus}=await import(pathToFileURL(` + string(module) + `).href); console.log(JSON.stringify(await qualificationStatus({hostVersion:` + string(versionJSON) + `,corvintBinary:` + string(nodeJSON) + `,environment:process.env,root:` + string(rootJSON) + `})))`
+		}
+		status := func(version string) Object {
+			out, e := capture(ctx, root, nil, []string{node, "--input-type=module", "-e", program(version)})
 			if e != nil {
 				t.Fatal(e)
 			}
@@ -215,15 +267,24 @@ func TestProducerConsumer(t *testing.T) {
 			}
 			return x
 		}
-		got := status()
+		got := status("2.0.19")
 		if got["integrationSupport"] != "FULL" || got["executionAuthority"] != "NONE" || got["frontier"] != "UNAVAILABLE" || got["legacyReceiptSupport"] != "FALLBACK" {
 			t.Fatal(got)
+		}
+		if got["supportedHostRange"] != SupportedHostRange || got["hostVersion"] != "2.0.19" {
+			t.Fatal(got)
+		}
+		for _, version := range []string{"2.1.0", "2.0.019", "02.00.19", "2.0.9999999999999999999", "2.0.19-beta"} {
+			unsupported := status(version)
+			if unsupported["integrationSupport"] != "UNQUALIFIED" || unsupported["reason"] != "unsupported-host-version" || !strings.Contains(str(unsupported["qualificationAction"]), "go run ./tools/qualify-opencode") {
+				t.Fatalf("%s: %v", version, unsupported)
+			}
 		}
 		record["hostSHA256"] = strings.Repeat("0", 64)
 		if e := writeRecord(ctx, p, record, nil); e != nil {
 			t.Fatal(e)
 		}
-		if status()["integrationSupport"] != "UNQUALIFIED" {
+		if status("2.0.19")["integrationSupport"] != "UNQUALIFIED" {
 			t.Fatal("changed image qualified")
 		}
 		record["hostSHA256"] = id.HostSHA256
@@ -233,7 +294,7 @@ func TestProducerConsumer(t *testing.T) {
 		if e := os.WriteFile(filepath.Join(pkg, "README.md"), []byte("changed"), 0600); e != nil {
 			t.Fatal(e)
 		}
-		if status()["integrationSupport"] != "UNQUALIFIED" {
+		if status("2.0.19")["integrationSupport"] != "UNQUALIFIED" {
 			t.Fatal("changed package qualified")
 		}
 	})

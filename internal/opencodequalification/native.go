@@ -177,7 +177,7 @@ func Native(ctx context.Context, c Config) (Object, error) {
 		return nil, errors.New("native query evidence missing")
 	}
 	checks := Object{
-		"native-discovery": anyRow(events, func(x Object) bool { return x["version"] == "2.0.18" }),
+		"native-discovery": anyRow(events, func(x Object) bool { return x["version"] == c.HostVersion }),
 		"native-host-image": anyRow(events, func(x Object) bool {
 			return x["kind"] == "setup" && x["executableSHA256"] == baseline.HostSHA256 && x["architecture"] == baseline.Tuple["architecture"] && x["os"] == baseline.Tuple["os"]
 		}),

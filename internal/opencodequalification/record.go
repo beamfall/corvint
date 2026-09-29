@@ -20,6 +20,7 @@ import (
 
 const Profile = "opencode-native-integration/1"
 const recordLimit = 131072
+const SupportedHostRange = ">=2.0.18 <2.1.0"
 
 var focusedTests = []string{"TestHostAdapterJavaScriptHarnessInterruption", "TestHostAdapterJavaScriptHosts"}
 var cases = map[string][]string{
@@ -61,6 +62,34 @@ func number(v any) float64 {
 	return math.NaN()
 }
 func truth(v any) bool { b, ok := v.(bool); return ok && b }
+
+func ParseSupportedHostVersion(output string) (string, error) {
+	version := strings.TrimSpace(output)
+	version = strings.TrimPrefix(version, "opencode v")
+	parts := strings.Split(version, ".")
+	if len(parts) != 3 || parts[0] != "2" || parts[1] != "0" || !canonicalDecimal(parts[2]) || len(parts[2]) > 18 {
+		return "", fmt.Errorf("unsupported OpenCode version %q; supported range is %s", strings.TrimSpace(output), SupportedHostRange)
+	}
+	if len(parts[2]) < 2 || (len(parts[2]) == 2 && parts[2] < "18") {
+		return "", fmt.Errorf("unsupported OpenCode version %q; supported range is %s", strings.TrimSpace(output), SupportedHostRange)
+	}
+	return version, nil
+}
+
+func canonicalDecimal(value string) bool {
+	if value == "0" {
+		return true
+	}
+	if value == "" || value[0] < '1' || value[0] > '9' {
+		return false
+	}
+	for _, r := range value[1:] {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
 func equal(a, b any) bool {
 	x, e := json.Marshal(a)
 	y, f := json.Marshal(b)
@@ -143,15 +172,23 @@ func packageFiles(source string) (map[string]string, error) {
 	})
 	return out, e
 }
+
+func requireCleanCheckout(ctx context.Context, source string) error {
+	status, e := capture(ctx, source, nil, []string{"git", "status", "--porcelain", "--untracked-files=all"})
+	if e != nil {
+		return e
+	}
+	if strings.TrimSpace(status) != "" {
+		return errors.New("qualification requires a clean committed checkout")
+	}
+	return nil
+}
+
 func identities(ctx context.Context, c Config, clean bool) (Identity, error) {
 	var id Identity
 	if clean {
-		s, e := capture(ctx, c.Source, nil, []string{"git", "status", "--porcelain", "--untracked-files=all"})
-		if e != nil {
+		if e := requireCleanCheckout(ctx, c.Source); e != nil {
 			return id, e
-		}
-		if strings.TrimSpace(s) != "" {
-			return id, errors.New("qualification requires a clean committed checkout")
 		}
 	}
 	var e error
@@ -199,7 +236,10 @@ func identities(ctx context.Context, c Config, clean bool) (Identity, error) {
 	if e != nil {
 		return id, e
 	}
-	id.Tuple = map[string]string{"hostVersion": "2.0.18", "adapterVersion": str(manifest["version"]), "os": runtime.GOOS, "architecture": arch}
+	if _, e = ParseSupportedHostVersion(c.HostVersion); e != nil {
+		return id, e
+	}
+	id.Tuple = map[string]string{"hostVersion": c.HostVersion, "adapterVersion": str(manifest["version"]), "os": runtime.GOOS, "architecture": arch}
 	return id, nil
 }
 func identityFields(id Identity) Object {

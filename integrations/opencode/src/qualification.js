@@ -7,7 +7,13 @@ import { ADAPTER_VERSION } from "./runtime.js"
 const packageRoot = fileURLToPath(new URL("../", import.meta.url))
 const reportPath = fileURLToPath(new URL("../../opencode-qualification.json", import.meta.url))
 const CASES = ["install", "snapshot", "context", "expansion", "observations", "frontier", "degradation", "privacy", "normalization", "recursion", "compaction", "latency", "recall", "cleanup"]
+const SUPPORTED_HOST_RANGE = ">=2.0.18 <2.1.0"
 const sha = bytes => createHash("sha256").update(bytes).digest("hex")
+
+function compatibleHostVersion(version) {
+  const match = /^2\.0\.(0|[1-9]\d{0,17})$/.exec(version ?? "")
+  return match !== null && BigInt(match[1]) >= 18n
+}
 
 function resolveBinary(binary, environment, root) {
   if (binary.includes(path.sep)) return path.resolve(root, binary)
@@ -45,8 +51,11 @@ export async function qualificationStatus({ hostVersion, corvintBinary, environm
     executionAuthority: "NONE",
     frontier: "UNAVAILABLE",
     legacyReceiptSupport: "FALLBACK",
-    reason: "qualification-record-unavailable",
+    supportedHostRange: SUPPORTED_HOST_RANGE,
+    qualificationAction: "from a clean Corvint checkout, run GOTOOLCHAIN=local go run ./tools/qualify-opencode --host /absolute/path/to/opencode --corvint /absolute/path/to/corvint --output /absolute/evidence; see integrations/opencode/README.md#qualify-this-installation",
+    reason: compatibleHostVersion(hostVersion) ? "qualification-record-unavailable" : "unsupported-host-version",
   }
+  if (!compatibleHostVersion(hostVersion)) return result
   try {
     if (lstatSync(reportPath).size > 131072) return result
     const report = JSON.parse(readFileSync(reportPath, "utf8"))

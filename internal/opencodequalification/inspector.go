@@ -114,9 +114,8 @@ func Inspector(ctx context.Context, c Config) (failure error) {
 	if e != nil {
 		return e
 	}
-	version = strings.TrimSpace(version)
-	if version != "opencode v2.0.18" {
-		return errors.New("unqualified UI host: " + version)
+	if _, e = ParseSupportedHostVersion(version); e != nil {
+		return fmt.Errorf("unqualified UI host: %w", e)
 	}
 	if _, e = command("git", "init", "-q"); e != nil {
 		return e

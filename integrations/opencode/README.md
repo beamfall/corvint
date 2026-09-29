@@ -1,12 +1,17 @@
 # Corvint for OpenCode
 
-Version 0.7.2 targets unmodified OpenCode 2.0.18. It supplies awaited task context, on-demand
+Version 0.7.3 supports unmodified OpenCode releases from 2.0.18 through the end of the 2.0 series.
+It supplies awaited task context, on-demand
 query and exact source expansion, edit/evidence/verification observations, explicit outcomes, and
 compaction recovery from current Git state. OpenCode 1.x requires the older 0.2.9 adapter.
 
 Call `corvint_status` to check the installed package, host executable, Corvint executable, OS and
 architecture against `../opencode-qualification.json`. Only an exact passing tuple reports
-`integrationSupport: FULL`; changed or untested builds report `UNQUALIFIED`. Qualification is
+`integrationSupport: FULL`; changed or untested builds report `UNQUALIFIED` and tell the operator
+to run `tools/qualify-opencode` for that installation. The range is producer admission, not reused
+evidence: each 2.0.x host must pass the campaign and receive its own record, including its exact
+version and executable digest. Releases before 2.0.18 and 2.1.0 or later fail closed as unsupported.
+Qualification is
 maintainer test evidence, not execution attestation. Its scope is the stock native integration
 under AHI-032, including the retained functional, latency and critical-evidence recall checks.
 
@@ -91,7 +96,7 @@ receives only context/evidence views and hashed-session update notices, not tran
 or disabling the plugin disposes the view and its subscriptions. Desktop/web custom panels, revision comparisons, review mode and portable handoff remain outside this slice.
 
 `go run ./tools/qualify-opencode --inspector --host /absolute/opencode --corvint /absolute/corvint
---output /absolute/evidence` exercises the actual 2.0.18 terminal in isolated temporary Git and XDG
+--output /absolute/evidence` exercises the actual 2.0.x terminal in isolated temporary Git and XDG
 locations, without a model call. It requires Python 3, Git, a POSIX PTY and permission to start the
 host's temporary loopback server, plus Go for the recorded fixture test. Its UI witness is separate from full native integration
 qualification; it never writes `opencode-qualification.json` or grants execution authority.
@@ -121,7 +126,7 @@ remove the checkout only when it is no longer needed.
 
 From a clean, committed Corvint checkout, run the first-party command below. It requires Git,
 Node.js 20 or later, Go 1.27.1, the real Corvint executable, and the actual
-OpenCode 2.0.18 executable on macOS or Linux. If `opencode2` is a shell launcher, pass the
+OpenCode 2.0.18 or later 2.0.x executable on macOS or Linux. If `opencode2` is a shell launcher, pass the
 executable it launches; the command rejects shell launchers rather than recording the wrong image.
 
 ```sh
