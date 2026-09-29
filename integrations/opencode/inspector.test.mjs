@@ -54,7 +54,7 @@ test("AHI-033 newer queries, edits and retirement prevent stale publication or e
 })
 
 test("AHI-033 RPC has a closed bounded request surface and no execution or persistence verb", () => {
-  assert.deepEqual(Object.keys(INSPECTOR_RPC.methods), ["cockpitSnapshot", "cockpitRefresh", "cockpitProof", "snapshot", "query", "expand"])
+  assert.deepEqual(Object.keys(INSPECTOR_RPC.methods), ["tasksSnapshot", "tasksRefresh", "tasksDetail", "cockpitSnapshot", "cockpitRefresh", "cockpitProof", "snapshot", "query", "expand"])
   for (const method of Object.values(INSPECTOR_RPC.methods)) {
     assert.equal(method.input.additionalProperties, false)
     assert.equal(method.input.properties.sessionID.maxLength, 256)

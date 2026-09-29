@@ -3,7 +3,7 @@ import { createEffect, createMemo, createSignal, For, onCleanup, Show, untrack }
 import { createHash } from "node:crypto"
 import { emptyCockpit } from "./cockpit.js"
 
-export function createCockpit(ctx, { rpc, lifetime, location, accent, openEvidence }) {
+export function createCockpit(ctx, { rpc, lifetime, location, accent, openEvidence, openTasks }) {
   return function Cockpit(props) {
     const [snapshot, setSnapshot] = createSignal(emptyCockpit())
     const [section, setSection] = createSignal("files")
@@ -76,7 +76,7 @@ export function createCockpit(ctx, { rpc, lifetime, location, accent, openEviden
       { bind: "pagedown", run: () => detail() ? reader?.scrollBy(1, "viewport") : move(8) },
       { bind: "return", run: open }, { bind: "tab", run: () => setDetail(value => !value) },
       { bind: "x", run: () => { setSelectedFile(""); choose("impact") } },
-      { bind: "r", run: refresh }, { bind: "b", run: chooseBase }, { bind: "e", run: context },
+      { bind: "r", run: refresh }, { bind: "b", run: chooseBase }, { bind: "e", run: context }, { bind: "t", run: openTasks },
       { bind: "f", run: props.panel.toggleFullscreen }, { bind: "escape", run: props.panel.close },
     ] }))
     const description = () => {
@@ -87,7 +87,7 @@ export function createCockpit(ctx, { rpc, lifetime, location, accent, openEviden
       return `${row?.path || "No changed paths supplied."}\n\nEnter Follow affected-test witnesses\ne Inspect file context and governing evidence\n\nRecorded intent scopes\n${value.intents.join("\n") || "No intent scope supplied by a verification workflow."}\n\nDeclared / suggested checks (not executed)\n${value.declarations.map(x => `${x.kind}: ${x.command}\n  ${x.source}: ${x.reason}`).join("\n\n") || "None supplied"}`
     }
     return <box flexDirection="column" flexGrow={1} minHeight={0} padding={1}>
-      <box flexDirection="row" justifyContent="space-between" flexShrink={0}><text fg={ctx.theme.text.base}><b>Corvint · Change</b></text><text fg={accent()} onMouseDown={context}>e Evidence</text></box>
+      <box flexDirection="row" justifyContent="space-between" flexShrink={0}><text fg={ctx.theme.text.base}><b>Corvint · Change</b></text><box flexDirection="row" gap={2}><text fg={accent()} onMouseDown={openTasks}>t Tasks</text><text fg={accent()} onMouseDown={context}>e Evidence</text></box></box>
       <text height={1} flexShrink={0} fg={snapshot().state === "ready" ? ctx.theme.text.feedback.info.base : ctx.theme.text.feedback.warning.base}>{() => snapshot().state === "ready" ? `${snapshot().files.length} files · ${snapshot().impacts.length} impacts · ${snapshot().checks.length} checks · ${snapshot().gaps.length} gaps` : `${snapshot().state}: ${snapshot().reason}`}</text>
       <text height={1} flexShrink={0} fg={ctx.theme.text.muted} onMouseDown={chooseBase}>{() => `Base ${snapshot().base.slice(0, 8) || "—"} → ${snapshot().target.slice(0, 8) || "HEAD"} + worktree   b compare`}</text>
       <text height={1} flexShrink={0} fg={ctx.theme.text.muted}>{() => snapshot().workflow}</text>
@@ -105,7 +105,7 @@ export function createCockpit(ctx, { rpc, lifetime, location, accent, openEviden
       </box>
       <text height={1} flexShrink={0} fg={ctx.theme.text.muted}>{() => snapshot().observed ? `Observed ${snapshot().observed.slice(11, 19)} UTC · explicit refresh · ${snapshot().scope}` : "Read-only · no test execution"}</text>
       <text height={1} flexShrink={0} fg={ctx.theme.text.base}>↑↓ select/scroll  Enter open  Tab list/details</text>
-      <text height={1} flexShrink={0} fg={ctx.theme.text.muted}>r refresh  b base  e evidence  f full  esc close</text>
+      <text height={1} flexShrink={0} fg={ctx.theme.text.muted}>r refresh  b base  t tasks  e evidence  f full  esc close</text>
     </box>
   }
 }

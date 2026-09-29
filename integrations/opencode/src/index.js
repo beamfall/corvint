@@ -1,4 +1,5 @@
 import { collectCockpit, emptyCockpit, inspectProof } from "./cockpit.js"
+import { collectTaskMetrics, emptyTaskMetrics, inspectTask } from "./task-metrics.js"
 import path from "node:path"
 import { INSPECTOR_RPC, emptySnapshot, beginInspection, completeInspection, invalidateInspection, inspectionMatches, visibleText } from "./inspector.js"
 import { qualificationStatus } from "./qualification.js"
@@ -154,6 +155,7 @@ async function setup(ctx) {
   const retire = (state) => {
     if (!state) return
     invalidateInspection(state, "Session ended or was evicted.")
+    state.tasksRequest?.abort()
     state.active = false
     for (const call of state.calls) call.abort()
   }
@@ -564,6 +566,34 @@ async function setup(ctx) {
 
   // RPC is a trusted OpenCode-client surface. Session/location checks prevent accidental cross-view reads.
   if (ctx.rpc?.register) inspectorRPC = await ctx.rpc.register(INSPECTOR_RPC, {
+    tasksSnapshot: async ({ sessionID }, context) => await cockpitSession(sessionID, context.signal)
+      ? sessions.get(hashSessionId(sessionID))?.tasks || emptyTaskMetrics() : emptyTaskMetrics("unavailable", "Session is unavailable at this location."),
+    tasksRefresh: async ({ sessionID, offset }, context) => {
+      if (!await cockpitSession(sessionID, context.signal)) return emptyTaskMetrics("unavailable", "Session is unavailable at this location.")
+      const bound = stateFor(sessionID), state = bound.state
+      state.tasksRequest?.abort(); state.tasksRequest = new AbortController()
+      const signal = AbortSignal.any([context.signal, state.tasksRequest.signal])
+      const generation = state.tasksGeneration = (state.tasksGeneration || 0) + 1
+      state.tasks = emptyTaskMetrics("loading", "Reading Corvint Tasks…")
+      try {
+        const result = await cockpitCall(bound, signal, run => collectTaskMetrics(run, offset))
+        if (state.active && generation === state.tasksGeneration) state.tasks = signal.aborted ? emptyTaskMetrics("unavailable", "Task read cancelled. Refresh to retry.") : result
+      } catch (error) {
+        if (state.active && generation === state.tasksGeneration) state.tasks = emptyTaskMetrics("unavailable", visibleText(error.message || "Corvint Tasks unavailable."))
+      }
+      changed(bound.key)
+      return state.tasks || emptyTaskMetrics()
+    },
+    tasksDetail: async ({ sessionID, receiptId, ticketId }, context) => {
+      if (!await cockpitSession(sessionID, context.signal)) return { state: "unavailable", text: "Session is unavailable at this location." }
+      const key = hashSessionId(sessionID), state = sessions.get(key)
+      const current = () => state?.active && state.tasks?.state === "ready" && state.tasks.receiptId === receiptId
+      if (!current()) return { state: "unavailable", text: "Task view changed. Refresh and retry." }
+      try {
+        const text = await cockpitCall({ key, state }, context.signal, run => inspectTask(run, state.tasks, ticketId))
+        return current() ? { state: "ready", text } : { state: "unavailable", text: "Task view changed during the read." }
+      } catch (error) { return { state: "unavailable", text: visibleText(error.message || "Task detail unavailable.") } }
+    },
     cockpitSnapshot: async ({ sessionID }, context) => await cockpitSession(sessionID, context.signal)
       ? sessions.get(hashSessionId(sessionID))?.cockpit || emptyCockpit() : emptyCockpit("unavailable", "Session is unavailable at this location."),
     cockpitRefresh: async ({ sessionID, base }, context) => {
