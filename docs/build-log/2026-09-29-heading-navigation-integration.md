@@ -12,7 +12,7 @@ The assembled spec-index and heading-benchmark focused checks passed before the
 integration evidence slice. The experiment remains proposed and experimental;
 these checks do not promote retrieval behavior or establish external utility.
 
-The original feature CEM `f9512e58c700602436e59c5b71a6ac9db49cc9998` and the
+The original feature CEM `bd12e58c700602436e59c5b71a6ac9db49cc9998` and the
 claim-repair CEM `95e8a25978ec07903273bcd60a9afc3581310b0e` remain sealed.
 Rebinding main-to-merge correctly refused `sealed-cem-in-change`; its refusal and
 merge-tree comparison are retained in the private qualification packet. This
