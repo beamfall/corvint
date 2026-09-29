@@ -103,6 +103,10 @@ func TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan(t *testing.T) {
 // returns every selected ID and an explicit complete total even when the
 // underlying plan contains hundreds of detailed entries.
 func TestCALV0014_SelectedOnlyPlanPreviewIsComplete(t *testing.T) {
+	t.Run("CAL-V0-014 selected-only plan preview", testCALV0014SelectedOnlyPlanPreviewIsComplete)
+}
+
+func testCALV0014SelectedOnlyPlanPreviewIsComplete(t *testing.T) {
 	r := fixture.TempRepo(t)
 	fixture.WriteState(t, r)
 	queue := fixture.QueueValue()
