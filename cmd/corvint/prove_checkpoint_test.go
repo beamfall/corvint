@@ -299,7 +299,10 @@ func TestCheckpointHandlePrecedenceAndCriticalGates(t *testing.T) {
 	if mode := affectedGit(t, root, "ls-tree", "HEAD", "pkg/executable.go"); !strings.HasPrefix(mode, "100755 blob ") {
 		t.Fatalf("fixture executable mode: %s", mode)
 	}
-	checkpointRefusal(t, root, writeCheckpoint(t, unsafeDocument), "unsupported-prove-history")
+	receiptWithLink, _ := checkpointSuccess(t, root, unsafeDocument)
+	if got := checkpointOutputHandles(receiptWithLink)["gitlink"]["verdict"]; got != "unsupported" {
+		t.Fatalf("opaque gitlink became evidence: %v", got)
+	}
 	affectedGit(t, root, "update-index", "--force-remove", "gitlink")
 	document := checkpointInput(t, root, "AGENTS.md", "pkg/code.go", "pkg/link.go", "pkg/executable.go", "opaque.bin", "node_modules/excluded.go", "pkg", "gitlink", "gone.go", "gone space.go", "bad\nname.go", "bad\rname.go", "../escape.go")
 	document["critical"] = append(document["handles"].([]any), map[string]any{"path": "undeclared.go", "blob_hash": strings.Repeat("0", 40)})
