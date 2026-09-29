@@ -116,8 +116,8 @@ func (o *StageObservation) Bind(b StageBinding) error {
 	if q.QueueID.Raw != b.QueueID {
 		return stageFork("observed queue differs")
 	}
-	if !q.Fixture {
-		return wire.Errorf(wire.CodeUnsupported, "staging", "nonempty staging is fixture-only")
+	if q.ImportMapSha256 != nil || (q.ExecutionCutover != nil && (q.Fixture || (o.Descriptor != nil && o.Descriptor.Operation == StageInit))) {
+		return wire.Errorf(wire.CodeUnsupported, "staging", "unsupported staging queue state")
 	}
 	d := o.Descriptor
 	if d == nil {
@@ -166,11 +166,7 @@ func (o *StageObservation) Bind(b StageBinding) error {
 	if e != nil {
 		return e
 	}
-	kind := d.Operation
-	if kind == StageKeepJournal || kind == StageAdoptFile {
-		kind = "RECONCILE"
-	}
-	if rc.Kind != kind || rc.RecordedAt != d.RecordedAt {
+	if !stageReceiptKind(d.Operation, rc.Kind) || rc.RecordedAt != d.RecordedAt {
 		return stageFork("completed operation or timestamp differs")
 	}
 	if rc.Seq != h.LastSeq || rc.HeadGeneration != h.Generation || rc.RequestID == nil || *rc.RequestID != d.RequestID {
@@ -214,4 +210,22 @@ func (o *StageObservation) Bind(b StageBinding) error {
 }
 func stageFork(detail string) error {
 	return wire.Errorf(wire.CodeJournalForked, "staging", "%s", detail)
+}
+
+// Stage classes can cover several existing writer receipt kinds; unknown pairs abstain.
+func stageReceiptKind(operation, kind string) bool {
+	switch operation {
+	case StageMutate:
+		return kind == "MUTATION" || kind == "ARCHIVE" || kind == "RESTORE"
+	case StageLease:
+		return kind == "ADMIT" || kind == "TRANSITION" || kind == "GATE_RESULT" || kind == "MANIFEST"
+	case StageRelease:
+		return kind == "RELEASE" || kind == "RECONCILE"
+	case StageKeepJournal, StageAdoptFile:
+		return kind == "RECONCILE"
+	case StageInit, StagePause, StageUnpause, StagePolicyUpdate, StageImportApply, StageAuthoritySwitch, StageQualification:
+		return kind == operation
+	default:
+		return false
+	}
 }

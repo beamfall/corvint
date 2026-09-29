@@ -275,21 +275,22 @@ CAL-V0-023	docs/specs/corvint-tasks-agent-leases-v0.md	216	Two live attempts MUS
 CAL-V0-024	docs/specs/corvint-tasks-agent-leases-v0.md	222	`submit --tree <oid>` MUST refuse `OUT_OF_SCOPE`, naming every offending path,
 CAL-V0-025	docs/specs/corvint-tasks-agent-leases-v0.md	225	`widen --attempt <id> --generation <G> --scope PATH...` MUST add the paths to a
 CAL-V0-026	docs/specs/corvint-tasks-agent-leases-v0.md	230	Each lease command (`claim`, `renew`, `release`, `reap`, `widen`, `submit`, `gat
-CAL-V0-027	docs/specs/corvint-tasks-agent-leases-v0.md	260	A separate `corvint-tasks-archive/0` build path MUST package the Tasks binary,
-CAL-V0-028	docs/specs/corvint-tasks-agent-leases-v0.md	270	Policy MAY add optional `pools`; tickets MAY add acceptance-relevant
-CAL-V0-029	docs/specs/corvint-tasks-agent-leases-v0.md	278	Claim and claim-next MUST atomically reserve one eligible free member of an
-CAL-V0-030	docs/specs/corvint-tasks-agent-leases-v0.md	284	Release, expiry/reap and completion MUST quarantine the exact allocation while
-CAL-V0-031	docs/specs/corvint-tasks-agent-leases-v0.md	290	A configured health command MUST acquire durable PREPARING ownership before
-CAL-V0-032	docs/specs/corvint-tasks-agent-leases-v0.md	296	Cleanup MUST acquire durable CLEANING ownership before execution. Pending comman
-CAL-V0-033	docs/specs/corvint-tasks-agent-leases-v0.md	301	Pool commands MUST use bounded trusted operator argv, declared environment keys,
-CAL-V0-034	docs/specs/corvint-tasks-agent-leases-v0.md	308	Queue occupancy and plan preview MUST remain read-only and execute no probes.
-CAL-V0-035	docs/specs/corvint-tasks-agent-leases-v0.md	341	The optional `taskman-codex-supervisor/0` policy profile MUST dispatch a pinned
-CAL-V0-036	docs/specs/corvint-tasks-agent-leases-v0.md	345	Implement, independent review, repair and integrate MUST be native attempt stage
-CAL-V0-037	docs/specs/corvint-tasks-agent-leases-v0.md	350	A live owner MUST NOT be stolen. Explicit quiescent owner release or native iden
-CAL-V0-038	docs/specs/corvint-tasks-agent-leases-v0.md	355	WAIT MUST preserve the exact session, worktree, partial candidate and handoff.
-CAL-V0-039	docs/specs/corvint-tasks-agent-leases-v0.md	359	Every dispatch MUST reserve a turn under the native writer lock. Concurrent lane
-CAL-V0-040	docs/specs/corvint-tasks-agent-leases-v0.md	365	Every assignment/stage MUST use a distinct registered worktree/private Git direc
-CAL-V0-041	docs/specs/corvint-tasks-agent-leases-v0.md	371	Foreground role workers MUST pull eligible work without a daemon, select existin
+CAL-V0-027	docs/specs/corvint-tasks-agent-leases-v0.md	262	A non-fixture queue with null `importMapSha256` MUST admit release creation,
+CAL-V0-028	docs/specs/corvint-tasks-agent-leases-v0.md	290	Policy MAY add optional `pools`; tickets MAY add acceptance-relevant
+CAL-V0-029	docs/specs/corvint-tasks-agent-leases-v0.md	298	Claim and claim-next MUST atomically reserve one eligible free member of an
+CAL-V0-030	docs/specs/corvint-tasks-agent-leases-v0.md	304	Release, expiry/reap and completion MUST quarantine the exact allocation while
+CAL-V0-031	docs/specs/corvint-tasks-agent-leases-v0.md	310	A configured health command MUST acquire durable PREPARING ownership before
+CAL-V0-032	docs/specs/corvint-tasks-agent-leases-v0.md	316	Cleanup MUST acquire durable CLEANING ownership before execution. Pending comman
+CAL-V0-033	docs/specs/corvint-tasks-agent-leases-v0.md	321	Pool commands MUST use bounded trusted operator argv, declared environment keys,
+CAL-V0-034	docs/specs/corvint-tasks-agent-leases-v0.md	328	Queue occupancy and plan preview MUST remain read-only and execute no probes.
+CAL-V0-035	docs/specs/corvint-tasks-agent-leases-v0.md	361	The optional `taskman-codex-supervisor/0` policy profile MUST dispatch a pinned
+CAL-V0-036	docs/specs/corvint-tasks-agent-leases-v0.md	365	Implement, independent review, repair and integrate MUST be native attempt stage
+CAL-V0-037	docs/specs/corvint-tasks-agent-leases-v0.md	370	A live owner MUST NOT be stolen. Explicit quiescent owner release or native iden
+CAL-V0-038	docs/specs/corvint-tasks-agent-leases-v0.md	375	WAIT MUST preserve the exact session, worktree, partial candidate and handoff.
+CAL-V0-039	docs/specs/corvint-tasks-agent-leases-v0.md	379	Every dispatch MUST reserve a turn under the native writer lock. Concurrent lane
+CAL-V0-040	docs/specs/corvint-tasks-agent-leases-v0.md	385	Every assignment/stage MUST use a distinct registered worktree/private Git direc
+CAL-V0-041	docs/specs/corvint-tasks-agent-leases-v0.md	391	Foreground role workers MUST pull eligible work without a daemon, select existin
+CAL-V0-042	docs/specs/corvint-tasks-agent-leases-v0.md	280	A separate `corvint-tasks-archive/0` build path MUST package the Tasks binary,
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla

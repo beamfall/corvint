@@ -171,8 +171,12 @@ func TestTMV0028_AS38_PublicOutputDrivesOrderedReleasePromotion(t *testing.T) {
 }
 
 func testPublicOutputDrivesOrderedReleasePromotion(t *testing.T) {
+	nonfixturetestPublicOutputDrivesOrderedReleasePromotion(t, true)
+}
+
+func nonfixturetestPublicOutputDrivesOrderedReleasePromotion(t *testing.T, isFixture bool) {
 	r := fixture.TempRepo(t)
-	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
+	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), releaseQueueBytes(isFixture))
 	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
 	fixture.Write(t, filepath.Join(r.Root, "source.txt"), []byte("public release workflow\n"))
 	git(t, r.Root, "init")
@@ -270,8 +274,12 @@ func testPublicOutputDrivesOrderedReleasePromotion(t *testing.T) {
 // multi-release path: two ordered projections commit through the ordinary
 // receipt-before-state writer, and replay wins after later release changes.
 func TestTMV0028_AS38_DurableTwoReleaseCreateAndReplay(t *testing.T) {
+	nonfixtureTestTMV0028_AS38_DurableTwoReleaseCreateAndReplay(t, true)
+}
+
+func nonfixtureTestTMV0028_AS38_DurableTwoReleaseCreateAndReplay(t *testing.T, isFixture bool) {
 	r := fixture.TempRepo(t)
-	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
+	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), releaseQueueBytes(isFixture))
 	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
 	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("init: %+v", x.res)
@@ -302,8 +310,12 @@ func TestTMV0028_AS38_DurableTwoReleaseCreateAndReplay(t *testing.T) {
 }
 
 func TestTMV0028_AS38_PolicyCanRemoveReleaseAuthorization(t *testing.T) {
+	nonfixtureTestTMV0028_AS38_PolicyCanRemoveReleaseAuthorization(t, true)
+}
+
+func nonfixtureTestTMV0028_AS38_PolicyCanRemoveReleaseAuthorization(t *testing.T, isFixture bool) {
 	r := fixture.TempRepo(t)
-	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
+	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), releaseQueueBytes(isFixture))
 	policy := fixture.PolicyValue()
 	policy.Obj.Set("roles", wire.ObjectValue(wire.NewObject().Set("OWNER", wire.Strings([]string{"CREATE"}))))
 	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), wire.EncodeFile(policy))
@@ -321,8 +333,12 @@ func TestTMV0028_AS38_PolicyCanRemoveReleaseAuthorization(t *testing.T) {
 }
 
 func TestTMV0028_AS38_CandidateSurvivesTaskmanWritesAndSourceEditInvalidates(t *testing.T) {
+	nonfixtureTestTMV0028_AS38_CandidateSurvivesTaskmanWritesAndSourceEditInvalidates(t, true)
+}
+
+func nonfixtureTestTMV0028_AS38_CandidateSurvivesTaskmanWritesAndSourceEditInvalidates(t *testing.T, isFixture bool) {
 	r := fixture.TempRepo(t)
-	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
+	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), releaseQueueBytes(isFixture))
 	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
 	fixture.Write(t, filepath.Join(r.Root, "source.txt"), []byte("candidate source\n"))
 	git(t, r.Root, "init")
@@ -388,8 +404,12 @@ func TestTMV0028_AS38_CandidateSurvivesTaskmanWritesAndSourceEditInvalidates(t *
 }
 
 func TestTMV0028_AS38_ReleaseDivergenceNeedsKeepJournal(t *testing.T) {
+	nonfixtureTestTMV0028_AS38_ReleaseDivergenceNeedsKeepJournal(t, true)
+}
+
+func nonfixtureTestTMV0028_AS38_ReleaseDivergenceNeedsKeepJournal(t *testing.T, isFixture bool) {
 	r := fixture.TempRepo(t)
-	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
+	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), releaseQueueBytes(isFixture))
 	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
 	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("init: %+v", x.res)
@@ -431,8 +451,12 @@ func TestTMV0028_AS38_ReleaseDivergenceNeedsKeepJournal(t *testing.T) {
 }
 
 func TestTMV0028_AS38_AttestedPromotionAndImmutability(t *testing.T) {
+	nonfixtureTestTMV0028_AS38_AttestedPromotionAndImmutability(t, true)
+}
+
+func nonfixtureTestTMV0028_AS38_AttestedPromotionAndImmutability(t *testing.T, isFixture bool) {
 	r := fixture.TempRepo(t)
-	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
+	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), releaseQueueBytes(isFixture))
 	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
 	fixture.Write(t, filepath.Join(r.Root, "source.txt"), []byte("release source\n"))
 	git(t, r.Root, "init")
