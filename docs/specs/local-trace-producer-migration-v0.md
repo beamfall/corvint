@@ -330,3 +330,22 @@ reconciliation of `docs/DOGFOOD.md` section 7 is authorized. Nothing else is new
   the `LTPM-V0-004` refusal; `LTPM-V0-009` resume applies. A plan with no stranded file keeps its
   digest. The owner accepted this retirement path on 2026-09-27 instead of keeping the refusal.
   Rollback: move the quarantined file back into `.context-corvint/traces/`, and revert the change.
+
+## Recorder source-cleanliness clarification (V1-0469, 2026-09-29)
+
+LTPM-V0-001 and GPK-V0-007/008 govern this correction.
+
+Recorder clarification (V1-0469, 2026-09-29): source cleanliness does not require an operator
+ignore rule for the recorder's own untracked artifacts. Admission may classify only exact
+recorder paths whose raw porcelain status digest matches the frozen observation: an empty
+operation lock, canonical revision JSONL, and the exact descriptor-owned append temporary at
+its final prepublication check. This classification requires read-only no-follow, single-link,
+bounded-size checks with 0700 parent and 0600 member modes; it does not replace canonical
+content, revision, snapshot, or temporary-byte validation. Tracked artifact paths, arbitrary
+untracked paths, real source/commit/tree drift, and unignored pre-existing staging residue
+refuse before mutation. Unignored interrupted-store recovery remains unsupported; existing
+ignored-store recovery is unchanged. Neither `init`, user ignore rules, trace layout, nor
+read/query status admission changes. Regression witnesses are
+`TestRecordFreshRepositoryWithoutIgnore`, `TestRecordUnignoredUnsafeArtifactsRefuseWithoutMutation`,
+`TestRecorderStabilityKeepsSourceAndCommitDriftVisible`, and
+`TestRecordStagingAdmissionRequiresOwnedAppendPhase`.
