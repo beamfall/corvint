@@ -36,7 +36,9 @@ simply the largest observation. The upstream, Core and combined gold checks must
 for a zero exit; a process failure, timeout or semantic miss exits nonzero after saving the
 report. Tool stderr is recorded only as a byte count and digest. Timings are not comparable
 across arms because direct gopls retains a cache while Corvint's provider starts fresh each
-time. Publish only a reviewed aggregate.
+time. The first retained Corvint run exits 1 because one expected combined relation is
+missing; see [`2026-09-29-lsp-public-baseline.md`](../../docs/build-log/2026-09-29-lsp-public-baseline.md).
+Publish only a reviewed aggregate.
 
 This corpus measures two Go navigation tasks, not agent task success, editor response time,
 precision or recall on real projects generally. Before promotion, freeze a broader labelled

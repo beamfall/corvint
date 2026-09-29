@@ -1,0 +1,22 @@
+# Public LSP development baseline — V1-0478
+
+Date: 2026-09-29. Change base: `6486abf505203a4161fa6069656c8c89f27aedb3`. Measured clean revision: `ce39fcc30e4916cf59ccbba7f1b8995f91561255`; pinned Go source base: `cf93522e149c754e002426e422270f24c88777fe`. The proposed LSP platform contract now has a repeatable public, two-witness Go navigation corpus and a three-arm measurement command. This is development evidence, not a held-out qualification or editor-server delivery.
+
+## Measured outcome
+
+The final run used Go 1.27.1, gopls 0.23.0, three repetitions per witness and arm, `GOPROXY=off`, `GOSUMDB=off`, and `GOTOOLCHAIN=local`. Manifest SHA-256: `0ac52cd9d727e3b0afd3e4c03795ad4336798ffd6b0b970a943e590030f4141e`; built Corvint SHA-256: `a136d0cc1b244f5fc75ed3cfd6cbc8cd63eaa2db979a06df90f26d1a85f59b73`; gopls SHA-256: `39431a5b273a5ac124a98521d1ec3e38af4bc5eec783e24a23344145eef24836`. The local report SHA-256 is `748a8235727601b3baa70880be571e37a2beb6a5ab7fd377bab6cea27f2cf278`.
+
+| Witness | Direct gopls definition | Core expected path rank | Combined expected relation | Combined query/omission state |
+| --- | --- | --- | --- | --- |
+| `go-attach-expand` | 3/3 correct | 15 in 3/3 | **0/3**; nonexternal Core packet parity 3/3 | 64 queries, 61 omitted rows, `query-budget` in 3/3 |
+| `go-context-attach` | 3/3 correct | 12 in 3/3 | 3/3; nonexternal Core packet parity 3/3 | 64 queries, 60 omitted rows, `query-budget` in 3/3 |
+
+Every process completed and returned zero. The harness correctly exited 1 because the first combined witness missed its gold relation in every repetition. It did not silently count process success as LSP quality success. Combined output carried 20 path relations per observation, yet the expected one was absent from the first witness, demonstrating a task-relevance/recall gap that V1-0479 and V1-0482 must address. These two public source witnesses cannot establish precision, representative recall, agent task success or any editor-client outcome.
+
+Median wall times in seconds were direct/Core/combined `1.9743/1.4821/6.3478` for the first witness and `2.2951/1.6931/12.3243` for the second. Each value comes from three process starts. Direct gopls retained a private cache while Corvint's provider used a fresh one per combined call; these timings are descriptive and **not a cross-arm latency comparison**. The nearest-rank p95 from three samples is merely the maximum, not a qualified p95 estimate. Tool, cache, workspace and client tuples, cold/warm profiles and numerical promotion floors remain to be frozen and tested.
+
+## Review, checks and limits
+
+Independent review found four harness issues: semantic misses could pass, timeouts could lose the report, cache differences could invite invalid timing comparisons, and reports held raw stderr/local paths. The repair makes semantic/gold/parity checks part of the exit decision, writes timeout and startup-failure samples, labels timings non-comparative, and records stderr only by byte count and digest. A follow-up review found one remaining startup-failure path, which was repaired; focused command tests captured both timeout and startup failures. The harness also previously passed an interruption test that retired a spawned descendant; that test preceded the final startup-failure repair, which did not change the signal handler or process-group cleanup path.
+
+Focused spec, requirement, traceability, citation and `internal/specindex` checks passed for the benchmark/spec/index change. `corvint affected --base 6486abf505203a4161fa6069656c8c89f27aedb3` was rerun on the committed slice and listed the exact six changed paths. It retains `NO_SELECTABLE_TEST` for the Python harness and broad documentation-reader uncertainty; the live corpus run is the direct executable check. The repository-wide `make gate`, protected held-out outcomes, non-Go adapter tuples, editor interoperability, billed-token/cost savings and production promotion are `NOT_RUN` or `NOT_OBSERVED` as applicable. V1-0478 remains open until the full profile matrix and owner-approved qualification floors are settled.
