@@ -223,7 +223,7 @@ func fakeServer(name string) {
 				TextDocument struct{ URI string } `json:"textDocument"`
 			}
 			_ = json.Unmarshal(request.Params, &params)
-			reply["error"] = map[string]any{"code": 0, "message": "no package metadata for file\n" + params.TextDocument.URI}
+			reply["error"] = map[string]any{"code": 0, "message": "no package metadata for file\n" + params.TextDocument.URI + "\nprivate file:///Users/another/account.go token=s3cr3t"}
 		default:
 			reply["result"] = nil
 		}
@@ -262,12 +262,27 @@ func TestExpandEveryQueryFailedIsUnavailable(t *testing.T) {
 	want := fmt.Sprintf("gopls answered all %d queries with an error; first: textDocument/", issued)
 	// V1-0167: the reason names the document repository-relative, never by
 	// the absolute URI gopls printed, so no home path enters the packet.
-	if !strings.HasPrefix(result.Failure, want) || !strings.HasSuffix(result.Failure, "no package metadata for file a/a.go") || strings.Contains(result.Failure, "file://") {
+	if !strings.HasPrefix(result.Failure, want) || !strings.HasSuffix(result.Failure, "no package metadata for file a/a.go") || strings.Contains(result.Failure, "file://") || strings.Contains(result.Failure, "/Users/another") || strings.Contains(result.Failure, "s3cr3t") {
 		t.Fatalf("failure %q", result.Failure)
 	}
-	foreign := Expand(context.Background(), m.request(t, fakeGopls(t, "other-server"), "a/a.go"))
-	if foreign.Record != nil || foreign.Failure != "language server identified as other-server, not gopls; refused" {
-		t.Fatalf("foreign: failure %q, record %s", foreign.Failure, foreign.Record)
+	second := newModule(t)
+	otherRoot := Expand(context.Background(), second.request(t, fakeGopls(t, "gopls"), "a/a.go"))
+	if otherRoot.Failure != result.Failure {
+		t.Fatalf("machine-specific failure: %q versus %q", result.Failure, otherRoot.Failure)
+	}
+	for _, name := range []string{"other-server", "file:///Users/another/account.go"} {
+		foreign := Expand(context.Background(), m.request(t, fakeGopls(t, name), "a/a.go"))
+		if foreign.Record != nil || foreign.Failure != "language server did not identify as gopls; refused" {
+			t.Fatalf("foreign %q: failure %q, record %s", name, foreign.Failure, foreign.Record)
+		}
+	}
+}
+
+func TestSafeQueryErrorWithholdsUnknownServerText(t *testing.T) {
+	got := safeQueryError(queryDefinition, "a/a.go", fmt.Errorf("private file:///Users/another/account.go token=s3cr3t"))
+	want := "textDocument/definition: server error for file a/a.go"
+	if got != want {
+		t.Fatalf("failure %q, want %q", got, want)
 	}
 }
 

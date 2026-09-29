@@ -214,7 +214,7 @@ func run(ctx context.Context, root string, request Request, seeds []string) (exp
 	case observation.Cancelled:
 		return found, "gopls cancelled"
 	case found.foreign != "":
-		return found, fmt.Sprintf("language server identified as %s, not gopls; refused", found.foreign)
+		return found, "language server did not identify as gopls; refused"
 	case found.version == "":
 		return found, "gopls session failed"
 	case !observation.ExitObserved || observation.ExitStatus != 0:
@@ -349,7 +349,7 @@ func (walk *walker) ask(origin string, query target) ([]string, error) {
 		}
 		walk.found.failed++
 		if walk.found.first == "" {
-			walk.found.first = repositoryRelative(walk.root, err.Error())
+			walk.found.first = safeQueryError(query.method, origin, err)
 		}
 		return nil, nil
 	}
@@ -503,9 +503,8 @@ var versionUnsafe = regexp.MustCompile(`[^A-Za-z0-9._/-]`)
 
 var errForeign = errors.New("language server is not gopls")
 
-// serverName is the initialize response's serverInfo.name, reduced to the
-// identifier grammar (`unnamed` when absent); only `gopls` is accepted
-// (EEP-V0-024).
+// serverName is the bounded initialize serverInfo.name used only for identity
+// comparison; it is never copied into a provider reason (EEP-V0-024).
 func serverName(initialized json.RawMessage) string {
 	var response struct {
 		ServerInfo struct {
@@ -561,12 +560,15 @@ func fileURI(path string) string {
 	return (&url.URL{Scheme: "file", Path: filepath.ToSlash(path)}).String()
 }
 
-// repositoryRelative drops the repository root from a gopls error message,
-// in its file URI and its native form, so a failure reason names documents as
-// repository-relative paths and carries no machine- or user-specific prefix
-// (V1-0167, TCP-V0-045).
-func repositoryRelative(root, text string) string {
-	return strings.NewReplacer(fileURI(root)+"/", "", root+string(filepath.Separator), "").Replace(text)
+// safeQueryError never copies server-supplied text into the packet. Only a
+// recognized diagnostic class is retained alongside the admitted query's
+// method and repository-relative origin (V1-0167, EEP-V0-026).
+func safeQueryError(method, origin string, err error) string {
+	category := "server error for file"
+	if strings.Contains(strings.ToLower(err.Error()), "no package metadata for file") {
+		category = "no package metadata for file"
+	}
+	return fmt.Sprintf("%s: %s %s", method, category, origin)
 }
 
 func relativePath(root, uri string) (string, bool) {
