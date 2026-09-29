@@ -119,8 +119,8 @@ above stands with that substitution.
   `loadContextSnapshot` seam (`cmd/corvint/taskcontext.go:240-247@73708428`), backed by `LoadContextSnapshotDeferred` and the private loader (`internal/contextindex/observed_build.go:42-49@d916a414`).
   The `cmd/corvint` seam does not cover `LoadEventSnapshot` or `ProbeSnapshot`, called directly by the harness and index paths (`cmd/corvint/harness_context.go:33-35@44bd361a`, `cmd/corvint/index_snapshot.go:118-119@9a7d60f2`); the harness calls `LoadEventSnapshotDeferred` there too.
   The load-bearing guard scans every non-test Go file in `cmd/corvint`, rejects direct `LoadSnapshot` or `LoadSnapshotDeferred` references outside their seam bindings, and additionally rejects `LoadEventSnapshot`, `LoadEventSnapshotDeferred` and `ProbeSnapshot` in `prove*` files
-  (`cmd/corvint/prove_checkpoint_test.go:704-771@54881720`); the counting test asserts the checkpoint run traverses neither dynamic seam
-  (`cmd/corvint/prove_checkpoint_test.go:666-681@62a5f8d6`) (FPK-V0-024).
+  (`cmd/corvint/prove_checkpoint_test.go:707-774@54881720`); the counting test asserts the checkpoint run traverses neither dynamic seam
+  (`cmd/corvint/prove_checkpoint_test.go:669-684@62a5f8d6`) (FPK-V0-024).
   End of accepted amendment.
 - **FPK-V0-008:** Failures MUST be typed and exit 2 with nothing on stdout: query compile errors
   pass through with their own codes; `unsupported-prove-revision` (no Git, no HEAD tree, no
@@ -844,9 +844,9 @@ above stands with that substitution.
   load-bearing source guard scans every non-test Go file in `cmd/corvint`, rejects direct
   `LoadSnapshot` or `LoadSnapshotDeferred` references outside their seam bindings, and additionally rejects `LoadEventSnapshot`,
   `LoadEventSnapshotDeferred`, `ProbeSnapshot` or `SnapshotFreshness` references in `prove*` files
-  (`cmd/corvint/prove_checkpoint_test.go:704-771@54881720`). A separate test substitutes a counting
+  (`cmd/corvint/prove_checkpoint_test.go:707-774@54881720`). A separate test substitutes a counting
   function for both dynamic seams and asserts zero calls during a `prove --checkpoint` run
-  (`cmd/corvint/prove_checkpoint_test.go:666-681@62a5f8d6`), a secondary `LoadSnapshot`-specific
+  (`cmd/corvint/prove_checkpoint_test.go:669-684@62a5f8d6`), a secondary `LoadSnapshot`-specific
   check consistent with the guard but not a substitute for it. The
   byte-identity comparison stays as a secondary assertion.
   Index omission MUST NOT be evidence of deletion:
