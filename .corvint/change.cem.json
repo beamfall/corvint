@@ -1,11 +1,27 @@
 {
   "baseRevision": "651c531007ef034bcc99814a4cc424bfaaafe9aa",
-  "evidence": [],
+  "evidence": [
+    {
+      "blobOid": "329447c0e44bc9ad9e80bcf1395aaee8ef671ed4",
+      "id": "evidence:sha256:1d167d45717978eb38b54df3da5dadb8596ebd33bcfa9c12ae323dfa4deb0fe9",
+      "path": "docs/specs/heading-navigation-experiment-v0.md",
+      "span": {
+        "end": 1363,
+        "start": 893
+      },
+      "spanSha256": "12bc91e0d304470762a20716bf48c6d6bd99cf1962ed1ae5ae33ffd47846d3ad"
+    }
+  ],
   "excludedPath": ".corvint/change.cem.json",
   "hunks": [
     {
-      "basis": [],
-      "disposition": "unknown",
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1d167d45717978eb38b54df3da5dadb8596ebd33bcfa9c12ae323dfa4deb0fe9",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
       "id": "hunk:sha256:3378cc6110d116d1d0a9b54b9112f15fc95bcb80896fa087ec2074190082beb1",
       "newRange": {
         "count": 7,
@@ -16,11 +32,16 @@
         "start": 2524
       },
       "path": "docs/specs/INDEX.json",
-      "reason": "no-evidence"
+      "reason": "evidence-backed"
     },
     {
-      "basis": [],
-      "disposition": "unknown",
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1d167d45717978eb38b54df3da5dadb8596ebd33bcfa9c12ae323dfa4deb0fe9",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
       "id": "hunk:sha256:27d9fd28bb1c434ac3e82b60a338a9451ddb2774936e166383c3809b6b695f78",
       "newRange": {
         "count": 7,
@@ -31,11 +52,16 @@
         "start": 64
       },
       "path": "docs/specs/README.md",
-      "reason": "no-evidence"
+      "reason": "evidence-backed"
     },
     {
-      "basis": [],
-      "disposition": "unknown",
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1d167d45717978eb38b54df3da5dadb8596ebd33bcfa9c12ae323dfa4deb0fe9",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
       "id": "hunk:sha256:706b6a5da61d1d464a1cdfca2a1c6e3a76704ec15dfc352d4074561dc159538f",
       "newRange": {
         "count": 7,
@@ -46,7 +72,7 @@
         "start": 9
       },
       "path": "docs/specs/heading-navigation-experiment-v0.md",
-      "reason": "no-evidence"
+      "reason": "evidence-backed"
     }
   ],
   "patchSha256": "d92ca97de98efaede685915ddd79a8b4cd02db1dcf00fe9da84ae9bcc120a240",
