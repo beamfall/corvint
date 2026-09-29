@@ -1,0 +1,54 @@
+{
+  "baseRevision": "16e13f854b3c990af30de4cc826863cd67187413",
+  "evidence": [
+    {
+      "blobOid": "2d113cdb6af79255935f267250f8443943812c3e",
+      "id": "evidence:sha256:dabd8b17aac0027b578751c9239b1e96d5446ec93c648daa5c876a7f549dadd8",
+      "path": "docs/build-log/2026-09-29-lsp-public-baseline.md",
+      "span": {
+        "end": 1445,
+        "start": 1152
+      },
+      "spanSha256": "d79c09bdbd555cb1ed2a2d8e34d7625fbac63d76cf4a6f592ce24cf5607c1c32"
+    },
+    {
+      "blobOid": "a594b8e19be3c0a97fed767f25940ea6eaa6a03a",
+      "id": "evidence:sha256:695864bec85ae93e6096b69fc2bd2c6e2b951917cbb2c0e3bb2f07c07afa2aa6",
+      "path": "docs/specs/lsp-quality-platform-v0.md",
+      "span": {
+        "end": 10551,
+        "start": 9949
+      },
+      "spanSha256": "a9b9523a2b0fdd03e0959ffec800bcd3cbc6347ead76ed3327ddc02d950ef0e9"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:dabd8b17aac0027b578751c9239b1e96d5446ec93c648daa5c876a7f549dadd8",
+          "relation": "incident"
+        },
+        {
+          "evidenceId": "evidence:sha256:695864bec85ae93e6096b69fc2bd2c6e2b951917cbb2c0e3bb2f07c07afa2aa6",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5e043437b0bbc424a199fecc649f138558d7335c6c168b92fce99bc1d397297f",
+      "newRange": {
+        "count": 9,
+        "start": 11
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 11
+      },
+      "path": "docs/build-log/2026-09-29-lsp-public-baseline.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "5507cfa74576f81cce72b6c6dc3e651b3e2f9c39e80db736e24976c317cd6cb8",
+  "spec": "cem/0.2"
+}

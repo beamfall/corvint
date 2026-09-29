@@ -1,0 +1,178 @@
+{
+  "baseRevision": "cf93522e149c754e002426e422270f24c88777fe",
+  "evidence": [
+    {
+      "blobOid": "1862a80fbf50b3376a2dfdb17a05a3a31b0d3a29",
+      "id": "evidence:sha256:abef73c30f54c1e675ff43231e239f6eb402799f579f53899c7ebc3d6533a72d",
+      "path": "docs/SPEC-DRIVEN-DEVELOPMENT.md",
+      "span": {
+        "end": 1547,
+        "start": 929
+      },
+      "spanSha256": "440d53787cf3393db75b12753243edf6292d66108c9ddc2a70b78010272fded0"
+    },
+    {
+      "blobOid": "c2d8d23e82e0e66a26addffa63a6175cb0cd0fae",
+      "id": "evidence:sha256:b117f14aae9853ed778a6cc30877ee22ed384b2e236cfc9f6c992487453c81fb",
+      "path": "docs/build-log/2026-09-29-go-lsp-integration.md",
+      "span": {
+        "end": 991,
+        "start": 0
+      },
+      "spanSha256": "c5822c403d62d772e07a34f48657ea06f496d3257d8dead568b833fd5f9d9b98"
+    },
+    {
+      "blobOid": "1862a80fbf50b3376a2dfdb17a05a3a31b0d3a29",
+      "id": "evidence:sha256:5d8331ea13fd691abce3f20fc12b72475494e9fa375e814c95c2bd6fb693e9f1",
+      "path": "docs/SPEC-DRIVEN-DEVELOPMENT.md",
+      "span": {
+        "end": 4106,
+        "start": 2407
+      },
+      "spanSha256": "77b9843dbbb2d1ecc1833c065230312087d2c9ea47e246b109346837a3e3cec2"
+    },
+    {
+      "blobOid": "c843d5343819b0715887e15e27a2b24c644bf822",
+      "id": "evidence:sha256:b8c6670af41fd89c11a4038c29981262ffdf492416bed15c8d89d3d35ef4c9e6",
+      "path": "docs/specs/README.md",
+      "span": {
+        "end": 26870,
+        "start": 26250
+      },
+      "spanSha256": "42b7639b2a1f54a520cdd27b11dc060f642095e4f8fed5dc1eaa0bb657583237"
+    },
+    {
+      "blobOid": "3e3b62c0b904a41a0d78f2af5895ba9cb9167037",
+      "id": "evidence:sha256:edf0bf2811cbc973fc42b19c929f83f79f7ca37b7a8b10c32e086012a98cc8f4",
+      "path": "script/gen-spec-requirements.sh",
+      "span": {
+        "end": 585,
+        "start": 18
+      },
+      "spanSha256": "ba03832edce065ddb0e116e009ad0c1f184eb59e6d18fd8fac3a93f0d6ef0c21"
+    },
+    {
+      "blobOid": "8147d277a32aeec38d0c9de3155f521b877f2399",
+      "id": "evidence:sha256:7cb49bf7ab2aacdea7d43ee17d8f497510b32ec3e8cdb687fcf2d4ac47447220",
+      "path": "docs/specs/deployment-neutral-index-platform-v0.md",
+      "span": {
+        "end": 1907,
+        "start": 0
+      },
+      "spanSha256": "f882a35ea559d55845f8ee16e59e0b915c2c43bc44922b03afad8ec6b9335008"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:abef73c30f54c1e675ff43231e239f6eb402799f579f53899c7ebc3d6533a72d",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:b117f14aae9853ed778a6cc30877ee22ed384b2e236cfc9f6c992487453c81fb",
+          "relation": "implementation"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8c04fe1811d45f437bcb7f24162ed65b4275c3fe72309e2bbd0a4c0ed1449ebe",
+      "newRange": {
+        "count": 21,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-29-lsp-quality-contract.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5d8331ea13fd691abce3f20fc12b72475494e9fa375e814c95c2bd6fb693e9f1",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2bcdf2a0f0f19d5e853429d49e704f69191c338d1824d1ce389c7c8574540404",
+      "newRange": {
+        "count": 22,
+        "start": 2011
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 2011
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b8c6670af41fd89c11a4038c29981262ffdf492416bed15c8d89d3d35ef4c9e6",
+          "relation": "implementation"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cbc010c7ab15f3d53b32fa971cd384c868d03564ce3cc6219da192167c759eb8",
+      "newRange": {
+        "count": 7,
+        "start": 57
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 57
+      },
+      "path": "docs/specs/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:edf0bf2811cbc973fc42b19c929f83f79f7ca37b7a8b10c32e086012a98cc8f4",
+          "relation": "implementation"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:99c570ffff911efc3572b42b2f4f7f41d2636ebb22fbd6e2bc5383848214b18f",
+      "newRange": {
+        "count": 24,
+        "start": 1473
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 1473
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5d8331ea13fd691abce3f20fc12b72475494e9fa375e814c95c2bd6fb693e9f1",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:7cb49bf7ab2aacdea7d43ee17d8f497510b32ec3e8cdb687fcf2d4ac47447220",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cbba53be92148b3078f0f98cfd126007f3db4ab06f7fdb7e4d574b2098884ab0",
+      "newRange": {
+        "count": 98,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/specs/lsp-quality-platform-v0.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "97c08979c19189feae7aef7b0085acb381bcd5d97b6a93d26e2382813b8d9166",
+  "spec": "cem/0.2"
+}
