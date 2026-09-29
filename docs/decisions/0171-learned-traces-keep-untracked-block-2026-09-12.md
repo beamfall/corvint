@@ -8,7 +8,7 @@ revision-bounded untracked allowance" to the coordinator and this leaf.
 
 `GPK-V0-061` is unchanged in behavior. Any path Git status lists, untracked ones included, keeps
 `learning.local_trace_state: "blocked-mixed-worktree"` and the trace store is not read
-(`internal/tracerecordrepo/read.go:95@241a6e10`, `internal/contextindex/history.go:29@241a6e10`). No requirement
+(`internal/tracerecordrepo/read.go:101@241a6e10`, `internal/contextindex/history.go:29@241a6e10`). No requirement
 ID, wire field, packet byte, or analyzer schema changes. The spec clause gains one sentence citing
 this decision.
 
@@ -24,7 +24,7 @@ so a path absent from every such tree cannot be named by a valid record.
 
 1. **The window is defined by the forbidden read.** The trees a record can name come from the trace
    store's revision filenames (`trace.CandidateRevisions`, `internal/trace/store.go:251@a5b8bf2c`, called
-   from `internal/tracerecordrepo/adapter.go:238@a73ccead`). Enumerating them is a read of
+   from `internal/tracerecordrepo/adapter.go:243@a73ccead`). Enumerating them is a read of
    `.context-corvint/traces`, which `GPK-V0-061` forbids in the blocked state. The only store-free
    window is the whole HEAD ancestry the adapter walks, bounded at `maximumAncestry = 10_000`
    commits (`internal/tracerecordrepo/adapter.go:24@159644e6`). Proving absence there means a per-path
