@@ -13,8 +13,8 @@ import (
 )
 
 type Config struct {
-	Source, Host, Corvint, Self, Output, Theme string
-	InterruptProbe                             bool
+	Source, Host, HostVersion, Corvint, Self, Output, Theme string
+	InterruptProbe                                          bool
 }
 
 func capture(ctx context.Context, dir string, env []string, argv []string) (string, error) {

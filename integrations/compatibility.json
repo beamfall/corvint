@@ -62,7 +62,7 @@
       "validation": "native-static-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.7.2",
+      "adapterVersion": "0.7.3",
       "documentedAgainstHostVersion": "2.0.18",
       "fullSupport": "external-dependent",
       "host": "opencode",
@@ -81,7 +81,7 @@
       "surface": "plugin",
       "status": "FALLBACK",
       "tier": "companion",
-      "validation": "adapter-fixtures-only"
+      "validation": "adapter-fixtures-plus-exact-qualification-record"
     },
     {
       "adapterVersion": "0.2.0",

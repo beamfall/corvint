@@ -18,7 +18,7 @@ func Run(ctx context.Context, args []string) error {
 	var native, inspector bool
 	var probe, terminalConfig string
 	f.StringVar(&c.Source, "source", "", "clean Corvint checkout (default: current Git root)")
-	f.StringVar(&c.Host, "host", "", "actual OpenCode 2.0.18 executable")
+	f.StringVar(&c.Host, "host", "", "actual OpenCode 2.0.x executable")
 	f.StringVar(&c.Corvint, "corvint", "", "Corvint executable")
 	f.StringVar(&c.Output, "output", "", "evidence directory outside the checkout")
 	f.StringVar(&c.Theme, "theme", "dark", "inspector theme: dark or light")
@@ -96,6 +96,9 @@ func Run(ctx context.Context, args []string) error {
 		return Inspector(ctx, c)
 	}
 	if native {
+		if e = detectHostVersion(ctx, &c, c.Output); e != nil {
+			return e
+		}
 		report, e := Native(ctx, c)
 		if report != nil {
 			b, _ := jsonBytes(Object{"result": report["result"], "report": c.Output + "/report.json"})
@@ -130,6 +133,33 @@ func validateExecutables(c *Config) error {
 	}
 	return nil
 }
+
+func detectHostVersion(ctx context.Context, c *Config, evidenceDir string) error {
+	home, e := os.MkdirTemp(evidenceDir, "host-version-")
+	if e != nil {
+		return e
+	}
+	env := []string{
+		"PATH=" + os.Getenv("PATH"),
+		"HOME=" + home,
+		"XDG_CONFIG_HOME=" + filepath.Join(home, "config"),
+		"XDG_DATA_HOME=" + filepath.Join(home, "data"),
+		"XDG_CACHE_HOME=" + filepath.Join(home, "cache"),
+		"XDG_STATE_HOME=" + filepath.Join(home, "state"),
+		"TMPDIR=" + home,
+		"NO_COLOR=1",
+	}
+	result, e := runCommand(ctx, c.Source, env, []string{c.Host, "--version"}, filepath.Join(evidenceDir, "host-version"), time.Minute)
+	if e != nil {
+		return e
+	}
+	version, e := ParseSupportedHostVersion(str(result["stdout"]))
+	if e != nil {
+		return e
+	}
+	c.HostVersion = version
+	return nil
+}
 func qualify(ctx context.Context, c Config) (failure error) {
 	run, e := os.MkdirTemp(c.Output, "qualification-")
 	if e != nil {
@@ -145,6 +175,9 @@ func qualify(ctx context.Context, c Config) (failure error) {
 		}
 	}()
 	if e = validateExecutables(&c); e != nil {
+		return e
+	}
+	if e = detectHostVersion(ctx, &c, run); e != nil {
 		return e
 	}
 	before, e := identities(ctx, c, true)
