@@ -178,24 +178,6 @@ The experimental `features`, `overview`, and `review` commands require a clean t
 inferred scope, omissions, and unsupported cases. They do not accept requirements or execute
 suggested commands. `review` requires a full ancestor base SHA and does not replace CEM or tests.
 
-### Optional Go LSP evidence
-
-Corvint can use `gopls`, the Go language server, to add definition and reference relationships
-to a context packet. This integration is **experimental and opt-in**; it does not change ranked
-results or project authority. Install `gopls` explicitly and have your workspace dependencies
-available locally, then select a tracked Go file (here, in Corvint’s checkout):
-
-```sh
-corvint context --task "Find callers and dependencies" \
-  --subject cmd/corvint/main.go --lsp gopls
-```
-
-Use `--lsp off` to disable enrichment, including when the legacy environment setting enables it.
-For MCP, start `corvint-mcp` with `--tool-profile task-review-lsp` and pass `"lsp": "gopls"` to
-`corvint.context`; omitting that argument starts no language server. Other MCP profiles do not
-enable LSP. See the [Go LSP guide](docs/LSP.md) for installation, full CLI/MCP examples, limits,
-qualification, and troubleshooting. Other language servers are outside this milestone.
-
 ## Give the agent a useful next step
 
 A context packet can identify a test counterpart and say why it matters. From the
@@ -245,6 +227,24 @@ The `nextActions` argv that `cem prepare` and `ocm prepare` return starts with t
 The verifier proves structural integrity: patch, hunk, blob, span, and mapping identity. It does
 not prove semantic support, causality, test adequacy, or program correctness, and Corvint says so.
 The [wire format, schemas, and conformance vectors](docs/CHANGE-EVIDENCE-MAP.md) are Apache-2.0.
+
+## Optional Go LSP evidence
+
+Corvint can use `gopls`, the Go language server, to add definition and reference relationships
+to a context packet. This integration is **experimental and opt-in**; it does not change ranked
+results or project authority. Install `gopls` explicitly and have your workspace dependencies
+available locally, then select a tracked Go file (here, in Corvint’s checkout):
+
+```sh
+corvint context --task "Find callers and dependencies" \
+  --subject cmd/corvint/main.go --lsp gopls
+```
+
+Use `--lsp off` to disable enrichment, including when the legacy environment setting enables it.
+For MCP, start `corvint-mcp` with `--tool-profile task-review-lsp` and pass `"lsp": "gopls"` to
+`corvint.context`; omitting that argument starts no language server. Other MCP profiles do not
+enable LSP. See the [Go LSP guide](docs/LSP.md) for installation, full CLI/MCP examples, limits,
+qualification, and troubleshooting. Other language servers are outside this milestone.
 
 ## Works where agents work
 
