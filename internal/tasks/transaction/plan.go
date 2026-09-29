@@ -231,10 +231,7 @@ func poolSlots(in PlanInput) int {
 		return 0
 	}
 	slots := 0
-	for _, m := range p.Members {
-		if stage := p.ReservedFor[m]; stage != "" && stage != in.Stage {
-			continue
-		}
+	for _, m := range OrderedPoolMembers(p, in.Stage) {
 		busy := false
 		if in.Pools != nil {
 			for _, en := range in.Pools.Entries {

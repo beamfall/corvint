@@ -65,16 +65,43 @@ func TestPoolAllocationTupleCorrespondence(t *testing.T) {
 
 // CAL-V0-034.
 func TestPoolPlanConsumesEligibleSlots(t *testing.T) {
-	policy := &intent.Policy{MaxActiveAttempts: "4", Pools: []intent.Pool{{ID: "db", Members: []string{"a", "review"}, ReservedFor: map[string]string{"review": "review"}}}}
-	in := PlanInput{Policy: policy, Pool: "db", Stage: "implement", Reservations: &snapshot.ReservationSet{}}
+	policy := &intent.Policy{MaxActiveAttempts: "4", Pools: []intent.Pool{{ID: "db", Members: []string{"integrate", "open", "review"}, ReservedFor: map[string]string{"integrate": "integrate", "review": "review"}}}}
+	in := PlanInput{Policy: policy, Pool: "db", Stage: "review", Reservations: &snapshot.ReservationSet{}}
 	first := choose(in, PlanEntry{}, nil)
 	if first.State != PlanSelected {
 		t.Fatalf("first %+v", first)
 	}
 	// Disjoint empty scopes isolate the pool cardinality from ordinary reservations.
 	second := choose(in, PlanEntry{}, []PlanEntry{first})
-	if second.State != PlanDeferred || second.Reason != wire.CodeResourceCollision {
-		t.Fatalf("overallocated %+v", second)
+	t.Run("CAL-V0-034 preview capacity uses claim eligibility", func(t *testing.T) {
+		if second.State != PlanSelected {
+			t.Fatalf("fallback slot %+v", second)
+		}
+		third := choose(in, PlanEntry{}, []PlanEntry{first, second})
+		if third.State != PlanDeferred || third.Reason != wire.CodeResourceCollision {
+			t.Fatalf("overallocated %+v", third)
+		}
+		in.Stage = ""
+		if noStage := choose(in, PlanEntry{}, []PlanEntry{first}); noStage.State != PlanDeferred || noStage.Reason != wire.CodeResourceCollision {
+			t.Fatalf("reserved member admitted without stage %+v", noStage)
+		}
+	})
+}
+
+// CAL-V0-029 and CAL-V0-034.
+func TestOrderedPoolMembersPrefersMatchingReservation(t *testing.T) {
+	pool := &intent.Pool{Members: []string{"integrate", "open-a", "open-b", "review-a", "review-b"}, ReservedFor: map[string]string{"integrate": "integrate", "review-a": "review", "review-b": "review"}}
+	for _, tc := range []struct {
+		stage string
+		want  string
+	}{
+		{"review", "review-a,review-b,open-a,open-b"},
+		{"implement", "open-a,open-b"},
+		{"", "open-a,open-b"},
+	} {
+		if got := strings.Join(OrderedPoolMembers(pool, tc.stage), ","); got != tc.want {
+			t.Fatalf("stage %q: got %q want %q", tc.stage, got, tc.want)
+		}
 	}
 }
 

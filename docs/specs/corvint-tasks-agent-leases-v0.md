@@ -304,6 +304,10 @@ Non-fixture release lifecycle (owner request 2026-09-28 to complete the Tasks ta
   explicitly requested pool with the attempt and ordinary scope reservation. `requiresPool` MUST
   match the explicit request. No request consumes no pool. Reserved members require matching
   `implement|review|integrate` stage, an operator claim rather than authenticated identity.
+  An eligible free member reserved for the requested stage MUST be selected before an unreserved
+  free member, preserving policy member order within each tier. If matching reserved members are
+  occupied or unavailable, an unreserved member remains eligible fallback capacity. A claim with
+  no stage admits only unreserved members, and members reserved for another stage remain ineligible.
   Allocated state MUST agree with the complete attempt allocation tuple, holder and stage.
   Replayed claims MUST return their original receipt-bound allocation, never a successor's.
 - `CAL-V0-030`: Release, expiry/reap and completion MUST quarantine the exact allocation while
@@ -333,7 +337,8 @@ Non-fixture release lifecycle (owner request 2026-09-28 to complete the Tasks ta
 - `CAL-V0-034`: Queue occupancy and plan preview MUST remain read-only and execute no probes.
   Occupancy MUST distinguish free, preparing, allocated, cleaning and quarantined members, with
   original allocation identity and retained command reason/observation where present. A selected
-  preview batch MUST consume eligible free member capacity, excluding other-stage reservations.
+  preview batch MUST consume eligible free member capacity under the same ordered eligibility rule
+  as claim, excluding other-stage reservations without executing health probes.
   Archive, journal recovery and authority-confined projection publication MUST retain pool state.
 
 The optional policy shape is `pools:[{id,members:[MEMBER],reservedFor:{MEMBER:STAGE},

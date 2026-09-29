@@ -6,6 +6,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/archive"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -97,6 +98,40 @@ func TestPoolAllocationQuarantine(t *testing.T) {
 	}
 }
 
+// CAL-V0-029 and CAL-V0-034.
+func TestPoolAllocationPrefersMatchingStageReservation(t *testing.T) {
+	s := newLeaseStore(t)
+	v := fixture.PolicyValue()
+	v.Obj.Set("policyVersion", str("3"))
+	v.Obj.Set("capacity", obj("maxActiveAttempts", str("4"), "maxWorkersTotal", str("4"), "classes", wire.Array()))
+	budgets, _ := v.Obj.Get("budgets")
+	budgets.Obj.Set("requireEnforcedFields", wire.Strings(nil))
+	v.Obj.Set("pools", wire.Array(obj("id", str("db"), "members", wire.Strings([]string{"integrate", "open", "review"}), "reservedFor", obj("integrate", str("integrate"), "review", str("review")))))
+	rep, e := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("reserved-priority", "2", wire.EncodeFile(v)), now(t))
+	if e != nil || rep.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("policy %+v %v", rep, e)
+	}
+	ids := []string{s.ticket(t, "reserved"), s.ticket(t, "fallback"), s.ticket(t, "blocked")}
+	claim := claimOf(ids[0], "reserved")
+	claim.Pool, claim.Stage = "db", "review"
+	reserved := s.lease(t, "reserved", claim, 0, nil)
+	t.Run("CAL-V0-029 matching reservation priority", func(t *testing.T) {
+		if reserved.PoolAllocation == nil || reserved.PoolAllocation.MemberID != "review" {
+			t.Fatalf("matching reservation not preferred %+v", reserved)
+		}
+	})
+	claim.TicketID, claim.Scope = ids[1], []string{"fallback"}
+	fallback := s.lease(t, "fallback", claim, 0, nil)
+	if fallback.PoolAllocation == nil || fallback.PoolAllocation.MemberID != "open" {
+		t.Fatalf("unreserved fallback not selected %+v", fallback)
+	}
+	claim.TicketID, claim.Scope, claim.Stage = ids[2], []string{"blocked"}, "implement"
+	blocked := s.lease(t, "opposite-reservation", claim, 0, nil)
+	if !blocked.Outcome.HasCode(wire.CodeResourceCollision) {
+		t.Fatalf("opposite-stage reservation admitted %+v", blocked)
+	}
+}
+
 // CAL-V0-031 and CAL-V0-032.
 func TestPoolHealthSkipsFailedMember(t *testing.T) {
 	s := newLeaseStore(t)
@@ -108,20 +143,37 @@ func TestPoolHealthSkipsFailedMember(t *testing.T) {
 	command := func(code string) wire.Value {
 		return obj("argv", wire.Strings([]string{"/bin/sh", "-c", "exit " + code}), "cwd", str("REPOSITORY"), "env", wire.Array(), "timeoutSeconds", str("3"))
 	}
-	v.Obj.Set("pools", wire.Array(obj("id", str("db"), "members", wire.Strings([]string{"a", "b"}), "memberConfig", obj("a", obj("health", command("1")), "b", obj("health", command("0"), "cleanup", command("0"))))))
+	v.Obj.Set("pools", wire.Array(obj("id", str("db"), "members", wire.Strings([]string{"a", "review"}), "reservedFor", obj("review", str("review")), "memberConfig", obj("a", obj("health", command("0"), "cleanup", command("0")), "review", obj("health", command("1"))))))
 	rep, e := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("health-policy", "2", wire.EncodeFile(v)), now(t))
 	if e != nil || rep.Outcome.Outcome != mutation.OutcomeCompleted {
 		t.Fatalf("policy %+v %v", rep, e)
 	}
 	id := s.ticket(t, "health")
 	c := claimOf(id, "one")
-	c.Pool = "db"
+	c.Pool, c.Stage = "db", "review"
 	a := s.lease(t, "health-claim", c, 0, nil)
-	if a.PoolAllocation == nil || a.PoolAllocation.MemberID != "b" {
+	if a.PoolAllocation == nil || a.PoolAllocation.MemberID != "a" {
 		t.Fatalf("health claim %+v", a)
 	}
+	raw, e := os.ReadFile(filepath.Join(s.repo.StateDir, "pools.json"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	state, e := snapshot.DecodePools(raw)
+	if e != nil {
+		t.Fatal(e)
+	}
+	foundFailedReservation := false
+	for _, entry := range state.Entries {
+		if entry.MemberID == "review" && entry.State == "QUARANTINED" && entry.ObservationSha256 != nil && strings.HasPrefix(entry.Reason, "EXIT_NONZERO;") {
+			foundFailedReservation = true
+		}
+	}
+	if !foundFailedReservation {
+		t.Fatalf("failed reserved health probe not retained: %+v", state.Entries)
+	}
 	replay := s.lease(t, "health-claim", c, 0, nil)
-	if replay.Kind != "Replay" || replay.PoolAllocation == nil {
+	if replay.Kind != "Replay" || replay.PoolAllocation == nil || replay.PoolAllocation.MemberID != a.PoolAllocation.MemberID || replay.PoolAllocation.AllocationID != a.PoolAllocation.AllocationID {
 		t.Fatalf("replay %+v", replay)
 	}
 }
