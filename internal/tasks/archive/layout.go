@@ -149,6 +149,8 @@ func stateLayoutRead(stateDir string, maxScan int, life *archiveRead) ([]sourceF
 			out = append(out, sourceFile{path: "head.json", abs: abs, max: wire.MaxJournalHeadBytes})
 		case name == "barrier.json" && info.Mode().IsRegular():
 			out = append(out, sourceFile{path: "barrier.json", abs: abs, max: wire.MaxBarrierBytes})
+		case name == "pools.json" && info.Mode().IsRegular():
+			out = append(out, sourceFile{path: "pools.json", abs: abs, max: 1 << 20})
 		case name == "reservations.json" && info.Mode().IsRegular():
 			out = append(out, sourceFile{path: "reservations.json", abs: abs, max: wire.MaxReservationSetBytes})
 		case name == "head.json.tmp" && info.Mode().IsRegular():
@@ -252,6 +254,8 @@ func boundFor(path string) int {
 		return wire.MaxJournalHeadBytes
 	case path == "barrier.json":
 		return wire.MaxBarrierBytes
+	case path == "pools.json":
+		return 1 << 20
 	case path == "reservations.json":
 		return wire.MaxReservationSetBytes
 	case strings.HasPrefix(path, "receipts/"):

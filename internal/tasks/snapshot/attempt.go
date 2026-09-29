@@ -66,6 +66,8 @@ type PriorGeneration struct {
 
 // Attempt is a validated taskman-attempt/0.
 type Attempt struct {
+	Stage                   string
+	PoolAllocation          *PoolAllocation
 	AttemptID               string
 	TicketID                wire.TicketID
 	TicketRevision          wire.Count
@@ -210,7 +212,7 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
-	r.Closed(attemptFields...)
+	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -218,6 +220,12 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 		return nil, err
 	}
 	a := &Attempt{}
+	if wire.Has(v, "stage") {
+		a.Stage = r.Field("stage").Enum(intent.StageRoles...)
+	}
+	if wire.Has(v, "poolAllocation") {
+		a.PoolAllocation = ReadPoolAllocation(r.Field("poolAllocation"))
+	}
 	a.AttemptID = r.Field("attemptId").Identifier()
 	a.TicketID = r.Field("ticketId").TicketID()
 	a.TicketRevision = r.Field("ticketRevision").Count()
@@ -343,6 +351,12 @@ func priorValue(ps []PriorGeneration) wire.Value {
 func (a *Attempt) Encode() ([]byte, error) {
 	o := wire.NewObject()
 	o.Set("profile", wire.String(ProfileAttempt))
+	if a.Stage != "" {
+		o.Set("stage", wire.String(a.Stage))
+	}
+	if a.PoolAllocation != nil {
+		o.Set("poolAllocation", PoolAllocationValue(a.PoolAllocation))
+	}
 	o.Set("attemptId", wire.String(a.AttemptID))
 	o.Set("ticketId", wire.String(a.TicketID.Raw))
 	o.Set("ticketRevision", wire.String(string(a.TicketRevision)))

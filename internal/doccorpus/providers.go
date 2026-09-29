@@ -23,7 +23,18 @@ func words(s string) map[string]bool {
 }
 
 func (c *compiler) importRecords(p Provider) error {
-	source, ok := c.sources[inputKey(p.Revision, p.Record)]
+	for _, path := range recordPaths(p) {
+		part := p
+		part.Record = path
+		part.Shards = nil
+		if err := c.importRecord(part); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (c *compiler) importRecord(p Provider) error {
+	_, ok := c.sources[inputKey(p.Revision, p.Record)]
 	if !ok {
 		return &Error{Code: "corpus-provider-unavailable", Message: "declared provider record missing"}
 	}
@@ -36,9 +47,9 @@ func (c *compiler) importRecords(p Provider) error {
 	if !declared {
 		return fail("provider input purpose mismatch")
 	}
-	var record ProviderRecord
-	if err := decode(source.Data, &record); err != nil {
-		return err
+	record, ok := c.providerRecords[p.ID+":"+inputKey(p.Revision, p.Record)]
+	if !ok {
+		return fail("provider was not preloaded")
 	}
 	if record.Schema == BehaviorProviderSchemaV2 {
 		if record.ID != p.ID || record.Version != p.Version || record.Source != c.manifest.Repository {
@@ -46,12 +57,24 @@ func (c *compiler) importRecords(p Provider) error {
 		}
 		return c.importBehaviorV2(record)
 	}
-	validSchema := record.Schema == ProviderSchema && record.BehaviorContracts == nil || record.Schema == BehaviorProviderSchema && record.BehaviorContracts != nil && record.BehaviorContracts.Stability == nil || record.Schema == BehaviorStabilityProviderSchema && record.BehaviorContracts != nil && record.BehaviorContracts.Stability != nil
+	validSchema := record.Schema == AdoptionProviderSchema && c.manifest.Schema == ManifestSchemaV2 && record.BehaviorContracts == nil || record.Schema == ProviderSchema && record.BehaviorContracts == nil || record.Schema == BehaviorProviderSchema && record.BehaviorContracts != nil && record.BehaviorContracts.Stability == nil || record.Schema == BehaviorStabilityProviderSchema && record.BehaviorContracts != nil && record.BehaviorContracts.Stability != nil
 	if !validSchema || record.ID != p.ID || record.Version != p.Version || record.Source != c.manifest.Repository {
 		return fail("provider revision, version or repository mismatch")
 	}
-	if len(record.Subjects) > MaxRecords || len(record.Claims) > MaxRecords || len(record.Relations) > MaxRecords || len(record.Observations) > MaxRecords || len(record.Journeys) > 128 {
+	limit, journeys := MaxRecords, 128
+	if record.Schema == AdoptionProviderSchema {
+		limit, journeys = MaxCorpusRecords, MaxCorpusJourneys
+	}
+	if len(record.Subjects) > limit || len(record.Claims) > limit || len(record.Relations) > limit || len(record.Observations) > MaxRecords || len(record.Journeys) > journeys {
 		return fail("provider record bound exceeded")
+	}
+	if len(record.Subjects) > c.manifest.recordLimit()-len(c.artifact.Subjects) || len(record.Claims) > c.manifest.recordLimit()-len(c.artifact.Claims) || len(record.Relations) > c.manifest.recordLimit()-len(c.artifact.Relations) || len(record.Journeys) > c.manifest.journeyLimit()-len(c.artifact.Journeys) || len(record.Observations) > MaxRecords-len(c.artifact.Observations) {
+		return fail("aggregate corpus record bound exceeded")
+	}
+	if record.Schema == AdoptionProviderSchema {
+		if err := c.importAdoption(record); err != nil {
+			return err
+		}
 	}
 	declaredCaps := map[string]bool{}
 	for _, cap := range record.Capabilities {
@@ -280,7 +303,7 @@ func (c *compiler) observation(link ObservationLink) (Observation, error) {
 
 func (c *compiler) validateRecords() error {
 	a := c.artifact
-	if len(a.Subjects) > MaxRecords || len(a.Claims) > MaxRecords || len(a.Relations) > MaxRecords || len(a.Observations) > MaxRecords || len(a.Journeys) > 128 {
+	if len(a.Subjects) > c.manifest.recordLimit() || len(a.Claims) > c.manifest.recordLimit() || len(a.Relations) > c.manifest.recordLimit() || len(a.Observations) > MaxRecords || len(a.Journeys) > c.manifest.journeyLimit() {
 		return fail("corpus record bound exceeded")
 	}
 	ids := map[string]bool{}
@@ -296,7 +319,7 @@ func (c *compiler) validateRecords() error {
 		if err := admit(s.ID); err != nil {
 			return err
 		}
-		if !subjectKinds[s.Kind] || !textOK(s.Name) {
+		if !(subjectKinds[s.Kind] || c.adoptionProviders[s.Provider] && adoptionSubjectKinds[s.Kind]) || !textOK(s.Name) {
 			return fail("invalid subject")
 		}
 		subjects[s.ID] = s
@@ -316,7 +339,7 @@ func (c *compiler) validateRecords() error {
 		if err := admit(r.ID); err != nil {
 			return err
 		}
-		if !relationKinds[r.Type] {
+		if !(relationKinds[r.Type] || c.adoptionProviders[r.Provider] && adoptionRelationKinds[r.Type]) {
 			return fail("unsupported relationship")
 		}
 		if _, ok := subjects[r.From]; !ok {
@@ -380,15 +403,13 @@ func (c *compiler) validateRecords() error {
 			j.Evidence.Limitations = append(j.Evidence.Limitations, "only exact retained test/step observations passed; assertion adequacy and completeness unknown")
 		}
 	}
+	observedSubjects := map[string]bool{}
+	for _, o := range a.Observations {
+		observedSubjects[o.Link.Subject] = true
+	}
 	for _, s := range a.Subjects {
 		if s.Kind == "test" {
-			found := false
-			for _, o := range a.Observations {
-				if o.Link.Subject == s.ID {
-					found = true
-				}
-			}
-			if !found {
+			if !observedSubjects[s.ID] {
 				a.Gaps = append(a.Gaps, Gap{s.ID, "not-collected", "test declaration has no retained observation"})
 			}
 		}
@@ -514,6 +535,9 @@ func (c *compiler) capabilities() {
 			for i := range a.Gaps {
 				cap.Records = append(cap.Records, fmt.Sprint(i))
 			}
+		}
+		if c.manifest.Schema == ManifestSchemaV2 && name == "info" {
+			cap.Tools = append(cap.Tools, "inventory")
 		}
 		sort.Strings(cap.Records)
 		cap.Count = len(cap.Records)

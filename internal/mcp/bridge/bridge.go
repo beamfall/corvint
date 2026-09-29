@@ -393,6 +393,8 @@ func (registry *Registry) Call(ctx context.Context, name string, arguments []byt
 		result, callErr = registry.callFlowsGaps(ctx, arguments)
 	case ToolFlowsImpact:
 		result, callErr = registry.callFlowsImpact(ctx, arguments)
+	case ToolFlowsCoverage:
+		result, callErr = registry.callFlowsCoverage(ctx, arguments)
 	case ToolFlowsNavigate:
 		result, callErr = registry.callFlowsNavigate(ctx, arguments)
 	default:

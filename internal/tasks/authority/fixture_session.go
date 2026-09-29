@@ -50,6 +50,7 @@ const (
 	fixtureHead
 	fixtureBarrier
 	fixtureReservations
+	fixturePools
 	fixtureQueue
 	fixturePolicy
 	fixtureImportMap
@@ -139,7 +140,7 @@ func (t fixtureTarget) location() (string, string, int, error) {
 	switch t.role {
 	case fixtureDescriptor:
 		if name == "active.json" {
-			return "staging", name, 2422, nil
+			return "staging", name, 2658, nil
 		}
 	case fixtureReceipt:
 		raw := strings.TrimSuffix(name, ".json")
@@ -170,6 +171,10 @@ func (t fixtureTarget) location() (string, string, int, error) {
 	case fixtureBarrier:
 		if name == "barrier.json" {
 			return "state", name, wire.MaxBarrierBytes, nil
+		}
+	case fixturePools:
+		if name == "pools.json" {
+			return "state", name, 1 << 20, nil
 		}
 	case fixtureReservations:
 		if name == "reservations.json" {
@@ -210,7 +215,7 @@ func (t fixtureTarget) location() (string, string, int, error) {
 }
 func fixtureStageLimit(slot fixtureSlot, role fixtureRole) (int, error) {
 	if slot == "active.json.tmp" && role == fixtureDescriptor {
-		return 2422, nil
+		return 2658, nil
 	}
 	if len(slot) != 3 || slot[0] != 'a' || slot < "a00" || slot > "a10" || slot[1] < '0' || slot[1] > '1' || slot[2] < '0' || slot[2] > '9' {
 		return 0, fixtureRefused
@@ -219,7 +224,7 @@ func fixtureStageLimit(slot fixtureSlot, role fixtureRole) (int, error) {
 		fixtureReceipt: wire.MaxReceiptFileBytes, fixtureEvidence: wire.MaxEvidenceBlobBytes,
 		fixturePin: wire.MaxPinnedBytes, fixtureRequest: wire.MaxAttemptRecordBytes,
 		fixtureVersion: len("taskman-state/0\n"), fixtureHead: wire.MaxJournalHeadBytes,
-		fixtureBarrier: wire.MaxBarrierBytes, fixtureReservations: wire.MaxReservationSetBytes,
+		fixturePools: 1 << 20, fixtureBarrier: wire.MaxBarrierBytes, fixtureReservations: wire.MaxReservationSetBytes,
 		fixtureQueue: wire.MaxQueueFileBytes, fixturePolicy: wire.MaxPolicyFileBytes,
 		fixtureImportMap: wire.MaxImportMapBytes, fixtureTicket: wire.MaxTicketFileBytes, fixtureRelease: wire.MaxReleaseFileBytes,
 		fixtureAttempt: wire.MaxAttemptRecordBytes,
@@ -711,7 +716,7 @@ func (s *fixtureSession) link(stage *fixtureStage, t fixtureTarget) error {
 // directory sync (and a file sync) before clean success. No CAS is claimed.
 func (s *fixtureSession) replace(stage *fixtureStage, t fixtureTarget, expected *wire.Digest) error {
 	switch t.role {
-	case fixtureHead, fixtureBarrier, fixtureReservations, fixtureAttempt:
+	case fixtureHead, fixtureBarrier, fixtureReservations, fixturePools, fixtureAttempt:
 	case fixtureQueue, fixturePolicy, fixtureImportMap, fixtureTicket, fixtureRelease, fixtureVersion:
 		// An intent projection is replaced only under an explicit expected
 		// digest. The §5.2 redo rule decides what the destination must

@@ -107,16 +107,16 @@ type ReplayObservation struct {
 // Input supplies complete metadata and canonical tickets independently of the
 // possibly divergent physical projection. No callbacks or runtime facts enter.
 type Input struct {
-	Inventory                                  *Inventory
-	Head, Queue, Policy, Barrier, Reservations []byte
-	CanonicalTickets                           [][]byte
-	CanonicalReleases                          [][]byte
-	ReleaseCandidate                           *release.Candidate
-	ReleaseGates                               []release.Gate
-	ReleaseObservation                         release.Observation
-	Premise, Branch                            string
-	Replay                                     ReplayObservation
-	RecordedAt                                 wire.Timestamp
+	Inventory                                         *Inventory
+	Head, Queue, Policy, Barrier, Reservations, Pools []byte
+	CanonicalTickets                                  [][]byte
+	CanonicalReleases                                 [][]byte
+	ReleaseCandidate                                  *release.Candidate
+	ReleaseGates                                      []release.Gate
+	ReleaseObservation                                release.Observation
+	Premise, Branch                                   string
+	Replay                                            ReplayObservation
+	RecordedAt                                        wire.Timestamp
 	// HeadReceipt is the head receipt's bytes: every store writer supplies it
 	// and Lease requires it. Attempts are every attempts/ record and
 	// LeaseFacts the caller's claim observations; Lease only.
@@ -538,6 +538,11 @@ func Model(r Request, in Input) Result {
 		if len(next.Runtimes) != 0 {
 			return failed(r.RequestID, malformed("runtime inventory outside subset"))
 		}
+		for _, entry := range state.pools.Entries {
+			if next.MemberDefinition(entry.PoolID, entry.MemberID) != entry.DefinitionSha256 {
+				return failed(r.RequestID, malformed("occupied pool definition cannot change"))
+			}
+		}
 		posts["intent/policy.json"] = bytes.Clone(r.Policy)
 	case ImportApply:
 		if e = importPosts(r, in, state, posts); e != nil {
@@ -709,7 +714,7 @@ func (absentIndex) Lookup(string) (mutation.IndexEntry, bool, error) {
 // Cancels reports a lease release or reap, which an ALL barrier lets through
 // as it does cancel (TCP-00 §3.4).
 func Cancels(r Request) bool {
-	return r.Operation == Lease && (r.Lease.Verb == LeaseRelease || r.Lease.Verb == LeaseReap)
+	return r.Operation == Lease && (r.Lease.Verb == LeaseRelease || r.Lease.Verb == LeaseReap || r.Lease.Verb == LeasePoolObserve || r.Lease.Verb == LeasePoolRecover || r.Lease.Verb == LeasePoolCleanup || r.Lease.Verb == LeasePoolSafe)
 }
 
 func emptyReservations(q string) []byte {
@@ -717,6 +722,7 @@ func emptyReservations(q string) []byte {
 }
 
 type inputState struct {
+	pools    *snapshot.PoolState
 	head     *snapshot.Head
 	barrier  *snapshot.Barrier
 	queue    *intent.Queue
@@ -885,6 +891,9 @@ func validateInput(r Request, in Input) (inputState, error) {
 	if r.Operation == Lease && st.head != nil {
 		st.attempts, e = loadAttempts(in, st.reservations)
 	}
+	if e == nil && (r.Operation == Lease || r.Operation == PolicyUpdate) {
+		st.pools, e = loadPools(r, in, st)
+	}
 	return st, e
 }
 
@@ -1018,7 +1027,9 @@ func freeze(r Request, d wire.Digest, now wire.Timestamp, inv *Inventory, base *
 	attemptVal, generationVal := wire.Null(), wire.Null()
 	if lease != nil {
 		out.Outcome, out.Codes = lease.outcome, lease.codes
-		attemptVal, generationVal = s(lease.attemptID), s(string(lease.generation))
+		if lease.attemptID != "" {
+			attemptVal, generationVal = s(lease.attemptID), s(string(lease.generation))
+		}
 		if lease.bumpHead {
 			generation = lease.generation
 		}

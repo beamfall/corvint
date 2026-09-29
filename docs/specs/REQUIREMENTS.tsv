@@ -109,6 +109,17 @@ AFU-V1-039	docs/specs/application-flow-understanding-v1.md	631	A committed fixtu
 AFU-V1-040	docs/specs/application-flow-understanding-v1.md	634	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing
 AFU-V1-041	docs/specs/application-flow-understanding-v1.md	206	The planned repetition ordinals, the planned or manual run kind, the infrastruct
 AFU-V1-042	docs/specs/application-flow-understanding-v1.md	211	`corvint flows stability` MUST report, per registry aggregate, the selected scop
+AFU-V1-043	docs/specs/application-flow-understanding-v1.md	838	`docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR`
+AFU-V1-044	docs/specs/application-flow-understanding-v1.md	846	Logical flow and paragraph IDs depend on provider namespace, repository-relative
+AFU-V1-045	docs/specs/application-flow-understanding-v1.md	852	`docs flows check --revision FULL_SHA --previous GENERATION_JSON
+AFU-V1-046	docs/specs/application-flow-understanding-v1.md	858	Materialization requires a new directory under existing nonsymlink parents and
+AFU-V1-047	docs/specs/application-flow-understanding-v1.md	864	Optional `--corpus FILE` is revalidated with corpus Open and must retain the exa
+AFU-V1-048	docs/specs/application-flow-understanding-v1.md	870	`docs flows finalize --previous GENERATION_JSON --provider-revision FULL_SHA
+AFU-V1-049	docs/specs/application-flow-understanding-v1.md	907	`flows coverage --denominator FILE --receipts FILE [--revision FULL_SHA]`
+AFU-V1-050	docs/specs/application-flow-understanding-v1.md	914	Proof admits original canonical `/3` bytes and rederives exact test/config/packa
+AFU-V1-051	docs/specs/application-flow-understanding-v1.md	923	Closed statuses are PROVEN, API_PROVEN, FLAKY, STALE, MISSING_TEST and EXCLUDED.
+AFU-V1-052	docs/specs/application-flow-understanding-v1.md	929	CLI exits1 for any missing/flaky/stale row,2 for malformed/incomplete inputs,0 o
+AFU-V1-053	docs/specs/application-flow-understanding-v1.md	935	Explicit `--write-back FRESH_DIR` creates confined no-clobber documentation even
 AGW-V0-001	docs/specs/corvint-witness-v0.md	33	`corvint witness` MUST be read-only, per AGENTS.md invariant 4: on every path —
 AGW-V0-002	docs/specs/corvint-witness-v0.md	43	Committed-range ancestry MUST follow immutable commit parents. The bounded Git
 AGW-V0-003	docs/specs/corvint-witness-v0.md	51	(proposed 2026-09-23, V1-0200, not accepted) the report MUST carry
@@ -236,32 +247,40 @@ BSD-004	docs/specs/beamfall-shadow-dogfood-v1.md	33	Manifest and artifact reads 
 BSD-005	docs/specs/beamfall-shadow-dogfood-v1.md	37	A new private `0600` receipt is emitted for every outcome after a
 BSD-006	docs/specs/beamfall-shadow-dogfood-v1.md	40	Literal external fixture artifacts and source inputs exist for Go;
 BSD-007	docs/specs/beamfall-shadow-dogfood-v1.md	44	The one-pass artifact byte count and non-race allocation ceiling
-CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	80	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and
-CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	84	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow
-CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	87	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom
-CAL-V0-004	docs/specs/corvint-tasks-agent-leases-v0.md	92	`corvint-tasks cutover --decision <ref>` MUST, under an `OWNER` binding, commit
-CAL-V0-005	docs/specs/corvint-tasks-agent-leases-v0.md	100	After the switch, `import` MUST refuse and write nothing, so a later foreign exp
-CAL-V0-006	docs/specs/corvint-tasks-agent-leases-v0.md	102	The switch MUST leave every record file byte-identical: imported records keep th
-CAL-V0-007	docs/specs/corvint-tasks-agent-leases-v0.md	107	`corvint-tasks claim <ticketId> --holder <label> [--lease-minutes N]
-CAL-V0-008	docs/specs/corvint-tasks-agent-leases-v0.md	114	`claim --next --holder <label>` MUST claim the first `SELECTED` entry of the
-CAL-V0-009	docs/specs/corvint-tasks-agent-leases-v0.md	121	Every command that names an attempt (`renew`, `release`, `submit`, `gate run`,
-CAL-V0-010	docs/specs/corvint-tasks-agent-leases-v0.md	125	`renew` MUST extend a live lease to `recordedAt + lease` and refuse `FENCED` onc
-CAL-V0-011	docs/specs/corvint-tasks-agent-leases-v0.md	127	`release [--reason <code>]` MUST move the attempt to `CANCELLED` with quiescence
-CAL-V0-012	docs/specs/corvint-tasks-agent-leases-v0.md	134	A lease is `{holder:label, grantedSeq:Size, expiresAt:Timestamp}`. The default i
-CAL-V0-013	docs/specs/corvint-tasks-agent-leases-v0.md	139	A ticket whose last attempt is `FAILED` or `CANCELLED` MUST be claimable again a
-CAL-V0-014	docs/specs/corvint-tasks-agent-leases-v0.md	148	`corvint-tasks plan preview` MUST implement `taskman-priority-first/0` (TCP-00
-CAL-V0-015	docs/specs/corvint-tasks-agent-leases-v0.md	164	`submit --tree <oid>` MUST record the candidate tree and move `RUNNING` to `BUIL
-CAL-V0-016	docs/specs/corvint-tasks-agent-leases-v0.md	167	`gate run --gate <gateId> --worktree <path>` MUST refuse unless the worktree's
-CAL-V0-017	docs/specs/corvint-tasks-agent-leases-v0.md	172	`complete --commit <oid>` MUST refuse unless the commit is reachable from the
-CAL-V0-018	docs/specs/corvint-tasks-agent-leases-v0.md	181	A first import MUST cost one full audit plus work proportional to the records it
-CAL-V0-019	docs/specs/corvint-tasks-agent-leases-v0.md	245	A named test suite MUST show, for `external-agent` attempts: two concurrent
-CAL-V0-020	docs/specs/corvint-tasks-agent-leases-v0.md	250	`cutover --execution --decision <ref> --qualification <file>` MUST, under an
-CAL-V0-021	docs/specs/corvint-tasks-agent-leases-v0.md	195	Every `external-agent` attempt MUST carry a scope: a set of `PATH` resources wit
-CAL-V0-022	docs/specs/corvint-tasks-agent-leases-v0.md	203	A `DERIVED` scope MUST come from Corvint's local context index for the ticket's
-CAL-V0-023	docs/specs/corvint-tasks-agent-leases-v0.md	215	Two live attempts MUST collide exactly when their resource sets collide under
-CAL-V0-024	docs/specs/corvint-tasks-agent-leases-v0.md	221	`submit --tree <oid>` MUST refuse `OUT_OF_SCOPE`, naming every offending path,
-CAL-V0-025	docs/specs/corvint-tasks-agent-leases-v0.md	224	`widen --attempt <id> --generation <G> --scope PATH...` MUST add the paths to a
-CAL-V0-026	docs/specs/corvint-tasks-agent-leases-v0.md	229	Each lease command (`claim`, `renew`, `release`, `reap`, `widen`, `submit`, `gat
+CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	81	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and
+CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	85	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow
+CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	88	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom
+CAL-V0-004	docs/specs/corvint-tasks-agent-leases-v0.md	93	`corvint-tasks cutover --decision <ref>` MUST, under an `OWNER` binding, commit
+CAL-V0-005	docs/specs/corvint-tasks-agent-leases-v0.md	101	After the switch, `import` MUST refuse and write nothing, so a later foreign exp
+CAL-V0-006	docs/specs/corvint-tasks-agent-leases-v0.md	103	The switch MUST leave every record file byte-identical: imported records keep th
+CAL-V0-007	docs/specs/corvint-tasks-agent-leases-v0.md	108	`corvint-tasks claim <ticketId> --holder <label> [--lease-minutes N]
+CAL-V0-008	docs/specs/corvint-tasks-agent-leases-v0.md	115	`claim --next --holder <label>` MUST claim the first `SELECTED` entry of the
+CAL-V0-009	docs/specs/corvint-tasks-agent-leases-v0.md	122	Every command that names an attempt (`renew`, `release`, `submit`, `gate run`,
+CAL-V0-010	docs/specs/corvint-tasks-agent-leases-v0.md	126	`renew` MUST extend a live lease to `recordedAt + lease` and refuse `FENCED` onc
+CAL-V0-011	docs/specs/corvint-tasks-agent-leases-v0.md	128	`release [--reason <code>]` MUST move the attempt to `CANCELLED` with quiescence
+CAL-V0-012	docs/specs/corvint-tasks-agent-leases-v0.md	135	A lease is `{holder:label, grantedSeq:Size, expiresAt:Timestamp}`. The default i
+CAL-V0-013	docs/specs/corvint-tasks-agent-leases-v0.md	140	A ticket whose last attempt is `FAILED` or `CANCELLED` MUST be claimable again a
+CAL-V0-014	docs/specs/corvint-tasks-agent-leases-v0.md	149	`corvint-tasks plan preview` MUST implement `taskman-priority-first/0` (TCP-00
+CAL-V0-015	docs/specs/corvint-tasks-agent-leases-v0.md	165	`submit --tree <oid>` MUST record the candidate tree and move `RUNNING` to `BUIL
+CAL-V0-016	docs/specs/corvint-tasks-agent-leases-v0.md	168	`gate run --gate <gateId> --worktree <path>` MUST refuse unless the worktree's
+CAL-V0-017	docs/specs/corvint-tasks-agent-leases-v0.md	173	`complete --commit <oid>` MUST refuse unless the commit is reachable from the
+CAL-V0-018	docs/specs/corvint-tasks-agent-leases-v0.md	182	A first import MUST cost one full audit plus work proportional to the records it
+CAL-V0-019	docs/specs/corvint-tasks-agent-leases-v0.md	246	A named test suite MUST show, for `external-agent` attempts: two concurrent
+CAL-V0-020	docs/specs/corvint-tasks-agent-leases-v0.md	251	`cutover --execution --decision <ref> --qualification <file>` MUST, under an
+CAL-V0-021	docs/specs/corvint-tasks-agent-leases-v0.md	196	Every `external-agent` attempt MUST carry a scope: a set of `PATH` resources wit
+CAL-V0-022	docs/specs/corvint-tasks-agent-leases-v0.md	204	A `DERIVED` scope MUST come from Corvint's local context index for the ticket's
+CAL-V0-023	docs/specs/corvint-tasks-agent-leases-v0.md	216	Two live attempts MUST collide exactly when their resource sets collide under
+CAL-V0-024	docs/specs/corvint-tasks-agent-leases-v0.md	222	`submit --tree <oid>` MUST refuse `OUT_OF_SCOPE`, naming every offending path,
+CAL-V0-025	docs/specs/corvint-tasks-agent-leases-v0.md	225	`widen --attempt <id> --generation <G> --scope PATH...` MUST add the paths to a
+CAL-V0-026	docs/specs/corvint-tasks-agent-leases-v0.md	230	Each lease command (`claim`, `renew`, `release`, `reap`, `widen`, `submit`, `gat
+CAL-V0-027	docs/specs/corvint-tasks-agent-leases-v0.md	260	A separate `corvint-tasks-archive/0` build path MUST package the Tasks binary,
+CAL-V0-028	docs/specs/corvint-tasks-agent-leases-v0.md	270	Policy MAY add optional `pools`; tickets MAY add acceptance-relevant
+CAL-V0-029	docs/specs/corvint-tasks-agent-leases-v0.md	278	Claim and claim-next MUST atomically reserve one eligible free member of an
+CAL-V0-030	docs/specs/corvint-tasks-agent-leases-v0.md	284	Release, expiry/reap and completion MUST quarantine the exact allocation while
+CAL-V0-031	docs/specs/corvint-tasks-agent-leases-v0.md	290	A configured health command MUST acquire durable PREPARING ownership before
+CAL-V0-032	docs/specs/corvint-tasks-agent-leases-v0.md	296	Cleanup MUST acquire durable CLEANING ownership before execution. Pending comman
+CAL-V0-033	docs/specs/corvint-tasks-agent-leases-v0.md	301	Pool commands MUST use bounded trusted operator argv, declared environment keys,
+CAL-V0-034	docs/specs/corvint-tasks-agent-leases-v0.md	308	Queue occupancy and plan preview MUST remain read-only and execute no probes.
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla
@@ -518,6 +537,7 @@ CTS-V0-001	docs/specs/corvint-tasks-store-init-v0.md	44	`corvint-tasks init` MUS
 CTS-V0-002	docs/specs/corvint-tasks-store-init-v0.md	49	Only `queue status`, `roadmap`, `ticket show` and `ticket search` MUST
 CTS-V0-003	docs/specs/corvint-tasks-store-init-v0.md	63	(accepted 2026-09-27, owner decision relayed by the orchestrator session "Work
 CTS-V0-004	docs/specs/corvint-tasks-store-init-v0.md	77	Store resolution MUST resolve symbolic links in the directories above the primar
+CTS-V0-005	docs/specs/corvint-tasks-store-init-v0.md	83	The external-agent setup guide MUST provide canonical queue, policy and ticket-c
 CWC-X0-001	docs/specs/correlated-witness-collapse-x0.md	55	X0 MUST consume one exact bounded `cem/0.1` or `cem/0.2` byte document through t
 CWC-X0-002	docs/specs/correlated-witness-collapse-x0.md	58	Common causes MUST use exactly `source`, `generator`, `parser`, `oracle`, or
 CWC-X0-003	docs/specs/correlated-witness-collapse-x0.md	61	Every witness and membership-attestation reference MUST identify evidence presen
@@ -586,38 +606,43 @@ DCLI-V0-004	docs/specs/direct-native-cli-authority-v0.md	34	**Provenance/trust.*
 DCLI-V0-005	docs/specs/direct-native-cli-authority-v0.md	36	**Common computation/currentness.** Preserve fixed protected paths, release/adap
 DCLI-V0-006	docs/specs/direct-native-cli-authority-v0.md	38	**Negative acceptance.** Closed decoder rejects old/new mixed fields, unknown ho
 DCLI-V0-007	docs/specs/direct-native-cli-authority-v0.md	40	**Rollback.** Revoke/raise protected generation floor, withdraw the direct quali
-DCP-V1-001	docs/specs/documentation-corpus-v1.md	33	The explicit manifest, normalized provider and artifact use closed versioned JSO
-DCP-V1-002	docs/specs/documentation-corpus-v1.md	37	Provenance carries builder identity/revision, shared native compiler/schema/tool
-DCP-V1-003	docs/specs/documentation-corpus-v1.md	43	Each literal source/provider scope has a complete immutable Git inventory checke
-DCP-V1-004	docs/specs/documentation-corpus-v1.md	48	Every claim, relationship and journey step carries revalidatable evidence or an
-DCP-V1-005	docs/specs/documentation-corpus-v1.md	53	Derivation (`generated`, `source-derived`, `observed`, `declared`, `imported`),
-DCP-V1-006	docs/specs/documentation-corpus-v1.md	57	Subjects use generic types: repository, package, module, symbol, endpoint, UI su
-DCP-V1-007	docs/specs/documentation-corpus-v1.md	63	Native providers reuse indexed source/symbol/document evidence and explicitly di
-DCP-V1-008	docs/specs/documentation-corpus-v1.md	70	Journeys contain independently supplied ordered evidence, preconditions, action
-DCP-V1-009	docs/specs/documentation-corpus-v1.md	78	Every capability is explicitly declared with backing records, native tools/provi
-DCP-V1-010	docs/specs/documentation-corpus-v1.md	82	Coverage always names value, denominator, definition/rule, revision and limitati
-DCP-V1-011	docs/specs/documentation-corpus-v1.md	85	Readers verify canonical artifact/digest and rederive all compiler-owned records
-DCP-V1-012	docs/specs/documentation-corpus-v1.md	89	`docs corpus` exposes manifest/build/info/search/get/locate/related/coverage/gap
-DCP-V1-013	docs/specs/documentation-corpus-v1.md	94	Explicit native corpus integration supplies first-class separately attributed
-DCP-V1-014	docs/specs/documentation-corpus-v1.md	99	CEM integration projects original Git documentation spans at the CEM base throug
-DCP-V1-015	docs/specs/documentation-corpus-v1.md	103	Task/work consumers may attach read-only corpus evidence without changing accept
-DCP-V1-016	docs/specs/documentation-corpus-v1.md	105	A separate stdio documentation-corpus MCP server directly calls the native reade
-DCP-V1-017	docs/specs/documentation-corpus-v1.md	113	Declared profiles render Markdown or JSON, optionally grouped as a directory pla
-DCP-V1-018	docs/specs/documentation-corpus-v1.md	123	Input byte bounds apply before decode; record/revision/traversal bounds apply be
-DCP-V1-019	docs/specs/documentation-corpus-v1.md	127	Generic fixtures cover Go, JavaScript/TypeScript, Python or Ruby, unsupported an
-DCP-V1-020	docs/specs/documentation-corpus-v1.md	131	A frozen labelled evaluation records per-case truth/denominators, search precisi
-DCP-V1-021	docs/specs/documentation-corpus-v1.md	135	The opt-in `corvint-corpus-behavior-stability-provider/1` profile aggregates onl
-DCP-V1-022	docs/specs/documentation-corpus-v1.md	143	Planned repetitions use a complete unique ordinal set. Playwright retries remain
-DCP-V1-023	docs/specs/documentation-corpus-v1.md	148	Aggregates separately expose planned, started, completed, passed, failed, timed-
-DCP-V1-024	docs/specs/documentation-corpus-v1.md	153	One repository-owned digest-bound policy defines independent one-spec, feature-b
-DCP-V1-025	docs/specs/documentation-corpus-v1.md	156	Corpus `stability` and capability-gated MCP `docs_get_stability` rederive the ag
-DCP-V1-026	docs/specs/documentation-corpus-v1.md	160	The repository policy and every observed run bind separate full-artifact topolog
-DCP-V1-027	docs/specs/documentation-corpus-v1.md	167	The opt-in native behavior adapter accepts one closed, bounded
-DCP-V1-028	docs/specs/documentation-corpus-v1.md	175	One deterministic `corvint-behavior-adapter-result/1` bundle contains an exact
-DCP-V1-029	docs/specs/documentation-corpus-v1.md	180	The adapter preserves the same canonical variation set in both directions across
-DCP-V1-030	docs/specs/documentation-corpus-v1.md	187	The result separately reports documented criteria, source-discovered candidates,
-DCP-V1-031	docs/specs/documentation-corpus-v1.md	191	Reconciliation reports every documented or discovered orphan, criterion/test/flo
-DCP-V1-032	docs/specs/documentation-corpus-v1.md	197	An optional prior result yields exact added, removed and content-changed canonic
+DCP-V1-001	docs/specs/documentation-corpus-v1.md	34	The explicit manifest, normalized provider and artifact use closed versioned JSO
+DCP-V1-002	docs/specs/documentation-corpus-v1.md	38	Provenance carries builder identity/revision, shared native compiler/schema/tool
+DCP-V1-003	docs/specs/documentation-corpus-v1.md	44	Each literal source/provider scope has a complete immutable Git inventory checke
+DCP-V1-004	docs/specs/documentation-corpus-v1.md	49	Every claim, relationship and journey step carries revalidatable evidence or an
+DCP-V1-005	docs/specs/documentation-corpus-v1.md	54	Derivation (`generated`, `source-derived`, `observed`, `declared`, `imported`),
+DCP-V1-006	docs/specs/documentation-corpus-v1.md	58	Subjects use generic types: repository, package, module, symbol, endpoint, UI su
+DCP-V1-007	docs/specs/documentation-corpus-v1.md	64	Native providers reuse indexed source/symbol/document evidence and explicitly di
+DCP-V1-008	docs/specs/documentation-corpus-v1.md	71	Journeys contain independently supplied ordered evidence, preconditions, action
+DCP-V1-009	docs/specs/documentation-corpus-v1.md	79	Every capability is explicitly declared with backing records, native tools/provi
+DCP-V1-010	docs/specs/documentation-corpus-v1.md	83	Coverage always names value, denominator, definition/rule, revision and limitati
+DCP-V1-011	docs/specs/documentation-corpus-v1.md	86	Readers verify canonical artifact/digest and rederive all compiler-owned records
+DCP-V1-012	docs/specs/documentation-corpus-v1.md	90	`docs corpus` exposes manifest/build/info/search/get/locate/related/coverage/gap
+DCP-V1-013	docs/specs/documentation-corpus-v1.md	95	Explicit native corpus integration supplies first-class separately attributed
+DCP-V1-014	docs/specs/documentation-corpus-v1.md	100	CEM integration projects original Git documentation spans at the CEM base throug
+DCP-V1-015	docs/specs/documentation-corpus-v1.md	104	Task/work consumers may attach read-only corpus evidence without changing accept
+DCP-V1-016	docs/specs/documentation-corpus-v1.md	106	A separate stdio documentation-corpus MCP server directly calls the native reade
+DCP-V1-017	docs/specs/documentation-corpus-v1.md	114	Declared profiles render Markdown or JSON, optionally grouped as a directory pla
+DCP-V1-018	docs/specs/documentation-corpus-v1.md	124	Input byte bounds apply before decode; record/revision/traversal bounds apply be
+DCP-V1-019	docs/specs/documentation-corpus-v1.md	128	Generic fixtures cover Go, JavaScript/TypeScript, Python or Ruby, unsupported an
+DCP-V1-020	docs/specs/documentation-corpus-v1.md	132	A frozen labelled evaluation records per-case truth/denominators, search precisi
+DCP-V1-021	docs/specs/documentation-corpus-v1.md	136	The opt-in `corvint-corpus-behavior-stability-provider/1` profile aggregates onl
+DCP-V1-022	docs/specs/documentation-corpus-v1.md	144	Planned repetitions use a complete unique ordinal set. Playwright retries remain
+DCP-V1-023	docs/specs/documentation-corpus-v1.md	149	Aggregates separately expose planned, started, completed, passed, failed, timed-
+DCP-V1-024	docs/specs/documentation-corpus-v1.md	154	One repository-owned digest-bound policy defines independent one-spec, feature-b
+DCP-V1-025	docs/specs/documentation-corpus-v1.md	157	Corpus `stability` and capability-gated MCP `docs_get_stability` rederive the ag
+DCP-V1-026	docs/specs/documentation-corpus-v1.md	161	The repository policy and every observed run bind separate full-artifact topolog
+DCP-V1-027	docs/specs/documentation-corpus-v1.md	168	The opt-in native behavior adapter accepts one closed, bounded
+DCP-V1-028	docs/specs/documentation-corpus-v1.md	176	One deterministic `corvint-behavior-adapter-result/1` bundle contains an exact
+DCP-V1-029	docs/specs/documentation-corpus-v1.md	181	The adapter preserves the same canonical variation set in both directions across
+DCP-V1-030	docs/specs/documentation-corpus-v1.md	188	The result separately reports documented criteria, source-discovered candidates,
+DCP-V1-031	docs/specs/documentation-corpus-v1.md	192	Reconciliation reports every documented or discovered orphan, criterion/test/flo
+DCP-V1-032	docs/specs/documentation-corpus-v1.md	198	An optional prior result yields exact added, removed and content-changed canonic
+DCP-V1-033	docs/specs/documentation-corpus-v1.md	215	The opt-in `corvint-corpus-input/2` and `corvint-evidence-corpus/2`
+DCP-V1-034	docs/specs/documentation-corpus-v1.md	224	Adoption records retain typed behavior, constraint, side-effect, integration and
+DCP-V1-035	docs/specs/documentation-corpus-v1.md	232	Restricted findings use a separate local-input family. Admit only aggregate coun
+DCP-V1-036	docs/specs/documentation-corpus-v1.md	239	Report supplied-record parity per provider and source kind with records in, admi
+DCP-V1-037	docs/specs/documentation-corpus-v1.md	249	Qualify the full Build/Open/read path with a labelled synthetic corpus containin
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	27	Core MUST remain one native Go binary with no required account, network, daemon,
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	30	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	33	Task orientation MUST locate governing intent and original revision-pinned evide
@@ -1770,6 +1795,7 @@ PWP-V3-003	docs/specs/playwright-external-provider-v0.md	60	The existing per-att
 PWP-V3-004	docs/specs/playwright-external-provider-v0.md	61	Every `/3` attempt failure message and artifact is subject to the same report-wi
 PWP-V3-005	docs/specs/playwright-external-provider-v0.md	62	The reporter emits `attemptDetails` only under `/3`; the provider validates the
 PWP-V3-006	docs/specs/playwright-external-provider-v0.md	63	`/3` is non-promotable until the changed reporter completes the live matrix of `
+PWP-V3-007	docs/specs/playwright-external-provider-v0.md	260	The `/3` exact project identity permits an explicitly observed empty project nam
 QLF-V0-001	docs/specs/qualified-lifecycle-v0.md	32	The additive `corvint-qualified-lifecycle/0` request MUST be a closed object con
 QLF-V0-002	docs/specs/qualified-lifecycle-v0.md	33	Completed qualified non-Stop events MUST derive repository scope exclusively fro
 QLF-V0-003	docs/specs/qualified-lifecycle-v0.md	34	Qualified Stop MUST derive the active handle inside the same protected scope, co

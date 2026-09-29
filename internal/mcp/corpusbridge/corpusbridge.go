@@ -25,7 +25,7 @@ type Registry struct {
 	artifact           *doccorpus.Artifact
 }
 
-var tools = map[string]string{"corvint.docs_info": "info", "corvint.docs_search": "search", "corvint.docs_get": "get", "corvint.docs_locate": "locate", "corvint.docs_find_related": "related", "corvint.docs_coverage": "coverage", "corvint.docs_gaps": "gaps", "corvint.docs_get_journey": "journey", "corvint.docs_get_stability": "stability", "corvint.docs_trace": "trace"}
+var tools = map[string]string{"corvint.docs_inventory": "inventory", "corvint.docs_info": "info", "corvint.docs_search": "search", "corvint.docs_get": "get", "corvint.docs_locate": "locate", "corvint.docs_find_related": "related", "corvint.docs_coverage": "coverage", "corvint.docs_gaps": "gaps", "corvint.docs_get_journey": "journey", "corvint.docs_get_stability": "stability", "corvint.docs_trace": "trace"}
 
 func New(root, path string) (*Registry, *Error) {
 	absolute, err := filepath.Abs(root)
@@ -36,7 +36,7 @@ func New(root, path string) (*Registry, *Error) {
 	if err != nil || !identity.IsDir() || identity.Mode()&os.ModeSymlink != 0 {
 		return nil, &Error{"invalid-root"}
 	}
-	raw, err := doccorpus.ReadFile(absolute, path)
+	raw, err := doccorpus.ReadCorpusFile(absolute, path)
 	if err != nil {
 		return nil, &Error{"corpus-unavailable"}
 	}
@@ -49,10 +49,13 @@ func New(root, path string) (*Registry, *Error) {
 func (r *Registry) Tools() []bridge.ToolDescriptor {
 	result := []bridge.ToolDescriptor{}
 	for name, op := range tools {
-		if !r.artifact.HasCapability(doccorpus.CapabilityFor(op)) {
+		if op == "inventory" && r.artifact.Schema != doccorpus.SchemaV2 || !r.artifact.HasCapability(doccorpus.CapabilityFor(op)) {
 			continue
 		}
 		properties := map[string]any{"limit": map[string]any{"type": "integer", "minimum": 1, "maximum": doccorpus.MaxResults}}
+		if r.artifact.Schema == doccorpus.SchemaV2 {
+			properties["offset"] = map[string]any{"type": "integer", "minimum": 0, "maximum": doccorpus.MaxCorpusRecords * 4}
+		}
 		required := []any{}
 		if op == "search" {
 			properties["query"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}
@@ -76,17 +79,18 @@ func (r *Registry) Tools() []bridge.ToolDescriptor {
 }
 func (r *Registry) Call(ctx context.Context, name string, arguments []byte) (map[string]any, string, *ToolFailure, *Error) {
 	op, ok := tools[name]
-	if !ok || !r.artifact.HasCapability(doccorpus.CapabilityFor(op)) {
+	if !ok || op == "inventory" && r.artifact.Schema != doccorpus.SchemaV2 || !r.artifact.HasCapability(doccorpus.CapabilityFor(op)) {
 		return nil, "", nil, &Error{"unsupported-tool"}
 	}
 	if ctx.Err() != nil {
 		return nil, "", nil, &Error{"cancelled"}
 	}
 	var input struct {
-		Query string `json:"query"`
-		ID    string `json:"id"`
-		Path  string `json:"path"`
-		Limit *int   `json:"limit"`
+		Query  string `json:"query"`
+		ID     string `json:"id"`
+		Path   string `json:"path"`
+		Limit  *int   `json:"limit"`
+		Offset int    `json:"offset"`
 	}
 	if len(arguments) > 16<<10 || json.Unmarshal(arguments, &input, json.RejectUnknownMembers(true)) != nil {
 		return nil, "", nil, &Error{"invalid-arguments"}
@@ -96,10 +100,13 @@ func (r *Registry) Call(ctx context.Context, name string, arguments []byte) (map
 		return nil, "", nil, &Error{"invalid-arguments"}
 	}
 	for key, value := range members {
-		allowed := key == "limit" || key == "query" && op == "search" || key == "path" && op == "locate" || key == "id" && (op == "get" || op == "trace" || op == "related" || op == "journey" || op == "stability" || op == "gaps")
+		allowed := key == "offset" && r.artifact.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && op == "search" || key == "path" && op == "locate" || key == "id" && (op == "get" || op == "trace" || op == "related" || op == "journey" || op == "stability" || op == "gaps")
 		if !allowed || value == nil {
 			return nil, "", nil, &Error{"invalid-arguments"}
 		}
+	}
+	if input.Offset < 0 || input.Offset > doccorpus.MaxCorpusRecords*4 {
+		return nil, "", nil, &Error{"invalid-arguments"}
 	}
 	limit := 20
 	if input.Limit != nil {
@@ -121,14 +128,14 @@ func (r *Registry) Call(ctx context.Context, name string, arguments []byte) (map
 	if err != nil || !os.SameFile(identity, r.identity) {
 		return nil, "", &ToolFailure{"corpus-input-unavailable", "repository root changed"}, nil
 	}
-	raw, err := doccorpus.ReadFile(r.root, r.path)
+	raw, err := doccorpus.ReadCorpusFile(r.root, r.path)
 	if err != nil {
 		return failure(err)
 	}
 	if doccorpus.Digest(raw) != r.digest {
 		return nil, "", &ToolFailure{"corpus-refused", "configured artifact changed; restart with the new artifact"}, nil
 	}
-	receipt, err := doccorpus.ReadQuery(ctx, r.root, raw, doccorpus.Request{Operation: op, Query: input.Query, ID: input.ID, Path: input.Path, Limit: limit})
+	receipt, err := doccorpus.ReadQuery(ctx, r.root, raw, doccorpus.Request{Operation: op, Query: input.Query, ID: input.ID, Path: input.Path, Limit: limit, Offset: input.Offset})
 	if err != nil {
 		return failure(err)
 	}

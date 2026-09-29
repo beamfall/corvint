@@ -34,6 +34,9 @@ func flowInvocation(args []string) (string, []string, bool) {
 }
 
 func runFlows(ctx context.Context, root string, args []string, out, diagnostic io.Writer) int {
+	if len(args) > 0 && args[0] == "coverage" {
+		return runFlowCoverage(ctx, root, args[1:], out, diagnostic)
+	}
 	if len(args) > 0 && flowSubcommands[args[0]] != nil {
 		return runFlowSubcommand(ctx, flowSubcommands[args[0]], root, args[1:], out, diagnostic)
 	}
@@ -356,6 +359,12 @@ func runFlowsIngest(_ context.Context, _ string, args []string, out io.Writer) e
 
 // flowsIntentHelp documents the AFU-V1 intent subcommands; help.go appends it to flowsHelp.
 const flowsIntentHelp = `
+Flow variation coverage:
+  corvint [--root PATH] flows coverage --denominator FILE --receipts FILE [--revision SHA]
+    [--offset N --limit N] [--write-back FRESH_DIR | --check DIR]
+Complete accepted matrices and original /3 receipts; exit1 for gaps,2 for refusal.
+PROVEN binds immutable bytes and declared app identity, not attested deployment lineage.
+
 Intent usage:
   corvint [--root PATH] flows export --flows DIR --emit inventory|provider|request [--envelope FILE]
   corvint [--root PATH] flows import --flows DIR --from FILE --format behavior-adapter-request|openapi|playwright-list

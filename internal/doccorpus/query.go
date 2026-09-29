@@ -2,6 +2,7 @@ package doccorpus
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 
@@ -27,6 +28,12 @@ func Freshness(ctx context.Context, root string, a *Artifact) (string, []string,
 	if a.Builder.Revision == "unrecorded" || strings.HasSuffix(a.Builder.Revision, "+dirty") {
 		limits = append(limits, "builder source revision is unrecorded or dirty; no immutable build attestation")
 	}
+	livePath := func(prefix, path string) string {
+		if a.Schema == SchemaV2 {
+			return prefix + "[outside pinned inventory]"
+		}
+		return prefix + path
+	}
 	declared := map[string]bool{}
 	for _, in := range a.Manifest.Inputs {
 		declared[inputKey(in.Revision, in.Path)] = true
@@ -35,19 +42,19 @@ func Freshness(ctx context.Context, root string, a *Artifact) (string, []string,
 		for p := range live.Tracked {
 			if inScope(p, scope.Path) && !declared[inputKey(scope.Revision, p)] {
 				state = "stale"
-				limits = append(limits, "new input in declared scope: "+p)
+				limits = append(limits, livePath("new input in declared scope: ", p))
 			}
 		}
 		for p := range live.Skipped {
 			if inScope(p, scope.Path) {
 				state = "stale"
-				limits = append(limits, "unsupported live scope entry: "+p)
+				limits = append(limits, livePath("unsupported live scope entry: ", p))
 			}
 		}
 		for _, p := range live.DirtyPaths {
 			if inScope(p, scope.Path) && !declared[inputKey(scope.Revision, p)] {
 				state = "stale"
-				limits = append(limits, "new working-tree input in declared scope: "+p)
+				limits = append(limits, livePath("new working-tree input in declared scope: ", p))
 			}
 		}
 	}
@@ -72,9 +79,25 @@ func Freshness(ctx context.Context, root string, a *Artifact) (string, []string,
 		}
 	}
 	sort.Strings(limits)
+	if a.Schema == SchemaV2 {
+		unique := []string{}
+		for _, x := range limits {
+			if len(unique) == 0 || unique[len(unique)-1] != x {
+				unique = append(unique, x)
+			}
+		}
+		limits = unique
+		if len(limits) > MaxResults {
+			omitted := len(limits) - MaxResults
+			limits = append(limits[:MaxResults], fmt.Sprintf("freshness diagnostic bound withheld %d reasons", omitted))
+		}
+	}
 	return state, limits, nil
 }
 func CapabilityFor(operation string) string {
+	if operation == "inventory" {
+		return "info"
+	}
 	for _, name := range capabilityNames {
 		for _, op := range capabilityTools(name) {
 			if op == operation {
@@ -102,11 +125,17 @@ func Query(a *Artifact, request Request, freshness string, limitations []string)
 	if request.Limit < 1 || request.Limit > MaxResults || len(request.Query) > 1024 || len(request.ID) > 1024 || len(request.Path) > 1024 {
 		return Receipt{}, fail("invalid query bounds")
 	}
+	if request.Offset < 0 || request.Offset > MaxCorpusRecords*4 || a.Schema != SchemaV2 && (request.Offset != 0 || request.Operation == "inventory") {
+		return Receipt{}, fail("pagination requires corpus /2 and bounded offset")
+	}
 	capability := CapabilityFor(request.Operation)
 	if capability == "" {
 		return Receipt{}, fail("unknown corpus operation")
 	}
 	r := Receipt{Schema: ReceiptSchema, Operation: request.Operation, ArtifactSHA256: a.SHA256, Repository: a.Manifest.Repository, Tree: a.Tree, Trust: "generated", Freshness: freshness, State: "ready", Results: []any{}, Citations: []Anchor{}, Capabilities: a.Capabilities, Limitations: append([]string{}, limitations...)}
+	if a.Schema == SchemaV2 {
+		r.Capabilities = boundedCapabilities(a.Capabilities)
+	}
 	if !a.HasCapability(capability) {
 		r.State = "unavailable"
 		r.Miss = "capability-absent"
@@ -123,6 +152,26 @@ func Query(a *Artifact, request Request, freshness string, limitations []string)
 	switch request.Operation {
 	case "info", "validate":
 		r.Results = append(r.Results, map[string]any{"builder": a.Builder, "manifest_sha256": a.ManifestSHA256, "profile_sha256": a.ProfileSHA256, "profile": a.Manifest.Profile, "built_at": a.Manifest.BuiltAt, "validation": "source-rederived"})
+		if a.ImportParity != nil {
+			r.Results = append(r.Results, map[string]any{"import_parity": a.ImportParity, "restricted_summaries": a.RestrictedSummaries, "scope": "supplied adoption records only; source completeness is not inferred"})
+		}
+	case "inventory":
+		for _, x := range a.Subjects {
+			r.Results = append(r.Results, x)
+		}
+		for _, x := range a.Claims {
+			r.Results = append(r.Results, x)
+		}
+		for _, x := range a.Relations {
+			r.Results = append(r.Results, x)
+		}
+		for _, x := range a.Journeys {
+			r.Results = append(r.Results, x)
+		}
+		for _, x := range a.Observations {
+			r.Results = append(r.Results, x)
+		}
+		sort.Slice(r.Results, func(i, j int) bool { return recordID(r.Results[i]) < recordID(r.Results[j]) })
 	case "search":
 		search(a, request, &r)
 	case "get", "trace":
@@ -162,9 +211,15 @@ func Query(a *Artifact, request Request, freshness string, limitations []string)
 		}
 	case "coverage":
 		r.Results = append(r.Results, coverageMetrics(a)...)
+		if a.ImportParity != nil {
+			r.Results = append(r.Results, map[string]any{"import_parity": a.ImportParity, "restricted_summaries": a.RestrictedSummaries})
+		}
 		for _, cap := range a.Capabilities {
 			r.Results = append(r.Results, map[string]any{"capability": cap.Name, "value": cap.Count, "denominator": cap.Denominator, "definition": "emitted records per declared input; not a behavioral coverage percentage", "rule": cap.Rule, "revision": a.Manifest.Repository.Revision, "defined": cap.Denominator > 0, "limitations": []string{cap.Reason}})
 		}
+	}
+	if a.Schema == SchemaV2 {
+		return pageReceipt(a, r, request)
 	}
 	if len(r.Results) == 0 {
 		r.State = "empty"
@@ -177,6 +232,23 @@ func Query(a *Artifact, request Request, freshness string, limitations []string)
 		r.Omitted = len(r.Results) - request.Limit
 		r.Results = r.Results[:request.Limit]
 		r.Limitations = append(r.Limitations, "result limit withheld records")
+	}
+	for _, result := range r.Results {
+		id := ""
+		switch value := result.(type) {
+		case Subject:
+			id = value.ID
+		case Claim:
+			id = value.ID
+		case Relation:
+			id = value.ID
+		}
+		if detail, ok := a.Details[id]; ok {
+			if r.Details == nil {
+				r.Details = map[string]RecordDetails{}
+			}
+			r.Details[id] = detail
+		}
 	}
 	// Citations are deduplicated and independently bounded; truncation is visible.
 	sort.Slice(r.Citations, func(i, j int) bool { return anchorKey(r.Citations[i]) < anchorKey(r.Citations[j]) })
@@ -226,11 +298,29 @@ func get(a *Artifact, id string, r *Receipt) {
 			r.Citations = append(r.Citations, c.Evidence.Anchors...)
 		}
 	}
+	if a.Schema == SchemaV2 {
+		for _, rel := range a.Relations {
+			if rel.ID == id {
+				r.Results = append(r.Results, rel)
+				r.Citations = append(r.Citations, rel.Evidence.Anchors...)
+			}
+		}
+		for _, j := range a.Journeys {
+			if j.ID == id {
+				r.Results = append(r.Results, j)
+			}
+		}
+		for _, o := range a.Observations {
+			if o.Link.ID == id {
+				r.Results = append(r.Results, o)
+			}
+		}
+	}
 	if r.Operation != "trace" {
 		return
 	}
 	for _, rel := range a.Relations {
-		if rel.From == id || rel.To == id {
+		if (rel.From == id || rel.To == id) && (a.Schema != SchemaV2 || rel.ID != id) {
 			r.Results = append(r.Results, rel)
 			r.Citations = append(r.Citations, rel.Evidence.Anchors...)
 		}
@@ -329,6 +419,11 @@ func coverageMetrics(a *Artifact) []any {
 		{"journeys_with_recorded_verification", "journeys with matching ordered retained steps / all declared journey dispositions", verified, len(a.Journeys)},
 	} {
 		rows = append(rows, map[string]any{"metric": metric.name, "value": metric.value, "denominator": metric.denominator, "defined": metric.denominator > 0, "definition": metric.definition, "revision": a.Manifest.Repository.Revision, "limitations": []string{"scoped declaration coverage only; provider honesty, semantic truth and adequacy unknown"}})
+	}
+	for _, s := range a.Subjects {
+		if d := a.Details[s.ID].Coverage; d != nil {
+			rows = append(rows, map[string]any{"metric": s.ID, "value": len(d.Numerator), "denominator": len(d.Denominator), "defined": len(d.Denominator) > 0, "definition": d.Definition, "rule": d.Rule, "revision": a.Manifest.Repository.Revision, "limitations": []string{"supplied membership only; original intent and semantic adequacy unassessed"}})
+		}
 	}
 	return append(rows, behaviorCoverage(a)...)
 }

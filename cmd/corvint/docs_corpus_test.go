@@ -376,3 +376,61 @@ func TestCorpusRelayNativeFailureStdoutCopyDoesNotDoubleEnvelope(t *testing.T) {
 		t.Fatalf("expected exactly one error envelope on stderr, got %q", stderr.String())
 	}
 }
+
+func TestCorpusAdoptionCLIMCPPagination(t *testing.T) {
+	t.Run("DCP-V1-036 CLI MCP page parity", func(t *testing.T) {
+		root := taskContextRepository(t)
+		rev := cemGit(t, root, "rev-parse", "HEAD")
+		m, err := doccorpus.Inventory(context.Background(), root, rev, "cache", "2026-09-28T00:00:00Z")
+		if err != nil {
+			t.Fatal(err)
+		}
+		m.Schema = doccorpus.ManifestSchemaV2
+		data, err := doccorpus.Encode(m)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cemWrite(t, root, "manifest.json", string(data))
+		code, out, stderr := corpusCLI(t, root, "docs", "corpus", "build", "--manifest", "manifest.json")
+		if code != 0 {
+			t.Fatal(stderr)
+		}
+		cemWrite(t, root, "corpus.json", out)
+		registry, e := corpusbridge.New(root, "corpus.json")
+		if e != nil {
+			t.Fatal(e)
+		}
+		code, out, stderr = corpusCLI(t, root, "docs", "corpus", "inventory", "--artifact", "corpus.json", "--limit", "1", "--offset", "1")
+		if code != 0 {
+			t.Fatal(stderr)
+		}
+		_, text, failure, protocol := registry.Call(context.Background(), "corvint.docs_inventory", []byte(`{"limit":1,"offset":1}`))
+		if failure != nil || protocol != nil || text != out {
+			t.Fatal("CLI MCP page mismatch", failure, protocol)
+		}
+		var receipt doccorpus.Receipt
+		if err = json.Unmarshal([]byte(out), &receipt); err != nil || len(receipt.Results) != 1 || receipt.Offset != 1 || receipt.Omitted == 0 {
+			t.Fatal("missing page metadata", err)
+		}
+		for _, args := range [][]string{{"query", "--task", "Split"}, {"context", "--task", "Split", "--subject", "cache/demux.go"}, {"impact", "cache/demux.go"}, {"affected"}, {"test-validity"}} {
+			code, base, stderr := corpusCLI(t, root, args...)
+			if code != 0 {
+				t.Fatal(stderr)
+			}
+			code, joined, stderr := corpusCLI(t, root, append(args, "--corpus=corpus.json")...)
+			if code != 0 {
+				t.Fatal(stderr)
+			}
+			var left, right map[string]any
+			json.Unmarshal([]byte(base), &left)
+			json.Unmarshal([]byte(joined), &right)
+			if right["documentation"] == nil {
+				t.Fatal("missing corpus")
+			}
+			delete(right, "documentation")
+			if !reflect.DeepEqual(left, right) {
+				t.Fatal("native receipt changed")
+			}
+		}
+	})
+}

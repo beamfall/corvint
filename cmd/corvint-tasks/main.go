@@ -1,7 +1,6 @@
 // Command corvint-tasks is the Corvint task control plane executor and ticket store.
-// At TCP-01 it exposes only the read, export and verify surfaces that are
-// implemented; every mutation verb is absent on purpose and answers
-// NOT_RUN (see internal/cli).
+// It exposes native queue mutations and generation-fenced external-agent leases.
+// The help envelope lists implemented and omitted operations.
 package main
 
 import (

@@ -21,7 +21,7 @@ const (
 	StageMutate                    = "MUTATE"
 	StageRelease                   = "RELEASE"
 	StagePolicyUpdate              = "POLICY_UPDATE"
-	MaxStageDescriptorBytes        = 2422
+	MaxStageDescriptorBytes        = 2658
 	MaxStageReceiptSeq      uint64 = 1000000
 	UnpauseReceiptBytes            = 1683
 	UnpauseIndexBytes              = 563
@@ -86,11 +86,11 @@ func StageLimits(op string) (int, int) {
 	case StagePolicyUpdate:
 		return 5, 1470
 	case StageImportApply:
-		return 11, MaxStageDescriptorBytes
+		return 11, 2422
 	case StageAuthoritySwitch:
 		return 5, 1474
 	case StageLease:
-		return 9, 2300
+		return 11, 2658
 	case StageQualification:
 		return 6, 1680
 	}
@@ -224,6 +224,9 @@ func (d StageDescriptor) shape() error {
 			}
 			if d.Operation == StageLease {
 				cap = wire.MaxReservationSetBytes
+				if cap < MaxPoolStateBytes {
+					cap = MaxPoolStateBytes
+				}
 			}
 		case "POST":
 			switch {
@@ -244,6 +247,9 @@ func (d StageDescriptor) shape() error {
 				}
 				key = "attempt"
 				cap = wire.MaxAttemptRecordBytes
+			case a.Target == "pools.json" && d.Operation == StageLease:
+				key = "pools"
+				cap = MaxPoolStateBytes
 			case a.Target == "reservations.json" && d.Operation == StageLease:
 				key = "reservations"
 				cap = wire.MaxReservationSetBytes
@@ -360,7 +366,8 @@ func (d StageDescriptor) shape() error {
 	// a gate run adds its output and result, and a completion its ticket and
 	// manifest, so the three optional kinds together stay within three. A
 	// recorded FENCED refusal posts none of them.
-	if d.Operation == StageLease && counts["attempt"] <= 1 && counts["reservations"] <= 1 && counts["ticket"] <= 1 && counts["gate"] <= 2 && counts["reservations"]+counts["ticket"]+counts["gate"] <= 3 {
+	if d.Operation == StageLease && counts["pools"] <= 1 && counts["attempt"] <= 1 && counts["reservations"] <= 1 && counts["ticket"] <= 1 && counts["gate"] <= 2 && counts["reservations"]+counts["ticket"]+counts["gate"] <= 3 {
+		delete(counts, "pools")
 		delete(counts, "attempt")
 		delete(counts, "reservations")
 		delete(counts, "ticket")
@@ -388,8 +395,8 @@ func (d StageDescriptor) shape() error {
 	case StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate, StageAuthoritySwitch, StageQualification:
 		maxEvidence = 1
 	case StageLease:
-		// A reservation set or a completed ticket over the inline post bound.
-		maxEvidence = 2
+		// Reservation, completed ticket and pool projection may all be blobs.
+		maxEvidence = 3
 	case StageImportApply:
 		// A ticket record over the inline post bound is carried as a blob.
 		maxEvidence = 8

@@ -204,11 +204,11 @@ func TestTMV0002_AS10_FixtureStageRolesAndBounds(t *testing.T) {
 			t.Fatalf("slot %q accepted", slot)
 		}
 	}
-	for _, size := range []int{0, 2422, 2423} {
+	for _, size := range []int{0, 2658, 2659} {
 		t.Run(fmt.Sprintf("descriptor-%d", size), func(t *testing.T) {
 			s, r := fixtureHarness(t)
 			stage, err := s.prepare("active.json.tmp", fixtureDescriptor, []byte(strings.Repeat("x", size)))
-			if size == 2422 {
+			if size == 2658 {
 				fixtureMust(t, err)
 				if stage == nil {
 					t.Fatal("no stage")

@@ -39,7 +39,7 @@ remain `NOT_OBSERVED`; recorded bytes are not billed tokens or proof of savings.
 | Investigate repeated friction | `observations`; explicitly scoped `prove-observe` | Bounded private counts never rank evidence or confer authority. No transcript scan, invented usage or background monitor. |
 | Change retrieval, learning or a profile | owning frozen `eval --goldens FILE` / registered benchmark engine arms | Pin engine, corpus, fixture and output identities; retain losing arms. No blind-v4 access or broad campaign for a prose-only change. Current eval supports an explicit trace-fixture arm, not unrestricted persisted trace replay. |
 | Compare migration evidence | `migration-ratchet --profile FILE` | Bind exact baseline/candidate artifacts and preserve every delta, denominator, exception and comparability rule. Pass is incremental no-regression only; it proves neither adequacy nor completeness. |
-| Inspect a console or release readiness | standalone `corvint-dashboard-snapshot`; explicit bounded `corvint-console`; `script/release-checklist` | Build standalone companions from their retained `cmd/corvint-*` source packages until the closed bundle migration lands. Start an optional loopback server only for useful requested inspection with cleanup. Checklist/archive gates do not sign, tag, publish or promote; keep U4, packet-5 and DR holds. |
+| Inspect a console or release readiness | standalone `corvint-dashboard-snapshot`; explicit bounded `corvint-console`; `script/release-checklist` | Build standalone companions from their retained `cmd/corvint-*` source packages until the closed bundle migration lands; `corvint-companion-release -tasks-only` builds the separately bounded Tasks archive without qualifying the full bundle. Start an optional loopback server only for useful requested inspection with cleanup. Checklist/archive gates do not sign, tag, publish or promote; keep U4, packet-5 and DR holds. |
 | Change an optional analyzer/integration | owning public route and targeted tests from [spec index](specs/INDEX.json), including [Playwright External Provider V0](specs/playwright-external-provider-v0.md) for externally managed Playwright servers | Distinguish delivered internals, optional artifacts and unbuilt parent contracts. Do not separately launch every analyzer, MCP, Pulse or service; state the exact unavailable/inapplicable boundary. |
 | Falsify an exact browser criterion | separately built `corvint-behavior-falsify plan\|execute --experimental` | Use only caller-reviewed digest-bound hooks in a marked disposable workspace. A kill is criterion-local observation; survivors and every partial/invalid result preserve full-suite fallback and no narrowing authority. |
 | Consume external evidence | `impact --provider FILE`, `--provider-command ARGV_JSON`, or `--provider-mcp ARGV_JSON` | The accepted bounded MCP profile calls one local tool. Remote HTTPS requires the separately built `corvint-remote-provider --allow-network --config FILE` command; Core never fetches network evidence. All routes retain the same strict EEP decode, reference checks and separated authority. |
@@ -66,7 +66,9 @@ MCP server and generated-block writes require their own explicit invocation.
 The experimental behavior-provider profile additionally retains exact flow/test/project joins and
 ordered runtime witnesses; `docs corpus behavior-adapter` can produce and reconcile that profile
 from caller-mapped inventories without changing its legacy wire member or authority. The separate
-`docs corpus behavior-provider` route emits bounded `/2` multi-repository declarations for corpus
+For issue 339, use the explicit adoption `/2` corpus and `docs corpus inventory --offset` to inspect
+large supplied-record imports and restricted severity-only summaries; this does not accept imported intent.
+The `docs corpus behavior-provider` route emits bounded `/2` multi-repository declarations for corpus
 ingestion; unavailable external bytes and runtime qualification stay explicit gaps. Its reviewed
 documentation projection is normative: source/test proposals cannot rewrite stable variation IDs or
 their preconditions, actions, facts and outcomes. Missing consumer fixtures, semantic joins or runtime
@@ -110,3 +112,14 @@ For owner-trusted MkDocs navigation work, use the separate explicit `docs nav --
 profile and retain the real pinned loader/reload artifact. See
 [Trusted Project Navigation V0](specs/trusted-project-navigation-v0.md). This does not authorize
 execution through ordinary docs reads or qualify the HDC capsule, site build or offline behavior.
+
+For issue338 source-derived documentation, use `docs flows generate`, retain the emitted generation
+manifest, then use `docs flows check` for read-only per-item span drift and byte regeneration checks.
+Commit provider bytes only at the caller's explicit boundary and use `docs flows finalize` before
+corpus build/Open. This route produces generated lexical observations; existing accepted-outcome
+AFU docs and original Playwright witnesses keep their separate meaning. See [flow generation](FLOW-DOCUMENTATION.md).
+
+For a complete accepted flow-variation denominator and original `/3` receipts, use the bounded
+[flow coverage route](FLOW-COVERAGE.md): `flows coverage --denominator FILE --receipts FILE`.
+Its global verdict is fail-closed even when paging; byte-bound PROVEN does not attest deployed lineage.
+Only explicit `--write-back FRESH_DIR` writes documentation, while `--check DIR` remains read-only.

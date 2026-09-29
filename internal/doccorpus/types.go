@@ -38,11 +38,12 @@ type Scope struct {
 	Revision string `json:"revision"`
 }
 type Provider struct {
-	ID       string `json:"id"`
-	Kind     string `json:"kind"`
-	Version  string `json:"version"`
-	Revision string `json:"revision"`
-	Record   string `json:"record"`
+	Shards   []string `json:"shards,omitempty"`
+	ID       string   `json:"id"`
+	Kind     string   `json:"kind"`
+	Version  string   `json:"version"`
+	Revision string   `json:"revision"`
+	Record   string   `json:"record"`
 }
 type Manifest struct {
 	BehaviorRepositories []BehaviorRepository `json:"behavior_repositories,omitempty"`
@@ -159,28 +160,31 @@ type CapabilityDeclaration struct {
 	Reason string `json:"reason"`
 }
 type ProviderRecord struct {
-	BehaviorContracts *BehaviorRegistry       `json:"behavior_contracts,omitempty"`
-	Schema            string                  `json:"schema"`
-	ID                string                  `json:"id"`
-	Version           string                  `json:"version"`
-	Source            Repository              `json:"source"`
-	Subjects          []Subject               `json:"subjects"`
-	Claims            []Claim                 `json:"claims"`
-	Relations         []Relation              `json:"relations"`
-	Journeys          []Journey               `json:"journeys"`
-	Observations      []ObservationLink       `json:"observations"`
-	Capabilities      []CapabilityDeclaration `json:"capabilities"`
+	Details            map[string]RecordDetails `json:"details,omitempty"`
+	RestrictedFindings []RestrictedFinding      `json:"restricted_findings,omitempty"`
+	BehaviorContracts  *BehaviorRegistry        `json:"behavior_contracts,omitempty"`
+	Schema             string                   `json:"schema"`
+	ID                 string                   `json:"id"`
+	Version            string                   `json:"version"`
+	Source             Repository               `json:"source"`
+	Subjects           []Subject                `json:"subjects"`
+	Claims             []Claim                  `json:"claims"`
+	Relations          []Relation               `json:"relations"`
+	Journeys           []Journey                `json:"journeys"`
+	Observations       []ObservationLink        `json:"observations"`
+	Capabilities       []CapabilityDeclaration  `json:"capabilities"`
 }
 type Capability struct {
-	Name        string   `json:"name"`
-	State       string   `json:"state"`
-	Reason      string   `json:"reason"`
-	Records     []string `json:"records"`
-	Providers   []string `json:"providers"`
-	Tools       []string `json:"tools"`
-	Count       int      `json:"count"`
-	Denominator int      `json:"denominator"`
-	Rule        string   `json:"rule"`
+	RecordsOmitted int      `json:"records_omitted,omitempty"`
+	Name           string   `json:"name"`
+	State          string   `json:"state"`
+	Reason         string   `json:"reason"`
+	Records        []string `json:"records"`
+	Providers      []string `json:"providers"`
+	Tools          []string `json:"tools"`
+	Count          int      `json:"count"`
+	Denominator    int      `json:"denominator"`
+	Rule           string   `json:"rule"`
 }
 type Gap struct {
 	Subject string `json:"subject"`
@@ -188,24 +192,28 @@ type Gap struct {
 	Reason  string `json:"reason"`
 }
 type Artifact struct {
-	BehaviorContracts []BehaviorReport  `json:"behavior_contracts,omitempty"`
-	StabilityEvidence []StabilityReport `json:"stability_evidence,omitempty"`
-	Schema            string            `json:"schema"`
-	Builder           Builder           `json:"builder"`
-	Manifest          Manifest          `json:"manifest"`
-	ManifestSHA256    string            `json:"manifest_sha256"`
-	ProfileSHA256     string            `json:"profile_sha256"`
-	Tree              string            `json:"tree"`
-	Subjects          []Subject         `json:"subjects"`
-	Claims            []Claim           `json:"claims"`
-	Relations         []Relation        `json:"relations"`
-	Journeys          []Journey         `json:"journeys"`
-	Observations      []Observation     `json:"observations"`
-	Capabilities      []Capability      `json:"capabilities"`
-	Gaps              []Gap             `json:"gaps"`
-	SHA256            string            `json:"sha256"`
+	Details             map[string]RecordDetails `json:"details,omitempty"`
+	ImportParity        []ImportParity           `json:"import_parity,omitempty"`
+	RestrictedSummaries []RestrictedSummary      `json:"restricted_summaries,omitempty"`
+	BehaviorContracts   []BehaviorReport         `json:"behavior_contracts,omitempty"`
+	StabilityEvidence   []StabilityReport        `json:"stability_evidence,omitempty"`
+	Schema              string                   `json:"schema"`
+	Builder             Builder                  `json:"builder"`
+	Manifest            Manifest                 `json:"manifest"`
+	ManifestSHA256      string                   `json:"manifest_sha256"`
+	ProfileSHA256       string                   `json:"profile_sha256"`
+	Tree                string                   `json:"tree"`
+	Subjects            []Subject                `json:"subjects"`
+	Claims              []Claim                  `json:"claims"`
+	Relations           []Relation               `json:"relations"`
+	Journeys            []Journey                `json:"journeys"`
+	Observations        []Observation            `json:"observations"`
+	Capabilities        []Capability             `json:"capabilities"`
+	Gaps                []Gap                    `json:"gaps"`
+	SHA256              string                   `json:"sha256"`
 }
 type Request struct {
+	Offset    int    `json:"offset,omitempty"`
 	Operation string `json:"operation"`
 	Query     string `json:"query"`
 	ID        string `json:"id"`
@@ -213,20 +221,23 @@ type Request struct {
 	Limit     int    `json:"limit"`
 }
 type Receipt struct {
-	Schema         string       `json:"schema"`
-	Operation      string       `json:"operation"`
-	ArtifactSHA256 string       `json:"artifact_sha256"`
-	Repository     Repository   `json:"repository"`
-	Tree           string       `json:"tree"`
-	Trust          string       `json:"trust"`
-	Freshness      string       `json:"freshness"`
-	State          string       `json:"state"`
-	Miss           string       `json:"miss"`
-	Results        []any        `json:"results"`
-	Citations      []Anchor     `json:"citations"`
-	Capabilities   []Capability `json:"capabilities"`
-	Limitations    []string     `json:"limitations"`
-	Omitted        int          `json:"omitted"`
+	Offset         int                      `json:"offset,omitempty"`
+	NextOffset     *int                     `json:"next_offset,omitempty"`
+	Details        map[string]RecordDetails `json:"details,omitempty"`
+	Schema         string                   `json:"schema"`
+	Operation      string                   `json:"operation"`
+	ArtifactSHA256 string                   `json:"artifact_sha256"`
+	Repository     Repository               `json:"repository"`
+	Tree           string                   `json:"tree"`
+	Trust          string                   `json:"trust"`
+	Freshness      string                   `json:"freshness"`
+	State          string                   `json:"state"`
+	Miss           string                   `json:"miss"`
+	Results        []any                    `json:"results"`
+	Citations      []Anchor                 `json:"citations"`
+	Capabilities   []Capability             `json:"capabilities"`
+	Limitations    []string                 `json:"limitations"`
+	Omitted        int                      `json:"omitted"`
 }
 type Error struct {
 	Code    string

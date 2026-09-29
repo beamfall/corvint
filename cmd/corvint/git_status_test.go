@@ -140,6 +140,12 @@ func TestStandaloneReadNamesUnsupportedRepositoryFeature(t *testing.T) {
 				}
 				var stdout, stderr bytes.Buffer
 				code := runContext(context.Background(), []string{"--root", root, "context", "--task", "find Split", "--limit", "1"}, strings.NewReader(""), &stdout, &stderr)
+				if test.name == "gitlink" {
+					if code != 0 || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"ok":true`) || strings.Contains(stdout.String(), `"path":"child"`) {
+						t.Fatalf("opaque gitlink boundary missing: %d %q %q", code, stdout.String(), stderr.String())
+					}
+					return
+				}
 				var failure struct {
 					Code  string `json:"code"`
 					Error string `json:"error"`

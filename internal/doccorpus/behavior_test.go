@@ -138,7 +138,7 @@ func behaviorFixtureWithAllRuns(t *testing.T, edit func(*BehaviorRegistry), runt
 		}
 	}
 	a := retain("docs/migrations/test-behavior-contracts.json", p, "provider")
-	m.Providers = append(m.Providers, Provider{"behavior", "records", "1", a.Revision, a.Path})
+	m.Providers = append(m.Providers, Provider{ID: "behavior", Kind: "records", Version: "1", Revision: a.Revision, Record: a.Path})
 	return root, m
 }
 

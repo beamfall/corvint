@@ -21,13 +21,16 @@ func Encode(value any) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(data)+1 > MaxBytes {
+	if len(data)+1 > encodingLimit(value) {
 		return nil, fail("output bound exceeded")
 	}
 	return append(data, '\n'), nil
 }
 func decode(data []byte, target any) error {
-	if len(data) > MaxBytes {
+	return decodeBounded(data, target, MaxBytes)
+}
+func decodeBounded(data []byte, target any, limit int) error {
+	if len(data) > limit {
 		return fail("input bound exceeded")
 	}
 	if err := json.Unmarshal(data, target, json.RejectUnknownMembers(true)); err != nil {
@@ -72,7 +75,14 @@ func currentBuilder() Builder {
 	}
 	return Builder{Version: Schema, Revision: revision, Engine: "native-contextindex/" + Schema + "/" + runtime.Version()}
 }
-func ReadFile(root, path string) ([]byte, error) {
+func ReadFile(root, path string) ([]byte, error) { return readFileBounded(root, path, MaxBytes) }
+
+// ReadCorpusFile admits a bounded /2 manifest or artifact; its decoder still
+// enforces the original limit for /1 and for independent receipt profiles.
+func ReadCorpusFile(root, path string) ([]byte, error) {
+	return readFileBounded(root, path, MaxCorpusBytes)
+}
+func readFileBounded(root, path string, limit int64) ([]byte, error) {
 	if !validPath(path) {
 		return nil, fail("invalid local input path")
 	}
@@ -81,7 +91,7 @@ func ReadFile(root, path string) ([]byte, error) {
 		return nil, fail("input root unavailable")
 	}
 	defer dir.Close()
-	data, err := testvaliditydoc.ReadFile(dir, path)
+	data, err := testvaliditydoc.ReadFileBounded(dir, path, limit)
 	if err != nil {
 		return nil, &Error{Code: "corpus-input-unavailable", Message: "input missing, unsafe or over bound"}
 	}
@@ -89,12 +99,15 @@ func ReadFile(root, path string) ([]byte, error) {
 }
 func ParseManifest(data []byte) (Manifest, error) {
 	var m Manifest
-	err := decode(data, &m)
+	err := decodeBounded(data, &m, MaxCorpusBytes)
+	if err == nil && len(data) > encodingLimit(m) {
+		err = fail("manifest input bound exceeded")
+	}
 	return m, err
 }
 func ParseArtifact(data []byte) (*Artifact, error) {
 	var a Artifact
-	if err := decode(data, &a); err != nil {
+	if err := decodeBounded(data, &a, MaxCorpusBytes); err != nil {
 		return nil, err
 	}
 	canonical, err := Encode(a)
@@ -111,7 +124,7 @@ func ParseArtifact(data []byte) (*Artifact, error) {
 		return nil, fail("artifact digest mismatch")
 	}
 	a.SHA256 = digest
-	if a.Schema != Schema {
+	if a.Schema != Schema && a.Schema != SchemaV2 {
 		return nil, fail("unsupported artifact schema")
 	}
 	return &a, nil

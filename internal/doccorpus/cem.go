@@ -24,6 +24,7 @@ func CEMProjection(ctx context.Context, root string, a *Artifact, data []byte, c
 	release := auth.BeginObjectSession()
 	defer release()
 	rows := []any{}
+	omitted, rowBytes := 0, 0
 	for _, claim := range a.Claims {
 		if claimID != "" && claim.ID != claimID {
 			continue
@@ -60,13 +61,28 @@ func CEMProjection(ctx context.Context, root string, a *Artifact, data []byte, c
 					bound = true
 				}
 			}
-			rows = append(rows, map[string]any{"claim_id": claim.ID, "evidence_id": id, "bound_in_cem": bound, "source": anchor, "derivation": claim.Evidence.Derivation, "trust": claim.Evidence.Trust, "cite": []string{"cem", "cite", "--evidence-path", anchor.Path, "--bytes", fmt.Sprintf("%d:%d", extent.Start, extent.End)}, "limitations": []string{"citation supports the original span only; generated claim meaning and adequacy are not established"}})
+			row := map[string]any{"claim_id": claim.ID, "evidence_id": id, "bound_in_cem": bound, "source": anchor, "derivation": claim.Evidence.Derivation, "trust": claim.Evidence.Trust, "cite": []string{"cem", "cite", "--evidence-path", anchor.Path, "--bytes", fmt.Sprintf("%d:%d", extent.Start, extent.End)}, "limitations": []string{"citation supports the original span only; generated claim meaning and adequacy are not established"}}
+			if a.Schema == SchemaV2 {
+				raw, err := Encode(row)
+				if err != nil {
+					return nil, err
+				}
+				if len(rows) >= MaxResults || rowBytes+len(raw) > 1<<20 {
+					omitted++
+					continue
+				}
+				rowBytes += len(raw)
+			}
+			rows = append(rows, row)
 		}
 	}
-	if len(rows) == 0 {
+	if len(rows) == 0 && omitted == 0 {
 		return nil, fail("no documentation claim found for CEM projection")
 	}
 	receipt := map[string]any{"schema": "corvint-corpus-cem/1", "artifact_sha256": a.SHA256, "cem_sha256": Digest(data), "base_revision": cem.BaseRevision, "claims": rows, "authority": "generated-documentation", "mutates": false}
+	if a.Schema == SchemaV2 {
+		receipt["omitted"] = omitted
+	}
 	digest, err := hashValue(receipt)
 	if err != nil {
 		return nil, err

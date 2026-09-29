@@ -109,7 +109,7 @@ func TestTMV0008_AS07_StageObservationTempAndClosedLayout(t *testing.T) {
 		{"absent", nil, ""}, {"empty", []StageFile{}, ""},
 		{"temp empty", []StageFile{{"active.json.tmp", nil}}, ""},
 		{"temp malformed", []StageFile{{"active.json.tmp", bytes.Repeat([]byte("x"), 2422)}}, ""},
-		{"temp cap", []StageFile{{"active.json.tmp", make([]byte, 2423)}}, wire.CodeLimitExceeded},
+		{"temp cap", []StageFile{{"active.json.tmp", make([]byte, MaxStageDescriptorBytes+1)}}, wire.CodeLimitExceeded},
 		{"N-1", []StageFile{{"active.json", active}, {"active.json.tmp", active[:len(active)-1]}}, ""},
 		{"N same", []StageFile{{"active.json", active}, {"active.json.tmp", active}}, ""},
 		{"N different", []StageFile{{"active.json", active}, {"active.json.tmp", make([]byte, len(active))}}, wire.CodeJournalForked},
