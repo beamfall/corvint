@@ -39,8 +39,11 @@ Raw local receipts and reproducible scratch drivers are under
   normal one-shot wall observation was 402 ms; it includes observer/IPC work and is neither an
   isolated overhead measurement nor a latency distribution or promotion floor.
 - `cpu-proof.log`, `cpu-witness`, `cpu-overlay.json`: scratch-only stack observation witnessed real
-  lexicalRows before cancellation. The native worker was cancelled, joined and drained; observed
-  descendants were absent. Sampling changes scheduling; production code contains no sampler.
+  lexicalRows before cancellation. That earlier native worker was cancelled, joined and drained;
+  observed descendants were absent. Its overlay used the original 40 KiB input bound, before
+  executable-digest and stricter cleanup/result validation additions. This proves only the
+  unchanged inherited-group/CPU-retirement path, not final-candidate input, identity or validation.
+  Sampling changes scheduling; production code contains no sampler.
 - `groups.log`: isolated subprocess tests invoke real Git under both actual configure helpers,
   confirm private groups by default and the worker group when enabled, then cancel and join.
   `actual-git-proof.log`, `actual-git-groups.jsonl`, `git-group-overlay.json`: scratch observation
@@ -51,8 +54,10 @@ Raw local receipts and reproducible scratch drivers are under
   editor EOF during an observed live native context worker. Every previously observed PID was
   absent afterward; reader joined. EOF-to-exit timing is recorded as a diagnostic, not a bound. Worker stdin
   EOF after its one JSON message remains normal. This is a protocol harness, not a real editor.
-- `focused-final.log`: all selected gitstatus, contextindex, gokernel, lspstdio and command units
-  passed. `adapter-final.log`, `adapter-race-final.log`, `fixture-final.log` cover subsequent
+- `focused-final.log`: gitstatus, gokernel, lspstdio and command units passed; full contextindex
+  FAILED its analyzer-input schema audit. The initial handoff incorrectly conflated this log with
+  passing scoped race output; no full-contextindex pass was available at that handoff. The
+  [audit repair entry](2026-09-29-lsp-context-analyzer-audit-repair.md) records the later real pass. `adapter-final.log`, `adapter-race-final.log`, `fixture-final.log` cover subsequent
   adapter/test refinements; `race-final.log` covers both Core process helpers. `vet-final.log` and
   `adapter-vet-final.log` passed. `runner-tests.log` passes reused runner timeout/cancel/overflow,
   descendant retirement and interruption tests. `docs-final.log` and `specindex.log` passed.
