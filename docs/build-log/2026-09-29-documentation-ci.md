@@ -57,3 +57,16 @@ bind the final immutable source and independent consumer review; later source dr
 Hosted implementation checks and a subsequent real DOCS receipt/race-step omission must be retained
 before ticket completion. Removing or unapproving the artifact restores FULL without a branch-rule
 change. Broad unresolved-reader tickets V1-0246 and V1-0081 remain open.
+
+## Actual README replay and owner-approved repair
+
+The actual resolved README diff first returned FULL with `nonmechanical-citation-change`.
+The existing line-citation checker right-trims every line and joins without a terminal LF;
+the prototype incorrectly hashed raw LF-terminated spans. The owner authorized one additional
+focused repair after the two review repair cycles. Citation hashing now matches that existing
+format while raw cited-span byte equality remains mandatory. Independent delta review found no
+actionable issue; focused tests passed (31.295 s). The real README/citation diff then returned
+DOCS with `verified:true` in a disposable clone. That development replay used a fixture-only
+qualification and is not hosted or production admission. Final qualification binds the repaired
+source; the earlier proposal cannot be reused. The CEM binds governance, not a correctness proof;
+the inherited AFP OCM's 21 obligations remain explicitly unassessed by this scoped policy.

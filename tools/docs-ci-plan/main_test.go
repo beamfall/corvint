@@ -50,7 +50,7 @@ func newFixture(t *testing.T) fixture {
 	gitTest(t, root, "init", "-q", "-b", "main")
 	put(t, root, readme, fixtureREADME)
 	put(t, root, "docs/guide.md", "# Guide\n\n## Usage\n")
-	put(t, root, citationFile, fmt.Sprintf("See README.md:7-7@%s.\n", digest([]byte("Stable citation.\n"))[:8]))
+	put(t, root, citationFile, fmt.Sprintf("See README.md:7-7@%s.\n", digest([]byte("Stable citation."))[:8]))
 	put(t, root, "tools/docs-ci-plan/main.go", "package main\n")
 	put(t, root, "docs/specs/documentation-ci-v0.md", "# Policy\n")
 	rev := commit(t, root)
@@ -84,7 +84,7 @@ func TestREADMEAndCitationRegression(t *testing.T) {
 	f := newFixture(t)
 	f.change(t, func(root string) {
 		put(t, root, readme, "A Beamfall project.\n\n"+fixtureREADME)
-		put(t, root, citationFile, fmt.Sprintf("See README.md:9-9@%s.\n", digest([]byte("Stable citation.\n"))[:8]))
+		put(t, root, citationFile, fmt.Sprintf("See README.md:9-9@%s.\n", digest([]byte("Stable citation."))[:8]))
 	})
 	p := f.plan()
 	if p.Mode != "DOCS" {
@@ -299,7 +299,7 @@ func TestAdversarialPresentation(t *testing.T) {
 }
 func TestCitationSentinelCollision(t *testing.T) {
 	body := []byte("stable\n")
-	c := fmt.Sprintf("README.md:1-1@%s", digest(body)[:8])
+	c := fmt.Sprintf("README.md:1-1@%s", citationDigest(body)[:8])
 	if citationOnly([]byte(c+"CITATION"), []byte("CITATION"+c), body, body) {
 		t.Fatal("citation moved across ordinary prose")
 	}
@@ -369,5 +369,25 @@ func TestWhitespaceLink(t *testing.T) {
 	}
 	if e := f.r.verify(&p); e == nil || e.Error() != "missing-link-target" {
 		t.Fatalf("%v", e)
+	}
+}
+
+// DCI-V0-003, DCI-V0-004: match the existing repository citation format,
+// including the actual README pin that exposed terminal-newline incompatibility.
+func TestCitationHashCompatibility(t *testing.T) {
+	body := []byte("first \t\nsecond\v\f\r\n")
+	if got := citationDigest(body); got != digest([]byte("first\nsecond")) {
+		t.Fatalf("canonical citation digest: %s", got)
+	}
+	pin := []byte("README.md:1-2@" + digest([]byte("first\nsecond"))[:8])
+	if !citationOnly(pin, pin, body, body) {
+		t.Fatal("unchanged canonical citation rejected")
+	}
+	if citationOnly(pin, pin, body, []byte("first\nsecond\n")) {
+		t.Fatal("normalization hid changed raw span bytes")
+	}
+	readmeSpan := []byte("## Put the evidence beside the diff\n\nA **Change Evidence Map** is a portable sidecar that travels in the repository and verifies with\nno LLM, no index, and no shared service. For a committed change, replace `BASE_SHA` with its base\ncommit and the example citation with a span that exists at that base:\n\n```console\ncorvint cem prepare --base BASE_SHA --target HEAD\ncorvint cem cite --map .corvint/change.cem.json --hunk 1 \\\n  --evidence-path docs/decisions/0001-session-revocation.md --lines 5:5 --relation decision\ncorvint cem status --map .corvint/change.cem.json \\\n")
+	if got := citationDigest(readmeSpan)[:8]; got != "3297e31e" {
+		t.Fatalf("existing README pin mismatch: %s", got)
 	}
 }

@@ -429,6 +429,18 @@ func span(b []byte, start, end int) []byte {
 	}
 	return bytes.Join(lines[start-1:end], nil)
 }
+
+// citationDigest follows script/check-line-citations.sh: trim trailing ASCII
+// whitespace on each selected line and join without a terminal newline. Raw span
+// equality remains a separate admission condition, so normalization cannot hide edits.
+func citationDigest(b []byte) string {
+	lines := bytes.Split(bytes.TrimSuffix(b, []byte{'\n'}), []byte{'\n'})
+	for i := range lines {
+		lines[i] = bytes.TrimRight(lines[i], " \t\r\n\v\f")
+	}
+	return digest(bytes.Join(lines, []byte{'\n'}))
+}
+
 func citationOnly(a, b, old, newBody []byte) bool {
 	x, y := citation.FindAllSubmatchIndex(a, -1), citation.FindAllSubmatchIndex(b, -1)
 	if len(x) == 0 || len(x) != len(y) {
@@ -446,7 +458,7 @@ func citationOnly(a, b, old, newBody []byte) bool {
 		ne, _ := strconv.Atoi(string(b[n[4]:n[5]]))
 		before, after := span(old, start, end), span(newBody, ns, ne)
 		hash, nh := a[m[6]:m[7]], b[n[6]:n[7]]
-		if before == nil || !bytes.Equal(before, after) || !bytes.Equal(hash, nh) || digest(before)[:8] != string(hash) {
+		if before == nil || !bytes.Equal(before, after) || !bytes.Equal(hash, nh) || citationDigest(before)[:8] != string(hash) {
 			return false
 		}
 		ax, bx = m[1], n[1]
@@ -550,7 +562,7 @@ func (r repo) verify(p *receipt) error {
 		s, _ := strconv.Atoi(string(m[1]))
 		e, _ := strconv.Atoi(string(m[2]))
 		v := span(b, s, e)
-		if v == nil || digest(v)[:8] != string(m[3]) {
+		if v == nil || citationDigest(v)[:8] != string(m[3]) {
 			return errors.New("broken-readme-citation")
 		}
 	}
