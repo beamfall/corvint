@@ -2534,5 +2534,22 @@
       "tools/docs-ci-plan",
       ".github/workflows/ci.yml"
     ]
+  },
+  {
+    "path": "docs/specs/heading-navigation-experiment-v0.md",
+    "title": "Heading navigation experiment V0",
+    "reqPrefix": "HNE-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "An offline harness compares native lexical document ranking with deterministic heading-aware expansion under equal serialized context-byte budgets.",
+    "dependsOn": [
+      "docs/specs/documentation-corpus-v1.md",
+      "docs/specs/retrieval-eval-comparability-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "tools/heading-nav-bench"
+    ]
   }
 ]

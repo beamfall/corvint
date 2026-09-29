@@ -1292,6 +1292,11 @@ HLQ-V1-005	docs/specs/host-lifecycle-qualification-v1.md	80	A passing run MUST N
 HLQ-V1-006	docs/specs/host-lifecycle-qualification-v1.md	84	Adapters MUST retain no independent knowledge store. A run shows this when every
 HLQ-V1-007	docs/specs/host-lifecycle-qualification-v1.md	92	The runner MUST print one header line, then one `case` line for each case, then
 HLQ-V1-008	docs/specs/host-lifecycle-qualification-v1.md	96	A result MUST be recorded here with the digests of both binaries and the source
+HNE-V0-001	docs/specs/heading-navigation-experiment-v0.md	32	The explicit fixture pins a full Git commit, source paths, timestamp, questions
+HNE-V0-002	docs/specs/heading-navigation-experiment-v0.md	36	Both arms use the same actual native corpus lexical document ranking. Baseline r
+HNE-V0-003	docs/specs/heading-navigation-experiment-v0.md	40	Every packet, including JSON escaping, question, metadata, provenance and outlin
+HNE-V0-004	docs/specs/heading-navigation-experiment-v0.md	44	Reports retain per-arm/per-case evidence-hit numerators and gold denominators,
+HNE-V0-005	docs/specs/heading-navigation-experiment-v0.md	49	The harness remains explicitly invoked and experimental. Only the chosen output
 IDX-SNAP-V0-001	docs/specs/index-snapshot-v0.md	37	`corvint [--root PATH] index` builds the index of the committed tree exactly as
 IDX-SNAP-V0-002	docs/specs/index-snapshot-v0.md	60	`context` reads the repository's identity and status as a build's opening
 IDX-SNAP-V0-003	docs/specs/index-snapshot-v0.md	68	any mismatch (no file, a different tree, a different engine, a different

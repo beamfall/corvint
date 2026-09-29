@@ -1,0 +1,40 @@
+{
+  "baseRevision": "f1d46cfccae088922b152bf7fd81b49fc11ab1dc",
+  "evidence": [
+    {
+      "blobOid": "dfe8ea6fa38ba57f09169366c84953e033e3b37d",
+      "id": "evidence:sha256:b13a41adaea206e3f5285cf5ac5678cb305d707b3b42aba7c365b7bf757ff59a",
+      "path": "docs/specs/retrieval-eval-comparability-v0.md",
+      "span": {
+        "end": 1567,
+        "start": 939
+      },
+      "spanSha256": "b19ff3260181d05ccac057624f0eb070ead03971de2403f03e690371bcfd6c7d"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b13a41adaea206e3f5285cf5ac5678cb305d707b3b42aba7c365b7bf757ff59a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:70eaa3c13b503505febad0043c5a2ee3c199fa2db0896489cd86a1649b4b8e42",
+      "newRange": {
+        "count": 26,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-29-heading-navigation-integration.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "99f5f687c2bff2c47c5774bb60c377ce53ee7ea903b06d49e17c17a21b162378",
+  "spec": "cem/0.2"
+}

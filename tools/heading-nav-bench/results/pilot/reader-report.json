@@ -1,0 +1,798 @@
+{
+  "profile": "heading-navigation-reader-trial/0",
+  "model": "gpt-5.6-sol",
+  "effort": "low",
+  "codex_version": "0.153.2",
+  "prompt_sha256": "cfad0bcec72bab4c458b361b2c328571e40cf09bb9cf0e02077d1671ccd2fbef",
+  "rubric_sha256": "0885d7eab00488b7bd422df312f52e3fc44019d64ede576a47c3141da3d1b8d4",
+  "billed_tokens": "NOT_OBSERVED",
+  "provider_enforced_output_budget": "NOT_OBSERVED",
+  "results": [
+    {
+      "case": "generated-authority",
+      "arm": "baseline",
+      "packet_sha256": "0e9b65da361d6370b655525952c7d48026a44ef3c10fbf740f8a1804199eff5b",
+      "packet_bytes": 5989,
+      "wall_seconds": 8.904,
+      "status": "completed",
+      "exit": 0,
+      "usage": [
+        {
+          "input_tokens": 18678,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 177,
+          "reasoning_output_tokens": 0
+        }
+      ],
+      "tool_events": 0,
+      "answer_sha256": "a9552ae5ee067e29315514ac6add361cf75d6c626858be0ed01ec7e7ebe928e4",
+      "answer": {
+        "answer": "No. Under this proposed/experimental contract, neither becomes accepted project intent. A generated documentation draft makes only exact extraction claims; a structurally valid anchor does not validate its semantic assertion, and generated claims cannot acquire verified or reviewed trust. An imported provider claim labelled “reviewed” remains an attributed external declaration—not authenticated Core review or intent. The broader corpus contract explicitly says it does not accept generated intent, and owner acceptance is still a blocker. Thus, labels and provenance preserve origin and trust classification but do not cross the authority boundary into accepted project intent.",
+        "citations": [
+          {
+            "path": "docs/specs/documentation-corpus-v1.md",
+            "start": 1,
+            "end": 19
+          },
+          {
+            "path": "docs/specs/documentation-corpus-v1.md",
+            "start": 44,
+            "end": 53
+          }
+        ],
+        "abstained": false
+      },
+      "assessment": {
+        "answer_score": 2,
+        "max_answer_score": 2,
+        "authority_error": false,
+        "unsupported_conclusion": false,
+        "out_of_packet_citations": [],
+        "citation_precision_note": "Baseline cites 44:53 but imported trust rule is 54:57 in supplied packet.",
+        "rationale": "Both preserve generated/imported trust boundary; neither needs the omitted SDD span to support the two required substantive atoms because DCP repeats the rule. Baseline citations omit the exact imported-trust clause even though it is in its packet."
+      }
+    },
+    {
+      "case": "generated-authority",
+      "arm": "heading",
+      "packet_sha256": "f20bb37684a4c1c6de4251d63cc000234da98d461b3ea1591c79ed3fa03dbd21",
+      "packet_bytes": 5943,
+      "wall_seconds": 7.798,
+      "status": "completed",
+      "exit": 0,
+      "usage": [
+        {
+          "input_tokens": 18776,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 188,
+          "reasoning_output_tokens": 0
+        }
+      ],
+      "tool_events": 0,
+      "answer_sha256": "5bc40d52b65ca7521fc5064d51cb1b58cacda69e9cb24b02b3fab1d42ccd1846",
+      "answer": {
+        "answer": "No. A generated documentation draft remains generated: generated claims cannot acquire verified or reviewed trust, and generated excerpts make only exact extraction claims. It therefore cannot become accepted project intent merely through generation. An imported provider claim labelled reviewed also does not cross the project trust boundary: the label remains an attributed declaration, not authenticated Core review or intent. More generally, derivation, trust, claim state, and freshness are independent; a structurally valid evidence anchor does not validate the semantic assertion. The cited corpus itself is only proposed and experimental, so these statements describe its proposed requirements rather than verified delivered behavior or accepted authority.",
+        "citations": [
+          {
+            "path": "docs/specs/documentation-corpus-v1.md",
+            "start": 1,
+            "end": 14
+          },
+          {
+            "path": "docs/specs/documentation-corpus-v1.md",
+            "start": 32,
+            "end": 69
+          }
+        ],
+        "abstained": false
+      },
+      "assessment": {
+        "answer_score": 2,
+        "max_answer_score": 2,
+        "authority_error": false,
+        "unsupported_conclusion": false,
+        "out_of_packet_citations": [],
+        "citation_precision_note": null,
+        "rationale": "Both preserve generated/imported trust boundary; neither needs the omitted SDD span to support the two required substantive atoms because DCP repeats the rule. Baseline citations omit the exact imported-trust clause even though it is in its packet."
+      }
+    },
+    {
+      "case": "offline-core",
+      "arm": "heading",
+      "packet_sha256": "3d06f82ad57643d661b7f08ace112b340ce7cdfca061cfa662a88b9b740f5550",
+      "packet_bytes": 6000,
+      "wall_seconds": 6.432,
+      "status": "completed",
+      "exit": 0,
+      "usage": [
+        {
+          "input_tokens": 18853,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 149,
+          "reasoning_output_tokens": 0
+        }
+      ],
+      "tool_events": 0,
+      "answer_sha256": "cadde0efb27f748634499d7081eabe830553d0ec80cb4835fddf066ddf5c459b",
+      "answer": {
+        "answer": "The accepted direction says the promoted local binary must require no Python interpreter, Python package, cgo, package manager, account, network, hosted service, or resident daemon. Thus it does not require a language-model account or network service. Git remains the only required external executable. However, this is a requirement in a specification whose delivery status is “not-started,” not evidence of implemented or verified behavior.",
+        "citations": [
+          {
+            "path": "docs/specs/deployment-neutral-index-platform-v0.md",
+            "start": 127,
+            "end": 163
+          },
+          {
+            "path": "docs/specs/deployment-neutral-index-platform-v0.md",
+            "start": 1,
+            "end": 19
+          }
+        ],
+        "abstained": false
+      },
+      "assessment": {
+        "answer_score": 2,
+        "max_answer_score": 2,
+        "authority_error": false,
+        "unsupported_conclusion": false,
+        "out_of_packet_citations": [],
+        "citation_precision_note": null,
+        "rationale": "Baseline safely identifies missing account/network/executable detail; heading reads explicit platform requirement including Git and preserves not-started delivery."
+      }
+    },
+    {
+      "case": "offline-core",
+      "arm": "baseline",
+      "packet_sha256": "2e8c47473f59fc0da621839d07b9c82f0c8dfeaa0d8731721b98f4ec84defa59",
+      "packet_bytes": 5925,
+      "wall_seconds": 10.14,
+      "status": "completed",
+      "exit": 0,
+      "usage": [
+        {
+          "input_tokens": 18350,
+          "cached_input_tokens": 10624,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 356,
+          "reasoning_output_tokens": 111
+        }
+      ],
+      "tool_events": 0,
+      "answer_sha256": "8868e0b7a6930e11a786ea7b0b2ca4cd5d72dfbb503cfeff8a3d37744c4071a8",
+      "answer": {
+        "answer": "The accepted direction is for local indexing/query to run as one terminating native-Go process. The engine does not invoke Python, and the current local MCP slice uses stdio while Pulse excludes a daemon and cloud service. Git remains the durable evidence authority, but the supplied segment does not explicitly say that a Git executable is required, nor does it explicitly address a language-model account or every network-service dependency. Moreover, the umbrella platform is not delivered; local Go query/impact slices remain experimental. Therefore, the packet supports “no Python interpreter or daemon” as design/current-stage claims, but is insufficient to conclusively answer all requirements or name the remaining external executable.",
+        "citations": [
+          {
+            "path": "docs/specs/deployment-neutral-index-platform-v0.md",
+            "start": 21,
+            "end": 25
+          },
+          {
+            "path": "docs/specs/deployment-neutral-index-platform-v0.md",
+            "start": 27,
+            "end": 37
+          },
+          {
+            "path": "docs/specs/deployment-neutral-index-platform-v0.md",
+            "start": 39,
+            "end": 56
+          },
+          {
+            "path": "docs/specs/deployment-neutral-index-platform-v0.md",
+            "start": 58,
+            "end": 65
+          }
+        ],
+        "abstained": true
+      },
+      "assessment": {
+        "answer_score": 1,
+        "max_answer_score": 2,
+        "authority_error": false,
+        "unsupported_conclusion": false,
+        "out_of_packet_citations": [],
+        "citation_precision_note": null,
+        "rationale": "Baseline safely identifies missing account/network/executable detail; heading reads explicit platform requirement including Git and preserves not-started delivery."
+      }
+    },
+    {
+      "case": "outcome-vs-retrieval",
+      "arm": "baseline",
+      "packet_sha256": "32d3cb5399c871fa83b7961fccaf178e87e67afc1694749178eec04dc8eade53",
+      "packet_bytes": 5982,
+      "wall_seconds": 9.96,
+      "status": "completed",
+      "exit": 0,
+      "usage": [
+        {
+          "input_tokens": 18287,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 305,
+          "reasoning_output_tokens": 103
+        }
+      ],
+      "tool_events": 0,
+      "answer_sha256": "961229c517411bedabaeae3e427d85430da7cfe1cb6bd87f7663ba9048a2d098",
+      "answer": {
+        "answer": "No. Good retrieval metrics and test declarations do not establish that a downstream task passed. The proposed/experimental specification says declarations retain external-provider authority, structurally valid anchors do not validate semantic assertions, and existing seams do not grant semantic adequacy. The packet does not state the specific observation required to establish a downstream pass; evidence of an actual downstream execution and its passing outcome would need to be supplied, so I abstain from naming a more specific required observation.",
+        "citations": [
+          {
+            "path": "docs/specs/documentation-corpus-v1.md",
+            "start": 3,
+            "end": 5
+          },
+          {
+            "path": "docs/specs/documentation-corpus-v1.md",
+            "start": 17,
+            "end": 21
+          },
+          {
+            "path": "docs/specs/documentation-corpus-v1.md",
+            "start": 23,
+            "end": 30
+          },
+          {
+            "path": "docs/specs/documentation-corpus-v1.md",
+            "start": 49,
+            "end": 58
+          }
+        ],
+        "abstained": true
+      },
+      "assessment": {
+        "answer_score": 1,
+        "max_answer_score": 2,
+        "authority_error": false,
+        "unsupported_conclusion": false,
+        "out_of_packet_citations": [],
+        "citation_precision_note": null,
+        "rationale": "Both distinguish declarations from observations. Neither receives REC downstream-outcome slot evidence. Heading supplies test receipt rules but does not establish the required general downstream outcome record."
+      }
+    },
+    {
+      "case": "outcome-vs-retrieval",
+      "arm": "heading",
+      "packet_sha256": "97f1a1411c72d8115f627f714434ef9c2e64449a274bd9057c333eb7b1eb1030",
+      "packet_bytes": 5936,
+      "wall_seconds": 7.419,
+      "status": "completed",
+      "exit": 0,
+      "usage": [
+        {
+          "input_tokens": 18779,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 184,
+          "reasoning_output_tokens": 0
+        }
+      ],
+      "tool_events": 0,
+      "answer_sha256": "d2f62af42501bc57be363c1f17e026d0b9a1c3ff31fa44d521eba65a64381f99",
+      "answer": {
+        "answer": "No. Good retrieval metrics and test declarations do not establish that a downstream task passed. Declarations create no test observation, and a structurally valid evidence anchor does not validate the semantic assertion. Reporting a pass requires a native retained test observation—not merely a declaration—whose input passes `testvaliditydoc.Decode` and `ProjectPinned`, preserving the exact receipt digest, test package/name, run/source identity, omissions, and the native execution, association, hygiene, and adequacy axes. This requirement comes from a proposed, experimental specification, so the packet does not establish accepted or delivered behavior.",
+        "citations": [
+          {
+            "path": "docs/specs/documentation-corpus-v1.md",
+            "start": 1,
+            "end": 14
+          },
+          {
+            "path": "docs/specs/documentation-corpus-v1.md",
+            "start": 32,
+            "end": 69
+          }
+        ],
+        "abstained": false
+      },
+      "assessment": {
+        "answer_score": 1,
+        "max_answer_score": 2,
+        "authority_error": false,
+        "unsupported_conclusion": true,
+        "out_of_packet_citations": [],
+        "citation_precision_note": null,
+        "rationale": "Independent review: the answer categorically requires native test observations/Decode/ProjectPinned for every downstream task pass. Supplied DCP evidence only governs admission of native-provider test observations; the general REC outcome record is absent. Partial answer score remains 1; this is an unsupported overgeneralization, not an authority promotion."
+      }
+    },
+    {
+      "case": "observed-holdout",
+      "arm": "heading",
+      "packet_sha256": "a1be0e60a45cf563c5debcfc52d85c47c691cfd692e352a6fcd00a881fc4a4ee",
+      "packet_bytes": 5965,
+      "wall_seconds": 9.384,
+      "status": "completed",
+      "exit": 0,
+      "usage": [
+        {
+          "input_tokens": 18549,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 181,
+          "reasoning_output_tokens": 0
+        }
+      ],
+      "tool_events": 0,
+      "answer_sha256": "560b56452f66dbd3439da1cc561cc5255cf2687d22ef026ae8582cfdb0238e7a",
+      "answer": {
+        "answer": "The deterministic ID-based assignment makes the partition stable and prevents row position, file, partition label, or content from affecting the split. However, it does not establish generalization because every v0 row had already been read during development before assignment. Accordingly, held-out rows must be labeled `previously-observed`; their results support stable later comparison, not a blind generalization claim. Such a claim would require a row first observed after assignment plus the required first-run registration. This is a proposed, experimental specification, not verified delivered behavior.",
+        "citations": [
+          {
+            "path": "docs/specs/retrieval-eval-comparability-v0.md",
+            "start": 1,
+            "end": 10
+          },
+          {
+            "path": "docs/specs/retrieval-eval-comparability-v0.md",
+            "start": 28,
+            "end": 72
+          }
+        ],
+        "abstained": false
+      },
+      "assessment": {
+        "answer_score": 2,
+        "max_answer_score": 2,
+        "authority_error": false,
+        "unsupported_conclusion": false,
+        "out_of_packet_citations": [],
+        "citation_precision_note": null,
+        "rationale": "Baseline Agent digest already supplies the key previously-observed/no-generalization facts despite missing full selected gold span. Both answer correctly."
+      }
+    },
+    {
+      "case": "observed-holdout",
+      "arm": "baseline",
+      "packet_sha256": "a2a7992cb1d3746411110dc7d6aa9cff4b4ca56e5c47718b62fee8d7b864f442",
+      "packet_bytes": 5955,
+      "wall_seconds": 7.873,
+      "status": "completed",
+      "exit": 0,
+      "usage": [
+        {
+          "input_tokens": 18844,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 182,
+          "reasoning_output_tokens": 0
+        }
+      ],
+      "tool_events": 0,
+      "answer_sha256": "4378055c21e0fc9281a4716abce6689f202f7bd5a6afed86accbb918d16d3e9a",
+      "answer": {
+        "answer": "Deterministic assignment only makes the split reproducible and independent of row position, file, labels, and content. It does not make the held-out rows genuinely unseen: every v0 held-out row was observed during development, and the ranking was developed using the same rows being scored. Therefore the partition cannot support a generalization claim. The specification itself is only proposed/experimental and says owner acceptance is still pending.",
+        "citations": [
+          {
+            "path": "docs/specs/retrieval-eval-comparability-v0.md",
+            "start": 1,
+            "end": 16
+          },
+          {
+            "path": "docs/specs/retrieval-eval-comparability-v0.md",
+            "start": 18,
+            "end": 26
+          },
+          {
+            "path": "docs/specs/retrieval-eval-comparability-v0.md",
+            "start": 30,
+            "end": 36
+          }
+        ],
+        "abstained": false
+      },
+      "assessment": {
+        "answer_score": 2,
+        "max_answer_score": 2,
+        "authority_error": false,
+        "unsupported_conclusion": false,
+        "out_of_packet_citations": [],
+        "citation_precision_note": null,
+        "rationale": "Baseline Agent digest already supplies the key previously-observed/no-generalization facts despite missing full selected gold span. Both answer correctly."
+      }
+    },
+    {
+      "case": "license-exception",
+      "arm": "baseline",
+      "packet_sha256": "0048ded27a08d9295b4bbeb55b80463998af15bdd35519f980f1ef0be36f3b3c",
+      "packet_bytes": 5967,
+      "wall_seconds": 12.201,
+      "status": "completed",
+      "exit": 0,
+      "usage": [
+        {
+          "input_tokens": 18765,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 175,
+          "reasoning_output_tokens": 0
+        }
+      ],
+      "tool_events": 0,
+      "answer_sha256": "429d2cd7294ca1c1422649ec61b927bcd48d3d8da1edb6c706bb963c014961ab",
+      "answer": {
+        "answer": "No. The Apache notices are a file-specific exception only for `cmd/corvint/frontier.go`, `cmd/corvint/frontier_adapters.go`, and `cmd/corvint/frontier_test.go`; they are the only Corvint source files outside the enumerated boundary with separately owner-approved notices. Every other path remains AGPL-3.0 unless separately approved. A future Apache protocol/spec file must go under `protocol/**`; any additional exception requires an explicit amendment before publication.",
+        "citations": [
+          {
+            "path": "docs/decisions/0002-future-publication-transition.md",
+            "start": 22,
+            "end": 39
+          },
+          {
+            "path": "docs/decisions/0002-future-publication-transition.md",
+            "start": 84,
+            "end": 89
+          }
+        ],
+        "abstained": false
+      },
+      "assessment": {
+        "answer_score": 2,
+        "max_answer_score": 2,
+        "authority_error": false,
+        "unsupported_conclusion": false,
+        "out_of_packet_citations": [],
+        "citation_precision_note": null,
+        "rationale": "Baseline reads enough of the amendment to answer despite not covering its full gold span. Both answer scope and explicit amendment correctly."
+      }
+    },
+    {
+      "case": "license-exception",
+      "arm": "heading",
+      "packet_sha256": "b079dfbb6a5f1029d649b17c472417f2abc2a5f8fda338beec5b7927d1770cb2",
+      "packet_bytes": 5985,
+      "wall_seconds": 7.154,
+      "status": "completed",
+      "exit": 0,
+      "usage": [
+        {
+          "input_tokens": 18943,
+          "cached_input_tokens": 14208,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 144,
+          "reasoning_output_tokens": 0
+        }
+      ],
+      "tool_events": 0,
+      "answer_sha256": "c6c10ff54030b49d3e32271dacc24d15b6f45b311d706bbdcd4be711a6292476",
+      "answer": {
+        "answer": "No. The Apache notices apply only to the three specifically approved frontier files; the amendment says the boundary is not extended to `cmd/**`. Every other path is AGPL-3.0 unless its file has a separately owner-approved notice. A future Apache protocol/spec source file must go under `protocol/**`; any additional exception requires an explicit amendment before publication.",
+        "citations": [
+          {
+            "path": "docs/decisions/0002-future-publication-transition.md",
+            "start": 83,
+            "end": 95
+          },
+          {
+            "path": "docs/decisions/0002-future-publication-transition.md",
+            "start": 14,
+            "end": 65
+          }
+        ],
+        "abstained": false
+      },
+      "assessment": {
+        "answer_score": 2,
+        "max_answer_score": 2,
+        "authority_error": false,
+        "unsupported_conclusion": false,
+        "out_of_packet_citations": [],
+        "citation_precision_note": null,
+        "rationale": "Baseline reads enough of the amendment to answer despite not covering its full gold span. Both answer scope and explicit amendment correctly."
+      }
+    },
+    {
+      "case": "build-log-correction",
+      "arm": "heading",
+      "packet_sha256": "0a1644e14a41721c1b6bf988758fedd0740041c60454272f1ec7c1ce33911175",
+      "packet_bytes": 5991,
+      "wall_seconds": 6.796,
+      "status": "completed",
+      "exit": 0,
+      "usage": [
+        {
+          "input_tokens": 18793,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 149,
+          "reasoning_output_tokens": 0
+        }
+      ],
+      "tool_events": 0,
+      "answer_sha256": "444ec30951ae585129e497bb22586757d9dc6f4a78d8fe2ddafab08437e630fb",
+      "answer": {
+        "answer": "The supplied text does not say where a new build decision should be recorded or how to correct an already-merged build-log entry. It only specifies, in a proposed and experimental document, that provenance must carry build and revision information and that dirty or unrecorded build revisions remain explicit limitations without immutable build attestation. Missing are the repository’s decision-recording policy and its procedure for amending merged build-log entries.",
+        "citations": [
+          {
+            "path": "docs/specs/documentation-corpus-v1.md",
+            "start": 1,
+            "end": 14
+          },
+          {
+            "path": "docs/specs/documentation-corpus-v1.md",
+            "start": 32,
+            "end": 70
+          }
+        ],
+        "abstained": true
+      },
+      "assessment": {
+        "answer_score": 0,
+        "max_answer_score": 2,
+        "authority_error": false,
+        "unsupported_conclusion": false,
+        "out_of_packet_citations": [],
+        "citation_precision_note": null,
+        "rationale": "Native lexical ranking selects corpus spec first and neither packet supplies actual decision; both correctly abstain."
+      }
+    },
+    {
+      "case": "build-log-correction",
+      "arm": "baseline",
+      "packet_sha256": "fb1520752e57897a123fa0d56d9e5b50610fa882bbd81dab625ecf9322185ffe",
+      "packet_bytes": 5950,
+      "wall_seconds": 6.819,
+      "status": "completed",
+      "exit": 0,
+      "usage": [
+        {
+          "input_tokens": 18678,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 133,
+          "reasoning_output_tokens": 0
+        }
+      ],
+      "tool_events": 0,
+      "answer_sha256": "8cdc138688b946b495bf85488f36f0cae4e5fd1f0d8c0c233411cd186006edfb",
+      "answer": {
+        "answer": "The supplied segment does not say where a new build decision should be recorded or how to correct an already-merged build-log entry. It only identifies this document as a proposed, experimental documentation-corpus contract and discusses provenance and immutable build attestations. The missing evidence is the repository guidance governing build decisions and post-merge build-log corrections.",
+        "citations": [
+          {
+            "path": "docs/specs/documentation-corpus-v1.md",
+            "start": 1,
+            "end": 17
+          },
+          {
+            "path": "docs/specs/documentation-corpus-v1.md",
+            "start": 33,
+            "end": 45
+          }
+        ],
+        "abstained": true
+      },
+      "assessment": {
+        "answer_score": 0,
+        "max_answer_score": 2,
+        "authority_error": false,
+        "unsupported_conclusion": false,
+        "out_of_packet_citations": [],
+        "citation_precision_note": null,
+        "rationale": "Native lexical ranking selects corpus spec first and neither packet supplies actual decision; both correctly abstain."
+      }
+    },
+    {
+      "case": "typed-misses",
+      "arm": "baseline",
+      "packet_sha256": "d13841d9f2cff10e0c1e2fbaa442b6efdbf9fac32b9329b211603c309aba40dc",
+      "packet_bytes": 5980,
+      "wall_seconds": 7.614,
+      "status": "completed",
+      "exit": 0,
+      "usage": [
+        {
+          "input_tokens": 18756,
+          "cached_input_tokens": 14208,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 208,
+          "reasoning_output_tokens": 0
+        }
+      ],
+      "tool_events": 0,
+      "answer_sha256": "603feeb73d0da2a03bbebc2f564d7e7093819ed68654c5a041db60494ff1e48e",
+      "answer": {
+        "answer": "The evidence supports only a general rule: missing permissions or evidence must produce a gap or abstention, never invented certainty. It also defines receipts as carrying evidence, exclusions, limits, uncertainty, and abstention, with delivery envelopes carrying lag and freshness. However, it does not state the required behavior for a valid search that returns no matches, nor explicitly distinguish that outcome from unavailable capability or stale source evidence. The missing documentation-corpus read-interface segments are required to answer that distinction. The cited platform contract is accepted direction but not started, so it must not be treated as verified implementation behavior.",
+        "citations": [
+          {
+            "path": "docs/specs/deployment-neutral-index-platform-v0.md",
+            "start": 1,
+            "end": 24
+          },
+          {
+            "path": "docs/specs/deployment-neutral-index-platform-v0.md",
+            "start": 26,
+            "end": 39
+          },
+          {
+            "path": "docs/specs/deployment-neutral-index-platform-v0.md",
+            "start": 65,
+            "end": 77
+          }
+        ],
+        "abstained": true
+      },
+      "assessment": {
+        "answer_score": 0,
+        "max_answer_score": 2,
+        "authority_error": false,
+        "unsupported_conclusion": false,
+        "out_of_packet_citations": [],
+        "citation_precision_note": null,
+        "rationale": "Native lexical ranking selects umbrella platform; neither packet establishes the corpus read-interface distinctions. Heading discusses a different stale-provider requirement and explicitly abstains on the requested interface."
+      }
+    },
+    {
+      "case": "typed-misses",
+      "arm": "heading",
+      "packet_sha256": "1b5bd19c33567b7994791629977069e84e5d0b56bd2da9f9592a6317dda0859b",
+      "packet_bytes": 5911,
+      "wall_seconds": 10.476,
+      "status": "completed",
+      "exit": 0,
+      "usage": [
+        {
+          "input_tokens": 18455,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 338,
+          "reasoning_output_tokens": 83
+        }
+      ],
+      "tool_events": 0,
+      "answer_sha256": "e507b574c1c3cba43cd4ce208c0ed9f1ac8e97583cc183a4df448745f9b1fa6d",
+      "answer": {
+        "answer": "The packet does not specify the read interface’s required result or status representation for either (1) a valid search that returns no matches or (2) an unavailable capability, so the requested distinction cannot be established. It does specify how stale evidence must be handled: selected external capabilities must recompute against the new complete source snapshot/request identity; old external facts must not be retained or relabeled merely because their blobs are unchanged; uncertain claims remain visible; and absence of a new extraction does not authorize dropping them. It also declares capability-separated evidence-access classes, but does not map capability unavailability to an interface response. The missing evidence is the read-interface contract defining distinct outcomes, status/error codes, and freshness semantics for zero matches, unavailable capabilities, and stale sources. These requirements are accepted direction but delivery is not started.",
+        "citations": [
+          {
+            "path": "docs/specs/deployment-neutral-index-platform-v0.md",
+            "start": 3,
+            "end": 6
+          },
+          {
+            "path": "docs/specs/deployment-neutral-index-platform-v0.md",
+            "start": 337,
+            "end": 339
+          },
+          {
+            "path": "docs/specs/deployment-neutral-index-platform-v0.md",
+            "start": 345,
+            "end": 351
+          }
+        ],
+        "abstained": true
+      },
+      "assessment": {
+        "answer_score": 0,
+        "max_answer_score": 2,
+        "authority_error": false,
+        "unsupported_conclusion": false,
+        "out_of_packet_citations": [],
+        "citation_precision_note": null,
+        "rationale": "Native lexical ranking selects umbrella platform; neither packet establishes the corpus read-interface distinctions. Heading discusses a different stale-provider requirement and explicitly abstains on the requested interface."
+      }
+    },
+    {
+      "case": "unsupported-authentication",
+      "arm": "heading",
+      "packet_sha256": "7e818ac7f15cb54f638b7b6072883b2210bcddc9db06dc14770f4065fd22df0e",
+      "packet_bytes": 5973,
+      "wall_seconds": 7.861,
+      "status": "completed",
+      "exit": 0,
+      "usage": [
+        {
+          "input_tokens": 18781,
+          "cached_input_tokens": 10624,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 105,
+          "reasoning_output_tokens": 0
+        }
+      ],
+      "tool_events": 0,
+      "answer_sha256": "637271611573c62e0916a740d249dcafa913f6467677990ec08383c8dfe9c653",
+      "answer": {
+        "answer": "The corpus does not establish a cryptographic signature algorithm. It states only that imported review labels remain attributed declarations and are never authenticated Core review or intent. The specification is also marked proposed and experimental.",
+        "citations": [
+          {
+            "path": "docs/specs/documentation-corpus-v1.md",
+            "start": 1,
+            "end": 14
+          },
+          {
+            "path": "docs/specs/documentation-corpus-v1.md",
+            "start": 32,
+            "end": 69
+          }
+        ],
+        "abstained": true
+      },
+      "assessment": {
+        "answer_score": 2,
+        "max_answer_score": 2,
+        "authority_error": false,
+        "unsupported_conclusion": false,
+        "out_of_packet_citations": [],
+        "citation_precision_note": null,
+        "rationale": "Both reject a nonexistent signature algorithm from supplied attributed-not-authenticated rule; abstention here is the expected substantive answer."
+      }
+    },
+    {
+      "case": "unsupported-authentication",
+      "arm": "baseline",
+      "packet_sha256": "607360eee7a58b47e7c01e68ba0108e4d850ebf70fd7c58747982100caec1c5d",
+      "packet_bytes": 5916,
+      "wall_seconds": 7.439,
+      "status": "completed",
+      "exit": 0,
+      "usage": [
+        {
+          "input_tokens": 18651,
+          "cached_input_tokens": 10624,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 111,
+          "reasoning_output_tokens": 0
+        }
+      ],
+      "tool_events": 0,
+      "answer_sha256": "90d67b4a63310748a63d3390601ad242ae75e38cc35fdbfdab0ad112df339cbf",
+      "answer": {
+        "answer": "The corpus does not establish a cryptographic signature algorithm for authenticating imported human review labels. It states only that imported review labels remain attributed declarations and are never authenticated Core review or intent. The specification itself is proposed and experimental.",
+        "citations": [
+          {
+            "path": "docs/specs/documentation-corpus-v1.md",
+            "start": 1,
+            "end": 6
+          },
+          {
+            "path": "docs/specs/documentation-corpus-v1.md",
+            "start": 55,
+            "end": 58
+          }
+        ],
+        "abstained": true
+      },
+      "assessment": {
+        "answer_score": 2,
+        "max_answer_score": 2,
+        "authority_error": false,
+        "unsupported_conclusion": false,
+        "out_of_packet_citations": [],
+        "citation_precision_note": null,
+        "rationale": "Both reject a nonexistent signature algorithm from supplied attributed-not-authenticated rule; abstention here is the expected substantive answer."
+      }
+    }
+  ],
+  "assessment_provenance": "Root authored under frozen rubric, independently audited by heading_reviewer. Review corrected heading/outcome-vs-retrieval to unsupported_conclusion=true. Citation coverage checked against actual emitted segment union; semantic scores remain reviewer judgments.",
+  "run_order": "Case order frozen; alternating first arm by case index; fresh process per pair.",
+  "source_bindings": {
+    "tools/heading-nav-bench/main.go": "f39b2f9d9fff3fef29388d999f1ecf4086197d35e7b784f10c9fb67fc47a243b",
+    "tools/heading-nav-bench/main_test.go": "7a09074c1634071d376546cc633e55e27ba47df7c617618bc4710b49152eac1c",
+    "tools/heading-nav-bench/testdata/pilot.json": "d2076ac447ba490883cee12c6075f69df5179b00ab438ade63b9c357e48b6a8b",
+    "tools/heading-nav-bench/testdata/reader-prompt.txt": "cfad0bcec72bab4c458b361b2c328571e40cf09bb9cf0e02077d1671ccd2fbef",
+    "tools/heading-nav-bench/testdata/rubric.json": "0885d7eab00488b7bd422df312f52e3fc44019d64ede576a47c3141da3d1b8d4"
+  },
+  "cli_argv_template": [
+    "codex",
+    "exec",
+    "--ignore-user-config",
+    "--ephemeral",
+    "--skip-git-repo-check",
+    "--sandbox",
+    "read-only",
+    "-C",
+    "EMPTY_EXTERNAL_DIRECTORY",
+    "-m",
+    "gpt-5.6-sol",
+    "-c",
+    "model_reasoning_effort=\"low\"",
+    "--json",
+    "--output-schema",
+    "answer-schema.json",
+    "-o",
+    "CASE-ARM.answer.json",
+    "-"
+  ],
+  "prompt_assembly": "reader-prompt.txt + newline + BEGIN UNTRUSTED EVIDENCE PACKET + newline + exact packet bytes + newline + END UNTRUSTED EVIDENCE PACKET + newline"
+}
