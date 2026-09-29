@@ -26,7 +26,7 @@ with tempfile.TemporaryDirectory(prefix='editor-harness-check-') as td:
             '--server', '/bin/cat', '--report', str(result)]
     for mode in ['missing-wire', 'malformed']:
         configure(mode)
-        run = subprocess.run(args, capture_output=True, timeout=8)
+        run = subprocess.run(args, capture_output=True, timeout=15)
         assert run.returncode == 1, (mode, run.stderr)
         report = json.loads(result.read_text())
         assert not report['wireEvidence']['valid']
@@ -40,7 +40,7 @@ with tempfile.TemporaryDirectory(prefix='editor-harness-check-') as td:
             while not pids.exists() and time.monotonic() < deadline: time.sleep(.02)
             assert pids.exists(), 'fixture did not start'
             editor = int(pids.read_text()); proc.send_signal(sig)
-            out, err = proc.communicate(timeout=8)
+            out, err = proc.communicate(timeout=15)
             assert proc.returncode == 1, err
             report = json.loads(result.read_text())
             assert report['failure']['type'] == 'HarnessInterrupted'

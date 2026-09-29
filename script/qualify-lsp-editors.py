@@ -22,46 +22,66 @@ class HarnessInterrupted(RuntimeError):
 def digest(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
-def inventory():
-    rows = subprocess.run(['/bin/ps', '-axo', 'pid=,ppid=,command='], capture_output=True, text=True, check=True).stdout
+def inventory(timeout=1):
+    rows = subprocess.run(['/bin/ps', '-axo', 'pid=,ppid=,stat=,lstart=,command='], capture_output=True, text=True, check=True, timeout=timeout).stdout
     found = {}
     for line in rows.splitlines():
-        fields = line.strip().split(None, 2)
-        if len(fields) == 3: found[int(fields[0])] = (int(fields[1]), fields[2])
+        fields = line.strip().split(None, 8)
+        if len(fields) != 9: raise ValueError('malformed process inventory')
+        found[int(fields[0])] = {'parent':int(fields[1]), 'state':fields[2], 'start':' '.join(fields[3:8]), 'command':fields[8]}
     return found
 
+def signal_owned_group(proc, sig):
+    # This single-threaded Popen owner cannot have its unreaped PID reused.
+    if proc is None or proc.poll() is not None: return False
+    try: os.killpg(proc.pid, sig)
+    except ProcessLookupError: return False
+    return True
+
 def cleanup_owned(proc, d, report):
-    processes = inventory()
-    owned = {pid for pid, (_, cmd) in processes.items() if str(d) in cmd and
-             (cmd.startswith('/Applications/Visual Studio Code.app/') or str(ROOT / 'tools/lsp-editors/wire-proxy.py') in cmd)}
-    if proc is not None and proc.pid in processes: owned.add(proc.pid)
-    while True:
-        expanded = owned | {pid for pid, (parent, _) in processes.items() if parent in owned}
-        if expanded == owned: break
-        owned = expanded
-    report['ownedCleanupPids'] = sorted(owned)
-    if proc is not None and proc.poll() is None:
-        try: os.killpg(proc.pid, signal.SIGTERM)
-        except ProcessLookupError: pass
+    if signal_owned_group(proc, signal.SIGTERM):
         try: out, err = proc.communicate(timeout=3)
         except subprocess.TimeoutExpired:
-            os.killpg(proc.pid, signal.SIGKILL); out, err = proc.communicate(timeout=3)
+            signal_owned_group(proc, signal.SIGKILL)
+            out, err = proc.communicate(timeout=3)
         report.update(exitCode=proc.returncode, stdout=out.decode(errors='replace')[-8192:], stderr=err.decode(errors='replace')[-8192:])
-    for attempt in range(3):
-        current = inventory()
-        for pid in owned:
-            if pid in current and pid in processes and current[pid][1] == processes[pid][1]:
-                try: os.kill(pid, signal.SIGTERM if attempt == 0 else signal.SIGKILL)
-                except ProcessLookupError: pass
-        time.sleep(.2)
-        current = inventory()
-        for pid, (parent, cmd) in current.items():
-            if parent in owned or (str(d) in cmd and cmd.startswith('/Applications/Visual Studio Code.app/')):
-                owned.add(pid); processes[pid] = (parent, cmd)
-    remaining = {pid: current[pid][1] for pid in owned if pid in current}
-    report['remainingOwnedProcesses'] = remaining
-    report['cleanup'] = 'OWNED_EDITOR_PROCESSES_RETIRED' if not remaining else 'OWNED_EDITOR_PROCESS_REMAINS'
-    if remaining: report['cleanupHold'] = str(d)
+    started = time.monotonic(); deadline = started + 5
+    owned = {}; observations = []; ambiguous = set(); remaining = {}
+    report['cleanupObservations'] = observations
+    try:
+        while True:
+            budget = deadline - time.monotonic()
+            if budget <= 0: break
+            current = inventory(timeout=budget)
+            if time.monotonic() > deadline: raise subprocess.TimeoutExpired('process inventory', budget)
+            for pid, fact in current.items():
+                if type(pid) is not int or pid<1 or not isinstance(fact,dict) or not isinstance(fact.get('start'),str) or not fact['start'] or not isinstance(fact.get('state'),str) or not fact['state'] or type(fact.get('parent')) is not int or not isinstance(fact.get('command'),str):
+                    raise ValueError('process identity unavailable')
+                if pid in owned and fact['start'] != owned[pid]['start']: ambiguous.add(pid)
+                scoped = str(d) in fact['command'] and (fact['command'].startswith('/Applications/Visual Studio Code.app/') or str(ROOT / 'tools/lsp-editors/wire-proxy.py') in fact['command'])
+                if scoped and pid not in ambiguous: owned.setdefault(pid,fact)
+            # Expand only through a currently observed, unchanged sampled parent.
+            while True:
+                added = {}
+                for pid, fact in current.items():
+                    parent = fact['parent']
+                    if pid not in owned and parent in owned and (parent not in current or parent in ambiguous or current[parent]['start']!=owned[parent]['start'] or current[parent]['command']!=owned[parent]['command']):
+                        ambiguous.add(pid)
+                    if pid not in owned and parent in owned and parent in current and parent not in ambiguous and current[parent]['start']==owned[parent]['start'] and current[parent]['command']==owned[parent]['command']:
+                        added[pid]=fact
+                if not added: break
+                owned.update(added)
+            remaining = {pid:current[pid] for pid in owned if pid in current and pid not in ambiguous}
+            observations.append({'elapsedSeconds':round(time.monotonic()-started,3), 'owned':{pid:{'parent':f['parent'],'start':f['start'],'state':f['state'],'command':f['command'][:512]} for pid,f in remaining.items()}, 'ambiguousPids':sorted(ambiguous)})
+            if ambiguous: raise ValueError('sampled process identity changed')
+            if not remaining: break
+            time.sleep(min(.1,max(0,deadline-time.monotonic())))
+        report['ownedCleanupPids'] = sorted(owned)
+        report['remainingOwnedProcesses'] = {pid:fact['command'] for pid,fact in remaining.items()}
+        report['cleanup'] = 'OWNED_EDITOR_PROCESSES_RETIRED' if not remaining else 'OWNED_EDITOR_PROCESS_REMAINS'
+    except (OSError,ValueError,subprocess.SubprocessError) as exc:
+        report.update(cleanup='UNKNOWN',cleanupError=str(exc),ownedCleanupPids=sorted(owned),remainingOwnedProcesses={pid:fact['command'] for pid,fact in owned.items()})
+    if report['cleanup'] != 'OWNED_EDITOR_PROCESSES_RETIRED': report['cleanupHold'] = str(d)
 
 def validate_wire(rows, server_digest, root_uri):
     errors = []
@@ -159,6 +179,7 @@ def main():
         assert (ROOT / 'tools/lsp-editors/extension.js').is_file()
         subprocess.run([sys.executable, str(ROOT / 'tools/lsp-editors/check-proxy.py')], check=True)
         subprocess.run([sys.executable, str(ROOT / 'tools/lsp-editors/check-harness.py')], check=True)
+        subprocess.run([sys.executable, str(ROOT / 'tools/lsp-editors/check-cleanup.py')], check=True)
         subprocess.run([sys.executable, str(ROOT / 'tools/lsp-editors/check-semantic.py')], check=True)
         subprocess.run([sys.executable, str(ROOT / 'tools/lsp-editors/check-context.py')], check=True)
         print('harness assets present; actual editor qualification NOT_RUN')
@@ -257,7 +278,9 @@ def main():
         except Exception as exc:
             report.update(cleanup='UNKNOWN', cleanupError=str(exc), cleanupHold=str(d))
             if proc is not None and proc.poll() is None:
-                try: os.killpg(proc.pid, signal.SIGKILL); proc.wait(timeout=3)
+                try:
+                    signal_owned_group(proc, signal.SIGKILL)
+                    proc.wait(timeout=3)
                 except (ProcessLookupError, subprocess.TimeoutExpired): pass
         for key, file in [('observation', result), ('wireTranscript', wire)]:
             try:

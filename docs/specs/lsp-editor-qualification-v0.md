@@ -67,6 +67,15 @@ fixture governance path with independently bound evidence. Missing critical sele
 path dictionaries and unbound actual evidence fail. Private raw paths stay local; the publishable development summary uses repository-relative paths.
 All tuples remain UNQUALIFIED and actual context clients remain NOT_RUN until reviewed server execution.
 
+Cleanup signals only this harness's unreaped `Popen` process group. Indirect descendants are
+observation-only; a changed command or zombie state cannot imply retirement. Their disappearance
+must be observed within a fixed five-second monotonic stage, with inventories and sleeps bounded
+by remaining time and polls at most 0.1 seconds. Sampled start/state/command describes lineage;
+it grants no atomic PID-generation or signal authority. Ambiguous lineage or unavailable inventory
+produces UNKNOWN and preserves the cleanup hold. Direct TERM/KILL communicate stages each have
+three-second budgets before observation; their composition is not a universal five-second total.
+A surviving indirect child remains a failure. These bounds do not qualify editor interruption.
+
 ## Failure modes and evidence
 
 Unavailable executables or unpinned language-client modules refuse before startup. Client timeout,
