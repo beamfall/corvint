@@ -33,18 +33,18 @@ the worktree Git directory's `corvint/adoption-341/` and the qualification scrat
 |---|---|
 | CAL-V0-035 | Actual durable boot/ack, three complete-ticket sessions; output overflow refused; native identity/unsupported-platform regressions. |
 | CAL-V0-036 | Actual implement→distinct reviewer→exact grant→integrator→native COMPLETED; audit head57 CONSISTENT/AGREES. Required-gate barrier independently inspected. |
-| CAL-V0-037 | Controlled drain, SIGKILL-owner recovery and SIGTERM retained descendant identities and kernel group absence; physical pools quarantined. |
+| CAL-V0-037 | Controlled drain, SIGKILL-owner recovery and SIGTERM retained descendant identities and kernel group absence; pool quarantine separately verified by actual count3 and native stage-pool regression. |
 | CAL-V0-038 | Actual WAIT3 retained session/worktree and partial −1; owner-approved42 resumed the same session into BUILT/PROVED, both groups absent. |
 | CAL-V0-039 | Shared-cap regression; actual count3 unknown usage blocked later dispatch; expired WAIT2 program wall cap refused resume without resetting counters. |
 | CAL-V0-040 | Actual count3 distinct worktrees/private Git directories and pool members, edits confined to assigned paths; controlled advanced-target refusal left HEAD/index/status unchanged. |
-| CAL-V0-041 | Native full-ticket completion/audit; controlled successive-ticket lane reuse retains cumulative history; pure CLI reads and exact generation regressions. |
+| CAL-V0-041 | Native full-ticket completion/audit; pre-freeze controlled successive-ticket wiring proof retains cumulative history (binary4ef1a501); pure CLI reads and exact generation regressions. |
 
 Actual count3 produced two BUILT and one OUTPUT_LIMIT/WAITING, not three completions.
 Controlled host evidence proves mechanics, not actual Codex outcomes. Audit authentication,
 runtimeQualification and liveness remain NOT_OBSERVED; semanticCoverage UNKNOWN. WAIT1 failed
 elicitation (host returned BUILT); its premature progress claim was corrected. WAIT2 expired during
 approval delay; WAIT3 proved resume with259030observed input/1017output tokens across2turns.
-All failed outputs remain retained. Unknown history remains unknown after later observed turns.
+All frozen-qualification failed outputs remain retained. Unknown history remains unknown after later observed turns.
 
 The first scoped gate passed every Tasks package and failed only spec-registry metadata. The
 three metadata inconsistencies were repaired and independently reviewed; focused spec-index and
