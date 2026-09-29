@@ -193,9 +193,13 @@ func (h *semanticHarness) init(t *testing.T) {
 	if _, advertised := result.Capabilities["definitionProvider"]; advertised {
 		t.Fatal("unqualified standard definition capability advertised")
 	}
-	var experimental map[string]bool
-	if err := json.Unmarshal(result.Capabilities["experimental"], &experimental); err != nil || !experimental["corvintDefinitionProbe"] {
+	var experimental map[string]json.RawMessage
+	if err := json.Unmarshal(result.Capabilities["experimental"], &experimental); err != nil || string(experimental["corvintDefinitionProbe"]) != "true" {
 		t.Fatal("missing explicit development probe marker", err)
+	}
+	var marker map[string]string
+	if e := json.Unmarshal(experimental["corvintContext"], &marker); e != nil || len(marker) != 2 || marker["method"] != "corvint/context" || marker["schema"] != "corvint-editor-context/0" {
+		t.Fatal("invalid context discovery marker", e)
 	}
 	h.send(t, map[string]any{"jsonrpc": "2.0", "method": "initialized", "params": map[string]any{}})
 }

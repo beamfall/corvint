@@ -17,6 +17,9 @@ import (
 
 func main() { os.Exit(run(os.Args[1:])) }
 func run(args []string) int {
+	if len(args) == 2 && args[0] == lspstdio.ContextWorkerMode {
+		return lspstdio.ServeContextWorker(args[1], os.Stdin, os.Stdout)
+	}
 	flags := flag.NewFlagSet("corvint-lsp", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	experimental := flags.Bool("experimental", false, "")

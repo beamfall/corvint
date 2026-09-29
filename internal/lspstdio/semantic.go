@@ -4,9 +4,12 @@ package lspstdio
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
+	"math"
 	"net/url"
 	"strconv"
 	"strings"
@@ -46,7 +49,7 @@ func (s *overlayStore) current(v goplsclient.Snapshot) bool {
 func (s *overlayStore) put(uri string, version int64, text string, open bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if version < 0 || version > 2147483647 {
+	if version < 0 || version > 2147483647 || s.next == math.MaxUint64 {
 		return lspsnapshot.ErrBounds
 	}
 	var o lspsnapshot.Overlay
@@ -123,14 +126,18 @@ type semanticFrame struct {
 	err  error
 }
 type semanticResult struct {
-	id     json.RawMessage
-	rows   []goplsclient.Location
-	source goplsclient.Snapshot
-	err    error
+	id             json.RawMessage
+	rows           []goplsclient.Location
+	source         goplsclient.Snapshot
+	err            error
+	core           json.RawMessage
+	contextRequest bool
+	request        context.Context
 }
 
-// ServeSemantic owns streams and one bounded gopls session. Only open overlay
-// definitions are exposed; results confer no Git or repository authority.
+// ServeSemantic owns streams, a bounded gopls session and one pending request.
+// Definitions observe open overlays; context preserves separately bound Core
+// evidence and never promotes the overlay observation to Git authority.
 func ServeSemantic(parent context.Context, in io.ReadCloser, out io.WriteCloser, config SemanticConfig) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
@@ -190,8 +197,17 @@ func ServeSemantic(parent context.Context, in io.ReadCloser, out io.WriteCloser,
 		close(stopIO)
 		<-ioStopped
 	}()
+	worker, err := captureWorkerIdentity()
+	if err != nil {
+		return err
+	}
 	rootURI := (&url.URL{Scheme: "file", Path: config.Root}).String()
-	session, err := lspsnapshot.NewSession("editor", rootURI, lspsnapshot.Bounds{Documents: 32, DocumentBytes: 256 << 10, TotalBytes: 8 << 20})
+	var sessionBytes [16]byte
+	if _, err := rand.Read(sessionBytes[:]); err != nil {
+		return err
+	}
+	sessionID := hex.EncodeToString(sessionBytes[:])
+	session, err := lspsnapshot.NewSession(sessionID, rootURI, lspsnapshot.Bounds{Documents: 32, DocumentBytes: 256 << 10, TotalBytes: 8 << 20})
 	if err != nil {
 		return err
 	}
@@ -200,6 +216,12 @@ func ServeSemantic(parent context.Context, in io.ReadCloser, out io.WriteCloser,
 	state := 0
 	encoding := "utf-16"
 	finish := func(r semanticResult, cancelled bool) error {
+		if r.contextRequest {
+			if r.request.Err() != nil {
+				r.err = r.request.Err()
+			}
+			return contextResponse(out, r.id, r.core, r.source, sessionID, r.err, store.current(r.source), cancelled)
+		}
 		code, msg := 0, ""
 		var wire any
 		if cancelled || errors.Is(r.err, context.Canceled) {
@@ -242,12 +264,14 @@ func ServeSemantic(parent context.Context, in io.ReadCloser, out io.WriteCloser,
 		case <-backendDone:
 			return goplsclient.ErrSession
 		case r := <-result:
-			pending()
+			stop := pending
 			pending = nil
 			result = nil
 			if err := finish(r, false); err != nil {
+				stop()
 				return err
 			}
+			stop()
 		case f := <-frames:
 			if f.err == io.EOF {
 				return nil
@@ -268,6 +292,12 @@ func ServeSemantic(parent context.Context, in io.ReadCloser, out io.WriteCloser,
 			id, hasID := m["id"]
 			if version != "2.0" || method == "" || (hasID && !validID(id)) {
 				if err := reply(out, nil, nil, -32600, "Invalid Request"); err != nil {
+					return err
+				}
+				continue
+			}
+			if method == "corvint/context" && hasID && len(id) > 4096 {
+				if err := reply(out, nil, nil, -32602, "Invalid params"); err != nil {
 					return err
 				}
 				continue
@@ -383,7 +413,7 @@ func ServeSemantic(parent context.Context, in io.ReadCloser, out io.WriteCloser,
 				stopBackendWatch = func() { close(watchStop); <-watchDone; stopBackendWatch = func() {} }
 				encoding = n.encoding
 				state = 1
-				response = map[string]any{"capabilities": map[string]any{"positionEncoding": encoding, "textDocumentSync": map[string]any{"openClose": true, "change": 1}, "experimental": map[string]any{"corvintDefinitionProbe": true}}, "serverInfo": map[string]string{"name": "corvint-lsp-experimental", "version": "0"}}
+				response = map[string]any{"capabilities": map[string]any{"positionEncoding": encoding, "textDocumentSync": map[string]any{"openClose": true, "change": 1}, "experimental": map[string]any{"corvintDefinitionProbe": true, "corvintContext": map[string]string{"method": "corvint/context", "schema": "corvint-editor-context/0"}}}, "serverInfo": map[string]string{"name": "corvint-lsp-experimental", "version": "0"}}
 			case method == "initialize":
 				code, msg = -32600, "Invalid Request"
 			case state == 0 || state == 1:
@@ -400,6 +430,27 @@ func ServeSemantic(parent context.Context, in io.ReadCloser, out io.WriteCloser,
 					return err
 				}
 				state = 3
+			case method == "corvint/context":
+				if pending != nil {
+					code, msg = -32000, "Request already pending"
+					break
+				}
+				input, uri, e := parseContextParams(m["params"], config.Root)
+				source, ok := store.snapshot(uri)
+				if e != nil || !ok {
+					code, msg = -32602, "Invalid params"
+					break
+				}
+				request, stop := context.WithTimeout(ctx, contextBudget)
+				pending = stop
+				pendingID = append(json.RawMessage(nil), id...)
+				result = make(chan semanticResult, 1)
+				ch := result
+				go func() {
+					core, e := editorContext(request, worker, config.Root, input)
+					ch <- semanticResult{id: id, source: source, err: e, core: core, contextRequest: true, request: request}
+				}()
+				continue
 			case method == "textDocument/definition":
 				if pending != nil {
 					code, msg = -32001, "Request already pending"
@@ -429,7 +480,10 @@ func ServeSemantic(parent context.Context, in io.ReadCloser, out io.WriteCloser,
 				pendingID = append(json.RawMessage(nil), id...)
 				result = make(chan semanticResult, 1)
 				ch := result
-				go func() { rows, e := client.Definition(request, s.URI, pos); ch <- semanticResult{id, rows, s, e} }()
+				go func() {
+					rows, e := client.Definition(request, s.URI, pos)
+					ch <- semanticResult{id: id, rows: rows, source: s, err: e}
+				}()
 				continue
 			default:
 				code, msg = -32601, "Method not found"

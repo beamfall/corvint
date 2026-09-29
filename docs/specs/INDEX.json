@@ -2636,5 +2636,25 @@
       "cmd/corvint-lsp",
       "internal/lspstdio/semantic.go"
     ]
+  },
+  {
+    "path": "docs/specs/lsp-editor-context-v0.md",
+    "title": "LSP Editor Context V0",
+    "reqPrefix": "LEC-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Explicit editor context requests preserve Core task-review evidence separately from a current open-overlay observation.",
+    "dependsOn": [
+      "docs/specs/lsp-quality-platform-v0.md",
+      "docs/specs/lsp-editor-definition-v0.md",
+      "docs/specs/task-context-packet-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint-lsp",
+      "internal/lspstdio",
+      "internal/gitstatus"
+    ]
   }
 ]

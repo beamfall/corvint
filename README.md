@@ -490,3 +490,13 @@ The backend receives offline Go settings, but the executable is trusted local co
 This operator-started experiment changes no Core defaults and installs no editor configuration.
 It exposes a `corvintDefinitionProbe` experimental marker and accepts direct development `textDocument/definition` requests, but does not advertise the standard definition capability. Automatic editor navigation remains unavailable until an exact client tuple is qualified. See the
 [experimental contract](docs/specs/lsp-editor-definition-v0.md) for bounds and rollback.
+
+The optional Go editor companion also accepts experimental `corvint/context` with closed params
+`{"textDocument":{"uri":"file:///absolute/root/file.go"},"task":"investigate a requirement","limit":10}`.
+The document must be open. Discover the method/schema under `capabilities.experimental.corvintContext`.
+The response preserves the task-review Core object, including abstentions, separately from an
+unsaved overlay observation (random session ID, decimal-string capture ID, version and SHA-256).
+It starts one bounded native context worker, with no second gopls, tests or repository writes.
+Point-in-time Git/branch/root and overlay checks fail closed on observed drift. This remains
+experimental; exact client tuples and outcome/performance floors are unqualified. See the
+[LSP editor context contract](docs/specs/lsp-editor-context-v0.md) for bounds, fixed errors and observation limits.

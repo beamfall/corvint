@@ -1395,6 +1395,16 @@ LCP-V0-012	docs/specs/local-completion-policy-v0.md	217	Private plans, observati
 LCP-V0-013	docs/specs/local-completion-policy-v0.md	223	Prompt context MUST accept a task mention as an explicit anchor. A mention is on
 LCP-V0-014	docs/specs/local-completion-policy-v0.md	248	`finish` MUST run the daily change (coordination) and the final strict check in
 LCP-V0-015	docs/specs/local-completion-policy-v0.md	261	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
+LEC-V0-001	docs/specs/lsp-editor-context-v0.md	25	Only explicit `corvint/context` MUST be added. Initialization MUST expose `exper
+LEC-V0-002	docs/specs/lsp-editor-context-v0.md	26	Params MUST be the closed object `{textDocument:{uri},task,limit}`; recursively
+LEC-V0-003	docs/specs/lsp-editor-context-v0.md	27	Success MUST contain schema `corvint-editor-context/0`, intact validated `Result
+LEC-V0-004	docs/specs/lsp-editor-context-v0.md	28	Overlay observation MUST carry a fresh crypto-random 128-bit session ID as 32 lo
+LEC-V0-005	docs/specs/lsp-editor-context-v0.md	29	Admission and post-Core observations MUST compare root directory identity, commi
+LEC-V0-006	docs/specs/lsp-editor-context-v0.md	30	The existing single pending request MUST be reused. Cancellation, edits, close,
+LEC-V0-007	docs/specs/lsp-editor-context-v0.md	31	Core MUST run only in a same-executable fixed one-shot native worker using `NewT
+LEC-V0-008	docs/specs/lsp-editor-context-v0.md	32	Worker ownership MUST be enabled once at startup before Git resolution, Core or
+LEC-V0-009	docs/specs/lsp-editor-context-v0.md	33	Parent request deadline MUST be 20 seconds; runner operation timeout MUST be 20
+LEC-V0-010	docs/specs/lsp-editor-context-v0.md	34	Errors MUST be fixed/redacted: invalid params -32602; busy -32000; cancel/deadli
 LED-V0-001	docs/specs/lsp-editor-definition-v0.md	25	The companion MUST enable semantic mode only with explicit operator executable a
 LED-V0-002	docs/specs/lsp-editor-definition-v0.md	26	Open/change/close MUST retain exact captured overlay identity across synchroniza
 LED-V0-003	docs/specs/lsp-editor-definition-v0.md	27	Definition MUST use one bounded pending request, service cancellation while work
