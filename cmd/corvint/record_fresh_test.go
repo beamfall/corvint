@@ -22,7 +22,7 @@ func TestRecordFreshRepositoryWithoutIgnore(t *testing.T) {
 		if linked {
 			name = "linked-worktree"
 		}
-		t.Run("LTPM-V0-001-"+name, func(t *testing.T) {
+		t.Run("LTPM-V0-001 GPK-V0-007 fresh "+name, func(t *testing.T) {
 			root := t.TempDir()
 			env := testEnvironment("GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
 			run := func(program string, args ...string) []byte {

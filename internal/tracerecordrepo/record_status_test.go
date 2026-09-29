@@ -120,7 +120,7 @@ func TestRecordUnignoredUnsafeArtifactsRefuseWithoutMutation(t *testing.T) {
 		}},
 	}
 	for _, tc := range cases {
-		t.Run("GPK-V0-008-"+tc.name, func(t *testing.T) {
+		t.Run("GPK-V0-008 LTPM-V0-008 unsafe "+tc.name, func(t *testing.T) {
 			root := unignoredRecordFixture(t)
 			commit := gitAdapterFixture(t, root, "rev-parse", "HEAD")
 			tc.prepare(t, root, commit)
