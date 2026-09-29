@@ -554,11 +554,11 @@ Each row cites the first emitting site and states only the condition checked the
 | Code | First emitting site | At the cited site |
 |---|---|---|
 | `invalid-registry` | `internal/mcp/bridge/bridge.go:365@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
-| `unsupported-tool` | `internal/mcp/bridge/bridge.go:374@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the four `ToolFlows*` tools under `flows` (`MCPV0-026`) |
-| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:590@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
-| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:590@f5156052` | the map is a legacy `cem/0.1` map that needs an out-of-band patch |
-| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:591@b2fd0644` | the map fails CEM strict decoding or field validation |
-| `flows-refused` | `internal/mcp/bridge/flows.go:264@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
+| `unsupported-tool` | `internal/mcp/bridge/bridge.go:374@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the `ToolFlows*` tools under `flows` (`MCPV0-026`) |
+| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:592@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
+| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:592@f5156052` | the map is a legacy `cem/0.1` map that needs an out-of-band patch |
+| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:593@b2fd0644` | the map fails CEM strict decoding or field validation |
+| `flows-refused` | `internal/mcp/bridge/flows.go:268@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
 
 ## Acceptance matrix
 
