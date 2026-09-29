@@ -2517,5 +2517,22 @@
       "internal/doccompiler/trusted_nav.go",
       "cmd/corvint/docs.go"
     ]
+  },
+  {
+    "path": "docs/specs/heading-navigation-experiment-v0.md",
+    "title": "Heading navigation experiment V0",
+    "reqPrefix": "HNE-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A standalone offline harness compares native lexical document ranking with heading-aware expansion under equal serialized context-byte budgets.",
+    "dependsOn": [
+      "docs/specs/documentation-corpus-v1.md",
+      "docs/specs/retrieval-eval-comparability-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "tools/heading-nav-bench"
+    ]
   }
 ]

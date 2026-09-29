@@ -1,0 +1,42 @@
+{
+  "baseline": {
+    "gold_hits": 3,
+    "gold_total": 13,
+    "answer_score": 10,
+    "answer_max": 16,
+    "fully_answered": 4,
+    "questions": 8,
+    "packet_bytes": 47664,
+    "reader_wall_seconds": 70.95,
+    "authority_errors": 0,
+    "unsupported_conclusions": 0,
+    "invalid_citation_ranges": 0,
+    "reported_usage": {
+      "input_tokens": 149009,
+      "cached_input_tokens": 35456,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 1647,
+      "reasoning_output_tokens": 214
+    }
+  },
+  "heading": {
+    "gold_hits": 7,
+    "gold_total": 13,
+    "answer_score": 11,
+    "answer_max": 16,
+    "fully_answered": 5,
+    "questions": 8,
+    "packet_bytes": 47704,
+    "reader_wall_seconds": 63.32,
+    "authority_errors": 0,
+    "unsupported_conclusions": 1,
+    "invalid_citation_ranges": 0,
+    "reported_usage": {
+      "input_tokens": 149929,
+      "cached_input_tokens": 24832,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 1438,
+      "reasoning_output_tokens": 83
+    }
+  }
+}

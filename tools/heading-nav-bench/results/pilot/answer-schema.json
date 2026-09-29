@@ -1,0 +1,40 @@
+{
+  "type": "object",
+  "properties": {
+    "answer": {
+      "type": "string"
+    },
+    "citations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "start": {
+            "type": "integer"
+          },
+          "end": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "start",
+          "end"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "abstained": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "answer",
+    "citations",
+    "abstained"
+  ],
+  "additionalProperties": false
+}
