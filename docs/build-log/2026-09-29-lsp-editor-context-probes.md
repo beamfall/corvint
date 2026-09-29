@@ -44,3 +44,9 @@ identifiers fail, while the maximum valid string passes. Focused adversarial che
 blob, out-of-blob line/span, forged content, extra valid tracked evidence and closed-envelope types.
 Actual context client execution remains NOT_RUN pending the repaired candidate's independent review
 and the root's immutable server. This repair does not promote any qualification tuple.
+
+The parent's shard-3 CI exposed a pre-existing LEQ metadata inconsistency retained by this child.
+Focused `internal/specindex` reproduced it before repair. Header/digest/README now agree exactly
+with the existing INDEX proposed intent, experimental UNQUALIFIED delivery and context-inclusive
+claim. No runtime behavior or qualification status changed. Prior binding and acknowledgment at
+`9a4e6f52` are superseded; focused specindex and refreshed CEM/keyed checks bind the corrected docs.
