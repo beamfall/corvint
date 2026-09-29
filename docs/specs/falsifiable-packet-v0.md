@@ -1702,3 +1702,14 @@ Rollout: ships in the experimental Go candidate; no adapter calls it. Rollback: 
 Promotion or kill: promote only when the three-arm trial in the bet reports a materially lower
 confidently-wrong rate at non-inferior success; kill if the falsifiable packet costs more than 25%
 extra tokens for no success gain, per the bet's stated criteria.
+
+## Checkpoint handoff pilot (non-normative)
+
+The owner-requested 2026-09-29 [pilot recipe](../experiments/checkpoint-handoff-pilot.md)
+and [retained observations](../experiments/checkpoint-handoff-20260929.json) exercise the existing
+existing checkpoint contract (FPK-V0-020..026) in separate fresh native-agent sessions. Both the checkpoint and
+structured-notes arms repaired one synthetic task and passed an independent boundary test;
+CLI drift cases retained exact omissions and historical attribution. This is a single-pair
+exploratory observation, not the separate AT-08 comparison/outcome gate, general fresh-agent
+qualification, real interruption recovery, or evidence of savings. Existing experimental status
+and SESSION-V0-001..016 deferrals are unchanged.

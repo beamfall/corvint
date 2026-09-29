@@ -1,0 +1,172 @@
+{
+  "baseRevision": "85cb2889444ad41ac001876fca2b0000c76a09a7",
+  "evidence": [
+    {
+      "blobOid": "258154976a11be497720863fcd566b727ead82cd",
+      "id": "evidence:sha256:89811a4b2b009c9d21a174f03c55ce07b26dcc62456f498f6893bcc61ac54c7c",
+      "path": "docs/specs/falsifiable-packet-v0.md",
+      "span": {
+        "end": 43774,
+        "start": 39318
+      },
+      "spanSha256": "b6248296621d8d7ed9384db6242c29b8009b31c574c669a3e4373bd33323f0f5"
+    },
+    {
+      "blobOid": "258154976a11be497720863fcd566b727ead82cd",
+      "id": "evidence:sha256:b447326c8dd9a459b65d6904225d71ea11f8bf7d262ff423c3012bc3d54d7f2c",
+      "path": "docs/specs/falsifiable-packet-v0.md",
+      "span": {
+        "end": 63713,
+        "start": 62344
+      },
+      "spanSha256": "dfcd883f8c95334679d4f9d3fdd0159f09632eadc54f81697c76e6a0aec757c5"
+    },
+    {
+      "blobOid": "258154976a11be497720863fcd566b727ead82cd",
+      "id": "evidence:sha256:0d5fdb971a8543611c78efb7406d5ad76a875aa37812e8fdae6d1bb6ed230395",
+      "path": "docs/specs/falsifiable-packet-v0.md",
+      "span": {
+        "end": 87337,
+        "start": 81050
+      },
+      "spanSha256": "e2debba4dec4e800d12ea4746bc9bd17a371f5a3bf2f27fc65b29908492278c6"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:89811a4b2b009c9d21a174f03c55ce07b26dcc62456f498f6893bcc61ac54c7c",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:b447326c8dd9a459b65d6904225d71ea11f8bf7d262ff423c3012bc3d54d7f2c",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:0d5fdb971a8543611c78efb7406d5ad76a875aa37812e8fdae6d1bb6ed230395",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:52efb801f28512f8a9cdf3986cd4ea77957f4b739942e44f75e16b0fe2a1bb78",
+      "newRange": {
+        "count": 79,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-29-checkpoint-handoff-pilot.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b447326c8dd9a459b65d6904225d71ea11f8bf7d262ff423c3012bc3d54d7f2c",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:0d5fdb971a8543611c78efb7406d5ad76a875aa37812e8fdae6d1bb6ed230395",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:585ec6b2d832dfe2325ca823aff740191b043a6cfbfbce9b073a7e3a736ef4b6",
+      "newRange": {
+        "count": 762,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/experiments/checkpoint-handoff-20260929.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:89811a4b2b009c9d21a174f03c55ce07b26dcc62456f498f6893bcc61ac54c7c",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:b447326c8dd9a459b65d6904225d71ea11f8bf7d262ff423c3012bc3d54d7f2c",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:0d5fdb971a8543611c78efb7406d5ad76a875aa37812e8fdae6d1bb6ed230395",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:338f0ffed2782806b6851b336d3c6f0b213b0be228b65c07c6959725f242de36",
+      "newRange": {
+        "count": 98,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/experiments/checkpoint-handoff-pilot.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b447326c8dd9a459b65d6904225d71ea11f8bf7d262ff423c3012bc3d54d7f2c",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:0d5fdb971a8543611c78efb7406d5ad76a875aa37812e8fdae6d1bb6ed230395",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:59bc67bf3b68e247b7c76ad12626590e285fe0b96cfa8c0e9786a40bd629f6b7",
+      "newRange": {
+        "count": 14,
+        "start": 1702
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 1702
+      },
+      "path": "docs/specs/falsifiable-packet-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:89811a4b2b009c9d21a174f03c55ce07b26dcc62456f498f6893bcc61ac54c7c",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:b447326c8dd9a459b65d6904225d71ea11f8bf7d262ff423c3012bc3d54d7f2c",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:0d5fdb971a8543611c78efb7406d5ad76a875aa37812e8fdae6d1bb6ed230395",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5f53be11767c40abccbfbc8b3cdfb469d7dca75c89c83d28fe74448dd5ac2939",
+      "newRange": {
+        "count": 243,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "script/qualify-checkpoint-handoff.py",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "93dfb06ba542db84df49cc2da0e89760c7af1d591fa5c27563f0f18f93e9fb50",
+  "spec": "cem/0.2"
+}

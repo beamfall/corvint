@@ -52,7 +52,9 @@ function fixture(t, mode='valid', codes=['frontier-authority-unavailable'], envi
   const openRunner = createCorvintRunner({ corvintBinary:binary, environment, hostVersion:'unknown', ...OPEN_TIMEOUTS })
   const runOpen = value => openRunner({...value,signal:value.signal ? AbortSignal.any([value.signal,shutdown.signal]) : shutdown.signal})
   let currentGemini
-  const captured = () => existsSync(capture) ? readFileSync(capture,'utf8').trim().split('\n').map(JSON.parse) : []
+  // The startup poll can observe the append file before its next JSONL record is complete.
+  // Parse terminated records only; malformed completed records must still fail.
+  const captured = () => existsSync(capture) ? readFileSync(capture,'utf8').split('\n').slice(0,-1).map(JSON.parse) : []
   const geminiOnce = (event, extra={}, raw, kill=TEST_HOST_KILL_MS) => new Promise((resolve,reject) => {
     const input={hook_event_name:events[event],cwd:root,session_id:'raw-session-secret',prompt:'repair the parser',transcript_path:'/private/secret',...extra}
     const child=spawn(process.execPath,[hook,event,`--corvint-test-host-kill-ms=${kill}`],{env:environment,detached:true,stdio:['pipe','pipe','pipe']})
@@ -574,6 +576,17 @@ test('AHI-023 host-version disclosure matches what each plugin adapter sends',()
  assert.ok(codex.includes('host-version-unknown')&&!codex.includes('host-version-unreported-by-hook-api'),'codex sends unknown')
 })
 
+
+test('AHI-032 fixture capture waits for complete JSONL records',t=>{
+ const f=fixture(t),capture=join(f.dir,'capture')
+ writeFileSync(capture,'');assert.deepEqual(f.captured(),[])
+ writeFileSync(capture,'{"argv":');assert.deepEqual(f.captured(),[])
+ writeFileSync(capture,'{"argv":[]}\n{"argv":')
+ assert.deepEqual(f.captured(),[{argv:[]}])
+ writeFileSync(capture,'{"argv":[]}\n{"argv":["session-start"]}\n')
+ assert.deepEqual(f.captured(),[{argv:[]},{argv:['session-start']}])
+ writeFileSync(capture,'invalid\n');assert.throws(()=>f.captured(),SyntaxError)
+})
 
 test('AHI-032 first prompt obtains context while session startup is still running',async t=>{
  const f=fixture(t,'delayed');spyConsole(t,'info');spyConsole(t,'warn')

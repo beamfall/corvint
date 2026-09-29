@@ -1,0 +1,70 @@
+{
+  "baseRevision": "be3af3ffb755b21f73a837556b05c0d93304c45c",
+  "evidence": [
+    {
+      "blobOid": "ca627e02e7b7758c2f10add4700be3a7e7e7f69c",
+      "id": "evidence:sha256:fb62092f3d093560820fe6699a304c4e3d9ca3cb956371e931c921eea6e837c7",
+      "path": "integrations/testfixture/main.go",
+      "span": {
+        "end": 1469,
+        "start": 1154
+      },
+      "spanSha256": "77def898ec71440258f9af7c5bbf0c1e7cef19d4a68ceb874b5a8df2ae9e892f"
+    },
+    {
+      "blobOid": "6a818d6fa40b266ddd69a0f6e73a2d2a076cf7fd",
+      "id": "evidence:sha256:a4ec5c43f6773ad01afb464e3ba230f984b60652e1be764350129668d9c190f8",
+      "path": "integrations/host-adapters.test.mjs",
+      "span": {
+        "end": 48323,
+        "start": 47469
+      },
+      "spanSha256": "e5e1493052372f61a0b8f19e0d654b027297fed815862cd9a56bbe26025d1ecb"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fb62092f3d093560820fe6699a304c4e3d9ca3cb956371e931c921eea6e837c7",
+          "relation": "implementation"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ded099ac1a59607904d81c8e269b87cac68b9c440b56046ca4f58e5bcdcd54f0",
+      "newRange": {
+        "count": 9,
+        "start": 52
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 52
+      },
+      "path": "integrations/host-adapters.test.mjs",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a4ec5c43f6773ad01afb464e3ba230f984b60652e1be764350129668d9c190f8",
+          "relation": "test-claim"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:08f0b33833fa1b58a5deacac2c9eb93b8d627786fd5e753c50c1eabaed83db27",
+      "newRange": {
+        "count": 17,
+        "start": 577
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 575
+      },
+      "path": "integrations/host-adapters.test.mjs",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "c6e094baed2233f4dee0b479e29fee53ec7014b5a199300dfd8be57975354eb7",
+  "spec": "cem/0.2"
+}
