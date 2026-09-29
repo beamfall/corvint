@@ -2,13 +2,13 @@
 
 - Owner: Russell Lewis
 - Date: 2026-09-29
-- Intent status: proposed experimental tooling profile; owner selected VS Code and Neovim
-- Delivery status: experimental development probes; all tuples UNQUALIFIED
+- Intent status: proposed experimental tooling; owner selected VS Code and Neovim
+- Delivery status: experimental; UNQUALIFIED
 - Authoritative inputs: owner scope selection retained in native V1-0478; proposed LQP-V0-011/012/017 contract in PR #360; AGENTS.md
 
 ## Agent digest
-- Claim: Explicit development probes launch actual VS Code with Microsoft's language client and actual Neovim with its builtin LSP client, retaining lifecycle wire observations.
-- Status: proposed / experimental; no advertised support or promotion gate.
+- Claim: Actual editor development lifecycle probes retain wire observations without promotion claims.
+- Status: proposed experimental tooling; owner selected VS Code and Neovim; experimental; UNQUALIFIED.
 - Exists: `script/qualify-lsp-editors.py` and private disposable client assets under `tools/lsp-editors/`.
 - Blocked on: exact companion integration, full real-client conformance, protected baseline, human acceptance of numerical floors.
 - Read next: Profile, requirements, evidence and rollback.
