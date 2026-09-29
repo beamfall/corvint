@@ -180,7 +180,7 @@ each cited path still exists at that revision, and what was omitted or could not
 ### Core-owned local language-server provider (proposed 2026-09-23; experimental; decision 0371)
 
 - `EEP-V0-023`: A Core-owned local provider MAY produce one `external-evidence-provider/2` record
-  in process. Its first and only instance is gopls, selected by `CORVINT_CONTEXT_LSP=gopls` on
+  in process. Its first and only instance is gopls, selected by `--lsp gopls` or legacy `CORVINT_CONTEXT_LSP=gopls` on
   `corvint context` (`TCP-V0-043`); it is off by default and installs no daemon, service or
   configuration. The record takes the one decode, capability check, Git-ancestry freshness and
   endpoint verification every transport shares (`InlineSection` in
@@ -230,6 +230,15 @@ each cited path still exists at that revision, and what was omitted or could not
   a file URI or a native path, removed, so it names documents repository-relative and carries no
   machine-specific prefix (V1-0167). The exit code and every other packet member
   are unchanged.
+
+- `EEP-V0-027`: The shared CLI/MCP Go provider reads root ancestry through the bounded Git
+  runner using `gitstatus.Executable`, which honors MCP's startup pin. The operation has a
+  10-second deadline and 64 KiB stdout ceiling, under the sanitized Git environment. Child PATH
+  drops relative/empty entries, telemetry is off, module downloads/checksum requests/toolchain
+  switching remain disabled. Operator-supplied absolute PATH, GOFLAGS, GOWORK and Go cache
+  locations remain trusted configuration; this is not a sandbox for hostile executables or Go
+  tooling configuration. Cancellation must retire the owned descendant group and remove the
+  private gopls cache. A required live check may not silently skip an absent server.
 
 ## Non-goals and simpler baseline
 
@@ -341,6 +350,8 @@ their tests, the fixture `lsp-gopls.json`, the one `attachLSPEvidence` call in
 | `EEP-V0-024` | `Expand`, `run`, `environment`, `querySummary`, `serverVersion`, `serverName`, `rootCommit` in `internal/lspprovider/provider.go`; `internal/lspprovider/session.go` | `TestExpandLiveGopls`, `TestExpandEveryQueryFailedIsUnavailable`, `TestSessionAnswersServerRequests`, `TestRootCommitIgnoresReplaceRefs` |
 | `EEP-V0-025` | `dialogue`, `walker`, `record`, `relation` in `internal/lspprovider/provider.go`; `targets` in `internal/lspprovider/targets.go` | `TestExpandLiveGopls`, `TestTargets`, `TestLSPRecordConformance` |
 | `EEP-V0-026` | `Expand`, `run` in `internal/lspprovider/provider.go`; `InlineSection` | `TestExpandDegrades`, `TestExpandEveryQueryFailedIsUnavailable`, `TestLSPUnavailableIsVisible`, `TestContextLSPOffKeepsTheGoldenAndOnDegrades` |
+
+| `EEP-V0-027` | `rootCommit`, `environment`, `run` | `TestContextLSPPinAndDrift`, `TestContextLSPCancellationRetiresDescendants`, `TestContextLSPEnvironmentDropsRelativePATH` |
 
 ## Unresolved decisions and promotion or kill criteria
 

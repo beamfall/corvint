@@ -886,6 +886,7 @@ EEP-V0-023	docs/specs/external-evidence-provider-v0.md	182	A Core-owned local pr
 EEP-V0-024	docs/specs/external-evidence-provider-v0.md	190	Each invocation owns one `gopls serve` process: the executable found on `PATH`,
 EEP-V0-025	docs/specs/external-evidence-provider-v0.md	208	The expansion is at most two hops. Seeds are at most three `.go` paths whose
 EEP-V0-026	docs/specs/external-evidence-provider-v0.md	222	An absent or failing provider yields no record and no partial rows: the section
+EEP-V0-027	docs/specs/external-evidence-provider-v0.md	234	The shared CLI/MCP Go provider reads root ancestry through the bounded Git
 EEP-V1-001	docs/specs/external-evidence-provider-v1.md	54	A record whose top-level `schema` is `external-evidence-provider/1` MUST decode
 EEP-V1-002	docs/specs/external-evidence-provider-v1.md	60	`repositories` MUST list 1 to 8 entries with unique identifier `id`s, each with
 EEP-V1-003	docs/specs/external-evidence-provider-v1.md	66	An endpoint MUST be exactly one of the two shapes in Definitions. A mixed, strin
@@ -1540,6 +1541,8 @@ MCPV0-025	docs/specs/mcp-server-2026-07-28-v0.md	487	`corvint.cem.report` MUST r
 MCPV0-026	docs/specs/mcp-server-2026-07-28-v0.md	458	`corvint-mcp` MUST accept at most one `--tool-profile` selector, following the
 MCPV0-027	docs/specs/mcp-server-2026-07-28-v0.md	532	`corvint-mcp` MUST accept at most one `--error-profile reason-class` selector,
 MCPV0-028	docs/specs/mcp-server-2026-07-28-v0.md	540	`reasonClass` MUST be one of the closed values `git-filter`, `config-include`,
+MCPV0-029	docs/specs/mcp-server-2026-07-28-v0.md	565	The opt-in `--tool-profile task-review-lsp` descendant exposes the task-review
+MCPV0-030	docs/specs/mcp-server-2026-07-28-v0.md	573	An explicitly requested gopls call uses TCP-V0-052's shared evidence and drift
 MER-V0-001	docs/specs/migration-evidence-ratchet-v0.md	33	The profile MUST bind baseline and candidate repository IDs, immutable commit an
 MER-V0-002	docs/specs/migration-evidence-ratchet-v0.md	37	A snapshot MUST carry stable `(kind,id)` identities for legacy cases, discovered
 MER-V0-003	docs/specs/migration-evidence-ratchet-v0.md	41	The receipt MUST expose raw baseline and candidate totals by kind and state, the
@@ -2117,13 +2120,16 @@ TCP-V0-040	docs/specs/task-context-packet-v0.md	568	(proposed 2026-09-23, not ac
 TCP-V0-041	docs/specs/task-context-packet-v0.md	578	(proposed 2026-09-23, not accepted; experimental; decision 0370) A row the role
 TCP-V0-042	docs/specs/task-context-packet-v0.md	583	(proposed 2026-09-23, not accepted; experimental; decision 0370) The field stays
 TCP-V0-043	docs/specs/task-context-packet-v0.md	769	(proposed 2026-09-23, not accepted; experimental; decision 0371) With
-TCP-V0-044	docs/specs/task-context-packet-v0.md	776	The `external` member is separate evidence, never a ranking input: `results`,
-TCP-V0-045	docs/specs/task-context-packet-v0.md	782	When gopls is absent, the task names no usable Go seed, the session fails or
-TCP-V0-046	docs/specs/task-context-packet-v0.md	786	The flag is measured before any promotion. A frozen `tools/retrieval-bench` run
-TCP-V0-047	docs/specs/task-context-packet-v0.md	794	When governing rows exist (TCP-V0-008), each governing file's text is split into
-TCP-V0-048	docs/specs/task-context-packet-v0.md	828	(proposed 2026-09-24, not accepted; not implemented; decision 0377) With
-TCP-V0-049	docs/specs/task-context-packet-v0.md	840	(proposed 2026-09-24, not accepted; not implemented; decision 0377) With the
-TCP-V0-050	docs/specs/task-context-packet-v0.md	851	(proposed 2026-09-24, not accepted; not implemented; decision 0377) Two readings
+TCP-V0-044	docs/specs/task-context-packet-v0.md	775	The `external` member is separate evidence, never a ranking input: `results`,
+TCP-V0-045	docs/specs/task-context-packet-v0.md	781	When gopls is absent, the task names no usable Go seed, the session fails or
+TCP-V0-046	docs/specs/task-context-packet-v0.md	785	The flag is measured before any promotion. A frozen `tools/retrieval-bench` run
+TCP-V0-047	docs/specs/task-context-packet-v0.md	793	When governing rows exist (TCP-V0-008), each governing file's text is split into
+TCP-V0-048	docs/specs/task-context-packet-v0.md	827	(proposed 2026-09-24, not accepted; not implemented; decision 0377) With
+TCP-V0-049	docs/specs/task-context-packet-v0.md	839	(proposed 2026-09-24, not accepted; not implemented; decision 0377) With the
+TCP-V0-050	docs/specs/task-context-packet-v0.md	850	(proposed 2026-09-24, not accepted; not implemented; decision 0377) Two readings
+TCP-V0-051	docs/specs/task-context-packet-v0.md	870	`context --task` accepts at most one `--lsp gopls|off` (including `--lsp=VALUE`)
+TCP-V0-052	docs/specs/task-context-packet-v0.md	876	CLI and the explicit MCP descendant use one shared attachment. Before and after
+TCP-V0-053	docs/specs/task-context-packet-v0.md	882	Required live qualification fails when gopls is missing. Compiled CLI and MCP
 TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	92	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its
 TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	100	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as
 TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	103	TCQ MUST emit exactly one claim result for each selected claim edge and no resul

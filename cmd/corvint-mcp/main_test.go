@@ -563,3 +563,16 @@ func TestAFUV1035FlowsTextStaysInsideEnvelope(t *testing.T) {
 		t.Fatalf("hostile step action is not inside the envelope: %q", text)
 	}
 }
+
+// MCPV0-029: the new executable profile is explicitly selected at startup.
+func TestContextLSPToolProfileSelector(t *testing.T) {
+	rest, profile, ok := extractToolProfile([]string{"--root", "/repo", "--tool-profile", "task-review-lsp"})
+	if !ok || profile != "task-review-lsp" || !reflect.DeepEqual(rest, []string{"--root", "/repo"}) {
+		t.Fatalf("%v %s %v", rest, profile, ok)
+	}
+	for _, args := range [][]string{{"--tool-profile", "task-review-lsp", "--version"}, {"--tool-profile", "task-review-lsp", "--tool-profile", "task-review"}, {"--tool-profile", "TASK-REVIEW-LSP"}} {
+		if _, _, ok := extractToolProfile(args); ok {
+			t.Fatalf("accepted %v", args)
+		}
+	}
+}

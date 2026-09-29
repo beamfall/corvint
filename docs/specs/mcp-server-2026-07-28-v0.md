@@ -456,7 +456,7 @@ With the selector, the two tools below are added under the unchanged `MCPV0-007`
 `conformance/mcp-2026-07-28/cases-task-review.json`.
 
 - `MCPV0-026`: `corvint-mcp` MUST accept at most one `--tool-profile` selector, following the
-  closed-argv rule of `MCPV0-021`, as amended by `AFU-V1-034`. The value is exactly `task-review` or
+  closed-argv rule of `MCPV0-021`, as amended by `AFU-V1-034`. The value is exactly `task-review`, `task-review-lsp` or
   `flows`; a missing, empty, differently cased, unknown or duplicate value, two selectors even with
   different values, the `--tool-profile=VALUE` spelling, and the selector combined
   with `--version` MUST fail before repository startup with exit 2 and no stdout. Omission selects
@@ -553,12 +553,32 @@ Each row cites the first emitting site and states only the condition checked the
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `invalid-registry` | `internal/mcp/bridge/bridge.go:365@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
-| `unsupported-tool` | `internal/mcp/bridge/bridge.go:374@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the `ToolFlows*` tools under `flows` (`MCPV0-026`) |
-| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:592@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
-| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:592@f5156052` | the map is a legacy `cem/0.1` map that needs an out-of-band patch |
-| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:593@b2fd0644` | the map fails CEM strict decoding or field validation |
+| `invalid-registry` | `internal/mcp/bridge/bridge.go:384@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
+| `unsupported-tool` | `internal/mcp/bridge/bridge.go:393@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the `ToolFlows*` tools under `flows` (`MCPV0-026`) |
+| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:626@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
+| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:626@f5156052` | the map is a legacy `cem/0.1` map that needs an out-of-band patch |
+| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:627@b2fd0644` | the map fails CEM strict decoding or field validation |
 | `flows-refused` | `internal/mcp/bridge/flows.go:268@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
+
+### Explicit Go LSP descendant (V1-0476)
+
+- `MCPV0-029`: The opt-in `--tool-profile task-review-lsp` descendant exposes the task-review
+  tools and adds only the optional `lsp` string enum (`off`, `gopls`, default `off`) to
+  `corvint.context`. All existing profile descriptors and behavior stay unchanged and reject
+  any presence of this field, even null or off. The descendant also rejects null, unknown or
+  non-string values. Environment variables never enable MCP enrichment. Startup authorizes and
+  pins the absolute gopls PATH match (or retains absence); each call separately requests it.
+  Callers cannot supply executables, argv or roots. This is the narrowly scoped exception to
+  MCPV0-024's Git-only execution rule, not an expansion of the default profile.
+- `MCPV0-030`: An explicitly requested gopls call uses TCP-V0-052's shared evidence and drift
+  bracket, the EEP-V0-024..027 process bounds, the pinned/bounded Git runner and existing output
+  budget and untrusted envelope. Root replacement, cancellation or repository drift cannot
+  emit evidence bound to the old snapshot. Provider absence/failure remains a visible unavailable
+  row. The installed server and operator Go toolchain configuration are trusted local execution;
+  they are not sandboxed. Private provider-cache and ordinary Go build-cache writes are disclosed,
+  while repository/index/trace writes, automatic install, downloads and persistent servers remain
+  prohibited. Gopls telemetry is disabled in the child environment. Required qualification is
+  TCP-V0-053, plus real cancellation/descendant cleanup and executable-replacement regressions.
 
 ## Acceptance matrix
 
@@ -634,6 +654,9 @@ those are `NOT_OBSERVED`. Official MCP conformance is `NOT_RUN` for the retained
 On 2026-09-23 the opt-in official-schema run passed against the pinned digest and the start-time Git
 pin was observed (V1-0191). Fuzz, complete race, and cross-build promotion evidence are not closed by
 that focused run.
+
+| `MCPV0-029` | `NewTaskReviewLSP`, `callContext`, `extractToolProfile` | `TestContextLSPProfileIsExplicit`, `TestContextLSPToolProfileSelector` |
+| `MCPV0-030` | `lspevidence.Attach`, `lspprovider.rootCommit`, `callContext` | `TestContextLSPPinAndDrift`, `TestContextLSPCancellationRetiresDescendants`; `script/qualify-lsp.py` |
 
 ## Unresolved decisions and promotion/kill criteria
 
