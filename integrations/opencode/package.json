@@ -1,10 +1,13 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@corvint/opencode",
-  "version": "0.4.0",
+  "version": "0.7.2",
   "description": "Native OpenCode integration for Corvint",
   "type": "module",
-  "exports": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./tui": "./src/tui.tsx"
+  },
   "files": [
     "src",
     "README.md",
@@ -23,7 +26,7 @@
     "plugin"
   ],
   "corvintIntegration": {
-    "adapterVersion": "0.4.0",
+    "adapterVersion": "0.7.2",
     "apiReferenceVersion": "2.0.18",
     "host": "opencode",
     "lastConformance": {
@@ -52,6 +55,22 @@
       "status": "external-evidence-required",
       "executionAuthority": "NONE",
       "statusTool": "corvint_status"
+    }
+  },
+  "peerDependencies": {
+    "@opentui/core": ">=0.5.12",
+    "@opentui/solid": ">=0.5.12",
+    "solid-js": ">=1.9.0"
+  },
+  "peerDependenciesMeta": {
+    "@opentui/core": {
+      "optional": true
+    },
+    "@opentui/solid": {
+      "optional": true
+    },
+    "solid-js": {
+      "optional": true
     }
   }
 }

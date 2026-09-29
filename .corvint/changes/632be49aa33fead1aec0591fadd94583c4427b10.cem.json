@@ -1,0 +1,90 @@
+{
+  "baseRevision": "94dd4d191f79b87d0f3b384421b3b0e9a96366f4",
+  "evidence": [
+    {
+      "blobOid": "1862a80fbf50b3376a2dfdb17a05a3a31b0d3a29",
+      "id": "evidence:sha256:0a2f53c6a56448e89d984925debf5c624ab22b9a6df1c18d8e5dd722c7c1eb34",
+      "path": "docs/SPEC-DRIVEN-DEVELOPMENT.md",
+      "span": {
+        "end": 1907,
+        "start": 986
+      },
+      "spanSha256": "fa238b378dc9f4c650b0e297e43acc07f268e0203e3934694447ac1b6ca61923"
+    },
+    {
+      "blobOid": "b81936339ea1b1265b7890e159cd47a330c60ab5",
+      "id": "evidence:sha256:fd89a67af6673c69a0c813463d6b65ff858339ed4d967642d6d77c0fe9048045",
+      "path": "docs/specs/agent-harness-integration-v0.md",
+      "span": {
+        "end": 51438,
+        "start": 50861
+      },
+      "spanSha256": "ef7c024be1903a1144aa9274b244611d96ed5be3cda54bd103dbd1c846120f85"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0a2f53c6a56448e89d984925debf5c624ab22b9a6df1c18d8e5dd722c7c1eb34",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:62e5e0abd3022b340fd61734086787615be1d821d455b04e7056c212e534e5a6",
+      "newRange": {
+        "count": 13,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-28-opencode-qualification-diagnostic.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fd89a67af6673c69a0c813463d6b65ff858339ed4d967642d6d77c0fe9048045",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:27ed13e24a863bda69ca0f9f3f0f2f862566e07b4f010553d68ac8f9374cdfa3",
+      "newRange": {
+        "count": 9,
+        "start": 777
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 777
+      },
+      "path": "docs/specs/agent-harness-integration-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fd89a67af6673c69a0c813463d6b65ff858339ed4d967642d6d77c0fe9048045",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cdd543e61d4ebe6781fcdcd1d620979d10635b6cffb13d10113c1ddd7bbd7dac",
+      "newRange": {
+        "count": 7,
+        "start": 800
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 799
+      },
+      "path": "docs/specs/agent-harness-integration-v0.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "1ef5107b6e4287c25335df16189b566f2764eca53384c5ad38f7124be6eebdee",
+  "spec": "cem/0.2"
+}

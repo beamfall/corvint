@@ -1,4 +1,6 @@
+import { collectCockpit, emptyCockpit, inspectProof } from "./cockpit.js"
 import path from "node:path"
+import { INSPECTOR_RPC, emptySnapshot, beginInspection, completeInspection, invalidateInspection, inspectionMatches, visibleText } from "./inspector.js"
 import { qualificationStatus } from "./qualification.js"
 import {
   boundedPaths,
@@ -43,6 +45,10 @@ async function setup(ctx) {
   const lifetime = new AbortController()
   let fileChangeDrain
   let inFlight = 0
+  let inspectorRPC
+  const changed = key => {
+    if (inspectorRPC && !events.signal.aborted) void inspectorRPC.events.emit("updated", { sessionIdSha256: key }).catch(() => {})
+  }
   const promptEvents = new WeakSet()
 
   // OpenCode 2 reports a built-in edit tool's target in its completed result; `edit` returns only
@@ -136,6 +142,7 @@ async function setup(ctx) {
         retire(sessions.get(oldest))
         sessions.delete(oldest)
         startupContexts.delete(oldest)
+        changed(oldest)
         record("session-state-evicted", "session-start")
       }
       state = { changedPaths: new Set(), stopActive: false, stopArmed: true, active: true, calls: new Set(), prompts: new Set(), pendingPrompts: new Set(), generation: 0 }
@@ -146,6 +153,7 @@ async function setup(ctx) {
 
   const retire = (state) => {
     if (!state) return
+    invalidateInspection(state, "Session ended or was evicted.")
     state.active = false
     for (const call of state.calls) call.abort()
   }
@@ -160,6 +168,12 @@ async function setup(ctx) {
     } finally {
       bound.state.calls.delete(call)
     }
+  }
+
+  const runLimited = async (bound, request) => {
+    if (inFlight >= MAX_IN_FLIGHT || (bound && bound.state.calls.size >= 2)) return { ok: false, code: "context-busy" }
+    inFlight++
+    try { return await runForSession(bound, request) } finally { inFlight-- }
   }
 
   // Encode existing pinned evidence as the core's cv1 selector; only the core may expand it.
@@ -201,6 +215,10 @@ async function setup(ctx) {
       }
       bound.state.stopArmed = true
     }
+    for (const [key, state] of sessions) {
+      invalidateInspection(state, "Files changed after this context was collected. Request context again.")
+      changed(key)
+    }
     return normalized
   }
 
@@ -234,8 +252,15 @@ async function setup(ctx) {
     const bound = stateFor(rawSessionId)
     const input = bound ? { sessionIdSha256: bound.key } : {}
     const generation = bound?.state.generation
+    const viewGeneration = bound?.state.inspectorGeneration || 0
     const response = await runForSession(bound, { event: "session-start", input, budgetBytes: 7000 })
-    if (bound?.state.active && bound.state.generation === generation && response.ok && response.context) startupContexts.set(bound.key, response)
+    if (bound?.state.active && bound.state.generation === generation && response.ok && response.context) {
+      startupContexts.set(bound.key, response)
+      if (!bound.state.inspection) {
+        bound.state.inspectorGeneration ??= 0
+        if (completeInspection(bound.state, viewGeneration, response, expansionHandles(response))) changed(bound.key)
+      }
+    }
   }
 
   const sessionEnd = async (rawSessionId) => {
@@ -254,6 +279,7 @@ async function setup(ctx) {
     if (key) {
       sessions.delete(key)
       startupContexts.delete(key)
+      changed(key)
     }
   }
 
@@ -261,6 +287,8 @@ async function setup(ctx) {
     const bound = stateFor(rawSessionId)
     if (!bound) return
     bound.state.generation++
+    invalidateInspection(bound.state, "Session compacted. Request context again.")
+    changed(bound.key)
     bound.state.needsCompaction = true
     startupContexts.delete(bound.key)
   }
@@ -327,6 +355,12 @@ async function setup(ctx) {
       const prompt = typeof args?.task === "string" ? trimSpace(args.task) : ""
       const query = prompt === "" ? undefined : promptQuery(prompt)
       if (!query) {
+        const bound = stateFor(context?.sessionID)
+        if (bound) {
+          const generation = beginInspection(bound.state)
+          completeInspection(bound.state, generation, { ok: false, code: "prompt-over-query-bound" }, [])
+          changed(bound.key)
+        }
         return {
           content:
             "Corvint degraded (prompt-over-query-bound): task must be non-empty and either at most " +
@@ -334,8 +368,11 @@ async function setup(ctx) {
         }
       }
       const task = query.task
+      const bound = stateFor(context?.sessionID)
+      const viewGeneration = bound ? beginInspection(bound.state) : undefined
+      if (bound) changed(bound.key)
       const sessionIdSha256 = hashSessionId(context?.sessionID)
-      const response = await runVisible({
+      const response = await runLimited(bound, {
         event: "user-prompt",
         input: { ...(sessionIdSha256 ? { sessionIdSha256 } : {}), task },
         query: true,
@@ -343,10 +380,12 @@ async function setup(ctx) {
         signal: context?.signal,
       })
       if (!response.ok) {
+        if (bound && completeInspection(bound.state, viewGeneration, response, [])) changed(bound.key)
         return { content: `Corvint FALLBACK unavailable (${response.code}); unrelated coding may continue.` }
       }
       const handles = expansionHandles(response)
       const output = boundedFrame({ ...response, expansionHandles: handles }, "user-prompt", query.disclosure)
+      if (bound && completeInspection(bound.state, viewGeneration, output ? response : { ok: false, code: "unsafe-or-oversized-envelope" }, handles)) changed(bound.key)
       if (!output) return { content: `Corvint context unavailable (${frameRepositoryData(response) ? "context-too-large" : ENVELOPE_COLLISION}).` }
       return {
         content: output,
@@ -365,7 +404,7 @@ async function setup(ctx) {
     description: "Expand an exact cv1 evidence handle from Corvint context. Reads its immutable Git blob; refuses invalid or oversized evidence.",
     input: { type: "object", properties: { handle: { type: "string" } }, required: ["handle"], additionalProperties: false },
     async execute(args, context) {
-      const response = await runVisible({ event: "expand", input: {}, expand: args?.handle ?? "", query: true, signal: context?.signal })
+      const response = await runLimited(stateFor(context?.sessionID), { event: "expand", input: {}, expand: args?.handle ?? "", query: true, signal: context?.signal })
       if (!response.ok) return { content: `Corvint expansion unavailable (${response.code}).` }
       const content = boundedFrame(response, "expand")
       if (!content) return { content: "Corvint expansion unavailable (unsafe or oversized envelope)." }
@@ -387,8 +426,6 @@ async function setup(ctx) {
     if (identity) bound.state.pendingPrompts.add(identity)
     const original = event.prompt.text
     const call = new AbortController()
-    bound.state.calls.add(call)
-    inFlight++
     try {
       const result = await corvintContext.execute({ task: original }, { sessionID: event.sessionID, signal: call.signal })
       if (!bound.state.active || call.signal.aborted || events.signal.aborted || event.prompt.text !== original) return
@@ -412,8 +449,6 @@ async function setup(ctx) {
       report("prompt-context-failed", "user-prompt")
     } finally {
       if (identity) bound.state.pendingPrompts.delete(identity)
-      inFlight--
-      bound.state.calls.delete(call)
     }
   }
 
@@ -511,6 +546,73 @@ async function setup(ctx) {
     },
   }
 
+  const cockpitSession = async (sessionID, signal) => {
+    if (events.signal.aborted || signal.aborted) return false
+    try {
+      const info = await ctx.session.get({ sessionID }, { signal })
+      return info.projectID === ctx.location.project?.id && path.resolve(info.location?.directory || "/") === path.resolve(directory)
+    } catch { return false }
+  }
+  const cockpitCall = async (bound, signal, action) => {
+    if (!bound?.state.active || inFlight >= MAX_IN_FLIGHT || bound.state.calls.size >= 2) throw new Error("context-busy")
+    const controller = new AbortController()
+    const combined = AbortSignal.any([signal, controller.signal, lifetime.signal, AbortSignal.timeout(20_000)])
+    inFlight++; bound.state.calls.add(controller)
+    try { return await action(read => runCorvint({ root, event: "cockpit", input: {}, read, signal: combined })) }
+    finally { controller.abort(); bound.state.calls.delete(controller); inFlight-- }
+  }
+
+  // RPC is a trusted OpenCode-client surface. Session/location checks prevent accidental cross-view reads.
+  if (ctx.rpc?.register) inspectorRPC = await ctx.rpc.register(INSPECTOR_RPC, {
+    cockpitSnapshot: async ({ sessionID }, context) => await cockpitSession(sessionID, context.signal)
+      ? sessions.get(hashSessionId(sessionID))?.cockpit || emptyCockpit() : emptyCockpit("unavailable", "Session is unavailable at this location."),
+    cockpitRefresh: async ({ sessionID, base }, context) => {
+      if (!await cockpitSession(sessionID, context.signal)) return emptyCockpit("unavailable", "Session is unavailable at this location.")
+      const bound = stateFor(sessionID), state = bound.state
+      state.cockpitRequest?.abort(); state.cockpitRequest = new AbortController()
+      const signal = AbortSignal.any([context.signal, state.cockpitRequest.signal])
+      const generation = state.cockpitGeneration = (state.cockpitGeneration || 0) + 1
+      state.cockpitBinding = undefined; state.cockpit = emptyCockpit("loading", "Reading change and verification evidence…"); changed(bound.key)
+      try {
+        const result = await cockpitCall(bound, signal, run => collectCockpit(run, base))
+        if (state.active && generation === state.cockpitGeneration && !signal.aborted) { state.cockpit = result.view; state.cockpitBinding = result.binding }
+      } catch (error) {
+        if (state.active && generation === state.cockpitGeneration) state.cockpit = emptyCockpit("unavailable", visibleText(error.message || "Change inspection unavailable."))
+      }
+      changed(bound.key)
+      return state.cockpit || emptyCockpit()
+    },
+    cockpitProof: async ({ sessionID, receiptId, checkID }, context) => {
+      if (!await cockpitSession(sessionID, context.signal)) return { state: "unavailable", text: "Session is unavailable at this location." }
+      const key = hashSessionId(sessionID), state = sessions.get(key)
+      const current = () => state?.active && state.cockpit?.state === "ready" && state.cockpit.receiptId === receiptId
+      if (!current() || !state.cockpit.checks.some(c => c.id === checkID)) return { state: "unavailable", text: "Verification is no longer current. Refresh the change view." }
+      try {
+        const text = await cockpitCall({ key, state }, context.signal, run => inspectProof(run, state.cockpitBinding, checkID))
+        return current() ? { state: "ready", text } : { state: "unavailable", text: "Change view changed while reading verification." }
+      } catch (error) { return { state: "unavailable", text: visibleText(error.message || "Verification unavailable. Refresh the change view.") } }
+    },
+    snapshot: async ({ sessionID }) => sessions.get(hashSessionId(sessionID))?.inspection || emptySnapshot(),
+    query: async ({ sessionID, task }, rpcContext) => {
+      let info
+      try { info = await ctx.session.get({ sessionID }, { signal: rpcContext.signal }) } catch { return emptySnapshot("unavailable", "Session is unavailable.") }
+      if (info.projectID !== ctx.location.project?.id || path.resolve(info.location?.directory || "/") !== path.resolve(directory)) return emptySnapshot("unavailable", "Session belongs to another location.")
+      if (events.signal.aborted || rpcContext.signal.aborted) return emptySnapshot("unavailable", "Request cancelled.")
+      await corvintContext.execute({ task }, { sessionID, signal: rpcContext.signal })
+      return sessions.get(hashSessionId(sessionID))?.inspection || emptySnapshot()
+    },
+    expand: async ({ sessionID, receiptId, handle }, rpcContext) => {
+      const key = hashSessionId(sessionID)
+      const state = sessions.get(key)
+      if (!inspectionMatches(state, receiptId, handle)) return { state: "unavailable", text: "This evidence is no longer current in the inspector. Request context again." }
+      const generation = state.inspectorGeneration
+      const response = await runLimited({ key, state }, { event: "expand", input: {}, expand: handle, query: true, signal: rpcContext.signal })
+      if (state.inspectorGeneration !== generation || !inspectionMatches(state, receiptId, handle)) return { state: "unavailable", text: "Context changed while opening this evidence." }
+      if (!response.ok) return { state: "unavailable", text: `Core could not expand this evidence (${response.code}).` }
+      return { state: "ready", text: response.selection.text }
+    },
+  })
+
   const subscription = (async () => {
     try {
       for await (const event of ctx.event.subscribe({ signal: events.signal })) await onEvent(event)
@@ -544,6 +646,7 @@ async function setup(ctx) {
 
   return async () => {
     events.abort()
+    await inspectorRPC?.dispose()
     for (const state of sessions.values()) retire(state)
     // Finish an already observed advisory stop within its normal deadline; cancel task context now.
     await subscription

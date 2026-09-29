@@ -10,7 +10,7 @@ Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 ## Agent digest
 - Claim: Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.
 - Status: accepted direction/experimental
-- Exists: `internal/gokernel`, `cmd/corvint`, and native adapter previews.
+- Exists: `internal/gokernel`, `cmd/corvint`, native adapter previews, and the experimental OpenCode terminal context inspector (AHI-033) and change cockpit (AHI-034).
 - Blocked on: black-box release-matrix qualification with accepted closing authority.
 - Read next: `harness-authority-relation-v0.md` (superseded by accepted decision 0009 option 2; no execution authority root) and `change-frontier-profile-1.md`.
 
@@ -555,7 +555,8 @@ do not reinterpret this Frontier result.
   The default awaited `session.prompt` hook MUST append bounded, framed, receipt-linked context
   to that same prompt only while its text is unchanged and its session remains active. The complete
   addition, including disclosure and separators, MUST be at most 8000 UTF-8 bytes. It MUST deduplicate
-  event reentry and message identities, bound concurrent calls and session state, cancel deleted or
+  event reentry and message identities, count each in-flight request once (including when the first
+  prompt overlaps session startup), bound concurrent calls and session state, cancel deleted or
   evicted sessions, and discard late responses. The adapter MUST NOT persist prompts or inspect
   transcripts; OpenCode itself may store the augmented native prompt as normal conversation history.
   `corvint_expand` encodes supplied pinned tree/blob/path tuples as cv1 selectors and delegates
@@ -583,9 +584,121 @@ do not reinterpret this Frontier result.
   evidence and atomically invalidate the active record before execution, so failure/interruption
   cannot leave stale FULL active. Final publication MUST be atomic. The record is ignored local
   derived evidence; the command documents its prerequisites and actual executable requirement.
+  Under GOC-V0-008, the maintained producer, native campaign, PTY driver and their safety
+  regressions MUST execute in Go. Collector identity MUST cover its entrypoint, implementation,
+  embedded observers, build inputs and executing binary. Invalid executable admission MUST
+  invalidate prior PASS after the source/output paths are admitted. Interrupted-child evidence
+  MUST observe descendant absence before any witness rescue cleanup; a deliberately broken
+  cleanup negative control MUST fail. Architecture names MUST match the Node consumer tuple.
   A producer-to-consumer regression MUST cover successful publication, all retained failure classes,
   identity drift and interruption. Rollback is removal of the native plugin entry or reverting the package; no host
   fork, daemon, account, authority installation or durable outcome migration is required.
+
+
+- `AHI-033`: The owner-approved first OpenCode UI slice (2026-09-28, “looks good. build it”
+  following the context-sidebar and clickable-evidence proposal) MUST expose an optional native
+  OpenCode 2.0.18 terminal sidebar and session panel. It MUST show the latest observed session
+  context, inclusion reasons, authority/confidence labels, exact tree/blob identities, supplied
+  omissions and gaps, and Core-expanded pinned source. `/corvint` opens the panel;
+  `/corvint TASK` or the panel query action requests context explicitly. Keyboard and pointer
+  selection, loading, empty, unavailable and stale states MUST remain usable at narrow widths.
+  The measurable job is sidebar → evidence → exact cited source without a model call or manual
+  CLI composition. This UI does not implement the proposed impact graph, requirement/proof tabs,
+  verification timeline, desktop/web panels, or authority/coverage scoring.
+
+  The inspector MUST retain only one bounded latest view per existing session, within the
+  adapter's 128-session limit, and at most 32 evidence locations and 32 gap rows per view; display
+  omissions MUST be disclosed. It MUST NOT scan transcripts, persist query text or receipts, start
+  a daemon, refresh an index automatically, or create sessions during snapshot reads. RPC query
+  admission MUST check the requested session's host project/location and reuse the existing bounded
+  Corvint runner with cancellation, at most 16 simultaneous context/expansion operations and two
+  per session, with no waiting queue. RPC is available to clients already trusted by OpenCode;
+  session identifiers are routing inputs, not authentication credentials. The event bridge MUST
+  disclose only hashed session identity; UI state remains client-local and volatile.
+
+  Newer context requests, observed edits, compaction, deletion, eviction and disposal MUST prevent
+  late publication and invalidate expansion from a replaced view. Expanding a source MUST require
+  an exact handle from that session's currently ready receipt and recheck its identity after Core
+  returns. Source reads MUST use Core's existing selector/identity verification and never substitute
+  worktree bytes. Freshness is explicitly the state when observed, not a background live-HEAD check.
+  Presentation MUST visibly escape terminal controls, invisible and bidi characters; exact source
+  selectors remain unchanged. Repository text MUST NOT become markup, commands or instructions.
+
+  The owner requested a stronger terminal experience on 2026-09-28 after the first slice. The
+  browser MUST filter the supplied evidence by filename, symbol, reason or authority, preserve
+  distinct citation selection through receipt reorder, and provide explicit no-match recovery.
+  At wide panel widths it MUST show a scrollable evidence list beside details; compact terminals
+  MUST expose one pane at a time with visible return navigation. Source reading MUST show line
+  numbers, distinguish the cited line when valid, support keyboard scrolling and return-to-citation,
+  and use host syntax support only after an explicit per-panel opt-in that discloses possible
+  parser downloads. Default source reading MUST use plain rendering without requesting a parser. Presentation normalizes CRLF only;
+  escaped controls MUST preserve line mapping and out-of-range citations MUST be disclosed.
+  Host theme colors accompany text labels, never replace them. Query/search dialogs MUST isolate
+  inspector shortcuts and discard results if their captured session/location is no longer current.
+  Source caching is bounded to one expanded source in the mounted panel, invalidated by
+  session/location/receipt/state changes and removed on disposal; no panel history is persisted.
+  Pointer opening and visible actions MUST provide the same navigation as keyboard controls.
+
+  Acceptance requires focused hostile-text/bounds/race/session tests and the real stock 2.0.18 TUI
+  showing sidebar, context request, keyboard selection, pinned source and gap navigation at wide
+  and narrow terminal widths, including short height, both theme modes, filtering/no-match recovery,
+  pointer opening, dialog focus isolation, source scrolling, citation alignment and source invalidation.
+  Acceptance uses current rendered frames, not accumulated terminal output. The native witness MUST
+  retain source identity and demonstrate
+  interruption leaves no owned descendants. It is UI evidence only and MUST NOT promote AHI-032
+  integration support or execution authority. Failure leaves coding available with an explicit
+  unavailable state. Rollback removes `src/tui.tsx`, the inspector RPC/view and its package export,
+  restores the prior adapter under a new version, and keeps prior qualification evidence invalid.
+
+- `AHI-034`: The owner-approved change cockpit (2026-09-28, “do it” after the change
+  cockpit, impact navigation and proof-inspection proposal) MUST let an operator follow changed
+  files → affected-test dependency witnesses → recorded verification without a model call. It
+  MUST reuse the existing context/source inspector for governing evidence. Other proposed review,
+  revision-diff and export modes are outside this slice. The optional native OpenCode UI remains
+  a client of existing read commands, with no Core execution or authority change.
+
+  `/corvint` MUST open the change view; an explicit task MUST retain the context-query behavior.
+  The change view MUST expose files, impact witnesses, proof observations and unresolved gaps,
+  with keyboard/pointer parity, wide list/details and narrow single-pane navigation, scoped dialogs,
+  explicit refresh, base selection and a visible route to the evidence reader. The default base
+  is the current worktree's recorded completion base when available, otherwise captured HEAD;
+  an operator-selected ref MUST resolve to a full immutable commit before collection. `plan.dirty`
+  supplies the advisory changed set; `range.paths` alone MUST NOT stand for dirty changes.
+  Unit selection MUST retain its source path, witness kind and ordered dependency path. Suggested
+  or declared checks MUST remain visibly distinct from observed executions, and absent connections
+  MUST NOT imply unaffected files, safe test omission or complete requirements/coverage.
+
+  The server MAY invoke only closed fixed-argv Git metadata/ref reads, `affected --base FULL_SHA`
+  and `dogfood status --session-key HASH`, using the existing bounded owned-process runner. No
+  shell, client command/path execution, test execution, index refresh, transcript scan, polling,
+  persistence, provider or new daemon is admitted. Explicit reads MUST have a 1 MiB output and
+  ten-second command bound, with a twenty-second aggregate call bound, shared 16-global/two-session
+  admission, cancellation and descendant cleanup. Existing automatic-event bounds remain unchanged.
+  One latest volatile cockpit per existing bounded session MAY retain at most 64 file, impact and
+  check rows each and 128 gaps; every display omission MUST be disclosed. Snapshot reads MUST NOT
+  allocate sessions or spawn processes. Host session/project/location admission MUST precede reads.
+
+  Verification discovery MUST use only the fixed private Git directory's completion owner and
+  Core status. A per-check `qualified` result MUST NOT become workflow satisfaction; `unmet`
+  remains visible, and failed, stale, unrun, cancelled, timed-out and withheld observations remain
+  distinct. Qualification binds the committed target: uncommitted work MUST mark prior check results
+  stale for the displayed worktree even when Core still qualifies their committed target. Check commands are inert displayed text. Output reads MUST accept only a check ID from
+  the current receipt, restrict paths to that owner's exact generation/check-log pattern, reject
+  symlink directory components and symlink/nonregular/hardlinked files, validate the opened inode,
+  and read at most 64 KiB per stream with visible truncation. Secret-screened output is withheld.
+  Repository/session/receipt changes MUST discard late reads. Before and after log reading, the
+  owner, Core policy/check projection, and Git identity MUST still match the captured view; check
+  reruns or reenrollment require refresh. Logs remain caller-owned local bytes with no content
+  attestation from the status API, and same-user concurrent mutation is not an authenticated boundary.
+  Terminal controls/bidi remain escaped; output line breaks may be preserved for reading.
+
+  Failure MUST retain a recoverable unavailable/stale state without interrupting coding. Observed
+  freshness MUST NOT claim continuous monitoring of external edits. Acceptance requires focused
+  input/bounds/path/owner-race/check-rerun/stale-result/admission tests and a real stock 2.0.18 native
+  witness for file → impact → command/output, edit invalidation, both themes, narrow/pointer/dialog
+  use and interruption without descendants. Check qualification with an unsatisfied workflow MUST
+  be covered. Rollback restores the retained 0.6.0 package/configuration and leaves existing evidence
+  records intact. UI witnesses do not promote harness support or execution authority.
 
 ## Native platform profiles
 
@@ -664,8 +777,9 @@ to remove repeated lifecycle glue while preserving the same receipts and explici
 ### Failure codes
 
 Beyond the codes named above, the shared `harness event` core (`internal/gokernel/harness.go`), its
-repository probe (`internal/gokernel/repository.go`), and the native adapter
-(`cmd/corvint/host_adapter.go`) emits the kebab-case codes below (decision 0100). Each row cites
+repository probe (`internal/gokernel/repository.go`), native adapter
+(`cmd/corvint/host_adapter.go`), and OpenCode qualification producer emit the kebab-case codes below
+(decision 0100). Each row cites
 the first emitting site and quotes the message returned there or states the condition checked
 there, which is the whole of what the row asserts.
 
@@ -686,6 +800,7 @@ there, which is the whole of what the row asserts.
 | `invalid-repository-root` | `internal/gokernel/harness.go:376` | "cannot resolve repository root" |
 | `malformed-corvint-output` | `cmd/corvint/host_adapter.go:657@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
 | `project-root-unavailable` | `cmd/corvint/host_adapter.go:327@2100b4c9` | Claude adapter: the project root (`CLAUDE_PROJECT_DIR`, else the working directory) cannot be made absolute; the degraded `systemMessage` names this reason |
+| `qualification-in-progress` | `internal/opencodequalification/record.go:366@c5ab6d80` | AHI-032: the producer atomically writes the active record as `INCOMPLETE` after preserving any previous record; integration support stays `UNQUALIFIED` until complete passing evidence replaces it |
 | `repository-identity-malformed` | `internal/gokernel/repository.go:178` | "Git object identity is malformed" |
 | `repository-probe-cancelled` | `internal/gokernel/repository.go:167` | "Git repository probe was cancelled" |
 | `repository-probe-timeout` | `internal/gokernel/repository.go:165` | "Git repository probe exceeded its 10-second deadline" |
@@ -788,6 +903,9 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 | Requirement | Implementation surface | Required evidence |
 |---|---|---|
 | `AHI-001`, `003`, `005`, `014` | shared `corvint harness event` core and `internal/projectpath` | canonical receipt, bounds, privacy, revision, and event fixtures; `TestHostAdapterAbsentPathContainment` and `TestRelativeAliasesAndUncertainty` cover `AHI-014` path containment, and the `integrations/host-adapters.test.mjs` test `AHI-014 Gemini classifies changed paths on resolved symlinks like internal/projectpath` under `TestHostAdapterJavaScriptHosts` covers the Gemini hook's symlink resolution; `TestClaudeAdapterForkSessionStartIsResume` covers the Claude `fork` start source; `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` drives the Claude `SessionStart(source=compact)` hook entrypoint over a mixed dirty worktree and requires the tracked impact, the untracked count and `compaction-untracked-paths-not-rehydratable` from the receipt's own snapshot; `TestQualifiedLifecycleCompactSessionStartRehydratesDirtyPaths` requires the same for the qualified profile under FULL and FALLBACK and refuses a reordered, extra or dropped code; `TestAHI014EventExpectationsAreHostConsistent` (`conformance/harness-event-v0/host_schema_test.go`) pins each `common-logical-interaction.json` event's closed host set and requires every present host's golden `expected` object to be byte-identical, so a per-host field or host-membership mutation of that fixture fails here |
+| `AHI-032` | `internal/opencodequalification`, `tools/qualify-opencode`, native prompt hook and qualification consumer | `internal/opencodequalification/record_test.go::TestRecordValidation`, `::TestAtomicRecord`, `::TestArchitecture`, `::TestProducerConsumer`; `internal/opencodequalification/command_test.go::TestInvalidHostInvalidatesQualification`; `internal/opencodequalification/witness_posix_test.go::TestGateInterruptionWitness`; first-prompt startup overlap in `TestHostAdapterJavaScriptHosts`; exact-tuple native campaign required |
+| `AHI-033` | `integrations/opencode/src/inspector.js`, `src/tui.tsx`, and inspector RPC in `src/index.js` | `integrations/opencode/inspector.test.mjs`, AHI-033 cases under `TestHostAdapterJavaScriptHosts`, and `tools/qualify-opencode --inspector` (stock native rendering, pinned source, narrow keyboard use and interruption cleanup) |
+| `AHI-034` | `integrations/opencode/src/cockpit.js`, `cockpit-tui.tsx`, `index.js`, `runtime.js` | `integrations/opencode/cockpit.test.mjs` and `tools/qualify-opencode --inspector`: bounded fixed reads, safe output paths, stale/owner/check-rerun races, advisory impact navigation, independent workflow/check state and real native change/proof workflow |
 | `AHI-025` | `cmd/corvint/pi_tools.go`, `integrations/pi/tools.js` | `TestPiToolContextExpansion`, `TestPiToolRecord`, `TestPiToolClosedInput` and native Pi tool/RPC fixtures |
 | `AHI-026` | `integrations/claude-code/plugins/corvint/hooks/hooks.json`, `compatibility.json` `compactionHooks`, `cmd/corvint/host_adapter.go` declared-kill table | `TestAHI026ClaudeCompactionHooksRegisteredAgainstHostAPI` (matcherless `PreCompact`/`PostCompact` groups, verified host version equals the tested maximum, closed trigger set) and `TestAHI017AdapterHostKillMatchesDeclaredHooks` (the two new declared kills) |
 | `AHI-027` | `cmd/corvint/host_adapter_compaction.go` (`runClaudeCompactionEvent`, `compactionBlockFor`, `compactionPinLine`), `emitAdapterOutput` plain-stdout branch | `TestAHI027ClaudePreCompactEmitsPinFromCompactionBlock` (instruction plus pin as text, pin equals the fixture's HEAD tree and tracked dirty path, 24-path bound with hostile paths elided); `TestAHI027ClaudeCompactionPinsCleanAndUntrackedOnlyTrees` (clean and untracked-only trees pin the HEAD tree and report without a fault; an over-budget block elides its unlisted tracked paths); `TestClaudeCompactionDegradationIsPlainText` (degradations print frame text through `compactionPlainOutput`, an empty summary prints an empty line) |
