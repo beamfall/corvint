@@ -2024,7 +2024,10 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [
+      "benchmarks/lsp-quality",
+      "script/measure-lsp-quality.py"
+    ]
   },
   {
     "path": "docs/specs/task-context-packet-v0.md",

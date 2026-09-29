@@ -23,7 +23,7 @@ The accepted direction has two consumers. The technical profiles in this documen
 
 At `cf93522e149c754e002426e422270f24c88777fe`, `internal/lspprovider/provider.go` and `internal/lspevidence/context.go` provide explicit Go/gopls definition and reference path relations for `corvint context --lsp gopls` and the `task-review-lsp` MCP profile. `docs/LSP.md` documents activation, limits and rollback. Project authority and default Core results remain separate. There is no Corvint editor language server, overlay identity or general language adapter registry.
 
-The simpler baseline is the existing Go/gopls opt-in integration plus ordinary Corvint CLI/MCP and the editor's own upstream language server. The retained `script/qualify-lsp.py` run reported five semantic edges on a committed module and six on go.work, exact CLI/MCP packet parity, and dirty-file omission with Go 1.27.1 and gopls 0.23.0. The two single-sample CLI off/on observations were 0.4875/0.4897 s and 0.1194/0.4213 s; packet sizes were 3,681/12,781 and 4,868/15,506 bytes. These are synthetic transport observations, not latency distributions or agent/editor outcome evidence. The complete raw report is retained in the V1-0476 task evidence; see `docs/build-log/2026-09-29-go-lsp-integration.md`. Real-repository, upstream-only, and editor qualification baselines remain `NOT_RUN`. A single exploratory probe on Corvint itself, recorded in `docs/build-log/2026-09-29-lsp-quality-contract.md`, is useful for sizing and failure discovery but does not freeze a baseline distribution or outcome gate.
+The simpler baseline is the existing Go/gopls opt-in integration plus ordinary Corvint CLI/MCP and the editor's own upstream language server. The retained `script/qualify-lsp.py` run reported five semantic edges on a committed module and six on go.work, exact CLI/MCP packet parity, and dirty-file omission with Go 1.27.1 and gopls 0.23.0. The two single-sample CLI off/on observations were 0.4875/0.4897 s and 0.1194/0.4213 s; packet sizes were 3,681/12,781 and 4,868/15,506 bytes. These are synthetic transport observations, not latency distributions or agent/editor outcome evidence. The complete raw report is retained in the V1-0476 task evidence; see `docs/build-log/2026-09-29-go-lsp-integration.md`. Real-repository, upstream-only, and editor qualification baselines remain `NOT_RUN`. A single exploratory probe on Corvint itself, recorded in `docs/build-log/2026-09-29-lsp-quality-contract.md`, is useful for sizing and failure discovery. The public, repeatable three-arm Go navigation corpus in `benchmarks/lsp-quality/public-v0.json` and `script/measure-lsp-quality.py` now records the first development baseline; it does not freeze a held-out distribution, editor gate or outcome claim.
 
 ## Profile and capability matrix
 
@@ -89,7 +89,7 @@ For rollback, select `--lsp off` and the existing MCP `task-review` profile, or 
 | 003–006 | Shared snapshot/evidence engine | `NOT_RUN` |
 | 007–009 | Upstream adapter profiles | Go-specific prior slice; broader profiles `NOT_RUN` |
 | 011–013, 017 | Optional Go stdio editor companion | `NOT_RUN` |
-| 015–016, 018 | Frozen qualification harness, support and rollback docs | `NOT_RUN` |
+| 015–016, 018 | `script/measure-lsp-quality.py`, public corpus and future held-out qualification | Public development baseline implemented; protected held-out and promotion `NOT_RUN` |
 
 ## Open decisions and promotion boundary
 

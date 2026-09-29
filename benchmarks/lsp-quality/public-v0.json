@@ -1,0 +1,31 @@
+{
+  "profile": "corvint-lsp-public-corpus/0",
+  "repository": "beamfall/corvint",
+  "sourceBase": "cf93522e149c754e002426e422270f24c88777fe",
+  "cases": [
+    {
+      "id": "go-attach-expand",
+      "task": "Find the caller and definition of lspprovider.Expand used by lspevidence.Attach",
+      "subject": "internal/lspevidence/context.go",
+      "position": "internal/lspevidence/context.go:38:27",
+      "expectedDefinition": "internal/lspprovider/provider.go",
+      "expectedRelation": {
+        "type": "gopls:uses-definition",
+        "from": "internal/lspevidence/context.go",
+        "to": "internal/lspprovider/provider.go"
+      }
+    },
+    {
+      "id": "go-context-attach",
+      "task": "Find callers and definition of lspevidence.Attach in the context CLI",
+      "subject": "cmd/corvint/context_lsp.go",
+      "position": "cmd/corvint/context_lsp.go:22:25",
+      "expectedDefinition": "internal/lspevidence/context.go",
+      "expectedRelation": {
+        "type": "gopls:uses-definition",
+        "from": "cmd/corvint/context_lsp.go",
+        "to": "internal/lspevidence/context.go"
+      }
+    }
+  ]
+}
