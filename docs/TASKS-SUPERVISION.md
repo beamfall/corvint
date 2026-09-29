@@ -49,5 +49,5 @@ dispatch; they cannot stop provider consumption mid-turn and may overshoot by on
 per active lane. Required hard token enforcement refuses. Prompts/context and runtime output are
 bounded and retained in the native journal evidence; truncated output never qualifies as success.
 
-This slice's final frozen actual qualification is pending. See
+Scoped local Codex qualification is recorded in [the build log](build-log/2026-09-29-tasks-codex-supervision.md), including output-limit and unobserved audit boundaries. See
 [the accepted contract](specs/corvint-tasks-agent-leases-v0.md#s10--foreground-codex-programs-issue-341).
