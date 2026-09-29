@@ -79,7 +79,13 @@ func TruncatedAncestryOf(err error) (int, bool) {
 
 // Read returns the pinned local traces without creating or changing trace state.
 func Read(ctx context.Context, root string, index *contextindex.Index) ([]trace.Record, string, error) {
-	return read(ctx, root, index, stabilityCheck(ctx, root, index, nil))
+	return read(ctx, root, index, func() error {
+		current, err := contextindex.Observe(ctx, root)
+		if err != nil {
+			return recordIndexError(root, err)
+		}
+		return observedStabilityCheck(root, index, current)()
+	})
 }
 
 // ReadObserved is Read checking stability against the observation the index

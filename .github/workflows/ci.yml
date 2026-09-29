@@ -40,7 +40,79 @@ jobs:
           make -s use-case-receipts-check use-case-receipts-test
           go run ./conformance/use-cases-v0
 
+  docs-plan:
+    # DCI-V0: only trusted event-base code may classify the tested merge. This
+    # job always runs; absent tools/qualification select FULL, never an empty skip.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      mode: ${{ steps.plan.outputs.mode }}
+    env:
+      GOTOOLCHAIN: local
+      GOENV: "off"
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: source
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: trusted-docs
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.1"
+      - name: Classify and verify immutable documentation inputs
+        id: plan
+        working-directory: trusted-docs
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          TESTED_MERGE: ${{ github.sha }}
+        run: |
+          mode=FULL
+          echo 'mode=FULL' >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_EVENT_NAME" != pull_request ] || [ ! -f tools/docs-ci-plan/main.go ]; then
+            echo 'Full CI: main/push or trusted documentation classifier unavailable.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          test "$(git rev-parse HEAD)" = "$PR_BASE"
+          if ! go build -trimpath -o "$RUNNER_TEMP/docs-ci-plan" ./tools/docs-ci-plan; then
+            echo 'Full CI: trusted documentation classifier could not build.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # A classifier refusal exits zero with FULL. An admitted document that
+          # fails verification exits nonzero and must fail this required dependency.
+          "$RUNNER_TEMP/docs-ci-plan" --root "$GITHUB_WORKSPACE/source" \
+            --base "$PR_BASE" --head "$PR_HEAD" --target "$TESTED_MERGE" \
+            > "$RUNNER_TEMP/docs-ci-plan.json"
+          cat "$RUNNER_TEMP/docs-ci-plan.json" >> "$GITHUB_STEP_SUMMARY"
+          if jq -e --arg base "$PR_BASE" --arg head "$PR_HEAD" --arg target "$TESTED_MERGE" \
+            '.profile == "corvint-docs-ci/0" and .mode == "DOCS" and .verified == true and .base == $base and .head == $head and .target == $target' \
+            "$RUNNER_TEMP/docs-ci-plan.json" > /dev/null; then
+            mode=DOCS
+            (cd "$GITHUB_WORKSPACE/source" && go test -race -count=1 -timeout 30m ./tools/docs-ci-plan ./internal/specindex)
+          fi
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+      - name: Retain documentation decision
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: docs-ci-plan
+          path: ${{ runner.temp }}/docs-ci-plan.json
+          if-no-files-found: ignore
+
   go-product-shard:
+    needs: docs-plan
+    if: ${{ always() && !cancelled() }}
     # V1-0357: the full race suite took about 58 of go-product's 75 minutes in one job. Each
     # shard runs every strategy.job-total-th root package from `go list ./...`, so the shard
     # count comes from the matrix alone. The go-product job below is the required check.
@@ -117,6 +189,7 @@ jobs:
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/selector" ./tools/gate-affected-select
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/driver" ./tools/corvint-pr-tests
       - name: Go tests (full until matching shadow qualification)
+        if: needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS'
         working-directory: source
         env:
           PR_BASE: ${{ github.event.pull_request.base.sha }}
@@ -139,6 +212,8 @@ jobs:
             "$RUNNER_TEMP/corvint-pr-bin/driver" --root "$PWD" --base "$PR_BASE" --head "$PR_HEAD" --target "$TESTED_MERGE" --source "$CORVINT_PR_TOOL_SOURCE" --planner "$RUNNER_TEMP/corvint-pr-bin/corvint" --selector "$RUNNER_TEMP/corvint-pr-bin/selector" --out "$RUNNER_TEMP/corvint-pr-result" --qualification "$GITHUB_WORKSPACE/trusted-qualification/.github/qualifications/pr-go-race.json" --qualification-sha256 "$CORVINT_PR_QUALIFICATION_SHA256"
           else
             echo "corvint-pr-tests: FULL (main/release or trusted tool pin unavailable), shard $SHARD of $SHARDS"
+            # Package words come only from go list or the literal ./....
+            # shellcheck disable=SC2086
             go test -json -p 1 -count=1 -race -timeout 50m $packages
           fi
       - name: Selection audit
@@ -167,14 +242,17 @@ jobs:
   go-product:
     # The required check. A needed job that fails, is cancelled or is skipped is not success.
     if: always()
-    needs: go-product-shard
+    needs: [go-product-shard, docs-plan]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Every go-product shard succeeded
         env:
           SHARDS_RESULT: ${{ needs.go-product-shard.result }}
-        run: test "$SHARDS_RESULT" = success
+          DOCS_RESULT: ${{ needs.docs-plan.result }}
+        run: |
+          test "$SHARDS_RESULT" = success
+          test "$DOCS_RESULT" = success
 
   go-interop:
     runs-on: ubuntu-24.04

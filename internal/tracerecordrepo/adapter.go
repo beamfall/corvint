@@ -71,7 +71,7 @@ func Record(ctx context.Context, root string, input Input) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	return recordWithIndex(ctx, root, index, tracked, stabilityCheck(ctx, root, index, nil), input)
+	return recordWithIndex(ctx, root, index, tracked, stabilityCheck(ctx, root, index, nil), stagingStabilityCheck(ctx, root, index, nil), input)
 }
 
 // RecordDogfood classifies and records one base-to-target change under a single
@@ -121,7 +121,7 @@ func RecordDogfood(ctx context.Context, root, baseArg, targetArg string, input I
 		return result, nil
 	}
 	input.ChangedPaths = admitted
-	recorded, err := recordWithIndex(ctx, root, index, tracked, stable, input)
+	recorded, err := recordWithIndex(ctx, root, index, tracked, stable, stagingStabilityCheck(ctx, root, index, authority), input)
 	if err != nil {
 		return DogfoodResult{}, dogfoodRecordFailure(err)
 	}
@@ -168,14 +168,19 @@ func recordIndex(ctx context.Context, root string) (*contextindex.Index, []strin
 	if err != nil {
 		return nil, nil, recordIndexError(root, err)
 	}
-	if len(index.DirtyPaths) != 0 {
-		return nil, nil, fmt.Errorf("trace recording requires a clean Git tree")
+	for path := range index.Tracked {
+		if trace.IsRecordArtifactPath(path, len(index.CommitRevision)) {
+			return nil, nil, fmt.Errorf("trace recording refuses tracked private artifact: %s", path)
+		}
+	}
+	if err := recordSourceStatus(ctx, root, index.StatusSHA256, index.DirtyPaths, len(index.CommitRevision), ""); err != nil {
+		return nil, nil, fmt.Errorf("trace recording requires a clean Git tree: %w", err)
 	}
 	tracked := tracerepopaths.Paths(index)
 	return index, tracked, nil
 }
 
-func recordWithIndex(ctx context.Context, root string, index *contextindex.Index, tracked []string, stable func() error, input Input) (Result, error) {
+func recordWithIndex(ctx context.Context, root string, index *contextindex.Index, tracked []string, stable func() error, stagedStable func(string) error, input Input) (Result, error) {
 	validated, err := trace.NewRecord(trace.Input{
 		Revision: index.CommitRevision, TreeRevision: index.Revision,
 		Task: "record validation", Verification: input.Verification, Outcome: "passed",
@@ -220,7 +225,7 @@ func recordWithIndex(ctx context.Context, root string, index *contextindex.Index
 	if err != nil {
 		return Result{}, err
 	}
-	if _, err := store.Append(record); err != nil {
+	if _, err := store.AppendWithStagingCheck(record, stagedStable); err != nil {
 		return Result{}, err
 	}
 	return Result{
@@ -405,9 +410,8 @@ type dogfoodAuthority struct {
 	base, target, candidates, admitted string
 }
 
-// observedStabilityCheck is stabilityCheck's header comparison against one
-// observation already taken, for the shared query bracket: the same fields,
-// the same error, no spawn.
+// observedStabilityCheck preserves the read adapter's exact header comparison.
+// Recorder-only status admission must not change read/query stability semantics.
 func observedStabilityCheck(root string, expected *contextindex.Index, current contextindex.Observation) func() error {
 	dirty := append([]string(nil), expected.DirtyPaths...)
 	return func() error {
@@ -420,8 +424,17 @@ func observedStabilityCheck(root string, expected *contextindex.Index, current c
 	}
 }
 
+func stagingStabilityCheck(ctx context.Context, root string, expected *contextindex.Index, authority *dogfoodAuthority) func(string) error {
+	return func(ownedStage string) error {
+		return stabilityCheckForStage(ctx, root, expected, authority, ownedStage)()
+	}
+}
+
 func stabilityCheck(ctx context.Context, root string, expected *contextindex.Index, authority *dogfoodAuthority) func() error {
-	dirty := append([]string(nil), expected.DirtyPaths...)
+	return stabilityCheckForStage(ctx, root, expected, authority, "")
+}
+
+func stabilityCheckForStage(ctx context.Context, root string, expected *contextindex.Index, authority *dogfoodAuthority, ownedStage string) func() error {
 	// Without an authority the closing check reads only header fields, so it
 	// observes them instead of compiling a second index whose sources it would
 	// discard. ProfileID is not compared because it is a pure function of the
@@ -433,11 +446,10 @@ func stabilityCheck(ctx context.Context, root string, expected *contextindex.Ind
 				return recordIndexError(root, err)
 			}
 			if current.CommitRevision != expected.CommitRevision || current.Revision != expected.Revision ||
-				current.ObjectFormat != expected.ObjectFormat ||
-				current.StatusSHA256 != expected.StatusSHA256 || !equalStrings(current.DirtyPaths, dirty) {
+				current.ObjectFormat != expected.ObjectFormat {
 				return &repositoryChangedError{}
 			}
-			return nil
+			return recordSourceStatus(ctx, root, current.StatusSHA256, current.DirtyPaths, len(current.CommitRevision), ownedStage)
 		}
 	}
 	return func() error {
@@ -446,9 +458,11 @@ func stabilityCheck(ctx context.Context, root string, expected *contextindex.Ind
 			return recordIndexError(root, err)
 		}
 		if current.CommitRevision != expected.CommitRevision || current.Revision != expected.Revision ||
-			current.ObjectFormat != expected.ObjectFormat || current.ProfileID != expected.ProfileID ||
-			current.StatusSHA256 != expected.StatusSHA256 || !equalStrings(current.DirtyPaths, dirty) {
+			current.ObjectFormat != expected.ObjectFormat || current.ProfileID != expected.ProfileID {
 			return &repositoryChangedError{}
+		}
+		if err := recordSourceStatus(ctx, root, current.StatusSHA256, current.DirtyPaths, len(current.CommitRevision), ownedStage); err != nil {
+			return err
 		}
 		if current.CommitRevision != authority.target {
 			return &repositoryChangedError{}

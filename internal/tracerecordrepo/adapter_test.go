@@ -523,7 +523,7 @@ func TestRecordRecoversInterruptedRetentionBeforeCandidateDiscovery(t *testing.T
 			for pathIndex := range oversizedPaths {
 				oversizedPaths[pathIndex] = fmt.Sprintf("internal/%03d-%s.go", pathIndex, strings.Repeat("x", 1_500))
 			}
-			if _, err := recordWithIndex(context.Background(), root, index, oversizedPaths, func() error { return nil }, Input{
+			if _, err := recordWithIndex(context.Background(), root, index, oversizedPaths, func() error { return nil }, nil, Input{
 				Task: "oversized encoded row", OpenedPaths: oversizedPaths, Outcome: "passed",
 			}); err == nil || !strings.Contains(err.Error(), "row exceeds") {
 				t.Fatalf("recordWithIndex() oversized error=%v, want row bound", err)

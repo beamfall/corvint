@@ -339,7 +339,18 @@ func (store *Store) Read() ([]Record, string, error) {
 }
 
 // Append atomically publishes one canonical row. It returns false when the row already exists.
-func (store *Store) Append(record Record) (written bool, resultErr error) {
+func (store *Store) Append(record Record) (bool, error) {
+	return store.append(record, nil)
+}
+
+// AppendWithStagingCheck supplies the exact owned temporary to the caller only
+// after its descriptor, bytes and surrounding snapshot have been validated.
+// Earlier checks (including recovery) use the ordinary stability callback.
+func (store *Store) AppendWithStagingCheck(record Record, check func(string) error) (bool, error) {
+	return store.append(record, check)
+}
+
+func (store *Store) append(record Record, checkOwnedStage func(string) error) (written bool, resultErr error) {
 	policy, ok := store.revisions[record.Revision]
 	if !ok {
 		return false, fmt.Errorf("local trace store contains unreachable revision: %s", record.Revision)
@@ -458,7 +469,11 @@ func (store *Store) Append(record Record) (written bool, resultErr error) {
 	if !sameSnapshot(current, latest) {
 		return false, fmt.Errorf("local trace candidate set changed during append")
 	}
-	if err := store.checkStable(); err != nil {
+	check := store.checkStable
+	if checkOwnedStage != nil {
+		check = func() error { return checkOwnedStage(recordStatusPrefix + temporaryName) }
+	}
+	if err := check(); err != nil {
 		return false, fmt.Errorf("repository changed before trace append: %w", err)
 	}
 	if err := confirmStagedTrace(directory, temporaryName, temporary, expected); err != nil {

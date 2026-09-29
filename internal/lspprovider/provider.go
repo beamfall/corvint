@@ -19,7 +19,6 @@ import (
 	"io"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -28,6 +27,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/procgroup"
 )
@@ -171,9 +172,9 @@ func querySummary(request Request, seeds []string) map[string]any {
 // environment, with no credential helper and no transport, so replace refs,
 // ambient configuration and a promisor remote cannot change the origin.
 func rootCommit(ctx context.Context, root, revision string) (string, error) {
-	command := exec.CommandContext(ctx, "git", "-C", root, "-c", "credential.helper=", "rev-list", "--max-parents=0", revision)
-	command.Env = gokernel.SanitizedGitEnvironment()
-	output, err := command.Output()
+	output, err := gitrun.RunReserved(ctx, 10*time.Second, gitrun.Options{
+		Binary: gitstatus.Executable(), Dir: root, Env: gokernel.SanitizedGitEnvironment(), StdoutLimit: 64 << 10,
+	}, "-c", "credential.helper=", "rev-list", "--max-parents=0", revision)
 	if err != nil {
 		return "", err
 	}
@@ -231,10 +232,19 @@ func environment(cache string) []string {
 	var out []string
 	for _, name := range []string{"PATH", "HOME", "TMPDIR", "GOPATH", "GOMODCACHE", "GOCACHE", "GOROOT", "GOFLAGS", "GOWORK"} {
 		if value, ok := os.LookupEnv(name); ok && !strings.ContainsRune(value, 0) {
+			if name == "PATH" {
+				paths := []string{}
+				for _, path := range filepath.SplitList(value) {
+					if filepath.IsAbs(path) {
+						paths = append(paths, path)
+					}
+				}
+				value = strings.Join(paths, string(os.PathListSeparator))
+			}
 			out = append(out, name+"="+value)
 		}
 	}
-	return append(out, "GOPLSCACHE="+cache, "GOPROXY=off", "GOSUMDB=off", "GOTOOLCHAIN=local", "LANG=C", "LC_ALL=C")
+	return append(out, "GOPLSCACHE="+cache, "GOPROXY=off", "GOSUMDB=off", "GOTOOLCHAIN=local", "GOTELEMETRY=off", "LANG=C", "LC_ALL=C")
 }
 
 // dialogue is the whole LSP exchange: initialize, hop one from every seed,

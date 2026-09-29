@@ -41,7 +41,7 @@ Anything not provably allowed still degrades, and every tracked change still ref
    stamp from `false` to `true`. Every listed untracked path therefore reaches the gated binary and
    is not disjoint from it. The gates keep refusing it. An ignored path is invisible to both and is
    already allowed.
-5. Not applied to learned traces. `internal/tracerecordrepo/read.go:95@241a6e10` and `authorityTraceState`
+5. Not applied to learned traces. `internal/tracerecordrepo/read.go:101@241a6e10` and `authorityTraceState`
    in `internal/contextindex/history.go` stay blocked on any dirty path. A trace record names
    opened and changed paths across historical revisions, so proving disjointness means reading the
    store, and the blocked state exists to forbid that read. The query packet is also a

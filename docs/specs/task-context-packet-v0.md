@@ -21,7 +21,7 @@ evidence row), `docs/decisions/0369-context-recency-blame-opt-in-2026-09-23.md` 
 - Status: proposed/experimental
 - Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`); `internal/contextindex/recency.go` and `blame.go` (TCP-V0-035..038 opt-in recency, blame and ownership, experimental); `internal/contextindex/identgraph.go` and `ppr.go` (TCP-V0-030..034 opt-in identifier-graph PageRank slot, `CORVINT_CONTEXT_GRAPH=on`, decision 0367); `internal/contextindex/span_rank.go` and `internal/contextindex/sufficiency.go` (TCP-V0-025..029 opt-in `CORVINT_CONTEXT_SPANS=on` line-budgeted spans and `coverage.sufficiency`, experimental, decision 0366); `cmd/corvint/context_lsp.go` and `internal/lspprovider` (TCP-V0-043..046 opt-in gopls `external` member under `CORVINT_CONTEXT_LSP=gopls`, experimental, decision 0371).
 - Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012 and of TCP-V0-047 (instruction-routed rows, V1-0186; idf floor and fenced-block rule, V1-0205 and V1-0206), which are implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go` and `internal/contextindex/taskcontext_routed_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it. TCP-V0-048..050 (opt-in reciprocal rank fusion in place of the corroboration count, decision 0377, ticket V1-0219) are specified and not implemented.
-- Read next: Requirements; Non-goals; Failure modes.
+- Read next: [Go LSP usage](../LSP.md), Explicit Go semantic integration; Requirements; Non-goals; Failure modes.
 
 Wave 1: `TCP-V0-018` recipe is retired (0078); identifier terms (`019`) and named-test frames (`020`) failed promotion and remain proposed/off (0076/0077). `021` measures actual cold/hit state and refuses unequal paired results (0075). Decision 0079 repairs complete cold imports and deterministic test evidence.
 
@@ -771,8 +771,7 @@ it must read, each with the relation that admitted it, without naming the task's
   `EEP-V0-023` built from one in-process gopls expansion (`EEP-V0-024`, `EEP-V0-025`), plus a
   `query` member naming the provider, the query digest, the seeds, the bounds, `queries_issued`,
   `failed_queries`, `stopped` (empty, `query-budget` or `soft-deadline`), `outside_repository` and `omitted_rows`.
-  Unset, or any other value, prints exactly the bytes of `TCP-V0-001..024`. No flag, verb or
-  help text is added.
+  Unset, or any other value, prints exactly the bytes of `TCP-V0-001..024`. TCP-V0-051 adds an explicit selector and help without changing omission semantics.
 - `TCP-V0-044`: The `external` member is separate evidence, never a ranking input: `results`,
   their order, `coverage`, `state` and every other member are byte-for-byte those of the same
   invocation without the flag. The seeds are the subject, then the packet's `.go` result paths in
@@ -861,6 +860,31 @@ admission is not changed.
   removed if (a) loses recall@20 on any subset, or if (b) places fewer gold paths in the top 20 on
   either set. Default-on needs no recall@20 loss in (a), more gold at ranks 1-5 in (b) on both sets
   with the top 20 not falling, decision 0070's paired ladder, and a separate owner decision.
+
+### Explicit Go semantic integration (V1-0476)
+
+Owner implementation authorization: 2026-09-29, “get it built”, following the proposed first
+Go CLI/agent milestone. The detailed extension remains proposed/experimental; broad usefulness
+and multi-language promotion are not inferred from that authorization.
+
+- `TCP-V0-051`: `context --task` accepts at most one `--lsp gopls|off` (including `--lsp=VALUE`).
+  Explicit selection overrides `CORVINT_CONTEXT_LSP`; omission preserves the legacy behavior.
+  Invalid values, duplicate selectors, and combinations with `--summary` or `--expand` refuse
+  before execution. `gopls` is resolved from an absolute PATH entry only. Missing/failing gopls
+  retains TCP-V0-045; no read installs software or fetches dependencies. Help and `docs/LSP.md`
+  describe setup, limits, evidence interpretation and the MCP profile.
+- `TCP-V0-052`: CLI and the explicit MCP descendant use one shared attachment. Before and after
+  enrichment, commit, tree, object format, status digest and dirty paths are compared with the
+  index observation. A mismatch withholds the packet (CLI exit 2; MCP repository-state abstention).
+  Cancellation propagates without emitting a success packet. Results, ordering and authority
+  remain unchanged; the only success addition is `external`. This is an observed stability
+  bracket, not an atomic filesystem snapshot or proof against change-and-revert interference.
+- `TCP-V0-053`: Required live qualification fails when gopls is missing. Compiled CLI and MCP
+  must produce identical packets on committed dependency-free module and go.work fixtures,
+  including specific definition/reference witnesses, unchanged off-mode packets and dirty-file
+  omission. Retain exact Go/gopls versions, binary digests, timing, bytes and fixture commits.
+  These synthetic observations do not establish retrieval gain or agent productivity; the
+  broader TCP-V0-046 promotion gate remains separate and unrun unless explicitly evidenced.
 
 ## Non-goals and authority
 
@@ -1193,3 +1217,7 @@ wire never changed.
 | TCP-V0-045 | `attachLSPEvidence`, `lspprovider.Expand` failure reasons | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestExpandDegrades`, `TestExpandEveryQueryFailedIsUnavailable` |
 | TCP-V0-046 | `tools/retrieval-bench` `context` arm, flag unset and `gopls` | V1-0099 entry in `docs/BUILD-LOG.md` (measured off/on reports) |
 | TCP-V0-047 | `instructionRoutedRows`, `routedPassages`, `instructionPassages`, `nextFence`, `reservedRelation`, `rowAction`, `coreSpans` | `TestTaskContextRoutesPathsTheGoverningInstructionsNameForTheTask`, `TestTaskContextCapsInstructionRoutedRows`, `TestContextSpansSkipInstructionRoutedRows`, `TestTaskContextRoutingIsNotApplicableWithoutAGoverningRow`, `TestTaskContextRoutingSkipsTheSubject`, `TestTaskContextOrdersRoutingPassagesByIDF`, `TestTaskContextRoutingPromotesAnExistingRow`, `TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld`, `TestTaskContextRoutingIgnoresCommonTerms`, `TestTaskContextRoutingSkipsFencedCodeBlocks`, `TestTaskContextRoutingClosesFencesAsCommonMark`, `TestTaskContextRoutingSkipsCompoundsTheTableSplits`, `TestTaskContextRoutesFromAncestorInstructions`; V1-0186 and V1-0205 entries in `docs/BUILD-LOG.md` (frozen bench before/after) |
+
+| TCP-V0-051 | `parseTaskContextInvocation`, `attachLSPEvidence`, `lspevidence.Executable` | `TestContextLSPExplicitSelection`, `TestContextLSPExecutableRefusesRelativePATH` |
+| TCP-V0-052 | `lspevidence.Attach`, `callContext` | `TestContextLSPDriftWithholdsPacket`, `TestContextLSPPinAndDrift` |
+| TCP-V0-053 | `script/qualify-lsp.py` | required live compiled CLI/MCP module and workspace qualification |

@@ -1,0 +1,270 @@
+{
+  "baseRevision": "d60231e5c686c4bfba29e0f46ead005e6d8e5afd",
+  "evidence": [
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:ec31900556da87715d09ec6c9e7fb00ed0a852e3235d2712f12e18e5673cfe54",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 2774,
+        "start": 1971
+      },
+      "spanSha256": "816d309a799b144e6c15661973cc6c1586ad9974a85e5ee1cd0aff6292114a4a"
+    },
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3118,
+        "start": 2775
+      },
+      "spanSha256": "46e69c5e97297b36c204ff585b335a484633ade4ec166dbc695fd46e7c6dc76c"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ec31900556da87715d09ec6c9e7fb00ed0a852e3235d2712f12e18e5673cfe54",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4f7b1bccfda5b8079c367c325a0bb77f89a2420d1a51e94e5d6e7689cd54acc8",
+      "newRange": {
+        "count": 79,
+        "start": 40
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 40
+      },
+      "path": ".github/workflows/ci.yml",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ec31900556da87715d09ec6c9e7fb00ed0a852e3235d2712f12e18e5673cfe54",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c8756ac4f564bc02cac58932c8d7896bdb73d53960614cae6775198500c38458",
+      "newRange": {
+        "count": 7,
+        "start": 189
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 117
+      },
+      "path": ".github/workflows/ci.yml",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ec31900556da87715d09ec6c9e7fb00ed0a852e3235d2712f12e18e5673cfe54",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:df800812ccd609d00237a6dfb3aa8f7ad3ec12d4cb281fd731e14d5a0384418d",
+      "newRange": {
+        "count": 8,
+        "start": 212
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 139
+      },
+      "path": ".github/workflows/ci.yml",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ec31900556da87715d09ec6c9e7fb00ed0a852e3235d2712f12e18e5673cfe54",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:568ba3fa9da5992a93fc878b81a3d6eb0caed534351a5ed909e61218112f89aa",
+      "newRange": {
+        "count": 17,
+        "start": 242
+      },
+      "oldRange": {
+        "count": 14,
+        "start": 167
+      },
+      "path": ".github/workflows/ci.yml",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9228a3602677ad85655ea809eb351092f41dae93b19a0b40c9d049b91c57536e",
+      "newRange": {
+        "count": 72,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-29-documentation-ci.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ec31900556da87715d09ec6c9e7fb00ed0a852e3235d2712f12e18e5673cfe54",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c3c5f4a302335389273ccd54a8eb2f6a5068f852fb58ce36ec2c3fb477d4584c",
+      "newRange": {
+        "count": 22,
+        "start": 2513
+      },
+      "oldRange": {
+        "count": 5,
+        "start": 2513
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ec31900556da87715d09ec6c9e7fb00ed0a852e3235d2712f12e18e5673cfe54",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:64f6e286ad8d830617ed0938028997b375d371f71e03f01f11352bb80ade1a3d",
+      "newRange": {
+        "count": 7,
+        "start": 95
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 95
+      },
+      "path": "docs/specs/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ec31900556da87715d09ec6c9e7fb00ed0a852e3235d2712f12e18e5673cfe54",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:dd798ddaaa2b4c073397e5313f9f67ed51b61e8bb1ee730fb5ea0fbdd4ef3402",
+      "newRange": {
+        "count": 14,
+        "start": 608
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 608
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ec31900556da87715d09ec6c9e7fb00ed0a852e3235d2712f12e18e5673cfe54",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:eaeaf44ab5592490cd629f398fc5f1ccbb8deeea617c5a254f4c0a397307878e",
+      "newRange": {
+        "count": 13,
+        "start": 570
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 570
+      },
+      "path": "docs/specs/affected-plan-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ec31900556da87715d09ec6c9e7fb00ed0a852e3235d2712f12e18e5673cfe54",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:304f7e62402565b3b62c8f7f4ffe7df662b2f1510d0aae2c715309f8f8c5bd31",
+      "newRange": {
+        "count": 130,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/specs/documentation-ci-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ec31900556da87715d09ec6c9e7fb00ed0a852e3235d2712f12e18e5673cfe54",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:fffb5058df0fcf8ce12edce476034adec2ceb4182266cf214000f04b089d2d69",
+      "newRange": {
+        "count": 608,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "tools/docs-ci-plan/main.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ec31900556da87715d09ec6c9e7fb00ed0a852e3235d2712f12e18e5673cfe54",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ff02249ec5712e0c2c5d2af6639b38d55b4b4dbd48322d768a7e67be64b2b3eb",
+      "newRange": {
+        "count": 393,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "tools/docs-ci-plan/main_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "d519c399352f3e5998bb339b976ce45c40360951f206e5705894eafaef999a16",
+  "spec": "cem/0.2"
+}
