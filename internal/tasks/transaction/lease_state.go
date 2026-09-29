@@ -24,7 +24,7 @@ func loadReservations(r Request, in Input) (*snapshot.ReservationSet, error) {
 		return nil, malformed("reservation set binding")
 	}
 	for _, en := range set.Entries {
-		if en.State != "ACTIVE" || len(en.CapacityUses) != 0 || en.Workers != "0" {
+		if en.State != "ACTIVE" || len(en.CapacityUses) != 0 || (en.Workers != "0" && en.Workers != "1") {
 			return nil, malformed("reservation entry outside the external-agent subset")
 		}
 		if _, ok := in.Inventory.files[attemptPath(en.AttemptID)]; !ok {
@@ -46,7 +46,7 @@ func decodeAttempt(in Input, raw []byte) (*snapshot.Attempt, error) {
 	if !bytes.Equal(again, raw) || !in.Inventory.matches(attemptPath(a.AttemptID), raw) {
 		return nil, malformed("attempt record binding")
 	}
-	if a.RuntimeID != snapshot.RuntimeExternalAgent {
+	if a.RuntimeID != snapshot.RuntimeExternalAgent && a.RuntimeID != snapshot.SupervisedProfile {
 		return nil, malformed("attempt runtime outside the external-agent subset")
 	}
 	return a, nil
@@ -84,6 +84,13 @@ func loadAttempts(in Input, set *snapshot.ReservationSet) (map[string]*snapshot.
 		if a == nil || !a.Live() || a.Generation != en.Generation || a.TicketID != en.TicketID || a.TicketRevision != en.TicketRevision || !sameResources(a.Scope.Resources, en.Resources) {
 			return nil, malformed("reservation entry differs from its attempt")
 		}
+		if a.RuntimeID == snapshot.RuntimeExternalAgent && en.Workers != "0" {
+			return nil, malformed("legacy attempt has worker reservation")
+		}
+		if a.Supervision != nil && (en.Workers == "1") != a.Supervision.Worker {
+			return nil, malformed("supervised worker reservation differs")
+		}
+
 	}
 	return out, nil
 }

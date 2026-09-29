@@ -299,6 +299,9 @@ func (ctx *Context) step(work *ticket.Record, p Payload) *refusal {
 	}
 	switch p := p.(type) {
 	case *RefinePayload:
+		if p.Has("requiredRoles") {
+			work.RequiredRoles = p.RequiredRoles
+		}
 		if p.Has("requiresPool") {
 			work.RequiresPool = ""
 			if p.RequiresPool != nil {
@@ -640,6 +643,7 @@ func (ctx *Context) create(plan *Plan, p *CreatePayload) *Plan {
 	}
 	rec := &ticket.Record{
 		RequiresPool:       p.RequiresPool,
+		RequiredRoles:      p.RequiredRoles,
 		TicketID:           id,
 		Revision:           "1",
 		AcceptanceRevision: "1",

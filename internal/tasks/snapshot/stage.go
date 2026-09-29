@@ -247,6 +247,9 @@ func (d StageDescriptor) shape() error {
 				}
 				key = "attempt"
 				cap = wire.MaxAttemptRecordBytes
+			case a.Target == "programs.json" && d.Operation == StageLease:
+				key = "programs"
+				cap = MaxProgramsBytes
 			case a.Target == "pools.json" && d.Operation == StageLease:
 				key = "pools"
 				cap = MaxPoolStateBytes
@@ -366,6 +369,9 @@ func (d StageDescriptor) shape() error {
 	// a gate run adds its output and result, and a completion its ticket and
 	// manifest, so the three optional kinds together stay within three. A
 	// recorded FENCED refusal posts none of them.
+	if d.Operation == StageLease && counts["programs"] == 1 && counts["pools"] == 0 && counts["attempt"] == 0 && counts["reservations"] == 0 && counts["ticket"] == 0 && counts["gate"] <= 2 {
+		delete(counts, "programs")
+	}
 	if d.Operation == StageLease && counts["pools"] <= 1 && counts["attempt"] <= 1 && counts["reservations"] <= 1 && counts["ticket"] <= 1 && counts["gate"] <= 2 && counts["reservations"]+counts["ticket"]+counts["gate"] <= 3 {
 		delete(counts, "pools")
 		delete(counts, "attempt")

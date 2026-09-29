@@ -107,16 +107,16 @@ type ReplayObservation struct {
 // Input supplies complete metadata and canonical tickets independently of the
 // possibly divergent physical projection. No callbacks or runtime facts enter.
 type Input struct {
-	Inventory                                         *Inventory
-	Head, Queue, Policy, Barrier, Reservations, Pools []byte
-	CanonicalTickets                                  [][]byte
-	CanonicalReleases                                 [][]byte
-	ReleaseCandidate                                  *release.Candidate
-	ReleaseGates                                      []release.Gate
-	ReleaseObservation                                release.Observation
-	Premise, Branch                                   string
-	Replay                                            ReplayObservation
-	RecordedAt                                        wire.Timestamp
+	Inventory                                                   *Inventory
+	Head, Queue, Policy, Barrier, Reservations, Pools, Programs []byte
+	CanonicalTickets                                            [][]byte
+	CanonicalReleases                                           [][]byte
+	ReleaseCandidate                                            *release.Candidate
+	ReleaseGates                                                []release.Gate
+	ReleaseObservation                                          release.Observation
+	Premise, Branch                                             string
+	Replay                                                      ReplayObservation
+	RecordedAt                                                  wire.Timestamp
 	// HeadReceipt is the head receipt's bytes: every store writer supplies it
 	// and Lease requires it. Attempts are every attempts/ record and
 	// LeaseFacts the caller's claim observations; Lease only.
@@ -535,7 +535,7 @@ func Model(r Request, in Input) Result {
 		if next.PolicyVersion.Uint64() != current.Uint64()+1 {
 			return failed(r.RequestID, malformed("policyVersion must be the current version plus one"))
 		}
-		if len(next.Runtimes) != 0 {
+		if !supportedRuntimes(next) {
 			return failed(r.RequestID, malformed("runtime inventory outside subset"))
 		}
 		for _, entry := range state.pools.Entries {
@@ -770,7 +770,7 @@ func validateInput(r Request, in Input) (inputState, error) {
 		return st, e
 	}
 	st.policy = p
-	if len(p.Runtimes) != 0 {
+	if !supportedRuntimes(p) {
 		return st, malformed("runtime inventory outside subset")
 	}
 	if e = canonical(qraw); e != nil {
@@ -1160,3 +1160,12 @@ func freeze(r Request, d wire.Digest, now wire.Timestamp, inv *Inventory, base *
 	return &Plan{operation: r.Operation, request: cloneRequest(r), descriptor: encoded, artifacts: arts, receipt: raw, head: head, posts: posts, base: inv, baseHead: base}, out, nil
 }
 func mustQueue(q string) wire.QueueID { id, _ := wire.ParseQueueID("", q); return id }
+
+func supportedRuntimes(p *intent.Policy) bool {
+	for _, r := range p.Runtimes {
+		if r.RuntimeID != snapshot.SupervisedProfile {
+			return false
+		}
+	}
+	return true
+}

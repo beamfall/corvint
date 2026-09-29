@@ -92,6 +92,8 @@ func postTarget(path string) (authority.Target, error) {
 	switch {
 	case path == "VERSION":
 		return authority.Target{Role: authority.RoleVersion, Name: path}, nil
+	case path == "programs.json":
+		return authority.Target{Role: authority.RolePrograms, Name: path}, nil
 	case path == "pools.json":
 		return authority.Target{Role: authority.RolePools, Name: path}, nil
 	case path == "reservations.json":
@@ -191,7 +193,7 @@ func settled(repo *intent.Repository, path string, want wire.Digest, pre *wire.D
 // replace happens; this only decides how.
 func mutable(t authority.Target) bool {
 	switch t.Role {
-	case authority.RoleHead, authority.RoleBarrier, authority.RoleReservations, authority.RolePools,
+	case authority.RoleHead, authority.RoleBarrier, authority.RoleReservations, authority.RolePools, authority.RolePrograms,
 		authority.RoleQueue, authority.RolePolicy, authority.RoleImportMap,
 		authority.RoleTicket, authority.RoleRelease, authority.RoleVersion, authority.RoleAttempt:
 		return true

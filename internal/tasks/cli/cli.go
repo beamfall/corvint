@@ -60,6 +60,7 @@ var ReadVerbs = []string{
 	"ticket revoke-approval",
 	"release create", "release update", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
 	"claim", "renew", "release", "reap", "widen", "attempt show", "plan preview",
+	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
 	"submit", "gate run", "complete", "health", "pool cleanup", "pool recover", "pool confirm-safe",
 }
 
@@ -69,8 +70,7 @@ var ReadVerbs = []string{
 // `config show`, `plan record` and `receipt show|replay` remain
 // unimplemented; receipt audit exposes the native journal reader.
 var OmittedVerbs = []string{
-	"admit", "cancel", "retry", "resume", "drain",
-	"lane-leader", "config", "plan record", "receipt show", "receipt replay",
+	"config", "plan record", "receipt show", "receipt replay",
 	"archive restore",
 }
 
@@ -94,6 +94,17 @@ func Run(env Env) int {
 		return emit(env.Stdout, helpResult())
 	}
 	switch args[0] {
+	case "admit", "resume", "retry", "cancel", "drain", "answer":
+		return emit(env.Stdout, programCommand(env, args[0], args[1:]))
+	case "pending":
+		return emit(env.Stdout, programRead(env, true, args[1:]))
+	case "program":
+		if len(args) > 1 && args[1] == "show" {
+			return emit(env.Stdout, programRead(env, false, args[2:]))
+		}
+		return emit(env.Stdout, usage([]string{"program"}, "expected show"))
+	case "run":
+		return emit(env.Stdout, programRun(env, args[1:]))
 	case "version", "--version":
 		return emit(env.Stdout, versionResult())
 	case "ticket":
@@ -272,7 +283,12 @@ func helpResult() *wire.Result {
 	o.Set("statuses", wire.Strings(ticket.Statuses))
 	o.Set("eligibility", wire.Strings([]string{ticket.EligibilityBlocked, ticket.EligibilityUnknown}))
 	o.Set("releaseReasonCodes", wire.Strings(wire.Codes))
+	o.Set("supervisionLimits", wire.Strings([]string{"Codex-only optional policy profile; pinned executable and Core CLI required", "Token usage is observed, not hard-enforced; absent counters remain unknown", "Shared observed cutoffs permit one already-admitted turn per active lane of overshoot", "Explicit clean integration checkout and exact candidate/base grant required; no publication"}))
 	o.Set("usage", wire.Strings([]string{
+		"corvint-tasks run --program ID --config FILE --role implementer|reviewer|integrator --count N --host codex",
+		"corvint-tasks admit|resume|retry|drain|cancel --program ID --config FILE",
+		"corvint-tasks answer --program ID --config FILE --question SHA256 --revision N --answer TEXT",
+		"corvint-tasks pending; corvint-tasks program show",
 		"corvint-tasks ticket list [--offset N] [--limit N]",
 		"corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N]",
 		"corvint-tasks ticket show <ticketId|local>",

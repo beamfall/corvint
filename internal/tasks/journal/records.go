@@ -253,7 +253,7 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 }
 
 func writerRecord(path string) bool {
-	return path == "pools.json" || path == "intent/queue.json" || path == "intent/policy.json" || strings.HasPrefix(path, "intent/tickets/") || strings.HasPrefix(path, "intent/releases/") || strings.HasPrefix(path, "attempts/")
+	return path == "programs.json" || path == "pools.json" || path == "intent/queue.json" || path == "intent/policy.json" || strings.HasPrefix(path, "intent/tickets/") || strings.HasPrefix(path, "intent/releases/") || strings.HasPrefix(path, "attempts/")
 }
 
 func (r Reader) postBytes(p snapshot.PostEntry) ([]byte, error) {
@@ -356,6 +356,9 @@ func (r Reader) validateRecord(p string, raw []byte, rc *snapshot.Receipt) (bool
 		return true, nil, nil
 	case strings.HasPrefix(p, "requests/"):
 		_, err := snapshot.DecodeRequest(raw)
+		return true, nil, err
+	case p == "programs.json":
+		_, err := snapshot.DecodePrograms(raw)
 		return true, nil, err
 	case p == "pools.json":
 		_, err := snapshot.DecodePools(raw)

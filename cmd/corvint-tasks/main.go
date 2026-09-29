@@ -4,6 +4,9 @@
 package main
 
 import (
+	"context"
+	"fmt"
+	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 	"os"
 
 	"github.com/Beamfall/corvint/internal/tasks/cli"
@@ -14,6 +17,13 @@ import (
 var build = "0"
 
 func main() {
+	if len(os.Args) == 6 && os.Args[1] == "lane-leader" && os.Args[2] == "--directory" && os.Args[4] == "--capsule" {
+		if e := supervisor.Leader(context.Background(), os.Args[3], os.Args[5]); e != nil {
+			fmt.Fprintln(os.Stderr, e)
+			os.Exit(1)
+		}
+		return
+	}
 	cli.Build = build
 	cwd, err := os.Getwd()
 	if err != nil {
