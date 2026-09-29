@@ -473,3 +473,20 @@ and [PROVENANCE.md](PROVENANCE.md).
 Flow-variation E2E completeness and safe documentation write-back: [coverage guide](docs/FLOW-COVERAGE.md). Proof binds immutable bytes and declared app identity; deployment attestation remains outside `/3`.
 
 Optional [Codex foreground task supervision](docs/TASKS-SUPERVISION.md) is in scoped qualification; external-agent leases remain available.
+
+### Experimental editor definition companion
+
+The separate `corvint-lsp` prototype can use an explicitly supplied local gopls binary for
+definitions between open Go overlays in one explicitly supplied root:
+
+```sh
+go build -o /tmp/corvint-lsp ./cmd/corvint-lsp
+/tmp/corvint-lsp --experimental --gopls /absolute/path/to/gopls --root /absolute/project/root
+```
+
+The editor must launch the process over stdio and declare the same canonical root. The companion
+uses full-text synchronization and UTF-8/16/32 positions; non-open targets return unavailable.
+The backend receives offline Go settings, but the executable is trusted local code, not sandboxed.
+This operator-started experiment changes no Core defaults and installs no editor configuration.
+It is definition-only and is not qualified or promoted as an editor integration. See the
+[experimental contract](docs/specs/lsp-editor-definition-v0.md) for bounds and rollback.

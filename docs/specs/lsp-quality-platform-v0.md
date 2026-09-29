@@ -2,15 +2,15 @@
 
 - Owner: Russell Lewis
 - Date: 2026-09-29
-- Intent status: proposed technical contract; owner accepted both product directions
-- Delivery status: not-started; Go/gopls prior slice experimental
+- Intent status: accepted technical contract (owner approval 2026-09-29; PR 360)
+- Delivery status: experimental Go overlay editor definition; no supported profile
 - Authoritative inputs: `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/specs/deployment-neutral-index-platform-v0.md`, `docs/specs/task-context-packet-v0.md`, `docs/specs/external-evidence-provider-v0.md`, `docs/specs/vscode-extension-v0.md`, and the owner's V1-0477 request
 
 ## Agent digest
 - Claim: Shared evidence engine serves opt-in agent LSP enrichment and optional editor server with separate Git and overlay identities.
-- Status: proposed technical contract; owner accepted both product directions/not-started; Go/gopls prior slice experimental
+- Status: accepted technical contract (owner approval 2026-09-29; PR 360)/experimental Go overlay editor definition; no supported profile
 - Exists: opt-in Go/gopls definition and reference evidence through CLI and MCP, qualified only on synthetic committed Go module and go.work fixtures.
-- Blocked on: accepted profiles, snapshot and wire design, real-workspace baselines, implementation, independent interoperability and outcome qualification.
+- Blocked on: accepted exact profile tuples and numerical floors, real-workspace baselines, independent client interoperability and outcome qualification.
 - Read next: User job, profile matrix, requirements, qualification.
 
 ## User job and scope
@@ -95,4 +95,4 @@ For rollback, select `--lsp off` and the existing MCP `task-review` profile, or 
 
 The first supported non-Go server/language, exact LSP protocol baseline and client versions, overlay storage lifetime, Corvint extension wire, editor session budgets, real-workspace corpus, held-out custody and numerical outcome floors remain open. TypeScript and Python are candidates, not accepted order. The [official LSP overview](https://microsoft.github.io/language-server-protocol/) and exact specification for the chosen version govern standard wire behavior; this draft does not infer conformance from method names.
 
-Owner acceptance of this technical contract and its named profiles is required before advertising delivery. Experimental implementation may proceed against it, but no “world class” or general-use claim is justified until the exact tuple's full matrix passes and outcome evidence shows a material benefit over both baselines. If combined results do not improve an important declared job, retain the simpler upstream-only/Core-only path and do not promote that profile.
+The owner accepted this technical contract on 2026-09-29 (merged PR 360, commit 624e9aecbf71993d26c57b2e20837282469cb02c). Exact profile tuples and numerical promotion floors remain unaccepted; no “world class” or general-use claim is justified until the exact tuple's full matrix passes and outcome evidence shows a material benefit over both baselines. If combined results do not improve an important declared job, retain the simpler upstream-only/Core-only path and do not promote that profile.

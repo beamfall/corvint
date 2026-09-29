@@ -2014,8 +2014,8 @@
     "path": "docs/specs/lsp-quality-platform-v0.md",
     "title": "LSP Quality Platform V0",
     "reqPrefix": "LQP-V0",
-    "intent": "proposed technical contract; owner accepted both product directions",
-    "delivery": "not-started; Go/gopls prior slice experimental",
+    "intent": "accepted technical contract (owner approval 2026-09-29; PR 360)",
+    "delivery": "experimental Go overlay editor definition; no supported profile",
     "claim": "Shared evidence engine serves opt-in agent LSP enrichment and optional editor server with separate Git and overlay identities.",
     "dependsOn": [
       "docs/specs/deployment-neutral-index-platform-v0.md",
@@ -2569,6 +2569,72 @@
     "closableToday": false,
     "implementation": [
       "tools/heading-nav-bench"
+    ]
+  },
+  {
+    "path": "docs/specs/gopls-client-session-v0.md",
+    "title": "Gopls client session V0",
+    "reqPrefix": "GCS-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "An optional local gopls session observes definitions only between caller-owned synchronized overlays with explicit lifecycle and bounds.",
+    "dependsOn": [
+      "docs/specs/external-evidence-provider-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/goplsclient/client.go",
+      "internal/goplsclient/client_test.go",
+      "internal/goplsclient/lifecycle_unix_test.go"
+    ]
+  },
+  {
+    "path": "docs/specs/lsp-snapshot-overlay-v0.md",
+    "title": "LSP Snapshot Overlay V0",
+    "reqPrefix": "LSO-V0",
+    "intent": "proposed technical contract; owner accepted agent and optional editor direction",
+    "delivery": "experimental",
+    "claim": "Experimental in-memory snapshots separate syntactic Git identity from bounded session overlays.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/lspsnapshot"
+    ]
+  },
+  {
+    "path": "docs/specs/lsp-stdio-experiment-v0.md",
+    "title": "LSP Stdio Experiment V0",
+    "reqPrefix": "LSE-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "An explicitly experimental optional native-Go stdio companion exercises bounded framing and lifecycle without semantic capabilities.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint-lsp",
+      "internal/lspstdio"
+    ]
+  },
+  {
+    "path": "docs/specs/lsp-editor-definition-v0.md",
+    "title": "LSP Editor Definition V0",
+    "reqPrefix": "LED-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Explicitly configured editor sessions can request definitions between synchronized open Go overlays through a local gopls process.",
+    "dependsOn": [
+      "docs/specs/lsp-snapshot-overlay-v0.md",
+      "docs/specs/gopls-client-session-v0.md",
+      "docs/specs/lsp-stdio-experiment-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint-lsp",
+      "internal/lspstdio/semantic.go"
     ]
   }
 ]
