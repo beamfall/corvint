@@ -24,6 +24,7 @@ import (
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/lspevidence"
 	"github.com/Beamfall/corvint/internal/plansnapshot"
 	"github.com/Beamfall/corvint/internal/projectprofile"
 )
@@ -215,6 +216,8 @@ type Registry struct {
 	gitDirectoryIdentities []os.FileInfo
 	operations             repositoryOperations
 	taskReview             bool
+	lsp                    bool
+	lspExecutable          string
 	flows                  bool
 }
 
@@ -264,6 +267,18 @@ func NewTaskReview(root string) (*Registry, *Error) {
 	return registry, nil
 }
 
+// NewTaskReviewLSP authorizes the optional executable at startup. Individual
+// calls must still request lsp:gopls; legacy environment knobs have no effect.
+func NewTaskReviewLSP(root string) (*Registry, *Error) {
+	registry, err := NewTaskReview(root)
+	if err != nil {
+		return nil, err
+	}
+	registry.lsp = true
+	registry.lspExecutable = lspevidence.Executable()
+	return registry, nil
+}
+
 func (registry *Registry) advertises(name string) bool {
 	if taskReviewTools[name] {
 		return registry.taskReview
@@ -285,6 +300,10 @@ func (registry *Registry) Tools() []ToolDescriptor {
 	advertised := make([]ToolDescriptor, 0, len(all))
 	for _, tool := range all {
 		if registry.advertises(tool.Name) {
+			if registry.lsp && tool.Name == ToolContext {
+				tool.InputSchema["properties"].(map[string]any)["lsp"] = map[string]any{"type": "string", "enum": []any{"off", "gopls"}, "default": "off"}
+				tool.Description += " Optional lsp:gopls starts the operator-selected local Go language server for bounded definition/reference evidence; requires installed gopls and cached dependencies, may write Go caches, and does not change rankings."
+			}
 			advertised = append(advertised, tool)
 		}
 	}
@@ -516,15 +535,22 @@ func (registry *Registry) callImpact(ctx context.Context, arguments []byte) (Res
 }
 
 type contextInput struct {
-	Task    string `json:"task"`
-	Subject string `json:"subject"`
-	Limit   int    `json:"limit"`
+	LSP     jsonv1.RawMessage `json:"lsp,omitempty"`
+	Task    string            `json:"task"`
+	Subject string            `json:"subject"`
+	Limit   int               `json:"limit"`
 }
 
 func (registry *Registry) callContext(ctx context.Context, arguments []byte) (Result, *Error) {
 	input := contextInput{Limit: defaultContextLimit}
 	if err := decodeClosed(arguments, &input); err != nil || !validContext(input) {
 		return Result{}, failure("invalid-arguments")
+	}
+	selection := "off"
+	if input.LSP != nil {
+		if !registry.lsp || jsonv1.Unmarshal(input.LSP, &selection) != nil || string(input.LSP) == "null" || (selection != "off" && selection != "gopls") {
+			return Result{}, failure("invalid-arguments")
+		}
 	}
 	if !nativePlatformQualified(registry.operations.platform) {
 		return abstained(ToolContext, "UNSUPPORTED_PLATFORM", nil), nil
@@ -548,6 +574,14 @@ func (registry *Registry) callContext(ctx context.Context, arguments []byte) (Re
 			return abstained(ToolContext, "REPOSITORY_STATE_UNSTABLE", nil), nil
 		}
 		return Result{}, normalizeFailure(ctx, err)
+	}
+	if selection == "gopls" {
+		if err := lspevidence.Attach(ctx, index, input.Subject, packet, input.Limit, registry.lspExecutable); err != nil {
+			if errors.Is(err, lspevidence.ErrRepositoryChanged) || repositoryDrift(err) {
+				return abstained(ToolContext, "REPOSITORY_STATE_UNSTABLE", nil), nil
+			}
+			return Result{}, normalizeFailure(ctx, err)
+		}
 	}
 	return boundedObserved(ToolContext, snapshot.binding, packet)
 }

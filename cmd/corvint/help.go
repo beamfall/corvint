@@ -227,7 +227,7 @@ Usage:
   corvint [--root PATH] query --task TASK [--limit N] [--budget-bytes N]
   corvint [--root PATH] feature FEATURE_ID [--limit N] [--budget-bytes N]
   corvint [--root PATH] eval [--goldens FILE] [--trace-fixture FILE]
-  corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N]
+  corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N] [--lsp gopls|off]
   corvint [--root PATH] impact [--limit N] [--working-tree-untracked] PATH...
   corvint [--root PATH] impact --base FULL_COMMIT_ID [--limit N]
     [--range-profile expanded-256]

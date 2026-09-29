@@ -19,6 +19,8 @@ import (
 // taskContextOptions is the parsed `context` invocation (task-context-packet-v0).
 type taskContextOptions struct {
 	root, task, subject string
+	lsp                 string
+	lspSet              bool
 	limit               int
 	// summary, summaryBytes, expand and maxBytes are the opt-in experimental
 	// consumers (TCP-V0-024, ESV-V0-008/009); absent, the wire is unchanged.
@@ -67,6 +69,11 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 			value, index = rest[index+1], index+1
 		}
 		switch flag {
+		case "--lsp":
+			if options.lspSet || (value != "gopls" && value != "off") {
+				return options, true, argumentError("argument --lsp: requires one of gopls or off, once")
+			}
+			options.lsp, options.lspSet = value, true
 		case "--task":
 			options.task, taskSet = value, true
 		case "--subject":
@@ -110,6 +117,9 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 // checkContextViewArguments refuses mixed or orphaned view flags: --expand
 // stands alone except --max-bytes, and --summary-bytes needs --summary.
 func checkContextViewArguments(options taskContextOptions, taskSet bool) error {
+	if options.lspSet && (options.expandSet || options.summarySet) {
+		return argumentError("argument --lsp: not allowed with --expand or --summary")
+	}
 	if options.expandSet && (taskSet || options.subject != "" || options.limitSet || options.summarySet || options.summaryBytesSet) {
 		return argumentError("argument --expand: not allowed with --task, --subject, --limit, --summary or --summary-bytes")
 	}
@@ -185,7 +195,7 @@ func runTaskContext(ctx context.Context, options taskContextOptions, stdout, std
 const taskContextHelp = `Compile the task-context packet: the files to read for one task.
 
 Usage:
-  corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N]
+  corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N] [--lsp gopls|off]
 
 Writes nothing; Go-only (task-context-packet-v0, experimental). The packet lists
 files admitted by relations a term search cannot express, each with one
@@ -218,6 +228,14 @@ When an admitted learned trace .context-corvint/slot-weights.json exists
 relations move ahead and the packet discloses the file's path, sha256 and
 weights as "learned_slot_weights"; a malformed file refuses, and
 corvint eval --reset-slot-weights restores the default order.
+
+Optional Go semantic evidence: --lsp gopls starts a bounded local gopls session
+and adds definition/reference path relations under external. Requires gopls on
+PATH and locally available Go dependencies. --lsp off overrides
+CORVINT_CONTEXT_LSP=gopls; omission preserves that legacy setting. Other values
+and combining --lsp with --summary or --expand are refused. Missing or failed
+gopls is visible as an unavailable provider; rankings remain unchanged.
+See docs/LSP.md for setup, MCP integration, resource limits and qualification.
 
 Experimental opt-in views (experimental-source-views-v0, ESV-V0-008..010);
 without these flags the packet bytes are unchanged:
@@ -265,7 +283,7 @@ func compileTaskContext(ctx context.Context, options taskContextOptions, load fu
 	}
 	packet, err := contextindex.TaskContextWeighted(ctx, index, options.task, options.subject, options.limit, admitted)
 	if err == nil {
-		attachLSPEvidence(ctx, index, options.subject, packet, options.limit)
+		err = attachLSPEvidence(ctx, index, options.subject, packet, options.limit, options.lsp)
 	}
 	return packet, hit, err
 }

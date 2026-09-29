@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -53,4 +55,56 @@ func TestContextLSPOffKeepsTheGoldenAndOnDegrades(t *testing.T) {
 	if !reflect.DeepEqual(packet, decodeObject(t, golden)) {
 		t.Fatal("the external member must leave every other member unchanged")
 	}
+}
+
+// TCP-V0-051: explicit selection is closed and overrides the legacy environment.
+func TestContextLSPExplicitSelection(t *testing.T) {
+	t.Run("TCP-V0-051 explicit selection", func(t *testing.T) {
+		root := evidenceSummaryRepository(t)
+		args := []string{"--root", root, "context", "--task", evidenceSummaryTask, "--subject", "cache/demux.go"}
+		t.Setenv("CORVINT_CONTEXT_LSP", "off")
+		_, baseline, _ := runContextCommand(t, args...)
+		t.Setenv("CORVINT_CONTEXT_LSP", "gopls")
+		if code, out, err := runContextCommand(t, append(args, "--lsp", "off")...); code != 0 || !bytes.Equal(out, baseline) {
+			t.Fatalf("off: %d %s %s", code, out, err)
+		}
+		for _, extra := range [][]string{{"--lsp", ""}, {"--lsp", "GOPLS"}, {"--lsp", "other"}, {"--lsp", "gopls", "--lsp", "off"}, {"--lsp", "gopls", "--summary"}, {"--expand", "bad", "--lsp", "off"}} {
+			if code, _, _ := runContextCommand(t, append(args, extra...)...); code != 2 {
+				t.Fatalf("accepted %v", extra)
+			}
+		}
+		fake := filepath.Join(t.TempDir(), "gopls")
+		if err := os.WriteFile(fake, []byte("#!/bin/sh\nexit 3\n"), 0755); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("PATH", filepath.Dir(fake)+string(os.PathListSeparator)+os.Getenv("PATH"))
+		t.Setenv("CORVINT_CONTEXT_LSP", "off")
+		if code, out, err := runContextCommand(t, append(args, "--lsp=gopls")...); code != 0 || decodeObject(t, out)["external"] == nil {
+			t.Fatalf("explicit enable: %d %s %s", code, out, err)
+		}
+	})
+}
+
+// TCP-V0-052: a checkout change during a server session withholds the packet.
+func TestContextLSPDriftWithholdsPacket(t *testing.T) {
+	t.Run("TCP-V0-052 repository drift", func(t *testing.T) {
+		git, err := exec.LookPath("git")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, mutation := range []string{"printf '\\n// changed\\n' >> cache/demux.go", "'" + git + "' -c core.hooksPath=/dev/null commit -q --allow-empty -m drift"} {
+			t.Run(mutation, func(t *testing.T) {
+				root := evidenceSummaryRepository(t)
+				fake := filepath.Join(t.TempDir(), "gopls")
+				if err := os.WriteFile(fake, []byte("#!/bin/sh\n"+mutation+"\nexit 3\n"), 0755); err != nil {
+					t.Fatal(err)
+				}
+				t.Setenv("PATH", filepath.Dir(fake)+string(os.PathListSeparator)+os.Getenv("PATH"))
+				code, out, stderr := runContextCommand(t, "--root", root, "context", "--task", evidenceSummaryTask, "--subject", "cache/demux.go", "--lsp", "gopls")
+				if code != 2 || len(out) != 0 || !strings.Contains(string(stderr), "repository changed during LSP") {
+					t.Fatalf("drift: %d %s %s", code, out, stderr)
+				}
+			})
+		}
+	})
 }

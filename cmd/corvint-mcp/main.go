@@ -32,8 +32,9 @@ const (
 
 	// toolProfileTaskReview and toolProfileFlows are the values of the closed
 	// --tool-profile selector (MCPV0-026, decision 0374, amended by AFU-V1-034).
-	toolProfileTaskReview = "task-review"
-	toolProfileFlows      = "flows"
+	toolProfileTaskReview    = "task-review"
+	toolProfileTaskReviewLSP = "task-review-lsp"
+	toolProfileFlows         = "flows"
 
 	// untrustedDataPrefix and untrustedDataSuffix are the internal/repoenvelope
 	// envelope the host adapters apply to repository-authored free text.
@@ -97,7 +98,7 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 // profileRegistries binds each --tool-profile value; the empty value is the
 // default V0 registry.
 var profileRegistries = map[string]func(string) (*bridge.Registry, *bridge.Error){
-	"": bridge.New, toolProfileTaskReview: bridge.NewTaskReview, toolProfileFlows: bridge.NewFlows,
+	"": bridge.New, toolProfileTaskReview: bridge.NewTaskReview, toolProfileTaskReviewLSP: bridge.NewTaskReviewLSP, toolProfileFlows: bridge.NewFlows,
 }
 
 // extractToolProfile removes the optional, closed descendant-profile selector
