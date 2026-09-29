@@ -100,6 +100,9 @@ func NewImportSequence(queueID string, actor mutation.Binding, in Input) (*Impor
 		}
 	}
 	owned.Inventory.incremental = cost
+	for shard := 0; shard < 256; shard++ {
+		owned.Inventory.advanceReserve(shard)
+	}
 	// Only owned decoded records remain necessary after the one full validation.
 	seq.input.CanonicalTickets = nil
 	seq.input.CanonicalReleases = nil

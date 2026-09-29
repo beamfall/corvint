@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"reflect"
@@ -152,6 +153,132 @@ func testCALV0018SequenceRefusal(t *testing.T) {
 			}
 			if _, batch = seq.Prepare(importRequest(imported("BF-2", "two")), in); batch != nil {
 				t.Fatal("refused cursor reusable")
+			}
+		})
+	}
+}
+
+func TestCALV0018_SequenceInvalidation(t *testing.T) {
+	t.Run("CAL-V0-018 cursor invalidation", testCALV0018Invalidation)
+}
+func testCALV0018Invalidation(t *testing.T) {
+	for _, field := range []string{"head", "receipt", "queue", "policy", "barrier", "reservations", "pending", "foreign-token", "close", "actor"} {
+		t.Run(field, func(t *testing.T) {
+			in := roadmapInitialized(t)
+			r := importRequest(imported("BF-1", "one"))
+			seq, err := NewImportSequence(r.QueueID, r.Actor, in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			before := seq.input.Inventory.Files()
+			switch field {
+			case "head":
+				in.Head = []byte("{}\n")
+			case "receipt":
+				in.HeadReceipt = []byte("{}\n")
+			case "queue":
+				in.Queue = []byte("{}\n")
+			case "policy":
+				in.Policy = []byte("{}\n")
+			case "barrier":
+				in.Barrier = []byte("{}\n")
+			case "reservations":
+				in.Reservations = []byte("{}\n")
+			case "actor":
+				r.Actor.ID = "different"
+			case "close":
+				seq.Close()
+			case "pending":
+				if _, b := seq.Prepare(r, in); b == nil {
+					t.Fatal("first prepare refused")
+				}
+			case "foreign-token":
+				other, err := NewImportSequence(r.QueueID, r.Actor, in)
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, foreign := other.Prepare(r, in)
+				_, own := seq.Prepare(r, in)
+				if own == nil || foreign == nil {
+					t.Fatal("missing batch")
+				}
+				if err = seq.Advance(foreign); err == nil {
+					t.Fatal("foreign token accepted")
+				}
+			}
+			if result, b := seq.Prepare(r, in); b != nil || result.Kind == "Transaction" {
+				t.Fatal("invalidated cursor admitted")
+			}
+			if !reflect.DeepEqual(before, seq.input.Inventory.Files()) {
+				t.Fatal("failed computation advanced metadata")
+			}
+		})
+	}
+	for _, field := range []string{"head", "queue", "ticket", "inventory"} {
+		t.Run("seed-"+field, func(t *testing.T) {
+			in := roadmapInitialized(t)
+			r := importRequest(imported("BF-1", "one"))
+			switch field {
+			case "head":
+				in.Head = []byte("{}\n")
+			case "queue":
+				in.Queue = []byte("{}\n")
+			case "ticket":
+				in.CanonicalTickets = [][]byte{[]byte("{}\n")}
+			case "inventory":
+				in.Inventory = nil
+			}
+			if seq, err := NewImportSequence(r.QueueID, r.Actor, in); err == nil || seq != nil {
+				t.Fatal("invalid seed admitted")
+			}
+		})
+	}
+}
+
+func TestCALV0018_SequenceBatchGrowth(t *testing.T) {
+	t.Run("CAL-V0-018 growing batch counts", testCALV0018BatchGrowth)
+}
+func testCALV0018BatchGrowth(t *testing.T) {
+	for _, batches := range []int{1, 16, 64} {
+		t.Run(fmt.Sprint(batches), func(t *testing.T) {
+			in := roadmapInitialized(t)
+			actor := admin(ImportApply, "x").Actor
+			seq, err := NewImportSequence(admin(ImportApply, "x").QueueID, actor, in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			baseFiles := len(seq.input.Inventory.files)
+			seed := seq.input.Inventory
+			for n := 0; n < batches; n++ {
+				rec := imported(fmt.Sprintf("BF-%03d", n), "one")
+				r := importRequest(rec)
+				r.RequestID = fmt.Sprintf("growth-%d", n)
+				result, batch := seq.Prepare(r, in)
+				if batch == nil {
+					t.Fatal(result)
+				}
+				if err = seq.Advance(batch); err != nil {
+					t.Fatal(err)
+				}
+				if seq.input.Inventory != seed || len(seq.records) != n+1 || len(seed.files) != baseFiles+3*(n+1) {
+					t.Fatal("owned inventory growth differs from posted records")
+				}
+				in.Head = batch.Head()
+				in.HeadReceipt = batch.Receipt()
+			}
+			// A new ordinary Input independently validates the complete final view.
+			plain, err := NewInventory(seed.Files(), seed.Directories())
+			if err != nil {
+				t.Fatal(err)
+			}
+			in.Inventory = plain
+			for _, rec := range seq.records {
+				in.CanonicalTickets = append(in.CanonicalTickets, rec.Encode())
+			}
+			r := importRequest(imported("ZZ-1", "next"))
+			r.RequestID = "ordinary-after-growth"
+			if full := Model(r, in); full.Plan == nil {
+				t.Fatalf("final ordinary model refused: %+v", full)
 			}
 		})
 	}

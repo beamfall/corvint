@@ -20,11 +20,12 @@ const MaxJournalBytes uint64 = 4 * wire.GiB
 // directories (without the state root). It cannot verify physical existence or
 // authentication. Only regular retained files belong here; staging is separate.
 type Inventory struct {
-	files       map[string]archive.FileEntry
-	dirs        map[string]bool
-	incremental *importCost
-	undoFiles   map[string]*archive.FileEntry
-	undoDirs    map[string]bool
+	files             map[string]archive.FileEntry
+	dirs              map[string]bool
+	incremental       *importCost
+	undoFiles         map[string]*archive.FileEntry
+	undoDirs          map[string]bool
+	reserveSimulation bool
 }
 
 func NewInventory(files []archive.FileEntry, stateDirectories []string) (*Inventory, error) {
@@ -228,6 +229,9 @@ func (i *Inventory) put(f archive.FileEntry, exclusive bool) error {
 		}
 	}
 	i.files[f.Path] = f
+	if i.incremental != nil && !i.reserveSimulation {
+		i.updateReserve(f.Path)
+	}
 	if !strings.HasPrefix(f.Path, "intent/") {
 		for d := path.Dir(f.Path); d != "."; d = path.Dir(d) {
 			if i.undoDirs != nil {
@@ -516,6 +520,7 @@ func checkCapacity(p *Plan, l limits) (Capacity, error) {
 // absent shard if available, then an unoccupied fixed-length digest path.
 func unpausePeak(base *Inventory, h *snapshot.Head, l limits) (Cost, error) {
 	i := base.clone()
+	i.reserveSimulation = true
 	defer i.rollback()
 	i.stageDirectory()
 	c, e := measure(i, h, 0, 0, 0)
@@ -549,11 +554,17 @@ func unpausePeak(base *Inventory, h *snapshot.Head, l limits) (Cost, error) {
 		}
 	}
 	requestPath := ""
-	for x := 0; x <= len(i.files); x++ {
-		candidate := "requests/" + shard + "/" + shard + fmt.Sprintf("%062x", x) + ".json"
-		if _, ok := i.files[candidate]; !ok {
-			requestPath = candidate
-			break
+	if i.incremental != nil {
+		shardNumber := 0
+		fmt.Sscanf(shard, "%x", &shardNumber)
+		requestPath = "requests/" + shard + "/" + shard + fmt.Sprintf("%062x", i.incremental.reserveNext[shardNumber]) + ".json"
+	} else {
+		for x := 0; x <= len(i.files); x++ {
+			candidate := "requests/" + shard + "/" + shard + fmt.Sprintf("%062x", x) + ".json"
+			if _, ok := i.files[candidate]; !ok {
+				requestPath = candidate
+				break
+			}
 		}
 	}
 	if requestPath == "" {

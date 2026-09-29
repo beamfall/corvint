@@ -63,6 +63,20 @@ func assertMeasuredEncoding(t *testing.T, m *Manifest, bodies map[string][]byte)
 	if err != nil {
 		t.Fatalf("measure: %v", err)
 	}
+	sum := FileEncoding{}
+	for _, file := range m.Files {
+		part, err := MeasureFileEncoding(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sum.Payload += part.Payload
+		sum.JSON += part.JSON
+		sum.Tar += part.Tar
+	}
+	incremental, err := MeasureManifestTotals(m, len(m.Files), sum)
+	if err != nil || incremental != got {
+		t.Fatalf("entry totals differ: %+v != %+v (%v)", incremental, got, err)
+	}
 	stream := encodedArchive(t, m, bodies)
 	var payload uint64
 	for _, body := range bodies {

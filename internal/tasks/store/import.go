@@ -99,10 +99,16 @@ func importWith(ctx context.Context, repo *intent.Repository, actor mutation.Bin
 		}
 	}()
 	for _, batch := range packImport(queueID, records) {
+		if err = ctx.Err(); err != nil {
+			return out, err
+		}
 		if beforeBatch != nil {
 			if err = beforeBatch(batch); err != nil {
 				return out, err
 			}
+		}
+		if err = ctx.Err(); err != nil {
+			return out, err
 		}
 		report, err := importBatch(repo, session, actor, queueID, st, batch, now)
 		if err != nil {
@@ -127,8 +133,7 @@ func importRefused(out *ImportReport, requestID string, err error) (*ImportRepor
 }
 
 // importAudit is one audited view of the intent store. bound records that
-// the whole observation has been bound once; slots maps each ticket path to
-// its index in tickets.
+// the whole observation has been bound once. The sequence owns later batches.
 type importAudit struct {
 	sequence *transaction.ImportSequence
 	inv      *transaction.Inventory
@@ -137,7 +142,6 @@ type importAudit struct {
 	releases [][]byte
 	store    importer.Store
 	bound    bool
-	slots    map[string]int
 }
 
 func auditImport(repo *intent.Repository, head *snapshot.Head) (*importAudit, error) {
@@ -158,7 +162,7 @@ func auditImport(repo *intent.Repository, head *snapshot.Head) (*importAudit, er
 	if proof.StagingPresent {
 		return nil, wire.Errorf(wire.CodeUnsupported, "staging", "active staging recovery is not implemented")
 	}
-	a := &importAudit{inv: inv, proof: proof, slots: map[string]int{}}
+	a := &importAudit{inv: inv, proof: proof}
 	recs := []*ticket.Record{}
 	for _, path := range paths[2:] {
 		raw := proof.Records[path].Raw
@@ -166,7 +170,6 @@ func auditImport(repo *intent.Repository, head *snapshot.Head) (*importAudit, er
 			a.releases = append(a.releases, raw)
 			continue
 		}
-		a.slots[path] = len(a.tickets)
 		a.tickets = append(a.tickets, raw)
 		rec, err := ticket.Decode(raw)
 		if err != nil {
@@ -235,7 +238,7 @@ func importBatch(repo *intent.Repository, session *authority.Session, actor muta
 	if err = a.bind(repo, request.Operation); err != nil {
 		return guardFailure(report, request.RequestID, err)
 	}
-	if report.Receipt, err = apply(repo, session, batch); err != nil {
+	if report.Receipt, err = applyBeforeCommit(repo, session, batch, func() error { return importPreimages(repo, batch) }); err != nil {
 		return report, err
 	}
 	if err = a.sequence.Advance(batch); err != nil {
@@ -243,6 +246,34 @@ func importBatch(repo *intent.Repository, session *authority.Session, actor muta
 	}
 	a.proof.Identity.HeadSha256 = wire.Sum(batch.Head())
 	return report, nil
+}
+
+// Fresh import receipts require the projections observed by their carried
+// audit. Pending committed receipts use redoPending before this path and may
+// legitimately recreate a missing projection.
+func importPreimages(repo *intent.Repository, batch *transaction.ImportBatch) error {
+	receipt, err := snapshot.DecodeReceipt(batch.Receipt())
+	if err != nil {
+		return err
+	}
+	preimages := preDigests(receipt)
+	for _, post := range receipt.Post {
+		if !strings.HasPrefix(post.Path, "intent/tickets/") {
+			continue
+		}
+		expected, exists := preimages[post.Path]
+		if !exists {
+			return wire.Errorf(wire.CodeMalformed, post.Path, "import post lacks preimage")
+		}
+		current, err := currentDigest(repo, post.Path)
+		if err != nil {
+			return err
+		}
+		if (current == nil) != (expected == nil) || (current != nil && expected != nil && *current != *expected) {
+			return wire.Errorf(wire.CodeIntentDiverged, post.Path, "import projection changed before receipt publication")
+		}
+	}
+	return nil
 }
 
 // lookup walks the journal for a request only when the carried inventory
@@ -274,27 +305,6 @@ func (a *importAudit) bind(repo *intent.Repository, operation string) error {
 		return err
 	}
 	a.bound = true
-	return nil
-}
-
-// advance moves the audit past a committed batch: the plan's final
-// inventory, its head, and the ticket records it posted.
-func (a *importAudit) advance(plan *transaction.Plan, final *transaction.Inventory, records [][]byte) error {
-	a.inv = final
-	a.proof.Identity.HeadSha256 = wire.Sum(plan.Head())
-	for _, raw := range records {
-		rec, err := ticket.Decode(raw)
-		if err != nil {
-			return err
-		}
-		path := "intent/tickets/" + rec.TicketID.Local + ".json"
-		if i, ok := a.slots[path]; ok {
-			a.tickets[i] = raw
-			continue
-		}
-		a.slots[path] = len(a.tickets)
-		a.tickets = append(a.tickets, raw)
-	}
 	return nil
 }
 

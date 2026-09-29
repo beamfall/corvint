@@ -1,17 +1,20 @@
 package transaction
 
 import (
+	"fmt"
 	"github.com/Beamfall/corvint/internal/tasks/archive"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
+	"strconv"
 	"strings"
 )
 
 // importCost belongs only to a process-local import sequence. Capacity forks
 // share its owned inventory temporarily, record bounded undo, and never escape.
 type importCost struct {
-	cost     Cost
-	encoding archive.FileEncoding
+	cost        Cost
+	encoding    archive.FileEncoding
+	reserveNext [256]uint64
 }
 
 func (c *importCost) replace(old archive.FileEntry, exists bool, next archive.FileEntry) error {
@@ -116,6 +119,24 @@ func (i *Inventory) rollback() {
 			i.dirs[p] = true
 		} else {
 			delete(i.dirs, p)
+		}
+	}
+}
+
+func (i *Inventory) advanceReserve(shard int) {
+	for {
+		candidate := fmt.Sprintf("requests/%02x/%02x%062x.json", shard, shard, i.incremental.reserveNext[shard])
+		if _, exists := i.files[candidate]; !exists {
+			return
+		}
+		i.incremental.reserveNext[shard]++
+	}
+}
+func (i *Inventory) updateReserve(p string) {
+	if strings.HasPrefix(p, "requests/") && len(p) > 12 {
+		shard, err := strconv.ParseUint(p[9:11], 16, 8)
+		if err == nil {
+			i.advanceReserve(int(shard))
 		}
 	}
 }
