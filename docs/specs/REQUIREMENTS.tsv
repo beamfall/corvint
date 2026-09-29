@@ -1473,6 +1473,24 @@ LPCV-V0-052	docs/specs/live-proof-carrying-verification-v0.md	330	an execution r
 LPCV-V0-053	docs/specs/live-proof-carrying-verification-v0.md	338	`corvint [--root R] test-validity --discover` (decision 0202) MUST select its
 LPCV-V0-054	docs/specs/live-proof-carrying-verification-v0.md	356	a discovered document's freshness MUST be bound to the worktree as it is now,
 LPCV-V0-055	docs/specs/live-proof-carrying-verification-v0.md	373	producer retention (decision 0218) MUST be opt-in and bounded.
+LQP-V0-001	docs/specs/lsp-quality-platform-v0.md	44	Each consumer MUST select an explicit, versioned profile and report the exact su
+LQP-V0-002	docs/specs/lsp-quality-platform-v0.md	45	Agent CLI and MCP MUST remain off by default for upstream semantic work and keep
+LQP-V0-003	docs/specs/lsp-quality-platform-v0.md	46	The shared engine MUST distinguish immutable Git identity `(repository/root, obj
+LQP-V0-004	docs/specs/lsp-quality-platform-v0.md	47	The engine MUST reject or explicitly mark stale results after edits, saves, clos
+LQP-V0-005	docs/specs/lsp-quality-platform-v0.md	48	Every emitted fact MUST carry its source, snapshot identity, inclusion reason an
+LQP-V0-006	docs/specs/lsp-quality-platform-v0.md	49	A semantic join MUST deduplicate witnessed identities, preserve conflicting clai
+LQP-V0-007	docs/specs/lsp-quality-platform-v0.md	50	Upstream adapters MUST negotiate each method and position encoding, validate URI
+LQP-V0-008	docs/specs/lsp-quality-platform-v0.md	51	Adapter failures, cancellation, deadline, repository drift and partial answers M
+LQP-V0-009	docs/specs/lsp-quality-platform-v0.md	52	Every invoked upstream process MUST have an owned lifecycle; session interruptio
+LQP-V0-010	docs/specs/lsp-quality-platform-v0.md	53	Agent requests MUST select only task-relevant methods and return bounded facts,
+LQP-V0-011	docs/specs/lsp-quality-platform-v0.md	54	The optional native-Go stdio editor companion MUST negotiate initialize/shutdown
+LQP-V0-012	docs/specs/lsp-quality-platform-v0.md	55	The editor companion MUST advertise only qualified standard methods. Corvint-spe
+LQP-V0-013	docs/specs/lsp-quality-platform-v0.md	56	Rename, formatting, refactoring and code actions MUST be proposals applied by th
+LQP-V0-014	docs/specs/lsp-quality-platform-v0.md	57	For a shared admitted snapshot and request, CLI/MCP and editor projections MUST
+LQP-V0-015	docs/specs/lsp-quality-platform-v0.md	58	Qualification MUST compare upstream-only, Corvint-only and combined arms on froz
+LQP-V0-016	docs/specs/lsp-quality-platform-v0.md	59	A profile MUST report exact correctness, coverage, freshness, cold/warm latency
+LQP-V0-017	docs/specs/lsp-quality-platform-v0.md	60	Supported editor tuples MUST pass real VS Code and one independent LSP client ag
+LQP-V0-018	docs/specs/lsp-quality-platform-v0.md	61	Rollback MUST preserve default Core behavior and offer explicit upstream-off and
 LRF-V0-001	docs/specs/lexical-relevance-floor-v0.md	153	the profile MUST accept only a structurally valid CEM and, for obligation checks
 LRF-V0-002	docs/specs/lexical-relevance-floor-v0.md	159	every term set MUST use the frozen identifier algorithm and subject text. A
 LRF-V0-003	docs/specs/lexical-relevance-floor-v0.md	162	an evaluated evidence span MUST be no larger than both 512 raw bytes and 20 logi

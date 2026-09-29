@@ -2011,6 +2011,22 @@
     ]
   },
   {
+    "path": "docs/specs/lsp-quality-platform-v0.md",
+    "title": "LSP Quality Platform V0",
+    "reqPrefix": "LQP-V0",
+    "intent": "proposed technical contract; owner accepted both product directions",
+    "delivery": "not-started; Go/gopls prior slice experimental",
+    "claim": "Shared evidence engine serves opt-in agent LSP enrichment and optional editor server with separate Git and overlay identities.",
+    "dependsOn": [
+      "docs/specs/deployment-neutral-index-platform-v0.md",
+      "docs/specs/task-context-packet-v0.md",
+      "docs/specs/external-evidence-provider-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
     "path": "docs/specs/task-context-packet-v0.md",
     "title": "Task-Context Packet V0",
     "reqPrefix": "TCP-V0",
