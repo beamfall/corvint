@@ -90,11 +90,7 @@ func (c leaseContext) allocate(a *snapshot.Attempt) (*snapshot.PoolAllocation, e
 	if pool == nil {
 		return nil, malformed("unknown pool")
 	}
-	for _, member := range pool.Members {
-		reserved := pool.ReservedFor[member]
-		if reserved != "" && reserved != c.l.Stage {
-			continue
-		}
+	for _, member := range OrderedPoolMembers(pool, c.l.Stage) {
 		occupied := false
 		for _, en := range c.st.pools.Entries {
 			occupied = occupied || en.MemberID == member
@@ -109,6 +105,25 @@ func (c leaseContext) allocate(a *snapshot.Attempt) (*snapshot.PoolAllocation, e
 		return &snapshot.PoolAllocation{PoolID: pool.ID, MemberID: member, AllocationID: wire.Sum([]byte(c.r.QueueID + ":" + c.r.RequestID + ":" + member)), DefinitionSha256: c.st.policy.MemberDefinition(pool.ID, member), AllocatedSeq: c.seq, ConfigRef: config.ConfigRef}, nil
 	}
 	return nil, wire.Errorf(wire.CodeResourceCollision, "pool", "no eligible free member; occupied and quarantined members unavailable")
+}
+
+// OrderedPoolMembers returns members eligible for stage, preferring an exact
+// reservation while retaining unreserved members as fallback capacity.
+func OrderedPoolMembers(pool *intent.Pool, stage string) []string {
+	members := make([]string, 0, len(pool.Members))
+	if stage != "" {
+		for _, member := range pool.Members {
+			if pool.ReservedFor[member] == stage {
+				members = append(members, member)
+			}
+		}
+	}
+	for _, member := range pool.Members {
+		if pool.ReservedFor[member] == "" {
+			members = append(members, member)
+		}
+	}
+	return members
 }
 func (c leaseContext) poolPosts(a *snapshot.Attempt, posts map[string][]byte) error {
 	if a.PoolAllocation == nil {

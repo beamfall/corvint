@@ -212,8 +212,8 @@ func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutatio
 			busy[en.MemberID] = true
 		}
 		member := ""
-		for _, m := range pool.Members {
-			if !busy[m] && (pool.ReservedFor[m] == "" || pool.ReservedFor[m] == choice.Lease.Stage) {
+		for _, m := range transaction.OrderedPoolMembers(pool, choice.Lease.Stage) {
+			if !busy[m] {
 				member = m
 				break
 			}
