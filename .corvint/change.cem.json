@@ -1,0 +1,54 @@
+{
+  "baseRevision": "651c531007ef034bcc99814a4cc424bfaaafe9aa",
+  "evidence": [],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:3378cc6110d116d1d0a9b54b9112f15fc95bcb80896fa087ec2074190082beb1",
+      "newRange": {
+        "count": 7,
+        "start": 2524
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 2524
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:27d9fd28bb1c434ac3e82b60a338a9451ddb2774936e166383c3809b6b695f78",
+      "newRange": {
+        "count": 7,
+        "start": 64
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 64
+      },
+      "path": "docs/specs/README.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:706b6a5da61d1d464a1cdfca2a1c6e3a76704ec15dfc352d4074561dc159538f",
+      "newRange": {
+        "count": 7,
+        "start": 9
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 9
+      },
+      "path": "docs/specs/heading-navigation-experiment-v0.md",
+      "reason": "no-evidence"
+    }
+  ],
+  "patchSha256": "d92ca97de98efaede685915ddd79a8b4cd02db1dcf00fe9da84ae9bcc120a240",
+  "spec": "cem/0.2"
+}
