@@ -1,10 +1,12 @@
 import { createCockpit } from "./cockpit-tui.tsx"
+import { createTaskPanel } from "./task-tui.tsx"
 import { Plugin } from "@opencode/plugin/tui"
 import { SyntaxStyle } from "@opentui/core"
 import { createEffect, createMemo, createSignal, For, onCleanup, Show, untrack } from "solid-js"
 import { createHash } from "node:crypto"
 import { INSPECTOR_RPC, emptySnapshot, visibleText } from "./inspector.js"
 import { evidenceKey, filterEvidence, selectedEvidence, evidenceStatus, sourceDocument } from "./inspector-view.js"
+import { emptyTaskMetrics } from "./task-metrics.js"
 
 const PANEL = "corvint.context"
 const sessionKey = id => createHash("sha256").update(id).digest("hex")
@@ -52,12 +54,39 @@ export default Plugin.define({
 
     function Sidebar(props) {
       const snapshot = useSnapshot(() => props.sessionID)
+      const [tasks, setTasks] = createSignal(emptyTaskMetrics())
+      let taskRequest, taskSerial = 0, taskBusy = false
+      const readTasks = async (load = false) => {
+        const generation = ++taskSerial, sessionID = props.sessionID, here = location()
+        taskRequest?.abort(); taskRequest = new AbortController()
+        const request = taskRequest
+        if (!sessionID) { setTasks(emptyTaskMetrics()); return }
+        taskBusy = true
+        try {
+          let value = await rpc.tasksSnapshot({ sessionID }, { location: here, signal: AbortSignal.any([request.signal, lifetime.signal]) })
+          if (load && value.state === "empty") value = await rpc.tasksRefresh({ sessionID, offset: 0 }, { location: here, signal: AbortSignal.any([request.signal, lifetime.signal]) })
+          if (generation === taskSerial && !request.signal.aborted) setTasks(value)
+        } catch { if (generation === taskSerial && !request.signal.aborted) setTasks(emptyTaskMetrics("unavailable", "Tasks unavailable")) }
+        finally { if (generation === taskSerial) taskBusy = false }
+      }
+      createEffect(() => { props.sessionID; location().directory; setTasks(emptyTaskMetrics()); void readTasks(true) })
+      const unsubscribe = rpc.events.on("updated", event => {
+        if (!taskBusy && props.sessionID && event.location?.directory === location().directory && event.data.sessionIdSha256 === sessionKey(props.sessionID)) void readTasks()
+      }, { signal: lifetime.signal })
+      onCleanup(() => { taskSerial++; taskRequest?.abort(); unsubscribe() })
       return <box flexDirection="column" marginTop={1} onMouseDown={() => { setMode("evidence"); ctx.ui.panel.open(PANEL) }}>
         <text fg={ctx.theme.text.base}><b>Corvint context</b></text>
         <text fg={tone(snapshot())}>{() => `${evidenceStatus(snapshot()).label} · ${snapshot().rows.length} locations`}</text>
         <Show when={snapshot().revision}><text fg={ctx.theme.text.muted}>{() => `Observed ${snapshot().freshness} · ${snapshot().revision.slice(0, 8)}`}</text></Show>
         <Show when={snapshot().gaps.length}><text fg={ctx.theme.text.feedback.warning.base}>{() => `${snapshot().gaps.length} gaps / limitations`}</text></Show>
         <text fg={accent()}>Browse evidence  /corvint</text>
+        <box flexDirection="column" marginTop={1} onMouseDown={event => { event.stopPropagation(); setMode("tasks"); ctx.ui.panel.open(PANEL) }}>
+          <text fg={ctx.theme.text.base}><b>Corvint Tasks</b></text>
+          <text fg={tasks().state === "ready" ? ctx.theme.text.feedback.info.base : ctx.theme.text.feedback.warning.base}>{() => tasks().state === "ready" ? `${tasks().completed}/${tasks().total} completed · ${tasks().open} open` : `${tasks().state}: ${tasks().reason}`}</text>
+          <Show when={tasks().state === "ready"}><text fg={ctx.theme.text.muted}>{() => `${tasks().draft} draft · ${tasks().held} held · ${tasks().archived} archived`}</text></Show>
+          <Show when={tasks().state === "ready"}><text fg={ctx.theme.text.muted}>{() => `${tasks().blocked} queue blocked · ${tasks().activeAttempts} active · observed ${tasks().observed.slice(11, 19)} UTC`}</text></Show>
+          <text fg={accent()}>Open task metrics  /corvint tasks</text>
+        </box>
       </box>
     }
 
@@ -235,21 +264,22 @@ export default Plugin.define({
         </box>
       </box>
     }
-    const Cockpit = createCockpit(ctx, { rpc, lifetime, location, accent, openEvidence: async (file, signal, current) => {
+    const Cockpit = createCockpit(ctx, { rpc, lifetime, location, accent, openTasks: () => setMode("tasks"), openEvidence: async (file, signal, current) => {
       if (file) await query(ctx.ui.panel.current()?.sessionID, `Locate governing requirements and context for ${file}`, location(), signal)
       if (current() && !signal.aborted) setMode("evidence")
     } })
-    const Inspector = props => <Show when={mode() === "change"} fallback={<EvidenceInspector panel={props.panel} />}><Cockpit panel={props.panel} /></Show>
+    const Tasks = createTaskPanel(ctx, { rpc, lifetime, location, accent, onChange: () => setMode("change") })
+    const Inspector = props => <Show when={mode() === "change"} fallback={<Show when={mode() === "tasks"} fallback={<EvidenceInspector panel={props.panel} />}><Tasks panel={props.panel} /></Show>}><Cockpit panel={props.panel} /></Show>
 
     const dispose = [
       ctx.ui.slot({ append: "sidebar.content", render: props => <Sidebar {...props} /> }),
       ctx.ui.slot({ append: "session.panel", render: panel => <Show when={panel.name === PANEL}><Inspector panel={panel} /></Show> }),
       ctx.ui.slot({ append: "app", render: () => {
         ctx.keymap.layer(() => ({ mode: "global", commands: [{ id: "corvint.context", title: "Corvint: inspect context", group: "Corvint", palette: true, slash: { name: "corvint", arguments: true }, run: async task => {
-          setMode(task?.trim() ? "evidence" : "change")
+          setMode(task?.trim() === "tasks" ? "tasks" : task?.trim() ? "evidence" : "change")
           if (!ctx.ui.panel.open(PANEL)) { ctx.ui.toast.show({ message: "Open a session to inspect its context.", variant: "info" }); return }
           const sessionID = ctx.ui.panel.current()?.sessionID
-          if (sessionID && task?.trim()) await query(sessionID, task, location())
+          if (sessionID && task?.trim() && task.trim() !== "tasks") await query(sessionID, task, location())
         } }] }))
         return null
       } }),

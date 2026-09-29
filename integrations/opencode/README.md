@@ -1,6 +1,6 @@
 # Corvint for OpenCode
 
-Version 0.7.3 supports unmodified OpenCode releases from 2.0.18 through the end of the 2.0 series.
+Version 0.7.4 supports unmodified OpenCode releases from 2.0.18 through the end of the 2.0 series.
 It supplies awaited task context, on-demand
 query and exact source expansion, edit/evidence/verification observations, explicit outcomes, and
 compaction recovery from current Git state. OpenCode 1.x requires the older 0.2.9 adapter.
@@ -54,6 +54,21 @@ Refresh is explicit. The cockpit does not poll, execute displayed commands, refr
 transcripts, or write evidence. Observed host edits invalidate its view; external edits require a
 refresh. Reads use existing Core commands and the current worktree's private completion owner.
 Output is capped at 64 KiB per stream; each file/impact/check list at 64 rows, with omissions shown.
+
+## Corvint Tasks metrics
+
+The sidebar shows the latest observed Corvint Tasks totals. Click **Corvint Tasks**, run
+`/corvint tasks`, or press **t** in the change view to open the task panel. The panel shows
+completed, open, draft, held and archived ticket counts; queue blockers, passed intent checks and active
+attempts; and pages of 32 open tickets. Enter or click a ticket to read its blockers and acceptance
+criteria. Use **r** to refresh, **←/→** to page, and **c** to return to the change view.
+
+This is a read-only view of an initialized native `.taskman` store. The `corvint-tasks` executable
+must be on `PATH`, or plugin option `tasksBinary` / environment `CORVINT_TASKS_BIN` must name it.
+The panel uses only `queue status`, `ticket search --status OPEN`, and `ticket show`. Counts and
+eligibility are observations of the store; gate results and completion remain separate evidence.
+Its observed time and queue receipt are shown so an external store change calls for refresh.
+Uninitialized, refused and changed reads show an unavailable reason, not zero tickets.
 
 ## Context inspector
 
@@ -199,13 +214,13 @@ prerequisites for ordinary code context and test evidence.
 ## Lifecycle options
 
 Corvint must be available as the `corvint` executable. Plugin `options` may set `corvintBinary`,
-`hostVersion`, `automaticTimeoutMs`, `queryTimeoutMs`, and `enableBetaContext`; equivalent explicit
-environment settings are `CORVINT_BIN`, `CORVINT_OPENCODE_HOST_VERSION`,
+`tasksBinary`, `hostVersion`, `automaticTimeoutMs`, `queryTimeoutMs`, and `enableBetaContext`; equivalent explicit
+environment settings are `CORVINT_BIN`, `CORVINT_TASKS_BIN`, `CORVINT_OPENCODE_HOST_VERSION`,
 `CORVINT_OPENCODE_TIMEOUT_MS`, `CORVINT_OPENCODE_QUERY_TIMEOUT_MS`, and
 `CORVINT_OPENCODE_BETA_CONTEXT=1`. Values are never added to lifecycle payloads. The child process
 receives only a small non-secret environment allowlist.
 
-Explicit `corvintBinary`, `hostVersion`, `automaticTimeoutMs`, and `queryTimeoutMs` options take
+Explicit `corvintBinary`, `tasksBinary`, `hostVersion`, `automaticTimeoutMs`, and `queryTimeoutMs` options take
 precedence over the ambient `CORVINT_BIN` and `CORVINT_OPENCODE_*` variables. Without a `hostVersion`
 option the version OpenCode reports to the plugin is used, then `CORVINT_OPENCODE_HOST_VERSION`.
 

@@ -1,6 +1,7 @@
 import { visibleText } from "./display.js"
 export { visibleText } from "./display.js"
 import { cockpitSchema } from "./cockpit.js"
+import { taskMetricsSchema } from "./task-metrics.js"
 // The view keeps Core's evidence labels and exact handles separate from terminal presentation.
 const object = properties => ({ type: "object", properties, required: Object.keys(properties), additionalProperties: false })
 const string = { type: "string" }
@@ -11,6 +12,9 @@ const session = { type: "string", minLength: 1, maxLength: 256 }
 export const INSPECTOR_RPC = {
   id: "corvint.inspector",
   methods: {
+    tasksSnapshot: { input: object({ sessionID: session }), output: taskMetricsSchema },
+    tasksRefresh: { input: object({ sessionID: session, offset: { type: "integer", minimum: 0, maximum: 100000 } }), output: taskMetricsSchema },
+    tasksDetail: { input: object({ sessionID: session, receiptId: { type: "string", maxLength: 128 }, ticketId: { type: "string", maxLength: 128 } }), output: object({ state: string, text: string }) },
     cockpitSnapshot: { input: object({ sessionID: session }), output: cockpitSchema },
     cockpitRefresh: { input: object({ sessionID: session, base: { type: "string", maxLength: 256 } }), output: cockpitSchema },
     cockpitProof: { input: object({ sessionID: session, receiptId: { type: "string", maxLength: 128 }, checkID: { type: "string", maxLength: 256 } }), output: object({ state: string, text: string }) },

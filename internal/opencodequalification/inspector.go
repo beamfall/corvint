@@ -133,7 +133,7 @@ func Inspector(ctx context.Context, c Config) (failure error) {
 		"add.go":      "package inspector\n\n// Add preserves the NATIVE_INSPECTOR_WITNESS contract.\nfunc Add(a, b int) int { return a + b }\n",
 		"multiply.go": multiply, "examples/multiply.go": "package examples\n\n// Multiply uses NATIVE_SECOND_WITNESS.\nfunc Multiply(a, b int) int { return a * b }\n",
 		"multiply_test.go": "package inspector\n\nimport \"testing\"\n\nfunc TestMultiply(t *testing.T) { if Multiply(3, 4) != 12 { t.Fatal(\"wrong product\") }; t.Log(\"COCKPIT_PROOF_WITNESS\") }\n",
-		"AGENTS.md":        "# Inspector fixture\nUse Add in add.go for addition.\n", ".gitignore": "opencode.json\n.corvint/\n.context-corvint/\n",
+		"AGENTS.md":        "# Inspector fixture\nUse Add in add.go for addition.\n", ".gitignore": "opencode.json\n.corvint/\n.context-corvint/\n.taskman/\n",
 	} {
 		if e = os.WriteFile(filepath.Join(repo, name), []byte(text), 0600); e != nil {
 			return e
@@ -175,7 +175,33 @@ func Inspector(ctx context.Context, c Config) (failure error) {
 	if _, e = command(c.Corvint, "index", "--if-stale"); e != nil {
 		return e
 	}
-	if e = writeJSON(repo+"/opencode.json", Object{"plugins": []Object{{"package": fileURL(filepath.Join(c.Source, "integrations/opencode/src")), "options": Object{"corvintBinary": c.Corvint, "queryTimeoutMs": 10000}}}}); e != nil {
+	if e = mkdir(repo + "/.taskman"); e != nil {
+		return e
+	}
+	for _, name := range []string{"queue.json", "policy.json"} {
+		bytes, readErr := os.ReadFile(filepath.Join(c.Source, "internal/tasks/cli/testdata/external-agents", name))
+		if readErr != nil {
+			return readErr
+		}
+		if e = os.WriteFile(filepath.Join(repo, ".taskman", name), bytes, 0600); e != nil {
+			return e
+		}
+	}
+	tasksBinary := root + "/corvint-tasks"
+	if _, e = capture(ctx, c.Source, append(env, "GOCACHE="+root+"/go-cache"), []string{"go", "build", "-o", tasksBinary, "./cmd/corvint-tasks"}); e != nil {
+		return e
+	}
+	if _, e = command(tasksBinary, "init", "--role", "OWNER", "--request-id", "opencode-ui-witness-init"); e != nil {
+		return e
+	}
+	payload, e := os.ReadFile(filepath.Join(c.Source, "internal/tasks/cli/testdata/external-agents/ticket-create.json"))
+	if e != nil {
+		return e
+	}
+	if _, e = command(tasksBinary, "ticket", "create", "--request-id", "opencode-ui-witness-ticket", "--payload", strings.TrimSpace(string(payload))); e != nil {
+		return e
+	}
+	if e = writeJSON(repo+"/opencode.json", Object{"plugins": []Object{{"package": fileURL(filepath.Join(c.Source, "integrations/opencode/src")), "options": Object{"corvintBinary": c.Corvint, "tasksBinary": tasksBinary, "queryTimeoutMs": 10000}}}}); e != nil {
 		return e
 	}
 	if e = os.WriteFile(helper+"/tui.tsx", []byte(template(inspectorTemplate, map[string]string{"LOG": root + "/witness.jsonl", "SCREEN": root + "/screen.json", "ROOT": repo})), 0600); e != nil {
@@ -225,7 +251,16 @@ func Inspector(ctx context.Context, c Config) (failure error) {
 	}
 	if e = drive([]action{
 		{label: "home", has: []string{"Ask anything"}},
-		{input: "\x1b[17~", label: "sidebar", has: []string{"Corvint context"}},
+		{input: "\x1b[17~", label: "sidebar", has: []string{"Corvint context", "Corvint Tasks", "0/1 completed", "0 draft", "0 held", "0 archived"}},
+	}); e != nil {
+		return e
+	}
+	if e = clickText(terminal, root, "Open task metrics", 0); e != nil {
+		return e
+	}
+	if e = drive([]action{
+		{label: "sidebar task action", has: []string{"Corvint · Tasks", "APP-0001"}, save: "task-sidebar"},
+		{input: "c", label: "sidebar task return", has: []string{"Corvint · Change"}},
 		{input: "\x1b[18~", label: "context evidence", has: []string{"Ready", "2 of 2 locations"}},
 		{input: "f", label: "wide master detail", has: []string{"Why included:"}, width: 160},
 		{input: "\x1b[B\r", label: "selected cited source", has: []string{"NATIVE_MULTIPLY_WITNESS", "cited line 39"}},
@@ -310,6 +345,14 @@ func Inspector(ctx context.Context, c Config) (failure error) {
 	if e = saveFrame(root, "cockpit-proof"); e != nil {
 		return e
 	}
+	if e = drive([]action{
+		{input: "t", label: "task metrics", has: []string{"Corvint · Tasks", "0/1 completed", "APP-0001"}, save: "task-metrics"},
+		{input: "\r", label: "task detail", has: []string{"Acceptance criteria", "The repository verify target passes."}, save: "task-detail"},
+		{input: "r", label: "task refresh", has: []string{"0/1 completed", "APP-0001"}},
+		{input: "c", label: "return from tasks", has: []string{"Corvint · Change", "1 files"}},
+	}); e != nil {
+		return e
+	}
 	if e = drive([]action{{input: "b", label: "base dialog", has: []string{"Compare from revision"}}, {input: "HEAD\x1b", label: "base cancel", absent: []string{"Compare from revision"}}}); e != nil {
 		return e
 	}
@@ -350,7 +393,7 @@ func Inspector(ctx context.Context, c Config) (failure error) {
 	if e != nil {
 		return e
 	}
-	checks := []string{"native-sidebar", "context-rpc", "evidence-panel", "pinned-source", "keyboard-source-selection", "narrow-width", "keyboard-gaps", "native-frame-capture", "cited-line", "source-scroll", "filter", "empty-filter", "dialog-focus", "pointer-open", "short-height", "source-invalidation", "cold-cache-plain-source", "explicit-syntax-opt-in", "cockpit-files", "cockpit-impact", "cockpit-proof", "cockpit-unsatisfied-workflow", "cockpit-base-dialog", "cockpit-narrow", "cockpit-context", "cockpit-stale-check", "interruption-no-descendants"}
+	checks := []string{"native-sidebar", "context-rpc", "evidence-panel", "pinned-source", "keyboard-source-selection", "narrow-width", "keyboard-gaps", "native-frame-capture", "cited-line", "source-scroll", "filter", "empty-filter", "dialog-focus", "pointer-open", "short-height", "source-invalidation", "cold-cache-plain-source", "explicit-syntax-opt-in", "cockpit-files", "cockpit-impact", "cockpit-proof", "cockpit-unsatisfied-workflow", "cockpit-base-dialog", "cockpit-narrow", "cockpit-context", "cockpit-stale-check", "tasks-sidebar", "tasks-page", "tasks-detail", "tasks-refresh", "interruption-no-descendants"}
 	report := Object{"profile": "corvint-opencode-inspector-witness/0", "result": "PASS", "host": version, "theme": c.Theme, "sourceCommit": id.SourceCommit, "sourceSHA256": id.SourceFiles, "harnessSHA256": id.HarnessSHA256, "qualificationBinarySHA256": id.QualificationBinarySHA256, "checks": checks, "root": root, "interruption": interruption, "authority": "NONE", "qualification": "UI witness only; does not promote integration support"}
 	if c.Theme == "dark" {
 		light := c

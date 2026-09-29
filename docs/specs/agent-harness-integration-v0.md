@@ -709,6 +709,36 @@ do not reinterpret this Frontier result.
   be covered. Rollback restores the retained 0.6.0 package/configuration and leaves existing evidence
   records intact. UI witnesses do not promote harness support or execution authority.
 
+- `AHI-035`: At the owner's request (2026-09-29), the OpenCode 2 terminal integration MUST
+  expose Corvint Tasks metrics in both its sidebar and `/corvint` panel. The operator's job is to
+  see the current queue shape, open-ticket eligibility and gate uncertainty, then inspect one
+  ticket's blockers and acceptance criteria without a model call or task-store mutation.
+  `/corvint tasks` and the sidebar Tasks action open a task view; the change view routes to it.
+
+  The adapter MUST use only the task manager's read-only `queue status`, bounded
+  `ticket search --status OPEN`, and selected `ticket show` verbs. It MUST use the existing
+  owned-process cleanup, fixed argument validation, twenty-second aggregate admission, and
+  session/project/location checks. The view retains one volatile snapshot per existing session:
+  status counts (including drafts), blocked and active-attempt counts, intent-check count, at most 32 open tickets per
+  page, observed time, queue identity and receipt digest. Queue summary, open page and detail reads
+  MUST agree on the task manager's head receipt before they are joined. Refresh and page navigation
+  are explicit; no polling, transcript read, task mutation or execution is permitted.
+
+  Sidebar and panel MUST distinguish completed, open, draft, held and archived counts from blocked
+  eligibility, gate observations and completion evidence. They MUST show uninitialized, missing,
+  refused, malformed, changed and cancelled reads as unavailable or stale with a reason, never as
+  zero counts or a pass. An absent page is labelled as omitted; a detail action accepts only a
+  ticket from the current page and rechecks the queue binding. Untrusted titles, blockers and
+  criteria MUST render as inert escaped text with bounds. Narrow and wide terminals support
+  keyboard and pointer navigation, details, refresh and recovery. The view is an observer: it
+  grants no execution authority or native task completion.
+
+  Acceptance requires focused argument, envelope, snapshot-race, hostile-text, pagination,
+  cancellation and process-cleanup tests; a real task-store read and a stock OpenCode 2 terminal
+  witness for sidebar → task page → detail → refresh. A missing or unsupported host keeps this
+  slice experimental and visible as such. Rollback removes the read-only Tasks RPC and terminal
+  view, leaving the task store and its receipts untouched.
+
 ## Native platform profiles
 
 | Platform | Embedded host-admission key | Maintained Corvint package | Native surfaces | Stability rule |

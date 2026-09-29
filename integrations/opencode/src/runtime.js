@@ -5,7 +5,7 @@ import path from "node:path"
 import { StringDecoder } from "node:string_decoder"
 import { overQueryBound, trimSpace } from "./prompt-bound.js"
 
-export const ADAPTER_VERSION = "0.7.3"
+export const ADAPTER_VERSION = "0.7.4"
 export const PROTOCOL = "corvint-harness-event/0"
 export const SUPPORT = "FALLBACK"
 
@@ -100,9 +100,9 @@ function childEnvironment(source) {
   return result
 }
 
-function executable(value) {
+function executable(value, fallback = "corvint") {
   if (typeof value !== "string" || value.length === 0 || value.length > 4_096 || value.includes("\0")) {
-    return "corvint"
+    return fallback
   }
   return value
 }
@@ -340,6 +340,9 @@ function envelopeFault(value, event, hostVersion, input) {
 // Internal read kinds have fixed argv; the RPC surface never accepts a command or executable.
 export function cockpitReadArguments(root, read) {
   const oid = value => /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(value ?? "")
+  if (read?.kind === "tasks-status") return { tasks: true, args: ["queue", "status"] }
+  if (read?.kind === "tasks-open" && Number.isInteger(read.offset) && read.offset >= 0 && read.offset <= 100_000) return { tasks: true, args: ["ticket", "search", "--status", "OPEN", "--offset", String(read.offset), "--limit", "32"] }
+  if (read?.kind === "tasks-detail" && typeof read.ticketId === "string" && read.ticketId.length <= 128 && /^ticket:[A-Za-z0-9_-]+:[A-Za-z0-9_-]+:[A-Za-z0-9_-]+$/.test(read.ticketId)) return { tasks: true, args: ["ticket", "show", read.ticketId] }
   if (read?.kind === "repository") return { git: true, args: ["-C", root, "rev-parse", "--show-toplevel", "--absolute-git-dir", "HEAD", "HEAD^{tree}"] }
   if (read?.kind === "resolve" && typeof read.ref === "string" && read.ref.length > 0 && read.ref.length <= 256 && !/[\x00-\x20\x7f]/u.test(read.ref)) return { git: true, args: ["-C", root, "rev-parse", "--verify", "--end-of-options", `${read.ref}^{commit}`] }
   if (read?.kind === "affected" && oid(read.base)) return { args: ["--root", root, "affected", "--base", read.base] }
@@ -356,6 +359,16 @@ function cockpitReadResult(kind, output) {
     if (oid(output.trim())) return { ok: true, commit: output.trim() }
   } else {
     const value = JSON.parse(output)
+    if (kind.startsWith("tasks-")) {
+      const command = kind === "tasks-status" ? ["queue", "status"] : kind === "tasks-open" ? ["ticket", "search"] : ["ticket", "show"]
+      if (value?.profile !== "taskman-command-result/0" || value.outcome !== "OK" || !Array.isArray(value.items) ||
+          JSON.stringify(value.command) !== JSON.stringify(command) ||
+          !/^[0-9a-f]{64}$/.test(value.snapshot?.headReceiptSha256 ?? "")) return undefined
+      if (kind === "tasks-status" && value.items.length !== 1) return undefined
+      if (kind === "tasks-detail" && value.items.length !== 1) return undefined
+      if (kind === "tasks-open" && (value.items.length > 32 || !Number.isSafeInteger(Number(value.page?.total)) || !Number.isSafeInteger(Number(value.page?.offset)))) return undefined
+      return { ok: true, envelope: value }
+    }
     if (value?.ok !== true || value.mutates !== false) return undefined
     if (kind === "affected" && value.profile === "affected-plan/0" && oid(value.revision) && Array.isArray(value.plan?.dirty) && Array.isArray(value.plan?.selected) && Array.isArray(value.plan?.unknown) && Array.isArray(value.advice?.checks)) return value
     if (kind === "completion" && value.profile === "corvint-local-completion/0" && value.tool === "dogfood-status" && typeof value.policy?.lifecycle === "string" && Array.isArray(value.policy.unmet)) return value
@@ -365,6 +378,7 @@ function cockpitReadResult(kind, output) {
 export function createCorvintRunner(options = {}) {
   const environment = options.environment ?? process.env
   const binary = executable(options.corvintBinary ?? environment.CORVINT_BIN)
+  const tasksBinary = executable(options.tasksBinary ?? environment.CORVINT_TASKS_BIN ?? "corvint-tasks", "corvint-tasks")
   const hostVersion = boundedToken(options.hostVersion ?? environment.CORVINT_OPENCODE_HOST_VERSION)
   const automaticTimeoutMs = boundedInteger(
     options.automaticTimeoutMs ?? environment.CORVINT_OPENCODE_TIMEOUT_MS,
@@ -430,7 +444,7 @@ export function createCorvintRunner(options = {}) {
       let reapTimer
       let terminationCode
       let leaderExited = false
-      const child = spawn(reading?.git ? executable(options.gitBinary ?? "git") : binary, args, {
+      const child = spawn(reading?.tasks ? tasksBinary : reading?.git ? executable(options.gitBinary ?? "git") : binary, args, {
         cwd: root,
         detached: true,
         env: childEnvironment(environment),
@@ -488,7 +502,7 @@ export function createCorvintRunner(options = {}) {
         if (signal.aborted) abort()
         else signal.addEventListener("abort", abort, { once: true })
       }
-      child.on("error", () => finish(degradation(event, "corvint-unavailable")))
+      child.on("error", () => finish(degradation(event, reading?.tasks ? "task-manager-unavailable" : "corvint-unavailable")))
       child.once("exit", () => {
         leaderExited = true
       })
@@ -516,7 +530,14 @@ export function createCorvintRunner(options = {}) {
           return
         }
         if (code !== 0) {
-          finish(degradation(event, stderrFailureCode(stderrOutput) ?? "corvint-command-failed"))
+          let tasksCode
+          if (reading?.tasks) {
+            try {
+              const failure = JSON.parse(output)
+              if (failure.profile === "taskman-command-result/0" && failure.outcome === "REFUSED" && /^[A-Z][A-Z0-9_]{0,63}$/.test(failure.codes?.[0] ?? "")) tasksCode = `tasks-${failure.codes[0].toLowerCase().replaceAll("_", "-")}`
+            } catch {}
+          }
+          finish(degradation(event, tasksCode ?? stderrFailureCode(stderrOutput) ?? (reading?.tasks ? "task-manager-command-failed" : "corvint-command-failed")))
           return
         }
         output += decoder.end()
