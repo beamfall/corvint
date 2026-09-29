@@ -26,23 +26,31 @@ func planCommand(env Env, args []string) *wire.Result {
 func planPreview(env Env, args []string) *wire.Result {
 	cmd := []string{"plan", "preview"}
 	pool, stage := "", ""
+	selectedOnly := false
 	seen := map[string]bool{}
-	for i := 0; i < len(args); i += 2 {
-		if i+1 >= len(args) {
-			return usage(cmd, "missing pool or stage value")
-		}
+	for i := 0; i < len(args); i++ {
 		if seen[args[i]] {
 			return usage(cmd, "duplicate plan flag")
 		}
 		seen[args[i]] = true
 		switch args[i] {
+		case "--selected-only":
+			selectedOnly = true
 		case "--pool":
-			pool = args[i+1]
+			i++
+			if i >= len(args) {
+				return usage(cmd, "missing pool or stage value")
+			}
+			pool = args[i]
 			if _, err := wire.ParseLabel("pool", pool); err != nil {
 				return usage(cmd, "invalid pool label")
 			}
 		case "--stage":
-			stage = args[i+1]
+			i++
+			if i >= len(args) {
+				return usage(cmd, "missing pool or stage value")
+			}
+			stage = args[i]
 			if !slices.Contains(intent.StageRoles, stage) {
 				return usage(cmd, "unknown pool stage")
 			}
@@ -57,7 +65,12 @@ func planPreview(env Env, args []string) *wire.Result {
 			return err
 		}
 		in.Pool, in.Stage = pool, stage
-		item, err = planValue(rc, digest, transaction.PriorityFirst(in))
+		plan := transaction.PriorityFirst(in)
+		if selectedOnly {
+			item = selectedPlanValue(rc, plan)
+			return nil
+		}
+		item, err = planValue(rc, digest, plan)
 		return err
 	})
 	if err != nil {
@@ -66,6 +79,26 @@ func planPreview(env Env, args []string) *wire.Result {
 	res := success(cmd, rc)
 	res.Items = []wire.Value{item}
 	return res
+}
+
+// selectedPlanValue renders the complete selected roster without the detailed
+// blocker records. It is a projection of the same plan, never a second plan.
+func selectedPlanValue(rc *readCtx, plan transaction.TicketPlan) wire.Value {
+	selected := make([]string, 0)
+	for _, entry := range plan.Entries {
+		if entry.State == "SELECTED" {
+			selected = append(selected, entry.Ticket.TicketID.Raw)
+		}
+	}
+	o := wire.NewObject()
+	o.Set("profile", wire.String("taskman-plan-selected/0"))
+	o.Set("planningProfile", wire.String("taskman-priority-first/0"))
+	o.Set("queueId", wire.String(rc.store.Queue.QueueID.Raw))
+	o.Set("selectedTicketIds", wire.Strings(selected))
+	o.Set("selectedTotal", wire.String(string(wire.CountOf(int64(len(selected))))))
+	o.Set("complete", wire.Bool(true))
+	o.Set("mutationAuthority", wire.Bool(false))
+	return wire.ObjectValue(o)
 }
 
 // planInput audits the reservation set and every attempt record against the
