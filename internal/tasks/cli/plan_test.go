@@ -103,54 +103,52 @@ func TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan(t *testing.T) {
 // returns every selected ID and an explicit complete total even when the
 // underlying plan contains hundreds of detailed entries.
 func TestCALV0014_SelectedOnlyPlanPreviewIsComplete(t *testing.T) {
-	t.Run("CAL-V0-014 selected-only plan preview", testCALV0014SelectedOnlyPlanPreviewIsComplete)
-}
-
-func testCALV0014SelectedOnlyPlanPreviewIsComplete(t *testing.T) {
-	r := fixture.TempRepo(t)
-	fixture.WriteState(t, r)
-	queue := fixture.QueueValue()
-	policy := fixture.PolicyValue()
-	capacity, _ := policy.Obj.Get("capacity")
-	capacity.Obj.Set("maxActiveAttempts", wire.String("5"))
-	budgets, _ := policy.Obj.Get("budgets")
-	budgets.Obj.Set("requireEnforcedFields", wire.Strings(nil))
-	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), wire.EncodeFile(queue))
-	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), wire.EncodeFile(policy))
-	for i := 0; i < 358; i++ {
-		local := fmt.Sprintf("L%03d", i)
-		rec := fixture.Ticket(local)
-		rec.Priority = "P1"
-		rec.Order = wire.CountOf(int64(i))
-		rec.Effects.TouchPaths = []string{fmt.Sprintf("src/%03d.go", i)}
-		fixture.Write(t, filepath.Join(r.IntentDir, "tickets", local+".json"), rec.Encode())
-	}
-	state, intents := fixture.TreeSnapshot(t, r.StateDir), fixture.TreeSnapshot(t, r.IntentDir)
-
-	x := atm(t, r.Root, nil, "plan", "preview", "--selected-only")
-	if x.res.Outcome != wire.OutcomeOK || len(x.res.Items) != 1 {
-		t.Fatalf("selected-only preview: %+v", x.res)
-	}
-	summary := x.res.Items[0]
-	wantIDs := []string{
-		fixture.TicketID("L000"), fixture.TicketID("L001"), fixture.TicketID("L002"),
-		fixture.TicketID("L003"), fixture.TicketID("L004"),
-	}
-	gotIDs := field(summary, "selectedTicketIds").Arr
-	if field(summary, "profile").Str != "taskman-plan-selected/0" ||
-		field(summary, "planningProfile").Str != "taskman-priority-first/0" ||
-		field(summary, "queueId").Str != fixture.QueueID ||
-		field(summary, "selectedTotal").Str != "5" ||
-		!field(summary, "complete").Bool || field(summary, "mutationAuthority").Bool ||
-		len(summary.Obj.Keys) != 7 || len(gotIDs) != len(wantIDs) {
-		t.Fatalf("summary: %+v", summary)
-	}
-	for i, want := range wantIDs {
-		if gotIDs[i].Str != want {
-			t.Errorf("selected ID %d = %q, want %q", i, gotIDs[i].Str, want)
+	t.Run("CAL-V0-014", func(t *testing.T) {
+		r := fixture.TempRepo(t)
+		fixture.WriteState(t, r)
+		queue := fixture.QueueValue()
+		policy := fixture.PolicyValue()
+		capacity, _ := policy.Obj.Get("capacity")
+		capacity.Obj.Set("maxActiveAttempts", wire.String("5"))
+		budgets, _ := policy.Obj.Get("budgets")
+		budgets.Obj.Set("requireEnforcedFields", wire.Strings(nil))
+		fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), wire.EncodeFile(queue))
+		fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), wire.EncodeFile(policy))
+		for i := 0; i < 358; i++ {
+			local := fmt.Sprintf("L%03d", i)
+			rec := fixture.Ticket(local)
+			rec.Priority = "P1"
+			rec.Order = wire.CountOf(int64(i))
+			rec.Effects.TouchPaths = []string{fmt.Sprintf("src/%03d.go", i)}
+			fixture.Write(t, filepath.Join(r.IntentDir, "tickets", local+".json"), rec.Encode())
 		}
-	}
-	sameStore(t, r, state, intents, "selected-only plan preview")
+		state, intents := fixture.TreeSnapshot(t, r.StateDir), fixture.TreeSnapshot(t, r.IntentDir)
+
+		x := atm(t, r.Root, nil, "plan", "preview", "--selected-only")
+		if x.res.Outcome != wire.OutcomeOK || len(x.res.Items) != 1 {
+			t.Fatalf("selected-only preview: %+v", x.res)
+		}
+		summary := x.res.Items[0]
+		wantIDs := []string{
+			fixture.TicketID("L000"), fixture.TicketID("L001"), fixture.TicketID("L002"),
+			fixture.TicketID("L003"), fixture.TicketID("L004"),
+		}
+		gotIDs := field(summary, "selectedTicketIds").Arr
+		if field(summary, "profile").Str != "taskman-plan-selected/0" ||
+			field(summary, "planningProfile").Str != "taskman-priority-first/0" ||
+			field(summary, "queueId").Str != fixture.QueueID ||
+			field(summary, "selectedTotal").Str != "5" ||
+			!field(summary, "complete").Bool || field(summary, "mutationAuthority").Bool ||
+			len(summary.Obj.Keys) != 7 || len(gotIDs) != len(wantIDs) {
+			t.Fatalf("summary: %+v", summary)
+		}
+		for i, want := range wantIDs {
+			if gotIDs[i].Str != want {
+				t.Errorf("selected ID %d = %q, want %q", i, gotIDs[i].Str, want)
+			}
+		}
+		sameStore(t, r, state, intents, "selected-only plan preview")
+	})
 }
 
 // TestCALV0002_PlanPreviewBlocksANonFixtureQueue: before its execution
