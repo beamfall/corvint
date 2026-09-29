@@ -9,7 +9,7 @@ Authoritative inputs: owner request to implement the PageIndex-inspired comparis
 `AGENTS.md`; `documentation-corpus-v1.md`; `retrieval-eval-comparability-v0.md`.
 
 ## Agent digest
-- Claim: A standalone offline harness compares native lexical document ranking with a deterministic heading-aware expansion policy under equal serialized context-byte budgets.
+- Claim: An offline harness compares native lexical document ranking with deterministic heading-aware expansion under equal serialized context-byte budgets.
 - Status: proposed/experimental; no production retrieval change or promotion.
 - Exists: `tools/heading-nav-bench` and an author-visible pinned pilot fixture.
 - Blocked on: independent external utility evidence; adaptive agent navigation remains unmeasured.
