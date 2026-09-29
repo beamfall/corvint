@@ -61,7 +61,10 @@ Capture IDs are decimal strings matching ASCII `[1-9][0-9]*`, bounded by uint64
 checks format and bounds; whole-session monotonicity remains NOT_OBSERVED. Every claimed packet
 path/blob and any line/span/content must match the fixture Git bytes, including additional tracked
 paths. Initial disk text, one exact full replacement and no close/reopen before reply bind the overlay.
-Private raw paths stay local; the publishable development summary uses repository-relative paths.
+A clean Core dirty-path digest binds canonical JSON `[]`, not empty bytes. Exact
+`receipt.coverage.critical` governing selectors are selection metadata; each must name a known
+fixture governance path with independently bound evidence. Missing critical selectors, arbitrary
+path dictionaries and unbound actual evidence fail. Private raw paths stay local; the publishable development summary uses repository-relative paths.
 All tuples remain UNQUALIFIED and actual context clients remain NOT_RUN until reviewed server execution.
 
 ## Failure modes and evidence

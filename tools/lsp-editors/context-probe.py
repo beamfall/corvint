@@ -85,10 +85,11 @@ def validate(rows, observation, uri, before, after):
     if binding.get('commitRevision')!=before['commit'] or binding.get('treeRevision')!=before['tree'] or binding.get('objectFormat')!='sha1':errors.append('core-git-binding-invalid')
     receipt=core.get('receipt') or {}
     if set(binding)!={'commitRevision','treeRevision','objectFormat','profileId','worktreeState','dirtyPathCount','dirtyPathsSha256'}:errors.append('core-repository-shape-invalid')
-    if type(binding.get('dirtyPathCount')) is not int or binding.get('dirtyPathCount') != 0 or binding.get('worktreeState') != 'CLEAN' or binding.get('dirtyPathsSha256') != hashlib.sha256(b'').hexdigest(): errors.append('unexpected-core-dirty-state')
+    if type(binding.get('dirtyPathCount')) is not int or binding.get('dirtyPathCount') != 0 or binding.get('worktreeState') != 'CLEAN' or binding.get('dirtyPathsSha256') != hashlib.sha256(b'[]').hexdigest(): errors.append('unexpected-core-dirty-state')
     if binding.get('profileId')!='generic':errors.append('fixture-core-profile-invalid')
     if receipt.get('tool')!='context':errors.append('core-receipt-tool-invalid')
     if receipt.get('revision')!=before['tree']:errors.append('core-receipt-revision-invalid')
+    if receipt.get('coverage',{}).get('critical_missing',[])!=[]:errors.append('missing-critical-governance-selector')
     evidence=[]
     for row in receipt.get('results',[]): evidence.extend(row.get('evidence',[]))
     for name in ['pkg/AGENTS.md','SPEC.md','pkg/main_test.go']:
@@ -99,12 +100,19 @@ def validate(rows, observation, uri, before, after):
         data=content.encode()
         expected=hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()
         if fact['blob']!=expected or fact['contentSha256']!=hashlib.sha256(data).hexdigest():errors.append('fixture-object-content-invalid:'+name)
-    def facts(value):
+    def facts(value, location=()):
         if isinstance(value, dict):
+            if location in [('coverage','critical'),('coverage','critical_missing')]:
+                name=value.get('path')
+                if set(value)!={'path','relation'} or value.get('relation')!='governing' or name not in ['AGENTS.md','pkg/AGENTS.md'] or name not in before['files']:
+                    errors.append('invalid-critical-governance-selector:'+str(name))
+                elif not any(row.get('kind')=='governing' and row.get('id')==name and any(e.get('path')==name and e.get('blob_hash')==before['files'][name]['blob'] and e.get('reason') and e.get('authority')=='project-instructions' and e.get('trust')=='project-authority' for e in row.get('evidence',[])) for row in receipt.get('results',[])):
+                    errors.append('critical-selector-without-bound-evidence:'+name)
+                return
             if 'path' in value: yield value
-            for nested in value.values(): yield from facts(nested)
+            for key,nested in value.items(): yield from facts(nested,location+(key,))
         elif isinstance(value, list):
-            for nested in value: yield from facts(nested)
+            for nested in value: yield from facts(nested,location)
     for e in evidence:
         name=e.get('path')
         if name not in before['files']:errors.append('untracked-claimed-path:'+str(name))

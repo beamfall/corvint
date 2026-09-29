@@ -11,7 +11,7 @@ spec = importlib.util.spec_from_file_location('context_probe', Path(__file__).wi
 probe = importlib.util.module_from_spec(spec); spec.loader.exec_module(probe)
 with tempfile.TemporaryDirectory(prefix='editor-context-check-') as td:
     root=Path(td).resolve();before=probe.fixture(root);after=probe.snapshot(root);uri=(root/'pkg/main.go').as_uri()
-    core={'schema':'corvint-mcp-bridge-result/0','tool':'corvint.context','mutates':False,'state':'READY','epistemicClass':'OBSERVED','authorityClass':'REPOSITORY_EVIDENCE','repository':{'commitRevision':before['commit'],'treeRevision':before['tree'],'objectFormat':'sha1','profileId':'generic','worktreeState':'CLEAN','dirtyPathCount':0,'dirtyPathsSha256':hashlib.sha256(b'').hexdigest()},'receipt':{'tool':'context','revision':before['tree'],'results':[{'evidence':[{'path':name,'blob_hash':before['files'][name]['blob'],'line':1,'reason':'fixture governing witness'}]} for name in ['pkg/AGENTS.md','SPEC.md','pkg/main_test.go']]},'abstention':{'active':False,'reason':'NONE'}}
+    core={'schema':'corvint-mcp-bridge-result/0','tool':'corvint.context','mutates':False,'state':'READY','epistemicClass':'OBSERVED','authorityClass':'REPOSITORY_EVIDENCE','repository':{'commitRevision':before['commit'],'treeRevision':before['tree'],'objectFormat':'sha1','profileId':'generic','worktreeState':'CLEAN','dirtyPathCount':0,'dirtyPathsSha256':hashlib.sha256(b'[]').hexdigest()},'receipt':{'tool':'context','revision':before['tree'],'results':[{'evidence':[{'path':name,'blob_hash':before['files'][name]['blob'],'line':1,'reason':'fixture governing witness'}]} for name in ['pkg/AGENTS.md','SPEC.md','pkg/main_test.go']]},'abstention':{'active':False,'reason':'NONE'}}
     result={'schema':'corvint-editor-context/0','core':core,'overlayObservation':{'sessionID':'1'*32,'captureID':'1','uri':uri,'version':2,'digestAlgorithm':'sha256','digest':hashlib.sha256(probe.OVERLAY.encode()).hexdigest()},'inclusionReason':'requested-open-document-subject'}
     observation={'initializeResult':{'capabilities':{'experimental':{'corvintContext':{'method':'corvint/context','schema':'corvint-editor-context/0'}}}},'context':{'result':result,'version':2,'bufferModified':True}}
     def row(direction, message):return {'direction':direction,'message':message}
@@ -52,6 +52,25 @@ with tempfile.TemporaryDirectory(prefix='editor-context-check-') as td:
     assert not probe.validate(initial,observation,uri,before,after)['valid']
     multiple[1]['message']['params']['contentChanges'].append({'text':probe.OVERLAY})
     assert not probe.validate(multiple,observation,uri,before,after)['valid']
+    assert not changed_result(lambda r:r['core']['repository'].update(dirtyPathsSha256=hashlib.sha256(b'').hexdigest()))['valid']
+    assert not changed_result(lambda r:r['core']['receipt']['results'][0]['evidence'].append({'path':'AGENTS.md','reason':'governing'}))['valid']
+    assert not changed_result(lambda r:r['core']['receipt'].update(coverage={'critical':[{'path':'invented.md','relation':'governing'}]}))['valid']
+    assert not changed_result(lambda r:r['core']['receipt'].update(coverage={'critical':[{'path':'AGENTS.md','relation':'governing'}]}))['valid']
+    def with_critical(r):
+        r['core']['receipt']['results'].append({'kind':'governing','id':'AGENTS.md','evidence':[{'path':'AGENTS.md','blob_hash':before['files']['AGENTS.md']['blob'],'reason':'governs','line':1,'authority':'project-instructions','trust':'project-authority'}]})
+        row=r['core']['receipt']['results'][0];row.update(kind='governing',id='pkg/AGENTS.md');row['evidence'][0].update(authority='project-instructions',trust='project-authority')
+        r['core']['receipt']['coverage']={'critical':[{'path':'AGENTS.md','relation':'governing'},{'path':'pkg/AGENTS.md','relation':'governing'}],'critical_missing':[]}
+    assert changed_result(with_critical)['valid']
+    def missing_critical(r):
+        with_critical(r);r['core']['receipt']['coverage']['critical_missing']=[{'path':'AGENTS.md','relation':'governing'}]
+    assert not changed_result(missing_critical)['valid']
+    def nongoverning_critical(r):
+        with_critical(r);r['core']['receipt']['results'][-1]['kind']='mentioned'
+    assert not changed_result(nongoverning_critical)['valid']
+    def forged_critical(r):
+        with_critical(r);r['core']['receipt']['coverage']['critical'][0]['blob_hash']='f'*40
+    assert not changed_result(forged_critical)['valid']
+    assert not changed_result(lambda r:r['core']['receipt'].update(arbitrary={'path':'AGENTS.md','relation':'governing'}))['valid']
     bad=copy.deepcopy(observation);bad['initializeResult']['capabilities']['experimental']['corvintContext']['schema']='invented'
     assert not probe.validate(rows,bad,uri,before,after)['valid']
     assert not changed_result(lambda r:r['core']['abstention'].update(active=0))['valid']
