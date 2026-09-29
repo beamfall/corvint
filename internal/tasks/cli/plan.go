@@ -74,14 +74,16 @@ func planPreview(env Env, args []string) *wire.Result {
 // the empty one init wrote.
 func planInput(rc *readCtx) (transaction.PlanInput, wire.Digest, error) {
 	in := transaction.PlanInput{Queue: rc.store.Queue, Policy: rc.store.Policy, Tickets: rc.store.Inventory, Barrier: rc.snap.Barrier != nil, Attempts: map[string]*snapshot.Attempt{}}
-	proofPools, e := auditState(rc, "pools.json")
-	if e != nil {
-		return in, "", e
-	}
-	if raw := proofPools.Records["pools.json"].Raw; len(raw) > 0 {
-		in.Pools, e = snapshot.DecodePools(raw)
+	if len(rc.store.Policy.Pools) > 0 {
+		proofPools, e := auditState(rc, "pools.json")
 		if e != nil {
 			return in, "", e
+		}
+		if raw := proofPools.Records["pools.json"].Raw; len(raw) > 0 {
+			in.Pools, e = snapshot.DecodePools(raw)
+			if e != nil {
+				return in, "", e
+			}
 		}
 	}
 	if rc.snap.Head.Generation.Uint64() == 0 {
