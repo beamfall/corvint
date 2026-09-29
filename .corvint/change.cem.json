@@ -182,9 +182,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:22257e6f4ca26c14eb4010b9178a2b402226ff31067eadddc8f24572c500125c",
+      "id": "hunk:sha256:e012ac5a8fde4566016867522b16a2a4e9a1b4e5931bde8a5c239ab61ab742e5",
       "newRange": {
-        "count": 16,
+        "count": 18,
         "start": 563
       },
       "oldRange": {
@@ -242,9 +242,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:b918ef16070b72217c8ebc620eb6f9bd435398f1496897b426c3b85111cff359",
+      "id": "hunk:sha256:496280283ca5e97b3e7007d0cd11376132f3515402fd85b989ded29026fbf61c",
       "newRange": {
-        "count": 51,
+        "count": 55,
         "start": 56
       },
       "oldRange": {
@@ -462,9 +462,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:0cede696cccd47675a32bdaaccc5276b643e48f3702560de9732e3344ff8c0ce",
+      "id": "hunk:sha256:1ff12aec5cb0f625652cc66ca5af27bb6df54bc3e71914e7b17dc71d7b6338e8",
       "newRange": {
-        "count": 82,
+        "count": 90,
         "start": 1
       },
       "oldRange": {
@@ -854,9 +854,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:3af53689577cf39f9f00be08b8749c7e236bcd585d630b040afa70ac383e1255",
+      "id": "hunk:sha256:c09239e21bf02b7d3d88522d23f44bfaa78b74191b6f9341c93d96cf79d432a6",
       "newRange": {
-        "count": 77,
+        "count": 79,
         "start": 1
       },
       "oldRange": {
@@ -1130,9 +1130,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:2b56abdbeb096a869428e48bd4ead51abfb9f1f894451130dfa8d05d158af309",
+      "id": "hunk:sha256:b095c48c8348ab0e3a52bb27b4afad8592b1d260034ed2f66b9a59e6bb5afc06",
       "newRange": {
-        "count": 133,
+        "count": 137,
         "start": 1
       },
       "oldRange": {
@@ -1167,6 +1167,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "437e057744a70a38fd3b7f324860dae9c0482ad6337b12e119dc6ccfb5854e7d",
+  "patchSha256": "23228bfb42f90cc61e2bfe6597960f136bf6ddc48ac1ecfb26b238e05a47ec01",
   "spec": "cem/0.2"
 }
