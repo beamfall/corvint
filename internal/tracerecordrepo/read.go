@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/trace"
+	"github.com/Beamfall/corvint/internal/tracerepopaths"
 )
 
 // ReadFailure classifies a failed trace read without changing its diagnostic
@@ -95,11 +95,7 @@ func read(ctx context.Context, root string, index *contextindex.Index, checkStab
 	if len(index.DirtyPaths) != 0 {
 		return []trace.Record{}, "blocked-mixed-worktree", nil
 	}
-	tracked := make([]string, 0, len(index.Sources))
-	for path := range index.Sources {
-		tracked = append(tracked, path)
-	}
-	sort.Strings(tracked)
+	tracked := tracerepopaths.Paths(index)
 	revisions, _, err := bindRevisions(ctx, root, index, tracked, strictRevisionBinding)
 	if err != nil {
 		return nil, "", err

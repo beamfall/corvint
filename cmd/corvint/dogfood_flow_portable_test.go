@@ -482,8 +482,23 @@ func TestDogfoodDailyPathCompletesWhenImpactRefusesTheRepositoryOrModuleRoot(t *
 // installed binary, ignoring CORVINT_BIN and the DOGFOOD_* inputs.
 func TestDogfoodFinishRunsFromBinaryInForeignRepository(t *testing.T) {
 	t.Parallel()
-	run := portableDogfoodRunner(t)
 	root, base := portableDogfoodRepo(t)
+	testDogfoodFinishFromBinary(t, root, base, false)
+}
+
+func TestTraceGitignoreFinishThenChangeCheckSeal(t *testing.T) {
+	t.Run("GPK-V0-050 emitted ignore rules survive the next clean workflow", func(t *testing.T) {
+		root, base := portableDogfoodRepo(t)
+		cemWrite(t, root, ".gitignore", "*.tmp\n")
+		cemGit(t, root, "add", ".gitignore")
+		cemGit(t, root, "commit", "-qm", "ignore temporary files")
+		testDogfoodFinishFromBinary(t, root, base, true)
+	})
+}
+
+func testDogfoodFinishFromBinary(t *testing.T, root, base string, ignoreRules bool) {
+	t.Helper()
+	run := portableDogfoodRunner(t)
 	run.env = append(run.env, "DOGFOOD_OUTCOME=failed", "DOGFOOD_VERIFY=false", "DOGFOOD_CITATIONS="+filepath.Join(root, "missing.tsv"), "DOGFOOD_INTENTS_FILE="+filepath.Join(root, "missing"))
 	key := localcompletion.HashSession(t.Name())
 	plan, _ := json.Marshal(localcompletion.Plan{Base: base, Intents: []string{"intent.md"}, Checks: []localcompletion.Check{{ID: "actual-test", Argv: []string{"go", "test", "./fixture"}, TimeoutSeconds: 60}}})
@@ -495,6 +510,9 @@ func TestDogfoodFinishRunsFromBinaryInForeignRepository(t *testing.T) {
 	run.ok(t, root, append([]string{"dogfood", "begin", "--plan", planPath}, session...)...)
 	run.ok(t, root, "cem", "prepare", "--base", base, "--target", "HEAD")
 	run.ok(t, root, "cem", "cite", "--map", ".corvint/change.cem.json", "--hunk", "1", "--evidence-path", "intent.md", "--lines", "1:5", "--relation", "specification")
+	if ignoreRules {
+		run.ok(t, root, "cem", "cite", "--map", ".corvint/change.cem.json", "--hunk", "2", "--evidence-path", "intent.md", "--lines", "1:5", "--relation", "specification")
+	}
 	cemGit(t, root, "add", ".corvint/change.cem.json")
 	cemGit(t, root, "commit", "-qm", "bind evidence")
 	target := cemGit(t, root, "rev-parse", "HEAD")
@@ -518,5 +536,42 @@ func TestDogfoodFinishRunsFromBinaryInForeignRepository(t *testing.T) {
 	output = run.ok(t, root, append([]string{"dogfood", "finish"}, session...)...)
 	if err := json.Unmarshal([]byte(output), &finished); err != nil || !finished.Policy.Satisfied || finished.Policy.Lifecycle != "satisfied" {
 		t.Fatalf("finish: %s %v", output, err)
+	}
+	if ignoreRules {
+		query := run.ok(t, root, "query", "--task", "ignore rules", "--limit", "1")
+		var packet struct {
+			Context struct {
+				Learning struct {
+					State string `json:"local_trace_state"`
+					Count int    `json:"local_trace_count"`
+				} `json:"learning"`
+			} `json:"context"`
+		}
+		if err := json.Unmarshal([]byte(query), &packet); err != nil || packet.Context.Learning.State != "ready" || packet.Context.Learning.Count == 0 {
+			t.Fatalf("query did not consume recorded trace: %v %s", err, query)
+		}
+		traces, err := os.ReadFile(filepath.Join(root, ".context-corvint/traces", target+".jsonl"))
+		if err != nil || !bytes.Contains(traces, []byte(`".gitignore"`)) || !bytes.Contains(traces, []byte(`".corvint/change.cem.json"`)) {
+			t.Fatalf("finish did not retain ignore rules and CEM: %v %s", err, traces)
+		}
+		inputsDir := t.TempDir()
+		intents := filepath.Join(inputsDir, "intents")
+		if err := os.WriteFile(intents, []byte("intent.md\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		citations := filepath.Join(inputsDir, "citations.tsv")
+		if err := os.WriteFile(citations, []byte("1\tintent.md\t1:5\tspecification\n2\tintent.md\t1:5\tspecification\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		inputs := []string{"DOGFOOD_TASK=ignore rules", "DOGFOOD_VERIFY=go test ./fixture", "DOGFOOD_OUTCOME=passed", "DOGFOOD_INTENTS_FILE=" + intents, "DOGFOOD_CITATIONS=" + citations}
+		code, stdout, stderr := run.exec(t, root, inputs, "dogfood", "change", base)
+		if code != 0 {
+			t.Fatalf("next change: %d %s %s", code, stdout, stderr)
+		}
+		run.ok(t, root, "dogfood", "check", base)
+		run.ok(t, root, "dogfood", "seal", base)
+		if status := cemGit(t, root, "status", "--porcelain", "--untracked-files=all"); status != "" {
+			t.Fatalf("workflow left dirty paths: %s", status)
+		}
 	}
 }

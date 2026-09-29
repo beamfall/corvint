@@ -59,6 +59,15 @@ the selected profile. See [decision 0011](decisions/0011-standalone-query-trace-
 For workflow/queue questions, open [AGENTS.md](../AGENTS.md), the
 [dogfood loop](DOGFOOD.md#required-loop-for-substantive-changes), and the
 [historical queue](../ROADMAP.md#current-build-queue-indispensable-context-and-cumulative-development-savings); use an initialized native `.taskman` store for current execution status.
+For a malformed, unsafe, or path-invalid trace diagnostic, retain the exact command, stderr and
+original trace-file bytes before recovery. Distinguish this from the intentional profile refusal
+above and from unreachable-history traces: `migrate-traces --dry-run` can plan the latter without
+writing, and apply requires the resulting digest and explicit migration scope. If planning also
+refuses an invalid record, stop automatic recovery and retain the error and original bytes for
+inspection; do not delete or edit trace rows, change the task wording, or switch checkouts to hide
+the failure. A valid emitted `.gitignore` row rejected by an older reader is V1-0458: use the repaired
+reader, not trace migration. The recorder and reader must share GPK-V0-050 path authority.
+
 Those original sources establish the workflow; the failed query stays failed. When file discovery
 is also useful, the separate experimental command can use the same task unchanged:
 

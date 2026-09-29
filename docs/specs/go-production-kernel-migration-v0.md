@@ -621,8 +621,13 @@ which is the whole of what the row asserts.
 - `GPK-V0-050`: `corvint record` and `corvint dogfood-record` MUST admit a changed `.gitignore` at
   any depth as a changed path beside the tracked context-index sources they admit today. The file
   MUST NOT be indexed or parsed and contributes no symbols. No other non-source repository file is
-  admitted without an amendment naming it. Accepted by
-  `docs/decisions/0050-copy-range-evidence-and-record-admission-2026-09-04.md`.
+  admitted without an amendment naming it. Trace readers and migration MUST retain this same
+  current-tree path authority, including when a trace belongs to an ancestor with the same tree.
+  A successful record MUST remain readable without deleting traces, changing task text, or moving
+  to another checkout. Migration dry-run preserves the original bytes; apply retains the legacy
+  bytes in its archive. Regression witnesses are `TestGitignoreRecordReadContinuity`,
+  `TestGitignoreLegacyMigrationContinuity` and `TestTraceGitignoreFinishThenChangeCheckSeal`.
+  Accepted by `docs/decisions/0050-copy-range-evidence-and-record-admission-2026-09-04.md`.
 - `GPK-V0-018`: Public Go artifacts MUST be `CGO_ENABLED=0`, built from one exact clean Git commit
   with Go 1.27.1. The root `go.mod` MUST contain exact `go 1.27.1`; an equal `toolchain` directive
   MUST be omitted because Go 1.27 normalizes it away. Every build, test, conformance, benchmark, and release-evidence command MUST run with

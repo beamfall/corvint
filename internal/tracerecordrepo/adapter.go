@@ -17,6 +17,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/trace"
+	"github.com/Beamfall/corvint/internal/tracerepopaths"
 )
 
 const (
@@ -170,19 +171,8 @@ func recordIndex(ctx context.Context, root string) (*contextindex.Index, []strin
 	if len(index.DirtyPaths) != 0 {
 		return nil, nil, fmt.Errorf("trace recording requires a clean Git tree")
 	}
-	tracked := recordPaths(index)
+	tracked := tracerepopaths.Paths(index)
 	return index, tracked, nil
-}
-
-func recordPaths(index *contextindex.Index) []string {
-	paths := sortedSourcePaths(index.Sources)
-	for value := range index.Tracked {
-		if value == ".gitignore" || strings.HasSuffix(value, "/.gitignore") {
-			paths = append(paths, value)
-		}
-	}
-	sort.Strings(paths)
-	return paths
 }
 
 func recordWithIndex(ctx context.Context, root string, index *contextindex.Index, tracked []string, stable func() error, input Input) (Result, error) {
@@ -467,7 +457,7 @@ func stabilityCheck(ctx context.Context, root string, expected *contextindex.Ind
 		if err != nil {
 			return err
 		}
-		tracked := recordPaths(current)
+		tracked := tracerepopaths.Paths(current)
 		admitted, err := trace.AdmissibleCurrentPaths(candidates, tracked)
 		if err != nil {
 			return err
@@ -700,15 +690,6 @@ func gitEnvironment() []string {
 		"GIT_NO_LAZY_FETCH=1", "GIT_NO_REPLACE_OBJECTS=1", "GIT_GRAFT_FILE="+os.DevNull,
 		"GCM_INTERACTIVE=never", "GIT_ASKPASS=",
 	)
-}
-
-func sortedSourcePaths(sources map[string]contextindex.Source) []string {
-	paths := make([]string, 0, len(sources))
-	for path := range sources {
-		paths = append(paths, path)
-	}
-	sort.Strings(paths)
-	return paths
 }
 
 func validOutcome(value string) bool {

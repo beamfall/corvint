@@ -12,6 +12,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/trace"
+	"github.com/Beamfall/corvint/internal/tracerepopaths"
 )
 
 const (
@@ -75,7 +76,7 @@ func bindAuthority(ctx context.Context, root string) (trace.MigrationAuthority, 
 	length := objectIDLength(index.ObjectFormat)
 	commits := make(map[string]trace.Revision, len(lines))
 	trees := make(map[string][]string)
-	currentPaths := sortedSourcePaths(index.Sources)
+	currentPaths := tracerepopaths.Paths(index)
 	for _, line := range lines {
 		fields := strings.Split(line, " ")
 		if len(fields) != 2 || !lowerHex(fields[0], length) || !lowerHex(fields[1], length) {
@@ -173,15 +174,6 @@ func gitEnvironment() []string {
 		"GIT_NO_LAZY_FETCH=1", "GIT_NO_REPLACE_OBJECTS=1", "GIT_GRAFT_FILE="+os.DevNull,
 		"GCM_INTERACTIVE=never", "GIT_ASKPASS=",
 	)
-}
-
-func sortedSourcePaths(sources map[string]contextindex.Source) []string {
-	paths := make([]string, 0, len(sources))
-	for path := range sources {
-		paths = append(paths, path)
-	}
-	sort.Strings(paths)
-	return paths
 }
 
 func equalStrings(left, right []string) bool {
