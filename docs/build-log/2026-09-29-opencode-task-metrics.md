@@ -53,6 +53,9 @@ refresh and cockpit frames at `/private/tmp/corvint-opencode-task-witness-v2/`. 
 qualification version probe received empty stdout and refused the host, despite a direct
 `/opt/homebrew/bin/opencode --version` reading `opencode v2.0.18`. The campaign remains
 `NOT_PASS`; the focused `TestGateInterruptionWitness` passed on this base.
+The sidebar-count repair passed the exact-commit native UI assertion and retained Tasks page and
+detail frames at `/private/tmp/corvint-opencode-task-witness-v2-final/`; the later version probe
+again returned empty stdout, leaving package qualification `NOT_PASS`.
 
 Focused JS tests, the OpenCode TSX bundle parse, `TestHostAdapterJavaScriptHosts`, focused Go
 qualification tests, and generated requirement checks passed before the final binding. The
