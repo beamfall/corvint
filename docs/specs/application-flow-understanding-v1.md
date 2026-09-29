@@ -15,7 +15,7 @@ decisions 0374, 0385 and 0416; source-generation extension [issue 338](https://g
 ## Agent digest
 - Claim: Reviewed flows link to source, tests and run evidence; Corvint selects E2E tests with exclusion proofs, maps navigation and proves documentation claims.
 - Status: accepted (decision 0385); partially delivered; original issue-175 flows qualified locally. S1-S4, S6-S8 delivered with local issue-175 evidence in `evidence/issues-167-175/`. AFU-V1-012 now retains and consumes the qualified `/3` external attempt inventory. The Beamfall UI/API lifecycle and both semantic-change qualifications pass; the latter use conservative full-suite fallback, not reduced selections. Compiled MCP conformance covers both protocols and the pinned official schema. AFU-V1-006 has a bounded `/2` producer and declaration-only corpus ingestion; external runtime qualification remains unobserved; S5's AFU-V1-029 observer integration remains partial; AFU-V1-014 retains its accepted observer gap.
-- Exists: AFU-V1-043..048 defines the separately generated non-Go documentation profile; it never upgrades the existing accepted-outcome documentation truth table. the AFU-V0 experimental `corvint flows` report and `record`, the issue-53 behavior adapter, ETS-V1 selection and the Playwright provider this spec extends.
+- Exists: AFU-V1-049..053 adds fail-closed variation coverage and safe write-back; final source-bound qualification remains separately recorded. AFU-V1-043..048 defines the separately generated non-Go documentation profile; it never upgrades the existing accepted-outcome documentation truth table. the AFU-V0 experimental `corvint flows` report and `record`, the issue-53 behavior adapter, ETS-V1 selection and the Playwright provider this spec extends.
 - Blocked on: AFU-V1-006 external runtime qualification and AFU-V1-029 observer integration; production backend and hosted-CI qualification are not observed.
 - Read next: Requirements; Trust boundary, limits, and failure modes; Deterministic acceptance.
 
@@ -898,3 +898,60 @@ strict predecessor rederivation, read-only determinism and output safety. Broade
 qualification must retain its own original receipt and cannot be inferred from these fixtures.
 Rollback removes the `docs flows` dispatch and generated producer; existing accepted-outcome AFU,
 corpus adoption artifacts and their original trust/evidence contracts remain unchanged.
+
+## Complete variation coverage (issue340)
+
+Owner-requested bounded compiler; accepted matrices remain human-owned. The complete invocation,
+closed input shapes and byte-binding limits are documented in `docs/FLOW-COVERAGE.md`.
+
+- **AFU-V1-049**: `flows coverage --denominator FILE --receipts FILE [--revision FULL_SHA]`
+  loads closed committed denominator/run inventories. Generation and corpus inventories are fully
+  rederived; intents inventory hashes the complete sorted canonical FlowIntent array. Every documented
+  flow and every loaded accepted variation must be represented exactly; proposed/empty/unmapped
+  matrices remain blockers. Current committed or dirty inventory additions cannot yield subset green.
+  Accepted actor/preconditions/entry/actions/outcomes and original source-category citations remain
+  visible. No generation, test title or exclusion record can accept a proposed matrix.
+- **AFU-V1-050**: Proof admits original canonical `/3` bytes and rederives exact test/config/package/
+  served-build bindings through immutable regular Git content and exact reporter path mappings.
+  Require configured and observed retries0, complete unambiguous schedule joins, qualified lifecycle,
+  every asserting outcome, and a distinct accepted control observed failing within the same immutable
+  execution binding group. Infrastructure never acts as a control. A first pass with configured
+  retries above0 is MISSING_TEST. Retain every declared planned/manual receipt; conflicting/retried
+  comparable current history is FLAKY. Comparability uses bound build/test/config/package bytes and execution configuration, not source/test commit IDs or caller app relabeling; metadata-only commits cannot hide failure history. Historical changed groups remain visible without blocking
+  separately qualified current evidence. Aggregate expected-control failure does not invalidate a
+  qualified passing subject. Missing served-build binding is MISSING_TEST.
+- **AFU-V1-051**: Closed statuses are PROVEN, API_PROVEN, FLAKY, STALE, MISSING_TEST and EXCLUDED.
+  Cited/required binding changes yield STALE. Exclusion needs a committed nongenerated human
+  author/sign-off reference binding exact accepted matrix and source revision. It is local project
+  authority, not authenticated identity. PROVEN/API_PROVEN means immutable byte binding plus declared
+  app identity, never attested deployment lineage, observed clean execution tree or independently
+  verified control adequacy. Retain `/3`'s unknown failed-assertion location and external server cleanup.
+- **AFU-V1-052**: CLI exits1 for any missing/flaky/stale row,2 for malformed/incomplete inputs,0 only
+  for a nonempty complete green inventory. Opt-in MCP flows profile adds EnvelopeOnly read tool
+  `corvint.flows.coverage`; default V0 tools remain unchanged. Offset/limit paging occurs only after
+  complete evaluation and carries full-report digest, total and global verdict/counts. Equal CLI/MCP
+  page requests return identical compiler bytes. Bounds:512 documented flows,8,192 expanded rows,
+  128 original receipts of4MiB each,64MiB aggregate receipts/report and300KiB page. No silent truncation.
+- **AFU-V1-053**: Explicit `--write-back FRESH_DIR` creates confined no-clobber documentation even for
+  valid reports containing gaps. Generation retains eight pages, adding E2E coverage to functional
+  overview; rename the immutable source manifest to source-generation.json and bind every actual
+  output hash in application-flow-coverage-writeback/1, including denominator/run/full-report hashes.
+  Corpus/intents input writes one per-flow section. `--check DIR` is read-only. Preserve320MiB total
+  output bound and existing generation/corpus input limits; permit only two additional coverage
+  metadata files. Escape source-derived text. Missing tests carry bounded skeleton requests naming
+  accepted entry/outcomes and existing validated fixtures/page objects, with undiscovered inputs explicit.
+
+Acceptance: `TestFlowCoverageBoundProofAndWriteback`, `TestFlowCoverageInventoryFreshness`,
+`TestFlowCoverageRetryAndInfrastructure`, `TestFlowCoverageDenominatorOmissions`,
+`TestFlowCoverageGroupHistoryAndPaging`, `TestFlowCoverageExclusionAndEntryAuthority`,
+`TestFlowCoverageCLI`, `TestFlowCoverageMCPParity`, `TestDefaultCoverageAbsent`.
+The real two-variation browser qualification must retain original receipts, source/test/config/build
+commits, native exit codes, actual write-back/check/no-clobber results and interruption descendant
+cleanup. Unit fixtures cannot establish live qualification. Final source-bound qualification and
+native completion are separate from implementation checks.
+
+Failure modes: favorable run selection, omitted accepted matrix members, cross-build controls,
+retry-budget confusion, stale documentation manifests and fabricated deployment provenance must
+fail closed. Scope completeness is only for the declared inventory, not the entire application or
+unretained executions. Rollback removes this additive compiler/CLI/MCP tool and regenerates docs
+with the preceding source generator; it never rewrites accepted intents or previous evidence.

@@ -15,7 +15,7 @@ external-ownership boundary. Decision 0417 approves the every-attempt `/3` revis
 ## Agent digest
 - Claim: External-server Playwright receipts bind outcomes without owning the app; `/1` attests application identity and `/2` redacts sensitive input evidence.
 - Status: accepted; `/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`; `/3` implemented; qualification evidence recorded with issue 175.
-- Exists: `internal/jstestprovider`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
+- Exists: PWP-V3-007 admits exact unnamed projects only in `/3`; no attestation composition is added. `internal/jstestprovider`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
 - Read next: Requirements; Wire and trust boundary; Acceptance and rollback.
 - Blocked on: no implementation gap; owner-selected checks and separate live witnesses govern final completion. Other Playwright versions, Vitest and LPCV authority remain unqualified. The qualification host had Docker but no Compose frontend, so the checked-in closed Compose JSON manifest was executed by the fixture's equivalent project-scoped Docker build/run path.
 
@@ -254,3 +254,17 @@ The `/3` matrix passed locally on 2026-09-28. It retains failed-then-passed and 
 | `noncanonical-input` | Parsed input bytes differ from the canonical JSON encoding. | `internal/jstestprovider/application_attestation.go:187@0bb50e72` |
 | `not-regular` | An attestation input path does not resolve to a regular file. | `internal/jstestprovider/application_attestation.go:151@9133b825` |
 | `test-repository-drift` | The test repository identity differs between start and publish. | `internal/jstestprovider/external.go:195@0fe9d240` |
+
+## Issue340 exact project identity amendment
+
+- **PWP-V3-007**: The `/3` exact project identity permits an explicitly observed empty project name
+  (Playwright's unnamed default project). Keep file/full title/project/config/use/test ID joins exact;
+  missing Project or ambiguous identities still abstain. Earlier profiles retain their existing empty
+  name refusal. Qualification requires an actual unnamed-project passing test and declared failing
+  control with retries0, plus the existing interruption/runner descendant cleanup regression.
+  Consumer coverage must check configured retries in Schedule separately from observed retry count.
+  This does not compose `/3` with attested `/1` or promote deployment provenance: immutable consumer
+  byte binding and caller-declared app identity remain distinct from an observed application attestation.
+
+Regression: `TestProfileAttemptEmptyProject`; actual live evidence remains required for the changed
+project admission boundary. Issue340 does not change the qualified runtime tuple or earlier profiles.

@@ -92,7 +92,15 @@ func readRoot(r *os.Root, name string, limit int) ([]byte, error) {
 	return b, nil
 }
 func Materialize(destination string, r *Result) error {
-	if len(r.Files) > MaxFlows*8+2 {
+	return materialize(destination, r.Files, MaxFlows*8+2)
+}
+
+// MaterializeCoverage shares the confined writer with the bounded coverage descendant.
+func MaterializeCoverage(destination string, files map[string][]byte) error {
+	return materialize(destination, files, MaxFlows*8+4)
+}
+func materialize(destination string, files map[string][]byte, count int) error {
+	if len(files) > count {
 		return fail("output file count exceeded")
 	}
 	parent, err := openDirectory(filepath.Dir(destination))
@@ -114,7 +122,7 @@ func Materialize(destination string, r *Result) error {
 	defer dir.Close()
 	names := []string{}
 	total := 0
-	for name, b := range r.Files {
+	for name, b := range files {
 		if !fs.ValidPath(name) || strings.Contains(name, "\\") {
 			return fail("invalid output name")
 		}
@@ -152,7 +160,7 @@ func Materialize(destination string, r *Result) error {
 		if err != nil {
 			return fail("cannot exclusively create output")
 		}
-		_, err = file.Write(r.Files[name])
+		_, err = file.Write(files[name])
 		closeErr := file.Close()
 		if err != nil || closeErr != nil {
 			return fail("output write failed")
@@ -177,7 +185,7 @@ func CompareOutput(destination string, files map[string][]byte) ([]string, error
 			return nil
 		}
 		count++
-		if count > MaxFlows*9+2 {
+		if count > MaxFlows*9+4 {
 			return fail("output inventory exceeds bound")
 		}
 		if d.Type()&os.ModeSymlink != 0 {
@@ -193,7 +201,7 @@ func CompareOutput(destination string, files map[string][]byte) ([]string, error
 		}
 		seen[name] = true
 		limit := MaxBytes
-		if name == "generation.json" {
+		if name == "generation.json" || name == "source-generation.json" {
 			limit = MaxManifestBytes
 		}
 		b, e := readRoot(root, name, limit)

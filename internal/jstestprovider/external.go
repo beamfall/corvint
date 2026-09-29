@@ -467,7 +467,7 @@ func bindQualifiedReport(r *Receipt, report qualifiedReport) error {
 	seen := map[string]bool{}
 	for i := range r.Tests {
 		t := &r.Tests[i]
-		if t.Project == nil || t.Project.Name == "" || t.Project.Browser == "" || t.Anchor == nil || t.Anchor.Line <= 0 {
+		if t.Project == nil || (t.Project.Name == "" && r.Profile != AttemptExternalProfile) || t.Project.Browser == "" || t.Anchor == nil || t.Anchor.Line <= 0 {
 			return errors.New("project-location-unknown")
 		}
 		if len(t.Attempts) == 0 || t.FullName == "" {
@@ -558,7 +558,7 @@ func qualifiedUnknown(r Receipt, t TestOutcome) bool {
 	if len(x.DeclaredAppIdentity) > 4096 || len(x.ReadyURL) > 4096 || len(x.ConfigOverride) > 64<<10 {
 		return true
 	}
-	if t.Project == nil || t.Project.Name == "" || t.Project.Browser == "" || t.Project.ConfigDigest == "" || t.Project.ConfigDigest != r.Identity.ConfigDigest || t.ID == "" {
+	if t.Project == nil || (t.Project.Name == "" && r.Profile != AttemptExternalProfile) || t.Project.Browser == "" || t.Project.ConfigDigest == "" || t.Project.ConfigDigest != r.Identity.ConfigDigest || t.ID == "" {
 		return true
 	}
 	if t.Anchor == nil || t.Anchor.Line <= 0 || t.FullName == "" || len(t.Attempts) == 0 || r.Identity.TestFileDigests[t.Anchor.File] == "" || r.Identity.RunnerVersion == "" || r.Identity.NodeVersion == "" {

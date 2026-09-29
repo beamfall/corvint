@@ -431,3 +431,5 @@ protocol descriptions, schemas, conformance material, examples, and interop impl
 without the copyleft attaching. See [LICENSING.md](LICENSING.md) for the exact path boundary,
 [LICENSE](LICENSE) for the AGPL text, [LICENSE-APACHE-2.0](LICENSE-APACHE-2.0) for the Apache text,
 and [PROVENANCE.md](PROVENANCE.md).
+
+Flow-variation E2E completeness and safe documentation write-back: [coverage guide](docs/FLOW-COVERAGE.md). Proof binds immutable bytes and declared app identity; deployment attestation remains outside `/3`.

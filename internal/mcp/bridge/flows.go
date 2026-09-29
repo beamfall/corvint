@@ -15,10 +15,12 @@ import (
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/appflows"
+	"github.com/Beamfall/corvint/internal/flowcoverage"
 )
 
 // The flows descendant profile projects `corvint flows map|gaps|impact|navigate` (AFU-V1-034).
 const (
+	ToolFlowsCoverage = "corvint.flows.coverage"
 	ToolFlowsMap      = "corvint.flows.map"
 	ToolFlowsGaps     = "corvint.flows.gaps"
 	ToolFlowsImpact   = "corvint.flows.impact"
@@ -30,7 +32,7 @@ const (
 
 // flowsTools exist only in the flows descendant profile; the default V0 and task-review registries
 // neither advertise nor dispatch them.
-var flowsTools = map[string]bool{ToolFlowsMap: true, ToolFlowsGaps: true, ToolFlowsImpact: true, ToolFlowsNavigate: true}
+var flowsTools = map[string]bool{ToolFlowsCoverage: true, ToolFlowsMap: true, ToolFlowsGaps: true, ToolFlowsImpact: true, ToolFlowsNavigate: true}
 
 // effectClasses is the closed maxEffect ladder of `flows navigate --max-effect`.
 var effectClasses = []string{appflows.EffectRead, appflows.EffectWriteReversible, appflows.EffectWriteIrreversible, appflows.EffectExternal}
@@ -42,6 +44,7 @@ var flowsImpactSerial sync.Mutex
 
 // flowsSchemas are the receipt schemas each flows tool may return.
 var flowsSchemas = map[string][]string{
+	ToolFlowsCoverage: {flowcoverage.ReportSchema},
 	ToolFlowsMap:      {appflows.MapSchema, appflows.LookupSchema},
 	ToolFlowsGaps:     {appflows.GapsSchema},
 	ToolFlowsImpact:   {appflows.ImpactSchema},
@@ -70,6 +73,7 @@ func flowsToolDescriptors() []ToolDescriptor {
 	}
 	files := map[string]any{"type": "array", "maxItems": maxFlowInputs, "items": relative}
 	return []ToolDescriptor{
+		{Name: ToolFlowsCoverage, Description: "Complete accepted flow variation coverage, bound to immutable bytes with explicit provenance limits; page verdict covers the full inventory.", Annotations: readAnnotations(), InputSchema: objectSchema(map[string]any{"denominator": relative, "receipts": relative, "offset": map[string]any{"type": "integer", "minimum": 0}, "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 100}}, []any{"denominator", "receipts"})},
 		{
 			Name:        ToolFlowsGaps,
 			Description: "Report the flows at HEAD without passing test evidence and the tests no flow names (application-flow-gaps/1).",
@@ -350,4 +354,49 @@ func validFlowsReceipt(result Result) bool {
 		known = known || schema == allowed
 	}
 	return schemaOK && revisionOK && known && revision == result.Repository.CommitRevision
+}
+
+func (registry *Registry) callFlowsCoverage(ctx context.Context, arguments []byte) (Result, *Error) {
+	var input struct {
+		Denominator string `json:"denominator"`
+		Receipts    string `json:"receipts"`
+		Offset      int    `json:"offset"`
+		Limit       *int   `json:"limit"`
+	}
+	if decodeClosed(arguments, &input) != nil || !validFlowFiles(input.Denominator, []string{input.Receipts}) || input.Offset < 0 {
+		return Result{}, failure("invalid-arguments")
+	}
+	limit := 20
+	if input.Limit != nil {
+		limit = *input.Limit
+	}
+	if limit < 1 || limit > 100 {
+		return Result{}, failure("invalid-arguments")
+	}
+	before, err := registry.operations.probe(ctx, registry.root)
+	if err != nil {
+		return Result{}, normalizeFailure(ctx, err)
+	}
+	coverage, err := flowcoverage.Compile(ctx, registry.root, flowcoverage.Options{Denominator: input.Denominator, Receipts: input.Receipts})
+	if err != nil {
+		return Result{}, flowsFailure(ctx, err)
+	}
+	data, err := coverage.Page(input.Offset, limit)
+	if err != nil {
+		return Result{}, flowsFailure(ctx, err)
+	}
+	after, err := registry.operations.probe(ctx, registry.root)
+	if err != nil {
+		return Result{}, normalizeFailure(ctx, err)
+	}
+	if before != after {
+		return abstained(ToolFlowsCoverage, "REPOSITORY_STATE_UNSTABLE", nil), nil
+	}
+	receipt := map[string]any{}
+	decoder := jsonv1.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	if decoder.Decode(&receipt) != nil {
+		return Result{}, failure("internal-error")
+	}
+	return boundedObserved(ToolFlowsCoverage, bindingFromRepository(after), receipt)
 }

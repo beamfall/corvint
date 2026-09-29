@@ -118,3 +118,8 @@ manifest, then use `docs flows check` for read-only per-item span drift and byte
 Commit provider bytes only at the caller's explicit boundary and use `docs flows finalize` before
 corpus build/Open. This route produces generated lexical observations; existing accepted-outcome
 AFU docs and original Playwright witnesses keep their separate meaning. See [flow generation](FLOW-DOCUMENTATION.md).
+
+For a complete accepted flow-variation denominator and original `/3` receipts, use the bounded
+[flow coverage route](FLOW-COVERAGE.md): `flows coverage --denominator FILE --receipts FILE`.
+Its global verdict is fail-closed even when paging; byte-bound PROVEN does not attest deployed lineage.
+Only explicit `--write-back FRESH_DIR` writes documentation, while `--check DIR` remains read-only.
