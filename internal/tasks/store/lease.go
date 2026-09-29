@@ -47,6 +47,7 @@ type claimObserver func(*journal.Result, *transaction.Input) (transaction.LeaseF
 // then a claim is retried (CAL-V0-011).
 func Lease(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, now wire.Timestamp) (*Report, error) {
 	reaped := []transaction.ExpiredLease{}
+	reapReceipts := []ReapReceipt{}
 	for round := 0; round <= wire.MaxActiveAttempts; round++ {
 		report, err := leaseOnce(ctx, repo, actor, choice, now)
 		if err == nil && (choice.Lease.Verb == transaction.LeaseClaim || choice.Lease.Verb == transaction.LeaseClaimNext) && choice.Lease.Pool != "" && report.Outcome.HasCode(wire.CodeQuiescenceUnproved) {
@@ -54,19 +55,22 @@ func Lease(ctx context.Context, repo *intent.Repository, actor mutation.Binding,
 		}
 		if err != nil || len(report.Expired) == 0 {
 			report.Reaped = reaped
+			report.ReapReceipts = reapReceipts
 			return report, claimedTicket(repo, choice.Lease.Verb, report, err)
 		}
 		for _, x := range report.Expired {
-			done, err := reapOne(ctx, repo, actor, choice.QueueID, x, now)
+			child, err := reapOne(ctx, repo, actor, choice.QueueID, x, now)
 			if err != nil {
 				return report, err
 			}
-			if done {
+			if child.Kind == "Transaction" && child.Outcome.Outcome == mutation.OutcomeCompleted {
 				reaped = append(reaped, x)
+				reapReceipts = append(reapReceipts, ReapReceipt{ExpiredLease: x, Receipt: child.Receipt})
 			}
 		}
 		if choice.Lease.Verb == transaction.LeaseReap {
 			report.Reaped = reaped
+			report.ReapReceipts = reapReceipts
 			return report, nil
 		}
 	}
@@ -140,13 +144,13 @@ func reapID(x transaction.ExpiredLease) string {
 	return "reap-" + hex.EncodeToString(sum[:16])
 }
 
-func reapOne(ctx context.Context, repo *intent.Repository, actor mutation.Binding, queueID string, x transaction.ExpiredLease, now wire.Timestamp) (bool, error) {
+func reapOne(ctx context.Context, repo *intent.Repository, actor mutation.Binding, queueID string, x transaction.ExpiredLease, now wire.Timestamp) (*Report, error) {
 	choice := LeaseChoice{QueueID: queueID, RequestID: reapID(x), Lease: transaction.LeaseRequest{Verb: transaction.LeaseReap, AttemptID: x.AttemptID, Generation: x.Generation}}
 	report, err := leaseOnce(ctx, repo, actor, choice, now)
 	if err != nil {
-		return false, err
+		return report, err
 	}
-	return report.Kind == "Transaction" && report.Outcome.Outcome == mutation.OutcomeCompleted, nil
+	return report, nil
 }
 
 // replayedAttempt reads the attempt a replayed lease command named from its

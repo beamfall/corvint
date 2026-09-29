@@ -334,6 +334,14 @@ func TestCALV0011_ReapAndRelease(t *testing.T) {
 	if len(reap.Reaped) != 1 || reap.Reaped[0].AttemptID != expired.AttemptID {
 		t.Fatalf("reap: %+v", reap)
 	}
+	if len(reap.ReapReceipts) != 1 || reap.ReapReceipts[0].AttemptID != expired.AttemptID || reap.ReapReceipts[0].Receipt == "" {
+		t.Fatalf("reap receipts: %+v", reap.ReapReceipts)
+	}
+	assertReapReceipt(t, s.repo, reap.Reaped[0], reap.ReapReceipts[0])
+	retry := s.lease(t, "reap-again", transaction.LeaseRequest{Verb: transaction.LeaseReap}, 30, nil)
+	if len(retry.Reaped) != 0 || len(retry.ReapReceipts) != 0 {
+		t.Fatalf("empty retry reported completed children: %+v", retry)
+	}
 	release := s.lease(t, "release-2", releaseOf(live), 31, nil)
 	if release.Outcome.Outcome != mutation.OutcomeCompleted {
 		t.Fatalf("release: %+v", release)
@@ -345,6 +353,52 @@ func TestCALV0011_ReapAndRelease(t *testing.T) {
 		t.Fatal("entries remain")
 	}
 	auditOK(t, s.repo)
+}
+
+// TestCALV0011_ReapReportsEveryFreshChildReceipt binds each completed reap to
+// the actual receipt published by that per-attempt transaction.
+func TestCALV0011_ReapReportsEveryFreshChildReceipt(t *testing.T) {
+	t.Run("CAL-V0-011 multiple child reap receipts", func(t *testing.T) {
+		s := newLeaseStore(t)
+		first := claimOf(s.ticket(t, "one"), "src/a")
+		first.LeaseMinutes = "5"
+		second := claimOf(s.ticket(t, "two"), "src/b")
+		second.LeaseMinutes = "5"
+		a := s.lease(t, "claim-1", first, 0, nil)
+		b := s.lease(t, "claim-2", second, 0, nil)
+		reap := s.lease(t, "reap-all", transaction.LeaseRequest{Verb: transaction.LeaseReap}, 30, nil)
+		if len(reap.Reaped) != 2 || len(reap.ReapReceipts) != 2 {
+			t.Fatalf("reap report: %+v", reap)
+		}
+		want := map[string]wire.Size{a.AttemptID: a.Generation, b.AttemptID: b.Generation}
+		for i, got := range reap.ReapReceipts {
+			generation, ok := want[got.AttemptID]
+			if !ok || got.Generation != generation || got.Receipt == "" {
+				t.Fatalf("reap receipt %d = %+v, want generations %v", i, got, want)
+			}
+			assertReapReceipt(t, s.repo, reap.Reaped[i], got)
+			delete(want, got.AttemptID)
+		}
+		if len(want) != 0 {
+			t.Fatalf("missing child receipts for %v", want)
+		}
+		auditOK(t, s.repo)
+	})
+}
+
+func assertReapReceipt(t *testing.T, repo *intent.Repository, reaped transaction.ExpiredLease, got store.ReapReceipt) {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(repo.StateDir, "receipts", got.Receipt))
+	if err != nil {
+		t.Fatalf("read reap receipt %q: %v", got.Receipt, err)
+	}
+	receipt, err := snapshot.DecodeReceipt(raw)
+	if err != nil {
+		t.Fatalf("decode reap receipt %q: %v", got.Receipt, err)
+	}
+	if receipt.Kind != "TRANSITION" || receipt.Outcome != mutation.OutcomeCompleted || receipt.AttemptID == nil || receipt.Generation == nil || *receipt.AttemptID != reaped.AttemptID || *receipt.Generation != reaped.Generation || got.AttemptID != reaped.AttemptID || got.Generation != reaped.Generation {
+		t.Fatalf("reap tuple = %+v receipt = %+v reaped = %+v", got, receipt, reaped)
+	}
 }
 
 // TestCALV0009_StaleGenerationIsFencedAndRecorded.
