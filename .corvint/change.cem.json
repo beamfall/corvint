@@ -1,0 +1,459 @@
+{
+  "baseRevision": "edafa4d152926f3537746af2c73ad52cc032cdea",
+  "evidence": [],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:5e10324ad0150adff054d18c17d3642140a38bee427107ead85f45a4a2562b9b",
+      "newRange": {
+        "count": 48,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-29-native-release-357-integration.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:fb3b503c15623f98551a863c4c33052ad1e90bc1857ffaf9b0bb3d1848a05a08",
+      "newRange": {
+        "count": 7,
+        "start": 2377
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 2377
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:0b7a428cce8b15b71680ac5be25baa06e95c770342db5d69e573e2e547ffe43a",
+      "newRange": {
+        "count": 7,
+        "start": 12
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 12
+      },
+      "path": "docs/specs/README.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:1b6e47bfa03ffe3a30ff2a245d97d75d6776ce271b2fdb23c5accff9b981be82",
+      "newRange": {
+        "count": 22,
+        "start": 275
+      },
+      "oldRange": {
+        "count": 21,
+        "start": 275
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:bebe0d7b33d9ec1226eb85e8083b6d587de2fadf6b7dc46e0c6013da98808ed0",
+      "newRange": {
+        "count": 7,
+        "start": 3
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 3
+      },
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:3ba0001ff95ae1233412c1ba18819417e2c30f5e3c8104674524221a0a8aac69",
+      "newRange": {
+        "count": 7,
+        "start": 12
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 12
+      },
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:326161e2b22f011a5d0d4a350505f3ea6fb86f1bb5cdcf28d8fc1cea5addc686",
+      "newRange": {
+        "count": 27,
+        "start": 257
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 257
+      },
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:5187895011730e1fc022853a05be3959f916e45cb42d928fd60880cc691b7ddd",
+      "newRange": {
+        "count": 9,
+        "start": 472
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 452
+      },
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:ae97fd26ad482a90fe0ee9cb975f850407e8216cecb7edbd5f98339273b831b8",
+      "newRange": {
+        "count": 16,
+        "start": 514
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 493
+      },
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:0e72bf9f58758d12db8211f93e650f9ace16cd8cdef05d7d7a12ac6d4b6786b7",
+      "newRange": {
+        "count": 6,
+        "start": 565
+      },
+      "oldRange": {
+        "count": 4,
+        "start": 534
+      },
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:b1af8dd5cad88a2b28fca0f251f92091ea99d551b2eb45b702698870802e5e3c",
+      "newRange": {
+        "count": 7,
+        "start": 8
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 8
+      },
+      "path": "internal/companionrelease/tasks_archive_test.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:8f67b2ff42b5bbe46be4bad4543e6727f6256d4ee1283bc6392ec0a0bbd0df30",
+      "newRange": {
+        "count": 189,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/tasks/cli/nonfixture_release_test.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:f129b5dec23f80625d173d433f997a4fee885f7bd11ec1e13b420b6837f8cc47",
+      "newRange": {
+        "count": 12,
+        "start": 111
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 111
+      },
+      "path": "internal/tasks/cli/policy_test.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:7c40011127c4a1121be4893b56d0b02fcb43fe7ac02900e394f8a72570eb50fa",
+      "newRange": {
+        "count": 12,
+        "start": 171
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 171
+      },
+      "path": "internal/tasks/cli/release_test.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:40786d11d11734399543d699a40ed4fc9492758aaaa62a2f0e85dc49531d89a7",
+      "newRange": {
+        "count": 12,
+        "start": 274
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 270
+      },
+      "path": "internal/tasks/cli/release_test.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:428fb91c9bdbc933dbec2c7d1840b6356a03dcb964fd001b5a73c526c756a1e3",
+      "newRange": {
+        "count": 12,
+        "start": 310
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 302
+      },
+      "path": "internal/tasks/cli/release_test.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:9fc8b5f5415e0762cb18d925bf08bf5b4d5e7858a4ffcdd77b15ad4aab90ffdb",
+      "newRange": {
+        "count": 12,
+        "start": 333
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 321
+      },
+      "path": "internal/tasks/cli/release_test.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:a3bffa1833be8b241265caf1bd9c6b27c65f222c4a7cc4e1db0595d0984366a4",
+      "newRange": {
+        "count": 12,
+        "start": 404
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 388
+      },
+      "path": "internal/tasks/cli/release_test.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:e5d9ced7263b24217bb68fadaef59ca75c299443fd6a13a35e7b34392d916218",
+      "newRange": {
+        "count": 12,
+        "start": 451
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 431
+      },
+      "path": "internal/tasks/cli/release_test.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:1583c884ae82a2b147eb4709c53bf1e670335545b42783794c4d6ed87c8826c1",
+      "newRange": {
+        "count": 218,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/tasks/snapshot/nonfixture_stage_test.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:87890bd65c346e48e35e9b6635ea20dc420a42d275ce94c446c80b57d18cc40d",
+      "newRange": {
+        "count": 9,
+        "start": 38
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 38
+      },
+      "path": "internal/tasks/snapshot/stage.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:70cd76cfb65ceb788911d06640107080c64629abd67673e6da43719bed2ad600",
+      "newRange": {
+        "count": 8,
+        "start": 116
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 116
+      },
+      "path": "internal/tasks/snapshot/stage_observation.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:d62b13499a91543275855375d256acea60e6d07072aeec50d94977c4a9989599",
+      "newRange": {
+        "count": 7,
+        "start": 166
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 166
+      },
+      "path": "internal/tasks/snapshot/stage_observation.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:0d8fe37fb3ed2a5a5711b40fd23b221d7e676b62f584e6cd9e9f059dad7314c8",
+      "newRange": {
+        "count": 21,
+        "start": 211
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 215
+      },
+      "path": "internal/tasks/snapshot/stage_observation.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:6ff6af3a069dfc9c0211e552b88a08a692c1aba0362c1c3dd5aa0d8eb5e2617e",
+      "newRange": {
+        "count": 8,
+        "start": 59
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 59
+      },
+      "path": "internal/tasks/snapshot/stage_test.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:f65870c886a4aed7206ab8602c056f42cf7411492f69213fed2f02350ca6a652",
+      "newRange": {
+        "count": 314,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/tasks/store/nonfixture_release_test.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:696e5515fefe4f867f0d74bdf26af6ab3f36c6b7b9765aa4e2e8dfdc80a8fd02",
+      "newRange": {
+        "count": 8,
+        "start": 196
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 196
+      },
+      "path": "internal/tasks/store/reconcile.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:535ad5092a63e7f51934ba9d1ba7f6b995ff217045436a5a987fd8732dff5c8c",
+      "newRange": {
+        "count": 9,
+        "start": 243
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 243
+      },
+      "path": "internal/tasks/store/reconcile.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:318052dd00db23416ee8dbdf328d2e433a21e91235c71d0bb523b0bc33905ee7",
+      "newRange": {
+        "count": 8,
+        "start": 259
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 256
+      },
+      "path": "internal/tasks/store/reconcile.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:5219ec668066f728ecbc996957c6d56d9e7733eb81b9cbcc86bfa8d779be2b7a",
+      "newRange": {
+        "count": 8,
+        "start": 92
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 92
+      },
+      "path": "internal/tasks/store/release.go",
+      "reason": "no-evidence"
+    }
+  ],
+  "patchSha256": "f54588bcbcd6a6820708fd5f082d85cd6af96b053d940ba13a56f34b36db6e80",
+  "spec": "cem/0.2"
+}
