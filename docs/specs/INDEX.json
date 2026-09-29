@@ -2445,14 +2445,18 @@
     "path": "docs/specs/corvint-1.0-product-and-release-v1.md",
     "title": "Corvint 1.0 product and release scope V1",
     "reqPrefix": "PRS-V1",
-    "intent": "accepted (decision 0373, V1-0001)",
-    "delivery": "not-started",
-    "claim": "Accepted scope: 1.0 Core is the local change-evidence loop and proof wire; companions, host FULL and independent interop leave the Core path (decision 0373).",
+    "intent": "accepted (decisions 0373 and 0426, V1-0001 and V1-0461)",
+    "delivery": "partial; expanded 1.0 qualification pending",
+    "claim": "1.0 requires Core change evidence, Flows, safe navigation, docs, MCP, full Beamfall roadmap takeover by Tasks and automatic documentation.",
     "dependsOn": [
       "docs/specs/public-release-v0.md",
       "docs/specs/daily-change-evidence-workflow-v0.md",
       "docs/specs/agent-harness-integration-v0.md",
-      "docs/specs/stable-operations-v0.md"
+      "docs/specs/stable-operations-v0.md",
+      "docs/specs/application-flow-understanding-v1.md",
+      "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "docs/specs/source-documentation-draft-v0.md",
+      "docs/specs/documentation-corpus-v1.md"
     ],
     "supersededBy": null,
     "closableToday": false,
