@@ -66,8 +66,10 @@ the packet rather than attaching evidence to the old observation.
 A missing or failing gopls produces an `unavailable` row while ordinary context stays usable.
 For `no package metadata for file`, check that the subject belongs to a valid Go module or go.work
 workspace, its dependencies are cached, and the installed Go/gopls versions are compatible. An
-all-query failure is not a successful semantic result. The older Caddy/etcd benchmark issue
-V1-0168 is not resolved by this integration.
+all-query failure is not a successful semantic result. The older Caddy/etcd frozen benchmark
+reported no contributed gopls relations for those repositories. Its release snapshots contain
+truncated source and incomplete dependency material, so that run does not qualify semantic
+coverage there; see the [V1-0168 build-log correction](build-log/2026-09-29-lsp-bench-snapshot-integrity.md).
 
 ## Execution and qualification boundary
 
