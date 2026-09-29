@@ -18,11 +18,11 @@
 The operator supplies `corvint-lsp --experimental --gopls /absolute/gopls --root /absolute/root`.
 The editor declares that same single canonical root. This experimental path joins the existing
 components without changing Core, installing tools, discovering binaries or writing editor config.
-The baseline remains the editor's directly configured gopls. No benefit over that baseline is claimed.
+The baseline remains the editor's directly configured gopls. No benefit over that baseline is claimed. An operator may issue direct `textDocument/definition` development probes after initialization; standard editor navigation remains unavailable because `definitionProvider` is unadvertised until client qualification.
 
 ## Requirements
 
-- `LED-V0-001`: The companion MUST enable semantic mode only with explicit operator executable and root arguments, and advertise definition/full-text sync only after successful backend initialization. Multiple or mismatched roots MUST be rejected.
+- `LED-V0-001`: The companion MUST enable semantic mode only with explicit operator executable and root arguments, and expose an explicit experimental definition-probe marker and full-text sync only after successful backend initialization. It MUST NOT advertise standard `definitionProvider` before an exact editor tuple qualifies. Multiple or mismatched roots MUST be rejected.
 - `LED-V0-002`: Open/change/close MUST retain exact captured overlay identity across synchronization. Currentness MUST check the actual capture; version or digest alone MUST NOT identify reopened documents. Unsupported incremental updates and invalid synchronization MUST terminate the session without claiming current evidence.
 - `LED-V0-003`: Definition MUST use one bounded pending request, service cancellation while work is pending, cancel and join before document mutation, and recheck source and target snapshots before replying. Only synchronized open overlay targets are admitted; disk targets MUST return explicit unavailability.
 - `LED-V0-004`: Editor UTF-8, UTF-16 and UTF-32 positions MUST convert through validated Unicode boundaries to gopls UTF-16 and back. Invalid, missing or out-of-range coordinates MUST be rejected rather than rounded.
@@ -55,7 +55,7 @@ Standard definition locations carry navigation only; they are not authenticated 
 | LED-V0-004 | internal/lspstdio/semantic.go | TestPositionConversions; TestSemanticOverlayDefinition |
 | LED-V0-005 | internal/lspstdio/semantic.go | TestSemanticEOFDuringInitialize; TestSemanticCancelAndChange; TestSemanticBackendDeathUnblocksReply; TestSemanticShutdownReplyBeforeExit; TestInterrupt |
 
-The live subtest requires explicit CORVINT_TEST_GOPLS and otherwise skips visibly. Fake sessions
+The live subtest requires explicit CORVINT_TEST_GOPLS and otherwise skips visibly. Tests assert that the standard definition capability is absent while the experimental probe marker is present; direct requests exercise the development path only. Fake sessions
 prove joining behavior, not editor/provider interoperability. Client qualification, performance,
 agent usefulness and promotion remain separate. Rollback removes the operator flags or stops the
 companion; the original capability-free mode and Core remain available.

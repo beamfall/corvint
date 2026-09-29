@@ -181,8 +181,21 @@ func (h *semanticHarness) recv(t *testing.T) map[string]json.RawMessage {
 func (h *semanticHarness) init(t *testing.T) {
 	h.send(t, map[string]any{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": map[string]any{"rootUri": (&url.URL{Scheme: "file", Path: h.root}).String(), "capabilities": map[string]any{"general": map[string]any{"positionEncodings": []string{"utf-8"}}}}})
 	m := h.recv(t)
-	if m["error"] != nil || !strings.Contains(string(m["result"]), `"definitionProvider":true`) {
+	if m["error"] != nil {
 		t.Fatal(string(m["error"]), string(m["result"]))
+	}
+	var result struct {
+		Capabilities map[string]json.RawMessage `json:"capabilities"`
+	}
+	if err := json.Unmarshal(m["result"], &result); err != nil {
+		t.Fatal(err)
+	}
+	if _, advertised := result.Capabilities["definitionProvider"]; advertised {
+		t.Fatal("unqualified standard definition capability advertised")
+	}
+	var experimental map[string]bool
+	if err := json.Unmarshal(result.Capabilities["experimental"], &experimental); err != nil || !experimental["corvintDefinitionProbe"] {
+		t.Fatal("missing explicit development probe marker", err)
 	}
 	h.send(t, map[string]any{"jsonrpc": "2.0", "method": "initialized", "params": map[string]any{}})
 }

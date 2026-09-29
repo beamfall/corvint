@@ -383,7 +383,7 @@ func ServeSemantic(parent context.Context, in io.ReadCloser, out io.WriteCloser,
 				stopBackendWatch = func() { close(watchStop); <-watchDone; stopBackendWatch = func() {} }
 				encoding = n.encoding
 				state = 1
-				response = map[string]any{"capabilities": map[string]any{"positionEncoding": encoding, "definitionProvider": true, "textDocumentSync": map[string]any{"openClose": true, "change": 1}}, "serverInfo": map[string]string{"name": "corvint-lsp-experimental", "version": "0"}}
+				response = map[string]any{"capabilities": map[string]any{"positionEncoding": encoding, "textDocumentSync": map[string]any{"openClose": true, "change": 1}, "experimental": map[string]any{"corvintDefinitionProbe": true}}, "serverInfo": map[string]string{"name": "corvint-lsp-experimental", "version": "0"}}
 			case method == "initialize":
 				code, msg = -32600, "Invalid Request"
 			case state == 0 || state == 1:

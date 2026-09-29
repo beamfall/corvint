@@ -488,5 +488,5 @@ The editor must launch the process over stdio and declare the same canonical roo
 uses full-text synchronization and UTF-8/16/32 positions; non-open targets return unavailable.
 The backend receives offline Go settings, but the executable is trusted local code, not sandboxed.
 This operator-started experiment changes no Core defaults and installs no editor configuration.
-It is definition-only and is not qualified or promoted as an editor integration. See the
+It exposes a `corvintDefinitionProbe` experimental marker and accepts direct development `textDocument/definition` requests, but does not advertise the standard definition capability. Automatic editor navigation remains unavailable until an exact client tuple is qualified. See the
 [experimental contract](docs/specs/lsp-editor-definition-v0.md) for bounds and rollback.
