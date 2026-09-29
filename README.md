@@ -5,6 +5,10 @@
   </picture>
 </p>
 
+<h1 align="center">Corvint</h1>
+
+<p align="center">A <a href="https://github.com/beamfall">Beamfall</a> project.</p>
+
 <p align="center"><strong>Context your agents can cite. Changes your reviewers can check.</strong></p>
 
 <p align="center">
@@ -12,6 +16,13 @@
   Git-pinned evidence with the reason each item is there. After the edit it binds every diff hunk
   to cited evidence, an explicit unknown, or a verifiable mechanical exception, in a portable
   sidecar that CI checks without an LLM.
+</p>
+
+<p align="center">
+  <a href="docs/INSTALL.md">Install</a> ·
+  <a href="#the-workflow">Workflow</a> ·
+  <a href="#status-stated-plainly">Status</a> ·
+  <a href="docs/README.md">Documentation</a>
 </p>
 
 <p align="center">
@@ -26,17 +37,18 @@
 `go.mod` declares no module requirements. Read commands do not mutate repository or trace state;
 the two bounded exceptions are a local `.corvint/self-observations.jsonl` ledger and, only while
 the operator marker `.corvint/unplanned-reads.enabled` exists, `.corvint/unplanned-reads.jsonl` —
-neither ever feeds ranking, evidence, or authority ([AGENTS.md](AGENTS.md) invariant 4). Version
+neither is a direct input to ranking, evidence, or authority. Learning from these ledgers requires
+an explicit operator step and a frozen held-out gate ([AGENTS.md](AGENTS.md) invariant 4). Version
 `1.0.0-rc.1` is the release candidate for Corvint 1.0; [what 1.0 promises and what is still being
 qualified](#status-stated-plainly).
 
 ## Why Corvint
 
-Coding agents do not run out of tokens. They run out of evidence. A grep or an embedding search
-returns text; the agent still has to guess which file governs the change, which test constrains
-it, and what it never saw. The reviewer then inherits a diff with no trail back to why.
+Finding relevant text is only part of a coding task. An agent also needs to know which document
+governs the change, which tests constrain it, and what evidence is missing. A reviewer needs to
+follow those decisions back to their sources.
 
-Corvint replaces the guess with a receipt and the opaque diff with a map.
+Corvint makes that evidence inspectable through context receipts and a map beside the diff.
 
 - **Every result explains itself.** Each item in a packet carries the Git blob it came from, the
   path and line, the authority that admitted it, a confidence level, and a plain-language
@@ -51,15 +63,15 @@ Corvint replaces the guess with a receipt and the opaque diff with a map.
   hunk of a diff to cited evidence, an explicit unknown, or a mechanical exception. The verifier
   checks patch, hunk, blob, and span identity locally, with no LLM, no index, and no shared
   service. The protocol is Apache-2.0, so anyone can implement or verify it.
-- **Nothing to run, nothing to trust.** The core reads Git and prints JSON. Default evidence
-  flows make no network call. `query`, `context`, `impact`, `affected`, and `prove` report
-  `mutates: false`; learning happens only on an explicit `record`, stays local, bounded, and
-  secret-screened, and cannot change ranking without passing a pinned evaluation gate.
+- **Local and explicit.** The core reads Git and prints JSON. Default evidence flows make no
+  network call. `query`, `context`, `impact`, `affected`, and non-executing `prove` modes report
+  `mutates: false`, subject to the private-ledger exceptions above. `record` explicitly retains
+  task outcomes; learning stays local, bounded, secret-screened, and evaluation-gated.
 
 ## Sixty seconds on this repository
 
-You need Git and Go 1.27 (`go.mod` requires 1.27.1; the full gate pins exactly `go1.27.1`).
-From a checkout on Darwin or Linux:
+You need Git and Go 1.27.1 or later; the full development gate pins exactly `go1.27.1`.
+Run this from the root of a Corvint checkout on macOS or Linux:
 
 ```console
 GOTOOLCHAIN=local go run ./cmd/corvint impact cmd/corvint/main.go --limit 5
@@ -248,13 +260,17 @@ versioned independently of the product.
 
 ## The rest of the toolbox
 
-The CLI is the product. Around it, this repository ships the tools that make a working session
-observable: what tests just said, what work is queued, what evidence exists and how fresh it is.
-Every one of them is local, explicit and read-through; none holds authority over the repository.
+The core CLI works on its own. Optional tools expose test results, tickets, and evidence; some
+also run tests or perform explicit local writes. They are qualified separately from Core and do
+not inherit its stability promise.
+
+<details>
+<summary>Explore optional companions, deferred editor tooling, and experimental tools</summary>
+
 
 ### Editor: evidence views and live test feedback
 
-The [VS Code extension](extensions/vscode/README.md) runs the same `corvint` binary (or
+The [VS Code extension](extensions/vscode/README.md), deferred from 1.0, runs the same `corvint` binary (or
 `corvint-mcp` over stdio) and projects one bounded result into Evidence, Impact and Why views,
 diagnostics and decorations. Executables are pinned by identity and revalidated before every run;
 suggested verification commands are shown, never executed.
@@ -330,7 +346,7 @@ is source-only and experimental, not distributed in that bundle:
 | Server | Tools |
 |---|---|
 | `corvint-mcp` | `corvint.query`, `corvint.impact` and `corvint.status`: the same bounded context, Go impact and repository-status receipts as the CLI; with `--tool-profile task-review`, `corvint.context` and `corvint.cem.report` also return the task-context packet and a non-publishing CEM report preview |
-| `corvint-docs-mcp` | `corvint.docs_draft` writes source-pinned documentation from owner prose and indexed Go declarations; `corvint.docs_consume` rechecks a draft's exact bytes against source |
+| `corvint-docs-mcp` | `corvint.docs_draft` returns a source-pinned documentation draft from owner prose and indexed Go declarations; `corvint.docs_consume` rechecks a draft's exact bytes against source |
 | `corvint-corpus-mcp` (source-only) | Experimental [revision-pinned documentation corpus](docs/DOCUMENTATION-CORPUS.md); capability-gated read tools over one explicitly supplied local artifact |
 | `corvint-test-validity-mcp` | Discovery and projection of retained test evidence in one five-axis shape |
 
@@ -354,6 +370,8 @@ profile and is admitted to the product only through its own accepted profile ([c
   writes its manifest and checksums; `corvint-public-release-check` qualifies one retained
   bundle; `corvint-release-gate` is an offline evidence gate; `corvint-go-toolchain-receipt`
   digests a GOROOT tree into a receipt. None publishes anything.
+
+</details>
 
 ## Built to be checked
 
@@ -381,8 +399,8 @@ profile and is admitted to the product only through its own accepted profile ([c
 | `init`, `adopt`, `index`, `query`, `context`, `impact`, `affected`, `prove` | Core | Command, wire and migration contracts frozen; `init`, `adopt` and the deterministic index lifecycle qualified. Receipts carry coverage, omissions and uncertainty as specified. |
 | CEM `0.1` / `0.2`, OCM, change frontier | Core | Frozen with canonical conformance vectors. `interop/cem01-go` is an in-repo second consumer for `cem/0.1` only; 1.0 claims no third-party interoperability. |
 | Dogfood loop | Core | Substantive Corvint changes are bound to a CEM and sealed with a retained local outcome ([dogfood contract](docs/DOGFOOD.md)). |
-| Core jobs | Core | Task orientation is `VERIFIED`. Change consequence and evidence-carrying completion stay `UNPROVEN` until the untouched-repository run passes. |
-| Native release artifact and install lifecycle | Core | darwin/arm64 is a Core platform. linux/amd64 is Core once native install-lifecycle evidence is retained on the candidate bytes, and reports `FALLBACK` until then. linux/arm64 and darwin/amd64 are `FALLBACK`; Windows is unsupported. |
+| Core jobs | Core | **The rc.1 evaluation failed overall.** Orientation missed critical test files in 3/20 cases on go-chi/chi and 1/20 on Beamfall. Consequence and completion passed on those repositories; the Corvint run aborted before scoring. These results block 1.0 final ([release evidence](docs/RELEASE-NOTES.md#100-rc1-release-candidate)). |
+| Native release artifact and install lifecycle | Core | darwin/arm64 and linux/amd64 have retained rc.1 install-lifecycle qualification. darwin/amd64 was tested under Rosetta 2 and linux/arm64 in a container; both remain `FALLBACK`. Windows is unsupported. The candidate is unsigned; publisher identity is `NOT_VERIFIED` ([release evidence](docs/RELEASE-NOTES.md#100-rc1-release-candidate)). |
 | Retrieval quality | Core surface, unqualified ranking | Bounded receipts around a named path or subject are the product. Broad task-to-evidence retrieval has not passed held-out evaluation: the latest held-out attempt beat the exact-search baseline on top-5 (0.571 vs 0.343) and met the abstention and latency bars, but returned forbidden results on 7 of 36 must-exclude checks. Do not rely on ranking or abstention. |
 | Does CEM help a reviewer? | Not claimed | **Unproven.** A five-pair pilot scored mean missed evidence of 0.90 for control and 0.86 with CEM. It is a pilot, not a held-out outcome study. |
 | Performance | Not claimed | Unmeasured for the current Go-only revision. Earlier measurements compared against the retired Python runtime and do not qualify this one. |
