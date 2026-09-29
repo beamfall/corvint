@@ -3,9 +3,9 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `PRS-V1`
-Status: accepted (decision 0373, 2026-09-23)
-Intent status: accepted (decision 0373, V1-0001)
-Delivery status: not-started
+Status: accepted (decision 0373, 2026-09-23; scope expanded by decision 0426, 2026-09-28)
+Intent status: accepted (decisions 0373 and 0426, V1-0001 and V1-0461)
+Delivery status: partial; expanded 1.0 qualification pending
 Authoritative inputs: `../../AGENTS.md` invariants 1-8, `public-release-v0.md` (the 0.6 local-workflow
 scope, `PUB-V0-001..026` and the 2026-09-16 Core release scope amendment),
 `../decisions/0332-verified-local-workflow-scope-2026-09-22.md`, `daily-change-evidence-workflow-v0.md`,
@@ -13,11 +13,11 @@ scope, `PUB-V0-001..026` and the 2026-09-16 Core release scope amendment),
 (0.7.0 build 46), task-store tickets V1-0001..V1-0021.
 
 ## Agent digest
-- Claim: Accepted scope: 1.0 Core is the local change-evidence loop and proof wire; companions, host FULL and independent interop leave the Core path (decision 0373).
-- Status: accepted (decision 0373, V1-0001) / not-started
+- Claim: 1.0 requires Core change evidence, Flows, safe navigation, docs, MCP, full Beamfall roadmap takeover by Tasks and automatic documentation.
+- Status: accepted (decisions 0373 and 0426, V1-0001 and V1-0461) / partial; expanded 1.0 qualification pending
 - Exists: this spec, decision 0373 with the eleven owner answers, and the prospective amendment section in `public-release-v0.md`; the candidate reader and installer admit a Core-only profile (V1-0125), and `corvint-release-candidate` assembles one when `-companion-dir` is omitted (V1-0229).
 - Blocked on: V1-0019 external validation and V1-0020 qualification of the next candidate. `1.0.0-rc.1` (build 163, `b967f6bb`) is published as a prerelease with V1-0019 run-001 as a known issue (decision 0425): orientation FAIL on go-chi/chi (3 of 20) and beamfall/core (1 of 20), consequence and completion PASS on both, and the Corvint run aborted (V1-0431..V1-0433). The next run uses spf13/cobra in place of go-chi/chi (decision 0425); the native linux/amd64 host is a GitHub-hosted `ubuntu-24.04` runner (decision 0420).
-- Read next: Decisions the owner must make; Classification of shipped surfaces; Externally dependent gates.
+- Read next: Expanded 1.0 product scope; Classification of shipped surfaces; Externally dependent gates.
 
 ## Human intent
 
@@ -31,6 +31,30 @@ need third parties into explicit owner choices rather than silent blockers.
 Decision 0373 (2026-09-23) accepts every clause. `public-release-v0.md` carries the prospective
 1.0 amendment, decision 0332 keeps governing the 0.6 milestone, and the task-store release criteria
 are reconciled to this spec. Acceptance of scope is not delivery, qualification or promotion.
+
+## Expanded 1.0 product scope
+
+Decision 0426 records the owner's 2026-09-28 instruction to deliver Flows, navigation,
+documentation and MCP, to have Corvint Tasks fully take over Beamfall's roadmap, and to provide
+automatic documentation by 1.0. These are required product outcomes even where independently
+packaged. Their previous optional release placement is superseded for stable 1.0 promotion.
+Core's binary boundary, artifact independence and compatibility promises remain unchanged.
+
+The expanded release is tracked by V1-0461..0465 and the existing Flows tickets V1-0249 and
+V1-0252..0255. Native claims and gates alone do not establish full Tasks takeover: independent
+candidate review, multi-repository integration, original history/provenance, legacy writer fencing,
+consumer migration, recovery retaining native writes and actual production completion are required.
+The final production authority switch still needs the concrete owner approval required by standing
+instructions. Technical review/identity profiles remain proposals until separately accepted.
+
+Automatic documentation covers developer references and user-facing flow documentation. The first
+profile must compose existing source/corpus and flow evidence into useful, reviewable updates,
+preserve human prose, expose uncertainty and stale claims, and prove safe explicit apply and
+idempotency. Source extraction is not observed behavior or accepted intent. Full HDC renderer,
+offline and generalized behavior-inference claims require their own evidence and are not implied.
+
+Unrelated consoles, editors, additional host authority, learning research, broad language coverage
+and hosted services can remain deferred unless a required workflow demonstrates a dependency.
 
 ## Core definition
 
@@ -55,8 +79,10 @@ platforms. It is exactly:
 
 ## Companions
 
-A companion ships separately or alongside Core, carries its own qualification and version, and can
-never be a prerequisite for a Core release candidate or a Core claim. Proposed companion list:
+A companion ships separately or alongside Core and carries its own qualification and version.
+Core-only candidate assembly needs no companion input. Decision 0426 makes the selected Tasks,
+Flows, documentation and MCP outcomes prerequisites for whole-product stable 1.0 promotion.
+Companion packaging alone does not qualify a capability. Companion list:
 
 - Local admin console (`corvint-console`) and dashboard snapshot (`corvint-dashboard-snapshot`).
 - Corvint Tasks (`corvint-tasks`, in-tree separate companion binary (decision 0397)) and its roadmap.
@@ -99,7 +125,8 @@ in `integrations/compatibility.json` is FALLBACK today. Proposed 1.0 host scope:
 
 ## Classification of shipped surfaces
 
-Labels: Core (stability promise), companion (optional, own qualification), experimental (shipped,
+Labels: Core (stability promise), companion (own qualification; optional unless marked required
+1.0 by decision 0426), experimental (shipped,
 no promise, labelled or hidden by V1-0007), deferred (not shipped for 1.0, direction kept),
 rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 claim).
 
@@ -115,7 +142,7 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 | `corvint dogfood`, internal `dogfood-record`, `dogfood-ocm` | Core | Retained local outcome of the dogfood loop. |
 | `corvint adapter` (codex, claude-code, claude-source-handoff) | Core (decision 0373, question 5: yes) | Thin host entry for the two Core host rows. |
 | `corvint --version`, `help` | Core | Identity and discovery of the Core verbs. |
-| `corvint docs` (draft, watch, apply, maintain) | companion | Decision 0332 names automatic docs a companion. |
+| `corvint docs` (draft, watch, apply, maintain) | required 1.0 companion | Bounded automatic developer and flow documentation under decision 0426; broader historical watch, renderer and offline promises require separate qualification. |
 | `corvint test-validity` | companion | Test-provider profile; decision 0332 companion. |
 | `corvint harness event`, `pi-tool` | companion | Entry points for non-Core hosts. |
 | `corvint witness`, `batch`, `obligations` | experimental | Accepted directions with experimental delivery; not part of the Core loop. |
@@ -123,13 +150,14 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 | `corvint record`, `migrate-traces`, `migration-ratchet` | experimental | Learning and trace migration stay evaluation-gated (invariant 5). |
 | `corvint work`, `observations`, `prove-observe`, internal `dogfood-observe` | experimental | Observation ledgers; never inputs to ranking or authority (invariant 4). |
 | `corvint features`, `overview`, `review` | experimental | First-use guidance already labelled experimental (`PUB-V0-017`). |
-| `corvint flows` | companion (decision 0385) | Flow map, gaps, impact, navigation and proven docs (`AFU-V1`); qualified on Beamfall and never blocks the Core candidate. |
+| `corvint flows` | required 1.0 companion (decisions 0385, 0426) | Flow map, gaps, impact, safe navigation and evidence-bound docs (`AFU-V1`); exact-candidate qualification remains required. |
 | `corvint depsource`, `necessity`, `surprise`, `answerability`, `kernel`, `lease`, `reads`, `skill-export` | experimental | Help text already labels them experimental. |
 | `corvint feature` | experimental | Legacy parity verb kept for the Go kernel migration. |
 | Internal `authority-event`, `qualified-event`, `native-hook`, `frontier-next`, `plan-fixture`, `source-view`, `docs corpus` | experimental | Protected-authority, planning, source-view and corpus prototypes. |
 | `corvint-console`, `corvint-dashboard-snapshot` | companion | Optional operator console with no authority (decision 0081). |
-| `corvint-tasks` | companion | In-tree separate companion binary (decision 0397); roadmap is not a Core claim. |
-| `corvint-mcp`, `corvint-docs-mcp`, `corvint-test-validity-mcp` | companion | MCP servers are optional host surfaces. |
+| `corvint-tasks` | required 1.0 companion | Full Beamfall roadmap replacement, including independent review, multi-repository completion, migration and production activation (decision 0426). |
+| `corvint-mcp`, `corvint-docs-mcp` | required 1.0 companion | Native-parity Flows and documentation tools with compiled-process conformance (decision 0426). |
+| `corvint-test-validity-mcp` | companion | Optional test-validity host surface with its own qualification. |
 | `corvint-js-test-provider`, `corvint-go-test-provider` | companion | Test providers qualify under `/2`, not Core. |
 | `corvint-remote-provider` | companion | Network consent places it outside the default local product. |
 | `corvint-release-candidate`, `corvint-release-install` | Core | Core candidate assembly and install (`PUB-V0-022..026`). |
@@ -259,7 +287,8 @@ accepted by decision 0373 and the amendment it requires are stated.
   platform needs retained native install-lifecycle and focused-test evidence on the candidate
   bytes; without it the platform is reported FALLBACK, never Core. Windows MUST stay UNSUPPORTED.
 - `PRS-V1-005`: A Core release candidate MUST NOT require companion input. Companions keep their
-  own qualification and version and can be released separately.
+  own qualification and version and can be released separately. This assembly independence does
+  not waive the whole-product stable-promotion requirements in PRS-V1-013..017.
 - `PRS-V1-006`: Core host scope MUST be the plain CLI, plus the exact-version Codex CLI and Claude
   Code rows at FALLBACK when owner question 5 is answered yes. Formal FULL or protected authority for
   any host MUST NOT block Core.
@@ -277,6 +306,26 @@ accepted by decision 0373 and the amendment it requires are stated.
 - `PRS-V1-012`: This spec has no authority until a numbered decision records the owner's
   acceptance and answers. Until then `public-release-v0.md`, decision 0332 and the task-store
   release criteria govern.
+
+- `PRS-V1-013`: Stable 1.0 MUST include qualified Flows, safe application navigation,
+  evidence-bound flow documentation and the corresponding MCP tools under their owning AFU
+  contract. Missing observers and unavailable production integrations remain explicit gaps.
+- `PRS-V1-014`: Tasks MUST replace Beamfall's active roadmap workflow through native ticket
+  mutation, claims/leases, independent candidate review and repair, actual gates, single- and
+  multi-repository integration, completion and consumer migration. Preserve history and original
+  evidence; imported manual completions MUST NOT be relabelled newly verified execution.
+- `PRS-V1-015`: Automatic developer and user-facing flow documentation MUST use revision-pinned
+  sources and observations, retain citations and uncertainty, preserve human prose, detect drift,
+  preview updates, support safe explicit apply and repeat no-ops, and retain rollback evidence.
+  Generated output MUST NOT accept intent or publish itself.
+- `PRS-V1-016`: Before Beamfall production activation, the migration MUST reconcile active work,
+  fence legacy writers, qualify real gates and process cleanup, and rehearse recovery that retains
+  post-cutover native writes. The final concrete switch requires owner approval. Stable promotion
+  additionally requires actual production native completion, ticket readback and receipt audit.
+- `PRS-V1-017`: The expanded capabilities MUST retain exact-candidate acceptance evidence and
+  honest delivery labels before stable promotion. Existing Core job, platform, compatibility and
+  release gates remain required. Product-scope acceptance MUST NOT imply acceptance of an
+  experimental technical contract, runtime qualification, authentication or broader renderer claims.
 
 ## Decisions the owner must make
 
@@ -340,6 +389,7 @@ is `github.com/go-chi/chi` (decision 0422). The questions stay as asked.
 | Requirement | Evidence | Status |
 |---|---|---|
 | `PRS-V1-001..012` | Decision 0373 | PRODUCED (2026-09-23) |
+| `PRS-V1-013..017` | Decision 0426; V1-0461..0465 and V1-0249/V1-0252..0255 | Owner scope recorded; end-to-end capability qualification and production Tasks activation pending |
 | `PRS-V1-010` | Review of this table against the base commit's verbs, binaries and trees | review only |
 | `PRS-V1-002` | N-1 upgrade: 0.7.0 archive to 0.8.0 `upgrade-b` and `rollback-a` under `SOP-V0-003` (`stable-operations-v0.md`, V1-0190) | PASS on darwin/arm64, darwin/amd64 (Rosetta 2), linux/arm64 (container); linux/amd64 emulated only |
 | `PRS-V1-005` | Core-only assembly with no companion or Tasks input (`TestPRSV1005CoreOnlyAssemblyNeedsNoCompanion`, V1-0229) and its reader and installer (`TestPRSV1005CoreOnlyCandidateVerifiesAndInstalls`, V1-0125); the companion assembler requires `-source-root` and, since decision 0397, takes no `-tasks-root` (`TestEmptyRootsRefuseBeforeExecution`) | PASS (unit); real assembly and install on a scratch alpha commit, darwin/arm64; linux `NOT_RUN` |

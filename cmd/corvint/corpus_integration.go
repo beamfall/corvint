@@ -89,7 +89,7 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 		emitError(stderr, err)
 		return 2, true
 	}
-	raw, err := doccorpus.ReadFile(root, artifact)
+	raw, err := doccorpus.ReadCorpusFile(root, artifact)
 	if err != nil {
 		emitCorpusError(stderr, err)
 		return 2, true
@@ -212,6 +212,20 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 					linked = append(linked, o)
 				}
 			}
+		}
+		if corpus.Schema == doccorpus.SchemaV2 {
+			total := len(linked)
+			if len(linked) > doccorpus.MaxResults {
+				linked = linked[:doccorpus.MaxResults]
+			}
+			for len(linked) > 0 {
+				raw, err := doccorpus.Encode(linked)
+				if err == nil && len(raw) <= 1<<20 {
+					break
+				}
+				linked = linked[:len(linked)/2]
+			}
+			section["observations_omitted"] = total - len(linked)
 		}
 		section["observations"] = linked
 		section["observation_limitations"] = []string{"only an exact explicitly supplied receipt is joined; discovery and missing matches remain unlinked"}

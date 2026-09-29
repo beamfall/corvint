@@ -18,12 +18,17 @@ import (
 )
 
 type compiler struct {
-	root         string
-	manifest     Manifest
-	indexes      map[string]*contextindex.Index
-	sources      map[string]contextindex.Source
-	artifact     *Artifact
-	declarations []CapabilityDeclaration
+	providerRecords   map[string]ProviderRecord
+	restrictedIDs     map[string]bool
+	restrictedBytes   int
+	adoptionProviders map[string]bool
+	restrictedTokens  []string
+	root              string
+	manifest          Manifest
+	indexes           map[string]*contextindex.Index
+	sources           map[string]contextindex.Source
+	artifact          *Artifact
+	declarations      []CapabilityDeclaration
 }
 
 func inputKey(rev, p string) string { return rev + ":" + p }
@@ -66,7 +71,7 @@ func Inventory(ctx context.Context, root, revision, scope, timestamp string) (Ma
 		return m, fail("empty or oversized scope")
 	}
 	for _, p := range names {
-		source, err := loadInput(ctx, auth, index, p)
+		source, err := loadInput(ctx, auth, index, p, MaxBytes)
 		if err != nil {
 			return m, err
 		}
@@ -97,6 +102,12 @@ func Build(ctx context.Context, root string, m Manifest) (*Artifact, error) {
 		return nil, err
 	}
 	c.artifact = &Artifact{Schema: Schema, Builder: currentBuilder(), Manifest: m, ManifestSHA256: manifestSHA256, ProfileSHA256: profileSHA256, Tree: c.indexes[m.Repository.Revision].Revision, Subjects: []Subject{}, Claims: []Claim{}, Relations: []Relation{}, Journeys: []Journey{}, Observations: []Observation{}, Capabilities: []Capability{}, Gaps: []Gap{}}
+	if m.Schema == ManifestSchemaV2 {
+		c.artifact.Schema = SchemaV2
+	}
+	if err := c.preloadProviders(); err != nil {
+		return nil, err
+	}
 	for _, p := range m.Providers {
 		if p.Kind == "native" {
 			if err := c.native(p); err != nil {
@@ -119,6 +130,18 @@ func Build(ctx context.Context, root string, m Manifest) (*Artifact, error) {
 	}
 	c.compileBehaviors()
 	c.capabilities()
+	c.aggregateImportParity()
+	if err := c.validateAdoptionJoins(); err != nil {
+		return nil, err
+	}
+	if m.Schema == ManifestSchemaV2 {
+		if err := validateReadableRecords(c.artifact); err != nil {
+			return nil, err
+		}
+	}
+	if err := c.guardRestrictedOutput(); err != nil {
+		return nil, err
+	}
 	a := c.artifact
 	sort.Slice(a.Subjects, func(i, j int) bool { return a.Subjects[i].ID < a.Subjects[j].ID })
 	sort.Slice(a.Claims, func(i, j int) bool { return a.Claims[i].ID < a.Claims[j].ID })
@@ -149,7 +172,7 @@ func validateManifest(m Manifest) error {
 	if m.BehaviorRepositories != nil && !validBehaviorRepositories(m.BehaviorRepositories) {
 		return fail("invalid expected behavior repository set")
 	}
-	if m.Schema != ManifestSchema || !wire.IsGitOid(m.Repository.ID) || !wire.IsGitOid(m.Repository.Revision) {
+	if (m.Schema != ManifestSchema && m.Schema != ManifestSchemaV2) || !wire.IsGitOid(m.Repository.ID) || !wire.IsGitOid(m.Repository.Revision) {
 		return fail("invalid manifest identity")
 	}
 	if _, err := time.Parse(time.RFC3339, m.BuiltAt); err != nil {
@@ -164,7 +187,7 @@ func validateManifest(m Manifest) error {
 	if len(m.Profile.Groups) > 32 {
 		return fail("profile group bound exceeded")
 	}
-	if len(m.Inputs) == 0 || len(m.Inputs) > MaxRecords || len(m.Scopes) == 0 || len(m.Scopes) > MaxRecords || len(m.Providers) == 0 || len(m.Providers) > 16 {
+	if len(m.Inputs) == 0 || len(m.Inputs) > m.recordLimit() || len(m.Scopes) == 0 || len(m.Scopes) > m.recordLimit() || len(m.Providers) == 0 || len(m.Providers) > 16 {
 		return fail("manifest record bound exceeded")
 	}
 	if m.MergeRule != "none" && m.MergeRule != "disjoint-union" {
@@ -182,11 +205,22 @@ func validateManifest(m Manifest) error {
 		if p.Kind != "native" && p.Kind != "records" {
 			return &Error{Code: "corpus-provider-unavailable", Message: "named provider is unavailable"}
 		}
-		if p.Kind == "native" && (p.Version != "1" || p.Record != "" || p.Revision != m.Repository.Revision) {
+		if p.Kind == "native" && (p.Version != "1" || p.Record != "" || p.Shards != nil || p.Revision != m.Repository.Revision) {
 			return fail("native provider revision mismatch")
 		}
-		if p.Kind == "records" && !validPath(p.Record) {
-			return fail("provider record path required")
+		if p.Kind == "records" {
+			if p.Shards != nil {
+				if m.Schema != ManifestSchemaV2 || p.Record != "" || len(p.Shards) == 0 || len(p.Shards) > 128 || !sort.StringsAreSorted(p.Shards) {
+					return fail("invalid provider shard inventory")
+				}
+				for i, path := range p.Shards {
+					if !validPath(path) || i > 0 && path == p.Shards[i-1] {
+						return fail("invalid or duplicate provider shard path")
+					}
+				}
+			} else if !validPath(p.Record) {
+				return fail("provider record path required")
+			}
 		}
 	}
 	revisions := map[string]bool{m.Repository.Revision: true}
@@ -214,7 +248,7 @@ func validateManifest(m Manifest) error {
 		if in.Purpose != "source" && in.Purpose != "provider" && in.Purpose != "observation" && in.Purpose != "evidence" {
 			return fail("invalid input purpose")
 		}
-		if in.Purpose == "provider" && (p.Record != in.Path || p.Revision != in.Revision) {
+		if in.Purpose == "provider" && (!providerHasPath(p, in.Path) || p.Revision != in.Revision) {
 			return fail("provider artifact revision mismatch")
 		}
 		if p.Kind == "native" && (in.Revision != m.Repository.Revision || in.Purpose != "source") {
@@ -290,10 +324,19 @@ func (c *compiler) pin(ctx context.Context) error {
 			return fail("declared scope missing")
 		}
 	}
+	inputBytes := 0
+	charged := map[string]bool{}
 	for _, in := range c.manifest.Inputs {
-		source, err := loadInput(ctx, auth, indexes[in.Revision], in.Path)
+		source, err := loadInput(ctx, auth, indexes[in.Revision], in.Path, encodingLimit(c.manifest))
 		if err != nil {
 			return err
+		}
+		if !charged[inputKey(in.Revision, in.Path)] {
+			inputBytes += len(source.Data)
+			charged[inputKey(in.Revision, in.Path)] = true
+			if inputBytes > 128<<20 {
+				return fail("aggregate pinned input byte bound exceeded")
+			}
 		}
 		if source.BlobHash != in.Blob || Digest(source.Data) != in.SHA256 {
 			return fail("input changed after pinning")
@@ -306,10 +349,10 @@ func (c *compiler) pin(ctx context.Context) error {
 	c.indexes = indexes
 	return nil
 }
-func loadInput(ctx context.Context, auth *gitauth.Repository, index *contextindex.Index, p string) (contextindex.Source, error) {
+func loadInput(ctx context.Context, auth *gitauth.Repository, index *contextindex.Index, p string, limit int) (contextindex.Source, error) {
 	if source, ok := index.Sources[p]; ok {
 		text, valid, loaded := source.Text()
-		if loaded && valid {
+		if loaded && valid && len(text) <= limit {
 			source.Data = []byte(text)
 			return source, nil
 		}
@@ -328,7 +371,7 @@ func loadInput(ctx context.Context, auth *gitauth.Repository, index *contextinde
 	if err != nil {
 		return contextindex.Source{}, err
 	}
-	if len(data) > MaxBytes {
+	if len(data) > limit {
 		return contextindex.Source{}, fail("input bound exceeded")
 	}
 	return contextindex.Source{Path: p, BlobHash: entry.OID, Data: data, Mode: entry.Mode}, nil
@@ -344,7 +387,7 @@ func generated(data []byte) bool {
 		if strings.HasPrefix(schema, "corvint-corpus-") {
 			return true
 		}
-		if schema == Schema {
+		if schema == Schema || schema == SchemaV2 {
 			return true
 		}
 	}
@@ -363,7 +406,7 @@ func identifier(id string) bool {
 func (c *compiler) native(provider Provider) error {
 	index := c.indexes[c.manifest.Repository.Revision]
 	for _, in := range c.manifest.Inputs {
-		if len(c.artifact.Subjects) > MaxRecords || len(c.artifact.Claims) > MaxRecords {
+		if len(c.artifact.Subjects) > c.manifest.recordLimit() || len(c.artifact.Claims) > c.manifest.recordLimit() {
 			return fail("native record bound exceeded")
 		}
 		if in.Provider != provider.ID {
@@ -405,7 +448,7 @@ func (c *compiler) native(provider Provider) error {
 			}
 		}
 		for _, s := range index.Symbols {
-			if len(c.artifact.Subjects) >= MaxRecords || len(c.artifact.Claims) >= MaxRecords {
+			if len(c.artifact.Subjects) >= c.manifest.recordLimit() || len(c.artifact.Claims) >= c.manifest.recordLimit() {
 				return fail("native record bound exceeded")
 			}
 			if s.Path != in.Path {
@@ -534,7 +577,7 @@ func (c *compiler) nativeImports(provider Provider) error {
 				packages[to] = true
 			}
 			c.artifact.Relations = append(c.artifact.Relations, Relation{provider.ID + ":imports:" + in.Path + ":" + imported, from, to, "imports", provider.ID, ev})
-			if len(c.artifact.Subjects) > MaxRecords || len(c.artifact.Relations) > MaxRecords {
+			if len(c.artifact.Subjects) > c.manifest.recordLimit() || len(c.artifact.Relations) > c.manifest.recordLimit() {
 				return fail("native relation bound exceeded")
 			}
 		}
@@ -576,7 +619,7 @@ func (c *compiler) nativeParagraphs(provider Provider) error {
 				excerpt := strings.Join(lines[start-1:end], "")
 				ev := Evidence{Derivation: "source-derived", Trust: "generated", State: "supported", Freshness: "fresh", Anchors: []Anchor{anchor}, Limitations: []string{"verbatim source excerpt; quoted prose is not accepted intent or verified behavior"}}
 				c.artifact.Claims = append(c.artifact.Claims, Claim{fmt.Sprintf("%s:paragraph:%d", id, start), id, excerpt, provider.ID, ev})
-				if len(c.artifact.Claims) > MaxRecords {
+				if len(c.artifact.Claims) > c.manifest.recordLimit() {
 					return fail("native paragraph bound exceeded")
 				}
 			}

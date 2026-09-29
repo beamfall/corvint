@@ -115,7 +115,7 @@ func administrativeWriteWith(ctx context.Context, repo *intent.Repository, reque
 	}
 	paths := []string{"intent/queue.json", "intent/policy.json"}
 	for _, file := range inv.Files() {
-		if strings.HasPrefix(file.Path, "intent/tickets/") || strings.HasPrefix(file.Path, "intent/releases/") || (request.Operation == transaction.Lease && strings.HasPrefix(file.Path, "attempts/")) {
+		if file.Path == "programs.json" || file.Path == "pools.json" || strings.HasPrefix(file.Path, "intent/tickets/") || strings.HasPrefix(file.Path, "intent/releases/") || (request.Operation == transaction.Lease && strings.HasPrefix(file.Path, "attempts/")) {
 			paths = append(paths, file.Path)
 		}
 	}
@@ -130,6 +130,9 @@ func administrativeWriteWith(ctx context.Context, repo *intent.Repository, reque
 	releases := [][]byte{}
 	attempts := [][]byte{}
 	for _, path := range paths[2:] {
+		if path == "pools.json" || path == "programs.json" {
+			continue
+		}
 		if strings.HasPrefix(path, "attempts/") {
 			attempts = append(attempts, proof.Records[path].Raw)
 		} else if strings.HasPrefix(path, "intent/releases/") {
@@ -157,7 +160,7 @@ func administrativeWriteWith(ctx context.Context, repo *intent.Repository, reque
 	if err != nil {
 		return report, nil, err
 	}
-	input := transaction.Input{Inventory: inv, Head: headRaw, HeadReceipt: headRc, Queue: proof.Records["intent/queue.json"].Raw, Policy: proof.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, CanonicalTickets: tickets, CanonicalReleases: releases, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now}
+	input := transaction.Input{Inventory: inv, Head: headRaw, HeadReceipt: headRc, Queue: proof.Records["intent/queue.json"].Raw, Policy: proof.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, Pools: proof.Records["pools.json"].Raw, Programs: proof.Records["programs.json"].Raw, CanonicalTickets: tickets, CanonicalReleases: releases, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now}
 	if request.Operation == transaction.Lease {
 		if err = leaseInput(proof, attempts, facts, &input); err != nil {
 			return report, nil, err

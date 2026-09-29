@@ -299,6 +299,15 @@ func (ctx *Context) step(work *ticket.Record, p Payload) *refusal {
 	}
 	switch p := p.(type) {
 	case *RefinePayload:
+		if p.Has("requiredRoles") {
+			work.RequiredRoles = p.RequiredRoles
+		}
+		if p.Has("requiresPool") {
+			work.RequiresPool = ""
+			if p.RequiresPool != nil {
+				work.RequiresPool = *p.RequiresPool
+			}
+		}
 		if p.Has("title") {
 			work.Title = p.Title
 		}
@@ -498,6 +507,9 @@ func fieldChanged(pre, post *ticket.Record, field string) bool {
 // record: dependency existence and cycles (when dependencies changed or the
 // record is new), gate existence in policy, and supersession references.
 func (ctx *Context) checkRecord(pre, work *ticket.Record) *refusal {
+	if work.RequiresPool != "" && ctx.Policy.Pool(work.RequiresPool) == nil {
+		return refuse(OutcomeValidationFailed, wire.CodeMalformed, "requiresPool names unknown pool")
+	}
 	depsChanged := pre == nil || fieldChanged(pre, work, "dependencies")
 	gatesChanged := pre == nil || fieldChanged(pre, work, "requiredGates")
 	if depsChanged {
@@ -630,6 +642,8 @@ func (ctx *Context) create(plan *Plan, p *CreatePayload) *Plan {
 		return plan.refused(refuseErr(err))
 	}
 	rec := &ticket.Record{
+		RequiresPool:       p.RequiresPool,
+		RequiredRoles:      p.RequiredRoles,
 		TicketID:           id,
 		Revision:           "1",
 		AcceptanceRevision: "1",

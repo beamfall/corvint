@@ -205,7 +205,7 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 	o.Set("payloadKeys", wire.Strings(slices.Sorted(slices.Values(mutation.PayloadKeys[operation]))))
 	o.Set("usage", wire.String("corvint-tasks "+strings.Join(cmd, " ")+
 		" --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]"))
-	o.Set("note", wire.String("the payload is canonical JSON with exactly these keys; CREATE may add localToken, and REFINE takes a non-empty subset"))
+	o.Set("note", wire.String("the payload is canonical JSON with exactly these keys: sorted object keys, no insignificant whitespace, literal UTF-8 instead of non-ASCII escape forms, and canonical-byte-sorted set arrays such as touchPaths; do not sort ordered arrays such as argv; CREATE may add localToken, and REFINE takes a non-empty subset; see docs/TASKS-EXTERNAL-AGENTS.md"))
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 

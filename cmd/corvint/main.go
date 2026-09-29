@@ -831,6 +831,13 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			}
 			return runDocsMaintain(ctx, options, stdout, stderr)
 		}
+		if options, handled, err := parseDocsFlowsInvocation(arguments); handled {
+			if err != nil {
+				emitError(stderr, err)
+				return 2
+			}
+			return runDocsFlows(ctx, options, stdout, stderr)
+		}
 		if options, isDocs, docsErr := parseDocsInvocation(arguments); isDocs {
 			if docsErr != nil {
 				emitError(stderr, docsErr)

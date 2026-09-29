@@ -204,7 +204,7 @@ func TestTMV0009_AS11_StagePreparationCorruptionAndRedo(t *testing.T) {
 	}
 }
 func TestTMV0009_AS27_TempOnlyEveryLengthAndCleanupDurability(t *testing.T) {
-	for n := 0; n <= 2422; n++ {
+	for n := 0; n <= MaxStageDescriptorBytes; n++ {
 		o := StageObservation{Inventory: &Inventory{files: map[string]archive.FileEntry{}, dirs: map[string]bool{}}, BaseState: "UNCHANGED", ReceiptInventory: "COMPLETE_NO_NEXT", Premise: FixtureNoRuntime, Files: []StageFile{{Name: "active.json.tmp", Type: "REGULAR", Data: bytes.Repeat([]byte("!"), n)}}}
 		got, e := ClassifyStage(o, nil)
 		if e != nil || got.Kind != "TempPreparationAbortable" {
@@ -219,7 +219,7 @@ func TestTMV0009_AS27_TempOnlyEveryLengthAndCleanupDurability(t *testing.T) {
 			t.Fatal(n, after, e)
 		}
 	}
-	for _, change := range []func(*StageObservation){func(o *StageObservation) { o.Files[0].Data = make([]byte, 2423) }, func(o *StageObservation) { o.Files[0].Type = "SYMLINK" }, func(o *StageObservation) { o.Files = append(o.Files, StageFile{Name: "a00", Type: "REGULAR"}) }, func(o *StageObservation) { o.Files = append(o.Files, StageFile{Name: "unknown", Type: "REGULAR"}) }, func(o *StageObservation) { o.BaseState = "CHANGED" }, func(o *StageObservation) { o.ReceiptInventory = "UNKNOWN" }, func(o *StageObservation) { o.ReceiptInventory = "MATCHING_NEXT" }, func(o *StageObservation) { o.Files[0].Name = "active.json" }} {
+	for _, change := range []func(*StageObservation){func(o *StageObservation) { o.Files[0].Data = make([]byte, MaxStageDescriptorBytes+1) }, func(o *StageObservation) { o.Files[0].Type = "SYMLINK" }, func(o *StageObservation) { o.Files = append(o.Files, StageFile{Name: "a00", Type: "REGULAR"}) }, func(o *StageObservation) { o.Files = append(o.Files, StageFile{Name: "unknown", Type: "REGULAR"}) }, func(o *StageObservation) { o.BaseState = "CHANGED" }, func(o *StageObservation) { o.ReceiptInventory = "UNKNOWN" }, func(o *StageObservation) { o.ReceiptInventory = "MATCHING_NEXT" }, func(o *StageObservation) { o.Files[0].Name = "active.json" }} {
 		o := StageObservation{Inventory: &Inventory{files: map[string]archive.FileEntry{}, dirs: map[string]bool{}}, BaseState: "UNCHANGED", ReceiptInventory: "COMPLETE_NO_NEXT", Premise: FixtureNoRuntime, Files: []StageFile{{Name: "active.json.tmp", Type: "REGULAR", Data: []byte("{partial")}}}
 		change(&o)
 		if _, e := ClassifyStage(o, nil); e == nil {

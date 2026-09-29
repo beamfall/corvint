@@ -33,6 +33,41 @@ no-match, not-found and stale evidence separately. Coverage names its scope/deno
 claims universal behavioral coverage. Every read rechecks original immutable inputs; live source
 and provider changes are reported separately from the artifact's recorded revision.
 
+## Larger adoption imports
+
+Use `corvint-corpus-input/2` with `corvint-corpus-adoption-provider/1` inputs for the
+larger typed import profile. A provider declares either `record` or a sorted `shards` list;
+every shard has the same provider ID, version and source repository, and its own pinned manifest
+input. Commit shards after their original evidence, then name their exact commit, blob and SHA-256.
+All shards are validated together; missing shards, duplicate IDs and dangling joins refuse the build.
+
+The profile preserves typed claims, eight-section flows, stable paragraphs and retirement redirects,
+test-link roles/confidence, explicit coverage membership, ticket history and intent comparisons.
+See [typed records](../internal/doccorpus/adoption.go) and
+[the contract](specs/documentation-corpus-v1.md) for the closed fields and bounds. Supplied-record
+parity distinguishes admitted records and restricted drops; it does not infer repository completeness.
+Restricted findings belong only in the separate `restricted_findings` input family. Share the
+resulting severity summary, never the original local provider input or local detail report.
+
+A shard is limited to 64 MiB, all pinned inputs together and the output to 128 MiB. Collections admit
+100,000 subjects, claims and relations each, 4,096 journeys and 100,000 typed details. Each normalized
+record plus its detail must fit 1 MiB so a bounded reader can return it. The older `/1`, behavior
+adapter and retained receipt profiles keep their existing limits.
+
+```sh
+corvint docs corpus build --manifest adoption-input.json > corpus.json
+corvint docs corpus inventory --artifact corpus.json --limit 256 --offset 0
+corvint docs corpus get --artifact corpus.json --id provider:record-id
+```
+
+Use `next_offset` until absent to traverse the immutable inventory, including claims and relations.
+The result's artifact digest binds each page; `omitted` counts all records outside that page. Other
+`/2` read commands accept the same offset. Pages are at most 256 records and 4 MiB and may contain
+fewer rows to meet the byte bound. Citations and typed details describe only that page. Capability
+summaries retain counts and explicit omitted-ID totals; the inventory provides those IDs.
+The corpus MCP exposes `corvint.docs_inventory` and offset arguments only for `/2`. Native evidence
+attachments retain explicit projection omissions and mandatory check fallback.
+
 ## Native evidence consumers
 
 Use the inline `--corpus=FILE` option on `query`, `context`, `impact`, `affected`, `test-validity`,

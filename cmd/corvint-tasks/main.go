@@ -1,10 +1,12 @@
 // Command corvint-tasks is the Corvint task control plane executor and ticket store.
-// At TCP-01 it exposes only the read, export and verify surfaces that are
-// implemented; every mutation verb is absent on purpose and answers
-// NOT_RUN (see internal/cli).
+// It exposes native queue mutations and generation-fenced external-agent leases.
+// The help envelope lists implemented and omitted operations.
 package main
 
 import (
+	"context"
+	"fmt"
+	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 	"os"
 
 	"github.com/Beamfall/corvint/internal/tasks/cli"
@@ -15,6 +17,13 @@ import (
 var build = "0"
 
 func main() {
+	if len(os.Args) == 6 && os.Args[1] == "lane-leader" && os.Args[2] == "--directory" && os.Args[4] == "--capsule" {
+		if e := supervisor.Leader(context.Background(), os.Args[3], os.Args[5]); e != nil {
+			fmt.Fprintln(os.Stderr, e)
+			os.Exit(1)
+		}
+		return
+	}
 	cli.Build = build
 	cwd, err := os.Getwd()
 	if err != nil {

@@ -22,6 +22,8 @@ import (
 // leaseVerbs maps each lease command to its transaction verb (CAL-V0-007 to
 // CAL-V0-013, CAL-V0-025).
 var leaseVerbs = map[string]string{
+	"pool confirm-safe": transaction.LeasePoolSafe,
+	"pool cleanup":      transaction.LeasePoolCleanup, "pool recover": transaction.LeasePoolRecover, "health": transaction.LeasePoolPrepare,
 	"claim":   transaction.LeaseClaim,
 	"renew":   transaction.LeaseRenew,
 	"release": transaction.LeaseRelease,
@@ -44,6 +46,7 @@ type leaseArgs struct {
 }
 
 var leaseValueFlags = map[string]bool{
+	"--pool": true, "--stage": true, "--member": true, "--allocation": true, "--evidence": true,
 	"--request-id": true, "--role": true, "--holder": true, "--lease-minutes": true, "--branch": true,
 	"--base": true, "--attempt": true, "--generation": true, "--reason": true,
 	"--tree": true, "--gate": true, "--commit": true, "--worktree": true,
@@ -111,7 +114,7 @@ func (a leaseArgs) request(verb, queueID string) (transaction.LeaseRequest, erro
 	if a.next {
 		verb = transaction.LeaseClaimNext
 	}
-	req := transaction.LeaseRequest{Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), Reason: a.values["--reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"]}
+	req := transaction.LeaseRequest{Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), Reason: a.values["--reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"]}
 	if verb == transaction.LeaseClaim {
 		if len(a.pos) != 1 {
 			return req, wire.Errorf(wire.CodeMalformed, "argv", "claim takes exactly one ticket id or local token")
@@ -172,13 +175,23 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	}
 	choice := store.LeaseChoice{QueueID: queueID, RequestID: requestID, Root: env.Cwd, Lease: lease, Derive: env.ScopeDeriver}
 	var report *store.Report
-	if name == "gate run" {
+	if name == "health" || name == "pool cleanup" {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		kind := "health"
+		if name == "pool cleanup" {
+			kind = "cleanup"
+		}
+		report, err = store.PoolCommand(ctx, repo, actor, choice, kind)
+	} else if name == "gate run" {
 		// An interrupt kills the gate's process group and records nothing.
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		report, err = store.GateRun(ctx, repo, actor, choice, gateWorktree(env.Cwd, worktree), time.Now)
 	} else {
-		report, err = store.Lease(context.Background(), repo, actor, choice, now)
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		report, err = store.Lease(ctx, repo, actor, choice, now)
 	}
 	if err != nil {
 		return errorResult(cmd, err)
@@ -189,6 +202,9 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 func leaseResult(cmd []string, report *store.Report) *wire.Result {
 	res := mutateResult(cmd, report)
 	o := res.Items[0].Obj
+	if report.PoolAllocation != nil {
+		o.Set("poolAllocation", snapshot.PoolAllocationValue(report.PoolAllocation))
+	}
 	o.Set("attemptId", stringOrNull(report.AttemptID))
 	o.Set("generation", stringOrNull(string(report.Generation)))
 	o.Set("expired", expiredValue(report.Expired))

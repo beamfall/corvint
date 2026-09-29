@@ -283,7 +283,7 @@ function expectedMcpTools() {
     },
     {
       name: 'corvint.status',
-      description: 'Observe Git commit, tree, worktree state, and a privacy-preserving dirty-path digest.',
+      description: 'Observe Git commit, tree, worktree state, and a privacy-preserving dirty-path digest. Gitlinks bind commit IDs; nested submodule contents are outside coverage.',
       inputSchema: schema({}, []),
       annotations: MCP_ANNOTATIONS,
     },
