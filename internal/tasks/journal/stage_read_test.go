@@ -605,7 +605,8 @@ func TestTMV0006_AS35_EmptyTicketStrictReadBoundary(t *testing.T) {
 	}
 }
 
-func TestTMV0008_AS07_JournalStageFixtureRestriction(t *testing.T) {
+func TestTMV0008_AS07_JournalNonfixtureStageObservation(t *testing.T) {
+	// CAL-V0-027 admits native staging observation without cleanup authority.
 	repo, r := setup(t)
 	q, e := intent.DecodeQueue(read(t, filepath.Join(repo.IntentDir, "queue.json")))
 	if e != nil {
@@ -621,8 +622,12 @@ func TestTMV0008_AS07_JournalStageFixtureRestriction(t *testing.T) {
 		t.Fatal(e)
 	}
 	fixture.Write(t, filepath.Join(dir, "active.json.tmp"), nil)
-	_, e = r.Audit()
-	requireCode(t, e, wire.CodeUnsupported)
+	before, intents := fixture.TreeSnapshot(t, repo.StateDir), fixture.TreeSnapshot(t, repo.IntentDir)
+	res, e := r.Audit()
+	if e != nil || res == nil || res.Pending || res.StructuralConsistency != "CONSISTENT" {
+		t.Fatalf("unlinked native stage observation: %+v %v", res, e)
+	}
+	fixture.AssertUntouched(t, repo, before, intents, "native stage observation")
 }
 
 func TestTMV0008_AS07_JournalFileClosureErrorsSurviveMovement(t *testing.T) {
@@ -859,8 +864,8 @@ func TestTMV0009_AS11_StageReceiptOnlyGenesisValidation(t *testing.T) {
 						q.Obj.Set("queueId", str("queue:acme:other"))
 						want = wire.CodeJournalForked
 					default:
+						// CAL-V0-027: native identity retains full genesis validation.
 						q.Obj.Set("fixture", wire.Bool(false))
-						want = wire.CodeUnsupported
 					}
 					p.Obj.Set("sha256", str(string(wire.Sum(wire.EncodeFile(q)))))
 				}

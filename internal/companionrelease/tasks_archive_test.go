@@ -8,7 +8,7 @@ import (
 )
 
 func TestTasksArchiveAssembly(t *testing.T) {
-	t.Run("CAL-V0-027 standalone deterministic Tasks artifact", func(t *testing.T) {
+	t.Run("CAL-V0-042 standalone deterministic Tasks artifact", func(t *testing.T) {
 		files := []ArchiveEntry{{Path: "bin/corvint-tasks", Mode: 0o755, Data: []byte("binary")}, {Path: "notices/corvint-tasks/LICENSE", Mode: 0o644, Data: []byte("license")}}
 		r := TasksArchiveReport{Profile: "corvint-tasks-archive/0", Target: supportedTarget, Version: json.RawMessage(`{"version":"unverified"}`), Qualification: "reproducible-build-and-native-version-help-smoke-only"}
 		makeEntries := func() ([]ArchiveEntry, error) { return tasksArchiveEntries(files, r) }

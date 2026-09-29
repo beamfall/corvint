@@ -92,8 +92,8 @@ func Release(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 	if err != nil {
 		return report, err
 	}
-	if !q.Fixture || q.ExecutionCutover != nil {
-		return report, wire.Errorf(wire.CodeUnsupported, "queueId", "release mutation is fixture-only")
+	if q.ImportMapSha256 != nil || (q.Fixture && q.ExecutionCutover != nil) {
+		return report, wire.Errorf(wire.CodeUnsupported, "queueId", "unsupported release queue state")
 	}
 	p, err := intent.DecodePolicy(canon.Records["intent/policy.json"].Raw)
 	if err != nil {

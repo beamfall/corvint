@@ -1,0 +1,100 @@
+{
+  "baseRevision": "ecee5d1efc2a897feaaa8a66237567797e9ce362",
+  "evidence": [
+    {
+      "blobOid": "1f6ab3d091de53f623d6ae5746eea9e13e1896f4",
+      "id": "evidence:sha256:b9820dbe14d14137017f537b3e7a2af4ca45c941ea7811df035239952bf05918",
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "span": {
+        "end": 21466,
+        "start": 20310
+      },
+      "spanSha256": "294fe8734c1d29bf6845d03595b453e50b3762e93f2b8a79f19cc00f1c148cbf"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b9820dbe14d14137017f537b3e7a2af4ca45c941ea7811df035239952bf05918",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:537aedbb2491895777a4568bb53c909dcc5b8f0828e82ada0306326b5545f7b3",
+      "newRange": {
+        "count": 32,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-29-native-release-journal-ci-repair.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b9820dbe14d14137017f537b3e7a2af4ca45c941ea7811df035239952bf05918",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f4e81c198b78d4e606cf2db17a919bd3a0aa2c4066bf6da29483df10ed4710b2",
+      "newRange": {
+        "count": 8,
+        "start": 605
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 605
+      },
+      "path": "internal/tasks/journal/stage_read_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b9820dbe14d14137017f537b3e7a2af4ca45c941ea7811df035239952bf05918",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b19294dd01aa181b9bd88fa95c6cf5653abffd0cb15a5129f0dce85a938e8c37",
+      "newRange": {
+        "count": 12,
+        "start": 622
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 621
+      },
+      "path": "internal/tasks/journal/stage_read_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b9820dbe14d14137017f537b3e7a2af4ca45c941ea7811df035239952bf05918",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:08c6104f5d21d4a1ea3b2d5ac6b63f28e2fc64ffb059728dc591e619b47a784b",
+      "newRange": {
+        "count": 8,
+        "start": 864
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 859
+      },
+      "path": "internal/tasks/journal/stage_read_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "62c36dd260717420190a73b6ec38e1486cce9dcdc2820226c8dab45e2a52306c",
+  "spec": "cem/0.2"
+}

@@ -196,8 +196,8 @@ func reconcileRelease(ctx context.Context, repo *intent.Repository, actor mutati
 		return report, wire.Errorf(wire.CodeLimitExceeded, "file", "release file bound")
 	}
 	resolved, err := intent.Load(repo.PrimaryWorktree)
-	if err == nil && (!resolved.Queue.Fixture || resolved.Queue.ExecutionCutover != nil) {
-		return report, wire.Errorf(wire.CodeUnsupported, "queue", "release reconciliation is fixture-only")
+	if err == nil && (resolved.Queue.ImportMapSha256 != nil || (resolved.Queue.Fixture && resolved.Queue.ExecutionCutover != nil)) {
+		return report, wire.Errorf(wire.CodeUnsupported, "queue", "unsupported release queue state")
 	}
 	if _, err = authority.Qualify(repo.CommonDir); err != nil {
 		return report, err
@@ -243,6 +243,9 @@ func reconcileRelease(ctx context.Context, repo *intent.Repository, actor mutati
 	if err != nil {
 		return report, err
 	}
+	if proof.StagingPresent {
+		return report, wire.Errorf(wire.CodeUnsupported, "staging", "active staging recovery is not implemented")
+	}
 	canonical := proof.Records["intent/releases/"+choice.TargetID+".json"].Raw
 	if _, err = release.Decode(canonical); err != nil {
 		return report, err
@@ -256,8 +259,8 @@ func reconcileRelease(ctx context.Context, repo *intent.Repository, actor mutati
 	if err != nil {
 		return report, err
 	}
-	if !q.Fixture || q.ExecutionCutover != nil {
-		return report, wire.Errorf(wire.CodeUnsupported, "queue", "release reconciliation is fixture-only")
+	if q.ImportMapSha256 != nil || (q.Fixture && q.ExecutionCutover != nil) {
+		return report, wire.Errorf(wire.CodeUnsupported, "queue", "unsupported release queue state")
 	}
 	ticketRaws, releaseRaws := [][]byte{}, [][]byte{}
 	for _, path := range paths[2:] {

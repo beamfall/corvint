@@ -59,6 +59,8 @@ func maximalDescriptor(op string) StageDescriptor {
 		}
 		add("POST", "reservations.json", 194, hash)
 		add("POST", "pinned/"+string(hash)+".json", 8465, hash)
+	case StageRelease:
+		add("POST", "intent/releases/v1.json", 131072, hash)
 	case StagePause:
 		add("POST", "barrier.json", 4096, hash)
 	case StageAuthoritySwitch:

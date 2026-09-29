@@ -1,0 +1,80 @@
+{
+  "baseRevision": "d1470f260a69161ff75f9e373a841316e91852e7",
+  "evidence": [
+    {
+      "blobOid": "1f6ab3d091de53f623d6ae5746eea9e13e1896f4",
+      "id": "evidence:sha256:b9820dbe14d14137017f537b3e7a2af4ca45c941ea7811df035239952bf05918",
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "span": {
+        "end": 21466,
+        "start": 20310
+      },
+      "spanSha256": "294fe8734c1d29bf6845d03595b453e50b3762e93f2b8a79f19cc00f1c148cbf"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b9820dbe14d14137017f537b3e7a2af4ca45c941ea7811df035239952bf05918",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e4d18aaf1eb125df8d4b9843a860e2bd1f0597adea7ce38df237d145433b50ca",
+      "newRange": {
+        "count": 18,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-29-native-release-archive-ci-repair.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b9820dbe14d14137017f537b3e7a2af4ca45c941ea7811df035239952bf05918",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:55e156c7553d78cb504731b2a9aeaeeb2fc9fc3e3ba8b6d519ab53e472be64bd",
+      "newRange": {
+        "count": 7,
+        "start": 595
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 595
+      },
+      "path": "internal/tasks/archive/stage_read_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b9820dbe14d14137017f537b3e7a2af4ca45c941ea7811df035239952bf05918",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4865019202966bdee77ae4341434ca0b9958314f4d39e27f5d45868e920dc2ce",
+      "newRange": {
+        "count": 22,
+        "start": 614
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 614
+      },
+      "path": "internal/tasks/archive/stage_read_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "a486c3d2cce19f7f674d46b0ff64833633555ae6ee70481a78e355af419134ee",
+  "spec": "cem/0.2"
+}

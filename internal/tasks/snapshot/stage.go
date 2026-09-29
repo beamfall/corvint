@@ -38,10 +38,9 @@ const StageImportApply = "IMPORT_APPLY"
 // operation name is the receipt kind.
 const StageAuthoritySwitch = "AUTHORITY_SWITCH"
 
-// StageLease carries one CAL-V0 lease transaction (claim, renew, release,
-// reap, widen): an optional attempt record and an optional reservation set,
-// whose receipt kind is ADMIT or TRANSITION. A recorded FENCED refusal
-// posts only its request.
+// StageLease carries one CAL-V0 lease transaction: its receipt kind is ADMIT,
+// TRANSITION, GATE_RESULT or MANIFEST. A recorded FENCED refusal is a TRANSITION
+// with REVISION_CONFLICT outcome and posts only its request.
 const StageLease = "LEASE"
 
 // StageQualification records the execution cutover (CAL-V0-020): one

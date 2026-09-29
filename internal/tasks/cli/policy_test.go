@@ -111,8 +111,12 @@ func TestTMV0030_AS07_CLIPolicyUpdateRefusals(t *testing.T) {
 // A candidate pins the policy digest, so a committed policy update makes it
 // stale for release readiness (TM-V0-028, TM-V0-030).
 func TestTMV0030_AS38_PolicyUpdateInvalidatesReleaseCandidate(t *testing.T) {
+	nonfixtureTestTMV0030_AS38_PolicyUpdateInvalidatesReleaseCandidate(t, true)
+}
+
+func nonfixtureTestTMV0030_AS38_PolicyUpdateInvalidatesReleaseCandidate(t *testing.T, isFixture bool) {
 	r := fixture.TempRepo(t)
-	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
+	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), releaseQueueBytes(isFixture))
 	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
 	fixture.Write(t, filepath.Join(r.Root, "source.txt"), []byte("candidate source\n"))
 	git(t, r.Root, "init")
