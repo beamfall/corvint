@@ -98,6 +98,9 @@ type handoffDocument struct {
 }
 
 func runDogfoodHandoff(ctx context.Context, root, key string, flags map[string]string, stdout, stderr io.Writer) int {
+	if flags["--task-state"] != "" || flags["--bundle"] != "" {
+		return runDogfoodHandoffBundle(ctx, root, key, flags, stdout, stderr)
+	}
 	if flags["--receipt"] == "" {
 		return emitDogfoodHandoff(ctx, root, key, flags["--anchors"], stdout, stderr)
 	}
