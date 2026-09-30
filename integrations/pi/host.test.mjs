@@ -7,6 +7,7 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, cpSync, ex
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { workflowSessionKey } from './workflow.js';
 
 const here=dirname(fileURLToPath(import.meta.url)), root=resolve(here,'../..');
 // Pi 0.99.1 normalizes provider requests into a transcript with system messages.
@@ -283,7 +284,8 @@ export default function(pi){
  let session,calls=0,active=0;
  pi.on('session_start',(e,ctx)=>{session=ctx.sessionManager.getSessionId();capture({kind:e.type,reason:e.reason,session})});
  pi.on('session_tree',e=>capture({kind:e.type,newLeaf:e.newLeafId,oldLeaf:e.oldLeafId,session}));
- pi.on('session_compact',e=>capture({kind:e.type,reason:e.reason,willRetry:e.willRetry,fromExtension:e.fromExtension,session}));
+ pi.on('session_before_compact',e=>capture({kind:e.type,session}));
+ pi.on('session_compact',(e,ctx)=>capture({kind:e.type,reason:e.reason,willRetry:e.willRetry,fromExtension:e.fromExtension,session,entries:ctx.sessionManager.getEntries()}));
  pi.on('tool_execution_start',e=>{if(e.toolName==='corvint_context')capture({kind:'tool-start',id:e.toolCallId,active:++active,session})});
  pi.on('tool_execution_end',e=>{if(e.toolName==='corvint_context'){capture({kind:'tool-end',id:e.toolCallId,isError:e.isError,session});active--}});
  pi.registerCommand('fixture-tree',{description:'Navigate a fixture tree without summarization',handler:async(id,ctx)=>{const result=await ctx.navigateTree(id,{summarize:false});capture({kind:'tree-command',cancelled:result.cancelled})}});
@@ -294,6 +296,7 @@ export default function(pi){
    calls++;capture({kind:'provider',calls,session,context});
    const stream=createAssistantMessageEventStream();
    const output={role:'assistant',content:[{type:'text',text:'Offline fixture summary or response.'}],api:model.api,provider:model.provider,model:model.id,usage:{input:1,output:1,cacheRead:0,cacheWrite:0,totalTokens:2,cost:{input:0,output:0,cacheRead:0,cacheWrite:0,total:0}},stopReason:'stop',timestamp:Date.now()};
+   if(process.env.CORVINT_PI_QUALIFY==='overflow'&&calls===2){output.stopReason='error';output.errorMessage='context_length_exceeded: maximum context length exceeded'}
    if(process.env.CORVINT_PI_QUALIFY==='retry'&&calls===1){output.stopReason='error';output.errorMessage='429 rate limit offline fixture'}
    if(process.env.CORVINT_PI_QUALIFY==='concurrent'&&calls===1){output.stopReason='toolUse';output.content=[{type:'toolCall',id:'parallel-one',name:'corvint_context',arguments:{task:'main.go'}},{type:'toolCall',id:'parallel-two',name:'corvint_context',arguments:{task:'One'}}]}
    queueMicrotask(()=>{stream.push(output.stopReason==='error'?{type:'error',reason:'error',error:output}:{type:'done',reason:output.stopReason,message:output});stream.end()});return stream;
@@ -340,12 +343,63 @@ test('AHI-024 AHI-025 exact native fork tree compaction retry and concurrent too
  const compactAt=lifecycle.findIndex(e=>e.kind==='session_compact'),afterCompact=lifecycle.slice(compactAt+1).find(e=>e.kind==='provider');
  assert.match(JSON.stringify(conversation(afterCompact.context)),/BEGIN CORVINT REPOSITORY DATA/);
  for(const index of [lifecycle.findIndex(e=>e.kind==='session_tree'),lifecycle.findIndex(e=>e.kind==='session_start'&&e.reason==='fork')]){const next=lifecycle.slice(index+1).find(e=>e.kind==='provider');assert.equal(JSON.stringify(conversation(next.context)).split('BEGIN CORVINT REPOSITORY DATA').length,2,'tree/fork recovery reaches the next real provider request exactly once')}
- for(const scenario of ['retry','concurrent']){
+ for(const scenario of ['retry','concurrent','overflow']){
+  if(scenario==='overflow')writeFileSync(join(agent,'settings.json'),JSON.stringify({...JSON.parse(readFileSync(join(agent,'settings.json'),'utf8')),retry:{enabled:true,maxRetries:1,baseDelayMs:1},compaction:{enabled:true,keepRecentTokens:1,reserveTokens:128}}));
   const witness=join(scratch,scenario+'.jsonl');
-  const result=await pi([...flags.filter(flag=>flag!=='--no-tools'),'--tools',scenario==='concurrent'?'corvint_context':'','--mode','json','-p','exercise '+scenario+' fixture'],{CORVINT_PI_QUALIFY:scenario,CORVINT_PI_CAPTURE:witness});
+  const result=await pi([...flags.filter(flag=>flag!=='--no-tools'),'--tools',scenario==='concurrent'?'corvint_context':'','--mode','json','-p',...(scenario==='overflow'?['seed history before overflow']:[]),'exercise '+scenario+' fixture'],{CORVINT_PI_QUALIFY:scenario,CORVINT_PI_CAPTURE:witness});
   assert.equal(result.code,0,result.stderr);assert.doesNotMatch(result.stderr,/Corvint unavailable|Failed to load extension/);
-  const observed=readFileSync(witness,'utf8').trim().split('\n').map(JSON.parse),providers=observed.filter(e=>e.kind==='provider');assert.equal(providers.length,2,JSON.stringify(observed));assert.ok(providers.every(e=>systemText(e.context).includes('BEGIN CORVINT REPOSITORY DATA')),'native per-turn evidence survives retry/tool continuation');
-  if(scenario==='retry'){const events=result.stdout.trim().split('\n').map(JSON.parse);assert.equal(events.filter(e=>e.type==='auto_retry_start').length,1);assert.ok(events.some(e=>e.type==='auto_retry_end'&&e.success));assert.equal(events.filter(e=>e.type==='agent_settled').length,1)}
+  const observed=readFileSync(witness,'utf8').trim().split('\n').map(JSON.parse),providers=observed.filter(e=>e.kind==='provider');assert.equal(providers.length,scenario==='overflow'?5:2,JSON.stringify(observed));assert.ok(providers.filter(e=>scenario!=='overflow'||[1,2,5].includes(e.calls)).every(e=>systemText(e.context).includes('BEGIN CORVINT REPOSITORY DATA')),'native per-turn evidence survives retry/tool continuation');
+  if(scenario==='overflow'){
+   const compact=observed.findIndex(e=>e.kind==='session_compact');assert.ok(compact>=0,JSON.stringify(observed));
+   assert.ok(observed.slice(0,compact).some(e=>e.kind==='session_before_compact'));
+   assert.doesNotMatch(JSON.stringify(observed[compact].entries),/BEGIN CORVINT REPOSITORY DATA/,'overflow recovery is not persisted into session entries');
+   assert.equal(observed[compact].reason,'overflow');assert.equal(observed[compact].willRetry,true);assert.equal(observed[compact].fromExtension,false);
+   const retry=observed.slice(compact+1).find(e=>e.kind==='provider');assert.ok(retry);assert.equal(JSON.stringify(conversation(retry.context)).split('BEGIN CORVINT REPOSITORY DATA').length,2);
+   const events=result.stdout.trim().split('\n').map(JSON.parse);assert.ok(events.some(e=>e.type==='compaction_start'&&e.reason==='overflow'));assert.ok(events.some(e=>e.type==='compaction_end'&&e.willRetry));
+  }else if(scenario==='retry'){const events=result.stdout.trim().split('\n').map(JSON.parse);assert.equal(events.filter(e=>e.type==='auto_retry_start').length,1);assert.ok(events.some(e=>e.type==='auto_retry_end'&&e.success));assert.equal(events.filter(e=>e.type==='agent_settled').length,1)}
   else{assert.ok(observed.some(e=>e.kind==='tool-start'&&e.active===2),'two native context tools must actually overlap');assert.equal(observed.filter(e=>e.kind==='tool-end'&&!e.isError).length,2);const results=providers[1].context.messages.filter(m=>m.role==='toolResult');assert.equal(results.length,2);assert.ok(results.every(m=>!m.isError&&m.content.some(c=>c.text?.includes('Expansion handle:'))))}
  }
+});
+
+test('LCP PWV native workflow owner and operator lease survive fork reload and resume',{skip:!!process.env.CORVINT_PI_INTERRUPT_WITNESS},async t=>{
+ const scratch=mkdtempSync(join(tmpdir(),'pi-coexist-'));t.after(()=>rmSync(scratch,{recursive:true,force:true}));
+ const home=join(scratch,'home'),agent=join(home,'.pi/agent'),repo=join(scratch,'repo'),pkg=join(scratch,'package'),capture=join(scratch,'capture'),providerPath=join(scratch,'provider.ts');
+ for(const dir of [home,agent,repo])mkdirSync(dir,{recursive:true});
+ cpSync(resolve(process.env.CORVINT_PI_PACKAGE_SOURCE??here),pkg,{recursive:true,filter:path=>!path.endsWith('.test.mjs')});
+ writeFileSync(providerPath,qualificationProvider.replace("let session,calls=0,active=0;","let session,calls=0,active=0; pi.registerCommand('fixture-reload',{description:'Reload native fixture',handler:async(_,ctx)=>{await ctx.reload()}});"));
+ writeFileSync(join(repo,'.gitignore'),'.corvint/\n');writeFileSync(join(repo,'intent.md'),'# Intent\nPreserve operator ownership.\n');
+ const git=args=>{const r=spawnSync('git',['-c','user.name=Fixture','-c','user.email=fixture@example.invalid',...args],{cwd:repo,encoding:'utf8'});assert.equal(r.status,0,r.stderr);return r.stdout.trim()};
+ git(['init','-q','-b','main']);
+ const templates=join(root,'internal/tasks/cli/testdata/external-agents');mkdirSync(join(repo,'.taskman'));
+ for(const name of ['queue.json','policy.json']){let content=readFileSync(join(templates,name),'utf8');if(name==='queue.json')content=content.replace('"fixture":false','"fixture":true');writeFileSync(join(repo,'.taskman',name),content)}
+ git(['add','.']);git(['commit','-qm','fixture']);
+ const binary=process.env.CORVINT_PI_HOST_BIN;assert.ok(binary,'set CORVINT_PI_HOST_BIN to the exact candidate Core binary');
+ const env={PATH:process.env.PATH,HOME:home,LANG:'en_US.UTF-8',PI_CODING_AGENT_DIR:agent,PI_OFFLINE:'1',CORVINT_BIN:binary,CORVINT_TASKS_BIN:process.env.CORVINT_TASKS_BIN??'corvint-tasks',CORVINT_PI_CAPTURE:capture};
+ const receipts=[];
+ const native=args=>{const r=spawnSync(env.CORVINT_TASKS_BIN,args,{cwd:repo,env,encoding:'utf8',timeout:10000});assert.equal(r.status,0,r.stdout+r.stderr);const receipt=JSON.parse(r.stdout);receipts.push({component:'tasks',args,receipt});return receipt};
+ native(['init','--request-id','coexist-init']);const created=native(['ticket','create','--request-id','coexist-ticket','--payload',readFileSync(join(templates,'ticket-create.json'),'utf8').trim()]);const ticketId=created.items[0].ticketId;
+ git(['add','.taskman']);git(['commit','-qm','fixture ticket']);
+ const plan=join(scratch,'plan.json');writeFileSync(plan,JSON.stringify({base:git(['rev-parse','HEAD']),intents:['intent.md'],checks:[{id:'check',argv:['git','diff','--check'],timeoutSeconds:5}]}));
+ const pi=args=>run(process.env.PI_BIN??'pi',args,{cwd:repo,env});assert.equal((await pi(['install',pkg])).code,0);
+ const claim={operation:'claim',requestId:'coexist-claim',input:{ticketId,expectedRevision:'1',holder:'operator-only'}};
+ let child,driver,driverError,buffer='',serial=0,settled;const waiting=new Map();let original,forked,attempt,beforeAudit;
+ const request=(type,fields={})=>new Promise((resolve,reject)=>{const id='coexist-'+(++serial);waiting.set(id,{resolve,reject});child.stdin.write(JSON.stringify({id,type,...fields})+'\n')});
+ const turn=async message=>{const done=new Promise(resolve=>{settled=resolve});await request('prompt',{message});await done;settled=undefined};
+ const command=message=>request('prompt',{message});
+ const taskResult=async()=>{const all=await request('get_entries');return JSON.parse(all.entries.filter(e=>e.type==='custom_message'&&e.customType==='corvint-tasks').at(-1).content[0].text)};
+ const policy=session=>{const r=spawnSync(binary,['dogfood','status','--session-key',workflowSessionKey(session.sessionId)],{cwd:repo,env,encoding:'utf8',timeout:10000});assert.equal(r.status,0,r.stdout+r.stderr);const receipt=JSON.parse(r.stdout);receipts.push({component:'core',session:session.sessionId,receipt});return receipt.policy};
+ const unchanged=()=>{assert.deepEqual(native(['attempt','show',attempt.attemptId]).items[0],attempt,'host transitions must not claim, renew, release or complete the operator lease');assert.deepEqual(native(['receipt','audit']),beforeAudit,'host recovery adds no native Tasks receipts')};
+ const result=await run(process.env.PI_BIN??'pi',['--offline','--approve','--no-context-files','--no-skills','--no-prompt-templates','--no-themes','--no-tools','--provider','corvint-qualification','--model','fixture','--thinking','off','-e',providerPath,'--mode','rpc'],{cwd:repo,env,stdin:true,onSpawn(value){child=value;driver=(async()=>{
+  original=await request('get_state');await command('/corvint-workflow begin '+plan);await command('/corvint-tasks '+JSON.stringify(claim));const claimed=await taskResult();assert.equal(claimed.ok,true,JSON.stringify(claimed));receipts.push({component:'pi-claim',receipt:claimed});
+  assert.equal(policy(original).lifecycle,'active');assert.equal(policy(original).satisfied,false);
+  attempt=native(['attempt','show',claimed.raw.items[0].attemptId]).items[0];assert.equal(attempt.lease.holder,'operator-only');beforeAudit=native(['receipt','audit']);
+  await turn('seed active workflow history');const forks=await request('get_fork_messages');await request('fork',{entryId:forks.messages.at(-1).entryId});forked=await request('get_state');assert.notEqual(forked.sessionId,original.sessionId);
+  await command('/corvint-workflow status');assert.equal(policy(forked).lifecycle,'inactive');assert.equal(policy(original).lifecycle,'active');await command('/corvint-tasks '+JSON.stringify({...claim,resume:true}));const stale=await taskResult();assert.equal(stale.ok,false,JSON.stringify(stale));assert.equal(stale.mutation,'not-attempted');receipts.push({component:'pi-stale-replay',receipt:stale});unchanged();
+  await turn('fork must not acquire workflow ownership');await command('/fixture-reload');assert.equal(policy(forked).lifecycle,'inactive');assert.equal(policy(original).lifecycle,'active');unchanged();
+  await request('switch_session',{sessionPath:original.sessionFile});await command('/corvint-workflow status');await turn('original owner resumes incomplete workflow');assert.equal(policy(original).lifecycle,'active');assert.equal(policy(original).satisfied,false);unchanged();
+  const entries=await request('get_entries');assert.doesNotMatch(JSON.stringify(entries),/BEGIN CORVINT REPOSITORY DATA/);child.stdin.end();
+ })().catch(error=>{driverError=error;child.stdin.end()})},onStdout(data){buffer+=data;for(;;){const end=buffer.indexOf('\n');if(end<0)break;const line=buffer.slice(0,end);buffer=buffer.slice(end+1);if(!line)continue;const e=JSON.parse(line);if(e.type==='response'&&waiting.has(e.id)){const p=waiting.get(e.id);waiting.delete(e.id);e.success?p.resolve(e.data):p.reject(Error(e.error))}if(e.type==='agent_settled')settled?.()}}});
+ await driver;if(driverError)throw driverError;assert.equal(result.code,0,result.stderr);assert.doesNotMatch(result.stderr,/Failed to load extension/);
+ const events=readFileSync(capture,'utf8').trim().split('\n').map(JSON.parse);for(const reason of ['fork','reload','resume'])assert.ok(events.some(e=>e.kind==='session_start'&&e.reason===reason),reason);
+ if(process.env.CORVINT_PI_RECOVERY_EVIDENCE)writeFileSync(process.env.CORVINT_PI_RECOVERY_EVIDENCE,JSON.stringify({receipts,lifecycle:events.filter(e=>e.kind==='session_start')},null,2)+'\n');
 });
