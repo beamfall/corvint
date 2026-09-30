@@ -138,9 +138,9 @@ func gitRaw(ctx context.Context, root string, outputLimit int, arguments ...stri
 		}
 		return nil, newError("repository-probe-failed", "cannot start Git")
 	}
-	// groupreap.Wait signals the process group before it reaps the leader, so
-	// the group ID cannot name a process that reused the leader's PID.
-	err := groupreap.Wait(command)
+	// Ordinary Core retires its private group before reaping. An owned worker
+	// instead leaves shared-group cleanup to the enclosing runner.
+	err := waitGitProcess(command)
 	if ctx.Err() != nil {
 		return nil, probeContextError(ctx)
 	}
@@ -493,3 +493,10 @@ func probeRepositorySharing(parent context.Context, root string, run gitRunner, 
 // is not a latency budget: on a loaded host the reader can need seconds to
 // drain output Git already wrote (V1-0390).
 const pipeDrainDelay = time.Minute
+
+func waitGitProcess(command *exec.Cmd) error {
+	if gitstatus.OwnedWorker() {
+		return command.Wait()
+	}
+	return groupreap.Wait(command)
+}

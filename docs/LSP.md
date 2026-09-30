@@ -92,3 +92,13 @@ outside this milestone.
 
 Rollback: select `--lsp off`, unset the legacy environment setting, and use the existing
 `task-review` MCP profile. No persisted semantic index or migration needs to be undone.
+
+The optional Go editor companion also accepts experimental `corvint/context` with closed params
+`{"textDocument":{"uri":"file:///absolute/root/file.go"},"task":"investigate a requirement","limit":10}`.
+The document must be open. Discover the method/schema under `capabilities.experimental.corvintContext`.
+The response preserves the task-review Core object, including abstentions, separately from an
+unsaved overlay observation (random session ID, decimal-string capture ID, version and SHA-256).
+It starts one bounded native context worker, with no second gopls, tests or repository writes.
+Point-in-time Git/branch/root and overlay checks fail closed on observed drift. This remains
+experimental; exact client tuples and outcome/performance floors are unqualified. See the
+[LSP editor context contract](specs/lsp-editor-context-v0.md) for bounds, fixed errors and observation limits.

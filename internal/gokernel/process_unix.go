@@ -4,12 +4,18 @@ package gokernel
 
 import (
 	"errors"
+	"github.com/Beamfall/corvint/internal/gitstatus"
 	"os"
 	"os/exec"
 	"syscall"
 )
 
 func configureProcess(command *exec.Cmd) {
+	if gitstatus.OwnedWorker() {
+		// CommandContext's default Cancel kills only its own unreaped leader.
+		command.WaitDelay = pipeDrainDelay
+		return
+	}
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	command.Cancel = func() error {
 		if command.Process == nil {
