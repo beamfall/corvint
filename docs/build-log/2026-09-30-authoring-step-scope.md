@@ -106,3 +106,14 @@ unchanged MCP tools-list golden, scoped Go vet and actual error-code-ownership-c
 Full frozen selected checks, final CEM/OCM and seal remain pending. Linux native/runtime and
 third-party schema/interoperability qualification are NOT_RUN. Host/transient/concurrent/ACL/xattr/
 timestamp exclusions and proposed/experimental promotion boundary remain unchanged.
+
+## Citation-only closeout repair
+
+At clean5a47, enrolled observer/full-gitauth and CLI checks qualified; enrolled focused-docs failed
+only line-citations-check after public main/help additions moved existing spans. Native widen1454
+adds exactly the five affected spec documents to live67 before repair. Fourteen citation locations
+were retargeted by matching base259 lines to their identical new spans. Every old/base anchor and
+old/new cited byte span agrees; all anchors and prose claims are preserved. The failed check and
+byte-equality proof remain retained. Source/native/public code is unchanged. The repair invalidates
+the frozen target binding; rerun all three selected checks after committing, rather than reusing
+source passes as a satisfied workflow.
