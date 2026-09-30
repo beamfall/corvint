@@ -178,6 +178,7 @@ For a bounded lookup, use [Agent evidence routes](../AGENT-ROUTES.md#from-index-
 | Native CEM adapter dependency claim | [`native-cem-adapter.md`](native-cem-adapter.md) | proposed | experimental (checked by `TestCEMSeamsDependOnlyOnStdlibAndGit`) | CEM seams depend only on the Go standard library, `internal/groupreap` and local Git, not kernel, provider, analyzer, or network surfaces. |
 | VS Code Extension V0 | [`vscode-extension-v0.md`](vscode-extension-v0.md) | proposed | deferred | A thin VS Code adapter presents bounded Corvint evidence and explicitly enabled test-provider feedback without owning repository authority or engine updates. |
 | Agent Task Manager V0 | [`../plans/AGENT-TASK-MANAGER-2026-09-04.md`](../plans/AGENT-TASK-MANAGER-2026-09-04.md) | accepted (decision 0052, revision 6) | experimental | Standalone `atm` module; S1 state, runtime, receipts, configuration and local queue adapters are authorized; later gates remain required. |
+| Closed Vocabulary Intake V0 | [`closed-vocabulary-intake-v0.md`](closed-vocabulary-intake-v0.md) | proposed | experimental | Intake admits typed records before untrusted change context reaches an author. Strict validation, immutable paths and actual builder fixtures passed local checks; host confinement, reader extraction, hosted CI and owner technical acceptance remain unqualified. |
 
 “Accepted direction” means the repository owner has explicitly selected the product outcome, while
 individual generated or inferred claims still require review. A spec can be accepted and still have

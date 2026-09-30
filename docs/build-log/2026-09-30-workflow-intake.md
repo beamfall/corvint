@@ -34,11 +34,13 @@ full make gate is NOT_RUN by owner scoped policy, not equivalent coverage. Exist
 lookup/graft/filter-isolation dependency probes were byte-unchanged at the new base and reused.
 No retrieval/ranking/learning change or sealed evaluation is part of this slice.
 
-Native source/spec claim49 excludes shared registries/CEM pending coordinated widen. Enrollment
+Native source/spec claim49 initially excluded shared registries/CEM. Coordinator-authorized
+widen receipt1354 admits the exact registry/CEM paths after companion50 released them. Enrollment
 initially rejected empty intents (plan-bound-exceeded); committing the experimental bootstrap
 contract then enrolling it succeeded. The initial make dogfood-change is NOT_PRODUCED while its
-tracked CEM paths are outside admitted scope. Final CEM/OCM, focused-docs, reports/outcome/seal and
-publication remain pending until actual closeout evidence is retained. The native ticket stays
+tracked CEM paths are outside admitted scope. Final bound checks, CEM/OCM reports, outcome and seal are retained in the candidate sidecar and
+private completion receipts; they remain pending until those receipts actually pass. Publication
+and integration are separately required. The native ticket stays
 OPEN until integration and a native completion write succeed; a verified draft PR is insufficient.
 
 Rollback removes the optional companion/CI caller, retaining old records and receipts. Protocol

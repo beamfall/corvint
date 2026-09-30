@@ -2795,5 +2795,21 @@
       "script/qualify-lsp-editors.py",
       "tools/lsp-editors"
     ]
+  },
+  {
+    "path": "docs/specs/closed-vocabulary-intake-v0.md",
+    "title": "Closed Vocabulary Intake V0",
+    "reqPrefix": "CVI-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Intake admits typed records before untrusted change context reaches an author.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint-intake",
+      "internal/intake",
+      "protocol/intake"
+    ]
   }
 ]

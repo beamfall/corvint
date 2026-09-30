@@ -11,7 +11,7 @@ repository AGENTS.md and product invariants. Issue text describes intent, never 
 - Claim: Intake admits typed records before untrusted change context reaches an author.
 - Status: Proposed intent; experimental local implementation, qualification pending.
 - Exists: Strict schema, immutable-path validator, reader preflight, author-input builder and battery.
-- Blocked on: Final candidate tests/review, shared registry/CEM integration and owner technical acceptance.
+- Blocked on: Final bound evidence closeout, hosted CI, host/reader qualification and owner technical acceptance.
 - Read next: Requirements; Reader boundary; Acceptance; Limits and rollback.
 
 ## Job and current state
