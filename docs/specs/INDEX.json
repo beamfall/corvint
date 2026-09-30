@@ -1156,6 +1156,24 @@
     ]
   },
   {
+    "path": "docs/specs/new-e2e-test-acceptance-v0.md",
+    "title": "New E2E Test Acceptance V0",
+    "reqPrefix": "NEA-V0",
+    "intent": "proposed",
+    "delivery": "experimental; actual local negative assessment qualified, accepted path blocked V1-0556",
+    "claim": "A separate companion retains actual repeats, approved negative controls and an aggregate verdict; unknown per-test freshness blocks acceptance.",
+    "dependsOn": [
+      "docs/specs/js-live-test-provider-v0.md",
+      "docs/specs/browser-behavior-falsification-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/testacceptance",
+      "cmd/corvint-tests-accept"
+    ]
+  },
+  {
     "path": "docs/specs/js-live-test-provider-v0.md",
     "title": "JS/TS Live-Test Provider V0",
     "reqPrefix": "",
@@ -2680,7 +2698,7 @@
     "path": "docs/specs/pi-workflow-v0.md",
     "title": "Pi Workflow V0",
     "reqPrefix": "PWV-V0",
-    "intent": "accepted direction (owner instruction “do it. parallel”, 2026-09-29)",
+    "intent": "accepted direction (owner instruction \u201cdo it. parallel\u201d, 2026-09-29)",
     "delivery": "experimental",
     "claim": "Pi offers bounded native Core reads and an explicitly authorized Tasks workflow without acquiring evidence or execution authority.",
     "dependsOn": [
