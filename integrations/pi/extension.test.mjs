@@ -4,13 +4,13 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import register from './extension.js';
 
-function fixture(t, {hasUI=true, trusted=true}={}) {
+function fixture(t, {hasUI=true, trusted=true, lifecycle=[]}={}) {
  const handlers=new Map(), commands=new Map(), calls=[], notices=[], messages=[];
  const runner={async close(){}, async run(request){calls.push(request);return {context:`CTX:${request.event}:${request.input.startSource??request.input.task??''}`,receiptId:String(calls.length),degradations:request.input.outcome?['outcome-persistence-unavailable']:[]};}};
  const pi={on(name,handler){handlers.set(name,handler)},registerCommand(name,command){commands.set(name,command)},registerTool(){},sendMessage(message,options){messages.push({message,options})}};
  const ctx={cwd:'/fixture',hasUI,ui:{notify:(...args)=>notices.push(args)},isProjectTrusted:()=>trusted,sessionManager:{getSessionId:()=> 'private-session'}};
  const listeners=new Set([...process.listeners('SIGINT'),...process.listeners('SIGTERM')]);
- register(pi,{runner,version:'0.85.1'});
+ register(pi,{runner,version:'0.99.1',lifecycle});
  t.after(()=>{for(const signal of ['SIGINT','SIGTERM'])for(const listener of process.listeners(signal))if(!listeners.has(listener))process.removeListener(signal,listener);});
  return {ctx,runner,calls,notices,messages,emit:(name,event={})=>handlers.get(name)(event,ctx),command:(name,text)=>commands.get(name).handler(text,ctx)};
 }
@@ -102,6 +102,7 @@ test('AHI-024 late prior-session results and changed roots cannot supply recover
  let resolve;
  f.runner.run=()=>new Promise(r=>{resolve=r});
  const old=f.emit('session_compact');
+ while(!resolve)await new Promise(done=>setImmediate(done));
  f.runner.run=async()=>({fault:'aborted'});
  await f.emit('session_tree');
  resolve({context:'STALE',receiptId:'old',degradations:[]});await old;
@@ -119,4 +120,32 @@ test('AHI-024 explicit context is visible without triggering a model turn; shutd
  assert.deepEqual(f.messages[0].options,{triggerTurn:false});
  await f.emit('session_shutdown');
  for(const signal of Object.keys(before))assert.equal(process.listenerCount(signal),before[signal]);
+});
+
+test('signal cleanup joins injected owned work before restoring host signal handling',async t=>{
+ const f=fixture(t);let release,completed=false;
+ const barrier=new Promise(resolve=>{release=resolve});
+ const handlers=new Map();
+ const pi={on(name,handler){handlers.set(name,handler)},registerCommand(){},registerTool(){}};
+ const base=new Set(process.listeners('SIGTERM'));const listener=()=>{};process.on('SIGTERM',listener);
+ register(pi,{runner:{async close(){},async run(){return {degradations:[]}}},version:'0.99.1',onInterrupt:async()=>{await barrier;completed=true;}});
+ const added=process.listeners('SIGTERM').filter(item=>!base.has(item)&&item!==listener);
+ assert.equal(added.length,1);added[0]();await new Promise(resolve=>setImmediate(resolve));assert.equal(completed,false);
+ release();await new Promise(resolve=>setImmediate(resolve));assert.equal(completed,true);
+ t.after(()=>{process.removeListener('SIGTERM',listener);for(const signal of ['SIGTERM','SIGINT'])for(const l of process.listeners(signal))if(!base.has(l)&&l!==listener&&String(l).includes('signalInterrupt'))process.removeListener(signal,l)});
+});
+
+
+test('PWV transition, compaction and edit fence all services synchronously and join cleanup',async t=>{
+ for(const [event,input] of [['session_start',{reason:'resume'}],['session_tree',{}],['session_compact',{}],['tool_result',{toolName:'edit'}],['session_shutdown',{}]])await t.test(event,async t=>{
+  const release=[],cleared=[],closed=[];
+  const lifecycle=[0,1].map(id=>({clear(){cleared.push(id);return new Promise(resolve=>release[id]=resolve)},close(){closed.push(id)}}));
+  const f=fixture(t,{lifecycle});let returned=false;
+  const work=f.emit(event,input).then(()=>{returned=true});
+  assert.deepEqual(cleared,[0,1]);
+  await new Promise(resolve=>setImmediate(resolve));assert.equal(returned,false);assert.equal(f.calls.length,0);assert.deepEqual(closed,[]);
+  release[0]();await new Promise(resolve=>setImmediate(resolve));assert.equal(returned,false);assert.equal(f.calls.length,0);
+  release[1]();await work;assert.equal(returned,true);assert.equal(f.calls.length,1);
+  if(event==='session_shutdown')assert.deepEqual(closed,[0,1]);
+ });
 });

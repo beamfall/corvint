@@ -117,4 +117,22 @@ if output=$(run); then
     fail "a content change sharing the bump commit's committer second passed the gate"
 fi
 
-printf 'check-host-package-versions_test: 5 cases passed\n'
+# Clear the earlier fixture's stale state before exercising the Pi shipped modules.
+printf '{"name":"corvint","version":"0.1.4"}\n' >"$test_root/integrations/gemini-cli/gemini-extension.json"
+mkdir -p "$test_root/integrations/pi"
+printf '{"version":"0.3.0","corvintIntegration":{"adapterVersion":"0.3.0"}}\n' >"$test_root/integrations/pi/package.json"
+printf 'entry\n' >"$test_root/integrations/pi/index.ts"
+commit "introduce Pi fixture" 2026-01-01T00:07:00
+output=$(run) || fail "Pi introduction did not pass: $output"
+i=0
+for module in process core tasks operations cockpit workflow; do
+    i=$((i + 1))
+    printf 'new shipped module\n' >"$test_root/integrations/pi/$module.js"
+    commit "add Pi $module without bump" "2026-01-01T01:0${i}:00"
+    if output=$(run); then fail "Pi $module shipped without a bump"; fi
+    case $output in *pi*package.json*) ;; *) fail "Pi failure not named: $output" ;; esac
+    printf '{"version":"0.3.%s","corvintIntegration":{"adapterVersion":"0.3.%s"}}\n' "$i" "$i" >"$test_root/integrations/pi/package.json"
+    commit "bump Pi after $module" "2026-01-01T02:0${i}:00"
+    output=$(run) || fail "Pi bump did not clear $module: $output"
+done
+printf 'check-host-package-versions_test: 11 cases passed\n' 

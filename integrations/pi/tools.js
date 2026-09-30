@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { decodeObject } from './runtime.js';
+import { canonical } from './operations.js';
+import { workflowIdentity } from './workflow.js';
 
 const string={type:'string'};
 const strings={type:'array',items:string,maxItems:256};
@@ -22,36 +24,53 @@ export function toolObservations(metadata) {
  return input;
 }
 
-export function registerTools(pi,{runner,version,notice}) {
+export function registerTools(pi,{runner,version,notice,identity=workflowIdentity}) {
  const packets=new Map();let next=0,generation=0;
  const clear=()=>{generation++;packets.clear()};
  const scope=ctx=>JSON.stringify([ctx.cwd,ctx.sessionManager.getSessionId()]);
  const failure=(code,record=false)=>({content:[{type:'text',text:`Corvint unavailable: ${code}. No completion or authority is established.${record?' A failed record attempt may have written; inspect the local trace store before retrying.':''}`}],details:{corvint:{fault:code},uncertainMutation:record},isError:true});
- async function invoke(operation,input,signal,ctx) {
+ const identify=async ctx=>{const value=await identity(ctx);if(!value||typeof value!=='object'||['root','gitDir','session'].some(key=>typeof value[key]!=='string'||!value[key]))throw Error('identity-unavailable');return canonical(value)};
+ const current=(binding,signal,ctx)=>binding.epoch===generation&&binding.scope===scope(ctx)&&ctx.isProjectTrusted()&&!signal?.aborted;
+ async function invoke(operation,input,signal,ctx,expectedScope) {
   if(!ctx.isProjectTrusted())return {fault:'untrusted-project',mutation:'not-attempted'};
   if(signal?.aborted)return {fault:'aborted',mutation:'not-attempted'};
-  const epoch=generation,identity=scope(ctx);
-  const result=await runner.tool({cwd:ctx.cwd,operation,input,hostVersion:version,signal});
-  if(epoch!==generation||identity!==scope(ctx))return {fault:'stale-context',mutation:result.mutation??'unknown'};
-  return result;
+  let binding,result,dispatched=false;
+  try {
+   const session=ctx.sessionManager.getSessionId(),cwd=ctx.cwd;
+   binding={epoch:generation,scope:scope(ctx)};
+   const frozen={...ctx,cwd,sessionManager:{getSessionId:()=>session}};
+   binding.identity=await identify(frozen);
+   if(!current(binding,signal,ctx))return {fault:'stale-context',mutation:'not-attempted'};
+   if(expectedScope!==undefined&&expectedScope!==binding.identity)return {fault:'stale-context',mutation:'not-attempted'};
+   dispatched=true;
+   result=await runner.tool({cwd,operation,input,hostVersion:version,signal});
+   if(!current(binding,signal,ctx))return {...result,fault:'stale-context',mutation:result.mutation??'unknown'};
+   if(binding.identity!==(await identify(frozen))||!current(binding,signal,ctx))return {...result,fault:'stale-context',mutation:result.mutation??'unknown'};
+   return {...result,binding};
+  } catch {
+   return {...result,fault:'identity-unavailable',mutation:dispatched?result?.mutation??'unknown':'not-attempted'};
+  }
  }
  async function context(args,signal,ctx) {
   const result=await invoke('context',args,signal,ctx);
   if(result.fault)return failure(result.fault);
+  if(!current(result.binding,signal,ctx))return failure('stale-context');
   const handle=`packet-${++next}`;
-  packets.set(handle,{...result.packet,scope:scope(ctx)});
+  packets.set(handle,{...result.packet,scope:result.binding.identity});
   if(packets.size>4)packets.delete(packets.keys().next().value);
   return {content:[{type:'text',text:`Expansion handle: ${handle}\nEvidence handle: ${result.packet.evidenceHandle}\n${result.context}`}],details:{handle,corvint:{observedEvidenceHandles:[result.packet.evidenceHandle]}}};
  }
  async function expand(args,signal,ctx) {
   const {handle,...selection}=args;
   const packet=packets.get(handle);
-  if(!packet||packet.scope!==scope(ctx))return failure('stale-context');
-  const result=await invoke('expand',{...selection,packet:packet.json,packetSha256:packet.sha256,commit:packet.commit},signal,ctx);
+  if(!packet)return failure('stale-context');
+  const result=await invoke('expand',{...selection,packet:packet.json,packetSha256:packet.sha256,commit:packet.commit},signal,ctx,packet.scope);
+  if(!result.fault&&!current(result.binding,signal,ctx))return failure('stale-context');
   return result.fault?failure(result.fault):{content:[{type:'text',text:result.context}],details:{}};
  }
  async function record(args,signal,ctx) {
   const result=await invoke('record',args,signal,ctx);
+  if(!result.fault&&!current(result.binding,signal,ctx))return failure('stale-context',result.mutation!=='not-attempted');
   return result.fault?failure(result.fault,result.mutation!=='not-attempted'):{content:[{type:'text',text:result.context}],details:{mutation:result.mutation}};
  }
  const definitions=[
@@ -68,5 +87,5 @@ export function registerTools(pi,{runner,version,notice}) {
   if(result.isError){notice(ctx,result.details.corvint.fault,result.details.uncertainMutation?' The record may have been written; inspect the local trace store before retrying.':'');return;}
   pi.sendMessage({customType:'corvint-record',content:result.content,display:true},{triggerTurn:false});
  }});
- return {clear};
+ return {clear,readContext:(args,ctx)=>context(args,ctx.signal,ctx),expandSource:(args,ctx)=>expand(args,ctx.signal,ctx)};
 }

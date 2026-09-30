@@ -125,6 +125,12 @@ For a complete accepted flow-variation denominator and original `/3` receipts, u
 Its global verdict is fail-closed even when paging; byte-bound PROVEN does not attest deployed lineage.
 Only explicit `--write-back FRESH_DIR` writes documentation, while `--check DIR` remains read-only.
 
+
+Pi integration changes use `docs/specs/pi-workflow-v0.md`, AHI-024/025 and LCP-V0-008/009.
+Retain closed native read/receipt evidence and run the focused Pi units, actual pinned
+Pi host modes and native Tasks temporary-store fixture. These do not qualify protected
+Pi authority, other operating systems, supervisor participation or comparative superiority.
+
 For operator-requested machine updates, use the separate `corvint-update check|apply|rollback`
 companion under [Operator update V0](specs/operator-update-v0.md). It is not a Core read command;
 network access and executable activation are explicit, with checksum and qualification limits.

@@ -2589,6 +2589,25 @@
     ]
   },
   {
+    "path": "docs/specs/pi-workflow-v0.md",
+    "title": "Pi Workflow V0",
+    "reqPrefix": "PWV-V0",
+    "intent": "accepted direction (owner instruction “do it. parallel”, 2026-09-29)",
+    "delivery": "experimental",
+    "claim": "Pi offers bounded native Core reads and an explicitly authorized Tasks workflow without acquiring evidence or execution authority.",
+    "dependsOn": [
+      "docs/specs/agent-harness-integration-v0.md",
+      "docs/specs/local-completion-policy-v0.md",
+      "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "docs/specs/core-compatibility-freeze-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "integrations/pi"
+    ]
+  },
+  {
     "path": "docs/specs/gopls-client-session-v0.md",
     "title": "Gopls client session V0",
     "reqPrefix": "GCS-V0",
