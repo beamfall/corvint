@@ -643,6 +643,23 @@ revision, not a test result and not a result for any one requirement.</div>
 {{if .Edge.Gap}}<div class="unknown">gap: {{.Edge.Gap}}: {{.Edge.Reason}}</div>
 {{else}}<div style="font-size:12px">pinned <code>{{.Edge.Pin}}</code></div><pre>{{.Text}}</pre>{{end}}
 {{end}}
+<h3>Obligations for this hunk</h3>
+{{template "edges" .Hunk.Requirements}}
+{{range .Requirements}}
+<h4><code>{{.ID}}</code> · {{.Disposition}}</h4>
+{{template "edges" .Clause}}
+<h5>Structural test claims</h5>
+{{template "edges" .Claims}}
+{{end}}
+<h3>Test observations</h3>
+<div>Test execution: NOT_RUN. These are caller supplied witnesses retained in the map; structural test claims do not establish a current passing test.</div>
+{{template "edges" .Hunk.Observations}}
+<h3>Remaining unassigned obligations</h3>
+<div>These scope-wide unknowns are not assigned to this hunk.</div>
+{{range .Unmapped}}<div class="unknown"><code>{{.ID}}</code> · {{.Disposition}} · {{.Reason}}</div>{{end}}
+<h3>Recorded verification of the whole revision</h3>
+<div>This operator record is not a test result for this hunk or requirement.</div>
+{{template "edges" .Verification}}
 {{end}}
 </div>
 {{end}}

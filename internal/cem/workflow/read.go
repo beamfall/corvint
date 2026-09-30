@@ -24,6 +24,9 @@ type ReadOptions struct {
 	Target       string
 	Limits       PolicyLimits
 	Output       string // report only
+	Format       string // report only: empty/markdown publishes; json is read-only
+	OCMPath      string // optional explicitly supplied obligation map
+	ReadOCM      ReviewOCMReader
 }
 
 // ActionReportPreview renders the report without publishing it: the
@@ -34,6 +37,12 @@ const ActionReportPreview = "report-preview"
 // "status", "verify", "report", or ActionReportPreview; rendering is not a
 // second trust path.
 func (s *Session) Read(ctx context.Context, action string, options ReadOptions) (map[string]any, error) {
+	if action == "report" && options.Format == "json" && options.Output != "" {
+		return nil, invalidArguments("JSON review is read-only and does not accept --output")
+	}
+	if options.Format != "" && options.Format != "markdown" && options.Format != "json" {
+		return nil, invalidArguments("report format must be markdown or json")
+	}
 	raw, document, err := s.readMapInput(options.MapPath)
 	if err != nil {
 		return nil, err
@@ -96,7 +105,16 @@ func (s *Session) Read(ctx context.Context, action string, options ReadOptions) 
 		envelope.apply(result, true)
 		return result, nil
 	case "report":
-		return s.renderReport(document, verification, counts, work, policy, envelope, options)
+		projection, err := s.reviewProjection(ctx, raw, document, verification, options, envelope.retainedPatch)
+		if err != nil {
+			return nil, err
+		}
+		if options.Format == "json" {
+			result := map[string]any{"ok": valid && len(policy) == 0 && projection["ocmValid"] != false, "mutates": false, "tool": "cem-report", "review": projection, "counts": counts, "policyIssues": policy, "verification": verification}
+			envelope.apply(result, false)
+			return result, nil
+		}
+		return s.renderReport(document, verification, counts, work, policy, envelope, options, projection)
 	case ActionReportPreview:
 		result := map[string]any{
 			"ok": valid && len(policy) == 0, "mutates": false, "tool": "cem-report",
@@ -112,10 +130,11 @@ func (s *Session) Read(ctx context.Context, action string, options ReadOptions) 
 
 // patchEnvelope carries the frozen WP2 top-level patch-binding fields.
 type patchEnvelope struct {
-	legacyPatch any // status-only legacy field
-	patchSource string
-	excluded    any
-	warnings    []any
+	legacyPatch   any // status-only legacy field
+	patchSource   string
+	excluded      any
+	warnings      []any
+	retainedPatch []byte // exact legacy input already used by verification
 }
 
 // apply writes the frozen envelope table fields. The legacy patch field
@@ -157,6 +176,7 @@ func (s *Session) runVerification(ctx context.Context, document *wire.Map, raw [
 		return nil, nil, nil, patchEnvelope{}, err
 	}
 	verification := verificationFor(document, outcome, err, false)
+	envelope.retainedPatch = patchBytes
 	counts, work := countsAndWorklist(document)
 	return verification, counts, work, envelope, nil
 }
@@ -219,7 +239,7 @@ func (s *Session) readLegacyPatch(options ReadOptions) (string, []byte, patchEnv
 
 const reportWarning = "Paths and content-derived identifiers or digests can disclose repository information. Keep this report local unless the repository owner approves sharing it."
 
-func (s *Session) renderReport(document *wire.Map, verification, counts map[string]any, work, policy []any, envelope patchEnvelope, options ReadOptions) (map[string]any, error) {
+func (s *Session) renderReport(document *wire.Map, verification, counts map[string]any, work, policy []any, envelope patchEnvelope, options ReadOptions, projection map[string]any) (map[string]any, error) {
 	outputRoot, outputRelative := s.gitRoot, defaultReportRelative
 	if filepath.IsAbs(options.Output) {
 		root, relative, err := s.externalReportOutput(options.Output)
@@ -246,6 +266,7 @@ func (s *Session) renderReport(document *wire.Map, verification, counts map[stri
 		return nil, invalidArguments("report and map paths must differ")
 	}
 	report := renderReportText(document, verification, counts, work, policy)
+	report += renderReviewProjection(projection)
 	if len(report) > maxReportBytes {
 		return nil, invalidArguments("report exceeds %d bytes", maxReportBytes)
 	}
@@ -254,9 +275,10 @@ func (s *Session) renderReport(document *wire.Map, verification, counts map[stri
 	}
 	valid := verification["valid"] == true
 	result := map[string]any{
-		"ok": valid && len(policy) == 0, "mutates": true, "tool": "cem-report",
-		"report": filepath.Join(outputRoot.Path(), filepath.FromSlash(outputRelative)),
-		"counts": counts, "policyIssues": policy, "verification": verification,
+		"ok": valid && len(policy) == 0 && projection["ocmValid"] != false, "mutates": true, "tool": "cem-report",
+		"report":          filepath.Join(outputRoot.Path(), filepath.FromSlash(outputRelative)),
+		"recordSetSha256": projection["recordSetSha256"],
+		"counts":          counts, "policyIssues": policy, "verification": verification,
 	}
 	envelope.apply(result, false)
 	return result, nil

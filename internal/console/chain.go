@@ -84,6 +84,19 @@ type wireHunk struct {
 	OldRange    wireRange   `json:"oldRange"`
 	NewRange    wireRange   `json:"newRange"`
 	Basis       []wireBasis `json:"basis"`
+	Coverage    *struct {
+		State         string `json:"state"`
+		ProfileSha256 string `json:"profileSha256"`
+		TestRun       string `json:"testRun"`
+	} `json:"coverage"`
+	Discriminates *struct {
+		State           string `json:"state"`
+		TreeRevision    string `json:"treeRevision"`
+		SelectionSha256 string `json:"selectionSha256"`
+		Detail          string `json:"detail"`
+		Killed          int    `json:"killed"`
+		Survived        int    `json:"survived"`
+	} `json:"discriminates"`
 }
 
 type wireCEM struct {
@@ -147,6 +160,7 @@ type ChainHunk struct {
 	New          wireRange
 	Evidence     []ChainEdge
 	Requirements []ChainEdge
+	Observations []ChainEdge
 }
 
 // ChainRequirement is one obligation of a bound OCM map: the requirement at
@@ -181,12 +195,15 @@ type ChainSpan struct {
 // ChainDetail is one hunk's lines at the revision its map pins, and the bytes
 // of every span it cites.
 type ChainDetail struct {
-	Hunk  ChainHunk
-	Lines *Blob
-	Range string
-	Text  string
-	Spans []ChainSpan
-	Err   string
+	Hunk         ChainHunk
+	Lines        *Blob
+	Range        string
+	Text         string
+	Spans        []ChainSpan
+	Err          string
+	Requirements []ChainRequirement
+	Unmapped     []ChainRequirement
+	Verification []ChainEdge
 }
 
 // Chain is the rendered chain for one sealed change.
@@ -337,9 +354,33 @@ func hunkEdges(chain *Chain, document wireCEM, reader *objects) []ChainHunk {
 		row := ChainHunk{Field: "hunks[" + strconv.Itoa(index) + "]", ID: hunk.ID, Path: hunk.Path,
 			Disposition: hunk.Disposition, Reason: hunk.Reason, Old: hunk.OldRange, New: hunk.NewRange}
 		row.Evidence = basisEdges(chain, row.Field, hunk, document.Evidence, byID, reader)
+		row.Observations = hunkObservations(chain, row.Field, hunk)
 		hunks = append(hunks, row)
 	}
 	return hunks
+}
+
+func hunkObservations(chain *Chain, field string, hunk wireHunk) []ChainEdge {
+	axes := chain.Sealed.Source.Axes
+	rows := []ChainEdge{{Gap: GapUnverified, Artifact: chain.SealedPath, Field: field + ".coverage", Axes: axes,
+		Reason: "NOT_PRODUCED: no-coverage-witness; this review does not execute tests"}}
+	if hunk.Coverage != nil {
+		rows[0] = ChainEdge{Artifact: chain.SealedPath, Field: field + ".coverage", Axes: axes,
+			Pin: hunk.Coverage.ProfileSha256, Detail: "caller supplied coverage witness state " + strconv.Quote(hunk.Coverage.State) + "; test run " + strconv.Quote(hunk.Coverage.TestRun) + "; not a current passing test"}
+		if (hunk.Coverage.State != "covered" && hunk.Coverage.State != "uncovered") || len(hunk.Coverage.ProfileSha256) != 64 || !objectIDPattern.MatchString(hunk.Coverage.ProfileSha256) || hunk.Coverage.TestRun == "" {
+			rows[0].Gap, rows[0].Reason = GapUnsupported, "INVALID: coverage witness state, profile digest or test run is missing or malformed"
+		}
+	}
+	if hunk.Discriminates != nil {
+		w := hunk.Discriminates
+		rows = append(rows, ChainEdge{Artifact: chain.SealedPath, Field: field + ".discriminates", Axes: axes,
+			Pin:    w.TreeRevision + " selection " + w.SelectionSha256,
+			Detail: "caller supplied discrimination witness state " + strconv.Quote(w.State) + "; killed " + strconv.Itoa(w.Killed) + "; survived " + strconv.Itoa(w.Survived) + "; detail " + strconv.Quote(w.Detail) + "; not a current passing test"})
+		if (w.State != "discriminates" && w.State != "survived" && w.State != "not-run") || !objectIDPattern.MatchString(w.TreeRevision) || len(w.SelectionSha256) != 64 || !objectIDPattern.MatchString(w.SelectionSha256) || w.Killed < 0 || w.Survived < 0 {
+			rows[len(rows)-1].Gap, rows[len(rows)-1].Reason = GapUnsupported, "INVALID: discrimination witness state, revision, selection digest or counts are missing or malformed"
+		}
+	}
+	return rows
 }
 
 func basisEdges(chain *Chain, field string, hunk wireHunk, evidence []wireSpanRef, byID map[string][]int, reader *objects) []ChainEdge {
@@ -725,6 +766,18 @@ func (w Worktree) HunkDetail(ctx context.Context, chain *Chain, hunkID string) *
 	detail.Lines, detail.Range = w.hunkLines(ctx, chain, detail.Hunk)
 	detail.Text = lineRange(detail.Lines, detail.Hunk)
 	detail.Spans = w.citedSpans(ctx, chain, detail.Hunk)
+	detail.Verification = chain.Verification
+	for _, requirement := range chain.Requirements {
+		if requirement.Disposition != "linked" {
+			detail.Unmapped = append(detail.Unmapped, requirement)
+		}
+		for _, edge := range requirement.Hunks {
+			if edge.Target == hunkID && edge.Gap == "" {
+				detail.Requirements = append(detail.Requirements, requirement)
+				break
+			}
+		}
+	}
 	return detail
 }
 

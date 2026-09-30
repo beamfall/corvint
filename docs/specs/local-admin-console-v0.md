@@ -276,6 +276,16 @@ the Agent digest states the current experimental S1/S2/S3 scope.
   id. Only a change the listing at the commit named is read; every object id MUST be full lowercase
   hex before it reaches Git; all artifact text renders inert under LAC-V0-020.
 
+- `LAC-V0-037`: Selecting a hunk through its existing pinned plain hyperlink MUST gather its
+  cited immutable spans, explicitly linked obligation clauses and structural test claims in the
+  hunk detail panel. The panel MUST separately show scope-wide unassigned obligations and exact
+  reasons, caller supplied coverage/discrimination witness identities and states, and the operator's
+  whole-revision verification record. Absent coverage MUST render `NOT_PRODUCED` /
+  `no-coverage-witness`; current test execution MUST state `NOT_RUN`. Neither a structural claim,
+  a retained witness nor an operator outcome establishes a current passing test. This extension
+  consumes only LAC-V0-033's existing artifacts and inherits LAC-V0-034..036's binding, gaps,
+  pinning, bounds and inert rendering rules.
+
 ## Non-goals and simpler baseline
 
 Not in scope, at any stage: a hosted service, a shared or multi-user deployment, authentication,
@@ -555,3 +565,19 @@ acceptance only:
 > native-Go binary with no UI.
 
 Until that amendment is accepted and recorded as a decision, this contract authorizes no code.
+
+## Selected hunk review acceptance (V1-0501)
+
+`LAC-V0-037` extends the existing experimental chain pane. `internal/console/chain.go`
+composes its existing bound rows; `internal/console/views.go` renders them in the selected detail.
+`TestConsoleChainSelectedHunkReview` follows the actual emitted plain hyperlink and checks the
+selected clause/test claim, unassigned unknown reason, absent coverage and unrun execution boundary.
+`TestConsoleChainComplete`, `TestConsoleChainGaps`, `TestConsoleChainTextMatchDecoy`,
+`TestConsoleChainHostileContent` and `TestConsoleChainKeyboardNavigation` retain the existing
+binding, decoy, hostile-text and pinned-link constraints. Browser observation and final integrated
+Corvint self-use must be retained separately; HTTP test navigation is not a measured human click
+or evidence of operator-time savings. U4 remains `NOT_OBSERVED`.
+
+Rollback removes the selected panel's added requirement, observation, unknown and verification
+fields and template sections; existing chain links, map artifacts and whole-page rows require no
+migration. No new artifact is read and no process or durable state is introduced.

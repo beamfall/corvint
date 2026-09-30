@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -159,7 +160,11 @@ func (f *chainFixture) page(t *testing.T, query string) string {
 // whose map, bound OCM map and trace establish every edge renders the whole
 // chain, and every edge names the artifact and field that justify it.
 func TestConsoleChainComplete(t *testing.T) {
-	fixture := newChainFixture(t, "func Frob() {}", nil)
+	fixture := newChainFixture(t, "func Frob() {}", func(cem map[string]any) {
+		cem["spec"] = "cem/0.3"
+		hunk := cem["hunks"].([]any)[0].(map[string]any)
+		hunk["coverage"] = map[string]any{"state": "covered", "profileSha256": strings.Repeat("a", 64), "testRun": "fixture test run"}
+	})
 	fixture.writeOCM(t, "change.ocm.001.json", fixture.ocm())
 	fixture.writeTrace(t, fixture.change, fixture.traceRow(fixture.change, "frob the widget", "go test ./widget"))
 
@@ -284,6 +289,10 @@ func TestConsoleChainPanelsAgreeOnObligationHunkEdges(t *testing.T) {
 			tc.setup(t, fixture)
 			head := chainGit(t, fixture.root, "rev-parse", "HEAD")
 			chain := Worktree{Root: fixture.root}.ReadChain(context.Background(), head, fixture.change)
+			detail := Worktree{Root: fixture.root}.HunkDetail(context.Background(), chain, chainHunkID)
+			if len(detail.Requirements) != 0 {
+				t.Fatal("a gap became a selected-hunk obligation join")
+			}
 			edges := append([]ChainEdge(nil), chain.Hunks[0].Requirements...)
 			for _, row := range chain.Requirements {
 				edges = append(edges, row.Hunks...)
@@ -418,4 +427,47 @@ func TestConsoleChainKeyboardNavigation(t *testing.T) {
 			t.Fatalf("an unlisted change %q was read:\n%s", unlisted, mainOf(page))
 		}
 	}
+}
+
+// LAC-V0-037: following the actual hunk hyperlink gathers only explicit
+// requirement joins, scope-wide unknowns, and honestly absent test observations.
+func TestConsoleChainSelectedHunkReview(t *testing.T) {
+	t.Run("LAC-V0-037 pinned hunk navigation retains evidence and unknowns", func(t *testing.T) {
+		fixture := newChainFixture(t, "func Frob() {}", nil)
+		doc := fixture.ocm()
+		doc["obligations"] = append(doc["obligations"].([]any), map[string]any{
+			"id": "FIX-V0-002", "disposition": "unknown", "reason": "no-test-claim", "hunkIds": []any{}, "claimIds": []any{},
+		})
+		fixture.writeOCM(t, "change.ocm.001.json", doc)
+		server, err := New(Options{Addr: "127.0.0.1:0", Repo: fixture.root, Binary: "atm"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		listing := get(t, server, "/chain?change="+fixture.change)
+		// Decode the escaped href as a browser does, then follow that exact link.
+		marker := `<a href="/chain?change=` + fixture.change + `&amp;hunk=`
+		start := strings.Index(listing, marker)
+		if start < 0 {
+			t.Fatal("clickable hunk link missing")
+		}
+		href := listing[start+len(`<a href="`):]
+		href = href[:strings.Index(href, `"`)]
+		href = strings.ReplaceAll(href, "&amp;", "&")
+		link, err := url.Parse(href)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := get(t, server, link.RequestURI()) // a browser does not send the fragment
+		_, detail, found := strings.Cut(body, `id="hunk-detail"`)
+		if !found {
+			t.Fatal("hunk navigation did not produce detail")
+		}
+		detail, _, _ = strings.Cut(detail, "<h2>Requirements</h2>")
+		for _, want := range []string{"Obligations for this hunk", "FIX-V0-001", "Structural test claims", chainClaimID,
+			"Remaining unassigned obligations", "FIX-V0-002", "no-test-claim", "NOT_PRODUCED: no-coverage-witness", "Test execution: NOT_RUN", "not a test result for this hunk"} {
+			if !strings.Contains(detail, want) {
+				t.Fatalf("selected detail missing %q:\n%s", want, detail)
+			}
+		}
+	})
 }
