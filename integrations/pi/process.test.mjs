@@ -30,3 +30,9 @@ test('invalid arguments and absent executable produce typed faults',async()=>{
 test('invalid UTF-8 never expands past the output budget',async()=>{
  const r=runner({maxBytes:32});const result=await r.run({cwd,args:['-e','process.stdout.write(Buffer.from([255,255,255]))']});assert.equal(result.fault,'invalid-encoding');assert.equal(result.stdout,'');await r.close();
 });
+
+test('reusable cancel joins owned children before subsequent dispatch',async()=>{
+ const r=runner();const pending=r.run({cwd,args:['-e','setInterval(()=>{},100)']});
+ await r.cancel();assert.equal((await pending).fault,'aborted');
+ const next=await r.run({cwd,args:['-e','console.log("reusable")']});assert.equal(next.exitCode,0);assert.equal(next.stdout.trim(),'reusable');await r.close();
+});

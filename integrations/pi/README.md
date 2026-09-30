@@ -72,7 +72,7 @@ Optional selectors: `--evidence N`, `--commit SHA`, `--lines RANGE`, `--requirem
 
 Automatic and command transport caps are 2000ms including normal cleanup reserve; these are
 not the 250/500ms p95 qualification targets. Faults and actionable degradations appear as UI
-warnings or stderr in non-UI modes. Stop never requests continuation or claims protected authority.
+warnings or stderr in non-UI modes. The legacy Stop adapter never requests continuation. The separately enrolled local workflow below may request one final-settlement remediation, without protected authority.
 `agent_settled` and process exit zero are not successful completion evidence. Startup SIGINT and
 SIGTERM abort owned work before print-mode prompts reach a provider; normal interactive handlers
 remain Pi's responsibility. Shutdown joins owned subprocess work and removes signal listeners.
@@ -87,3 +87,54 @@ This remains FALLBACK. Protected identity/topology, authority, permission qualif
 latency/recall and the full OS/host matrix remain unqualified.
 The owner explicitly requires protected FULL; its separate Pi runtime admission and qualification
 remain required. The explicit tool result bound is 65536 bytes; automatic context remains 8000.
+
+
+## Native workflow and cockpit
+
+`corvint_core_read` exposes closed native query/context/impact/affected/review/prove,
+CEM/OCM status, Frontier and local-policy status operations. It retains original receipt,
+exit status and raw output. It does not index, execute suggested tests or write reports.
+`corvint_tasks` exposes native Tasks reads; set `CORVINT_TASKS_BIN` to a compatible
+native binary when PATH selection is unsuitable. Current qualification uses developer
+build202, not a stable release or qualification of the application's queue policy.
+
+`/corvint` opens Evidence, Changes, Tasks, Verification and Gaps. Use left/right or
+1–5 to select a view, `r` to refresh, arrows/PageUp/PageDown to scroll and `q`/Escape
+to close. Reads run only on explicit refresh. RPC receives structured results;
+print/JSON use no terminal UI. Source expansion uses the existing bounded packet:
+`/corvint source packet-1 {"result":0,"evidence":0,"lines":"1:20"}`.
+Cached views and packets invalidate on observed edits, session/tree navigation and compaction.
+
+`/corvint-tasks JSON` is the operator-command write boundary. It is not a model tool,
+and the same command is callable through RPC, so it asserts operator intent without
+claiming authenticated human provenance. Example:
+
+```json
+{"operation":"ticket prioritize","requestId":"operator-priority-001","input":{"ticketId":"ticket:project:main:V1-0001","expectedRevision":"2","priority":"P1","order":"3"}}
+```
+
+Supported writes are prioritize, claim, renew, release, submit, gate run and complete,
+subject to native capabilities, policy, current revisions and attempt ownership.
+Free-text create/refine, initialization, migration and manual-completion bypass are absent.
+A private bounded Git-directory ledger stores replay metadata and terminal truth, never
+a competing queue. After uncertainty, inspect the returned audit/ticket/attempt receipts
+and repeat the identical command with `resume:true`; do not issue a new request ID.
+An old ledger entry without terminal status stays `native-outcome-unknown`.
+
+`/corvint-workflow begin PLAN_FILE` explicitly enrolls a caller-owned native dogfood
+plan; `/corvint-workflow status` inspects it. The plan uses the existing native
+`corvint dogfood begin` schema. Session identity is separately namespaced for Pi.
+Only a completed idle final-settlement boundary may request one remediation for a
+validated incomplete policy. A second boundary releases with a visible unresolved
+notice; aborts, errors and queued work never become successful completion. Recovery
+packets remain ephemeral. Settlement runs no tests, report writers or outcome recording.
+Verification and finishing remain explicit native CLI operations with the shown session key.
+
+The expanded dependency-free unit suite is the `host-adapter-test` Makefile target's
+Node command. Native qualification additionally runs `host.test.mjs`,
+`tasks-host.test.mjs`, `cockpit-host.test.mjs` and `workflow-host.test.mjs`; the latter
+requires `CORVINT_PI_WORKFLOW_BIN` pointing to the matching committed candidate.
+Preserve installed official binaries; a local candidate is a source build with separate
+provenance and rollback, never a released update. Supervisor participation remains
+blocked on its host-neutral native foundation. Comparative productivity, provider tokens,
+cache usage, billed cost and superiority over OpenCode remain NOT_OBSERVED.

@@ -68,5 +68,5 @@ export function registerTools(pi,{runner,version,notice}) {
   if(result.isError){notice(ctx,result.details.corvint.fault,result.details.uncertainMutation?' The record may have been written; inspect the local trace store before retrying.':'');return;}
   pi.sendMessage({customType:'corvint-record',content:result.content,display:true},{triggerTurn:false});
  }});
- return {clear};
+ return {clear,readContext:(args,ctx)=>context(args,ctx.signal,ctx),expandSource:(args,ctx)=>expand(args,ctx.signal,ctx)};
 }

@@ -120,3 +120,16 @@ test('AHI-024 explicit context is visible without triggering a model turn; shutd
  await f.emit('session_shutdown');
  for(const signal of Object.keys(before))assert.equal(process.listenerCount(signal),before[signal]);
 });
+
+test('signal cleanup joins injected owned work before restoring host signal handling',async t=>{
+ const f=fixture(t);let release,completed=false;
+ const barrier=new Promise(resolve=>{release=resolve});
+ const handlers=new Map();
+ const pi={on(name,handler){handlers.set(name,handler)},registerCommand(){},registerTool(){}};
+ const base=new Set(process.listeners('SIGTERM'));const listener=()=>{};process.on('SIGTERM',listener);
+ register(pi,{runner:{async close(){},async run(){return {degradations:[]}}},version:'0.99.1',onInterrupt:async()=>{await barrier;completed=true;}});
+ const added=process.listeners('SIGTERM').filter(item=>!base.has(item)&&item!==listener);
+ assert.equal(added.length,1);added[0]();await new Promise(resolve=>setImmediate(resolve));assert.equal(completed,false);
+ release();await new Promise(resolve=>setImmediate(resolve));assert.equal(completed,true);
+ t.after(()=>{process.removeListener('SIGTERM',listener);for(const signal of ['SIGTERM','SIGINT'])for(const l of process.listeners(signal))if(!base.has(l)&&l!==listener&&String(l).includes('signalInterrupt'))process.removeListener(signal,l)});
+});

@@ -37,6 +37,7 @@ export function createCommandRunner({binary,env=process.env,timeoutMs=15000,maxB
   });
   const item={done,stop:reason=>stop?.(reason)};active.add(item);done.finally(()=>active.delete(item));return done;
  }
- async function close(){closed=true;const owned=[...active];for(const item of owned)item.stop('closed');await Promise.all(owned.map(item=>item.done));}
- return {run,close};
+ async function cancel(reason='aborted'){const owned=[...active];for(const item of owned)item.stop(reason);await Promise.all(owned.map(item=>item.done));}
+ async function close(){closed=true;await cancel('closed');}
+ return {run,close,cancel};
 }

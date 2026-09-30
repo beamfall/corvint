@@ -40,7 +40,7 @@ export function createCoreService({runner}) {
 }
 export function registerCoreTools(pi,{service,notice=()=>{}}) {
  pi.registerTool({name:'corvint_core_read',label:'Corvint native read',description:'Read native Core evidence. Preserve limitations and unknowns; no test execution, indexing, completion or authority is granted.',parameters:{type:'object',properties:{operation:{type:'string',enum:coreOperations},input:{type:'object'}},required:['operation','input'],additionalProperties:false},execute:async(_id,args,signal,_update,ctx)=>{
-  const result=await service.read(args.operation,args.input,{cwd:ctx.cwd,isProjectTrusted:()=>ctx.isProjectTrusted(),signal});
+  const result=await service.read(args.operation,args.input,{...ctx,cwd:ctx.cwd,isProjectTrusted:()=>ctx.isProjectTrusted(),signal});
   if(result.fault)notice(ctx,result.fault);
   return {content:[{type:'text',text:JSON.stringify(result)}],details:{corvint:result},isError:!!result.fault};
  }});

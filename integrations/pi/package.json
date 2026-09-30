@@ -2,7 +2,7 @@
   "name": "@corvint/pi",
   "version": "0.3.0",
   "type": "module",
-  "description": "Experimental FALLBACK Pi lifecycle adapter for Corvint",
+  "description": "Experimental native Core, Tasks, evidence cockpit and local workflow integration for Pi",
   "license": "AGPL-3.0-or-later",
   "files": [
     "index.ts",
@@ -10,7 +10,13 @@
     "tools.js",
     "runtime.js",
     "compatibility.json",
-    "README.md"
+    "README.md",
+    "process.js",
+    "core.js",
+    "tasks.js",
+    "operations.js",
+    "cockpit.js",
+    "workflow.js"
   ],
   "pi": {
     "extensions": [

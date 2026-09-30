@@ -6,7 +6,7 @@ import { registerTools, toolObservations } from './tools.js';
 const STARTS={startup:'startup',reload:'resume',new:'clear',resume:'resume',fork:'resume'};
 const OUTCOME_KEYS=new Set(['outcome','taskSha256','openedPaths','changedPaths','verification']);
 
-export default function register(pi, {runner, version}) {
+export default function register(pi, {runner, version, lifecycle=[], onInterrupt=async()=>{}}) {
  let interrupting=false, starting=false, startupExitCode=0, generation=0, recovery;
  const seen=new Set();
  const identity=ctx=>createHash('sha256').update(String(ctx.sessionManager.getSessionId())).digest('hex');
@@ -20,7 +20,7 @@ export default function register(pi, {runner, version}) {
   if(starting&&!startupExitCode)startupExitCode=signal==='SIGINT'?130:143;
   if(interrupting)return;
   interrupting=true;
-  void runner.close().then(()=>{
+  void Promise.all([runner.close(),onInterrupt()]).then(()=>{
    const others=process.listeners(signal).filter(candidate=>candidate!==listener);
    // Restore only the default signal action; never replay into Pi's handlers.
    if(others.length===0){process.removeListener(signal,listener);process.kill(process.pid,signal);}
@@ -54,6 +54,7 @@ export default function register(pi, {runner, version}) {
  async function transition(ctx,startSource) {
   generation++;
   tools.clear();
+  for(const service of lifecycle)service.clear?.();
   seen.clear();
   recovery=undefined;
   await runner.close();
@@ -66,7 +67,7 @@ export default function register(pi, {runner, version}) {
  pi.on('input',async()=>{
   if(startupExitCode){process.stderr.write('Corvint unavailable: aborted.\n');process.exitCode=startupExitCode;return {action:'handled'};}
  });
- pi.on('session_compact',async(_,ctx)=>{await recover(ctx,'compact');});
+ pi.on('session_compact',async(_,ctx)=>{tools.clear();for(const service of lifecycle)service.clear?.();await recover(ctx,'compact');});
  pi.on('session_tree',async(_,ctx)=>{await transition(ctx,'resume');});
  pi.on('before_agent_start',async(e,ctx)=>{
   const result=await event(ctx,'user-prompt',{task:e.prompt});
@@ -82,6 +83,7 @@ export default function register(pi, {runner, version}) {
   return {messages:[...e.messages,{role:'custom',customType:'corvint-recovery',content:pending.context,display:false,timestamp:Date.now()}]};
  });
  pi.on('tool_result',async(e,ctx)=>{
+  if(['edit','write','apply_patch'].includes(e.toolName)||e.details?.corvint?.changedPaths?.length){tools.clear();for(const service of lifecycle)service.clear?.();}
   let input;
   try{input=toolObservations(e.details?.corvint)}catch{notice(ctx,'invalid-input');return;}
   await event(ctx,'post-tool',input);
@@ -94,9 +96,10 @@ export default function register(pi, {runner, version}) {
  pi.on('session_shutdown',async(_,ctx)=>{
   generation++;
   tools.clear();
+  for(const service of lifecycle)service.clear?.();
   recovery=undefined;
   try{await runner.close();await event(ctx,'session-end');}
-  finally{await runner.close();seen.clear();process.removeListener('SIGINT',interrupt);process.removeListener('SIGTERM',terminate);}
+  finally{await runner.close();await Promise.all(lifecycle.map(service=>service.close?.()));seen.clear();process.removeListener('SIGINT',interrupt);process.removeListener('SIGTERM',terminate);}
  });
  pi.registerCommand('corvint-context',{description:'Read bounded Corvint context',handler:async(text,ctx)=>{
   const result=await event(ctx,'user-prompt',{task:text});
@@ -111,4 +114,5 @@ export default function register(pi, {runner, version}) {
   }catch{notice(ctx,'invalid-input');return;}
   await event(ctx,'session-end',input);
  }});
+ return tools;
 }
