@@ -277,7 +277,7 @@ func TestLiveOverlay(t *testing.T) {
 	store := &snapshots{values: map[string]Snapshot{uri: {URI: uri, Identity: "open-v1", Version: 1, Overlay: true, Text: "package overlay\n\nvar Unsaved = 1\nvar Use = Unsaved\n"}}}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
-	c, err := Start(ctx, Config{executable, root, store.get, store.current})
+	c, err := Start(ctx, Config{Executable: executable, Root: root, Snapshot: store.get, Current: store.current})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -308,5 +308,38 @@ func TestLiveOverlay(t *testing.T) {
 	t.Logf("experimental tuple version=%s digest=%s encoding=%s definitions=2 disk-unchanged=true", c.Profile().ServerVersion, c.Profile().ExecutableSHA256, c.Profile().PositionEncoding)
 	if err = c.Shutdown(ctx); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// GCS-V0-001: initialized settings and launched environment share one frozen observation.
+func TestFrozenLaunchEnvironment(t *testing.T) {
+	t.Setenv("HOME", "/fixture-before")
+	input := environment("/owned-cache")
+	frozen, settings, hash, err := freezeLaunchEnvironment(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", "/fixture-after")
+	input[0] = "GOPROXY=evil"
+	_, _, again, e := freezeLaunchEnvironment(frozen)
+	if e != nil || again != hash || settings["GOPROXY"] != "off" {
+		t.Fatal("snapshot changed")
+	}
+	found := false
+	for _, item := range frozen {
+		if item == "HOME=/fixture-before" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("launch did not preserve observed HOME")
+	}
+	if _, _, _, e = freezeLaunchEnvironment([]string{"HOME=a", "HOME=b"}); e == nil {
+		t.Fatal("duplicate environment accepted")
+	}
+	c, _, _ := startFake(t, "normal")
+	p := c.Profile()
+	if len(p.LaunchEnvironmentSHA256) != 64 || p.ExternalInputsPinned {
+		t.Fatal("missing or promoted launch identity")
 	}
 }

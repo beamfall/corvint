@@ -25,8 +25,9 @@ func run(args []string) int {
 	experimental := flags.Bool("experimental", false, "")
 	executable := flags.String("gopls", "", "")
 	root := flags.String("root", "", "")
-	if flags.Parse(args) != nil || !*experimental || flags.NArg() != 0 || ((*executable == "") != (*root == "")) {
-		fmt.Fprintln(os.Stderr, "usage: corvint-lsp --experimental [--gopls ABSOLUTE_BINARY --root ABSOLUTE_ROOT]")
+	guard := flags.Bool("workspace-drift-guard", false, "")
+	if flags.Parse(args) != nil || !*experimental || flags.NArg() != 0 || ((*executable == "") != (*root == "")) || (*guard && *executable == "") {
+		fmt.Fprintln(os.Stderr, "usage: corvint-lsp --experimental [--gopls ABSOLUTE_BINARY --root ABSOLUTE_ROOT [--workspace-drift-guard]]")
 		return 2
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -47,7 +48,7 @@ func run(args []string) int {
 		return 1
 	}
 	if *executable != "" {
-		err = lspstdio.ServeSemantic(ctx, in, out, lspstdio.SemanticConfig{Executable: *executable, Root: *root})
+		err = lspstdio.ServeSemantic(ctx, in, out, lspstdio.SemanticConfig{Executable: *executable, Root: *root, WorkspaceDriftGuard: *guard})
 	} else {
 		err = lspstdio.Serve(ctx, in, out)
 	}

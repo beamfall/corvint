@@ -487,6 +487,12 @@ go build -o /tmp/corvint-lsp ./cmd/corvint-lsp
 The editor must launch the process over stdio and declare the same canonical root. The companion
 uses full-text synchronization and UTF-8/16/32 positions; non-open targets return unavailable.
 The backend receives offline Go settings, but the executable is trusted local code, not sandboxed.
+
+In a Git root, add `--workspace-drift-guard` to refuse definitions after observed disk, save, branch
+or root drift until a new session. The guard hashes the whole workspace within fixed bounds; larger
+repositories may exceed its budget. External SDK and caches remain unbound, so this is a partial
+experimental guard. Omit the flag to disable it.
+
 This operator-started experiment changes no Core defaults and installs no editor configuration.
 It exposes a `corvintDefinitionProbe` experimental marker and accepts direct development `textDocument/definition` requests, but does not advertise the standard definition capability. Automatic editor navigation remains unavailable until an exact client tuple is qualified. See the
 [experimental contract](docs/specs/lsp-editor-definition-v0.md) for bounds and rollback.
