@@ -54,3 +54,9 @@ REMOVE paths now require base existence, matching the provisional design. Added 
 fixtures cover author/Git-admin hardlinks and head-only REMOVE. The bounded repair1 re-review passed with no HIGH/MED remaining. All CVI-V0-001 through
 CVI-V0-007 requirements passed within the declared deterministic author-side boundary.
 Rebuilt native CLI additionally rejected head-only REMOVE and author/Git-admin hardlinks.
+
+Final closeout observed that exact requirement anchors need token boundaries: IDs immediately
+joined to hyphenated prose fail OCM exact-ID matching. The same assertion-bearing test cases now
+use space-separated IDs. The extractor retains its documented normalized selector fragments.
+This changes test labels only; source behavior and the independent implementation review remain
+unchanged. Rejected relation/selector/anchor attempts remain in the private closeout checkpoint.

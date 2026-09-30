@@ -54,7 +54,7 @@ func raw(r Record) []byte { b, _ := json.Marshal(r); return b }
 
 // CVI-V0-001, CVI-V0-002: published shape vectors cross the real strict decoder.
 func TestCVI_V0_001_002_PublishedVectors(t *testing.T) {
-	t.Run("CVI-V0-001-CVI-V0-002-published-shape", func(t *testing.T) {
+	t.Run("CVI-V0-001 CVI-V0-002 published shape", func(t *testing.T) {
 		b, e := os.ReadFile("../../protocol/intake/vectors.json")
 		if e != nil {
 			t.Fatal(e)
@@ -85,7 +85,7 @@ func TestCVI_V0_001_002_PublishedVectors(t *testing.T) {
 
 // CVI-V0-002: missing, malformed, coercive, duplicate and prose-bearing input fails closed.
 func TestCVI_V0_002_StrictGrammar(t *testing.T) {
-	t.Run("CVI-V0-002-strict-grammar", func(t *testing.T) {
+	t.Run("CVI-V0-002 strict grammar", func(t *testing.T) {
 		valid := string(raw(record(strings.Repeat("a", 40), strings.Repeat("b", 40))))
 		for _, bad := range []string{
 			strings.Replace(valid, `"profile":`, `"attacker key with prose":1,"profile":`, 1),
@@ -120,7 +120,7 @@ func TestCVI_V0_002_StrictGrammar(t *testing.T) {
 
 // CVI-V0-003: immutable existence and trusted pins cannot be changed by live dirt.
 func TestCVI_V0_003_ImmutablePathAndTrustedPins(t *testing.T) {
-	t.Run("CVI-V0-003-immutable-pins", func(t *testing.T) {
+	t.Run("CVI-V0-003 immutable pins", func(t *testing.T) {
 		root, base, head := fixture(t)
 		r := record(base, head)
 		r.Behaviours = append(r.Behaviours, Behaviour{Kind: "REMOVE", Path: "removed.go"}, Behaviour{Kind: "ADD", Path: "added.go"})
@@ -158,7 +158,7 @@ func TestCVI_V0_003_ImmutablePathAndTrustedPins(t *testing.T) {
 
 // CVI-V0-004: set permutations normalize to byte-identical output.
 func TestCVI_V0_004_Normalization(t *testing.T) {
-	t.Run("CVI-V0-004-normalization", func(t *testing.T) {
+	t.Run("CVI-V0-004 normalization", func(t *testing.T) {
 		root, base, head := fixture(t)
 		r := record(base, head)
 		r.Flags = []string{"z", "a"}
@@ -178,7 +178,7 @@ func TestCVI_V0_004_Normalization(t *testing.T) {
 
 // CVI-V0-005: raw/candidate names and leaf aliases cannot enter author/Git scope.
 func TestCVI_V0_005_ReaderIsolation(t *testing.T) {
-	t.Run("CVI-V0-005-reader-boundary", func(t *testing.T) {
+	t.Run("CVI-V0-005 reader boundary", func(t *testing.T) {
 		root, _, _ := fixture(t)
 		outside := t.TempDir()
 		input := filepath.Join(outside, "raw.json")
@@ -297,7 +297,7 @@ func canonical(b []byte) []byte {
 
 // CVI-V0-006, CVI-V0-007: conditional reader oracles challenge the actual builder.
 func TestCVI_V0_006_007_HostileTwinsAndMutants(t *testing.T) {
-	t.Run("CVI-V0-006-CVI-V0-007-actual-builder-battery", func(t *testing.T) {
+	t.Run("CVI-V0-006 CVI-V0-007 actual builder battery", func(t *testing.T) {
 		root, base, head := fixture(t)
 		production := func(b []byte) ([]byte, error) { return BuildAuthorInput(context.Background(), root, base, head, b) }
 		if err := battery(root, base, head, production); err != nil {
