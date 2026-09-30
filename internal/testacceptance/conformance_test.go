@@ -197,7 +197,7 @@ func TestNEAV0002ActualBrowserAssessment(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		tool := behaviorfalsify.ToolIdentity{Name: "corvint-behavior-falsify", Version: "1.0.0-rc.1", Revision: command(t, source, "git", "rev-parse", "HEAD"), Executable: hashFile(t, falsify), SourceDirty: true}
+		tool := behaviorfalsify.ToolIdentity{Name: "corvint-behavior-falsify", Version: "1.0.0-rc.1", Revision: command(t, source, "git", "rev-parse", "HEAD"), Executable: hashFile(t, falsify), SourceDirty: strings.Contains(command(t, source, "go", "version", "-m", falsify), "vcs.modified=true")}
 		r.Tests = append(r.Tests, Test{ID: title, File: filepath.Join(repo, "new.spec.mjs"), Line: i + 2, Title: title, Project: "chromium", Control: &plan, Tool: &tool, ControlCommand: &Command{Argv: []string{falsify}, ExecutableSHA256: tool.Executable}})
 	}
 	t.Setenv("GITHUB_TOKEN", "credential-sentinel")
