@@ -1,0 +1,214 @@
+{
+  "baseRevision": "eb9b54a0f3ad80b1898b729282a19f7218bd9823",
+  "evidence": [
+    {
+      "blobOid": "2f29c6d6eff0c025d5f6537a15c4b93c3a713c45",
+      "id": "evidence:sha256:d38d47696a3873e1b2c475a298ec7e7adb73395534ea469b6be430385b4f75b8",
+      "path": "docs/specs/cross-repository-breakage-map-v0.md",
+      "span": {
+        "end": 2986,
+        "start": 2744
+      },
+      "spanSha256": "8e0669dacbad2cf395c3f5eff5030049bd77705ba783a864eed3349515e60dfb"
+    },
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:61708a667d5087600bc89ae7c79b48e72e0c0c95d741115a6201bbba6e10a9d6",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3119,
+        "start": 2260
+      },
+      "spanSha256": "d1581341c20d41668845d0f1379331480b1d4208b374d844e74debed4b86159b"
+    },
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:a20eb64a170469a414dc6942ea5fa3b62ec2aa65d2181479f8dc091f1acb7c77",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 4101,
+        "start": 3119
+      },
+      "spanSha256": "6117c0a647cb658775f156db54e7707302865f580c9827f663c525f7de4d94b4"
+    },
+    {
+      "blobOid": "1f6a4b3235f105a923319c5198e87c1d648062a1",
+      "id": "evidence:sha256:9c2e9907191dc61fbf26b3206a81f64df7de08dfba31642a362d73d91920e7ad",
+      "path": "docs/specs/documentation-citation-gate-v0.md",
+      "span": {
+        "end": 8828,
+        "start": 7341
+      },
+      "spanSha256": "afc9ff65ba00d922ebada5a091e62f9deac4569b9a72d3ce41e1ca71d7dd4e88"
+    },
+    {
+      "blobOid": "d57728ff355ca23ff8e48e383608ce5ffb5647ec",
+      "id": "evidence:sha256:8c7c08f2dde83ba794aaa0a262f3965a986a17ffd75d3f7af1e9ac47fdf2603a",
+      "path": "docs/specs/index-snapshot-v0.md",
+      "span": {
+        "end": 33818,
+        "start": 32352
+      },
+      "spanSha256": "d5d93bf0085bea645a7412183f9845d9ed0a84816fadf5a9ebf74db0d8d0ed65"
+    },
+    {
+      "blobOid": "cc93705ecfea484b56f720e3ee230108caac5aad",
+      "id": "evidence:sha256:ea984aeb5f1081beeb652feb1f78e70faeaabe7563097c1e71a508a719b312e3",
+      "path": "docs/specs/dogfood-query-abstention-v0.md",
+      "span": {
+        "end": 3917,
+        "start": 1641
+      },
+      "spanSha256": "c66cc6aa36c31cf02d3002b04f7a4bcddffa2e2b25f151e2659422c56ee710b3"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d38d47696a3873e1b2c475a298ec7e7adb73395534ea469b6be430385b4f75b8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1008e33d3950d44401be4c179aa734963f82e2a0797665fef70d224d4a3354e7",
+      "newRange": {
+        "count": 7,
+        "start": 287
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 287
+      },
+      "path": "cmd/corvint/help.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:61708a667d5087600bc89ae7c79b48e72e0c0c95d741115a6201bbba6e10a9d6",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:a20eb64a170469a414dc6942ea5fa3b62ec2aa65d2181479f8dc091f1acb7c77",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b2720403832239a3ce9e8b624664f44268cfe4d82c5c1c045c0393e3e0ad6cd5",
+      "newRange": {
+        "count": 40,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-30-workflow-ci-maintenance.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c2e9907191dc61fbf26b3206a81f64df7de08dfba31642a362d73d91920e7ad",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:df2fc0999ea629ebb3faa0745ea234b29499435ddfb962ba7872b095b7af409b",
+      "newRange": {
+        "count": 7,
+        "start": 242
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 242
+      },
+      "path": "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c2e9907191dc61fbf26b3206a81f64df7de08dfba31642a362d73d91920e7ad",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1638b9501c045ff1d7cae451d93d8ee9adcf22bbde675a0c5756b707edb1ccaf",
+      "newRange": {
+        "count": 7,
+        "start": 254
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 254
+      },
+      "path": "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8c7c08f2dde83ba794aaa0a262f3965a986a17ffd75d3f7af1e9ac47fdf2603a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:18443fb33885b91259103341bd580e99d1d26ed99d7b6671361890880fdcbe38",
+      "newRange": {
+        "count": 7,
+        "start": 13
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 13
+      },
+      "path": "internal/contextindex/analyzer_schema.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8c7c08f2dde83ba794aaa0a262f3965a986a17ffd75d3f7af1e9ac47fdf2603a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e3bb968d3642597e786be17048baba16224e48498cde985edd4bb1f591870cb2",
+      "newRange": {
+        "count": 8,
+        "start": 17
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 17
+      },
+      "path": "internal/contextindex/analyzer_schema_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ea984aeb5f1081beeb652feb1f78e70faeaabe7563097c1e71a508a719b312e3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f6c2e6771467e3d2a74a532c4500e549545e46e3c2d566f32ecb1be7a537b187",
+      "newRange": {
+        "count": 26,
+        "start": 669
+      },
+      "oldRange": {
+        "count": 16,
+        "start": 669
+      },
+      "path": "script/dogfood-change_test.sh",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "75948a7b8cb2febbbde23387bdd805aa25c40fba8ff0c641a8367a55efd7c506",
+  "spec": "cem/0.2"
+}
