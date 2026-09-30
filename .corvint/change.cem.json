@@ -1,0 +1,189 @@
+{
+  "baseRevision": "25730eaa0e9ce21ef6771ddf8be18f13cff1ad91",
+  "evidence": [],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:d56228c037263d56ed34dbb6d2da402e97028558c90f5646f1debc90326824b2",
+      "newRange": {
+        "count": 23,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-30-opencode-qualification-timing.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:f21d3b30a9c45fe788ad10e0c00876fe5a104b3f000a02f54be42112b8c674ea",
+      "newRange": {
+        "count": 15,
+        "start": 155
+      },
+      "oldRange": {
+        "count": 15,
+        "start": 155
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:4b3c350b99bd0b071981d3839ea411a89fc6bd6d248b1f0d19fd6aa277bbc37a",
+      "newRange": {
+        "count": 15,
+        "start": 599
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 599
+      },
+      "path": "docs/specs/agent-harness-integration-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:428097376c954324e7b0e92f9e66e0d319c9a65084ea75d9ce97bbe67b87aa1e",
+      "newRange": {
+        "count": 28,
+        "start": 97
+      },
+      "oldRange": {
+        "count": 18,
+        "start": 97
+      },
+      "path": "integrations/host-adapters.test.mjs",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:2acc9bc11f9eae73cd9d0331f0f961fc852d2ee4a7c1c8e09faf244c5c94da80",
+      "newRange": {
+        "count": 7,
+        "start": 6
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 6
+      },
+      "path": "internal/opencodequalification/witness.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:ffd268c0a93b9e92e1d52d853e33343d13f93bf09a0441462a4fe07aaaf7c02c",
+      "newRange": {
+        "count": 29,
+        "start": 71
+      },
+      "oldRange": {
+        "count": 14,
+        "start": 70
+      },
+      "path": "internal/opencodequalification/witness.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:8e00c128cdd0698b623e157b41815fed475c28e2270680b719d5f5b3dc82dbe6",
+      "newRange": {
+        "count": 15,
+        "start": 6
+      },
+      "oldRange": {
+        "count": 12,
+        "start": 6
+      },
+      "path": "internal/opencodequalification/witness_posix_test.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:f78a9ee8ba226fba9a737dcdba092a40394b844f774ae3c09368a2d096ee8590",
+      "newRange": {
+        "count": 46,
+        "start": 73
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 70
+      },
+      "path": "internal/opencodequalification/witness_posix_test.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:9b705508e6759387390e469b0595b165fa958a0ff2005f3c0fc9b89d57d1327f",
+      "newRange": {
+        "count": 7,
+        "start": 4
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 4
+      },
+      "path": "internal/procgroup/descendants.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:9500ec6542428fb38270ace9d50720fd1435bbcc581a87ab84676b920df130a0",
+      "newRange": {
+        "count": 8,
+        "start": 119
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 118
+      },
+      "path": "internal/procgroup/descendants.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:bf7dbaa0921ced76c20868a86511e555c218995eaa55c20f6141e6b84f268e31",
+      "newRange": {
+        "count": 7,
+        "start": 8
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 8
+      },
+      "path": "internal/procgroup/descendants_posix_test.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:c6024afac1184a57a4154a08ca7c3cd9674b756b26e18cbf691f9d08fe3becfa",
+      "newRange": {
+        "count": 48,
+        "start": 91
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 90
+      },
+      "path": "internal/procgroup/descendants_posix_test.go",
+      "reason": "no-evidence"
+    }
+  ],
+  "patchSha256": "9b2d88fe0a5465a8a7ae3f292e9256f6c58b0fb081c6cb96d5fcc0c30b9cea0a",
+  "spec": "cem/0.2"
+}
