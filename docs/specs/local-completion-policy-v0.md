@@ -317,7 +317,7 @@ elsewhere are not repeated.
 | `check-executable-unavailable` | `internal/localcompletion/storage.go:515` | `exec.LookPath` cannot resolve a check's executable |
 | `completion-evidence-drift` | `internal/localcompletion/finish.go:337` | after finishing, the tree is not clean, the target or tree differs from the pre-finish snapshot, or the saved report is no longer current |
 | `dogfood-coordination-failed` | `internal/localcompletion/finish.go:371` | the in-process `dogfood change` coordination run did not pass (`LCP-V0-014`) |
-| `dogfood-event-context-drift` | `cmd/corvint/local_completion_event.go:375` | the loaded index commit or tree revision, or the dirty-path digest, differs from the probed repository context |
+| `dogfood-event-context-drift` | `cmd/corvint/local_completion_event.go:416` | the loaded index commit or tree revision, or the dirty-path digest, differs from the probed repository context |
 | `dogfood-event-deadline` | `cmd/corvint/local_completion_event.go:129` | the event's context deadline expired or was cancelled, or the Git repository probe's own fixed bound expired first (V1-0396) |
 | `dogfood-event-index-snapshot-stale` | `cmd/corvint/local_completion_event.go:81` | the event's deadline expired after the read found no matching index snapshot and fell back to its in-memory build (`AHI-031`, decision 0400); proposed 2026-09-26, not accepted: also reported before that build when the recorded `index` build cost does not fit the time left (`IDX-SNAP-V0-012`) |
 | `dogfood-event-input-unavailable` | `cmd/corvint/local_completion_event.go:117` | reading the event input from stdin failed |
@@ -414,9 +414,9 @@ Each row cites the first emitting site and states only the condition checked the
 | `anchor-evidence-unavailable` | `internal/contextindex/local_completion_context.go:580@b7524c52` | the resolution `reason` when anchors exist and a task-evidence candidate was unreadable or requirement definitions were capped |
 | `anchor-not-found` | `internal/contextindex/local_completion_context.go:582@07c6c8fe` | the resolution `reason` when no earlier case applies and an anchor matched no candidate |
 | `anchor-worktree-changed` | `internal/contextindex/local_completion_context.go:586@37e9b097` | the resolution `reason` when no earlier case applies and a task-evidence path is among the index's dirty paths |
-| `local-policy-continuation-limit` | `cmd/corvint/local_completion_event.go:361@50f727f3` | a `stop` event that would block has `stopHookActive` true; decision `release` |
-| `local-policy-incomplete` | `cmd/corvint/local_completion_event.go:359@3862af35` | a `stop` event whose lifecycle is `active`, or `satisfied` without the evaluation satisfied; decision `block` |
-| `local-policy-other-session-active` | `cmd/corvint/local_completion_event.go:541@65149f9c` | a `stop` event whose inactive evaluation names another session's active enrollment as `owner`; decision `release`, and the completion carries `owner` |
+| `local-policy-continuation-limit` | `cmd/corvint/local_completion_event.go:371@50f727f3` | a `stop` event that would block has `stopHookActive` true; decision `release` |
+| `local-policy-incomplete` | `cmd/corvint/local_completion_event.go:369@3862af35` | a `stop` event whose lifecycle is `active`, or `satisfied` without the evaluation satisfied; decision `block` |
+| `local-policy-other-session-active` | `cmd/corvint/local_completion_event.go:551@65149f9c` | a `stop` event whose inactive evaluation names another session's active enrollment as `owner`; decision `release`, and the completion carries `owner` |
 
 ## Resource and trust boundaries
 
