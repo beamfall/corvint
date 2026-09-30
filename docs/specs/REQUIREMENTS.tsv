@@ -686,32 +686,32 @@ DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	30	The three jobs MUS
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	33	Task orientation MUST locate governing intent and original revision-pinned evide
 DCW-V0-004	docs/specs/daily-change-evidence-workflow-v0.md	35	Change consequence MUST identify supported affected scope for a concrete change,
 DCW-V0-005	docs/specs/daily-change-evidence-workflow-v0.md	38	Evidence-carrying completion MUST bind a real committed change to its immutable
-DCW-V0-006	docs/specs/daily-change-evidence-workflow-v0.md	46	Qualification MUST include genuine Corvint and Beamfall changes completed by a f
-DCW-V0-007	docs/specs/daily-change-evidence-workflow-v0.md	49	Before a sealed run, the exact three jobs, immutable corpus/labels, strongest
-DCW-V0-008	docs/specs/daily-change-evidence-workflow-v0.md	53	Measurement MUST retain setup, agent/reviewer work, checks, failures, retries an
-DCW-V0-009	docs/specs/daily-change-evidence-workflow-v0.md	57	Core command/profile compatibility and deterministic migration MUST be explicit.
-DCW-V0-010	docs/specs/daily-change-evidence-workflow-v0.md	61	Codex and Claude MUST resolve the intended installed binary and current plugin
-DCW-V0-011	docs/specs/daily-change-evidence-workflow-v0.md	65	Console, Tasks, MCP, editor, providers, automatic docs and protected authority M
-DCW-V0-012	docs/specs/daily-change-evidence-workflow-v0.md	68	Final version/build, source and proof maps MUST freeze before exact-candidate
-DCW-V0-013	docs/specs/daily-change-evidence-workflow-v0.md	72	The daily adopter path MUST be one ordered sequence in `docs/DOGFOOD.md` from th
-DCW-V0-014	docs/specs/daily-change-evidence-workflow-v0.md	77	A `dogfood-change` not-complete row caused by a malformed or missing input, or b
-DCW-V0-015	docs/specs/daily-change-evidence-workflow-v0.md	86	Dirty, stale, interrupted, unsupported and unknown evidence MUST each end the lo
-DCW-V0-016	docs/specs/daily-change-evidence-workflow-v0.md	102	(proposed 2026-09-23, V1-0200, not accepted) the `corvint-dogfood-change/0`
-DCW-V0-017	docs/specs/daily-change-evidence-workflow-v0.md	114	The `dogfood-check` verifier set and its `outputsAgree` result are author-only
-DCW-V0-018	docs/specs/daily-change-evidence-workflow-v0.md	123	`dogfood-change` MUST link an OCM obligation only from a row of the optional,
-DCW-V0-019	docs/specs/daily-change-evidence-workflow-v0.md	132	Before any cite, `dogfood-change` MUST bind a nonempty `DOGFOOD_CITATIONS` plan
-DCW-V0-020	docs/specs/daily-change-evidence-workflow-v0.md	151	(V1-0236, owner decision 2026-09-24) The daily change, check and seal MUST run a
-DCW-V0-021	docs/specs/daily-change-evidence-workflow-v0.md	164	The subverbs MUST run at the worktree top level: the root is `--root` or the wor
-DCW-V0-022	docs/specs/daily-change-evidence-workflow-v0.md	167	Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-ch
-DCW-V0-023	docs/specs/daily-change-evidence-workflow-v0.md	179	`docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for a
-DCW-V0-024	docs/specs/daily-change-evidence-workflow-v0.md	185	(V1-0259, owner decision 2026-09-25) A change that no `## Requirements` spec
-DCW-V0-025	docs/specs/daily-change-evidence-workflow-v0.md	203	(accepted 2026-09-25, decision 0388, V1-0264) The `coordination-time-impact` ste
-DCW-V0-026	docs/specs/daily-change-evidence-workflow-v0.md	226	(accepted 2026-09-25 by decision 0395, panel finding M1) `dogfood change` MUST N
-DCW-V0-027	docs/specs/daily-change-evidence-workflow-v0.md	242	(proposed 2026-09-25, V1-0137, not accepted) `dogfood seal` and
-DCW-V0-028	docs/specs/daily-change-evidence-workflow-v0.md	250	(proposed 2026-09-25, V1-0227, not accepted) When an intent's `ocm-prepare-NNN`
-DCW-V0-029	docs/specs/daily-change-evidence-workflow-v0.md	255	(proposed 2026-09-25, V1-0239, not accepted) Each time `dogfood change` accepts
-DCW-V0-030	docs/specs/daily-change-evidence-workflow-v0.md	263	(proposed 2026-09-25, V1-0145, not accepted; not implemented) `dogfood check`
-DCW-V0-031	docs/specs/daily-change-evidence-workflow-v0.md	272	(proposed 2026-09-25, V1-0316, not accepted) After its steps run, `dogfood chang
+DCW-V0-006	docs/specs/daily-change-evidence-workflow-v0.md	43	Qualification MUST include genuine Corvint and Beamfall changes completed by a f
+DCW-V0-007	docs/specs/daily-change-evidence-workflow-v0.md	46	Before a sealed run, the exact three jobs, immutable corpus/labels, strongest
+DCW-V0-008	docs/specs/daily-change-evidence-workflow-v0.md	50	Measurement MUST retain setup, agent/reviewer work, checks, failures, retries an
+DCW-V0-009	docs/specs/daily-change-evidence-workflow-v0.md	54	Core command/profile compatibility and deterministic migration MUST be explicit.
+DCW-V0-010	docs/specs/daily-change-evidence-workflow-v0.md	58	Codex and Claude MUST resolve the intended installed binary and current plugin
+DCW-V0-011	docs/specs/daily-change-evidence-workflow-v0.md	62	Console, Tasks, MCP, editor, providers, automatic docs and protected authority M
+DCW-V0-012	docs/specs/daily-change-evidence-workflow-v0.md	65	Final version/build, source and proof maps MUST freeze before exact-candidate
+DCW-V0-013	docs/specs/daily-change-evidence-workflow-v0.md	69	The daily adopter path MUST be one ordered sequence in `docs/DOGFOOD.md` from th
+DCW-V0-014	docs/specs/daily-change-evidence-workflow-v0.md	74	A `dogfood-change` not-complete row caused by a malformed or missing input, or b
+DCW-V0-015	docs/specs/daily-change-evidence-workflow-v0.md	83	Dirty, stale, interrupted, unsupported and unknown evidence MUST each end the lo
+DCW-V0-016	docs/specs/daily-change-evidence-workflow-v0.md	96	(proposed 2026-09-23, V1-0200, not accepted) the `corvint-dogfood-change/0`
+DCW-V0-017	docs/specs/daily-change-evidence-workflow-v0.md	108	The `dogfood-check` verifier set and its `outputsAgree` result are author-only
+DCW-V0-018	docs/specs/daily-change-evidence-workflow-v0.md	117	`dogfood-change` MUST link an OCM obligation only from a row of the optional,
+DCW-V0-019	docs/specs/daily-change-evidence-workflow-v0.md	126	Before any cite, `dogfood-change` MUST bind a nonempty `DOGFOOD_CITATIONS` plan
+DCW-V0-020	docs/specs/daily-change-evidence-workflow-v0.md	145	(V1-0236, owner decision 2026-09-24) The daily change, check and seal MUST run a
+DCW-V0-021	docs/specs/daily-change-evidence-workflow-v0.md	158	The subverbs MUST run at the worktree top level: the root is `--root` or the wor
+DCW-V0-022	docs/specs/daily-change-evidence-workflow-v0.md	161	Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-ch
+DCW-V0-023	docs/specs/daily-change-evidence-workflow-v0.md	173	`docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for a
+DCW-V0-024	docs/specs/daily-change-evidence-workflow-v0.md	179	(V1-0259, owner decision 2026-09-25) A change that no `## Requirements` spec
+DCW-V0-025	docs/specs/daily-change-evidence-workflow-v0.md	197	(accepted 2026-09-25, decision 0388, V1-0264) The `coordination-time-impact` ste
+DCW-V0-026	docs/specs/daily-change-evidence-workflow-v0.md	216	(accepted 2026-09-25 by decision 0395, panel finding M1) `dogfood change` MUST N
+DCW-V0-027	docs/specs/daily-change-evidence-workflow-v0.md	232	(proposed 2026-09-25, V1-0137, not accepted) `dogfood seal` and
+DCW-V0-028	docs/specs/daily-change-evidence-workflow-v0.md	240	(proposed 2026-09-25, V1-0227, not accepted) When an intent's `ocm-prepare-NNN`
+DCW-V0-029	docs/specs/daily-change-evidence-workflow-v0.md	245	(proposed 2026-09-25, V1-0239, not accepted) Each time `dogfood change` accepts
+DCW-V0-030	docs/specs/daily-change-evidence-workflow-v0.md	253	(proposed 2026-09-25, V1-0145, not accepted; not implemented) `dogfood check`
+DCW-V0-031	docs/specs/daily-change-evidence-workflow-v0.md	262	(proposed 2026-09-25, V1-0316, not accepted) After its steps run, `dogfood chang
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map
