@@ -25,3 +25,7 @@ After implementation, focused procgroup/opencodequalification packages passed (8
 ## Public-base integration repair
 
 Draft PR #403 required integration with public main `8f4b866a4ed201a52d8c63196050a9623a449dfe`; only the generated requirement index conflicted. Regeneration used the staged merged specs and preserved upstream Pi identity/recovery clauses. The five repaired source/test files are byte-identical to the independently reviewed sealed branch. Local integration preserves that branch ancestry and appends the documented reversal of its old seal before fresh evidence binding. The original satisfied binding and its OpenCode 2.0.19 qualification stay historical evidence for their exact target; the integration has its own public base, enrollment, focused checks, live qualification and CEM/OCM reports. Publication and native completion remain separately required.
+
+## Public UX integration repair
+
+After the public UX slice landed at `25971bda1ca1664d8a546d751cb2bb9bbd454daf`, PR #403 again conflicted only in the generated requirement index. This append-only integration regenerates that table from staged merged specs and reverses the preceding seal before fresh binding. The five reviewed source/test blobs remain unchanged. Public UX changed recorded OpenCode package and collector inputs, so earlier qualification is historical only; the new target requires its own selected checks, exact OpenCode 2.0.19 campaign and reviewed report set. Prior satisfied checkouts and published ancestry are preserved.
