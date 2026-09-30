@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	jsonv2 "encoding/json/v2"
 	"errors"
 	"io"
 	"math"
@@ -22,7 +23,10 @@ import (
 )
 
 // SemanticConfig is operator-owned admission, never client-provided execution configuration.
-type SemanticConfig struct{ Executable, Root string }
+type SemanticConfig struct {
+	Executable, Root    string
+	WorkspaceDriftGuard bool
+}
 type overlayStore struct {
 	mu      sync.Mutex
 	session *lspsnapshot.Session
@@ -212,9 +216,25 @@ func ServeSemantic(parent context.Context, in io.ReadCloser, out io.WriteCloser,
 		return err
 	}
 	store := &overlayStore{session: session, docs: map[string]captured{}}
+	var guard *workspaceGuard
+	var observationRemaining time.Duration
 	var pendingID json.RawMessage
 	state := 0
 	encoding := "utf-16"
+	invalidated := false
+	invalidateCaptures := func() error {
+		if invalidated {
+			return nil
+		}
+		store.mu.Lock()
+		defer store.mu.Unlock()
+		if err := store.session.Reset(rootURI); err != nil {
+			return err
+		}
+		store.docs = map[string]captured{}
+		invalidated = true
+		return nil
+	}
 	finish := func(r semanticResult, cancelled bool) error {
 		if r.contextRequest {
 			if r.request.Err() != nil {
@@ -222,9 +242,17 @@ func ServeSemantic(parent context.Context, in io.ReadCloser, out io.WriteCloser,
 			}
 			return contextResponse(out, r.id, r.core, r.source, sessionID, r.err, store.current(r.source), cancelled)
 		}
+		if guard != nil && !cancelled && !guard.stale {
+			_ = guard.check(ctx, config.Root, &observationRemaining)
+		}
 		code, msg := 0, ""
 		var wire any
-		if cancelled || errors.Is(r.err, context.Canceled) {
+		if guard != nil && guard.stale {
+			code, msg = -32801, "Overlay definition unavailable"
+			if err := invalidateCaptures(); err != nil {
+				return err
+			}
+		} else if cancelled || errors.Is(r.err, context.Canceled) {
 			code, msg = -32800, "Request cancelled"
 		} else if r.err != nil || !store.current(r.source) {
 			code, msg = -32801, "Overlay definition unavailable"
@@ -325,6 +353,27 @@ func ServeSemantic(parent context.Context, in io.ReadCloser, out io.WriteCloser,
 					}
 					continue
 				}
+				if method == "textDocument/didSave" && guard != nil {
+					var p struct {
+						TextDocument *struct {
+							URI *string `json:"uri"`
+						} `json:"textDocument"`
+					}
+					if jsonv2.Unmarshal(m["params"], &p, jsonv2.RejectUnknownMembers(true)) != nil || p.TextDocument == nil || p.TextDocument.URI == nil {
+						return ErrFraming
+					}
+					if _, ok := store.snapshot(*p.TextDocument.URI); !ok {
+						return ErrFraming
+					}
+					guard.stale = true
+					if err := cancelPending(); err != nil {
+						return err
+					}
+					if err := invalidateCaptures(); err != nil {
+						return err
+					}
+					continue
+				}
 				if method == "textDocument/didOpen" || method == "textDocument/didChange" || method == "textDocument/didClose" {
 					if state != 2 {
 						return ErrFraming
@@ -391,7 +440,17 @@ func ServeSemantic(parent context.Context, in io.ReadCloser, out io.WriteCloser,
 					code, msg = -32602, "Invalid params"
 					break
 				}
-				client, e = goplsclient.Start(ctx, goplsclient.Config{Executable: config.Executable, Root: config.Root, Snapshot: store.snapshot, Current: store.current})
+				if config.WorkspaceDriftGuard {
+					observeCtx, stop := context.WithTimeout(ctx, workspaceAdmissionBudget)
+					baseline, observeErr := admitWorkspace(observeCtx, config.Root)
+					stop()
+					if observeErr != nil {
+						code, msg = -32001, "Backend unavailable"
+						break
+					}
+					guard = &workspaceGuard{baseline: baseline}
+				}
+				client, e = goplsclient.Start(ctx, goplsclient.Config{Executable: config.Executable, Root: config.Root, WorkspaceOnlyGuard: config.WorkspaceDriftGuard, Snapshot: store.snapshot, Current: store.current})
 				if e != nil {
 					code, msg = -32001, "Backend unavailable"
 					break
@@ -414,6 +473,12 @@ func ServeSemantic(parent context.Context, in io.ReadCloser, out io.WriteCloser,
 				encoding = n.encoding
 				state = 1
 				response = map[string]any{"capabilities": map[string]any{"positionEncoding": encoding, "textDocumentSync": map[string]any{"openClose": true, "change": 1}, "experimental": map[string]any{"corvintDefinitionProbe": true, "corvintContext": map[string]string{"method": "corvint/context", "schema": "corvint-editor-context/0"}}}, "serverInfo": map[string]string{"name": "corvint-lsp-experimental", "version": "0"}}
+				if guard != nil {
+					caps := response.(map[string]any)["capabilities"].(map[string]any)
+					caps["experimental"].(map[string]any)["corvintWorkspaceDriftGuard"] = map[string]any{"profile": "whole-root-observation/0", "scope": "workspace-only", "externalInputsPinned": false}
+					caps["textDocumentSync"].(map[string]any)["save"] = map[string]any{"includeText": false}
+				}
+
 			case method == "initialize":
 				code, msg = -32600, "Invalid Request"
 			case state == 0 || state == 1:
@@ -452,6 +517,10 @@ func ServeSemantic(parent context.Context, in io.ReadCloser, out io.WriteCloser,
 				}()
 				continue
 			case method == "textDocument/definition":
+				if guard != nil && guard.stale {
+					code, msg = -32801, "Overlay definition unavailable"
+					break
+				}
 				if pending != nil {
 					code, msg = -32001, "Request already pending"
 					break
@@ -474,6 +543,16 @@ func ServeSemantic(parent context.Context, in io.ReadCloser, out io.WriteCloser,
 				if !ok || e != nil {
 					code, msg = -32602, "Invalid params"
 					break
+				}
+				if guard != nil {
+					observationRemaining = workspaceObservationBudget
+					if err := guard.check(ctx, config.Root, &observationRemaining); err != nil {
+						if err := invalidateCaptures(); err != nil {
+							return err
+						}
+						code, msg = -32801, "Overlay definition unavailable"
+						break
+					}
 				}
 				request, stop := context.WithTimeout(ctx, 20*time.Second)
 				pending = stop

@@ -44,9 +44,10 @@ type Snapshot struct {
 	Overlay             bool
 }
 type Config struct {
-	Executable, Root string
-	Snapshot         func(string) (Snapshot, bool)
-	Current          func(Snapshot) bool
+	Executable, Root   string
+	WorkspaceOnlyGuard bool
+	Snapshot           func(string) (Snapshot, bool)
+	Current            func(Snapshot) bool
 }
 type Position struct {
 	Line      int `json:"line"`
@@ -62,6 +63,9 @@ type Location struct {
 }
 type Profile struct {
 	ServerVersion, ExecutableSHA256, PositionEncoding string
+	LaunchEnvironmentSHA256                           string
+	WorkspaceOnlyGuard                                bool
+	ExternalInputsPinned                              bool
 	Definition                                        bool
 }
 type envelope struct {
@@ -130,15 +134,35 @@ func Start(ctx context.Context, config Config) (*Client, error) {
 	if err != nil {
 		return nil, ErrSession
 	}
+	launchEnv := environment(cache)
+	if config.WorkspaceOnlyGuard {
+		canonicalCache, e := filepath.EvalSymlinks(cache)
+		if e != nil {
+			os.RemoveAll(cache)
+			return nil, ErrUnsupported
+		}
+		rel, e := filepath.Rel(root, canonicalCache)
+		if e != nil || rel == "." || (!strings.HasPrefix(rel, ".."+string(os.PathSeparator)) && rel != "..") {
+			os.RemoveAll(cache)
+			return nil, ErrUnsupported
+		}
+	}
+	launchEnv, frozenSettings, envHash, err := freezeLaunchEnvironment(launchEnv)
+	if err != nil {
+		os.RemoveAll(cache)
+		return nil, err
+	}
 	sessionCtx, cancel := context.WithTimeout(ctx, SessionLimit)
 	c := &Client{config: config, cancel: cancel, done: make(chan struct{}), gate: make(chan struct{}, 1), pending: map[int]chan response{}, versions: map[string]syncStamp{}}
 	c.profile.ExecutableSHA256 = hex.EncodeToString(h.Sum(nil))
+	c.profile.LaunchEnvironmentSHA256 = envHash
+	c.profile.WorkspaceOnlyGuard = config.WorkspaceOnlyGuard
 	ready := make(chan struct{})
 	go func() {
 		defer close(c.done)
 		defer cancel()
 		defer os.RemoveAll(cache)
-		c.observation = procgroup.Run(sessionCtx, procgroup.Spec{Argv: []string{config.Executable, "serve"}, Dir: root, Env: environment(cache), Timeout: SessionLimit, ShutdownTimeout: 2 * time.Second, OutputLimit: 32 << 20, StderrLimit: 64 << 10, ObserveDescendants: true, Dialogue: func(r io.Reader, w io.WriteCloser) error { c.writer = w; close(ready); return c.readLoop(r) }})
+		c.observation = procgroup.Run(sessionCtx, procgroup.Spec{Argv: []string{config.Executable, "serve"}, Dir: root, Env: launchEnv, Timeout: SessionLimit, ShutdownTimeout: 2 * time.Second, OutputLimit: 32 << 20, StderrLimit: 64 << 10, ObserveDescendants: true, Dialogue: func(r io.Reader, w io.WriteCloser) error { c.writer = w; close(ready); return c.readLoop(r) }})
 	}()
 	select {
 	case <-ready:
@@ -150,7 +174,7 @@ func Start(ctx context.Context, config Config) (*Client, error) {
 		return nil, ctx.Err()
 	}
 	c.gate <- struct{}{}
-	result, err := c.call(ctx, "initialize", map[string]any{"processId": os.Getpid(), "rootUri": fileURI(root), "capabilities": map[string]any{"general": map[string]any{"positionEncodings": []string{"utf-16"}}, "textDocument": map[string]any{"definition": map[string]any{"linkSupport": false}}}, "initializationOptions": map[string]any{"env": map[string]string{"GOPROXY": "off", "GOSUMDB": "off", "GOTOOLCHAIN": "local", "GOTELEMETRY": "off"}}})
+	result, err := c.call(ctx, "initialize", map[string]any{"processId": os.Getpid(), "rootUri": fileURI(root), "capabilities": map[string]any{"general": map[string]any{"positionEncodings": []string{"utf-16"}}, "textDocument": map[string]any{"definition": map[string]any{"linkSupport": false}}}, "initializationOptions": map[string]any{"env": frozenSettings}})
 	if err == nil {
 		err = c.negotiate(result)
 	}
@@ -563,4 +587,24 @@ func environment(cache string) []string {
 		}
 	}
 	return env
+}
+
+func freezeLaunchEnvironment(input []string) ([]string, map[string]string, string, error) {
+	frozen := append([]string(nil), input...)
+	settings := map[string]string{}
+	seen := map[string]bool{}
+	for _, item := range frozen {
+		k, v, ok := strings.Cut(item, "=")
+		if !ok || k == "" || seen[k] {
+			return nil, nil, "", ErrUnsupported
+		}
+		seen[k] = true
+		switch k {
+		case "GOPROXY", "GOSUMDB", "GOTOOLCHAIN", "GOTELEMETRY":
+			settings[k] = v
+		}
+	}
+	raw, _ := json.Marshal(frozen)
+	sum := sha256.Sum256(raw)
+	return frozen, settings, hex.EncodeToString(sum[:]), nil
 }

@@ -22,7 +22,7 @@ This is a library experiment, not a CLI command, editor server or supported prof
 
 ## Requirements
 
-- `GCS-V0-001`: Startup MUST require an absolute explicitly configured executable and canonical root, hash the configured executable bytes, and negotiate gopls identity, a bounded safe version token, UTF-16 and definition/full-text synchronization capability. Unknown negotiation MUST refuse the profile. No installation or download is authorized.
+- `GCS-V0-001`: Startup MUST require an absolute explicitly configured executable and canonical root, hash the configured executable bytes, and negotiate gopls identity, a bounded safe version token, UTF-16 and definition/full-text synchronization capability. Unknown negotiation MUST refuse the profile. No installation or download is authorized. Launch MUST freeze the actual environment once, bind its canonical JSON digest, use that same environment/settings snapshot for process and initialize, and disclose that external filesystem inputs remain unbound.
 - `GCS-V0-002`: The session MUST own its process group through `procgroup`, join cleanup on shutdown, startup failure and cancellation, remove its private cache, and expose whether owned-group retirement was proven. A cancelled request MUST send cancellation and ignore its late response while allowing later healthy requests. This is bounded observation, not containment of every escaping descendant.
 - `GCS-V0-003`: Open/change/close MUST use caller text and monotonically increasing versions. Definitions MUST require exact synchronization stamps for both source and returned targets, validate caller freshness before and after the request, and return captured overlay identities. Closed or committed-only targets MUST be rejected; the adapter MUST NOT read file URI contents from disk.
 - `GCS-V0-004`: Framing, documents, messages, requests, output, locations and lifetime MUST be bounded. URI/range validation MUST reject root escapes, noncanonical URIs, missing coordinates and UTF-16 surrogate splits. Raw provider messages, errors, diagnostics and build metadata MUST NOT escape as diagnostics.
@@ -57,3 +57,7 @@ Context7 verified the official LSP repository and gopls settings sources. A no-m
 ## Rollback
 
 Stop the owning context and await `Done`, then remove this unused package and its spec/index rows. No default provider, CLI, MCP, persistent authority or stored evidence migration changes. Do not enable editor or agent integration until its separate tests, review and required gates are retained.
+
+## Launch observation limitation
+
+LaunchEnvironmentSHA256 is SHA256 of JSON encoding of the exact ordered environment array; duplicate variable names refuse. Only the digest and workspace-only/external-unbound flags are retained in the local profile, not raw HOME/PATH values in public diagnostics. Initialized fixed settings derive from the same frozen array. This identity does not pin SDK, inherited caches or dependencies. Guarded caches must be outside the observed root; all modes preserve owned cache cleanup.

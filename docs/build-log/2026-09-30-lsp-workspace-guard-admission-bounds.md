@@ -1,0 +1,9 @@
+# Experimental workspace guard admission and enumeration repair
+
+Independent source review of candidate `fe51d5ee56c5c4467b69f2b8100b7e10b57a1cb0cf0c0e35b6104d078fdc9b5f` found two refusal-boundary gaps: an empty committed gitlink escaped filesystem detection, and WalkDir allocated an entire directory before the callback could enforce entry/deadline bounds. The retained reviewer gitlink reproduction failed its expected-refusal assertion; pinned Go implementation evidence establishes the pre-callback allocation order. Neither is qualification evidence.
+
+Admission now reads bounded committed-tree and index mode inventories, refuses gitlinks, and requires the final observed commit/tree identity to agree with the initial identity. Inventory output is capped at 8MiB and 100000 records. Index-only gitlinks are refused at admission; later index-only staging is not claimed to be a provider input closure. Every request still brackets the whole-root scan with resolved committed identities. This remains experimental, workspace-only and UNQUALIFIED.
+
+Directory enumeration now requests chunks of at most 128 entries, capped by the global remaining allowance plus one overflow witness. Context is checked before every chunk allocation; directory inode, size and modification time are compared after traversal. Whole-root inclusion and the shared 200ms request observation budget remain unchanged. Focused controls cover index/empty committed gitlinks, bounded overflow, cancellation before reads, directory mutation and Git control bytes, alongside existing healthy-overlay and drift controls. External inputs remain unbound; no full closure or numerical-floor promotion follows.
+
+The original candidate, independent finding and historical failed timing/overlay observations are preserved. Rollback removes the optional guard profile; the legacy editor path remains available.
