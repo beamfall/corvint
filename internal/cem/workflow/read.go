@@ -127,7 +127,7 @@ func (s *Session) Read(ctx context.Context, action string, options ReadOptions) 
 		result := map[string]any{
 			"ok": valid && len(policy) == 0 && projection["ocmValid"] != false, "mutates": false, "tool": "cem-report",
 			"markdown": markdown, "recordSetSha256": projection["recordSetSha256"],
-			"counts":   counts, "policyIssues": policy, "verification": verification,
+			"counts": counts, "policyIssues": policy, "verification": verification,
 		}
 		envelope.apply(result, false)
 		return result, nil
