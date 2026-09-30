@@ -127,3 +127,36 @@ test("AHI-035 cancelling a Tasks read retires its child process group", async t 
     await pending
   }
 })
+
+test("AHI-042 gate declarations distinguish absent, empty and observed escaped IDs", async () => {
+  const snapshot = await collectTaskMetrics(source())
+  const absent = await collectTaskDetail(source([detail(), status()]), snapshot, ticketId)
+  assert.deepEqual(absent.requiredGates, { state: "NOT_OBSERVED", ids: [] })
+  const selected = detail(); selected.items[0].record.requiredGates = []
+  assert.deepEqual((await collectTaskDetail(source([selected, status()]), snapshot, ticketId)).requiredGates, { state: "OBSERVED", ids: [] })
+  selected.items[0].record.requiredGates = ["gate; touch INERT", "\u001b[31m\u202e gate"]
+  const observed = await collectTaskDetail(source([selected, status()]), snapshot, ticketId)
+  assert.equal(observed.requiredGates.state, "OBSERVED")
+  assert.equal(observed.requiredGates.ids[0], "gate; touch INERT")
+  assert.match(observed.requiredGates.ids[1], /\\u001b/)
+  assert.match(observed.requiredGates.ids[1], /\\u202e/)
+  assert.doesNotMatch(observed.requiredGates.ids[1], /\u001b|\u202e/u)
+  await assert.rejects(collectTaskDetail(source([selected, status(changed)]), snapshot, ticketId), /task-queue-changed/)
+})
+
+test("AHI-042 gate declarations validate the entire bounded array before truncation", async () => {
+  const snapshot = await collectTaskMetrics(source())
+  for (const gates of [null, "gate", {}, [1], [null], [""], [" \t"], ["x".repeat(16_385)], Array(257).fill("gate"), [...Array(32).fill("gate"), false]]) {
+    const selected = detail(); selected.items[0].record.requiredGates = gates
+    await assert.rejects(collectTaskDetail(source([selected, status()]), snapshot, ticketId), /task-detail-unavailable/)
+  }
+  const selected = detail(); selected.items[0].record.requiredGates = Array.from({ length: 256 }, (_, i) => `gate-${i}`)
+  selected.items[0].record.requiredGates[0] = "x".repeat(1601)
+  selected.items[0].record.requiredGates[1] = "\u001b".repeat(300)
+  const observed = await collectTaskDetail(source([selected, status()]), snapshot, ticketId)
+  assert.equal(observed.requiredGates.ids.length, 32)
+  assert.match(observed.gaps.join("\n"), /224 declared gate IDs omitted/)
+  assert.match(observed.gaps.join("\n"), /not complete identities/)
+  assert.match(observed.requiredGates.ids[0], /display shortened/)
+  assert.match(observed.requiredGates.ids[1], /display shortened/)
+})

@@ -23,7 +23,7 @@ export const emptyTaskMetrics = (state = "empty", reason = "Open Tasks to read q
 
 export const emptyTaskDetail = (state = "empty", reason = "Select an open ticket to inspect its evidence.") => ({
   state, reason, ticketId: "", title: "", revision: "", queueDigest: "", eligibility: "", nextAction: "",
-  gateResults: "", completion: "", criteria: [], requirementRefs: [], touchPaths: [], blockers: [],
+  gateResults: "", requiredGates: { state: "NOT_OBSERVED", ids: [] }, completion: "", criteria: [], requirementRefs: [], touchPaths: [], blockers: [],
   attempt: { holder: "", phase: "", expiresAt: "", attemptId: "" }, gaps: [],
 })
 
@@ -110,6 +110,9 @@ export async function collectTaskDetail(run, snapshot, ticketId) {
   const touches = record.effects?.touchPaths === undefined ? [] : record.effects.touchPaths
   if (!Array.isArray(refs) || !Array.isArray(touches)) throw new Error("task-detail-unavailable")
   if (refs.length > 128 || touches.length > 128 || !refs.every(ticketText) || !touches.every(ticketText)) throw new Error("task-detail-unavailable")
+  const gates = record.requiredGates
+  // Validate every declared ID before applying the display cap. IDs remain inert text.
+  if (gates !== undefined && (!Array.isArray(gates) || gates.length > 256 || !gates.every(id => ticketText(id) && id.trim().length > 0))) throw new Error("task-detail-unavailable")
   const attempts = status.items[0]?.liveAttempts
   if (!Array.isArray(attempts) || attempts.length > 128 || attempts.some(row => !row || typeof row !== "object" || !ticketText(row.ticketId) || !ticketText(row.attemptId))) throw new Error("task-detail-unavailable")
   const active = attempts.find(row => row.ticketId === ticketId)
@@ -118,12 +121,15 @@ export async function collectTaskDetail(run, snapshot, ticketId) {
     nextAction: bounded(item.nextAction), gateResults: bounded(item.gateResults), completion: bounded(item.completion),
     criteria: record.acceptanceCriteria.slice(0, 16).map(bounded), requirementRefs: refs.slice(0, 32).map(bounded),
     touchPaths: touches.slice(0, 32).map(bounded),
+    requiredGates: gates === undefined ? emptyTaskDetail().requiredGates : { state: "OBSERVED", ids: gates.slice(0, 32).map(bounded) },
     blockers: item.blockers.slice(0, 32).map(row => ({ code: bounded(row.code), detail: bounded(row.detail) })),
     attempt: active && ["holder", "phase", "expiresAt", "attemptId"].every(key => ticketText(active[key]))
       ? { holder: bounded(active.holder), phase: bounded(active.phase), expiresAt: bounded(active.expiresAt), attemptId: bounded(active.attemptId) }
       : emptyTaskDetail().attempt,
   }
   if (item.blockers.length > 32 || record.acceptanceCriteria.length > 16 || refs.length > 32 || touches.length > 32) view.gaps.push("Further detail omitted by the display limit.")
+  if (gates?.length > 32) view.gaps.push(`${gates.length - 32} declared gate IDs omitted by the display limit.`)
+  if (gates?.slice(0, 32).some(id => visibleText(id, Infinity).length > 1600)) view.gaps.push("Some declared gate IDs are display-shortened; shortened labels are not complete identities.")
   if (!active) view.gaps.push("No live attempt for this ticket was reported by queue status.")
   return view
 }

@@ -24,15 +24,15 @@ The runner supports macOS and Linux process groups. Only tuples in the qualifica
 qualified; Windows remains unsupported until process-tree cleanup is implemented and tested.
 
 
-## Change cockpit
+## Change
 
-`/corvint` opens the change cockpit. Follow a changed file into its affected-test dependency
+`/corvint` opens the Change view. Follow a changed file into its affected-test dependency
 paths, inspect recorded check commands/output, and open the existing evidence reader for context.
 No model call or test execution is needed to inspect these records.
 
 | Key | Action |
 | --- | --- |
-| 1 / 2 / 3 / 4 | Files / Impact / Proof / Gaps |
+| 1 / 2 / 3 / 4 | Files / Impact / Checks / Attention |
 | Up / Down; Page Up / Down | Select rows or scroll details |
 | Enter / click | Follow file impact or read a selected check's output |
 | Tab | Switch list/details in a compact panel |
@@ -46,18 +46,18 @@ The base is pinned to the recorded workflow's base when present, otherwise HEAD.
 shows working-tree changes; another ref includes its committed range and current worktree changes.
 Affected tests are advisory selections. Declarations are displayed separately from execution results.
 A passing individual check does not establish workflow completion or complete test coverage.
-Proof reads display Core's qualification, tested/current commits and bounded local output; stale,
+Recorded-check reads display Core's qualification, tested/current commits and bounded local output; stale,
 unrun, failed and withheld observations remain explicit. Logs are caller-owned local records, not
-attested execution. Missing records and unsupported impact remain visible under Gaps.
+attested execution. Missing records and unsupported impact remain visible under Attention. Permanent advisory/authority limitations remain available in Attention details and do not inflate its actionable count.
 
 Refresh is explicit. The cockpit does not poll, execute displayed commands, refresh indexes, scan
 transcripts, or write evidence. Observed host edits invalidate its view; external edits require a
 refresh. Reads use existing Core commands and the current worktree's private completion owner.
 Output is capped at 64 KiB per stream; each file/impact/check list at 64 rows, with omissions shown.
 
-## Corvint Tasks metrics
+## Work queue
 
-The sidebar shows the latest observed Corvint Tasks totals. Click **Corvint Tasks**, run
+The sidebar shows the latest observed Corvint Tasks totals. Click **Work**, run
 `/corvint tasks`, or press **t** in the change view to open the task panel. The panel shows
 completed, open, draft, held and archived ticket counts; queue blockers, passed intent checks and active
 attempts; and pages of 32 open tickets. Enter or click a ticket to read its blockers and acceptance
@@ -70,20 +70,20 @@ eligibility are observations of the store; gate results and completion remain se
 Its observed time and queue receipt are shown so an external store change calls for refresh.
 Uninitialized, refused and changed reads show an unavailable reason, not zero tickets.
 
-## Task workbench
+## Focused Work
 
-From an open ticket in Tasks, press **s** or click **Focus ticket in workbench**. Run
+From an open ticket in the Work queue, press **s** or click **Focus task**. Run
 `/corvint workbench` to reopen it. The sidebar shows the focused ticket, its observed
-criterion count and next-action count. The workbench has five tabs: **1 Overview**,
-**2 Proof**, **3 Doctor**, **4 Cost**, and **5 Sessions**. Press **r** for an explicit
-refresh, **t** for Tasks, **c** for Change, or **e** for Evidence.
+criterion count and next-action count. Focused Work has **1 Task**, **2 Criteria**, **3 Blockers**, and **4 Gates**. Press **m** for More, then **d Doctor**, **o Cost**, or **u Sessions**. On Task, use **↑/↓** and **Enter** for observed next actions; **Tab** switches between actions and scrolling details. Press **r** to refresh, **t** for the Work queue, **c** for Change, or **e** for the session’s current Evidence view. This Evidence route does not request focused-ticket or criterion-specific context.
 
-Focus is volatile and scoped to the OpenCode session and Tasks queue receipt. Overview shows
-the ticket, current branch/worktree, live attempt/lease, blockers and next actions. Proof shows
+Focus is volatile and scoped to the OpenCode session and Tasks queue receipt. Task shows
+the ticket, current branch/worktree, live attempt/lease, blockers and next actions. Criteria shows
 the ticket's acceptance criteria and explicit requirement references beside declared paths,
 observed changed paths, suggested checks, recorded checks, and context/change receipts. These
 are task-level leads: no criterion is marked satisfied without an explicit criterion-specific
 proof link. A changed queue receipt makes the workbench stale and requires selection again.
+
+Gates shows native declared gate IDs and the native summary/completion observation separately from local workflow checks. Missing individual gate observations remain NOT_OBSERVED; a local pass never becomes a native gate pass. Missing declarations and an explicitly empty list remain distinct. Blockers shows native blockers and eligibility without treating no listed blockers as readiness.
 
 Doctor displays the exact host/adapter/platform qualification state, available failed
 conformance cases and the command to qualify this installation. Cost shows OpenCode's actual
@@ -95,7 +95,7 @@ unbound session may still be working. Other worktrees may not expose their Corvi
 this plugin location.
 
 The workbench runs no task mutation, test, transcript scan, or background poll. It reuses the
-bounded read-only Tasks and change cockpit commands and keeps only volatile session data.
+bounded read-only Tasks and Change view commands and keeps only volatile session data.
 
 ## Context inspector
 
@@ -118,7 +118,7 @@ without asking a model. The panel also accepts these keys:
 | i | Show the full inclusion reason, summary and immutable identities |
 | r | Request context for an explicit task |
 | f | Toggle full-screen; wide panels show evidence beside source |
-| c | Return to the change cockpit |
+| c | Return to the Change view |
 | Escape | Close the panel |
 
 Each location shows its inclusion reason, authority and confidence. The source reader preserves

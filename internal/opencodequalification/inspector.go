@@ -32,7 +32,7 @@ func currentFrame(root string) frame {
 	return frame{x, strings.Join(lines, "\n"), int(number(x["width"]))}
 }
 func waitFrame(ctx context.Context, root, label string, has, absent []string, width int) error {
-	timer := time.NewTimer(25 * time.Second)
+	timer := time.NewTimer(60 * time.Second)
 	defer timer.Stop()
 	ticker := time.NewTicker(20 * time.Millisecond)
 	defer ticker.Stop()
@@ -54,6 +54,25 @@ func waitFrame(ctx context.Context, root, label string, has, absent []string, wi
 		case <-timer.C:
 			_ = os.WriteFile(root+"/failed-frame.txt", []byte(f.text), 0600)
 			return errors.New("native UI witness missing: " + label)
+		case <-ticker.C:
+		}
+	}
+}
+func waitFrameSize(ctx context.Context, root string, width, height int) error {
+	timer := time.NewTimer(60 * time.Second)
+	defer timer.Stop()
+	ticker := time.NewTicker(20 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		f := currentFrame(root)
+		if f.width == width && int(number(f.data["height"])) == height {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-timer.C:
+			return fmt.Errorf("native frame dimensions not observed: requested %dx%d, observed %dx%d", width, height, f.width, int(number(f.data["height"])))
 		case <-ticker.C:
 		}
 	}
@@ -200,10 +219,12 @@ func Inspector(ctx context.Context, c Config) (failure error) {
 	if e != nil {
 		return e
 	}
-	if _, e = command(tasksBinary, "ticket", "create", "--request-id", "opencode-ui-witness-ticket", "--payload", strings.TrimSpace(string(payload))); e != nil {
+	// UI-only fixture delay keeps a transient loading frame observable. Each read delegates to the real built Tasks binary.
+	delayedTasks := helper + "/tasks-ui-delay"
+	if e = os.WriteFile(delayedTasks, []byte(fmt.Sprintf("#!/bin/sh\nsleep 0.25\nexec %s \"$@\"\n", quoted(tasksBinary))), 0700); e != nil {
 		return e
 	}
-	if e = writeJSON(repo+"/opencode.json", Object{"plugins": []Object{{"package": fileURL(filepath.Join(c.Source, "integrations/opencode/src")), "options": Object{"corvintBinary": c.Corvint, "tasksBinary": tasksBinary, "queryTimeoutMs": 10000}}}}); e != nil {
+	if e = writeJSON(repo+"/opencode.json", Object{"plugins": []Object{{"package": fileURL(c.Source + "/integrations/opencode/src"), "options": Object{"corvintBinary": c.Corvint, "tasksBinary": delayedTasks, "queryTimeoutMs": 10000}}}}); e != nil {
 		return e
 	}
 	if e = os.WriteFile(helper+"/tui.tsx", []byte(template(inspectorTemplate, map[string]string{"LOG": root + "/witness.jsonl", "SCREEN": root + "/screen.json", "ROOT": repo})), 0600); e != nil {
@@ -253,15 +274,30 @@ func Inspector(ctx context.Context, c Config) (failure error) {
 	}
 	if e = drive([]action{
 		{label: "home", has: []string{"Ask anything"}},
-		{input: "\x1b[17~", label: "sidebar", has: []string{"Corvint context", "Corvint Tasks", "0/1 completed", "0 draft", "0 held", "0 archived"}},
+		{input: "\x1b[17~", label: "sidebar", has: []string{"Corvint", "Work", "Evidence", "0/0 completed", "0 draft", "0 held", "0 archived"}},
 	}); e != nil {
 		return e
 	}
-	if e = clickText(terminal, root, "Open task metrics", 0); e != nil {
+	if e = clickText(terminal, root, "Open Work queue", 0); e != nil {
+		return e
+	}
+	if e = step("", "native empty Work queue", []string{"0/0 completed", "No open tasks supplied"}, nil, 0); e != nil {
+		return e
+	}
+	if e = saveFrame(root, "task-empty"); e != nil {
+		return e
+	}
+	if _, e = command(tasksBinary, "ticket", "create", "--request-id", "opencode-ui-witness-ticket", "--payload", strings.TrimSpace(string(payload))); e != nil {
+		return e
+	}
+	if e = step("r", "empty queue refresh", []string{"Reading Corvint Tasks"}, []string{"0/0 completed", "Open tickets"}, 0); e != nil {
+		return e
+	}
+	if e = step("", "created fixture task", []string{"0/1 completed", "APP-0001"}, []string{"Reading Corvint Tasks"}, 0); e != nil {
 		return e
 	}
 	if e = drive([]action{
-		{label: "sidebar task action", has: []string{"Corvint · Tasks", "APP-0001"}, save: "task-sidebar"},
+		{label: "sidebar task action", has: []string{"Corvint · Work queue", "APP-0001"}, save: "task-sidebar"},
 		{input: "c", label: "sidebar task return", has: []string{"Corvint · Change"}},
 		{input: "\x1b[18~", label: "context evidence", has: []string{"Ready", "2 of 2 locations"}},
 		{input: "f", label: "wide master detail", has: []string{"Why included:"}, width: 160},
@@ -334,11 +370,12 @@ func Inspector(ctx context.Context, c Config) (failure error) {
 		{input: "\x1b[19~", label: "change cockpit", has: []string{"Corvint · Change", "1 files", "obligations open"}},
 		{input: "f", label: "wide change details", has: []string{"Recorded intent scopes"}, save: "cockpit-files"},
 		{input: "\r", label: "dependency witness", has: []string{"Why selected:", "multiply_test.go"}, save: "cockpit-impact"},
-		{input: "3", label: "verification", has: []string{"PASS · unit"}},
+		{input: "4\t", label: "attention limitations", has: []string{"Scope limitations", "Affected selection is advisory", "Verification records are caller-owned"}, save: "cockpit-attention"},
+		{input: "3", label: "verification", has: []string{"Passed · recorded commit · unit"}},
 	}); e != nil {
 		return e
 	}
-	if e = clickText(terminal, root, "PASS · unit", 40); e != nil {
+	if e = clickText(terminal, root, "Passed · recorded commit · unit", 40); e != nil {
 		return e
 	}
 	if e = step("", "recorded output", []string{"COCKPIT_PROOF_WITNESS"}, nil, 0); e != nil {
@@ -348,25 +385,133 @@ func Inspector(ctx context.Context, c Config) (failure error) {
 		return e
 	}
 	if e = drive([]action{
-		{input: "t", label: "task metrics", has: []string{"Corvint · Tasks", "0/1 completed", "APP-0001"}, save: "task-metrics"},
+		{input: "t", label: "task metrics", has: []string{"Corvint · Work queue", "0/1 completed", "APP-0001"}, save: "task-metrics"},
 		{input: "\r", label: "task detail", has: []string{"Acceptance criteria", "The repository verify target passes."}, save: "task-detail"},
-		{input: "r", label: "task refresh loading", has: []string{"Reading Corvint Tasks"}},
+		{input: "r", label: "task refresh loading", has: []string{"Reading Corvint Tasks"}, absent: []string{"0/1 completed", "Open tickets"}, save: "task-loading"},
 		{label: "task refresh settled", has: []string{"0/1 completed", "APP-0001"}, absent: []string{"Reading Corvint Tasks"}},
 	}); e != nil {
 		return e
 	}
-	if e = clickText(terminal, root, "s Focus ticket in workbench", 0); e != nil {
+	if e = os.Rename(tasksBinary, tasksBinary+".unavailable"); e != nil {
+		return e
+	}
+	defer func() { _ = os.Rename(tasksBinary+".unavailable", tasksBinary) }()
+	if e = step("r", "native Tasks unavailable", []string{"r Read Work queue", "Work queue unavailable", "task-manager-command-failed"}, []string{"0/1 completed", "Open tickets"}, 0); e != nil {
+		return e
+	}
+	if e = saveFrame(root, "task-unavailable"); e != nil {
+		return e
+	}
+	if e = os.Rename(tasksBinary+".unavailable", tasksBinary); e != nil {
+		return e
+	}
+	if e = step("r", "Tasks recovery", []string{"0/1 completed", "APP-0001"}, []string{"Work queue unavailable"}, 0); e != nil {
+		return e
+	}
+	if e = clickText(terminal, root, "s Focus task", 0); e != nil {
 		return e
 	}
 	if e = drive([]action{
-		{label: "pointer workbench focus", has: []string{"Corvint · Workbench", "APP-0001", "criterion-specific proof 0 observed"}, save: "workbench-overview"},
-		{input: "2", label: "workbench proof", has: []string{"Acceptance → proof", "UNOBSERVED", "The repository verify target passes."}, save: "workbench-proof"},
-		{input: "3", label: "workbench doctor", has: []string{"Native integration: UNQUALIFIED", "Qualification action"}, save: "workbench-doctor"},
-		{input: "4", label: "workbench economics", has: []string{"OpenCode session cost:", "Cost per verified criterion: NOT_OBSERVED"}, save: "workbench-cost"},
-		{input: "5", label: "workbench sessions", has: []string{"OpenCode session family", "Worktree"}, save: "workbench-sessions"},
-		{input: "t", label: "workbench to tasks", has: []string{"Corvint · Tasks", "APP-0001"}},
+		{label: "pointer workbench focus", has: []string{"Corvint · Work", "APP-0001", "criterion-specific proof 0 observed"}, save: "workbench-overview"},
+		{input: "2", label: "workbench proof", has: []string{"Acceptance criteria", "UNOBSERVED", "The repository verify target passes."}, save: "workbench-proof"},
+		{input: "3", label: "work blockers", has: []string{"Native task blockers", "Eligibility: UNKNOWN"}, save: "work-blockers"},
+		{input: "4", label: "work gates", has: []string{"Native Tasks gate summary: NOT_OBSERVED", "verify · result NOT_OBSERVED"}, save: "work-gates"},
+		{input: "m", label: "workbench doctor", has: []string{"Native integration: UNQUALIFIED", "Qualification action"}, save: "workbench-doctor"},
+		{input: "o", label: "workbench economics", has: []string{"OpenCode session cost:", "Cost per verified criterion: NOT_OBSERVED"}, save: "workbench-cost"},
+		{input: "u", label: "workbench sessions", has: []string{"OpenCode session family", "Worktree"}, save: "workbench-sessions"},
+		{input: "d", label: "keyboard Doctor transition", has: []string{"Native integration: UNQUALIFIED"}},
+		{input: "1", label: "task next actions", has: []string{"Next steps", "Inspect Criteria"}},
+		{input: "\x1b[B\r", label: "keyboard next action", has: []string{"Acceptance criteria", "UNOBSERVED"}, save: "work-action-criteria"},
+		{input: "t", label: "workbench to tasks", has: []string{"Corvint · Work queue", "APP-0001"}},
 		{input: "c", label: "return from tasks", has: []string{"Corvint · Change", "1 files"}},
 	}); e != nil {
+		return e
+	}
+	if e = step("\x1b[20~", "reopen focused Work", []string{"Corvint · Work", "APP-0001", "ticket revision 1"}, nil, 0); e != nil {
+		return e
+	}
+	focusedBinding := ""
+	for _, line := range strings.Split(currentFrame(root).text, "\n") {
+		if strings.Contains(line, "Queue ") && strings.Contains(line, "ticket revision") {
+			focusedBinding = strings.TrimSpace(line[strings.Index(line, "Queue ") : strings.Index(line, "ticket revision 1")+len("ticket revision 1")])
+		}
+	}
+	if focusedBinding == "" {
+		return errors.New("focused task binding not visible")
+	}
+	if e = os.WriteFile(root+"/focused-binding.txt", []byte(focusedBinding), 0600); e != nil {
+		return e
+	}
+	for _, point := range []struct {
+		label string
+		has   []string
+	}{
+		{"2 Criteria", []string{"Acceptance criteria", "UNOBSERVED"}},
+		{"3 Blockers", []string{"Native task blockers", "Eligibility: UNKNOWN"}},
+		{"4 Gates", []string{"verify · result NOT_OBSERVED", "Native Tasks completion: NOT_OBSERVED"}},
+		{"m More", []string{"d Doctor", "o Cost", "u Sessions"}},
+		{"o Cost", []string{"OpenCode session cost:"}},
+		{"d Doctor", []string{"Native integration: UNQUALIFIED"}},
+		{"o Cost", []string{"OpenCode session cost:"}},
+		{"u Sessions", []string{"OpenCode session family"}},
+	} {
+		if e = clickText(terminal, root, point.label, 0); e != nil {
+			return e
+		}
+		if e = step("", "pointer "+point.label, point.has, nil, 0); e != nil {
+			return e
+		}
+	}
+	if e = terminal.resize(72, 24); e != nil {
+		return e
+	}
+	if e = drive([]action{
+		{input: "1", label: "compact Work", has: []string{"Corvint · Work", "APP-0001", "Next steps"}, width: 72, save: "work-compact"},
+		{input: "\r", label: "keyboard queue action", has: []string{"Corvint · Work queue", "APP-0001"}},
+		{input: "\r", label: "compact task detail", has: []string{"OPEN · UNKNOWN", "Acceptance criteria"}, save: "task-compact"},
+		{input: "s", label: "compact task focus", has: []string{"focused task", "1 Task", "m More"}},
+	}); e != nil {
+		return e
+	}
+	if e = terminal.resize(72, 18); e != nil {
+		return e
+	}
+	if e = waitFrameSize(ctx, root, 72, 18); e != nil {
+		return e
+	}
+	if e = drive([]action{
+		{input: "2", label: "short Criteria", has: []string{"Acceptance criteria", "UNOBSERVED"}, width: 72, save: "work-short"},
+		{input: "4", label: "short Gates", has: []string{"verify · result NOT_OBSERVED"}, save: "work-short-gates"},
+		{input: "c", label: "Work to Change", has: []string{"Corvint · Change", "Checks"}},
+		{input: "3", label: "Change checks", has: []string{"Passed · recorded commit · unit"}},
+		{input: "e", label: "Change to Evidence", has: []string{"Evidence", "c Change"}},
+		{input: "\x1b[20~", label: "return focused task", has: []string{"Corvint · Work", "APP-0001"}},
+	}); e != nil {
+		return e
+	}
+	if e = terminal.resize(160, 48); e != nil {
+		return e
+	}
+	if e = step("1", "retained task receipt", []string{focusedBinding}, nil, 160); e != nil {
+		return e
+	}
+	if e = saveFrame(root, "work-return"); e != nil {
+		return e
+	}
+	if _, e = command(tasksBinary, "ticket", "refine", "--target", "APP-0001", "--expected-revision", "1", "--role", "OWNER", "--request-id", "opencode-ui-witness-drift", "--payload", `{"body":"Native fixture receipt drift witness."}`); e != nil {
+		return e
+	}
+	if e = drive([]action{
+		{input: "t", label: "queue before receipt refresh", has: []string{"Corvint · Work queue", "APP-0001"}},
+		{input: "r", label: "queue new receipt", has: []string{"Reading Corvint Tasks"}},
+		{label: "new receipt settled", has: []string{"APP-0001", "0/1 completed"}, absent: []string{"Reading Corvint Tasks"}},
+		{input: "\x1b[20~", label: "stale focus", has: []string{"Task queue changed", "stale"}, save: "work-stale"},
+		{input: "t", label: "reselect task", has: []string{"Corvint · Work queue", "APP-0001"}},
+		{input: "s", label: "new bound focus", has: []string{"focused task", "ticket revision 2"}, save: "work-rebound"},
+	}); e != nil {
+		return e
+	}
+	if e = step("c", "return Change for existing checks", []string{"Corvint · Change"}, nil, 0); e != nil {
 		return e
 	}
 	if e = drive([]action{{input: "b", label: "base dialog", has: []string{"Compare from revision"}}, {input: "HEAD\x1b", label: "base cancel", absent: []string{"Compare from revision"}}}); e != nil {
@@ -377,7 +522,7 @@ func Inspector(ctx context.Context, c Config) (failure error) {
 	}
 	if e = drive([]action{
 		{label: "compact proof", has: []string{"Tab list/details"}, width: 72, save: "cockpit-narrow"},
-		{input: "e", label: "governing context", has: []string{"Corvint · Evidence", "c Change"}},
+		{input: "e", label: "governing context", has: []string{"Evidence", "c Change"}},
 		{input: "c", label: "return to cockpit", has: []string{"Corvint · Change", "1 files"}},
 	}); e != nil {
 		return e
@@ -388,7 +533,7 @@ func Inspector(ctx context.Context, c Config) (failure error) {
 	if e = step("r", "refresh edit", []string{"1 files"}, nil, 0); e != nil {
 		return e
 	}
-	if e = step("3", "old result stale", []string{"STALE · unit"}, []string{"PASS · unit"}, 0); e != nil {
+	if e = step("3", "old result stale", []string{"Stale result · unit"}, []string{"Passed · recorded commit · unit"}, 0); e != nil {
 		return e
 	}
 	if e = saveFrame(root, "cockpit-stale"); e != nil {
@@ -409,7 +554,7 @@ func Inspector(ctx context.Context, c Config) (failure error) {
 	if e != nil {
 		return e
 	}
-	checks := []string{"native-sidebar", "context-rpc", "evidence-panel", "pinned-source", "keyboard-source-selection", "narrow-width", "keyboard-gaps", "native-frame-capture", "cited-line", "source-scroll", "filter", "empty-filter", "dialog-focus", "pointer-open", "short-height", "source-invalidation", "cold-cache-plain-source", "explicit-syntax-opt-in", "cockpit-files", "cockpit-impact", "cockpit-proof", "cockpit-unsatisfied-workflow", "cockpit-base-dialog", "cockpit-narrow", "cockpit-context", "cockpit-stale-check", "tasks-sidebar", "tasks-page", "tasks-detail", "tasks-refresh", "workbench-focus", "workbench-proof", "workbench-doctor", "workbench-cost", "workbench-sessions", "interruption-no-descendants"}
+	checks := []string{"native-sidebar", "context-rpc", "evidence-panel", "pinned-source", "keyboard-source-selection", "narrow-width", "keyboard-gaps", "native-frame-capture", "cited-line", "source-scroll", "filter", "empty-filter", "dialog-focus", "pointer-open", "short-height", "source-invalidation", "cold-cache-plain-source", "explicit-syntax-opt-in", "cockpit-files", "cockpit-impact", "cockpit-proof", "cockpit-unsatisfied-workflow", "cockpit-base-dialog", "cockpit-narrow", "cockpit-context", "cockpit-stale-check", "tasks-sidebar", "tasks-page", "tasks-detail", "tasks-refresh", "workbench-focus", "workbench-proof", "work-blockers", "work-gates-declared-unknown-results", "work-keyboard-actions", "work-pointer-tabs", "tasks-compact", "tasks-empty-loading-unavailable-recovery", "work-receipt-drift-rebind", "work-compact-short", "work-change-evidence-bound-return", "workbench-doctor", "workbench-cost", "workbench-sessions", "interruption-no-descendants"}
 	report := Object{"profile": "corvint-opencode-inspector-witness/0", "result": "PASS", "host": version, "theme": c.Theme, "sourceCommit": id.SourceCommit, "sourceSHA256": id.SourceFiles, "harnessSHA256": id.HarnessSHA256, "qualificationBinarySHA256": id.QualificationBinarySHA256, "checks": checks, "root": root, "interruption": interruption, "authority": "NONE", "qualification": "UI witness only; does not promote integration support"}
 	if c.Theme == "dark" {
 		light := c

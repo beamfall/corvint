@@ -68,3 +68,25 @@ test("AHI-036 RPC adds only bounded read/focus operations", () => {
   assert.equal(INSPECTOR_RPC.methods.workbenchFocus.input.properties.ticketId.maxLength, 128)
   assert.equal(INSPECTOR_RPC.methods.workbenchComplete, undefined)
 })
+
+test("AHI-042 declared gate IDs survive only an admitted queue binding, separate from results", () => {
+  const selected = { ...detail(), gateResults: "PASS", completion: "COMPLETED", requiredGates: { state: "OBSERVED", ids: ["review", "tests"] } }
+  const change = cockpit(); change.checks[0].status = "PASS"
+  const projected = projectWorkbench(selected, tasks(), change, {}, null)
+  assert.deepEqual(projected.requiredGates, { state: "OBSERVED", ids: ["review", "tests"] })
+  assert.equal(projected.gateResults, "PASS")
+  assert.equal(projected.completion, "COMPLETED")
+  assert.equal(projected.observedChecks[0].status, "PASS")
+  assert.equal(Object.hasOwn(projected.requiredGates, "results"), false)
+  assert.deepEqual(projectWorkbench(detail(), tasks(), change, {}, null).requiredGates, { state: "NOT_OBSERVED", ids: [] })
+  assert.deepEqual(projectWorkbench({ ...selected, requiredGates: { state: "OBSERVED", ids: [] } }, tasks(), change, {}, null).requiredGates, { state: "OBSERVED", ids: [] })
+  for (const state of ["empty", "stale", "unavailable"]) {
+    assert.deepEqual(emptyWorkbench(state).requiredGates, { state: "NOT_OBSERVED", ids: [] })
+    assert.deepEqual(projectWorkbench(selected, { ...tasks(), state }, change, {}, null).requiredGates, { state: "NOT_OBSERVED", ids: [] })
+  }
+  assert.deepEqual(projectWorkbench(selected, { ...tasks(), queueDigest: "b".repeat(64) }, change, {}, null).requiredGates, { state: "NOT_OBSERVED", ids: [] })
+  const schema = INSPECTOR_RPC.methods.workbenchSnapshot.output
+  assert.ok(schema.required.includes("requiredGates"))
+  assert.deepEqual(schema.properties.requiredGates.required, ["state", "ids"])
+  assert.equal(schema.properties.requiredGates.additionalProperties, false)
+})

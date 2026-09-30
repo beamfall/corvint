@@ -114,7 +114,8 @@
       "cmd/corvint",
       "internal/gokernel",
       "internal/repoenvelope",
-      "conformance/harness-event-v0"
+      "conformance/harness-event-v0",
+      "integrations/opencode"
     ]
   },
   {
