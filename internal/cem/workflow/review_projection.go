@@ -43,9 +43,15 @@ func (s *Session) reviewProjection(ctx context.Context, raw []byte, doc *wire.Ma
 	if err != nil {
 		return nil, err
 	}
-	parsed, err := patch.Parse(patchBytes)
-	if err != nil {
-		return nil, err
+	parsed := &patch.Patch{}
+	// An empty canonical diff has no derived hunks to review. Verification
+	// remains authoritative about the map; the shared parser still rejects
+	// empty legacy input and every nonempty patch keeps its strict parsing.
+	if len(patchBytes) != 0 || !wire.Canonical(doc.Spec) {
+		parsed, err = patch.Parse(patchBytes)
+		if err != nil {
+			return nil, err
+		}
 	}
 	patchSum := sha256.Sum256(patchBytes)
 	mapSum := sha256.Sum256(raw)

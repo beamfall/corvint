@@ -211,11 +211,15 @@ func TestTaskReviewCEMReportNeverRunsPlantedGit(t *testing.T) {
 	report = successResult(t, client.call(t, 98, "tools/call", map[string]any{
 		"_meta": requestMeta(), "name": "corvint.cem.report", "arguments": map[string]any{"map": "change.cem.json", "expectedBase": head, "target": head},
 	}))
+	if _, err := os.Stat(marker); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("git planted on PATH after start ran: %v", err)
+	}
 	if report["isError"] == true {
 		t.Fatalf("cem report after planting git=%s", canonicalJSON(report))
 	}
-	if _, err := os.Stat(marker); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("git planted on PATH after start ran: %v", err)
+	content := object(t, object(t, report["structuredContent"])["receipt"])
+	if content["ok"] != false || object(t, content["verification"])["valid"] != false {
+		t.Fatalf("invalid empty-diff map upgraded: %s", canonicalJSON(report))
 	}
 }
 

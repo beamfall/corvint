@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/mdreport"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/lrfrepo"
@@ -77,6 +78,69 @@ func TestReviewProjectionParityAndReadOnly(t *testing.T) {
 		options.Format, options.Output = "json", "forbidden.json"
 		if _, err := openSession(t, root).Read(ctx(), "report", options); err == nil {
 			t.Fatal("JSON output option accepted")
+		}
+	})
+}
+
+// CEM-PILOT-028 MCPV0-025: zero derived hunks cannot make an invalid map valid.
+func TestReviewProjectionEmptyCanonicalDiffRetainsInvalidMap(t *testing.T) {
+	t.Run("CEM-PILOT-028 MCPV0-025 empty derived denominator", func(t *testing.T) {
+		root, base, target := makeRepo(t)
+		if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
+			t.Fatal(err)
+		}
+		mapPath := filepath.Join(root, wire.ExcludedCEMPath)
+		raw, err := os.ReadFile(mapPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var doc map[string]any
+		if err := json.Unmarshal(raw, &doc); err != nil {
+			t.Fatal(err)
+		}
+		doc["baseRevision"] = target
+		raw, err = json.Marshal(doc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(mapPath, raw, 0600); err != nil {
+			t.Fatal(err)
+		}
+		options := ReadOptions{MapPath: wire.ExcludedCEMPath, ExpectedBase: target, Target: target, Format: "json"}
+		result, err := openSession(t, root).Read(ctx(), "report", options)
+		if err != nil {
+			t.Fatal(err)
+		}
+		review := result["review"].(map[string]any)
+		if result["ok"] != false || review["valid"] != false || len(review["hunks"].([]any)) != 0 || len(review["surplusMapHunks"].([]any)) != 2 {
+			t.Fatalf("invalid empty diff upgraded or lost surplus: %v", result)
+		}
+		if review["patchSha256"] != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" {
+			t.Fatal("empty patch digest lost")
+		}
+		preview, err := openSession(t, root).Read(ctx(), ActionReportPreview, options)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if preview["ok"] != false || preview["mutates"] != false || preview["recordSetSha256"] != review["recordSetSha256"] {
+			t.Fatalf("preview invalidity/parity: %v", preview)
+		}
+		after, err := os.ReadFile(mapPath)
+		if err != nil || string(after) != string(raw) {
+			t.Fatal("review changed map")
+		}
+		// The exception belongs only to canonical derivation, not caller bytes.
+		doc["spec"] = "cem/0.1"
+		delete(doc, "excludedPath")
+		legacy, err := json.Marshal(doc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, root, wire.ExcludedCEMPath, string(legacy))
+		writeFile(t, root, "empty.patch", "")
+		_, err = openSession(t, root).Read(ctx(), "report", ReadOptions{MapPath: wire.ExcludedCEMPath, PatchPath: "empty.patch", PatchGiven: true, Format: "json"})
+		if cemcode.CodeOf(err) != cemcode.BinaryPatch {
+			t.Fatalf("legacy empty patch parser changed: %v", err)
 		}
 	})
 }
