@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/tasks/safeopen"
+	"github.com/Beamfall/corvint/internal/stepverify/safeopen"
 )
 
 type inventoryBudget struct {
@@ -16,7 +16,7 @@ type inventoryBudget struct {
 	bytes   int64
 }
 
-func regular(root *os.Root, name string, b *inventoryBudget) ([]byte, os.FileInfo, error) {
+func regular(root *safeopen.Directory, name string, b *inventoryBudget) ([]byte, os.FileInfo, error) {
 	before, err := root.Lstat(name)
 	if err != nil || !before.Mode().IsRegular() {
 		return nil, nil, ErrUnsupported
@@ -25,7 +25,7 @@ func regular(root *os.Root, name string, b *inventoryBudget) ([]byte, os.FileInf
 	if !ok || links != 1 || before.Size() < 0 || before.Size() > MaxFileBytes {
 		return nil, nil, ErrUnsupported
 	}
-	f, err := safeopen.InRoot(root, name, os.O_RDONLY, 0, false)
+	f, err := safeopen.InRoot(root, name, false)
 	if err != nil {
 		return nil, nil, ErrUnsupported
 	}
@@ -95,8 +95,8 @@ func inventory(ctx context.Context, path string, b *inventoryBudget, worktree bo
 		return entries, raw, ErrUnsupported
 	}
 	defer root.Close()
-	var walk func(*os.Root, string, int) error
-	walk = func(dir *os.Root, prefix string, depth int) error {
+	var walk func(*safeopen.Directory, string, int) error
+	walk = func(dir *safeopen.Directory, prefix string, depth int) error {
 		if ctx.Err() != nil || depth > MaxDepth {
 			return ErrUnsupported
 		}
@@ -117,7 +117,7 @@ func inventory(ctx context.Context, path string, b *inventoryBudget, worktree bo
 		if b.entries > MaxEntries {
 			return ErrUnsupported
 		}
-		fd, err := safeopen.InRoot(dir, ".", os.O_RDONLY, 0, true)
+		fd, err := safeopen.InRoot(dir, ".", true)
 		if err != nil {
 			return ErrUnsupported
 		}

@@ -213,7 +213,7 @@
     "reqPrefix": "ASS-V0",
     "intent": "proposed",
     "delivery": "experimental",
-    "claim": "A quiescent local observer binds authoring scope to complete before/post checkout components with explicit findings and uncertainty.",
+    "claim": "Local step verification binds observed checkout writes to a declared authoring scope.",
     "dependsOn": [
       "docs/specs/core-compatibility-freeze-v1.md"
     ],

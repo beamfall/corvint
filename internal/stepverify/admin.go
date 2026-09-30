@@ -14,7 +14,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/gokernel"
-	"github.com/Beamfall/corvint/internal/tasks/safeopen"
+	"github.com/Beamfall/corvint/internal/stepverify/safeopen"
 )
 
 // This is an admitted observation profile, not a general Git config parser.
@@ -189,7 +189,7 @@ func admin(ctx context.Context, c Checkout, h Host, b *inventoryBudget) (entries
 			root.Close()
 			return entries, gitdir, common, "", "", ErrUnsupported
 		}
-		fd, err := safeopen.InRoot(root, ".", os.O_RDONLY, 0, true)
+		fd, err := safeopen.InRoot(root, ".", true)
 		if err != nil {
 			root.Close()
 			return entries, gitdir, common, "", "", ErrUnsupported

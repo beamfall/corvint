@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/tasks/safeopen"
+	"github.com/Beamfall/corvint/internal/stepverify/safeopen"
 )
 
 const maxPointerBytes = 8192
 
-func pointer(root *os.Root, name string) (string, error) {
+func pointer(root *safeopen.Directory, name string) (string, error) {
 	info, err := root.Lstat(name)
 	if err != nil || !info.Mode().IsRegular() || info.Size() > maxPointerBytes {
 		return "", ErrUnsupported
