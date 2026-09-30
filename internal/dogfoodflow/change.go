@@ -47,6 +47,7 @@ type change struct {
 	mapKeepTmp           string
 	localOutcomeSHA      string
 	contextAbstentionSHA string
+	queryAbstentionSHA   string
 	bootstrapUnknown     int
 	manifestValid        bool
 	noIntent             bool
@@ -110,7 +111,7 @@ func (c *change) run() int {
 	}
 	// Query and impact run after the change, so they are coordination-time
 	// receipts; the agent's prechange-*.json receipts are never written here (DCW-V0-026).
-	c.runStep("coordination-time-query", c.evidence+"/coordination-time-query.json", "query", "--task", task, "--limit", "1")
+	c.coordinationQuery(task)
 	c.prechangeImpact()
 	c.cemPrepared = c.prepare("cem-prepare", c.evidence+"/cem-prepare.json", func(status int, stderr []byte, reason string) bool {
 		return status == 2 && outdatedCEMMaps[chomp(string(stderr))]
@@ -842,8 +843,17 @@ func failing(row step) bool {
 }
 
 func (c *change) complete() bool {
+	queryRows := 0
 	for _, row := range c.rows {
-		if failing(row) {
+		if row.name == queryStep {
+			queryRows++
+		}
+	}
+	if queryRows > 1 {
+		return false
+	}
+	for _, row := range c.rows {
+		if c.rowFailing(row) {
 			return false
 		}
 	}
@@ -874,6 +884,7 @@ func (c *change) renderReport() {
 	}
 	report.WriteString(`  ,"localOutcomeEvidenceSha256": ` + digestOrNull(c.localOutcomeSHA) + "\n")
 	report.WriteString(`  ,"contextAbstentionEvidenceSha256": ` + digestOrNull(c.contextAbstentionSHA) + "\n")
+	report.WriteString(`  ,"queryAbstentionEvidenceSha256": ` + digestOrNull(c.queryAbstentionSHA) + "\n")
 	if c.anchorObserved {
 		fmt.Fprintf(&report, "  ,\"anchor\": {\"state\": \"OBSERVED\", \"mergeBase\": \"%s\"}\n", c.anchorMergeBase)
 	} else {
@@ -1025,13 +1036,16 @@ func (c *change) reportFailures() int {
 			c.say("dogfood-change: NOTE coordination-time-impact NOT_PRODUCED %s\n", row.reason)
 		}
 	}
+	if c.queryAbstentionSHA != "" {
+		c.say("dogfood-change: NOTE %s NOT_PRODUCED %s\n", queryStep, queryAbstentionReason)
+	}
 	c.noteAgentReceipts()
 	if c.complete() {
 		return 0
 	}
 	c.say("dogfood-change: FAIL not-complete\n")
 	for _, row := range c.rows {
-		if !failing(row) {
+		if !c.rowFailing(row) {
 			continue
 		}
 		c.say("  %s: %s\n", row.name, row.reason)

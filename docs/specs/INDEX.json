@@ -1600,6 +1600,23 @@
     ]
   },
   {
+    "path": "docs/specs/dogfood-query-abstention-v0.md",
+    "title": "Dogfood Query Abstention V0",
+    "reqPrefix": "QAT-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "An exact intentional authority-start trace refusal can be retained during structural dogfood closure without claiming query support.",
+    "dependsOn": [
+      "docs/specs/daily-change-evidence-workflow-v0.md",
+      "docs/specs/go-production-kernel-migration-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/dogfoodflow"
+    ]
+  },
+  {
     "path": "docs/specs/daily-change-evidence-workflow-v0.md",
     "title": "Daily Change-Evidence Workflow V0",
     "reqPrefix": "DCW-V0",

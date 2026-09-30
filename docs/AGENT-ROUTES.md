@@ -78,6 +78,11 @@ corvint context --task "THE SAME TASK" --limit 5
 Keep its syntax/relationship evidence and uncertainty separate from governing owner prose.
 `context` does not consume local trace learning and its success does not qualify authority-start
 query support. Charge the refusal, fallback, and subsequent source reads to the same task.
+For structural dogfood closeout only, the proposed experimental
+[query abstention contract](specs/dogfood-query-abstention-v0.md) retains the exact intentional
+refusal with original argv/task and immutable digest bindings plus independent verifier replay.
+The query stays `NOT_PRODUCED`; corrupt/unreachable trace errors do not qualify, and every
+CEM/OCM/check/clean-outcome requirement still applies. Keep the original trace and task intact.
 
 ## Token-efficient process without model or cache changes
 

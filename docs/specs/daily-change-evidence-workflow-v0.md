@@ -39,7 +39,10 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   base/target, CEM, owning OCMs, actual check observations, inspected reports/frontier and outcome.
   Missing, stale, dirty, interrupted, unsupported or unknown evidence MUST NOT produce a false
   complete-evidence verdict. Local policy satisfaction MUST NOT assert universal correctness or
-  formal FULL/Frontier authority.
+  formal FULL/Frontier authority. Proposed amendment (2026-09-30, V1-0523): the exact
+  intentional authority-start trace refusal may remain visible as a discovery abstention during
+  structural closure only under `dogfood-query-abstention-v0.md` QAT-V0-001..005; it is never
+  complete query evidence or query support.
 - `DCW-V0-006`: Qualification MUST include genuine Corvint and Beamfall changes completed by a fresh
   agent and reviewer using extracted public artifacts. Real dogfood, hostile tests and sealed
   benchmarks MUST remain distinct evidence classes under `UCV0-003`.
@@ -93,6 +96,9 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   transport, so a replace ref, a lazy fetch or the caller's global or system configuration
   (including its hooks and excludes file) cannot change what they read; only the seal's `git mv`
   and `git commit` keep the caller's environment, for its author identity, signing and hooks.
+  Proposed query amendment (V1-0523): only the exact QAT-V0-001 refusal, with QAT-V0-002..004
+  retained binding and independent replay, is exempt from blocking. Every other missing, dirty,
+  stale, unsupported or failed outcome/check/CEM/OCM input retains these completion refusals.
 - `DCW-V0-016`: (proposed 2026-09-23, V1-0200, not accepted) the `corvint-dogfood-change/0`
   report that `dogfood-change` writes, and `corvint dogfood finish` reads, MUST carry one
   `packetCoverage` line listing the `coordination-time-query` and `coordination-time-impact` steps
@@ -212,7 +218,11 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   or a module-root change is a scope limit that must stay visible, not a failed step; as blocking
   rows these two codes kept a non-Go adopter from ever reaching `"complete": true`.
   Acceptance: decision 0388 accepts this requirement with the `GOC-V0-009` and `ERI-V0-006`
-  amendments that admit the same three codes.
+  amendments that admit the same three codes. Proposed separate query extension (V1-0523):
+  `dogfood-query-abstention-v0.md` retains one intentional authority-start refusal with the
+  distinct reason `authority-start-trace-state-abstention` and profile
+  `corvint-dogfood-query-abstention/0`. It does not extend the three-code impact allowlist,
+  change this accepted profile, or claim prior acceptance of the new technical contract.
 - `DCW-V0-026`: (accepted 2026-09-25 by decision 0395, panel finding M1) `dogfood change` MUST NOT
   create, truncate or rewrite `<git-dir>/corvint/prechange-query.json` or `prechange-impact.json`,
   the receipts an agent writes before the change (`docs/DOGFOOD.md` section 1). Its own query and
