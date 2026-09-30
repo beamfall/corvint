@@ -1043,6 +1043,16 @@ Arguments:
         uncertainty; no language rule is inferred.
         An unadmitted suffix returns unsupported-impact-path-suffix.
 
+Language capabilities (syntax evidence, never complete runtime impact):
+  Go          .go                         path/range; package imports (path).
+  Ruby        .rb                         path/range; markers; imports unknown.
+  JavaScript  .js .jsx .mjs .cjs           path/range; literal/profile imports (path).
+  TypeScript  .ts .tsx                    path/range; literal/profile imports (path).
+  Ruby/JS/TS always report dynamic-dispatch unknowns; unsupported constructs
+  remain unknown even when no lexical dynamic token is observed. Other indexed
+  suffixes keep positional evidence and explicit missing-rule uncertainty.
+  MCP admits the Go/Ruby/JS/TS suffixes above for path requests only.
+
 Options:
   --limit N                  Maximum results (default: 10; range: 1-50).
   --working-tree-untracked   Explicitly select the separate revision-absent
@@ -1099,10 +1109,10 @@ Requirements:
   are rejected rather than approximated.
 
 The committed range profile requires a clean, stable worktree; derives changed
-Go paths and exact old/new admitted-Go hunk spans itself; binds base/head commit
+Go/Ruby/JS/TS paths and exact old/new admitted-source hunk spans itself; binds base/head commit
 and tree, status, full-delta and hunk digests, and omissions; admits marker and
 ADR relations only from target lines added or replaced by the diff; and rejects
-rename, copy, delete, type-change, binary, excluded-Go, oversized, or drifting
+delete, type-change, binary, excluded-source, oversized, or drifting
 ranges.
 
 The default profile is unchanged and uses only revision-tracked evidence. The

@@ -345,7 +345,7 @@ func (registry *Registry) allTools() []ToolDescriptor {
 		},
 		{
 			Name:        ToolImpact,
-			Description: "Compile revision-bound impact evidence for tracked Go files without returning source bodies.",
+			Description: "Compile revision-bound impact evidence without source bodies. Capabilities: Go (.go): path, package imports; Ruby (.rb): path, markers, reverse imports unknown; JavaScript (.js/.jsx/.mjs/.cjs) and TypeScript (.ts/.tsx): path, literal relative/profile imports. Dynamic dispatch and test closure remain unknown. CLI --base also admits these languages; MCP accepts paths only.",
 			Annotations: readAnnotations(),
 			InputSchema: objectSchema(map[string]any{
 				"snapshot": snapshotSchema(),
@@ -353,7 +353,7 @@ func (registry *Registry) allTools() []ToolDescriptor {
 					"type": "array", "minItems": 1, "maxItems": maxImpactPaths, "uniqueItems": true,
 					"items": map[string]any{
 						"type": "string", "minLength": 1, "maxLength": maxPathRunes,
-						"pattern": `^(?!/)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*//)(?!.*\\).+[.]go$`,
+						"pattern": `^(?!/)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*//)(?!.*\\).+[.](?:go|rb|js|jsx|mjs|cjs|ts|tsx)$`,
 					},
 				},
 				"limit": map[string]any{"type": "integer", "minimum": 1, "maximum": maxImpactLimit, "default": 10},
@@ -779,7 +779,7 @@ func validImpact(input impactInput) bool {
 	seen := make(map[string]struct{}, len(input.Paths))
 	for _, value := range input.Paths {
 		if value == "" || utf8.RuneCountInString(value) > maxPathRunes || filepath.IsAbs(value) ||
-			filepath.ToSlash(filepath.Clean(value)) != value || !strings.HasSuffix(value, ".go") || strings.Contains(value, "\\") {
+			filepath.ToSlash(filepath.Clean(value)) != value || !contextindex.MCPImpactPathAdmitted(value) || strings.Contains(value, "\\") {
 			return false
 		}
 		for _, part := range strings.Split(value, "/") {

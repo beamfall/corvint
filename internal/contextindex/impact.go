@@ -77,6 +77,9 @@ func impact(index *Index, paths []string, limit int) (map[string]any, []string, 
 	}
 	if len(forbidden) != 0 {
 		result, err := receipt(index, "impact", map[string]any{"paths": cleaned, "limit": limit}, nil, limit, "OUT_OF_SCOPE")
+		if err == nil {
+			err = attachNonGoImpactUnknowns(result, index, cleaned)
+		}
 		return result, nil, err
 	}
 
@@ -292,6 +295,9 @@ func impact(index *Index, paths []string, limit int) (map[string]any, []string, 
 	deduplicated = reserveCallerRows(deduplicated, callers, limit)
 	disclosures := omittedCallerDisclosures(deduplicated, goCallers, limit)
 	result, err := receipt(index, "impact", map[string]any{"paths": cleaned, "limit": limit}, deduplicated, limit, "", disclosures...)
+	if err == nil {
+		err = attachNonGoImpactUnknowns(result, index, cleaned)
+	}
 	return result, disclosures, err
 }
 
