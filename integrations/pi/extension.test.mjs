@@ -10,7 +10,7 @@ function fixture(t, {hasUI=true, trusted=true}={}) {
  const pi={on(name,handler){handlers.set(name,handler)},registerCommand(name,command){commands.set(name,command)},registerTool(){},sendMessage(message,options){messages.push({message,options})}};
  const ctx={cwd:'/fixture',hasUI,ui:{notify:(...args)=>notices.push(args)},isProjectTrusted:()=>trusted,sessionManager:{getSessionId:()=> 'private-session'}};
  const listeners=new Set([...process.listeners('SIGINT'),...process.listeners('SIGTERM')]);
- register(pi,{runner,version:'0.85.1'});
+ register(pi,{runner,version:'0.99.1'});
  t.after(()=>{for(const signal of ['SIGINT','SIGTERM'])for(const listener of process.listeners(signal))if(!listeners.has(listener))process.removeListener(signal,listener);});
  return {ctx,runner,calls,notices,messages,emit:(name,event={})=>handlers.get(name)(event,ctx),command:(name,text)=>commands.get(name).handler(text,ctx)};
 }

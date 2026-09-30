@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Explicit native-host check: Pi 0.85.1 and the pinned Go toolchain must be installed.
+// Explicit native-host check: Pi 0.99.1 and the pinned Go toolchain must be installed.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
@@ -9,6 +9,9 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here=dirname(fileURLToPath(import.meta.url)), root=resolve(here,'../..');
+// Pi 0.99.1 normalizes provider requests into a transcript with system messages.
+const systemText=ctx=>ctx.messages.filter(m=>m.role==='system').map(m=>JSON.stringify(m)).join('\n');
+const conversation=ctx=>ctx.messages.filter(m=>m.role!=='system');
 const active=new Set(), nativeGroups=new Set();
 const kill=child=>{try{process.kill(-child.pid,'SIGKILL')}catch{}};
 const cleanup=()=>{
@@ -47,6 +50,8 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { createAssistantMessageEventStream } from '@earendil-works/pi-ai';
 export default function(pi) {
+ pi.on('agent_before_settle',(e,ctx)=>appendFileSync(process.env.CORVINT_PI_CAPTURE+'.settle',JSON.stringify({type:e.type,outcome:e.outcome,canContinue:e.context.canContinue,pending:e.context.pendingMessages.length,continue:e.continue,mode:ctx.mode})+'\\n'));
+ pi.on('agent_settled',(e,ctx)=>appendFileSync(process.env.CORVINT_PI_CAPTURE+'.settle',JSON.stringify({type:e.type,mode:ctx.mode})+'\\n'));
  pi.on('tool_result',async e=>{if(e.toolName==='corvint_context')appendFileSync(process.env.CORVINT_PI_CAPTURE+'.observed',JSON.stringify(e.details?.corvint)+'\\n')});
  pi.registerTool({name:'corvint_fixture_edit',label:'Fixture edit',description:'Fixture edit and verification',parameters:{type:'object',properties:{},additionalProperties:false},async execute(){
   writeFileSync('main.go','package example\\nfunc One() int { return 2 }\\n');
@@ -109,7 +114,7 @@ test('AHI-002 AHI-024 native Pi package lifecycle and ephemeral context',async t
  assert.equal(build.code,0,build.stderr);
  const env={PATH:process.env.PATH,HOME:home,LANG:'en_US.UTF-8',PI_CODING_AGENT_DIR:agent,PI_OFFLINE:'1',CORVINT_BIN:binary,CORVINT_PI_CAPTURE:capture};
  const pi=(args,extra={})=>run(process.env.PI_BIN??'pi',args,{cwd:repo,env:{...env,...extra}});
- const version=await pi(['--version']);assert.equal(version.stdout.trim(),'0.85.1');
+ const version=await pi(['--version']);assert.equal(version.stdout.trim(),'0.99.1');
  const installed=await pi(['install',pkg]);assert.equal(installed.code,0,installed.stderr);
  assert.match((await pi(['list'])).stdout,/package/);
  const flags=['--offline','--approve','--no-context-files','--no-skills','--no-prompt-templates','--no-themes','--no-tools','--mode','json','--provider','corvint-fixture','--model','fixture','--thinking','off','-e',join(scratch,'provider.ts'),'-p'];
@@ -118,14 +123,29 @@ test('AHI-002 AHI-024 native Pi package lifecycle and ephemeral context',async t
  assert.doesNotMatch(result.stderr,/Corvint unavailable|Failed to load extension/);
  const contexts=readFileSync(capture,'utf8').trim().split('\n').map(JSON.parse);
  assert.equal(contexts.length,2);
- for(const ctx of contexts)assert.equal(ctx.systemPrompt.split('BEGIN CORVINT REPOSITORY DATA').length,2);
- assert.equal(JSON.stringify(contexts[0].messages).split('BEGIN CORVINT REPOSITORY DATA').length,2,'startup reaches first provider request');
- assert.doesNotMatch(JSON.stringify(contexts[1].messages),/BEGIN CORVINT REPOSITORY DATA/,'recovery is ephemeral');
+ for(const ctx of contexts)assert.equal(systemText(ctx).split('BEGIN CORVINT REPOSITORY DATA').length,2);
+ assert.equal(JSON.stringify(conversation(contexts[0])).split('BEGIN CORVINT REPOSITORY DATA').length,2,'startup reaches first provider request');
+ assert.doesNotMatch(JSON.stringify(conversation(contexts[1])),/BEGIN CORVINT REPOSITORY DATA/,'recovery is ephemeral');
  const sessions=join(agent,'sessions');
  const { readdirSync }=await import('node:fs');
  const sessionFiles=readdirSync(sessions,{recursive:true}).filter(p=>p.endsWith('.jsonl'));
  assert.ok(sessionFiles.length);
  for(const path of sessionFiles)assert.doesNotMatch(readFileSync(join(sessions,path),'utf8'),/BEGIN CORVINT REPOSITORY DATA/,'automatic context must not persist');
+ const settlement=readFileSync(capture+'.settle','utf8').trim().split('\n').map(JSON.parse);
+ assert.deepEqual(settlement.map(e=>e.type),['agent_before_settle','agent_settled','agent_before_settle','agent_settled']);
+ assert.ok(settlement.filter(e=>e.type==='agent_before_settle').every(e=>e.outcome==='completed'&&e.canContinue===false&&e.pending===0&&e.continue===false&&e.mode==='json'),JSON.stringify(settlement));
+ const printed=await pi([...flags.map(flag=>flag==='json'?'text':flag),'print qualification']);
+ assert.equal(printed.code,0,printed.stderr);assert.match(printed.stdout,/fixture response/);
+ assert.doesNotMatch(printed.stderr,/Corvint unavailable|Failed to load extension/);
+ const trustWitness=join(scratch,'untrusted-native-invocation'), trustBinary=join(scratch,'trust-binary');
+ writeFileSync(trustBinary,'#!/bin/sh\necho invoked > '+JSON.stringify(trustWitness)+'\nexit 1\n',{mode:0o755});
+ mkdirSync(join(repo,'.pi'));writeFileSync(join(repo,'.pi/settings.json'),'{}');
+ const denied=await pi([...flags.map(flag=>flag==='--approve'?'--no-approve':flag),'untrusted qualification'],{CORVINT_BIN:trustBinary});
+ assert.equal(denied.code,0,denied.stderr);assert.match(denied.stderr,/untrusted-project/);
+ assert.equal(existsSync(trustWitness),false,'untrusted host must not invoke native binary');
+ const deniedContext=JSON.parse(readFileSync(capture,'utf8').trim().split('\n').at(-1));
+ assert.doesNotMatch(JSON.stringify(deniedContext),/BEGIN CORVINT REPOSITORY DATA/);
+ rmSync(join(repo,'.pi'),{recursive:true});
  const invalid=await pi([...flags,'/corvint-outcome null']);assert.match(invalid.stderr,/invalid-input/);
  const outcome=await pi([...flags,'/corvint-outcome '+JSON.stringify({outcome:'passed',taskSha256:'a'.repeat(64),changedPaths:['main.go'],verification:[{commandSha256:'b'.repeat(64),status:'passed'}]})]);
  assert.match(outcome.stderr,/outcome-persistence-unavailable/);
@@ -159,8 +179,8 @@ test('AHI-002 AHI-024 native Pi package lifecycle and ephemeral context',async t
  assert.ok(rpcEvents.some(e=>e.id==='new'&&e.success===true));
  assert.doesNotMatch(rpc.stderr,/Corvint unavailable|Failed to load extension/);
  const rpcContexts=readFileSync(capture,'utf8').trim().split('\n').slice(-2).map(JSON.parse);
- assert.ok(rpcContexts.every(c=>c.systemPrompt.includes('BEGIN CORVINT REPOSITORY DATA')));
- assert.ok(rpcContexts.every(c=>JSON.stringify(c.messages).includes('BEGIN CORVINT REPOSITORY DATA')));
+ assert.ok(rpcContexts.every(c=>systemText(c).includes('BEGIN CORVINT REPOSITORY DATA')));
+ assert.ok(rpcContexts.every(c=>JSON.stringify(conversation(c)).includes('BEGIN CORVINT REPOSITORY DATA')));
  const tuiCapture=join(scratch,'tui-capture'),tuiWitness=join(scratch,'tui-group');
  const tuiFlags=flags.filter(flag=>flag!=='-p'&&flag!=='--mode'&&flag!=='json');
  nativeGroups.add(tuiWitness);
@@ -169,15 +189,15 @@ test('AHI-002 AHI-024 native Pi package lifecycle and ephemeral context',async t
  assert.equal(tui.code,0,tui.stderr);
  assert.match(tui.stdout,/Native Pi TUI prompt and clean shutdown passed/);
  const tuiContext=JSON.parse(readFileSync(tuiCapture,'utf8').trim().split('\n')[0]);
- assert.match(tuiContext.systemPrompt,/BEGIN CORVINT REPOSITORY DATA/);
+ assert.match(systemText(tuiContext),/BEGIN CORVINT REPOSITORY DATA/);
  const settingsPath=join(agent,'settings.json'), settings=JSON.parse(readFileSync(settingsPath,'utf8'));
  settings.packages=[{source:pkg,extensions:[]}];writeFileSync(settingsPath,JSON.stringify(settings));
  const disabled=await pi([...flags,'disabled']);assert.equal(disabled.code,0,disabled.stderr);
- assert.doesNotMatch(JSON.parse(readFileSync(capture,'utf8').trim().split('\n').at(-1)).systemPrompt,/BEGIN CORVINT/);
+ assert.doesNotMatch(systemText(JSON.parse(readFileSync(capture,'utf8').trim().split('\n').at(-1))),/BEGIN CORVINT/);
  settings.packages=[pkg];writeFileSync(settingsPath,JSON.stringify(settings));
  const upgraded=await pi(['update',pkg]);assert.equal(upgraded.code,0,upgraded.stderr);
  const enabled=await pi([...flags,'enabled']);assert.equal(enabled.code,0,enabled.stderr);
- assert.match(JSON.parse(readFileSync(capture,'utf8').trim().split('\n').at(-1)).systemPrompt,/BEGIN CORVINT/);
+ assert.match(systemText(JSON.parse(readFileSync(capture,'utf8').trim().split('\n').at(-1))),/BEGIN CORVINT/);
  for(const signal of ['SIGINT','SIGTERM']) {
   const witness=join(scratch,signal+'.pid'), group=join(scratch,signal+'.group'), slow=join(scratch,'slow-'+signal);
   writeFileSync(slow,`#!/bin/sh\necho $$ > "${group}"\ntrap 'exit 0' TERM\n/bin/sh -c 'trap "" TERM; echo $$ > "${witness}"; while :; do sleep 1; done' &\nwait\n`,{mode:0o755});
@@ -203,7 +223,7 @@ test('AHI-002 AHI-024 native Pi package lifecycle and ephemeral context',async t
  const removed=await pi(['remove',pkg]);assert.equal(removed.code,0,removed.stderr);
  assert.deepEqual(JSON.parse(readFileSync(settingsPath,'utf8')).packages,[]);
  const uninstalled=await pi([...flags,'removed']);assert.equal(uninstalled.code,0,uninstalled.stderr);
- assert.doesNotMatch(JSON.parse(readFileSync(capture,'utf8').trim().split('\n').at(-1)).systemPrompt,/BEGIN CORVINT/);
+ assert.doesNotMatch(systemText(JSON.parse(readFileSync(capture,'utf8').trim().split('\n').at(-1))),/BEGIN CORVINT/);
 });
 
 test('AHI-024 native-host harness cancellation kills descendants',{skip:!!process.env.CORVINT_PI_INTERRUPT_WITNESS},async t=>{

@@ -13,8 +13,8 @@ import (
 	"github.com/Beamfall/corvint/internal/repoenvelope"
 )
 
-const piHostVersion = "0.85.1"
-const piAdapterVersion = "0.2.0"
+const piHostVersion = "0.99.1"
+const piAdapterVersion = "0.3.0"
 const piInputLimit = 131072
 
 var piReceipt = regexp.MustCompile(`^harness-receipt:sha256:[0-9a-f]{64}$`)

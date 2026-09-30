@@ -351,8 +351,8 @@ do not reinterpret this Frontier result.
   absent, keep `unknown` and its degradation, a recognised code the `AHI-019` refusal accepts, which
   `AHI-022` routes off the terminal for the two JavaScript hosts.
 
-- `AHI-024`: The experimental Pi extension MUST use runtime-provided version `0.85.1`, adapter
-  `0.2.0`, host `pi`, and surface `extension`; other versions MUST refuse visibly. The native
+- `AHI-024`: The experimental Pi extension MUST use runtime-provided version `0.99.1`, adapter
+  `0.3.0`, host `pi`, and surface `extension`; other versions MUST refuse visibly. The native
   translator argv is exactly `adapter pi EVENT`, where EVENT is one of `session-start`,
   `user-prompt`, `file-change`, `post-tool`, `stop`, or `session-end`. Its UTF-8 stdin is bounded
   to 131072 bytes and contains exactly `hostVersion` and event-normalized `input`. Unknown,
@@ -393,12 +393,15 @@ do not reinterpret this Frontier result.
   source expansion and durable recording through existing core validators. Package/version declarations and
   compatibility evidence MUST agree. This functional extension is FALLBACK until its exact
   tuple completes the separate protected authority and full host qualification requirements.
+  The wildcard Pi peer dependency only selects host-owned modules; it MUST NOT broaden exact
+  runtime admission. Earlier 0.85.1 evidence is historical, not qualification of adapter 0.3.0.
+  Protected Pi runtime/image contracts retain their separately pinned tuple.
 
   The output has exactly `profile`, `event`, `host`, `surface`, `hostVersion`, `adapterVersion`,
   `support`, `receiptId`, `context`, `degradations`, `fault`, and `shouldContinue`. Constants are
-  `corvint-pi-adapter/0`, `pi`, `extension`, `0.2.0`, `FALLBACK`, and false respectively.
+  `corvint-pi-adapter/0`, `pi`, `extension`, `0.3.0`, `FALLBACK`, and false respectively.
   Event is the admitted selector, or null only for an unsupported-event fault. Success has
-  hostVersion `0.85.1`, an existing `harness-receipt:sha256:` request identity with 64 lowercase
+  hostVersion `0.99.1`, an existing `harness-receipt:sha256:` request identity with 64 lowercase
   hexadecimal digits, string context (empty or native framed data), recognized degradation
   strings, and fault null. A receipt is request identity, not response-integrity evidence.
   Faults have receiptId null, empty context/degradations, and a fixed code: `invalid-input`,

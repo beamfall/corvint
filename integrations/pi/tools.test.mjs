@@ -9,7 +9,7 @@ function fixture() {
  const pi={registerTool(t){definitions.set(t.name,t)},registerCommand(name,command){commands.set(name,command)}};
  const runner={async tool(request){calls.push(request);return {context:'native framed result',packet:{json:'opaque packet',sha256:'a'.repeat(64),commit:'b'.repeat(40),evidenceHandle:'context-packet:sha256:'+'a'.repeat(64)},mutation:'not-attempted'}}};
  const ctx={cwd:'/one',sessionManager:{getSessionId:()=> 'session'},isProjectTrusted:()=>true};
- const tools=registerTools(pi,{runner,version:'0.85.1',notice(...args){notices.push(args)}});
+ const tools=registerTools(pi,{runner,version:'0.99.1',notice(...args){notices.push(args)}});
  return {ctx,runner,calls,tools,notices,command:(name,text)=>commands.get(name).handler(text,ctx),call:(name,args,signal)=>definitions.get(name).execute('test',args,signal,undefined,ctx)};
 }
 
@@ -56,7 +56,7 @@ test('AHI-005 AHI-025 typed supplied observations exclude raw output and malform
 });
 
 test('AHI-025 tool envelopes cannot forge profile, persistence or runtime version',()=>{
- const good={profile:'corvint-pi-tool/0',operation:'record',hostVersion:'0.85.1',adapterVersion:'0.2.0',support:'FALLBACK',ok:true,mutation:'recorded',context:'BEGIN CORVINT REPOSITORY DATA\n{}\nEND CORVINT REPOSITORY DATA',packet:null,fault:null};
+ const good={profile:'corvint-pi-tool/0',operation:'record',hostVersion:'0.99.1',adapterVersion:'0.3.0',support:'FALLBACK',ok:true,mutation:'recorded',context:'BEGIN CORVINT REPOSITORY DATA\n{}\nEND CORVINT REPOSITORY DATA',packet:null,fault:null};
  assert.equal(validToolEnvelope(good,'record'),true);
  for(const delta of [{support:'FULL'},{hostVersion:'unknown'},{extra:true},{mutation:'not-attempted'},{packet:{}},{context:'unframed'}])assert.equal(validToolEnvelope({...good,...delta},'record'),false);
 });

@@ -1,6 +1,6 @@
 # Corvint for Pi — experimental FALLBACK
 
-Pi **0.85.1**, Corvint Pi adapter **0.2.0**, macOS arm64: tested with the real host and an
+Pi **0.99.1**, Corvint Pi adapter **0.3.0**, macOS arm64: tested with the real host and an
 offline fixture provider in print, RPC and interactive TUI modes. Other Pi versions refuse visibly; Linux has not been qualified and
 Windows is unsupported because descendant cleanup requires POSIX process groups.
 
@@ -25,6 +25,9 @@ For one run without changing settings:
 CORVINT_BIN=/absolute/path/corvint pi -e /absolute/path/integrations/pi/index.ts
 ```
 
+The package declares the Pi host as a wildcard peer so Pi supplies its own modules; this is
+packaging policy, not runtime compatibility. The closed native/runtime guards admit only 0.99.1.
+The older 0.85.1 adapter remains historical qualification and is not admitted by adapter 0.3.0.
 The package uses `pi.extensions` discovery and the host's runtime `VERSION`. Untrusted projects
 refuse native reads. Startup, reload, new/resumed/forked sessions and tree navigation refresh
 context. Successful compaction supplies recovery to the next model request, including an automatic
@@ -76,7 +79,7 @@ remain Pi's responsibility. Shutdown joins owned subprocess work and removes sig
 
 Run the dependency-free regressions with `node --test integrations/pi/runtime.test.mjs
 integrations/pi/extension.test.mjs integrations/pi/tools.test.mjs`. The canonical `make gate` includes them. The separate native
-host check is `node --test integrations/pi/host.test.mjs` (requires Pi 0.85.1 and Python 3 on PATH and the
+host check is `node --test integrations/pi/host.test.mjs` (requires Pi 0.99.1 on PATH and the
 repository's pinned Go toolchain; `PI_BIN` may select another executable). It uses temporary
 settings and an offline provider, and never reads model credentials or calls an external model.
 

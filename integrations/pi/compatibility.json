@@ -1,11 +1,11 @@
 {
   "host": "pi",
   "surface": "extension",
-  "adapterVersion": "0.2.0",
-  "apiReferenceVersion": "0.85.1",
+  "adapterVersion": "0.3.0",
+  "apiReferenceVersion": "0.99.1",
   "support": "FALLBACK",
   "testedHostVersions": [
-    "0.85.1"
+    "0.99.1"
   ],
   "unavailableCapabilities": [
     "protected authority",
@@ -14,8 +14,8 @@
     "Windows descendant cleanup"
   ],
   "lastConformance": {
-    "hostVersion": "0.85.1",
-    "adapterVersion": "0.2.0",
+    "hostVersion": "0.99.1",
+    "adapterVersion": "0.3.0",
     "operatingSystem": "darwin-arm64",
     "validation": "offline-native-package-tools-tui-rpc-and-cleanup",
     "test": "integrations/pi/host.test.mjs"
