@@ -1,9 +1,19 @@
 {
-  "baseRevision": "135391f330c26bf08e6117eab4cacf925be6ac3b",
+  "baseRevision": "240faca99c9d3377fe9452bc4c53bb611eae320b",
   "evidence": [
     {
-      "blobOid": "d596b248ad414fbaac056f5c413bfcd551f671e4",
-      "id": "evidence:sha256:22e7da8d28a3791a8c1a73430bd447e577a02e8bf5d1fcd9e9d496f3045340b3",
+      "blobOid": "920a953643392586fa346d61b7f183124fc1f6d0",
+      "id": "evidence:sha256:aab8763795d0b478d970a21e99fdec92f3764591604773655cbafecc6a8c6495",
+      "path": "docs/DOGFOOD.md",
+      "span": {
+        "end": 24737,
+        "start": 23095
+      },
+      "spanSha256": "9dad4ea56b65ed9b6c5b4d6a44fe29fb0418334a8d20648bd643853b765944a2"
+    },
+    {
+      "blobOid": "920a953643392586fa346d61b7f183124fc1f6d0",
+      "id": "evidence:sha256:d70c1cc85ace5572fea3be571ddee3e1089613687eb62b6d643f8a00c2a8c22f",
       "path": "docs/DOGFOOD.md",
       "span": {
         "end": 2240,
@@ -22,8 +32,8 @@
       "spanSha256": "52f79f7a9bf98257b269573056adc58fc4de84734beadff948f3cf910f7178a9"
     },
     {
-      "blobOid": "03406f61d959729c41a1b122049df94447278ecf",
-      "id": "evidence:sha256:fd8b6cc9d0d64710f6aa9c6d0fcb33a1ff34eb9534893b44b4b65979a825f19e",
+      "blobOid": "b9e679950d7988150af744f5368c9df10917730e",
+      "id": "evidence:sha256:4d72cae49901870a6be65dff145ed021839b1c828fd8ff537b59c049e4043e62",
       "path": "docs/specs/agent-harness-integration-v0.md",
       "span": {
         "end": 22859,
@@ -32,72 +42,72 @@
       "spanSha256": "1e0a8b3ea20fa8144e777525890c091202de4b26e12d5ed8a90d45ce954adaec"
     },
     {
-      "blobOid": "03406f61d959729c41a1b122049df94447278ecf",
-      "id": "evidence:sha256:5f7e673634136e57d734be69ca1387cea63fbf428022bef39d0292b66e7f6870",
+      "blobOid": "b9e679950d7988150af744f5368c9df10917730e",
+      "id": "evidence:sha256:1d59727c13adeb03178885eb64a3be0f8f664af54eb2e8c288e7cc14e3a90c2a",
       "path": "docs/specs/agent-harness-integration-v0.md",
       "span": {
-        "end": 68766,
-        "start": 57816
+        "end": 69641,
+        "start": 58691
       },
       "spanSha256": "02e09ac0cf93fc4412e788b63c82b4b33cbc77f8a23ed939fb28cffd8e138563"
     },
     {
-      "blobOid": "03406f61d959729c41a1b122049df94447278ecf",
-      "id": "evidence:sha256:d32fe019b66a8eced08e85614dfc67bdfe1bf2d94a4b25c08e26f63d78a5f0b2",
+      "blobOid": "b9e679950d7988150af744f5368c9df10917730e",
+      "id": "evidence:sha256:90b5176201f8b83460a124eefdf043feb6d34146e37e2bb5af6e9c4bcf1573a7",
       "path": "docs/specs/agent-harness-integration-v0.md",
       "span": {
-        "end": 62248,
-        "start": 57816
+        "end": 63123,
+        "start": 58691
       },
       "spanSha256": "28e455b3753f68afc30c4309fceca0c1c3a456b76bb9e9122277454228d0edbf"
     },
     {
-      "blobOid": "03406f61d959729c41a1b122049df94447278ecf",
-      "id": "evidence:sha256:fdb1e40b8ea8838102e10856ce60ac7f6b5a2027b1642634939082744e9ec6c3",
+      "blobOid": "b9e679950d7988150af744f5368c9df10917730e",
+      "id": "evidence:sha256:bba119ec005cfd04cd04c429e9d6f495169f7658007102d996b8f2774e0917c0",
       "path": "docs/specs/agent-harness-integration-v0.md",
       "span": {
-        "end": 66096,
-        "start": 62248
+        "end": 66971,
+        "start": 63123
       },
       "spanSha256": "9c36accb4317bd54bd6d495052435dd1ad3b24082a2c02871de300016c8a2e05"
     },
     {
-      "blobOid": "03406f61d959729c41a1b122049df94447278ecf",
-      "id": "evidence:sha256:ede98637b73565ffe7a3e7b7651ae45c49c6e916f553f91809fd829431ee4cab",
+      "blobOid": "b9e679950d7988150af744f5368c9df10917730e",
+      "id": "evidence:sha256:9cb7c656b075419c122adfe34007a54d7fac0a7677e3c2328de636bf0b48760e",
       "path": "docs/specs/agent-harness-integration-v0.md",
       "span": {
-        "end": 54735,
-        "start": 53035
+        "end": 55610,
+        "start": 53910
       },
       "spanSha256": "ff01394335406ceefebc7e39a7f11001210d56521dedf50c2f602aadc471fe44"
     },
     {
-      "blobOid": "03406f61d959729c41a1b122049df94447278ecf",
-      "id": "evidence:sha256:2413938b998f1e0317e9ebcc3cd02951d1c280b13d5f158e5c0c706a0899bff2",
+      "blobOid": "b9e679950d7988150af744f5368c9df10917730e",
+      "id": "evidence:sha256:a25caf13247a43f511f3bf855af59562c18ea3128d1112fbe751354aab3e090d",
       "path": "docs/specs/agent-harness-integration-v0.md",
       "span": {
-        "end": 62248,
-        "start": 59530
+        "end": 63123,
+        "start": 60405
       },
       "spanSha256": "3f75975db14bc97efcbbe1ad613b594b295ead9d7cc9596d7720eee615a31066"
     },
     {
-      "blobOid": "03406f61d959729c41a1b122049df94447278ecf",
-      "id": "evidence:sha256:4af476d7ead7c91a6e36e13a7475d51859b59cf174f495f3a6145de1805c3d7d",
+      "blobOid": "b9e679950d7988150af744f5368c9df10917730e",
+      "id": "evidence:sha256:d62d899d3a6a9ce90b2f992ff9a976b0b77ce1599da586936f5e6686dfebc674",
       "path": "docs/specs/agent-harness-integration-v0.md",
       "span": {
-        "end": 68766,
-        "start": 64657
+        "end": 69641,
+        "start": 65532
       },
       "spanSha256": "9df221ccd31ecd2d002b15089e552cab28415b7ae759e127c6a57feb8d55262f"
     },
     {
-      "blobOid": "03406f61d959729c41a1b122049df94447278ecf",
-      "id": "evidence:sha256:ab56fce2a4d37bb9703bd39971adca8f28912b72d5d3dcaaecd0f7eb3b816a4c",
+      "blobOid": "b9e679950d7988150af744f5368c9df10917730e",
+      "id": "evidence:sha256:6f9b30d3eab871a627cd50625c4c9716a1f58519f1a0ce508b05ab065b92d9fa",
       "path": "docs/specs/agent-harness-integration-v0.md",
       "span": {
-        "end": 68766,
-        "start": 68039
+        "end": 69641,
+        "start": 68914
       },
       "spanSha256": "61c66e0cfa738dcf7d0d87ac6ab74011e4c1567b64c8c0208d6b49b05779cb4a"
     }
@@ -107,7 +117,27 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:22e7da8d28a3791a8c1a73430bd447e577a02e8bf5d1fcd9e9d496f3045340b3",
+          "evidenceId": "evidence:sha256:aab8763795d0b478d970a21e99fdec92f3764591604773655cbafecc6a8c6495",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:084373cb7bf424f6277d87ff2979396ef634706ca86a54940472bb2b92f647ad",
+      "newRange": {
+        "count": 13,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-30-opencode-ux-integration.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d70c1cc85ace5572fea3be571ddee3e1089613687eb62b6d643f8a00c2a8c22f",
           "relation": "specification"
         }
       ],
@@ -152,14 +182,14 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:d5018b7a95b8aa9c52fb19add0a85b1d64b16408dcaa748b6f9361796cddc0c2",
+      "id": "hunk:sha256:abcaec9084be4fb05357aedba1befb4788e9be90c22a6da736eb783bc046e2ca",
       "newRange": {
         "count": 7,
-        "start": 110
+        "start": 122
       },
       "oldRange": {
         "count": 7,
-        "start": 110
+        "start": 122
       },
       "path": "docs/specs/README.md",
       "reason": "evidence-backed"
@@ -172,7 +202,7 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:45965964bdcb4ef0f3b09bd1c6589b526f0d2cde7b01aafaceef42f80bb3f381",
+      "id": "hunk:sha256:2255fcc7ba753368f1e07a7c3a41924a408c37eb292b1264034fe176f1423730",
       "newRange": {
         "count": 7,
         "start": 164
@@ -212,14 +242,14 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:76323370db0b712726baefbdf928adf7d0bfbf4bd7e85250fd4e16a24753e2bc",
+      "id": "hunk:sha256:c6045a3b99d0974a88ad464b2fdef7eda06f76b2d5312f3a1e1220e2115854c6",
       "newRange": {
         "count": 14,
-        "start": 786
+        "start": 796
       },
       "oldRange": {
         "count": 6,
-        "start": 786
+        "start": 796
       },
       "path": "docs/specs/agent-harness-integration-v0.md",
       "reason": "evidence-backed"
@@ -232,14 +262,14 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:2e1b8caa1b43181ffd3ebbcc3cb0391f2a57eb7fd3c4c99c564f9b991e8a3d0b",
+      "id": "hunk:sha256:d90acde8de0a53c94404786ae4ab720c01b9a4f3740eb617df9085fd69481a68",
       "newRange": {
         "count": 7,
-        "start": 1000
+        "start": 1010
       },
       "oldRange": {
         "count": 6,
-        "start": 992
+        "start": 1002
       },
       "path": "docs/specs/agent-harness-integration-v0.md",
       "reason": "evidence-backed"
@@ -247,7 +277,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:fd8b6cc9d0d64710f6aa9c6d0fcb33a1ff34eb9534893b44b4b65979a825f19e",
+          "evidenceId": "evidence:sha256:4d72cae49901870a6be65dff145ed021839b1c828fd8ff537b59c049e4043e62",
           "relation": "specification"
         }
       ],
@@ -267,7 +297,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:5f7e673634136e57d734be69ca1387cea63fbf428022bef39d0292b66e7f6870",
+          "evidenceId": "evidence:sha256:1d59727c13adeb03178885eb64a3be0f8f664af54eb2e8c288e7cc14e3a90c2a",
           "relation": "specification"
         }
       ],
@@ -287,7 +317,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:5f7e673634136e57d734be69ca1387cea63fbf428022bef39d0292b66e7f6870",
+          "evidenceId": "evidence:sha256:1d59727c13adeb03178885eb64a3be0f8f664af54eb2e8c288e7cc14e3a90c2a",
           "relation": "specification"
         }
       ],
@@ -307,7 +337,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:5f7e673634136e57d734be69ca1387cea63fbf428022bef39d0292b66e7f6870",
+          "evidenceId": "evidence:sha256:1d59727c13adeb03178885eb64a3be0f8f664af54eb2e8c288e7cc14e3a90c2a",
           "relation": "specification"
         }
       ],
@@ -327,7 +357,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:5f7e673634136e57d734be69ca1387cea63fbf428022bef39d0292b66e7f6870",
+          "evidenceId": "evidence:sha256:1d59727c13adeb03178885eb64a3be0f8f664af54eb2e8c288e7cc14e3a90c2a",
           "relation": "specification"
         }
       ],
@@ -347,7 +377,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:5f7e673634136e57d734be69ca1387cea63fbf428022bef39d0292b66e7f6870",
+          "evidenceId": "evidence:sha256:1d59727c13adeb03178885eb64a3be0f8f664af54eb2e8c288e7cc14e3a90c2a",
           "relation": "specification"
         }
       ],
@@ -367,7 +397,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:fd8b6cc9d0d64710f6aa9c6d0fcb33a1ff34eb9534893b44b4b65979a825f19e",
+          "evidenceId": "evidence:sha256:4d72cae49901870a6be65dff145ed021839b1c828fd8ff537b59c049e4043e62",
           "relation": "specification"
         }
       ],
@@ -387,7 +417,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:fd8b6cc9d0d64710f6aa9c6d0fcb33a1ff34eb9534893b44b4b65979a825f19e",
+          "evidenceId": "evidence:sha256:4d72cae49901870a6be65dff145ed021839b1c828fd8ff537b59c049e4043e62",
           "relation": "specification"
         }
       ],
@@ -407,7 +437,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:d32fe019b66a8eced08e85614dfc67bdfe1bf2d94a4b25c08e26f63d78a5f0b2",
+          "evidenceId": "evidence:sha256:90b5176201f8b83460a124eefdf043feb6d34146e37e2bb5af6e9c4bcf1573a7",
           "relation": "specification"
         }
       ],
@@ -427,7 +457,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:d32fe019b66a8eced08e85614dfc67bdfe1bf2d94a4b25c08e26f63d78a5f0b2",
+          "evidenceId": "evidence:sha256:90b5176201f8b83460a124eefdf043feb6d34146e37e2bb5af6e9c4bcf1573a7",
           "relation": "specification"
         }
       ],
@@ -447,7 +477,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:d32fe019b66a8eced08e85614dfc67bdfe1bf2d94a4b25c08e26f63d78a5f0b2",
+          "evidenceId": "evidence:sha256:90b5176201f8b83460a124eefdf043feb6d34146e37e2bb5af6e9c4bcf1573a7",
           "relation": "specification"
         }
       ],
@@ -467,7 +497,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:d32fe019b66a8eced08e85614dfc67bdfe1bf2d94a4b25c08e26f63d78a5f0b2",
+          "evidenceId": "evidence:sha256:90b5176201f8b83460a124eefdf043feb6d34146e37e2bb5af6e9c4bcf1573a7",
           "relation": "specification"
         }
       ],
@@ -487,7 +517,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:d32fe019b66a8eced08e85614dfc67bdfe1bf2d94a4b25c08e26f63d78a5f0b2",
+          "evidenceId": "evidence:sha256:90b5176201f8b83460a124eefdf043feb6d34146e37e2bb5af6e9c4bcf1573a7",
           "relation": "specification"
         }
       ],
@@ -507,7 +537,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:d32fe019b66a8eced08e85614dfc67bdfe1bf2d94a4b25c08e26f63d78a5f0b2",
+          "evidenceId": "evidence:sha256:90b5176201f8b83460a124eefdf043feb6d34146e37e2bb5af6e9c4bcf1573a7",
           "relation": "specification"
         }
       ],
@@ -527,7 +557,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:fd8b6cc9d0d64710f6aa9c6d0fcb33a1ff34eb9534893b44b4b65979a825f19e",
+          "evidenceId": "evidence:sha256:4d72cae49901870a6be65dff145ed021839b1c828fd8ff537b59c049e4043e62",
           "relation": "specification"
         }
       ],
@@ -547,7 +577,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:fdb1e40b8ea8838102e10856ce60ac7f6b5a2027b1642634939082744e9ec6c3",
+          "evidenceId": "evidence:sha256:bba119ec005cfd04cd04c429e9d6f495169f7658007102d996b8f2774e0917c0",
           "relation": "specification"
         }
       ],
@@ -567,7 +597,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:fdb1e40b8ea8838102e10856ce60ac7f6b5a2027b1642634939082744e9ec6c3",
+          "evidenceId": "evidence:sha256:bba119ec005cfd04cd04c429e9d6f495169f7658007102d996b8f2774e0917c0",
           "relation": "specification"
         }
       ],
@@ -587,7 +617,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:fdb1e40b8ea8838102e10856ce60ac7f6b5a2027b1642634939082744e9ec6c3",
+          "evidenceId": "evidence:sha256:bba119ec005cfd04cd04c429e9d6f495169f7658007102d996b8f2774e0917c0",
           "relation": "specification"
         }
       ],
@@ -607,7 +637,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:fdb1e40b8ea8838102e10856ce60ac7f6b5a2027b1642634939082744e9ec6c3",
+          "evidenceId": "evidence:sha256:bba119ec005cfd04cd04c429e9d6f495169f7658007102d996b8f2774e0917c0",
           "relation": "specification"
         }
       ],
@@ -627,7 +657,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:fdb1e40b8ea8838102e10856ce60ac7f6b5a2027b1642634939082744e9ec6c3",
+          "evidenceId": "evidence:sha256:bba119ec005cfd04cd04c429e9d6f495169f7658007102d996b8f2774e0917c0",
           "relation": "specification"
         }
       ],
@@ -647,7 +677,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:ede98637b73565ffe7a3e7b7651ae45c49c6e916f553f91809fd829431ee4cab",
+          "evidenceId": "evidence:sha256:9cb7c656b075419c122adfe34007a54d7fac0a7677e3c2328de636bf0b48760e",
           "relation": "specification"
         }
       ],
@@ -667,7 +697,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:ede98637b73565ffe7a3e7b7651ae45c49c6e916f553f91809fd829431ee4cab",
+          "evidenceId": "evidence:sha256:9cb7c656b075419c122adfe34007a54d7fac0a7677e3c2328de636bf0b48760e",
           "relation": "specification"
         }
       ],
@@ -687,7 +717,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:ede98637b73565ffe7a3e7b7651ae45c49c6e916f553f91809fd829431ee4cab",
+          "evidenceId": "evidence:sha256:9cb7c656b075419c122adfe34007a54d7fac0a7677e3c2328de636bf0b48760e",
           "relation": "specification"
         }
       ],
@@ -707,7 +737,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:2413938b998f1e0317e9ebcc3cd02951d1c280b13d5f158e5c0c706a0899bff2",
+          "evidenceId": "evidence:sha256:a25caf13247a43f511f3bf855af59562c18ea3128d1112fbe751354aab3e090d",
           "relation": "specification"
         }
       ],
@@ -727,7 +757,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:4af476d7ead7c91a6e36e13a7475d51859b59cf174f495f3a6145de1805c3d7d",
+          "evidenceId": "evidence:sha256:d62d899d3a6a9ce90b2f992ff9a976b0b77ce1599da586936f5e6686dfebc674",
           "relation": "specification"
         }
       ],
@@ -747,7 +777,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:4af476d7ead7c91a6e36e13a7475d51859b59cf174f495f3a6145de1805c3d7d",
+          "evidenceId": "evidence:sha256:d62d899d3a6a9ce90b2f992ff9a976b0b77ce1599da586936f5e6686dfebc674",
           "relation": "specification"
         }
       ],
@@ -767,7 +797,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:4af476d7ead7c91a6e36e13a7475d51859b59cf174f495f3a6145de1805c3d7d",
+          "evidenceId": "evidence:sha256:d62d899d3a6a9ce90b2f992ff9a976b0b77ce1599da586936f5e6686dfebc674",
           "relation": "specification"
         }
       ],
@@ -787,7 +817,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:4af476d7ead7c91a6e36e13a7475d51859b59cf174f495f3a6145de1805c3d7d",
+          "evidenceId": "evidence:sha256:d62d899d3a6a9ce90b2f992ff9a976b0b77ce1599da586936f5e6686dfebc674",
           "relation": "specification"
         }
       ],
@@ -807,7 +837,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:4af476d7ead7c91a6e36e13a7475d51859b59cf174f495f3a6145de1805c3d7d",
+          "evidenceId": "evidence:sha256:d62d899d3a6a9ce90b2f992ff9a976b0b77ce1599da586936f5e6686dfebc674",
           "relation": "specification"
         }
       ],
@@ -827,7 +857,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:4af476d7ead7c91a6e36e13a7475d51859b59cf174f495f3a6145de1805c3d7d",
+          "evidenceId": "evidence:sha256:d62d899d3a6a9ce90b2f992ff9a976b0b77ce1599da586936f5e6686dfebc674",
           "relation": "specification"
         }
       ],
@@ -847,7 +877,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:4af476d7ead7c91a6e36e13a7475d51859b59cf174f495f3a6145de1805c3d7d",
+          "evidenceId": "evidence:sha256:d62d899d3a6a9ce90b2f992ff9a976b0b77ce1599da586936f5e6686dfebc674",
           "relation": "specification"
         }
       ],
@@ -867,7 +897,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:4af476d7ead7c91a6e36e13a7475d51859b59cf174f495f3a6145de1805c3d7d",
+          "evidenceId": "evidence:sha256:d62d899d3a6a9ce90b2f992ff9a976b0b77ce1599da586936f5e6686dfebc674",
           "relation": "specification"
         }
       ],
@@ -887,7 +917,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:4af476d7ead7c91a6e36e13a7475d51859b59cf174f495f3a6145de1805c3d7d",
+          "evidenceId": "evidence:sha256:d62d899d3a6a9ce90b2f992ff9a976b0b77ce1599da586936f5e6686dfebc674",
           "relation": "specification"
         }
       ],
@@ -907,7 +937,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:4af476d7ead7c91a6e36e13a7475d51859b59cf174f495f3a6145de1805c3d7d",
+          "evidenceId": "evidence:sha256:d62d899d3a6a9ce90b2f992ff9a976b0b77ce1599da586936f5e6686dfebc674",
           "relation": "specification"
         }
       ],
@@ -927,7 +957,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:fdb1e40b8ea8838102e10856ce60ac7f6b5a2027b1642634939082744e9ec6c3",
+          "evidenceId": "evidence:sha256:bba119ec005cfd04cd04c429e9d6f495169f7658007102d996b8f2774e0917c0",
           "relation": "specification"
         }
       ],
@@ -947,7 +977,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:2413938b998f1e0317e9ebcc3cd02951d1c280b13d5f158e5c0c706a0899bff2",
+          "evidenceId": "evidence:sha256:a25caf13247a43f511f3bf855af59562c18ea3128d1112fbe751354aab3e090d",
           "relation": "specification"
         }
       ],
@@ -967,7 +997,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:4af476d7ead7c91a6e36e13a7475d51859b59cf174f495f3a6145de1805c3d7d",
+          "evidenceId": "evidence:sha256:d62d899d3a6a9ce90b2f992ff9a976b0b77ce1599da586936f5e6686dfebc674",
           "relation": "specification"
         }
       ],
@@ -987,7 +1017,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:ab56fce2a4d37bb9703bd39971adca8f28912b72d5d3dcaaecd0f7eb3b816a4c",
+          "evidenceId": "evidence:sha256:6f9b30d3eab871a627cd50625c4c9716a1f58519f1a0ce508b05ab065b92d9fa",
           "relation": "specification"
         }
       ],
@@ -1007,7 +1037,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:ab56fce2a4d37bb9703bd39971adca8f28912b72d5d3dcaaecd0f7eb3b816a4c",
+          "evidenceId": "evidence:sha256:6f9b30d3eab871a627cd50625c4c9716a1f58519f1a0ce508b05ab065b92d9fa",
           "relation": "specification"
         }
       ],
@@ -1027,7 +1057,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:ab56fce2a4d37bb9703bd39971adca8f28912b72d5d3dcaaecd0f7eb3b816a4c",
+          "evidenceId": "evidence:sha256:6f9b30d3eab871a627cd50625c4c9716a1f58519f1a0ce508b05ab065b92d9fa",
           "relation": "specification"
         }
       ],
@@ -1047,7 +1077,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:ab56fce2a4d37bb9703bd39971adca8f28912b72d5d3dcaaecd0f7eb3b816a4c",
+          "evidenceId": "evidence:sha256:6f9b30d3eab871a627cd50625c4c9716a1f58519f1a0ce508b05ab065b92d9fa",
           "relation": "specification"
         }
       ],
@@ -1067,7 +1097,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:ab56fce2a4d37bb9703bd39971adca8f28912b72d5d3dcaaecd0f7eb3b816a4c",
+          "evidenceId": "evidence:sha256:6f9b30d3eab871a627cd50625c4c9716a1f58519f1a0ce508b05ab065b92d9fa",
           "relation": "specification"
         }
       ],
@@ -1087,7 +1117,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:ab56fce2a4d37bb9703bd39971adca8f28912b72d5d3dcaaecd0f7eb3b816a4c",
+          "evidenceId": "evidence:sha256:6f9b30d3eab871a627cd50625c4c9716a1f58519f1a0ce508b05ab065b92d9fa",
           "relation": "specification"
         }
       ],
@@ -1107,7 +1137,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:ab56fce2a4d37bb9703bd39971adca8f28912b72d5d3dcaaecd0f7eb3b816a4c",
+          "evidenceId": "evidence:sha256:6f9b30d3eab871a627cd50625c4c9716a1f58519f1a0ce508b05ab065b92d9fa",
           "relation": "specification"
         }
       ],
@@ -1127,7 +1157,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:ab56fce2a4d37bb9703bd39971adca8f28912b72d5d3dcaaecd0f7eb3b816a4c",
+          "evidenceId": "evidence:sha256:6f9b30d3eab871a627cd50625c4c9716a1f58519f1a0ce508b05ab065b92d9fa",
           "relation": "specification"
         }
       ],
@@ -1147,7 +1177,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:ab56fce2a4d37bb9703bd39971adca8f28912b72d5d3dcaaecd0f7eb3b816a4c",
+          "evidenceId": "evidence:sha256:6f9b30d3eab871a627cd50625c4c9716a1f58519f1a0ce508b05ab065b92d9fa",
           "relation": "specification"
         }
       ],
@@ -1167,7 +1197,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:ab56fce2a4d37bb9703bd39971adca8f28912b72d5d3dcaaecd0f7eb3b816a4c",
+          "evidenceId": "evidence:sha256:6f9b30d3eab871a627cd50625c4c9716a1f58519f1a0ce508b05ab065b92d9fa",
           "relation": "specification"
         }
       ],
@@ -1185,6 +1215,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "793673e0a344bf00cb2af60f14ceb027856af56689447b8bbb4b71158278d4dd",
+  "patchSha256": "8763bf5fad80c075e51601d474dd725b9c7338d7ca159f002995343cdf470f61",
   "spec": "cem/0.2"
 }
