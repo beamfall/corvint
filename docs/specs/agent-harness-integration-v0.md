@@ -739,6 +739,53 @@ do not reinterpret this Frontier result.
   slice experimental and visible as such. Rollback removes the read-only Tasks RPC and terminal
   view, leaving the task store and its receipts untouched.
 
+- `AHI-036`: At the owner's request (2026-09-29, “do all 6”), the optional OpenCode 2 workbench
+  MUST let an operator focus one OPEN ticket from the current bounded Tasks page. Focus is explicit,
+  volatile and session-scoped; it MUST bind the selected ticket revision and queue head receipt to
+  its acceptance detail and reported live attempt. The overview MUST show ticket, branch/worktree,
+  holder, phase, lease expiry, blockers, gate observation and completion observation separately.
+  A changed queue receipt, session/location switch, deletion or eviction MUST make joins stale or
+  unavailable. No title-based task ownership inference, claim, lease renewal or task mutation occurs.
+- `AHI-037`: The workbench MUST show each selected ticket criterion alongside only explicitly
+  declared requirement references, declared touch paths, observed changed paths, suggested checks,
+  recorded check states and current context/change receipt identities. It MUST label every criterion
+  `UNOBSERVED` until an accepted criterion-specific proof link exists; task-level coincidences,
+  passing individual checks, a CEM, or an OCM MUST NOT silently satisfy it. Missing, stale,
+  withheld and unrun proof remains visible. At most 16 criteria, 32 references and paths, and 32
+  check observations are displayed, with omissions disclosed. Opening existing Change or Evidence
+  views provides the actual witness, not a generated proof claim.
+- `AHI-038`: An explicit qualification doctor MUST display the installed host version, adapter
+  version, OS/architecture, exact native integration state and available failing conformance cases
+  from the existing AHI-032 record, plus a concrete qualification action. A missing, mismatched or
+  incomplete record remains `UNQUALIFIED`. Doctor output never promotes execution authority or
+  treats a terminal rendering witness as native integration qualification.
+- `AHI-039`: The workbench MUST derive at most five next actions from recorded ticket blockers,
+  failed/stale/withheld checks, missing criterion proof and qualification state. Each action names
+  its underlying observation and leads to the relevant existing view. It MUST NOT rank inferred
+  intent, auto-run checks, or turn absence of a blocker into readiness.
+- `AHI-040`: The terminal MUST show OpenCode's observed per-session cost and token/cache totals
+  when available. Cost since ticket focus MUST require a local cost baseline taken at explicit
+  focus of that ticket in this TUI; it MAY include other work after focus and MUST NOT be labelled
+  exclusive ticket cost. Without the baseline, the focus interval is `NOT_OBSERVED`. Cost per verified
+  criterion, savings and latency remain `NOT_OBSERVED` without complete corresponding evidence.
+  Negative, malformed or missing host values MUST NOT become zero. No transcript or provider log
+  scan is permitted.
+- `AHI-041`: The terminal MUST show at most 16 members of the current OpenCode session family,
+  their worktree, parent, explicit ticket focus where this plugin location can observe it, and
+  reported holder/lease. It MUST flag duplicate explicit focus without claiming two active
+  leases or proving a collision. Cross-worktree bindings that the location cannot observe remain
+  `UNOBSERVED`; session titles MUST NOT establish task identity. Family reads and updates remain
+  bounded, local and non-polling.
+
+  AHI-036 through AHI-041 are an experimental read-only UI slice on the existing transport-neutral
+  index and Tasks store. Acceptance requires focused receipt-race, malformed/hostile-data,
+  attribution, bounds, family and cancellation tests; a real initialized Tasks read; and a stock
+  OpenCode 2 terminal witness covering focus, all workbench tabs, keyboard/pointer navigation and
+  cleanup. The source change invalidates earlier exact-package qualification. A missing stock
+  witness or failing host campaign remains visible and does not turn unit tests into FULL support.
+  Rollback restores the previous adapter package/configuration, removes workbench RPC/UI state,
+  and leaves Tasks and evidence receipts untouched.
+
 ## Native platform profiles
 
 | Platform | Embedded host-admission key | Maintained Corvint package | Native surfaces | Stability rule |
@@ -945,6 +992,7 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 | `AHI-032` | `internal/opencodequalification`, `tools/qualify-opencode`, native prompt hook and qualification consumer | `internal/opencodequalification/record_test.go::TestRecordValidation`, `::TestAtomicRecord`, `::TestArchitecture`, `::TestProducerConsumer`; `internal/opencodequalification/command_test.go::TestInvalidHostInvalidatesQualification`; `internal/opencodequalification/witness_posix_test.go::TestGateInterruptionWitness`; first-prompt startup overlap in `TestHostAdapterJavaScriptHosts`; exact-tuple native campaign required |
 | `AHI-033` | `integrations/opencode/src/inspector.js`, `src/tui.tsx`, and inspector RPC in `src/index.js` | `integrations/opencode/inspector.test.mjs`, AHI-033 cases under `TestHostAdapterJavaScriptHosts`, and `tools/qualify-opencode --inspector` (stock native rendering, pinned source, narrow keyboard use and interruption cleanup) |
 | `AHI-034` | `integrations/opencode/src/cockpit.js`, `cockpit-tui.tsx`, `index.js`, `runtime.js` | `integrations/opencode/cockpit.test.mjs` and `tools/qualify-opencode --inspector`: bounded fixed reads, safe output paths, stale/owner/check-rerun races, advisory impact navigation, independent workflow/check state and real native change/proof workflow |
+| `AHI-036`–`AHI-041` | `integrations/opencode/src/workbench.js`, `workbench-tui.tsx`, `session-metrics.js`, `task-metrics.js`, `qualification.js`, and inspector RPC | `integrations/opencode/workbench.test.mjs`, focused AHI-036 task-detail receipt test in `task-metrics.test.mjs`, and stock OpenCode 2 terminal witness; exact-package AHI-032 qualification remains separate |
 | `AHI-025` | `cmd/corvint/pi_tools.go`, `integrations/pi/tools.js` | `TestPiToolContextExpansion`, `TestPiToolRecord`, `TestPiToolClosedInput` and native Pi tool/RPC fixtures |
 | `AHI-026` | `integrations/claude-code/plugins/corvint/hooks/hooks.json`, `compatibility.json` `compactionHooks`, `cmd/corvint/host_adapter.go` declared-kill table | `TestAHI026ClaudeCompactionHooksRegisteredAgainstHostAPI` (matcherless `PreCompact`/`PostCompact` groups, verified host version equals the tested maximum, closed trigger set) and `TestAHI017AdapterHostKillMatchesDeclaredHooks` (the two new declared kills) |
 | `AHI-027` | `cmd/corvint/host_adapter_compaction.go` (`runClaudeCompactionEvent`, `compactionBlockFor`, `compactionPinLine`), `emitAdapterOutput` plain-stdout branch | `TestAHI027ClaudePreCompactEmitsPinFromCompactionBlock` (instruction plus pin as text, pin equals the fixture's HEAD tree and tracked dirty path, 24-path bound with hostile paths elided); `TestAHI027ClaudeCompactionPinsCleanAndUntrackedOnlyTrees` (clean and untracked-only trees pin the HEAD tree and report without a fault; an over-budget block elides its unlisted tracked paths); `TestClaudeCompactionDegradationIsPlainText` (degradations print frame text through `compactionPlainOutput`, an empty summary prints an empty line) |

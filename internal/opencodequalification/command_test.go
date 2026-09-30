@@ -45,3 +45,21 @@ func TestInvalidHostInvalidatesQualification(t *testing.T) {
 		}
 	})
 }
+
+func TestObservedHostVersionRetriesOnlyEmptyStdout(t *testing.T) {
+	count := 0
+	version, err := observedHostVersion(func(attempt int) (string, error) {
+		count++
+		if attempt == 0 {
+			return "", nil
+		}
+		return "opencode v2.0.18\n", nil
+	})
+	if err != nil || version != "opencode v2.0.18\n" || count != 2 {
+		t.Fatalf("version=%q count=%d err=%v", version, count, err)
+	}
+	count = 0
+	if _, err := observedHostVersion(func(int) (string, error) { count++; return "", nil }); err == nil || count != 3 {
+		t.Fatalf("empty version probe did not refuse after three attempts: count=%d err=%v", count, err)
+	}
+}

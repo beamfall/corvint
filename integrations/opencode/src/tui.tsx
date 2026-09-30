@@ -1,5 +1,6 @@
 import { createCockpit } from "./cockpit-tui.tsx"
 import { createTaskPanel } from "./task-tui.tsx"
+import { createWorkbench } from "./workbench-tui.tsx"
 import { Plugin } from "@opencode/plugin/tui"
 import { SyntaxStyle } from "@opentui/core"
 import { createEffect, createMemo, createSignal, For, onCleanup, Show, untrack } from "solid-js"
@@ -7,6 +8,7 @@ import { createHash } from "node:crypto"
 import { INSPECTOR_RPC, emptySnapshot, visibleText } from "./inspector.js"
 import { evidenceKey, filterEvidence, selectedEvidence, evidenceStatus, sourceDocument } from "./inspector-view.js"
 import { emptyTaskMetrics } from "./task-metrics.js"
+import { emptyWorkbench } from "./workbench.js"
 
 const PANEL = "corvint.context"
 const sessionKey = id => createHash("sha256").update(id).digest("hex")
@@ -17,6 +19,7 @@ export default Plugin.define({
   id: "corvint.inspector.ui",
   setup(ctx) {
     const [mode, setMode] = createSignal("change")
+    const costBaselines = new Map()
     const rpc = ctx.client.rpc(INSPECTOR_RPC)
     const lifetime = new AbortController()
     const location = () => ctx.location ?? ctx.data.location.default()
@@ -55,6 +58,7 @@ export default Plugin.define({
     function Sidebar(props) {
       const snapshot = useSnapshot(() => props.sessionID)
       const [tasks, setTasks] = createSignal(emptyTaskMetrics())
+      const [workbench, setWorkbench] = createSignal(emptyWorkbench())
       let taskRequest, taskSerial = 0, taskBusy = false
       const readTasks = async (load = false) => {
         const generation = ++taskSerial, sessionID = props.sessionID, here = location()
@@ -66,10 +70,12 @@ export default Plugin.define({
           let value = await rpc.tasksSnapshot({ sessionID }, { location: here, signal: AbortSignal.any([request.signal, lifetime.signal]) })
           if (load && value.state === "empty") value = await rpc.tasksRefresh({ sessionID, offset: 0 }, { location: here, signal: AbortSignal.any([request.signal, lifetime.signal]) })
           if (generation === taskSerial && !request.signal.aborted) setTasks(value)
+          const focus = await rpc.workbenchSnapshot({ sessionID }, { location: here, signal: AbortSignal.any([request.signal, lifetime.signal]) })
+          if (generation === taskSerial && !request.signal.aborted) setWorkbench(focus)
         } catch { if (generation === taskSerial && !request.signal.aborted) setTasks(emptyTaskMetrics("unavailable", "Tasks unavailable")) }
         finally { if (generation === taskSerial) taskBusy = false }
       }
-      createEffect(() => { props.sessionID; location().directory; setTasks(emptyTaskMetrics()); void readTasks(true) })
+      createEffect(() => { props.sessionID; location().directory; setTasks(emptyTaskMetrics()); setWorkbench(emptyWorkbench()); void readTasks(true) })
       const unsubscribe = rpc.events.on("updated", event => {
         if (!taskBusy && props.sessionID && event.location?.directory === location().directory && event.data.sessionIdSha256 === sessionKey(props.sessionID)) void readTasks()
       }, { signal: lifetime.signal })
@@ -86,6 +92,12 @@ export default Plugin.define({
           <Show when={tasks().state === "ready"}><text fg={ctx.theme.text.muted}>{() => `${tasks().draft} draft · ${tasks().held} held · ${tasks().archived} archived`}</text></Show>
           <Show when={tasks().state === "ready"}><text fg={ctx.theme.text.muted}>{() => `${tasks().blocked} queue blocked · ${tasks().activeAttempts} active · observed ${tasks().observed.slice(11, 19)} UTC`}</text></Show>
           <text fg={accent()}>Open task metrics  /corvint tasks</text>
+          <Show when={workbench().ticketId}><box flexDirection="column" marginTop={1} onMouseDown={event => { event.stopPropagation(); setMode("workbench"); ctx.ui.panel.open(PANEL) }}>
+            <text fg={ctx.theme.text.base}><b>Focused task</b></text>
+            <text fg={workbench().state === "ready" ? ctx.theme.text.feedback.info.base : ctx.theme.text.feedback.warning.base}>{() => `${workbench().ticketId.split(":").at(-1)} · ${workbench().state}`}</text>
+            <text fg={ctx.theme.text.muted}>{() => `${workbench().criteria.length} criteria · ${workbench().actions.length} next actions`}</text>
+            <text fg={accent()}>Open workbench  /corvint workbench</text>
+          </box></Show>
         </box>
       </box>
     }
@@ -268,22 +280,31 @@ export default Plugin.define({
       if (file) await query(ctx.ui.panel.current()?.sessionID, `Locate governing requirements and context for ${file}`, location(), signal)
       if (current() && !signal.aborted) setMode("evidence")
     } })
-    const Tasks = createTaskPanel(ctx, { rpc, lifetime, location, accent, onChange: () => setMode("change") })
-    const Inspector = props => <Show when={mode() === "change"} fallback={<Show when={mode() === "tasks"} fallback={<EvidenceInspector panel={props.panel} />}><Tasks panel={props.panel} /></Show>}><Cockpit panel={props.panel} /></Show>
+    const Tasks = createTaskPanel(ctx, { rpc, lifetime, location, accent, onChange: () => setMode("change"), onFocus: (sessionID, view) => {
+      const session = ctx.data.session.get(sessionID)
+      if (typeof session?.cost === "number" && Number.isFinite(session.cost) && session.cost >= 0) {
+        if (!costBaselines.has(sessionID) && costBaselines.size >= 128) costBaselines.delete(costBaselines.keys().next().value)
+        costBaselines.set(sessionID, { ticketId: view.ticketId, cost: session.cost, directory: location().directory })
+      }
+      else costBaselines.delete(sessionID)
+      setMode("workbench")
+    } })
+    const Workbench = createWorkbench(ctx, { rpc, lifetime, location, accent, baselines: costBaselines, onTasks: () => setMode("tasks"), onChange: () => setMode("change"), onEvidence: () => setMode("evidence") })
+    const Inspector = props => <Show when={mode() === "change"} fallback={<Show when={mode() === "tasks"} fallback={<Show when={mode() === "workbench"} fallback={<EvidenceInspector panel={props.panel} />}><Workbench panel={props.panel} /></Show>}><Tasks panel={props.panel} /></Show>}><Cockpit panel={props.panel} /></Show>
 
     const dispose = [
       ctx.ui.slot({ append: "sidebar.content", render: props => <Sidebar {...props} /> }),
       ctx.ui.slot({ append: "session.panel", render: panel => <Show when={panel.name === PANEL}><Inspector panel={panel} /></Show> }),
       ctx.ui.slot({ append: "app", render: () => {
         ctx.keymap.layer(() => ({ mode: "global", commands: [{ id: "corvint.context", title: "Corvint: inspect context", group: "Corvint", palette: true, slash: { name: "corvint", arguments: true }, run: async task => {
-          setMode(task?.trim() === "tasks" ? "tasks" : task?.trim() ? "evidence" : "change")
+          setMode(task?.trim() === "tasks" ? "tasks" : task?.trim() === "workbench" ? "workbench" : task?.trim() ? "evidence" : "change")
           if (!ctx.ui.panel.open(PANEL)) { ctx.ui.toast.show({ message: "Open a session to inspect its context.", variant: "info" }); return }
           const sessionID = ctx.ui.panel.current()?.sessionID
-          if (sessionID && task?.trim() && task.trim() !== "tasks") await query(sessionID, task, location())
+          if (sessionID && task?.trim() && !["tasks", "workbench"].includes(task.trim())) await query(sessionID, task, location())
         } }] }))
         return null
       } }),
     ]
-    return () => { lifetime.abort(); for (const stop of dispose) stop(); syntax.destroy() }
+    return () => { lifetime.abort(); costBaselines.clear(); for (const stop of dispose) stop(); syntax.destroy() }
   },
 })

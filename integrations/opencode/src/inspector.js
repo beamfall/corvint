@@ -2,6 +2,7 @@ import { visibleText } from "./display.js"
 export { visibleText } from "./display.js"
 import { cockpitSchema } from "./cockpit.js"
 import { taskMetricsSchema } from "./task-metrics.js"
+import { workbenchSchema } from "./workbench.js"
 // The view keeps Core's evidence labels and exact handles separate from terminal presentation.
 const object = properties => ({ type: "object", properties, required: Object.keys(properties), additionalProperties: false })
 const string = { type: "string" }
@@ -15,6 +16,10 @@ export const INSPECTOR_RPC = {
     tasksSnapshot: { input: object({ sessionID: session }), output: taskMetricsSchema },
     tasksRefresh: { input: object({ sessionID: session, offset: { type: "integer", minimum: 0, maximum: 100000 } }), output: taskMetricsSchema },
     tasksDetail: { input: object({ sessionID: session, receiptId: { type: "string", maxLength: 128 }, ticketId: { type: "string", maxLength: 128 } }), output: object({ state: string, text: string }) },
+    workbenchSnapshot: { input: object({ sessionID: session }), output: workbenchSchema },
+    workbenchFocus: { input: object({ sessionID: session, receiptId: { type: "string", maxLength: 128 }, ticketId: { type: "string", maxLength: 128 } }), output: workbenchSchema },
+    workbenchRefresh: { input: object({ sessionID: session }), output: workbenchSchema },
+    workbenchPeers: { input: object({ sessionID: session, peerIDs: { type: "array", items: session, maxItems: 16 } }), output: object({ rows: { type: "array", items: object({ sessionID: session, ticketId: string, state: string, holder: string, phase: string, expiresAt: string }) } }) },
     cockpitSnapshot: { input: object({ sessionID: session }), output: cockpitSchema },
     cockpitRefresh: { input: object({ sessionID: session, base: { type: "string", maxLength: 256 } }), output: cockpitSchema },
     cockpitProof: { input: object({ sessionID: session, receiptId: { type: "string", maxLength: 128 }, checkID: { type: "string", maxLength: 256 } }), output: object({ state: string, text: string }) },

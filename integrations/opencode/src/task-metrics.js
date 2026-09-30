@@ -21,6 +21,12 @@ export const emptyTaskMetrics = (state = "empty", reason = "Open Tasks to read q
   activeAttempts: 0, offset: 0, openTotal: 0, tickets: [], gaps: [],
 })
 
+export const emptyTaskDetail = (state = "empty", reason = "Select an open ticket to inspect its evidence.") => ({
+  state, reason, ticketId: "", title: "", revision: "", queueDigest: "", eligibility: "", nextAction: "",
+  gateResults: "", completion: "", criteria: [], requirementRefs: [], touchPaths: [], blockers: [],
+  attempt: { holder: "", phase: "", expiresAt: "", attemptId: "" }, gaps: [],
+})
+
 const bounded = value => visibleText(typeof value === "string" ? value : "", 1600)
 const ticketText = value => typeof value === "string" && value.length <= 16_384
 const blockersValid = value => Array.isArray(value) && value.length <= 128 && value.every(row => row && typeof row === "object" && ticketText(row.code) && ticketText(row.detail))
@@ -71,6 +77,23 @@ export async function collectTaskMetrics(run, offset = 0) {
 }
 
 export async function inspectTask(run, snapshot, ticketId) {
+  const view = await collectTaskDetail(run, snapshot, ticketId)
+  const lines = [
+    `${view.title} (${ticketId})`,
+    `OPEN · ${view.eligibility}`,
+    `Next action: ${view.nextAction || "NOT_OBSERVED"}`,
+    `Gate results: ${view.gateResults || "NOT_OBSERVED"}`,
+    `Completion: ${view.completion || "NOT_OBSERVED"}`,
+    "", "Blockers",
+    ...(view.blockers.length ? view.blockers.map(row => `• ${row.code}: ${row.detail}`) : ["None reported by the task-manager read."]),
+    "", "Acceptance criteria",
+    ...(view.criteria.length ? view.criteria.map((value, index) => `${index + 1}. ${value}`) : ["No criteria supplied by the task-manager read."]),
+    ...view.gaps,
+  ]
+  return lines.join("\n")
+}
+
+export async function collectTaskDetail(run, snapshot, ticketId) {
   if (snapshot?.state !== "ready" || !snapshot.tickets.some(row => row.ticketId === ticketId)) throw new Error("ticket-not-in-current-page")
   const detail = await read(run, "tasks-detail", { ticketId })
   const status = await read(run, "tasks-status")
@@ -83,17 +106,24 @@ export async function inspectTask(run, snapshot, ticketId) {
     !(item.completion === null || ticketText(item.completion)) || !blockersValid(item.blockers) ||
     !Array.isArray(record.acceptanceCriteria) || record.acceptanceCriteria.length > 256 ||
     !record.acceptanceCriteria.every(ticketText)) throw new Error("task-detail-unavailable")
-  const lines = [
-    `${bounded(item.title)} (${ticketId})`,
-    `${bounded(item.status)} · ${bounded(item.eligibility)} · ${bounded(item.priority)} · ${bounded(item.milestone)}`,
-    `Next action: ${bounded(item.nextAction) || "NOT_OBSERVED"}`,
-    `Gate results: ${bounded(item.gateResults) || "NOT_OBSERVED"}`,
-    `Completion: ${bounded(item.completion) || "NOT_OBSERVED"}`,
-    "", "Blockers",
-    ...(item.blockers.length ? item.blockers.slice(0, 32).map(row => `• ${bounded(row.code)}: ${bounded(row.detail)}`) : ["None reported by the task-manager read."]),
-    "", "Acceptance criteria",
-    ...(record.acceptanceCriteria.length ? record.acceptanceCriteria.slice(0, 16).map((value, index) => `${index + 1}. ${bounded(value)}`) : ["No criteria supplied by the task-manager read."]),
-  ]
-  if ((item.blockers?.length || 0) > 32 || (record.acceptanceCriteria?.length || 0) > 16) lines.push("Further detail omitted by the display limit.")
-  return lines.join("\n")
+  const refs = record.requirementRefs === undefined ? [] : record.requirementRefs
+  const touches = record.effects?.touchPaths === undefined ? [] : record.effects.touchPaths
+  if (!Array.isArray(refs) || !Array.isArray(touches)) throw new Error("task-detail-unavailable")
+  if (refs.length > 128 || touches.length > 128 || !refs.every(ticketText) || !touches.every(ticketText)) throw new Error("task-detail-unavailable")
+  const attempts = status.items[0]?.liveAttempts
+  if (!Array.isArray(attempts) || attempts.length > 128 || attempts.some(row => !row || typeof row !== "object" || !ticketText(row.ticketId) || !ticketText(row.attemptId))) throw new Error("task-detail-unavailable")
+  const active = attempts.find(row => row.ticketId === ticketId)
+  const view = { ...emptyTaskDetail("ready", "Observed read-only ticket detail"), ticketId, queueDigest: snapshot.queueDigest,
+    title: bounded(item.title), revision: bounded(item.revision), eligibility: bounded(item.eligibility),
+    nextAction: bounded(item.nextAction), gateResults: bounded(item.gateResults), completion: bounded(item.completion),
+    criteria: record.acceptanceCriteria.slice(0, 16).map(bounded), requirementRefs: refs.slice(0, 32).map(bounded),
+    touchPaths: touches.slice(0, 32).map(bounded),
+    blockers: item.blockers.slice(0, 32).map(row => ({ code: bounded(row.code), detail: bounded(row.detail) })),
+    attempt: active && ["holder", "phase", "expiresAt", "attemptId"].every(key => ticketText(active[key]))
+      ? { holder: bounded(active.holder), phase: bounded(active.phase), expiresAt: bounded(active.expiresAt), attemptId: bounded(active.attemptId) }
+      : emptyTaskDetail().attempt,
+  }
+  if (item.blockers.length > 32 || record.acceptanceCriteria.length > 16 || refs.length > 32 || touches.length > 32) view.gaps.push("Further detail omitted by the display limit.")
+  if (!active) view.gaps.push("No live attempt for this ticket was reported by queue status.")
+  return view
 }

@@ -1,5 +1,6 @@
 import { collectCockpit, emptyCockpit, inspectProof } from "./cockpit.js"
-import { collectTaskMetrics, emptyTaskMetrics, inspectTask } from "./task-metrics.js"
+import { collectTaskDetail, collectTaskMetrics, emptyTaskMetrics, inspectTask } from "./task-metrics.js"
+import { emptyWorkbench, projectWorkbench } from "./workbench.js"
 import path from "node:path"
 import { INSPECTOR_RPC, emptySnapshot, beginInspection, completeInspection, invalidateInspection, inspectionMatches, visibleText } from "./inspector.js"
 import { qualificationStatus } from "./qualification.js"
@@ -156,6 +157,7 @@ async function setup(ctx) {
     if (!state) return
     invalidateInspection(state, "Session ended or was evicted.")
     state.tasksRequest?.abort()
+    state.workbenchRequest?.abort()
     state.active = false
     for (const call of state.calls) call.abort()
   }
@@ -563,6 +565,15 @@ async function setup(ctx) {
     try { return await action(read => runCorvint({ root, event: "cockpit", input: {}, read, signal: combined })) }
     finally { controller.abort(); bound.state.calls.delete(controller); inFlight-- }
   }
+  const readQualification = signal => qualificationStatus({
+    hostVersion: options.hostVersion ?? ctx.app?.version,
+    corvintBinary: options.corvintBinary ?? environment.CORVINT_BIN ?? "corvint",
+    environment, root, signal,
+  })
+  const workbenchFor = state => !state ? emptyWorkbench()
+    : !state.active ? emptyWorkbench("unavailable", "Session ended or was evicted.")
+      : state.focusDetail ? projectWorkbench(state.focusDetail, state.tasks, state.cockpit, state.inspection, state.qualification)
+        : emptyWorkbench()
 
   // RPC is a trusted OpenCode-client surface. Session/location checks prevent accidental cross-view reads.
   if (ctx.rpc?.register) inspectorRPC = await ctx.rpc.register(INSPECTOR_RPC, {
@@ -593,6 +604,71 @@ async function setup(ctx) {
         const text = await cockpitCall({ key, state }, context.signal, run => inspectTask(run, state.tasks, ticketId))
         return current() ? { state: "ready", text } : { state: "unavailable", text: "Task view changed during the read." }
       } catch (error) { return { state: "unavailable", text: visibleText(error.message || "Task detail unavailable.") } }
+    },
+    workbenchSnapshot: async ({ sessionID }, context) => await cockpitSession(sessionID, context.signal)
+      ? workbenchFor(sessions.get(hashSessionId(sessionID))) : emptyWorkbench("unavailable", "Session is unavailable at this location."),
+    workbenchFocus: async ({ sessionID, receiptId, ticketId }, context) => {
+      if (!await cockpitSession(sessionID, context.signal)) return emptyWorkbench("unavailable", "Session is unavailable at this location.")
+      const key = hashSessionId(sessionID), state = sessions.get(key)
+      if (state?.tasks?.state !== "ready" || state.tasks.receiptId !== receiptId || !state.tasks.tickets.some(row => row.ticketId === ticketId)) return emptyWorkbench("stale", "Ticket is not in the current queue page. Refresh Tasks.")
+      const generation = state.workbenchGeneration = (state.workbenchGeneration || 0) + 1
+      state.workbenchRequest?.abort(); state.workbenchRequest = new AbortController()
+      const signal = AbortSignal.any([context.signal, state.workbenchRequest.signal])
+      try {
+        const detail = await cockpitCall({ key, state }, signal, run => collectTaskDetail(run, state.tasks, ticketId))
+        if (!state.active || signal.aborted || generation !== state.workbenchGeneration || state.tasks.receiptId !== receiptId) return emptyWorkbench("stale", "Task view changed during selection.")
+        const qualification = await readQualification(signal)
+        if (!state.active || signal.aborted || generation !== state.workbenchGeneration || state.tasks?.receiptId !== receiptId) return emptyWorkbench("stale", "Task view changed during selection.")
+        state.focusDetail = detail; state.qualification = qualification
+        changed(key)
+        return workbenchFor(state)
+      } catch (error) { return emptyWorkbench("unavailable", visibleText(error.message || "Task focus unavailable.")) }
+    },
+    workbenchRefresh: async ({ sessionID }, context) => {
+      if (!await cockpitSession(sessionID, context.signal)) return emptyWorkbench("unavailable", "Session is unavailable at this location.")
+      const key = hashSessionId(sessionID), state = sessions.get(key)
+      if (!state?.focusDetail) return emptyWorkbench()
+      const generation = state.workbenchGeneration = (state.workbenchGeneration || 0) + 1
+      state.workbenchRequest?.abort(); state.workbenchRequest = new AbortController()
+      const signal = AbortSignal.any([context.signal, state.workbenchRequest.signal])
+      state.tasksRequest?.abort(); state.cockpitRequest?.abort()
+      const tasksGeneration = state.tasksGeneration = (state.tasksGeneration || 0) + 1
+      const cockpitGeneration = state.cockpitGeneration = (state.cockpitGeneration || 0) + 1
+      const ticketId = state.focusDetail.ticketId, offset = state.tasks?.offset || 0
+      try {
+        const value = await cockpitCall({ key, state }, signal, async run => {
+          const tasks = await collectTaskMetrics(run, offset)
+          if (!tasks.tickets.some(row => row.ticketId === ticketId)) throw new Error("focused-ticket-left-page-refresh-tasks")
+          const detail = await collectTaskDetail(run, tasks, ticketId)
+          let cockpit
+          try { cockpit = await collectCockpit(run) } catch (error) { cockpit = { view: emptyCockpit("unavailable", visibleText(error.message)), binding: undefined } }
+          return { tasks, detail, cockpit }
+        })
+        const qualification = await readQualification(signal)
+        if (!state.active || signal.aborted || generation !== state.workbenchGeneration || tasksGeneration !== state.tasksGeneration || cockpitGeneration !== state.cockpitGeneration) return emptyWorkbench("stale", "Workbench changed during refresh.")
+        state.tasks = value.tasks; state.focusDetail = value.detail
+        state.cockpit = value.cockpit.view; state.cockpitBinding = value.cockpit.binding; state.qualification = qualification
+        changed(key)
+        return workbenchFor(state)
+      } catch (error) {
+        if (state.active && generation === state.workbenchGeneration && tasksGeneration === state.tasksGeneration) {
+          state.tasks = emptyTaskMetrics("unavailable", visibleText(error.message || "Workbench refresh unavailable."))
+          changed(key)
+        }
+        return emptyWorkbench("unavailable", visibleText(error.message || "Workbench refresh unavailable."))
+      }
+    },
+    workbenchPeers: async ({ sessionID, peerIDs }, context) => {
+      if (!await cockpitSession(sessionID, context.signal)) return { rows: [] }
+      const rows = []
+      for (const peerID of [...new Set(peerIDs)].slice(0, 16)) {
+        if (!await cockpitSession(peerID, context.signal)) continue
+        const state = sessions.get(hashSessionId(peerID))
+        const focus = state?.active ? state.focusDetail : undefined
+        rows.push({ sessionID: peerID, ticketId: focus?.ticketId || "", state: state?.active ? workbenchFor(state).state : "unbound",
+          holder: focus?.attempt?.holder || "", phase: focus?.attempt?.phase || "", expiresAt: focus?.attempt?.expiresAt || "" })
+      }
+      return { rows }
     },
     cockpitSnapshot: async ({ sessionID }, context) => await cockpitSession(sessionID, context.signal)
       ? sessions.get(hashSessionId(sessionID))?.cockpit || emptyCockpit() : emptyCockpit("unavailable", "Session is unavailable at this location."),

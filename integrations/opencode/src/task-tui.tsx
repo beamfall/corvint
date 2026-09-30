@@ -2,7 +2,7 @@ import { createEffect, createSignal, For, onCleanup, Show, untrack } from "solid
 import { createHash } from "node:crypto"
 import { emptyTaskMetrics } from "./task-metrics.js"
 
-export function createTaskPanel(ctx, { rpc, lifetime, location, accent, onChange }) {
+export function createTaskPanel(ctx, { rpc, lifetime, location, accent, onChange, onFocus }) {
   return function TaskPanel(props) {
     const [snapshot, setSnapshot] = createSignal(emptyTaskMetrics())
     const [selected, setSelected] = createSignal(0)
@@ -56,6 +56,16 @@ export function createTaskPanel(ctx, { rpc, lifetime, location, accent, onChange
         if (!disposed && detailGeneration === detailSerial && !readRequest.signal.aborted && captured === scope() && snapshot().receiptId === value.receiptId && current()?.ticketId === row.ticketId) setDetail(result.text)
       } catch { if (!disposed && detailGeneration === detailSerial && !readRequest.signal.aborted && captured === scope() && snapshot().receiptId === value.receiptId) setDetail("Ticket detail unavailable. Refresh and retry.") }
     }
+    const focus = async () => {
+      const row = current(), value = snapshot(), captured = scope()
+      if (!row || value.state !== "ready") { setDetailPane(true); setDetail("Tasks read is not ready. Refresh and retry."); return }
+      setDetailPane(true); setDetail("Focusing ticket…")
+      try {
+        const result = await rpc.workbenchFocus({ sessionID: props.panel.sessionID, receiptId: value.receiptId, ticketId: row.ticketId }, { location: location(), signal: AbortSignal.any([controller.signal, lifetime.signal]) })
+        if (!disposed && captured === scope() && result.state === "ready") onFocus(props.panel.sessionID, result)
+        else if (!disposed && captured === scope()) setDetail(result.reason || "Task focus unavailable. Refresh and retry.")
+      } catch { if (!disposed && captured === scope()) setDetail("Task focus unavailable. Refresh and retry.") }
+    }
     const move = amount => {
       if (detailPane()) { reader?.scrollBy(amount); return }
       clearDetail(); setSelected(Math.max(0, Math.min(snapshot().tickets.length - 1, selected() + amount)))
@@ -71,7 +81,7 @@ export function createTaskPanel(ctx, { rpc, lifetime, location, accent, onChange
       { bind: "pagedown", run: () => detailPane() ? reader?.scrollBy(1, "viewport") : move(8) },
       { bind: "return", run: open }, { bind: "tab", run: () => setDetailPane(value => !value) },
       { bind: "left", run: () => nextPage(-1) }, { bind: "right", run: () => nextPage(1) },
-      { bind: "r", run: () => refresh(snapshot().offset) }, { bind: "c", run: onChange },
+      { bind: "r", run: () => refresh(snapshot().offset) }, { bind: "c", run: onChange }, { bind: "s", run: focus },
       { bind: "f", run: props.panel.toggleFullscreen }, { bind: "escape", run: props.panel.close },
     ] }))
     const summary = () => { const v = snapshot(); return `${v.completed}/${v.total} completed · ${v.open} open · ${v.draft} draft · ${v.held} held · ${v.archived} archived` }
@@ -100,7 +110,8 @@ export function createTaskPanel(ctx, { rpc, lifetime, location, accent, onChange
           <Show when={snapshot().gaps.length}><text fg={ctx.theme.text.feedback.warning.base}>{() => `\n\nLimits\n${snapshot().gaps.join("\n")}`}</text></Show>
         </scrollbox></Show>
       </box>
-      <text fg={ctx.theme.text.muted}>↑↓ select/scroll · Enter detail · Tab list/details · r refresh · ←/→ pages · c Change · esc close</text>
+      <box flexDirection="row" gap={2}><text fg={accent()} onMouseDown={event => { event.stopPropagation(); props.panel.focus(); void focus() }}>s Focus ticket in workbench</text><text fg={ctx.theme.text.muted}>Enter detail · r refresh · ←/→ pages · c Change</text></box>
+      <text fg={ctx.theme.text.muted}>↑↓ select/scroll · Tab list/details · esc close</text>
     </box>
   }
 }
