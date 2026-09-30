@@ -1160,8 +1160,8 @@
     "title": "New E2E Test Acceptance V0",
     "reqPrefix": "NEA-V0",
     "intent": "proposed",
-    "delivery": "experimental; actual local negative assessment qualified, accepted path blocked V1-0556",
-    "claim": "A separate companion retains actual repeats, approved negative controls and an aggregate verdict; unknown per-test freshness blocks acceptance.",
+    "delivery": "experimental",
+    "claim": "A separate companion repeats new Playwright tests, executes approved negative controls and produces one bound assessment and fixed PR body.",
     "dependsOn": [
       "docs/specs/js-live-test-provider-v0.md",
       "docs/specs/browser-behavior-falsification-v0.md"
