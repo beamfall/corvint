@@ -1763,6 +1763,15 @@ PLE-V0-009	docs/specs/protected-local-execution-v0.md	35	The protected Stop cons
 PLE-V0-010	docs/specs/protected-local-execution-v0.md	36	FULL MUST require the eleven AHI cases and latency/equal-critical-recall evidenc
 PLE-V0-011	docs/specs/protected-local-execution-v0.md	37	Installation, upgrade, revocation and removal MUST follow reviewed immutable man
 PLE-V0-012	docs/specs/protected-local-execution-v0.md	39	A temporary native qualification exercise MUST require a distinct root-owned can
+PMC-V0-001	docs/specs/postmerge-connectors-v0.md	27	Read a merged change with identity, base/merge commits, sorted changed path/stat
+PMC-V0-002	docs/specs/postmerge-connectors-v0.md	30	Read the linked item and its complete parent chain to the configured level,
+PMC-V0-003	docs/specs/postmerge-connectors-v0.md	33	Render follow-up upsert from fixed templates over identifiers, enums, paths,
+PMC-V0-004	docs/specs/postmerge-connectors-v0.md	36	Findings require an allowlisted class and per-change cap, an existing regular
+PMC-V0-005	docs/specs/postmerge-connectors-v0.md	39	Draft requests use a stable derived branch/key, fixed generated body, and
+PMC-V0-006	docs/specs/postmerge-connectors-v0.md	41	The separately qualified client contract supports `live`, `recording`, and
+PMC-V0-007	docs/specs/postmerge-connectors-v0.md	45	Publish distinct tracker and forge reference connectors and a conformance kit.
+PMC-V0-008	docs/specs/postmerge-connectors-v0.md	49	Each connector declares minimum scopes; local references require none.
+PMC-V0-009	docs/specs/postmerge-connectors-v0.md	52	Reject unknown JSON fields, duplicate keys, oversized inputs, malformed identiti
 PNC-001	docs/specs/analyzer-python-native-candidate.md	86	The candidate MUST remain separately buildable and unreachable from Core.
 PNC-002	docs/specs/analyzer-python-native-candidate.md	87	The scanner MUST prospectively bound canonical request members before decode or
 PNC-003	docs/specs/analyzer-python-native-candidate.md	88	Accepted closed inputs MUST emit only fully typed, deterministic candidate facts

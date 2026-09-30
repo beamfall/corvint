@@ -2795,5 +2795,22 @@
       "script/qualify-lsp-editors.py",
       "tools/lsp-editors"
     ]
+  },
+  {
+    "path": "docs/specs/postmerge-connectors-v0.md",
+    "title": "Post-merge Connectors V0",
+    "reqPrefix": "PMC-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A separate companion reads pinned fixture context and renders bounded idempotent tracker and forge requests with recording and dry-run modes.",
+    "dependsOn": [
+      "docs/specs/corvint-1.0-product-and-release-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/postmergeconnector",
+      "cmd/corvint-postmerge-connect"
+    ]
   }
 ]
