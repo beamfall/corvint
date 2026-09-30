@@ -287,6 +287,7 @@ Commands:
   eval           Evaluate a frozen corpus, optionally with an explicit trace-fixture arm.
   context        Compile the task-context packet: the files to read for one task.
   impact         Compile path, untracked-file, or committed-range impact evidence.
+  breakage       Inspect experimental declared cross-repository API relationships.
   harness event  Compile one supported agent-harness lifecycle event.
   adapter        Run one bounded native host adapter.
   dogfood        Enroll and complete an explicit local evidence workflow, or run

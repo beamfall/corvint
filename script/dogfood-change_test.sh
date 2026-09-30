@@ -669,16 +669,26 @@ phase_jobs="$phase_jobs $!"
   rg -Fxq 'dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared' <<< "$no_intent_check_output"
   cp "$test_root/intents.txt" .corvint/change.ocm-intents
 
-  # An authority-start trace-state refusal names the task wording as its subject.
+  # QAT-V0-001..004: the exact authority-start refusal stays discovery abstention,
+  # with its original inputs bound, while other trace diagnostics still block.
   wording_status=0
   wording_output=$(DOGFOOD_TEST_QUERY=authority-trace-state CORVINT_BIN="$test_root/bin/corvint" \
     DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK='contributor workflow' \
     DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
     DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2>&1) || \
     wording_status=$?
-  test "$wording_status" = 1
-  rg -q '^  coordination-time-query: unsupported-query-trace-state$' <<< "$wording_output"
-  rg -q '^  coordination-time-query: DOGFOOD_TASK wording selected the authority-start profile, ' <<< "$wording_output"
+  test "$wording_status" = 0
+  rg -Fxq 'dogfood-change: NOTE coordination-time-query NOT_PRODUCED authority-start-trace-state-abstention' <<< "$wording_output"
+  rg -Fq '"name": "coordination-time-query", "status": "NOT_PRODUCED", "reason": "authority-start-trace-state-abstention"' .corvint/dogfood-report.json
+  wording_evidence="$(git rev-parse --absolute-git-dir)/corvint/coordination-time-query-abstention.json"
+  rg -Fq '"profile":"corvint-dogfood-query-abstention/0"' "$wording_evidence"
+  rg -Fq '"status":"NOT_PRODUCED"' "$wording_evidence"
+  rg -Fq '"exitStatus":"2"' "$wording_evidence"
+  rg -Fq "\"base\":\"$base\"" "$wording_evidence"
+  rg -Fq "\"target\":\"$(git rev-parse HEAD)\"" "$wording_evidence"
+  rg -Fq "\"taskSha256\":\"sha256:$(printf '%s' 'contributor workflow' | shasum -a 256 | awk '{print $1}')\"" "$wording_evidence"
+  rg -Fq "\"argvSha256\":\"sha256:$(shasum -a 256 "$(git rev-parse --absolute-git-dir)/corvint/coordination-time-query.argv" | awk '{print $1}')\"" "$wording_evidence"
+  rg -Fq "\"queryAbstentionEvidenceSha256\": \"sha256:$(shasum -a 256 "$wording_evidence" | awk '{print $1}')\"" .corvint/dogfood-report.json
 
   # Each refusal a first-time adopter hits names its fix (DCW-V0-014).
   input_status=0
