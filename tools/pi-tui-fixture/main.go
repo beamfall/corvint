@@ -81,7 +81,15 @@ func run(protected bool, argv []string, signals <-chan os.Signal) error {
 
 func newDriver(protected bool) (driver, time.Duration, error) {
 	if !protected {
-		return &plain{}, 25 * time.Second, nil
+		command := os.Getenv("CORVINT_PI_TUI_COMMAND")
+		expected := os.Getenv("CORVINT_PI_TUI_EXPECT")
+		if command == "" {
+			command = "inspect main.go"
+		}
+		if expected == "" {
+			expected = "fixture response"
+		}
+		return &plain{command: command, expected: expected, cockpit: os.Getenv("CORVINT_PI_TUI_COMMAND") != ""}, 25 * time.Second, nil
 	}
 	first, err := strconv.Atoi(os.Getenv("CORVINT_PI_TUI_FIRST"))
 	if err != nil {
@@ -232,19 +240,36 @@ func (s *session) cleanup() {
 // plain sends one prompt once the TUI has drawn the fixture model, and ends the TUI once the
 // fixture responds. A fixed delay loses the prompt when a loaded host draws the editor late.
 type plain struct {
-	sent    bool
-	readyAt time.Time
+	sent      bool
+	readyAt   time.Time
+	command   string
+	expected  string
+	cockpit   bool
+	refreshed bool
+	closed    bool
 }
 
 func (d *plain) step(s *session) error {
-	if d.readyAt.IsZero() && s.seen("fixture") {
+	ready := "fixture"
+	if d.cockpit {
+		ready = "0.0%/0"
+	}
+	if d.readyAt.IsZero() && s.seen(ready) {
 		d.readyAt = time.Now()
 	}
 	if !d.sent && !d.readyAt.IsZero() && time.Since(d.readyAt) > 500*time.Millisecond {
 		d.sent = true
-		return s.send("inspect main.go\r")
+		return s.send(d.command + "\r")
 	}
-	if !s.stopped && s.seen("fixture response") {
+	if d.cockpit && d.sent && !d.refreshed && s.seen("Press r to read this view.") {
+		d.refreshed = true
+		return s.send("r")
+	}
+	if d.cockpit && d.refreshed && !d.closed && s.seen(d.expected) {
+		d.closed = true
+		return s.send("q")
+	}
+	if !s.stopped && s.seen(d.expected) && (!d.cockpit || d.closed) {
 		s.stopped = true
 		return s.send("\x04")
 	}
