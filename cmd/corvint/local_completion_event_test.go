@@ -553,3 +553,56 @@ func dogfoodPrivateFiles(t *testing.T, root string) map[string]string {
 	}
 	return files
 }
+
+func TestPiLocalCompletionTuple(t *testing.T) {
+	t.Parallel()
+	exact := options{host: "pi", hostVersion: "0.99.1", surface: "extension", adapterVersion: "0.3.0"}
+	if !dogfoodEventHostAdmitted(exact) {
+		t.Fatal("exact ordinary Pi tuple refused")
+	}
+	for _, wrong := range []options{
+		{host: "pi", hostVersion: "0.85.1", surface: "extension", adapterVersion: "0.3.0"},
+		{host: "pi", hostVersion: "0.99.1", surface: "plugin", adapterVersion: "0.3.0"},
+		{host: "pi", hostVersion: "0.99.1", surface: "extension", adapterVersion: "0.2.0"},
+		{host: "pi-protected", hostVersion: "0.99.1", surface: "extension", adapterVersion: "0.3.0"},
+	} {
+		if dogfoodEventHostAdmitted(wrong) {
+			t.Fatalf("admitted %+v", wrong)
+		}
+	}
+	root := queryCLIRepository(t)
+	base := strings.TrimSpace(gitOutput(t, root, "rev-parse", "HEAD"))
+	key := dogfoodSHA([]byte("corvint-local-completion-session/pi/0\x00native-session"))
+	plan, err := json.Marshal(localcompletion.Plan{Base: base, Intents: []string{"AGENTS.md"}, Checks: []localcompletion.Check{{ID: "unrun", Argv: []string{"false"}, TimeoutSeconds: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := localcompletion.Begin(context.Background(), root, key, plan); err != nil {
+		t.Fatal(err)
+	}
+	before := repositoryBytesDigest(t, root)
+	args := []string{"--host", "pi", "--host-version", "0.99.1", "--surface", "extension", "--adapter-version", "0.3.0", "--event", "stop", "--input", "-", "--budget-bytes", "8000"}
+	for _, active := range []bool{false, true, true} {
+		input, _ := json.Marshal(map[string]any{"sessionIdSha256": key, "stopHookActive": active, "changedPaths": []any{}})
+		var out, diagnostics bytes.Buffer
+		code := runLocalCompletionEvent(lifecycleDeadlineContext(), root, args, bytes.NewReader(input), &out, &diagnostics)
+		var receipt map[string]any
+		if code != 0 || json.Unmarshal(out.Bytes(), &receipt) != nil {
+			t.Fatalf("event %d %s %s", code, &out, &diagnostics)
+		}
+		decision := receipt["completion"].(map[string]any)["decision"]
+		if (!active && decision != "block") || (active && decision != "release") {
+			t.Fatalf("active=%t %s", active, &out)
+		}
+		if receipt["support"] != "FALLBACK" || receipt["mutates"] != false {
+			t.Fatal("local event broadened authority")
+		}
+	}
+	other, err := localcompletion.Evaluate(context.Background(), root, localcompletion.HashSession("native-session"))
+	if err != nil || other.Lifecycle != "inactive" {
+		t.Fatalf("legacy identity adopted Pi enrollment: %+v %v", other, err)
+	}
+	if after := repositoryBytesDigest(t, root); before != after {
+		t.Fatal("Pi automatic event mutated state")
+	}
+}

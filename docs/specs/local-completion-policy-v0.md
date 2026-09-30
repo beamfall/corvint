@@ -146,7 +146,7 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   A separately authorized, digest-bound `coordination-time-impact` context abstention is not a missing
   completion proof: it remains visibly `NOT_PRODUCED`, while CEM/OCM, checks, clean-target and
   verifier requirements above remain unchanged. Its malformed, missing, stale or untyped form fails.
-- `LCP-V0-008`: Codex and Claude Code Stop MAY request one bounded remediation continuation for an explicitly enrolled
+- `LCP-V0-008`: Codex and Claude Code Stop, and the exact ordinary Pi final-settlement boundary, MAY request one bounded remediation continuation for an explicitly enrolled
   incomplete change. If `stop_hook_active` is true, the adapter MUST release with a visible fixed
   unresolved-policy notice instead of looping. A blocking Stop reason MUST name the closed unmet
   categories of `policy.unmet` and the `dogfood status` argv for the session key, and never a
@@ -170,6 +170,17 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   observed no drift and reports as a read failure (`dogfood-event-unavailable`, or
   `dogfood-event-deadline` on expiry). A supplied `stop_hook_active` MUST be boolean. Expensive
   verification and mutations never run in Stop. User interruption remains effective.
+  The owner’s 2026-09-29 Pi build request additionally admits Pi 0.99.1 / extension
+  0.3.0. Its `agent_before_settle` handler evaluates only a trusted completed activity
+  without an existing continuation or pending message. A validated incomplete policy
+  may append one fixed remediation custom message and request one continuation; the
+  same activity then supplies `stopHookActive: true` and cannot loop. Errors, aborts,
+  queued work, stale generations and failed reads never request continuation. A new
+  explicit operator activity may reset that bound. Automatic recovery is ephemeral.
+  Pi hashes `corvint-local-completion-session/pi/0` plus NUL plus the host session ID;
+  forks and tree navigation do not adopt another session’s enrollment. Slash commands
+  are operator assertions, not authenticated human provenance, because RPC can invoke
+  the same command surface. This remains local caller policy with FALLBACK support.
 - `LCP-V0-009`: `corvint dogfood event` MUST use a separate `corvint-dogfood-event/0` envelope and
   result-digest domain. Legacy query, task-context and harness command behavior stays unchanged.
   The result binds its full normalized public content, exact repository snapshot, event and local
@@ -179,7 +190,10 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   pairs and which therefore uses its own shorter deadline strictly below that kill.
   The admitted plugin tuple is host `codex` with host version `unknown` or host `claude-code` with
   host version `unreported-by-hook-api` (`AHI-023`), adapter version `0.1.0`, for session-start/user-prompt/stop/session-end only. Any other tuple refuses with
-  `unsupported-dogfood-event-host` and any other event with `unsupported-dogfood-event`
+  `unsupported-dogfood-event-host`. The separate ordinary Pi tuple is host `pi`, host
+  version `0.99.1`, surface `extension`, adapter version `0.3.0`, for the same four
+  events only. It shares the sealed profile and bounds but never the protected Pi
+  profile or its authority. Any other event refuses with `unsupported-dogfood-event`
   (`cmd/corvint/local_completion_event.go:73,148`). Claude post-tool and
   file-change retain the legacy harness profile, normalization and plain session hash; neither
   profile accepts an envelope from the other. A compact session start over a dirty worktree adds

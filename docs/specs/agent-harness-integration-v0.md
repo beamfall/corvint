@@ -388,7 +388,14 @@ do not reinterpret this Frontier result.
   kernel retains deeper validation and invalid input returns `invalid-input`. Persistence
   degradation is shown to the user, never reported as recorded success. Faults use UI notices
   or stderr in non-UI modes, without adding automatic messages to model history. Expansion remains the
-  documented existing `adapter source-view` route with native selector validation. No automatic
+  documented existing `adapter source-view` route with native selector validation. A separate
+  `corvint-dogfood-event/0` bridge MAY use the exact ordinary tuple only under LCP-V0-008/009:
+  its sealed read-only policy receipt can request one idle final-settlement remediation after
+  explicit enrollment. This does not change the legacy adapter's false continuation, establish
+  successful completion or admit the protected Pi profile. Host session identity is separately
+  namespaced; stale tree/session/compaction generations cannot adopt enrollment or pending
+  recovery. Slash commands are operator assertions and have no authenticated human provenance
+  through the shared RPC surface. No automatic
   task/outcome or new source-selector parser is permitted. AHI-025 adds explicit in-memory
   source expansion and durable recording through existing core validators. Package/version declarations and
   compatibility evidence MUST agree. This functional extension is FALLBACK until its exact

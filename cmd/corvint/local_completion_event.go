@@ -121,7 +121,7 @@ func runLocalCompletionEvent(parent context.Context, root string, args []string,
 		emitError(stderr, dogfoodEventError("invalid-dogfood-event-arguments"))
 		return 2
 	}
-	if hostVersion, admitted := dogfoodHostVersions[options.host]; !admitted || options.surface != "plugin" || options.adapterVersion != "0.1.0" || options.hostVersion != hostVersion {
+	if !dogfoodEventHostAdmitted(options) {
 		emitError(stderr, dogfoodEventError("unsupported-dogfood-event-host"))
 		return 2
 	}
@@ -170,6 +170,16 @@ func runLocalCompletionEvent(parent context.Context, root string, args []string,
 		return 2
 	}
 	return 0
+}
+
+// Pi's ordinary extension uses a separate exact tuple. This admits only the
+// caller-owned local policy, never the protected harness or Frontier authority.
+func dogfoodEventHostAdmitted(options options) bool {
+	if options.host == "pi" {
+		return options.hostVersion == "0.99.1" && options.surface == "extension" && options.adapterVersion == "0.3.0"
+	}
+	hostVersion, admitted := dogfoodHostVersions[options.host]
+	return admitted && options.surface == "plugin" && options.adapterVersion == "0.1.0" && options.hostVersion == hostVersion
 }
 
 func dogfoodUniqueOptions(args []string) bool {
