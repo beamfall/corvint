@@ -23,7 +23,7 @@ import (
 // pinnedArgs is the frozen Git argument prefix: every operation is pinned to
 // the resolved administrative directory with hostile configuration overridden.
 func (r *Repository) pinnedArgs() []string {
-	return []string{
+	args := []string{
 		"--no-optional-locks", "--git-dir=" + r.GitDir,
 		"-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false",
 		"-c", "core.attributesFile=" + os.DevNull, "-c", "credential.helper=",
@@ -35,6 +35,10 @@ func (r *Repository) pinnedArgs() []string {
 		"-c", "diff.external=", "-c", "diff.ignoreSubmodules=none",
 		"-c", "advice.graftFileDeprecated=false",
 	}
+	if r.gitBinary != "" {
+		args = append(args, "-c", "core.hooksPath="+os.DevNull)
+	}
+	return args
 }
 
 // scrubbedEnv is the frozen allowlist environment for Git children.
@@ -67,10 +71,13 @@ func (r *Repository) gitInput(ctx context.Context, limit int, stdin []byte, args
 
 func (r *Repository) gitOptions(limit int, stdin []byte) gitrun.Options {
 	env := scrubbedEnv()
+	if r.gitBinary != "" {
+		env = append(env, "GIT_ALLOW_PROTOCOL=")
+	}
 	if r.objectView != nil {
 		env = append(env, "GIT_OBJECT_DIRECTORY="+filepath.Join(r.objectView.CommonDir, "objects"), "GIT_ALTERNATE_OBJECT_DIRECTORIES=")
 	}
-	return gitrun.Options{Dir: r.Root, Env: env, Stdin: stdin, StdoutLimit: limit}
+	return gitrun.Options{Binary: r.gitBinary, Dir: r.Root, Env: env, Stdin: stdin, StdoutLimit: limit}
 }
 
 // BeginObjectSession scopes one `git cat-file --batch` co-process to the
