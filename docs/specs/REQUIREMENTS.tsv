@@ -1040,6 +1040,11 @@ GAG-V0-005	docs/specs/go-archive-gate-v0.md	147	The gate MUST build the archive 
 GAG-V0-006	docs/specs/go-archive-gate-v0.md	149	The gate MUST require the output directory to contain exactly the seven expected
 GAG-V0-007	docs/specs/go-archive-gate-v0.md	155	The gate MUST cross-check the build against the private witness the build record
 GAG-V0-008	docs/specs/go-archive-gate-v0.md	159	The gate MUST exit non-zero when any of its build, closed-set, or witness checks
+GCS-V0-001	docs/specs/gopls-client-session-v0.md	25	Startup MUST require an absolute explicitly configured executable and canonical
+GCS-V0-002	docs/specs/gopls-client-session-v0.md	26	The session MUST own its process group through `procgroup`, join cleanup on shut
+GCS-V0-003	docs/specs/gopls-client-session-v0.md	27	Open/change/close MUST use caller text and monotonically increasing versions. De
+GCS-V0-004	docs/specs/gopls-client-session-v0.md	28	Framing, documents, messages, requests, output, locations and lifetime MUST be b
+GCS-V0-005	docs/specs/gopls-client-session-v0.md	29	Experimental evidence MUST retain one explicit local dependency-free Go overlay
 GENESIS-001	docs/specs/genesis-backfill.md	53	`corvint init` and `corvint adopt` MUST accept one or more local Git repositorie
 GENESIS-002	docs/specs/genesis-backfill.md	57	zero-execution inventory MUST classify every tracked path as included, excluded,
 GENESIS-003	docs/specs/genesis-backfill.md	64	Git history enrichment MUST recover cited change, ownership, ticket/PR reference
@@ -1398,6 +1403,27 @@ LCP-V0-012	docs/specs/local-completion-policy-v0.md	231	Private plans, observati
 LCP-V0-013	docs/specs/local-completion-policy-v0.md	237	Prompt context MUST accept a task mention as an explicit anchor. A mention is on
 LCP-V0-014	docs/specs/local-completion-policy-v0.md	262	`finish` MUST run the daily change (coordination) and the final strict check in
 LCP-V0-015	docs/specs/local-completion-policy-v0.md	275	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
+LEC-V0-001	docs/specs/lsp-editor-context-v0.md	25	Only explicit `corvint/context` MUST be added. Initialization MUST expose `exper
+LEC-V0-002	docs/specs/lsp-editor-context-v0.md	26	Params MUST be the closed object `{textDocument:{uri},task,limit}`; recursively
+LEC-V0-003	docs/specs/lsp-editor-context-v0.md	27	Success MUST contain schema `corvint-editor-context/0`, intact validated `Result
+LEC-V0-004	docs/specs/lsp-editor-context-v0.md	28	Overlay observation MUST carry a fresh crypto-random 128-bit session ID as 32 lo
+LEC-V0-005	docs/specs/lsp-editor-context-v0.md	29	Admission and post-Core observations MUST compare root directory identity, commi
+LEC-V0-006	docs/specs/lsp-editor-context-v0.md	30	The existing single pending request MUST be reused. Cancellation, edits, close,
+LEC-V0-007	docs/specs/lsp-editor-context-v0.md	31	Core MUST run only in a same-executable fixed one-shot native worker using `NewT
+LEC-V0-008	docs/specs/lsp-editor-context-v0.md	32	Worker ownership MUST be enabled once at startup before Git resolution, Core or
+LEC-V0-009	docs/specs/lsp-editor-context-v0.md	33	Parent request deadline MUST be 20 seconds; runner operation timeout MUST be 20
+LEC-V0-010	docs/specs/lsp-editor-context-v0.md	34	Errors MUST be fixed/redacted: invalid params -32602; busy -32000; cancel/deadli
+LED-V0-001	docs/specs/lsp-editor-definition-v0.md	25	The companion MUST enable semantic mode only with explicit operator executable a
+LED-V0-002	docs/specs/lsp-editor-definition-v0.md	26	Open/change/close MUST retain exact captured overlay identity across synchroniza
+LED-V0-003	docs/specs/lsp-editor-definition-v0.md	27	Definition MUST use one bounded pending request, service cancellation while work
+LED-V0-004	docs/specs/lsp-editor-definition-v0.md	28	Editor UTF-8, UTF-16 and UTF-32 positions MUST convert through validated Unicode
+LED-V0-005	docs/specs/lsp-editor-definition-v0.md	29	EOF, interrupt, cancellation and session expiry MUST close streams, cancel backe
+LEQ-V0-001	docs/specs/lsp-editor-qualification-v0.md	35	The harness MUST use the actual selected editor and explicit server executable,
+LEQ-V0-002	docs/specs/lsp-editor-qualification-v0.md	36	Editor state MUST be disposable and isolated from user configuration. Owned serv
+LEQ-V0-003	docs/specs/lsp-editor-qualification-v0.md	39	Unicode, rapid edits, multiple roots, stale responses, provider crashes, descend
+LEQ-V0-004	docs/specs/lsp-editor-qualification-v0.md	37	Semantic development mode MUST bind one actual unsaved Unicode definition to its
+LEQ-V0-005	docs/specs/lsp-editor-qualification-v0.md	38	Context development probes MUST verify exact ordered current-overlay wire bindin
+LEQ-V0-006	docs/specs/lsp-editor-qualification-v0.md	41	Freshness development mode MUST inspect the complete transcript for one actual e
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	1309	Every displayed metric and source-derived value MUST derive through the compiled
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	1313	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	1316	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the
@@ -1521,6 +1547,16 @@ LRF-V0-013	docs/specs/lexical-relevance-floor-v0.md	205	the profile MUST be an a
 LRF-V0-014	docs/specs/lexical-relevance-floor-v0.md	210	input, deterministic work, and canonical output MUST remain within the exact fro
 LRF-V0-015	docs/specs/lexical-relevance-floor-v0.md	215	every corpus subject, selection, artifact, source-edge, raw-label, adjudication,
 LRF-V0-016	docs/specs/lexical-relevance-floor-v0.md	220	the trusted independent custodian MUST run the frozen implementation over all si
+LSE-V0-001	docs/specs/lsp-stdio-experiment-v0.md	26	Startup MUST require explicit experimental opt-in and keep stdout exclusively fr
+LSE-V0-002	docs/specs/lsp-stdio-experiment-v0.md	27	Framing MUST bound headers and body bytes, reject ambiguous lengths and truncate
+LSE-V0-003	docs/specs/lsp-stdio-experiment-v0.md	28	The session MUST negotiate initialize/initialized/shutdown/exit ordering, reject
+LSE-V0-004	docs/specs/lsp-stdio-experiment-v0.md	29	Initialization MUST retain declared local file roots without reading their conte
+LSE-V0-005	docs/specs/lsp-stdio-experiment-v0.md	30	Cancellation of already-completed or unknown requests MUST be harmless. EOF, con
+LSO-V0-001	docs/specs/lsp-snapshot-overlay-v0.md	27	Git identity MUST contain repository, lexical root URI, object format, commit, t
+LSO-V0-002	docs/specs/lsp-snapshot-overlay-v0.md	28	Client text MUST be stored as immutable full-text captures with session, lexical
+LSO-V0-003	docs/specs/lsp-snapshot-overlay-v0.md	29	Close/reopen and explicit reset MUST invalidate old captures even when version a
+LSO-V0-004	docs/specs/lsp-snapshot-overlay-v0.md	30	URI admission MUST require one lexical local file URI spelling contained below t
+LSO-V0-005	docs/specs/lsp-snapshot-overlay-v0.md	31	Sessions MUST enforce explicit positive document-count, per-document-byte and to
 LTA-V0-001	docs/specs/learned-trace-admission-v0.md	45	`corvint eval` MUST score a baseline arm and a second learned-trace arm over the
 LTA-V0-002	docs/specs/learned-trace-admission-v0.md	55	Before either scored arm runs, the evaluation MUST fail closed when any frozen
 LTA-V0-003	docs/specs/learned-trace-admission-v0.md	59	At an unchanged 1,000 rows, 1,000 files, or 16 MiB cap, `record` MUST reclaim sp
