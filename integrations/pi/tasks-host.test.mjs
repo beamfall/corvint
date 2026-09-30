@@ -48,3 +48,82 @@ test('PWV native fixture CAS, lost receipt replay, actors, lease, gates and audi
  const complete=await service.command({operation:'complete',requestId:'complete',input:{...common,commit:await git(['rev-parse','HEAD'])}},ctx);assert.equal(complete.ok,true,JSON.stringify(complete));
  assert.equal((await service.read('audit',{},ctx)).ok,true);
 });
+
+async function interruptionFixture(t) {
+ const scratch=await mkdtemp(join(tmpdir(),'pi-tasks-interrupt-')),cwd=join(scratch,'repo');await mkdir(cwd);
+ const env={PATH:process.env.PATH,HOME:process.env.HOME,CORVINT_TASKS_ACTOR:'pi-interrupt-fixture'};
+ const {createCommandRunner}=await import(process.env.CORVINT_PI_PROCESS_MODULE??'./process.js');
+ const runner=createCommandRunner({binary:process.env.CORVINT_TASKS_BIN??'corvint-tasks',env,timeoutMs:120000});
+ const marker=join(scratch,'gate-pids'),hold=join(scratch,'hold'),runs=join(scratch,'runs');
+ // Only this disposable, explicit fixture gate has external effects, all under scratch.
+ const gate=`echo $$ > '${marker}'; echo run >> '${runs}'; if test -f '${hold}'; then sleep 180 & echo $! >> '${marker}'; wait; fi`;
+ t.after(async()=>{await runner.close();try{for(const pid of (await readFile(marker,'utf8')).trim().split('\n').map(Number)){if(pid>1)try{process.kill(pid,'SIGKILL')}catch{}}}catch{}await rm(scratch,{recursive:true,force:true})});
+ const git=async args=>(await exec('git',args,{cwd,env,timeout:10000,maxBuffer:65536})).stdout.trim();
+ const run=call=>runner.run({cwd,...call});
+ const native=async args=>{const r=await run({args});assert.equal(r.exitCode,0,r.stdout);return JSON.parse(r.stdout)};
+ await git(['init','-q','-b','main']);await git(['config','user.name','Fixture']);await git(['config','user.email','fixture@example.invalid']);
+ await mkdir(join(cwd,'.taskman'));
+ for(const name of ['queue.json','policy.json']){const v=JSON.parse(await readFile(join(templates,name),'utf8'));if(name==='queue.json')v.fixture=true;else v.gates[0].argv=['/bin/sh','gate.sh'];await writeFile(join(cwd,'.taskman',name),canonical(v)+'\n')}
+ await writeFile(join(cwd,'gate.sh'),gate+'\n');
+ await git(['add','.']);await git(['commit','-qm','fixture']);await native(['init','--request-id','init']);
+ const created=await run({args:['ticket','create','--request-id','create','--payload-stdin'],input:await readFile(join(templates,'ticket-create.json'),'utf8')});assert.equal(created.exitCode,0,created.stdout);
+ const ticketId=JSON.parse(created.stdout).items[0].ticketId;await git(['add','.taskman']);await git(['commit','-qm','ticket']);
+ const ctx={cwd,isProjectTrusted:()=>true,isIdle:()=>true,sessionManager:{getSessionId:()=> 'interrupt-session'}};
+ return {cwd,runner,run,native,git,ticketId,ctx,marker,hold,runs};
+}
+const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+
+test('PWV native claim binds current acceptance revision, not adapter requested-revision CAS',async t=>{
+ const f=await interruptionFixture(t);let raced=false;
+ const runner={run:async call=>{if(call.args[0]==='claim'&&!raced){raced=true;await f.native(['ticket','refine','--target',f.ticketId,'--expected-revision','1','--request-id','competing-refine','--payload','{"acceptanceCriteria":["New acceptance criterion from competing operator."]}'])}return f.run(call)}};
+ const service=createTasksService({runner});
+ const claim=await service.command({operation:'claim',requestId:'claim-race',input:{ticketId:f.ticketId,expectedRevision:'1',holder:'fixture-owner'}},f.ctx);assert.equal(claim.ok,true,JSON.stringify(claim));
+ const attempt=(await f.native(['attempt','show',claim.raw.items[0].attemptId])).items[0];
+ const current=(await f.native(['ticket','show',f.ticketId])).items[0];
+ assert.equal(current.revision,'2');assert.equal(current.acceptanceRevision,'2');assert.equal(attempt.ticketRevision,current.acceptanceRevision);
+ const unsupported=await f.run({args:['claim',f.ticketId,'--holder','fixture-owner','--request-id','unsupported-cas','--expected-revision','1']});
+ assert.notEqual(unsupported.exitCode,0);assert.match(unsupported.stdout,/unknown flag --expected-revision/);
+ t.diagnostic('ATOMIC_REQUESTED_REVISION_CAS=UNSUPPORTED: native admission binds current acceptanceRevision; adapter expectedRevision is preflight only.');
+});
+
+test('PWV actual native gate interruption retains uncertainty; native same-ID gate replay reruns execution',async t=>{
+ const f=await interruptionFixture(t);
+ const claim=await f.native(['claim',f.ticketId,'--holder','fixture-owner','--request-id','claim','--branch','main']);
+ const attemptId=claim.items[0].attemptId,generation=claim.items[0].generation;
+ await f.native(['submit','--attempt',attemptId,'--generation',generation,'--request-id','submit','--tree',await f.git(['rev-parse','HEAD^{tree}'])]);
+ const input={ticketId:f.ticketId,expectedRevision:'1',holder:'fixture-owner',attemptId,generation,gate:'verify'},request={operation:'gate run',requestId:'interrupted-gate',input};
+ let dispatches=0;const service=createTasksService({runner:{run:call=>{if(call.args[0]==='gate')dispatches++;return f.run(call)}}});
+ await writeFile(f.hold,'hold');const abort=new AbortController(),pending=service.command(request,{...f.ctx,signal:abort.signal});
+ let pids;const deadline=Date.now()+15000;
+ while(Date.now()<deadline){try{pids=(await readFile(f.marker,'utf8')).trim().split('\n').map(Number);if(pids.length===2)break}catch{}await pause(25)}
+ assert.equal(pids?.length,2,'actual native gate and descendant must start before interruption');abort.abort();
+ const result=await pending;assert.equal(result.ok,false);assert.equal(result.mutation,'unknown');assert.equal(result.requestId,request.requestId);
+ for(const pid of pids){let alive=true;for(let n=0;n<80;n++){try{process.kill(pid,0)}catch{alive=false;break}await pause(25)}assert.equal(alive,false,`owned gate process ${pid} survived abort`)}
+ const {createOperationLedger}=await import('./operations.js');const ledger=createOperationLedger(join(f.cwd,'.git'));assert.equal((await ledger.inspect()).requestId,request.requestId);
+ const blocked=await service.command({...request,requestId:'replacement-gate'},f.ctx);assert.equal(blocked.fault,'pending-operation');assert.equal(dispatches,1,'new ID cannot retry an uncertain native operation');
+ const resumed=await service.command({...request,resume:true},f.ctx);assert.equal(resumed.fault,'gate-replay-unavailable');assert.equal(resumed.mutation,'unknown');assert.equal(resumed.requestId,request.requestId);assert.ok(resumed.reconciliation.attempt);assert.equal(dispatches,1,'same-ID uncertain gate resume never reexecutes');
+ assert.equal((await service.read('audit',{},f.ctx)).ok,true);
+ // Do not resume the wrapper operation: current native GateRun executes before
+ // its replay lookup. Prove that limitation using a harmless separate request.
+ await rm(f.hold);const args=['gate','run','--attempt',attemptId,'--generation',generation,'--request-id','native-replay-probe','--gate','verify','--worktree',f.cwd];
+ await f.native(args);const repeated=await f.native(args);assert.equal(repeated.items[0].replayed,true);
+ assert.equal((await readFile(f.runs,'utf8')).trim().split('\n').length,3,'interrupted execution plus both same-ID native gate executions');
+ assert.equal((await ledger.inspect()).requestId,request.requestId,'uncertain wrapper intent remains visibly blocked');
+ t.diagnostic('GATE_EXECUTION_REPLAY=UNSUPPORTED: native same-ID receipt replay reexecutes gate; uncertain wrapper gate stays pending, not completed.');
+});
+
+test('PWV real minimum-duration native lease expiry refuses stale commands', {skip:process.env.CORVINT_PI_REAL_LEASE_EXPIRY!=='1',timeout:360000},async t=>{
+ const f=await interruptionFixture(t);
+ const claim=await f.native(['claim',f.ticketId,'--holder','fixture-owner','--request-id','short-claim','--branch','main','--lease-minutes','5']);
+ const attemptId=claim.items[0].attemptId,generation=claim.items[0].generation;
+ const attempt=(await f.native(['attempt','show',attemptId])).items[0],expiry=Date.parse(attempt.lease.expiresAt);
+ assert.ok(expiry>Date.now());t.diagnostic(`Waiting for actual native expiry ${attempt.lease.expiresAt}; no clock or store modification.`);
+ while(Date.now()<=expiry)await pause(Math.min(5000,expiry-Date.now()+25));
+ const service=createTasksService({runner:f.runner});
+ const stale=await service.command({operation:'renew',requestId:'stale-adapter',input:{ticketId:f.ticketId,expectedRevision:'1',holder:'fixture-owner',attemptId,generation}},f.ctx);
+ assert.equal(stale.fault,'stale-attempt');assert.equal(stale.mutation,'not-attempted');
+ const native=await f.run({args:['renew','--attempt',attemptId,'--generation',generation,'--request-id','stale-native']});assert.notEqual(native.exitCode,0);
+ const raw=JSON.parse(native.stdout);assert.ok(raw.codes.includes('FENCED'),native.stdout);assert.match(raw.warnings.join('\n'),/lease expired/);
+ assert.equal((await f.native(['attempt','show',attemptId])).items[0].lease.expiresAt,attempt.lease.expiresAt,'no automatic lease renewal');
+ await f.native(['receipt','audit']);
+});
