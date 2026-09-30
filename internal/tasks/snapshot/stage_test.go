@@ -111,9 +111,37 @@ func maximalDescriptor(op string) StageDescriptor {
 	}
 	return d
 }
+
+// maximalRecoveryDescriptor preserves legacy fixture semantics for other
+// tests while measuring the larger request-bearing MUTATE descriptor.
+func maximalRecoveryDescriptor(op string) StageDescriptor {
+	d := maximalDescriptor(op)
+	if op != StageMutate {
+		return d
+	}
+	for i, a := range d.Artifacts {
+		if a.Role == "POST" && a.Target == "intent/queue.json" {
+			d.Artifacts[i].Target = "evidence/" + string(d.RequestSha256)
+			d.Artifacts[i].Sha256 = d.RequestSha256
+			d.Artifacts[i].Bytes = wire.SizeOf(wire.MaxMutationEnvelopeBytes)
+		}
+	}
+	sort.Slice(d.Artifacts, func(i, j int) bool {
+		a, b := d.Artifacts[i], d.Artifacts[j]
+		if a.Role != b.Role {
+			return a.Role < b.Role
+		}
+		return a.Target < b.Target
+	})
+	for i := range d.Artifacts {
+		d.Artifacts[i].Slot = stageSlot(i)
+	}
+	return d
+}
+
 func TestTMV0002_AS10_StageCodecActualMaxima(t *testing.T) {
 	for _, op := range []string{StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StagePolicyUpdate, StageAuthoritySwitch, StageLease, StageQualification} {
-		d := maximalDescriptor(op)
+		d := maximalRecoveryDescriptor(op)
 		raw, e := d.Encode()
 		if e != nil {
 			t.Fatalf("%stageString: %v (wire=%d)", op, e, len(wire.EncodeFile(d.Value())))
@@ -131,18 +159,18 @@ func TestTMV0002_AS10_StageCodecActualMaxima(t *testing.T) {
 			t.Fatal("roundtrip", e)
 		}
 		for i := range d.Artifacts {
-			x := maximalDescriptor(op)
+			x := maximalRecoveryDescriptor(op)
 			x.Artifacts[i].Bytes = wire.SizeOf(x.Artifacts[i].Bytes.Uint64() + 1)
 			if _, e = x.Encode(); e == nil {
 				t.Fatalf("%stageString artifact %d cap+1 accepted", op, i)
 			}
 		}
-		x := maximalDescriptor(op)
+		x := maximalRecoveryDescriptor(op)
 		x.Artifacts[0].Slot = "a01"
 		if _, e = x.Encode(); e == nil {
 			t.Fatal("slot order accepted")
 		}
-		x = maximalDescriptor(op)
+		x = maximalRecoveryDescriptor(op)
 		x.Artifacts = append(x.Artifacts, x.Artifacts[0])
 		if _, e = x.Encode(); e == nil {
 			t.Fatal("extra slot")
@@ -156,4 +184,54 @@ func TestTMV0002_AS10_StageCodecActualMaxima(t *testing.T) {
 			t.Fatal("noncanonical")
 		}
 	}
+}
+
+func TestCALV0043_MutationRequestEvidenceBounds(t *testing.T) {
+	t.Run("CAL-V0-043 retained request descriptor bounds", func(t *testing.T) {
+		for _, name := range []string{"valid", "legacy", "digest", "path", "oversized", "extra", "queue", "operation"} {
+			t.Run(name, func(t *testing.T) {
+				d := maximalRecoveryDescriptor(StageMutate)
+				idx := -1
+				for i, a := range d.Artifacts {
+					if a.Role == "POST" && strings.HasPrefix(a.Target, "evidence/") {
+						idx = i
+					}
+				}
+				if idx < 0 {
+					t.Fatal("no request artifact")
+				}
+				switch name {
+				case "legacy":
+					d.Artifacts[idx].Target = "intent/queue.json"
+					d.Artifacts[idx].Bytes = "1048576"
+					d.Artifacts[idx].Sha256 = wire.Sum([]byte("queue"))
+				case "digest":
+					d.Artifacts[idx].Sha256 = wire.Sum([]byte("other"))
+				case "path":
+					d.Artifacts[idx].Target = "evidence/" + string(wire.Sum([]byte("other")))
+				case "oversized":
+					d.Artifacts[idx].Bytes = wire.SizeOf(wire.MaxMutationEnvelopeBytes + 1)
+				case "extra":
+					d.Artifacts = append(d.Artifacts, d.Artifacts[idx])
+				case "queue":
+					d.Artifacts = append(d.Artifacts, StageDescription{Role: "POST", Target: "intent/queue.json", Bytes: "1", Sha256: wire.Sum([]byte("q"))})
+				case "operation":
+					d.Operation = StageAdoptFile
+				}
+				sort.Slice(d.Artifacts, func(i, j int) bool {
+					if d.Artifacts[i].Role != d.Artifacts[j].Role {
+						return d.Artifacts[i].Role < d.Artifacts[j].Role
+					}
+					return d.Artifacts[i].Target < d.Artifacts[j].Target
+				})
+				for i := range d.Artifacts {
+					d.Artifacts[i].Slot = fmt.Sprintf("a%02d", i)
+				}
+				_, err := d.Encode()
+				if (err == nil) != (name == "valid" || name == "legacy") {
+					t.Fatalf("%s: %v", name, err)
+				}
+			})
+		}
+	})
 }

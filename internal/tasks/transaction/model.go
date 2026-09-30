@@ -581,11 +581,17 @@ func Model(r Request, in Input) Result {
 		// digest, so the pure library is handed an absent index: consulting a
 		// second index here could only disagree with that decision.
 		ctx := mutation.Context{Binding: r.Actor, Queue: state.queue, Policy: state.policy, Inventory: state.tickets, Attempts: entryOracle{state.reservations}, Requests: absentIndex{}, Now: in.RecordedAt}
+		ctx.RetryRecovery = retryRecovery(state, env)
 		applied := mutation.Apply(ctx, env)
 		if !applied.Planned() {
 			return Result{Kind: "Refused", Outcome: applied.Outcome, Coverage: coverage(), Detail: applied.Detail}
 		}
 		pre, _ := state.tickets.Get(applied.Post.TicketID.Raw)
+		if env.Operation == mutation.OpReopen && pre != nil && pre.Status == ticket.StatusOpen {
+			// Bind the exact reason-bearing request to this successful receipt.
+			// A digest alone cannot recover an operator's stated reason.
+			posts["evidence/"+string(env.Sha256())] = bytes.Clone(env.Raw)
+		}
 		path := "intent/tickets/" + applied.Post.TicketID.Local + ".json"
 		// Every ticket this operation did not name must already agree with its
 		// canonical record (validateInput), and the named one must agree with
@@ -888,7 +894,7 @@ func validateInput(r Request, in Input) (inputState, error) {
 	if e = release.ValidateGraph(all); e != nil {
 		return st, e
 	}
-	if r.Operation == Lease && st.head != nil {
+	if (r.Operation == Lease || openRetryRecovery(r, st)) && st.head != nil {
 		st.attempts, e = loadAttempts(in, st.reservations)
 	}
 	if e == nil && (r.Operation == Lease || r.Operation == PolicyUpdate) {

@@ -5,6 +5,7 @@ Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
 Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification)
 Authoritative inputs: owner request [issue 342](https://github.com/beamfall/corvint/issues/342),
+owner request [issue 378](https://github.com/beamfall/corvint/issues/378),
 owner request [issue 370](https://github.com/beamfall/corvint/issues/370), and
 owner choice on 2026-09-28 to quarantine environments until confirmed safe reuse; owner request [issue 336](https://github.com/beamfall/corvint/issues/336), the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
 §3.4, §4, §6 and §7.4), decision 0397 (corvint-tasks built in tree), decision 0423 A10,
@@ -142,7 +143,9 @@ S3, leases.
   later makes an expired lease look live.
 - `CAL-V0-013`: A ticket whose last attempt is `FAILED` or `CANCELLED` MUST be claimable again as
   that attempt's next generation (TCP-00 §6.2 `retry`, `retryCount < 3`), and after three retries
-  only an `OWNER` `ticket reopen` makes it claimable.
+  only an explicit `OWNER` `ticket reopen` may readmit the exhausted `OPEN` ticket under
+  CAL-V0-043; cancellations still consume retries. The command creates fresh acceptance, not
+  an automatic retry refund.
   `corvint-tasks attempt show <attemptId>` and `queue status` MUST report every live attempt with
   holder, phase and lease expiry, as pure reads. `queue status` reports `attempts` as the count of
   live attempts and lists them in `liveAttempts`.
@@ -414,6 +417,69 @@ bounded 1 MiB, 64-slot journal-authoritative projection; program changes and han
 64 KiB, with host stdout/stderr individually capped at 16 KiB. Stage context is a pinned native Core
 query against the isolated checkout: READY/fresh tree revision must equal the stage commit's tree;
 explicit uncertainty is carried unchanged. No inferred context becomes accepted intent.
+
+## Owner retry readmission (issue 378)
+
+- `CAL-V0-043`: `ticket reopen` MUST accept an `OPEN` ticket only for an explicit `OWNER`
+  invocation permitted by policy, carrying a nonempty reason, request ID and exact expected
+  ticket revision, when the latest attempt is `FAILED` or `CANCELLED`, is bound to the current
+  acceptance revision and has exhausted the three retries. The writer MUST derive recovery
+  facts from complete, schema-valid, canonical journal-backed attempt bytes and reservations.
+  Every attempt for the target ticket MUST be terminal, without pending effects or reservations;
+  external-agent attempts MUST be `FENCED`, and supervised attempts MUST have `PROVED`
+  quiescence with no worker. Unknown, mismatched, inconsistent or ambiguous generation facts
+  MUST refuse. The pure mutation observation MUST bind the ticket and acceptance revision;
+  a missing observation MUST NOT authorize recovery. Existing completed-ticket reopen semantics
+  and policy role narrowing remain unchanged.
+  Recovery MUST increment ticket revision and acceptance revision exactly once, preserving the
+  acceptance criteria, dependencies, gates, effects, prior records, attempts and gate history.
+  A later claim MUST start a fresh attempt with zero retries and remain subject to ordinary
+  admission, dependency, approval, scope, pool and gate checks. Old acceptance-bound approval
+  and gate evidence MUST NOT authorize the new acceptance. Recovery is not completion.
+  The successful transaction MUST retain the exact canonical reason-bearing mutation envelope
+  as `evidence/<request-sha256>` and bind it in that same receipt's POST set. The MUTATE stage
+  contract permits at most one such optional POST, with SHA and path matching RequestSha256
+  and size at most MaxMutationEnvelopeBytes (256 KiB). It MUST NOT coexist with CREATE's queue
+  POST; the six-artifact maximum remains, with measured descriptor ceiling 1,670 bytes.
+  Existing descriptors without this evidence remain valid. Identical request replay MUST create
+  no second receipt; a changed reason under the same request ID MUST conflict. Refused recovery
+  MUST not plan this evidence POST. Publication failures before the receipt may leave an
+  unreferenced evidence blob under the existing writer contract; only a committed receipt makes
+  it recovery evidence, and post-receipt interruption MUST remain redo-safe.
+
+The explicit local operator command is:
+
+```sh
+corvint-tasks ticket reopen --target FL-001.matrix --expected-revision 7 \
+  --request-id recover-FL-001-matrix --role OWNER \
+  --payload '{"reason":"Owner readmits the ticket after cancelled attempts"}'
+```
+
+Use the actual current revision from `ticket show`. For exact replay retain the original
+`--issued-at` timestamp as well as all request bytes. The owner role and reason are local
+operator-supplied claims under the existing authority boundary, not authenticated identity or
+new execution authority. Reason text is durable local journal evidence and follows the store's
+existing retention, backup and export behavior; no host data is added.
+
+For reason lookup, follow the successful command's receipt filename to the receipt POST at
+`evidence/<request digest>`, then read the canonical envelope's `payload.reason`, actor, target
+and expected revision. `receipt audit` validates journal/projection consistency but does not
+print reason text; `receipt show` is not delivered. An unreferenced evidence file alone is not
+proof of recovery. `plan preview` and `claim` use the new acceptance revision only after the
+recovery transaction commits.
+
+Failure modes include non-owner or narrowed policy, stale expected revision, nonexhausted or
+wrong-acceptance attempts, live or unsafe older attempts, mismatched physical/journal records,
+and malformed/incomplete/ambiguous attempt inventory. These preserve the exhaustion boundary;
+recovery does not bypass a failing gate, held dependency, missing approval or admission barrier.
+Regression witnesses are `TestCALV0043_RecoveryFactsAndOwnerBinding`,
+`TestCALV0043_RecoveryExaminesEveryAttempt`, `TestCALV0043_OwnerReopensExhaustedCancelledTicket`,
+`TestCALV0043_RecoveryRefusesStaleAndTamperedAttempts`,
+`TestCALV0043_RecoveryPreservesRequiredGateFailures`,
+`TestCALV0043_RecoveryInvalidatesOldApprovals`, `TestCALV0043_RecoveryPublicationFaults`,
+`TestCALV0043_CLIRecoveryAndPreview`, and `TestCALV0043_MutationRequestEvidenceBounds`.
+Rollback disables new OPEN readmission while retaining history and already-issued receipts;
+readers of recovery receipts must retain support for the bounded MUTATE evidence artifact.
 
 ## Amendments to TCP-00
 

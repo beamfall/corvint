@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -147,4 +148,62 @@ func TestMutationTargetTakesTheLocalIDAndHelpNamesThePayload(t *testing.T) {
 	if strings.Join(keys, ",") != "order,priority" {
 		t.Errorf("payloadKeys = %v, want [order priority]", keys)
 	}
+}
+
+func TestCALV0043_CLIRecoveryAndPreview(t *testing.T) {
+	t.Run("CAL-V0-043 operator recovery CLI", func(t *testing.T) {
+		root, old := expiredCLIStore(t, 1)
+		ok := func(args ...string) wire.Value {
+			t.Helper()
+			r := atm(t, root, nil, args...)
+			if r.res.Outcome != wire.OutcomeOK {
+				t.Fatalf("%v: %+v", args, r.res)
+			}
+			if len(r.res.Items) == 0 {
+				return wire.Null()
+			}
+			return r.res.Items[0]
+		}
+		ok("reap", "--request-id", "reap-for-recovery")
+		id := old[0].Ticket
+		for i := 1; i <= 3; i++ {
+			a := ok("claim", id, "--holder", "recovery-agent", "--request-id", fmt.Sprintf("retry-%d", i), "--scope", "src")
+			ok("release", "--attempt", field(a, "attemptId").Str, "--generation", field(a, "generation").Str, "--request-id", fmt.Sprintf("cancel-%d", i))
+		}
+		preview := ok("plan", "preview")
+		if !strings.Contains(string(wire.Encode(preview)), wire.CodeRetryExhausted) {
+			t.Fatalf("missing preview exhaustion: %s", wire.Encode(preview))
+		}
+		refusal := func(args ...string) {
+			t.Helper()
+			r := atm(t, root, nil, args...)
+			if r.res.Outcome == wire.OutcomeOK {
+				t.Fatalf("accepted %v", args)
+			}
+		}
+		common := []string{"ticket", "reopen", "--target", id, "--expected-revision", "1", "--payload", `{"reason":"owner permits another attempt"}`, "--issued-at", "2026-09-29T00:00:00Z"}
+		refusal(append(append([]string{}, common...), "--request-id", "operator", "--role", "OPERATOR")...)
+		refusal("ticket", "reopen", "--target", id, "--request-id", "missing-revision", "--payload", `{"reason":"recover"}`)
+		refusal("ticket", "reopen", "--target", id, "--expected-revision", "1", "--request-id", "missing-reason", "--payload", `{}`)
+		for i, reason := range []string{"", "   "} {
+			refusal("ticket", "reopen", "--target", id, "--expected-revision", "1", "--request-id", fmt.Sprintf("blank-%d", i), "--payload", string(wire.Encode(wire.ObjectValue(wire.NewObject().Set("reason", wire.String(reason))))))
+		}
+		first := ok(append(append([]string{}, common...), "--request-id", "owner-recovery", "--role", "OWNER")...)
+		if field(first, "resultingAcceptanceRevision").Str != "2" {
+			t.Fatalf("no fresh acceptance: %s", wire.Encode(first))
+		}
+		again := ok(append(append([]string{}, common...), "--request-id", "owner-recovery", "--role", "OWNER")...)
+		if !field(again, "replayed").Bool {
+			t.Fatal("not replayed")
+		}
+		preview = ok("plan", "preview")
+		if strings.Contains(string(wire.Encode(preview)), wire.CodeRetryExhausted) {
+			t.Fatalf("exhaustion remains: %s", wire.Encode(preview))
+		}
+		a := ok("claim", id, "--holder", "fresh-agent", "--request-id", "fresh", "--scope", "src")
+		if field(a, "attemptId").Str == old[0].AttemptID {
+			t.Fatal("old attempt reused")
+		}
+		ok("receipt", "audit")
+	})
 }
