@@ -569,6 +569,13 @@ CTS-V0-002	docs/specs/corvint-tasks-store-init-v0.md	49	Only `queue status`, `ro
 CTS-V0-003	docs/specs/corvint-tasks-store-init-v0.md	63	(accepted 2026-09-27, owner decision relayed by the orchestrator session "Work
 CTS-V0-004	docs/specs/corvint-tasks-store-init-v0.md	77	Store resolution MUST resolve symbolic links in the directories above the primar
 CTS-V0-005	docs/specs/corvint-tasks-store-init-v0.md	83	The external-agent setup guide MUST provide canonical queue, policy and ticket-c
+CVI-V0-001	docs/specs/closed-vocabulary-intake-v0.md	27	Publish a versioned schema whose data fields are enums, literal repository paths
+CVI-V0-002	docs/specs/closed-vocabulary-intake-v0.md	31	Validate exact field names and presence, types, enum vocabulary, bounded identif
+CVI-V0-003	docs/specs/closed-vocabulary-intake-v0.md	35	Bind validation to explicit full base/head commit identities. Every behaviour an
+CVI-V0-004	docs/specs/closed-vocabulary-intake-v0.md	39	Normalize each unordered set by deterministic byte ordering and serialize the
+CVI-V0-005	docs/specs/closed-vocabulary-intake-v0.md	42	Publish a reader-step contract: raw connector text is mounted read-only outside
+CVI-V0-006	docs/specs/closed-vocabulary-intake-v0.md	47	The production author-input builder must revalidate the reader file before outpu
+CVI-V0-007	docs/specs/closed-vocabulary-intake-v0.md	51	Publish conformance vectors and a CI containment battery against the actual buil
 CWC-X0-001	docs/specs/correlated-witness-collapse-x0.md	55	X0 MUST consume one exact bounded `cem/0.1` or `cem/0.2` byte document through t
 CWC-X0-002	docs/specs/correlated-witness-collapse-x0.md	58	Common causes MUST use exactly `source`, `generator`, `parser`, `oracle`, or
 CWC-X0-003	docs/specs/correlated-witness-collapse-x0.md	61	Every witness and membership-attestation reference MUST identify evidence presen
