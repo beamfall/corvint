@@ -740,7 +740,7 @@ var (
 		"record", "migrate-traces", "harness", "cem", "ocm", "work", "context", "adapter",
 		"dogfood", "dogfood-ocm", "frontier", "observations", "affected", "obligations", "prove", "prove-observe",
 		"index", "batch", "docs", "depsource", "necessity", "surprise", "answerability",
-		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "features", "overview", "review", "migration-ratchet", "flows", "skill-export", "breakage"}
+		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "features", "overview", "review", "migration-ratchet", "flows", "skill-export", "breakage", "step"}
 )
 
 func knownHost(value string) bool {
@@ -847,6 +847,12 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 				return 2
 			}
 			return runDocs(ctx, options, stdin, stdout, stderr)
+		}
+		if options, handled, err := parseStepInvocation(arguments); handled {
+			if err != nil {
+				return stepError(stderr, err)
+			}
+			return runStep(ctx, options, stdout, stderr)
 		}
 		if root, rest, isWork, workErr := parseWorkInvocation(arguments); isWork {
 			if workErr != nil {

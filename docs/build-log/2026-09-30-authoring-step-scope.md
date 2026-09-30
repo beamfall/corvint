@@ -75,3 +75,19 @@ and final handler emission refuse records above32 MiB; two individually bounded 
 prove the combined receipt refusal without a large filesystem benchmark. Focused repair tests/vet passed. Independent repair delta review closed all four original findings
 with no new actionable concern. ASS-V0-001 through005 pass within source scope;006 remains PARTIAL
 for public command/native/final-bound delivery. All24 frozen source hashes matched at re-review.
+
+## Atomic public integration candidate
+
+Reviewed source28f8 was released58 UNPUBLISHED1429 to yield native closeout capacity. Exact shared
+effects were retained at acceptance revision3 by receipt1440. Admission initially refused the
+legitimate impact65 main/help overlap; no shared source changes were retained. After actual release
+1450 and coordinator assignment, fresh atomic67 receipt1451 admits the original base259 and all
+source, registry and CEM paths. Six applied files match the independently inspected preview hashes;
+that static delta review had no actionable finding. Public dispatch, help and experimental ASS-V0
+maturity now agree. Actual focused public/Core conformance and unchanged MCP tools-list goldens
+passed. Native CLI qualification, frozen bound checks and final evidence remain pending.
+
+The retained frozen plan/key is unchanged. Same-change ASS intent stays proposed and its CEM hunk
+unknown under OCM-V0-009 and accepted decisions0055/0170; it is never historical CEM authority. The
+daily-path input wording conflicts with that accepted rule; native docs-friction V1-0561 receipt1449
+retains the discrepancy separately. Frontier remains open/unavailable. No full gate or promotion.

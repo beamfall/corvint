@@ -168,3 +168,26 @@ func TestStepCLIMissingMarkerRetainsWrites(t *testing.T) {
 		}
 	})
 }
+
+func TestStepPublicDispatchConformance(t *testing.T) {
+	t.Run("ASS-V0-006 public namespace and help", func(t *testing.T) {
+		for _, args := range [][]string{{"step", "--help"}, {"help", "step"}, {"step", "snapshot", "--help"}, {"--root", "/missing", "step", "verify", "--help"}, {"step", "env-check", "--help"}} {
+			var out, stderr bytes.Buffer
+			if exit := runContext(context.Background(), args, strings.NewReader(""), &out, &stderr); exit != 0 || out.String() != stepHelp || stderr.Len() != 0 {
+				t.Fatalf("%v: %d %s %s", args, exit, &out, &stderr)
+			}
+		}
+		root, dp, hp := stepCLIInputs(t)
+		var out, stderr bytes.Buffer
+		exit := runContext(context.Background(), []string{"step", "snapshot", "--declaration", dp, "--host", hp}, strings.NewReader(""), &out, &stderr)
+		if exit != 0 || stderr.Len() != 0 || !bytes.Contains(out.Bytes(), []byte(`"corvint-step-state/0"`)) {
+			t.Fatalf("public snapshot %d %s %s", exit, &out, &stderr)
+		}
+		_ = root
+		out.Reset()
+		stderr.Reset()
+		if exit := runContext(context.Background(), []string{"step", "verify"}, strings.NewReader(""), &out, &stderr); exit != 2 || out.Len() != 0 || stderr.String() != "{\"ok\":false,\"code\":\"STEP_INPUT\"}\n" {
+			t.Fatalf("public refusal %d %s %s", exit, &out, &stderr)
+		}
+	})
+}

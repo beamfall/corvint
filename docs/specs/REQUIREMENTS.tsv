@@ -205,6 +205,12 @@ ASD-V0-009	docs/specs/corvint-self-development-v0.md	42	Repair feature/eval disc
 ASD-V0-010	docs/specs/corvint-self-development-v0.md	43	Reuse existing relevant CLI profile tests and documentation/package/spec validat
 ASD-V0-011	docs/specs/corvint-self-development-v0.md	44	Demonstrate applicable routes on the actual enrolled implementation task with or
 ASD-V0-012	docs/specs/corvint-self-development-v0.md	45	A future feature change updates the shared guide/status and its relevant route w
+ASS-V0-001	docs/specs/authoring-step-scope-v0.md	26	A strict versioned declaration must list allowed write paths/prefixes, guarded
+ASS-V0-002	docs/specs/authoring-step-scope-v0.md	30	Pre- and post-state observation must be read-only and bind full commit/tree,
+ASS-V0-003	docs/specs/authoring-step-scope-v0.md	34	Verification must name every observed out-of-scope write, guarded modification a
+ASS-V0-004	docs/specs/authoring-step-scope-v0.md	38	A deterministic receipt must bind the exact declaration, both complete state
+ASS-V0-005	docs/specs/authoring-step-scope-v0.md	42	Optional preflight environment verification must reject every undeclared key and
+ASS-V0-006	docs/specs/authoring-step-scope-v0.md	45	Publish fixtures for each violation class and local read-only CLI qualification.
 ATI-V0-001	docs/specs/authority-trigger-index-v0.md	64	The index MUST compile its triggers from backticked full-path citations of the f
 ATI-V0-002	docs/specs/authority-trigger-index-v0.md	70	A trigger MUST fire only for a path the caller named. When no citation names any
 ATI-V0-003	docs/specs/authority-trigger-index-v0.md	73	Every row MUST report its relation as `cites` and MUST NOT assert that the cited

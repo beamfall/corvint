@@ -23,49 +23,6 @@
     ]
   },
   {
-    "path": "docs/specs/application-flow-understanding-v0.md",
-    "title": "Application Flow Understanding V0",
-    "reqPrefix": "AFU-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "Corvint maps declared web flows to source-bound assertion candidates and bounded browser observations, preserving coverage gaps and contradictions.",
-    "dependsOn": [
-      "docs/specs/js-live-test-provider-v0.md",
-      "docs/specs/ocm-v0-dogfood.md"
-    ],
-    "supersededBy": null,
-    "closableToday": true,
-    "implementation": [
-      "internal/appflows",
-      "cmd/corvint-web-flows",
-      "tools/web-flows"
-    ]
-  },
-  {
-    "path": "docs/specs/application-flow-understanding-v1.md",
-    "title": "Application Flow Understanding V1 \u2014 proven flows, safe E2E selection, navigation and documentation",
-    "reqPrefix": "AFU-V1",
-    "intent": "accepted (decision 0385)",
-    "delivery": "partially delivered; original issue-175 flows qualified locally",
-    "claim": "Reviewed flows link to source, tests and run evidence; Corvint selects E2E tests with exclusion proofs, maps navigation and proves documentation claims.",
-    "dependsOn": [
-      "docs/specs/application-flow-understanding-v0.md",
-      "docs/specs/documentation-corpus-v1.md",
-      "docs/specs/external-test-selection-v1.md",
-      "docs/specs/mcp-server-2026-07-28-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "cmd/corvint",
-      "cmd/corvint-mcp",
-      "internal/appflows",
-      "internal/doccorpus",
-      "internal/extevidence",
-      "internal/jstestprovider"
-    ]
-  },
-  {
     "path": "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
     "title": "Frontier decision brief \u2014 2026-08-29",
     "reqPrefix": "",
@@ -116,6 +73,24 @@
       "internal/repoenvelope",
       "conformance/harness-event-v0",
       "integrations/opencode"
+    ]
+  },
+  {
+    "path": "docs/specs/agent-instruction-doctor-v0.md",
+    "title": "Agent Instruction Doctor V0",
+    "reqPrefix": "IID-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Explicit default assumptions predict pinned project instruction selection, shadowing and truncation; actual session loading remains unknown.",
+    "dependsOn": [
+      "docs/specs/task-context-packet-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/contextindex/instruction_loadset.go",
+      "cmd/corvint/taskcontext.go",
+      "integrations/instruction-profiles.json"
     ]
   },
   {
@@ -176,6 +151,49 @@
     ]
   },
   {
+    "path": "docs/specs/application-flow-understanding-v0.md",
+    "title": "Application Flow Understanding V0",
+    "reqPrefix": "AFU-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Corvint maps declared web flows to source-bound assertion candidates and bounded browser observations, preserving coverage gaps and contradictions.",
+    "dependsOn": [
+      "docs/specs/js-live-test-provider-v0.md",
+      "docs/specs/ocm-v0-dogfood.md"
+    ],
+    "supersededBy": null,
+    "closableToday": true,
+    "implementation": [
+      "internal/appflows",
+      "cmd/corvint-web-flows",
+      "tools/web-flows"
+    ]
+  },
+  {
+    "path": "docs/specs/application-flow-understanding-v1.md",
+    "title": "Application Flow Understanding V1 \u2014 proven flows, safe E2E selection, navigation and documentation",
+    "reqPrefix": "AFU-V1",
+    "intent": "accepted (decision 0385)",
+    "delivery": "partially delivered; original issue-175 flows qualified locally",
+    "claim": "Reviewed flows link to source, tests and run evidence; Corvint selects E2E tests with exclusion proofs, maps navigation and proves documentation claims.",
+    "dependsOn": [
+      "docs/specs/application-flow-understanding-v0.md",
+      "docs/specs/documentation-corpus-v1.md",
+      "docs/specs/external-test-selection-v1.md",
+      "docs/specs/mcp-server-2026-07-28-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint",
+      "cmd/corvint-mcp",
+      "internal/appflows",
+      "internal/doccorpus",
+      "internal/extevidence",
+      "internal/jstestprovider"
+    ]
+  },
+  {
     "path": "docs/specs/applied-intelligence-breakthroughs-v0.md",
     "title": "Applied Intelligence Breakthroughs V0",
     "reqPrefix": "",
@@ -190,23 +208,21 @@
     "implementation": []
   },
   {
-    "path": "docs/specs/corvint-self-development-v0.md",
-    "title": "Corvint Self-Development V0",
-    "reqPrefix": "ASD-V0",
-    "intent": "accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08)",
+    "path": "docs/specs/authoring-step-scope-v0.md",
+    "title": "Authoring Step Scope V0",
+    "reqPrefix": "ASS-V0",
+    "intent": "proposed",
     "delivery": "experimental",
-    "claim": "Corvint development selects applicable existing feature routes, preserves real use evidence, and finishes through the existing local completion policy.",
+    "claim": "A quiescent local observer binds authoring scope to complete before/post checkout components with explicit findings and uncertainty.",
     "dependsOn": [
-      "docs/specs/local-completion-policy-v0.md",
-      "docs/specs/go-production-kernel-migration-v0.md"
+      "docs/specs/core-compatibility-freeze-v1.md"
     ],
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "docs/SELF-DEVELOPMENT.md",
-      "integrations/codex/plugins/corvint/skills/corvint/SKILL.md",
-      "integrations/claude-code/plugins/corvint/skills/context/SKILL.md",
-      "cmd/corvint/help.go"
+      "internal/stepverify",
+      "cmd/corvint/step.go",
+      "protocol/step"
     ]
   },
   {
@@ -417,6 +433,22 @@
     ]
   },
   {
+    "path": "docs/specs/compaction-kernel-v0.md",
+    "title": "Compaction Kernel V0",
+    "reqPrefix": "CKN-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A bounded, pinned kernel block makes \"governing requirements survived compaction\" a checkable property rather than a hope.",
+    "dependsOn": [
+      "docs/specs/task-context-packet-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/compactionkernel"
+    ]
+  },
+  {
     "path": "docs/specs/compat-replay-runner-v0.md",
     "title": "Compatibility Replay Runner V0",
     "reqPrefix": "CRR-V0",
@@ -481,6 +513,41 @@
     ]
   },
   {
+    "path": "docs/specs/correlated-witness-collapse-x0.md",
+    "title": "Correlated Witness Collapse X0",
+    "reqPrefix": "CWC-X0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Declared common causes may collapse duplicate witness obligations only without strengthening authority or hiding uncertainty.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/witnesscollapse"
+    ]
+  },
+  {
+    "path": "docs/specs/corvint-1.0-product-and-release-v1.md",
+    "title": "Corvint 1.0 product and release scope V1",
+    "reqPrefix": "PRS-V1",
+    "intent": "accepted (decisions 0373 and 0426, V1-0001 and V1-0461)",
+    "delivery": "partial; expanded 1.0 qualification pending",
+    "claim": "1.0 requires Core change evidence, Flows, safe navigation, docs, MCP, full Beamfall roadmap takeover by Tasks and automatic documentation.",
+    "dependsOn": [
+      "docs/specs/public-release-v0.md",
+      "docs/specs/daily-change-evidence-workflow-v0.md",
+      "docs/specs/agent-harness-integration-v0.md",
+      "docs/specs/stable-operations-v0.md",
+      "docs/specs/application-flow-understanding-v1.md",
+      "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "docs/specs/source-documentation-draft-v0.md",
+      "docs/specs/documentation-corpus-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
     "path": "docs/specs/corvint-rebrand-v0.md",
     "title": "Corvint Rebrand V0",
     "reqPrefix": "CRB-V0",
@@ -511,17 +578,79 @@
     ]
   },
   {
-    "path": "docs/specs/correlated-witness-collapse-x0.md",
-    "title": "Correlated Witness Collapse X0",
-    "reqPrefix": "CWC-X0",
-    "intent": "proposed",
+    "path": "docs/specs/corvint-self-development-v0.md",
+    "title": "Corvint Self-Development V0",
+    "reqPrefix": "ASD-V0",
+    "intent": "accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08)",
     "delivery": "experimental",
-    "claim": "Declared common causes may collapse duplicate witness obligations only without strengthening authority or hiding uncertainty.",
+    "claim": "Corvint development selects applicable existing feature routes, preserves real use evidence, and finishes through the existing local completion policy.",
+    "dependsOn": [
+      "docs/specs/local-completion-policy-v0.md",
+      "docs/specs/go-production-kernel-migration-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "docs/SELF-DEVELOPMENT.md",
+      "integrations/codex/plugins/corvint/skills/corvint/SKILL.md",
+      "integrations/claude-code/plugins/corvint/skills/context/SKILL.md",
+      "cmd/corvint/help.go"
+    ]
+  },
+  {
+    "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+    "title": "Corvint Tasks agent leases V0",
+    "reqPrefix": "CAL-V0",
+    "intent": "accepted (owner decision 2026-09-27)",
+    "delivery": "partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification)",
+    "claim": "Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.",
+    "dependsOn": [
+      "docs/specs/corvint-tasks-store-init-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/tasks/authority",
+      "internal/tasks/cli",
+      "internal/tasks/snapshot",
+      "internal/tasks/store",
+      "internal/tasks/supervisor",
+      "internal/tasks/ticket",
+      "internal/tasks/transaction"
+    ]
+  },
+  {
+    "path": "docs/specs/corvint-tasks-store-init-v0.md",
+    "title": "Corvint Tasks store initialization V0",
+    "reqPrefix": "CTS-V0",
+    "intent": "accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28)",
+    "delivery": "experimental",
+    "claim": "`corvint-tasks init` refuses an intent store that already holds records, and works in a repository reached through a symlinked ancestor such as macOS `/tmp`.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/witnesscollapse"
+      "internal/tasks/cli",
+      "internal/tasks/importer",
+      "internal/tasks/intent",
+      "internal/tasks/snapshot",
+      "internal/tasks/store",
+      "internal/tasks/transaction"
+    ]
+  },
+  {
+    "path": "docs/specs/corvint-witness-v0.md",
+    "title": "Corvint Witness Report V0",
+    "reqPrefix": "AGW-V0",
+    "intent": "accepted (decisions 0163 and 0290)",
+    "delivery": "experimental (checked by `TestCLIReadVerbsLeaveTheRepositoryByteIdentical`)",
+    "claim": "corvint witness reports the unwitnessed surface of one committed change range and writes no repository, index, or trace state.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint",
+      "internal/witness"
     ]
   },
   {
@@ -542,6 +671,45 @@
     ]
   },
   {
+    "path": "docs/specs/cross-repository-breakage-map-v0.md",
+    "title": "Cross-repository breakage map V0",
+    "reqPrefix": "BKM-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A selected API maps pinned Go syntax references and original declared provider relationships across explicit local repositories.",
+    "dependsOn": [
+      "docs/specs/external-evidence-provider-v1.md",
+      "docs/specs/external-evidence-provider-v2.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/breakagemap",
+      "cmd/corvint/breakage.go"
+    ]
+  },
+  {
+    "path": "docs/specs/daily-change-evidence-workflow-v0.md",
+    "title": "Daily Change-Evidence Workflow V0",
+    "reqPrefix": "DCW-V0",
+    "intent": "accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); evaluation protocol awaits separate freeze",
+    "delivery": "experimental; milestone NOT_QUALIFIED",
+    "claim": "0.6 requires verified task orientation, change consequence and evidence-carrying local completion.",
+    "dependsOn": [
+      "docs/specs/public-release-v0.md",
+      "docs/specs/use-case-conformance-v0.md",
+      "docs/specs/local-completion-policy-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "conformance/use-cases-v0",
+      "cmd/corvint",
+      "internal/localcompletion",
+      "internal/dogfoodflow"
+    ]
+  },
+  {
     "path": "docs/specs/decision-number-gate-v0.md",
     "title": "Decision number gate V0",
     "reqPrefix": "DNG-V0",
@@ -558,94 +726,19 @@
     ]
   },
   {
-    "path": "docs/specs/documentation-corpus-v1.md",
-    "title": "Revision-pinned documentation corpus V1",
-    "reqPrefix": "DCP-V1",
+    "path": "docs/specs/dependency-source-evidence-v0.md",
+    "title": "Dependency Source Evidence V0",
+    "reqPrefix": "DSE-V0",
     "intent": "proposed",
     "delivery": "experimental",
-    "claim": "A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.",
+    "claim": "`corvint depsource` cites third-party Go module source with the same pinning discipline as repository code, or abstains.",
     "dependsOn": [
-      "docs/specs/deployment-neutral-index-platform-v0.md",
-      "docs/specs/source-documentation-draft-v0.md",
-      "docs/specs/external-evidence-provider-v0.md"
+      "docs/specs/task-context-packet-v0.md"
     ],
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/doccorpus",
-      "cmd/corvint",
-      "internal/mcp/corpusbridge",
-      "cmd/corvint-corpus-mcp"
-    ]
-  },
-  {
-    "path": "docs/specs/migration-evidence-ratchet-v0.md",
-    "title": "Migration Evidence Ratchet V0",
-    "reqPrefix": "MER-V0",
-    "intent": "accepted (GitHub issue #46)",
-    "delivery": "experimental",
-    "claim": "A revision-bound baseline/candidate receipt prevents migration evidence debt from growing without claiming adequacy or completeness.",
-    "dependsOn": [
-      "docs/specs/documentation-corpus-v1.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/migrationratchet",
-      "cmd/corvint/migration_ratchet.go"
-    ]
-  },
-  {
-    "path": "docs/specs/spec-requirement-index-generator-v0.md",
-    "title": "Spec requirement index generator V0",
-    "reqPrefix": "SRG-V0",
-    "intent": "accepted (decision 0105 amendment 2026-09-12)",
-    "delivery": "implemented",
-    "claim": "One generated index names, for every requirement id in every tracked spec, the single best place that defines it.",
-    "dependsOn": [
-      "docs/specs/decision-number-gate-v0.md",
-      "docs/specs/requirement-definition-gate-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "script/gen-spec-requirements.sh"
-    ]
-  },
-  {
-    "path": "docs/specs/go-archive-gate-v0.md",
-    "title": "Go archive gate V0",
-    "reqPrefix": "GAG-V0",
-    "intent": "accepted (decision 0105 amendment 2026-09-12)",
-    "delivery": "implemented",
-    "claim": "Every `make gate` run rebuilds the five release archives from the committed revision hermetically and proves the result is the expected closed set.",
-    "dependsOn": [
-      "docs/specs/release-artifact-integrity-v0.md",
-      "docs/specs/decision-number-gate-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "script/go-archive-gate",
-      "script/go-archive-gate_test.sh",
-      "script/go-archive-gate-injection_test.sh"
-    ]
-  },
-  {
-    "path": "docs/specs/eol-policy-gate-v0.md",
-    "title": "End-of-line policy gate V0",
-    "reqPrefix": "EPG-V0",
-    "intent": "accepted (decision 0150, owner instruction 2026-09-12)",
-    "delivery": "implemented",
-    "claim": "Every tracked path keeps the repository-wide `-text` attribute, and only two named fixtures may commit CRLF or mixed bytes.",
-    "dependsOn": [
-      "docs/specs/documentation-citation-gate-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": true,
-    "implementation": [
-      "script/check-eol-policy.sh",
-      "script/check-eol-policy_test.sh"
+      "internal/depsource"
     ]
   },
   {
@@ -688,6 +781,43 @@
     ]
   },
   {
+    "path": "docs/specs/direct-native-cli-authority-v0.md",
+    "title": "Direct native CLI authority V0",
+    "reqPrefix": "DCLI-V0",
+    "intent": "prospective implementation profile; root Gate A approved bounded implementation 2026-09-15",
+    "delivery": "experimental; no operator admission",
+    "claim": "One closed direct-native Codex CLI topology reuses protected lifecycle computation without inheriting Desktop qualification or execution authority.",
+    "dependsOn": [
+      "docs/specs/protected-local-execution-v0.md",
+      "docs/specs/qualified-lifecycle-v0.md",
+      "docs/decisions/0009-harness-authority-boundary.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/authoritystore",
+      "cmd/corvint",
+      "tools/local-authority"
+    ]
+  },
+  {
+    "path": "docs/specs/documentation-ci-v0.md",
+    "title": "Documentation CI V0",
+    "reqPrefix": "DCI-V0",
+    "intent": "accepted direction (owner request, 2026-09-29); bounded admission requires reviewed qualification",
+    "delivery": "experimental",
+    "claim": "A separately qualified README presentation policy can omit the root Go race invocation while retaining documentation and other CI checks.",
+    "dependsOn": [
+      "docs/specs/affected-plan-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "tools/docs-ci-plan",
+      ".github/workflows/ci.yml"
+    ]
+  },
+  {
     "path": "docs/specs/documentation-citation-gate-v0.md",
     "title": "Documentation citation gate V0",
     "reqPrefix": "DCG-V0",
@@ -705,6 +835,44 @@
     ]
   },
   {
+    "path": "docs/specs/documentation-corpus-v1.md",
+    "title": "Revision-pinned documentation corpus V1",
+    "reqPrefix": "DCP-V1",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.",
+    "dependsOn": [
+      "docs/specs/deployment-neutral-index-platform-v0.md",
+      "docs/specs/source-documentation-draft-v0.md",
+      "docs/specs/external-evidence-provider-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/doccorpus",
+      "cmd/corvint",
+      "internal/mcp/corpusbridge",
+      "cmd/corvint-corpus-mcp"
+    ]
+  },
+  {
+    "path": "docs/specs/dogfood-query-abstention-v0.md",
+    "title": "Dogfood Query Abstention V0",
+    "reqPrefix": "QAT-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "An exact intentional authority-start trace refusal can be retained during structural dogfood closure without claiming query support.",
+    "dependsOn": [
+      "docs/specs/daily-change-evidence-workflow-v0.md",
+      "docs/specs/go-production-kernel-migration-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/dogfoodflow"
+    ]
+  },
+  {
     "path": "docs/specs/dotnet-affected-selection-v0.md",
     "title": ".NET affected-test selection V0",
     "reqPrefix": "DNAS-V0",
@@ -718,6 +886,23 @@
     "closableToday": false,
     "implementation": [
       "internal/liveverify/affected/dotnet"
+    ]
+  },
+  {
+    "path": "docs/specs/eol-policy-gate-v0.md",
+    "title": "End-of-line policy gate V0",
+    "reqPrefix": "EPG-V0",
+    "intent": "accepted (decision 0150, owner instruction 2026-09-12)",
+    "delivery": "implemented",
+    "claim": "Every tracked path keeps the repository-wide `-text` attribute, and only two named fixtures may commit CRLF or mixed bytes.",
+    "dependsOn": [
+      "docs/specs/documentation-citation-gate-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": true,
+    "implementation": [
+      "script/check-eol-policy.sh",
+      "script/check-eol-policy_test.sh"
     ]
   },
   {
@@ -756,6 +941,94 @@
       "cmd/corvint",
       "internal/contextindex/range_impact.go",
       "script/dogfood-change.sh"
+    ]
+  },
+  {
+    "path": "docs/specs/experimental-source-views-v0.md",
+    "title": "Experimental caller-selected source views V0",
+    "reqPrefix": "ESV-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Opt-in development views bound a context packet and expand one selected digest-pinned evidence handle into exact immutable bytes.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint/source_handoff.go",
+      "cmd/corvint/context_summary.go"
+    ]
+  },
+  {
+    "path": "docs/specs/expert-audit-followup-v0.md",
+    "title": "Expert Audit Follow-up V0",
+    "reqPrefix": "EAF-V0",
+    "intent": "accepted bounded repair scope (owner follow-up 2026-09-06)",
+    "delivery": "experimental",
+    "claim": "Audit repairs secret screening, mutation attribution, obligation recovery and native Git-read isolation; experimental outcome gates remain explicit.",
+    "dependsOn": [
+      "docs/specs/learned-trace-admission-v0.md",
+      "docs/specs/falsifiable-packet-v0.md",
+      "docs/specs/source-documentation-draft-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/secretscreen",
+      "internal/liveverify/mutate",
+      "cmd/corvint/prove_checkpoint.go"
+    ]
+  },
+  {
+    "path": "docs/specs/external-evidence-provider-mcp-v0.md",
+    "title": "External Evidence Provider MCP V0",
+    "reqPrefix": "EEP-MCP",
+    "intent": "accepted (decision 0324)",
+    "delivery": "implemented",
+    "claim": "`impact --provider-mcp ARGV_JSON` invokes one bounded local MCP tool and preserves the provider record bytes.",
+    "dependsOn": [
+      "docs/specs/external-evidence-provider-transports-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": true,
+    "implementation": [
+      "internal/extevidence/mcp.go",
+      "internal/procgroup"
+    ]
+  },
+  {
+    "path": "docs/specs/external-evidence-provider-remote-v0.md",
+    "title": "External Evidence Provider Remote V0",
+    "reqPrefix": "EEP-REMOTE",
+    "intent": "accepted (decision 0325)",
+    "delivery": "implemented",
+    "claim": "A separately built `corvint-remote-provider` fetches one TLS-pinned HTTPS record only with explicit network consent.",
+    "dependsOn": [
+      "docs/specs/external-evidence-provider-transports-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": true,
+    "implementation": [
+      "cmd/corvint-remote-provider",
+      "internal/remoteprovider"
+    ]
+  },
+  {
+    "path": "docs/specs/external-evidence-provider-transports-v0.md",
+    "title": "External Evidence Provider Transports V0",
+    "reqPrefix": "EEP-TR",
+    "intent": "accepted (decisions 0316, 0317, 0318)",
+    "delivery": "implemented",
+    "claim": "`corvint impact` and `corvint affected --provider-command ARGV_JSON` run one contained local provider command and decode its stdout exactly as a record file.",
+    "dependsOn": [
+      "docs/specs/external-evidence-provider-v0.md",
+      "docs/specs/external-evidence-provider-v1.md",
+      "docs/specs/external-evidence-provider-v2.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint",
+      "internal/extevidence"
     ]
   },
   {
@@ -869,94 +1142,6 @@
     ]
   },
   {
-    "path": "docs/specs/external-evidence-provider-transports-v0.md",
-    "title": "External Evidence Provider Transports V0",
-    "reqPrefix": "EEP-TR",
-    "intent": "accepted (decisions 0316, 0317, 0318)",
-    "delivery": "implemented",
-    "claim": "`corvint impact` and `corvint affected --provider-command ARGV_JSON` run one contained local provider command and decode its stdout exactly as a record file.",
-    "dependsOn": [
-      "docs/specs/external-evidence-provider-v0.md",
-      "docs/specs/external-evidence-provider-v1.md",
-      "docs/specs/external-evidence-provider-v2.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "cmd/corvint",
-      "internal/extevidence"
-    ]
-  },
-  {
-    "path": "docs/specs/external-evidence-provider-mcp-v0.md",
-    "title": "External Evidence Provider MCP V0",
-    "reqPrefix": "EEP-MCP",
-    "intent": "accepted (decision 0324)",
-    "delivery": "implemented",
-    "claim": "`impact --provider-mcp ARGV_JSON` invokes one bounded local MCP tool and preserves the provider record bytes.",
-    "dependsOn": [
-      "docs/specs/external-evidence-provider-transports-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": true,
-    "implementation": [
-      "internal/extevidence/mcp.go",
-      "internal/procgroup"
-    ]
-  },
-  {
-    "path": "docs/specs/external-evidence-provider-remote-v0.md",
-    "title": "External Evidence Provider Remote V0",
-    "reqPrefix": "EEP-REMOTE",
-    "intent": "accepted (decision 0325)",
-    "delivery": "implemented",
-    "claim": "A separately built `corvint-remote-provider` fetches one TLS-pinned HTTPS record only with explicit network consent.",
-    "dependsOn": [
-      "docs/specs/external-evidence-provider-transports-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": true,
-    "implementation": [
-      "cmd/corvint-remote-provider",
-      "internal/remoteprovider"
-    ]
-  },
-  {
-    "path": "docs/specs/experimental-source-views-v0.md",
-    "title": "Experimental caller-selected source views V0",
-    "reqPrefix": "ESV-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "Opt-in development views bound a context packet and expand one selected digest-pinned evidence handle into exact immutable bytes.",
-    "dependsOn": [],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "cmd/corvint/source_handoff.go",
-      "cmd/corvint/context_summary.go"
-    ]
-  },
-  {
-    "path": "docs/specs/expert-audit-followup-v0.md",
-    "title": "Expert Audit Follow-up V0",
-    "reqPrefix": "EAF-V0",
-    "intent": "accepted bounded repair scope (owner follow-up 2026-09-06)",
-    "delivery": "experimental",
-    "claim": "Audit repairs secret screening, mutation attribution, obligation recovery and native Git-read isolation; experimental outcome gates remain explicit.",
-    "dependsOn": [
-      "docs/specs/learned-trace-admission-v0.md",
-      "docs/specs/falsifiable-packet-v0.md",
-      "docs/specs/source-documentation-draft-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/secretscreen",
-      "internal/liveverify/mutate",
-      "cmd/corvint/prove_checkpoint.go"
-    ]
-  },
-  {
     "path": "docs/specs/falsifiable-packet-v0.md",
     "title": "Falsifiable Packet V0",
     "reqPrefix": "FPK-V0",
@@ -970,21 +1155,6 @@
     "closableToday": false,
     "implementation": [
       "cmd/corvint"
-    ]
-  },
-  {
-    "path": "docs/specs/genesis-backfill.md",
-    "title": "Genesis codebase backfill",
-    "reqPrefix": "GENESIS",
-    "intent": "accepted",
-    "delivery": "experimental-first-inventory",
-    "claim": "Genesis backfill inventories brownfield repository knowledge before any source is activated as evidence.",
-    "dependsOn": [],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/genesis",
-      "cmd/corvint/init_adopt.go"
     ]
   },
   {
@@ -1008,27 +1178,37 @@
     ]
   },
   {
-    "path": "docs/specs/receipt-bundle-v0.md",
-    "title": "Receipt bundle V0",
-    "reqPrefix": "RCB-V0",
-    "intent": "accepted (decision 0376; ticket V1-0197 with two owner-confirmed deviations)",
-    "delivery": "experimental",
-    "claim": "`corvint cem export` copies one change's CEM, witness, dogfood and gate receipts into a new directory whose manifest an offline script verifies.",
+    "path": "docs/specs/genesis-backfill.md",
+    "title": "Genesis codebase backfill",
+    "reqPrefix": "GENESIS",
+    "intent": "accepted",
+    "delivery": "experimental-first-inventory",
+    "claim": "Genesis backfill inventories brownfield repository knowledge before any source is activated as evidence.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/genesis",
+      "cmd/corvint/init_adopt.go"
+    ]
+  },
+  {
+    "path": "docs/specs/go-archive-gate-v0.md",
+    "title": "Go archive gate V0",
+    "reqPrefix": "GAG-V0",
+    "intent": "accepted (decision 0105 amendment 2026-09-12)",
+    "delivery": "implemented",
+    "claim": "Every `make gate` run rebuilds the five release archives from the committed revision hermetically and proves the result is the expected closed set.",
     "dependsOn": [
-      "docs/specs/cem-0.2-canonical-binding.md",
-      "docs/specs/go-only-cutover-v0.md",
-      "docs/specs/corvint-witness-v0.md",
-      "docs/specs/release-artifact-integrity-v0.md"
+      "docs/specs/release-artifact-integrity-v0.md",
+      "docs/specs/decision-number-gate-v0.md"
     ],
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/receiptbundle/receiptbundle.go",
-      "internal/receiptbundle/receiptbundle_test.go",
-      "cmd/corvint/cem_export.go",
-      "cmd/corvint/cem_export_test.go",
-      "script/verify-receipt-bundle.sh",
-      "script/verify-receipt-bundle_test.sh"
+      "script/go-archive-gate",
+      "script/go-archive-gate_test.sh",
+      "script/go-archive-gate-injection_test.sh"
     ]
   },
   {
@@ -1108,6 +1288,24 @@
     ]
   },
   {
+    "path": "docs/specs/gopls-client-session-v0.md",
+    "title": "Gopls client session V0",
+    "reqPrefix": "GCS-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "An optional local gopls session observes definitions only between caller-owned synchronized overlays with explicit lifecycle and bounds.",
+    "dependsOn": [
+      "docs/specs/external-evidence-provider-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/goplsclient/client.go",
+      "internal/goplsclient/client_test.go",
+      "internal/goplsclient/lifecycle_unix_test.go"
+    ]
+  },
+  {
     "path": "docs/specs/harness-authority-relation-v0.md",
     "title": "Harness Authority Relation V0",
     "reqPrefix": "HAR-V0",
@@ -1118,6 +1316,41 @@
     "supersededBy": "docs/decisions/0009-harness-authority-boundary.md",
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/heading-navigation-experiment-v0.md",
+    "title": "Heading navigation experiment V0",
+    "reqPrefix": "HNE-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "An offline harness compares native lexical document ranking with deterministic heading-aware expansion under equal serialized context-byte budgets.",
+    "dependsOn": [
+      "docs/specs/documentation-corpus-v1.md",
+      "docs/specs/retrieval-eval-comparability-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "tools/heading-nav-bench"
+    ]
+  },
+  {
+    "path": "docs/specs/host-lifecycle-qualification-v1.md",
+    "title": "Host Lifecycle Qualification V1",
+    "reqPrefix": "HLQ-V1",
+    "intent": "accepted",
+    "delivery": "experimental",
+    "claim": "Each Core host tuple passes nine lifecycle cases on exact versions in isolated host homes, and a result binds only the tuple that produced it.",
+    "dependsOn": [
+      "docs/specs/agent-harness-integration-v0.md",
+      "docs/specs/core-compatibility-freeze-v1.md",
+      "docs/specs/corvint-1.0-product-and-release-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "conformance/host-lifecycle-v1"
+    ]
   },
   {
     "path": "docs/specs/human-documentation-compiler-v0.md",
@@ -1171,42 +1404,6 @@
     "implementation": [
       "internal/jstestprovider",
       "cmd/corvint-js-test-provider"
-    ]
-  },
-  {
-    "path": "docs/specs/playwright-external-provider-v0.md",
-    "title": "Playwright External Provider V0/V1/V2/V3",
-    "reqPrefix": "PWP-V0",
-    "intent": "accepted",
-    "delivery": "`/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`; `/3` implemented; qualification evidence recorded with issue 175",
-    "claim": "External-server Playwright receipts bind outcomes without owning the app; `/1` attests application identity and `/2` redacts sensitive input evidence.",
-    "dependsOn": [
-      "docs/specs/live-proof-carrying-verification-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": true,
-    "implementation": [
-      "internal/jstestprovider",
-      "cmd/corvint-js-test-provider",
-      "internal/testvaliditydoc"
-    ]
-  },
-  {
-    "path": "docs/specs/playwright-suite-interaction-minimizer-v0.md",
-    "title": "Playwright Suite-Interaction Minimizer V0",
-    "reqPrefix": "PSM-V0",
-    "intent": "proposed",
-    "delivery": "experimental (closed operator executor; bounded observed-descendant cleanup)",
-    "claim": "A no-mutation planner and approved experimental executor retain bounded Playwright trials with qualified runner, stability, and application evidence.",
-    "dependsOn": [
-      "docs/specs/playwright-external-provider-v0.md",
-      "docs/specs/documentation-corpus-v1.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/playwrightminimize",
-      "cmd/corvint-playwright-minimize"
     ]
   },
   {
@@ -1383,6 +1580,108 @@
     ]
   },
   {
+    "path": "docs/specs/lsp-editor-context-v0.md",
+    "title": "LSP Editor Context V0",
+    "reqPrefix": "LEC-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Explicit editor context requests preserve Core task-review evidence separately from a current open-overlay observation.",
+    "dependsOn": [
+      "docs/specs/lsp-quality-platform-v0.md",
+      "docs/specs/lsp-editor-definition-v0.md",
+      "docs/specs/task-context-packet-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint-lsp",
+      "internal/lspstdio",
+      "internal/gitstatus"
+    ]
+  },
+  {
+    "path": "docs/specs/lsp-editor-definition-v0.md",
+    "title": "LSP Editor Definition V0",
+    "reqPrefix": "LED-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Explicitly configured editor sessions can request definitions between synchronized open Go overlays through a local gopls process.",
+    "dependsOn": [
+      "docs/specs/lsp-snapshot-overlay-v0.md",
+      "docs/specs/gopls-client-session-v0.md",
+      "docs/specs/lsp-stdio-experiment-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint-lsp",
+      "internal/lspstdio/semantic.go"
+    ]
+  },
+  {
+    "path": "docs/specs/lsp-editor-qualification-v0.md",
+    "title": "LSP editor qualification tooling V0",
+    "reqPrefix": "LEQ-V0",
+    "intent": "proposed experimental tooling; owner selected VS Code and Neovim",
+    "delivery": "experimental; UNQUALIFIED",
+    "claim": "Actual editor lifecycle, definition, Git-bound context and edit-cancellation development probes retain wire evidence without promotion claims.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "script/qualify-lsp-editors.py",
+      "tools/lsp-editors"
+    ]
+  },
+  {
+    "path": "docs/specs/lsp-quality-platform-v0.md",
+    "title": "LSP Quality Platform V0",
+    "reqPrefix": "LQP-V0",
+    "intent": "accepted technical contract (owner approval 2026-09-29; PR 360)",
+    "delivery": "experimental Go overlay editor definition; no supported profile",
+    "claim": "Shared evidence engine serves opt-in agent LSP enrichment and optional editor server with separate Git and overlay identities.",
+    "dependsOn": [
+      "docs/specs/deployment-neutral-index-platform-v0.md",
+      "docs/specs/task-context-packet-v0.md",
+      "docs/specs/external-evidence-provider-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "benchmarks/lsp-quality",
+      "script/measure-lsp-quality.py"
+    ]
+  },
+  {
+    "path": "docs/specs/lsp-snapshot-overlay-v0.md",
+    "title": "LSP Snapshot Overlay V0",
+    "reqPrefix": "LSO-V0",
+    "intent": "proposed technical contract; owner accepted agent and optional editor direction",
+    "delivery": "experimental",
+    "claim": "Experimental in-memory snapshots separate syntactic Git identity from bounded session overlays.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/lspsnapshot"
+    ]
+  },
+  {
+    "path": "docs/specs/lsp-stdio-experiment-v0.md",
+    "title": "LSP Stdio Experiment V0",
+    "reqPrefix": "LSE-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "An explicitly experimental optional native-Go stdio companion exercises bounded framing and lifecycle without semantic capabilities.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint-lsp",
+      "internal/lspstdio"
+    ]
+  },
+  {
     "path": "docs/specs/mcp-server-2026-07-28-v0.md",
     "title": "MCP Server 2026-07-28 V0",
     "reqPrefix": "MCPV0",
@@ -1418,6 +1717,23 @@
       "internal/mcp/testvaliditybridge",
       "internal/testvaliditydoc",
       "conformance/mcp-test-validity-v0"
+    ]
+  },
+  {
+    "path": "docs/specs/migration-evidence-ratchet-v0.md",
+    "title": "Migration Evidence Ratchet V0",
+    "reqPrefix": "MER-V0",
+    "intent": "accepted (GitHub issue #46)",
+    "delivery": "experimental",
+    "claim": "A revision-bound baseline/candidate receipt prevents migration evidence debt from growing without claiming adequacy or completeness.",
+    "dependsOn": [
+      "docs/specs/documentation-corpus-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/migrationratchet",
+      "cmd/corvint/migration_ratchet.go"
     ]
   },
   {
@@ -1471,6 +1787,39 @@
     ]
   },
   {
+    "path": "docs/specs/native-taskman-planning-v0.md",
+    "title": "Native taskman fixture planning V0",
+    "reqPrefix": "NTP-V0",
+    "intent": "accepted fixture scope (decision 0322)",
+    "delivery": "experimental",
+    "claim": "Read-only native fixture priority-first planning with explicit incomplete coverage.",
+    "dependsOn": [
+      "docs/specs/work-queue-observation-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/taskman",
+      "cmd/corvint/taskman_fixture.go"
+    ]
+  },
+  {
+    "path": "docs/specs/necessity-labels-v0.md",
+    "title": "Necessity Labels V0",
+    "reqPrefix": "NEC-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "`corvint necessity` labels each packet file `load-bearing` or `supporting` by removing it from an index copy and recompiling the packet.",
+    "dependsOn": [
+      "docs/specs/task-context-packet-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/necessity"
+    ]
+  },
+  {
     "path": "docs/specs/observation-corpus-authority-v0.md",
     "title": "Observation Corpus Authority V0",
     "reqPrefix": "OCA-V0",
@@ -1482,6 +1831,24 @@
     "closableToday": false,
     "implementation": [
       "internal/obscorpus"
+    ]
+  },
+  {
+    "path": "docs/specs/ocm-intent-forms-v0.md",
+    "title": "OCM intent forms V0",
+    "reqPrefix": "OIF-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "`ocm prepare --intent-form` lets an OCM intent be an ADR's numbered decisions or a roadmap shard's Acceptance tickets instead of only a `## Requirements` spec.",
+    "dependsOn": [
+      "docs/specs/ocm-v0-dogfood.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/lrfrepo/ocm_forms.go",
+      "internal/lrfrepo/ocm_forms_test.go",
+      "cmd/corvint/ocm.go"
     ]
   },
   {
@@ -1509,21 +1876,20 @@
     ]
   },
   {
-    "path": "docs/specs/ocm-intent-forms-v0.md",
-    "title": "OCM intent forms V0",
-    "reqPrefix": "OIF-V0",
-    "intent": "proposed",
+    "path": "docs/specs/operator-update-v0.md",
+    "title": "Operator update V0",
+    "reqPrefix": "UPD-V0",
+    "intent": "proposed technical contract under owner-requested V1-0505 outcome",
     "delivery": "experimental",
-    "claim": "`ocm prepare --intent-form` lets an OCM intent be an ADR's numbered decisions or a roadmap shard's Acceptance tickets instead of only a `## Requirements` spec.",
+    "claim": "An optional operator updater checks Core and Tasks release channels and preserves verified rollback bytes without adding network access to Core.",
     "dependsOn": [
-      "docs/specs/ocm-v0-dogfood.md"
+      "docs/specs/stable-operations-v0.md"
     ],
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/lrfrepo/ocm_forms.go",
-      "internal/lrfrepo/ocm_forms_test.go",
-      "cmd/corvint/ocm.go"
+      "cmd/corvint-update",
+      "internal/update"
     ]
   },
   {
@@ -1544,6 +1910,94 @@
       "script/check-analyzer-python-offline-build.sh",
       "script/check-analyzer-python-ratchets.sh",
       "script/check-release-artifact-reproducibility.sh"
+    ]
+  },
+  {
+    "path": "docs/specs/outcome-calibration-v0.md",
+    "title": "Outcome Calibration V0",
+    "reqPrefix": "OCL-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "`corvint calibrate` reports, read-only, how recorded outcomes line up with the packet stance before them, and proposes a threshold it never applies.",
+    "dependsOn": [
+      "docs/specs/task-context-packet-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/outcomecal"
+    ]
+  },
+  {
+    "path": "docs/specs/pi-workflow-v0.md",
+    "title": "Pi Workflow V0",
+    "reqPrefix": "PWV-V0",
+    "intent": "accepted direction (owner instruction \u201cdo it. parallel\u201d, 2026-09-29)",
+    "delivery": "experimental",
+    "claim": "Pi offers bounded native Core reads and an explicitly authorized Tasks workflow without acquiring evidence or execution authority.",
+    "dependsOn": [
+      "docs/specs/agent-harness-integration-v0.md",
+      "docs/specs/local-completion-policy-v0.md",
+      "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "docs/specs/core-compatibility-freeze-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "integrations/pi"
+    ]
+  },
+  {
+    "path": "docs/specs/playwright-external-provider-v0.md",
+    "title": "Playwright External Provider V0/V1/V2/V3",
+    "reqPrefix": "PWP-V0",
+    "intent": "accepted",
+    "delivery": "`/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`; `/3` implemented; qualification evidence recorded with issue 175",
+    "claim": "External-server Playwright receipts bind outcomes without owning the app; `/1` attests application identity and `/2` redacts sensitive input evidence.",
+    "dependsOn": [
+      "docs/specs/live-proof-carrying-verification-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": true,
+    "implementation": [
+      "internal/jstestprovider",
+      "cmd/corvint-js-test-provider",
+      "internal/testvaliditydoc"
+    ]
+  },
+  {
+    "path": "docs/specs/playwright-suite-interaction-minimizer-v0.md",
+    "title": "Playwright Suite-Interaction Minimizer V0",
+    "reqPrefix": "PSM-V0",
+    "intent": "proposed",
+    "delivery": "experimental (closed operator executor; bounded observed-descendant cleanup)",
+    "claim": "A no-mutation planner and approved experimental executor retain bounded Playwright trials with qualified runner, stability, and application evidence.",
+    "dependsOn": [
+      "docs/specs/playwright-external-provider-v0.md",
+      "docs/specs/documentation-corpus-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/playwrightminimize",
+      "cmd/corvint-playwright-minimize"
+    ]
+  },
+  {
+    "path": "docs/specs/postmerge-connectors-v0.md",
+    "title": "Post-merge Connectors V0",
+    "reqPrefix": "PMC-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A separate companion reads pinned fixture context and renders bounded idempotent tracker and forge requests with recording and dry-run modes.",
+    "dependsOn": [
+      "docs/specs/corvint-1.0-product-and-release-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/postmergeconnector",
+      "cmd/corvint-postmerge-connect"
     ]
   },
   {
@@ -1581,6 +2035,23 @@
     ]
   },
   {
+    "path": "docs/specs/proof-tour-v0.md",
+    "title": "Proof Tour V0",
+    "reqPrefix": "PT-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A disposable synthetic change pauses for an independent exact ACK before checksum-pinned portable structural verification.",
+    "dependsOn": [
+      "docs/specs/cem-pilot-kit.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "script/proof-tour.sh",
+      "script/proof-tour-test.sh"
+    ]
+  },
+  {
     "path": "docs/specs/protected-local-execution-v0.md",
     "title": "Protected local execution V0",
     "reqPrefix": "PLE-V0",
@@ -1601,41 +2072,27 @@
     ]
   },
   {
-    "path": "docs/specs/dogfood-query-abstention-v0.md",
-    "title": "Dogfood Query Abstention V0",
-    "reqPrefix": "QAT-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "An exact intentional authority-start trace refusal can be retained during structural dogfood closure without claiming query support.",
+    "path": "docs/specs/protected-pi-runtime-v0.md",
+    "title": "Protected Pi Runtime V0",
+    "reqPrefix": "PPI-V0",
+    "intent": "accepted direction (owner approval, 2026-09-22); technical details experimental",
+    "delivery": "experimental; no protected installation or native qualification",
+    "claim": "Optional fixed Pi SDK executable with independently qualified protected lifecycle; ordinary extensible Pi remains separate.",
     "dependsOn": [
-      "docs/specs/daily-change-evidence-workflow-v0.md",
-      "docs/specs/go-production-kernel-migration-v0.md"
+      "docs/specs/agent-harness-integration-v0.md",
+      "docs/specs/protected-local-execution-v0.md",
+      "docs/specs/qualified-lifecycle-v0.md"
     ],
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/dogfoodflow"
-    ]
-  },
-  {
-    "path": "docs/specs/daily-change-evidence-workflow-v0.md",
-    "title": "Daily Change-Evidence Workflow V0",
-    "reqPrefix": "DCW-V0",
-    "intent": "accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); evaluation protocol awaits separate freeze",
-    "delivery": "experimental; milestone NOT_QUALIFIED",
-    "claim": "0.6 requires verified task orientation, change consequence and evidence-carrying local completion.",
-    "dependsOn": [
-      "docs/specs/public-release-v0.md",
-      "docs/specs/use-case-conformance-v0.md",
-      "docs/specs/local-completion-policy-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "conformance/use-cases-v0",
-      "cmd/corvint",
-      "internal/localcompletion",
-      "internal/dogfoodflow"
+      "integrations/pi-protected/runtime.ts",
+      "integrations/pi-protected/build.mjs",
+      "integrations/pi-protected/settings.mjs",
+      "integrations/pi-protected/qualified-runner.mjs",
+      "internal/authoritystore/pi.go",
+      "cmd/corvint/qualified_lifecycle.go",
+      "tools/local-authority/pi_release.go"
     ]
   },
   {
@@ -1673,26 +2130,6 @@
     ]
   },
   {
-    "path": "docs/specs/direct-native-cli-authority-v0.md",
-    "title": "Direct native CLI authority V0",
-    "reqPrefix": "DCLI-V0",
-    "intent": "prospective implementation profile; root Gate A approved bounded implementation 2026-09-15",
-    "delivery": "experimental; no operator admission",
-    "claim": "One closed direct-native Codex CLI topology reuses protected lifecycle computation without inheriting Desktop qualification or execution authority.",
-    "dependsOn": [
-      "docs/specs/protected-local-execution-v0.md",
-      "docs/specs/qualified-lifecycle-v0.md",
-      "docs/decisions/0009-harness-authority-boundary.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/authoritystore",
-      "cmd/corvint",
-      "tools/local-authority"
-    ]
-  },
-  {
     "path": "docs/specs/qualified-lifecycle-v0.md",
     "title": "Qualified lifecycle V0",
     "reqPrefix": "QLF-V0",
@@ -1713,6 +2150,30 @@
     ]
   },
   {
+    "path": "docs/specs/receipt-bundle-v0.md",
+    "title": "Receipt bundle V0",
+    "reqPrefix": "RCB-V0",
+    "intent": "accepted (decision 0376; ticket V1-0197 with two owner-confirmed deviations)",
+    "delivery": "experimental",
+    "claim": "`corvint cem export` copies one change's CEM, witness, dogfood and gate receipts into a new directory whose manifest an offline script verifies.",
+    "dependsOn": [
+      "docs/specs/cem-0.2-canonical-binding.md",
+      "docs/specs/go-only-cutover-v0.md",
+      "docs/specs/corvint-witness-v0.md",
+      "docs/specs/release-artifact-integrity-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/receiptbundle/receiptbundle.go",
+      "internal/receiptbundle/receiptbundle_test.go",
+      "cmd/corvint/cem_export.go",
+      "cmd/corvint/cem_export_test.go",
+      "script/verify-receipt-bundle.sh",
+      "script/verify-receipt-bundle_test.sh"
+    ]
+  },
+  {
     "path": "docs/specs/release-artifact-integrity-v0.md",
     "title": "Release Artifact Integrity V0",
     "reqPrefix": "ARTIFACT-V0",
@@ -1729,6 +2190,23 @@
       "conformance/release-artifact-v0/archivebuild",
       "conformance/release-artifact-v0/archiveverify",
       "conformance/release-artifact-v0/archivewire"
+    ]
+  },
+  {
+    "path": "docs/specs/repository-guidance-v0.md",
+    "title": "Repository guidance V0",
+    "reqPrefix": "RGV-V0",
+    "intent": "accepted (owner first-release instruction, 2026-09-13)",
+    "delivery": "experimental",
+    "claim": "Three distinct advisory commands discover inferred features, compose a repository overview, and review an immutable range with local branch overlap hints.",
+    "dependsOn": [
+      "docs/specs/affected-plan-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/genesis/guidance.go",
+      "cmd/corvint/repository_guidance.go"
     ]
   },
   {
@@ -1778,6 +2256,22 @@
     "implementation": [
       "internal/evalrepo",
       "benchmarks/runner"
+    ]
+  },
+  {
+    "path": "docs/specs/retriever-disagreement-v0.md",
+    "title": "Retriever Disagreement V0",
+    "reqPrefix": "RDS-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "The agreement of two independent retrieval channels is a cheap local answerability proposal; it changes no threshold, no packet, and no stored state.",
+    "dependsOn": [
+      "docs/specs/task-context-packet-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/disagree"
     ]
   },
   {
@@ -1843,6 +2337,22 @@
     "implementation": [
       "internal/analyzerrust",
       "cmd/corvint-analyzer-rust"
+    ]
+  },
+  {
+    "path": "docs/specs/scope-lease-v0.md",
+    "title": "Scope Lease V0",
+    "reqPrefix": "SCL-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "`corvint lease` records bounded local scope claims so concurrent agents on one worktree refuse overlapping file or ticket scope before they edit.",
+    "dependsOn": [
+      "docs/specs/task-context-packet-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/scopelease"
     ]
   },
   {
@@ -1965,6 +2475,23 @@
     "implementation": []
   },
   {
+    "path": "docs/specs/spec-requirement-index-generator-v0.md",
+    "title": "Spec requirement index generator V0",
+    "reqPrefix": "SRG-V0",
+    "intent": "accepted (decision 0105 amendment 2026-09-12)",
+    "delivery": "implemented",
+    "claim": "One generated index names, for every requirement id in every tracked spec, the single best place that defines it.",
+    "dependsOn": [
+      "docs/specs/decision-number-gate-v0.md",
+      "docs/specs/requirement-definition-gate-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "script/gen-spec-requirements.sh"
+    ]
+  },
+  {
     "path": "docs/specs/sql-native-ratchet-gate-v0.md",
     "title": "SQL-native ratchet gate V0",
     "reqPrefix": "SNR-V0",
@@ -1978,6 +2505,50 @@
     "closableToday": true,
     "implementation": [
       "script/check-sql-native-ratchets.sh"
+    ]
+  },
+  {
+    "path": "docs/specs/stable-operations-v0.md",
+    "title": "Stable operations V0",
+    "reqPrefix": "SOP-V0",
+    "intent": "accepted (decision 0341, 2026-09-22; `SOP-V0-003` and `SOP-V0-009` amended by decision 0360, 2026-09-23)",
+    "delivery": "implemented",
+    "claim": "Install lifecycle, corrupted-snapshot recovery and a named hostile-regression matrix run locally as release-blocking checks with NOT_COVERED gaps stated.",
+    "dependsOn": [
+      "docs/specs/public-release-v0.md",
+      "docs/specs/release-artifact-integrity-v0.md",
+      "docs/specs/index-snapshot-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": true,
+    "implementation": [
+      "script/check-install-lifecycle.sh",
+      "script/check-install-lifecycle_test.sh",
+      "script/check-hostile-regressions.sh",
+      "script/check-hostile-regressions_test.sh",
+      "internal/contextindex/hostile_operations_test.go",
+      "docs/RELEASE-RUNBOOK.md"
+    ]
+  },
+  {
+    "path": "docs/specs/stable-readiness-record-v1.md",
+    "title": "Stable Readiness Record V1",
+    "reqPrefix": "SRR-V1",
+    "intent": "accepted (decision 0422, 2026-09-26)",
+    "delivery": "experimental",
+    "claim": "One canonical JSON record binds a verified Core candidate to digested gate, platform, compliance and policy evidence before any tag.",
+    "dependsOn": [
+      "docs/specs/corvint-1.0-product-and-release-v1.md",
+      "docs/specs/go-only-cutover-v0.md",
+      "docs/specs/host-lifecycle-qualification-v1.md",
+      "docs/specs/public-release-v0.md",
+      "docs/specs/release-artifact-integrity-v0.md",
+      "docs/specs/stable-operations-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/releasecandidate"
     ]
   },
   {
@@ -2030,25 +2601,6 @@
     ]
   },
   {
-    "path": "docs/specs/lsp-quality-platform-v0.md",
-    "title": "LSP Quality Platform V0",
-    "reqPrefix": "LQP-V0",
-    "intent": "accepted technical contract (owner approval 2026-09-29; PR 360)",
-    "delivery": "experimental Go overlay editor definition; no supported profile",
-    "claim": "Shared evidence engine serves opt-in agent LSP enrichment and optional editor server with separate Git and overlay identities.",
-    "dependsOn": [
-      "docs/specs/deployment-neutral-index-platform-v0.md",
-      "docs/specs/task-context-packet-v0.md",
-      "docs/specs/external-evidence-provider-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "benchmarks/lsp-quality",
-      "script/measure-lsp-quality.py"
-    ]
-  },
-  {
     "path": "docs/specs/task-context-packet-v0.md",
     "title": "Task-Context Packet V0",
     "reqPrefix": "TCP-V0",
@@ -2082,6 +2634,23 @@
     ]
   },
   {
+    "path": "docs/specs/test-attack-v0.md",
+    "title": "Test Attack V0",
+    "reqPrefix": "TAT-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "An explicit committed-range Go test attack continues past the first kill and exposes surviving mutants in the bounded selected set.",
+    "dependsOn": [
+      "docs/specs/falsifiable-packet-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint/prove_attack.go",
+      "internal/liveverify/mutate"
+    ]
+  },
+  {
     "path": "docs/specs/test-claim-qualification-v0.md",
     "title": "Test Claim Qualification V0",
     "reqPrefix": "TCQ-V0",
@@ -2097,6 +2666,22 @@
     "closableToday": false,
     "implementation": [
       "internal/tcq"
+    ]
+  },
+  {
+    "path": "docs/specs/touch-set-surprise-v0.md",
+    "title": "Touch Set Surprise V0",
+    "reqPrefix": "TSS-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "`corvint surprise` measures, for one completed task, the share of the committed change's paths the task-context packet and its impact expansion never named.",
+    "dependsOn": [
+      "docs/specs/task-context-packet-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/touchsurprise"
     ]
   },
   {
@@ -2116,6 +2701,23 @@
     ]
   },
   {
+    "path": "docs/specs/trusted-project-navigation-v0.md",
+    "title": "Trusted Project Navigation V0",
+    "reqPrefix": "TPN-V0",
+    "intent": "accepted (owner approval, 2026-09-28)",
+    "delivery": "experimental",
+    "claim": "Explicitly trusted pinned MkDocs validates exact navigation proposals in an isolated committed-source copy.",
+    "dependsOn": [
+      "docs/specs/human-documentation-compiler-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/doccompiler/trusted_nav.go",
+      "cmd/corvint/docs.go"
+    ]
+  },
+  {
     "path": "docs/specs/typescript-javascript-affected-adapter-v0.md",
     "title": "TypeScript / JavaScript affected-test adapter V0",
     "reqPrefix": "TJAA-V0",
@@ -2129,6 +2731,22 @@
     "closableToday": false,
     "implementation": [
       "internal/liveverify/affected/typescript"
+    ]
+  },
+  {
+    "path": "docs/specs/unplanned-read-events-v0.md",
+    "title": "Unplanned Read Events V0",
+    "reqPrefix": "URE-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "an explicitly opt-in local ledger counts reads Corvint failed to prevent, so packet quality has a number instead of an impression.",
+    "dependsOn": [
+      "docs/specs/task-context-packet-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/unplannedread"
     ]
   },
   {
@@ -2212,606 +2830,6 @@
       "internal/worklistadapter",
       "script/corvint-work-queue",
       "conformance/work-queue-v0"
-    ]
-  },
-  {
-    "path": "docs/specs/dependency-source-evidence-v0.md",
-    "title": "Dependency Source Evidence V0",
-    "reqPrefix": "DSE-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "`corvint depsource` cites third-party Go module source with the same pinning discipline as repository code, or abstains.",
-    "dependsOn": [
-      "docs/specs/task-context-packet-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/depsource"
-    ]
-  },
-  {
-    "path": "docs/specs/scope-lease-v0.md",
-    "title": "Scope Lease V0",
-    "reqPrefix": "SCL-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "`corvint lease` records bounded local scope claims so concurrent agents on one worktree refuse overlapping file or ticket scope before they edit.",
-    "dependsOn": [
-      "docs/specs/task-context-packet-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/scopelease"
-    ]
-  },
-  {
-    "path": "docs/specs/outcome-calibration-v0.md",
-    "title": "Outcome Calibration V0",
-    "reqPrefix": "OCL-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "`corvint calibrate` reports, read-only, how recorded outcomes line up with the packet stance before them, and proposes a threshold it never applies.",
-    "dependsOn": [
-      "docs/specs/task-context-packet-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/outcomecal"
-    ]
-  },
-  {
-    "path": "docs/specs/necessity-labels-v0.md",
-    "title": "Necessity Labels V0",
-    "reqPrefix": "NEC-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "`corvint necessity` labels each packet file `load-bearing` or `supporting` by removing it from an index copy and recompiling the packet.",
-    "dependsOn": [
-      "docs/specs/task-context-packet-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/necessity"
-    ]
-  },
-  {
-    "path": "docs/specs/retriever-disagreement-v0.md",
-    "title": "Retriever Disagreement V0",
-    "reqPrefix": "RDS-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "The agreement of two independent retrieval channels is a cheap local answerability proposal; it changes no threshold, no packet, and no stored state.",
-    "dependsOn": [
-      "docs/specs/task-context-packet-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/disagree"
-    ]
-  },
-  {
-    "path": "docs/specs/touch-set-surprise-v0.md",
-    "title": "Touch Set Surprise V0",
-    "reqPrefix": "TSS-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "`corvint surprise` measures, for one completed task, the share of the committed change's paths the task-context packet and its impact expansion never named.",
-    "dependsOn": [
-      "docs/specs/task-context-packet-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/touchsurprise"
-    ]
-  },
-  {
-    "path": "docs/specs/unplanned-read-events-v0.md",
-    "title": "Unplanned Read Events V0",
-    "reqPrefix": "URE-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "an explicitly opt-in local ledger counts reads Corvint failed to prevent, so packet quality has a number instead of an impression.",
-    "dependsOn": [
-      "docs/specs/task-context-packet-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/unplannedread"
-    ]
-  },
-  {
-    "path": "docs/specs/compaction-kernel-v0.md",
-    "title": "Compaction Kernel V0",
-    "reqPrefix": "CKN-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "A bounded, pinned kernel block makes \"governing requirements survived compaction\" a checkable property rather than a hope.",
-    "dependsOn": [
-      "docs/specs/task-context-packet-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/compactionkernel"
-    ]
-  },
-  {
-    "path": "docs/specs/corvint-witness-v0.md",
-    "title": "Corvint Witness Report V0",
-    "reqPrefix": "AGW-V0",
-    "intent": "accepted (decisions 0163 and 0290)",
-    "delivery": "experimental (checked by `TestCLIReadVerbsLeaveTheRepositoryByteIdentical`)",
-    "claim": "corvint witness reports the unwitnessed surface of one committed change range and writes no repository, index, or trace state.",
-    "dependsOn": [],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "cmd/corvint",
-      "internal/witness"
-    ]
-  },
-  {
-    "path": "docs/specs/repository-guidance-v0.md",
-    "title": "Repository guidance V0",
-    "reqPrefix": "RGV-V0",
-    "intent": "accepted (owner first-release instruction, 2026-09-13)",
-    "delivery": "experimental",
-    "claim": "Three distinct advisory commands discover inferred features, compose a repository overview, and review an immutable range with local branch overlap hints.",
-    "dependsOn": [
-      "docs/specs/affected-plan-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/genesis/guidance.go",
-      "cmd/corvint/repository_guidance.go"
-    ]
-  },
-  {
-    "path": "docs/specs/native-taskman-planning-v0.md",
-    "title": "Native taskman fixture planning V0",
-    "reqPrefix": "NTP-V0",
-    "intent": "accepted fixture scope (decision 0322)",
-    "delivery": "experimental",
-    "claim": "Read-only native fixture priority-first planning with explicit incomplete coverage.",
-    "dependsOn": [
-      "docs/specs/work-queue-observation-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/taskman",
-      "cmd/corvint/taskman_fixture.go"
-    ]
-  },
-  {
-    "path": "docs/specs/corvint-tasks-store-init-v0.md",
-    "title": "Corvint Tasks store initialization V0",
-    "reqPrefix": "CTS-V0",
-    "intent": "accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28)",
-    "delivery": "experimental",
-    "claim": "`corvint-tasks init` refuses an intent store that already holds records, and works in a repository reached through a symlinked ancestor such as macOS `/tmp`.",
-    "dependsOn": [],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/tasks/cli",
-      "internal/tasks/importer",
-      "internal/tasks/intent",
-      "internal/tasks/snapshot",
-      "internal/tasks/store",
-      "internal/tasks/transaction"
-    ]
-  },
-  {
-    "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
-    "title": "Corvint Tasks agent leases V0",
-    "reqPrefix": "CAL-V0",
-    "intent": "accepted (owner decision 2026-09-27)",
-    "delivery": "partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification)",
-    "claim": "Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.",
-    "dependsOn": [
-      "docs/specs/corvint-tasks-store-init-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/tasks/authority",
-      "internal/tasks/cli",
-      "internal/tasks/snapshot",
-      "internal/tasks/store",
-      "internal/tasks/supervisor",
-      "internal/tasks/ticket",
-      "internal/tasks/transaction"
-    ]
-  },
-  {
-    "path": "docs/specs/protected-pi-runtime-v0.md",
-    "title": "Protected Pi Runtime V0",
-    "reqPrefix": "PPI-V0",
-    "intent": "accepted direction (owner approval, 2026-09-22); technical details experimental",
-    "delivery": "experimental; no protected installation or native qualification",
-    "claim": "Optional fixed Pi SDK executable with independently qualified protected lifecycle; ordinary extensible Pi remains separate.",
-    "dependsOn": [
-      "docs/specs/agent-harness-integration-v0.md",
-      "docs/specs/protected-local-execution-v0.md",
-      "docs/specs/qualified-lifecycle-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "integrations/pi-protected/runtime.ts",
-      "integrations/pi-protected/build.mjs",
-      "integrations/pi-protected/settings.mjs",
-      "integrations/pi-protected/qualified-runner.mjs",
-      "internal/authoritystore/pi.go",
-      "cmd/corvint/qualified_lifecycle.go",
-      "tools/local-authority/pi_release.go"
-    ]
-  },
-  {
-    "path": "docs/specs/stable-operations-v0.md",
-    "title": "Stable operations V0",
-    "reqPrefix": "SOP-V0",
-    "intent": "accepted (decision 0341, 2026-09-22; `SOP-V0-003` and `SOP-V0-009` amended by decision 0360, 2026-09-23)",
-    "delivery": "implemented",
-    "claim": "Install lifecycle, corrupted-snapshot recovery and a named hostile-regression matrix run locally as release-blocking checks with NOT_COVERED gaps stated.",
-    "dependsOn": [
-      "docs/specs/public-release-v0.md",
-      "docs/specs/release-artifact-integrity-v0.md",
-      "docs/specs/index-snapshot-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": true,
-    "implementation": [
-      "script/check-install-lifecycle.sh",
-      "script/check-install-lifecycle_test.sh",
-      "script/check-hostile-regressions.sh",
-      "script/check-hostile-regressions_test.sh",
-      "internal/contextindex/hostile_operations_test.go",
-      "docs/RELEASE-RUNBOOK.md"
-    ]
-  },
-  {
-    "path": "docs/specs/corvint-1.0-product-and-release-v1.md",
-    "title": "Corvint 1.0 product and release scope V1",
-    "reqPrefix": "PRS-V1",
-    "intent": "accepted (decisions 0373 and 0426, V1-0001 and V1-0461)",
-    "delivery": "partial; expanded 1.0 qualification pending",
-    "claim": "1.0 requires Core change evidence, Flows, safe navigation, docs, MCP, full Beamfall roadmap takeover by Tasks and automatic documentation.",
-    "dependsOn": [
-      "docs/specs/public-release-v0.md",
-      "docs/specs/daily-change-evidence-workflow-v0.md",
-      "docs/specs/agent-harness-integration-v0.md",
-      "docs/specs/stable-operations-v0.md",
-      "docs/specs/application-flow-understanding-v1.md",
-      "docs/specs/corvint-tasks-agent-leases-v0.md",
-      "docs/specs/source-documentation-draft-v0.md",
-      "docs/specs/documentation-corpus-v1.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": []
-  },
-  {
-    "path": "docs/specs/host-lifecycle-qualification-v1.md",
-    "title": "Host Lifecycle Qualification V1",
-    "reqPrefix": "HLQ-V1",
-    "intent": "accepted",
-    "delivery": "experimental",
-    "claim": "Each Core host tuple passes nine lifecycle cases on exact versions in isolated host homes, and a result binds only the tuple that produced it.",
-    "dependsOn": [
-      "docs/specs/agent-harness-integration-v0.md",
-      "docs/specs/core-compatibility-freeze-v1.md",
-      "docs/specs/corvint-1.0-product-and-release-v1.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "conformance/host-lifecycle-v1"
-    ]
-  },
-  {
-    "path": "docs/specs/stable-readiness-record-v1.md",
-    "title": "Stable Readiness Record V1",
-    "reqPrefix": "SRR-V1",
-    "intent": "accepted (decision 0422, 2026-09-26)",
-    "delivery": "experimental",
-    "claim": "One canonical JSON record binds a verified Core candidate to digested gate, platform, compliance and policy evidence before any tag.",
-    "dependsOn": [
-      "docs/specs/corvint-1.0-product-and-release-v1.md",
-      "docs/specs/go-only-cutover-v0.md",
-      "docs/specs/host-lifecycle-qualification-v1.md",
-      "docs/specs/public-release-v0.md",
-      "docs/specs/release-artifact-integrity-v0.md",
-      "docs/specs/stable-operations-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/releasecandidate"
-    ]
-  },
-  {
-    "path": "docs/specs/trusted-project-navigation-v0.md",
-    "title": "Trusted Project Navigation V0",
-    "reqPrefix": "TPN-V0",
-    "intent": "accepted (owner approval, 2026-09-28)",
-    "delivery": "experimental",
-    "claim": "Explicitly trusted pinned MkDocs validates exact navigation proposals in an isolated committed-source copy.",
-    "dependsOn": [
-      "docs/specs/human-documentation-compiler-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/doccompiler/trusted_nav.go",
-      "cmd/corvint/docs.go"
-    ]
-  },
-  {
-    "path": "docs/specs/documentation-ci-v0.md",
-    "title": "Documentation CI V0",
-    "reqPrefix": "DCI-V0",
-    "intent": "accepted direction (owner request, 2026-09-29); bounded admission requires reviewed qualification",
-    "delivery": "experimental",
-    "claim": "A separately qualified README presentation policy can omit the root Go race invocation while retaining documentation and other CI checks.",
-    "dependsOn": [
-      "docs/specs/affected-plan-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "tools/docs-ci-plan",
-      ".github/workflows/ci.yml"
-    ]
-  },
-  {
-    "path": "docs/specs/heading-navigation-experiment-v0.md",
-    "title": "Heading navigation experiment V0",
-    "reqPrefix": "HNE-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "An offline harness compares native lexical document ranking with deterministic heading-aware expansion under equal serialized context-byte budgets.",
-    "dependsOn": [
-      "docs/specs/documentation-corpus-v1.md",
-      "docs/specs/retrieval-eval-comparability-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "tools/heading-nav-bench"
-    ]
-  },
-  {
-    "path": "docs/specs/agent-instruction-doctor-v0.md",
-    "title": "Agent Instruction Doctor V0",
-    "reqPrefix": "IID-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "Explicit default assumptions predict pinned project instruction selection, shadowing and truncation; actual session loading remains unknown.",
-    "dependsOn": [
-      "docs/specs/task-context-packet-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/contextindex/instruction_loadset.go",
-      "cmd/corvint/taskcontext.go",
-      "integrations/instruction-profiles.json"
-    ]
-  },
-  {
-    "path": "docs/specs/cross-repository-breakage-map-v0.md",
-    "title": "Cross-repository breakage map V0",
-    "reqPrefix": "BKM-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "A selected API maps pinned Go syntax references and original declared provider relationships across explicit local repositories.",
-    "dependsOn": [
-      "docs/specs/external-evidence-provider-v1.md",
-      "docs/specs/external-evidence-provider-v2.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/breakagemap",
-      "cmd/corvint/breakage.go"
-    ]
-  },
-  {
-    "path": "docs/specs/proof-tour-v0.md",
-    "title": "Proof Tour V0",
-    "reqPrefix": "PT-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "A disposable synthetic change pauses for an independent exact ACK before checksum-pinned portable structural verification.",
-    "dependsOn": [
-      "docs/specs/cem-pilot-kit.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "script/proof-tour.sh",
-      "script/proof-tour-test.sh"
-    ]
-  },
-  {
-    "path": "docs/specs/test-attack-v0.md",
-    "title": "Test Attack V0",
-    "reqPrefix": "TAT-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "An explicit committed-range Go test attack continues past the first kill and exposes surviving mutants in the bounded selected set.",
-    "dependsOn": [
-      "docs/specs/falsifiable-packet-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "cmd/corvint/prove_attack.go",
-      "internal/liveverify/mutate"
-    ]
-  },
-  {
-    "path": "docs/specs/operator-update-v0.md",
-    "title": "Operator update V0",
-    "reqPrefix": "UPD-V0",
-    "intent": "proposed technical contract under owner-requested V1-0505 outcome",
-    "delivery": "experimental",
-    "claim": "An optional operator updater checks Core and Tasks release channels and preserves verified rollback bytes without adding network access to Core.",
-    "dependsOn": [
-      "docs/specs/stable-operations-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "cmd/corvint-update",
-      "internal/update"
-    ]
-  },
-  {
-    "path": "docs/specs/pi-workflow-v0.md",
-    "title": "Pi Workflow V0",
-    "reqPrefix": "PWV-V0",
-    "intent": "accepted direction (owner instruction “do it. parallel”, 2026-09-29)",
-    "delivery": "experimental",
-    "claim": "Pi offers bounded native Core reads and an explicitly authorized Tasks workflow without acquiring evidence or execution authority.",
-    "dependsOn": [
-      "docs/specs/agent-harness-integration-v0.md",
-      "docs/specs/local-completion-policy-v0.md",
-      "docs/specs/corvint-tasks-agent-leases-v0.md",
-      "docs/specs/core-compatibility-freeze-v1.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "integrations/pi"
-    ]
-  },
-  {
-    "path": "docs/specs/gopls-client-session-v0.md",
-    "title": "Gopls client session V0",
-    "reqPrefix": "GCS-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "An optional local gopls session observes definitions only between caller-owned synchronized overlays with explicit lifecycle and bounds.",
-    "dependsOn": [
-      "docs/specs/external-evidence-provider-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/goplsclient/client.go",
-      "internal/goplsclient/client_test.go",
-      "internal/goplsclient/lifecycle_unix_test.go"
-    ]
-  },
-  {
-    "path": "docs/specs/lsp-snapshot-overlay-v0.md",
-    "title": "LSP Snapshot Overlay V0",
-    "reqPrefix": "LSO-V0",
-    "intent": "proposed technical contract; owner accepted agent and optional editor direction",
-    "delivery": "experimental",
-    "claim": "Experimental in-memory snapshots separate syntactic Git identity from bounded session overlays.",
-    "dependsOn": [],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/lspsnapshot"
-    ]
-  },
-  {
-    "path": "docs/specs/lsp-stdio-experiment-v0.md",
-    "title": "LSP Stdio Experiment V0",
-    "reqPrefix": "LSE-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "An explicitly experimental optional native-Go stdio companion exercises bounded framing and lifecycle without semantic capabilities.",
-    "dependsOn": [],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "cmd/corvint-lsp",
-      "internal/lspstdio"
-    ]
-  },
-  {
-    "path": "docs/specs/lsp-editor-definition-v0.md",
-    "title": "LSP Editor Definition V0",
-    "reqPrefix": "LED-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "Explicitly configured editor sessions can request definitions between synchronized open Go overlays through a local gopls process.",
-    "dependsOn": [
-      "docs/specs/lsp-snapshot-overlay-v0.md",
-      "docs/specs/gopls-client-session-v0.md",
-      "docs/specs/lsp-stdio-experiment-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "cmd/corvint-lsp",
-      "internal/lspstdio/semantic.go"
-    ]
-  },
-  {
-    "path": "docs/specs/lsp-editor-context-v0.md",
-    "title": "LSP Editor Context V0",
-    "reqPrefix": "LEC-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "Explicit editor context requests preserve Core task-review evidence separately from a current open-overlay observation.",
-    "dependsOn": [
-      "docs/specs/lsp-quality-platform-v0.md",
-      "docs/specs/lsp-editor-definition-v0.md",
-      "docs/specs/task-context-packet-v0.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "cmd/corvint-lsp",
-      "internal/lspstdio",
-      "internal/gitstatus"
-    ]
-  },
-  {
-    "path": "docs/specs/lsp-editor-qualification-v0.md",
-    "title": "LSP editor qualification tooling V0",
-    "reqPrefix": "LEQ-V0",
-    "intent": "proposed experimental tooling; owner selected VS Code and Neovim",
-    "delivery": "experimental; UNQUALIFIED",
-    "claim": "Actual editor lifecycle, definition, Git-bound context and edit-cancellation development probes retain wire evidence without promotion claims.",
-    "dependsOn": [],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "script/qualify-lsp-editors.py",
-      "tools/lsp-editors"
-    ]
-  },
-  {
-    "path": "docs/specs/postmerge-connectors-v0.md",
-    "title": "Post-merge Connectors V0",
-    "reqPrefix": "PMC-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "A separate companion reads pinned fixture context and renders bounded idempotent tracker and forge requests with recording and dry-run modes.",
-    "dependsOn": [
-      "docs/specs/corvint-1.0-product-and-release-v1.md"
-    ],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": [
-      "internal/postmergeconnector",
-      "cmd/corvint-postmerge-connect"
     ]
   }
 ]
