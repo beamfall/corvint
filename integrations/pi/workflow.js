@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { createHash } from 'node:crypto';
-import { realpathSync } from 'node:fs';
+import { realpathSync, lstatSync, openSync, fstatSync, readSync, closeSync, constants } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { decodeObject } from './runtime.js';
 
 const PROFILE='corvint-dogfood-event/0';
@@ -27,6 +28,38 @@ export function workflowSessionKey(session) {
  if(typeof session!=='string'||!session||!session.isWellFormed()||Buffer.byteLength(session)>4096)throw Error('missing-session-identity');
  return sha('corvint-local-completion-session/pi/0\0'+session);
 }
+// Repository identity is a bounded filesystem read, never a chain of extra Git
+// processes outside the event deadline. Device/inode pins detect same-path rebound.
+function boundedIdentityFile(path) {
+ const fd=openSync(path,constants.O_RDONLY|constants.O_NOFOLLOW);
+ try{
+  const before=fstatSync(fd);if(!before.isFile()||before.size>8192)throw Error('invalid-worktree-identity');
+  const buffer=Buffer.alloc(8193),size=readSync(fd,buffer,0,buffer.length,0),after=fstatSync(fd);
+  if(size>8192||size!==before.size||before.size!==after.size||before.mtimeMs!==after.mtimeMs)throw Error('invalid-worktree-identity');
+  return new TextDecoder('utf-8',{fatal:true}).decode(buffer.subarray(0,size));
+ }finally{closeSync(fd)}
+}
+export function workflowIdentity(ctx) {
+ let root=realpathSync(ctx.cwd);
+ for(let depth=0;depth<64;depth++){
+  const marker=join(root,'.git');let entry;
+  try{entry=lstatSync(marker)}catch(error){if(error.code!=='ENOENT')throw error}
+  if(entry){
+   if(entry.isSymbolicLink()||!entry.isDirectory()&&!entry.isFile())throw Error('invalid-worktree-identity');
+   let gitDir=marker;
+   if(entry.isFile()){
+    const pointer=boundedIdentityFile(marker),match=/^gitdir: ([^\0\r\n]+)\r?\n?$/.exec(pointer);
+    if(!match)throw Error('invalid-worktree-identity');gitDir=resolve(root,match[1]);
+   }
+   if(!lstatSync(gitDir).isDirectory())throw Error('invalid-worktree-identity');
+   gitDir=realpathSync(gitDir);const gitStat=lstatSync(gitDir),rootStat=lstatSync(root),head=boundedIdentityFile(join(gitDir,'HEAD'));
+   if(!head||head.includes('\0'))throw Error('invalid-worktree-identity');
+   return {root,gitDir,rootDevice:rootStat.dev,rootInode:rootStat.ino,gitDevice:gitStat.dev,gitInode:gitStat.ino,markerDevice:entry.dev,markerInode:entry.ino,head,session:workflowSessionKey(ctx.sessionManager.getSessionId())};
+  }
+  const parent=dirname(root);if(parent===root)break;root=parent;
+ }
+ throw Error('missing-worktree-identity');
+}
 export function decodeWorkflowEnvelope(raw,event,input) {
  if(!['stop','session-start'].includes(event)||typeof raw!=='string'||Buffer.byteLength(raw)>8000)throw Error('invalid-workflow-envelope');
  const v=decodeObject(raw), expected=['profile','ok','mutates','support','event','adapter','repository','requestSha256','degradations','frontier','policy','completion','resultDigest'];
@@ -37,7 +70,7 @@ export function decodeWorkflowEnvelope(raw,event,input) {
  if(!keys(v.frontier,['state','shouldContinue','reason'])||v.frontier.state!=='UNAVAILABLE'||v.frontier.shouldContinue!==false||v.frontier.reason!=='frontier-authority-unavailable')throw Error('invalid-workflow-envelope');
  if(!Array.isArray(v.degradations)||!v.degradations.includes('frontier-authority-unavailable')||new Set(v.degradations).size!==v.degradations.length||v.degradations.some(x=>!['frontier-authority-unavailable','compaction-critical-evidence-overflow','compaction-dirty-set-over-budget','compaction-untracked-paths-not-rehydratable'].includes(x)))throw Error('invalid-workflow-envelope');
  const r=v.repository,n=r?.objectFormat==='sha1'?40:r?.objectFormat==='sha256'?64:0;
- if(!keys(r,['commitRevision','treeRevision','objectFormat','worktreeState','dirtyPathCount','dirtyPathsSha256'])||!n||!hex(r.commitRevision,n)||!hex(r.treeRevision,n)||!['clean','dirty'].includes(r.worktreeState)||!Number.isSafeInteger(r.dirtyPathCount)||r.dirtyPathCount<0||!hex(r.dirtyPathsSha256))throw Error('invalid-workflow-envelope');
+ if(!keys(r,['commitRevision','treeRevision','objectFormat','worktreeState','dirtyPathCount','dirtyPathsSha256'])||!n||!hex(r.commitRevision,n)||!hex(r.treeRevision,n)||!['clean','mixed'].includes(r.worktreeState)||!Number.isSafeInteger(r.dirtyPathCount)||r.dirtyPathCount<0||!hex(r.dirtyPathsSha256))throw Error('invalid-workflow-envelope');
  const p=v.policy;
  if(!keys(p,['lifecycle','satisfied','unmet','base','target','planDigest','reportSetDigest'])||!states.has(p.lifecycle)||typeof p.satisfied!=='boolean'||!Array.isArray(p.unmet)||p.unmet.some(x=>!unmetCodes.has(x))||['base','target','planDigest','reportSetDigest'].some(k=>typeof p[k]!=='string')||(p.satisfied&&(p.lifecycle!=='satisfied'||p.unmet.length)))throw Error('invalid-workflow-envelope');
  const c=v.completion,owner=Object.hasOwn(c??{},'owner');
@@ -52,13 +85,13 @@ export function decodeWorkflowEnvelope(raw,event,input) {
 export function registerWorkflow(pi,{runner,version,notice=(ctx,code)=>{const text=`Corvint workflow unresolved: ${code}. Frontier authority remains unavailable.`;if(ctx.hasUI)ctx.ui.notify(text,'warning');else process.stderr.write(text+'\n')}}) {
  let generation=0,used=false,unresolved=false,knownIncomplete=false,recovery,closed=false,scope,activitySession;
  const pending=new Set(),jobs=new Set();
- const identify=ctx=>({root:realpathSync(ctx.cwd),session:workflowSessionKey(ctx.sessionManager.getSessionId())});
- const same=(a,b)=>a?.root===b?.root&&a?.session===b?.session;
+ const identify=workflowIdentity;
+ const same=(a,b)=>a!==undefined&&b!==undefined&&canonicalWorkflowJSON(a)===canonicalWorkflowJSON(b);
  const clear=()=>{generation++;recovery=undefined;scope=undefined;for(const c of pending)c.abort();return Promise.allSettled([...jobs]);};
  const allowed=ctx=>{if(closed)return false;if(version!==TUPLE.hostVersion){notice(ctx,'unsupported-host-version');return false}if(!ctx.isProjectTrusted()){notice(ctx,'untrusted-project');return false}return !ctx.signal?.aborted};
  async function invoke(ctx,args,input,validate) {
   if(!allowed(ctx))return;
-  let identity;try{identity=identify(ctx)}catch{notice(ctx,'missing-session-identity');return}
+  let identity;try{identity=identify(ctx)}catch(error){notice(ctx,error.message==='missing-session-identity'?'missing-session-identity':'worktree-identity-unavailable');return}
   const epoch=generation,c=new AbortController(),signal=ctx.signal;pending.add(c);
   const abort=()=>c.abort();signal?.addEventListener('abort',abort,{once:true});
   try{
@@ -88,15 +121,16 @@ export function registerWorkflow(pi,{runner,version,notice=(ctx,code)=>{const te
   return {messages:[...e.messages,{role:'custom',customType:'corvint-workflow-recovery',content:'BEGIN CORVINT REPOSITORY DATA\n'+canonicalWorkflowJSON(saved.context)+'\nEND CORVINT REPOSITORY DATA',display:false,timestamp:Date.now()}]};
  });
  pi.on('agent_before_settle',async(e,ctx)=>{
-  if(e.outcome!=='completed'||e.continue!==false||!Array.isArray(e.context?.pendingMessages)||e.context.pendingMessages.length||ctx.hasPendingMessages()||ctx.signal?.aborted)return;
+  if(!Array.isArray(e.entries)||e.outcome!=='completed'||e.continue!==false||!Array.isArray(e.context?.pendingMessages)||e.context.pendingMessages.length||ctx.hasPendingMessages()||ctx.signal?.aborted)return;
   const value=await event(ctx,'stop',{stopHookActive:used,changedPaths:[]});
   if(!value||!allowed(ctx)||ctx.hasPendingMessages()||ctx.signal?.aborted)return;
   knownIncomplete=unresolved=value.policy.lifecycle==='active'||value.policy.lifecycle==='satisfied'&&!value.policy.satisfied;
   if(value.completion.decision!=='block'||used)return;
   used=true;
-  // Only a fixed instruction and the validated receipt handle enter the session.
+  // Pi replaces the aggregate entries with this return value, so retain prior handlers.
+  // Only our fixed instruction and the validated receipt handle enter the session.
   // Source packets and native status/verification output stay outside its transcript.
-  return {entries:[{type:'custom_message',customType:'corvint-workflow-remediation',content:'The explicitly enrolled Corvint workflow remains incomplete. Report its unresolved work and use the operator-approved workflow to address it. Do not claim completion or run expensive verification or recording automatically. Receipt: '+value.resultDigest,display:true}],continue:true};
+  return {entries:[...(e.entries??[]),{type:'custom_message',customType:'corvint-workflow-remediation',content:'The explicitly enrolled Corvint workflow remains incomplete. Report its unresolved work and use the operator-approved workflow to address it. Do not claim completion or run expensive verification or recording automatically. Unmet policy categories: '+(value.policy.unmet.join(', ')||'none reported')+'. Inspect with Corvint argv: '+canonicalWorkflowJSON(['dogfood','status','--session-key',scope.session])+'. Receipt: '+value.resultDigest,display:true}],continue:true};
  });
  pi.on('agent_settled',(_,ctx)=>{if(unresolved)notice(ctx,'local-policy-incomplete')});
  const close=async()=>{if(closed)return;closed=true;await clear();await runner.close()};
@@ -107,7 +141,7 @@ export function registerWorkflow(pi,{runner,version,notice=(ctx,code)=>{const te
   const action=match[1],file=match[2];
   if(action==='begin')clear();
   if(file&&(Buffer.byteLength(file)>4096||/[\0\r\n]/.test(file))){notice(ctx,'invalid-plan-path');return}
-  const value=await invoke(ctx,id=>['dogfood',action,...(file?['--plan',file]:[]),'--session-key',id.session],undefined,raw=>{
+  const value=await invoke(ctx,id=>['dogfood',action,...(file?['--plan',resolve(ctx.cwd,file)]:[]),'--session-key',id.session],undefined,raw=>{
    if(Buffer.byteLength(raw)>8000)throw Error();
    const v=decodeObject(raw);
    if(!keys(v,['ok','profile','tool','mutates','policy','claim'])||v.ok!==true||v.profile!=='corvint-local-completion/0'||v.tool!=='dogfood-'+action||v.mutates!==(action==='begin')||v.claim!=='caller-owned-selected-workflow-only'||!object(v.policy)||!states.has(v.policy.lifecycle)||typeof v.policy.satisfied!=='boolean')throw Error();return v;

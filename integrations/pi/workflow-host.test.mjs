@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,7 +25,7 @@ function run(binary,args,{cwd,env}={}) {
  });
 }
 const extension=(processModule)=>`
-import {appendFileSync} from 'node:fs';
+import {appendFileSync,writeFileSync} from 'node:fs';
 import {createAssistantMessageEventStream} from '@earendil-works/pi-ai';
 import {createCommandRunner} from ${JSON.stringify(processModule)};
 import {registerWorkflow} from ${JSON.stringify(join(here,'workflow.js'))};
@@ -34,14 +34,16 @@ export default function(pi){
  const mode=process.env.WORKFLOW_CASE;let calls=0,queued=false,boundary=0;
  pi.on('agent_before_settle',async(e,ctx)=>{
   boundary++;capture({kind:'boundary',boundary,outcome:e.outcome,continuing:e.continue,pending:e.context.pendingMessages.length});
+  if(mode==='mixed'&&boundary===1)return {entries:[...e.entries,{type:'custom',customType:'fixture-prior-entry',data:{preserve:true}}]};
   if(mode==='queued'&&!queued){queued=true;await pi.sendUserMessage('queued fixture input',{deliverAs:'followUp'});capture({kind:'queued',pending:ctx.hasPendingMessages()})}
  });
  const native=createCommandRunner({binary:process.env.CORVINT_BIN,timeoutMs:1700,maxBytes:8000});
- const runner={async run(req){const result=await native.run(req);capture({kind:'native',verb:req.args[1],event:req.args[req.args.indexOf('--event')+1],boundary,fault:result.fault,exit:result.exitCode});return result},close:()=>native.close()};
+ const runner={async run(req){const result=await native.run(req);let state;try{state=JSON.parse(result.stdout).repository?.worktreeState}catch{}capture({kind:'native',cwd:req.cwd,worktreeState:state,verb:req.args[1],event:req.args[req.args.indexOf('--event')+1],boundary,fault:result.fault,exit:result.exitCode});return result},close:()=>native.close()};
  registerWorkflow(pi,{runner,version:'0.99.1',notice:(_,code)=>capture({kind:'notice',code})});
+ pi.on('agent_before_settle',e=>capture({kind:'boundary-result',entries:e.entries.map(entry=>entry.customType)}));
  pi.on('agent_settled',()=>capture({kind:'settled'}));
  pi.registerProvider('corvint-workflow-fixture',{baseUrl:'http://127.0.0.1:1',apiKey:'fixture-only',api:'corvint-workflow-fixture',models:[{id:'fixture',name:'Offline workflow fixture',reasoning:false,input:['text'],cost:{input:0,output:0,cacheRead:0,cacheWrite:0},contextWindow:200000,maxTokens:1000}],streamSimple(model,ctx){
-  calls++;capture({kind:'provider',calls,messages:ctx.messages});
+  calls++;if(mode==='mixed'&&calls===1){writeFileSync('main.go','package fixture\\n// tracked fixture edit\\n');capture({kind:'tracked-edit'})}capture({kind:'provider',calls,messages:ctx.messages});
   const stream=createAssistantMessageEventStream();const stopReason=mode==='error'?'error':mode==='aborted'?'aborted':'stop';
   const output={role:'assistant',content:[{type:'text',text:'fixture response'}],api:model.api,provider:model.provider,model:model.id,usage:{input:1,output:1,cacheRead:0,cacheWrite:0,totalTokens:2,cost:{input:0,output:0,cacheRead:0,cacheWrite:0,total:0}},stopReason,timestamp:Date.now(),...(stopReason!=='stop'?{errorMessage:'offline fixture terminal '+stopReason}:{})};
   queueMicrotask(()=>{stream.push(stopReason==='stop'?{type:'done',reason:stopReason,message:output}:{type:'error',reason:stopReason,error:output});stream.end()});return stream;
@@ -55,7 +57,7 @@ test('LCP-V0-008 actual Pi one remediation, recursive release, error/abort and q
  assert.ok(existsSync(processModule),'shared process runner must be built before native qualification');
  const scratch=mkdtempSync(join(tmpdir(),'pi-workflow-host-'));t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const extensionPath=join(scratch,'fixture.ts');writeFileSync(extensionPath,extension(processModule));
- for(const mode of ['completed','error','aborted','queued']){
+ for(const mode of ['completed','mixed','nested','error','aborted','queued']){
   const base=join(scratch,mode),home=join(base,'home'),repo=join(base,'repo'),agent=join(home,'.pi/agent'),capture=join(base,'events.jsonl');
   for(const dir of [home,repo,agent])mkdirSync(dir,{recursive:true});
   writeFileSync(join(agent,'settings.json'),JSON.stringify({retry:{enabled:false},quietStartup:true}));
@@ -65,16 +67,18 @@ test('LCP-V0-008 actual Pi one remediation, recursive release, error/abort and q
   const git=args=>{const r=spawnSync('git',['-c','user.name=Fixture','-c','user.email=fixture@example.invalid',...args],{cwd:repo,encoding:'utf8'});assert.equal(r.status,0,r.stderr);return r.stdout.trim()};
   git(['init','-q']);git(['add','.']);git(['commit','-qm','fixture']);
   const plan=join(base,'plan.json');writeFileSync(plan,JSON.stringify({base:git(['rev-parse','HEAD']),intents:['intent.md'],checks:[{id:'fixture-check',argv:['git','diff','--check'],timeoutSeconds:5}]}));
+  const launchDir=mode==='nested'?join(repo,'nested'):repo;if(mode==='nested')mkdirSync(launchDir);
   const env={PATH:process.env.PATH,HOME:home,LANG:'en_US.UTF-8',PI_CODING_AGENT_DIR:agent,PI_OFFLINE:'1',CORVINT_BIN:binary,WORKFLOW_CAPTURE:capture,WORKFLOW_CASE:mode};
   const version=await run(process.env.PI_BIN??'pi',['--version'],{cwd:repo,env});assert.equal(version.stdout.trim(),'0.99.1');
-  const result=await run(process.env.PI_BIN??'pi',['--offline','--approve','--no-context-files','--no-skills','--no-prompt-templates','--no-themes','--no-tools','--mode','json','--provider','corvint-workflow-fixture','--model','fixture','--thinking','off','-e',extensionPath,'-p','/corvint-workflow begin '+plan,'complete the offline fixture'],{cwd:repo,env});
+  const result=await run(process.env.PI_BIN??'pi',['--offline','--approve','--no-context-files','--no-skills','--no-prompt-templates','--no-themes','--no-tools','--mode','json','--provider','corvint-workflow-fixture','--model','fixture','--thinking','off','-e',extensionPath,'-p','/corvint-workflow begin '+plan,'complete the offline fixture'],{cwd:launchDir,env});
   const events=readFileSync(capture,'utf8').trim().split('\n').map(JSON.parse);
   assert.ok(events.some(e=>e.kind==='native'&&e.verb==='begin'&&e.exit===0),JSON.stringify({mode,events,result}));
   assert.ok(!events.some(e=>e.kind==='notice'&&['invalid-workflow-response','native-event-unavailable'].includes(e.code)),JSON.stringify({mode,events,result}));
   const providers=events.filter(e=>e.kind==='provider'),stops=events.filter(e=>e.kind==='native'&&e.event==='stop');
-  if(mode==='completed'){
-   assert.equal(result.code,0,result.stderr);assert.equal(providers.length,2,JSON.stringify(events));assert.equal(stops.length,2);
+  if(['completed','mixed','nested'].includes(mode)){
+   assert.equal(result.code,0,result.stderr);assert.equal(providers.length,2,JSON.stringify(events));assert.equal(stops.length,2);assert.ok(stops.every(e=>e.cwd===realpathSync(repo)));
    assert.equal(providers[1].messages.filter(m=>JSON.stringify(m).includes('corvint-workflow-remediation')||JSON.stringify(m).includes('explicitly enrolled Corvint workflow remains incomplete')).length,1);
+   if(mode==='mixed'){assert.ok(stops.every(e=>e.worktreeState==='mixed'));assert.ok(events.findIndex(e=>e.kind==='tracked-edit')>events.findIndex(e=>e.kind==='native'&&e.verb==='begin'));assert.deepEqual(events.find(e=>e.kind==='boundary-result').entries,['fixture-prior-entry','corvint-workflow-remediation'])}
   }else if(mode==='queued'){
    assert.equal(result.code,0,result.stderr);assert.equal(providers.length,3,JSON.stringify(events));
    assert.ok(events.some(e=>e.kind==='queued'),JSON.stringify(events));assert.ok(stops.every(e=>e.boundary!==1),'queued boundary must not consult local stop policy');

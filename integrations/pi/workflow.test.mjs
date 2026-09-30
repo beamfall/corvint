@@ -3,7 +3,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
-import { canonicalWorkflowJSON as canonical, decodeWorkflowEnvelope, registerWorkflow, workflowSessionKey } from './workflow.js';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, renameSync, symlinkSync, realpathSync } from 'node:fs';
+import { join } from 'node:path';
+import { canonicalWorkflowJSON as canonical, decodeWorkflowEnvelope, registerWorkflow, workflowSessionKey, workflowIdentity } from './workflow.js';
 const hash=v=>createHash('sha256').update(v).digest('hex');
 const sign=v=>({...v,resultDigest:'dogfood-event:sha256:'+hash('corvint-dogfood-event/0\0'+canonical(v))});
 function envelope(event,input,{lifecycle='active',satisfied=false}={}) {
@@ -18,13 +20,13 @@ function envelope(event,input,{lifecycle='active',satisfied=false}={}) {
 }
 function fixture(t,options={}) {
  const handlers=new Map(),commands=new Map(),calls=[],notices=[];
- let session='one';
- const ctx={cwd:tmpdir(),hasUI:true,mode:'json',isProjectTrusted:()=>true,hasPendingMessages:()=>false,sessionManager:{getSessionId:()=>session},ui:{notify:(...v)=>notices.push(v)}};
+ let session='one';const root=mkdtempSync(join(tmpdir(),'pi-workflow-unit-'));mkdirSync(join(root,'.git'));writeFileSync(join(root,'.git/HEAD'),'ref: refs/heads/main\n');t.after(()=>rmSync(root,{recursive:true,force:true}));
+ const ctx={cwd:root,hasUI:true,mode:'json',isProjectTrusted:()=>true,hasPendingMessages:()=>false,sessionManager:{getSessionId:()=>session},ui:{notify:(...v)=>notices.push(v)}};
  const runner={async run(req){calls.push(req);if(req.args[1]!=='event')return {exitCode:0,stdout:JSON.stringify({ok:true,profile:'corvint-local-completion/0',tool:'dogfood-'+req.args[1],mutates:req.args[1]==='begin',claim:'caller-owned-selected-workflow-only',policy:{lifecycle:'active',satisfied:false}})};const event=req.args[req.args.indexOf('--event')+1];return {exitCode:0,stdout:JSON.stringify(envelope(event,JSON.parse(req.input),options))}},async close(){}};
  const bridge=registerWorkflow({on:(name,fn)=>handlers.set(name,fn),registerCommand:(name,fn)=>commands.set(name,fn)},{runner,version:'0.99.1',notice:(ctx,code)=>notices.push(code)});
  t.after(()=>bridge.close());
- const boundary={outcome:'completed',continue:false,context:{canContinue:false,pendingMessages:[]}};
- return {runner,calls,ctx,notices,bridge,boundary,setSession:v=>session=v,emit:(event,value={})=>handlers.get(event)(value,ctx),command:text=>commands.get('corvint-workflow').handler(text,ctx)};
+ const boundary={entries:[],outcome:'completed',continue:false,context:{canContinue:false,pendingMessages:[]}};
+ return {root,runner,calls,ctx,notices,bridge,boundary,setSession:v=>session=v,emit:(event,value={})=>handlers.get(event)(value,ctx),command:text=>commands.get('corvint-workflow').handler(text,ctx)};
 }
 test('LCP-V0-008 closed Pi workflow envelopes verify complete digest and request binding',()=>{
  const input={sessionIdSha256:workflowSessionKey('one'),stopHookActive:false,changedPaths:[]},value=envelope('stop',input);
@@ -42,7 +44,7 @@ test('LCP-V0-008 canonical envelope sorts numeric and Unicode keys and rejects a
 test('LCP-V0-008 one continuation per external input; generated activity never resets allowance',async t=>{
  const f=fixture(t);await f.emit('input',{source:'interactive'});
  const first=await f.emit('agent_before_settle',f.boundary);assert.equal(first.continue,true);assert.equal(first.entries.length,1);
- assert.doesNotMatch(JSON.stringify(first),/source packet|selected-check-unverified/);assert.match(first.entries[0].content,/Receipt: dogfood-event:sha256:/);
+ assert.doesNotMatch(JSON.stringify(first),/source packet/);assert.match(first.entries[0].content,/Unmet policy categories: selected-check-unverified/);assert.ok(first.entries[0].content.includes(canonical(['dogfood','status','--session-key',workflowSessionKey('one')])));assert.match(first.entries[0].content,/Receipt: dogfood-event:sha256:/);
  await f.emit('input',{source:'extension'});
  assert.equal(await f.emit('agent_before_settle',f.boundary),undefined);assert.equal(JSON.parse(f.calls.at(-1).input).stopHookActive,true);
  await f.emit('agent_settled');assert.ok(f.notices.includes('local-policy-incomplete'));
@@ -50,7 +52,7 @@ test('LCP-V0-008 one continuation per external input; generated activity never r
 });
 test('LCP-V0-008 error abort queued continuation and trust negatives never dispatch',async t=>{
  const f=fixture(t);
- for(const delta of [{outcome:'error'},{outcome:'aborted'},{continue:true},{context:{pendingMessages:[{}]}}])assert.equal(await f.emit('agent_before_settle',{...f.boundary,...delta}),undefined);
+ for(const delta of [{entries:null},{outcome:'error'},{outcome:'aborted'},{continue:true},{context:{pendingMessages:[{}]}}])assert.equal(await f.emit('agent_before_settle',{...f.boundary,...delta}),undefined);
  f.ctx.hasPendingMessages=()=>true;await f.emit('agent_before_settle',f.boundary);f.ctx.hasPendingMessages=()=>false;
  const c=new AbortController();c.abort();f.ctx.signal=c.signal;await f.emit('agent_before_settle',f.boundary);f.ctx.signal=undefined;
  f.ctx.isProjectTrusted=()=>false;await f.emit('agent_before_settle',f.boundary);assert.equal(f.calls.length,0);
@@ -88,4 +90,41 @@ test('LCP-V0-008 incomplete enrollment survives input and abort without native S
 test('LCP-V0-008 same-session reload does not reset recursive-remediation protection',async t=>{
  const f=fixture(t);await f.emit('session_start',{reason:'startup'});assert.equal((await f.emit('agent_before_settle',f.boundary)).continue,true);
  await f.emit('session_start',{reason:'reload'});assert.equal(await f.emit('agent_before_settle',f.boundary),undefined);
+});
+
+test('LCP-V0-008 native mixed worktree receipts remain valid and invented dirty state refuses',()=>{
+ const input={sessionIdSha256:workflowSessionKey('one'),stopHookActive:false,changedPaths:[]};
+ const {resultDigest,...basis}=envelope('stop',input);
+ const mixed=sign({...basis,repository:{...basis.repository,worktreeState:'mixed',dirtyPathCount:1,dirtyPathsSha256:hash('["main.go"]')}});
+ assert.equal(decodeWorkflowEnvelope(JSON.stringify(mixed),'stop',input).repository.worktreeState,'mixed');
+ const invalid=sign({...basis,repository:{...basis.repository,worktreeState:'dirty',dirtyPathCount:1}});
+ assert.throws(()=>decodeWorkflowEnvelope(JSON.stringify(invalid),'stop',input));
+});
+test('LCP-V0-008 remediation preserves earlier Pi boundary entries without mutating the event',async t=>{
+ const f=fixture(t),entry={type:'custom',customType:'unrelated-extension',data:{preserve:true}},entries=[entry];
+ const result=await f.emit('agent_before_settle',{...f.boundary,entries});
+ assert.equal(result.continue,true);assert.equal(result.entries.length,2);assert.equal(result.entries[0],entry);assert.deepEqual(entries,[entry]);
+ assert.equal(result.entries[1].customType,'corvint-workflow-remediation');
+});
+
+test('LCP-V0-008 nested cwd resolves one canonical worktree and linked gitdir',async t=>{
+ const f=fixture(t),nested=join(f.root,'nested/deep');mkdirSync(nested,{recursive:true});
+ const expected=workflowIdentity(f.ctx);f.ctx.cwd=nested;assert.deepEqual(workflowIdentity(f.ctx),expected);
+ await f.command('status');assert.equal(f.calls[0].cwd,realpathSync(f.root));
+ const linked=join(f.root,'linked');mkdirSync(linked);writeFileSync(join(linked,'.git'),'gitdir: ../.git\n');f.ctx.cwd=linked;
+ assert.equal(workflowIdentity(f.ctx).gitDir,expected.gitDir);assert.equal(workflowIdentity(f.ctx).root,realpathSync(linked));
+});
+test('LCP-V0-008 repository rebound and branch switches discard native in-flight results',async t=>{
+ for(const rebound of ['gitdir','branch']){
+  const f=fixture(t);let release;const normal=f.runner.run;
+  f.runner.run=async req=>{await new Promise(r=>release=r);return normal(req)};
+  const pending=f.emit('agent_before_settle',f.boundary);
+  if(rebound==='gitdir'){renameSync(join(f.root,'.git'),join(f.root,'.git-old'));mkdirSync(join(f.root,'.git'))}
+  writeFileSync(join(f.root,'.git/HEAD'),rebound==='branch'?'ref: refs/heads/other\n':'ref: refs/heads/main\n');
+  release();assert.equal(await pending,undefined);
+ }
+});
+test('LCP-V0-008 Git identity refuses symlink markers and oversized pointer files',t=>{
+ const f=fixture(t);renameSync(join(f.root,'.git'),join(f.root,'gitdir'));symlinkSync('gitdir',join(f.root,'.git'));
+ assert.throws(()=>workflowIdentity(f.ctx));rmSync(join(f.root,'.git'));writeFileSync(join(f.root,'.git'),'gitdir: '+'x'.repeat(8192));assert.throws(()=>workflowIdentity(f.ctx));
 });
