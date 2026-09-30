@@ -9,7 +9,7 @@ repository AGENTS.md and read-command invariants.
 
 ## Agent digest
 - Claim: Local step verification binds observed checkout writes to a declared authoring scope.
-- Status: Proposed intent; experimental source tests/vet and independent repair review pass; final binding pending.
+- Status: Proposed intent; experimental source tests/vet, independent repair/dispatch review and public Darwin qualification pass; final binding pending.
 - Exists: Experimental descriptor observer, strict records and publicly dispatched experimental handler.
 - Blocked on: CLI integration, bound qualification and owner technical acceptance.
 - Read next: Requirements; Declaration and receipts; Limits; Acceptance and rollback.
@@ -86,7 +86,7 @@ Full native qualification is per OS/profile; cross-build success does not prove 
 
 Implementation owner: internal/stepverify, cmd/corvint/step.go and protocol/step. Required delivery
 includes focused tests, focused-docs gate, independent review and change evidence. Source witness tests are implemented; focused handler/observer fixtures pass locally. Final
-Public dispatch/help/maturity registration and focused Core/MCP conformance passed; final bound checks and native qualification remain pending. Roll back the optional command/caller wiring and retain receipts; no state
+Public dispatch/help/maturity registration, focused Core/MCP conformance and native Darwin qualification passed; final bound checks and evidence remain pending. Roll back the optional command/caller wiring and retain receipts; no state
 migration. Schema/observer changes invalidate prior qualification. Owner acceptance of this
 technical profile and candidate evidence is required before promotion beyond experimental.
 
@@ -135,7 +135,7 @@ partial-post semantics and per-repository Git pin propagation are required accep
 | ASS-V0-003 | TestStepWrites / violation matrix; TestStepNativeRefusals / read only admin changes | Source fixtures PASS; final bound check pending |
 | ASS-V0-004 | TestStepStateAndUnsafe / corrupt binding refusal; TestStepWrites / incomplete post retains writes | Source fixtures PASS; final bound check pending |
 | ASS-V0-005 | TestStepDeclaration / keys only preflight | Source fixtures PASS; final bound check pending |
-| ASS-V0-006 | TestStepCLI / read only snapshot verify and env preflight; TestStepNativeRefusals; TestPinnedRepositoryGitAllReadPaths | Handler fixtures PASS; public command/native qualification pending |
+| ASS-V0-006 | TestStepCLI / read only snapshot verify and env preflight; TestStepNativeRefusals; TestPinnedRepositoryGitAllReadPaths | Handler/public dispatch fixtures and native Darwin qualification PASS; final bound check pending |
 
 Wire records follow protocol/step/schema.json and its README semantic rules. Digests use the
 Corvint strict canonical JSON encoding, with each record's own SHA-256 field blank before hashing.

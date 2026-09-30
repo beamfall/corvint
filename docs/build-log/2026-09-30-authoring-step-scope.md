@@ -91,3 +91,18 @@ The retained frozen plan/key is unchanged. Same-change ASS intent stays proposed
 unknown under OCM-V0-009 and accepted decisions0055/0170; it is never historical CEM authority. The
 daily-path input wording conflicts with that accepted rule; native docs-friction V1-0561 receipt1449
 retains the discrepancy separately. Frontier remains open/unavailable. No full gate or promotion.
+
+## Public qualification evidence
+
+Public source integration a1d8c4b74233dee54bf98b3c55197ba3898a44ea is clean. The public binary was
+rebuilt after that commit; the earlier pre-commit candidate is retained separately and is not the
+qualified build. Native Darwin qualification passes seven checks: public snapshot/verify/preflight,
+unchanged index, allowed write PASS, out-of-scope FAIL without content disclosure, and missing
+administrative marker retaining completed content findings with a null whole post digest.
+Qualified binary SHA-256: bd107f342d4d5483ed242ade921928bab879f0276df27308d4011c1a38391789.
+Filtered immutable CLI replay passes init-unrecognized-argument (1/133 cases); it is expressly
+NOT-CORPUS-EVIDENCE, with no manifest edit. Public/Core help/maturity/plumbing/refusal conformance,
+unchanged MCP tools-list golden, scoped Go vet and actual error-code-ownership-check pass.
+Full frozen selected checks, final CEM/OCM and seal remain pending. Linux native/runtime and
+third-party schema/interoperability qualification are NOT_RUN. Host/transient/concurrent/ACL/xattr/
+timestamp exclusions and proposed/experimental promotion boundary remain unchanged.
