@@ -143,9 +143,9 @@ S3, leases.
   later makes an expired lease look live.
 - `CAL-V0-013`: A ticket whose last attempt is `FAILED` or `CANCELLED` MUST be claimable again as
   that attempt's next generation (TCP-00 §6.2 `retry`, `retryCount < 3`), and after three retries
-  only an explicit `OWNER` `ticket reopen` may readmit the exhausted `OPEN` ticket under
-  CAL-V0-043; cancellations still consume retries. The command creates fresh acceptance, not
-  an automatic retry refund.
+  only an `OWNER` `ticket reopen` makes it claimable.
+  CAL-V0-043 specifies readmission of an exhausted `OPEN` ticket; cancellations still consume
+  retries. Reopen creates fresh acceptance, not an automatic retry refund.
   `corvint-tasks attempt show <attemptId>` and `queue status` MUST report every live attempt with
   holder, phase and lease expiry, as pure reads. `queue status` reports `attempts` as the count of
   live attempts and lists them in `liveAttempts`.
