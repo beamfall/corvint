@@ -2698,7 +2698,7 @@
     "path": "docs/specs/pi-workflow-v0.md",
     "title": "Pi Workflow V0",
     "reqPrefix": "PWV-V0",
-    "intent": "accepted direction (owner instruction \u201cdo it. parallel\u201d, 2026-09-29)",
+    "intent": "accepted direction (owner instruction “do it. parallel”, 2026-09-29)",
     "delivery": "experimental",
     "claim": "Pi offers bounded native Core reads and an explicitly authorized Tasks workflow without acquiring evidence or execution authority.",
     "dependsOn": [
