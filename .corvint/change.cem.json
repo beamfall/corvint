@@ -2,16 +2,6 @@
   "baseRevision": "6dc8ed1bceaa563c4e2cddb505b5891741bbce5a",
   "evidence": [
     {
-      "blobOid": "7d56eb747573d8ae30862afd7265f746462a4fb3",
-      "id": "evidence:sha256:ffad122be2810759001a5b7c0997fea3f2d6d10a459bd6d0fe4d2215ad865137",
-      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
-      "span": {
-        "end": 11461,
-        "start": 11210
-      },
-      "spanSha256": "4de287c7ba82c62bc83fe77bfb1e7d82881c96189fd8bc5db020fb0f75451ade"
-    },
-    {
       "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
       "id": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
       "path": "AGENTS.md",
@@ -33,13 +23,13 @@
     },
     {
       "blobOid": "7d56eb747573d8ae30862afd7265f746462a4fb3",
-      "id": "evidence:sha256:943fe9c9d79ccfaa598d0a2b94e98f878426bd71fec237d7873ce016035f5674",
+      "id": "evidence:sha256:ffad122be2810759001a5b7c0997fea3f2d6d10a459bd6d0fe4d2215ad865137",
       "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
       "span": {
-        "end": 22271,
-        "start": 21395
+        "end": 11461,
+        "start": 11210
       },
-      "spanSha256": "b56d792abd4918af29b47bfb2d0272a96ba6fbbd4f35be24c609cf4661cf2b7c"
+      "spanSha256": "4de287c7ba82c62bc83fe77bfb1e7d82881c96189fd8bc5db020fb0f75451ade"
     },
     {
       "blobOid": "7d56eb747573d8ae30862afd7265f746462a4fb3",
@@ -50,6 +40,16 @@
         "start": 11724
       },
       "spanSha256": "9dfc70ddedc640b95e7eee33beb3fb43107d2e5f61b34eac1eb49b804a186638"
+    },
+    {
+      "blobOid": "7d56eb747573d8ae30862afd7265f746462a4fb3",
+      "id": "evidence:sha256:943fe9c9d79ccfaa598d0a2b94e98f878426bd71fec237d7873ce016035f5674",
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "span": {
+        "end": 22271,
+        "start": 21395
+      },
+      "spanSha256": "b56d792abd4918af29b47bfb2d0272a96ba6fbbd4f35be24c609cf4661cf2b7c"
     },
     {
       "blobOid": "7d56eb747573d8ae30862afd7265f746462a4fb3",
@@ -202,7 +202,7 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:91f056863b518129df0d38ee032bbfea1a6e00fa9f6995e42bbdfd1803467589",
+      "id": "hunk:sha256:52f6096574bbd7012d86942e81efe5edd4b9cf4e203e14bb4f7289f1b125b140",
       "newRange": {
         "count": 69,
         "start": 418
@@ -570,9 +570,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:2e5096251d44734522679d9b1b36ab2b6144c1438c92ffe9e52a503a4be70280",
+      "id": "hunk:sha256:08fb067b3371d231b08b4cd14cc588fe61ffb0ce270060d88bbc9950d2342bdf",
       "newRange": {
-        "count": 229,
+        "count": 231,
         "start": 1
       },
       "oldRange": {
@@ -675,6 +675,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "14ca61e5fad299316ab674bacdaa13fdec5f5ea7569b794f8ae80777724dfe79",
+  "patchSha256": "b2872f1d2e426f74c7f6a1e7dd8c1a0b8452e000859716c39c0ddd9cee7414b2",
   "spec": "cem/0.2"
 }
