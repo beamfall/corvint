@@ -10,7 +10,7 @@ Authoritative inputs: human issue https://github.com/beamfall/corvint/issues/394
 ## Agent digest
 - Claim: A separate companion repeats new Playwright tests, executes approved negative controls and produces one bound assessment and fixed PR body.
 - Status: proposed/experimental. Existing per-test Freshness is UNKNOWN; stable asserting tests are blocked, never promoted from caller pins.
-- Exists: planned `internal/testacceptance`, `cmd/corvint-tests-accept`.
+- Exists: `internal/testacceptance`, `cmd/corvint-tests-accept`; focused checks and actual local browser negative assessment.
 - Blocked on: V1-0556 qualified per-test freshness; owner acceptance, integration and native completion.
 - Read next: Requirements; Trust boundary; Qualification and rollback.
 
@@ -31,8 +31,8 @@ assessments, with an explicit capability follow-up, rather than claiming qualifi
 - `NEA-V0-002`: Execute every declared new test 2 to 100 times with retries zero and one worker.
   Retain actual provider receipt digests, outcomes, durations and attempts. Missing/extra/duplicate
   tests, retries or skips cannot be silently dropped. Check immutable inputs before and after execution.
-- `NEA-V0-003`: Execute approved negative controls through the existing behavior falsification
-  executor and verify its retained receipt. Match exact criterion/test/product/config/environment
+- `NEA-V0-003`: Execute approved negative controls through the separately pinned existing behavior falsification
+  executable and verify its retained receipt. Match exact criterion/test/product/config/environment
   identities. A surviving control rejects; absent, unsupported, malformed or infrastructure evidence blocks.
 - `NEA-V0-004`: Preserve Association, Hygiene, Freshness and Execution provider axes; derive only
   Strength from matched actual controls. Observed failures/flakes/skips or surviving controls reject.
@@ -84,7 +84,7 @@ browser versions and failures in the build log. Tests never accept proposed huma
 ## Qualification and rollback
 
 Availability smoke observed Node22.23.3 and Chromium153.0.8010.12; not the provider's qualified
-Node22.23.2 tuple. Actual assessment qualification is pending. V1-0556 is the concrete per-test
+Node22.23.2 tuple. Actual disposable negative assessment passed: stable asserting BLOCKED, nonasserting REJECTED on surviving response mutation, flaky REJECTED with requested probes. Observed execution order remains UNKNOWN. V1-0556 is the concrete per-test
 freshness blocker. Promotion needs a separately reviewed observed freshness contract and actual
 qualified identity/environment/browser evidence. Keep the issue open through integration/native
 completion. Rollback: stop invoking the optional companion and revert its isolated commits;
