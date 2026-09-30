@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/procgroup"
 )
@@ -70,14 +71,29 @@ func witnessAbsent(ctx context.Context, dir string, known map[int]procgroup.Obse
 	if len(known) == 0 {
 		return errors.New("passive cleanup witness unavailable")
 	}
-	rows, e := processSnapshot(ctx, dir)
-	if e != nil {
-		return e
-	}
-	for pid, p := range known {
-		if now, ok := rows[pid]; ok && now.Start == p.Start && !strings.HasPrefix(now.State, "Z") {
-			return fmt.Errorf("target left descendant %d alive before supervisor rescue", pid)
+	// Observe natural exit before the outer supervisor may rescue a survivor.
+	// This window does not signal processes or broaden the captured identities.
+	ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
+	defer cancel()
+	for {
+		rows, e := processSnapshot(ctx, dir)
+		if e != nil {
+			return fmt.Errorf("passive cleanup witness unavailable before supervisor rescue: %w", e)
+		}
+		survivor := 0
+		for pid, p := range known {
+			if now, ok := rows[pid]; ok && now.Start == p.Start && !strings.HasPrefix(now.State, "Z") {
+				survivor = pid
+				break
+			}
+		}
+		if survivor == 0 {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("target left descendant %d alive before supervisor rescue: %w", survivor, ctx.Err())
+		case <-time.After(20 * time.Millisecond):
 		}
 	}
-	return nil
 }

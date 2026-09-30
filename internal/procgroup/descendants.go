@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 )
@@ -118,7 +119,8 @@ func (o *descendantObserver) finish() (*DescendantObservation, error) {
 				continue
 			}
 			current, present := rows[pid]
-			if !present || current.Start != owned.Start {
+			// A zombie has exited; only its parent can finish reaping it.
+			if !present || current.Start != owned.Start || strings.HasPrefix(current.State, "Z") {
 				continue
 			}
 			live = true
