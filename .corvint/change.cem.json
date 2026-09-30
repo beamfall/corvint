@@ -12,6 +12,16 @@
       "spanSha256": "ddf2028d5d2d85e4ad69a8a8185ed6212bcdcd1b90699b3b6c95b385283c73b1"
     },
     {
+      "blobOid": "cf25bd04f315702a1c5257b32830d8f8efe3eb64",
+      "id": "evidence:sha256:f95057728394ba2dcb51412c100e4b6b55f97901575e4cd2f8a70f6d4aeea160",
+      "path": "Makefile",
+      "span": {
+        "end": 9752,
+        "start": 9193
+      },
+      "spanSha256": "6f066409c053fdb23403b2603d17254058824721f5cbeaaf0543fcf429cdceb4"
+    },
+    {
       "blobOid": "7d56eb747573d8ae30862afd7265f746462a4fb3",
       "id": "evidence:sha256:d01de0399bcd09f281b7752375d59a24708d16d0d05761856275e71c994529c8",
       "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
@@ -62,6 +72,26 @@
         "start": 0
       },
       "path": "docs/build-log/2026-09-29-tasks-context-identity.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:f95057728394ba2dcb51412c100e4b6b55f97901575e4cd2f8a70f6d4aeea160",
+          "relation": "implementation"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9d21f236466bdfbfa6c1044dea94490d74eb585388db7ffda76fe815196556a6",
+      "newRange": {
+        "count": 11,
+        "start": 286
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 286
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
       "reason": "evidence-backed"
     },
     {
@@ -153,6 +183,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "97d53b0edb2d92ce31a7678f3dd2f46aee02851e349a66f24bbce997496028f2",
+  "patchSha256": "c30e6cad4ddecfbf2d7498b46ede3f0ecd2106e1b7509b6da75e01e436faae96",
   "spec": "cem/0.2"
 }
