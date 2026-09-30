@@ -13,6 +13,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -102,6 +103,31 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 	if canonical.StagingPresent {
 		return report, wire.Errorf(wire.CodeUnsupported, "staging", "active staging recovery is not implemented")
 	}
+	// Recovery uses journal-authoritative attempt bytes, not unaudited physical
+	// files. Ordinary completed REOPEN keeps its existing read boundary.
+	if env.Operation == mutation.OpReopen && env.TargetID != nil {
+		path := "intent/tickets/" + env.TargetID.Local + ".json"
+		if record, ok := canonical.Records[path]; ok {
+			rec, decodeErr := ticket.Decode(record.Raw)
+			if decodeErr != nil {
+				return guardFailure(report, env.RequestID, decodeErr)
+			}
+			if rec.Status == ticket.StatusOpen {
+				for _, file := range inv.Files() {
+					if strings.HasPrefix(file.Path, "attempts/") {
+						paths = append(paths, file.Path)
+					}
+				}
+				canonical, err = reader.Audit(paths...)
+				if err != nil {
+					return guardFailure(report, env.RequestID, err)
+				}
+				if canonical.StagingPresent {
+					return report, wire.Errorf(wire.CodeUnsupported, "staging", "active staging recovery is not implemented")
+				}
+			}
+		}
+	}
 	queue := canonical.Records["intent/queue.json"].Raw
 	policy := canonical.Records["intent/policy.json"].Raw
 	q, err := intent.DecodeQueue(queue)
@@ -114,8 +140,11 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 	}
 	tickets := make([][]byte, 0, len(paths)-2)
 	releases := [][]byte{}
+	attempts := [][]byte{}
 	for _, path := range paths[2:] {
-		if strings.HasPrefix(path, "intent/releases/") {
+		if strings.HasPrefix(path, "attempts/") {
+			attempts = append(attempts, canonical.Records[path].Raw)
+		} else if strings.HasPrefix(path, "intent/releases/") {
 			releases = append(releases, canonical.Records[path].Raw)
 		} else {
 			tickets = append(tickets, canonical.Records[path].Raw)
@@ -144,6 +173,7 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 			Reservations:      reservations,
 			CanonicalTickets:  tickets,
 			CanonicalReleases: releases,
+			Attempts:          attempts,
 			Premise:           transaction.LocalOperator,
 			Branch:            branch,
 			Replay:            transaction.ReplayObservation{State: "ABSENT"},

@@ -2,6 +2,7 @@ package mutation
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -39,6 +40,17 @@ func (b Binding) validate() *refusal {
 	return refuse(OutcomeUnauthorized, "", "trusted binding role %q is not a §3.3 role", b.Role)
 }
 
+// RetryRecovery is an observation of exhausted, safely terminal attempts from
+// the caller's validated journal inventory. It is never taken from an envelope.
+// State is Satisfied only after checking every attempt and reservation for the
+// ticket. The identity and phase bind that observation to this acceptance.
+type RetryRecovery struct {
+	TicketID           string
+	AcceptanceRevision wire.Count
+	State              ticket.Observation
+	Phase              string
+}
+
 // Context carries every fact a mutation depends on. All of it is explicit
 // input; nothing is read from disk, a clock or the environment.
 type Context struct {
@@ -56,6 +68,9 @@ type Context struct {
 	// NOT_OBSERVED answer is treated as "possibly live": an acceptance-
 	// relevant mutation is then refused BLOCKED/ATTEMPT_LIVE (fail closed).
 	Attempts ticket.AttemptOracle
+	// RetryRecovery is required only to reopen an exhausted OPEN ticket.
+	// Nil, unknown, mismatched or nonterminal observations fail closed.
+	RetryRecovery *RetryRecovery
 	// Requests is the request-ID index consulted for TM-V0-006 replay.
 	// Required: a nil index is refused VALIDATION_FAILED/MALFORMED before any
 	// computation, never treated as "no prior request" (a Context built
@@ -401,8 +416,19 @@ func (ctx *Context) step(work *ticket.Record, p Payload) *refusal {
 	case *ReasonPayload:
 		switch p.Op {
 		case OpReopen:
-			if work.Status != ticket.StatusCompleted {
-				return refuse(OutcomeBlocked, wire.CodeTicketState, "REOPEN requires status COMPLETED (is %s)", work.Status)
+			if work.Status == ticket.StatusOpen {
+				if ctx.Binding.Role != "OWNER" {
+					return refuse(OutcomeUnauthorized, "", "reopening an exhausted OPEN ticket requires OWNER")
+				}
+				if strings.TrimSpace(p.Reason) == "" {
+					return refuse(OutcomeValidationFailed, wire.CodeMalformed, "OPEN recovery requires a nonblank reason")
+				}
+				r := ctx.RetryRecovery
+				if r == nil || r.State != ticket.Satisfied || r.TicketID != work.TicketID.Raw || r.AcceptanceRevision != work.AcceptanceRevision || (r.Phase != "FAILED" && r.Phase != "CANCELLED") {
+					return refuse(OutcomeBlocked, wire.CodeTicketState, "OPEN recovery requires observed exhausted, safely terminal attempts at this acceptanceRevision")
+				}
+			} else if work.Status != ticket.StatusCompleted {
+				return refuse(OutcomeBlocked, wire.CodeTicketState, "REOPEN requires COMPLETED or an exhausted OPEN ticket (is %s)", work.Status)
 			}
 			// §3.1/§3.2: completion is present iff the effective status is
 			// COMPLETED. The prior completion stays in the chained prior
