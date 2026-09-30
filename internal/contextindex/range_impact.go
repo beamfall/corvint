@@ -68,6 +68,11 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 	if !validObjectID(base, index.ObjectFormat) {
 		return nil, &Error{Code: "unsupported-impact-range", Message: "--base must be a full immutable commit object ID"}
 	}
+	// Preserve the historical no-module refusal before worktree validation in
+	// repositories outside the new language capability (including first-pass CEMs).
+	if (index.Module == "" || !strings.Contains(index.Module, "/")) && !hasNonGoImpactSource(index) {
+		return nil, &Error{Code: "unsupported-impact-repository", Message: "native Go impact requires a slash-qualified Go module"}
+	}
 	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
 	defer cancel()
 	allowedUntracked, err := verifyRangeSnapshot(ctx, index)

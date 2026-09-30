@@ -106,7 +106,7 @@ func TestNonGoImpactDynamicUnknowns(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, f := range fixtures {
-		receipt, err := Impact(index, []string{f.name}, 1)
+		receipt, err := ImpactSyntax(index, []string{f.name}, 1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -130,7 +130,7 @@ func TestNonGoImpactFrontierBeyondLimit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	receipt, err := Impact(index, []string{"b.ts", "a.rb"}, 1)
+	receipt, err := ImpactSyntax(index, []string{"b.ts", "a.rb"}, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func TestNonGoImpactFrontierBeyondLimit(t *testing.T) {
 		}
 	}
 	budget := 8192
-	compiled, err := EvalImpact(index, []string{"a.rb", "b.ts"}, 1, &budget)
+	compiled, err := EvalImpactSyntax(index, []string{"a.rb", "b.ts"}, 1, &budget)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func TestNonGoImpactExcludedFrontier(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	receipt, err := Impact(index, []string{"vendor/value.rb"}, 1)
+	receipt, err := ImpactSyntax(index, []string{"vendor/value.rb"}, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +249,7 @@ func TestNonGoRangeImpactGoModuleValidationPriority(t *testing.T) {
 		_, err = compileRangeImpact(context.Background(), index, base, 10, expanded)
 		assertRangeErrorCode(t, err, "unsupported-impact-repository")
 		_, err = compileRangeImpact(context.Background(), index, strings.Repeat("0", 40), 10, expanded)
-		assertRangeErrorCode(t, err, "unsupported-impact-range")
+		assertRangeErrorCode(t, err, "unsupported-impact-repository")
 	}
 	writeTestFile(t, root, "internal/value/value.go", "package value\nfunc Value() int { return 3 }\n")
 	index, err := Build(context.Background(), root)
@@ -258,7 +258,7 @@ func TestNonGoRangeImpactGoModuleValidationPriority(t *testing.T) {
 	}
 	for _, expanded := range []bool{false, true} {
 		_, err = compileRangeImpact(context.Background(), index, base, 10, expanded)
-		assertRangeErrorCode(t, err, "unsupported-impact-worktree")
+		assertRangeErrorCode(t, err, "unsupported-impact-repository")
 	}
 }
 

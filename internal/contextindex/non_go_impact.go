@@ -25,6 +25,15 @@ func MCPImpactPathAdmitted(name string) bool {
 	return strings.HasSuffix(name, ".go") || NonGoImpactLanguage(name) != ""
 }
 
+func hasNonGoImpactSource(index *Index) bool {
+	for name := range index.Sources {
+		if NonGoImpactLanguage(name) != "" {
+			return true
+		}
+	}
+	return false
+}
+
 var impactReflection = regexp.MustCompile(`\b(?:send|public_send|__send__|define_method|define_singleton_method|method_missing|class_eval|module_eval|eval|constantize|const_get)\b`)
 var impactComputedCall = regexp.MustCompile(`\]\s*(?:\?\.)?\s*\(`)
 var impactDynamicLoad = regexp.MustCompile(`\b(?:import|require)\s*\(`)
@@ -128,6 +137,7 @@ func attachNonGoImpactUnknowns(result map[string]any, index *Index, paths []stri
 		return nil
 	}
 	result["unknowns"] = unknowns
+	result["language_profile"] = "non-go-syntax-v0"
 	coverage := result["coverage"].(map[string]any)
 	coverage["uncertainty"] = append(anySlice(coverage["uncertainty"]), "non-Go syntax impact does not establish dynamic dispatch or test closure")
 	return stabilizePacketBytes(result)
