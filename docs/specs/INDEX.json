@@ -1157,6 +1157,24 @@
     ]
   },
   {
+    "path": "docs/specs/new-e2e-test-acceptance-v0.md",
+    "title": "New E2E Test Acceptance V0",
+    "reqPrefix": "NEA-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A separate companion repeats new Playwright tests, executes approved negative controls and produces one bound assessment and fixed PR body.",
+    "dependsOn": [
+      "docs/specs/js-live-test-provider-v0.md",
+      "docs/specs/browser-behavior-falsification-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/testacceptance",
+      "cmd/corvint-tests-accept"
+    ]
+  },
+  {
     "path": "docs/specs/js-live-test-provider-v0.md",
     "title": "JS/TS Live-Test Provider V0",
     "reqPrefix": "",
