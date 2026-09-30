@@ -118,7 +118,13 @@ subject to native capabilities, policy, current revisions and attempt ownership.
 Free-text create/refine, initialization, migration and manual-completion bypass are absent.
 A private bounded Git-directory ledger stores replay metadata and terminal truth, never
 a competing queue. After uncertainty, inspect the returned audit/ticket/attempt receipts
-and repeat the identical command with `resume:true`; do not issue a new request ID.
+and repeat the identical command with `resume:true` when native replay is safe; do not
+issue a new request ID. An uncertain `gate run` remains `gate-replay-unavailable`:
+the native runtime can execute a gate before replay lookup, so the plugin dispatches
+no retry and retains the pending identity for explicit reconciliation. Initial claim’s
+`expectedRevision` is a preflight check; the native lease command has no atomic
+requested-ticket-revision CAS and may bind a newer acceptance revision. Inspect the
+native attempt receipt before further work; this qualification gap remains open.
 An old ledger entry without terminal status stays `native-outcome-unknown`.
 
 `/corvint-workflow begin PLAN_FILE` explicitly enrolls a caller-owned native dogfood
