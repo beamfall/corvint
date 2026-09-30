@@ -132,6 +132,9 @@ func TestCrossRepositoryBreakageMap(t *testing.T) {
 	for _, edge := range r.Edges {
 		if edge.Relation != nil {
 			providers++
+			if !strings.Contains(edge.Reason, "not symbol-specific coupling") {
+				t.Fatal("file association presented as symbol dependency")
+			}
 			if edge.Relation.Evidence != "declared" || edge.ByteState != "verified" {
 				t.Fatalf("declaration upgraded or unbound: %+v", edge)
 			}

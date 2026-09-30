@@ -215,6 +215,9 @@ func endpointKey(e extevidence.Endpoint1) string {
 	return "entity:" + e.Provider + ":" + e.Entity
 }
 func composeProviders(r *Report, m Manifest, sources map[string]captured, apiKey string) {
+	if len(m.Providers) > 0 {
+		r.unknown(apiKey, "provider associations bind files/entities, not the selected symbol; shared file membership does not demonstrate API dependency")
+	}
 	for _, raw := range m.Providers {
 		record, _ := extevidence.Decode1(raw)
 		hash := digest(raw)
@@ -253,7 +256,7 @@ func composeProviders(r *Report, m Manifest, sources map[string]captured, apiKey
 				}
 				used[i] = true
 				progress = true
-				edge := Edge{Kind: "provider-relationship", Confidence: "external-provider", Reason: "explicit EEP relation; byte verification does not establish assertion truth", ProviderSHA256: hash, Relation: &record.Relations[i], ByteState: "verified"}
+				edge := Edge{Kind: "provider-relationship", Confidence: "external-provider", Reason: "explicit file/entity EEP association, not symbol-specific coupling; byte verification does not establish assertion truth", ProviderSHA256: hash, Relation: &record.Relations[i], ByteState: "verified"}
 				good := true
 				if rel.Evidence != "declared" && rel.Evidence != "observed" && rel.Evidence != "inferred" && rel.Evidence != "generated" {
 					good = false

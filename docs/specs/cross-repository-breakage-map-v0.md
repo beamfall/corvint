@@ -79,6 +79,8 @@ with the embedded provider bytes' SHA-256. Entity declarations are not source an
   unresolved and MUST NOT advance traversal. Traversal may inspect a relation in either
   direction for association, but MUST retain its original direction and MUST NOT infer
   causal impact. Directory scopes are unsupported, not recursively expanded.
+  Every provider projection MUST disclose that file/entity association does not
+  establish dependency on the selected symbol merely through shared file membership.
 - `BKM-V0-006`: Byte verification MUST NOT establish assertion truth, behavioral
   breakage, test execution, adequacy or complete coverage. Entity-only witnesses retain
   declaration state. Flow and documentation relationships are existing provider
