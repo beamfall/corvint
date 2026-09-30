@@ -2572,6 +2572,23 @@
     ]
   },
   {
+    "path": "docs/specs/operator-update-v0.md",
+    "title": "Operator update V0",
+    "reqPrefix": "UPD-V0",
+    "intent": "proposed technical contract under owner-requested V1-0505 outcome",
+    "delivery": "experimental",
+    "claim": "An optional operator updater checks Core and Tasks release channels and preserves verified rollback bytes without adding network access to Core.",
+    "dependsOn": [
+      "docs/specs/stable-operations-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint-update",
+      "internal/update"
+    ]
+  },
+  {
     "path": "docs/specs/pi-workflow-v0.md",
     "title": "Pi Workflow V0",
     "reqPrefix": "PWV-V0",

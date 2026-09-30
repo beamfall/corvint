@@ -79,7 +79,7 @@ func StageLimits(op string) (int, int) {
 	case StageAdoptFile:
 		return 5, 1467
 	case StageMutate:
-		return 6, 1615
+		return 6, 1670
 	case StageRelease:
 		return 6, 2600
 	case StagePolicyUpdate:
@@ -280,6 +280,12 @@ func (d StageDescriptor) shape() error {
 				}
 				key = "discard"
 				cap = 131072
+			case strings.HasPrefix(a.Target, "evidence/") && d.Operation == StageMutate:
+				if a.Sha256 != d.RequestSha256 || a.Target != "evidence/"+string(d.RequestSha256) {
+					return stageMalformed("mutation request evidence identity")
+				}
+				key = "mutation-request"
+				cap = wire.MaxMutationEnvelopeBytes
 			case strings.HasPrefix(a.Target, "evidence/") && d.Operation == StageLease:
 				// A gate run posts its captured output and its gate result; a
 				// completion posts its manifest (CAL-V0-016, CAL-V0-017).
@@ -362,6 +368,12 @@ func (d StageDescriptor) shape() error {
 	// A MUTATE queue post is present only when CREATE allocated a serial, so it
 	// is optional rather than required.
 	if d.Operation == StageMutate {
+		// CREATE's queue allocation and OPEN recovery's retained envelope
+		// are distinct operations; accepting both would widen this contract.
+		if counts["mutation-request"] > 1 || (counts["mutation-request"] != 0 && counts["queue"] != 0) {
+			return stageMalformed("mutation request evidence count")
+		}
+		delete(counts, "mutation-request")
 		delete(counts, "queue")
 	}
 	// A lease transaction posts at most one attempt and one reservation set;

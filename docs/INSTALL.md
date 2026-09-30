@@ -298,6 +298,35 @@ git add .corvint/work-queue-adapter && git commit -m "Rebind Corvint work-queue 
 | observation `STALE`, empty proposal | the worklist or commit changed while observing |
 | `VALIDATED_AT` with `CONTAINMENT_UNQUALIFIED`, `EXECUTABLE_IDENTITY_UNQUALIFIED`, `MUTATION_ENFORCEMENT_UNQUALIFIED`, `NETWORK_UNOBSERVED` | expected: the reviewed binding detects drift, while Darwin cannot claim VPO-V0-024 exact-object execution and the other local axes stay unknown |
 
+## Optional operator updater
+
+The separate experimental `corvint-update` companion checks official public releases and applies
+one component at a time. Core remains offline. Build from source with
+`GOTOOLCHAIN=local go build -o /absolute/path/corvint-update ./cmd/corvint-update`.
+
+```sh
+corvint-update check --allow-network --component core
+corvint-update check --allow-network --component tasks
+corvint-update apply --allow-network --component tasks
+corvint-update rollback --component tasks
+```
+
+Default executable paths are under `~/.local/bin`; retained transactions/archive evidence live
+under `~/.local/share/corvint/updates`. Explicit `--bin-dir` / `--state-dir` support disposable
+qualification or another operator-owned installation. Check is read-only. Apply requires network
+opt-in, verifies archive and internal checksums, checks host/build identity, probes version/help,
+retains prior bytes and a prepared transaction, then atomically switches the one destination.
+Rollback needs no network and refuses foreign destination or saved-byte drift. Failures before
+activation leave the destination untouched. Downgrades, unknown builds, symlinked managed paths,
+unsafe archives and incomplete release discovery refuse automatic activation.
+
+Core `v*` and standalone Tasks `tasks-dev-*` channels are selected separately. Developer Tasks
+archives retain their explicit unverified/runtime-qualification limits. Checksums detect byte
+changes, not publisher identity. Bounded inventory exhaustion/offline state reports freshness
+UNKNOWN. This optional operator tool introduces no daemon, config rewrite, store migration,
+publisher authentication or power-loss durability; callers schedule it and manage active hosts.
+See [Operator update V0](specs/operator-update-v0.md) for the requirements and evidence boundary.
+
 ## Upgrade, retry and remove
 
 Install a new version into a new directory. Stop active console/provider processes and let the MCP
