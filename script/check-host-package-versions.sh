@@ -142,6 +142,6 @@ check_package pi \
     'integrations/pi/package.json|.version' \
     'integrations/pi/package.json|.corvintIntegration.adapterVersion' \
     -- \
-    integrations/pi/index.ts integrations/pi/extension.js integrations/pi/tools.js integrations/pi/runtime.js integrations/pi/README.md integrations/pi/compatibility.json
+    integrations/pi/index.ts integrations/pi/extension.js integrations/pi/tools.js integrations/pi/runtime.js integrations/pi/README.md integrations/pi/compatibility.json integrations/pi/process.js integrations/pi/core.js integrations/pi/tasks.js integrations/pi/operations.js integrations/pi/cockpit.js integrations/pi/workflow.js
 
 exit $status

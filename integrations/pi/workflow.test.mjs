@@ -12,7 +12,7 @@ function envelope(event,input,{lifecycle='active',satisfied=false}={}) {
  const p={lifecycle,satisfied,unmet:satisfied?[]:['selected-check-unverified'],base:'a'.repeat(40),target:'a'.repeat(40),planDigest:'b'.repeat(64),reportSetDigest:''};
  const incomplete=lifecycle==='active'||lifecycle==='satisfied'&&!satisfied;
  return sign({profile:'corvint-dogfood-event/0',ok:true,mutates:false,support:'FALLBACK',event,
- adapter:{host:'pi',hostVersion:'0.99.1',surface:'extension',adapterVersion:'0.3.0'},
+ adapter:{host:'pi',hostVersion:'0.99.1',surface:'extension',adapterVersion:'0.3.1'},
  repository:{commitRevision:'a'.repeat(40),treeRevision:'b'.repeat(40),objectFormat:'sha1',worktreeState:'clean',dirtyPathCount:0,dirtyPathsSha256:hash('[]')},
  requestSha256:hash(canonical(input)),degradations:['frontier-authority-unavailable'],frontier:{state:'UNAVAILABLE',shouldContinue:false,reason:'frontier-authority-unavailable'},policy:p,
  completion:{decision:event==='stop'&&incomplete&&!input.stopHookActive?'block':'release',reason:event!=='stop'?'not-stop-event':incomplete?(input.stopHookActive?'local-policy-continuation-limit':'local-policy-incomplete'):'local-policy-'+lifecycle},
