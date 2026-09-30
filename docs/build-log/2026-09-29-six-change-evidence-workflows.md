@@ -44,6 +44,17 @@ Root Gate A passed with no HIGH findings. Its MED findings required selective tw
 joins, command-specific boolean help handling and retention of the original bind target plus
 OCM reconstruction inputs after sealing. Those requirements guide final binding/review.
 
+Final binding review also found SESSION-V0-017..022 outside OCM's selected Requirements
+section. The clauses and IDs were preserved while moving both handoff slice blocks into that
+one section with subordinate headings. Independent doc re-review confirmed all 22 clauses
+unchanged and correctly grouped; locators were regenerated. The earlier 16-row session OCM
+and 113-row aggregate are retained as superseded evidence, not full handoff coverage.
+Final owning scope is the four new specs plus pilot, console and session. An earlier twelve-
+scope related-contract aggregate exceeded the existing 128-obligation limit; its failure and
+maps remain retained. Inherited EEP, FPK, TCP and OCM constraints remain original citations
+and focused-test obligations rather than additional owning build slices. The corrected seven-
+scope aggregate has an expected denominator of 119, including all 22 SESSION requirements.
+
 ## Actual use and focused evidence
 
 Local original receipts remain under `/private/tmp/corvint-wow-manager`, per-slice evidence
