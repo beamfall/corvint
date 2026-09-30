@@ -155,7 +155,10 @@ func TestReviewProjectionOCMJoinAndInvalidRefusal(t *testing.T) {
 func TestReviewProjectionHostileText(t *testing.T) {
 	t.Run("CEM-PILOT-030 hostile strings remain inert in both renderings", func(t *testing.T) {
 		hostile := "</script>\n# forged\n[x](https://example.invalid) `"
-		projection := map[string]any{"recordSetSha256": strings.Repeat("a", 64), "mapSha256": strings.Repeat("b", 64), "ocm": map[string]any{"reason": hostile}, "hunks": []any{
+		projection := map[string]any{"recordSetSha256": strings.Repeat("a", 64), "mapSha256": strings.Repeat("b", 64), "ocm": map[string]any{
+			"reason": hostile, "valid": false, "state": hostile,
+			"verification": map[string]any{"issues": []any{map[string]any{"code": hostile, "message": hostile}}},
+		}, "hunks": []any{
 			map[string]any{"ordinal": 1, "path": hostile, "id": "hunk:sha256:abc", "disposition": "unknown", "reason": hostile, "obligations": []any{}},
 		}, "unmappedObligations": []any{}}
 		text := renderReviewProjection(projection)
@@ -220,6 +223,68 @@ func TestReviewProjectionNativeOCMAdapterUnknownOnly(t *testing.T) {
 		}
 		if invalid["valid"] != false || len(invalid["obligations"].([]any)) != 0 {
 			t.Fatalf("wrong-base adapter admitted joins: %v", invalid)
+		}
+		writeFile(t, root, wire.ExcludedCEMPath, string(raw))
+		t.Run("CEM-PILOT-029 native invalid OCM remains visible in Markdown", func(t *testing.T) {
+			result, err := openSession(t, root).Read(ctx(), "report", ReadOptions{
+				MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: target, OCMPath: path,
+				ReadOCM: func(ctx context.Context, root, path string, raw []byte, _, target string) (map[string]any, error) {
+					return lrfrepo.ReadOCMReview(ctx, root, path, raw, target, target)
+				},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result["ok"] != false {
+				t.Fatal("invalid OCM report succeeded")
+			}
+			text, err := os.ReadFile(result["report"].(string))
+			if err != nil {
+				t.Fatal(err)
+			}
+			issues := invalid["verification"].(map[string]any)["issues"].([]any)
+			code := issues[0].(map[string]any)["code"].(string)
+			for _, want := range []string{"OCM validity: `false`", "OCM state: `invalid`", mdreport.CodeSpan(code)} {
+				if !strings.Contains(string(text), want) {
+					t.Fatalf("human report omits native OCM verdict %q:\n%s", want, text)
+				}
+			}
+		})
+		ocmRaw, err := os.ReadFile(filepath.Join(root, path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, alias := range []string{"exact path", "normalized path", "same-file hard link"} {
+			t.Run("CEM-PILOT-029 report preserves OCM input "+alias, func(t *testing.T) {
+				writeFile(t, root, path, string(ocmRaw))
+				output := path
+				if alias == "normalized path" {
+					output = ".corvint/./change.ocm.json"
+				}
+				if alias == "same-file hard link" {
+					output = ".corvint/ocm-alias.md"
+					if err := os.Link(filepath.Join(root, path), filepath.Join(root, output)); err != nil {
+						t.Fatal(err)
+					}
+				}
+				_, err := openSession(t, root).Read(ctx(), "report", ReadOptions{
+					MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: target,
+					OCMPath: path, ReadOCM: lrfrepo.ReadOCMReview, Output: output,
+				})
+				if err == nil {
+					t.Error("report accepted an OCM input alias as output")
+				}
+				after, err := os.ReadFile(filepath.Join(root, path))
+				if err != nil || string(after) != string(ocmRaw) {
+					t.Error("report changed retained OCM input bytes")
+				}
+				if alias == "same-file hard link" {
+					aliasBytes, err := os.ReadFile(filepath.Join(root, output))
+					if err != nil || string(aliasBytes) != string(ocmRaw) {
+						t.Error("report replaced the OCM file-identity alias")
+					}
+				}
+			})
 		}
 	})
 }

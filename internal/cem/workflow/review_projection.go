@@ -192,6 +192,26 @@ func renderReviewProjection(projection map[string]any) string {
 	out.WriteString("\n## Hunk review projection\n\n")
 	out.WriteString(fmt.Sprintf("- Record set SHA-256: `%s`\n- Map SHA-256: `%s`\n", projection["recordSetSha256"], projection["mapSha256"]))
 	ocm := projection["ocm"].(map[string]any)
+	if valid, found := ocm["valid"]; found {
+		out.WriteString("- OCM validity: " + mdreport.CodeSpan(fmt.Sprint(valid)) + "\n")
+	} else {
+		out.WriteString("- OCM validity: NOT_PRODUCED\n")
+	}
+	if state, _ := ocm["state"].(string); state != "" {
+		out.WriteString("- OCM state: " + mdreport.CodeSpan(state) + "\n")
+	}
+	if verification, ok := ocm["verification"].(map[string]any); ok {
+		if issues, ok := verification["issues"].([]any); ok {
+			for _, item := range issues {
+				issue, _ := item.(map[string]any)
+				out.WriteString("- OCM issue: " + mdreport.CodeSpan(fmt.Sprint(issue["code"])))
+				if message, _ := issue["message"].(string); message != "" {
+					out.WriteString(": " + mdreport.CodeSpan(message))
+				}
+				out.WriteByte('\n')
+			}
+		}
+	}
 	if reason, _ := ocm["reason"].(string); reason != "" {
 		out.WriteString("- Obligations: NOT_PRODUCED " + mdreport.CodeSpan(reason) + "\n")
 	}

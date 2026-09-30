@@ -265,6 +265,21 @@ func (s *Session) renderReport(document *wire.Map, verification, counts map[stri
 		filepath.Join(s.workRoot.Path(), filepath.FromSlash(options.MapPath))) {
 		return nil, invalidArguments("report and map paths must differ")
 	}
+	if options.OCMPath != "" {
+		ocmInput := filepath.FromSlash(options.OCMPath)
+		if !filepath.IsAbs(ocmInput) {
+			ocmInput = filepath.Join(s.workRoot.Path(), ocmInput)
+		}
+		output := filepath.Join(outputRoot.Path(), filepath.FromSlash(outputRelative))
+		if strings.EqualFold(filepath.Clean(output), filepath.Clean(ocmInput)) || sameFile(output, ocmInput) {
+			return nil, invalidArguments("report and OCM paths must differ")
+		}
+		if outputRoot == s.workRoot && !filepath.IsAbs(options.OCMPath) {
+			if err := checkMapSidecarAliasing(options.OCMPath, outputRelative); err != nil {
+				return nil, err
+			}
+		}
+	}
 	report := renderReportText(document, verification, counts, work, policy)
 	report += renderReviewProjection(projection)
 	if len(report) > maxReportBytes {
