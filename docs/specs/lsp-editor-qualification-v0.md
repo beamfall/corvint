@@ -86,14 +86,14 @@ The mutually exclusive `--context-freshness-development` mode uses the same trac
 three direct requests: READY baseline A, immediate rapid request A plus real unsaved full replacement
 B, then a newest-overlay retry after the rapid reply. Its whole-transcript state machine requires
 three unique typed IDs, exact request/edit/reply ordering, full replacements, closed responses,
-unchanged disk/Git/Core bindings and increasing successful uint64 captures in the same session.
+unchanged disk/Git bindings, identical validated Core packets and increasing successful uint64 captures in the same session.
 For the frozen server the expected edit-driven response is exactly `-32800`, `Request cancelled`,
 `data:{reason:"CANCELLED"}`. `-32801/CONTENT_CHANGED` is separately observed stale rejection,
 not a cancellation pass. Competing edits, open/close, explicit cancellation, shutdown and semantic
 requests invalidate the interval. Frontend pending-at-edit observation is necessary but insufficient;
 the raw wire and admitted server error establish the bounded interpretation, not internal worker timing.
 A response-before-edit or edit-before-request scheduling miss remains NOT_WITNESSED/nonzero even
-with a healthy retry. There is one attempt per client, no barrier, repeat-until-pass or output delay.
+with a healthy retry. READY scheduling misses must match the independently selected A baseline or B retry session, capture and full Core packet. Integer request limits and closed wire/frontend error codes reject float/bool aliases. There is one attempt per client, no barrier, repeat-until-pass or output delay.
 Broader freshness distributions and qualification remain NOT_RUN; actual new probes remain NOT_RUN
 until exact reviewed server/tool execution. Core's immutable packet remains separate from both overlays.
 

@@ -14,6 +14,16 @@ def identity(value):
         raise ValueError('invalid request ID')
     return type(value).__name__, value
 
+def valid_error(error):
+    # Equality alone admits Python float/bool aliases for integer wire fields.
+    if not isinstance(error,dict) or set(error)!={'code','message','data'} or type(error['code']) is not int or type(error['message']) is not str:
+        return False
+    data=error['data']
+    if not isinstance(data,dict) or set(data)!={'reason'} or type(data['reason']) is not str:
+        return False
+    return (error['code'],error['message'],data['reason']) in (
+        (-32800,'Request cancelled','CANCELLED'),(-32801,'Context stale','CONTENT_CHANGED'))
+
 def validate(rows, observation, uri, before, after):
     errors = []
     def failed(reason):
@@ -36,7 +46,7 @@ def validate(rows, observation, uri, before, after):
             if method=='textDocument/didOpen':opens.append((i,m))
             if method=='textDocument/didChange':changes.append((i,m))
             if method=='corvint/context':
-                if set(m)!={'jsonrpc','id','method','params'} or m['params']!={'textDocument':{'uri':uri},'task':context.TASK,'limit':20}:return failed('context-request-invalid')
+                if set(m)!={'jsonrpc','id','method','params'} or not isinstance(m['params'],dict) or type(m['params'].get('limit')) is not int or m['params']!={'textDocument':{'uri':uri},'task':context.TASK,'limit':20}:return failed('context-request-invalid')
                 try:key=identity(m['id'])
                 except ValueError:return failed('context-request-id-invalid')
                 queries.append((i,m,key))
@@ -62,6 +72,8 @@ def validate(rows, observation, uri, before, after):
         if set(m) not in ({'jsonrpc','id','result'},{'jsonrpc','id','error'}):return failed('response-envelope-invalid')
         reported=frontend[('baseline','rapid','retry')[n]]
         expected={'result':m['result']} if 'result' in m else {'error':m['error']}
+        if not isinstance(reported,dict) or set(reported)!=set(expected):return failed('frontend-response-shape-invalid')
+        if 'error' in m and (not valid_error(m['error']) or not valid_error(reported['error'])):return failed('response-error-schema-invalid')
         if reported!=expected:return failed('frontend-response-mismatch')
         replies.append((i,m))
     oi=opens[0][0];ai=changes[0][0];bi=changes[1][0];aq,rq,bq=[q[0] for q in queries];ar,rr,br=[r[0] for r in replies]
@@ -82,7 +94,7 @@ def validate(rows, observation, uri, before, after):
         packets.append(m['result'])
     if errors:return failed('packet-invalid')
     a,b=[p['overlayObservation'] for p in packets]
-    if a['sessionID']!=b['sessionID'] or int(b['captureID'])<=int(a['captureID']) or packets[0]['core']['repository']!=packets[1]['core']['repository']:return failed('capture-or-core-binding-drift')
+    if a['sessionID']!=b['sessionID'] or int(b['captureID'])<=int(a['captureID']) or packets[0]['core']!=packets[1]['core']:return failed('capture-or-core-binding-drift')
     witness=rq<bi<rr and frontend['pendingBeforeEdit'] is True
     rapid=replies[1][1]
     if witness:
@@ -97,6 +109,9 @@ def validate(rows, observation, uri, before, after):
             expected_version=versions[0] if rq<bi else versions[1]
             p=context.validate_packet(rapid['result'],uri,expected_version,expected_text,before,after)
             if not p['valid']:return failed('scheduling-miss-packet-invalid')
+            snapshot=packets[0] if rq<bi else packets[1]
+            rapid_overlay=rapid['result']['overlayObservation']
+            if rapid_overlay['sessionID']!=snapshot['overlayObservation']['sessionID'] or rapid_overlay['captureID']!=snapshot['overlayObservation']['captureID'] or rapid['result']['core']!=snapshot['core']:return failed('scheduling-miss-packet-lineage-invalid')
         elif rapid.get('error') not in ({'code':-32800,'message':'Request cancelled','data':{'reason':'CANCELLED'}},{'code':-32801,'message':'Context stale','data':{'reason':'CONTENT_CHANGED'}}):return failed('scheduling-miss-error-invalid')
         outcome='NOT_WITNESSED'
     return {'valid':outcome=='EDIT_CANCELLED_WITNESSED','completeWitness':outcome=='EDIT_CANCELLED_WITNESSED','outcome':outcome,'errors':[], 'healthyNewestRetry':True,'baselineCaptureID':a['captureID'],'retryCaptureID':b['captureID'],'qualification':'UNQUALIFIED'}

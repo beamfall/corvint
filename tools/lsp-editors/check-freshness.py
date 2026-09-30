@@ -72,7 +72,7 @@ with tempfile.TemporaryDirectory() as directory:
     stale=copy.deepcopy(rows);so=copy.deepcopy(obs);error={'code':-32801,'message':'Context stale','data':{'reason':'CONTENT_CHANGED'}};stale[6]['message']['error']=error;so['freshness']['rapid']={'error':error}
     assert run(stale,so)['outcome']=='STALE_REJECTION_OBSERVED' and not run(stale,so)['valid']
     # READY scheduling misses bind text to the independently observed request snapshot.
-    ready=copy.deepcopy(rows);ready[6]['message']={'jsonrpc':'2.0','id':6,'result':packet(c.OVERLAY,2,'2')};ready[5],ready[6]=ready[6],ready[5]
+    ready=copy.deepcopy(rows);ready[6]['message']={'jsonrpc':'2.0','id':6,'result':packet(c.OVERLAY,2,'1')};ready[5],ready[6]=ready[6],ready[5]
     ro=copy.deepcopy(obs);ro['freshness']['rapid']={'result':ready[5]['message']['result']}
     assert run(ready,ro)['outcome']=='NOT_WITNESSED'
     forged=copy.deepcopy(ready);fo=copy.deepcopy(ro);forged[5]['message']['result']['overlayObservation']['digest']='f'*64;fo['freshness']['rapid']={'result':forged[5]['message']['result']}
@@ -94,4 +94,47 @@ with tempfile.TemporaryDirectory() as directory:
     result_change(lambda p:p['core'].update(extra=True))
     result_change(lambda p:p['overlayObservation'].update(version=2))
     negative(lambda r,o:r.insert(6,row('client-to-server',method='textDocument/didSave',params={'textDocument':{'uri':uri}})))
+    # Review repairs: independently typed schemas, including frontend-only aliases.
+    def invalid(change):
+        r,o=copy.deepcopy(rows),copy.deepcopy(obs);change(r,o)
+        result=run(r,o);assert result['outcome']=='FAILED', result
+    def float_error(r,o):
+        r[6]['message']['error']['code']=-32800.0
+        o['freshness']['rapid']={'error':r[6]['message']['error']}
+    invalid(float_error)
+    invalid(lambda r,o:o['freshness']['rapid']['error'].update(code=-32800.0))
+    for limit in [20.0,True]:
+        def wrong_limit(r,o):
+            for index in [2,4,7]:r[index]['message']['params']['limit']=limit
+        invalid(wrong_limit)
+    for wire in [False,True]:
+        for code in [-32800.0,True]:
+            def alias(r,o):
+                o['freshness']['rapid']['error']['code']=code
+                if wire:r[6]['message']['error']['code']=code
+            invalid(alias)
+    for branch_r,branch_o,index in [(ready,ro,5),(before_request,bo,6)]:
+        for field,value in [('sessionID','f'*32),('captureID','9999999')]:
+            r,o=copy.deepcopy(branch_r),copy.deepcopy(branch_o)
+            r[index]['message']['result']['overlayObservation'][field]=value
+            o['freshness']['rapid']={'result':r[index]['message']['result']}
+            assert run(r,o)['outcome']=='FAILED'
+    for branch_r,branch_o in [(stale,so),(miss,obs)]:
+        for frontend_only in [False,True]:
+            r,o=copy.deepcopy(branch_r),copy.deepcopy(branch_o)
+            i=next(i for i,row in enumerate(r) if row['direction']=='server-to-client' and row['message'].get('id')==6)
+            code=float(r[i]['message']['error']['code'])
+            if not frontend_only:r[i]['message']['error']['code']=code
+            o['freshness']['rapid']['error']['code']=code
+            assert run(r,o)['outcome']=='FAILED'
+    # Individually valid Core reason drift must not pass unchanged task/Core equality.
+    for branch_r,branch_o,index in [(rows,obs,8),(ready,ro,5),(before_request,bo,6)]:
+        r,o=copy.deepcopy(branch_r),copy.deepcopy(branch_o)
+        packet=r[index]['message']['result']
+        packet['core']['receipt']['results'][0]['evidence'][0]['reason']='different valid reason'
+        if index==8:o['freshness']['retry']={'result':packet}
+        else:o['freshness']['rapid']={'result':packet}
+        assert c.validate_packet(packet,uri,packet['overlayObservation']['version'],c.OVERLAY if index==5 else f.NEWEST,before,after)['valid']
+        assert run(r,o)['outcome']=='FAILED'
+    print('typed error/limit aliases and READY A/B Core/session/capture repair cases passed')
     print('LEQ-V0-006 whole-transcript cancellation/retry checks passed; negatives:',count,'actual editors NOT_RUN')
