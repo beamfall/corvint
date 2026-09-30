@@ -6,12 +6,15 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/procgroup"
 )
 
 func TestGateInterruptionHelper(t *testing.T) {
@@ -69,4 +72,47 @@ func TestGateInterruptionWitness(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestPassiveWitnessSettle(t *testing.T) {
+	for _, transient := range []bool{true, false} {
+		name := "AHI-032 persistent live survivor rejected"
+		if transient {
+			name = "AHI-032 transient descendant exit accepted"
+		}
+		t.Run(name, func(t *testing.T) {
+			cmd := exec.Command("/bin/sleep", "60")
+			if err := cmd.Start(); err != nil {
+				t.Fatal(err)
+			}
+			defer cmd.Wait()
+			defer cmd.Process.Kill()
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			rows, err := processSnapshot(ctx, t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			owned, ok := rows[cmd.Process.Pid]
+			if !ok {
+				t.Fatal("child identity missing")
+			}
+			if transient {
+				done := make(chan struct{})
+				timer := time.AfterFunc(150*time.Millisecond, func() { defer close(done); _ = cmd.Process.Kill() })
+				defer func() {
+					if !timer.Stop() {
+						<-done
+					}
+				}()
+			}
+			err = witnessAbsent(ctx, t.TempDir(), map[int]procgroup.ObservedProcess{owned.PID: owned})
+			if transient && err != nil {
+				t.Fatal(err)
+			}
+			if !transient && (err == nil || !strings.Contains(err.Error(), "before supervisor rescue")) {
+				t.Fatalf("survivor was not rejected: %v", err)
+			}
+		})
+	}
 }
