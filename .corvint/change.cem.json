@@ -1,0 +1,294 @@
+{
+  "baseRevision": "8f4b866a4ed201a52d8c63196050a9623a449dfe",
+  "evidence": [],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:8dd2c2b0b94db5b856ca0bf287f78da88979098360b9a0a05025cf701a4a0323",
+      "newRange": {
+        "count": 53,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "cmd/corvint-postmerge-connect/README.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:834ecd236f95bb8f5b5989a8c61a585cdf78935f2c0d490e675e40c43a0b768a",
+      "newRange": {
+        "count": 138,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "cmd/corvint-postmerge-connect/main.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:a850c4a2a4dfa1de5434a77e568752493a9349c9dd7a1398b265122cad1ff759",
+      "newRange": {
+        "count": 229,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "cmd/corvint-postmerge-connect/main_test.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:5b1af5c6ff040b3e73217f184284148a847e61f9502ead01dee3676af777b498",
+      "newRange": {
+        "count": 11,
+        "start": 45
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 45
+      },
+      "path": "docs/SELF-DEVELOPMENT.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:dccae5613e3baa5e7a83bfd0f4ce6f7747138ae699cd5305dc7ed6a684f958d6",
+      "newRange": {
+        "count": 49,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-30-postmerge-connectors.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:238b307d861667f007a6cfb4c5fa6cd4f7170c2c08ec165d6851c9c0522d538f",
+      "newRange": {
+        "count": 22,
+        "start": 2795
+      },
+      "oldRange": {
+        "count": 5,
+        "start": 2795
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:746e45cb58e30b1e7ecc5fb612f54c06fa2c6ac6823c20425f73dee876995053",
+      "newRange": {
+        "count": 7,
+        "start": 6
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 6
+      },
+      "path": "docs/specs/README.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:ef28648a5305a22e3a47353add588724f966140f696758688f28a9114c7e7d26",
+      "newRange": {
+        "count": 15,
+        "start": 1763
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 1763
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:1e01003a429e9db8b6be028ff6eaf5dc4ee527b596fece1b4d413275104e31dc",
+      "newRange": {
+        "count": 116,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/specs/postmerge-connectors-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:e0ac61b0bfab50bb3db6e8a57f362c17b5d5dd99dac4ef8fd9dd66dba12fffaf",
+      "newRange": {
+        "count": 89,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/postmergeconnector/client.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:4919ff964c2af9f4bca4a885c64fdde44741ad2b17b9400f8d24e0cddffa1724",
+      "newRange": {
+        "count": 353,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/postmergeconnector/conformance_test.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:db29773aa3350790e095adb90894198536135a0c946757dbb1d7bb090e4bbac8",
+      "newRange": {
+        "count": 74,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/postmergeconnector/decode.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:8d6b8d60edc6854da292c9a58babde4a940f93494b78c8a370bea7ed565f5a68",
+      "newRange": {
+        "count": 216,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/postmergeconnector/files.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:be1e8d69cf6d5105f04e6c758a6e9e8b9bfe02f70bd4c4c0df638f103e0f0b8e",
+      "newRange": {
+        "count": 13,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/postmergeconnector/files_other.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:e0dbe5c2ed34ff2a7a4e287588ed08beb2505eacbcabd27b3655f55dd2794fc2",
+      "newRange": {
+        "count": 23,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/postmergeconnector/files_unix.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:dce3971b98e18495c93634f6d6b9f72c56ee13b437a18b3a39770d712183d15d",
+      "newRange": {
+        "count": 130,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/postmergeconnector/git.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:9295bd87a4b5d3ccb7a96073d6a27d82d6e62cd7eb16a73723bf2bbc857a9b46",
+      "newRange": {
+        "count": 125,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/postmergeconnector/plan.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:03528d5fb5dd08d6e2856b38fe73d1356501446db2a86252422e124f76b32a61",
+      "newRange": {
+        "count": 100,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/postmergeconnector/read.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:981f71040971d2029624532dee91e99063fdc8ec858857897c1674f850ad67b4",
+      "newRange": {
+        "count": 117,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/postmergeconnector/types.go",
+      "reason": "no-evidence"
+    }
+  ],
+  "patchSha256": "6a11ab7ecc84deefe2a30db7511598600f19fe11537086426f15035581136953",
+  "spec": "cem/0.2"
+}
