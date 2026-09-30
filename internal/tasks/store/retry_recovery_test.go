@@ -33,60 +33,62 @@ func exhaustedCancelled(t *testing.T, s *leaseStore, id string) *store.Report {
 }
 
 func TestCALV0043_OwnerReopensExhaustedCancelledTicket(t *testing.T) {
-	s := newLeaseStore(t)
-	id := s.ticket(t, "recovery")
-	old := exhaustedCancelled(t, s, id)
-	before, err := os.ReadFile(filepath.Join(s.repo.StateDir, "attempts", old.AttemptID+".json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	req := envelope("recover", mutation.OpReopen, id, "1", obj("reason", str("owner permits a fresh attempt after cancellations")))
-	r, err := store.Mutate(context.Background(), s.repo, operator(), req, s.at(t, 5))
-	if err != nil || r.Outcome.Outcome != mutation.OutcomeCompleted {
-		t.Fatalf("owner recovery: %+v %v", r, err)
-	}
-	if *r.Outcome.ResultingRevision != "2" || *r.Outcome.ResultingAcceptanceRevision != "2" {
-		t.Fatalf("revision: %+v", r)
-	}
-	replay, err := store.Mutate(context.Background(), s.repo, operator(), req, s.at(t, 5))
-	if err != nil || !replay.Outcome.Replayed || replay.Receipt != "" {
-		t.Fatalf("replay: %+v %v", replay, err)
-	}
-	conflict, err := store.Mutate(context.Background(), s.repo, operator(), envelope("recover", mutation.OpReopen, id, "1", obj("reason", str("different"))), s.at(t, 5))
-	if err != nil || conflict.Outcome.Outcome == mutation.OutcomeCompleted {
-		t.Fatalf("conflicting replay: %+v %v", conflict, err)
-	}
-	evidence, err := os.ReadFile(filepath.Join(s.repo.StateDir, "evidence", string(wire.Sum(req))))
-	if err != nil || !bytes.Equal(evidence, req) {
-		t.Fatalf("request reason not retained: %v", err)
-	}
-	receiptRaw, err := os.ReadFile(filepath.Join(s.repo.StateDir, "receipts", r.Receipt))
-	if err != nil {
-		t.Fatal(err)
-	}
-	receipt, err := snapshot.DecodeReceipt(receiptRaw)
-	if err != nil {
-		t.Fatal(err)
-	}
-	found := false
-	for _, post := range receipt.Post {
-		if post.Path == "evidence/"+string(wire.Sum(req)) {
-			found = true
+	t.Run("CAL-V0-013 CAL-V0-043 owner readmission", func(t *testing.T) {
+		s := newLeaseStore(t)
+		id := s.ticket(t, "recovery")
+		old := exhaustedCancelled(t, s, id)
+		before, err := os.ReadFile(filepath.Join(s.repo.StateDir, "attempts", old.AttemptID+".json"))
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
-	if !found || receipt.ActorID != "tester" || receipt.ActorRole != "OWNER" || receipt.ExpectedRevision == nil || *receipt.ExpectedRevision != "1" {
-		t.Fatalf("reason evidence not receipt-bound: %+v", receipt)
-	}
-	fresh := s.claim(t, "fresh", id, 6, "src")
-	a := s.attempt(t, fresh.AttemptID)
-	if fresh.AttemptID == old.AttemptID || a.RetryCount != "0" || a.TicketRevision != "2" {
-		t.Fatalf("fresh attempt: %+v", a)
-	}
-	after, err := os.ReadFile(filepath.Join(s.repo.StateDir, "attempts", old.AttemptID+".json"))
-	if err != nil || !bytes.Equal(before, after) {
-		t.Fatalf("prior attempt changed: %v", err)
-	}
-	auditOK(t, s.repo)
+		req := envelope("recover", mutation.OpReopen, id, "1", obj("reason", str("owner permits a fresh attempt after cancellations")))
+		r, err := store.Mutate(context.Background(), s.repo, operator(), req, s.at(t, 5))
+		if err != nil || r.Outcome.Outcome != mutation.OutcomeCompleted {
+			t.Fatalf("owner recovery: %+v %v", r, err)
+		}
+		if *r.Outcome.ResultingRevision != "2" || *r.Outcome.ResultingAcceptanceRevision != "2" {
+			t.Fatalf("revision: %+v", r)
+		}
+		replay, err := store.Mutate(context.Background(), s.repo, operator(), req, s.at(t, 5))
+		if err != nil || !replay.Outcome.Replayed || replay.Receipt != "" {
+			t.Fatalf("replay: %+v %v", replay, err)
+		}
+		conflict, err := store.Mutate(context.Background(), s.repo, operator(), envelope("recover", mutation.OpReopen, id, "1", obj("reason", str("different"))), s.at(t, 5))
+		if err != nil || conflict.Outcome.Outcome == mutation.OutcomeCompleted {
+			t.Fatalf("conflicting replay: %+v %v", conflict, err)
+		}
+		evidence, err := os.ReadFile(filepath.Join(s.repo.StateDir, "evidence", string(wire.Sum(req))))
+		if err != nil || !bytes.Equal(evidence, req) {
+			t.Fatalf("request reason not retained: %v", err)
+		}
+		receiptRaw, err := os.ReadFile(filepath.Join(s.repo.StateDir, "receipts", r.Receipt))
+		if err != nil {
+			t.Fatal(err)
+		}
+		receipt, err := snapshot.DecodeReceipt(receiptRaw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, post := range receipt.Post {
+			if post.Path == "evidence/"+string(wire.Sum(req)) {
+				found = true
+			}
+		}
+		if !found || receipt.ActorID != "tester" || receipt.ActorRole != "OWNER" || receipt.ExpectedRevision == nil || *receipt.ExpectedRevision != "1" {
+			t.Fatalf("reason evidence not receipt-bound: %+v", receipt)
+		}
+		fresh := s.claim(t, "fresh", id, 6, "src")
+		a := s.attempt(t, fresh.AttemptID)
+		if fresh.AttemptID == old.AttemptID || a.RetryCount != "0" || a.TicketRevision != "2" {
+			t.Fatalf("fresh attempt: %+v", a)
+		}
+		after, err := os.ReadFile(filepath.Join(s.repo.StateDir, "attempts", old.AttemptID+".json"))
+		if err != nil || !bytes.Equal(before, after) {
+			t.Fatalf("prior attempt changed: %v", err)
+		}
+		auditOK(t, s.repo)
+	})
 }
 
 func TestCALV0043_RecoveryRefusesStaleAndTamperedAttempts(t *testing.T) {

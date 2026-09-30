@@ -418,7 +418,7 @@ bounded 1 MiB, 64-slot journal-authoritative projection; program changes and han
 query against the isolated checkout: READY/fresh tree revision must equal the stage commit's tree;
 explicit uncertainty is carried unchanged. No inferred context becomes accepted intent.
 
-## Owner retry readmission (issue 378)
+### Owner retry readmission (issue 378)
 
 - `CAL-V0-043`: `ticket reopen` MUST accept an `OPEN` ticket only for an explicit `OWNER`
   invocation permitted by policy, carrying a nonempty reason, request ID and exact expected
