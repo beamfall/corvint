@@ -134,3 +134,7 @@ For a complete accepted flow-variation denominator and original `/3` receipts, u
 [flow coverage route](FLOW-COVERAGE.md): `flows coverage --denominator FILE --receipts FILE`.
 Its global verdict is fail-closed even when paging; byte-bound PROVEN does not attest deployed lineage.
 Only explicit `--write-back FRESH_DIR` writes documentation, while `--check DIR` remains read-only.
+
+For operator-requested machine updates, use the separate `corvint-update check|apply|rollback`
+companion under [Operator update V0](specs/operator-update-v0.md). It is not a Core read command;
+network access and executable activation are explicit, with checksum and qualification limits.

@@ -110,13 +110,15 @@ func Inspector(ctx context.Context, c Config) (failure error) {
 	}
 	env = append(env, "TERM=xterm-256color", "OPENCODE_DISABLE_AUTOUPDATE=1")
 	command := func(args ...string) (string, error) { return capture(ctx, repo, env, args) }
-	version, e := command(c.Host, "--version")
+	version, e := observedHostVersion(func(int) (string, error) { return command(c.Host, "--version") })
 	if e != nil {
 		return e
 	}
-	if _, e = ParseSupportedHostVersion(version); e != nil {
+	hostVersion, e := ParseSupportedHostVersion(version)
+	if e != nil {
 		return fmt.Errorf("unqualified UI host: %w", e)
 	}
+	c.HostVersion = hostVersion
 	if _, e = command("git", "init", "-q"); e != nil {
 		return e
 	}
@@ -348,7 +350,21 @@ func Inspector(ctx context.Context, c Config) (failure error) {
 	if e = drive([]action{
 		{input: "t", label: "task metrics", has: []string{"Corvint · Tasks", "0/1 completed", "APP-0001"}, save: "task-metrics"},
 		{input: "\r", label: "task detail", has: []string{"Acceptance criteria", "The repository verify target passes."}, save: "task-detail"},
-		{input: "r", label: "task refresh", has: []string{"0/1 completed", "APP-0001"}},
+		{input: "r", label: "task refresh loading", has: []string{"Reading Corvint Tasks"}},
+		{label: "task refresh settled", has: []string{"0/1 completed", "APP-0001"}, absent: []string{"Reading Corvint Tasks"}},
+	}); e != nil {
+		return e
+	}
+	if e = clickText(terminal, root, "s Focus ticket in workbench", 0); e != nil {
+		return e
+	}
+	if e = drive([]action{
+		{label: "pointer workbench focus", has: []string{"Corvint · Workbench", "APP-0001", "criterion-specific proof 0 observed"}, save: "workbench-overview"},
+		{input: "2", label: "workbench proof", has: []string{"Acceptance → proof", "UNOBSERVED", "The repository verify target passes."}, save: "workbench-proof"},
+		{input: "3", label: "workbench doctor", has: []string{"Native integration: UNQUALIFIED", "Qualification action"}, save: "workbench-doctor"},
+		{input: "4", label: "workbench economics", has: []string{"OpenCode session cost:", "Cost per verified criterion: NOT_OBSERVED"}, save: "workbench-cost"},
+		{input: "5", label: "workbench sessions", has: []string{"OpenCode session family", "Worktree"}, save: "workbench-sessions"},
+		{input: "t", label: "workbench to tasks", has: []string{"Corvint · Tasks", "APP-0001"}},
 		{input: "c", label: "return from tasks", has: []string{"Corvint · Change", "1 files"}},
 	}); e != nil {
 		return e
@@ -393,7 +409,7 @@ func Inspector(ctx context.Context, c Config) (failure error) {
 	if e != nil {
 		return e
 	}
-	checks := []string{"native-sidebar", "context-rpc", "evidence-panel", "pinned-source", "keyboard-source-selection", "narrow-width", "keyboard-gaps", "native-frame-capture", "cited-line", "source-scroll", "filter", "empty-filter", "dialog-focus", "pointer-open", "short-height", "source-invalidation", "cold-cache-plain-source", "explicit-syntax-opt-in", "cockpit-files", "cockpit-impact", "cockpit-proof", "cockpit-unsatisfied-workflow", "cockpit-base-dialog", "cockpit-narrow", "cockpit-context", "cockpit-stale-check", "tasks-sidebar", "tasks-page", "tasks-detail", "tasks-refresh", "interruption-no-descendants"}
+	checks := []string{"native-sidebar", "context-rpc", "evidence-panel", "pinned-source", "keyboard-source-selection", "narrow-width", "keyboard-gaps", "native-frame-capture", "cited-line", "source-scroll", "filter", "empty-filter", "dialog-focus", "pointer-open", "short-height", "source-invalidation", "cold-cache-plain-source", "explicit-syntax-opt-in", "cockpit-files", "cockpit-impact", "cockpit-proof", "cockpit-unsatisfied-workflow", "cockpit-base-dialog", "cockpit-narrow", "cockpit-context", "cockpit-stale-check", "tasks-sidebar", "tasks-page", "tasks-detail", "tasks-refresh", "workbench-focus", "workbench-proof", "workbench-doctor", "workbench-cost", "workbench-sessions", "interruption-no-descendants"}
 	report := Object{"profile": "corvint-opencode-inspector-witness/0", "result": "PASS", "host": version, "theme": c.Theme, "sourceCommit": id.SourceCommit, "sourceSHA256": id.SourceFiles, "harnessSHA256": id.HarnessSHA256, "qualificationBinarySHA256": id.QualificationBinarySHA256, "checks": checks, "root": root, "interruption": interruption, "authority": "NONE", "qualification": "UI witness only; does not promote integration support"}
 	if c.Theme == "dark" {
 		light := c

@@ -158,6 +158,12 @@ AHI-032	docs/specs/agent-harness-integration-v0.md	537	At the owner’s request 
 AHI-033	docs/specs/agent-harness-integration-v0.md	607	The owner-approved first OpenCode UI slice (2026-09-28, “looks good. build it”
 AHI-034	docs/specs/agent-harness-integration-v0.md	662	The owner-approved change cockpit (2026-09-28, “do it” after the change
 AHI-035	docs/specs/agent-harness-integration-v0.md	712	At the owner's request (2026-09-29), the OpenCode 2 terminal integration MUST
+AHI-036	docs/specs/agent-harness-integration-v0.md	742	At the owner's request (2026-09-29, “do all 6”), the optional OpenCode 2 workben
+AHI-037	docs/specs/agent-harness-integration-v0.md	749	The workbench MUST show each selected ticket criterion alongside only explicitly
+AHI-038	docs/specs/agent-harness-integration-v0.md	757	An explicit qualification doctor MUST display the installed host version, adapte
+AHI-039	docs/specs/agent-harness-integration-v0.md	762	The workbench MUST derive at most five next actions from recorded ticket blocker
+AHI-040	docs/specs/agent-harness-integration-v0.md	766	The terminal MUST show OpenCode's observed per-session cost and token/cache tota
+AHI-041	docs/specs/agent-harness-integration-v0.md	773	The terminal MUST show at most 16 members of the current OpenCode session family
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,
@@ -258,48 +264,49 @@ BSD-004	docs/specs/beamfall-shadow-dogfood-v1.md	33	Manifest and artifact reads 
 BSD-005	docs/specs/beamfall-shadow-dogfood-v1.md	37	A new private `0600` receipt is emitted for every outcome after a
 BSD-006	docs/specs/beamfall-shadow-dogfood-v1.md	40	Literal external fixture artifacts and source inputs exist for Go;
 BSD-007	docs/specs/beamfall-shadow-dogfood-v1.md	44	The one-pass artifact byte count and non-race allocation ceiling
-CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	82	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and
-CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	86	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow
-CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	89	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom
-CAL-V0-004	docs/specs/corvint-tasks-agent-leases-v0.md	94	`corvint-tasks cutover --decision <ref>` MUST, under an `OWNER` binding, commit
-CAL-V0-005	docs/specs/corvint-tasks-agent-leases-v0.md	102	After the switch, `import` MUST refuse and write nothing, so a later foreign exp
-CAL-V0-006	docs/specs/corvint-tasks-agent-leases-v0.md	104	The switch MUST leave every record file byte-identical: imported records keep th
-CAL-V0-007	docs/specs/corvint-tasks-agent-leases-v0.md	109	`corvint-tasks claim <ticketId> --holder <label> [--lease-minutes N]
-CAL-V0-008	docs/specs/corvint-tasks-agent-leases-v0.md	116	`claim --next --holder <label>` MUST claim the first `SELECTED` entry of the
-CAL-V0-009	docs/specs/corvint-tasks-agent-leases-v0.md	123	Every command that names an attempt (`renew`, `release`, `submit`, `gate run`,
-CAL-V0-010	docs/specs/corvint-tasks-agent-leases-v0.md	127	`renew` MUST extend a live lease to `recordedAt + lease` and refuse `FENCED` onc
-CAL-V0-011	docs/specs/corvint-tasks-agent-leases-v0.md	129	`release [--reason <code>]` MUST move the attempt to `CANCELLED` with quiescence
-CAL-V0-012	docs/specs/corvint-tasks-agent-leases-v0.md	138	A lease is `{holder:label, grantedSeq:Size, expiresAt:Timestamp}`. The default i
-CAL-V0-013	docs/specs/corvint-tasks-agent-leases-v0.md	143	A ticket whose last attempt is `FAILED` or `CANCELLED` MUST be claimable again a
-CAL-V0-014	docs/specs/corvint-tasks-agent-leases-v0.md	152	`corvint-tasks plan preview` MUST implement `taskman-priority-first/0` (TCP-00
-CAL-V0-015	docs/specs/corvint-tasks-agent-leases-v0.md	172	`submit --tree <oid>` MUST record the candidate tree and move `RUNNING` to `BUIL
-CAL-V0-016	docs/specs/corvint-tasks-agent-leases-v0.md	175	`gate run --gate <gateId> --worktree <path>` MUST refuse unless the worktree's
-CAL-V0-017	docs/specs/corvint-tasks-agent-leases-v0.md	180	`complete --commit <oid>` MUST refuse unless the commit is reachable from the
-CAL-V0-018	docs/specs/corvint-tasks-agent-leases-v0.md	189	A first import MUST cost one full audit plus work proportional to the records it
-CAL-V0-019	docs/specs/corvint-tasks-agent-leases-v0.md	253	A named test suite MUST show, for `external-agent` attempts: two concurrent
-CAL-V0-020	docs/specs/corvint-tasks-agent-leases-v0.md	258	`cutover --execution --decision <ref> --qualification <file>` MUST, under an
-CAL-V0-021	docs/specs/corvint-tasks-agent-leases-v0.md	203	Every `external-agent` attempt MUST carry a scope: a set of `PATH` resources wit
-CAL-V0-022	docs/specs/corvint-tasks-agent-leases-v0.md	211	A `DERIVED` scope MUST come from Corvint's local context index for the ticket's
-CAL-V0-023	docs/specs/corvint-tasks-agent-leases-v0.md	223	Two live attempts MUST collide exactly when their resource sets collide under
-CAL-V0-024	docs/specs/corvint-tasks-agent-leases-v0.md	229	`submit --tree <oid>` MUST refuse `OUT_OF_SCOPE`, naming every offending path,
-CAL-V0-025	docs/specs/corvint-tasks-agent-leases-v0.md	232	`widen --attempt <id> --generation <G> --scope PATH...` MUST add the paths to a
-CAL-V0-026	docs/specs/corvint-tasks-agent-leases-v0.md	237	Each lease command (`claim`, `renew`, `release`, `reap`, `widen`, `submit`, `gat
-CAL-V0-027	docs/specs/corvint-tasks-agent-leases-v0.md	269	A non-fixture queue with null `importMapSha256` MUST admit release creation,
-CAL-V0-028	docs/specs/corvint-tasks-agent-leases-v0.md	297	Policy MAY add optional `pools`; tickets MAY add acceptance-relevant
-CAL-V0-029	docs/specs/corvint-tasks-agent-leases-v0.md	305	Claim and claim-next MUST atomically reserve one eligible free member of an
-CAL-V0-030	docs/specs/corvint-tasks-agent-leases-v0.md	315	Release, expiry/reap and completion MUST quarantine the exact allocation while
-CAL-V0-031	docs/specs/corvint-tasks-agent-leases-v0.md	321	A configured health command MUST acquire durable PREPARING ownership before
-CAL-V0-032	docs/specs/corvint-tasks-agent-leases-v0.md	327	Cleanup MUST acquire durable CLEANING ownership before execution. Pending comman
-CAL-V0-033	docs/specs/corvint-tasks-agent-leases-v0.md	332	Pool commands MUST use bounded trusted operator argv, declared environment keys,
-CAL-V0-034	docs/specs/corvint-tasks-agent-leases-v0.md	339	Queue occupancy and plan preview MUST remain read-only and execute no probes.
-CAL-V0-035	docs/specs/corvint-tasks-agent-leases-v0.md	373	The optional `taskman-codex-supervisor/0` policy profile MUST dispatch a pinned
-CAL-V0-036	docs/specs/corvint-tasks-agent-leases-v0.md	377	Implement, independent review, repair and integrate MUST be native attempt stage
-CAL-V0-037	docs/specs/corvint-tasks-agent-leases-v0.md	382	A live owner MUST NOT be stolen. Explicit quiescent owner release or native iden
-CAL-V0-038	docs/specs/corvint-tasks-agent-leases-v0.md	387	WAIT MUST preserve the exact session, worktree, partial candidate and handoff.
-CAL-V0-039	docs/specs/corvint-tasks-agent-leases-v0.md	391	Every dispatch MUST reserve a turn under the native writer lock. Concurrent lane
-CAL-V0-040	docs/specs/corvint-tasks-agent-leases-v0.md	397	Every assignment/stage MUST use a distinct registered worktree/private Git direc
-CAL-V0-041	docs/specs/corvint-tasks-agent-leases-v0.md	403	Foreground role workers MUST pull eligible work without a daemon, select existin
-CAL-V0-042	docs/specs/corvint-tasks-agent-leases-v0.md	287	A separate `corvint-tasks-archive/0` build path MUST package the Tasks binary,
+CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	83	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and
+CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	87	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow
+CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	90	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom
+CAL-V0-004	docs/specs/corvint-tasks-agent-leases-v0.md	95	`corvint-tasks cutover --decision <ref>` MUST, under an `OWNER` binding, commit
+CAL-V0-005	docs/specs/corvint-tasks-agent-leases-v0.md	103	After the switch, `import` MUST refuse and write nothing, so a later foreign exp
+CAL-V0-006	docs/specs/corvint-tasks-agent-leases-v0.md	105	The switch MUST leave every record file byte-identical: imported records keep th
+CAL-V0-007	docs/specs/corvint-tasks-agent-leases-v0.md	110	`corvint-tasks claim <ticketId> --holder <label> [--lease-minutes N]
+CAL-V0-008	docs/specs/corvint-tasks-agent-leases-v0.md	117	`claim --next --holder <label>` MUST claim the first `SELECTED` entry of the
+CAL-V0-009	docs/specs/corvint-tasks-agent-leases-v0.md	124	Every command that names an attempt (`renew`, `release`, `submit`, `gate run`,
+CAL-V0-010	docs/specs/corvint-tasks-agent-leases-v0.md	128	`renew` MUST extend a live lease to `recordedAt + lease` and refuse `FENCED` onc
+CAL-V0-011	docs/specs/corvint-tasks-agent-leases-v0.md	130	`release [--reason <code>]` MUST move the attempt to `CANCELLED` with quiescence
+CAL-V0-012	docs/specs/corvint-tasks-agent-leases-v0.md	139	A lease is `{holder:label, grantedSeq:Size, expiresAt:Timestamp}`. The default i
+CAL-V0-013	docs/specs/corvint-tasks-agent-leases-v0.md	144	A ticket whose last attempt is `FAILED` or `CANCELLED` MUST be claimable again a
+CAL-V0-014	docs/specs/corvint-tasks-agent-leases-v0.md	155	`corvint-tasks plan preview` MUST implement `taskman-priority-first/0` (TCP-00
+CAL-V0-015	docs/specs/corvint-tasks-agent-leases-v0.md	175	`submit --tree <oid>` MUST record the candidate tree and move `RUNNING` to `BUIL
+CAL-V0-016	docs/specs/corvint-tasks-agent-leases-v0.md	178	`gate run --gate <gateId> --worktree <path>` MUST refuse unless the worktree's
+CAL-V0-017	docs/specs/corvint-tasks-agent-leases-v0.md	183	`complete --commit <oid>` MUST refuse unless the commit is reachable from the
+CAL-V0-018	docs/specs/corvint-tasks-agent-leases-v0.md	192	A first import MUST cost one full audit plus work proportional to the records it
+CAL-V0-019	docs/specs/corvint-tasks-agent-leases-v0.md	256	A named test suite MUST show, for `external-agent` attempts: two concurrent
+CAL-V0-020	docs/specs/corvint-tasks-agent-leases-v0.md	261	`cutover --execution --decision <ref> --qualification <file>` MUST, under an
+CAL-V0-021	docs/specs/corvint-tasks-agent-leases-v0.md	206	Every `external-agent` attempt MUST carry a scope: a set of `PATH` resources wit
+CAL-V0-022	docs/specs/corvint-tasks-agent-leases-v0.md	214	A `DERIVED` scope MUST come from Corvint's local context index for the ticket's
+CAL-V0-023	docs/specs/corvint-tasks-agent-leases-v0.md	226	Two live attempts MUST collide exactly when their resource sets collide under
+CAL-V0-024	docs/specs/corvint-tasks-agent-leases-v0.md	232	`submit --tree <oid>` MUST refuse `OUT_OF_SCOPE`, naming every offending path,
+CAL-V0-025	docs/specs/corvint-tasks-agent-leases-v0.md	235	`widen --attempt <id> --generation <G> --scope PATH...` MUST add the paths to a
+CAL-V0-026	docs/specs/corvint-tasks-agent-leases-v0.md	240	Each lease command (`claim`, `renew`, `release`, `reap`, `widen`, `submit`, `gat
+CAL-V0-027	docs/specs/corvint-tasks-agent-leases-v0.md	272	A non-fixture queue with null `importMapSha256` MUST admit release creation,
+CAL-V0-028	docs/specs/corvint-tasks-agent-leases-v0.md	300	Policy MAY add optional `pools`; tickets MAY add acceptance-relevant
+CAL-V0-029	docs/specs/corvint-tasks-agent-leases-v0.md	308	Claim and claim-next MUST atomically reserve one eligible free member of an
+CAL-V0-030	docs/specs/corvint-tasks-agent-leases-v0.md	318	Release, expiry/reap and completion MUST quarantine the exact allocation while
+CAL-V0-031	docs/specs/corvint-tasks-agent-leases-v0.md	324	A configured health command MUST acquire durable PREPARING ownership before
+CAL-V0-032	docs/specs/corvint-tasks-agent-leases-v0.md	330	Cleanup MUST acquire durable CLEANING ownership before execution. Pending comman
+CAL-V0-033	docs/specs/corvint-tasks-agent-leases-v0.md	335	Pool commands MUST use bounded trusted operator argv, declared environment keys,
+CAL-V0-034	docs/specs/corvint-tasks-agent-leases-v0.md	342	Queue occupancy and plan preview MUST remain read-only and execute no probes.
+CAL-V0-035	docs/specs/corvint-tasks-agent-leases-v0.md	376	The optional `taskman-codex-supervisor/0` policy profile MUST dispatch a pinned
+CAL-V0-036	docs/specs/corvint-tasks-agent-leases-v0.md	380	Implement, independent review, repair and integrate MUST be native attempt stage
+CAL-V0-037	docs/specs/corvint-tasks-agent-leases-v0.md	385	A live owner MUST NOT be stolen. Explicit quiescent owner release or native iden
+CAL-V0-038	docs/specs/corvint-tasks-agent-leases-v0.md	390	WAIT MUST preserve the exact session, worktree, partial candidate and handoff.
+CAL-V0-039	docs/specs/corvint-tasks-agent-leases-v0.md	394	Every dispatch MUST reserve a turn under the native writer lock. Concurrent lane
+CAL-V0-040	docs/specs/corvint-tasks-agent-leases-v0.md	400	Every assignment/stage MUST use a distinct registered worktree/private Git direc
+CAL-V0-041	docs/specs/corvint-tasks-agent-leases-v0.md	406	Foreground role workers MUST pull eligible work without a daemon, select existin
+CAL-V0-042	docs/specs/corvint-tasks-agent-leases-v0.md	290	A separate `corvint-tasks-archive/0` build path MUST package the Tasks binary,
+CAL-V0-043	docs/specs/corvint-tasks-agent-leases-v0.md	423	`ticket reopen` MUST accept an `OPEN` ticket only for an explicit `OWNER`
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla
@@ -2074,6 +2081,7 @@ SESSION-V0-019	docs/specs/session-context-dividend-v0.md	198	`corvint dogfood ha
 SESSION-V0-020	docs/specs/session-context-dividend-v0.md	225	`corvint dogfood handoff --session-key KEY --task-state FILE [--anchors TEXT]`
 SESSION-V0-021	docs/specs/session-context-dividend-v0.md	234	The bundle MUST bind the complete receipt and state by a content SHA-256 and
 SESSION-V0-022	docs/specs/session-context-dividend-v0.md	241	`corvint dogfood handoff --session-key KEY --bundle FILE` MUST require the
+SHA-256	docs/specs/operator-update-v0.md	99	Negative checksum/availability/download/compatibility cases are deterministic fi
 SHA-V0-001	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	26	accept only exact finite language/version/toolchain/stage tuples, never a neares
 SHA-V0-002	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	35	use the experimental `shader` family extension: a request has the fixed transpor
 SHA-V0-003	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	41	facts carry an inclusive/exclusive byte span (zero-based bytes, one-based byte c
@@ -2310,6 +2318,12 @@ UCV0-013	docs/specs/use-case-conformance-v0.md	139	The canonical ledger profile 
 UCV0-014	docs/specs/use-case-conformance-v0.md	149	(accepted 2026-09-26, decision 0424; from decision 0398; V1-0341) On a `verified
 UCV0-015	docs/specs/use-case-conformance-v0.md	157	(proposed 2026-09-25, not accepted; decision 0398, V1-0341) A row MUST NOT be
 UCV0-016	docs/specs/use-case-conformance-v0.md	162	(proposed 2026-09-25, not accepted; V1-0216) A `contract` receipt MAY bind the
+UPD-V0-001	docs/specs/operator-update-v0.md	33	`check` MUST require explicit network opt-in, distinguish Core `v*` and standalo
+UPD-V0-002	docs/specs/operator-update-v0.md	37	`apply` MUST verify the release archive checksum before extraction, verify inter
+UPD-V0-003	docs/specs/operator-update-v0.md	43	Downloads, release discovery, extracted bytes/members and subprocess output/time
+UPD-V0-004	docs/specs/operator-update-v0.md	47	Apply MUST mutate only one selected component, refuse downgrades/unknown builds,
+UPD-V0-005	docs/specs/operator-update-v0.md	52	Offline `rollback` MUST use a locally retained transaction bound to component,
+UPD-V0-006	docs/specs/operator-update-v0.md	56	Owned executable probes MUST isolate HOME/cwd, bound output/time, and retire ord
 URE-V0-001	docs/specs/unplanned-read-events-v0.md	31	`Classify(packetPaths, toolName, toolInput, root)` MUST return an `Event` for a
 URE-V0-002	docs/specs/unplanned-read-events-v0.md	46	The recognized tools are `Read` (`file_path`), `Grep` and `Glob` (`path`), and
 URE-V0-003	docs/specs/unplanned-read-events-v0.md	65	`Append(root, event)` MUST be a no-op returning `nil` unless the opt-in marker

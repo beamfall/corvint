@@ -54,11 +54,14 @@ export async function qualificationStatus({ hostVersion, corvintBinary, environm
     supportedHostRange: SUPPORTED_HOST_RANGE,
     qualificationAction: "from a clean Corvint checkout, run GOTOOLCHAIN=local go run ./tools/qualify-opencode --host /absolute/path/to/opencode --corvint /absolute/path/to/corvint --output /absolute/evidence; see integrations/opencode/README.md#qualify-this-installation",
     reason: compatibleHostVersion(hostVersion) ? "qualification-record-unavailable" : "unsupported-host-version",
+    recordPath: reportPath,
+    failedCases: [],
   }
   if (!compatibleHostVersion(hostVersion)) return result
   try {
     if (lstatSync(reportPath).size > 131072) return result
     const report = JSON.parse(readFileSync(reportPath, "utf8"))
+    result.failedCases = CASES.filter(name => report.conformance?.[name] !== "PASS")
     if (report.profile !== result.profile || report.result !== "PASS" ||
         report.adapterVersion !== ADAPTER_VERSION || report.hostVersion !== hostVersion ||
         report.os !== process.platform || report.architecture !== process.arch ||

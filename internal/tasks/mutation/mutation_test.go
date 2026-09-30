@@ -1073,3 +1073,53 @@ func TestTMV0006_AS03_TypedNilIndexRequired(t *testing.T) {
 	want(t, plan, mutation.OutcomeValidationFailed, wire.CodeMalformed)
 	stillDiverged(t, plan, rec, string(rec.Encode()))
 }
+
+func TestCALV0043_RecoveryFactsAndOwnerBinding(t *testing.T) {
+	t.Run("CAL-V0-043 bound recovery refuses missing or mismatched evidence", func(t *testing.T) {
+		for _, name := range []string{"allowed", "nil", "unknown", "ticket", "revision", "phase", "operator", "live", "unobserved", "policy", "empty-reason", "blank-reason"} {
+			t.Run(name, func(t *testing.T) {
+				rec := fixture.Ticket("AT-01")
+				actor := owner
+				if name == "operator" {
+					actor = operator
+				}
+				ctx := newCtx(t, actor, nil, rec)
+				ctx.RetryRecovery = &mutation.RetryRecovery{TicketID: rec.TicketID.Raw, AcceptanceRevision: rec.AcceptanceRevision, State: ticket.Satisfied, Phase: "CANCELLED"}
+				switch name {
+				case "nil":
+					ctx.RetryRecovery = nil
+				case "unknown":
+					ctx.RetryRecovery.State = ticket.NotObserved
+				case "ticket":
+					ctx.RetryRecovery.TicketID = fixture.TicketID("other")
+				case "revision":
+					ctx.RetryRecovery.AcceptanceRevision = "2"
+				case "phase":
+					ctx.RetryRecovery.Phase = "RUNNING"
+				case "live":
+					ctx.Attempts = attempts{rec.TicketID.Raw: true}
+				case "unobserved":
+					ctx.Attempts = nil
+				case "policy":
+					ctx.Policy.Roles["OWNER"] = []string{}
+				}
+				reason := "owner recovery"
+				if name == "empty-reason" {
+					reason = ""
+				}
+				if name == "blank-reason" {
+					reason = "   "
+				}
+				p := apply(t, ctx, envelope("recovery", actor, "AT-01", string(rec.Revision), mutation.OpReopen, obj("reason", str(reason))))
+				if name == "allowed" {
+					want(t, p, mutation.OutcomeCompleted, "")
+					if p.Post.AcceptanceRevision.Int() != rec.AcceptanceRevision.Int()+1 {
+						t.Fatal("acceptance not advanced")
+					}
+				} else if p.Planned() {
+					t.Fatalf("unsafe %s accepted: %+v", name, p)
+				}
+			})
+		}
+	})
+}

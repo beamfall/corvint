@@ -1,6 +1,6 @@
 # Corvint for OpenCode
 
-Version 0.7.4 supports unmodified OpenCode releases from 2.0.18 through the end of the 2.0 series.
+Version 0.7.5 supports unmodified OpenCode releases from 2.0.18 through the end of the 2.0 series.
 It supplies awaited task context, on-demand
 query and exact source expansion, edit/evidence/verification observations, explicit outcomes, and
 compaction recovery from current Git state. OpenCode 1.x requires the older 0.2.9 adapter.
@@ -69,6 +69,33 @@ The panel uses only `queue status`, `ticket search --status OPEN`, and `ticket s
 eligibility are observations of the store; gate results and completion remain separate evidence.
 Its observed time and queue receipt are shown so an external store change calls for refresh.
 Uninitialized, refused and changed reads show an unavailable reason, not zero tickets.
+
+## Task workbench
+
+From an open ticket in Tasks, press **s** or click **Focus ticket in workbench**. Run
+`/corvint workbench` to reopen it. The sidebar shows the focused ticket, its observed
+criterion count and next-action count. The workbench has five tabs: **1 Overview**,
+**2 Proof**, **3 Doctor**, **4 Cost**, and **5 Sessions**. Press **r** for an explicit
+refresh, **t** for Tasks, **c** for Change, or **e** for Evidence.
+
+Focus is volatile and scoped to the OpenCode session and Tasks queue receipt. Overview shows
+the ticket, current branch/worktree, live attempt/lease, blockers and next actions. Proof shows
+the ticket's acceptance criteria and explicit requirement references beside declared paths,
+observed changed paths, suggested checks, recorded checks, and context/change receipts. These
+are task-level leads: no criterion is marked satisfied without an explicit criterion-specific
+proof link. A changed queue receipt makes the workbench stale and requires selection again.
+
+Doctor displays the exact host/adapter/platform qualification state, available failed
+conformance cases and the command to qualify this installation. Cost shows OpenCode's actual
+session cost and tokens. Cost since focus is shown only when this TUI observed a cost baseline
+for that exact selection; it is not a savings estimate or cost per verified criterion.
+Sessions lists up to 16 members of the current OpenCode session family, their explicit Corvint
+ticket focus where visible, worktree, observed lease, and overlapping focused tickets. An
+unbound session may still be working. Other worktrees may not expose their Corvint focus through
+this plugin location.
+
+The workbench runs no task mutation, test, transcript scan, or background poll. It reuses the
+bounded read-only Tasks and change cockpit commands and keeps only volatile session data.
 
 ## Context inspector
 

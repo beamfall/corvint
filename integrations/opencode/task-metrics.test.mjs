@@ -3,7 +3,7 @@ import assert from "node:assert/strict"
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { collectTaskMetrics, inspectTask } from "./src/task-metrics.js"
+import { collectTaskDetail, collectTaskMetrics, inspectTask } from "./src/task-metrics.js"
 import { cockpitReadArguments, createCorvintRunner } from "./src/runtime.js"
 import { INSPECTOR_RPC } from "./src/inspector.js"
 
@@ -28,6 +28,33 @@ test("AHI-035 Task metrics preserve queue counts, open-page limits and unobserve
   assert.match(text, /Coverage is not established/)
   assert.match(text, /\\u202e/)
   assert.match(text, /Completion: NOT_OBSERVED/)
+})
+
+test("AHI-036 focused detail binds criteria, declared paths and live attempt to one queue receipt", async () => {
+  const snapshot = await collectTaskMetrics(source())
+  const selected = detail(); selected.items[0].record.requirementRefs = ["AHI-036"]
+  selected.items[0].record.effects = { touchPaths: ["integrations/opencode/src/workbench.js"] }
+  const live = status(); live.items[0].liveAttempts = [{ ticketId, attemptId: "attempt-1", holder: "agent-1", phase: "CHECKING", expiresAt: "2026-09-30T00:00:00Z" }]
+  const view = await collectTaskDetail(source([selected, live]), snapshot, ticketId)
+  assert.equal(view.queueDigest, receipt)
+  assert.deepEqual(view.requirementRefs, ["AHI-036"])
+  assert.deepEqual(view.touchPaths, ["integrations/opencode/src/workbench.js"])
+  assert.equal(view.attempt.holder, "agent-1")
+  await assert.rejects(collectTaskDetail(source([selected, status(changed)]), snapshot, ticketId), /task-queue-changed/)
+})
+
+test("AHI-037 focused proof detail escapes hostile criteria and refuses malformed declared evidence", async () => {
+  const snapshot = await collectTaskMetrics(source())
+  const hostile = detail(); hostile.items[0].record.acceptanceCriteria = ["Review \u001b[31m and \u202e proof"]
+  const view = await collectTaskDetail(source([hostile, status()]), snapshot, ticketId)
+  assert.match(view.criteria[0], /\\u001b/)
+  assert.match(view.criteria[0], /\\u202e/)
+  const invalid = detail(); invalid.items[0].record.requirementRefs = "AHI-037"
+  await assert.rejects(collectTaskDetail(source([invalid, status()]), snapshot, ticketId), /task-detail-unavailable/)
+  const over = detail(); over.items[0].record.acceptanceCriteria = Array(17).fill("one criterion")
+  const bounded = await collectTaskDetail(source([over, status()]), snapshot, ticketId)
+  assert.equal(bounded.criteria.length, 16)
+  assert.match(bounded.gaps.join("\n"), /omitted/)
 })
 
 test("AHI-035 changed or inconsistent queue snapshots refuse joined metrics and details", async () => {
