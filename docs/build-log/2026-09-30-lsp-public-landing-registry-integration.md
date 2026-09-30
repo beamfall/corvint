@@ -13,14 +13,16 @@ REQUIREMENTS is regenerated from staged merged specs by make spec-requirements. 
 requires removing three conflict markers while preserving both exact parent rows; SELF-DEVELOPMENT
 auto-merges preserve updater rows and reviewed route additions. No source behavior
 is changed. The 27 server/worker files match cb324 bytes; 17 tooling assets match23e2; all imported
-historical build-log and sealed CEM bytes remain identical. Nine updater-exclusive paths match135;
+historical build-log bytes remain identical. Original sealed CEM bytes remain immutable in their
+reachable source-leaf Git history; the eight newly imported sidecars are removed from the final tree
+to obey the canonical sealed-map guard. All preexisting main135 sealed maps remain unchanged. Nine updater-exclusive paths match135;
 shared registry/route updater rows remain present unchanged. The correspondence manifest is local
 acceptance evidence, not an assertion that unrelated entire Git trees are identical.
 
 After independent candidate review, root's admitted local topology records the prepared main/server
 merge, then a tree-identical ancestry-only merge of23e2 after exact tooling content is verified.
 A new CEM must bind the entire main135-to-combined range. Historical sealed maps retain their
-original bases/targets and do not certify this landing. New LEQ prose absent from the base cannot
+original bases/targets in immutable reachable Git history and do not certify this landing. New LEQ prose absent from the base cannot
 self-authorize citations. New-key checks are five focused commands: harness, docs, eight Go-package
 tests, matching vet and pinned Neovim listener. Prior prospective tests and actual editor reports
 retain their old exact bindings; final bound execution and root-selected fresh actual clients remain
@@ -37,3 +39,18 @@ Independent precommit review /tmp/lsp-editor-landing-source-review.md rejected c
 were staged despite prior registry checks passing. Those checks did not prove a clean README merge.
 Repair1 removes only the markers, retains both parent rows and corrects this entry; no source or
 spec status changes. The failed candidate, manifest, correspondence and report remain preserved.
+
+Repair2 follows the canonical unseal-before-rebind contract (DOGFOOD and decision0319). Rejected
+bind354ecd6c609f015d2c27f938982aa9a5004881fe and its actual sealed-cem-in-change refusal remain in
+history/evidence. Its full135-based range added eight old sealed sidecars, so it could not proceed
+through dogfood-change. A normal follow-up deletes only those eight paths, each absent at135,
+without changing base, bypassing the guard or rewriting either leaf. Their exact blobs and original
+bind/seal commits remain reachable through the explicit server/tool ancestry; publication must use
+a merge preserving that ancestry. The active integration CEM will be replaced for the whole final
+range after repair review. Historical receipts are not transplanted into that new active map.
+
+Installed Tasks build202 implements submit, gate run and complete; the earlier inference that these
+verbs were unsupported was incorrect. Native completion is NOT_RUN because no valid admitted active
+attempt and remaining ticket criteria have been established here. This integration does not broaden
+native completion work or claim a ticket closed. All source/spec behavior and UNQUALIFIED limits
+remain unchanged. No third integration repair is authorized.
