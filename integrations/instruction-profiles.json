@@ -1,0 +1,19 @@
+{
+  "profile": "corvint-instruction-profiles/0",
+  "delivery": "experimental",
+  "profiles": [
+    {
+      "host": "codex",
+      "version": "0.153.2",
+      "source": "https://github.com/openai/codex/blob/rust-v0.153.2/codex-rs/core/src/agents_md.rs",
+      "sha256": "8bbaf068c099fdeeaf4fe49076d398da7671f20c9a962fde5c4eb7653008fed4",
+      "profileName": "default",
+      "qualification": "CONDITIONAL_SOURCE_RULE_PREDICTION",
+      "rules": {"trustGate": "60-62", "sharedEnvironmentBudget": "65-107", "retainedRawVsDecodedBytes": "140-174", "rootMarkers": "184-235", "firstRegularFile": "239-262", "candidateNames": "267-280"},
+      "assumptions": ["trusted-project", "one-turn-environment", "default-root-markers-.git", "git-root-is-host-project-root", "no-fallback-filenames", "project-budget-32768", "readable-regular-files", "pinned-tree-matches-host-instruction-inventory"],
+      "actualSessionLoadSet": "UNKNOWN"
+    }
+  ],
+  "unconfirmedHosts": ["claude-code", "gemini-cli", "opencode", "pi"],
+  "nonClaims": ["Lifecycle qualification does not qualify instruction loading rules.", "Controlled marker probes qualify only their exact fixture and launch settings.", "This manifest is descriptive compiled-profile provenance, not runtime configuration or governance authority."]
+}

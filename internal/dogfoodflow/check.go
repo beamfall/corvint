@@ -153,9 +153,13 @@ func (c *check) run() int {
 	}
 	report := c.checkReport()
 	abstention := c.checkContextAbstention(report)
+	queryTask, queryAbstention := c.checkQueryAbstention(report)
 	c.resolveVerifiers()
 	if abstention {
 		c.verifyAbstention()
+	}
+	if queryAbstention {
+		c.verifyQueryAbstention(queryTask)
 	}
 	return c.verifyBinding(report)
 }

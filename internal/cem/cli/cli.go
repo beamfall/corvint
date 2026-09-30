@@ -94,8 +94,9 @@ var cemActions = map[string]cemAction{
 	"verify": {arguments: readArguments, required: []string{"--map"}},
 	"status": {arguments: readArguments, required: []string{"--map"}},
 	"report": {
-		arguments: []string{"--map", "--patch", "--output", "--target", "--expected-base", "--max-unknown", "--max-mechanical"},
+		arguments: []string{"--map", "--patch", "--output", "--target", "--expected-base", "--max-unknown", "--max-mechanical", "--format", "--ocm"},
 		required:  []string{"--map"},
+		choices:   map[string][]string{"--format": {"markdown", "json"}},
 	},
 	"cover": {
 		arguments: []string{"--map", "--coverprofile", "--test-run", "--output"},
@@ -327,7 +328,13 @@ func (f *cemFlags) limit(name string) (*int, error) {
 
 // Run executes one `corvint cem ACTION` invocation.
 func Run(ctx context.Context, root string, arguments []string, stdout, stderr io.Writer) int {
-	envelope, err := dispatchCEM(ctx, root, arguments)
+	return RunWithOCM(ctx, root, arguments, stdout, stderr, nil)
+}
+
+// RunWithOCM supplies the optional owning OCM verifier per invocation. The
+// standalone CEM dependency closure stays independent of that capability.
+func RunWithOCM(ctx context.Context, root string, arguments []string, stdout, stderr io.Writer, reader workflow.ReviewOCMReader) int {
+	envelope, err := dispatchCEMWithOCM(ctx, root, arguments, reader)
 	if err != nil {
 		emitCEMError(stderr, err)
 		return 2
@@ -378,6 +385,10 @@ func appendUnicodeEscape(output []byte, character rune) []byte {
 }
 
 func dispatchCEM(ctx context.Context, root string, arguments []string) (map[string]any, error) {
+	return dispatchCEMWithOCM(ctx, root, arguments, nil)
+}
+
+func dispatchCEMWithOCM(ctx context.Context, root string, arguments []string, reader workflow.ReviewOCMReader) (map[string]any, error) {
 	action, spec, err := parseAction(arguments)
 	if err != nil {
 		return nil, err
@@ -450,6 +461,7 @@ func dispatchCEM(ctx context.Context, root string, arguments []string) (map[stri
 			MapPath: flags.values["--map"], PatchPath: flags.values["--patch"],
 			PatchGiven: flags.present["--patch"], ExpectedBase: flags.values["--expected-base"],
 			Target: flags.values["--target"], Output: flags.values["--output"],
+			Format: flags.values["--format"], OCMPath: flags.values["--ocm"], ReadOCM: reader,
 			Limits: workflow.PolicyLimits{MaxUnknown: maxUnknown, MaxMechanical: maxMechanical},
 		})
 	}

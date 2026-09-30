@@ -10,7 +10,7 @@ onboarding, security, and wire-contract reviews recorded in `docs/BUILD-LOG.md`
 ## Agent digest
 - Claim: The CEM pilot kit freezes a safe first-run, reviewer-report, and outcome-trial contract for experimental CEM 0.1 use.
 - Status: accepted/experimental
-- Exists: `internal/cem`, reviewer reporting, `experiments/cem-first-run`, frozen contracts, and the proposed portable `interop/cem01-go ci` verifier (CEM-PILOT-020..023).
+- Exists: `internal/cem`, reviewer reporting, the experimental read-only hunk JSON projection (CEM-PILOT-028..031), `experiments/cem-first-run`, frozen contracts, and the proposed portable `interop/cem01-go ci` verifier (CEM-PILOT-020..023).
 - Blocked on: independent external outcome evidence.
 - Read next: `cem-external-interop-v0.md` and `cem-0.2-canonical-binding.md`.
 
@@ -161,6 +161,41 @@ within 15 minutes.
   literal path, not that the path was removed; no `type-changed` status or reason member is added
   (decision 0098).
 
+### Hunk review projection (V1-0501)
+
+The owner requested a clickable review of immutable evidence, obligations, retained test
+witnesses and remaining unknowns on 2026-09-29. This extension remains experimental and
+composes existing CEM/OCM verification; it supplies no semantic proof or test execution.
+
+- `CEM-PILOT-028`: `cem report --format json` MUST emit a read-only `cem-review/0` projection
+  under the command's `review` member, with one record per derived patch hunk in patch order,
+  including hunks absent from an invalid map. Each record MUST carry its content digest, identifier,
+  path, both ranges, line revision/range (base for deletion, target otherwise), map validity,
+  disposition, exact reason, and cited evidence identities, spans, inclusion relations and available
+  drift states. Invalid maps MUST retain the failed verifier verdict; surplus mapped hunks MUST be
+  listed separately. A JSON report MUST reject `--output`, write no report and retain `mutates:false`.
+- `CEM-PILOT-029`: An explicitly supplied `--ocm MAP` MUST be verified by the owning OCM reader
+  against the exact retained CEM bytes and independently supplied base/target. Only verified
+  `hunkIds` relations may join obligations to hunk records. Unknown obligations MUST remain in
+  `unmappedObligations`, with their exact reason, rather than being assigned to every hunk. A failed
+  OCM MUST preserve its verdict and contribute no joins; absent OCM input MUST state
+  `NOT_PRODUCED` / `ocm-not-supplied`. A requested but unavailable owning verifier MUST state
+  `NOT_PRODUCED` / `ocm-verifier-unavailable`, retain all hunk records and return a non-success
+  command verdict. The optional reader MUST be supplied per invocation, with no global registration.
+- `CEM-PILOT-030`: JSON and the published Markdown report MUST bind the same `recordSetSha256`,
+  computed as SHA-256 of Go `encoding/json.Marshal` bytes for the complete `review` object before
+  adding `recordSetSha256`; this is a deterministic projection digest, not a CEM identity or an
+  authority receipt. The object MUST include the map/derived-patch/declared-patch digests, immutable
+  endpoints, validity, optional OCM projection, all hunks, surplus map rows and unassigned obligations.
+  Every repository string interpolated into Markdown MUST use inert code spans. JSON MUST escape
+  strings and include no source/diff bodies or command output. Equivalent invocations with the same
+  retained inputs MUST produce identical digests.
+- `CEM-PILOT-031`: A missing coverage witness MUST state `NOT_PRODUCED` /
+  `no-coverage-witness`; existing coverage and discrimination witnesses MUST retain their state,
+  identity and exact unrun reason. Every hunk MUST state test execution `NOT_RUN` /
+  `review-does-not-execute-tests`. Structural test claims, retained caller witnesses and operator
+  outcomes MUST NOT be presented as a current passing test or semantic support.
+
 ### Portable CI verifier
 
 - `CEM-PILOT-020`: (proposed; accepted with decision 0356) the portable CI example
@@ -305,3 +340,43 @@ trial misses its value gates, redesign or kill CEM 0.1 rather than expanding it.
 - the recipes (`CEM-PILOT-024`..`027`) are exercised only on Corvint-authored fixtures; time to a
   first valid receipt, review, or CI verification by a reader unfamiliar with them is
   `NOT_OBSERVED`, and the CI recipe's verifier comes from a checkout build, not a published pin.
+
+## Hunk projection acceptance and rollback (V1-0501)
+
+The simpler baseline remains Markdown `cem report` and the existing console chain. JSON adds
+machine consumption without a new map profile, datastore, source body, semantic classifier or
+execution provider. With `--format json`, `--output` is refused; default/`markdown` report publication
+keeps the existing bounded local path rules. The optional owning OCM reader is composed by the native
+command boundary; a standalone CEM consumer without it reports unavailable explicitly.
+
+| Requirement | Implementation | Focused acceptance evidence |
+|---|---|---|
+| CEM-PILOT-028 | `internal/cem/workflow/review_projection.go`, `read.go`; `internal/cem/cli/cli.go` | `TestReviewProjectionParityAndReadOnly`, `TestReviewProjectionInvalidMapRetainsUnmappedHunks`, `TestReviewProjectionArguments` |
+| CEM-PILOT-029 | per-call `ReviewOCMReader`; `internal/lrfrepo/ocm_read.go` `ReadOCMReview` | `TestReviewProjectionOCMJoinAndInvalidRefusal`, `TestReviewProjectionNativeOCMAdapterUnknownOnly`, `TestReviewProjectionPerCallResolver` |
+| CEM-PILOT-030 | retained-input projection digest and inert Markdown rendering | `TestReviewProjectionParityAndReadOnly`, `TestReviewProjectionHostileText` |
+| CEM-PILOT-031 | retained coverage/discrimination fields and explicit execution boundary | `TestReviewProjectionParityAndReadOnly`; existing coverage/discrimination report regressions |
+
+The deterministic qualification is a real producer CEM/OCM fixture, JSON/Markdown digest parity,
+all derived hunks on an invalid-map fixture, explicit callback OCM joins and native unknown reasons, hostile
+string rendering, and invocation-local reader isolation. An actual final dogfood report must be
+inspected through this projection before delivery; the integrated receipt and worked example are
+owned by the combined change's evidence record. External usefulness, review-time reduction and
+independent interoperability remain `NOT_OBSERVED`; no exhaustive gate equivalence is claimed.
+
+Native linked-adapter live qualification is `NOT_PRODUCED`: the proposed synthetic case anchor
+was outside the owning extractor's admitted worklist after two construction repairs. Those failed
+runs remain retained; no extractor rule was changed. The native fixture verifies unknown-only OCM
+producer bytes, retained CEM inputs and wrong-base rejection. Exact native linked claims must be
+qualified separately using the final integrated requirement-bearing tests and naturally valid OCM.
+
+Rollback removes `--format`/`--ocm`, `RunWithOCM`, the report projection and its optional adapter,
+and removes the projection appendix from Markdown. Existing maps and verifier semantics require
+no migration. Failure to derive a bounded patch or read an explicitly requested OCM remains an
+operational error; a semantic invalid verdict remains false with no qualified obligation joins.
+
+## Named diagnostics
+
+| Code | Meaning |
+|---|---|
+| `hunk-not-mapped` | A parsed patch hunk has no matching map entry; keep the hunk in the denominator with unknown disposition. |
+| `map-hunk-not-in-derived-patch` | A map entry has no matching hunk in the original derived patch; expose it as surplus invalid map evidence. |

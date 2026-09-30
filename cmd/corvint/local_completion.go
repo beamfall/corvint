@@ -125,6 +125,7 @@ func localCompletionFlags(args []string) (map[string]string, error) {
 	case "status", "finish", "cancel":
 	case "handoff":
 		allowed["--anchors"], allowed["--receipt"] = true, true
+		allowed["--task-state"], allowed["--bundle"] = true, true
 	default:
 		return nil, errors.New("invalid-local-completion-action")
 	}
@@ -157,6 +158,11 @@ func localCompletionFlags(args []string) (map[string]string, error) {
 	}
 	if flags["--anchors"] != "" && flags["--receipt"] != "" {
 		return nil, errors.New("invalid-local-completion-option")
+	}
+	if flags["--task-state"] != "" || flags["--bundle"] != "" {
+		if flags["--session-key"] == "" || flags["--receipt"] != "" || (flags["--bundle"] != "" && (flags["--task-state"] != "" || flags["--anchors"] != "")) {
+			return nil, errors.New("invalid-local-completion-option")
+		}
 	}
 	return flags, nil
 }

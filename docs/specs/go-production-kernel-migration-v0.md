@@ -245,7 +245,7 @@ requirements below have evidence. File existence is not parity.
   unadmitted-suffix, query, budget, unsupported-platform, and oversized inputs explicitly
   rather than approximate them: a platform other than Darwin or Linux returns
   `unsupported-impact-platform` and `--budget-bytes` returns `unsupported-impact-option`
-  (`cmd/corvint/main.go:295,307`). Every evidence array MUST be emitted in a deterministic total order derived
+  (`cmd/corvint/main.go:298,310`). Every evidence array MUST be emitted in a deterministic total order derived
   from stable content — the referenced relation's first-occurrence path, then line, then column, then
   the relation key, then the occurrence's own line and column — so that the `MAX_EVIDENCE` truncation
   retains the same entries on every run and in every runtime. An order derived from index insertion
@@ -328,7 +328,7 @@ requirements below have evidence. File existence is not parity.
   (`internal/contextindex/range_impact.go:143`).
 - `GPK-V0-031`: Before the complete Phase 2 feature port, `corvint` MAY expose an experimental
   `feature FEATURE_ID` slice on Darwin and Linux; any other platform returns
-  `unsupported-feature-platform` (`cmd/corvint/main.go:430`). It MUST accept the Python-oracle `--limit` range
+  `unsupported-feature-platform` (`cmd/corvint/main.go:433`). It MUST accept the Python-oracle `--limit` range
   1--50 and optional `--budget-bytes` range 1,216--1,000,000, preserve validation precedence and
   canonical bytes, and reuse the bounded immutable context index and shared packet-budget selector.
   A canonical unknown feature id MUST succeed with an exact empty `OUT_OF_SCOPE` receipt, including

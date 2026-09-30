@@ -255,3 +255,71 @@ func TestRunRejectsARelativeCacheDir(t *testing.T) {
 		t.Fatalf("err = %v, want a CacheDir error", err)
 	}
 }
+
+// TAT-V0-006: cancellation retires ordinary descendants in the run's process
+// group. This does not claim containment of descendants that change sessions.
+func TestRunCancellationRetiresProcessGroupDescendants(t *testing.T) {
+	requireSandbox(t)
+	git := gitExecutable(t)
+	marker := fmt.Sprintf("corvint-mutate-cancel-%d", time.Now().UnixNano())
+	source := fmt.Sprintf(`package calc
+import ("os/exec"; "testing"; "time")
+func TestAdd(t *testing.T) {
+ if err := exec.Command("sh", "-c", "sleep 300; : %s").Start(); err != nil { t.Fatal(err) }
+ time.Sleep(300*time.Second)
+}
+`, marker)
+	root, revision := standardFixture(t, git, source)
+	before := treeDigest(t, root)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	type result struct {
+		report Report
+		err    error
+	}
+	done := make(chan result, 1)
+	go func() { report, err := Run(ctx, baseRequest(root, git, revision)); done <- result{report, err} }()
+	// Cancel and wait even when startup fails; no owned runner survives a test failure.
+	defer func() { cancel() }()
+	deadline := time.Now().Add(2 * time.Minute)
+	observed := false
+	for time.Now().Before(deadline) {
+		select {
+		case result := <-done:
+			t.Fatalf("runner stopped before child observation: %+v %v", result.report, result.err)
+		default:
+		}
+		output, err := exec.Command("pgrep", "-f", marker).Output()
+		if err == nil && strings.TrimSpace(string(output)) != "" {
+			observed = true
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	cancel()
+	select {
+	case result := <-done:
+		if result.err != nil || result.report.Verdict != BudgetExceeded {
+			t.Fatalf("cancel: %+v %v", result.report, result.err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("cancel did not retire runner")
+	}
+	if !observed {
+		t.Fatal("never observed child before cancellation")
+	}
+	deadline = time.Now().Add(5 * time.Second)
+	for {
+		output, _ := exec.Command("pgrep", "-f", marker).Output()
+		if strings.TrimSpace(string(output)) == "" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("child remains after cancellation: %s", output)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if treeDigest(t, root) != before {
+		t.Fatal("cancel changed caller repository")
+	}
+}

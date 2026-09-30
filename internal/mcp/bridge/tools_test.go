@@ -100,7 +100,7 @@ func TestCEMReportToolPreviewsCLIReportWithoutPublishing(t *testing.T) {
 	if string(written) != markdown {
 		t.Fatal("preview markdown differs from the published CLI report")
 	}
-	for _, field := range []string{"ok", "counts", "policyIssues", "verification", "patchSource", "excludedPath", "warnings"} {
+	for _, field := range []string{"ok", "counts", "policyIssues", "verification", "patchSource", "excludedPath", "warnings", "recordSetSha256"} {
 		if !reflect.DeepEqual(canonicalValue(t, published[field]), canonicalValue(t, result.Receipt[field])) {
 			t.Fatalf("field %s differs: cli=%#v mcp=%#v", field, published[field], result.Receipt[field])
 		}

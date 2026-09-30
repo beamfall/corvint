@@ -1,0 +1,148 @@
+{
+  "baseRevision": "23799bb63832470014b96a4be57a7e564a335e76",
+  "evidence": [
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:61708a667d5087600bc89ae7c79b48e72e0c0c95d741115a6201bbba6e10a9d6",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3119,
+        "start": 2260
+      },
+      "spanSha256": "d1581341c20d41668845d0f1379331480b1d4208b374d844e74debed4b86159b"
+    },
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:a20eb64a170469a414dc6942ea5fa3b62ec2aa65d2181479f8dc091f1acb7c77",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 4101,
+        "start": 3119
+      },
+      "spanSha256": "6117c0a647cb658775f156db54e7707302865f580c9827f663c525f7de4d94b4"
+    },
+    {
+      "blobOid": "cc93705ecfea484b56f720e3ee230108caac5aad",
+      "id": "evidence:sha256:6b8d90e5ceeefbfed81d1b574aade2563faa7bf4a578b69c58828446582a17c2",
+      "path": "docs/specs/dogfood-query-abstention-v0.md",
+      "span": {
+        "end": 2010,
+        "start": 1641
+      },
+      "spanSha256": "d6720ed2246afee8dbc316e69afd2f1e42c1440e9f76c0cb0c9eb92d6ebd00a6"
+    },
+    {
+      "blobOid": "4059806198a6d1f77d7744f2f90ae46c1db144ec",
+      "id": "evidence:sha256:fd24041a1e82d0d05688330c23bc8cf6d53d948216e75dd4b9df0cb99799198a",
+      "path": "docs/specs/mcp-server-2026-07-28-v0.md",
+      "span": {
+        "end": 39026,
+        "start": 35172
+      },
+      "spanSha256": "e6b3606f3193261c04acc0f81e1a595b4a44bf870aea8579fa2326963728a8b1"
+    },
+    {
+      "blobOid": "feb562beafe68439b76d3438b9e098848515f994",
+      "id": "evidence:sha256:bb0dcd08e983c5f987fcea1b33fa41c1aac10c3c4f9a47c772b2a0b8147f278d",
+      "path": "docs/specs/cem-pilot-kit.md",
+      "span": {
+        "end": 4273,
+        "start": 4054
+      },
+      "spanSha256": "ce60ed811051d4a4f0277f2073d79ac5b669acce9c29b8581977349f62325810"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:61708a667d5087600bc89ae7c79b48e72e0c0c95d741115a6201bbba6e10a9d6",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:a20eb64a170469a414dc6942ea5fa3b62ec2aa65d2181479f8dc091f1acb7c77",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1f7ab0a0a0fc4bf207c10a3d33da8d5bbbf8285e8ac81711c6ae3dfcb8b8c6ee",
+      "newRange": {
+        "count": 39,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-30-mcp-report-preview-parity.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:6b8d90e5ceeefbfed81d1b574aade2563faa7bf4a578b69c58828446582a17c2",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ebceb9c47a739cd9e0aa48c5b906f807012fa974dc72e097ffa59980e7e10a20",
+      "newRange": {
+        "count": 7,
+        "start": 6
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 6
+      },
+      "path": "docs/specs/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fd24041a1e82d0d05688330c23bc8cf6d53d948216e75dd4b9df0cb99799198a",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:bb0dcd08e983c5f987fcea1b33fa41c1aac10c3c4f9a47c772b2a0b8147f278d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0e893bf9077465f8cddb2ab18e674d5f520113bcccb6247dd2ac7f7d2c988dcc",
+      "newRange": {
+        "count": 17,
+        "start": 116
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 116
+      },
+      "path": "internal/cem/workflow/read.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fd24041a1e82d0d05688330c23bc8cf6d53d948216e75dd4b9df0cb99799198a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b6fdbb773c687338ed2ca3ad007dca3cb908b6729498d337c01e9a0064ddcec2",
+      "newRange": {
+        "count": 7,
+        "start": 100
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 100
+      },
+      "path": "internal/mcp/bridge/tools_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "1db80f6911b4afc2f43e73474aebb75857b05669eaa8ccf41d4b5ff23671e5d3",
+  "spec": "cem/0.2"
+}

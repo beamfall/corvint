@@ -239,6 +239,7 @@ type proveRow struct {
 	// Detail is the mutation runner's one-line report, present only on a `test-kills-mutant` row that ran.
 	Detail  string                `json:"detail,omitempty"`
 	Witness *proveMutationWitness `json:"witness,omitempty"`
+	Attack  *proveAttackReport    `json:"attack,omitempty"`
 	reason  string
 	basis   []string
 }
@@ -298,11 +299,13 @@ func parseProveInvocation(arguments []string) (options, bool, error) {
 		parsed, err := parseProveCEMArguments(arguments[:position], arguments[position+1:])
 		return parsed, true, err
 	}
-	rest, mutateCount := withoutMutateFlag(arguments[position+1:])
+	attackRest, attackCount := withoutAttackTestsFlag(arguments[position+1:])
+	rest, mutateCount := withoutMutateFlag(attackRest)
 	rewritten := append(append([]string{}, arguments[:position]...), proveWrappedCommand(rest))
 	rewritten = append(rewritten, rest...)
 	parsed, err := parse(rewritten)
 	parsed.proveMode, parsed.command, parsed.proveMutate = rewritten[position], "prove", mutateCount > 0
+	parsed.proveAttackTests = attackCount > 0
 	if err != nil {
 		return parsed, true, err
 	}
@@ -320,6 +323,12 @@ func parseProveInvocation(arguments []string) (options, bool, error) {
 	}
 	if mutateCount > 0 && parsed.proveMode != "impact" && parsed.proveMode != "change" {
 		return parsed, true, argumentError("argument --mutate: only impact and change modes run the mutation falsifier")
+	}
+	if attackCount > 1 {
+		return parsed, true, argumentError("argument --attack-tests: may not be repeated")
+	}
+	if attackCount > 0 && (!parsed.proveMutate || parsed.proveMode != "change") {
+		return parsed, true, argumentError("argument --attack-tests: requires --base and --mutate")
 	}
 	return parsed, true, nil
 }
@@ -576,6 +585,7 @@ func compileProof(ctx context.Context, options options) (any, error) {
 	}
 	for index, judged := range mutations {
 		rows[index].Falsified, rows[index].Detail, rows[index].Witness = judged.falsified, judged.detail, judged.witness
+		rows[index].Attack = judged.attack
 	}
 	summary := summarizeProof(packet, rows)
 	if affectedSummary != nil {
@@ -1183,6 +1193,7 @@ func judgeReference(row proveRow, cited map[string]citedBlob, dirty map[string]s
 type mutationVerdict struct {
 	falsified, detail string
 	witness           *proveMutationWitness
+	attack            *proveAttackReport
 }
 
 // judgeMutations runs the mutation falsifier for every `test-kills-mutant`
@@ -1212,13 +1223,21 @@ func judgeMutations(ctx context.Context, gitExecutable string, options options, 
 	defer cancel()
 	exported, err := mutate.Open(budgeted, mutate.Request{Root: options.root, Git: gitExecutable, Revision: revision})
 	if err != nil && budgeted.Err() != nil && ctx.Err() == nil {
-		return exhaustedVerdicts(rows), nil
+		exhausted := exhaustedVerdicts(rows)
+		if options.proveAttackTests {
+			discloseUnrunAttacks(exhausted)
+		}
+		return exhausted, nil
 	}
 	if err != nil {
 		return nil, &gokernel.Error{Code: "unsupported-prove-mutation", Message: "the mutation runner could not export the packet revision"}
 	}
 	defer exported.Close()
 	groups := mutationGroups(rows, cited, dirty, spans)
+	if options.proveAttackTests {
+		groups = nil // Complete traversal must not use the first-kill grouped runner.
+		defer discloseUnrunAttacks(verdicts)
+	}
 	for index, row := range rows {
 		if row.Falsifier != falsifierMutant {
 			continue
@@ -1239,7 +1258,7 @@ func judgeMutations(ctx context.Context, gitExecutable string, options options, 
 			}
 			continue
 		}
-		judged, err := judgeMutation(budgeted, exported, row, checkoutRevision, cited, dirty, spans)
+		judged, err := judgeMutationMode(budgeted, exported, row, checkoutRevision, cited, dirty, spans, options.proveAttackTests)
 		if err != nil {
 			return nil, &gokernel.Error{Code: "unsupported-prove-mutation", Message: "the mutation runner failed for " + row.Path}
 		}
@@ -1351,6 +1370,10 @@ func anyMutantRow(rows []proveRow) bool {
 }
 
 func judgeMutation(ctx context.Context, exported *mutate.Export, row proveRow, checkoutRevision string, cited map[string]citedBlob, dirty map[string]struct{}, spans map[string][]mutate.LineSpan) (mutationVerdict, error) {
+	return judgeMutationMode(ctx, exported, row, checkoutRevision, cited, dirty, spans, false)
+}
+
+func judgeMutationMode(ctx context.Context, exported *mutate.Export, row proveRow, checkoutRevision string, cited map[string]citedBlob, dirty map[string]struct{}, spans map[string][]mutate.LineSpan, attack bool) (mutationVerdict, error) {
 	changed, ok := testClaimTarget(row.reason)
 	if !ok {
 		return mutationVerdict{falsified: falsifiedFail, detail: "unrecognized test claim", witness: mutationWitnessNotProduced("invalid-mutation-claim")}, nil
@@ -1366,19 +1389,26 @@ func judgeMutation(ctx context.Context, exported *mutate.Export, row proveRow, c
 	if !ok {
 		return mutationVerdict{falsified: falsifiedNotRun, detail: "the range changed no lines of " + changed, witness: mutationWitnessNotProduced("no-mutant-in-range")}, nil
 	}
+	if attack && (!strings.HasSuffix(changed, ".go") || !strings.HasSuffix(row.Path, "_test.go")) {
+		return mutationVerdict{falsified: falsifiedNotRun, detail: "attack-tests supports Go source and Go test rows only", witness: mutationWitnessNotProduced("attack-tests-language-unsupported")}, nil
+	}
 	if strings.HasSuffix(changed, ".py") {
 		judged, err := judgePythonMutation(ctx, exported, changed, row.Path, lines)
 		judged.witness = mutationWitnessNotProduced("python-mutation-witness-not-produced")
 		return judged, err
 	}
-	report, err := exported.Judge(ctx, mutate.Request{ChangedPath: changed, TestPath: row.Path, Lines: lines})
+	report, err := exported.Judge(ctx, mutate.Request{ChangedPath: changed, TestPath: row.Path, Lines: lines, Complete: attack})
 	if err != nil {
 		return mutationVerdict{}, err
 	}
-	return mutationVerdict{
+	judged := mutationVerdict{
 		falsified: mutationFalsified(report.Verdict), detail: report.Detail,
 		witness: mutationWitnessFromReport(report, changed, checkoutRevision, cited),
-	}, nil
+	}
+	if attack {
+		judged.attack = attackReport(report, changed, checkoutRevision, cited)
+	}
+	return judged, nil
 }
 
 func mutationWitnessFromReport(report mutate.Report, changed, checkoutRevision string, cited map[string]citedBlob) *proveMutationWitness {

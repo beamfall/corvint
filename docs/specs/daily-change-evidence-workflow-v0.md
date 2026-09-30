@@ -331,6 +331,20 @@ The daily subverbs do not install, build or upgrade Corvint, pin a version for a
 repository, edit its ignore rules, or change any report, receipt or CEM format beyond the
 `DCW-V0-024` no-intent rows and `ocmStatus` value, and the `DCW-V0-025` abstention reasons.
 
+## Proposed query abstention extension
+
+Proposed amendment (2026-09-30, V1-0523) to the completion behavior constrained by
+`DCW-V0-005`, `DCW-V0-015` and `DCW-V0-025`: the exact intentional authority-start trace
+refusal may remain visible as a discovery abstention during structural closure only under
+`dogfood-query-abstention-v0.md` QAT-V0-001..005. Only the exact QAT-V0-001 refusal, with
+the QAT-V0-002..004 retained binding and independent replay, is exempt from blocking. Every other
+missing, dirty, stale, unsupported or failed outcome/check/CEM/OCM input retains the completion
+refusals. The distinct reason is `authority-start-trace-state-abstention` and its profile is
+`corvint-dogfood-query-abstention/0`. This does not extend the three-code impact allowlist,
+change its accepted profile, claim prior acceptance of this proposed technical contract, or
+produce complete query evidence or query support. The accepted requirement clauses and their
+historical use-case contract receipts remain unchanged.
+
 ## Acceptance and evidence
 
 The native planning store's V1-0001/2/7/8/9 and V1-0010/11/12 acceptance criteria retain their

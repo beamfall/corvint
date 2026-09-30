@@ -308,7 +308,7 @@ what the row asserts.
 | `duplicate-or-unsorted-reference` | `internal/lrfrepo/ocm.go:371` | "<value> must be sorted and unique" |
 | `fabricated-claim-id` | `internal/lrfrepo/ocm.go:258` | "claim ID is not content-derived" |
 | `intent-scope-mismatch` | `internal/lrfrepo/ocm.go:466` | "intent scope is stale or invalid" |
-| `invalid-cem` | `internal/lrfrepo/ocm_read.go:289` | "CEM verification failed" |
+| `invalid-cem` | `internal/lrfrepo/ocm_read.go:333` | "CEM verification failed" |
 | `invalid-cem-digest` | `internal/lrfrepo/ocm.go:173` | "CEM binding digest is invalid" |
 | `invalid-claim-blob` | `internal/lrfrepo/ocm.go:266` | "claim blob OID is invalid" |
 | `invalid-claim-extractor` | `internal/lrfrepo/ocm.go:262` | "claim extractor is unsupported" |

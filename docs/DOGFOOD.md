@@ -245,8 +245,21 @@ not a replacement success for the refused query. Include both attempts in the ta
 profile: a task naming project operations (for example "contributor workflow") selects
 authority-start and refuses on a present trace store, while a task describing the change does not.
 The identical change can therefore produce or refuse on wording; write `DOGFOOD_TASK` as a
-description of the change before the first run. On that refusal the coordinator's `not-complete`
-output names the task wording as its subject; the rule above still governs the retry.
+description of the change before the first run and preserve it on every retry.
+
+The proposed experimental [query abstention contract](specs/dogfood-query-abstention-v0.md)
+permits structural closure for only exit 2, empty stdout and the exact single-line stderr
+`{"code": "unsupported-query-trace-state", "error": "native Go authority-start query requires an absent clean-tree local trace store", "ok": false}`
+followed by one LF. The row remains `NOT_PRODUCED` with reason
+`authority-start-trace-state-abstention`. Its optional `queryAbstentionEvidenceSha256` binds a
+private `coordination-time-query-abstention.json` artifact under `<git-dir>/corvint/`, with the
+original NUL argv/task digest, base/target, exit and raw output digests. `dogfood check` validates
+that exact binding and independently replays the unchanged task through base/current and any
+override verifier. It never runs the recorded executable. Other trace diagnostics, extra output,
+missing/drifted evidence or replay disagreement block. CEM/OCM, selected checks, clean target and
+local outcome remain required; query support and packet coverage remain unavailable. Older
+reports without a query abstention remain compatible. This is a proposed completion amendment,
+not query capability or release promotion.
 
 ### 2. Bind intent before promotion
 

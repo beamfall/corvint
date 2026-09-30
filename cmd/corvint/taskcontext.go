@@ -18,10 +18,12 @@ import (
 
 // taskContextOptions is the parsed `context` invocation (task-context-packet-v0).
 type taskContextOptions struct {
-	root, task, subject string
-	lsp                 string
-	lspSet              bool
-	limit               int
+	root, task, subject                                                     string
+	instructionHost, instructionVersion, instructionCWD, instructionProfile string
+	instructionFlags                                                        map[string]bool
+	lsp                                                                     string
+	lspSet                                                                  bool
+	limit                                                                   int
 	// summary, summaryBytes, expand and maxBytes are the opt-in experimental
 	// consumers (TCP-V0-024, ESV-V0-008/009); absent, the wire is unchanged.
 	summary                 bool
@@ -69,6 +71,24 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 			value, index = rest[index+1], index+1
 		}
 		switch flag {
+		case "--instruction-host", "--instruction-host-version", "--instruction-cwd", "--instruction-profile":
+			if options.instructionFlags == nil {
+				options.instructionFlags = make(map[string]bool)
+			}
+			if options.instructionFlags[flag] {
+				return options, true, argumentError("argument " + flag + ": may not be repeated")
+			}
+			options.instructionFlags[flag] = true
+			switch flag {
+			case "--instruction-host":
+				options.instructionHost = value
+			case "--instruction-host-version":
+				options.instructionVersion = value
+			case "--instruction-cwd":
+				options.instructionCWD = value
+			case "--instruction-profile":
+				options.instructionProfile = value
+			}
 		case "--lsp":
 			if options.lspSet || (value != "gopls" && value != "off") {
 				return options, true, argumentError("argument --lsp: requires one of gopls or off, once")
@@ -117,6 +137,17 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 // checkContextViewArguments refuses mixed or orphaned view flags: --expand
 // stands alone except --max-bytes, and --summary-bytes needs --summary.
 func checkContextViewArguments(options taskContextOptions, taskSet bool) error {
+	if len(options.instructionFlags) > 0 {
+		if len(options.instructionFlags) != 4 || options.subject == "" {
+			return argumentError("instruction prediction requires --instruction-host, --instruction-host-version, --instruction-cwd, --instruction-profile default and --subject")
+		}
+		if options.instructionProfile != "default" {
+			return argumentError("argument --instruction-profile: requires default, an explicit conditional assumption")
+		}
+		if options.expandSet || options.summarySet {
+			return argumentError("instruction prediction is not allowed with --expand or --summary")
+		}
+	}
 	if options.lspSet && (options.expandSet || options.summarySet) {
 		return argumentError("argument --lsp: not allowed with --expand or --summary")
 	}
@@ -196,6 +227,9 @@ const taskContextHelp = `Compile the task-context packet: the files to read for 
 
 Usage:
   corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N] [--lsp gopls|off]
+  corvint [--root PATH] context --task TEXT --subject PATH
+    --instruction-host HOST --instruction-host-version VERSION
+    --instruction-cwd DIR --instruction-profile default
 
 Writes nothing; Go-only (task-context-packet-v0, experimental). The packet lists
 files admitted by relations a term search cannot express, each with one
@@ -216,6 +250,12 @@ files a term search would list:
   sibling         the subject's directory, then its parent subtree where the
                   task's identifiers appear
   lexical         distinct task terms in the file or its path
+
+The instruction flags request an experimental conditional project-file prediction
+(IID-V0), currently qualified only for Codex 0.153.2 default source rules. All four
+flags and a tracked --subject are required together; summary/expand combinations
+refuse. Actual host configuration, global instructions and session load state remain
+UNKNOWN. Predictions never change repository governance or detect semantic conflicts.
 
 --subject names the task's own path (a changed or commented file). It is
 carried under "subject" and never appears among "results": it is the subject
@@ -284,6 +324,15 @@ func compileTaskContext(ctx context.Context, options taskContextOptions, load fu
 	packet, err := contextindex.TaskContextWeighted(ctx, index, options.task, options.subject, options.limit, admitted)
 	if err == nil {
 		err = attachLSPEvidence(ctx, index, options.subject, packet, options.limit, options.lsp)
+	}
+	if err == nil && len(options.instructionFlags) > 0 {
+		var loadSet map[string]any
+		loadSet, err = contextindex.InstructionLoadSet(index, options.subject, contextindex.InstructionLoadOptions{
+			Host: options.instructionHost, Version: options.instructionVersion, CWD: options.instructionCWD, Profile: options.instructionProfile,
+		})
+		if err == nil {
+			packet["instruction_load_set"] = loadSet
+		}
 	}
 	return packet, hit, err
 }

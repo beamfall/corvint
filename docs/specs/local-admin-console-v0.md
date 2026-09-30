@@ -14,7 +14,7 @@ rendered artifact's own owning specification.
 ## Agent digest
 - Claim: A local, loopback-only console may present task management, evidence, spec and code without becoming repository, execution, or promotion authority.
 - Status: accepted (decision 0081)/experimental (S1, S2 ticket verbs, S3, and the chain pane)
-- Exists: retained source package `cmd/corvint-console` builds the standalone `corvint-console`, and `internal/console` delivers S1, the ticket half of S2, and S3 — board, ticket detail, spec pane, code pane and delegated mutation over `corvint-tasks` and `git`, plus the Corvint evidence snapshot, the dogfood report, the committed benchmark results and the agent-memory backlogs, and the `/chain` pane that walks a sealed change from hunk to cited evidence, governing requirement and recorded verification (LAC-V0-033..036). The current snapshot executable is `corvint-dashboard-snapshot`; frozen `corvint-dashboard-*` wire/error profiles remain unchanged. The closed release bundle migration is deferred.
+- Exists: retained source package `cmd/corvint-console` builds the standalone `corvint-console`, and `internal/console` delivers S1, the ticket half of S2, and S3 — board, ticket detail, spec pane, code pane and delegated mutation over `corvint-tasks` and `git`, plus the Corvint evidence snapshot, the dogfood report, the committed benchmark results and the agent-memory backlogs, and the `/chain` pane that walks a sealed change from hunk to cited evidence, governing requirement and recorded verification (LAC-V0-033..037). The current snapshot executable is `corvint-dashboard-snapshot`; frozen `corvint-dashboard-*` wire/error profiles remain unchanged. The closed release bundle migration is deferred.
 - Blocked on: nothing for S1/S2/S3 or the chain pane. U4 — the operator-time measurement against the CLI baseline — still has no instrument.
 - Read next: Human intent and scope; Requirements; Trust boundary, limits, and failure modes.
 
@@ -276,6 +276,16 @@ the Agent digest states the current experimental S1/S2/S3 scope.
   id. Only a change the listing at the commit named is read; every object id MUST be full lowercase
   hex before it reaches Git; all artifact text renders inert under LAC-V0-020.
 
+- `LAC-V0-037`: Selecting a hunk through its existing pinned plain hyperlink MUST gather its
+  cited immutable spans, explicitly linked obligation clauses and structural test claims in the
+  hunk detail panel. The panel MUST separately show scope-wide unassigned obligations and exact
+  reasons, caller supplied coverage/discrimination witness identities and states, and the operator's
+  whole-revision verification record. Absent coverage MUST render `NOT_PRODUCED` /
+  `no-coverage-witness`; current test execution MUST state `NOT_RUN`. Neither a structural claim,
+  a retained witness nor an operator outcome establishes a current passing test. This extension
+  consumes only LAC-V0-033's existing artifacts and inherits LAC-V0-034..036's binding, gaps,
+  pinning, bounds and inert rendering rules.
+
 ## Non-goals and simpler baseline
 
 Not in scope, at any stage: a hosted service, a shared or multi-user deployment, authentication,
@@ -283,7 +293,7 @@ accounts, telemetry, background collection, repository upload, an embedded or ex
 service, embeddings, a mobile surface, arbitrary command execution from the page, editing repository
 files through the page, and any surface that keeps its own copy of the queue.
 
-The chain pane (LAC-V0-033..036) is not a verifier: it does not validate a CEM or OCM map (that is
+The chain pane (LAC-V0-033..037) is not a verifier: it does not validate a CEM or OCM map (that is
 `corvint cem verify` and `corvint ocm verify`), does not assess entailment, does not run a test, does
 not report a per-requirement verification result, and does not read frontier artifacts, none of
 which exist per change today.
@@ -403,7 +413,7 @@ Staged, and gated in this order:
    committed benchmark results and the agent-memory backlogs join the same surface under the same
    axes.
 5. **Chain pane (experimental, 2026-09-23, decision 0362).** `/chain` over the sealed change maps,
-   the untracked OCM maps and the local trace (LAC-V0-033..036). Rollback to the existing panes is
+   the untracked OCM maps and the local trace (LAC-V0-033..037). Rollback to the existing panes is
    deleting `internal/console/chain.go`, the `/chain` route and view fields in `server.go`, `chainView`
    in `views.go` and the navigation link in `render.go`; no artifact, wire or other pane depends on it.
 
@@ -555,3 +565,19 @@ acceptance only:
 > native-Go binary with no UI.
 
 Until that amendment is accepted and recorded as a decision, this contract authorizes no code.
+
+## Selected hunk review acceptance (V1-0501)
+
+`LAC-V0-037` extends the existing experimental chain pane. `internal/console/chain.go`
+composes its existing bound rows; `internal/console/views.go` renders them in the selected detail.
+`TestConsoleChainSelectedHunkReview` follows the actual emitted plain hyperlink and checks the
+selected clause/test claim, unassigned unknown reason, absent coverage and unrun execution boundary.
+`TestConsoleChainComplete`, `TestConsoleChainGaps`, `TestConsoleChainTextMatchDecoy`,
+`TestConsoleChainHostileContent` and `TestConsoleChainKeyboardNavigation` retain the existing
+binding, decoy, hostile-text and pinned-link constraints. Browser observation and final integrated
+Corvint self-use must be retained separately; HTTP test navigation is not a measured human click
+or evidence of operator-time savings. U4 remains `NOT_OBSERVED`.
+
+Rollback removes the selected panel's added requirement, observation, unknown and verification
+fields and template sections; existing chain links, map artifacts and whole-page rows require no
+migration. No new artifact is read and no process or durable state is introduced.

@@ -3,6 +3,7 @@ package lrfrepo
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -70,6 +71,49 @@ func ReadOCM(ctx context.Context, root string, options OCMReadOptions) (*OCMRead
 		return nil, ocmInputFailure(inputRoot.Path(), options.CEMPath, err, "CEM map", wire.MaxMapBytes)
 	}
 	return readOCMBytes(ctx, inputRoot, ocmRaw, cemRaw, options)
+}
+
+// ReadOCMReview is the optional report adapter. It reads only the requested OCM
+// and verifies against the exact CEM bytes retained by its caller, never a second
+// read of the CEM path. Invalid maps retain their verdict and create no joins.
+func ReadOCMReview(ctx context.Context, root, path string, cemRaw []byte, expectedBase, target string) (map[string]any, error) {
+	inputRoot, err := publish.OpenRoot(root)
+	if err != nil {
+		return nil, err
+	}
+	ocmRaw, err := readRootInput(inputRoot, path, maxOCMBytes, cemcode.MapUnavailable)
+	if err != nil {
+		return nil, ocmInputFailure(inputRoot.Path(), path, err, "OCM map", maxOCMBytes)
+	}
+	result, err := readOCMBytes(ctx, inputRoot, ocmRaw, cemRaw, OCMReadOptions{
+		OCMPath: path, ExpectedBase: expectedBase, Target: target,
+		ExpectedBaseGiven: expectedBase != "", TargetGiven: target != "",
+	})
+	if err != nil {
+		return nil, err
+	}
+	projection := map[string]any{"valid": result.Verification["valid"], "state": result.State,
+		"mapSha256": sha256Hex(result.OCMRaw), "cemMapSha256": sha256Hex(result.CEMRaw),
+		"verification": result.Verification, "testExecution": result.TestExecution,
+		"obligations": []any{}, "claims": []any{}}
+	if result.Verification["valid"] != true {
+		return projection, nil
+	}
+	projection["obligations"] = result.Worklist
+	var value map[string]any
+	decoder := json.NewDecoder(bytes.NewReader(result.OCMRaw))
+	decoder.UseNumber()
+	if err := decoder.Decode(&value); err != nil {
+		return nil, err
+	}
+	for _, field := range []string{"claims", "intentScope", "targetRevision"} {
+		member, found := value[field]
+		if !found {
+			continue
+		}
+		projection[field] = member
+	}
+	return projection, nil
 }
 
 func readOCMBytes(ctx context.Context, inputRoot *publish.Root, ocmRaw, cemRaw []byte, options OCMReadOptions) (*OCMReadResult, error) {

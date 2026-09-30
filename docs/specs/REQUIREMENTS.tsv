@@ -229,6 +229,14 @@ BBF-V0-010	docs/specs/browser-behavior-falsification-v0.md	70	Plans are bounded 
 BBF-V0-011	docs/specs/browser-behavior-falsification-v0.md	76	Synthetic conformance covers a tautological assertion, hidden duplicate element,
 BBF-V0-012	docs/specs/browser-behavior-falsification-v0.md	79	Receipts are observations, not authenticated caller honesty, browser-behavior
 BBF-V0-013	docs/specs/browser-behavior-falsification-v0.md	83	The opt-in `execute-receipt` operation emits `corvint-browser-behavior-evidence/
+BKM-V0-001	docs/specs/cross-repository-breakage-map-v0.md	53	The command MUST be explicit, read-only, local and experimental. It
+BKM-V0-002	docs/specs/cross-repository-breakage-map-v0.md	56	The manifest MUST be one strict bounded UTF-8 JSON document with no
+BKM-V0-003	docs/specs/cross-repository-breakage-map-v0.md	62	Each emitted source witness MUST name an immutable Git blob and
+BKM-V0-004	docs/specs/cross-repository-breakage-map-v0.md	67	Go references MUST match the selected function's pinned module
+BKM-V0-005	docs/specs/cross-repository-breakage-map-v0.md	75	EEP V1 repository/entity composition and V2 path composition MUST
+BKM-V0-006	docs/specs/cross-repository-breakage-map-v0.md	84	Byte verification MUST NOT establish assertion truth, behavioral
+BKM-V0-007	docs/specs/cross-repository-breakage-map-v0.md	89	`--base` MUST identify an available ancestor of the selected API
+BKM-V0-008	docs/specs/cross-repository-breakage-map-v0.md	95	Limits MUST be enforced: 8 repositories, 256 source files, 32 path
 BRAIN-DOG-001	docs/specs/technical-brain-dogfood.md	27	butterfly-effect MUST return exact direct static references/dependencies,
 BRAIN-DOG-002	docs/specs/technical-brain-dogfood.md	30	E2E discovery MUST map requirements and journeys to exact scenario/test witnesse
 BRAIN-DOG-003	docs/specs/technical-brain-dogfood.md	32	selective-test guidance MUST name mandatory repository gates first and a smaller
@@ -415,14 +423,18 @@ CEM-PILOT-016	docs/specs/cem-pilot-kit.md	142	Corvint repository changes MUST us
 CEM-PILOT-017	docs/specs/cem-pilot-kit.md	145	every Git subprocess MUST ignore ambient repository/config redirection. Patch
 CEM-PILOT-018	docs/specs/cem-pilot-kit.md	148	when prepare refuses an existing map under `CEM-PILOT-002`, the
 CEM-PILOT-019	docs/specs/cem-pilot-kit.md	156	`cem verify` same-path drift MUST use only the five frozen statuses. A target en
-CEM-PILOT-020	docs/specs/cem-pilot-kit.md	166	(proposed; accepted with decision 0356) the portable CI example
-CEM-PILOT-021	docs/specs/cem-pilot-kit.md	172	(proposed; accepted with decision 0356) `cem01-go ci` MUST write exactly one JSO
-CEM-PILOT-022	docs/specs/cem-pilot-kit.md	178	(proposed; accepted with decision 0356) `cem01-go ci` MUST derive the patch with
-CEM-PILOT-023	docs/specs/cem-pilot-kit.md	187	(proposed; accepted with decision 0356) `examples/cem/README.md` MUST give the
-CEM-PILOT-024	docs/specs/cem-pilot-kit.md	195	`examples/cem/recipes/` MUST ship three ordinary Bash scripts, each composing
-CEM-PILOT-025	docs/specs/cem-pilot-kit.md	201	`examples/cem/recipes/README.md` MUST state for each recipe its supported inputs
-CEM-PILOT-026	docs/specs/cem-pilot-kit.md	204	a recipe MUST NOT convert a refusal or uncertainty into success. Understand and
-CEM-PILOT-027	docs/specs/cem-pilot-kit.md	210	each recipe step MUST run in its own process group bounded by `RECIPE_TIMEOUT`
+CEM-PILOT-020	docs/specs/cem-pilot-kit.md	201	(proposed; accepted with decision 0356) the portable CI example
+CEM-PILOT-021	docs/specs/cem-pilot-kit.md	207	(proposed; accepted with decision 0356) `cem01-go ci` MUST write exactly one JSO
+CEM-PILOT-022	docs/specs/cem-pilot-kit.md	213	(proposed; accepted with decision 0356) `cem01-go ci` MUST derive the patch with
+CEM-PILOT-023	docs/specs/cem-pilot-kit.md	222	(proposed; accepted with decision 0356) `examples/cem/README.md` MUST give the
+CEM-PILOT-024	docs/specs/cem-pilot-kit.md	230	`examples/cem/recipes/` MUST ship three ordinary Bash scripts, each composing
+CEM-PILOT-025	docs/specs/cem-pilot-kit.md	236	`examples/cem/recipes/README.md` MUST state for each recipe its supported inputs
+CEM-PILOT-026	docs/specs/cem-pilot-kit.md	239	a recipe MUST NOT convert a refusal or uncertainty into success. Understand and
+CEM-PILOT-027	docs/specs/cem-pilot-kit.md	245	each recipe step MUST run in its own process group bounded by `RECIPE_TIMEOUT`
+CEM-PILOT-028	docs/specs/cem-pilot-kit.md	170	`cem report --format json` MUST emit a read-only `cem-review/0` projection
+CEM-PILOT-029	docs/specs/cem-pilot-kit.md	177	An explicitly supplied `--ocm MAP` MUST be verified by the owning OCM reader
+CEM-PILOT-030	docs/specs/cem-pilot-kit.md	185	JSON and the published Markdown report MUST bind the same `recordSetSha256`,
+CEM-PILOT-031	docs/specs/cem-pilot-kit.md	193	A missing coverage witness MUST state `NOT_PRODUCED` /
 CEM-SM-001	docs/specs/cem-0.3-structural-mechanical.md	41	`cem/0.3` MUST be the `cem/0.2` wire shape plus the four structural reasons.
 CEM-SM-002	docs/specs/cem-0.3-structural-mechanical.md	44	The verifier MUST prove a structural reason from the base blob at `baseRevision`
 CEM-SM-003	docs/specs/cem-0.3-structural-mechanical.md	48	For `rename`, `import-reorder`, and `formatter-only` the image MUST be the hunk
@@ -1334,6 +1346,13 @@ IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	436	(proposed 2026-09-13, accept
 IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	464	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
 IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	478	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
 IDX-SNAP-V0-024	docs/specs/index-snapshot-v0.md	500	(accepted 2026-09-25 by decision 0394, panel blocker B9) a tracked path whose Gi
+IID-V0-001	docs/specs/agent-instruction-doctor-v0.md	56	The optional diagnostic MUST require explicit host, version, cwd, default
+IID-V0-002	docs/specs/agent-instruction-doctor-v0.md	61	Only exact compiled, source-bound host/version profiles MAY predict loading.
+IID-V0-003	docs/specs/agent-instruction-doctor-v0.md	66	The Codex 0.153.2 default profile MUST walk assumed root to cwd, selecting the
+IID-V0-004	docs/specs/agent-instruction-doctor-v0.md	74	Candidate sources MUST carry visible bounded warnings for zero-width,
+IID-V0-005	docs/specs/agent-instruction-doctor-v0.md	82	The attachment MUST distinguish host-loaded, empty-selected, shadowed,
+IID-V0-006	docs/specs/agent-instruction-doctor-v0.md	87	Evaluation MUST use bounded pinned index bytes only. Symlinks, excluded sources,
+IID-V0-007	docs/specs/agent-instruction-doctor-v0.md	93	Focused tests MUST cover default wire/authority preservation, selection and blan
 KA-V0-001	docs/specs/kotlin-android-candidate-v0.md	28	The command and its package remain isolated, unregistered, and unreachable from
 KA-V0-002	docs/specs/kotlin-android-candidate-v0.md	30	A request is one UTF-8, canonical-JSON object followed by one LF. It has the clo
 KA-V0-003	docs/specs/kotlin-android-candidate-v0.md	34	The target is exactly Android/arm64/none. The twelve input rows below occur once
@@ -1388,6 +1407,7 @@ LAC-V0-033	docs/specs/local-admin-console-v0.md	235	The console MUST offer one `
 LAC-V0-034	docs/specs/local-admin-console-v0.md	243	Every edge MUST name the artifact and the field that justify it, and MUST exist
 LAC-V0-035	docs/specs/local-admin-console-v0.md	257	An edge the artifacts do not establish MUST render as a gap row with its class a
 LAC-V0-036	docs/specs/local-admin-console-v0.md	272	The pane MUST be reachable from the primary navigation and operable by keyboard
+LAC-V0-037	docs/specs/local-admin-console-v0.md	279	Selecting a hunk through its existing pinned plain hyperlink MUST gather its
 LCP-V0-001	docs/specs/local-completion-policy-v0.md	40	The local policy MUST remain caller-owned and non-authoritative. Its positive st
 LCP-V0-002	docs/specs/local-completion-policy-v0.md	44	Enrollment MUST be explicit through `corvint dogfood begin`. One bounded plan pi
 LCP-V0-003	docs/specs/local-completion-policy-v0.md	85	`status` and automatic event evaluation MUST be read-only. They derive unmet
@@ -1834,6 +1854,13 @@ PSM-V0-010	docs/specs/playwright-suite-interaction-minimizer-v0.md	70	Every tria
 PSM-V0-011	docs/specs/playwright-suite-interaction-minimizer-v0.md	72	Missing or invalid runner qualification (#39), stability identity (#42), or
 PSM-V0-012	docs/specs/playwright-suite-interaction-minimizer-v0.md	75	Synthetic qualification MUST cover a true predecessor leak, a load-only failure,
 PSM-V0-013	docs/specs/playwright-suite-interaction-minimizer-v0.md	78	The closed `corvint-playwright-suite-interaction-live/0` CLI MUST require
+PT-V0-001	docs/specs/proof-tour-v0.md	60	The fresh tour MUST create a labelled disposable synthetic Git fixture in a new
+PT-V0-002	docs/specs/proof-tour-v0.md	66	The tour MUST execute actual installed Corvint query/context/impact/affected and
+PT-V0-003	docs/specs/proof-tour-v0.md	70	The producer MUST derive the exact documented canonical diff profile, use
+PT-V0-004	docs/specs/proof-tour-v0.md	75	Fresh completion MUST pause with NOT_RUN independent review and exact base,
+PT-V0-005	docs/specs/proof-tour-v0.md	84	Only after the exact supplied accepted ACK may resume rerun strict readiness
+PT-V0-006	docs/specs/proof-tour-v0.md	90	Every owned command MUST run in its own ordinary process group with a bounded
+PT-V0-007	docs/specs/proof-tour-v0.md	95	Focused tests MUST cover syntax/help, populated and symlink output refusal,
 PUB-V0-001	docs/specs/public-release-v0.md	135	The current version tuple MUST move together to `1.0.0-rc.1`, including native
 PUB-V0-002	docs/specs/public-release-v0.md	138	The existing native CLI archive gate MUST remain independent. An optional
 PUB-V0-003	docs/specs/public-release-v0.md	145	Companion build output MUST be outside the source checkouts, include exact
@@ -1899,6 +1926,11 @@ PWV-V0-007	docs/specs/pi-workflow-v0.md	45	The user cockpit MUST display evidenc
 PWV-V0-008	docs/specs/pi-workflow-v0.md	46	Local completion continuation MUST remain unavailable unless an explicit LCP/AHI
 PWV-V0-009	docs/specs/pi-workflow-v0.md	47	Compatibility MUST name the exact tested host, adapter and native binaries. Pack
 PWV-V0-010	docs/specs/pi-workflow-v0.md	48	Promotion MUST retain focused executable checks, fresh independent review and ex
+QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	29	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica
+QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	30	The producer MUST retain the exact NUL-terminated invocation, raw output files a
+QAT-V0-003	docs/specs/dogfood-query-abstention-v0.md	31	The report MUST keep the query row `NOT_PRODUCED` with reason `authority-start-t
+QAT-V0-004	docs/specs/dogfood-query-abstention-v0.md	32	The checker MUST reconstruct only `query --task ORIGINAL_TASK --limit 1` using i
+QAT-V0-005	docs/specs/dogfood-query-abstention-v0.md	33	This exception MUST NOT bypass clean-target validation, CEM/OCM policy, selected
 QLF-V0-001	docs/specs/qualified-lifecycle-v0.md	32	The additive `corvint-qualified-lifecycle/0` request MUST be a closed object con
 QLF-V0-002	docs/specs/qualified-lifecycle-v0.md	33	Completed qualified non-Stop events MUST derive repository scope exclusively fro
 QLF-V0-003	docs/specs/qualified-lifecycle-v0.md	34	Qualified Stop MUST derive the active handle inside the same protected scope, co
@@ -2092,6 +2124,9 @@ SESSION-V0-016	docs/specs/session-context-dividend-v0.md	156	Corvint MUST dogfoo
 SESSION-V0-017	docs/specs/session-context-dividend-v0.md	170	`corvint dogfood handoff [--session-key KEY] [--anchors TEXT]` MUST be read-only
 SESSION-V0-018	docs/specs/session-context-dividend-v0.md	183	The receipt MUST carry `authority: none` and be emitted a second time framed by
 SESSION-V0-019	docs/specs/session-context-dividend-v0.md	198	`corvint dogfood handoff [--session-key KEY] --receipt FILE` MUST be read-only,
+SESSION-V0-020	docs/specs/session-context-dividend-v0.md	225	`corvint dogfood handoff --session-key KEY --task-state FILE [--anchors TEXT]`
+SESSION-V0-021	docs/specs/session-context-dividend-v0.md	234	The bundle MUST bind the complete receipt and state by a content SHA-256 and
+SESSION-V0-022	docs/specs/session-context-dividend-v0.md	241	`corvint dogfood handoff --session-key KEY --bundle FILE` MUST require the
 SHA-256	docs/specs/operator-update-v0.md	99	Negative checksum/availability/download/compatibility cases are deterministic fi
 SHA-V0-001	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	26	accept only exact finite language/version/toolchain/stage tuples, never a neares
 SHA-V0-002	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	35	use the experimental `shader` family extension: a request has the fixed transpor
@@ -2156,6 +2191,13 @@ SRR-V1-009	docs/specs/stable-readiness-record-v1.md	95	For version `1.0.0-rc.1`,
 SRR-V1-010	docs/specs/stable-readiness-record-v1.md	100	`owner/tag`, `owner/publication` and `owner/promotion` MUST be fixed NOT_RUN
 SRR-V1-011	docs/specs/stable-readiness-record-v1.md	103	Building and verifying MUST NOT write to the candidate, the source root or the
 SRR-V1-012	docs/specs/stable-readiness-record-v1.md	110	(command shape accepted by decision 0422) A new operator binary,
+TAT-V0-001	docs/specs/test-attack-v0.md	27	`prove --base FULL_SHA --mutate --attack-tests` MUST be an explicit opt-in. The
+TAT-V0-002	docs/specs/test-attack-v0.md	28	The attack MUST reuse the immutable range export and changed-line spans, evaluat
+TAT-V0-003	docs/specs/test-attack-v0.md	29	Every judged mutation row MUST expose an additive `attack` object with `mutants`
+TAT-V0-004	docs/specs/test-attack-v0.md	30	Budget interruption MUST retain every already observed count and survivor even w
+TAT-V0-005	docs/specs/test-attack-v0.md	31	Each observed survivor MUST name its operator, changed path, committed blob, one
+TAT-V0-006	docs/specs/test-attack-v0.md	32	The attack MUST preserve caller repository bytes and the existing sandbox, offli
+TAT-V0-007	docs/specs/test-attack-v0.md	33	Invocation without `--attack-tests` MUST retain existing output and execution se
 TCP-V0-001	docs/specs/task-context-packet-v0.md	49	`context` MUST be read-only. It builds one index over the committed tree and
 TCP-V0-002	docs/specs/task-context-packet-v0.md	52	The invocation is `corvint [--root PATH] context --task TEXT [--subject PATH]
 TCP-V0-003	docs/specs/task-context-packet-v0.md	58	Results are files. Each result row carries `kind`, `id` (the path), `score`,

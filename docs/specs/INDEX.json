@@ -43,7 +43,7 @@
   },
   {
     "path": "docs/specs/application-flow-understanding-v1.md",
-    "title": "Application Flow Understanding V1 — proven flows, safe E2E selection, navigation and documentation",
+    "title": "Application Flow Understanding V1 \u2014 proven flows, safe E2E selection, navigation and documentation",
     "reqPrefix": "AFU-V1",
     "intent": "accepted (decision 0385)",
     "delivery": "partially delivered; original issue-175 flows qualified locally",
@@ -67,7 +67,7 @@
   },
   {
     "path": "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
-    "title": "Frontier decision brief — 2026-08-29",
+    "title": "Frontier decision brief \u2014 2026-08-29",
     "reqPrefix": "",
     "intent": "not-applicable (reading aid; decides nothing)",
     "delivery": "not-applicable",
@@ -780,7 +780,7 @@
   },
   {
     "path": "docs/specs/external-evidence-provider-v1.md",
-    "title": "External Evidence Provider V1 — repository identity",
+    "title": "External Evidence Provider V1 \u2014 repository identity",
     "reqPrefix": "EEP-V1",
     "intent": "accepted (decision 0310)",
     "delivery": "experimental (file transport only)",
@@ -797,7 +797,7 @@
   },
   {
     "path": "docs/specs/external-evidence-provider-v2.md",
-    "title": "External Evidence Provider V2 — opt-in path-to-path relations",
+    "title": "External Evidence Provider V2 \u2014 opt-in path-to-path relations",
     "reqPrefix": "EEP-V2",
     "intent": "accepted (decision 0312)",
     "delivery": "experimental (file transport only)",
@@ -815,7 +815,7 @@
   },
   {
     "path": "docs/specs/external-frontier-obligations-v0.md",
-    "title": "External Frontier Obligations V0 — a reference-only Change Frontier sidecar",
+    "title": "External Frontier Obligations V0 \u2014 a reference-only Change Frontier sidecar",
     "reqPrefix": "EFO-V0",
     "intent": "accepted (decision 0313)",
     "delivery": "experimental (file transport only)",
@@ -833,7 +833,7 @@
   },
   {
     "path": "docs/specs/external-test-selection-v0.md",
-    "title": "External Test Selection V0 — fail-closed advice from verification relations",
+    "title": "External Test Selection V0 \u2014 fail-closed advice from verification relations",
     "reqPrefix": "ETS-V0",
     "intent": "accepted (decision 0311)",
     "delivery": "experimental (file transport only)",
@@ -851,7 +851,7 @@
   },
   {
     "path": "docs/specs/external-test-selection-v1.md",
-    "title": "External Test Selection V1 — transitive obligations and checkout worktree reads",
+    "title": "External Test Selection V1 \u2014 transitive obligations and checkout worktree reads",
     "reqPrefix": "ETS-V1",
     "intent": "accepted (decision 0315)",
     "delivery": "experimental (file transport only)",
@@ -1600,6 +1600,23 @@
     ]
   },
   {
+    "path": "docs/specs/dogfood-query-abstention-v0.md",
+    "title": "Dogfood Query Abstention V0",
+    "reqPrefix": "QAT-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "An exact intentional authority-start trace refusal can be retained during structural dogfood closure without claiming query support.",
+    "dependsOn": [
+      "docs/specs/daily-change-evidence-workflow-v0.md",
+      "docs/specs/go-production-kernel-migration-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/dogfoodflow"
+    ]
+  },
+  {
     "path": "docs/specs/daily-change-evidence-workflow-v0.md",
     "title": "Daily Change-Evidence Workflow V0",
     "reqPrefix": "DCW-V0",
@@ -1865,7 +1882,7 @@
     "title": "Session Context Dividend V0",
     "reqPrefix": "SESSION-V0",
     "intent": "proposed",
-    "delivery": "partial (handoff-receipt slice SESSION-V0-017..019 experimental; SESSION-V0-001..016 deferred)",
+    "delivery": "partial (handoff-receipt slices SESSION-V0-017..022 experimental; SESSION-V0-001..016 deferred)",
     "claim": "Exact-key local session receipts may reuse still-valid evidence without treating outcomes or producer metrics as truth.",
     "dependsOn": [
       "docs/specs/technical-brain-dogfood.md"
@@ -1873,7 +1890,8 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "cmd/corvint/dogfood_handoff.go"
+      "cmd/corvint/dogfood_handoff.go",
+      "cmd/corvint/dogfood_handoff_bundle.go"
     ]
   },
   {
@@ -2569,6 +2587,76 @@
     "closableToday": false,
     "implementation": [
       "tools/heading-nav-bench"
+    ]
+  },
+  {
+    "path": "docs/specs/agent-instruction-doctor-v0.md",
+    "title": "Agent Instruction Doctor V0",
+    "reqPrefix": "IID-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Explicit default assumptions predict pinned project instruction selection, shadowing and truncation; actual session loading remains unknown.",
+    "dependsOn": [
+      "docs/specs/task-context-packet-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/contextindex/instruction_loadset.go",
+      "cmd/corvint/taskcontext.go",
+      "integrations/instruction-profiles.json"
+    ]
+  },
+  {
+    "path": "docs/specs/cross-repository-breakage-map-v0.md",
+    "title": "Cross-repository breakage map V0",
+    "reqPrefix": "BKM-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A selected API maps pinned Go syntax references and original declared provider relationships across explicit local repositories.",
+    "dependsOn": [
+      "docs/specs/external-evidence-provider-v1.md",
+      "docs/specs/external-evidence-provider-v2.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/breakagemap",
+      "cmd/corvint/breakage.go"
+    ]
+  },
+  {
+    "path": "docs/specs/proof-tour-v0.md",
+    "title": "Proof Tour V0",
+    "reqPrefix": "PT-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A disposable synthetic change pauses for an independent exact ACK before checksum-pinned portable structural verification.",
+    "dependsOn": [
+      "docs/specs/cem-pilot-kit.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "script/proof-tour.sh",
+      "script/proof-tour-test.sh"
+    ]
+  },
+  {
+    "path": "docs/specs/test-attack-v0.md",
+    "title": "Test Attack V0",
+    "reqPrefix": "TAT-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "An explicit committed-range Go test attack continues past the first kill and exposes surviving mutants in the bounded selected set.",
+    "dependsOn": [
+      "docs/specs/falsifiable-packet-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint/prove_attack.go",
+      "internal/liveverify/mutate"
     ]
   },
   {
