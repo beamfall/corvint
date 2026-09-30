@@ -180,3 +180,28 @@ with tempfile.TemporaryDirectory() as directory:
     print('JSON type identity, Core drift, frontend-only aliases, dict-order controls and nonfinite rejection passed')
     print('typed error/limit aliases and READY A/B Core/session/capture repair cases passed')
     print('LEQ-V0-006 whole-transcript cancellation/retry checks passed; negatives:',count,'actual editors NOT_RUN')
+
+    neo=copy.deepcopy(obs);neo['client']='neovim'
+    owned={'clientId':71,'requestId':6,'buffer':1,'method':'corvint/context'}
+    neo['freshness']['rapid']={'provenance':'neovim-request-completion/0','identity':owned,'completion':dict(owned,type='complete'),'completionCount':1,'handlerDelivered':False,'handlerResponse':None}
+    def neo_run(o=neo,r=rows,client='neovim'):return f.validate(r,o,uri,before,after,selected_client=client)
+    assert neo_run()['valid']
+    assert neo_run(client='vscode')['outcome']=='FAILED'
+    for key,value in [('completionCount',True),('completionCount',1.0),('completionCount',2),('completionCount',0),('handlerDelivered',0),('handlerResponse',{'error':cancel})]:
+        o=copy.deepcopy(neo);o['freshness']['rapid'][key]=value;out=neo_run(o);assert out['outcome']=='FAILED' and out['errors']
+    for part in ['identity','completion']:
+        for key,value in [('clientId',True),('requestId',6.0),('buffer',False),('method','other')]:
+            o=copy.deepcopy(neo);o['freshness']['rapid'][part][key]=value;assert neo_run(o)['outcome']=='FAILED'
+    for key in ['completion','identity','handlerResponse']:
+        o=copy.deepcopy(neo);o['freshness']['rapid'].pop(key);assert neo_run(o)['outcome']=='FAILED'
+    for r,o in [(ready,ro),(before_request,bo)]:
+        n=copy.deepcopy(o);n['client']='neovim';n['freshness']['rapid']=copy.deepcopy(neo['freshness']['rapid'])
+        assert neo_run(n,r)['outcome']=='FAILED'
+        n['freshness']['rapid']['handlerDelivered']=True;n['freshness']['rapid']['handlerResponse']=copy.deepcopy(o['freshness']['rapid'])
+        assert neo_run(n,r)['outcome']=='NOT_WITNESSED'
+    n=copy.deepcopy(neo);n['freshness']['rapid']['handlerDelivered']=True;n['freshness']['rapid']['handlerResponse']={'error':cancel};assert neo_run(n)['valid']
+    print('Neovim completion provenance, selected client, strict aliases, absent/delivered handler controls PASS')
+
+    r=copy.deepcopy(rows);stale={'code':-32801,'message':'Context stale','data':{'reason':'CONTENT_CHANGED'}};r[6]['message']['error']=stale
+    n=copy.deepcopy(neo);assert neo_run(n,r)['outcome']=='FAILED'
+    n['freshness']['rapid']['handlerDelivered']=True;n['freshness']['rapid']['handlerResponse']={'error':stale};assert neo_run(n,r)['outcome']=='STALE_REJECTION_OBSERVED'

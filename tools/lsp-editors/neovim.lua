@@ -1,5 +1,10 @@
 -- SPDX-License-Identifier: AGPL-3.0-or-later
 -- A real builtin client probe; it does not qualify semantic methods.
+local source = debug.getinfo(1, 'S').source:sub(2)
+local completion_module = dofile(vim.fn.fnamemodify(source, ':p:h') .. '/neovim-completion.lua')
+local completion
+local closed = false
+local function dispose() closed = true; if completion then completion:dispose() end end
 local report = {client = 'neovim', version = vim.version(), status = 'FAILED'}
 local function write()
   vim.fn.writefile({vim.json.encode(report)}, vim.env.CORVINT_EDITOR_RESULT)
@@ -25,29 +30,37 @@ local id = vim.lsp.start({
         return {result = result}
       end
       vim.defer_fn(function()
+        if closed then return end
         vim.api.nvim_buf_set_lines(buffer, 0, -1, false, {'package p', '/*😀*/ var x int', 'var y = x'})
         vim.defer_fn(function()
+          if closed then return end
           client:request('corvint/context', params, function(aerr, baseline, acontext)
             vim.schedule(function()
+              if closed then return end
               local pending = true
               report.freshness = {baseline = observed(aerr, baseline), versions = {acontext.version}}
-              local sent = client:request('corvint/context', params, function(rerr, rapid)
+              completion = completion_module.new(client.id, buffer, 'corvint/context', function()
+                if closed then return end
+                client:request('corvint/context', params, function(berr, retry, bcontext)
+                  vim.schedule(function()
+                    if closed then return end
+                    report.freshness.retry = observed(berr, retry)
+                    report.freshness.versions[2] = bcontext.version
+                    report.freshness.bufferModified = vim.bo[buffer].modified
+                    dispose(); write(); client:stop()
+                  end)
+                end, buffer)
+              end)
+              report.freshness.rapid = completion.observation
+              local sent, request_id = client:request('corvint/context', params, function(rerr, rapid)
                 pending = false
-                vim.schedule(function()
-                  report.freshness.rapid = observed(rerr, rapid)
-                  client:request('corvint/context', params, function(berr, retry, bcontext)
-                    vim.schedule(function()
-                      report.freshness.retry = observed(berr, retry)
-                      report.freshness.versions[2] = bcontext.version
-                      report.freshness.bufferModified = vim.bo[buffer].modified
-                      write(); client:stop()
-                    end)
-                  end, buffer)
-                end)
+                completion:handler(observed(rerr, rapid))
               end, buffer)
+              if sent then completion:pin(request_id) end
               report.freshness.pendingBeforeEdit = pending
-              if not sent then report.error = 'rapid-request-not-sent'; write(); client:stop(); return end
+              if not sent then dispose(); report.error = 'rapid-request-not-sent'; write(); client:stop(); return end
               vim.api.nvim_buf_set_lines(buffer, 0, -1, false, {'package p', '/*😀*/ var newest int', 'var y = newest'})
+              completion:edit_applied()
             end)
           end, buffer)
         end, 200)
@@ -83,9 +96,11 @@ local id = vim.lsp.start({
       vim.defer_fn(function() client:stop() end, 100)
     end
   end,
-  on_error = function(code, err) vim.schedule(function() report.error = {code = code, message = tostring(err)}; write() end) end,
+  on_error = function(code, err) dispose(); vim.schedule(function() report.error = {code = code, message = tostring(err)}; write() end) end,
   on_exit = function(code, signal)
+    closed = true -- Invalidate immediately; API cleanup runs in the scheduled safe context.
     vim.schedule(function()
+      dispose()
       report.serverExit = {code = code, signal = signal}
       report.status = report.initializeResult and code == 0 and 'LIFECYCLE_OBSERVED' or 'FAILED'
       write()
@@ -95,6 +110,7 @@ local id = vim.lsp.start({
 })
 if not id then report.error = 'client-start-failed'; write(); vim.cmd('cquit') end
 vim.defer_fn(function()
+  dispose()
   report.status = 'TIMEOUT'; write()
   local client = vim.lsp.get_client_by_id(id)
   if client then client:stop(true) end

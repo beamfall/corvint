@@ -36,7 +36,7 @@ def valid_error(error):
     return (error['code'],error['message'],data['reason']) in (
         (-32800,'Request cancelled','CANCELLED'),(-32801,'Context stale','CONTENT_CHANGED'))
 
-def validate(rows, observation, uri, before, after):
+def validate(rows, observation, uri, before, after, selected_client=None):
     errors = []
     def failed(reason):
         return {'valid':False, 'completeWitness':False, 'outcome':'FAILED', 'errors':errors+[reason], 'qualification':'UNQUALIFIED'}
@@ -84,9 +84,20 @@ def validate(rows, observation, uri, before, after):
         if set(m) not in ({'jsonrpc','id','result'},{'jsonrpc','id','error'}):return failed('response-envelope-invalid')
         reported=frontend[('baseline','rapid','retry')[n]]
         expected={'result':m['result']} if 'result' in m else {'error':m['error']}
-        if not isinstance(reported,dict) or set(reported)!=set(expected):return failed('frontend-response-shape-invalid')
-        if 'error' in m and (not valid_error(m['error']) or not valid_error(reported['error'])):return failed('response-error-schema-invalid')
-        if not json_equal(reported,expected):return failed('frontend-response-mismatch')
+        if n == 1 and isinstance(reported,dict) and reported.get('provenance') == 'neovim-request-completion/0':
+            if selected_client != 'neovim' or observation.get('client') != 'neovim':return failed('completion-client-not-admitted')
+            if set(reported)!={'provenance','identity','completion','completionCount','handlerDelivered','handlerResponse'}:return failed('completion-shape-invalid')
+            owned=reported['identity'];event=reported['completion']
+            if not isinstance(owned,dict) or set(owned)!={'clientId','requestId','buffer','method'} or any(type(owned[k]) is not int or owned[k]<=0 for k in ('clientId','requestId','buffer')) or owned['method']!='corvint/context' or not json_equal(owned['requestId'],queries[1][1]['id']):return failed('completion-identity-invalid')
+            if not isinstance(event,dict) or not json_equal(event,{**owned,'type':'complete'}) or type(reported['completionCount']) is not int or reported['completionCount']!=1 or type(reported['handlerDelivered']) is not bool:return failed('completion-event-invalid')
+            if 'error' in m and not valid_error(m['error']):return failed('response-error-schema-invalid')
+            if reported['handlerDelivered']:
+                if not json_equal(reported['handlerResponse'],expected):return failed('completion-handler-mismatch')
+            elif reported['handlerResponse'] is not None or not json_equal(expected,{'error':{'code':-32800,'message':'Request cancelled','data':{'reason':'CANCELLED'}}}):return failed('completion-suppression-invalid')
+        else:
+            if not isinstance(reported,dict) or set(reported)!=set(expected):return failed('frontend-response-shape-invalid')
+            if 'error' in m and (not valid_error(m['error']) or not valid_error(reported['error'])):return failed('response-error-schema-invalid')
+            if not json_equal(reported,expected):return failed('frontend-response-mismatch')
         replies.append((i,m))
     oi=opens[0][0];ai=changes[0][0];bi=changes[1][0];aq,rq,bq=[q[0] for q in queries];ar,rr,br=[r[0] for r in replies]
     if not oi<ai<aq<ar<rq<rr<bq<br or not ar<bi<bq:return failed('baseline-or-retry-order-invalid')

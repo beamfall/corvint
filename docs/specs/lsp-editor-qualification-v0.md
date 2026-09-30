@@ -40,6 +40,14 @@ not frozen product resource or promotion floors.
 
 - `LEQ-V0-006`: Freshness development mode MUST inspect the complete transcript for one actual edit-driven cancellation between a rapid request and its reply, then validate a healthy retry against the newest unsaved overlay and strictly increasing successful captures in one session. Scheduling misses MUST remain NOT_WITNESSED with nonzero exit; malformed or incomplete evidence MUST fail. No artificial delay, explicit cancellation or competing document/request transition may establish the witness. All tuples remain UNQUALIFIED.
 
+Neovim's completion-only rapid observation MUST be admitted only for the runner-selected Neovim
+client, bind its actual client/request/buffer/method and one exact complete event, and advance one
+retry only after the newest edit is applied. Completion carries no response payload: absent normal
+handler delivery MUST remain explicit false/null and MUST require exact real wire CANCELLED;
+READY or CONTENT_CHANGED MUST retain their eventual genuine, typed wire-equal handler payload.
+Disposal MUST invalidate queued advancement. The runtime helper MUST load from the trusted absolute
+source sibling and be included in asset hashes. VS Code retains ordinary frontend/wire equality.
+
 The optional `--semantic-development` mode exercises one exact development witness in a private Go
 1.27.1 module. Disk contains `package p` and `var disk int`; the actual unsaved buffer contains
 `package p`, `/*😀*/ var x int`, and `var y = x`. Its definition request uses line 2 character 8;

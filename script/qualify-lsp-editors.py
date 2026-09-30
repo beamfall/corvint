@@ -216,7 +216,7 @@ def main():
               'client': a.client, 'clientExecutableSha256': digest(client),
               'harnessCommit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
               'harnessSha256': digest(__file__),
-              'harnessAssetsSha256': {name: digest(ROOT / 'tools/lsp-editors' / name) for name in ['wire-proxy.py', 'neovim.lua', 'extension.js', 'context-probe.py', 'freshness-probe.py']},
+              'harnessAssetsSha256': {name: digest(ROOT / 'tools/lsp-editors' / name) for name in ['wire-proxy.py', 'neovim.lua', 'extension.js', 'context-probe.py', 'freshness-probe.py', 'neovim-completion.lua']},
               'harnessWorktreeDirty': bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT, text=True)),
               'serverSourceClaim': {'commit': a.server_source_commit, 'binding': 'NOT_PROVEN'},
               'serverExecutableSha256': digest(server), 'serverArgv': [str(server)] + a.server_arg,
@@ -324,7 +324,8 @@ def main():
                 context_after = context_probe.snapshot(workspace)
                 report['contextFixtureAfter'] = context_after
                 validator = freshness_probe.validate if a.context_freshness_development else context_probe.validate
-                report['contextDevelopment'] = validator(report['wireTranscript'], report['observation'], document.as_uri(), context_before, context_after)
+                kwargs = {'selected_client': a.client} if a.context_freshness_development else {}
+                report['contextDevelopment'] = validator(report['wireTranscript'], report['observation'], document.as_uri(), context_before, context_after, **kwargs)
             except (OSError, AttributeError, KeyError, TypeError, ValueError, subprocess.SubprocessError) as exc:
                 report['contextDevelopment'] = {'valid': False, 'errors': ['invalid-context-evidence: ' + str(exc)]}
             report['cases']['context-freshness-development' if a.context_freshness_development else 'governing-context-development'] = report['contextDevelopment']
