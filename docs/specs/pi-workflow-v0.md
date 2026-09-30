@@ -9,7 +9,7 @@ Authoritative inputs: `agent-harness-integration-v0.md`, `local-completion-polic
 
 ## Agent digest
 - Claim: Pi offers bounded native Core reads and an explicitly authorized Tasks workflow without acquiring evidence or execution authority.
-- Status: accepted direction/experimental; technical and exact-host qualification remain separate.
+- Status: accepted direction (owner instruction “do it. parallel”, 2026-09-29) / experimental; technical and exact-host qualification remain separate.
 - Exists: `integrations/pi` lifecycle adapter and revision-pinned context expansion.
 - Blocked on: exact candidate host qualification, native Tasks write admission, and independent evidence for each broader workflow slice.
 - Read next: Requirements, acceptance matrix, and rollback below; AHI and LCP govern any lifecycle amendment.
