@@ -100,7 +100,7 @@ test('AHI-002 AHI-024 native Pi package lifecycle and ephemeral context',async t
  t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const home=join(scratch,'home'), repo=join(scratch,'repo'), agent=join(home,'.pi/agent'), pkg=join(scratch,'package'), capture=join(scratch,'capture');
  for(const path of [home,repo,agent])mkdirSync(path,{recursive:true});
- cpSync(here,pkg,{recursive:true,filter:path=>!path.endsWith('.test.mjs')});
+ cpSync(resolve(process.env.CORVINT_PI_PACKAGE_SOURCE??here),pkg,{recursive:true,filter:path=>!path.endsWith('.test.mjs')});
  writeFileSync(join(scratch,'provider.ts'),provider);
  writeFileSync(join(repo,'AGENTS.md'),'# Fixture\nUse evidence from main.go.\n');
  writeFileSync(join(repo,'.gitignore'),'.context-corvint/\n.corvint/\n');
@@ -109,9 +109,8 @@ test('AHI-002 AHI-024 native Pi package lifecycle and ephemeral context',async t
  for(const args of [['init','-q'],['add','.'],['-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','fixture']]) {
   const result=spawnSync('git',args,{cwd:repo,encoding:'utf8'});assert.equal(result.status,0,result.stderr);
  }
- const binary=join(scratch,'corvint');
- const build=await run('go',['build','-o',binary,'./cmd/corvint'],{cwd:root,env:{...process.env,GOTOOLCHAIN:'local'}});
- assert.equal(build.code,0,build.stderr);
+ const binary=process.env.CORVINT_PI_HOST_BIN??join(scratch,'corvint');
+ if(!process.env.CORVINT_PI_HOST_BIN){const build=await run('go',['build','-o',binary,'./cmd/corvint'],{cwd:root,env:{...process.env,GOTOOLCHAIN:'local'}});assert.equal(build.code,0,build.stderr);}
  const env={PATH:process.env.PATH,HOME:home,LANG:'en_US.UTF-8',PI_CODING_AGENT_DIR:agent,PI_OFFLINE:'1',CORVINT_BIN:binary,CORVINT_PI_CAPTURE:capture};
  const pi=(args,extra={})=>run(process.env.PI_BIN??'pi',args,{cwd:repo,env:{...env,...extra}});
  const version=await pi(['--version']);assert.equal(version.stdout.trim(),'0.99.1');
@@ -274,4 +273,79 @@ test('AHI-025 native TUI fixture interruption reaps its PTY process group',{skip
  for(let i=0;i<100;i++){try{process.kill(pid,0)}catch{break}await new Promise(r=>setTimeout(r,10))}
  assert.throws(()=>process.kill(pid,0),{code:'ESRCH'});
  assert.throws(()=>process.kill(-Number(readFileSync(witness,'utf8')),0),{code:'ESRCH'});
+});
+
+const qualificationProvider=`
+import {appendFileSync} from 'node:fs';
+import {createAssistantMessageEventStream} from '@earendil-works/pi-ai';
+export default function(pi){
+ const capture=value=>appendFileSync(process.env.CORVINT_PI_CAPTURE,JSON.stringify(value)+'\\n');
+ let session,calls=0,active=0;
+ pi.on('session_start',(e,ctx)=>{session=ctx.sessionManager.getSessionId();capture({kind:e.type,reason:e.reason,session})});
+ pi.on('session_tree',e=>capture({kind:e.type,newLeaf:e.newLeafId,oldLeaf:e.oldLeafId,session}));
+ pi.on('session_compact',e=>capture({kind:e.type,reason:e.reason,willRetry:e.willRetry,fromExtension:e.fromExtension,session}));
+ pi.on('tool_execution_start',e=>{if(e.toolName==='corvint_context')capture({kind:'tool-start',id:e.toolCallId,active:++active,session})});
+ pi.on('tool_execution_end',e=>{if(e.toolName==='corvint_context'){capture({kind:'tool-end',id:e.toolCallId,isError:e.isError,session});active--}});
+ pi.registerCommand('fixture-tree',{description:'Navigate a fixture tree without summarization',handler:async(id,ctx)=>{const result=await ctx.navigateTree(id,{summarize:false});capture({kind:'tree-command',cancelled:result.cancelled})}});
+ pi.registerProvider('corvint-qualification',{
+  baseUrl:'http://127.0.0.1:1',apiKey:'fixture-only',api:'corvint-qualification',
+  models:[{id:'fixture',name:'Offline qualification',reasoning:false,input:['text'],cost:{input:0,output:0,cacheRead:0,cacheWrite:0},contextWindow:200000,maxTokens:1000}],
+  streamSimple(model,context){
+   calls++;capture({kind:'provider',calls,session,context});
+   const stream=createAssistantMessageEventStream();
+   const output={role:'assistant',content:[{type:'text',text:'Offline fixture summary or response.'}],api:model.api,provider:model.provider,model:model.id,usage:{input:1,output:1,cacheRead:0,cacheWrite:0,totalTokens:2,cost:{input:0,output:0,cacheRead:0,cacheWrite:0,total:0}},stopReason:'stop',timestamp:Date.now()};
+   if(process.env.CORVINT_PI_QUALIFY==='retry'&&calls===1){output.stopReason='error';output.errorMessage='429 rate limit offline fixture'}
+   if(process.env.CORVINT_PI_QUALIFY==='concurrent'&&calls===1){output.stopReason='toolUse';output.content=[{type:'toolCall',id:'parallel-one',name:'corvint_context',arguments:{task:'main.go'}},{type:'toolCall',id:'parallel-two',name:'corvint_context',arguments:{task:'One'}}]}
+   queueMicrotask(()=>{stream.push(output.stopReason==='error'?{type:'error',reason:'error',error:output}:{type:'done',reason:output.stopReason,message:output});stream.end()});return stream;
+  }
+ });
+}`;
+
+test('AHI-024 AHI-025 exact native fork tree compaction retry and concurrent tool qualification',{skip:!!process.env.CORVINT_PI_INTERRUPT_WITNESS},async t=>{
+ const scratch=mkdtempSync(join(tmpdir(),'pi-matrix-'));t.after(()=>rmSync(scratch,{recursive:true,force:true}));
+ const home=join(scratch,'home'),agent=join(home,'.pi/agent'),repo=join(scratch,'repo'),pkg=join(scratch,'package'),capture=join(scratch,'capture'),providerPath=join(scratch,'provider.ts');
+ for(const dir of [home,agent,repo])mkdirSync(dir,{recursive:true});
+ cpSync(resolve(process.env.CORVINT_PI_PACKAGE_SOURCE??here),pkg,{recursive:true,filter:path=>!path.endsWith('.test.mjs')});
+ writeFileSync(providerPath,qualificationProvider);
+ writeFileSync(join(agent,'settings.json'),JSON.stringify({retry:{enabled:true,maxRetries:1,baseDelayMs:1,maxAgentDelayMs:5},compaction:{enabled:false,keepRecentTokens:1,reserveTokens:128}}));
+ writeFileSync(join(repo,'AGENTS.md'),'# Fixture\nUse main.go evidence.\n');writeFileSync(join(repo,'.gitignore'),'.corvint/\n.context-corvint/\n');
+ writeFileSync(join(repo,'go.mod'),'module fixture.local/example\n\ngo 1.27.1\n');writeFileSync(join(repo,'main.go'),'package example\nfunc One() int { return 1 }\n');
+ for(const args of [['init','-q'],['add','.'],['-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','fixture']]){const git=spawnSync('git',args,{cwd:repo,encoding:'utf8'});assert.equal(git.status,0,git.stderr)}
+ const binary=process.env.CORVINT_PI_HOST_BIN??join(scratch,'corvint');
+ if(!process.env.CORVINT_PI_HOST_BIN){const build=await run('go',['build','-o',binary,'./cmd/corvint'],{cwd:root,env:{...process.env,GOTOOLCHAIN:'local'}});assert.equal(build.code,0,build.stderr)}
+ const env={PATH:process.env.PATH,HOME:home,LANG:'en_US.UTF-8',PI_CODING_AGENT_DIR:agent,PI_OFFLINE:'1',CORVINT_BIN:binary,CORVINT_PI_CAPTURE:capture};
+ const pi=(args,extra={})=>run(process.env.PI_BIN??'pi',args,{cwd:repo,env:{...env,...extra}});
+ assert.equal((await pi(['--version'])).stdout.trim(),'0.99.1');assert.equal((await pi(['install',pkg])).code,0);
+ const flags=['--offline','--approve','--no-context-files','--no-skills','--no-prompt-templates','--no-themes','--no-tools','--provider','corvint-qualification','--model','fixture','--thinking','off','-e',providerPath];
+ let buffer='',child,driver,driverError,serial=0,settled;const waiting=new Map(),rpcEvents=[];
+ const request=(type,fields={})=>new Promise((resolve,reject)=>{const id='matrix-'+(++serial);waiting.set(id,{resolve,reject});child.stdin.write(JSON.stringify({id,type,...fields})+'\n')});
+ const turn=async message=>{const done=new Promise(resolve=>{settled=resolve});await request('prompt',{message});await done;settled=undefined};
+ const rpc=await run(process.env.PI_BIN??'pi',[...flags,'--mode','rpc'],{cwd:repo,env,stdin:true,onSpawn(value){
+  child=value;driver=(async()=>{
+   await request('get_state');await turn('seed first main.go evidence');await turn('seed second One evidence');
+   const entries=await request('get_entries');const target=entries.entries.find(e=>e.type==='message'&&e.message.role==='assistant').id;
+   await request('prompt',{message:'/fixture-tree '+target});await turn('after native tree navigation');
+   const forks=await request('get_fork_messages');const fork=await request('fork',{entryId:forks.messages.at(-1).entryId});assert.equal(fork.cancelled,false);
+   await turn('after native session fork');
+   const compact=await request('compact',{customInstructions:'Summarize this offline fixture.'});assert.equal(typeof compact.summary,'string');
+   await turn('after native compaction');const stored=await request('get_entries');assert.doesNotMatch(JSON.stringify(stored),/BEGIN CORVINT REPOSITORY DATA/,'automatic recovery must remain ephemeral');
+   child.stdin.end();
+  })().catch(error=>{driverError=error;child.stdin.end()});
+ },onStdout(data){buffer+=data;for(;;){const end=buffer.indexOf('\n');if(end<0)break;const line=buffer.slice(0,end);buffer=buffer.slice(end+1);if(!line)continue;const event=JSON.parse(line);rpcEvents.push(event);if(event.type==='response'&&waiting.has(event.id)){const pending=waiting.get(event.id);waiting.delete(event.id);if(event.success)pending.resolve(event.data);else pending.reject(Error(event.error))}if(event.type==='agent_settled')settled?.()}}});
+ await driver;if(driverError)throw driverError;assert.equal(rpc.code,0,rpc.stderr);assert.doesNotMatch(rpc.stderr,/Corvint unavailable|Failed to load extension/);
+ const lifecycle=readFileSync(capture,'utf8').trim().split('\n').map(JSON.parse);
+ assert.ok(lifecycle.some(e=>e.kind==='session_tree'&&e.newLeaf!==e.oldLeaf));
+ const sessions=lifecycle.filter(e=>e.kind==='session_start');assert.ok(sessions.some(e=>e.reason==='fork'));assert.ok(new Set(sessions.map(e=>e.session)).size>=2);
+ assert.ok(lifecycle.some(e=>e.kind==='session_compact'&&e.reason==='manual'&&e.fromExtension===false));
+ const compactAt=lifecycle.findIndex(e=>e.kind==='session_compact'),afterCompact=lifecycle.slice(compactAt+1).find(e=>e.kind==='provider');
+ assert.match(JSON.stringify(conversation(afterCompact.context)),/BEGIN CORVINT REPOSITORY DATA/);
+ for(const index of [lifecycle.findIndex(e=>e.kind==='session_tree'),lifecycle.findIndex(e=>e.kind==='session_start'&&e.reason==='fork')]){const next=lifecycle.slice(index+1).find(e=>e.kind==='provider');assert.equal(JSON.stringify(conversation(next.context)).split('BEGIN CORVINT REPOSITORY DATA').length,2,'tree/fork recovery reaches the next real provider request exactly once')}
+ for(const scenario of ['retry','concurrent']){
+  const witness=join(scratch,scenario+'.jsonl');
+  const result=await pi([...flags.filter(flag=>flag!=='--no-tools'),'--tools',scenario==='concurrent'?'corvint_context':'','--mode','json','-p','exercise '+scenario+' fixture'],{CORVINT_PI_QUALIFY:scenario,CORVINT_PI_CAPTURE:witness});
+  assert.equal(result.code,0,result.stderr);assert.doesNotMatch(result.stderr,/Corvint unavailable|Failed to load extension/);
+  const observed=readFileSync(witness,'utf8').trim().split('\n').map(JSON.parse),providers=observed.filter(e=>e.kind==='provider');assert.equal(providers.length,2,JSON.stringify(observed));assert.ok(providers.every(e=>systemText(e.context).includes('BEGIN CORVINT REPOSITORY DATA')),'native per-turn evidence survives retry/tool continuation');
+  if(scenario==='retry'){const events=result.stdout.trim().split('\n').map(JSON.parse);assert.equal(events.filter(e=>e.type==='auto_retry_start').length,1);assert.ok(events.some(e=>e.type==='auto_retry_end'&&e.success));assert.equal(events.filter(e=>e.type==='agent_settled').length,1)}
+  else{assert.ok(observed.some(e=>e.kind==='tool-start'&&e.active===2),'two native context tools must actually overlap');assert.equal(observed.filter(e=>e.kind==='tool-end'&&!e.isError).length,2);const results=providers[1].context.messages.filter(m=>m.role==='toolResult');assert.equal(results.length,2);assert.ok(results.every(m=>!m.isError&&m.content.some(c=>c.text?.includes('Expansion handle:'))))}
+ }
 });
