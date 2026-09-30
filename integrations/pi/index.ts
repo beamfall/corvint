@@ -30,13 +30,13 @@ export function registerWithOptions(pi: ExtensionAPI, options: Options = {}) {
   clear(){generation++;coreNative.clear();},close:()=>coreNative.close(),
   async read(operation:string,input:any,ctx:any){
    if(!ctx.isProjectTrusted())return coreNative.read(operation,input,ctx);
-   const epoch=generation;
+   const epoch=generation;let result:any;
    try{
     const before=canonical(await worktreeIdentity(ctx));
-    const result=await coreNative.read(operation,input,ctx);
+    result=await coreNative.read(operation,input,ctx);
     if(epoch!==generation||before!==canonical(await worktreeIdentity(ctx)))return {...result,fault:'stale-context'};
     return result;
-   }catch{return {operation,fault:'identity-unavailable'};}
+   }catch{return {...result,operation,fault:'identity-unavailable'};}
   }
  };
  let workflow:any;
