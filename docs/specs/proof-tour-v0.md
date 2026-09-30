@@ -76,9 +76,13 @@ accepted fabricated review. Resume keeps the original fixture and every prior re
   adequacy or independent reviewer approval.
 - `PT-V0-004`: Fresh completion MUST pause with NOT_RUN independent review and exact base,
   head, original map digest and patch digest. Resume MUST revalidate the clean original Git
-  fixture, committed map, original patch bytes and re-derived patch before admitting the
+  fixture (Git status command failure MUST reject, never mean clean), committed map,
+  original patch bytes and re-derived patch before admitting the
   separately supplied seven-line ACK. Absent, rejected, invalid or stale ACKs MUST stay
-  incomplete. Neither fixture regeneration nor old receipt replacement may erase a refusal.
+  incomplete. Every planned resume receipt and auxiliary ACK/tool-identity output MUST be
+  preflighted before the first write; existing files or symlinks MUST refuse without overwriting
+  their destinations or partially creating the round. Neither fixture regeneration nor old
+  receipt replacement may erase a refusal.
 - `PT-V0-005`: Only after the exact supplied accepted ACK may resume rerun strict readiness
   and Go tests, then execute the copied digest-checked absolute verifier in local CI mode.
   A copy's checksum MUST be checked before execution and again on resume. Structural
@@ -92,7 +96,7 @@ accepted fabricated review. Resume keeps the original fixture and every prior re
   Tests MUST verify timeout, leader exit, TERM and INT cleanup rather than infer it from a trap.
 - `PT-V0-007`: Focused tests MUST cover syntax/help, populated and symlink output refusal,
   invalid timeout, digest mismatch before execution, lifecycle cleanup, and absent/rejected/
-  stale ACK or changed original fixture without regeneration. The actual positive tour MUST
+  stale ACK, failed Git status, output collisions or changed original fixture without regeneration. The actual positive tour MUST
   use a fresh independently supplied ACK; fabricated test ACKs cannot qualify semantic review.
 
 ## Qualification limits and failure modes

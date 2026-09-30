@@ -120,6 +120,35 @@ if [ -n "$original" ]; then
   printf 'dirty\n' >> "$copy/fixture/auth/auth.go"
   run_expected 3 changed-fixture "$tour" --resume "$copy" --ack "$test_root/stale-ack.txt"
   grep -F 'reason=dirty-fixture' "$test_root/changed-fixture.out" >/dev/null || fail regenerated-dirty-fixture
+  # Corrupt status must not turn unreadable index state into a clean worktree.
+  bad=$test_root/corrupt-index
+  mkdir -p "$bad/receipts" "$bad/tools"
+  cp -R "$original/fixture" "$bad/fixture" || fail corrupt-fixture-copy
+  cp "$original/review-request.txt" "$bad/review-request.txt"
+  cp "$original/change.patch" "$bad/change.patch"
+  cp "$original/tools/cem01-go" "$bad/tools/cem01-go"
+  printf '\n// UNREVIEWED test-only addition.\n' >> "$bad/fixture/auth/auth.go"
+  printf 'corrupt index\n' > "$bad/fixture/.git/index"
+  run_expected 3 corrupt-index "$tour" --resume "$bad" --ack "$test_root/rejected-ack.txt"
+  grep -F 'reason=git-status-failed' "$test_root/corrupt-index.out" >/dev/null || fail status-failure-accepted-as-clean
+  [ ! -e "$bad/receipts/resume-1-patch.out" ] || fail wrote-after-status-failure
+  # Every planned output is admitted before the first receipt is created.
+  for collision_name in ack.txt tool-identity.txt ready.stderr; do
+    collision=$test_root/collision-$collision_name
+    mkdir -p "$collision/receipts" "$collision/tools"
+    cp -R "$original/fixture" "$collision/fixture" || fail collision-fixture-copy
+    cp "$original/review-request.txt" "$collision/review-request.txt"
+    cp "$original/change.patch" "$collision/change.patch"
+    cp "$original/tools/cem01-go" "$collision/tools/cem01-go"
+    printf 'PRESERVE_SENTINEL_%s\n' "$collision_name" > "$collision/sentinel.txt"
+    cp "$collision/sentinel.txt" "$collision/sentinel.original"
+    ln -s "$collision/sentinel.txt" "$collision/receipts/resume-1-$collision_name"
+    run_expected 2 "collision-$collision_name" "$tour" --resume "$collision" --ack "$test_root/rejected-ack.txt"
+    grep -F 'reason=resume-output-collision' "$test_root/collision-$collision_name.out" >/dev/null || fail collision-not-preflighted
+    cmp -s "$collision/sentinel.original" "$collision/sentinel.txt" || fail sentinel-overwritten
+    [ ! -e "$collision/receipts/resume-1-patch.out" ] || fail partial-write-before-collision-refusal
+  done
+  pass all-resume-output-collisions-preflighted
   [ "$(cat "$original/receipts/missing-witness.exit")" -eq 1 ] || fail original-refusal-lost
   pass original-refusal-retained
 else

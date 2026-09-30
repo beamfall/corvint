@@ -146,14 +146,30 @@ if [ -n "$resume" ]; then
   regular_path "$out/change.patch" && regular_path "$fixture/.corvint/change.cem.json" || incomplete unsafe-original-bytes
   [ -f "$out/change.patch" ] && [ -f "$fixture/.corvint/change.cem.json" ] || incomplete missing-original-bytes
   [ "$(git -C "$fixture" rev-parse HEAD 2>/dev/null)" = "$head" ] || incomplete stale-head
-  [ -z "$(git -C "$fixture" status --porcelain --untracked-files=all)" ] || incomplete dirty-fixture
+  fixture_status=$(git -C "$fixture" status --porcelain --untracked-files=all) || incomplete git-status-failed
+  [ -z "$fixture_status" ] || incomplete dirty-fixture
   [ "$(sha256_of "$fixture/.corvint/change.cem.json")" = "$map_sha" ] && [ "$(sha256_of "$out/change.patch")" = "$patch_sha" ] || incomplete stale-original-bytes
   committed_map=$(git -C "$fixture" show "$head:.corvint/change.cem.json" | { if command -v sha256sum >/dev/null; then sha256sum; else shasum -a 256; fi; })
   [ "${committed_map%% *}" = "$map_sha" ] || incomplete stale-committed-map
   # Re-derive into a new receipt, never overwrite the reviewed patch or fixture.
   round=1
-  while [ -e "$out/receipts/resume-$round-patch.out" ]; do round=$((round + 1)); [ "$round" -le 100 ] || operational resume-limit; done
+  while [ -e "$out/receipts/resume-$round-patch.out" ]; do
+    [ ! -L "$out/receipts/resume-$round-patch.out" ] && [ -f "$out/receipts/resume-$round-patch.out" ] || operational unsafe-prior-receipt
+    round=$((round + 1)); [ "$round" -le 100 ] || operational resume-limit
+  done
   prefix=resume-$round
+  # Admit the entire round before any receipt or auxiliary output is written.
+  # In particular cp/printf must not follow pre-existing ACK/identity symlinks.
+  for step_name in patch core-version ready go-revalidated portable; do
+    for suffix in out stderr argv exit timeout; do
+      destination=$out/receipts/$prefix-$step_name.$suffix
+      [ ! -e "$destination" ] && [ ! -L "$destination" ] || operational resume-output-collision
+    done
+  done
+  for auxiliary in ack.txt tool-identity.txt; do
+    destination=$out/receipts/$prefix-$auxiliary
+    [ ! -e "$destination" ] && [ ! -L "$destination" ] || operational resume-output-collision
+  done
   required_step "$prefix-patch" git -C "$fixture" -c core.quotePath=false -c diff.algorithm=myers -c diff.context=3 diff --binary --full-index --no-color --no-ext-diff --no-textconv --no-renames --no-indent-heuristic --diff-algorithm=myers --unified=3 --src-prefix=a/ --dst-prefix=b/ --ignore-submodules=none "$base" "$head" -- . ':(exclude).corvint/change.cem.json'
   [ "$(sha256_of "$out/receipts/$prefix-patch.out")" = "$patch_sha" ] || incomplete stale-derived-patch
   [ -n "$ack" ] && regular_path "$ack" && [ -f "$ack" ] && [ "$(wc -c < "$ack")" -le 1024 ] || incomplete independent-review-not-supplied
