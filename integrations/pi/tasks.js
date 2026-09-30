@@ -99,7 +99,7 @@ export function createTasksService({runner,identity=worktreeIdentity,ledger=crea
    const intentSha256=digest({operation:request.operation,input:request.input,head:before.head});
    const originalCall=mutationArgs(request.operation,request.input,request.requestId,issuedAt,before);
    entry=await log.begin({requestId:request.requestId,intentSha256,scopeSha256:scope(before),issuedAt,argvSha256:digest(originalCall)},request.resume===true);
-   if(entry.completed)return {ok:true,mutation:'previously-observed',requestId:entry.requestId,receiptSha256:entry.receiptSha256,reconciliation:evidence};
+   if(entry.completed)return {ok:entry.terminal?.ok===true,...(entry.terminal?.ok===true?{}:{fault:entry.terminal?.fault??'native-outcome-unknown'}),nativeOutcome:entry.terminal?.nativeOutcome??'UNKNOWN',exitCode:entry.terminal?.exitCode??null,mutation:'previously-observed',requestId:entry.requestId,receiptSha256:entry.receiptSha256,reconciliation:evidence};
    const call=mutationArgs(request.operation,request.input,request.requestId,entry.issuedAt,before);
    if(entry.argvSha256!==digest(call))throw Error('request-id-conflict');
    const fresh=await identify(ctx);
@@ -108,7 +108,7 @@ export function createTasksService({runner,identity=worktreeIdentity,ledger=crea
    const result=await native(call.args,ctx,call.input);
    const final=await identify(ctx);
    if(e!==epoch||scope(before)!==scope(final))return failure('stale-context',{requestId:entry.requestId,mutation:'unknown'});
-   if(result.raw){await log.finish(entry,result.raw);return {...result,mutation:result.raw.items[0]?.receipt?'receipt-observed':'native-result-observed',requestId:entry.requestId,reconciliation:evidence}}
+   if(result.raw){await log.finish(entry,result.raw,{ok:result.ok,nativeOutcome:result.raw.outcome,exitCode:result.exitCode,fault:result.ok?null:'native-refusal'});return {...result,mutation:result.raw.items[0]?.receipt?'receipt-observed':'native-result-observed',requestId:entry.requestId,reconciliation:evidence}}
    return {...result,requestId:entry.requestId,mutation:'unknown',reconciliation:evidence};
   } catch(e) {return failure(['invalid-input','unsupported-mutation','pending-operation','request-id-conflict','reconciliation-required','ledger-full','ledger-invalid'].includes(e.message)?e.message:'operation-unavailable',{mutation:dispatched?'unknown':entry?'pending-reconciliation':'not-attempted',...(entry?{requestId:entry.requestId}:{})})}
   finally{busy=false}

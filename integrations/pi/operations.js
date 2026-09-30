@@ -23,9 +23,12 @@ export async function worktreeIdentity(ctx) {
  if(typeof session!=='string'||!session)throw Error('session-unavailable');
  return {root,gitDir,branch,head,sessionSha256:digest(session)};
 }
+function validTerminal(v) {
+ return v&&Object.keys(v).sort().join(',')==='exitCode,fault,nativeOutcome,ok'&&typeof v.ok==='boolean'&&['OK','REFUSED','ERROR','NOT_RUN'].includes(v.nativeOutcome)&&(v.exitCode===null||Number.isInteger(v.exitCode))&&v.fault===(v.ok?null:'native-refusal')&&v.ok===(v.nativeOutcome==='OK'&&v.exitCode===0);
+}
 async function load(path) {
  const h=await open(path,constants.O_RDONLY|constants.O_NOFOLLOW);
- try {if((await h.stat()).size>4096)throw Error('ledger-invalid');const v=JSON.parse(await h.readFile('utf8'));if(v.profile!=='corvint-pi-operation/0'||! /^[a-f0-9]{64}$/.test(v.intentSha256)||! /^[a-f0-9]{64}$/.test(v.scopeSha256)||typeof v.requestId!=='string')throw Error('ledger-invalid');return v}finally{await h.close()}
+ try {if((await h.stat()).size>4096)throw Error('ledger-invalid');const v=JSON.parse(await h.readFile('utf8'));if(v.profile!=='corvint-pi-operation/0'||! /^[a-f0-9]{64}$/.test(v.intentSha256)||! /^[a-f0-9]{64}$/.test(v.scopeSha256)||typeof v.requestId!=='string')throw Error('ledger-invalid');if(Object.hasOwn(v,'terminal')&&!validTerminal(v.terminal))throw Error('ledger-invalid');return v}finally{await h.close()}
 }
 // Exclusive creation and fsync precede dispatch. An interrupted/partial write fails
 // closed on readback; it is never interpreted as permission to issue another ID.
@@ -64,10 +67,11 @@ export function createOperationLedger(gitDir) {
    if(!resume)throw Error('reconciliation-required');
    return {...prior,resume:true};
   },
-  async finish(entry,receipt) {
+  async finish(entry,receipt,terminal) {
+   if(terminal!==undefined&&!validTerminal(terminal))throw Error('ledger-invalid');
    const prior=await load(active);if(prior.intentSha256!==entry.intentSha256||prior.requestId!==entry.requestId)throw Error('ledger-invalid');
    // No raw payload, command output, or transcript persists here.
-   await durableCreate(join(dir,digest(entry.requestId)+'.json'),{...prior,receiptSha256:digest(receipt)});
+   await durableCreate(join(dir,digest(entry.requestId)+'.json'),{...prior,receiptSha256:digest(receipt),...(terminal===undefined?{}:{terminal})});
    try{await unlink(active)}catch(e){if(e.code!=='ENOENT')throw e}
    const d=await open(dir,constants.O_RDONLY);try{await d.sync()}finally{await d.close()}
   },

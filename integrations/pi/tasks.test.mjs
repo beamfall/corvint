@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,rm} from 'node:fs/promises';
+import {mkdtemp,rm,readFile,writeFile} from 'node:fs/promises';
+import {digest} from './operations.js';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {createTasksService,registerTasksTools,tasksResult} from './tasks.js';
@@ -41,3 +42,20 @@ test('PWV concurrent dispatch and canceled commands do not start a second mutati
  const c=new AbortController();c.abort();const canceled=await service.command({...request,requestId:'cancel'}, {...ctx,signal:c.signal});assert.equal(canceled.ok,false);assert.equal(calls.filter(x=>x[1]==='prioritize').length,1);
 });
 test('PWV changed-payload recovery cannot reuse a pending native request',async t=>{const {service,ctx,calls,setLost}=await setup(t);setLost(true);await service.command(request,ctx);setLost(false);const result=await service.command({...request,resume:true,input:{...request.input,order:'9'}},ctx);assert.equal(result.fault,'request-id-conflict');assert.equal(calls.filter(x=>x[1]==='prioritize').length,1)});
+test('PWV same-ID terminal refusal and error replay never become successful',async t=>{
+ for(const outcome of ['REFUSED','ERROR','NOT_RUN'])await t.test(outcome,async t=>{
+  const {ctx}=await setup(t);let writes=0;
+  const identity=async()=>({root:ctx.cwd,gitDir:ctx.cwd,branch:'main',head:'a'.repeat(40),sessionSha256:'b'.repeat(64)});
+  const runner={async run({args}){
+   if(args[0]==='help')return receipt(args,[{implemented:['ticket prioritize']}]);
+   if(args[0]==='ticket'&&args[1]==='show')return receipt(args,[{ticketId,revision:'1'}]);
+   if(args[1]==='prioritize'){writes++;const r=receipt(args,[{receipt:'',outcome:'REFUSED'}]);const raw=JSON.parse(r.stdout);raw.outcome=outcome;return {...r,exitCode:1,stdout:JSON.stringify(raw)}}
+   return receipt(args,[]);
+  }};
+  const first=await createTasksService({runner,identity}).command(request,ctx);assert.equal(first.ok,false);assert.equal(first.fault,'native-refusal');
+  const replay=await createTasksService({runner,identity}).command({...request,resume:true},ctx);
+  assert.equal(replay.ok,false);assert.equal(replay.fault,'native-refusal');assert.equal(replay.nativeOutcome,outcome);assert.equal(replay.exitCode,1);assert.equal(tasksResult(replay).isError,true);assert.equal(writes,1,'terminal refusal does not redispatch');
+  const file=join(ctx.cwd,'corvint-pi-operations',digest(request.requestId)+'.json'),legacy=JSON.parse(await readFile(file,'utf8'));delete legacy.terminal;await writeFile(file,JSON.stringify(legacy));
+  const unknown=await createTasksService({runner,identity}).command({...request,resume:true},ctx);assert.equal(unknown.ok,false);assert.equal(unknown.fault,'native-outcome-unknown');assert.equal(writes,1);
+ });
+});
