@@ -105,7 +105,10 @@ type captured struct {
 	text   []byte
 }
 
-func (c captured) anchor(start, end int) Anchor {
+func (c captured) anchor(start, end int) (Anchor, bool) {
 	lines := strings.Split(string(c.text), "\n")
-	return Anchor{Repository: c.repo.ID, Commit: c.repo.Commit, Tree: c.repo.Tree, Path: c.source.Path, Blob: c.source.Blob, Start: start, End: end, SpanSHA256: digest([]byte(strings.Join(lines[start-1:end], "\n")))}
+	if start < 1 || end < start || end > len(lines) || start < c.source.Start || end > c.source.End {
+		return Anchor{}, false
+	}
+	return Anchor{Repository: c.repo.ID, Commit: c.repo.Commit, Tree: c.repo.Tree, Path: c.source.Path, Blob: c.source.Blob, Start: start, End: end, SpanSHA256: digest([]byte(strings.Join(lines[start-1:end], "\n")))}, true
 }

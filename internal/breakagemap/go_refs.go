@@ -49,7 +49,7 @@ func declarationBytes(b []byte, name string) (string, bool) {
 	}
 	for _, d := range f.Decls {
 		if fn, ok := d.(*ast.FuncDecl); ok && fn.Recv == nil && fn.Name.Name == name {
-			return string(b[fset.Position(fn.Pos()).Offset:fset.Position(fn.End()).Offset]), true
+			return string(b[fset.PositionFor(fn.Pos(), false).Offset:fset.PositionFor(fn.End(), false).Offset]), true
 		}
 	}
 	return "", false
@@ -139,12 +139,14 @@ func analyzeGo(r *Report, sources map[string]captured, selected captured, name s
 		r.unknown(key, "function declaration unresolved; types and methods unsupported")
 		return
 	}
-	start, end := fs.Position(api.Pos()).Line, fs.Position(api.End()).Line
-	if start < selected.source.Start || end > selected.source.End {
+	// //line directives describe logical compiler positions, not immutable blob
+	// spans. Every evidence anchor must use physical source positions.
+	start, end := fs.PositionFor(api.Pos(), false).Line, fs.PositionFor(api.End(), false).Line
+	anchor, valid := selected.anchor(start, end)
+	if !valid {
 		r.unknown(key, "API declaration outside supplied span")
 		return
 	}
-	anchor := selected.anchor(start, end)
 	pkg, ok := modulePath(sources, selected)
 	if !ok {
 		r.unknown(key, "pinned module identity unavailable")
@@ -257,11 +259,12 @@ func analyzeGo(r *Report, sources map[string]captured, selected captured, name s
 			default:
 				return true
 			}
-			line, last := cfs.Position(pos).Line, cfs.Position(end).Line
-			if line < c.source.Start || last > c.source.End {
+			line, last := cfs.PositionFor(pos, false).Line, cfs.PositionFor(end, false).Line
+			a, valid := c.anchor(line, last)
+			if !valid {
+				r.unknown(k, "reference outside supplied physical span")
 				return false
 			}
-			a := c.anchor(line, last)
 			kind := "syntax-reference"
 			if calls[pos] {
 				kind = "syntax-call"
@@ -274,7 +277,11 @@ func analyzeGo(r *Report, sources map[string]captured, selected captured, name s
 			return false
 		})
 		if imported && refs == 0 {
-			a := c.anchor(c.source.Start, c.source.End)
+			a, valid := c.anchor(c.source.Start, c.source.End)
+			if !valid {
+				r.unknown(k, "import candidate outside supplied physical span")
+				continue
+			}
 			r.add(Edge{Kind: "import-only", Confidence: "Go-syntax", Reason: "imports selected package; no resolved selected-symbol reference in admitted span", From: &a, To: &anchor, ByteState: "verified"})
 		}
 	}

@@ -355,3 +355,98 @@ func TestBreakageBaseAndModuleGaps(t *testing.T) {
 		t.Fatalf("deleted: %+v %v", r, e)
 	}
 }
+
+func TestBreakageLineDirectivesPinPhysicalLines(t *testing.T) {
+	for _, tc := range []struct {
+		name, api, caller                        string
+		apiStart, apiEnd, callerStart, callerEnd int
+	}{
+		{"api-inverted", "package api\n\nfunc Changed() {\n//line fake.go:1\n}\n", "package client\nimport alias \"github.com/acme/library/pkg\"\nfunc Call() { alias.Changed() }\n", 3, 5, 3, 3},
+		{"api-before", "package api\n//line fake.go:1\nfunc Changed() {}\n", "package client\nimport alias \"github.com/acme/library/pkg\"\nfunc Call() { alias.Changed() }\n", 3, 3, 3, 3},
+		{"caller-before", "package api\nfunc Changed() {}\n", "package client\nimport alias \"github.com/acme/library/pkg\"\n//line fake.go:1000000\nfunc Call() { alias.Changed() }\n", 2, 2, 4, 4},
+		{"caller-inverted", "package api\nfunc Changed() {}\n", "package client\nimport alias \"github.com/acme/library/pkg\"\nfunc Call() { alias.\n//line fake.go:1\nChanged() }\n", 2, 2, 3, 5},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m, b, _ := fixture(t)
+			put(t, b["api"], "pkg/api.go", tc.api)
+			commit(t, b["api"])
+			put(t, b["client"], "caller.go", tc.caller)
+			commit(t, b["client"])
+			m.Repositories = []Repository{pinRepo(t, "api", b["api"]), pinRepo(t, "client", b["client"])}
+			m.Sources = nil
+			m.Providers = nil
+			for i, paths := range [][]string{{"go.mod", "pkg/api.go"}, {"go.mod", "caller.go"}} {
+				for _, p := range paths {
+					r := m.Repositories[i]
+					m.Sources = append(m.Sources, pinSource(t, r, b[r.ID], p))
+				}
+			}
+			r, e := Compile(context.Background(), encode(t, m), b, "api:pkg/api.go:Changed", "")
+			if e != nil {
+				t.Fatal(e)
+			}
+			if len(r.Edges) != 1 {
+				t.Fatalf("expected physical caller witness: %+v", r)
+			}
+			edge := r.Edges[0]
+			if edge.From.Start != tc.callerStart || edge.From.End != tc.callerEnd || edge.To.Start != tc.apiStart || edge.To.End != tc.apiEnd {
+				t.Fatalf("adjusted rather than physical anchors: %+v -> %+v", edge.From, edge.To)
+			}
+			for _, v := range []struct {
+				a    *Anchor
+				text string
+			}{{edge.From, tc.caller}, {edge.To, tc.api}} {
+				lines := strings.Split(v.text, "\n")
+				want := digest([]byte(strings.Join(lines[v.a.Start-1:v.a.End], "\n")))
+				if v.a.SpanSHA256 != want {
+					t.Fatal("anchor hash does not match physical source lines")
+				}
+			}
+		})
+	}
+}
+
+func TestBreakageAnchorRejectsInvalidPhysicalSpans(t *testing.T) {
+	c := captured{source: Source{Start: 2, End: 3}, text: []byte("one\ntwo\nthree\nfour")}
+	for _, span := range [][2]int{{0, 1}, {3, 2}, {2, 1000000}, {1, 2}, {3, 4}} {
+		if a, ok := c.anchor(span[0], span[1]); ok || a != (Anchor{}) {
+			t.Fatalf("invalid span %v admitted: %+v", span, a)
+		}
+	}
+	if a, ok := c.anchor(2, 3); !ok || a.SpanSHA256 != digest([]byte("two\nthree")) {
+		t.Fatalf("valid physical span refused: %+v %v", a, ok)
+	}
+}
+
+func TestBreakageInvalidProviderAnchorCannotAdvance(t *testing.T) {
+	m, b, _ := fixture(t)
+	sources := map[string]captured{}
+	for _, s := range m.Sources {
+		var repo Repository
+		for _, candidate := range m.Repositories {
+			if candidate.ID == s.Repository {
+				repo = candidate
+			}
+		}
+		text, e := os.ReadFile(filepath.Join(b[s.Repository], s.Path))
+		if e != nil {
+			t.Fatal(e)
+		}
+		sources[sourceKey(s.Repository, s.Path)] = captured{s, repo, text}
+	}
+	bad := sources["client:flow.json"]
+	bad.source.Start, bad.source.End = 2, 1
+	sources["client:flow.json"] = bad
+	r := Report{}
+	composeProviders(&r, m, sources, "api:pkg/api.go")
+	if len(r.Edges) != 1 || r.Edges[0].ByteState != "unresolved" || r.Edges[0].To != nil {
+		t.Fatalf("invalid anchor advanced traversal: %+v", r.Edges)
+	}
+	found := false
+	for _, u := range r.Unknowns {
+		found = found || strings.Contains(u.Reason, "outside supplied physical span")
+	}
+	if !found {
+		t.Fatal("invalid physical span gap missing")
+	}
+}

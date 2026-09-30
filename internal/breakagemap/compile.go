@@ -282,7 +282,12 @@ func composeProviders(r *Report, m Manifest, sources map[string]captured, apiKey
 						good = false
 						continue
 					}
-					anchor := c.anchor(c.source.Start, c.source.End)
+					anchor, valid := c.anchor(c.source.Start, c.source.End)
+					if !valid {
+						r.unknown(key, "EEP endpoint outside supplied physical span")
+						good = false
+						continue
+					}
 					if side == 0 {
 						edge.From = &anchor
 					} else {
