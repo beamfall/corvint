@@ -60,6 +60,29 @@ A 20ms observer can miss fast detach and is bounded observation, not full contai
 identity/version limitations remain explicit. No `RequireDescendantCleanup` flag: current runtime
 rejects that unsupported contract before process launch.
 
+## Failure modes and reason codes
+
+The following codes describe existing validation or report behavior. A refusal prevents execution
+or publication of a report; a retained Strength reason classifies the actual control observation.
+They confer no positive freshness or acceptance qualification.
+
+| Codes | Observed condition |
+|---|---|
+| `input-bound` (internal/testacceptance/input.go:34), `input-depth-bound` (internal/testacceptance/input.go:52), `input-trailing` (internal/testacceptance/input.go:41), `input-shape` (internal/testacceptance/input.go:46) | JSON exceeds the input/depth bound, carries trailing data, or cannot decode into the closed request shape. |
+| `request-bound` (internal/testacceptance/input.go:147) | Schema, environment ID, repeat count, timeout, test count or input count falls outside the closed request limits. |
+| `path-not-absolute` (internal/testacceptance/input.go:93), `path-symlink-or-absent` (internal/testacceptance/input.go:98), `file-not-bounded-regular` (internal/testacceptance/input.go:103) | A file path is not clean and absolute, has a missing/symlink component, or is not a regular file within the file-size bound. |
+| `git-observation-failed` (internal/testacceptance/input.go:119) | The bounded Git observation fails to start, finish successfully or clean up its owned group, or overflows output. |
+| `repository-pin-invalid` (internal/testacceptance/input.go:125), `repository-root-mismatch` (internal/testacceptance/input.go:129), `repository-commit-drift` (internal/testacceptance/input.go:133), `repository-tree-drift` (internal/testacceptance/input.go:137), `repository-not-clean` (internal/testacceptance/input.go:141) | Repository root/OID pins are malformed, the observed root/HEAD/tree differs, or tracked/untracked work prevents a clean observation. |
+| `input-pin-invalid` (internal/testacceptance/input.go:159), `input-outside-roots` (internal/testacceptance/input.go:167), `input-not-tracked` (internal/testacceptance/input.go:171), `input-byte-drift` (internal/testacceptance/input.go:175), `configuration-not-pinned` (internal/testacceptance/input.go:180) | An input path/hash is invalid or duplicated, outside both repositories, untracked or byte-mismatched; config/package/lock inputs must be pinned inside the test repository. |
+| `test-identity-invalid` (internal/testacceptance/input.go:186), `test-identity-duplicate` (internal/testacceptance/input.go:191) | Test ID/file/line/title/project is invalid or duplicated; file/title pairs must be unique. |
+| `control-tool-required` (internal/testacceptance/input.go:195), `control-command-invalid` (internal/testacceptance/input.go:199), `control-tool-byte-mismatch` (internal/testacceptance/input.go:203) | Control plan, tool identity and command must be present together; the command must be one bounded regular executable whose observed bytes match both pins. |
+| `control-binding-mismatch` (internal/testacceptance/input.go:208), `control-environment-not-safe` (internal/testacceptance/input.go:212), `control-bound` (internal/testacceptance/input.go:216) | Control target/repository/config/runner identities differ, declared environment keys exceed LANG/LC_ALL, or control timeout/wall-clock/attempt/count ceilings are exceeded. |
+| `command-invalid` (internal/testacceptance/input.go:222), `executable-drift` (internal/testacceptance/input.go:226), `argv-invalid` (internal/testacceptance/input.go:230) | Runner/server executable or argv count/hash/file shape is invalid, observed executable bytes drift, or an argument exceeds its size/character limits. |
+| `server-entrypoint-not-pinned` (internal/testacceptance/input.go:235), `runner-prefix-invalid` (internal/testacceptance/input.go:240), `runner-entrypoint-invalid` (internal/testacceptance/input.go:245) | The server entrypoint must be pinned inside the product repository; the runner prefix cannot exceed executable plus one independently byte-pinned CLI entrypoint. |
+| `ready-url-not-loopback` (internal/testacceptance/input.go:250), `build-root-invalid` (internal/testacceptance/input.go:253), `runner-version-invalid` (internal/testacceptance/input.go:256) | Readiness requires an HTTP loopback IP without user/query/fragment; build root must be clean/absolute inside the product root; declared runner version must be nonempty and bounded. |
+| `self-worker-invalid` (internal/testacceptance/execute.go:251), `self-worker-unreadable` (internal/testacceptance/execute.go:256), `report-bound` (internal/testacceptance/execute.go:327) | The trusted companion executable is not a bounded regular absolute file, its bytes cannot be read, or final JSON serialization/size prevents report publication. |
+| `verified-approved-control-survived` (internal/testacceptance/report.go:68), `qualified-baseline-identity-unknown` (internal/testacceptance/report.go:71) | A verified approved control survived, so Strength is SURVIVED and the test is rejected; a killed control with unqualified baseline identity leaves Strength NOT_MEASURED and acceptance blocked. |
+
 ## Non-goals
 
 Core registration, remote endpoints, writer credentials, connector publication, changing provider
