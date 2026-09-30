@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -89,4 +90,49 @@ func TestObservedDescendantIdentityReuseDoesNotExpandOwnership(t *testing.T) {
 	if err := signalObservedProcess(context.Background(), ObservedProcess{PID: os.Getpid(), Start: "not-this-generation"}); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestObservedExitedZombieIsNotSurvivor(t *testing.T) {
+	t.Run("AHI-032 exited zombie is not a cleanup survivor", func(t *testing.T) {
+		cmd := exec.Command("/bin/sleep", "60")
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		defer cmd.Wait()
+		defer cmd.Process.Kill()
+		rows, err := descendantSnapshot(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		owned, ok := rows[cmd.Process.Pid]
+		if !ok {
+			t.Fatal("child identity missing")
+		}
+		if err := cmd.Process.Kill(); err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		defer cancel()
+		for {
+			rows, err = descendantSnapshot(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if current, ok := rows[owned.PID]; ok && current.Start == owned.Start && strings.HasPrefix(current.State, "Z") {
+				break
+			}
+			select {
+			case <-ctx.Done():
+				t.Fatal("fixture did not become an unreaped zombie")
+			case <-time.After(20 * time.Millisecond):
+			}
+		}
+		done := make(chan struct{})
+		close(done)
+		observer := descendantObserver{root: os.Getpid(), known: map[int]ObservedProcess{owned.PID: owned}, stop: make(chan struct{}), done: done}
+		report, err := observer.finish()
+		if err != nil || !report.Absent {
+			t.Fatalf("exited child reported as live: %v %+v", err, report)
+		}
+	})
 }
