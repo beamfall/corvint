@@ -373,3 +373,10 @@ Rollback removes `--format`/`--ocm`, `RunWithOCM`, the report projection and its
 and removes the projection appendix from Markdown. Existing maps and verifier semantics require
 no migration. Failure to derive a bounded patch or read an explicitly requested OCM remains an
 operational error; a semantic invalid verdict remains false with no qualified obligation joins.
+
+## Named diagnostics
+
+| Code | Meaning |
+|---|---|
+| `hunk-not-mapped` | A parsed patch hunk has no matching map entry; keep the hunk in the denominator with unknown disposition. |
+| `map-hunk-not-in-derived-patch` | A map entry has no matching hunk in the original derived patch; expose it as surplus invalid map evidence. |

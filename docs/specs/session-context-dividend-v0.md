@@ -354,3 +354,14 @@ back; repository source, accepted intent, and existing traces remain unchanged.
 | SESSION-V0-020 | `cmd/corvint/dogfood_handoff_bundle.go` | `TestDogfoodHandoffBundleTaskStateAndDirtyRefusal`; `TestDogfoodHandoffBundleMalformed` |
 | SESSION-V0-021 | `cmd/corvint/dogfood_handoff_bundle.go` | `TestDogfoodHandoffBundleRoundTrip` |
 | SESSION-V0-022 | `cmd/corvint/dogfood_handoff_bundle.go` | `TestDogfoodHandoffBundleDriftWithholdsState`; `TestDogfoodHandoffBundleMalformed` |
+
+## Named diagnostics
+
+| Code | Meaning |
+|---|---|
+| `handoff-task-state-unavailable` | The task-state file cannot be read under the bounded plan-file rules; no bundle is emitted. |
+| `invalid-handoff-task-state` | The caller state fails the strict schema or bounds; refuse it without executing caller text. |
+| `handoff-bundle-clean-candidate-required` | Bundle creation requires a clean worktree and committed candidate identity. |
+| `handoff-bundle-too-large` | The fully framed and escaped bundle exceeds the consumer byte cap; refuse before writing it. |
+| `handoff-bundle-unavailable` | The receiving bundle cannot be read under the bounded plan-file rules; no context or task state is returned. |
+| `invalid-handoff-bundle` | The receiving bundle fails JSON, canonical framing, integrity or strict shape validation; withhold resumable state. |

@@ -136,3 +136,9 @@ Focused tests do not imply a full repository gate was run.
 
 Rollback removes the optional command registration and this package. There is no
 persistent state, migration, daemon or changed default ranking to unwind.
+
+## Named diagnostics
+
+| Code | Meaning |
+|---|---|
+| `checkout-unbound` | A declared repository has no explicit checkout binding; retain an unresolved repository rather than discovering or fetching a checkout. |

@@ -58,3 +58,9 @@ No new operators, language expansion, automatic hooks, exhaustive coverage, sema
 ## Rollback
 
 Remove the explicit flag, its additive report and its tests/spec admission. Default commands retain the existing behavior throughout. There is no persisted data migration, automatic hook or service to unwind.
+
+## Named diagnostics
+
+| Code | Meaning |
+|---|---|
+| `attack-tests-language-unsupported` | The selected source or test row is outside the supported Go profile; retain a NOT_RUN mutation witness. |
