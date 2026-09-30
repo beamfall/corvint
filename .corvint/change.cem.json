@@ -80,6 +80,16 @@
         "start": 2861
       },
       "spanSha256": "0708ef79a3dda0847c1be55253aa804f202ec3c8ccee35bae07f64bd169ac9e2"
+    },
+    {
+      "blobOid": "a5f725d3c38af12e4cf1d245b6bc314fbd2c71d1",
+      "id": "evidence:sha256:1d705e09bffd0e396cef00a418bf6ac3124e9110d703606ae0630c1eec6b8b98",
+      "path": "docs/specs/pi-workflow-v0.md",
+      "span": {
+        "end": 3916,
+        "start": 3513
+      },
+      "spanSha256": "4c795f2067284ac74cdbfef2058ba3faf78484ceb2d7f9e88184738e369c5ca0"
     }
   ],
   "excludedPath": ".corvint/change.cem.json",
@@ -249,6 +259,14 @@
         {
           "evidenceId": "evidence:sha256:f866c7b1a215a7f3fb8733a716073be4df72baa730c5ff69d4be48bf9b0ea0c3",
           "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:759699939fd86397550779f7091962b0a5a0015db4b110a0482bfa2c2c2bd555",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:1a883b136b8ad69ba702a314c601f634df35d3dad24cb41971568ba282fbc326",
+          "relation": "specification"
         }
       ],
       "disposition": "supported",
@@ -273,6 +291,14 @@
         {
           "evidenceId": "evidence:sha256:f866c7b1a215a7f3fb8733a716073be4df72baa730c5ff69d4be48bf9b0ea0c3",
           "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:759699939fd86397550779f7091962b0a5a0015db4b110a0482bfa2c2c2bd555",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:1a883b136b8ad69ba702a314c601f634df35d3dad24cb41971568ba282fbc326",
+          "relation": "specification"
         }
       ],
       "disposition": "supported",
@@ -296,6 +322,14 @@
         },
         {
           "evidenceId": "evidence:sha256:f866c7b1a215a7f3fb8733a716073be4df72baa730c5ff69d4be48bf9b0ea0c3",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:1d705e09bffd0e396cef00a418bf6ac3124e9110d703606ae0630c1eec6b8b98",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:0e2db1d4504cab2cf2aec2f62bb83d09dc8b9ef238e98a9653e34c0f5bf87f40",
           "relation": "specification"
         }
       ],
