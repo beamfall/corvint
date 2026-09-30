@@ -155,15 +155,15 @@ AHI-029	docs/specs/agent-harness-integration-v0.md	495	Neither compaction event 
 AHI-030	docs/specs/agent-harness-integration-v0.md	497	Every compact `SessionStart` context MUST begin with a fixed trusted disclosure
 AHI-031	docs/specs/agent-harness-integration-v0.md	501	(accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot
 AHI-032	docs/specs/agent-harness-integration-v0.md	537	At the owner’s request (2026-09-28), stock OpenCode native integration qualifica
-AHI-033	docs/specs/agent-harness-integration-v0.md	607	The owner-approved first OpenCode UI slice (2026-09-28, “looks good. build it”
-AHI-034	docs/specs/agent-harness-integration-v0.md	662	The owner-approved change cockpit (2026-09-28, “do it” after the change
-AHI-035	docs/specs/agent-harness-integration-v0.md	712	At the owner's request (2026-09-29), the OpenCode 2 terminal integration MUST
-AHI-036	docs/specs/agent-harness-integration-v0.md	742	At the owner's request (2026-09-29, “do all 6”), the optional OpenCode 2 workben
-AHI-037	docs/specs/agent-harness-integration-v0.md	749	The workbench MUST show each selected ticket criterion alongside only explicitly
-AHI-038	docs/specs/agent-harness-integration-v0.md	757	An explicit qualification doctor MUST display the installed host version, adapte
-AHI-039	docs/specs/agent-harness-integration-v0.md	762	The workbench MUST derive at most five next actions from recorded ticket blocker
-AHI-040	docs/specs/agent-harness-integration-v0.md	766	The terminal MUST show OpenCode's observed per-session cost and token/cache tota
-AHI-041	docs/specs/agent-harness-integration-v0.md	773	The terminal MUST show at most 16 members of the current OpenCode session family
+AHI-033	docs/specs/agent-harness-integration-v0.md	616	The owner-approved first OpenCode UI slice (2026-09-28, “looks good. build it”
+AHI-034	docs/specs/agent-harness-integration-v0.md	671	The owner-approved change cockpit (2026-09-28, “do it” after the change
+AHI-035	docs/specs/agent-harness-integration-v0.md	721	At the owner's request (2026-09-29), the OpenCode 2 terminal integration MUST
+AHI-036	docs/specs/agent-harness-integration-v0.md	751	At the owner's request (2026-09-29, “do all 6”), the optional OpenCode 2 workben
+AHI-037	docs/specs/agent-harness-integration-v0.md	758	The workbench MUST show each selected ticket criterion alongside only explicitly
+AHI-038	docs/specs/agent-harness-integration-v0.md	766	An explicit qualification doctor MUST display the installed host version, adapte
+AHI-039	docs/specs/agent-harness-integration-v0.md	771	The workbench MUST derive at most five next actions from recorded ticket blocker
+AHI-040	docs/specs/agent-harness-integration-v0.md	775	The terminal MUST show OpenCode's observed per-session cost and token/cache tota
+AHI-041	docs/specs/agent-harness-integration-v0.md	782	The terminal MUST show at most 16 members of the current OpenCode session family
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,
