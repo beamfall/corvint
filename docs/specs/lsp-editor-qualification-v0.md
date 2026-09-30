@@ -93,7 +93,7 @@ not a cancellation pass. Competing edits, open/close, explicit cancellation, shu
 requests invalidate the interval. Frontend pending-at-edit observation is necessary but insufficient;
 the raw wire and admitted server error establish the bounded interpretation, not internal worker timing.
 A response-before-edit or edit-before-request scheduling miss remains NOT_WITNESSED/nonzero even
-with a healthy retry. READY scheduling misses must match the independently selected A baseline or B retry session, capture and full Core packet. Integer request limits and closed wire/frontend error codes reject float/bool aliases. There is one attempt per client, no barrier, repeat-until-pass or output delay.
+with a healthy retry. READY scheduling misses must match the independently selected A baseline or B retry session, capture and full Core packet. Integer request limits and closed wire/frontend error codes reject float/bool aliases. Whole frontend/wire responses and full Core packets use JSON-type-preserving structural equality: bool, int and float remain distinct; nonfinite values are rejected and dictionary ordering is immaterial. There is one attempt per client, no barrier, repeat-until-pass or output delay.
 Broader freshness distributions and qualification remain NOT_RUN; actual new probes remain NOT_RUN
 until exact reviewed server/tool execution. Core's immutable packet remains separate from both overlays.
 

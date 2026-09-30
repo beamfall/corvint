@@ -136,5 +136,47 @@ with tempfile.TemporaryDirectory() as directory:
         else:o['freshness']['rapid']={'result':packet}
         assert c.validate_packet(packet,uri,packet['overlayObservation']['version'],c.OVERLAY if index==5 else f.NEWEST,before,after)['valid']
         result=run(r,o);assert result['outcome']=='FAILED' and result['errors'], result
+    # Second review repair: JSON type identity at every whole-object boundary.
+    def mirror(r,o):
+        for label,request_id in [('baseline',5),('rapid',6),('retry',7)]:
+            message=next(row['message'] for row in r if row['direction']=='server-to-client' and row['message'].get('id')==request_id)
+            o['freshness'][label]=copy.deepcopy({'result':message['result']} if 'result' in message else {'error':message['error']})
+    for branch_r,branch_o,index in [(rows,obs,8),(ready,ro,5),(before_request,bo,6)]:
+        for key,first,second in [('omitted_results',0,False),('included_results',3,3.0)]:
+            r,o=copy.deepcopy(branch_r),copy.deepcopy(branch_o)
+            for row in r:
+                if 'result' in row['message']:row['message']['result']['core']['receipt']['coverage']={key:first}
+            r[index]['message']['result']['core']['receipt']['coverage'][key]=second
+            mirror(r,o)
+            result=run(r,o);assert result['outcome']=='FAILED' and result['errors'], result
+    r,o=copy.deepcopy(rows),copy.deepcopy(obs)
+    o['freshness']['retry']['result']['overlayObservation']['version']=3.0
+    result=run(r,o);assert result['outcome']=='FAILED' and result['errors'], result
+    for first,second in [(0,False),(3,3.0)]:
+        r,o=copy.deepcopy(rows),copy.deepcopy(obs)
+        for row in r:
+            if 'result' in row['message']:row['message']['result']['core']['receipt']['coverage']={'nested':{'values':[first]}}
+        mirror(r,o);o['freshness']['retry']['result']['core']['receipt']['coverage']['nested']['values'][0]=second
+        result=run(r,o);assert result['outcome']=='FAILED' and result['errors'], result
+    def reverse_maps(value):
+        if isinstance(value,dict):return {key:reverse_maps(child) for key,child in reversed(list(value.items()))}
+        if isinstance(value,list):return [reverse_maps(child) for child in value]
+        return value
+    for branch_r,branch_o in [(rows,obs),(ready,ro),(before_request,bo)]:
+        r,o=copy.deepcopy(branch_r),copy.deepcopy(branch_o)
+        for row in r:
+            if 'result' in row['message']:row['message']['result']['core']['receipt']['coverage']={'nested':{'values':[0,True,3.0,None]}}
+        mirror(r,o);o=reverse_maps(o)
+        result=run(r,o);assert result['outcome']==('EDIT_CANCELLED_WITNESSED' if branch_r is rows else 'NOT_WITNESSED'),result
+    for value in [float('nan'),float('inf'),float('-inf')]:
+        for branch_r,branch_o in [(rows,obs),(ready,ro),(before_request,bo)]:
+            r,o=copy.deepcopy(branch_r),copy.deepcopy(branch_o)
+            for row in r:
+                if 'result' in row['message']:row['message']['result']['core']['receipt']['coverage']={'nested':{'values':[value]}}
+            mirror(r,o);result=run(r,o);assert result['outcome']=='FAILED' and result['errors'],result
+    assert f.json_equal({'a':[0,True,3.0,None],'b':'x'},{'b':'x','a':[0,True,3.0,None]})
+    assert not f.json_equal({'v':0},{'v':False})
+    assert not f.json_equal({'v':3},{'v':3.0})
+    print('JSON type identity, Core drift, frontend-only aliases, dict-order controls and nonfinite rejection passed')
     print('typed error/limit aliases and READY A/B Core/session/capture repair cases passed')
     print('LEQ-V0-006 whole-transcript cancellation/retry checks passed; negatives:',count,'actual editors NOT_RUN')

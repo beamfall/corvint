@@ -3,6 +3,7 @@
 import hashlib
 import importlib.util
 import json
+import math
 from pathlib import Path
 
 spec = importlib.util.spec_from_file_location('context_probe', Path(__file__).with_name('context-probe.py'))
@@ -13,6 +14,17 @@ def identity(value):
     if type(value) not in (int, str) or len(json.dumps(value, ensure_ascii=False).encode()) > 4096:
         raise ValueError('invalid request ID')
     return type(value).__name__, value
+
+def json_equal(left, right):
+    """Compare JSON structure without numeric aliases or nonfinite values."""
+    if type(left) is not type(right):return False
+    if type(left) is dict:
+        return all(type(key) is str for key in left) and all(type(key) is str for key in right) and left.keys()==right.keys() and all(json_equal(left[key],right[key]) for key in left)
+    if type(left) is list:
+        return len(left)==len(right) and all(json_equal(a,b) for a,b in zip(left,right))
+    if type(left) is float:return math.isfinite(left) and math.isfinite(right) and left==right
+    if type(left) in (str,int,bool,type(None)):return left==right
+    return False
 
 def valid_error(error):
     # Equality alone admits Python float/bool aliases for integer wire fields.
@@ -74,7 +86,7 @@ def validate(rows, observation, uri, before, after):
         expected={'result':m['result']} if 'result' in m else {'error':m['error']}
         if not isinstance(reported,dict) or set(reported)!=set(expected):return failed('frontend-response-shape-invalid')
         if 'error' in m and (not valid_error(m['error']) or not valid_error(reported['error'])):return failed('response-error-schema-invalid')
-        if reported!=expected:return failed('frontend-response-mismatch')
+        if not json_equal(reported,expected):return failed('frontend-response-mismatch')
         replies.append((i,m))
     oi=opens[0][0];ai=changes[0][0];bi=changes[1][0];aq,rq,bq=[q[0] for q in queries];ar,rr,br=[r[0] for r in replies]
     if not oi<ai<aq<ar<rq<rr<bq<br or not ar<bi<bq:return failed('baseline-or-retry-order-invalid')
@@ -94,7 +106,7 @@ def validate(rows, observation, uri, before, after):
         packets.append(m['result'])
     if errors:return failed('packet-invalid')
     a,b=[p['overlayObservation'] for p in packets]
-    if a['sessionID']!=b['sessionID'] or int(b['captureID'])<=int(a['captureID']) or packets[0]['core']!=packets[1]['core']:return failed('capture-or-core-binding-drift')
+    if a['sessionID']!=b['sessionID'] or int(b['captureID'])<=int(a['captureID']) or not json_equal(packets[0]['core'],packets[1]['core']):return failed('capture-or-core-binding-drift')
     witness=rq<bi<rr and frontend['pendingBeforeEdit'] is True
     rapid=replies[1][1]
     if witness:
@@ -111,7 +123,7 @@ def validate(rows, observation, uri, before, after):
             if not p['valid']:return failed('scheduling-miss-packet-invalid')
             snapshot=packets[0] if rq<bi else packets[1]
             rapid_overlay=rapid['result']['overlayObservation']
-            if rapid_overlay['sessionID']!=snapshot['overlayObservation']['sessionID'] or rapid_overlay['captureID']!=snapshot['overlayObservation']['captureID'] or rapid['result']['core']!=snapshot['core']:return failed('scheduling-miss-packet-lineage-invalid')
+            if rapid_overlay['sessionID']!=snapshot['overlayObservation']['sessionID'] or rapid_overlay['captureID']!=snapshot['overlayObservation']['captureID'] or not json_equal(rapid['result']['core'],snapshot['core']):return failed('scheduling-miss-packet-lineage-invalid')
         elif rapid.get('error') not in ({'code':-32800,'message':'Request cancelled','data':{'reason':'CANCELLED'}},{'code':-32801,'message':'Context stale','data':{'reason':'CONTENT_CHANGED'}}):return failed('scheduling-miss-error-invalid')
         outcome='NOT_WITNESSED'
     return {'valid':outcome=='EDIT_CANCELLED_WITNESSED','completeWitness':outcome=='EDIT_CANCELLED_WITNESSED','outcome':outcome,'errors':[], 'healthyNewestRetry':True,'baselineCaptureID':a['captureID'],'retryCaptureID':b['captureID'],'qualification':'UNQUALIFIED'}
