@@ -97,7 +97,7 @@ with tempfile.TemporaryDirectory() as directory:
     # Review repairs: independently typed schemas, including frontend-only aliases.
     def invalid(change):
         r,o=copy.deepcopy(rows),copy.deepcopy(obs);change(r,o)
-        result=run(r,o);assert result['outcome']=='FAILED', result
+        result=run(r,o);assert result['outcome']=='FAILED' and result['errors'], result
     def float_error(r,o):
         r[6]['message']['error']['code']=-32800.0
         o['freshness']['rapid']={'error':r[6]['message']['error']}
@@ -118,7 +118,7 @@ with tempfile.TemporaryDirectory() as directory:
             r,o=copy.deepcopy(branch_r),copy.deepcopy(branch_o)
             r[index]['message']['result']['overlayObservation'][field]=value
             o['freshness']['rapid']={'result':r[index]['message']['result']}
-            assert run(r,o)['outcome']=='FAILED'
+            result=run(r,o);assert result['outcome']=='FAILED' and result['errors'], result
     for branch_r,branch_o in [(stale,so),(miss,obs)]:
         for frontend_only in [False,True]:
             r,o=copy.deepcopy(branch_r),copy.deepcopy(branch_o)
@@ -126,7 +126,7 @@ with tempfile.TemporaryDirectory() as directory:
             code=float(r[i]['message']['error']['code'])
             if not frontend_only:r[i]['message']['error']['code']=code
             o['freshness']['rapid']['error']['code']=code
-            assert run(r,o)['outcome']=='FAILED'
+            result=run(r,o);assert result['outcome']=='FAILED' and result['errors'], result
     # Individually valid Core reason drift must not pass unchanged task/Core equality.
     for branch_r,branch_o,index in [(rows,obs,8),(ready,ro,5),(before_request,bo,6)]:
         r,o=copy.deepcopy(branch_r),copy.deepcopy(branch_o)
@@ -135,6 +135,6 @@ with tempfile.TemporaryDirectory() as directory:
         if index==8:o['freshness']['retry']={'result':packet}
         else:o['freshness']['rapid']={'result':packet}
         assert c.validate_packet(packet,uri,packet['overlayObservation']['version'],c.OVERLAY if index==5 else f.NEWEST,before,after)['valid']
-        assert run(r,o)['outcome']=='FAILED'
+        result=run(r,o);assert result['outcome']=='FAILED' and result['errors'], result
     print('typed error/limit aliases and READY A/B Core/session/capture repair cases passed')
     print('LEQ-V0-006 whole-transcript cancellation/retry checks passed; negatives:',count,'actual editors NOT_RUN')
