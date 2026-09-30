@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto"
 import { constants, lstatSync, realpathSync, openSync, fstatSync, readSync, closeSync } from "node:fs"
 import path from "node:path"
 import { visibleText } from "./display.js"
+import { changeLimitations } from "./ui-presentation.js"
 
 const object = properties => ({ type: "object", properties, required: Object.keys(properties), additionalProperties: false })
 const string = { type: "string" }, strings = { type: "array", items: string }
@@ -81,7 +82,7 @@ export function projectCockpit(repo, base, affected, policy, gaps = []) {
   view.declarations = cap(list(affected.advice?.checks), "declared checks").map(c => ({ command: text(c.command), kind: text(c.kind), source: text(c.source), reason: text(c.reason) }))
   view.gaps.push(...list(affected.plan.unknown).map(x => `${text(x.reason)}: ${text(x.detail)}`), ...list(affected.advice?.unknown).map(x => typeof x === "string" ? text(x) : text(JSON.stringify(x))), ...list(policy?.unmet).map(x => `Workflow: ${text(x)}`))
   if (!view.checks.length) view.gaps.push("No test execution results supplied. Suggested tests have not been run by this UI.")
-  view.gaps.push("Affected selection is advisory. Missing connections do not establish that a file is unaffected or that tests can be skipped.", "Verification records are caller-owned local observations; no execution authority or complete coverage is asserted.")
+  view.gaps.push(...changeLimitations)
   if (view.gaps.length > 128) view.gaps = [...view.gaps.slice(0, 127), `${view.gaps.length - 127} further gaps omitted by the display limit.`]
   return view
 }

@@ -9,6 +9,9 @@ export function createWorkbench(ctx, { rpc, lifetime, location, accent, baseline
     const [snapshot, setSnapshot] = createSignal(emptyWorkbench())
     const [peers, setPeers] = createSignal([])
     const [tab, setTab] = createSignal("overview")
+    const [moreTab, setMoreTab] = createSignal("doctor")
+    const [selectedAction, setSelectedAction] = createSignal(0)
+    const [actionFocus, setActionFocus] = createSignal(true)
     const [busy, setBusy] = createSignal(false)
     const controller = new AbortController()
     let request, serial = 0, disposed = false, reader
@@ -25,7 +28,7 @@ export function createWorkbench(ctx, { rpc, lifetime, location, accent, baseline
         const value = refresh ? await rpc.workbenchRefresh({ sessionID }, { location: here, signal }) : await rpc.workbenchSnapshot({ sessionID }, { location: here, signal })
         const ids = [...new Set([sessionID, ...family().filter(id => typeof id === "string")])].slice(0, 16)
         const map = await rpc.workbenchPeers({ sessionID, peerIDs: ids }, { location: here, signal })
-        if (!disposed && generation === serial && captured === scope() && !signal.aborted) { setSnapshot(value); setPeers(map.rows) }
+        if (!disposed && generation === serial && captured === scope() && !signal.aborted) { if (value.queueDigest !== snapshot().queueDigest || value.ticketId !== snapshot().ticketId || value.state !== "ready") setSelectedAction(0); setSnapshot(value); setPeers(map.rows) }
       } catch { if (!disposed && generation === serial && !signal.aborted) setSnapshot(emptyWorkbench("unavailable", "Workbench read unavailable. Press r to retry.")) }
       finally { if (generation === serial) setBusy(false) }
     }
@@ -35,12 +38,25 @@ export function createWorkbench(ctx, { rpc, lifetime, location, accent, baseline
       if (event.location?.directory === location().directory && familyIDs.some(id => typeof id === "string" && createHash("sha256").update(id).digest("hex") === event.data.sessionIdSha256)) void observe()
     }, { signal: lifetime.signal })
     onCleanup(() => { disposed = true; controller.abort(); request?.abort(); unsubscribe() })
-    const tabs = ["overview", "proof", "doctor", "cost", "sessions"]
+    const tabs = [{ key: "overview", label: "Task" }, { key: "proof", label: "Criteria" }, { key: "blockers", label: "Blockers" }, { key: "gates", label: "Gates" }]
+    const supplements = [{ key: "doctor", bind: "d", label: "Doctor" }, { key: "cost", bind: "o", label: "Cost" }, { key: "sessions", bind: "u", label: "Sessions" }]
+    const choose = name => { setTab(name); setSelectedAction(0); setActionFocus(true); reader?.scrollBy(-1000) }
+    const supplement = name => { setMoreTab(name); reader?.scrollBy(-1000) }
+    const move = amount => {
+      if (tab() === "overview" && actionFocus() && snapshot().state === "ready" && snapshot().actions.length) {
+        setSelectedAction(value => Math.max(0, Math.min(snapshot().actions.length - 1, value + amount)))
+        reader?.scrollChildIntoView(`corvint-work-action-${selectedAction()}`)
+      } else reader?.scrollBy(amount)
+    }
     ctx.keymap.layer(() => ({ enabled: () => props.panel.focused, commands: [
-      ...tabs.map((name, i) => ({ bind: String(i + 1), run: () => { setTab(name); reader?.scrollBy(-1000) } })),
+      ...tabs.map((item, i) => ({ bind: String(i + 1), run: () => choose(item.key) })),
+      { bind: "m", run: () => choose("more") },
+      ...supplements.map(item => ({ bind: item.bind, run: () => { if (tab() === "more") supplement(item.key) } })),
+      { bind: "return", run: () => { if (tab() === "overview" && actionFocus() && snapshot().state === "ready") { const row = snapshot().actions[selectedAction()]; if (row) openAction(row.kind) } } },
+      { bind: "tab", run: () => { if (tab() === "overview") setActionFocus(value => !value) } },
       { bind: "r", run: () => observe(true) }, { bind: "t", run: onTasks }, { bind: "c", run: onChange },
-      { bind: "e", run: onEvidence }, { bind: "up", run: () => reader?.scrollBy(-1) },
-      { bind: "down", run: () => reader?.scrollBy(1) }, { bind: "pageup", run: () => reader?.scrollBy(-1, "viewport") },
+      { bind: "e", run: onEvidence }, { bind: "up", run: () => move(-1) },
+      { bind: "down", run: () => move(1) }, { bind: "pageup", run: () => reader?.scrollBy(-1, "viewport") },
       { bind: "pagedown", run: () => reader?.scrollBy(1, "viewport") }, { bind: "escape", run: props.panel.close },
     ] }))
     const cost = () => {
@@ -55,25 +71,48 @@ export function createWorkbench(ctx, { rpc, lifetime, location, accent, baseline
     const openAction = kind => {
       if (kind === "tasks") onTasks()
       else if (kind === "change") onChange()
-      else if (kind === "doctor") setTab("doctor")
-      else setTab("proof")
+      else if (kind === "doctor") { choose("more"); supplement("doctor") }
+      else choose("proof")
     }
     const body = () => {
       const view = snapshot()
-      if (view.state !== "ready") return `${view.state}: ${view.reason}\n\nOpen Tasks, select an open ticket, then press s to focus it.`
+      if (view.state !== "ready") return `${view.state}: ${view.reason}\n\nPress t for the Work queue, select a task, then press s to focus it.`
       if (tab() === "proof") return [
-        `Acceptance → proof · queue ${view.queueDigest.slice(0, 12)} · revision ${view.taskRevision || "NOT_OBSERVED"}`,
+        `Acceptance criteria · queue ${view.queueDigest.slice(0, 12)} · revision ${view.taskRevision || "NOT_OBSERVED"}`,
+        "Criterion-specific evidence: NOT_LINKED. Press e for the session’s current Evidence view.",
+        ...(view.criteria.length ? [] : ["No acceptance criteria supplied by this task receipt."]),
         ...view.criteria.flatMap((row, i) => [`\n${i + 1}. ${row.status} · ${row.text}`, `   Requirements: ${row.requirements.join(", ") || "NOT_LINKED"}`, `   ${row.reason}`]),
         "\nTicket-level requirement references", view.requirements.join("\n") || "NOT_OBSERVED",
         "\nDeclared paths", view.declaredPaths.join("\n") || "NOT_OBSERVED",
         "\nObserved changed paths matching declarations", view.changedPaths.join("\n") || "NOT_OBSERVED",
         "\nSuggested checks (not executed here)", view.plannedChecks.join("\n") || "NOT_OBSERVED",
-        "\nRecorded check observations", ...view.observedChecks.map(row => `${row.status} · ${row.id} · ${row.testedCommit || "no tested commit"}`),
+        "\nRecorded check observations", ...view.observedChecks.map(row => `${row.status === "PASS" ? "Passed · recorded commit" : row.status} · ${row.id} · ${row.testedCommit || "no tested commit"}`),
         `\nContext receipt: ${view.contextReceipt || "NOT_OBSERVED"}`,
         `Change receipt: ${view.changeReceipt || "NOT_OBSERVED"}`,
         `Workflow: ${view.workflow}`,
       ].join("\n")
-      if (tab() === "doctor") return [
+      if (tab() === "blockers") return [
+        "Native task blockers", ...(view.blockers.length ? view.blockers : ["No blockers supplied. Eligibility and attempt availability remain separate observations."]),
+        `\nEligibility: ${view.eligibility || "NOT_OBSERVED"}`, `Native next action: ${view.nextAction || "NOT_OBSERVED"}`,
+        "\nEvidence gaps and limits", ...view.gaps,
+      ].join("\n")
+      if (tab() === "gates") return [
+        `Native Tasks gate summary: ${view.gateResults || "NOT_OBSERVED"}`,
+        `Native Tasks completion: ${view.completion || "NOT_OBSERVED"}`,
+        "\nDeclared native gate IDs",
+        ...(view.requiredGates.state === "OBSERVED" ? view.requiredGates.ids.length
+          ? view.requiredGates.ids.map(id => `${id} · result NOT_OBSERVED`)
+          : ["No gate IDs declared in this observed record."]
+          : ["Required gate IDs: NOT_OBSERVED."]),
+        "Individual gate results: NOT_OBSERVED. Declared IDs do not establish successful gates.",
+        `\nLocal verification workflow: ${view.workflow}`,
+        "Recorded checks below are local workflow observations; they do not establish native Tasks gate results.",
+        ...(view.observedChecks.length ? view.observedChecks.map(row => `${row.status === "PASS" ? "Passed · recorded commit" : row.status} · ${row.id} · ${row.testedCommit || "no tested commit"}`) : ["No recorded checks supplied."]),
+        "\nSuggested checks (not executed here)", view.plannedChecks.join("\n") || "NOT_OBSERVED",
+        `\nChange receipt: ${view.changeReceipt || "NOT_OBSERVED"}`, "Press c to inspect Change checks and their recorded output.",
+        "\nObservation limits", ...view.gaps,
+      ].join("\n")
+      if (tab() === "more" && moreTab() === "doctor") return [
         `Native integration: ${view.doctor.support}`,
         `Host ${view.doctor.hostVersion} · adapter ${view.doctor.adapterVersion} · ${view.doctor.platform}`,
         `Reason: ${view.doctor.reason}`,
@@ -81,7 +120,7 @@ export function createWorkbench(ctx, { rpc, lifetime, location, accent, baseline
         `\nQualification action\n${view.doctor.action}`,
         "\nExecution authority remains NONE; a UI witness does not qualify the host.",
       ].join("\n")
-      if (tab() === "cost") { const metric = cost(); return [
+      if (tab() === "more" && moreTab() === "cost") { const metric = cost(); return [
         `OpenCode session cost: ${metric.cost}`,
         `Cost since ticket focus: ${metric.ticketCost}`,
         `Tokens · input ${metric.input} · output ${metric.output} · reasoning ${metric.reasoning}`,
@@ -89,7 +128,7 @@ export function createWorkbench(ctx, { rpc, lifetime, location, accent, baseline
         `\n${metric.note}`,
         "Cost per verified criterion: NOT_OBSERVED. Savings and latency: NOT_OBSERVED.",
       ].join("\n") }
-      if (tab() === "sessions") { const map = members(); return [
+      if (tab() === "more" && moreTab() === "sessions") { const map = members(); return [
         `OpenCode session family · ${map.rows.length} shown${map.omitted ? ` · ${map.omitted} omitted` : ""}`,
         ...map.rows.flatMap(row => [`\n${row.current ? "Current" : "Peer"} ${row.id} · parent ${row.parent}`, `Ticket ${row.ticketId} · ${row.state}`, `Lease ${row.holder} · ${row.phase} · expires ${row.expiresAt}`, `Worktree ${row.directory}`]),
         `\nOverlapping focused tickets: ${map.duplicates.join(", ") || "none observed"}`,
@@ -104,18 +143,26 @@ export function createWorkbench(ctx, { rpc, lifetime, location, accent, baseline
         `Phase ${view.attempt.phase || "NOT_OBSERVED"} · lease expires ${view.attempt.expiresAt || "NOT_OBSERVED"}`,
         `Criteria ${view.criteria.length} · criterion-specific proof 0 observed`,
         `Session cost ${cost().cost} · since focus ${cost().ticketCost}`,
-        "\nNext actions (select an action below)",
+        "\nFocus is a temporary UI binding. This view reads native task state.",
         "\nLimits", ...view.gaps,
       ].join("\n")
     }
     return <box flexDirection="column" flexGrow={1} minHeight={0} padding={1}>
-      <box flexDirection="row" justifyContent="space-between"><text fg={ctx.theme.text.base}><b>Corvint · Workbench</b></text><text fg={accent()} onMouseDown={() => observe(true)}>{() => busy() ? "Refreshing…" : "r Refresh"}</text></box>
-      <box flexDirection="row" gap={2} marginY={1}>{tabs.map((name, i) => <text fg={tab() === name ? accent() : ctx.theme.text.muted} onMouseDown={() => setTab(name)}>{`${i + 1} ${name}`}</text>)}</box>
+      <box flexDirection="row" justifyContent="space-between" height={1} flexShrink={0}><text height={1} fg={ctx.theme.text.base}><b>Corvint · Work</b></text><text fg={accent()} onMouseDown={() => observe(true)}>{() => busy() ? "Refreshing…" : "r Refresh"}</text></box>
+      <text height={1} flexShrink={0} fg={ctx.theme.text.muted}>{() => snapshot().ticketId ? `${snapshot().ticketId.split(":").at(-1)} · ${snapshot().state === "ready" ? "focused task" : snapshot().state}` : "Select a task to focus your work"}</text>
+      <box flexDirection="row" gap={2} marginY={1} flexShrink={0}>{tabs.map((item, i) => <text fg={tab() === item.key ? accent() : ctx.theme.text.muted} onMouseDown={() => { props.panel.focus(); choose(item.key) }}>{`${i + 1} ${item.label}`}</text>)}<text fg={tab() === "more" ? accent() : ctx.theme.text.muted} onMouseDown={() => { props.panel.focus(); choose("more") }}>m More</text></box>
+      <Show when={tab() === "more"}><box flexDirection="row" gap={2} flexShrink={0}>{supplements.map(item => <text fg={moreTab() === item.key ? accent() : ctx.theme.text.muted} onMouseDown={() => { props.panel.focus(); supplement(item.key) }}>{`${item.bind} ${item.label}`}</text>)}</box></Show>
       <scrollbox ref={value => { reader = value }} flexGrow={1} minHeight={0}>
+        <Show when={snapshot().state === "ready" && tab() === "overview"}>
+          <text fg={ctx.theme.text.base}><b>{() => snapshot().title}</b></text>
+          <text fg={ctx.theme.text.muted}>{() => actionFocus() ? "Next steps · ↑↓ choose · Enter opens · Tab details" : "Task details · ↑↓ scroll · Tab next steps"}</text>
+          <Show when={snapshot().actions.length} fallback={<text fg={ctx.theme.text.muted}>No next actions supplied by this observation.</text>}><For each={snapshot().actions}>{(row, i) => <text id={`corvint-work-action-${i()}`} fg={actionFocus() && selectedAction() === i() ? accent() : ctx.theme.text.base} onMouseDown={() => { props.panel.focus(); setSelectedAction(i()); setActionFocus(true); openAction(row.kind) }}>{() => `${actionFocus() && selectedAction() === i() ? "› " : "  "}${row.kind === "tasks" ? "Open Work queue" : row.kind === "change" ? "Inspect Change checks" : row.kind === "doctor" ? "Open Doctor" : "Inspect Criteria"} · ${row.text}`}</text>}</For></Show>
+          <text fg={ctx.theme.text.muted}> </text>
+        </Show>
         <text fg={snapshot().state === "ready" ? ctx.theme.text.base : ctx.theme.text.feedback.warning.base}>{body}</text>
-        <Show when={snapshot().state === "ready" && tab() === "overview"}><For each={snapshot().actions}>{(row, i) => <text fg={accent()} onMouseDown={() => openAction(row.kind)}>{() => `${i() + 1}. ${row.text}`}</text>}</For></Show>
       </scrollbox>
-      <text fg={ctx.theme.text.muted}>1–5 tabs · ↑↓ scroll · r refresh · t Tasks · c Change · e Evidence · esc close</text>
+      <text height={1} flexShrink={0} fg={ctx.theme.text.muted}>1–4 tabs · m More · r refresh · esc close</text>
+      <text height={1} flexShrink={0} fg={ctx.theme.text.muted}>t Work queue · c Change · e Evidence</text>
     </box>
   }
 }

@@ -10,7 +10,7 @@ const check = object({ id: string, status: string, testedCommit: string })
 const attempt = object({ holder: string, phase: string, expiresAt: string, attemptId: string })
 export const workbenchSchema = object({
   state: string, reason: string, ticketId: string, title: string, queueDigest: string, taskRevision: string,
-  eligibility: string, nextAction: string, gateResults: string, completion: string, attempt,
+  eligibility: string, nextAction: string, gateResults: string, requiredGates: object({ state: string, ids: strings }), completion: string, attempt,
   criteria: { type: "array", items: criterion }, requirements: strings, declaredPaths: strings,
   changedPaths: strings, plannedChecks: strings, observedChecks: { type: "array", items: check },
   contextReceipt: string, changeReceipt: string, workflow: string, blockers: strings, gaps: strings,
@@ -20,7 +20,7 @@ export const workbenchSchema = object({
 const emptyDoctor = () => ({ support: "UNQUALIFIED", reason: "Qualification has not been read.", hostVersion: "unknown", adapterVersion: "unknown", platform: "unknown", action: "Open the workbench and refresh qualification.", failedCases: [] })
 export const emptyWorkbench = (state = "empty", reason = "Select an open ticket in Tasks and press s to focus it.") => ({
   state, reason, ticketId: "", title: "", queueDigest: "", taskRevision: "", eligibility: "", nextAction: "",
-  gateResults: "", completion: "", attempt: emptyTaskDetail().attempt, criteria: [], requirements: [],
+  gateResults: "", requiredGates: { state: "NOT_OBSERVED", ids: [] }, completion: "", attempt: emptyTaskDetail().attempt, criteria: [], requirements: [],
   declaredPaths: [], changedPaths: [], plannedChecks: [], observedChecks: [], contextReceipt: "",
   changeReceipt: "", workflow: "NOT_OBSERVED", blockers: [], gaps: [], actions: [], doctor: emptyDoctor(),
 })
@@ -75,6 +75,7 @@ export function projectWorkbench(detail, tasks, cockpit, context, qualification)
   return { ...emptyWorkbench("ready", "Read-only, receipt-bound workbench"), ticketId: detail.ticketId,
     title: detail.title, queueDigest: detail.queueDigest, taskRevision: detail.revision,
     eligibility: detail.eligibility, nextAction: detail.nextAction, gateResults: detail.gateResults,
+    requiredGates: detail.requiredGates || emptyWorkbench().requiredGates,
     completion: detail.completion, attempt: detail.attempt, criteria, requirements, declaredPaths,
     changedPaths, plannedChecks, observedChecks, contextReceipt: context?.state === "ready" ? safe(context.receiptId) : "",
     changeReceipt: changeReady ? safe(cockpit.receiptId) : "", workflow: changeReady ? safe(cockpit.workflow) : "NOT_OBSERVED",

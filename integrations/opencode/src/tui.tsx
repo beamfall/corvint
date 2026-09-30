@@ -81,23 +81,30 @@ export default Plugin.define({
       }, { signal: lifetime.signal })
       onCleanup(() => { taskSerial++; taskRequest?.abort(); unsubscribe() })
       return <box flexDirection="column" marginTop={1} onMouseDown={() => { setMode("evidence"); ctx.ui.panel.open(PANEL) }}>
-        <text fg={ctx.theme.text.base}><b>Corvint context</b></text>
-        <text fg={tone(snapshot())}>{() => `${evidenceStatus(snapshot()).label} · ${snapshot().rows.length} locations`}</text>
-        <Show when={snapshot().revision}><text fg={ctx.theme.text.muted}>{() => `Observed ${snapshot().freshness} · ${snapshot().revision.slice(0, 8)}`}</text></Show>
-        <Show when={snapshot().gaps.length}><text fg={ctx.theme.text.feedback.warning.base}>{() => `${snapshot().gaps.length} gaps / limitations`}</text></Show>
-        <text fg={accent()}>Browse evidence  /corvint</text>
+        <text fg={ctx.theme.text.base}><b>Corvint</b></text>
         <box flexDirection="column" marginTop={1} onMouseDown={event => { event.stopPropagation(); setMode("tasks"); ctx.ui.panel.open(PANEL) }}>
-          <text fg={ctx.theme.text.base}><b>Corvint Tasks</b></text>
+          <text fg={ctx.theme.text.base}><b>Work</b></text>
           <text fg={tasks().state === "ready" ? ctx.theme.text.feedback.info.base : ctx.theme.text.feedback.warning.base}>{() => tasks().state === "ready" ? `${tasks().completed}/${tasks().total} completed · ${tasks().open} open` : `${tasks().state}: ${tasks().reason}`}</text>
           <Show when={tasks().state === "ready"}><text fg={ctx.theme.text.muted}>{() => `${tasks().draft} draft · ${tasks().held} held · ${tasks().archived} archived`}</text></Show>
           <Show when={tasks().state === "ready"}><text fg={ctx.theme.text.muted}>{() => `${tasks().blocked} queue blocked · ${tasks().activeAttempts} active · observed ${tasks().observed.slice(11, 19)} UTC`}</text></Show>
-          <text fg={accent()}>Open task metrics  /corvint tasks</text>
+          <text fg={accent()}>Open Work queue  /corvint tasks</text>
           <Show when={workbench().ticketId}><box flexDirection="column" marginTop={1} onMouseDown={event => { event.stopPropagation(); setMode("workbench"); ctx.ui.panel.open(PANEL) }}>
             <text fg={ctx.theme.text.base}><b>Focused task</b></text>
-            <text fg={workbench().state === "ready" ? ctx.theme.text.feedback.info.base : ctx.theme.text.feedback.warning.base}>{() => `${workbench().ticketId.split(":").at(-1)} · ${workbench().state}`}</text>
+            <text fg={workbench().state === "ready" ? ctx.theme.text.feedback.info.base : ctx.theme.text.feedback.warning.base}>{() => `${workbench().ticketId.split(":").at(-1)} · ${workbench().state === "ready" ? "focused" : workbench().state}`}</text>
             <text fg={ctx.theme.text.muted}>{() => `${workbench().criteria.length} criteria · ${workbench().actions.length} next actions`}</text>
-            <text fg={accent()}>Open workbench  /corvint workbench</text>
+            <text fg={accent()}>Open focused task  /corvint workbench</text>
           </box></Show>
+        </box>
+        <box flexDirection="column" marginTop={1} onMouseDown={event => { event.stopPropagation(); setMode("change"); ctx.ui.panel.open(PANEL) }}>
+          <text fg={ctx.theme.text.base}><b>Change</b></text>
+          <text fg={accent()}>Inspect files and checks  /corvint</text>
+        </box>
+        <box flexDirection="column" marginTop={1}>
+          <text fg={ctx.theme.text.base}><b>Evidence</b></text>
+          <text fg={tone(snapshot())}>{() => snapshot().state === "ready" ? `${evidenceStatus(snapshot()).label} · ${snapshot().rows.length} locations` : evidenceStatus(snapshot()).label}</text>
+          <Show when={snapshot().revision}><text fg={ctx.theme.text.muted}>{() => `Observed ${snapshot().freshness} · ${snapshot().revision.slice(0, 8)}`}</text></Show>
+          <Show when={snapshot().gaps.length}><text fg={ctx.theme.text.feedback.warning.base}>{() => `${snapshot().gaps.length} gaps / limitations`}</text></Show>
+          <text fg={accent()}>Open Evidence</text>
         </box>
       </box>
     }
@@ -262,7 +269,7 @@ export default Plugin.define({
         </box>
       }
       return <box flexDirection="column" flexGrow={1} minHeight={0} padding={1}>
-        <box flexDirection="row" justifyContent="space-between" flexShrink={0}><text fg={ctx.theme.text.base}><b>Corvint · Evidence</b></text><text fg={accent()} onMouseDown={() => setMode("change")}>c Change</text></box>
+        <box flexDirection="row" justifyContent="space-between" flexShrink={0}><text fg={ctx.theme.text.base}><b>Evidence</b></text><text fg={accent()} onMouseDown={() => setMode("change")}>c Change</text></box>
         <box flexDirection="row" gap={2} flexShrink={0}><text fg={tone(snapshot())}>{() => evidenceStatus(snapshot()).label}</text><text fg={ctx.theme.text.muted}>{() => `Observed ${snapshot().freshness}`}</text><text fg={ctx.theme.text.feedback.warning.base} onMouseDown={() => setView("gaps")}>{() => `${snapshot().gaps.length} gaps`}</text></box>
         <Show when={snapshot().reason}><text fg={tone(snapshot())} maxHeight={2}>{() => visibleText(snapshot().reason)}</text></Show>
         <box flexDirection="row" gap={2} marginY={1} flexShrink={0}>{tab("evidence", "Evidence")}{tab("source", "Source")}{tab("gaps", "Gaps")}{tab("details", "Details")}</box>
@@ -296,7 +303,7 @@ export default Plugin.define({
       ctx.ui.slot({ append: "sidebar.content", render: props => <Sidebar {...props} /> }),
       ctx.ui.slot({ append: "session.panel", render: panel => <Show when={panel.name === PANEL}><Inspector panel={panel} /></Show> }),
       ctx.ui.slot({ append: "app", render: () => {
-        ctx.keymap.layer(() => ({ mode: "global", commands: [{ id: "corvint.context", title: "Corvint: inspect context", group: "Corvint", palette: true, slash: { name: "corvint", arguments: true }, run: async task => {
+        ctx.keymap.layer(() => ({ mode: "global", commands: [{ id: "corvint.context", title: "Corvint: open Change; tasks opens Work; a task requests Evidence", group: "Corvint", palette: true, slash: { name: "corvint", arguments: true }, run: async task => {
           setMode(task?.trim() === "tasks" ? "tasks" : task?.trim() === "workbench" ? "workbench" : task?.trim() ? "evidence" : "change")
           if (!ctx.ui.panel.open(PANEL)) { ctx.ui.toast.show({ message: "Open a session to inspect its context.", variant: "info" }); return }
           const sessionID = ctx.ui.panel.current()?.sessionID

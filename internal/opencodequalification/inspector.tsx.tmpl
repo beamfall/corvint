@@ -16,7 +16,7 @@ export default Plugin.define({id:"inspector-witness",setup(ctx){
  ctx.keymap.layer(()=>({mode:"global",commands:[
  {bind:"f6",run:async()=>{try{const s=await ctx.client.session.create({title:"Inspector fixture",location:{directory:ROOT}});ctx.ui.router.navigate({type:"session",sessionID:s.id});log({stage:"session",id:s.id})}catch(e){log({error:String(e)})}}},
  {bind:"f7",run:()=>{ctx.keymap.dispatch("corvint.context","Locate Multiply in multiply.go");log({stage:"requested"})}},
- {bind:"f8",run:()=>ctx.keymap.dispatch("corvint.context")},
+ {bind:"f8",run:()=>ctx.keymap.dispatch("corvint.context")},{bind:"f9",run:()=>ctx.keymap.dispatch("corvint.context","workbench")},
  ]}));return null}})
  return ()=>{ctx.renderer.off("frame",flush);ctx.renderer.removePostProcessFn(capture);stop()}
 }})
