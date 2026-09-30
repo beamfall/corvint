@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { canonical, digest, worktreeIdentity, createOperationLedger } from './operations.js';
+import { canonical, digest, createWorktreeIdentity, createOperationLedger } from './operations.js';
 const reads={help:['help'],audit:['receipt','audit'],queue:['queue','status'],roadmap:['roadmap'],ticket:['ticket','show'],blockers:['ticket','blockers'],gates:['gate','list'],gate:['gate','show'],releases:['release','list'],release:['release','show'],readiness:['release','readiness'],attempt:['attempt','show'],plan:['plan','preview']};
 const writes=['ticket prioritize','claim','renew','release','submit','gate run','complete'];
 const ident=v=>typeof v==='string'&&/^[A-Za-z0-9][A-Za-z0-9:._/-]{0,511}$/.test(v)&&!v.includes('..');
@@ -42,26 +42,40 @@ function decode(result) {
  let raw;try{ensure(typeof result.stdout==='string'&&Buffer.byteLength(result.stdout)<=65536);raw=JSON.parse(result.stdout);ensure(raw&&raw.profile==='taskman-command-result/0'&&['OK','REFUSED','ERROR','NOT_RUN'].includes(raw.outcome)&&Array.isArray(raw.items)&&Array.isArray(raw.codes)&&Array.isArray(raw.warnings)&&Array.isArray(raw.command))}catch{return failure('invalid-native-receipt',{mutation:'unknown'})}
  return {ok:raw.outcome==='OK'&&result.exitCode===0,raw,exitCode:result.exitCode,mutation:raw.mutation??'not-reported',...(raw.outcome==='OK'&&result.exitCode===0?{}:{fault:'native-refusal'})};
 }
-export function createTasksService({runner,identity=worktreeIdentity,ledger=createOperationLedger}) {
- let epoch=0,busy=false,lastBranch;
- const scope=i=>digest({root:i.root,gitDir:i.gitDir,branch:i.branch,sessionSha256:i.sessionSha256,branchGeneration:epoch});
+export function createTasksService({runner,identity,identityOwner,ledger=createOperationLedger}) {
+ const ownedIdentity=!identity&&!identityOwner?createWorktreeIdentity():undefined;
+ const resolveIdentity=identity??identityOwner?.read??ownedIdentity.read;
+ let epoch=0,busy=false;
+ // A replay binding survives host transitions/restarts. Epoch fences only the
+ // active invocation; persisting it would strand a same-session pending request.
+ const scope=i=>digest({root:i.root,gitDir:i.gitDir,branch:i.branch,sessionSha256:i.sessionSha256,...(i.filesystemSha256?{filesystemSha256:i.filesystemSha256}:{})});
  const trusted=ctx=>typeof ctx.isProjectTrusted==='function'&&ctx.isProjectTrusted();
- async function identify(ctx) {const i=await identity(ctx);if(lastBranch!==undefined&&lastBranch!==i.branch)epoch++;lastBranch=i.branch;return i}
- async function native(args,ctx,input) {return decode(await runner.run({cwd:ctx.cwd,args,input,signal:ctx.signal}))}
+ const capture=ctx=>({epoch,cwd:ctx.cwd,session:ctx.sessionManager?.getSessionId(),signal:ctx.signal});
+ function check(binding,ctx,write=false) {
+  if(!trusted(ctx))throw Error('untrusted-project');
+  if(binding.signal?.aborted||ctx.signal?.aborted)throw Error('aborted');
+  if(binding.epoch!==epoch||binding.cwd!==ctx.cwd||binding.session!==ctx.sessionManager?.getSessionId())throw Error('stale-context');
+  if(write&&(ctx.isIdle?.()===false||ctx.hasPendingMessages?.()===true))throw Error('host-not-idle');
+ }
+ const frozen=(binding,ctx)=>({...ctx,cwd:binding.cwd,signal:binding.signal,sessionManager:{getSessionId:()=>binding.session}});
+ async function identify(ctx,binding,write=false) {check(binding,ctx,write);const i=await resolveIdentity(frozen(binding,ctx));check(binding,ctx,write);return i}
+ async function native(args,ctx,input,binding) {const nativeResult=await runner.run({cwd:binding.cwd,args,input,signal:binding.signal});return {...decode(nativeResult),nativeResult}}
+ const fault=(error,fallback)=>['invalid-input','unsupported-operation','unsupported-mutation','pending-operation','request-id-conflict','reconciliation-required','ledger-full','ledger-invalid','stale-context','aborted','untrusted-project','host-not-idle','identity-unavailable','detached-head'].includes(error.message)?error.message:fallback;
  async function read(operation,input={},ctx) {
   if(!trusted(ctx))return failure('untrusted-project');
+  let result;const binding=capture(ctx);
   try {
-   const args=readArgs(operation,input),before=await identify(ctx),e=epoch;
-   if(ctx.signal?.aborted)return failure('aborted');
-   const result=await native(args,ctx);
-   const after=await identify(ctx);
-   if(e!==epoch||scope(before)!==scope(after))return failure('stale-context');
-   return result;
-  }catch(e){return failure(['invalid-input','unsupported-operation'].includes(e.message)?e.message:'read-unavailable')}
+   const args=readArgs(operation,input),before=await identify(ctx,binding);
+   check(binding,ctx);result=await native(args,ctx,undefined,binding);check(binding,ctx);
+   const after=await identify(ctx,binding);
+   if(scope(before)!==scope(after))throw Error('stale-context');
+   check(binding,ctx);return result;
+  }catch(error){const code=fault(error,'read-unavailable');return result?{...result,ok:false,fault:code,wrapperFault:code}:failure(code)}
  }
- async function reconcile(input,ctx) {
-  const evidence={audit:await read('audit',{},ctx),ticket:await read('ticket',{id:input.ticketId},ctx),queue:await read('queue',{},ctx)};
-  if(input.attemptId)evidence.attempt=await read('attempt',{id:input.attemptId},ctx);
+ async function reconcile(input,ctx,binding) {
+  const evidence={},steps=[['audit','audit',{}],['ticket','ticket',{id:input.ticketId}],['queue','queue',{}]];
+  if(input.attemptId)steps.push(['attempt','attempt',{id:input.attemptId}]);
+  for(const [key,operation,args] of steps){check(binding,ctx,true);evidence[key]=await read(operation,args,ctx);check(binding,ctx,true)}
   return evidence;
  }
  // This is called only by the registered explicit command, never by a model tool.
@@ -70,21 +84,24 @@ export function createTasksService({runner,identity=worktreeIdentity,ledger=crea
   if(!trusted(ctx))return failure('untrusted-project');
   if(ctx.isIdle?.()===false||ctx.hasPendingMessages?.()===true)return failure('host-not-idle');
   if(busy)return failure('operation-in-flight');
-  busy=true;let entry,log,dispatched=false;
+  busy=true;let entry,log,dispatched=false,result;
+  const binding=capture(ctx);
   try {
    object(request,['operation','input','requestId','resume'],['operation','input','requestId']);
    ensure(ident(request.requestId)&&request.requestId.length<=128&&(request.resume===undefined||typeof request.resume==='boolean'));
-   const before=await identify(ctx),e=epoch;
+   const before=await identify(ctx,binding,true);
+   // Detached reads are supported; this does not broaden mutation admission.
+   if(before.detached)throw Error('detached-head');
    const issuedAt=new Date().toISOString().replace(/\.\d{3}Z$/,'Z');
    mutationArgs(request.operation,request.input,request.requestId,issuedAt,before);
-   const capability=await read('help',{},ctx);
+   const capability=await read('help',{},ctx);check(binding,ctx,true);
    if(!capability.ok||!capability.raw.items[0]?.implemented?.includes(request.operation))return failure('capability-unavailable');
-   const evidence=await reconcile(request.input,ctx);
+   const evidence=await reconcile(request.input,ctx,binding);check(binding,ctx,true);
    if(Object.values(evidence).some(r=>!r.ok))return failure('reconciliation-unavailable',{reconciliation:evidence});
    const record=evidence.ticket.raw.items[0];
    if(!record||record.ticketId!==request.input.ticketId)return failure('ticket-mismatch',{reconciliation:evidence});
    log=ledger(before.gitDir);
-   const pending=await log.inspect();
+   const pending=await log.inspect();check(binding,ctx,true);
    // Resume may see the revision produced by the original mutation. Native same-ID
    // replay, never a fresh request, resolves that uncertainty.
    const isResume=request.resume===true&&pending?.requestId===request.requestId;
@@ -94,29 +111,29 @@ export function createTasksService({runner,identity=worktreeIdentity,ledger=crea
     if(!a||a.ticketId!==request.input.ticketId||a.lease?.holder!==request.input.holder||a.branch!==before.branch)return failure('attempt-owner-mismatch',{reconciliation:evidence});
     if(!isResume&&(a.generation!==request.input.generation||a.ticketRevision!==record.acceptanceRevision||!Number.isFinite(Date.parse(a.lease.expiresAt))||Date.parse(a.lease.expiresAt)<=Date.now()||['COMPLETED','FAILED','CANCELLED'].includes(a.phase)))return failure('stale-attempt',{reconciliation:evidence});
    }
-   const after=await identify(ctx);
-   if(e!==epoch||scope(before)!==scope(after)||before.head!==after.head||ctx.signal?.aborted)return failure('stale-context');
+   const after=await identify(ctx,binding,true);
+   if(scope(before)!==scope(after)||before.head!==after.head)throw Error('stale-context');
    const intentSha256=digest({operation:request.operation,input:request.input,head:before.head});
    const originalCall=mutationArgs(request.operation,request.input,request.requestId,issuedAt,before);
-   entry=await log.begin({requestId:request.requestId,intentSha256,scopeSha256:scope(before),issuedAt,argvSha256:digest(originalCall)},request.resume===true);
+   entry=await log.begin({requestId:request.requestId,intentSha256,scopeSha256:scope(before),issuedAt,argvSha256:digest(originalCall)},request.resume===true);check(binding,ctx,true);
    if(entry.completed)return {ok:entry.terminal?.ok===true,...(entry.terminal?.ok===true?{}:{fault:entry.terminal?.fault??'native-outcome-unknown'}),nativeOutcome:entry.terminal?.nativeOutcome??'UNKNOWN',exitCode:entry.terminal?.exitCode??null,mutation:'previously-observed',requestId:entry.requestId,receiptSha256:entry.receiptSha256,reconciliation:evidence};
    // Native GateRun executes the gate before its same-ID receipt replay lookup.
    // An uncertain execution cannot be retried safely by this adapter.
    if(request.operation==='gate run'&&entry.resume)return failure('gate-replay-unavailable',{mutation:'unknown',requestId:entry.requestId,reconciliation:evidence});
    const call=mutationArgs(request.operation,request.input,request.requestId,entry.issuedAt,before);
    if(entry.argvSha256!==digest(call))throw Error('request-id-conflict');
-   const fresh=await identify(ctx);
-   if(!trusted(ctx)||e!==epoch||scope(before)!==scope(fresh)||fresh.head!==before.head||ctx.signal?.aborted)return failure('stale-context',{requestId:entry.requestId,mutation:'pending-reconciliation'});
-   dispatched=true;
-   const result=await native(call.args,ctx,call.input);
-   const final=await identify(ctx);
-   if(e!==epoch||scope(before)!==scope(final))return failure('stale-context',{requestId:entry.requestId,mutation:'unknown'});
-   if(result.raw){await log.finish(entry,result.raw,{ok:result.ok,nativeOutcome:result.raw.outcome,exitCode:result.exitCode,fault:result.ok?null:'native-refusal'});return {...result,mutation:result.raw.items[0]?.receipt?'receipt-observed':'native-result-observed',requestId:entry.requestId,reconciliation:evidence}}
+   const fresh=await identify(ctx,binding,true);
+   if(scope(before)!==scope(fresh)||fresh.head!==before.head)throw Error('stale-context');
+   check(binding,ctx,true);dispatched=true;
+   result=await native(call.args,ctx,call.input,binding);check(binding,ctx);
+   const final=await identify(ctx,binding);
+   if(scope(before)!==scope(final))throw Error('stale-context');
+   if(result.raw){check(binding,ctx);await log.finish(entry,result.raw,{ok:result.ok,nativeOutcome:result.raw.outcome,exitCode:result.exitCode,fault:result.ok?null:'native-refusal'});check(binding,ctx);return {...result,mutation:result.raw.items[0]?.receipt?'receipt-observed':'native-result-observed',requestId:entry.requestId,reconciliation:evidence}}
    return {...result,requestId:entry.requestId,mutation:'unknown',reconciliation:evidence};
-  } catch(e) {return failure(['invalid-input','unsupported-mutation','pending-operation','request-id-conflict','reconciliation-required','ledger-full','ledger-invalid'].includes(e.message)?e.message:'operation-unavailable',{mutation:dispatched?'unknown':entry?'pending-reconciliation':'not-attempted',...(entry?{requestId:entry.requestId}:{})})}
+  } catch(error) {const code=fault(error,'operation-unavailable');return failure(code,{...(result??{}),ok:false,fault:code,...(result?{wrapperFault:code}:{}),mutation:dispatched?'unknown':entry?'pending-reconciliation':'not-attempted',...(entry?{requestId:entry.requestId}:{})})}
   finally{busy=false}
  }
- return {read,command,clear(){epoch++},close:()=>runner.close?.()};
+ return {read,command,clear(){epoch++;return ownedIdentity?.cancel()},close:()=>Promise.all([runner.close?.(),ownedIdentity?.close()])};
 }
 export function registerTasksTools(pi,{service,notice=()=>{}}) {
  pi.registerTool({name:'corvint_tasks',label:'Corvint Tasks reads',description:'Bounded native Tasks reads. Raw receipts retain unknowns; no task-store writes or initialization.',parameters:{type:'object',properties:{operation:{type:'string',enum:Object.keys(reads)},input:{type:'object'}},required:['operation'],additionalProperties:false},execute:async(_id,args,signal,_update,ctx)=>tasksResult(await service.read(args.operation,args.input??{},{...ctx,signal}))});

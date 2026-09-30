@@ -3,25 +3,48 @@
 import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
 import { mkdir, open, readdir, lstat, unlink, realpath } from 'node:fs/promises';
-import { join } from 'node:path';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-const exec=promisify(execFile);
+import { join, isAbsolute } from 'node:path';
+import { createCommandRunner } from './process.js';
+import { workflowIdentity } from './workflow.js';
 export const digest=value=>createHash('sha256').update(typeof value==='string'?value:canonical(value)).digest('hex');
 export function canonical(value) {
  if(Array.isArray(value))return '['+value.map(canonical).join(',')+']';
  if(value&&typeof value==='object')return '{'+Object.keys(value).sort().map(k=>JSON.stringify(k)+':'+canonical(value[k])).join(',')+'}';
  return JSON.stringify(value);
 }
+const identityArgs=['rev-parse','--show-toplevel','--absolute-git-dir','HEAD','--symbolic-full-name','HEAD'];
+const filesystemIdentity=i=>({root:i.root,gitDir:i.gitDir,rootDevice:i.rootDevice,rootInode:i.rootInode,gitDevice:i.gitDevice,gitInode:i.gitInode,markerDevice:i.markerDevice,markerInode:i.markerInode});
+export function createWorktreeIdentity({runner,realpathImpl=realpath}={}) {
+ if(!runner){const env={GIT_CONFIG_NOSYSTEM:'1'};for(const key of ['PATH','HOME','LANG','LC_ALL','TMPDIR'])if(process.env[key]!==undefined)env[key]=process.env[key];runner=createCommandRunner({binary:'git',env,timeoutMs:1700,maxBytes:16384})}
+ const pending=new Set();let generation=0,closed=false;
+ async function identify(ctx) {
+  if(closed)throw Error('identity-closed');
+  if(!ctx.isProjectTrusted?.())throw Error('untrusted-project');
+  if(ctx.signal?.aborted)throw Error('aborted');
+  const epoch=generation,cwd=ctx.cwd,session=ctx.sessionManager?.getSessionId(),signal=ctx.signal;
+  if(typeof session!=='string'||!session||!session.isWellFormed()||Buffer.byteLength(session)>4096)throw Error('session-unavailable');
+  const frozen={...ctx,cwd,sessionManager:{getSessionId:()=>session}};
+  const check=()=>{if(closed||epoch!==generation||cwd!==ctx.cwd||session!==ctx.sessionManager?.getSessionId()||!ctx.isProjectTrusted?.())throw Error('stale-context');if(signal?.aborted||ctx.signal?.aborted)throw Error('aborted')};
+  const beforeIdentity=workflowIdentity(frozen),before=filesystemIdentity(beforeIdentity);check();
+  const result=await runner.run({cwd,args:[...identityArgs],signal});check();
+  if(result.fault||result.exitCode!==0||typeof result.stdout!=='string'||Buffer.byteLength(result.stdout)>16384||!result.stdout.endsWith('\n'))throw Error('identity-unavailable');
+  const lines=result.stdout.slice(0,-1).split('\n');
+  if(lines.length!==4||lines.some(v=>!v||v.includes('\0')||v.includes('\r'))||!isAbsolute(lines[0])||!isAbsolute(lines[1])||! /^[a-f0-9]{40}([a-f0-9]{24})?$/.test(lines[2])||!(lines[3]==='HEAD'||/^refs\/heads\/[^\x00-\x20\x7f]+$/.test(lines[3])))throw Error('identity-unavailable');
+  check();const [root,gitDir]=await Promise.all([realpathImpl(lines[0]),realpathImpl(lines[1])]);check();
+  const afterIdentity=workflowIdentity(frozen),after=filesystemIdentity(afterIdentity);check();
+  const headMarker=lines[3]==='HEAD'?lines[2]:'ref: '+lines[3];
+  if(root!==before.root||gitDir!==before.gitDir||canonical(before)!==canonical(after)||beforeIdentity.head.trim()!==headMarker||afterIdentity.head.trim()!==headMarker)throw Error('stale-context');
+  // HEAD is a native Git observation. Filesystem HEAD text cannot prove a later
+  // same-branch commit; callers revalidate exact OIDs at their dispatch boundary.
+  return {...after,branch:lines[3]==='HEAD'?'HEAD':lines[3].slice('refs/heads/'.length),detached:lines[3]==='HEAD',head:lines[2],sessionSha256:digest(session),filesystemSha256:digest(after)};
+ }
+ function read(ctx){const job=identify(ctx);pending.add(job);job.then(()=>pending.delete(job),()=>pending.delete(job));return job}
+ async function cancel(){generation++;const owned=[...pending];await runner.cancel?.();await Promise.allSettled(owned)}
+ async function close(){closed=true;await cancel();await runner.close?.()}
+ return {read,cancel,close};
+}
 export async function worktreeIdentity(ctx) {
- const git=async args=>(await exec('git',args,{cwd:ctx.cwd,timeout:2000,maxBuffer:8192,env:{PATH:process.env.PATH,HOME:process.env.HOME,GIT_CONFIG_NOSYSTEM:'1'}})).stdout.trim();
- const root=await realpath(await git(['rev-parse','--show-toplevel']));
- const gitDir=await realpath(await git(['rev-parse','--absolute-git-dir']));
- const branch=await git(['symbolic-ref','--short','HEAD']);
- const head=await git(['rev-parse','HEAD']);
- const session=ctx.sessionManager?.getSessionId();
- if(typeof session!=='string'||!session)throw Error('session-unavailable');
- return {root,gitDir,branch,head,sessionSha256:digest(session)};
+ const owner=createWorktreeIdentity();try{return await owner.read(ctx)}finally{await owner.close()}
 }
 function validTerminal(v) {
  return v&&Object.keys(v).sort().join(',')==='exitCode,fault,nativeOutcome,ok'&&typeof v.ok==='boolean'&&['OK','REFUSED','ERROR','NOT_RUN'].includes(v.nativeOutcome)&&(v.exitCode===null||Number.isInteger(v.exitCode))&&v.fault===(v.ok?null:'native-refusal')&&v.ok===(v.nativeOutcome==='OK'&&v.exitCode===0);

@@ -16,6 +16,7 @@ export default function register(pi, {runner, version, lifecycle=[], onInterrupt
   else process.stderr.write(text+'\n');
  };
  const tools=registerTools(pi,{runner,version,notice});
+ const clearServices=()=>{tools.clear();return Promise.all(lifecycle.map(service=>service.clear?.()))};
  const signalInterrupt=(signal,listener)=>{
   if(starting&&!startupExitCode)startupExitCode=signal==='SIGINT'?130:143;
   if(interrupting)return;
@@ -53,11 +54,10 @@ export default function register(pi, {runner, version, lifecycle=[], onInterrupt
  }
  async function transition(ctx,startSource) {
   generation++;
-  tools.clear();
-  for(const service of lifecycle)service.clear?.();
+  const cleanup=clearServices();
   seen.clear();
   recovery=undefined;
-  await runner.close();
+  await Promise.all([runner.close(),cleanup]);
   await recover(ctx,startSource);
  }
  pi.on('session_start',async(e,ctx)=>{
@@ -67,7 +67,7 @@ export default function register(pi, {runner, version, lifecycle=[], onInterrupt
  pi.on('input',async()=>{
   if(startupExitCode){process.stderr.write('Corvint unavailable: aborted.\n');process.exitCode=startupExitCode;return {action:'handled'};}
  });
- pi.on('session_compact',async(_,ctx)=>{tools.clear();for(const service of lifecycle)service.clear?.();await recover(ctx,'compact');});
+ pi.on('session_compact',async(_,ctx)=>{await clearServices();await recover(ctx,'compact');});
  pi.on('session_tree',async(_,ctx)=>{await transition(ctx,'resume');});
  pi.on('before_agent_start',async(e,ctx)=>{
   const result=await event(ctx,'user-prompt',{task:e.prompt});
@@ -83,7 +83,7 @@ export default function register(pi, {runner, version, lifecycle=[], onInterrupt
   return {messages:[...e.messages,{role:'custom',customType:'corvint-recovery',content:pending.context,display:false,timestamp:Date.now()}]};
  });
  pi.on('tool_result',async(e,ctx)=>{
-  if(['edit','write','apply_patch'].includes(e.toolName)||e.details?.corvint?.changedPaths?.length){tools.clear();for(const service of lifecycle)service.clear?.();}
+  if(['edit','write','apply_patch'].includes(e.toolName)||e.details?.corvint?.changedPaths?.length)await clearServices();
   let input;
   try{input=toolObservations(e.details?.corvint)}catch{notice(ctx,'invalid-input');return;}
   await event(ctx,'post-tool',input);
@@ -95,10 +95,9 @@ export default function register(pi, {runner, version, lifecycle=[], onInterrupt
  });
  pi.on('session_shutdown',async(_,ctx)=>{
   generation++;
-  tools.clear();
-  for(const service of lifecycle)service.clear?.();
+  const cleanup=clearServices();
   recovery=undefined;
-  try{await runner.close();await event(ctx,'session-end');}
+  try{await Promise.all([runner.close(),cleanup]);await event(ctx,'session-end');}
   finally{await runner.close();await Promise.all(lifecycle.map(service=>service.close?.()));seen.clear();process.removeListener('SIGINT',interrupt);process.removeListener('SIGTERM',terminate);}
  });
  pi.registerCommand('corvint-context',{description:'Read bounded Corvint context',handler:async(text,ctx)=>{

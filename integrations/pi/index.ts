@@ -4,7 +4,7 @@ import { createRunner, decodeObject } from './runtime.js';
 import { createCommandRunner } from './process.js';
 import { createCoreService, registerCoreTools } from './core.js';
 import { createTasksService, registerTasksTools } from './tasks.js';
-import { worktreeIdentity, canonical } from './operations.js';
+import { createWorktreeIdentity, canonical } from './operations.js';
 import { registerCockpit } from './cockpit.js';
 import { registerWorkflow } from './workflow.js';
 import * as uiKit from '@earendil-works/pi-tui';
@@ -23,24 +23,29 @@ export function registerWithOptions(pi: ExtensionAPI, options: Options = {}) {
  const tasksBinary=options.tasksBinary??process.env.CORVINT_TASKS_BIN??'corvint-tasks';
  const coreRunner=createCommandRunner({binary:binary??'corvint'});
  const tasksRunner=createCommandRunner({binary:tasksBinary});
+ const identityOwner=createWorktreeIdentity();
  const coreNative=createCoreService({runner:coreRunner});
- const tasks=createTasksService({runner:tasksRunner});
+ const tasks=createTasksService({runner:tasksRunner,identityOwner});
  let generation=0;
  const core={
   clear(){generation++;coreNative.clear();},close:()=>coreNative.close(),
   async read(operation:string,input:any,ctx:any){
    if(!ctx.isProjectTrusted())return coreNative.read(operation,input,ctx);
-   const epoch=generation;let result:any;
+   const epoch=generation,cwd=ctx.cwd,session=ctx.sessionManager?.getSessionId(),signal=ctx.signal;let result:any;
+   const live=()=>epoch===generation&&cwd===ctx.cwd&&session===ctx.sessionManager?.getSessionId()&&ctx.isProjectTrusted()&&!signal?.aborted&&!ctx.signal?.aborted;
+   const frozen={...ctx,cwd,signal,sessionManager:{getSessionId:()=>session}};
    try{
-    const before=canonical(await worktreeIdentity(ctx));
-    result=await coreNative.read(operation,input,ctx);
-    if(epoch!==generation||before!==canonical(await worktreeIdentity(ctx)))return {...result,fault:'stale-context'};
+    const before=canonical(await identityOwner.read(frozen));
+    if(!live())return {operation,fault:'stale-context'};
+    result=await coreNative.read(operation,input,frozen);
+    if(!live()||before!==canonical(await identityOwner.read(frozen))||!live())return {...result,fault:'stale-context'};
     return result;
    }catch{return {...result,operation,fault:'identity-unavailable'};}
+
   }
  };
  let workflow:any;
- const tools=register(pi,{runner:createRunner({binary}),version:VERSION,lifecycle:[core,tasks],onInterrupt:async()=>{core.clear();tasks.clear();await Promise.all([coreRunner.cancel(),tasksRunner.cancel(),workflow?.clear()]);}});
+ const tools=register(pi,{runner:createRunner({binary}),version:VERSION,lifecycle:[core,tasks,{clear:identityOwner.cancel,close:identityOwner.close}],onInterrupt:async()=>{core.clear();tasks.clear();await Promise.all([identityOwner.cancel(),coreRunner.cancel(),tasksRunner.cancel(),workflow?.clear()]);}});
  workflow=registerWorkflow(pi,{runner:createCommandRunner({binary:binary??'corvint',timeoutMs:1700,maxBytes:8000}),version:VERSION,notice});
  const context={
   async read(_operation:string,input:any,ctx:any){
@@ -57,7 +62,7 @@ export function registerWithOptions(pi: ExtensionAPI, options: Options = {}) {
  };
  registerCoreTools(pi,{service:core,notice});
  registerTasksTools(pi,{service:tasks,notice});
- const cockpit=registerCockpit(pi,{core,tasks,context,notice,identity:worktreeIdentity,uiKit});
+ const cockpit=registerCockpit(pi,{core,tasks,context,notice,identity:identityOwner.read,uiKit});
  pi.on('session_shutdown',async()=>{cockpit.close();await workflow.close();});
  return {core,tasks,workflow,cockpit};
 }
