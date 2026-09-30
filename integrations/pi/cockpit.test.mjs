@@ -79,12 +79,50 @@ test('Tasks tab uses the native queue read operation and renders its structured 
 });
 
 test('an invalidation during refresh discards the late service result',async()=>{
- let release;const pending=new Promise(resolve=>{release=resolve});
+ let release,readStarted;const pending=new Promise(resolve=>{release=resolve}),started=new Promise(resolve=>{readStarted=resolve});
  const commands=new Map(),handlers=new Map(),messages=[];
  const pi={registerCommand:(n,c)=>commands.set(n,c),on:(n,h)=>handlers.set(n,h),sendMessage:m=>messages.push(m)};
  const ctx={mode:'print',hasUI:false,cwd:'/repo',sessionManager:{getSessionId:()=> 'delayed'},ui:{}};
- registerCockpit(pi,{core:{read:async()=>pending},tasks:{}});
- const running=commands.get('corvint').handler('',ctx);await Promise.resolve();
+ registerCockpit(pi,{core:{read:async()=>{readStarted();return pending}},tasks:{}});
+ const running=commands.get('corvint').handler('',ctx);await started;
  await handlers.get('tool_result')({toolName:'edit'},ctx);release({operation:'context',receipt:'late',raw:{stdout:'must not publish'}});await running;
  assert.equal(messages[0].details.stale,true);assert.equal(messages[0].details.reason,'discarded-stale-result');assert.equal(messages[0].details.result,null);
+});
+
+test('async canonical identity drift discards the result and rejected identity stays visible without reading',async()=>{
+ let release,readStarted;const pending=new Promise(resolve=>{release=resolve}),started=new Promise(resolve=>{readStarted=resolve});
+ let identityGeneration=1;const commands=new Map(),messages=[];
+ const pi={registerCommand:(n,c)=>commands.set(n,c),on(){},sendMessage:m=>messages.push(m)};
+ const ctx={mode:'print',hasUI:false,cwd:'/repo',sessionManager:{getSessionId:()=> 'identity'},ui:{}};
+ registerCockpit(pi,{core:{read:async()=>{readStarted();return pending}},tasks:{},identity:async()=>({session:'identity',gitDir:'/git/repo',generation:identityGeneration})});
+ const running=commands.get('corvint').handler('',ctx);await started;identityGeneration=2;release({operation:'context',receipt:'old-identity'});await running;
+ assert.equal(messages[0].details.reason,'discarded-stale-result');assert.equal(messages[0].details.result,null);
+
+ let reads=0;const rejected=new Map(),failures=[];
+ const pi2={registerCommand:(n,c)=>rejected.set(n,c),on(){},sendMessage:m=>failures.push(m)};
+ registerCockpit(pi2,{core:{read:async()=>{reads++}},tasks:{},identity:async()=>{throw Error('private path')}});
+ await rejected.get('corvint').handler('',ctx);
+ assert.equal(reads,0);assert.equal(failures[0].details.fault,'identity-unavailable');assert.equal(failures[0].details.stale,true);
+});
+
+test('canonical identity serialization ignores object key order',async()=>{
+ let identityCall=0,reads=0;const commands=new Map(),messages=[];
+ const pi={registerCommand:(n,c)=>commands.set(n,c),on(){},sendMessage:m=>messages.push(m)};
+ const ctx={mode:'print',hasUI:false,cwd:'/repo',sessionManager:{getSessionId:()=> 'stable'},ui:{}};
+ registerCockpit(pi,{core:{read:async operation=>{reads++;return {operation,receipt:'stable'}}},tasks:{},identity:async()=>++identityCall%2?{session:'stable',git:{dir:'/git/repo',generation:4}}:{git:{generation:4,dir:'/git/repo'},session:'stable'}});
+ await commands.get('corvint').handler('',ctx);
+ assert.equal(reads,1);assert.equal(messages[0].details.stale,false);assert.equal(messages[0].details.result.receipt,'stable');
+});
+
+test('navigation while a refresh is pending cannot publish the old view result under the new tab',async()=>{
+ let release,readStarted;const pending=new Promise(resolve=>{release=resolve}),started=new Promise(resolve=>{readStarted=resolve});
+ const commands=new Map(),pi={registerCommand:(n,c)=>commands.set(n,c),on(){},sendMessage(){}};
+ const ctx={mode:'tui',hasUI:true,cwd:'/repo',sessionManager:{getSessionId:()=> 'navigation'},ui:{custom:async factory=>{
+  const component=await factory({requestRender(){}},theme,null,()=>{});
+  component.handleInput('r');await started;component.handleInput('3');
+  release({operation:'context',receipt:'old-evidence',raw:{stdout:'must stay hidden'}});await new Promise(resolve=>setImmediate(resolve));
+  const rendered=component.render(80).join('\n');assert.match(rendered,/Tasks/);assert.doesNotMatch(rendered,/old-evidence|must stay hidden/);assert.match(rendered,/STALE/);
+ }}};
+ registerCockpit(pi,{core:{read:async()=>{readStarted();return pending}},tasks:{read:async()=>({operation:'queue'})},uiKit});
+ await commands.get('corvint').handler('',ctx);
 });

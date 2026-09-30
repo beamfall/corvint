@@ -41,6 +41,19 @@ function scope(ctx) {
  return `${ctx.cwd}\u0000${session}`;
 }
 
+function canonicalIdentity(value,seen=new Set()) {
+ if(value===null||typeof value==='string'||typeof value==='boolean')return JSON.stringify(value);
+ if(typeof value==='number'&&Number.isFinite(value))return JSON.stringify(value);
+ if(!value||typeof value!=='object'||seen.has(value))throw Error('invalid identity');
+ seen.add(value);
+ let encoded;
+ if(Array.isArray(value))encoded=`[${value.map(item=>canonicalIdentity(item,seen)).join(',')}]`;
+ else encoded=`{${Object.keys(value).sort().map(key=>`${JSON.stringify(key)}:${canonicalIdentity(value[key],seen)}`).join(',')}}`;
+ seen.delete(value);
+ if(Buffer.byteLength(encoded)>16384)throw Error('identity too large');
+ return encoded;
+}
+
 async function loadView(view,text,ctx,services) {
  const [,label,owner,operationFor,input]=view, service=owner==='context-core'?(services.context?.read?services.context:services.core):services[owner],operation=typeof operationFor==='function'?operationFor(text):operationFor;
  if(!service||typeof service.read!=='function')return {label,lines:[`UNCERTAIN — ${owner} read service unavailable`],fault:'service-unavailable'};
@@ -58,6 +71,7 @@ function structuredSnapshot(state,reason) {
 }
 
 export function createCockpitComponent({state,refresh,done,tui,theme,uiKit}) {
+ state.requestGeneration??=0;
  const {matchesKey,truncateToWidth,visibleWidth}=uiKit;
  const fit=(text,width)=>truncateToWidth(text,Math.max(1,width),'…');
  const component={
@@ -79,9 +93,9 @@ export function createCockpitComponent({state,refresh,done,tui,theme,uiKit}) {
   handleInput(data) {
    if(matchesKey(data,'escape')||data==='q'){done(structuredSnapshot(state,'closed'));return;}
    let changed=false;
-   if(matchesKey(data,'left')){state.sourceRequest=undefined;state.sourceError=undefined;state.selected=(state.selected+VIEWS.length-1)%VIEWS.length;state.offset=0;state.loaded=undefined;state.stale=true;changed=true;}
-   else if(matchesKey(data,'right')){state.sourceRequest=undefined;state.sourceError=undefined;state.selected=(state.selected+1)%VIEWS.length;state.offset=0;state.loaded=undefined;state.stale=true;changed=true;}
-   else if(/^[1-5]$/.test(data)){state.sourceRequest=undefined;state.sourceError=undefined;state.selected=Number(data)-1;state.offset=0;state.loaded=undefined;state.stale=true;changed=true;}
+   if(matchesKey(data,'left')){state.requestGeneration++;state.loading=false;state.sourceRequest=undefined;state.sourceError=undefined;state.selected=(state.selected+VIEWS.length-1)%VIEWS.length;state.offset=0;state.loaded=undefined;state.stale=true;changed=true;}
+   else if(matchesKey(data,'right')){state.requestGeneration++;state.loading=false;state.sourceRequest=undefined;state.sourceError=undefined;state.selected=(state.selected+1)%VIEWS.length;state.offset=0;state.loaded=undefined;state.stale=true;changed=true;}
+   else if(/^[1-5]$/.test(data)){state.requestGeneration++;state.loading=false;state.sourceRequest=undefined;state.sourceError=undefined;state.selected=Number(data)-1;state.offset=0;state.loaded=undefined;state.stale=true;changed=true;}
    else if(matchesKey(data,'up')){state.offset=Math.max(0,state.offset-1);changed=true;}
    else if(matchesKey(data,'down')){state.offset++;changed=true;}
    else if(matchesKey(data,'pageUp')){state.offset=Math.max(0,state.offset-10);changed=true;}
@@ -97,7 +111,7 @@ async function defaultUiKit() { return import('@earendil-works/pi-tui'); }
 
 export function registerCockpit(pi,{core,tasks,context,notice=()=>{},identity=scope,uiKit:providedUiKit}={}) {
  const states=new Map();let closed=false,generation=0;
- const identityFor=ctx=>{try{return String(identity(ctx))}catch{return scope(ctx)}};
+ const identityFor=async ctx=>canonicalIdentity(await identity(ctx));
  const invalidate=reason=>{generation++;for(const state of states.values()){state.stale=true;state.loading=false;state.reason=reason;state.loaded=undefined;state.offset=0;}};
  const clear=()=>{generation++;states.clear();};
  const close=()=>{closed=true;clear();};
@@ -106,11 +120,20 @@ export function registerCockpit(pi,{core,tasks,context,notice=()=>{},identity=sc
  pi.on('tool_result',async event=>{if(EDIT_TOOLS.has(event?.toolName)||event?.details?.corvint?.changedPaths?.length)invalidate('observed edit');});
  pi.registerCommand('corvint',{description:'Open the read-only Corvint evidence cockpit. Source: /corvint source packet-1 {"result":0,"evidence":0,"lines":"1:20"}',handler:async(text='',ctx)=>{
   if(closed)return;
-  const key=identityFor(ctx), prior=states.get(key), state=prior??{selected:0,offset:0,stale:true,loading:false,reason:'not read',loaded:undefined};
+  let key;
+  try{key=await identityFor(ctx)}catch{
+   const state={selected:0,offset:0,stale:true,loading:false,reason:'identity unavailable',requestGeneration:0,loaded:{label:'Identity',lines:['UNCERTAIN — canonical worktree identity unavailable'],fault:'identity-unavailable'}};
+   const snapshot=structuredSnapshot(state,'identity-unavailable');
+   if(ctx.mode==='tui'){const uiKit=providedUiKit??await defaultUiKit();await ctx.ui.custom((tui,theme,_keys,done)=>createCockpitComponent({state,refresh:async()=>snapshot,done,tui,theme,uiKit}));return;}
+   if(ctx.mode==='rpc'&&ctx.hasUI){ctx.ui.setStatus('corvint-cockpit','UNCERTAIN: identity unavailable');ctx.ui.notify('Corvint cockpit: canonical identity unavailable','warning');}else notice(ctx,'identity-unavailable');
+   if(typeof pi.sendMessage==='function')pi.sendMessage({customType:'corvint-cockpit',content:[{type:'text',text:JSON.stringify(snapshot)}],display:true,details:snapshot},{triggerTurn:false});
+   return;
+  }
+  const prior=states.get(key), state=prior??{selected:0,offset:0,stale:true,loading:false,reason:'not read',requestGeneration:0,loaded:undefined};
   states.set(key,state);
   const services={core,tasks,context};
   const sourceMatch=text.trim().match(/^source\s+(\S+)\s+(.+)$/s);
-  state.sourceRequest=undefined;state.sourceError=undefined;
+  state.requestGeneration++;state.sourceRequest=undefined;state.sourceError=undefined;
   if(sourceMatch) {
    try {
     const selector=JSON.parse(sourceMatch[2]),keys=Object.keys(selector??{});
@@ -120,14 +143,20 @@ export function registerCockpit(pi,{core,tasks,context,notice=()=>{},identity=sc
    catch {state.sourceError='invalid-source-selector';}
   }
   const refresh=async()=>{
-   const started=generation, startedIdentity=identityFor(ctx);state.loading=true;state.reason='explicit refresh';let loaded;
+   const started=generation,startedRequest=state.requestGeneration;let startedIdentity;
+   try{startedIdentity=await identityFor(ctx)}catch{state.loaded={label:'Identity',lines:['UNCERTAIN — canonical worktree identity unavailable'],fault:'identity-unavailable'};state.stale=true;state.loading=false;state.reason='identity unavailable';return structuredSnapshot(state,'identity-unavailable');}
+   if(startedIdentity!==key){state.loaded=undefined;state.stale=true;state.loading=false;state.reason='identity changed before refresh';return structuredSnapshot(state,'discarded-stale-result');}
+   state.loading=true;state.reason='explicit refresh';let loaded;
    if(state.sourceError)loaded={label:'Source expansion',lines:['UNCERTAIN — source selector must be a JSON object'],fault:state.sourceError};
    if(state.sourceRequest) {
     if(typeof context?.expand!=='function')loaded={label:'Source expansion',lines:['UNCERTAIN — validated source expansion unavailable'],fault:'source-expansion-unavailable'};
     else try {const result=await context.expand(state.sourceRequest,ctx);loaded={label:'Source expansion',lines:resultLines(result),result,fault:result?.fault};}
     catch{loaded={label:'Source expansion',lines:['UNCERTAIN — source expansion failed'],fault:'source-expansion-failed'};}
    } else if(!state.sourceError)loaded=await loadView(VIEWS[state.selected],text.trim(),ctx,services);
-   if(started!==generation||startedIdentity!==identityFor(ctx)){state.loaded=undefined;state.stale=true;state.loading=false;state.reason='invalidated during refresh';return structuredSnapshot(state,'discarded-stale-result');}
+   let currentIdentity;
+   try{currentIdentity=await identityFor(ctx)}catch{if(startedRequest===state.requestGeneration){state.loaded={label:'Identity',lines:['UNCERTAIN — canonical worktree identity unavailable'],fault:'identity-unavailable'};state.stale=true;state.loading=false;state.reason='identity unavailable';}return structuredSnapshot(state,'identity-unavailable');}
+   if(startedRequest!==state.requestGeneration)return structuredSnapshot(state,'discarded-stale-result');
+   if(started!==generation||startedIdentity!==currentIdentity){state.loaded=undefined;state.stale=true;state.loading=false;state.reason='invalidated during refresh';return structuredSnapshot(state,'discarded-stale-result');}
    state.loaded=loaded;state.stale=false;state.loading=false;state.offset=0;
    return structuredSnapshot(state,'refreshed');
   };
