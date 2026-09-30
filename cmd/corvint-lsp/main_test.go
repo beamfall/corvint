@@ -14,7 +14,7 @@ import (
 )
 
 func TestOptIn(t *testing.T) {
-	if run(nil) != 2 || run([]string{"--experimental", "extra"}) != 2 {
+	if run(nil) != 2 || run([]string{"--experimental", "extra"}) != 2 || run([]string{"--experimental", "--workspace-drift-guard"}) != 2 {
 		t.Fatal("missing opt-in accepted")
 	}
 }

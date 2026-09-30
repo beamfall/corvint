@@ -77,7 +77,7 @@ func TestSemanticHost(t *testing.T) {
 		json.Unmarshal(b, &m)
 		switch m.Method {
 		case "initialize":
-			os.WriteFile("backend-pid", []byte(strconv.Itoa(os.Getpid())), 0600)
+			os.WriteFile(filepath.Join(os.Getenv("CORVINT_SEMANTIC_SCRATCH"), "backend-pid"), []byte(strconv.Itoa(os.Getpid())), 0600)
 			if mode == "init-hang" {
 				time.Sleep(time.Minute)
 				continue
@@ -92,6 +92,17 @@ func TestSemanticHost(t *testing.T) {
 			json.Unmarshal(m.Params, &p)
 			uri = p.TextDocument.URI
 		case "textDocument/definition":
+			if mode == "guard-barrier" {
+				dir := os.Getenv("CORVINT_SEMANTIC_SCRATCH")
+				os.WriteFile(filepath.Join(dir, "received"), []byte("1"), 0600)
+				f, e := os.Open(filepath.Join(dir, "release"))
+				if e != nil {
+					os.Exit(3)
+				}
+				var b [1]byte
+				f.Read(b[:])
+				f.Close()
+			}
 			if mode == "hang" {
 				continue
 			}
@@ -117,9 +128,13 @@ type semanticHarness struct {
 	done      chan error
 	cancel    context.CancelFunc
 	root, uri string
+	scratch   string
 }
 
 func semanticHarnessNew(t *testing.T, mode string) *semanticHarness {
+	return semanticHarnessOptions(t, mode, false)
+}
+func semanticHarnessOptions(t *testing.T, mode string, guard bool) *semanticHarness {
 	t.Helper()
 	root, e := filepath.EvalSymlinks(t.TempDir())
 	if e != nil {
@@ -129,8 +144,14 @@ func semanticHarnessNew(t *testing.T, mode string) *semanticHarness {
 	if strings.Contains(exe, "'") {
 		t.Fatal("quote")
 	}
-	binary := filepath.Join(root, "gopls")
-	if e = os.WriteFile(binary, []byte("#!/bin/sh\nexport CORVINT_SEMANTIC_FAKE="+mode+"\nexec '"+exe+"' -test.run '^TestSemanticHost$' -- serve\n"), 0700); e != nil {
+	scratch := root
+	if guard {
+		scratch, _ = filepath.EvalSymlinks(t.TempDir())
+		fixtureGit(t, root, "init", "-q")
+		fixtureGit(t, root, "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "commit", "--allow-empty", "-qm", "fixture")
+	}
+	binary := filepath.Join(scratch, "gopls")
+	if e = os.WriteFile(binary, []byte("#!/bin/sh\nexport CORVINT_SEMANTIC_FAKE="+mode+"\nexport CORVINT_SEMANTIC_SCRATCH='"+scratch+"'\nexec '"+exe+"' -test.run '^TestSemanticHost$' -- serve\n"), 0700); e != nil {
 		t.Fatal(e)
 	}
 	if mode == "live" {
@@ -144,10 +165,10 @@ func semanticHarnessNew(t *testing.T, mode string) *semanticHarness {
 	inR, inW := io.Pipe()
 	outR, outW := io.Pipe()
 	ctx, cancel := context.WithCancel(context.Background())
-	h := &semanticHarness{in: inW, reader: bufio.NewReader(outR), done: make(chan error, 1), writes: make(chan struct{}, 16), cancel: cancel, root: root}
+	h := &semanticHarness{in: inW, reader: bufio.NewReader(outR), done: make(chan error, 1), writes: make(chan struct{}, 16), cancel: cancel, root: root, scratch: scratch}
 	h.uri = (&url.URL{Scheme: "file", Path: filepath.Join(root, "main.go")}).String()
 	go func() {
-		h.done <- ServeSemantic(ctx, inR, observedSemanticWriter{outW, h.writes}, SemanticConfig{Executable: binary, Root: root})
+		h.done <- ServeSemantic(ctx, inR, observedSemanticWriter{outW, h.writes}, SemanticConfig{Executable: binary, Root: root, WorkspaceDriftGuard: guard})
 	}()
 	t.Cleanup(func() {
 		cancel()

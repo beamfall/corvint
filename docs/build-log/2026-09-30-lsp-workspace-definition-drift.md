@@ -1,0 +1,11 @@
+# Partial workspace definition drift guard
+
+Owner admitted the independently reviewed whole-root experimental plan70aa1fac and Gate A /tmp/lsp-qualification-guard-gate-plan.md. Original overlay-only engine returned a definition after an already-dirty third-file changed; /tmp/lsp-guard-original-third-file.log retains the failing witness. The guard compares session-pinned whole-root bytes and Git/root identity before/after definitions; external SDK/cache/module input closure remains incomplete and all tuples UNQUALIFIED. Complete contained go.work remains required for eventual qualification.
+
+New-root context/affected receipts and focused baseline retained /tmp/lsp-guard-prechange-query.json, /tmp/lsp-guard-before-affected.json, /tmp/lsp-guard-go-baseline-owned.log. Initial impact syntax/cache sandbox refusals are preserved. Required zero-diff change-start refused/map unavailable, /tmp/lsp-guard-change-start.log; first-query premeasurement chronology remains NOT_OBSERVED. No native attempt is owned; capacity is occupied by other workers.
+
+Deterministic FIFO controls establish backend request receipt before disk mutation; they are engine proof, not actual editor/provider qualification. Initial use of full repository probes exceeded the shared200ms healthy observation budget on a tiny fixture (~168.5+180.4ms), retained /tmp/lsp-guard-observation-cost.log; this is an observed feasibility gap, not a successful negative qualification. Do not relax the accepted floor or skip .corvint/.taskman semantic inputs to hide it.
+
+Accepted experimental evaluation targets and exact human acceptance/protocol are now retained durably in the owning LQP spec and JSON artifact. They are accepted policy only; measurements, external closure, actual editors and protected evaluation remain incomplete. Rollback disables the explicit guard or reverts its task-owned files, preserving legacy/default Core behavior. Independent source review and final binding remain pending.
+
+The reviewed two-snapshot compact observer later preserved resolved Git and raw HEAD/path brackets while tiny controlled observations measured ~41.4ms+39.5ms. Healthy guarded overlay controls passed within the unchanged shared200ms; larger-root/resource qualification remains NOT_RUN. Source artifacts and all failed intermediate controls are retained separately; source review is pending.
