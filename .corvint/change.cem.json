@@ -1,45 +1,45 @@
 {
-  "baseRevision": "25730eaa0e9ce21ef6771ddf8be18f13cff1ad91",
+  "baseRevision": "8f4b866a4ed201a52d8c63196050a9623a449dfe",
   "evidence": [
     {
-      "blobOid": "03406f61d959729c41a1b122049df94447278ecf",
-      "id": "evidence:sha256:829f0d91ed83ab5415ef17bcca123e751debca49bd1ef877341c24c601ce35b0",
+      "blobOid": "b9e679950d7988150af744f5368c9df10917730e",
+      "id": "evidence:sha256:fe27070b234072a681c918a5fce4d4cc966e010568902c1d82e87cb941a4ff88",
       "path": "docs/specs/agent-harness-integration-v0.md",
       "span": {
-        "end": 52542,
-        "start": 51593
+        "end": 53601,
+        "start": 52468
       },
-      "spanSha256": "c41fb8582dff58834db0e60a139295225753e8611d7be210cb6d20f7309a1351"
+      "spanSha256": "edd949176bb1eca4b082e498827f447e67cf54787c2712a6d30d98795593e60c"
     },
     {
-      "blobOid": "03406f61d959729c41a1b122049df94447278ecf",
-      "id": "evidence:sha256:522c76a5fb05447b306cea127d62076b1d7293a88ee33dbf6fb223c774f8c366",
+      "blobOid": "b9e679950d7988150af744f5368c9df10917730e",
+      "id": "evidence:sha256:9e0e0b80338140e1573ddc6828d59bfd3af05f42691ffdff017402b07e062cc8",
       "path": "docs/specs/agent-harness-integration-v0.md",
       "span": {
-        "end": 51593,
-        "start": 46908
+        "end": 52468,
+        "start": 47783
       },
       "spanSha256": "b8c90fa123ee73af9706480bb97e329558a4afd116edb015de56a1c4b6d12910"
     },
     {
-      "blobOid": "03406f61d959729c41a1b122049df94447278ecf",
-      "id": "evidence:sha256:25504de7c4c1485de77b9274b649911e07276535d4af7c2d8d447703a510e331",
-      "path": "docs/specs/agent-harness-integration-v0.md",
-      "span": {
-        "end": 19558,
-        "start": 18887
-      },
-      "spanSha256": "e950bae387c7df214479d891e68d4f43f693c591089d613ed077be37e151d9fa"
-    },
-    {
-      "blobOid": "03406f61d959729c41a1b122049df94447278ecf",
-      "id": "evidence:sha256:3358a0d4296abbb632b4c7bfbb79a7a4f7c658e8bcd20d90195745ac177ba446",
+      "blobOid": "b9e679950d7988150af744f5368c9df10917730e",
+      "id": "evidence:sha256:b9970f4b7bc88cc6d2a1662d5ea35a91bf8193e1d6ee92311ea62aa6d320782b",
       "path": "docs/specs/agent-harness-integration-v0.md",
       "span": {
         "end": 14451,
         "start": 13633
       },
       "spanSha256": "03e1b24b60caecdb3b0e12a37c2bc13dc5b783c1b8295cbd2e562174513d7618"
+    },
+    {
+      "blobOid": "b9e679950d7988150af744f5368c9df10917730e",
+      "id": "evidence:sha256:0506ff156b0b14539a9d87314311060f366bdbcd5a289fee73d102215ef09632",
+      "path": "docs/specs/agent-harness-integration-v0.md",
+      "span": {
+        "end": 19558,
+        "start": 18887
+      },
+      "spanSha256": "e950bae387c7df214479d891e68d4f43f693c591089d613ed077be37e151d9fa"
     }
   ],
   "excludedPath": ".corvint/change.cem.json",
@@ -47,14 +47,14 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:829f0d91ed83ab5415ef17bcca123e751debca49bd1ef877341c24c601ce35b0",
+          "evidenceId": "evidence:sha256:fe27070b234072a681c918a5fce4d4cc966e010568902c1d82e87cb941a4ff88",
           "relation": "specification"
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:d56228c037263d56ed34dbb6d2da402e97028558c90f5646f1debc90326824b2",
+      "id": "hunk:sha256:30eb87a6bb8f4dce9f0712593ef9ca1f801fe9806fe0d8826902c8386c131870",
       "newRange": {
-        "count": 23,
+        "count": 27,
         "start": 1
       },
       "oldRange": {
@@ -67,12 +67,12 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:522c76a5fb05447b306cea127d62076b1d7293a88ee33dbf6fb223c774f8c366",
+          "evidenceId": "evidence:sha256:9e0e0b80338140e1573ddc6828d59bfd3af05f42691ffdff017402b07e062cc8",
           "relation": "specification"
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:f21d3b30a9c45fe788ad10e0c00876fe5a104b3f000a02f54be42112b8c674ea",
+      "id": "hunk:sha256:c612c7c74e000e599753adfc7d2efcaae6ebe5481631bab6d3e072419d8255d3",
       "newRange": {
         "count": 15,
         "start": 155
@@ -87,19 +87,19 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:829f0d91ed83ab5415ef17bcca123e751debca49bd1ef877341c24c601ce35b0",
+          "evidenceId": "evidence:sha256:fe27070b234072a681c918a5fce4d4cc966e010568902c1d82e87cb941a4ff88",
           "relation": "specification"
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:4b3c350b99bd0b071981d3839ea411a89fc6bd6d248b1f0d19fd6aa277bbc37a",
+      "id": "hunk:sha256:0e52a2f203d9f1d451cfd437afcf4f7713758c6bfaf75a5f929c780b34e67b3c",
       "newRange": {
         "count": 15,
-        "start": 599
+        "start": 609
       },
       "oldRange": {
         "count": 6,
-        "start": 599
+        "start": 609
       },
       "path": "docs/specs/agent-harness-integration-v0.md",
       "reason": "evidence-backed"
@@ -107,11 +107,11 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:25504de7c4c1485de77b9274b649911e07276535d4af7c2d8d447703a510e331",
+          "evidenceId": "evidence:sha256:b9970f4b7bc88cc6d2a1662d5ea35a91bf8193e1d6ee92311ea62aa6d320782b",
           "relation": "specification"
         },
         {
-          "evidenceId": "evidence:sha256:3358a0d4296abbb632b4c7bfbb79a7a4f7c658e8bcd20d90195745ac177ba446",
+          "evidenceId": "evidence:sha256:0506ff156b0b14539a9d87314311060f366bdbcd5a289fee73d102215ef09632",
           "relation": "specification"
         }
       ],
@@ -131,7 +131,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:829f0d91ed83ab5415ef17bcca123e751debca49bd1ef877341c24c601ce35b0",
+          "evidenceId": "evidence:sha256:fe27070b234072a681c918a5fce4d4cc966e010568902c1d82e87cb941a4ff88",
           "relation": "specification"
         }
       ],
@@ -151,7 +151,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:829f0d91ed83ab5415ef17bcca123e751debca49bd1ef877341c24c601ce35b0",
+          "evidenceId": "evidence:sha256:fe27070b234072a681c918a5fce4d4cc966e010568902c1d82e87cb941a4ff88",
           "relation": "specification"
         }
       ],
@@ -171,7 +171,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:829f0d91ed83ab5415ef17bcca123e751debca49bd1ef877341c24c601ce35b0",
+          "evidenceId": "evidence:sha256:fe27070b234072a681c918a5fce4d4cc966e010568902c1d82e87cb941a4ff88",
           "relation": "specification"
         }
       ],
@@ -191,7 +191,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:829f0d91ed83ab5415ef17bcca123e751debca49bd1ef877341c24c601ce35b0",
+          "evidenceId": "evidence:sha256:fe27070b234072a681c918a5fce4d4cc966e010568902c1d82e87cb941a4ff88",
           "relation": "specification"
         }
       ],
@@ -211,7 +211,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:829f0d91ed83ab5415ef17bcca123e751debca49bd1ef877341c24c601ce35b0",
+          "evidenceId": "evidence:sha256:fe27070b234072a681c918a5fce4d4cc966e010568902c1d82e87cb941a4ff88",
           "relation": "specification"
         }
       ],
@@ -231,7 +231,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:829f0d91ed83ab5415ef17bcca123e751debca49bd1ef877341c24c601ce35b0",
+          "evidenceId": "evidence:sha256:fe27070b234072a681c918a5fce4d4cc966e010568902c1d82e87cb941a4ff88",
           "relation": "specification"
         }
       ],
@@ -251,7 +251,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:829f0d91ed83ab5415ef17bcca123e751debca49bd1ef877341c24c601ce35b0",
+          "evidenceId": "evidence:sha256:fe27070b234072a681c918a5fce4d4cc966e010568902c1d82e87cb941a4ff88",
           "relation": "specification"
         }
       ],
@@ -271,7 +271,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:829f0d91ed83ab5415ef17bcca123e751debca49bd1ef877341c24c601ce35b0",
+          "evidenceId": "evidence:sha256:fe27070b234072a681c918a5fce4d4cc966e010568902c1d82e87cb941a4ff88",
           "relation": "specification"
         }
       ],
@@ -289,6 +289,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "9b2d88fe0a5465a8a7ae3f292e9256f6c58b0fb081c6cb96d5fcc0c30b9cea0a",
+  "patchSha256": "dd6ed3c50331e259de22d26e9fbdb921bb53753fe6f0101ae1add1606ff3fdb5",
   "spec": "cem/0.2"
 }
