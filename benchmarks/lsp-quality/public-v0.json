@@ -13,6 +13,32 @@
         "type": "gopls:uses-definition",
         "from": "internal/lspevidence/context.go",
         "to": "internal/lspprovider/provider.go"
+      },
+      "queryGold": {
+        "identifier": "Expand",
+        "start": {
+          "line": 38,
+          "column": 24,
+          "offset": 1207
+        },
+        "end": {
+          "line": 38,
+          "column": 30,
+          "offset": 1213
+        }
+      },
+      "definitionGold": {
+        "identifier": "Expand",
+        "start": {
+          "line": 95,
+          "column": 6,
+          "offset": 2587
+        },
+        "end": {
+          "line": 95,
+          "column": 12,
+          "offset": 2593
+        }
       }
     },
     {
@@ -25,6 +51,32 @@
         "type": "gopls:uses-definition",
         "from": "cmd/corvint/context_lsp.go",
         "to": "internal/lspevidence/context.go"
+      },
+      "queryGold": {
+        "identifier": "Attach",
+        "start": {
+          "line": 22,
+          "column": 21,
+          "offset": 671
+        },
+        "end": {
+          "line": 22,
+          "column": 27,
+          "offset": 677
+        }
+      },
+      "definitionGold": {
+        "identifier": "Attach",
+        "start": {
+          "line": 34,
+          "column": 6,
+          "offset": 989
+        },
+        "end": {
+          "line": 34,
+          "column": 12,
+          "offset": 995
+        }
       }
     }
   ]

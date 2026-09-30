@@ -4,6 +4,8 @@
 import argparse
 import hashlib
 import json
+import math
+import re
 import os
 from pathlib import Path
 import signal
@@ -74,13 +76,42 @@ def interrupt(signum, frame):
     raise KeyboardInterrupt()
 
 
+def strict_json(raw):
+    def pairs(items):
+        result = {}
+        for key, value in items:
+            if key in result:
+                raise ValueError('duplicate JSON key')
+            result[key] = value
+        return result
+    def finite(raw_number):
+        value = float(raw_number)
+        if not math.isfinite(value):
+            raise ValueError('nonfinite JSON number')
+        return value
+    def constant(value):
+        raise ValueError('nonstandard JSON constant')
+    return json.loads(raw, object_pairs_hook=pairs, parse_float=finite, parse_constant=constant)
+
+
 def source_path(uri, root):
+    # Reject malformed spelling before urlparse can discard literal controls.
+    if type(uri) is not str or any(c.isspace() or ord(c) < 32 or ord(c) == 127 for c in uri):
+        return None
+    if re.search(r'%(?![0-9A-Fa-f]{2})', uri):
+        return None
     parsed = urlparse(uri)
-    if parsed.scheme != 'file':
+    if parsed.scheme != 'file' or parsed.netloc or parsed.query or parsed.fragment:
         return None
     try:
-        return str(Path(unquote(parsed.path)).relative_to(root))
-    except ValueError:
+        decoded = unquote(parsed.path, errors='strict')
+        if any(ord(c) < 32 or ord(c) == 127 for c in decoded):
+            return None
+        path = Path(decoded)
+        if uri != path.as_uri():
+            return None
+        return str(path.relative_to(root))
+    except (ValueError, UnicodeError):
         return None
 
 
@@ -89,15 +120,142 @@ def percentile_nearest(values, numerator, denominator):
     return ordered[max(0, (len(ordered)*numerator + denominator-1)//denominator-1)]
 
 
+def integral(value):
+    return type(value) is int and value >= 0
+
+
+def point_offset(data, point):
+    if type(point) is not dict or set(point) != {'line', 'column', 'offset'}:
+        raise ValueError('invalid point schema')
+    if not all(integral(v) for v in point.values()) or point['line'] < 1 or point['column'] < 1:
+        raise ValueError('invalid point types')
+    lines = data.splitlines(keepends=True)
+    line, column = point['line'], point['column']
+    if line > len(lines) or column > len(lines[line-1]) + 1:
+        raise ValueError('point outside source')
+    offset = sum(len(x) for x in lines[:line-1]) + column - 1
+    if offset != point['offset'] or offset > len(data):
+        raise ValueError('point offset disagreement')
+    return offset
+
+
+def identifier_span(data, span, identifier):
+    if type(identifier) is not str or not identifier.isascii() or not identifier.isidentifier():
+        raise ValueError('invalid identifier')
+    if type(span) is not dict or set(span) != {'start', 'end'}:
+        raise ValueError('invalid span schema')
+    start, end = point_offset(data, span['start']), point_offset(data, span['end'])
+    if data[start:end] != identifier.encode() or end <= start:
+        raise ValueError('source identifier mismatch')
+    word = lambda b: chr(b).isascii() and (chr(b).isalnum() or b == 95)
+    if (start and word(data[start-1])) or (end < len(data) and word(data[end])):
+        raise ValueError('identifier is not a complete token')
+
+
+def validate_case(case, read_blob):
+    # LQP-V0-015/016: gold is frozen source evidence, never inferred from candidate output.
+    query, target = case['queryGold'], case['definitionGold']
+    for path in (case['subject'], case['expectedDefinition']):
+        if type(path) is not str or not path or Path(path).is_absolute() or '..' in Path(path).parts or ':' in path:
+            raise ValueError('invalid repository path')
+    if query['identifier'] != target['identifier']:
+        raise ValueError('query/target identifier mismatch')
+    if set(query) != {'identifier', 'start', 'end'} or set(target) != {'identifier', 'start', 'end'}:
+        raise ValueError('exact gold required')
+    path, line, column = case['position'].rsplit(':', 2)
+    if path != case['subject'] or int(line) != query['start']['line'] or not query['start']['column'] <= int(column) < query['end']['column']:
+        raise ValueError('query position mismatch')
+    identifier_span(read_blob(path), {k: query[k] for k in ('start', 'end')}, query['identifier'])
+    identifier_span(read_blob(case['expectedDefinition']), {k: target[k] for k in ('start', 'end')}, target['identifier'])
+
+
+def score_definition(packet, case, root, target_bytes):
+    try:
+        span = packet['span']
+        if type(span) is not dict or set(span) != {'uri', 'start', 'end'} or type(span['uri']) is not str:
+            return False
+        if source_path(span['uri'], root) != case['expectedDefinition']:
+            return False
+        actual = {k: span[k] for k in ('start', 'end')}
+        identifier_span(target_bytes, actual, case['definitionGold']['identifier'])
+        return actual == {k: case['definitionGold'][k] for k in ('start', 'end')}
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return False
+
+
+def self_check():
+    # LQP-V0-015/016: nearby same-file symbol and coordinate/type drift must not score.
+    import copy
+    data = b'func Expand() {}\ntype Request struct {}\n'
+    case = {'expectedDefinition': 'p.go', 'definitionGold': {'identifier': 'Expand',
+            'start': {'line': 1, 'column': 6, 'offset': 5}, 'end': {'line': 1, 'column': 12, 'offset': 11}}}
+    root = Path('/fixture')
+    packet = {'span': {'uri': 'file:///fixture/p.go', **{k: case['definitionGold'][k] for k in ('start', 'end')}}}
+    assert score_definition(packet, case, root, data)
+    bad = copy.deepcopy(packet); bad['span'].update(start={'line': 2, 'column': 6, 'offset': 22}, end={'line': 2, 'column': 13, 'offset': 29})
+    assert source_path(bad['span']['uri'], root) == case['expectedDefinition']  # old oracle false pass
+    assert not score_definition(bad, case, root, data)
+    for key in ('line', 'column', 'offset'):
+        for value in (True, 5.0, '5', -1, None):
+            bad = copy.deepcopy(packet); bad['span']['start'][key] = value
+            assert not score_definition(bad, case, root, data)
+    for uri in ('file:///fixture/other.go', 'file://foreign/fixture/p.go', 'file:///fixture/p.go?x'):
+        bad = copy.deepcopy(packet); bad['span']['uri'] = uri
+        assert not score_definition(bad, case, root, data)
+    bad = copy.deepcopy(packet); bad['span']['end']['offset'] += 1
+    assert not score_definition(bad, case, root, data)
+    assert not score_definition(packet, case, root, data.replace(b'Expand', b'Otherx'))
+    try:
+        validate_case({'position': 'p.go:1:6', 'subject': 'p.go', **case}, lambda _: data)
+        raise AssertionError('path-only manifest accepted')
+    except KeyError:
+        pass
+    valid = {'position': 'p.go:1:6', 'subject': 'p.go', **case, 'queryGold': copy.deepcopy(case['definitionGold'])}
+    validate_case(valid, lambda _: data)
+    valid['position'] = 'p.go:1:12'
+    try:
+        validate_case(valid, lambda _: data)
+        raise AssertionError('query coordinate drift accepted')
+    except ValueError:
+        pass
+    corpus_root = Path(__file__).resolve().parents[1]
+    corpus = strict_json((corpus_root / 'benchmarks/lsp-quality/public-v0.json').read_bytes())
+    for actual_case in corpus['cases']:
+        blob = subprocess.check_output(['git', 'show', corpus['sourceBase']+':'+actual_case['expectedDefinition']], cwd=corpus_root)
+        pkt = {'span': {'uri': 'file:///fixture/'+actual_case['expectedDefinition'],
+                       **{k: actual_case['definitionGold'][k] for k in ('start', 'end')}}}
+        raw = json.dumps(pkt)
+        assert score_definition(strict_json(raw), actual_case, root, blob)
+        duplicate = raw.replace('"uri":', '"uri":"file:///wrong.go","uri":', 1)
+        for malformed in (duplicate, '{"x":NaN}', '{"x":Infinity}', '{"x":-Infinity}', '{"x":1e999}'):
+            try:
+                strict_json(malformed)
+                raise AssertionError('malformed raw JSON accepted')
+            except ValueError:
+                pass
+        for suffix in ('\n', '\t', '\r', ' ', '%0A', '%09', '%', '%GG', '%FF'):
+            bad = copy.deepcopy(pkt)
+            bad['span']['uri'] = bad['span']['uri'].replace('/internal/', '/internal/'+suffix)
+            assert not score_definition(strict_json(json.dumps(bad)), actual_case, root, blob)
+    assert source_path('file:///fixture/a%20b.go', root) == 'a b.go'
+    assert source_path('file:///fixture/p%2Ego', root) is None  # noncanonical alias
+    print('exact-symbol gold self-check PASS; qualification UNQUALIFIED')
+
+
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument('--manifest',type=Path,required=True)
-    parser.add_argument('--root',type=Path,required=True)
-    parser.add_argument('--corvint',type=Path,required=True)
-    parser.add_argument('--gopls',type=Path,required=True)
-    parser.add_argument('--output',type=Path,required=True)
+    parser.add_argument('--self-check', action='store_true')
+    parser.add_argument('--manifest',type=Path)
+    parser.add_argument('--root',type=Path)
+    parser.add_argument('--corvint',type=Path)
+    parser.add_argument('--gopls',type=Path)
+    parser.add_argument('--output',type=Path)
     parser.add_argument('--repeat',type=int,default=3)
     args=parser.parse_args()
+    if args.self_check:
+        self_check(); return
+    if not all((args.manifest, args.root, args.corvint, args.gopls, args.output)):
+        parser.error('manifest, root, corvint, gopls and output required')
     if not 1 <= args.repeat <= 20:
         parser.error('--repeat must be 1..20')
     root=args.root.resolve()
@@ -106,7 +264,10 @@ def main():
     if args.output.resolve().is_relative_to(root):
         parser.error('--output must be outside the repository')
     manifest_bytes=args.manifest.read_bytes()
-    corpus=json.loads(manifest_bytes)
+    try:
+        corpus=strict_json(manifest_bytes)
+    except (ValueError, UnicodeError) as exc:
+        parser.error('invalid corpus JSON: '+str(exc))
     if corpus.get('profile')!='corvint-lsp-public-corpus/0' or not corpus.get('cases'):
         parser.error('unsupported corpus')
     def git(*argv):
@@ -117,6 +278,13 @@ def main():
     code_delta=subprocess.run(['git','diff','--quiet',corpus['sourceBase'],revision,'--','*.go','go.mod','go.sum','go.work'],cwd=root)
     if code_delta.returncode:
         parser.error('Go sources differ from pinned corpus sourceBase')
+    def read_blob(path):
+        return subprocess.run(['git', 'show', corpus['sourceBase']+':'+path], cwd=root, check=True, stdout=subprocess.PIPE).stdout
+    try:
+        for case in corpus['cases']:
+            validate_case(case, read_blob)
+    except (KeyError, TypeError, ValueError, subprocess.CalledProcessError) as exc:
+        parser.error('invalid exact-symbol corpus: '+str(exc))
     env=dict(os.environ)
     env.update(GOPROXY='off',GOSUMDB='off',GOTOOLCHAIN='local',
                PATH=str(args.gopls.parent)+os.pathsep+env['PATH'])
@@ -127,13 +295,14 @@ def main():
         gopls_version = command([str(args.gopls), 'version'], root, env, timeout=10)
         report={'profile':'corvint-lsp-public-baseline/0','corpusSha256':digest(manifest_bytes),
                 'sourceBase':corpus['sourceBase'],'revision':revision,
+                'goldScoring':'exact-symbol-span/1; combined relations remain path-level',
                 'corvintSha256':digest(args.corvint.read_bytes()),'goplsSha256':digest(args.gopls.read_bytes()),
                 'go':subprocess.check_output(['go','version'],env=env).decode().strip(),
                 'gopls':gopls_version['stdout'].decode(errors='replace').strip() if gopls_version['exit']==0 else None,
                 'goplsVersionState':{'exit':gopls_version['exit'],'timedOut':gopls_version['timedOut'],
                                      'startError':gopls_version.get('startError')},
                 'cacheTopology':'shared Go build cache; direct gopls uses retained private cache; Corvint provider creates a private cache per call',
-                'repeats':args.repeat,'cases':[],'limitations':['Public source witnesses only','Arm timing is descriptive and not cross-arm comparable because gopls cache states differ','Each arm starts a process; editor warm session not measured','No agent task outcome or held-out claims']}
+                'repeats':args.repeat,'cases':[],'limitations':['Public source witnesses only','Arm timing is descriptive and not cross-arm comparable because gopls cache states differ','Each arm starts a process; editor warm session not measured','No agent task outcome or held-out claims','Exact-symbol upstream gold; combined relation gold remains path-level']}
         for case in corpus['cases']:
             arms=['upstream','core','combined']
             samples={arm:[] for arm in arms}
@@ -152,11 +321,12 @@ def main():
                         sample['startError']=run['startError']
                     if run['exit']==0:
                         try:
-                            packet=json.loads(run['stdout'])
+                            packet=strict_json(run['stdout'])
                             if arm=='upstream':
                                 got=source_path(packet['span']['uri'],root)
                                 sample['definition']=got
-                                sample['goldDefinition']=got==case['expectedDefinition']
+                                sample['goldDefinition']=score_definition(packet, case, root, read_blob(case['expectedDefinition']))
+                                sample['definitionSpan']=packet.get('span')
                             else:
                                 sample['expectedPathRank']=next((i for i,x in enumerate(packet.get('results',[]),1)
                                                                  if x.get('id')==case['expectedDefinition']),None)
@@ -189,7 +359,8 @@ def main():
                               'p95Seconds':percentile_nearest(times,95,100) if times else None,
                               'bytesMedian':percentile_nearest([s['bytes'] for s in samples[arm] if s['exit']==0],1,2) if times else None}
             report['cases'].append({'id':case['id'],'expectedDefinition':case['expectedDefinition'],
-                                    'expectedRelation':case['expectedRelation'],'samples':samples,'summary':summary})
+                                    'expectedRelation':case['expectedRelation'],'queryGold':case['queryGold'],
+                                    'definitionGold':case['definitionGold'],'samples':samples,'summary':summary})
         args.output.parent.mkdir(parents=True,exist_ok=True)
         args.output.write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
         execution_succeeded=(gopls_version['exit']==0 and not gopls_version['timedOut'] and
