@@ -100,6 +100,9 @@ export function createTasksService({runner,identity=worktreeIdentity,ledger=crea
    const originalCall=mutationArgs(request.operation,request.input,request.requestId,issuedAt,before);
    entry=await log.begin({requestId:request.requestId,intentSha256,scopeSha256:scope(before),issuedAt,argvSha256:digest(originalCall)},request.resume===true);
    if(entry.completed)return {ok:entry.terminal?.ok===true,...(entry.terminal?.ok===true?{}:{fault:entry.terminal?.fault??'native-outcome-unknown'}),nativeOutcome:entry.terminal?.nativeOutcome??'UNKNOWN',exitCode:entry.terminal?.exitCode??null,mutation:'previously-observed',requestId:entry.requestId,receiptSha256:entry.receiptSha256,reconciliation:evidence};
+   // Native GateRun executes the gate before its same-ID receipt replay lookup.
+   // An uncertain execution cannot be retried safely by this adapter.
+   if(request.operation==='gate run'&&entry.resume)return failure('gate-replay-unavailable',{mutation:'unknown',requestId:entry.requestId,reconciliation:evidence});
    const call=mutationArgs(request.operation,request.input,request.requestId,entry.issuedAt,before);
    if(entry.argvSha256!==digest(call))throw Error('request-id-conflict');
    const fresh=await identify(ctx);

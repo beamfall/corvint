@@ -59,3 +59,21 @@ test('PWV same-ID terminal refusal and error replay never become successful',asy
   const unknown=await createTasksService({runner,identity}).command({...request,resume:true},ctx);assert.equal(unknown.ok,false);assert.equal(unknown.fault,'native-outcome-unknown');assert.equal(writes,1);
  });
 });
+test('PWV uncertain gate replay is blocked while known terminal gate replay preserves truth',async t=>{
+ for(const uncertain of [true,false])await t.test(uncertain?'uncertain':'known-terminal',async t=>{
+  const {ctx}=await setup(t);let dispatches=0;const attemptId='attempt:fixture:main:fixture';
+  const identity=async()=>({root:ctx.cwd,gitDir:ctx.cwd,branch:'main',head:'a'.repeat(40),sessionSha256:'b'.repeat(64)});
+  const runner={async run({args}){
+   if(args[0]==='help')return receipt(args,[{implemented:['gate run']}]);
+   if(args[0]==='ticket')return receipt(args,[{ticketId,revision:'1',acceptanceRevision:'1'}]);
+   if(args[0]==='attempt')return receipt(args,[{attemptId,ticketId,ticketRevision:'1',generation:'1',branch:'main',phase:'BUILT',lease:{holder:'fixture',expiresAt:new Date(Date.now()+60000).toISOString()}}]);
+   if(args[0]==='gate'){dispatches++;return uncertain?{fault:'aborted'}:receipt(args,[{receipt:'native-gate'}])}
+   return receipt(args,[]);
+  }};
+  const request={operation:'gate run',requestId:'gate',input:{ticketId,expectedRevision:'1',holder:'fixture',attemptId,generation:'1',gate:'verify'}};
+  const first=await createTasksService({runner,identity}).command(request,ctx);assert.equal(first.ok,!uncertain);
+  const resumed=await createTasksService({runner,identity}).command({...request,resume:true},ctx);
+  assert.equal(dispatches,1);
+  if(uncertain){assert.equal(resumed.fault,'gate-replay-unavailable');assert.equal(resumed.mutation,'unknown');assert.equal(resumed.requestId,'gate');assert.ok(resumed.reconciliation.attempt);assert.equal(tasksResult(resumed).isError,true)}else{assert.equal(resumed.ok,true);assert.equal(resumed.mutation,'previously-observed')}
+ });
+});
