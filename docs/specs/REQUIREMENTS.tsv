@@ -286,11 +286,11 @@ CAL-V0-033	docs/specs/corvint-tasks-agent-leases-v0.md	332	Pool commands MUST us
 CAL-V0-034	docs/specs/corvint-tasks-agent-leases-v0.md	339	Queue occupancy and plan preview MUST remain read-only and execute no probes.
 CAL-V0-035	docs/specs/corvint-tasks-agent-leases-v0.md	373	The optional `taskman-codex-supervisor/0` policy profile MUST dispatch a pinned
 CAL-V0-036	docs/specs/corvint-tasks-agent-leases-v0.md	377	Implement, independent review, repair and integrate MUST be native attempt stage
-CAL-V0-037	docs/specs/corvint-tasks-agent-leases-v0.md	382	A live owner MUST NOT be stolen. Explicit quiescent owner release or native iden
-CAL-V0-038	docs/specs/corvint-tasks-agent-leases-v0.md	387	WAIT MUST preserve the exact session, worktree, partial candidate and handoff.
-CAL-V0-039	docs/specs/corvint-tasks-agent-leases-v0.md	391	Every dispatch MUST reserve a turn under the native writer lock. Concurrent lane
-CAL-V0-040	docs/specs/corvint-tasks-agent-leases-v0.md	397	Every assignment/stage MUST use a distinct registered worktree/private Git direc
-CAL-V0-041	docs/specs/corvint-tasks-agent-leases-v0.md	403	Foreground role workers MUST pull eligible work without a daemon, select existin
+CAL-V0-037	docs/specs/corvint-tasks-agent-leases-v0.md	385	A live owner MUST NOT be stolen. Explicit quiescent owner release or native iden
+CAL-V0-038	docs/specs/corvint-tasks-agent-leases-v0.md	390	WAIT MUST preserve the exact session, worktree, partial candidate and handoff.
+CAL-V0-039	docs/specs/corvint-tasks-agent-leases-v0.md	394	Every dispatch MUST reserve a turn under the native writer lock. Concurrent lane
+CAL-V0-040	docs/specs/corvint-tasks-agent-leases-v0.md	400	Every assignment/stage MUST use a distinct registered worktree/private Git direc
+CAL-V0-041	docs/specs/corvint-tasks-agent-leases-v0.md	406	Foreground role workers MUST pull eligible work without a daemon, select existin
 CAL-V0-042	docs/specs/corvint-tasks-agent-leases-v0.md	287	A separate `corvint-tasks-archive/0` build path MUST package the Tasks binary,
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
