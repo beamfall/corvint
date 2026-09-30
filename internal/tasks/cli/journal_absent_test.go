@@ -34,6 +34,13 @@ func TestCTS002JournalAbsentReads(t *testing.T) {
 			if got.Outcome != wire.OutcomeOK || got.Snapshot != nil || len(got.Items) == 0 || !strings.Contains(strings.Join(got.Warnings, " "), "journal-absent; unaudited") {
 				t.Fatalf("%v: %+v", args, got)
 			}
+			if args[0] == "ticket" && args[1] == "show" {
+				current, _ := got.Items[0].Obj.Get("currentAttempt")
+				unknowns, _ := got.Items[0].Obj.Get("unknowns")
+				if current.Str != "NOT_OBSERVED" || !strings.Contains(string(wire.Encode(unknowns)), "attempt liveness NOT_OBSERVED (no journal available to this reader)") {
+					t.Fatalf("invented reservation evidence: %s", wire.Encode(got.Items[0]))
+				}
+			}
 			if args[0] == "queue" {
 				for _, name := range []string{"headSeq", "generation", "attempts"} {
 					v, _ := got.Items[0].Obj.Get(name)
@@ -49,7 +56,7 @@ func TestCTS002JournalAbsentReads(t *testing.T) {
 				}
 			}
 		}
-		for _, args := range [][]string{{"receipt", "audit"}, {"ticket", "list"}, {"ticket", "export"}, {"init", "--request-id", "must-refuse"}, {"ticket", "set-gates", "--request-id", "must-refuse", "--target", "A", "--expected-revision", "1", "--payload", `{"requiredGates":["verify"]}`}} {
+		for _, args := range [][]string{{"receipt", "audit"}, {"ticket", "blockers", "A"}, {"ticket", "list"}, {"ticket", "export"}, {"init", "--request-id", "must-refuse"}, {"ticket", "set-gates", "--request-id", "must-refuse", "--target", "A", "--expected-revision", "1", "--payload", `{"requiredGates":["verify"]}`}} {
 			got := projectionRead(t, Env{Cwd: r.Root, Args: args})
 			if got.Outcome == wire.OutcomeOK {
 				t.Fatalf("authority admitted: %v", args)

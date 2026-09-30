@@ -15,6 +15,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -292,6 +293,51 @@ func auditState(rc *readCtx, paths ...string) (*journal.Result, error) {
 	return proof, nil
 }
 
+// reservationOracle projects journal membership. The legacy LiveAttempt method
+// does not attest process health or lease validity; expiry alone removes no entry.
+type reservationOracle struct{ set *snapshot.ReservationSet }
+
+func (o reservationOracle) LiveAttempt(id string) ticket.Observation {
+	for _, entry := range o.set.Entries {
+		if entry.TicketID.Raw == id {
+			return ticket.Satisfied
+		}
+	}
+	return ticket.Unsatisfied
+}
+
+func journalReservations(rc *readCtx) (*snapshot.ReservationSet, error) {
+	proof, err := auditState(rc, "reservations.json")
+	if err != nil {
+		return nil, err
+	}
+	record, ok := proof.Records["reservations.json"]
+	if !ok || record.Sha256 == nil {
+		return nil, wire.Errorf(wire.CodeMalformed, "reservations.json", "reservation set does not exist")
+	}
+	set, err := snapshot.DecodeReservations(record.Raw)
+	if err != nil {
+		return nil, err
+	}
+	if set.QueueID != rc.snap.Head.QueueID {
+		return nil, wire.Errorf(wire.CodeMalformed, "reservations.json/queueId", "reservation queue differs from outer snapshot")
+	}
+	return set, nil
+}
+
+func ticketContext(rc *readCtx) (ticket.Context, error) {
+	ctx := rc.store.Context()
+	if rc.journalAbsent {
+		return ctx, nil
+	}
+	set, err := journalReservations(rc)
+	if err != nil {
+		return ctx, err
+	}
+	ctx.Attempts = reservationOracle{set: set}
+	return ctx, nil
+}
+
 // liveAttempts reads every live attempt named by the reservation set. A head
 // generation of zero means no attempt was ever admitted, so there is nothing
 // to audit.
@@ -299,11 +345,7 @@ func liveAttempts(rc *readCtx) ([]*snapshot.Attempt, error) {
 	if rc.snap.Head.Generation.Uint64() == 0 {
 		return nil, nil
 	}
-	proof, err := auditState(rc, "reservations.json")
-	if err != nil {
-		return nil, err
-	}
-	set, err := snapshot.DecodeReservations(proof.Records["reservations.json"].Raw)
+	set, err := journalReservations(rc)
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +356,8 @@ func liveAttempts(rc *readCtx) ([]*snapshot.Attempt, error) {
 	if len(paths) == 0 {
 		return nil, nil
 	}
-	if proof, err = auditState(rc, paths...); err != nil {
+	proof, err := auditState(rc, paths...)
+	if err != nil {
 		return nil, err
 	}
 	out := make([]*snapshot.Attempt, 0, len(paths))

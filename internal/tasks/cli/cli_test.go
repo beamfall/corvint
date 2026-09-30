@@ -219,12 +219,14 @@ func TestTMV0008_AS07_ReadsLeaveStoreByteIdentical(t *testing.T) {
 	r := fixture.TempRepo(t)
 	fixture.WriteState(t, r)
 	fixture.WriteIntent(t, r, fixture.Ticket("A"), fixture.Ticket("B"))
+	// Ticket reservation reads audit the journal, so retain the intent afterimages.
+	fixture.CommitPosts(t, r, "MUTATION", "", map[string][]byte{"intent/tickets/A.json": fixture.Ticket("A").Encode(), "intent/tickets/B.json": fixture.Ticket("B").Encode()})
 	stateBefore := fixture.TreeSnapshot(t, r.StateDir)
 	intentBefore := fixture.TreeSnapshot(t, r.IntentDir)
 	tree, _ := intent.TreeDigest(r.Root)
 	for _, args := range readCommands {
 		x := atm(t, r.Root, nil, args...)
-		if x.res.Outcome != wire.OutcomeOK || x.res.Snapshot == nil || x.res.Snapshot.HeadSeq == nil || *x.res.Snapshot.HeadSeq != "1" {
+		if x.res.Outcome != wire.OutcomeOK || x.res.Snapshot == nil || x.res.Snapshot.HeadSeq == nil || *x.res.Snapshot.HeadSeq != "2" {
 			t.Errorf("%v: %+v %v", args, x.res, x.res.Warnings)
 			continue
 		}
@@ -248,7 +250,7 @@ func TestTMV0008_AS07_ReadsLeaveStoreByteIdentical(t *testing.T) {
 		t.Fatalf("no stream")
 	}
 	v := atm(t, r.Root, x.stdout, "archive", "verify")
-	if v.res.Outcome != wire.OutcomeOK || field(v.res.Items[0], "exportedAtSeq").Str != "1" {
+	if v.res.Outcome != wire.OutcomeOK || field(v.res.Items[0], "exportedAtSeq").Str != "2" {
 		t.Errorf("verify from stdin: %+v %v", v.res, v.res.Warnings)
 	}
 	if v.res.Snapshot != nil {
@@ -361,6 +363,7 @@ func TestTMV0008_AS08_ShowBlockersAndQueueStatus(t *testing.T) {
 	h.Status = "HELD"
 	h.Holds = []ticket.Hold{{HoldID: "review", Actor: "op", Reason: "x", PlacedAt: fixture.Timestamp}}
 	fixture.WriteIntent(t, r, a, b, h)
+	fixture.CommitPosts(t, r, "MUTATION", "", map[string][]byte{"intent/tickets/A.json": a.Encode(), "intent/tickets/B.json": b.Encode(), "intent/tickets/H.json": h.Encode()})
 	x := atm(t, r.Root, nil, "ticket", "show", "B")
 	if x.res.Outcome != wire.OutcomeOK || !x.res.Untrusted {
 		t.Fatalf("show: %+v %v", x.res, x.res.Warnings)
@@ -374,7 +377,7 @@ func TestTMV0008_AS08_ShowBlockersAndQueueStatus(t *testing.T) {
 	}
 	x = atm(t, r.Root, nil, "ticket", "blockers", fixture.TicketID("B"))
 	it = x.res.Items[0]
-	if field(it, "record").Kind != wire.KindNull || len(field(it, "blockers").Arr) != 1 || len(field(it, "unknowns").Arr) != 2 {
+	if field(it, "record").Kind != wire.KindNull || len(field(it, "blockers").Arr) != 1 || len(field(it, "unknowns").Arr) != 1 {
 		t.Errorf("blockers item: %s", wire.Encode(it))
 	}
 	if field(field(it, "blockers").Arr[0], "code").Str != wire.CodeDependencyUnsatisfied {
@@ -405,7 +408,7 @@ func TestTMV0008_AS08_ShowBlockersAndQueueStatus(t *testing.T) {
 	if field(it, "tickets").Str != "3" || field(by, "OPEN").Str != "2" || field(by, "HELD").Str != "1" || field(it, "blocked").Str != "2" || field(it, "intentChecksPassed").Str != "1" {
 		t.Errorf("counts: %s", wire.Encode(it))
 	}
-	if field(it, "publication").Str != "NOT_OBSERVED" || field(it, "attempts").Str != "0" || field(it, "headSeq").Str != "1" {
+	if field(it, "publication").Str != "NOT_OBSERVED" || field(it, "attempts").Str != "0" || field(it, "headSeq").Str != "2" {
 		t.Errorf("status facts: %s", wire.Encode(it))
 	}
 	// Head queue differing from queue.json is MALFORMED.

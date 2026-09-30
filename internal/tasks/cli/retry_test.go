@@ -35,7 +35,7 @@ func TestTMV0008_AS36_ShowRetriesDiscardPriorAttempt(t *testing.T) {
 			res := ticketShow(Env{Cwd: r.Root, afterRead: func() {
 				calls++
 				if calls == 1 {
-					fixture.WriteIntent(t, r, fixture.Ticket("A"))
+					fixture.CommitPosts(t, r, "MUTATION", "", map[string][]byte{"intent/tickets/A.json": fixture.Ticket("A").Encode()})
 				}
 			}}, []string{"A"}, record)
 			if calls != 2 || res.Outcome != wire.OutcomeOK || len(res.Items) != 1 || len(res.Warnings) != 0 {

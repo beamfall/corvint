@@ -955,11 +955,15 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 		if err != nil {
 			return err
 		}
-		v, ok := rc.store.Inventory.View(id, rc.store.Context())
-		if !ok {
+		if _, ok := rc.store.Inventory.Get(id); !ok {
 			notFound = id
 			return nil
 		}
+		ctx, err := ticketContext(rc)
+		if err != nil {
+			return err
+		}
+		v, _ := rc.store.Inventory.View(id, ctx)
 		val := v.Value(includeRecord)
 		item = &val
 		return nil
