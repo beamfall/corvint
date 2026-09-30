@@ -21,6 +21,7 @@ import (
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/extevidence"
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/lrfrepo"
 	"github.com/Beamfall/corvint/internal/observations"
 	"github.com/Beamfall/corvint/internal/worktreeimpact"
 
@@ -739,7 +740,7 @@ var (
 		"record", "migrate-traces", "harness", "cem", "ocm", "work", "context", "adapter",
 		"dogfood", "dogfood-ocm", "frontier", "observations", "affected", "obligations", "prove", "prove-observe",
 		"index", "batch", "docs", "depsource", "necessity", "surprise", "answerability",
-		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "features", "overview", "review", "migration-ratchet", "flows", "skill-export"}
+		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "features", "overview", "review", "migration-ratchet", "flows", "skill-export", "breakage"}
 )
 
 func knownHost(value string) bool {
@@ -969,6 +970,13 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		if root, rest, requested := flowInvocation(arguments); requested {
 			return runFlows(ctx, root, rest, stdout, stderr)
 		}
+		if root, rest, requested, err := parseBreakageInvocation(arguments); requested {
+			if err != nil {
+				emitError(stderr, err)
+				return 2
+			}
+			return runBreakage(ctx, root, rest, stdout, stderr)
+		}
 		if options, isObligations, obligationsErr := parseObligationsInvocation(arguments); isObligations {
 			if obligationsErr != nil {
 				emitError(stderr, obligationsErr)
@@ -1066,7 +1074,7 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 				emitError(stderr, cemErr)
 				return 2
 			}
-			return cemcli.Run(ctx, root, rest, stdout, recordingStderr(root, stderr))
+			return cemcli.RunWithOCM(ctx, root, rest, stdout, recordingStderr(root, stderr), lrfrepo.ReadOCMReview)
 		}
 	}
 	options, err := parse(arguments)

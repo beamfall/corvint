@@ -3,17 +3,16 @@
 Owner: Russell Lewis
 Date: 2026-09-30
 Requirement prefix: `TAT-V0`
-Intent status: proposed technical contract; user-approved product intent (explicit request to deliver “Attack my tests” with the six wow additions)
+Intent status: proposed
 Delivery status: experimental
 Authoritative inputs: repository-owner request; `AGENTS.md` invariants 1, 2, 4, 7 and 8; `docs/specs/falsifiable-packet-v0.md` FPK-V0-014 and FPK-V0-017.
 
 ## Agent digest
-
-- Claim: an explicit committed-range Go test attack continues past the first kill and exposes surviving mutants in the bounded selected set.
-- Status: proposed technical contract / experimental implementation.
-- Exists: `cmd/corvint/prove_attack.go`, `cmd/corvint/prove_attack_test.go`, and the existing `internal/liveverify/mutate` complete traversal.
-- Blocked on: independent review and retained final integration evidence; no semantic adequacy or external usefulness qualification.
-- Read next: Requirements, Failure modes, Acceptance evidence, Rollback.
+- Claim: An explicit committed-range Go test attack continues past the first kill and exposes surviving mutants in the bounded selected set.
+- Status: proposed/experimental
+- Exists: `cmd/corvint/prove_attack.go`, its focused tests and the existing complete mutation traversal.
+- Blocked on: External usefulness and semantic adequacy remain unqualified; no automatic hook execution.
+- Read next: Requirements; Failure modes; Acceptance evidence and rollback.
 
 ## User and measurable job
 

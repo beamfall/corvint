@@ -1865,7 +1865,7 @@
     "title": "Session Context Dividend V0",
     "reqPrefix": "SESSION-V0",
     "intent": "proposed",
-    "delivery": "partial (handoff-receipt slice SESSION-V0-017..019 experimental; SESSION-V0-001..016 deferred)",
+    "delivery": "partial (handoff-receipt slices SESSION-V0-017..022 experimental; SESSION-V0-001..016 deferred)",
     "claim": "Exact-key local session receipts may reuse still-valid evidence without treating outcomes or producer metrics as truth.",
     "dependsOn": [
       "docs/specs/technical-brain-dogfood.md"
@@ -1873,7 +1873,8 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "cmd/corvint/dogfood_handoff.go"
+      "cmd/corvint/dogfood_handoff.go",
+      "cmd/corvint/dogfood_handoff_bundle.go"
     ]
   },
   {
@@ -2569,6 +2570,76 @@
     "closableToday": false,
     "implementation": [
       "tools/heading-nav-bench"
+    ]
+  },
+  {
+    "path": "docs/specs/agent-instruction-doctor-v0.md",
+    "title": "Agent Instruction Doctor V0",
+    "reqPrefix": "IID-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Explicit default assumptions predict pinned project instruction selection, shadowing and truncation; actual session loading remains unknown.",
+    "dependsOn": [
+      "docs/specs/task-context-packet-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/contextindex/instruction_loadset.go",
+      "cmd/corvint/taskcontext.go",
+      "integrations/instruction-profiles.json"
+    ]
+  },
+  {
+    "path": "docs/specs/cross-repository-breakage-map-v0.md",
+    "title": "Cross-repository breakage map V0",
+    "reqPrefix": "BKM-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A selected API maps pinned Go syntax references and original declared provider relationships across explicit local repositories.",
+    "dependsOn": [
+      "docs/specs/external-evidence-provider-v1.md",
+      "docs/specs/external-evidence-provider-v2.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/breakagemap",
+      "cmd/corvint/breakage.go"
+    ]
+  },
+  {
+    "path": "docs/specs/proof-tour-v0.md",
+    "title": "Proof Tour V0",
+    "reqPrefix": "PT-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A disposable synthetic change pauses for an independent exact ACK before checksum-pinned portable structural verification.",
+    "dependsOn": [
+      "docs/specs/cem-pilot-kit.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "script/proof-tour.sh",
+      "script/proof-tour-test.sh"
+    ]
+  },
+  {
+    "path": "docs/specs/test-attack-v0.md",
+    "title": "Test Attack V0",
+    "reqPrefix": "TAT-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "An explicit committed-range Go test attack continues past the first kill and exposes surviving mutants in the bounded selected set.",
+    "dependsOn": [
+      "docs/specs/falsifiable-packet-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint/prove_attack.go",
+      "internal/liveverify/mutate"
     ]
   }
 ]

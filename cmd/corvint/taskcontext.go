@@ -227,6 +227,9 @@ const taskContextHelp = `Compile the task-context packet: the files to read for 
 
 Usage:
   corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N] [--lsp gopls|off]
+  corvint [--root PATH] context --task TEXT --subject PATH
+    --instruction-host HOST --instruction-host-version VERSION
+    --instruction-cwd DIR --instruction-profile default
 
 Writes nothing; Go-only (task-context-packet-v0, experimental). The packet lists
 files admitted by relations a term search cannot express, each with one
@@ -247,6 +250,12 @@ files a term search would list:
   sibling         the subject's directory, then its parent subtree where the
                   task's identifiers appear
   lexical         distinct task terms in the file or its path
+
+The instruction flags request an experimental conditional project-file prediction
+(IID-V0), currently qualified only for Codex 0.153.2 default source rules. All four
+flags and a tracked --subject are required together; summary/expand combinations
+refuse. Actual host configuration, global instructions and session load state remain
+UNKNOWN. Predictions never change repository governance or detect semantic conflicts.
 
 --subject names the task's own path (a changed or commented file). It is
 carried under "subject" and never appears among "results": it is the subject

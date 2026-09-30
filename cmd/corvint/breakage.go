@@ -6,12 +6,46 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/appflows"
 	"github.com/Beamfall/corvint/internal/breakagemap"
 )
+
+func parseBreakageInvocation(arguments []string) (string, []string, bool, error) {
+	index, root := 0, ""
+	for index < len(arguments) && (arguments[index] == "--root" || strings.HasPrefix(arguments[index], "--root=")) {
+		if arguments[index] == "--root" {
+			if !rootPreambleValue(arguments, index+1) {
+				return "", nil, false, nil
+			}
+			root = arguments[index+1]
+			index += 2
+		} else {
+			root = strings.TrimPrefix(arguments[index], "--root=")
+			index++
+		}
+	}
+	if index >= len(arguments) || arguments[index] != "breakage" {
+		return "", nil, false, nil
+	}
+	if root == "" {
+		var err error
+		root, err = os.Getwd()
+		if err != nil {
+			return "", nil, true, argumentError("cannot resolve current directory")
+		}
+	} else {
+		var err error
+		root, err = normalizeRoot(root)
+		if err != nil {
+			return "", nil, true, err
+		}
+	}
+	return root, arguments[index+1:], true, nil
+}
 
 type breakageBindings map[string]string
 

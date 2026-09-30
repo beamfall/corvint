@@ -3,19 +3,17 @@
 Owner: Russell Lewis
 Date: 2026-09-30
 Requirement prefix: `PT-V0`
-Intent status: proposed (owner-approved implementation experiment)
+Intent status: proposed
 Delivery status: experimental
 Authoritative inputs: owner-approved six V1 wow additions, V1-0504;
 `docs/CEM-CI.md`; `docs/specs/cem-pilot-kit.md`; `LICENSING.md`; `AGENTS.md` invariants 1–4, 7–8.
 
 ## Agent digest
-
-- Claim: one developer script retains an actual local synthetic change, evidence refusal and
-  repair, pauses for a separately supplied exact reviewer ACK, then checks portable structure.
-- Exists: `script/proof-tour.sh`, `script/proof-tour-test.sh`.
-- Status: proposed/experimental. Passing structural verification does not prove semantic
-  support, third-party interoperability or general usefulness.
-- Read next: Requirements, qualification limits, failure modes and rollback.
+- Claim: A disposable synthetic change pauses for an independent exact ACK before checksum-pinned portable structural verification.
+- Status: proposed/experimental
+- Exists: `script/proof-tour.sh`, `script/proof-tour-test.sh` and the retained actual independently acknowledged synthetic tour.
+- Blocked on: Third-party interoperability and general usefulness remain NOT_OBSERVED; structural checks do not prove semantic support.
+- Read next: Requirements; Failure modes; Acceptance evidence and rollback.
 
 ## Intent and scope
 

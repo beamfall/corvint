@@ -3,22 +3,18 @@
 Owner: Russell Lewis
 Date: 2026-09-30
 Requirement prefix: `IID-V0`
-Intent status: proposed (owner-approved implementation experiment; acceptance remains human-owned)
+Intent status: proposed
 Delivery status: experimental
 Authoritative inputs: owner instruction for six V1 wow additions, 2026-09-30;
 V1-0502 bounded slice; related V1-0413 and V1-0414; `AGENTS.md` invariants 1–4, 7–8;
 `docs/specs/task-context-packet-v0.md` TCP-V0-008 and TCP-V0-023.
 
 ## Agent digest
-
-- Claim: optional `context` diagnostic predicts project instruction filename selection under
-  explicit default-profile assumptions, with immutable source identities and named uncertainties.
-- Exists: `internal/contextindex/instruction_loadset.go`, `cmd/corvint/taskcontext.go`,
-  `integrations/instruction-profiles.json` and focused tests in both packages.
-- Qualification: exact Codex 0.153.2 release-source rules; actual session load set remains UNKNOWN.
-  Other host/version rule sets remain UNKNOWN. The compatibility matrix's adapter lifecycle PASS
-  does not qualify instruction loading. Default context bytes and authority rows are unchanged.
-- Read next: Requirements; failure modes; acceptance and rollback.
+- Claim: Explicit default assumptions predict pinned project instruction selection, shadowing and truncation; actual session loading remains unknown.
+- Status: proposed/experimental
+- Exists: `internal/contextindex/instruction_loadset.go`, `cmd/corvint/taskcontext.go`, `integrations/instruction-profiles.json` and focused tests.
+- Blocked on: Actual session/global loading and other host versions remain UNKNOWN; exact Codex 0.153.2 project marker probes are bounded fixture evidence.
+- Read next: Requirements; Failure modes; Acceptance evidence and rollback.
 
 ## Intent and scope
 

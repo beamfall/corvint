@@ -55,7 +55,7 @@ func TestBreakageCLIComplete(t *testing.T) {
 		t.Fatal(e)
 	}
 	var out, diagnostic bytes.Buffer
-	if code := runBreakage(context.Background(), root, []string{"--manifest", manifest, "--api", "cli:api.go:Changed", "--repository", "cli=."}, &out, &diagnostic); code != 0 {
+	if code := runContext(context.Background(), []string{"--root", root, "breakage", "--manifest", manifest, "--api", "cli:api.go:Changed", "--repository", "cli=."}, strings.NewReader(""), &out, &diagnostic); code != 0 {
 		t.Fatalf("code %d: %s", code, &diagnostic)
 	}
 	var report breakagemap.Report
@@ -64,5 +64,20 @@ func TestBreakageCLIComplete(t *testing.T) {
 	}
 	if len(report.Edges) != 1 || report.Edges[0].Kind != "syntax-call" || report.Edges[0].From.Path != "caller.go" {
 		t.Fatalf("missing caller: %s", &out)
+	}
+}
+
+func TestWorkflowHelpKeepsBooleanFlagsScoped(t *testing.T) {
+	for _, topic := range []string{"prove", "query"} {
+		_, requested, _ := parseHelpInvocation([]string{topic, "--attack-tests", "--help"})
+		if requested != (topic == "prove") {
+			t.Fatalf("%s: experimental attack flag changed unrelated help scan", topic)
+		}
+	}
+	for _, args := range [][]string{{"breakage", "--help"}, {"help", "breakage"}, {"--root", "/missing", "breakage", "--help"}} {
+		code, out, diagnostic := runCLI(t, args...)
+		if code != 0 || diagnostic != "" || !strings.Contains(out, "BKM-V0") || !strings.Contains(out, "INCOMPLETE") {
+			t.Fatalf("%v: %d %s %s", args, code, out, diagnostic)
+		}
 	}
 }

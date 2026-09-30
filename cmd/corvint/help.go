@@ -61,7 +61,7 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 		return "", true, argumentError("unknown help topic")
 	}
 	topic := commandHelpTopic(rest)
-	if topic == "" || !helpFlagRequested(rest[1:]) {
+	if topic == "" || !helpFlagRequested(rest[1:], topic) {
 		return "", false, nil
 	}
 	return topic, true, nil
@@ -91,7 +91,7 @@ func commandHelpTopic(rest []string) string {
 // helpFlagRequested applies argparse's left-to-right scan (GPK-V0-062, GPK-V0-064): --help or its
 // -h alias before "--" is a help request unless an option that takes a value reaches it first,
 // which argparse refuses with "expected one argument" and so never prints help.
-func helpFlagRequested(tokens []string) bool {
+func helpFlagRequested(tokens []string, topic string) bool {
 	for index := 0; index < len(tokens); index++ {
 		token := tokens[index]
 		switch {
@@ -99,7 +99,7 @@ func helpFlagRequested(tokens []string) bool {
 			return false
 		case token == "--help", token == "-h":
 			return true
-		case !argparseOptionLike(token), strings.Contains(token, "="), helpBooleanFlags[token]:
+		case !argparseOptionLike(token), strings.Contains(token, "="), helpBooleanFlags[token], topic == "prove" && token == "--attack-tests":
 			continue
 		case index+1 < len(tokens) && !argparseOptionLike(tokens[index+1]):
 			index++
@@ -170,6 +170,8 @@ func helpText(topic string) string {
 		return obligationsHelp
 	case "flows":
 		return flowsHelp
+	case "breakage":
+		return breakageHelp
 	case "necessity":
 		return necessityHelp
 	case "surprise":
@@ -896,6 +898,7 @@ Usage:
   corvint [--root PATH] cem status --map MAP [OPTIONS]
   corvint [--root PATH] cem verify --map MAP [OPTIONS]
   corvint [--root PATH] cem report --map MAP [--output REPORT] [OPTIONS]
+  corvint [--root PATH] cem report --map MAP --format json [--ocm OCM] [OPTIONS]
   corvint [--root PATH] cem cover --map MAP --coverprofile PATH --test-run ID [--output MAP]
   corvint [--root PATH] cem discriminate --map MAP --target REV [--max-hunks N]
     [--max-mutants N] [--wall-time DURATION] [--output MAP]
@@ -1160,6 +1163,8 @@ Usage:
   corvint [--root PATH] dogfood cancel [--session-key HASH]
   corvint [--root PATH] dogfood handoff [--anchors "ANCHOR..."] [--session-key HASH]
   corvint [--root PATH] dogfood handoff --receipt FILE [--session-key HASH]
+  corvint [--root PATH] dogfood handoff --task-state FILE [--session-key HASH]
+  corvint [--root PATH] dogfood handoff --bundle FILE --session-key HASH
   corvint [--root PATH] dogfood change [--corvint-bin PATH] BASE
   corvint [--root PATH] dogfood check [--base-verifier PATH] [--tree-verifier PATH]
     [--override-verifier PATH] BASE
@@ -1185,7 +1190,10 @@ root, bound revision, sorted task anchors, prompt packet sha256 and bytes, and
 degradations. With --receipt FILE (that emitted document) it re-resolves the same
 packet and prints its exact bytes as packetBase64, or exits 1 reporting the exact
 root, revision, enrollment, anchor and packet drift and withholds the recompiled
-packet. The receipt grants no authority.
+packet. The receipt grants no authority. --task-state FILE emits a bounded bundle
+carrying inert caller scope, decisions, review feedback, unknowns and next actions.
+--bundle FILE verifies that bundle using the explicitly selected original session
+key and withholds both packet and task state on drift; it never executes next actions.
 
 change, check and seal run the daily path of docs/DOGFOOD.md in the current Git
 repository, which needs no Corvint script, VERSION file or source tree. change
@@ -1238,6 +1246,21 @@ const commandMaturityHelp = `Command maturity:
     answerability (RDS-V0), kernel (CKN-V0), lease (SCL-V0), reads (URE-V0),
     calibrate (OCL-V0), witness (AGW-V0), test-validity (MTV-V0),
     features (RGV-V0), overview (RGV-V0), review (RGV-V0),
-    migration-ratchet (MER-V0), flows (AFU-V0), skill-export (LTA-V0)
+    migration-ratchet (MER-V0), flows (AFU-V0), skill-export (LTA-V0),
+    breakage (BKM-V0)
 
+`
+
+const breakageHelp = `Inspect an experimental declared cross-repository API relationship map.
+
+Usage:
+  corvint [--root PATH] breakage --manifest FILE --api REPO:PATH:SYMBOL
+    --repository REPO=CHECKOUT [--repository OTHER=CHECKOUT] [--base FULL_COMMIT]
+
+Read-only, local and bounded. Explicit repository, source and provider pins select
+immutable bytes. Go syntax callers and test references remain distinct from declared
+flow/documentation relationships, execution, coverage and behavioral breakage.
+Missing, unsupported and ambiguous relationships remain unknown; scope is INCOMPLETE.
+No providers or tests are executed and no checkouts are discovered or fetched.
+Owning experimental contract: BKM-V0.
 `

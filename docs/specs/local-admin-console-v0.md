@@ -14,7 +14,7 @@ rendered artifact's own owning specification.
 ## Agent digest
 - Claim: A local, loopback-only console may present task management, evidence, spec and code without becoming repository, execution, or promotion authority.
 - Status: accepted (decision 0081)/experimental (S1, S2 ticket verbs, S3, and the chain pane)
-- Exists: retained source package `cmd/corvint-console` builds the standalone `corvint-console`, and `internal/console` delivers S1, the ticket half of S2, and S3 — board, ticket detail, spec pane, code pane and delegated mutation over `corvint-tasks` and `git`, plus the Corvint evidence snapshot, the dogfood report, the committed benchmark results and the agent-memory backlogs, and the `/chain` pane that walks a sealed change from hunk to cited evidence, governing requirement and recorded verification (LAC-V0-033..036). The current snapshot executable is `corvint-dashboard-snapshot`; frozen `corvint-dashboard-*` wire/error profiles remain unchanged. The closed release bundle migration is deferred.
+- Exists: retained source package `cmd/corvint-console` builds the standalone `corvint-console`, and `internal/console` delivers S1, the ticket half of S2, and S3 — board, ticket detail, spec pane, code pane and delegated mutation over `corvint-tasks` and `git`, plus the Corvint evidence snapshot, the dogfood report, the committed benchmark results and the agent-memory backlogs, and the `/chain` pane that walks a sealed change from hunk to cited evidence, governing requirement and recorded verification (LAC-V0-033..037). The current snapshot executable is `corvint-dashboard-snapshot`; frozen `corvint-dashboard-*` wire/error profiles remain unchanged. The closed release bundle migration is deferred.
 - Blocked on: nothing for S1/S2/S3 or the chain pane. U4 — the operator-time measurement against the CLI baseline — still has no instrument.
 - Read next: Human intent and scope; Requirements; Trust boundary, limits, and failure modes.
 
@@ -293,7 +293,7 @@ accounts, telemetry, background collection, repository upload, an embedded or ex
 service, embeddings, a mobile surface, arbitrary command execution from the page, editing repository
 files through the page, and any surface that keeps its own copy of the queue.
 
-The chain pane (LAC-V0-033..036) is not a verifier: it does not validate a CEM or OCM map (that is
+The chain pane (LAC-V0-033..037) is not a verifier: it does not validate a CEM or OCM map (that is
 `corvint cem verify` and `corvint ocm verify`), does not assess entailment, does not run a test, does
 not report a per-requirement verification result, and does not read frontier artifacts, none of
 which exist per change today.
@@ -413,7 +413,7 @@ Staged, and gated in this order:
    committed benchmark results and the agent-memory backlogs join the same surface under the same
    axes.
 5. **Chain pane (experimental, 2026-09-23, decision 0362).** `/chain` over the sealed change maps,
-   the untracked OCM maps and the local trace (LAC-V0-033..036). Rollback to the existing panes is
+   the untracked OCM maps and the local trace (LAC-V0-033..037). Rollback to the existing panes is
    deleting `internal/console/chain.go`, the `/chain` route and view fields in `server.go`, `chainView`
    in `views.go` and the navigation link in `render.go`; no artifact, wire or other pane depends on it.
 

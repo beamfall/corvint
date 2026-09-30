@@ -9,11 +9,11 @@ Authoritative inputs: owner-approved six-feature wow slice, native ticket V1-050
 `docs/specs/external-evidence-provider-v2.md`.
 
 ## Agent digest
-- Claim: An explicit API selection produces a bounded, immutable map of Go syntax references and original declared provider relationships across explicitly bound local repositories.
-- Status: proposed/experimental; a relationship is not a prediction of behavioral breakage or test coverage.
-- Exists: `internal/breakagemap` and `cmd/corvint/breakage.go`; root integration registers the command and help.
-- Blocked on: root integration, independent review and retained live qualification before delivery; V1-0417 symbol-diff promotion and frozen-corpus comparison remain separate.
-- Read next: Requirements; Input and output; Failure modes; Acceptance and rollback.
+- Claim: A selected API maps pinned Go syntax references and original declared provider relationships across explicit local repositories.
+- Status: proposed/experimental
+- Exists: `internal/breakagemap`, public `breakage` CLI dispatch/help and focused tests.
+- Blocked on: Behavioral breakage, adequate test coverage, complete inventory and V1-0417 promotion remain unqualified.
+- Read next: Requirements; Failure modes; Acceptance evidence and rollback.
 
 ## Human-owned intent and user job
 

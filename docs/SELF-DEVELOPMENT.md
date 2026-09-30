@@ -47,6 +47,16 @@ remain `NOT_OBSERVED`; recorded bytes are not billed tokens or proof of savings.
 
 ## Read, implement, challenge
 
+The [six experimental workflows](V1-WORKFLOWS.md) add bounded, explicit routes to this table:
+`cem report --format json --ocm` for exact hunk/obligation inspection and the optional console
+chain links; `prove --base FULL_SHA --mutate --attack-tests` for selected Go survivors;
+`dogfood handoff --task-state` / `--bundle` for inert caller state and drift refusal;
+`breakage` for pinned declared repositories and API relationships; the explicit `context`
+instruction flags for conditional project-file selection; and `script/proof-tour.sh` for the
+disposable independent-review tour. Use only the route relevant to the task. Actual session
+loading, cross-provider continuity, behavioral breakage, adequate tests and third-party
+interoperability remain unqualified; none of these routes accepts intent or closes authority.
+
 Use `corvint help COMMAND` and the owning spec for exact flags and admission before invoking a
 route. Begin with a handful of applicable rows. After the first meaningful source diff, inspect
 `affected` when it can advise the changed paths; keep the actual gate mandatory. Challenge relevant
