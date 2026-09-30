@@ -79,21 +79,22 @@ objects, and writes one candidate intake file. A trusted host then runs the vali
 outside the reader's write access. The author receives only normalized admitted bytes. The host
 must bind its mounts and filesystem allowlist; reader declarations are not sandbox enforcement.
 Raw input and candidate files must stay outside the authoring worktree even if ignored by Git.
+Preflight rejects raw files whose native link count is not exactly one, closing hardlink aliases.
 Reader output must not be used as CLI argv, executable code, a policy grant, or a mutable spec.
 
 ## Acceptance and traceability
 
 | Requirement | Intended implementation | Acceptance witness |
 |---|---|---|
-| CVI-V0-001 | protocol/intake/schema.json; internal/intake | Published valid/invalid conformance vectors |
-| CVI-V0-002 | internal/intake decode/validation | Missing/extra/duplicate/null/UTF-8/type/enum/bounds fixtures |
-| CVI-V0-003 | internal/intake immutable lookup | Base-only/head-only/dirty/path traversal fixtures |
-| CVI-V0-004 | internal/intake normalization | Permutation determinism and duplicate refusal |
-| CVI-V0-005 | internal/intake reader preflight | Outside/inside/alias/symlink/overlap fixtures |
-| CVI-V0-006 | internal/intake author builder | Hostile/neutered pairs across every raw context location |
-| CVI-V0-007 | owned test battery and CI workflow | Known prose-leak mutants all caught |
+| CVI-V0-001 | protocol/intake/schema.json; internal/intake | `TestCVI_V0_001_002_PublishedVectors` |
+| CVI-V0-002 | internal/intake decode/validation | `TestCVI_V0_002_StrictGrammar` |
+| CVI-V0-003 | internal/intake immutable lookup | `TestCVI_V0_003_ImmutablePathAndTrustedPins` |
+| CVI-V0-004 | internal/intake normalization | `TestCVI_V0_004_Normalization` |
+| CVI-V0-005 | internal/intake reader preflight | `TestCVI_V0_005_ReaderIsolation` |
+| CVI-V0-006 | internal/intake author builder | `TestCVI_V0_006_007_HostileTwinsAndMutants` |
+| CVI-V0-007 | owned test battery and CI workflow | `TestCVI_V0_006_007_HostileTwinsAndMutants` |
 
-These are proposed witnesses, not recorded passing results. Delivery requires focused tests,
+These named witnesses passed focused local execution. Final candidate binding and hosted CI remain pending. Delivery requires focused tests,
 actual CLI fixture qualification, focused-docs gate, independent review, bound change evidence and
 retained outcome. A green fixture battery does not prove a model reader immune to prompt injection.
 
@@ -118,5 +119,6 @@ or add/rename fields; every mutant must be caught. Equality outside concerns pro
 containment conditional on the candidate oracle. Reader extraction/model immunity remains
 NOT_OBSERVED. All parser and Git errors become fixed author-facing codes. Behaviour paths admit
 regular blobs, symlinks and trees; test paths admit regular blobs only; gitlinks are unsupported.
+REMOVE requires base existence; ADD/CHANGE/UNKNOWN use either pin without proving semantic accuracy.
 Reader preflight observes symlink-resolved ancestry and fresh output absence; the host must enforce
 read-only mounts, one output file, no network and no credentials. It is not a sandbox.
