@@ -609,6 +609,15 @@ do not reinterpret this Frontier result.
   invalidate prior PASS after the source/output paths are admitted. Interrupted-child evidence
   MUST observe descendant absence before any witness rescue cleanup; a deliberately broken
   cleanup negative control MUST fail. Architecture names MUST match the Node consumer tuple.
+  For issue #387, deterministic transport success MUST use the existing genuine query budget;
+  it MUST NOT relabel an automatic session-start as a query or enlarge production deadlines.
+  A delayed automatic fixture MUST still assert timeout and its declared deadline. The collector's
+  final observed-descendant check MUST distinguish exited zombie state from a live same-generation
+  PID/start identity. The passive interruption witness MAY wait up to 500 ms for captured identities
+  to exit before supervisor rescue, without signalling them or expanding ownership. Missing, reused
+  or zombie identities count as exited; snapshot errors and persistent live identities MUST fail.
+  Regressions MUST cover an actual unreaped zombie, transient exit, persistent live survivor and
+  the existing broken-cleanup negative control. Fixture success is not p95 latency evidence.
   A producer-to-consumer regression MUST cover successful publication, all retained failure classes,
   identity drift and interruption. Rollback is removal of the native plugin entry or reverting the package; no host
   fork, daemon, account, authority installation or durable outcome migration is required.
