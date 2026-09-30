@@ -146,7 +146,7 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   A separately authorized, digest-bound `coordination-time-impact` context abstention is not a missing
   completion proof: it remains visibly `NOT_PRODUCED`, while CEM/OCM, checks, clean-target and
   verifier requirements above remain unchanged. Its malformed, missing, stale or untyped form fails.
-- `LCP-V0-008`: Codex and Claude Code Stop MAY request one bounded remediation continuation for an explicitly enrolled
+- `LCP-V0-008`: Codex and Claude Code Stop, and the exact ordinary Pi final-settlement boundary, MAY request one bounded remediation continuation for an explicitly enrolled
   incomplete change. If `stop_hook_active` is true, the adapter MUST release with a visible fixed
   unresolved-policy notice instead of looping. A blocking Stop reason MUST name the closed unmet
   categories of `policy.unmet` and the `dogfood status` argv for the session key, and never a
@@ -170,6 +170,17 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   observed no drift and reports as a read failure (`dogfood-event-unavailable`, or
   `dogfood-event-deadline` on expiry). A supplied `stop_hook_active` MUST be boolean. Expensive
   verification and mutations never run in Stop. User interruption remains effective.
+  The owner’s 2026-09-29 Pi build request additionally admits Pi 0.99.1 / extension
+  0.3.2. Its `agent_before_settle` handler evaluates only a trusted completed activity
+  without an existing continuation or pending message. A validated incomplete policy
+  may append one fixed remediation custom message and request one continuation; the
+  same activity then supplies `stopHookActive: true` and cannot loop. Errors, aborts,
+  queued work, stale generations and failed reads never request continuation. A new
+  explicit operator activity may reset that bound. Automatic recovery is ephemeral.
+  Pi hashes `corvint-local-completion-session/pi/0` plus NUL plus the host session ID;
+  forks and tree navigation do not adopt another session’s enrollment. Slash commands
+  are operator assertions, not authenticated human provenance, because RPC can invoke
+  the same command surface. This remains local caller policy with FALLBACK support.
 - `LCP-V0-009`: `corvint dogfood event` MUST use a separate `corvint-dogfood-event/0` envelope and
   result-digest domain. Legacy query, task-context and harness command behavior stays unchanged.
   The result binds its full normalized public content, exact repository snapshot, event and local
@@ -179,7 +190,10 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   pairs and which therefore uses its own shorter deadline strictly below that kill.
   The admitted plugin tuple is host `codex` with host version `unknown` or host `claude-code` with
   host version `unreported-by-hook-api` (`AHI-023`), adapter version `0.1.0`, for session-start/user-prompt/stop/session-end only. Any other tuple refuses with
-  `unsupported-dogfood-event-host` and any other event with `unsupported-dogfood-event`
+  `unsupported-dogfood-event-host`. The separate ordinary Pi tuple is host `pi`, host
+  version `0.99.1`, surface `extension`, adapter version `0.3.2`, for the same four
+  events only. It shares the sealed profile and bounds but never the protected Pi
+  profile or its authority. Any other event refuses with `unsupported-dogfood-event`
   (`cmd/corvint/local_completion_event.go:73,148`). Claude post-tool and
   file-change retain the legacy harness profile, normalization and plain session hash; neither
   profile accepts an envelope from the other. A compact session start over a dirty worktree adds
@@ -303,7 +317,7 @@ elsewhere are not repeated.
 | `check-executable-unavailable` | `internal/localcompletion/storage.go:515` | `exec.LookPath` cannot resolve a check's executable |
 | `completion-evidence-drift` | `internal/localcompletion/finish.go:337` | after finishing, the tree is not clean, the target or tree differs from the pre-finish snapshot, or the saved report is no longer current |
 | `dogfood-coordination-failed` | `internal/localcompletion/finish.go:371` | the in-process `dogfood change` coordination run did not pass (`LCP-V0-014`) |
-| `dogfood-event-context-drift` | `cmd/corvint/local_completion_event.go:375` | the loaded index commit or tree revision, or the dirty-path digest, differs from the probed repository context |
+| `dogfood-event-context-drift` | `cmd/corvint/local_completion_event.go:416` | the loaded index commit or tree revision, or the dirty-path digest, differs from the probed repository context |
 | `dogfood-event-deadline` | `cmd/corvint/local_completion_event.go:129` | the event's context deadline expired or was cancelled, or the Git repository probe's own fixed bound expired first (V1-0396) |
 | `dogfood-event-index-snapshot-stale` | `cmd/corvint/local_completion_event.go:81` | the event's deadline expired after the read found no matching index snapshot and fell back to its in-memory build (`AHI-031`, decision 0400); proposed 2026-09-26, not accepted: also reported before that build when the recorded `index` build cost does not fit the time left (`IDX-SNAP-V0-012`) |
 | `dogfood-event-input-unavailable` | `cmd/corvint/local_completion_event.go:117` | reading the event input from stdin failed |
@@ -400,9 +414,9 @@ Each row cites the first emitting site and states only the condition checked the
 | `anchor-evidence-unavailable` | `internal/contextindex/local_completion_context.go:580@b7524c52` | the resolution `reason` when anchors exist and a task-evidence candidate was unreadable or requirement definitions were capped |
 | `anchor-not-found` | `internal/contextindex/local_completion_context.go:582@07c6c8fe` | the resolution `reason` when no earlier case applies and an anchor matched no candidate |
 | `anchor-worktree-changed` | `internal/contextindex/local_completion_context.go:586@37e9b097` | the resolution `reason` when no earlier case applies and a task-evidence path is among the index's dirty paths |
-| `local-policy-continuation-limit` | `cmd/corvint/local_completion_event.go:361@50f727f3` | a `stop` event that would block has `stopHookActive` true; decision `release` |
-| `local-policy-incomplete` | `cmd/corvint/local_completion_event.go:359@3862af35` | a `stop` event whose lifecycle is `active`, or `satisfied` without the evaluation satisfied; decision `block` |
-| `local-policy-other-session-active` | `cmd/corvint/local_completion_event.go:541@65149f9c` | a `stop` event whose inactive evaluation names another session's active enrollment as `owner`; decision `release`, and the completion carries `owner` |
+| `local-policy-continuation-limit` | `cmd/corvint/local_completion_event.go:371@50f727f3` | a `stop` event that would block has `stopHookActive` true; decision `release` |
+| `local-policy-incomplete` | `cmd/corvint/local_completion_event.go:369@3862af35` | a `stop` event whose lifecycle is `active`, or `satisfied` without the evaluation satisfied; decision `block` |
+| `local-policy-other-session-active` | `cmd/corvint/local_completion_event.go:551@65149f9c` | a `stop` event whose inactive evaluation names another session's active enrollment as `owner`; decision `release`, and the completion carries `owner` |
 
 ## Resource and trust boundaries
 

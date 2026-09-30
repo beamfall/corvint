@@ -77,7 +77,7 @@ func TestPiToolRecord(t *testing.T) {
 
 func TestPiToolClosedInput(t *testing.T) {
 	t.Run("AHI-025 explicit operations reject caller root identity and duplicate keys", func(t *testing.T) {
-		for _, raw := range []string{`null`, `{"hostVersion":"0.85.1","input":{"task":"x"},"root":"/"}`, `{"hostVersion":"0.85.1","input":{"task":"x","task":"y"}}`, `{"hostVersion":"0.85.1","input":{"task":null}}`} {
+		for _, raw := range []string{`null`, `{"hostVersion":"0.99.1","input":{"task":"x"},"root":"/"}`, `{"hostVersion":"0.99.1","input":{"task":"x","task":"y"}}`, `{"hostVersion":"0.99.1","input":{"task":null}}`} {
 			if result := piToolResult(context.Background(), "context", strings.NewReader(raw)); result["fault"] != "invalid-input" {
 				t.Fatalf("accepted %s: %v", raw, result)
 			}
