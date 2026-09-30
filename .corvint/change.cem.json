@@ -12,6 +12,16 @@
       "spanSha256": "3bdc40750d6a90d7726e88e2c61c6e6f13cc101451f63a881b61f38961968c26"
     },
     {
+      "blobOid": "e6a7be5a24191ada287fde55560fbed32760a7d1",
+      "id": "evidence:sha256:05132ac7fa5ccf1a830a054c08e108d48803c7adc8da486c68148cc9c67456e8",
+      "path": "docs/specs/lsp-quality-platform-v0.md",
+      "span": {
+        "end": 11136,
+        "start": 9973
+      },
+      "spanSha256": "adff547786be530f917e1197c5cdca5a72619f0ca4d11448f84dd3edd94fd8fb"
+    },
+    {
       "blobOid": "63f295fadd839e740a2ef815a0001e0ea9ea890e",
       "id": "evidence:sha256:993dd0669059b71eae888d81df1b5e57b867746c8b436ebcfaa8f82486844cf1",
       "path": "docs/specs/lsp-editor-definition-v0.md",
@@ -32,16 +42,6 @@
       "spanSha256": "15383a0d8419db9a0fa01e09462a7187c3b72f5a18fbb4ceff66618c7ef1a4b2"
     },
     {
-      "blobOid": "e6a7be5a24191ada287fde55560fbed32760a7d1",
-      "id": "evidence:sha256:05132ac7fa5ccf1a830a054c08e108d48803c7adc8da486c68148cc9c67456e8",
-      "path": "docs/specs/lsp-quality-platform-v0.md",
-      "span": {
-        "end": 11136,
-        "start": 9973
-      },
-      "spanSha256": "adff547786be530f917e1197c5cdca5a72619f0ca4d11448f84dd3edd94fd8fb"
-    },
-    {
       "blobOid": "ba9ebf6334cc4995d9294ec2bd07dfa0b04e8762",
       "id": "evidence:sha256:56417134e118d054f9fb102ae839e4a95e3f56676cc763df78c7caae22a0b20b",
       "path": "docs/specs/gopls-client-session-v0.md",
@@ -54,6 +54,30 @@
   ],
   "excludedPath": ".corvint/change.cem.json",
   "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:7fb580ca0e87886483cf7ba109bb5b30a8bb55c5213b1a6728fbe8156243e76c",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:05132ac7fa5ccf1a830a054c08e108d48803c7adc8da486c68148cc9c67456e8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6c89bb242d6eb47645c6227b0fe53182156f633f0977ba277478c53299197791",
+      "newRange": {
+        "count": 12,
+        "start": 487
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 487
+      },
+      "path": "README.md",
+      "reason": "evidence-backed"
+    },
     {
       "basis": [
         {
@@ -157,6 +181,30 @@
           "relation": "specification"
         },
         {
+          "evidenceId": "evidence:sha256:05132ac7fa5ccf1a830a054c08e108d48803c7adc8da486c68148cc9c67456e8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3392769919beb6301a9c13bc15afec70a6b0718e11b8ac0be5e82ae4ea2e9295",
+      "newRange": {
+        "count": 7,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-30-lsp-guard-public-integration.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:7fb580ca0e87886483cf7ba109bb5b30a8bb55c5213b1a6728fbe8156243e76c",
+          "relation": "specification"
+        },
+        {
           "evidenceId": "evidence:sha256:13b62bf4f44ea89c20554ffb4dc3e00a231b29a556aabeb098028b64c3ffebd8",
           "relation": "specification"
         }
@@ -196,30 +244,6 @@
         "start": 0
       },
       "path": "docs/build-log/2026-09-30-lsp-workspace-guard-admission-bounds.md",
-      "reason": "evidence-backed"
-    },
-    {
-      "basis": [
-        {
-          "evidenceId": "evidence:sha256:7fb580ca0e87886483cf7ba109bb5b30a8bb55c5213b1a6728fbe8156243e76c",
-          "relation": "specification"
-        },
-        {
-          "evidenceId": "evidence:sha256:05132ac7fa5ccf1a830a054c08e108d48803c7adc8da486c68148cc9c67456e8",
-          "relation": "specification"
-        }
-      ],
-      "disposition": "supported",
-      "id": "hunk:sha256:1a0e6d921ccb8a65724c252cbf6598e892d8f01ae4f6110d777d7479e090c8a0",
-      "newRange": {
-        "count": 7,
-        "start": 1
-      },
-      "oldRange": {
-        "count": 0,
-        "start": 0
-      },
-      "path": "docs/build-log/2026-10-01-lsp-guard-public-integration.md",
       "reason": "evidence-backed"
     },
     {
@@ -1043,6 +1067,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "1a617d1602c2e9d2034563b12b5a2ec795c1387025f27c660f04c51c02fc38e4",
+  "patchSha256": "31fc0d3e83f580763e35d37f68cfe2ef86387e096d87155a8876f67f1b88a47c",
   "spec": "cem/0.2"
 }
