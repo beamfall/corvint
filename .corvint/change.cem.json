@@ -1,0 +1,70 @@
+{
+  "baseRevision": "0cc5005cb7514855d9f1dece0f9bb1d3c3a49086",
+  "evidence": [
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:31cdfd258aedf9562e18ff1b5dd6c3f9da5283e0e752639eb2447586667f61cd",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3076,
+        "start": 2775
+      },
+      "spanSha256": "66bd3fd68b6179557cabb27f57c3746f487a3177a7f42a6b3c85f843e678d1e9"
+    },
+    {
+      "blobOid": "77a20880cda6c42003c542a16b8d19b4fd61cb4e",
+      "id": "evidence:sha256:1103538e55c186487e381880ed20acbfc0ec614f36e56fdba650992a75845e92",
+      "path": "docs/specs/error-code-ownership-gate-v0.md",
+      "span": {
+        "end": 4703,
+        "start": 3563
+      },
+      "spanSha256": "9889ae27258845e51febada917bcbf39bc9959ec992a1066efced30de11e0cda"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:31cdfd258aedf9562e18ff1b5dd6c3f9da5283e0e752639eb2447586667f61cd",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3e6dc818898aa2ad7349b80f63410dfd1ec04805781bd8a60a3f30fd1a179d44",
+      "newRange": {
+        "count": 25,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-30-test-acceptance-error-ownership.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1103538e55c186487e381880ed20acbfc0ec614f36e56fdba650992a75845e92",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5f5b708dca0543846b50ee3943fca675c4535c5c1b845b9e1807058ee641314b",
+      "newRange": {
+        "count": 29,
+        "start": 60
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 60
+      },
+      "path": "docs/specs/new-e2e-test-acceptance-v0.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "6fa4e3bdef0192287fa29bdef211f8a593f152c217e3b3bfbbffadc7f88914fb",
+  "spec": "cem/0.2"
+}
