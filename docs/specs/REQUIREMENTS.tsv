@@ -957,8 +957,8 @@ ERI-V0-001	docs/specs/expanded-range-impact-v0.md	35	`corvint impact --base FULL
 ERI-V0-002	docs/specs/expanded-range-impact-v0.md	41	The experimental profile MUST use the complete original base-to-captured-HEAD
 ERI-V0-003	docs/specs/expanded-range-impact-v0.md	50	Only this profile's path capacity changes. The cumulative 10,000-admitted-hunk a
 ERI-V0-004	docs/specs/expanded-range-impact-v0.md	57	Without the new option, the existing range profile, its 100-path refusal, positi
-ERI-V0-005	docs/specs/expanded-range-impact-v0.md	63	The experimental compiler MUST retain one immutable clean base/head snapshot and
-ERI-V0-006	docs/specs/expanded-range-impact-v0.md	67	The prototype repository coordinator MUST select the experimental profile by an
+ERI-V0-005	docs/specs/expanded-range-impact-v0.md	65	The experimental compiler MUST retain one immutable clean base/head snapshot and
+ERI-V0-006	docs/specs/expanded-range-impact-v0.md	69	The prototype repository coordinator MUST select the experimental profile by an
 ESV-V0-001	docs/specs/experimental-source-views-v0.md	236	Bind the bounded canonical packet and exact caller selector to object format,
 ESV-V0-002	docs/specs/experimental-source-views-v0.md	241	Return one exact contiguous immutable source range as JSON `text` whose UTF-8
 ESV-V0-003	docs/specs/experimental-source-views-v0.md	245	Enforce every frozen bound with sanitized, replacement-disabled, non-lazy Git
@@ -1664,8 +1664,8 @@ NGI-V0-001	docs/specs/non-go-impact-v0.md	28	Positional impact and MCP impact MU
 NGI-V0-002	docs/specs/non-go-impact-v0.md	32	Default and expanded committed ranges MUST bind Ruby/JS/TS path
 NGI-V0-003	docs/specs/non-go-impact-v0.md	37	Every Ruby/JS/TS changed path MUST name a syntax-only dynamic
 NGI-V0-004	docs/specs/non-go-impact-v0.md	43	Added paths MUST carry the same receipt/evidence envelope and
-NGI-V0-005	docs/specs/non-go-impact-v0.md	49	`impact --help` and MCP description MUST publish a per-language
-NGI-V0-006	docs/specs/non-go-impact-v0.md	53	Conformance MUST include each new suffix/language, negative
+NGI-V0-005	docs/specs/non-go-impact-v0.md	54	`impact --help` and MCP description MUST publish a per-language
+NGI-V0-006	docs/specs/non-go-impact-v0.md	58	Conformance MUST include each new suffix/language, negative
 NJB-001	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	44	each family is one exact profile/target tuple and a standalone CLI package; no
 NJB-002	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	46	canonical one-LF JSON input/output is bounded before decode, base64 decode, fact
 NJB-003	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	54	facts are typed, ordered, and digest-bound by the bridge-owned 14-field evidence

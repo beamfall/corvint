@@ -230,6 +230,38 @@ func TestNonGoRangeImpactMixed(t *testing.T) {
 	}
 }
 
+// NGI-V0-004: module validation depends on actual changed Go membership.
+// Snapshot/base validation therefore precedes it for multiply-invalid requests.
+func TestNonGoRangeImpactGoModuleValidationPriority(t *testing.T) {
+	root := impactRepositoryWithFiles(t, map[string]string{
+		"go.mod":                  "module local\n\ngo 1.27\n",
+		"internal/value/value.go": "package value\nfunc Value() int { return 1 }\n",
+	})
+	base := testGit(t, root, "rev-parse", "HEAD")
+	writeTestFile(t, root, "internal/value/value.go", "package value\nfunc Value() int { return 2 }\n")
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-qm", "changed Go")
+	for _, expanded := range []bool{false, true} {
+		index, err := Build(context.Background(), root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = compileRangeImpact(context.Background(), index, base, 10, expanded)
+		assertRangeErrorCode(t, err, "unsupported-impact-repository")
+		_, err = compileRangeImpact(context.Background(), index, strings.Repeat("0", 40), 10, expanded)
+		assertRangeErrorCode(t, err, "unsupported-impact-range")
+	}
+	writeTestFile(t, root, "internal/value/value.go", "package value\nfunc Value() int { return 3 }\n")
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expanded := range []bool{false, true} {
+		_, err = compileRangeImpact(context.Background(), index, base, 10, expanded)
+		assertRangeErrorCode(t, err, "unsupported-impact-worktree")
+	}
+}
+
 // NGI-V0-006 ERI-V0-002: new-language members retain fail-closed snapshot,
 // binary, excluded-source and target-blob checks in both capacity profiles.
 func TestNonGoRangeImpactRefusals(t *testing.T) {

@@ -55,7 +55,9 @@ membership and must retain whole-change authority, marker selection and result a
   8 MiB request allowance. Every existing unsupported member, malformed source, identity/status
   drift and exhausted bound MUST still fail explicitly, without partial success JSON.
 - `ERI-V0-004`: Without the new option, the existing range profile, its 100-path refusal, positional
-  impact, working-tree impact and `prove --base` MUST retain their receipt bytes and error behavior for unchanged Go-only inputs.
+  impact, working-tree impact and `prove --base` MUST retain their receipt bytes and refusal conditions/codes for unchanged Go-only inputs.
+  Module-versus-snapshot/base error priority follows the explicit proposed
+  `NGI-V0-004` validation-order limitation.
   Ruby/JS/TS admission is separately governed by `NGI-V0-001` through `NGI-V0-006`.
   For an input accepted by both range profiles, experimental semantic bytes MUST equal default
   bytes after removing only the new profile/request discriminator and recomputing packet-byte

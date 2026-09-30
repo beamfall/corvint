@@ -45,6 +45,16 @@ post-capture drift rather than weakening either boundary. Focused package vet pa
 retains the baseline and source-analysis-unavailable frontier; its selected fixture
 passed in 0.452s without admitting excluded ranked evidence.
 
+Final acceptance review also found that the proposed contract overpromised refusal
+priority compatibility. Module validation now depends on changed Go membership,
+so dirty-state or unavailable-base validation precedes it. The owning issue asks
+for the same receipt shape; the proposed contract now explicitly preserves Go
+receipt bytes and refusal conditions/codes without claiming identical priority
+for multiply-invalid requests. A focused committed-Go fixture records clean
+invalid-module, invalid-module plus dirty-state, and unavailable-base outcomes (PASS 0.767s). The independent reviewer
+accepted the disclosed narrower contract and reported no remaining P1/P2 source
+findings.
+
 Actual CLI binaries built from the immutable base and candidate produced byte-identical
 Go path-impact, default-range and expanded-range receipts. Ruby/JS/TS path/range
 requests at limit 1 repeated byte-identically with all three frontier paths present,

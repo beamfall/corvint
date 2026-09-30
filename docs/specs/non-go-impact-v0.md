@@ -45,7 +45,12 @@ test closure. The useful result is bounded evidence with an open semantic fronti
   exact-hunk qualified and caller-authored authority MUST remain withheld.
   Result omissions, critical misses and unsupported language members MUST remain
   explicit. Legacy Go-only receipts and canonical digest preimages MUST retain
-  their exact bytes and existing error behavior when no new language members occur.
+  their exact bytes when no new language members occur. Existing refusal
+  conditions and codes remain. Module validation now follows range identity and
+  snapshot validation because it depends on changed Go membership: a request with
+  an invalid module plus dirty state or unavailable base reports the earlier
+  snapshot/base failure. Exact precedence for multiply-invalid requests is not
+  a compatibility claim.
 - `NGI-V0-005`: `impact --help` and MCP description MUST publish a per-language
   capability table identifying path/range support, syntax-only import rules and
   unresolved dispatch. Working-tree-untracked remains the separately bounded Go
@@ -75,7 +80,7 @@ for languages not admitted by this new range capability.
 | `NGI-V0-001` | shared suffix helper; MCP descriptor/validator | `TestNonGoImpactMCPAdmission` |
 | `NGI-V0-002` | shared range compiler language classification | `TestNonGoRangeImpact` |
 | `NGI-V0-003` | shared lexical mask and structured frontier | `TestNonGoImpactDynamicUnknowns` |
-| `NGI-V0-004` | existing range bindings/reducer | `TestNonGoRangeImpactLegacyGoBytes` |
+| `NGI-V0-004` | existing range bindings/reducer | `TestNonGoRangeImpactLegacyGoBytes`, `TestNonGoRangeImpactGoModuleValidationPriority` |
 | `NGI-V0-005` | impactHelp and MCP description | `TestNonGoImpactMCPAdmission`; actual CLI help check in the build-log |
 | `NGI-V0-006` | committed fixture conformance | `TestNonGoRangeImpactMixed`, `TestNonGoRangeImpactRefusals`; tests above and existing range/impact regressions |
 
