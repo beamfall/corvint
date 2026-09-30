@@ -473,3 +473,30 @@ and [PROVENANCE.md](PROVENANCE.md).
 Flow-variation E2E completeness and safe documentation write-back: [coverage guide](docs/FLOW-COVERAGE.md). Proof binds immutable bytes and declared app identity; deployment attestation remains outside `/3`.
 
 Optional [Codex foreground task supervision](docs/TASKS-SUPERVISION.md) is in scoped qualification; external-agent leases remain available.
+
+### Experimental editor definition companion
+
+The separate `corvint-lsp` prototype can use an explicitly supplied local gopls binary for
+definitions between open Go overlays in one explicitly supplied root:
+
+```sh
+go build -o /tmp/corvint-lsp ./cmd/corvint-lsp
+/tmp/corvint-lsp --experimental --gopls /absolute/path/to/gopls --root /absolute/project/root
+```
+
+The editor must launch the process over stdio and declare the same canonical root. The companion
+uses full-text synchronization and UTF-8/16/32 positions; non-open targets return unavailable.
+The backend receives offline Go settings, but the executable is trusted local code, not sandboxed.
+This operator-started experiment changes no Core defaults and installs no editor configuration.
+It exposes a `corvintDefinitionProbe` experimental marker and accepts direct development `textDocument/definition` requests, but does not advertise the standard definition capability. Automatic editor navigation remains unavailable until an exact client tuple is qualified. See the
+[experimental contract](docs/specs/lsp-editor-definition-v0.md) for bounds and rollback.
+
+The optional Go editor companion also accepts experimental `corvint/context` with closed params
+`{"textDocument":{"uri":"file:///absolute/root/file.go"},"task":"investigate a requirement","limit":10}`.
+The document must be open. Discover the method/schema under `capabilities.experimental.corvintContext`.
+The response preserves the task-review Core object, including abstentions, separately from an
+unsaved overlay observation (random session ID, decimal-string capture ID, version and SHA-256).
+It starts one bounded native context worker, with no second gopls, tests or repository writes.
+Point-in-time Git/branch/root and overlay checks fail closed on observed drift. This remains
+experimental; exact client tuples and outcome/performance floors are unqualified. See the
+[LSP editor context contract](docs/specs/lsp-editor-context-v0.md) for bounds, fixed errors and observation limits.
