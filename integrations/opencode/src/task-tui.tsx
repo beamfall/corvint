@@ -86,16 +86,23 @@ export function createTaskPanel(ctx, { rpc, lifetime, location, accent, onChange
     ] }))
     const summary = () => { const v = snapshot(); return `${v.completed}/${v.total} completed · ${v.open} open · ${v.draft} draft · ${v.held} held · ${v.archived} archived` }
     const context = () => { const v = snapshot(); return `${v.blocked} blocked across queue · ${v.intentChecksPassed} intent checks passed · ${v.activeAttempts} active attempts` }
-    const description = () => detail() || (current() ? `${current().ticketId}\n${current().title}\n\n${current().priority} · ${current().milestone || "No milestone"}\nEligibility: ${current().eligibility}\nNext action: ${current().nextAction}\nGate results: ${current().gateResults}\nBlockers reported: ${current().blockers}\n\nEnter to read blockers and acceptance criteria.` : "No open tickets on this page.")
+    const empty = () => {
+      const view = snapshot()
+      if (view.state === "loading") return `Reading the Work queue…\n${view.reason}`
+      if (view.state === "stale") return `Queue observation is out of date. Press r to refresh before selecting a task.\nReason: ${view.reason}`
+      if (view.state !== "ready") return `${view.reason}\nPress r to read the queue again.`
+      return view.openTotal ? "No task rows supplied on this page. Press r to refresh or ← to return to an earlier page." : "No open tasks supplied by this queue observation. Press r after the queue changes."
+    }
+    const description = () => detail() || (current() ? `${current().ticketId}\n${current().title}\n\n${current().priority} · ${current().milestone || "No milestone"}\nEligibility: ${current().eligibility}\nNext action: ${current().nextAction}\nGate results: ${current().gateResults}\nBlockers reported: ${current().blockers}\n\nEnter to inspect criteria and blockers.\ns to focus this task in Work (no claim).` : empty())
     return <box flexDirection="column" flexGrow={1} minHeight={0} padding={1}>
-      <box flexDirection="row" justifyContent="space-between" flexShrink={0}><text fg={ctx.theme.text.base}><b>Corvint · Tasks</b></text><text fg={accent()} onMouseDown={onChange}>c Change</text></box>
-      <text height={1} flexShrink={0} fg={snapshot().state === "ready" ? ctx.theme.text.feedback.info.base : ctx.theme.text.feedback.warning.base}>{() => snapshot().state === "ready" ? summary() : `${snapshot().state}: ${snapshot().reason}`}</text>
+      <box flexDirection="row" justifyContent="space-between" flexShrink={0}><text fg={ctx.theme.text.base}><b>Corvint · Work queue</b></text><text fg={accent()} onMouseDown={onChange}>c Change</text></box>
+      <text height={1} flexShrink={0} fg={snapshot().state === "ready" ? ctx.theme.text.feedback.info.base : ctx.theme.text.feedback.warning.base}>{() => snapshot().state === "ready" ? summary() : ({ loading: "Reading Work queue…", stale: "Queue needs refresh", unavailable: "Work queue unavailable", empty: "Read Work queue" }[snapshot().state] || "Queue state unknown")}</text>
       <Show when={snapshot().state === "ready"}><text height={1} flexShrink={0} fg={ctx.theme.text.muted}>{context}</text></Show>
       <text height={1} flexShrink={0} fg={ctx.theme.text.muted}>{() => snapshot().observed ? `Observed ${snapshot().observed.slice(11, 19)} UTC · receipt ${snapshot().queueDigest.slice(0, 8)} · ${snapshot().queueId}` : "Read-only queue observation"}</text>
-      <text height={1} flexShrink={0} fg={accent()} onMouseDown={() => refresh(snapshot().offset)}>{() => `Open tickets ${snapshot().offset + (snapshot().tickets.length ? 1 : 0)}–${snapshot().offset + snapshot().tickets.length} of ${snapshot().openTotal} · r refresh · ←/→ pages`}</text>
+      <text height={1} flexShrink={0} fg={accent()} onMouseDown={() => refresh(snapshot().offset)}>{() => snapshot().state === "ready" ? `Open tickets ${snapshot().offset + (snapshot().tickets.length ? 1 : 0)}–${snapshot().offset + snapshot().tickets.length} of ${snapshot().openTotal} · r refresh · ←/→ pages` : "r Read Work queue"}</text>
       <box flexDirection="row" flexGrow={1} minHeight={0} gap={2} marginTop={1}>
         <Show when={wide() || !detailPane()}><scrollbox ref={value => { list = value }} width={wide() ? 42 : "100%"} flexGrow={wide() ? 0 : 1} minHeight={0}>
-          <Show when={snapshot().tickets.length} fallback={<text fg={ctx.theme.text.muted}>No ticket rows supplied. Refresh or inspect the queue state above.</text>}>
+          <Show when={snapshot().tickets.length} fallback={<text fg={ctx.theme.text.muted}>{empty}</text>}>
             <For each={snapshot().tickets}>{(row, index) => {
               const click = event => { event.stopPropagation(); props.panel.focus(); setSelected(index()); void open() }
               return <box id={`corvint-task-row-${index()}`} flexDirection="column" paddingX={1} paddingY={1} backgroundColor={index() === selected() ? ctx.theme.background.raised.high : undefined} onMouseDown={click}>
@@ -110,8 +117,8 @@ export function createTaskPanel(ctx, { rpc, lifetime, location, accent, onChange
           <Show when={snapshot().gaps.length}><text fg={ctx.theme.text.feedback.warning.base}>{() => `\n\nLimits\n${snapshot().gaps.join("\n")}`}</text></Show>
         </scrollbox></Show>
       </box>
-      <box flexDirection="row" gap={2}><text fg={accent()} onMouseDown={event => { event.stopPropagation(); props.panel.focus(); void focus() }}>s Focus ticket in workbench</text><text fg={ctx.theme.text.muted}>Enter detail · r refresh · ←/→ pages · c Change</text></box>
-      <text fg={ctx.theme.text.muted}>↑↓ select/scroll · Tab list/details · esc close</text>
+      <box flexDirection="row" gap={2} height={1} flexShrink={0}><text height={1} fg={accent()} onMouseDown={event => { event.stopPropagation(); props.panel.focus(); void focus() }}>s Focus task</text><text height={1} fg={ctx.theme.text.muted}>Enter inspect · r refresh · ←/→ pages · c Change</text></box>
+      <text height={1} flexShrink={0} fg={ctx.theme.text.muted}>↑↓ select/scroll · Tab details · focus is read-only · esc close</text>
     </box>
   }
 }
