@@ -1,0 +1,248 @@
+{
+  "baseRevision": "1bd413b6adca0aa7d6a0cecb1b2fc0017f28317f",
+  "evidence": [
+    {
+      "blobOid": "c0a4e652c736b010654729caefeb72f4651a6531",
+      "id": "evidence:sha256:3215034f7cdecf29ace58a866e3ed962584b882c3388d0d6b0b99cd4734fbc73",
+      "path": "docs/specs/lsp-editor-qualification-v0.md",
+      "span": {
+        "end": 3865,
+        "start": 3173
+      },
+      "spanSha256": "bf61e8be837cf00b7ebfbbdc3bfb229142d2f1ce71f8229ae135cbe60c9cf023"
+    },
+    {
+      "blobOid": "a594b8e19be3c0a97fed767f25940ea6eaa6a03a",
+      "id": "evidence:sha256:c5d3c2fca4fe077136cc0db4417c1ab6ad1135d5e26cbcf61bed494085c23dd5",
+      "path": "docs/specs/lsp-quality-platform-v0.md",
+      "span": {
+        "end": 7628,
+        "start": 6480
+      },
+      "spanSha256": "600ef4c9e533fafc85011215975a94833924947ac1c41981a436c027a0ebd2ff"
+    },
+    {
+      "blobOid": "1862a80fbf50b3376a2dfdb17a05a3a31b0d3a29",
+      "id": "evidence:sha256:0a2f53c6a56448e89d984925debf5c624ab22b9a6df1c18d8e5dd722c7c1eb34",
+      "path": "docs/SPEC-DRIVEN-DEVELOPMENT.md",
+      "span": {
+        "end": 1907,
+        "start": 986
+      },
+      "spanSha256": "fa238b378dc9f4c650b0e297e43acc07f268e0203e3934694447ac1b6ca61923"
+    },
+    {
+      "blobOid": "a594b8e19be3c0a97fed767f25940ea6eaa6a03a",
+      "id": "evidence:sha256:568e146479b067f83b2f949db5a824f6a1742410807405d84a987cd6430cb2e2",
+      "path": "docs/specs/lsp-quality-platform-v0.md",
+      "span": {
+        "end": 11112,
+        "start": 9949
+      },
+      "spanSha256": "adff547786be530f917e1197c5cdca5a72619f0ca4d11448f84dd3edd94fd8fb"
+    },
+    {
+      "blobOid": "c0a4e652c736b010654729caefeb72f4651a6531",
+      "id": "evidence:sha256:827c01ec71e8fd3b65a623303e08cd82e2d0f748821324b1d9a8f6e6e8e802a5",
+      "path": "docs/specs/lsp-editor-qualification-v0.md",
+      "span": {
+        "end": 5479,
+        "start": 4598
+      },
+      "spanSha256": "33d9b3d3c60cbd94b3f7df3c3144269aa6fdf02b61bb475261c3b3056343059f"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:3215034f7cdecf29ace58a866e3ed962584b882c3388d0d6b0b99cd4734fbc73",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:c5d3c2fca4fe077136cc0db4417c1ab6ad1135d5e26cbcf61bed494085c23dd5",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:0a2f53c6a56448e89d984925debf5c624ab22b9a6df1c18d8e5dd722c7c1eb34",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:568e146479b067f83b2f949db5a824f6a1742410807405d84a987cd6430cb2e2",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:813f5dc26f96cd56302b2b6e85efbff29f3cde3e8d355f460c6aca668c18af49",
+      "newRange": {
+        "count": 29,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-29-lsp-context-real-packet-validator.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:3215034f7cdecf29ace58a866e3ed962584b882c3388d0d6b0b99cd4734fbc73",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:c5d3c2fca4fe077136cc0db4417c1ab6ad1135d5e26cbcf61bed494085c23dd5",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:0a2f53c6a56448e89d984925debf5c624ab22b9a6df1c18d8e5dd722c7c1eb34",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:568e146479b067f83b2f949db5a824f6a1742410807405d84a987cd6430cb2e2",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:22311be53c5877783d120940cc1d5c821f91de8e20903149e132eb13ef3907de",
+      "newRange": {
+        "count": 19,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-29-lsp-context-selector-container-review.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:3215034f7cdecf29ace58a866e3ed962584b882c3388d0d6b0b99cd4734fbc73",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:c5d3c2fca4fe077136cc0db4417c1ab6ad1135d5e26cbcf61bed494085c23dd5",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:827c01ec71e8fd3b65a623303e08cd82e2d0f748821324b1d9a8f6e6e8e802a5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0093466a1855643ae1237dc32bc1b62c5621eb3816377eb1650958eedee10335",
+      "newRange": {
+        "count": 10,
+        "start": 61
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 61
+      },
+      "path": "docs/specs/lsp-editor-qualification-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:3215034f7cdecf29ace58a866e3ed962584b882c3388d0d6b0b99cd4734fbc73",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:c5d3c2fca4fe077136cc0db4417c1ab6ad1135d5e26cbcf61bed494085c23dd5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3564657aa4148c959ede734838ab5abc4cccb97ee2422858ff834c7907ba41ff",
+      "newRange": {
+        "count": 7,
+        "start": 11
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 11
+      },
+      "path": "tools/lsp-editors/check-context.py",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:3215034f7cdecf29ace58a866e3ed962584b882c3388d0d6b0b99cd4734fbc73",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:c5d3c2fca4fe077136cc0db4417c1ab6ad1135d5e26cbcf61bed494085c23dd5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6256f83af78da4e51d4ff3d4cced7af96fe6598826878b9ff277705d18d25a70",
+      "newRange": {
+        "count": 30,
+        "start": 52
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 52
+      },
+      "path": "tools/lsp-editors/check-context.py",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:3215034f7cdecf29ace58a866e3ed962584b882c3388d0d6b0b99cd4734fbc73",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:c5d3c2fca4fe077136cc0db4417c1ab6ad1135d5e26cbcf61bed494085c23dd5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:095478e1f043b27c0423ebd7e1ce494066acdc1dec8c0585cbb903cb83559dd9",
+      "newRange": {
+        "count": 15,
+        "start": 85
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 85
+      },
+      "path": "tools/lsp-editors/context-probe.py",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:3215034f7cdecf29ace58a866e3ed962584b882c3388d0d6b0b99cd4734fbc73",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:c5d3c2fca4fe077136cc0db4417c1ab6ad1135d5e26cbcf61bed494085c23dd5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:56dd1c1494c7cc357c20a777a4f5e63118607bc71a149ce5cdeba43eeb030199",
+      "newRange": {
+        "count": 19,
+        "start": 104
+      },
+      "oldRange": {
+        "count": 12,
+        "start": 99
+      },
+      "path": "tools/lsp-editors/context-probe.py",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "a634e5b0c5259598280853859097748b50907344b921f8ea2fed011f56d67a0c",
+  "spec": "cem/0.2"
+}
