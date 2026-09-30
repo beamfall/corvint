@@ -1663,9 +1663,9 @@ NEC-V0-008	docs/specs/necessity-labels-v0.md	71	The verb MUST be read-only: no i
 NGI-V0-001	docs/specs/non-go-impact-v0.md	28	Positional impact and MCP impact MUST admit tracked `.rb`, `.js`,
 NGI-V0-002	docs/specs/non-go-impact-v0.md	32	Default and expanded committed ranges MUST bind Ruby/JS/TS path
 NGI-V0-003	docs/specs/non-go-impact-v0.md	37	Every Ruby/JS/TS changed path MUST name a syntax-only dynamic
-NGI-V0-004	docs/specs/non-go-impact-v0.md	43	Added paths MUST carry the same receipt/evidence envelope and
-NGI-V0-005	docs/specs/non-go-impact-v0.md	54	`impact --help` and MCP description MUST publish a per-language
-NGI-V0-006	docs/specs/non-go-impact-v0.md	58	Conformance MUST include each new suffix/language, negative
+NGI-V0-004	docs/specs/non-go-impact-v0.md	47	Added paths MUST carry the same receipt/evidence envelope and
+NGI-V0-005	docs/specs/non-go-impact-v0.md	59	`impact --help` and MCP description MUST publish a per-language
+NGI-V0-006	docs/specs/non-go-impact-v0.md	63	Conformance MUST include each new suffix/language, negative
 NJB-001	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	44	each family is one exact profile/target tuple and a standalone CLI package; no
 NJB-002	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	46	canonical one-LF JSON input/output is bounded before decode, base64 decode, fact
 NJB-003	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	54	facts are typed, ordered, and digest-bound by the bridge-owned 14-field evidence

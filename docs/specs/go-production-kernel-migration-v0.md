@@ -325,7 +325,7 @@ requirements below have evidence. File existence is not parity.
   no Python parity. A dirty worktree returns `unsupported-impact-worktree`
   (`internal/contextindex/range_impact.go:340`) unless `GPK-V0-060` allows every dirty entry, and a
   changed `.go` path in the repository root package returns `unsupported-impact-path`
-  (`internal/contextindex/range_impact.go:149`).
+  (`internal/contextindex/range_impact.go:154`).
   Proposed experimental extension (2026-09-30, owner-requested issue #390):
   `non-go-impact-v0.md` proposes Ruby/JS/TS admission in both range capacities.
   Its `NGI-V0-002`/`NGI-V0-004` replace Go-only membership/omission restrictions
