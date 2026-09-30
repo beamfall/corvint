@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path';
 import { decodeObject } from './runtime.js';
 
 const PROFILE='corvint-dogfood-event/0';
-const TUPLE={host:'pi',hostVersion:'0.99.1',surface:'extension',adapterVersion:'0.3.1'};
+const TUPLE={host:'pi',hostVersion:'0.99.1',surface:'extension',adapterVersion:'0.3.2'};
 const sha=value=>createHash('sha256').update(value).digest('hex');
 const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const keys=(v,names)=>object(v)&&Object.keys(v).sort().join('\0')===[...names].sort().join('\0');
@@ -105,7 +105,7 @@ export function registerWorkflow(pi,{runner,version,notice=(ctx,code)=>{const te
   }catch{unresolved=true;notice(ctx,'invalid-workflow-response')}
   finally{pending.delete(c);signal?.removeEventListener('abort',abort)}
  }
- const event=(ctx,name,extra={})=>invoke(ctx,['dogfood','event','--host','pi','--host-version',version,'--surface','extension','--adapter-version','0.3.1','--event',name,'--input','-','--budget-bytes','8000'],id=>({sessionIdSha256:id.session,...extra}),(raw,input)=>decodeWorkflowEnvelope(raw,name,input));
+ const event=(ctx,name,extra={})=>invoke(ctx,['dogfood','event','--host','pi','--host-version',version,'--surface','extension','--adapter-version','0.3.2','--event',name,'--input','-','--budget-bytes','8000'],id=>({sessionIdSha256:id.session,...extra}),(raw,input)=>decodeWorkflowEnvelope(raw,name,input));
  async function recover(ctx,startSource){
   const value=await event(ctx,'session-start',{startSource});
   if(value){knownIncomplete=unresolved=value.policy.lifecycle==='active'||value.policy.lifecycle==='satisfied'&&!value.policy.satisfied;if(['active','satisfied'].includes(value.policy.lifecycle))recovery={scope,context:value.context}}

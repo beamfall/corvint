@@ -1,6 +1,6 @@
 {
   "name": "@corvint/pi",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "type": "module",
   "description": "Experimental native Core, Tasks, evidence cockpit and local workflow integration for Pi",
   "license": "AGPL-3.0-or-later",
@@ -27,7 +27,7 @@
     "@earendil-works/pi-coding-agent": "*"
   },
   "corvintIntegration": {
-    "adapterVersion": "0.3.1",
+    "adapterVersion": "0.3.2",
     "host": "pi",
     "surface": "extension",
     "protocol": "corvint-harness-event/0",

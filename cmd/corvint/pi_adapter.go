@@ -14,7 +14,7 @@ import (
 )
 
 const piHostVersion = "0.99.1"
-const piAdapterVersion = "0.3.1"
+const piAdapterVersion = "0.3.2"
 const piInputLimit = 131072
 
 var piReceipt = regexp.MustCompile(`^harness-receipt:sha256:[0-9a-f]{64}$`)

@@ -171,7 +171,7 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   `dogfood-event-deadline` on expiry). A supplied `stop_hook_active` MUST be boolean. Expensive
   verification and mutations never run in Stop. User interruption remains effective.
   The owner’s 2026-09-29 Pi build request additionally admits Pi 0.99.1 / extension
-  0.3.1. Its `agent_before_settle` handler evaluates only a trusted completed activity
+  0.3.2. Its `agent_before_settle` handler evaluates only a trusted completed activity
   without an existing continuation or pending message. A validated incomplete policy
   may append one fixed remediation custom message and request one continuation; the
   same activity then supplies `stopHookActive: true` and cannot loop. Errors, aborts,
@@ -191,7 +191,7 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   The admitted plugin tuple is host `codex` with host version `unknown` or host `claude-code` with
   host version `unreported-by-hook-api` (`AHI-023`), adapter version `0.1.0`, for session-start/user-prompt/stop/session-end only. Any other tuple refuses with
   `unsupported-dogfood-event-host`. The separate ordinary Pi tuple is host `pi`, host
-  version `0.99.1`, surface `extension`, adapter version `0.3.1`, for the same four
+  version `0.99.1`, surface `extension`, adapter version `0.3.2`, for the same four
   events only. It shares the sealed profile and bounds but never the protected Pi
   profile or its authority. Any other event refuses with `unsupported-dogfood-event`
   (`cmd/corvint/local_completion_event.go:73,148`). Claude post-tool and

@@ -64,7 +64,7 @@ test('AHI-005 AHI-025 typed supplied observations exclude raw output and malform
 });
 
 test('AHI-025 tool envelopes cannot forge profile, persistence or runtime version',()=>{
- const good={profile:'corvint-pi-tool/0',operation:'record',hostVersion:'0.99.1',adapterVersion:'0.3.1',support:'FALLBACK',ok:true,mutation:'recorded',context:'BEGIN CORVINT REPOSITORY DATA\n{}\nEND CORVINT REPOSITORY DATA',packet:null,fault:null};
+ const good={profile:'corvint-pi-tool/0',operation:'record',hostVersion:'0.99.1',adapterVersion:'0.3.2',support:'FALLBACK',ok:true,mutation:'recorded',context:'BEGIN CORVINT REPOSITORY DATA\n{}\nEND CORVINT REPOSITORY DATA',packet:null,fault:null};
  assert.equal(validToolEnvelope(good,'record'),true);
  for(const delta of [{support:'FULL'},{hostVersion:'unknown'},{extra:true},{mutation:'not-attempted'},{packet:{}},{context:'unframed'}])assert.equal(validToolEnvelope({...good,...delta},'record'),false);
 });

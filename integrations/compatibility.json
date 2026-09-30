@@ -84,13 +84,13 @@
       "validation": "adapter-fixtures-plus-exact-native-qualification"
     },
     {
-      "adapterVersion": "0.3.1",
+      "adapterVersion": "0.3.2",
       "documentedAgainstHostVersion": "0.99.1",
       "fullSupport": "external-dependent",
       "host": "pi",
       "hostVersion": "0.99.1",
       "hostVersionEvidence": "offline-native-package-tools-tui-rpc-and-cleanup",
-      "hostVersionEvidenceAdapterVersion": "0.3.1",
+      "hostVersionEvidenceAdapterVersion": "0.3.2",
       "lifecycleConformance": {
         "profile": "host-lifecycle-qualification-v1",
         "result": "NOT_RUN"
