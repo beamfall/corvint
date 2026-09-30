@@ -45,6 +45,11 @@ remain `NOT_OBSERVED`; recorded bytes are not billed tokens or proof of savings.
 | Falsify an exact browser criterion | separately built `corvint-behavior-falsify plan\|execute --experimental` | Use only caller-reviewed digest-bound hooks in a marked disposable workspace. A kill is criterion-local observation; survivors and every partial/invalid result preserve full-suite fallback and no narrowing authority. |
 | Consume external evidence | `impact --provider FILE`, `--provider-command ARGV_JSON`, or `--provider-mcp ARGV_JSON` | The accepted bounded MCP profile calls one local tool. Remote HTTPS requires the separately built `corvint-remote-provider --allow-network --config FILE` command; Core never fetches network evidence. All routes retain the same strict EEP decode, reference checks and separated authority. |
 
+For issue392 connector work, use the separate experimental `corvint-postmerge-connect` CLI and
+its [local conformance kit](../cmd/corvint-postmerge-connect/README.md). Recording/dry-run retain
+fixed canonical requests; live references update private local files only. Vendor transport,
+host credential isolation and independent adopter qualification remain unobserved.
+
 ## Read, implement, challenge
 
 The [six experimental workflows](V1-WORKFLOWS.md) add bounded, explicit routes to this table:
