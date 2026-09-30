@@ -3,16 +3,6 @@
   "evidence": [
     {
       "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
-      "id": "evidence:sha256:fc5cee38e415ee7604b05754bb2ffbbd899a5667618b054b30b3f390e271fb3e",
-      "path": "AGENTS.md",
-      "span": {
-        "end": 4100,
-        "start": 3713
-      },
-      "spanSha256": "966cc0f812534a4f6bb903be8168adab274858b05246ece9f0a8485855487c9e"
-    },
-    {
-      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
       "id": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
       "path": "AGENTS.md",
       "span": {
@@ -54,26 +44,6 @@
   ],
   "excludedPath": ".corvint/change.cem.json",
   "hunks": [
-    {
-      "basis": [
-        {
-          "evidenceId": "evidence:sha256:fc5cee38e415ee7604b05754bb2ffbbd899a5667618b054b30b3f390e271fb3e",
-          "relation": "decision"
-        }
-      ],
-      "disposition": "supported",
-      "id": "hunk:sha256:91f948010a72443669ebc001091006713eb1fd98fd6fb810ad731c59a2602e97",
-      "newRange": {
-        "count": 680,
-        "start": 1
-      },
-      "oldRange": {
-        "count": 0,
-        "start": 0
-      },
-      "path": ".corvint/changes/4424e482c99725e9023c9912f7157477deee505f.cem.json",
-      "reason": "evidence-backed"
-    },
     {
       "basis": [
         {
@@ -635,6 +605,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "316c3f937f8ae1c48d4a8042bdfdb08104afaba8ae48b159e435f9df048076e7",
+  "patchSha256": "b772db61a1138a4ef3cc0793d29a3d9b2dae5c14ee312f8c893d26096d026e14",
   "spec": "cem/0.2"
 }
