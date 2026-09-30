@@ -1,0 +1,354 @@
+package breakagemap
+
+import (
+	"context"
+	"encoding/json"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/Beamfall/corvint/internal/extevidence"
+)
+
+func command(t *testing.T, root string, args ...string) string {
+	t.Helper()
+	c := exec.Command("git", args...)
+	c.Dir = root
+	c.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null")
+	b, e := c.CombinedOutput()
+	if e != nil {
+		t.Fatalf("git %v: %s: %v", args, b, e)
+	}
+	return strings.TrimSpace(string(b))
+}
+func put(t *testing.T, root, p, text string) {
+	t.Helper()
+	if e := os.MkdirAll(filepath.Dir(filepath.Join(root, p)), 0700); e != nil {
+		t.Fatal(e)
+	}
+	if e := os.WriteFile(filepath.Join(root, p), []byte(text), 0600); e != nil {
+		t.Fatal(e)
+	}
+}
+func commit(t *testing.T, root string) {
+	command(t, root, "add", ".")
+	command(t, root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture")
+}
+func initRepo(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	command(t, root, "init", "-q")
+	return root
+}
+func pinRepo(t *testing.T, id, root string) Repository {
+	return Repository{id, command(t, root, "rev-list", "--max-parents=0", "HEAD"), command(t, root, "rev-parse", "HEAD"), command(t, root, "rev-parse", "HEAD^{tree}")}
+}
+func pinSource(t *testing.T, r Repository, root, p string) Source {
+	b, e := os.ReadFile(filepath.Join(root, p))
+	if e != nil {
+		t.Fatal(e)
+	}
+	return Source{r.ID, p, command(t, root, "rev-parse", r.Commit+":"+p), 1, len(strings.Split(string(b), "\n"))}
+}
+func encode(t *testing.T, m Manifest) []byte {
+	t.Helper()
+	b, e := json.Marshal(m)
+	if e != nil {
+		t.Fatal(e)
+	}
+	return b
+}
+
+func fixture(t *testing.T) (Manifest, map[string]string, string) {
+	t.Helper()
+	a, b := initRepo(t), initRepo(t)
+	put(t, a, "go.mod", "module github.com/acme/library\n\ngo 1.27.1\n")
+	put(t, a, "pkg/api.go", "package api\nfunc Changed() int { return 1 }\nfunc Other() int { return 2 }\n")
+	commit(t, a)
+	base := command(t, a, "rev-parse", "HEAD")
+	put(t, a, "pkg/api.go", "package api\nfunc Changed() int { return 3 }\nfunc Other() int { return 2 }\n")
+	commit(t, a)
+	files := map[string]string{
+		"go.mod":         "module github.com/acme/client\n\ngo 1.27.1\n",
+		"caller.go":      "package client\nimport alias \"github.com/acme/library/pkg\"\nfunc Call() int { return alias.Changed() }\n",
+		"other.go":       "package client\nimport \"github.com/acme/library/pkg\"\nfunc Other() int { return api.Other() }\n",
+		"caller_test.go": "package client\nimport \"github.com/acme/library/pkg\"\nfunc TestCall() { api.Changed() }\n",
+		"shadow.go":      "package client\nimport alias \"github.com/acme/library/pkg\"\nfunc Shadow() { alias := struct{ Changed func() }{}; alias.Changed() }\n",
+		"dot.go":         "package client\nimport . \"github.com/acme/library/pkg\"\nfunc Dot() { Changed() }\n",
+		"method.go":      "package client\nfunc Method(receiver Thing) { receiver.Changed() }\n",
+		"same.go":        "package client\nimport \"different.example/lib/api\"\nfunc Same() { api.Changed() }\n",
+		"tag.go":         "//go:build linux\n\npackage client\nimport \"github.com/acme/library/pkg\"\nfunc Tag() { api.Changed() }\n",
+		"malformed.go":   "package client\nfunc (\n",
+		"flow.json":      "{\"flow_id\":\"checkout\",\"declared\":true}\n",
+		"docs.md":        "# API use\nThis page declares the checkout API relationship.\n",
+	}
+	for p, text := range files {
+		put(t, b, p, text)
+	}
+	commit(t, b)
+	ra, rb := pinRepo(t, "api", a), pinRepo(t, "client", b)
+	m := Manifest{Schema: "corvint-breakage-manifest/0", Repositories: []Repository{ra, rb}, Providers: []json.RawMessage{}}
+	for _, p := range []string{"go.mod", "pkg/api.go"} {
+		m.Sources = append(m.Sources, pinSource(t, ra, a, p))
+	}
+	for _, p := range []string{"go.mod", "caller.go", "other.go", "caller_test.go", "shadow.go", "dot.go", "method.go", "same.go", "tag.go", "malformed.go", "flow.json", "docs.md"} {
+		m.Sources = append(m.Sources, pinSource(t, rb, b, p))
+	}
+	ep := func(repo, p string) extevidence.Endpoint1 {
+		for _, s := range m.Sources {
+			if s.Repository == repo && s.Path == p {
+				return extevidence.Endpoint1{Repository: repo, Path: p, Blob: s.Blob}
+			}
+		}
+		panic("fixture endpoint")
+	}
+	repos := []extevidence.Repository1{{ID: ra.ID, Origin: ra.Origin, Revision: ra.Commit, Tree: ra.Tree}, {ID: rb.ID, Origin: rb.Origin, Revision: rb.Commit, Tree: rb.Tree}}
+	rec := extevidence.Record1{Schema: extevidence.Schema2, Provider: extevidence.Identity{ID: "fixture", Revision: "v1"}, Repositories: repos, Entities: []extevidence.Entity{}, Relations: []extevidence.Relation1{
+		{From: ep("api", "pkg/api.go"), To: ep("client", "flow.json"), Type: "implements", Evidence: "declared", Rule: "caller supplied flow association", Reference: "fixture"},
+		{From: ep("client", "flow.json"), To: ep("client", "docs.md"), Type: "documents", Evidence: "declared", Rule: "caller supplied documentation association", Reference: "fixture"},
+	}}
+	raw, e := json.Marshal(rec)
+	if e != nil {
+		t.Fatal(e)
+	}
+	m.Providers = append(m.Providers, raw)
+	return m, map[string]string{"api": a, "client": b}, base
+}
+
+func TestCrossRepositoryBreakageMap(t *testing.T) {
+	m, bindings, base := fixture(t)
+	raw := encode(t, m)
+	r, e := Compile(context.Background(), raw, bindings, "api:pkg/api.go:Changed", base)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if r.Change != "selected-declaration-changed" || r.Scope != "INCOMPLETE" || r.Mutates {
+		t.Fatalf("bad report: %+v", r)
+	}
+	found := map[string]string{}
+	providers := 0
+	for _, edge := range r.Edges {
+		if edge.Relation != nil {
+			providers++
+			if edge.Relation.Evidence != "declared" || edge.ByteState != "verified" {
+				t.Fatalf("declaration upgraded or unbound: %+v", edge)
+			}
+		} else {
+			found[edge.From.Path] = edge.Kind
+			if edge.From.Blob == "" || edge.To.Commit == "" || edge.From.SpanSHA256 == "" {
+				t.Fatal("missing anchor")
+			}
+		}
+	}
+	if found["caller.go"] != "syntax-call" || found["caller_test.go"] != "test-syntax-call" || found["other.go"] != "import-only" || found["shadow.go"] != "import-only" || found["dot.go"] != "import-only" || providers != 2 {
+		t.Fatalf("bad edge set: %+v providers=%d", found, providers)
+	}
+	for _, p := range []string{"method.go", "same.go", "tag.go", "malformed.go"} {
+		if found[p] != "" {
+			t.Fatalf("invented caller %s", p)
+		}
+	}
+	for _, reason := range []string{"shadowed", "dot import", "receiver/package", "build constraints", "malformed"} {
+		hit := false
+		for _, u := range r.Unknowns {
+			hit = hit || strings.Contains(u.Reason, reason)
+		}
+		if !hit {
+			t.Errorf("missing gap %s", reason)
+		}
+	}
+	again, e := Compile(context.Background(), raw, bindings, "api:pkg/api.go:Changed", base)
+	if e != nil {
+		t.Fatal(e)
+	}
+	one, _ := json.Marshal(r)
+	two, _ := json.Marshal(again)
+	if string(one) != string(two) {
+		t.Fatal("nondeterministic map")
+	}
+	for _, root := range bindings {
+		if command(t, root, "status", "--porcelain") != "" {
+			t.Fatal("read mutated fixture")
+		}
+	}
+}
+
+func TestBreakagePinsFailClosed(t *testing.T) {
+	for _, mode := range []string{"blob", "tree", "origin", "endpoint", "missing", "provider-revision"} {
+		t.Run(mode, func(t *testing.T) {
+			m, b, _ := fixture(t)
+			switch mode {
+			case "blob":
+				m.Sources[1].Blob = strings.Repeat("1", 40)
+			case "tree":
+				m.Repositories[0].Tree = strings.Repeat("1", 40)
+			case "origin":
+				m.Repositories[0].Origin = strings.Repeat("1", 40)
+			case "missing":
+				delete(b, "client")
+			case "endpoint", "provider-revision":
+				rec, _ := extevidence.Decode1(m.Providers[0])
+				if mode == "endpoint" {
+					rec.Relations[0].To.Blob = strings.Repeat("1", 40)
+				} else {
+					rec.Repositories[1].Revision = strings.Repeat("1", 40)
+				}
+				m.Providers[0], _ = json.Marshal(rec)
+			}
+			r, e := Compile(context.Background(), encode(t, m), b, "api:pkg/api.go:Changed", "")
+			if e != nil {
+				t.Fatal(e)
+			}
+			unresolved := false
+			for _, u := range r.Unknowns {
+				if strings.Contains(u.Reason, "mismatch") || strings.Contains(u.Reason, "unbound") || strings.Contains(u.Reason, "unavailable") {
+					unresolved = true
+				}
+			}
+			if !unresolved {
+				t.Fatalf("missing failure: %+v", r)
+			}
+			if mode == "blob" || mode == "tree" || mode == "origin" {
+				for _, edge := range r.Edges {
+					if edge.Relation == nil {
+						t.Fatal("unbound API acquired caller")
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestBreakageManifestRefusals(t *testing.T) {
+	m, _, _ := fixture(t)
+	raw := encode(t, m)
+	for _, bad := range [][]byte{append(raw, []byte(" {}")...), []byte(strings.Replace(string(raw), `"schema":`, `"schema":"other","schema":`, 1)), []byte(strings.Replace(string(raw), `"sources":`, `"unknown":true,"sources":`, 1)), []byte(strings.Replace(string(raw), `"schema":`, `"Schema":`, 1))} {
+		if _, e := Decode(bad); e == nil {
+			t.Fatal("accepted ambiguous input")
+		}
+	}
+	for _, p := range []string{"../go.mod", "/etc/passwd", "a/../go.mod", "a\\b", "a\nfile", "a*"} {
+		m.Sources[0].Path = p
+		if _, e := Decode(encode(t, m)); e == nil {
+			t.Fatalf("accepted path %q", p)
+		}
+	}
+}
+
+func TestBreakageSymlinkAndHistoricalPins(t *testing.T) {
+	m, b, base := fixture(t)
+	root := b["client"]
+	if e := os.Symlink("docs.md", filepath.Join(root, "link.md")); e != nil {
+		t.Fatal(e)
+	}
+	commit(t, root)
+	r, e := Compile(context.Background(), encode(t, m), b, "api:pkg/api.go:Changed", base)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if r.Repositories[1].State != "pinned-historical" {
+		t.Fatal("historical scope hidden")
+	}
+	if _, e := readBlob(context.Background(), root, command(t, root, "rev-parse", "HEAD"), "link.md", ""); e == nil {
+		t.Fatal("symlink admitted")
+	}
+}
+
+func TestBreakageEdgeBound(t *testing.T) {
+	r := Report{}
+	for i := 0; i < MaxEdges+1; i++ {
+		r.add(Edge{})
+	}
+	if !r.Truncated || len(r.Edges) != MaxEdges {
+		t.Fatal("bound lost")
+	}
+}
+
+func TestBreakageV1EntityComposition(t *testing.T) {
+	m, b, _ := fixture(t)
+	rec, _ := extevidence.Decode1(m.Providers[0])
+	rec.Schema = extevidence.Schema1
+	rec.Entities = []extevidence.Entity{{ID: "checkout", Kind: "flow", Summary: "Declared checkout"}}
+	entity := extevidence.Endpoint1{Provider: rec.Provider.ID, Entity: "checkout"}
+	rec.Relations[0].To = entity
+	rec.Relations[1].From = entity
+	m.Providers[0], _ = json.Marshal(rec)
+	r, e := Compile(context.Background(), encode(t, m), b, "api:pkg/api.go:Changed", "")
+	if e != nil {
+		t.Fatal(e)
+	}
+	count := 0
+	for _, edge := range r.Edges {
+		if edge.Relation != nil {
+			count++
+			if edge.ByteState != "entity-declaration" || edge.Relation.Evidence != "declared" {
+				t.Fatal("entity acquired byte or assertion verification")
+			}
+		}
+	}
+	if count != 2 {
+		t.Fatal("entity chain missing")
+	}
+	rec.Relations[0].To.Entity = "undeclared"
+	m.Providers[0], _ = json.Marshal(rec)
+	r, e = Compile(context.Background(), encode(t, m), b, "api:pkg/api.go:Changed", "")
+	if e != nil {
+		t.Fatal(e)
+	}
+	for _, edge := range r.Edges {
+		if edge.Relation != nil && edge.ByteState != "unresolved" {
+			t.Fatal("unresolved chain traversed")
+		}
+	}
+}
+
+func TestBreakageBaseAndModuleGaps(t *testing.T) {
+	m, b, _ := fixture(t)
+	r, e := Compile(context.Background(), encode(t, m), b, "api:pkg/api.go:Changed", m.Repositories[0].Commit)
+	if e != nil || r.Change != "selected-declaration-unchanged" {
+		t.Fatalf("unchanged: %+v %v", r, e)
+	}
+	if _, e = Compile(context.Background(), encode(t, m), b, "api:pkg/api.go:Changed", m.Repositories[1].Commit); e == nil {
+		t.Fatal("foreign base admitted")
+	}
+	old := m.Repositories[0].Commit
+	put(t, b["api"], "pkg/api.go", "package api\nfunc Renamed() int { return 3 }\n")
+	commit(t, b["api"])
+	m.Repositories[0] = pinRepo(t, "api", b["api"])
+	m.Sources[1] = pinSource(t, m.Repositories[0], b["api"], "pkg/api.go")
+	m.Providers = nil
+	r, e = Compile(context.Background(), encode(t, m), b, "api:pkg/api.go:Changed", old)
+	if e != nil || r.Change != "declaration-unresolved" {
+		t.Fatalf("renamed: %+v %v", r, e)
+	}
+	put(t, b["api"], "pkg/go.mod", "module different.example/nested\n")
+	commit(t, b["api"])
+	m.Repositories[0] = pinRepo(t, "api", b["api"])
+	r, e = Compile(context.Background(), encode(t, m), b, "api:pkg/api.go:Renamed", "")
+	if e != nil {
+		t.Fatal(e)
+	}
+	for _, edge := range r.Edges {
+		if edge.Relation == nil {
+			t.Fatal("undeclared nested module acquired caller")
+		}
+	}
+	found := false
+	for _, u := range r.Unknowns {
+		found = found || strings.Contains(u.Reason, "module boundary")
+	}
+	if !found {
+		t.Fatal("module gap missing")
+	}
+	if e = os.Remove(filepath.Join(b["api"], "pkg/api.go")); e != nil {
+		t.Fatal(e)
+	}
+	commit(t, b["api"])
+	m.Repositories[0] = pinRepo(t, "api", b["api"])
+	r, e = Compile(context.Background(), encode(t, m), b, "api:pkg/api.go:Changed", old)
+	if e != nil || r.Change != "target-path-unavailable" {
+		t.Fatalf("deleted: %+v %v", r, e)
+	}
+}
