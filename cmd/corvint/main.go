@@ -32,6 +32,8 @@ const maximumImpactLimit = 50
 const defaultHarnessBudgetBytes = 8_000
 
 type options struct {
+	proveAttackTests bool
+
 	command         string
 	helpTopic       string
 	proveMode       string

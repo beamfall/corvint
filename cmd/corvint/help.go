@@ -750,6 +750,20 @@ once as proven when covered_by is non-empty, failed when it is empty with a
 FAIL row, unproven otherwise. --base with paths or --working-tree-untracked
 is refused.
 
+Explicit Go test attack (experimental):
+  corvint [--root PATH] prove --base FULL_COMMIT_ID --mutate --attack-tests
+
+Continue through the bounded selected mutant set (at most eight per row), even
+when an earlier mutant was killed. Each Go mutation row adds attack counts and
+surviving mutant locations bound to the committed blob. COMPLETED means only
+that this selected set was judged, never exhaustive mutation or adequate tests.
+PARTIAL retains observed counts and survivors when the budget runs out; missing
+sandbox, baseline failure, no mutable lines and unsupported languages remain
+NOT_RUN with their reasons. The existing falsified verdict keeps its meaning:
+a PASS can coexist with survivors. Only changed lines are mutated, with the
+same row and invocation deadlines, sandbox and temporary-copy cleanup. This
+flag requires --base and --mutate and never runs automatically from a hook.
+
 test-kills-mutant rows stay NOT_RUN unless --mutate is given (impact and
 change modes only). Every mutation row of one invocation shares a
 thirty-minute budget beside the ten-minute row budget; rows are judged in
