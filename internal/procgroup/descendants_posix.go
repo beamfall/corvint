@@ -45,11 +45,9 @@ func descendantSnapshot(ctx context.Context) (map[int]ObservedProcess, error) {
 	return rows, nil
 }
 
-func signalObservedProcess(ctx context.Context, owned ObservedProcess) error {
-	rows, err := descendantSnapshot(ctx)
-	if err != nil {
-		return err
-	}
+// signalObservedProcess kills owned only while rows, the snapshot its caller
+// just took, still shows the same start identity for that PID.
+func signalObservedProcess(rows map[int]ObservedProcess, owned ObservedProcess) error {
 	current, present := rows[owned.PID]
 	if !present || current.Start != owned.Start {
 		return nil

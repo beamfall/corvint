@@ -4,11 +4,13 @@ package procgroup
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -87,7 +89,11 @@ func TestObservedDescendantIdentityReuseDoesNotExpandOwnership(t *testing.T) {
 	if len(o.known) != 1 {
 		t.Fatal("PID reuse admitted an unrelated descendant")
 	}
-	if err := signalObservedProcess(context.Background(), ObservedProcess{PID: os.Getpid(), Start: "not-this-generation"}); err != nil {
+	rows, err := descendantSnapshot(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := signalObservedProcess(rows, ObservedProcess{PID: os.Getpid(), Start: "not-this-generation"}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -133,6 +139,70 @@ func TestObservedExitedZombieIsNotSurvivor(t *testing.T) {
 		report, err := observer.finish()
 		if err != nil || !report.Absent {
 			t.Fatalf("exited child reported as live: %v %+v", err, report)
+		}
+	})
+}
+
+func TestObservedDescendantSnapshotLossIsRetried(t *testing.T) {
+	unavailable := errors.New("descendant snapshot unavailable")
+	t.Run("AHI-032 a lost periodic snapshot is a limitation, not a survivor", func(t *testing.T) {
+		var calls atomic.Int32
+		o := &descendantObserver{snap: func(ctx context.Context) (map[int]ObservedProcess, error) {
+			if n := calls.Add(1); n > 1 && n < 4 {
+				return nil, unavailable
+			}
+			return descendantSnapshot(ctx)
+		}}
+		// The root is a child: under this process the observer's own ps runs would be descendants.
+		root := exec.Command("/bin/sleep", "60")
+		if err := root.Start(); err != nil {
+			t.Fatal(err)
+		}
+		defer root.Wait()
+		defer root.Process.Kill()
+		started, err := startObserver(o, root.Process.Pid)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for calls.Load() < 4 {
+			time.Sleep(descendantInterval)
+		}
+		report, err := started.finish()
+		if err != nil || !report.Absent || len(report.Failures) != 0 {
+			t.Fatalf("lost periodic snapshot failed cleanup: %v %+v", err, report)
+		}
+		if last := report.Limitations[len(report.Limitations)-1]; !strings.HasPrefix(last, "2 periodic snapshots were unavailable") {
+			t.Fatalf("lost snapshots not disclosed: %q", last)
+		}
+	})
+	t.Run("AHI-032 the final sweep retries an unavailable snapshot", func(t *testing.T) {
+		calls := 0
+		done := make(chan struct{})
+		close(done)
+		o := descendantObserver{root: os.Getpid(), known: map[int]ObservedProcess{}, stop: make(chan struct{}), done: done, snap: func(ctx context.Context) (map[int]ObservedProcess, error) {
+			if calls++; calls < 4 {
+				return nil, unavailable
+			}
+			return descendantSnapshot(ctx)
+		}}
+		report, err := o.finish()
+		if err != nil || !report.Absent || calls != 4 {
+			t.Fatalf("final sweep did not retry: calls=%d %v %+v", calls, err, report)
+		}
+	})
+	t.Run("AHI-032 a snapshot unavailable for the whole settle window still fails", func(t *testing.T) {
+		done := make(chan struct{})
+		close(done)
+		o := descendantObserver{root: os.Getpid(), known: map[int]ObservedProcess{}, stop: make(chan struct{}), done: done, snap: func(context.Context) (map[int]ObservedProcess, error) {
+			return nil, unavailable
+		}}
+		began := time.Now()
+		report, err := o.finish()
+		if err == nil || report.Absent || len(report.Failures) != 1 || report.Failures[0] != unavailable.Error() {
+			t.Fatalf("persistent snapshot loss passed: %v %+v", err, report)
+		}
+		if waited := time.Since(began); waited < descendantSettle || waited > descendantSettle+descendantSnapshotTimeout {
+			t.Fatalf("settle window not bounded: %v", waited)
 		}
 	})
 }
