@@ -102,7 +102,7 @@ func TestTMV0030_AS07_CLIPolicyUpdateRefusals(t *testing.T) {
 			t.Fatalf("invalid args accepted: %v", args)
 		}
 	}
-	if x := atm(t, r.Root, nil, "policy", "show"); x.res.Outcome != wire.OutcomeError {
+	if x := atm(t, r.Root, nil, "policy", "unknown"); x.res.Outcome != wire.OutcomeError {
 		t.Fatalf("unknown policy verb: %+v", x.res)
 	}
 	sameStore(t, r, state, intents, "refused policy updates")

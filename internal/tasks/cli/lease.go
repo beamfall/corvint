@@ -25,11 +25,12 @@ import (
 var leaseVerbs = map[string]string{
 	"pool confirm-safe": transaction.LeasePoolSafe,
 	"pool cleanup":      transaction.LeasePoolCleanup, "pool recover": transaction.LeasePoolRecover, "health": transaction.LeasePoolPrepare,
-	"claim":   transaction.LeaseClaim,
-	"renew":   transaction.LeaseRenew,
-	"release": transaction.LeaseRelease,
-	"reap":    transaction.LeaseReap,
-	"widen":   transaction.LeaseWiden,
+	"claim":             transaction.LeaseClaim,
+	"renew":             transaction.LeaseRenew,
+	"attempt heartbeat": transaction.LeaseHeartbeat,
+	"release":           transaction.LeaseRelease,
+	"reap":              transaction.LeaseReap,
+	"widen":             transaction.LeaseWiden,
 	// S5 (CAL-V0-015..017).
 	"submit":   transaction.LeaseSubmit,
 	"gate run": transaction.LeaseGateRun,
@@ -252,11 +253,20 @@ func expiredValue(list []transaction.ExpiredLease) wire.Value {
 // attemptCommand runs `corvint-tasks attempt show <attemptId>` as a pure read
 // of the audited attempt record (CAL-V0-013).
 func attemptCommand(env Env, args []string) *wire.Result {
+	if len(args) > 0 && args[0] == "heartbeat" {
+		return leaseCommand(env, "attempt heartbeat", args[1:])
+	}
+	return readAttempt(env, args, true)
+}
+
+// readAttempt keeps derived observations out of canonical criterion captures.
+func readAttempt(env Env, args []string, observations bool) *wire.Result {
 	cmd := []string{"attempt", "show"}
 	if len(args) != 2 || args[0] != "show" || strings.HasPrefix(args[1], "--") {
 		return usage([]string{"attempt"}, "attempt needs the verb show <attemptId>")
 	}
 	var item wire.Value
+	observedAt := time.Now().UTC()
 	rc, err := withStore(env, func(rc *readCtx) error {
 		if _, err := snapshot.AttemptQueue(args[1]); err != nil {
 			return err
@@ -270,7 +280,14 @@ func attemptCommand(env Env, args []string) *wire.Result {
 		if !ok || record.Sha256 == nil {
 			return wire.Errorf(wire.CodeMalformed, "attemptId", "attempt does not exist")
 		}
+		a, e := snapshot.DecodeAttempt(record.Raw)
+		if e != nil {
+			return e
+		}
 		item, err = wire.Parse(record.Raw)
+		if err == nil && observations {
+			addHolderObservation(item.Obj, a, observedAt)
+		}
 		return err
 	})
 	if err != nil {

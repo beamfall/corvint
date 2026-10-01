@@ -27,6 +27,7 @@ const (
 	LeaseClaim          = "CLAIM"
 	LeaseClaimNext      = "CLAIM_NEXT"
 	LeaseRenew          = "RENEW"
+	LeaseHeartbeat      = "HEARTBEAT"
 	LeaseRelease        = "RELEASE"
 	LeaseReap           = "REAP"
 	LeaseWiden          = "WIDEN"
@@ -106,6 +107,7 @@ var leaseShapes = map[string]leaseShape{
 	LeasePoolSafe:    {fieldMember | fieldAllocation | fieldEvidence | fieldReason, fieldMember | fieldAllocation | fieldEvidence | fieldReason},
 	LeaseClaim:       {fieldTicket | fieldHolder | fieldMinutes, fieldTicket | fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage},
 	LeaseClaimNext:   {fieldHolder | fieldMinutes, fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage},
+	LeaseHeartbeat:   {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration},
 	LeaseRenew:       {fieldAttempt | fieldGeneration | fieldMinutes, fieldAttempt | fieldGeneration | fieldMinutes},
 	LeaseRelease:     {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldReason | fieldEvidence},
 	LeaseReap:        {0, fieldAttempt | fieldGeneration},
@@ -342,6 +344,7 @@ var leasePlanners = map[string]func(leaseContext) leaseOutcome{
 	LeasePoolPrepare: planPoolPrepare, LeasePoolObserve: planPoolObserve, LeasePoolCleanup: planPoolCleanup, LeasePoolRecover: planPoolRecover,
 	LeaseClaim:     planClaim,
 	LeaseClaimNext: planClaimNext,
+	LeaseHeartbeat: planHeartbeat,
 	LeaseRenew:     planRenew,
 	LeaseRelease:   planRelease,
 	LeaseReap:      planReap,
@@ -564,4 +567,22 @@ func (o entryOracle) LiveAttempt(id string) ticket.Observation {
 		}
 	}
 	return ticket.Unsatisfied
+}
+
+// planHeartbeat records a signal without changing work-lease or admission state.
+func planHeartbeat(c leaseContext) leaseOutcome {
+	a, e := c.named()
+	if e != nil {
+		return c.fail(e)
+	}
+	if why := c.fenced(a); why != "" {
+		return c.recordFenced(a, why)
+	}
+	if a.Lease == nil {
+		return c.refuse(mutation.OutcomeBlocked, wire.CodeTicketState, "heartbeat requires a work lease")
+	}
+	next := *a
+	at := c.in.RecordedAt
+	next.LastHeartbeatAt = &at
+	return c.write(&next, nil, "TRANSITION", false)
 }

@@ -51,3 +51,33 @@ bounded and retained in the native journal evidence; truncated output never qual
 
 Scoped local Codex qualification is recorded in [the build log](build-log/2026-09-29-tasks-codex-supervision.md), including output-limit and unobserved audit boundaries. See
 [the accepted contract](specs/corvint-tasks-agent-leases-v0.md#s10--foreground-codex-programs-issue-341).
+
+# Continuous dispatcher
+
+`corvint-tasks dispatch` keeps a configured roster of host workers (OpenCode, Codex or any
+argv-launched agent) busy on the native queue while it runs. It is started by the operator and
+stops with SIGINT/SIGTERM; workers it launched keep running and the next dispatcher adopts them.
+It holds no queue authority: workers claim, submit and gate through the ordinary CLI under their
+worker ID as holder, and the dispatcher writes only `release` (HANDOFF) and `reap`.
+
+A `taskman-dispatch/0` config names `stateDir`, `workRoot`, `tickSeconds`, `globalCap`,
+`killGraceSeconds`, `hosts` (absolute argv with placeholders such as `{prompt}`, `{ticket}` and
+`{holder}`, plus optional env, `idleIgnore` and `activityPaths`), an optional `workState` reader,
+`roles` (match by labels/kinds/idGlob/states/statuses/planSelected, or a quarantined pool `lane`;
+cap, priority, prompt, idle and wall seconds), `pinned`, `backoff` and `heal`.
+
+```sh
+corvint-tasks dispatch --program night --config dispatch.json
+corvint-tasks dispatch status --program night --config dispatch.json --events 20
+corvint-tasks dispatch unpark --program night --config dispatch.json --key ticket:acme:main:AT-0002
+```
+
+Each tick observes the queue, supervises workers (whole-tree kill on wall cap, idle timeout or an
+orphaned tree), hands off live attempts of ended workers, reaps expired leases, accounts progress,
+and launches the roster. A run that changes no durable ticket state cools the ticket down; after
+`parkAfter` such runs it is parked until its state changes or the operator unparks it. Exhausted
+retries are reported as `needs-owner`; readmission stays the owner's `ticket reopen`. Every
+decision is a plain-language line on stderr and in `events.jsonl`. A host's own permission
+deny-list (for example OpenCode `OPENCODE_CONFIG_CONTENT`) is the host's responsibility, not a
+containment guarantee. See
+[the accepted contract](specs/corvint-tasks-agent-leases-v0.md#s11--continuous-dispatcher-issue-431).

@@ -59,6 +59,13 @@ func commandHelp(args []string) *wire.Result {
 		}))
 		o.Set("handoffRefusalCodes", wire.Strings([]string{wire.CodeFenced, wire.CodeStaleTicket, wire.CodeStalePolicy, wire.CodeTicketState, wire.CodeMissingEvidence, wire.CodeMalformed}))
 	}
+	if name == "policy update" {
+		o.Set("fileFormat", wire.String("Canonical UTF-8 JSON: sorted object keys, no insignificant whitespace, and exactly one trailing LF."))
+		o.Set("versionRule", wire.String("The file policyVersion must equal --expected-policy-version plus one; the flag names the current version."))
+	}
+	if name == "attempt heartbeat" {
+		o.Set("note", wire.String("Generation-fenced recorded signal with a 10-minute observation TTL. Does not renew the work lease or prove process liveness. Use a fresh request ID for each heartbeat; replay never refreshes the timestamp."))
+	}
 	if name == "pool recover" || name == "pool confirm-safe" {
 		o.Set("note", wire.String("--reason is free-form prose (1..4096 bytes), not a closed release reason code."))
 	}
@@ -98,6 +105,7 @@ var commandUsage = map[string]string{
 	"init":              "corvint-tasks init [--role ROLE] [--request-id ID]",
 	"pause":             "corvint-tasks pause --request-id ID [--role OWNER|OPERATOR]",
 	"unpause":           "corvint-tasks unpause --request-id ID [--role OWNER|OPERATOR]",
+	"policy show":       "corvint-tasks policy show",
 	"policy update":     "corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR]",
 	"import":            "corvint-tasks import --file PATH [--role OWNER|OPERATOR]",
 	"cutover":           "corvint-tasks cutover [--execution] --decision REF [--qualification FILE]",
@@ -109,6 +117,7 @@ var commandUsage = map[string]string{
 	"release":           "corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--evidence LOCAL_REF] [--role ROLE]; release <create|update|candidate|record-gate|promote|list|show|readiness> --help",
 	"reap":              "corvint-tasks reap --request-id ID [--attempt ID --generation G] [--role ROLE]",
 	"widen":             "corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository) [--role ROLE]",
+	"attempt heartbeat": "corvint-tasks attempt heartbeat --attempt ID --generation G --request-id ID [--role ROLE]",
 	"attempt show":      "corvint-tasks attempt show <attemptId>",
 	"plan preview":      "corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--selected-only]",
 	"submit":            "corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID [--role ROLE]",
@@ -121,6 +130,9 @@ var commandUsage = map[string]string{
 	"lane-leader":       "corvint-tasks lane-leader --directory DIR --capsule FILE",
 	"pending":           "corvint-tasks pending",
 	"program show":      "corvint-tasks program show",
+	"dispatch":          "corvint-tasks dispatch --program ID --config FILE [--once | --ticks N]; dispatch <status|unpark> --help",
+	"dispatch status":   "corvint-tasks dispatch status --program ID --config FILE [--events N]",
+	"dispatch unpark":   "corvint-tasks dispatch unpark --program ID --config FILE --key TICKET|lane:POOL/MEMBER",
 	"config":            "corvint-tasks config (execution NOT_RUN)",
 	"plan record":       "corvint-tasks plan record (execution NOT_RUN)",
 	"receipt show":      "corvint-tasks receipt show (execution NOT_RUN)",

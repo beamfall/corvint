@@ -63,6 +63,20 @@ Copy `ticket-create.json` outside `.taskman/tickets/`, adjust its source queue I
 acceptance criteria, then use `ticket create --request-id ID --payload-stdin < FILE`.
 The example deliberately retains `effects.coverage:INCOMPLETE` and requires `verify`.
 
+To choose a board ID, add optional `"localToken":"BT-002"` to the canonical CREATE payload.
+`BT-002`, `F0-5` and `FL-016.matrix` use the existing queue-local token grammar. The resulting
+ID is `ticket:AUTHORITY:QUEUE:BT-002`; `ticket show BT-002` and `claim BT-002` use that identity.
+Exact and case-fold collisions refuse. Omit localToken for automatic allocation. CREATE accepts
+neither `--target` nor `--expected-revision`; those flags address existing records.
+
+`corvint-tasks policy show` reads the effective policy, version and policy content identity SHA.
+To update, write compact UTF-8 JSON with sorted keys and exactly one final LF. Set the file's
+`policyVersion` to the current version plus one, then pass the current version as
+`--expected-policy-version N` with `--file PATH` and a fresh `--request-id`. For Python, use
+`json.dumps(policy, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n"`.
+Do not overwrite `.taskman/policy.json` directly.
+
+
 ```sh
 corvint-tasks plan preview
 corvint-tasks claim --next --holder agent-a --request-id claim-a
@@ -231,3 +245,21 @@ without a queue, stdin reads, locks or writes. Lease release help includes accep
 and handoff preconditions. Omitted commands explain that execution remains NOT_RUN. Existing
 mutation `operation` and `payloadKeys` help is preserved. A flag value spelled `--help` remains a
 value; unknown command paths still refuse.
+
+## Observe holders and retry debt
+
+Send `corvint-tasks attempt heartbeat --attempt ID --generation G --request-id FRESH_ID`
+periodically while holding a work lease. Each fresh request records lastHeartbeatAt; replaying
+one does not refresh it. Claims initialize the signal and readmission resets it. The fixed
+observation TTL is 600 seconds; heartbeat does not renew the work lease. `attempt show` and
+`queue status` report FRESH_HOLDER or STALE_HOLDER for a recorded signal with a live work lease,
+LEASE_EXPIRED or TERMINAL for those states, CLOCK_BEFORE_HEARTBEAT for a backwards observation,
+and NOT_OBSERVED for a legacy record without the signal. Stale means a missing recent signal;
+it does not establish process death, physical quiescence or permission to release a holder.
+
+`ticket show`, full `plan preview` and `queue status.retries` expose current acceptance-revision
+charged debt, the current policy limit, remaining retry capacity and admission exhaustion.
+Remaining zero still permits an initial claim or an eligible clean handoff. Reason buckets are
+EXPIRED, RELEASED, FAILED and UNKNOWN and sum to charged debt; legacy debt remains UNKNOWN and
+reasonHistory INCOMPLETE. Only charged readmission increments a bucket. New acceptance resets
+debt, clean handoff preserves it and policy updates change the bound without erasing history.

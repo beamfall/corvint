@@ -34,6 +34,7 @@ type PlanInput struct {
 // PlanEntry is one planned ticket. Resources are what a claim of it would
 // reserve: its DECLARED scope, or WHOLE_REPOSITORY (CAL-V0-021).
 type PlanEntry struct {
+	Retries         wire.Value
 	Ticket          *ticket.Record
 	Resources       []ticket.Resource
 	ClosureComplete bool
@@ -110,7 +111,7 @@ func planLess(a, b *ticket.Record) bool {
 }
 
 func planEntry(in PlanInput, rec *ticket.Record) PlanEntry {
-	e := PlanEntry{Ticket: rec, Resources: wholeRepository}
+	e := PlanEntry{Ticket: rec, Resources: wholeRepository, Retries: RetryObservation(in.Attempts, rec, in.Policy.AdmissionsPerRevision.Int())}
 	if declared := Declared(rec); len(declared) > 0 {
 		e.Resources, e.ClosureComplete = append(pathResources(declared), declaredOther(rec)...), true
 	}
