@@ -10,11 +10,15 @@ on:
   workflow_dispatch:
     inputs:
       tool_source:
-        description: Reviewed main commit that builds the planner, selector, and driver
+        description: Reviewed immutable commit that builds the planner, selector, and driver
         required: true
       corpus_end:
         description: Main commit that ends the 200 first-parent pairs
         required: true
+      shards:
+        description: "Frozen PR partition count (CI uses 4; shadow rows still execute the full suite)"
+        required: true
+        default: "4"
       rows:
         description: "1 (measure one row) or all"
         required: true
@@ -31,6 +35,7 @@ env:
   GOFLAGS: ""
   CGO_ENABLED: "1"
   TOOL_SOURCE: ${{ inputs.tool_source }}
+  SHARDS: ${{ inputs.shards }}
   CORPUS_END: ${{ inputs.corpus_end }}
 
 jobs:
@@ -89,7 +94,7 @@ jobs:
           test "$(git -C history rev-parse HEAD)" = "$CORPUS_END"
           b="$RUNNER_TEMP/frozen/bin"
           "$b/driver" --mode freeze --root "$GITHUB_WORKSPACE/history" --target "$CORPUS_END" \
-            --source "$TOOL_SOURCE" --planner "$b/corvint" --selector "$b/selector" \
+            --shards "$SHARDS" --source "$TOOL_SOURCE" --planner "$b/corvint" --selector "$b/selector" \
             --out "$RUNNER_TEMP/frozen/shadow"
           sha256sum "$RUNNER_TEMP/frozen/bin/"* "$RUNNER_TEMP/frozen/shadow/corpus.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -142,7 +147,7 @@ jobs:
           f="$RUNNER_TEMP/frozen"
           chmod 0555 "$f/bin/"*
           "$f/bin/driver" --mode shadow --row "$ROW" --root "$GITHUB_WORKSPACE/history" \
-            --source "$TOOL_SOURCE" --planner "$f/bin/corvint" --selector "$f/bin/selector" \
+            --shards "$SHARDS" --source "$TOOL_SOURCE" --planner "$f/bin/corvint" --selector "$f/bin/selector" \
             --corpus "$f/shadow/corpus.json" --out "$RUNNER_TEMP/shadow"
       - if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -171,7 +176,7 @@ jobs:
           f="$RUNNER_TEMP/frozen"
           chmod 0555 "$f/bin/"*
           "$f/bin/driver" --mode qualify --root "$GITHUB_WORKSPACE" \
-            --corpus "$f/shadow/corpus.json" --evidence "$RUNNER_TEMP/evidence" \
+            --shards "$SHARDS" --corpus "$f/shadow/corpus.json" --evidence "$RUNNER_TEMP/evidence" \
             --out "$RUNNER_TEMP/qualified"
           sha256sum "$RUNNER_TEMP/qualified/qualification.json"
       - if: always()

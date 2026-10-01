@@ -22,6 +22,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/Beamfall/corvint/.github/cishards"
 )
 
 const schema = "corvint-pr-tests/0"
@@ -31,14 +33,17 @@ var oid = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
 var packageName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._~/-]*$`)
 
 type options struct {
-	rows, row                                                                                                        int
+	rows, row, shard, shards                                                                                         int
 	rowsSet                                                                                                          bool
+	partitionDigest                                                                                                  string
 	profile, evidence, dockerContext, trusted, containerMode                                                         string
 	mode, root, base, head, target, planner, selector, source, out, qualification, qualificationSHA, corpus, runtime string
 }
 type identity struct {
 	Container                                                                             *containerProfile
 	CachePolicy                                                                           string
+	PartitionDigest                                                                       string
+	Shards                                                                                int
 	Limits                                                                                []int64
 	Source, Planner, Selector, Driver, GoBinary, GoVersion, OS, Arch, OSRelease, Compiler string
 	Args, Env                                                                             []string
@@ -47,15 +52,18 @@ type selection struct {
 	Schema, Base, Head, Target, Tree, Reason, ObservedTarget, ObservedTree string
 	Identity                                                               identity
 	Packages                                                               []string
+	ShardPackages                                                          []string
+	Shard, Shards                                                          int
 	PlanSHA, AuditSHA                                                      string
 }
 type execution struct {
-	Env            []string
-	Selection      selection
-	Args           []string
-	Exit           int
-	ElapsedSeconds float64
-	Error          string
+	Env               []string
+	Selection         selection
+	Args              []string
+	Exit              int
+	ElapsedSeconds    float64
+	Error             string
+	SkippedEmptyShard bool
 }
 type receipt struct {
 	Profile, Tool, Revision string
@@ -93,6 +101,9 @@ func main() {
 	flag.StringVar(&o.dockerContext, "docker-context", "", "explicit Docker context for container launcher")
 	flag.StringVar(&o.trusted, "trusted", "", "read-only directory of frozen Linux trusted binaries")
 	flag.StringVar(&o.containerMode, "container-mode", "shadow", "container operation: run, freeze, shadow, qualify")
+	flag.IntVar(&o.shard, "shard", 0, "zero-based PR shard index")
+	flag.IntVar(&o.shards, "shards", 1, "complete-universe PR partition count (1..64)")
+	flag.StringVar(&o.partitionDigest, "partition-digest", "", "required matching protected fallback profile for sharded PR execution")
 	flag.Parse()
 	flag.Visit(func(f *flag.Flag) {
 		if f.Name == "rows" {
@@ -114,8 +125,20 @@ func main() {
 	os.Exit(exit)
 }
 func dispatch(ctx context.Context, o options) (code int, err error) {
+	if o.shards == 0 {
+		o.shards = 1
+	}
+	if o.shards < 1 || o.shards > cishards.MaxShards || o.shard < 0 || o.shard >= o.shards {
+		return 2, errors.New("invalid shard index/count")
+	}
 	if o.mode == "container" {
+		if o.shards != 1 || o.partitionDigest != "" {
+			return 2, errors.New("sharded container profile is not qualified")
+		}
 		return launchContainer(ctx, o)
+	}
+	if o.mode == "run" && o.shards > 1 && o.partitionDigest != cishards.ProfileDigest() {
+		return 2, errors.New("protected fallback partition profile mismatch")
 	}
 	if o.row != 0 && (o.rowsSet || o.row < 1 || o.row > 200 || o.mode != "shadow") {
 		return 2, errors.New("--row requires shadow, 1..200, and no --rows")
@@ -393,6 +416,11 @@ func readJSON(path string, v any) error {
 }
 func toolIdentity(ctx context.Context, o options) (identity, error) {
 	id := identity{CachePolicy: "empty-immediately-before-test/1", Source: o.source, OS: runtime.GOOS, Arch: runtime.GOARCH, Args: append([]string{}, testArgs...), Env: closedEnv(o), Limits: []int64{maxStdout, maxStderr}}
+	id.PartitionDigest = cishards.ProfileDigest()
+	id.Shards = o.shards
+	if id.Shards == 0 {
+		id.Shards = 1
+	}
 	if o.profile != "" {
 		var p containerProfile
 		if o.profile != "/profile/profile.json" {
@@ -649,6 +677,33 @@ func execute(ctx context.Context, o options, s selection) (int, error) {
 		s.Reason = "planner/selector/driver drift before execution"
 		s.Packages = []string{"./..."}
 	}
+	var universe []string
+	var universeHead, universeTree string
+	if o.mode == "run" && o.shards > 1 {
+		if o.partitionDigest != cishards.ProfileDigest() {
+			return 2, errors.New("protected fallback partition profile mismatch")
+		}
+		var err error
+		universeHead, err = git(ctx, o, "rev-parse", "HEAD")
+		if err != nil {
+			return 2, err
+		}
+		universeTree, err = git(ctx, o, "rev-parse", "HEAD^{tree}")
+		if err != nil {
+			return 2, err
+		}
+		listed, err := capture(ctx, o, "go", "list", "./...")
+		if err != nil {
+			return 2, fmt.Errorf("complete package universe unavailable: %w", err)
+		}
+		universe, err = cishards.Packages([]byte(listed))
+		if err != nil {
+			return 2, err
+		}
+		if err = requireShardSource(ctx, o, universeHead, universeTree); err != nil {
+			return 2, err
+		}
+	}
 	// Both PR and historical execution start cold after all planning/enumeration.
 	if err := resetPrivateRuntime(o); err != nil {
 		return 2, err
@@ -671,8 +726,24 @@ func execute(ctx context.Context, o options, s selection) (int, error) {
 			}
 		}
 	}
-	fmt.Fprintf(os.Stderr, "corvint-pr-tests: packages=%v fallback=%q\n", s.Packages, s.Reason)
-	args := append(append([]string{}, testArgs...), s.Packages...)
+	executed := s.Packages
+	if universe != nil {
+		// FULL also needs this guard: a fallback cannot execute a stale package universe.
+		if err := requireShardSource(ctx, o, universeHead, universeTree); err != nil {
+			return 2, err
+		}
+		var err error
+		executed, err = cishards.Intersect(universe, s.Packages, o.shard, o.shards)
+		if err != nil {
+			return 2, err
+		}
+		s.ShardPackages, s.Shard, s.Shards = executed, o.shard, o.shards
+		if err = writeJSON(filepath.Join(o.out, "selection.json"), s); err != nil {
+			return 2, err
+		}
+	}
+	fmt.Fprintf(os.Stderr, "corvint-pr-tests: packages=%v shard-packages=%v fallback=%q\n", s.Packages, executed, s.Reason)
+	args := append(append([]string{}, testArgs...), executed...)
 	out, err := os.Create(filepath.Join(o.out, "go.json"))
 	if err != nil {
 		return 2, err
@@ -686,11 +757,19 @@ func execute(ctx context.Context, o options, s selection) (int, error) {
 	boundedOut := &cappedWriter{dst: out, remaining: maxStdout, cancel: cancelOutput}
 	boundedErr := &cappedWriter{dst: stderr, remaining: maxStderr, cancel: cancelOutput}
 	start := time.Now()
-	code, runErr := command(ctx, o.root, closedEnv(o), boundedOut, boundedErr, 70*time.Minute, "go", args...)
+	code, runErr := 0, error(nil)
+	if ctx.Err() != nil {
+		code, runErr = 130, ctx.Err()
+	} else if len(executed) > 0 {
+		code, runErr = command(ctx, o.root, closedEnv(o), boundedOut, boundedErr, 70*time.Minute, "go", args...)
+	}
 	if boundedOut.overflow || boundedErr.overflow {
 		runErr = errors.New("test output limit exceeded")
 	}
-	e := execution{Env: closedEnv(o), Selection: s, Args: args, Exit: code, ElapsedSeconds: time.Since(start).Seconds()}
+	if ctx.Err() != nil && runErr == nil {
+		code, runErr = 130, ctx.Err()
+	}
+	e := execution{Env: closedEnv(o), Selection: s, Args: args, Exit: code, ElapsedSeconds: time.Since(start).Seconds(), SkippedEmptyShard: len(executed) == 0}
 	if runErr != nil {
 		e.Error = runErr.Error()
 	}
@@ -702,6 +781,27 @@ func execute(ctx context.Context, o options, s selection) (int, error) {
 	}
 	return code, nil
 }
+
+// A sharded FULL fallback still depends on the enumerated complete universe.
+func requireShardSource(ctx context.Context, o options, head, tree string) error {
+	currentHead, err := git(ctx, o, "rev-parse", "HEAD")
+	if err != nil {
+		return err
+	}
+	currentTree, err := git(ctx, o, "rev-parse", "HEAD^{tree}")
+	if err != nil {
+		return err
+	}
+	status, err := git(ctx, o, "status", "--porcelain", "--untracked-files=all")
+	if err != nil {
+		return err
+	}
+	if currentHead != head || currentTree != tree || status != "" {
+		return errors.New("source drift after complete universe enumeration")
+	}
+	return nil
+}
+
 func equal(a, b any) bool        { x, _ := json.Marshal(a); y, _ := json.Marshal(b); return bytes.Equal(x, y) }
 func sorted(v []string) []string { r := append([]string{}, v...); sort.Strings(r); return r }
 

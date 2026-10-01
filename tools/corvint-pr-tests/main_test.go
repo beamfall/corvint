@@ -16,6 +16,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/.github/cishards"
 )
 
 func fixture(t *testing.T) (options, identity) {
@@ -559,6 +561,145 @@ func TestDockerCaptureBoundAndTimeout(t *testing.T) {
 		_, err = dockerCaptureFor(context.Background(), "fixture", 50*time.Millisecond, "stall")
 		if err == nil || time.Since(start) > 2*time.Second {
 			t.Fatalf("control timeout: %v", err)
+		}
+	})
+}
+
+func TestShardedPRExecution_AFPV0022(t *testing.T) {
+	t.Run("AFP-V0-022", func(t *testing.T) {
+		o, _ := fixture(t)
+		ctx := context.Background()
+		o.shards, o.partitionDigest = 4, cishards.ProfileDigest()
+		id, err := toolIdentity(ctx, o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if id.Shards != 4 || id.PartitionDigest != o.partitionDigest {
+			t.Fatal("partition profile not frozen")
+		}
+		s := plan(ctx, o, id, true)
+		if s.Reason != "" {
+			t.Fatal(s.Reason)
+		}
+		parts, err := cishards.Partition([]string{"example.org/fixture/a", "example.org/fixture/b"}, 4)
+		if err != nil {
+			t.Fatal(err)
+		}
+		owner, empty := -1, -1
+		for i, pkgs := range parts {
+			if len(pkgs) == 0 {
+				empty = i
+			}
+			for _, pkg := range pkgs {
+				if pkg == "example.org/fixture/a" {
+					owner = i
+				}
+			}
+		}
+		for _, index := range []int{empty, owner} {
+			o.shard = index
+			code, err := execute(ctx, o, s)
+			want := 0
+			if index == owner {
+				want = 1
+			}
+			if err != nil || code != want {
+				t.Fatalf("shard=%d code=%d err=%v", index, code, err)
+			}
+			var e execution
+			if err = readJSON(filepath.Join(o.out, "execution.json"), &e); err != nil {
+				t.Fatal(err)
+			}
+			if e.SkippedEmptyShard != (index == empty) || e.Selection.Shard != index || e.Selection.Shards != 4 {
+				t.Fatalf("execution audit: %+v", e)
+			}
+			if !equal(e.Args[len(testArgs):], e.Selection.ShardPackages) {
+				t.Fatal("argv differs from audited partition")
+			}
+		}
+		code, err := runPR(ctx, o)
+		if err != nil || code != 1 {
+			t.Fatalf("missing qualification must fail relevant full shard: %d %v", code, err)
+		}
+		var fallback selection
+		if err = readJSON(filepath.Join(o.out, "selection.json"), &fallback); err != nil {
+			t.Fatal(err)
+		}
+		if !equal(fallback.ShardPackages, parts[owner]) || !equal(fallback.Packages, []string{"./..."}) {
+			t.Fatalf("fallback changed partition: %+v", fallback)
+		}
+		o.partitionDigest = strings.Repeat("0", 64)
+		if code, err = dispatch(ctx, o); code != 2 || err == nil || !strings.Contains(err.Error(), "partition profile mismatch") {
+			t.Fatalf("mismatch: %d %v", code, err)
+		}
+		// Qualification rows keep their one complete invocation even for a four-shard PR profile.
+		o.mode, o.partitionDigest = "shadow", ""
+		row := observeRow(ctx, o, id)
+		if !row.Valid {
+			t.Fatalf("four-shard profile lost complete shadow outcome: %+v", row)
+		}
+		if err = validateRow(o.out, row, pair{o.base, o.target}, id); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+func TestShardedSourceDrift_AFPV0022(t *testing.T) {
+	t.Run("AFP-V0-022 selected and full fallback", func(t *testing.T) {
+		o, _ := fixture(t)
+		realGo, err := exec.LookPath("go")
+		if err != nil {
+			t.Fatal(err)
+		}
+		realGo, err = filepath.EvalSymlinks(realGo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		bin, marker := t.TempDir(), filepath.Join(t.TempDir(), "enumerated")
+		quote := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'" }
+		proxy := "#!/bin/sh\nif [ \"$1\" = list ]; then\n" + quote(realGo) + " \"$@\"\nresult=$?\nprintf 0 > " + quote(marker) + "\nexit \"$result\"\nfi\nexec " + quote(realGo) + " \"$@\"\n"
+		// The second post-list tree read happens after the cold-cache reset, beyond the
+		// initial enumeration check. Add a new package there, without changing HEAD.
+		gitProxy := "#!/bin/sh\ncase \"$*\" in *'HEAD^{tree}'*)\nif [ -f " + quote(marker) + " ]; then\nn=$(cat " + quote(marker) + ")\nn=$((n+1))\nprintf '%s' \"$n\" > " + quote(marker) + "\nif [ \"$n\" = 2 ]; then\nmkdir -p " + quote(filepath.Join(o.root, "new")) + "\nprintf 'package new\\n' > " + quote(filepath.Join(o.root, "new/new.go")) + "\nfi\nfi;; esac\nexec /usr/bin/git \"$@\"\n"
+		for name, body := range map[string]string{"go": proxy, "git": gitProxy} {
+			if err := os.WriteFile(filepath.Join(bin, name), []byte(body), 0700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
+		o.shards, o.partitionDigest = 4, cishards.ProfileDigest()
+		ctx := context.Background()
+		id, err := toolIdentity(ctx, o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s := selection{Schema: schema, Base: o.base, Head: o.head, Target: o.target, Identity: id, Packages: []string{"example.org/fixture/a"}}
+		s.Tree, err = git(ctx, o, "rev-parse", "HEAD^{tree}")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, fallback := range []bool{false, true} {
+			if fallback {
+				s.Reason, s.Packages = "qualification unavailable", []string{"./..."}
+			}
+			code, err := execute(ctx, o, s)
+			if code != 2 || err == nil || !strings.Contains(err.Error(), "source drift") {
+				t.Fatalf("stale universe executed fallback=%v: %d %v", fallback, code, err)
+			}
+			if _, err := os.Stat(filepath.Join(o.out, "execution.json")); !os.IsNotExist(err) {
+				t.Fatal("stale universe recorded successful execution")
+			}
+			if err := os.RemoveAll(filepath.Join(o.root, "new")); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Remove(marker); err != nil {
+				t.Fatal(err)
+			}
+		}
+		cancelled, cancel := context.WithCancel(ctx)
+		cancel()
+		if code, err := execute(cancelled, o, s); code == 0 || err == nil {
+			t.Fatalf("cancelled shard succeeded: %d %v", code, err)
 		}
 	})
 }

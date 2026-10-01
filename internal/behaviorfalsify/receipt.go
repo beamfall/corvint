@@ -3,6 +3,7 @@ package behaviorfalsify
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -211,6 +212,28 @@ func safeReceiptBytes(raw []byte) bool {
 }
 
 func EncodeEvidence(r EvidenceReceipt) ([]byte, error) {
+	// Encoded byte fields alone form a lower bound on the final document. Keep
+	// arithmetic below the document cap, then let Encode count JSON overhead.
+	remaining := maxDocumentBytes
+	fits := func(data []byte) bool {
+		if len(data) > remaining/4*3 {
+			return false
+		}
+		remaining -= base64.StdEncoding.EncodedLen(len(data))
+		return true
+	}
+	if !fits(r.PlanPreimage) {
+		return nil, errors.New("document exceeds bound")
+	}
+	for _, a := range r.RawAttempts {
+		if !fits(a.HookBytes) || !fits(a.NativeBytes) {
+			return nil, errors.New("document exceeds bound")
+		}
+	}
+	raw, err := Encode(r)
+	if err != nil {
+		return nil, err
+	}
 	if !safeReceiptBytes(r.PlanPreimage) {
 		return nil, errors.New("receipt-secret-shaped-data")
 	}
@@ -219,8 +242,7 @@ func EncodeEvidence(r EvidenceReceipt) ([]byte, error) {
 			return nil, errors.New("receipt-secret-shaped-data")
 		}
 	}
-	raw, err := Encode(r)
-	if err == nil && !safeReceiptBytes(raw) {
+	if !safeReceiptBytes(raw) {
 		return nil, errors.New("receipt-secret-shaped-data")
 	}
 	return raw, err

@@ -3,6 +3,7 @@ package behaviorfalsify
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"os"
 	"strings"
 	"testing"
@@ -151,6 +152,72 @@ func TestBBFV0013ReceiptApprovalAndBounds(t *testing.T) {
 		receipt.RawAttempts[0].NativeBytes = bytes.Repeat([]byte("x"), maxDocumentBytes)
 		if _, err := EncodeEvidence(receipt); err == nil {
 			t.Fatal("oversized base64 envelope accepted")
+		}
+	})
+}
+
+func TestBBFV0013OversizePrecedesSecretScreen(t *testing.T) {
+	for _, field := range []string{"native", "hook", "plan", "aggregate", "metadata"} {
+		t.Run(field, func(t *testing.T) {
+			r := EvidenceReceipt{RawAttempts: []RawAttempt{{}}}
+			data := bytes.Repeat([]byte("x"), maxDocumentBytes)
+			copy(data, []byte("password=hunter2 "))
+			switch field {
+			case "native":
+				r.RawAttempts[0].NativeBytes = data
+			case "hook":
+				r.RawAttempts[0].HookBytes = data
+			case "plan":
+				r.PlanPreimage = data
+			case "aggregate":
+				r.RawAttempts[0].HookBytes = data[:maxDocumentBytes/2]
+				r.RawAttempts[0].NativeBytes = data[:maxDocumentBytes/2]
+			case "metadata":
+				r.Tool.Version = string(data)
+			}
+			raw, err := EncodeEvidence(r)
+			if len(raw) != 0 || err == nil || err.Error() != "document exceeds bound" {
+				t.Fatalf("oversized secret-bearing evidence escaped size boundary: %d %v", len(raw), err)
+			}
+		})
+	}
+	small := EvidenceReceipt{RawAttempts: []RawAttempt{{NativeBytes: []byte("password=hunter2")}}}
+	if raw, err := EncodeEvidence(small); len(raw) != 0 || err == nil || err.Error() != "receipt-secret-shaped-data" {
+		t.Fatal("admitted-envelope secret screening weakened")
+	}
+}
+
+func TestBBFV0013EncodedBoundaryAdjacent(t *testing.T) {
+	t.Run("BBF-V0-013 final envelope and base64 adjacency", func(t *testing.T) {
+		// A small secret refuses admitted envelopes before scanning a 32 MiB filler.
+		// Size must still take precedence at the first byte beyond the actual JSON bound.
+		r := EvidenceReceipt{PlanPreimage: []byte("password=hunter2")}
+		empty, err := Encode(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, delta := range []int{-1, 0, 1} {
+			r.Tool.Version = strings.Repeat("x", maxDocumentBytes-len(empty)+delta)
+			raw, err := EncodeEvidence(r)
+			want := "receipt-secret-shaped-data"
+			if delta > 0 {
+				want = "document exceeds bound"
+			}
+			if len(raw) != 0 || err == nil || err.Error() != want {
+				t.Fatalf("encoded boundary delta=%d: %d %v", delta, len(raw), err)
+			}
+		}
+		r.Tool.Version = ""
+		for _, n := range []int{maxDocumentBytes/4*3 - 1, maxDocumentBytes / 4 * 3, maxDocumentBytes/4*3 + 1} {
+			r.RawAttempts = []RawAttempt{{NativeBytes: bytes.Repeat([]byte("x"), n)}}
+			// Base64 plus the non-empty JSON envelope exceeds the bound in all three cases.
+			if base64.StdEncoding.EncodedLen(n) < maxDocumentBytes-4 {
+				t.Fatal("fixture is not boundary adjacent")
+			}
+			raw, err := EncodeEvidence(r)
+			if len(raw) != 0 || err == nil || err.Error() != "document exceeds bound" {
+				t.Fatalf("base64 boundary n=%d: %d %v", n, len(raw), err)
+			}
 		}
 	})
 }
