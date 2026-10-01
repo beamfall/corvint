@@ -2019,6 +2019,23 @@
     ]
   },
   {
+    "path": "docs/specs/postmerge-metrics-v0.md",
+    "title": "Post-merge metrics V0",
+    "reqPrefix": "PMM-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A local companion reports per-class post-merge evidence from stored records and immutable Git, with recommendations that grant no merge authority.",
+    "dependsOn": [
+      "docs/specs/corvint-1.0-product-and-release-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/postmergemetrics",
+      "cmd/corvint-postmerge-metrics"
+    ]
+  },
+  {
     "path": "docs/specs/proof-carrying-context-optimization-v0.md",
     "title": "Proof-Carrying Context Optimization V0",
     "reqPrefix": "PCCO-V0",
