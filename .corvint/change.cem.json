@@ -1,33 +1,43 @@
 {
-  "baseRevision": "6dc8ed1bceaa563c4e2cddb505b5891741bbce5a",
+  "baseRevision": "4663ce7c0f079a111e5e1a6f08de80ae703730e2",
   "evidence": [
     {
-      "blobOid": "7d56eb747573d8ae30862afd7265f746462a4fb3",
-      "id": "evidence:sha256:c24e79aa636b293b2c951a110fddaca1c44a59b9ceee459b4ec3be61ff6d7795",
+      "blobOid": "87313b1133269a36454563983e3613b8b7cb1781",
+      "id": "evidence:sha256:b5fa62478dfd2b123535918040dd75bcbb73d9c781180b19e5b666b2f4b29c55",
       "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
       "span": {
-        "end": 30381,
-        "start": 29996
+        "end": 30625,
+        "start": 30240
       },
       "spanSha256": "ddf2028d5d2d85e4ad69a8a8185ed6212bcdcd1b90699b3b6c95b385283c73b1"
     },
     {
-      "blobOid": "cf25bd04f315702a1c5257b32830d8f8efe3eb64",
-      "id": "evidence:sha256:f95057728394ba2dcb51412c100e4b6b55f97901575e4cd2f8a70f6d4aeea160",
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3118,
+        "start": 2775
+      },
+      "spanSha256": "46e69c5e97297b36c204ff585b335a484633ade4ec166dbc695fd46e7c6dc76c"
+    },
+    {
+      "blobOid": "3de3b32729bdd75890ac1ab277205860aa477cf2",
+      "id": "evidence:sha256:195f60ab98c0b873c97b39594fa0314581d3a57c30ba619c85e8798e7e8eaa25",
       "path": "Makefile",
       "span": {
-        "end": 9752,
-        "start": 9193
+        "end": 9949,
+        "start": 9390
       },
       "spanSha256": "6f066409c053fdb23403b2603d17254058824721f5cbeaaf0543fcf429cdceb4"
     },
     {
-      "blobOid": "7d56eb747573d8ae30862afd7265f746462a4fb3",
-      "id": "evidence:sha256:d01de0399bcd09f281b7752375d59a24708d16d0d05761856275e71c994529c8",
+      "blobOid": "87313b1133269a36454563983e3613b8b7cb1781",
+      "id": "evidence:sha256:93cd34a7ab93bba1028bb58d7f2f6a8cd099a774ae815691b6870bd9ffbbcfe4",
       "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
       "span": {
-        "end": 30679,
-        "start": 30381
+        "end": 30923,
+        "start": 30625
       },
       "spanSha256": "4015f9e16ee8977f6cd853d09c5cf117628ee84aee756ffc6f8d67de461f05ee"
     },
@@ -57,7 +67,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:c24e79aa636b293b2c951a110fddaca1c44a59b9ceee459b4ec3be61ff6d7795",
+          "evidenceId": "evidence:sha256:b5fa62478dfd2b123535918040dd75bcbb73d9c781180b19e5b666b2f4b29c55",
           "relation": "specification"
         }
       ],
@@ -77,19 +87,39 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:f95057728394ba2dcb51412c100e4b6b55f97901575e4cd2f8a70f6d4aeea160",
+          "evidenceId": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e7a27fc88a639f6d2cdeab3454d01b45dba5b9a88ab3f594490620f163b76705",
+      "newRange": {
+        "count": 45,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-01-tasks-context-integration.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:195f60ab98c0b873c97b39594fa0314581d3a57c30ba619c85e8798e7e8eaa25",
           "relation": "implementation"
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:9d21f236466bdfbfa6c1044dea94490d74eb585388db7ffda76fe815196556a6",
+      "id": "hunk:sha256:6f0e90a10c7bfed0c7676e86d3aadfd82483566bab095d7886b36518fa96d274",
       "newRange": {
-        "count": 11,
-        "start": 286
+        "count": 13,
+        "start": 307
       },
       "oldRange": {
-        "count": 11,
-        "start": 286
+        "count": 13,
+        "start": 307
       },
       "path": "docs/specs/REQUIREMENTS.tsv",
       "reason": "evidence-backed"
@@ -97,19 +127,19 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:d01de0399bcd09f281b7752375d59a24708d16d0d05761856275e71c994529c8",
+          "evidenceId": "evidence:sha256:93cd34a7ab93bba1028bb58d7f2f6a8cd099a774ae815691b6870bd9ffbbcfe4",
           "relation": "specification"
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:0bc0eda1ba88c2e6f85329312979373b8c99b7a035532e690fc72f7966bd4b08",
+      "id": "hunk:sha256:cf67af43bae8113af899679e8d8411a94962570bb62960112ace420bc0fe2096",
       "newRange": {
         "count": 10,
-        "start": 377
+        "start": 380
       },
       "oldRange": {
         "count": 7,
-        "start": 377
+        "start": 380
       },
       "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
       "reason": "evidence-backed"
@@ -165,7 +195,7 @@
           "relation": "implementation"
         },
         {
-          "evidenceId": "evidence:sha256:c24e79aa636b293b2c951a110fddaca1c44a59b9ceee459b4ec3be61ff6d7795",
+          "evidenceId": "evidence:sha256:b5fa62478dfd2b123535918040dd75bcbb73d9c781180b19e5b666b2f4b29c55",
           "relation": "specification"
         }
       ],
@@ -183,6 +213,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "c30e6cad4ddecfbf2d7498b46ede3f0ecd2106e1b7509b6da75e01e436faae96",
+  "patchSha256": "1f3ce30b82495a0ac7ef06edc70cf54337722529a4e12578ec78c1d6c754b85f",
   "spec": "cem/0.2"
 }
