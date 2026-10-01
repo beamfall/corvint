@@ -179,3 +179,19 @@ type examined struct {
 	Path string
 	Mode fs.FileMode
 }
+
+// ConfinedEnv returns env for a confined test with Go's VCS stamping off. A
+// confined test cannot read the repository's .git, so a nested `go build`
+// would otherwise fail to stamp; a GOFLAGS the test sets itself still wins.
+func ConfinedEnv(env []string) []string {
+	confined := make([]string, 0, len(env)+1)
+	flags := ""
+	for _, variable := range env {
+		if value, ok := strings.CutPrefix(variable, "GOFLAGS="); ok {
+			flags = value
+			continue
+		}
+		confined = append(confined, variable)
+	}
+	return append(confined, "GOFLAGS="+strings.TrimSpace(flags+" -buildvcs=false"))
+}

@@ -121,3 +121,18 @@ func TestRulesGrantOutsideRootPackageAndEntriesOnly_AFPV0023(t *testing.T) {
 		}
 	}
 }
+
+func TestConfinedEnvTurnsOffVCSStamping_AFPV0023(t *testing.T) {
+	for _, tc := range []struct {
+		env  []string
+		want string
+	}{
+		{[]string{"HOME=/h"}, "HOME=/h,GOFLAGS=-buildvcs=false"},
+		{[]string{"GOFLAGS=", "HOME=/h"}, "HOME=/h,GOFLAGS=-buildvcs=false"},
+		{[]string{"GOFLAGS=-mod=mod", "HOME=/h"}, "HOME=/h,GOFLAGS=-mod=mod -buildvcs=false"},
+	} {
+		if got := strings.Join(ConfinedEnv(tc.env), ","); got != tc.want {
+			t.Errorf("ConfinedEnv(%q) = %q, want %q", tc.env, got, tc.want)
+		}
+	}
+}

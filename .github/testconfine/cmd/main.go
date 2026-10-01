@@ -3,7 +3,7 @@
 // package directory go test chooses, with CORVINT_CONFINE_ROOT naming the
 // repository root: an undeclared package's test binary runs as is; a declared
 // one runs under Landlock, reading below the root only its own directory and
-// its declared entries. Any doubt (no root, a directory outside it, an invalid
+// its declared entries, with Go's VCS stamping off because .git is unreadable. Any doubt (no root, a directory outside it, an invalid
 // declaration, no Landlock for a declared package) exits 2 without running the
 // test, so a shard can fail but never pass unconfined.
 //
@@ -74,7 +74,7 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
-	return testconfine.ExecConfined(rules, binary, args, os.Environ())
+	return testconfine.ExecConfined(rules, binary, args, testconfine.ConfinedEnv(os.Environ()))
 }
 
 func resolved(name string) (string, error) {
