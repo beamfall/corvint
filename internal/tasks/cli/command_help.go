@@ -65,12 +65,21 @@ func commandHelp(args []string) *wire.Result {
 	if name == "archive verify" {
 		o.Set("note", wire.String("Reads FILE, or stdin when FILE is absent or -. Help reads neither."))
 	}
+	if name == "criterion-binding capture" {
+		o.Set("note", wire.String("Returns a capture and its verification from the current native ticket and attempt. Offline verify consumes the canonical capture object on stdin, not the result envelope."))
+	}
+	if name == "criterion-binding verify" {
+		o.Set("note", wire.String("Reads only canonical capture bytes from stdin; accepts no execution flags. Verification is offline. Help does not read stdin."))
+	}
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 
 // Usage is the single help inventory for each command's supported inputs.
 // Omitted verbs deliberately have no invented execution flags.
 var commandUsage = map[string]string{
+	"criterion-binding capture": "corvint-tasks criterion-binding capture --ticket ID --attempt ID",
+	"criterion-binding verify":  "corvint-tasks criterion-binding verify (canonical capture on stdin)",
+
 	"version":           "corvint-tasks version (alias --version)",
 	"ticket list":       "corvint-tasks ticket list [--offset N] [--limit N]",
 	"ticket search":     "corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N]",
