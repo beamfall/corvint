@@ -35,3 +35,23 @@ func TestAHI032HiddenPromptDelivery(t *testing.T) {
 		})
 	}
 }
+
+func TestAHI032UnchangedNativePromptIsBound(t *testing.T) {
+	// AHI-032: a later unchanged sample cannot satisfy the provider-bound prompt's observation.
+	prompt := Object{"sessionID": "first-session", "messageID": "first-message"}
+	timings := []Object{
+		{"kind": "session.prompt", "sessionID": "first-session", "messageID": "first-message", "unchanged": false, "delivered": true},
+		{"kind": "session.prompt", "sessionID": "later-session", "messageID": "later-message", "unchanged": true, "delivered": true},
+	}
+	if unchangedPromptObservation(prompt, timings) {
+		t.Fatal("unrelated unchanged timing masked changed native prompt")
+	}
+	timings[0]["unchanged"] = true
+	if !unchangedPromptObservation(prompt, timings) {
+		t.Fatal("matching unchanged observation refused")
+	}
+	delete(prompt, "messageID")
+	if unchangedPromptObservation(prompt, timings) {
+		t.Fatal("missing identity accepted")
+	}
+}

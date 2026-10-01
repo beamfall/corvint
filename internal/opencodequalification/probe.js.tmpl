@@ -8,7 +8,7 @@ export default {id:'qualification-probe',async setup(ctx){
  const stop=new AbortController();
  await ctx.session.hook('title',e=>{e.result='Qualification'});
  await ctx.session.hook('compaction',async e=>{e.result={summary:'Fixture compaction summary. Inspect the supplied current repository evidence.'};await ctx.session.synthetic({sessionID:e.sessionID,text:'After compaction, locate Add in add.go.',description:'qualification follow-up',resume:true});log({kind:'compaction-hook'})});
- await ctx.session.hook('prompt',e=>log({kind:'prompt',text:e.prompt.text}));
+ await ctx.session.hook('prompt',e=>log({kind:'prompt',sessionID:e.sessionID,messageID:e.messageID,text:e.prompt.text}));
  await ctx.session.hook('context',e=>log({kind:'context',system:e.system}));
  await ctx.tool.hook('execute.after',e=>log({kind:'tool',name:e.tool,status:e.status,result:e.result}));
  await ctx.tool.transform(editor=>{

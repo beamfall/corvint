@@ -19,13 +19,15 @@ prompts; a separate real-host request proves transport delivery. Scripted provid
 billed token, task-solving quality or cost evidence.
 
 Corvint context was used before edits; its packet retained the governing spec, adapter tests and
-README. Positional impact of the JavaScript source is an explicit unsupported non-Go profile,
-retained in prechange-impact.json. The initial make dogfood-change at the unchanged base retained
+README. Positional JavaScript impact returned READY with one path result and four ranked results omitted,
+retained in prechange-impact.json; that does not establish complete dependency coverage. The initial make dogfood-change at the unchanged base retained
 NOT_PRODUCED git-diff-failed/map-unavailable because no delivered diff existed yet. Range affected
 selection is retained with non-Go scope limits; focused adapter, qualification and documentation
 checks plus the exact native campaign are the selected verification. Repository-wide make gate is
-NOT_RUN under the owner's scoped-issue preference. Final evidence binding, campaign and review are
-recorded before publication; qualification remains local evidence rather than execution authority.
+NOT_RUN under the owner's scoped-issue preference. Independent review caught an unbound unchanged-prompt observation: a later idle sample could mask
+mutation of the first provider-bound draft. Observer and probe session/message identities now join
+that exact draft, with a negative regression for mixed evidence. Final evidence binding, campaign
+and review are recorded before publication; qualification remains local evidence rather than execution authority.
 
 Rollback restores adapter 0.7.6 source behavior and its matching package/matrix version under a
 new package version, invalidating changed-tuple qualification. The owner's installed experimental

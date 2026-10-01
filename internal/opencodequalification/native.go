@@ -159,8 +159,12 @@ func Native(ctx context.Context, c Config) (Object, error) {
 		}
 	}
 	prompts := []string{}
+	var firstPrompt Object
 	for _, x := range events {
 		if x["kind"] == "prompt" {
+			if firstPrompt == nil {
+				firstPrompt = x
+			}
 			prompts = append(prompts, str(x["text"]))
 		}
 	}
@@ -181,9 +185,7 @@ func Native(ctx context.Context, c Config) (Object, error) {
 		return nil, e
 	}
 	injected, deliveredPrompt := hiddenPromptDelivery(prompts[0], events, array(requests[0]["messages"]), str(queryPackets[0]["receiptId"]))
-	deliveredPrompt = deliveredPrompt && anyRow(timings, func(x Object) bool {
-		return x["kind"] == "session.prompt" && truth(x["unchanged"]) && truth(x["delivered"])
-	})
+	deliveredPrompt = deliveredPrompt && unchangedPromptObservation(firstPrompt, timings)
 	checks := Object{
 		"native-discovery": anyRow(events, func(x Object) bool { return x["version"] == c.HostVersion }),
 		"native-host-image": anyRow(events, func(x Object) bool {
@@ -422,4 +424,16 @@ func hiddenPromptDelivery(prompt string, events []Object, messages []any, receip
 		}
 	}
 	return 0, false
+}
+
+// The delivery observation belongs to the exact prompt that produced the first provider request.
+// Later idle timing samples must never mask mutation of that draft (AHI-032).
+func unchangedPromptObservation(prompt Object, timings []Object) bool {
+	session, message := str(prompt["sessionID"]), str(prompt["messageID"])
+	if session == "" || message == "" {
+		return false
+	}
+	return anyRow(timings, func(row Object) bool {
+		return row["kind"] == "session.prompt" && row["sessionID"] == session && row["messageID"] == message && truth(row["unchanged"]) && truth(row["delivered"])
+	})
 }
