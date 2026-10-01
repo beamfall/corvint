@@ -48,4 +48,11 @@ func TestGinkgoRegistryDispatchAndTargetBoundary(t *testing.T) {
 	if e != nil || o.Complete || o.Tests[0].State != tr.Unknown {
 		t.Fatal("foreign suite path admitted", o, e)
 	}
+	found := false
+	for _, p := range o.Problems {
+		found = found || p.Code == "GINKGO_SUITE_PATH_MISMATCH"
+	}
+	if !found {
+		t.Fatal("foreign suite path refused without its code", o.Problems)
+	}
 }

@@ -237,16 +237,28 @@ func TestGinkgoParserRefusals(t *testing.T) {
 		{"passed-with-failure", false, func(r map[string]any, i *tr.Input) {
 			ginkgoSpecs(r)[1]["Failure"] = ginkgoFailureRecord("late", "leaf-node")
 		}, "GINKGO_UNEXPECTED_FAILURE", ""},
+		{"failure-without-context", false, func(r map[string]any, i *tr.Input) {
+			delete(ginkgoSpecs(r)[2]["Failure"].(map[string]any), "FailureNodeContext")
+		}, "GINKGO_HOOK_FAILURE", ""},
+		{"null-spec-reports", false, func(r map[string]any, i *tr.Input) { r["SpecReports"] = nil }, "GINKGO_COUNT_MISMATCH", ""},
 		{"panicked", false, func(r map[string]any, i *tr.Input) { ginkgoSpecs(r)[2]["State"] = "panicked" }, "GINKGO_UNRESOLVED_STATE", ""},
 		{"unsupported-node", false, func(r map[string]any, i *tr.Input) { ginkgoSpecs(r)[0]["LeafNodeType"] = "BeforeEach" }, "GINKGO_UNSUPPORTED_NODE", ""},
-		{"total-count", false, func(r map[string]any, i *tr.Input) { r["PreRunStats"] = map[string]any{"TotalSpecs": 5, "SpecsThatWillRun": 3} }, "GINKGO_COUNT_MISMATCH", ""},
-		{"will-run-count", false, func(r map[string]any, i *tr.Input) { r["PreRunStats"] = map[string]any{"TotalSpecs": 4, "SpecsThatWillRun": 4} }, "GINKGO_COUNT_MISMATCH", ""},
+		{"total-count", false, func(r map[string]any, i *tr.Input) {
+			r["PreRunStats"] = map[string]any{"TotalSpecs": 5, "SpecsThatWillRun": 3}
+		}, "GINKGO_COUNT_MISMATCH", ""},
+		{"will-run-count", false, func(r map[string]any, i *tr.Input) {
+			r["PreRunStats"] = map[string]any{"TotalSpecs": 4, "SpecsThatWillRun": 4}
+		}, "GINKGO_COUNT_MISMATCH", ""},
 		{"inventory", false, func(r map[string]any, i *tr.Input) { i.Expected[0] = ginkgoID("Math other") }, "GINKGO_INVENTORY_MISMATCH", ""},
 		{"suite-path", false, func(r map[string]any, i *tr.Input) { r["SuitePath"] = "/private" + ginkgoRoot }, "GINKGO_SUITE_PATH_MISMATCH", ""},
 		{"seed", false, func(r map[string]any, i *tr.Input) { r["SuiteConfig"].(map[string]any)["RandomSeed"] = 2 }, "GINKGO_CONFIG_MISMATCH", ""},
 		{"dry-run", false, func(r map[string]any, i *tr.Input) { r["SuiteConfig"].(map[string]any)["DryRun"] = true }, "GINKGO_CONFIG_MISMATCH", ""},
-		{"unrequested-focus", false, func(r map[string]any, i *tr.Input) { r["SuiteConfig"].(map[string]any)["FocusStrings"] = []string{"adds"} }, "GINKGO_CONFIG_MISMATCH", ""},
-		{"unanchored-focus", true, func(r map[string]any, i *tr.Input) { r["SuiteConfig"].(map[string]any)["FocusStrings"] = []string{`^(Math adds)$`} }, "GINKGO_CONFIG_MISMATCH", ""},
+		{"unrequested-focus", false, func(r map[string]any, i *tr.Input) {
+			r["SuiteConfig"].(map[string]any)["FocusStrings"] = []string{"adds"}
+		}, "GINKGO_CONFIG_MISMATCH", ""},
+		{"unanchored-focus", true, func(r map[string]any, i *tr.Input) {
+			r["SuiteConfig"].(map[string]any)["FocusStrings"] = []string{`^(Math adds)$`}
+		}, "GINKGO_CONFIG_MISMATCH", ""},
 		{"target", false, func(r map[string]any, i *tr.Input) { r["SuiteDescription"] = "Other" }, "", "SuiteDescription differs from Target"},
 		{"duplicate-fulltext", false, func(r map[string]any, i *tr.Input) {
 			s := ginkgoSpecs(r)[3]
@@ -285,10 +297,11 @@ func TestGinkgoStrictJSON(t *testing.T) {
 	_, in := ginkgoMixed()
 	good := string(in.Reports["ginkgo.json"])
 	for name, c := range map[string]struct{ raw, err string }{
-		"duplicate-key": {strings.Replace(good, `"SuiteSucceeded":false`, `"SuiteSucceeded":false,"SuiteSucceeded":true`, 1), "duplicate ginkgo report key"},
-		"trailing":      {good + "[]", "trailing ginkgo report content"},
-		"invalid-utf8":  {strings.Replace(good, "subtracts", "sub\xfftracts", 1), "not valid UTF-8"},
-		"truncated":     {good[:len(good)-10], "unexpected EOF"},
+		"duplicate-key":         {strings.Replace(good, `"SuiteSucceeded":false`, `"SuiteSucceeded":false,"SuiteSucceeded":true`, 1), "duplicate ginkgo report key"},
+		"escaped-duplicate-key": {strings.Replace(good, `"SuiteSucceeded":false`, `"SuiteSucceeded":false,"\u0053uiteSucceeded":true`, 1), "duplicate ginkgo report key"},
+		"trailing":              {good + "[]", "trailing ginkgo report content"},
+		"invalid-utf8":          {strings.Replace(good, "subtracts", "sub\xfftracts", 1), "not valid UTF-8"},
+		"truncated":             {good[:len(good)-10], "unexpected EOF"},
 	} {
 		in.Reports = map[string][]byte{"ginkgo.json": []byte(c.raw)}
 		if o, e := Parse(in); e == nil || !strings.Contains(e.Error(), c.err) || !ginkgoHas(o, "GINKGO_INVALID_REPORT") {
@@ -457,6 +470,26 @@ func TestGinkgoFocusBound(t *testing.T) {
 		}
 		if !c.ok && (e == nil || e.Error() != "ginkgo focus argument exceeds 4096 bytes") {
 			t.Fatal("oversized focus admitted", e)
+		}
+	}
+}
+
+// TestGinkgoSelectedRuntimeSkip covers a selected It that calls Skip() at
+// runtime: it was entered once, the suite succeeds with exit 0, and the row is
+// a native SKIPPED observation rather than a pass.
+func TestGinkgoSelectedRuntimeSkip(t *testing.T) {
+	rep, in := ginkgoSelected()
+	s := ginkgoSpecs(rep)[1]
+	s["State"] = "skipped"
+	s["Failure"] = ginkgoFailureRecord("not on this platform", "leaf-node")
+	ginkgoEncode(&in, rep)
+	o, e := Parse(in)
+	if e != nil || !o.Complete {
+		t.Fatal(o, e)
+	}
+	for _, row := range o.Tests {
+		if row.State != tr.Skipped {
+			t.Fatal("runtime skip not reported as skipped", row)
 		}
 	}
 }

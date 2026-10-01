@@ -344,7 +344,7 @@ func ginkgoAdditional(v any, name string) (*ginkgoFailure, error) {
 }
 
 type ginkgoSpec struct {
-	node, state, full, message string
+	node, state, full, message  string
 	attempts, mustPass, process int64
 	failure                     *ginkgoFailure
 	additional                  int
