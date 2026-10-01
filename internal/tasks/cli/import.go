@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"path/filepath"
 	"time"
 
@@ -56,7 +55,7 @@ func importCommand(env Env, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	report, err := store.Import(context.Background(), repo, actor, observed.Head.QueueID.Raw, raw, now)
+	report, err := store.Import(writerContext(), repo, actor, observed.Head.QueueID.Raw, raw, now)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

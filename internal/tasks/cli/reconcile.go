@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"io"
 	"path/filepath"
 	"time"
@@ -207,7 +206,7 @@ func reconcileIntent(env Env, args []string) *wire.Result {
 		return errorResult(cmd, err)
 	}
 	request := store.ReconcileRequest{RequestID: flags.request, TargetID: flags.target, Choice: flags.choice, File: raw, CanonicalSha256: wire.Digest(flags.digest)}
-	report, err := store.Reconcile(context.Background(), repo, actor, request, now)
+	report, err := store.Reconcile(writerContext(), repo, actor, request, now)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

@@ -68,6 +68,7 @@ func importWith(ctx context.Context, repo *intent.Repository, actor mutation.Bin
 		return out, err
 	}
 	defer lock.Close()
+	now = recordedAt(ctx, now)
 	session, err := authority.NewSession(repo, lock)
 	if err != nil {
 		return out, err

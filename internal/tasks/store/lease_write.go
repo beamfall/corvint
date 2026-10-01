@@ -155,6 +155,9 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 	if err != nil {
 		return nil, err
 	}
+	// The plan is prepared before the lock; a head that moves afterwards
+	// fails the commit as SNAPSHOT_MOVED and the next round samples again.
+	now = recordedAt(ctx, now)
 	input := transaction.Input{Inventory: inv, Head: head, HeadReceipt: headRc, Queue: p.proof.Records["intent/queue.json"].Raw, Policy: p.proof.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, Pools: p.proof.Records["pools.json"].Raw, Programs: p.proof.Records["programs.json"].Raw, Premise: transaction.LocalOperator, Branch: p.branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now}
 	for path, record := range p.proof.Records {
 		if record.Raw == nil {

@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -92,7 +91,7 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	report, err := store.Mutate(context.Background(), repo, actor, envelope, now)
+	report, err := store.Mutate(writerContext(), repo, actor, envelope, now)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
