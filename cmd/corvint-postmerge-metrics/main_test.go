@@ -105,7 +105,7 @@ func TestMetricsCommand(t *testing.T) {
 		stop()
 		out.Reset()
 		errOut.Reset()
-		if run(cancelled, args, &out, &errOut) == 0 || out.Len() != 0 || errOut.String() != "{\"error\":\"cancelled\"}\n" {
+		if run(cancelled, args, &out, &errOut) == 0 || out.Len() != 0 || errOut.String() != "{\"error\":\"deadline-or-cancelled\"}\n" {
 			t.Fatalf("cancelled CLI: %s %s", out.String(), errOut.String())
 		}
 	})
