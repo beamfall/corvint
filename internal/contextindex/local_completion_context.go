@@ -106,7 +106,7 @@ type localPromptCompiler struct {
 
 func (compiler *localPromptCompiler) addGovernance() {
 	row, ok := compiler.context.governingRow()
-	if ok {
+	if ok && row.downgrade == "" {
 		compiler.addEvidence("governance", row.path, row.line, "governing", "project-instructions")
 		return
 	}
