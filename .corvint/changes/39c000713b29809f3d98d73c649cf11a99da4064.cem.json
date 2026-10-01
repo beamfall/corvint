@@ -1,0 +1,100 @@
+{
+  "baseRevision": "cdd2e31fffd732419eb9ade531ccf289259f3243",
+  "evidence": [
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:31cdfd258aedf9562e18ff1b5dd6c3f9da5283e0e752639eb2447586667f61cd",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3076,
+        "start": 2775
+      },
+      "spanSha256": "66bd3fd68b6179557cabb27f57c3746f487a3177a7f42a6b3c85f843e678d1e9"
+    },
+    {
+      "blobOid": "4a0680fd228d732b8106120cf510cdb0859d00c4",
+      "id": "evidence:sha256:123a2f46af147bad49e884d653d119ec3d3931bccab1b04db17e62fa417f8103",
+      "path": "docs/specs/session-context-dividend-v0.md",
+      "span": {
+        "end": 4261,
+        "start": 3845
+      },
+      "spanSha256": "13fd353dcb90bcda3c903bcb32601de0542ee32bd550335ef80c8b3406d35fab"
+    },
+    {
+      "blobOid": "34efd0e4dab475572f1401859bea141b24766bc3",
+      "id": "evidence:sha256:c2ba99517354f3eadb9226075a9a4205b0b0a1fbf89728711c09a6cdc16f263d",
+      "path": "internal/lrfrepo/ocm.go",
+      "span": {
+        "end": 19577,
+        "start": 19296
+      },
+      "spanSha256": "52220ed6a887f24fa83cfd9e115f414143482ca4dd6f8b2fde7009b5b36e1dc7"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:31cdfd258aedf9562e18ff1b5dd6c3f9da5283e0e752639eb2447586667f61cd",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2b0fc44dbf2fa4af8f074396cdcddff30a1d0c61c76e13f105480e50cf8e4216",
+      "newRange": {
+        "count": 24,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-01-session-ocm-denominator-guard.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:123a2f46af147bad49e884d653d119ec3d3931bccab1b04db17e62fa417f8103",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4f0ce36eada2b32b1083fcde85b6f2d352e7afaab70dec469681ea77b2d44b1d",
+      "newRange": {
+        "count": 11,
+        "start": 355
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 355
+      },
+      "path": "docs/specs/session-context-dividend-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c2ba99517354f3eadb9226075a9a4205b0b0a1fbf89728711c09a6cdc16f263d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c9e1a3d89245226f8634b6007b2add6ce3f976655b87842f9dd5490cb04df680",
+      "newRange": {
+        "count": 37,
+        "start": 116
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 116
+      },
+      "path": "internal/lrfrepo/ocm_spec_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "b0560e7aff81f8c5dcd7d784ebd780b3d1a43baea4d17c12e9abe10530db5667",
+  "spec": "cem/0.2"
+}
