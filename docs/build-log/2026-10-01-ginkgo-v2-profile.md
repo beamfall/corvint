@@ -18,11 +18,14 @@ binding, live qualification and native Tasks completion remain separate steps.
   `SuiteDescription + " " + FullText`. The plan's `^(...)$` form is not used;
   `SuiteConfig.FocusStrings` must equal the single string, and the unanchored
   form is a tested config mismatch.
-- K2: `testdata/ginkgo-provenance.json` pins `internal/focus.go`,
+- K2: NOT_MET (independent implementation review F1). `testdata/ginkgo-provenance.json` names `internal/focus.go`,
   `internal/suite.go`, `internal/group.go`, `internal/spec.go`, `types/flags.go`
   and `types/enum_support.go` at `9f941496ce264d03b91f103e4ec4a19bbc75ce97`
   with sha256 NOT_OBSERVED (the read tool relays text, not bytes), beside the
-  plan's five hashed pins.
+  plan's five hashed pins. The closed key sets and enum tables therefore rest on
+  unverified v2.33.0 source text; a mismatch would refuse real reports rather than
+  pass them (inference). Hashing the six files or an owner waiver is required
+  before qualification.
 - K3: enums accept only exact pinned table strings; JSON null refuses.
 - K4: the Parse path enforces exactly one report and the shared per-report
   bound; zero and two reports are tested.

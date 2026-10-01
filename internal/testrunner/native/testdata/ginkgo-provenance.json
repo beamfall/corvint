@@ -17,7 +17,7 @@
     {"path": "internal/group.go", "url": "https://raw.githubusercontent.com/onsi/ginkgo/9f941496ce264d03b91f103e4ec4a19bbc75ce97/internal/group.go", "sha256": "NOT_OBSERVED", "use": "Ordered container skip with zero attempts and a populated Failure"},
     {"path": "internal/spec.go", "url": "https://raw.githubusercontent.com/onsi/ginkgo/9f941496ce264d03b91f103e4ec4a19bbc75ce97/internal/spec.go", "sha256": "NOT_OBSERVED", "use": "FullText composition"},
     {"path": "types/flags.go", "url": "https://raw.githubusercontent.com/onsi/ginkgo/9f941496ce264d03b91f103e4ec4a19bbc75ce97/types/flags.go", "sha256": "NOT_OBSERVED", "use": "ginkgo.-prefixed go-test flag spelling"},
-    {"path": "types/enum_support.go", "url": "https://raw.githubusercontent.com/onsi/ginkgo/9f941496ce264d03b91f103e4ec4a19bbc75ce97/types/enum_support.go", "sha256": "NOT_OBSERVED", "use": "enums marshal as table strings; unknown values become INVALID ... strings"}
+    {"path": "types/enum_support.go", "url": "https://raw.githubusercontent.com/onsi/ginkgo/9f941496ce264d03b91f103e4ec4a19bbc75ce97/types/enum_support.go", "sha256": "NOT_OBSERVED", "use": "enums marshal as table strings; unknown values marshal as JSON null (source reading, not observed); null and any non-table string are both refused"}
   ],
   "sha256NotObservedReason": "WebFetch relays text, not bytes; no byte-exact digest of these reads was observed",
   "runtimeQualification": "NOT_RUN; no ginkgo binary and no github.com/onsi/ginkgo module present locally (only github.com/bsm/ginkgo v2.12.0 in the module cache); acquisition was out of scope",
