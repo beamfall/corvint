@@ -121,10 +121,18 @@ func RunWorker(ctx context.Context, j Job) WorkerResult {
 		}
 		return WorkerResult{Control: &c}
 	}
-	if j.Kind != "repeat" && j.Kind != "probe-original" && j.Kind != "probe-reversed" {
+	if j.Kind != "repeat" && j.Kind != "probe-original" && j.Kind != "probe-reversed" && j.Kind != "probe-isolated" {
 		return WorkerResult{Error: "worker-kind-invalid"}
 	}
 	expected := files(r)
+	target := ""
+	if j.Kind == "probe-isolated" {
+		if j.TestIndex < 0 || j.TestIndex >= len(r.Tests) {
+			return WorkerResult{Error: "isolation-index-invalid"}
+		}
+		target = r.Tests[j.TestIndex].ID
+		expected = []string{r.Tests[j.TestIndex].File}
+	}
 	if len(j.Files) != len(expected) {
 		return WorkerResult{Error: "worker-files-invalid"}
 	}
@@ -142,15 +150,18 @@ func RunWorker(ctx context.Context, j Job) WorkerResult {
 	defer os.RemoveAll(out)
 	argv := append([]string{}, r.Runner.Argv...)
 	argv = append(argv, "test", "--config", r.Config, "--reporter=json", "--retries=0", "--workers=1", "--forbid-only", "--trace=off", "--output", out)
+	if target != "" {
+		argv = append(argv, "--grep="+isolationPattern(r.Tests[j.TestIndex].Title))
+	}
 	for _, f := range j.Files {
 		argv = append(argv, regexp.QuoteMeta(f))
 	}
-	receipt, e := jstestprovider.RunE2E(ctx, jstestprovider.E2EConfig{Config: jstestprovider.Config{Dir: r.TestRepository.Root, TestFiles: expected, ConfigFile: r.Config, PackageJSON: r.Package, Lockfile: r.Lockfile, RunnerName: "playwright", RunnerVersion: r.RunnerVersion, Timeout: time.Duration(r.TimeoutSeconds) * time.Second, OutputLimit: 4 << 20}, ServerArgv: r.Server.Argv, ServerReadyURL: r.ReadyURL, ServerReadyLimit: 5 * time.Second, TestArgv: argv, AppBuildDir: r.AppBuildDir})
+	receipt, e := jstestprovider.RunE2E(ctx, jstestprovider.E2EConfig{Config: jstestprovider.Config{Dir: r.TestRepository.Root, TestFiles: files(r), ConfigFile: r.Config, PackageJSON: r.Package, Lockfile: r.Lockfile, RunnerName: "playwright", RunnerVersion: r.RunnerVersion, Timeout: time.Duration(r.TimeoutSeconds) * time.Second, OutputLimit: 4 << 20}, ServerArgv: r.Server.Argv, ServerReadyURL: r.ReadyURL, ServerReadyLimit: 5 * time.Second, TestArgv: argv, AppBuildDir: r.AppBuildDir})
 	if e != nil {
 		return WorkerResult{Error: "provider-execution-error"}
 	}
 	b, _ := json.Marshal(receipt)
-	run := Run{Kind: j.Kind, RequestedFiles: j.Files, ReceiptSHA256: Hash(b), ObservedSchedule: receipt.Schedule, Rows: []Row{}, Reasons: []string{}, NodeVersion: receipt.Identity.NodeVersion}
+	run := Run{Kind: j.Kind, TestID: target, RequestedFiles: j.Files, ReceiptSHA256: Hash(b), ObservedSchedule: receipt.Schedule, Rows: []Row{}, Reasons: []string{}, NodeVersion: receipt.Identity.NodeVersion}
 	if receipt.Infrastructure != nil {
 		run.Reasons = append(run.Reasons, "provider-infrastructure")
 	}
@@ -183,6 +194,10 @@ func RunWorker(ctx context.Context, j Job) WorkerResult {
 			continue
 		}
 		t := matches[0]
+		if target != "" && t.ID != target {
+			run.Reasons = append(run.Reasons, "isolation-not-observed")
+			continue
+		}
 		if seen[t.ID] {
 			run.Reasons = append(run.Reasons, "duplicate-test")
 		}
@@ -208,7 +223,7 @@ func RunWorker(ctx context.Context, j Job) WorkerResult {
 		run.Rows = append(run.Rows, row)
 	}
 	for _, t := range r.Tests {
-		if !seen[t.ID] {
+		if !seen[t.ID] && (target == "" || t.ID == target) {
 			run.Reasons = append(run.Reasons, "missing-test")
 		}
 	}
@@ -275,19 +290,7 @@ func Execute(ctx context.Context, r Request, approved, exe, build string) (Repor
 	}
 	mixed := false
 	for _, t := range r.Tests {
-		pass, fail := false, false
-		for _, run := range report.Runs {
-			for _, row := range run.Rows {
-				if row.ID == t.ID {
-					if row.State == jstestprovider.StatePassed {
-						pass = true
-					} else if row.State == jstestprovider.StateFailed {
-						fail = true
-					}
-				}
-			}
-		}
-		mixed = mixed || (pass && fail)
+		mixed = mixed || mixedOutcomes(report.Runs, t.ID)
 	}
 	if mixed && ctx.Err() == nil {
 		for i, kind := range []string{"probe-original", "probe-reversed"} {
@@ -301,6 +304,25 @@ func Execute(ctx context.Context, r Request, approved, exe, build string) (Repor
 				run = *w.Run
 			}
 			run.Cleanup = c
+			if w.Error != "" {
+				run.Reasons = append(run.Reasons, w.Error)
+			}
+			report.Runs = append(report.Runs, run)
+		}
+	}
+	// A disagreeing test is also run alone, so order dependence can be told
+	// apart from nondeterminism. Isolation is requested, never an observed schedule.
+	for i, t := range r.Tests {
+		if !mixedOutcomes(report.Runs, t.ID) {
+			continue
+		}
+		for n := 1; n <= IsolationRepeats && ctx.Err() == nil; n++ {
+			w, c := invoke(ctx, exe, Job{Request: r, Approved: approved, Kind: "probe-isolated", Files: []string{t.File}, TestIndex: i})
+			run := Run{Kind: "probe-isolated", RequestedFiles: []string{t.File}, Rows: []Row{}, Reasons: []string{}}
+			if w.Run != nil {
+				run = *w.Run
+			}
+			run.Kind, run.Ordinal, run.TestID, run.Cleanup = "probe-isolated", n, t.ID, c
 			if w.Error != "" {
 				run.Reasons = append(run.Reasons, w.Error)
 			}
@@ -327,4 +349,31 @@ func Execute(ctx context.Context, r Request, approved, exe, build string) (Repor
 		return Report{}, errors.New("report-bound")
 	}
 	return report, nil
+}
+
+// IsolationRepeats is the fixed number of single-test runs for each test whose
+// repeats disagree. It is not caller-selectable.
+const IsolationRepeats = 2
+
+// mixedOutcomes reports passed and failed repeat rows for one test.
+func mixedOutcomes(runs []Run, id string) bool {
+	pass, fail := false, false
+	for _, run := range runs {
+		if run.Kind != "repeat" {
+			continue
+		}
+		for _, row := range run.Rows {
+			if row.ID == id {
+				pass = pass || row.State == jstestprovider.StatePassed
+				fail = fail || row.State == jstestprovider.StateFailed
+			}
+		}
+	}
+	return pass && fail
+}
+
+// isolationPattern selects one title in Playwright's space-joined grep path,
+// allowing trailing tags. Ambiguous matches are retained as isolation-not-observed.
+func isolationPattern(title string) string {
+	return `(?:^| )` + regexp.QuoteMeta(title) + `(?: @\S+)*$`
 }

@@ -77,6 +77,7 @@ type Cleanup struct {
 type Run struct {
 	Kind             string                            `json:"kind"`
 	Ordinal          int                               `json:"ordinal"`
+	TestID           string                            `json:"test_id,omitempty"`
 	RequestedFiles   []string                          `json:"requested_files"`
 	ObservedSchedule *jstestprovider.ExecutionSchedule `json:"observed_schedule,omitempty"`
 	ReceiptSHA256    string                            `json:"receipt_sha256,omitempty"`
@@ -98,6 +99,29 @@ type Assessment struct {
 	Verdict  string                  `json:"verdict"`
 	Reasons  []string                `json:"reasons"`
 	Validity testvalidity.Projection `json:"validity"`
+	Repeats  RepeatSummary           `json:"repeats"`
+	Cleanup  string                  `json:"cleanup"`
+	Order    OrderEvidence           `json:"order"`
+}
+
+// RepeatSummary counts actual zero-retry repeat rows for one declared test.
+// Durations are present only when at least one row was observed.
+type RepeatSummary struct {
+	Passed        int      `json:"passed"`
+	Failed        int      `json:"failed"`
+	Other         int      `json:"other"`
+	MinDurationMS *float64 `json:"min_duration_ms,omitempty"`
+	MaxDurationMS *float64 `json:"max_duration_ms,omitempty"`
+}
+
+// OrderEvidence attaches the order-dependence probes to the test they concern.
+// Requested file filters and isolation runs are requests, not an observed schedule.
+type OrderEvidence struct {
+	Status             string   `json:"status"`
+	RequestedFileOrder string   `json:"requested_file_order"`
+	OriginalState      string   `json:"original_state"`
+	ReversedState      string   `json:"reversed_state"`
+	IsolatedStates     []string `json:"isolated_states"`
 }
 type Report struct {
 	Verdict          string       `json:"verdict"`

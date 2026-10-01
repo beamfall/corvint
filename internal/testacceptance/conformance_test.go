@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -71,6 +72,12 @@ func TestNEAV0004UnknownsAndRejectionPrecedence(t *testing.T) {
 		}
 		if !strings.Contains(report.Body, "V1-0556") || strings.Contains(report.Body, "synthetic-author-prose") {
 			t.Fatal("fixed body lost qualification")
+		}
+		if report.Assessments[0].Repeats.Passed != 2 || report.Assessments[2].Repeats.Failed != 1 || report.Assessments[0].Cleanup != "observed-absent" {
+			t.Fatalf("per-test repeat summary: %+v", report.Assessments)
+		}
+		if report.Assessments[2].Order.Status != "isolation-incomplete" || report.Assessments[0].Order.Status != "not-probed" {
+			t.Fatalf("absent isolation evidence was not left incomplete: %+v", report.Assessments[2].Order)
 		}
 
 	})
@@ -233,9 +240,22 @@ func TestNEAV0002ActualBrowserAssessment(t *testing.T) {
 			}
 		}
 		t.Run("NEA-V0-005/requested-order-probes", func(t *testing.T) {
-			if len(report.Runs) != 4 || report.Runs[2].Kind != "probe-original" || report.Runs[3].Kind != "probe-reversed" {
+			if len(report.Runs) != 6 || report.Runs[2].Kind != "probe-original" || report.Runs[3].Kind != "probe-reversed" || report.Runs[4].Kind != "probe-isolated" || report.Runs[5].TestID != "flaky" {
 				t.Fatalf("order evidence missing: %s", b)
 			}
+			t.Run("NEA-V0-008/attached-order-evidence", func(t *testing.T) {
+				// The fixture server alternates per request across all runs, so the
+				// single-file probes cannot vary order and isolation stays mixed.
+				o := report.Assessments[2].Order
+				if o.RequestedFileOrder != "not-varied" || o.Status != "nondeterministic-in-isolation" || report.Assessments[0].Order.Status != "not-probed" {
+					t.Fatalf("flaky order evidence not attached: %+v", o)
+				}
+				for _, a := range report.Assessments {
+					if a.Repeats.Passed+a.Repeats.Failed+a.Repeats.Other != r.Repeat || a.Repeats.MinDurationMS == nil || a.Cleanup == "" {
+						t.Fatalf("per-test repeat evidence incomplete: %+v", a)
+					}
+				}
+			})
 			t.Run("NEA-V0-003/actual-negative-controls", func(t *testing.T) {
 				if report.Controls[0].Status != "killed" || report.Controls[1].Status != "survived" {
 					t.Fatalf("actual controls did not qualify: %s", b)
@@ -246,13 +266,20 @@ func TestNEAV0002ActualBrowserAssessment(t *testing.T) {
 			if run.ObservedSchedule != nil {
 				t.Fatal("owned provider invented schedule")
 			}
-			if len(run.Rows) != 3 {
-				t.Fatalf("missing actual new test: %s", b)
+			want := 3
+			if run.Kind == "probe-isolated" {
+				want = 1
+			}
+			if len(run.Rows) != want || len(run.Reasons) != 0 {
+				t.Fatalf("missing actual new test or isolation not observed: %s", b)
 			}
 		}
 		t.Run("NEA-V0-007/fixed-body", func(t *testing.T) {
-			if !strings.Contains(report.Body, "stable: blocked") || !strings.Contains(report.Body, "nonasserting: rejected") || !strings.Contains(report.Body, "flaky: rejected") {
+			if !strings.Contains(report.Body, "| `stable` | blocked |") || !strings.Contains(report.Body, "| `nonasserting` | rejected |") || !strings.Contains(report.Body, "| `flaky` | rejected |") {
 				t.Fatal("fixed body missing verdicts")
+			}
+			if !strings.Contains(report.Body, pin.Commit) || !strings.Contains(report.Body, "fixture-build") || strings.Contains(report.Body, "Increment") {
+				t.Fatalf("fixed body lost bindings or admitted source text: %s", report.Body)
 			}
 		})
 		t.Logf("actual browser negative assessment PASS Node=%s Chromium=%s; accepted freshness UNKNOWN; exact report retained when requested", report.Runs[0].NodeVersion, version)
@@ -334,4 +361,91 @@ func TestNEAV0001BoundedGitCapture(t *testing.T) {
 	if _, err := git(dir, "status"); err == nil {
 		t.Fatal("unbounded capture admitted")
 	}
+}
+
+func TestNEAV0008AttachedOrderEvidence(t *testing.T) {
+	t.Run("NEA-V0-008/attached-order-evidence", func(t *testing.T) {
+		r := Request{Environment: "local", Repeat: 2, Tests: []Test{{ID: "a", File: "/r/a.spec.mjs"}, {ID: "b", File: "/r/b.spec.mjs"}}}
+		life := Cleanup{OwnedGroup: true, Descendants: &procgroup.DescendantObservation{Absent: true}}
+		row := func(id string, state jstestprovider.ExecutionState) Row {
+			return Row{ID: id, State: state, Attempts: 1, DurationMS: 10}
+		}
+		pass, fail := jstestprovider.StatePassed, jstestprovider.StateFailed
+		base := []Run{
+			{Kind: "repeat", Rows: []Row{row("a", pass), row("b", pass)}, Cleanup: life},
+			{Kind: "repeat", Rows: []Row{row("a", pass), row("b", fail)}, Cleanup: life},
+			{Kind: "probe-original", Rows: []Row{row("a", pass), row("b", fail)}, Cleanup: life},
+			{Kind: "probe-reversed", Rows: []Row{row("a", pass), row("b", pass)}, Cleanup: life},
+		}
+		isolated := func(states ...jstestprovider.ExecutionState) []Run {
+			out := append([]Run{}, base...)
+			for _, s := range states {
+				out = append(out, Run{Kind: "probe-isolated", TestID: "b", Rows: []Row{row("b", s)}, Cleanup: life})
+			}
+			return out
+		}
+		for name, c := range map[string]struct {
+			runs []Run
+			want string
+		}{
+			"order-dependent":  {isolated(pass, pass), "failures-not-reproduced-in-isolation"},
+			"nondeterministic": {isolated(pass, fail), "nondeterministic-in-isolation"},
+			"fails-alone":      {isolated(fail, fail), "fails-in-isolation"},
+			"missing":          {isolated(pass), "isolation-incomplete"},
+			"not-decided":      {isolated(pass, jstestprovider.StateSkipped), "isolation-incomplete"},
+		} {
+			o := orderEvidence(c.runs, r, "b")
+			if o.Status != c.want || o.RequestedFileOrder != "outcome-differs" || o.OriginalState != "failed" || o.ReversedState != "passed" {
+				t.Fatalf("%s: %+v", name, o)
+			}
+		}
+		if o := orderEvidence(isolated(pass, pass), r, "a"); o.Status != "not-probed" || len(o.IsolatedStates) != 0 {
+			t.Fatalf("stable test received another test's isolation evidence: %+v", o)
+		}
+		// Isolation runs for another test do not carry that test's cleanup onto this one.
+		runs := isolated(pass, pass)
+		runs[len(runs)-1].Cleanup = Cleanup{OwnedGroup: true, Descendants: &procgroup.DescendantObservation{}}
+		report := Report{Runs: runs, Controls: []Control{{Status: "killed", Cleanup: life}, {Status: "killed", Cleanup: life}}}
+		classify(&report, r)
+		if report.Assessments[0].Cleanup != "observed-absent" || report.Assessments[1].Cleanup != "survivors" || report.Assessments[1].Verdict != "rejected" {
+			t.Fatalf("isolation cleanup attribution: %+v", report.Assessments)
+		}
+		for _, title := range []string{"chromium new.spec.mjs b", "chromium new.spec.mjs b @smoke @fast"} {
+			if !regexp.MustCompile(isolationPattern("b")).MatchString(title) {
+				t.Fatalf("isolation pattern missed %q", title)
+			}
+		}
+		if regexp.MustCompile(isolationPattern("b")).MatchString("chromium new.spec.mjs ab") || regexp.MustCompile(isolationPattern("a.b")).MatchString("chromium x axb") {
+			t.Fatal("isolation pattern matched another title")
+		}
+	})
+}
+
+func TestNEAV0009ChangeRequestBody(t *testing.T) {
+	t.Run("NEA-V0-009/change-request-body", func(t *testing.T) {
+		oid := strings.Repeat("a", 40)
+		r := Request{Environment: "local", Repeat: 2, Tests: []Test{{ID: "flaky", File: "/r/a.spec.mjs", Title: "synthetic-author-prose"}}}
+		life := Cleanup{OwnedGroup: true, Descendants: &procgroup.DescendantObservation{Absent: true}}
+		report := Report{Product: Repository{Commit: oid, Tree: oid}, TestRepository: Repository{Commit: strings.Repeat("b", 40), Tree: oid}, Environment: "local", Build: "corvint-tests-accept experimental/0 revision=abc dirty=false", ExecutableSHA256: "sha256:" + strings.Repeat("c", 64), RequestDigest: "sha256:" + strings.Repeat("d", 64), Unknowns: []string{"provider-per-test-freshness"},
+			Runs: []Run{
+				{Kind: "repeat", Rows: []Row{{ID: "flaky", State: jstestprovider.StatePassed, Attempts: 1, DurationMS: 812.4}}, Cleanup: life},
+				{Kind: "repeat", Rows: []Row{{ID: "flaky", State: jstestprovider.StateFailed, Attempts: 1, DurationMS: 950.6}}, Cleanup: life, Reasons: []string{"bad|reason\ninjected"}},
+				{Kind: "probe-isolated", TestID: "flaky", Rows: []Row{{ID: "flaky", State: jstestprovider.StatePassed, Attempts: 1}}, Cleanup: life},
+				{Kind: "probe-isolated", TestID: "flaky", Rows: []Row{{ID: "flaky", State: jstestprovider.StatePassed, Attempts: 1}}, Cleanup: life},
+			},
+			Controls: []Control{{Status: "survived", Cleanup: life}}}
+		classify(&report, r)
+		for _, want := range []string{"**Overall verdict: rejected**", "| Product revision | `" + oid, "| Test-repository revision | `" + strings.Repeat("b", 40), "| Environment | `local` |", "| Corvint build | `corvint-tests-accept experimental/0 revision=abc dirty=false` |", "| `flaky` | rejected | 1/1/0 | 812-951 | SURVIVED | observed-absent | failures-not-reproduced-in-isolation | not-varied | passed, passed |", "negative-control-survived", "UNVALIDATED", "V1-0556"} {
+			if !strings.Contains(report.Body, want) {
+				t.Fatalf("body missing %q:\n%s", want, report.Body)
+			}
+		}
+		if strings.Contains(report.Body, "synthetic-author-prose") || strings.Contains(report.Body, "bad|reason") {
+			t.Fatalf("body admitted unvalidated text:\n%s", report.Body)
+		}
+		report.Build = "evil`|build\n"
+		if body := renderBody(report, r); !strings.Contains(body, "| Corvint build | `UNVALIDATED` |") {
+			t.Fatalf("unvalidated build rendered:\n%s", body)
+		}
+	})
 }

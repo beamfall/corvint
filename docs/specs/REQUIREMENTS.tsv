@@ -1710,6 +1710,8 @@ NEA-V0-004	docs/specs/new-e2e-test-acceptance-v0.md	37	Preserve Association, Hyg
 NEA-V0-005	docs/specs/new-e2e-test-acceptance-v0.md	40	Mixed repeat outcomes trigger original and reversed file-filter order probes.
 NEA-V0-006	docs/specs/new-e2e-test-acceptance-v0.md	43	Repeat and control execution run in a sanitized self-worker, without inherited
 NEA-V0-007	docs/specs/new-e2e-test-acceptance-v0.md	46	Emit one bounded report tied to request/source identities, environment and build
+NEA-V0-008	docs/specs/new-e2e-test-acceptance-v0.md	49	Each per-test assessment carries its own repeat counts (passed, failed, other),
+NEA-V0-009	docs/specs/new-e2e-test-acceptance-v0.md	58	The body is a fixed Markdown record containing the overall verdict, the product
 NEC-V0-001	docs/specs/necessity-labels-v0.md	46	`corvint [--root PATH] necessity --task TEXT [--subject PATH] [--limit N]` MUST
 NEC-V0-002	docs/specs/necessity-labels-v0.md	50	The verb MUST load the index exactly as `context --task` does (the tree's snapsh
 NEC-V0-003	docs/specs/necessity-labels-v0.md	54	Each counterfactual MUST run over a shallow copy of the index whose `Sources`,
