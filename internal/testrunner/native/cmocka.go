@@ -148,7 +148,7 @@ func cmockaShape(n *cmockaNode, name string, attrs ...string) bool {
 func cmockaCount(s string) (int, error) {
 	n, e := strconv.Atoi(s)
 	if e != nil || n < 0 || n > 64 || strconv.Itoa(n) != s {
-		return 0, fmt.Errorf("cmocka counter outside0..64")
+		return 0, fmt.Errorf("cmocka counter outside 0..64")
 	}
 	return n, nil
 }

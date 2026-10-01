@@ -63,7 +63,8 @@ all-C/JNI qualification or full SDK closure is claimed.
 On the integration base, the focused runner and CLI packages and vet passed on
 Go 1.27.1, and the opt-in `TestCMockaNativeReceiptReadback` re-parsed the nine
 retained r1 receipts with matching direct, registry and receipt states. That is a
-readback of retained native bytes, not fresh execution. No CMocka library is
-installed on this host, so the root decision's repeat qualification against real
-CMocka on the integration base remains NOT_RUN. `corvint affected` retained 23
+readback of retained native bytes, not fresh execution. The root decision's
+repeat qualification on the integration base remains NOT_RUN: the nine retained
+test executables were not re-executed in this slice (independent review notes they
+are still present and hash-pinned, so a rerun is feasible; it was not performed). `corvint affected` retained 23
 unknowns; the repository-wide gate was not run.

@@ -147,9 +147,11 @@ func TestCMockaPlanBindsTargetAndFixedEnvironment(t *testing.T) {
 			}
 			p.Invocation.ReportPaths = append([]string{}, base.Invocation.ReportPaths...)
 			approval := tr.Identity(base)
+			want := "plan does not match current fixed runner profile"
 			switch kind {
 			case "target-approval":
 				p.Request.Target = "Other"
+				want = "plan admission or independently trusted executable mismatch"
 			case "environment":
 				p.Invocation.Phases[0].Environment["CMOCKA_MESSAGE_OUTPUT"] = "XML"
 				approval = tr.Identity(p)
@@ -159,6 +161,7 @@ func TestCMockaPlanBindsTargetAndFixedEnvironment(t *testing.T) {
 			case "executable":
 				p.Request.Executable = "/other"
 				approval = tr.Identity(p)
+				want = "plan admission or independently trusted executable mismatch"
 			}
 			b, _ := json.Marshal(p)
 			file := filepath.Join(t.TempDir(), "plan.json")
@@ -169,6 +172,9 @@ func TestCMockaPlanBindsTargetAndFixedEnvironment(t *testing.T) {
 			code := command(context.Background(), []string{"run", "--plan", file, "--approve", approval, "--out", filepath.Join(t.TempDir(), "receipt.json"), "--executable", req.Executable, "--executable-sha256", req.ExecutableSha256, "--experimental", "--trusted-local"}, &out, &errout)
 			if code != 1 {
 				t.Fatal("mutated plan admitted", kind, code)
+			}
+			if !strings.Contains(errout.String(), want) {
+				t.Fatalf("%s refused for another reason: %s", kind, errout.String())
 			}
 			if _, e := os.Stat(req.ReportDir); !os.IsNotExist(e) {
 				t.Fatal("invalid plan launched", e)
