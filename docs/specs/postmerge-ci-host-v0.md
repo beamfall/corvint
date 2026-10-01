@@ -53,8 +53,9 @@ Corvint stays a local binary. The templates are operator reference material, not
     own export, not from author output.
   - The delta step stays `NOT_PRODUCED` until `corvint delta` exists.
 - `PCH-V0-004`: Ship a source trigger. It runs on push to the merged branch only, never on a change
-  request. It continues on error, is bounded to ten minutes, and only dispatches the pipeline.
-  Because of this, it cannot block or fail the merged change request.
+  request. Its push filter declares only `branches`, a non-empty list of literal branch names. It
+  continues on error, is bounded to ten minutes, and only dispatches the pipeline. Because of this,
+  it cannot block or fail the merged change request.
 - `PCH-V0-005`: Ship scheduled reconciliation that re-dispatches recent first-parent merges, so a
   lost dispatch is retried. A manual replay input re-dispatches a committed list of full change ids
   in dry-run mode by default. Repeated runs rely on connector idempotency (PMC-V0-005 to PMC-V0-007).
@@ -62,10 +63,13 @@ Corvint stays a local binary. The templates are operator reference material, not
   Build Corvint companions from a pinned 40-hex source commit, and refuse any binary whose SHA-256 is
   not in the operator's pin file before its first use.
   Untrusted values reach scripts through `env`, never by expanding expressions into script text.
+  A dispatched change id, a replay-set line, the pinned source commit and a companion name are
+  each validated as one whole string by `case` patterns and a length check, never by a
+  line-oriented `grep`, before any of them is written to `$GITHUB_OUTPUT` or used.
 - `PCH-V0-007`: Provide an audit, `internal/postmergehost.Audit`, over a restricted YAML subset. It
   refuses unsupported constructs: anchors, aliases, tags, folded scalars, flow mappings, multiple
-  documents, tabs, duplicate keys, and unmodelled job keys such as reusable workflows, containers
-  and services.
+  documents, tabs, duplicate keys, unmodelled job keys such as reusable workflows, containers
+  and services, and unmodelled step keys such as a custom `shell:`.
 
   It reports each of these, with the finding code in brackets:
   - change-request triggers [CHANGE_REQUEST_TRIGGER];
@@ -77,7 +81,10 @@ Corvint stays a local binary. The templates are operator reference material, not
   - an authoring job that performs other steps [AUTHORING_NOT_ISOLATED];
   - unpinned actions [UNPINNED_ACTION] and persisted checkout credentials
     [CHECKOUT_PERSISTS_CREDENTIALS];
-  - expressions in run scripts [RUN_EXPRESSION_INTERPOLATION];
+  - expressions in run scripts or in `with.script` [RUN_EXPRESSION_INTERPOLATION];
+  - a value validated by a line-oriented `grep` fed from `printf`, `echo` or a here-string
+    [LINE_ORIENTED_VALIDATION];
+  - a source-trigger push filter other than a literal `branches` list [SOURCE_TRIGGER_BRANCHES];
   - a Corvint binary run before the pinned install [UNPINNED_BINARY];
   - a Corvint command not documented for the job's steps [UNDOCUMENTED_COMMAND];
   - job dependencies that violate graph order [ORDER_VIOLATION];
@@ -110,6 +117,14 @@ Corvint stays a local binary. The templates are operator reference material, not
 - Artifact actions use an implicit runtime token. An author could tamper with the uploaded patch or
   connector input. The trusted job re-derives the binding and source item from its own export and
   checks the patch with `git apply --check`. It does not authenticate the author output.
+- Inference, not observed: author code on a hosted runner may obtain the job's
+  `ACTIONS_RUNTIME_TOKEN`. With it, the author could delete and re-upload the `before-state`
+  artifact, even though it was uploaded before the author ran. The author could also write Actions
+  cache entries scoped to the default branch, which other workflows on that branch may restore.
+  The templates bind no digest of the before-state from a job the author cannot influence. The
+  trusted job and its `validate.sh` hook must therefore treat `before-state`, like author output,
+  as untrusted input, never as proof of the pre-authoring state. Workflows that restore Actions
+  caches on the same repository inherit the poisoning risk.
 - A dispatch fails on push. Nightly reconciliation re-dispatches the change.
 - A ported template uses an unmodelled construct. The audit refuses it rather than guessing.
 
@@ -117,7 +132,11 @@ Corvint stays a local binary. The templates are operator reference material, not
 
 The audit reads declared workflow text and grants no authority. Hooks are operator code. Corvint
 does not ship them, and the audit observes only the hook names it invokes. Step attestation is
-ASS-V0 local observation, not confinement. The pin file and the source commit are trusted operator
+ASS-V0 local observation, not confinement. Audit coverage is lexical and partial:
+`LINE_ORIENTED_VALIDATION` matches only the `printf`/`echo` pipe and here-string forms; expression
+checks cover `run` and `with.script` but not other action inputs that evaluate code; and the audit
+cannot see which branch is the repository default, so the operator checks that the source trigger
+names it. The pin file and the source commit are trusted operator
 configuration, and rebuilding the pins happens on a trusted machine with the same toolchain.
 
 ## Acceptance evidence
@@ -130,9 +149,15 @@ It checks that:
 - the graph validates, and seven malformed graphs refuse;
 - all three templates audit clean;
 - the authoring job references no write-class secret, write permission or token;
-- 32 single mutations each produce their specific finding code;
+- 39 single mutations each produce their specific finding code, including a reintroduced
+  line-oriented `grep` check, a custom step shell, an expression in `with.script` and non-literal
+  source-trigger filters;
+- the pipeline's change-id check, run under bash and POSIX sh, writes outputs only for one whole
+  40- or 64-hex id and refuses a newline-injected `change=` line, and replay dispatches only whole
+  ids;
 - the YAML subset refuses unsupported syntax;
-- `install-pinned.sh` passes `sh -n` and refuses a short commit;
+- `install-pinned.sh` passes `sh -n`, refuses a short or multi-line commit, and refuses companion
+  names containing `/`, `.` or a newline before any fetch;
 - the README documents every hook the templates call.
 
 Issue #398's first acceptance item is still open. It requires the replay set (#395) to run in
@@ -144,8 +169,8 @@ dry-run mode on a host, and that is `NOT_RUN`.
 |---|---|---|
 | PCH-V0-001 | `protocol/postmerge-host/workflow-graph.json`, `graph.go` | `TestGraphContract` |
 | PCH-V0-002, PCH-V0-008 | `protocol/postmerge-host/README.md` | `TestReadmeDocumentsTemplateHooks` |
-| PCH-V0-003, PCH-V0-004, PCH-V0-005 | `protocol/postmerge-host/github-actions/*.yml` | `TestReferenceTemplatesAuditClean`, `TestAuditRefusesUnsafeTemplates` |
-| PCH-V0-006 | `protocol/postmerge-host/install-pinned.sh`, `audit.go` | `TestInstallPinnedSyntax`, `TestAuditRefusesUnsafeTemplates` |
+| PCH-V0-003, PCH-V0-004, PCH-V0-005 | `protocol/postmerge-host/github-actions/*.yml` | `TestReferenceTemplatesAuditClean`, `TestAuditRefusesUnsafeTemplates`, `TestReplayRefusesMalformedChange` |
+| PCH-V0-006 | `protocol/postmerge-host/install-pinned.sh`, `github-actions/*.yml`, `audit.go` | `TestInstallPinnedSyntax`, `TestResolveRefusesInjectedChange`, `TestAuditRefusesUnsafeTemplates` |
 | PCH-V0-007 | `yaml.go`, `audit.go` | `TestAuthoringEnvironmentHasNoWriteCredential`, `TestAuditRefusesUnsafeTemplates`, `TestParseYAMLSubset`, `TestShellCommands` |
 
 ## Qualification and rollback

@@ -13,7 +13,12 @@ set -eu
 : "${CORVINT_SOURCE_COMMIT:?CORVINT_SOURCE_COMMIT is required}"
 : "${CORVINT_PINS:?CORVINT_PINS is required}"
 url=${CORVINT_SOURCE_URL:-https://github.com/beamfall/corvint.git}
-if ! printf '%s' "$CORVINT_SOURCE_COMMIT" | grep -Eqx '[0-9a-f]{40}'; then
+# Whole-string checks: a line-oriented grep would accept a multi-line value.
+case "$CORVINT_SOURCE_COMMIT" in
+  *[!0123456789abcdef]*) bad=1 ;;
+  *) bad=0 ;;
+esac
+if [ "$bad" -ne 0 ] || [ "${#CORVINT_SOURCE_COMMIT}" -ne 40 ]; then
   echo "install-pinned: CORVINT_SOURCE_COMMIT must be a full 40-hex commit" >&2
   exit 1
 fi
@@ -21,6 +26,16 @@ if [ "$#" -eq 0 ]; then
   echo "install-pinned: name at least one command" >&2
   exit 1
 fi
+for name in "$@"; do
+  # Only corvint or corvint-<lowercase letters and hyphens>: no path or dot.
+  case "$name" in
+    corvint | corvint-[abcdefghijklmnopqrstuvwxyz]*) ;;
+    *) echo "install-pinned: $name is not a Corvint command" >&2; exit 1 ;;
+  esac
+  case "${name#corvint}" in
+    *[!abcdefghijklmnopqrstuvwxyz-]*) echo "install-pinned: $name is not a Corvint command" >&2; exit 1 ;;
+  esac
+done
 pins=$(cd "$(dirname "$CORVINT_PINS")" && pwd)/$(basename "$CORVINT_PINS")
 base=${RUNNER_TEMP:-${TMPDIR:-/tmp}}
 src="$base/corvint-src"
@@ -35,10 +50,6 @@ if [ "$(git -C "$src" rev-parse HEAD)" != "$CORVINT_SOURCE_COMMIT" ]; then
   exit 1
 fi
 for name in "$@"; do
-  case "$name" in
-    corvint | corvint-[a-z]*) ;;
-    *) echo "install-pinned: $name is not a Corvint command" >&2; exit 1 ;;
-  esac
   (cd "$src" && CGO_ENABLED=0 GOTOOLCHAIN=local go build -trimpath -buildvcs=false -o "$bin/$name" "./cmd/$name")
   if ! grep -Eq "^[0-9a-f]{64}  $name\$" "$pins"; then
     echo "install-pinned: $name has no pin" >&2

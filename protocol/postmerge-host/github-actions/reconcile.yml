@@ -61,7 +61,13 @@ jobs:
             git log --first-parent --since=26.hours --format=%H HEAD > "$RUNNER_TEMP/changes"
           fi
           while read -r change; do
-            printf '%s' "$change" | grep -Eqx '[0-9a-f]{40}|[0-9a-f]{64}'
+            case "${#change}" in
+              40|64) ;;
+              *) echo "change-invalid" >&2; exit 1 ;;
+            esac
+            case "$change" in
+              *[!0123456789abcdef]*) echo "change-invalid" >&2; exit 1 ;;
+            esac
             gh workflow run postmerge.yml --repo "$GITHUB_REPOSITORY" -f change="$change" -f mode="$MODE"
           done < "$RUNNER_TEMP/changes"
 

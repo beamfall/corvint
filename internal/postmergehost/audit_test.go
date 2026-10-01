@@ -115,6 +115,9 @@ func TestAuditRefusesUnsafeTemplates(t *testing.T) {
 	g := loadGraph(t)
 	pipeline := template(t, "postmerge.yml")
 	trigger := template(t, "source-trigger.yml")
+	reconcile := template(t, "reconcile.yml")
+	changeCase := "          case \"${#REQUESTED_CHANGE}\" in\n"
+	replayCase := "            case \"${#change}\" in\n"
 	authorEnv := "      CORVINT_PM_STEP: authoring\n"
 	for _, tc := range []struct {
 		name, base, old, new, code string
@@ -148,6 +151,13 @@ func TestAuditRefusesUnsafeTemplates(t *testing.T) {
 		{"blocking trigger", trigger, "    continue-on-error: true\n", "", "SOURCE_TRIGGER_CAN_FAIL"},
 		{"unbounded trigger", trigger, "    timeout-minutes: 5\n", "    timeout-minutes: 360\n", "SOURCE_TRIGGER_UNBOUNDED"},
 		{"trigger doing work", trigger, "      CORVINT_PM_STEP: trigger\n", "      CORVINT_PM_STEP: trigger,intake\n", "SOURCE_TRIGGER_STEP"},
+		{"line-oriented change check", pipeline, changeCase, "          printf '%s' \"$REQUESTED_CHANGE\" | grep -Eqx '[0-9a-f]{40}|[0-9a-f]{64}'\n" + changeCase, "LINE_ORIENTED_VALIDATION"},
+		{"here-string replay check", reconcile, replayCase, "            grep -Eqx '[0-9a-f]{40}' <<< \"$change\"\n" + replayCase, "LINE_ORIENTED_VALIDATION"},
+		{"custom step shell", pipeline, "      - name: Record the pending delta step\n", "      - name: Record the pending delta step\n        shell: python {0}\n", "UNMODELLED_KEY"},
+		{"expression in with.script", pipeline, "          go-version: \"1.27.1\"\n", "          go-version: \"1.27.1\"\n          script: ${{ inputs.change }}\n", "RUN_EXPRESSION_INTERPOLATION"},
+		{"wildcard trigger branch", trigger, "    branches: [main]\n", "    branches: [\"**\"]\n", "SOURCE_TRIGGER_BRANCHES"},
+		{"tag-only push trigger", trigger, "    branches: [main]\n", "    tags: [v1]\n", "SOURCE_TRIGGER_BRANCHES"},
+		{"path-filtered push trigger", trigger, "    branches: [main]\n", "    branches: [main]\n    paths: [src]\n", "SOURCE_TRIGGER_BRANCHES"},
 		{"anchor", pipeline, "permissions: {}\n", "permissions: &p {}\n", "UNSUPPORTED_YAML"},
 		{"duplicate key", pipeline, "permissions: {}\n", "permissions: {}\npermissions: {}\n", "UNSUPPORTED_YAML"},
 		{"tab", pipeline, "permissions: {}\n", "permissions:\t{}\n", "UNSUPPORTED_YAML"},
@@ -225,10 +235,114 @@ func TestInstallPinnedSyntax(t *testing.T) {
 			t.Errorf("installer lacks %q", want)
 		}
 	}
-	cmd := exec.Command("sh", script, "corvint")
-	cmd.Env = append(os.Environ(), "CORVINT_SOURCE_COMMIT=main", "CORVINT_PINS="+script)
-	if out, err := cmd.CombinedOutput(); err == nil || !strings.Contains(string(out), "full 40-hex commit") {
-		t.Fatalf("short commit accepted: %v %s", err, out)
+	hex40 := strings.Repeat("a", 40)
+	for _, commit := range []string{"main", hex40 + "\nmain", hex40 + "\n", strings.Repeat("A", 40), hex40 + "0"} {
+		cmd := exec.Command("sh", script, "corvint")
+		cmd.Env = append(os.Environ(), "CORVINT_SOURCE_COMMIT="+commit, "CORVINT_PINS="+script)
+		if out, err := cmd.CombinedOutput(); err == nil || !strings.Contains(string(out), "full 40-hex commit") {
+			t.Fatalf("commit %q accepted: %v %s", commit, err, out)
+		}
+	}
+	// Names are checked before any fetch, so these refusals need no network.
+	for _, name := range []string{"corvint-../x", "corvint-a/b", "corvint-x.y", "corvint-", "corvintx", "corvint-a\nb"} {
+		cmd := exec.Command("sh", script, name)
+		cmd.Env = append(os.Environ(), "CORVINT_SOURCE_COMMIT="+hex40, "CORVINT_PINS="+script, "RUNNER_TEMP="+t.TempDir())
+		if out, err := cmd.CombinedOutput(); err == nil || !strings.Contains(string(out), "is not a Corvint command") {
+			t.Fatalf("name %q accepted: %v %s", name, err, out)
+		}
+	}
+}
+
+// runStep runs one template step's script the way the hosted runner does
+// (bash -e) and under POSIX sh, calling check after each run.
+func runStep(t *testing.T, name, job string, step int, check func(shell string, err error), env ...string) {
+	t.Helper()
+	root, err := ParseYAML([]byte(template(t, name)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	steps := root.Get("jobs").Get(job).Get("steps")
+	if steps == nil || len(steps.Items) <= step {
+		t.Fatalf("%s: no step %d in job %s", name, step, job)
+	}
+	script := steps.Items[step].Get("run").Text
+	for _, shell := range [][]string{{"bash", "--noprofile", "--norc", "-e", "-c"}, {"sh", "-e", "-c"}} {
+		if _, err := exec.LookPath(shell[0]); err != nil {
+			t.Fatalf("%s: %v", shell[0], err)
+		}
+		cmd := exec.Command(shell[0], append(shell[1:], script)...)
+		cmd.Env = append(os.Environ(), env...)
+		check(shell[0], cmd.Run())
+	}
+}
+
+// PCH-V0-006: the pipeline accepts a dispatched change id only as one whole
+// 40- or 64-hex string, so a newline cannot inject a second output line.
+func TestResolveRefusesInjectedChange(t *testing.T) {
+	hex40 := strings.Repeat("0123456789abcdef", 3)[:40]
+	hex64 := strings.Repeat("0123456789abcdef", 4)
+	for _, tc := range []struct {
+		change, mode string
+		ok           bool
+	}{
+		{hex40, "dry-run", true},
+		{hex64, "recording", true},
+		{hex40 + "\nchange=refs/pull/1/head", "dry-run", false},
+		{"refs/pull/1/head\n" + hex40, "dry-run", false},
+		{hex40 + "\n", "dry-run", false},
+		{hex40[:39] + "\n", "dry-run", false},
+		{strings.ToUpper(hex40), "dry-run", false},
+		{hex40[:39] + "g", "dry-run", false},
+		{hex40[:39], "dry-run", false},
+		{"", "dry-run", false},
+		{hex40, "dry-run\nchange=refs/pull/1/head", false},
+	} {
+		dir := t.TempDir()
+		output := filepath.Join(dir, "output")
+		runStep(t, "postmerge.yml", "resolve", 0, func(shell string, err error) {
+			data, _ := os.ReadFile(output)
+			_ = os.Remove(output)
+			want := ""
+			if tc.ok {
+				want = "change=" + tc.change + "\nmode=" + tc.mode + "\n"
+			}
+			if (err == nil) != tc.ok || string(data) != want {
+				t.Errorf("%s change %q mode %q: err %v output %q", shell, tc.change, tc.mode, err, data)
+			}
+		}, "REQUESTED_CHANGE="+tc.change, "REQUESTED_MODE="+tc.mode, "GITHUB_OUTPUT="+output)
+	}
+}
+
+// PCH-V0-005: a replay line is dispatched only when it is one whole change id.
+func TestReplayRefusesMalformedChange(t *testing.T) {
+	hex40 := strings.Repeat("ab", 20)
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "gh"), []byte("#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$GH_LOG\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		set   string
+		calls int
+		ok    bool
+	}{
+		{"# replay\n" + hex40 + "\n\n" + hex40 + "\n", 2, true},
+		{hex40 + " change=refs/pull/1/head\n", 0, false},
+		{hex40 + "0\n", 0, false},
+	} {
+		dir := t.TempDir()
+		set, log := filepath.Join(dir, "set"), filepath.Join(dir, "gh.log")
+		if err := os.WriteFile(set, []byte(tc.set), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		runStep(t, "reconcile.yml", "dispatch", 1, func(shell string, err error) {
+			data, _ := os.ReadFile(log)
+			_ = os.Remove(log)
+			calls := strings.Count(string(data), "-f change="+hex40+" -f mode=dry-run")
+			if (err == nil) != tc.ok || calls != tc.calls || strings.Count(string(data), "\n") != tc.calls {
+				t.Errorf("%s set %q: err %v calls %q", shell, tc.set, err, data)
+			}
+		}, "REPLAY_SET="+set, "MODE=dry-run", "RUNNER_TEMP="+dir, "GH_LOG="+log, "GITHUB_REPOSITORY=o/r",
+			"PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	}
 }
 

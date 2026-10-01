@@ -37,6 +37,10 @@ var (
 	githubToken    = regexp.MustCompile(`\bgithub\s*\.\s*token\b`)
 	shellSeparator = regexp.MustCompile(`&&|\|\||[;|()]`)
 	shellName      = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+	// lineValidation finds a value checked by a line-oriented grep: it passes
+	// when any one line matches, so a newline can smuggle a second value.
+	lineValidation = regexp.MustCompile(`\b(printf|echo)\b[^\n|]*\|\s*e?grep\b|\be?grep\b[^\n]*<<<`)
+	branchLiteral  = regexp.MustCompile(`^[A-Za-z0-9._/-]+$`)
 	changeRequest  = map[string]bool{
 		"pull_request": true, "pull_request_target": true, "pull_request_review": true,
 		"pull_request_review_comment": true, "merge_group": true, "workflow_run": true,
@@ -47,6 +51,7 @@ var (
 		RoleReconcile:     {"schedule": true, "workflow_dispatch": true},
 	}
 	topLevelKeys = map[string]bool{"name": true, "run-name": true, "on": true, "permissions": true, "concurrency": true, "env": true, "jobs": true, "defaults": true}
+	stepKeys     = map[string]bool{"id": true, "name": true, "if": true, "uses": true, "with": true, "run": true, "env": true, "timeout-minutes": true, "continue-on-error": true, "working-directory": true}
 	jobKeys      = map[string]bool{"name": true, "needs": true, "if": true, "runs-on": true, "timeout-minutes": true, "continue-on-error": true, "permissions": true, "env": true, "outputs": true, "steps": true, "concurrency": true, "strategy": true, "defaults": true}
 	modes        = map[string]bool{"dry-run": true, "recording": true}
 )
@@ -167,6 +172,8 @@ func (a *auditor) triggers(where, role string, on *Node) {
 	case RoleSourceTrigger:
 		if !has("push") {
 			a.add("SOURCE_TRIGGER_NOT_POST_MERGE", where, "source trigger must run on push to the merged branch")
+		} else {
+			a.pushBranches(where, on.Get("push"))
 		}
 	case RolePipeline:
 		inputs := on.Get("workflow_dispatch").Get("inputs")
@@ -179,6 +186,21 @@ func (a *auditor) triggers(where, role string, on *Node) {
 			a.add("NO_RECONCILIATION_SCHEDULE", where, "reconciliation must be scheduled")
 		}
 		a.modeInput(where, on.Get("workflow_dispatch").Get("inputs").Get("mode"), false)
+	}
+}
+
+// pushBranches requires push to name only literal branches. The audit cannot
+// see which branch is the repository default; the operator checks that.
+func (a *auditor) pushBranches(where string, push *Node) {
+	branches := push.Get("branches")
+	ok := push != nil && push.Kind == Mapping && len(push.Keys) == 1 && branches != nil && branches.Kind == Sequence && len(branches.Items) > 0
+	if ok {
+		for _, b := range branches.Items {
+			ok = ok && b.Kind == Scalar && branchLiteral.MatchString(b.Text)
+		}
+	}
+	if !ok {
+		a.add("SOURCE_TRIGGER_BRANCHES", where, "push must declare only branches: a non-empty list of literal branch names")
 	}
 }
 
@@ -360,6 +382,14 @@ func (a *auditor) steps(where string, steps *Node, commands map[string]bool) {
 			a.add("UNSUPPORTED_STEP", at, "step must be a mapping")
 			continue
 		}
+		for _, k := range s.Keys {
+			if !stepKeys[k] {
+				a.add("UNMODELLED_KEY", at, "step key %q (custom shells are not audited)", k)
+			}
+		}
+		if strings.Contains(scalar(s.Get("with").Get("script")), "${{") {
+			a.add("RUN_EXPRESSION_INTERPOLATION", at, "pass expressions through env, never into with.script")
+		}
 		if uses := scalar(s.Get("uses")); s.Get("uses") != nil {
 			if !pinnedAction.MatchString(uses) {
 				a.add("UNPINNED_ACTION", at, "%q must name owner/repo@<40-hex commit>", uses)
@@ -374,6 +404,9 @@ func (a *auditor) steps(where string, steps *Node, commands map[string]bool) {
 		}
 		if strings.Contains(run.Text, "${{") {
 			a.add("RUN_EXPRESSION_INTERPOLATION", at, "pass expressions through env, never into the script text")
+		}
+		if lineValidation.MatchString(run.Text) {
+			a.add("LINE_ORIENTED_VALIDATION", at, "validate a value with whole-string case and length checks, not grep")
 		}
 		for _, cmd := range shellCommands(run.Text) {
 			base := path.Base(cmd[0])

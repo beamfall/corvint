@@ -53,3 +53,23 @@ The following remain open or `NOT_RUN`:
 
 The audit cannot see organisation, runner or environment secrets, or the implicit runtime token that
 artifact actions use. Same-VM attestation is not confinement.
+
+## Repair r1 (independent review FAIL)
+
+- **Newline injection in the change id.** `grep -Eqx` passed a multi-line dispatched value when any
+  one line matched, so `<40hex>\nchange=refs/pull/1/head` wrote a second `change=` output that
+  reached `actions/checkout ref:` and the hooks (reproduced against the original template under bash
+  and sh). The pipeline, replay loop and installer now validate whole strings with `case` and a
+  length check. The audit adds `LINE_ORIENTED_VALIDATION`; a mutation reintroducing the grep form
+  refuses, and `TestResolveRefusesInjectedChange` and `TestReplayRefusesMalformedChange` run the
+  shipped step scripts against injected values.
+- **Before-state overclaim.** The upload comment no longer claims later edits are detectable. The
+  spec and README record, as an unobserved inference, that author code may obtain
+  `ACTIONS_RUNTIME_TOKEN` to replace the artifact or poison default-branch caches; no
+  author-independent digest is bound, so before-state is untrusted input.
+- **Installer glob and audit gaps.** Companion names are checked before any fetch and admit only
+  lowercase letters and hyphens. Step `shell:` is refused as unmodelled, `with.script` expressions
+  are flagged, and the source trigger's push filter must be a literal `branches` list
+  (`SOURCE_TRIGGER_BRANCHES`). Remaining lexical limits are recorded in the spec and README.
+
+The focused package now has 39 mutations, each producing its specific finding code.

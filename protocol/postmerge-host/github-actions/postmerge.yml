@@ -53,7 +53,15 @@ jobs:
         name: Validate the change identifier and mode
         run: |
           set -eu
-          printf '%s' "$REQUESTED_CHANGE" | grep -Eqx '[0-9a-f]{40}|[0-9a-f]{64}'
+          # Whole-string checks: a line-oriented grep would accept a value whose
+          # first line is valid and whose next line injects another output.
+          case "${#REQUESTED_CHANGE}" in
+            40|64) ;;
+            *) echo "change-invalid" >&2; exit 1 ;;
+          esac
+          case "$REQUESTED_CHANGE" in
+            *[!0123456789abcdef]*) echo "change-invalid" >&2; exit 1 ;;
+          esac
           case "$REQUESTED_MODE" in
             dry-run|recording) ;;
             *) echo "mode-unsupported" >&2; exit 1 ;;
@@ -179,7 +187,9 @@ jobs:
           corvint --root "$GITHUB_WORKSPACE/product" step snapshot \
             --declaration "$RUNNER_TEMP/step/declaration.json" --host "$RUNNER_TEMP/step/host.json" \
             > "$RUNNER_TEMP/step/before.json"
-      # Uploaded before the author runs, so a later edit of the local copy is detectable.
+      # Uploaded before the author runs. This does not authenticate it: author code
+      # on this runner may reach the job's runtime token and replace the artifact.
+      # Trusted validation treats before-state as untrusted (README.md, Limits).
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: before-state

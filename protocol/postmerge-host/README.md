@@ -43,6 +43,9 @@ A host adapter is a set of CI workflows plus five operator hooks. It must:
 6. Pin every third-party action to a full commit, and check out with `persist-credentials: false`.
    Build Corvint binaries from a pinned commit and verify their digests before the first use.
 7. Pass untrusted values to scripts through `env`, never by expanding `${{ }}` into the script text.
+   Validate a dispatched value as one whole string with `case` patterns and a length check before
+   writing it to `$GITHUB_OUTPUT` or `$GITHUB_ENV`. A line-oriented `grep` accepts a value when any
+   one line matches, so a newline can inject a second output.
 8. Reconcile on a schedule, so a lost dispatch is retried. Connector upserts are idempotent
    (PMC-V0-005 to PMC-V0-007), so running a change twice is safe.
 
@@ -56,7 +59,7 @@ The hooks live in the operator's repository under `postmerge/hooks/`. Corvint do
 | `reader.sh RAW CANDIDATE` | raw intake file | candidate JSON for `corvint-intake validate` | agent-model |
 | `step-host.sh WORKTREE HOST` | author worktree | ASS-V0 host record | none |
 | `author.sh INPUT WORKTREE OUTPUT` | admitted author input | edits in the worktree and a connector input | agent-model |
-| `validate.sh BEFORE AUTHOR-OUT WORKTREE` | uploaded before-state and author output | exit status; operator acceptance checks, which may be a no-op | none |
+| `validate.sh BEFORE AUTHOR-OUT WORKTREE` | uploaded before-state and author output, both untrusted | exit status; operator acceptance checks, which may be a no-op | none |
 
 Raw tracker and forge text stays outside the author's worktree. Only the admitted typed record from
 `corvint-intake validate` reaches the authoring job. The trusted job takes the binding and source
@@ -83,6 +86,15 @@ item from its own export, not from author output.
 
 - The audit reads only the declared workflow text. It does not see organisation, runner or
   environment secrets, or repository settings.
-- It does not see the implicit runtime token that artifact actions use.
+- It does not see the implicit runtime token that artifact actions use. Inference, not observed:
+  author code on a hosted runner may obtain `ACTIONS_RUNTIME_TOKEN`. With it, the author could
+  delete and re-upload the `before-state` artifact, although it is uploaded before the author runs,
+  and could write Actions cache entries scoped to the default branch that other workflows may
+  restore. The templates bind no before-state digest from a job the author cannot influence, so
+  `validate.sh` and the trusted job must treat `before-state` as untrusted, like author output.
+- Coverage is lexical and partial. `LINE_ORIENTED_VALIDATION` matches only the `printf`/`echo`
+  pipe and here-string forms. Expressions are checked in `run` and `with.script`, not in other
+  action inputs that evaluate code. A custom step `shell:` is refused rather than audited. The
+  audit cannot see the repository default branch, so check that the source trigger names it.
 - Attestation on the same virtual machine is not confinement.
 - No template has run on a hosted runner, and no replay set has run in dry-run mode.
