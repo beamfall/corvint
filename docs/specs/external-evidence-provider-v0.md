@@ -224,12 +224,12 @@ each cited path still exists at that revision, and what was omitted or could not
   committed, unmodified Go file among the seeds`, `gopls executable not found`, `gopls did not
   start`, `gopls exceeded 20s wall time; process group killed`, `gopls cancelled`, `gopls session
   failed`, `gopls did not exit cleanly`, `gopls process group not proven cleaned up`, `language
-  server identified as NAME, not gopls; refused`, `gopls answered all N queries with an error;
+  server did not identify as gopls; refused`, `gopls answered all N queries with an error;
   first: ERROR` when at least one query was issued and every one failed, or a repository, root
-  commit or cache-directory reason). ERROR is the first query error with the repository root, as
-  a file URI or a native path, removed, so it names documents repository-relative and carries no
-  machine-specific prefix (V1-0167). The exit code and every other packet member
-  are unchanged.
+  commit or cache-directory reason). ERROR names the query method and admitted repository-relative
+  origin, with a fixed class for recognized no-package-metadata errors and a generic class for
+  other errors. No raw server message, absolute path or secret reaches the packet
+  (V1-0167); the exit code and every other packet member are unchanged.
 
 - `EEP-V0-027`: The shared CLI/MCP Go provider reads root ancestry through the bounded Git
   runner using `gitstatus.Executable`, which honors MCP's startup pin. The operation has a
