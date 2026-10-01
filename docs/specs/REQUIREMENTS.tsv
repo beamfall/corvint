@@ -2268,6 +2268,7 @@ TCP-V0-050	docs/specs/task-context-packet-v0.md	850	(proposed 2026-09-24, not ac
 TCP-V0-051	docs/specs/task-context-packet-v0.md	870	`context --task` accepts at most one `--lsp gopls|off` (including `--lsp=VALUE`)
 TCP-V0-052	docs/specs/task-context-packet-v0.md	876	CLI and the explicit MCP descendant use one shared attachment. Before and after
 TCP-V0-053	docs/specs/task-context-packet-v0.md	882	Required live qualification fails when gopls is missing. Compiled CLI and MCP
+TCP-V0-054	docs/specs/task-context-packet-v0.md	888	(experimental, V1-0482) When Go LSP enrichment has an explicit task subject,
 TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	92	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its
 TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	100	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as
 TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	103	TCQ MUST emit exactly one claim result for each selected claim edge and no resul
