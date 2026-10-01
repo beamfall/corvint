@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/Beamfall/corvint/internal/testrunner/registry"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	tr "github.com/Beamfall/corvint/internal/testrunner"
@@ -125,5 +127,52 @@ func TestExportedDocumentsPreserveNativeBytesAndIdentity(t *testing.T) {
 		if !bytes.Equal(before, after) || tr.Identity(pair[0]) != tr.Identity(pair[1]) {
 			t.Fatalf("native serialization changed: %s != %s", before, after)
 		}
+	}
+}
+
+func TestCMockaPlanBindsTargetAndFixedEnvironment(t *testing.T) {
+	req := tr.Request{Runner: "cmocka-xml", Target: "G", ExpectedTests: []string{"G::test_pass"}, Executable: "/independent/native-test", ExecutableSha256: strings.Repeat("a", 64), ReportDir: filepath.Join(t.TempDir(), "reports")}
+	inv, e := registry.Build(req)
+	if e != nil {
+		t.Fatal(e)
+	}
+	base := plan{Profile: profile, Request: req, Invocation: inv}
+	for _, kind := range []string{"target-approval", "environment", "report", "executable"} {
+		t.Run(kind, func(t *testing.T) {
+			p := base
+			p.Invocation.Phases = append([]tr.Phase{}, base.Invocation.Phases...)
+			p.Invocation.Phases[0].Environment = map[string]string{}
+			for k, v := range base.Invocation.Phases[0].Environment {
+				p.Invocation.Phases[0].Environment[k] = v
+			}
+			p.Invocation.ReportPaths = append([]string{}, base.Invocation.ReportPaths...)
+			approval := tr.Identity(base)
+			switch kind {
+			case "target-approval":
+				p.Request.Target = "Other"
+			case "environment":
+				p.Invocation.Phases[0].Environment["CMOCKA_MESSAGE_OUTPUT"] = "XML"
+				approval = tr.Identity(p)
+			case "report":
+				p.Invocation.ReportPaths = []string{"other.xml"}
+				approval = tr.Identity(p)
+			case "executable":
+				p.Request.Executable = "/other"
+				approval = tr.Identity(p)
+			}
+			b, _ := json.Marshal(p)
+			file := filepath.Join(t.TempDir(), "plan.json")
+			if e := os.WriteFile(file, b, 0600); e != nil {
+				t.Fatal(e)
+			}
+			var out, errout bytes.Buffer
+			code := command(context.Background(), []string{"run", "--plan", file, "--approve", approval, "--out", filepath.Join(t.TempDir(), "receipt.json"), "--executable", req.Executable, "--executable-sha256", req.ExecutableSha256, "--experimental", "--trusted-local"}, &out, &errout)
+			if code != 1 {
+				t.Fatal("mutated plan admitted", kind, code)
+			}
+			if _, e := os.Stat(req.ReportDir); !os.IsNotExist(e) {
+				t.Fatal("invalid plan launched", e)
+			}
+		})
 	}
 }

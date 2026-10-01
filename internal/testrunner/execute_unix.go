@@ -111,7 +111,9 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 		if err = checkTool(t); err != nil {
 			return out, err
 		}
-		if len(p.Argv) == 0 || len(p.Argv) > 256 {
+		// A native test binary may need no arguments. Require an explicit
+		// primary TEST phase; an empty implicit invocation remains invalid.
+		if len(p.Argv) > 256 || (len(p.Argv) == 0 && (p.Kind != "TEST" || p.Tool != "primary")) {
 			return out, fmt.Errorf("argv bound")
 		}
 		for _, a := range p.Argv {
