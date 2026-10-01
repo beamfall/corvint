@@ -581,3 +581,13 @@ or evidence of operator-time savings. U4 remains `NOT_OBSERVED`.
 Rollback removes the selected panel's added requirement, observation, unknown and verification
 fields and template sections; existing chain links, map artifacts and whole-page rows require no
 migration. No new artifact is read and no process or durable state is introduced.
+
+## Accepted amendment: typed trace display (2026-09-30, issue 408)
+
+- `LAC-V0-038`: The chain pane MUST validate schema-2 rows under `LTPM-V0-013` before displaying
+  their trace identity or recorded verification. Argv MUST display as a labelled canonical JSON
+  array, passed through the existing inert text rendering path; it MUST NOT be joined into shell
+  text or executed. Invalid rows remain explicit unsupported gaps. Schema-1 rendering is unchanged.
+
+Acceptance: `TestConsoleTypedArgv` and the existing hostile-content chain tests. Rollback may stop
+new v2 production but retains this reader for already-stored evidence.

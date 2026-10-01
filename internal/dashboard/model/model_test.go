@@ -897,8 +897,12 @@ func TestVerifyCanonicalRejectsOrphanAndMismatchedCohorts(t *testing.T) {
 
 func TestAdapterPoliciesMatchFrozenRegistry(t *testing.T) {
 	registry := testRegistry()
-	if len(adapterPolicies) != len(registry) {
+	// The optional v2 policy is emitted only for stores containing v2.
+	if len(adapterPolicies) != len(registry)+1 {
 		t.Fatalf("policy rows=%d registry rows=%d", len(adapterPolicies), len(registry))
+	}
+	if p := adapterPolicies["local-trace-v2"]; p.verifier != "go-local-trace-v2" || !slices.Equal(p.profiles, []string{"corvint-local-trace/2"}) {
+		t.Fatal("invalid v2 policy")
 	}
 	for _, row := range registry {
 		policy, ok := adapterPolicies[row.AdapterID]

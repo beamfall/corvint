@@ -1,7 +1,7 @@
 package model
 
 func validateRepositoryWitnessSemantics(source SourceInput, repository Repository) error {
-	if source.AdapterID != "local-trace-v1" {
+	if !isLocalTraceAdapter(source.AdapterID) {
 		if source.RepositoryWitnesses != nil {
 			return invalidArgument()
 		}

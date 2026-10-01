@@ -81,13 +81,13 @@ func validateSnapshot(snapshot *Snapshot) error {
 		if source.ContentSHA256 != nil && !validateSHA256(*source.ContentSHA256) {
 			return invalidArgument()
 		}
-		if source.RepositoryReadsSHA256 != nil && (!validateSHA256(*source.RepositoryReadsSHA256) || source.AdapterID != "local-trace-v1" || source.Validity != ValidityValid) {
+		if source.RepositoryReadsSHA256 != nil && (!validateSHA256(*source.RepositoryReadsSHA256) || !isLocalTraceAdapter(source.AdapterID) || source.Validity != ValidityValid) {
 			return invalidArgument()
 		}
-		if source.AdapterID == "local-trace-v1" && source.Validity == ValidityValid && source.RepositoryReadsSHA256 == nil {
+		if isLocalTraceAdapter(source.AdapterID) && source.Validity == ValidityValid && source.RepositoryReadsSHA256 == nil {
 			return invalidArgument()
 		}
-		if source.AdapterID == "local-trace-v1" && source.ObservationTime != nil {
+		if isLocalTraceAdapter(source.AdapterID) && source.ObservationTime != nil {
 			return invalidArgument()
 		}
 		switch source.Validity {
@@ -224,7 +224,7 @@ func validateReferences(snapshot *Snapshot) error {
 			if !ok || cohort.AdapterID != source.AdapterID || cohort.Profile != source.Profile || pointerValue(cohort.ProducerIdentity) != source.VerifierID {
 				return invalidArgument()
 			}
-			if source.AdapterID == "local-trace-v1" && (snapshot.Repository.ObjectFormat == nil || snapshot.Repository.DirtyPathsSHA256 == nil ||
+			if isLocalTraceAdapter(source.AdapterID) && (snapshot.Repository.ObjectFormat == nil || snapshot.Repository.DirtyPathsSHA256 == nil ||
 				cohort.RepositoryObjectFormat == nil || *cohort.RepositoryObjectFormat != *snapshot.Repository.ObjectFormat ||
 				cohort.DirtyPathsSHA256 == nil || *cohort.DirtyPathsSHA256 != *snapshot.Repository.DirtyPathsSHA256) {
 				return invalidArgument()
@@ -302,7 +302,7 @@ func validateCohortIdentity(cohort CohortIdentity, verifierID string) error {
 	if (cohort.SourceObservationStart == nil) != (cohort.SourceObservationEnd == nil) {
 		return invalidArgument()
 	}
-	if cohort.AdapterID == "local-trace-v1" && (cohort.DirtyPathsSHA256 == nil || cohort.RepositoryObjectFormat == nil ||
+	if isLocalTraceAdapter(cohort.AdapterID) && (cohort.DirtyPathsSHA256 == nil || cohort.RepositoryObjectFormat == nil ||
 		cohort.SourceRevision == nil || cohort.SourceTreeRevision == nil || cohort.SourceObservationStart == nil || cohort.SourceObservationEnd == nil) {
 		return invalidArgument()
 	}

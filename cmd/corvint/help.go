@@ -247,7 +247,7 @@ Usage:
   corvint [--root PATH] frontier --cem MAP --ocm MAP --expected-base REV
     --target REV [OPTIONS]
   corvint [--root PATH] record --task TASK [--opened PATH] --changed PATH
-    --verify COMMAND --outcome (passed | failed | blocked)
+    (--verify COMMAND | --verify-argv-json JSON_ARRAY) --outcome (passed | failed | blocked)
   corvint [--root PATH] migrate-traces (--dry-run | --apply) [--plan-digest SHA256]
   corvint migration-ratchet --profile FILE
   corvint [--root PATH] observations [--limit N]
@@ -529,9 +529,14 @@ const recordHelp = `Record one explicit local task outcome.
 
 Usage:
   corvint [--root PATH] record --task TASK [--opened PATH] --changed PATH
-    --verify COMMAND --outcome (passed | failed | blocked)
+    (--verify COMMAND | --verify-argv-json JSON_ARRAY) --outcome (passed | failed | blocked)
 
---opened, --changed, and --verify are repeatable; --opened defaults to empty.
+--opened, --changed, --verify, and --verify-argv-json are repeatable; --opened defaults to empty.
+--verify alone retains schema 1. Adding an argv array writes typed schema 2;
+arguments retain literal spaces, JSON and operators and are never executed.
+Each argv has 1..32 strings, at most 512 characters per argument and 4096
+canonical JSON bytes; credentials and control characters refuse. Mixed inputs
+share the 50-entry bound. Older binaries cannot read a mixed-version store.
 The repository must be clean, every path must be a safe source at HEAD, and
 verification commands are secret-screened and shell-bounded. The command
 atomically writes one local trace row and is idempotent by trace id.

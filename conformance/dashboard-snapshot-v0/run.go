@@ -56,6 +56,7 @@ var registry = map[string]registryEntry{
 	"harness-usage-v0":   {profiles: set(), stage: "UNSUPPORTED", verifier: "unsupported"},
 	"head-spec-index-v0": {profiles: set(), stage: "UNSUPPORTED", verifier: "unsupported"},
 	"impact-envelope-v1": {profiles: set(), stage: "UNSUPPORTED", verifier: "unsupported"},
+	"local-trace-v2":     {profiles: set("corvint-local-trace/2"), stage: "NOT_STARTED", verifier: "go-local-trace-v2", maxBytes: 16 << 20},
 	"local-trace-v1":     {profiles: set("corvint-local-trace/1"), stage: "NOT_STARTED", verifier: "go-local-trace-v1", maxBytes: 16 << 20},
 	"pulse-dogfood-v0":   {profiles: set(), stage: "UNSUPPORTED", verifier: "unsupported"},
 	"query-envelope-v1":  {profiles: set(), stage: "UNSUPPORTED", verifier: "unsupported"},
@@ -132,7 +133,7 @@ var (
 		"TRACE_ANCESTRY_BOUND", "TRACE_STORE_BOUND",
 	)
 	adapterIDs = set(
-		"stable-read-v0", "local-trace-v1", "cem-ocm-bundle-v0", "query-envelope-v1",
+		"stable-read-v0", "local-trace-v1", "local-trace-v2", "cem-ocm-bundle-v0", "query-envelope-v1",
 		"impact-envelope-v1", "head-spec-index-v0", "beamfall-shadow-v0", "pulse-dogfood-v0",
 		"harness-usage-v0", "go-live-usage-v0", "frontier-usage-v0",
 	)
@@ -555,7 +556,7 @@ func verifyObservation(value any, generatedAt time.Time, configuredRows []any) e
 	if err != nil {
 		return err
 	}
-	if registryDigest != domainDigest("corvint-dashboard-adapter-registry/0", []byte(canonicalRegistry)) {
+	if registryDigest != expectedTraceRegistryDigest(configuredRows) {
 		return reject(rejectDigest)
 	}
 	configuredDigest, _, err := digest(observation["configuredSourceSetSha256"], false)
@@ -981,7 +982,7 @@ func safePublicLabel(value string) bool {
 }
 
 func verifyMembers(source map[string]any, adapter, validity, contentDigest string, hasDigest bool, byteCount string, hasBytes bool, repositoryReadsDigest string, hasRepositoryReads bool, sourceCohorts []string, cohorts map[string]cohortState, repository repositoryState, hasInterval bool, observationStart, observationEnd time.Time) error {
-	if adapter != "local-trace-v1" {
+	if !isTraceAdapter(adapter) {
 		if source["members"] != nil {
 			return reject(rejectFieldSet)
 		}
@@ -1203,7 +1204,7 @@ func verifyTraceIssueSemantics(sourcesValue, issuesValue any) error {
 		if objectErr != nil {
 			return objectErr
 		}
-		if source["adapterId"] != "local-trace-v1" {
+		if !isTraceAdapter(source["adapterId"]) {
 			continue
 		}
 		sourceID, _ := stringValue(source["id"])
@@ -1411,7 +1412,7 @@ func verifyMetricGroup(group string, value any, knownSources map[string]metricSo
 			}
 			for _, sourceID := range sources {
 				source := knownSources[sourceID]
-				if source.adapterID != "local-trace-v1" {
+				if !isTraceAdapter(source.adapterID) {
 					return reject(rejectIdentity)
 				}
 				if _, contributes := source.cohortIDs[cohorts[0]]; !contributes {
@@ -1651,7 +1652,7 @@ func verifyTraceInventory(dataValue, sourcesValue, issuesValue any, cohorts map[
 		if objectErr != nil {
 			return objectErr
 		}
-		if source["adapterId"] != "local-trace-v1" || source["validity"] != "VALID" || source["completeness"] != "COMPLETE" {
+		if !isTraceAdapter(source["adapterId"]) || source["validity"] != "VALID" || source["completeness"] != "COMPLETE" {
 			return nil
 		}
 		bytesText, _, decimalErr := decimal(source["byteCount"], false)
@@ -1688,7 +1689,7 @@ func verifyTraceInventory(dataValue, sourcesValue, issuesValue any, cohorts map[
 
 	dimensions := func(source map[string]any, kind string, revision any, validity string) []any {
 		return []any{
-			map[string]any{"name": "adapterId", "value": "local-trace-v1"},
+			map[string]any{"name": "adapterId", "value": source["adapterId"]},
 			map[string]any{"name": "ageBucket", "value": "UNKNOWN"},
 			map[string]any{"name": "artifactKind", "value": kind},
 			map[string]any{"name": "authorityClass", "value": source["authorityClass"]},
@@ -1849,7 +1850,7 @@ func verifyRejectedMemberArithmetic(dataValue any, sources []any, issuesValue an
 		if objectErr != nil {
 			return objectErr
 		}
-		if source["adapterId"] != "local-trace-v1" || source["completeness"] != "PARTIAL" {
+		if !isTraceAdapter(source["adapterId"]) || source["completeness"] != "PARTIAL" {
 			continue
 		}
 		sourceID, _ := stringValue(source["id"])

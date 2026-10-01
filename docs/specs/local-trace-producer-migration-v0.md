@@ -134,18 +134,18 @@ exit 2.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `admitted-path-limit` | `internal/trace/record.go:323` | more than 200 candidates were admitted as current source paths |
-| `candidate-limit` | `internal/trace/record.go:309` | `AdmissibleCurrentPaths` received more than 200,000 unique changed-path candidates |
-| `changed-path-acquisition-failed` | `internal/tracerecordrepo/adapter.go:97` | listing the base-to-target changed paths failed |
-| `changed-path-admission-failed` | `internal/tracerecordrepo/adapter.go:103@69bd23b7` | `trace.AdmissibleCurrentPaths` failed with an error `trace.AdmissionFailureReason` maps to no reason |
+| `admitted-path-limit` | `internal/trace/record.go:361@39025b38` | more than 200 candidates were admitted as current source paths |
+| `candidate-limit` | `internal/trace/record.go:347@94f5b6d5` | `AdmissibleCurrentPaths` received more than 200,000 unique changed-path candidates |
+| `changed-path-acquisition-failed` | `internal/tracerecordrepo/adapter.go:98@f49f60cd` | listing the base-to-target changed paths failed |
+| `changed-path-admission-failed` | `internal/tracerecordrepo/adapter.go:104@69bd23b7` | `trace.AdmissibleCurrentPaths` failed with an error `trace.AdmissionFailureReason` maps to no reason |
 | `dogfood-record-failed` | `cmd/corvint/dogfood_record.go:146@d0afa17b` | the stderr `code` written when the dogfood-record error carries an empty reason |
-| `invalid-base-revision` | `internal/tracerecordrepo/adapter.go:86` | the base argument does not resolve to a commit |
-| `malformed-path` | `internal/trace/record.go:432` | a path is empty or `pythonString` rejects it (its value cannot be decoded as Python string units); also at `internal/trace/record.go:449`, a normalized, unforbidden path that is tracked (or any stored-row path) breaks the `corvint-dashboard-trace-path-witness/0` lexical profile: more than 4,096 bytes, not valid UTF-8 (an encoded surrogate), a Unicode control, a backslash, or an ASCII-letter-colon prefix (decision 0235) |
-| `record-failed` | `internal/tracerecordrepo/adapter.go:153` | the stability check or recording failed for a reason that is neither repository drift nor a verification reason |
-| `record-index-failed` | `internal/tracerecordrepo/adapter.go:82` | building the record index and tracked set failed |
-| `secret-shaped-path` | `internal/trace/record.go:435` | a path matches the secret screen |
-| `unnormalized-path` | `internal/trace/record.go:438` | a path is absolute, contains `//`, is not `path.Clean`-equal to itself, or has a `..` part |
-| `unsupported-verify-syntax` | `internal/trace/record.go:225` | a verification command is empty or contains a byte outside ASCII letters, digits, and `_./:@=+, -` |
+| `invalid-base-revision` | `internal/tracerecordrepo/adapter.go:87@8006b57c` | the base argument does not resolve to a commit |
+| `malformed-path` | `internal/trace/record.go:470@c94787ea` | a path is empty or `pythonString` rejects it (its value cannot be decoded as Python string units); also at `internal/trace/record.go:487@c94787ea`, a normalized, unforbidden path that is tracked (or any stored-row path) breaks the `corvint-dashboard-trace-path-witness/0` lexical profile: more than 4,096 bytes, not valid UTF-8 (an encoded surrogate), a Unicode control, a backslash, or an ASCII-letter-colon prefix (decision 0235) |
+| `record-failed` | `internal/tracerecordrepo/adapter.go:154@0416b61a` | the stability check or recording failed for a reason that is neither repository drift nor a verification reason |
+| `record-index-failed` | `internal/tracerecordrepo/adapter.go:83@a87e1e48` | building the record index and tracked set failed |
+| `secret-shaped-path` | `internal/trace/record.go:473@ba12231a` | a path matches the secret screen |
+| `unnormalized-path` | `internal/trace/record.go:476@5e4376e2` | a path is absolute, contains `//`, is not `path.Clean`-equal to itself, or has a `..` part |
+| `unsupported-verify-syntax` | `internal/trace/record.go:263@e427c406` | a verification command is empty or contains a byte outside ASCII letters, digits, and `_./:@=+, -` |
 
 ## Acceptance matrix
 
@@ -349,3 +349,48 @@ read/query status admission changes. Regression witnesses are
 `TestRecordFreshRepositoryWithoutIgnore`, `TestRecordUnignoredUnsafeArtifactsRefuseWithoutMutation`,
 `TestRecorderStabilityKeepsSourceAndCommitDriftVisible`, and
 `TestRecordStagingAdmissionRequiresOwnedAppendPhase`.
+
+## Accepted amendment: typed argv verification (2026-09-30, issue 408)
+
+The owner accepted the schema-v2 proposal on 2026-09-30. Its reviewed proposal SHA-256 is
+`707d696a76b240423084f10a44ddfae22b2b5da46391eedde5aa306be1ec716f`.
+This additive profile remains experimental; it does not change the v1 contract above.
+
+- `LTPM-V0-013`: `record` MUST accept repeatable `--verify-argv-json JSON_ARRAY` (including the
+  `=JSON_ARRAY` form). The transport is exactly one JSON array of strings, decoded without shell
+  parsing. A row MUST use schema 2 if and only if it includes an argv verification. Its fields
+  otherwise match schema 1; `verification` becomes a sorted unique array of closed entries:
+  `{"command":"go test ./...","kind":"command"}` or
+  `{"argv":["go","test","a b",""],"kind":"argv"}`. Command normalization, punctuation and the
+  512-character command bound remain unchanged. Argv MUST retain exact argument boundaries and
+  values, with 1..32 arguments, a nonempty first argument, valid UTF-8, no Unicode controls,
+  at most 512 Unicode code points per argument, and at most 4,096 canonical bytes per vector.
+  Empty later arguments, spaces, literal JSON, quotes, backslashes and shell operators are data.
+  JSON nulls, duplicate/unknown members, malformed UTF-8 and unpaired surrogates MUST refuse.
+  The combined pre-deduplication command/argv input count remains at most 50. Canonical entries
+  use the existing ASCII-escaped JSON encoding, sorted by their complete canonical JSON bytes;
+  exact duplicates collapse. The trace ID remains SHA-256 over the canonical row without
+  `trace_id`, including schema 2 and the typed entries. Stored entries MUST already have canonical
+  values/order and unique entries; alternate valid JSON escape spellings have the same identity.
+  Refusals MUST occur before mutation and use `unsupported-verify-argv`; legacy
+  `unsupported-verify-syntax` and v1 bytes, IDs, screening and acceptance MUST remain unchanged.
+- `LTPM-V0-014`: All ordinary trace consumers MUST admit validated mixed v1/v2 revision files
+  under the unchanged row (256 KiB), file/row count (1,000), and store (16 MiB) bounds. Migration
+  and stranded-row recovery MUST preserve entry kinds and values, changing only revision-bound
+  identity when the existing migration contract requires it. Whole-file retention is unchanged.
+  Query/eval use task/outcome/paths; typed verification MUST NOT change ranking. Batch and record
+  output MUST retain typed entries in their existing projections and digests. Console and skill
+  export MUST display argv as labelled canonical JSON arrays, never shell commands. Neither writer
+  nor any consumer may execute verification. A reader without schema-2 support MUST refuse an
+  unsupported schema. Rollback disables new v2 writes but MUST retain shipped v2 readers; an older
+  binary that predates this profile cannot read mixed stores, an explicit release limitation.
+
+Screening is owned by `LTA-V0-013`; the dashboard extension is owned by `LOD-V0-035`.
+Arbitrary base64, hex or percent decoding is excluded. The contract is bounded pattern screening,
+not general secret discovery. Dogfood verification-file syntax and command execution are unchanged.
+
+Acceptance: `TestLTPMV0014TypedGolden`, `TestLTPMV0014TypedRefusals`,
+`TestLTPMV0014MixedMigrationAndNonexecution`, `TestTypedStoreAppendAndRetention`,
+`TestTypedUnicodeAndMalformedWireBounds`, `TestRecordTypedArgvRoundTripAndRefusal`,
+`TestTypedTraceFixtureAdmission`, `TestLODV0035MixedTraceSnapshot`, `TestConsoleTypedArgv`,
+`TestExportTypedArgv`, and `FuzzTypedVerificationRoundTrip` bind this amendment to source evidence.

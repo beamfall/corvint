@@ -103,7 +103,11 @@ func skillDocument(name, digest string, record trace.Record) string {
 	out.WriteString("- Admission evidence digest: " + digest + "\n")
 	out.WriteString("- Evaluation: " + Evaluation + "\n")
 	out.WriteString("- Trace: " + record.TraceID + " at revision " + record.Revision + "\n\n")
-	fmt.Fprintf(&out, "The trace opened %d paths, changed %d paths and ran %d verification commands; ", len(record.OpenedPaths), len(record.ChangedPaths), len(record.Verification))
+	if record.SchemaVersion == trace.SchemaVersionV2 {
+		fmt.Fprintf(&out, "The trace opened %d paths, changed %d paths and recorded %d verification entries; ", len(record.OpenedPaths), len(record.ChangedPaths), len(record.TypedVerification))
+	} else {
+		fmt.Fprintf(&out, "The trace opened %d paths, changed %d paths and ran %d verification commands; ", len(record.OpenedPaths), len(record.ChangedPaths), len(record.Verification))
+	}
 	out.WriteString("read `" + ReferenceFile + "` for the full lists.\n")
 	return out.String()
 }
@@ -117,7 +121,20 @@ func referenceDocument(digest string, record trace.Record) string {
 	out.WriteString("- Outcome: " + record.Outcome + "\n")
 	writeList(&out, "Opened paths", record.OpenedPaths)
 	writeList(&out, "Changed paths", record.ChangedPaths)
-	writeList(&out, "Verification", record.Verification)
+	if record.SchemaVersion == trace.SchemaVersionV2 {
+		out.WriteString("\n## Verification\n\n")
+		for _, entry := range record.TypedVerification {
+			if entry.Kind == "command" {
+				out.WriteString("- " + entry.Command + "\n")
+				continue
+			}
+			encoded, _ := trace.CanonicalArgv(entry.Argv)
+			// An indented JSON block cannot be closed by literal backticks in argv.
+			out.WriteString("\nargv:\n\n    " + string(encoded) + "\n\n")
+		}
+	} else {
+		writeList(&out, "Verification", record.Verification)
+	}
 	return out.String()
 }
 

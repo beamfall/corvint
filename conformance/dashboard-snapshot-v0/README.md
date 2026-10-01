@@ -37,3 +37,13 @@ therefore assigns that proof to the separate planted-repository black-box trace 
 Passing this verifier must not be presented as evidence that source acquisition, trace validation,
 Git reachability, provider output, UI, server, Pulse, harness, Frontier, CEM/OCM, or Beamfall support
 has shipped.
+
+## Typed trace verification (issue 408)
+
+`LOD-V0-035` adds an optional v2 registry and one mixed-store profile. The standalone verifier
+checks v2 rows with a separate decoder and ASCII identity encoder, plus a local frozen copy of the
+accepted writer text-screen grammar. That shared grammar is not an independent secret-discovery
+oracle. Frozen v1 fixtures and expectations are unchanged. `TestTypedTraceConformance` verifies
+both independent mixed-store accounting and actual producer output without importing production
+trace or dashboard packages. V2 inventory authority follows qualified repository evidence and
+retained usage includes all three outcome buckets, including measured zeroes.

@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/trace"
 )
 
 // The chain pane reads three artifacts the CLI already produces and adds
@@ -548,6 +550,16 @@ func traceEdges(path, change, raw string, axes Axes) []ChainEdge {
 
 func traceEdge(path, change string, number int, line string, axes Axes) ChainEdge {
 	edge := ChainEdge{Artifact: path, Field: "line " + strconv.Itoa(number) + " revision", Axes: axes}
+	if trace.IsV2JSON([]byte(line)) {
+		row, err := trace.DecodeV2([]byte(line), change)
+		if err != nil {
+			edge.Gap, edge.Reason = GapUnsupported, "the schema_version 2 row failed trace validation"
+			return edge
+		}
+		edge.Target, edge.Pin = row.TraceID, row.Revision
+		edge.Detail = "recorded outcome " + strconv.Quote(row.Outcome) + " for task " + strconv.Quote(row.Task) + "; recorded verification: " + strings.Join(row.VerificationDisplay(), " · ")
+		return edge
+	}
 	var row wireTrace
 	if err := json.Unmarshal([]byte(line), &row); err != nil || row.SchemaVersion != 1 {
 		edge.Gap, edge.Reason = GapUnsupported, "the row is not a schema_version 1 trace record this pane reads"

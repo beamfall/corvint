@@ -2948,3 +2948,14 @@ validator pins the case to `impact`, register `DR-0042`, clause `GPK-V0-075`, an
 rewrites. For each rewrite, the oracle side must be `"reason":"changed path carries KIND:ID"` and
 the candidate side must be the same `KIND:ID` behind the fixture's importing-test carrier. The
 `SUMMARY` line moves from `known-divergences=28` to `known-divergences=30`.
+
+## Typed verification extension (issue 408, accepted 2026-09-30)
+
+`LTPM-V0-013`/`LTPM-V0-014` add repeatable `record --verify-argv-json` and a closed schema-2
+verification union. This owner-accepted additive extension preserves existing schema-1 bytes,
+IDs, acceptance and refusals. Frozen CLI/dashboard manifests and old golden expectations are
+unchanged. New spec-authored tests pin the schema-2 canonical preimage and identity separately;
+no candidate output regenerates historical oracle expectations. All trace consumers validate
+the typed profile, and mixed dashboard snapshots use the distinct `LOD-V0-035` registry.
+Rollback stops new v2 writes while retaining v2 readers. This does not qualify a release or
+prove a retrieval-quality improvement.

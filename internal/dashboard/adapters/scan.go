@@ -112,7 +112,7 @@ func Scan(ctx context.Context, request ScanRequest) ([]byte, error) {
 		Observation: model.ObservationInput{
 			ClockSource: model.ClockSource(request.ClockSource), Start: start, End: end, ScanState: scanState,
 		},
-		Repository: repository, Registry: Registrations(), Sources: sources, Metrics: metrics, Issues: issues,
+		Repository: repository, Registry: RegistrationsForSources(sources), Sources: sources, Metrics: metrics, Issues: issues,
 	})
 	if compileErr != nil {
 		if modelFailure, matched := compileErr.(*model.Error); matched && modelFailure.Code == "DASHBOARD_RESOURCE_EXHAUSTED" {

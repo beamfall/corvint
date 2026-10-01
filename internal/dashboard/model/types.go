@@ -3,13 +3,14 @@
 package model
 
 const (
-	SnapshotSchema                       = "corvint-dashboard-snapshot/0"
-	LimitsProfile                        = "corvint-dashboard-limits/0"
-	MaxSnapshotBytes                     = 4 << 20
-	MaxConfiguredArtifacts               = 10_000
-	MaxAggregateInputBytes        uint64 = 256 << 20
-	MaxMetricSamples                     = 100_000
-	ExpectedAdapterRegistrySHA256        = "sha256:2de98344235e7f432b1b486c14fa1023f9fdb08b41632bac04d3049592cf3bb3"
+	SnapshotSchema                                 = "corvint-dashboard-snapshot/0"
+	LimitsProfile                                  = "corvint-dashboard-limits/0"
+	MaxSnapshotBytes                               = 4 << 20
+	MaxConfiguredArtifacts                         = 10_000
+	MaxAggregateInputBytes                  uint64 = 256 << 20
+	MaxMetricSamples                               = 100_000
+	ExpectedTypedTraceAdapterRegistrySHA256        = "sha256:477cf73e98c9ef9c70dcaea45ea4520e8957cac99ce9fea9886207a88df74738"
+	ExpectedAdapterRegistrySHA256                  = "sha256:2de98344235e7f432b1b486c14fa1023f9fdb08b41632bac04d3049592cf3bb3"
 )
 
 type Validity string

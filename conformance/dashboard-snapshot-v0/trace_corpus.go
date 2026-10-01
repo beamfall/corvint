@@ -38,6 +38,7 @@ type traceCorpusResult struct {
 }
 
 type traceCorpusSource struct {
+	hasV2             bool
 	configuredOrdinal string
 	files             int
 	rows              int
@@ -226,6 +227,7 @@ func scanTraceSource(root *os.Root, source traceConfiguredSource, format, head s
 				candidateIDs := cloneStringSet(candidateTraceIDs)
 				candidateRows := 0
 				candidateCode := ""
+				candidateHasV2 := false
 				scanner := bufio.NewScanner(bytes.NewReader(raw))
 				scanner.Buffer(make([]byte, 0, 4096), maxTraceRowBytes)
 				for scanner.Scan() {
@@ -246,6 +248,7 @@ func scanTraceSource(root *os.Root, source traceConfiguredSource, format, head s
 						break
 					}
 					candidateIDs[traceID] = struct{}{}
+					candidateHasV2 = candidateHasV2 || trace["schema_version"] == json.Number("2")
 					candidateOutcomes[trace["outcome"].(string)]++
 				}
 				if result.overrideCode != "" {
@@ -268,6 +271,7 @@ func scanTraceSource(root *os.Root, source traceConfiguredSource, format, head s
 					continue
 				}
 				candidateTraceIDs = candidateIDs
+				result.hasV2 = result.hasV2 || candidateHasV2
 				memberDigest := sha256.Sum256(raw)
 				result.members = append(result.members, traceCorpusMember{revision: revision, digest: "sha256:" + hex.EncodeToString(memberDigest[:]), bytes: len(raw)})
 				result.outcomes[revision] = candidateOutcomes
@@ -393,14 +397,18 @@ func validateTraceRow(raw []byte, revision string, authority traceRepositoryAuth
 	if err := exactFields(trace, "schema_version", "revision", "trace_id", "task", "opened_paths", "changed_paths", "verification", "outcome"); err != nil {
 		return nil, err
 	}
-	if trace["schema_version"] != json.Number("1") || trace["revision"] != revision {
+	if (trace["schema_version"] != json.Number("1") && trace["schema_version"] != json.Number("2")) || trace["revision"] != revision {
 		return nil, reject(rejectIdentity)
 	}
 	if _, err := enum(trace["outcome"], set("passed", "failed", "blocked")); err != nil {
 		return nil, err
 	}
+	textScreen, trimTask := traceSecretRE.MatchString, strings.TrimSpace
+	if trace["schema_version"] == json.Number("2") {
+		textScreen, trimTask = typedSecretMatch, trimTypedTask
+	}
 	task, err := stringValue(trace["task"])
-	if err != nil || strings.TrimSpace(task) == "" || strings.TrimSpace(task) != task || utf8.RuneCountInString(task) > 2_000 || traceSecretRE.MatchString(task) {
+	if err != nil || trimTask(task) == "" || trimTask(task) != task || utf8.RuneCountInString(task) > 2_000 || textScreen(task) {
 		return nil, reject(rejectPrivacyText)
 	}
 	allPaths := make(map[string]struct{})
@@ -410,7 +418,7 @@ func validateTraceRow(raw []byte, revision string, authority traceRepositoryAuth
 			return nil, err
 		}
 		for _, item := range paths {
-			if !safeTraceRelativePath(item) || traceSecretRE.MatchString(item) || forbiddenTracePath(item) {
+			if !safeTraceRelativePath(item) || textScreen(item) || forbiddenTracePath(item) {
 				return nil, reject(rejectIdentity)
 			}
 			allPaths[item] = struct{}{}
@@ -424,13 +432,19 @@ func validateTraceRow(raw []byte, revision string, authority traceRepositoryAuth
 	if err := authority.qualifyPaths(revision, qualifiedPaths); err != nil {
 		return nil, reject(rejectIdentity)
 	}
-	commands, err := traceStringSet(trace["verification"], 50)
-	if err != nil {
-		return nil, err
-	}
-	for _, command := range commands {
-		if strings.TrimSpace(command) != command || utf8.RuneCountInString(command) > 512 || traceSecretRE.MatchString(command) || !traceSafeCommandRE.MatchString(command) {
-			return nil, reject(rejectPrivacyText)
+	if trace["schema_version"] == json.Number("2") {
+		if err := validateTypedTraceVerification(raw, trace); err != nil {
+			return nil, err
+		}
+	} else {
+		commands, err := traceStringSet(trace["verification"], 50)
+		if err != nil {
+			return nil, err
+		}
+		for _, command := range commands {
+			if strings.TrimSpace(command) != command || utf8.RuneCountInString(command) > 512 || traceSecretRE.MatchString(command) || !traceSafeCommandRE.MatchString(command) {
+				return nil, reject(rejectPrivacyText)
+			}
 		}
 	}
 	claimed, err := stringValue(trace["trace_id"])
@@ -438,6 +452,9 @@ func validateTraceRow(raw []byte, revision string, authority traceRepositoryAuth
 		return nil, reject(rejectIdentity)
 	}
 	basisBytes, err := canonical(cloneWithout(trace, "trace_id"), false)
+	if trace["schema_version"] == json.Number("2") {
+		basisBytes, err = canonicalTypedTrace(cloneWithout(trace, "trace_id"))
+	}
 	if err != nil {
 		return nil, err
 	}

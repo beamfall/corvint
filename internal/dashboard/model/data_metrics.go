@@ -37,7 +37,7 @@ func deriveDataMetrics(sources []Source, cohorts []Cohort, issues []Issue, gener
 			return nil, err
 		}
 		var revision *string
-		if source.AdapterID != "local-trace-v1" && len(source.CohortIDs) == 1 {
+		if !isLocalTraceAdapter(source.AdapterID) && len(source.CohortIDs) == 1 {
 			revision = cloneString(cohortByID[source.CohortIDs[0]].SourceRevision)
 		}
 		dimensions := artifactDimensions(source, "CONFIGURED_SOURCE", revision, age, source.Validity)
@@ -55,7 +55,7 @@ func deriveDataMetrics(sources []Source, cohorts []Cohort, issues []Issue, gener
 			value, _ := parseDecimal(*source.ByteCount)
 			bucket.bytes += value
 		}
-		if source.AdapterID == "local-trace-v1" {
+		if isLocalTraceAdapter(source.AdapterID) {
 			memberRows, memberErr := memberMetrics(source, cohortByID, issueByID)
 			if memberErr != nil {
 				return nil, memberErr

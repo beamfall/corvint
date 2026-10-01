@@ -23,7 +23,12 @@ func (err *recordJSONError) Unwrap() error { return err.cause }
 
 // Encode returns the exact Python-compatible canonical JSONL bytes for record.
 func Encode(record Record) ([]byte, error) {
-	if record.SchemaVersion != SchemaVersion {
+	if record.SchemaVersion == SchemaVersionV2 {
+		if err := validateV2Record(record, record.Revision); err != nil {
+			return nil, err
+		}
+	}
+	if record.SchemaVersion != SchemaVersion && record.SchemaVersion != SchemaVersionV2 {
 		return nil, fmt.Errorf("unsupported local trace schema")
 	}
 	expected, err := traceID(record)
@@ -116,6 +121,9 @@ func decodeRecord(data []byte) (Record, error) {
 			return Record{}, fmt.Errorf("invalid local trace fields")
 		}
 	}
+	if strings.TrimSpace(string(raw["schema_version"])) == "2" {
+		return decodeV2Record(data)
+	}
 	schema, err := decodePythonSchema(raw["schema_version"])
 	if err != nil {
 		return Record{}, fmt.Errorf("unsupported local trace schema")
@@ -148,7 +156,7 @@ func decodeRecord(data []byte) (Record, error) {
 	if err != nil {
 		return Record{}, err
 	}
-	return Record{schema, revision, traceID, task, opened, changed, verification, outcome}, nil
+	return Record{SchemaVersion: schema, Revision: revision, TraceID: traceID, Task: task, OpenedPaths: opened, ChangedPaths: changed, Verification: verification, Outcome: outcome}, nil
 }
 
 func decodePythonSchema(raw []byte) (int, error) {
@@ -332,7 +340,7 @@ func canonicalRecord(record Record, includeID bool) ([]byte, error) {
 		return nil, err
 	}
 	writeMemberName(&output, "schema_version", true)
-	output.WriteByte('1')
+	output.WriteString(strconv.Itoa(record.SchemaVersion))
 	writeMemberName(&output, "task", true)
 	if err := writePythonString(&output, record.Task); err != nil {
 		return nil, err
@@ -344,7 +352,7 @@ func canonicalRecord(record Record, includeID bool) ([]byte, error) {
 		}
 	}
 	writeMemberName(&output, "verification", true)
-	if err := writeStringArray(&output, record.Verification); err != nil {
+	if err := writeVerification(&output, record); err != nil {
 		return nil, err
 	}
 	output.WriteByte('}')
@@ -367,13 +375,13 @@ func canonicalSemantic(record Record) ([]byte, error) {
 		return nil, err
 	}
 	writeMemberName(&output, "schema_version", true)
-	output.WriteByte('1')
+	output.WriteString(strconv.Itoa(record.SchemaVersion))
 	writeMemberName(&output, "task", true)
 	if err := writePythonString(&output, record.Task); err != nil {
 		return nil, err
 	}
 	writeMemberName(&output, "verification", true)
-	if err := writeStringArray(&output, record.Verification); err != nil {
+	if err := writeVerification(&output, record); err != nil {
 		return nil, err
 	}
 	output.WriteByte('}')

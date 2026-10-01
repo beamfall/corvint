@@ -685,8 +685,8 @@ func batchTraceDigest(records []trace.Record, state string) string {
 		if record.ChangedPaths != nil {
 			row["changed_paths"] = record.ChangedPaths
 		}
-		if record.Verification != nil {
-			row["verification"] = record.Verification
+		if record.Verification != nil || record.SchemaVersion == trace.SchemaVersionV2 {
+			row["verification"] = record.VerificationValue()
 		}
 		projected = append(projected, row)
 	}

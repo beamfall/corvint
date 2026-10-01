@@ -16,16 +16,16 @@ func validateTraceIssueRelationships(sources []Source, issues []Issue) error {
 		}
 		_, terminal := memberTerminalIssueCodes[issue.Code]
 		if terminal && issue.Observed != nil {
-			if issue.SourceID == nil || sourcesByID[*issue.SourceID].AdapterID != "local-trace-v1" {
+			if issue.SourceID == nil || !isLocalTraceAdapter(sourcesByID[*issue.SourceID].AdapterID) {
 				return invalidArgument()
 			}
 		}
-		if issue.Code == "OBSERVATION_TIME_UNKNOWN" && (issue.SourceID == nil || sourcesByID[*issue.SourceID].AdapterID != "local-trace-v1") {
+		if issue.Code == "OBSERVATION_TIME_UNKNOWN" && (issue.SourceID == nil || !isLocalTraceAdapter(sourcesByID[*issue.SourceID].AdapterID)) {
 			return invalidArgument()
 		}
 	}
 	for _, source := range sources {
-		if source.AdapterID != "local-trace-v1" {
+		if !isLocalTraceAdapter(source.AdapterID) {
 			continue
 		}
 		if source.Members == nil {
