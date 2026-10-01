@@ -1,0 +1,174 @@
+{
+  "baseRevision": "25ba271a1f34cc7de5990ef1f2662135f6ab1b0d",
+  "evidence": [],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:19fe30752b1ee05da5d7d1dbf91adbd62d5d2ed35cb84ff7afd71f0ca9520eb0",
+      "newRange": {
+        "count": 51,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-01-tour-status-diagnostic-breakage-span-regressions.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:e8fe4c9170cedb8b8346baea7fbfb2e049fec626bf3ad9cae48d47daa250779b",
+      "newRange": {
+        "count": 11,
+        "start": 240
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 240
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:716f9145310fca40a3601486c22a348e13820a0948f259fdb90b3a29992de44c",
+      "newRange": {
+        "count": 9,
+        "start": 1937
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 1937
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:9b192e4eb459e2f49aee7b2e5839a09456248dbf7a95fb7b1e9522164078f6bf",
+      "newRange": {
+        "count": 9,
+        "start": 64
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 64
+      },
+      "path": "docs/specs/cross-repository-breakage-map-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:dfa4e35ff26b363b19e5be776afc0d16fedf645b1e62c6b3c8a96077780a1338",
+      "newRange": {
+        "count": 12,
+        "start": 139
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 136
+      },
+      "path": "docs/specs/cross-repository-breakage-map-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:78f04d6f81a518241a3cc2442d48970f633b3c5252d17dc603fe4d8f38d39a13",
+      "newRange": {
+        "count": 8,
+        "start": 74
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 74
+      },
+      "path": "docs/specs/proof-tour-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:aa698c28b0c32b0c11cf8da71aa4d85bb06e7061976d9174625388f73228f3c7",
+      "newRange": {
+        "count": 8,
+        "start": 95
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 94
+      },
+      "path": "docs/specs/proof-tour-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:50aea5336a8f5ab4d0c6eeba5bfb5e0f5793c62ca15129f0b438ea1f90ba59bb",
+      "newRange": {
+        "count": 112,
+        "start": 535
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 535
+      },
+      "path": "internal/breakagemap/compile_test.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:a41ebf70ce0c25e2182b240e13ad59726090ed90fde8203889efb59b4cfa579b",
+      "newRange": {
+        "count": 15,
+        "start": 132
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 132
+      },
+      "path": "script/proof-tour-test.sh",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:b181df3f0dc445f0abdecd520a812252bb4c140cdd92b08d29b095c6470bcd54",
+      "newRange": {
+        "count": 21,
+        "start": 146
+      },
+      "oldRange": {
+        "count": 21,
+        "start": 146
+      },
+      "path": "script/proof-tour.sh",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:ad909f579244281431d939bbc6dd897eaa8a0b5c2f19570d3a2232089369c1ba",
+      "newRange": {
+        "count": 15,
+        "start": 170
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 170
+      },
+      "path": "script/proof-tour.sh",
+      "reason": "no-evidence"
+    }
+  ],
+  "patchSha256": "719763c0953bcd5d2f1f28a9303264c083e67f5d5189671296904f74e43aa94d",
+  "spec": "cem/0.2"
+}
