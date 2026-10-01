@@ -433,7 +433,7 @@ func TestTMV0008_AS07_JournalReadHandlesCloseOnEveryExit(t *testing.T) {
 
 func TestTMV0002_AS10_JournalStageScanBounds(t *testing.T) {
 	repo, r := setup(t)
-	o, e := r.capture(profileLimits)
+	o, e := r.capture(profileLimits, false)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -942,8 +942,10 @@ type lateGenesisQueueError struct {
 
 func (s *lateGenesisQueueError) Read(p string, n int) ([]byte, error) {
 	if p == "intent/queue.json" {
+		// The projection check reuses the capture's intent observation, so
+		// the stage binding is the only read of an absent physical queue.
 		s.reads++
-		if s.reads == 2 {
+		if s.reads == 1 {
 			return nil, syscall.EIO
 		}
 	}

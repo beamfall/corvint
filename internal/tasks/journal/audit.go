@@ -48,7 +48,10 @@ type Result struct {
 	RequestDigests map[string]wire.Digest
 	// IntentError is populated only by AuditForWrite. Private consistency is
 	// still mandatory; stable intent divergence permits request replay only.
-	IntentError   error
+	IntentError error
+	// Mode is ModeFull for an audit that walked every retained receipt.
+	Mode          string
+	chain         *chain
 	request       *snapshot.Request
 	requestTicket string
 }
@@ -59,6 +62,14 @@ type Reader struct {
 	Source          Source
 	QueueID         wire.QueueID
 	PrimaryWorktree string
+	// SelectState also retains reservations.json, pools.json and every
+	// attempt record, so one audit serves a whole read command.
+	SelectState bool
+	// Checkpoint opts a plain Audit into resuming from a writer-retained
+	// complete audit (CAL-V0-059). It is rebound to the journal before use and
+	// every refusal on that path is re-derived by the complete audit, so it
+	// can only make an agreeing read cheaper. Result.Mode names what ran.
+	Checkpoint      *Checkpoint
 	afterCapture    func() // deterministic capture/body boundary witness
 	divergentIntent string // set only on a value copy by Reconciliation
 	unpauseTickets  bool   // set only on a value copy by BarrierRemoval
@@ -79,15 +90,19 @@ type limits struct{ scan, selected int }
 var profileLimits = limits{wire.MaxArchiveScanEntries, wire.MaxIntentTreeBytes}
 
 type observation struct {
-	headRaw      []byte
-	head         *snapshot.Head
-	files        map[string]os.FileInfo
-	receipts     []string
-	identity     Identity
-	staging      bool
-	stage        *snapshot.StageObservation
-	stageDigests []stageDigest
-	stageErr     error
+	headRaw []byte
+	head    *snapshot.Head
+	files   map[string]os.FileInfo
+	// lite leaves receipts/, requests/ and evidence/ unlisted. Their directory
+	// identities stay in the inventory, so a new receipt still moves it.
+	lite          bool
+	intentDigests map[string]wire.Digest
+	receipts      []string
+	identity      Identity
+	staging       bool
+	stage         *snapshot.StageObservation
+	stageDigests  []stageDigest
+	stageErr      error
 }
 
 // Audit checks all current projections and returns selected canonical bytes.
@@ -170,8 +185,19 @@ func (r Reader) audit(paths []string, request string, lim limits, checkIntent bo
 		}
 		selected[p] = true
 	}
+	if r.Checkpoint != nil && request == "" && checkIntent && !r.writerCache && !r.intentOnly && !r.unpauseTickets && r.divergentIntent == "" {
+		for attempt := 0; attempt < 4; attempt++ {
+			result, err := r.auditAttempt(selected, request, lim, checkIntent, r.Checkpoint)
+			if err == nil {
+				return result, nil
+			}
+			if wire.CodeOf(err) != wire.CodeSnapshotMoved {
+				break
+			}
+		}
+	}
 	for attempt := 0; attempt < 4; attempt++ {
-		result, err := r.auditAttempt(selected, request, lim, checkIntent)
+		result, err := r.auditAttempt(selected, request, lim, checkIntent, nil)
 		if wire.CodeOf(err) == wire.CodeSnapshotMoved {
 			continue
 		}
@@ -180,7 +206,7 @@ func (r Reader) audit(paths []string, request string, lim limits, checkIntent bo
 	return nil, wire.Errorf(wire.CodeSnapshotMoved, "/", "ledger moved during all four observations")
 }
 
-func (r Reader) auditAttempt(selected map[string]bool, request string, lim limits, checkIntent bool) (result *Result, err error) {
+func (r Reader) auditAttempt(selected map[string]bool, request string, lim limits, checkIntent bool, cp *Checkpoint) (result *Result, err error) {
 	var native *nativeRead
 	switch n := r.Source.(type) {
 	case Native:
@@ -200,15 +226,20 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 			}
 		}()
 	}
-	before, e := r.capture(lim)
+	before, e := r.capture(lim, cp != nil)
 	if e != nil {
 		return nil, e
 	}
 	if r.afterCapture != nil {
 		r.afterCapture()
 	}
-	result, bodyErr := r.walk(before, selected, request, lim, checkIntent)
-	after, e := r.capture(lim)
+	var bodyErr error
+	if cp != nil {
+		result, bodyErr = r.walkTail(before, cp, selected, lim)
+	} else {
+		result, bodyErr = r.walk(before, selected, request, lim, checkIntent)
+	}
+	after, e := r.capture(lim, cp != nil)
 	if e != nil {
 		return nil, e
 	}
@@ -259,8 +290,8 @@ func requiredRead(s Source, p string, max int) ([]byte, error) {
 	return raw, nil
 }
 
-func (r Reader) capture(lim limits) (*observation, error) {
-	o := &observation{files: map[string]os.FileInfo{}}
+func (r Reader) capture(lim limits, lite bool) (*observation, error) {
+	o := &observation{files: map[string]os.FileInfo{}, lite: lite, intentDigests: map[string]wire.Digest{}}
 	remaining := lim.scan
 	if err := r.scan(o, ".", &remaining, true); err != nil {
 		return nil, err
@@ -319,7 +350,9 @@ func (r Reader) capture(lim limits) (*observation, error) {
 				return nil, wire.Errorf(wire.CodeLimitExceeded, p, "intent tree grew beyond bound")
 			}
 			total += len(raw)
-			intents = append(intents, intent.File{Path: strings.TrimPrefix(p, "intent/"), Sha256: wire.Sum(raw), Bytes: len(raw)})
+			sum := wire.Sum(raw)
+			o.intentDigests[p] = sum
+			intents = append(intents, intent.File{Path: strings.TrimPrefix(p, "intent/"), Sha256: sum, Bytes: len(raw)})
 		}
 	}
 	stageFiles, stageErr, err := r.readStage(o)
@@ -394,7 +427,7 @@ func (r Reader) scan(o *observation, dir string, remaining *int, optional bool) 
 			if !allowedDir(p) {
 				return wire.Errorf(wire.CodeMalformed, p, "unexpected store directory")
 			}
-			if p == "worktrees" {
+			if p == "worktrees" || (o.lite && (p == "receipts" || p == "requests" || p == "evidence")) {
 				continue
 			}
 			if err := r.scan(o, p, remaining, false); err != nil {

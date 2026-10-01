@@ -3,7 +3,6 @@ package cli
 import (
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
-	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"slices"
@@ -124,14 +123,11 @@ func planInput(rc *readCtx) (transaction.PlanInput, wire.Digest, error) {
 		raw, err := in.Reservations.Encode()
 		return in, wire.Sum(raw), err
 	}
-	paths, err := store.AttemptPaths(rc.repo)
+	proof, err := auditState(rc, "reservations.json")
 	if err != nil {
 		return in, "", err
 	}
-	proof, err := auditState(rc, append([]string{"reservations.json"}, paths...)...)
-	if err != nil {
-		return in, "", err
-	}
+	paths := attemptPaths(proof)
 	raw := proof.Records["reservations.json"].Raw
 	if in.Reservations, err = snapshot.DecodeReservations(raw); err != nil {
 		return in, "", err

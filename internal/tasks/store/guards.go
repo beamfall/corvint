@@ -95,6 +95,32 @@ func journalReader(repo *intent.Repository, head *snapshot.Head) journal.Reader 
 	return journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: head.QueueID, PrimaryWorktree: repo.PrimaryWorktree}
 }
 
+// retainCheckpoint records what a writer's complete settled audit just
+// established so reads can resume from it (CAL-V0-060). The file is derived
+// state outside the state directory: it is never an input to a mutation, and
+// a failed or lost write only costs the next read one complete audit.
+func retainCheckpoint(repo *intent.Repository, proof *journal.Result) {
+	cp := proof.Checkpoint()
+	if cp == nil {
+		return
+	}
+	path := journal.CheckpointPath(repo.StateDir)
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return
+	}
+	_, err = tmp.Write(cp.Encode())
+	if closeErr := tmp.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		err = os.Rename(tmp.Name(), path)
+	}
+	if err != nil {
+		os.Remove(tmp.Name())
+	}
+}
+
 // Recheck observations immediately before effects. This is cooperative-editor
 // protection; it does not qualify atomic CAS against hostile concurrent editors.
 func bindObservation(repo *intent.Repository, identity journal.Identity, operation string) error {

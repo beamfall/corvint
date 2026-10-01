@@ -77,6 +77,7 @@ func leaseAudit(repo *intent.Repository, guard *authority.ChangeGuard, inv *tran
 		return nil, err
 	}
 	if !proof.StagingPresent && !proof.Pending {
+		retainCheckpoint(repo, proof)
 		leaseAudits.Lock()
 		leaseAudits.key, leaseAudits.proof = key, proof
 		leaseAudits.Unlock()

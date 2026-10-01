@@ -16,6 +16,26 @@ type latest struct {
 	pending            bool
 }
 
+// chain is the state one receipt hands to the next. A complete audit builds
+// it from receipt 1; a checkpoint read resumes it at the checkpoint sequence.
+type chain struct {
+	canonical     map[string]latest
+	prev          *wire.Digest
+	generation    uint64
+	init          *snapshot.Init
+	genesisQueue  []byte
+	selectedBytes int
+}
+
+// statePath names the private mutable state SelectState retains.
+func statePath(p string) bool {
+	return p == "reservations.json" || p == "pools.json" || strings.HasPrefix(p, "attempts/")
+}
+
+func (r Reader) selects(p string, selected map[string]bool) bool {
+	return selected[p] || (r.writerCache && writerRecord(p)) || (r.SelectState && statePath(p))
+}
+
 func equalDigest(a, b *wire.Digest) bool {
 	if a == nil || b == nil {
 		return a == nil && b == nil
@@ -24,7 +44,7 @@ func equalDigest(a, b *wire.Digest) bool {
 }
 
 func (r Reader) walk(o *observation, selected map[string]bool, request string, lim limits, checkIntent bool) (*Result, error) {
-	result := &Result{Identity: o.identity, Head: o.head, StagingPresent: o.staging, Records: map[string]Record{}, StructuralConsistency: "NOT_OBSERVED", ProjectionAgreement: "NOT_OBSERVED", SemanticCoverage: "NOT_OBSERVED", HistoricalAcceptance: "NOT_OBSERVED", ActorAuthentication: "NOT_OBSERVED", Liveness: "NOT_OBSERVED", RuntimeQualification: "NOT_OBSERVED"}
+	result := &Result{Identity: o.identity, Head: o.head, Mode: ModeFull, StagingPresent: o.staging, Records: map[string]Record{}, StructuralConsistency: "NOT_OBSERVED", ProjectionAgreement: "NOT_OBSERVED", SemanticCoverage: "NOT_OBSERVED", HistoricalAcceptance: "NOT_OBSERVED", ActorAuthentication: "NOT_OBSERVED", Liveness: "NOT_OBSERVED", RuntimeQualification: "NOT_OBSERVED"}
 	if r.writerCache {
 		result.RequestDigests = map[string]wire.Digest{}
 	}
@@ -72,146 +92,14 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 	if result.Pending && (r.divergentIntent != "" || r.unpauseTickets) {
 		return result, wire.Errorf(wire.CodeRedoPending, "receipts", "this observation requires a settled journal")
 	}
-	canonical := map[string]latest{}
-	var prev *wire.Digest
-	var generation uint64
-	var init *snapshot.Init
-	var genesisQueue []byte
-	selectedBytes := 0
+	st := &chain{canonical: map[string]latest{}}
 	for i, name := range o.receipts {
-		raw, err := requiredRead(r.Source, "receipts/"+name, wire.MaxReceiptFileBytes)
-		if err != nil {
+		if err := r.step(o, st, result, name, uint64(i+1), headSeq, selected, request, lim); err != nil {
 			return result, err
 		}
-		rc, err := snapshot.DecodeReceipt(raw)
-		if err != nil {
-			return result, err
-		}
-		seq := uint64(i + 1)
-		if rc.Seq.Uint64() != seq || !equalDigest(rc.Prev, prev) || rc.HeadGeneration.Uint64() < generation {
-			return result, wire.Errorf(wire.CodeJournalForked, name, "seq/prev/generation does not continue chain")
-		}
-		if rc.TicketID != nil && rc.TicketID.QueueID() != r.QueueID.Raw {
-			return result, wire.Errorf(wire.CodeJournalForked, name, "receipt ticket scope differs")
-		}
-		if rc.AttemptID != nil {
-			q, err := snapshot.AttemptQueue(*rc.AttemptID)
-			if err != nil {
-				return result, err
-			}
-			if q != r.QueueID {
-				return result, wire.Errorf(wire.CodeJournalForked, name, "receipt attempt scope differs")
-			}
-		}
-		digest := wire.Sum(raw)
-		if seq == 1 && o.head != nil && o.head.InitSha256 != digest {
-			return result, wire.Errorf(wire.CodeJournalForked, name, "head INIT digest differs from complete receipt 1")
-		}
-		if seq == headSeq && (*o.head.LastReceiptSha256 != digest || o.head.Generation != rc.HeadGeneration) {
-			return result, wire.Errorf(wire.CodeJournalForked, name, "head digest/generation differs")
-		}
-		requiredGenesis := map[string]bool{}
-		descriptorCount := 0
-		requestCount := 0
-		var boundRequest *snapshot.Request
-		var target *ticket.Record
-		for j, p := range rc.Post {
-			prior := canonical[p.Path]
-			if strings.HasPrefix(p.Path, "requests/") && prior.seq != "" {
-				return result, wire.Errorf(wire.CodeJournalForked, p.Path, "request ID occurs more than once in retained history")
-			}
-			if _, ok := canonical[p.Path]; !ok && len(canonical) >= lim.scan+intent.MaxIntentRootEntries+wire.MaxTicketsPerQueue+wire.MaxReleasesPerQueue {
-				return result, wire.Errorf(wire.CodeLimitExceeded, p.Path, "latest metadata exceeds store scan bound")
-			}
-			post, err := r.postBytes(p)
-			if err != nil {
-				return result, err
-			}
-			if post != nil {
-				coverage, descriptor, err := r.validateRecord(p.Path, post, rc)
-				if err != nil {
-					return result, err
-				}
-				if !coverage {
-					result.SemanticCoverage = "UNKNOWN"
-				}
-				if descriptor != nil {
-					if seq != 1 {
-						return result, wire.Errorf(wire.CodeJournalForked, p.Path, "INIT descriptor may only be posted in receipt 1")
-					}
-					descriptorCount++
-					init = descriptor
-				}
-			}
-			if o.head == nil && seq == 1 && p.Path == "intent/queue.json" {
-				genesisQueue = post
-			}
-			if rc.TicketID != nil && p.Path == "intent/tickets/"+rc.TicketID.Local+".json" && post != nil {
-				target, err = ticket.Decode(post)
-				if err != nil {
-					return result, err
-				}
-			}
-			if seq == 1 {
-				if rc.Pre[j].Sha256 != nil || p.Sha256 == nil || strings.HasPrefix(p.Path, "attempts/") || strings.HasPrefix(p.Path, "effects/") {
-					return result, wire.Errorf(wire.CodeJournalForked, p.Path, "genesis cannot update/delete existing state or post attempts/effects")
-				}
-				requiredGenesis[p.Path] = true
-			}
-			if strings.HasPrefix(p.Path, "requests/") {
-				req, err := snapshot.DecodeRequest(post)
-				if err != nil {
-					return result, err
-				}
-				expected, _ := snapshot.RequestPath(req.Entry.RequestID)
-				if rc.RequestID == nil || req.Entry.RequestID != *rc.RequestID || req.Seq != rc.Seq || expected != p.Path || req.Entry.Outcome.Outcome != rc.Outcome || strings.Join(req.Entry.Outcome.Codes, "\x00") != strings.Join(rc.Codes, "\x00") {
-					return result, wire.Errorf(wire.CodeJournalForked, p.Path, "request afterimage does not bind receipt outcome")
-				}
-				requestCount++
-				boundRequest = req
-				if r.writerCache {
-					result.RequestDigests[p.Path] = wire.Sum(post)
-				}
-				if req.Entry.RequestID == request {
-					result.request = req
-					if rc.TicketID != nil {
-						result.requestTicket = rc.TicketID.Raw
-					}
-				}
-			}
-			canonical[p.Path] = latest{seq: rc.Seq, digest: p.Sha256, pendingPre: rc.Pre[j].Sha256, pending: seq > headSeq}
-			if selected[p.Path] || (r.writerCache && writerRecord(p.Path)) {
-				old := result.Records[p.Path]
-				selectedBytes -= len(old.Raw)
-				if len(post) > lim.selected-selectedBytes {
-					return result, wire.Errorf(wire.CodeLimitExceeded, p.Path, "selected canonical bytes exceed aggregate live intent-state budget; select fewer paths")
-				}
-				selectedBytes += len(post)
-				result.Records[p.Path] = Record{Seq: rc.Seq, Sha256: p.Sha256, Raw: post}
-			}
-		}
-		if rc.RequestID != nil && requestCount != 1 {
-			return result, wire.Errorf(wire.CodeJournalForked, name, "non-null requestId requires one request afterimage")
-		}
-		if err := bindRevisions(rc, boundRequest, target); err != nil {
-			return result, err
-		}
-		if seq == 1 {
-			if len(rc.Post) != 5+requestCount || descriptorCount != 1 || !requiredGenesis["VERSION"] || !requiredGenesis["intent/queue.json"] || !requiredGenesis["intent/policy.json"] || !requiredGenesis["reservations.json"] {
-				return result, wire.Errorf(wire.CodeJournalForked, name, "genesis requires VERSION blob, queue, policy, empty reservations and unique INIT descriptor")
-			}
-			if init.VersionSha256 != wire.Sum([]byte(snapshot.VersionBytes)) || init.QueueID != r.QueueID || init.PrimaryWorktree != r.PrimaryWorktree {
-				return result, wire.Errorf(wire.CodeJournalForked, name, "genesis identity/version mismatch")
-			}
-			if o.head != nil && (o.head.VersionSha256 != init.VersionSha256 || o.head.PrimaryWorktree != init.PrimaryWorktree || o.head.QueueID != init.QueueID) {
-				return result, wire.Errorf(wire.CodeJournalForked, "head.json", "head and INIT descriptor disagree")
-			}
-		}
-		prev = &digest
-		generation = rc.HeadGeneration.Uint64()
-		result.LastSeq = rc.Seq
-		result.LastReceiptSha256 = digest
 	}
+	result.chain = st
+	canonical, genesisQueue := st.canonical, st.genesisQueue
 	result.StructuralConsistency = "CONSISTENT"
 	if result.SemanticCoverage != "UNKNOWN" {
 		result.SemanticCoverage = "KNOWN_CODECS"
@@ -250,6 +138,143 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 		return result, wire.Errorf(wire.CodeRedoPending, "receipts", "one fully validated linked receipt awaits head projection; no redo performed")
 	}
 	return result, nil
+}
+
+// step validates one receipt against the chain and folds its posts in.
+func (r Reader) step(o *observation, st *chain, result *Result, name string, seq, headSeq uint64, selected map[string]bool, request string, lim limits) error {
+	canonical := st.canonical
+	raw, err := requiredRead(r.Source, "receipts/"+name, wire.MaxReceiptFileBytes)
+	if err != nil {
+		return err
+	}
+	rc, err := snapshot.DecodeReceipt(raw)
+	if err != nil {
+		return err
+	}
+	if rc.Seq.Uint64() != seq || !equalDigest(rc.Prev, st.prev) || rc.HeadGeneration.Uint64() < st.generation {
+		return wire.Errorf(wire.CodeJournalForked, name, "seq/prev/generation does not continue chain")
+	}
+	if rc.TicketID != nil && rc.TicketID.QueueID() != r.QueueID.Raw {
+		return wire.Errorf(wire.CodeJournalForked, name, "receipt ticket scope differs")
+	}
+	if rc.AttemptID != nil {
+		q, err := snapshot.AttemptQueue(*rc.AttemptID)
+		if err != nil {
+			return err
+		}
+		if q != r.QueueID {
+			return wire.Errorf(wire.CodeJournalForked, name, "receipt attempt scope differs")
+		}
+	}
+	digest := wire.Sum(raw)
+	if seq == 1 && o.head != nil && o.head.InitSha256 != digest {
+		return wire.Errorf(wire.CodeJournalForked, name, "head INIT digest differs from complete receipt 1")
+	}
+	if seq == headSeq && (*o.head.LastReceiptSha256 != digest || o.head.Generation != rc.HeadGeneration) {
+		return wire.Errorf(wire.CodeJournalForked, name, "head digest/generation differs")
+	}
+	requiredGenesis := map[string]bool{}
+	descriptorCount := 0
+	requestCount := 0
+	var boundRequest *snapshot.Request
+	var target *ticket.Record
+	for j, p := range rc.Post {
+		prior := canonical[p.Path]
+		if strings.HasPrefix(p.Path, "requests/") && prior.seq != "" {
+			return wire.Errorf(wire.CodeJournalForked, p.Path, "request ID occurs more than once in retained history")
+		}
+		if _, ok := canonical[p.Path]; !ok && len(canonical) >= lim.scan+intent.MaxIntentRootEntries+wire.MaxTicketsPerQueue+wire.MaxReleasesPerQueue {
+			return wire.Errorf(wire.CodeLimitExceeded, p.Path, "latest metadata exceeds store scan bound")
+		}
+		post, err := r.postBytes(p)
+		if err != nil {
+			return err
+		}
+		if post != nil {
+			coverage, descriptor, err := r.validateRecord(p.Path, post, rc)
+			if err != nil {
+				return err
+			}
+			if !coverage {
+				result.SemanticCoverage = "UNKNOWN"
+			}
+			if descriptor != nil {
+				if seq != 1 {
+					return wire.Errorf(wire.CodeJournalForked, p.Path, "INIT descriptor may only be posted in receipt 1")
+				}
+				descriptorCount++
+				st.init = descriptor
+			}
+		}
+		if o.head == nil && seq == 1 && p.Path == "intent/queue.json" {
+			st.genesisQueue = post
+		}
+		if rc.TicketID != nil && p.Path == "intent/tickets/"+rc.TicketID.Local+".json" && post != nil {
+			target, err = ticket.Decode(post)
+			if err != nil {
+				return err
+			}
+		}
+		if seq == 1 {
+			if rc.Pre[j].Sha256 != nil || p.Sha256 == nil || strings.HasPrefix(p.Path, "attempts/") || strings.HasPrefix(p.Path, "effects/") {
+				return wire.Errorf(wire.CodeJournalForked, p.Path, "genesis cannot update/delete existing state or post attempts/effects")
+			}
+			requiredGenesis[p.Path] = true
+		}
+		if strings.HasPrefix(p.Path, "requests/") {
+			req, err := snapshot.DecodeRequest(post)
+			if err != nil {
+				return err
+			}
+			expected, _ := snapshot.RequestPath(req.Entry.RequestID)
+			if rc.RequestID == nil || req.Entry.RequestID != *rc.RequestID || req.Seq != rc.Seq || expected != p.Path || req.Entry.Outcome.Outcome != rc.Outcome || strings.Join(req.Entry.Outcome.Codes, "\x00") != strings.Join(rc.Codes, "\x00") {
+				return wire.Errorf(wire.CodeJournalForked, p.Path, "request afterimage does not bind receipt outcome")
+			}
+			requestCount++
+			boundRequest = req
+			if r.writerCache {
+				result.RequestDigests[p.Path] = wire.Sum(post)
+			}
+			if req.Entry.RequestID == request {
+				result.request = req
+				if rc.TicketID != nil {
+					result.requestTicket = rc.TicketID.Raw
+				}
+			}
+		}
+		canonical[p.Path] = latest{seq: rc.Seq, digest: p.Sha256, pendingPre: rc.Pre[j].Sha256, pending: seq > headSeq}
+		if r.selects(p.Path, selected) {
+			old := result.Records[p.Path]
+			st.selectedBytes -= len(old.Raw)
+			if len(post) > lim.selected-st.selectedBytes {
+				return wire.Errorf(wire.CodeLimitExceeded, p.Path, "selected canonical bytes exceed aggregate live intent-state budget; select fewer paths")
+			}
+			st.selectedBytes += len(post)
+			result.Records[p.Path] = Record{Seq: rc.Seq, Sha256: p.Sha256, Raw: post}
+		}
+	}
+	if rc.RequestID != nil && requestCount != 1 {
+		return wire.Errorf(wire.CodeJournalForked, name, "non-null requestId requires one request afterimage")
+	}
+	if err := bindRevisions(rc, boundRequest, target); err != nil {
+		return err
+	}
+	if seq == 1 {
+		if len(rc.Post) != 5+requestCount || descriptorCount != 1 || !requiredGenesis["VERSION"] || !requiredGenesis["intent/queue.json"] || !requiredGenesis["intent/policy.json"] || !requiredGenesis["reservations.json"] {
+			return wire.Errorf(wire.CodeJournalForked, name, "genesis requires VERSION blob, queue, policy, empty reservations and unique INIT descriptor")
+		}
+		if st.init.VersionSha256 != wire.Sum([]byte(snapshot.VersionBytes)) || st.init.QueueID != r.QueueID || st.init.PrimaryWorktree != r.PrimaryWorktree {
+			return wire.Errorf(wire.CodeJournalForked, name, "genesis identity/version mismatch")
+		}
+		if o.head != nil && (o.head.VersionSha256 != st.init.VersionSha256 || o.head.PrimaryWorktree != st.init.PrimaryWorktree || o.head.QueueID != st.init.QueueID) {
+			return wire.Errorf(wire.CodeJournalForked, "head.json", "head and INIT descriptor disagree")
+		}
+	}
+	st.prev = &digest
+	st.generation = rc.HeadGeneration.Uint64()
+	result.LastSeq = rc.Seq
+	result.LastReceiptSha256 = digest
+	return nil
 }
 
 func writerRecord(path string) bool {
@@ -476,18 +501,9 @@ func (r Reader) projections(o *observation, canonical map[string]latest, checkIn
 		if !checkIntent && strings.HasPrefix(p, "intent/") {
 			continue
 		}
-		bound, err := snapshot.PostBound(p)
+		digest, _, err := r.projected(o, p, false)
 		if err != nil {
 			return err
-		}
-		raw, present, err := optionalRead(r.Source, p, bound)
-		if err != nil {
-			return err
-		}
-		var digest *wire.Digest
-		if present {
-			d := wire.Sum(raw)
-			digest = &d
 		}
 		if equalDigest(digest, record.digest) {
 			continue
@@ -501,6 +517,36 @@ func (r Reader) projections(o *observation, canonical map[string]latest, checkIn
 		}
 		return wire.Errorf(code, p, "projection differs from latest canonical afterimage")
 	}
+	return r.strays(o, canonical, checkIntent)
+}
+
+// projected observes one physical projection. Intent bytes were already read
+// and digested by the capture this audit is bound to, so they are not read a
+// second time unless the caller needs the bytes themselves.
+func (r Reader) projected(o *observation, p string, needRaw bool) (*wire.Digest, []byte, error) {
+	if strings.HasPrefix(p, "intent/") && !needRaw {
+		if d, ok := o.intentDigests[p]; ok {
+			return &d, nil, nil
+		}
+		return nil, nil, nil
+	}
+	bound, err := snapshot.PostBound(p)
+	if err != nil {
+		return nil, nil, err
+	}
+	raw, present, err := optionalRead(r.Source, p, bound)
+	if err != nil || !present {
+		return nil, nil, err
+	}
+	if raw == nil {
+		raw = []byte{}
+	}
+	d := wire.Sum(raw)
+	return &d, raw, nil
+}
+
+// strays refuses every listed projection the journal never posted.
+func (r Reader) strays(o *observation, canonical map[string]latest, checkIntent bool) error {
 	for p, info := range o.files {
 		if r.intentOnly && !strings.HasPrefix(p, "intent/") {
 			continue
@@ -546,4 +592,99 @@ func bindRevisions(rc *snapshot.Receipt, req *snapshot.Request, target *ticket.R
 		return wire.Errorf(wire.CodeJournalForked, "/outcome", "claimed revisions differ from target afterimage")
 	}
 	return nil
+}
+
+// errCheckpoint marks a checkpoint that cannot serve this observation. It is
+// never returned to a caller: the complete audit runs instead.
+func errCheckpoint(where, why string) error {
+	return wire.Errorf(wire.CodeUnsupported, where, "checkpoint unusable: %s", why)
+}
+
+// walkTail resumes the chain at a checkpoint (CAL-V0-059..061). It rebinds
+// the checkpoint to the retained receipt it names, validates every later
+// receipt exactly as walk does, and compares every non-request latest
+// afterimage with its projection. Receipts before the checkpoint, their
+// request afterimages and evidence blobs are not re-read; Mode says so.
+func (r Reader) walkTail(o *observation, cp *Checkpoint, selected map[string]bool, lim limits) (*Result, error) {
+	result := &Result{Identity: o.identity, Head: o.head, Mode: ModeCheckpoint, Records: map[string]Record{}, StructuralConsistency: "NOT_OBSERVED", ProjectionAgreement: "NOT_OBSERVED", SemanticCoverage: "NOT_OBSERVED", HistoricalAcceptance: "NOT_OBSERVED", ActorAuthentication: "NOT_OBSERVED", Liveness: "NOT_OBSERVED", RuntimeQualification: "NOT_OBSERVED"}
+	if o.head == nil || o.stageErr != nil || o.staging || len(o.stageDigests) > 0 {
+		return result, errCheckpoint("/", "journal is not plainly settled")
+	}
+	head := o.head
+	headSeq, from := head.LastSeq.Uint64(), cp.Seq.Uint64()
+	if head.QueueID != r.QueueID || head.PrimaryWorktree != r.PrimaryWorktree || cp.QueueID != r.QueueID || cp.PrimaryWorktree != r.PrimaryWorktree || cp.InitSha256 != head.InitSha256 {
+		return result, errCheckpoint("/queueId", "identity differs from head")
+	}
+	if from > headSeq || cp.Generation.Uint64() > head.Generation.Uint64() || len(cp.Entries) > lim.scan+intent.MaxIntentRootEntries+wire.MaxTicketsPerQueue+wire.MaxReleasesPerQueue {
+		return result, errCheckpoint("/seq", "checkpoint is not a prefix of head")
+	}
+	name, err := snapshot.ReceiptName(from)
+	if err != nil {
+		return result, err
+	}
+	raw, err := requiredRead(r.Source, "receipts/"+name, wire.MaxReceiptFileBytes)
+	if err != nil {
+		return result, err
+	}
+	if wire.Sum(raw) != cp.ReceiptSha256 {
+		return result, errCheckpoint(name, "retained receipt differs")
+	}
+	if from == headSeq && (*head.LastReceiptSha256 != cp.ReceiptSha256 || head.Generation != cp.Generation) {
+		return result, errCheckpoint("head.json", "head digest/generation differs")
+	}
+	// A linked receipt beyond head is pending or forked; the complete audit
+	// classifies it.
+	next, err := snapshot.ReceiptName(headSeq + 1)
+	if err != nil {
+		return result, err
+	}
+	if _, present, err := optionalRead(r.Source, "receipts/"+next, wire.MaxReceiptFileBytes); err != nil || present {
+		if err != nil {
+			return result, err
+		}
+		return result, errCheckpoint(next, "receipt beyond head")
+	}
+	st := &chain{canonical: make(map[string]latest, len(cp.Entries)), prev: &cp.ReceiptSha256, generation: cp.Generation.Uint64()}
+	for _, e := range cp.Entries {
+		st.canonical[e.Path] = latest{seq: e.Seq, digest: e.Sha256}
+	}
+	result.SemanticCoverage = cp.SemanticCoverage
+	result.LastSeq, result.LastReceiptSha256 = cp.Seq, cp.ReceiptSha256
+	for seq := from + 1; seq <= headSeq; seq++ {
+		name, err := snapshot.ReceiptName(seq)
+		if err != nil {
+			return result, err
+		}
+		if err := r.step(o, st, result, name, seq, headSeq, selected, "", lim); err != nil {
+			return result, err
+		}
+	}
+	result.StructuralConsistency = ModeCheckpoint
+	for p, record := range st.canonical {
+		_, have := result.Records[p]
+		need := !have && r.selects(p, selected)
+		digest, raw, err := r.projected(o, p, need)
+		if err != nil {
+			return result, err
+		}
+		if !equalDigest(digest, record.digest) {
+			code := wire.CodeJournalForked
+			if strings.HasPrefix(p, "intent/") {
+				code = wire.CodeIntentDiverged
+			}
+			return result, wire.Errorf(code, p, "projection differs from latest canonical afterimage")
+		}
+		if need {
+			if len(raw) > lim.selected-st.selectedBytes {
+				return result, wire.Errorf(wire.CodeLimitExceeded, p, "selected canonical bytes exceed aggregate live intent-state budget; select fewer paths")
+			}
+			st.selectedBytes += len(raw)
+			result.Records[p] = Record{Seq: record.seq, Sha256: record.digest, Raw: raw}
+		}
+	}
+	if err := r.strays(o, st.canonical, true); err != nil {
+		return result, err
+	}
+	result.ProjectionAgreement = "AGREES"
+	return result, nil
 }
