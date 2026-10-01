@@ -176,5 +176,19 @@ journal this clone lacks. Decision 0427 holds the order and the wording each rep
 ## Dogfood
 
 Pre-change `query` and `impact` receipts were retained under the private Git `corvint` directory
-before the first edit. The dogfood loop outcome for this change is recorded in the section appended
-below once the CEM is bound, checked and sealed.
+before the first edit (the `query` receipt answered `READY` with seven results, the `impact` receipt
+named the four edited source files as critical). `make dogfood-change` against the base above: the
+first pass after the implementation commit reported `FAIL not-complete` with
+`cem-cite: citation-plan-not-provided`, `cem-status: not-ready` and `local-outcome:
+record-index-failed`, and prepared a 79-hunk map; the plan's first draft was refused with
+`cem-cite: cite-span-not-stable` because it cited CRT-V0-008 lines this change amends, and was
+rewritten to cite only spans the change leaves unchanged (`benchmarks/README.md`'s partition rule,
+TCP-V0-004's head, decision 0333, GPK-V0-039's head, IDX-SNAP-V0-017, `AGENTS.md` and the
+`line-citations-check` Makefile block); the second pass with that plan left only `local-outcome:
+record-index-failed`, the expected row before the sidecar is committed. The bind, the clean pass,
+`dogfood-check` and `dogfood-seal` follow in this branch's history: the seal commit is their
+evidence, and the sealed CEM under `.corvint/changes/` carries every hunk's citation. Independent
+review is the pull request. `NOT_RUN`: `make gate`, the exhaustive `./...` test and the
+`interop/cem01-go` gate (owner's scoped preference); `NOT_OBSERVED`: billed tokens and the paired
+baseline for the measurement receipt. `TestWorkFinalCheckClosingContext` fails on the base in this
+container and is retained as unrelated.
