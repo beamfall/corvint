@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/zlib"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -375,5 +376,392 @@ func TestInconsistentNewPositionRejectedAtParse(t *testing.T) {
 	twoHunkDelete := "diff --git a/x b/x\ndeleted file mode 100644\n--- a/x\n+++ /dev/null\n@@ -1,2 +0,0 @@\n-a\n-b\n@@ -3,2 +0,0 @@\n-c\n-d\n"
 	if _, err := parsePatch([]byte(twoHunkDelete)); err != nil {
 		t.Errorf("two-hunk delete rejected: %v", err)
+	}
+}
+
+func candidatePacket(t *testing.T) (string, map[string]string, []byte) {
+	t.Helper()
+	packet, err := filepath.Abs(filepath.Join("..", "..", "protocol", "cem-1.0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(packet, "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if shaHex(raw) != "18de09b6d6ede40d34d973381372f97a5cf490a006da8a23312021f16d3282e5" {
+		t.Fatal("candidate manifest changed")
+	}
+	var manifest struct{ ArtifactSHA256 map[string]string }
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	for path, digest := range manifest.ArtifactSHA256 {
+		b, e := os.ReadFile(filepath.Join(packet, path))
+		if e != nil || shaHex(b) != digest {
+			t.Fatalf("packet digest %s: %v", path, e)
+		}
+	}
+	return packet, manifest.ArtifactSHA256, raw
+}
+func TestCandidateNormativePacket(t *testing.T) {
+	packet, _, manifestRaw := candidatePacket(t)
+	var manifest struct {
+		Author, Timestamp, BaseMessage, ContentMessage, TargetMessage string
+		Repositories                                                  []struct{ Name, ObjectFormat, BaseRevision, ContentRevision, TargetRevision, Map string }
+		Cases                                                         []struct {
+			Name, Repository, Map, OmitArtifact, ChangeArtifact, Integrity, Target, ArtifactDirectory string
+			Exit                                                                                      int
+		}
+	}
+	if err := json.Unmarshal(manifestRaw, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(t.TempDir(), "consumer")
+	cmd := exec.Command("go", "build", "-o", exe, ".")
+	if b, e := cmd.CombinedOutput(); e != nil {
+		t.Fatalf("build: %v %s", e, b)
+	}
+	type binding struct{ repo, base, target, content string }
+	repos := map[string]binding{}
+	for _, r := range manifest.Repositories {
+		repo := t.TempDir()
+		run := func(args ...string) string {
+			t.Helper()
+			cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
+			cmd.Env = append(cleanGitEnvironment(), append([]string{"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null"}, commitEnv(t, manifest.Author, manifest.Timestamp)...)...)
+			b, e := cmd.Output()
+			if e != nil {
+				t.Fatalf("git %v: %v", args, e)
+			}
+			return strings.TrimSpace(string(b))
+		}
+		run("init", "-q", "--object-format="+r.ObjectFormat)
+		for _, name := range []string{"app.txt", "rule.txt"} {
+			b, e := os.ReadFile(filepath.Join(packet, "repository/base", name))
+			if e != nil {
+				t.Fatal(e)
+			}
+			if e := os.WriteFile(filepath.Join(repo, name), b, 0600); e != nil {
+				t.Fatal(e)
+			}
+		}
+		run("add", ".")
+		run("commit", "-q", "-m", manifest.BaseMessage)
+		if got := run("rev-parse", "HEAD"); got != r.BaseRevision {
+			t.Fatalf("base %s != %s", got, r.BaseRevision)
+		}
+		if e := os.WriteFile(filepath.Join(repo, "app.txt"), []byte("after\n"), 0600); e != nil {
+			t.Fatal(e)
+		}
+		run("add", ".")
+		run("commit", "-q", "-m", manifest.ContentMessage)
+		if got := run("rev-parse", "HEAD"); got != r.ContentRevision {
+			t.Fatalf("content %s != %s", got, r.ContentRevision)
+		}
+		b, e := os.ReadFile(filepath.Join(packet, r.Map))
+		if e != nil {
+			t.Fatal(e)
+		}
+		if e := os.Mkdir(filepath.Join(repo, ".corvint"), 0700); e != nil {
+			t.Fatal(e)
+		}
+		if e := os.WriteFile(filepath.Join(repo, candidateSidecar), b, 0600); e != nil {
+			t.Fatal(e)
+		}
+		run("add", ".")
+		run("commit", "-q", "-m", manifest.TargetMessage)
+		if got := run("rev-parse", "HEAD"); got != r.TargetRevision {
+			t.Fatalf("target %s != %s", got, r.TargetRevision)
+		}
+		repos[r.Name] = binding{repo, r.BaseRevision, r.TargetRevision, r.ContentRevision}
+	}
+	for _, c := range manifest.Cases {
+		t.Run(c.Name, func(t *testing.T) {
+			r := repos[c.Repository]
+			artifacts := t.TempDir()
+			artifactDirectory := c.ArtifactDirectory
+			if artifactDirectory == "" {
+				artifactDirectory = "artifacts"
+			}
+			if c.Target == "content" {
+				r.target = r.content
+			}
+			if e := os.Mkdir(filepath.Join(artifacts, artifactDirectory), 0700); e != nil {
+				t.Fatal(e)
+			}
+			for _, name := range []string{"runner-plan.json", "runner-receipt.json", "tasks-capture.json", "tasks-verification.json", "tasks-claimed-ticket.json"} {
+				p := "artifacts/" + name
+				if p == c.OmitArtifact {
+					continue
+				}
+				b, e := os.ReadFile(filepath.Join(packet, p))
+				if e != nil {
+					t.Fatal(e)
+				}
+				if p == c.ChangeArtifact {
+					b = append(b, ' ')
+				}
+				if e := os.WriteFile(filepath.Join(artifacts, artifactDirectory, name), b, 0600); e != nil {
+					t.Fatal(e)
+				}
+			}
+			cmd := exec.Command(exe, "verify-candidate", "--repository", r.repo, "--map", filepath.Join(packet, c.Map), "--expected-base", r.base, "--target", r.target, "--artifacts", artifacts)
+			out, e := cmd.Output()
+			status := 0
+			if e != nil {
+				if ee, ok := e.(*exec.ExitError); ok {
+					status = ee.ExitCode()
+				} else {
+					t.Fatal(e)
+				}
+			}
+			var got candidateResult
+			if e := json.Unmarshal(out, &got); e != nil {
+				t.Fatalf("output %s %v", out, e)
+			}
+			if status != c.Exit || got.Integrity != c.Integrity {
+				t.Fatalf("exit %d want %d: %s", status, c.Exit, out)
+			}
+			if got.ReferenceIntegrity != "REFERENCE_INTEGRITY_ONLY" || len(got.Limits) != 8 {
+				t.Fatalf("limits: %s", out)
+			}
+			for _, v := range got.Limits {
+				if v != "NOT_OBSERVED" {
+					t.Fatalf("assurance %s", out)
+				}
+			}
+		})
+	}
+}
+func TestCandidateStrictAdditiveBoundary(t *testing.T) {
+	packet, _, _ := candidatePacket(t)
+	raw, e := os.ReadFile(filepath.Join(packet, "maps/sha1-valid.json"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e := decodeMap(raw); e == nil {
+		t.Fatal("legacy accepted candidate")
+	}
+	m, shapeErr := decodeCandidate(raw)
+	if shapeErr != nil || m.Spec != candidateSpec {
+		t.Fatalf("candidate %v", shapeErr)
+	}
+	for _, mutation := range []struct{ name, old, new string }{{"fraction", "\"criterionIndex\": 0", "\"criterionIndex\": 0.0"}, {"exponent", "\"criterionIndex\": 0", "\"criterionIndex\": 0e0"}, {"casefold", "\"ticketId\":", "\"TicketId\":"}, {"null", "\"criterionIndex\": 0", "\"criterionIndex\": null"}, {"new-profile", candidateSpec, "cem/1.0-experimental.2"}} {
+		t.Run(mutation.name, func(t *testing.T) {
+			changed := bytes.Replace(raw, []byte(mutation.old), []byte(mutation.new), 1)
+			if bytes.Equal(raw, changed) {
+				t.Fatal("mutation missed")
+			}
+			if _, e := decodeCandidate(changed); e == nil {
+				t.Fatal("accepted mutation")
+			}
+		})
+	}
+	if candidateTokens([]byte(strings.Repeat("[", 65)+"0"+strings.Repeat("]", 65))) == nil {
+		t.Fatal("depth accepted")
+	}
+}
+func TestCandidateArtifactBounds(t *testing.T) {
+	dir := t.TempDir()
+	root, e := os.OpenRoot(dir)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer root.Close()
+	b := []byte("opaque failed native record")
+	if e := os.WriteFile(filepath.Join(dir, "record"), b, 0600); e != nil {
+		t.Fatal(e)
+	}
+	a := []candidateArtifact{{"runner-receipt", "record", shaHex(b)}}
+	if e := candidateArtifacts(context.Background(), root, a); e != nil {
+		t.Fatal(e)
+	}
+	if e := os.Symlink("record", filepath.Join(dir, "link")); e != nil {
+		t.Fatal(e)
+	}
+	a[0].Path = "link"
+	if candidateArtifacts(context.Background(), root, a) == nil {
+		t.Fatal("link accepted")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	a[0].Path = "record"
+	if candidateArtifacts(ctx, root, a) == nil {
+		t.Fatal("cancel accepted")
+	}
+	if e := os.WriteFile(filepath.Join(dir, "record"), []byte("changed"), 0600); e != nil {
+		t.Fatal(e)
+	}
+	if candidateArtifacts(context.Background(), root, a) == nil {
+		t.Fatal("changed artifact accepted")
+	}
+}
+
+func TestCandidateRejectsForgedLooseObject(t *testing.T) {
+	repo := t.TempDir()
+	gitRun(t, repo, "init", "-q")
+	path := filepath.Join(repo, "record")
+	if e := os.WriteFile(path, []byte("original"), 0600); e != nil {
+		t.Fatal(e)
+	}
+	oid := strings.TrimSpace(gitRun(t, repo, "hash-object", "-w", "record"))
+	v := &verifier{ctx: context.Background(), repo: repo}
+	if _, e := v.candidateObject("blob", oid, 1024); e != nil {
+		t.Fatal(e)
+	}
+	var encoded bytes.Buffer
+	writer := zlib.NewWriter(&encoded)
+	if _, e := writer.Write([]byte("blob 8\x00tampered")); e != nil {
+		t.Fatal(e)
+	}
+	if e := writer.Close(); e != nil {
+		t.Fatal(e)
+	}
+	object := filepath.Join(repo, ".git", "objects", oid[:2], oid[2:])
+	if e := os.Chmod(object, 0600); e != nil {
+		t.Fatal(e)
+	}
+	if e := os.WriteFile(object, encoded.Bytes(), 0600); e != nil {
+		t.Fatal(e)
+	}
+	if _, e := v.candidateObject("blob", oid, 1024); e == nil || e.code != "object-integrity" {
+		t.Fatalf("forged object: %v", e)
+	}
+}
+func TestCandidateRepositoryRefusesAmbientAuthority(t *testing.T) {
+	for _, kind := range []string{"alternates", "attributes", "shallow", "config-include"} {
+		t.Run(kind, func(t *testing.T) {
+			repo := t.TempDir()
+			gitRun(t, repo, "init", "-q")
+			if e := candidateRepository(repo); e != nil {
+				t.Fatal(e)
+			}
+			path := ""
+			switch kind {
+			case "alternates":
+				path = ".git/objects/info/alternates"
+			case "attributes":
+				path = ".git/info/attributes"
+			case "shallow":
+				path = ".git/shallow"
+			case "config-include":
+				f, e := os.OpenFile(filepath.Join(repo, ".git/config"), os.O_APPEND|os.O_WRONLY, 0600)
+				if e != nil {
+					t.Fatal(e)
+				}
+				_, e = f.WriteString("\n[include]\npath = /outside/config\n")
+				_ = f.Close()
+				if e != nil {
+					t.Fatal(e)
+				}
+			}
+			if path != "" {
+				if e := os.WriteFile(filepath.Join(repo, path), []byte("untrusted\n"), 0600); e != nil {
+					t.Fatal(e)
+				}
+			}
+			if candidateRepository(repo) == nil {
+				t.Fatal("ambient authority accepted")
+			}
+		})
+	}
+}
+
+func TestCandidateScalarKindsBeforeHashing(t *testing.T) {
+	packet, _, _ := candidatePacket(t)
+	raw, e := os.ReadFile(filepath.Join(packet, "maps/sha1-valid.json"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	var original any
+	if e := json.Unmarshal(raw, &original); e != nil {
+		t.Fatal(e)
+	}
+	// Discover every scalar position, including reference-array elements, rather
+	// than exercising only criterionIndex and leaving zero-value string coercions.
+	var paths [][]any
+	var collect func(any, []any)
+	collect = func(value any, path []any) {
+		switch v := value.(type) {
+		case map[string]any:
+			for key, child := range v {
+				collect(child, append(append([]any{}, path...), key))
+			}
+		case []any:
+			for i, child := range v {
+				collect(child, append(append([]any{}, path...), i))
+			}
+		default:
+			paths = append(paths, path)
+		}
+	}
+	collect(original, nil)
+	for _, path := range paths {
+		for _, replacement := range []any{nil, true, map[string]any{}, []any{}, float64(0), ""} {
+			var value any
+			_ = json.Unmarshal(raw, &value)
+			parent := value
+			for _, part := range path[:len(path)-1] {
+				switch key := part.(type) {
+				case string:
+					parent = parent.(map[string]any)[key]
+				case int:
+					parent = parent.([]any)[key]
+				}
+			}
+			var old any
+			switch key := path[len(path)-1].(type) {
+			case string:
+				old = parent.(map[string]any)[key]
+			case int:
+				old = parent.([]any)[key]
+			}
+			if fmt.Sprintf("%T", old) == fmt.Sprintf("%T", replacement) {
+				continue
+			}
+			switch key := path[len(path)-1].(type) {
+			case string:
+				parent.(map[string]any)[key] = replacement
+			case int:
+				parent.([]any)[key] = replacement
+			}
+			changed, _ := json.Marshal(value)
+			var root map[string]json.RawMessage
+			_ = json.Unmarshal(changed, &root)
+			if candidateScalarTypes(root) {
+				t.Fatalf("scalar kind admitted at %v replacement %T", path, replacement)
+			}
+			if _, e := decodeCandidate(changed); e == nil {
+				t.Fatalf("scalar decoded at %v replacement %T", path, replacement)
+			}
+		}
+	}
+	for _, token := range []string{"null", "true", "false", "\"0\"", "{}", "[]", "0.0", "0e0", "-0", "01", "9007199254740992"} {
+		if _, ok := candidateWireInteger(json.RawMessage(token)); ok {
+			t.Fatalf("integer %s admitted", token)
+		}
+	}
+	for _, token := range []string{"0", "255", "9007199254740991"} {
+		if _, ok := candidateWireInteger(json.RawMessage(token)); !ok {
+			t.Fatalf("valid canonical integer %s refused", token)
+		}
+	}
+	var root map[string]json.RawMessage
+	_ = json.Unmarshal(raw, &root)
+	var criteria []map[string]json.RawMessage
+	_ = json.Unmarshal(root["criterionBindings"], &criteria)
+	for key := range criteria[0] {
+		saved := criteria[0][key]
+		if key == "id" {
+			continue
+		}
+		for _, token := range []string{"null", "true", "{}", "[]"} {
+			criteria[0][key] = json.RawMessage(token)
+			if _, e := candidateCanonicalRecord(criteria[0]); e == nil {
+				t.Fatalf("canonicalization admitted %s:%s", key, token)
+			}
+		}
+		criteria[0][key] = saved
 	}
 }

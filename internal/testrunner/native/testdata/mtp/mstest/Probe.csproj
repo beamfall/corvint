@@ -1,0 +1,1 @@
+<Project Sdk="MSTest.Sdk/4.4.1"><PropertyGroup><TargetFramework>net10.0</TargetFramework><TestingExtensionsProfile>None</TestingExtensionsProfile><EnableMicrosoftTestingExtensionsTrxReport>true</EnableMicrosoftTestingExtensionsTrxReport></PropertyGroup></Project>

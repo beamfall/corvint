@@ -1,0 +1,6 @@
+skipif SQLite
+query I
+SELECT 1
+----
+2
+

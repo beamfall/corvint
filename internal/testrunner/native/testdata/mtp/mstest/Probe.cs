@@ -1,0 +1,1 @@
+using Microsoft.VisualStudio.TestTools.UnitTesting; namespace MtpProbe; [TestClass] public class Probe { [TestMethod] public void Pass() {Assert.AreEqual(1,1);} [TestMethod] public void Fail(){Assert.AreEqual(2,1,"MTP_ASSERTION");} [TestMethod,Ignore("MTP_SKIP")] public void Skip(){} }
