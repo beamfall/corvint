@@ -21,13 +21,20 @@ type rankedResult struct {
 }
 
 func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
-	result, _, err := impact(index, paths, limit)
+	result, _, err := impact(index, paths, limit, false)
+	return result, err
+}
+
+// ImpactSyntax adds the versioned non-Go syntax frontier. Impact retains the
+// immutable historical path receipt; this profile does not assert runtime closure.
+func ImpactSyntax(index *Index, paths []string, limit int) (map[string]any, error) {
+	result, _, err := impact(index, paths, limit, true)
 	return result, err
 }
 
 // impact compiles the path impact receipt and also returns its omitted-caller
 // disclosures, so EvalImpact can carry them through its budget compilation.
-func impact(index *Index, paths []string, limit int) (map[string]any, []string, error) {
+func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[string]any, []string, error) {
 	if limit < 1 || limit > maxLimit {
 		return nil, nil, &Error{Message: fmt.Sprintf("limit must be an integer from 1 to %d", maxLimit)}
 	}
@@ -77,6 +84,9 @@ func impact(index *Index, paths []string, limit int) (map[string]any, []string, 
 	}
 	if len(forbidden) != 0 {
 		result, err := receipt(index, "impact", map[string]any{"paths": cleaned, "limit": limit}, nil, limit, "OUT_OF_SCOPE")
+		if err == nil && syntaxFrontier {
+			err = attachNonGoImpactUnknowns(result, index, cleaned)
+		}
 		return result, nil, err
 	}
 
@@ -292,6 +302,9 @@ func impact(index *Index, paths []string, limit int) (map[string]any, []string, 
 	deduplicated = reserveCallerRows(deduplicated, callers, limit)
 	disclosures := omittedCallerDisclosures(deduplicated, goCallers, limit)
 	result, err := receipt(index, "impact", map[string]any{"paths": cleaned, "limit": limit}, deduplicated, limit, "", disclosures...)
+	if err == nil && syntaxFrontier {
+		err = attachNonGoImpactUnknowns(result, index, cleaned)
+	}
 	return result, disclosures, err
 }
 

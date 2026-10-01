@@ -40,20 +40,25 @@ membership and must retain whole-change authority, marker selection and result a
   numeric capacity, ambient opt-in, or unsupported-error fallback is permitted.
 - `ERI-V0-002`: The experimental profile MUST use the complete original base-to-captured-HEAD
   change set and the same global semantics as `GPK-V0-030`/`GPK-V0-051`: global copy/rename discovery,
-  exact path/status/mode/blob and Go hunk binding, whole-change authored authority withholding,
-  marker/ADR selection, evidence order and caps, deduplication, ranking, package/module verification,
-  and full non-Go omission accounting. Existing canonical change/hunk/omission digest preimages
+  exact path/status/mode/blob and admitted-language hunk binding, whole-change authored authority withholding,
+  marker/ADR selection, evidence order and caps, deduplication, ranking, Go-member package/module verification,
+  and full outside-profile omission accounting. The separately proposed
+  `non-go-impact-v0.md` extends both profiles with Ruby/JS/TS syntax evidence
+  and structured dynamic unknowns; it does not widen this capacity profile. Existing canonical change/hunk/omission digest preimages
   MUST remain unchanged. Coverage MUST count all admitted results before the output limit;
   `BUDGETED`, critical misses and uncertainty remain visible.
-- `ERI-V0-003`: Only this profile's path capacity changes. The cumulative 10,000-Go-hunk and
-  200,000-target-Go-line bounds and single 30-second range-compilation deadline MUST remain.
+- `ERI-V0-003`: Only this profile's path capacity changes. The cumulative 10,000-admitted-hunk and
+  200,000-target-line bounds and single 30-second range-compilation deadline MUST remain.
   Complete change-discovery and binary-numstat Git outputs each retain an 8 MiB bound; each
   changed-path hunk diff retains its 2,065,536-byte output bound. Per-source 1,000,000-byte and
   Git stderr 64 KiB bounds remain. These are distinct per-call byte bounds, not an aggregate
   8 MiB request allowance. Every existing unsupported member, malformed source, identity/status
   drift and exhausted bound MUST still fail explicitly, without partial success JSON.
 - `ERI-V0-004`: Without the new option, the existing range profile, its 100-path refusal, positional
-  impact, working-tree impact and `prove --base` MUST retain their receipt bytes and error behavior.
+  impact, working-tree impact and `prove --base` MUST retain their receipt bytes and refusal conditions/codes for unchanged Go-only inputs.
+  Module-versus-snapshot/base error priority follows the explicit proposed
+  `NGI-V0-004` validation-order limitation.
+  Ruby/JS/TS admission is separately governed by `NGI-V0-001` through `NGI-V0-006`.
   For an input accepted by both range profiles, experimental semantic bytes MUST equal default
   bytes after removing only the new profile/request discriminator and recomputing packet-byte
   accounting. The experimental selector is additive CLI/help surface, not a default cutover.
@@ -100,12 +105,13 @@ bounded enumeration does not close those critical misses or the non-Go semantic 
 Boundary evidence includes 0, 1, 100, 101, 140, 256 and 257 members; mixed 102-Go/38-non-Go
 coverage; SHA-1/SHA-256 semantic parity; same-change ADR/ledger withholding; unsupported members
 beyond the original cap; and snapshot drift. A test name here identifies evidence, not a passing
-run. Actual results, exclusions and independent review belong in `../BUILD-LOG.md`.
+run. Actual results, exclusions and independent review belong in new entries under `../build-log/`.
 
 ## Non-goals, rollout and rollback
 
-No default range widening, dynamic capacity, batching, new membership digests, broader language
-admission, reverse-import/test closure, accepted root, native FULL qualification or latency claim.
+No default capacity widening, dynamic capacity, batching, new membership digests,
+reverse-import/test closure, accepted root, native FULL qualification or latency claim.
+Ruby/JS/TS syntax admission is an independent proposed extension in `non-go-impact-v0.md`.
 The prototype coordinator uses the explicit experimental profile, while ordinary public `impact
 --base` remains default 100. Existing frozen enrollment plans and failed receipts are not rewritten.
 
