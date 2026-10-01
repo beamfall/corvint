@@ -278,7 +278,10 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   bytes 128 MiB, existing per-family record limits, 1,000,000 postings, 16 MiB unique key bytes and
   existing per-record/receipt bounds refuse overflow; malformed offsets or altered postings refuse.
   Per-path fanout is at most 100,000 references. Index ordering and identical producer inputs yield byte-identical outputs. A labelled synthetic
-  25,000-claim/5,000-symbol qualification retains counts, allocations, bytes and query parity;
+  25,000-claim/5,000-symbol qualification retains counts, allocations, bytes and query parity.
+  The ordinary open/query allocation ceiling is 1 GiB. Race-instrumented runs retain all functional
+  checks and report observed allocations with the ordinary allocation budget `NOT_RUN`;
+  instrumented allocation costs do not qualify that ordinary budget;
   no general external scale, production index promotion or DNIP benchmark-gate claim follows.
 - `DCP-V1-041`: A companion switch-over harness consumes bounded closed recorded questions and
   complete expected receipts. It reports per-tool agreement/refusal and stable missing/extra/changed

@@ -196,7 +196,9 @@ func TestIndexedCorpusCapacityQualification(t *testing.T) {
 			t.Fatal("shared indexed/native query parity")
 		}
 		runtime.ReadMemStats(&after)
-		if after.TotalAlloc-before.TotalAlloc > 1<<30 {
+		allocated := after.TotalAlloc - before.TotalAlloc
+		// Race instrumentation changes allocation costs; it still exercises every functional check.
+		if !raceEnabled && allocated > 1<<30 {
 			t.Fatal("synthetic open/query exceeded 1GiB allocation ceiling")
 		}
 		symbols := 0
@@ -208,6 +210,11 @@ func TestIndexedCorpusCapacityQualification(t *testing.T) {
 		if symbols < 5000 || len(native.Claims) < 25000 {
 			t.Fatal("qualification corpus too small")
 		}
+		measurementMode, ordinaryBudget := "ordinary", "PASS"
+		if raceEnabled {
+			measurementMode, ordinaryBudget = "race-instrumented", "NOT_RUN"
+		}
+		t.Logf("allocation_measurement=%s ordinary_allocation_budget=%s ordinary_allocation_ceiling_bytes=%d", measurementMode, ordinaryBudget, uint64(1<<30))
 		t.Logf("synthetic qualification claims=%d symbols=%d corpus_bytes=%d index_bytes=%d open_query_total_alloc=%d retained_heap=%d elapsed=%s external_utility=NOT_OBSERVED", len(native.Claims), symbols, len(corpus), len(raw), after.TotalAlloc-before.TotalAlloc, after.HeapAlloc, time.Since(started))
 	})
 }
