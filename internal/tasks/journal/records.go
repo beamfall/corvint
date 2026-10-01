@@ -615,6 +615,9 @@ func (r Reader) walkTail(o *observation, cp *Checkpoint, selected map[string]boo
 	if head.QueueID != r.QueueID || head.PrimaryWorktree != r.PrimaryWorktree || cp.QueueID != r.QueueID || cp.PrimaryWorktree != r.PrimaryWorktree || cp.InitSha256 != head.InitSha256 {
 		return result, errCheckpoint("/queueId", "identity differs from head")
 	}
+	if head.VersionSha256 != wire.Sum([]byte(snapshot.VersionBytes)) {
+		return result, errCheckpoint("head.json", "head version differs")
+	}
 	if from > headSeq || cp.Generation.Uint64() > head.Generation.Uint64() || len(cp.Entries) > lim.scan+intent.MaxIntentRootEntries+wire.MaxTicketsPerQueue+wire.MaxReleasesPerQueue {
 		return result, errCheckpoint("/seq", "checkpoint is not a prefix of head")
 	}
@@ -628,6 +631,9 @@ func (r Reader) walkTail(o *observation, cp *Checkpoint, selected map[string]boo
 	}
 	if wire.Sum(raw) != cp.ReceiptSha256 {
 		return result, errCheckpoint(name, "retained receipt differs")
+	}
+	if rc, err := snapshot.DecodeReceipt(raw); err != nil || rc.Seq.Uint64() != from || rc.HeadGeneration != cp.Generation {
+		return result, errCheckpoint(name, "retained receipt sequence/generation differs")
 	}
 	if from == headSeq && (*head.LastReceiptSha256 != cp.ReceiptSha256 || head.Generation != cp.Generation) {
 		return result, errCheckpoint("head.json", "head digest/generation differs")

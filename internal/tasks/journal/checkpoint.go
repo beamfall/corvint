@@ -57,7 +57,7 @@ func maxCheckpointEntries() int {
 // returns nil for every other observation: a checkpoint is never extended
 // from another checkpoint and never taken over a pending receipt.
 func (res *Result) Checkpoint() *Checkpoint {
-	if res == nil || res.chain == nil || res.Mode != ModeFull || res.Pending || res.Head == nil || res.StructuralConsistency != "CONSISTENT" || res.LastSeq != res.Head.LastSeq {
+	if res == nil || res.chain == nil || res.Mode != ModeFull || res.Pending || res.StagingPresent || res.Head == nil || res.StructuralConsistency != "CONSISTENT" || res.LastSeq != res.Head.LastSeq {
 		return nil
 	}
 	cp := &Checkpoint{QueueID: res.Head.QueueID, PrimaryWorktree: res.Head.PrimaryWorktree, Seq: res.LastSeq, ReceiptSha256: res.LastReceiptSha256, Generation: res.Head.Generation, InitSha256: res.Head.InitSha256, SemanticCoverage: res.SemanticCoverage}

@@ -750,16 +750,18 @@ how much of it a read must replay, never what a read may conclude.
   and never over a pending receipt. It carries no request, evidence or receipt bytes, is never
   posted by a receipt, and is never an input to authority, ranking or archive content.
   Deleting it costs the next read one complete audit and nothing else.
-- `CAL-V0-060`: Only a writer retains a checkpoint: after its complete settled audit, under the
-  writer's existing lock, by temporary file and rename, best-effort. A failure to retain it MUST
+- `CAL-V0-060`: Only a writer retains a checkpoint: after its complete settled audit, while it
+  holds the writer lock and the head is still the audited one, by one fixed temporary file and
+  rename, best-effort. Audits that read verbs share with writers MUST NOT retain one. A failure to retain it MUST
   NOT fail or change the transaction. Read commands MUST NOT create, replace or remove the
   checkpoint (product invariant 4). The retained checkpoint therefore names the head the writer
   observed before its own receipt, and a later read replays at least that receipt.
 - `CAL-V0-061`: A read command MUST perform at most one journal audit and derive every
   projection it prints from that one observation. Where a checkpoint is present, a read MAY
   resume from it: it MUST confirm the queue ID, primary worktree, init digest and generation
-  against the head; confirm that the checkpoint sequence does not exceed the head and that the
-  named receipt still hashes to the recorded digest; replay every receipt after it through the
+  and the head's version digest; confirm that the checkpoint sequence does not exceed the head
+  and that the named receipt still hashes to the recorded digest and carries the recorded
+  sequence and generation; replay every receipt after it through the
   head with the same per-receipt validators as the complete audit; and verify every non-request
   projection, staging emptiness and the intent tree against the resulting afterimages exactly as
   the complete audit does. The result reports `journalAudit` `CHECKPOINT_PLUS_TAIL` and
@@ -770,8 +772,13 @@ how much of it a read must replay, never what a read may conclude.
   verdict than no checkpoint. Every mutation, barrier removal, reconciliation, request lookup
   and `receipt audit` MUST keep the complete audit (`journalAudit` `FULL`).
 
-Detection limits of a checkpoint-resumed read, each of which the complete audit still covers on
-`receipt audit` and on every mutation: an altered receipt before the checkpoint sequence; a
+The checkpoint has the same local trust as the journal directory it sits beside and no more:
+its entries and semantic coverage are not re-derived from the receipts before its sequence. A
+party that rewrites a projection and the matching checkpoint entry together, or adds a stray
+intent file with a matching entry, is therefore not detected by a resumed read; the complete
+audit refuses it. Detection limits of a checkpoint-resumed read, each of which the complete
+audit still covers on `receipt audit` and on every mutation: a checkpoint and projection altered
+together as above; an altered receipt before the checkpoint sequence; a
 stray receipt beyond head+1; altered or stray files under `requests/` and `evidence/` that the
 replayed tail does not post; duplicate request IDs against the prefix; and stray files in
 directories the resumed read does not list. The inventory digest of a resumed read differs from
@@ -788,7 +795,8 @@ archive format changes, and older runtimes ignore the file.
 Measured on the live store at 1,829 receipts (macOS, Go 1.27.1, warm cache): `queue status`
 4.5–4.9 s before; 1.08–1.43 s with one complete audit; 0.24–0.25 s resumed from a checkpoint
 (journal audit about 83 ms). `plan preview` 1.18–1.20 s complete, 0.25 s resumed. The remaining
-cost is proportional to the intent tree, not to receipt history. See
+cost is proportional to the intent tree and the number of retained paths (including retained
+deletions), not to the number of receipts. See
 `docs/build-log/2026-10-01-tasks-read-checkpoint.md`.
 
 ## Amendments to TCP-00
@@ -894,7 +902,7 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
 | Dispatched worker loops without progress | Repeated launches spend host budget | Cooldown, then park and `needs-owner` after `parkAfter` runs (CAL-V0-057) |
 | Checkpoint absent, corrupt, oversized, foreign or ahead of the head | A read cannot resume | The read runs the complete audit and reports `FULL`; output is otherwise identical (CAL-V0-061) |
 | Checkpoint disagrees with a receipt, projection, staging or the intent tree | A resumed read would mis-state the store | The resumed path refuses internally and the complete audit decides the reported verdict (CAL-V0-061) |
-| Journal prefix altered behind a still-matching checkpoint | A resumed read does not see it | `receipt audit` and every mutation run the complete audit and refuse; the read's verdict says `CHECKPOINT_PLUS_TAIL`, not `CONSISTENT` (CAL-V0-061) |
+| Journal prefix, or a checkpoint entry together with its projection, altered behind a still-matching checkpoint | A resumed read does not see it | `receipt audit` and every mutation run the complete audit and refuse; the read's verdict says `CHECKPOINT_PLUS_TAIL`, not `CONSISTENT` (CAL-V0-061) |
 | Writer cannot retain the checkpoint (full disk, permissions, crash before rename) | Reads stay at complete-audit cost | The transaction is unaffected; the next successful writer retains one (CAL-V0-060) |
 
 ## Acceptance and rollback
@@ -965,7 +973,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-057 | `TestCALV0057_FingerprintIgnoresNonDurableAttempts`, `TestCALV0055_LaunchFinishBackoffAndPark` (`internal/tasks/dispatch`) |
 | CAL-V0-058 | Event assertions in `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0058_SummaryReadsHostFinalText` (`internal/tasks/dispatch`) and `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
 | CAL-V0-059 | `TestCALV0059_CheckpointCodecAndDerivation` (`internal/tasks/journal`) |
-| CAL-V0-060 | `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`) |
+| CAL-V0-060 | `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`), including `pending`, which shares the lease audit with writers |
 | CAL-V0-061 | `TestCALV0061_CheckpointTailEqualsFullAudit`, `TestCALV0061_CheckpointFallsBackToFullAudit`, `TestCALV0061_CheckpointScopeAndMovement`, `TestCALV0061_CheckpointLimitsStayWithFullAudit` (`internal/tasks/journal`); `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`); live-store measurement in `docs/build-log/2026-10-01-tasks-read-checkpoint.md` |
 | CAL-V0-013 | `TestCALV0013_RetryAsNextGenerationUpToThree` (`internal/tasks/store`) |
 | CAL-V0-014 | `TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan`, `TestCALV0014_SelectedOnlyPlanPreviewIsComplete` (`internal/tasks/cli`); `plan preview` in `TestTMV0008_AS07_ReadsLeaveStoreByteIdentical` (`internal/tasks/cli`) |

@@ -30,12 +30,24 @@ file); trusting the checkpoint without rebinding to the receipt digest and the p
 
 A resumed read does not detect an altered receipt before the checkpoint sequence, a stray receipt
 beyond head+1, altered or stray `requests/` and `evidence/` files the tail does not post, duplicate
-request IDs against the prefix, or stray files in directories it does not list.
+request IDs against the prefix, stray files in directories it does not list, or a projection
+rewritten together with its checkpoint entry.
 `TestCALV0061_CheckpointLimitsStayWithFullAudit` pins each limit and shows the complete audit
 refusing the same store. The inventory digest differs between the two modes.
 
 Writers are not accelerated, so the writer-contention half of the issue is reduced only by readers
 holding files for a fraction of the time. Checkpoint emission was measured only on this macOS host.
+
+## Independent review
+
+One independent source review found four defects, all repaired before binding: a read verb
+(`pending`, `program show`) reached the checkpoint writer through the shared lease audit; lease
+writers emitted outside the writer lock; the resumed read did not check the head version digest;
+and it did not bind the checkpoint generation to the named receipt. Emission moved into the locked
+commit path with one fixed temporary name. The review also showed that a checkpoint entry forged
+together with its projection passes a resumed read. That is now a stated limit rather than a
+repair, because re-deriving every entry from prefix receipts restores the cost this slice removes;
+the complete audit still refuses it.
 
 ## Evidence
 

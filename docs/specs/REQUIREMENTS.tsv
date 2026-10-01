@@ -331,8 +331,8 @@ CAL-V0-056	docs/specs/corvint-tasks-agent-leases-v0.md	680	Supervision MUST trac
 CAL-V0-057	docs/specs/corvint-tasks-agent-leases-v0.md	695	An ended worker made progress exactly when the key's durable fingerprint changed
 CAL-V0-058	docs/specs/corvint-tasks-agent-leases-v0.md	704	Every decision MUST append one `taskman-dispatch-event/0` line to `events.jsonl`
 CAL-V0-059	docs/specs/corvint-tasks-agent-leases-v0.md	741	The audit checkpoint is derived state with profile `taskman-audit-checkpoint/0`,
-CAL-V0-060	docs/specs/corvint-tasks-agent-leases-v0.md	753	Only a writer retains a checkpoint: after its complete settled audit, under the
-CAL-V0-061	docs/specs/corvint-tasks-agent-leases-v0.md	758	A read command MUST perform at most one journal audit and derive every
+CAL-V0-060	docs/specs/corvint-tasks-agent-leases-v0.md	753	Only a writer retains a checkpoint: after its complete settled audit, while it
+CAL-V0-061	docs/specs/corvint-tasks-agent-leases-v0.md	759	A read command MUST perform at most one journal audit and derive every
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla

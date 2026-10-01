@@ -43,7 +43,7 @@ func TestCALV0060_WritersRetainACheckpointReadsResumeFromIt(t *testing.T) {
 	if cp.QueueID != head.QueueID || cp.Seq.Uint64() < 1 || cp.Seq.Uint64() > head.LastSeq.Uint64() {
 		t.Fatalf("checkpoint seq %s for head %s", cp.Seq, head.LastSeq)
 	}
-	if entries, err := filepath.Glob(path + ".tmp-*"); err != nil || len(entries) != 0 {
+	if entries, err := filepath.Glob(path + ".tmp*"); err != nil || len(entries) != 0 {
 		t.Fatalf("checkpoint temporaries left behind: %v %v", entries, err)
 	}
 	info, err := os.Lstat(path)
@@ -51,7 +51,7 @@ func TestCALV0060_WritersRetainACheckpointReadsResumeFromIt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	reads := [][]string{{"queue", "status"}, {"plan", "preview"}, {"receipt", "audit"}}
+	reads := [][]string{{"queue", "status"}, {"plan", "preview"}, {"receipt", "audit"}, {"pending"}}
 	mode := func(x run) string {
 		if len(x.res.Items) == 0 || x.res.Items[0].Obj == nil {
 			return ""

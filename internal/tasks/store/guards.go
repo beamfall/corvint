@@ -98,26 +98,30 @@ func journalReader(repo *intent.Repository, head *snapshot.Head) journal.Reader 
 // retainCheckpoint records what a writer's complete settled audit just
 // established so reads can resume from it (CAL-V0-060). The file is derived
 // state outside the state directory: it is never an input to a mutation, and
-// a failed or lost write only costs the next read one complete audit.
+// a failed or lost write only costs the next read one complete audit. The
+// caller holds the writer lock, so one fixed temporary name cannot collide
+// and a temporary left by a crash is replaced by the next writer.
 func retainCheckpoint(repo *intent.Repository, proof *journal.Result) {
 	cp := proof.Checkpoint()
 	if cp == nil {
 		return
 	}
 	path := journal.CheckpointPath(repo.StateDir)
-	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".tmp-*")
+	tmp := path + ".tmp"
+	os.Remove(tmp)
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return
 	}
-	_, err = tmp.Write(cp.Encode())
-	if closeErr := tmp.Close(); err == nil {
+	_, err = f.Write(cp.Encode())
+	if closeErr := f.Close(); err == nil {
 		err = closeErr
 	}
 	if err == nil {
-		err = os.Rename(tmp.Name(), path)
+		err = os.Rename(tmp, path)
 	}
 	if err != nil {
-		os.Remove(tmp.Name())
+		os.Remove(tmp)
 	}
 }
 
