@@ -1,0 +1,1420 @@
+{
+  "baseRevision": "90161895cb0d1e7bd2464a712530b309b6b90be9",
+  "evidence": [
+    {
+      "blobOid": "b8dfe8a0fd06c64dd38822e0224ddba6d4ddfb2f",
+      "id": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+      "path": "docs/specs/documentation-corpus-v1.md",
+      "span": {
+        "end": 8861,
+        "start": 7134
+      },
+      "spanSha256": "4ef388aa3543052e923482417cd2a81f40e206f21136661ef4b5e4642b7e7c98"
+    },
+    {
+      "blobOid": "b8dfe8a0fd06c64dd38822e0224ddba6d4ddfb2f",
+      "id": "evidence:sha256:412621b454f4e5d42f3e1fd36d9ccdd6a931ef5bc4f0ca5605ea6c583d77455b",
+      "path": "docs/specs/documentation-corpus-v1.md",
+      "span": {
+        "end": 22885,
+        "start": 20444
+      },
+      "spanSha256": "c172c25238fcfb0136d10b2efee210d662d1eb151bb612ee03f62438b631d71a"
+    },
+    {
+      "blobOid": "b8dfe8a0fd06c64dd38822e0224ddba6d4ddfb2f",
+      "id": "evidence:sha256:a5dc55e65ce2e29a66cc7c191cd343c1173117d701cf9ba2fc6bc3007f14162d",
+      "path": "docs/specs/documentation-corpus-v1.md",
+      "span": {
+        "end": 2739,
+        "start": 2020
+      },
+      "spanSha256": "1665b55d1ac7e6bafb5095b1624bcb167f43b934ed7ef7462f0247c9013e6848"
+    },
+    {
+      "blobOid": "b8dfe8a0fd06c64dd38822e0224ddba6d4ddfb2f",
+      "id": "evidence:sha256:d39aa8860bc95942969455fc3d3453d7013ff67e03d63cbc7cfe7f1e48af8978",
+      "path": "docs/specs/documentation-corpus-v1.md",
+      "span": {
+        "end": 22885,
+        "start": 19399
+      },
+      "spanSha256": "e85a69e9b29fcee3823ee55ff233783c6518c0c29a867eafb5bff90b733a6115"
+    },
+    {
+      "blobOid": "b8dfe8a0fd06c64dd38822e0224ddba6d4ddfb2f",
+      "id": "evidence:sha256:2aab91c671eea691a09d5928396e60cb9e7d8f4cd69dd7ad208cfc2e9f5100a3",
+      "path": "docs/specs/documentation-corpus-v1.md",
+      "span": {
+        "end": 4707,
+        "start": 3410
+      },
+      "spanSha256": "d03cf9924993b4ba74768175749bd3b668a66c87fbb379ed0fbf70a321c58845"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:77109a723cfc1eca76b14aeb9378c6dfd27a1da1dd6f8b1ddf7d3c4e0a81c1f9",
+      "newRange": {
+        "count": 75,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "cmd/corvint-corpus-http/main.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5890bf4056bcdb96d7ebc56cfd684f8f4a0af5a4ae34ae3970b25d6cc68db1b0",
+      "newRange": {
+        "count": 170,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "cmd/corvint-corpus-http/main_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:339d3f3ad07d793e5ffb980963f1acaf8f63f88dfe89109972241578a69fad2c",
+      "newRange": {
+        "count": 9,
+        "start": 147
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 147
+      },
+      "path": "cmd/corvint-corpus-mcp/main.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3138bdf2e7f001d56dbee6f96124fdda82d451d76ca8061b39e8f97bf747de18",
+      "newRange": {
+        "count": 93,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "cmd/corvint-corpus-parity/main.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9b2aec299e79fbfdfbb4c5a608ea7dfc13d15ca6522db9c7c6cf8f913a53750d",
+      "newRange": {
+        "count": 9,
+        "start": 12
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 12
+      },
+      "path": "cmd/corvint/docs_corpus.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:75f60eb38e55795e15c88022460efc90082a3430e88b34bce254ee3c823f94c7",
+      "newRange": {
+        "count": 7,
+        "start": 35
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 35
+      },
+      "path": "cmd/corvint/docs_corpus.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6557fd55b15cb4c23bd56b990f21bc04800c039c8c6da203026fedd24432744a",
+      "newRange": {
+        "count": 13,
+        "start": 91
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 91
+      },
+      "path": "cmd/corvint/docs_corpus.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ee9a23f1c0d7b013dcc5c219ff11374883e84243628cd89d42493d7e4a6beb36",
+      "newRange": {
+        "count": 13,
+        "start": 113
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 110
+      },
+      "path": "cmd/corvint/docs_corpus.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0d2b171478da2607047a775e12af5f32dca5ce084b94d6133925df589d8a3d91",
+      "newRange": {
+        "count": 18,
+        "start": 252
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 242
+      },
+      "path": "cmd/corvint/docs_corpus.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:412621b454f4e5d42f3e1fd36d9ccdd6a931ef5bc4f0ca5605ea6c583d77455b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8375dfd8ced68b2aa3038a7d5b4252698cc676ba7e373cd6ee4ca1c8b33ad83b",
+      "newRange": {
+        "count": 246,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "cmd/corvint/docs_corpus_query_parity_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:412621b454f4e5d42f3e1fd36d9ccdd6a931ef5bc4f0ca5605ea6c583d77455b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9cb9fef560bcc4cc740b49800b3afe01120567a10e916652cd7ab78d67308339",
+      "newRange": {
+        "count": 7,
+        "start": 3
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 3
+      },
+      "path": "cmd/corvint/docs_corpus_v2_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:412621b454f4e5d42f3e1fd36d9ccdd6a931ef5bc4f0ca5605ea6c583d77455b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a6d59adcae0a35c56f3de045debc3e4399ec50d0fc7bf37fe9ffcce4a646fe02",
+      "newRange": {
+        "count": 24,
+        "start": 47
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 46
+      },
+      "path": "cmd/corvint/docs_corpus_v2_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a5dc55e65ce2e29a66cc7c191cd343c1173117d701cf9ba2fc6bc3007f14162d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d9f7b1efd36c1ea60c13e95e228980d427dae245c918fa3b2743ed51b00db92f",
+      "newRange": {
+        "count": 60,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-30-corpus-public-port.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a5dc55e65ce2e29a66cc7c191cd343c1173117d701cf9ba2fc6bc3007f14162d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b9103ed6ffe2d10623dcb82370d2163270ceab9be751762593530505dae3253a",
+      "newRange": {
+        "count": 67,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-01-corpus-final-integration.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a5dc55e65ce2e29a66cc7c191cd343c1173117d701cf9ba2fc6bc3007f14162d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:06fbf8f80aa677d7819495d8bcef401d368e3aaf8e23bd1a6b9734dcaff480e6",
+      "newRange": {
+        "count": 7,
+        "start": 24
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 24
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a5dc55e65ce2e29a66cc7c191cd343c1173117d701cf9ba2fc6bc3007f14162d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:06d4b0c24e7c647275de0a40c709dd00c5d959b3836e027f804e9264791f1ebe",
+      "newRange": {
+        "count": 7,
+        "start": 171
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 171
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a5dc55e65ce2e29a66cc7c191cd343c1173117d701cf9ba2fc6bc3007f14162d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6c820607bd4877708d991644af1d2208e2f4fcea66d62cc0262335965dd791a2",
+      "newRange": {
+        "count": 11,
+        "start": 852
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 852
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a5dc55e65ce2e29a66cc7c191cd343c1173117d701cf9ba2fc6bc3007f14162d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5e9f8677925f84910ae76f4f32b5680ef1752b1b0007faffa256badb90031581",
+      "newRange": {
+        "count": 7,
+        "start": 1058
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 1054
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a5dc55e65ce2e29a66cc7c191cd343c1173117d701cf9ba2fc6bc3007f14162d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7e881c149db1f924a399e6a93bd7e6befb2c69219b45fb2ed210c61ee0229a1e",
+      "newRange": {
+        "count": 7,
+        "start": 1075
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 1071
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a5dc55e65ce2e29a66cc7c191cd343c1173117d701cf9ba2fc6bc3007f14162d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:67c455270117e9f2e975465bfd0f664d4a39f459b9bf42f5ae7fea56d2b72a4e",
+      "newRange": {
+        "count": 7,
+        "start": 1093
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 1089
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a5dc55e65ce2e29a66cc7c191cd343c1173117d701cf9ba2fc6bc3007f14162d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e92099e9b585ca6c55a17024b555419c2b4b99ae666ab821e64e1d5526b67737",
+      "newRange": {
+        "count": 7,
+        "start": 1111
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 1107
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a5dc55e65ce2e29a66cc7c191cd343c1173117d701cf9ba2fc6bc3007f14162d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7942d1ac31067f6f8ebe517a500c810bba65c262d93b6506c328ab1b9b684bd4",
+      "newRange": {
+        "count": 7,
+        "start": 1129
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 1125
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a5dc55e65ce2e29a66cc7c191cd343c1173117d701cf9ba2fc6bc3007f14162d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e801ab5a92eb22f00a66625b4417e26080826d91d0cedf06aa819dc66c2407e0",
+      "newRange": {
+        "count": 7,
+        "start": 1954
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 1950
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a5dc55e65ce2e29a66cc7c191cd343c1173117d701cf9ba2fc6bc3007f14162d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:dae24a9843898ae60c7d38e7da349fd1e06ac7b82a1ce141a0459200901e54c8",
+      "newRange": {
+        "count": 7,
+        "start": 82
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 82
+      },
+      "path": "docs/specs/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a5dc55e65ce2e29a66cc7c191cd343c1173117d701cf9ba2fc6bc3007f14162d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4011b89bf98c7e405c9bca5225d1fb979d8f4326bc07209e9ccf13c0c3464f3d",
+      "newRange": {
+        "count": 11,
+        "start": 696
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 696
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a5dc55e65ce2e29a66cc7c191cd343c1173117d701cf9ba2fc6bc3007f14162d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ad8a466a32f8494b294b799df9ddc629c0b2044306f2ea18681e3cc3d593f591",
+      "newRange": {
+        "count": 7,
+        "start": 8
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 8
+      },
+      "path": "docs/specs/documentation-corpus-v1.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a5dc55e65ce2e29a66cc7c191cd343c1173117d701cf9ba2fc6bc3007f14162d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8a94b4c809d7d0952dfcbc89b978694a6846056b4e96ab4cfc6e8289bbe22272",
+      "newRange": {
+        "count": 7,
+        "start": 104
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 104
+      },
+      "path": "docs/specs/documentation-corpus-v1.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a5dc55e65ce2e29a66cc7c191cd343c1173117d701cf9ba2fc6bc3007f14162d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b6b8fc419ac199da69b8a9bbdc79d905d77ef2320732ada52691e5a6945d1512",
+      "newRange": {
+        "count": 52,
+        "start": 253
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 253
+      },
+      "path": "docs/specs/documentation-corpus-v1.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a5dc55e65ce2e29a66cc7c191cd343c1173117d701cf9ba2fc6bc3007f14162d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c305a28c393dc2fc4fba524c53582624c2179ff482bb1ea0736083ad13dd577d",
+      "newRange": {
+        "count": 7,
+        "start": 544
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 498
+      },
+      "path": "docs/specs/documentation-corpus-v1.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a5dc55e65ce2e29a66cc7c191cd343c1173117d701cf9ba2fc6bc3007f14162d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f5bd616169664b5273bae821c95471137f7335e6c83c0d3c5262d0327b72fdbc",
+      "newRange": {
+        "count": 27,
+        "start": 552
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 505
+      },
+      "path": "docs/specs/documentation-corpus-v1.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d39aa8860bc95942969455fc3d3453d7013ff67e03d63cbc7cfe7f1e48af8978",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c6ef796b397e6dda5dd768e2266a5f733da5a412a8db7f1db8a3412d543b72d2",
+      "newRange": {
+        "count": 141,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/corpusindex/index.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d39aa8860bc95942969455fc3d3453d7013ff67e03d63cbc7cfe7f1e48af8978",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:01f12d1ac04e308b1bfd6a79829a97cd49e4da6a1419db3f2141af39a1b231d4",
+      "newRange": {
+        "count": 505,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/corpusindex/index_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d39aa8860bc95942969455fc3d3453d7013ff67e03d63cbc7cfe7f1e48af8978",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0c003e0accb407e26a6e6c8c2dfcaf7541590ba5d4d29f99e0666f70ab59ab7f",
+      "newRange": {
+        "count": 241,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/corpusindex/parity.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4b69a0157cfbb3d9cf2c9521eb733f6a40b6f89a8cc9954c27b00321f0abf871",
+      "newRange": {
+        "count": 73,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/corpusserve/http.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7b869ee23cc49717efe4bdb5f31b5d38089b7af805131903ca33132f7f6456df",
+      "newRange": {
+        "count": 170,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/corpusserve/http_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9d9dc2c5b06b1a7ad3def233482f36a49f8ed5a23f327e2d24d3c1b054059c64",
+      "newRange": {
+        "count": 10,
+        "start": 4
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 4
+      },
+      "path": "internal/doccorpus/pagination.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ac783ca5f6d8b0b69c1d6e95e4af5d5c2d24595981ce3de4ab5f9d2e709a67ec",
+      "newRange": {
+        "count": 10,
+        "start": 23
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 19
+      },
+      "path": "internal/doccorpus/pagination.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:221740f85fc33bb944039c30a06465ca5d13d3d8233f79919ecafd0037d16dda",
+      "newRange": {
+        "count": 10,
+        "start": 59
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 51
+      },
+      "path": "internal/doccorpus/pagination.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cef6b3dcc02aca2351fd6b403e29dd8339022487d5e387469a5246f271444ba6",
+      "newRange": {
+        "count": 10,
+        "start": 78
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 66
+      },
+      "path": "internal/doccorpus/pagination.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:59bce16c923c255df282af20b3a0f6ea1a09b9233e8e8000316a6bfcedabf70a",
+      "newRange": {
+        "count": 7,
+        "start": 107
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 91
+      },
+      "path": "internal/doccorpus/pagination.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b1d6aa8bf7305153b2fb9a6130de97b91552fef393daee15cc6275026a4cb6cb",
+      "newRange": {
+        "count": 9,
+        "start": 95
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 95
+      },
+      "path": "internal/doccorpus/query.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8930281cb6b83adf184ff1058bc3ad1c0ec00acc5ed61b74770009f9f5ac48cf",
+      "newRange": {
+        "count": 17,
+        "start": 122
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 119
+      },
+      "path": "internal/doccorpus/query.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f631097fbaae0202cc96b05ebb30129f766fa199faa150506447253a33ef2861",
+      "newRange": {
+        "count": 7,
+        "start": 146
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 132
+      },
+      "path": "internal/doccorpus/query.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ecf381b37f292cee694bfa3db971065021c0d3bc2f234c8e600d327a667e78bf",
+      "newRange": {
+        "count": 7,
+        "start": 158
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 144
+      },
+      "path": "internal/doccorpus/query.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6f74fe64fa00f648eb690cc9105f6ae0e9dff55f0c636686772ebfde3b6bb4e7",
+      "newRange": {
+        "count": 20,
+        "start": 188
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 173
+      },
+      "path": "internal/doccorpus/query.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f6eae5efeba61d1765c2b592550ece34ad7744011efa01c32d78e085ecb8f452",
+      "newRange": {
+        "count": 40,
+        "start": 229
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 204
+      },
+      "path": "internal/doccorpus/query.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0aeef1e23b08b4b84e327be09635e2b9251313632628e1776195221f444b1c16",
+      "newRange": {
+        "count": 9,
+        "start": 272
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 218
+      },
+      "path": "internal/doccorpus/query.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:bee2d1357dc3facefcd13cc9d9cb7025cf4465496e648465d308937d722d9638",
+      "newRange": {
+        "count": 7,
+        "start": 323
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 266
+      },
+      "path": "internal/doccorpus/query.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4236f399aef773f9fad60d420f5dec63bb26c3a18dfd23fbb78a7ecd3ae599fd",
+      "newRange": {
+        "count": 32,
+        "start": 339
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 281
+      },
+      "path": "internal/doccorpus/query.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d1299a622320958e5a28f12dbe574d319a30340bb3989eb1cf1611a3f524120d",
+      "newRange": {
+        "count": 41,
+        "start": 416
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 332
+      },
+      "path": "internal/doccorpus/query.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:74e7828609daa27f49d9d8d494ab1e50629fb9b8b1ce011b2384ce702e106c4a",
+      "newRange": {
+        "count": 15,
+        "start": 458
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 341
+      },
+      "path": "internal/doccorpus/query.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8f17f93cd344038b201efc21e36f72443a4aad9551697048c178cd28784d2896",
+      "newRange": {
+        "count": 7,
+        "start": 493
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 370
+      },
+      "path": "internal/doccorpus/query.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:eff98663a8a02195b5e454eb6dfc28152a48a823fc0ed2aa3c6eefc6a01d326c",
+      "newRange": {
+        "count": 7,
+        "start": 505
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 381
+      },
+      "path": "internal/doccorpus/query.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d39aa8860bc95942969455fc3d3453d7013ff67e03d63cbc7cfe7f1e48af8978",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4574afd8f811547fa1ff993971465af6226cf30ddcc1e3ae5bc905f16d0ea495",
+      "newRange": {
+        "count": 168,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/doccorpus/query_index.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d39aa8860bc95942969455fc3d3453d7013ff67e03d63cbc7cfe7f1e48af8978",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b2537a0732f870e05b6b87cf6ddb6a144225bee71995b07e59412931f602f96d",
+      "newRange": {
+        "count": 90,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/doccorpus/query_index_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:2aab91c671eea691a09d5928396e60cb9e7d8f4cd69dd7ad208cfc2e9f5100a3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cc56ee84675c8b51437a711cb08da45fa661370539b7ff9746dbad36f5537ce4",
+      "newRange": {
+        "count": 116,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/doccorpus/trust.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:412621b454f4e5d42f3e1fd36d9ccdd6a931ef5bc4f0ca5605ea6c583d77455b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2aeb0626dc7522e0910e3dc6a51407ef695ddf092d2d73261b4564089ec20421",
+      "newRange": {
+        "count": 347,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/doccorpus/typed_query.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:412621b454f4e5d42f3e1fd36d9ccdd6a931ef5bc4f0ca5605ea6c583d77455b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3c5a885588b270803c4fe51c8c4ad3bbae0ab4ec635f2aa430ff2909fd03d221",
+      "newRange": {
+        "count": 265,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/doccorpus/typed_query_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:044526813716ce95f94c837765a0804b1dae0fa7dbf8d3a44cb53beca840db4f",
+      "newRange": {
+        "count": 7,
+        "start": 8
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 8
+      },
+      "path": "internal/doccorpus/types.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:27240cb504aecc84378ffc245f58b5b96e61803ae610344d89f336b1760daed0",
+      "newRange": {
+        "count": 8,
+        "start": 192
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 192
+      },
+      "path": "internal/doccorpus/types.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1e93807176dedf0c128bdb95adc0efaaae8251775255d27e5d14789dfa2aee85",
+      "newRange": {
+        "count": 18,
+        "start": 215
+      },
+      "oldRange": {
+        "count": 14,
+        "start": 213
+      },
+      "path": "internal/doccorpus/types.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:fb5b30465329e4054253d08851525bc4c0162d436cf4ae8702b2845b5b2079fb",
+      "newRange": {
+        "count": 7,
+        "start": 25
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 25
+      },
+      "path": "internal/mcp/corpusbridge/corpusbridge.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:25d9408db87e09538c9843d91811bbc057c5ecc8d4624377d2ff3fea5755da2a",
+      "newRange": {
+        "count": 17,
+        "start": 56
+      },
+      "oldRange": {
+        "count": 16,
+        "start": 56
+      },
+      "path": "internal/mcp/corpusbridge/corpusbridge.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:101e1210eeba9f0135383b69d9da0a96296f3f44d5bc1a0f9ff6a00aa3768005",
+      "newRange": {
+        "count": 12,
+        "start": 87
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 86
+      },
+      "path": "internal/mcp/corpusbridge/corpusbridge.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cbc1d2b5e7eb6cbbb92fe4d9b4af320690fa0074d0d473ccc9b158f269bd6cb3",
+      "newRange": {
+        "count": 7,
+        "start": 102
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 100
+      },
+      "path": "internal/mcp/corpusbridge/corpusbridge.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4e9318e893ec2075f7d5617636e63dfbd143881acfd26748def276deb2dd7e42",
+      "newRange": {
+        "count": 11,
+        "start": 117
+      },
+      "oldRange": {
+        "count": 13,
+        "start": 115
+      },
+      "path": "internal/mcp/corpusbridge/corpusbridge.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:739dc82bf26a83707fa9649eb929efcf2778631b69d67604481d2e561b5152f8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f9605e574d3306fe0c947131ccce458d96a50834438764f10eadebc87d2da76f",
+      "newRange": {
+        "count": 7,
+        "start": 135
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 135
+      },
+      "path": "internal/mcp/corpusbridge/corpusbridge.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:412621b454f4e5d42f3e1fd36d9ccdd6a931ef5bc4f0ca5605ea6c583d77455b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ee66ef59f5c4e3766c461a80354ff16ef00de16ababdef76e73db1eadc801239",
+      "newRange": {
+        "count": 37,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/mcp/corpusbridge/parity_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "b904a802564e642d0698b1b549e892670619753a6aeb80ef8cdbcbd17c9aeefb",
+  "spec": "cem/0.2"
+}

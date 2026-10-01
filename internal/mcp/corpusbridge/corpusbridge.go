@@ -25,7 +25,7 @@ type Registry struct {
 	artifact           *doccorpus.Artifact
 }
 
-var tools = map[string]string{"corvint.docs_inventory": "inventory", "corvint.docs_info": "info", "corvint.docs_search": "search", "corvint.docs_get": "get", "corvint.docs_locate": "locate", "corvint.docs_find_related": "related", "corvint.docs_coverage": "coverage", "corvint.docs_gaps": "gaps", "corvint.docs_get_journey": "journey", "corvint.docs_get_stability": "stability", "corvint.docs_trace": "trace"}
+var tools = map[string]string{"corvint.docs_inventory": "inventory", "corvint.docs_info": "info", "corvint.docs_validate": "validate", "corvint.docs_concept": "concept", "corvint.docs_claims": "claims", "corvint.docs_flow": "flow", "corvint.docs_dependencies": "dependencies", "corvint.docs_recommend_tests": "recommend-tests", "corvint.docs_navigation": "navigation", "corvint.docs_vocabulary": "vocabulary", "corvint.docs_intent": "intent", "corvint.docs_search": "search", "corvint.docs_get": "get", "corvint.docs_locate": "locate", "corvint.docs_find_related": "related", "corvint.docs_coverage": "coverage", "corvint.docs_gaps": "gaps", "corvint.docs_get_journey": "journey", "corvint.docs_get_stability": "stability", "corvint.docs_trace": "trace"}
 
 func New(root, path string) (*Registry, *Error) {
 	absolute, err := filepath.Abs(root)
@@ -56,16 +56,17 @@ func (r *Registry) Tools() []bridge.ToolDescriptor {
 		if r.artifact.Schema == doccorpus.SchemaV2 {
 			properties["offset"] = map[string]any{"type": "integer", "minimum": 0, "maximum": doccorpus.MaxCorpusRecords * 4}
 		}
+		properties["retirement"] = doccorpus.RetirementInputSchema()
 		required := []any{}
-		if op == "search" {
+		if doccorpus.OperationInput(op) == "query" {
 			properties["query"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}
 			required = append(required, "query")
 		}
-		if op == "get" || op == "related" || op == "journey" || op == "stability" || op == "trace" {
+		if doccorpus.OperationInput(op) == "id" {
 			properties["id"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}
 			required = append(required, "id")
 		}
-		if op == "locate" {
+		if doccorpus.OperationInput(op) == "path" {
 			properties["path"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}
 			required = append(required, "path")
 		}
@@ -86,11 +87,12 @@ func (r *Registry) Call(ctx context.Context, name string, arguments []byte) (map
 		return nil, "", nil, &Error{"cancelled"}
 	}
 	var input struct {
-		Query  string `json:"query"`
-		ID     string `json:"id"`
-		Path   string `json:"path"`
-		Limit  *int   `json:"limit"`
-		Offset int    `json:"offset"`
+		Retirement *doccorpus.RetirementPolicy `json:"retirement,omitempty"`
+		Query      string                      `json:"query"`
+		ID         string                      `json:"id"`
+		Path       string                      `json:"path"`
+		Limit      *int                        `json:"limit"`
+		Offset     int                         `json:"offset"`
 	}
 	if len(arguments) > 16<<10 || json.Unmarshal(arguments, &input, json.RejectUnknownMembers(true)) != nil {
 		return nil, "", nil, &Error{"invalid-arguments"}
@@ -100,7 +102,7 @@ func (r *Registry) Call(ctx context.Context, name string, arguments []byte) (map
 		return nil, "", nil, &Error{"invalid-arguments"}
 	}
 	for key, value := range members {
-		allowed := key == "offset" && r.artifact.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && op == "search" || key == "path" && op == "locate" || key == "id" && (op == "get" || op == "trace" || op == "related" || op == "journey" || op == "stability" || op == "gaps")
+		allowed := key == "retirement" || key == "offset" && r.artifact.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && doccorpus.OperationInput(op) == "query" || key == "path" && doccorpus.OperationInput(op) == "path" || key == "id" && (doccorpus.OperationInput(op) == "id" || op == "gaps")
 		if !allowed || value == nil {
 			return nil, "", nil, &Error{"invalid-arguments"}
 		}
@@ -115,13 +117,11 @@ func (r *Registry) Call(ctx context.Context, name string, arguments []byte) (map
 			return nil, "", nil, &Error{"invalid-arguments"}
 		}
 	}
-	if op != "get" && op != "related" && op != "journey" && op != "stability" && op != "trace" && op != "gaps" && input.ID != "" {
+	kind := doccorpus.OperationInput(op)
+	if kind == "query" && input.Query == "" || kind == "path" && input.Path == "" || kind == "id" && input.ID == "" {
 		return nil, "", nil, &Error{"invalid-arguments"}
 	}
-	if op == "search" && input.Query == "" || op == "locate" && input.Path == "" || (op == "get" || op == "related" || op == "journey" || op == "stability" || op == "trace") && input.ID == "" {
-		return nil, "", nil, &Error{"invalid-arguments"}
-	}
-	if op != "search" && input.Query != "" || op != "locate" && input.Path != "" {
+	if kind != "query" && input.Query != "" || kind != "path" && input.Path != "" || kind != "id" && op != "gaps" && input.ID != "" {
 		return nil, "", nil, &Error{"invalid-arguments"}
 	}
 	identity, err := os.Lstat(r.root)
@@ -135,7 +135,7 @@ func (r *Registry) Call(ctx context.Context, name string, arguments []byte) (map
 	if doccorpus.Digest(raw) != r.digest {
 		return nil, "", &ToolFailure{"corpus-refused", "configured artifact changed; restart with the new artifact"}, nil
 	}
-	receipt, err := doccorpus.ReadQuery(ctx, r.root, raw, doccorpus.Request{Operation: op, Query: input.Query, ID: input.ID, Path: input.Path, Limit: limit, Offset: input.Offset})
+	receipt, err := doccorpus.ReadQuery(ctx, r.root, raw, doccorpus.Request{Operation: op, Retirement: input.Retirement, Query: input.Query, ID: input.ID, Path: input.Path, Limit: limit, Offset: input.Offset})
 	if err != nil {
 		return failure(err)
 	}

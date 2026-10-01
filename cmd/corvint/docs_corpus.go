@@ -12,9 +12,9 @@ import (
 )
 
 type corpusOptions struct {
-	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, cem string
-	apply                                                                                                 bool
-	limit, offset                                                                                         int
+	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, cem, retirement string
+	apply                                                                                                             bool
+	limit, offset                                                                                                     int
 }
 
 func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
@@ -35,7 +35,7 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 		return o, true, argumentError("docs corpus requires an operation")
 	}
 	o.op = args[pos+2]
-	flags := map[string]*string{"--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem}
+	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem}
 	seen := map[string]bool{}
 	for i := pos + 3; i < len(args); i++ {
 		flag, value, inline := strings.Cut(args[i], "=")
@@ -91,10 +91,13 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 		"get": "--artifact --id --limit", "trace": "--artifact --id --limit", "related": "--artifact --id --limit",
 		"journey": "--artifact --id --limit", "stability": "--artifact --id --limit", "locate": "--artifact --path --limit", "coverage": "--artifact --limit", "gaps": "--artifact --id --limit",
 	}
+	for _, op := range []string{"concept", "claims", "flow", "dependencies", "recommend-tests", "navigation", "vocabulary", "intent"} {
+		allowed[op] = "--artifact --limit --" + doccorpus.OperationInput(op)
+	}
 	allowed["inventory"] = "--artifact --limit --offset"
 	valid, ok := allowed[o.op]
 	if strings.Contains(valid, "--limit") {
-		valid += " --offset"
+		valid += " --offset --retirement"
 	}
 	if !ok {
 		return o, true, argumentError("unsupported corpus operation")
@@ -109,6 +112,13 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 		"behavior-adapter":  {o.input},
 		"behavior-provider": {o.input},
 		"search":            {o.artifact, o.query}, "locate": {o.artifact, o.path}, "get": {o.artifact, o.id}, "trace": {o.artifact, o.id}, "related": {o.artifact, o.id}, "journey": {o.artifact, o.id}, "stability": {o.artifact, o.id},
+	}
+	if kind := doccorpus.OperationInput(o.op); kind == "query" {
+		required[o.op] = []string{o.artifact, o.query}
+	} else if kind == "id" {
+		required[o.op] = []string{o.artifact, o.id}
+	} else if kind == "path" {
+		required[o.op] = []string{o.artifact, o.path}
 	}
 	values, ok := required[o.op]
 	if !ok {
@@ -242,7 +252,18 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	receipt, err := doccorpus.Query(a, doccorpus.Request{Operation: o.op, Query: o.query, ID: o.id, Path: o.path, Limit: o.limit, Offset: o.offset}, fresh, limits)
+	var retirement *doccorpus.RetirementPolicy
+	if o.retirement != "" {
+		raw, e := doccorpus.ReadFile(o.root, o.retirement)
+		if e != nil {
+			return nil, e
+		}
+		retirement, e = doccorpus.ParseRetirement(raw)
+		if e != nil {
+			return nil, e
+		}
+	}
+	receipt, err := doccorpus.QueryContext(ctx, a, doccorpus.Request{Operation: o.op, Retirement: retirement, Query: o.query, ID: o.id, Path: o.path, Limit: o.limit, Offset: o.offset}, fresh, limits)
 	if err != nil {
 		return nil, err
 	}

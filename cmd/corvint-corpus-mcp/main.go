@@ -147,8 +147,9 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 // refusal from the native docs compiler must never be reported as success.
 func toolFailureResult(name, code, message string) (map[string]any, *protocol.RPCError) {
 	value := map[string]any{
-		"abstention": map[string]any{"active": true, "reason": "OPERATION_FAILED"},
-		"code":       code, "error": message, "mutates": false, "profile": toolError, "tool": name,
+		"trust_envelope": map[string]any{"content_status": "unknown", "source_revision": "unknown", "corpus_revision": "unknown", "freshness": "unknown", "retirement": "unknown", "citations": []any{}, "limitations": []string{"operation failed; no evidence answer"}},
+		"abstention":     map[string]any{"active": true, "reason": "OPERATION_FAILED"},
+		"code":           code, "error": message, "mutates": false, "profile": toolError, "tool": name,
 	}
 	raw, err := json.Marshal(value)
 	if err != nil {
