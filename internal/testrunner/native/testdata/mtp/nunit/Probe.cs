@@ -1,0 +1,1 @@
+using NUnit.Framework; namespace MtpProbe; public class Probe { [Test] public void Pass() {Assert.That(1,Is.EqualTo(1));} [Test] public void Fail(){Assert.That(1,Is.EqualTo(2),"MTP_ASSERTION");} [Test,Ignore("MTP_SKIP")] public void Skip(){} }

@@ -113,6 +113,11 @@ func Canonical(ctx context.Context, repository *gitauth.Repository, document *wi
 	if !wire.Canonical(document.Spec) {
 		return nil, false, cemcode.New(cemcode.UnsupportedSpec, "canonical verification accepts cem/0.2 or cem/0.3 only")
 	}
+	return canonicalChange(ctx, repository, document, options)
+}
+
+// canonicalChange contains shared Git/evidence mechanics, not profile admission.
+func canonicalChange(ctx context.Context, repository *gitauth.Repository, document *wire.Map, options CanonicalOptions) (*Outcome, bool, error) {
 	if options.ExpectedBase == "" {
 		return nil, false, cemcode.New(cemcode.ExpectedBaseRequired, "canonical verification requires an independent expected base")
 	}
