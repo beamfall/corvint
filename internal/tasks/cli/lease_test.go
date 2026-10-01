@@ -71,6 +71,11 @@ func TestCALV0011_CLIReapReportsActualChildTransactions(t *testing.T) {
 
 func expiredCLIStore(t *testing.T, count int) (string, []*store.Report) {
 	t.Helper()
+	return leaseCLIStore(t, count, time.Now().UTC().Add(-20*time.Minute).Truncate(time.Second))
+}
+
+func leaseCLIStore(t *testing.T, count int, baseTime time.Time) (string, []*store.Report) {
+	t.Helper()
 	r := fixture.TempRepo(t)
 	policy := fixture.PolicyValue()
 	budgets, _ := policy.Obj.Get("budgets")
@@ -79,7 +84,6 @@ func expiredCLIStore(t *testing.T, count int) (string, []*store.Report) {
 	policy.Obj.Set("capacity", wire.ObjectValue(capacity))
 	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
 	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), wire.EncodeFile(policy))
-	baseTime := time.Now().UTC().Add(-20 * time.Minute).Truncate(time.Second)
 	repo, err := intent.Resolve(r.Root)
 	if err != nil {
 		t.Fatal(err)
