@@ -1,6 +1,6 @@
 # Tasks continuous dispatcher
 
-Owner request [431](https://github.com/beamfall/corvint/issues/431) adds S11 / CAL-V0-048..054:
+Owner request [431](https://github.com/beamfall/corvint/issues/431) adds S11 / CAL-V0-052..058:
 `corvint-tasks dispatch`, a foreground deterministic roster over native queue state that launches
 independent host workers, supervises their whole process trees, and heals through the existing
 fenced lease transactions. New package `internal/tasks/dispatch`; CLI in
@@ -48,7 +48,7 @@ and the CLI integration test, which re-executes the test binary as a worker that
 `cli.Run`.
 
 Independent review (one reviewer, no blockers) found three major and nine minor issues. All majors
-and most minors were fixed before landing; `TestCALV0052_IdentityOutageAndUnknownState` covers them.
+and most minors were fixed before landing; `TestCALV0056_IdentityOutageAndUnknownState` covers them.
 
 - Worker IDs could collide across dashed program and role names, and repeat after a crash or a
   deleted state directory, so heal could release another worker's attempt. They are now
@@ -72,3 +72,7 @@ and most minors were fixed before landing; `TestCALV0052_IdentityOutageAndUnknow
   - Session expansion re-checks the leader identity live.
 - Reap scope is documented rather than narrowed: an expired lease is reapable by any operator, so
   the dispatcher reaps any expired lease not held by one of its live workers.
+
+Renumbering (2026-10-01): PR 432 landed CAL-V0-048..051 on main first, so the dispatcher's
+requirements moved from CAL-V0-048..054 to CAL-V0-052..058, and their tests were renamed to match.
+The behaviour is unchanged. The first sealed CEM still cites the old IDs.

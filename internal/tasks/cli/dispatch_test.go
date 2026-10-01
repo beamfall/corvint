@@ -36,11 +36,11 @@ func TestDispatchHelperCLI(t *testing.T) {
 	os.Exit(cli.Run(cli.Env{Cwd: cwd, Args: args, Stdin: bytes.NewReader(nil), Stdout: os.Stdout, Stderr: os.Stderr}))
 }
 
-// CAL-V0-048..054: one real dispatcher tick launches a worker that claims
+// CAL-V0-052..058: one real dispatcher tick launches a worker that claims
 // its pinned ticket through the CLI; the next tick sees the worker ended
 // with a live attempt, hands it off with evidence, accounts a no-progress
 // run, and cools the ticket down. Status reads never touch the store.
-func TestCALV0048_DispatchCLIClaimHandoffAndStatus(t *testing.T) {
+func TestCALV0052_DispatchCLIClaimHandoffAndStatus(t *testing.T) {
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	id := planTicket(t, root, "dispatch", "P1", `["src/"]`)
 	repo, err := intent.Resolve(root)

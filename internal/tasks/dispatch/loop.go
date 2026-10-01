@@ -168,7 +168,7 @@ func (d *Dispatcher) Run(ctx context.Context, ticks int) error {
 	return last
 }
 
-// Tick is one CAL-V0-049..054 pass: observe, supervise, heal, re-observe,
+// Tick is one CAL-V0-053..058 pass: observe, supervise, heal, re-observe,
 // account for finished workers, launch the roster, and emit changes. Idle,
 // wall and orphan enforcement runs even when the store is unreadable; ended
 // workers then stay recorded and are accounted on the next readable tick.

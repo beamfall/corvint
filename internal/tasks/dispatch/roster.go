@@ -82,7 +82,7 @@ func liveAttempts(obs *Observation) map[string]Attempt {
 	return out
 }
 
-// Roster is the CAL-V0-050 pure roster: the same configuration,
+// Roster is the CAL-V0-054 pure roster: the same configuration,
 // observation, running set and skip set always produce the same assignments.
 func Roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool) []Assignment {
 	type candidate struct {
@@ -219,7 +219,7 @@ func matches(m *Match, t Ticket) bool {
 // durablePhases are attempt phases that record work beyond an empty claim.
 var durablePhases = map[string]bool{"BUILT": true, "CHECKING": true, "REVIEWING": true, "REPAIRING": true, "READY_FOR_INTEGRATION": true, "COMPLETED": true}
 
-// Fingerprint is the CAL-V0-053 progress identity of one work key: ticket
+// Fingerprint is the CAL-V0-057 progress identity of one work key: ticket
 // status, revision and work state plus every attempt that carries durable
 // work. An empty claim followed by a handoff leaves it unchanged.
 func Fingerprint(obs *Observation, key string) string {

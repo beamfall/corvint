@@ -23,7 +23,7 @@ import (
 )
 
 // dispatchCommand routes `dispatch`, `dispatch status` and `dispatch unpark`
-// (CAL-V0-048).
+// (CAL-V0-052).
 func dispatchCommand(env Env, args []string) *wire.Result {
 	if len(args) > 0 && (args[0] == "status" || args[0] == "unpark") {
 		return dispatchAux(env, args[0], args[1:])

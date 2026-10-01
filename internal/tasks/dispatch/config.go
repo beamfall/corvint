@@ -1,4 +1,4 @@
-// Package dispatch is the CAL-V0-048..054 continuous dispatcher: a
+// Package dispatch is the CAL-V0-052..058 continuous dispatcher: a
 // deterministic roster over native queue state that launches, supervises and
 // heals independent host worker processes. It owns only its own state
 // directory; every queue change goes through the existing lease transactions.

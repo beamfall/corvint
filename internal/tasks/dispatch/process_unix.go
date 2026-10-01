@@ -114,7 +114,7 @@ func launch(argv, env []string, dir, logDir string) (int, string, <-chan int, er
 	return pid, id, exit, nil
 }
 
-// refreshTree recomputes a worker's process tree (CAL-V0-052): recorded
+// refreshTree recomputes a worker's process tree (CAL-V0-056): recorded
 // members whose start identity still matches, then, to a fixed point, their
 // children, members of their process groups, and processes in the leader's
 // session. Session expansion is disabled once the session ID names a

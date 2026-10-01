@@ -53,7 +53,7 @@ func ticket(local, prio string, order uint64, labels ...string) Ticket {
 	return Ticket{ID: "ticket:a:q:" + local, Local: local, Status: "OPEN", Priority: prio, Kind: "TASK", Revision: "1", Order: order, Labels: labels, State: StateNone}
 }
 
-func TestCALV0048_DecodeConfigIsClosedAndBounded(t *testing.T) {
+func TestCALV0052_DecodeConfigIsClosedAndBounded(t *testing.T) {
 	c := testConfig(t, "exit 0")
 	raw, _ := json.Marshal(c)
 	if _, err := DecodeConfig(raw); err != nil {
@@ -88,14 +88,14 @@ func TestCALV0048_DecodeConfigIsClosedAndBounded(t *testing.T) {
 	}
 }
 
-func TestCALV0048_RenderIsSinglePass(t *testing.T) {
+func TestCALV0052_RenderIsSinglePass(t *testing.T) {
 	got := Render("{ticket} {holder} {nope}", map[string]string{"{ticket}": "{holder}", "{holder}": "h"})
 	if got != "{holder} h {nope}" {
 		t.Fatalf("Render = %q", got)
 	}
 }
 
-func TestCALV0050_RosterIsDeterministicAndCapped(t *testing.T) {
+func TestCALV0054_RosterIsDeterministicAndCapped(t *testing.T) {
 	c := testConfig(t, "exit 0")
 	c.GlobalCap = 3
 	c.Roles = append(c.Roles, Role{Name: "review", Host: "sh", Cap: 1, Match: &Match{Labels: []string{"review"}}, Prompt: "review {ticket}", IdleSeconds: 30, WallSeconds: 60})
@@ -130,7 +130,7 @@ func TestCALV0050_RosterIsDeterministicAndCapped(t *testing.T) {
 	}
 }
 
-func TestCALV0050_RosterStatePredicatesAndLanes(t *testing.T) {
+func TestCALV0054_RosterStatePredicatesAndLanes(t *testing.T) {
 	c := testConfig(t, "exit 0")
 	c.WorkState = &WorkState{Kind: "status-line", Path: "/x/{ticketLocal}.md", Key: "state"}
 	c.Roles = []Role{
@@ -146,7 +146,7 @@ func TestCALV0050_RosterStatePredicatesAndLanes(t *testing.T) {
 	}
 }
 
-func TestCALV0053_FingerprintIgnoresNonDurableAttempts(t *testing.T) {
+func TestCALV0057_FingerprintIgnoresNonDurableAttempts(t *testing.T) {
 	obs := &Observation{Tickets: []Ticket{ticket("t", "P1", 1)}}
 	base := Fingerprint(obs, "ticket:a:q:t")
 	obs.Attempts = []Attempt{{ID: "x", Ticket: "ticket:a:q:t", Phase: "CANCELLED"}}
@@ -159,7 +159,7 @@ func TestCALV0053_FingerprintIgnoresNonDurableAttempts(t *testing.T) {
 	}
 }
 
-func TestCALV0049_WorkStateReaders(t *testing.T) {
+func TestCALV0053_WorkStateReaders(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "t1.md"), []byte("# t1\nstate: built\nstate: later\n"), 0o600)
 	os.WriteFile(filepath.Join(dir, "t2.md"), []byte("state: bad\x01value\n"), 0o600)
@@ -259,7 +259,7 @@ func waitEnded(t *testing.T, d *Dispatcher) {
 	t.Fatal("worker did not exit")
 }
 
-func TestCALV0051_LaunchFinishBackoffAndPark(t *testing.T) {
+func TestCALV0055_LaunchFinishBackoffAndPark(t *testing.T) {
 	c := testConfig(t, `echo "$1" > "$CORVINT_DISPATCH_WORKER.prompt"; echo '{"type":"text","part":{"text":"nothing to do"}}'`)
 	q := &fakeQueue{obs: Observation{Tickets: []Ticket{ticket("t1", "P1", 1)}}}
 	d, err := Open("prog", c, q, io.Discard)
@@ -316,7 +316,7 @@ func TestCALV0051_LaunchFinishBackoffAndPark(t *testing.T) {
 	waitEnded(t, d)
 }
 
-func TestCALV0052_HandoffAndReap(t *testing.T) {
+func TestCALV0056_HandoffAndReap(t *testing.T) {
 	c := testConfig(t, "exit 0")
 	q := &fakeQueue{obs: Observation{Tickets: []Ticket{ticket("t1", "P1", 1), ticket("t2", "P1", 2)}}}
 	q.obs.Attempts = []Attempt{{ID: "old", Ticket: "ticket:a:q:t2", Phase: "RUNNING", Generation: "1", Holder: "gone", Live: true, LeaseExpires: time.Now().Add(-time.Minute)}}
@@ -348,7 +348,7 @@ func TestCALV0052_HandoffAndReap(t *testing.T) {
 	waitEnded(t, d)
 }
 
-func TestCALV0052_KillsWholeTreeAndAdoptsAcrossRestart(t *testing.T) {
+func TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart(t *testing.T) {
 	// The leader starts a child in its own process group (as opencode's
 	// server does) and both sleep; a restart adopts them and the wall cap
 	// then kills the whole tree.
@@ -419,7 +419,7 @@ func atoi(s string) int {
 	return n
 }
 
-func TestCALV0052_KillsOrphanedProcessesBySession(t *testing.T) {
+func TestCALV0056_KillsOrphanedProcessesBySession(t *testing.T) {
 	// The leader exits at once and leaves a child in its own process group;
 	// the session still ties the child to the worker.
 	c := testConfig(t, `set -m; sleep 300 & echo "$!" > "$CORVINT_DISPATCH_WORKER.child"; exit 0`)
@@ -462,7 +462,7 @@ func TestCALV0052_KillsOrphanedProcessesBySession(t *testing.T) {
 // role names and carry a per-start nonce; an unreadable identity never ends a
 // worker; an UNKNOWN work state is not progress; wall enforcement survives a
 // store outage and the kill deadline is kept on the worker.
-func TestCALV0052_IdentityOutageAndUnknownState(t *testing.T) {
+func TestCALV0056_IdentityOutageAndUnknownState(t *testing.T) {
 	c := testConfig(t, `sleep 300`)
 	c.Roles[0].Name = "impl-x"
 	c.Backoff.CooldownSeconds = 3600

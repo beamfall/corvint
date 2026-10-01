@@ -319,13 +319,13 @@ CAL-V0-044	docs/specs/corvint-tasks-agent-leases-v0.md	163	Only an upgraded writ
 CAL-V0-045	docs/specs/corvint-tasks-agent-leases-v0.md	194	Claim (explicit and next), pure plan preview (including pool/stage selection), a
 CAL-V0-046	docs/specs/corvint-tasks-agent-leases-v0.md	205	An external-agent `release --reason HANDOFF --evidence REF` MUST support work
 CAL-V0-047	docs/specs/corvint-tasks-agent-leases-v0.md	229	Every implemented and omitted public command path and command family MUST return
-CAL-V0-048	docs/specs/corvint-tasks-agent-leases-v0.md	591	`dispatch --program ID --config FILE [--once | --ticks N]` MUST decode a closed
-CAL-V0-049	docs/specs/corvint-tasks-agent-leases-v0.md	605	The optional per-ticket work state MUST come from either a `status-line` reader
-CAL-V0-050	docs/specs/corvint-tasks-agent-leases-v0.md	610	The roster MUST be a pure function of the configuration, one observation, the
-CAL-V0-051	docs/specs/corvint-tasks-agent-leases-v0.md	617	Each assignment MUST launch one independent process in its own session, with
-CAL-V0-052	docs/specs/corvint-tasks-agent-leases-v0.md	627	Supervision MUST track every process in the worker's session, process group or
-CAL-V0-053	docs/specs/corvint-tasks-agent-leases-v0.md	642	An ended worker made progress exactly when the key's durable fingerprint changed
-CAL-V0-054	docs/specs/corvint-tasks-agent-leases-v0.md	651	Every decision MUST append one `taskman-dispatch-event/0` line to `events.jsonl`
+CAL-V0-052	docs/specs/corvint-tasks-agent-leases-v0.md	591	`dispatch --program ID --config FILE [--once | --ticks N]` MUST decode a closed
+CAL-V0-053	docs/specs/corvint-tasks-agent-leases-v0.md	605	The optional per-ticket work state MUST come from either a `status-line` reader
+CAL-V0-054	docs/specs/corvint-tasks-agent-leases-v0.md	610	The roster MUST be a pure function of the configuration, one observation, the
+CAL-V0-055	docs/specs/corvint-tasks-agent-leases-v0.md	617	Each assignment MUST launch one independent process in its own session, with
+CAL-V0-056	docs/specs/corvint-tasks-agent-leases-v0.md	627	Supervision MUST track every process in the worker's session, process group or
+CAL-V0-057	docs/specs/corvint-tasks-agent-leases-v0.md	642	An ended worker made progress exactly when the key's durable fingerprint changed
+CAL-V0-058	docs/specs/corvint-tasks-agent-leases-v0.md	651	Every decision MUST append one `taskman-dispatch-event/0` line to `events.jsonl`
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla

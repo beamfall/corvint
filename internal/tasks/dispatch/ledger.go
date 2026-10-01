@@ -50,7 +50,7 @@ type Worker struct {
 	Fingerprint    string    `json:"fingerprint"`
 }
 
-// Backoff is the CAL-V0-053 per-key no-progress record.
+// Backoff is the CAL-V0-057 per-key no-progress record.
 type BackoffState struct {
 	NoProgress    int       `json:"noProgress"`
 	CooldownUntil time.Time `json:"cooldownUntil"`
@@ -165,7 +165,7 @@ type Event struct {
 	Detail  map[string]string `json:"detail,omitempty"`
 }
 
-// EventKinds is the closed CAL-V0-054 event vocabulary.
+// EventKinds is the closed CAL-V0-058 event vocabulary.
 var EventKinds = []string{"started", "stopped", "adopted", "launched", "launch-failed", "finished", "killing", "killed", "handoff", "handoff-refused", "reaped", "state", "claim", "release", "lane", "cooldown", "parked", "unparked", "alert", "needs-owner"}
 
 // appendEvent writes one event line, rotating the log once at 16 MiB.

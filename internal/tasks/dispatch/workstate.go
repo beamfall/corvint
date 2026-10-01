@@ -23,7 +23,7 @@ const (
 	stateTimeout    = 60 * time.Second
 )
 
-// ReadStates is CAL-V0-049's program-defined work state. It fills every
+// ReadStates is CAL-V0-053's program-defined work state. It fills every
 // ticket's State with a value, NONE, or UNKNOWN, and returns one alert per
 // failed read. A missing reader leaves every state NONE.
 func ReadStates(ctx context.Context, c *Config, tickets []Ticket) []string {
