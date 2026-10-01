@@ -41,5 +41,17 @@ Rust, or comparative token-savings qualification is claimed. Mutation campaigns,
 launches, optional UI/analyzer routes and migration are not applicable to this conflict repair.
 Billed tokens and paired-baseline measurements are NOT_OBSERVED.
 
+## Independent evidence review
+
+The first independent review found that the inherited CAL-V0-035 dispatch citations were too
+broad for context identity. The refreshed map instead links the admitted ticket refresh, canonical
+ID/title decoding, Core rune bound, and preserved packet checks. CAL-V0-036 supplies only the
+owning stage context; its pre-change sentence does not entail the new title-plus-ID rule. That
+rule's intent is retained in native V1-0495 acceptance revision 2 (scope receipt 1513), outside
+CEM's immutable-base evidence. CEM support therefore records relevant surviving mechanisms and
+scope, not proof that old source authorized the new rule. Independent review and actual replay
+remain necessary. Raw packets now retain the absent-source OUT_OF_SCOPE result specifically,
+rather than relying on a test that accepts any failure. No implementation or test behavior changed.
+
 Rollback is a normal revert of the integrated feature; immutable historical receipts and old CEMs
 remain recoverable from their original commits. No remote history or unrelated work is rewritten.
