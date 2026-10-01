@@ -154,3 +154,18 @@ qualify ordinary checkouts. Rollback disables the new optional operation and
 preserves earlier command defaults, candidate assembly, native task history and
 historical packet bytes. Independent producer implementation review and root
 source admission remain separate steps.
+
+## Stable verification result codes
+
+The optional `cem verify-stable` operation emits the closed result codes of
+`protocol/cem-1.0/stable/OPERATION.json` and `RESULT.schema.json`; those public files stay the
+normative mapping. This table names the codes first emitted by the stable verifier, so each has
+one owning specification. A code reports a bounded check and never upgrades authority.
+
+| Stage | Codes | Outcome |
+| --- | --- | --- |
+| references | `invalid-criterion-identity`, `duplicate-reference`, `unresolved-reference`, `reference-coherence`, `artifact-role-closure` | Exit 2; the decoded reference graph is rejected without filesystem or native authority inference |
+| authority-arguments | `artifacts-required` | Exit 2; the explicit artifact root is required even for an empty reference set |
+| runtime | `unsupported-structural-runtime`, `unsupported-process-containment` | Exit 2; an unqualified runtime or containment tuple is explicit and has no weakened fallback |
+| repository | `unsupported-resource-limit`, `unsupported-repository-envelope`, `verification-timeout` | Exit 2; operational limits stay distinct from invalid evidence |
+| artifacts | `artifact-unavailable`, `artifact-resource-limit`, `artifact-changed-during-verification`, `artifact-digest-mismatch` | Exit 2; declared artifact bytes could not be read within bounds, changed while read, or differ from the declared digest |
