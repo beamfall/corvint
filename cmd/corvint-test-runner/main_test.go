@@ -182,3 +182,63 @@ func TestCMockaPlanBindsTargetAndFixedEnvironment(t *testing.T) {
 		})
 	}
 }
+
+func TestGinkgoPlanBindsTargetAndFixedArgv(t *testing.T) {
+	root, e := filepath.EvalSymlinks(t.TempDir())
+	if e != nil {
+		t.Fatal(e)
+	}
+	req := tr.Request{Runner: "ginkgo-v2", Target: "TestCalc::Calc", ExpectedTests: []string{"TestCalc::Calc::Math adds", "TestCalc::Calc::Math subtracts"}, Selectors: []string{"TestCalc::Calc::Math adds"}, Root: root, Project: "calc_suite_test.go", InputFiles: map[string]string{"calc_suite_test.go": strings.Repeat("b", 64)}, Executable: "/independent/calc.test", ExecutableSha256: strings.Repeat("a", 64), ReportDir: filepath.Join(t.TempDir(), "reports")}
+	inv, e := registry.Build(req)
+	if e != nil || inv.Argv[len(inv.Argv)-1] != `-ginkgo.focus=^Calc (Math adds)$` {
+		t.Fatal(inv, e)
+	}
+	base := plan{Profile: profile, Request: req, Invocation: inv}
+	for _, kind := range []string{"target-approval", "environment", "focus", "report", "executable"} {
+		t.Run(kind, func(t *testing.T) {
+			p := base
+			p.Invocation.Argv = append([]string{}, base.Invocation.Argv...)
+			p.Invocation.Environment = map[string]string{}
+			for k, v := range base.Invocation.Environment {
+				p.Invocation.Environment[k] = v
+			}
+			p.Invocation.ReportPaths = append([]string{}, base.Invocation.ReportPaths...)
+			approval := tr.Identity(base)
+			want := "plan does not match current fixed runner profile"
+			switch kind {
+			case "target-approval":
+				p.Request.Target = "TestCalc::Other"
+				want = "plan admission or independently trusted executable mismatch"
+			case "environment":
+				p.Invocation.Environment["GOPROXY"] = "https://proxy.golang.org"
+				approval = tr.Identity(p)
+			case "focus":
+				p.Invocation.Argv[len(p.Invocation.Argv)-1] = `-ginkgo.focus=^(Math adds)$`
+				approval = tr.Identity(p)
+			case "report":
+				p.Invocation.ReportPaths = []string{"other.json"}
+				approval = tr.Identity(p)
+			case "executable":
+				p.Request.Executable = "/other"
+				approval = tr.Identity(p)
+				want = "plan admission or independently trusted executable mismatch"
+			}
+			b, _ := json.Marshal(p)
+			file := filepath.Join(t.TempDir(), "plan.json")
+			if e := os.WriteFile(file, b, 0600); e != nil {
+				t.Fatal(e)
+			}
+			var out, errout bytes.Buffer
+			code := command(context.Background(), []string{"run", "--plan", file, "--approve", approval, "--out", filepath.Join(t.TempDir(), "receipt.json"), "--executable", req.Executable, "--executable-sha256", req.ExecutableSha256, "--experimental", "--trusted-local"}, &out, &errout)
+			if code != 1 {
+				t.Fatal("mutated plan admitted", kind, code)
+			}
+			if !strings.Contains(errout.String(), want) {
+				t.Fatalf("%s refused for another reason: %s", kind, errout.String())
+			}
+			if _, e := os.Stat(req.ReportDir); !os.IsNotExist(e) {
+				t.Fatal("invalid plan launched", e)
+			}
+		})
+	}
+}

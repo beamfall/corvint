@@ -19,7 +19,7 @@ import (
 )
 
 func Runners() []string {
-	return []string{"cmocka-xml", "go-test", "ctest", "googletest", "catch2", "dotnet-vstest-nunit", "dotnet-vstest-mstest", "dotnet-vstest-xunit", "cargo-test", "cargo-doctest", "cargo-integration", "cargo-bin", "nextest", "dotnet-mtp-nunit", "dotnet-mtp-mstest", "dotnet-mtp-xunit"}
+	return []string{"cmocka-xml", "ginkgo-v2", "go-test", "ctest", "googletest", "catch2", "dotnet-vstest-nunit", "dotnet-vstest-mstest", "dotnet-vstest-xunit", "cargo-test", "cargo-doctest", "cargo-integration", "cargo-bin", "nextest", "dotnet-mtp-nunit", "dotnet-mtp-mstest", "dotnet-mtp-xunit"}
 }
 func known(r string) bool {
 	for _, v := range Runners() {
@@ -46,6 +46,8 @@ func Build(r tr.Request) (tr.Invocation, error) {
 	switch r.Runner {
 	case cmockaRunner:
 		return buildCMocka(r)
+	case ginkgoRunner:
+		return buildGinkgo(r)
 	case "dotnet-mtp-nunit", "dotnet-mtp-mstest", "dotnet-mtp-xunit":
 		return buildMTP(r, v)
 	case "go-test":
@@ -220,6 +222,19 @@ func Parse(in tr.Input) (tr.Observation, error) {
 		err = parseGo(in.Stdout, &o)
 	case "cargo-test", "cargo-doctest", "cargo-integration", "cargo-bin":
 		err = parseCargo(in.Stdout, &o)
+	case ginkgoRunner:
+		// The default arm's report-count and per-report bounds apply here too.
+		if len(in.Reports) != 1 {
+			return o, errors.New("exactly one native report required")
+		}
+		b, ok := in.Reports["ginkgo.json"]
+		if !ok {
+			return o, errors.New("ginkgo report must be ginkgo.json")
+		}
+		if len(b) > tr.MaxReportBytes {
+			return o, errors.New("native report bound exceeded")
+		}
+		err = parseGinkgo(in, b, &o)
 	default:
 		if len(in.Reports) != 1 {
 			return o, errors.New("exactly one native report required")

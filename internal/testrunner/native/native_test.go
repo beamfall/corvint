@@ -66,6 +66,9 @@ func TestBuildExactSelectorsAndFixedProfiles(t *testing.T) {
 			q.Project = ""
 			q.ExpectedTests = []string{q.Target + "::test_pass"}
 		}
+		if q.Runner == ginkgoRunner {
+			ginkgoTestRequest(t, &q)
+		}
 		mtpTestRequest(&q)
 		v, e := Build(q)
 		if e != nil || (len(v.Argv) == 0 && r != cmockaRunner) {
@@ -237,6 +240,9 @@ func TestReviewBuildUsesArgsOnlyAndNativeExitCodes(t *testing.T) {
 		if q.Runner == cmockaRunner {
 			q.Project = ""
 			q.ExpectedTests = []string{q.Target + "::test_pass"}
+		}
+		if q.Runner == ginkgoRunner {
+			ginkgoTestRequest(t, &q)
 		}
 		mtpTestRequest(&q)
 		v, e := Build(q)

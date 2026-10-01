@@ -122,3 +122,29 @@ Static-build provenance is separate from TEST receipts; SDK/loader closure and
 new timeout/interruption qualification remain unobserved. See the CMocka
 provenance fixture and TRE-V0-015..017. Unity and complete C-family coverage are
 not delivered by this profile.
+
+## Ginkgo v2 (experimental, unqualified)
+
+`ginkgo-v2` runs one separately built and pinned Ginkgo v2 suite binary (a
+compiled Go test package) with 17 fixed argv elements and a fresh `ginkgo.json`
+JSON report. Target is `GoWrapper::SuiteDescription`; expected identities are
+`Target::FullText`, the space-joined container and leaf texts. Selection adds one
+`-ginkgo.focus=^<QuoteMeta(SuiteDescription)> (<QuoteMeta(FullText)>|...)$`
+element, bounded at 4096 bytes. Build requires a pinned literal `_test.go`
+Project, an absolute symlink-resolved Root and fixes offline Go module settings;
+configuration, reporter, report-file and tool overrides are refused. Empty argv
+is never emitted.
+
+The parser accepts exactly one report holding one suite, decodes strict JSON
+with exact enum tables (null refuses), and checks SuiteDescription, SuitePath,
+the full SuiteConfig, counts, inventory, eligibility, suite-level nodes, failure
+context and exit/suite coherence. Hook failures, retries, parallel processes,
+AdditionalFailures, programmatic focus, special suite failure reasons and
+eligible specs that never ran (including Ordered follow-on skips) are
+incomplete. AdditionalFailures are emitted only in verbose mode, so their
+absence is not proof. Failure causes remain UNKNOWN; no retry is scheduled.
+
+Fixtures are synthetic and shaped from the Ginkgo v2.33.0 source reading pinned
+in `testdata/ginkgo-provenance.json`. Actual runner execution is NOT_RUN because
+no Ginkgo binary or module was available locally; the buildinfo module-sum check
+is NOT_IMPLEMENTED. See TRE-V0-018..020.

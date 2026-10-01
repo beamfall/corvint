@@ -2437,13 +2437,16 @@ TRE-V0-007	docs/specs/test-runner-execution-v0.md	46	Parsing MUST verify native 
 TRE-V0-008	docs/specs/test-runner-execution-v0.md	49	Execution MUST enforce bounded time/output and retire owned ordinary descendants
 TRE-V0-009	docs/specs/test-runner-execution-v0.md	52	Each supported tuple MUST have actual runner-generated fixture evidence for pass
 TRE-V0-010	docs/specs/test-runner-execution-v0.md	56	Provider-neutral receipts MUST compose with canonical CEM hunks and Tasks criter
-TRE-V0-011	docs/specs/test-runner-execution-v0.md	132	SQL assertion/suite profiles use explicit independently pinned native tools and
-TRE-V0-012	docs/specs/test-runner-execution-v0.md	133	File-aggregate sqllogictest reports declare SUITE_ONLY and native executed/skipp
-TRE-V0-013	docs/specs/test-runner-execution-v0.md	152	The optional `appium-uiautomator2-wdio` profile MUST fix one declared canonical
-TRE-V0-014	docs/specs/test-runner-execution-v0.md	153	Native observations MUST contain exactly the declared device and one canonical s
-TRE-V0-015	docs/specs/test-runner-execution-v0.md	253	An argument-free invocation MUST use exactly one explicitly
-TRE-V0-016	docs/specs/test-runner-execution-v0.md	265	`cmocka-xml` MUST execute one caller-prepared, independently pinned
-TRE-V0-017	docs/specs/test-runner-execution-v0.md	273	The dedicated parser MUST validate the native group against
+TRE-V0-011	docs/specs/test-runner-execution-v0.md	133	SQL assertion/suite profiles use explicit independently pinned native tools and
+TRE-V0-012	docs/specs/test-runner-execution-v0.md	134	File-aggregate sqllogictest reports declare SUITE_ONLY and native executed/skipp
+TRE-V0-013	docs/specs/test-runner-execution-v0.md	153	The optional `appium-uiautomator2-wdio` profile MUST fix one declared canonical
+TRE-V0-014	docs/specs/test-runner-execution-v0.md	154	Native observations MUST contain exactly the declared device and one canonical s
+TRE-V0-015	docs/specs/test-runner-execution-v0.md	254	An argument-free invocation MUST use exactly one explicitly
+TRE-V0-016	docs/specs/test-runner-execution-v0.md	266	`cmocka-xml` MUST execute one caller-prepared, independently pinned
+TRE-V0-017	docs/specs/test-runner-execution-v0.md	274	The dedicated parser MUST validate the native group against
+TRE-V0-018	docs/specs/test-runner-execution-v0.md	321	`ginkgo-v2` MUST execute one independently pinned suite binary
+TRE-V0-019	docs/specs/test-runner-execution-v0.md	336	Selection MUST add exactly one 18th element,
+TRE-V0-020	docs/specs/test-runner-execution-v0.md	344	The dedicated parser MUST accept exactly one `ginkgo.json`
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	34	`corvint [--root PATH] surprise --task TEXT --base REV --target REV
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	42	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	49	The actual set MUST be the changed paths of the committed range, read as

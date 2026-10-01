@@ -10,7 +10,7 @@ Authoritative inputs: owner instructions 2026-10-01, native V1-0591..0596,
 ## Agent digest
 - Claim: Optional fixed runner profiles execute trusted local tests and retain bounded native reports with explicit qualification limits.
 - Status: proposed technical profile/experimental prototype; accepted owner target is all main test runners; no stable CEM1.0 promotion.
-- Exists: 56 concrete experimental profiles in `internal/testrunner`; implementation and live qualification are tracked separately.
+- Exists: 57 concrete experimental profiles in `internal/testrunner`; implementation and live qualification are tracked separately.
 - Blocked on: every runner's actual runtime/platform qualification and CEM/Tasks integration.
 - Read next: Requirements; Runner inventory; Acceptance and rollback.
 
@@ -63,13 +63,13 @@ analyzer families need explicit runtime/domain disposition; their presence is no
 The dynamic lane covers the fifteen JS/TS affected registrations: Vitest, Jest, AVA, Mocha, node:test,
 Playwright, Bun, Deno, Cypress, WebdriverIO, TestCafe, Nightwatch, Detox and both Storybook runners;
 Python pytest/unittest; Ruby RSpec/Minitest/Test::Unit/Rails. The native lane covers Go, Cargo/nextest
-and doctests, .NET xUnit/NUnit/MSTest with separate VSTest/MTP profiles, CTest/GoogleTest/Catch2 and CMocka.
+and doctests, .NET xUnit/NUnit/MSTest with separate VSTest/MTP profiles, CTest/GoogleTest/Catch2, CMocka and Ginkgo v2.
 The platform lane covers Java JUnit/TestNG/Gradle/Maven, Kotlin kotlin-test/Kotest/Android families,
 Swift Testing/XCTest/SwiftPM/Xcode, Bats/ShellSpec and remaining domain runner inventory. Analyzer
 candidates never imply that SQL/shader/data compilation is assertion testing. Additional main-runner
 ambiguity needs explicit owner disposition; absence of evidence is not an approved exclusion.
 
-The concrete count is 21 dynamic, 16 native, 16 platform, two SQL and one Appium Android profiles. The registry also
+The concrete count is 21 dynamic, 17 native, 16 platform, two SQL and one Appium Android profiles. The registry also
 lists six unavailable IDs: `appium`, `pgtap`, `sqllogictest`, `shader-behavior`, `html-behavior` and
 `structured-data-behavior`. The two SQL profiles use the explicit IDs `sql-pgtap` and
 `sql-sqllogictest-sqlite`; the older unqualified names do not silently alias them. SQL coverage does
@@ -118,6 +118,7 @@ following evidence supports the prototype, not stable acceptance or automatic ti
 | TRE-V0-011..012 | `sql/sql.go`, `pgtap.go`, `sqllogictest.go`; `TestNativeMatrix`, `TestTAPRefusals`, `TestSQLiteRefusals`, `TestFixedInvocations`, `TestClosedConnection` | `sql/review.json` PASS; ten actual shared-executor receipts, native format provenance and disposable cluster cleanup retained |
 | TRE-V0-015 | `execute_unix.go`; `TestExecuteExplicitPrimaryTestWithoutArguments` (pinned `pwd` with no argv; implicit, ambiguous, BUILD, DISCOVER, DECODE, auxiliary and implicit-primary-name refusals) | `cmocka-independent-review-r2/REVIEW.json` PASS_BOUNDED (F4); root decision `e4de2129…e161` ACCEPTED_WITH_CONDITIONS |
 | TRE-V0-016..017 | `native/cmocka.go`; `TestCMockaActualDualFormatWitnesses`, `TestCMockaBoundaryContradictions`, `TestCMockaClosedBuild`, `TestCMockaRegistryDispatchAndTargetBoundary`, `TestCMockaPlanBindsTargetAndFixedEnvironment`, opt-in `TestCMockaNativeReceiptReadback` | Nine actual macOS arm64 CMocka 2.0.2 receipts in `cmocka-profile-proposal-r1/proof`; review PASS_BOUNDED; fresh requalification on the integration base NOT_RUN |
+| TRE-V0-018..020 | `native/ginkgo.go`; `TestGinkgoNativeProjectionStates`, `TestGinkgoReportCountAndBound`, `TestGinkgoParserRefusals`, `TestGinkgoStrictJSON`, `TestGinkgoBeforeSuiteSkipShape`, `TestGinkgoOrderedFollowOnFailure`, `TestGinkgoClosedBuild`, `TestGinkgoFocusBound`, `TestGinkgoRegistryDispatchAndTargetBoundary`, `TestGinkgoPlanBindsTargetAndFixedArgv` | Synthetic source-derived reports only; Ginkgo v2.33.0 read pins in `native/testdata/ginkgo-provenance.json`; actual runtime qualification NOT_RUN |
 
 Review and live manifests above are under `/private/tmp/cem10-build` for this build; their exact
 source/report hashes govern reuse. Current source and committed fixture provenance provide the
@@ -307,3 +308,97 @@ executor without removing the profile makes every CMocka plan refuse with
 reports are retained under their original hashes. CEM binding, live
 requalification on the integration base and native Tasks completion remain
 separate closeout steps.
+
+## Ginkgo v2 (experimental)
+
+This slice adds the dedicated `ginkgo-v2` native profile for one caller-prepared
+Ginkgo v2 suite binary built from a Go test package. It does not change the
+shared executor: Ginkgo always emits non-empty argv, and `TRE-V0-015` empty argv
+remains exclusive to `cmocka-xml`. The pinned reading is Ginkgo v2.33.0 at commit
+`9f941496ce264d03b91f103e4ec4a19bbc75ce97`; the read pins are retained in
+`internal/testrunner/native/testdata/ginkgo-provenance.json`.
+
+- `TRE-V0-018`: `ginkgo-v2` MUST execute one independently pinned suite binary
+  with exactly 17 fixed argv elements: `-test.run=^<GoWrapper>$`,
+  `-test.timeout=0`, `-ginkgo.json-report=<ReportDir>/ginkgo.json`, seed 1, no
+  randomization, no fail-fast, no fail-on-pending, fail-on-empty, one flake
+  attempt, no dry run, a 1h suite timeout, a 1s grace period, no sleep on failure,
+  no progress polling, output interception `none` and no color. `Target` is
+  `GoWrapper::SuiteDescription`; expected identities are
+  `GoWrapper::SuiteDescription::FullText`, where FullText joins non-empty
+  container texts and the leaf text with one space. Build requires 1..4096
+  unique expected identities, unique literal selectors drawn from them, a pinned
+  literal `_test.go` Project and an absolute symlink-resolved Root. It fixes
+  `GOTOOLCHAIN=local`, `GOPROXY=off`, `GOSUMDB=off`, `GOWORK=off` and empty
+  `GOFLAGS`, and rejects caller configuration, reporter, report-file and
+  auxiliary-tool overrides. No `-test.parallel`, `-test.count` or
+  `-test.shuffle` argument is emitted.
+- `TRE-V0-019`: Selection MUST add exactly one 18th element,
+  `-ginkgo.focus=^<QuoteMeta(SuiteDescription)> (<QuoteMeta(FullText_1)>|...)$`.
+  Ginkgo matches focus unanchored against `SuiteDescription + " " + FullText`,
+  so the suite description is inside the anchored expression and the selected
+  texts form one alternation. The whole element is bounded at the shared 4096-byte
+  argv limit and a longer selection refuses. The report's
+  `SuiteConfig.FocusStrings` MUST equal that one string with a selector and be
+  empty without one.
+- `TRE-V0-020`: The dedicated parser MUST accept exactly one `ginkgo.json`
+  report within the per-report bound containing exactly one suite. It decodes
+  strict UTF-8 JSON with duplicate-key, unknown-key, missing-key, nesting and
+  trailing-content refusal; enums accept only the exact pinned table strings, so
+  JSON null and unknown strings refuse. `SuiteDescription` MUST equal Target,
+  `SuitePath` MUST equal the executor's cleaned Root without filesystem reads,
+  and the 25 `SuiteConfig` fields MUST equal the fixed invocation. Counts,
+  inventory, eligibility, suite-level nodes, failure context and exit/suite
+  coherence MUST agree, or the observation is incomplete and shared `Normalize`
+  makes public states `UNKNOWN`.
+
+Native mapping: a passed It with one attempt and no Failure is `PASSED`; a failed
+It whose Failure context is `leaf-node` is `FAILED` with cause `UNKNOWN`; a runtime
+`Skip()` (skipped with one attempt) is `SKIPPED` with its message; pending and
+non-selected skipped specs with zero attempts and no Failure are `SKIPPED`
+without an attempt. These are incomplete: an eligible spec with zero attempts
+(`GINKGO_NOT_ENTERED`), a non-selected spec that ran, a Failure on a passed or
+filtered spec, a failure with `in-container` or `top-level` context
+(`GINKGO_HOOK_FAILURE`), any suite-level node other than passed without a Failure, any non-It leaf
+node, panicked/aborted/interrupted/timedout states, retries or repeats,
+`ParallelProcess` other than 1, AdditionalFailures, programmatic focus, any
+`SpecialSuiteFailureReasons`, count or inventory mismatch, exit 0 without a
+successful unfocused suite, exit 1 with `SuiteSucceeded` true, exit 1 without a
+failed spec, suite node or reason, and any other exit. Problem codes are
+`GINKGO_INVALID_REPORT`, `GINKGO_TARGET_MISMATCH`, `GINKGO_SUITE_PATH_MISMATCH`,
+`GINKGO_CONFIG_MISMATCH`, `GINKGO_RETRY_UNSUPPORTED`, `GINKGO_PARALLEL_UNSUPPORTED`,
+`GINKGO_ADDITIONAL_FAILURE`, `GINKGO_SUITE_PROBLEM`, `GINKGO_UNSUPPORTED_NODE`,
+`GINKGO_INVENTORY_MISMATCH`, `GINKGO_UNSELECTED_EXECUTED`,
+`GINKGO_UNEXPECTED_FAILURE`, `GINKGO_NOT_ENTERED`, `GINKGO_HOOK_FAILURE`,
+`GINKGO_UNRESOLVED_STATE`, `GINKGO_COUNT_MISMATCH`, `GINKGO_PROGRAMMATIC_FOCUS`,
+`GINKGO_SUITE_FAILURE_REASON`, `GINKGO_EXIT_SUITE_CONTRADICTION`,
+`GINKGO_UNEXPLAINED_SUITE_FAILURE` and `GINKGO_EXIT_UNSUPPORTED`.
+
+Recorded limits. A leaf failure in an Ordered container leaves later specs
+skipped with zero attempts and a populated Failure; they are `GINKGO_NOT_ENTERED`
+and the run stays incomplete. The argv is non-verbose, and Ginkgo emits
+AdditionalFailures only in verbose mode, so their absence is not proof of no
+follow-on failure; present ones are incomplete. `SuitePath` comes from
+`os.Getwd` in the child; the executor sets the working directory to Root and
+omits `PWD`, so the reported path is expected to be symlink-resolved, which is
+why Build requires a resolved Root (inference from source reading, not observed).
+Skip in BeforeSuite records the reason `Suite skipped in BeforeSuite` while
+`SuiteSucceeded` may stay true; any reason is incomplete. Module identity rests on
+the caller-pinned executable digest and strict schema parsing; a
+`debug/buildinfo` module-sum check is NOT_IMPLEMENTED because the verified module
+sum is NOT_OBSERVED.
+
+Acceptance evidence is unit-level only: `TestGinkgoNativeProjectionStates`,
+`TestGinkgoReportCountAndBound`, `TestGinkgoParserRefusals`,
+`TestGinkgoStrictJSON`, `TestGinkgoBeforeSuiteSkipShape` (source-derived model of
+the BeforeSuite skip case), `TestGinkgoOrderedFollowOnFailure`,
+`TestGinkgoClosedBuild`, `TestGinkgoFocusBound`,
+`TestGinkgoRegistryDispatchAndTargetBoundary` and
+`TestGinkgoPlanBindsTargetAndFixedArgv`. Their reports are synthetic, shaped from
+the pinned source reading. Actual runner-generated qualification (`TRE-V0-009`)
+is NOT_RUN: no Ginkgo binary or `github.com/onsi/ginkgo` module was present
+locally, so every live pass/fail/skip/zero/lifecycle case remains a release
+blocker for this tuple.
+
+Rollback removes the additive `ginkgo-v2` profile, its tests and provenance file.
+No shared executor, other profile, queue, store or frozen wire changes.
