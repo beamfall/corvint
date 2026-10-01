@@ -40,7 +40,7 @@ func inputFile(t *testing.T, path string, value any) {
 	}
 }
 func TestMetricsCommand(t *testing.T) {
-	t.Run("PMM-V0-007-actual-git-report", func(t *testing.T) {
+	t.Run("PMM-V0-007 actual-git-report", func(t *testing.T) {
 		root := t.TempDir()
 		root, e := filepath.EvalSymlinks(root)
 		if e != nil {
@@ -100,10 +100,18 @@ func TestMetricsCommand(t *testing.T) {
 		if e = json.Unmarshal(out.Bytes(), &got); e != nil || got.Classes[0].Recommendation != "demoted" {
 			t.Fatal(e, got)
 		}
+
+		cancelled, stop := context.WithCancel(context.Background())
+		stop()
+		out.Reset()
+		errOut.Reset()
+		if run(cancelled, args, &out, &errOut) == 0 || out.Len() != 0 || errOut.String() != "{\"error\":\"cancelled\"}\n" {
+			t.Fatalf("cancelled CLI: %s %s", out.String(), errOut.String())
+		}
 	})
 }
 func TestMetricsCommandRefusals(t *testing.T) {
-	t.Run("PMM-V0-007-closed-flags-and-inputs", func(t *testing.T) {
+	t.Run("PMM-V0-007 closed-flags-and-inputs", func(t *testing.T) {
 		for _, args := range [][]string{nil, {"report"}, {"report", "--policy", "one", "--policy", "two", "--from", "x", "--until", "y"}, {"report", "--policy", "one", "--records", "two", "--from", "x", "--unknown", "y"}} {
 			var out, errOut bytes.Buffer
 			if run(context.Background(), args, &out, &errOut) == 0 || out.Len() != 0 || errOut.String() != "{\"error\":\"invalid-input\"}\n" {

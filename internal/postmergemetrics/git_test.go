@@ -58,7 +58,7 @@ func measure(t *testing.T, g *GitMeasurer, p GitPair) Measurement {
 	return m
 }
 func TestMetricsGit(t *testing.T) {
-	t.Run("PMM-V0-002-actual-immutable-counts", func(t *testing.T) {
+	t.Run("PMM-V0-002 actual-immutable-counts", func(t *testing.T) {
 		root := gitFixture(t)
 		put(t, root, "mod", []byte("old\n"))
 		put(t, root, "del", []byte("gone\n"))
@@ -102,7 +102,7 @@ func TestMetricsGit(t *testing.T) {
 			t.Fatalf("nonancestor: %v", e)
 		}
 	})
-	t.Run("PMM-V0-002-binary-and-rename-edit", func(t *testing.T) {
+	t.Run("PMM-V0-002 binary-and-rename-edit", func(t *testing.T) {
 		root := gitFixture(t)
 		put(t, root, "old", []byte("a\nb\n"))
 		bot := commit(t, root)
@@ -124,7 +124,7 @@ func TestMetricsGit(t *testing.T) {
 			t.Fatalf("%v %+v", e, r)
 		}
 	})
-	t.Run("PMM-V0-002-attribute-isolation", func(t *testing.T) {
+	t.Run("PMM-V0-002 attribute-isolation", func(t *testing.T) {
 		root := gitFixture(t)
 		put(t, root, "text", []byte("old\n"))
 		bot := commit(t, root)
@@ -160,7 +160,7 @@ func TestMetricsGit(t *testing.T) {
 	})
 }
 func TestMetricsNumstat(t *testing.T) {
-	t.Run("PMM-V0-002-bounded-nul-parser", func(t *testing.T) {
+	t.Run("PMM-V0-002 bounded-nul-parser", func(t *testing.T) {
 		for _, raw := range [][]byte{[]byte("1\t2\tx"), []byte("1\t2\t../x\x00"), []byte("1\t2\tx\x001\t2\tx\x00"), []byte("-\t2\tx\x00"), []byte("1\t2\t/abs\x00"), []byte("1\t2\t\xff\x00"), bytes.Repeat([]byte("a"), (4<<20)+1)} {
 			if _, _, e := parseNumstat(raw); e != ErrGit {
 				t.Fatalf("accepted malformed %q", raw[:min(len(raw), 50)])
@@ -173,7 +173,7 @@ func TestMetricsNumstat(t *testing.T) {
 	})
 }
 func TestMetricsGitProcessBounds(t *testing.T) {
-	t.Run("PMM-V0-007-output-overflow", func(t *testing.T) {
+	t.Run("PMM-V0-007 output-overflow", func(t *testing.T) {
 		script := filepath.Join(t.TempDir(), "fake-git")
 		if e := os.WriteFile(script, []byte("#!/bin/sh\n/usr/bin/yes payload\n"), 0700); e != nil {
 			t.Fatal(e)
@@ -186,7 +186,7 @@ func TestMetricsGitProcessBounds(t *testing.T) {
 			t.Fatal(e)
 		}
 	})
-	t.Run("PMM-V0-007-cancel-owned-descendant", func(t *testing.T) {
+	t.Run("PMM-V0-007 cancel-owned-descendant", func(t *testing.T) {
 		root := t.TempDir()
 		script := filepath.Join(root, "fake-git")
 		pidFile := filepath.Join(root, "child-pid")
@@ -230,7 +230,7 @@ func TestMetricsGitProcessBounds(t *testing.T) {
 }
 
 func TestMetricsGitlinks(t *testing.T) {
-	t.Run("PMM-V0-002-gitlink-lines-unknown", func(t *testing.T) {
+	t.Run("PMM-V0-002 gitlink-lines-unknown", func(t *testing.T) {
 		root := gitFixture(t)
 		put(t, root, "text", []byte("base\n"))
 		first := commit(t, root)
