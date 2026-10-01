@@ -40,8 +40,14 @@ skill-export and accuracy tests passed. New cases include an independently autho
 preimage/trace ID, malformed and escaped values, secret refusal before store mutation, a nonexecution
 sentinel, mixed physical dashboard accounting, and typed consumer admission/rendering.
 
-The registered five-repository native development qualification is `NOT_RUN`: pinned checkout
-inputs were absent at preflight. This is not a waiver, a retrieval-quality result or a promotion.
+The registered five-repository native development qualification initially reported `NOT_RUN`
+because pinned inputs were absent. After all five exact clean checkouts were prepared, the native
+baseline (`4663ce7c`) and source candidate (`c040a813`) runs passed with no skipped repositories.
+Both produced baseline precision 0.859335 and learned-arm precision 0.849070 (floor 0.80), zero
+critical misses, and abstention/epistemic accuracy 1. The learned arm changes two precision cases
+(delta -0.010265); the other quality deltas are `not distinguished`, with zero changed cases.
+There is no quality delta between the two source revisions. This is development qualification
+on the registered frozen fixture, not independent external outcome evidence or release promotion.
 The independent source review found two eval-fixture regressions: indented v2 objects must be
 validated before JSONL compaction, and nonselected v1 fixtures must retain whole-document structural
 validation. Both were repaired with targeted regressions. The aggregate equality check also includes
@@ -52,7 +58,7 @@ The final independent source review passed after two bounded repair cycles (revi
 The complete standalone conformance suite and changed-package vet passed after the last repair.
 Pre-existing v1 standalone conformance/producer authority and outcome-bucket differences are
 retained separately as native ticket `V1-0571`; frozen v1 expectations were not rewritten.
-Immutable evidence binding and corpus qualification remain required before publication.
+Immutable evidence binding remains required before publication.
 No repository-wide `make gate` was requested; scoped focused validation is not equivalent to it.
 
 Corvint prechange query/impact and affected-plan evidence were retained. The required initial
