@@ -11,6 +11,7 @@ Authoritative inputs: human issue https://github.com/beamfall/corvint/issues/394
 - Claim: A separate companion repeats new Playwright tests, executes approved negative controls and produces one bound assessment and fixed PR body.
 - Status: proposed/experimental. Existing per-test Freshness is UNKNOWN; stable asserting tests are blocked, never promoted from caller pins.
 - Exists: `internal/testacceptance`, `cmd/corvint-tests-accept`; focused checks and actual local browser negative assessment.
+  NEA-V0-008/009 attach per-test repeat, cleanup and order/isolation evidence and render a bound Markdown change-request body.
 - Blocked on: V1-0556 qualified per-test freshness; owner acceptance, integration and native completion.
 - Read next: Requirements; Trust boundary; Qualification and rollback.
 
@@ -46,6 +47,20 @@ assessments, with an explicit capability follow-up, rather than claiming qualifi
 - `NEA-V0-007`: Emit one bounded report tied to request/source identities, environment and build,
   explicit unknowns and a fixed PR body containing only validated IDs/enums/counts. No source text,
   author prose, caller template or credentials enter generated bodies. No outward writes.
+- `NEA-V0-008`: Each per-test assessment carries its own repeat counts (passed, failed, other),
+  observed duration range, worst cleanup fact over the runs that included it and its control, and
+  order evidence. A test with mixed repeat outcomes is additionally run alone exactly
+  `IsolationRepeats` (2) times through a title-anchored grep on its own file. Order evidence records
+  the original/reversed probe states, whether the requested file order could vary at all
+  (`not-varied` for one file), and one isolation status: `failures-not-reproduced-in-isolation`,
+  `nondeterministic-in-isolation`, `fails-in-isolation` or `isolation-incomplete`. Only passed/failed
+  probe rows are evidence; a missing row, a run reason or another declared test observed in an
+  isolation run leaves the status incomplete. Isolation never changes the verdict: the test stays rejected.
+- `NEA-V0-009`: The body is a fixed Markdown record containing the overall verdict, the product and
+  test-repository commits and trees, environment label, Corvint build, companion executable and request
+  digests, repeat count, one row per test (verdict, counts, durations, Strength, cleanup, order and
+  isolation states) and each test's reasons and the report unknowns. Every rendered value must match
+  its closed identifier, OID, digest, build or reason-code shape; anything else renders `UNVALIDATED`.
 
 ## Trust boundary and resource limits
 
@@ -80,8 +95,9 @@ They confer no positive freshness or acceptance qualification.
 | `command-invalid` (internal/testacceptance/input.go:222), `executable-drift` (internal/testacceptance/input.go:226), `argv-invalid` (internal/testacceptance/input.go:230) | Runner/server executable or argv count/hash/file shape is invalid, observed executable bytes drift, or an argument exceeds its size/character limits. |
 | `server-entrypoint-not-pinned` (internal/testacceptance/input.go:235), `runner-prefix-invalid` (internal/testacceptance/input.go:240), `runner-entrypoint-invalid` (internal/testacceptance/input.go:245) | The server entrypoint must be pinned inside the product repository; the runner prefix cannot exceed executable plus one independently byte-pinned CLI entrypoint. |
 | `ready-url-not-loopback` (internal/testacceptance/input.go:250), `build-root-invalid` (internal/testacceptance/input.go:253), `runner-version-invalid` (internal/testacceptance/input.go:256) | Readiness requires an HTTP loopback IP without user/query/fragment; build root must be clean/absolute inside the product root; declared runner version must be nonempty and bounded. |
-| `self-worker-invalid` (internal/testacceptance/execute.go:251), `self-worker-unreadable` (internal/testacceptance/execute.go:256), `report-bound` (internal/testacceptance/execute.go:327) | The trusted companion executable is not a bounded regular absolute file, its bytes cannot be read, or final JSON serialization/size prevents report publication. |
-| `verified-approved-control-survived` (internal/testacceptance/report.go:68), `qualified-baseline-identity-unknown` (internal/testacceptance/report.go:71) | A verified approved control survived, so Strength is SURVIVED and the test is rejected; a killed control with unqualified baseline identity leaves Strength NOT_MEASURED and acceptance blocked. |
+| `self-worker-invalid` (internal/testacceptance/execute.go:266), `self-worker-unreadable` (internal/testacceptance/execute.go:271), `report-bound` (internal/testacceptance/execute.go:349) | The trusted companion executable is not a bounded regular absolute file, its bytes cannot be read, or final JSON serialization/size prevents report publication. |
+| `verified-approved-control-survived` (internal/testacceptance/report.go:78), `qualified-baseline-identity-unknown` (internal/testacceptance/report.go:81) | A verified approved control survived, so Strength is SURVIVED and the test is rejected; a killed control with unqualified baseline identity leaves Strength NOT_MEASURED and acceptance blocked. |
+| `isolation-index-invalid` (internal/testacceptance/execute.go:131), `isolation-not-observed` (internal/testacceptance/execute.go:198), `isolation-incomplete` (internal/testacceptance/report.go:197) | An isolation job names no declared test, an isolation run observed another declared test, or fewer than two passed/failed isolated rows were retained; order evidence stays incomplete. |
 
 ## Non-goals
 
@@ -99,6 +115,8 @@ operator-controlled redirection; no product file writer or store migration.
 | NEA-V0-003, NEA-V0-004 | control execution/projection | actual killed/survived controls; blocked stable freshness |
 | NEA-V0-006 | sanitized worker/observer | sentinel isolation, nested group cancellation and cleanup tests |
 | NEA-V0-007 | fixed report/body | bounded body and unknown preservation tests |
+| NEA-V0-008 | per-test summary, isolation probes | `TestNEAV0008AttachedOrderEvidence` (all isolation statuses, cleanup attribution, grep anchoring); actual browser `NEA-V0-008/attached-order-evidence` |
+| NEA-V0-009 | Markdown change-request body | `TestNEAV0009ChangeRequestBody` (bindings, row, `UNVALIDATED` substitution, no title text); actual browser `NEA-V0-007/fixed-body` |
 
 Focused conformance and independent review qualify only their named local paths. Synthetic tests
 can test fail-closed classification but cannot qualify actual browser acceptance. Record actual
@@ -108,7 +126,11 @@ browser versions and failures in the build log. Tests never accept proposed huma
 
 Availability smoke observed Node22.23.3 and Chromium153.0.8010.12; not the provider's qualified
 Node22.23.2 tuple. Actual disposable negative assessment passed: stable asserting BLOCKED, nonasserting REJECTED on surviving response mutation, flaky REJECTED with requested probes. Observed execution order remains UNKNOWN. V1-0556 is the concrete per-test
-freshness blocker. Promotion needs a separately reviewed observed freshness contract and actual
+freshness blocker. On 2026-10-01 the same tuple also passed NEA-V0-008/009: the flaky test was
+run alone twice (passed, failed), recorded `nondeterministic-in-isolation` with file order
+`not-varied`, and the body rendered both revisions, build and per-test rows. The
+`failures-not-reproduced-in-isolation` (order-dependent) branch is covered by synthetic rows only.
+Promotion needs a separately reviewed observed freshness contract and actual
 qualified identity/environment/browser evidence. Keep the issue open through integration/native
 completion. Rollback: stop invoking the optional companion and revert its isolated commits;
 retain assessment evidence. Version incompatible request/report changes and re-run focused checks.
