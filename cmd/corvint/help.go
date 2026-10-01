@@ -20,6 +20,7 @@ var helpSubcommands = map[string]map[string]bool{
 	"cem":     cemHelpActions,
 	"ocm":     {"prepare": true, "link": true, "mark": true, "status": true, "verify": true, "report": true},
 	"harness": {"event": true},
+	"step":    {"snapshot": true, "verify": true, "env-check": true},
 }
 
 // helpBooleanFlags are the public command options that take no value, so a --help after one is
@@ -170,6 +171,8 @@ func helpText(topic string) string {
 		return obligationsHelp
 	case "flows":
 		return flowsHelp
+	case "step":
+		return stepHelp
 	case "breakage":
 		return breakageHelp
 	case "necessity":
@@ -253,6 +256,8 @@ Usage:
   corvint [--root PATH] review --base FULL_COMMIT_ID [--max-refs N]
   corvint [--root PATH] affected
   corvint obligations --cem FILE --impact FILE [--limit N]
+  corvint [--root PATH] step (snapshot | verify | env-check) --declaration FILE --host FILE
+    [--before FILE]
   corvint [--root PATH] flows --manifest FILE [--evidence FILE]
   corvint [--root PATH] docs (draft | consume) --source PATH --package DIRECTORY [--task TEXT]
   corvint [--root PATH] batch < REQUEST
@@ -275,7 +280,7 @@ Usage:
   corvint [--root PATH] witness --base REV [--head REV] [--cem MAP] [--json]
   corvint test-validity [--receipt FILE]
   corvint [--root PATH] COMMAND --help
-  corvint help [init|adopt|query|feature|eval|impact|cem|ocm|lrf|frontier|record|migrate-traces|migration-ratchet|observations|affected|obligations|features|overview|review|prove|context|index|batch|docs|depsource|necessity|surprise|answerability|kernel|lease|reads|calibrate|skill-export|dogfood|work|prove-observe|adapter|dogfood-ocm|witness|test-validity|flows]
+  corvint help [init|adopt|query|feature|eval|impact|cem|ocm|lrf|frontier|record|migrate-traces|migration-ratchet|observations|affected|obligations|features|overview|review|prove|context|index|batch|docs|depsource|necessity|surprise|answerability|kernel|lease|reads|calibrate|skill-export|dogfood|work|prove-observe|adapter|dogfood-ocm|witness|test-validity|flows|step]
   corvint help harness [event]
   corvint --version
 
@@ -346,6 +351,8 @@ Commands:
                  mutating repository or trace state.
   test-validity  Project a live-test provider receipt through the shared
                  five-axis test-validity shape; never writes. Experimental.
+  step           Verify experimental declared authoring scope with local read-only
+                 observations and citeable receipts; host enforcement is separate.
 
 Global options:
   --root PATH  Repository root (default: current directory). An explicit root is
@@ -1248,7 +1255,7 @@ const commandMaturityHelp = `Command maturity:
     calibrate (OCL-V0), witness (AGW-V0), test-validity (MTV-V0),
     features (RGV-V0), overview (RGV-V0), review (RGV-V0),
     migration-ratchet (MER-V0), flows (AFU-V0), skill-export (LTA-V0),
-    breakage (BKM-V0)
+    breakage (BKM-V0), step (ASS-V0)
 
 `
 
@@ -1264,4 +1271,27 @@ flow/documentation relationships, execution, coverage and behavioral breakage.
 Missing, unsupported and ambiguous relationships remain unknown; scope is INCOMPLETE.
 No providers or tests are executed and no checkouts are discovered or fetched.
 Owning experimental contract: BKM-V0.
+`
+
+const stepHelp = `Observe experimental authoring step scope locally.
+
+Usage:
+  corvint [--root PATH] step snapshot --declaration FILE --host FILE
+  corvint [--root PATH] step verify --declaration FILE --host FILE --before FILE
+  corvint [--root PATH] step env-check --declaration FILE --host FILE
+
+All input files are bounded regular single-link files outside author/read-only
+checkouts and Git authority. A host-owned complete before-state is required for
+verify; actual post-state is recaptured. Git is externally pinned by path/hash.
+Outputs bind commit/tree, dirty/index/admin state and literal scope findings.
+Guards override writes. Optional environment observations contain key/classes
+only. No values are read. Exit 0 is PASS, 1 is observed violation, 2 is unavailable,
+unsupported or malformed evidence. An incomplete post-state retains completed
+component findings with no whole post-state digest. Oversized records refuse.
+
+Native observation supports Darwin/Linux descriptors; qualification is per OS.
+This command writes only stdout and fixed errors, never repository/index/trace
+state. Host assertions remain unauthenticated. Receipts do not prove confinement,
+concurrency, transient writes, ACL/xattr/timestamps or credential isolation, and
+never stop a job or authorize execution. Proposed contract: ASS-V0.
 `

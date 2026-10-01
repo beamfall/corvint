@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"hash"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -187,11 +186,7 @@ func (r *Repository) streamCommitBatch(ctx context.Context, prefixes, trees []st
 	if r.ObjectFormat == "sha256" {
 		stream.width = 64
 	}
-	env := scrubbedEnv()
-	if r.objectView != nil {
-		env = append(env, "GIT_OBJECT_DIRECTORY="+filepath.Join(r.objectView.CommonDir, "objects"), "GIT_ALTERNATE_OBJECT_DIRECTORIES=")
-	}
-	options := gitrun.Options{Dir: r.Root, Env: env, Stdin: stdin}
+	options := r.gitOptions(0, stdin)
 	args := append(r.pinnedArgs(), "cat-file", "--batch", "-z")
 	if err := gitrun.RunStream(ctx, r.budget, options, stream, args...); err != nil {
 		return nil, err

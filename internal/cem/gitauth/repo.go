@@ -38,6 +38,7 @@ type Repository struct {
 	CommonDir    string // common Git directory holding the object store
 	ObjectFormat string // "sha1" or "sha256"
 	budget       *gitrun.Budget
+	gitBinary    string           // explicit host-owned pin; empty preserves the existing default
 	blobBytes    int64            // distinct blob bytes charged so far
 	chargedOids  map[string]bool  // blob OIDs already charged to the budget
 	requestMemo  *RequestReadMemo // request-local immutable successes only
