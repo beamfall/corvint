@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="1" failures="1" skipped="1" tests="4" time="0.026" timestamp="2026-10-01T06:56:29.384024-04:00" hostname="Russells-Mac-Studio.local"><testcase classname="test_sample" name="test_pass" time="0.000" /><testcase classname="test_sample" name="test_fail" time="0.000"><failure message="assert False">&gt;   def test_fail(): assert False
-E   assert False
-
-/private/tmp/cem10-build/dynamic/test_sample.py:3: AssertionError</failure></testcase><testcase classname="test_sample" name="test_skip" time="0.000"><skipped type="pytest.skip" message="fixture">/private/tmp/cem10-build/dynamic/test_sample.py:4: fixture</skipped></testcase><testcase classname="test_sample" name="test_infra" time="0.000"><error message="failed on setup with &quot;RuntimeError: setup&quot;">@pytest.fixture
-&gt;   def broken(): raise RuntimeError("setup")
-E   RuntimeError: setup
-
-/private/tmp/cem10-build/dynamic/test_sample.py:7: RuntimeError</error></testcase></testsuite></testsuites>

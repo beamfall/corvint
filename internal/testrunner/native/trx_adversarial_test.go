@@ -3,13 +3,12 @@ package native
 import (
 	"bytes"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
-	"os"
 	"regexp"
 	"testing"
 )
 
 func TestVSTestConflictingEvidence(t *testing.T) {
-	b, e := os.ReadFile("testdata/nunit-pass.trx")
+	b, e := readFixture("testdata", "nunit-pass.trx")
 	if e != nil {
 		t.Fatal(e)
 	}

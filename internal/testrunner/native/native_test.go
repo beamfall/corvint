@@ -2,9 +2,11 @@ package native
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -20,7 +22,7 @@ func TestLiveNativeReports(t *testing.T) {
 		{"nextest", "nextest.xml", 100, 1, 1, 1}, {"cargo-test", "cargo.txt", 101, 1, 1, 1}, {"cargo-integration", "integration.txt", 0, 1, 0, 0}, {"cargo-bin", "bin.txt", 0, 1, 0, 0}, {"cargo-doctest", "doctest.txt", 0, 1, 0, 0},
 	} {
 		t.Run(c.runner, func(t *testing.T) {
-			b, e := os.ReadFile("testdata/" + c.file)
+			b, e := readFixture("testdata", c.file)
 			if e != nil {
 				t.Fatal(e)
 			}
@@ -102,7 +104,7 @@ func TestCargoIncompleteAndCountMismatch(t *testing.T) {
 	}
 }
 func TestNextestNativeRetriesRetained(t *testing.T) {
-	b, e := os.ReadFile("testdata/nextest-retry.xml")
+	b, e := readFixture("testdata", "nextest-retry.xml")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -139,7 +141,7 @@ func TestReviewRejectsGoogleTestSkippedAndDisabledContradictions(t *testing.T) {
 			t.Fatalf("accepted contradictory native state: %+v", o)
 		}
 	}
-	b, e := os.ReadFile("testdata/googletest.xml")
+	b, e := readFixture("testdata", "googletest.xml")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -153,7 +155,7 @@ func TestReviewRejectsGoogleTestSkippedAndDisabledContradictions(t *testing.T) {
 }
 
 func TestReviewTRXSummaryAndCountersCannotBecomePass(t *testing.T) {
-	b, e := os.ReadFile("testdata/nunit-pass.trx")
+	b, e := readFixture("testdata", "nunit-pass.trx")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -184,7 +186,7 @@ func TestReviewNextestCrashRetriesRetainUnknownCausality(t *testing.T) {
 			t.Fatal(a)
 		}
 	}
-	b, e := os.ReadFile("testdata/nextest-retry.xml")
+	b, e := readFixture("testdata", "nextest-retry.xml")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -240,12 +242,66 @@ func TestReviewBuildUsesArgsOnlyAndNativeExitCodes(t *testing.T) {
 			t.Fatal(runner, v)
 		}
 	}
-	b, e := os.ReadFile("testdata/ctest.xml")
+	b, e := readFixture("testdata", "ctest.xml")
 	if e != nil {
 		t.Fatal(e)
 	}
 	o, e := Parse(tr.Input{Runner: "ctest", ExitCode: 1, Reports: map[string][]byte{"ctest.xml": b}})
 	if e != nil || o.Complete {
 		t.Fatal("CTest admitted nonnative failed-test exit", o, e)
+	}
+}
+
+// Report bundles preserve original capture bytes; undeclared names never become empty reports.
+func readFixture(root, name string) ([]byte, error) {
+	raw, err := os.ReadFile(filepath.Join(root, "native-report-fixtures.json"))
+	if err != nil {
+		return nil, err
+	}
+	var inventory map[string]struct {
+		Bytes  []byte `json:"bytesBase64"`
+		SHA256 string `json:"sha256"`
+	}
+	if err := json.Unmarshal(raw, &inventory); err != nil {
+		return nil, err
+	}
+	entry, declared := inventory[filepath.ToSlash(name)]
+	if !declared {
+		return nil, fmt.Errorf("native report fixture not declared: %s", name)
+	}
+	if entry.Bytes == nil || entry.SHA256 != tr.Digest(entry.Bytes) {
+		return nil, fmt.Errorf("native report fixture digest mismatch: %s", name)
+	}
+	return entry.Bytes, nil
+}
+
+func TestNativeReportFixtureInventory(t *testing.T) {
+	raw, err := os.ReadFile("testdata/native-report-fixtures.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var inventory map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &inventory); err != nil {
+		t.Fatal(err)
+	}
+	if len(inventory) != 68 {
+		t.Fatalf("unexpected report inventory: %d", len(inventory))
+	}
+	for name := range inventory {
+		if _, err := readFixture("testdata", name); err != nil {
+			t.Fatalf("fixture %s: %v", name, err)
+		}
+	}
+	if _, err := readFixture("testdata", "undeclared-missing-fixture.txt"); err == nil {
+		t.Fatal("undeclared missing fixture was hidden")
+	}
+	for _, declaration := range []string{`{"bytesBase64":"YQ==","sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}`, `{"bytesBase64":"","sha256":"wrong"}`, `{"sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}`} {
+		root := t.TempDir()
+		if err := os.WriteFile(filepath.Join(root, "native-report-fixtures.json"), []byte(`{"capture":`+declaration+`}`), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := readFixture(root, "capture"); err == nil {
+			t.Fatal("invalid declaration accepted")
+		}
 	}
 }

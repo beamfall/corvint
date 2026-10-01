@@ -71,7 +71,7 @@ console.log(JSON.stringify({host:effective.hostname,port:effective.port,device:e
 }
 
 func TestNativeSpecInventory(t *testing.T) {
-	b, e := os.ReadFile("testdata/pass.json")
+	b, e := readFixture("testdata", "pass.json")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -90,7 +90,7 @@ func TestNativeSpecInventory(t *testing.T) {
 }
 
 func TestCallerBoundIdentity(t *testing.T) {
-	b, e := os.ReadFile("testdata/pass.json")
+	b, e := readFixture("testdata", "pass.json")
 	if e != nil {
 		t.Fatal(e)
 	}

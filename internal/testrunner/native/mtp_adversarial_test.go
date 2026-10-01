@@ -3,13 +3,12 @@ package native
 import (
 	"bytes"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
-	"os"
 	"regexp"
 	"testing"
 )
 
 func TestMTPConflictingEvidence(t *testing.T) {
-	b, e := os.ReadFile("testdata/mtp/mstest/pass.trx")
+	b, e := readFixture("testdata", "mtp/mstest/pass.trx")
 	if e != nil {
 		t.Fatal(e)
 	}

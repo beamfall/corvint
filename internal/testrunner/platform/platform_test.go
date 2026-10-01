@@ -197,34 +197,31 @@ func TestAggregateReportDoesNotInventAttempts(t *testing.T) {
 	}
 }
 
-// Only named empty captures may be reconstructed; missing native files remain errors.
+// Report bundles preserve original capture bytes; undeclared names never become empty reports.
 func readFixture(root, name string) ([]byte, error) {
-	raw, err := os.ReadFile(filepath.Join(root, "empty-fixtures.json"))
+	raw, err := os.ReadFile(filepath.Join(root, "native-report-fixtures.json"))
 	if err != nil {
 		return nil, err
 	}
 	var inventory map[string]struct {
-		Bytes  *string `json:"bytes"`
-		SHA256 string  `json:"sha256"`
+		Bytes  []byte `json:"bytesBase64"`
+		SHA256 string `json:"sha256"`
 	}
 	if err := json.Unmarshal(raw, &inventory); err != nil {
 		return nil, err
 	}
 	entry, declared := inventory[filepath.ToSlash(name)]
 	if !declared {
-		return os.ReadFile(filepath.Join(root, name))
+		return nil, fmt.Errorf("native report fixture not declared: %s", name)
 	}
-	if entry.Bytes == nil || *entry.Bytes != "" || entry.SHA256 != tr.Digest([]byte{}) {
-		return nil, fmt.Errorf("invalid empty fixture declaration: %s", name)
+	if entry.Bytes == nil || entry.SHA256 != tr.Digest(entry.Bytes) {
+		return nil, fmt.Errorf("native report fixture digest mismatch: %s", name)
 	}
-	if _, err := os.Lstat(filepath.Join(root, name)); !os.IsNotExist(err) {
-		return nil, fmt.Errorf("empty fixture declaration shadows file or unreadable path: %s", name)
-	}
-	return []byte{}, nil
+	return entry.Bytes, nil
 }
 
-func TestEmptyFixtureInventory(t *testing.T) {
-	raw, err := os.ReadFile("testdata/empty-fixtures.json")
+func TestNativeReportFixtureInventory(t *testing.T) {
+	raw, err := os.ReadFile("testdata/native-report-fixtures.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -232,31 +229,20 @@ func TestEmptyFixtureInventory(t *testing.T) {
 	if err := json.Unmarshal(raw, &inventory); err != nil {
 		t.Fatal(err)
 	}
-	if len(inventory) != 2 {
-		t.Fatalf("unexpected empty inventory: %d", len(inventory))
+	if len(inventory) != 25 {
+		t.Fatalf("unexpected report inventory: %d", len(inventory))
 	}
 	for name := range inventory {
-		b, err := readFixture("testdata", name)
-		if err != nil || len(b) != 0 || tr.Digest(b) != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" {
-			t.Fatalf("empty fixture %s: %x %v", name, b, err)
+		if _, err := readFixture("testdata", name); err != nil {
+			t.Fatalf("fixture %s: %v", name, err)
 		}
 	}
-	if _, err := readFixture("testdata", "undeclared-missing-fixture.txt"); !os.IsNotExist(err) {
-		t.Fatalf("undeclared missing fixture was hidden: %v", err)
+	if _, err := readFixture("testdata", "undeclared-missing-fixture.txt"); err == nil {
+		t.Fatal("undeclared missing fixture was hidden")
 	}
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "empty-fixtures.json"), []byte(`{"capture":{"bytes":"","sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}}`), 0600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "capture"), []byte("unexpected native bytes"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := readFixture(root, "capture"); err == nil {
-		t.Fatal("inventory shadowed a native file")
-	}
-	for _, declaration := range []string{`{"bytes":"changed","sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}`, `{"bytes":"","sha256":"wrong"}`, `{"sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}`} {
+	for _, declaration := range []string{`{"bytesBase64":"YQ==","sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}`, `{"bytesBase64":"","sha256":"wrong"}`, `{"sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}`} {
 		root := t.TempDir()
-		if err := os.WriteFile(filepath.Join(root, "empty-fixtures.json"), []byte(`{"capture":`+declaration+`}`), 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(root, "native-report-fixtures.json"), []byte(`{"capture":`+declaration+`}`), 0600); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := readFixture(root, "capture"); err == nil {

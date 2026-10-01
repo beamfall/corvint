@@ -3,7 +3,6 @@ package native
 import (
 	"bytes"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
-	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -18,7 +17,7 @@ func TestMTPNativeMatrix(t *testing.T) {
 			complete bool
 		}{{"pass", 0, 1, true}, {"fail", 2, 1, true}, {"skip", 0, 1, true}, {"zero", 8, 0, false}, {"mixed2", 2, 3, true}, {"infra", 2, 1, true}} {
 			t.Run(f+"/"+c.name, func(t *testing.T) {
-				b, err := os.ReadFile(filepath.Join("testdata", "mtp", f, c.name+".trx"))
+				b, err := readFixture("testdata", filepath.Join("mtp", f, c.name+".trx"))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -45,7 +44,7 @@ func TestMTPNativeMatrix(t *testing.T) {
 	}
 }
 func TestMTPBindings(t *testing.T) {
-	b, err := os.ReadFile("testdata/mtp/mstest/fail.trx")
+	b, err := readFixture("testdata", "mtp/mstest/fail.trx")
 	if err != nil {
 		t.Fatal(err)
 	}

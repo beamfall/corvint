@@ -1,1 +1,0 @@
-psql:/private/tmp/cem10-build/sql/live-pgtap/cases/infra.sql:1: ERROR:  division by zero

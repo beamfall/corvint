@@ -1,6 +1,0 @@
-1..1
-not ok 1 - SQL equality
-# Failed test 1: "SQL equality"
-#         have: 1
-#         want: 2
-# Looks like you failed 1 test of 1

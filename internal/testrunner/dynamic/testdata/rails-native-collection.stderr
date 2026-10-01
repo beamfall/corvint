@@ -1,7 +1,0 @@
-/work/root/test/collection_test.rb:1:in '<top (required)>': deliberate Rails collection failure (RuntimeError)
-	from <internal:/usr/local/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require'
-	from <internal:/usr/local/lib/ruby/3.4.0/rubygems/core_ext/kernel_require.rb>:136:in 'Kernel#require'
-	from /usr/local/lib/ruby/gems/3.4.0/gems/zeitwerk-2.8.3/lib/zeitwerk/core_ext/kernel.rb:34:in 'Kernel#require'
-	from /work/reports-collection/minitest_reporter.rb:38:in 'block in <main>'
-	from /work/reports-collection/minitest_reporter.rb:38:in 'Array#each'
-	from /work/reports-collection/minitest_reporter.rb:38:in '<main>'
