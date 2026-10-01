@@ -171,6 +171,14 @@ func selectedFailureAndFallback(t *testing.T) {
 	if _, err = execute(ctx, o, wrong); err == nil {
 		t.Fatal("Go binary drift executed")
 	}
+	if id.Git == "" {
+		t.Fatal("Git executable missing from frozen identity")
+	}
+	wrong = s
+	wrong.Identity.Git = "changed"
+	if _, err = execute(ctx, o, wrong); err == nil || !strings.Contains(err.Error(), "Git") {
+		t.Fatalf("Git drift executed: %v", err)
+	}
 	code, err = runPR(ctx, o)
 	if err != nil || code != 1 {
 		t.Fatalf("full fallback: %d %v", code, err)
@@ -330,6 +338,46 @@ func interruptionLeavesNoLiveDescendant(t *testing.T) {
 
 func TestClosedEnvironmentAndBoundedOutput(t *testing.T) {
 	t.Run("AFP-V0-013", closedEnvironmentAndBoundedOutput)
+}
+
+// TestTestEnvironmentOmitsGraftFile keeps the driver's graft refusal while the
+// tests themselves see no graft-deprecation advice in combined Git output.
+func TestTestEnvironmentOmitsGraftFile(t *testing.T) {
+	t.Run("AFP-V0-013 graft advice", func(t *testing.T) {
+		o := options{root: t.TempDir(), out: t.TempDir()}
+		if err := prepareCache(o); err != nil {
+			t.Fatal(err)
+		}
+		driver, tests := closedEnv(o), testEnv(o)
+		if !strings.Contains(strings.Join(driver, "\n"), "GIT_GRAFT_FILE="+os.DevNull) || strings.Contains(strings.Join(tests, "\n"), "GIT_GRAFT_FILE") || len(tests) != len(driver)-1 {
+			t.Fatalf("graft entry not isolated: driver=%v tests=%v", driver, tests)
+		}
+		for i, j := 0, 0; i < len(driver); i++ {
+			if strings.HasPrefix(driver[i], "GIT_GRAFT_FILE=") {
+				continue
+			}
+			if tests[j] != driver[i] {
+				t.Fatalf("test environment changed %q to %q", driver[i], tests[j])
+			}
+			j++
+		}
+		run := func(env []string, args ...string) string {
+			t.Helper()
+			var b strings.Builder
+			code, err := command(context.Background(), o.root, env, &b, &b, time.Minute, "git", args...)
+			if err != nil || code != 0 {
+				t.Fatalf("git %v: %d %v %s", args, code, err, b.String())
+			}
+			return b.String()
+		}
+		run(tests, "init", "-q")
+		run(tests, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "one")
+		if out := run(tests, "log", "--format=%s"); out != "one\n" {
+			t.Fatalf("test Git output carried advice: %q", out)
+		}
+		// Recorded, not asserted: advice wording depends on the Git version.
+		t.Logf("driver environment log output: %q", run(driver, "log", "--format=%s"))
+	})
 }
 
 func closedEnvironmentAndBoundedOutput(t *testing.T) {

@@ -46,6 +46,7 @@ type identity struct {
 	Shards                                                                                int
 	Limits                                                                                []int64
 	Source, Planner, Selector, Driver, GoBinary, GoVersion, OS, Arch, OSRelease, Compiler string
+	Git                                                                                   string
 	Args, Env                                                                             []string
 }
 type selection struct {
@@ -278,6 +279,20 @@ func closedEnv(o options) []string {
 	r := runtimePath(o)
 	return []string{"PATH=" + filepath.Dir(goPath) + ":/usr/bin:/bin", "HOME=" + filepath.Join(r, "home"), "TMPDIR=" + filepath.Join(r, "tmp"), "TMP=" + filepath.Join(r, "tmp"), "TEMP=" + filepath.Join(r, "tmp"), "LANG=C", "LC_ALL=C", "TZ=UTC", "CC=/usr/bin/cc", "GOENV=off", "GOTOOLCHAIN=local", "GOPROXY=off", "GOWORK=off", "GOFLAGS=", "GOSUMDB=off", "CGO_ENABLED=1", "GOCACHE=" + filepath.Join(r, "cache"), "GOMODCACHE=" + filepath.Join(r, "modules"), "GIT_NO_REPLACE_OBJECTS=1", "GIT_GRAFT_FILE=" + os.DevNull, "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_CONFIG_COUNT=0", "GIT_TERMINAL_PROMPT=0", "GOMAXPROCS=2"}
 }
+
+// testEnv is the closed environment of the go test process. It omits the
+// driver's GIT_GRAFT_FILE: the owned clone carries no graft file, and naming one
+// makes Git print graft-deprecation advice that tests capturing combined Git
+// output read as command results. The driver's own Git reads keep closedEnv.
+func testEnv(o options) []string {
+	var env []string
+	for _, v := range closedEnv(o) {
+		if !strings.HasPrefix(v, "GIT_GRAFT_FILE=") {
+			env = append(env, v)
+		}
+	}
+	return env
+}
 func prepareCache(o options) error {
 	r := runtimePath(o)
 	for _, name := range []string{"home", "tmp", "cache"} {
@@ -415,7 +430,7 @@ func readJSON(path string, v any) error {
 	return json.Unmarshal(b, v)
 }
 func toolIdentity(ctx context.Context, o options) (identity, error) {
-	id := identity{CachePolicy: "empty-immediately-before-test/1", Source: o.source, OS: runtime.GOOS, Arch: runtime.GOARCH, Args: append([]string{}, testArgs...), Env: closedEnv(o), Limits: []int64{maxStdout, maxStderr}}
+	id := identity{CachePolicy: "empty-immediately-before-test/1", Source: o.source, OS: runtime.GOOS, Arch: runtime.GOARCH, Args: append([]string{}, testArgs...), Env: testEnv(o), Limits: []int64{maxStdout, maxStderr}}
 	id.PartitionDigest = cishards.ProfileDigest()
 	id.Shards = o.shards
 	if id.Shards == 0 {
@@ -466,6 +481,20 @@ func toolIdentity(ctx context.Context, o options) (identity, error) {
 	if err != nil {
 		return id, err
 	}
+	// Tests run Git, whose version-specific output changes their outcomes.
+	gitPath, err := executable("git", testEnv(o))
+	if err != nil {
+		return id, err
+	}
+	gitHash, err := digestFile(gitPath)
+	if err != nil {
+		return id, err
+	}
+	gitVersion, err := capture(ctx, o, gitPath, "--version")
+	if err != nil {
+		return id, err
+	}
+	id.Git = gitPath + "\n" + gitHash + "\n" + gitVersion
 	if runtime.GOOS == "linux" {
 		b, err := os.ReadFile("/etc/os-release")
 		if err != nil {
@@ -664,14 +693,14 @@ func runPR(ctx context.Context, o options) (int, error) {
 }
 func execute(ctx context.Context, o options, s selection) (int, error) {
 	current, identityErr := toolIdentity(ctx, o)
-	if current.GoBinary == "" || current.Compiler == "" {
+	if current.GoBinary == "" || current.Compiler == "" || current.Git == "" {
 		return 2, fmt.Errorf("execution runtime identity unavailable: %v", identityErr)
 	}
 	if !equal(current.Container, s.Identity.Container) {
 		return 2, errors.New("container profile drift before execution")
 	}
-	if s.Identity.GoBinary != "" && (current.GoBinary != s.Identity.GoBinary || current.Compiler != s.Identity.Compiler || !equal(current.Env, s.Identity.Env)) {
-		return 2, errors.New("Go/compiler/environment drift before execution")
+	if s.Identity.GoBinary != "" && (current.GoBinary != s.Identity.GoBinary || current.Compiler != s.Identity.Compiler || current.Git != s.Identity.Git || !equal(current.Env, s.Identity.Env)) {
+		return 2, errors.New("Go/compiler/Git/environment drift before execution")
 	}
 	if s.Reason == "" && (identityErr != nil || !equal(current, s.Identity)) {
 		s.Reason = "planner/selector/driver drift before execution"
@@ -761,7 +790,7 @@ func execute(ctx context.Context, o options, s selection) (int, error) {
 	if ctx.Err() != nil {
 		code, runErr = 130, ctx.Err()
 	} else if len(executed) > 0 {
-		code, runErr = command(ctx, o.root, closedEnv(o), boundedOut, boundedErr, 70*time.Minute, "go", args...)
+		code, runErr = command(ctx, o.root, testEnv(o), boundedOut, boundedErr, 70*time.Minute, "go", args...)
 	}
 	if boundedOut.overflow || boundedErr.overflow {
 		runErr = errors.New("test output limit exceeded")
@@ -769,7 +798,7 @@ func execute(ctx context.Context, o options, s selection) (int, error) {
 	if ctx.Err() != nil && runErr == nil {
 		code, runErr = 130, ctx.Err()
 	}
-	e := execution{Env: closedEnv(o), Selection: s, Args: args, Exit: code, ElapsedSeconds: time.Since(start).Seconds(), SkippedEmptyShard: len(executed) == 0}
+	e := execution{Env: testEnv(o), Selection: s, Args: args, Exit: code, ElapsedSeconds: time.Since(start).Seconds(), SkippedEmptyShard: len(executed) == 0}
 	if runErr != nil {
 		e.Error = runErr.Error()
 	}

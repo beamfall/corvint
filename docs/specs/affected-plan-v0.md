@@ -582,7 +582,12 @@ resolved through their nearest existing ancestors before creation and rechecked 
 directories, so a symlinked parent cannot create inside the tested tree. Historical rows use that same fixed layout and reset HOME/TMP/GOCACHE immediately before each test invocation.
 Stdout is capped at 128 MiB and stderr at 8 MiB; overflow immediately cancels the process group
 and invalidates execution. Hosted log preview is capped at 1 MiB/256 KiB. Planner/selector drift
-at launch falls back to full; Go/compiler/environment drift fails safely. Freeze ignores grafts;
+at launch falls back to full; Go/compiler/Git/environment drift fails safely. The frozen identity
+records the test Git executable path, digest and version, because tests run Git and its
+version-specific output changes their outcomes. The driver's own Git reads keep
+`GIT_GRAFT_FILE=/dev/null`; the `go test` environment omits only that entry, since naming a graft
+file makes current Git print deprecation advice into the combined output tests read
+(build log 2026-10-01-ci-shadow-graft-advice). Freeze ignores grafts;
 row reuse binds the execution source/environment and raw plan/audit hashes as well as outcomes.
 
 Container control operations have a two-minute deadline within an 80-minute launcher ceiling;
