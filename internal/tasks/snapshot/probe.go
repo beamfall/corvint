@@ -2,8 +2,10 @@ package snapshot
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -26,11 +28,59 @@ type Snapshot struct {
 // Reader configures the protocol. IntentTree, when set, is evaluated inside
 // the snapshot and re-checked afterwards, so a read never mixes an intent
 // tree from one snapshot with journal state from another. Retries defaults
-// to the §TM-V0-008 value of three.
+// to the §TM-V0-008 value of three; Patience to DefaultPatience.
 type Reader struct {
 	StateDir   string
 	IntentTree func() (wire.Digest, error)
-	Retries    int
+	// Retries bounds the re-reads after a moved snapshot: zero means three,
+	// negative means none.
+	Retries int
+	// Patience bounds the wall-clock time one read waits for an in-flight
+	// writer (CTS-V0-006): a committed receipt that head.json does not name
+	// yet (REDO_PENDING) is re-probed with backoff until it is applied or the
+	// budget is spent, and the pause before each moved re-read is charged to
+	// the same budget. Zero means DefaultPatience; negative means no waiting,
+	// so a pending redo is reported at once and moved re-reads do not pause.
+	Patience time.Duration
+	// Sleep is the wait primitive; nil means time.Sleep. Tests use it to
+	// finish a simulated writer during the wait.
+	Sleep func(time.Duration)
+}
+
+// DefaultPatience is how long a read waits for an in-flight writer before it
+// reports REDO_PENDING or SNAPSHOT_MOVED. The §5.2 effect order links the
+// receipt in before the post files and the head, so a healthy writer leaves
+// the pending window within milliseconds; two seconds covers a loaded host,
+// while a writer that crashed in the window is still reported, not hidden.
+// It is a variable only so a test binary can opt out of waiting
+// (internal/tasks/fixture sets it to NoPatience); production code never
+// assigns it.
+var DefaultPatience = 2 * time.Second
+
+// NoPatience is the Reader.Patience (or DefaultPatience) value that reports a
+// pending redo at once and never pauses before a moved re-read.
+const NoPatience time.Duration = -1
+
+// readBackoff is the pause before re-read n (zero-based): 25 ms doubling to
+// a 400 ms ceiling, so a short window costs little and a long wait does not
+// hammer the store.
+func readBackoff(n int) time.Duration {
+	d := 25 * time.Millisecond << uint(n)
+	if n > 4 || d > 400*time.Millisecond {
+		return 400 * time.Millisecond
+	}
+	return d
+}
+
+// transient reports whether a probe failure is one a concurrent writer causes
+// and a later probe can clear: a pending redo, or an intent file replaced
+// between stat and open while the tree digest was being taken.
+func transient(err error) bool {
+	switch wire.CodeOf(err) {
+	case wire.CodeRedoPending, wire.CodeSnapshotMoved:
+		return true
+	}
+	return false
 }
 
 // Exists reports whether the state dir has been initialised at all
@@ -148,10 +198,12 @@ func checkSlots(stateDir string, head *Head) error {
 }
 
 // Read runs the whole protocol: probe, intent tree, body, re-probe,
-// compare; retry at most Retries times; then NOT_RUN/SNAPSHOT_MOVED. The
-// body receives a snapshot it may read files under; the returned snapshot
-// is the one the body last saw when the read succeeded, or the partial
-// snapshot a failed probe observed (possibly nil) together with the error.
+// compare; retry a moved snapshot at most Retries times; wait out an
+// in-flight writer for at most Patience; then NOT_RUN/SNAPSHOT_MOVED or
+// REDO_PENDING. The body receives a snapshot it may read files under; the
+// returned snapshot is the one the body last saw when the read succeeded,
+// or the partial snapshot a failed probe observed (possibly nil) together
+// with the error.
 //
 // A body failure is re-probed before it is reported (TM-V0-008): when the
 // re-probe shows the same snapshot the store is stable and the body's own
@@ -161,6 +213,17 @@ func checkSlots(stateDir string, head *Head) error {
 // store, and the attempt is retried like any other moved read. A store
 // that is both moving and corrupt therefore ends as SNAPSHOT_MOVED, never
 // as a success; a corrupt store that is stable is never reported as moved.
+//
+// A probe that finds a committed receipt head.json does not name yet
+// (REDO_PENDING) is a writer part-way through the §5.2 effect order, not a
+// fact about the store either (CTS-V0-006): the read pauses with backoff
+// and probes again until the writer has applied the receipt or Patience is
+// spent, and only then reports REDO_PENDING, naming the wait. A moved
+// snapshot is likewise paused on and re-read, uncounted, while Patience
+// lasts; the Retries bound applies to the unpaused re-reads after it is
+// spent, so a test binary without patience sees exactly the TM-V0-008
+// attempt count. Nothing is written or locked while waiting; a reader never
+// redoes the receipt.
 func (r Reader) Read(body func(s *Snapshot) error) (*Snapshot, error) {
 	retries := r.Retries
 	if retries == 0 {
@@ -168,26 +231,83 @@ func (r Reader) Read(body func(s *Snapshot) error) (*Snapshot, error) {
 	} else if retries < 0 {
 		retries = 0
 	}
+	patience := r.Patience
+	if patience == 0 {
+		patience = DefaultPatience
+	}
+	if patience < 0 {
+		patience = 0
+	}
+	sleep := r.Sleep
+	if sleep == nil {
+		sleep = time.Sleep
+	}
+	start := time.Now()
+	deadline := start.Add(patience)
+	waits, stall := 0, 0
+	// wait pauses for the next backoff step of the current stall, clipped
+	// to the remaining budget, and reports false once the budget is spent.
+	wait := func() bool {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return false
+		}
+		d := readBackoff(stall)
+		if d > remaining {
+			d = remaining
+		}
+		waits++
+		stall++
+		sleep(d)
+		return true
+	}
 	var last *Snapshot
-	for attempt := 0; attempt <= retries; attempt++ {
+	attempts, moved := 0, 0
+	for {
 		s, err := r.probe()
 		if err != nil {
-			return s, err
+			if transient(err) && wait() {
+				continue
+			}
+			return s, afterWait(err, start, waits)
 		}
+		stall = 0
+		attempts++
 		bodyErr := body(s)
 		again, err := r.probe()
 		if err != nil {
-			// The store is no longer in a readable state (a commit in flight
-			// shows as REDO_PENDING, a fork as JOURNAL_FORKED); report the
-			// re-probe verbatim, as a read after a successful body would.
-			return again, err
+			// The store is no longer in a readable state: a fork is reported
+			// verbatim, as a read after a successful body would; a commit in
+			// flight (REDO_PENDING) is waited out like one seen before the body.
+			if transient(err) && wait() {
+				continue
+			}
+			return again, afterWait(err, start, waits)
 		}
 		if Same(s, again) {
 			return s, bodyErr
 		}
 		last = again
+		if wait() {
+			continue
+		}
+		moved++
+		if moved > retries {
+			break
+		}
 	}
-	return last, wire.Errorf(wire.CodeSnapshotMoved, r.StateDir, "the store changed during every one of %d read attempts", retries+1)
+	return last, afterWait(wire.Errorf(wire.CodeSnapshotMoved, r.StateDir, "the store changed during every one of %d read attempts", attempts), start, waits)
+}
+
+// afterWait names the wait on a failure reported after at least one pause,
+// so a consumer can tell a waited-out writer from an instant refusal; an
+// error reported without waiting is returned verbatim.
+func afterWait(err error, start time.Time, waits int) error {
+	e, ok := err.(*wire.Error)
+	if !ok || waits == 0 {
+		return err
+	}
+	return &wire.Error{Code: e.Code, Where: e.Where, Msg: fmt.Sprintf("%s; still so after %d pauses totalling %s for a concurrent writer; the read is retryable", e.Msg, waits, time.Since(start).Round(time.Millisecond))}
 }
 
 // probe is Probe plus the intent tree digest when the reader has one.
