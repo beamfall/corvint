@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // Workflow runs one role turn. Durable pending phases are resumed explicitly;
@@ -109,9 +110,14 @@ func (w *Workflow) context(ctx context.Context, root, revision string) (json.Raw
 	if supervisor.Digest(raw) != w.cfg.CoreSHA256 {
 		return nil, fmt.Errorf("Core executable pin differs")
 	}
+	// Preserve the admitted identity as retrieval data; it grants no authority.
+	task := w.record.Title + " " + w.record.TicketID.Raw
+	if !utf8.ValidString(task) || utf8.RuneCountInString(task) > 8000 {
+		return nil, fmt.Errorf("CONTEXT_UNAVAILABLE: title and ticket identity exceed the UTF-8 task bound")
+	}
 	bounded, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(bounded, w.cfg.CoreExecutable, "query", "--task", w.record.Title, "--budget-bytes", "8000")
+	cmd := exec.CommandContext(bounded, w.cfg.CoreExecutable, "query", "--task", task, "--budget-bytes", "8000")
 	cmd.Dir = root
 	cmd.WaitDelay = time.Second
 	raw, e = cmd.Output()
