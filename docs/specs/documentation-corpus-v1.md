@@ -8,7 +8,7 @@ Authoritative inputs: owner request [issue 31](https://github.com/beamfall/corvi
 owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 [issue 42](https://github.com/beamfall/corvint/issues/42) and
 [issue 53](https://github.com/beamfall/corvint/issues/53), and the owner-authorized adoption slice
-[issue 339](https://github.com/beamfall/corvint/issues/339),
+[issue 339](https://github.com/beamfall/corvint/issues/339) and [issue 399](https://github.com/beamfall/corvint/issues/399),
 `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/specs/deployment-neutral-index-platform-v0.md`,
 `docs/specs/source-documentation-draft-v0.md`, `docs/specs/external-evidence-provider-v0.md`.
 
@@ -104,7 +104,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
 - `DCP-V1-015`: Task/work consumers may attach read-only corpus evidence without changing accepted
   task intent, claims, dispatch, scheduling or authorization. Corpus evidence never owns task state.
 - `DCP-V1-016`: A separate stdio documentation-corpus MCP server directly calls the native reader;
-  tools equivalent to docs_info/search/get/locate/find_related/coverage/gaps/get_journey/get_stability/trace are
+  tools equivalent to docs_info/validate/search/get/locate/find_related/coverage/gaps/get_journey/get_stability/trace are
   advertised only when their backing capability is present (including present-zero). Revalidate on
   calls, preserve typed failures, frame model-facing text using `repoenvelope`, refuse terminator
   collisions and match CLI structured receipt bytes. Existing core and draft MCP surfaces stay frozen.
@@ -252,6 +252,52 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   consumer/MCP parity, stale-source behavior and hostile shard/restricted-input cases. Synthetic
   qualification is not an external adopter utility claim. Focused checks and independent review
   govern this scoped issue slice under the owner's standing repository policy.
+
+- `DCP-V1-038`: CLI and local corpus MCP expose all existing reads, including validate and
+  inventory, with the same capability gates and native structured receipt. Typed concept, claims
+  by path/symbol, eight-section flow, explicit upstream/downstream dependencies, test recommendation,
+  navigation, vocabulary and recorded intent reads preserve typed details and citations. No relation
+  is inferred from shared citations; business terms resolve only documented records/relations.
+  Test recommendations retain `full-relevant-suite-required` under ETS-V0: declared links and review
+  labels cannot establish exhaustive adequacy. Gap kinds distinguish no tests, missing exact reviewed
+  asserting E2E links, missing manual disposition, stale journeys and stale anchors; unknown is not absence.
+- `DCP-V1-039`: Native answers use `corvint-corpus-receipt/2` for the additive trust envelope; artifacts
+  remain unchanged. Every native answer carries source revision, corpus digest, builder, generated content
+  status, freshness, bounded citations, limitations and retirement envelope. Imported trust labels
+  remain attributed declarations. Optional caller-declared retirement names evaluated time, age limit
+  and/or source/target revision-bound merge distance/limit; future build times, negative/overflow or
+  mismatched identities refuse. Unobserved age/distance stays unknown; policy expiry is distinct from
+  paragraph redirects and never upgrades authority. Empty results say `not documented` while retaining
+  capability-absent, filter-miss, not-found and pagination-exhaustion machine distinctions.
+- `DCP-V1-040`: The separate experimental `corvint-corpus-index/1` companion wraps a canonical `/2`
+  corpus and a deterministic rederived ID/path/symbol/term/edge index. Producer Build revalidates source.
+  Admission requires an externally operator-pinned complete SHA256; self-consistent embedded hashes
+  alone grant no provenance. Read-only consumers have no live source or Git input and report historical
+  evidence with freshness unknown, producer authentication NOT_OBSERVED and validation
+  `index-digest-validated; source-revalidation-unavailable`. Maximum wrapper bytes 256 MiB, corpus
+  bytes 128 MiB, existing per-family record limits, 1,000,000 postings, 16 MiB unique key bytes and
+  existing per-record/receipt bounds refuse overflow; malformed offsets or altered postings refuse.
+  Per-path fanout is at most 100,000 references. Index ordering and identical producer inputs yield byte-identical outputs. A labelled synthetic
+  25,000-claim/5,000-symbol qualification retains counts, allocations, bytes and query parity;
+  no general external scale, production index promotion or DNIP benchmark-gate claim follows.
+- `DCP-V1-041`: A companion switch-over harness consumes bounded closed recorded questions and
+  complete expected receipts. It reports per-tool agreement/refusal and stable missing/extra/changed
+  record identities; strict complete receipt comparison includes details, trust/freshness, capability
+  state, omissions, retirement, citations, limitations and full-suite fallback. Identical inputs
+  produce identical reports. Record equality with different evidence semantics is disagreement;
+  supplied-question agreement grants no authority to retire the previous server.
+  Strong record IDs reject duplicates. Records without strong IDs use canonical-content digests
+  and occurrence numbers even when only one occurrence exists. Adding or removing an identical weak
+  record changes only that occurrence in missing/extra diagnostics; reordering preserves diagnostic
+  keys. Weak content changes report missing/extra, while strong-ID content changes report changed.
+- `DCP-V1-042`: The separately started experimental hosted companion serves only embedded digest-pinned
+  artifacts through bounded JSON-over-HTTP queries; it does not claim MCP Streamable HTTP compatibility.
+  Local source-revalidated stdio MCP remains separate and unchanged in transport. No source/Git/provider,
+  shell, credential or writing API is admitted. At most two concurrent requests, 16 KiB input,
+  five-second query context deadline, header/body timeouts and cancellation bound the transport;
+  explicit non-loopback exposure requires `--allow-remote` and an operator-owned external TLS/auth
+  boundary. Shutdown retires the listener and in-flight requests. Local conformance is not external
+  deployment/authentication/security/interoperability qualification; those axes stay NOT_OBSERVED.
 
 ## Input and authority boundary
 
@@ -498,6 +544,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-021..026 | `internal/doccorpus/stability.go`, corpus reader and MCP bridge | End-to-end aggregate, policy scopes, prior-attempt retention, source rebinding, exact declared/observed topology, cleanup and adversarial controls |
 | DCP-V1-027..032 | `internal/doccorpus/behavior_adapter.go`, `cmd/corvint/docs_corpus.go` | Mapped bundle through existing Build/Open, denominators, frontier/delta, bounds and issue-53 adversarial fixtures |
 
+| DCP-V1-038..042 | `internal/doccorpus/typed_query.go`, `trust.go`, `query_index.go`, `internal/corpusindex`, `internal/corpusserve`, separate companion commands | `TestCorpusTypedQueryConformance`, `TestCorpusRetirementBindings`, `TestCorpusCompleteReadAndTypedToolSchema`, `TestIndexedCorpusReproductionAndProvenance`, `TestIndexedCorpusCapacityQualification`, `TestIndexedCorpusSwitchParity`, `TestHostedCorpusHTTPConformance`, `TestHostedCorpusConcurrencyAndCleanup` |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 
 ## Open decisions
@@ -505,3 +552,27 @@ original sources, retained observations and human documentation require no migra
 Owner acceptance and any promotion beyond the local experimental profile remain open. Additional
 render formats, cross-repository inputs, provider transports and authenticated review attestations
 require separate contracts; absent capabilities must remain visible until then.
+
+## Experimental query-parity companion usage and rollback
+
+The issue-399 slice extends the existing experimental corpus contract; it does not promote
+Core or accept generated intent. `corvint docs corpus` typed reads use `--query`, `--path` or
+`--id` as named above and optional `--retirement POLICY.json`. Local MCP advertises matching
+`corvint.docs_*` tools only when their backing capability is present.
+
+Build the optional indexed artifact with `corvint-corpus-parity --mode build --root REPO
+--artifact corpus.json`, retaining stdout as the artifact and independently pinning its SHA256.
+`--mode query --index FILE --sha256 DIGEST --request QUERY.json` returns a historical native
+receipt. `--mode parity` uses `corvint-corpus-question-recording/1` with unique question IDs,
+`tool` naming the recorded server tool, a normalized native `request`, and complete expected
+`answer` receipts. Strict
+comparison deliberately reports different trust/freshness or identity as disagreement.
+
+`corvint-corpus-http --index FILE --sha256 DIGEST` starts an optional loopback JSON endpoint:
+POST `/query` with Content-Type `application/json` and a closed native request. This transport
+has no live repository. An external hosting operator owns TLS, access control and deployment
+qualification; no production hosted serving claim is made by local fixtures.
+
+Rollback the issue-399 query/receipt additions and remove the optional index/parity/HTTP
+companions. Existing `/1` and `/2` artifact bytes remain valid: resident query indexes are
+unserialized derived state. These additions do not change provider import or Core transport.

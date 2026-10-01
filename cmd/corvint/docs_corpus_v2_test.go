@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -45,4 +46,25 @@ func TestBehaviorProviderV2CLI(t *testing.T) {
 	if code != 2 {
 		t.Fatal("/2 silently admitted /1 adapter options")
 	}
+}
+
+func TestDocsCorpusTypedCLIInvocation(t *testing.T) {
+	t.Run("DCP-V1-038 typed argument parity", func(t *testing.T) {
+		root, e := filepath.Abs("../..")
+		if e != nil {
+			t.Fatal(e)
+		}
+		for _, op := range []string{"concept", "claims", "flow", "dependencies", "recommend-tests", "navigation", "vocabulary", "intent"} {
+			kind := doccorpus.OperationInput(op)
+			args := []string{"--root", root, "docs", "corpus", op, "--artifact", "corpus.json", "--" + kind, "value"}
+			o, handled, e := parseCorpusInvocation(args)
+			if e != nil || !handled || o.op != op {
+				t.Fatal(op, e)
+			}
+			args = append(args, "--retirement", "policy.json")
+			if _, _, e := parseCorpusInvocation(args); e != nil {
+				t.Fatal("retirement argument rejected", e)
+			}
+		}
+	})
 }
