@@ -8,6 +8,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	tw "github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 func newOutput(dir string) error {
@@ -20,7 +21,7 @@ func newOutput(dir string) error {
 	return os.WriteFile(filepath.Join(dir, "EXPERIMENT-DISPOSABLE"), []byte(Profile+"\n"), 0600)
 }
 func save(dir, name string, b []byte) error { return os.WriteFile(filepath.Join(dir, name), b, 0600) }
-func PlanExperiment(ctx context.Context, repoPath string, r Request, out string) (Plan, error) {
+func PlanExperiment(ctx context.Context, repoPath string, r Request, out string, tasks TasksVerifierConfig) (Plan, error) {
 	var p Plan
 	if e := r.validate(); e != nil {
 		return p, e
@@ -37,7 +38,7 @@ func PlanExperiment(ctx context.Context, repoPath string, r Request, out string)
 	if e = validateCEM(ctx, repo, r, cem); e != nil {
 		return p, e
 	}
-	captures, e := capture(repoPath, r.Ticket, r.Attempt)
+	captures, e := capture(ctx, repoPath, r.Ticket, r.Attempt, tasks)
 	if e != nil {
 		return p, e
 	}
@@ -66,18 +67,18 @@ func PlanExperiment(ctx context.Context, repoPath string, r Request, out string)
 	if e = checkAnchors(ctx, repo, r, captures); e != nil {
 		return p, e
 	}
-	p = Plan{Profile, r, binding, Digest(cem), CanonicalDigest(captures)}
+	p = Plan{Profile, r, binding, Digest(cem), Digest(tw.EncodeFile(captures.Capture.Value())), captures.Verification.Verifier}
 	if e = newOutput(out); e != nil {
 		return p, e
 	}
-	for name, b := range map[string][]byte{"plan.json": Encode(p), "cem.json": cem, "captures.json": Encode(captures)} {
+	for name, b := range map[string][]byte{"plan.json": Encode(p), "cem.json": cem, "captures.json": tw.EncodeFile(captures.Capture.Value())} {
 		if e = save(out, name, b); e != nil {
 			return p, e
 		}
 	}
 	return p, nil
 }
-func loadPlan(ctx context.Context, repo *gitauth.Repository, planPath string) (Plan, error) {
+func loadPlan(ctx context.Context, repo *gitauth.Repository, planPath string, tasks TasksVerifierConfig) (Plan, error) {
 	var p Plan
 	b, e := Read(planPath)
 	if e != nil {
@@ -107,11 +108,11 @@ func loadPlan(ctx context.Context, repo *gitauth.Repository, planPath string) (P
 	if e != nil {
 		return p, e
 	}
-	var c Captures
-	if e = Decode(b, &c); e != nil {
+	c, e := verifyCapture(ctx, b, tasks)
+	if e != nil {
 		return p, e
 	}
-	if CanonicalDigest(c) != p.CapturesSha256 {
+	if Digest(b) != p.CapturesSha256 || c.Capture.Producer != p.TasksVerifier || c.Verification.Verifier != p.TasksVerifier {
 		return p, fmt.Errorf("capture digest changed")
 	}
 	tree, e := repo.CommitTree(ctx, p.Request.Target)
@@ -148,7 +149,7 @@ func scenarios(p Plan) []Scenario {
 	}
 	return rows
 }
-func Run(ctx context.Context, repoPath, planPath, approval, out string, experimental, trusted bool) (Receipt, error) {
+func Run(ctx context.Context, repoPath, planPath, approval, out string, experimental, trusted bool, tasks TasksVerifierConfig) (Receipt, error) {
 	var receipt Receipt
 	if !experimental || !trusted {
 		return receipt, fmt.Errorf("explicit experimental and trusted-local admission required")
@@ -158,7 +159,7 @@ func Run(ctx context.Context, repoPath, planPath, approval, out string, experime
 		return receipt, e
 	}
 	defer repo.BeginObjectSession()()
-	p, e := loadPlan(ctx, repo, planPath)
+	p, e := loadPlan(ctx, repo, planPath, tasks)
 	if e != nil {
 		return receipt, e
 	}
@@ -206,20 +207,20 @@ func Run(ctx context.Context, repoPath, planPath, approval, out string, experime
 	}
 	return receipt, nil
 }
-func Verify(ctx context.Context, repoPath, planPath, receiptPath string, live bool) (Summary, error) {
+func Verify(ctx context.Context, repoPath, planPath, receiptPath string, live bool, tasks TasksVerifierConfig) (Summary, error) {
 	var summary Summary
 	repo, e := gitauth.Open(repoPath, gitrun.NewDefaultBudget())
 	if e != nil {
 		return summary, e
 	}
 	defer repo.BeginObjectSession()()
-	p, e := loadPlan(ctx, repo, planPath)
+	p, e := loadPlan(ctx, repo, planPath, tasks)
 	if e != nil {
 		return summary, e
 	}
 	var before Captures
 	if live {
-		if before, e = checkLive(ctx, repoPath, repo, p); e != nil {
+		if before, e = checkLive(ctx, repoPath, repo, p, tasks); e != nil {
 			return summary, e
 		}
 	}
@@ -310,13 +311,11 @@ func Verify(ctx context.Context, repoPath, planPath, receiptPath string, live bo
 		summary.State = "VERIFIED_SATISFIED"
 	}
 	if live {
-		after, err := checkLive(ctx, repoPath, repo, p)
+		after, err := checkLive(ctx, repoPath, repo, p, tasks)
 		if err != nil {
 			return summary, err
 		}
-		first, _ := parseEnvelope(before.Ticket)
-		last, _ := parseEnvelope(after.Ticket)
-		if string(first.Snapshot) != string(last.Snapshot) {
+		if before.Verification.Binding.Snapshot != after.Verification.Binding.Snapshot {
 			return summary, fmt.Errorf("live native snapshot moved during verification")
 		}
 		if !closed {

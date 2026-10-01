@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	tw "github.com/Beamfall/corvint/internal/tasks/wire"
 	"io"
 	"os"
 	"reflect"
@@ -67,11 +68,12 @@ type Binding struct {
 	CandidateTree      string `json:"candidateTree"`
 }
 type Plan struct {
-	Schema         string  `json:"schema"`
-	Request        Request `json:"request"`
-	Binding        Binding `json:"binding"`
-	CEMSha256      string  `json:"cemSha256"`
-	CapturesSha256 string  `json:"capturesSha256"`
+	Schema         string               `json:"schema"`
+	Request        Request              `json:"request"`
+	Binding        Binding              `json:"binding"`
+	CEMSha256      string               `json:"cemSha256"`
+	CapturesSha256 string               `json:"capturesSha256"`
+	TasksVerifier  tw.CriterionIdentity `json:"tasksVerifier"`
 }
 type Scenario struct {
 	Criterion      int    `json:"criterion"`

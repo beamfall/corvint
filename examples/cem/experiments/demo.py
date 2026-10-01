@@ -31,11 +31,15 @@ def main():
     primary, candidate = out / "repository", out / "candidate"
     primary.mkdir()
     step = 0
+    tasks_identity = ["--tasks-executable", str(Path(args.tasks).resolve()),
+                      "--tasks-sha256", sha(Path(args.tasks).read_bytes())]
     environment = dict(os.environ, CORVINT_TASKS_ACTOR="cem-experiment-demo")
 
     def call(argv, cwd=primary, data=None, expected=0):
         nonlocal step
         step += 1
+        if str(argv[0]) == args.experiments:
+            argv = [*argv, *tasks_identity]
         result = subprocess.run([str(x) for x in argv], cwd=cwd, input=data,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 env=environment, timeout=1800, check=False)
@@ -87,7 +91,7 @@ func TestClampNewBehavior(t *testing.T) {
     policy = json.loads((templates / "policy.json").read_bytes())
     policy["gates"][0].update(
         argv=[str(Path(args.experiments).resolve()), "gate", "--repo", str(candidate),
-              "--plan", str(out / "plan/plan.json"), "--receipt", str(out / "run/receipt.json")],
+              "--plan", str(out / "plan/plan.json"), "--receipt", str(out / "run/receipt.json"), *tasks_identity],
         timeoutSeconds="300")
     (primary / ".taskman").mkdir()
     (primary / ".taskman/queue.json").write_bytes(canonical(queue))

@@ -51,7 +51,7 @@ review capabilities in the primary tree are not dependencies of this public-base
 - **Execution snapshot**: the bounded module files from an immutable commit, with the same pinned
   oracle overlaid at the same path, identified by the reconstructed path/mode/content inventory.
 - **Historical verification**: recomputation of packet bindings and recorded classifications with
-  retained inputs; it launches no experiment or test command.
+  retained inputs through an independently pinned native Tasks read verifier; it launches no experiment or test command. Core consumes only Tasks wire contracts, never Tasks private CLI, intent, snapshot or ticket packages.
 - **Live applicability**: whether that historically valid packet still matches the current audited
   native task/attempt/policy and the submitted clean candidate. It grants no integration authority.
 

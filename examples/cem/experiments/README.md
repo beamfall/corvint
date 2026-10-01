@@ -63,7 +63,8 @@ it does not qualify a production queue or establish superiority over strong test
 
 ## Supply another trusted experiment
 
-`plan --repo REPO --request REQUEST.json --out NEW_DIRECTORY` validates and
+`plan --repo REPO --request REQUEST.json --out NEW_DIRECTORY` together with
+`--tasks-executable ABS_TASKS --tasks-sha256 INDEPENDENT_TASKS_SHA256` validates and
 captures canonical task, attempt and CEM inputs. The request's closed schema is
 defined in `internal/criterionexperiment/schema.go`; the disposable demo writes
 a complete `request.json` example. The initial profile permits only committed
@@ -76,10 +77,18 @@ its returned canonical digest:
 
 ```text
 run --repo REPO --plan PLAN/plan.json --approve EXACT_SHA256 \
+  --tasks-executable ABS_TASKS --tasks-sha256 INDEPENDENT_TASKS_SHA256 \
   --experimental --trusted-local --out NEW_RUN_DIRECTORY
-verify --repo REPO --plan PLAN/plan.json --receipt RUN/receipt.json
-gate --repo REPO --plan PLAN/plan.json --receipt RUN/receipt.json
+verify --repo REPO --plan PLAN/plan.json --receipt RUN/receipt.json \
+  --tasks-executable ABS_TASKS --tasks-sha256 INDEPENDENT_TASKS_SHA256
+gate --repo REPO --plan PLAN/plan.json --receipt RUN/receipt.json \
+  --tasks-executable ABS_TASKS --tasks-sha256 INDEPENDENT_TASKS_SHA256
 ```
+
+Supply the native Tasks path and digest independently for every operation, including
+the native gate policy argv. Historical verification invokes only the pinned Tasks
+read verifier; it launches no experiment or test command. Older experimental
+captures without claim-era canonical ticket bytes require their prior reader.
 
 Verification can preserve an unresolved record, such as a surviving control; the
 live gate requires all selected criterion obligations to be satisfied. A digest
