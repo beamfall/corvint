@@ -639,7 +639,9 @@ Its private state (ledger, events, worker logs and unpark requests) lives under 
 `stateDir`, never in the native store. That state is not an input to the queue, ranking, evidence or
 learning. Live qualification is recorded in `docs/build-log/2026-10-01-tasks-continuous-dispatch.md`
 (OpenCode), `docs/build-log/2026-10-01-tasks-dispatch-claude-code.md` (Claude Code) and
-`docs/build-log/2026-10-01-tasks-dispatch-codex.md` (Codex).
+`docs/build-log/2026-10-01-tasks-dispatch-codex.md` (Codex). Gemini CLI summary support is
+derived from the installed CLI source and is not live-qualified; see
+`docs/build-log/2026-10-01-tasks-dispatch-gemini.md`.
 
 - `CAL-V0-052`: `dispatch --program ID --config FILE [--once | --ticks N]` MUST decode a closed
   `taskman-dispatch/0` configuration of at most 256 KiB, read without following symlinks, and refuse
@@ -708,8 +710,9 @@ learning. Live qualification is recorded in `docs/build-log/2026-10-01-tasks-con
   `finished` event carries the exit code (`NOT_OBSERVED` for an adopted worker), whether progress was
   made, and a bounded summary of the worker's last agent message: the final text of a recognized
   host event stream (OpenCode `run --format json`, Codex `exec --json`, Claude Code `-p
-  --output-format stream-json --verbose`, or `json` without `--verbose`), ignoring subagent
-  messages, otherwise the sanitized output tail. State changes
+  --output-format stream-json --verbose`, or `json` without `--verbose`, Gemini CLI `-p -o
+  stream-json`, whose consecutive assistant delta chunks form one reply, or `json`), ignoring
+  subagent messages, otherwise the sanitized output tail. State changes
   compare against the previous observation; the first observation records only a baseline.
 
 Non-goals: readmitting exhausted tickets; creating or cleaning worktrees; any network, account or

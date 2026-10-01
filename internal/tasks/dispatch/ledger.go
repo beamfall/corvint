@@ -270,10 +270,18 @@ func utf8Start(b byte) bool { return b&0xC0 != 0x80 }
 
 // extractText returns the agent's final text when stdout is a JSONL event
 // stream (opencode --format json, codex exec --json, claude -p
-// --output-format stream-json --verbose, or json without --verbose); otherwise
+// --output-format stream-json --verbose, or json without --verbose, gemini -p
+// -o stream-json) or gemini's single pretty-printed -o json object; otherwise
 // the raw tail.
 func extractText(raw []byte) string {
-	last := ""
+	var doc map[string]any
+	if json.Unmarshal(raw, &doc) == nil {
+		if s, ok := doc["response"].(string); ok && s != "" {
+			return s
+		}
+	}
+	last, delta := "", ""
+	inDelta := false
 	jsonl := false
 	for _, line := range bytes.Split(raw, []byte("\n")) {
 		line = bytes.TrimSpace(line)
@@ -285,6 +293,19 @@ func extractText(raw []byte) string {
 			return string(raw)
 		}
 		jsonl = true
+		// gemini streams one assistant reply as consecutive delta chunks; any
+		// other event ends that reply.
+		if s, ok := v["content"].(string); ok && v["type"] == "message" && v["role"] == "assistant" && v["delta"] == true {
+			if !inDelta {
+				delta = ""
+			}
+			inDelta = true
+			if delta += s; delta != "" {
+				last = delta
+			}
+			continue
+		}
+		inDelta = false
 		if t := textOf(v); t != "" {
 			last = t
 		}

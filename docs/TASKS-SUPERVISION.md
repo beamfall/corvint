@@ -80,7 +80,7 @@ retries are reported as `needs-owner`; readmission stays the owner's `ticket reo
 decision is a plain-language line on stderr and in `events.jsonl`. The `finished` summary is the
 worker's final text when the host emits a recognized event stream (OpenCode `run --format json`,
 Codex `exec --json`, Claude Code `-p --output-format stream-json --verbose`, or `json` without
-`--verbose`), otherwise the output tail. A Claude Code host can look like this, with `corvint-tasks` on the worker `PATH`
+`--verbose`, Gemini CLI `-p -o stream-json` or `json`), otherwise the output tail. A Claude Code host can look like this, with `corvint-tasks` on the worker `PATH`
 and user-level settings and hooks excluded:
 
 ```json
@@ -115,7 +115,42 @@ that directory is a writable root. When `workRoot` is a linked worktree, name th
 (`git rev-parse --path-format=absolute --git-common-dir`) instead. The writable root also lets the
 worker write refs, objects, hooks, `config` and the store journal itself, so a sandboxed worker can
 still plant commands that later run in the dispatcher's or operator's unsandboxed Git, and can edit
-queue state without the CLI. A host's own permission allow/deny-list or sandbox (Claude Code `--allowedTools`,
-Codex `--sandbox`, OpenCode `OPENCODE_CONFIG_CONTENT`) is the host's responsibility, not a
-containment guarantee. See
+queue state without the CLI.
+
+A Gemini CLI host runs headless with `-p`, where a tool call no policy rule allows is denied or
+fails, so a `--policy` file is the allow-list. This example is derived from the Gemini CLI 0.54.0
+source and is not live-qualified (see the
+[build log](build-log/2026-10-01-tasks-dispatch-gemini.md)):
+
+```json
+"gemini": {
+  "argv": ["/opt/homebrew/bin/gemini", "-p", "{prompt}", "-o", "stream-json",
+           "--approval-mode", "default", "--policy", "/abs/gemini-worker.toml",
+           "--skip-trust", "-e", "none"],
+  "env": {"PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"}
+}
+```
+
+```toml
+[[rule]]
+toolName = "run_shell_command"
+commandPrefix = ["corvint-tasks claim", "corvint-tasks submit", "corvint-tasks gate run", "go test"]
+decision = "allow"
+priority = 999
+
+[[rule]]
+toolName = ["read_file", "write_file", "replace"]
+decision = "allow"
+priority = 999
+```
+
+The `gemini` launcher runs `node` from `PATH`. Rules from Gemini settings (`tools.allowed`,
+`tools.exclude`, `tools.core`) rank just above priority-100 `--policy` rules, so the allow rules use
+999. A redirected shell command (`go test ./... 2>&1`) still needs confirmation and fails headless.
+`-e none` loads no extensions. `--skip-trust` trusts `workRoot`, so its `.gemini/settings.json` and
+`.env` load alongside `~/.gemini`. Because the policy allows file writes, a worker can widen its
+next run's tools through those files. Gemini needs its own non-interactive authentication (for
+example `GEMINI_API_KEY`). A host's own permission allow/deny-list or sandbox (Claude Code `--allowedTools`,
+Codex `--sandbox`, Gemini `--policy`, OpenCode `OPENCODE_CONFIG_CONTENT`) is the host's
+responsibility, not a containment guarantee. See
 [the accepted contract](specs/corvint-tasks-agent-leases-v0.md#s11--continuous-dispatcher-issue-431).

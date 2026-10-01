@@ -555,8 +555,19 @@ func TestCALV0058_SummaryReadsHostFinalText(t *testing.T) {
 		"claude json":             {`{"type":"result","subtype":"success","result":"claude json done","session_id":"s"}`, "claude json done"},
 		"claude error result":     {`{"type":"assistant","message":{"content":[{"type":"text","text":"last words"}]}}` + "\n" + `{"type":"result","subtype":"error_max_turns","is_error":true}` + "\n", "last words"},
 		"claude subagent ignored": {`{"type":"assistant","parent_tool_use_id":null,"message":{"content":[{"type":"text","text":"main words"}]}}` + "\n" + `{"type":"assistant","parent_tool_use_id":"toolu_1","message":{"content":[{"type":"text","text":"subagent words"}]}}` + "\n", "main words"},
-		"plain text":              {"working\nall done\n", "working\nall done"},
-		"mixed text is raw tail":  {`{"type":"result","result":"x"}` + "\nplain\n", `{"type":"result","result":"x"}` + "\nplain"},
+		"gemini stream-json": {`{"type":"init","timestamp":"t","session_id":"s","model":"m"}` + "\n" +
+			`{"type":"message","timestamp":"t","role":"user","content":"claim AT-0002"}` + "\n" +
+			`{"type":"message","timestamp":"t","role":"assistant","content":"I'll ","delta":true}` + "\n" +
+			`{"type":"message","timestamp":"t","role":"assistant","content":"claim it.","delta":true}` + "\n" +
+			`{"type":"tool_use","timestamp":"t","tool_name":"run_shell_command","tool_id":"c1","parameters":{"command":"ct claim"}}` + "\n" +
+			`{"type":"tool_result","timestamp":"t","tool_id":"c1","status":"success","output":"ok"}` + "\n" +
+			`{"type":"message","timestamp":"t","role":"assistant","content":"Claimed ","delta":true}` + "\n" +
+			`{"type":"message","timestamp":"t","role":"assistant","content":"and done.","delta":true}` + "\n" +
+			`{"type":"error","timestamp":"t","severity":"warning","message":"loop detected"}` + "\n" +
+			`{"type":"result","timestamp":"t","status":"success","stats":{"total_tokens":1}}` + "\n", "Claimed and done."},
+		"gemini json":            {"{\n  \"session_id\": \"s\",\n  \"response\": \"gemini json done\",\n  \"stats\": {\n    \"models\": {}\n  }\n}", "gemini json done"},
+		"plain text":             {"working\nall done\n", "working\nall done"},
+		"mixed text is raw tail": {`{"type":"result","result":"x"}` + "\nplain\n", `{"type":"result","result":"x"}` + "\nplain"},
 	} {
 		dir := t.TempDir()
 		if err := os.WriteFile(filepath.Join(dir, "stdout.log"), []byte(tc.stdout), 0o600); err != nil {
