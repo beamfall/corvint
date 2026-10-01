@@ -462,6 +462,16 @@ CEP-V0-003	docs/specs/context-evolution-program-v0.md	209	Pinned offline runs. E
 CEP-V0-004	docs/specs/context-evolution-program-v0.md	214	Already-fixed control. A `tools/cw-trial` task MAY carry `control:
 CEP-V0-005	docs/specs/context-evolution-program-v0.md	218	Control scoring. On an already-fixed control each arm record MUST carry
 CEP-V0-006	docs/specs/context-evolution-program-v0.md	228	Evidence, not promotion. Results of this slice are measured evidence that a late
+CEX-V0-001	docs/specs/cem-criterion-experiments-v0.md	60	The companion MUST remain explicitly experimental and opt-in, with separate
+CEX-V0-002	docs/specs/cem-criterion-experiments-v0.md	64	Planning MUST bind independently supplied full base/candidate identities, exact
+CEX-V0-003	docs/specs/cem-criterion-experiments-v0.md	70	Each supported scenario MUST reconstruct a committed Go module in one literal
+CEX-V0-004	docs/specs/cem-criterion-experiments-v0.md	75	The runner MUST use only fixed, fully anchored top-level Go test selectors, a pi
+CEX-V0-005	docs/specs/cem-criterion-experiments-v0.md	81	A passing observation MUST include the exact package/test run and successful ter
+CEX-V0-006	docs/specs/cem-criterion-experiments-v0.md	89	Relations MUST distinguish repair, preservation and new behavior. Repair require
+CEX-V0-007	docs/specs/cem-criterion-experiments-v0.md	95	Historical verification MUST rederive canonical input/inventory/artifact identit
+CEX-V0-008	docs/specs/cem-criterion-experiments-v0.md	100	A native COMMAND gate MUST independently recheck coherent current ticket/queue/a
+CEX-V0-009	docs/specs/cem-criterion-experiments-v0.md	105	Successful gate output MUST retain bounded structured identifiers/digests for th
+CEX-V0-010	docs/specs/cem-criterion-experiments-v0.md	110	CEM 0.1/0.2/0.3, frozen compatibility packets, Core release content and default
 CF-V0-001	docs/specs/change-frontier-v0.md	84	one invocation MUST accept exactly one verified `cem/0.2` artifact under its can
 CF-V0-002	docs/specs/change-frontier-v0.md	89	the implementation MUST pass the same bounded immutable CEM and OCM byte copies
 CF-V0-003	docs/specs/change-frontier-v0.md	93	optional dynamic test input is exactly the all-or-none tuple `(canonical command

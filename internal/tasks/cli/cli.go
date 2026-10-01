@@ -51,6 +51,7 @@ type Env struct {
 // the verb (§3.3 "Read verb inputs and items"). `init` and the fourteen
 // `ticket` mutations write: they commit through the §5.2 journal writer.
 var ReadVerbs = []string{
+	"criterion-binding capture", "criterion-binding verify",
 	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket export",
 	"queue status", "roadmap", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "reconcile inspect", "reconcile intent",
 	"init", "pause", "unpause", "policy update", "import", "cutover",
@@ -97,6 +98,8 @@ func Run(env Env) int {
 		return emit(env.Stdout, result)
 	}
 	switch args[0] {
+	case "criterion-binding":
+		return emit(env.Stdout, criterionBindingCommand(env, args[1:]))
 	case "admit", "resume", "retry", "cancel", "drain", "answer":
 		return emit(env.Stdout, programCommand(env, args[0], args[1:]))
 	case "pending":

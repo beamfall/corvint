@@ -1,0 +1,104 @@
+{
+  "baseRevision": "e56c2cae8564f8e35f5f145487c32a9792cf750b",
+  "evidence": [
+    {
+      "blobOid": "73447dada26d29b2d42d6473c91870909eebe7ac",
+      "id": "evidence:sha256:7a9dd35e585b19c243aa6f317e5d8827b92897f087d0d9fe2f05b7e73b93e6dd",
+      "path": "docs/specs/cem-criterion-experiments-v0.md",
+      "span": {
+        "end": 6037,
+        "start": 5443
+      },
+      "spanSha256": "0ee55f55c883d1ca3ba8125192dee9f7e40ba62ae31add63cd5efe0c70bdd7c0"
+    },
+    {
+      "blobOid": "2926647c59570b327742b6763446d9cd6d1bec7d",
+      "id": "evidence:sha256:955d37400b301ce3c85a925bc293d8826644f60ede5bc77bf3656e8c8462a9c7",
+      "path": "internal/criterionexperiment/run_unix_test.go",
+      "span": {
+        "end": 2684,
+        "start": 2583
+      },
+      "spanSha256": "3ab0440c586446eea99d485c308736b332dde18c0ae1ac0652184efacf916006"
+    },
+    {
+      "blobOid": "2926647c59570b327742b6763446d9cd6d1bec7d",
+      "id": "evidence:sha256:0d397c048570a81ec22c75e7d4f36eff4c92cc9fc7e70de56f5d67031c9a699a",
+      "path": "internal/criterionexperiment/run_unix_test.go",
+      "span": {
+        "end": 3464,
+        "start": 3242
+      },
+      "spanSha256": "3606336fec270c80d8cc7f195fe1a8516f492f38c508b834d40789de186aa794"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:7a9dd35e585b19c243aa6f317e5d8827b92897f087d0d9fe2f05b7e73b93e6dd",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:fe6f65a5ab8158e074ac06acb64f8000cfe832e24a8adaba84f6d429f008103a",
+      "newRange": {
+        "count": 27,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-01-cex-tasks-cancellation-reaping.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:955d37400b301ce3c85a925bc293d8826644f60ede5bc77bf3656e8c8462a9c7",
+          "relation": "implementation"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0512775bbadde4d5df31c12d324ec5630e5ffe1fa32567632cfe5fa523af1c5a",
+      "newRange": {
+        "count": 7,
+        "start": 59
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 59
+      },
+      "path": "internal/criterionexperiment/tasks_unix_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0d397c048570a81ec22c75e7d4f36eff4c92cc9fc7e70de56f5d67031c9a699a",
+          "relation": "implementation"
+        },
+        {
+          "evidenceId": "evidence:sha256:7a9dd35e585b19c243aa6f317e5d8827b92897f087d0d9fe2f05b7e73b93e6dd",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:fe42b9d71be5cae56b8d61359c61f3322d1640b822dc050835ba466098e3964c",
+      "newRange": {
+        "count": 13,
+        "start": 86
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 85
+      },
+      "path": "internal/criterionexperiment/tasks_unix_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "d636511ede93ca9eff700919c1cddd1a1cc74a6f1a2b650d5fd78f6617e07c30",
+  "spec": "cem/0.2"
+}
