@@ -747,11 +747,14 @@ its host argv already carries any effort flag and its role `wallSeconds` already
   policy before every stage launch, so a later narrowing refuses further stages without blocking
   `drain` or `cancel`. The admitted stage effort MUST be
   the `model_reasoning_effort` of both new and resumed Codex invocations for that stage.
-- `CAL-V0-060`: The optional policy `supervision.stageWallMinutes` (Count 1..1440) MUST bound the
-  config `wallSeconds` to 1..`stageWallMinutes`×60; absent, the bound stays 1..3600. A config outside
-  the bound MUST be refused at the same points as CAL-V0-059. The active stage deadline remains the minimum of
+- `CAL-V0-060`: The optional policy `supervision.stageWallMinutes` (Count 1..240, the lane
+  `wallClockMinutes` ceiling) MUST bound the config `wallSeconds` to 1..`stageWallMinutes`×60;
+  absent, the bound stays 1..3600. A policy value outside 1..240 MUST be refused with
+  `LIMIT_EXCEEDED`, because no stage can outlast the lane cap. A config outside the bound MUST be
+  refused at the same points as CAL-V0-059. The active stage deadline remains the minimum of
   `wallSeconds`, the policy lane `wallClockMinutes` and the program's remaining
-  `supervision.program.wallClockMinutes`, so a longer stage also needs those caps raised. Heartbeat
+  `supervision.program.wallClockMinutes`, so the longest reachable stage is four hours and a stage
+  above one hour also needs those caps raised. Heartbeat
   renewal, WAIT handoff on expiry and session resume are unchanged (CAL-V0-038, CAL-V0-039).
 
 Non-goals: efforts beyond `low|medium|high` (for example Codex `minimal` or `xhigh`); per-role

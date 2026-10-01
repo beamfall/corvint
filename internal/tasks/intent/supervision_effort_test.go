@@ -50,6 +50,10 @@ func TestCALV0059_PolicyEffortAllowlist(t *testing.T) {
 			t.Fatalf("review/integrate allowlist %+v", s.Efforts)
 		}
 	})
+	// A known stage beside an unknown one must not hide the unknown key.
+	if _, e := supervisionPolicy(t, `"efforts":{"implement":["low"],"repair":["high"]},`); wire.CodeOf(e) != wire.CodeMalformed || !strings.Contains(e.Error(), "repair") {
+		t.Fatalf("mixed known/unknown stages: %v", e)
+	}
 	for name, extra := range map[string]string{
 		"unknown stage":   `"efforts":{"repair":["low"]},`,
 		"unknown effort":  `"efforts":{"implement":["xhigh"]},`,
@@ -77,11 +81,18 @@ func TestCALV0060_PolicyStageWallBound(t *testing.T) {
 	if none.StageWallSeconds() != 3600 {
 		t.Fatal("nil supervision must keep the one-hour bound")
 	}
-	p, e = supervisionPolicy(t, "", `,"stageWallMinutes":"480"`)
-	if e != nil || p.Supervision.StageWallSeconds() != 480*60 {
+	p, e = supervisionPolicy(t, "", `,"stageWallMinutes":"240"`)
+	if e != nil || p.Supervision.StageWallSeconds() != 240*60 || intent.MaxStageWallMinutes != wire.MaxLaneWallMinutes {
 		t.Fatalf("declared stage wall %v", e)
 	}
-	for _, bad := range []string{`"0"`, `"1441"`, `"-1"`, `"01"`} {
+	// Above the lane wallClockMinutes ceiling a stage wall could never take
+	// effect, so it is refused with LIMIT_EXCEEDED rather than accepted.
+	for _, over := range []string{`"0"`, `"241"`, `"1440"`} {
+		if _, e := supervisionPolicy(t, "", `,"stageWallMinutes":`+over); wire.CodeOf(e) != wire.CodeLimitExceeded {
+			t.Fatalf("stageWallMinutes %s: %v", over, e)
+		}
+	}
+	for _, bad := range []string{`"-1"`, `"01"`} {
 		if _, e := supervisionPolicy(t, "", `,"stageWallMinutes":`+bad); e == nil {
 			t.Fatalf("accepted stageWallMinutes %s", bad)
 		}

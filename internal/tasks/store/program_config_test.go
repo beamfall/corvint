@@ -74,7 +74,7 @@ func TestCALV0059_StageRechecksCurrentPolicy(t *testing.T) {
 }
 
 func TestCALV0060_CheckProgramConfigStageWall(t *testing.T) {
-	long := &intent.SupervisionPolicy{StageWallMinutes: wire.CountOf(480)}
+	long := &intent.SupervisionPolicy{StageWallMinutes: wire.CountOf(240)}
 	for _, tc := range []struct {
 		policy *intent.SupervisionPolicy
 		wall   int
@@ -82,7 +82,7 @@ func TestCALV0060_CheckProgramConfigStageWall(t *testing.T) {
 	}{
 		{nil, 0, false}, {nil, 1, true}, {nil, 3600, true}, {nil, 3601, false},
 		{&intent.SupervisionPolicy{}, 3601, false},
-		{long, 3601, true}, {long, 480 * 60, true}, {long, 480*60 + 1, false},
+		{long, 3601, true}, {long, 240 * 60, true}, {long, 240*60 + 1, false},
 	} {
 		e := CheckProgramConfig(ProgramConfig{Effort: "low", WallSeconds: tc.wall}, tc.policy)
 		if (e == nil) != tc.ok {

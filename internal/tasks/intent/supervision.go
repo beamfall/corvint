@@ -13,8 +13,10 @@ var SupervisedEfforts = []string{"high", "low", "medium"}
 // not declare stageWallMinutes; it preserves the original one-hour cap.
 const DefaultStageWallMinutes = 60
 
-// MaxStageWallMinutes bounds the optional per-stage wall allowance (24 h).
-const MaxStageWallMinutes = 1440
+// MaxStageWallMinutes bounds the optional per-stage wall allowance. It equals
+// the lane wallClockMinutes ceiling, because the active stage deadline is never
+// longer than the lane cap (CAL-V0-060); a larger value would have no effect.
+const MaxStageWallMinutes = wire.MaxLaneWallMinutes
 
 type SupervisionPolicy struct {
 	MaxRepairCycles, Turns, WallClockMinutes wire.Count
@@ -86,10 +88,7 @@ func readSupervisionPolicy(r *wire.Reader) *SupervisionPolicy {
 		}
 	}
 	if wire.Has(r.Value(), "stageWallMinutes") {
-		p.StageWallMinutes = r.Field("stageWallMinutes").Count()
-		if n := p.StageWallMinutes.Int(); n < 1 || n > MaxStageWallMinutes {
-			r.Fail(wire.CodeMalformed, "stageWallMinutes outside 1..%d", MaxStageWallMinutes)
-		}
+		p.StageWallMinutes = boundCount(r.Field("stageWallMinutes"), 1, MaxStageWallMinutes)
 	}
 	return p
 }

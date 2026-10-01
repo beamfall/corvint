@@ -6,8 +6,9 @@ existing BUILDER/REPAIR/REVIEWER/VERIFIER roles, and worker capacity. `supervisi
 `profile`, `contextRequired: true`, `maxRepairCycles` (0..2), and `program` caps for `turns`,
 `wallClockMinutes`, `inputTokens` and `outputTokens` (canonical decimal strings). Optional
 `efforts` maps `implement`, `review` and/or `integrate` to sorted arrays of `low`, `medium` and
-`high`; a stage without an entry admits only `low`. Optional `stageWallMinutes` (1..1440, default
-60) bounds the config `wallSeconds`.
+`high`; a stage without an entry admits only `low`. Optional `stageWallMinutes` (1..240, default
+60) bounds the config `wallSeconds`; larger values are refused (`LIMIT_EXCEEDED`), because a stage
+never outlasts the lane `wallClockMinutes` cap, itself at most 240.
 
 A local JSON config contains `profile`, absolute resolved `executable`, `executableSha256`,
 explicit `model`, `effort` (default for every stage), optional `stageEfforts` (per-stage

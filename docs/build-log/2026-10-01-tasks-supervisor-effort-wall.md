@@ -10,7 +10,7 @@ Requirements: CAL-V0-059, CAL-V0-060 in `docs/specs/corvint-tasks-agent-leases-v
 | --- | --- | --- |
 | Multi-repository programs | Missing in the supervisor and the dispatcher; V1-0475 depends on the V1-0463 foundation, absent from public main | Not addressed |
 | Configurable effort per role/stage, policy-bounded | Dispatcher: any effort through host argv (S11). Supervisor: config fixed at `effort: "low"` | CAL-V0-059 |
-| Longer, resumable runs | Dispatcher: role `wallSeconds` up to seven days. Supervisor: `wallSeconds` 1..3600; expiry gives a WAIT handoff with session resume (CAL-V0-038/039) | CAL-V0-060 raises the stage bound to a policy-owned 1..1440 minutes. Checkpointed automatic continuation stays open |
+| Longer, resumable runs | Dispatcher: role `wallSeconds` up to seven days. Supervisor: `wallSeconds` 1..3600; expiry gives a WAIT handoff with session resume (CAL-V0-038/039) | CAL-V0-060 raises the stage bound to a policy-owned 1..240 minutes (the lane cap ceiling). Checkpointed automatic continuation stays open |
 | Host adapters beyond Codex | Dispatcher: Claude Code, Codex, OpenCode (Gemini in review). The `run` supervisor is Codex-only | Not addressed |
 
 ## Decisions
@@ -32,6 +32,25 @@ Requirements: CAL-V0-059, CAL-V0-060 in `docs/specs/corvint-tasks-agent-leases-v
   stage's own effort; previously both carried the single config `effort`.
 - Effort vocabulary is limited to `low|medium|high`. Codex `minimal`/`xhigh` are excluded until
   they are qualified.
+
+- Repair r1 (independent review FAIL):
+  - `stageWallMinutes` was first accepted up to 1440, but the stage deadline is the minimum of
+    `wallSeconds`, the lane `wallClockMinutes` (bounded by `wire.MaxLaneWallMinutes` = 240) and
+    the remaining program time. Values 241..1440 therefore had no effect. The bound is now
+    `MaxStageWallMinutes = wire.MaxLaneWallMinutes`, and larger values are refused with
+    `LIMIT_EXCEEDED` through the same reader as the lane cap. Raising the lane ceiling is a wider
+    contract change and is out of scope; 24-hour stages stay open under #354.
+  - A mixed allowlist (`{"implement":["low"],"repair":["high"]}`) now witnesses the closed-stage
+    check: with that check removed, the known stage satisfied "names a stage" and the unknown
+    key was silently ignored. A scratch mutation deleting the check fails
+    `TestCALV0059_PolicyEffortAllowlist`.
+- Known ordering (not changed): for `integrate`, the GRANT record is written in the integrate
+  path before `stage()` re-checks the current policy, so a narrowing that refuses `integrate`
+  leaves that GRANT recorded without a launched stage. The refusal still precedes any host
+  process.
+- Compatibility: binaries older than this change read `supervision` as a closed object and refuse
+  a policy that carries `efforts` or `stageWallMinutes`. That fails safe (no dispatch under an
+  unread bound), but an owner must upgrade every reader before adding the keys.
 
 ## Evidence
 
