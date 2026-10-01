@@ -147,6 +147,10 @@ S3, leases.
   transaction of any operation whose `recordedAt` is earlier than the head receipt's refuses
   `STORAGE_FAILED` before it writes, so a clock that steps backward cannot record a receipt that
   later makes an expired lease look live.
+  A writer with a live clock samples `recordedAt` again once it holds the head it plans against
+  (after it takes the store lock, or after a lease preparation reads the head), and uses the later
+  of that sample and its caller's. A writer that waited behind another writer's commit is therefore
+  not refused as a backward step; a live clock that itself reads earlier than the head still refuses.
 - `CAL-V0-013`: A ticket whose last attempt is `FAILED` or `CANCELLED` MUST be claimable again as
   that attempt's next generation while its charged retry count is below the current policy limit
   (CAL-V0-045), and after exhaustion only an `OWNER` `ticket reopen` makes it claimable,
@@ -711,6 +715,7 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
 | Stale holder keeps working after reap | Edits continue in its own worktree | Every command it sends is `FENCED`; the tree it built can only complete through a new claim |
 | Two sessions use one holder label | Both believe they hold it | The label is a display name only; the generation returned by `claim` is the fence |
 | Wall clock steps backward | An expired lease could look live | A transaction earlier than the head refuses before writing (CAL-V0-012) |
+| A writer waits behind another writer's commit | Its earlier timestamp would look like a backward clock | The writer samples its live clock again against the head it holds (CAL-V0-012) |
 | Gate command hangs | Holder waits | The declared gate timeout records `FAILED`; the attempt stays `CHECKING` for another `gate run` or `submit` |
 | Candidate rebased before merge | Tree changes | `complete` refuses until the new tree is submitted and gated |
 | Cutover interrupted | One receipt either committed or not | A rerun with the same decision replays or commits it |
@@ -777,7 +782,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-009 | `TestCALV0009_StaleGenerationIsFencedAndRecorded` (`internal/tasks/store`) |
 | CAL-V0-010 | `TestCALV0010_RenewExtendsAndIsFencedAfterExpiry` (`internal/tasks/store`) |
 | CAL-V0-011 | `TestCALV0011_ExpiredLeaseIsReapedByACollidingClaim`, `TestCALV0011_ReapAndRelease`, `TestCALV0011_ReleaseAndReapPassAnAllBarrier` (`internal/tasks/store`) |
-| CAL-V0-012 | `TestCALV0012_LeaseBoundsAndBackwardClock`, `TestCALV0012_BackwardClockRefusesEveryWriter` (`internal/tasks/store`) |
+| CAL-V0-012 | `TestCALV0012_LeaseBoundsAndBackwardClock`, `TestCALV0012_BackwardClockRefusesEveryWriter`, `TestCALV0012_WriterBehindNewerHeadSamplesAgain` (`internal/tasks/store`) |
 | CAL-V0-044 | `TestCALV0044_CleanHandoffsPreserveRetryDebt`, `TestCALV0044_HandoffNeedsRecordedEligibility`, `TestCALV0044_FailedGateRemainsChargedAfterPassAndSubmit`, `TestCALV0044_ReviewExpiryStillExhausts`, `TestCALV0044_TimeoutRemainsSticky` (`internal/tasks/store`); `TestCALV0044_LegacyReasonCannotExempt` (`internal/tasks/transaction`); `TestCALV0044_AccountingSchema` (`internal/tasks/snapshot`); `TestCALV0044_CLIHandoffAccounting` (`internal/tasks/cli`) |
 | CAL-V0-045 | `TestCALV0045_RetryPolicyBounds` (`internal/tasks/intent`); `TestCALV0045_PolicyControlsAdmissionAndRecovery`, `TestCALV0045_RecoveryUsesCurrentPolicy` (`internal/tasks/store`); `TestCALV0045_CLIConfiguredRetriesAndNoTreeHandoff` (`internal/tasks/cli`) |
 | CAL-V0-046 | `TestCALV0046_ReleasePreimageCompatibility`, `TestCALV0046_NoTreeEligibilityBindings` (`internal/tasks/transaction`); `TestCALV0046_NoTreeHandoffSchema` (`internal/tasks/snapshot`); `TestCALV0046_NoTreeHandoffAndIntegrate`, `TestCALV0046_NoTreeRefusals` (`internal/tasks/store`); `TestCALV0045_CLIConfiguredRetriesAndNoTreeHandoff`, `TestCALV0046_CLICompatibility`, `TestCALV0046_CLIPoolHandoffQuarantines` (`internal/tasks/cli`) |

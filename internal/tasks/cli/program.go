@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -65,7 +64,7 @@ func programCommand(env Env, verb string, args []string) *wire.Result {
 	if e != nil {
 		return errorResult(cmd, e)
 	}
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, cancel := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	if values["--host"] != "" && values["--host"] != "codex" {

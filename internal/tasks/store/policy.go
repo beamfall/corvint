@@ -83,6 +83,7 @@ func administrativeWriteWith(ctx context.Context, repo *intent.Repository, reque
 		return report, nil, err
 	}
 	defer lock.Close()
+	now = recordedAt(ctx, now)
 	session, err := authority.NewSession(repo, lock)
 	if err != nil {
 		return report, nil, err

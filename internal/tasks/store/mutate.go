@@ -53,6 +53,7 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 		return guardFailure(report, env.RequestID, err)
 	}
 	defer lock.Close()
+	now = recordedAt(ctx, now)
 
 	session, err := authority.NewSession(repo, lock)
 	if err != nil {

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -53,7 +52,7 @@ func barrierCommand(env Env, verb string, args []string) *wire.Result {
 	if verb == "unpause" {
 		operation = transaction.Unpause
 	}
-	report, err := store.Barrier(context.Background(), repo, actor, store.BarrierRequest{QueueID: observed.Head.QueueID.Raw, RequestID: request, Operation: operation}, now)
+	report, err := store.Barrier(writerContext(), repo, actor, store.BarrierRequest{QueueID: observed.Head.QueueID.Raw, RequestID: request, Operation: operation}, now)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

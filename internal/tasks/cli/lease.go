@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -181,7 +180,7 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	choice := store.LeaseChoice{QueueID: queueID, RequestID: requestID, Root: env.Cwd, Lease: lease, Derive: env.ScopeDeriver}
 	var report *store.Report
 	if name == "health" || name == "pool cleanup" {
-		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		kind := "health"
 		if name == "pool cleanup" {
@@ -190,11 +189,11 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 		report, err = store.PoolCommand(ctx, repo, actor, choice, kind)
 	} else if name == "gate run" {
 		// An interrupt kills the gate's process group and records nothing.
-		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		report, err = store.GateRun(ctx, repo, actor, choice, gateWorktree(env.Cwd, worktree), time.Now)
 	} else {
-		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		report, err = store.Lease(ctx, repo, actor, choice, now)
 	}
