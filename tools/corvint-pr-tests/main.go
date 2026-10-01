@@ -280,16 +280,19 @@ func closedEnv(o options) []string {
 	return []string{"PATH=" + filepath.Dir(goPath) + ":/usr/bin:/bin", "HOME=" + filepath.Join(r, "home"), "TMPDIR=" + filepath.Join(r, "tmp"), "TMP=" + filepath.Join(r, "tmp"), "TEMP=" + filepath.Join(r, "tmp"), "LANG=C", "LC_ALL=C", "TZ=UTC", "CC=/usr/bin/cc", "GOENV=off", "GOTOOLCHAIN=local", "GOPROXY=off", "GOWORK=off", "GOFLAGS=", "GOSUMDB=off", "CGO_ENABLED=1", "GOCACHE=" + filepath.Join(r, "cache"), "GOMODCACHE=" + filepath.Join(r, "modules"), "GIT_NO_REPLACE_OBJECTS=1", "GIT_GRAFT_FILE=" + os.DevNull, "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_CONFIG_COUNT=0", "GIT_TERMINAL_PROMPT=0", "GOMAXPROCS=2"}
 }
 
-// testEnv is the closed environment of the go test process. It omits the
-// driver's GIT_GRAFT_FILE: the owned clone carries no graft file, and naming one
-// makes Git print graft-deprecation advice that tests capturing combined Git
-// output read as command results. The driver's own Git reads keep closedEnv.
+// testEnv is the closed environment of the go test process. It keeps the
+// driver's GIT_GRAFT_FILE=/dev/null, so tests also run with grafts refused,
+// and adds only advice.graftFileDeprecated=false: naming a graft file makes
+// current Git print deprecation advice into the combined output tests parse.
+// The driver's own Git reads keep closedEnv.
 func testEnv(o options) []string {
 	var env []string
 	for _, v := range closedEnv(o) {
-		if !strings.HasPrefix(v, "GIT_GRAFT_FILE=") {
-			env = append(env, v)
+		if v == "GIT_CONFIG_COUNT=0" {
+			env = append(env, "GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=advice.graftFileDeprecated", "GIT_CONFIG_VALUE_0=false")
+			continue
 		}
+		env = append(env, v)
 	}
 	return env
 }

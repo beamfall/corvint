@@ -148,6 +148,15 @@ func TestContainerRunResult(t *testing.T) {
 				writeJSON(filepath.Join(dir, "execution.json"), wrong)
 			},
 			func() { wrong := s; wrong.Target = o.base; writeJSON(filepath.Join(dir, "selection.json"), wrong) },
+			func() {
+				// Coherent between both files, but the frozen identity lacks Git.
+				wrong := s
+				wrong.Identity.Git = ""
+				wrongExecution := e
+				wrongExecution.Selection = wrong
+				writeJSON(filepath.Join(dir, "selection.json"), wrong)
+				writeJSON(filepath.Join(dir, "execution.json"), wrongExecution)
+			},
 		} {
 			write()
 			mutate()
