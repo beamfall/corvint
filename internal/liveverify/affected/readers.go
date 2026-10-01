@@ -56,6 +56,46 @@ func (graph *Graph) unboundedReadersOf(reached map[string]Witness, dirty []strin
 	}
 }
 
+// ReadScopesPath is the repository's declaration of the paths each declared
+// Go package's tests read outside the package directory (AFP-V0-023).
+const ReadScopesPath = ".corvint/test-read-scopes.json"
+
+// scopedReadersOf selects each unit not already reached whose declared read
+// scope holds a dirty path, witnessed by the smallest such path (AFP-V0-023).
+// Like a reader it is not traversed.
+func (graph *Graph) scopedReadersOf(reached map[string]Witness, dirty []string) {
+	for _, id := range graph.order {
+		unit := graph.units[id]
+		if _, seen := reached[id]; seen || !unit.ReadScoped {
+			continue
+		}
+		directory := relativeDirectory(append(append([]string(nil), unit.Sources...), unit.Tests...)[0])
+		for _, dirtyPath := range dirty {
+			if InReadScope(directory, unit.ReadScope, dirtyPath) {
+				reached[id] = Witness{Kind: WitnessDeclaredReadScope, DirtyPath: dirtyPath, Via: []string{id}}
+				break
+			}
+		}
+	}
+}
+
+// InReadScope reports whether a dirty path bears on a package in directory
+// whose tests read only scope outside it: the declaration itself, a path in
+// the package's subtree, or a path that is a declared entry, lies in a
+// declared subtree, or is an ancestor of an entry (a directory record).
+func InReadScope(directory string, scope []string, dirtyPath string) bool {
+	if dirtyPath == ReadScopesPath || directory == "." || dirtyPath == directory || strings.HasPrefix(dirtyPath, directory+"/") {
+		return true
+	}
+	for _, entry := range scope {
+		target := strings.TrimSuffix(entry, "/")
+		if dirtyPath == target || strings.HasPrefix(target, dirtyPath+"/") || (target != entry && strings.HasPrefix(dirtyPath, entry)) {
+			return true
+		}
+	}
+	return false
+}
+
 // tokenBounds names, once a reader match was attempted, every unit whose
 // tokens were dropped at the plugin's bound and that nothing else reached: it
 // may read a dirty path the plan cannot see.

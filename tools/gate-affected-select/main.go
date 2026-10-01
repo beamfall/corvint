@@ -5,7 +5,9 @@
 // importer a dirty Go source reaches; `data <path>` for any other dirty path;
 // `reader <pkg> <- <path>` for a package that encloses or names a dirty path;
 // `unresolved <pkg>: <reason>` for a package whose reads no literal bounds,
-// selected whenever any path is dirty), then one verdict as the last line:
+// selected whenever any path is dirty; `declared <pkg> <- <path>` for a package
+// whose declared read scope holds a dirty path, AFP-V0-023), then one verdict
+// as the last line:
 // `run <pkgs>`, `FALLBACK <reason>`, or `NOTHING <reason>`. A dirty path carrying
 // a control character falls back before any line echoes it, so the verdict
 // stays the last line. Package paths are validated before they reach a shell
@@ -59,6 +61,7 @@ var moduleLevelFrontiers = map[string]bool{
 	"go:included-directory-walk-bounded": true,
 	"go:unparsed-source":                 true,
 	"go:cgo-frontier":                    true,
+	"go:test-read-scopes-invalid":        true,
 }
 
 var rootModuleDefinitions = map[string]bool{"go.mod": true, "go.sum": true, "go.work": true, "go.work.sum": true}
@@ -182,10 +185,22 @@ func selectPackages(plan receipt, module, root string) []string {
 			add(rule.directories, rule.kind, " <- "+dirty)
 		}
 	}
+	scopes, err := index.readScopes(root)
+	if err != nil {
+		return fallback(fmt.Sprintf("the read-scope declaration is invalid: %q", err.Error()))
+	}
 	unresolved := index.unresolved()
 	for _, directory := range sortedKeys(unresolved) {
-		if len(plan.Plan.Dirty) > 0 {
+		if _, declared := scopes[directory]; !declared && len(plan.Plan.Dirty) > 0 {
 			add([]string{directory}, "unresolved", fmt.Sprintf(": %q", unresolved[directory]))
+		}
+	}
+	for _, directory := range sortedKeys(scopes) {
+		for _, dirty := range sortedUnique(plan.Plan.Dirty) {
+			if inReadScope(directory, scopes[directory], dirty) {
+				add([]string{directory}, "declared", " <- "+dirty)
+				break
+			}
 		}
 	}
 	selected := sortedKeys(packages)

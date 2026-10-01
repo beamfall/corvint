@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -145,6 +146,16 @@ func TestSelectionOnTheLiveDirtyWorktree(t *testing.T) {
 		}
 		if selection.Witness.Kind == affected.WitnessUnboundedReader {
 			if !slices.Contains(graph.UnboundedReaders(), selection.UnitID) {
+				t.Fatalf("%s has an unresolvable witness %+v", selection.UnitID, selection.Witness)
+			}
+			continue
+		}
+		// A declared-scope witness resolves to a declared unit whose scope
+		// holds its dirty path (AFP-V0-023).
+		if selection.Witness.Kind == affected.WitnessDeclaredReadScope {
+			unit, found := graph.Unit(selection.UnitID)
+			files := append(append([]string(nil), unit.Sources...), unit.Tests...)
+			if !found || !unit.ReadScoped || len(files) == 0 || !affected.InReadScope(path.Dir(files[0]), unit.ReadScope, selection.Witness.DirtyPath) {
 				t.Fatalf("%s has an unresolvable witness %+v", selection.UnitID, selection.Witness)
 			}
 			continue
