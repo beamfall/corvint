@@ -80,8 +80,7 @@ retries are reported as `needs-owner`; readmission stays the owner's `ticket reo
 decision is a plain-language line on stderr and in `events.jsonl`. The `finished` summary is the
 worker's final text when the host emits a recognized event stream (OpenCode `run --format json`,
 Codex `exec --json`, Claude Code `-p --output-format stream-json --verbose`, or `json` without
-`--verbose`), otherwise
-the output tail. A Claude Code host can look like this, with `corvint-tasks` on the worker `PATH`
+`--verbose`), otherwise the output tail. A Claude Code host can look like this, with `corvint-tasks` on the worker `PATH`
 and user-level settings and hooks excluded:
 
 ```json
@@ -97,7 +96,26 @@ and user-level settings and hooks excluded:
 ```
 
 With `--permission-mode dontAsk` a tool outside the allow-list is refused rather than prompted, so
-a headless worker never blocks on approval; list every command the role prompt asks for. A host's own permission allow/deny-list (Claude Code
-`--allowedTools`, OpenCode `OPENCODE_CONFIG_CONTENT`) is the host's responsibility, not a
+a headless worker never blocks on approval; list every command the role prompt asks for.
+
+A Codex host runs `codex exec`, which never prompts for approval:
+
+```json
+"codex": {
+  "argv": ["/opt/homebrew/bin/codex", "exec", "--json", "--ephemeral", "--ignore-user-config",
+           "--sandbox", "workspace-write", "--cd", "{workRoot}",
+           "-c", "sandbox_workspace_write.writable_roots=[\"{workRoot}/.git\"]", "{prompt}"],
+  "env": {"PATH": "/usr/local/bin:/usr/bin:/bin"}
+}
+```
+
+The `workspace-write` sandbox keeps `.git` read-only. A worker's `claim` writes the store journal
+and its filesystem probe in the git common directory, so it fails `UNSUPPORTED_FILESYSTEM` until
+that directory is a writable root. When `workRoot` is a linked worktree, name the common directory
+(`git rev-parse --path-format=absolute --git-common-dir`) instead. The writable root also lets the
+worker write refs, objects, hooks, `config` and the store journal itself, so a sandboxed worker can
+still plant commands that later run in the dispatcher's or operator's unsandboxed Git, and can edit
+queue state without the CLI. A host's own permission allow/deny-list or sandbox (Claude Code `--allowedTools`,
+Codex `--sandbox`, OpenCode `OPENCODE_CONFIG_CONTENT`) is the host's responsibility, not a
 containment guarantee. See
 [the accepted contract](specs/corvint-tasks-agent-leases-v0.md#s11--continuous-dispatcher-issue-431).
