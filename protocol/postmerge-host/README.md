@@ -101,10 +101,14 @@ item from its own export, not from author output.
   `defaults.run.shell` are refused rather than audited; `defaults` admits only
   `run.working-directory`, which must be a literal path. The `STARTUP_ENV` check is a denylist
   (`BASH_ENV`, `ENV`, `LD_*`, `DYLD_*`, `GIT_CONFIG*`, `HOME`, `CC`, `GOTOOLCHAIN`,
-  `JAVA_TOOL_OPTIONS`, `NODE_OPTIONS`, `PYTHONPATH`, `PYTHONSTARTUP`, `PERL5OPT`, `RUBYOPT` and
-  similar, in any letter case); another variable that changes how a tool runs code is not caught. `RUNNER_ENV_FILE` matches only the literal names `GITHUB_ENV` and
-  `GITHUB_PATH`, so a script that reaches the file another way, or a pinned action that writes it,
-  is not caught. The audit cannot see the repository default branch, so check that the source
+  `JAVA_TOOL_OPTIONS`, `NODE_OPTIONS`, `PYTHONPATH`, `PYTHONSTARTUP`, `PERL5OPT`, `RUBYOPT`,
+  `ACTIONS_ALLOW_UNSECURE_COMMANDS`, `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION`,
+  `FORCE_JAVASCRIPT_ACTIONS_TO_NODE*` and similar, in any letter case); another variable that
+  changes how a tool runs code is not caught. An `env` merge key (`<<`) or non-scalar value, and a
+  non-scalar `with` value or `run`, are refused as unmodelled. `RUNNER_ENV_FILE` matches only the
+  literal names `GITHUB_ENV` and `GITHUB_PATH` and the literal `::set-env` and `::add-path`
+  commands, so a script that reaches the file or builds the command another way, a pinned action
+  that does either, or a runner whose own environment enables those commands, is not caught. The audit cannot see the repository default branch, so check that the source
   trigger names it.
 - The pipeline's concurrency group is evaluated before any job runs, so it uses the unvalidated
   dispatched change value. It only selects a queue: a malformed value gets a queue of its own, and

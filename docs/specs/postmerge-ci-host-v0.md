@@ -69,8 +69,9 @@ Corvint stays a local binary. The templates are operator reference material, not
 - `PCH-V0-007`: Provide an audit, `internal/postmergehost.Audit`, over a restricted YAML subset. It
   refuses unsupported constructs: anchors, aliases, tags, folded scalars, flow mappings, multiple
   documents, tabs, duplicate keys, unmodelled job keys such as reusable workflows, containers
-  and services, unmodelled step keys such as a custom `shell:`, a non-mapping `env`, and any
-  workflow- or job-level `defaults` other than `run.working-directory` [UNMODELLED_KEY, or
+  and services, unmodelled step keys such as a custom `shell:`, a non-mapping `env`, an `env`
+  merge key (`<<`) or non-scalar `env` value at any level, a non-scalar `with` value or `run`, and
+  any workflow- or job-level `defaults` other than `run.working-directory` [UNMODELLED_KEY, or
   CUSTOM_SHELL for `defaults.run.shell`].
 
   It reports each of these, with the finding code in brackets:
@@ -81,8 +82,8 @@ Corvint stays a local binary. The templates are operator reference material, not
   - any outward-write class, write permission or `github.token` in an authoring job
     [AUTHORING_WRITE_CREDENTIAL];
   - an authoring job that performs other steps [AUTHORING_NOT_ISOLATED];
-  - unpinned actions [UNPINNED_ACTION] and persisted checkout credentials
-    [CHECKOUT_PERSISTS_CREDENTIALS];
+  - unpinned actions [UNPINNED_ACTION] and persisted checkout credentials, matching
+    `actions/checkout` in any letter case and with any sub-path [CHECKOUT_PERSISTS_CREDENTIALS];
   - expressions in run scripts or in a `with` input named `script` in any letter case
     [RUN_EXPRESSION_INTERPOLATION], any `with` input name outside lowercase ASCII `[a-z0-9_-]`
     [NON_LOWERCASE_INPUT], and a `with` that is not a mapping [UNMODELLED_KEY];
@@ -90,10 +91,13 @@ Corvint stays a local binary. The templates are operator reference material, not
     interpreter run unaudited code: `BASH_ENV`, `ENV`, `BASHOPTS`, `SHELLOPTS`, `PS4`,
     `PROMPT_COMMAND`, `IFS`, `CDPATH`, `PATH`, `HOME`, `CC`, `GOFLAGS`, `GOTOOLCHAIN`,
     `JAVA_TOOL_OPTIONS`, `NODE_OPTIONS`, `PYTHONSTARTUP`, `PYTHONPATH`, `PERL5OPT`, `PERL5LIB`,
-    `RUBYOPT`, or a name starting `LD_`, `DYLD_`, `BASH_FUNC_` or `GIT_CONFIG`, matched in any
-    letter case because Windows runners read environment names without regard to case
-    [STARTUP_ENV];
-  - a run script that names `GITHUB_ENV` or `GITHUB_PATH` [RUNNER_ENV_FILE];
+    `RUBYOPT`, the runner toggles `ACTIONS_ALLOW_UNSECURE_COMMANDS` (re-enables the `::set-env`
+    and `::add-path` workflow commands) and `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION`, or a name
+    starting `LD_`, `DYLD_`, `BASH_FUNC_`, `GIT_CONFIG` or `FORCE_JAVASCRIPT_ACTIONS_TO_NODE` (the
+    last three choose the Node.js runtime that loads action code), matched in any letter case
+    because Windows runners read environment names without regard to case [STARTUP_ENV];
+  - a run script that names `GITHUB_ENV` or `GITHUB_PATH`, or prints `::set-env` or `::add-path`
+    [RUNNER_ENV_FILE];
   - a step or `defaults.run` `working-directory` that is not a literal scalar
     [WORKING_DIRECTORY];
   - a value validated by a line-oriented `grep` fed from `printf`, `echo` or a here-string
@@ -144,8 +148,14 @@ Corvint stays a local binary. The templates are operator reference material, not
 - An `env` variable outside the `STARTUP_ENV` denylist (for example a tool-specific variable such
   as `MAVEN_OPTS` or `GIT_SSH_COMMAND`) changes how a tool runs code, or a script
   reaches the runner's env file without naming `GITHUB_ENV` or `GITHUB_PATH` (for example through
-  `eval` or a computed path). The audit is lexical, so it does not see either; a pinned action may
-  also write the env file. The operator reviews these by hand.
+  `eval` or a computed path). A script can also set a later step's environment or `PATH` through
+  the `::set-env` and `::add-path` stdout commands when `ACTIONS_ALLOW_UNSECURE_COMMANDS` is set
+  outside the workflow text, for example in a self-hosted runner's own environment. The script
+  check matches only the literal command prefixes, so it misses a command string built at run time.
+  The audit is lexical, so it does not see any of these; a pinned action may also write the env file or print these commands. Runner-host
+  settings such as `ACTIONS_RUNNER_HOOK_JOB_STARTED` and `ACTIONS_RUNNER_CONTAINER_HOOKS` are read
+  from the runner's own environment, not the workflow text, and are outside the audit. The
+  operator reviews these by hand.
 
 ## Trust boundary
 
@@ -154,9 +164,9 @@ does not ship them, and the audit observes only the hook names it invokes. Step 
 ASS-V0 local observation, not confinement. Audit coverage is lexical and partial:
 `LINE_ORIENTED_VALIDATION` matches only the `printf`/`echo` pipe and here-string forms; expression
 checks cover `run` and `with.script` but not other action inputs that evaluate code; `STARTUP_ENV`
-is a denylist and `RUNNER_ENV_FILE` matches only the literal names; and the audit
-cannot see which branch is the repository default, so the operator checks that the source trigger
-names it. The pin file and the source commit are trusted operator
+is a denylist and `RUNNER_ENV_FILE` matches only the literal names and command prefixes; and the
+audit cannot see which branch is the repository default, so the operator checks that the source
+trigger names it. The pin file and the source commit are trusted operator
 configuration, and rebuilding the pins happens on a trusted machine with the same toolchain.
 
 ## Acceptance evidence
@@ -169,13 +179,18 @@ It checks that:
 - the graph validates, and seven malformed graphs refuse;
 - all three templates audit clean;
 - the authoring job references no write-class secret, write permission or token;
-- 64 single mutations each produce their specific finding code, including a reintroduced
+- 79 single mutations each produce their specific finding code, including a reintroduced
   line-oriented `grep` check, a custom step shell, a workflow- or job-level `defaults.run.shell`,
   an unmodelled `defaults.run` key, an expression in `with.script` or `with.Script`, a
   non-lowercase or dotless-i (U+0131) `script` input name, a scalar-expression or sequence `with`,
   `HOME`, `CC`, `GOTOOLCHAIN`, `JAVA_TOOL_OPTIONS`, `GIT_CONFIG_GLOBAL` and a lowercase `ld_preload`
-  in step `env`, `BASH_ENV`, `ENV` and `LD_PRELOAD` at workflow, job and step level, a
-  non-mapping step `env`, writes to `$GITHUB_ENV` and `$GITHUB_PATH`, an expression or non-scalar
+  in step `env`, `BASH_ENV`, `ENV` and `LD_PRELOAD` at workflow, job and step level,
+  `ACTIONS_ALLOW_UNSECURE_COMMANDS`, `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` and
+  `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`, an `env` merge key and a non-scalar `env` value at
+  workflow, job and step level (including `<<:` hiding `LD_PRELOAD`), a non-scalar `with` value or
+  `run`, an `actions/checkout` spelt in another case or with a `/.` sub-path that persists
+  credentials, a non-mapping step `env`, writes to `$GITHUB_ENV` and `$GITHUB_PATH`, a printed
+  `::set-env`, an expression or non-scalar
   `working-directory`, and non-literal or empty source-trigger filters;
 - the pipeline's change-id check, run under bash and POSIX sh, writes outputs only for one whole
   40- or 64-hex id and refuses a newline-injected `change=` line, and replay dispatches only whole

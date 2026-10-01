@@ -44,17 +44,24 @@ var (
 	// runnerEnvFile finds a script that touches the runner's env or path
 	// file, which sets variables (such as BASH_ENV) for every later step.
 	runnerEnvFile = regexp.MustCompile(`\bGITHUB_(ENV|PATH)\b`)
-	inputName     = regexp.MustCompile(`^[a-z0-9_-]+$`)
+	// unsecureCommand finds the deprecated stdout workflow commands that set
+	// an environment variable or PATH entry for later steps when a runner
+	// has ACTIONS_ALLOW_UNSECURE_COMMANDS set outside the workflow text.
+	unsecureCommand = regexp.MustCompile(`::(set-env|add-path)\b`)
+	inputName       = regexp.MustCompile(`^[a-z0-9_-]+$`)
 	// startupEnv names variables that make a shell, the dynamic loader or an
-	// interpreter run code the audit does not see. It is a denylist.
+	// interpreter run code the audit does not see, or that make the runner
+	// re-enable the ::set-env and ::add-path commands or choose the Node.js
+	// runtime that loads action code. It is a denylist.
 	startupEnv = map[string]bool{
 		"BASH_ENV": true, "ENV": true, "BASHOPTS": true, "SHELLOPTS": true, "PS4": true,
 		"PROMPT_COMMAND": true, "IFS": true, "CDPATH": true, "PATH": true, "HOME": true,
 		"CC": true, "GOFLAGS": true, "GOTOOLCHAIN": true, "JAVA_TOOL_OPTIONS": true,
 		"NODE_OPTIONS": true, "PYTHONSTARTUP": true, "PYTHONPATH": true, "PERL5OPT": true,
 		"PERL5LIB": true, "RUBYOPT": true,
+		"ACTIONS_ALLOW_UNSECURE_COMMANDS": true, "ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION": true,
 	}
-	startupEnvPrefixes = []string{"LD_", "DYLD_", "BASH_FUNC_", "GIT_CONFIG"}
+	startupEnvPrefixes = []string{"LD_", "DYLD_", "BASH_FUNC_", "GIT_CONFIG", "FORCE_JAVASCRIPT_ACTIONS_TO_NODE"}
 	changeRequest      = map[string]bool{
 		"pull_request": true, "pull_request_target": true, "pull_request_review": true,
 		"pull_request_review_comment": true, "merge_group": true, "workflow_run": true,
@@ -257,7 +264,9 @@ func (a *auditor) workingDirectory(where string, n *Node) {
 	}
 }
 
-// env refuses a non-mapping env and any startup or loader variable.
+// env refuses a non-mapping env, a merge key or non-scalar value (either
+// could hide a variable from the name screen), and any startup or loader
+// variable.
 func (a *auditor) env(where string, env *Node) {
 	if env == nil {
 		return
@@ -267,6 +276,12 @@ func (a *auditor) env(where string, env *Node) {
 		return
 	}
 	for _, k := range env.Keys {
+		if k == "<<" {
+			a.add("UNMODELLED_KEY", where, "env merge key <<")
+		}
+		if v := env.Map[k]; v != nil && v.Kind != Scalar {
+			a.add("UNMODELLED_KEY", where, "env.%s must be a scalar", k)
+		}
 		// Windows runners read environment names without regard to case.
 		name := strings.ToUpper(k)
 		bad := startupEnv[name]
@@ -274,7 +289,7 @@ func (a *auditor) env(where string, env *Node) {
 			bad = bad || strings.HasPrefix(name, p)
 		}
 		if bad {
-			a.add("STARTUP_ENV", where, "env.%s makes a shell, loader or interpreter run unaudited code", k)
+			a.add("STARTUP_ENV", where, "env.%s makes a shell, loader, interpreter or the runner run unaudited code", k)
 		}
 	}
 }
@@ -478,6 +493,9 @@ func (a *auditor) steps(where string, steps *Node, commands map[string]bool) {
 			if !inputName.MatchString(k) {
 				a.add("NON_LOWERCASE_INPUT", at, "with key %q must match [a-z0-9_-]", k)
 			}
+			if v := with.Map[k]; v != nil && v.Kind != Scalar {
+				a.add("UNMODELLED_KEY", at, "with.%s must be a scalar", k)
+			}
 			if strings.EqualFold(k, "script") && strings.Contains(scalar(with.Map[k]), "${{") {
 				a.add("RUN_EXPRESSION_INTERPOLATION", at, "pass expressions through env, never into with.script")
 			}
@@ -488,7 +506,7 @@ func (a *auditor) steps(where string, steps *Node, commands map[string]bool) {
 			if !pinnedAction.MatchString(uses) {
 				a.add("UNPINNED_ACTION", at, "%q must name owner/repo@<40-hex commit>", uses)
 			}
-			if strings.HasPrefix(uses, "actions/checkout@") && scalar(s.Get("with").Get("persist-credentials")) != "false" {
+			if isCheckout(uses) && scalar(s.Get("with").Get("persist-credentials")) != "false" {
 				a.add("CHECKOUT_PERSISTS_CREDENTIALS", at, "persist-credentials: false is required")
 			}
 		}
@@ -496,11 +514,18 @@ func (a *auditor) steps(where string, steps *Node, commands map[string]bool) {
 		if run == nil {
 			continue
 		}
+		if run.Kind != Scalar {
+			a.add("UNMODELLED_KEY", at, "run must be a scalar script")
+			continue
+		}
 		if strings.Contains(run.Text, "${{") {
 			a.add("RUN_EXPRESSION_INTERPOLATION", at, "pass expressions through env, never into the script text")
 		}
 		if runnerEnvFile.MatchString(run.Text) {
 			a.add("RUNNER_ENV_FILE", at, "a script may not write $GITHUB_ENV or $GITHUB_PATH, which change later steps' environment")
+		}
+		if unsecureCommand.MatchString(run.Text) {
+			a.add("RUNNER_ENV_FILE", at, "a script may not print ::set-env or ::add-path, which change later steps' environment")
 		}
 		if lineValidation.MatchString(run.Text) {
 			a.add("LINE_ORIENTED_VALIDATION", at, "validate a value with whole-string case and length checks, not grep")
@@ -522,6 +547,15 @@ func (a *auditor) steps(where string, steps *Node, commands map[string]bool) {
 			}
 		}
 	}
+}
+
+// isCheckout reports whether uses names actions/checkout. Owner and
+// repository names are case-insensitive, and a sub-path such as /. can still
+// resolve to the repository's root action.
+func isCheckout(uses string) bool {
+	ref, _, _ := strings.Cut(uses, "@")
+	parts := strings.SplitN(strings.ToLower(ref), "/", 3)
+	return len(parts) >= 2 && parts[0] == "actions" && parts[1] == "checkout"
 }
 
 // documented accepts `bin sub` or `bin sub1 sub2` after leading global flags.

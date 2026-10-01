@@ -44,8 +44,8 @@ rather than guessing. The audit flags:
 ## Evidence and limits
 
 `GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/postmergehost` passes. All three
-templates audit with zero findings, and 55 single mutations (after review repairs) each produce
-their specific finding.
+templates audit with zero findings, and 79 single mutations (after review repairs r1 to r5) each
+produce their specific finding.
 
 The following remain open or `NOT_RUN`:
 - Issue acceptance item (a), a hosted dry-run of the #395 replay set: not run, because #395 has not
@@ -108,4 +108,26 @@ new check, one at a time, fails at least one of them.
   clean.
 
 Nine new mutations bring the total to 64. Deleting each new check, one at a time, fails a named
+subtest.
+
+## Repair r5 (independent review FAIL)
+
+- **Unsecure workflow commands.** `ACTIONS_ALLOW_UNSECURE_COMMANDS: "true"` in `env` re-enabled the
+  `::set-env` and `::add-path` stdout commands, so a script could set `BASH_ENV` or `PATH` without
+  naming `GITHUB_ENV`. It joins the `STARTUP_ENV` denylist. A sweep of the runner's documented
+  variables adds the toggles that change how action code is loaded:
+  `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION` and the `FORCE_JAVASCRIPT_ACTIONS_TO_NODE` prefix.
+  Debug and logging toggles are not added. Runner-host hooks (`ACTIONS_RUNNER_HOOK_JOB_*`,
+  `ACTIONS_RUNNER_CONTAINER_HOOKS`) are read from the runner's own environment and recorded as
+  outside the audit. A run script that prints `::set-env` or `::add-path` is now `RUNNER_ENV_FILE`;
+  the spec failure modes name the channel and its lexical residue.
+- **Non-scalar `env` values.** A `<<:` merge key holding a nested `LD_PRELOAD` mapping audited
+  clean. A merge key or non-scalar value in any workflow, job or step `env` is now `UNMODELLED_KEY`.
+- **Bounded sweep of `env`/`with`/`run`/`uses`.** A non-scalar `with` value or `run` is now
+  `UNMODELLED_KEY`. The checkout credential check matched only the exact lowercase
+  `actions/checkout@` prefix, so `Actions/Checkout@<sha>` or `actions/checkout/.@<sha>` without
+  `persist-credentials: false` audited clean; it now matches the owner and repository in any case
+  and with any sub-path.
+
+Fifteen new mutations bring the total to 79. Deleting each new check, one at a time, fails a named
 subtest.
