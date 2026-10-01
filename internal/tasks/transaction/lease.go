@@ -480,6 +480,14 @@ func planRelease(c leaseContext) leaseOutcome {
 		return c.recordFenced(a, why)
 	}
 	next := *a
+	if c.l.Reason == wire.CodeHandoff || c.l.Reason == wire.CodeReviewReturned {
+		if refusal := c.verifyHandoff(a); refusal != nil {
+			return *refusal
+		}
+		accounting := *a.RetryAccounting
+		accounting.Disposition = c.l.Reason
+		next.RetryAccounting = &accounting
+	}
 	next.Phase, next.PhaseSinceSeq, next.Quiescence, next.Cause = "CANCELLED", c.seq, "FENCED", nil
 	if c.l.Reason != "" {
 		reason := c.l.Reason

@@ -64,8 +64,19 @@ type PriorGeneration struct {
 	ProvedSeq  wire.Size
 }
 
+// RetryAccounting records prospective generation-local observations. It is absent
+// from legacy records. Supervised attempts may retain it after attachment, but
+// only an external-agent terminal disposition can exempt a retry.
+type RetryAccounting struct {
+	FailedOrUnknown bool
+	Disposition     string
+}
+
+const ProfileRetryAccounting = "taskman-retry-accounting/0"
+
 // Attempt is a validated taskman-attempt/0.
 type Attempt struct {
+	RetryAccounting         *RetryAccounting
 	Supervision             *Supervision
 	Stage                   string
 	PoolAllocation          *PoolAllocation
@@ -213,7 +224,7 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
-	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation", "supervision")...)
+	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation", "supervision", "retryAccounting")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -221,6 +232,12 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 		return nil, err
 	}
 	a := &Attempt{}
+	if wire.Has(v, "retryAccounting") {
+		x := r.Field("retryAccounting")
+		x.Closed("profile", "failedOrUnknown", "disposition")
+		x.Field("profile").Exact(ProfileRetryAccounting)
+		a.RetryAccounting = &RetryAccounting{FailedOrUnknown: x.Field("failedOrUnknown").Bool(), Disposition: x.Field("disposition").Enum("NONE", "HANDOFF", "REVIEW_RETURNED")}
+	}
 	if wire.Has(v, "supervision") {
 		a.Supervision = readSupervision(r.Field("supervision"))
 	}
@@ -280,6 +297,11 @@ func (a *Attempt) check() error {
 	}
 	if q.Raw != a.TicketID.QueueID() {
 		return wire.Errorf(wire.CodeMalformed, "/attemptId", "attempt and ticket name different queues")
+	}
+	if x := a.RetryAccounting; x != nil && x.Disposition != "NONE" {
+		if a.RuntimeID != RuntimeExternalAgent || a.Phase != "CANCELLED" || a.Quiescence != "FENCED" || x.FailedOrUnknown || a.CandidateTreeOid == nil || a.ScopeCheck != "WITHIN" || len(a.PendingEffects) != 0 || a.Cause == nil || *a.Cause != x.Disposition || (a.Stage != "implement" && a.Stage != "review") || (x.Disposition == "REVIEW_RETURNED" && a.Stage != "review") {
+			return wire.Errorf(wire.CodeMalformed, "/retryAccounting", "clean disposition differs from terminal handoff facts")
+		}
 	}
 	external := a.RuntimeID == RuntimeExternalAgent
 	supervised := a.RuntimeID == SupervisedProfile
@@ -362,6 +384,10 @@ func priorValue(ps []PriorGeneration) wire.Value {
 func (a *Attempt) Encode() ([]byte, error) {
 	o := wire.NewObject()
 	o.Set("profile", wire.String(ProfileAttempt))
+	if a.RetryAccounting != nil {
+		x := a.RetryAccounting
+		o.Set("retryAccounting", wire.ObjectValue(wire.NewObject().Set("profile", wire.String(ProfileRetryAccounting)).Set("failedOrUnknown", wire.Bool(x.FailedOrUnknown)).Set("disposition", wire.String(x.Disposition))))
+	}
 	if a.Supervision != nil {
 		o.Set("supervision", supervisionValue(a.Supervision))
 	}
