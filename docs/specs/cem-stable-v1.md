@@ -82,3 +82,90 @@ These codes describe bounded reference-integrity checks; they do not establish n
 | `candidate-artifact-unavailable` | Cancellation, unavailable paths, symlinks or unsupported path kinds, path lstat/open/read/close failures prevent reading the declared artifact. | `internal/cem/verify/candidate.go:93@8c882b4b` |
 | `candidate-artifact-bound` | An opened artifact cannot be statted, is not a regular file, exceeds the per-artifact byte bound, or makes the total artifact inventory exceed its byte bound. | `internal/cem/verify/candidate.go:112@77e4c1f4` |
 | `candidate-artifact-digest` | SHA256 of the artifact bytes differs from the declared digest. | `internal/cem/verify/candidate.go:128@21c0f6f2` |
+
+## Optional stable assembly prototype
+
+Technical contract: proposed experimental R1 producer; no default or release
+admission. `corvint-cem-candidate assemble-stable --experimental --request ABS
+--out-dir NEW_ABS` is a separate optional operation. Existing candidate assembly,
+verification commands and their emitted bytes retain their contracts.
+
+The native Core entrypoint `corvint cem verify-stable` is likewise explicit-only and
+experimental: it is hidden from help, is matched only in command position (after
+optional leading global options), and carries no default or promotion.
+
+The closed `cem-stable-assembly/1` request independently names immutable base and
+target, ticket/attempt identity, explicit criterion links, source prefix, and six
+absolute SHA256-pinned inputs: canonical source map, native capture, retained
+historical verification, snapshot-head artifact, runner plan and runner receipt.
+The source is parsed and canonically verified as its actual `cem/0.2` or `cem/0.3`
+profile. A distinct typed `StableMap` is constructed and encoded through
+`EncodeStable`; complete coverage/discrimination witnesses survive. No source
+profile substitution bypasses a parser, validator or consumer migration.
+
+The producer retains all six raw artifact roles, including the exact claimed-ticket
+string and exact snapshot-head receipt bytes. `snapshotHeadReceiptSha256` remains
+the native binding's identity; `snapshotHeadArtifactSha256` is independently
+computed from supplied original bytes. Full criterion identity includes both
+fields, and links use the new complete identity. Their incidental equality in one
+historical proof is not an identity rule. The generic input reader continues to
+reject `.git` paths; an operator must separately pin and stage a selected original
+receipt outside Git metadata before supplying it.
+
+Only pure Tasks wire decoding is used by the assembler. An independently configured
+native Tasks executable can verify historical capture semantics in a separate
+bounded read, with original stdin/stdout/stderr, command and pre/post executable
+pins retained. That read does not authenticate the selected receipt's journal
+linkage. Without that separate linkage evidence, receipt authority remains
+`NOT_OBSERVED`. The stable assembly result contains the actual 21-field stable
+verification envelope; it does not reuse the candidate result or upgrade any of
+its thirteen authority/semantic axes.
+
+Each declared runner input must match its immutable target blob. This establishes
+`DECLARED_INPUT_BYTES_MATCH_TARGET` only. Raw plan identity, report hashes,
+FAILED/SKIPPED/FLAKY/interruption/build/infrastructure outcomes and reported attempts
+remain intact; no retry, execution-at-commit, inventory completeness, criterion
+adequacy or discrimination claim is inferred. Output must be a new confined bundle,
+the target must have no committed CEM sidecar in this producer slice, and native
+stable verification must succeed before `stable.json` and a successful result are
+published. Changed, absent or unsupported inputs refuse; incomplete intermediate
+artifacts are not a successful bundle.
+
+The bounded historical proof retains base
+`474f75da42ffab0f6b04425f26c8b655602d2ed8` and target
+`a14f9d0123a923fa11ec411ec293a643856603e5`, actual native capture verification and
+original generic Go runner evidence. It compares the producer's embedded result
+with Core and portable results recursively across all 21 fields. Historical
+coverage/discrimination witnesses remain absent; separate 0.3 witness tests are
+manufactured, non-executed fixtures. All evidence is experimental self-use.
+
+| Existing requirements | Bounded producer evidence | Remaining qualification |
+| --- | --- | --- |
+| CEM-V1-001, 011..013 | Typed stable construction, exact six-role graph, full witness retention, native/portable result equality | Complete public corpus, supported repository/runtime envelopes and all consumer migration |
+| CEM-V1-002 | Pure native wire binding plus separately pinned historical Tasks verification | Current applicability, receipt journal authority and semantic adequacy |
+| CEM-V1-003..005 | Exact actual runner/source/report bytes and native outcome preservation | Inventory completeness, execution-at-commit and criterion discrimination |
+| CEM-V1-007, 014 | Optional companion producer and explicit stable verification | Core workflow/report, OCM/frontier/obligation, companion and completion consumers |
+| CEM-V1-008..010 | Original defaults/packets unchanged and optional operation removable | External adoption/outcomes and release/promotion gates |
+
+The current stable verifier admits `primary-clean-config-bounded/1`; ordinary
+SHA256 initialization with a different section order, clone configuration and
+linked worktrees remain outside that envelope. Canonical ordered fixtures do not
+qualify ordinary checkouts. Rollback disables the new optional operation and
+preserves earlier command defaults, candidate assembly, native task history and
+historical packet bytes. Independent producer implementation review and root
+source admission remain separate steps.
+
+## Stable verification result codes
+
+The optional `cem verify-stable` operation emits the closed result codes of
+`protocol/cem-1.0/stable/OPERATION.json` and `RESULT.schema.json`; those public files stay the
+normative mapping. This table names the codes first emitted by the stable verifier, so each has
+one owning specification. A code reports a bounded check and never upgrades authority.
+
+| Stage | Codes | Outcome |
+| --- | --- | --- |
+| references | `invalid-criterion-identity`, `duplicate-reference`, `unresolved-reference`, `reference-coherence`, `artifact-role-closure` | Exit 2; the decoded reference graph is rejected without filesystem or native authority inference |
+| authority-arguments | `artifacts-required` | Exit 2; the explicit artifact root is required even for an empty reference set |
+| runtime | `unsupported-structural-runtime`, `unsupported-process-containment` | Exit 2; an unqualified runtime or containment tuple is explicit and has no weakened fallback |
+| repository | `unsupported-resource-limit`, `unsupported-repository-envelope`, `verification-timeout` | Exit 2; operational limits stay distinct from invalid evidence |
+| artifacts | `artifact-unavailable`, `artifact-resource-limit`, `artifact-changed-during-verification`, `artifact-digest-mismatch` | Exit 2; declared artifact bytes could not be read within bounds, changed while read, or differ from the declared digest |

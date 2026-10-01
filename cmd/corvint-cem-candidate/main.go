@@ -25,6 +25,9 @@ func main() {
 	os.Exit(command(ctx, os.Args[1:], os.Stdout, os.Stderr))
 }
 func command(ctx context.Context, args []string, out, errout io.Writer) int {
+	if len(args) > 0 && args[0] == "assemble-stable" {
+		return stableCommand(ctx, args[1:], out, errout)
+	}
 	if len(args) == 0 {
 		fmt.Fprintln(errout, "experimental candidate companion: verify | assemble")
 		return 2
