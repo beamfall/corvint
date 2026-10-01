@@ -124,19 +124,29 @@ func Rules(root, directory string, entries []string) ([]Rule, error) {
 			if err != nil {
 				return nil, err
 			}
-			if ok {
-				rules = append(rules, rule)
+			// A symbolic link is not granted: its target outside root is
+			// granted in its own right, and inside root it must stay denied.
+			if ok && rule.Mode&fs.ModeSymlink == 0 {
+				rules = append(rules, Rule{Path: rule.Path, Dir: rule.Mode.IsDir()})
 			}
 		}
 	}
-	for _, relative := range append([]string{directory}, entries...) {
+	for index, relative := range append([]string{directory}, entries...) {
 		rule, ok, err := ruleFor(filepath.Join(root, filepath.FromSlash(strings.TrimSuffix(relative, "/"))))
 		if err != nil {
 			return nil, err
 		}
-		if ok {
-			rules = append(rules, rule)
+		if !ok {
+			continue
 		}
+		// The planner selects below an entry only when it ends in "/", so an
+		// entry's form must match what it grants, and a link would grant its
+		// target instead of the declared path.
+		subtree := index == 0 || strings.HasSuffix(relative, "/")
+		if resolved, err := filepath.EvalSymlinks(rule.Path); err != nil || resolved != rule.Path || rule.Mode.IsDir() != subtree {
+			return nil, fmt.Errorf("declared path %q is a %v, which its form does not name", relative, rule.Mode.Type())
+		}
+		rules = append(rules, Rule{Path: rule.Path, Dir: subtree})
 	}
 	sort.Slice(rules, func(i, j int) bool { return rules[i].Path < rules[j].Path })
 	return rules, nil
@@ -151,15 +161,21 @@ func readDirNames(directory string) ([]string, error) {
 	return file.Readdirnames(-1)
 }
 
-// ruleFor resolves one path; a path that does not exist or cannot be examined
-// grants nothing, which can only deny more.
-func ruleFor(name string) (Rule, bool, error) {
-	info, err := os.Stat(name)
+// ruleFor examines one path without following a final symbolic link; a path
+// that does not exist or cannot be examined grants nothing, which can only
+// deny more.
+func ruleFor(name string) (examined, bool, error) {
+	info, err := os.Lstat(name)
 	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrPermission) {
-		return Rule{}, false, nil
+		return examined{}, false, nil
 	}
 	if err != nil {
-		return Rule{}, false, err
+		return examined{}, false, err
 	}
-	return Rule{Path: name, Dir: info.IsDir()}, true, nil
+	return examined{Path: name, Mode: info.Mode()}, true, nil
+}
+
+type examined struct {
+	Path string
+	Mode fs.FileMode
 }

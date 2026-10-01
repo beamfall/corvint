@@ -95,6 +95,26 @@ func TestRulesGrantOutsideRootPackageAndEntriesOnly_AFPV0023(t *testing.T) {
 			t.Errorf("%s is granted", name)
 		}
 	}
+	if err := os.Symlink(filepath.Join(base, "repo"), filepath.Join(base, "link")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("secret", filepath.Join(root, "alias")); err != nil {
+		t.Fatal(err)
+	}
+	rules, err = Rules(root, "pkg", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, rule := range rules {
+		if rule.Path == filepath.Join(base, "link") {
+			t.Errorf("the link %s into root is granted", rule.Path)
+		}
+	}
+	for _, entries := range [][]string{{"docs"}, {"go.mod/"}, {"alias/"}, {"alias"}} {
+		if _, err := Rules(root, "pkg", entries); err == nil {
+			t.Errorf("Rules accepted entries %q whose form does not name what they are", entries)
+		}
+	}
 	for _, bad := range []string{"relative", "/", root + "/"} {
 		if _, err := Rules(bad, "pkg", nil); err == nil {
 			t.Errorf("Rules(%q) accepted", bad)

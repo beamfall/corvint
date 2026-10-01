@@ -514,7 +514,9 @@ and container qualification; full fallback remains available.
   module-level frontier `go:test-read-scopes-invalid` and the selector falls back (AFP-V0-011).
   Full CI SHALL run the root Go test command with `-exec` set to the owner-protected wrapper
   `.github/testconfine`, built isolated from tested module directives, which loads the same
-  grammar independently, fails the run on any invalid declaration or a Landlock ABI below 2, and
+  grammar independently, fails the run on any invalid declaration, a Landlock ABI below 2, an
+  existing declared directory or entry reached through a symbolic link, or an entry whose trailing `/`
+  disagrees with whether it is a directory, never grants a symbolic link outside the root, and
   execs each declared package's test binary under a Landlock ruleset granting read access to every
   path outside the root, the package subtree and the existing declared entries only; undeclared
   packages run unconfined. The ruleset also handles and grants link/rename reparenting (REFER)

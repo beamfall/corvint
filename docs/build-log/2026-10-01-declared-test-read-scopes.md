@@ -93,6 +93,35 @@ only for a declared unit. An undeclared graph therefore keeps its digest, and th
 `readScoped` uses `omitzero`. `TestSelectionOnTheLiveDirtyWorktree` now resolves a
 `DECLARED_READ_SCOPE` witness against the declared unit's scope.
 
+## Independent review
+
+The independent review found no blocker at the delivered declaration. Two latent gaps in the
+wrapper could have made it grant more than the planner selects on:
+
+- **Directory entries without `/`.** The wrapper granted a whole subtree for an entry that names a
+  directory without a trailing `/`. The planner matches below an entry only when the entry ends in
+  `/`.
+- **Symbolic links.** The wrapper followed a symbolic link and granted its target, both for an
+  entry and for a link outside the root that points back into it.
+
+The wrapper now examines paths without following links. It fails the run for a declared directory
+or entry reached through a link, and for an entry whose form disagrees with its type. It grants no
+link outside the root. `TestRulesGrantOutsideRootPackageAndEntriesOnly_AFPV0023` covers each case.
+On Linux, the delivered 99-package declaration still builds valid rules, and two declared packages
+pass when confined by the revised wrapper. A bind mount that re-exposes the root outside it remains
+a residual.
+
+The review also raised three nits:
+
+- **Workspace modules.** The planner accepts `go.work` workspace module directories; the selector
+  and CI fall back safely.
+- **Fileless declared units.** A declared unit with no files would panic in `scopedReadersOf`. The
+  Go plugin emits none.
+- **Wrapper probe on docs-only jobs.** The wrapper probe also runs on docs-only jobs, which fails
+  closed.
+
+They are retained without change.
+
 ## Residuals and NOT_RUN
 
 - **Hosted run.** The hosted confined full CI run is NOT_RUN until the admin `ci-control-plane`
