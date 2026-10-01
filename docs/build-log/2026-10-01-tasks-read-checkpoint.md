@@ -4,7 +4,7 @@ Owner-requested issue [446](https://github.com/beamfall/corvint/issues/446) amen
 agent-lease contract with S12, CAL-V0-059..061. Native ticket is V1-0644; follow-ups are V1-0645
 (writers still pay the complete audit, twice in `store.Mutate`), V1-0646 (the intent tree is read
 several times per read) and V1-0647 (is `queue status --summary` still wanted). Base is public
-ff3da727e95a1999cbc4a58a471cdd498693f902.
+c2c7fc12988d3e957d51fba66c7033b9eb53376b.
 
 ## Decisions
 
