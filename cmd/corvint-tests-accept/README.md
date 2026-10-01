@@ -22,8 +22,10 @@ Inspect before executing:
 
 Repeat `--new` for multiple files. The flags must match the frozen request; changing inputs requires
 reviewing its new digest. `plan` reads and validates, without test execution. `accept` launches a
-sanitized self-worker for every repeat/probe/control. It emits JSON with a fixed `body` field suitable
-for copying into a draft PR. No connector or outward write occurs. `worker` is an internal stdio
+sanitized self-worker for every repeat/probe/control. A test whose repeats disagree is also run alone
+twice; its assessment carries the order and isolation states. It emits JSON with a fixed Markdown
+`body` field (verdict, both revisions, environment, build, one row per test, reasons and unknowns)
+suitable for pasting into a draft PR; extract it with `jq -r .body`. No connector or outward write occurs. `worker` is an internal stdio
 protocol requiring the same explicit request digest and pin validation. Direct worker invocations
 with any environment key/value outside the fixed safe four-key environment are refused before
 execution; inherited credentials/runtime injection cannot enter this surface.

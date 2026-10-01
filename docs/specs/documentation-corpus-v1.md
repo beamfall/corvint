@@ -301,6 +301,12 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   explicit non-loopback exposure requires `--allow-remote` and an operator-owned external TLS/auth
   boundary. Shutdown retires the listener and in-flight requests. Local conformance is not external
   deployment/authentication/security/interoperability qualification; those axes stay NOT_OBSERVED.
+- `DCP-V1-043`: The `corvint-corpus-parity` companion is qualified through its own command boundary.
+  Every read, producer, open, query, comparison or encoding failure exits nonzero with empty stdout
+  and a stderr diagnostic; no failure may exit zero with an absent or partial artifact. Two command
+  builds from identical inputs emit byte-identical indexed artifacts; query emits the trust-enveloped
+  native receipt; parity over a recorded question set binds index and recording digests, reports
+  per-tool agreement and repeats byte-identically. A wrong operator pin refuses without a report.
 
 ## Input and authority boundary
 
@@ -560,6 +566,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-027..032 | `internal/doccorpus/behavior_adapter.go`, `cmd/corvint/docs_corpus.go` | Mapped bundle through existing Build/Open, denominators, frontier/delta, bounds and issue-53 adversarial fixtures |
 
 | DCP-V1-038..042 | `internal/doccorpus/typed_query.go`, `trust.go`, `query_index.go`, `internal/corpusindex`, `internal/corpusserve`, separate companion commands | `TestCorpusTypedQueryConformance`, `TestCorpusRetirementBindings`, `TestCorpusCompleteReadAndTypedToolSchema`, `TestIndexedCorpusReproductionAndProvenance`, `TestIndexedCorpusCapacityQualification`, `TestIndexedCorpusSwitchParity`, `TestHostedCorpusHTTPConformance`, `TestHostedCorpusConcurrencyAndCleanup` |
+| DCP-V1-043 | `cmd/corvint-corpus-parity` | `TestCorpusParityCommandEndToEnd`, `TestCorpusParityCommandFailuresExitNonzero` |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 
 ## Open decisions
