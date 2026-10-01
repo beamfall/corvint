@@ -28,6 +28,13 @@ and `affected --base` selects it as `PLAN_ONLY` while retaining the `NO_REPOSITO
 unknown. Tasks `help` and `queue` run in a repository without a store. A whole-tree content
 snapshot, including the Git directory, is byte-identical afterwards.
 
+`core-host.test.mjs` is a manual qualification test. It is excluded from `make host-adapter-test`,
+CI and every gate because it needs installed native binaries; run it by hand with
+`node --test integrations/pi/core-host.test.mjs`, using `corvint` and `corvint-tasks` from `PATH` or
+`CORVINT_BIN` and `CORVINT_TASKS_BIN` set to their paths. `capabilities.test.mjs` runs in
+`host-adapter-test` and also reads the shipped `writes` set from `tasks.js`, so a write added there
+without amending the inventory fails.
+
 Evidence: both native runs passed against installed Core 1.0.0-rc.1 build 163 with Tasks build 202,
 and against Core built from the base source. Live Pi host qualification was not run: no
 host-observable behavior changed and the package is unchanged (NOT_RUN, not implied). The

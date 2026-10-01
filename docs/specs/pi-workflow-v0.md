@@ -117,7 +117,7 @@ requires the existing governing interface; missing dependencies remain open.
 | PWV-V0-009 | Pi package/compatibility and native qualification owner | Exact candidate install/load/unload/rollback observations required |
 | PWV-V0-010 | Integration owner | Independent review, scoped frozen evidence, host tuple and honest measurement exclusions required |
 | PWV-V0-011 | Capability contract above plus every registering module | `capabilities.test.mjs`: registered tools/commands/events, operation sets and unavailable set equal the inventory; per-call native write negotiation and out-of-inventory refusal |
-| PWV-V0-012 | `integrations/pi/core.js`, `tasks.js` reads | `core-host.test.mjs` with actual native Core and Tasks binaries: named task chain and byte-identical worktree/Git directory |
+| PWV-V0-012 | `integrations/pi/core.js`, `tasks.js` reads | `core-host.test.mjs` with actual native Core and Tasks binaries: named task chain and byte-identical worktree/Git directory. Manual qualification only: excluded from `make host-adapter-test`, CI and every gate; run by hand with `node --test integrations/pi/core-host.test.mjs` and `corvint`/`corvint-tasks` on `PATH`, or `CORVINT_BIN`/`CORVINT_TASKS_BIN` set to their paths |
 
 A test path names required evidence, not an assertion that it passed. Final outcome belongs in the
 combined build-log and bound CEM/OCM. Missing or failed acceptance rows keep delivery experimental.

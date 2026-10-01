@@ -19,6 +19,8 @@ const inventory=JSON.parse(/```json\n([\s\S]*?)\n```/.exec(section)[1]);
 const pkg=JSON.parse(readFileSync(new URL('./package.json',import.meta.url),'utf8'));
 const compatibility=JSON.parse(readFileSync(new URL('./compatibility.json',import.meta.url),'utf8'));
 const sorted=values=>[...values].sort();
+// tasks.js does not export its write set; read the shipped literal so the inventory binds to it.
+const shippedWrites=JSON.parse(/^const writes=(\[[^\]\n]*\]);$/m.exec(readFileSync(new URL('./tasks.js',import.meta.url),'utf8'))[1].replaceAll("'",'"'));
 const ticketId='ticket:fixture:main:APP-0001',tree='b'.repeat(40);
 
 // Mirrors index.ts registration, which needs the host package to import.
@@ -64,6 +66,7 @@ test('PWV-V0-011 Tasks writes are negotiated per call against native help; other
  const ctx={cwd:dir,sessionManager:{getSessionId:()=>'session'},isProjectTrusted:()=>true,isIdle:()=>true};
  const attempt={ticketId,expectedRevision:'1',attemptId:'attempt-1',generation:'1',holder:'pi'};
  const inputs={'ticket prioritize':{ticketId,expectedRevision:'1',priority:'P1',order:'2'},claim:{ticketId,expectedRevision:'1',holder:'pi'},renew:attempt,release:{...attempt,reason:'handoff'},submit:{...attempt,tree},'gate run':{...attempt,gate:'verify'},complete:{...attempt,commit:tree}};
+ assert.deepEqual(sorted(shippedWrites),inventory.tasksWriteOperations,'shipped tasks.js writes equal the inventory');
  assert.deepEqual(sorted(Object.keys(inputs)),inventory.tasksWriteOperations);
  assert.equal(inventory.tasksWriteAdmission,'native-help-implemented-per-call');
  for(const operation of inventory.tasksWriteOperations) {
