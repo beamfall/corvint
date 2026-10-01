@@ -57,7 +57,7 @@ type Request struct {
 }
 type Stage struct {
 	Name           string `json:"name"`
-	Status         string `json:"status"` // observed | blocked | not-applicable
+	Status         string `json:"status"` // observed | blocked | not-applicable | deferred
 	ArtifactSHA256 string `json:"artifact_sha256"`
 }
 type Result struct {
@@ -76,15 +76,19 @@ type Mismatch struct {
 	ObservedSHA256 string `json:"observed_sha256"`
 }
 type Report struct {
-	Profile               string            `json:"profile"`
-	Binding               connector.Binding `json:"binding"`
-	FixtureSHA256         string            `json:"fixture_sha256"`
-	PolicySHA256          string            `json:"policy_sha256"`
-	Status                string            `json:"status"` // MATCH | MISMATCH | BLOCKED
-	Reasons               []string          `json:"reasons"`
-	Mismatches            []Mismatch        `json:"mismatches"`
-	RecordingSHA256       string            `json:"recording_sha256"`
-	Recording             string            `json:"recording_jsonl"`
-	WorkflowQualification string            `json:"workflow_qualification"`
-	Limits                []string          `json:"limits"`
+	Profile       string            `json:"profile"`
+	Binding       connector.Binding `json:"binding"`
+	FixtureSHA256 string            `json:"fixture_sha256"`
+	PolicySHA256  string            `json:"policy_sha256"`
+	Status        string            `json:"status"` // MATCH | MISMATCH | BLOCKED
+	Reasons       []string          `json:"reasons"`
+	// Mismatches are reported separately by the basis of the expectation
+	// they contradict; a generated expectation never counts as human-verified.
+	HumanVerifiedMismatches []Mismatch `json:"human_verified_mismatches"`
+	GeneratedMismatches     []Mismatch `json:"generated_mismatches"`
+	DeferredStages          []string   `json:"deferred_stages"`
+	RecordingSHA256         string     `json:"recording_sha256"`
+	Recording               string     `json:"recording_jsonl"`
+	WorkflowQualification   string     `json:"workflow_qualification"`
+	Limits                  []string   `json:"limits"`
 }

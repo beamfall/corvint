@@ -59,7 +59,7 @@ func readExecutable(name string) ([]byte, error) {
 // directories. Minimal env is not OS isolation; the report retains that limit.
 // Input files are never modified and no live connector writer is constructed.
 func Replay(ctx context.Context, root, fixtureFile, policyFile, change string) (Report, error) {
-	report := Report{Profile: Profile, Status: "BLOCKED", Reasons: []string{}, Mismatches: []Mismatch{}, WorkflowQualification: "NOT_OBSERVED",
+	report := Report{Profile: Profile, Status: "BLOCKED", Reasons: []string{}, HumanVerifiedMismatches: []Mismatch{}, GeneratedMismatches: []Mismatch{}, DeferredStages: []string{}, WorkflowQualification: "NOT_OBSERVED",
 		Limits: []string{"adapter-semantic-correctness-not-verified", "filesystem-network-isolation-not-verified", "descendant-observation-bounded", "human-registry-pin-is-not-authentication", "actual-whole-workflow-acceptance-not-observed"}}
 	block := func(err error) (Report, error) {
 		report.Reasons = append(report.Reasons, err.Error())
@@ -172,11 +172,24 @@ func Replay(ctx context.Context, root, fixtureFile, policyFile, change string) (
 	expected := map[string]any{"affected_flows": normalized(fixture.Expected.AffectedFlows), "followup": fixture.Expected.Followup, "test_gaps": normalized(fixture.Expected.TestGaps), "defects": sortedFindings(fixture.Expected.Defects)}
 	for _, field := range []string{"affected_flows", "followup", "test_gaps", "defects"} {
 		if valueHash(expected[field]) != valueHash(observed[field]) {
-			report.Mismatches = append(report.Mismatches, Mismatch{field, fixture.Expected.Labels[field].Basis, valueHash(expected[field]), valueHash(observed[field])})
+			m := Mismatch{field, fixture.Expected.Labels[field].Basis, valueHash(expected[field]), valueHash(observed[field])}
+			if m.Basis == "human-verified" {
+				report.HumanVerifiedMismatches = append(report.HumanVerifiedMismatches, m)
+			} else {
+				report.GeneratedMismatches = append(report.GeneratedMismatches, m)
+			}
 		}
 	}
+	for _, stage := range firstResult.Stages {
+		if stage.Status == "deferred" {
+			report.DeferredStages = append(report.DeferredStages, stage.Name)
+		}
+	}
+	if len(report.DeferredStages) > 0 {
+		report.Limits = append(report.Limits, "authoring-scope-validation-stages-deferred")
+	}
 	report.Status = "MATCH"
-	if len(report.Mismatches) > 0 {
+	if len(report.HumanVerifiedMismatches)+len(report.GeneratedMismatches) > 0 {
 		report.Status = "MISMATCH"
 	}
 	return report, nil

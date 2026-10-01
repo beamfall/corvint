@@ -1,4 +1,4 @@
-// post-merge-workflow is an experimental local replay companion, not a live writer.
+// Command corvint-postmerge-workflow is an experimental local replay companion, not a live writer.
 package main
 
 import (
@@ -16,7 +16,7 @@ import (
 func main() { os.Exit(run()) }
 func run() int {
 	if len(os.Args) < 2 || os.Args[1] != "replay" {
-		fmt.Fprintln(os.Stderr, "usage: post-merge-workflow replay --change ID --dry-run --fixture FILE --policy FILE --root REPO")
+		fmt.Fprintln(os.Stderr, "usage: corvint-postmerge-workflow replay --change ID --dry-run --fixture FILE --policy FILE --root REPO")
 		return 2
 	}
 	f := flag.NewFlagSet("replay", flag.ContinueOnError)

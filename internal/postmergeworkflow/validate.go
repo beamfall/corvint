@@ -240,31 +240,35 @@ func validateResult(r Result, request Request, source string) error {
 	if len(r.Input.Drafts) > 0 {
 		return fmt.Errorf("draft-scope-validation-unavailable")
 	}
-	required := map[string]bool{"trigger": true, "intake": true, "delta": true, "followup": true, "findings": true, "metrics": true,
-		"docs-author": len(r.DocumentationTargets) > 0, "docs-scope": len(r.DocumentationTargets) > 0, "docs-validation": len(r.DocumentationTargets) > 0,
-		"tests-author": len(r.TestGaps) > 0, "tests-scope": len(r.TestGaps) > 0, "tests-validation": len(r.TestGaps) > 0, "draft-requests": false}
-	if len(r.Stages) != len(required) {
+	// Detection stages always run. Author/scope/validation verifiers and draft
+	// publication are not integrated, so a driver may never report them as
+	// observed: they are deferred when docs/tests work exists, else not applicable.
+	docs, tests := len(r.DocumentationTargets) > 0, len(r.TestGaps) > 0
+	expected := map[string]string{"trigger": "observed", "intake": "observed", "delta": "observed", "followup": "observed", "findings": "observed", "metrics": "observed"}
+	for name, work := range map[string]bool{"docs-author": docs, "docs-scope": docs, "docs-validation": docs, "tests-author": tests, "tests-scope": tests, "tests-validation": tests, "draft-requests": docs || tests} {
+		expected[name] = "not-applicable"
+		if work {
+			expected[name] = "deferred"
+		}
+	}
+	if len(r.Stages) != len(expected) {
 		return fmt.Errorf("required-stage-missing")
 	}
 	seen := map[string]bool{}
 	for _, stage := range r.Stages {
-		needed, ok := required[stage.Name]
+		want, ok := expected[stage.Name]
 		if !ok || seen[stage.Name] {
 			return fmt.Errorf("stage-invalid")
 		}
 		seen[stage.Name] = true
-		if needed {
-			if stage.Status != "observed" || !hash.MatchString(stage.ArtifactSHA256) {
-				return fmt.Errorf("required-stage-blocked")
-			}
-		} else if stage.Status != "not-applicable" || stage.ArtifactSHA256 != "" {
+		switch {
+		case want == "observed" && (stage.Status != "observed" || !hash.MatchString(stage.ArtifactSHA256)):
+			return fmt.Errorf("required-stage-blocked")
+		case want == "deferred" && stage.Status == "observed":
+			return fmt.Errorf("draft-scope-validation-unavailable")
+		case want != "observed" && (stage.Status != want || stage.ArtifactSHA256 != ""):
 			return fmt.Errorf("stage-applicability-invalid")
 		}
-	}
-	// Author/scope/validation adapters are not integrated yet. A driver cannot
-	// self-certify their positive result with a digest or omit the expected draft.
-	if len(r.DocumentationTargets) > 0 || len(r.TestGaps) > 0 {
-		return fmt.Errorf("draft-scope-validation-unavailable")
 	}
 	return nil
 }

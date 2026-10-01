@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -64,6 +65,19 @@ func TestAdapterHelper(t *testing.T) {
 		r.FixtureSHA256 = SHA256([]byte("wrong"))
 	case "inconsistent":
 		r.Input.Findings = nil
+	case "gaps", "gaps-observed", "gaps-not-applicable":
+		r.DocumentationTargets = []string{"docs/a.md"}
+		r.TestGaps = []string{"gap-1"}
+		r.Input.Counts = connector.Counts{Docs: 1, Tests: 1}
+		status := map[string]string{"gaps": "deferred", "gaps-observed": "observed", "gaps-not-applicable": "not-applicable"}[mode]
+		for i := range r.Stages {
+			if r.Stages[i].Status == "not-applicable" {
+				r.Stages[i].Status = status
+				if status == "observed" {
+					r.Stages[i].ArtifactSHA256 = SHA256([]byte(r.Stages[i].Name))
+				}
+			}
+		}
 	case "draft":
 		r.Input.Drafts = []connector.Draft{{Kind: "docs", Revision: request.Binding.Merge, URL: "https://example.com/draft"}}
 	case "nondeterministic":
@@ -143,7 +157,7 @@ func TestReplayActualRecording(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Status != "MATCH" || r.WorkflowQualification != "NOT_OBSERVED" || len(r.Mismatches) != 0 || !strings.Contains(r.Recording, "upsert-followup") || !strings.Contains(r.Recording, "upsert-finding") {
+	if r.Status != "MATCH" || r.WorkflowQualification != "NOT_OBSERVED" || len(r.HumanVerifiedMismatches)+len(r.GeneratedMismatches) != 0 || !strings.Contains(r.Recording, "upsert-followup") || !strings.Contains(r.Recording, "upsert-finding") {
 		t.Fatalf("report: %+v", r)
 	}
 	if SHA256([]byte(r.Recording)) != r.RecordingSHA256 || strings.Contains(r.Recording, "HOSTILE") {
@@ -162,12 +176,75 @@ func TestReplayMismatchBasis(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Status != "MISMATCH" || len(r.Mismatches) != 2 {
+	if r.Status != "MISMATCH" || len(r.GeneratedMismatches) != 2 || len(r.HumanVerifiedMismatches) != 0 {
 		t.Fatalf("mismatches: %+v", r)
 	}
-	for _, m := range r.Mismatches {
+	for _, m := range r.GeneratedMismatches {
 		if m.Basis != "generated" {
 			t.Fatal(m)
+		}
+	}
+}
+
+// PMR-V0-007: the report separates mismatches against human-verified
+// expectations from mismatches against generated ones.
+func TestReplaySeparatesHumanVerifiedMismatches(t *testing.T) {
+	root, ff, pf, f, p := setup(t, "ok")
+	f.Expected.AffectedFlows = []string{"other-flow"}
+	f.Expected.Followup = false
+	label := Label{Basis: "human-verified", EvidenceSHA256: SHA256([]byte("review")), Human: "owner", Approval: "approval-1"}
+	f.Expected.Labels["followup"] = label
+	writeJSON(t, ff, f)
+	p.Registry = filepath.Join(t.TempDir(), "registry.json")
+	writeJSON(t, p.Registry, Registry{Profile: Profile, Approvals: []Approval{{Binding: p.Connector.Expected, Field: "followup", ValueSHA256: valueHash(false), Label: label}}})
+	b, _ := os.ReadFile(p.Registry)
+	p.RegistrySHA256 = SHA256(b)
+	writeJSON(t, pf, p)
+	r, err := Replay(context.Background(), root, ff, pf, "change-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Status != "MISMATCH" || len(r.HumanVerifiedMismatches) != 1 || r.HumanVerifiedMismatches[0].Field != "followup" || len(r.GeneratedMismatches) != 1 || r.GeneratedMismatches[0].Field != "affected_flows" {
+		t.Fatalf("separation: %+v", r)
+	}
+}
+
+// PMR-V0-006 and issue #395 acceptance: two separate replays of the same change
+// produce identical recorded requests and identical reports.
+func TestReplayTwiceIdenticalRecording(t *testing.T) {
+	root, ff, pf, _, _ := setup(t, "ok")
+	first, err := Replay(context.Background(), root, ff, pf, "change-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := Replay(context.Background(), root, ff, pf, "change-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, _ := json.Marshal(first)
+	b, _ := json.Marshal(second)
+	if first.Recording == "" || first.Recording != second.Recording || string(a) != string(b) {
+		t.Fatalf("replays differ:\n%s\n%s", a, b)
+	}
+}
+
+// PMR-V0-005: detected documentation targets and test gaps are compared while
+// author/scope/validation stages stay deferred; a driver cannot claim them.
+func TestReplayDeferredAuthoringStages(t *testing.T) {
+	root, ff, pf, f, _ := setup(t, "gaps")
+	f.Expected.TestGaps = []string{"gap-1"}
+	writeJSON(t, ff, f)
+	r, err := Replay(context.Background(), root, ff, pf, "change-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Status != "MATCH" || len(r.DeferredStages) != 7 || !slices.Contains(r.Limits, "authoring-scope-validation-stages-deferred") || !strings.Contains(r.Recording, `Docs: 1\nTests: 1`) || strings.Contains(r.Recording, "upsert-draft-change") {
+		t.Fatalf("report: %+v", r)
+	}
+	for mode, reason := range map[string]string{"gaps-observed": "draft-scope-validation-unavailable", "gaps-not-applicable": "stage-applicability-invalid"} {
+		root, ff, pf, _, _ := setup(t, mode)
+		if r, err := Replay(context.Background(), root, ff, pf, "change-1"); err == nil || err.Error() != reason || r.Recording != "" {
+			t.Fatalf("%s: %+v %v", mode, r, err)
 		}
 	}
 }
@@ -248,8 +325,8 @@ func TestPinsAndSelector(t *testing.T) {
 
 func TestCLIReplay(t *testing.T) {
 	root, ff, pf, fixture, _ := setup(t, "ok")
-	tool := filepath.Join(t.TempDir(), "post-merge-workflow")
-	build := exec.Command("go", "build", "-o", tool, "../../tools/post-merge-workflow")
+	tool := filepath.Join(t.TempDir(), "corvint-postmerge-workflow")
+	build := exec.Command("go", "build", "-o", tool, "../../cmd/corvint-postmerge-workflow")
 	build.Env = append(os.Environ(), "GOTOOLCHAIN=local")
 	if b, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build companion: %v %s", err, b)

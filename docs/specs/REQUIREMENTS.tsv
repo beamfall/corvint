@@ -1842,6 +1842,15 @@ PMM-V0-004	docs/specs/postmerge-metrics-v0.md	31	Process full retained eligible 
 PMM-V0-005	docs/specs/postmerge-metrics-v0.md	35	Validate contiguous per-class sequence inventories starting at 1 and independent
 PMM-V0-006	docs/specs/postmerge-metrics-v0.md	38	Produce byte-identical reports from the same validated policy, records, immutabl
 PMM-V0-007	docs/specs/postmerge-metrics-v0.md	41	Expose `corvint-postmerge-metrics report --policy FILE --records FILE --from UTC
+PMR-V0-001	docs/specs/postmerge-replay-v0.md	28	Decode a bounded closed fixture containing immutable connector identity and
+PMR-V0-002	docs/specs/postmerge-replay-v0.md	32	Use a separate host-owned policy to pin the connector binding, executable bytes,
+PMR-V0-003	docs/specs/postmerge-replay-v0.md	35	Admit human labels only when one separate pinned registry entry matches full imm
+PMR-V0-004	docs/specs/postmerge-replay-v0.md	38	Execute the pinned adapter bytes in two fresh private directories with bounded
+PMR-V0-005	docs/specs/postmerge-replay-v0.md	42	Require a result bound to the complete fixture digest, runtime digest and change
+PMR-V0-006	docs/specs/postmerge-replay-v0.md	50	Build and validate the actual connector plan, record it twice in each run and pr
+PMR-V0-007	docs/specs/postmerge-replay-v0.md	53	Emit a separate report with fixture/policy/binding identities, canonical JSONL,
+PMR-V0-008	docs/specs/postmerge-replay-v0.md	59	Provide local/CI invocation `corvint-postmerge-workflow replay --change ID --dry
+PMR-V0-009	docs/specs/postmerge-replay-v0.md	66	Replay does not parse or reimplement the issue #389 delta record. The adapter
 PNC-001	docs/specs/analyzer-python-native-candidate.md	86	The candidate MUST remain separately buildable and unreachable from Core.
 PNC-002	docs/specs/analyzer-python-native-candidate.md	87	The scanner MUST prospectively bound canonical request members before decode or
 PNC-003	docs/specs/analyzer-python-native-candidate.md	88	Accepted closed inputs MUST emit only fully typed, deterministic candidate facts

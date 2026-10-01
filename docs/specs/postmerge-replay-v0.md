@@ -1,17 +1,18 @@
 # Post-merge Replay V0
 
 Owner: Russell Lewis
-Date: 2026-09-30
+Date: 2026-10-01
 Intent status: proposed
-Delivery status: experimental partial slice
+Delivery status: experimental
 Authoritative inputs: human issue https://github.com/beamfall/corvint/issues/395,
-native V1-0542 revision 3; decision 0373; `AGENTS.md`.
+native V1-0542 revision 5; decision 0373; `AGENTS.md`; contracts `postmerge-connectors-v0.md`
+(issue #392) and the documented `corvint delta` record of issue #389.
 
 ## Agent digest
 - Claim: An optional companion runs a pinned local adapter twice and compares typed historical expectations through the actual recording connector.
-- Status: experimental harness; whole-workflow qualification `NOT_OBSERVED`.
-- Exists: `internal/postmergeworkflow/`, `tools/post-merge-workflow/`.
-- Blocked on: actual child-stage integration, authored content scope/validation and CI host containment evidence.
+- Status: proposed/experimental harness; whole-workflow qualification `NOT_OBSERVED`.
+- Exists: `internal/postmergeworkflow/`, `cmd/corvint-postmerge-workflow/`.
+- Blocked on: actual delta/author/scope/validation stage integration and CI host containment evidence.
 - Read next: Requirements; Trust and limits; Acceptance and rollback.
 
 ## User and measurable job
@@ -40,23 +41,34 @@ or qualification of the whole workflow, and passing expectations do not accept g
   credential environment variables. Retain the limits of bounded descendant observation.
 - `PMR-V0-005`: Require a result bound to the complete fixture digest, runtime digest and change
   identity. Code fixes stage applicability: trigger, intake, delta, follow-up, findings and metrics
-  are always required; documentation/test author, scope and validation stages depend on validated
-  documentation targets/test gaps. Missing, duplicate, blocked or unjustifiably inapplicable stages
-  block. Counts must agree with outcomes, corpus count is zero and findings must match connector
-  findings. Until the authored-content verifier is integrated, any docs/tests work or draft blocks.
+  are always required and observed. Documentation author/scope/validation stages are `deferred`
+  when documentation targets exist, test author/scope/validation stages when test gaps exist, and
+  draft requests when either exists; otherwise each is `not-applicable`. No driver may report a
+  deferred stage as observed, and every connector draft blocks, until the authored-content verifier
+  is integrated. Missing, duplicate, blocked or mislabelled stages block. Counts must agree with
+  outcomes, corpus count is zero and findings must match connector findings.
 - `PMR-V0-006`: Build and validate the actual connector plan, record it twice in each run and prove
   that repeats add no ledger events. Compare canonical outcomes, stage digests and full recorded
   bytes across fresh runs. Reject nondeterminism. Derive follow-up from actual plan requests.
 - `PMR-V0-007`: Emit a separate report with fixture/policy/binding identities, canonical JSONL,
-  recording digest and per-field mismatches with their original basis. MATCH means harness outcomes
-  match expectations; `workflow_qualification` remains `NOT_OBSERVED` for all outcomes. Error reports
-  omit adapter stdout/stderr and retain bounded machine-readable reasons.
-- `PMR-V0-008`: Provide local/CI invocation `replay --change ID --dry-run` with explicit fixture,
-  policy and product root. No live writer, automatic merge, Core registration or credential lookup.
+  recording digest and deferred stage names. Report mismatches against human-verified expectations
+  and mismatches against generated expectations in two separate lists, each entry naming its field
+  and expected/observed digests. MATCH means harness outcomes match expectations;
+  `workflow_qualification` remains `NOT_OBSERVED` for all outcomes. Error reports omit adapter
+  stdout/stderr and retain bounded machine-readable reasons.
+- `PMR-V0-008`: Provide local/CI invocation `corvint-postmerge-workflow replay --change ID --dry-run`
+  with explicit fixture, policy and product root. No live writer, automatic merge, Core registration
+  or credential lookup. Exit 0 is MATCH, 1 is MISMATCH and 2 is BLOCKED or invalid invocation.
   Full issue completion still requires executing actual child stages and their validation,
   historical expectations with generated or human-verified basis, qualified host containment,
   integration and native completion evidence. Human labels are optional; human-verified coverage
   remains `NOT_OBSERVED`.
+- `PMR-V0-009`: Replay does not parse or reimplement the issue #389 delta record. The adapter
+  result is the narrow interface: `affected_flows` carries flow identities whose documentation spans
+  the delta record reports stale, retired or added; `test_gaps` carries its uncovered-behaviour gap
+  identities; the `delta` stage digest is the SHA-256 of the canonical record bytes. Until that
+  command lands on the base, an adapter supplies these values from its own runtime, bound by
+  `runtime_sha256`, and the report gains no delta qualification.
 
 ## Trust and limits
 
@@ -83,7 +95,7 @@ snapshot and its digest; adapter stdin contains only identity and digests.
 
 ## Acceptance and traceability
 
-Run `GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/postmergeworkflow ./tools/post-merge-workflow`
+Run `GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/postmergeworkflow ./cmd/corvint-postmerge-workflow`
 and focused vet. The conformance helper is explicitly synthetic and never a historical human label.
 
 | Requirements | Evidence |
@@ -92,10 +104,11 @@ and focused vet. The conformance helper is explicitly synthetic and never a hist
 | PMR-V0-002 | `TestPinsAndSelector`, actual disposable Git commits in `setup` |
 | PMR-V0-003 | `TestHumanRegistryCannotSelfPromote`, `TestReplayMismatchBasis` |
 | PMR-V0-004 | `TestReplayActualRecording`, `TestCancellationRetiresDescendant` (Darwin/Linux) |
-| PMR-V0-005 | `TestReplayBlocks`; positive author/scope/validation NOT_PRODUCED |
-| PMR-V0-006 | `TestReplayActualRecording`, nondeterministic case of `TestReplayBlocks` |
-| PMR-V0-007 | `TestReplayMismatchBasis`, `TestReplayActualRecording` |
+| PMR-V0-005 | `TestReplayBlocks`, `TestReplayDeferredAuthoringStages`; positive author/scope/validation NOT_PRODUCED |
+| PMR-V0-006 | `TestReplayActualRecording`, `TestReplayTwiceIdenticalRecording`, nondeterministic case of `TestReplayBlocks` |
+| PMR-V0-007 | `TestReplayMismatchBasis`, `TestReplaySeparatesHumanVerifiedMismatches`, `TestReplayDeferredAuthoringStages` |
 | PMR-V0-008 | `TestCLIReplay`; full integration and whole-workflow acceptance NOT_PRODUCED |
+| PMR-V0-009 | Adapter protocol in `TestAdapterHelper`; actual `corvint delta` integration NOT_PRODUCED (issue #389 not on base) |
 
 ## Non-goals and rollback
 
