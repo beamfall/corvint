@@ -1037,6 +1037,13 @@ ETS-V1-006	docs/specs/external-test-selection-v1.md	59	A checkout is judged as a
 ETS-V1-007	docs/specs/external-test-selection-v1.md	61	A row whose every checkout side was inspected MUST NOT carry
 ETS-V1-008	docs/specs/external-test-selection-v1.md	64	Both extensions can only widen. For every labelled case, reading a clean, dirty,
 ETS-V1-009	docs/specs/external-test-selection-v1.md	67	The member schema stays `external-test-selection/0`. The new codes and the
+FDM-V0-001	docs/specs/flow-document-maintenance-v0.md	27	`flows docs maintain --preview` MUST write nothing, returning proposed page and
+FDM-V0-002	docs/specs/flow-document-maintenance-v0.md	30	`--apply --expected-proposal SHA256` MUST freshly derive the proposal and refuse
+FDM-V0-003	docs/specs/flow-document-maintenance-v0.md	37	Both outputs absent permits exclusive creation. Both present requires an explici
+FDM-V0-004	docs/specs/flow-document-maintenance-v0.md	42	Stage both files before publication, pin parents, capture original inodes and re
+FDM-V0-005	docs/specs/flow-document-maintenance-v0.md	46	Only after both publications succeed may stdout contain the canonical versioned
+FDM-V0-006	docs/specs/flow-document-maintenance-v0.md	54	With identical material inputs, options and outputs, apply MUST return the previ
+FDM-V0-007	docs/specs/flow-document-maintenance-v0.md	57	Maintenance MUST preserve existing AFU fixed-template rendering and claim semant
 FPK-V0-001	docs/specs/falsifiable-packet-v0.md	55	`prove` MUST be read-only. It MUST NOT write repository, trace, or
 FPK-V0-002	docs/specs/falsifiable-packet-v0.md	58	The document MUST embed the packet that `query` would emit for the same root,
 FPK-V0-003	docs/specs/falsifiable-packet-v0.md	66	`falsifier` MUST be one of `history-consistent`, `reference-resolves`,

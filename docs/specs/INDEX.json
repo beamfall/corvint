@@ -1183,6 +1183,24 @@
     ]
   },
   {
+    "path": "docs/specs/flow-document-maintenance-v0.md",
+    "title": "Flow Document Maintenance V0",
+    "reqPrefix": "FDM-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Explicit flow-document maintenance conditionally publishes a generated page and claims pair with digest-bound previews and committed provenance receipts.",
+    "dependsOn": [
+      "docs/specs/application-flow-understanding-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/appflows/docs_maintain.go",
+      "internal/doccorpus/apply_pair.go",
+      "cmd/corvint/flows_docs.go"
+    ]
+  },
+  {
     "path": "docs/specs/gate-ledger-v0.md",
     "title": "Gate ledger V0",
     "reqPrefix": "GL-V0",
