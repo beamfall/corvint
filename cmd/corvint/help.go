@@ -356,6 +356,8 @@ Commands:
                  five-axis test-validity shape; never writes. Experimental.
   step           Verify experimental declared authoring scope with local read-only
                  observations and citeable receipts; host enforcement is separate.
+  delta          Compile one source-content-free record for an explicit immutable
+                 change; never writes. Experimental.
 
 Global options:
   --root PATH  Repository root (default: current directory). An explicit root is
@@ -1279,7 +1281,7 @@ const commandMaturityHelp = `Command maturity:
     calibrate (OCL-V0), witness (AGW-V0), test-validity (MTV-V0),
     features (RGV-V0), overview (RGV-V0), review (RGV-V0),
     migration-ratchet (MER-V0), flows (AFU-V0), skill-export (LTA-V0),
-    breakage (BKM-V0), step (ASS-V0)
+    breakage (BKM-V0), step (ASS-V0), delta (DLT-V0)
 
 `
 

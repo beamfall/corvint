@@ -21,7 +21,13 @@ whose base `7bd7f5e03ad177e7496ce5dbd1563b8466f591a4` is 105 commits behind the 
    `docs-only` is an accepted interim limit. V1-0579 stays open as the follow-up. The spec digest,
    acceptance section and README row record this. The closed schema still carries `docs-only`, and
    its wire vector still passes.
-3. **Requirement anchors (V1-0583).** Each DLT-V0 requirement now has exact-ID Go subtests
+3. **Root-help conflict.** After the import, `origin/main` had pinned CCF-V1-008 in
+   `TestRootHelpLabelsEveryVerbWithMaturityAndOwner` and `TestInvalidChoiceNamesEveryDispatchedTopLevelVerb`.
+   Those tests require every dispatched verb to appear in root help, labelled Core or
+   Experimental with an indexed owner prefix. The imported `delta` verb was dispatched but not
+   listed, so both tests failed. Root help now lists `delta` as Experimental and labels it
+   `delta (DLT-V0)`. It is not a Core verb.
+4. **Requirement anchors (V1-0583).** Each DLT-V0 requirement now has exact-ID Go subtests
    (`t.Run("DLT-V0-NNN <words>", ...)`) on tests whose assertions establish it. The spec's anchoring
    table lists them. Whole-function tests use a two-line wrapper that leaves their body unchanged.
    The fixture-merge test splits its existing assertions into labelled subtests and adds a binding
