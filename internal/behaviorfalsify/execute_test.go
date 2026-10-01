@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
@@ -727,7 +728,7 @@ func testRequest(t *testing.T, controls []ControlSpec) Request {
 	if err := os.WriteFile(marker, []byte("disposable browser fixture\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	repository := repositoryRoot(t)
+	repository := fixtureRepository(t)
 	head := strings.TrimSpace(string(mustGitBytes(t, repository, "rev-parse", "HEAD")))
 	contractFile := "docs/specs/browser-behavior-falsification-v0.md"
 	testFile := "internal/jstestprovider/external_test.go"
@@ -823,22 +824,37 @@ func mustFileDigest(t *testing.T, path string) string {
 	return digest
 }
 
-func repositoryRoot(t *testing.T) string {
+// fixtureRepository commits the request's contract, test and config files to
+// a disposable repository, so the tests never read the enclosing checkout.
+func fixtureRepository(t *testing.T) string {
 	t.Helper()
-	directory, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
+	root := resolvePath(t.TempDir())
+	files := map[string]string{
+		"docs/specs/browser-behavior-falsification-v0.md": "# Browser behavior falsification fixture\n",
+		"internal/jstestprovider/external_test.go":        "package fixture\n",
+		"go.mod": "module example.test/fixture\n",
 	}
-	for {
-		if _, err := os.Stat(filepath.Join(directory, "go.mod")); err == nil {
-			return resolvePath(directory)
+	for name, content := range files {
+		path := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
 		}
-		parent := filepath.Dir(directory)
-		if parent == directory {
-			t.Fatal("repository root not found")
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
 		}
-		directory = parent
 	}
+	for _, args := range [][]string{
+		{"init", "-q"},
+		{"add", "."},
+		{"-c", "user.name=fixture", "-c", "user.email=fixture@example.test", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "fixture"},
+	} {
+		command := exec.Command("git", args...)
+		command.Dir, command.Env = root, isolatedGitEnvironment(root)
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v: %s", args[0], err, output)
+		}
+	}
+	return root
 }
 
 func mustGitBytes(t *testing.T, root string, args ...string) []byte {
