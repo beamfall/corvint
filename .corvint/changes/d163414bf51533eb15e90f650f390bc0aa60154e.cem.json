@@ -1,0 +1,220 @@
+{
+  "baseRevision": "ce6768a80b5d6514f105d89c54b1b274fe261bb0",
+  "evidence": [
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:c553229fd69de433332215623effb9849561e9b8576be97bb3bc512bde1b604f",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 2774,
+        "start": 2260
+      },
+      "spanSha256": "c7d11a0b982eb2201635eb2b707b8cdd00d1293b759e09871c243197f41ca672"
+    },
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3118,
+        "start": 2775
+      },
+      "spanSha256": "46e69c5e97297b36c204ff585b335a484633ade4ec166dbc695fd46e7c6dc76c"
+    },
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:ad37f040c4aff933ebf084ed6a05dd8af9f864759899feedcfa07ca92e63b861",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 2259,
+        "start": 1971
+      },
+      "spanSha256": "29bf8bf25de6e19c57bfee2b1fc98c3d85cbeabf2157578740a5eae467b3c916"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c553229fd69de433332215623effb9849561e9b8576be97bb3bc512bde1b604f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:03f17c57df63f285d0fa8c0e55c013df034165be2e2401d39161b7fca9b306e0",
+      "newRange": {
+        "count": 7,
+        "start": 80
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 80
+      },
+      "path": "docs/TASKS-SUPERVISION.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c553229fd69de433332215623effb9849561e9b8576be97bb3bc512bde1b604f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e89d7023925b9f846945a9006a3e9f37c2ce995e82329fa35a4fa34a2bb3aeb9",
+      "newRange": {
+        "count": 42,
+        "start": 115
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 115
+      },
+      "path": "docs/TASKS-SUPERVISION.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1bcea7e790485c09b88febe7051e7524ae59a4e7a691f307294527c76a053a6d",
+      "newRange": {
+        "count": 70,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-01-tasks-dispatch-gemini.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c553229fd69de433332215623effb9849561e9b8576be97bb3bc512bde1b604f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4db2f320f6f53f45f399a9b349bbd26da4fb452811f7904b5cd67e1f44af40f9",
+      "newRange": {
+        "count": 13,
+        "start": 323
+      },
+      "oldRange": {
+        "count": 13,
+        "start": 323
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c553229fd69de433332215623effb9849561e9b8576be97bb3bc512bde1b604f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f21d9ebac765d75e31b67ef6d5b2fc7df3a95b0cbc8871aa929a19c742ec2868",
+      "newRange": {
+        "count": 9,
+        "start": 635
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 635
+      },
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c553229fd69de433332215623effb9849561e9b8576be97bb3bc512bde1b604f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9dcaa2ae9b91fd890e755ef71430d5edde59ae1ef8ce27be401461e75ee5e987",
+      "newRange": {
+        "count": 9,
+        "start": 706
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 704
+      },
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ad37f040c4aff933ebf084ed6a05dd8af9f864759899feedcfa07ca92e63b861",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c4851d5cbe4294215d0657d3a868c3f973407648a1959116e24d6a6fadaf70eb",
+      "newRange": {
+        "count": 19,
+        "start": 555
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 555
+      },
+      "path": "internal/tasks/dispatch/dispatch_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ad37f040c4aff933ebf084ed6a05dd8af9f864759899feedcfa07ca92e63b861",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b390aa9d5d0c1f399cfdcf798dfe36353a1abe60756e2b77eb67fbcbc3fd4bf2",
+      "newRange": {
+        "count": 18,
+        "start": 270
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 270
+      },
+      "path": "internal/tasks/dispatch/ledger.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ad37f040c4aff933ebf084ed6a05dd8af9f864759899feedcfa07ca92e63b861",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:361cb721b0a7e473aefb3c38b472be91ed63064094d8d593c5ca198816dd67e7",
+      "newRange": {
+        "count": 19,
+        "start": 293
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 285
+      },
+      "path": "internal/tasks/dispatch/ledger.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "998fa4dfb2e48bfcb5a14389fc10a4ea6b490bb222d5b8b63e80315c68037a88",
+  "spec": "cem/0.2"
+}
