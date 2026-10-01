@@ -86,8 +86,8 @@ one-based inclusive line range in that file. List in "unknown" the number of eve
 could not justify.
 `
 
-// treatmentPrologue is the only declared difference between the arms. It is
-// inserted whole, so the control prompt is this block removed.
+// treatmentPrologue is the treatment arm's declared difference from control.
+// It is inserted whole, so the control prompt is this block removed.
 const treatmentPrologue = `
 ## Change Evidence Map
 
@@ -107,6 +107,36 @@ are completing: every hunk whose disposition is ` + "`unknown`" + ` still needs 
 
 ` + "```\n%s\n```" + `
 `
+
+// seededPrologue is the seeded arm's declared difference from control: the
+// treatment prologue, then the evidence `corvint context --subject` retrieved
+// at the base revision for each presented source file (CRT-V0-012). The 2026-09-04
+// pilot's treatment carried a map in which every hunk was `unknown` with no
+// evidence, so it measured a worklist's wording, not Corvint's evidence; this
+// arm carries the evidence and labels it a suggestion, never a citation.
+const seededPrologue = treatmentPrologue + `
+### Suggested evidence
+
+Corvint retrieved the candidates below mechanically at this base revision, running
+` + "`corvint context --task \"evidence for a change to PATH\" --subject PATH`" + ` for each file the
+patch touches. Nothing here is cited: a suggestion is a place to look, and a suggestion that does
+not justify a hunk must not be cited.
+
+` + "```json\n%s\n```" + `
+`
+
+// suggestionLimit bounds the rows `context --subject` returns per presented
+// source file; the subject's own row is dropped.
+const suggestionLimit = 8
+
+// suggestion is one row of the seeded arm's evidence, as the prologue renders
+// it and as the lane records it.
+type suggestion struct {
+	Subject  string `json:"subject"`
+	Path     string `json:"path"`
+	Relation string `json:"relation"`
+	Reason   string `json:"reason"`
+}
 
 type options struct {
 	tasks        string
@@ -220,15 +250,15 @@ func parseRunOptions(arguments []string) (options, error) {
 	}
 	configuration.arms = splitList(arms)
 	for _, name := range configuration.arms {
-		if name != "control" && name != "treatment" {
+		if name != "control" && name != "treatment" && name != "seeded" {
 			return configuration, fmt.Errorf("unknown arm %q", name)
 		}
 	}
 	if len(configuration.arms) == 0 || configuration.repeats < 1 {
 		return configuration, errors.New("--arms must name at least one arm and --repeats at least 1")
 	}
-	if contains(configuration.arms, "treatment") && configuration.corvintGo == "" {
-		return configuration, errors.New("--corvint is required by the treatment arm")
+	if armsNeedCorvint(configuration.arms) && configuration.corvintGo == "" {
+		return configuration, errors.New("--corvint is required by the treatment and seeded arms")
 	}
 	if configuration.agent == "codex" && configuration.model == "" {
 		return configuration, errors.New("--model is required for the codex agent")
@@ -386,18 +416,22 @@ func runChange(ctx context.Context, configuration options, runner agent, base st
 		failLanes(item.records, fmt.Errorf("the clone resolves %s: the change leaked into its own base", item.task.Commit), saver)
 		return
 	}
-	artefacts, err := buildArtefacts(ctx, configuration, prep, patch)
-	if err != nil && contains(configuration.arms, "treatment") {
+	artefacts, err := buildArtefacts(ctx, configuration, prep, patch, item.task.SourceFiles)
+	if err != nil && armsNeedCorvint(configuration.arms) {
 		failLanes(item.records, err, saver)
 		return
 	}
-	prompts := map[string]string{
-		"control":   buildPrompt("control", item.task, patch, artefacts),
-		"treatment": buildPrompt("treatment", item.task, patch, artefacts),
+	prompts := map[string]string{}
+	for _, arm := range configuration.arms {
+		prompts[arm] = buildPrompt(arm, item.task, patch, artefacts)
 	}
+	suggested := suggestedPaths(artefacts["suggestions"])
 	for _, record := range item.records {
 		record.PromptSHA256 = digestOf(prompts[record.Arm])
 		record.PromptBytes = len(prompts[record.Arm])
+		if record.Arm == "seeded" {
+			record.Suggested = suggested
+		}
 		if prior.apply(record) {
 			continue
 		}
@@ -438,7 +472,7 @@ func invokeLane(ctx context.Context, configuration options, runner agent, prep, 
 			record.Error = agentExitError(code, result.stderrTail)
 		}
 	})
-	if runErr != nil || record.Error != "" || record.Arm != "treatment" || configuration.corvintGo == "" {
+	if runErr != nil || record.Error != "" || record.Arm == "control" || configuration.corvintGo == "" {
 		return
 	}
 	citations, _ := extractCitations(record.Reply)
@@ -446,13 +480,32 @@ func invokeLane(ctx context.Context, configuration options, runner agent, prep, 
 	assign(saver.lock(), func() { record.CEM = state })
 }
 
-// buildArtefacts produces the treatment arm's three artefacts from the
-// withheld patch bytes alone: the map from `cem begin`, the `cem status`
-// worklist, and `cem report`. `cem prepare` is never used, so nothing at or
-// after the change can reach the map (CRT-V0-005).
-func buildArtefacts(ctx context.Context, configuration options, root, patch string) (map[string]string, error) {
+// armsNeedCorvint holds when an arm carrying a map is run.
+func armsNeedCorvint(arms []string) bool {
+	return contains(arms, "treatment") || contains(arms, "seeded")
+}
+
+// buildArtefacts produces the map-carrying arms' artefacts from the withheld
+// patch bytes alone: the map from `cem begin`, the `cem status` worklist, and
+// `cem report`. `cem prepare` is never used, so nothing at or after the change
+// can reach the map (CRT-V0-005). When the seeded arm runs, it adds the
+// suggestions `corvint context --subject` retrieves at the base revision for
+// each presented source file (CRT-V0-012).
+func buildArtefacts(ctx context.Context, configuration options, root, patch string, sourceFiles []string) (map[string]string, error) {
 	if configuration.corvintGo == "" {
 		return map[string]string{}, nil
+	}
+	suggestions := ""
+	if contains(configuration.arms, "seeded") {
+		rows, err := suggestEvidence(ctx, configuration, root, sourceFiles)
+		if err != nil {
+			return nil, err
+		}
+		encoded, err := json.MarshalIndent(rows, "", "  ")
+		if err != nil {
+			return nil, err
+		}
+		suggestions, _ = truncate(string(encoded), maxArtefactSize)
 	}
 	scratch, err := os.MkdirTemp("", "corvint-cem-trial-patch-")
 	if err != nil {
@@ -489,7 +542,70 @@ func buildArtefacts(ctx context.Context, configuration options, root, patch stri
 	body, _ := truncate(string(rendered), maxArtefactSize)
 	mapText, _ := truncate(string(document), maxArtefactSize)
 	statusText, _ := truncate(string(status), maxArtefactSize)
-	return map[string]string{"map": strings.TrimSpace(mapText), "status": strings.TrimSpace(statusText), "report": strings.TrimSpace(body)}, nil
+	return map[string]string{"map": strings.TrimSpace(mapText), "status": strings.TrimSpace(statusText), "report": strings.TrimSpace(body), "suggestions": strings.TrimSpace(suggestions)}, nil
+}
+
+// suggestEvidence runs `corvint context --subject PATH` in the prep clone,
+// which holds the base revision alone, for each presented source file and
+// collects every row but the subject's own. The clone cannot resolve the
+// change, so a suggestion can only be evidence the agent could itself have
+// found at the base revision; gold among the suggestions is Corvint finding
+// the withheld test by its naming or import relations, which is the retrieval
+// the arm measures.
+func suggestEvidence(ctx context.Context, configuration options, root string, sourceFiles []string) ([]suggestion, error) {
+	rows := []suggestion{}
+	for _, subject := range sourceFiles {
+		raw, err := corvint(ctx, configuration, root, "context", "--task", "evidence for a change to "+subject, "--subject", subject, "--limit", strconv.Itoa(suggestionLimit))
+		if err != nil {
+			return nil, fmt.Errorf("context --subject %s: %w", subject, err)
+		}
+		var packet struct {
+			Results []struct {
+				Kind     string `json:"kind"`
+				ID       string `json:"id"`
+				Evidence []struct {
+					Reason string `json:"reason"`
+				} `json:"evidence"`
+			} `json:"results"`
+		}
+		if err := json.Unmarshal([]byte(raw), &packet); err != nil {
+			return nil, fmt.Errorf("context --subject %s: unreadable packet: %w", subject, err)
+		}
+		for _, result := range packet.Results {
+			if result.ID == "" || result.ID == subject {
+				continue
+			}
+			reason := ""
+			if len(result.Evidence) != 0 {
+				reason = result.Evidence[0].Reason
+			}
+			rows = append(rows, suggestion{Subject: subject, Path: result.ID, Relation: result.Kind, Reason: reason})
+		}
+	}
+	return rows, nil
+}
+
+// suggestedPaths is the sorted distinct paths of a rendered suggestions
+// block, recorded on each seeded lane so the scorer can read seed coverage
+// without the prompt.
+func suggestedPaths(rendered string) []string {
+	if strings.TrimSpace(rendered) == "" {
+		return nil
+	}
+	var rows []suggestion
+	if err := json.Unmarshal([]byte(rendered), &rows); err != nil {
+		return nil
+	}
+	seen := map[string]bool{}
+	paths := make([]string, 0, len(rows))
+	for _, row := range rows {
+		if !seen[row.Path] {
+			seen[row.Path] = true
+			paths = append(paths, row.Path)
+		}
+	}
+	sort.Strings(paths)
+	return paths
 }
 
 // applyCitations replays the treatment reply into the map the arm was given
@@ -570,8 +686,11 @@ func corvintIdentity(ctx context.Context, configuration options) map[string]any 
 // control prompt byte for byte.
 func buildPrompt(arm string, item task, patch string, artefacts map[string]string) string {
 	extra := ""
-	if arm == "treatment" {
+	switch arm {
+	case "treatment":
 		extra = fmt.Sprintf(treatmentPrologue, artefacts["map"], artefacts["status"], artefacts["report"])
+	case "seeded":
+		extra = fmt.Sprintf(seededPrologue, artefacts["map"], artefacts["status"], artefacts["report"], artefacts["suggestions"])
 	}
 	return fmt.Sprintf(skeleton, hunkList(patch), patch, extra)
 }
@@ -1006,8 +1125,11 @@ func prologueIdentity(arms []string) map[string]map[string]any {
 	result := map[string]map[string]any{}
 	for _, name := range arms {
 		text := ""
-		if name == "treatment" {
+		switch name {
+		case "treatment":
 			text = treatmentPrologue
+		case "seeded":
+			text = seededPrologue
 		}
 		result[name] = map[string]any{"sha256": digestOf(text), "text": text}
 	}

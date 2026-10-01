@@ -429,6 +429,14 @@ requirements below have evidence. File existence is not parity.
   drops the only supporting result leaves a `BUDGETED` packet under `GPK-V0-040`, never a
   `below-relevance-floor` withdrawal, because the budget is the cause that packet names (decision
   0208).
+  Considered and not adopted (2026-10-01, decision 0427): counting a declaration's context window
+  as support only when it carries three query terms. It left the 24-case development corpus
+  unchanged and withdrew one within-repository near miss, but moved the cross-repository
+  transplant probes only from 23 to 22 `READY` of 45 and withdrew a task that names a declaration
+  and a word its body carries (`Original consumer` in the prove-bundle fixture), which is a
+  dependency question the repository answers. The false-`READY` class of decision 0307 is
+  therefore a case-design problem (within-repository near misses, reviewed) before it is a floor
+  problem; see the 2026-10-01 build-log entry for the measurements.
   A withdrawn packet cites no result, so its coverage counts are zero, its critical set
   is empty, and its verification plan carries only what a repository with no cited result implies:
   the detected profile's gate. This binds every surface that compiles a query packet, including
@@ -460,6 +468,21 @@ requirements below have evidence. File existence is not parity.
   `--limit` the caller named, and MUST NOT admit a fourth. The oracle admits two; that is a
   `python-defect` under `GPK-V0-033`, registered as `DR-0036`, and `src/` remains unrepaired. End of
   accepted amendment.
+  Proposed amendment (2026-10-01, not accepted): among the declarations of one frontier path, a
+  sibling is admitted only with evidence of its own. A declaration's name support is the query
+  words its name parts carry, as written or by a prefix of four bytes or more in either direction
+  (`config` answers "configuration", `sync` answers "synchronous"); its full support adds the
+  query words of its context window. A sibling whose name support is a strict subset of a
+  same-path neighbour's and whose full support is contained in that neighbour's is explained
+  away by it and MUST NOT be admitted, unless the task names the sibling (its compact name of
+  five bytes or more, or every part of a multi-part name). Two declarations with identical
+  support both stay, because nothing in the task tells them apart. The rule is set containment
+  in the query's own words, never a score ratio; it replaces nothing in the universe accounting
+  above and narrows only the same-path sibling admission of `evalConfidentSymbols`, which
+  blind-v6 charged four of its seven forbidden hits to (decision 0307). On the 24-case
+  development corpus it removes `active_help.go:AppendActiveHelp` from beside
+  `GetActiveHelpConfig` and leaves every critical and required result in place. End of proposed
+  amendment.
 - `GPK-V0-041`: The typed `unsupported-ocm-python-claims` abstention `GPK-V0-037` requires of the OCM
   read slice binds EVERY Go command that verifies OCM claims, not only `ocm status|verify|report`.
   `GPK-V0-014` admits exactly two treatments of a `.py` claim — the exact frozen `python-ast/1`

@@ -11,8 +11,8 @@ import (
 
 // TCP-V0-022: repository anchors are literals the term tokeniser would split
 // or normalise away (a quoted error string, a URL, a scope-qualified enum
-// value, a dotted configuration key, a `file.ext:line` stack frame). With
-// `CORVINT_CONTEXT_ANCHORS=on` the task's anchors are matched verbatim
+// value, a dotted configuration key, a `file.ext:line` stack frame). Unless
+// `CORVINT_CONTEXT_ANCHORS=off`, the task's anchors are matched verbatim
 // against the source bodies as a fourth lexical field; the index and the
 // snapshot are unchanged, so an anchor costs one Words posting walk per
 // word it carries and one bounded body read per candidate.
@@ -55,8 +55,13 @@ type anchorHit struct {
 	count   int
 }
 
+// The field is on unless `CORVINT_CONTEXT_ANCHORS=off` (proposed amendment to
+// TCP-V0-022, 2026-10-01): the chi orientation case `Replace "interface{}" with
+// "any"` finds all eight modified files with the field and five without it,
+// because the term tokeniser reduces the quoted literal to the common word
+// `interface`. `off` restores the pre-amendment bytes exactly.
 func configureContextAnchors(compiler *taskContextCompiler) *taskContextCompiler {
-	if runtimeenv.Value("CONTEXT_ANCHORS") != "on" {
+	if runtimeenv.Value("CONTEXT_ANCHORS") == "off" {
 		return compiler
 	}
 	compiler.anchors = taskAnchors(contextQueryValues(compiler.task))
@@ -64,8 +69,8 @@ func configureContextAnchors(compiler *taskContextCompiler) *taskContextCompiler
 }
 
 // TaskHasAnchors reports whether task carries at least one TCP-V0-022
-// anchor, by the extraction the compiler applies under
-// CORVINT_CONTEXT_ANCHORS=on, within the compiler's task bound; the
+// anchor, by the extraction the compiler applies by default, within the
+// compiler's task bound; the
 // retrieval bench reads it to report the anchor-bearing samples as their own
 // stratum.
 func TaskHasAnchors(task string) bool {

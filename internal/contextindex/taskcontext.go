@@ -113,8 +113,8 @@ type taskContextCompiler struct {
 	// slot and the lexical fill.
 	lexical       []lexicalHit
 	selectedTerms *contextTermSelection
-	// anchors is TCP-V0-022's verbatim literal field, empty unless
-	// `CORVINT_CONTEXT_ANCHORS=on`.
+	// anchors is TCP-V0-022's verbatim literal field, empty under
+	// `CORVINT_CONTEXT_ANCHORS=off`.
 	anchors []taskAnchor
 	// slotWeights is an admitted learned trace's relation order (LTA-V0-011).
 	slotWeights SlotWeights
@@ -289,62 +289,82 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 	return rows
 }
 
-// admitLexicalPairs keeps selected source anchors and authority intact while
-// replacing the weakest unrelated lexical tests with bounded naming counterparts.
-// The remaining lexical rows retain their BM25 order; relation scores are not BM25.
+// admitLexicalPairs keeps every selected source and authority row intact while
+// replacing unrelated lexical tests with the naming counterparts of the
+// selected lexical sources (TCP-V0-004). The rule is rank-relative, not a cap:
+// a counterpart inherits its source's lexical strength, so it may displace only
+// an unrelated lexical test that the task matched more weakly than that source
+// (BM25 order, weakest victim first). The packet never
+// grows past the limit and never loses a source, a governing row or any other
+// non-lexical row. Both chi orientation misses fixed by this form were cap and
+// victim-choice defects: the three-counterpart cap was spent on the
+// counterparts of weaker sources before the strongest source's turn, and the
+// last-position victim rule evicted the packet's strongest lexical test when it
+// was the only unprotected one left (docs/build-log, 2026-10-01).
 func (compiler *taskContextCompiler) admitLexicalPairs(rows []contextRow, limit int) []contextRow {
-	selected := rows[:min(len(rows), limit)]
-	candidates := []contextRow{}
+	rank := compiler.lexicalRank()
+	type counterpart struct {
+		pair       contextRow
+		sourceRank int
+	}
+	candidates := []counterpart{}
 	protected := map[string]bool{}
-	for _, row := range selected {
+	// The anchors are the selected lexical sources, as before: a source another
+	// relation admitted keeps the frozen `pair` state of the subjectless packet
+	// (CCF-V1-006 pins `subject-absent`/null there), and its counterpart is
+	// still safe from displacement because a lexical test the task matched
+	// more strongly than every lexical source is never a weaker victim.
+	for _, row := range rows[:min(len(rows), limit)] {
 		if row.kind != "lexical" || contextIsTest(row.path) {
 			continue
 		}
+		sourceRank := -1
+		if position, ok := rank[row.path]; ok {
+			sourceRank = position
+		}
 		for _, pair := range compiler.pairRows(row.path) {
-			if !contextIsTest(pair.path) {
+			if !contextIsTest(pair.path) || protected[pair.path] {
 				continue
 			}
 			protected[pair.path] = true
-			candidates = append(candidates, pair)
+			candidates = append(candidates, counterpart{pair: pair, sourceRank: sourceRank})
 			compiler.candidates["pair"] = append(compiler.candidates["pair"], pair.path)
 		}
 	}
-	admitted := 0
-	for _, pair := range candidates {
+	testRank := func(path string) int {
+		if position, ok := rank[path]; ok {
+			return position
+		}
+		return math.MaxInt
+	}
+	for _, candidate := range candidates {
+		pair := candidate.pair
 		at := slices.IndexFunc(rows, func(row contextRow) bool { return row.path == pair.path })
 		if at >= 0 && at < limit && rows[at].kind != "lexical" {
 			continue
 		}
-		if admitted == contextPairCap {
-			compiler.slotOmitted = true
-			continue
-		}
-		first, last := -1, -1
-		for i, row := range rows[:min(len(rows), limit)] {
-			if row.kind == "lexical" && contextIsTest(row.path) && !protected[row.path] {
-
-				if first < 0 {
-					first = i
-				}
-				last = i
+		// The unrelated lexical tests this counterpart outranks, in packet order.
+		weaker := []int{}
+		for position, row := range rows[:min(len(rows), limit)] {
+			if row.kind == "lexical" && contextIsTest(row.path) && !protected[row.path] && testRank(row.path) > candidate.sourceRank {
+				weaker = append(weaker, position)
 			}
 		}
 		if at >= 0 && at < limit {
-			if first < 0 || at < first {
+			// Already selected lexically: promote it ahead of the first weaker
+			// unrelated test, if one precedes it; otherwise it stays as it is.
+			if len(weaker) == 0 || at < weaker[0] {
 				continue
 			}
 			compiler.promoted[pair.path] = rows[at].kind
 			rows = slices.Delete(rows, at, at+1)
-			rows = slices.Insert(rows, first, pair)
-			admitted++
+			rows = slices.Insert(rows, weaker[0], pair)
 			continue
 		}
-
-		if first < 0 {
+		if len(weaker) == 0 {
 			if len(rows) < limit {
 				rows = append(rows, pair)
 				compiler.chosen[pair.path] = struct{}{}
-				admitted++
 			} else {
 				compiler.slotOmitted = true
 			}
@@ -355,14 +375,27 @@ func (compiler *taskContextCompiler) admitLexicalPairs(rows []contextRow, limit 
 			compiler.promoted[pair.path] = rows[at].kind
 			rows = slices.Delete(rows, at, at+1)
 		}
-		displaced := rows[last]
-		rows = slices.Delete(rows, last, last+1)
-		rows = slices.Insert(rows, first, pair)
+		victim := weaker[len(weaker)-1]
+		displaced := rows[victim]
+		rows = slices.Delete(rows, victim, victim+1)
+		rows = slices.Insert(rows, weaker[0], pair)
 		rows = slices.Insert(rows, min(limit, len(rows)), displaced)
 		compiler.chosen[pair.path] = struct{}{}
-		admitted++
 	}
 	return rows
+}
+
+// lexicalRank maps every lexical hit to its BM25 position (TCP-V0-014's
+// order); a path absent from the walk has no rank.
+func (compiler *taskContextCompiler) lexicalRank() map[string]int {
+	hits := compiler.lexicalHits()
+	rank := make(map[string]int, len(hits))
+	for position, hit := range hits {
+		if _, seen := rank[hit.path]; !seen {
+			rank[hit.path] = position
+		}
+	}
+	return rank
 }
 
 // markRan records that a relation's generator ran with nothing withheld yet;

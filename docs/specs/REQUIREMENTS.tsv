@@ -577,13 +577,14 @@ CRT-V0-001	docs/specs/cem-reviewer-trial-v0.md	42	Unit and selection. One change
 CRT-V0-002	docs/specs/cem-reviewer-trial-v0.md	52	Pairing. Every change runs in both arms; the estimate is within-change. The arm
 CRT-V0-003	docs/specs/cem-reviewer-trial-v0.md	55	Withheld-patch construction. The presented patch `P(C)` contains only the source
 CRT-V0-004	docs/specs/cem-reviewer-trial-v0.md	58	Ground truth. Primary gold for `C` is the set of test-or-spec paths `C` itself
-CRT-V0-005	docs/specs/cem-reviewer-trial-v0.md	64	Arms. `control` receives the prompt skeleton, `P(C)`, the numbered hunk list, an
-CRT-V0-006	docs/specs/cem-reviewer-trial-v0.md	73	Reply grammar. Every reply MUST end with one fenced JSON block
-CRT-V0-007	docs/specs/cem-reviewer-trial-v0.md	82	Metrics. `miss(c,a) = |gold(c) \ citedPaths(c,a)| / |gold(c)|`. The primary esti
-CRT-V0-008	docs/specs/cem-reviewer-trial-v0.md	95	Power, pre-declared. 30 pairs is roughly 120 gold items per arm; with clustering
-CRT-V0-009	docs/specs/cem-reviewer-trial-v0.md	111	Pilot. The pilot uses its own seed and partition; its changes are excluded from
-CRT-V0-010	docs/specs/cem-reviewer-trial-v0.md	114	Stopping and publication. There is no interim analysis: the scorer runs once, af
-CRT-V0-011	docs/specs/cem-reviewer-trial-v0.md	128	Invocation lifecycle (proposed). `runCommand` MUST share the
+CRT-V0-005	docs/specs/cem-reviewer-trial-v0.md	70	Arms. `control` receives the prompt skeleton, `P(C)`, the numbered hunk list, an
+CRT-V0-006	docs/specs/cem-reviewer-trial-v0.md	89	Reply grammar. Every reply MUST end with one fenced JSON block
+CRT-V0-007	docs/specs/cem-reviewer-trial-v0.md	98	Metrics. `miss(c,a) = |gold(c) \ citedPaths(c,a)| / |gold(c)|`. The primary esti
+CRT-V0-008	docs/specs/cem-reviewer-trial-v0.md	118	Power, pre-declared. 30 pairs is roughly 120 gold items per arm; with clustering
+CRT-V0-009	docs/specs/cem-reviewer-trial-v0.md	147	Pilot. The pilot uses its own seed and partition; its changes are excluded from
+CRT-V0-010	docs/specs/cem-reviewer-trial-v0.md	150	Stopping and publication. There is no interim analysis: the scorer runs once, af
+CRT-V0-011	docs/specs/cem-reviewer-trial-v0.md	164	Invocation lifecycle (proposed). `runCommand` MUST share the
+CRT-V0-012	docs/specs/cem-reviewer-trial-v0.md	180	Seeded-arm decomposition (proposed 2026-10-01). A seeded run reports
 CTR-V0-001	docs/specs/compat-trial-v0.md	32	Descriptor schema. The fields below are frozen; a runner MUST NOT add, rename or
 CTR-V0-002	docs/specs/compat-trial-v0.md	40	Comparison policy v0. Equality is exact bytes of stdout, stderr and exit status
 CTR-V0-003	docs/specs/compat-trial-v0.md	42	Resource profile, quoted verbatim from `P:237–241`: "64 KiB input, 1 MiB output
@@ -1221,63 +1222,63 @@ GPK-V0-012	docs/specs/go-production-kernel-migration-v0.md	202	Production Go cod
 GPK-V0-013	docs/specs/go-production-kernel-migration-v0.md	206	The promoted Go binary MUST have no Python interpreter, Python package, cgo,
 GPK-V0-014	docs/specs/go-production-kernel-migration-v0.md	210	Before any TCQ-, OCM-, claim-, or frontier-consuming command moves to Go, its pa
 GPK-V0-015	docs/specs/go-production-kernel-migration-v0.md	214	The initial experimental slice MAY implement only non-indexing harness events
-GPK-V0-016	docs/specs/go-production-kernel-migration-v0.md	542	Performance is measured outside both runtimes with an interleaved, preregistered
-GPK-V0-017	docs/specs/go-production-kernel-migration-v0.md	547	A slice may cut over only when all its parity cases pass and: (a) non-query harn
-GPK-V0-018	docs/specs/go-production-kernel-migration-v0.md	638	Public Go artifacts MUST be `CGO_ENABLED=0`, built from one exact clean Git comm
-GPK-V0-019	docs/specs/go-production-kernel-migration-v0.md	659	The existing Python wheel integrity contract remains binding while a wheel ships
-GPK-V0-020	docs/specs/go-production-kernel-migration-v0.md	716	The migration MUST NOT alter `LICENSE`, `LICENSING.md`, `PROVENANCE.md`, or the
-GPK-V0-021	docs/specs/go-production-kernel-migration-v0.md	721	Corvint self-dogfood MUST first use the candidate to orient to this migration, r
-GPK-V0-022	docs/specs/go-production-kernel-migration-v0.md	726	Beamfall dogfood MUST run second at one exact clean Beamfall revision. It MUST c
-GPK-V0-023	docs/specs/go-production-kernel-migration-v0.md	732	Rollout order was fixed: experimental candidate; cross-runtime shadow gate; opt-
-GPK-V0-024	docs/specs/go-production-kernel-migration-v0.md	741	Rollback MUST require no repository, receipt, map, trace, or cache migration.
-GPK-V0-025	docs/specs/go-production-kernel-migration-v0.md	746	Python production retirement is staged. First, Go is default for one release whi
-GPK-V0-026	docs/specs/go-production-kernel-migration-v0.md	754	Promotion claims are per command and per integration surface. Reports MUST state
+GPK-V0-016	docs/specs/go-production-kernel-migration-v0.md	565	Performance is measured outside both runtimes with an interleaved, preregistered
+GPK-V0-017	docs/specs/go-production-kernel-migration-v0.md	570	A slice may cut over only when all its parity cases pass and: (a) non-query harn
+GPK-V0-018	docs/specs/go-production-kernel-migration-v0.md	661	Public Go artifacts MUST be `CGO_ENABLED=0`, built from one exact clean Git comm
+GPK-V0-019	docs/specs/go-production-kernel-migration-v0.md	682	The existing Python wheel integrity contract remains binding while a wheel ships
+GPK-V0-020	docs/specs/go-production-kernel-migration-v0.md	739	The migration MUST NOT alter `LICENSE`, `LICENSING.md`, `PROVENANCE.md`, or the
+GPK-V0-021	docs/specs/go-production-kernel-migration-v0.md	744	Corvint self-dogfood MUST first use the candidate to orient to this migration, r
+GPK-V0-022	docs/specs/go-production-kernel-migration-v0.md	749	Beamfall dogfood MUST run second at one exact clean Beamfall revision. It MUST c
+GPK-V0-023	docs/specs/go-production-kernel-migration-v0.md	755	Rollout order was fixed: experimental candidate; cross-runtime shadow gate; opt-
+GPK-V0-024	docs/specs/go-production-kernel-migration-v0.md	764	Rollback MUST require no repository, receipt, map, trace, or cache migration.
+GPK-V0-025	docs/specs/go-production-kernel-migration-v0.md	769	Python production retirement is staged. First, Go is default for one release whi
+GPK-V0-026	docs/specs/go-production-kernel-migration-v0.md	777	Promotion claims are per command and per integration surface. Reports MUST state
 GPK-V0-027	docs/specs/go-production-kernel-migration-v0.md	222	Before Pulse P0-B, `corvint` MAY expose an experimental one-shot `impact` comman
 GPK-V0-028	docs/specs/go-production-kernel-migration-v0.md	261	Before the complete Phase 2 query port, `corvint` MAY expose one experimental
 GPK-V0-029	docs/specs/go-production-kernel-migration-v0.md	297	`corvint impact` MAY accept revision-absent `.go` files only when the caller
 GPK-V0-030	docs/specs/go-production-kernel-migration-v0.md	311	`corvint impact --base FULL_COMMIT_ID` MAY compile a committed range as the
 GPK-V0-031	docs/specs/go-production-kernel-migration-v0.md	336	Before the complete Phase 2 feature port, `corvint` MAY expose an experimental
 GPK-V0-032	docs/specs/go-production-kernel-migration-v0.md	353	Before complete Phase 2 activation cutover, `corvint` MAY expose one shared
-GPK-V0-033	docs/specs/go-production-kernel-migration-v0.md	666	The frozen spec, not the Python implementation, is the conformance authority.
-GPK-V0-034	docs/specs/go-production-kernel-migration-v0.md	693	Every adjudication under `GPK-V0-033` MUST be recorded in
-GPK-V0-035	docs/specs/go-production-kernel-migration-v0.md	700	Known-divergent cases MUST NOT accumulate unexamined. Every one carries an
-GPK-V0-036	docs/specs/go-production-kernel-migration-v0.md	705	Python retirement is **per command**, and does not wait for the global window
+GPK-V0-033	docs/specs/go-production-kernel-migration-v0.md	689	The frozen spec, not the Python implementation, is the conformance authority.
+GPK-V0-034	docs/specs/go-production-kernel-migration-v0.md	716	Every adjudication under `GPK-V0-033` MUST be recorded in
+GPK-V0-035	docs/specs/go-production-kernel-migration-v0.md	723	Known-divergent cases MUST NOT accumulate unexamined. Every one carries an
+GPK-V0-036	docs/specs/go-production-kernel-migration-v0.md	728	Python retirement is **per command**, and does not wait for the global window
 GPK-V0-037	docs/specs/go-production-kernel-migration-v0.md	368	Before complete Phase 2 OCM cutover, `corvint` MAY expose the read-only
 GPK-V0-038	docs/specs/go-production-kernel-migration-v0.md	391	The harness slice is complete. Under the expansion gate in `GPK-V0-015`, `corvin
 GPK-V0-039	docs/specs/go-production-kernel-migration-v0.md	407	A context packet asserts that the repository answers the caller's task, and the
-GPK-V0-040	docs/specs/go-production-kernel-migration-v0.md	438	A receipt's coverage counts are denominated in the universe of results the ranki
-GPK-V0-041	docs/specs/go-production-kernel-migration-v0.md	463	The typed `unsupported-ocm-python-claims` abstention `GPK-V0-037` requires of th
-GPK-V0-042	docs/specs/go-production-kernel-migration-v0.md	761	A **beta rung** exists in `GPK-V0-023`'s order, between opt-in candidate use and
-GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	910	`corvint query` MAY add a general `repository`-intent profile on Darwin
-GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	976	The standalone `corvint query` `repository`-intent profile introduced
-GPK-V0-045	docs/specs/go-production-kernel-migration-v0.md	486	An abstaining packet MUST name the reason it abstained at every surface that emi
-GPK-V0-046	docs/specs/go-production-kernel-migration-v0.md	503	Product invariant 3 ranks project-owned authority above syntax. A `query` packet
-GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	1046	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave
-GPK-V0-048	docs/specs/go-production-kernel-migration-v0.md	1076	Go declaration set. `GPK-V0-031` names a Go-symbol feature compiler and
-GPK-V0-049	docs/specs/go-production-kernel-migration-v0.md	1094	Refused-grammar disclosure. `GPK-V0-048` requires a Go source the parser refused
-GPK-V0-050	docs/specs/go-production-kernel-migration-v0.md	628	`corvint record` and `corvint dogfood-record` MUST admit a changed `.gitignore`
-GPK-V0-051	docs/specs/go-production-kernel-migration-v0.md	560	`corvint impact --base FULL_COMMIT_ID` MUST admit a `C` or `R` range member when
-GPK-V0-052	docs/specs/go-production-kernel-migration-v0.md	566	(accepted, decision 0052, 2026-09-04) when a query term
-GPK-V0-053	docs/specs/go-production-kernel-migration-v0.md	575	(accepted 2026-09-04 by decision 0051 item 2, which decides this wording change
-GPK-V0-054	docs/specs/go-production-kernel-migration-v0.md	514	`coverage.authoritative_results` counts cited results Corvint does not label
-GPK-V0-055	docs/specs/go-production-kernel-migration-v0.md	1123	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
-GPK-V0-056	docs/specs/go-production-kernel-migration-v0.md	1134	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
-GPK-V0-057	docs/specs/go-production-kernel-migration-v0.md	651	A target is shipped only after its native conformance, filesystem-safety,
-GPK-V0-058	docs/specs/go-production-kernel-migration-v0.md	584	(proposed amendment 2026-09-05, owner review pending; not accepted) a harness
-GPK-V0-059	docs/specs/go-production-kernel-migration-v0.md	1153	(accepted 2026-09-12, decision 0092) An unknown top-level command MUST be refuse
-GPK-V0-060	docs/specs/go-production-kernel-migration-v0.md	1217	(accepted 2026-09-12, decision 0142; case-folded by decision 0159) `GPK-V0-030`
-GPK-V0-061	docs/specs/go-production-kernel-migration-v0.md	1241	(accepted 2026-09-12, decision 0142) The `GPK-V0-060` allowance MUST NOT apply t
-GPK-V0-062	docs/specs/go-production-kernel-migration-v0.md	1168	(accepted 2026-09-13, decision 0172) Under `GPK-V0-001`, a `--help` token after
-GPK-V0-063	docs/specs/go-production-kernel-migration-v0.md	1251	(accepted 2026-09-12, decision 0166; registers `DR-0023`) A context receipt's
-GPK-V0-064	docs/specs/go-production-kernel-migration-v0.md	1184	(accepted 2026-09-13, decision 0173; root preamble amended by decision 0181) Und
-GPK-V0-065	docs/specs/go-production-kernel-migration-v0.md	600	(proposed amendment 2026-09-14, owner review pending; not accepted) a repository
-GPK-V0-066	docs/specs/go-production-kernel-migration-v0.md	1266	(accepted 2026-09-25, decision 0387; V1-0260)
-GPK-V0-068	docs/specs/go-production-kernel-migration-v0.md	1282	(accepted 2026-09-25, decision 0396; panel finding M2)
-GPK-V0-069	docs/specs/go-production-kernel-migration-v0.md	1297	(accepted 2026-09-25, decision 0399; panel blocker B3)
-GPK-V0-070	docs/specs/go-production-kernel-migration-v0.md	1316	(accepted 2026-09-26, decision 0422; panel blocker B4; V1-0263)
-GPK-V0-071	docs/specs/go-production-kernel-migration-v0.md	1340	(proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global a
-GPK-V0-072	docs/specs/go-production-kernel-migration-v0.md	1358	(proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
-GPK-V0-075	docs/specs/go-production-kernel-migration-v0.md	1374	(accepted 2026-09-25, decision 0412; V1-0263; proposed in PR #247 as `GPK-V0-068
+GPK-V0-040	docs/specs/go-production-kernel-migration-v0.md	446	A receipt's coverage counts are denominated in the universe of results the ranki
+GPK-V0-041	docs/specs/go-production-kernel-migration-v0.md	486	The typed `unsupported-ocm-python-claims` abstention `GPK-V0-037` requires of th
+GPK-V0-042	docs/specs/go-production-kernel-migration-v0.md	784	A **beta rung** exists in `GPK-V0-023`'s order, between opt-in candidate use and
+GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	933	`corvint query` MAY add a general `repository`-intent profile on Darwin
+GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	999	The standalone `corvint query` `repository`-intent profile introduced
+GPK-V0-045	docs/specs/go-production-kernel-migration-v0.md	509	An abstaining packet MUST name the reason it abstained at every surface that emi
+GPK-V0-046	docs/specs/go-production-kernel-migration-v0.md	526	Product invariant 3 ranks project-owned authority above syntax. A `query` packet
+GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	1069	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave
+GPK-V0-048	docs/specs/go-production-kernel-migration-v0.md	1099	Go declaration set. `GPK-V0-031` names a Go-symbol feature compiler and
+GPK-V0-049	docs/specs/go-production-kernel-migration-v0.md	1117	Refused-grammar disclosure. `GPK-V0-048` requires a Go source the parser refused
+GPK-V0-050	docs/specs/go-production-kernel-migration-v0.md	651	`corvint record` and `corvint dogfood-record` MUST admit a changed `.gitignore`
+GPK-V0-051	docs/specs/go-production-kernel-migration-v0.md	583	`corvint impact --base FULL_COMMIT_ID` MUST admit a `C` or `R` range member when
+GPK-V0-052	docs/specs/go-production-kernel-migration-v0.md	589	(accepted, decision 0052, 2026-09-04) when a query term
+GPK-V0-053	docs/specs/go-production-kernel-migration-v0.md	598	(accepted 2026-09-04 by decision 0051 item 2, which decides this wording change
+GPK-V0-054	docs/specs/go-production-kernel-migration-v0.md	537	`coverage.authoritative_results` counts cited results Corvint does not label
+GPK-V0-055	docs/specs/go-production-kernel-migration-v0.md	1146	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
+GPK-V0-056	docs/specs/go-production-kernel-migration-v0.md	1157	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
+GPK-V0-057	docs/specs/go-production-kernel-migration-v0.md	674	A target is shipped only after its native conformance, filesystem-safety,
+GPK-V0-058	docs/specs/go-production-kernel-migration-v0.md	607	(proposed amendment 2026-09-05, owner review pending; not accepted) a harness
+GPK-V0-059	docs/specs/go-production-kernel-migration-v0.md	1176	(accepted 2026-09-12, decision 0092) An unknown top-level command MUST be refuse
+GPK-V0-060	docs/specs/go-production-kernel-migration-v0.md	1240	(accepted 2026-09-12, decision 0142; case-folded by decision 0159) `GPK-V0-030`
+GPK-V0-061	docs/specs/go-production-kernel-migration-v0.md	1264	(accepted 2026-09-12, decision 0142) The `GPK-V0-060` allowance MUST NOT apply t
+GPK-V0-062	docs/specs/go-production-kernel-migration-v0.md	1191	(accepted 2026-09-13, decision 0172) Under `GPK-V0-001`, a `--help` token after
+GPK-V0-063	docs/specs/go-production-kernel-migration-v0.md	1274	(accepted 2026-09-12, decision 0166; registers `DR-0023`) A context receipt's
+GPK-V0-064	docs/specs/go-production-kernel-migration-v0.md	1207	(accepted 2026-09-13, decision 0173; root preamble amended by decision 0181) Und
+GPK-V0-065	docs/specs/go-production-kernel-migration-v0.md	623	(proposed amendment 2026-09-14, owner review pending; not accepted) a repository
+GPK-V0-066	docs/specs/go-production-kernel-migration-v0.md	1289	(accepted 2026-09-25, decision 0387; V1-0260)
+GPK-V0-068	docs/specs/go-production-kernel-migration-v0.md	1305	(accepted 2026-09-25, decision 0396; panel finding M2)
+GPK-V0-069	docs/specs/go-production-kernel-migration-v0.md	1320	(accepted 2026-09-25, decision 0399; panel blocker B3)
+GPK-V0-070	docs/specs/go-production-kernel-migration-v0.md	1339	(accepted 2026-09-26, decision 0422; panel blocker B4; V1-0263)
+GPK-V0-071	docs/specs/go-production-kernel-migration-v0.md	1363	(proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global a
+GPK-V0-072	docs/specs/go-production-kernel-migration-v0.md	1381	(proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
+GPK-V0-075	docs/specs/go-production-kernel-migration-v0.md	1397	(accepted 2026-09-25, decision 0412; V1-0263; proposed in PR #247 as `GPK-V0-068
 HAR-V0-001	docs/specs/harness-authority-relation-v0.md	105	the relation string is exactly `harness-execution-attested-v0`. It is a **new**
 HAR-V0-002	docs/specs/harness-authority-relation-v0.md	109	the relation's authority class is exactly `HARNESS_ATTESTED`. It is a fourth cla
 HAR-V0-003	docs/specs/harness-authority-relation-v0.md	115	an `harness-execution-attested-v0` edge is admissible only when its attestation
@@ -2284,56 +2285,56 @@ TCP-V0-001	docs/specs/task-context-packet-v0.md	49	`context` MUST be read-only. 
 TCP-V0-002	docs/specs/task-context-packet-v0.md	52	The invocation is `corvint [--root PATH] context --task TEXT [--subject PATH]
 TCP-V0-003	docs/specs/task-context-packet-v0.md	58	Results are files. Each result row carries `kind`, `id` (the path), `score`,
 TCP-V0-004	docs/specs/task-context-packet-v0.md	76	The slots run in this order and each is capped at three rows before the lexical
-TCP-V0-005	docs/specs/task-context-packet-v0.md	137	The subject is never a result. It is carried under `subject` with its path and a
-TCP-V0-006	docs/specs/task-context-packet-v0.md	144	`state` is `READY` when at least one result exists and `NO_CANDIDATES` otherwise
-TCP-V0-007	docs/specs/task-context-packet-v0.md	155	Output is canonical JSON (`gokernel.CanonicalJSON`), byte-identical over an
-TCP-V0-008	docs/specs/task-context-packet-v0.md	158	(A) The governing generator establishes applicability independently of vocabular
-TCP-V0-009	docs/specs/task-context-packet-v0.md	179	(A) The implementation MUST build a definition-owner resolver; no existing helpe
-TCP-V0-010	docs/specs/task-context-packet-v0.md	194	(A) The implementation MUST build a definition-eligibility predicate applied ins
-TCP-V0-011	docs/specs/task-context-packet-v0.md	199	(A) `coverage` gains four members with fixed shapes. `critical` (what TCP-V0-008
-TCP-V0-012	docs/specs/task-context-packet-v0.md	217	(A) Before TCP-V0-008..011 leaves experimental these tests MUST exist and pass,
-TCP-V0-013	docs/specs/task-context-packet-v0.md	228	Documentation-suffix hits (`.md`, `.mdx`, `.rst`, `.txt`) produced by the lexica
-TCP-V0-014	docs/specs/task-context-packet-v0.md	235	(accepted 2026-09-05 by decision 0066; experimental) The lexical slot scores eve
-TCP-V0-015	docs/specs/task-context-packet-v0.md	263	(proposed 2026-09-05 by decision 0067; experimental) In the retrieval shape (no
-TCP-V0-016	docs/specs/task-context-packet-v0.md	337	(accepted 2026-09-12 by decision 0068's amendment, amended by decision 0146;
-TCP-V0-017	docs/specs/task-context-packet-v0.md	301	(proposed 2026-09-05, not accepted; experimental) `context` offers three read-on
-TCP-V0-018	docs/specs/task-context-packet-v0.md	392	(retired 2026-09-05 by decision 0078) The experimental recipe R and every
-TCP-V0-019	docs/specs/task-context-packet-v0.md	404	(proposed 2026-09-05, not accepted; experimental) With
-TCP-V0-020	docs/specs/task-context-packet-v0.md	459	(proposed 2026-09-05, not accepted; experimental) Under
-TCP-V0-021	docs/specs/task-context-packet-v0.md	433	`tools/retrieval-bench --snapshot-latency` MUST materialize a private copy once
-TCP-V0-022	docs/specs/task-context-packet-v0.md	487	(proposed 2026-09-22, not accepted; experimental; decision 0333) With
-TCP-V0-023	docs/specs/task-context-packet-v0.md	514	(proposed 2026-09-22, not accepted; experimental; decision 0346) Every
-TCP-V0-024	docs/specs/task-context-packet-v0.md	540	(proposed 2026-09-23, not accepted; experimental; decision 0364) This amends the
-TCP-V0-025	docs/specs/task-context-packet-v0.md	701	(proposed 2026-09-23, not accepted; experimental; decision 0366) With
-TCP-V0-026	docs/specs/task-context-packet-v0.md	718	(proposed 2026-09-23, not accepted; experimental; decision 0366) After the core
-TCP-V0-027	docs/specs/task-context-packet-v0.md	728	(proposed 2026-09-23, not accepted; experimental; decision 0366) The declared
-TCP-V0-028	docs/specs/task-context-packet-v0.md	736	(proposed 2026-09-23, not accepted; experimental; decision 0366) With the flag
-TCP-V0-029	docs/specs/task-context-packet-v0.md	752	(proposed 2026-09-23, not accepted; experimental; decision 0366) The evaluation
-TCP-V0-030	docs/specs/task-context-packet-v0.md	647	(proposed 2026-09-23, not accepted; experimental; decision 0367) The full
-TCP-V0-031	docs/specs/task-context-packet-v0.md	661	(proposed 2026-09-23, not accepted; experimental; decision 0367) With
-TCP-V0-032	docs/specs/task-context-packet-v0.md	675	(proposed 2026-09-23, not accepted; experimental; decision 0367) A `graph`
-TCP-V0-033	docs/specs/task-context-packet-v0.md	684	(proposed 2026-09-23, not accepted; experimental; decision 0367) The graph is
-TCP-V0-034	docs/specs/task-context-packet-v0.md	689	(proposed 2026-09-23, not accepted; experimental; decision 0367) The slot is an
-TCP-V0-035	docs/specs/task-context-packet-v0.md	590	(proposed 2026-09-23, not accepted; experimental; decision 0369) With
-TCP-V0-036	docs/specs/task-context-packet-v0.md	608	(proposed 2026-09-23, not accepted; experimental; decision 0369) The blame
-TCP-V0-037	docs/specs/task-context-packet-v0.md	621	(proposed 2026-09-23, not accepted; experimental; decision 0369) The first track
-TCP-V0-038	docs/specs/task-context-packet-v0.md	634	(proposed 2026-09-23, not accepted; experimental; decision 0369) With the flag o
-TCP-V0-039	docs/specs/task-context-packet-v0.md	550	(proposed 2026-09-23, not accepted; experimental; decision 0370) A file's role
-TCP-V0-040	docs/specs/task-context-packet-v0.md	568	(proposed 2026-09-23, not accepted; experimental; decision 0370) With
-TCP-V0-041	docs/specs/task-context-packet-v0.md	578	(proposed 2026-09-23, not accepted; experimental; decision 0370) A row the role
-TCP-V0-042	docs/specs/task-context-packet-v0.md	583	(proposed 2026-09-23, not accepted; experimental; decision 0370) The field stays
-TCP-V0-043	docs/specs/task-context-packet-v0.md	769	(proposed 2026-09-23, not accepted; experimental; decision 0371) With
-TCP-V0-044	docs/specs/task-context-packet-v0.md	775	The `external` member is separate evidence, never a ranking input: `results`,
-TCP-V0-045	docs/specs/task-context-packet-v0.md	781	When gopls is absent, the task names no usable Go seed, the session fails or
-TCP-V0-046	docs/specs/task-context-packet-v0.md	785	The flag is measured before any promotion. A frozen `tools/retrieval-bench` run
-TCP-V0-047	docs/specs/task-context-packet-v0.md	793	When governing rows exist (TCP-V0-008), each governing file's text is split into
-TCP-V0-048	docs/specs/task-context-packet-v0.md	827	(proposed 2026-09-24, not accepted; not implemented; decision 0377) With
-TCP-V0-049	docs/specs/task-context-packet-v0.md	839	(proposed 2026-09-24, not accepted; not implemented; decision 0377) With the
-TCP-V0-050	docs/specs/task-context-packet-v0.md	850	(proposed 2026-09-24, not accepted; not implemented; decision 0377) Two readings
-TCP-V0-051	docs/specs/task-context-packet-v0.md	870	`context --task` accepts at most one `--lsp gopls|off` (including `--lsp=VALUE`)
-TCP-V0-052	docs/specs/task-context-packet-v0.md	876	CLI and the explicit MCP descendant use one shared attachment. Before and after
-TCP-V0-053	docs/specs/task-context-packet-v0.md	882	Required live qualification fails when gopls is missing. Compiled CLI and MCP
-TCP-V0-054	docs/specs/task-context-packet-v0.md	888	(experimental, V1-0482) When Go LSP enrichment has an explicit task subject,
+TCP-V0-005	docs/specs/task-context-packet-v0.md	147	The subject is never a result. It is carried under `subject` with its path and a
+TCP-V0-006	docs/specs/task-context-packet-v0.md	154	`state` is `READY` when at least one result exists and `NO_CANDIDATES` otherwise
+TCP-V0-007	docs/specs/task-context-packet-v0.md	165	Output is canonical JSON (`gokernel.CanonicalJSON`), byte-identical over an
+TCP-V0-008	docs/specs/task-context-packet-v0.md	168	(A) The governing generator establishes applicability independently of vocabular
+TCP-V0-009	docs/specs/task-context-packet-v0.md	189	(A) The implementation MUST build a definition-owner resolver; no existing helpe
+TCP-V0-010	docs/specs/task-context-packet-v0.md	204	(A) The implementation MUST build a definition-eligibility predicate applied ins
+TCP-V0-011	docs/specs/task-context-packet-v0.md	209	(A) `coverage` gains four members with fixed shapes. `critical` (what TCP-V0-008
+TCP-V0-012	docs/specs/task-context-packet-v0.md	227	(A) Before TCP-V0-008..011 leaves experimental these tests MUST exist and pass,
+TCP-V0-013	docs/specs/task-context-packet-v0.md	238	Documentation-suffix hits (`.md`, `.mdx`, `.rst`, `.txt`) produced by the lexica
+TCP-V0-014	docs/specs/task-context-packet-v0.md	245	(accepted 2026-09-05 by decision 0066; experimental) The lexical slot scores eve
+TCP-V0-015	docs/specs/task-context-packet-v0.md	273	(proposed 2026-09-05 by decision 0067; experimental) In the retrieval shape (no
+TCP-V0-016	docs/specs/task-context-packet-v0.md	347	(accepted 2026-09-12 by decision 0068's amendment, amended by decision 0146;
+TCP-V0-017	docs/specs/task-context-packet-v0.md	311	(proposed 2026-09-05, not accepted; experimental) `context` offers three read-on
+TCP-V0-018	docs/specs/task-context-packet-v0.md	402	(retired 2026-09-05 by decision 0078) The experimental recipe R and every
+TCP-V0-019	docs/specs/task-context-packet-v0.md	414	(proposed 2026-09-05, not accepted; experimental) With
+TCP-V0-020	docs/specs/task-context-packet-v0.md	469	(proposed 2026-09-05, not accepted; experimental) Under
+TCP-V0-021	docs/specs/task-context-packet-v0.md	443	`tools/retrieval-bench --snapshot-latency` MUST materialize a private copy once
+TCP-V0-022	docs/specs/task-context-packet-v0.md	497	(proposed 2026-09-22, not accepted; experimental; decision 0333; default
+TCP-V0-023	docs/specs/task-context-packet-v0.md	530	(proposed 2026-09-22, not accepted; experimental; decision 0346) Every
+TCP-V0-024	docs/specs/task-context-packet-v0.md	556	(proposed 2026-09-23, not accepted; experimental; decision 0364) This amends the
+TCP-V0-025	docs/specs/task-context-packet-v0.md	717	(proposed 2026-09-23, not accepted; experimental; decision 0366) With
+TCP-V0-026	docs/specs/task-context-packet-v0.md	734	(proposed 2026-09-23, not accepted; experimental; decision 0366) After the core
+TCP-V0-027	docs/specs/task-context-packet-v0.md	744	(proposed 2026-09-23, not accepted; experimental; decision 0366) The declared
+TCP-V0-028	docs/specs/task-context-packet-v0.md	752	(proposed 2026-09-23, not accepted; experimental; decision 0366) With the flag
+TCP-V0-029	docs/specs/task-context-packet-v0.md	768	(proposed 2026-09-23, not accepted; experimental; decision 0366) The evaluation
+TCP-V0-030	docs/specs/task-context-packet-v0.md	663	(proposed 2026-09-23, not accepted; experimental; decision 0367) The full
+TCP-V0-031	docs/specs/task-context-packet-v0.md	677	(proposed 2026-09-23, not accepted; experimental; decision 0367) With
+TCP-V0-032	docs/specs/task-context-packet-v0.md	691	(proposed 2026-09-23, not accepted; experimental; decision 0367) A `graph`
+TCP-V0-033	docs/specs/task-context-packet-v0.md	700	(proposed 2026-09-23, not accepted; experimental; decision 0367) The graph is
+TCP-V0-034	docs/specs/task-context-packet-v0.md	705	(proposed 2026-09-23, not accepted; experimental; decision 0367) The slot is an
+TCP-V0-035	docs/specs/task-context-packet-v0.md	606	(proposed 2026-09-23, not accepted; experimental; decision 0369) With
+TCP-V0-036	docs/specs/task-context-packet-v0.md	624	(proposed 2026-09-23, not accepted; experimental; decision 0369) The blame
+TCP-V0-037	docs/specs/task-context-packet-v0.md	637	(proposed 2026-09-23, not accepted; experimental; decision 0369) The first track
+TCP-V0-038	docs/specs/task-context-packet-v0.md	650	(proposed 2026-09-23, not accepted; experimental; decision 0369) With the flag o
+TCP-V0-039	docs/specs/task-context-packet-v0.md	566	(proposed 2026-09-23, not accepted; experimental; decision 0370) A file's role
+TCP-V0-040	docs/specs/task-context-packet-v0.md	584	(proposed 2026-09-23, not accepted; experimental; decision 0370) With
+TCP-V0-041	docs/specs/task-context-packet-v0.md	594	(proposed 2026-09-23, not accepted; experimental; decision 0370) A row the role
+TCP-V0-042	docs/specs/task-context-packet-v0.md	599	(proposed 2026-09-23, not accepted; experimental; decision 0370) The field stays
+TCP-V0-043	docs/specs/task-context-packet-v0.md	785	(proposed 2026-09-23, not accepted; experimental; decision 0371) With
+TCP-V0-044	docs/specs/task-context-packet-v0.md	791	The `external` member is separate evidence, never a ranking input: `results`,
+TCP-V0-045	docs/specs/task-context-packet-v0.md	797	When gopls is absent, the task names no usable Go seed, the session fails or
+TCP-V0-046	docs/specs/task-context-packet-v0.md	801	The flag is measured before any promotion. A frozen `tools/retrieval-bench` run
+TCP-V0-047	docs/specs/task-context-packet-v0.md	809	When governing rows exist (TCP-V0-008), each governing file's text is split into
+TCP-V0-048	docs/specs/task-context-packet-v0.md	843	(proposed 2026-09-24, not accepted; not implemented; decision 0377) With
+TCP-V0-049	docs/specs/task-context-packet-v0.md	855	(proposed 2026-09-24, not accepted; not implemented; decision 0377) With the
+TCP-V0-050	docs/specs/task-context-packet-v0.md	866	(proposed 2026-09-24, not accepted; not implemented; decision 0377) Two readings
+TCP-V0-051	docs/specs/task-context-packet-v0.md	886	`context --task` accepts at most one `--lsp gopls|off` (including `--lsp=VALUE`)
+TCP-V0-052	docs/specs/task-context-packet-v0.md	892	CLI and the explicit MCP descendant use one shared attachment. Before and after
+TCP-V0-053	docs/specs/task-context-packet-v0.md	898	Required live qualification fails when gopls is missing. Compiled CLI and MCP
+TCP-V0-054	docs/specs/task-context-packet-v0.md	904	(experimental, V1-0482) When Go LSP enrichment has an explicit task subject,
 TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	92	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its
 TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	100	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as
 TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	103	TCQ MUST emit exactly one claim result for each selected claim edge and no resul
