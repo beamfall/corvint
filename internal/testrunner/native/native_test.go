@@ -62,9 +62,13 @@ func TestRejectsIncompleteAndContradictoryReports(t *testing.T) {
 func TestBuildExactSelectorsAndFixedProfiles(t *testing.T) {
 	for _, r := range Runners() {
 		q := tr.Request{Runner: r, Executable: "/tool", ReportDir: "/out", Project: "fixture", Selectors: nil, Target: "fixture"}
+		if q.Runner == cmockaRunner {
+			q.Project = ""
+			q.ExpectedTests = []string{q.Target + "::test_pass"}
+		}
 		mtpTestRequest(&q)
 		v, e := Build(q)
-		if e != nil || len(v.Argv) == 0 {
+		if e != nil || (len(v.Argv) == 0 && r != cmockaRunner) {
 			t.Fatalf("%s: %v", r, e)
 		}
 	}
@@ -230,12 +234,16 @@ func TestReviewGoDuplicateFieldsAndTerminals(t *testing.T) {
 func TestReviewBuildUsesArgsOnlyAndNativeExitCodes(t *testing.T) {
 	for _, runner := range Runners() {
 		q := tr.Request{Runner: runner, Executable: "/tools/runner", ReportDir: "/report", Project: "project", Target: "target"}
+		if q.Runner == cmockaRunner {
+			q.Project = ""
+			q.ExpectedTests = []string{q.Target + "::test_pass"}
+		}
 		mtpTestRequest(&q)
 		v, e := Build(q)
 		if e != nil {
 			t.Fatal(e)
 		}
-		if len(v.Argv) == 0 || v.Argv[0] == "/tools/runner" {
+		if (len(v.Argv) == 0 && runner != cmockaRunner) || (len(v.Argv) > 0 && v.Argv[0] == "/tools/runner") {
 			t.Fatal(runner, v.Argv)
 		}
 		if len(v.SuccessExitCodes) != 1 || v.SuccessExitCodes[0] != 0 || !reflect.DeepEqual(v.FailureExitCodes, failureExits(runner)) {

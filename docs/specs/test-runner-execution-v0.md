@@ -10,7 +10,7 @@ Authoritative inputs: owner instructions 2026-10-01, native V1-0591..0596,
 ## Agent digest
 - Claim: Optional fixed runner profiles execute trusted local tests and retain bounded native reports with explicit qualification limits.
 - Status: proposed technical profile/experimental prototype; accepted owner target is all main test runners; no stable CEM1.0 promotion.
-- Exists: 55 concrete experimental profiles in `internal/testrunner`; implementation and live qualification are tracked separately.
+- Exists: 56 concrete experimental profiles in `internal/testrunner`; implementation and live qualification are tracked separately.
 - Blocked on: every runner's actual runtime/platform qualification and CEM/Tasks integration.
 - Read next: Requirements; Runner inventory; Acceptance and rollback.
 
@@ -63,13 +63,13 @@ analyzer families need explicit runtime/domain disposition; their presence is no
 The dynamic lane covers the fifteen JS/TS affected registrations: Vitest, Jest, AVA, Mocha, node:test,
 Playwright, Bun, Deno, Cypress, WebdriverIO, TestCafe, Nightwatch, Detox and both Storybook runners;
 Python pytest/unittest; Ruby RSpec/Minitest/Test::Unit/Rails. The native lane covers Go, Cargo/nextest
-and doctests, .NET xUnit/NUnit/MSTest with separate VSTest/MTP profiles, and CTest/GoogleTest/Catch2.
+and doctests, .NET xUnit/NUnit/MSTest with separate VSTest/MTP profiles, CTest/GoogleTest/Catch2 and CMocka.
 The platform lane covers Java JUnit/TestNG/Gradle/Maven, Kotlin kotlin-test/Kotest/Android families,
 Swift Testing/XCTest/SwiftPM/Xcode, Bats/ShellSpec and remaining domain runner inventory. Analyzer
 candidates never imply that SQL/shader/data compilation is assertion testing. Additional main-runner
 ambiguity needs explicit owner disposition; absence of evidence is not an approved exclusion.
 
-The concrete count is 21 dynamic, 15 native, 16 platform, two SQL and one Appium Android profiles. The registry also
+The concrete count is 21 dynamic, 16 native, 16 platform, two SQL and one Appium Android profiles. The registry also
 lists six unavailable IDs: `appium`, `pgtap`, `sqllogictest`, `shader-behavior`, `html-behavior` and
 `structured-data-behavior`. The two SQL profiles use the explicit IDs `sql-pgtap` and
 `sql-sqllogictest-sqlite`; the older unqualified names do not silently alias them. SQL coverage does
@@ -116,6 +116,8 @@ following evidence supports the prototype, not stable acceptance or automatic ti
 | TRE-V0-009 | Adapter READMEs, `testdata` provenance, opt-in `TestMTPLiveExecution` and `TestSQLLiveExecution` | PARTIAL live matrices; current JVM/SwiftPM/Robolectric requalification in `platform-latest-execution-proof.jsonl` and `jvm-latest-execution-proof.jsonl` |
 | TRE-V0-010 | Separate criterion experiment, Tasks native boundary and CEM candidate references | Cross-language native claim/source/runner join and semantic discrimination remain NOT_PRODUCED |
 | TRE-V0-011..012 | `sql/sql.go`, `pgtap.go`, `sqllogictest.go`; `TestNativeMatrix`, `TestTAPRefusals`, `TestSQLiteRefusals`, `TestFixedInvocations`, `TestClosedConnection` | `sql/review.json` PASS; ten actual shared-executor receipts, native format provenance and disposable cluster cleanup retained |
+| TRE-V0-015 | `execute_unix.go`; `TestExecuteExplicitPrimaryTestWithoutArguments` (pinned `pwd` with no argv; implicit, ambiguous, BUILD, DISCOVER, DECODE, auxiliary and implicit-primary-name refusals) | `cmocka-independent-review-r2/REVIEW.json` PASS_BOUNDED (F4); root decision `e4de2129…e161` ACCEPTED_WITH_CONDITIONS |
+| TRE-V0-016..017 | `native/cmocka.go`; `TestCMockaActualDualFormatWitnesses`, `TestCMockaBoundaryContradictions`, `TestCMockaClosedBuild`, `TestCMockaRegistryDispatchAndTargetBoundary`, `TestCMockaPlanBindsTargetAndFixedEnvironment`, opt-in `TestCMockaNativeReceiptReadback` | Nine actual macOS arm64 CMocka 2.0.2 receipts in `cmocka-profile-proposal-r1/proof`; review PASS_BOUNDED; fresh requalification on the integration base NOT_RUN |
 
 Review and live manifests above are under `/private/tmp/cem10-build` for this build; their exact
 source/report hashes govern reuse. Current source and committed fixture provenance provide the
@@ -238,3 +240,70 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `unknown-suite-state` | A Jest/Vitest file status maps to UNKNOWN. | `internal/testrunner/dynamic/parse.go:264@045a51e8` |
 | `unknown-test-state` | A shared-boundary test state is outside its admitted state enumeration. | `internal/testrunner/validate.go:73@8c1af2e1` |
 | `unresolved-test-state` | A shared-boundary test state is UNKNOWN, INTERRUPTED or TIMED_OUT. | `internal/testrunner/validate.go:79@80befa5b` |
+
+## Explicit argument-free TEST phases and CMocka (experimental)
+
+This slice makes one shared executor contract change, which applies to every
+runner profile, and adds a dedicated CMocka tuple. It does not establish all-C,
+JNI, affected-selection, Tasks criterion or stable-release authority. The root
+decision record `cmocka-zero-argv-root-decision/ROOT-DECISION.json` (sha256
+`e4de2129c7498d62fb8b292dc2c20b532d2d00a5c88d23382c1ae23a9204e161`) accepted the
+executor widening with the conditions restated in `TRE-V0-015`.
+
+- `TRE-V0-015`: An argument-free invocation MUST use exactly one explicitly
+  declared `TEST` phase whose tool is `primary`. The fixed profile emits
+  `Argv: []` and its environment on that phase. Empty implicit invocations,
+  mixed implicit/explicit invocations, and empty argv on `BUILD`, `DISCOVER`,
+  `DECODE`, an auxiliary tool or an implicit primary name remain rejected.
+  Independent executable identity, regular-file/size checks, fixed-plan equality,
+  source/config/reporter pins, environment bounds, report inventory, timeout and
+  process retirement MUST remain enforced. This is a shared executor contract
+  change available to every runner profile's explicit TEST/primary phase, not a
+  CMocka-specific permission guard. In this slice only `cmocka-xml` emits empty
+  argv; no other runner profile's fixed plan changes, and a later profile that
+  wants empty argv needs its own admission.
+- `TRE-V0-016`: `cmocka-xml` MUST execute one caller-prepared, independently pinned
+  CMocka 2.0.2 test executable with fixed `STANDARD,XML` output and one fresh
+  `cmocka.xml`. The existing request `Target` names one native group. Build
+  requires 1..64 unique expected `group::test` identities, using bounded ASCII
+  identifiers; zero or one literal selector is allowed and a selector must be
+  the sole expected identity. Wildcards, multi-selection and caller configuration,
+  reporter, project or auxiliary-tool overrides are rejected. Empty expected
+  inventory is not a production admission exception.
+- `TRE-V0-017`: The dedicated parser MUST validate the native group against
+  `Input.Target`, exact expected case inventory, unique identities, bounded native
+  XML grammar, counts, exit and both original STANDARD streams. XML and STANDARD
+  must agree. Missing STANDARD output, unknown diagnostics, retries/multiple
+  documents, malformed or contradictory counts and fixture errors remain
+  incomplete. CMocka XML uses `failure` for ordinary failures and fixture errors;
+  the cause remains `UNKNOWN`. A native group teardown error can leave XML and
+  exit successful, so its STANDARD diagnostic MUST prevent completion. Shared
+  `Normalize` stays unchanged: incomplete public states become `UNKNOWN` while
+  original reports, diagnostics and identities remain retained.
+
+The native runner runs once; retry history is `NOT_REPORTED`. Actual zero/no-match
+qualification supplies a valid expected identity which is absent from native
+execution. This yields incomplete evidence even when native exit is zero. Builds
+and static linking occur outside the test receipt with separately retained tool,
+source, archive and compiler evidence; full SDK/loader closure is not inferred.
+
+Acceptance evidence is the bounded macOS arm64 CMocka 2.0.2 static tuple:
+pass/fail/skip, exact selected pass with a same-prefix decoy, selected skip, zero,
+per-test setup, per-test teardown, group setup, group teardown and wrong Target.
+`TestExecuteExplicitPrimaryTestWithoutArguments` verifies real pinned `pwd`
+execution with no arguments and refusal of the other empty-argv forms.
+`TestCMockaActualDualFormatWitnesses`, `TestCMockaBoundaryContradictions`,
+`TestCMockaClosedBuild`, `TestCMockaRegistryDispatchAndTargetBoundary`,
+`TestCMockaPlanBindsTargetAndFixedEnvironment` and the opt-in
+`TestCMockaNativeReceiptReadback` cover profile admission and both parsing layers.
+Native timeout/interruption qualification, publisher signature authentication,
+Unity and broader C framework coverage remain outside this evidence.
+
+Rollback has two independent parts: removing the additive `cmocka-xml` profile,
+and reverting the shared executor condition so every phase again requires at
+least one argv element (the previous `len(p.Argv) == 0` refusal). Reverting the
+executor without removing the profile makes every CMocka plan refuse with
+`argv bound`; no other profile is affected. Historical refusals and native
+reports are retained under their original hashes. CEM binding, live
+requalification on the integration base and native Tasks completion remain
+separate closeout steps.

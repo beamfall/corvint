@@ -519,3 +519,52 @@ func TestHistoricalPlanByteIdentity(t *testing.T) {
 		}
 	}
 }
+
+func TestExecuteExplicitPrimaryTestWithoutArguments(t *testing.T) {
+	exe, err := exec.LookPath("pwd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exe, err = filepath.EvalSymlinks(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	binary, err := os.ReadFile(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := func() Request {
+		r, _ := executorRequest(t)
+		r.Executable = exe
+		r.ExecutableSha256 = Digest(binary)
+		return r
+	}
+	r := request()
+	inv := Invocation{Phases: []Phase{{Kind: "TEST", Tool: "primary", Argv: []string{}}}, SuccessExitCodes: []int{0}}
+	result, err := Execute(context.Background(), r, inv)
+	if err != nil || len(result.Phases) != 1 || result.Phases[0].ExitCode != 0 || string(result.Input.Stdout) != r.Root+"\n" || result.Phases[0].StdoutSha256 != Digest(result.Input.Stdout) {
+		t.Fatal(result, err)
+	}
+	for _, tc := range []struct {
+		name string
+		inv  Invocation
+		want string
+	}{
+		{"implicit-empty", Invocation{}, "empty runner invocation"},
+		{"ambiguous", Invocation{Argv: []string{"-L"}, Phases: inv.Phases}, "ambiguous invocation phases"},
+		{"empty-build", Invocation{Phases: []Phase{{Kind: "BUILD", Tool: "primary", Argv: []string{}}}}, "argv bound"},
+		{"empty-discover", Invocation{Phases: []Phase{{Kind: "DISCOVER", Tool: "primary", Argv: []string{}}}}, "argv bound"},
+		{"empty-decode", Invocation{Phases: []Phase{{Kind: "DECODE", Tool: "primary", Argv: []string{}}}}, "argv bound"},
+		{"empty-auxiliary", Invocation{Phases: []Phase{{Kind: "TEST", Tool: "auxiliary", Argv: []string{}}}}, "argv bound"},
+		{"implicit-primary-name", Invocation{Phases: []Phase{{Kind: "TEST", Argv: []string{}}}}, "argv bound"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := request()
+			r.Tools = map[string]Tool{"auxiliary": {Executable: exe, Sha256: Digest(binary)}}
+			result, err := Execute(context.Background(), r, tc.inv)
+			if err == nil || !strings.Contains(err.Error(), tc.want) || len(result.Phases) != 0 {
+				t.Fatal(result, err)
+			}
+		})
+	}
+}

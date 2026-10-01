@@ -19,7 +19,7 @@ import (
 )
 
 func Runners() []string {
-	return []string{"go-test", "ctest", "googletest", "catch2", "dotnet-vstest-nunit", "dotnet-vstest-mstest", "dotnet-vstest-xunit", "cargo-test", "cargo-doctest", "cargo-integration", "cargo-bin", "nextest", "dotnet-mtp-nunit", "dotnet-mtp-mstest", "dotnet-mtp-xunit"}
+	return []string{"cmocka-xml", "go-test", "ctest", "googletest", "catch2", "dotnet-vstest-nunit", "dotnet-vstest-mstest", "dotnet-vstest-xunit", "cargo-test", "cargo-doctest", "cargo-integration", "cargo-bin", "nextest", "dotnet-mtp-nunit", "dotnet-mtp-mstest", "dotnet-mtp-xunit"}
 }
 func known(r string) bool {
 	for _, v := range Runners() {
@@ -44,6 +44,8 @@ func Build(r tr.Request) (tr.Invocation, error) {
 	}
 	report := func(name string) string { v.ReportPaths = []string{name}; return filepath.Join(r.ReportDir, name) }
 	switch r.Runner {
+	case cmockaRunner:
+		return buildCMocka(r)
 	case "dotnet-mtp-nunit", "dotnet-mtp-mstest", "dotnet-mtp-xunit":
 		return buildMTP(r, v)
 	case "go-test":
@@ -161,6 +163,12 @@ func Build(r tr.Request) (tr.Invocation, error) {
 }
 func failureExits(runner string) []int {
 	switch runner {
+	case cmockaRunner:
+		exits := make([]int, 64)
+		for i := range exits {
+			exits[i] = i + 1
+		}
+		return exits
 	case "dotnet-mtp-nunit", "dotnet-mtp-mstest", "dotnet-mtp-xunit":
 		return []int{2}
 	case "ctest":
@@ -206,6 +214,8 @@ func Parse(in tr.Input) (tr.Observation, error) {
 	}
 	var err error
 	switch in.Runner {
+	case cmockaRunner:
+		return parseCMocka(in)
 	case "go-test":
 		err = parseGo(in.Stdout, &o)
 	case "cargo-test", "cargo-doctest", "cargo-integration", "cargo-bin":

@@ -94,3 +94,31 @@ type and text; an ordinary nonzero process exit remains UNKNOWN cause, while
 signal/abort/setup/timeout evidence is INFRASTRUCTURE, never inferred ASSERTION.
 The additional `nunit-pass.trx` was emitted by the same NUnit runtime using an
 exact passing method filter; its native successful summary is `Completed`.
+
+## CMocka 2.0.2 (experimental dedicated tuple)
+
+`cmocka-xml` runs a separately built and pinned regular native executable in one
+explicit primary TEST phase with no argv. It fixes `CMOCKA_MESSAGE_OUTPUT` to
+`STANDARD,XML`, `CMOCKA_ERROR_OUTPUT` to `STDERR` and a fresh `cmocka.xml` path.
+The existing Target field binds one group; exact native `group::test` identities
+and 1..64 expected tests are mandatory. One literal selection is supported;
+wildcards, multiple selections and project/config/reporter/tool overrides are not.
+
+Both original STANDARD streams and native XML must agree. Unrecognized output
+is incomplete for this bounded profile. Native XML failure causes remain UNKNOWN;
+fixture errors, including group teardown returning nonzero with native exit 0,
+cannot become passing observations. Shared Normalize turns incomplete public
+states UNKNOWN without rewriting the original reports. No retry is scheduled or
+inferred. Per-test source paths are not invented from C function names.
+
+Nine actual macOS arm64 cases retain mixed outcomes, exact selected pass/skip,
+zero tests, per-test setup/teardown, group setup/teardown and wrong-target evidence.
+The native source is CMocka 2.0.2 immutable commit
+`fefa2b8a023121f7235e18ed17249e4012dd144f`; all 150 official release files matched
+that official commit archive. Apache-2.0 and upstream CMake redistribution notices
+were retained. Publisher PGP signatures were acquired but not authenticated;
+the owner accepted this limit for the bounded trusted-local experiment only.
+Static-build provenance is separate from TEST receipts; SDK/loader closure and
+new timeout/interruption qualification remain unobserved. See the CMocka
+provenance fixture and TRE-V0-015..017. Unity and complete C-family coverage are
+not delivered by this profile.
