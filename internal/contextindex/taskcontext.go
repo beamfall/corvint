@@ -291,11 +291,10 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 
 // admitLexicalPairs keeps every selected source and authority row intact while
 // replacing unrelated lexical tests with the naming counterparts of the
-// selected sources (TCP-V0-004). The rule is rank-relative, not a cap: a
-// counterpart inherits its source's lexical strength, so it may displace only
+// selected lexical sources (TCP-V0-004). The rule is rank-relative, not a cap:
+// a counterpart inherits its source's lexical strength, so it may displace only
 // an unrelated lexical test that the task matched more weakly than that source
-// (BM25 order, weakest victim first), and a source admitted by a relation other
-// than `lexical` counts as stronger than every lexical test. The packet never
+// (BM25 order, weakest victim first). The packet never
 // grows past the limit and never loses a source, a governing row or any other
 // non-lexical row. Both chi orientation misses fixed by this form were cap and
 // victim-choice defects: the three-counterpart cap was spent on the
@@ -310,15 +309,18 @@ func (compiler *taskContextCompiler) admitLexicalPairs(rows []contextRow, limit 
 	}
 	candidates := []counterpart{}
 	protected := map[string]bool{}
+	// The anchors are the selected lexical sources, as before: a source another
+	// relation admitted keeps the frozen `pair` state of the subjectless packet
+	// (CCF-V1-006 pins `subject-absent`/null there), and its counterpart is
+	// still safe from displacement because a lexical test the task matched
+	// more strongly than every lexical source is never a weaker victim.
 	for _, row := range rows[:min(len(rows), limit)] {
-		if row.kind == "pair" || row.kind == "documentation" || contextIsTest(row.path) {
+		if row.kind != "lexical" || contextIsTest(row.path) {
 			continue
 		}
 		sourceRank := -1
-		if row.kind == "lexical" {
-			if position, ok := rank[row.path]; ok {
-				sourceRank = position
-			}
+		if position, ok := rank[row.path]; ok {
+			sourceRank = position
 		}
 		for _, pair := range compiler.pairRows(row.path) {
 			if !contextIsTest(pair.path) || protected[pair.path] {

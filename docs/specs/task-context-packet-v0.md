@@ -122,8 +122,8 @@ it must read, each with the relation that admitted it, without naming the task's
   (decision 0027). Without `--subject` the packet has the retrieval shape: `mentioned`,
   `definition`, `test`, `lexical`. Outside the opt-in named-test frame, after final reservation
   and ranking, `pair` rows may replace unrelated lexical test rows (amended 2026-10-01, proposed):
-  their anchors are the selected non-test sources, whatever relation admitted each, and the
-  counterpart must satisfy the existing naming convention. The rule is rank-relative, not a cap:
+  their anchors are the selected non-test lexical sources, and the counterpart must satisfy the
+  existing naming convention. The rule is rank-relative, not a cap:
   a counterpart inherits its source's lexical strength, so it may displace only an unrelated
   lexical test the task matched more weakly than that source (TCP-V0-014's BM25 order, weakest
   victim first), and a source admitted by a relation other than `lexical` counts as stronger
