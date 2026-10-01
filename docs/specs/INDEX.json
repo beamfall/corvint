@@ -2027,6 +2027,24 @@
     ]
   },
   {
+    "path": "docs/specs/postmerge-ci-host-v0.md",
+    "title": "Post-merge CI Host V0",
+    "reqPrefix": "PCH-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Reference GitHub Actions templates and a host adapter contract run the post-merge workflow with per-step credentials and no write credential in authoring.",
+    "dependsOn": [
+      "docs/specs/authoring-step-scope-v0.md",
+      "docs/specs/postmerge-connectors-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/postmergehost",
+      "protocol/postmerge-host"
+    ]
+  },
+  {
     "path": "docs/specs/postmerge-connectors-v0.md",
     "title": "Post-merge Connectors V0",
     "reqPrefix": "PMC-V0",

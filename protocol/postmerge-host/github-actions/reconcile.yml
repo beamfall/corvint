@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: Apache-2.0
+# Reference nightly reconciliation and replay for GitHub Actions (PCH-V0, experimental).
+# Scheduled runs re-dispatch every first-parent merge of the last 26 hours, so a
+# dispatch lost by the source trigger is retried; the connector's idempotent
+# upserts make a second run of the same change safe (PMC-V0-005 to PMC-V0-007).
+# A manual run with replay_set re-dispatches a committed list of full change ids.
+name: Corvint post-merge reconciliation (reference)
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      replay_set:
+        description: Repository path of a file listing one full merge commit id per line
+        required: false
+        default: ""
+        type: string
+      mode:
+        description: Connector mode for every dispatched change
+        required: true
+        default: dry-run
+        type: choice
+        options: [dry-run, recording]
+
+permissions: {}
+
+env:
+  CORVINT_PM_WORKFLOW: reconcile
+  CORVINT_SOURCE_COMMIT: REPLACE-WITH-THE-40-HEX-CORVINT-COMMIT
+  CORVINT_PINS: config/postmerge/corvint-pins.sha256
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      actions: write
+      contents: read
+    env:
+      CORVINT_PM_STEP: trigger
+      GH_TOKEN: ${{ github.token }}
+      REPLAY_SET: ${{ inputs.replay_set }}
+      MODE: ${{ inputs.mode || 'dry-run' }}
+    steps:
+      - name: Check out merged history
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Dispatch each change by its full id
+        run: |
+          set -eu
+          case "$MODE" in
+            dry-run|recording) ;;
+            *) echo "mode-unsupported" >&2; exit 1 ;;
+          esac
+          if [ -n "$REPLAY_SET" ]; then
+            grep -v '^#' "$REPLAY_SET" | sed '/^$/d' > "$RUNNER_TEMP/changes"
+          else
+            git log --first-parent --since=26.hours --format=%H HEAD > "$RUNNER_TEMP/changes"
+          fi
+          while read -r change; do
+            printf '%s' "$change" | grep -Eqx '[0-9a-f]{40}|[0-9a-f]{64}'
+            gh workflow run postmerge.yml --repo "$GITHUB_REPOSITORY" -f change="$change" -f mode="$MODE"
+          done < "$RUNNER_TEMP/changes"
+
+  metrics:
+    needs: dispatch
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      CORVINT_PM_STEP: metrics
+    steps:
+      - name: Check out trusted configuration
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: config
+          persist-credentials: false
+      # The records file names this checkout's absolute root and full commit ids.
+      - name: Check out merged history for measurement
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: product
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.1"
+          cache: false
+      - name: Build and verify pinned Corvint companions
+        run: config/postmerge/install-pinned.sh corvint-postmerge-metrics
+      - name: Report post-merge metrics
+        run: |
+          set -eu
+          records="$GITHUB_WORKSPACE/config/postmerge/metrics-records.json"
+          if [ ! -f "$records" ]; then
+            echo "metrics NOT_PRODUCED no-records-file"
+            exit 0
+          fi
+          corvint-postmerge-metrics report \
+            --policy "$GITHUB_WORKSPACE/config/postmerge/metrics-policy.json" \
+            --records "$records" \
+            --from "$(date -u -d '-30 days' +%Y-%m-%dT00:00:00Z)" \
+            --until "$(date -u +%Y-%m-%dT00:00:00Z)"

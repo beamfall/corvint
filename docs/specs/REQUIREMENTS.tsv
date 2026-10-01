@@ -1814,6 +1814,14 @@ PCCO-V0-014	docs/specs/proof-carrying-context-optimization-v0.md	113	Profiles ar
 PCCO-V0-015	docs/specs/proof-carrying-context-optimization-v0.md	115	(proposed for V1-0012, not accepted) A correctness or cost comparison of the dai
 PCCO-V0-016	docs/specs/proof-carrying-context-optimization-v0.md	125	(proposed for V1-0012, not accepted) Each run MUST emit one result binding the
 PCCO-V0-017	docs/specs/proof-carrying-context-optimization-v0.md	130	(proposed for V1-0012, not accepted) A cost-reduction claim is retained only whe
+PCH-V0-001	docs/specs/postmerge-ci-host-v0.md	33	Publish a host-neutral workflow graph, `protocol/postmerge-host/workflow-graph.j
+PCH-V0-002	docs/specs/postmerge-ci-host-v0.md	40	Document the host adapter contract in `protocol/postmerge-host/README.md`:
+PCH-V0-003	docs/specs/postmerge-ci-host-v0.md	47	Ship a reference pipeline that processes one merged change by full commit id:
+PCH-V0-004	docs/specs/postmerge-ci-host-v0.md	55	Ship a source trigger. It runs on push to the merged branch only, never on a cha
+PCH-V0-005	docs/specs/postmerge-ci-host-v0.md	58	Ship scheduled reconciliation that re-dispatches recent first-parent merges, so
+PCH-V0-006	docs/specs/postmerge-ci-host-v0.md	61	Pin every action to a full commit and check out with `persist-credentials: false
+PCH-V0-007	docs/specs/postmerge-ci-host-v0.md	65	Provide an audit, `internal/postmergehost.Audit`, over a restricted YAML subset.
+PCH-V0-008	docs/specs/postmerge-ci-host-v0.md	87	The README gives a porting guide that maps markers, credential classes, isolatio
 PLE-V0-001	docs/specs/protected-local-execution-v0.md	27	The optional `corvint-protected-execution/0` profile MUST preserve all legacy pr
 PLE-V0-002	docs/specs/protected-local-execution-v0.md	28	A protected immutable release and independently admitted root/policy MUST bind t
 PLE-V0-003	docs/specs/protected-local-execution-v0.md	29	Ingestion MUST bound and independently bind expected Git base/target/tree, CEM,
