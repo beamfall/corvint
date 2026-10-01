@@ -18,11 +18,15 @@ only when every outcome is identical.
 
 `internal/doccorpus` was traced as reading the whole root. The cause was one test,
 `TestCorpusSelfDocumentation` (DCP-V1-019 self), which indexes Corvint's own checkout at `HEAD`.
-The other tests use the committed example corpus. The self test now lives in
-`internal/doccorpus/selfcorpus` and is unchanged except for its package and its relative path to the
-root. It stays a deliberate root locator and is selected for every change, but it takes about 8
-seconds, while the whole package takes about 236 seconds on darwin/arm64. Without it, the trace of
-`internal/doccorpus` reads only `examples/documentation-corpus/` outside its own directory.
+The other tests build synthetic repositories under `t.TempDir()`. The one exception is
+`TestCorpusIndependentFlowAdapter`, which runs `examples/documentation-corpus/flow-provider.py`. The
+self test now lives in `internal/doccorpus/selfcorpus`. Only its package and its relative path to the
+root changed. It stays a deliberate root locator and is selected for every change. It took 8 seconds
+inside the package and 17 seconds alone, both on darwin/arm64; the whole package takes about 236
+seconds. Without it, the trace of `internal/doccorpus` reads only `examples/documentation-corpus/`
+outside its own directory. The entry covers the whole directory rather than only the script, because
+Python lists the script's directory when it resolves imports. A README-only edit there therefore
+also selects the package.
 
 With `examples/documentation-corpus/` declared, all 315 test outcomes of `internal/doccorpus` were
 identical confined and unconfined, with no skips, so the package is declared.
@@ -52,13 +56,13 @@ The three newly declared packages left the floor, and `internal/doccorpus/selfco
 At `5e7dfab1`, the head of the AFP-V0-023 pull request, all four hosted `go-product-shard` jobs
 passed. Each built the wrapper, probed Landlock ABI 7, and ran the full suite with `go test -exec
 test-confine -json -p 1 -count=1 -race`. This clears the "Hosted run" NOT_RUN residual in that
-entry.
+entry. This change's own hosted confined run is NOT_RUN until its pull request runs CI.
 
 ## Expected effect
 
 The floor attribution put `internal/doccorpus` at about 168 package-seconds per merge. It now runs
 only when its sources, their dependencies or the example corpus change. `selfcorpus` takes its place
-on the floor at about 8 to 17 seconds per run, so the expected saving is roughly 150
+on the floor at 8 to 17 seconds per run, so the expected saving is roughly 150
 package-seconds per merge. This is an estimate from the attribution; the merge replay was not
 repeated. The two `cmd` packages run in seconds, so declaring them mainly shortens the floor list.
 
