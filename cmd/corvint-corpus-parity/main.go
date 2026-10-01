@@ -37,8 +37,9 @@ func run(ctx context.Context, args []string, out, errout io.Writer) int {
 		if *root == "" || *artifact == "" || *path != "" || *digest != "" || *request != "" {
 			return fail(fmt.Errorf("build requires only root and artifact"))
 		}
-		raw, e := doccorpus.ReadCorpusFile(*root, *artifact)
-		if e != nil {
+		// Assign the outer error: a shadowed producer error must never exit zero.
+		var raw []byte
+		if raw, e = doccorpus.ReadCorpusFile(*root, *artifact); e != nil {
 			return fail(e)
 		}
 		data, e = corpusindex.Build(ctx, *root, raw)
@@ -46,21 +47,21 @@ func run(ctx context.Context, args []string, out, errout io.Writer) int {
 		if *root != "" || *artifact != "" || *path == "" || *digest == "" || *request == "" {
 			return fail(fmt.Errorf("read requires only index, sha256 and request"))
 		}
-		raw, e := corpusindex.ReadFile(*path, corpusindex.MaxBytes)
-		if e != nil {
-			return fail(e)
+		raw, err := corpusindex.ReadFile(*path, corpusindex.MaxBytes)
+		if err != nil {
+			return fail(err)
 		}
-		r, e := corpusindex.Open(ctx, raw, *digest)
-		if e != nil {
-			return fail(e)
+		r, err := corpusindex.Open(ctx, raw, *digest)
+		if err != nil {
+			return fail(err)
 		}
 		limit := int64(doccorpus.MaxCorpusBytes)
 		if *mode == "query" {
 			limit = 16 << 10
 		}
-		input, e := corpusindex.ReadFile(*request, limit)
-		if e != nil {
-			return fail(e)
+		input, err := corpusindex.ReadFile(*request, limit)
+		if err != nil {
+			return fail(err)
 		}
 		switch *mode {
 		case "query":
