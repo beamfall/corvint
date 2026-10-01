@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="JUnit Vintage" tests="1" skipped="0" failures="1" errors="0" time="0.023" hostname="fixture-host" timestamp="2026-10-01T07:00:40">
+<properties/>
+<testcase name="criterion" classname="ClassicTest" time="0.005">
+<failure message="CEM_EXPECTED: wrong value expected:&lt;1&gt; but was:&lt;2&gt;" type="java.lang.AssertionError"><![CDATA[java.lang.AssertionError: CEM_EXPECTED: wrong value expected:<1> but was:<2>
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.failNotEquals(Assert.java:835)
+	at org.junit.Assert.assertEquals(Assert.java:647)
+	at ClassicTest.criterion(ClassicTest.java:3)
+]]></failure>
+<system-out><![CDATA[
+unique-id: [engine:junit-vintage]/[runner:ClassicTest]/[test:criterion(ClassicTest)]
+display-name: JUnit Vintage > ClassicTest > criterion
+]]></system-out>
+</testcase>
+<system-out><![CDATA[
+unique-id: [engine:junit-vintage]
+display-name: JUnit Vintage
+]]></system-out>
+</testsuite>

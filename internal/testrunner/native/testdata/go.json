@@ -1,0 +1,18 @@
+{"Time":"2026-10-01T07:10:35.897172-04:00","Action":"start","Package":"example.com/nativeprobe"}
+{"Time":"2026-10-01T07:10:36.10066-04:00","Action":"run","Package":"example.com/nativeprobe","Test":"TestPass"}
+{"Time":"2026-10-01T07:10:36.100712-04:00","Action":"output","Package":"example.com/nativeprobe","Test":"TestPass","Output":"=== RUN   TestPass\n","OutputType":"frame"}
+{"Time":"2026-10-01T07:10:36.100755-04:00","Action":"output","Package":"example.com/nativeprobe","Test":"TestPass","Output":"--- PASS: TestPass (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-01T07:10:36.10077-04:00","Action":"pass","Package":"example.com/nativeprobe","Test":"TestPass","Elapsed":0}
+{"Time":"2026-10-01T07:10:36.10078-04:00","Action":"run","Package":"example.com/nativeprobe","Test":"TestFail"}
+{"Time":"2026-10-01T07:10:36.100784-04:00","Action":"output","Package":"example.com/nativeprobe","Test":"TestFail","Output":"=== RUN   TestFail\n","OutputType":"frame"}
+{"Time":"2026-10-01T07:10:36.100788-04:00","Action":"output","Package":"example.com/nativeprobe","Test":"TestFail","Output":"    probe_test.go:4: deliberate\n","OutputType":"error"}
+{"Time":"2026-10-01T07:10:36.100794-04:00","Action":"output","Package":"example.com/nativeprobe","Test":"TestFail","Output":"--- FAIL: TestFail (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-01T07:10:36.100798-04:00","Action":"fail","Package":"example.com/nativeprobe","Test":"TestFail","Elapsed":0}
+{"Time":"2026-10-01T07:10:36.100801-04:00","Action":"run","Package":"example.com/nativeprobe","Test":"TestSkip"}
+{"Time":"2026-10-01T07:10:36.100813-04:00","Action":"output","Package":"example.com/nativeprobe","Test":"TestSkip","Output":"=== RUN   TestSkip\n","OutputType":"frame"}
+{"Time":"2026-10-01T07:10:36.100816-04:00","Action":"output","Package":"example.com/nativeprobe","Test":"TestSkip","Output":"    probe_test.go:5: deliberate\n"}
+{"Time":"2026-10-01T07:10:36.100825-04:00","Action":"output","Package":"example.com/nativeprobe","Test":"TestSkip","Output":"--- SKIP: TestSkip (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-01T07:10:36.100828-04:00","Action":"skip","Package":"example.com/nativeprobe","Test":"TestSkip","Elapsed":0}
+{"Time":"2026-10-01T07:10:36.100832-04:00","Action":"output","Package":"example.com/nativeprobe","Output":"FAIL\n","OutputType":"frame"}
+{"Time":"2026-10-01T07:10:36.101176-04:00","Action":"output","Package":"example.com/nativeprobe","Output":"FAIL\texample.com/nativeprobe\t0.204s\n","OutputType":"frame"}
+{"Time":"2026-10-01T07:10:36.101194-04:00","Action":"fail","Package":"example.com/nativeprobe","Elapsed":0.204}

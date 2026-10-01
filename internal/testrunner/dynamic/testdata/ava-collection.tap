@@ -1,0 +1,14 @@
+TAP version 13
+not ok 1 - Error: collection fixture
+  ---
+    name: Error
+    message: collection fixture
+    at: 'file:///private/tmp/cem10-build/dynamic/npm/ava-collection.test.mjs:1:7'
+  ...
+not ok 2 - ava-collection.test.mjs exited with a non-zero exit code: 1
+
+1..0
+# tests 0
+# pass 0
+# fail 2
+

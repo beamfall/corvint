@@ -1,0 +1,10 @@
+
+Test run summary: Zero tests ran - /private/tmp/cem10-build/mtp/mstest/bin/Debug/net10.0/Probe.dll (net10.0|arm64)
+  total: 0
+  failed: 0
+  succeeded: 0
+  skipped: 0
+  duration: 67ms
+  Out of process file artifacts produced:
+    - /private/tmp/cem10-build/mtp/mstest/zero/results.trx
+

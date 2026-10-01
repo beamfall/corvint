@@ -1,0 +1,25 @@
+failed Fail (12ms)
+  Assertion failed. Expected values to be equal.
+  MTP_ASSERTION
+  
+  expected: 2
+  actual:   1
+  
+  Assert.AreEqual(2, 1)
+  Expected
+    2
+  Actual
+    1
+    at MtpProbe.Probe.Fail() in /private/tmp/cem10-build/mtp/mstest/Probe.cs:1
+    at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+    at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+Test run summary: Failed! - /private/tmp/cem10-build/mtp/mstest/bin/Debug/net10.0/Probe.dll (net10.0|arm64)
+  total: 1
+  failed: 1
+  succeeded: 0
+  skipped: 0
+  duration: 110ms
+  Out of process file artifacts produced:
+    - /private/tmp/cem10-build/mtp/mstest/fail/results.trx
+

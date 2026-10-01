@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="62e0acf6-1f23-427c-b944-6be693ae1146" name="@Russells-Mac-Studio 2026-10-01 12:04:19.3264250" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-01T12:04:19.177251Z" queuing="2026-10-01T12:04:19.177251Z" start="2026-10-01T12:04:19.177251Z" finish="2026-10-01T12:04:19.326687Z" />
+  <TestSettings name="default" id="af4041f1-6a72-476e-9b8c-10239f89e3d2">
+    <Deployment runDeploymentRoot="_Russells-Mac-Studio_2026-10-01_12_04_19.3264250" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="90df9f49-7f8a-4502-b8aa-c2a50a6f60f2" testId="f7b86c1e-9d50-9886-048b-53eec02c82d5" testName="Skip" computerName="Russells-Mac-Studio" duration="00:00:00.0010580" startTime="2026-10-01T12:04:19.2997230+00:00" endTime="2026-10-01T12:04:19.3007550+00:00" testType="13CDC9D9-DDB5-4fa4-A97D-D965CCFC6D4B" outcome="NotExecuted" testListId="8C84FA94-04C1-424b-9868-57A2D4851A1D" relativeResultsDirectory="90df9f49-7f8a-4502-b8aa-c2a50a6f60f2">
+      <Output>
+        <StdOut>MTP_SKIP</StdOut>
+        <ErrorInfo>
+          <Message>MTP_SKIP</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="Skip" storage="/private/tmp/cem10-build/mtp/nunit/bin/debug/net10.0/probe.dll" id="f7b86c1e-9d50-9886-048b-53eec02c82d5">
+      <Execution id="90df9f49-7f8a-4502-b8aa-c2a50a6f60f2" />
+      <TestMethod codeBase="/private/tmp/cem10-build/mtp/nunit/bin/Debug/net10.0/Probe.dll" adapterTypeName="executor://NUnitExtension/6.3.0+b5a66c0f74e52257b3ec1e04abc3ef812a7e74d5" className="MtpProbe.Probe" name="Skip" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="f7b86c1e-9d50-9886-048b-53eec02c82d5" executionId="90df9f49-7f8a-4502-b8aa-c2a50a6f60f2" testListId="8C84FA94-04C1-424b-9868-57A2D4851A1D" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8C84FA94-04C1-424b-9868-57A2D4851A1D" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="1" executed="0" passed="0" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="1" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+  </ResultSummary>
+</TestRun>

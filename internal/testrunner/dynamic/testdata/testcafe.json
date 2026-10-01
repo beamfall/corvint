@@ -1,0 +1,49 @@
+{
+  "startTime": "2026-10-01T11:28:14.072Z",
+  "endTime": "2026-10-01T11:28:14.381Z",
+  "userAgents": [
+    "Chrome 154.0.0.0 / macOS 10.15.7"
+  ],
+  "passed": 1,
+  "total": 2,
+  "skipped": 1,
+  "fixtures": [
+    {
+      "name": "fixture",
+      "path": "/private/tmp/cem10-build/dynamic/browser-npm/testcafe.test.js",
+      "meta": {},
+      "tests": [
+        {
+          "name": "pass",
+          "meta": {},
+          "errs": [],
+          "durationMs": 133,
+          "unstable": false,
+          "screenshotPath": null,
+          "skipped": false
+        },
+        {
+          "name": "fail",
+          "meta": {},
+          "errs": [
+            "AssertionError: expected 1 to deeply equal 2\n\n+ expected - actual\n\n-1\n+2\n\n\nBrowser: Chrome 154.0.0.0 / macOS 10.15.7\n\n > 1 |fixture`fixture`.page`about:blank`;test(\"pass\", async t=>{await t.expect(1).eql(1)});test(\"fail\",async t=>{await t.expect(1).eql(2)});test.skip(\"skip\",async t=>{});\n   2 |\n\n   at <anonymous> (/private/tmp/cem10-build/dynamic/browser-npm/testcafe.test.js:1:126)\n   at asyncGeneratorStep (/private/tmp/cem10-build/dynamic/browser-npm/testcafe.test.js:1:81)\n   at _next (/private/tmp/cem10-build/dynamic/browser-npm/testcafe.test.js:1:330)\n   at <anonymous> (/private/tmp/cem10-build/dynamic/browser-npm/testcafe.test.js:1:461)\n   at <anonymous> (/private/tmp/cem10-build/dynamic/browser-npm/testcafe.test.js:1:260)\n   at <anonymous> (/private/tmp/cem10-build/dynamic/browser-npm/testcafe.test.js:1:133)"
+          ],
+          "durationMs": 91,
+          "unstable": false,
+          "screenshotPath": null,
+          "skipped": false
+        },
+        {
+          "name": "skip",
+          "meta": {},
+          "errs": [],
+          "durationMs": 0,
+          "unstable": false,
+          "screenshotPath": null,
+          "skipped": true
+        }
+      ]
+    }
+  ],
+  "warnings": []
+}

@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="35f74695-6bb6-43b6-8d49-73b7308dceb0" name="@Russells-Mac-Studio 2026-10-01 12:04:20.7663560" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-01T12:04:20.677638Z" queuing="2026-10-01T12:04:20.677638Z" start="2026-10-01T12:04:20.677638Z" finish="2026-10-01T12:04:20.766626Z" />
+  <TestSettings name="default" id="efa713d2-d88c-4c1a-b42a-4f5ed2020561">
+    <Deployment runDeploymentRoot="_Russells-Mac-Studio_2026-10-01_12_04_20.7663560" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="efc084cd-49bf-4f5c-85af-975b715a85d1" testId="18056bb1-ea11-850f-94d4-23ec458ffe3c" testName="Fail" computerName="Russells-Mac-Studio" duration="00:00:00.0122538" startTime="2026-10-01T12:04:20.7244810+00:00" endTime="2026-10-01T12:04:20.7540900+00:00" testType="13CDC9D9-DDB5-4fa4-A97D-D965CCFC6D4B" outcome="Failed" testListId="8C84FA94-04C1-424b-9868-57A2D4851A1D" relativeResultsDirectory="efc084cd-49bf-4f5c-85af-975b715a85d1">
+      <Output>
+        <ErrorInfo>
+          <Message>Assertion failed. Expected values to be equal.
+MTP_ASSERTION
+
+expected: 2
+actual:   1
+
+Assert.AreEqual(2, 1)</Message>
+          <StackTrace>   at MtpProbe.Probe.Fail() in /private/tmp/cem10-build/mtp/mstest/Probe.cs:line 1
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="Fail" storage="/private/tmp/cem10-build/mtp/mstest/bin/debug/net10.0/probe.dll" id="18056bb1-ea11-850f-94d4-23ec458ffe3c">
+      <Execution id="efc084cd-49bf-4f5c-85af-975b715a85d1" />
+      <TestMethod codeBase="/private/tmp/cem10-build/mtp/mstest/bin/Debug/net10.0/Probe.dll" adapterTypeName="executor://MSTest.Sdk/4.4.1" className="MtpProbe.Probe" name="Fail" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="18056bb1-ea11-850f-94d4-23ec458ffe3c" executionId="efc084cd-49bf-4f5c-85af-975b715a85d1" testListId="8C84FA94-04C1-424b-9868-57A2D4851A1D" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8C84FA94-04C1-424b-9868-57A2D4851A1D" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="1" executed="1" passed="0" failed="1" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <RunInfos>
+      <RunInfo computerName="Russells-Mac-Studio" outcome="Error" timestamp="2026-10-01T12:04:20.770524">
+        <Text>Exit code indicates failure: '2'. Please refer to https://aka.ms/testingplatform/exitcodes for more information.</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

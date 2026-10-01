@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="MatrixTest" time="0.097" tests="4" errors="1" skipped="1" failures="1" flakes="0">
+  <properties/>
+  <testcase name="fail" classname="MatrixTest" time="0.043">
+    <failure message="CEM_EXPECTED: wrong value ==&gt; expected: &lt;1&gt; but was: &lt;2&gt;" type="org.opentest4j.AssertionFailedError"><![CDATA[org.opentest4j.AssertionFailedError: CEM_EXPECTED: wrong value ==> expected: <1> but was: <2>
+	at org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:601)
+	at MatrixTest.fail(MatrixTest.java:4)
+]]></failure>
+  </testcase>
+  <testcase name="pass" classname="MatrixTest" time="0.004"/>
+  <testcase name="skip" classname="MatrixTest" time="0.0">
+    <skipped message="not available"/>
+  </testcase>
+  <testcase name="error" classname="MatrixTest" time="0.002">
+    <error message="CEM_EXPECTED: not an assertion" type="java.lang.IllegalStateException"><![CDATA[java.lang.IllegalStateException: CEM_EXPECTED: not an assertion
+	at MatrixTest.error(MatrixTest.java:6)
+]]></error>
+  </testcase>
+</testsuite>

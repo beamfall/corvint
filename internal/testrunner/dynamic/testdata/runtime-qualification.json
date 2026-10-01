@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-01",
+  "cypress": {
+    "version": "16.1.1",
+    "platform": "macOS arm64",
+    "nodeVersion": "22.23.3",
+    "chromeVersion": "154.0.8037.59",
+    "pins": {
+      "tools": {
+        "node": {
+          "executable": "/opt/homebrew/Cellar/node@22/22.23.3/bin/node",
+          "sha256": "0c61847de20184ae3f35c24be3a79682e25fccccccbcbd316b7e224e24fa8637"
+        },
+        "cypress-binary": {
+          "executable": "/private/tmp/cem10-build/dynamic/cypress-cache/16.1.1/Cypress.app/Contents/MacOS/Cypress",
+          "sha256": "3e66d4cbb3bb192ab8e8b9f7328b1241d42f63ab0d91789774b84f358614cd40"
+        },
+        "chrome": {
+          "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+          "sha256": "4e0c9634bbafc4007a5d5d72cfcb7101fda2ac519daf7cf2beefcbbed4136361"
+        },
+        "arch": {
+          "executable": "/usr/bin/arch",
+          "sha256": "21fd6ebd8342825a89fc5756719abc344e3cc05edc764ca239fa91777e801ec0"
+        }
+      },
+      "launcherSha256": "b4ea5261164ba193503f6875819842841b40fee11e2432e2fd13696df86e67b9",
+      "packageLockSha256": "08e23b698faada69e20f95a0bdd74d952d3062694d2e58719c6a57eb12d424c7",
+      "cypressVersion": "16.1.1",
+      "nodeVersion": "22.23.3"
+    },
+    "mixed": {
+      "exitCode": 1,
+      "complete": true,
+      "passed": 1,
+      "failed": 1,
+      "skipped": 1,
+      "flaky": 1,
+      "retryAttempts": 2
+    },
+    "collection": {
+      "exitCode": 1,
+      "complete": false,
+      "problem": "collection-error",
+      "nativeMetadata": "root test, no invocationDetails.absoluteFile, invocationDetails.fileUrl under /__cypress/runner/"
+    },
+    "transport": "fixed Cypress profile via common executor; task-only pinned launcher sets task cache and binary paths",
+    "reporterSha256": "40d645483c318ae348b21f87e02b7f4dafb7a5a55198c6d8652496318e20d4f4",
+    "receiptSha256": {
+      "mixed": "f2e825db05fd8d64beec8880c9131b7a7e8d4a08f0d50e463339e7b603125a9d",
+      "collection": "a78fcb06960f08d202cd885de4851468008b225123bbf631fd03305baf27e72a"
+    }
+  },
+  "rails": {
+    "ruby": "3.4.11",
+    "rails": "8.1.4",
+    "minitest": "6.0.6",
+    "platform": "linux arm64 (isolated container)",
+    "baseImage": "ruby@sha256:246b2dc3f6e40bba3af18503c22997a34dbb27c9f97e198dde6dd727895115c5",
+    "qualificationImage": "sha256:9c84b5b56e051bab0fddefbbfab059a933b9465b2431c52ee2113d3ca22f7aa1",
+    "gemInventorySha256": "8d094166fbcbecc28a37e5c493c87d00b4fa6976897acae4abbc3da48fbbf29b",
+    "mixed": {
+      "exitCode": 1,
+      "complete": true,
+      "passed": 2,
+      "failed": 1,
+      "skipped": 1,
+      "actualBehavior": "Rails application initialize and real integration HTTP GET /health"
+    },
+    "collection": {
+      "exitCode": 1,
+      "complete": false,
+      "problem": "missing-report"
+    },
+    "transport": "fixed rails-test profile via common executor in network-disabled container",
+    "receiptSha256": {
+      "mixed": "7f7d949396569bba5bbaa1ed5b59dcd403608bb69a2f55fd4f7da763d804ad05",
+      "collection": "20402abcef0a62f2b20660c2f551b30de31dd92328d6b75518a1bca172d23023"
+    }
+  },
+  "dependencyClosure": "NOT_OBSERVED",
+  "limits": [
+    "Exact local versions and fixture scenarios only",
+    "No external application adequacy or complete dependency attestation",
+    "Detox existing task-local app/device profile absent; not executed"
+  ]
+}

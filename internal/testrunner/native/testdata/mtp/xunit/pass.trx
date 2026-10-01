@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="9e8509f3-ca8c-4d39-abff-11c6abbf5ef3" name="@Russells-Mac-Studio 2026-10-01 12:04:22.1922270" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-01T12:04:22.042171Z" queuing="2026-10-01T12:04:22.042171Z" start="2026-10-01T12:04:22.042171Z" finish="2026-10-01T12:04:22.192483Z" />
+  <TestSettings name="default" id="7f8eb8d1-7190-4be1-b46e-c1e25d77d1c1">
+    <Deployment runDeploymentRoot="_Russells-Mac-Studio_2026-10-01_12_04_22.1922270" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="fa03c396-2e77-4f22-be70-ead55d8d4a81" testId="87b57563-2697-258b-1fa0-70f4b932c821" testName="MtpProbe.Probe.Pass" computerName="Russells-Mac-Studio" duration="00:00:00.0070000" startTime="2026-10-01T12:04:22.1537060+00:00" endTime="2026-10-01T12:04:22.1672080+00:00" testType="13CDC9D9-DDB5-4fa4-A97D-D965CCFC6D4B" outcome="Passed" testListId="8C84FA94-04C1-424b-9868-57A2D4851A1D" relativeResultsDirectory="fa03c396-2e77-4f22-be70-ead55d8d4a81" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="MtpProbe.Probe.Pass" storage="/private/tmp/cem10-build/mtp/xunit/bin/debug/net10.0/probe.dll" id="87b57563-2697-258b-1fa0-70f4b932c821">
+      <Execution id="fa03c396-2e77-4f22-be70-ead55d8d4a81" />
+      <TestMethod codeBase="/private/tmp/cem10-build/mtp/xunit/bin/Debug/net10.0/Probe.dll" adapterTypeName="executor://30ea7c6e-dd24-4152-a360-1387158cd41d/4.0.1" className="MtpProbe.Probe" name="Pass" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="87b57563-2697-258b-1fa0-70f4b932c821" executionId="fa03c396-2e77-4f22-be70-ead55d8d4a81" testListId="8C84FA94-04C1-424b-9868-57A2D4851A1D" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8C84FA94-04C1-424b-9868-57A2D4851A1D" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="1" executed="1" passed="1" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+  </ResultSummary>
+</TestRun>

@@ -1,0 +1,1 @@
+{"Profile":"corvint-test-unit/0","Complete":true,"Count":3,"Tests":[{"ID":"test_fail(Sample)","Name":"test_fail(Sample)","State":"FAILED"},{"ID":"test_pass(Sample)","Name":"test_pass(Sample)","State":"PASSED"},{"ID":"test_skip(Sample)","Name":"test_skip(Sample)","State":"SKIPPED"}],"Problems":[]}

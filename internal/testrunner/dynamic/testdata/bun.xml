@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="bun test" tests="3" assertions="2" failures="1" skipped="1" time="0.080171">
+  <testsuite name="/private/tmp/cem10-build/dynamic/sample_bun.test.ts" file="/private/tmp/cem10-build/dynamic/sample_bun.test.ts" tests="3" assertions="2" failures="1" skipped="1" time="0.001" hostname="Russells-Mac-Studio.local">
+    <testcase name="pass" classname="" time="0.000606" file="/private/tmp/cem10-build/dynamic/sample_bun.test.ts" line="1" assertions="1" />
+    <testcase name="fail" classname="" time="0.001221" file="/private/tmp/cem10-build/dynamic/sample_bun.test.ts" line="1" assertions="1">
+      <failure type="AssertionError" />
+    </testcase>
+    <testcase name="skip" classname="" time="0" file="/private/tmp/cem10-build/dynamic/sample_bun.test.ts" line="1" assertions="0">
+      <skipped />
+    </testcase>
+  </testsuite>
+</testsuites>

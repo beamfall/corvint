@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="3" time="0.12" errors="0" failures="1" name="shell-proof">
+  <testsuite id="0" tests="3" errors="0" failures="1" skipped="1" name="matrix_spec.sh" hostname="fixture-host" timestamp="2026-10-01T11:02:03">
+    <testcase time="0" classname="matrix_spec.sh" name="criterion matrix passes">
+      <system-out><![CDATA[hello
+]]></system-out>
+      <system-err></system-err>
+    </testcase>
+    <testcase time="0" classname="matrix_spec.sh" name="criterion matrix fails">
+      <failure message="The output should equal wrong"><![CDATA[expected: "wrong"
+     got: "hello"
+
+# matrix_spec.sh:8]]></failure>
+      <system-out><![CDATA[hello
+]]></system-out>
+      <system-err></system-err>
+    </testcase>
+    <testcase time="0" classname="matrix_spec.sh" name="criterion matrix skips">
+      <skip message="not available" />
+      <system-out></system-out>
+      <system-err></system-err>
+    </testcase>
+  </testsuite>
+</testsuites>

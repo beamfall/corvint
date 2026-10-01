@@ -1,0 +1,15 @@
+Test Suite 'Selected tests' started at 2026-10-01 08:08:05.179.
+Test Suite 'ProofTests.xctest' started at 2026-10-01 08:08:05.180.
+Test Suite 'SetupFailure' started at 2026-10-01 08:08:05.180.
+Test Case '-[ProofTests.SetupFailure testWouldPass]' started.
+/fixture/swift-xctest-proof/Tests/ProofTests/SetupFailure.swift:3: error: -[ProofTests.SetupFailure testWouldPass] : failed: caught error: "Error Domain=FixtureSetup Code=2 "(null)""
+<unknown>:0: -[ProofTests.SetupFailure testWouldPass] : Test skipped: threw error "The operation couldn’t be completed. (FixtureSetup error 2.)"
+Test Case '-[ProofTests.SetupFailure testWouldPass]' failed (0.077 seconds).
+Test Suite 'SetupFailure' failed at 2026-10-01 08:08:05.257.
+	 Executed 1 test, with 1 test skipped and 1 failure (1 unexpected) in 0.077 (0.077) seconds
+Test Suite 'ProofTests.xctest' failed at 2026-10-01 08:08:05.257.
+	 Executed 1 test, with 1 test skipped and 1 failure (1 unexpected) in 0.077 (0.077) seconds
+Test Suite 'Selected tests' failed at 2026-10-01 08:08:05.257.
+	 Executed 1 test, with 1 test skipped and 1 failure (1 unexpected) in 0.077 (0.078) seconds
+Note: Some test targets reported failures:
+  - ProofTests (XCTest)

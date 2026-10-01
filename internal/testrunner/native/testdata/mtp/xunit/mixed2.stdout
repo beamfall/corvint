@@ -1,0 +1,17 @@
+skipped MtpProbe.Probe.Skip (0ms)
+  MTP_SKIP
+failed MtpProbe.Probe.Fail (7ms)
+  MTP_ASSERTION
+    at MtpProbe.Probe.Fail() in /private/tmp/cem10-build/mtp/xunit/Probe.cs:1
+    at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+    at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+Test run summary: Failed! - /private/tmp/cem10-build/mtp/xunit/bin/Debug/net10.0/Probe.dll (net10.0|arm64)
+  total: 3
+  failed: 1
+  succeeded: 1
+  skipped: 1
+  duration: 175ms
+  Out of process file artifacts produced:
+    - /private/tmp/cem10-build/mtp/xunit/mixed2/results.trx
+

@@ -1,0 +1,27 @@
+NUnit Adapter 6.3.0.0: Test execution started
+Running all tests in /private/tmp/cem10-build/mtp/nunit/bin/Debug/net10.0/Probe.dll
+   NUnit3TestExecutor discovered 3 of 3 NUnit test cases using Current Discovery mode, Non-Explicit run
+Skip: MTP_SKIP
+failed Fail (15ms)
+    MTP_ASSERTION
+  Assert.That(1, Is.EqualTo(2))
+    Expected: 2
+    But was:  1
+  
+    at MtpProbe.Probe.Fail() in /private/tmp/cem10-build/mtp/nunit/Probe.cs:1
+    
+    1)    at MtpProbe.Probe.Fail() in /private/tmp/cem10-build/mtp/nunit/Probe.cs:line 1
+    
+    
+skipped Skip (0ms)
+  MTP_SKIP
+
+Test run summary: Failed! - /private/tmp/cem10-build/mtp/nunit/bin/Debug/net10.0/Probe.dll (net10.0|arm64)
+  total: 3
+  failed: 1
+  succeeded: 1
+  skipped: 1
+  duration: 183ms
+  Out of process file artifacts produced:
+    - /private/tmp/cem10-build/mtp/nunit/mixed2/results.trx
+

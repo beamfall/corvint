@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="MatrixTest" tests="4" skipped="1" failures="2" errors="0" timestamp="2026-10-01T11:31:45.200Z" hostname="fixture-host" time="0.022">
+  <properties/>
+  <testcase name="fail()" classname="MatrixTest" time="0.01">
+    <failure message="org.opentest4j.AssertionFailedError: CEM_EXPECTED: wrong value ==&gt; expected: &lt;1&gt; but was: &lt;2&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: CEM_EXPECTED: wrong value ==&gt; expected: &lt;1&gt; but was: &lt;2&gt;
+	at org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:601)
+	at MatrixTest.fail(MatrixTest.java:4)
+</failure>
+  </testcase>
+  <testcase name="pass()" classname="MatrixTest" time="0.002"/>
+  <testcase name="skip()" classname="MatrixTest" time="0.001">
+    <skipped/>
+  </testcase>
+  <testcase name="error()" classname="MatrixTest" time="0.002">
+    <failure message="java.lang.IllegalStateException: CEM_EXPECTED: not an assertion" type="java.lang.IllegalStateException">java.lang.IllegalStateException: CEM_EXPECTED: not an assertion
+	at MatrixTest.error(MatrixTest.java:6)
+</failure>
+  </testcase>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

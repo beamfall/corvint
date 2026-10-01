@@ -1,0 +1,26 @@
+NUnit Adapter 6.3.0.0: Test execution started
+Running selected tests in /private/tmp/cem10-build/mtp/nunit/bin/Debug/net10.0/Probe.dll
+   NUnit3TestExecutor discovered 1 of 1 NUnit test cases using Current Discovery mode, Non-Explicit run
+Setup failed for test fixture MtpProbe.InfrastructureProbe
+SetUp : System.InvalidOperationException : MTP_SETUP
+StackTrace: --SetUp
+   at MtpProbe.InfrastructureProbe.Setup() in /private/tmp/cem10-build/mtp/nunit/Infrastructure.cs:line 1
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+failed Blocked (11ms)
+  OneTimeSetUp: SetUp : System.InvalidOperationException : MTP_SETUP
+    --SetUp
+    at MtpProbe.InfrastructureProbe.Setup() in /private/tmp/cem10-build/mtp/nunit/Infrastructure.cs:1
+    at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+    at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+    
+
+Test run summary: Failed! - /private/tmp/cem10-build/mtp/nunit/bin/Debug/net10.0/Probe.dll (net10.0|arm64)
+  total: 1
+  failed: 1
+  succeeded: 0
+  skipped: 0
+  duration: 301ms
+  Out of process file artifacts produced:
+    - /private/tmp/cem10-build/mtp/nunit/infra/results.trx
+

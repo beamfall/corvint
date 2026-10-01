@@ -1,0 +1,18 @@
+failed MtpProbe.InfrastructureProbe.Blocked (0ms)
+  Xunit.MicrosoftTestingPlatform.XunitException: Class fixture type 'MtpProbe.BrokenFixture' threw in its constructor
+  ---- System.InvalidOperationException : MTP_SETUP
+    
+    ----- Inner Stack Trace -----
+    at MtpProbe.BrokenFixture..ctor() in /private/tmp/cem10-build/mtp/xunit/Infrastructure.cs:1
+    at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Constructor(Object obj, IntPtr* args)
+    at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+Test run summary: Failed! - /private/tmp/cem10-build/mtp/xunit/bin/Debug/net10.0/Probe.dll (net10.0|arm64)
+  total: 1
+  failed: 1
+  succeeded: 0
+  skipped: 0
+  duration: 188ms
+  Out of process file artifacts produced:
+    - /private/tmp/cem10-build/mtp/xunit/infra/results.trx
+

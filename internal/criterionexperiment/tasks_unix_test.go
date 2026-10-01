@@ -59,6 +59,7 @@ func TestTasksCancellationRetiresDescendant(t *testing.T) {
 		t.Fatal(e)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	done := make(chan error, 1)
 	go func() { _, e := tasksResult(ctx, "", TasksVerifierConfig{exe, Digest(raw)}, "verify", nil); done <- e }()
 	var pid int
@@ -85,7 +86,13 @@ func TestTasksCancellationRetiresDescendant(t *testing.T) {
 	if pid == 0 {
 		t.Fatal("descendant did not start")
 	}
-	if e := syscall.Kill(pid, 0); e != syscall.ESRCH {
-		t.Fatalf("descendant still present: %v", e)
+	// Descendant exit and reaping may finish after the transport's leader wait.
+	deadline = time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if syscall.Kill(pid, 0) == syscall.ESRCH {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
+	t.Fatal("descendant survived interruption")
 }

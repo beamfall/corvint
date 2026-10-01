@@ -1,0 +1,73 @@
+{
+  "runner": "WebdriverIO9.32.0 Appium3.8.0 UiAutomator2 8.7.0",
+  "source": "actual fixed Build/Execute/Parse/Normalize",
+  "device": "task-owned emulator-5580 Android14 API34 AOSP ATD arm64",
+  "cases": [
+    {
+      "name": "mixed",
+      "receipt": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/appium-evidence-2341929600/mixed.json",
+      "sha256": "9f8527f8e2603297db768092b939d8644a948a3aea286142542d2adec778a4a4",
+      "complete": true,
+      "states": [
+        "PASSED",
+        "FAILED",
+        "SKIPPED"
+      ],
+      "parseError": "",
+      "nativeReportSha256": "8876136378274b511bbeb4c32d15d32e8ae281fd749755850af48765638b8566"
+    },
+    {
+      "name": "pass",
+      "receipt": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/appium-evidence-2341929600/pass.json",
+      "sha256": "1946e57785ffd96263f41ef8f5825cc051c90ddf10e29cc5b0d149b60c1a86a8",
+      "complete": true,
+      "states": [
+        "PASSED"
+      ],
+      "parseError": "",
+      "nativeReportSha256": "4897f2ce4e1667b192356b2aafcc6b8cc272b1249eecabf4deca563fff7df44d"
+    },
+    {
+      "name": "skip",
+      "receipt": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/appium-evidence-2341929600/skip.json",
+      "sha256": "8942e5382bd6517d7eecf7726e4780dd4c5a38dbed2ba7e554e3b928c8997822",
+      "complete": true,
+      "states": [
+        "SKIPPED"
+      ],
+      "parseError": "",
+      "nativeReportSha256": "b7ac19ad05aa6eb54dc75190e7dcc65fadfa9a5817aa2698b47f4433edbb261c"
+    },
+    {
+      "name": "zero",
+      "receipt": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/appium-evidence-2341929600/zero.json",
+      "sha256": "50ebf08c84e6076b4666d293a453d8877dfd9e24f7288af2e0d2bc6ee00b6cc1",
+      "complete": false,
+      "states": [],
+      "parseError": "native report lacks qualified Appium Android emulator/session identity",
+      "nativeReportSha256": "67f2418ca604cf5d564a4157e234db0370f1964627e21feace1d7523464032b6"
+    },
+    {
+      "name": "setup",
+      "receipt": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/appium-evidence-2341929600/setup.json",
+      "sha256": "a95cb4a975210563cc287f236fc973889ea940903a3ec111c174493916603b0d",
+      "complete": false,
+      "states": [],
+      "parseError": "",
+      "nativeReportSha256": "ebad0dc86448d190dd57b4dc3c6d4b38bcf6cafae03f39dfd96f0298f4f8118c"
+    },
+    {
+      "name": "collection",
+      "receipt": "/private/var/folders/zc/wb4tdm4x0c9dpkmkn8rdg9rw0000gn/T/appium-evidence-2341929600/collection.json",
+      "sha256": "8df1f232c122a9a55ebe69ec1bf0d7dd1a7a4b4325484238e25b4f5cfba50577",
+      "complete": false,
+      "states": [],
+      "parseError": "",
+      "nativeReportSha256": "000937ab23785f5d8334a7629ebee24be307d656c26a7db2bbcbcbfdd228651b"
+    }
+  ],
+  "limits": [
+    "Experimental native tuple only",
+    "No device authority or dependency closure claim"
+  ]
+}

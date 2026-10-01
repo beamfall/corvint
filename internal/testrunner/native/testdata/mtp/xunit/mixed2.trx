@@ -1,0 +1,56 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="a4fd83fa-58b4-4595-80af-107f21ab96c9" name="@Russells-Mac-Studio 2026-10-01 12:03:22.1138190" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-01T12:03:21.959242Z" queuing="2026-10-01T12:03:21.959242Z" start="2026-10-01T12:03:21.959242Z" finish="2026-10-01T12:03:22.114061Z" />
+  <TestSettings name="default" id="d6233959-c020-4aa1-83ce-80638c47ccff">
+    <Deployment runDeploymentRoot="_Russells-Mac-Studio_2026-10-01_12_03_22.1138190" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="1a1c2119-7cae-4432-972c-33a3dd8d8e4b" testId="5486cd49-0182-ef01-93ff-8d4a7a6ac98b" testName="MtpProbe.Probe.Skip" computerName="Russells-Mac-Studio" duration="00:00:00.0000000" startTime="2026-10-01T12:03:22.0665140+00:00" endTime="2026-10-01T12:03:22.0683920+00:00" testType="13CDC9D9-DDB5-4fa4-A97D-D965CCFC6D4B" outcome="NotExecuted" testListId="8C84FA94-04C1-424b-9868-57A2D4851A1D" relativeResultsDirectory="1a1c2119-7cae-4432-972c-33a3dd8d8e4b">
+      <Output>
+        <StdOut>MTP_SKIP</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="4e0999f9-0fec-4b73-b7fb-2d9bc2ea0075" testId="900d4552-1a2c-e607-e702-85044a81b18b" testName="MtpProbe.Probe.Fail" computerName="Russells-Mac-Studio" duration="00:00:00.0070000" startTime="2026-10-01T12:03:22.0716880+00:00" endTime="2026-10-01T12:03:22.0905090+00:00" testType="13CDC9D9-DDB5-4fa4-A97D-D965CCFC6D4B" outcome="Failed" testListId="8C84FA94-04C1-424b-9868-57A2D4851A1D" relativeResultsDirectory="4e0999f9-0fec-4b73-b7fb-2d9bc2ea0075">
+      <Output>
+        <ErrorInfo>
+          <Message>MTP_ASSERTION</Message>
+          <StackTrace>   at MtpProbe.Probe.Fail() in /private/tmp/cem10-build/mtp/xunit/Probe.cs:line 1
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="5756e350-2016-4442-b541-8a5796b8b9e4" testId="87b57563-2697-258b-1fa0-70f4b932c821" testName="MtpProbe.Probe.Pass" computerName="Russells-Mac-Studio" duration="00:00:00.0020000" startTime="2026-10-01T12:03:22.0908210+00:00" endTime="2026-10-01T12:03:22.0931520+00:00" testType="13CDC9D9-DDB5-4fa4-A97D-D965CCFC6D4B" outcome="Passed" testListId="8C84FA94-04C1-424b-9868-57A2D4851A1D" relativeResultsDirectory="5756e350-2016-4442-b541-8a5796b8b9e4" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="MtpProbe.Probe.Skip" storage="/private/tmp/cem10-build/mtp/xunit/bin/debug/net10.0/probe.dll" id="5486cd49-0182-ef01-93ff-8d4a7a6ac98b">
+      <Execution id="1a1c2119-7cae-4432-972c-33a3dd8d8e4b" />
+      <TestMethod codeBase="/private/tmp/cem10-build/mtp/xunit/bin/Debug/net10.0/Probe.dll" adapterTypeName="executor://30ea7c6e-dd24-4152-a360-1387158cd41d/4.0.1" className="MtpProbe.Probe" name="Skip" />
+    </UnitTest>
+    <UnitTest name="MtpProbe.Probe.Fail" storage="/private/tmp/cem10-build/mtp/xunit/bin/debug/net10.0/probe.dll" id="900d4552-1a2c-e607-e702-85044a81b18b">
+      <Execution id="4e0999f9-0fec-4b73-b7fb-2d9bc2ea0075" />
+      <TestMethod codeBase="/private/tmp/cem10-build/mtp/xunit/bin/Debug/net10.0/Probe.dll" adapterTypeName="executor://30ea7c6e-dd24-4152-a360-1387158cd41d/4.0.1" className="MtpProbe.Probe" name="Fail" />
+    </UnitTest>
+    <UnitTest name="MtpProbe.Probe.Pass" storage="/private/tmp/cem10-build/mtp/xunit/bin/debug/net10.0/probe.dll" id="87b57563-2697-258b-1fa0-70f4b932c821">
+      <Execution id="5756e350-2016-4442-b541-8a5796b8b9e4" />
+      <TestMethod codeBase="/private/tmp/cem10-build/mtp/xunit/bin/Debug/net10.0/Probe.dll" adapterTypeName="executor://30ea7c6e-dd24-4152-a360-1387158cd41d/4.0.1" className="MtpProbe.Probe" name="Pass" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="5486cd49-0182-ef01-93ff-8d4a7a6ac98b" executionId="1a1c2119-7cae-4432-972c-33a3dd8d8e4b" testListId="8C84FA94-04C1-424b-9868-57A2D4851A1D" />
+    <TestEntry testId="900d4552-1a2c-e607-e702-85044a81b18b" executionId="4e0999f9-0fec-4b73-b7fb-2d9bc2ea0075" testListId="8C84FA94-04C1-424b-9868-57A2D4851A1D" />
+    <TestEntry testId="87b57563-2697-258b-1fa0-70f4b932c821" executionId="5756e350-2016-4442-b541-8a5796b8b9e4" testListId="8C84FA94-04C1-424b-9868-57A2D4851A1D" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8C84FA94-04C1-424b-9868-57A2D4851A1D" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="3" executed="2" passed="1" failed="1" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="1" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <RunInfos>
+      <RunInfo computerName="Russells-Mac-Studio" outcome="Error" timestamp="2026-10-01T12:03:22.118408">
+        <Text>Exit code indicates failure: '2'. Please refer to https://aka.ms/testingplatform/exitcodes for more information.</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

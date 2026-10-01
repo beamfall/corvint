@@ -1,0 +1,16 @@
+NUnit Adapter 6.3.0.0: Test execution started
+Running selected tests in /private/tmp/cem10-build/mtp/nunit/bin/Debug/net10.0/Probe.dll
+   NUnit3TestExecutor discovered 1 of 1 NUnit test cases using Current Discovery mode, Non-Explicit run
+Skip: MTP_SKIP
+skipped Skip (1ms)
+  MTP_SKIP
+
+Test run summary: Passed! - /private/tmp/cem10-build/mtp/nunit/bin/Debug/net10.0/Probe.dll (net10.0|arm64)
+  total: 1
+  failed: 0
+  succeeded: 0
+  skipped: 1
+  duration: 169ms
+  Out of process file artifacts produced:
+    - /private/tmp/cem10-build/mtp/nunit/skip/results.trx
+

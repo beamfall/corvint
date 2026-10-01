@@ -1,0 +1,16 @@
+failed Blocked (0ms)
+  Class Initialization method MtpProbe.InfrastructureProbe.Setup threw exception. System.InvalidOperationException: MTP_SETUP.
+    at MtpProbe.InfrastructureProbe.Setup(TestContext c) in /private/tmp/cem10-build/mtp/mstest/Infrastructure.cs:1
+    at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+    at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+    
+
+Test run summary: Failed! - /private/tmp/cem10-build/mtp/mstest/bin/Debug/net10.0/Probe.dll (net10.0|arm64)
+  total: 1
+  failed: 1
+  succeeded: 0
+  skipped: 0
+  duration: 118ms
+  Out of process file artifacts produced:
+    - /private/tmp/cem10-build/mtp/mstest/infra/results.trx
+

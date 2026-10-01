@@ -1,0 +1,58 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="8137118c-0874-4575-b8c5-02ec1edfea3f" name="@Russells-Mac-Studio 2026-10-01 06:59:33" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-01T06:59:33.7365760-04:00" queuing="2026-10-01T06:59:33.7365760-04:00" start="2026-10-01T06:59:33.4002130-04:00" finish="2026-10-01T06:59:33.7391210-04:00" />
+  <TestSettings name="default" id="097758aa-02ff-4a38-9a0b-79e09011086a">
+    <Deployment runDeploymentRoot="_Russells-Mac-Studio_2026-10-01_06_59_33" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="01c338ca-b3c9-4f0e-8dc1-f68b592be539" testId="8488a01b-c617-f044-8c49-69fbd1d160af" testName="Pass" computerName="Russells-Mac-Studio" duration="00:00:00.0015813" startTime="2026-10-01T06:59:33.6549330-04:00" endTime="2026-10-01T06:59:33.6664040-04:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="01c338ca-b3c9-4f0e-8dc1-f68b592be539" />
+    <UnitTestResult executionId="bf19c2d3-cf03-4552-a850-a1beceb7bb29" testId="c8894cd4-c336-e1af-85eb-35d77a5c0f45" testName="Skip" computerName="Russells-Mac-Studio" startTime="2026-10-01T06:59:33.6764630-04:00" endTime="2026-10-01T06:59:33.6768060-04:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="bf19c2d3-cf03-4552-a850-a1beceb7bb29">
+      <Output>
+        <ErrorInfo>
+          <Message>deliberate</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="a01717ad-8500-42f5-be3f-f7c97dc951ed" testId="5c723b05-0167-fef7-e21f-8ad124d8b066" testName="Fail" computerName="Russells-Mac-Studio" duration="00:00:00.0076646" startTime="2026-10-01T06:59:33.6685320-04:00" endTime="2026-10-01T06:59:33.6764030-04:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a01717ad-8500-42f5-be3f-f7c97dc951ed">
+      <Output>
+        <ErrorInfo>
+          <Message>Assert.Fail failed. deliberate</Message>
+          <StackTrace>   at Probe.Fail() in /private/tmp/cem10-build/native/mstest/Probe.cs:line 2
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="Fail" storage="/private/tmp/cem10-build/native/mstest/bin/debug/net9.0/probe.dll" id="5c723b05-0167-fef7-e21f-8ad124d8b066">
+      <Execution id="a01717ad-8500-42f5-be3f-f7c97dc951ed" />
+      <TestMethod codeBase="/private/tmp/cem10-build/native/mstest/bin/Debug/net9.0/Probe.dll" adapterTypeName="executor://mstestadapter/v2" className="Probe" name="Fail" />
+    </UnitTest>
+    <UnitTest name="Pass" storage="/private/tmp/cem10-build/native/mstest/bin/debug/net9.0/probe.dll" id="8488a01b-c617-f044-8c49-69fbd1d160af">
+      <Execution id="01c338ca-b3c9-4f0e-8dc1-f68b592be539" />
+      <TestMethod codeBase="/private/tmp/cem10-build/native/mstest/bin/Debug/net9.0/Probe.dll" adapterTypeName="executor://mstestadapter/v2" className="Probe" name="Pass" />
+    </UnitTest>
+    <UnitTest name="Skip" storage="/private/tmp/cem10-build/native/mstest/bin/debug/net9.0/probe.dll" id="c8894cd4-c336-e1af-85eb-35d77a5c0f45">
+      <Execution id="bf19c2d3-cf03-4552-a850-a1beceb7bb29" />
+      <TestMethod codeBase="/private/tmp/cem10-build/native/mstest/bin/Debug/net9.0/Probe.dll" adapterTypeName="executor://mstestadapter/v2" className="Probe" name="Skip" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="8488a01b-c617-f044-8c49-69fbd1d160af" executionId="01c338ca-b3c9-4f0e-8dc1-f68b592be539" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c8894cd4-c336-e1af-85eb-35d77a5c0f45" executionId="bf19c2d3-cf03-4552-a850-a1beceb7bb29" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5c723b05-0167-fef7-e21f-8ad124d8b066" executionId="a01717ad-8500-42f5-be3f-f7c97dc951ed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="3" executed="2" passed="1" failed="1" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>Test 'Skip' was skipped in the test run.
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="(empty)"
+	tests="4"
+	failures="1"
+	disabled="1"
+	skipped="1"
+	hostname=""
+	time="0"
+	timestamp="2026-10-01T06:55:00"
+	>
+	<testcase name="pass" classname="pass" time="0.00319342" status="run">
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="fail" classname="fail" time="0.00286396" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="skip" classname="skip" time="0.00283225" status="notrun">
+		<skipped message="SKIP_RETURN_CODE=77"/>
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="disabled" classname="disabled" time="0" status="disabled">
+		<properties/>
+		<system-out>Disabled</system-out>
+	</testcase>
+</testsuite>
