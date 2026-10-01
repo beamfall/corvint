@@ -11,8 +11,10 @@ unbounded-reader floor. Full CI runs every declared package under the Landlock w
 ## How the declaration was derived
 
 The declaration is measured rather than inferred, in three passes. All three ran in a
-`golang:1.27.1` container with `--init`, with the repository mounted as a tmpfs snapshot of the
-committed tree.
+`golang:1.27.1` container with `--init`. The first derivation used a tmpfs snapshot of the committed
+tree that had no `.git`, with `GOFLAGS=-buildvcs=false`; the hosted run then showed why that was not
+CI's condition (see "Hosted-run finding" below), and the comparison was repeated in a real clone
+with `.git` under CI's settings.
 
 1. **Proposal.** Each root-locating package's tests ran under `strace -f`. Successful read opens
    under the root, outside the package's own directory, were bucketed into proposed entries. This
@@ -34,8 +36,10 @@ The proposal produced 106 candidate packages. Their outcomes were then compared:
 
   The traced proposal under-covered each of them, for example through reads by a child process or
   reads the trace could not resolve. They stay on the floor until each has a measured scope.
-- **Rejected because it fails anyway (1).** `tools/gate-ledger` fails
-  `TestGoTestKeysResolvedPackagesPerPackage` both confined and unconfined.
+- **Rejected because it failed anyway (1).** `tools/gate-ledger` failed
+  `TestGoTestKeysResolvedPackagesPerPackage` both confined and unconfined. The cause was this
+  change itself: the test's fixture copies the tool's sources and omitted the new `readscopes.go`.
+  The fixture now copies it; the package stays undeclared until it has its own measured scope.
 - **Declared (99).** The other 98, plus `internal/corpusindex`. The first unconfined run of
   `internal/corpusindex` missed the time budget of `TestIndexedCorpusCapacityQualification` under
   parallel load. A serial rerun gave identical outcomes in both modes: 36 tests, 0 skips.
@@ -60,6 +64,24 @@ does not handle REFER refuses every cross-directory reparenting. The wrapper the
 file's read access. `TestExecConfinedDeniesUndeclaredRepositoryReads_AFPV0023` covers three cases:
 a move within a granted tree, a hard link between granted trees, and a refused move out of a denied
 tree.
+
+## Hosted-run finding
+
+The first hosted full run failed in all four shards. Every confined failure was a nested `go build`
+(an adapter, fixture or CLI under test) reporting `error obtaining VCS status: exit status 128`:
+the ruleset denies the repository's `.git`, which is intended, because git reads are the unbounded
+class, and Go stamps VCS information by default. The derivation had masked this, because its
+snapshot had no `.git` and set `GOFLAGS=-buildvcs=false`. Granting `.git` would let a confined test
+read any committed content, so the wrapper instead appends `-buildvcs=false` to `GOFLAGS` for a
+confined test binary (`ConfinedEnv`); a `GOFLAGS` the test sets for its own child still wins.
+Shard 0 also failed `tools/gate-ledger`, unconfined, from the missing fixture file noted above.
+
+The comparison was then repeated for all 99 declared packages under CI's conditions: a full clone
+with `.git`, an empty `GOFLAGS` (stamping on when unconfined), `GOPROXY=off`, and the revised
+wrapper. All 99 gave identical per-test outcomes in both modes, 5179 outcomes with 33 skips. As in
+the first derivation, `internal/corpusindex` first failed only under parallel load, this time on
+the 1 GiB allocation ceiling of `TestIndexedCorpusCapacityQualification`; two serial reruns gave
+identical outcomes in both modes. The declaration and the replay below are therefore unchanged.
 
 ## Selection effect
 
