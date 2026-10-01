@@ -190,15 +190,19 @@ func smokeDocumentationCorpus(ctx context.Context, binary, root string) error {
 	if err != nil {
 		return err
 	}
+	return validateDocumentationCorpusSearch(stdout)
+}
+
+func validateDocumentationCorpusSearch(raw []byte) error {
 	var receipt struct {
 		Schema    string            `json:"schema"`
 		Operation string            `json:"operation"`
 		Results   []json.RawMessage `json:"results"`
 	}
-	if err := decodeClosedJSON(stdout, &receipt); err != nil {
+	if err := decodeClosedJSON(raw, &receipt); err != nil {
 		return err
 	}
-	if receipt.Schema != "corvint-corpus-receipt/1" || receipt.Operation != "search" || len(receipt.Results) == 0 {
+	if (receipt.Schema != "corvint-corpus-receipt/1" && receipt.Schema != "corvint-corpus-receipt/2") || receipt.Operation != "search" || len(receipt.Results) == 0 {
 		return fmt.Errorf("documentation corpus search returned no installed discovery result")
 	}
 	return nil

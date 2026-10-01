@@ -393,7 +393,9 @@ The result binds the archive SHA-256 and frozen Corvint commit/tree. Existing ou
   external Playwright receipt discovery, documentation-corpus discovery and work-queue observation
   on macOS amd64/arm64 and Linux amd64/arm64. macOS arm64 MUST PASS every row before assembly.
   Linux amd64 companion and installed workflows MUST remain `NOT_RUN` until executed on Linux;
-  cross-build success MUST NOT become installed-platform qualification.
+  cross-build success MUST NOT become installed-platform qualification. Documentation-corpus
+  discovery MUST accept only `corvint-corpus-receipt/1` or `corvint-corpus-receipt/2`, with operation
+  exactly `search` and at least one result; unsupported receipt profiles MUST fail qualification.
 - `PUB-V0-025`: The candidate installer MUST reverify the closed candidate, select only the exact
   host core archive and run its installed `--version` before atomically retaining it under the
   unique `<store>/corvint/<version>/<goos>-<goarch>` path. It MUST refuse an existing path and MUST

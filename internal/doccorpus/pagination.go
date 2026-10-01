@@ -4,6 +4,10 @@ import "sort"
 
 func recordID(value any) string {
 	switch x := value.(type) {
+	case NavigationSelector:
+		return x.ID
+	case DependencyEdge:
+		return x.Relation.ID
 	case Subject:
 		return x.ID
 	case Claim:
@@ -19,6 +23,10 @@ func recordID(value any) string {
 }
 func recordAnchors(value any) []Anchor {
 	switch x := value.(type) {
+	case NavigationSelector:
+		return []Anchor{x.Annotation}
+	case DependencyEdge:
+		return x.Relation.Evidence.Anchors
 	case Subject:
 		return x.Evidence.Anchors
 	case Claim:
@@ -51,6 +59,10 @@ func pageReceipt(a *Artifact, original Receipt, request Request) (Receipt, error
 	end := min(start+request.Limit, total)
 	for {
 		r := original
+		if original.Envelope != nil {
+			e := *original.Envelope
+			r.Envelope = &e
+		}
 		r.Capabilities = boundedCapabilities(a.Capabilities)
 		r.Offset = request.Offset
 		r.Results = original.Results[start:end]
@@ -66,6 +78,10 @@ func pageReceipt(a *Artifact, original Receipt, request Request) (Receipt, error
 		if len(r.Results) == 0 {
 			r.State = "empty"
 			r.Miss = "no-match"
+			if total > 0 {
+				r.Miss = "page-exhausted"
+				r.Meaning = "page exhausted"
+			}
 		}
 		unique := map[string]Anchor{}
 		for _, value := range r.Results {
@@ -91,6 +107,7 @@ func pageReceipt(a *Artifact, original Receipt, request Request) (Receipt, error
 		for _, key := range keys {
 			r.Citations = append(r.Citations, unique[key])
 		}
+		finalizeEnvelope(&r)
 		if _, err := Encode(r); err != nil {
 			if end-start > 1 {
 				end = start + (end-start)/2

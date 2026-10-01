@@ -8,7 +8,7 @@ const (
 	Schema         = "corvint-evidence-corpus/1"
 	ManifestSchema = "corvint-corpus-input/1"
 	ProviderSchema = "corvint-corpus-provider/1"
-	ReceiptSchema  = "corvint-corpus-receipt/1"
+	ReceiptSchema  = "corvint-corpus-receipt/2"
 	MaxBytes       = 4 << 20
 	MaxRecords     = 4096
 	MaxResults     = 256
@@ -192,6 +192,8 @@ type Gap struct {
 	Reason  string `json:"reason"`
 }
 type Artifact struct {
+	// RuntimeIndex is derived resident state, never evidence or serialized authority.
+	RuntimeIndex        *QueryIndex              `json:"-"`
 	Details             map[string]RecordDetails `json:"details,omitempty"`
 	ImportParity        []ImportParity           `json:"import_parity,omitempty"`
 	RestrictedSummaries []RestrictedSummary      `json:"restricted_summaries,omitempty"`
@@ -213,14 +215,18 @@ type Artifact struct {
 	SHA256              string                   `json:"sha256"`
 }
 type Request struct {
-	Offset    int    `json:"offset,omitempty"`
-	Operation string `json:"operation"`
-	Query     string `json:"query"`
-	ID        string `json:"id"`
-	Path      string `json:"path"`
-	Limit     int    `json:"limit"`
+	Retirement *RetirementPolicy `json:"retirement,omitempty"`
+	Offset     int               `json:"offset,omitempty"`
+	Operation  string            `json:"operation"`
+	Query      string            `json:"query"`
+	ID         string            `json:"id"`
+	Path       string            `json:"path"`
+	Limit      int               `json:"limit"`
 }
 type Receipt struct {
+	Envelope       *TrustEnvelope           `json:"trust_envelope,omitempty"`
+	Meaning        string                   `json:"meaning,omitempty"`
+	Selection      *TestRecommendation      `json:"test_selection,omitempty"`
 	Offset         int                      `json:"offset,omitempty"`
 	NextOffset     *int                     `json:"next_offset,omitempty"`
 	Details        map[string]RecordDetails `json:"details,omitempty"`

@@ -95,6 +95,9 @@ func Freshness(ctx context.Context, root string, a *Artifact) (string, []string,
 	return state, limits, nil
 }
 func CapabilityFor(operation string) string {
+	if cap := typedCapability(operation); cap != "" {
+		return cap
+	}
 	if operation == "inventory" {
 		return "info"
 	}
@@ -119,6 +122,17 @@ func (a *Artifact) HasCapability(name string) bool {
 // Query consumes an already validated artifact. Entry points must call Open;
 // pure callers can use the artifact returned by Build in the same operation.
 func Query(a *Artifact, request Request, freshness string, limitations []string) (Receipt, error) {
+	return QueryContext(context.Background(), a, request, freshness, limitations)
+}
+
+func QueryContext(ctx context.Context, a *Artifact, request Request, freshness string, limitations []string) (Receipt, error) {
+	if err := ctx.Err(); err != nil {
+		return Receipt{}, err
+	}
+	envelope, err := trustEnvelope(a, freshness, request.Retirement)
+	if err != nil {
+		return Receipt{}, err
+	}
 	if request.Limit == 0 {
 		request.Limit = 20
 	}
@@ -132,7 +146,7 @@ func Query(a *Artifact, request Request, freshness string, limitations []string)
 	if capability == "" {
 		return Receipt{}, fail("unknown corpus operation")
 	}
-	r := Receipt{Schema: ReceiptSchema, Operation: request.Operation, ArtifactSHA256: a.SHA256, Repository: a.Manifest.Repository, Tree: a.Tree, Trust: "generated", Freshness: freshness, State: "ready", Results: []any{}, Citations: []Anchor{}, Capabilities: a.Capabilities, Limitations: append([]string{}, limitations...)}
+	r := Receipt{Envelope: envelope, Schema: ReceiptSchema, Operation: request.Operation, ArtifactSHA256: a.SHA256, Repository: a.Manifest.Repository, Tree: a.Tree, Trust: "generated", Freshness: freshness, State: "ready", Results: []any{}, Citations: []Anchor{}, Capabilities: a.Capabilities, Limitations: append([]string{}, limitations...)}
 	if a.Schema == SchemaV2 {
 		r.Capabilities = boundedCapabilities(a.Capabilities)
 	}
@@ -144,6 +158,7 @@ func Query(a *Artifact, request Request, freshness string, limitations []string)
 				r.Limitations = append(r.Limitations, cap.Reason)
 			}
 		}
+		finalizeEnvelope(&r)
 		return r, nil
 	}
 	if freshness == "stale" {
@@ -173,10 +188,20 @@ func Query(a *Artifact, request Request, freshness string, limitations []string)
 		}
 		sort.Slice(r.Results, func(i, j int) bool { return recordID(r.Results[i]) < recordID(r.Results[j]) })
 	case "search":
-		search(a, request, &r)
+		if e := search(ctx, a, request, &r); e != nil {
+			return Receipt{}, e
+		}
 	case "get", "trace":
 		get(a, request.ID, &r)
 	case "locate":
+		if a.RuntimeIndex != nil {
+			for _, ref := range a.RuntimeIndex.Paths[request.Path] {
+				if ref.Kind == "subject" {
+					addRecord(&r, a.indexedRecord(ref))
+				}
+			}
+			break
+		}
 		for _, s := range a.Subjects {
 			if subjectPath(s, request.Path) {
 				r.Results = append(r.Results, s)
@@ -204,10 +229,39 @@ func Query(a *Artifact, request Request, freshness string, limitations []string)
 			}
 		}
 	case "gaps":
-		for _, g := range a.Gaps {
+		if a.RuntimeIndex == nil {
+			copy := *a
+			index, e := BuildQueryIndex(ctx, a)
+			if e != nil {
+				return Receipt{}, e
+			}
+			copy.RuntimeIndex = index
+			a = &copy
+		}
+		generated, e := typedGaps(ctx, a, freshness)
+		if e != nil {
+			return Receipt{}, e
+		}
+		for _, g := range append(append([]Gap{}, a.Gaps...), generated...) {
+			if err := ctx.Err(); err != nil {
+				return Receipt{}, err
+			}
 			if request.ID == "" || g.Subject == request.ID {
 				r.Results = append(r.Results, g)
 			}
+		}
+	case "concept", "claims", "flow", "dependencies", "recommend-tests", "navigation", "vocabulary", "intent":
+		if a.RuntimeIndex == nil {
+			copy := *a
+			index, e := BuildQueryIndex(ctx, a)
+			if e != nil {
+				return Receipt{}, e
+			}
+			copy.RuntimeIndex = index
+			a = &copy
+		}
+		if e := typedQuery(ctx, a, request, &r); e != nil {
+			return Receipt{}, e
 		}
 	case "coverage":
 		r.Results = append(r.Results, coverageMetrics(a)...)
@@ -217,6 +271,9 @@ func Query(a *Artifact, request Request, freshness string, limitations []string)
 		for _, cap := range a.Capabilities {
 			r.Results = append(r.Results, map[string]any{"capability": cap.Name, "value": cap.Count, "denominator": cap.Denominator, "definition": "emitted records per declared input; not a behavioral coverage percentage", "rule": cap.Rule, "revision": a.Manifest.Repository.Revision, "defined": cap.Denominator > 0, "limitations": []string{cap.Reason}})
 		}
+	}
+	if err := ctx.Err(); err != nil {
+		return Receipt{}, err
 	}
 	if a.Schema == SchemaV2 {
 		return pageReceipt(a, r, request)
@@ -266,6 +323,7 @@ func Query(a *Artifact, request Request, freshness string, limitations []string)
 		citations = citations[:MaxResults]
 	}
 	r.Citations = citations
+	finalizeEnvelope(&r)
 	if _, err := Encode(r); err != nil {
 		return Receipt{}, err
 	}
@@ -281,6 +339,32 @@ func subjectPath(s Subject, p string) bool {
 	return false
 }
 func get(a *Artifact, id string, r *Receipt) {
+	if x := a.RuntimeIndex; x != nil {
+		for _, s := range a.StabilityEvidence {
+			if s.ID == id || s.TestID == id || s.ContractID == id {
+				r.Results = append(r.Results, s)
+			}
+		}
+		if ref, ok := x.IDs[id]; ok {
+			addRecord(r, a.indexedRecord(ref))
+		}
+		for _, i := range x.Claims[id] {
+			addRecord(r, a.Claims[i])
+		}
+		if r.Operation == "trace" {
+			for _, i := range x.Edges[id] {
+				if a.Relations[i].ID != id {
+					addRecord(r, a.Relations[i])
+				}
+			}
+			for _, o := range a.Observations {
+				if o.Link.Subject == id {
+					addRecord(r, o)
+				}
+			}
+		}
+		return
+	}
 	for _, stability := range a.StabilityEvidence {
 		if stability.ID == id || stability.TestID == id || stability.ContractID == id {
 			r.Results = append(r.Results, stability)
@@ -332,8 +416,41 @@ func get(a *Artifact, id string, r *Receipt) {
 		}
 	}
 }
-func search(a *Artifact, request Request, r *Receipt) {
+func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error {
 	terms := contextindex.EvidenceTerms(request.Query)
+	if x := a.RuntimeIndex; x != nil {
+		scores := map[int]int{}
+		for term := range terms {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			for _, i := range x.Terms[term] {
+				scores[i]++
+			}
+		}
+		for i, s := range a.Subjects {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if strings.EqualFold(request.Query, s.Name) {
+				scores[i] += len(terms) + 1
+			}
+		}
+		ids := make([]int, 0, len(scores))
+		for i := range scores {
+			ids = append(ids, i)
+		}
+		sort.Slice(ids, func(i, j int) bool {
+			if scores[ids[i]] != scores[ids[j]] {
+				return scores[ids[i]] > scores[ids[j]]
+			}
+			return a.Subjects[ids[i]].ID < a.Subjects[ids[j]].ID
+		})
+		for _, i := range ids {
+			addRecord(r, a.Subjects[i])
+		}
+		return ctx.Err()
+	}
 	type ranked struct {
 		s     Subject
 		score int
@@ -341,9 +458,15 @@ func search(a *Artifact, request Request, r *Receipt) {
 	rankedSubjects := []ranked{}
 	claims := map[string][]string{}
 	for _, c := range a.Claims {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		claims[c.Subject] = append(claims[c.Subject], c.Text)
 	}
 	for _, s := range a.Subjects {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		text := s.Name + " " + s.ID
 		text += " " + strings.Join(claims[s.ID], " ")
 		words := contextindex.EvidenceTerms(text)
@@ -370,6 +493,7 @@ func search(a *Artifact, request Request, r *Receipt) {
 		r.Results = append(r.Results, item.s)
 		r.Citations = append(r.Citations, item.s.Evidence.Anchors...)
 	}
+	return ctx.Err()
 }
 
 func ReadQuery(ctx context.Context, root string, data []byte, request Request) (Receipt, error) {
@@ -381,7 +505,7 @@ func ReadQuery(ctx context.Context, root string, data []byte, request Request) (
 	if err != nil {
 		return Receipt{}, err
 	}
-	return Query(a, request, state, limits)
+	return QueryContext(ctx, a, request, state, limits)
 }
 
 func coverageMetrics(a *Artifact) []any {

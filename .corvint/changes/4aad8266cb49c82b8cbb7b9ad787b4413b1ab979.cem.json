@@ -1,0 +1,60 @@
+{
+  "baseRevision": "ba5cefc5a59f95fdde6854170e588eaca1638786",
+  "evidence": [
+    {
+      "blobOid": "30d750bc837c476a22bccac48252ee9e9fafcc65",
+      "id": "evidence:sha256:bfb0d3022db54f08866a21fde4e873c28509b3dc6e8350b3a605b5165ba48b2d",
+      "path": "docs/specs/documentation-corpus-v1.md",
+      "span": {
+        "end": 27843,
+        "start": 27137
+      },
+      "spanSha256": "6ce1a6250d2632762a2ff873810b81aae0e862bef40e13466aae465b51b246b9"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:bfb0d3022db54f08866a21fde4e873c28509b3dc6e8350b3a605b5165ba48b2d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:676cc304bd02591a502b521a9e80bd1edaa7bcdeb2303691cd5dc3e43966087a",
+      "newRange": {
+        "count": 21,
+        "start": 65
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 65
+      },
+      "path": "docs/build-log/2026-10-01-corpus-final-integration.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:bfb0d3022db54f08866a21fde4e873c28509b3dc6e8350b3a605b5165ba48b2d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5b24846a5d4baefbf919bc5e7519d835adab28e8431bc156dee2082d3ec23814",
+      "newRange": {
+        "count": 18,
+        "start": 510
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 510
+      },
+      "path": "docs/specs/documentation-corpus-v1.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "0ef6da07a5077106a677024938ee646f20b4037e3d1a8cef8e727829040335b6",
+  "spec": "cem/0.2"
+}
