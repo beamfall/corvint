@@ -520,6 +520,10 @@ readers of recovery receipts must retain support for the bounded MUTATE evidence
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
 
+- A17: CAL-V0-044 adds `HANDOFF` and `REVIEW_RETURNED` to TCP-00 §11's closed detail
+  codes for the verified release requests and recorded dispositions it defines. Together with
+  the original 69 codes, the extended set contains 71; neither code alone grants an exemption.
+
 - A16: S10 adds the named supervised branch, optional supervision/role fields and `programs.json`.
   Program-only LEASE posts admit one bounded projection plus retained request/output evidence;
   existing operation limits and external-agent semantics otherwise remain in force. Rollback requires

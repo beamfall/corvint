@@ -50,3 +50,23 @@ checkpoint. Lost private enrollment is re-established from the same frozen plan 
 No repository-wide gate or production migration is claimed. Recorded eligibility does not
 prove actor authentication, unreported external failures, review independence or physical
 quiescence. Missing runtime and cost telemetry remains NOT_OBSERVED.
+
+## Public integration repair
+
+Hosted PR 414 shard 3 exposed a missed wire-package check: the runtime had the two
+accepted handoff codes, while `TestTMV0002_AS01_CommandResultEnvelope` still expected
+TCP-00's original 69. A17 now records the closed-code extension explicitly and that
+existing assertion checks 71. Accounting behavior is unchanged.
+
+The final integration base is public `01f557cb47272d44c1316cc58d2b44529661756f`.
+A normal merge preserves the published `d9800f8d` ancestry. The prior sealed map is
+retained byte-for-byte as a local artifact and in that history, with SHA-256
+`ca30a0faecaf6dcfe88a3047feed8fb9057a2aaec6753eedeb61534d8877b5df`.
+It is retired from the new candidate so the public-base diff can receive one new
+binding. The initial strict `sealed-cem-in-change` refusal is retained. Public-main
+archives remain baseline content. A separate integration clone and enrollment
+preserve the original completed workflow. The final-base pre-change query was
+produced; path impact refused `unsupported-impact-path-suffix` for the requirement
+TSV. That refusal and the range affected-plan fallback are retained. Final verification includes the wire
+and spec-index packages, unchanged disposable compiled CLI inputs, a narrow review
+and the required final evidence checks. Native closeout remains coordinator-owned.
