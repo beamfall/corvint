@@ -702,7 +702,8 @@ learning. Live qualification is recorded in `docs/build-log/2026-10-01-tasks-con
   `finished` event carries the exit code (`NOT_OBSERVED` for an adopted worker), whether progress was
   made, and a bounded summary of the worker's last agent message: the final text of a recognized
   host event stream (OpenCode `run --format json`, Codex `exec --json`, Claude Code `-p
-  --output-format stream-json` or `json`), otherwise the sanitized output tail. State changes
+  --output-format stream-json --verbose`, or `json` without `--verbose`), ignoring subagent
+  messages, otherwise the sanitized output tail. State changes
   compare against the previous observation; the first observation records only a baseline.
 
 Non-goals: readmitting exhausted tickets; creating or cleaning worktrees; any network, account or

@@ -37,13 +37,23 @@ Evidence:
   - **Run 1:** the model mistyped the long absolute path in the claim command. `dontAsk` refused
     the non-allow-listed command, and the worker exited 0 with no claim. The `finished` summary was
     the worker's own final sentence, and the ticket cooled down (1 of 2).
-  - **Run 2:** `corvint-tasks` was on the worker `PATH` and allow-listed as
-    `Bash(ct claim *)`. Worker `qual.impl.1.63077bd8-1` claimed AT-0002, wrote `src/hello.txt` and
-    exited 0. The dispatcher handed it off: `attempt show` gives cause `HANDOFF` and
+  - **Run 2:** the qualification's local build of this branch's `corvint-tasks`, named `ct`,
+    was on the worker `PATH` and allow-listed as `Bash(ct claim *)`. Apart from that binary name,
+    the argv matches the documented example, minus the submit, gate and test entries. Worker
+    `qual.impl.1.63077bd8-1` claimed AT-0002, wrote `src/hello.txt` and exited 0. The dispatcher handed it off: `attempt show` gives cause `HANDOFF` and
     handoffEvidence `dispatch:qual.impl.1.63077bd8-1`. The `finished` event carried the worker's
     final text, and the ticket cooled down.
   - `status` reported RUNNING while the dispatcher ran. After SIGINT it reported `stopped`, with
     0 workers left running, and status reported NOT_RUNNING.
+- An independent review found no blocking defects. Fixes:
+  - The documented allow-list now names the submit, gate and test commands a role needs, so a
+    `dontAsk` worker is not refused partway through its workflow.
+  - The spec and doc now say `json` without `--verbose`: with `--verbose`, `json` prints one array
+    (observed on 2.1.267), which falls back to the raw tail.
+  - Assistant events carrying a `parent_tool_use_id` (subagent messages) are ignored, with a test
+    case.
+  - Accepted limit: a final line over the 64 KiB tail window is dropped as partial, so the summary
+    can fall back to an earlier text block or be empty.
 - Not qualified:
   - Claude Code wall/idle kill of a long-running worker. This is host-independent and covered
     by `TestCALV0056_*`.

@@ -79,7 +79,8 @@ and launches the roster. A run that changes no durable ticket state cools the ti
 retries are reported as `needs-owner`; readmission stays the owner's `ticket reopen`. Every
 decision is a plain-language line on stderr and in `events.jsonl`. The `finished` summary is the
 worker's final text when the host emits a recognized event stream (OpenCode `run --format json`,
-Codex `exec --json`, Claude Code `-p --output-format stream-json --verbose` or `json`), otherwise
+Codex `exec --json`, Claude Code `-p --output-format stream-json --verbose`, or `json` without
+`--verbose`), otherwise
 the output tail. A Claude Code host can look like this, with `corvint-tasks` on the worker `PATH`
 and user-level settings and hooks excluded:
 
@@ -88,14 +89,15 @@ and user-level settings and hooks excluded:
   "argv": ["/opt/homebrew/bin/claude", "-p", "{prompt}", "--output-format", "stream-json",
            "--verbose", "--setting-sources", "project", "--strict-mcp-config",
            "--no-session-persistence", "--permission-mode", "dontAsk", "--max-turns", "40",
-           "--allowedTools", "Bash(corvint-tasks claim *)", "Read", "Edit", "Write",
+           "--allowedTools", "Bash(corvint-tasks claim *)", "Bash(corvint-tasks submit *)",
+           "Bash(corvint-tasks gate run *)", "Bash(go test *)", "Read", "Edit", "Write",
            "--disallowedTools", "Bash(git push:*)", "WebFetch", "WebSearch"],
   "env": {"PATH": "/usr/local/bin:/usr/bin:/bin"}
 }
 ```
 
 With `--permission-mode dontAsk` a tool outside the allow-list is refused rather than prompted, so
-a headless worker never blocks on approval. A host's own permission allow/deny-list (Claude Code
+a headless worker never blocks on approval; list every command the role prompt asks for. A host's own permission allow/deny-list (Claude Code
 `--allowedTools`, OpenCode `OPENCODE_CONFIG_CONTENT`) is the host's responsibility, not a
 containment guarantee. See
 [the accepted contract](specs/corvint-tasks-agent-leases-v0.md#s11--continuous-dispatcher-issue-431).
