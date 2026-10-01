@@ -26,8 +26,14 @@ selection is retained with non-Go scope limits; focused adapter, qualification a
 checks plus the exact native campaign are the selected verification. Repository-wide make gate is
 NOT_RUN under the owner's scoped-issue preference. Independent review caught an unbound unchanged-prompt observation: a later idle sample could mask
 mutation of the first provider-bound draft. Observer and probe session/message identities now join
-that exact draft, with a negative regression for mixed evidence. Final evidence binding, campaign
-and review are recorded before publication; qualification remains local evidence rather than execution authority.
+that exact draft, with a negative regression for mixed evidence. Independent review passed the prompt-evidence repair. Exact native qualification on adapter 0.7.7,
+OpenCode 2.0.21, Core build 163 and darwin/arm64 passed all 26 checks and 14 conformance groups.
+The hidden frame was 2,458 bytes; fixture critical recall was 1/1; query p95 was 291.395 ms and
+lifecycle p95 was 143.003 ms. Interruption observed passive absence before supervisor cleanup.
+The earlier timing campaign lost a descendant snapshot outside the sandbox; its failed receipt
+remains retained and the suspected tooling friction is V1-0599. No check was bypassed. AHI-020
+version assertions have explicit requirement names for independent OCM linkage. Final binding and
+review are recorded before publication; qualification remains local evidence rather than execution authority.
 
 Rollback restores adapter 0.7.6 source behavior and its matching package/matrix version under a
 new package version, invalidating changed-tuple qualification. The owner's installed experimental

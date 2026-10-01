@@ -557,7 +557,7 @@ test('AHI-016 Gemini and OpenCode derive the Go anchor query and disclosure for 
   assert.ok(!JSON.stringify(rows).includes('degrading')&&!JSON.stringify(rows).includes('héllo'),`${boundary.case}: elided prompt text reached Corvint`)
  }
 })
-test('CRB-V0-009 CRB-V0-012 AHI-010 published matrix rows bind renamed shipped declarations and versions while degradation lists stay disjoint',()=>{
+test('AHI-020 CRB-V0-009 CRB-V0-012 AHI-010 published matrix rows bind renamed shipped declarations and versions while degradation lists stay disjoint',()=>{
  const read=rel=>JSON.parse(readFileSync(join(here,rel),'utf8'))
  const matrix=read('compatibility.json')
  const shipped={
