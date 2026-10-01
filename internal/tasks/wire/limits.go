@@ -95,7 +95,7 @@ const (
 	MaxRuntimeArgv      = 16
 	MaxActiveAttempts   = 64
 	MaxWorkersTotal     = 256
-	MaxAdmissionsPerRev = 3
+	MaxAdmissionsPerRev = 16
 	MaxRepairRounds     = 2
 	MaxMalformedRetry   = 1
 	MaxGateRerunStale   = 1

@@ -76,3 +76,66 @@ func TestCALV0044_AccountingSchema(t *testing.T) {
 		}
 	})
 }
+
+func TestCALV0046_NoTreeHandoffSchema(t *testing.T) {
+	t.Run("CAL-V0-046 no-tree terminal schema", func(t *testing.T) {
+		fresh := func() *Attempt {
+			a := accountingAttempt()
+			reason := wire.CodeHandoff
+			a.RetryAccounting = &RetryAccounting{Disposition: reason}
+			a.HandoffEvidence = "local:review-1"
+			a.Stage = "integrate"
+			a.Phase = "CANCELLED"
+			a.Quiescence = "FENCED"
+			a.Cause = &reason
+			return a
+		}
+		a := fresh()
+		raw, e := a.Encode()
+		if e != nil {
+			t.Fatal(e)
+		}
+		decoded, e := DecodeAttempt(raw)
+		if e != nil || decoded.HandoffEvidence != a.HandoffEvidence {
+			t.Fatalf("decode: %v", e)
+		}
+		again, e := decoded.Encode()
+		if e != nil || !bytes.Equal(raw, again) {
+			t.Fatal("roundtrip changed bytes")
+		}
+		for name, change := range map[string]func(*Attempt){
+			"live":                func(a *Attempt) { a.Phase = "RUNNING" },
+			"no-accounting":       func(a *Attempt) { a.RetryAccounting = nil },
+			"none":                func(a *Attempt) { a.RetryAccounting.Disposition = "NONE" },
+			"failed":              func(a *Attempt) { a.RetryAccounting.FailedOrUnknown = true },
+			"supervised":          func(a *Attempt) { a.RuntimeID = SupervisedProfile },
+			"ordinary-cancel":     func(a *Attempt) { s := wire.CodeGateFailed; a.Cause = &s },
+			"candidate":           func(a *Attempt) { s := strings.Repeat("b", 40); a.CandidateTreeOid = &s; a.ScopeCheck = "WITHIN" },
+			"scope":               func(a *Attempt) { a.ScopeCheck = "WITHIN" },
+			"gate":                func(a *Attempt) { a.GateResults = []string{"gate"} },
+			"effects":             func(a *Attempt) { a.PendingEffects = []string{"pending"} },
+			"unfenced":            func(a *Attempt) { a.Quiescence = "UNPROVED" },
+			"unstaged":            func(a *Attempt) { a.Stage = "" },
+			"returned-integrator": func(a *Attempt) { s := wire.CodeReviewReturned; a.Cause = &s; a.RetryAccounting.Disposition = s },
+		} {
+			t.Run(name, func(t *testing.T) {
+				a := fresh()
+				change(a)
+				if _, e := a.Encode(); e == nil {
+					t.Fatal("invalid terminal binding encoded")
+				}
+			})
+		}
+		for _, value := range []string{`null`, `""`, `"bad\nref"`, `"` + strings.Repeat("x", 129) + `"`} {
+			bad := bytes.Replace(raw, []byte(`"handoffEvidence":"local:review-1"`), []byte(`"handoffEvidence":`+value), 1)
+			if _, e := DecodeAttempt(bad); e == nil {
+				t.Fatalf("accepted %s", value)
+			}
+		}
+		bad := bytes.Replace(raw, []byte(`"handoffEvidence":"local:review-1"`), []byte(`"handoffEvidence":"local:review-1","handoffExtra":true`), 1)
+		if _, e := DecodeAttempt(bad); e == nil {
+			t.Fatal("accepted unknown handoff member")
+		}
+
+	})
+}

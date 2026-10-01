@@ -144,15 +144,15 @@ func (c leaseContext) eligibility(id string) *leaseOutcome {
 }
 
 // retryOf returns the terminal attempt this claim retries as its next
-// generation (CAL-V0-013), nil for a fresh attempt, or a refusal once three
-// retries at the ticket's acceptanceRevision are spent.
+// generation (CAL-V0-013), nil for a fresh attempt, or a refusal once the
+// configured retry budget at the ticket's acceptanceRevision is spent.
 func (c leaseContext) retryOf(rec *ticket.Record) (*snapshot.Attempt, *leaseOutcome) {
 	last := lastAttemptOf(c.st.attempts, rec.TicketID.Raw)
 	if last == nil || last.Phase == "COMPLETED" || last.TicketRevision != rec.AcceptanceRevision {
 		return nil, nil
 	}
-	if retryExhausted(c.st.attempts, rec) {
-		out := c.refuse(mutation.OutcomeBlocked, wire.CodeRetryExhausted, "three retries at acceptanceRevision "+string(rec.AcceptanceRevision)+" are spent")
+	if retryExhausted(c.st.attempts, rec, c.st.policy.AdmissionsPerRevision.Int()) {
+		out := c.refuse(mutation.OutcomeBlocked, wire.CodeRetryExhausted, "configured retry budget at acceptanceRevision "+string(rec.AcceptanceRevision)+" is spent")
 		return nil, &out
 	}
 	return last, nil

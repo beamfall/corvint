@@ -208,3 +208,97 @@ func TestCALV0044_TimeoutRemainsSticky(t *testing.T) {
 		auditOK(t, s.repo)
 	})
 }
+
+func TestCALV0046_NoTreeHandoffAndIntegrate(t *testing.T) {
+	for _, stage := range []string{"implement", "review", "integrate"} {
+		t.Run(stage, func(t *testing.T) {
+			s := newLeaseStore(t)
+			id := s.ticket(t, "external")
+			setRetryPolicy(t, s, 0, 0)
+			a := handoffClaim(t, s, id, stage, "claim", 0)
+			l := releaseOf(a)
+			l.Reason = wire.CodeHandoff
+			if stage == "review" {
+				l.Reason = wire.CodeReviewReturned
+			}
+			l.Evidence = "local:external-review"
+			r := s.lease(t, "handoff", l, 1, nil)
+			if r.Outcome.Outcome != mutation.OutcomeCompleted {
+				t.Fatalf("handoff %+v", r)
+			}
+			got := s.attempt(t, a.AttemptID)
+			if got.HandoffEvidence != l.Evidence || got.CandidateTreeOid != nil || got.Phase != "CANCELLED" || got.Quiescence != "FENCED" {
+				t.Fatalf("terminal %+v", got)
+			}
+			if replay := s.lease(t, "handoff", l, 1, nil); replay.Kind != "Replay" {
+				t.Fatalf("replay %+v", replay)
+			}
+			l.Evidence = "local:different"
+			refusedWith(t, s.lease(t, "handoff", l, 1, nil), mutation.OutcomeRequestIDConflict, wire.CodeRequestIDConflict)
+			next := handoffClaim(t, s, id, stage, "successor", 2)
+			current := s.attempt(t, next.AttemptID)
+			if current.RetryCount != "0" || current.HandoffEvidence != "" || current.CandidateTreeOid != nil {
+				t.Fatalf("successor inherited evidence/debt: %+v", current)
+			}
+			// With budget zero, a later charged cancellation still exhausts the ticket.
+			s.lease(t, "charged", releaseOf(next), 2, nil)
+			refusedWith(t, s.lease(t, "exhausted", claimOf(id, "src/"), 2, nil), mutation.OutcomeBlocked, wire.CodeRetryExhausted)
+			auditOK(t, s.repo)
+		})
+	}
+	s := newGateStore(t)
+	id := s.ticket(t, "integrator")
+	a := handoffClaim(t, s, id, "integrate", "claim", 0)
+	handoffSubmit(t, s, a, "submit", 1)
+	l := releaseOf(a)
+	l.Reason = wire.CodeHandoff
+	if r := s.lease(t, "tree-handoff", l, 1, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("integrate tree handoff: %+v", r)
+	}
+}
+
+func TestCALV0046_NoTreeRefusals(t *testing.T) {
+	for _, name := range []string{"candidate", "no-stage", "review-return", "policy-changed", "expired", "generation"} {
+		t.Run(name, func(t *testing.T) {
+			s := newGateStore(t)
+			id := s.ticket(t, "external")
+			stage := "implement"
+			if name == "no-stage" {
+				stage = ""
+			}
+			a := handoffClaim(t, s, id, stage, "claim", 0)
+			code := wire.CodeMissingEvidence
+			l := releaseOf(a)
+			l.Reason = wire.CodeHandoff
+			l.Evidence = "local:external"
+			minute := 1
+			switch name {
+			case "candidate":
+				handoffSubmit(t, s, a, "submit", 0)
+			case "no-stage":
+				code = wire.CodeTicketState
+			case "review-return":
+				l.Reason = wire.CodeReviewReturned
+				code = wire.CodeTicketState
+			case "policy-changed":
+				setRetryPolicy(t, s, 4, 0)
+				code = wire.CodeStalePolicy
+			case "expired":
+				minute = 60
+				code = wire.CodeFenced
+			case "generation":
+				l.Generation = wire.SizeOf(l.Generation.Uint64() + 1)
+				code = wire.CodeFenced
+			}
+			r := s.lease(t, "handoff", l, minute, nil)
+			if !r.Outcome.HasCode(code) {
+				t.Fatalf("expected %s: %+v", code, r)
+			}
+			got := s.attempt(t, a.AttemptID)
+			if got.HandoffEvidence != "" || got.RetryAccounting.Disposition != "NONE" {
+				t.Fatalf("refusal changed clean evidence: %+v", got)
+			}
+			auditOK(t, s.repo)
+		})
+	}
+}

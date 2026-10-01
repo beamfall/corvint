@@ -66,7 +66,7 @@ func retryRecovery(st inputState, env *mutation.Envelope) *mutation.RetryRecover
 			last = a
 		}
 	}
-	if last == nil || last.TicketRevision != rec.AcceptanceRevision || !exhaustedAttempt(last) || (last.Phase != "FAILED" && last.Phase != "CANCELLED") {
+	if last == nil || last.TicketRevision != rec.AcceptanceRevision || !exhaustedAttempt(last, st.policy.AdmissionsPerRevision.Int()) || (last.Phase != "FAILED" && last.Phase != "CANCELLED") {
 		return observation
 	}
 	observation.State, observation.Phase = ticket.Satisfied, last.Phase

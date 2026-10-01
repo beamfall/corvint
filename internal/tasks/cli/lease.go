@@ -141,6 +141,9 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
+	if evidence, supplied := parsed.values["--evidence"]; name == "release" && supplied && evidence == "" {
+		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "evidence", "handoff reference must be a nonempty Identifier"))
+	}
 	worktree, hasWorktree := parsed.values["--worktree"]
 	if hasWorktree && name != "gate run" {
 		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--worktree belongs to gate run"))

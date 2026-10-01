@@ -153,3 +153,81 @@ Pools support up to 64 pools and 256 queue-unique members within the existing po
 Names alone cannot detect two configurations pointing at the same physical database. Old records
 remain readable, but older binaries do not understand the new state: stop claims and use a recorded
 safe migration before downgrading.
+
+## Hand off clean work
+
+Claim with `--stage implement`, `review` or `integrate` when work will be handed off. An unstaged
+claim cannot qualify. `HANDOFF` is available to all three stages; `REVIEW_RETURNED` is available
+only to review. These reasons preserve the charged retry count when the writer verifies clean
+prospective accounting. They do not complete the ticket or authorize integration or publication.
+
+For work in the queue repository, submit the actual candidate tree first, then release:
+
+```sh
+corvint-tasks release --attempt "$attempt" --generation "$generation" \
+  --request-id handoff-a --reason HANDOFF
+```
+
+This requires phase BUILT or CHECKING, a candidate with scopeCheck WITHIN, and no pending effects.
+For work outside the queue repository, retain the actual artifact separately and reference it
+without submitting a tree:
+
+```sh
+corvint-tasks release --attempt "$attempt" --generation "$generation" \
+  --request-id external-handoff-a --reason HANDOFF --evidence local:review-record-1
+```
+
+The no-tree path requires RUNNING, no candidate or gate results, scopeCheck UNKNOWN and no pending
+effects. `--evidence` uses the existing Identifier grammar: 1..128 UTF-8 bytes, no hostile code
+points or TAB/LF/CR. The reference is recorded on the terminal attempt as `handoffEvidence` and
+bound to replay. The tool never fetches, executes or verifies its contents. Do not submit an
+unchanged base tree merely to unlock accounting. Evidence on candidate-bearing handoffs or
+ordinary cancellations refuses. Repeating the identical request replays; changing its reference
+under the same request ID conflicts.
+
+Both paths require a live unexpired matching generation, unchanged acceptance revision and policy,
+and writer-produced prospective accounting with no recorded failed or unknown gate result. A
+later passing gate or resubmission cannot clear an earlier failure. Legacy missing accounting and
+supervised attempts cannot receive this exemption. A `policy update` changes the binding and makes
+in-flight handoffs refuse STALE_POLICY; do not update policy expecting it to repair those attempts.
+There is no automatic refund or stale-policy bypass.
+
+| Refusal | Meaning |
+|---|---|
+| FENCED | Generation differs or the lease expired. |
+| STALE_TICKET | Acceptance differs from the claim. |
+| STALE_POLICY | Policy/config binding differs from the claim. |
+| TICKET_STATE | Runtime or stage is ineligible; REVIEW_RETURNED requires review. |
+| MISSING_EVIDENCE | Prospective accounting or the selected tree/no-tree conditions are missing. |
+| MALFORMED | Evidence or request shape is invalid, including evidence on ordinary cancellation. |
+| REQUEST_ID_CONFLICT | The same request ID was reused with different content. |
+
+Before handing off, retire the processes you own and retain any separately observed cleanup
+results. Release fences the generation, removes its reservation, and quarantines an allocated
+pool. Quarantine does not prove physical cleanup or safe reuse; use the existing cleanup and
+safe-confirm flow before reuse. A consistent `receipt audit` proves journal consistency, not
+physical cleanup, external work quality or independent review. Old readers may refuse the new
+optional metadata; preserve the entire store and use a compatible reader/writer for rollback.
+
+## Configure charged retries
+
+`retries.admissionsPerRevision` is a required canonical Count in **0..16**. Its historical name
+means charged retries after the initial admission: value 3 retains the initial attempt plus three
+charged retries, 0 permits only the initial attempt, and 4 permits four charged retries. Fixture
+and example policies retain 3. Explicit/next claim, plan preview (including pool/stage), and safe
+OWNER recovery use the current policy value. Clean verified handoffs preserve debt even at the
+limit; cancellation, failure and expiry remain charged. A raised budget does not erase debt.
+
+Changing a real queue policy remains an explicit operator action. Older writers capped at 3 can
+refuse values above 3; stop admissions and keep compatible binaries and complete journals for
+rollback. Never strip recorded metadata or rewrite history to downgrade. An exhausted ticket needs
+the existing safe OWNER `ticket reopen` flow for fresh acceptance; help and handoffs do not grant it.
+
+## Discover command inputs
+
+Every command and command family supports exact `--help` and `-h`, including `plan preview`,
+`submit`, lease `release`, and release-artifact subcommands. Help returns OK with usage and flags
+without a queue, stdin reads, locks or writes. Lease release help includes accepted reason codes
+and handoff preconditions. Omitted commands explain that execution remains NOT_RUN. Existing
+mutation `operation` and `payloadKeys` help is preserved. A flag value spelled `--help` remains a
+value; unknown command paths still refuse.

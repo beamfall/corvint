@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -18,11 +19,18 @@ import (
 // Qualification supplies the exact new binary and pinned old reader explicitly.
 func handoffCLI(t *testing.T, root string, args ...string) run {
 	t.Helper()
-	binary := os.Getenv("CORVINT_HANDOFF_TEST_BINARY")
+	return handoffCLIWithBinary(t, root, os.Getenv("CORVINT_HANDOFF_TEST_BINARY"), args...)
+}
+
+func handoffCLIWithBinary(t *testing.T, root, binary string, args ...string) run {
+	t.Helper()
 	if binary == "" {
 		return atm(t, root, nil, args...)
 	}
-	cmd := exec.Command(binary, args...)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, binary, args...)
+	cmd.WaitDelay = time.Second
 	cmd.Dir = root
 	var out, errb bytes.Buffer
 	cmd.Stdout = &out

@@ -21,7 +21,7 @@ func TestCALV0043_RecoveryExaminesEveryAttempt(t *testing.T) {
 					t.Fatal(err)
 				}
 				a := &snapshot.Attempt{TicketID: rec.TicketID, TicketRevision: rec.AcceptanceRevision, Generation: "2", Phase: "CANCELLED", RetryCount: "3", RuntimeID: snapshot.RuntimeExternalAgent, Quiescence: "FENCED"}
-				st := inputState{tickets: inv, attempts: map[string]*snapshot.Attempt{"latest": a}, reservations: &snapshot.ReservationSet{}}
+				st := inputState{tickets: inv, policy: &intent.Policy{AdmissionsPerRevision: "3"}, attempts: map[string]*snapshot.Attempt{"latest": a}, reservations: &snapshot.ReservationSet{}}
 				older := *a
 				older.Generation = "1"
 				switch name {
@@ -84,7 +84,7 @@ func TestCALV0044_LegacyReasonCannotExempt(t *testing.T) {
 		tree := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 		a := &snapshot.Attempt{TicketID: rec.TicketID, TicketRevision: rec.AcceptanceRevision, Generation: "2", Phase: "CANCELLED", RetryCount: "3", RuntimeID: snapshot.RuntimeExternalAgent, Quiescence: "FENCED", Stage: "review", Cause: &reason, CandidateTreeOid: &tree, ScopeCheck: "WITHIN", PolicySha256: wire.Sum(policy.Raw), ConfigSha256: wire.Sum(policy.Raw)}
 		st := inputState{tickets: inv, policy: policy, attempts: map[string]*snapshot.Attempt{"last": a}, reservations: &snapshot.ReservationSet{}}
-		if !retryExhausted(st.attempts, rec) {
+		if !retryExhausted(st.attempts, rec, policy.AdmissionsPerRevision.Int()) {
 			t.Fatal("legacy cause refunded retries")
 		}
 		env := &mutation.Envelope{Operation: mutation.OpReopen, TargetID: &rec.TicketID}

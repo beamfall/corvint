@@ -93,6 +93,9 @@ func Run(env Env) int {
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
 		return emit(env.Stdout, helpResult())
 	}
+	if result := commandHelp(args); result != nil {
+		return emit(env.Stdout, result)
+	}
 	switch args[0] {
 	case "admit", "resume", "retry", "cancel", "drain", "answer":
 		return emit(env.Stdout, programCommand(env, args[0], args[1:]))
