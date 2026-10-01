@@ -2045,6 +2045,23 @@
     ]
   },
   {
+    "path": "docs/specs/postmerge-replay-v0.md",
+    "title": "Post-merge Replay V0",
+    "reqPrefix": "PMR-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "An optional companion runs a pinned local adapter twice and compares typed historical expectations through the actual recording connector.",
+    "dependsOn": [
+      "docs/specs/postmerge-connectors-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/postmergeworkflow",
+      "cmd/corvint-postmerge-workflow"
+    ]
+  },
+  {
     "path": "docs/specs/postmerge-metrics-v0.md",
     "title": "Post-merge metrics V0",
     "reqPrefix": "PMM-V0",
