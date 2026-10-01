@@ -52,7 +52,8 @@
       "cmd/corvint",
       "script/gate-affected.sh",
       "tools/gate-affected-select",
-      "tools/corvint-pr-tests"
+      "tools/corvint-pr-tests",
+      ".github/cishards"
     ]
   },
   {

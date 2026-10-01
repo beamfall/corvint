@@ -113,9 +113,9 @@ jobs:
   go-product-shard:
     needs: docs-plan
     if: ${{ always() && !cancelled() }}
-    # V1-0357: the full race suite took about 58 of go-product's 75 minutes in one job. Each
-    # shard runs every strategy.job-total-th root package from `go list ./...`, so the shard
-    # count comes from the matrix alone. The go-product job below is the required check.
+    # Partition the complete runtime package universe using advisory measured costs. An
+    # admitted Corvint selection intersects those same disjoint partitions; mixed full
+    # fallbacks cannot omit selected packages. go-product remains the required check.
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     strategy:
@@ -163,7 +163,7 @@ jobs:
           git --version
       - name: Capture trusted tool source outside tested checkout
         continue-on-error: true
-        if: github.event_name == 'pull_request' && env.CORVINT_PR_TOOL_SOURCE != '' && strategy.job-index == 0
+        if: github.event_name == 'pull_request' && env.CORVINT_PR_TOOL_SOURCE != ''
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: trusted-tools
@@ -171,7 +171,7 @@ jobs:
           persist-credentials: false
       - name: Capture separately pinned qualification artifact
         continue-on-error: true
-        if: github.event_name == 'pull_request' && env.CORVINT_PR_QUALIFICATION_SOURCE != '' && strategy.job-index == 0
+        if: github.event_name == 'pull_request' && env.CORVINT_PR_QUALIFICATION_SOURCE != ''
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: trusted-qualification
@@ -180,7 +180,7 @@ jobs:
           persist-credentials: false
       - name: Build pinned planner, selector, and driver
         continue-on-error: true
-        if: github.event_name == 'pull_request' && env.CORVINT_PR_TOOL_SOURCE != '' && strategy.job-index == 0
+        if: github.event_name == 'pull_request' && env.CORVINT_PR_TOOL_SOURCE != ''
         working-directory: trusted-tools
         run: |
           test "$(git rev-parse HEAD)" = "$CORVINT_PR_TOOL_SOURCE"
@@ -188,6 +188,26 @@ jobs:
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/corvint" ./cmd/corvint
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/selector" ./tools/gate-affected-select
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/driver" ./tools/corvint-pr-tests
+      - name: Build protected partition helper independently of PR module directives
+        working-directory: source
+        env:
+          SHARD: ${{ strategy.job-index }}
+        run: |
+          # .github is owner-protected by the control plane. Only these explicit files enter
+          # the isolated module; tested go.mod/replace directives cannot redirect its import.
+          d="$RUNNER_TEMP/ci-shards-source"
+          mkdir -p "$d/cmd"
+          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/package-costs.json "$d/"
+          cp .github/cishards/cmd/main.go "$d/cmd/"
+          printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.1\n' > "$d/go.mod"
+          cd "$d"
+          export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-shards" ./cmd
+          if [ "$SHARD" = 0 ]; then
+            go test -race -count=1 -timeout 30m ./...
+            go vet ./...
+            CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
+          fi
       - name: Go tests (full until matching shadow qualification)
         if: needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS'
         working-directory: source
@@ -199,20 +219,18 @@ jobs:
           SHARDS: ${{ strategy.job-total }}
         run: |
           test "$(go env GOVERSION)" = "go1.27.1"
-          # With trusted pins, shard 0 alone runs the driver, or the whole suite when the driver
-          # did not build, exactly as the single job did; the other shards have nothing to run.
-          packages=./...
-          if [ "$GITHUB_EVENT_NAME" != pull_request ] || [ -z "$CORVINT_PR_TOOL_SOURCE" ]; then
-            packages=$(go list ./... | awk -v n="$SHARDS" -v i="$SHARD" 'NR % n == i')
-          elif [ "$SHARD" != 0 ]; then
-            echo "corvint-pr-tests: shard $SHARD idle; shard 0 runs the pinned driver"
-            exit 0
-          fi
+          profile=$("$RUNNER_TEMP/ci-shards" --profile)
           if [ "$GITHUB_EVENT_NAME" = pull_request ] && [ -x "$RUNNER_TEMP/corvint-pr-bin/driver" ]; then
-            "$RUNNER_TEMP/corvint-pr-bin/driver" --root "$PWD" --base "$PR_BASE" --head "$PR_HEAD" --target "$TESTED_MERGE" --source "$CORVINT_PR_TOOL_SOURCE" --planner "$RUNNER_TEMP/corvint-pr-bin/corvint" --selector "$RUNNER_TEMP/corvint-pr-bin/selector" --out "$RUNNER_TEMP/corvint-pr-result" --qualification "$GITHUB_WORKSPACE/trusted-qualification/.github/qualifications/pr-go-race.json" --qualification-sha256 "$CORVINT_PR_QUALIFICATION_SHA256"
+            "$RUNNER_TEMP/corvint-pr-bin/driver" --root "$PWD" --base "$PR_BASE" --head "$PR_HEAD" --target "$TESTED_MERGE" --source "$CORVINT_PR_TOOL_SOURCE" --planner "$RUNNER_TEMP/corvint-pr-bin/corvint" --selector "$RUNNER_TEMP/corvint-pr-bin/selector" --out "$RUNNER_TEMP/corvint-pr-result" --qualification "$GITHUB_WORKSPACE/trusted-qualification/.github/qualifications/pr-go-race.json" --qualification-sha256 "$CORVINT_PR_QUALIFICATION_SHA256" --shard "$SHARD" --shards "$SHARDS" --partition-digest "$profile"
           else
             echo "corvint-pr-tests: FULL (main/release or trusted tool pin unavailable), shard $SHARD of $SHARDS"
-            # Package words come only from go list or the literal ./....
+            go list ./... > "$RUNNER_TEMP/ci-package-universe"
+            packages=$("$RUNNER_TEMP/ci-shards" --shard "$SHARD" --shards "$SHARDS" < "$RUNNER_TEMP/ci-package-universe")
+            if [ -z "$packages" ]; then
+              echo "Complete-universe shard $SHARD has no packages."
+              exit 0
+            fi
+            # The protected helper validates each package as a typed, non-option word.
             # shellcheck disable=SC2086
             go test -json -p 1 -count=1 -race -timeout 50m $packages
           fi
@@ -229,7 +247,7 @@ jobs:
         if: strategy.job-index == 0
         working-directory: source
         run: |
-          test -z "$(gofmt -l cmd internal tools)"
+          test -z "$(gofmt -l cmd internal tools .github/cishards)"
           go vet ./...
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
       - name: Independent interop under production toolchain
