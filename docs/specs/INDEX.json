@@ -311,6 +311,25 @@
     ]
   },
   {
+    "path": "docs/specs/cem-criterion-experiments-v0.md",
+    "title": "CEM criterion experiments V0",
+    "reqPrefix": "CEX-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "An optional companion binds task criteria to Go experiments, preserves historical verification, and refuses stale Tasks gate evidence.",
+    "dependsOn": [
+      "docs/specs/cem-0.2-canonical-binding.md",
+      "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "docs/specs/falsifiable-packet-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/criterionexperiment",
+      "cmd/corvint-cem-experiments"
+    ]
+  },
+  {
     "path": "docs/specs/cem-external-interop-v0.md",
     "title": "CEM external consumer interoperability V0",
     "reqPrefix": "CEM-EXT",
