@@ -800,7 +800,7 @@ func (w *Workflow) integrate() error {
 		return e
 	}
 	choice := LeaseChoice{QueueID: w.queue.QueueID.Raw, RequestID: w.requestID(), Root: root, Lease: transaction.LeaseRequest{Verb: transaction.LeaseComplete, AttemptID: w.attempt.AttemptID, Generation: w.attempt.Generation, Commit: w.program.CandidateCommit}}
-	r, e := Lease(context.Background(), w.repo, w.actor, choice, poolClock())
+	r, e := Lease(WithClock(context.Background(), poolClock), w.repo, w.actor, choice, poolClock())
 	if e = transitionOK(r, e); e != nil {
 		return e
 	}
@@ -911,7 +911,7 @@ func (w *Workflow) recoverIntegration() error {
 		}
 	}
 	choice := LeaseChoice{QueueID: w.queue.QueueID.Raw, RequestID: w.requestID(), Root: w.repo.PrimaryWorktree, Lease: transaction.LeaseRequest{Verb: transaction.LeaseComplete, AttemptID: w.attempt.AttemptID, Generation: w.attempt.Generation, Commit: head}}
-	r, e := Lease(context.Background(), w.repo, w.actor, choice, poolClock())
+	r, e := Lease(WithClock(context.Background(), poolClock), w.repo, w.actor, choice, poolClock())
 	if e = transitionOK(r, e); e != nil {
 		return e
 	}
@@ -987,7 +987,7 @@ func (w *Workflow) claimAndAttach(ctx context.Context, ticketID string) error {
 			verb = transaction.LeaseClaimNext
 		}
 		choice := LeaseChoice{QueueID: w.queue.QueueID.Raw, RequestID: w.requestID(), Root: w.repo.PrimaryWorktree, Lease: transaction.LeaseRequest{Verb: verb, TicketID: ticketID, Holder: w.program.ID + "-implement", LeaseMinutes: "60", Base: w.program.Base, Pool: w.cfg.Pool, Stage: "implement"}}
-		r, e := Lease(ctx, w.repo, w.actor, choice, poolClock())
+		r, e := Lease(WithClock(ctx, poolClock), w.repo, w.actor, choice, poolClock())
 		if e == nil && r != nil && r.Outcome.Outcome != mutation.OutcomeCompleted && strings.Contains(r.Detail, "no ticket is") {
 			return fmt.Errorf("%w: %s", ErrProgramIdle, r.Detail)
 		}

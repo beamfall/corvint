@@ -134,7 +134,7 @@ func observePool(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 	choice.RequestID = poolChildID(choice.RequestID, "observe")
 	choice.Lease = transaction.LeaseRequest{Verb: transaction.LeasePoolObserve, Member: en.MemberID, Allocation: string(en.AllocationID)}
 	choice.pool.Observation = raw
-	return leaseOnce(ctx, repo, actor, choice, poolClock())
+	return leaseOnce(WithClock(ctx, poolClock), repo, actor, choice, poolClock())
 }
 
 // PoolCommand explicitly probes a free member or cleans a quarantined allocation.
@@ -173,7 +173,7 @@ func PoolCommand(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 	if def == nil {
 		return &Report{}, wire.Errorf(wire.CodeUnsupported, "pool command", "no configured command")
 	}
-	report, e := leaseOnce(ctx, repo, actor, choice, poolClock())
+	report, e := leaseOnce(WithClock(ctx, poolClock), repo, actor, choice, poolClock())
 	if e != nil || report.Kind != "Transaction" {
 		return report, e
 	}
@@ -194,7 +194,9 @@ func PoolCommand(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 }
 
 func healthClaim(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, initial *Report) (*Report, error) {
-	return healthClaimWith(ctx, repo, actor, choice, initial, func(c LeaseChoice) (*Report, error) { return leaseOnce(ctx, repo, actor, c, poolClock()) })
+	return healthClaimWith(ctx, repo, actor, choice, initial, func(c LeaseChoice) (*Report, error) {
+		return leaseOnce(WithClock(ctx, poolClock), repo, actor, c, poolClock())
+	})
 }
 func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, initial *Report, execute func(LeaseChoice) (*Report, error)) (*Report, error) {
 	report := initial
@@ -228,7 +230,7 @@ func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutatio
 		prep := choice
 		prep.RequestID = poolChildID(choice.RequestID, member)
 		prep.Lease = transaction.LeaseRequest{Verb: transaction.LeasePoolPrepare, Pool: pool.ID, Member: member, Holder: choice.Lease.Holder, Stage: choice.Lease.Stage, Evidence: string(transaction.PoolClaimBinding(&choice.Lease, state.QueueID))}
-		prepared, e := leaseOnce(ctx, repo, actor, prep, poolClock())
+		prepared, e := leaseOnce(WithClock(ctx, poolClock), repo, actor, prep, poolClock())
 		if e != nil {
 			return prepared, e
 		}

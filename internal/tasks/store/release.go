@@ -46,6 +46,7 @@ func Release(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 		return report, err
 	}
 	defer lock.Close()
+	now = recordedAt(ctx, now)
 	session, err := authority.NewSession(repo, lock)
 	if err != nil {
 		return report, err
