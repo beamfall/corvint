@@ -44,8 +44,11 @@ A host adapter is a set of CI workflows plus five operator hooks. It must:
    Build Corvint binaries from a pinned commit and verify their digests before the first use.
 7. Pass untrusted values to scripts through `env`, never by expanding `${{ }}` into the script text.
    Validate a dispatched value as one whole string with `case` patterns and a length check before
-   writing it to `$GITHUB_OUTPUT` or `$GITHUB_ENV`. A line-oriented `grep` accepts a value when any
-   one line matches, so a newline can inject a second output.
+   writing it to `$GITHUB_OUTPUT`. A line-oriented `grep` accepts a value when any one line
+   matches, so a newline can inject a second output. Never write `$GITHUB_ENV` or `$GITHUB_PATH`,
+   never set a shell-startup, loader or interpreter variable such as `BASH_ENV`, `ENV` or
+   `LD_PRELOAD` in `env`, keep `working-directory` a literal path, and write `with` input names
+   in lowercase.
 8. Reconcile on a schedule, so a lost dispatch is retried. Connector upserts are idempotent
    (PMC-V0-005 to PMC-V0-007), so running a change twice is safe.
 
@@ -96,8 +99,12 @@ item from its own export, not from author output.
   pipe and here-string forms. Expressions are checked in `run` and `with.script`, not in other
   action inputs that evaluate code. A custom step `shell:` and a workflow- or job-level
   `defaults.run.shell` are refused rather than audited; `defaults` admits only
-  `run.working-directory`. The audit cannot see the repository default branch, so check that the
-  source trigger names it.
+  `run.working-directory`, which must be a literal path. The `STARTUP_ENV` check is a denylist
+  (`BASH_ENV`, `ENV`, `LD_*`, `DYLD_*` and similar); another variable that changes how a tool runs
+  code is not caught. `RUNNER_ENV_FILE` matches only the literal names `GITHUB_ENV` and
+  `GITHUB_PATH`, so a script that reaches the file another way, or a pinned action that writes it,
+  is not caught. The audit cannot see the repository default branch, so check that the source
+  trigger names it.
 - The pipeline's concurrency group is evaluated before any job runs, so it uses the unvalidated
   dispatched change value. It only selects a queue: a malformed value gets a queue of its own, and
   the `resolve` job then refuses it before any checkout or step uses it.

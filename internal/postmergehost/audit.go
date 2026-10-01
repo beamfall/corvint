@@ -41,7 +41,19 @@ var (
 	// when any one line matches, so a newline can smuggle a second value.
 	lineValidation = regexp.MustCompile(`\b(printf|echo)\b[^\n|]*\|\s*e?grep\b|\be?grep\b[^\n]*<<<`)
 	branchLiteral  = regexp.MustCompile(`^[A-Za-z0-9._/-]+$`)
-	changeRequest  = map[string]bool{
+	// runnerEnvFile finds a script that touches the runner's env or path
+	// file, which sets variables (such as BASH_ENV) for every later step.
+	runnerEnvFile = regexp.MustCompile(`\bGITHUB_(ENV|PATH)\b`)
+	// startupEnv names variables that make a shell, the dynamic loader or an
+	// interpreter run code the audit does not see. It is a denylist.
+	startupEnv = map[string]bool{
+		"BASH_ENV": true, "ENV": true, "BASHOPTS": true, "SHELLOPTS": true, "PS4": true,
+		"PROMPT_COMMAND": true, "IFS": true, "CDPATH": true, "PATH": true, "GOFLAGS": true,
+		"NODE_OPTIONS": true, "PYTHONSTARTUP": true, "PYTHONPATH": true, "PERL5OPT": true,
+		"PERL5LIB": true, "RUBYOPT": true,
+	}
+	startupEnvPrefixes = []string{"LD_", "DYLD_", "BASH_FUNC_"}
+	changeRequest      = map[string]bool{
 		"pull_request": true, "pull_request_target": true, "pull_request_review": true,
 		"pull_request_review_comment": true, "merge_group": true, "workflow_run": true,
 	}
@@ -91,6 +103,7 @@ func Audit(g *Graph, name string, data []byte) []Finding {
 	a.triggers(name, role, root.Get("on"))
 	a.permissions(name, root.Get("permissions"), true)
 	a.defaults(name, root.Get("defaults"))
+	a.env(name, env)
 	for _, s := range scalars(env) {
 		if refs := a.credentialRefs(s); len(refs) > 0 {
 			a.add("WORKFLOW_LEVEL_SECRET", name, "workflow env exposes %s to every job", strings.Join(refs, ","))
@@ -224,11 +237,41 @@ func (a *auditor) defaults(where string, d *Node) {
 		for _, rk := range run.Keys {
 			switch rk {
 			case "working-directory":
+				a.workingDirectory(where, run.Map[rk])
 			case "shell":
 				a.add("CUSTOM_SHELL", where, "defaults.run.shell %q (custom shells are not audited)", scalar(run.Map[rk]))
 			default:
 				a.add("UNMODELLED_KEY", where, "defaults.run key %q", rk)
 			}
+		}
+	}
+}
+
+// workingDirectory admits only a literal scalar: an expression or a
+// non-scalar would choose the script's directory at run time.
+func (a *auditor) workingDirectory(where string, n *Node) {
+	if n != nil && (n.Kind != Scalar || strings.Contains(n.Text, "${{")) {
+		a.add("WORKING_DIRECTORY", where, "working-directory must be a literal path")
+	}
+}
+
+// env refuses a non-mapping env and any startup or loader variable.
+func (a *auditor) env(where string, env *Node) {
+	if env == nil {
+		return
+	}
+	if env.Kind != Mapping {
+		a.add("UNMODELLED_KEY", where, "env must be a mapping")
+		return
+	}
+	for _, k := range env.Keys {
+		name := strings.ToUpper(k)
+		bad := startupEnv[name]
+		for _, p := range startupEnvPrefixes {
+			bad = bad || strings.HasPrefix(name, p)
+		}
+		if bad {
+			a.add("STARTUP_ENV", where, "env.%s makes a shell, loader or interpreter run unaudited code", k)
 		}
 	}
 }
@@ -365,6 +408,7 @@ func (a *auditor) job(where, role string, j *Node) []string {
 		}
 	}
 	a.defaults(where, j.Get("defaults"))
+	a.env(where, j.Get("env"))
 	held := map[string]bool{}
 	for _, c := range a.permissions(where, j.Get("permissions"), false) {
 		held[c] = true
@@ -417,9 +461,23 @@ func (a *auditor) steps(where string, steps *Node, commands map[string]bool) {
 				a.add("UNMODELLED_KEY", at, "step key %q (custom shells are not audited)", k)
 			}
 		}
-		if strings.Contains(scalar(s.Get("with").Get("script")), "${{") {
-			a.add("RUN_EXPRESSION_INTERPOLATION", at, "pass expressions through env, never into with.script")
+		// Action input names are case-insensitive (Script becomes INPUT_SCRIPT),
+		// so the screen folds case and refuses any non-lowercase input name.
+		var inputs []string
+		with := s.Get("with")
+		if with != nil {
+			inputs = with.Keys
 		}
+		for _, k := range inputs {
+			if k != strings.ToLower(k) {
+				a.add("NON_LOWERCASE_INPUT", at, "with key %q must be lowercase", k)
+			}
+			if strings.EqualFold(k, "script") && strings.Contains(scalar(with.Map[k]), "${{") {
+				a.add("RUN_EXPRESSION_INTERPOLATION", at, "pass expressions through env, never into with.script")
+			}
+		}
+		a.env(at, s.Get("env"))
+		a.workingDirectory(at, s.Get("working-directory"))
 		if uses := scalar(s.Get("uses")); s.Get("uses") != nil {
 			if !pinnedAction.MatchString(uses) {
 				a.add("UNPINNED_ACTION", at, "%q must name owner/repo@<40-hex commit>", uses)
@@ -434,6 +492,9 @@ func (a *auditor) steps(where string, steps *Node, commands map[string]bool) {
 		}
 		if strings.Contains(run.Text, "${{") {
 			a.add("RUN_EXPRESSION_INTERPOLATION", at, "pass expressions through env, never into the script text")
+		}
+		if runnerEnvFile.MatchString(run.Text) {
+			a.add("RUNNER_ENV_FILE", at, "a script may not write $GITHUB_ENV or $GITHUB_PATH, which change later steps' environment")
 		}
 		if lineValidation.MatchString(run.Text) {
 			a.add("LINE_ORIENTED_VALIDATION", at, "validate a value with whole-string case and length checks, not grep")

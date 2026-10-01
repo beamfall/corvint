@@ -119,6 +119,7 @@ func TestAuditRefusesUnsafeTemplates(t *testing.T) {
 	changeCase := "          case \"${#REQUESTED_CHANGE}\" in\n"
 	replayCase := "            case \"${#change}\" in\n"
 	authorEnv := "      CORVINT_PM_STEP: authoring\n"
+	stepEnv := "        env:\n          CORVINT_PM_AGENT_MODEL_KEY: ${{ secrets.CORVINT_PM_AGENT_MODEL_KEY }}\n"
 	for _, tc := range []struct {
 		name, base, old, new, code string
 	}{
@@ -162,6 +163,18 @@ func TestAuditRefusesUnsafeTemplates(t *testing.T) {
 		{"wildcard trigger branch", trigger, "    branches: [main]\n", "    branches: [\"**\"]\n", "SOURCE_TRIGGER_BRANCHES"},
 		{"tag-only push trigger", trigger, "    branches: [main]\n", "    tags: [v1]\n", "SOURCE_TRIGGER_BRANCHES"},
 		{"path-filtered push trigger", trigger, "    branches: [main]\n", "    branches: [main]\n    paths: [src]\n", "SOURCE_TRIGGER_BRANCHES"},
+		{"capitalised with.Script expression", pipeline, "          go-version: \"1.27.1\"\n", "          go-version: \"1.27.1\"\n          Script: ${{ github.event.client_payload.change }}\n", "RUN_EXPRESSION_INTERPOLATION"},
+		{"non-lowercase with key", pipeline, "          go-version: \"1.27.1\"\n", "          Go-Version: \"1.27.1\"\n", "NON_LOWERCASE_INPUT"},
+		{"unmodelled defaults.run key", pipeline, "permissions: {}\n", "permissions: {}\ndefaults:\n  run:\n    working-directory: config\n    other: x\n", "UNMODELLED_KEY"},
+		{"expression in defaults working-directory", pipeline, "permissions: {}\n", "permissions: {}\ndefaults:\n  run:\n    working-directory: ${{ inputs.change }}\n", "WORKING_DIRECTORY"},
+		{"expression in step working-directory", pipeline, "      - name: Record the pending delta step\n", "      - name: Record the pending delta step\n        working-directory: ${{ inputs.change }}\n", "WORKING_DIRECTORY"},
+		{"non-scalar step working-directory", pipeline, "      - name: Record the pending delta step\n", "      - name: Record the pending delta step\n        working-directory: [a, b]\n", "WORKING_DIRECTORY"},
+		{"workflow BASH_ENV", pipeline, "  CORVINT_PM_WORKFLOW: pipeline\n", "  CORVINT_PM_WORKFLOW: pipeline\n  BASH_ENV: config/x.sh\n", "STARTUP_ENV"},
+		{"job LD_PRELOAD", pipeline, authorEnv, authorEnv + "      LD_PRELOAD: /tmp/x.so\n", "STARTUP_ENV"},
+		{"step ENV", pipeline, stepEnv, stepEnv + "          ENV: config/x.sh\n", "STARTUP_ENV"},
+		{"non-mapping step env", pipeline, stepEnv, "        env: ${{ fromJSON(inputs.change) }}\n", "UNMODELLED_KEY"},
+		{"script writes GITHUB_ENV", pipeline, `echo "delta NOT_PRODUCED corvint-delta-not-yet-published"`, `echo "BASH_ENV=x" >> "$GITHUB_ENV"`, "RUNNER_ENV_FILE"},
+		{"script writes GITHUB_PATH", pipeline, `echo "delta NOT_PRODUCED corvint-delta-not-yet-published"`, `echo "$RUNNER_TEMP" >> "$GITHUB_PATH"`, "RUNNER_ENV_FILE"},
 		{"anchor", pipeline, "permissions: {}\n", "permissions: &p {}\n", "UNSUPPORTED_YAML"},
 		{"duplicate key", pipeline, "permissions: {}\n", "permissions: {}\npermissions: {}\n", "UNSUPPORTED_YAML"},
 		{"tab", pipeline, "permissions: {}\n", "permissions:\t{}\n", "UNSUPPORTED_YAML"},

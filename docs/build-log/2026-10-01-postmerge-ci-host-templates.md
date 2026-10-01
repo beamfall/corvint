@@ -44,7 +44,7 @@ rather than guessing. The audit flags:
 ## Evidence and limits
 
 `GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/postmergehost` passes. All three
-templates audit with zero findings, and 43 single mutations (after review repairs) each produce
+templates audit with zero findings, and 55 single mutations (after review repairs) each produce
 their specific finding.
 
 The following remain open or `NOT_RUN`:
@@ -74,3 +74,21 @@ artifact actions use. Same-VM attestation is not confinement.
   (`SOURCE_TRIGGER_BRANCHES`). Remaining lexical limits are recorded in the spec and README.
 
 The focused package now has 39 mutations, each producing its specific finding code.
+
+## Repair r3 (independent review FAIL)
+
+- **Case-folded `with.script`.** Action input names are case-insensitive, so `Script:` reached the
+  action as `INPUT_SCRIPT` and audited clean. The screen now matches `script` in any case and
+  refuses any non-lowercase input name (`NON_LOWERCASE_INPUT`).
+- **Startup variables and the runner env file.** A workflow, job or step `env` key such as
+  `BASH_ENV`, `ENV`, `LD_*` or `DYLD_*` made a shell or the loader run an unaudited file. Such keys
+  are refused (`STARTUP_ENV`, a denylist), a non-mapping `env` is unmodelled, and a run script that
+  names `GITHUB_ENV` or `GITHUB_PATH` is refused (`RUNNER_ENV_FILE`). The lexical residue (other
+  variables, indirect file access, pinned actions writing the file) is recorded in the spec failure
+  modes and README limits.
+- **`working-directory`.** A step or `defaults.run` value must be a literal scalar
+  (`WORKING_DIRECTORY`).
+- **Unkilled `defaults.run` refusal.** A new mutation adds an unknown `defaults.run` key.
+
+The shipped templates still audit clean. Twelve new mutations bring the total to 55; deleting each
+new check, one at a time, fails at least one of them.

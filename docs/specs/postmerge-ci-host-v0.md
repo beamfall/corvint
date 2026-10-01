@@ -69,9 +69,9 @@ Corvint stays a local binary. The templates are operator reference material, not
 - `PCH-V0-007`: Provide an audit, `internal/postmergehost.Audit`, over a restricted YAML subset. It
   refuses unsupported constructs: anchors, aliases, tags, folded scalars, flow mappings, multiple
   documents, tabs, duplicate keys, unmodelled job keys such as reusable workflows, containers
-  and services, unmodelled step keys such as a custom `shell:`, and any workflow- or job-level
-  `defaults` other than `run.working-directory` [UNMODELLED_KEY, or CUSTOM_SHELL for
-  `defaults.run.shell`].
+  and services, unmodelled step keys such as a custom `shell:`, a non-mapping `env`, and any
+  workflow- or job-level `defaults` other than `run.working-directory` [UNMODELLED_KEY, or
+  CUSTOM_SHELL for `defaults.run.shell`].
 
   It reports each of these, with the finding code in brackets:
   - change-request triggers [CHANGE_REQUEST_TRIGGER];
@@ -83,7 +83,16 @@ Corvint stays a local binary. The templates are operator reference material, not
   - an authoring job that performs other steps [AUTHORING_NOT_ISOLATED];
   - unpinned actions [UNPINNED_ACTION] and persisted checkout credentials
     [CHECKOUT_PERSISTS_CREDENTIALS];
-  - expressions in run scripts or in `with.script` [RUN_EXPRESSION_INTERPOLATION];
+  - expressions in run scripts or in a `with` input named `script` in any letter case
+    [RUN_EXPRESSION_INTERPOLATION], and any `with` input name that is not lowercase
+    [NON_LOWERCASE_INPUT];
+  - a workflow, job or step `env` key that makes a shell, the dynamic loader or an interpreter run
+    unaudited code: `BASH_ENV`, `ENV`, `BASHOPTS`, `SHELLOPTS`, `PS4`, `PROMPT_COMMAND`, `IFS`,
+    `CDPATH`, `PATH`, `GOFLAGS`, `NODE_OPTIONS`, `PYTHONSTARTUP`, `PYTHONPATH`, `PERL5OPT`,
+    `PERL5LIB`, `RUBYOPT`, or a name starting `LD_`, `DYLD_` or `BASH_FUNC_` [STARTUP_ENV];
+  - a run script that names `GITHUB_ENV` or `GITHUB_PATH` [RUNNER_ENV_FILE];
+  - a step or `defaults.run` `working-directory` that is not a literal scalar
+    [WORKING_DIRECTORY];
   - a value validated by a line-oriented `grep` fed from `printf`, `echo` or a here-string
     [LINE_ORIENTED_VALIDATION];
   - a source-trigger push filter other than a literal `branches` list [SOURCE_TRIGGER_BRANCHES];
@@ -129,6 +138,10 @@ Corvint stays a local binary. The templates are operator reference material, not
   caches on the same repository inherit the poisoning risk.
 - A dispatch fails on push. Nightly reconciliation re-dispatches the change.
 - A ported template uses an unmodelled construct. The audit refuses it rather than guessing.
+- An `env` variable outside the `STARTUP_ENV` denylist changes how a tool runs code, or a script
+  reaches the runner's env file without naming `GITHUB_ENV` or `GITHUB_PATH` (for example through
+  `eval` or a computed path). The audit is lexical, so it does not see either; a pinned action may
+  also write the env file. The operator reviews these by hand.
 
 ## Trust boundary
 
@@ -136,7 +149,8 @@ The audit reads declared workflow text and grants no authority. Hooks are operat
 does not ship them, and the audit observes only the hook names it invokes. Step attestation is
 ASS-V0 local observation, not confinement. Audit coverage is lexical and partial:
 `LINE_ORIENTED_VALIDATION` matches only the `printf`/`echo` pipe and here-string forms; expression
-checks cover `run` and `with.script` but not other action inputs that evaluate code; and the audit
+checks cover `run` and `with.script` but not other action inputs that evaluate code; `STARTUP_ENV`
+is a denylist and `RUNNER_ENV_FILE` matches only the literal names; and the audit
 cannot see which branch is the repository default, so the operator checks that the source trigger
 names it. The pin file and the source commit are trusted operator
 configuration, and rebuilding the pins happens on a trusted machine with the same toolchain.
@@ -151,9 +165,12 @@ It checks that:
 - the graph validates, and seven malformed graphs refuse;
 - all three templates audit clean;
 - the authoring job references no write-class secret, write permission or token;
-- 43 single mutations each produce their specific finding code, including a reintroduced
+- 55 single mutations each produce their specific finding code, including a reintroduced
   line-oriented `grep` check, a custom step shell, a workflow- or job-level `defaults.run.shell`,
-  an expression in `with.script`, and non-literal or empty source-trigger filters;
+  an unmodelled `defaults.run` key, an expression in `with.script` or `with.Script`, a
+  non-lowercase input name, `BASH_ENV`, `ENV` and `LD_PRELOAD` at workflow, job and step level, a
+  non-mapping step `env`, writes to `$GITHUB_ENV` and `$GITHUB_PATH`, an expression or non-scalar
+  `working-directory`, and non-literal or empty source-trigger filters;
 - the pipeline's change-id check, run under bash and POSIX sh, writes outputs only for one whole
   40- or 64-hex id and refuses a newline-injected `change=` line, and replay dispatches only whole
   ids, including a final line without a trailing newline;
