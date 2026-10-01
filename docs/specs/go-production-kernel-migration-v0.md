@@ -323,9 +323,16 @@ requirements below have evidence. File existence is not parity.
   tests, `go mod verify` when module files changed, and the repository gate. The existing path and
   working-tree profiles remain unchanged. The range profile is read-only and local-only and claims
   no Python parity. A dirty worktree returns `unsupported-impact-worktree`
-  (`internal/contextindex/range_impact.go:324`) unless `GPK-V0-060` allows every dirty entry, and a
+  (`internal/contextindex/range_impact.go:340`) unless `GPK-V0-060` allows every dirty entry, and a
   changed `.go` path in the repository root package returns `unsupported-impact-path`
-  (`internal/contextindex/range_impact.go:143`).
+  (`internal/contextindex/range_impact.go:154`).
+  Proposed experimental extension (2026-09-30, owner-requested issue #390):
+  `non-go-impact-v0.md` proposes Ruby/JS/TS admission in both range capacities.
+  Its `NGI-V0-002`/`NGI-V0-004` replace Go-only membership/omission restrictions
+  only for those suffixes, retain direct hunk-qualified evidence without import/test
+  closure, and keep Go-only canonical bytes and restrictions. Structured dynamic
+  unknowns remain independent of ranking. This is not acceptance or promotion of
+  the new technical contract; original Go qualification is not non-Go qualification.
 - `GPK-V0-031`: Before the complete Phase 2 feature port, `corvint` MAY expose an experimental
   `feature FEATURE_ID` slice on Darwin and Linux; any other platform returns
   `unsupported-feature-platform` (`cmd/corvint/main.go:433`). It MUST accept the Python-oracle `--limit` range
@@ -519,7 +526,7 @@ which is the whole of what the row asserts.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `impact-range-drift` | `internal/contextindex/range_impact.go:150` | "changed Go path does not match the captured target blob: <value>" |
+| `impact-range-drift` | `internal/contextindex/range_impact.go:156` | "changed Go path does not match the captured target blob: <value>" for Go; "changed syntax path does not match the captured target blob: <value>" for the proposed Ruby/JS/TS extension |
 | `invalid-working-tree-impact-limit` | `internal/worktreeimpact/compiler.go:87` | "working-tree impact limit must be an integer from 1 to 50" |
 | `invalid-working-tree-impact-path` | `internal/worktreeimpact/compiler.go:135` | "working-tree impact path must be valid UTF-8 with 1 to 1024 characters" |
 | `invalid-working-tree-impact-paths` | `internal/worktreeimpact/compiler.go:90` | "working-tree impact requires 1 to 100 paths" |
@@ -1225,9 +1232,9 @@ is one name, so one matching code line is one pair and one evidence item for `ki
   path followed by NUL. `range.statusSha256` continues to bind the raw status bytes. Failure modes:
   any tracked entry (modified, staged, deleted, renamed, or copied) or malformed status MUST return
   `unsupported-impact-worktree` with "range impact requires a clean worktree"
-  (`internal/contextindex/range_impact.go:324`). The first overlapping untracked path MUST return
+  (`internal/contextindex/range_impact.go:340`). The first overlapping untracked path MUST return
   `unsupported-impact-worktree` with "range impact requires a clean worktree; untracked path
-  overlaps the Go build: <path>" (`internal/contextindex/range_impact.go:341`). Any status change
+  overlaps the Go build: <path>" (`internal/contextindex/range_impact.go:357`). Any status change
   after capture remains `impact-range-drift`. The allowance MUST NOT widen path or working-tree
   impact, which are unchanged. It does not extend to the repository gate the receipt names, which
   keeps refusing listed untracked paths under `ARTIFACT-GO-V0-009`.
