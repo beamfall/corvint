@@ -10,6 +10,9 @@ import (
 )
 
 func TestDeltaCaptureFIFORefusesWithoutWriter(t *testing.T) {
+	t.Run("DLT-V0-005 safe regular file capture", testDeltaCaptureFIFORefusesWithoutWriter)
+}
+func testDeltaCaptureFIFORefusesWithoutWriter(t *testing.T) {
 	root := t.TempDir()
 	name := filepath.Join(root, "record")
 	if err := syscall.Mkfifo(name, 0600); err != nil {

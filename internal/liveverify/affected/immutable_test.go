@@ -15,6 +15,9 @@ import (
 
 // DLT-V0-002: all registered providers observe the same units and selections.
 func TestImmutableAllLanguageParity(t *testing.T) {
+	t.Run("DLT-V0-002 eight provider immutable parity", testImmutableAllLanguageParity)
+}
+func testImmutableAllLanguageParity(t *testing.T) {
 	files := fstest.MapFS{
 		"go.mod":                     {Data: []byte("module example.invalid/demo\n\ngo 1.27\n")},
 		"lib.go":                     {Data: []byte("package demo\nfunc A() {}\n")},
@@ -71,6 +74,9 @@ func TestImmutableAllLanguageParity(t *testing.T) {
 }
 
 func TestImmutableNonregularBeforeLanguageFilter(t *testing.T) {
+	t.Run("DLT-V0-002 nonregular entry refusal", testImmutableNonregularBeforeLanguageFilter)
+}
+func testImmutableNonregularBeforeLanguageFilter(t *testing.T) {
 	for _, mode := range []fs.FileMode{fs.ModeSymlink, fs.ModeIrregular, fs.ModeNamedPipe} {
 		files := fstest.MapFS{"extensionless": {Mode: mode, Data: []byte("elsewhere")}}
 		if _, err := affected.BuildFS(files, languages.All()...); !errors.Is(err, affected.ErrWalkUnrepresentable) {
@@ -80,6 +86,9 @@ func TestImmutableNonregularBeforeLanguageFilter(t *testing.T) {
 }
 
 func TestImmutableSwallowedReadRefusesGraph(t *testing.T) {
+	t.Run("DLT-V0-002 swallowed read refuses graph", testImmutableSwallowedReadRefusesGraph)
+}
+func testImmutableSwallowedReadRefusesGraph(t *testing.T) {
 	// Swift's optional Appium detector ignores its Read error. BuildFS must retain it.
 	files := fstest.MapFS{"package.json": {Data: []byte(strings.Repeat("x", affected.MaxSourceBytes+1))}}
 	for _, lang := range languages.All() {

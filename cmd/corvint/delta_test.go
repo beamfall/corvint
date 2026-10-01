@@ -11,6 +11,9 @@ import (
 )
 
 func TestDeltaInternalCLIExplicitImmutableNoOp(t *testing.T) {
+	t.Run("DLT-V0-010 read-only CLI no-op", testDeltaInternalCLIExplicitImmutableNoOp)
+}
+func testDeltaInternalCLIExplicitImmutableNoOp(t *testing.T) {
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)

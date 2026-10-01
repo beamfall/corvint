@@ -15,6 +15,9 @@ import (
 )
 
 func TestBoundedBlobRejectsHeaderWithoutFallback(t *testing.T) {
+	t.Run("DLT-V0-003 hostile header refusal", testBoundedBlobRejectsHeaderWithoutFallback)
+}
+func testBoundedBlobRejectsHeaderWithoutFallback(t *testing.T) {
 	for _, response := range []string{"wrong blob 3\\nabc\\n", "%s tree 3\\nabc\\n", "%s blob -1\\n", "%s blob 67108864\\n", "%s blob 3\\na\\n", "%s blob text\\n"} {
 		t.Run(response, func(t *testing.T) {
 			root, _, head := makeRepo(t)
@@ -42,6 +45,9 @@ func TestBoundedBlobRejectsHeaderWithoutFallback(t *testing.T) {
 	}
 }
 func TestBoundedBlobCumulativeBudgetBeforeBody(t *testing.T) {
+	t.Run("DLT-V0-003 cumulative budget before allocation", testBoundedBlobCumulativeBudgetBeforeBody)
+}
+func testBoundedBlobCumulativeBudgetBeforeBody(t *testing.T) {
 	root, _, head := makeRepo(t)
 	r := open(t, root)
 	entry, _, err := r.LookupTreeEntry(context.Background(), head, "f.go")
@@ -54,6 +60,9 @@ func TestBoundedBlobCumulativeBudgetBeforeBody(t *testing.T) {
 	}
 }
 func TestBoundedBlobCancellationRetiresDescendant(t *testing.T) {
+	t.Run("DLT-V0-003 cancellation retires descendant", testBoundedBlobCancellationRetiresDescendant)
+}
+func testBoundedBlobCancellationRetiresDescendant(t *testing.T) {
 	root, _, head := makeRepo(t)
 	r := open(t, root)
 	entry, _, err := r.LookupTreeEntry(context.Background(), head, "f.go")

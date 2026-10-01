@@ -9,6 +9,9 @@ import (
 )
 
 func TestCapturedSelectionParityAndMutation(t *testing.T) {
+	t.Run("DLT-V0-005 captured selection parity", testCapturedSelectionParityAndMutation)
+}
+func testCapturedSelectionParityAndMutation(t *testing.T) {
 	p := newPair(t)
 	ctx := context.Background()
 	for _, name := range []string{"positive-same-repository", "positive-cross-repository", "stale-pinned-blob", "unbound-test-repository"} {
@@ -44,6 +47,9 @@ func TestCapturedSelectionParityAndMutation(t *testing.T) {
 	}
 }
 func TestCapturedAssertsDistinctFromVerifies(t *testing.T) {
+	t.Run("DLT-V0-006 asserts distinct from verifies", testCapturedAssertsDistinctFromVerifies)
+}
+func testCapturedAssertsDistinctFromVerifies(t *testing.T) {
 	p := newPair(t)
 	c := pathCase(t, "positive-same-repository")
 	source := fixtureRecord(t, p, pathFixtures, c)
@@ -68,6 +74,9 @@ func TestCapturedAssertsDistinctFromVerifies(t *testing.T) {
 	}
 }
 func TestCapturedFailuresDoNotNarrow(t *testing.T) {
+	t.Run("DLT-V0-005 failed capture never narrows", testCapturedFailuresDoNotNarrow)
+}
+func testCapturedFailuresDoNotNarrow(t *testing.T) {
 	p := newPair(t)
 	input := SelectionInput{Changed: []string{"pkg/main.go"}, Profile: ProfileStrict, Limit: 20}
 	got := SelectionCaptured(context.Background(), p.app.root, p.app.head, []CapturedRecord{FailedCapture()}, nil, input)

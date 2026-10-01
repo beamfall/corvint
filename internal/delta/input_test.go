@@ -9,6 +9,9 @@ import (
 )
 
 func TestDeltaCaptureBoundAndTransport(t *testing.T) {
+	t.Run("DLT-V0-005 bounded provider capture", testDeltaCaptureBoundAndTransport)
+}
+func testDeltaCaptureBoundAndTransport(t *testing.T) {
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("safe capture unavailable")
 	}

@@ -9,6 +9,9 @@ import (
 )
 
 func TestSourceReadBoundsAndStickyFailure(t *testing.T) {
+	t.Run("DLT-V0-002 sticky read failure", testSourceReadBoundsAndStickyFailure)
+}
+func testSourceReadBoundsAndStickyFailure(t *testing.T) {
 	source := FSSource(fstest.MapFS{"ok": {Data: []byte(strings.Repeat("x", MaxSourceBytes))}, "big": {Data: []byte(strings.Repeat("x", MaxSourceBytes+1))}})
 	if body, err := source.Read("ok"); err != nil || len(body) != MaxSourceBytes {
 		t.Fatalf("boundary: %d %v", len(body), err)
@@ -26,6 +29,9 @@ func TestSourceReadBoundsAndStickyFailure(t *testing.T) {
 }
 
 func TestSourceHiddenWalkRetainsIgnoredFailure(t *testing.T) {
+	t.Run("DLT-V0-002 hidden walk failure retained", testSourceHiddenWalkRetainsIgnoredFailure)
+}
+func testSourceHiddenWalkRetainsIgnoredFailure(t *testing.T) {
 	source := FSSource(fstest.MapFS{".maestro/escape": {Mode: fs.ModeSymlink}})
 	_ = source.Walk(".maestro", func(string, fs.DirEntry, error) error { return nil })
 	if !errors.Is(source.Err(), ErrWalkUnrepresentable) {

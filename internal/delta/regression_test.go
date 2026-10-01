@@ -10,6 +10,9 @@ import (
 )
 
 func TestDeltaEmptyChangeBindsPrevious(t *testing.T) {
+	t.Run("DLT-V0-004 bound baseline validity", testDeltaEmptyChangeBindsPrevious)
+}
+func testDeltaEmptyChangeBindsPrevious(t *testing.T) {
 	root, base, head := fixtureMerge(t)
 	ctx := context.Background()
 	gen, err := flowdocs.Generate(ctx, root, flowdocs.Options{Revision: head, Scope: "web"})
@@ -52,6 +55,9 @@ func TestDeltaEmptyChangeBindsPrevious(t *testing.T) {
 	}
 }
 func TestDeltaDocumentationExclusionsAndHTML(t *testing.T) {
+	t.Run("DLT-V0-004 documentation exclusions stay incomplete", testDeltaDocumentationExclusionsAndHTML)
+}
+func testDeltaDocumentationExclusionsAndHTML(t *testing.T) {
 	for _, kind := range []string{"oversize-js", "generated-js", "unsupported-go", "html-base", "html-head"} {
 		t.Run(kind, func(t *testing.T) {
 			root, base, _ := fixtureMerge(t)
@@ -89,6 +95,9 @@ func TestDeltaDocumentationExclusionsAndHTML(t *testing.T) {
 	}
 }
 func TestDeltaReachedUnitDenominatorIncludesDiamond(t *testing.T) {
+	t.Run("DLT-V0-006 affected unit denominator", testDeltaReachedUnitDenominatorIncludesDiamond)
+}
+func testDeltaReachedUnitDenominatorIncludesDiamond(t *testing.T) {
 	root, _, _ := fixtureMerge(t)
 	for p, body := range map[string]string{"a/a.go": "package a\nfunc A(){}\n", "b/b.go": "package b\nimport \"example.invalid/demo/a\"\nfunc B(){a.A()}\n", "c/c.go": "package c\nimport \"example.invalid/demo/a\"\nfunc C(){a.A()}\n", "d/d.go": "package d\nimport (\"example.invalid/demo/b\";\"example.invalid/demo/c\")\nfunc D(){b.B();c.C()}\n", "d/d_test.go": "package d\nimport \"testing\"\nfunc TestD(t *testing.T){D()}\n"} {
 		put(t, root, p, body)

@@ -10,6 +10,9 @@ import (
 )
 
 func TestRevisionFSImmutableAndBounds(t *testing.T) {
+	t.Run("DLT-V0-002 immutable revision source", testRevisionFSImmutableAndBounds)
+}
+func testRevisionFSImmutableAndBounds(t *testing.T) {
 	root, base, head := makeRepo(t)
 	r := open(t, root)
 	ctx := context.Background()
@@ -49,6 +52,9 @@ func TestRevisionFSImmutableAndBounds(t *testing.T) {
 	}
 }
 func TestBoundedBlobIdentityAndNoMemoBypass(t *testing.T) {
+	t.Run("DLT-V0-003 identity without memo bypass", testBoundedBlobIdentityAndNoMemoBypass)
+}
+func testBoundedBlobIdentityAndNoMemoBypass(t *testing.T) {
 	root, _, head := makeRepo(t)
 	ctx := context.Background()
 	r := open(t, root)
@@ -71,6 +77,9 @@ func TestBoundedBlobIdentityAndNoMemoBypass(t *testing.T) {
 	}
 }
 func TestBoundedBlobFourMiBBoundary(t *testing.T) {
+	t.Run("DLT-V0-003 four MiB source bound", testBoundedBlobFourMiBBoundary)
+}
+func testBoundedBlobFourMiBBoundary(t *testing.T) {
 	root, _, _ := makeRepo(t)
 	for _, n := range []int{4 << 20, (4 << 20) + 1, 64 << 20} {
 		if err := os.WriteFile(filepath.Join(root, "big"), bytes.Repeat([]byte("x"), n), 0644); err != nil {

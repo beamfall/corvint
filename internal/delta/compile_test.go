@@ -90,40 +90,97 @@ func TestDeltaFixtureMergeDeterministicSourceFree(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, _ := two.Canonical()
-	if !bytes.Equal(a, b) {
-		t.Fatalf("immutable output drift\n%s\n%s", a, b)
-	}
-	if bytes.Contains(a, []byte("PROSE_SENTINEL")) || bytes.Contains(a, []byte("TASK-123")) {
-		t.Fatal("prose escaped")
-	}
-	if !one.RunFullSuite || !hasUnknown(one, "provider-coverage-missing") || one.Decision != "findings" || len(one.WorkKeys) != 1 {
-		t.Fatalf("missing conservative evidence: %+v", one)
-	}
-	if len(one.Tests) == 0 || one.Denominators.AffectedUnits == 0 || one.Denominators.LexicalFlows == 0 {
-		t.Fatalf("join missing: %+v", one)
-	}
-	if refs != git(t, root, "show-ref") || index != git(t, root, "ls-files", "--stage") || before != "" {
-		t.Fatal("immutable read mutated git state")
-	}
-	for _, path := range []string{".corvint", ".git/corvint/index", ".git/corvint/trace"} {
-		if _, err := os.Stat(filepath.Join(root, path)); !os.IsNotExist(err) {
-			t.Fatalf("state created %s: %v", path, err)
+	t.Run("DLT-V0-010 two-run byte identity without writes", func(t *testing.T) {
+		if !bytes.Equal(a, b) {
+			t.Fatalf("immutable output drift\n%s\n%s", a, b)
 		}
+		if refs != git(t, root, "show-ref") || index != git(t, root, "ls-files", "--stage") || before != "" {
+			t.Fatal("immutable read mutated git state")
+		}
+		for _, path := range []string{".corvint", ".git/corvint/index", ".git/corvint/trace"} {
+			if _, err := os.Stat(filepath.Join(root, path)); !os.IsNotExist(err) {
+				t.Fatalf("state created %s: %v", path, err)
+			}
+		}
+	})
+	t.Run("DLT-V0-001 explicit revision binding", func(t *testing.T) {
+		tree := git(t, root, "rev-parse", head+"^{tree}")
+		if one.Schema != Schema || one.Base != base || one.Head != head || one.Tree != tree || one.Build != "163" || len(one.ChangedPathDigest) != 64 {
+			t.Fatalf("binding %+v", one)
+		}
+		changed := strings.Join(one.ChangedPaths, ",")
+		if changed != "README.md,pkg/a.go,web/a.js" {
+			t.Fatalf("changed paths %q", changed)
+		}
+	})
+	t.Run("DLT-V0-008 source and prose free output", func(t *testing.T) {
+		if bytes.Contains(a, []byte("PROSE_SENTINEL")) || bytes.Contains(a, []byte("TASK-123")) {
+			t.Fatal("prose escaped")
+		}
+	})
+	t.Run("DLT-V0-007 opaque hashed work keys", func(t *testing.T) {
+		if len(one.WorkKeys) != 1 || strings.Contains(one.WorkKeys[0], "TASK") {
+			t.Fatalf("work keys %v", one.WorkKeys)
+		}
+	})
+	t.Run("DLT-V0-005 missing provider requires full suite", func(t *testing.T) {
+		if !one.RunFullSuite || !hasUnknown(one, "provider-coverage-missing") {
+			t.Fatalf("missing provider narrowed: %+v", one)
+		}
+	})
+	t.Run("DLT-V0-006 separate flow and unit denominators", func(t *testing.T) {
+		if len(one.Tests) == 0 || one.Denominators.AffectedUnits == 0 || one.Denominators.LexicalFlows == 0 || one.Denominators.Runtime != "unknown" {
+			t.Fatalf("join missing: %+v", one)
+		}
+	})
+	t.Run("DLT-V0-009 unknowns force findings", func(t *testing.T) {
+		if one.Decision != "findings" || one.Denominators.Complete {
+			t.Fatalf("decision %s complete %v", one.Decision, one.Denominators.Complete)
+		}
+	})
+}
+func TestDeltaIncompleteProviderRequiresFullSuite(t *testing.T) {
+	root, base, head := fixtureMerge(t)
+	dir := t.TempDir()
+	malformed := filepath.Join(dir, "malformed.json")
+	if err := os.WriteFile(malformed, []byte("{"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ name, provider, reason string }{
+		{"DLT-V0-005 malformed provider run full suite", malformed, "external-coverage-incomplete"},
+		{"DLT-V0-005 absent provider file run full suite", filepath.Join(dir, "absent.json"), "provider-capture-unavailable"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			r, err := Compile(context.Background(), root, Options{Base: base, Head: head, Build: "163", Providers: []string{c.provider}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !r.RunFullSuite || !hasUnknown(r, c.reason) || !hasUnknown(r, "external-coverage-incomplete") || r.Decision != "findings" {
+				t.Fatalf("incomplete provider narrowed: %+v", r)
+			}
+		})
 	}
 }
 func TestDeltaNoOpAndBadRevision(t *testing.T) {
 	root, _, head := fixtureMerge(t)
 	o := Options{Base: head, Head: head, Build: "163"}
 	r, err := Compile(context.Background(), root, o)
-	if err != nil || r.Decision != "no-op" || r.RunFullSuite || len(r.ChangedPaths) != 0 {
-		t.Fatalf("noop %+v %v", r, err)
-	}
-	o.Base = "HEAD"
-	if _, err := Compile(context.Background(), root, o); err == nil {
-		t.Fatal("symbolic revision admitted")
-	}
+	t.Run("DLT-V0-009 complete empty change is no-op", func(t *testing.T) {
+		if err != nil || r.Decision != "no-op" || r.RunFullSuite || len(r.ChangedPaths) != 0 {
+			t.Fatalf("noop %+v %v", r, err)
+		}
+	})
+	t.Run("DLT-V0-001 symbolic revision refused", func(t *testing.T) {
+		o.Base = "HEAD"
+		if _, err := Compile(context.Background(), root, o); err == nil {
+			t.Fatal("symbolic revision admitted")
+		}
+	})
 }
 func TestDeltaPreviousGeneration(t *testing.T) {
+	t.Run("DLT-V0-004 previous generation baseline binding", testDeltaPreviousGeneration)
+}
+func testDeltaPreviousGeneration(t *testing.T) {
 	root, base, head := fixtureMerge(t)
 	ctx := context.Background()
 	previous, err := flowdocs.Generate(ctx, root, flowdocs.Options{Revision: base, Scope: "pkg"})
@@ -158,8 +215,10 @@ func TestDeltaRecordRejectsProseAndInvalidEnums(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.Unknowns = append(r.Unknowns, Unknown{Code: "PROSE_SENTINEL", Count: 1, Digest: strings.Repeat("a", 64)})
-	if _, err := r.Canonical(); err == nil {
-		t.Fatal("unknown enum escaped")
-	}
+	t.Run("DLT-V0-008 closed uncertainty enum", func(t *testing.T) {
+		r.Unknowns = append(r.Unknowns, Unknown{Code: "PROSE_SENTINEL", Count: 1, Digest: strings.Repeat("a", 64)})
+		if _, err := r.Canonical(); err == nil {
+			t.Fatal("unknown enum escaped")
+		}
+	})
 }

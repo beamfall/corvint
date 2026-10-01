@@ -7,6 +7,9 @@ import (
 )
 
 func TestDeltaSchemaPathCorpus(t *testing.T) {
+	t.Run("DLT-V0-008 validated path corpus", testDeltaSchemaPathCorpus)
+}
+func testDeltaSchemaPathCorpus(t *testing.T) {
 	root, _, head := fixtureMerge(t)
 	base, err := Compile(context.Background(), root, Options{Base: head, Head: head, Build: "163"})
 	if err != nil {
@@ -28,6 +31,9 @@ func TestDeltaSchemaPathCorpus(t *testing.T) {
 	}
 }
 func TestDeltaRefusesControlCharacterGitPaths(t *testing.T) {
+	t.Run("DLT-V0-008 unrepresentable path refusal", testDeltaRefusesControlCharacterGitPaths)
+}
+func testDeltaRefusesControlCharacterGitPaths(t *testing.T) {
 	for _, p := range []string{"tab\tfile", "line\nfile"} {
 		t.Run("path", func(t *testing.T) {
 			root, _, base := fixtureMerge(t)

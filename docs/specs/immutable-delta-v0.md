@@ -11,7 +11,7 @@ product invariants; docs/SPEC-DRIVEN-DEVELOPMENT.md; docs/DOGFOOD.md.
 - Claim: One deterministic, read-only, source-content-free observation of an explicit immutable change.
 - Status: proposed/experimental; public CLI integration is under qualification.
 - Exists: reviewed immutable compiler, public CLI, schema and conformance; bounded native no-op, tests-needed and findings witnesses.
-- Blocked on: native docs-only profile conflict (V1-0579), final bound qualification/publication and native completion; original four-class acceptance remains partial.
+- Blocked on: final bound qualification/publication and native completion. Native docs-only is deferred by owner decision 2026-10-01 (V1-0579 follow-up).
 - Read next: Requirements; Bounds and failures; Acceptance and traceability.
 
 ## User and current baseline
@@ -126,14 +126,37 @@ Public dispatch qualification is separate from source-stage compilation; shared 
 | DLT-V0-007, DLT-V0-008 | delta projection and canonical encoding | opaque keys, prose sentinels, closed schema and unknown states |
 | DLT-V0-009, DLT-V0-010 | delta compiler, CLI, protocol and conformance | four decisions, full-suite uncertainty, two-run equality, no mutation/network |
 
+Each requirement is anchored by exact-ID Go subtests (`t.Run("DLT-V0-NNN ...")`, V1-0583):
+
+| Requirement | Anchoring tests |
+|---|---|
+| DLT-V0-001 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree, TestDeltaNoOpAndBadRevision; `internal/cem/gitauth`: TestDeltaPathsIncludeCEMAndTypeChanges |
+| DLT-V0-002 | `internal/cem/gitauth`: TestRevisionFSImmutableAndBounds; `internal/liveverify/affected`: TestImmutableAllLanguageParity, TestImmutableNonregularBeforeLanguageFilter, TestImmutableSwallowedReadRefusesGraph, TestSourceReadBoundsAndStickyFailure, TestSourceHiddenWalkRetainsIgnoredFailure |
+| DLT-V0-003 | `internal/cem/gitauth`: TestBoundedBlobRejectsHeaderWithoutFallback, TestBoundedBlobCumulativeBudgetBeforeBody, TestBoundedBlobCancellationRetiresDescendant, TestBoundedBlobIdentityAndNoMemoBypass, TestBoundedBlobFourMiBBoundary |
+| DLT-V0-004 | `internal/delta`: TestDeltaPreviousGeneration, TestDeltaEmptyChangeBindsPrevious, TestDeltaDocumentationExclusionsAndHTML |
+| DLT-V0-005 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree, TestDeltaIncompleteProviderRequiresFullSuite, TestDeltaCaptureBoundAndTransport, TestDeltaCaptureFIFORefusesWithoutWriter; `internal/extevidence`: TestCapturedSelectionParityAndMutation, TestCapturedFailuresDoNotNarrow |
+| DLT-V0-006 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree, TestDeltaReachedUnitDenominatorIncludesDiamond; `internal/extevidence`: TestCapturedAssertsDistinctFromVerifies |
+| DLT-V0-007 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree; `internal/cem/gitauth`: TestDeltaMetadataAndBoundedSHA256 |
+| DLT-V0-008 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree, TestDeltaRecordRejectsProseAndInvalidEnums, TestDeltaSchemaPathCorpus, TestDeltaRefusesControlCharacterGitPaths |
+| DLT-V0-009 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree, TestDeltaNoOpAndBadRevision, TestDeltaPublishedDecisionVectors (all four wire decisions; native docs-only deferred below) |
+| DLT-V0-010 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree; `cmd/corvint`: TestDeltaInternalCLIExplicitImmutableNoOp |
+
 Execution evidence is retained in `docs/build-log/2026-09-30-immutable-delta-public-integration.md`.
 Final integration uses approved public base `7bd7f5e03ad177e7496ce5dbd1563b8466f591a4`.
 Native generation 88 was widened atomically in receipt 1579; ticket effects remain INCOMPLETE.
 The earlier source-stage and public-base `01f557` workflows remain historical; the latter was
 explicitly cancelled as incomplete before a distinct final-base enrollment. No result or satisfaction
 is transferred to the new base. The initial empty-diff/absent-intent refusal remains visible.
+The branch was later reintegrated by squash import onto public `cdd2e31fffd732419eb9ade531ccf289259f3243` under owner
+decision 2026-10-01; see `docs/build-log/2026-10-01-delta-reintegration.md`. No earlier
+receipt transfers to that base either.
 
-DLT-V0-009 and original issue acceptance remain PARTIAL. Actual native `tests-needed` is witnessed
+**Owner decision 2026-10-01 (docs-only deferred).** The owner accepted, as an interim limit, that a
+documentation-only change keeps producing `tests-needed` (or `findings`) under the strict-provider
+profile: "keep docs-only as tests-needed for now". The classification is unchanged; the `docs-only`
+value stays in the closed schema and published wire vectors, and native `docs-only` is deferred to
+V1-0579, which stays open. The other three native classes are witnessed. The history below records
+why the class is unreachable today. Actual native `tests-needed` is witnessed
 by a changed Node test invocation with a stable documented helper and fresh explicit assertion.
 Native `docs-only` has a current-profile structural conflict: strict external coverage must qualify
 every changed path through runnable test evidence; the resulting selected test overrides the

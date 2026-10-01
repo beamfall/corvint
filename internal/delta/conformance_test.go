@@ -8,6 +8,9 @@ import (
 )
 
 func TestDeltaPublishedDecisionVectors(t *testing.T) {
+	t.Run("DLT-V0-009 published decision vectors", testDeltaPublishedDecisionVectors)
+}
+func testDeltaPublishedDecisionVectors(t *testing.T) {
 	raw, err := os.ReadFile("../../conformance/delta-v0/decision-vectors.json")
 	if err != nil {
 		t.Fatal(err)
