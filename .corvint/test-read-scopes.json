@@ -14,6 +14,10 @@
       "benchmarks/manifest.json",
       "testing/context-retrieval-goldens.json"
     ],
+    "cmd/corvint-analyzer-c-jni": [
+      "go.mod",
+      "internal/analyzernativebridge/"
+    ],
     "cmd/corvint-analyzer-go": [
       "go.mod",
       "internal/analyzergo/"
@@ -55,6 +59,7 @@
     "cmd/corvint-mcp": [],
     "cmd/corvint-playwright-minimize": [],
     "cmd/corvint-postmerge-connect": [],
+    "cmd/corvint-postmerge-metrics": [],
     "cmd/corvint-public-release-check": [],
     "cmd/corvint-pulse": [
       "conformance/pulse-snapshot-v0/"
@@ -142,6 +147,9 @@
       "internal/secretscreen/"
     ],
     "internal/doccompiler": [],
+    "internal/doccorpus": [
+      "examples/documentation-corpus/"
+    ],
     "internal/docviews": [],
     "internal/extevidence": [
       "cmd/corvint-remote-provider/",
