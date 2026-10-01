@@ -121,16 +121,26 @@ it must read, each with the relation that admitted it, without naming the task's
   the relations in `summary` after "; also"; the evidence row stays the admitting relation's
   (decision 0027). Without `--subject` the packet has the retrieval shape: `mentioned`,
   `definition`, `test`, `lexical`. Outside the opt-in named-test frame, after final reservation
-  and ranking, up to three additional
-  `pair` rows may replace the weakest unrelated lexical test rows: their anchors must be
-  selected non-test lexical sources, and the counterpart must satisfy the existing naming
-  convention. Counterparts already selected are retained; a lexical counterpart behind unrelated lexical
-  tests can be promoted in place to `pair` within the same cap. Selected counterpart tests are never
-  victims. New pairs precede remaining unrelated lexical tests, while every selected source,
-  governing row and other non-lexical row is retained. Unfilled budget may admit a pair directly.
-  Remaining lexical rows retain their BM25 order; their public score remains a relation weight,
-  not the BM25 value reported in their evidence. Pair generators and cap/budget omissions are
-  disclosed by TCP-V0-011; a subjectless pair relation is examined when lexical anchors are scanned.
+  and ranking, `pair` rows may replace unrelated lexical test rows (amended 2026-10-01, proposed):
+  their anchors are the selected non-test sources, whatever relation admitted each, and the
+  counterpart must satisfy the existing naming convention. The rule is rank-relative, not a cap:
+  a counterpart inherits its source's lexical strength, so it may displace only an unrelated
+  lexical test the task matched more weakly than that source (TCP-V0-014's BM25 order, weakest
+  victim first), and a source admitted by a relation other than `lexical` counts as stronger
+  than every lexical test. Counterparts already selected are retained; a lexical counterpart
+  behind an unrelated lexical test weaker than its source is promoted in place to `pair`.
+  Selected counterpart tests are never victims. A new pair takes the position of the first
+  weaker unrelated test, while every selected source, governing row and other non-lexical row
+  is retained and the packet never grows past the limit. Unfilled budget may admit a pair
+  directly. Remaining lexical rows retain their BM25 order; their public score remains a
+  relation weight, not the BM25 value reported in their evidence. Pair generators and budget
+  omissions are disclosed by TCP-V0-011; a subjectless pair relation is examined when lexical
+  anchors are scanned. The earlier three-counterpart cap and last-position victim rule were
+  retired because the go-chi/chi orientation corpus (now development) showed both failing: the
+  cap was spent on counterparts of weaker sources before the strongest source's turn (task
+  `record response status when flushing`), and the victim rule evicted the packet's strongest
+  lexical test when it was the only unprotected one left (task `Don't duplicate methods in
+  Allow: header for 405 responses`).
   (A) The rows reserved by
   TCP-V0-008, TCP-V0-009 and TCP-V0-047 precede this order and each costs one row of `--limit`, and TCP-V0-010 narrows which
   identifiers the `definition` slot may use; the caps, weights and relative slot order above are otherwise unchanged.
@@ -484,9 +494,15 @@ it must read, each with the relation that admitted it, without naming the task's
   preregistration: `docs/plans/context-frame-relation-2026-09-05.md`. Rollback: unset
   the flag or remove the frame pass; default and frozen wires remain unchanged.
 
-- `TCP-V0-022`: (proposed 2026-09-22, not accepted; experimental; decision 0333) With
-  `CORVINT_CONTEXT_ANCHORS=on`, the task's repository anchors are a fourth lexical field matched
-  verbatim. An anchor is a literal of 4 to 256 bytes carrying at least one ASCII word run of
+- `TCP-V0-022`: (proposed 2026-09-22, not accepted; experimental; decision 0333; default
+  amended 2026-10-01, proposed) Unless `CORVINT_CONTEXT_ANCHORS=off`, the task's repository
+  anchors are a fourth lexical field matched verbatim; `off` restores the pre-amendment packet
+  bytes exactly, and `on` is accepted and means the default. The default moved because the
+  go-chi/chi orientation corpus (now development) task `Replace "interface{}" with "any"`
+  reaches five of its eight modified files without the field and all eight with it: the term
+  tokeniser reduces the quoted literal to the common word `interface`, and only the verbatim
+  field separates the files that write `interface{}` from the files that write the word.
+  An anchor is a literal of 4 to 256 bytes carrying at least one ASCII word run of
   three bytes, taken from the task text (TCP-V0-019's decoded string values when the task is
   valid JSON) by five classes tried in order, each consuming its spans before the next: `error`
   (a double-quoted string, quotes stripped), `url` (`scheme://` up to whitespace or a closing
@@ -501,7 +517,7 @@ it must read, each with the relation that admitted it, without naming the task's
   The credit lives inside the lexical slot: the row keeps kind `lexical` (or `documentation`),
   score 300 and authority `vocabulary`, its reason is prefixed `anchor: ` + "`literal` xN" +
   ` verbatim; `, and it can never precede a reserved TCP-V0-008/TCP-V0-009 row. No index,
-  snapshot or pack change; an unset or other value preserves the existing packet bytes.
+  snapshot or pack change; `off` preserves the pre-amendment packet bytes.
   Falsifier: a registered `tools/retrieval-bench` run on `v2_code2test` and `v2_trace2code` with
   the flag unset and `on` must lose at most 0.01 recall@5 on every fold and must report the
   anchor-bearing samples as their own subset (`stratum:anchor-bearing`); promotion additionally

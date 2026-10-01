@@ -21,7 +21,9 @@ import (
 // (CRT-V0-001).
 const selectionRule = "non-merge commits since --since, oldest first, touching between 3 and 12 text files, " +
 	"with at least one modified non-test source file (.go|.ts|.tsx|.swift|.py) and at least one test-or-spec file " +
-	"(_test.go, *.test.ts, *.test.tsx, *Tests.swift, _test.py, docs/specs/**); the presented patch is the source-file " +
+	"(_test.go, *.test.ts, *.test.tsx, *Tests.swift, _test.py, docs/specs/**) that exists at the base revision " +
+	"(git status M or D; a test-or-spec file the change adds is recorded as gold_unreachable and never scored); " +
+	"the presented patch is the source-file " +
 	"hunks alone, at most 64 KiB, over which `cem begin` parses between 3 and 20 hunks; a change is rejected when any " +
 	"source hunk contains a gold path literal; select index floor(i*N/n) for i in 0..n-1 over the candidates in commit order"
 
@@ -44,15 +46,19 @@ type manifest struct {
 }
 
 type task struct {
-	ID           string   `json:"id"`
-	Commit       string   `json:"commit"`
-	BaseCommit   string   `json:"base_commit"`
-	PatchSHA256  string   `json:"patch_sha256"`
-	PatchPath    string   `json:"patch_path"`
-	SourceFiles  []string `json:"source_files"`
-	Gold         gold     `json:"gold"`
-	HunkCount    int      `json:"hunk_count"`
-	StemBaseline []string `json:"stem_baseline"`
+	ID          string   `json:"id"`
+	Commit      string   `json:"commit"`
+	BaseCommit  string   `json:"base_commit"`
+	PatchSHA256 string   `json:"patch_sha256"`
+	PatchPath   string   `json:"patch_path"`
+	SourceFiles []string `json:"source_files"`
+	Gold        gold     `json:"gold"`
+	// GoldUnreachable lists the test-or-spec paths the change adds. They are
+	// absent at the base revision and are never scored (CRT-V0-004); a
+	// manifest written before the amendment carries none and scores as it did.
+	GoldUnreachable []string `json:"gold_unreachable,omitempty"`
+	HunkCount       int      `json:"hunk_count"`
+	StemBaseline    []string `json:"stem_baseline"`
 }
 
 type gold struct {
@@ -97,8 +103,11 @@ type candidate struct {
 	commit, parent string
 	sourceFiles    []string
 	goldPaths      []string
-	patch          string
-	hunks          int
+	// unreachable is the test-or-spec paths the change adds: absent at the
+	// base revision, so no arm can cite them (CRT-V0-004, amended 2026-10-01).
+	unreachable []string
+	patch       string
+	hunks       int
 }
 
 func parseSelectOptions(arguments []string) (selectOptions, error) {
@@ -209,9 +218,10 @@ func selectChanges(ctx context.Context, arguments []string, stdout, stderr io.Wr
 		set.Tasks = append(set.Tasks, task{
 			ID: id, Commit: item.commit, BaseCommit: item.parent,
 			PatchSHA256: digestOf(item.patch), PatchPath: relative,
-			SourceFiles: item.sourceFiles,
-			Gold:        gold{Paths: item.goldPaths, Spans: spans},
-			HunkCount:   item.hunks, StemBaseline: stemBaseline(item.sourceFiles),
+			SourceFiles:     item.sourceFiles,
+			Gold:            gold{Paths: item.goldPaths, Spans: spans},
+			GoldUnreachable: item.unreachable,
+			HunkCount:       item.hunks, StemBaseline: stemBaseline(item.sourceFiles),
 		})
 	}
 	encoded, err := gokernel.CanonicalJSON(set)
@@ -231,10 +241,13 @@ func printSelection(stdout io.Writer, config selectOptions, set *manifest, exclu
 	fmt.Fprintf(stdout, "population %d candidates, excluded %d, selected %d, partition %s, seed %s\n",
 		set.Population, excluded, len(set.Tasks), set.Partition, set.Seed)
 	for _, item := range set.Tasks {
-		fmt.Fprintf(stdout, "%s %s base=%s hunks=%d source=%d gold=%d spans=%d stem=%d\n",
+		fmt.Fprintf(stdout, "%s %s base=%s hunks=%d source=%d gold=%d unreachable=%d spans=%d stem=%d\n",
 			item.ID, item.Commit[:12], item.BaseCommit[:12], item.HunkCount,
-			len(item.SourceFiles), len(item.Gold.Paths), len(item.Gold.Spans), len(item.StemBaseline))
+			len(item.SourceFiles), len(item.Gold.Paths), len(item.GoldUnreachable), len(item.Gold.Spans), len(item.StemBaseline))
 		fmt.Fprintf(stdout, "    gold: %s\n", strings.Join(item.Gold.Paths, ", "))
+		if len(item.GoldUnreachable) != 0 {
+			fmt.Fprintf(stdout, "    unreachable (added by the change, not scored): %s\n", strings.Join(item.GoldUnreachable, ", "))
+		}
 		fmt.Fprintf(stdout, "    stem: %s\n", strings.Join(item.StemBaseline, ", "))
 	}
 	fmt.Fprintf(stdout, "manifest %s\n", filepath.Join(config.output, "tasks.json"))
@@ -342,7 +355,7 @@ func inspectCommit(ctx context.Context, repo, commit, parent string) (candidate,
 	if err != nil {
 		return candidate{}, false, err
 	}
-	textFiles, sourceFiles, goldPaths := 0, []string{}, []string{}
+	textFiles, sourceFiles, goldPaths, unreachable := 0, []string{}, []string{}, []string{}
 	for _, line := range strings.Split(strings.TrimSpace(raw), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) < 2 {
@@ -357,7 +370,16 @@ func inspectCommit(ctx context.Context, repo, commit, parent string) (candidate,
 			sourceFiles = append(sourceFiles, file)
 		}
 		if goldPath(file) {
-			goldPaths = append(goldPaths, file)
+			// Gold must be citable: the lane runs at C^ and the prompt holds
+			// every cited path to that revision, so a test or spec the change
+			// creates is an item both arms miss by construction. The 2026-09-04
+			// pilot scored three of its five changes at miss 1.0 in both arms on
+			// exactly such files; they are recorded, not scored.
+			if strings.HasPrefix(status, "M") || strings.HasPrefix(status, "D") {
+				goldPaths = append(goldPaths, file)
+			} else {
+				unreachable = append(unreachable, file)
+			}
 		}
 	}
 	if textFiles < selectMinFiles || textFiles > selectMaxFiles || len(sourceFiles) == 0 || len(goldPaths) == 0 {
@@ -365,6 +387,7 @@ func inspectCommit(ctx context.Context, repo, commit, parent string) (candidate,
 	}
 	sort.Strings(sourceFiles)
 	sort.Strings(goldPaths)
+	sort.Strings(unreachable)
 	patch, err := gitOutput(ctx, repo, append([]string{"diff", parent, commit, "--"}, sourceFiles...)...)
 	if err != nil {
 		return candidate{}, false, err
@@ -379,10 +402,10 @@ func inspectCommit(ctx context.Context, repo, commit, parent string) (candidate,
 	if hunks < selectMinHunks || hunks > selectMaxHunks {
 		return candidate{}, false, nil
 	}
-	if leaksGold(patch, goldPaths) {
+	if leaksGold(patch, append(append([]string{}, goldPaths...), unreachable...)) {
 		return candidate{}, false, nil
 	}
-	return candidate{commit: commit, parent: parent, sourceFiles: sourceFiles, goldPaths: goldPaths, patch: patch, hunks: hunks}, true, nil
+	return candidate{commit: commit, parent: parent, sourceFiles: sourceFiles, goldPaths: goldPaths, unreachable: unreachable, patch: patch, hunks: hunks}, true, nil
 }
 
 // leaksGold rejects a change whose presented hunks name a gold path, which

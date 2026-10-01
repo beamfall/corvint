@@ -31,27 +31,31 @@ type changeMeta struct {
 }
 
 type lane struct {
-	ID               string         `json:"id"`
-	Arm              string         `json:"arm"`
-	Repeat           int            `json:"repeat"`
-	ArmOrder         []string       `json:"arm_order"`
-	ReplyState       string         `json:"reply_state"`
-	Citations        []citation     `json:"citations"`
-	Unknown          []string       `json:"unknown"`
-	Miss             float64        `json:"miss"`
-	GoldHits         []string       `json:"gold_hits"`
-	StemBaselineHits []string       `json:"stem_baseline_hits"`
-	CEM              map[string]any `json:"cem,omitempty"`
-	WallMs           any            `json:"wall_ms"`
-	Tokens           any            `json:"tokens"`
-	ToolCalls        any            `json:"tool_calls,omitempty"`
-	ExitCode         any            `json:"exit_code"`
-	Reply            string         `json:"reply"`
-	ReplyTruncated   bool           `json:"reply_truncated"`
-	PromptSHA256     string         `json:"prompt_sha256"`
-	PromptBytes      int            `json:"prompt_bytes"`
-	ReusedFrom       string         `json:"reused_from,omitempty"`
-	Error            string         `json:"error,omitempty"`
+	ID               string     `json:"id"`
+	Arm              string     `json:"arm"`
+	Repeat           int        `json:"repeat"`
+	ArmOrder         []string   `json:"arm_order"`
+	ReplyState       string     `json:"reply_state"`
+	Citations        []citation `json:"citations"`
+	Unknown          []string   `json:"unknown"`
+	Miss             float64    `json:"miss"`
+	GoldHits         []string   `json:"gold_hits"`
+	StemBaselineHits []string   `json:"stem_baseline_hits"`
+	// Suggested is the seeded arm's distinct suggested paths, as the prologue
+	// carried them; SeedHits is the gold among them (CRT-V0-012).
+	Suggested      []string       `json:"suggested,omitempty"`
+	SeedHits       []string       `json:"seed_hits,omitempty"`
+	CEM            map[string]any `json:"cem,omitempty"`
+	WallMs         any            `json:"wall_ms"`
+	Tokens         any            `json:"tokens"`
+	ToolCalls      any            `json:"tool_calls,omitempty"`
+	ExitCode       any            `json:"exit_code"`
+	Reply          string         `json:"reply"`
+	ReplyTruncated bool           `json:"reply_truncated"`
+	PromptSHA256   string         `json:"prompt_sha256"`
+	PromptBytes    int            `json:"prompt_bytes"`
+	ReusedFrom     string         `json:"reused_from,omitempty"`
+	Error          string         `json:"error,omitempty"`
 }
 
 type report struct {
@@ -111,7 +115,14 @@ func scoreLane(item *lane, meta changeMeta) {
 	for _, one := range meta.StemBaseline {
 		stem[normalizePath(one)] = true
 	}
+	suggested := map[string]bool{}
+	for _, one := range item.Suggested {
+		suggested[normalizePath(one)] = true
+	}
 	item.GoldHits, item.StemBaselineHits = []string{}, []string{}
+	if item.Suggested != nil {
+		item.SeedHits = []string{}
+	}
 	missed := 0
 	for _, one := range meta.Gold {
 		normalized := normalizePath(one)
@@ -123,9 +134,13 @@ func scoreLane(item *lane, meta changeMeta) {
 		if stem[normalized] {
 			item.StemBaselineHits = append(item.StemBaselineHits, one)
 		}
+		if suggested[normalized] {
+			item.SeedHits = append(item.SeedHits, one)
+		}
 	}
 	sort.Strings(item.GoldHits)
 	sort.Strings(item.StemBaselineHits)
+	sort.Strings(item.SeedHits)
 	if len(meta.Gold) == 0 {
 		item.Miss = 0
 		return
@@ -133,16 +148,18 @@ func scoreLane(item *lane, meta changeMeta) {
 	item.Miss = round(float64(missed) / float64(len(meta.Gold)))
 }
 
-// pair is one change's mean miss per arm, over the repeats of that arm.
+// pair is one change's mean miss per arm, over the repeats of that arm. The
+// `treatment` field is the compared arm's mean, whichever arm the contrast
+// names; the primary contrast keeps the pilot's field names.
 type pair struct {
 	id                 string
 	control, treatment float64
 	stem               float64
 }
 
-// summarize builds the paired estimate. A change with any errored lane is
-// dropped whole, so the arms always cover the same changes (CRT-V0-007).
-func summarize(document *report, meta map[string]changeMeta) map[string]any {
+// laneMisses groups the scored lanes by change and arm, in first-seen change
+// order, and marks the changes an errored lane removes whole.
+func laneMisses(document *report) (map[string]map[string][]float64, map[string]bool, []string) {
 	byChange := map[string]map[string][]float64{}
 	errored := map[string]bool{}
 	order := []string{}
@@ -157,20 +174,79 @@ func summarize(document *report, meta map[string]changeMeta) map[string]any {
 		}
 		byChange[item.ID][item.Arm] = append(byChange[item.ID][item.Arm], item.Miss)
 	}
+	return byChange, errored, order
+}
+
+// armPairs is the within-change pairing of `reference` against `compared`:
+// every change both arms scored, neither errored (CRT-V0-002, CRT-V0-007).
+func armPairs(byChange map[string]map[string][]float64, errored map[string]bool, order []string, meta map[string]changeMeta, reference, compared string) []pair {
 	pairs := []pair{}
 	for _, id := range order {
 		arms := byChange[id]
-		if errored[id] || len(arms["control"]) == 0 || len(arms["treatment"]) == 0 {
+		if errored[id] || len(arms[reference]) == 0 || len(arms[compared]) == 0 {
 			continue
 		}
 		pairs = append(pairs, pair{
-			id: id, control: mean(arms["control"]), treatment: mean(arms["treatment"]),
+			id: id, control: mean(arms[reference]), treatment: mean(arms[compared]),
 			stem: stemMiss(meta[id]),
 		})
 	}
+	return pairs
+}
+
+// comparedArms is every arm the report ran other than control, in run order.
+func comparedArms(document *report) []string {
+	arms := []string{}
+	for _, name := range document.Arms {
+		if name != "control" {
+			arms = append(arms, name)
+		}
+	}
+	return arms
+}
+
+// summarize builds the paired estimates. A change with any errored lane is
+// dropped whole, so the arms always cover the same changes (CRT-V0-007).
+// The top level carries the primary contrast, control against `treatment`
+// (or against the first other arm when treatment did not run), under the
+// pilot's keys; `arms` carries the same block per compared arm; a seeded run
+// adds `seed_coverage` and, beside a treatment arm, the `seeded_vs_treatment`
+// contrast (CRT-V0-012).
+func summarize(document *report, meta map[string]changeMeta) map[string]any {
+	byChange, errored, order := laneMisses(document)
+	compared := comparedArms(document)
+	primary := "treatment"
+	if !contains(compared, "treatment") && len(compared) != 0 {
+		primary = compared[0]
+	}
+	summary := armSummary(document, meta, byChange, errored, order, primary)
+	summary["errored_lanes"] = erroredLanes(document)
+	if len(compared) > 1 || contains(compared, "seeded") {
+		arms := map[string]any{}
+		for _, arm := range compared {
+			block := armSummary(document, meta, byChange, errored, order, arm)
+			block["mcnemar_lanes"] = mcnemarLanes(document, "control", arm)
+			arms[arm] = block
+		}
+		summary["arms"] = arms
+	}
+	if contains(compared, "seeded") {
+		summary["seed_coverage"] = seedCoverage(document, meta)
+		if contains(compared, "treatment") {
+			summary["contrasts"] = map[string]any{"seeded_vs_treatment": contrast(document, meta, byChange, errored, order, "treatment", "seeded")}
+		}
+	}
+	return summary
+}
+
+// armSummary is the pilot's summary block for one compared arm against
+// control: the pair counts, mean misses, the paired delta and its relative
+// size, the change-level McNemar, the arm's citable and verifier rates, the
+// BCa interval and the CRT-V0-008 verdict wording.
+func armSummary(document *report, meta map[string]changeMeta, byChange map[string]map[string][]float64, errored map[string]bool, order []string, arm string) map[string]any {
+	pairs := armPairs(byChange, errored, order, meta, "control", arm)
 	summary := map[string]any{
 		"pairs_scored": len(pairs), "pairs_dropped": len(order) - len(pairs),
-		"errored_lanes": erroredLanes(document),
 	}
 	if len(pairs) == 0 {
 		summary["verdict"] = "no scored pair: the run measured nothing"
@@ -192,11 +268,14 @@ func summarize(document *report, meta map[string]changeMeta) map[string]any {
 		"control": round(controlMiss), "treatment": round(mean(missOf(pairs, "treatment"))),
 		"stem_baseline": round(mean(missOf(pairs, "stem"))),
 	}
+	if arm != "treatment" {
+		summary["mean_miss"].(map[string]any)[arm] = round(mean(missOf(pairs, "treatment")))
+	}
 	summary["delta"] = round(delta)
 	summary["relative_reduction"] = round(relative)
 	summary["mcnemar"] = mcnemar(pairs)
-	summary["citable"] = citable(document)
-	summary["verifier"] = verifierRates(document)
+	summary["citable"] = citableArm(document, arm)
+	summary["verifier"] = verifierRatesArm(document, arm)
 	if len(pairs) < 2 {
 		// One pair has no resampling variability: its "interval" would be the
 		// delta itself and could read as met (CRT-V0-008).
@@ -209,6 +288,122 @@ func summarize(document *report, meta map[string]changeMeta) map[string]any {
 	summary["delta_ci95"] = map[string]any{"low": round(low), "high": round(high), "resamples": bootstrapResamples, "method": "BCa"}
 	summary["verdict"] = verdicts(delta, relative, low, high, controlMiss, summary)
 	return summary
+}
+
+// contrast is the paired difference between two compared arms, positive when
+// `compared` missed less than `reference`, with the same interval method.
+func contrast(document *report, meta map[string]changeMeta, byChange map[string]map[string][]float64, errored map[string]bool, order []string, reference, compared string) map[string]any {
+	pairs := armPairs(byChange, errored, order, meta, reference, compared)
+	result := map[string]any{"reference": reference, "compared": compared, "pairs_scored": len(pairs)}
+	if len(pairs) == 0 {
+		return result
+	}
+	deltas := make([]float64, len(pairs))
+	for index, item := range pairs {
+		deltas[index] = item.control - item.treatment
+	}
+	result["mean_miss"] = map[string]any{reference: round(mean(missOf(pairs, "control"))), compared: round(mean(missOf(pairs, "treatment")))}
+	result["delta"] = round(mean(deltas))
+	result["mcnemar_lanes"] = mcnemarLanes(document, reference, compared)
+	if len(pairs) < 2 {
+		result["delta_ci95"] = notObserved
+		return result
+	}
+	low, high := bca(deltas, document.Seed+"\x00"+reference+"\x00"+compared)
+	result["delta_ci95"] = map[string]any{"low": round(low), "high": round(high), "resamples": bootstrapResamples, "method": "BCa"}
+	return result
+}
+
+// mcnemarLanes is the exact paired test on "missed anything at all" over
+// lanes rather than changes: the control and compared lane of the same change
+// and repeat form one pair. Averaging the repeats first, as the change-level
+// test does, turns every change both arms sometimes missed into a tie, which
+// is how the 2026-09-04 pilot reported zero discordant pairs over fifty lanes.
+func mcnemarLanes(document *report, reference, compared string) map[string]any {
+	type key struct {
+		id     string
+		repeat int
+	}
+	referenceMissed := map[key]bool{}
+	comparedMissed := map[key]bool{}
+	failed := map[string]bool{}
+	for _, item := range document.Lanes {
+		if laneFailed(item) {
+			failed[item.ID] = true
+			continue
+		}
+		switch item.Arm {
+		case reference:
+			referenceMissed[key{item.ID, item.Repeat}] = item.Miss > 0
+		case compared:
+			comparedMissed[key{item.ID, item.Repeat}] = item.Miss > 0
+		}
+	}
+	b, c, pairs := 0, 0, 0
+	for at, missed := range referenceMissed {
+		other, paired := comparedMissed[at]
+		if !paired || failed[at.id] {
+			continue
+		}
+		pairs++
+		if missed && !other {
+			b++
+		}
+		if other && !missed {
+			c++
+		}
+	}
+	return map[string]any{
+		"pairs": pairs, "reference_only_missed": b, "compared_only_missed": c,
+		"p_value": round(exactBinomial(b, c)),
+	}
+}
+
+// seedCoverage decomposes the seeded arm (CRT-V0-012): how much of the gold
+// Corvint's suggestions reached, and the miss rate of the gold the agent was
+// shown against the gold it was not. A seeded arm that misses what it was
+// shown is an adoption result; one that misses only what it was not shown is a
+// retrieval result, and the two are never read as one number.
+func seedCoverage(document *report, meta map[string]changeMeta) map[string]any {
+	goldItems, suggestedItems, missedSuggested, missedUnsuggested, lanes := 0, 0, 0, 0, 0
+	for _, item := range document.Lanes {
+		if item.Arm != "seeded" || laneFailed(item) {
+			continue
+		}
+		lanes++
+		cited := map[string]bool{}
+		for _, one := range item.GoldHits {
+			cited[normalizePath(one)] = true
+		}
+		seeded := map[string]bool{}
+		for _, one := range item.SeedHits {
+			seeded[normalizePath(one)] = true
+		}
+		for _, one := range meta[item.ID].Gold {
+			normalized := normalizePath(one)
+			goldItems++
+			if seeded[normalized] {
+				suggestedItems++
+				if !cited[normalized] {
+					missedSuggested++
+				}
+			} else if !cited[normalized] {
+				missedUnsuggested++
+			}
+		}
+	}
+	result := map[string]any{"lanes": lanes, "gold_items": goldItems, "suggested_items": suggestedItems,
+		"fraction": notObserved, "miss_given_suggested": notObserved, "miss_given_unsuggested": notObserved}
+	if goldItems != 0 {
+		result["fraction"] = round(float64(suggestedItems) / float64(goldItems))
+	}
+	if suggestedItems != 0 {
+		result["miss_given_suggested"] = round(float64(missedSuggested) / float64(suggestedItems))
+	}
+	if unsuggested := goldItems - suggestedItems; unsuggested != 0 {
+		result["miss_given_unsuggested"] = round(float64(missedUnsuggested) / float64(unsuggested))
+	}
+	return result
 }
 
 func missOf(pairs []pair, field string) []float64 {
@@ -336,9 +531,13 @@ func binomial(n, k int) float64 {
 // citable is supported over material hunks (total less mechanical), over the
 // treatment lanes whose map `cem status` reported (CRT-V0-007).
 func citable(document *report) map[string]any {
+	return citableArm(document, "treatment")
+}
+
+func citableArm(document *report, arm string) map[string]any {
 	supported, material, lanes := 0.0, 0.0, 0
 	for _, item := range document.Lanes {
-		if item.Arm != "treatment" || laneFailed(item) || item.CEM == nil {
+		if item.Arm != arm || laneFailed(item) || item.CEM == nil {
 			continue
 		}
 		counts, ok := item.CEM["counts"].(map[string]any)
@@ -365,9 +564,13 @@ func citable(document *report) map[string]any {
 // often `cem verify` failed while the harness's own replay said the citation
 // was valid: the incorrect hard failures the target bounds (CRT-V0-007).
 func verifierRates(document *report) map[string]any {
+	return verifierRatesArm(document, "treatment")
+}
+
+func verifierRatesArm(document *report, arm string) map[string]any {
 	citing, failures, incorrect := 0, 0, 0
 	for _, item := range document.Lanes {
-		if item.Arm != "treatment" || laneFailed(item) || item.CEM == nil || len(item.Citations) == 0 {
+		if item.Arm != arm || laneFailed(item) || item.CEM == nil || len(item.Citations) == 0 {
 			continue
 		}
 		citing++

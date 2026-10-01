@@ -13,11 +13,11 @@ verifier hard failures"), `benchmarks/README.md` (partitions and the first-obser
 invariants 2 and 4.
 
 ## Agent digest
-- Claim: `tools/cem-trial` runs one agent over frozen Beamfall changes under `control` and `treatment` arms and scores withheld test-or-spec evidence per arm.
+- Claim: `tools/cem-trial` runs one agent over frozen Beamfall changes under `control`, `treatment` (empty-worklist map) and `seeded` (Corvint-suggested evidence) arms and scores withheld, base-reachable test-or-spec evidence per arm.
 - Status: proposed/experimental
 - Exists: `tools/cem-trial` (`select`, `run`, `score`), the five-change pilot manifest under `tools/cem-trial/testdata/pilot`, and `tools/cem-trial/testdata/fake-agent.sh`.
-- Blocked on: the 30-pair held-out estimation run; the real-agent pilot is run and valid (2026-09-04).
-- Read next: Requirements (selection, withheld patch, arms, metrics); Power; Non-goals; Stopping and publication.
+- Blocked on: owner acceptance of the 2026-10-01 amendments and the owner-commissioned three-arm held-out run; the real-agent pilot is run and valid (2026-09-04) but its treatment carried no evidence and three of its five changes had gold no arm could cite.
+- Read next: Requirements (selection, withheld patch, arms, metrics, CRT-V0-012); Power; Non-goals; Stopping and publication.
 
 ## Intent and scope
 
@@ -56,11 +56,17 @@ name is exactly what the change's author also wrote and the harness removed.
   hunks of `C`. The test-or-spec hunks are withheld and become gold. Both arms receive byte-identical
   `P(C)`, its sha256, and a harness-generated numbered hunk list in the order `cem begin` reads them.
 - `CRT-V0-004`: Ground truth. Primary gold for `C` is the set of test-or-spec paths `C` itself
-  touched; secondary gold is the one-based line spans of those files' added lines, read from `C`'s own
-  diff. Non-circularity: a change is rejected at selection when any source hunk contains a gold path
-  literal. The known gameability is stem-convention guessing; the mitigation is a mechanical
-  stem-baseline recorded per change at selection time, whose miss rate the report carries beside both
-  arms so treatment is read as lift over that floor, never over zero.
+  touched **and that exist at `C^`** (git status `M` or `D`; amended 2026-10-01, proposed);
+  secondary gold is the one-based line spans of those files' added lines, read from `C`'s own
+  diff. A test-or-spec path `C` adds is recorded on the task as `gold_unreachable` and is never
+  scored: the lane runs at `C^` and the reply grammar holds every cited path to that revision,
+  so such an item is missed by construction in every arm. The 2026-09-04 pilot scored three of
+  its five changes at miss 1.0 in both arms on exactly such files (c03, c04, c05, whose gold
+  spans begin at line 1); its manifest keeps that gold as history and is not rescored.
+  Non-circularity: a change is rejected at selection when any source hunk contains a gold path
+  literal, reachable or not. The known gameability is stem-convention guessing; the mitigation is
+  a mechanical stem-baseline recorded per change at selection time, whose miss rate the report
+  carries beside every arm so an arm is read as lift over that floor, never over zero.
 - `CRT-V0-005`: Arms. `control` receives the prompt skeleton, `P(C)`, the numbered hunk list, and a
   read-only clone at `C^` with its history. `treatment` receives an identical prompt, model, effort,
   timeout, tool access, and clone, plus exactly three artefacts: the cem/0.1 map from
@@ -69,7 +75,17 @@ name is exactly what the change's author also wrote and the harness removed.
   `cem prepare --base C^ --target C`; the clone is scrubbed of `.corvint/` and holds no commit at or
   after `C` (a fetch of exactly `C^`, detached, never a shared clone of the source); the harness
   asserts `git cat-file -e C` fails in the clone and errors the change's lanes if it does not. The
-  control prompt never names Corvint, CEM, or a map.
+  control prompt never names Corvint, CEM, or a map. A third arm, `seeded` (amended 2026-10-01,
+  proposed), receives the treatment prologue followed by a `Suggested evidence` block: for each
+  presented source file, the rows `corvint context --task "evidence for a change to PATH"
+  --subject PATH --limit 8` returns in the same prep clone at `C^` (path, relation, reason), all
+  but the subject's own row, labelled as suggestions that are never cited; the `cem begin` map
+  stays all-`unknown`. The clone is the leak control: it holds no object at or after `C`, so a
+  suggestion can only be evidence the agent could itself have found at the base revision. The
+  2026-09-04 pilot's treatment carried a map in which every hunk was `unknown` with no evidence,
+  so it measured the wording of a worklist and not Corvint's evidence; `seeded` is the arm that
+  carries the evidence, `treatment` becomes the format control between `control` and `seeded`.
+  Each seeded lane records `suggested`, the distinct suggested paths.
 - `CRT-V0-006`: Reply grammar. Every reply MUST end with one fenced JSON block
   `{"citations":[{"hunk":"N","path":"...","lines":"S:E","relation":"specification|decision|test-claim|implementation|call-site|dependency|incident","confidence":"certain|likely|unsure"}],"unknown":["N"]}`.
   The scorer takes the last fenced block naming `"citations"`, or a reply that is itself one JSON
@@ -91,7 +107,14 @@ name is exactly what the change's author also wrote and the harness removed.
   vocabulary — says the citation was valid. The replay is implemented against Git alone and never
   calls `internal/cem/verify`. Both `citable` and the verifier rate count only treatment lanes that
   did not error: a lane with an `error` or an observed non-zero `exit_code` (CRT-V0-006) is excluded
-  whether or not its `cem` counts were recorded.
+  whether or not its `cem` counts were recorded. Amended 2026-10-01 (proposed): every compared
+  arm is estimated against `control` with the same `miss`, `Δ`, `R`, BCa interval, McNemar and
+  verdict wording; the report's top level keeps the `treatment` contrast under the pilot's keys
+  and `summary.arms[arm]` carries each arm's block, with `citable` and the verifier rate computed
+  over that arm's own lanes. McNemar is additionally reported over lanes (`mcnemar_lanes`): the
+  control lane and the compared lane of the same change and repeat form one pair, because
+  averaging the repeats first turns every change both arms sometimes missed into a tie, which is
+  how the pilot reported zero discordant pairs over fifty lanes.
 - `CRT-V0-008`: Power, pre-declared. 30 pairs is roughly 120 gold items per arm; with clustering
   (ICC 0.3, m=4, design effect 1.9) the effective n is about 63. At a control miss of 0.50 a 20%
   relative reduction is `Δ = 0.10` with SE ≈ 0.088 and a 95% CI of about (−0.07, 0.27); 80% power at
@@ -107,7 +130,20 @@ name is exactly what the change's author also wrote and the harness removed.
   No win is claimed for any non-met reading. Fewer than two scored pairs have no resampling
   variability, so `delta_ci95` is `NOT_OBSERVED` and the reading is
   "not estimable: fewer than two scored pairs", never met. The pair count is a manifest parameter
-  (`--limit`) so the owner can widen it.
+  (`--limit`) so the owner can widen it. Proposed amendment (2026-10-01, not accepted; the
+  scorer keeps the reading above until it is): the decision-grade run is powered for the
+  `seeded` contrast at the gold-reachability-corrected control miss. With two repeats per arm,
+  about four gold items per change and between-change heterogeneity τ² ≈ 0.02, 80% power at
+  α = 0.05 two-sided needs about 55 pairs for a 20% relative reduction from a control miss of
+  0.50 (`Δ = 0.10`) and about 26 pairs from 0.70 (`Δ = 0.14`); a 35% reduction needs about 18
+  and 9 pairs (floor 20); with one repeat each figure roughly doubles. The gate then reads: met
+  when the interval's lower bound exceeds 0 **and** the interval does not exclude the 20%
+  target; requiring the point estimate to reach the target as well has only 50% pass
+  probability at a true 20% effect. Kill readings: an upper bound below `0.10` absolute rules
+  out a 20% gain, and a `seeded_vs_treatment` upper bound at or below `0.05` reads as "the
+  map's evidence adds nothing beyond its worklist". The ten-pair run that estimates the
+  between-change variance before the pair count is frozen is drawn from the development
+  partition and is development forever.
 - `CRT-V0-009`: Pilot. The pilot uses its own seed and partition; its changes are excluded from the
   main population. Pilot results may tune prompts and timeouts, and are then development forever
   under `benchmarks/README.md`'s first-observation rule.
@@ -141,12 +177,28 @@ name is exactly what the change's author also wrote and the harness removed.
   sessions, other platforms, and other trial subprocess helpers remain outside this slice.
   It adds no hostile-execution containment claim and changes no gold, prompt, scorer,
   stopping condition or outcome qualification.
+- `CRT-V0-012`: Seeded-arm decomposition (proposed 2026-10-01). A seeded run reports
+  `summary.seed_coverage` over the seeded lanes that did not error: `gold_items`,
+  `suggested_items` (gold the suggestions carried, recorded per lane as `seed_hits`), `fraction`
+  = `suggested_items / gold_items`, `miss_given_suggested` and `miss_given_unsuggested`, each
+  `NOT_OBSERVED` when its denominator is zero. Beside a `treatment` arm it also reports
+  `summary.contrasts.seeded_vs_treatment`: the paired mean of `miss(treatment) − miss(seeded)`
+  over the changes both arms scored, its BCa interval over those changes (seeded from the run
+  seed and the arm names) and its lane-level McNemar. A seeded result is read as retrieval
+  (`fraction`) times adoption (`1 − miss_given_suggested`) and neither is reported as the other:
+  a seeded arm that misses what it was shown is an adoption result about the agent, one that
+  misses only what it was not shown is a retrieval result about Corvint, and a `fraction` below
+  0.5 is reported as retrieval-limited and supports no claim about the map. The suggestions are
+  computed once per change in the prep clone and shared by that change's seeded lanes, so a
+  seeded lane's prompt digest covers them.
 
 ## Non-goals and simpler baseline
 
 Human reviewers; a judge model; any agent CLI beyond `codex` and the `script` adapter; multi-turn
 dialogue; measuring defect detection in general; declaring CEM adopted or product-validated; any write
-to the Beamfall repository, which is read-only history.
+to the Beamfall repository, which is read-only history. The question the README asks, "does CEM
+help a reviewer?", is therefore answered by this trial only for an agent reviewer; the human
+within-subject leg (decision 0427) is a separate study with its own sealed task counting.
 
 Two ground-truth designs were considered and rejected. **Agent-authored gold spans** would let the
 measured system define its own answer key, so a treatment win could not be separated from a treatment
@@ -174,6 +226,11 @@ executables named on the command line; it downloads nothing. Manifest 16 MiB; pa
   with the artefacts, not whether it read them.
 - Zero supported hunks — the observed prior, `benchmarks/results/cem-first-run-beamfall-pass-v0.1.json`
   records 0 supported against 4 unknown — leaves `citable` at 0 and the trial still publishes.
+- `corvint context --subject` fails or returns an unreadable packet for a presented file: the
+  change's lanes error in every arm (the seeded prompt cannot be built), so the pairing stays
+  whole; the failure is recorded as the lane error.
+- The suggestions carry no gold (`fraction` 0): the seeded arm reads as retrieval-limited; no
+  product claim follows and the run still publishes.
 
 ## Acceptance evidence and traceability
 
@@ -190,6 +247,8 @@ executables named on the command line; it downloads nothing. Manifest 16 MiB; pa
 | CRT-V0-009 | `--partition`/`--seed`/`--exclude` on `select`, `excludedCommits`, `objectName`, `withoutExcluded`, `inertExclusion`, `excludeError`, `poolError` (`tools/cem-trial/select.go`), `report.Pilot`; the manifest's `population` and the summary's `population N, excluded M` are the pool after the M drops | `tools/cem-trial/testdata/pilot/tasks.json` carries `partition: pilot`; `benchmarks/results/cem-reviewer-trial-pilot-2026-09-04.json` (seed `pilot-2026-09-03`, 5 pairs, 50 lanes, `gpt-5.6-sol` at medium); `TestExcludedPilotChangesAreDroppedAndCounted` (three qualifying changes, one-commit pilot, non-empty disjoint held-out set of population qualifying − excluded), `TestExcludeFileWithoutIdentifiersIsRefused`, `TestExcludeIdentifiersMustBeFullLowercaseHex`, `TestExcludeThatDropsNothingIsRefused`, `TestEmptyPoolIsRefusedAndAShortPoolWarns`, `TestExplicitlyEmptyExcludeListIsRefused` |
 | CRT-V0-010 | `finalize`, `rescore`, `write`, `checkpointer`, `loadReuse`, `reuseSource.apply`, `laneFailed`, `report.Invalid` | `TestScoreRebuildsTheReportByteIdentically`; `TestErroredLaneDropsItsPair`; `TestNonZeroAgentExitErrorsTheLaneAndInvalidatesTheRun`; 2026-09-03 pilot rescored to `invalid` (31 errored lanes); 2026-09-04 re-run valid (`invalid: null`, 0 errored lanes) |
 | CRT-V0-011 | `runCommand`; `internal/procgroup.Run`, `OverflowPolicy`, `Spec.StderrLimit` | `TestRunProcessLifecycleMatrix`; `TestRunProcessTruncateOverflowPolicy`; `TestRunProcessDefaultOverflowPolicyStillTerminates`; `TestRunProcessRejectsInvalidOverflowPolicyBeforeSpawn`; `TestTruncateCaptureConsumesCrossingWrite`; `TestRunCommandPreservesExitShapes`; `TestRunCommandNormalizesPathsAndEnvironment`; `TestRunCommandRefusesBeforeDispatch`; `TestRunCommandTruncatesOutput`; `TestRunCommandCancellationKillsDescendant`; `TestTrialMainSignalsCleanOwnedAgentGroup` |
+| CRT-V0-004 (2026-10-01 amendment) | `inspectCommit` (status `M`/`D` gold, `unreachable`), `task.GoldUnreachable`, `printSelection` | `TestSelectionRecordsUnreachableGoldSeparately` |
+| CRT-V0-005 (seeded arm), CRT-V0-012 | `seededPrologue`, `suggestEvidence`, `suggestedPaths`, `buildArtefacts`, `buildPrompt`, `prologueIdentity`, `armsNeedCorvint`, `lane.Suggested`, `lane.SeedHits`, `seedCoverage`, `contrast`, `mcnemarLanes`, `armSummary`, `citableArm`, `verifierRatesArm` (`tools/cem-trial/main.go`, `score.go`) | `TestSeededArmSharesThePromptApartFromItsPrologue`; `TestRunRefusesSeededArmWithoutCorvint`; `TestThreeArmSummaryKeepsPilotKeysAndDecomposesTheSeededArm`; `TestTwoArmSummaryIsUnchanged`; `TestLaneLevelMcNemarKeepsDiscordance`; no agent run yet: the three-arm run is owner-commissioned (decision 0427) |
 
 ## Rollout, rollback, compatibility
 
@@ -213,7 +272,12 @@ refuses, so lanes are plain local clones.
 
 Which model and reasoning effort the judged run uses; whether the secondary mutant stratum runs at
 all; whether `unknown` hunks the agent declares should score beside the citations rather than only
-being recorded. Promote to `implemented` when a `heldout` set of at least 30 pairs, selected and
-frozen before any agent output was read, has run once in both arms and its first report is preserved
-unrepaired. V4's gate is then read from that report by the owner under CRT-V0-008's wording, never
-from the pilot.
+being recorded; whether the owner accepts the 2026-10-01 amendments (reachable gold, the `seeded`
+arm, lane-level McNemar, the CRT-V0-008 power and gate reading, CRT-V0-012). Promote to
+`implemented` when a `heldout` set selected with the amended rule and frozen before any agent
+output was read, sized by the amended CRT-V0-008 (about 55 pairs at a corrected control miss of
+0.50), has run once in all three arms and its first report is preserved unrepaired. V4's gate is
+then read from that report by the owner under CRT-V0-008's wording, never from the pilot, and
+the README row changes only to what that report supports: an agent-reviewer result with its
+interval and its retrieval/adoption decomposition, never "helps a reviewer" without the human
+leg.

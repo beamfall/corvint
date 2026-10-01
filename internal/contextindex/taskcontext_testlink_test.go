@@ -183,16 +183,35 @@ func TestTaskContextSelectedLexicalPairs(t *testing.T) {
 					t.Fatalf("orphaned or mislabeled counterpart: %v", row)
 				}
 			}
-			if pairs > contextPairCap {
-				t.Fatalf("unbounded pairs: %d", pairs)
+			sources, counterparts := 0, 0
+			for _, row := range rows {
+				id := row["id"].(string)
+				switch {
+				case strings.HasPrefix(id, "source") && strings.HasSuffix(id, "_test.go"):
+					counterparts++
+				case strings.HasPrefix(id, "source"):
+					sources++
+				}
 			}
-			if limit == 12 && pairs != contextPairCap {
-				t.Fatalf("pair cap was not exercised: %v", rows)
+			// The test slot may hold one counterpart on its own (limit 2 carries
+			// AGENTS.md and source0_test.go); the pair pass never exceeds the
+			// selected sources.
+			if pairs > sources {
+				t.Fatalf("limit %d: %d pairs for %d selected sources", limit, pairs, sources)
+			}
+			// AGENTS.md, the five sources and six unrelated tests fill limit 12;
+			// every source outranks every unrelated test, so all five
+			// counterparts (one already held by the test slot) displace the
+			// five weakest unrelated tests.
+			if (limit == 12 || limit == 30) && counterparts != 5 {
+				t.Fatalf("limit %d: rank-relative displacement admitted %d of 5 counterparts: %v", limit, counterparts, rows)
 			}
 		}
 	})
 	t.Run("TCP-V0-011 pair shortage remains visible", func(t *testing.T) {
-		packet, err := TaskContext(context.Background(), index, "record response status when flushing", "", 12)
+		// Limit 8 holds AGENTS.md, five sources and two tests, so three
+		// counterparts have no weaker unrelated test to displace.
+		packet, err := TaskContext(context.Background(), index, "record response status when flushing", "", 8)
 		if err != nil {
 			t.Fatal(err)
 		}

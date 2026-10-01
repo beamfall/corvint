@@ -265,7 +265,7 @@ func TestTreatmentUsesCemBeginNotPrepare(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(root)
-	artefacts, err := buildArtefacts(context.Background(), options{corvintGo: corvintGo}, root, patch)
+	artefacts, err := buildArtefacts(context.Background(), options{corvintGo: corvintGo}, root, patch, item.SourceFiles)
 	if err != nil {
 		t.Fatal(err)
 	}

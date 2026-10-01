@@ -1028,6 +1028,7 @@ func evalConfidentSymbols(index *Index, ranked []evalSymbolCandidate, termFreque
 			}
 		}
 		byPath[index] = evalPruneAuxiliarySymbols(byPath[index], queryText)
+		byPath[index] = evalExplainAwaySiblings(byPath[index], queryTerms, queryText)
 	}
 	confident := make([]evalSymbolCandidate, 0, min(limit, 10))
 	for offset := 0; len(confident) < min(limit, 6); offset++ {
@@ -1087,6 +1088,9 @@ func evalConfidentSymbols(index *Index, ranked []evalSymbolCandidate, termFreque
 		if _, exists := selected[id]; exists {
 			continue
 		}
+		if evalExplainedAwayBySelected(candidate, confident, queryTerms, queryText) {
+			continue
+		}
 		confident = append(confident, candidate)
 		selected[id] = struct{}{}
 		if len(confident) == min(limit, 10) {
@@ -1094,6 +1098,107 @@ func evalConfidentSymbols(index *Index, ranked []evalSymbolCandidate, termFreque
 		}
 	}
 	return confident
+}
+
+// evalExplainAwaySiblings drops, from one frontier path's candidates, every
+// sibling that rests on no word of the task its neighbour does not already
+// rest on. A declaration's name support is the query words its name parts
+// carry (a part of four bytes or more also answers a query word it is a prefix
+// of, so `config` answers "configuration" and `sync` answers "synchronous");
+// its full support adds the query words of its context window. A sibling is
+// explained away when its name support is a strict subset of a neighbour's and
+// its full support is contained in that neighbour's: everything the task said
+// that reached the sibling reached the neighbour too, and more of it reached
+// the neighbour's own name, so the sibling's admission would rest only on the
+// vocabulary the two share, which is evidence about the file and not about
+// the sibling. The rule is set containment in the query's own words, never a
+// score ratio: the 60%-of-path-top admission that let `AppendActiveHelp` ride
+// in beside `GetActiveHelpConfig` was a constant fitted to one sample, and
+// blind-v6 charged four of its seven forbidden hits to that class (decision
+// 0307). A sibling with its own distinct evidence, including a task that
+// names it, always stays; two declarations with identical support both stay,
+// because nothing in the task tells them apart.
+func evalExplainAwaySiblings(candidates []evalSymbolCandidate, queryTerms map[string]struct{}, queryText string) []evalSymbolCandidate {
+	if len(candidates) < 2 {
+		return candidates
+	}
+	result := make([]evalSymbolCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		if evalExplainedAwayBySelected(candidate, candidates, queryTerms, queryText) {
+			continue
+		}
+		result = append(result, candidate)
+	}
+	return result
+}
+
+// evalExplainedAwayBySelected reports whether some other same-path declaration
+// among neighbours explains candidate away: candidate is not named by the
+// task, its name support is a strict subset of the neighbour's, and its full
+// support is contained in the neighbour's.
+func evalExplainedAwayBySelected(candidate evalSymbolCandidate, neighbours []evalSymbolCandidate, queryTerms map[string]struct{}, queryText string) bool {
+	if evalNamedByTask(candidate, queryTerms, queryText) {
+		return false
+	}
+	own := evalNameSupport(candidate, queryTerms)
+	for _, neighbour := range neighbours {
+		if neighbour.symbol.symbol.Path != candidate.symbol.symbol.Path || neighbour.id == candidate.id {
+			continue
+		}
+		theirs := evalNameSupport(neighbour, queryTerms)
+		if len(own) >= len(theirs) || !subsetOf(own, theirs) || !subsetOf(candidate.support, neighbour.support) {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+// evalNameSupport is the query words a declaration's name parts carry, as
+// written or by a prefix of four bytes or more in either direction.
+func evalNameSupport(candidate evalSymbolCandidate, queryTerms map[string]struct{}) map[string]struct{} {
+	support := make(map[string]struct{})
+	for term := range queryTerms {
+		if _, carried := candidate.symbol.name[term]; carried {
+			support[term] = struct{}{}
+			continue
+		}
+		for _, part := range candidate.symbol.nameParts {
+			if len(part) >= 4 && len(term) >= 4 && (strings.HasPrefix(term, part) || strings.HasPrefix(part, term)) {
+				support[term] = struct{}{}
+				break
+			}
+		}
+	}
+	return support
+}
+
+func subsetOf(inner, outer map[string]struct{}) bool {
+	for term := range inner {
+		if _, carried := outer[term]; !carried {
+			return false
+		}
+	}
+	return true
+}
+
+// evalNamedByTask holds when the task writes the declaration's compact name
+// (five bytes or more, so a short common word is not a name) or every one of a
+// multi-part name's parts.
+func evalNamedByTask(candidate evalSymbolCandidate, queryTerms map[string]struct{}, queryText string) bool {
+	compactName := candidate.symbol.compactName
+	if len(compactName) >= 5 && strings.Contains(compactText(queryText), compactName) {
+		return true
+	}
+	if len(candidate.symbol.nameParts) < 2 {
+		return false
+	}
+	for _, part := range candidate.symbol.nameParts {
+		if intersectionCountSet(terms(part), queryTerms) == 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // evalPruneAuxiliarySymbols removes same-path values that only inherit a

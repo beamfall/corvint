@@ -355,7 +355,7 @@ measurement-specific group cleanup but not this runner's observation/adjudicatio
     Replay retains the zero-value `OverflowFail` policy: the trial adapters' explicit
     `OverflowTruncate` policy MUST NOT be reused for byte-equality judgments.
   - (c) Stdin: supply `stdin{path,sha256}` from the descriptor rather than hard-code
-    EOF stdin as the trial `runCommand` adapters do (`tools/cw-trial/main.go:1458`, `tools/cem-trial/main.go:899`), and
+    EOF stdin as the trial `runCommand` adapters do (`tools/cw-trial/main.go:1458`, `tools/cem-trial/main.go:1018`), and
     refuse before launch when the stdin file's computed digest differs from the pinned `sha256`.
   - (d) Budgets: `CTR-V0-003`'s 10 s per-process ceiling and 120 s request budget per `tasks[]`
     entry, cumulative across that entry's six repetitions (decision 0054), MUST each be enforced by *actively* cancelling and terminating the
