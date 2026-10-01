@@ -425,11 +425,11 @@ func TestBreakageBuildConstraintLookalikes(t *testing.T) {
 	for _, tc := range []struct {
 		name, apiPath, callerPath, marker string
 	}{
-		{"go-build-literal", "pkg/api.go", "caller.go", "const marker = \"//go:build linux\"\n"},
-		{"plus-build-literal", "pkg/api.go", "caller.go", "const marker = `// +build linux`\n"},
-		{"directive-after-package", "pkg/api.go", "caller.go", "//go:build linux\n"},
-		{"os-in-middle", "pkg/api_linux_helpers.go", "caller_linux_helpers.go", ""},
-		{"arch-in-middle-test", "pkg/api_amd64_helpers.go", "caller_amd64_helpers_test.go", ""},
+		{"BKM-V0-004 go-build-literal", "pkg/api.go", "caller.go", "const marker = \"//go:build linux\"\n"},
+		{"BKM-V0-004 plus-build-literal", "pkg/api.go", "caller.go", "const marker = `// +build linux`\n"},
+		{"BKM-V0-004 directive-after-package", "pkg/api.go", "caller.go", "//go:build linux\n"},
+		{"BKM-V0-004 os-in-middle", "pkg/api_linux_helpers.go", "caller_linux_helpers.go", ""},
+		{"BKM-V0-004 arch-in-middle-test", "pkg/api_amd64_helpers.go", "caller_amd64_helpers_test.go", ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			bindings := map[string]string{"api": initRepo(t), "client": initRepo(t)}
