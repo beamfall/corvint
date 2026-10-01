@@ -280,10 +280,12 @@ and compaction recovery use awaited native hooks; all injected additions are bou
 
 ## Automatic context and exact expansion
 
-The prompt hook awaits Corvint and appends at most 8000 UTF-8 bytes, including framing and any
-anchor-query disclosure, to the same unchanged prompt. Repeated events/messages are deduplicated;
-deleted or evicted sessions cancel pending work. OpenCode may retain the augmented prompt in its
-normal conversation history. The adapter writes no prompt files and reads no transcript.
+The prompt hook awaits Corvint and keeps the submitted prompt text unchanged. Bounded, framed,
+receipt-linked task context reaches the model through the context hook, without appearing in the
+visible user message or conversation history. Each frame stays within 8000 UTF-8 bytes, including
+framing and any anchor-query disclosure. Repeated events/messages are deduplicated; new prompts
+invalidate prior task context even when busy, and deleted or evicted sessions cancel pending work.
+Compaction discards the previous task frame. The adapter writes no prompt files and reads no transcript.
 
 `corvint_context` returns `expansionHandles` encoded from the evidence's pinned Git tree/blob/path.
 Pass a handle to `corvint_expand`; replace its `all` range with an explicit `START-END` when a full

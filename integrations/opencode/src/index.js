@@ -293,6 +293,8 @@ async function setup(ctx) {
     bound.state.generation++
     invalidateInspection(bound.state, "Session compacted. Request context again.")
     changed(bound.key)
+    delete bound.state.promptContext
+    bound.state.promptContextGeneration = (bound.state.promptContextGeneration ?? 0) + 1
     bound.state.needsCompaction = true
     startupContexts.delete(bound.key)
   }
@@ -423,6 +425,9 @@ async function setup(ctx) {
     if (!bound || !bound.state.active) return
     const identity = hashSessionId(event.messageID)
     if (identity && (bound.state.prompts.has(identity) || bound.state.pendingPrompts.has(identity))) return
+    const promptGeneration = (bound.state.promptContextGeneration ?? 0) + 1
+    bound.state.promptContextGeneration = promptGeneration
+    delete bound.state.promptContext
     if (inFlight >= MAX_IN_FLIGHT || bound.state.calls.size >= 2) {
       report("prompt-context-busy", "user-prompt")
       return
@@ -432,7 +437,7 @@ async function setup(ctx) {
     const call = new AbortController()
     try {
       const result = await corvintContext.execute({ task: original }, { sessionID: event.sessionID, signal: call.signal })
-      if (!bound.state.active || call.signal.aborted || events.signal.aborted || event.prompt.text !== original) return
+      if (!bound.state.active || call.signal.aborted || events.signal.aborted || event.prompt.text !== original || bound.state.promptContextGeneration !== promptGeneration) return
       if (!result.metadata?.corvint?.receiptId) {
         report("prompt-context-unavailable", "user-prompt")
         return
@@ -442,7 +447,8 @@ async function setup(ctx) {
         report("context-too-large", "user-prompt")
         return
       }
-      event.prompt.text = original + addition
+      // AHI-032: keep repository data in model context rather than persisted user input.
+      bound.state.promptContext = result.content
       bound.state.stopArmed = true
       if (identity) {
         bound.state.prompts.add(identity)
@@ -461,6 +467,9 @@ async function setup(ctx) {
     const bound = stateFor(request?.sessionID)
     if (!bound?.state.active || events.signal.aborted) return
     const { state, key } = bound
+    if (state.promptContext && !request.system.some(item => item.text === state.promptContext)) {
+      request.system.push({ type: "text", text: state.promptContext })
+    }
     const generation = state.generation
     if (state.needsCompaction) {
       if (!state.recovery || state.recovery.generation !== generation) {
