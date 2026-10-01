@@ -15,9 +15,12 @@ import (
 // policyCommand runs `corvint-tasks policy update` (ATM-V0-027, TM-V0-030):
 // the only writer of intent/policy.json after init.
 func policyCommand(env Env, args []string) *wire.Result {
+	if len(args) > 0 && args[0] == "show" {
+		return policyShow(env, args[1:])
+	}
 	cmd := []string{"policy", "update"}
 	if len(args) == 0 || args[0] != "update" {
-		return usage([]string{"policy"}, "policy needs the verb update")
+		return usage([]string{"policy"}, "policy needs the verb show or update")
 	}
 	args = args[1:]
 	role, request, expected, file := "OWNER", "", "", ""
@@ -82,4 +85,27 @@ func digestOrNull(d wire.Digest) wire.Value {
 		return wire.Null()
 	}
 	return wire.String(string(d))
+}
+
+// policyShow binds the effective bytes, version and digest to one audited read.
+func policyShow(env Env, args []string) *wire.Result {
+	cmd := []string{"policy", "show"}
+	if len(args) != 0 {
+		return usage(cmd, "policy show takes no arguments")
+	}
+	var item wire.Value
+	rc, err := withStore(env, func(rc *readCtx) error {
+		p, err := wire.Parse(rc.store.Policy.Raw)
+		if err != nil {
+			return err
+		}
+		item = wire.ObjectValue(wire.NewObject().Set("policy", p).Set("policyVersion", wire.String(string(rc.store.Policy.PolicyVersion))).Set("policySha256", wire.String(string(rc.store.Policy.PolicySha256()))))
+		return nil
+	})
+	if err != nil {
+		return failure(cmd, rc, err)
+	}
+	res := success(cmd, rc)
+	res.Items = []wire.Value{item}
+	return res
 }

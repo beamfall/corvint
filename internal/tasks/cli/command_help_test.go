@@ -43,6 +43,19 @@ func TestCALV0047_AllCommandHelpIsReadOnly(t *testing.T) {
 					if name == "release" && len(field(r.Items[0], "handoffPreconditions").Arr) == 0 {
 						t.Fatal("handoff contract missing")
 					}
+					if strings.HasPrefix(name, "criterion-binding ") {
+						var flags []string
+						for _, value := range field(r.Items[0], "flags").Arr {
+							flags = append(flags, value.Str)
+						}
+						want := "--help,-h"
+						if name == "criterion-binding capture" {
+							want = "--attempt,--help,--ticket,-h"
+						}
+						if strings.Join(flags, ",") != want || !strings.Contains(field(r.Items[0], "note").Str, "canonical capture") || !strings.Contains(field(r.Items[0], "note").Str, "stdin") {
+							t.Fatalf("criterion-binding input contract missing: %v %s", args, out.Bytes())
+						}
+					}
 					if os.Getenv("CORVINT_HANDOFF_TEST_BINARY") != "" {
 						actual := handoffCLI(t, root, args...)
 						if actual.code != 0 || actual.res.Snapshot != nil || actual.res.Mutation != nil {
