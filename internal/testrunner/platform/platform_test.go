@@ -2,7 +2,10 @@ package platform
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -11,7 +14,7 @@ import (
 
 func fixture(t *testing.T, name string) []byte {
 	t.Helper()
-	b, err := os.ReadFile("testdata/" + name)
+	b, err := readFixture("testdata", name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,5 +194,73 @@ func TestAggregateReportDoesNotInventAttempts(t *testing.T) {
 	o, err := Parse(tr.Input{Runner: "bats", Stdout: []byte("1..1\nnot ok 1 failure\n# command failed\n"), ExitCode: 1})
 	if err != nil || !o.Complete || len(o.Tests) != 1 || len(o.Tests[0].Attempts) != 0 || o.RetryInformation != tr.NotReported || o.Tests[0].FailureKind != tr.Unknown || o.Tests[0].Message != "command failed\n" {
 		t.Fatalf("aggregate attempt invented or failure details lost: %+v %v", o, err)
+	}
+}
+
+// Only named empty captures may be reconstructed; missing native files remain errors.
+func readFixture(root, name string) ([]byte, error) {
+	raw, err := os.ReadFile(filepath.Join(root, "empty-fixtures.json"))
+	if err != nil {
+		return nil, err
+	}
+	var inventory map[string]struct {
+		Bytes  *string `json:"bytes"`
+		SHA256 string  `json:"sha256"`
+	}
+	if err := json.Unmarshal(raw, &inventory); err != nil {
+		return nil, err
+	}
+	entry, declared := inventory[filepath.ToSlash(name)]
+	if !declared {
+		return os.ReadFile(filepath.Join(root, name))
+	}
+	if entry.Bytes == nil || *entry.Bytes != "" || entry.SHA256 != tr.Digest([]byte{}) {
+		return nil, fmt.Errorf("invalid empty fixture declaration: %s", name)
+	}
+	if _, err := os.Lstat(filepath.Join(root, name)); !os.IsNotExist(err) {
+		return nil, fmt.Errorf("empty fixture declaration shadows file or unreadable path: %s", name)
+	}
+	return []byte{}, nil
+}
+
+func TestEmptyFixtureInventory(t *testing.T) {
+	raw, err := os.ReadFile("testdata/empty-fixtures.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var inventory map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &inventory); err != nil {
+		t.Fatal(err)
+	}
+	if len(inventory) != 2 {
+		t.Fatalf("unexpected empty inventory: %d", len(inventory))
+	}
+	for name := range inventory {
+		b, err := readFixture("testdata", name)
+		if err != nil || len(b) != 0 || tr.Digest(b) != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" {
+			t.Fatalf("empty fixture %s: %x %v", name, b, err)
+		}
+	}
+	if _, err := readFixture("testdata", "undeclared-missing-fixture.txt"); !os.IsNotExist(err) {
+		t.Fatalf("undeclared missing fixture was hidden: %v", err)
+	}
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "empty-fixtures.json"), []byte(`{"capture":{"bytes":"","sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "capture"), []byte("unexpected native bytes"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readFixture(root, "capture"); err == nil {
+		t.Fatal("inventory shadowed a native file")
+	}
+	for _, declaration := range []string{`{"bytes":"changed","sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}`, `{"bytes":"","sha256":"wrong"}`, `{"sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}`} {
+		root := t.TempDir()
+		if err := os.WriteFile(filepath.Join(root, "empty-fixtures.json"), []byte(`{"capture":`+declaration+`}`), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := readFixture(root, "capture"); err == nil {
+			t.Fatal("invalid declaration accepted")
+		}
 	}
 }
