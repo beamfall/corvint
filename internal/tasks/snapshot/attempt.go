@@ -77,6 +77,7 @@ const ProfileRetryAccounting = "taskman-retry-accounting/0"
 // Attempt is a validated taskman-attempt/0.
 type Attempt struct {
 	RetryAccounting         *RetryAccounting
+	HandoffEvidence         string
 	Supervision             *Supervision
 	Stage                   string
 	PoolAllocation          *PoolAllocation
@@ -224,7 +225,7 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
-	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation", "supervision", "retryAccounting")...)
+	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation", "supervision", "retryAccounting", "handoffEvidence")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -232,6 +233,9 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 		return nil, err
 	}
 	a := &Attempt{}
+	if wire.Has(v, "handoffEvidence") {
+		a.HandoffEvidence = r.Field("handoffEvidence").Identifier()
+	}
 	if wire.Has(v, "retryAccounting") {
 		x := r.Field("retryAccounting")
 		x.Closed("profile", "failedOrUnknown", "disposition")
@@ -298,8 +302,15 @@ func (a *Attempt) check() error {
 	if q.Raw != a.TicketID.QueueID() {
 		return wire.Errorf(wire.CodeMalformed, "/attemptId", "attempt and ticket name different queues")
 	}
-	if x := a.RetryAccounting; x != nil && x.Disposition != "NONE" {
-		if a.RuntimeID != RuntimeExternalAgent || a.Phase != "CANCELLED" || a.Quiescence != "FENCED" || x.FailedOrUnknown || a.CandidateTreeOid == nil || a.ScopeCheck != "WITHIN" || len(a.PendingEffects) != 0 || a.Cause == nil || *a.Cause != x.Disposition || (a.Stage != "implement" && a.Stage != "review") || (x.Disposition == "REVIEW_RETURNED" && a.Stage != "review") {
+	clean := a.RetryAccounting != nil && a.RetryAccounting.Disposition != "NONE"
+	if a.HandoffEvidence != "" && !clean {
+		return wire.Errorf(wire.CodeMalformed, "/handoffEvidence", "evidence requires a clean terminal handoff")
+	}
+	if clean {
+		x := a.RetryAccounting
+		candidate := a.HandoffEvidence == "" && a.CandidateTreeOid != nil && a.ScopeCheck == "WITHIN"
+		externalWork := a.HandoffEvidence != "" && a.CandidateTreeOid == nil && a.ScopeCheck == "UNKNOWN" && len(a.GateResults) == 0
+		if a.RuntimeID != RuntimeExternalAgent || a.Phase != "CANCELLED" || a.Quiescence != "FENCED" || x.FailedOrUnknown || (!candidate && !externalWork) || len(a.PendingEffects) != 0 || a.Cause == nil || *a.Cause != x.Disposition || (a.Stage != "implement" && a.Stage != "review" && a.Stage != "integrate") || (x.Disposition == "REVIEW_RETURNED" && a.Stage != "review") {
 			return wire.Errorf(wire.CodeMalformed, "/retryAccounting", "clean disposition differs from terminal handoff facts")
 		}
 	}
@@ -384,6 +395,9 @@ func priorValue(ps []PriorGeneration) wire.Value {
 func (a *Attempt) Encode() ([]byte, error) {
 	o := wire.NewObject()
 	o.Set("profile", wire.String(ProfileAttempt))
+	if a.HandoffEvidence != "" {
+		o.Set("handoffEvidence", wire.String(a.HandoffEvidence))
+	}
 	if a.RetryAccounting != nil {
 		x := a.RetryAccounting
 		o.Set("retryAccounting", wire.ObjectValue(wire.NewObject().Set("profile", wire.String(ProfileRetryAccounting)).Set("failedOrUnknown", wire.Bool(x.FailedOrUnknown)).Set("disposition", wire.String(x.Disposition))))

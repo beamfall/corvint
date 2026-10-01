@@ -3,9 +3,12 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification)
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification)
 Authoritative inputs: owner request [issue 342](https://github.com/beamfall/corvint/issues/342),
 owner approval on 2026-09-30 of prospective handoff accounting for [issue 412](https://github.com/beamfall/corvint/issues/412) (CAL-V0-044),
+owner requests [issue 420](https://github.com/beamfall/corvint/issues/420),
+[issue 421](https://github.com/beamfall/corvint/issues/421) and
+[issue 422](https://github.com/beamfall/corvint/issues/422) (CAL-V0-045..047),
 owner request [issue 378](https://github.com/beamfall/corvint/issues/378),
 owner request [issue 370](https://github.com/beamfall/corvint/issues/370), and
 owner choice on 2026-09-28 to quarantine environments until confirmed safe reuse; owner request [issue 336](https://github.com/beamfall/corvint/issues/336), the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
@@ -15,7 +18,7 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
 - Read next: Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision); Amendments to TCP-00; Failure modes.
@@ -143,8 +146,9 @@ S3, leases.
   `STORAGE_FAILED` before it writes, so a clock that steps backward cannot record a receipt that
   later makes an expired lease look live.
 - `CAL-V0-013`: A ticket whose last attempt is `FAILED` or `CANCELLED` MUST be claimable again as
-  that attempt's next generation (TCP-00 §6.2 `retry`, `retryCount < 3`), and after three retries
-  only an `OWNER` `ticket reopen` makes it claimable.
+  that attempt's next generation while its charged retry count is below the current policy limit
+  (CAL-V0-045), and after exhaustion only an `OWNER` `ticket reopen` makes it claimable,
+  unless the existing prospective clean handoff exemption applies.
   CAL-V0-043 specifies readmission of an exhausted `OPEN` ticket. Cancellations consume retries
   except the prospective writer-verified clean handoffs in CAL-V0-044. Reopen creates fresh
   acceptance, not an automatic retry refund.
@@ -156,13 +160,14 @@ S3, leases.
 
 - `CAL-V0-044`: Only an upgraded writer's verified terminal external-agent handoff MAY preserve
   the cumulative retry count on the next generation. `release --reason HANDOFF` requests this
-  check for an implement/review lease; `REVIEW_RETURNED` requires a review lease. The live,
-  unexpired, current generation MUST have a scope-checked submitted candidate, no pending effects,
+  check for an implement/review/integrate lease; `REVIEW_RETURNED` requires a review lease. The live,
+  unexpired, current generation MUST have a scope-checked submitted candidate or the explicit
+  no-tree evidence branch in CAL-V0-046, no pending effects,
   unchanged acceptance and policy, and prospective generation accounting without a recorded
   non-PASSED gate result. These reason strings and stage/holder changes alone are not evidence.
   A failed eligibility check MUST refuse without converting the attempt to a clean cancellation.
   Missing legacy accounting remains charged. Ordinary cancellation, failure and expiry remain
-  charged regardless of stage. A clean handoff at retry count three MAY continue at three;
+  charged regardless of stage. A clean handoff at the policy retry limit MAY continue at that count;
   a subsequent non-exempt termination MUST block the next claim. Claim, pure plan preview and
   exhausted-OPEN owner recovery MUST use the same exhaustion rule, preserving all CAL-V0-043
   safety and authorization preconditions.
@@ -178,9 +183,63 @@ S3, leases.
   Legacy absent-member bytes MUST round-trip unchanged; unknown/malformed metadata MUST refuse.
   Old readers may refuse from the first accounting-bearing claim. Rollback MUST retain the journal
   and use a compatible reader/writer after stopping admissions; stripping metadata or downgrading
-  an affected store is not supported. No historical refund, live migration, retry-limit change or
-  automatic owner reopen is authorized. Verification describes recorded accounting eligibility,
+  an affected store is not supported. No historical refund, live migration or automatic owner reopen is authorized.
+  Issues 420/421 amend only the explicit retry bound and handoff branch in CAL-V0-045/046. Verification describes recorded accounting eligibility,
   not actor authentication, unreported external failures, physical quiescence or independent review.
+
+### Configurable retries, external work handoff and help (issues 420–422)
+
+- `CAL-V0-045`: Claim (explicit and next), pure plan preview (including pool/stage selection), and
+  exhausted-OPEN owner recovery MUST apply the same current `retries.admissionsPerRevision` value.
+  The historical field name denotes charged retries after the initial admission, not total
+  generations. Its required canonical Count MUST be in 0..16; the fixture/default policy retains
+  3, and 0 permits the initial admission but no charged retry. Missing or malformed fields MUST
+  refuse. Clean CAL-V0-044 handoffs preserve debt at any limit; failures, cancellations and expiry
+  remain charged. Changing a policy MUST NOT erase debt, acceptance history or owner recovery
+  safety checks. A raised limit makes a previously exhausted attempt eligible only through the
+  ordinary current-policy admission predicate. This code change does not authorize updating any
+  real queue policy or migrating live attempts. Readers limited to 3 may refuse a policy above 3;
+  retain compatible tooling and the complete store rather than stripping fields or downgrading.
+- `CAL-V0-046`: An external-agent `release --reason HANDOFF --evidence REF` MUST support work
+  outside the queue repository without submitting an unchanged or unrelated tree. `HANDOFF`
+  permits implement, review and integrate; `REVIEW_RETURNED` permits review only. With REF, the
+  live, unexpired current generation MUST be RUNNING, have no candidate, scopeCheck UNKNOWN,
+  no gate results or pending effects, and prospective NONE/false retry accounting. Unchanged
+  policy/config and acceptance remain mandatory. Without REF, the existing BUILT/CHECKING,
+  candidate and WITHIN requirements remain mandatory. Evidence on ordinary cancellation or a
+  candidate-bearing release MUST refuse. A non-PASSED gate remains sticky, and missing legacy
+  accounting and supervised attempts never qualify. Failed checks MUST NOT record a clean
+  disposition. The optional attempt member `handoffEvidence` MUST be absent or a nonempty
+  `Identifier` (1..128 UTF-8 bytes, no hostile code points or TAB/LF/CR); null, empty, unknown and
+  overlong forms MUST refuse. It is required exactly for the no-tree clean terminal branch and
+  forbidden on live, NONE, legacy, supervised, ordinary-cancel and candidate-tree records.
+  The decoder MUST jointly bind reason/cause/disposition, stage, CANCELLED phase, FENCED
+  quiescence, candidate absence, UNKNOWN scope and empty gate/pending-effect sets. The reference
+  MUST join the canonical RELEASE request preimage only when present: absent evidence MUST
+  preserve legacy preimage bytes and replay. Same-reference replay MUST be idempotent;
+  changed-reference replay MUST conflict. New metadata remains journal-bound; old readers may
+  refuse and MUST NOT be used to strip or rewrite it. A reference is inert caller evidence, never
+  fetched or executed and not proof of its contents, work quality or physical cleanup. Release
+  MUST remove the reservation and retain existing pool quarantine; reuse still requires the
+  existing cleanup/safe-confirm flow. Journal consistency, logical fencing and quarantine MUST
+  remain distinct from separately observed physical cleanup. No completion, review, integration,
+  publication, automatic reopen or historical refund authority is added.
+- `CAL-V0-047`: Every implemented and omitted public command path and command family MUST return
+  read-only OK for an exact trailing `--help` or `-h` help request, with command-specific usage,
+  flags and applicable reason codes. The lease release help MUST state CAL-V0-044/046 eligibility
+  and refusal codes, including that policy updates make live handoffs STALE_POLICY. Help MUST
+  require no initialized store and perform no store read/write/lock, stdin read, archive stream,
+  command execution or launcher action. Omitted execution remains NOT_RUN and its help MUST say
+  so without inventing execution flags. Unknown paths and malformed non-help invocations retain
+  ordinary behavior. Existing mutation help alongside flags, operation and payloadKeys remain
+  supported; a scalar flag value spelled --help or -h MUST NOT become a help request. The
+  --version alias and release lease/artifact-family dispatch MUST remain compatible.
+
+Rollback stops admissions before switching to a compatible writer. Preserve every journal,
+request and optional metadata member. No destructive downgrade, migration or live policy rewrite
+is part of these amendments. Failure witnesses include mismatched terminal metadata, changed
+reference replay, changed policy/acceptance, charged expiry, zero-budget exhaustion, and help that
+reads stdin or leaves any filesystem artifact.
 
 S4, planning.
 
@@ -458,7 +517,7 @@ explicit uncertainty is carried unchanged. No inferred context becomes accepted 
 - `CAL-V0-043`: `ticket reopen` MUST accept an `OPEN` ticket only for an explicit `OWNER`
   invocation permitted by policy, carrying a nonempty reason, request ID and exact expected
   ticket revision, when the latest attempt is `FAILED` or `CANCELLED`, is bound to the current
-  acceptance revision and has exhausted the three retries. The writer MUST derive recovery
+  acceptance revision and has exhausted the current policy retry limit (CAL-V0-045). The writer MUST derive recovery
   facts from complete, schema-valid, canonical journal-backed attempt bytes and reservations.
   Every attempt for the target ticket MUST be terminal, without pending effects or reservations;
   external-agent attempts MUST be `FENCED`, and supervised attempts MUST have `PROVED`
@@ -519,6 +578,10 @@ readers of recovery receipts must retain support for the bounded MUTATE evidence
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
+
+- A18: CAL-V0-045 raises the admitted retry bound to 16 without changing legacy value-3
+  semantics. CAL-V0-046 adds absent-only optional `handoffEvidence` to the closed attempt codec
+  and conditional evidence to RELEASE preimages. Existing absent-member bytes are unchanged.
 
 - A17: CAL-V0-044 adds `HANDOFF` and `REVIEW_RETURNED` to TCP-00 §11's closed detail
   codes for the verified release requests and recorded dispositions it defines. Together with
@@ -669,6 +732,9 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-011 | `TestCALV0011_ExpiredLeaseIsReapedByACollidingClaim`, `TestCALV0011_ReapAndRelease`, `TestCALV0011_ReleaseAndReapPassAnAllBarrier` (`internal/tasks/store`) |
 | CAL-V0-012 | `TestCALV0012_LeaseBoundsAndBackwardClock`, `TestCALV0012_BackwardClockRefusesEveryWriter` (`internal/tasks/store`) |
 | CAL-V0-044 | `TestCALV0044_CleanHandoffsPreserveRetryDebt`, `TestCALV0044_HandoffNeedsRecordedEligibility`, `TestCALV0044_FailedGateRemainsChargedAfterPassAndSubmit`, `TestCALV0044_ReviewExpiryStillExhausts`, `TestCALV0044_TimeoutRemainsSticky` (`internal/tasks/store`); `TestCALV0044_LegacyReasonCannotExempt` (`internal/tasks/transaction`); `TestCALV0044_AccountingSchema` (`internal/tasks/snapshot`); `TestCALV0044_CLIHandoffAccounting` (`internal/tasks/cli`) |
+| CAL-V0-045 | `TestCALV0045_RetryPolicyBounds` (`internal/tasks/intent`); `TestCALV0045_PolicyControlsAdmissionAndRecovery`, `TestCALV0045_RecoveryUsesCurrentPolicy` (`internal/tasks/store`); `TestCALV0045_CLIConfiguredRetriesAndNoTreeHandoff` (`internal/tasks/cli`) |
+| CAL-V0-046 | `TestCALV0046_ReleasePreimageCompatibility`, `TestCALV0046_NoTreeEligibilityBindings` (`internal/tasks/transaction`); `TestCALV0046_NoTreeHandoffSchema` (`internal/tasks/snapshot`); `TestCALV0046_NoTreeHandoffAndIntegrate`, `TestCALV0046_NoTreeRefusals` (`internal/tasks/store`); `TestCALV0045_CLIConfiguredRetriesAndNoTreeHandoff`, `TestCALV0046_CLICompatibility`, `TestCALV0046_CLIPoolHandoffQuarantines` (`internal/tasks/cli`) |
+| CAL-V0-047 | `TestCALV0047_AllCommandHelpIsReadOnly`, `TestCALV0047_MalformedInputsStillRefuse` (`internal/tasks/cli`) |
 | CAL-V0-013 | `TestCALV0013_RetryAsNextGenerationUpToThree` (`internal/tasks/store`) |
 | CAL-V0-014 | `TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan`, `TestCALV0014_SelectedOnlyPlanPreviewIsComplete` (`internal/tasks/cli`); `plan preview` in `TestTMV0008_AS07_ReadsLeaveStoreByteIdentical` (`internal/tasks/cli`) |
 | CAL-V0-015 | `TestCALV0015_SubmitRecordsTheCandidateTree` (`internal/tasks/store`) |

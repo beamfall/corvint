@@ -33,9 +33,10 @@ const (
 	DefaultLeaseMinutes = 60
 	MinLeaseMinutes     = 5
 	MaxLeaseMinutes     = 1440
-	MaxRetries          = 3
-	wholeRepositoryKey  = "repo"
-	timestampLayout     = "2006-01-02T15:04:05Z"
+	// MaxRetries is the legacy default, not the policy enforcement limit.
+	MaxRetries         = 3
+	wholeRepositoryKey = "repo"
+	timestampLayout    = "2006-01-02T15:04:05Z"
 )
 
 // LeaseRequest is one lease command. Fields a verb does not take stay empty;
@@ -106,7 +107,7 @@ var leaseShapes = map[string]leaseShape{
 	LeaseClaim:       {fieldTicket | fieldHolder | fieldMinutes, fieldTicket | fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage},
 	LeaseClaimNext:   {fieldHolder | fieldMinutes, fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage},
 	LeaseRenew:       {fieldAttempt | fieldGeneration | fieldMinutes, fieldAttempt | fieldGeneration | fieldMinutes},
-	LeaseRelease:     {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldReason},
+	LeaseRelease:     {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldReason | fieldEvidence},
 	LeaseReap:        {0, fieldAttempt | fieldGeneration},
 	LeaseWiden:       {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldScope | fieldWhole},
 	LeaseSubmit:      {fieldAttempt | fieldGeneration | fieldTree, fieldAttempt | fieldGeneration | fieldTree},
@@ -202,6 +203,9 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 		}
 	}
 	if l.Evidence != "" {
+		if l.Verb == LeaseRelease && l.Reason != wire.CodeHandoff && l.Reason != wire.CodeReviewReturned {
+			return malformed("release evidence requires HANDOFF or REVIEW_RETURNED")
+		}
 		if _, e := wire.ParseIdentifier("evidence", l.Evidence); e != nil {
 			return e
 		}
@@ -287,6 +291,10 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 	}
 	if l.Stage != "" {
 		v.Obj.Set("stage", s(l.Stage))
+	}
+	// Keep historical RELEASE preimages byte-identical when evidence is absent.
+	if l.Verb == LeaseRelease && l.Evidence != "" {
+		v.Obj.Set("evidence", s(l.Evidence))
 	}
 	if l.Verb == LeaseProgram || l.Verb == LeaseSupervisor {
 		v.Obj.Set("evidence", s(l.Evidence))
@@ -487,6 +495,7 @@ func planRelease(c leaseContext) leaseOutcome {
 		accounting := *a.RetryAccounting
 		accounting.Disposition = c.l.Reason
 		next.RetryAccounting = &accounting
+		next.HandoffEvidence = c.l.Evidence
 	}
 	next.Phase, next.PhaseSinceSeq, next.Quiescence, next.Cause = "CANCELLED", c.seq, "FENCED", nil
 	if c.l.Reason != "" {

@@ -145,7 +145,7 @@ func claimBlockers(in PlanInput, rec *ticket.Record) []ticket.Blocker {
 			out = append(out, b)
 		}
 	}
-	if retryExhausted(in.Attempts, rec) {
+	if retryExhausted(in.Attempts, rec, in.Policy.AdmissionsPerRevision.Int()) {
 		out = append(out, ticket.Blocker{Code: wire.CodeRetryExhausted})
 	}
 	return out
@@ -209,11 +209,10 @@ func lastAttemptOf(attempts map[string]*snapshot.Attempt, ticketID string) *snap
 	return last
 }
 
-// retryExhausted says three retries at the ticket's acceptanceRevision are
-// spent (CAL-V0-013).
-func retryExhausted(attempts map[string]*snapshot.Attempt, rec *ticket.Record) bool {
+// retryExhausted applies the current policy to charged retries at this acceptance revision.
+func retryExhausted(attempts map[string]*snapshot.Attempt, rec *ticket.Record, limit int64) bool {
 	last := lastAttemptOf(attempts, rec.TicketID.Raw)
-	return last != nil && last.TicketRevision == rec.AcceptanceRevision && exhaustedAttempt(last)
+	return last != nil && last.TicketRevision == rec.AcceptanceRevision && exhaustedAttempt(last, limit)
 }
 
 func poolAvailable(in PlanInput, rec *ticket.Record) bool {
