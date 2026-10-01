@@ -240,11 +240,11 @@ BBF-V0-013	docs/specs/browser-behavior-falsification-v0.md	83	The opt-in `execut
 BKM-V0-001	docs/specs/cross-repository-breakage-map-v0.md	53	The command MUST be explicit, read-only, local and experimental. It
 BKM-V0-002	docs/specs/cross-repository-breakage-map-v0.md	56	The manifest MUST be one strict bounded UTF-8 JSON document with no
 BKM-V0-003	docs/specs/cross-repository-breakage-map-v0.md	62	Each emitted source witness MUST name an immutable Git blob and
-BKM-V0-004	docs/specs/cross-repository-breakage-map-v0.md	67	Go references MUST match the selected function's pinned module
-BKM-V0-005	docs/specs/cross-repository-breakage-map-v0.md	82	EEP V1 repository/entity composition and V2 path composition MUST
-BKM-V0-006	docs/specs/cross-repository-breakage-map-v0.md	91	Byte verification MUST NOT establish assertion truth, behavioral
-BKM-V0-007	docs/specs/cross-repository-breakage-map-v0.md	96	`--base` MUST identify an available ancestor of the selected API
-BKM-V0-008	docs/specs/cross-repository-breakage-map-v0.md	102	Limits MUST be enforced: 8 repositories, 256 source files, 32 path
+BKM-V0-004	docs/specs/cross-repository-breakage-map-v0.md	70	Go references MUST match the selected function's pinned module
+BKM-V0-005	docs/specs/cross-repository-breakage-map-v0.md	85	EEP V1 repository/entity composition and V2 path composition MUST
+BKM-V0-006	docs/specs/cross-repository-breakage-map-v0.md	94	Byte verification MUST NOT establish assertion truth, behavioral
+BKM-V0-007	docs/specs/cross-repository-breakage-map-v0.md	99	`--base` MUST identify an available ancestor of the selected API
+BKM-V0-008	docs/specs/cross-repository-breakage-map-v0.md	105	Limits MUST be enforced: 8 repositories, 256 source files, 32 path
 BRAIN-DOG-001	docs/specs/technical-brain-dogfood.md	27	butterfly-effect MUST return exact direct static references/dependencies,
 BRAIN-DOG-002	docs/specs/technical-brain-dogfood.md	30	E2E discovery MUST map requirements and journeys to exact scenario/test witnesse
 BRAIN-DOG-003	docs/specs/technical-brain-dogfood.md	32	selective-test guidance MUST name mandatory repository gates first and a smaller
@@ -1937,9 +1937,9 @@ PT-V0-001	docs/specs/proof-tour-v0.md	60	The fresh tour MUST create a labelled d
 PT-V0-002	docs/specs/proof-tour-v0.md	66	The tour MUST execute actual installed Corvint query/context/impact/affected and
 PT-V0-003	docs/specs/proof-tour-v0.md	70	The producer MUST derive the exact documented canonical diff profile, use
 PT-V0-004	docs/specs/proof-tour-v0.md	75	Fresh completion MUST pause with NOT_RUN independent review and exact base,
-PT-V0-005	docs/specs/proof-tour-v0.md	84	Only after the exact supplied accepted ACK may resume rerun strict readiness
-PT-V0-006	docs/specs/proof-tour-v0.md	90	Every owned command MUST run in its own ordinary process group with a bounded
-PT-V0-007	docs/specs/proof-tour-v0.md	95	Focused tests MUST cover syntax/help, populated and symlink output refusal,
+PT-V0-005	docs/specs/proof-tour-v0.md	85	Only after the exact supplied accepted ACK may resume rerun strict readiness
+PT-V0-006	docs/specs/proof-tour-v0.md	91	Every owned command MUST run in its own ordinary process group with a bounded
+PT-V0-007	docs/specs/proof-tour-v0.md	96	Focused tests MUST cover syntax/help, populated and symlink output refusal,
 PUB-V0-001	docs/specs/public-release-v0.md	135	The current version tuple MUST move together to `1.0.0-rc.1`, including native
 PUB-V0-002	docs/specs/public-release-v0.md	138	The existing native CLI archive gate MUST remain independent. An optional
 PUB-V0-003	docs/specs/public-release-v0.md	145	Companion build output MUST be outside the source checkouts, include exact

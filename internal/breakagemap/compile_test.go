@@ -535,3 +535,112 @@ func TestBreakageInvalidProviderAnchorCannotAdvance(t *testing.T) {
 		t.Fatal("invalid physical span gap missing")
 	}
 }
+
+// A //line directive inside a supplied span that ends before the physical
+// declaration or reference end must stay unresolved, never slice or panic.
+func TestBreakageLineDirectivesOutsideNarrowedSpan(t *testing.T) {
+	const directiveAPI = "package api\n\nfunc Changed() {\n//line fake.go:1\n}\n"
+	const directiveCaller = "package client\nimport alias \"github.com/acme/library/pkg\"\nfunc Call() { alias.\n//line fake.go:1\nChanged() }\n"
+	for _, tc := range []struct {
+		name, api, caller, narrowed, reason string
+	}{
+		{"api-inner", directiveAPI, "package client\nimport alias \"github.com/acme/library/pkg\"\nfunc Call() { alias.Changed() }\n", "pkg/api.go", "API declaration outside supplied span"},
+		{"caller-inner", "package api\nfunc Changed() {}\n", directiveCaller, "caller.go", "reference outside supplied physical span"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m, b, _ := fixture(t)
+			put(t, b["api"], "pkg/api.go", tc.api)
+			commit(t, b["api"])
+			put(t, b["client"], "caller.go", tc.caller)
+			commit(t, b["client"])
+			m.Repositories = []Repository{pinRepo(t, "api", b["api"]), pinRepo(t, "client", b["client"])}
+			m.Sources = nil
+			m.Providers = nil
+			for i, paths := range [][]string{{"go.mod", "pkg/api.go"}, {"go.mod", "caller.go"}} {
+				for _, p := range paths {
+					r := m.Repositories[i]
+					s := pinSource(t, r, b[r.ID], p)
+					if p == tc.narrowed {
+						// Physical lines 3..5 hold the declaration or reference; the
+						// directive makes their logical end line 1, inside 1..4.
+						s.End = 4
+					}
+					m.Sources = append(m.Sources, s)
+				}
+			}
+			r, e := Compile(context.Background(), encode(t, m), b, "api:pkg/api.go:Changed", "")
+			if e != nil {
+				t.Fatal(e)
+			}
+			for _, edge := range r.Edges {
+				if strings.HasPrefix(edge.Kind, "syntax-") {
+					t.Fatalf("span outside the supplied source became a witness: %+v", edge)
+				}
+				for _, a := range []*Anchor{edge.From, edge.To} {
+					if a != nil && (a.Start < 1 || a.End < a.Start || a.End > 4) {
+						t.Fatalf("anchor outside supplied physical span: %+v", a)
+					}
+				}
+			}
+			found := false
+			for _, u := range r.Unknowns {
+				found = found || u.Reason == tc.reason
+			}
+			if !found {
+				t.Fatalf("missing %q unknown: %+v", tc.reason, r.Unknowns)
+			}
+		})
+	}
+}
+
+// Supplied source spans are bounded before any anchor is sliced: reversed,
+// zero and oversize manifest spans refuse, and a span past the blob refuses.
+func TestBreakageSuppliedSourceSpanBounds(t *testing.T) {
+	for _, span := range [][2]int{{0, 1}, {3, 2}, {1, 200001}} {
+		m, _, _ := fixture(t)
+		m.Sources[1].Start, m.Sources[1].End = span[0], span[1]
+		if _, e := Decode(encode(t, m)); e == nil {
+			t.Fatalf("accepted supplied span %v", span)
+		}
+	}
+	m, b, _ := fixture(t)
+	m.Sources[1].End = 5
+	if _, e := Compile(context.Background(), encode(t, m), b, "api:pkg/api.go:Changed", ""); e == nil || !strings.Contains(e.Error(), "source span outside blob") {
+		t.Fatalf("accepted supplied span past the blob: %v", e)
+	}
+}
+
+// A provider endpoint whose captured span exceeds its blob stays unresolved
+// rather than slicing past the physical lines.
+func TestBreakageOversizeProviderAnchorCannotAdvance(t *testing.T) {
+	m, b, _ := fixture(t)
+	sources := map[string]captured{}
+	for _, s := range m.Sources {
+		var repo Repository
+		for _, candidate := range m.Repositories {
+			if candidate.ID == s.Repository {
+				repo = candidate
+			}
+		}
+		text, e := os.ReadFile(filepath.Join(b[s.Repository], s.Path))
+		if e != nil {
+			t.Fatal(e)
+		}
+		sources[sourceKey(s.Repository, s.Path)] = captured{s, repo, text}
+	}
+	bad := sources["client:flow.json"]
+	bad.source.Start, bad.source.End = 1, 1000000
+	sources["client:flow.json"] = bad
+	r := Report{}
+	composeProviders(&r, m, sources, "api:pkg/api.go")
+	if len(r.Edges) != 1 || r.Edges[0].ByteState != "unresolved" || r.Edges[0].To != nil {
+		t.Fatalf("oversize anchor advanced traversal: %+v", r.Edges)
+	}
+	found := false
+	for _, u := range r.Unknowns {
+		found = found || strings.Contains(u.Reason, "outside supplied physical span")
+	}
+	if !found {
+		t.Fatal("oversize physical span gap missing")
+	}
+}
