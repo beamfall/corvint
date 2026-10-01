@@ -240,10 +240,10 @@ BKM-V0-001	docs/specs/cross-repository-breakage-map-v0.md	53	The command MUST be
 BKM-V0-002	docs/specs/cross-repository-breakage-map-v0.md	56	The manifest MUST be one strict bounded UTF-8 JSON document with no
 BKM-V0-003	docs/specs/cross-repository-breakage-map-v0.md	62	Each emitted source witness MUST name an immutable Git blob and
 BKM-V0-004	docs/specs/cross-repository-breakage-map-v0.md	67	Go references MUST match the selected function's pinned module
-BKM-V0-005	docs/specs/cross-repository-breakage-map-v0.md	75	EEP V1 repository/entity composition and V2 path composition MUST
-BKM-V0-006	docs/specs/cross-repository-breakage-map-v0.md	84	Byte verification MUST NOT establish assertion truth, behavioral
-BKM-V0-007	docs/specs/cross-repository-breakage-map-v0.md	89	`--base` MUST identify an available ancestor of the selected API
-BKM-V0-008	docs/specs/cross-repository-breakage-map-v0.md	95	Limits MUST be enforced: 8 repositories, 256 source files, 32 path
+BKM-V0-005	docs/specs/cross-repository-breakage-map-v0.md	82	EEP V1 repository/entity composition and V2 path composition MUST
+BKM-V0-006	docs/specs/cross-repository-breakage-map-v0.md	91	Byte verification MUST NOT establish assertion truth, behavioral
+BKM-V0-007	docs/specs/cross-repository-breakage-map-v0.md	96	`--base` MUST identify an available ancestor of the selected API
+BKM-V0-008	docs/specs/cross-repository-breakage-map-v0.md	102	Limits MUST be enforced: 8 repositories, 256 source files, 32 path
 BRAIN-DOG-001	docs/specs/technical-brain-dogfood.md	27	butterfly-effect MUST return exact direct static references/dependencies,
 BRAIN-DOG-002	docs/specs/technical-brain-dogfood.md	30	E2E discovery MUST map requirements and journeys to exact scenario/test witnesse
 BRAIN-DOG-003	docs/specs/technical-brain-dogfood.md	32	selective-test guidance MUST name mandatory repository gates first and a smaller
@@ -307,13 +307,13 @@ CAL-V0-033	docs/specs/corvint-tasks-agent-leases-v0.md	335	Pool commands MUST us
 CAL-V0-034	docs/specs/corvint-tasks-agent-leases-v0.md	342	Queue occupancy and plan preview MUST remain read-only and execute no probes.
 CAL-V0-035	docs/specs/corvint-tasks-agent-leases-v0.md	376	The optional `taskman-codex-supervisor/0` policy profile MUST dispatch a pinned
 CAL-V0-036	docs/specs/corvint-tasks-agent-leases-v0.md	380	Implement, independent review, repair and integrate MUST be native attempt stage
-CAL-V0-037	docs/specs/corvint-tasks-agent-leases-v0.md	385	A live owner MUST NOT be stolen. Explicit quiescent owner release or native iden
-CAL-V0-038	docs/specs/corvint-tasks-agent-leases-v0.md	390	WAIT MUST preserve the exact session, worktree, partial candidate and handoff.
-CAL-V0-039	docs/specs/corvint-tasks-agent-leases-v0.md	394	Every dispatch MUST reserve a turn under the native writer lock. Concurrent lane
-CAL-V0-040	docs/specs/corvint-tasks-agent-leases-v0.md	400	Every assignment/stage MUST use a distinct registered worktree/private Git direc
-CAL-V0-041	docs/specs/corvint-tasks-agent-leases-v0.md	406	Foreground role workers MUST pull eligible work without a daemon, select existin
+CAL-V0-037	docs/specs/corvint-tasks-agent-leases-v0.md	388	A live owner MUST NOT be stolen. Explicit quiescent owner release or native iden
+CAL-V0-038	docs/specs/corvint-tasks-agent-leases-v0.md	393	WAIT MUST preserve the exact session, worktree, partial candidate and handoff.
+CAL-V0-039	docs/specs/corvint-tasks-agent-leases-v0.md	397	Every dispatch MUST reserve a turn under the native writer lock. Concurrent lane
+CAL-V0-040	docs/specs/corvint-tasks-agent-leases-v0.md	403	Every assignment/stage MUST use a distinct registered worktree/private Git direc
+CAL-V0-041	docs/specs/corvint-tasks-agent-leases-v0.md	409	Foreground role workers MUST pull eligible work without a daemon, select existin
 CAL-V0-042	docs/specs/corvint-tasks-agent-leases-v0.md	290	A separate `corvint-tasks-archive/0` build path MUST package the Tasks binary,
-CAL-V0-043	docs/specs/corvint-tasks-agent-leases-v0.md	423	`ticket reopen` MUST accept an `OPEN` ticket only for an explicit `OWNER`
+CAL-V0-043	docs/specs/corvint-tasks-agent-leases-v0.md	426	`ticket reopen` MUST accept an `OPEN` ticket only for an explicit `OWNER`
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla
@@ -575,6 +575,13 @@ CTS-V0-002	docs/specs/corvint-tasks-store-init-v0.md	49	Only `queue status`, `ro
 CTS-V0-003	docs/specs/corvint-tasks-store-init-v0.md	63	(accepted 2026-09-27, owner decision relayed by the orchestrator session "Work
 CTS-V0-004	docs/specs/corvint-tasks-store-init-v0.md	77	Store resolution MUST resolve symbolic links in the directories above the primar
 CTS-V0-005	docs/specs/corvint-tasks-store-init-v0.md	83	The external-agent setup guide MUST provide canonical queue, policy and ticket-c
+CVI-V0-001	docs/specs/closed-vocabulary-intake-v0.md	27	Publish a versioned schema whose data fields are enums, literal repository paths
+CVI-V0-002	docs/specs/closed-vocabulary-intake-v0.md	31	Validate exact field names and presence, types, enum vocabulary, bounded identif
+CVI-V0-003	docs/specs/closed-vocabulary-intake-v0.md	35	Bind validation to explicit full base/head commit identities. Every behaviour an
+CVI-V0-004	docs/specs/closed-vocabulary-intake-v0.md	39	Normalize each unordered set by deterministic byte ordering and serialize the
+CVI-V0-005	docs/specs/closed-vocabulary-intake-v0.md	42	Publish a reader-step contract: raw connector text is mounted read-only outside
+CVI-V0-006	docs/specs/closed-vocabulary-intake-v0.md	47	The production author-input builder must revalidate the reader file before outpu
+CVI-V0-007	docs/specs/closed-vocabulary-intake-v0.md	51	Publish conformance vectors and a CI containment battery against the actual buil
 CWC-X0-001	docs/specs/correlated-witness-collapse-x0.md	55	X0 MUST consume one exact bounded `cem/0.1` or `cem/0.2` byte document through t
 CWC-X0-002	docs/specs/correlated-witness-collapse-x0.md	58	Common causes MUST use exactly `source`, `generator`, `parser`, `oracle`, or
 CWC-X0-003	docs/specs/correlated-witness-collapse-x0.md	61	Every witness and membership-attestation reference MUST identify evidence presen
@@ -962,10 +969,10 @@ EPG-V0-008	docs/specs/eol-policy-gate-v0.md	73	A drift-free run MUST exit 0 and 
 EPG-V0-009	docs/specs/eol-policy-gate-v0.md	75	`make gate` MUST invoke both `eol-policy-check`, which runs the policy script, a
 ERI-V0-001	docs/specs/expanded-range-impact-v0.md	35	`corvint impact --base FULL_COMMIT_ID --range-profile expanded-256` MUST explici
 ERI-V0-002	docs/specs/expanded-range-impact-v0.md	41	The experimental profile MUST use the complete original base-to-captured-HEAD
-ERI-V0-003	docs/specs/expanded-range-impact-v0.md	48	Only this profile's path capacity changes. The cumulative 10,000-Go-hunk and
-ERI-V0-004	docs/specs/expanded-range-impact-v0.md	55	Without the new option, the existing range profile, its 100-path refusal, positi
-ERI-V0-005	docs/specs/expanded-range-impact-v0.md	60	The experimental compiler MUST retain one immutable clean base/head snapshot and
-ERI-V0-006	docs/specs/expanded-range-impact-v0.md	64	The prototype repository coordinator MUST select the experimental profile by an
+ERI-V0-003	docs/specs/expanded-range-impact-v0.md	50	Only this profile's path capacity changes. The cumulative 10,000-admitted-hunk a
+ERI-V0-004	docs/specs/expanded-range-impact-v0.md	57	Without the new option, the existing range profile, its 100-path refusal, positi
+ERI-V0-005	docs/specs/expanded-range-impact-v0.md	65	The experimental compiler MUST retain one immutable clean base/head snapshot and
+ERI-V0-006	docs/specs/expanded-range-impact-v0.md	69	The prototype repository coordinator MUST select the experimental profile by an
 ESV-V0-001	docs/specs/experimental-source-views-v0.md	236	Bind the bounded canonical packet and exact caller selector to object format,
 ESV-V0-002	docs/specs/experimental-source-views-v0.md	241	Return one exact contiguous immutable source range as JSON `text` whose UTF-8
 ESV-V0-003	docs/specs/experimental-source-views-v0.md	245	Enforce every frozen bound with sanitized, replacement-disabled, non-lazy Git
@@ -1182,63 +1189,63 @@ GPK-V0-012	docs/specs/go-production-kernel-migration-v0.md	202	Production Go cod
 GPK-V0-013	docs/specs/go-production-kernel-migration-v0.md	206	The promoted Go binary MUST have no Python interpreter, Python package, cgo,
 GPK-V0-014	docs/specs/go-production-kernel-migration-v0.md	210	Before any TCQ-, OCM-, claim-, or frontier-consuming command moves to Go, its pa
 GPK-V0-015	docs/specs/go-production-kernel-migration-v0.md	214	The initial experimental slice MAY implement only non-indexing harness events
-GPK-V0-016	docs/specs/go-production-kernel-migration-v0.md	535	Performance is measured outside both runtimes with an interleaved, preregistered
-GPK-V0-017	docs/specs/go-production-kernel-migration-v0.md	540	A slice may cut over only when all its parity cases pass and: (a) non-query harn
-GPK-V0-018	docs/specs/go-production-kernel-migration-v0.md	631	Public Go artifacts MUST be `CGO_ENABLED=0`, built from one exact clean Git comm
-GPK-V0-019	docs/specs/go-production-kernel-migration-v0.md	652	The existing Python wheel integrity contract remains binding while a wheel ships
-GPK-V0-020	docs/specs/go-production-kernel-migration-v0.md	709	The migration MUST NOT alter `LICENSE`, `LICENSING.md`, `PROVENANCE.md`, or the
-GPK-V0-021	docs/specs/go-production-kernel-migration-v0.md	714	Corvint self-dogfood MUST first use the candidate to orient to this migration, r
-GPK-V0-022	docs/specs/go-production-kernel-migration-v0.md	719	Beamfall dogfood MUST run second at one exact clean Beamfall revision. It MUST c
-GPK-V0-023	docs/specs/go-production-kernel-migration-v0.md	725	Rollout order was fixed: experimental candidate; cross-runtime shadow gate; opt-
-GPK-V0-024	docs/specs/go-production-kernel-migration-v0.md	734	Rollback MUST require no repository, receipt, map, trace, or cache migration.
-GPK-V0-025	docs/specs/go-production-kernel-migration-v0.md	739	Python production retirement is staged. First, Go is default for one release whi
-GPK-V0-026	docs/specs/go-production-kernel-migration-v0.md	747	Promotion claims are per command and per integration surface. Reports MUST state
+GPK-V0-016	docs/specs/go-production-kernel-migration-v0.md	542	Performance is measured outside both runtimes with an interleaved, preregistered
+GPK-V0-017	docs/specs/go-production-kernel-migration-v0.md	547	A slice may cut over only when all its parity cases pass and: (a) non-query harn
+GPK-V0-018	docs/specs/go-production-kernel-migration-v0.md	638	Public Go artifacts MUST be `CGO_ENABLED=0`, built from one exact clean Git comm
+GPK-V0-019	docs/specs/go-production-kernel-migration-v0.md	659	The existing Python wheel integrity contract remains binding while a wheel ships
+GPK-V0-020	docs/specs/go-production-kernel-migration-v0.md	716	The migration MUST NOT alter `LICENSE`, `LICENSING.md`, `PROVENANCE.md`, or the
+GPK-V0-021	docs/specs/go-production-kernel-migration-v0.md	721	Corvint self-dogfood MUST first use the candidate to orient to this migration, r
+GPK-V0-022	docs/specs/go-production-kernel-migration-v0.md	726	Beamfall dogfood MUST run second at one exact clean Beamfall revision. It MUST c
+GPK-V0-023	docs/specs/go-production-kernel-migration-v0.md	732	Rollout order was fixed: experimental candidate; cross-runtime shadow gate; opt-
+GPK-V0-024	docs/specs/go-production-kernel-migration-v0.md	741	Rollback MUST require no repository, receipt, map, trace, or cache migration.
+GPK-V0-025	docs/specs/go-production-kernel-migration-v0.md	746	Python production retirement is staged. First, Go is default for one release whi
+GPK-V0-026	docs/specs/go-production-kernel-migration-v0.md	754	Promotion claims are per command and per integration surface. Reports MUST state
 GPK-V0-027	docs/specs/go-production-kernel-migration-v0.md	222	Before Pulse P0-B, `corvint` MAY expose an experimental one-shot `impact` comman
 GPK-V0-028	docs/specs/go-production-kernel-migration-v0.md	261	Before the complete Phase 2 query port, `corvint` MAY expose one experimental
 GPK-V0-029	docs/specs/go-production-kernel-migration-v0.md	297	`corvint impact` MAY accept revision-absent `.go` files only when the caller
 GPK-V0-030	docs/specs/go-production-kernel-migration-v0.md	311	`corvint impact --base FULL_COMMIT_ID` MAY compile a committed range as the
-GPK-V0-031	docs/specs/go-production-kernel-migration-v0.md	329	Before the complete Phase 2 feature port, `corvint` MAY expose an experimental
-GPK-V0-032	docs/specs/go-production-kernel-migration-v0.md	346	Before complete Phase 2 activation cutover, `corvint` MAY expose one shared
-GPK-V0-033	docs/specs/go-production-kernel-migration-v0.md	659	The frozen spec, not the Python implementation, is the conformance authority.
-GPK-V0-034	docs/specs/go-production-kernel-migration-v0.md	686	Every adjudication under `GPK-V0-033` MUST be recorded in
-GPK-V0-035	docs/specs/go-production-kernel-migration-v0.md	693	Known-divergent cases MUST NOT accumulate unexamined. Every one carries an
-GPK-V0-036	docs/specs/go-production-kernel-migration-v0.md	698	Python retirement is **per command**, and does not wait for the global window
-GPK-V0-037	docs/specs/go-production-kernel-migration-v0.md	361	Before complete Phase 2 OCM cutover, `corvint` MAY expose the read-only
-GPK-V0-038	docs/specs/go-production-kernel-migration-v0.md	384	The harness slice is complete. Under the expansion gate in `GPK-V0-015`, `corvin
-GPK-V0-039	docs/specs/go-production-kernel-migration-v0.md	400	A context packet asserts that the repository answers the caller's task, and the
-GPK-V0-040	docs/specs/go-production-kernel-migration-v0.md	431	A receipt's coverage counts are denominated in the universe of results the ranki
-GPK-V0-041	docs/specs/go-production-kernel-migration-v0.md	456	The typed `unsupported-ocm-python-claims` abstention `GPK-V0-037` requires of th
-GPK-V0-042	docs/specs/go-production-kernel-migration-v0.md	754	A **beta rung** exists in `GPK-V0-023`'s order, between opt-in candidate use and
-GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	903	`corvint query` MAY add a general `repository`-intent profile on Darwin
-GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	969	The standalone `corvint query` `repository`-intent profile introduced
-GPK-V0-045	docs/specs/go-production-kernel-migration-v0.md	479	An abstaining packet MUST name the reason it abstained at every surface that emi
-GPK-V0-046	docs/specs/go-production-kernel-migration-v0.md	496	Product invariant 3 ranks project-owned authority above syntax. A `query` packet
-GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	1039	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave
-GPK-V0-048	docs/specs/go-production-kernel-migration-v0.md	1069	Go declaration set. `GPK-V0-031` names a Go-symbol feature compiler and
-GPK-V0-049	docs/specs/go-production-kernel-migration-v0.md	1087	Refused-grammar disclosure. `GPK-V0-048` requires a Go source the parser refused
-GPK-V0-050	docs/specs/go-production-kernel-migration-v0.md	621	`corvint record` and `corvint dogfood-record` MUST admit a changed `.gitignore`
-GPK-V0-051	docs/specs/go-production-kernel-migration-v0.md	553	`corvint impact --base FULL_COMMIT_ID` MUST admit a `C` or `R` range member when
-GPK-V0-052	docs/specs/go-production-kernel-migration-v0.md	559	(accepted, decision 0052, 2026-09-04) when a query term
-GPK-V0-053	docs/specs/go-production-kernel-migration-v0.md	568	(accepted 2026-09-04 by decision 0051 item 2, which decides this wording change
-GPK-V0-054	docs/specs/go-production-kernel-migration-v0.md	507	`coverage.authoritative_results` counts cited results Corvint does not label
-GPK-V0-055	docs/specs/go-production-kernel-migration-v0.md	1116	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
-GPK-V0-056	docs/specs/go-production-kernel-migration-v0.md	1127	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
-GPK-V0-057	docs/specs/go-production-kernel-migration-v0.md	644	A target is shipped only after its native conformance, filesystem-safety,
-GPK-V0-058	docs/specs/go-production-kernel-migration-v0.md	577	(proposed amendment 2026-09-05, owner review pending; not accepted) a harness
-GPK-V0-059	docs/specs/go-production-kernel-migration-v0.md	1146	(accepted 2026-09-12, decision 0092) An unknown top-level command MUST be refuse
-GPK-V0-060	docs/specs/go-production-kernel-migration-v0.md	1210	(accepted 2026-09-12, decision 0142; case-folded by decision 0159) `GPK-V0-030`
-GPK-V0-061	docs/specs/go-production-kernel-migration-v0.md	1234	(accepted 2026-09-12, decision 0142) The `GPK-V0-060` allowance MUST NOT apply t
-GPK-V0-062	docs/specs/go-production-kernel-migration-v0.md	1161	(accepted 2026-09-13, decision 0172) Under `GPK-V0-001`, a `--help` token after
-GPK-V0-063	docs/specs/go-production-kernel-migration-v0.md	1244	(accepted 2026-09-12, decision 0166; registers `DR-0023`) A context receipt's
-GPK-V0-064	docs/specs/go-production-kernel-migration-v0.md	1177	(accepted 2026-09-13, decision 0173; root preamble amended by decision 0181) Und
-GPK-V0-065	docs/specs/go-production-kernel-migration-v0.md	593	(proposed amendment 2026-09-14, owner review pending; not accepted) a repository
-GPK-V0-066	docs/specs/go-production-kernel-migration-v0.md	1259	(accepted 2026-09-25, decision 0387; V1-0260)
-GPK-V0-068	docs/specs/go-production-kernel-migration-v0.md	1275	(accepted 2026-09-25, decision 0396; panel finding M2)
-GPK-V0-069	docs/specs/go-production-kernel-migration-v0.md	1290	(accepted 2026-09-25, decision 0399; panel blocker B3)
-GPK-V0-070	docs/specs/go-production-kernel-migration-v0.md	1309	(accepted 2026-09-26, decision 0422; panel blocker B4; V1-0263)
-GPK-V0-071	docs/specs/go-production-kernel-migration-v0.md	1333	(proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global a
-GPK-V0-072	docs/specs/go-production-kernel-migration-v0.md	1351	(proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
-GPK-V0-075	docs/specs/go-production-kernel-migration-v0.md	1367	(accepted 2026-09-25, decision 0412; V1-0263; proposed in PR #247 as `GPK-V0-068
+GPK-V0-031	docs/specs/go-production-kernel-migration-v0.md	336	Before the complete Phase 2 feature port, `corvint` MAY expose an experimental
+GPK-V0-032	docs/specs/go-production-kernel-migration-v0.md	353	Before complete Phase 2 activation cutover, `corvint` MAY expose one shared
+GPK-V0-033	docs/specs/go-production-kernel-migration-v0.md	666	The frozen spec, not the Python implementation, is the conformance authority.
+GPK-V0-034	docs/specs/go-production-kernel-migration-v0.md	693	Every adjudication under `GPK-V0-033` MUST be recorded in
+GPK-V0-035	docs/specs/go-production-kernel-migration-v0.md	700	Known-divergent cases MUST NOT accumulate unexamined. Every one carries an
+GPK-V0-036	docs/specs/go-production-kernel-migration-v0.md	705	Python retirement is **per command**, and does not wait for the global window
+GPK-V0-037	docs/specs/go-production-kernel-migration-v0.md	368	Before complete Phase 2 OCM cutover, `corvint` MAY expose the read-only
+GPK-V0-038	docs/specs/go-production-kernel-migration-v0.md	391	The harness slice is complete. Under the expansion gate in `GPK-V0-015`, `corvin
+GPK-V0-039	docs/specs/go-production-kernel-migration-v0.md	407	A context packet asserts that the repository answers the caller's task, and the
+GPK-V0-040	docs/specs/go-production-kernel-migration-v0.md	438	A receipt's coverage counts are denominated in the universe of results the ranki
+GPK-V0-041	docs/specs/go-production-kernel-migration-v0.md	463	The typed `unsupported-ocm-python-claims` abstention `GPK-V0-037` requires of th
+GPK-V0-042	docs/specs/go-production-kernel-migration-v0.md	761	A **beta rung** exists in `GPK-V0-023`'s order, between opt-in candidate use and
+GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	910	`corvint query` MAY add a general `repository`-intent profile on Darwin
+GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	976	The standalone `corvint query` `repository`-intent profile introduced
+GPK-V0-045	docs/specs/go-production-kernel-migration-v0.md	486	An abstaining packet MUST name the reason it abstained at every surface that emi
+GPK-V0-046	docs/specs/go-production-kernel-migration-v0.md	503	Product invariant 3 ranks project-owned authority above syntax. A `query` packet
+GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	1046	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave
+GPK-V0-048	docs/specs/go-production-kernel-migration-v0.md	1076	Go declaration set. `GPK-V0-031` names a Go-symbol feature compiler and
+GPK-V0-049	docs/specs/go-production-kernel-migration-v0.md	1094	Refused-grammar disclosure. `GPK-V0-048` requires a Go source the parser refused
+GPK-V0-050	docs/specs/go-production-kernel-migration-v0.md	628	`corvint record` and `corvint dogfood-record` MUST admit a changed `.gitignore`
+GPK-V0-051	docs/specs/go-production-kernel-migration-v0.md	560	`corvint impact --base FULL_COMMIT_ID` MUST admit a `C` or `R` range member when
+GPK-V0-052	docs/specs/go-production-kernel-migration-v0.md	566	(accepted, decision 0052, 2026-09-04) when a query term
+GPK-V0-053	docs/specs/go-production-kernel-migration-v0.md	575	(accepted 2026-09-04 by decision 0051 item 2, which decides this wording change
+GPK-V0-054	docs/specs/go-production-kernel-migration-v0.md	514	`coverage.authoritative_results` counts cited results Corvint does not label
+GPK-V0-055	docs/specs/go-production-kernel-migration-v0.md	1123	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
+GPK-V0-056	docs/specs/go-production-kernel-migration-v0.md	1134	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
+GPK-V0-057	docs/specs/go-production-kernel-migration-v0.md	651	A target is shipped only after its native conformance, filesystem-safety,
+GPK-V0-058	docs/specs/go-production-kernel-migration-v0.md	584	(proposed amendment 2026-09-05, owner review pending; not accepted) a harness
+GPK-V0-059	docs/specs/go-production-kernel-migration-v0.md	1153	(accepted 2026-09-12, decision 0092) An unknown top-level command MUST be refuse
+GPK-V0-060	docs/specs/go-production-kernel-migration-v0.md	1217	(accepted 2026-09-12, decision 0142; case-folded by decision 0159) `GPK-V0-030`
+GPK-V0-061	docs/specs/go-production-kernel-migration-v0.md	1241	(accepted 2026-09-12, decision 0142) The `GPK-V0-060` allowance MUST NOT apply t
+GPK-V0-062	docs/specs/go-production-kernel-migration-v0.md	1168	(accepted 2026-09-13, decision 0172) Under `GPK-V0-001`, a `--help` token after
+GPK-V0-063	docs/specs/go-production-kernel-migration-v0.md	1251	(accepted 2026-09-12, decision 0166; registers `DR-0023`) A context receipt's
+GPK-V0-064	docs/specs/go-production-kernel-migration-v0.md	1184	(accepted 2026-09-13, decision 0173; root preamble amended by decision 0181) Und
+GPK-V0-065	docs/specs/go-production-kernel-migration-v0.md	600	(proposed amendment 2026-09-14, owner review pending; not accepted) a repository
+GPK-V0-066	docs/specs/go-production-kernel-migration-v0.md	1266	(accepted 2026-09-25, decision 0387; V1-0260)
+GPK-V0-068	docs/specs/go-production-kernel-migration-v0.md	1282	(accepted 2026-09-25, decision 0396; panel finding M2)
+GPK-V0-069	docs/specs/go-production-kernel-migration-v0.md	1297	(accepted 2026-09-25, decision 0399; panel blocker B3)
+GPK-V0-070	docs/specs/go-production-kernel-migration-v0.md	1316	(accepted 2026-09-26, decision 0422; panel blocker B4; V1-0263)
+GPK-V0-071	docs/specs/go-production-kernel-migration-v0.md	1340	(proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global a
+GPK-V0-072	docs/specs/go-production-kernel-migration-v0.md	1358	(proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
+GPK-V0-075	docs/specs/go-production-kernel-migration-v0.md	1374	(accepted 2026-09-25, decision 0412; V1-0263; proposed in PR #247 as `GPK-V0-068
 HAR-V0-001	docs/specs/harness-authority-relation-v0.md	105	the relation string is exactly `harness-execution-attested-v0`. It is a **new**
 HAR-V0-002	docs/specs/harness-authority-relation-v0.md	109	the relation's authority class is exactly `HARNESS_ATTESTED`. It is a fourth cla
 HAR-V0-003	docs/specs/harness-authority-relation-v0.md	115	an `harness-execution-attested-v0` edge is admissible only when its attestation
@@ -1679,6 +1686,12 @@ NEC-V0-005	docs/specs/necessity-labels-v0.md	62	Counterfactual work MUST be boun
 NEC-V0-006	docs/specs/necessity-labels-v0.md	65	When the packet carries no answer — `state` is not `READY`, or the answerability
 NEC-V0-007	docs/specs/necessity-labels-v0.md	68	Every emitted `necessity` block MUST carry the fixed disclosure stating that the
 NEC-V0-008	docs/specs/necessity-labels-v0.md	71	The verb MUST be read-only: no index, snapshot, trace, ledger or self-observatio
+NGI-V0-001	docs/specs/non-go-impact-v0.md	28	Positional impact and MCP impact MUST admit tracked `.rb`, `.js`,
+NGI-V0-002	docs/specs/non-go-impact-v0.md	32	Default and expanded committed ranges MUST bind Ruby/JS/TS path
+NGI-V0-003	docs/specs/non-go-impact-v0.md	37	Every Ruby/JS/TS changed path MUST name a syntax-only dynamic
+NGI-V0-004	docs/specs/non-go-impact-v0.md	47	Added paths MUST carry the same receipt/evidence envelope and
+NGI-V0-005	docs/specs/non-go-impact-v0.md	59	`impact --help` and MCP description MUST publish a per-language
+NGI-V0-006	docs/specs/non-go-impact-v0.md	63	Conformance MUST include each new suffix/language, negative
 NJB-001	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	44	each family is one exact profile/target tuple and a standalone CLI package; no
 NJB-002	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	46	canonical one-LF JSON input/output is bounded before decode, base64 decode, fact
 NJB-003	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	54	facts are typed, ordered, and digest-bound by the bridge-owned 14-field evidence

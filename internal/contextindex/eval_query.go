@@ -138,7 +138,16 @@ func EvalFeature(index *Index, featureID string, limit int, budget *int) (map[st
 // EvalImpact applies the shared packet budget to the broad impact kernel
 // without changing the public impact command's qualified option surface.
 func EvalImpact(index *Index, paths []string, limit int, budget *int) (map[string]any, error) {
-	result, disclosures, err := impact(index, paths, limit)
+	return evalImpact(index, paths, limit, budget, false)
+}
+
+// EvalImpactSyntax preserves the versioned frontier through packet budgeting.
+func EvalImpactSyntax(index *Index, paths []string, limit int, budget *int) (map[string]any, error) {
+	return evalImpact(index, paths, limit, budget, true)
+}
+
+func evalImpact(index *Index, paths []string, limit int, budget *int, syntaxFrontier bool) (map[string]any, error) {
+	result, disclosures, err := impact(index, paths, limit, syntaxFrontier)
 	if err != nil {
 		return nil, err
 	}

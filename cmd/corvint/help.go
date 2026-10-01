@@ -1041,7 +1041,8 @@ const impactHelp = `Compile experimental impact evidence for index-admitted path
 
 Usage:
   corvint [--root PATH] impact [--limit N] [--provider FILE]...
-    [--provider-command ARGV_JSON]... [--provider-mcp ARGV_JSON]... [--repository ID=DIR]... PATH...
+    [--provider-command ARGV_JSON]... [--provider-mcp ARGV_JSON]... [--repository ID=DIR]...
+    [--language-profile non-go-syntax-v0] PATH...
   corvint [--root PATH] impact --working-tree-untracked [--limit N] PATH...
   corvint [--root PATH] impact --base FULL_COMMIT_ID [--limit N]
     [--range-profile expanded-256]
@@ -1054,6 +1055,21 @@ Arguments:
         admitted but lacking a reverse-import rule emit an explicit coverage
         uncertainty; no language rule is inferred.
         An unadmitted suffix returns unsupported-impact-path-suffix.
+
+Language capabilities (syntax evidence, never complete runtime impact):
+  Go          .go                         path/range; package imports (path).
+  Ruby        .rb                         path/range; markers; imports unknown.
+  JavaScript  .js .jsx .mjs .cjs           path/range; literal/profile imports (path).
+  TypeScript  .ts .tsx                    path/range; literal/profile imports (path).
+  The non-go-syntax-v0 profile always reports dynamic-dispatch unknowns;
+  unsupported constructs remain unknown even without a lexical dynamic token.
+
+Default path receipts retain their immutable historical shape. Select
+--language-profile non-go-syntax-v0 for versioned structured non-Go unknowns.
+Non-Go range receipts and MCP paths name that experimental profile automatically.
+The path selector cannot be combined with --base or --working-tree-untracked.
+Other indexed suffixes keep positional evidence and missing-rule uncertainty.
+MCP admits the Go/Ruby/JS/TS suffixes above for path requests only.
 
 Options:
   --limit N                  Maximum results (default: 10; range: 1-50).
@@ -1111,10 +1127,10 @@ Requirements:
   are rejected rather than approximated.
 
 The committed range profile requires a clean, stable worktree; derives changed
-Go paths and exact old/new admitted-Go hunk spans itself; binds base/head commit
+Go/Ruby/JS/TS paths and exact old/new admitted-source hunk spans itself; binds base/head commit
 and tree, status, full-delta and hunk digests, and omissions; admits marker and
 ADR relations only from target lines added or replaced by the diff; and rejects
-rename, copy, delete, type-change, binary, excluded-Go, oversized, or drifting
+delete, type-change, binary, excluded-source, oversized, or drifting
 ranges.
 
 The default profile is unchanged and uses only revision-tracked evidence. The

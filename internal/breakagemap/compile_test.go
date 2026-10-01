@@ -3,6 +3,8 @@ package breakagemap
 import (
 	"context"
 	"encoding/json"
+	"go/parser"
+	"go/token"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -415,6 +417,89 @@ func TestBreakageAnchorRejectsInvalidPhysicalSpans(t *testing.T) {
 	}
 	if a, ok := c.anchor(2, 3); !ok || a.SpanSHA256 != digest([]byte("two\nthree")) {
 		t.Fatalf("valid physical span refused: %+v %v", a, ok)
+	}
+}
+
+func TestBreakageBuildConstraintLookalikes(t *testing.T) {
+	// BKM-V0-004: only actual build constraints may withhold pinned callers.
+	for _, tc := range []struct {
+		name, apiPath, callerPath, marker string
+	}{
+		{name: "BKM-V0-004 go-build-literal", apiPath: "pkg/api.go", callerPath: "caller.go", marker: "const marker = \"//go:build linux\"\n"},
+		{name: "BKM-V0-004 plus-build-literal", apiPath: "pkg/api.go", callerPath: "caller.go", marker: "const marker = `// +build linux`\n"},
+		{name: "BKM-V0-004 directive-after-package", apiPath: "pkg/api.go", callerPath: "caller.go", marker: "//go:build linux\n"},
+		{name: "BKM-V0-004 os-in-middle", apiPath: "pkg/api_linux_helpers.go", callerPath: "caller_linux_helpers.go"},
+		{name: "BKM-V0-004 arch-in-middle-test", apiPath: "pkg/api_amd64_helpers.go", callerPath: "caller_amd64_helpers_test.go"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			bindings := map[string]string{"api": initRepo(t), "client": initRepo(t)}
+			put(t, bindings["api"], "go.mod", "module github.com/acme/library\n\ngo 1.27.1\n")
+			put(t, bindings["client"], "go.mod", "module github.com/acme/client\n\ngo 1.27.1\n")
+			put(t, bindings["api"], tc.apiPath, "package api\n"+tc.marker+"func Changed() {}\n")
+			commit(t, bindings["api"])
+			put(t, bindings["client"], tc.callerPath, "package client\nimport alias \"github.com/acme/library/pkg\"\n"+tc.marker+"func Call() { alias.Changed() }\n")
+			commit(t, bindings["client"])
+			m := Manifest{Schema: "corvint-breakage-manifest/0", Repositories: []Repository{pinRepo(t, "api", bindings["api"]), pinRepo(t, "client", bindings["client"])}}
+			for i, paths := range [][]string{{"go.mod", tc.apiPath}, {"go.mod", tc.callerPath}} {
+				for _, p := range paths {
+					repo := m.Repositories[i]
+					m.Sources = append(m.Sources, pinSource(t, repo, bindings[repo.ID], p))
+				}
+			}
+			r, err := Compile(context.Background(), encode(t, m), bindings, "api:"+tc.apiPath+":Changed", "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			kind := "syntax-call"
+			if strings.HasSuffix(tc.callerPath, "_test.go") {
+				kind = "test-syntax-call"
+			}
+			if len(r.Edges) != 1 || r.Edges[0].Kind != kind || r.Edges[0].From.Path != tc.callerPath {
+				t.Fatalf("build-constraint lookalike withheld caller: %+v", r)
+			}
+		})
+	}
+}
+
+func TestBreakageBuildConditional(t *testing.T) {
+	for _, tc := range []struct {
+		name, source string
+		want         bool
+	}{
+		{"plain.go", "package api\n", false},
+		{"plain.go", "//go:build linux\n\npackage api\n", true},
+		{"plain.go", "// +build linux\n\npackage api\n", true},
+		{"plain.go", "//+build linux\n\npackage api\n", true},
+		{"plain.go", "//go:buildings are ordinary prose\npackage api\n", false},
+		{"plain.go", "package api\n//go:build linux\nfunc Changed() {}\n", false},
+		{"plain.go", "package api\nfunc Changed() {\n// +build linux\n}\n", false},
+		{"plain.go", "// +build linux\npackage api\n", false},
+		{"plain.go", "// +build linux\n  package api\n", false},
+		{"plain.go", "/* header */\n// +build linux\n\npackage api\n", false},
+		{"plain.go", "/* header */\n//go:build linux\n\npackage api\n", true},
+		{"plain.go", "/* header */ //go:build linux\n\npackage api\n", false},
+		{"plain.go", "//go:build (\n\npackage api\n", true},
+		{"plain.go", "/* //go:build linux */\npackage api\n", false},
+		{"plain.go", "// Example: //go:build linux\npackage api\n", false},
+		{"plain_linux.go", "package api\n", true},
+		{"plain_amd64.go", "package api\n", true},
+		{"plain_linux_amd64_test.go", "package api\n", true},
+		{"plain_hurd.go", "package api\n", true},
+		{"plain_mips64p32.go", "package api\n", true},
+		{"plain_linux_helpers.go", "package api\n", false},
+		{"plain_amd64_helpers_test.go", "package api\n", false},
+		{"linux.go", "package api\n", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fs := token.NewFileSet()
+			f, err := parser.ParseFile(fs, tc.name, tc.source, parser.ParseComments)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := buildConditional(tc.name, []byte(tc.source), f, fs); got != tc.want {
+				t.Fatalf("buildConditional(%q, %q) = %v; want %v", tc.name, tc.source, got, tc.want)
+			}
+		})
 	}
 }
 

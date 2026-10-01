@@ -2849,5 +2849,43 @@
       "script/corvint-work-queue",
       "conformance/work-queue-v0"
     ]
+  },
+  {
+    "path": "docs/specs/closed-vocabulary-intake-v0.md",
+    "title": "Closed Vocabulary Intake V0",
+    "reqPrefix": "CVI-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Intake admits typed records before untrusted change context reaches an author.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint-intake",
+      "internal/intake",
+      "protocol/intake"
+    ]
+  },
+  {
+    "path": "docs/specs/non-go-impact-v0.md",
+    "title": "Non-Go impact V0",
+    "reqPrefix": "NGI-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Ruby, JavaScript and TypeScript path/range impact binds syntax evidence and explicitly names unresolved dynamic dispatch.",
+    "dependsOn": [
+      "docs/specs/go-production-kernel-migration-v0.md",
+      "docs/specs/expanded-range-impact-v0.md",
+      "docs/specs/change-frontier-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/contextindex/impact.go",
+      "internal/contextindex/non_go_impact.go",
+      "internal/contextindex/range_impact.go",
+      "internal/mcp/bridge/bridge.go",
+      "cmd/corvint/help.go"
+    ]
   }
 ]

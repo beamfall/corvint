@@ -57,6 +57,7 @@ type options struct {
 	impactBase      string
 	impactBaseSet   bool
 	impactProfile   string
+	impactLanguage  string
 	featureID       string
 	featureIDSet    bool
 	featureLimit    int
@@ -338,6 +339,25 @@ func parseImpactArgumentsForPlatform(result options, arguments []string, platfor
 			result.impactBase, result.impactBaseSet = value, true
 			continue
 		}
+		if !positionalOnly && name == "--language-profile" {
+			if result.impactLanguage != "" {
+				return result, argumentError("argument --language-profile: may not be repeated")
+			}
+			if !inline {
+				if index+1 >= len(arguments) || argparseOptionLike(arguments[index+1]) {
+					return result, argumentError("argument --language-profile: expected one argument")
+				}
+				value = arguments[index+1]
+				index += 2
+			} else {
+				index++
+			}
+			if value != "non-go-syntax-v0" {
+				return result, argumentError("argument --language-profile: expected non-go-syntax-v0")
+			}
+			result.impactLanguage = value
+			continue
+		}
 		if !positionalOnly && name == "--range-profile" {
 			if result.impactProfile != "" {
 				return result, argumentError("argument --range-profile: may not be repeated")
@@ -439,6 +459,9 @@ func parseImpactArgumentsForPlatform(result options, arguments []string, platfor
 		return result, argumentError("--provider is available only for the default path profile, not --base or --working-tree-untracked")
 	}
 	if result.impactBaseSet {
+		if result.impactLanguage != "" {
+			return result, argumentError("--language-profile is for path impact; range impact names its language profile automatically")
+		}
 		if result.impactWorktree || len(result.impactPaths) != 0 {
 			return result, argumentError("--base is mutually exclusive with paths and --working-tree-untracked")
 		}
@@ -446,6 +469,9 @@ func parseImpactArgumentsForPlatform(result options, arguments []string, platfor
 	}
 	if result.impactProfile != "" {
 		return result, argumentError("--range-profile requires --base")
+	}
+	if result.impactWorktree && result.impactLanguage != "" {
+		return result, argumentError("--language-profile is unavailable with --working-tree-untracked")
 	}
 	if len(result.impactPaths) == 0 {
 		return result, argumentError("the following arguments are required: paths")
@@ -1141,7 +1167,13 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			if options.impactBaseSet {
 				return contextindex.RangeImpact(ctx, index, options.impactBase, options.impactLimit)
 			}
-			contextReceipt, err := standaloneImpactContext(index, options.impactPaths, options.impactLimit)
+			var contextReceipt map[string]any
+			var err error
+			if options.impactLanguage != "" {
+				contextReceipt, err = standaloneImpactSyntaxContext(index, options.impactPaths, options.impactLimit)
+			} else {
+				contextReceipt, err = standaloneImpactContext(index, options.impactPaths, options.impactLimit)
+			}
 			if err != nil || len(options.impactProviders) == 0 {
 				return contextReceipt, err
 			}
@@ -1234,6 +1266,16 @@ func standaloneImpactContext(index *contextindex.Index, paths []string, limit in
 		}
 	}
 	return contextindex.Impact(index, paths, limit)
+}
+
+func standaloneImpactSyntaxContext(index *contextindex.Index, paths []string, limit int) (map[string]any, error) {
+	for _, value := range paths {
+		if !contextindex.ImpactRuleNamed(value) {
+			budget := defaultHarnessBudgetBytes - gokernel.OutputOverheadBytes
+			return contextindex.EvalImpactSyntax(index, paths, limit, &budget)
+		}
+	}
+	return contextindex.ImpactSyntax(index, paths, limit)
 }
 
 // standaloneQueryContext dispatches the standalone query profiles. An optional

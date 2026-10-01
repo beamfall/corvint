@@ -72,6 +72,13 @@ with the embedded provider bytes' SHA-256. Entity declarations are not source an
   Import-only candidates remain separate. Same-package unqualified calls are syntactic;
   non-call name ambiguity, references within the selected file, dependency replacement,
   type resolution and complete module inventories remain explicit gaps.
+  Build-directive text inside literals, block comments or explanatory comments MUST
+  NOT count as a build constraint. Filename constraints use trailing recognized
+  GOOS/GOARCH components before optional `_test`; interior platform words MUST NOT
+  withhold syntax mapping.
+  Directive recognition MUST respect the leading file header, including the legacy
+  `+build` blank-line boundary; directive-shaped comments after source begins MUST
+  NOT withhold syntax mapping.
 - `BKM-V0-005`: EEP V1 repository/entity composition and V2 path composition MUST
   reuse the existing strict EEP decoder and preserve original relation categories.
   Provider repository pins MUST agree with the manifest. Path endpoints MUST resolve
@@ -126,6 +133,9 @@ mode refusal and historical disclosure. `TestBreakageV1EntityComposition` covers
 the V1 entity seam and missing entities. `TestBreakageBaseAndModuleGaps` covers
 unchanged/renamed/deleted API states, foreign bases and hidden nested modules.
 `TestBreakageEdgeBound` checks truncation. CLI argument tests exercise the same runner.
+`TestBreakageBuildConstraintLookalikes` retains callers for directive literals and
+interior platform filename components. `TestBreakageBuildConditional` distinguishes
+actual directive comments and platform suffixes from ordinary comment text and names.
 
 Retain an actual source-bound Corvint map and an explicitly declared Beamfall shell
 association with commit/tree/blob/span pins, the source manifest, output and candidate
