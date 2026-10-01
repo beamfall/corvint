@@ -1805,6 +1805,13 @@ PMC-V0-006	docs/specs/postmerge-connectors-v0.md	41	The separately qualified cli
 PMC-V0-007	docs/specs/postmerge-connectors-v0.md	45	Publish distinct tracker and forge reference connectors and a conformance kit.
 PMC-V0-008	docs/specs/postmerge-connectors-v0.md	49	Each connector declares minimum scopes; local references require none.
 PMC-V0-009	docs/specs/postmerge-connectors-v0.md	52	Reject unknown JSON fields, duplicate keys, oversized inputs, malformed identiti
+PMM-V0-001	docs/specs/postmerge-metrics-v0.md	21	Validate closed JSON policy and history envelopes, duplicate keys, trailing valu
+PMM-V0-002	docs/specs/postmerge-metrics-v0.md	24	Retain each stage outcome and duration, follow-up creation latency or explicit n
+PMM-V0-003	docs/specs/postmerge-metrics-v0.md	28	Report per-class window cohort totals, distinct corrected generated-run numerato
+PMM-V0-004	docs/specs/postmerge-metrics-v0.md	31	Process full retained eligible run/event chronology before the exclusive as-of c
+PMM-V0-005	docs/specs/postmerge-metrics-v0.md	35	Validate contiguous per-class sequence inventories starting at 1 and independent
+PMM-V0-006	docs/specs/postmerge-metrics-v0.md	38	Produce byte-identical reports from the same validated policy, records, immutabl
+PMM-V0-007	docs/specs/postmerge-metrics-v0.md	41	Expose `corvint-postmerge-metrics report --policy FILE --records FILE --from UTC
 PNC-001	docs/specs/analyzer-python-native-candidate.md	86	The candidate MUST remain separately buildable and unreachable from Core.
 PNC-002	docs/specs/analyzer-python-native-candidate.md	87	The scanner MUST prospectively bound canonical request members before decode or
 PNC-003	docs/specs/analyzer-python-native-candidate.md	88	Accepted closed inputs MUST emit only fully typed, deterministic candidate facts
