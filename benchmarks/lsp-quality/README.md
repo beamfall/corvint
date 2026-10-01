@@ -45,10 +45,11 @@ precision or recall on real projects generally. Before promotion, freeze a broad
 public set and a separately protected held-out set across the exact selected language,
 server, repository, workspace and client tuples; include negative/unknown cases. Measure
 at least 30 repetitions for each cold and warm latency profile and hold tool/cache policy
-constant across arms. Proposed floors for owner review: zero invented committed facts,
-stale overlay promotion, unauthorized edits/execution and secret disclosure; at least 95%
-recall and 99% precision on admitted known navigation labels; combined agent p95 no more
-than twice upstream-only p95 at the same profile/cache state; and an independently scored
-task-success gain over the better single arm. These numbers are proposals, not accepted
-promotion thresholds or evidence that the current implementation meets them. See
+constant across arms. The owner-accepted floors live in
+[`lsp-qualification-evaluation-policy-v0.json`](../../docs/specs/lsp-qualification-evaluation-policy-v0.json).
+[`qualification-freeze-v0.json`](qualification-freeze-v0.json) is the frozen record that binds
+those floors to the candidate tuples, the tool/client digests, the pinned real-repository
+candidates and every held-out baseline state (LQP-V0-019..021). Every tuple there is
+`UNQUALIFIED`, the protected held-out is `NOT_PRODUCED`, and each held-out floor is `NOT_RUN`.
+Public runs calibrate the harness only. They never satisfy a held-out floor. See
 [`lsp-quality-platform-v0.md`](../../docs/specs/lsp-quality-platform-v0.md) and V1-0478.

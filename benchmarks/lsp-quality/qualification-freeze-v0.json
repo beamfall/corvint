@@ -1,0 +1,668 @@
+{
+  "profile": "corvint-lsp-qualification-freeze/0",
+  "version": "0",
+  "ticket": "V1-0478",
+  "frozenAt": "2026-10-01",
+  "status": "TUPLES_AND_FLOORS_FROZEN_PUBLIC_BASELINE_ONLY_HELDOUT_NOT_PRODUCED",
+  "policy": {
+    "path": "docs/specs/lsp-qualification-evaluation-policy-v0.json",
+    "sha256": "0bd7797cbefa843902e7e2448c9bf36773e4fb892ef977e79087ada85ac607af"
+  },
+  "publicCorpus": {
+    "path": "benchmarks/lsp-quality/public-v0.json",
+    "sha256": "091c9ea165c94e8da25eb136968ad41e0b3562bb9e20c22af46bb5230e0791cc",
+    "sourceBase": "cf93522e149c754e002426e422270f24c88777fe",
+    "cases": 2,
+    "protected": false,
+    "gold": "exact-symbol-span/1 for direct definitions; combined relations path-level only"
+  },
+  "platform": {
+    "id": "darwin-arm64-go1.27.1",
+    "os": "darwin",
+    "arch": "arm64",
+    "go": "go1.27.1",
+    "goSdkCopyManifestSha256": "5aace283cbcd160b23cd384fc418d76ba7dc9584a353a29043085eb7fa214477",
+    "releaseAuthenticity": "NOT_OBSERVED"
+  },
+  "providers": [
+    {
+      "id": "gopls-0.23.0",
+      "version": "golang.org/x/tools/gopls v0.23.0",
+      "digests": {
+        "executableSha256": "39431a5b273a5ac124a98521d1ec3e38af4bc5eec783e24a23344145eef24836"
+      },
+      "releaseAuthenticity": "NOT_OBSERVED",
+      "notes": "Local pinned provider copy; official archive authentication was not observed."
+    }
+  ],
+  "clients": [
+    {
+      "id": "vscode-1.137.0-languageclient-10.1.2",
+      "version": "VS Code 1.137.0 arm64 with vscode-languageclient 10.1.2",
+      "digests": {
+        "commit": "645f29cc3176500b4b5762ba887cf2a7f0ffdf2c",
+        "launcherSha256": "8ce2bebb778bca2c0724fe5c5c0f894a14c534c64b188ad728928f28393d47e9",
+        "languageClientIntegrity": "sha512-cOv5SMvtAhfVeo5m2r9L2rVHAD0J5CFOsmvH1WgNmPaI61VYjJNc3XUDLOKeFSDtWoAXIEoK6KetuBEL/3hErg==",
+        "packageLockSha256": "656633675aeee53b5468da9fb9a83f0d7704bbd2cb8545cea039d6fd90339d08"
+      },
+      "positionEncoding": "utf-16",
+      "releaseAuthenticity": "NOT_OBSERVED",
+      "notes": "launcherSha256 is the bin/code launcher invoked by tools/lsp-editors; the application bundle signature was not verified."
+    },
+    {
+      "id": "neovim-0.12.5",
+      "version": "NVIM v0.12.5 macOS arm64 builtin LSP client",
+      "digests": {
+        "archiveSha256": "65fb000099e47ca1b762584c484cc833f40e30851a0ec450d4174e16317c1f9b",
+        "executableSha256": "7e71e086e8ab47b4b778324c9892ec49694295fc0bfa9dd740a9aa600ed534de"
+      },
+      "positionEncoding": "utf-8",
+      "releaseAuthenticity": "OBSERVED",
+      "notes": "Archive digest matched the official GitHub release API asset digest on 2026-09-29."
+    }
+  ],
+  "corvintBuild": {
+    "state": "PER_CANDIDATE",
+    "rule": "No Corvint build is pre-qualified. Each qualification run binds the exact candidate commit and executable SHA-256; a changed build invalidates that run's qualification."
+  },
+  "tuples": [
+    {
+      "id": "lqp-t1-agent-cli-go-gopls",
+      "consumer": "agent-cli",
+      "platform": "darwin-arm64-go1.27.1",
+      "provider": "gopls-0.23.0",
+      "client": null,
+      "entry": "corvint context --task TASK --subject PATH --limit 20 --lsp off|gopls",
+      "positionEncoding": "utf-16 to gopls; no editor positions",
+      "layouts": [
+        "single canonical root Go module",
+        "complete multi-module repository with go.work"
+      ],
+      "methods": [
+        "committed Go definition path relations",
+        "committed Go reference path relations",
+        "intact Core packet"
+      ],
+      "unsupported": [
+        "overlay or editor state",
+        "writes, tests or command execution",
+        "provider install or download",
+        "all-query failure reported as semantic success"
+      ],
+      "budgets": [
+        "resourceFloors.coldAgentP95Seconds",
+        "resourceFloors.perRequestProcessGroupCPUSeconds",
+        "resourceFloors.observedOwnedGroupPeakRSSBytes",
+        "resourceFloors.agentPacketBytes",
+        "resourceFloors.externalRecordBytes",
+        "resourceFloors.queries",
+        "resourceFloors.relationRows"
+      ],
+      "status": "UNQUALIFIED",
+      "owningTickets": [
+        "V1-0479",
+        "V1-0482",
+        "V1-0483"
+      ]
+    },
+    {
+      "id": "lqp-t2-agent-mcp-go-gopls",
+      "consumer": "agent-mcp",
+      "platform": "darwin-arm64-go1.27.1",
+      "provider": "gopls-0.23.0",
+      "client": null,
+      "entry": "MCP task-review versus opt-in task-review-lsp / corvint.context with lsp:gopls",
+      "positionEncoding": "utf-16 to gopls; no editor positions",
+      "layouts": [
+        "single canonical root Go module",
+        "complete multi-module repository with go.work"
+      ],
+      "methods": [
+        "committed Go definition path relations",
+        "committed Go reference path relations",
+        "intact Core packet identical to CLI"
+      ],
+      "unsupported": [
+        "arbitrary tool dispatch",
+        "writes, tests or command execution",
+        "overlay replacing committed proof"
+      ],
+      "budgets": [
+        "resourceFloors.coldAgentP95Seconds",
+        "resourceFloors.perRequestProcessGroupCPUSeconds",
+        "resourceFloors.observedOwnedGroupPeakRSSBytes",
+        "resourceFloors.agentPacketBytes",
+        "resourceFloors.externalRecordBytes",
+        "resourceFloors.queries",
+        "resourceFloors.relationRows"
+      ],
+      "status": "UNQUALIFIED",
+      "owningTickets": [
+        "V1-0479",
+        "V1-0482",
+        "V1-0483"
+      ]
+    },
+    {
+      "id": "lqp-t3-vscode-go-definition",
+      "consumer": "editor-definition",
+      "platform": "darwin-arm64-go1.27.1",
+      "provider": "gopls-0.23.0",
+      "client": "vscode-1.137.0-languageclient-10.1.2",
+      "entry": "direct textDocument/definition after explicit experimental initialize; definitionProvider not advertised",
+      "positionEncoding": "utf-16",
+      "layouts": [
+        "single canonical root; multiple or mismatched roots refuse"
+      ],
+      "methods": [
+        "textDocument/definition between synchronized open full-text overlays"
+      ],
+      "unsupported": [
+        "closed, disk or external targets",
+        "incremental sync",
+        "diagnostics, hover, completion, rename, code actions",
+        "manual restart as stale-result protection"
+      ],
+      "budgets": [
+        "resourceFloors.coldEditorInitializationP95Seconds",
+        "resourceFloors.warmDefinitionP95Seconds",
+        "resourceFloors.perRequestProcessGroupCPUSeconds",
+        "resourceFloors.observedOwnedGroupPeakRSSBytes",
+        "resourceFloors.editorWireMessageBytes"
+      ],
+      "status": "UNQUALIFIED",
+      "owningTickets": [
+        "V1-0480",
+        "V1-0481",
+        "V1-0483"
+      ]
+    },
+    {
+      "id": "lqp-t4-vscode-corvint-context",
+      "consumer": "editor-context",
+      "platform": "darwin-arm64-go1.27.1",
+      "provider": "gopls-0.23.0",
+      "client": "vscode-1.137.0-languageclient-10.1.2",
+      "entry": "namespaced corvint/context with closed params",
+      "positionEncoding": "utf-16",
+      "layouts": [
+        "single canonical root; multiple or mismatched roots refuse"
+      ],
+      "methods": [
+        "Git-bound Core context separate from URI/version/SHA-256/session/capture overlay observation"
+      ],
+      "unsupported": [
+        "arbitrary tool selector",
+        "tests, source edits or upstream method dispatch"
+      ],
+      "budgets": [
+        "resourceFloors.coldEditorInitializationP95Seconds",
+        "resourceFloors.warmContextP95Seconds",
+        "resourceFloors.perRequestProcessGroupCPUSeconds",
+        "resourceFloors.observedOwnedGroupPeakRSSBytes",
+        "resourceFloors.editorWireMessageBytes"
+      ],
+      "status": "UNQUALIFIED",
+      "owningTickets": [
+        "V1-0480",
+        "V1-0481",
+        "V1-0483"
+      ]
+    },
+    {
+      "id": "lqp-t5-neovim-go-definition",
+      "consumer": "editor-definition",
+      "platform": "darwin-arm64-go1.27.1",
+      "provider": "gopls-0.23.0",
+      "client": "neovim-0.12.5",
+      "entry": "direct textDocument/definition after explicit experimental initialize; definitionProvider not advertised",
+      "positionEncoding": "utf-8",
+      "layouts": [
+        "single canonical root; multiple or mismatched roots refuse"
+      ],
+      "methods": [
+        "textDocument/definition between synchronized open full-text overlays"
+      ],
+      "unsupported": [
+        "closed, disk or external targets",
+        "incremental sync",
+        "diagnostics, hover, completion, rename, code actions",
+        "manual restart as stale-result protection"
+      ],
+      "budgets": [
+        "resourceFloors.coldEditorInitializationP95Seconds",
+        "resourceFloors.warmDefinitionP95Seconds",
+        "resourceFloors.perRequestProcessGroupCPUSeconds",
+        "resourceFloors.observedOwnedGroupPeakRSSBytes",
+        "resourceFloors.editorWireMessageBytes"
+      ],
+      "status": "UNQUALIFIED",
+      "owningTickets": [
+        "V1-0480",
+        "V1-0481",
+        "V1-0483"
+      ]
+    },
+    {
+      "id": "lqp-t6-neovim-corvint-context",
+      "consumer": "editor-context",
+      "platform": "darwin-arm64-go1.27.1",
+      "provider": "gopls-0.23.0",
+      "client": "neovim-0.12.5",
+      "entry": "namespaced corvint/context with closed params",
+      "positionEncoding": "utf-8",
+      "layouts": [
+        "single canonical root; multiple or mismatched roots refuse"
+      ],
+      "methods": [
+        "Git-bound Core context separate from URI/version/SHA-256/session/capture overlay observation"
+      ],
+      "unsupported": [
+        "arbitrary tool selector",
+        "tests, source edits or upstream method dispatch"
+      ],
+      "budgets": [
+        "resourceFloors.coldEditorInitializationP95Seconds",
+        "resourceFloors.warmContextP95Seconds",
+        "resourceFloors.perRequestProcessGroupCPUSeconds",
+        "resourceFloors.observedOwnedGroupPeakRSSBytes",
+        "resourceFloors.editorWireMessageBytes"
+      ],
+      "status": "UNQUALIFIED",
+      "owningTickets": [
+        "V1-0480",
+        "V1-0481",
+        "V1-0483"
+      ]
+    }
+  ],
+  "unsupported": [
+    "every language other than Go and every server other than gopls 0.23.0",
+    "every OS/architecture other than darwin/arm64 and every Go toolchain other than go1.27.1",
+    "editor clients other than VS Code 1.137.0 with vscode-languageclient 10.1.2 and Neovim 0.12.5",
+    "diagnostics, hover, completion, signature help, symbols, semantic tokens, inlay hints, rename, formatting and code actions",
+    "multiple workspace roots and external-URI targets (explicit refusal required)",
+    "installing, downloading or upgrading a provider or dependency"
+  ],
+  "realRepositories": [
+    {
+      "id": "corvint",
+      "repository": "https://github.com/beamfall/corvint",
+      "ref": "origin/main ancestor",
+      "revision": "25730eaa0e9ce21ef6771ddf8be18f13cff1ad91",
+      "layouts": [
+        "root module",
+        "nested modules benchmarks/snapshot-reader, tools/local-authority, interop/cem01-go"
+      ],
+      "state": "CANDIDATE_NOT_ADMITTED",
+      "blockers": [
+        "nested-module dependency closure and permitted-module binding NOT_RUN",
+        "custodian admission NOT_PRODUCED"
+      ]
+    },
+    {
+      "id": "golang-tools",
+      "repository": "https://go.googlesource.com/tools",
+      "ref": "refs/tags/v0.48.0",
+      "revision": "05f9cb5d358503005bd6f82b17916d226ca7b210",
+      "layouts": [
+        "complete multi-module repository with preparation go.work (use . and ./gopls)"
+      ],
+      "state": "CANDIDATE_NOT_ADMITTED",
+      "blockers": [
+        "gopls module dependencies missing from the local module cache; no download performed",
+        "offline workspace vendoring and prepared-tree digest NOT_RUN",
+        "custodian admission NOT_PRODUCED"
+      ]
+    },
+    {
+      "id": "golang-sync",
+      "repository": "https://go.googlesource.com/sync",
+      "ref": "refs/tags/v0.22.0",
+      "revision": "1eb64d4bc0cde6da1bb8ebc7f178bb577508e5d0",
+      "layouts": [
+        "single go1.25 module, no declared dependencies"
+      ],
+      "state": "CANDIDATE_NOT_ADMITTED",
+      "blockers": [
+        "prepared-tree digest NOT_RUN",
+        "custodian admission NOT_PRODUCED"
+      ]
+    }
+  ],
+  "protectedHeldout": {
+    "state": "NOT_PRODUCED",
+    "requiredTasks": 20,
+    "requiredRepositories": 3,
+    "custodian": "independent evaluator outside the builder workspace; procedural custody on a shared host, no authenticated access boundary",
+    "manifestSha256": null,
+    "reason": "No independent custodian has frozen repository/task/gold digests. The builder must not select tasks or gold, and existing sealed holdouts were not opened."
+  },
+  "publicBaselines": [
+    {
+      "id": "public-2026-10-01-cdd2e31f",
+      "profile": "corvint-lsp-public-baseline/0",
+      "command": "script/measure-lsp-quality.py --repeat 3 against a clean clone at sourceBase",
+      "corvintCommit": "cdd2e31fffd732419eb9ade531ccf289259f3243",
+      "corvintSha256": "fee170c1b7efbdeb5d2864c82e489071d8cc9aa03c790f55820cda18f5841aee",
+      "revision": "cf93522e149c754e002426e422270f24c88777fe",
+      "corpusSha256": "091c9ea165c94e8da25eb136968ad41e0b3562bb9e20c22af46bb5230e0791cc",
+      "reportSha256": "8af789de8b5f0da0d361d746072ee68106dfff78de3927f5b05b255d4b684fb4",
+      "reportRetention": "builder scratch only; not committed, so the digest is a local observation",
+      "repeats": 3,
+      "hostLoadAverage": "160-336 (1-minute) during the run; shared host with concurrent builds",
+      "results": {
+        "upstreamDefinitionExactSpan": "6/6",
+        "coreExpectedPath": "6/6 (ranks 14 and 11)",
+        "combinedExpectedRelation": "0/6",
+        "combinedProviderStates": "unavailable 4/6; loaded 2/6 with queries_issued 2, stopped soft-deadline, relationCount 1",
+        "corePacketParity": "6/6",
+        "exitCode": 1
+      },
+      "interpretation": "Combined misses coincide with the 20000 ms provider wall budget expiring under extreme host load; this run cannot separate load from a product defect and is a FALLBACK observation, not a quality or latency measurement."
+    },
+    {
+      "id": "public-2026-09-29-ce39fcc3",
+      "profile": "corvint-lsp-public-baseline/0",
+      "command": "script/measure-lsp-quality.py --repeat 3",
+      "corvintCommit": "ce39fcc30e4916cf59ccbba7f1b8995f91561255",
+      "corvintSha256": "a136d0cc1b244f5fc75ed3cfd6cbc8cd63eaa2db979a06df90f26d1a85f59b73",
+      "revision": "cf93522e149c754e002426e422270f24c88777fe",
+      "corpusSha256": "0ac52cd9d727e3b0afd3e4c03795ad4336798ffd6b0b970a943e590030f4141e",
+      "reportSha256": "748a8235727601b3baa70880be571e37a2beb6a5ab7fd377bab6cea27f2cf278",
+      "reportRetention": "docs/build-log/2026-09-29-lsp-public-baseline.md; path-level gold predating exact-symbol scoring",
+      "repeats": 3,
+      "hostLoadAverage": "NOT_OBSERVED",
+      "results": {
+        "upstreamDefinitionPath": "6/6",
+        "coreExpectedPath": "6/6 (ranks 15 and 12)",
+        "combinedExpectedRelation": "3/6 (go-attach-expand 0/3, query-budget and projection omission)",
+        "corePacketParity": "6/6",
+        "exitCode": 1
+      },
+      "interpretation": "Historical path-level run; its combined miss was attributed to bounded projection omission (V1-0482)."
+    }
+  ],
+  "metrics": [
+    {
+      "policyKey": "hardFloors.inventedCommittedFacts",
+      "floor": 0,
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "Protected held-out manifest NOT_PRODUCED and no admitted real-repository workspace; held-out hard-floor baseline NOT_RUN."
+      },
+      "publicCalibration": "public: no invented committed relation observed in 6 combined samples (descriptive only)"
+    },
+    {
+      "policyKey": "hardFloors.stalePromotedOverlays",
+      "floor": 0,
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "Protected held-out manifest NOT_PRODUCED and no admitted real-repository workspace; held-out hard-floor baseline NOT_RUN."
+      },
+      "publicCalibration": null
+    },
+    {
+      "policyKey": "hardFloors.unauthorizedWritesOrExecution",
+      "floor": 0,
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "Protected held-out manifest NOT_PRODUCED and no admitted real-repository workspace; held-out hard-floor baseline NOT_RUN."
+      },
+      "publicCalibration": null
+    },
+    {
+      "policyKey": "hardFloors.privatePathsOrSecretsInPublicDiagnostics",
+      "floor": 0,
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "Protected held-out manifest NOT_PRODUCED and no admitted real-repository workspace; held-out hard-floor baseline NOT_RUN."
+      },
+      "publicCalibration": null
+    },
+    {
+      "policyKey": "hardFloors.ownedDescendantSurvivors",
+      "floor": 0,
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "Protected held-out manifest NOT_PRODUCED and no admitted real-repository workspace; held-out hard-floor baseline NOT_RUN."
+      },
+      "publicCalibration": null
+    },
+    {
+      "policyKey": "hardFloors.corePacketParity",
+      "floor": "100% unchanged admitted snapshots",
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "Protected held-out manifest NOT_PRODUCED and no admitted real-repository workspace; held-out hard-floor baseline NOT_RUN."
+      },
+      "publicCalibration": "public: 6/6 combined samples kept nonexternal Core packet parity"
+    },
+    {
+      "policyKey": "hardFloors.protocolAndNegativeCases",
+      "floor": "100% exact schema/encoding/root/cancel/crash/cleanup cases",
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "Protected held-out manifest NOT_PRODUCED and no admitted real-repository workspace; held-out hard-floor baseline NOT_RUN."
+      },
+      "publicCalibration": null
+    },
+    {
+      "policyKey": "qualityFloors.precision",
+      "floor": 0.95,
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "Protected held-out manifest NOT_PRODUCED; no custodian-scored three-arm held-out run exists."
+      },
+      "publicCalibration": "public: 2 witnesses cannot estimate precision; upstream exact-span definition 6/6"
+    },
+    {
+      "policyKey": "qualityFloors.recall",
+      "floor": 0.9,
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "Protected held-out manifest NOT_PRODUCED; no custodian-scored three-arm held-out run exists."
+      },
+      "publicCalibration": "public: combined expected relation 0/6 at 2026-10-01 under load; not a recall estimate"
+    },
+    {
+      "policyKey": "qualityFloors.combinedSemanticRecall",
+      "floor": "not below upstream on matched applicable tasks",
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "Protected held-out manifest NOT_PRODUCED; no custodian-scored three-arm held-out run exists."
+      },
+      "publicCalibration": "public: combined 0/6 versus upstream 6/6 on the same witnesses (load-confounded)"
+    },
+    {
+      "policyKey": "qualityFloors.combinedGovernanceAccuracy",
+      "floor": "not below Core",
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "Protected held-out manifest NOT_PRODUCED; no custodian-scored three-arm held-out run exists."
+      },
+      "publicCalibration": "public: Core packet parity 6/6; governance accuracy not scored"
+    },
+    {
+      "policyKey": "qualityFloors.combinedTaskSuccess",
+      "floor": "not below best applicable baseline and at least one declared governance+semantic task improved; paired numerators/denominators and abstentions retained",
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "Protected held-out manifest NOT_PRODUCED; no custodian-scored three-arm held-out run exists."
+      },
+      "publicCalibration": null
+    },
+    {
+      "policyKey": "resourceFloors.coldAgentP95Seconds",
+      "floor": 30,
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "No admitted real-repository workspace or held-out run; this shared host (load average 160-336) cannot produce a qualifying resource baseline."
+      },
+      "publicCalibration": "public: combined max 45.85 s, core max 21.25 s at load average 160-336; descriptive only, not a p95"
+    },
+    {
+      "policyKey": "resourceFloors.coldEditorInitializationP95Seconds",
+      "floor": 20,
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "Editor tuples have no qualified warm-session harness on admitted workspaces; held-out editor baseline NOT_RUN."
+      },
+      "publicCalibration": null
+    },
+    {
+      "policyKey": "resourceFloors.warmDefinitionP95Seconds",
+      "floor": 0.25,
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "Editor tuples have no qualified warm-session harness on admitted workspaces; held-out editor baseline NOT_RUN."
+      },
+      "publicCalibration": null
+    },
+    {
+      "policyKey": "resourceFloors.warmContextP95Seconds",
+      "floor": 2,
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "Editor tuples have no qualified warm-session harness on admitted workspaces; held-out editor baseline NOT_RUN."
+      },
+      "publicCalibration": null
+    },
+    {
+      "policyKey": "resourceFloors.perRequestProcessGroupCPUSeconds",
+      "floor": 60,
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "No admitted real-repository workspace or held-out run; this shared host (load average 160-336) cannot produce a qualifying resource baseline."
+      },
+      "publicCalibration": "public: not measured by the public harness"
+    },
+    {
+      "policyKey": "resourceFloors.observedOwnedGroupPeakRSSBytes",
+      "floor": 2147483648,
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "No admitted real-repository workspace or held-out run; this shared host (load average 160-336) cannot produce a qualifying resource baseline."
+      },
+      "publicCalibration": "public: not measured by the public harness"
+    },
+    {
+      "policyKey": "resourceFloors.agentPacketBytes",
+      "floor": 262144,
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "No admitted real-repository workspace or held-out run; this shared host (load average 160-336) cannot produce a qualifying resource baseline."
+      },
+      "publicCalibration": "public: combined packet max 16317 bytes"
+    },
+    {
+      "policyKey": "resourceFloors.externalRecordBytes",
+      "floor": 65536,
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "No admitted real-repository workspace or held-out run; this shared host (load average 160-336) cannot produce a qualifying resource baseline."
+      },
+      "publicCalibration": "public: record_bytes bound 65536 configured; observed record size not separately reported"
+    },
+    {
+      "policyKey": "resourceFloors.editorWireMessageBytes",
+      "floor": 1048576,
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "Editor tuples have no qualified warm-session harness on admitted workspaces; held-out editor baseline NOT_RUN."
+      },
+      "publicCalibration": null
+    },
+    {
+      "policyKey": "resourceFloors.queries",
+      "floor": 64,
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "No admitted real-repository workspace or held-out run; this shared host (load average 160-336) cannot produce a qualifying resource baseline."
+      },
+      "publicCalibration": "public: queries bound 64 configured; observed queries_issued 2 (soft-deadline) or provider unavailable"
+    },
+    {
+      "policyKey": "resourceFloors.relationRows",
+      "floor": 32,
+      "heldout": {
+        "state": "NOT_RUN",
+        "value": null,
+        "evidenceSha256": null,
+        "reason": "No admitted real-repository workspace or held-out run; this shared host (load average 160-336) cannot produce a qualifying resource baseline."
+      },
+      "publicCalibration": "public: rows bound 32 configured; observed relationCount at most 1"
+    }
+  ],
+  "acceptanceCriteria": [
+    {
+      "criterion": 1,
+      "state": "PARTIAL",
+      "evidence": "Owner accepted the evaluation policy on 2026-09-30 (sha256 0bd7797c...); this record derives the six UNQUALIFIED tuples, versions, layouts, methods, unsupported cases and budget keys from it and binds observed digests. Owner acceptance of this record version is pending review."
+    },
+    {
+      "criterion": 2,
+      "state": "PARTIAL",
+      "evidence": "Public labels frozen as exact-symbol corpus sha256 091c9ea1...; protected held-out manifest NOT_PRODUCED pending an independent custodian; three real-repository candidates pinned but NOT admitted."
+    },
+    {
+      "criterion": 3,
+      "state": "PARTIAL",
+      "evidence": "All 23 policy floors mirrored numerically or as exact predicates and test-enforced; public three-arm baseline recorded; held-out baseline NOT_RUN for every floor."
+    },
+    {
+      "criterion": 4,
+      "state": "NOT_MET",
+      "evidence": "Independent review, integration and native completion are owned by the orchestrator and pending."
+    }
+  ],
+  "limits": [
+    "Public calibration is two Corvint navigation witnesses; it is not a held-out distribution, precision/recall estimate, latency distribution or task-outcome claim.",
+    "Every tuple is UNQUALIFIED; a qualification claim needs a later record version citing a frozen custodian manifest and measured held-out baselines.",
+    "Release authenticity for Go, gopls and VS Code was not independently observed; only local digests are bound."
+  ]
+}
