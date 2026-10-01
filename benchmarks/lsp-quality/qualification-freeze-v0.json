@@ -362,6 +362,27 @@
       "interpretation": "Combined misses coincide with the 20000 ms provider wall budget expiring under extreme host load; this run cannot separate load from a product defect and is a FALLBACK observation, not a quality or latency measurement."
     },
     {
+      "id": "public-2026-09-30-25730eaa",
+      "profile": "corvint-lsp-public-baseline/0",
+      "command": "script/measure-lsp-quality.py --repeat 3",
+      "corvintCommit": "NOT_OBSERVED",
+      "corvintSha256": "a900864c60012145e2776d3c9a178479c611f901504b64efbffce76a4a18f3b1",
+      "revision": "25730eaa0e9ce21ef6771ddf8be18f13cff1ad91",
+      "corpusSha256": "8293472a007a8c1c1de946ac84b4b19cc0df7b74b2edbcc5e6d03ae65212ec6d",
+      "reportSha256": "a1f1fb1d752d09d7d419303f3f683752e54720658aec69efa83dee8983213905",
+      "reportRetention": "builder /tmp only, cited by the accepted policy as baselineEvidence.validPathOnlyMain; not committed, so the digest is a local observation. It supersedes the invalid first run (report 6ff53134..., disposition INVALID_CORPUS_POSITION).",
+      "repeats": 3,
+      "hostLoadAverage": "NOT_OBSERVED",
+      "results": {
+        "upstreamDefinitionPath": "6/6",
+        "coreExpectedPath": "6/6 (ranks 16 and 12)",
+        "combinedExpectedRelation": "6/6 (path-level gopls:uses-definition; providers loaded, stopped query-budget)",
+        "corePacketParity": "6/6",
+        "sampleExitCodes": "0 in all 18 arm samples; harness exit NOT_OBSERVED"
+      },
+      "interpretation": "Corrected public-main path-level run the accepted policy cites; it predates exact-symbol scoring, its timings are descriptive only, and it is not a held-out or qualification measurement."
+    },
+    {
       "id": "public-2026-09-29-ce39fcc3",
       "profile": "corvint-lsp-public-baseline/0",
       "command": "script/measure-lsp-quality.py --repeat 3",
