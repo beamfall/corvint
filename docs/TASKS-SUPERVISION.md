@@ -112,8 +112,10 @@ A Codex host runs `codex exec`, which never prompts for approval:
 The `workspace-write` sandbox keeps `.git` read-only. A worker's `claim` writes the store journal
 and its filesystem probe in the git common directory, so it fails `UNSUPPORTED_FILESYSTEM` until
 that directory is a writable root. When `workRoot` is a linked worktree, name the common directory
-(`git rev-parse --git-common-dir`) instead. The writable root also lets the worker write refs and
-objects there. A host's own permission allow/deny-list or sandbox (Claude Code `--allowedTools`,
+(`git rev-parse --path-format=absolute --git-common-dir`) instead. The writable root also lets the
+worker write refs, objects, hooks, `config` and the store journal itself, so a sandboxed worker can
+still plant commands that later run in the dispatcher's or operator's unsandboxed Git, and can edit
+queue state without the CLI. A host's own permission allow/deny-list or sandbox (Claude Code `--allowedTools`,
 Codex `--sandbox`, OpenCode `OPENCODE_CONFIG_CONTENT`) is the host's responsibility, not a
 containment guarantee. See
 [the accepted contract](specs/corvint-tasks-agent-leases-v0.md#s11--continuous-dispatcher-issue-431).

@@ -543,6 +543,7 @@ func TestCALV0058_SummaryReadsHostFinalText(t *testing.T) {
 			`{"type":"item.completed","item":{"id":"item_1","type":"command_execution","command":"ls","aggregated_output":"README\n","exit_code":0,"status":"completed"}}` + "\n" +
 			`{"type":"item.completed","item":{"id":"item_2","type":"file_change","changes":[{"path":"src/hello.txt","kind":"add"}],"status":"completed"}}` + "\n" +
 			`{"type":"item.completed","item":{"id":"item_3","type":"agent_message","text":"Claimed and done."}}` + "\n" +
+			`{"type":"item.completed","item":{"id":"item_4","type":"reasoning","text":"thinking it over"}}` + "\n" +
 			`{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}` + "\n", "Claimed and done."},
 		"claude stream-json": {`{"type":"system","subtype":"init","session_id":"s"}` + "\n" +
 			`{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"x"}]}}` + "\n" +

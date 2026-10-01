@@ -10,7 +10,7 @@ Findings:
 - A real `codex exec --json` stream (codex-cli 0.153.2) matches the existing reader. The stream
   runs: thread and turn events; then `item.started` and `item.completed` events for
   `agent_message`, `command_execution` and `file_change`; then `turn.completed`. The reader keeps
-  the last completed `agent_message` text. No reader change was needed.
+  the last `agent_message` text. No reader change was needed.
   `TestCALV0058_SummaryReadsHostFinalText` gains a case built from the observed shape.
 - Under `--sandbox workspace-write`, `.git` is read-only, so the worker's `claim` cannot write.
   - **Run 1:** the claim failed, and Codex logged no `command_execution` event for it. The worker
@@ -28,10 +28,11 @@ Findings:
     reported NOT_RUNNING.
 - `docs/TASKS-SUPERVISION.md` documents the Codex argv and the writable-root requirement,
   including the common-directory form for a linked worktree.
-  - Granting the common directory also lets a worker write refs and objects. The sandbox is host
+  - Granting the common directory also lets a worker write refs, objects, hooks, `config` and the
+    store journal, so it can plant commands for later unsandboxed Git runs. The sandbox is host
     enforcement, not containment, which matches the existing non-goal.
   - Narrowing the store's writable footprint, so that only `taskman/` needs to be writable, is
-    filed as a separate idea.
+    filed as V1-0637.
 
 Not qualified:
 
