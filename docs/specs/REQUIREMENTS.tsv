@@ -1702,15 +1702,15 @@ MTV-V0-006	docs/specs/mcp-test-validity-profile-v0.md	85	A successful result's `
 MTV-V0-007	docs/specs/mcp-test-validity-profile-v0.md	93	The tool MUST open no network connection or listener, start no process, run no
 MTV-V0-008	docs/specs/mcp-test-validity-profile-v0.md	100	`conformance/mcp-test-validity-v0/cases.json` MUST hold the profile's black-box
 MTV-V0-009	docs/specs/mcp-test-validity-profile-v0.md	105	`discover: true` (decision 0202) MUST return, as the result's `document`, exactl
-NEA-V0-001	docs/specs/new-e2e-test-acceptance-v0.md	29	A closed bounded request pins clean product/test Git commits and trees, tracked
-NEA-V0-002	docs/specs/new-e2e-test-acceptance-v0.md	32	Execute every declared new test 2 to 100 times with retries zero and one worker.
-NEA-V0-003	docs/specs/new-e2e-test-acceptance-v0.md	35	Execute approved negative controls through the separately pinned existing behavi
-NEA-V0-004	docs/specs/new-e2e-test-acceptance-v0.md	38	Preserve Association, Hygiene, Freshness and Execution provider axes; derive onl
-NEA-V0-005	docs/specs/new-e2e-test-acceptance-v0.md	41	Mixed repeat outcomes trigger original and reversed file-filter order probes.
-NEA-V0-006	docs/specs/new-e2e-test-acceptance-v0.md	44	Repeat and control execution run in a sanitized self-worker, without inherited
-NEA-V0-007	docs/specs/new-e2e-test-acceptance-v0.md	47	Emit one bounded report tied to request/source identities, environment and build
-NEA-V0-008	docs/specs/new-e2e-test-acceptance-v0.md	50	Each per-test assessment carries its own repeat counts (passed, failed, other),
-NEA-V0-009	docs/specs/new-e2e-test-acceptance-v0.md	59	The body is a fixed Markdown record containing the overall verdict, the product
+NEA-V0-001	docs/specs/new-e2e-test-acceptance-v0.md	28	A closed bounded request pins clean product/test Git commits and trees, tracked
+NEA-V0-002	docs/specs/new-e2e-test-acceptance-v0.md	31	Execute every declared new test 2 to 100 times with retries zero and one worker.
+NEA-V0-003	docs/specs/new-e2e-test-acceptance-v0.md	34	Execute approved negative controls through the separately pinned existing behavi
+NEA-V0-004	docs/specs/new-e2e-test-acceptance-v0.md	37	Preserve Association, Hygiene, Freshness and Execution provider axes; derive onl
+NEA-V0-005	docs/specs/new-e2e-test-acceptance-v0.md	40	Mixed repeat outcomes trigger original and reversed file-filter order probes.
+NEA-V0-006	docs/specs/new-e2e-test-acceptance-v0.md	43	Repeat and control execution run in a sanitized self-worker, without inherited
+NEA-V0-007	docs/specs/new-e2e-test-acceptance-v0.md	46	Emit one bounded report tied to request/source identities, environment and build
+NEA-V0-008	docs/specs/new-e2e-test-acceptance-v0.md	49	Each per-test assessment carries its own repeat counts (passed, failed, other),
+NEA-V0-009	docs/specs/new-e2e-test-acceptance-v0.md	58	The body is a fixed Markdown record containing the overall verdict, the product
 NEC-V0-001	docs/specs/necessity-labels-v0.md	46	`corvint [--root PATH] necessity --task TEXT [--subject PATH] [--limit N]` MUST
 NEC-V0-002	docs/specs/necessity-labels-v0.md	50	The verb MUST load the index exactly as `context --task` does (the tree's snapsh
 NEC-V0-003	docs/specs/necessity-labels-v0.md	54	Each counterfactual MUST run over a shallow copy of the index whose `Sources`,

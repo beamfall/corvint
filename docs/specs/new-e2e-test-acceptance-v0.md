@@ -10,8 +10,7 @@ Authoritative inputs: human issue https://github.com/beamfall/corvint/issues/394
 ## Agent digest
 - Claim: A separate companion repeats new Playwright tests, executes approved negative controls and produces one bound assessment and fixed PR body.
 - Status: proposed/experimental. Existing per-test Freshness is UNKNOWN; stable asserting tests are blocked, never promoted from caller pins.
-- Exists: `internal/testacceptance`, `cmd/corvint-tests-accept`; focused checks and actual local browser negative assessment.
-  NEA-V0-008/009 attach per-test repeat, cleanup and order/isolation evidence and render a bound Markdown change-request body.
+- Exists: `internal/testacceptance`, `cmd/corvint-tests-accept`; focused checks and actual local browser negative assessment; NEA-V0-008/009 attach per-test repeat, cleanup and order/isolation evidence and render a bound Markdown change-request body.
 - Blocked on: V1-0556 qualified per-test freshness; owner acceptance, integration and native completion.
 - Read next: Requirements; Trust boundary; Qualification and rollback.
 
