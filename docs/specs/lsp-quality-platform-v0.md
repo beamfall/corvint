@@ -9,9 +9,9 @@
 ## Agent digest
 - Claim: Shared evidence engine serves opt-in agent LSP enrichment and optional editor server with separate Git and overlay identities.
 - Status: accepted technical contract (owner approval 2026-09-29; PR 360)/experimental Go overlay editor definition; no supported profile
-- Exists: opt-in Go/gopls definition and reference evidence through CLI and MCP, qualified only on synthetic committed Go module and go.work fixtures.
-- Blocked on: accepted exact profile tuples and numerical floors, real-workspace baselines, independent client interoperability and outcome qualification.
-- Read next: User job, profile matrix, requirements, qualification.
+- Exists: opt-in Go/gopls definition and reference evidence through CLI and MCP, qualified only on synthetic committed Go module and go.work fixtures. Accepted evaluation policy plus the frozen tuple/floor/baseline record `benchmarks/lsp-quality/qualification-freeze-v0.json` (LQP-V0-019..021).
+- Blocked on: independent protected held-out freeze, admitted real-repository workspaces, three-arm held-out baseline, independent client interoperability and outcome qualification.
+- Read next: Frozen profile tuples and baseline, requirements, qualification.
 
 ## User job and scope
 
@@ -59,6 +59,9 @@ This matrix lists candidate behavior, not advertised server capabilities. Initia
 - `LQP-V0-016`: A profile MUST report exact correctness, coverage, freshness, cold/warm latency distribution, memory/CPU, query/output bytes and task outcomes for its declared use cases. Missing measurements MUST be `NOT_RUN` or `NOT_OBSERVED`, never silently extrapolated from synthetic parity.
 - `LQP-V0-017`: Supported editor tuples MUST pass real VS Code and one independent LSP client against the same conformance corpus, including Unicode positions, multi-root isolation, rapid edits, stale responses, server crash and shutdown cleanup. Unrun clients MUST remain unqualified.
 - `LQP-V0-018`: Rollback MUST preserve default Core behavior and offer explicit upstream-off and editor-companion disable paths. Promotion claims MUST name the exact qualified tuples and limits; regression below a frozen floor reverts that tuple to experimental or fallback.
+- `LQP-V0-019`: The tuples in the frozen qualification record are the only candidate support tuples for downstream LSP slices. A downstream support or qualification claim MUST cite a tuple ID and the record's SHA-256; a tuple absent from the record is `UNSUPPORTED`. Each platform, provider and client identity MUST carry its observed executable, archive or package digest, and unobserved release authenticity MUST stay `NOT_OBSERVED`. A frozen record version MUST NOT mark any tuple qualified.
+- `LQP-V0-020`: The frozen record MUST mirror every hard, quality and resource floor of the accepted evaluation policy exactly and give each one a held-out baseline state: a measured value bound to an evidence digest, or `NOT_RUN`/`NOT_OBSERVED` with a reason. A public calibration observation MUST NOT satisfy or substitute for a held-out floor or baseline. Changing a floor, tuple, corpus or custody rule requires new owner acceptance and a new record version; prior records and their results are retained.
+- `LQP-V0-021`: The protected held-out manifest MUST be produced by an independent custodian outside the builder workspace. The frozen record MAY hold only its digest and task/repository counts, never tasks or gold, and remains `NOT_PRODUCED` until that digest exists. No tuple may be promoted while the protected manifest or any required held-out baseline is `NOT_PRODUCED` or `NOT_RUN`.
 
 ## Trust, limits and failure choices
 
@@ -74,6 +77,7 @@ The existing Go CLI provider keeps its current 3-seed, 2-hop, 64-query, 32-relat
 | 003–006, 014 | Immutable/overlay identity, dedupe/conflict, stale-order and authority conformance | Real dirty/unsaved/branch/root observations | `NOT_RUN` |
 | 011–013, 017 | Protocol transcript and editor-client interoperability, Unicode/rapid-edit/multi-root/cancel tests | Installed VS Code and second independent client tuples | `NOT_RUN` |
 | 015–016, 018 | Frozen corpus manifest, exact scoring, rollback and support table | Three-arm held-out task/outcome and cold/warm resource trial | `NOT_RUN` |
+| 019–021 | Frozen record mirrors policy floors, file digests, closed tuple/state schema (`benchmarks/lsp_quality_freeze_test.go`) | Independent custodian held-out digest; admitted real-repository three-arm baseline | Record frozen; held-out `NOT_PRODUCED`, real-repository baseline `NOT_RUN` |
 
 For a promotion candidate, the fixture manifest and gold labels must be sealed before candidate execution. Required hard floors are zero invented committed facts, zero stale overlay promotion, zero unauthorized writes/executes, zero unredacted private paths or secrets in diagnostics, and complete retirement of owned descendants under interruption. Numerical precision/recall, p50/p95, memory/CPU, packet/query cost and task-success floors require a recorded real-workspace baseline and owner acceptance before implementation of each profile; no synthetic-only threshold can substitute. A capability is removed from advertisement when its own gate fails even if other methods pass.
 
@@ -90,6 +94,7 @@ For rollback, select `--lsp off` and the existing MCP `task-review` profile, or 
 | 007–009 | Upstream adapter profiles | Go-specific prior slice; broader profiles `NOT_RUN` |
 | 011–013, 017 | Optional Go stdio editor companion | `NOT_RUN` |
 | 015–016, 018 | `script/measure-lsp-quality.py`, public corpus and future held-out qualification | Public development baseline implemented; protected held-out and promotion `NOT_RUN` |
+| 019–021 | `benchmarks/lsp-quality/qualification-freeze-v0.json`, `benchmarks/lsp_quality_freeze_test.go` | Record and schema test implemented; custodian manifest and held-out baseline `NOT_RUN` |
 
 ## Open decisions and promotion boundary
 

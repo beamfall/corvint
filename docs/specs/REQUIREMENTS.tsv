@@ -1600,6 +1600,9 @@ LQP-V0-015	docs/specs/lsp-quality-platform-v0.md	58	Qualification MUST compare u
 LQP-V0-016	docs/specs/lsp-quality-platform-v0.md	59	A profile MUST report exact correctness, coverage, freshness, cold/warm latency
 LQP-V0-017	docs/specs/lsp-quality-platform-v0.md	60	Supported editor tuples MUST pass real VS Code and one independent LSP client ag
 LQP-V0-018	docs/specs/lsp-quality-platform-v0.md	61	Rollback MUST preserve default Core behavior and offer explicit upstream-off and
+LQP-V0-019	docs/specs/lsp-quality-platform-v0.md	62	The tuples in the frozen qualification record are the only candidate support tup
+LQP-V0-020	docs/specs/lsp-quality-platform-v0.md	63	The frozen record MUST mirror every hard, quality and resource floor of the acce
+LQP-V0-021	docs/specs/lsp-quality-platform-v0.md	64	The protected held-out manifest MUST be produced by an independent custodian out
 LRF-V0-001	docs/specs/lexical-relevance-floor-v0.md	153	the profile MUST accept only a structurally valid CEM and, for obligation checks
 LRF-V0-002	docs/specs/lexical-relevance-floor-v0.md	159	every term set MUST use the frozen identifier algorithm and subject text. A
 LRF-V0-003	docs/specs/lexical-relevance-floor-v0.md	162	an evaluated evidence span MUST be no larger than both 512 raw bytes and 20 logi

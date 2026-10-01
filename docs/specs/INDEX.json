@@ -1692,6 +1692,7 @@
     "closableToday": false,
     "implementation": [
       "benchmarks/lsp-quality",
+      "benchmarks/lsp_quality_freeze_test.go",
       "script/measure-lsp-quality.py"
     ]
   },
