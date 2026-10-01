@@ -537,6 +537,13 @@ func TestCALV0058_SummaryReadsHostFinalText(t *testing.T) {
 	for name, tc := range map[string]struct{ stdout, want string }{
 		"opencode": {`{"type":"step_start"}` + "\n" + `{"type":"text","part":{"text":"opencode done"}}` + "\n", "opencode done"},
 		"codex":    {`{"type":"item.completed","item":{"type":"agent_message","text":"codex done"}}` + "\n" + `{"type":"turn.completed"}` + "\n", "codex done"},
+		"codex exec --json": {`{"type":"thread.started","thread_id":"t"}` + "\n" + `{"type":"turn.started"}` + "\n" +
+			`{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"I'll run it.\n"}}` + "\n" +
+			`{"type":"item.started","item":{"id":"item_1","type":"command_execution","command":"ls","aggregated_output":"","exit_code":null,"status":"in_progress"}}` + "\n" +
+			`{"type":"item.completed","item":{"id":"item_1","type":"command_execution","command":"ls","aggregated_output":"README\n","exit_code":0,"status":"completed"}}` + "\n" +
+			`{"type":"item.completed","item":{"id":"item_2","type":"file_change","changes":[{"path":"src/hello.txt","kind":"add"}],"status":"completed"}}` + "\n" +
+			`{"type":"item.completed","item":{"id":"item_3","type":"agent_message","text":"Claimed and done."}}` + "\n" +
+			`{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}` + "\n", "Claimed and done."},
 		"claude stream-json": {`{"type":"system","subtype":"init","session_id":"s"}` + "\n" +
 			`{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"x"}]}}` + "\n" +
 			`{"type":"assistant","message":{"content":[{"type":"text","text":"draft"},{"type":"tool_use","name":"Bash"}]}}` + "\n" +
