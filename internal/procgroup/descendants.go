@@ -17,6 +17,9 @@ const (
 	// settle window before it reports cleanup as incomplete.
 	descendantSnapshotTimeout = time.Second
 	descendantSettle          = 5 * time.Second
+	// Lost periodic snapshots are tolerated only while consecutive successful
+	// snapshots stay this close; a longer blind interval observed nothing.
+	descendantMaxGap = descendantSettle
 )
 
 type ObservedProcess struct {
@@ -45,6 +48,12 @@ type descendantObserver struct {
 	// missed counts periodic snapshots that were unavailable. A lost sample is
 	// not a survivor: the final sweep still has to prove every known identity gone.
 	missed int
+	// seen is the last successful snapshot; gap is the longest interval between
+	// two successful snapshots while the observer ran.
+	seen time.Time
+	gap  time.Duration
+	// cancel abandons a periodic snapshot still in flight when finish begins.
+	cancel context.CancelFunc
 	// snap replaces descendantSnapshot in tests.
 	snap func(context.Context) (map[int]ObservedProcess, error)
 }
@@ -74,6 +83,9 @@ func startObserver(o *descendantObserver, pid int) (*descendantObserver, error) 
 	}
 	o.known = map[int]ObservedProcess{pid: root}
 	o.expand(rows)
+	o.seen = time.Now()
+	var periodic context.Context
+	periodic, o.cancel = context.WithCancel(context.Background())
 	go func() {
 		defer close(o.done)
 		ticker := time.NewTicker(descendantInterval)
@@ -83,11 +95,15 @@ func startObserver(o *descendantObserver, pid int) (*descendantObserver, error) 
 			case <-o.stop:
 				return
 			case <-ticker.C:
-				rows, err := o.snapshot(context.Background())
+				rows, err := o.snapshot(periodic)
+				if periodic.Err() != nil {
+					return
+				}
 				o.mu.Lock()
 				if err != nil {
 					o.missed++
 				} else {
+					o.observed()
 					o.expand(rows)
 				}
 				o.mu.Unlock()
@@ -95,6 +111,15 @@ func startObserver(o *descendantObserver, pid int) (*descendantObserver, error) 
 		}
 	}()
 	return o, nil
+}
+
+// observed records a successful snapshot and the blind interval it ended.
+func (o *descendantObserver) observed() {
+	now := time.Now()
+	if !o.seen.IsZero() {
+		o.gap = max(o.gap, now.Sub(o.seen))
+	}
+	o.seen = now
 }
 
 // expand admits children only while the observed parent's start identity agrees.
@@ -124,17 +149,23 @@ func (o *descendantObserver) expand(rows map[int]ObservedProcess) {
 
 func (o *descendantObserver) finish() (*DescendantObservation, error) {
 	close(o.stop)
+	if o.cancel != nil {
+		o.cancel()
+	}
 	<-o.done
 	report := &DescendantObservation{Scope: "observed-pid-start-identities", IntervalMS: int(descendantInterval / time.Millisecond), Processes: []ObservedProcess{}, Failures: []string{}, Limitations: []string{"fast detachment and reparenting between snapshots can remain unobserved; this is not full OS containment", "PID start identity resolution is platform-dependent; no universal adversarial containment claim"}}
 	ctx, cancel := context.WithTimeout(context.Background(), descendantSettle)
 	defer cancel()
+	// remains and signalFailure describe the last round that had a snapshot;
+	// unavailable is why the latest round had none.
+	var remains bool
+	var signalFailure error
 	for {
-		// unavailable is the reason this round proved nothing; only a round
-		// that still proves nothing when the settle window closes is a failure.
 		rows, unavailable := o.snapshot(ctx)
 		if unavailable == nil {
+			o.observed()
 			o.expand(rows)
-			live := false
+			remains, signalFailure = false, nil
 			for pid, owned := range o.known {
 				if pid == o.root {
 					continue
@@ -144,20 +175,17 @@ func (o *descendantObserver) finish() (*DescendantObservation, error) {
 				if !present || current.Start != owned.Start || strings.HasPrefix(current.State, "Z") {
 					continue
 				}
-				live = true
-				if err := signalObservedProcess(rows, owned); err != nil {
-					o.failure = errors.Join(o.failure, err)
-				}
+				remains = true
+				signalFailure = errors.Join(signalFailure, signalObservedProcess(rows, owned))
 			}
-			if !live {
-				report.Absent = o.failure == nil
+			if !remains {
 				break
 			}
 		}
 		select {
 		case <-ctx.Done():
-			if unavailable == nil {
-				unavailable = errors.New("observed descendant remains after cleanup")
+			if remains {
+				o.failure = errors.Join(o.failure, errors.New("observed descendant remains after cleanup"), signalFailure)
 			}
 			o.failure = errors.Join(o.failure, unavailable)
 		case <-time.After(descendantInterval):
@@ -165,6 +193,10 @@ func (o *descendantObserver) finish() (*DescendantObservation, error) {
 		}
 		break
 	}
+	if o.gap > descendantMaxGap {
+		o.failure = errors.Join(o.failure, fmt.Errorf("descendant snapshots were unavailable for %s, beyond the %s observation bound", o.gap.Round(time.Millisecond), descendantMaxGap))
+	}
+	report.Absent = o.failure == nil
 	if o.missed > 0 {
 		report.Limitations = append(report.Limitations, fmt.Sprintf("%d periodic snapshots were unavailable; a descendant alive only during those intervals can remain unobserved", o.missed))
 	}

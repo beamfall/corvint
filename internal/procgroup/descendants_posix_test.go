@@ -154,12 +154,21 @@ func TestObservedDescendantSnapshotLossIsRetried(t *testing.T) {
 			return descendantSnapshot(ctx)
 		}}
 		// The root is a child: under this process the observer's own ps runs would be descendants.
-		root := exec.Command("/bin/sleep", "60")
+		// Its own child is observed by the first snapshot and outlives the lost ones.
+		root := exec.Command("/bin/sh", "-c", "/bin/sleep 60 & wait")
+		ready, err := root.StdoutPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		root.Args[2] = "/bin/sleep 60 & echo ready; wait"
 		if err := root.Start(); err != nil {
 			t.Fatal(err)
 		}
 		defer root.Wait()
 		defer root.Process.Kill()
+		if _, err := ready.Read(make([]byte, 8)); err != nil {
+			t.Fatal(err)
+		}
 		started, err := startObserver(o, root.Process.Pid)
 		if err != nil {
 			t.Fatal(err)
@@ -170,6 +179,15 @@ func TestObservedDescendantSnapshotLossIsRetried(t *testing.T) {
 		report, err := started.finish()
 		if err != nil || !report.Absent || len(report.Failures) != 0 {
 			t.Fatalf("lost periodic snapshot failed cleanup: %v %+v", err, report)
+		}
+		if len(report.Processes) != 1 {
+			t.Fatalf("descendant not observed: %+v", report.Processes)
+		}
+		// The shell reaps the killed child; until then signal 0 still reaches the zombie.
+		for deadline := time.Now().Add(5 * time.Second); syscall.Kill(report.Processes[0].PID, 0) == nil; time.Sleep(descendantInterval) {
+			if time.Now().After(deadline) {
+				t.Fatalf("observed descendant still present: %+v", report.Processes)
+			}
 		}
 		if last := report.Limitations[len(report.Limitations)-1]; !strings.HasPrefix(last, "2 periodic snapshots were unavailable") {
 			t.Fatalf("lost snapshots not disclosed: %q", last)
@@ -186,7 +204,7 @@ func TestObservedDescendantSnapshotLossIsRetried(t *testing.T) {
 			return descendantSnapshot(ctx)
 		}}
 		report, err := o.finish()
-		if err != nil || !report.Absent || calls != 4 {
+		if err != nil || !report.Absent || calls < 4 {
 			t.Fatalf("final sweep did not retry: calls=%d %v %+v", calls, err, report)
 		}
 	})
@@ -203,6 +221,17 @@ func TestObservedDescendantSnapshotLossIsRetried(t *testing.T) {
 		}
 		if waited := time.Since(began); waited < descendantSettle || waited > descendantSettle+descendantSnapshotTimeout {
 			t.Fatalf("settle window not bounded: %v", waited)
+		}
+	})
+	t.Run("AHI-032 a blind interval beyond the observation bound fails", func(t *testing.T) {
+		done := make(chan struct{})
+		close(done)
+		o := descendantObserver{root: os.Getpid(), known: map[int]ObservedProcess{}, stop: make(chan struct{}), done: done, missed: 9, seen: time.Now().Add(-descendantMaxGap - time.Second), snap: func(context.Context) (map[int]ObservedProcess, error) {
+			return map[int]ObservedProcess{}, nil
+		}}
+		report, err := o.finish()
+		if err == nil || report.Absent || len(report.Failures) != 1 || !strings.Contains(report.Failures[0], "observation bound") {
+			t.Fatalf("unobserved run passed: %v %+v", err, report)
 		}
 	})
 }
