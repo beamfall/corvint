@@ -19,7 +19,7 @@ dependency is introduced. The complete audit covers 85 production/module inputs.
 
 Reserve `corvint-analyzer/100` for this branch because the separately published
 issue390 branch already uses `/99`. After changing the production schema ID,
-recompute the full path-NUL/content-NUL source audit. The exact digest for this tree
+recompute the full path-NUL/content-NUL source audit. The exact digest at the first repair binding
 is `d041b96d750ea4fd9879b945dd0baa7db17265f22daafda101101de32e480b10`.
 The runtime does not use that source digest as its cache key. A schema bump invalidates
 experimental analyzer packs and pack-derived Tasks scope identities; the default
@@ -56,3 +56,39 @@ unchanged feature qualification and semantic review are retained at their origin
 Optional mutation, provider, console, learning and external adopter evaluations are not
 applicable to these maintenance edits. Structural completion does not establish broad
 release qualification or an independent external outcome.
+
+## Public integration and fresh binding
+
+The coordinator subsequently landed reviewed public main
+`01f557cb47272d44c1316cc58d2b44529661756f`, including issue390's `/99` analyzer
+inputs. Normal merge checkpoint `a0fac3a1cd69a609057e89accfb6b340529a3892`
+preserves published ancestor `bfe2e48e51cb20789786b619e2ec087a72544dcf`.
+Only the two schema-pin paths required conflict resolution; every other path agrees
+with Git's automatic merge tree. The unpublished `/100` reservation now covers all
+86 combined inputs, with audit SHA-256
+`c444ed731cb108143898101871ff265e2b614606a69a3a810d61b879a4bcef45`.
+
+The first repair's seven-hunk CEM, one linked `IDX-SNAP-V0-017` obligation, four
+qualified checks and strict seal passed at bind `0ad18fc93244001c4aeb7f13a064f58f0cabfd00`
+and seal `73ba1fa8c984de938bc60b3c61cdf18b6a36a852`. Those observations retain
+that original binding; they do not qualify the later combined tree.
+
+A new public-base `dogfood-change` correctly refused `sealed-cem-in-change` because
+our two historical seals were absent at that base. Under the separately reviewed
+integration precedent retained by native `V1-0527`, only those two task-owned
+final-tree copies are removed. Their exact Git blobs, SHA-256 digests and raw files
+are preserved by `issue408-ci-public-seal-preservation.json` outside source and by
+reachable immutable `bfe2`/`73ba` ancestry. Every public-base foreign sealed map stays
+byte-identical. No object or historical commit is removed, and the guard is retained.
+The full feature, maintenance and integration delta is freshly bound against exact
+public base `01f557`; no merge-checkpoint-only closure is claimed.
+
+A fresh independent clone avoids the known post-seal enrollment refusal without
+cancelling or deleting either previous workflow. Fresh selected checks repeat the
+original feature units, CLI subsets, vet and receipt validation at the combined
+binding, plus full `internal/contextindex` units, spec-index/Tasks scopes and the
+non-Go CLI integration subset. Source/receipt drift found by these checks remains
+blocking. Frozen adopter measurements retain their original engine/corpus bindings;
+no new external outcome, broad release qualification or learned-quality claim follows
+from this integration. Independent review covers the changed merge, pins, preservation
+and evidence; the unchanged argv implementation keeps its prior semantic reviews.
