@@ -63,6 +63,7 @@ var ReadVerbs = []string{
 	"release create", "release update", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
 	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview",
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
+	"dispatch", "dispatch status", "dispatch unpark",
 	"submit", "gate run", "complete", "health", "pool cleanup", "pool recover", "pool confirm-safe",
 }
 
@@ -112,6 +113,8 @@ func Run(env Env) int {
 		return emit(env.Stdout, usage([]string{"program"}, "expected show"))
 	case "run":
 		return emit(env.Stdout, programRun(env, args[1:]))
+	case "dispatch":
+		return emit(env.Stdout, dispatchCommand(env, args[1:]))
 	case "version", "--version":
 		return emit(env.Stdout, versionResult())
 	case "ticket":
