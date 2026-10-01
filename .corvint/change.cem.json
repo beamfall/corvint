@@ -62,9 +62,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:3b041e27cc63b7a493a0cfc0a3a93a813bb10ebe74c81f43c483e4c36878ec09",
+      "id": "hunk:sha256:7cb3b24bc07a7464b912ec8caf633c01899bb1c4bfeac894bc67868ea9cddb23",
       "newRange": {
-        "count": 55,
+        "count": 94,
         "start": 1
       },
       "oldRange": {
@@ -122,7 +122,7 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:31057031ba0b6884ef1630bf3f4970aeb8e2f76156568987982e396eaa52152f",
+      "id": "hunk:sha256:e1bfee95210737055399ec7626c6f8bb8762134a519f0cc281a90cef0c5399f2",
       "newRange": {
         "count": 14,
         "start": 1814
@@ -135,11 +135,16 @@
       "reason": "evidence-backed"
     },
     {
-      "basis": [],
-      "disposition": "unknown",
-      "id": "hunk:sha256:40f2092dd26b149ed4580ed7ae805a01a8959111fd835c05144e19884e4b58a0",
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c553229fd69de433332215623effb9849561e9b8576be97bb3bc512bde1b604f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0b9bf163ee8c9e94fd9bcdffa557f31d8e8480b4924687aea3f38e17ece6e55f",
       "newRange": {
-        "count": 162,
+        "count": 206,
         "start": 1
       },
       "oldRange": {
@@ -147,7 +152,7 @@
         "start": 0
       },
       "path": "docs/specs/postmerge-ci-host-v0.md",
-      "reason": "no-evidence"
+      "reason": "evidence-backed"
     },
     {
       "basis": [
@@ -157,9 +162,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:a8a98a4d155f13b8cbaa17b5ab0ffff59a2c9cfef8cb4fc266a3a606c2988178",
+      "id": "hunk:sha256:f837df1d231a374b26f9007581be580136608cd1b58a17dde0432c2d79649d6d",
       "newRange": {
-        "count": 500,
+        "count": 624,
         "start": 1
       },
       "oldRange": {
@@ -177,9 +182,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:4d021e77808a71ed02933cf7819c2cc37270730df6b9fafe35e4ee4678d84b2c",
+      "id": "hunk:sha256:7e7f331d30d068f6d6ed55df753864ca629d094f3e5cc9d7cf978e1385775446",
       "newRange": {
-        "count": 253,
+        "count": 385,
         "start": 1
       },
       "oldRange": {
@@ -237,9 +242,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:f580ba48f39c38e15ce7f0db98fb86e974ffb9773e6a4ad86fe38d712f4559c2",
+      "id": "hunk:sha256:05f84874be3dddfd7a267bb6ad6ae5ecdcbed5d55dece3ffe7289de59b491d9b",
       "newRange": {
-        "count": 88,
+        "count": 112,
         "start": 1
       },
       "oldRange": {
@@ -257,9 +262,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:fccc4d7b1735a694838358bfef0d1c2f33dae748b5319251334aebaec4c4e712",
+      "id": "hunk:sha256:b9237b9e44edcc2c977194b486ff0931d31b0985263f671a6f85b9986b8551d6",
       "newRange": {
-        "count": 288,
+        "count": 298,
         "start": 1
       },
       "oldRange": {
@@ -277,9 +282,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:dea38d6153530f55e7b7eec107bd307158f21d7c8951e8dbc6ad2ef02637400e",
+      "id": "hunk:sha256:bfeacbcad6791ad15adffe418cf75fb90068e70320c6785151ac920113caf524",
       "newRange": {
-        "count": 107,
+        "count": 113,
         "start": 1
       },
       "oldRange": {
@@ -317,9 +322,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:0b75548d960c44110114d9a786a685d815ad143a2b67082e535b3a303bd2eb74",
+      "id": "hunk:sha256:deeaa7a2c4c6748f60830322823b8e1e94aaf6391d23b2639036c3074b35e868",
       "newRange": {
-        "count": 53,
+        "count": 64,
         "start": 1
       },
       "oldRange": {
@@ -350,6 +355,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "9f8ff69b56701c8dd96ac6e7c99141e384a3d617e104f24734aba52953301feb",
+  "patchSha256": "54dd1351d42d73d796666e67a9763974079904d052940388e38638205da5f1e3",
   "spec": "cem/0.2"
 }
