@@ -720,7 +720,7 @@ func copyTree(source, destination string) error {
 }
 
 // writeChunkRows rebuilds the snapshot the bench evaluated over from its
-// chunk file: every `kind: file` row carries one file's full text. Symbol
+// chunk file: every `kind: file` row carries the release's recorded text. Symbol
 // rows are ignored, as is any row whose path could leave the destination.
 func writeChunkRows(source, destination string) error {
 	file, err := os.Open(source)
