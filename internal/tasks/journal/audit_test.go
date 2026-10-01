@@ -981,7 +981,7 @@ func TestTMV0006_AS35_IndexDuringStableIntentDivergence(t *testing.T) {
 
 func TestTMV0002_AS10_IntentDoesNotConsumeStateScanBudget(t *testing.T) {
 	_, r := setup(t)
-	o, err := r.capture(profileLimits)
+	o, err := r.capture(profileLimits, false)
 	if err != nil {
 		t.Fatal(err)
 	}

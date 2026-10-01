@@ -193,19 +193,3 @@ func fileEntry(full, rel string) (archive.FileEntry, bool, error) {
 	}
 	return archive.FileEntry{Path: rel, Sha256: wire.Sum(raw), Bytes: wire.SizeOf(uint64(len(raw)))}, true, nil
 }
-
-// AttemptPaths lists every retained attempt record, so a read can audit the
-// complete attempt history (CAL-V0-014 retry exhaustion).
-func AttemptPaths(repo *intent.Repository) ([]string, error) {
-	inv, err := inventory(repo)
-	if err != nil {
-		return nil, err
-	}
-	out := []string{}
-	for _, file := range inv.Files() {
-		if strings.HasPrefix(file.Path, "attempts/") {
-			out = append(out, file.Path)
-		}
-	}
-	return out, nil
-}

@@ -285,6 +285,9 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	if wire.Sum(current) != wire.Sum(p.head) {
 		return wire.Errorf(wire.CodeSnapshotMoved, "head", "prepared head changed")
 	}
+	// The lock is held and the head is the audited one. Read verbs share
+	// leaseAudit, so the checkpoint is retained here and never there.
+	retainCheckpoint(repo, p.proof)
 	if !p.pending && (p.result.Kind != "Transaction" || p.result.Plan == nil) {
 		setLeaseReport(report, p.result)
 		return nil

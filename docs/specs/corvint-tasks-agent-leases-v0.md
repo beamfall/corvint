@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary)
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement)
 Authoritative inputs: owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
 and [issue 430](https://github.com/beamfall/corvint/issues/430), explicitly commissioned 2026-10-01 (CAL-V0-048..051); owner request [issue 342](https://github.com/beamfall/corvint/issues/342),
@@ -12,6 +12,7 @@ owner requests [issue 420](https://github.com/beamfall/corvint/issues/420),
 [issue 421](https://github.com/beamfall/corvint/issues/421) and
 [issue 422](https://github.com/beamfall/corvint/issues/422) (CAL-V0-045..047),
 owner request [issue 431](https://github.com/beamfall/corvint/issues/431) (CAL-V0-052..058),
+owner request [issue 446](https://github.com/beamfall/corvint/issues/446) (CAL-V0-059..061),
 owner request [issue 378](https://github.com/beamfall/corvint/issues/378),
 owner request [issue 370](https://github.com/beamfall/corvint/issues/370), and
 owner choice on 2026-09-28 to quarantine environments until confirmed safe reuse; owner request [issue 336](https://github.com/beamfall/corvint/issues/336), the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
@@ -21,10 +22,10 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
-- Read next: Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher); Amendments to TCP-00; Failure modes.
+- Read next: Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost); Amendments to TCP-00; Failure modes.
 
 ## User and boundary
 
@@ -74,6 +75,7 @@ one.
 | S7 | CAL-V0-019..020 | Lease race and crash qualification, and the execution cutover record |
 | S8 | CAL-V0-021..026 | Parallel claims: scoped claims, path-overlap collisions, scope enforcement, bounded lock hold |
 | S11 | CAL-V0-052..058 | `dispatch`: continuous roster, supervised host workers, handoff, reap, backoff and events |
+| S12 | CAL-V0-059..061 | Read cost independent of receipt history: one audit per read, resumed from a writer-retained checkpoint |
 
 S8 was added by owner decision on 2026-09-27 and lands directly after S3, before S4.
 
@@ -732,6 +734,75 @@ Regression witnesses are the CAL-V0-052..058 tests in the traceability table: in
 `TestCALV0057_FingerprintIgnoresNonDurableAttempts` and `TestCALV0058_SummaryReadsHostFinalText`; and
 `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`).
 
+### S12 — Read cost independent of receipt history (issue 446)
+
+Authoritative input: owner request [issue 446](https://github.com/beamfall/corvint/issues/446).
+Before this slice every read command replayed the whole receipt chain, and `queue status` and
+`plan preview` did so more than once, so a read cost seconds at about 1,800 receipts and held
+the files a concurrent writer wanted. The journal stays the only authority. This slice changes
+how much of it a read must replay, never what a read may conclude.
+
+- `CAL-V0-059`: The audit checkpoint is derived state with profile `taskman-audit-checkpoint/0`,
+  stored as `<state directory>.checkpoint.json` beside, never inside, the journal state
+  directory, so state scans, archive export and older runtimes do not see it. It records the
+  queue ID, primary worktree, init digest, generation, semantic coverage, the sequence and
+  digest of one receipt, and for every non-request path the sequence and digest (or retained
+  deletion) of its latest canonical afterimage at that sequence, strictly path-ordered. The
+  codec is closed and bounded (16 MiB; entry bound derived from the existing scan, intent,
+  ticket and release limits). A checkpoint MUST be derived only from a complete, settled,
+  consistent `FULL` audit whose last receipt is the head; never from a checkpoint-resumed audit
+  and never over a pending receipt. It carries no request, evidence or receipt bytes, is never
+  posted by a receipt, and is never an input to authority, ranking or archive content.
+  Deleting it costs the next read one complete audit and nothing else.
+- `CAL-V0-060`: Only a writer retains a checkpoint: after its complete settled audit, while it
+  holds the writer lock and the head is still the audited one, by one fixed temporary file and
+  rename, best-effort. Audits that read verbs share with writers MUST NOT retain one. A failure to retain it MUST
+  NOT fail or change the transaction. Read commands MUST NOT create, replace or remove the
+  checkpoint (product invariant 4). The retained checkpoint therefore names the head the writer
+  observed before its own receipt, and a later read replays at least that receipt.
+- `CAL-V0-061`: A read command MUST perform at most one journal audit and derive every
+  projection it prints from that one observation. Where a checkpoint is present, a read MAY
+  resume from it: it MUST confirm the queue ID, primary worktree, init digest and generation
+  and the head's version digest; confirm that the checkpoint sequence does not exceed the head
+  and that the named receipt still hashes to the recorded digest and carries the recorded
+  sequence and generation; replay every receipt after it through the
+  head with the same per-receipt validators as the complete audit; and verify every non-request
+  projection, staging emptiness and the intent tree against the resulting afterimages exactly as
+  the complete audit does. The result reports `journalAudit` `CHECKPOINT_PLUS_TAIL` and
+  structural consistency `CHECKPOINT_PLUS_TAIL`, never `CONSISTENT`. Any decode error,
+  mismatch or refusal on that path MUST fall back to the complete audit, whose verdict is the
+  one reported; a head that moves between captures is retried at most four times first. An
+  unusable checkpoint therefore never produces a refusal, a different projection or a weaker
+  verdict than no checkpoint. Every mutation, barrier removal, reconciliation, request lookup
+  and `receipt audit` MUST keep the complete audit (`journalAudit` `FULL`).
+
+The checkpoint has the same local trust as the journal directory it sits beside and no more:
+its entries and semantic coverage are not re-derived from the receipts before its sequence. A
+party that rewrites a projection and the matching checkpoint entry together, or adds a stray
+intent file with a matching entry, is therefore not detected by a resumed read; the complete
+audit refuses it. Detection limits of a checkpoint-resumed read, each of which the complete
+audit still covers on `receipt audit` and on every mutation: a checkpoint and projection altered
+together as above; an altered receipt before the checkpoint sequence; a
+stray receipt beyond head+1; altered or stray files under `requests/` and `evidence/` that the
+replayed tail does not post; duplicate request IDs against the prefix; and stray files in
+directories the resumed read does not list. The inventory digest of a resumed read differs from
+the complete audit's; only the head and intent-tree digests are comparable between them.
+
+Non-goals: accelerating writers (they keep the complete audit; ticket V1-0645); a
+`queue status --summary` flag (the default read is now fast; ticket V1-0647 asks whether it is
+still wanted); removing the remaining per-read intent-tree passes (ticket V1-0646); any daemon,
+database or cache that a read mutates; and treating the checkpoint as evidence of anything.
+Failure modes are in the table below. Rollback: delete `<state directory>.checkpoint.json` to
+force complete audits until the next write, or revert the reader option; no journal, intent or
+archive format changes, and older runtimes ignore the file.
+
+Measured on the live store at 1,829 receipts (macOS, Go 1.27.1, warm cache): `queue status`
+4.5–4.9 s before; 1.08–1.43 s with one complete audit; 0.24–0.25 s resumed from a checkpoint
+(journal audit about 83 ms). `plan preview` 1.18–1.20 s complete, 0.25 s resumed. The remaining
+cost is proportional to the intent tree and the number of retained paths (including retained
+deletions), not to the number of receipts. See
+`docs/build-log/2026-10-01-tasks-read-checkpoint.md`.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -834,6 +905,10 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
 | Context index absent or stale | No derivation | The scope is `WHOLE_REPOSITORY`, which serializes that claim as today |
 | Dispatcher crashes or is stopped | Workers keep running unsupervised | The next `dispatch` adopts workers whose recorded identities still match, then supervises and heals them (CAL-V0-056) |
 | Dispatched worker loops without progress | Repeated launches spend host budget | Cooldown, then park and `needs-owner` after `parkAfter` runs (CAL-V0-057) |
+| Checkpoint absent, corrupt, oversized, foreign or ahead of the head | A read cannot resume | The read runs the complete audit and reports `FULL`; output is otherwise identical (CAL-V0-061) |
+| Checkpoint disagrees with a receipt, projection, staging or the intent tree | A resumed read would mis-state the store | The resumed path refuses internally and the complete audit decides the reported verdict (CAL-V0-061) |
+| Journal prefix, or a checkpoint entry together with its projection, altered behind a still-matching checkpoint | A resumed read does not see it | `receipt audit` and every mutation run the complete audit and refuse; the read's verdict says `CHECKPOINT_PLUS_TAIL`, not `CONSISTENT` (CAL-V0-061) |
+| Writer cannot retain the checkpoint (full disk, permissions, crash before rename) | Reads stay at complete-audit cost | The transaction is unaffected; the next successful writer retains one (CAL-V0-060) |
 
 ## Acceptance and rollback
 
@@ -902,6 +977,9 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-056 | `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0056_KillsOrphanedProcessesBySession`, `TestCALV0056_IdentityOutageAndUnknownState` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
 | CAL-V0-057 | `TestCALV0057_FingerprintIgnoresNonDurableAttempts`, `TestCALV0055_LaunchFinishBackoffAndPark` (`internal/tasks/dispatch`) |
 | CAL-V0-058 | Event assertions in `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0058_SummaryReadsHostFinalText` (`internal/tasks/dispatch`) and `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
+| CAL-V0-059 | `TestCALV0059_CheckpointCodecAndDerivation` (`internal/tasks/journal`) |
+| CAL-V0-060 | `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`), including `pending`, which shares the lease audit with writers |
+| CAL-V0-061 | `TestCALV0061_CheckpointTailEqualsFullAudit`, `TestCALV0061_CheckpointFallsBackToFullAudit`, `TestCALV0061_CheckpointScopeAndMovement`, `TestCALV0061_CheckpointLimitsStayWithFullAudit` (`internal/tasks/journal`); `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`); live-store measurement in `docs/build-log/2026-10-01-tasks-read-checkpoint.md` |
 | CAL-V0-013 | `TestCALV0013_RetryAsNextGenerationUpToThree` (`internal/tasks/store`) |
 | CAL-V0-014 | `TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan`, `TestCALV0014_SelectedOnlyPlanPreviewIsComplete` (`internal/tasks/cli`); `plan preview` in `TestTMV0008_AS07_ReadsLeaveStoreByteIdentical` (`internal/tasks/cli`) |
 | CAL-V0-015 | `TestCALV0015_SubmitRecordsTheCandidateTree` (`internal/tasks/store`) |

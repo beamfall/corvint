@@ -16,6 +16,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/archive"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/scopes"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
@@ -365,6 +366,9 @@ type readCtx struct {
 	snap          *snapshot.Snapshot
 	store         *intent.Store
 	journalAbsent bool
+	// proof is the one journal audit a read command shares (CAL-V0-061). It
+	// is bound to snap and dropped whenever the snapshot is re-read.
+	proof *journal.Result
 }
 
 // withStore resolves the repository, runs the TM-V0-008 protocol and loads
@@ -395,6 +399,7 @@ func withStore(env Env, body func(rc *readCtx) error) (*readCtx, error) {
 		}
 		rc.snap = s
 		rc.store = st
+		rc.proof = nil
 		err = body(rc)
 		if env.afterRead != nil {
 			env.afterRead()
@@ -1090,6 +1095,7 @@ func queueStatus(env Env, args []string) *wire.Result {
 			retries = append(retries, wire.ObjectValue(wire.NewObject().Set("ticketId", wire.String(id)).Set("ticketRevision", wire.String(string(rec.AcceptanceRevision))).Set("retries", retryObservation(rc, attempts, rec))))
 		}
 		o.Set("retries", wire.Array(retries...))
+		o.Set("journalAudit", wire.String(auditMode(rc)))
 		o.Set("publication", wire.String(string(ticket.NotObserved)))
 		item = wire.ObjectValue(o)
 		return nil
