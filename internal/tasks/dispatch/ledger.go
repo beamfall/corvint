@@ -269,7 +269,9 @@ func Summary(logDir string) string {
 func utf8Start(b byte) bool { return b&0xC0 != 0x80 }
 
 // extractText returns the agent's final text when stdout is a JSONL event
-// stream (opencode --format json, codex exec --json); otherwise the raw tail.
+// stream (opencode --format json, codex exec --json, claude -p
+// --output-format stream-json --verbose, or json without --verbose); otherwise
+// the raw tail.
 func extractText(raw []byte) string {
 	last := ""
 	jsonl := false
@@ -294,8 +296,31 @@ func extractText(raw []byte) string {
 }
 
 // textOf finds a text payload in the known host event shapes: opencode
-// {"type":"text","part":{"text":...}} and codex {"item":{"type":"agent_message","text":...}}.
+// {"type":"text","part":{"text":...}}, codex {"item":{"type":"agent_message","text":...}},
+// and claude {"type":"result","result":...} or the last text block of a top-level
+// {"type":"assistant","message":{"content":[{"type":"text","text":...}]}}.
 func textOf(v map[string]any) string {
+	switch v["type"] {
+	case "result":
+		if s, ok := v["result"].(string); ok {
+			return s
+		}
+	case "assistant":
+		if v["parent_tool_use_id"] != nil {
+			return "" // a subagent's message, not the worker's own
+		}
+		msg, _ := v["message"].(map[string]any)
+		blocks, _ := msg["content"].([]any)
+		last := ""
+		for _, b := range blocks {
+			if c, ok := b.(map[string]any); ok && c["type"] == "text" {
+				if s, ok := c["text"].(string); ok && s != "" {
+					last = s
+				}
+			}
+		}
+		return last
+	}
 	if part, ok := v["part"].(map[string]any); ok && v["type"] == "text" {
 		if s, ok := part["text"].(string); ok {
 			return s

@@ -530,3 +530,32 @@ func TestCALV0056_IdentityOutageAndUnknownState(t *testing.T) {
 		t.Fatalf("accounting after outage: %v running %d", err, d.Running())
 	}
 }
+
+// CAL-V0-058: the finished summary is the host's final agent text for every
+// recognized event stream, and the raw tail otherwise.
+func TestCALV0058_SummaryReadsHostFinalText(t *testing.T) {
+	for name, tc := range map[string]struct{ stdout, want string }{
+		"opencode": {`{"type":"step_start"}` + "\n" + `{"type":"text","part":{"text":"opencode done"}}` + "\n", "opencode done"},
+		"codex":    {`{"type":"item.completed","item":{"type":"agent_message","text":"codex done"}}` + "\n" + `{"type":"turn.completed"}` + "\n", "codex done"},
+		"claude stream-json": {`{"type":"system","subtype":"init","session_id":"s"}` + "\n" +
+			`{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"x"}]}}` + "\n" +
+			`{"type":"assistant","message":{"content":[{"type":"text","text":"draft"},{"type":"tool_use","name":"Bash"}]}}` + "\n" +
+			`{"type":"user","message":{"content":[{"type":"tool_result","content":"ok"}]}}` + "\n" +
+			`{"type":"assistant","message":{"content":[{"type":"text","text":"claude final"}]}}` + "\n" +
+			`{"type":"rate_limit_event"}` + "\n" +
+			`{"type":"result","subtype":"success","is_error":false,"result":"claude done"}` + "\n", "claude done"},
+		"claude json":             {`{"type":"result","subtype":"success","result":"claude json done","session_id":"s"}`, "claude json done"},
+		"claude error result":     {`{"type":"assistant","message":{"content":[{"type":"text","text":"last words"}]}}` + "\n" + `{"type":"result","subtype":"error_max_turns","is_error":true}` + "\n", "last words"},
+		"claude subagent ignored": {`{"type":"assistant","parent_tool_use_id":null,"message":{"content":[{"type":"text","text":"main words"}]}}` + "\n" + `{"type":"assistant","parent_tool_use_id":"toolu_1","message":{"content":[{"type":"text","text":"subagent words"}]}}` + "\n", "main words"},
+		"plain text":              {"working\nall done\n", "working\nall done"},
+		"mixed text is raw tail":  {`{"type":"result","result":"x"}` + "\nplain\n", `{"type":"result","result":"x"}` + "\nplain"},
+	} {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, "stdout.log"), []byte(tc.stdout), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if got := Summary(dir); got != tc.want {
+			t.Errorf("%s: summary %q, want %q", name, got, tc.want)
+		}
+	}
+}
