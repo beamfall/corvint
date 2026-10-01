@@ -90,6 +90,10 @@ admission. `corvint-cem-candidate assemble-stable --experimental --request ABS
 --out-dir NEW_ABS` is a separate optional operation. Existing candidate assembly,
 verification commands and their emitted bytes retain their contracts.
 
+The native Core entrypoint `corvint cem verify-stable` is likewise explicit-only and
+experimental: it is hidden from help, is matched only in command position (after
+optional leading global options), and carries no default or promotion.
+
 The closed `cem-stable-assembly/1` request independently names immutable base and
 target, ticket/attempt identity, explicit criterion links, source prefix, and six
 absolute SHA256-pinned inputs: canonical source map, native capture, retained

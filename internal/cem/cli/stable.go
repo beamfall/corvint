@@ -24,6 +24,18 @@ func RunStableInvocation(ctx context.Context, args []string, out io.Writer) (int
 	if at < 0 {
 		return 0, false
 	}
+	// Only global-option-shaped tokens may precede the command. A bare word first
+	// means another command owns the arguments and merely carries these two values.
+	for lead := 0; lead < at; {
+		switch {
+		case args[lead] == "--root" && lead+1 < at:
+			lead += 2
+		case strings.HasPrefix(args[lead], "--"):
+			lead++
+		default:
+			return 0, false
+		}
+	}
 	options := verify.StableOptions{}
 	values := map[string]string{}
 	bad := false

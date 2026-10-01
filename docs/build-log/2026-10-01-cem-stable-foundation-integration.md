@@ -1,6 +1,6 @@
 # CEM stable foundation on the sealed integration base
 
-This slice integrates the reviewed 44-path stable foundation as a separate change on top of the sealed runner-foundation branch (`b465bdcb`), because the combined change would exceed the per-map path budget. It stays experimental: it does not change a default, promote CEM 1.0, or complete V1-0632.
+This slice integrates the reviewed 44-path stable foundation as a separate change on top of the sealed runner-foundation branch (`b465bdcb`), because the combined change would exceed the 200 changed-path per-slice and trace budget (the base slice alone changes 202 paths from `993fe629`). It stays experimental: it does not change a default, promote CEM 1.0, or complete V1-0632.
 
 ## Source and authority
 
@@ -10,7 +10,15 @@ The packet's root Gate A review (`55ea4445…`) and independent composition revi
 
 ## Verification on this base
 
-Focused native and candidate packages, the specification checks and the portable module on Go 1.27.1 and Go 1.24.13 were repeated on this base; results are bound by the change map and the pull request. The repository-wide gate is NOT_RUN. Producer historical runner execution remains NOT_RERUN and native authority NOT_OBSERVED, as in the packet.
+Observed on this base, retained outside the repository as session evidence:
+
+- Focused `go test -count=1 -timeout 30m` passed for `internal/cem/{cli,gitauth,gitrun,patch,publish,sim,verify,wire,workflow}`, `internal/cemcandidate`, `cmd/corvint-cem-candidate`, `internal/specindex` and `cmd/corvint`; `go vet` on the same packages returned 0. After the dispatch repair below, `internal/cem/cli` and `cmd/corvint` were rerun.
+- `interop/cem01-go` passed on Go 1.27.1 and Go 1.24.13.
+- The specification checks first failed on 18 line citations displaced by the patch and passed after 14 pinned citations were repinned as pure line shifts: 13 `cmd/corvint/main.go` citations (+3) across four specifications and one `interop/cem01-go/cem.go` citation (+7) in decision 0098. Anchors are unchanged.
+- The affected plan reports scope UNKNOWN with 183 selected units and 43 unknowns; 171 selected units were not run. The repository-wide gate is NOT_RUN and this focused evidence is not equivalent coverage.
+- The change map is `cem/0.2`: it binds hunks to intent and carries no execution evidence. The change check passed as ready for review with test execution NOT_RUN, 0 of 47 declared requirements linked, and the pre-change query and impact receipts NOT_OBSERVED.
+
+Independent review of the integrated slice found that stable dispatch matched `cem verify-stable` at any argument position, so another command carrying those two words as values was answered with a stable refusal envelope. Dispatch now matches only in command position after optional leading global options, with a regression test. Producer historical runner execution remains NOT_RERUN and native authority NOT_OBSERVED, as in the packet.
 
 ## Open qualification and rollback
 

@@ -45,3 +45,18 @@ func TestStableDispatchDoesNotCaptureOldCEM(t *testing.T) {
 		t.Fatal("legacy captured")
 	}
 }
+
+func TestStableDispatchDoesNotCaptureOtherCommandValues(t *testing.T) {
+	for _, args := range [][]string{
+		{"query", "--task", "cem", "verify-stable"},
+		{"context", "--task", "cem", "verify-stable"},
+		{"query", "x", "--", "cem", "verify-stable"},
+		{"cem", "verify", "--map", "cem", "verify-stable"},
+		{"--root", "/missing", "query", "--task", "cem", "verify-stable"},
+	} {
+		var out bytes.Buffer
+		if _, ok := RunStableInvocation(context.Background(), args, &out); ok || out.Len() != 0 {
+			t.Fatalf("captured %v: %s", args, out.Bytes())
+		}
+	}
+}
