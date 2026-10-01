@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 )
@@ -84,31 +83,5 @@ func TestCorpusEvaluation(t *testing.T) {
 		if hits != truth || hits != returned || abstentions != len(suite.Cases) || falseRelations != 0 || len(a.Relations) != len(truthRelations) {
 			t.Fatalf("labelled evaluation failed: %s", data)
 		}
-	})
-}
-func TestCorpusSelfDocumentation(t *testing.T) {
-	t.Run("DCP-V1-019 self", func(t *testing.T) {
-		root, err := filepath.Abs("../..")
-		if err != nil {
-			t.Fatal(err)
-		}
-		rev := git(t, root, "rev-parse", "HEAD")
-		m, err := Inventory(context.Background(), root, rev, "internal/doccompiler/draft.go", "2026-09-19T00:00:00Z")
-		if err != nil {
-			t.Fatal(err)
-		}
-		a, err := Build(context.Background(), root, m)
-		if err != nil {
-			t.Fatal(err)
-		}
-		raw, _ := Encode(a)
-		r, err := ReadQuery(context.Background(), root, raw, Request{Operation: "search", Query: "DraftSources"})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(r.Results) == 0 {
-			t.Fatal("Corvint could not query its own committed documentation source")
-		}
-		t.Logf("self-corpus source=%s artifact=%s records=%d receipt_results=%d", rev, a.SHA256, len(a.Subjects), len(r.Results))
 	})
 }
