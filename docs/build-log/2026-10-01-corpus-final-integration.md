@@ -65,3 +65,21 @@ proof are distinct from external utility. Tests cannot accept the owning spec.
 
 Rollback leaves this isolated candidate unpromoted or reverts its task-only change. Preserve all
 inherited public sealed CEMs, original branches, receipts and the V1-0580 recovery blocker.
+
+## Hosted error-code documentation repair (V1-0586)
+
+The initial local proof was bound at `8b6ad1ce978ab34be13b4aef129d279e42ef6ec3`
+and sealed at `ba5cefc5a59f95fdde6854170e588eaca1638786`. PR #418 hosted
+`doc-gates` then failed `error-code-ownership-check`: six emitted HTTP refusal codes
+were absent from their owning spec. The repair declares their existing statuses and triggers;
+production and proof sources remain byte-identical to the published candidate. This is the
+second bounded public repair/review cycle; earlier passing and failed receipts remain distinct.
+
+The prior checkout refused a new repair enrollment with `worktree-prior-completion-stale`.
+A distinct repair checkout based at the published seal was enrolled before edits, preserving
+the old enrollment and original binding. Initial clone checkout setup failed; after materializing
+the existing branch, clean pre-edit evidence was captured and the required initial dogfood attempt
+refused its empty base-to-HEAD range. Automatic pre-change agent receipts remain NOT_OBSERVED.
+The repair's frozen checks include the actual error-code ownership gate and affected documentation/
+spec-index checks. Earlier source proof stays bound to its original revision; this documentation
+repair does not establish any additional external or promotion qualification.

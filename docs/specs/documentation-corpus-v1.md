@@ -510,6 +510,18 @@ gap; explicitly requesting an unavailable provider implementation fails the buil
 The separate MCP startup uses `corpus-unavailable` when its configured corpus cannot be opened;
 call failures retain the specific native error and never return successful empty evidence.
 
+The experimental JSON HTTP companion returns `corvint-corpus-http-refusal/1` with
+`state: abstained` for these DCP-V1-042 transport/query refusals:
+
+| Code | HTTP status | Trigger |
+| --- | ---: | --- |
+| `unknown-operation` | 404 | Path is not `/query`, or the URL has a query string. |
+| `read-query-post-required` | 405 | Request method is not POST; `Allow: POST` is returned. |
+| `json-required` | 415 | Content-Type is not exactly `application/json`. |
+| `concurrency-bound` | 503 | Both admitted request slots are occupied. |
+| `invalid-query` | 400 | Bounded closed request decoding or operation-specific argument validation fails. |
+| `query-refused` | 422 | The native indexed reader refuses the query. |
+
 ## Non-goals and simpler baseline
 
 A manually authored Markdown page remains the baseline. No cross-repository federation, remote
