@@ -1,6 +1,16 @@
 # CEM stable 1.0
 
+Intent status: owner scope accepted; technical contract proposed
+Delivery status: planned
+
 ## Agent digest
+- Claim: Owner requires portable task-linked execution evidence and all main runners for Corvint1.0; technical contract and stable promotion remain open.
+- Status: owner scope accepted; technical contract proposed/planned; no stable delivery or promotion.
+- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; qualification remains bounded.
+- Blocked on: stable wire/consumer integration, all supported runtime qualification and independent interoperability/outcome evidence.
+- Read next: Owner context; Requirements; Acceptance evidence.
+
+## Owner context
 
 - Owner intent: accepted scope, 2026-10-01 conversation; CEM1.0 belongs in the main Corvint1.0 release and supports actual main test runners across supported languages, linked to native Tasks criteria.
 - Technical contract: proposed. No version alias, consumer promotion or release qualification is established by this document.

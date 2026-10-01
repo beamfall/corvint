@@ -453,22 +453,22 @@ CEM-SM-007	docs/specs/cem-0.3-structural-mechanical.md	63	`rename` MUST hold onl
 CEM-SM-008	docs/specs/cem-0.3-structural-mechanical.md	68	`move` MUST hold only when tokens outside top-level declarations are unchanged,
 CEM-SM-009	docs/specs/cem-0.3-structural-mechanical.md	71	`import-reorder` MUST hold only when the ordered import specs differ, their
 CEM-SM-010	docs/specs/cem-0.3-structural-mechanical.md	74	`formatter-only` MUST hold only when `go/format` renders the base and the image
-CEM-V1-001	docs/specs/cem-stable-v1.md	16	Preserve canonical Git base/target/hunk binding and closed versioned decoding. K
-CEM-V1-002	docs/specs/cem-stable-v1.md	17	Bind criterion references to canonical native ticket identity, acceptance revisi
-CEM-V1-003	docs/specs/cem-stable-v1.md	18	Reference bounded runner receipts by digest, with exact runner/profile, admitted
-CEM-V1-004	docs/specs/cem-stable-v1.md	19	Preserve FAILED, SKIPPED, FLAKY, interruption, timeout, build, collection and in
-CEM-V1-005	docs/specs/cem-stable-v1.md	20	Distinguish selected tests, executed tests, coverage and criterion discriminatio
-CEM-V1-006	docs/specs/cem-stable-v1.md	21	Integrate all main runners supported by Corvint's languages, including concrete
-CEM-V1-007	docs/specs/cem-stable-v1.md	22	Migrate Core producers/validators/reviewer reports, OCM/frontier/obligation cons
-CEM-V1-008	docs/specs/cem-stable-v1.md	23	Retain independent external consumer conformance and matched external outcome ev
-CEM-V1-009	docs/specs/cem-stable-v1.md	24	Promote only with the native release's compatibility, focused documentation, int
-CEM-V1-010	docs/specs/cem-stable-v1.md	25	Rollback preserves original0.x producer defaults and emitted historical packets,
-CEM-V1-011	docs/specs/cem-stable-v1.md	48	Reject missing, duplicate, unknown or escaping reference/artifact identities. Re
-CEM-V1-012	docs/specs/cem-stable-v1.md	49	Publish the candidate schema and algorithms before the standalone consumer. Nati
-CEM-V1-013	docs/specs/cem-stable-v1.md	50	Never translate candidate spec labels to earlier0.x profiles to bypass consumer
-CEM-V1-014	docs/specs/cem-stable-v1.md	51	Inventory every existing consumer's profile and migration disposition. An unsupp
-CEM-V1-015	docs/specs/cem-stable-v1.md	61	Candidate assembly MUST require independently supplied immutable base and target
-CEM-V1-016	docs/specs/cem-stable-v1.md	62	Assembly MUST compare each declared runner source input with its self-hashed imm
+CEM-V1-001	docs/specs/cem-stable-v1.md	26	Preserve canonical Git base/target/hunk binding and closed versioned decoding. K
+CEM-V1-002	docs/specs/cem-stable-v1.md	27	Bind criterion references to canonical native ticket identity, acceptance revisi
+CEM-V1-003	docs/specs/cem-stable-v1.md	28	Reference bounded runner receipts by digest, with exact runner/profile, admitted
+CEM-V1-004	docs/specs/cem-stable-v1.md	29	Preserve FAILED, SKIPPED, FLAKY, interruption, timeout, build, collection and in
+CEM-V1-005	docs/specs/cem-stable-v1.md	30	Distinguish selected tests, executed tests, coverage and criterion discriminatio
+CEM-V1-006	docs/specs/cem-stable-v1.md	31	Integrate all main runners supported by Corvint's languages, including concrete
+CEM-V1-007	docs/specs/cem-stable-v1.md	32	Migrate Core producers/validators/reviewer reports, OCM/frontier/obligation cons
+CEM-V1-008	docs/specs/cem-stable-v1.md	33	Retain independent external consumer conformance and matched external outcome ev
+CEM-V1-009	docs/specs/cem-stable-v1.md	34	Promote only with the native release's compatibility, focused documentation, int
+CEM-V1-010	docs/specs/cem-stable-v1.md	35	Rollback preserves original0.x producer defaults and emitted historical packets,
+CEM-V1-011	docs/specs/cem-stable-v1.md	58	Reject missing, duplicate, unknown or escaping reference/artifact identities. Re
+CEM-V1-012	docs/specs/cem-stable-v1.md	59	Publish the candidate schema and algorithms before the standalone consumer. Nati
+CEM-V1-013	docs/specs/cem-stable-v1.md	60	Never translate candidate spec labels to earlier0.x profiles to bypass consumer
+CEM-V1-014	docs/specs/cem-stable-v1.md	61	Inventory every existing consumer's profile and migration disposition. An unsupp
+CEM-V1-015	docs/specs/cem-stable-v1.md	71	Candidate assembly MUST require independently supplied immutable base and target
+CEM-V1-016	docs/specs/cem-stable-v1.md	72	Assembly MUST compare each declared runner source input with its self-hashed imm
 CEP-V0-001	docs/specs/context-evolution-program-v0.md	190	ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench
 CEP-V0-002	docs/specs/context-evolution-program-v0.md	201	ContextBench metrics. For every error-free arm answer on a ContextBench sample,
 CEP-V0-003	docs/specs/context-evolution-program-v0.md	209	Pinned offline runs. Every external run MUST be local and offline: rows and

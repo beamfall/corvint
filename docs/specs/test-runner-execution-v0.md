@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-01
-Intent status: proposed technical profile; accepted owner target is all main test runners
-Delivery status: experimental prototype
+Intent status: proposed
+Delivery status: experimental
 Authoritative inputs: owner instructions 2026-10-01, native V1-0591..0596,
 `docs/specs/live-proof-carrying-verification-v0.md`, `docs/specs/go-live-test-provider-v0.md`.
 
 ## Agent digest
-- Claim: Parallel adapters preserve native runner identity and outcomes behind one bounded local execution contract.
-- Status: proposed/experimental; no stable CEM1.0 promotion.
+- Claim: Optional fixed runner profiles execute trusted local tests and retain bounded native reports with explicit qualification limits.
+- Status: proposed technical profile/experimental prototype; accepted owner target is all main test runners; no stable CEM1.0 promotion.
 - Exists: 55 concrete experimental profiles in `internal/testrunner`; implementation and live qualification are tracked separately.
 - Blocked on: every runner's actual runtime/platform qualification and CEM/Tasks integration.
 - Read next: Requirements; Runner inventory; Acceptance and rollback.

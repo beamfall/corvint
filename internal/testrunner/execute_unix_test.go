@@ -402,6 +402,8 @@ func TestGracefulInterruptLifecycle(t *testing.T) {
 				inv.Environment["CORVINT_EXEC_MODE"] = "ignore"
 			}
 			if mode == "normal" {
+				// The race runtime waits one second before a successful helper exit.
+				r.TimeoutSeconds = 5
 				inv.Environment["CORVINT_EXEC_MODE"] = ""
 			}
 			if mode == "overflow" {

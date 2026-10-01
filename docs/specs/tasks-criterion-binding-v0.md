@@ -7,7 +7,7 @@ Delivery status: experimental
 Authoritative inputs: decision 0397, `docs/specs/cem-criterion-experiments-v0.md`, native V1-0575.
 
 ## Agent digest
-- Claim: Tasks owns canonical criterion capture/verification while Core consumes pure wire projections.
+- Claim: Native Tasks captures and verifies coherent claim-era criterion bindings; Core consumes only the Tasks wire contract.
 - Status: proposed technical contract/experimental delivery; owner release intent remains accepted separately.
 - Exists: `internal/tasks/criterionbinding`, compiled CLI read verbs and wire-owned projections; bounded independent repair review passed.
 - Blocked on: full CEM1.0 live receipt/source join, integration and release qualification.
