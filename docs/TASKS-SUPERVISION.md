@@ -54,8 +54,8 @@ Scoped local Codex qualification is recorded in [the build log](build-log/2026-0
 
 # Continuous dispatcher
 
-`corvint-tasks dispatch` keeps a configured roster of host workers (OpenCode, Codex or any
-argv-launched agent) busy on the native queue while it runs. It is started by the operator and
+`corvint-tasks dispatch` keeps a configured roster of host workers (OpenCode, Codex, Claude Code or
+any argv-launched agent) busy on the native queue while it runs. It is started by the operator and
 stops with SIGINT/SIGTERM; workers it launched keep running and the next dispatcher adopts them.
 It holds no queue authority: workers claim, submit and gate through the ordinary CLI under their
 worker ID as holder, and the dispatcher writes only `release` (HANDOFF) and `reap`.
@@ -77,7 +77,45 @@ orphaned tree), hands off live attempts of ended workers, reaps expired leases, 
 and launches the roster. A run that changes no durable ticket state cools the ticket down; after
 `parkAfter` such runs it is parked until its state changes or the operator unparks it. Exhausted
 retries are reported as `needs-owner`; readmission stays the owner's `ticket reopen`. Every
-decision is a plain-language line on stderr and in `events.jsonl`. A host's own permission
-deny-list (for example OpenCode `OPENCODE_CONFIG_CONTENT`) is the host's responsibility, not a
+decision is a plain-language line on stderr and in `events.jsonl`. The `finished` summary is the
+worker's final text when the host emits a recognized event stream (OpenCode `run --format json`,
+Codex `exec --json`, Claude Code `-p --output-format stream-json --verbose`, or `json` without
+`--verbose`), otherwise the output tail. A Claude Code host can look like this, with `corvint-tasks` on the worker `PATH`
+and user-level settings and hooks excluded:
+
+```json
+"claude": {
+  "argv": ["/opt/homebrew/bin/claude", "-p", "{prompt}", "--output-format", "stream-json",
+           "--verbose", "--setting-sources", "project", "--strict-mcp-config",
+           "--no-session-persistence", "--permission-mode", "dontAsk", "--max-turns", "40",
+           "--allowedTools", "Bash(corvint-tasks claim *)", "Bash(corvint-tasks submit *)",
+           "Bash(corvint-tasks gate run *)", "Bash(go test *)", "Read", "Edit", "Write",
+           "--disallowedTools", "Bash(git push:*)", "WebFetch", "WebSearch"],
+  "env": {"PATH": "/usr/local/bin:/usr/bin:/bin"}
+}
+```
+
+With `--permission-mode dontAsk` a tool outside the allow-list is refused rather than prompted, so
+a headless worker never blocks on approval; list every command the role prompt asks for.
+
+A Codex host runs `codex exec`, which never prompts for approval:
+
+```json
+"codex": {
+  "argv": ["/opt/homebrew/bin/codex", "exec", "--json", "--ephemeral", "--ignore-user-config",
+           "--sandbox", "workspace-write", "--cd", "{workRoot}",
+           "-c", "sandbox_workspace_write.writable_roots=[\"{workRoot}/.git\"]", "{prompt}"],
+  "env": {"PATH": "/usr/local/bin:/usr/bin:/bin"}
+}
+```
+
+The `workspace-write` sandbox keeps `.git` read-only. A worker's `claim` writes the store journal
+and its filesystem probe in the git common directory, so it fails `UNSUPPORTED_FILESYSTEM` until
+that directory is a writable root. When `workRoot` is a linked worktree, name the common directory
+(`git rev-parse --path-format=absolute --git-common-dir`) instead. The writable root also lets the
+worker write refs, objects, hooks, `config` and the store journal itself, so a sandboxed worker can
+still plant commands that later run in the dispatcher's or operator's unsandboxed Git, and can edit
+queue state without the CLI. A host's own permission allow/deny-list or sandbox (Claude Code `--allowedTools`,
+Codex `--sandbox`, OpenCode `OPENCODE_CONFIG_CONTENT`) is the host's responsibility, not a
 containment guarantee. See
 [the accepted contract](specs/corvint-tasks-agent-leases-v0.md#s11--continuous-dispatcher-issue-431).
