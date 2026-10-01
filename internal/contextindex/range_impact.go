@@ -68,7 +68,9 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 	if !validObjectID(base, index.ObjectFormat) {
 		return nil, &Error{Code: "unsupported-impact-range", Message: "--base must be a full immutable commit object ID"}
 	}
-	if index.Module == "" || !strings.Contains(index.Module, "/") {
+	// Preserve the historical no-module refusal before worktree validation in
+	// repositories outside the new language capability (including first-pass CEMs).
+	if (index.Module == "" || !strings.Contains(index.Module, "/")) && !hasNonGoImpactSource(index) {
 		return nil, &Error{Code: "unsupported-impact-repository", Message: "native Go impact requires a slash-qualified Go module"}
 	}
 	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
@@ -117,6 +119,7 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 		return nil, err
 	}
 
+	admittedPaths := make([]string, 0, len(changes))
 	goPaths := make([]string, 0, len(changes))
 	omissions := make([]any, 0)
 	moduleChanged := false
@@ -135,38 +138,53 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 		if change.path == "go.mod" || change.path == "go.sum" {
 			moduleChanged = true
 		}
-		if !strings.HasSuffix(change.path, ".go") {
+		if !MCPImpactPathAdmitted(change.path) {
 			omissions = append(omissions, map[string]any{"path": change.path, "reason": "non-Go path outside native Go range profile"})
 			continue
 		}
-		if path.Dir(change.path) == "." {
+		isGo := strings.HasSuffix(change.path, ".go")
+		pathKind := "changed syntax path"
+		if isGo {
+			pathKind = "changed Go path"
+		}
+		if isGo && (index.Module == "" || !strings.Contains(index.Module, "/")) {
+			return nil, &Error{Code: "unsupported-impact-repository", Message: "native Go impact requires a slash-qualified Go module"}
+		}
+		if isGo && path.Dir(change.path) == "." {
 			return nil, &Error{Code: "unsupported-impact-path", Message: "native Go range impact requires changed Go paths in a non-root package"}
 		}
 		source, ok := index.Sources[change.path]
 		if !ok {
-			return nil, &Error{Code: "unsupported-impact-range", Message: "changed Go path is not admitted by the target index: " + change.path}
+			return nil, &Error{Code: "unsupported-impact-range", Message: pathKind + " is not admitted by the target index: " + change.path}
 		}
 		if source.BlobHash != change.newBlob {
-			return nil, &Error{Code: "impact-range-drift", Message: "changed Go path does not match the captured target blob: " + change.path}
+			return nil, &Error{Code: "impact-range-drift", Message: pathKind + " does not match the captured target blob: " + change.path}
 		}
-		if _, parseErr := parser.ParseFile(token.NewFileSet(), change.path, source.Data, parser.AllErrors); parseErr != nil {
-			return nil, &Error{Code: "unsupported-impact-range", Message: "changed Go path is not valid Go syntax: " + change.path}
+		if isGo {
+			if _, parseErr := parser.ParseFile(token.NewFileSet(), change.path, source.Data, parser.AllErrors); parseErr != nil {
+				return nil, &Error{Code: "unsupported-impact-range", Message: "changed Go path is not valid Go syntax: " + change.path}
+			}
+			goPaths = append(goPaths, change.path)
 		}
-		goPaths = append(goPaths, change.path)
+		admittedPaths = append(admittedPaths, change.path)
 	}
 
 	hunks := make([]rangeHunk, 0)
-	spans := make(map[string][]rangeHunk, len(goPaths))
+	spans := make(map[string][]rangeHunk, len(admittedPaths))
 	targetLineCount := 0
-	pathReads := readRangeHunksFor(ctx, index, baseTree, changeByPath, goPaths)
-	for position, changedPath := range goPaths {
+	pathReads := readRangeHunksFor(ctx, index, baseTree, changeByPath, admittedPaths)
+	for position, changedPath := range admittedPaths {
 		change := changeByPath[changedPath]
 		pathHunks, hunkErr := pathReads[position].hunks, pathReads[position].err
 		if hunkErr != nil {
 			return nil, hunkErr
 		}
 		if len(pathHunks) == 0 && change.sourcePath == "" {
-			return nil, &Error{Code: "unsupported-impact-range", Message: "changed Go path has no textual diff hunks: " + changedPath}
+			pathKind := "changed syntax path"
+			if strings.HasSuffix(changedPath, ".go") {
+				pathKind = "changed Go path"
+			}
+			return nil, &Error{Code: "unsupported-impact-range", Message: pathKind + " has no textual diff hunks: " + changedPath}
 		}
 		hunks = append(hunks, pathHunks...)
 		for _, hunk := range pathHunks {
@@ -184,7 +202,7 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 		return nil, err
 	}
 
-	rawResults, authorityUncertainty := compileRangeResults(index, goPaths, spans, changeByPath, callerAuthoredPaths(changes))
+	rawResults, authorityUncertainty := compileRangeResults(index, admittedPaths, spans, changeByPath, callerAuthoredPaths(changes))
 	rawResults = deduplicateAndSortRangeResults(rawResults)
 
 	request := map[string]any{"base": base, "limit": limit}
@@ -258,7 +276,7 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 	// names every changed Go path, including one the ranking ceiling dropped,
 	// which a set derived from the surviving results cannot report.
 	included := min(len(rawResults), limit)
-	critical := make([]any, len(goPaths))
+	critical := make([]any, len(admittedPaths))
 	criticalMissing := make([]any, 0)
 	includedPaths := make(map[string]struct{})
 	for _, item := range mapsFromAny(result["results"]) {
@@ -266,7 +284,7 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 			includedPaths[stringValue(item["id"])] = struct{}{}
 		}
 	}
-	for position, changedPath := range goPaths {
+	for position, changedPath := range admittedPaths {
 		selector := "path:" + changedPath
 		critical[position] = selector
 		if _, ok := includedPaths[changedPath]; !ok {
@@ -288,6 +306,9 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 		result["state"] = "BUDGETED"
 	}
 	if err := verifyRangeBase(ctx, index, base, baseTree); err != nil {
+		return nil, err
+	}
+	if err := attachNonGoImpactUnknowns(result, index, admittedPaths); err != nil {
 		return nil, err
 	}
 	if err := stabilizePacketBytes(result); err != nil {
@@ -569,6 +590,9 @@ func qualifyRangePathEvidence(results []map[string]any, index *Index, spans map[
 		}
 		result["evidence"] = hunkEvidence
 		result["summary"] = "direct committed Go diff path"
+		if NonGoImpactLanguage(changedPath) != "" {
+			result["summary"] = "direct committed syntax diff path"
+		}
 	}
 }
 
