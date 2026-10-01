@@ -213,7 +213,7 @@ func lastAttemptOf(attempts map[string]*snapshot.Attempt, ticketID string) *snap
 // spent (CAL-V0-013).
 func retryExhausted(attempts map[string]*snapshot.Attempt, rec *ticket.Record) bool {
 	last := lastAttemptOf(attempts, rec.TicketID.Raw)
-	return last != nil && last.Phase != "COMPLETED" && last.TicketRevision == rec.AcceptanceRevision && last.RetryCount.Int() >= MaxRetries
+	return last != nil && last.TicketRevision == rec.AcceptanceRevision && exhaustedAttempt(last)
 }
 
 func poolAvailable(in PlanInput, rec *ticket.Record) bool {

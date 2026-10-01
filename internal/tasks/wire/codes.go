@@ -32,6 +32,7 @@ const CodeFenced = "FENCED"
 const CodeGateFailed = "GATE_FAILED"
 const CodeGateStale = "GATE_STALE"
 const CodeGateUnknown = "GATE_UNKNOWN"
+const CodeHandoff = "HANDOFF"
 const CodeIndependenceUnverified = "INDEPENDENCE_UNVERIFIED"
 const CodeIntentBranchMismatch = "INTENT_BRANCH_MISMATCH"
 const CodeIntentDiverged = "INTENT_DIVERGED"
@@ -57,6 +58,7 @@ const CodeRestoreIncomplete = "RESTORE_INCOMPLETE"
 const CodeRetryExhausted = "RETRY_EXHAUSTED"
 const CodeReviewIncomplete = "REVIEW_INCOMPLETE"
 const CodeReviewRejected = "REVIEW_REJECTED"
+const CodeReviewReturned = "REVIEW_RETURNED"
 const CodeSignalRefusedIdentity = "SIGNAL_REFUSED_IDENTITY"
 const CodeSnapshotMoved = "SNAPSHOT_MOVED"
 const CodeStalePolicy = "STALE_POLICY"
@@ -82,13 +84,13 @@ var Codes = []string{
 	CodeCutoverInProgress, CodeCutoverMissing, CodeCycle, CodeDependencyMissing,
 	CodeDependencyUnsatisfied, CodeDevelopmentMode, CodeDirtyWorktree, CodeDocsMissing,
 	CodeDuplicateID, CodeEffectOwned, CodeExternalUnbounded, CodeFenced, CodeGateFailed,
-	CodeGateStale, CodeGateUnknown, CodeIndependenceUnverified, CodeIntentBranchMismatch,
+	CodeGateStale, CodeGateUnknown, CodeHandoff, CodeIndependenceUnverified, CodeIntentBranchMismatch,
 	CodeIntentDiverged, CodeInvalidPriority, CodeJournalForked, CodeJournalSaturated,
 	CodeLimitExceeded, CodeLockTimeout, CodeMalformed, CodeMissingEvidence, CodeMissingGate,
 	CodeNoexec, CodeOcmMissing, CodeOutOfScope, CodePaused, CodePlanStale,
 	CodeQuiescenceUnproved, CodeRedoPending, CodeRequestIDConflict, CodeResourceCollision,
 	CodeRestored, CodeRestoreIncomplete, CodeRetryExhausted, CodeReviewIncomplete,
-	CodeReviewRejected, CodeSignalRefusedIdentity, CodeSnapshotMoved, CodeStalePolicy,
+	CodeReviewRejected, CodeReviewReturned, CodeSignalRefusedIdentity, CodeSnapshotMoved, CodeStalePolicy,
 	CodeStaleTicket, CodeStaleTree, CodeSupervisorLost, CodeSurvivors, CodeTicketHeld,
 	CodeTicketState, CodeUncertainEffect, CodeUninitialized, CodeUnpublished,
 	CodeUnresolvedFinding, CodeUnsupported, CodeUnsupportedFilesystem, CodeUnsupportedVersion,

@@ -185,6 +185,11 @@ func planGateRun(c leaseContext) leaseOutcome {
 	sort.Strings(set)
 	next := *a
 	next.Phase, next.PhaseSinceSeq, next.GateResults = "CHECKING", c.seq, set
+	if a.RetryAccounting != nil && g.State != "PASSED" {
+		accounting := *a.RetryAccounting
+		accounting.FailedOrUnknown = true
+		next.RetryAccounting = &accounting
+	}
 	out := c.write(&next, nil, "GATE_RESULT", false)
 	if out.result != nil {
 		return out

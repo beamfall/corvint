@@ -456,22 +456,24 @@ func TestCALV0012_LeaseBoundsAndBackwardClock(t *testing.T) {
 // claimable again as the same attempt's next generation three times, then
 // refuses RETRY_EXHAUSTED.
 func TestCALV0013_RetryAsNextGenerationUpToThree(t *testing.T) {
-	s := newLeaseStore(t)
-	id := s.ticket(t, "one")
-	first := s.claim(t, "claim-0", id, 0, "src")
-	prev := first
-	for i := 1; i <= transaction.MaxRetries; i++ {
-		s.lease(t, "release-"+string(wire.SizeOf(uint64(i))), releaseOf(prev), i, nil)
-		next := s.claim(t, "claim-"+string(wire.SizeOf(uint64(i))), id, i, "src")
-		a := s.attempt(t, next.AttemptID)
-		if next.AttemptID != first.AttemptID || next.Generation.Uint64() <= prev.Generation.Uint64() || a.RetryCount != wire.CountOf(int64(i)) || len(a.PriorGenerations) != i {
-			t.Fatalf("retry %d: %+v %+v", i, next, a)
+	t.Run("CAL-V0-013 RetryAsNextGenerationUpToThree", func(t *testing.T) {
+		s := newLeaseStore(t)
+		id := s.ticket(t, "one")
+		first := s.claim(t, "claim-0", id, 0, "src")
+		prev := first
+		for i := 1; i <= transaction.MaxRetries; i++ {
+			s.lease(t, "release-"+string(wire.SizeOf(uint64(i))), releaseOf(prev), i, nil)
+			next := s.claim(t, "claim-"+string(wire.SizeOf(uint64(i))), id, i, "src")
+			a := s.attempt(t, next.AttemptID)
+			if next.AttemptID != first.AttemptID || next.Generation.Uint64() <= prev.Generation.Uint64() || a.RetryCount != wire.CountOf(int64(i)) || len(a.PriorGenerations) != i {
+				t.Fatalf("retry %d: %+v %+v", i, next, a)
+			}
+			prev = next
 		}
-		prev = next
-	}
-	s.lease(t, "release-last", releaseOf(prev), 10, nil)
-	refusedWith(t, s.lease(t, "claim-last", claimOf(id, "src"), 10, nil), mutation.OutcomeBlocked, wire.CodeRetryExhausted)
-	auditOK(t, s.repo)
+		s.lease(t, "release-last", releaseOf(prev), 10, nil)
+		refusedWith(t, s.lease(t, "claim-last", claimOf(id, "src"), 10, nil), mutation.OutcomeBlocked, wire.CodeRetryExhausted)
+		auditOK(t, s.repo)
+	})
 }
 
 // TestCALV0025_WidenAddsPathsAndRefusesCollision.
