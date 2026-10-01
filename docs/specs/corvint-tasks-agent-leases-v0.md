@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary)
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..060 implemented with focused tests, live Codex qualification NOT_RUN)
 Authoritative inputs: owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
 and [issue 430](https://github.com/beamfall/corvint/issues/430), explicitly commissioned 2026-10-01 (CAL-V0-048..051); owner request [issue 342](https://github.com/beamfall/corvint/issues/342),
@@ -12,6 +12,7 @@ owner requests [issue 420](https://github.com/beamfall/corvint/issues/420),
 [issue 421](https://github.com/beamfall/corvint/issues/421) and
 [issue 422](https://github.com/beamfall/corvint/issues/422) (CAL-V0-045..047),
 owner request [issue 431](https://github.com/beamfall/corvint/issues/431) (CAL-V0-052..058),
+owner request [issue 354](https://github.com/beamfall/corvint/issues/354) (CAL-V0-059..060),
 owner request [issue 378](https://github.com/beamfall/corvint/issues/378),
 owner request [issue 370](https://github.com/beamfall/corvint/issues/370), and
 owner choice on 2026-09-28 to quarantine environments until confirmed safe reuse; owner request [issue 336](https://github.com/beamfall/corvint/issues/336), the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
@@ -21,10 +22,10 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..060 implemented with focused tests, live Codex qualification NOT_RUN). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
-- Read next: Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher); Amendments to TCP-00; Failure modes.
+- Read next: Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for supervised effort and stage wall); Amendments to TCP-00; Failure modes.
 
 ## User and boundary
 
@@ -725,6 +726,48 @@ Regression witnesses are the CAL-V0-052..058 tests in the traceability table: in
 `TestCALV0057_FingerprintIgnoresNonDurableAttempts` and `TestCALV0058_SummaryReadsHostFinalText`; and
 `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`).
 
+### S12 — Supervised effort and stage wall (issue 354, partial)
+
+Authoritative input: owner request [issue 354](https://github.com/beamfall/corvint/issues/354),
+the S10 supervisor's fixed `effort: "low"` and `wallSeconds` 1..3600 config bounds, and native
+ticket V1-0475 criteria 4 and 5. This slice delivers only owner-bounded effort and a longer
+policy-bounded stage wall for the existing `taskman-codex-supervisor/0` Codex supervisor.
+Multi-repository programs, non-Codex supervisor adapters and checkpointed continuation beyond the
+existing WAIT/resume path remain open under V1-0475. The continuous dispatcher (S11) is unchanged:
+its host argv already carries any effort flag and its role `wallSeconds` already reach seven days.
+
+- `CAL-V0-059`: The optional policy `supervision` object MAY carry `efforts`, a closed object whose
+  keys are a nonempty subset of `implement`, `review` and `integrate`, each a nonempty,
+  canonical-byte-sorted, duplicate-free array of `low`, `medium` and `high`. A stage without an
+  entry, or a policy without `efforts` or `supervision`, admits only `low`, so existing policy bytes
+  keep their meaning. The supervisor config MAY carry `stageEfforts`, a map from those stages to an
+  effort overriding `effort` for that stage. A new program MUST be refused, before its runtime read,
+  program record, worktree, effect or host process, when its config names an unknown stage or any
+  stage effort the policy does not admit. An existing program MUST be re-checked against the current
+  policy before every stage launch, so a later narrowing refuses further stages without blocking
+  `drain` or `cancel`. The admitted stage effort MUST be
+  the `model_reasoning_effort` of both new and resumed Codex invocations for that stage.
+- `CAL-V0-060`: The optional policy `supervision.stageWallMinutes` (Count 1..1440) MUST bound the
+  config `wallSeconds` to 1..`stageWallMinutes`×60; absent, the bound stays 1..3600. A config outside
+  the bound MUST be refused at the same points as CAL-V0-059. The active stage deadline remains the minimum of
+  `wallSeconds`, the policy lane `wallClockMinutes` and the program's remaining
+  `supervision.program.wallClockMinutes`, so a longer stage also needs those caps raised. Heartbeat
+  renewal, WAIT handoff on expiry and session resume are unchanged (CAL-V0-038, CAL-V0-039).
+
+Non-goals: efforts beyond `low|medium|high` (for example Codex `minimal` or `xhigh`); per-role
+models; proof that the provider applied the requested effort, which stays `NOT_OBSERVED` beyond the
+argv the supervisor passed; and any change to token accounting. Failure modes: a policy that admits
+`medium` only for `implement` refuses a config whose default `effort` is `low` (the default applies
+to every stage); a lane cap shorter than `wallSeconds` silently shortens the stage, as before.
+Rollback removes `efforts` and `stageWallMinutes` from the policy, which restores the low-only,
+one-hour behaviour for every later dispatch; recorded program configs keep their digests because
+`stageEfforts` is omitted when absent. Regression witnesses: `TestCALV0059_PolicyEffortAllowlist`,
+`TestCALV0060_PolicyStageWallBound` (`internal/tasks/intent`); `TestCALV0059_StageEffortSelection`,
+`TestCALV0059_CheckProgramConfigEffort`, `TestCALV0059_StageRechecksCurrentPolicy`,
+`TestCALV0060_CheckProgramConfigStageWall` and
+`TestCALV0059_OpenWorkflowRefusesBeforeMutation` (`internal/tasks/store`). Live Codex qualification at
+a non-low effort is `NOT_RUN`; see `docs/build-log/2026-10-01-tasks-supervisor-effort-wall.md`.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -894,6 +937,8 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-056 | `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0056_KillsOrphanedProcessesBySession`, `TestCALV0056_IdentityOutageAndUnknownState` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
 | CAL-V0-057 | `TestCALV0057_FingerprintIgnoresNonDurableAttempts`, `TestCALV0055_LaunchFinishBackoffAndPark` (`internal/tasks/dispatch`) |
 | CAL-V0-058 | Event assertions in `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0058_SummaryReadsHostFinalText` (`internal/tasks/dispatch`) and `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
+| CAL-V0-059 | `TestCALV0059_PolicyEffortAllowlist` (`internal/tasks/intent`); `TestCALV0059_StageEffortSelection`, `TestCALV0059_CheckProgramConfigEffort`, `TestCALV0059_StageRechecksCurrentPolicy`, `TestCALV0059_OpenWorkflowRefusesBeforeMutation` (`internal/tasks/store`); live Codex at non-low effort NOT_RUN |
+| CAL-V0-060 | `TestCALV0060_PolicyStageWallBound` (`internal/tasks/intent`); `TestCALV0060_CheckProgramConfigStageWall`, `TestCALV0059_OpenWorkflowRefusesBeforeMutation` (`internal/tasks/store`); live stage beyond one hour NOT_RUN |
 | CAL-V0-013 | `TestCALV0013_RetryAsNextGenerationUpToThree` (`internal/tasks/store`) |
 | CAL-V0-014 | `TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan`, `TestCALV0014_SelectedOnlyPlanPreviewIsComplete` (`internal/tasks/cli`); `plan preview` in `TestTMV0008_AS07_ReadsLeaveStoreByteIdentical` (`internal/tasks/cli`) |
 | CAL-V0-015 | `TestCALV0015_SubmitRecordsTheCandidateTree` (`internal/tasks/store`) |
