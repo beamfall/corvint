@@ -52,9 +52,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:d73102523edf898e2368c4193956811adeb1fed60b9429ade661152033f0f35b",
+      "id": "hunk:sha256:2ff74e2d717cd49d65cebc7db7da2d58cd5004d69e636097b6a286307231c615",
       "newRange": {
-        "count": 34,
+        "count": 40,
         "start": 1
       },
       "oldRange": {
@@ -142,6 +142,46 @@
         "start": 62
       },
       "path": "integrations/compatibility.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5bde121ae3306a656a99d0b92adb66a84e09e818c037cd9c2bbe89cd69d47a99",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7f08be28c48dd86068d316df54e90fdf179fb2a692f18bc323a5d1ea613da775",
+      "newRange": {
+        "count": 7,
+        "start": 99
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 99
+      },
+      "path": "integrations/host-adapters.test.mjs",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5bde121ae3306a656a99d0b92adb66a84e09e818c037cd9c2bbe89cd69d47a99",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b2ef88489d62992892c2635942d3ca7bdf7bc52c56a56b5dee3457ddab561c4c",
+      "newRange": {
+        "count": 7,
+        "start": 557
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 557
+      },
+      "path": "integrations/host-adapters.test.mjs",
       "reason": "evidence-backed"
     },
     {
@@ -609,6 +649,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "8801e31a9023051834782e1925b828256b766de092e1d57a263008ddcf3b94fc",
+  "patchSha256": "0f1566a172c53f154f08849fbb5279ef8e83a9937c9125f6b0b3ebb502d276f4",
   "spec": "cem/0.2"
 }
