@@ -76,6 +76,8 @@ const ProfileRetryAccounting = "taskman-retry-accounting/0"
 
 // Attempt is a validated taskman-attempt/0.
 type Attempt struct {
+	LastHeartbeatAt         *wire.Timestamp
+	RetryReasons            map[string]wire.Count
 	RetryAccounting         *RetryAccounting
 	HandoffEvidence         string
 	Supervision             *Supervision
@@ -225,7 +227,7 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
-	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation", "supervision", "retryAccounting", "handoffEvidence")...)
+	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation", "supervision", "retryAccounting", "handoffEvidence", "lastHeartbeatAt", "retryReasons")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -233,6 +235,18 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 		return nil, err
 	}
 	a := &Attempt{}
+	if wire.Has(v, "lastHeartbeatAt") {
+		x := r.Field("lastHeartbeatAt").Timestamp()
+		a.LastHeartbeatAt = &x
+	}
+	if wire.Has(v, "retryReasons") {
+		x := r.Field("retryReasons")
+		x.Closed("EXPIRED", "RELEASED", "FAILED", "UNKNOWN")
+		a.RetryReasons = map[string]wire.Count{}
+		for _, k := range RetryReasonNames {
+			a.RetryReasons[k] = x.Field(k).Count()
+		}
+	}
 	if wire.Has(v, "handoffEvidence") {
 		a.HandoffEvidence = r.Field("handoffEvidence").Identifier()
 	}
@@ -276,6 +290,20 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 	a.SpawnNoExecCount = r.Field("spawnNoExecCount").Count()
 	a.PendingEffects = r.Field("pendingEffects").Strings(-1, false, readDigestString)
 	a.RetryCount = r.Field("retryCount").Count()
+	if a.RetryReasons != nil {
+		remaining := a.RetryCount.Int()
+		for _, k := range RetryReasonNames {
+			n := a.RetryReasons[k].Int()
+			if n > remaining {
+				r.Fail(wire.CodeMalformed, "retry reasons exceed retryCount")
+				break
+			}
+			remaining -= n
+		}
+		if remaining != 0 {
+			r.Fail(wire.CodeMalformed, "retry reasons must sum to retryCount")
+		}
+	}
 	a.RepairRound = r.Field("repairRound").Count()
 	a.Budget = readBudget(r.Field("budget"))
 	a.GateResults = r.Field("gateResults").Strings(-1, false, readDigestString)
@@ -395,6 +423,12 @@ func priorValue(ps []PriorGeneration) wire.Value {
 func (a *Attempt) Encode() ([]byte, error) {
 	o := wire.NewObject()
 	o.Set("profile", wire.String(ProfileAttempt))
+	if a.LastHeartbeatAt != nil {
+		o.Set("lastHeartbeatAt", wire.String(string(*a.LastHeartbeatAt)))
+	}
+	if a.RetryReasons != nil {
+		o.Set("retryReasons", RetryReasonsValue(a.RetryReasons))
+	}
 	if a.HandoffEvidence != "" {
 		o.Set("handoffEvidence", wire.String(a.HandoffEvidence))
 	}
@@ -590,4 +624,19 @@ func (s *ReservationSet) Encode() ([]byte, error) {
 		return nil, err
 	}
 	return raw, nil
+}
+
+// RetryReasonNames partition charged readmissions; UNKNOWN retains legacy debt.
+var RetryReasonNames = []string{"EXPIRED", "RELEASED", "FAILED", "UNKNOWN"}
+
+func RetryReasonsValue(reasons map[string]wire.Count) wire.Value {
+	o := wire.NewObject()
+	for _, k := range RetryReasonNames {
+		n := reasons[k]
+		if n == "" {
+			n = "0"
+		}
+		o.Set(k, wire.String(string(n)))
+	}
+	return wire.ObjectValue(o)
 }

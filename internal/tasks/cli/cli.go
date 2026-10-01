@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/archive"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -54,13 +55,13 @@ var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
 	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket export",
 	"queue status", "roadmap", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "reconcile inspect", "reconcile intent",
-	"init", "pause", "unpause", "policy update", "import", "cutover",
+	"init", "pause", "unpause", "policy show", "policy update", "import", "cutover",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
 	"ticket archive", "ticket restore", "ticket complete-manual", "ticket grant-approval",
 	"ticket revoke-approval",
 	"release create", "release update", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
-	"claim", "renew", "release", "reap", "widen", "attempt show", "plan preview",
+	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview",
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
 	"dispatch", "dispatch status", "dispatch unpark",
 	"submit", "gate run", "complete", "health", "pool cleanup", "pool recover", "pool confirm-safe",
@@ -974,6 +975,15 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 		}
 		v, _ := rc.store.Inventory.View(id, ctx)
 		val := v.Value(includeRecord)
+		attempts := map[string]*snapshot.Attempt{}
+		if !rc.journalAbsent {
+			in, _, e := planInput(rc)
+			if e != nil {
+				return e
+			}
+			attempts = in.Attempts
+		}
+		val.Obj.Set("retries", retryObservation(rc, attempts, v.Record))
 		item = &val
 		return nil
 	})
@@ -997,6 +1007,7 @@ func queueStatus(env Env, args []string) *wire.Result {
 		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "argv", "queue status takes no argument"))
 	}
 	var item wire.Value
+	observedAt := time.Now().UTC()
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		st := rc.store
 		by := map[string]int{}
@@ -1049,7 +1060,11 @@ func queueStatus(env Env, args []string) *wire.Result {
 				return err
 			}
 			o.Set("attempts", wire.String(string(wire.CountOf(int64(len(live))))))
-			o.Set("liveAttempts", liveAttemptsValue(live))
+			values := liveAttemptsValue(live)
+			for i, a := range live {
+				addHolderObservation(values.Arr[i].Obj, a, observedAt)
+			}
+			o.Set("liveAttempts", values)
 		}
 		if len(st.Policy.Pools) > 0 && !rc.journalAbsent {
 			occupancy, e := poolOccupancy(rc)
@@ -1058,6 +1073,23 @@ func queueStatus(env Env, args []string) *wire.Result {
 			}
 			o.Set("pools", occupancy)
 		}
+		attempts := map[string]*snapshot.Attempt{}
+		if !rc.journalAbsent {
+			in, _, e := planInput(rc)
+			if e != nil {
+				return e
+			}
+			attempts = in.Attempts
+		}
+		retries := []wire.Value{}
+		for _, id := range st.Inventory.IDs() {
+			rec, _ := st.Inventory.Get(id)
+			if rec.Status != "OPEN" && rec.Status != "HELD" {
+				continue
+			}
+			retries = append(retries, wire.ObjectValue(wire.NewObject().Set("ticketId", wire.String(id)).Set("ticketRevision", wire.String(string(rec.AcceptanceRevision))).Set("retries", retryObservation(rc, attempts, rec))))
+		}
+		o.Set("retries", wire.Array(retries...))
 		o.Set("publication", wire.String(string(ticket.NotObserved)))
 		item = wire.ObjectValue(o)
 		return nil

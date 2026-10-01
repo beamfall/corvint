@@ -3,8 +3,10 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; S11 CAL-V0-052..058 implemented with local OpenCode qualification)
-Authoritative inputs: owner request [issue 342](https://github.com/beamfall/corvint/issues/342),
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification)
+Authoritative inputs: owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
+[issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
+and [issue 430](https://github.com/beamfall/corvint/issues/430), explicitly commissioned 2026-10-01 (CAL-V0-048..051); owner request [issue 342](https://github.com/beamfall/corvint/issues/342),
 owner approval on 2026-09-30 of prospective handoff accounting for [issue 412](https://github.com/beamfall/corvint/issues/412) (CAL-V0-044),
 owner requests [issue 420](https://github.com/beamfall/corvint/issues/420),
 [issue 421](https://github.com/beamfall/corvint/issues/421) and
@@ -19,7 +21,7 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; S11 CAL-V0-052..058 implemented with local OpenCode qualification). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
 - Read next: Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher); Amendments to TCP-00; Failure modes.
@@ -236,6 +238,51 @@ S3, leases.
   ordinary behavior. Existing mutation help alongside flags, operation and payloadKeys remain
   supported; a scalar flag value spelled --help or -h MUST NOT become a help request. The
   --version alias and release lease/artifact-family dispatch MUST remain compatible.
+
+- `CAL-V0-048`: `attempt heartbeat --attempt ID --generation G --request-id ID` MUST
+  record a generation-local optional `lastHeartbeatAt` through the journal writer, using ordinary
+  generation, terminal and lease-expiry fencing. Fresh claims initialize the recorded signal;
+  readmission resets it. Heartbeat MUST NOT extend the work lease, charge retries, release a
+  reservation or change physical quiescence. Existing request preimages and legacy attempt bytes
+  remain unchanged. Replay MUST return the original result without refreshing a timestamp,
+  including after expiry or readmission. `attempt show` and live `queue status` entries MUST expose
+  `lastHeartbeatAt` (null for legacy absence), `holderStatus`, `observedAt` and
+  `heartbeatTTLSeconds:"600"`. The observation uses one time per command. Legacy absence is
+  NOT_OBSERVED; otherwise terminal is TERMINAL, work-lease expiry is LEASE_EXPIRED, an observation
+  preceding the signal is CLOCK_BEFORE_HEARTBEAT, age >=600 seconds with a live lease is
+  STALE_HOLDER, and a younger signal is FRESH_HOLDER. These are recorded freshness observations,
+  never authenticated holder liveness, proof of death, cleanup or release authority. Derived
+  display fields MUST stay outside canonical attempt evidence in criterion captures. Automatic
+  reaping or stale-holder handoff is outside this amendment.
+
+- `CAL-V0-049`: `ticket show`, full `plan preview` entries and `queue status.retries` MUST
+  expose current acceptance-revision `retries` with canonical Counts `charged`, `limit`,
+  `remaining` (floored at zero), boolean `exhausted`, closed `byReason` and `reasonHistory`.
+  Queue retry entries cover OPEN/HELD tickets and name ticketId/ticketRevision. Charged debt uses
+  the latest attempt's stored retryCount at that acceptance revision; the bound and exhaustion
+  predicate MUST be the admission predicate, including clean handoff at the bound and initial
+  admission when the bound is zero. Journal-absent inventory reads retain NOT_OBSERVED debt,
+  remaining and reason history, null exhaustion and byReason. Changing policy MUST NOT erase debt.
+  Optional prospective attempt `retryReasons` has exactly EXPIRED, RELEASED, FAILED, UNKNOWN
+  Counts whose sum MUST equal retryCount. Only a charged readmission increments one bucket:
+  terminal FAILED with cause LEASE_EXPIRED is EXPIRED, other FAILED is FAILED, CANCELLED is
+  RELEASED, and unclassified state is UNKNOWN. Clean handoffs copy counts without increment;
+  new acceptance resets them. Legacy debt becomes UNKNOWN, never inferred specific reasons.
+  reasonHistory is INCOMPLETE while UNKNOWN is nonzero, otherwise COMPLETE; this records cause
+  classification, not authenticated physical failures or historical acceptance qualification.
+
+- `CAL-V0-050`: Read-only `policy show` MUST return effective canonical policy, policyVersion
+  and the existing policySha256 content identity from one consistent snapshot, without writing,
+  locking, reading stdin or launching commands. `policy update --help` and external-agent docs
+  MUST say that files use canonical UTF-8 JSON, sorted keys, no insignificant whitespace and
+  exactly one trailing LF, and file policyVersion MUST equal expectedPolicyVersion+1. The flag
+  names the current version. Dry-run and real-queue policy changes are outside this amendment.
+
+- `CAL-V0-051`: CREATE help MUST omit --target and --expected-revision, which CREATE refuses.
+  It MUST explain optional payload `localToken` with a meaningful-ID example and its existing
+  queue-local grammar/collision validation. Existing CREATE localToken behavior and canonical
+  ticket identity through show, claim and plan preview MUST remain unchanged; no new alias,
+  serial allocator, wire migration or target-ID semantics are introduced.
 
 Rollback stops admissions before switching to a compatible writer. Preserve every journal,
 request and optional metadata member. No destructive downgrade, migration or live policy rewrite
@@ -859,3 +906,20 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-042 | `internal/companionrelease/tasks_archive.go`, companion release `-tasks-only`; `TestTasksArchiveAssembly`, `TestTasksArchiveHelpRefusesOldRuntime`; native archive build retained in change evidence |
 
 | CAL-V0-027 | `TestCALV0027_CompiledNonfixtureReleaseLifecycle`, `TestCALV0027_NonfixtureReleaseBindings`, `TestCALV0027_NonfixtureReleaseReadinessRefusals` (`internal/tasks/cli`); `TestCALV0027_ReleaseAfterQualifiedCutover`, `TestCALV0027_ReleaseInterruptionRecovery`, `TestCALV0027_ReleaseActiveStageAndReconciliation`, `TestCALV0027_ReleaseWrongActor`, `TestCALV0027_ActualCompletedStages` (`internal/tasks/store`); `TestCALV0027_NonfixtureStageBinding`, `TestCALV0027_CompletedStageReceiptKinds`, `TestCALV0027_CompletedStageInnerBindings` (`internal/tasks/snapshot`). |
+
+## Holder, retry and policy observation acceptance
+
+Tests for `CAL-V0-048`: `TestCALV0048_HeartbeatLegacyRoundTrip`,
+`TestCALV0048_HeartbeatFenceReplayAndLeaseInvariant`,
+`TestCALV0048_HeartbeatCLIReplayAndFence`, `TestCALV0048_HolderObservationBoundaries`.
+Tests for `CAL-V0-049`: `TestCALV0049_ReasonTotalsAndClosedSchema`,
+`TestCALV0049_RetryObservationMatchesAdmission`, `TestCALV0049_ChargeReasonPartition`,
+`TestCALV0049_RetryReadProjections`.
+Tests for `CAL-V0-050`: `TestCALV0050_PolicyShowPureAndUpdateHelp` plus existing policy-update refusal/replay tests.
+Tests for `CAL-V0-051`: `TestCALV0051_CreateHelpAndMeaningfulIDs` plus existing allocator/collision tests.
+Failure modes retain stale-generation refusals, expired heartbeat replay, backwards clocks,
+legacy reason uncertainty, zero-limit initial admission and canonical/version update refusal.
+Rollback requires a compatible reader/writer for added optional attempt members; preserve journal
+and request bytes, stop admissions before replacing a writer, and never silently downgrade over
+records an older closed codec cannot read. Focused qualification establishes these disposable
+seams only; repository-wide gate, production process liveness and hosted outcomes remain unclaimed.

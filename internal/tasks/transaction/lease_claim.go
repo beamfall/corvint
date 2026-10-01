@@ -207,6 +207,9 @@ func (c leaseContext) admitted(rec *ticket.Record, prior *snapshot.Attempt, sc *
 	}
 	policy := wire.Sum(c.st.policy.Raw)
 	a := &snapshot.Attempt{TicketID: rec.TicketID, TicketRevision: rec.AcceptanceRevision, TicketRecordSha256: rec.FileDigest(), Generation: wire.SizeOf(c.st.head.Generation.Uint64() + 1), Phase: "RUNNING", PhaseSinceSeq: c.seq, Mode: "DEVELOPMENT", PolicySha256: policy, ConfigSha256: policy, RuntimeID: snapshot.RuntimeExternalAgent, CapabilityProfileSha256: policy, BaseCommit: base, Branch: branch, Quiescence: "UNPROVED", SpawnNoExecCount: "0", PendingEffects: []string{}, RetryCount: "0", RepairRound: "0", Budget: notObservedBudget(), GateResults: []string{}, Reviews: []string{}, ScopeCheck: "UNKNOWN", PriorGenerations: []snapshot.PriorGeneration{}, Scope: sc}
+	at := c.in.RecordedAt
+	a.LastHeartbeatAt = &at
+	a.RetryReasons = emptyRetryReasons()
 	a.Stage = c.l.Stage
 	a.RetryAccounting = &snapshot.RetryAccounting{Disposition: "NONE"}
 	a.PoolAllocation, e = c.allocate(a)
@@ -220,8 +223,11 @@ func (c leaseContext) admitted(rec *ticket.Record, prior *snapshot.Attempt, sc *
 	}
 	a.AttemptID = prior.AttemptID
 	a.RetryCount = prior.RetryCount
+	a.RetryReasons = retryReasons(prior)
 	if !cleanHandoff(prior) {
 		a.RetryCount = wire.CountOf(int64(prior.RetryCount.Int() + 1))
+		reason := chargedReason(prior)
+		a.RetryReasons[reason] = wire.CountOf(a.RetryReasons[reason].Int() + 1)
 	}
 	a.PriorGenerations = append(append([]snapshot.PriorGeneration{}, prior.PriorGenerations...), snapshot.PriorGeneration{Generation: prior.Generation, Quiescence: prior.Quiescence, ProvedSeq: prior.PhaseSinceSeq})
 	return a, nil

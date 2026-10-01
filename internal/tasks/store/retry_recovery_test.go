@@ -102,6 +102,7 @@ func TestCALV0043_RecoveryRefusesStaleAndTamperedAttempts(t *testing.T) {
 		}
 		a := s.attempt(t, old.AttemptID)
 		a.RetryCount = "2"
+		a.RetryReasons = map[string]wire.Count{"EXPIRED": "0", "RELEASED": "2", "FAILED": "0", "UNKNOWN": "0"}
 		raw, err := a.Encode()
 		if err != nil {
 			t.Fatal(err)

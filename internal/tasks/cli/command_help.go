@@ -59,11 +59,24 @@ func commandHelp(args []string) *wire.Result {
 		}))
 		o.Set("handoffRefusalCodes", wire.Strings([]string{wire.CodeFenced, wire.CodeStaleTicket, wire.CodeStalePolicy, wire.CodeTicketState, wire.CodeMissingEvidence, wire.CodeMalformed}))
 	}
+	if name == "policy update" {
+		o.Set("fileFormat", wire.String("Canonical UTF-8 JSON: sorted object keys, no insignificant whitespace, and exactly one trailing LF."))
+		o.Set("versionRule", wire.String("The file policyVersion must equal --expected-policy-version plus one; the flag names the current version."))
+	}
+	if name == "attempt heartbeat" {
+		o.Set("note", wire.String("Generation-fenced recorded signal with a 10-minute observation TTL. Does not renew the work lease or prove process liveness. Use a fresh request ID for each heartbeat; replay never refreshes the timestamp."))
+	}
 	if name == "pool recover" || name == "pool confirm-safe" {
 		o.Set("note", wire.String("--reason is free-form prose (1..4096 bytes), not a closed release reason code."))
 	}
 	if name == "archive verify" {
 		o.Set("note", wire.String("Reads FILE, or stdin when FILE is absent or -. Help reads neither."))
+	}
+	if name == "criterion-binding capture" {
+		o.Set("note", wire.String("Returns a capture and its verification from the current native ticket and attempt. Offline verify consumes the canonical capture object on stdin, not the result envelope."))
+	}
+	if name == "criterion-binding verify" {
+		o.Set("note", wire.String("Reads only canonical capture bytes from stdin; accepts no execution flags. Verification is offline. Help does not read stdin."))
 	}
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
@@ -71,6 +84,9 @@ func commandHelp(args []string) *wire.Result {
 // Usage is the single help inventory for each command's supported inputs.
 // Omitted verbs deliberately have no invented execution flags.
 var commandUsage = map[string]string{
+	"criterion-binding capture": "corvint-tasks criterion-binding capture --ticket ID --attempt ID",
+	"criterion-binding verify":  "corvint-tasks criterion-binding verify (canonical capture on stdin)",
+
 	"version":           "corvint-tasks version (alias --version)",
 	"ticket list":       "corvint-tasks ticket list [--offset N] [--limit N]",
 	"ticket search":     "corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N]",
@@ -89,6 +105,7 @@ var commandUsage = map[string]string{
 	"init":              "corvint-tasks init [--role ROLE] [--request-id ID]",
 	"pause":             "corvint-tasks pause --request-id ID [--role OWNER|OPERATOR]",
 	"unpause":           "corvint-tasks unpause --request-id ID [--role OWNER|OPERATOR]",
+	"policy show":       "corvint-tasks policy show",
 	"policy update":     "corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR]",
 	"import":            "corvint-tasks import --file PATH [--role OWNER|OPERATOR]",
 	"cutover":           "corvint-tasks cutover [--execution] --decision REF [--qualification FILE]",
@@ -100,6 +117,7 @@ var commandUsage = map[string]string{
 	"release":           "corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--evidence LOCAL_REF] [--role ROLE]; release <create|update|candidate|record-gate|promote|list|show|readiness> --help",
 	"reap":              "corvint-tasks reap --request-id ID [--attempt ID --generation G] [--role ROLE]",
 	"widen":             "corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository) [--role ROLE]",
+	"attempt heartbeat": "corvint-tasks attempt heartbeat --attempt ID --generation G --request-id ID [--role ROLE]",
 	"attempt show":      "corvint-tasks attempt show <attemptId>",
 	"plan preview":      "corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--selected-only]",
 	"submit":            "corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID [--role ROLE]",
