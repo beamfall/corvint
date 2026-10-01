@@ -1,5 +1,5 @@
 {
-  "baseRevision": "2aec8fec68b5d05b259ac8d18ddcc83672bf7c1b",
+  "baseRevision": "bc801fa23bcbcf3309e87c27736876f607a9250e",
   "evidence": [
     {
       "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
@@ -42,13 +42,13 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:1e02990405d2ae75126f7c74386cb439ef744a71358f6ec519519198cc8237db",
+      "id": "hunk:sha256:66b3a29007d391129cc6be6ec595655c681901a910e01fef37604381f351af2f",
       "newRange": {
-        "count": 45,
+        "count": 52,
         "start": 284
       },
       "oldRange": {
-        "count": 45,
+        "count": 52,
         "start": 284
       },
       "path": "docs/specs/REQUIREMENTS.tsv",
@@ -62,14 +62,14 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:e6e404df75042a859e23a3f204868152fc269e5084358cd789827c6e89f73f58",
+      "id": "hunk:sha256:f854642528d2b13412206d854d0bc6dc47b4a4859c873c0ec642906fb49e5f62",
       "newRange": {
         "count": 10,
-        "start": 147
+        "start": 149
       },
       "oldRange": {
         "count": 6,
-        "start": 147
+        "start": 149
       },
       "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
       "reason": "evidence-backed"
@@ -82,14 +82,14 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:735424cc7d00074c7c3a51390b9bc9e611f843ed403defa4727747fd82c483c4",
+      "id": "hunk:sha256:1a63466813ed9960863ac7b671f97b8a483518e3862ebc2b1064d0b77aaf3628",
       "newRange": {
         "count": 7,
-        "start": 715
+        "start": 813
       },
       "oldRange": {
         "count": 6,
-        "start": 711
+        "start": 809
       },
       "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
       "reason": "evidence-backed"
@@ -102,14 +102,14 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:bb47fd8043bea6596f95035ebda61b920f7ffcf55bedf04802ec9eaf0f5bb063",
+      "id": "hunk:sha256:f697619170092581892b552b784f584fe8941d8f6fc5cbdccb2fdecffcd1e690",
       "newRange": {
         "count": 7,
-        "start": 782
+        "start": 882
       },
       "oldRange": {
         "count": 7,
-        "start": 777
+        "start": 877
       },
       "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
       "reason": "evidence-backed"
@@ -895,6 +895,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "ba71cfed34adc41b39b9aba70b9d333eae831fa3d16a0f843cb3e5a5080b56c2",
+  "patchSha256": "1e4a6e6ce5b42278e4e60bae4cef3f51b28d65f431540238031a8d3d38053486",
   "spec": "cem/0.2"
 }
