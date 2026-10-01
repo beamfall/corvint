@@ -42,5 +42,7 @@ containment and runtime/input bindings before any positive whole-workflow qualif
 
 The focused conformance tests execute a synthetic adapter against real disposable Git content and
 the real local recording connector. They are harness evidence only. Actual delta/intake/author/
-scope/validation/metrics integrations, historical labels, local and CI host qualification, independent
-review, final change evidence, landing and native completion remain required for the whole issue.
+scope/validation/metrics integrations, historical expectations with generated or human-verified basis,
+local and CI host qualification, independent review, final change evidence, landing and native
+completion remain required for the whole issue. Human labels are optional; human-verified coverage
+remains `NOT_OBSERVED`.

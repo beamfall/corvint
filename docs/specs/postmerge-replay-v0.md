@@ -11,7 +11,7 @@ native V1-0542 revision 3; decision 0373; `AGENTS.md`.
 - Claim: An optional companion runs a pinned local adapter twice and compares typed historical expectations through the actual recording connector.
 - Status: experimental harness; whole-workflow qualification `NOT_OBSERVED`.
 - Exists: `internal/postmergeworkflow/`, `tools/post-merge-workflow/`.
-- Blocked on: actual child-stage integration, authored content scope/validation, human historical labels and CI host containment evidence.
+- Blocked on: actual child-stage integration, authored content scope/validation and CI host containment evidence.
 - Read next: Requirements; Trust and limits; Acceptance and rollback.
 
 ## User and measurable job
@@ -53,8 +53,10 @@ or qualification of the whole workflow, and passing expectations do not accept g
   omit adapter stdout/stderr and retain bounded machine-readable reasons.
 - `PMR-V0-008`: Provide local/CI invocation `replay --change ID --dry-run` with explicit fixture,
   policy and product root. No live writer, automatic merge, Core registration or credential lookup.
-  Full issue completion still requires executing actual child stages and their validation, accepted
-  historical labels, qualified host containment, integration and native completion evidence.
+  Full issue completion still requires executing actual child stages and their validation,
+  historical expectations with generated or human-verified basis, qualified host containment,
+  integration and native completion evidence. Human labels are optional; human-verified coverage
+  remains `NOT_OBSERVED`.
 
 ## Trust and limits
 
