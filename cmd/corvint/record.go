@@ -14,15 +14,16 @@ import (
 )
 
 type recordOptions struct {
-	task         string
-	opened       []string
-	changed      []string
-	verification []string
-	outcome      string
-	taskSet      bool
-	changedSet   bool
-	verifySet    bool
-	outcomeSet   bool
+	task             string
+	opened           []string
+	changed          []string
+	verification     []string
+	verificationArgv [][]string
+	outcome          string
+	taskSet          bool
+	changedSet       bool
+	verifySet        bool
+	outcomeSet       bool
 }
 
 func parseRecordInvocation(arguments []string) (string, []string, bool, error) {
@@ -64,7 +65,7 @@ func parseRecordFlags(arguments []string) (recordOptions, error) {
 	for index := 0; index < len(arguments); {
 		argument := arguments[index]
 		name, value, inline := strings.Cut(argument, "=")
-		if name != "--task" && name != "--opened" && name != "--changed" && name != "--verify" && name != "--outcome" {
+		if name != "--task" && name != "--opened" && name != "--changed" && name != "--verify" && name != "--verify-argv-json" && name != "--outcome" {
 			return options, argumentError("unrecognized arguments: " + argument)
 		}
 		if !inline {
@@ -94,6 +95,13 @@ func parseRecordFlags(arguments []string) (recordOptions, error) {
 			options.changedSet = true
 		case "--verify":
 			options.verification = append(options.verification, value)
+			options.verifySet = true
+		case "--verify-argv-json":
+			argv, err := trace.ParseVerificationArgv([]byte(value))
+			if err != nil {
+				return options, err
+			}
+			options.verificationArgv = append(options.verificationArgv, argv)
 			options.verifySet = true
 		case "--outcome":
 			if value != "passed" && value != "failed" && value != "blocked" {
@@ -140,12 +148,16 @@ func normalizeRecordPath(value string) (string, error) {
 func runRecord(ctx context.Context, root string, arguments []string, stdout, stderr io.Writer) int {
 	options, err := parseRecordFlags(arguments)
 	if err != nil {
+		if trace.VerificationFailureReason(err) != "" {
+			emitRecordError(stderr, err)
+			return 2
+		}
 		emitError(stderr, err)
 		return 2
 	}
 	result, err := tracerecordrepo.Record(ctx, root, tracerecordrepo.Input{
 		Task: options.task, OpenedPaths: options.opened, ChangedPaths: options.changed,
-		Verification: options.verification, Outcome: options.outcome,
+		Verification: options.verification, VerificationArgv: options.verificationArgv, Outcome: options.outcome,
 	})
 	if err != nil {
 		emitRecordError(stderr, err)
@@ -175,7 +187,7 @@ func recordMap(record trace.Record) map[string]any {
 	return map[string]any{
 		"schema_version": record.SchemaVersion, "revision": record.Revision, "trace_id": record.TraceID,
 		"task": record.Task, "opened_paths": record.OpenedPaths, "changed_paths": record.ChangedPaths,
-		"verification": record.Verification, "outcome": record.Outcome,
+		"verification": record.VerificationValue(), "outcome": record.Outcome,
 	}
 }
 

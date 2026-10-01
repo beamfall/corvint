@@ -168,3 +168,24 @@ func Unavailable(adapterID AdapterID) (UnavailableState, bool) {
 }
 
 func stringPointer(value string) *string { return &value }
+
+// RegistrationsForSources adds the mixed-store v2 profile only when a validated
+// aggregate uses it. The v1-only registry and snapshot bytes remain unchanged.
+func RegistrationsForSources(sources []model.SourceInput) []model.AdapterRegistration {
+	result := Registrations()
+	for _, source := range sources {
+		if source.AdapterID != "local-trace-v2" {
+			continue
+		}
+		for _, registration := range result {
+			if registration.AdapterID != string(AdapterLocalTrace) {
+				continue
+			}
+			registration.AdapterID = "local-trace-v2"
+			registration.AcceptedProfiles = []string{"corvint-local-trace/2"}
+			registration.VerifierID = "go-local-trace-v2"
+			return append(result, registration)
+		}
+	}
+	return result
+}

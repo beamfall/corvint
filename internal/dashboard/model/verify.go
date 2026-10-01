@@ -42,8 +42,14 @@ func VerifyCanonical(raw []byte) (*Snapshot, error) {
 }
 
 func validateDecodedSnapshot(snapshot *Snapshot) error {
+	expectedRegistry := ExpectedAdapterRegistrySHA256
+	for _, source := range snapshot.Sources {
+		if source.AdapterID == "local-trace-v2" {
+			expectedRegistry = ExpectedTypedTraceAdapterRegistrySHA256
+		}
+	}
 	if snapshot.SnapshotSHA256 == nil || !validateSHA256(*snapshot.SnapshotSHA256) ||
-		snapshot.Observation.AdapterRegistrySHA256 != ExpectedAdapterRegistrySHA256 ||
+		snapshot.Observation.AdapterRegistrySHA256 != expectedRegistry ||
 		!validateSHA256(snapshot.Observation.ConfiguredSourceSetSHA256) ||
 		!validateTimestamp(snapshot.GeneratedAt) || !validateTimestamp(snapshot.Observation.Start) ||
 		!validateTimestamp(snapshot.Observation.End) || snapshot.Observation.Start > snapshot.Observation.End ||

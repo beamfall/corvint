@@ -25,6 +25,9 @@ func TraceModelInputs(configuredOrdinal uint64, aggregate TraceAggregate, member
 	profile := "corvint-local-trace/1"
 	verifier := "go-local-trace-v1"
 	adapterID := string(AdapterLocalTrace)
+	if aggregate.hasV2 {
+		profile, verifier, adapterID = "corvint-local-trace/2", "go-local-trace-v2", "local-trace-v2"
+	}
 	ordinal := strconv.FormatUint(configuredOrdinal, 10)
 	cohorts := make([]model.CohortIdentity, 0, len(members))
 	cohortIDs := make(map[string]string, len(members))
@@ -235,7 +238,7 @@ func cloneMetricInput(input model.MetricInput) model.MetricInput {
 }
 
 func traceAggregatesEqual(left, right TraceAggregate) bool {
-	return left.ByteCount == right.ByteCount && left.RetainedRows == right.RetainedRows && left.ContentSHA256 == right.ContentSHA256 &&
+	return left.hasV2 == right.hasV2 && left.ByteCount == right.ByteCount && left.RetainedRows == right.RetainedRows && left.ContentSHA256 == right.ContentSHA256 &&
 		reflect.DeepEqual(left.Members, right.Members) &&
 		reflect.DeepEqual(left.ObservationStart, right.ObservationStart) &&
 		reflect.DeepEqual(left.ObservationEnd, right.ObservationEnd) &&

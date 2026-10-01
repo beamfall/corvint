@@ -20,6 +20,7 @@ import (
 	"github.com/Beamfall/corvint/internal/dashboard/authority"
 	"github.com/Beamfall/corvint/internal/dashboard/model"
 	"github.com/Beamfall/corvint/internal/dashboard/source"
+	"github.com/Beamfall/corvint/internal/trace"
 )
 
 const (
@@ -73,6 +74,7 @@ type TraceSummary struct {
 	Outcomes            []TraceOutcomeCount
 	repositoryWitnesses []model.RepositoryWitness
 	traceIDs            []string
+	hasV2               bool
 }
 
 // ValidateStableTraceContent consumes immutable bytes during source.Read's
@@ -138,6 +140,7 @@ func preflightTraceArtifact(body []byte, expectedRevision string) (TraceSummary,
 	}
 	paths := make(map[string]struct{})
 	counts := map[string]uint64{"blocked": 0, "failed": 0, "passed": 0}
+	hasV2 := false
 	for _, row := range rows {
 		for _, value := range row.openedPaths {
 			paths[value] = struct{}{}
@@ -146,6 +149,7 @@ func preflightTraceArtifact(body []byte, expectedRevision string) (TraceSummary,
 			paths[value] = struct{}{}
 		}
 		counts[row.outcome]++
+		hasV2 = hasV2 || row.hasV2
 	}
 	pathList := make([]string, 0, len(paths))
 	for value := range paths {
@@ -165,7 +169,7 @@ func preflightTraceArtifact(body []byte, expectedRevision string) (TraceSummary,
 	}
 	return TraceSummary{
 		Revision: expectedRevision, RetainedRows: uint64(len(rows)), Outcomes: outcomes,
-		traceIDs: traceIDs,
+		traceIDs: traceIDs, hasV2: hasV2,
 	}, pathList, "", 0
 }
 
@@ -323,6 +327,7 @@ type traceRow struct {
 	changedPaths []string
 	outcome      string
 	traceID      string
+	hasV2        bool
 }
 
 type rawMembers map[string]jsontext.Value
@@ -409,6 +414,13 @@ func parseTraceRow(data []byte, revision string) (traceRow, AdapterIssueCode) {
 		if _, ok := traceFields[name]; !ok {
 			return traceRow{}, IssueSourceInvalidSchema
 		}
+	}
+	if string(raw["schema_version"]) == "2" {
+		record, err := trace.DecodeV2(data, revision)
+		if err != nil {
+			return traceRow{}, IssueVerifierRejected
+		}
+		return traceRow{openedPaths: record.OpenedPaths, changedPaths: record.ChangedPaths, outcome: record.Outcome, traceID: record.TraceID, hasV2: true}, ""
 	}
 	if string(raw["schema_version"]) != "1" {
 		return traceRow{}, IssueSourceInvalidSchema

@@ -42,7 +42,7 @@ func validateTraceRelationships(metrics []Metric, sources []Source, cohorts []Co
 		}
 		for _, id := range metric.SourceIDs {
 			source, ok := sourceByID[id]
-			if !ok || source.AdapterID != "local-trace-v1" || !containsString(source.CohortIDs, metric.CohortIDs[0]) {
+			if !ok || !isLocalTraceAdapter(source.AdapterID) || !containsString(source.CohortIDs, metric.CohortIDs[0]) {
 				return invalidArgument()
 			}
 		}

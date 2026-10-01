@@ -162,6 +162,28 @@ screens shared the assignment-pattern vocabulary, which did not include `credent
   directory pinned inside the repository: a symlinked or non-directory store is refused and a store
   substituted after pinning cannot redirect removal. A leaf symlink is removed, never followed.
 
+### Accepted amendment: schema-2 admission (2026-09-30, issue 408)
+
+- `LTA-V0-013`: Schema-2 verification defined by `LTPM-V0-013` MUST pass the shared
+  `secretscreen.MatchArgv` screen before writing and after reading. It applies the current writer
+  matcher to each decoded argument and the canonical JSON vector, plus credential flag/value
+  boundaries. Named password, token, API/access/private/account key, authorization and secret flags
+  (including existing dash/underscore forms) screen their nonempty `=VALUE` or following argument
+  as one value. Existing login/curl `-p`, curl `-u`/`--user`, bearer/JWT, AWS pair, vendor token,
+  credentialed URL, private key and assignment shapes apply. JSON escapes are decoded first.
+  Structural inspection MUST NOT produce stored/displayed/executable shell text. Arbitrary
+  base64/hex/percent decoding is out of scope; opaque payloads are detected only when a literal
+  governed shape remains visible. This is bounded pattern screening, not general secret discovery.
+  `StoredV1Pattern`, v1 stored-row acceptance and v1 identities MUST remain unchanged. A validated
+  v2 row is immediately eligible for the same task/outcome/path query and eval admission and
+  `passed` skill export as v1. Verification values MUST NOT affect learned ranking. Skill export
+  MUST label argv and render its canonical JSON inertly, including fence-like input. The existing
+  contamination, outcome, retention and evaluation gates remain in force.
+
+Acceptance: `TestLTAV0013TypedSecrets`, `TestTypedTraceFixtureAdmission`,
+`TestExportTypedArgv`, and the existing frozen v1 tests. Qualification limits remain explicit;
+local codec parity is not an external retrieval outcome measurement.
+
 ## Non-goals and simpler baseline
 
 The simpler baseline is the empty-trace evaluation arm and hard refusal at the existing store cap.

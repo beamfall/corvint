@@ -20,8 +20,8 @@ type fixtureDocument struct {
 }
 
 type fixtureRepository struct {
-	ScoredRevision string         `json:"scored_revision"`
-	Traces         []fixtureTrace `json:"traces"`
+	ScoredRevision string            `json:"scored_revision"`
+	Traces         []json.RawMessage `json:"traces"`
 }
 
 type fixtureTrace struct {
@@ -68,6 +68,29 @@ func loadTraceFixture(path string, index *contextindex.Index, cases []goldenCase
 			return loadedFixture{}, fmt.Errorf("learned trace fixture contains duplicate scored revision: %s", repository.ScoredRevision)
 		}
 		seen[repository.ScoredRevision] = struct{}{}
+		// The frozen fixture envelope validates every repository's row shape,
+		// even when only one repository is selected for scoring below.
+		for _, rawRow := range repository.Traces {
+			var header struct {
+				SchemaVersion int    `json:"schema_version"`
+				Revision      string `json:"revision"`
+			}
+			if err := json.Unmarshal(rawRow, &header); err != nil {
+				return loadedFixture{}, fmt.Errorf("invalid learned trace fixture: %v", err)
+			}
+			if header.SchemaVersion == trace.SchemaVersionV2 {
+				if _, err := trace.DecodeV2(rawRow, header.Revision); err != nil {
+					return loadedFixture{}, fmt.Errorf("invalid learned trace fixture: %v", err)
+				}
+			} else {
+				var fixture fixtureTrace
+				decoder := json.NewDecoder(bytes.NewReader(rawRow))
+				decoder.DisallowUnknownFields()
+				if err := decoder.Decode(&fixture); err != nil {
+					return loadedFixture{}, fmt.Errorf("invalid learned trace fixture: %v", err)
+				}
+			}
+		}
 		if repository.ScoredRevision == index.CommitRevision {
 			selected = repository
 		}
@@ -91,12 +114,42 @@ func loadTraceFixture(path string, index *contextindex.Index, cases []goldenCase
 	}
 	queries := make([]contextindex.QueryTrace, 0, len(selected.Traces))
 	traceIDs := make(map[string]struct{}, len(selected.Traces))
-	for _, fixture := range selected.Traces {
-		row, marshalErr := json.Marshal(fixture)
-		if marshalErr != nil {
-			return loadedFixture{}, fmt.Errorf("invalid learned trace fixture: %v", marshalErr)
+	for _, rawRow := range selected.Traces {
+		var header struct {
+			SchemaVersion int    `json:"schema_version"`
+			Revision      string `json:"revision"`
 		}
-		records, decodeErr := trace.DecodeStore(append(row, '\n'), fixture.Revision, tracked)
+		if err := json.Unmarshal(rawRow, &header); err != nil {
+			return loadedFixture{}, fmt.Errorf("invalid learned trace fixture: %v", err)
+		}
+		row := []byte(rawRow)
+		if header.SchemaVersion == trace.SchemaVersionV2 {
+			// Validate the original object before canonicalizing it for JSONL;
+			// fixtures may indent rows, but duplicate members must still refuse.
+			record, err := trace.DecodeV2(rawRow, header.Revision)
+			if err != nil {
+				return loadedFixture{}, fmt.Errorf("invalid learned trace fixture: %v", err)
+			}
+			row, err = trace.Encode(record)
+			row = bytes.TrimSuffix(row, []byte("\n"))
+			if err != nil {
+				return loadedFixture{}, fmt.Errorf("invalid learned trace fixture: %v", err)
+			}
+		} else {
+			// Preserve the frozen v1 fixture decoder and its normalization.
+			var fixture fixtureTrace
+			decoder := json.NewDecoder(bytes.NewReader(rawRow))
+			decoder.DisallowUnknownFields()
+			if err := decoder.Decode(&fixture); err != nil {
+				return loadedFixture{}, fmt.Errorf("invalid learned trace fixture: %v", err)
+			}
+			var err error
+			row, err = json.Marshal(fixture)
+			if err != nil {
+				return loadedFixture{}, fmt.Errorf("invalid learned trace fixture: %v", err)
+			}
+		}
+		records, decodeErr := trace.DecodeStore(append(row, '\n'), header.Revision, tracked)
 		if decodeErr != nil {
 			return loadedFixture{}, fmt.Errorf("invalid learned trace fixture: %v", decodeErr)
 		}

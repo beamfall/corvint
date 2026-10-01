@@ -35,6 +35,7 @@ type TraceAggregate struct {
 	ObservationStart    *string
 	ObservationEnd      *string
 	repositoryWitnesses []model.RepositoryWitness
+	hasV2               bool
 }
 
 func AggregateTraceMembers(snapshotHead model.RepositoryWitness, input []VerifiedTraceMember) (TraceAggregate, AdapterIssueCode) {
@@ -67,6 +68,7 @@ func AggregateTraceMembers(snapshotHead model.RepositoryWitness, input []Verifie
 		if !validTraceSummaryCounts(member.Summary) {
 			return TraceAggregate{}, IssueSourceInvalidSchema
 		}
+		result.hasV2 = result.hasV2 || member.Summary.hasV2
 		result.ByteCount += member.ByteCount
 		result.RetainedRows += member.Summary.RetainedRows
 		result.Members = append(result.Members, TraceMember{

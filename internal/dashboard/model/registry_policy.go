@@ -20,6 +20,10 @@ var adapterPolicies = map[string]adapterPolicy{
 		profiles: []string{"corvint-local-trace/1"}, stage: DeliveryNotStarted,
 		verifier: "go-local-trace-v1", maxBytes: 16 << 20,
 		issueCodes: []string{"OBSERVATION_TIME_UNKNOWN", "REPOSITORY_OBJECT_UNAVAILABLE", "SOURCE_CHANGED_DURING_READ", "SOURCE_INACCESSIBLE", "SOURCE_INVALID_IDENTITY", "SOURCE_INVALID_SCHEMA", "SOURCE_MULTILINK_UNQUALIFIED", "SOURCE_NOT_PRESENT", "SOURCE_OVERSIZED", "SOURCE_SPECIAL_FILE", "SOURCE_SYMLINK", "STORE_CHANGED", "TRACE_ANCESTRY_BOUND", "TRACE_STORE_BOUND", "UNSUPPORTED_OBJECT_ALTERNATES", "VERIFIER_REJECTED"},
+	}, "local-trace-v2": {
+		profiles: []string{"corvint-local-trace/2"}, stage: DeliveryNotStarted,
+		verifier: "go-local-trace-v2", maxBytes: 16 << 20,
+		issueCodes: []string{"OBSERVATION_TIME_UNKNOWN", "REPOSITORY_OBJECT_UNAVAILABLE", "SOURCE_CHANGED_DURING_READ", "SOURCE_INACCESSIBLE", "SOURCE_INVALID_IDENTITY", "SOURCE_INVALID_SCHEMA", "SOURCE_MULTILINK_UNQUALIFIED", "SOURCE_NOT_PRESENT", "SOURCE_OVERSIZED", "SOURCE_SPECIAL_FILE", "SOURCE_SYMLINK", "STORE_CHANGED", "TRACE_ANCESTRY_BOUND", "TRACE_STORE_BOUND", "UNSUPPORTED_OBJECT_ALTERNATES", "VERIFIER_REJECTED"},
 	},
 	"pulse-dogfood-v0":  {stage: DeliveryUnsupported, verifier: "unsupported", issueCodes: []string{"SOURCE_UNSUPPORTED"}},
 	"query-envelope-v1": {stage: DeliveryUnsupported, verifier: "unsupported", issueCodes: []string{"SOURCE_UNSUPPORTED"}},
@@ -56,3 +60,5 @@ func validateDecodedSourcePolicy(source Source) error {
 	}
 	return nil
 }
+
+func isLocalTraceAdapter(id string) bool { return id == "local-trace-v1" || id == "local-trace-v2" }

@@ -187,3 +187,7 @@ For a bounded lookup, use [Agent evidence routes](../AGENT-ROUTES.md#from-index-
 “Accepted direction” means the repository owner has explicitly selected the product outcome, while
 individual generated or inferred claims still require review. A spec can be accepted and still have
 failed or incomplete delivery evidence.
+
+Typed trace verification (issue 408, accepted 2026-09-30): the existing local-trace producer,
+learned-trace admission, dashboard and console entries above are the single active spec routes
+for `LTPM-V0-013..014`, `LTA-V0-013`, `LOD-V0-035` and `LAC-V0-038`. Delivery remains experimental.

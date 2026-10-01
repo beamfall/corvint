@@ -1,7 +1,7 @@
 package model
 
 func validateDecodedTraceAggregate(source Source, cohorts []Cohort) error {
-	if source.AdapterID != "local-trace-v1" {
+	if !isLocalTraceAdapter(source.AdapterID) {
 		if source.Members != nil {
 			return invalidArgument()
 		}

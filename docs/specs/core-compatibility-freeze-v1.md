@@ -397,3 +397,14 @@ statements of CCF-V1-007; no stored state changes. Reverting only its exclusion-
 rows (accepted 2026-09-26, decision 0422; V1-0350) means deleting those three rows, the cases `query excluded sources`, `context
 reserved rows`, `impact path excluded sources` and `impact path non-utf8 source` with their helpers,
 N-1 skip and goldens; that restores the NOT_PRODUCED statement for those members.
+
+## Typed verification extension (issue 408, accepted 2026-09-30)
+
+`LTPM-V0-013`/`LTPM-V0-014` add repeatable `record --verify-argv-json` and a closed schema-2
+verification union. This owner-accepted additive extension preserves existing schema-1 bytes,
+IDs, acceptance and refusals. Frozen CLI/dashboard manifests and old golden expectations are
+unchanged. New spec-authored tests pin the schema-2 canonical preimage and identity separately;
+no candidate output regenerates historical oracle expectations. All trace consumers validate
+the typed profile, and mixed dashboard snapshots use the distinct `LOD-V0-035` registry.
+Rollback stops new v2 writes while retaining v2 readers. This does not qualify a release or
+prove a retrieval-quality improvement.

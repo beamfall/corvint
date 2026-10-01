@@ -3,7 +3,7 @@ package model
 import "sort"
 
 func validateAndCloneMembers(input SourceInput, cohortIDs []string) (*[]TraceMember, error) {
-	if input.AdapterID != "local-trace-v1" {
+	if !isLocalTraceAdapter(input.AdapterID) {
 		if input.Members != nil {
 			return nil, invalidArgument()
 		}

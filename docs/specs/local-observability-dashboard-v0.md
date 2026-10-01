@@ -1473,6 +1473,30 @@ schemas below are proposed contracts, not repository conventions.
   `internal/dashboard/roadmap/compile_test.go`'s `TestCompileIsDeterministic` is the acceptance
   evidence.
 
+### Accepted amendment: typed trace adapter (2026-09-30, issue 408)
+
+This narrow owner-accepted amendment does not accept the remaining proposed dashboard product.
+
+- `LOD-V0-035`: A scan MUST validate schema-2 trace rows using the closed codec and screening in
+  `LTPM-V0-013` and `LTA-V0-013`, and retain all existing repository witness and resource checks.
+  A physical trace store remains one configured source, each revision file one member and one
+  cohort, including mixed v1/v2 files. If any admitted row is v2, the whole aggregate MUST use
+  adapter `local-trace-v2`, profile `corvint-local-trace/2`, verifier `go-local-trace-v2`; that verifier
+  admits both v1 and v2. Source byte counts and member SHA-256 bind physical bytes exactly once.
+  The v2 registry extends the frozen registry with this one descriptor, keeping the trace location,
+  bounds, issue codes, source kind and experimental delivery semantics. Its registry digest is
+  `sha256:477cf73e98c9ef9c70dcaea45ea4520e8957cac99ce9fea9886207a88df74738`.
+  A v1-only scan MUST use the unchanged registry digest
+  `sha256:2de98344235e7f432b1b486c14fa1023f9fdb08b41632bac04d3049592cf3bb3`
+  and unchanged snapshot bytes. Snapshot compilation and verification MUST require the registry
+  selected by their source set. Neither snapshot may disclose task text, paths or verification
+  values. Rejected v2 rows MUST retain the existing partial/invalid accounting rules without
+  upgrading their authority or claiming an admitted v2 source.
+
+Acceptance: `TestLODV0035MixedTraceSnapshot`, `TestTypedTraceConformance`,
+`FuzzTypedRowsAgreeWithWriter`, and unchanged frozen
+v1 dashboard fixtures. Removing new v2 production preserves mixed-store readers on rollback.
+
 ## Staged deterministic acceptance
 
 ### P0 snapshot compiler

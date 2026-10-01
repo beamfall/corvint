@@ -49,7 +49,7 @@ func compileExpectedTraceSnapshot(manifest traceManifest, corpus traceCorpusResu
 		}
 		issues = append(issues, sourceIssues...)
 		configuredRows = append(configuredRows, map[string]any{
-			"adapterId": "local-trace-v1", "configuredOrdinal": configured.configuredOrdinal, "contentSha256": one.row["contentSha256"],
+			"adapterId": one.row["adapterId"], "configuredOrdinal": configured.configuredOrdinal, "contentSha256": one.row["contentSha256"],
 		})
 	}
 
@@ -103,7 +103,7 @@ func compileExpectedTraceSnapshot(manifest traceManifest, corpus traceCorpusResu
 		"frontier":    []any{unavailableSnapshotMetric("frontier.items", "UNSUPPORTED")},
 		"generatedAt": generatedAt, "harnesses": []any{}, "issues": issues,
 		"observation": map[string]any{
-			"adapterRegistrySha256": domainDigest("corvint-dashboard-adapter-registry/0", []byte(canonicalRegistry)),
+			"adapterRegistrySha256": expectedTraceRegistryDigest(configuredRows),
 			"clockSource":           "CALLER", "configuredSourceSetSha256": hashCanonical("corvint-dashboard-configured-sources/0", configuredRows),
 			"end": generatedAt, "limitsProfile": "corvint-dashboard-limits/0", "scanState": scanState, "start": generatedAt,
 		},
@@ -120,6 +120,13 @@ func compileExpectedTraceSnapshot(manifest traceManifest, corpus traceCorpusResu
 }
 
 func compileOneTraceSource(configured traceConfiguredSource, source traceCorpusSource, repository gitSemanticEvidence, generatedAt, dirtyDigest string) (compiledTraceSource, []any, []any, error) {
+	adapter, profile, verifier := "local-trace-v1", "corvint-local-trace/1", "go-local-trace-v1"
+	authority := "ADVISORY"
+	if source.hasV2 {
+		adapter, profile, verifier = "local-trace-v2", "corvint-local-trace/2", "go-local-trace-v2"
+		authority = "ADAPTER_QUALIFIED"
+	}
+
 	members := make([]any, 0, len(source.members))
 	cohorts := make([]any, 0, len(source.members))
 	cohortByRevision := make(map[string]string)
@@ -132,8 +139,8 @@ func compileOneTraceSource(configured traceConfiguredSource, source traceCorpusS
 			return compiledTraceSource{}, nil, nil, reject(rejectInternal)
 		}
 		basis := map[string]any{
-			"adapterId": "local-trace-v1", "dirtyPathsSha256": dirtyDigest,
-			"producerIdentity": "go-local-trace-v1", "profile": "corvint-local-trace/1",
+			"adapterId": adapter, "dirtyPathsSha256": dirtyDigest,
+			"producerIdentity": verifier, "profile": profile,
 			"repositoryObjectFormat": repository.format, "sourceObservationEnd": generatedAt,
 			"sourceObservationStart": generatedAt, "sourceRevision": member.revision, "sourceTreeRevision": tree,
 		}
@@ -180,8 +187,8 @@ func compileOneTraceSource(configured traceConfiguredSource, source traceCorpusS
 		cohortByRevision = map[string]string{}
 	}
 	identityBasis := map[string]any{
-		"adapterId": "local-trace-v1", "configuredOrdinal": configured.configuredOrdinal,
-		"contentSha256": contentDigest, "profile": "corvint-local-trace/1", "repositoryReadsSha256": repositoryReads,
+		"adapterId": adapter, "configuredOrdinal": configured.configuredOrdinal,
+		"contentSha256": contentDigest, "profile": profile, "repositoryReadsSha256": repositoryReads,
 	}
 	sourceID := "dashboard-source:" + hashCanonical("corvint-dashboard-source/0", identityBasis)
 	issues := make([]any, 0, len(source.terminal)+2)
@@ -214,13 +221,13 @@ func compileOneTraceSource(configured traceConfiguredSource, source traceCorpusS
 		observationStart, observationEnd = generatedAt, generatedAt
 	}
 	row := map[string]any{
-		"adapterId": "local-trace-v1", "authorityClass": "ADVISORY", "byteCount": byteCount,
+		"adapterId": adapter, "authorityClass": authority, "byteCount": byteCount,
 		"cohortIds": cohortIDs, "completeness": completeness, "configuredOrdinal": configured.configuredOrdinal,
 		"contentSha256": contentDigest, "currency": currency, "deliveryStage": "NOT_STARTED",
-		"displayLabel": "local-trace-v1#" + configured.configuredOrdinal, "epistemicClass": epistemic, "exclusions": exclusions,
+		"displayLabel": adapter + "#" + configured.configuredOrdinal, "epistemicClass": epistemic, "exclusions": exclusions,
 		"id": sourceID, "members": members, "observationEnd": observationEnd, "observationStart": observationStart,
-		"observationTime": nil, "profile": "corvint-local-trace/1", "repositoryReadsSha256": repositoryReads,
-		"validity": validity, "verifierId": "go-local-trace-v1",
+		"observationTime": nil, "profile": profile, "repositoryReadsSha256": repositoryReads,
+		"validity": validity, "verifierId": verifier,
 	}
 	return compiledTraceSource{row: row, corpus: source, cohortByRevision: cohortByRevision, terminalIssues: terminalIssueIDs, overrideIssue: overrideIssueID}, cohorts, issues, nil
 }
@@ -262,8 +269,8 @@ func compileTraceInventory(sources []compiledTraceSource) []any {
 	}
 	add := func(source compiledTraceSource, name, kind, validity string, revision any, cohortIDs []any, value *int64, exclusions []string, completeness string, epistemic string) {
 		dimensions := []any{
-			map[string]any{"name": "adapterId", "value": "local-trace-v1"}, map[string]any{"name": "ageBucket", "value": "UNKNOWN"},
-			map[string]any{"name": "artifactKind", "value": kind}, map[string]any{"name": "authorityClass", "value": "ADVISORY"},
+			map[string]any{"name": "adapterId", "value": source.row["adapterId"]}, map[string]any{"name": "ageBucket", "value": "UNKNOWN"},
+			map[string]any{"name": "artifactKind", "value": kind}, map[string]any{"name": "authorityClass", "value": source.row["authorityClass"]},
 			map[string]any{"name": "deliveryStage", "value": "NOT_STARTED"}, map[string]any{"name": "revision", "value": revision},
 			map[string]any{"name": "validity", "value": validity},
 		}
@@ -272,7 +279,7 @@ func compileTraceInventory(sources []compiledTraceSource) []any {
 		if group == nil {
 			group = &traceMetricAccumulator{sources: make(map[string]struct{}), excludes: make(map[string]struct{})}
 			group.metric = map[string]any{
-				"authorityClass": "ADVISORY", "cohortIds": cohortIDs, "completeness": completeness, "currency": source.row["currency"],
+				"authorityClass": source.row["authorityClass"], "cohortIds": cohortIDs, "completeness": completeness, "currency": source.row["currency"],
 				"denominator": nil, "deliveryStage": "NOT_STARTED", "dimensions": dimensions, "epistemicClass": epistemic,
 				"exclusions": []any{}, "name": name, "numerator": nil, "scopeClass": "MULTI_COHORT_INVENTORY",
 				"sourceIds": []any{}, "unit": metricUnit[name], "validity": validity, "value": nil, "window": nil,
@@ -377,6 +384,9 @@ func compileTraceUsage(sources []compiledTraceSource) []any {
 	}
 	for _, source := range sources {
 		for revision, outcomes := range source.corpus.outcomes {
+			if source.corpus.hasV2 {
+				outcomes = map[string]int{"blocked": outcomes["blocked"], "failed": outcomes["failed"], "passed": outcomes["passed"]}
+			}
 			for outcome, count := range outcomes {
 				cohorts := []any{source.cohortByRevision[revision]}
 				dimensions := []any{map[string]any{"name": "outcome", "value": outcome}, map[string]any{"name": "revision", "value": revision}}

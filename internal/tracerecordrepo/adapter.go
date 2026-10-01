@@ -38,11 +38,12 @@ const (
 
 // Input is the public record command payload after argument parsing.
 type Input struct {
-	Task         string
-	OpenedPaths  []string
-	ChangedPaths []string
-	Verification []string
-	Outcome      string
+	Task             string
+	OpenedPaths      []string
+	ChangedPaths     []string
+	Verification     []string
+	VerificationArgv [][]string
+	Outcome          string
 }
 
 // Result is the canonical trace, its resolved store path, and the number of
@@ -183,7 +184,7 @@ func recordIndex(ctx context.Context, root string) (*contextindex.Index, []strin
 func recordWithIndex(ctx context.Context, root string, index *contextindex.Index, tracked []string, stable func() error, stagedStable func(string) error, input Input) (Result, error) {
 	validated, err := trace.NewRecord(trace.Input{
 		Revision: index.CommitRevision, TreeRevision: index.Revision,
-		Task: "record validation", Verification: input.Verification, Outcome: "passed",
+		Task: "record validation", Verification: input.Verification, VerificationArgv: input.VerificationArgv, Outcome: "passed",
 	}, tracked)
 	if err != nil {
 		return Result{}, err
@@ -197,7 +198,7 @@ func recordWithIndex(ctx context.Context, root string, index *contextindex.Index
 		built, err := trace.NewRecord(trace.Input{
 			Revision: index.CommitRevision, TreeRevision: index.Revision,
 			Task: input.Task, OpenedPaths: input.OpenedPaths, ChangedPaths: input.ChangedPaths,
-			Verification: validated.Verification, Outcome: input.Outcome,
+			Verification: validated.VerificationCommands(), VerificationArgv: validated.VerificationArgv(), Outcome: input.Outcome,
 		}, tracked)
 		if err != nil {
 			return err

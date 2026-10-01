@@ -26,28 +26,30 @@ const (
 	MaxTaskCharacters       = 2_000
 )
 
-// Record is the schema-version 1 JSONL record shared with the Python runtime.
+// Record holds either the immutable schema-v1 command list or schema-v2 typed entries.
 // Slices are always normalized to non-nil values by constructors and decoders.
 type Record struct {
-	SchemaVersion int
-	Revision      string
-	TraceID       string
-	Task          string
-	OpenedPaths   []string
-	ChangedPaths  []string
-	Verification  []string
-	Outcome       string
+	SchemaVersion     int
+	Revision          string
+	TraceID           string
+	Task              string
+	OpenedPaths       []string
+	ChangedPaths      []string
+	Verification      []string
+	TypedVerification []VerificationEntry
+	Outcome           string
 }
 
 // Input contains the caller-controlled fields of a new trace record.
 type Input struct {
-	Revision     string
-	TreeRevision string
-	Task         string
-	OpenedPaths  []string
-	ChangedPaths []string
-	Verification []string
-	Outcome      string
+	Revision         string
+	TreeRevision     string
+	Task             string
+	OpenedPaths      []string
+	ChangedPaths     []string
+	Verification     []string
+	VerificationArgv [][]string
+	Outcome          string
 }
 
 // NewRecord applies the Python writer's normalization and computes TraceID.
@@ -81,6 +83,23 @@ func NewRecord(input Input, trackedPaths []string) (Record, error) {
 		Verification:  commands,
 		Outcome:       input.Outcome,
 	}
+	if len(input.VerificationArgv) != 0 {
+		if len(input.Verification)+len(input.VerificationArgv) > MaxVerificationCommands {
+			return Record{}, argvFailure("too many verification entries")
+		}
+		entries := make([]VerificationEntry, 0, len(commands)+len(input.VerificationArgv))
+		for _, command := range commands {
+			entries = append(entries, VerificationEntry{Kind: "command", Command: command})
+		}
+		for _, argv := range input.VerificationArgv {
+			entries = append(entries, VerificationEntry{Kind: "argv", Argv: argv})
+		}
+		record.TypedVerification, err = normalizeEntries(entries)
+		if err != nil {
+			return Record{}, err
+		}
+		record.SchemaVersion, record.Verification = SchemaVersionV2, nil
+	}
 	record.TraceID, err = traceID(record)
 	if err != nil {
 		return Record{}, err
@@ -89,6 +108,18 @@ func NewRecord(input Input, trackedPaths []string) (Record, error) {
 }
 
 func normalizeStoredRecord(record Record, expectedRevision string, tracked map[string]struct{}) (Record, error) {
+	if record.SchemaVersion == SchemaVersionV2 {
+		if err := validateV2Record(record, expectedRevision); err != nil {
+			return Record{}, err
+		}
+		if _, err := normalizeHistoricalPaths(record.OpenedPaths, "opened_paths", expectedRevision, tracked); err != nil {
+			return Record{}, err
+		}
+		if _, err := normalizeHistoricalPaths(record.ChangedPaths, "changed_paths", expectedRevision, tracked); err != nil {
+			return Record{}, err
+		}
+		return record, nil
+	}
 	if record.SchemaVersion != SchemaVersion {
 		return Record{}, fmt.Errorf("unsupported local trace schema")
 	}
@@ -135,6 +166,9 @@ func normalizeStoredRecord(record Record, expectedRevision string, tracked map[s
 }
 
 func validateUnreachableRecord(record Record, expectedRevision string) error {
+	if record.SchemaVersion == SchemaVersionV2 {
+		return validateV2Record(record, expectedRevision)
+	}
 	if record.SchemaVersion != SchemaVersion {
 		return fmt.Errorf("unsupported local trace schema")
 	}
@@ -183,6 +217,10 @@ func validateUnreachableRecord(record Record, expectedRevision string) error {
 }
 
 func validateAppendRecord(record Record, tracked map[string]struct{}) error {
+	if record.SchemaVersion == SchemaVersionV2 {
+		_, err := normalizeStoredRecord(record, record.Revision, tracked)
+		return err
+	}
 	if record.SchemaVersion != SchemaVersion {
 		return fmt.Errorf("unsupported local trace schema")
 	}

@@ -5,7 +5,7 @@ Date: 2026-08-28. Status: accepted. Authority: `GPK-V0-002`, `GPK-V0-033`.
 ## Problem
 
 `record` emits an absolute repository path in its `store` field. Go
-(`internal/tracerecordrepo/adapter.go:232@4858d617`, via `trace.StorePath`) and Python
+(`internal/tracerecordrepo/adapter.go:233@4858d617`, via `trace.StorePath`) and Python
 (`src/context_corvint_trace.py`, `str(store)` derived from `corvint.root`) **both** do this, and they
 agree. An earlier note treating this as a Go defect blocking the `record` positive case was wrong.
 

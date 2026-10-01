@@ -13,7 +13,13 @@ func Compile(input Input) (*Snapshot, []byte, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	if registryHash != ExpectedAdapterRegistrySHA256 {
+	expectedRegistry := ExpectedAdapterRegistrySHA256
+	for _, source := range input.Sources {
+		if source.AdapterID == "local-trace-v2" {
+			expectedRegistry = ExpectedTypedTraceAdapterRegistrySHA256
+		}
+	}
+	if registryHash != expectedRegistry {
 		return nil, nil, invalidArgument()
 	}
 	sources, cohorts, configuredHash, err := compileSources(input.Sources, registry, input.Repository)

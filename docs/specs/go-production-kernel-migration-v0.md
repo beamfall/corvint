@@ -1402,3 +1402,14 @@ is one name, so one matching code line is one pair and one evidence item for `ki
   classes as a `python-defect`. The analyzer schema moves to `corvint-analyzer/86`. Rollback:
   revert the change, which removes the disclosure and the importing-test reason and restores
   `corvint-analyzer/85`.
+
+## Typed verification extension (issue 408, accepted 2026-09-30)
+
+`LTPM-V0-013`/`LTPM-V0-014` add repeatable `record --verify-argv-json` and a closed schema-2
+verification union. This owner-accepted additive extension preserves existing schema-1 bytes,
+IDs, acceptance and refusals. Frozen CLI/dashboard manifests and old golden expectations are
+unchanged. New spec-authored tests pin the schema-2 canonical preimage and identity separately;
+no candidate output regenerates historical oracle expectations. All trace consumers validate
+the typed profile, and mixed dashboard snapshots use the distinct `LOD-V0-035` registry.
+Rollback stops new v2 writes while retaining v2 readers. This does not qualify a release or
+prove a retrieval-quality improvement.

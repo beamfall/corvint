@@ -1422,6 +1422,7 @@ LAC-V0-034	docs/specs/local-admin-console-v0.md	243	Every edge MUST name the art
 LAC-V0-035	docs/specs/local-admin-console-v0.md	257	An edge the artifacts do not establish MUST render as a gap row with its class a
 LAC-V0-036	docs/specs/local-admin-console-v0.md	272	The pane MUST be reachable from the primary navigation and operable by keyboard
 LAC-V0-037	docs/specs/local-admin-console-v0.md	279	Selecting a hunk through its existing pinned plain hyperlink MUST gather its
+LAC-V0-038	docs/specs/local-admin-console-v0.md	291	The chain pane MUST validate schema-2 rows under `LTPM-V0-013` before displaying
 LCP-V0-001	docs/specs/local-completion-policy-v0.md	40	The local policy MUST remain caller-owned and non-authoritative. Its positive st
 LCP-V0-002	docs/specs/local-completion-policy-v0.md	44	Enrollment MUST be explicit through `corvint dogfood begin`. One bounded plan pi
 LCP-V0-003	docs/specs/local-completion-policy-v0.md	85	`status` and automatic event evaluation MUST be read-only. They derive unmet
@@ -1492,6 +1493,7 @@ LOD-V0-031	docs/specs/local-observability-dashboard-v0.md	1432	Each ticket's `re
 LOD-V0-032	docs/specs/local-observability-dashboard-v0.md	1442	A test receipt is a proposed one-file-per-requirement-ID JSON document under a
 LOD-V0-033	docs/specs/local-observability-dashboard-v0.md	1464	Generated-doc state is a proposed docs-state JSON document, a map keyed by ticke
 LOD-V0-034	docs/specs/local-observability-dashboard-v0.md	1471	Given identical `atm` output, `REQUIREMENTS.tsv`, receipts, docs-state, and tree
+LOD-V0-035	docs/specs/local-observability-dashboard-v0.md	1480	A scan MUST validate schema-2 trace rows using the closed codec and screening in
 LPCV-V0-001	docs/specs/live-proof-carrying-verification-v0.md	128	Every edit event MUST produce or reference one WSI before selection begins.
 LPCV-V0-002	docs/specs/live-proof-carrying-verification-v0.md	131	The WSI MUST cover accepted unsaved editor buffers as content-addressed overlays
 LPCV-V0-003	docs/specs/live-proof-carrying-verification-v0.md	134	Source or configuration fields needed by the WSI, and environment or toolchain
@@ -1603,6 +1605,7 @@ LTA-V0-009	docs/specs/learned-trace-admission-v0.md	121	(decision 0368, accepted
 LTA-V0-010	docs/specs/learned-trace-admission-v0.md	132	(decision 0368, accepted by 0373, experimental) Each proposal MUST be scored aga
 LTA-V0-011	docs/specs/learned-trace-admission-v0.md	141	(decision 0368, accepted by 0373, experimental) Only `--admit` with an `improved
 LTA-V0-012	docs/specs/learned-trace-admission-v0.md	159	(decision 0368, accepted by 0373, experimental) `corvint eval --reset-slot-weigh
+LTA-V0-013	docs/specs/learned-trace-admission-v0.md	167	Schema-2 verification defined by `LTPM-V0-013` MUST pass the shared
 LTPM-V0-001	docs/specs/local-trace-producer-migration-v0.md	55	`record_trace` MUST obtain the clean `HEAD` commit and its tree from one reposit
 LTPM-V0-002	docs/specs/local-trace-producer-migration-v0.md	59	The Python reader MUST accept canonical rows only when their filename and row na
 LTPM-V0-003	docs/specs/local-trace-producer-migration-v0.md	64	Dry-run MUST be read-only and bind its plan digest to the stable current commit/
@@ -1613,8 +1616,10 @@ LTPM-V0-007	docs/specs/local-trace-producer-migration-v0.md	86	Apply MUST then s
 LTPM-V0-008	docs/specs/local-trace-producer-migration-v0.md	90	Source, existing target, lock, and quarantine files MUST use descriptor-relative
 LTPM-V0-009	docs/specs/local-trace-producer-migration-v0.md	101	Apply is resumable rather than globally atomic. Interruption MAY leave verified
 LTPM-V0-010	docs/specs/local-trace-producer-migration-v0.md	105	Query, impact, dashboard acquisition, and ordinary trace reads MUST never invoke
-LTPM-V0-011	docs/specs/local-trace-producer-migration-v0.md	209	public `record` semantics MUST remain unchanged. `--changed` is required
-LTPM-V0-012	docs/specs/local-trace-producer-migration-v0.md	320	(accepted by the owner 2026-09-27; V1-0144) After an amend or rebase, a trace
+LTPM-V0-011	docs/specs/local-trace-producer-migration-v0.md	254	public `record` semantics MUST remain unchanged. `--changed` is required
+LTPM-V0-012	docs/specs/local-trace-producer-migration-v0.md	365	(accepted by the owner 2026-09-27; V1-0144) After an amend or rebase, a trace
+LTPM-V0-013	docs/specs/local-trace-producer-migration-v0.md	115	`record` MUST accept repeatable `--verify-argv-json JSON_ARRAY` (including the
+LTPM-V0-014	docs/specs/local-trace-producer-migration-v0.md	133	All ordinary trace consumers MUST admit validated mixed v1/v2 revision files
 MCPV0-001	docs/specs/mcp-server-2026-07-28-v0.md	107	The executable MUST run as `corvint-mcp --root ABSOLUTE_ROOT`. It owns exactly o
 MCPV0-002	docs/specs/mcp-server-2026-07-28-v0.md	120	P0 transport is stdio only. Each message is one UTF-8 JSON object followed by LF
 MCPV0-003	docs/specs/mcp-server-2026-07-28-v0.md	126	The decoder MUST reject invalid UTF-8, invalid JSON, duplicate object names at a
