@@ -99,7 +99,7 @@ const spyConsole=(t,level)=>{const rows=[],original=console[level];console[level
 
 // Use a genuine query for transport success under load; automatic deadlines are checked separately.
 // This fixture bound is not an AHI-012 latency measurement.
-test('CRB-V0-012 OpenCode query transport, unicode bounds, receipt and env',async t=>{
+test('AHI-020 CRB-V0-012 OpenCode query transport, unicode bounds, receipt and env',async t=>{
  const f=fixture(t);const result=await f.runOpen(request(f.root,'user-prompt'));assert.equal(result.ok,true,JSON.stringify(result))
  const manifest=JSON.parse(readFileSync(join(here,'opencode/package.json'),'utf8'))
  const matrix=JSON.parse(readFileSync(join(here,'compatibility.json'),'utf8')).entries.find(entry=>entry.host==='opencode')
