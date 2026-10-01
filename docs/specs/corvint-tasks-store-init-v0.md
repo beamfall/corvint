@@ -176,8 +176,11 @@ symlinked ancestor is then refused again, and a journal it already wrote keeps t
 CTS-V0-006 is accepted by snapshot tests that finish a simulated writer during the pause and read
 the new head, report `REDO_PENDING` only after the budget with the store byte-identical, and pause
 moved re-reads; and by CLI tests that run `queue status` and `plan preview` against a planted
-pending receipt a goroutine applies, and repeatedly under a writer committing twenty receipts with
-a short pending window, where the same test with the budget disabled reproduces issue 433. Rollback
+pending receipt a goroutine applies, and repeatedly under a writer committing twelve receipts with
+a short pending window, where the same test with the budget disabled reproduces issue 433; and by
+archive tests that run `archive export` repeatedly under a writer committing eight receipts (with
+the budget disabled it reproduces the issue) and that bound the pauses of all four archive attempts
+to one budget, with the final `SNAPSHOT_MOVED` naming the wait and called retryable. Rollback
 sets `DefaultPatience` to `NoPatience` in `internal/tasks/snapshot/probe.go`, which restores the
 immediate `REDO_PENDING` and the unpaused attempts; no state format or envelope changes.
 

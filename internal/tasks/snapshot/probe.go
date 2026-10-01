@@ -269,7 +269,7 @@ func (r Reader) Read(body func(s *Snapshot) error) (*Snapshot, error) {
 			if transient(err) && wait() {
 				continue
 			}
-			return s, afterWait(err, start, waits)
+			return s, AfterWait(err, start, waits)
 		}
 		stall = 0
 		attempts++
@@ -282,7 +282,7 @@ func (r Reader) Read(body func(s *Snapshot) error) (*Snapshot, error) {
 			if transient(err) && wait() {
 				continue
 			}
-			return again, afterWait(err, start, waits)
+			return again, AfterWait(err, start, waits)
 		}
 		if Same(s, again) {
 			return s, bodyErr
@@ -296,13 +296,13 @@ func (r Reader) Read(body func(s *Snapshot) error) (*Snapshot, error) {
 			break
 		}
 	}
-	return last, afterWait(wire.Errorf(wire.CodeSnapshotMoved, r.StateDir, "the store changed during every one of %d read attempts", attempts), start, waits)
+	return last, AfterWait(wire.Errorf(wire.CodeSnapshotMoved, r.StateDir, "the store changed during every one of %d read attempts", attempts), start, waits)
 }
 
 // afterWait names the wait on a failure reported after at least one pause,
 // so a consumer can tell a waited-out writer from an instant refusal; an
 // error reported without waiting is returned verbatim.
-func afterWait(err error, start time.Time, waits int) error {
+func AfterWait(err error, start time.Time, waits int) error {
 	e, ok := err.(*wire.Error)
 	if !ok || waits == 0 {
 		return err

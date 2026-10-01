@@ -25,7 +25,10 @@ unpaused re-reads after it, so test binaries, which disable the budget through
 and lock nothing and never redo a receipt (product invariant 4). The wire envelope is unchanged
 (closed profile); the `withStore` and `archive export` reader literals are untouched because the
 budget is the reader's default, which keeps this change disjoint from the issue 446 read-cost work
-and PR 441.
+and PR 441. `archive export` owns its own four-attempt loop for movement its body detects, so
+`readArchive` gives each attempt only the time left on one shared deadline and names the wait on
+its own final `SNAPSHOT_MOVED` (repair r1: the first version gave every attempt the full budget,
+up to four times the patience, and reported the moved failure without the wait).
 
 Rejected: a longer budget (hides a crashed writer longer), reader-side redo (a read would mutate),
 a new envelope key (closed profile with many decoders), and an environment override (no request;
@@ -34,9 +37,12 @@ a new envelope key (closed profile with many decoders), and an environment overr
 ## Evidence and limits
 
 `TestCTSV0006_ReadVerbsUnderConcurrentWriter` runs `queue status` and `plan preview` in a loop
-against a writer committing twenty receipts with a 10 ms pending window; with the budget disabled
+against a writer committing twelve receipts with a 10 ms pending window; with the budget disabled
 it reproduces the issue (NOT_RUN/REDO_PENDING on both verbs), with the budget it passes. Unit tests
 cover the writer finishing during the pause, the budget expiring with the store byte-identical,
-pause sizes, and the unpaused attempts after the budget. Limits: the reproduction is in-process
+pause sizes, and the unpaused attempts after the budget.
+`TestCTSV0006_ArchiveExportUnderConcurrentWriter` does the same for `archive export` (29 of 82
+exports failed with the budget disabled), and `TestCTSV0006_ArchiveAttemptsShareOnePatience` fails
+on the pre-repair loop (20 pauses totalling 415 ms against a 120 ms budget, no wait named). Limits: the reproduction is in-process
 and single-writer; the owner's ten-agent host was not re-run. A writer that commits continuously
 for longer than the budget still ends `SNAPSHOT_MOVED`, by design.
