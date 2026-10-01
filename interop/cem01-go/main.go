@@ -15,6 +15,12 @@ type response struct {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "verify-stable" {
+		runStableCLI(os.Args[2:])
+	}
+	if len(os.Args) > 1 && os.Args[1] == "verify-03" {
+		run03CLI(os.Args[2:])
+	}
 	if len(os.Args) > 1 && os.Args[1] == "verify-candidate" {
 		runCandidateCLI(os.Args[2:])
 	}

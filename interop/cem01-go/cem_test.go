@@ -5,7 +5,10 @@ import (
 	"compress/zlib"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"go/format"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -763,5 +766,489 @@ func TestCandidateScalarKindsBeforeHashing(t *testing.T) {
 			}
 		}
 		criteria[0][key] = saved
+	}
+}
+
+// CEM 0.3: independently authored from the public algorithm contract.
+func Test03IndependentStructuralPredicates(t *testing.T) {
+	tests := []struct {
+		name, reason, before, after string
+		want                        bool
+	}{
+		{"formatter-only", "formatter-only", "package p\nfunc f( ) { }\n", "package p\n\nfunc f() {}\n", true},
+		{"formatter-semantic", "formatter-only", "package p\nfunc f() int {return 1}\n", "package p\nfunc f() int {return 2}\n", false},
+		{"rename-receiver", "rename", "package p\ntype box int\nfunc(old box) Value() int{return int(old)}\n", "package p\ntype box int\nfunc(next box) Value() int{return int(next)}\n", true},
+		{"rename-label", "rename", "package p\nfunc f(){old: for { break old }}\n", "package p\nfunc f(){next: for { break next }}\n", true},
+		{"rename-local", "rename", "package p\nfunc f() int { old := 1; return old }\n", "package p\nfunc f() int { next := 1; return next }\n", true},
+		{"rename-comment", "rename", "package p\n// old is local; oldish stays.\nvar old = 1\n", "package p\n// next is local; oldish stays.\nvar next = 1\n", true},
+		{"rename-exported", "rename", "package p\nvar Old = 1\n", "package p\nvar Next = 1\n", false},
+		{"rename-existing", "rename", "package p\nvar old, next = 1, 2\n", "package p\nvar next, next = 1, 2\n", false},
+		{"rename-selector", "rename", "package p\nvar old = 1\nfunc f(){ _ = value.old }\n", "package p\nvar next = 1\nfunc f(){ _ = value.next }\n", false},
+		{"rename-field", "rename", "package p\ntype box struct{ old int }\n", "package p\ntype box struct{ next int }\n", false},
+		{"rename-method", "rename", "package p\ntype box int\nfunc(box) old(){}\n", "package p\ntype box int\nfunc(box) next(){}\n", false},
+		{"rename-directive", "rename", "package p\n//go:linkname old external\nvar old int\n", "package p\n//go:linkname next external\nvar next int\n", false},
+		{"rename-two-pairs", "rename", "package p\nvar old, other int\n", "package p\nvar next, different int\n", false},
+		{"move-functions", "move", "package p\nfunc a(){}\nfunc b(){}\n", "package p\nfunc b(){}\nfunc a(){}\n", true},
+		{"move-vars", "move", "package p\nvar a=first()\nvar b=second()\n", "package p\nvar b=second()\nvar a=first()\n", false},
+		{"move-init", "move", "package p\nfunc init(){ a() }\nfunc init(){ b() }\n", "package p\nfunc init(){ b() }\nfunc init(){ a() }\n", false},
+		{"move-semantic", "move", "package p\nfunc a(){ x() }\nfunc b(){}\n", "package p\nfunc b(){}\nfunc a(){ y() }\n", false},
+		{"import-order", "import-reorder", "package p\nimport(\n \"strings\"\n \"fmt\"\n)\n", "package p\nimport(\n \"fmt\"\n \"strings\"\n)\n", true},
+		{"import-alias", "import-reorder", "package p\nimport(\n s \"strings\"\n \"fmt\"\n)\n", "package p\nimport(\n \"fmt\"\n x \"strings\"\n)\n", false},
+		{"import-semantic", "import-reorder", "package p\nimport(\n \"strings\"\n \"fmt\"\n)\nvar x=1\n", "package p\nimport(\n \"fmt\"\n \"strings\"\n)\nvar x=2\n", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			a, ok := parseGo03([]byte(tc.before))
+			if !ok {
+				t.Fatal("invalid before")
+			}
+			b, ok := parseGo03([]byte(tc.after))
+			if !ok {
+				t.Fatal("invalid after")
+			}
+			got := false
+			switch tc.reason {
+			case "formatter-only":
+				x, e := format.Source([]byte(tc.before))
+				y, f := format.Source([]byte(tc.after))
+				got = e == nil && f == nil && bytes.Equal(x, y)
+			case "rename":
+				got = rename03(a, b)
+			case "move":
+				got = move03(a, b)
+			case "import-reorder":
+				got = importReorder03(a, b)
+			}
+			if got != tc.want {
+				t.Fatalf("got %v want %v", got, tc.want)
+			}
+		})
+	}
+}
+func testMap03() map[string]any {
+	return map[string]any{"spec": spec03, "baseRevision": strings.Repeat("a", 40), "patchSha256": strings.Repeat("b", 64), "excludedPath": sidecar03, "evidence": []any{}, "hunks": []any{map[string]any{"id": "hunk:sha256:" + strings.Repeat("c", 64), "path": "sample.go", "oldRange": map[string]any{"start": 1, "count": 5}, "newRange": map[string]any{"start": 1, "count": 5}, "disposition": "mechanical", "reason": "import-reorder", "basis": []any{}}}}
+}
+func Test03WitnessRetentionAndBoundaries(t *testing.T) {
+	cases := []struct {
+		name string
+		edit func(map[string]any)
+		code string
+	}{
+		{"absent", func(h map[string]any) {}, ""},
+		{"coverage", func(h map[string]any) {
+			h["coverage"] = map[string]any{"profileSha256": strings.Repeat("a", 64), "testRun": "fixture\u0085\u2028", "mode": "set", "state": "covered", "covered": []any{map[string]any{"start": 1, "count": 1}}}
+		}, ""},
+		{"null", func(h map[string]any) { h["coverage"] = nil }, "invalid-field"},
+		{"uncompiled-residual", func(h map[string]any) {
+			h["discriminates"] = map[string]any{"treeRevision": strings.Repeat("1", 40), "selectionSha256": strings.Repeat("2", 64), "mutants": 2, "killed": 1, "survived": 0, "survivors": []any{}, "bounds": map[string]any{"maxHunks": 1, "maxMutants": 1, "wallTimeSeconds": 1}, "state": "discriminates", "detail": ""}
+		}, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := testMap03()
+			h := m["hunks"].([]any)[0].(map[string]any)
+			tc.edit(h)
+			raw, _ := json.Marshal(m)
+			got, e := decode03(raw)
+			if tc.code != "" {
+				if e == nil || e.code != tc.code {
+					t.Fatalf("error %v", e)
+				}
+				return
+			}
+			if e != nil {
+				t.Fatal(e)
+			}
+			again, _ := json.Marshal(got)
+			var retained map[string]any
+			if e := json.Unmarshal(again, &retained); e != nil {
+				t.Fatal(e)
+			}
+			want, _ := json.Marshal(m)
+			actual, _ := json.Marshal(retained)
+			if string(want) != string(actual) {
+				t.Fatalf("lost values or presence\n%s\n%s", want, actual)
+			}
+		})
+	}
+	for _, tc := range []struct {
+		s    string
+		want bool
+	}{{strings.Repeat("x", 256), true}, {strings.Repeat("x", 257), false}, {strings.Repeat("é", 128), true}, {strings.Repeat("é", 129), false}, {"x\t", false}, {"x\u007f", false}, {"x\u0085", true}, {"x\u2028", true}} {
+		if textBound03(tc.s, 1, 256) != tc.want {
+			t.Fatal("text boundary")
+		}
+	}
+}
+func Test03StrictJSONIsSeparateFromLegacy(t *testing.T) {
+	for _, s := range []string{`{"n":-0}`, `{"n":1e0}`, `{"n":1.0}`, `{"n":9007199254740992}`, `{"n":1,"n":2}`, `{"n":"\ud800"}`} {
+		if strictJSON03([]byte(s)) == nil {
+			t.Fatalf("accepted %s", s)
+		}
+	}
+	for _, s := range []string{`{"n":0}`, `{"n":9007199254740991}`, `{"n":true}`} {
+		if e := strictJSON03([]byte(s)); e != nil {
+			t.Fatal(e)
+		}
+	}
+	for _, n := range []int{63, 64} {
+		s := `{"extra":` + strings.Repeat("[", n) + `0` + strings.Repeat("]", n) + `}`
+		e := strictJSON03([]byte(s))
+		if (e == nil) != (n == 63) {
+			t.Fatalf("depth %d: %v", n, e)
+		}
+	}
+	m := testMap03()
+	h := m["hunks"].([]any)[0].(map[string]any)
+	h["newRange"] = map[string]any{"start": uint64(maxWireInteger), "count": 1}
+	raw, _ := json.Marshal(m)
+	if _, e := decode03(raw); e != nil {
+		t.Fatalf("invented early endpoint rejection: %v", e)
+	}
+}
+
+func Test03GitDirectChildControls(t *testing.T) {
+	if os.PathSeparator == '\\' {
+		t.Skip("proposal refuses Windows process scope")
+	}
+	for _, tc := range []struct {
+		name, script, want string
+		limit              int
+		cancel             bool
+	}{
+		{"normal", "#!/bin/sh\nprintf 'ok'\n", "", 64, false},
+		{"output-limit", "#!/bin/sh\nprintf '0123456789abcdef'\n", "unsupported-resource-limit", 8, false},
+		// exec replaces the shell: this test admits exactly one child, not descendants.
+		{"cancel", "#!/bin/sh\nexec /bin/sleep 30\n", "git-timeout", 64, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			tool := filepath.Join(root, "git")
+			if e := os.WriteFile(tool, []byte(tc.script), 0700); e != nil {
+				t.Fatal(e)
+			}
+			t.Setenv("PATH", root)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if tc.cancel {
+				timer := time.AfterFunc(100*time.Millisecond, cancel)
+				defer timer.Stop()
+			}
+			v := &verifier{ctx: ctx, repo: root}
+			start := time.Now()
+			out, e := v.git03(tc.limit, "version")
+			if tc.want == "" {
+				if e != nil || string(out) != "ok" {
+					t.Fatalf("out=%q error=%v", out, e)
+				}
+			} else if e == nil || !e.operational || e.code != tc.want {
+				t.Fatalf("error=%v want operational %s", e, tc.want)
+			}
+			if time.Since(start) > 5*time.Second {
+				t.Fatal("direct child control exceeded bound")
+			}
+		})
+	}
+}
+
+func Test03DiffFailureBoundary(t *testing.T) {
+	if os.PathSeparator == '\\' {
+		t.Skip("proposal refuses Windows process scope")
+	}
+	root := t.TempDir()
+	if e := os.WriteFile(filepath.Join(root, "git"), []byte("#!/bin/sh\nexit 1\n"), 0700); e != nil {
+		t.Fatal(e)
+	}
+	t.Setenv("PATH", root)
+	for _, tc := range []struct {
+		name, want            string
+		diff, cancel, exhaust bool
+	}{
+		{"generic-read", "git-read-failed", false, false, false},
+		{"canonical-diff", "git-diff-failed", true, false, false},
+		{"diff-resource", "unsupported-resource-limit", true, false, true},
+		{"diff-timeout", "git-timeout", true, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if tc.cancel {
+				cancel()
+			}
+			v := &verifier{ctx: ctx, repo: root}
+			if tc.exhaust {
+				v.gitOps = maxGitOps
+			}
+			var e *cemError
+			if tc.diff {
+				_, e = v.patch03(strings.Repeat("a", 40), strings.Repeat("b", 40))
+			} else {
+				_, e = v.git03(64, "cat-file", "blob", strings.Repeat("a", 40))
+			}
+			if e == nil || !e.operational || e.code != tc.want {
+				t.Fatalf("error=%v want operational %s", e, tc.want)
+			}
+		})
+	}
+}
+
+func TestStableArtifactBoundary(t *testing.T) {
+	root := t.TempDir()
+	root, e := filepath.EvalSymlinks(root)
+	if e != nil {
+		t.Fatal(e)
+	}
+	b := []byte(`{"status":"FAILED","authentication":"FORGED"}`)
+	if e := os.WriteFile(filepath.Join(root, "receipt"), b, 0600); e != nil {
+		t.Fatal(e)
+	}
+	a := stableArtifact{"runner-receipt", "receipt", shaHex(b)}
+	checks, err := checkStableArtifacts(context.Background(), root, []stableArtifact{a})
+	if err != nil || len(checks) != 1 {
+		t.Fatalf("opaque integrity %v %v", checks, err)
+	}
+	a.SHA256 = strings.Repeat("0", 64)
+	checks, err = checkStableArtifacts(context.Background(), root, []stableArtifact{a})
+	if err == nil || err.code != "artifact-digest-mismatch" || len(checks) != 0 {
+		t.Fatalf("mismatch %v %v", checks, err)
+	}
+	if e := os.Symlink("receipt", filepath.Join(root, "link")); e != nil {
+		t.Fatal(e)
+	}
+	a.Path = "link"
+	a.SHA256 = shaHex(b)
+	_, err = checkStableArtifacts(context.Background(), root, []stableArtifact{a})
+	if err == nil || err.code != "artifact-unavailable" {
+		t.Fatalf("symlink %v", err)
+	}
+	if e := os.Symlink(root, filepath.Join(root, "dirlink")); e != nil {
+		t.Fatal(e)
+	}
+	a.Path = "dirlink/receipt"
+	_, err = checkStableArtifacts(context.Background(), root, []stableArtifact{a})
+	if err == nil || err.code != "artifact-unavailable" {
+		t.Fatalf("directory symlink %v", err)
+	}
+	a.Path = "../receipt"
+	_, err = checkStableArtifacts(context.Background(), root, []stableArtifact{a})
+	if err == nil {
+		t.Fatal("escape allowed")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	a.Path = "receipt"
+	_, err = checkStableArtifacts(ctx, root, []stableArtifact{a})
+	if err == nil || err.code != "verification-timeout" {
+		t.Fatalf("cancel %v", err)
+	}
+}
+func TestStableSeparateProfileAndArgumentPrecedence(t *testing.T) {
+	for _, s := range []string{"cem/0.1", "cem/0.3", "cem/1.0-candidate"} {
+		_, e := decodeStable([]byte(`{"spec":"` + s + `"}`))
+		if e == nil || e.code != "unsupported-spec" {
+			t.Fatalf("profile %s: %v", s, e)
+		}
+	}
+	for _, args := range [][]string{{"--repository", "/missing", "--map", "/missing", "--bogus", "x"}, {"--repository", "/missing", "--map", "/missing", "--map", "/other"}, {"--repository", "relative", "--map", "/missing"}} {
+		r, n := executeStableCLI(context.Background(), args)
+		if n != 2 || r.Stage != "arguments" || r.Code == nil || *r.Code != "invalid-arguments" || r.MapSHA256 != nil {
+			t.Fatalf("arguments %v %v", r, n)
+		}
+	}
+	r, n := executeStableCLI(context.Background(), []string{"--repository", "/missing", "--map", "/missing"})
+	if n != 2 || r.Stage != "input" {
+		t.Fatalf("input precedence %v", r)
+	}
+	b, _ := json.Marshal(newStableResult("base", "target"))
+	var obj map[string]json.RawMessage
+	_ = json.Unmarshal(b, &obj)
+	if len(obj) != 21 {
+		t.Fatalf("result keys %d", len(obj))
+	}
+}
+
+func TestStableArtifactsRequireTwoCompletePasses(t *testing.T) {
+	a, b := []byte("first"), []byte("second")
+	refs := []stableArtifact{{"runner-receipt", "a", shaHex(a)}, {"runner-plan", "b", shaHex(b)}}
+	for _, mode := range []string{"success", "changed-second-pass", "unavailable-second-pass", "late-first-pass"} {
+		t.Run(mode, func(t *testing.T) {
+			calls := []string{}
+			read := func(_ context.Context, _ string, r stableArtifact) ([]byte, *cemError) {
+				calls = append(calls, r.Path)
+				n := len(calls)
+				if mode == "unavailable-second-pass" && n == 4 {
+					return nil, operational("artifact-unavailable")
+				}
+				if mode == "late-first-pass" && n == 2 {
+					return nil, operational("artifact-resource-limit")
+				}
+				if mode == "changed-second-pass" && n == 4 {
+					return []byte("changed"), nil
+				}
+				if r.Path == "a" {
+					return a, nil
+				}
+				return b, nil
+			}
+			checks, e := checkStableArtifactReads(context.Background(), "/explicit", refs, read)
+			if mode == "success" {
+				if e != nil || len(checks) != 2 || strings.Join(calls, ",") != "a,b,a,b" {
+					t.Fatalf("success %v %v %v", checks, e, calls)
+				}
+			} else {
+				if e == nil || len(checks) != 0 {
+					t.Fatalf("partial success escaped %v %v", checks, e)
+				}
+				if mode == "changed-second-pass" && (e.operational || e.code != "artifact-changed-during-verification") {
+					t.Fatalf("change %v", e)
+				}
+			}
+		})
+	}
+}
+
+func TestStableSidecarFailureStates(t *testing.T) {
+	for _, tc := range []struct{ name, want, stage, issue string }{{"missing", "ABSENT", "verification", "patch-digest-mismatch"}, {"equal", "EXACT", "verification", "patch-digest-mismatch"}, {"mismatch", "MISMATCH", "binding", "excluded-artifact-mismatch"}, {"symlink", "UNSUPPORTED_KIND", "binding", "excluded-artifact-mismatch"}, {"executable", "UNSUPPORTED_KIND", "binding", "excluded-artifact-mismatch"}} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := t.TempDir()
+			gitRun(t, repo, "init", "-q")
+			write := func(p string, b []byte, mode os.FileMode) {
+				t.Helper()
+				if e := os.MkdirAll(filepath.Dir(filepath.Join(repo, p)), 0700); e != nil {
+					t.Fatal(e)
+				}
+				if e := os.WriteFile(filepath.Join(repo, p), b, mode); e != nil {
+					t.Fatal(e)
+				}
+			}
+			commit := func() string {
+				gitRun(t, repo, "add", ".")
+				gitRun(t, repo, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture")
+				return strings.TrimSpace(gitRun(t, repo, "rev-parse", "HEAD"))
+			}
+			write("app.txt", []byte("a\n"), 0600)
+			base := commit()
+			m := stableMap{Spec: stableSpec, BaseRevision: base, PatchSHA256: strings.Repeat("0", 64), ExcludedPath: sidecar03, Evidence: []evidence{}, Hunks: []hunk03{{mappedHunk: mappedHunk{ID: "hunk:sha256:" + strings.Repeat("1", 64), Path: "app.txt", OldRange: lineRange{1, 1}, NewRange: lineRange{1, 1}, Disposition: "unknown", Reason: "no-evidence", Basis: []basis{}}}}, stableReferences: emptyStableReferences()}
+			raw, e := json.Marshal(m)
+			if e != nil {
+				t.Fatal(e)
+			}
+			write("app.txt", []byte("b\n"), 0600)
+			switch tc.name {
+			case "equal":
+				write(sidecar03, raw, 0600)
+			case "mismatch":
+				write(sidecar03, []byte("different"), 0600)
+			case "executable":
+				write(sidecar03, raw, 0700)
+			case "symlink":
+				if e := os.MkdirAll(filepath.Dir(filepath.Join(repo, sidecar03)), 0700); e != nil {
+					t.Fatal(e)
+				}
+				if e := os.Symlink("app.txt", filepath.Join(repo, sidecar03)); e != nil {
+					t.Fatal(e)
+				}
+			}
+			target := commit()
+			r, n := runStable(context.Background(), repo, raw, base, target, t.TempDir())
+			if n != 1 || r.Sidecar != tc.want || r.Stage != tc.stage || len(r.IssueCodes) != 1 || r.IssueCodes[0] != tc.issue || r.Outcome != "REJECT" || r.Accept == nil || *r.Accept {
+				t.Fatalf("sidecar %s exit=%d result=%+v", tc.name, n, r)
+			}
+			if len(r.ArtifactChecks) != 0 || r.Axes["referenceIntegrity"] != "NOT_CHECKED" {
+				t.Fatalf("unearned artifact success %+v", r)
+			}
+			if tc.stage == "binding" {
+				expected := newStableResult(base, target)
+				no := false
+				expected.Accept = &no
+				expected.Outcome = "REJECT"
+				expected.Stage = "binding"
+				expected.IssueCodes = []string{"excluded-artifact-mismatch"}
+				expected.Assurance = string03("structural-only")
+				expected.MapSHA256 = string03(shaHex(raw))
+				expected.Sidecar = tc.want
+				expected.Hunks = m.Hunks
+				expected.References = m.stableReferences
+				expected.Axes["changeIntegrity"] = "FAILED"
+				expected.Axes["coverageValidation"] = "ABSENT"
+				expected.Axes["discriminationValidation"] = "ABSENT"
+				want, _ := json.Marshal(expected)
+				got, _ := json.Marshal(r)
+				if !bytes.Equal(want, got) {
+					t.Fatalf("full 21-key failure mismatch\nwant=%s\ngot=%s", want, got)
+				}
+			}
+		})
+	}
+}
+
+// Both source WriterTo and destination ReaderFrom dispatch must obey the cap.
+func TestCandidateBufferCopyLimits(t *testing.T) {
+	for _, writerTo := range []bool{false, true} {
+		for _, size := range []int{0, 7, 8, 9, 65537} {
+			t.Run(fmt.Sprintf("writerTo=%t/size=%d", writerTo, size), func(t *testing.T) {
+				b := &candidateBuffer{limit: 8}
+				var source io.Reader = strings.NewReader(strings.Repeat("x", size))
+				if !writerTo {
+					source = io.LimitReader(source, int64(size))
+				}
+				n, err := io.Copy(b, source)
+				if size <= 8 {
+					if err != nil || n != int64(size) || string(b.Bytes()) != strings.Repeat("x", size) {
+						t.Fatalf("n=%d err=%v bytes=%d", n, err, len(b.Bytes()))
+					}
+				} else if !errors.Is(err, errSizeLimit) || n > 8 || len(b.Bytes()) > 8 {
+					t.Fatalf("overflow n=%d err=%v retained=%d", n, err, len(b.Bytes()))
+				}
+			})
+		}
+	}
+	t.Run("successive-writes", func(t *testing.T) {
+		b := &candidateBuffer{limit: 8}
+		for _, s := range []string{"123", "45678"} {
+			if n, e := b.Write([]byte(s)); n != len(s) || e != nil {
+				t.Fatalf("write=%d,%v", n, e)
+			}
+		}
+		if n, e := b.Write([]byte("9")); n != 0 || !errors.Is(e, errSizeLimit) || string(b.Bytes()) != "12345678" {
+			t.Fatalf("overflow=%d,%v bytes=%q", n, e, b.Bytes())
+		}
+	})
+}
+
+func TestCandidateGitDirectChildOutputLimits(t *testing.T) {
+	if os.PathSeparator == '\\' {
+		t.Skip("direct-child fixture uses POSIX shell")
+	}
+	for _, tc := range []struct {
+		name                 string
+		stdout, stderr, exit int
+		want                 string
+	}{
+		{"empty", 0, 0, 0, ""}, {"stdout-exact", 8, 0, 0, ""}, {"stdout-overflow", 9, 0, 0, "unsupported-resource-limit"},
+		{"stderr-exact", 8, 65536, 0, ""}, {"stderr-overflow", 8, 65537, 0, "unsupported-resource-limit"},
+		{"stdout-overflow-child-failure", 9, 0, 7, "unsupported-resource-limit"}, {"stderr-overflow-child-failure", 0, 65537, 7, "unsupported-resource-limit"},
+		{"within-bound-child-failure", 8, 16, 7, "repository-io"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			// Shell builtins only: one direct child, no background processes/descendants.
+			script := fmt.Sprintf("#!/bin/sh\nprintf '%%s' '%s'\nprintf '%%s' '%s' >&2\nexit %d\n", strings.Repeat("o", tc.stdout), strings.Repeat("e", tc.stderr), tc.exit)
+			if err := os.WriteFile(filepath.Join(root, "git"), []byte(script), 0700); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("PATH", root)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			v := &verifier{ctx: ctx, repo: root}
+			out, err := v.candidateGit(8, "version")
+			if tc.want == "" {
+				if err != nil || string(out) != strings.Repeat("o", tc.stdout) {
+					t.Fatalf("bytes=%d err=%v", len(out), err)
+				}
+			} else if err == nil || !err.operational || err.code != tc.want || out != nil {
+				t.Fatalf("bytes=%d err=%v want=%s", len(out), err, tc.want)
+			}
+		})
 	}
 }
