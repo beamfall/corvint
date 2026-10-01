@@ -198,13 +198,13 @@ Tasks receipt and failed experiment. Older Core/Tasks readers keep their existin
 | Requirement | Implementation | Verification anchor |
 |---|---|---|
 | `CEX-V0-001` | `schema.go`, companion CLI | `TestSchemaAdmissionClosedAndBounded`; `TestCLIAdmissionAndUnknownVerb` |
-| `CEX-V0-002` | `authority.go`, `PlanExperiment` | `TestNativeCapturedBindingsAndLiveStaleness`; actual compiled `demo.py` |
+| `CEX-V0-002` | `authority.go`, `PlanExperiment` | `TestCriterionCaptureRetainsClaimAcrossNativeBodyEdit`; `TestClaimedAcceptanceAndSequenceBindings`; actual compiled `demo.py` |
 | `CEX-V0-003` | `source.go` inventory and pinned overlay | `TestImmutableInventoryOverlayAndRefusals`; `TestFixedRunnerActualPassFailureAndBinding` |
 | `CEX-V0-004` | `run_unix.go`, `Run` | `TestFixedRunnerActualPassFailureAndBinding`; `TestRunnerCancellationRetiresOrdinaryDescendants`; `TestRunnerOutputOverflowCancelsGroup` |
 | `CEX-V0-005` | `classify.go` | `TestClassifierNamedAssertionAndCompleteEvents`; `TestFixedRunnerWrongAssertionDiagnostic` |
 | `CEX-V0-006` | scenario enumeration and `Verify` | `TestRelationsPreserveScenarioDenominators`; `TestHistoricalVerifyArtifactsAndSurvivors`; three-relation live demo |
 | `CEX-V0-007` | captured inputs and historical `Verify` | `TestHistoricalVerifyArtifactsAndSurvivors`; live demo historical verification after acceptance change |
-| `CEX-V0-008` | coherent audited native reads and live checks | `TestNativeCapturedBindingsAndLiveStaleness`; live demo dirty submitted candidate and changed/terminal task refusal |
+| `CEX-V0-008` | coherent audited native reads and live checks | `TestLiveProjectionStaleness`; live demo dirty submitted candidate and changed/terminal task refusal |
 | `CEX-V0-009` | `Summary` and standalone gate CLI | `TestHistoricalVerifyArtifactsAndSurvivors`; actual nonfixture native command-gate/lifecycle observations |
 | `CEX-V0-010` | separate companion and unchanged provider contracts | `TestSourceProfileRejectsBroadenedExecution`; frozen CEM corpus; exact scoped diff/review |
 
