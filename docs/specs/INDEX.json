@@ -384,7 +384,7 @@
     "reqPrefix": "CRT-V0",
     "intent": "proposed",
     "delivery": "experimental",
-    "claim": "`tools/cem-trial` runs one agent over frozen Beamfall changes under `control` and `treatment` arms and scores withheld test-or-spec evidence per arm.",
+    "claim": "`tools/cem-trial` runs one agent over frozen Beamfall changes under control, treatment and seeded arms and scores base-reachable withheld test-or-spec evidence.",
     "dependsOn": [
       "docs/specs/confidently-wrong-trial-v0.md"
     ],

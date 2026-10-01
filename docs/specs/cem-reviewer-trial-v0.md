@@ -13,7 +13,7 @@ verifier hard failures"), `benchmarks/README.md` (partitions and the first-obser
 invariants 2 and 4.
 
 ## Agent digest
-- Claim: `tools/cem-trial` runs one agent over frozen Beamfall changes under `control`, `treatment` (empty-worklist map) and `seeded` (Corvint-suggested evidence) arms and scores withheld, base-reachable test-or-spec evidence per arm.
+- Claim: `tools/cem-trial` runs one agent over frozen Beamfall changes under control, treatment and seeded arms and scores base-reachable withheld test-or-spec evidence.
 - Status: proposed/experimental
 - Exists: `tools/cem-trial` (`select`, `run`, `score`), the five-change pilot manifest under `tools/cem-trial/testdata/pilot`, and `tools/cem-trial/testdata/fake-agent.sh`.
 - Blocked on: owner acceptance of the 2026-10-01 amendments and the owner-commissioned three-arm held-out run; the real-agent pilot is run and valid (2026-09-04) but its treatment carried no evidence and three of its five changes had gold no arm could cite.
