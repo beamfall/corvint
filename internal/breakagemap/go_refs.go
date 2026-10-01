@@ -3,6 +3,7 @@ package breakagemap
 import (
 	"context"
 	"go/ast"
+	"go/build/constraint"
 	"go/parser"
 	"go/token"
 	"path"
@@ -54,17 +55,54 @@ func declarationBytes(b []byte, name string) (string, bool) {
 	}
 	return "", false
 }
-func buildConditional(p string, b []byte) bool {
-	if strings.Contains(string(b), "//go:build") || strings.Contains(string(b), "// +build") {
-		return true
-	}
-	stem := strings.TrimSuffix(strings.TrimSuffix(path.Base(p), ".go"), "_test")
-	for _, part := range strings.Split(stem, "_")[1:] {
-		if strings.Contains(" aix android darwin dragonfly freebsd illumos ios js linux netbsd openbsd plan9 solaris wasip1 windows 386 amd64 arm arm64 loong64 mips mipsle mips64 mips64le ppc64 ppc64le riscv64 s390x wasm ", " "+part+" ") {
-			return true
+func buildConditional(p string, b []byte, f *ast.File, fs *token.FileSet) bool {
+	comments := map[int]*ast.Comment{}
+	for _, group := range f.Comments {
+		for _, comment := range group.List {
+			if comment.Pos() < f.Package {
+				comments[fs.PositionFor(comment.Pos(), false).Offset] = comment
+			}
 		}
 	}
-	return false
+	// Modern directives belong to leading line comments. Legacy directives also
+	// need a following blank line before the first block comment or source line.
+	remaining, offset := string(b), 0
+	packageOffset := fs.PositionFor(f.Package, false).Offset
+	legacyEnded, legacyDirective := false, false
+	for len(remaining) > 0 && offset <= packageOffset {
+		line, rest, _ := strings.Cut(remaining, "\n")
+		text := strings.TrimSpace(line)
+		comment := comments[offset+strings.Index(line, text)]
+		if comment != nil && constraint.IsGoBuild(comment.Text) {
+			return true
+		}
+		if !legacyEnded {
+			if text == "" && legacyDirective {
+				return true
+			}
+			if text != "" {
+				if comment == nil || !strings.HasPrefix(comment.Text, "//") {
+					legacyEnded = true
+				} else if constraint.IsPlusBuild(comment.Text) {
+					legacyDirective = true
+				}
+			}
+		}
+		offset += len(line) + 1
+		remaining = rest
+	}
+	// Go constrains only the final filename component before an optional _test,
+	// with a nonempty prefix; interior platform words do not constrain a file.
+	stem, _, _ := strings.Cut(path.Base(p), ".")
+	stem = strings.TrimSuffix(stem, "_test")
+	prefix, suffix, ok := strings.Cut(stem, "_")
+	if !ok || prefix == "" {
+		return false
+	}
+	parts := strings.Split(suffix, "_")
+	last := parts[len(parts)-1]
+	// Include Go's historical and reserved targets: they still constrain names.
+	return strings.Contains(" aix android darwin dragonfly freebsd hurd illumos ios js linux nacl netbsd openbsd plan9 solaris wasip1 windows zos 386 amd64 amd64p32 arm armbe arm64 arm64be loong64 mips mipsle mips64 mips64le mips64p32 mips64p32le ppc ppc64 ppc64le riscv riscv64 s390 s390x sparc sparc64 wasm ", " "+last+" ")
 }
 func modulePath(sources map[string]captured, c captured) (string, bool) {
 	dir := path.Dir(c.source.Path)
@@ -112,12 +150,12 @@ func analyzeGo(r *Report, sources map[string]captured, selected captured, name s
 		return
 	}
 	fs := token.NewFileSet()
-	f, err := parser.ParseFile(fs, selected.source.Path, selected.text, 0)
+	f, err := parser.ParseFile(fs, selected.source.Path, selected.text, parser.ParseComments)
 	if err != nil {
 		r.unknown(key, "malformed Go API source")
 		return
 	}
-	if buildConditional(selected.source.Path, selected.text) {
+	if buildConditional(selected.source.Path, selected.text, f, fs) {
 		r.unknown(key, "API build constraints unresolved")
 		return
 	}
@@ -172,14 +210,14 @@ func analyzeGo(r *Report, sources map[string]captured, selected captured, name s
 			r.unknown(k, "unsupported-language: only declared provider relations available")
 			continue
 		}
-		if buildConditional(c.source.Path, c.text) {
-			r.unknown(k, "build constraints unresolved")
-			continue
-		}
 		cfs := token.NewFileSet()
-		cf, e := parser.ParseFile(cfs, c.source.Path, c.text, 0)
+		cf, e := parser.ParseFile(cfs, c.source.Path, c.text, parser.ParseComments)
 		if e != nil {
 			r.unknown(k, "malformed Go source")
+			continue
+		}
+		if buildConditional(c.source.Path, c.text, cf, cfs) {
+			r.unknown(k, "build constraints unresolved")
 			continue
 		}
 		aliases := map[string]bool{}

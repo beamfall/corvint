@@ -240,10 +240,10 @@ BKM-V0-001	docs/specs/cross-repository-breakage-map-v0.md	53	The command MUST be
 BKM-V0-002	docs/specs/cross-repository-breakage-map-v0.md	56	The manifest MUST be one strict bounded UTF-8 JSON document with no
 BKM-V0-003	docs/specs/cross-repository-breakage-map-v0.md	62	Each emitted source witness MUST name an immutable Git blob and
 BKM-V0-004	docs/specs/cross-repository-breakage-map-v0.md	67	Go references MUST match the selected function's pinned module
-BKM-V0-005	docs/specs/cross-repository-breakage-map-v0.md	75	EEP V1 repository/entity composition and V2 path composition MUST
-BKM-V0-006	docs/specs/cross-repository-breakage-map-v0.md	84	Byte verification MUST NOT establish assertion truth, behavioral
-BKM-V0-007	docs/specs/cross-repository-breakage-map-v0.md	89	`--base` MUST identify an available ancestor of the selected API
-BKM-V0-008	docs/specs/cross-repository-breakage-map-v0.md	95	Limits MUST be enforced: 8 repositories, 256 source files, 32 path
+BKM-V0-005	docs/specs/cross-repository-breakage-map-v0.md	82	EEP V1 repository/entity composition and V2 path composition MUST
+BKM-V0-006	docs/specs/cross-repository-breakage-map-v0.md	91	Byte verification MUST NOT establish assertion truth, behavioral
+BKM-V0-007	docs/specs/cross-repository-breakage-map-v0.md	96	`--base` MUST identify an available ancestor of the selected API
+BKM-V0-008	docs/specs/cross-repository-breakage-map-v0.md	102	Limits MUST be enforced: 8 repositories, 256 source files, 32 path
 BRAIN-DOG-001	docs/specs/technical-brain-dogfood.md	27	butterfly-effect MUST return exact direct static references/dependencies,
 BRAIN-DOG-002	docs/specs/technical-brain-dogfood.md	30	E2E discovery MUST map requirements and journeys to exact scenario/test witnesse
 BRAIN-DOG-003	docs/specs/technical-brain-dogfood.md	32	selective-test guidance MUST name mandatory repository gates first and a smaller
