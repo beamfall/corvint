@@ -2009,6 +2009,8 @@ PWV-V0-007	docs/specs/pi-workflow-v0.md	45	The user cockpit MUST display evidenc
 PWV-V0-008	docs/specs/pi-workflow-v0.md	46	Local completion continuation MUST remain unavailable unless an explicit LCP/AHI
 PWV-V0-009	docs/specs/pi-workflow-v0.md	47	Compatibility MUST name the exact tested host, adapter and native binaries. Pack
 PWV-V0-010	docs/specs/pi-workflow-v0.md	48	Promotion MUST retain focused executable checks, fresh independent review and ex
+PWV-V0-011	docs/specs/pi-workflow-v0.md	49	The registered Pi tools, commands and lifecycle events, and the Core read, Tasks
+PWV-V0-012	docs/specs/pi-workflow-v0.md	50	The read facade MUST carry an actual named task through the native chain: govern
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	29	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	30	The producer MUST retain the exact NUL-terminated invocation, raw output files a
 QAT-V0-003	docs/specs/dogfood-query-abstention-v0.md	31	The report MUST keep the query row `NOT_PRODUCED` with reason `authority-start-t
