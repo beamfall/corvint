@@ -65,3 +65,7 @@ Corvint prechange query/impact and affected-plan evidence were retained. The req
 `dogfood-change` ran before editing at an unchanged base and returned `NOT_PRODUCED` for a CEM
 (no diff), OCM, and local outcome (no source paths); those initial failures are retained rather than
 reported as passed. Final CEM/OCM/outcome binding is post-commit under `docs/DOGFOOD.md`.
+
+The final OCM pass exposed the known section-boundary issue tracked as `V1-0521`: numbered
+amendments outside `## Requirements` were omitted. The five new clauses were moved intact
+into their owning Requirements sections before final binding; IDs and normative text are unchanged.

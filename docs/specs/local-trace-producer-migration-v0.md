@@ -106,6 +106,51 @@ plan and performs no discovery outside that repository.
   migration. Tests and dogfood MUST use temporary fixtures only; automated verification MUST NOT run
   apply against the repository's real `.context-corvint/traces` store.
 
+### Accepted amendment: typed argv verification (2026-09-30, issue 408)
+
+The owner accepted the schema-v2 proposal on 2026-09-30. Its reviewed proposal SHA-256 is
+`707d696a76b240423084f10a44ddfae22b2b5da46391eedde5aa306be1ec716f`.
+This additive profile remains experimental; it does not change the v1 contract above.
+
+- `LTPM-V0-013`: `record` MUST accept repeatable `--verify-argv-json JSON_ARRAY` (including the
+  `=JSON_ARRAY` form). The transport is exactly one JSON array of strings, decoded without shell
+  parsing. A row MUST use schema 2 if and only if it includes an argv verification. Its fields
+  otherwise match schema 1; `verification` becomes a sorted unique array of closed entries:
+  `{"command":"go test ./...","kind":"command"}` or
+  `{"argv":["go","test","a b",""],"kind":"argv"}`. Command normalization, punctuation and the
+  512-character command bound remain unchanged. Argv MUST retain exact argument boundaries and
+  values, with 1..32 arguments, a nonempty first argument, valid UTF-8, no Unicode controls,
+  at most 512 Unicode code points per argument, and at most 4,096 canonical bytes per vector.
+  Empty later arguments, spaces, literal JSON, quotes, backslashes and shell operators are data.
+  JSON nulls, duplicate/unknown members, malformed UTF-8 and unpaired surrogates MUST refuse.
+  The combined pre-deduplication command/argv input count remains at most 50. Canonical entries
+  use the existing ASCII-escaped JSON encoding, sorted by their complete canonical JSON bytes;
+  exact duplicates collapse. The trace ID remains SHA-256 over the canonical row without
+  `trace_id`, including schema 2 and the typed entries. Stored entries MUST already have canonical
+  values/order and unique entries; alternate valid JSON escape spellings have the same identity.
+  Refusals MUST occur before mutation and use `unsupported-verify-argv`; legacy
+  `unsupported-verify-syntax` and v1 bytes, IDs, screening and acceptance MUST remain unchanged.
+- `LTPM-V0-014`: All ordinary trace consumers MUST admit validated mixed v1/v2 revision files
+  under the unchanged row (256 KiB), file/row count (1,000), and store (16 MiB) bounds. Migration
+  and stranded-row recovery MUST preserve entry kinds and values, changing only revision-bound
+  identity when the existing migration contract requires it. Whole-file retention is unchanged.
+  Query/eval use task/outcome/paths; typed verification MUST NOT change ranking. Batch and record
+  output MUST retain typed entries in their existing projections and digests. Console and skill
+  export MUST display argv as labelled canonical JSON arrays, never shell commands. Neither writer
+  nor any consumer may execute verification. A reader without schema-2 support MUST refuse an
+  unsupported schema. Rollback disables new v2 writes but MUST retain shipped v2 readers; an older
+  binary that predates this profile cannot read mixed stores, an explicit release limitation.
+
+Screening is owned by `LTA-V0-013`; the dashboard extension is owned by `LOD-V0-035`.
+Arbitrary base64, hex or percent decoding is excluded. The contract is bounded pattern screening,
+not general secret discovery. Dogfood verification-file syntax and command execution are unchanged.
+
+Acceptance: `TestLTPMV0014TypedGolden`, `TestLTPMV0014TypedRefusals`,
+`TestLTPMV0014MixedMigrationAndNonexecution`, `TestTypedStoreAppendAndRetention`,
+`TestTypedUnicodeAndMalformedWireBounds`, `TestRecordTypedArgvRoundTripAndRefusal`,
+`TestTypedTraceFixtureAdmission`, `TestLODV0035MixedTraceSnapshot`, `TestConsoleTypedArgv`,
+`TestExportTypedArgv`, and `FuzzTypedVerificationRoundTrip` bind this amendment to source evidence.
+
 ## Non-goals and simpler baseline
 
 The simpler baseline is to retain bounded legacy read compatibility and never migrate. V0 does not
@@ -349,48 +394,3 @@ read/query status admission changes. Regression witnesses are
 `TestRecordFreshRepositoryWithoutIgnore`, `TestRecordUnignoredUnsafeArtifactsRefuseWithoutMutation`,
 `TestRecorderStabilityKeepsSourceAndCommitDriftVisible`, and
 `TestRecordStagingAdmissionRequiresOwnedAppendPhase`.
-
-## Accepted amendment: typed argv verification (2026-09-30, issue 408)
-
-The owner accepted the schema-v2 proposal on 2026-09-30. Its reviewed proposal SHA-256 is
-`707d696a76b240423084f10a44ddfae22b2b5da46391eedde5aa306be1ec716f`.
-This additive profile remains experimental; it does not change the v1 contract above.
-
-- `LTPM-V0-013`: `record` MUST accept repeatable `--verify-argv-json JSON_ARRAY` (including the
-  `=JSON_ARRAY` form). The transport is exactly one JSON array of strings, decoded without shell
-  parsing. A row MUST use schema 2 if and only if it includes an argv verification. Its fields
-  otherwise match schema 1; `verification` becomes a sorted unique array of closed entries:
-  `{"command":"go test ./...","kind":"command"}` or
-  `{"argv":["go","test","a b",""],"kind":"argv"}`. Command normalization, punctuation and the
-  512-character command bound remain unchanged. Argv MUST retain exact argument boundaries and
-  values, with 1..32 arguments, a nonempty first argument, valid UTF-8, no Unicode controls,
-  at most 512 Unicode code points per argument, and at most 4,096 canonical bytes per vector.
-  Empty later arguments, spaces, literal JSON, quotes, backslashes and shell operators are data.
-  JSON nulls, duplicate/unknown members, malformed UTF-8 and unpaired surrogates MUST refuse.
-  The combined pre-deduplication command/argv input count remains at most 50. Canonical entries
-  use the existing ASCII-escaped JSON encoding, sorted by their complete canonical JSON bytes;
-  exact duplicates collapse. The trace ID remains SHA-256 over the canonical row without
-  `trace_id`, including schema 2 and the typed entries. Stored entries MUST already have canonical
-  values/order and unique entries; alternate valid JSON escape spellings have the same identity.
-  Refusals MUST occur before mutation and use `unsupported-verify-argv`; legacy
-  `unsupported-verify-syntax` and v1 bytes, IDs, screening and acceptance MUST remain unchanged.
-- `LTPM-V0-014`: All ordinary trace consumers MUST admit validated mixed v1/v2 revision files
-  under the unchanged row (256 KiB), file/row count (1,000), and store (16 MiB) bounds. Migration
-  and stranded-row recovery MUST preserve entry kinds and values, changing only revision-bound
-  identity when the existing migration contract requires it. Whole-file retention is unchanged.
-  Query/eval use task/outcome/paths; typed verification MUST NOT change ranking. Batch and record
-  output MUST retain typed entries in their existing projections and digests. Console and skill
-  export MUST display argv as labelled canonical JSON arrays, never shell commands. Neither writer
-  nor any consumer may execute verification. A reader without schema-2 support MUST refuse an
-  unsupported schema. Rollback disables new v2 writes but MUST retain shipped v2 readers; an older
-  binary that predates this profile cannot read mixed stores, an explicit release limitation.
-
-Screening is owned by `LTA-V0-013`; the dashboard extension is owned by `LOD-V0-035`.
-Arbitrary base64, hex or percent decoding is excluded. The contract is bounded pattern screening,
-not general secret discovery. Dogfood verification-file syntax and command execution are unchanged.
-
-Acceptance: `TestLTPMV0014TypedGolden`, `TestLTPMV0014TypedRefusals`,
-`TestLTPMV0014MixedMigrationAndNonexecution`, `TestTypedStoreAppendAndRetention`,
-`TestTypedUnicodeAndMalformedWireBounds`, `TestRecordTypedArgvRoundTripAndRefusal`,
-`TestTypedTraceFixtureAdmission`, `TestLODV0035MixedTraceSnapshot`, `TestConsoleTypedArgv`,
-`TestExportTypedArgv`, and `FuzzTypedVerificationRoundTrip` bind this amendment to source evidence.
