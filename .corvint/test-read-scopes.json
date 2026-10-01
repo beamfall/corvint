@@ -147,6 +147,9 @@
       "internal/secretscreen/"
     ],
     "internal/doccompiler": [],
+    "internal/doccorpus": [
+      "examples/documentation-corpus/"
+    ],
     "internal/docviews": [],
     "internal/extevidence": [
       "cmd/corvint-remote-provider/",
