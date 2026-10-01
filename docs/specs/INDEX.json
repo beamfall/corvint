@@ -1461,7 +1461,7 @@
     "reqPrefix": "LTA-V0",
     "intent": "accepted (decision 0058)",
     "delivery": "experimental",
-    "claim": "Learned-path mechanism changes require a pinned two-arm gate, while `record` reclaims unchanged trace-store caps by deterministic whole-file eviction. The accepted issue-408 amendment adds typed argv verification with frozen v1 compatibility.",
+    "claim": "Learned-path mechanism changes require a pinned two-arm gate, while `record` reclaims unchanged trace-store caps by deterministic whole-file eviction.",
     "dependsOn": [
       "docs/specs/go-production-kernel-migration-v0.md",
       "docs/specs/local-trace-producer-migration-v0.md"
@@ -1522,7 +1522,7 @@
     "reqPrefix": "LAC-V0",
     "intent": "accepted (decision 0081)",
     "delivery": "experimental (S1, S2 ticket verbs, S3, and the chain pane)",
-    "claim": "A local, loopback-only console may present task management, evidence, spec and code without becoming repository, execution, or promotion authority. The accepted issue-408 amendment adds typed argv verification with frozen v1 compatibility.",
+    "claim": "A local, loopback-only console may present task management, evidence, spec and code without becoming repository, execution, or promotion authority.",
     "dependsOn": [
       "docs/specs/local-observability-dashboard-v0.md",
       "docs/specs/work-queue-observation-v0.md"
@@ -1563,7 +1563,7 @@
     "reqPrefix": "LOD-V0",
     "intent": "proposed (owner requested the product outcome)",
     "delivery": "experimental",
-    "claim": "A local read-only dashboard may present independent evidence axes without becoming repository, execution, or promotion authority. The accepted issue-408 amendment adds typed argv verification with frozen v1 compatibility.",
+    "claim": "A local read-only dashboard may present independent evidence axes without becoming repository, execution, or promotion authority.",
     "dependsOn": [
       "docs/specs/agent-harness-integration-v0.md",
       "docs/specs/go-live-test-provider-v0.md",
@@ -1584,7 +1584,7 @@
     "reqPrefix": "LTPM-V0",
     "intent": "accepted",
     "delivery": "experimental",
-    "claim": "Commit-bound production and digest-bound migration preserve trace identity without automatic legacy mutation; LTPM-V0-011 is implemented experimentally. The accepted issue-408 amendment adds typed argv verification with frozen v1 compatibility.",
+    "claim": "Commit-bound production and digest-bound migration preserve trace identity without automatic legacy mutation; LTPM-V0-011 is implemented experimentally.",
     "dependsOn": [
       "docs/specs/local-observability-dashboard-v0.md"
     ],
