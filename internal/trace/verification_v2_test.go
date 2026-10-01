@@ -13,33 +13,36 @@ import (
 
 // LTPM-V0-014: independent spec-authored basis, hashed without the candidate.
 func TestLTPMV0014TypedGolden(t *testing.T) {
-	argv := []string{"printf", "a b", "", `{"key":1}`, "|", "é"}
-	record, err := NewRecord(Input{Revision: testRevision, Task: "literal arguments", Outcome: "passed", Verification: []string{" go test ./... ", "go test ./..."}, VerificationArgv: [][]string{argv, argv}}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	const basis = `{"changed_paths":[],"opened_paths":[],"outcome":"passed","revision":"0123456789abcdef0123456789abcdef01234567","schema_version":2,"task":"literal arguments","verification":[{"argv":["printf","a b","","{\"key\":1}","|","\u00e9"],"kind":"argv"},{"command":"go test ./...","kind":"command"}]}`
-	got, err := canonicalRecord(record, false)
-	if err != nil || string(got) != basis || record.TraceID != "c33abd97f08c6892a4388b2e3d4e204e21319eae66d6dc1072cec57cc6c42eb7" {
-		t.Fatalf("basis=%s id=%s err=%v", got, record.TraceID, err)
-	}
-	row, err := Encode(record)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rows, err := DecodeStore(row, testRevision, nil)
-	if err != nil || len(rows) != 1 || !reflect.DeepEqual(rows[0], record) {
-		t.Fatalf("roundtrip: %+v %v", rows, err)
-	}
-	// Transport spelling does not change the decoded identity.
-	alternate := bytes.ReplaceAll(row, []byte(`\u00e9`), []byte("é"))
-	if _, err := DecodeV2(alternate, testRevision); err != nil {
-		t.Fatal(err)
-	}
-	argv[1] = "caller mutation"
-	if record.TypedVerification[0].Argv[1] != "a b" {
-		t.Fatal("retained caller slice")
-	}
+	t.Run("LTPM-V0-014 independent typed canonical identity", func(t *testing.T) {
+		argv := []string{"printf", "a b", "", `{"key":1}`, "|", "é"}
+		record, err := NewRecord(Input{Revision: testRevision, Task: "literal arguments", Outcome: "passed", Verification: []string{" go test ./... ", "go test ./..."}, VerificationArgv: [][]string{argv, argv}}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		const basis = `{"changed_paths":[],"opened_paths":[],"outcome":"passed","revision":"0123456789abcdef0123456789abcdef01234567","schema_version":2,"task":"literal arguments","verification":[{"argv":["printf","a b","","{\"key\":1}","|","\u00e9"],"kind":"argv"},{"command":"go test ./...","kind":"command"}]}`
+		got, err := canonicalRecord(record, false)
+		if err != nil || string(got) != basis || record.TraceID != "c33abd97f08c6892a4388b2e3d4e204e21319eae66d6dc1072cec57cc6c42eb7" {
+			t.Fatalf("basis=%s id=%s err=%v", got, record.TraceID, err)
+		}
+		row, err := Encode(record)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows, err := DecodeStore(row, testRevision, nil)
+		if err != nil || len(rows) != 1 || !reflect.DeepEqual(rows[0], record) {
+			t.Fatalf("roundtrip: %+v %v", rows, err)
+		}
+		// Transport spelling does not change the decoded identity.
+		alternate := bytes.ReplaceAll(row, []byte(`\u00e9`), []byte("é"))
+		if _, err := DecodeV2(alternate, testRevision); err != nil {
+			t.Fatal(err)
+		}
+		argv[1] = "caller mutation"
+		if record.TypedVerification[0].Argv[1] != "a b" {
+			t.Fatal("retained caller slice")
+		}
+
+	})
 }
 
 func TestLTPMV0014TypedRefusals(t *testing.T) {
@@ -92,20 +95,23 @@ func TestLTPMV0014TypedRefusals(t *testing.T) {
 
 // LTA-V0-013: the current screen applies to decoded v2 values on write and read.
 func TestLTAV0013TypedSecrets(t *testing.T) {
-	for _, argv := range [][]string{{"x", "--token", "literal value"}, {"x", "--api-key=abc123"}, {"curl", "--user", "name:pass word"}, {"docker", "login", "-p", "hunter2"}, {"x", `{"token":"abcd1234"}`}, {"x", "ghp_" + strings.Repeat("a", 20)}, {"x", "https://name:password@host"}, {"x", "bearer", strings.Repeat("a", 20)}, {"x", "AKIA" + strings.Repeat("A", 16), strings.Repeat("b", 40)}} {
-		if _, err := NewRecord(Input{Revision: testRevision, Task: "task", Outcome: "passed", VerificationArgv: [][]string{argv}}, nil); err == nil {
-			t.Fatalf("writer admitted %+v", argv)
+	t.Run("LTA-V0-013 decoded typed secret screening", func(t *testing.T) {
+		for _, argv := range [][]string{{"x", "--token", "literal value"}, {"x", "--api-key=abc123"}, {"curl", "--user", "name:pass word"}, {"docker", "login", "-p", "hunter2"}, {"x", `{"token":"abcd1234"}`}, {"x", "ghp_" + strings.Repeat("a", 20)}, {"x", "https://name:password@host"}, {"x", "bearer", strings.Repeat("a", 20)}, {"x", "AKIA" + strings.Repeat("A", 16), strings.Repeat("b", 40)}} {
+			if _, err := NewRecord(Input{Revision: testRevision, Task: "task", Outcome: "passed", VerificationArgv: [][]string{argv}}, nil); err == nil {
+				t.Fatalf("writer admitted %+v", argv)
+			}
+			record := Record{SchemaVersion: 2, Revision: testRevision, Task: "task", Outcome: "passed", OpenedPaths: []string{}, ChangedPaths: []string{}, TypedVerification: []VerificationEntry{{Kind: "argv", Argv: argv}}}
+			record.TraceID, _ = traceID(record)
+			raw, _ := canonicalRecord(record, true)
+			if _, err := DecodeV2(raw, testRevision); err == nil {
+				t.Fatalf("reader admitted %+v", argv)
+			}
 		}
-		record := Record{SchemaVersion: 2, Revision: testRevision, Task: "task", Outcome: "passed", OpenedPaths: []string{}, ChangedPaths: []string{}, TypedVerification: []VerificationEntry{{Kind: "argv", Argv: argv}}}
-		record.TraceID, _ = traceID(record)
-		raw, _ := canonicalRecord(record, true)
-		if _, err := DecodeV2(raw, testRevision); err == nil {
-			t.Fatalf("reader admitted %+v", argv)
+		if _, err := ParseVerificationArgv([]byte(`["x","--\u0074oken","abc123"]`)); err == nil {
+			t.Fatal("escaped credential flag admitted")
 		}
-	}
-	if _, err := ParseVerificationArgv([]byte(`["x","--\u0074oken","abc123"]`)); err == nil {
-		t.Fatal("escaped credential flag admitted")
-	}
+
+	})
 }
 
 func TestLTPMV0014MixedMigrationAndNonexecution(t *testing.T) {
