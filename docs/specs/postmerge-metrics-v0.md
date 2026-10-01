@@ -18,27 +18,27 @@ policy. Decisions 0081 and 0373 retain owner authority. No merge permission is e
 
 ## Requirements
 
-- PMM-V0-001: Validate closed JSON policy and history envelopes, duplicate keys, trailing values,
+- `PMM-V0-001`: Validate closed JSON policy and history envelopes, duplicate keys, trailing values,
   depth and all stated bounds. Reject malformed facts, unknown classes, duplicate identities,
   dangling event targets, timestamps outside UTC, and events earlier than their target run.
-- PMM-V0-002: Retain each stage outcome and duration, follow-up creation latency or explicit no-op
+- `PMM-V0-002`: Retain each stage outcome and duration, follow-up creation latency or explicit no-op
   or unknown, and immutable generated-request commit pairs. Measure net textual additions/deletions
   and changed files from the bot's last commit to the approved commit, including measured zero.
   Never label the proxy authenticated human authorship.
-- PMM-V0-003: Report per-class window cohort totals, distinct corrected generated-run numerator
+- `PMM-V0-003`: Report per-class window cohort totals, distinct corrected generated-run numerator
   and generated-run denominator, separate event kind counts and net edit counts. Compare integer
   basis-point thresholds without rounded arithmetic, retaining unavailable evidence as unknown.
-- PMM-V0-004: Process full retained eligible run/event chronology before the exclusive as-of cutoff.
+- `PMM-V0-004`: Process full retained eligible run/event chronology before the exclusive as-of cutoff.
   A revert resets cooldown to N at event time; next N class runs are review-required. A late revert
   must not consume cooldown on runs preceding it. Equal-time events precede runs; stable IDs break
   ties. Repeated reverts reset cooldown; old targets and events outside the cohort still affect it.
-- PMM-V0-005: Validate contiguous per-class sequence inventories starting at 1 and independent run
+- `PMM-V0-005`: Validate contiguous per-class sequence inventories starting at 1 and independent run
   and event watermarks through the report cutoff before considering history complete. Missing,
   partial, unknown or insufficient history prevents eligibility. Assertions remain caller provenance.
-- PMM-V0-006: Produce byte-identical reports from the same validated policy, records, immutable Git
+- `PMM-V0-006`: Produce byte-identical reports from the same validated policy, records, immutable Git
   objects, Git executable version and window; include canonical policy/history digests, provenance limits and measurements.
   Recommend review, demoted or eligible-for-owner-consideration only; never change merge policy.
-- PMM-V0-007: Expose `corvint-postmerge-metrics report --policy FILE --records FILE --from UTC
+- `PMM-V0-007`: Expose `corvint-postmerge-metrics report --policy FILE --records FILE --from UTC
   --until UTC` as an optional standalone binary. Fail closed with fixed typed errors; bounded input,
   total deadline, Git output/time and owned-process cleanup. Do not register a Core CLI/MCP command.
 
