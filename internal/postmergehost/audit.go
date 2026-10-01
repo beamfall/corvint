@@ -44,15 +44,17 @@ var (
 	// runnerEnvFile finds a script that touches the runner's env or path
 	// file, which sets variables (such as BASH_ENV) for every later step.
 	runnerEnvFile = regexp.MustCompile(`\bGITHUB_(ENV|PATH)\b`)
+	inputName     = regexp.MustCompile(`^[a-z0-9_-]+$`)
 	// startupEnv names variables that make a shell, the dynamic loader or an
 	// interpreter run code the audit does not see. It is a denylist.
 	startupEnv = map[string]bool{
 		"BASH_ENV": true, "ENV": true, "BASHOPTS": true, "SHELLOPTS": true, "PS4": true,
-		"PROMPT_COMMAND": true, "IFS": true, "CDPATH": true, "PATH": true, "GOFLAGS": true,
+		"PROMPT_COMMAND": true, "IFS": true, "CDPATH": true, "PATH": true, "HOME": true,
+		"CC": true, "GOFLAGS": true, "GOTOOLCHAIN": true, "JAVA_TOOL_OPTIONS": true,
 		"NODE_OPTIONS": true, "PYTHONSTARTUP": true, "PYTHONPATH": true, "PERL5OPT": true,
 		"PERL5LIB": true, "RUBYOPT": true,
 	}
-	startupEnvPrefixes = []string{"LD_", "DYLD_", "BASH_FUNC_"}
+	startupEnvPrefixes = []string{"LD_", "DYLD_", "BASH_FUNC_", "GIT_CONFIG"}
 	changeRequest      = map[string]bool{
 		"pull_request": true, "pull_request_target": true, "pull_request_review": true,
 		"pull_request_review_comment": true, "merge_group": true, "workflow_run": true,
@@ -265,6 +267,7 @@ func (a *auditor) env(where string, env *Node) {
 		return
 	}
 	for _, k := range env.Keys {
+		// Windows runners read environment names without regard to case.
 		name := strings.ToUpper(k)
 		bad := startupEnv[name]
 		for _, p := range startupEnvPrefixes {
@@ -461,16 +464,19 @@ func (a *auditor) steps(where string, steps *Node, commands map[string]bool) {
 				a.add("UNMODELLED_KEY", at, "step key %q (custom shells are not audited)", k)
 			}
 		}
-		// Action input names are case-insensitive (Script becomes INPUT_SCRIPT),
-		// so the screen folds case and refuses any non-lowercase input name.
+		// Action input names are case-insensitive: Script, and script spelt with a
+		// dotless i (U+0131), both become INPUT_SCRIPT. The screen folds case and
+		// admits only lowercase ASCII input names. A non-mapping with is unmodelled.
 		var inputs []string
 		with := s.Get("with")
-		if with != nil {
+		if with != nil && with.Kind != Mapping {
+			a.add("UNMODELLED_KEY", at, "with must be a mapping")
+		} else if with != nil {
 			inputs = with.Keys
 		}
 		for _, k := range inputs {
-			if k != strings.ToLower(k) {
-				a.add("NON_LOWERCASE_INPUT", at, "with key %q must be lowercase", k)
+			if !inputName.MatchString(k) {
+				a.add("NON_LOWERCASE_INPUT", at, "with key %q must match [a-z0-9_-]", k)
 			}
 			if strings.EqualFold(k, "script") && strings.Contains(scalar(with.Map[k]), "${{") {
 				a.add("RUN_EXPRESSION_INTERPOLATION", at, "pass expressions through env, never into with.script")

@@ -1821,7 +1821,7 @@ PCH-V0-004	docs/specs/postmerge-ci-host-v0.md	55	Ship a source trigger. It runs 
 PCH-V0-005	docs/specs/postmerge-ci-host-v0.md	59	Ship scheduled reconciliation that re-dispatches recent first-parent merges, so
 PCH-V0-006	docs/specs/postmerge-ci-host-v0.md	62	Pin every action to a full commit and check out with `persist-credentials: false
 PCH-V0-007	docs/specs/postmerge-ci-host-v0.md	69	Provide an audit, `internal/postmergehost.Audit`, over a restricted YAML subset.
-PCH-V0-008	docs/specs/postmerge-ci-host-v0.md	105	The README gives a porting guide that maps markers, credential classes, isolatio
+PCH-V0-008	docs/specs/postmerge-ci-host-v0.md	108	The README gives a porting guide that maps markers, credential classes, isolatio
 PLE-V0-001	docs/specs/protected-local-execution-v0.md	27	The optional `corvint-protected-execution/0` profile MUST preserve all legacy pr
 PLE-V0-002	docs/specs/protected-local-execution-v0.md	28	A protected immutable release and independently admitted root/policy MUST bind t
 PLE-V0-003	docs/specs/protected-local-execution-v0.md	29	Ingestion MUST bound and independently bind expected Git base/target/tree, CEM,

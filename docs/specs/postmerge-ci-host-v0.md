@@ -84,12 +84,15 @@ Corvint stays a local binary. The templates are operator reference material, not
   - unpinned actions [UNPINNED_ACTION] and persisted checkout credentials
     [CHECKOUT_PERSISTS_CREDENTIALS];
   - expressions in run scripts or in a `with` input named `script` in any letter case
-    [RUN_EXPRESSION_INTERPOLATION], and any `with` input name that is not lowercase
-    [NON_LOWERCASE_INPUT];
-  - a workflow, job or step `env` key that makes a shell, the dynamic loader or an interpreter run
-    unaudited code: `BASH_ENV`, `ENV`, `BASHOPTS`, `SHELLOPTS`, `PS4`, `PROMPT_COMMAND`, `IFS`,
-    `CDPATH`, `PATH`, `GOFLAGS`, `NODE_OPTIONS`, `PYTHONSTARTUP`, `PYTHONPATH`, `PERL5OPT`,
-    `PERL5LIB`, `RUBYOPT`, or a name starting `LD_`, `DYLD_` or `BASH_FUNC_` [STARTUP_ENV];
+    [RUN_EXPRESSION_INTERPOLATION], any `with` input name outside lowercase ASCII `[a-z0-9_-]`
+    [NON_LOWERCASE_INPUT], and a `with` that is not a mapping [UNMODELLED_KEY];
+  - a workflow, job or step `env` key that makes a shell, the dynamic loader, a tool or an
+    interpreter run unaudited code: `BASH_ENV`, `ENV`, `BASHOPTS`, `SHELLOPTS`, `PS4`,
+    `PROMPT_COMMAND`, `IFS`, `CDPATH`, `PATH`, `HOME`, `CC`, `GOFLAGS`, `GOTOOLCHAIN`,
+    `JAVA_TOOL_OPTIONS`, `NODE_OPTIONS`, `PYTHONSTARTUP`, `PYTHONPATH`, `PERL5OPT`, `PERL5LIB`,
+    `RUBYOPT`, or a name starting `LD_`, `DYLD_`, `BASH_FUNC_` or `GIT_CONFIG`, matched in any
+    letter case because Windows runners read environment names without regard to case
+    [STARTUP_ENV];
   - a run script that names `GITHUB_ENV` or `GITHUB_PATH` [RUNNER_ENV_FILE];
   - a step or `defaults.run` `working-directory` that is not a literal scalar
     [WORKING_DIRECTORY];
@@ -138,7 +141,8 @@ Corvint stays a local binary. The templates are operator reference material, not
   caches on the same repository inherit the poisoning risk.
 - A dispatch fails on push. Nightly reconciliation re-dispatches the change.
 - A ported template uses an unmodelled construct. The audit refuses it rather than guessing.
-- An `env` variable outside the `STARTUP_ENV` denylist changes how a tool runs code, or a script
+- An `env` variable outside the `STARTUP_ENV` denylist (for example a tool-specific variable such
+  as `MAVEN_OPTS` or `GIT_SSH_COMMAND`) changes how a tool runs code, or a script
   reaches the runner's env file without naming `GITHUB_ENV` or `GITHUB_PATH` (for example through
   `eval` or a computed path). The audit is lexical, so it does not see either; a pinned action may
   also write the env file. The operator reviews these by hand.
@@ -165,10 +169,12 @@ It checks that:
 - the graph validates, and seven malformed graphs refuse;
 - all three templates audit clean;
 - the authoring job references no write-class secret, write permission or token;
-- 55 single mutations each produce their specific finding code, including a reintroduced
+- 64 single mutations each produce their specific finding code, including a reintroduced
   line-oriented `grep` check, a custom step shell, a workflow- or job-level `defaults.run.shell`,
   an unmodelled `defaults.run` key, an expression in `with.script` or `with.Script`, a
-  non-lowercase input name, `BASH_ENV`, `ENV` and `LD_PRELOAD` at workflow, job and step level, a
+  non-lowercase or dotless-i (U+0131) `script` input name, a scalar-expression or sequence `with`,
+  `HOME`, `CC`, `GOTOOLCHAIN`, `JAVA_TOOL_OPTIONS`, `GIT_CONFIG_GLOBAL` and a lowercase `ld_preload`
+  in step `env`, `BASH_ENV`, `ENV` and `LD_PRELOAD` at workflow, job and step level, a
   non-mapping step `env`, writes to `$GITHUB_ENV` and `$GITHUB_PATH`, an expression or non-scalar
   `working-directory`, and non-literal or empty source-trigger filters;
 - the pipeline's change-id check, run under bash and POSIX sh, writes outputs only for one whole

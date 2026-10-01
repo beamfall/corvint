@@ -92,3 +92,20 @@ The focused package now has 39 mutations, each producing its specific finding co
 
 The shipped templates still audit clean. Twelve new mutations bring the total to 55; deleting each
 new check, one at a time, fails at least one of them.
+
+## Repair r4 (independent review FAIL)
+
+- **Non-mapping `with`.** A step `with` that was a scalar expression or a sequence skipped the
+  input screen and audited clean. It is now `UNMODELLED_KEY`, as a non-mapping `env` already was.
+- **ASCII input names.** `with` input names must match `[a-z0-9_-]` (`NON_LOWERCASE_INPUT`). A
+  dotless-i (U+0131) `script` stayed lowercase, missed the case-folded `script` match and still
+  reached the action as `INPUT_SCRIPT`.
+- **Case-folded `env` names.** The fold is kept, because Windows runners read environment names
+  without regard to case, and a lowercase `ld_preload` mutation now pins it.
+- **More code-executing variables.** `HOME`, `CC`, `GOTOOLCHAIN`, `JAVA_TOOL_OPTIONS` and the
+  `GIT_CONFIG` prefix join the `STARTUP_ENV` denylist (`NODE_OPTIONS`, `PYTHONPATH`,
+  `PYTHONSTARTUP`, `PERL5OPT` and `RUBYOPT` were already on it). The shipped templates still audit
+  clean.
+
+Nine new mutations bring the total to 64. Deleting each new check, one at a time, fails a named
+subtest.
