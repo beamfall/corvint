@@ -102,11 +102,19 @@ type packageScope struct {
 // Units observes every owned module and every supported test runner that can
 // be identified without executing repository code.
 func (language Language) Units(root string) (affected.Result, error) {
-	return language.units(root, false)
+	return language.UnitsSource(affected.DiskSource(root))
+}
+
+func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {
+	return language.unitsSource(root, false)
 }
 
 func (language Language) units(root string, resolveAliases bool) (affected.Result, error) {
-	files, err := affected.SourceFiles(root, observedName)
+	return language.unitsSource(affected.DiskSource(root), resolveAliases)
+}
+
+func (language Language) unitsSource(root *affected.Source, resolveAliases bool) (affected.Result, error) {
+	files, err := root.Files(observedName)
 	if err != nil {
 		return affected.Result{}, err
 	}
@@ -120,7 +128,7 @@ func (language Language) units(root string, resolveAliases bool) (affected.Resul
 			frontier[FrontierUnparsedSource] = true
 			continue
 		}
-		body, readErr := affected.ReadSource(root, relative)
+		body, readErr := root.Read(relative)
 		if readErr != nil || !utf8.Valid(body) {
 			frontier[FrontierUnreadableSource] = true
 			continue

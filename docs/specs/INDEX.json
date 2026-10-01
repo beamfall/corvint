@@ -2929,5 +2929,25 @@
       "internal/mcp/bridge/bridge.go",
       "cmd/corvint/help.go"
     ]
+  },
+  {
+    "path": "docs/specs/immutable-delta-v0.md",
+    "title": "Immutable delta V0",
+    "reqPrefix": "DLT-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "One deterministic, read-only, source-content-free observation of an explicit immutable change.",
+    "dependsOn": [
+      "docs/specs/affected-plan-v0.md",
+      "docs/specs/application-flow-understanding-v1.md",
+      "docs/specs/external-evidence-provider-v2.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint/delta.go",
+      "internal/delta",
+      "protocol/delta"
+    ]
   }
 ]
