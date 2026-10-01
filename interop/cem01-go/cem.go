@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -321,6 +322,10 @@ func validateRequiredShape(raw []byte) error {
 	if !hasKeys(root, "spec", "baseRevision", "patchSha256", "evidence", "hunks") {
 		return errors.New("missing top-level field")
 	}
+	return validateEvidenceHunkShape(root)
+}
+
+func validateEvidenceHunkShape(root map[string]json.RawMessage) error {
 	var evidenceItems []map[string]json.RawMessage
 	if err := json.Unmarshal(root["evidence"], &evidenceItems); err != nil || evidenceItems == nil {
 		return errors.New("evidence shape")
@@ -596,7 +601,14 @@ func hex4(b []byte) (uint16, bool) {
 }
 
 func validateMapShape(m *cemMap) *cemError {
-	if m.Spec != specVersion || !validOID(m.BaseRevision) || !validDigest(m.PatchSHA256) {
+	if m.Spec != specVersion {
+		return invalid("version-shape")
+	}
+	return validateChangeFields(m)
+}
+
+func validateChangeFields(m *cemMap) *cemError {
+	if !validOID(m.BaseRevision) || !validDigest(m.PatchSHA256) {
 		return invalid("version-shape")
 	}
 	if len(m.Evidence) > maxEvidence || len(m.Hunks) > maxHunks {
@@ -1093,4 +1105,769 @@ func firstTwoMatches(ctx context.Context, haystack, needle []byte) (int, int, er
 		pos = at + 1
 	}
 	return first, count, ctx.Err()
+}
+
+// Experimental candidate support is additive. These mechanics are derived from
+// protocol/cem-1.0/ALGORITHMS.md; no native Corvint package is linked here.
+const candidateSpec = "cem/1.0-experimental.1"
+const candidateSidecar = ".corvint/change.cem.json"
+
+type candidateMap struct {
+	cemMap
+	Artifacts []candidateArtifact
+}
+type candidateArtifact struct{ Kind, Path, SHA256 string }
+type candidateResult struct {
+	Profile            string            `json:"profile"`
+	Spec               string            `json:"spec"`
+	Integrity          string            `json:"integrity"`
+	BaseRevision       string            `json:"baseRevision"`
+	TargetRevision     string            `json:"targetRevision"`
+	ReferenceIntegrity string            `json:"referenceIntegrity"`
+	Limits             map[string]string `json:"limits"`
+	Code               string            `json:"code"`
+}
+
+func newCandidateResult(base, target string) candidateResult {
+	r := candidateResult{Profile: "cem-candidate-verification/1", Spec: candidateSpec, Integrity: "NOT_VERIFIED", BaseRevision: base, TargetRevision: target, ReferenceIntegrity: "REFERENCE_INTEGRITY_ONLY", Limits: map[string]string{}}
+	for _, key := range []string{"nativeAuthority", "historicalValidity", "currentApplicability", "sourceGitBinding", "authentication", "dependencyClosure", "criterionDiscrimination", "externalInteroperability"} {
+		r.Limits[key] = "NOT_OBSERVED"
+	}
+	return r
+}
+
+// Candidate numbers deliberately have a narrower lexical domain than historical 0.1.
+func candidateTokens(raw []byte) error {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	depth := 0
+	for {
+		t, err := dec.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		switch v := t.(type) {
+		case json.Delim:
+			if v == '{' || v == '[' {
+				depth++
+				if depth > 64 {
+					return errors.New("depth")
+				}
+			} else {
+				depth--
+			}
+		case json.Number:
+			s := string(v)
+			if s == "" || len(s) > 16 || len(s) > 1 && s[0] == '0' {
+				return errors.New("integer")
+			}
+			for _, c := range s {
+				if c < '0' || c > '9' {
+					return errors.New("integer")
+				}
+			}
+			n, e := strconv.ParseUint(s, 10, 64)
+			if e != nil || n > maxWireInteger {
+				return errors.New("integer")
+			}
+		}
+	}
+	return strictJSON(raw)
+}
+
+func candidateRecords(raw json.RawMessage, bound int, keys ...string) ([]map[string]json.RawMessage, error) {
+	var rows []map[string]json.RawMessage
+	if json.Unmarshal(raw, &rows) != nil || len(rows) == 0 || len(rows) > bound {
+		return nil, errors.New("records")
+	}
+	for _, row := range rows {
+		if !hasKeys(row, keys...) {
+			return nil, errors.New("record shape")
+		}
+	}
+	return rows, nil
+}
+func candidateText(row map[string]json.RawMessage, key string) string {
+	var s string
+	_ = json.Unmarshal(row[key], &s)
+	return s
+}
+func candidatePath(p string) bool {
+	if !validPath(p) {
+		return false
+	}
+	for _, s := range strings.Split(p, "/") {
+		if strings.EqualFold(s, ".git") {
+			return false
+		}
+	}
+	return true
+}
+func candidateTicket(s string) bool {
+	p := strings.Split(s, ":")
+	if len(s) > 128 || len(p) != 4 || p[0] != "ticket" || len(p[3]) > 64 {
+		return false
+	}
+	for _, token := range p[1:] {
+		if token == "" {
+			return false
+		}
+		for i, c := range []byte(token) {
+			alpha := c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9'
+			if !alpha && (i == 0 || c != '.' && c != '_' && c != '-') {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// Scalar kinds are checked before Go decoding: encoding/json otherwise maps
+// null to the zero value of string and integer destinations without an error.
+func candidateWireString(raw json.RawMessage) (string, bool) {
+	raw = bytes.TrimSpace(raw)
+	var value string
+	if len(raw) == 0 || raw[0] != '"' || json.Unmarshal(raw, &value) != nil {
+		return "", false
+	}
+	return value, true
+}
+func candidateWireInteger(raw json.RawMessage) (uint64, bool) {
+	raw = bytes.TrimSpace(raw)
+	if len(raw) == 0 || len(raw) > 16 || len(raw) > 1 && raw[0] == '0' {
+		return 0, false
+	}
+	for _, c := range raw {
+		if c < '0' || c > '9' {
+			return 0, false
+		}
+	}
+	n, e := strconv.ParseUint(string(raw), 10, 64)
+	return n, e == nil && n <= maxWireInteger
+}
+func candidateScalarTypes(row map[string]json.RawMessage) bool {
+	for key, raw := range row {
+		switch key {
+		case "start", "end", "count", "criterionIndex":
+			if _, ok := candidateWireInteger(raw); !ok {
+				return false
+			}
+		case "span", "oldRange", "newRange":
+			var child map[string]json.RawMessage
+			if json.Unmarshal(raw, &child) != nil || child == nil || !candidateScalarTypes(child) {
+				return false
+			}
+		case "evidence", "hunks", "basis", "criterionBindings", "runnerReceipts", "criterionLinks", "artifacts":
+			var children []map[string]json.RawMessage
+			if json.Unmarshal(raw, &children) != nil || children == nil {
+				return false
+			}
+			for _, child := range children {
+				if child == nil || !candidateScalarTypes(child) {
+					return false
+				}
+			}
+		case "hunkIds", "evidenceIds", "runnerReceiptSha256s":
+			var children []json.RawMessage
+			if json.Unmarshal(raw, &children) != nil || children == nil {
+				return false
+			}
+			for _, child := range children {
+				if _, ok := candidateWireString(child); !ok {
+					return false
+				}
+			}
+		default:
+			if _, ok := candidateWireString(raw); !ok {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func candidateCanonicalRecord(row map[string]json.RawMessage) ([]byte, error) {
+	keys := []string{}
+	for key := range row {
+		if key != "id" {
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	var out strings.Builder
+	out.WriteByte('{')
+	for i, key := range keys {
+		if i > 0 {
+			out.WriteByte(',')
+		}
+		out.WriteString(canonicalString(key))
+		out.WriteByte(':')
+		if key == "criterionIndex" {
+			n, ok := candidateWireInteger(row[key])
+			if !ok {
+				return nil, errors.New("criterion index type")
+			}
+			out.WriteString(strconv.FormatUint(n, 10))
+		} else {
+			s, ok := candidateWireString(row[key])
+			if !ok {
+				return nil, errors.New("criterion string type")
+			}
+			out.WriteString(canonicalString(s))
+		}
+	}
+	out.WriteByte('}')
+	return []byte(out.String()), nil
+}
+func decodeCandidate(raw []byte) (candidateMap, *cemError) {
+	var m candidateMap
+	if len(raw) > maxJSONBytes || candidateTokens(raw) != nil {
+		return m, invalid("invalid-json")
+	}
+	var root map[string]json.RawMessage
+	_ = json.Unmarshal(raw, &root)
+	if !hasKeys(root, "spec", "baseRevision", "patchSha256", "excludedPath", "evidence", "hunks", "criterionBindings", "runnerReceipts", "criterionLinks", "artifacts") || candidateText(root, "spec") != candidateSpec || candidateText(root, "excludedPath") != candidateSidecar || validateEvidenceHunkShape(root) != nil || !candidateScalarTypes(root) {
+		return m, invalid("version-shape")
+	}
+	m.Spec = candidateSpec
+	m.BaseRevision = candidateText(root, "baseRevision")
+	m.PatchSHA256 = candidateText(root, "patchSha256")
+	if json.Unmarshal(root["evidence"], &m.Evidence) != nil || json.Unmarshal(root["hunks"], &m.Hunks) != nil {
+		return m, invalid("version-shape")
+	}
+	if err := validateChangeFields(&m.cemMap); err != nil {
+		return m, err
+	}
+	criteria, e := candidateRecords(root["criterionBindings"], 256, "id", "ticketId", "acceptanceRevision", "acceptanceSha256", "criterionIndex", "criterionSha256", "captureSha256", "verificationSha256", "claimTicketSha256", "snapshotHeadReceiptSha256")
+	if e != nil {
+		return m, invalid("criterion-shape")
+	}
+	receipts, e := candidateRecords(root["runnerReceipts"], 64, "sha256", "profile", "planSha256", "sourceGitBinding", "executionAuthority", "dependencyClosure", "authentication")
+	if e != nil {
+		return m, invalid("receipt-shape")
+	}
+	links, e := candidateRecords(root["criterionLinks"], 1024, "criterionId", "hunkIds", "evidenceIds", "runnerReceiptSha256s")
+	if e != nil {
+		return m, invalid("link-shape")
+	}
+	artifacts, e := candidateRecords(root["artifacts"], 1024, "kind", "path", "sha256")
+	if e != nil {
+		return m, invalid("artifact-shape")
+	}
+	roles, paths, used := map[string]string{}, map[string]bool{}, map[string]bool{}
+	for _, a := range artifacts {
+		kind, path, digest := candidateText(a, "kind"), candidateText(a, "path"), candidateText(a, "sha256")
+		if !candidatePath(path) || !validDigest(digest) || paths[path] || roles[digest] != "" {
+			return m, invalid("artifact-shape")
+		}
+		switch kind {
+		case "tasks-capture", "tasks-verification", "tasks-claimed-ticket", "runner-plan", "runner-receipt":
+		default:
+			return m, invalid("artifact-kind")
+		}
+		roles[digest] = kind
+		paths[path] = true
+		m.Artifacts = append(m.Artifacts, candidateArtifact{kind, path, digest})
+	}
+	use := func(digest, role string) bool {
+		if roles[digest] != role {
+			return false
+		}
+		used[digest] = true
+		return true
+	}
+	criterionIDs, tuples, groups := map[string]bool{}, map[string]bool{}, map[string]string{}
+	for _, c := range criteria {
+		id, ticket, rev := candidateText(c, "id"), candidateText(c, "ticketId"), candidateText(c, "acceptanceRevision")
+		n, err := strconv.ParseUint(rev, 10, 64)
+		if err != nil || n == 0 || n > maxWireInteger || strconv.FormatUint(n, 10) != rev || !candidateTicket(ticket) {
+			return m, invalid("criterion-shape")
+		}
+		for _, key := range []string{"acceptanceSha256", "criterionSha256", "captureSha256", "verificationSha256", "claimTicketSha256", "snapshotHeadReceiptSha256"} {
+			if !validDigest(candidateText(c, key)) {
+				return m, invalid("criterion-shape")
+			}
+		}
+		index, integerOK := candidateWireInteger(c["criterionIndex"])
+		if !integerOK || index >= 256 {
+			return m, invalid("criterion-index")
+		}
+		canonical, err := candidateCanonicalRecord(c)
+		if err != nil || id != "criterion:sha256:"+shaHex(canonical) || criterionIDs[id] {
+			return m, invalid("criterion-id")
+		}
+		criterionIDs[id] = true
+		group := ticket + ":" + rev
+		tuple := group + ":" + strconv.FormatUint(index, 10)
+		if tuples[tuple] {
+			return m, invalid("criterion-duplicate")
+		}
+		tuples[tuple] = true
+		coherence := ""
+		for _, key := range []string{"acceptanceSha256", "captureSha256", "verificationSha256", "claimTicketSha256", "snapshotHeadReceiptSha256"} {
+			coherence += candidateText(c, key)
+		}
+		if prior := groups[group]; prior != "" && prior != coherence {
+			return m, invalid("criterion-coherence")
+		}
+		groups[group] = coherence
+		if !use(candidateText(c, "captureSha256"), "tasks-capture") || !use(candidateText(c, "verificationSha256"), "tasks-verification") || !use(candidateText(c, "claimTicketSha256"), "tasks-claimed-ticket") {
+			return m, invalid("artifact-role")
+		}
+	}
+	receiptIDs := map[string]bool{}
+	for _, r := range receipts {
+		id := candidateText(r, "sha256")
+		if !validDigest(id) || receiptIDs[id] || candidateText(r, "profile") != "corvint-test-runner-receipt/0" || candidateText(r, "sourceGitBinding") != "NOT_OBSERVED" || candidateText(r, "executionAuthority") != "CALLER_OBSERVED" || candidateText(r, "dependencyClosure") != "NOT_OBSERVED" || candidateText(r, "authentication") != "NOT_OBSERVED" || !use(id, "runner-receipt") || !use(candidateText(r, "planSha256"), "runner-plan") {
+			return m, invalid("receipt-shape")
+		}
+		receiptIDs[id] = true
+	}
+	if len(used) != len(roles) {
+		return m, invalid("unused-artifact")
+	}
+	hunks := map[string]mappedHunk{}
+	for _, h := range m.Hunks {
+		hunks[h.ID] = h
+	}
+	evidenceIDs := map[string]bool{}
+	for _, e := range m.Evidence {
+		evidenceIDs[e.ID] = true
+	}
+	linkedCriteria, linkedReceipts := map[string]bool{}, map[string]bool{}
+	for _, l := range links {
+		id := candidateText(l, "criterionId")
+		if !criterionIDs[id] || linkedCriteria[id] {
+			return m, invalid("link-criterion")
+		}
+		linkedCriteria[id] = true
+		arrays := map[string][]string{}
+		for _, key := range []string{"hunkIds", "evidenceIds", "runnerReceiptSha256s"} {
+			var ids []string
+			if json.Unmarshal(l[key], &ids) != nil || len(ids) == 0 || len(ids) > 32 {
+				return m, invalid("link-shape")
+			}
+			seen := map[string]bool{}
+			for _, v := range ids {
+				if seen[v] {
+					return m, invalid("link-duplicate")
+				}
+				seen[v] = true
+			}
+			arrays[key] = ids
+		}
+		linkedBasis := map[string]bool{}
+		for _, hid := range arrays["hunkIds"] {
+			h, ok := hunks[hid]
+			if !ok {
+				return m, invalid("link-hunk")
+			}
+			for _, b := range h.Basis {
+				linkedBasis[b.EvidenceID] = true
+			}
+		}
+		for _, eid := range arrays["evidenceIds"] {
+			if !evidenceIDs[eid] || !linkedBasis[eid] {
+				return m, invalid("link-evidence")
+			}
+		}
+		for _, rid := range arrays["runnerReceiptSha256s"] {
+			if !receiptIDs[rid] {
+				return m, invalid("link-receipt")
+			}
+			linkedReceipts[rid] = true
+		}
+	}
+	if len(linkedCriteria) != len(criterionIDs) || len(linkedReceipts) != len(receiptIDs) {
+		return m, invalid("unused-reference")
+	}
+	return m, nil
+}
+
+func candidateRegular(root *os.Root, path string) error {
+	parts := strings.Split(path, "/")
+	for i := range parts {
+		info, err := root.Lstat(strings.Join(parts[:i+1], "/"))
+		if err != nil {
+			return err
+		}
+		if i < len(parts)-1 {
+			if !info.IsDir() {
+				return errNotRegular
+			}
+		} else if !info.Mode().IsRegular() {
+			return errNotRegular
+		}
+	}
+	return nil
+}
+func candidateArtifacts(ctx context.Context, root *os.Root, artifacts []candidateArtifact) *cemError {
+	total := 0
+	for _, a := range artifacts {
+		if ctx.Err() != nil {
+			return operational("verification-timeout")
+		}
+		if candidateRegular(root, a.Path) != nil {
+			return invalid("artifact-path")
+		}
+		f, e := root.Open(a.Path)
+		if e != nil {
+			return invalid("artifact-read")
+		}
+		b, e := io.ReadAll(io.LimitReader(f, maxJSONBytes+1))
+		_ = f.Close()
+		total += len(b)
+		if e != nil || len(b) > maxJSONBytes || total > 16<<20 || shaHex(b) != a.SHA256 {
+			return invalid("artifact-integrity")
+		}
+	}
+	return nil
+}
+
+type candidateBuffer struct {
+	bytes.Buffer
+	limit int
+}
+
+func (b *candidateBuffer) Write(p []byte) (int, error) {
+	if len(p) > b.limit-b.Len() {
+		return 0, errSizeLimit
+	}
+	return b.Buffer.Write(p)
+}
+func (v *verifier) candidateGit(limit int, args ...string) ([]byte, *cemError) {
+	if v.gitOps >= maxGitOps {
+		return nil, invalid("resource")
+	}
+	v.gitOps++
+	ctx, cancel := context.WithTimeout(v.ctx, 10*time.Second)
+	defer cancel()
+	base := []string{"--no-pager", "--literal-pathspecs", "-c", "core.hooksPath=/dev/null", "-c", "core.attributesFile=/dev/null", "-c", "protocol.allow=never", "-c", "credential.helper=", "-C", v.repo}
+	cmd := exec.CommandContext(ctx, "git", append(base, args...)...)
+	cmd.Env = append(cleanGitEnvironment(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_SYSTEM=/dev/null", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_OPTIONAL_LOCKS=0", "GIT_TERMINAL_PROMPT=0", "GIT_NO_REPLACE_OBJECTS=1", "GIT_NO_LAZY_FETCH=1", "GIT_ATTR_NOSYSTEM=1")
+	out, stderr := &candidateBuffer{limit: limit}, &candidateBuffer{limit: 64 << 10}
+	cmd.Stdout = out
+	cmd.Stderr = stderr
+	if e := cmd.Run(); e != nil {
+		if ctx.Err() != nil {
+			return nil, operational("git-timeout")
+		}
+		return nil, operational("repository-io")
+	}
+	return out.Bytes(), nil
+}
+func candidateObjectHash(kind string, b []byte, oidLength int) string {
+	header := []byte(fmt.Sprintf("%s %d\x00", kind, len(b)))
+	if oidLength == 40 {
+		h := sha1.New()
+		_, _ = h.Write(header)
+		_, _ = h.Write(b)
+		return hex.EncodeToString(h.Sum(nil))
+	}
+	h := sha256.New()
+	_, _ = h.Write(header)
+	_, _ = h.Write(b)
+	return hex.EncodeToString(h.Sum(nil))
+}
+func (v *verifier) candidateObject(kind, oid string, limit int) ([]byte, *cemError) {
+	b, e := v.candidateGit(limit, "cat-file", kind, oid)
+	if e != nil {
+		return nil, e
+	}
+	if candidateObjectHash(kind, b, len(oid)) != oid {
+		return nil, invalid("object-integrity")
+	}
+	return b, nil
+}
+
+// Every traversed object is self-hashed before its names or bytes enter caches.
+func (v *verifier) candidateSnapshot(commit string) (map[string]*treeEntry, *cemError) {
+	b, e := v.candidateObject("commit", commit, 1<<20)
+	if e != nil {
+		return nil, e
+	}
+	line, _, ok := strings.Cut(string(b), "\n")
+	if !ok || !strings.HasPrefix(line, "tree ") {
+		return nil, invalid("commit-shape")
+	}
+	tree := strings.TrimPrefix(line, "tree ")
+	if !validOID(tree) || len(tree) != len(commit) {
+		return nil, invalid("commit-shape")
+	}
+	files := map[string]*treeEntry{}
+	var walk func(string, string, int) *cemError
+	walk = func(oid, prefix string, depth int) *cemError {
+		if depth > 32 {
+			return invalid("resource")
+		}
+		raw, err := v.candidateObject("tree", oid, 4<<20)
+		if err != nil {
+			return err
+		}
+		seen := map[string]bool{}
+		for len(raw) > 0 {
+			sep := bytes.IndexByte(raw, ' ')
+			nul := bytes.IndexByte(raw, 0)
+			width := len(commit) / 2
+			if sep < 1 || nul <= sep+1 || len(raw) < nul+1+width {
+				return invalid("tree-shape")
+			}
+			mode, name := string(raw[:sep]), string(raw[sep+1:nul])
+			child := hex.EncodeToString(raw[nul+1 : nul+1+width])
+			raw = raw[nul+1+width:]
+			path := prefix + name
+			if strings.Contains(name, "/") || !candidatePath(path) || seen[name] {
+				return invalid("tree-path")
+			}
+			seen[name] = true
+			if mode == "40000" {
+				if err := walk(child, path+"/", depth+1); err != nil {
+					return err
+				}
+				continue
+			}
+			if mode != "100644" && mode != "100755" {
+				return operational("unsupported-tree-mode")
+			}
+			if len(files) >= 4096 {
+				return invalid("resource")
+			}
+			entry := &treeEntry{mode: mode, typ: "blob", oid: child}
+			files[path] = entry
+			v.trees[commit+"\x00"+path] = entry
+		}
+		return nil
+	}
+	if err := walk(tree, "", 0); err != nil {
+		return nil, err
+	}
+	return files, nil
+}
+func candidateRepository(repo string) *cemError {
+	root, e := os.OpenRoot(repo)
+	if e != nil {
+		return operational("repository-io")
+	}
+	defer root.Close()
+	for _, path := range []string{".git", ".git/objects", ".git/objects/info"} {
+		i, e := root.Lstat(path)
+		if e != nil || !i.IsDir() {
+			return operational("unsupported-repository")
+		}
+	}
+	for _, path := range []string{".git/objects/info/alternates", ".git/objects/info/http-alternates", ".git/info/grafts", ".git/shallow", ".git/info/attributes"} {
+		if _, e := root.Lstat(path); !errors.Is(e, os.ErrNotExist) {
+			return operational("unsupported-repository")
+		}
+	}
+	if candidateRegular(root, ".git/config") != nil {
+		return operational("unsupported-config")
+	}
+	f, e := root.Open(".git/config")
+	if e != nil {
+		return operational("unsupported-config")
+	}
+	b, e := io.ReadAll(io.LimitReader(f, 65537))
+	_ = f.Close()
+	if e != nil || len(b) > 65536 {
+		return operational("unsupported-config")
+	}
+	// The deliberately narrow reference profile refuses includes, filters, promisor
+	// stores and custom extensions rather than trying to sanitize arbitrary config.
+	section := ""
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
+			continue
+		}
+		if strings.HasPrefix(line, "[") {
+			if line != "[core]" && line != "[extensions]" {
+				return operational("unsupported-config")
+			}
+			section = line
+			continue
+		}
+		key, _, ok := strings.Cut(line, "=")
+		if !ok {
+			return operational("unsupported-config")
+		}
+		key = strings.ToLower(strings.TrimSpace(key))
+		if section == "[core]" {
+			switch key {
+			case "repositoryformatversion", "filemode", "bare", "logallrefupdates", "ignorecase", "precomposeunicode":
+			default:
+				return operational("unsupported-config")
+			}
+		} else if section != "[extensions]" || key != "objectformat" {
+			return operational("unsupported-config")
+		}
+	}
+	return nil
+}
+func verifyCandidate(ctx context.Context, repo string, raw []byte, base, target, artifactDir string) *cemError {
+	m, e := decodeCandidate(raw)
+	if e != nil {
+		return e
+	}
+	if !validOID(base) || !validOID(target) || len(base) != len(target) || m.BaseRevision != base {
+		return invalid("base-target-binding")
+	}
+	if !filepath.IsAbs(artifactDir) {
+		return operational("artifact-root")
+	}
+	root, err := os.OpenRoot(artifactDir)
+	if err != nil {
+		return operational("artifact-root")
+	}
+	defer root.Close()
+	if e := candidateArtifacts(ctx, root, m.Artifacts); e != nil {
+		return e
+	}
+	if e := candidateRepository(repo); e != nil {
+		return e
+	}
+	v := &verifier{ctx: ctx, repo: repo, blobs: map[string][]byte{}, trees: map[string]*treeEntry{}}
+	before, e := v.candidateSnapshot(base)
+	if e != nil {
+		return e
+	}
+	after, e := v.candidateSnapshot(target)
+	if e != nil {
+		return e
+	}
+	changed := map[string]bool{}
+	all := map[string]bool{}
+	for p := range before {
+		all[p] = true
+	}
+	for p := range after {
+		all[p] = true
+	}
+	needed := map[string]bool{candidateSidecar: true}
+	for p := range all {
+		a, b := before[p], after[p]
+		if (a == nil) != (b == nil) || a != nil && b != nil && (a.mode != b.mode || a.oid != b.oid) {
+			if p != candidateSidecar {
+				changed[p] = true
+			}
+			needed[p] = true
+		}
+	}
+	for _, e := range m.Evidence {
+		needed[e.Path] = true
+	}
+	for p := range needed {
+		for _, item := range []struct {
+			commit string
+			files  map[string]*treeEntry
+		}{{base, before}, {target, after}} {
+			entry := item.files[p]
+			v.trees[item.commit+"\x00"+p] = entry
+			if entry != nil {
+				if _, ok := v.blobs[entry.oid]; !ok {
+					b, e := v.candidateObject("blob", entry.oid, maxBlobBytes)
+					if e != nil {
+						return e
+					}
+					v.blobBytes += int64(len(b))
+					if v.blobBytes > maxTotalBlobs {
+						return invalid("resource")
+					}
+					v.blobs[entry.oid] = b
+				}
+			}
+		}
+	}
+	for _, entry := range []*treeEntry{before[candidateSidecar], after[candidateSidecar]} {
+		if entry != nil && entry.mode != "100644" {
+			return invalid("sidecar-mode")
+		}
+	}
+	if entry := after[candidateSidecar]; entry != nil && !bytes.Equal(v.blobs[entry.oid], raw) {
+		return invalid("sidecar-bytes")
+	}
+	emptyTree := candidateObjectHash("tree", nil, len(base))
+	var patch []byte
+	paths := []string{}
+	for p := range changed {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+	args := []string{"--attr-source=" + emptyTree, "diff", "--no-ext-diff", "--no-textconv", "--no-renames", "--diff-algorithm=myers", "--no-indent-heuristic", "--unified=3", "--inter-hunk-context=0", "--full-index", "--src-prefix=a/", "--dst-prefix=b/", "--no-color", base, target, "--"}
+	if len(paths) > 0 {
+		args = append(args, paths...)
+		patch, e = v.candidateGit(maxPatchBytes, args...)
+		if e != nil {
+			return e
+		}
+	} else {
+		patch = nil
+	}
+	if shaHex(patch) != m.PatchSHA256 {
+		return invalid("patch-digest")
+	}
+	parsed, e := parsePatch(patch)
+	if e != nil {
+		return e
+	}
+	seen := map[string]bool{}
+	for _, f := range parsed.files {
+		path := ""
+		if f.oldPath != nil {
+			path = *f.oldPath
+		}
+		if f.newPath != nil {
+			if path != "" && path != *f.newPath {
+				return invalid("patch-path")
+			}
+			path = *f.newPath
+		}
+		if !changed[path] || seen[path] {
+			return invalid("patch-inventory")
+		}
+		seen[path] = true
+		a, b := before[path], after[path]
+		if (f.oldPath == nil) != (a == nil) || (f.newPath == nil) != (b == nil) {
+			return invalid("patch-inventory")
+		}
+		var input, want []byte
+		if a != nil {
+			input = v.blobs[a.oid]
+		}
+		if b != nil {
+			want = v.blobs[b.oid]
+		}
+		got, e := simulate(ctx, input, f.hunks)
+		if e != nil {
+			return e
+		}
+		if !bytes.Equal(got, want) {
+			return invalid("patch-target")
+		}
+	}
+	if len(seen) != len(changed) {
+		return invalid("patch-inventory")
+	}
+	if e := v.verifyPatchSimulation(base, parsed); e != nil {
+		return e
+	}
+	if e := v.verifyEvidence(base, &m.cemMap); e != nil {
+		return e
+	}
+	if e := verifyHunkMap(&m.cemMap, parsed); e != nil {
+		return e
+	}
+	drift, e := v.computeDrift(target, m.Evidence)
+	if e != nil {
+		return e
+	}
+	for _, d := range drift {
+		if d.Status != "stable" && d.Status != "relocated" {
+			return invalid("evidence-drift")
+		}
+	}
+	return candidateArtifacts(ctx, root, m.Artifacts)
 }

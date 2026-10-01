@@ -217,6 +217,11 @@ func requireClosedKeys(object *Object, required []string) error {
 }
 
 func validateFields(object *Object, result *Map) error {
+	return validateCommonFields(object, result, Canonical(result.Spec))
+}
+
+// validateCommonFields reuses field mechanics without changing profile dispatch.
+func validateCommonFields(object *Object, result *Map, canonicalBinding bool) error {
 	base, _ := object.Get("baseRevision")
 	if base.Kind != KindString || !IsGitOid(base.Str) {
 		return fieldError("baseRevision must be a full lowercase Git commit OID")
@@ -227,7 +232,7 @@ func validateFields(object *Object, result *Map) error {
 		return fieldError("patchSha256 must be 64 lowercase hex bytes")
 	}
 	result.PatchSha256 = digest.Str
-	if Canonical(result.Spec) {
+	if canonicalBinding {
 		excluded, _ := object.Get("excludedPath")
 		if excluded.Kind != KindString || excluded.Str != ExcludedCEMPath {
 			return cemcode.New(cemcode.InvalidExcludedPath, "excludedPath must be the exact string %q", ExcludedCEMPath)

@@ -2,7 +2,7 @@
 // affected-selection language seam.
 //
 // A unit is one source or test file because that is the smallest common unit
-// Vitest, Jest, AVA, node:test, Playwright, Bun, Deno, Cypress, WebdriverIO,
+// Vitest, Jest, Mocha, AVA, node:test, Playwright, Bun, Deno, Cypress, WebdriverIO,
 // TestCafe, Nightwatch, and Detox can address. The legacy Storybook test-runner
 // is the exception: it can address only one configured story set, so its story
 // files are one aggregate unit. Imports are observed from source text; no
@@ -43,6 +43,7 @@ const (
 const (
 	runnerVitest          = "vitest"
 	runnerJest            = "jest"
+	runnerMocha           = "mocha"
 	runnerAVA             = "ava"
 	runnerNode            = "node-test"
 	runnerPlaywright      = "playwright"
@@ -127,7 +128,8 @@ func (language Language) units(root string, resolveAliases bool) (affected.Resul
 		}
 		text := string(body)
 		bodies[relative] = text
-		if ambiguousTestAsset(relative) {
+		configIdentity, _ := configRunner(relative, text)
+		if ambiguousTestAsset(relative) && configIdentity != runnerMocha {
 			frontier[FrontierCrossLanguageTestAsset] = true
 			continue
 		}
@@ -137,6 +139,9 @@ func (language Language) units(root string, resolveAliases bool) (affected.Resul
 				frontier[FrontierConfig] = true
 				continue
 			}
+			if scope.configured[runnerMocha] {
+				frontier[FrontierConfig] = true
+			}
 			if scope.name != "" || len(scope.runners) != 0 || len(scope.configured) != 0 || len(scope.packages) != 0 {
 				scopes = append(scopes, scope)
 			}
@@ -144,7 +149,7 @@ func (language Language) units(root string, resolveAliases bool) (affected.Resul
 		}
 		if runner, known := configRunner(relative, text); known {
 			configs = append(configs, config{path: relative, directory: path.Dir(relative), runner: runner})
-			if executableConfigIsDynamic(text) {
+			if runner == runnerMocha || executableConfigIsDynamic(text) {
 				frontier[FrontierConfig] = true
 			}
 		}
@@ -285,7 +290,23 @@ func classify(relative, body string, refs []string, configs []config, scopes []p
 		return observation
 	}
 	observation.test = true
-	if len(explicit) == 1 {
+	// Mocha and another configured/imported runner may both discover this path.
+	// Preserve that competing ownership rather than prioritizing an import.
+	mochaConflict := false
+	if explicit[runnerMocha] || possible[runnerMocha] {
+		owners := make(map[string]bool)
+		for runner := range explicit {
+			owners[runner] = true
+		}
+		for runner := range possible {
+			owners[runner] = true
+		}
+		mochaConflict = len(owners) > 1
+	}
+	if mochaConflict {
+		observation.runner = runnerUnknown
+		frontier[FrontierAmbiguousRunner] = true
+	} else if len(explicit) == 1 {
 		observation.runner = sortedKeys(explicit)[0]
 	} else if len(explicit) > 1 {
 		observation.runner = runnerUnknown
@@ -302,6 +323,13 @@ func classify(relative, body string, refs []string, configs []config, scopes []p
 		}
 	}
 	observation.configs = nearestConfigs(relative, observation.runner, configs)
+	if mochaConflict {
+		for _, config := range configs {
+			if inside(relative, config.directory) {
+				observation.configs = append(observation.configs, config.path)
+			}
+		}
+	}
 	if len(observation.configs) > 1 {
 		frontier[FrontierAmbiguousRunner] = true
 	}
@@ -329,6 +357,8 @@ func explicitRunners(body string, refs []string) map[string]bool {
 		switch {
 		case importsPackage([]string{ref}, "vitest"):
 			runners[runnerVitest] = true
+		case ref == "mocha":
+			runners[runnerMocha] = true
 		case ref == "@jest/globals":
 			runners[runnerJest] = true
 		case importsPackage([]string{ref}, "ava"):
@@ -802,6 +832,8 @@ func observedName(name string) bool {
 func configRunner(relative, body string) (string, bool) {
 	base := path.Base(relative)
 	switch {
+	case base == ".mocharc.js" || base == ".mocharc.cjs" || base == ".mocharc.mjs" || base == ".mocharc.json" || base == ".mocharc.jsonc" || base == ".mocharc.yaml" || base == ".mocharc.yml":
+		return runnerMocha, true
 	case prefixedConfig(base, "vitest.config"):
 		return runnerVitest, true
 	case prefixedConfig(base, "vite.config") && (strings.Contains(body, "vitest/config") || strings.Contains(body, "test:")):
@@ -846,6 +878,7 @@ func readPackageScope(relative string, body []byte) (packageScope, error) {
 		DevDependencies      map[string]json.RawMessage `json:"devDependencies"`
 		PeerDependencies     map[string]json.RawMessage `json:"peerDependencies"`
 		OptionalDependencies map[string]json.RawMessage `json:"optionalDependencies"`
+		Mocha                json.RawMessage            `json:"mocha"`
 		Jest                 json.RawMessage            `json:"jest"`
 		Detox                json.RawMessage            `json:"detox"`
 	}
@@ -861,7 +894,7 @@ func readPackageScope(relative string, body []byte) (packageScope, error) {
 	runners := make(map[string]bool)
 	configured := make(map[string]bool)
 	dependencyRunners := map[string]string{
-		"vitest": runnerVitest, "jest": runnerJest, "@jest/core": runnerJest, "ava": runnerAVA,
+		"mocha": runnerMocha, "vitest": runnerVitest, "jest": runnerJest, "@jest/core": runnerJest, "ava": runnerAVA,
 		"@playwright/test": runnerPlaywright, "cypress": runnerCypress,
 		"@wdio/cli": runnerWebdriverIO, "webdriverio": runnerWebdriverIO,
 		"testcafe": runnerTestCafe, "nightwatch": runnerNightwatch, "detox": runnerDetox,
@@ -871,6 +904,9 @@ func readPackageScope(relative string, body []byte) (packageScope, error) {
 		if dependencies[dependency] {
 			runners[runner] = true
 		}
+	}
+	if len(manifest.Mocha) != 0 && string(manifest.Mocha) != "null" {
+		configured[runnerMocha] = true
 	}
 	if len(manifest.Jest) != 0 && string(manifest.Jest) != "null" {
 		configured[runnerJest] = true
@@ -974,7 +1010,7 @@ func isConfigPath(relative, body string) bool {
 }
 
 func requiresRuntimeFlags(relative, runner string) bool {
-	return runner == runnerNode && (strings.HasSuffix(relative, ".ts") || strings.HasSuffix(relative, ".tsx"))
+	return (runner == runnerNode || runner == runnerMocha) && (strings.HasSuffix(relative, ".ts") || strings.HasSuffix(relative, ".tsx"))
 }
 
 func isE2ERunner(runner string) bool {
