@@ -10,6 +10,6 @@ import (
 func descendantSnapshot(context.Context) (map[int]ObservedProcess, error) {
 	return nil, errors.New("descendant observation unsupported")
 }
-func signalObservedProcess(context.Context, ObservedProcess) error {
+func signalObservedProcess(map[int]ObservedProcess, ObservedProcess) error {
 	return errors.New("descendant observation unsupported")
 }
