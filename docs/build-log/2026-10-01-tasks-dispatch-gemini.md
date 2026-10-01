@@ -25,8 +25,14 @@ Decisions:
 - `docs/TASKS-SUPERVISION.md` gives a host example:
   - flags: `-p {prompt} -o stream-json --approval-mode default --policy <file> --skip-trust -e none`;
   - a policy TOML that allow-lists the claim, submit, gate and test commands plus the file tools.
-  - Headless Gemini denies any call the policy would ask about, so the policy works as an
-    allow-list.
+  - Headless Gemini denies a call no rule matches and fails one a rule asks about, so the policy
+    works as an allow-list.
+  - The allow rules use priority 999. Rules from Gemini settings rank above a priority-100
+    `--policy` rule.
+  - The argv `PATH` includes `/opt/homebrew/bin`, because the `gemini` launcher is a
+    `#!/usr/bin/env node` script.
+  - `--skip-trust` makes `workRoot/.gemini/settings.json` and `.env` load. A worker allowed to
+    write files can widen its next run there. The doc says so.
   - Like the other hosts' allow-lists, the policy is host enforcement, not containment.
 
 Evidence:
@@ -36,11 +42,22 @@ Evidence:
   - the non-interactive runner emits `init`, the user `message`, assistant `message` deltas (text
     parts only), `tool_use`, `tool_result`, `error` and `result`;
   - `JsonFormatter.format` prints `response` with two-space indentation;
-  - the policy engine's non-interactive default turns `ASK_USER` into `DENY`.
+  - the policy engine's non-interactive default decision is `DENY`, and a matched `ASK_USER` throws
+    "requires user confirmation", for example on a redirected shell command.
 - `TestCALV0058_SummaryReadsHostFinalText` gains two cases:
   - a Gemini stream-json transcript (init, user message, chunked reply, tool use and result, a
     second chunked reply, a warning, result);
   - a pretty-printed Gemini json object.
+
+An independent review found no code defects. It found these doc defects, now fixed:
+
+- the example `PATH` lacked `node`;
+- settings rules outranked the policy;
+- the doc did not say that workspace settings load;
+- the ASK_USER wording was wrong.
+
+Accepted limit: a `-o json` output over the 64 KiB tail loses `response`, so its summary is the raw
+tail.
 
 Live qualification is BLOCKED. On this machine the Gemini CLI is signed in with personal Google
 OAuth. A headless probe failed with `IneligibleTierError`: that client is no longer supported for
