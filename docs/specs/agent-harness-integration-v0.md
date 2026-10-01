@@ -571,13 +571,20 @@ do not reinterpret this Frontier result.
   unmodified host and real Corvint binary. A loopback scripted provider is sufficient for transport
   qualification, but is not model-quality or real-world task-success evidence.
 
-  The default awaited `session.prompt` hook MUST append bounded, framed, receipt-linked context
-  to that same prompt only while its text is unchanged and its session remains active. The complete
-  addition, including disclosure and separators, MUST be at most 8000 UTF-8 bytes. It MUST deduplicate
-  event reentry and message identities, count each in-flight request once (including when the first
-  prompt overlaps session startup), bound concurrent calls and session state, cancel deleted or
-  evicted sessions, and discard late responses. The adapter MUST NOT persist prompts or inspect
-  transcripts; OpenCode itself may store the augmented native prompt as normal conversation history.
+  At the owner's request (2026-10-01), the default awaited `session.prompt` hook MUST keep
+  submitted user text unchanged. It MUST retain bounded, framed, receipt-linked task context only
+  in bounded session memory and supply it through the model-request context hook, not visible or
+  persisted user messages. Collection succeeds only while the original text is unchanged and the
+  session remains active; late results from an older prompt generation MUST be discarded. A new
+  distinct prompt MUST invalidate prior task context before a busy or failed collection can return.
+  Duplicate events/message identities MUST preserve the same prompt's collected context, and a
+  repeated context hook MUST NOT duplicate its frame within that request. Each complete task frame,
+  including disclosure and framing, MUST be at most 8000 UTF-8 bytes. The adapter MUST count each
+  in-flight request once (including first-prompt/startup overlap), bound concurrent calls and session
+  state, cancel deleted or evicted sessions, and clear the task frame on compaction. It MUST NOT
+  persist prompts or inspect transcripts. Native qualification MUST verify unchanged prompt drafts,
+  absence of the automatic frame in provider user messages, and delivery of the same receipt-linked
+  frame in model context; byte and timing evidence MUST measure this hidden delivery.
   `corvint_expand` encodes supplied pinned tree/blob/path tuples as cv1 selectors and delegates
   selection, identity validation and exact expansion to the existing Core command. It MUST refuse
   malformed, stale, oversized or envelope-colliding results without substituting worktree text.
@@ -1016,7 +1023,7 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 | Requirement | Implementation surface | Required evidence |
 |---|---|---|
 | `AHI-001`, `003`, `005`, `014` | shared `corvint harness event` core and `internal/projectpath` | canonical receipt, bounds, privacy, revision, and event fixtures; `TestHostAdapterAbsentPathContainment` and `TestRelativeAliasesAndUncertainty` cover `AHI-014` path containment, and the `integrations/host-adapters.test.mjs` test `AHI-014 Gemini classifies changed paths on resolved symlinks like internal/projectpath` under `TestHostAdapterJavaScriptHosts` covers the Gemini hook's symlink resolution; `TestClaudeAdapterForkSessionStartIsResume` covers the Claude `fork` start source; `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` drives the Claude `SessionStart(source=compact)` hook entrypoint over a mixed dirty worktree and requires the tracked impact, the untracked count and `compaction-untracked-paths-not-rehydratable` from the receipt's own snapshot; `TestQualifiedLifecycleCompactSessionStartRehydratesDirtyPaths` requires the same for the qualified profile under FULL and FALLBACK and refuses a reordered, extra or dropped code; `TestAHI014EventExpectationsAreHostConsistent` (`conformance/harness-event-v0/host_schema_test.go`) pins each `common-logical-interaction.json` event's closed host set and requires every present host's golden `expected` object to be byte-identical, so a per-host field or host-membership mutation of that fixture fails here |
-| `AHI-032` | `internal/opencodequalification`, `tools/qualify-opencode`, native prompt hook and qualification consumer | `internal/opencodequalification/record_test.go::TestRecordValidation`, `::TestAtomicRecord`, `::TestArchitecture`, `::TestProducerConsumer`; `internal/opencodequalification/command_test.go::TestInvalidHostInvalidatesQualification`; `internal/opencodequalification/witness_posix_test.go::TestGateInterruptionWitness`; first-prompt startup overlap in `TestHostAdapterJavaScriptHosts`; exact-tuple native campaign required |
+| `AHI-032` | `internal/opencodequalification`, `tools/qualify-opencode`, native prompt hook and qualification consumer | `internal/opencodequalification/record_test.go::TestRecordValidation`, `::TestAtomicRecord`, `::TestArchitecture`, `::TestProducerConsumer`; `internal/opencodequalification/command_test.go::TestInvalidHostInvalidatesQualification`; `internal/opencodequalification/witness_posix_test.go::TestGateInterruptionWitness`; first-prompt startup overlap, quiet-context busy/compaction regressions in `TestHostAdapterJavaScriptHosts`, and `internal/opencodequalification/native_test.go::TestAHI032HiddenPromptDelivery`; exact-tuple native campaign required |
 | `AHI-033` | `integrations/opencode/src/inspector.js`, `src/tui.tsx`, and inspector RPC in `src/index.js` | `integrations/opencode/inspector.test.mjs`, AHI-033 cases under `TestHostAdapterJavaScriptHosts`, and `tools/qualify-opencode --inspector` (stock native rendering, pinned source, narrow keyboard use and interruption cleanup) |
 | `AHI-034` | `integrations/opencode/src/cockpit.js`, `cockpit-tui.tsx`, `index.js`, `runtime.js` | `integrations/opencode/cockpit.test.mjs` and `tools/qualify-opencode --inspector`: bounded fixed reads, safe output paths, stale/owner/check-rerun races, advisory impact navigation, independent workflow/check state and real native change/proof workflow |
 | `AHI-042` | `integrations/opencode/src/ui-presentation.js`, `cockpit-tui.tsx`, `tui.tsx`, `task-tui.tsx`, `workbench-tui.tsx`, `task-metrics.js` and `workbench.js` | `integrations/opencode/ui-presentation.test.mjs`, AHI-042 declared-gate cases in `task-metrics.test.mjs` / `workbench.test.mjs`, and the stock native inspector witness for bounded Work → Change → Evidence navigation and honest status/limit presentation |

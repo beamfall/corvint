@@ -1,17 +1,26 @@
 import plugin from CANDIDATE;
 import {appendFileSync,createReadStream} from 'node:fs';
 import {createHash} from 'node:crypto';
-const timing=(kind,ms,delivered)=>appendFileSync(TIMINGS,JSON.stringify({kind,ms,delivered})+'\n');
+const timing=(kind,ms,delivered,unchanged,input)=>appendFileSync(TIMINGS,JSON.stringify({kind,ms,delivered,unchanged,sessionID:input?.sessionID,messageID:input?.messageID})+'\n');
 export default {...plugin,async setup(ctx){
  const warn=console.warn;
  console.warn=(...args)=>{if(String(args[0]).startsWith('[corvint/opencode]'))appendFileSync(FAULTS,JSON.stringify({message:String(args[0])})+'\n');warn(...args)};
- const wrap=(kind,fn)=>async(...args)=>{const t=performance.now();let complete=false;try{const result=await fn(...args);complete=true;return result}finally{
+ let contextHook;
+ const wrap=(kind,fn)=>async(...args)=>{const t=performance.now(),original=args[0]?.prompt?.text;let complete=false;try{const result=await fn(...args);complete=true;return result}finally{
   const label=typeof kind==='function'?kind(...args):kind;
-  const delivered=label==='session.prompt'?complete&&args[0].prompt.text.includes('harness-receipt:sha256:'):complete;
-  timing(label,performance.now()-t,delivered);
+  const ms=performance.now()-t,unchanged=label!=='session.prompt'||args[0].prompt.text===original;
+  let delivered=complete;
+  if(label==='session.prompt'){
+   // Timing samples admit idle fixture prompts without starting a model call. Exercise the
+   // registered model-context callback; the native campaign separately checks provider bytes.
+   const request={sessionID:args[0].sessionID,system:[]};
+   await contextHook?.(request);
+   delivered=complete&&unchanged&&request.system.some(item=>item.text.includes('harness-receipt:sha256:'));
+  }
+  timing(label,ms,delivered,unchanged,args[0]);
  }};
  const dispose=await plugin.setup({...ctx,
-  session:{...ctx.session,hook:(name,fn)=>ctx.session.hook(name,wrap('session.'+name,fn))},
+  session:{...ctx.session,hook:(name,fn)=>{if(name==='context')contextHook=fn;return ctx.session.hook(name,wrap('session.'+name,fn))}},
   tool:{...ctx.tool,hook:(name,fn)=>ctx.tool.hook(name,wrap(call=>'tool.'+name+':'+call.tool,fn))},
   event:{...ctx.event,subscribe:async function* (options){for await(const event of ctx.event.subscribe(options)){
    const t=performance.now();yield event;timing('event.'+event.type,performance.now()-t);

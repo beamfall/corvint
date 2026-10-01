@@ -159,8 +159,12 @@ func Native(ctx context.Context, c Config) (Object, error) {
 		}
 	}
 	prompts := []string{}
+	var firstPrompt Object
 	for _, x := range events {
 		if x["kind"] == "prompt" {
+			if firstPrompt == nil {
+				firstPrompt = x
+			}
 			prompts = append(prompts, str(x["text"]))
 		}
 	}
@@ -176,12 +180,18 @@ func Native(ctx context.Context, c Config) (Object, error) {
 	if len(queryPackets) == 0 {
 		return nil, errors.New("native query evidence missing")
 	}
+	timings, e := readRows(root + "/timings.jsonl")
+	if e != nil {
+		return nil, e
+	}
+	injected, deliveredPrompt := hiddenPromptDelivery(prompts[0], events, array(requests[0]["messages"]), str(queryPackets[0]["receiptId"]))
+	deliveredPrompt = deliveredPrompt && unchangedPromptObservation(firstPrompt, timings)
 	checks := Object{
 		"native-discovery": anyRow(events, func(x Object) bool { return x["version"] == c.HostVersion }),
 		"native-host-image": anyRow(events, func(x Object) bool {
 			return x["kind"] == "setup" && x["executableSHA256"] == baseline.HostSHA256 && x["architecture"] == baseline.Tuple["architecture"] && x["os"] == baseline.Tuple["os"]
 		}),
-		"awaited-current-prompt": strings.Contains(prompts[0], "harness-receipt:sha256:") && anyValue(array(requests[0]["messages"]), func(x Object) bool { return x["role"] == "user" && contains(x, "harness-receipt:sha256:") }),
+		"awaited-current-prompt": deliveredPrompt,
 		"native-query":           anyRow(events, func(x Object) bool { return x["name"] == "corvint_context" && x["status"] == "completed" }),
 		"native-exact-expansion": anyRow(packets, func(x Object) bool {
 			return x["handle"] == handle && object(x["selection"])["text"] == strings.Join(strings.Split(source, "\n")[:3], "\n")+"\n"
@@ -209,18 +219,8 @@ func Native(ctx context.Context, c Config) (Object, error) {
 		return nil, e
 	}
 	checks["native-edit"] = strings.Contains(string(edited), "// after")
-	bounded := true
-	for _, p := range prompts {
-		_, tail, ok := strings.Cut(p, "\n\n")
-		if ok && len(tail)+2 > 8000 {
-			bounded = false
-		}
-	}
-	checks["bounded-prompt"] = bounded
-	timings, e := readRows(root + "/timings.jsonl")
-	if e != nil {
-		return nil, e
-	}
+	// AHI-032 now measures the receipt-linked frame supplied through model context.
+	checks["bounded-prompt"] = deliveredPrompt && injected <= 8000
 	timingStart := len(timings)
 	faults, e := readRows(root + "/faults.jsonl")
 	if e != nil {
@@ -266,12 +266,10 @@ func Native(ctx context.Context, c Config) (Object, error) {
 		})
 	})
 	checks["oversized-exclusion"] = anyRow(queryPackets, func(p Object) bool { return number(object(object(p["context"])["exclusions"])["count"]) > 0 })
-	_, tail, hasTail := strings.Cut(prompts[0], "\n\n")
-	injected := len(tail) + 2
 	recall := anyValue(array(object(queryPackets[0]["context"])["results"]), func(row Object) bool {
 		return row["name"] == "Add" && anyValue(array(row["evidence"]), func(e Object) bool { return e["path"] == "add.go" && number(e["line"]) == 3 })
 	})
-	checks["critical-recall-and-bytes"] = hasTail && injected < len(source) && recall
+	checks["critical-recall-and-bytes"] = deliveredPrompt && injected < len(source) && recall
 	checks["supplied-evidence"] = anyRow(invocations, func(x Object) bool { return len(array(object(x["input"])["observedEvidenceHandles"])) > 0 })
 	stops := 0
 	for _, p := range packets {
@@ -384,4 +382,58 @@ func boolInt(v bool) int {
 		return 1
 	}
 	return 0
+}
+
+// hiddenPromptDelivery checks the actual hook frame and outgoing provider payload together.
+// User text stays visible; the identical bounded receipt belongs only in model context (AHI-032).
+func hiddenPromptDelivery(prompt string, events []Object, messages []any, receipt string) (int, bool) {
+	const marker = "BEGIN CORVINT REPOSITORY DATA"
+	if receipt == "" || strings.Contains(prompt, marker) {
+		return 0, false
+	}
+	for _, value := range messages {
+		message := object(value)
+		if message["role"] == "user" && contains(message, marker) {
+			return 0, false
+		}
+	}
+	for _, event := range events {
+		if event["kind"] != "context" {
+			continue
+		}
+		for _, item := range array(event["system"]) {
+			frame := str(object(item)["text"])
+			if !strings.Contains(frame, marker) || !strings.Contains(frame, receipt) || len(frame) > 8000 {
+				continue
+			}
+			for _, value := range messages {
+				message := object(value)
+				if message["role"] != "system" && message["role"] != "developer" {
+					continue
+				}
+				content := message["content"]
+				if text, ok := content.(string); ok && strings.Contains(text, frame) {
+					return len(frame), true
+				}
+				for _, part := range array(content) {
+					if strings.Contains(str(object(part)["text"]), frame) {
+						return len(frame), true
+					}
+				}
+			}
+		}
+	}
+	return 0, false
+}
+
+// The delivery observation belongs to the exact prompt that produced the first provider request.
+// Later idle timing samples must never mask mutation of that draft (AHI-032).
+func unchangedPromptObservation(prompt Object, timings []Object) bool {
+	session, message := str(prompt["sessionID"]), str(prompt["messageID"])
+	if session == "" || message == "" {
+		return false
+	}
+	return anyRow(timings, func(row Object) bool {
+		return row["kind"] == "session.prompt" && row["sessionID"] == session && row["messageID"] == message && truth(row["unchanged"]) && truth(row["delivered"])
+	})
 }

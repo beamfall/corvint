@@ -99,7 +99,7 @@ const spyConsole=(t,level)=>{const rows=[],original=console[level];console[level
 
 // Use a genuine query for transport success under load; automatic deadlines are checked separately.
 // This fixture bound is not an AHI-012 latency measurement.
-test('CRB-V0-012 OpenCode query transport, unicode bounds, receipt and env',async t=>{
+test('AHI-020 CRB-V0-012 OpenCode query transport, unicode bounds, receipt and env',async t=>{
  const f=fixture(t);const result=await f.runOpen(request(f.root,'user-prompt'));assert.equal(result.ok,true,JSON.stringify(result))
  const manifest=JSON.parse(readFileSync(join(here,'opencode/package.json'),'utf8'))
  const matrix=JSON.parse(readFileSync(join(here,'compatibility.json'),'utf8')).entries.find(entry=>entry.host==='opencode')
@@ -557,7 +557,7 @@ test('AHI-016 Gemini and OpenCode derive the Go anchor query and disclosure for 
   assert.ok(!JSON.stringify(rows).includes('degrading')&&!JSON.stringify(rows).includes('héllo'),`${boundary.case}: elided prompt text reached Corvint`)
  }
 })
-test('CRB-V0-009 CRB-V0-012 AHI-010 published matrix rows bind renamed shipped declarations and versions while degradation lists stay disjoint',()=>{
+test('AHI-020 CRB-V0-009 CRB-V0-012 AHI-010 published matrix rows bind renamed shipped declarations and versions while degradation lists stay disjoint',()=>{
  const read=rel=>JSON.parse(readFileSync(join(here,rel),'utf8'))
  const matrix=read('compatibility.json')
  const shipped={
@@ -608,7 +608,9 @@ test('AHI-032 first prompt obtains context while session startup is still runnin
  const event={sessionID:'starting',messageID:'first',prompt:{text:'inspect first prompt'}}
  await host.hooks['session.prompt'](event)
  await startup
- assert.ok(event.prompt.text.includes('harness-receipt:sha256:'))
+ assert.equal(event.prompt.text,'inspect first prompt')
+ const request={sessionID:'starting',system:[]};await host.hooks['session.context'](request)
+ assert.match(request.system[0].text,/harness-receipt:sha256:/)
  assert.equal(f.captured().filter(row=>row.argv.includes('user-prompt')).length,1)
 })
 
@@ -617,20 +619,46 @@ test('AHI-032 awaited prompt context stays with its prompt, deduplicates and dro
  const host=await openCode(t,f.root,{corvintBinary:f.binary,...OPEN_TIMEOUTS})
  const a={sessionID:'a',messageID:'m-a',prompt:{text:'inspect alpha'}},b={sessionID:'b',messageID:'m-b',prompt:{text:'inspect beta'}}
  await Promise.all([host.hooks['session.prompt'](a),host.hooks['session.prompt'](b)])
- for(const event of [a,b]){assert.ok(event.prompt.text.includes('harness-receipt:sha256:'));assert.ok(Buffer.byteLength(event.prompt.text)<8000)}
+ for(const [event,text] of [[a,'inspect alpha'],[b,'inspect beta']]){
+  assert.equal(event.prompt.text,text)
+  const request={sessionID:event.sessionID,system:[]};await host.hooks['session.context'](request);await host.hooks['session.context'](request)
+  assert.equal(request.system.length,1);assert.match(request.system[0].text,/BEGIN CORVINT REPOSITORY DATA/);assert.ok(Buffer.byteLength(request.system[0].text)<=8000)
+ }
  const count=f.captured().length,original=a.prompt.text
  await host.hooks['session.prompt'](a);await host.hooks['session.prompt']({...a,prompt:{text:original}})
  assert.equal(f.captured().length,count);assert.equal(a.prompt.text,original)
  const sameA={sessionID:'same',messageID:'same-id',prompt:{text:'same prompt'}},sameB={...sameA,prompt:{text:'same prompt'}}
  const initial=f.captured().length
  await Promise.all([host.hooks['session.prompt'](sameA),host.hooks['session.prompt'](sameB)])
- assert.equal(f.captured().length,initial+1);assert.ok(sameA.prompt.text.includes('harness-receipt'));assert.equal(sameB.prompt.text,'same prompt')
+ assert.equal(f.captured().length,initial+1);assert.equal(sameA.prompt.text,'same prompt');assert.equal(sameB.prompt.text,'same prompt')
+ const same={sessionID:'same',system:[]};await host.hooks['session.context'](same);assert.match(same.system[0].text,/harness-receipt/)
  const changed={sessionID:'c',messageID:'m-c',prompt:{text:'first'}}
  const pending=host.hooks['session.prompt'](changed);changed.prompt.text='newer';await pending;assert.equal(changed.prompt.text,'newer')
  const deleted={sessionID:'d',messageID:'m-d',prompt:{text:'deleted'}}
  const running=host.hooks['session.prompt'](deleted);await host.emit('session.deleted',{sessionID:'d'});await running
  assert.equal(deleted.prompt.text,'deleted')
  for(const row of f.captured())noSecret(row)
+})
+
+test('AHI-032 quiet context clears stale delivery on busy prompts and compaction',async t=>{
+ const f=fixture(t,'slow-valid');spyConsole(t,'info');spyConsole(t,'warn')
+ const host=await openCode(t,f.root,{corvintBinary:f.binary,...OPEN_TIMEOUTS})
+ await host.hooks['session.prompt']({sessionID:'a',messageID:'a1',prompt:{text:'inspect alpha'}})
+ const before={sessionID:'a',system:[]};await host.hooks['session.context'](before);assert.equal(before.system.length,1)
+ const count=f.captured().length
+ const startup=host.emit('session.created',{sessionID:'a'})
+ const query=host.tools.corvint_context.execute({task:'inspect alpha'},{sessionID:'a'})
+ const deadline=Date.now()+4000
+ while(f.captured().length<count+2&&Date.now()<deadline)await new Promise(r=>setTimeout(r,2))
+ assert.equal(f.captured().length,count+2,'both session slots must be occupied')
+ const busy={sessionID:'a',messageID:'a2',prompt:{text:'inspect beta'}};await host.hooks['session.prompt'](busy)
+ const request={sessionID:'a',system:[]};await host.hooks['session.context'](request);assert.deepEqual(request.system,[])
+ assert.equal(busy.prompt.text,'inspect beta');await Promise.all([startup,query])
+ const after={sessionID:'a',system:[]};await host.hooks['session.context'](after);assert.deepEqual(after.system,[])
+ await host.hooks['session.prompt']({sessionID:'a',messageID:'a3',prompt:{text:'inspect gamma'}})
+ await host.emit('session.compaction.ended',{sessionID:'a'})
+ const compact={sessionID:'a',system:[]};await host.hooks['session.context'](compact)
+ assert.equal(compact.system.length,1);assert.ok(!compact.system[0].text.includes('expansionHandles'),'old task frame survived compaction')
 })
 
 test('AHI-032 compaction recovery uses compact source, deduplicates, and retries failures',async t=>{
