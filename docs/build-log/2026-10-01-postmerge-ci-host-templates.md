@@ -44,7 +44,8 @@ rather than guessing. The audit flags:
 ## Evidence and limits
 
 `GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/postmergehost` passes. All three
-templates audit with zero findings, and 32 single mutations each produce their specific finding.
+templates audit with zero findings, and 43 single mutations (after review repairs) each produce
+their specific finding.
 
 The following remain open or `NOT_RUN`:
 - Issue acceptance item (a), a hosted dry-run of the #395 replay set: not run, because #395 has not

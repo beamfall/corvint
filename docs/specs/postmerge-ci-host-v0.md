@@ -69,7 +69,9 @@ Corvint stays a local binary. The templates are operator reference material, not
 - `PCH-V0-007`: Provide an audit, `internal/postmergehost.Audit`, over a restricted YAML subset. It
   refuses unsupported constructs: anchors, aliases, tags, folded scalars, flow mappings, multiple
   documents, tabs, duplicate keys, unmodelled job keys such as reusable workflows, containers
-  and services, and unmodelled step keys such as a custom `shell:`.
+  and services, unmodelled step keys such as a custom `shell:`, and any workflow- or job-level
+  `defaults` other than `run.working-directory` [UNMODELLED_KEY, or CUSTOM_SHELL for
+  `defaults.run.shell`].
 
   It reports each of these, with the finding code in brackets:
   - change-request triggers [CHANGE_REQUEST_TRIGGER];
@@ -149,12 +151,12 @@ It checks that:
 - the graph validates, and seven malformed graphs refuse;
 - all three templates audit clean;
 - the authoring job references no write-class secret, write permission or token;
-- 39 single mutations each produce their specific finding code, including a reintroduced
-  line-oriented `grep` check, a custom step shell, an expression in `with.script` and non-literal
-  source-trigger filters;
+- 43 single mutations each produce their specific finding code, including a reintroduced
+  line-oriented `grep` check, a custom step shell, a workflow- or job-level `defaults.run.shell`,
+  an expression in `with.script`, and non-literal or empty source-trigger filters;
 - the pipeline's change-id check, run under bash and POSIX sh, writes outputs only for one whole
   40- or 64-hex id and refuses a newline-injected `change=` line, and replay dispatches only whole
-  ids;
+  ids, including a final line without a trailing newline;
 - the YAML subset refuses unsupported syntax;
 - `install-pinned.sh` passes `sh -n`, refuses a short or multi-line commit, and refuses companion
   names containing `/`, `.` or a newline before any fetch;

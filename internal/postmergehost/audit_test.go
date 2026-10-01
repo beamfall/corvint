@@ -155,6 +155,10 @@ func TestAuditRefusesUnsafeTemplates(t *testing.T) {
 		{"here-string replay check", reconcile, replayCase, "            grep -Eqx '[0-9a-f]{40}' <<< \"$change\"\n" + replayCase, "LINE_ORIENTED_VALIDATION"},
 		{"custom step shell", pipeline, "      - name: Record the pending delta step\n", "      - name: Record the pending delta step\n        shell: python {0}\n", "UNMODELLED_KEY"},
 		{"expression in with.script", pipeline, "          go-version: \"1.27.1\"\n", "          go-version: \"1.27.1\"\n          script: ${{ inputs.change }}\n", "RUN_EXPRESSION_INTERPOLATION"},
+		{"workflow default shell", pipeline, "permissions: {}\n", "permissions: {}\ndefaults:\n  run:\n    shell: python {0}\n", "CUSTOM_SHELL"},
+		{"job default shell", pipeline, "    timeout-minutes: 5\n    permissions: {}\n    env:\n      CORVINT_PM_STEP: delta\n", "    timeout-minutes: 5\n    defaults:\n      run:\n        shell: python {0}\n    permissions: {}\n    env:\n      CORVINT_PM_STEP: delta\n", "CUSTOM_SHELL"},
+		{"unmodelled defaults key", pipeline, "permissions: {}\n", "permissions: {}\ndefaults:\n  run:\n    working-directory: config\n  other: x\n", "UNMODELLED_KEY"},
+		{"empty trigger branches", trigger, "    branches: [main]\n", "    branches: []\n", "SOURCE_TRIGGER_BRANCHES"},
 		{"wildcard trigger branch", trigger, "    branches: [main]\n", "    branches: [\"**\"]\n", "SOURCE_TRIGGER_BRANCHES"},
 		{"tag-only push trigger", trigger, "    branches: [main]\n", "    tags: [v1]\n", "SOURCE_TRIGGER_BRANCHES"},
 		{"path-filtered push trigger", trigger, "    branches: [main]\n", "    branches: [main]\n    paths: [src]\n", "SOURCE_TRIGGER_BRANCHES"},
@@ -328,6 +332,7 @@ func TestReplayRefusesMalformedChange(t *testing.T) {
 		{"# replay\n" + hex40 + "\n\n" + hex40 + "\n", 2, true},
 		{hex40 + " change=refs/pull/1/head\n", 0, false},
 		{hex40 + "0\n", 0, false},
+		{hex40 + "\n" + hex40, 2, true},
 	} {
 		dir := t.TempDir()
 		set, log := filepath.Join(dir, "set"), filepath.Join(dir, "gh.log")

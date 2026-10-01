@@ -94,7 +94,12 @@ item from its own export, not from author output.
   `validate.sh` and the trusted job must treat `before-state` as untrusted, like author output.
 - Coverage is lexical and partial. `LINE_ORIENTED_VALIDATION` matches only the `printf`/`echo`
   pipe and here-string forms. Expressions are checked in `run` and `with.script`, not in other
-  action inputs that evaluate code. A custom step `shell:` is refused rather than audited. The
-  audit cannot see the repository default branch, so check that the source trigger names it.
+  action inputs that evaluate code. A custom step `shell:` and a workflow- or job-level
+  `defaults.run.shell` are refused rather than audited; `defaults` admits only
+  `run.working-directory`. The audit cannot see the repository default branch, so check that the
+  source trigger names it.
+- The pipeline's concurrency group is evaluated before any job runs, so it uses the unvalidated
+  dispatched change value. It only selects a queue: a malformed value gets a queue of its own, and
+  the `resolve` job then refuses it before any checkout or step uses it.
 - Attestation on the same virtual machine is not confinement.
 - No template has run on a hosted runner, and no replay set has run in dry-run mode.

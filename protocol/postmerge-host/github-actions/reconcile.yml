@@ -60,7 +60,7 @@ jobs:
           else
             git log --first-parent --since=26.hours --format=%H HEAD > "$RUNNER_TEMP/changes"
           fi
-          while read -r change; do
+          while read -r change || [ -n "$change" ]; do
             case "${#change}" in
               40|64) ;;
               *) echo "change-invalid" >&2; exit 1 ;;

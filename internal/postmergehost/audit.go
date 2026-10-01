@@ -90,6 +90,7 @@ func Audit(g *Graph, name string, data []byte) []Finding {
 	}
 	a.triggers(name, role, root.Get("on"))
 	a.permissions(name, root.Get("permissions"), true)
+	a.defaults(name, root.Get("defaults"))
 	for _, s := range scalars(env) {
 		if refs := a.credentialRefs(s); len(refs) > 0 {
 			a.add("WORKFLOW_LEVEL_SECRET", name, "workflow env exposes %s to every job", strings.Join(refs, ","))
@@ -201,6 +202,34 @@ func (a *auditor) pushBranches(where string, push *Node) {
 	}
 	if !ok {
 		a.add("SOURCE_TRIGGER_BRANCHES", where, "push must declare only branches: a non-empty list of literal branch names")
+	}
+}
+
+// defaults admits only defaults.run.working-directory. A defaults.run.shell
+// would run every step's script under an unaudited interpreter.
+func (a *auditor) defaults(where string, d *Node) {
+	if d == nil {
+		return
+	}
+	if d.Kind != Mapping {
+		a.add("UNMODELLED_KEY", where, "defaults must be a mapping")
+		return
+	}
+	for _, k := range d.Keys {
+		run := d.Map[k]
+		if k != "run" || run == nil || run.Kind != Mapping {
+			a.add("UNMODELLED_KEY", where, "defaults key %q", k)
+			continue
+		}
+		for _, rk := range run.Keys {
+			switch rk {
+			case "working-directory":
+			case "shell":
+				a.add("CUSTOM_SHELL", where, "defaults.run.shell %q (custom shells are not audited)", scalar(run.Map[rk]))
+			default:
+				a.add("UNMODELLED_KEY", where, "defaults.run key %q", rk)
+			}
+		}
 	}
 }
 
@@ -335,6 +364,7 @@ func (a *auditor) job(where, role string, j *Node) []string {
 			a.add("SOURCE_TRIGGER_UNBOUNDED", where, "timeout-minutes must be 1..%d", maxTriggerMinutes)
 		}
 	}
+	a.defaults(where, j.Get("defaults"))
 	held := map[string]bool{}
 	for _, c := range a.permissions(where, j.Get("permissions"), false) {
 		held[c] = true
