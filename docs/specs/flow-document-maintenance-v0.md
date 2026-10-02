@@ -107,8 +107,8 @@ validation is deferred to the integrated release boundary, not replaced by focus
 
 | Requirements | Implementation | Evidence |
 |---|---|---|
-| FDM-V0-001..003 | `internal/appflows/docs_maintain.go` | `TestFlowDocMaintenanceLifecycle`, `TestFlowDocMaintenanceRefusals`, `TestFlowDocMaintenanceAdoption`, `TestFlowDocMaintenanceOversizedProposal`, `TestFlowDocMaintenanceAbsentIgnoredInput` |
-| FDM-V0-004..005 | `internal/doccorpus/apply_pair.go`, `cmd/corvint/flows_docs.go` | `TestMaintenancePairRecovery`, `TestFlowDocMaintenanceCompiled`, `TestFlowDocMaintenanceEncodingBounds`, `TestFlowDocMaintenanceReceiptRoundTrip` |
+| FDM-V0-001..003 | `internal/appflows/docs_maintain.go` | `TestFlowDocMaintenanceLifecycle`, `TestFlowDocMaintenanceRefusals`, `TestFlowDocMaintenanceAdoption`, `TestFlowDocMaintenanceOversizedProposal`, `TestFlowDocMaintenanceAbsentIgnoredInput`, `TestFlowDocMaintenanceDerivationRaces` |
+| FDM-V0-004..005 | `internal/doccorpus/apply_pair.go`, `cmd/corvint/flows_docs.go` | `TestMaintenancePairRecovery`, `TestMaintenancePairPostPublishRecheck`, `TestFlowDocMaintenanceCLIGuards`, `TestFlowDocMaintenanceCompiled`, `TestFlowDocMaintenanceEncodingBounds`, `TestFlowDocMaintenanceReceiptRoundTrip` |
 | FDM-V0-006..007 | `internal/appflows/docs_maintain.go` | `TestFlowDocMaintenanceLifecycle`, `TestFlowDocMaintenanceCompiled` |
 
 Rollback removes the additive command/profile and keeps existing immediate generation. Retain
