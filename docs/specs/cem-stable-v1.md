@@ -40,7 +40,7 @@ No daemon, network account, broad language rewrite or new specification language
 
 ## Acceptance evidence
 
-Stable acceptance remains OPEN until the native tickets retain complete qualification, integration and completion evidence. The current implementation has 57 concrete experimental runner profiles: 21 dynamic, 17 native, 16 platform, two SQL and one Appium Android. Six additional listed IDs explicitly refuse execution; the registry listing is not a support claim. Native Tasks capture/verification and the first portable candidate have passed bounded independent review. A same-target disposable proof also passed genuine focused native Tasks qualification, killed all three CEX controls, observed three generic Go passes and verified candidate references with both consumers. Neither this count nor candidate conformance establishes all-supported execution, a stable CEM1.0 wire or release readiness.
+Stable acceptance remains OPEN until the native tickets retain complete qualification, integration and completion evidence. The current implementation has 55 concrete experimental runner profiles: 21 dynamic, 15 native, 16 platform, two SQL and one Appium Android. Six additional listed IDs explicitly refuse execution; the registry listing is not a support claim. Native Tasks capture/verification and the first portable candidate have passed bounded independent review. A same-target disposable proof also passed genuine focused native Tasks qualification, killed all three CEX controls, observed three generic Go passes and verified candidate references with both consumers. Neither this count nor candidate conformance establishes all-supported execution, a stable CEM1.0 wire or release readiness.
 
 | Requirements | Implemented evidence | Remaining acceptance |
 | --- | --- | --- |
@@ -147,9 +147,17 @@ manufactured, non-executed fixtures. All evidence is experimental self-use.
 | CEM-V1-007, 014 | Optional companion producer and explicit stable verification | Core workflow/report, OCM/frontier/obligation, companion and completion consumers |
 | CEM-V1-008..010 | Original defaults/packets unchanged and optional operation removable | External adoption/outcomes and release/promotion gates |
 
-The current stable verifier admits `primary-clean-config-bounded/1`; ordinary
-SHA256 initialization with a different section order, clone configuration and
-linked worktrees remain outside that envelope. Canonical ordered fixtures do not
+The current stable verifier admits the experimental
+`canonical-repository-bounded/1` envelope of
+`protocol/cem-1.0/stable/REPOSITORY-ENVELOPE.md`, including its expanded admission
+amendment: fixed-order metadata admission without a configuration pre-read, at most
+1,024 logical Git operations, one 30-minute wall deadline with a 10-second
+per-operation deadline and a single 10-second emergency allowance, and owned
+process-group retirement whose unobserved cleanup is `repository` /
+`unsupported-process-containment`. The independently reviewed
+`primary-clean-config-bounded/1` portable envelope remains preserved as history.
+Lifecycle behaviour is observed on Darwin only; Linux lifecycle, cross-device
+topology and escaped-session behaviour are NOT_RUN. Canonical ordered fixtures do not
 qualify ordinary checkouts. Rollback disables the new optional operation and
 preserves earlier command defaults, candidate assembly, native task history and
 historical packet bytes. Independent producer implementation review and root

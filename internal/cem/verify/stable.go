@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -20,7 +19,23 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
-type StableOptions struct{ Repository, ExpectedBase, Target, ArtifactRoot string }
+type StableOptions struct {
+	Repository, ExpectedBase, Target, ArtifactRoot string
+	seam                                           *stableSeam
+}
+
+// stableSeam is the in-package test seam of one Stable call. A nil seam is
+// production: the real clock, the pinned Git binary and the real filesystem.
+// git.Event also receives the verifier checkpoints metadata-admitted,
+// artifacts-start, artifacts-complete, boundary-revalidated and final-check.
+type stableSeam struct {
+	git   gitrun.Seam
+	fault gitauth.StableFault
+}
+
+// StableOuterDeadline is the one wall deadline of a Stable verification.
+const StableOuterDeadline = 30 * time.Minute
+
 type StableResult struct {
 	Profile            string                `json:"profile"`
 	Spec               string                `json:"spec"`
@@ -78,7 +93,7 @@ func NewStableResult(o StableOptions) StableResult {
 	for _, k := range []string{"nativeAuthority", "historicalValidity", "currentApplicability", "sourceGitBinding", "sourceInventoryCompleteness", "executionAtCommit", "runnerReceiptSemantics", "runnerExecution", "authentication", "dependencyClosure", "criterionAdequacy", "criterionDiscrimination", "externalInteroperability"} {
 		axes[k] = "NOT_OBSERVED"
 	}
-	return StableResult{Profile: "cem-stable-verification/1", Spec: wire.StableSpec, VerificationMode: "canonical-and-reference-integrity", Outcome: "UNSUPPORTED", Stage: "arguments", IssueCodes: []string{}, ExpectedBase: nullableStable(o.ExpectedBase), TargetRevision: nullableStable(o.Target), Sidecar: "NOT_CHECKED", Drift: []StableDrift{}, Hunks: []any{}, References: map[string]any{"criterionBindings": []any{}, "runnerReceipts": []any{}, "criterionLinks": []any{}, "artifacts": []any{}}, ArtifactChecks: []StableArtifactCheck{}, Axes: axes, Runtime: StableRuntime{runtime.Version(), "NOT_REQUIRED"}, RepositoryEnvelope: "primary-clean-config-bounded/1"}
+	return StableResult{Profile: "cem-stable-verification/1", Spec: wire.StableSpec, VerificationMode: "canonical-and-reference-integrity", Outcome: "UNSUPPORTED", Stage: "arguments", IssueCodes: []string{}, ExpectedBase: nullableStable(o.ExpectedBase), TargetRevision: nullableStable(o.Target), Sidecar: "NOT_CHECKED", Drift: []StableDrift{}, Hunks: []any{}, References: map[string]any{"criterionBindings": []any{}, "runnerReceipts": []any{}, "criterionLinks": []any{}, "artifacts": []any{}}, ArtifactChecks: []StableArtifactCheck{}, Axes: axes, Runtime: StableRuntime{runtime.Version(), "NOT_REQUIRED"}, RepositoryEnvelope: "canonical-repository-bounded/1"}
 }
 func (r *StableResult) Refuse(stage, code string, unsupported bool) int {
 	r.Stage = stage
@@ -104,8 +119,10 @@ func (r *StableResult) reject(stage, issue string) int {
 }
 
 // Stable verifies exact stable wire, independent canonical Git content and two
-// complete passes over opaque artifact bytes. The development prototype admits
-// only its explicit experimental runtime/repository envelope; no authority grows.
+// complete passes over opaque artifact bytes. Repository metadata is admitted
+// by gitauth.OpenStable and every Git child runs under the owned runner: one
+// thirty-minute wall deadline, one ten-second emergency retirement allowance,
+// and an unobserved process cleanup overrides any provisional result.
 func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, exit int) {
 	r = NewStableResult(o)
 	if len(raw) > wire.MaxMapBytes {
@@ -174,26 +191,62 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 		exit = r.Refuse("runtime", "unsupported-process-containment", true)
 		return r, exit
 	}
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
+	seam := o.seam
+	if seam == nil {
+		seam = &stableSeam{}
+	}
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	if err = stableRepositoryEnvelope(o.Repository); err != nil {
-		exit = r.Refuse("repository", cemcode.CodeOf(err), true)
-		return r, exit
+	now := time.Now
+	if seam.git.Now != nil {
+		now = seam.git.Now
 	}
-	repo, err := gitauth.Open(o.Repository, gitrun.NewDefaultBudget())
+	budget := gitrun.NewStableBudget(gitrun.DefaultOperations, now().Add(StableOuterDeadline), cancel, seam.git)
+	if seam.git.Now == nil {
+		timer := time.AfterFunc(StableOuterDeadline, func() { budget.OuterExpired() })
+		defer timer.Stop()
+	}
+	defer context.AfterFunc(ctx, budget.AnchorEmergency)()
+	timedOut := func() bool { return budget.OuterExpired() || ctx.Err() != nil }
+	repo, boundary, err := gitauth.OpenStable(o.Repository, budget, seam.fault)
 	if err != nil {
-		exit = r.Refuse("repository", cemcode.CodeOf(err), true)
+		exit = r.Refuse("repository", stableAdmissionCode(err), true)
 		return r, exit
 	}
-	defer repo.BeginObjectSession()()
+	defer boundary.Close()
+	if err = boundary.Validate(); err != nil {
+		exit = r.Refuse("repository", "repository-object-unavailable", true)
+		return r, exit
+	}
+	budget.Notify("metadata-admitted")
+	// The session close is part of the result: a cleanup that was not observed
+	// overrides whatever the verification provisionally concluded.
+	release := repo.BeginCheckedObjectSession(ctx)
+	released := false
+	closeSession := func() error {
+		if released {
+			return nil
+		}
+		released = true
+		return release()
+	}
+	defer func() {
+		if e := closeSession(); e != nil || budget.Held() {
+			r.IssueCodes = []string{}
+			exit = r.Refuse("repository", gitrun.ProcessContainment, true)
+		}
+	}()
 	fail := func(stage string, e error) int {
 		code := cemcode.CodeOf(e)
-		if errors.Is(e, context.DeadlineExceeded) || ctx.Err() != nil {
+		if code == gitrun.ProcessContainment || budget.Held() {
+			return r.Refuse("repository", gitrun.ProcessContainment, true)
+		}
+		// A committed per-operation cause stands: only a cancellation that the
+		// operation itself reported becomes the outer verification timeout.
+		if code == "git-cancelled" || errors.Is(e, context.Canceled) || errors.Is(e, context.DeadlineExceeded) {
 			return r.Refuse(stage, "verification-timeout", true)
 		}
 		switch code {
-		case "git-cancelled":
-			return r.Refuse(stage, "verification-timeout", true)
 		case "git-output-exceeded", "git-budget-exceeded":
 			return r.Refuse("repository", "unsupported-resource-limit", true)
 		case "git-start-failed", "git-exit-failure":
@@ -211,6 +264,10 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 		}
 		r.Axes["changeIntegrity"] = "FAILED"
 		return r.reject(stage, code)
+	}
+	if timedOut() {
+		exit = r.Refuse("binding", "verification-timeout", true)
+		return r, exit
 	}
 	r.Assurance = nullableStable("structural-only")
 	if err = checkExpectedBase(ctx, repo, &change, o.ExpectedBase); err != nil {
@@ -260,7 +317,8 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 		return r, exit
 	}
 	source := &baseSource{ctx: ctx, repository: repo, base: d.Change.BaseRevision}
-	if err = sim.Simulate(parsed, source); err != nil {
+	simSource := &stableSimulationSource{source: source, authenticatedCreateAbsent: stableAuthenticatedCreateAbsences(parsed)}
+	if err = sim.Simulate(parsed, simSource); err != nil {
 		exit = fail("verification", err)
 		return r, exit
 	}
@@ -277,7 +335,7 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 		exit = fail("verification", err)
 		return r, exit
 	}
-	if ctx.Err() != nil {
+	if timedOut() {
 		exit = r.Refuse("verification", "verification-timeout", true)
 		return r, exit
 	}
@@ -287,7 +345,7 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 			exit = fail("verification", proofSource.err)
 			return r, exit
 		}
-		if ctx.Err() != nil {
+		if timedOut() {
 			exit = r.Refuse("verification", "verification-timeout", true)
 			return r, exit
 		}
@@ -295,7 +353,7 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 		exit = fail("verification", err)
 		return r, exit
 	}
-	if ctx.Err() != nil {
+	if timedOut() {
 		exit = r.Refuse("verification", "verification-timeout", true)
 		return r, exit
 	}
@@ -303,8 +361,11 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 	if mechanical {
 		r.Axes["structuralProof"] = "PROVEN_DECLARED_FILE_PREDICATES"
 	}
+	driftChange := change
+	driftChange.Evidence = append([]wire.Evidence(nil), change.Evidence...)
+	sort.Slice(driftChange.Evidence, func(i, j int) bool { return driftChange.Evidence[i].ID < driftChange.Evidence[j].ID })
 	outcome := &Outcome{BaseRevision: d.Change.BaseRevision}
-	err = checkDrift(ctx, repo, &change, d.Change.BaseRevision, target, outcome)
+	err = checkDrift(ctx, repo, &driftChange, d.Change.BaseRevision, target, outcome)
 	evidence := map[string]wire.Evidence{}
 	for _, e := range d.Change.Evidence {
 		evidence[e.ID] = e
@@ -323,6 +384,11 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 		return r, exit
 	}
 	r.Axes["changeIntegrity"] = "VERIFIED"
+	budget.Notify("artifacts-start")
+	if timedOut() {
+		exit = r.Refuse("artifacts", "verification-timeout", true)
+		return r, exit
+	}
 	checks, err := stableArtifacts(ctx, o.ArtifactRoot, d.Artifacts)
 	if err != nil {
 		code := cemcode.CodeOf(err)
@@ -339,6 +405,23 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 	if len(d.Artifacts) == 0 {
 		r.Axes["referenceIntegrity"] = "EMPTY_REFERENCE_SET"
 	}
+	// Terminal order: revalidate the retained repository boundary, complete
+	// process teardown, sample cancellation and the deadline once more, publish.
+	budget.Notify("artifacts-complete")
+	if err = boundary.Validate(); err != nil {
+		exit = r.Refuse("repository", "repository-object-unavailable", true)
+		return r, exit
+	}
+	budget.Notify("boundary-revalidated")
+	if err = closeSession(); err != nil || budget.Held() {
+		exit = r.Refuse("repository", gitrun.ProcessContainment, true)
+		return r, exit
+	}
+	budget.Notify("final-check")
+	if timedOut() {
+		exit = r.Refuse("verification", "verification-timeout", true)
+		return r, exit
+	}
 	r.Outcome = "ACCEPT"
 	b := true
 	r.Accept = &b
@@ -346,44 +429,23 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 	return r, 0
 }
 
-// Bound this prototype to primary repositories with only the standard init
-// configuration used by literal fixtures. Broader native admission is later work.
+// stableAdmissionCode maps a metadata admission refusal to its public code.
+func stableAdmissionCode(err error) string {
+	code := cemcode.CodeOf(err)
+	if code == cemcode.UnsupportedRepositoryAttributes {
+		return "unsupported-repository-envelope"
+	}
+	return code
+}
+
+// stableRepositoryEnvelope reports whether root passes the stable metadata
+// admission. Stable itself retains the admitted boundary for the whole call.
 func stableRepositoryEnvelope(root string) error {
-	info, e := os.Lstat(filepath.Join(root, ".git"))
-	if e != nil {
-		return cemcode.New("repository-object-unavailable", "repository unavailable")
+	_, boundary, err := gitauth.OpenStable(root, nil, nil)
+	if err != nil {
+		return cemcode.New(stableAdmissionCode(err), "repository outside the stable envelope")
 	}
-	if !info.IsDir() {
-		return cemcode.New("unsupported-repository-envelope", "primary repository required")
-	}
-	configRoot, closeConfig, e := stableOpenRoot(filepath.Join(root, ".git"))
-	if e != nil {
-		return cemcode.New("repository-object-unavailable", "configuration unavailable")
-	}
-	defer closeConfig()
-	data, e := stableReadArtifact(configRoot, "config", 4096)
-	if e != nil {
-		return cemcode.New("unsupported-repository-envelope", "configuration unavailable")
-	}
-	if len(data) > 4096 {
-		return cemcode.New("unsupported-resource-limit", "configuration bound")
-	}
-	// Exact generated init configurations, independent of filesystem path.
-	expected := "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = false\n\tlogallrefupdates = true\n\tignorecase = true\n\tprecomposeunicode = true\n"
-	expectedSHA256 := "[core]\n\trepositoryformatversion = 1\n\tfilemode = true\n\tbare = false\n\tlogallrefupdates = true\n\tignorecase = true\n\tprecomposeunicode = true\n[extensions]\n\tobjectformat = sha256\n"
-	linux := "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = false\n\tlogallrefupdates = true\n"
-	linuxSHA256 := "[core]\n\trepositoryformatversion = 1\n\tfilemode = true\n\tbare = false\n\tlogallrefupdates = true\n[extensions]\n\tobjectformat = sha256\n"
-	normalize := func(s string) string {
-		lines := strings.Split(s, "\n")
-		for i := range lines {
-			lines[i] = strings.TrimSpace(lines[i])
-		}
-		return strings.Join(lines, "\n")
-	}
-	actual := normalize(string(data))
-	if actual != normalize(expected) && actual != normalize(expectedSHA256) && actual != normalize(linux) && actual != normalize(linuxSHA256) {
-		return cemcode.New("unsupported-repository-envelope", "configuration outside prototype envelope")
-	}
+	boundary.Close()
 	return nil
 }
 
@@ -400,4 +462,39 @@ func (s *stableProofSource) BaseBlob(path string) ([]byte, string, bool, error) 
 		s.err = e
 	}
 	return b, m, ok, e
+}
+
+type stableSimulationSource struct {
+	source                    sim.BlobSource
+	authenticatedCreateAbsent map[string]bool
+}
+
+func stableAuthenticatedCreateAbsences(parsed *patch.Patch) map[string]bool {
+	candidates := map[string]bool{}
+	basePaths := map[string]bool{}
+	for _, group := range parsed.Groups {
+		if group.Kind == patch.KindCreate && group.NewPath != nil {
+			candidates[*group.NewPath] = true
+		}
+		if group.OldPath != nil {
+			basePaths[*group.OldPath] = true
+		}
+	}
+	for path := range candidates {
+		prefix := path + "/"
+		for basePath := range basePaths {
+			if basePath == path || strings.HasPrefix(basePath, prefix) {
+				delete(candidates, path)
+				break
+			}
+		}
+	}
+	return candidates
+}
+
+func (s *stableSimulationSource) BaseBlob(path string) ([]byte, string, bool, error) {
+	if s.authenticatedCreateAbsent[path] {
+		return nil, "", false, nil
+	}
+	return s.source.BaseBlob(path)
 }
