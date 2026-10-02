@@ -1,0 +1,146 @@
+{
+  "profile": "cem-s0e-public-required-repairs/1",
+  "status": "BLOCKED_BEFORE_EXPANSION_ADMISSION",
+  "repairs": [
+    {
+      "id": "RB01",
+      "kind": "REQUIRED_NATIVE_REPAIR",
+      "gaps": [
+        "U03",
+        "U04",
+        "U05"
+      ],
+      "severity": "HIGH",
+      "finding": "Optional metadata/topology Lstat errors are treated as absence; metadata reads do not revalidate named identity after read. Full administrative ancestor closure is not proven.",
+      "requiredBehavior": "Only not-found may mean optional absent; inaccessible/loop/I/O paths refuse. Revalidate named metadata identity and admitted administrative/common directory chain. Bound every introduced walk. Do not claim a whole loose/pack store scan.",
+      "publicCases": [
+        "optional attributes EACCES",
+        "optional objects/info EACCES",
+        "optional commondir EACCES",
+        "metadata leaf replacement after open",
+        "administrative ancestor static symlink",
+        "common ancestor replacement"
+      ]
+    },
+    {
+      "id": "RB02",
+      "kind": "PROPOSED_RULE_CHANGE_REQUIRES_GATE_A",
+      "gaps": [
+        "U01",
+        "U02",
+        "U05"
+      ],
+      "severity": "MED",
+      "finding": "The proposed interoperable grammar and explicit http-alternates refusal are stricter than currently observed native byte-path/optional-commondir behavior.",
+      "requiredBehavior": "Gate A must accept the exact UTF8/LF grammar, nonempty relative commondir and explicit http-alternates prohibition, or revise the draft with an equally exact supported rule. Never claim these proposed negatives already pass.",
+      "publicCases": [
+        "4095/4096/4097 byte marker/backpointer/common",
+        "CRLF and two-final-LF",
+        "invalid UTF8/NUL/embeddedLF",
+        "empty commondir",
+        "absolute commondir",
+        "valid external and cross-device reciprocal topology",
+        "empty http-alternates"
+      ]
+    },
+    {
+      "id": "RB03",
+      "kind": "REQUIRED_NATIVE_REPAIR",
+      "gaps": [
+        "U08",
+        "U09",
+        "U10"
+      ],
+      "severity": "HIGH",
+      "finding": "First-selected asynchronous branch can hide simultaneous overflow/parser error behind child exit/cancellation/timeout; no fixed final error arbitration exists.",
+      "requiredBehavior": "Collect final cause flags after safe ownership cleanup and apply proposed fixed priority; preserve typed sink errors and full result progression. Pending earlier stage errors retain their stage.",
+      "publicCases": [
+        "synchronized output overflow plus nonzero child exit",
+        "typed malformed stream plus nonzero exit",
+        "outer cancellation plus stdout overflow",
+        "per-op timeout plus overflow",
+        "stderr and stdout simultaneous overflow"
+      ]
+    },
+    {
+      "id": "RB04",
+      "kind": "REQUIRED_NATIVE_REPAIR",
+      "gaps": [
+        "U07",
+        "U08"
+      ],
+      "severity": "MED",
+      "finding": "An object-session optimization fallback can receive a fresh full per-operation span after spending time in the same reservation. Outer and budget deadlines also begin at different points.",
+      "requiredBehavior": "Use one absolute transaction deadline and one outer deadline through all reads/replays/cleanup; no new operation charge on fallback and no reset of remaining time.",
+      "publicCases": [
+        "session consumes near10s then falls back",
+        "exact1024 reservations then1025",
+        "one-shot versus session same logical ledger",
+        "outerdeadline expires during metadata or teardown"
+      ]
+    },
+    {
+      "id": "RB05",
+      "kind": "REQUIRED_NATIVE_REPAIR_AND_INDEPENDENT_PORTABLE_DESIGN",
+      "gaps": [
+        "U10",
+        "U11"
+      ],
+      "severity": "HIGH",
+      "finding": "Ownership primitive failure falls back to a post-reap group signal; signal errors are ignored; timeout may race completed reaping. Session Close drops teardown status; Stable provisional success is composed before deferred close. These are static source findings; no unrelated process was signalled by this task.",
+      "requiredBehavior": "Never signal after ownership release. Propagate typed ownership/teardown failure through session closure to Stable before ACCEPT. Preserve a safe owned leader while signaling and retain cleanup holds on unobserved completion. Portable keeper must separately pass Gate A with exact bounded control/status framing.",
+      "publicCases": [
+        "forced owner-wait primitive failure",
+        "leader exits before simultaneous timeout",
+        "normal Git exit with lingering child",
+        "signal permission failure",
+        "session close wait failure",
+        "keeper/control EOF before child status",
+        "blocked pipe inherited by ordinary child",
+        "no numeric PID/PGID signal after reap"
+      ]
+    },
+    {
+      "id": "RB06",
+      "kind": "REQUIRED_NATIVE_REPAIR",
+      "gaps": [
+        "U10",
+        "U12"
+      ],
+      "severity": "HIGH",
+      "finding": "No terminal context check exists between successful artifact/root checks and ACCEPT, and owner cleanup is deferred until after return value construction.",
+      "requiredBehavior": "Commit success only after final process/session teardown and final cancellation/root/administrative identity checks. Retain completed evidence when refusal occurs at this boundary.",
+      "publicCases": [
+        "cancel just after final artifact read",
+        "empty artifact set plus terminal cancellation",
+        "root swap after artifact success before publication",
+        "ancestor mode/identity change",
+        "root swap during session cleanup"
+      ]
+    },
+    {
+      "id": "RB07",
+      "kind": "QUALIFICATION_AND_ROUTING_BLOCKER",
+      "gaps": [
+        "U06",
+        "U07",
+        "U13",
+        "U14"
+      ],
+      "severity": "MED",
+      "finding": "Additional Git/runtime/platform tuples, detailed accounting boundaries and newly proposed failure points are not qualified by the existing29/50 cells. The old public top-level manifest omitted four inherited files although the originalR1 manifest pins them.",
+      "requiredBehavior": "Use complete recursive public pins/history124; actual Go1.24.13 nonstructural success and structural refusal; unchanged0.3 control; validate schema plus exact21-key outcomes; qualify logical count/byte/time boundaries and same-directory native/portable parity after repairs.",
+      "publicCases": [
+        "actualGo1.24.13 nonstructural-positive",
+        "actualGo1.24.13 structural-refusal",
+        "prior0.3 compiler control unchanged",
+        "4MiB tree batch framing boundary",
+        "64MiB normal blob and separate128MiB proof-batch limits",
+        "newzeroOID at exact distinct cap",
+        "trusted Git unknown flag/no-lazy-fetch sentinels",
+        "recursive inherited manifest and all124oldfile hashes"
+      ]
+    }
+  ],
+  "unchanged": "All original S0E runtime and test-onlyR1 packets preserved; no implementation edited"
+}

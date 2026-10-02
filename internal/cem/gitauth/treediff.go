@@ -13,6 +13,7 @@ import (
 // An absent side is the zero TreeEntry.
 type changedEntry struct {
 	path     string
+	base     TreeEntry
 	old, new TreeEntry
 }
 
@@ -67,6 +68,7 @@ func (r *Repository) verifiedChangeSet(ctx context.Context, baseRevision, target
 				if old == new {
 					continue
 				}
+				base := old
 				child := treePair{dir: path}
 				if old.Type == "tree" {
 					requests = append(requests, old.OID)
@@ -84,7 +86,7 @@ func (r *Repository) verifiedChangeSet(ctx context.Context, baseRevision, target
 					next = append(next, child)
 				}
 				if old != new {
-					changed = append(changed, changedEntry{path: path, old: old, new: new})
+					changed = append(changed, changedEntry{path: path, base: base, old: old, new: new})
 				}
 			}
 		}
