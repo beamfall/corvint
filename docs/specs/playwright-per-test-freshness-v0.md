@@ -126,6 +126,53 @@ UNKNOWN because any remaining entries cannot be certified. Actual I/O can exceed
 most that one byte. This gives no hard context deadline for regular-file filesystem I/O and no
 hostile ancestor replacement, ESM/dynamic remote or native-library closure guarantee.
 
+## Diagnostic and status ownership
+
+This experimental profile owns these existing emitted failure reasons and status
+tokens. Requirement IDs identify their current contract; this list adds no
+behavior or qualification. The two status tokens do not establish execution.
+
+| Emitted reason or status | Owning requirement | Kind |
+|---|---|---|
+| `all-baseline-observations` | PTF-V0-008 | status |
+| `freshness-attestation-command-invalid` | PTF-V0-001 | failure-reason |
+| `freshness-attestation-entrypoint-drift` | PTF-V0-001 | failure-reason |
+| `freshness-attestation-executable-drift` | PTF-V0-001 | failure-reason |
+| `freshness-command-drift` | PTF-V0-001 | failure-reason |
+| `freshness-command-invalid` | PTF-V0-001 | failure-reason |
+| `freshness-command-unavailable` | PTF-V0-003 | failure-reason |
+| `freshness-config-unsupported` | PTF-V0-001 | failure-reason |
+| `freshness-declared-environment-required` | PTF-V0-003 | failure-reason |
+| `freshness-dependency-closure-unknown` | PTF-V0-003 | failure-reason |
+| `freshness-dependency-closure-unqualified` | PTF-V0-003 | failure-reason |
+| `freshness-environment-unsupported` | PTF-V0-003 | failure-reason |
+| `freshness-imports-require-separate-codec` | PTF-V0-005 | failure-reason |
+| `freshness-initial-identity-unavailable` | PTF-V0-002 | failure-reason |
+| `freshness-input-bound-or-secret` | PTF-V0-005 | failure-reason |
+| `freshness-input-drift` | PTF-V0-001 | failure-reason |
+| `freshness-input-unavailable` | PTF-V0-001 | failure-reason |
+| `freshness-leader-unavailable` | PTF-V0-002 | failure-reason |
+| `freshness-native-identity-drift` | PTF-V0-005 | failure-reason |
+| `freshness-noncanonical-input` | PTF-V0-005 | failure-reason |
+| `freshness-output-bound` | PTF-V0-005 | failure-reason |
+| `freshness-output-bound-or-secret` | PTF-V0-005 | failure-reason |
+| `freshness-profile-shape` | PTF-V0-005 | failure-reason |
+| `freshness-projection-or-canonical-drift` | PTF-V0-005 | failure-reason |
+| `freshness-readiness-unavailable` | PTF-V0-009 | failure-reason |
+| `freshness-request-binding-invalid` | PTF-V0-001 | failure-reason |
+| `freshness-requires-separate-codec` | PTF-V0-005 | failure-reason |
+| `freshness-response-delta-invalid` | PTF-V0-007 | failure-reason |
+| `freshness-root-commit-invalid` | PTF-V0-001 | failure-reason |
+| `freshness-served-identity-mismatch` | PTF-V0-002 | failure-reason |
+| `freshness-server-cancelled` | PTF-V0-009 | failure-reason |
+| `freshness-server-start-unavailable` | PTF-V0-009 | failure-reason |
+| `freshness-source-secret` | PTF-V0-005 | failure-reason |
+| `freshness-source-unavailable` | PTF-V0-001 | failure-reason |
+| `freshness-source-untracked` | PTF-V0-001 | failure-reason |
+| `freshness-trailing-data` | PTF-V0-005 | failure-reason |
+| `native-control-join-incomplete` | PTF-V0-006 | failure-reason |
+| `verified-native-target-assertion-kill-joined-to-every-repeat` | PTF-V0-008 | status |
+
 ## Control join
 
 Verify the complete EvidenceReceipt using the existing verifier, without stripping its Unsupported
