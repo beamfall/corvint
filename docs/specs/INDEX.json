@@ -857,6 +857,26 @@
     ]
   },
   {
+    "path": "docs/specs/corpus-republish-v0.md",
+    "title": "Corpus Republish V0",
+    "reqPrefix": "RCP-V0",
+    "intent": "proposed",
+    "delivery": "not-started",
+    "claim": "An optional companion builds approved documentation with reproducible provenance and previous-artifact parity and emits one replaceable connector request.",
+    "dependsOn": [
+      "docs/specs/documentation-corpus-v1.md",
+      "docs/specs/postmerge-connectors-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/corpusrepublish",
+      "cmd/corvint-corpus-republish",
+      "internal/doccorpus",
+      "internal/postmergeconnector"
+    ]
+  },
+  {
     "path": "docs/specs/documentation-corpus-v1.md",
     "title": "Revision-pinned documentation corpus V1",
     "reqPrefix": "DCP-V1",
