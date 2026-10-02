@@ -79,8 +79,9 @@ GOTOOLCHAIN=local go run ./cmd/corvint impact cmd/corvint/main.go --limit 5
 
 That asks what a change to the CLI entry point could affect. The receipt names the requested
 path, the tests that constrain it, the reason each result was admitted, and what the result limit
-left out. No installation or account is needed. Abridged output from a `0.4.0a4` checkout (fields,
-results, and evidence records omitted; shown values unchanged):
+left out. No installation or account is needed. Abridged output captured from public commit
+`f51f3c9e6fbfc5a6b219692e8bf46e4e43297a36` with its source-built CLI (fields, results, and
+evidence records omitted; shown values unchanged). Your checkout determines the hashes and counts:
 
 ```json
 {
@@ -92,43 +93,39 @@ results, and evidence records omitted; shown values unchanged):
         "evidence": [
           {
             "authority": "git-tree",
+            "blob_hash": "3f1a1e9e858b7531c186ad05e42cde01c9d87222",
             "confidence": "authoritative",
-            "blob_hash": "b6a95d5864bcbaaebb4832e8eea9f0d4966478ea",
             "line": 1,
+            "path": "cmd/corvint/main.go",
             "reason": "requested changed path"
           }
         ]
       },
       {
-        "id": "cmd/corvint/harness_context_test.go",
+        "id": "cmd/corvint/main_test.go",
         "kind": "test",
         "evidence": [
           {
-            "authority": "test-marker",
-            "confidence": "high",
-            "blob_hash": "4ea3efb9bc13016ec38f4df1d6a4f1ee363366a2",
-            "line": 30,
-            "reason": "same-package test carries feature:session-revocation"
-          },
-          {
             "authority": "test-convention",
-            "confidence": "medium",
-            "blob_hash": "4ea3efb9bc13016ec38f4df1d6a4f1ee363366a2",
+            "blob_hash": "1b757630da987860fd3b2d321981d8fc6f09dcca",
+            "confidence": "high",
             "line": 1,
+            "path": "cmd/corvint/main_test.go",
             "reason": "same-package test for cmd/corvint/main.go"
           }
         ]
       }
     ],
     "freshness": {
+      "revision": "099c102b26602c83ec91a9f8f7eb7491e0b3f040",
       "scope": "git",
       "state": "fresh"
     },
     "coverage": {
       "included_results": 5,
-      "omitted_results": 175,
+      "omitted_results": 267,
       "uncertainty": [
-        "175 ranked results omitted by result limit"
+        "267 ranked results omitted by result limit"
       ]
     }
   },
@@ -146,10 +143,14 @@ export PATH="$HOME/.local/bin:$PATH"
 corvint --version
 ```
 
-Versioned release assets are on the [releases page](https://github.com/beamfall/corvint/releases); the native
-archive whose attached qualification evidence names your platform needs Git but no Go compiler. The [installation
-guide](docs/INSTALL.md) covers archive checks, first use, optional workflow tools, upgrades, and
-removal.
+Versioned assets are on the [releases page](https://github.com/beamfall/corvint/releases). The
+[Core rc.1 release](https://github.com/beamfall/corvint/releases/tag/v1.0.0-rc.1) contains only
+`corvint`, with four macOS/Linux archives, `SHA256SUMS` and `verification-report.json`. A matching
+native archive needs Git but no Go compiler; verify both the downloaded archive and its internal
+checksums before running it. Read the exact platform's qualification, including native versus
+emulated runs. Tasks has its own developer release; source companions are not automatically
+included in a Core archive. The [installation guide](docs/INSTALL.md) covers checks, first use,
+optional tools, upgrades and removal.
 
 ## The workflow
 
@@ -230,6 +231,10 @@ The [wire format, schemas, and conformance vectors](docs/CHANGE-EVIDENCE-MAP.md)
 
 ## Optional Go LSP evidence
 
+The following CLI/MCP selectors are newer source additions; they are absent from the published
+Core rc.1 binary. Build the current source and matching MCP companion, or check your installed
+`corvint help context` before using them.
+
 Corvint can use `gopls`, the Go language server, to add definition and reference relationships
 to a context packet. This integration is **experimental and opt-in**; it does not change ranked
 results or project authority. Install `gopls` explicitly and have your workspace dependencies
@@ -248,8 +253,10 @@ qualification, and troubleshooting. Other language servers are outside this mile
 
 ## Works where agents work
 
-The host adapters run `corvint` from `PATH`, so install it there first. Every adapter reports
-`FALLBACK`, not `FULL` ([compatibility matrix](integrations/README.md)). The Codex and Claude Code
+The host adapters run `corvint` from `PATH`, so install it there first. Core lifecycle adapters report
+`FALLBACK` ([compatibility matrix](integrations/README.md)). The optional OpenCode native integration
+has a separate exact-tuple qualification; its `integrationSupport: FULL` does not confer execution
+or closing Frontier authority ([OpenCode support](integrations/opencode/README.md)). The Codex and Claude Code
 adapters are Core host rows; Gemini CLI, OpenCode and Pi are companions:
 
 - [Codex](integrations/codex/README.md), [Claude Code](integrations/claude-code/README.md),
@@ -269,18 +276,23 @@ adapters are Core host rows; Gemini CLI, OpenCode and Pi are companions:
   generated page block as eligible source commits land, preserves surrounding prose, and stops on
   outside page edits. It runs explicitly in the foreground on macOS/Linux with time and write
   limits; [preview, apply, and watch](docs/INSTALL.md#agent-tools-and-source-documentation).
-- The optional workflow tools below: tickets, dashboard, console, test providers and release
-  checks. None is a hosted service and none dispatches agents.
+- The workflow tools below: tickets, dashboard, console, test providers and release checks.
+  Optional Tasks supervision and dispatch start only through explicit operator configuration;
+  they have their own qualification and process-lifecycle limits.
 
 Corvint uses the `corvint-*` wire/profile namespace, `corvint.*` MCP tools, and canonical
 `.corvint` and `.context-corvint` repository paths. Those are protocol and state contracts and are
-versioned independently of the product.
+versioned independently of the product. The frozen minimum CEM wire is `cem/0.2` with an N-1
+`cem/0.1` reader. The separate experimental `cem/0.3` adds structural mechanical reasons and
+optional test witnesses; it is not the default Core sidecar or a new stability claim
+([profile boundaries](docs/CHANGE-EVIDENCE-MAP.md)).
 
 ## The rest of the toolbox
 
-The core CLI works on its own. Optional tools expose test results, tickets, and evidence; some
-also run tests or perform explicit local writes. They are qualified separately from Core and do
-not inherit its stability promise.
+The core CLI works on its own. Separately packaged tools expose test results, tickets, and evidence;
+some also run tests, supervise agents or perform explicit local writes. They are qualified separately
+from Core and do not inherit its stability promise. Selected Flows, Tasks, documentation and MCP
+outcomes are required for stable 1.0 promotion ([expanded scope](docs/specs/corvint-1.0-product-and-release-v1.md#expanded-10-product-scope)).
 
 <details>
 <summary>Explore optional companions, deferred editor tooling, and experimental tools</summary>
@@ -309,11 +321,45 @@ is a fact about that run: it does not establish freshness, adequacy or authority
 unknown axes stay visible ([contract](docs/specs/js-live-test-provider-v0.md),
 [Go provider](docs/specs/go-live-test-provider-v0.md)).
 
+### Framework-aware test selection
+
+The live providers above are only part of the test tooling. `corvint affected` also reads source
+and configuration to recognize test units across the following ecosystems. It produces a plan;
+it does not launch these runners or establish that omitted tests are safe to skip.
+
+| Ecosystem | Recognized test conventions and runners |
+|---|---|
+| Go | `go test` packages |
+| JavaScript/TypeScript | Vitest, Jest, AVA, Node `node:test`, Bun, Deno, Playwright, Cypress, WebdriverIO, TestCafe, Nightwatch, Detox, Storybook test-runner and Storybook Vitest |
+| Python | pytest and unittest file conventions |
+| Ruby | RSpec, Minitest/Test::Unit and Rails test conventions |
+| Rust | Cargo packages and source test anchors |
+| Swift | SwiftPM/Xcode targets, XCTest and Swift Testing |
+| Kotlin/Android | JUnit 4/5 and kotlin.test class conventions |
+| C#/.NET | VSTest-addressable test methods in SDK-style projects |
+
+Dynamic configuration, ambiguous frameworks, unresolved imports, external runtime/device inputs
+and other unsupported cases remain explicit unknowns in the plan. See the
+[affected-plan contract](docs/specs/affected-plan-v0.md) and the
+[language implementations](internal/liveverify/affected/languages/languages.go) for the exact
+bounds. The experimental `corvint prove --mutate` can run bounded Go and pytest mutation checks
+when its sandbox and offline prerequisites are available; that is a separate execution path.
+
 ### Task manager and work queue
 
 `corvint-tasks` is the local ticket store and roadmap. It is a separate companion binary built
-from this repository's `cmd/corvint-tasks` (never a `corvint` subcommand), ships in the companion
-bundle beside `corvint`, and owns ticket state: the console delegates every ticket mutation to it. No server, no account, no agent dispatch.
+from this repository's `cmd/corvint-tasks` (never a `corvint` subcommand) and owns ticket state:
+the console delegates every ticket mutation to it. The store needs no server or account. The
+[standalone Tasks developer release](https://github.com/beamfall/corvint/releases/tag/tasks-dev-20260929.2)
+provides a macOS Apple silicon archive, checksums and build-verification evidence; its unverified
+version and runtime qualification limits remain explicit. Use `corvint-tasks version` and
+`corvint-tasks help` to check the installed build and commands. Other targets can be built from
+source; build success is not runtime qualification.
+
+Optional [foreground Codex supervision and continuous dispatch](docs/TASKS-SUPERVISION.md) are
+operator-started source capabilities. Supervision has scoped local qualification; dispatch and
+newer source commands require their own checks and are not all present in that developer archive.
+Neither route inherits Core stability or grants publication authority.
 Optional named environment pools allocate isolated members with claims and quarantine them until
 explicit safe-reuse confirmation; see [external-agent usage](docs/TASKS-EXTERNAL-AGENTS.md#isolated-environment-pools).
 
@@ -357,9 +403,10 @@ connection and holds no database ([Local Admin Console V0](docs/specs/local-admi
 
 ### Agent-facing servers
 
-Four stdio MCP servers, each bound to one repository root, each read-only. The optional workflow
-bundle ships `corvint-mcp`, `corvint-docs-mcp`, and `corvint-test-validity-mcp`; `corvint-corpus-mcp`
-is source-only and experimental, not distributed in that bundle:
+Four stdio MCP servers, each bound to one repository root, each read-only. The companion bundle
+builder includes `corvint-mcp`, `corvint-docs-mcp` and `corvint-test-validity-mcp`; use a published
+bundle only when its exact assets and qualification evidence exist. They are not in the Core rc.1
+archive. `corvint-corpus-mcp` is source-only and experimental:
 
 | Server | Tools |
 |---|---|
@@ -389,90 +436,13 @@ profile and is admitted to the product only through its own accepted profile ([c
   bundle; `corvint-release-gate` is an offline evidence gate; `corvint-go-toolchain-receipt`
   digests a GOROOT tree into a receipt. None publishes anything.
 
-</details>
+### Flow variation coverage
 
-## Built to be checked
-
-| | |
-|---|---|
-| Spec-driven | Every substantive capability has an executable spec with stable requirement IDs in `docs/specs/REQUIREMENTS.tsv`; `go run ./script/spec-coverage-audit` reports test, case, and fixture mentions separately from comments and missing mentions |
-| Decision records | Numbered, accepted intent with explicit promotion boundaries in `docs/decisions/` |
-| Frozen conformance | Exact receipt and state replay, CEM/LRF/TCQ vectors, and an in-repo second consumer for `cem/0.1` in `interop/cem01-go` |
-| Honest disagreements | Every known behavioural disagreement is adjudicated and dated in the [divergence register](conformance/divergence-register.md) |
-| Hermetic archives | `make gate` includes `script/go-archive-gate`, which rebuilds the release archives from the committed revision and checks the closed file set ([spec](docs/specs/go-archive-gate-v0.md)) |
-| Dogfooded | Substantive Corvint changes must collect context with Corvint and bind the diff to a CEM ([dogfood contract](docs/DOGFOOD.md)) |
-
-## Status, stated plainly
-
-> [!IMPORTANT]
-> `1.0.0-rc.1` is the release candidate for Corvint 1.0. The 1.0 stability promise (frozen
-> contracts, N-1 readers or deterministic migrations) covers the Core surfaces below and nothing
-> else ([1.0 scope](docs/specs/corvint-1.0-product-and-release-v1.md), decision 0373). 1.0.0 is
-> final only after the three Core jobs pass on Corvint, Beamfall and one untouched public
-> repository (`PRS-V1-008`). Platform status comes from each release's exact assets and
-> qualification evidence.
-
-| Surface | 1.0 label | State at `1.0.0-rc.1` |
-|---|---|---|
-| `init`, `adopt`, `index`, `query`, `context`, `impact`, `affected`, `prove` | Core | Command, wire and migration contracts frozen; `init`, `adopt` and the deterministic index lifecycle qualified. Receipts carry coverage, omissions and uncertainty as specified. |
-| CEM `0.1` / `0.2`, OCM, change frontier | Core | Frozen with canonical conformance vectors. `interop/cem01-go` is an in-repo second consumer for `cem/0.1` only; 1.0 claims no third-party interoperability. |
-| Dogfood loop | Core | Substantive Corvint changes are bound to a CEM and sealed with a retained local outcome ([dogfood contract](docs/DOGFOOD.md)). |
-| Core jobs | Core | **The rc.1 evaluation failed overall.** Orientation missed critical test files in 3/20 cases on go-chi/chi and 1/20 on Beamfall. Consequence and completion passed on those repositories; the Corvint run aborted before scoring. These results block 1.0 final ([release evidence](docs/RELEASE-NOTES.md#100-rc1-release-candidate)). |
-| Native release artifact and install lifecycle | Core | darwin/arm64 and linux/amd64 have retained rc.1 install-lifecycle qualification. darwin/amd64 was tested under Rosetta 2 and linux/arm64 in a container; both remain `FALLBACK`. Windows is unsupported. The candidate is unsigned; publisher identity is `NOT_VERIFIED` ([release evidence](docs/RELEASE-NOTES.md#100-rc1-release-candidate)). |
-| Retrieval quality | Core surface, unqualified ranking | Bounded receipts around a named path or subject are the product. Broad task-to-evidence retrieval has not passed held-out evaluation: the latest held-out attempt beat the exact-search baseline on top-5 (0.571 vs 0.343) and met the abstention and latency bars, but returned forbidden results on 7 of 36 must-exclude checks. Do not rely on ranking or abstention. |
-| Does CEM help a reviewer? | Not claimed | **Unproven.** A five-pair pilot scored mean missed evidence of 0.90 for control and 0.86 with CEM. It is a pilot, not a held-out outcome study. |
-| Performance | Not claimed | Unmeasured for the current Go-only revision. Earlier measurements compared against the retired Python runtime and do not qualify this one. |
-| Host adapters | Core (Codex, Claude Code), companion (Gemini CLI, OpenCode, Pi) | All report `FALLBACK`; formal `FULL` host authority is post-1.0. The VS Code extension is deferred. |
-| MCP servers, `corvint-tasks`, dashboard, console, test providers, docs | Companion | Optional and qualified separately, with no 1.0 stability promise; the console and dashboard present evidence and never hold authority over it. |
-| Learned traces, work queue, Pulse, evaluation verbs | Experimental | Shipped without a promise. A learned-path change is admitted only through a pinned two-arm evaluation, and none is qualified for this release. |
-
-These boundaries are backed by committed artifacts: the [1.0 scope](docs/specs/corvint-1.0-product-and-release-v1.md),
-the [release notes](docs/RELEASE-NOTES.md), the [specification index](docs/specs/README.md), and
-[`benchmarks/`](benchmarks/).
-
-## Read next
-
-- [Documentation and repository layout](docs/README.md): current guides and source organization
-- [Product contract](docs/PRODUCT.md): the job, trust boundary, and measurable product loop
-- [Architecture](docs/ARCHITECTURE.md): how the pieces fit
-- [Agent evidence routes](docs/AGENT-ROUTES.md): task-sized paths to authority, code, tests, and next action
-- [Specification index](docs/specs/README.md): accepted intent versus actual delivery state
-- [Change Evidence Map](docs/CHANGE-EVIDENCE-MAP.md): the interchange contract
-- [CEM in CI](docs/CEM-CI.md): wiring the verifier into a pipeline
-- [Dogfood contract](docs/DOGFOOD.md): how Corvint must prove substantive Corvint changes
-
-## Development
-
-```console
-test "$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.1"
-GOTOOLCHAIN=local go test -count=1 -timeout 30m ./...
-GOTOOLCHAIN=local go vet ./...
-(cd interop/cem01-go && GOTOOLCHAIN=local go test -count=1 -timeout 30m ./... && GOTOOLCHAIN=local go vet ./...)
-make gate
-script/release-checklist      # read-only; seven rows, PASS/FAIL/NOT_RUN, exits 0 only when all pass
-```
-
-If `GOTOOLCHAIN=local go env GOVERSION` reports a different patch version than `go1.27.1` (for
-example, a Homebrew `go` formula upgrade changed the linked toolchain), install the exact pinned
-version alongside it rather than relinking Homebrew's default, then prepend its `bin` directory to
-`PATH` for gate commands only, e.g. `PATH=/opt/homebrew/Cellar/go/1.27.1/bin:$PATH GOTOOLCHAIN=local make gate`
-(Intel Homebrew: `/usr/local/Cellar/go/1.27.1/bin`).
-
-Gemini/OpenCode adapter tests use their hosts' Node runtime. Corvint itself and its developer tools
-do not require Python. See [native regression ownership](tests/README.md).
-
-## License
-
-Corvint is free software under the **GNU Affero General Public License v3.0 or later**. The portable
-protocol descriptions, schemas, conformance material, examples, and interop implementations are
-**Apache-2.0** instead, so anyone can implement the standard, including in proprietary software,
-without the copyleft attaching. See [LICENSING.md](LICENSING.md) for the exact path boundary,
-[LICENSE](LICENSE) for the AGPL text, [LICENSE-APACHE-2.0](LICENSE-APACHE-2.0) for the Apache text,
-and [PROVENANCE.md](PROVENANCE.md).
-
-Flow-variation E2E completeness and safe documentation write-back: [coverage guide](docs/FLOW-COVERAGE.md). Proof binds immutable bytes and declared app identity; deployment attestation remains outside `/3`.
-
-Optional [Codex foreground task supervision](docs/TASKS-SUPERVISION.md) is in scoped qualification; external-agent leases remain available.
+[Flow variation coverage](docs/FLOW-COVERAGE.md) compares the complete declared documentation
+inventory with accepted flow variations and retained original Playwright `/3` receipts. The CLI
+can explicitly write a fresh documentation projection; the opt-in MCP `flows` profile is read-only.
+Proof binds immutable bytes and declared application identity; deployment attestation remains
+outside `/3`. Use the guide's exact input/profile and qualification requirements.
 
 ### Experimental editor definition companion
 
@@ -506,3 +476,96 @@ It starts one bounded native context worker, with no second gopls, tests or repo
 Point-in-time Git/branch/root and overlay checks fail closed on observed drift. This remains
 experimental; exact client tuples and outcome/performance floors are unqualified. See the
 [LSP editor context contract](docs/specs/lsp-editor-context-v0.md) for bounds, fixed errors and observation limits.
+
+</details>
+
+## Built to be checked
+
+| | |
+|---|---|
+| Spec-driven | Every substantive capability has an executable spec with stable requirement IDs in `docs/specs/REQUIREMENTS.tsv`; `go run ./script/spec-coverage-audit` reports test, case, and fixture mentions separately from comments and missing mentions |
+| Decision records | Numbered, accepted intent with explicit promotion boundaries in `docs/decisions/` |
+| Frozen conformance | Exact receipt and state replay, CEM/LRF/TCQ vectors, and an in-repo second consumer for `cem/0.1` in `interop/cem01-go` |
+| Honest disagreements | Every known behavioural disagreement is adjudicated and dated in the [divergence register](conformance/divergence-register.md) |
+| Hermetic archives | `make gate` includes `script/go-archive-gate`, which rebuilds the release archives from the committed revision and checks the closed file set ([spec](docs/specs/go-archive-gate-v0.md)) |
+| Dogfooded | Substantive Corvint changes must collect context with Corvint and bind the diff to a CEM ([dogfood contract](docs/DOGFOOD.md)) |
+
+## Status, stated plainly
+
+> [!IMPORTANT]
+> `1.0.0-rc.1` is the release candidate for Corvint 1.0. The 1.0 stability promise (frozen
+> contracts, N-1 readers or deterministic migrations) covers the Core surfaces below and nothing
+> else ([1.0 scope](docs/specs/corvint-1.0-product-and-release-v1.md), decision 0373). Stable 1.0
+> also requires the expanded Flows, safe navigation, documentation/MCP, full Beamfall roadmap
+> takeover by Tasks and automatic documentation outcomes accepted in decision 0426. Those
+> requirements do not expand Core's binary boundary or transfer its stability promise to
+> companions. The three Core jobs must pass on Corvint, Beamfall and one untouched public
+> repository (`PRS-V1-008`), alongside the expanded product qualification. Platform status comes
+> from each release's exact assets and evidence. The table distinguishes retained rc.1 evidence
+> from the expanded scope; it does not qualify later source changes.
+
+| Surface | 1.0 label | Release evidence and current scope |
+|---|---|---|
+| `init`, `adopt`, `index`, `query`, `context`, `impact`, `affected`, `prove` | Core | Command, wire and migration contracts frozen; `init`, `adopt` and the deterministic index lifecycle qualified. Receipts carry coverage, omissions and uncertainty as specified. |
+| CEM `0.1` / `0.2`, OCM, change frontier | Core | Frozen with canonical conformance vectors. `interop/cem01-go` is an in-repo second consumer for `cem/0.1` only; 1.0 claims no third-party interoperability. |
+| Dogfood loop | Core | Substantive Corvint changes are bound to a CEM and sealed with a retained local outcome ([dogfood contract](docs/DOGFOOD.md)). |
+| Core jobs | Core | **The rc.1 evaluation failed overall.** Orientation missed critical test files in 3/20 cases on go-chi/chi and 1/20 on Beamfall. Consequence and completion passed on those repositories; the Corvint run aborted before scoring. These results block 1.0 final ([release evidence](docs/RELEASE-NOTES.md#100-rc1-release-candidate)). |
+| Native release artifact and install lifecycle | Core | darwin/arm64 and linux/amd64 have retained rc.1 install-lifecycle qualification. darwin/amd64 was tested under Rosetta 2 and linux/arm64 in a container; both remain `FALLBACK`. Windows is unsupported. The candidate is unsigned; publisher identity is `NOT_VERIFIED` ([release evidence](docs/RELEASE-NOTES.md#100-rc1-release-candidate)). |
+| Retrieval quality | Core surface, unqualified ranking | Bounded receipts around a named path or subject are the product. Broad task-to-evidence retrieval has not passed held-out evaluation: the retained held-out attempt beat the exact-search baseline on top-5 (0.571 vs 0.343) and met the abstention and latency bars, but returned forbidden results on 7 of 36 must-exclude checks. Do not rely on ranking or abstention. |
+| Does CEM help a reviewer? | Not claimed | **Unproven.** A five-pair pilot scored mean missed evidence of 0.90 for control and 0.86 with CEM. It is a pilot, not a held-out outcome study. |
+| Performance | Not claimed | No native performance qualification is claimed for rc.1. Earlier measurements compared against the retired Python runtime and do not qualify the Go-only release. |
+| Host adapters | Core (Codex, Claude Code), companion (Gemini CLI, OpenCode, Pi) | Core lifecycle receipts report `FALLBACK`; formal `FULL` host authority is post-1.0. OpenCode native integration has separate exact-tuple qualification and no execution authority. The VS Code extension is deferred. |
+| Flows, safe navigation, Tasks takeover, documentation and MCP | Required 1.0 product outcomes, independently packaged | Expanded stable-release qualification remains pending under decision 0426; source presence and local gates do not establish whole-product acceptance. |
+| MCP servers, `corvint-tasks`, dashboard, console, test providers, docs | Companion | Qualified separately, with no Core stability promise. Selected outcomes above are required for stable 1.0; unrelated consoles and providers remain optional. The console and dashboard present evidence and never hold authority over it. |
+| Learned traces, work queue, Pulse, evaluation verbs | Experimental | Shipped without a promise. A learned-path change is admitted only through a pinned two-arm evaluation, and none is qualified for this release. |
+
+These boundaries are backed by committed artifacts: the [1.0 scope](docs/specs/corvint-1.0-product-and-release-v1.md),
+the [release notes](docs/RELEASE-NOTES.md), the [specification index](docs/specs/README.md), and
+[`benchmarks/`](benchmarks/).
+
+## Read next
+
+- [Documentation and repository layout](docs/README.md): current guides and source organization
+- [Product contract](docs/PRODUCT.md): the job, trust boundary, and measurable product loop
+- [Architecture](docs/ARCHITECTURE.md): how the pieces fit
+- [Agent evidence routes](docs/AGENT-ROUTES.md): task-sized paths to authority, code, tests, and next action
+- [Specification index](docs/specs/README.md): accepted intent versus actual delivery state
+- [Change Evidence Map](docs/CHANGE-EVIDENCE-MAP.md): the interchange contract
+- [CEM in CI](docs/CEM-CI.md): wiring the verifier into a pipeline
+- [Dogfood contract](docs/DOGFOOD.md): how Corvint must prove substantive Corvint changes
+
+## Development
+
+For a scoped change, use `corvint affected --base FULL_BASE_SHA`, retain its unknowns, then run
+focused tests and the checks required by the owning contract. Follow the [dogfood contract](docs/DOGFOOD.md)
+and obtain independent review. Release or repository-wide validation uses the exhaustive gate
+below, which includes root tests/vet, interoperability, archive and documentation checks:
+
+```console
+test "$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.1"
+GOTOOLCHAIN=local make gate
+script/release-checklist      # read-only; PASS/FAIL/NOT_RUN, exits 0 only when all required rows pass
+```
+
+Standalone root or interoperability tests use `go test -count=1 -timeout 30m ./...` and `go vet ./...`
+in the corresponding module with `GOTOOLCHAIN=local`. The 30-minute limit is a per-package hang
+detector. Do not rerun the same checks before `make gate` unless changed inputs or a failure require it.
+
+If `GOTOOLCHAIN=local go env GOVERSION` reports a different patch version than `go1.27.1` (for
+example, a Homebrew `go` formula upgrade changed the linked toolchain), install the exact pinned
+version alongside it rather than relinking Homebrew's default, then prepend its `bin` directory to
+`PATH` for gate commands only, e.g. `PATH=/opt/homebrew/Cellar/go/1.27.1/bin:$PATH GOTOOLCHAIN=local make gate`
+(Intel Homebrew: `/usr/local/Cellar/go/1.27.1/bin`).
+
+Gemini/OpenCode adapter tests use their hosts' Node runtime. Core builds and the native regression
+suite do not require Python; optional qualification scripts, such as the live Go LSP campaign,
+may require Python 3 and their declared external tools. See [native regression ownership](tests/README.md).
+
+## License
+
+Corvint is free software under the **GNU Affero General Public License v3.0 or later**. The portable
+protocol descriptions, schemas, conformance material, examples, and interop implementations are
+**Apache-2.0** instead, so anyone can implement the standard, including in proprietary software,
+without the copyleft attaching. See [LICENSING.md](LICENSING.md) for the exact path boundary,
+[LICENSE](LICENSE) for the AGPL text, [LICENSE-APACHE-2.0](LICENSE-APACHE-2.0) for the Apache text,
+and [PROVENANCE.md](PROVENANCE.md).
