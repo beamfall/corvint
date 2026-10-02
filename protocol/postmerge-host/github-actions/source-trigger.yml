@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: Apache-2.0
+# Reference post-merge source trigger for GitHub Actions (PCH-V0, experimental).
+# It runs only after a merge lands on the default branch, never on a change
+# request, so it cannot block or fail the merged change request. It only asks
+# the pipeline to start; a failed dispatch is recovered by nightly reconciliation.
+name: Corvint post-merge trigger (reference)
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+env:
+  CORVINT_PM_WORKFLOW: source-trigger
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    permissions:
+      actions: write
+    env:
+      CORVINT_PM_STEP: trigger
+      GH_TOKEN: ${{ github.token }}
+      CHANGE: ${{ github.sha }}
+    steps:
+      - name: Dispatch the post-merge pipeline in dry-run mode
+        run: |
+          gh workflow run postmerge.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" \
+            -f change="$CHANGE" -f mode=dry-run \
+            || echo "dispatch NOT_PRODUCED; nightly reconciliation retries $CHANGE"

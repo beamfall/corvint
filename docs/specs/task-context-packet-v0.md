@@ -19,7 +19,7 @@ evidence row), `docs/decisions/0369-context-recency-blame-opt-in-2026-09-23.md` 
 ## Agent digest
 - Claim: `corvint context` lists the files to read for one task from relations a term search cannot express and keeps the task's own path out of the results.
 - Status: proposed/experimental
-- Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`); `internal/contextindex/recency.go` and `blame.go` (TCP-V0-035..038 opt-in recency, blame and ownership, experimental); `internal/contextindex/identgraph.go` and `ppr.go` (TCP-V0-030..034 opt-in identifier-graph PageRank slot, `CORVINT_CONTEXT_GRAPH=on`, decision 0367); `internal/contextindex/span_rank.go` and `internal/contextindex/sufficiency.go` (TCP-V0-025..029 opt-in `CORVINT_CONTEXT_SPANS=on` line-budgeted spans and `coverage.sufficiency`, experimental, decision 0366); `cmd/corvint/context_lsp.go` and `internal/lspprovider` (TCP-V0-043..046 opt-in gopls `external` member under `CORVINT_CONTEXT_LSP=gopls`, experimental, decision 0371).
+- Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`); `internal/contextindex/recency.go` and `blame.go` (TCP-V0-035..038 opt-in recency, blame and ownership, experimental); `internal/contextindex/identgraph.go` and `ppr.go` (TCP-V0-030..034 opt-in identifier-graph PageRank slot, `CORVINT_CONTEXT_GRAPH=on`, decision 0367); `internal/contextindex/span_rank.go` and `internal/contextindex/sufficiency.go` (TCP-V0-025..029 opt-in `CORVINT_CONTEXT_SPANS=on` line-budgeted spans and `coverage.sufficiency`, experimental, decision 0366); `cmd/corvint/context_lsp.go` and `internal/lspprovider` (TCP-V0-043..046 opt-in gopls `external` member under `CORVINT_CONTEXT_LSP=gopls`, experimental, decision 0371); `internal/contextindex/authority_screen.go` (TCP-V0-055..058 hidden-Unicode and self-modified-authority screen of reserved rows, experimental, V1-0414).
 - Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012 and of TCP-V0-047 (instruction-routed rows, V1-0186; idf floor and fenced-block rule, V1-0205 and V1-0206), which are implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go` and `internal/contextindex/taskcontext_routed_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it. TCP-V0-048..050 (opt-in reciprocal rank fusion in place of the corroboration count, decision 0377, ticket V1-0219) are specified and not implemented.
 - Read next: [Go LSP usage](../LSP.md), Explicit Go semantic integration; Requirements; Non-goals; Failure modes.
 
@@ -121,16 +121,26 @@ it must read, each with the relation that admitted it, without naming the task's
   the relations in `summary` after "; also"; the evidence row stays the admitting relation's
   (decision 0027). Without `--subject` the packet has the retrieval shape: `mentioned`,
   `definition`, `test`, `lexical`. Outside the opt-in named-test frame, after final reservation
-  and ranking, up to three additional
-  `pair` rows may replace the weakest unrelated lexical test rows: their anchors must be
-  selected non-test lexical sources, and the counterpart must satisfy the existing naming
-  convention. Counterparts already selected are retained; a lexical counterpart behind unrelated lexical
-  tests can be promoted in place to `pair` within the same cap. Selected counterpart tests are never
-  victims. New pairs precede remaining unrelated lexical tests, while every selected source,
-  governing row and other non-lexical row is retained. Unfilled budget may admit a pair directly.
-  Remaining lexical rows retain their BM25 order; their public score remains a relation weight,
-  not the BM25 value reported in their evidence. Pair generators and cap/budget omissions are
-  disclosed by TCP-V0-011; a subjectless pair relation is examined when lexical anchors are scanned.
+  and ranking, `pair` rows may replace unrelated lexical test rows (amended 2026-10-01, proposed):
+  their anchors are the selected non-test lexical sources, and the counterpart must satisfy the
+  existing naming convention. The rule is rank-relative, not a cap:
+  a counterpart inherits its source's lexical strength, so it may displace only an unrelated
+  lexical test the task matched more weakly than that source (TCP-V0-014's BM25 order, weakest
+  victim first), and a source admitted by a relation other than `lexical` counts as stronger
+  than every lexical test. Counterparts already selected are retained; a lexical counterpart
+  behind an unrelated lexical test weaker than its source is promoted in place to `pair`.
+  Selected counterpart tests are never victims. A new pair takes the position of the first
+  weaker unrelated test, while every selected source, governing row and other non-lexical row
+  is retained and the packet never grows past the limit. Unfilled budget may admit a pair
+  directly. Remaining lexical rows retain their BM25 order; their public score remains a
+  relation weight, not the BM25 value reported in their evidence. Pair generators and budget
+  omissions are disclosed by TCP-V0-011; a subjectless pair relation is examined when lexical
+  anchors are scanned. The earlier three-counterpart cap and last-position victim rule were
+  retired because the go-chi/chi orientation corpus (now development) showed both failing: the
+  cap was spent on counterparts of weaker sources before the strongest source's turn (task
+  `record response status when flushing`), and the victim rule evicted the packet's strongest
+  lexical test when it was the only unprotected one left (task `Don't duplicate methods in
+  Allow: header for 405 responses`).
   (A) The rows reserved by
   TCP-V0-008, TCP-V0-009 and TCP-V0-047 precede this order and each costs one row of `--limit`, and TCP-V0-010 narrows which
   identifiers the `definition` slot may use; the caps, weights and relative slot order above are otherwise unchanged.
@@ -484,9 +494,15 @@ it must read, each with the relation that admitted it, without naming the task's
   preregistration: `docs/plans/context-frame-relation-2026-09-05.md`. Rollback: unset
   the flag or remove the frame pass; default and frozen wires remain unchanged.
 
-- `TCP-V0-022`: (proposed 2026-09-22, not accepted; experimental; decision 0333) With
-  `CORVINT_CONTEXT_ANCHORS=on`, the task's repository anchors are a fourth lexical field matched
-  verbatim. An anchor is a literal of 4 to 256 bytes carrying at least one ASCII word run of
+- `TCP-V0-022`: (proposed 2026-09-22, not accepted; experimental; decision 0333; default
+  amended 2026-10-01, proposed) Unless `CORVINT_CONTEXT_ANCHORS=off`, the task's repository
+  anchors are a fourth lexical field matched verbatim; `off` restores the pre-amendment packet
+  bytes exactly, and `on` is accepted and means the default. The default moved because the
+  go-chi/chi orientation corpus (now development) task `Replace "interface{}" with "any"`
+  reaches five of its eight modified files without the field and all eight with it: the term
+  tokeniser reduces the quoted literal to the common word `interface`, and only the verbatim
+  field separates the files that write `interface{}` from the files that write the word.
+  An anchor is a literal of 4 to 256 bytes carrying at least one ASCII word run of
   three bytes, taken from the task text (TCP-V0-019's decoded string values when the task is
   valid JSON) by five classes tried in order, each consuming its spans before the next: `error`
   (a double-quoted string, quotes stripped), `url` (`scheme://` up to whitespace or a closing
@@ -501,7 +517,7 @@ it must read, each with the relation that admitted it, without naming the task's
   The credit lives inside the lexical slot: the row keeps kind `lexical` (or `documentation`),
   score 300 and authority `vocabulary`, its reason is prefixed `anchor: ` + "`literal` xN" +
   ` verbatim; `, and it can never precede a reserved TCP-V0-008/TCP-V0-009 row. No index,
-  snapshot or pack change; an unset or other value preserves the existing packet bytes.
+  snapshot or pack change; `off` preserves the pre-amendment packet bytes.
   Falsifier: a registered `tools/retrieval-bench` run on `v2_code2test` and `v2_trace2code` with
   the flag unset and `on` must lose at most 0.01 recall@5 on every fold and must report the
   anchor-bearing samples as their own subset (`stratum:anchor-bearing`); promotion additionally
@@ -523,8 +539,8 @@ it must read, each with the relation that admitted it, without naming the task's
   satisfies neither the `governance` receipt nor the `critical` selectors (TCP-V0-011) and is
   named, in reservation order, in `coverage.governance_refused`, an always-present array of
   `{relation, path, trust, reason}` objects; it stays in `results` with its class so the reader
-  sees what was set aside. The array is empty on every packet today's generators produce,
-  because no reserved generator emits a tainted label. The change is additive: a consumer
+  sees what was set aside. No reserved generator emits a tainted label; since V1-0414 the array
+  also names rows TCP-V0-056 downgrades, and is otherwise empty. The change is additive: a consumer
   decoding the previous row shape reads the same values, and the `query` and `impact` wires
   (GPK-V0-002, `conformance/cli-parity-v0`) and the `external` section (`internal/extevidence`)
   carry no `trust` member. The one table is `trustByAuthority` in `internal/contextindex/trust.go`;
@@ -895,6 +911,53 @@ and multi-language promotion are not inferred from that authorization.
   projections, the existing order MUST remain unchanged. Priority does not guarantee retention
   when subject relations themselves exceed the bound, and does not claim task-outcome gain.
 
+### Authority screen for reserved rows (V1-0414, experimental)
+
+Threat: a reserved row inherits the project's top authority, so a poisoned instruction file
+inherits it too. The Rules File Backdoor hid instructions for coding agents in invisible Unicode
+inside rule files that human review shows as clean
+([pillar.security](https://www.pillar.security/blog/new-vulnerability-in-github-copilot-and-cursor-how-hackers-can-weaponize-code-agents)),
+and an `AGENTS.md` injection made OpenAI Codex CLI stage local credentials before the user's task
+([backslash.security](https://www.backslash.security/blog/openai-codex-injection-in-agents-md-exfiltrating-credentials)).
+An agent that edits the governing file of the change it is making can grant itself authority the
+same way. Experimental: implemented in `internal/contextindex/authority_screen.go` and
+`internal/cem/workflow/self_modified.go`; not owner-accepted.
+
+- `TCP-V0-055`: (experimental, V1-0414) Before reservation, every reserved row (TCP-V0-008
+  governing, TCP-V0-009 spec-mentioned, TCP-V0-047 instruction-routed) MUST be screened over the
+  bounded text of its pinned source for these code points, and for no others:
+  zero-width U+200B, U+200C, U+200D, U+2060, and U+FEFF at any byte offset other than 0;
+  bidi-control U+202A..U+202E, U+2066..U+2069, U+200E, U+200F and U+061C;
+  tag U+E0000..U+E007F. A U+FEFF at byte offset 0 is an encoding signature and is exempt: the
+  leading byte order mark that Windows editors write hides nothing and would otherwise downgrade
+  ordinary files. A row holding any listed code point carries, on its sole evidence row, a
+  `warnings` array whose entry `{code:"hidden-unicode", classes, count, first_line,
+  first_code_point}` lists the present classes in the fixed order `zero-width`, `bidi-control`,
+  `tag`, the total count, and the one-based line and `U+XXXX` form of the first one. A reserved
+  path the bounded reader cannot hand back is not cleared by default: it carries
+  `{code:"hidden-unicode-unscreened", detail}` (invariant 2).
+- `TCP-V0-056`: (experimental, V1-0414) A row with any TCP-V0-055 or TCP-V0-057 warning is
+  downgraded: it stays in `results` inside the reserved block, so truncation cannot drop it, with
+  its relation, path and reason, but its `authority` becomes `downgraded-authority`, whose
+  TCP-V0-023 `trust` is `repository-content`; its `score` is 0, `confidence` `low`, its summary
+  `not project authority: <codes>`, and its `action` tells the reader to inspect the file, not
+  follow it. It is ordered after every clean reserved row, each group in reservation order. It
+  never satisfies `coverage.governance` or `coverage.critical`/`critical_missing`, is named in
+  `coverage.governance_refused` as `{relation, path, trust, reason, warnings}` where `warnings`
+  lists its codes, routes no TCP-V0-047 instruction paths, and is not recorded as governance by
+  the local dogfood prompt profile, which lists it among its unavailable selectors instead. A
+  packet with no downgraded row is byte-identical to the packet before this requirement.
+- `TCP-V0-057`: (experimental, V1-0414) The packet's diff under review is the working tree
+  against the indexed revision. A reserved row whose path the index records as modified there
+  (`Index.DirtyPaths`) carries `{code:"self-modified-authority", scope:"working-tree", detail}`
+  and is downgraded by TCP-V0-056 whatever its text, so a change cannot cite the governing file it
+  edits as authority for itself. For a committed change, `cem status` reports the same condition
+  by CEM-CB-026, using the same governing-instruction rule as TCP-V0-008's `documentKind`.
+- `TCP-V0-058`: (experimental, V1-0414) The screen adds no input other than the pinned blob and
+  the index's dirty-path list, no option, no index, snapshot or pack field, no network read and
+  no runtime dependency; it never edits or strips the file. Every added packet member is additive
+  and appears only on a downgraded row or in `governance_refused`.
+
 ## Non-goals and authority
 
 Forward imports of the subject, cross-directory definition-to-reference edges, and re-export
@@ -957,6 +1020,18 @@ The rank-fusion ordering (TCP-V0-048..050) adds no relation, index, snapshot or 
 new root verb. It does not fuse git recency as a channel: the frozen bench cannot measure recency
 (decision 0369), and that work waits on a history-preserving corpus (ticket V1-0221). It does not
 weight relations differently; learned relation weights are LTA-V0-009..012's.
+
+The authority screen (TCP-V0-055..058) is not a general Unicode policy: it has no allowlist for
+legitimate joiners such as the U+200D in emoji sequences or the U+200C some scripts need, so a
+governing file using them is downgraded and its owner must move that text out of the governing
+file or accept the warning. It does not screen homoglyphs, U+00AD soft hyphens, variation
+selectors or other format characters outside the named sets, does not screen ordinary rows,
+`query`/`impact` wires or `external` rows, and does not add a `--base` option: a committed range is
+`cem status`'s to report (CEM-CB-026). It does not change what CCF-V1-005 freezes; the
+`governance_refused` member keeps its name and type, and its relation and trust register is the
+owner's to review under CCF-V1-006 now that a generator writes rows there. `AGENTS.override.md` and
+other names `documentKind` does not classify as `instructions` are outside the screen, as they are
+outside TCP-V0-008.
 
 ## Failure modes
 
@@ -1057,6 +1132,14 @@ weight relations differently; learned relation weights are LTA-V0-009..012's.
   and counted (`TestExpandLiveGopls`). A hung gopls is killed with its process group at the 20 s
   wall time and reported `unavailable`.
 
+- (TCP-V0-055..057) A hidden code point outside the named sets, a poisoned file that is not a
+  reserved row, or one past the bounded reader's limit that the governing generator already skips
+  is not flagged by this screen; absence of a `warnings` member is not evidence that a file is
+  benign (invariant 2). A legitimate joiner downgrades the file (a false positive the warning
+  names). A governing file modified in the working tree is downgraded even when the edit is
+  benign; a packet built from a clean checkout of the same commit is not, so the packet's
+  self-modification signal covers only uncommitted edits.
+
 ## Acceptance evidence
 
 `internal/contextindex/taskcontext_test.go` (subject kept out, pair first, reverse importer and
@@ -1135,6 +1218,13 @@ golden bytes; a failing gopls adds only an unavailable `external` row), `interna
 tests and `internal/extevidence/lsp_test.go` (EEP-V0-023..026), and the TCP-V0-046 frozen bench
 off/on reports recorded in `docs/BUILD-LOG.md` under V1-0099.
 
+`internal/contextindex/authority_screen_test.go` (TCP-V0-055..057, experimental:
+`TestHiddenUnicodeClassesAreExactlyTheSpecSets`, `TestScreenHiddenUnicodeReportsCountClassesAndFirstSite`,
+`TestTaskContextDowngradesAGoverningFileHidingUnicode`, `TestTaskContextKeepsACleanGoverningFileAuthoritative`,
+`TestTaskContextDowngradesASpecMentionedRowHidingUnicode`, `TestTaskContextReportsAGoverningFileTheWorkingTreeModifies`,
+`TestScreenPathDowngradesAnUnreadableRow`, `TestCEMGoverningInstructionRuleMatchesThePacket`); every
+existing packet golden is unchanged (TCP-V0-058).
+
 ## Rollback
 
 Delete the two source files, their tests, the help topic, and the dispatch line in
@@ -1171,6 +1261,13 @@ member, the `vocab.identgraph` section and the compile, `compile` and `rowAction
 The LSP member (TCP-V0-043..046) rolls back alone with EEP-V0-023..026: delete `cmd/corvint/context_lsp.go`, its
 test, `internal/lspprovider`, and the `attachLSPEvidence` call in `compileTaskContext`; the default
 wire never changed.
+
+The authority screen (TCP-V0-055..058) rolls back alone: delete
+`internal/contextindex/authority_screen.go` and its test, the `screenAuthority`/`demoteScreened`
+calls in `reservedRows` and `governingRow`, the `downgrade` field and its checks in
+`instructionRoutedRows`, `governanceRows`, `governanceRefused` and `addGovernance`, and the
+`screenedAction`/`withAuthorityWarnings` calls in `packet`; point `TrustClass` back at
+`trustByAuthority`. No state persists and clean packets never changed.
 
 ## Traceability
 
@@ -1231,3 +1328,7 @@ wire never changed.
 | TCP-V0-052 | `lspevidence.Attach`, `callContext` | `TestContextLSPDriftWithholdsPacket`, `TestContextLSPPinAndDrift` |
 | TCP-V0-053 | `script/qualify-lsp.py` | required live compiled CLI/MCP module and workspace qualification |
 | TCP-V0-054 | `lspevidence.Attach`, `extevidence.InlineTaskSection`, `addPathRelations` | `TestTaskPathRelationsSubjectBeforeBound`, `TestInlineTaskSectionBoundRootSubject`; public development witnesses and live CLI/MCP parity |
+| TCP-V0-055 | `hiddenUnicodeClass`, `screenHiddenUnicode`, `screenPath` (`internal/contextindex/authority_screen.go`) | `TestHiddenUnicodeClassesAreExactlyTheSpecSets`, `TestScreenHiddenUnicodeReportsCountClassesAndFirstSite`, `TestScreenPathDowngradesAnUnreadableRow` |
+| TCP-V0-056 | `screenAuthority`, `demoteScreened`, `authorityTrust`, `screenedAction`, `withAuthorityWarnings`, `governanceRefusalReason`; `reservedRows`, `instructionRoutedRows`, `governanceRows`, `governanceRefused`, `addGovernance` | `TestTaskContextDowngradesAGoverningFileHidingUnicode`, `TestTaskContextKeepsACleanGoverningFileAuthoritative`, `TestTaskContextDowngradesASpecMentionedRowHidingUnicode` |
+| TCP-V0-057 | `screenPath` (`Index.DirtyPaths`); `workflow.GoverningInstructionPath` | `TestTaskContextReportsAGoverningFileTheWorkingTreeModifies`, `TestCEMGoverningInstructionRuleMatchesThePacket` |
+| TCP-V0-058 | `withAuthorityWarnings` (members only on downgraded rows) | `TestTaskContextKeepsACleanGoverningFileAuthoritative`, `TestTaskContextWireIsAdditiveForAnOldConsumer` |

@@ -9,6 +9,8 @@ func OwnerAvailable() bool { return false }
 
 func containLeader(*exec.Cmd) {}
 
+func defaultRetirementMode() RetirementMode { return RequirePreReapQuiet }
+
 func defaultPrimitives() Primitives {
 	return Primitives{
 		WaitExit:   func(int) error { return ErrOwnerUnavailable },

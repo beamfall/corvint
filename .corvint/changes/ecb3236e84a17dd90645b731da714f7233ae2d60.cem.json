@@ -1,0 +1,110 @@
+{
+  "baseRevision": "e5d96823cf39ba42bb4e8c480d48e83fce54d7e5",
+  "evidence": [
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3118,
+        "start": 2775
+      },
+      "spanSha256": "46e69c5e97297b36c204ff585b335a484633ade4ec166dbc695fd46e7c6dc76c"
+    },
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:0e749dc28b4e8cb4b3a3ef2618fd638e51456b97708df865c2ae7d97d8da2aef",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 2774,
+        "start": 2288
+      },
+      "spanSha256": "a5ef358e5716557d5f42d57c7271d3289afdc8ff20143da2026e5fd075f876f4"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:bd3340626c5936198fc5f9fb7b982cca513f81cc656b440e11a4ea2bbfb18019",
+      "newRange": {
+        "count": 35,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-01-behaviorfalsify-hermetic-fixture.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0e749dc28b4e8cb4b3a3ef2618fd638e51456b97708df865c2ae7d97d8da2aef",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5826dbef27ee2109170d472b68d6638c090e455fffdccd5e8097892283841e7b",
+      "newRange": {
+        "count": 7,
+        "start": 9
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 9
+      },
+      "path": "internal/behaviorfalsify/execute_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0e749dc28b4e8cb4b3a3ef2618fd638e51456b97708df865c2ae7d97d8da2aef",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:bea44ab6dc75fab3f6d22001c14982b80a1a6fa19a888b27cba0f324e44134bb",
+      "newRange": {
+        "count": 7,
+        "start": 728
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 727
+      },
+      "path": "internal/behaviorfalsify/execute_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0e749dc28b4e8cb4b3a3ef2618fd638e51456b97708df865c2ae7d97d8da2aef",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:233b153a69df4a0d27488a1c3ae5d4d8efcc2e5d64ed3895c5efaa9a25bb9a4e",
+      "newRange": {
+        "count": 37,
+        "start": 824
+      },
+      "oldRange": {
+        "count": 22,
+        "start": 823
+      },
+      "path": "internal/behaviorfalsify/execute_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "1efa7bc36c119af3d399c0e0a1938705d9714fda5875c51524d9ac9bb210235e",
+  "spec": "cem/0.2"
+}

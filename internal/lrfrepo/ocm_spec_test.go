@@ -116,3 +116,37 @@ func TestOCMSpecFrozenLineSyntaxMatchesEnumeration(t *testing.T) {
 		}
 	})
 }
+
+// V1-0521: the handoff slices once sat outside the selected section, so the
+// session OCM counted 16 of the 22 registered clauses.
+func TestSessionContextDividendSpecEnumeratesEveryObligation(t *testing.T) {
+	path := "docs/specs/session-context-dividend-v0.md"
+	data, err := os.ReadFile("../../" + path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, requirements, _, err := requirementsFromBlob(path, "fixture-blob", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := make([]string, 22)
+	for i := range want {
+		want[i] = fmt.Sprintf("SESSION-V0-%03d", i+1)
+	}
+	if !slices.Equal(requirements, want) {
+		t.Fatalf("OCM enumerates %v; want exactly %v", requirements, want)
+	}
+	registry, err := os.ReadFile("../../docs/specs/REQUIREMENTS.tsv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	registered := []string{}
+	for _, row := range strings.Split(string(registry), "\n") {
+		if fields := strings.Split(row, "\t"); len(fields) == 4 && fields[1] == path {
+			registered = append(registered, fields[0])
+		}
+	}
+	if !slices.Equal(registered, want) {
+		t.Fatalf("registry locates %v in %s; want %v", registered, path, want)
+	}
+}

@@ -1,12 +1,15 @@
 package cemcandidate
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/verify"
@@ -82,6 +85,10 @@ func AssembleStable(ctx context.Context, r StableRequest, out string) (StableAss
 	if e := r.validate(); e != nil {
 		return result, e
 	}
+	if e := legacyStableRepositoryEnvelope(r.Repository); e != nil {
+		result.Verification.Refuse("repository", "unsupported-repository-envelope", true)
+		return result, e
+	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 	defer cancel()
 	raws := make([][]byte, 0, 6)
@@ -101,6 +108,9 @@ func AssembleStable(ctx context.Context, r StableRequest, out string) (StableAss
 	}
 	repo, e := gitauth.Open(r.Repository, gitrun.NewDefaultBudget())
 	if e != nil {
+		if cemcode.CodeOf(e) == cemcode.UnsupportedRepositoryAttributes {
+			result.Verification.Refuse("repository", "unsupported-repository-envelope", true)
+		}
 		return result, e
 	}
 	if _, exists, e := repo.LookupTreeEntry(ctx, r.Target, cw.ExcludedCEMPath); e != nil {
@@ -174,6 +184,17 @@ func AssembleStable(ctx context.Context, r StableRequest, out string) (StableAss
 }
 
 var stableArtifactKinds = []string{"tasks-capture", "tasks-verification", "tasks-claimed-ticket", "tasks-snapshot-head-receipt", "runner-plan", "runner-receipt"}
+
+func legacyStableRepositoryEnvelope(root string) error {
+	config, err := os.ReadFile(filepath.Join(root, ".git", "config"))
+	if err != nil {
+		return nil
+	}
+	if bytes.HasPrefix(config, []byte("[extensions]\n\tobjectformat = sha256\n")) {
+		return cemcode.New(cemcode.UnsupportedRepositoryAttributes, "legacy stable assembly does not admit leading object-format extension section")
+	}
+	return nil
+}
 
 func stableBytes(r StableRequest, source *cw.Map, b tw.CriterionBinding, artifacts map[string][]byte) ([]byte, error) {
 	if source == nil || source.Spec != cw.Spec02 && source.Spec != cw.Spec03 {

@@ -35,6 +35,15 @@ func stableFixture(t *testing.T, format string) (StableRequest, string) {
 	snapshot := save(t, filepath.Join(realTemp(t), "snapshot.json"), []byte("{\"profile\":\"manufactured-snapshot-not-native-authority\"}\n"))
 	return StableRequest{Profile: StableAssemblyProfile, Repository: r.Repository, ExpectedBase: r.ExpectedBase, Target: r.Target, TicketID: r.TicketID, AttemptID: r.AttemptID, SourcePrefix: r.SourcePrefix, SourceMap: r.SourceMap, Capture: r.Capture, Verification: r.Verification, SnapshotHeadArtifact: snapshot, RunnerPlan: r.RunnerPlan, RunnerReceipt: r.RunnerReceipt, Links: r.Links}, out
 }
+
+func stableAssemblyDebug(result StableAssemblyResult) string {
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return err.Error()
+	}
+	return string(data)
+}
+
 func TestStableAssemblySeparateSnapshotIdentityAndFullEnvelope(t *testing.T) {
 	for _, format := range []string{"sha1", "sha256"} {
 		t.Run(format, func(t *testing.T) {
@@ -42,7 +51,7 @@ func TestStableAssemblySeparateSnapshotIdentityAndFullEnvelope(t *testing.T) {
 			result, e := AssembleStable(t.Context(), r, out)
 			if e != nil {
 				config, _ := os.ReadFile(filepath.Join(r.Repository, ".git/config"))
-				t.Fatalf("%v; verification=%+v config=%s", e, result.Verification, config)
+				t.Fatalf("%v; verification=%s config=%s", e, stableAssemblyDebug(result), config)
 			}
 			if result.Verification.Outcome != "ACCEPT" || result.Verification.Spec != cw.StableSpec || result.DeclaredInputGitBinding != "DECLARED_INPUT_BYTES_MATCH_TARGET" {
 				t.Fatalf("result %+v", result)
@@ -239,7 +248,7 @@ func TestStableAssemblyRefusesChangedOrUnsupportedInputs(t *testing.T) {
 			}
 			result, e := AssembleStable(ctx, r, out)
 			if e == nil || result.StablePath != "" || result.StableSha256 != "" {
-				t.Fatalf("accepted invalid %s %+v %v", kind, result, e)
+				t.Fatalf("accepted invalid %s %s %v", kind, stableAssemblyDebug(result), e)
 			}
 			if _, e := os.Stat(filepath.Join(out, "stable.json")); !os.IsNotExist(e) {
 				t.Fatal("invalid assembly published stable map")
@@ -264,6 +273,6 @@ func TestStableAssemblyRetainsNarrowRepositoryEnvelope(t *testing.T) {
 	}
 	result, e := AssembleStable(t.Context(), r, out)
 	if e == nil || result.StablePath != "" || result.Verification.Stage != "repository" || result.Verification.Code == nil || *result.Verification.Code != "unsupported-repository-envelope" {
-		t.Fatalf("broadened qualification %+v %v", result, e)
+		t.Fatalf("broadened qualification %s %v", stableAssemblyDebug(result), e)
 	}
 }

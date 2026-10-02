@@ -521,6 +521,71 @@ func TestCALV0012_BackwardClockRefusesEveryWriter(t *testing.T) {
 	auditOK(t, s.repo)
 }
 
+// TestCALV0012_WriterBehindNewerHeadSamplesAgain: a writer whose timestamp
+// was sampled before another writer advanced the head is not a clock stepping
+// backward. Under a live clock it samples again against the head it holds;
+// a live clock that is itself behind the head still refuses without writing.
+func TestCALV0012_WriterBehindNewerHeadSamplesAgain(t *testing.T) {
+	s := newLeaseStore(t)
+	id := s.ticket(t, "one")
+	live := func(minutes int) context.Context {
+		return store.WithClock(context.Background(), func() wire.Timestamp { return s.at(t, minutes) })
+	}
+	later, err := store.Mutate(context.Background(), s.repo, operator(), envelope("create-later", "CREATE", "", "", createPayload("later")), s.at(t, 70))
+	if err != nil || later.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("later write: %+v %v", later, err)
+	}
+	waited, err := store.Mutate(live(71), s.repo, operator(), envelope("create-waited", "CREATE", "", "", createPayload("waited")), s.at(t, 1))
+	if err != nil || waited.Outcome.Outcome != mutation.OutcomeCompleted || waited.Receipt == "" {
+		t.Fatalf("mutation behind a newer head: %+v %v", waited, err)
+	}
+	choice := store.LeaseChoice{QueueID: fixture.QueueID, RequestID: "claim-waited", Root: s.root, Lease: claimOf(id, "src")}
+	claim, err := store.Lease(live(72), s.repo, operator(), choice, s.at(t, 2))
+	if err != nil || claim.Outcome.Outcome != mutation.OutcomeCompleted || claim.AttemptID == "" {
+		t.Fatalf("claim behind a newer head: %+v %v", claim, err)
+	}
+	if got, want := s.attempt(t, claim.AttemptID).Lease.ExpiresAt, s.at(t, 72+60); got != want {
+		t.Fatalf("lease expiry %s was not counted from the sampled time %s", got, want)
+	}
+	// The head moves between a lease writer's sample and its commit: the
+	// retried round has to sample again, after reading the head it lost to.
+	moved := false
+	racing := store.WithClock(context.Background(), func() wire.Timestamp {
+		if moved {
+			return s.at(t, 81)
+		}
+		moved = true
+		race, err := store.Mutate(context.Background(), s.repo, operator(), envelope("create-race", "CREATE", "", "", createPayload("race")), s.at(t, 80))
+		if err != nil || race.Outcome.Outcome != mutation.OutcomeCompleted {
+			t.Errorf("racing write: %+v %v", race, err)
+		}
+		return s.at(t, 79)
+	})
+	choice.RequestID, choice.Lease = "renew-raced", renewOf(claim)
+	raced, err := store.Lease(racing, s.repo, operator(), choice, s.at(t, 2))
+	if err != nil || raced.Outcome.Outcome != mutation.OutcomeCompleted || !moved {
+		t.Fatalf("renew that lost the head mid-write: %+v %v", raced, err)
+	}
+	if got, want := s.attempt(t, claim.AttemptID).Lease.ExpiresAt, s.at(t, 81+60); got != want {
+		t.Fatalf("raced renew expiry %s was not counted from the second sample %s", got, want)
+	}
+	claim.Generation = raced.Generation
+	before := storeDigest(t, s.repo)
+	back, err := store.Mutate(live(3), s.repo, operator(), envelope("create-back", "CREATE", "", "", createPayload("back")), s.at(t, 1))
+	if err != nil || back.Outcome.Outcome != mutation.OutcomeStorageFailed || back.Receipt != "" {
+		t.Fatalf("backward live clock: %+v %v", back, err)
+	}
+	choice.RequestID, choice.Lease = "renew-back", renewOf(claim)
+	renew, err := store.Lease(live(3), s.repo, operator(), choice, s.at(t, 1))
+	if err != nil || renew.Outcome.Outcome != mutation.OutcomeStorageFailed || renew.Receipt != "" {
+		t.Fatalf("backward live renew: %+v %v", renew, err)
+	}
+	if storeDigest(t, s.repo) != before {
+		t.Fatal("refused backward clock wrote")
+	}
+	auditOK(t, s.repo)
+}
+
 // TestCALV0025_WidenRefusedUnderAdmissionBarrier: pause refuses
 // scope-expand (TCP-00 §3.4) without writing, while renew proceeds.
 func TestCALV0025_WidenRefusedUnderAdmissionBarrier(t *testing.T) {

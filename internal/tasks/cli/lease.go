@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -181,7 +180,7 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	choice := store.LeaseChoice{QueueID: queueID, RequestID: requestID, Root: env.Cwd, Lease: lease, Derive: env.ScopeDeriver}
 	var report *store.Report
 	if name == "health" || name == "pool cleanup" {
-		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		kind := "health"
 		if name == "pool cleanup" {
@@ -190,11 +189,11 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 		report, err = store.PoolCommand(ctx, repo, actor, choice, kind)
 	} else if name == "gate run" {
 		// An interrupt kills the gate's process group and records nothing.
-		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		report, err = store.GateRun(ctx, repo, actor, choice, gateWorktree(env.Cwd, worktree), time.Now)
 	} else {
-		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		report, err = store.Lease(ctx, repo, actor, choice, now)
 	}
@@ -300,9 +299,21 @@ func readAttempt(env Env, args []string, observations bool) *wire.Result {
 }
 
 // auditState audits the named private-state paths and binds the audit to
-// the outer snapshot.
+// the outer snapshot. One audit retains the reservation set, the pool state
+// and every attempt record, so a command that asks for several of them pays
+// for the journal once (CAL-V0-061). The audit resumes from the
+// writer-retained checkpoint when one binds; `receipt audit` never does.
 func auditState(rc *readCtx, paths ...string) (*journal.Result, error) {
-	reader := journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree}
+	shared := true
+	for _, p := range paths {
+		if p != "reservations.json" && p != "pools.json" && !strings.HasPrefix(p, "attempts/") {
+			shared = false
+		}
+	}
+	if shared && rc.proof != nil {
+		return rc.proof, nil
+	}
+	reader := journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree, SelectState: true, Checkpoint: readCheckpoint(rc.repo)}
 	proof, err := reader.Audit(paths...)
 	if err != nil {
 		return nil, err
@@ -310,7 +321,44 @@ func auditState(rc *readCtx, paths ...string) (*journal.Result, error) {
 	if proof.Identity.HeadSha256 != rc.snap.HeadSha256 || proof.Identity.IntentTreeSha256 != rc.snap.IntentTree {
 		return nil, wire.Errorf(wire.CodeSnapshotMoved, "attempts", "journal and outer snapshot differ")
 	}
+	rc.proof = proof
 	return proof, nil
+}
+
+// readCheckpoint returns the retained audit checkpoint, or nil when it is
+// absent or unreadable. The journal reader rebinds whatever this returns.
+func readCheckpoint(repo *intent.Repository) *journal.Checkpoint {
+	raw, err := intent.ReadFile(journal.CheckpointPath(repo.StateDir), journal.MaxCheckpointBytes)
+	if err != nil {
+		return nil
+	}
+	cp, err := journal.DecodeCheckpoint(raw)
+	if err != nil {
+		return nil
+	}
+	return cp
+}
+
+// auditMode names how the command's journal audit ran: FULL walked every
+// retained receipt, CHECKPOINT_PLUS_TAIL resumed from a writer's complete
+// audit. NOT_OBSERVED means the command needed no journal audit.
+func auditMode(rc *readCtx) string {
+	if rc.proof == nil {
+		return "NOT_OBSERVED"
+	}
+	return rc.proof.Mode
+}
+
+// attemptPaths lists every retained attempt record the audit proved.
+func attemptPaths(proof *journal.Result) []string {
+	var paths []string
+	for p, record := range proof.Records {
+		if strings.HasPrefix(p, "attempts/") && record.Sha256 != nil {
+			paths = append(paths, p)
+		}
+	}
+	sort.Strings(paths)
+	return paths
 }
 
 // reservationOracle projects journal membership. The legacy LiveAttempt method

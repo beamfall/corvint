@@ -102,6 +102,9 @@ func (s *Session) Read(ctx context.Context, action string, options ReadOptions) 
 			"state": state, "counts": counts, "worklist": work, "policyIssues": policy,
 			"verification": verification,
 		}
+		if rows := selfModifiedAuthority(document); len(rows) != 0 {
+			result["selfModifiedAuthority"] = rows
+		}
 		envelope.apply(result, true)
 		return result, nil
 	case "report":

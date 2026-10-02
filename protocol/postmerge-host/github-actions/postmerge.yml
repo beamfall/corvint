@@ -1,0 +1,298 @@
+# SPDX-License-Identifier: Apache-2.0
+# Reference post-merge pipeline for GitHub Actions (PCH-V0, experimental).
+# Copy to .github/workflows/postmerge.yml with the hooks named in
+# protocol/postmerge-host/README.md, then audit the copy.
+# It processes one merged change identified by its full merge commit. Modes are
+# dry-run and recording only: no step performs an outward forge or tracker write.
+name: Corvint post-merge (reference)
+
+on:
+  workflow_dispatch:
+    inputs:
+      change:
+        description: Full merge commit id on the default branch
+        required: true
+        type: string
+      mode:
+        description: Connector mode
+        required: true
+        default: dry-run
+        type: choice
+        options: [dry-run, recording]
+  repository_dispatch:
+    types: [corvint-postmerge]
+
+permissions: {}
+
+# One run per merged change at a time. A replay waits; it never cancels.
+concurrency:
+  group: corvint-postmerge-${{ inputs.change || github.event.client_payload.change }}
+  cancel-in-progress: false
+
+env:
+  CORVINT_PM_WORKFLOW: pipeline
+  # Pinned Corvint source commit; install-pinned.sh verifies the built binaries
+  # against postmerge/corvint-pins.sha256 before any of them runs.
+  CORVINT_SOURCE_COMMIT: REPLACE-WITH-THE-40-HEX-CORVINT-COMMIT
+  CORVINT_PINS: config/postmerge/corvint-pins.sha256
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    env:
+      CORVINT_PM_STEP: trigger
+      REQUESTED_CHANGE: ${{ inputs.change || github.event.client_payload.change }}
+      REQUESTED_MODE: ${{ inputs.mode || github.event.client_payload.mode || 'dry-run' }}
+    outputs:
+      change: ${{ steps.check.outputs.change }}
+      mode: ${{ steps.check.outputs.mode }}
+    steps:
+      - id: check
+        name: Validate the change identifier and mode
+        run: |
+          set -eu
+          # Whole-string checks: a line-oriented grep would accept a value whose
+          # first line is valid and whose next line injects another output.
+          case "${#REQUESTED_CHANGE}" in
+            40|64) ;;
+            *) echo "change-invalid" >&2; exit 1 ;;
+          esac
+          case "$REQUESTED_CHANGE" in
+            *[!0123456789abcdef]*) echo "change-invalid" >&2; exit 1 ;;
+          esac
+          case "$REQUESTED_MODE" in
+            dry-run|recording) ;;
+            *) echo "mode-unsupported" >&2; exit 1 ;;
+          esac
+          echo "change=$REQUESTED_CHANGE" >> "$GITHUB_OUTPUT"
+          echo "mode=$REQUESTED_MODE" >> "$GITHUB_OUTPUT"
+
+  intake:
+    needs: resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      CORVINT_PM_STEP: intake
+      CHANGE: ${{ needs.resolve.outputs.change }}
+    steps:
+      - name: Check out trusted configuration
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: config
+          persist-credentials: false
+      - name: Check out the merged change as data
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.resolve.outputs.change }}
+          path: product
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.1"
+          cache: false
+      - name: Build and verify pinned Corvint companions
+        run: config/postmerge/install-pinned.sh corvint-intake corvint-postmerge-connect
+      - name: Export raw tracker and forge context (host adapter hook)
+        env:
+          CORVINT_PM_FORGE_READ_TOKEN: ${{ secrets.CORVINT_PM_FORGE_READ_TOKEN }}
+          CORVINT_PM_TRACKER_READ_TOKEN: ${{ secrets.CORVINT_PM_TRACKER_READ_TOKEN }}
+        run: |
+          set -eu
+          mkdir -m 700 "$RUNNER_TEMP/raw" "$RUNNER_TEMP/admitted"
+          config/postmerge/hooks/export-context.sh "$CHANGE" "$RUNNER_TEMP/raw"
+      - name: Keep raw context outside the author worktree
+        run: |
+          set -eu
+          corvint-postmerge-connect read-intake --experimental \
+            --root "$GITHUB_WORKSPACE/product" \
+            --fixture "$RUNNER_TEMP/raw/fixture.json" \
+            --policy "$GITHUB_WORKSPACE/config/postmerge/connector-policy.json" \
+            --input "$RUNNER_TEMP/raw/input.json" \
+            --output "$RUNNER_TEMP/raw/intake.json" \
+            --author-root "$GITHUB_WORKSPACE/product"
+          corvint-intake reader-check --root "$GITHUB_WORKSPACE/product" \
+            --raw "$RUNNER_TEMP/raw/intake.json" --output "$RUNNER_TEMP/admitted/author-input.json" \
+            > "$RUNNER_TEMP/raw/reader-preflight.json"
+      - name: Read closed-vocabulary fields (host adapter hook)
+        env:
+          CORVINT_PM_AGENT_MODEL_KEY: ${{ secrets.CORVINT_PM_AGENT_MODEL_KEY }}
+        run: config/postmerge/hooks/reader.sh "$RUNNER_TEMP/raw/intake.json" "$RUNNER_TEMP/raw/candidate.json"
+      - name: Admit only validated typed fields
+        run: |
+          set -eu
+          base=$(git -C product rev-parse "$CHANGE^1")
+          corvint-intake validate --root "$GITHUB_WORKSPACE/product" --base "$base" --head "$CHANGE" \
+            < "$RUNNER_TEMP/raw/candidate.json" > "$RUNNER_TEMP/admitted/author-input.json"
+      # Only the admitted typed record leaves this job. Raw context is never uploaded.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: author-input
+          path: ${{ runner.temp }}/admitted/author-input.json
+          retention-days: 7
+
+  delta:
+    needs: resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    env:
+      CORVINT_PM_STEP: delta
+    steps:
+      - name: Record the pending delta step
+        run: echo "delta NOT_PRODUCED corvint-delta-not-yet-published"
+
+  authoring:
+    needs: [resolve, intake, delta]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      CORVINT_PM_STEP: authoring
+      CHANGE: ${{ needs.resolve.outputs.change }}
+    steps:
+      - name: Check out trusted configuration
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: config
+          persist-credentials: false
+      - name: Check out the author worktree
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.resolve.outputs.change }}
+          path: product
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.1"
+          cache: false
+      - name: Build and verify pinned Corvint
+        run: config/postmerge/install-pinned.sh corvint
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: author-input
+          path: ${{ runner.temp }}/input
+      - name: Capture the host-owned before-state
+        run: |
+          set -eu
+          mkdir -m 700 "$RUNNER_TEMP/step" "$RUNNER_TEMP/author-out"
+          cp config/postmerge/step-declaration.json "$RUNNER_TEMP/step/declaration.json"
+          config/postmerge/hooks/step-host.sh "$GITHUB_WORKSPACE/product" "$RUNNER_TEMP/step/host.json"
+          corvint --root "$GITHUB_WORKSPACE/product" step snapshot \
+            --declaration "$RUNNER_TEMP/step/declaration.json" --host "$RUNNER_TEMP/step/host.json" \
+            > "$RUNNER_TEMP/step/before.json"
+      # Uploaded before the author runs. This does not authenticate it: author code
+      # on this runner may reach the job's runtime token and replace the artifact.
+      # Trusted validation treats before-state as untrusted (README.md, Limits).
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: before-state
+          path: ${{ runner.temp }}/step/before.json
+          retention-days: 7
+      - name: Author within the declared scope (host adapter hook)
+        env:
+          CORVINT_PM_AGENT_MODEL_KEY: ${{ secrets.CORVINT_PM_AGENT_MODEL_KEY }}
+        run: |
+          set -eu
+          corvint --root "$GITHUB_WORKSPACE/product" step env-check \
+            --declaration "$RUNNER_TEMP/step/declaration.json" --host "$RUNNER_TEMP/step/host.json"
+          config/postmerge/hooks/author.sh "$RUNNER_TEMP/input/author-input.json" \
+            "$GITHUB_WORKSPACE/product" "$RUNNER_TEMP/author-out/connector-input.json"
+      - name: Attest the authoring scope
+        run: |
+          set -eu
+          corvint --root "$GITHUB_WORKSPACE/product" step verify \
+            --declaration "$RUNNER_TEMP/step/declaration.json" --host "$RUNNER_TEMP/step/host.json" \
+            --before "$RUNNER_TEMP/step/before.json" > "$RUNNER_TEMP/author-out/step-receipt.json"
+          git -C product add -A
+          git -C product diff --cached --binary > "$RUNNER_TEMP/author-out/author.patch"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: author-output
+          path: ${{ runner.temp }}/author-out
+          retention-days: 7
+
+  # Trusted deterministic steps on a fresh runner. Remote live writes are not
+  # supported by the connector; a host that adds them splits the writer steps
+  # into their own jobs holding only that step's write credential (README.md).
+  trusted:
+    needs: [resolve, authoring]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      CORVINT_PM_STEP: trusted-validation,follow-up-item,draft-change-requests,findings
+      CHANGE: ${{ needs.resolve.outputs.change }}
+      MODE: ${{ needs.resolve.outputs.mode }}
+    steps:
+      - name: Check out trusted configuration
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: config
+          persist-credentials: false
+      - name: Check out the merged change
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.resolve.outputs.change }}
+          path: product
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.1"
+          cache: false
+      - name: Build and verify pinned Corvint companions
+        run: config/postmerge/install-pinned.sh corvint-postmerge-connect
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: author-output
+          path: ${{ runner.temp }}/author-out
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: before-state
+          path: ${{ runner.temp }}/before
+      - name: Re-export trusted context (host adapter hook)
+        env:
+          CORVINT_PM_FORGE_READ_TOKEN: ${{ secrets.CORVINT_PM_FORGE_READ_TOKEN }}
+          CORVINT_PM_TRACKER_READ_TOKEN: ${{ secrets.CORVINT_PM_TRACKER_READ_TOKEN }}
+        run: |
+          set -eu
+          mkdir -m 700 "$RUNNER_TEMP/raw" "$RUNNER_TEMP/out"
+          config/postmerge/hooks/export-context.sh "$CHANGE" "$RUNNER_TEMP/raw"
+      - name: Validate the authoring receipt and typed output
+        run: |
+          set -eu
+          config/postmerge/hooks/validate.sh "$RUNNER_TEMP/before/before.json" \
+            "$RUNNER_TEMP/author-out" "$GITHUB_WORKSPACE/product"
+          git -C product apply --check "$RUNNER_TEMP/author-out/author.patch"
+          jq --slurpfile trusted "$RUNNER_TEMP/raw/input.json" \
+            '.binding = $trusted[0].binding | .source_item = $trusted[0].source_item' \
+            "$RUNNER_TEMP/author-out/connector-input.json" > "$RUNNER_TEMP/out/input.json"
+          corvint-postmerge-connect plan --experimental --root "$GITHUB_WORKSPACE/product" \
+            --fixture "$RUNNER_TEMP/raw/fixture.json" \
+            --policy "$GITHUB_WORKSPACE/config/postmerge/connector-policy.json" \
+            --input "$RUNNER_TEMP/out/input.json" > "$RUNNER_TEMP/out/plan.json"
+      - name: Render follow-up item, draft change requests and findings
+        run: |
+          set -eu
+          common="--experimental --root $GITHUB_WORKSPACE/product --fixture $RUNNER_TEMP/raw/fixture.json --policy $GITHUB_WORKSPACE/config/postmerge/connector-policy.json --input $RUNNER_TEMP/out/input.json"
+          if [ "$MODE" = recording ]; then
+            mkdir -m 700 "$RUNNER_TEMP/ledger"
+            corvint-postmerge-connect write $common --mode recording \
+              --output "$RUNNER_TEMP/ledger/requests.jsonl" --author-root "$GITHUB_WORKSPACE/product"
+            cp "$RUNNER_TEMP/ledger/requests.jsonl" "$RUNNER_TEMP/out/requests.jsonl"
+          else
+            corvint-postmerge-connect write $common --mode dry-run > "$RUNNER_TEMP/out/requests.jsonl"
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: postmerge-requests
+          path: ${{ runner.temp }}/out/requests.jsonl
+          retention-days: 30

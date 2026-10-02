@@ -59,7 +59,7 @@ var trustByAuthority = map[string]string{
 
 // TrustClass derives the one trust class of a row from its authority label.
 func TrustClass(authority string) string {
-	if class, ok := trustByAuthority[authority]; ok {
+	if class, ok := authorityTrust(authority); ok {
 		return class
 	}
 	return TrustToolOutput
@@ -78,7 +78,7 @@ func TrustTainted(class string) bool {
 func (compiler *taskContextCompiler) governanceRows() []contextRow {
 	rows := make([]contextRow, 0, len(compiler.reserved))
 	for _, row := range compiler.reserved {
-		if TrustTainted(TrustClass(row.authority)) {
+		if TrustTainted(TrustClass(row.authority)) || row.downgrade != "" {
 			continue
 		}
 		rows = append(rows, row)
@@ -88,18 +88,22 @@ func (compiler *taskContextCompiler) governanceRows() []contextRow {
 
 // governanceRefused lists, in reservation order, every reserved row a tainted
 // trust class kept from satisfying governance, each naming its relation, path,
-// and class (TCP-V0-023). Empty on every packet the generators produce today.
+// and class (TCP-V0-023); a downgraded row also names its warnings (TCP-V0-056).
 func (compiler *taskContextCompiler) governanceRefused() []any {
 	refused := make([]any, 0)
 	for _, row := range compiler.reserved {
 		class := TrustClass(row.authority)
-		if !TrustTainted(class) {
+		if !TrustTainted(class) && row.downgrade == "" {
 			continue
 		}
-		refused = append(refused, map[string]any{
+		entry := map[string]any{
 			"relation": row.kind, "path": row.path, "trust": class,
-			"reason": "a " + class + " row cannot satisfy governance",
-		})
+			"reason": governanceRefusalReason(row, class),
+		}
+		if row.downgrade != "" {
+			entry["warnings"] = downgradeCodes(row)
+		}
+		refused = append(refused, entry)
 	}
 	return refused
 }

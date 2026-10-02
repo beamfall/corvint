@@ -1,0 +1,336 @@
+{
+  "baseRevision": "25ba271a1f34cc7de5990ef1f2662135f6ab1b0d",
+  "evidence": [
+    {
+      "blobOid": "1c659d41f2eefc8623f0898aff12894f3bd42132",
+      "id": "evidence:sha256:f309eb010e58b312e794b53ebb92166dddcf70f90a96bbcbf8c73312b08462ed",
+      "path": "docs/specs/application-flow-understanding-v1.md",
+      "span": {
+        "end": 45881,
+        "start": 45613
+      },
+      "spanSha256": "e4a03a82f09b7f0feb61ccefe55386c7ce8cfc63a46747e30d196aff513e1b2a"
+    },
+    {
+      "blobOid": "1c659d41f2eefc8623f0898aff12894f3bd42132",
+      "id": "evidence:sha256:5448fe7e28a5581ab76cb65d8b3d27e96944f67739229b39b86a60467160aaba",
+      "path": "docs/specs/application-flow-understanding-v1.md",
+      "span": {
+        "end": 51777,
+        "start": 51318
+      },
+      "spanSha256": "5f2be0c427a3d9245ee6688c248fbf7e80f6c4329e4989b8951c4b5bae17c221"
+    },
+    {
+      "blobOid": "1c659d41f2eefc8623f0898aff12894f3bd42132",
+      "id": "evidence:sha256:4d4363148d93ac595b1e994bff659fce4d689709017b7e20f0211820d6d9dbbe",
+      "path": "docs/specs/application-flow-understanding-v1.md",
+      "span": {
+        "end": 46481,
+        "start": 46151
+      },
+      "spanSha256": "7872e58b7dfe7a9383f3a4ec1de732e6548e3dab6e510211732ad642c89a054c"
+    },
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3118,
+        "start": 2775
+      },
+      "spanSha256": "46e69c5e97297b36c204ff585b335a484633ade4ec166dbc695fd46e7c6dc76c"
+    },
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:0e749dc28b4e8cb4b3a3ef2618fd638e51456b97708df865c2ae7d97d8da2aef",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 2774,
+        "start": 2288
+      },
+      "spanSha256": "a5ef358e5716557d5f42d57c7271d3289afdc8ff20143da2026e5fd075f876f4"
+    },
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:ad37f040c4aff933ebf084ed6a05dd8af9f864759899feedcfa07ca92e63b861",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 2259,
+        "start": 1971
+      },
+      "spanSha256": "29bf8bf25de6e19c57bfee2b1fc98c3d85cbeabf2157578740a5eae467b3c916"
+    },
+    {
+      "blobOid": "1c659d41f2eefc8623f0898aff12894f3bd42132",
+      "id": "evidence:sha256:1a16fcf43dcf72985eec43ff1b46ec810bf7fbefd1ca97b5a26342e0e9937034",
+      "path": "docs/specs/application-flow-understanding-v1.md",
+      "span": {
+        "end": 51971,
+        "start": 51777
+      },
+      "spanSha256": "a6198dd3fec2402e0a1ce69dffa756f451284cfc6a2bfd21f33d73138d5034a1"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:f309eb010e58b312e794b53ebb92166dddcf70f90a96bbcbf8c73312b08462ed",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0e12bc840fc5e05956be4c4908c85c4c8e60e1378432038107dc3aa24dac9ff3",
+      "newRange": {
+        "count": 10,
+        "start": 411
+      },
+      "oldRange": {
+        "count": 4,
+        "start": 411
+      },
+      "path": "cmd/corvint/flows.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:f309eb010e58b312e794b53ebb92166dddcf70f90a96bbcbf8c73312b08462ed",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:5448fe7e28a5581ab76cb65d8b3d27e96944f67739229b39b86a60467160aaba",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8ce6579b56e5944afa1ce99f544f1424336670714f2be2e147af4a83c4067f35",
+      "newRange": {
+        "count": 54,
+        "start": 16
+      },
+      "oldRange": {
+        "count": 16,
+        "start": 16
+      },
+      "path": "cmd/corvint/flows_docs.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:4d4363148d93ac595b1e994bff659fce4d689709017b7e20f0211820d6d9dbbe",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e7e11d4da9b2d121e62f7f3cd7b2d67cb4bc9ea96f16b6498981570a15535ecc",
+      "newRange": {
+        "count": 227,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "cmd/corvint/flows_docs_maintain_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:60e9913884d3678dea79866a3e134f52b13ad5b52d5b81169cccc6d43ca65424",
+      "newRange": {
+        "count": 25,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-01-flow-doc-maintenance-port.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0e749dc28b4e8cb4b3a3ef2618fd638e51456b97708df865c2ae7d97d8da2aef",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:30945736397091bb66d73c782a24dcf46c645dbffece58838e7b5a9a286bf1b0",
+      "newRange": {
+        "count": 24,
+        "start": 1183
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 1183
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0e749dc28b4e8cb4b3a3ef2618fd638e51456b97708df865c2ae7d97d8da2aef",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3454c8e68ffb62452f66cdddbb61b48f327b218e30120c488a046a81fbdd81eb",
+      "newRange": {
+        "count": 7,
+        "start": 86
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 86
+      },
+      "path": "docs/specs/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0e749dc28b4e8cb4b3a3ef2618fd638e51456b97708df865c2ae7d97d8da2aef",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9320f5ab02a0a8f2cc382edf5d520e1998eb280a4c51a1aecfd7748f116b05c2",
+      "newRange": {
+        "count": 13,
+        "start": 1037
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 1037
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ad37f040c4aff933ebf084ed6a05dd8af9f864759899feedcfa07ca92e63b861",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:f309eb010e58b312e794b53ebb92166dddcf70f90a96bbcbf8c73312b08462ed",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:44a7116983567056850b1fcc2db9495b47b513dac7b46410ace702e662cc760c",
+      "newRange": {
+        "count": 117,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/specs/flow-document-maintenance-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:f309eb010e58b312e794b53ebb92166dddcf70f90a96bbcbf8c73312b08462ed",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:4d4363148d93ac595b1e994bff659fce4d689709017b7e20f0211820d6d9dbbe",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3ba86a6807456bb2c699f9b9bfeee61ba28c887d426af47cda2cb6333cd5074d",
+      "newRange": {
+        "count": 479,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/appflows/docs_maintain.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:f309eb010e58b312e794b53ebb92166dddcf70f90a96bbcbf8c73312b08462ed",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c0498298d114e24b7c4b76ac40b99e140fb74c96b673fdfcd50669cb2213f1c4",
+      "newRange": {
+        "count": 164,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/appflows/docs_maintain_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5448fe7e28a5581ab76cb65d8b3d27e96944f67739229b39b86a60467160aaba",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:1a16fcf43dcf72985eec43ff1b46ec810bf7fbefd1ca97b5a26342e0e9937034",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d98cced5cfc624c7b232b7294478af7edfd9ca6102cb52225204d47a95d17152",
+      "newRange": {
+        "count": 223,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/doccorpus/apply_pair.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5448fe7e28a5581ab76cb65d8b3d27e96944f67739229b39b86a60467160aaba",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0911b882f9a7a59aa6586b79b5823242f4a3c85a033a7eb101720a4ffade8402",
+      "newRange": {
+        "count": 163,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/doccorpus/apply_pair_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "3a5588ea38a2a88d953e8f238c613437c31e89957c808c38772011308d3652e1",
+  "spec": "cem/0.2"
+}

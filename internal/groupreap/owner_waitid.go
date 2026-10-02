@@ -4,6 +4,7 @@ package groupreap
 
 import (
 	"os/exec"
+	"runtime"
 	"syscall"
 )
 
@@ -17,12 +18,19 @@ func containLeader(command *exec.Cmd) {
 	command.SysProcAttr.Setpgid = true
 }
 
+func defaultRetirementMode() RetirementMode {
+	if runtime.GOOS == "linux" {
+		return ReapAfterSuccessfulSignal
+	}
+	return RequirePreReapQuiet
+}
+
 func defaultPrimitives() Primitives {
 	return Primitives{
 		WaitExit: leaderUnreaped,
 		KillGroup: func(leader int) error {
 			err := syscall.Kill(-leader, syscall.SIGKILL)
-			if err == syscall.EPERM || err == syscall.ESRCH {
+			if runtime.GOOS != "linux" && (err == syscall.EPERM || err == syscall.ESRCH) {
 				return nil
 			}
 			return err

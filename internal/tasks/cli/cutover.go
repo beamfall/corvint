@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"path/filepath"
 	"time"
 
@@ -67,7 +66,7 @@ func cutoverCommand(env Env, args []string) *wire.Result {
 // qualification run is given.
 func cutoverWrite(repo *intent.Repository, actor mutation.Binding, queueID, decision string, run []byte, now wire.Timestamp) (*store.Report, error) {
 	if run == nil {
-		return store.Cutover(context.Background(), repo, actor, queueID, decision, now)
+		return store.Cutover(writerContext(), repo, actor, queueID, decision, now)
 	}
-	return store.ExecutionCutover(context.Background(), repo, actor, queueID, decision, run, now)
+	return store.ExecutionCutover(writerContext(), repo, actor, queueID, decision, run, now)
 }

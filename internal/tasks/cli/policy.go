@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"path/filepath"
 	"time"
 
@@ -69,7 +68,7 @@ func policyCommand(env Env, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	report, err := store.PolicyUpdate(context.Background(), repo, actor, store.PolicyRequest{QueueID: observed.Head.QueueID.Raw, RequestID: request, ExpectedPolicyVersion: version, Policy: raw}, now)
+	report, err := store.PolicyUpdate(writerContext(), repo, actor, store.PolicyRequest{QueueID: observed.Head.QueueID.Raw, RequestID: request, ExpectedPolicyVersion: version, Policy: raw}, now)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

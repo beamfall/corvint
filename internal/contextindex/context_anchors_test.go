@@ -134,24 +134,32 @@ func TestContextAnchorsExplainAndNeverOutrankAuthority(t *testing.T) {
 }
 
 func TestContextAnchorsDefaultBytes(t *testing.T) {
-	t.Run("TCP-V0-022", func(t *testing.T) {
+	t.Run("TCP-V0-022 off restores the pre-amendment bytes", func(t *testing.T) {
 		index := recipeFixtureIndex(t)
 		golden, err := os.ReadFile("testdata/context-recipe-default-golden.json")
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, flag := range []string{"", "off", "unknown"} {
+		t.Setenv("CORVINT_CONTEXT_ANCHORS", "off")
+		if compiler := newTaskContextCompiler(index, `"quoted literal" https://x.test/a`, ""); compiler.anchors != nil {
+			t.Fatalf("off extracted anchors: %#v", compiler.anchors)
+		}
+		packet := recipePacket(t, index, "", recipeFixtureTask)
+		encoded, err := json.MarshalIndent(packet, "", "  ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(append(encoded, '\n'), golden) {
+			t.Fatal("off changed golden packet bytes")
+		}
+	})
+	t.Run("TCP-V0-022 anchors are extracted by default", func(t *testing.T) {
+		index := recipeFixtureIndex(t)
+		for _, flag := range []string{"", "on", "unknown"} {
 			t.Setenv("CORVINT_CONTEXT_ANCHORS", flag)
-			if compiler := newTaskContextCompiler(index, `"quoted literal" https://x.test/a`, ""); compiler.anchors != nil {
-				t.Fatalf("flag %q extracted anchors: %#v", flag, compiler.anchors)
-			}
-			packet := recipePacket(t, index, "", recipeFixtureTask)
-			encoded, err := json.MarshalIndent(packet, "", "  ")
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !bytes.Equal(append(encoded, '\n'), golden) {
-				t.Fatalf("flag %q changed golden packet bytes", flag)
+			compiler := newTaskContextCompiler(index, `Replace "interface{}" with "any"`, "")
+			if len(compiler.anchors) != 1 || compiler.anchors[0].literal != "interface{}" {
+				t.Fatalf("flag %q anchors = %#v, want the quoted literal alone (\"any\" is under the 4-byte floor)", flag, compiler.anchors)
 			}
 		}
 	})

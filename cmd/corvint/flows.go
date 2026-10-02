@@ -411,4 +411,10 @@ repository-relative and each is replaced through a temporary file and a rename.
 committed PROVEN claim is no longer PROVEN or the committed bytes differ from
 regeneration, unless an unexpired entry of the committed flow-doc-waivers/0 file
 names the claim, and it fails on an unknown or invalid anchor.
+
+Experimental maintenance (FDM-V0, proposed):
+  corvint [--root PATH] flows docs maintain --flows DIR --page FILE --claims FILE
+    --preview | --apply --expected-proposal SHA256 [--receipt FILE | --adopt]
+preview writes nothing and prints a digest-bound proposal; apply rederives it, refuses
+drift, publishes the pair without clobbering and prints a receipt to save and commit.
 `

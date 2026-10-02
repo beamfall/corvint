@@ -155,6 +155,9 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 	if err != nil {
 		return nil, err
 	}
+	// The plan is prepared before the lock; a head that moves afterwards
+	// fails the commit as SNAPSHOT_MOVED and the next round samples again.
+	now = recordedAt(ctx, now)
 	input := transaction.Input{Inventory: inv, Head: head, HeadReceipt: headRc, Queue: p.proof.Records["intent/queue.json"].Raw, Policy: p.proof.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, Pools: p.proof.Records["pools.json"].Raw, Programs: p.proof.Records["programs.json"].Raw, Premise: transaction.LocalOperator, Branch: p.branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now}
 	for path, record := range p.proof.Records {
 		if record.Raw == nil {
@@ -282,6 +285,9 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	if wire.Sum(current) != wire.Sum(p.head) {
 		return wire.Errorf(wire.CodeSnapshotMoved, "head", "prepared head changed")
 	}
+	// The lock is held and the head is the audited one. Read verbs share
+	// leaseAudit, so the checkpoint is retained here and never there.
+	retainCheckpoint(repo, p.proof)
 	if !p.pending && (p.result.Kind != "Transaction" || p.result.Plan == nil) {
 		setLeaseReport(report, p.result)
 		return nil

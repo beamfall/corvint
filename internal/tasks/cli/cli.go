@@ -16,6 +16,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/archive"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/scopes"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
@@ -63,6 +64,7 @@ var ReadVerbs = []string{
 	"release create", "release update", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
 	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview",
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
+	"dispatch", "dispatch status", "dispatch unpark",
 	"submit", "gate run", "complete", "health", "pool cleanup", "pool recover", "pool confirm-safe",
 }
 
@@ -112,6 +114,8 @@ func Run(env Env) int {
 		return emit(env.Stdout, usage([]string{"program"}, "expected show"))
 	case "run":
 		return emit(env.Stdout, programRun(env, args[1:]))
+	case "dispatch":
+		return emit(env.Stdout, dispatchCommand(env, args[1:]))
 	case "version", "--version":
 		return emit(env.Stdout, versionResult())
 	case "ticket":
@@ -362,6 +366,9 @@ type readCtx struct {
 	snap          *snapshot.Snapshot
 	store         *intent.Store
 	journalAbsent bool
+	// proof is the one journal audit a read command shares (CAL-V0-061). It
+	// is bound to snap and dropped whenever the snapshot is re-read.
+	proof *journal.Result
 }
 
 // withStore resolves the repository, runs the TM-V0-008 protocol and loads
@@ -392,6 +399,7 @@ func withStore(env Env, body func(rc *readCtx) error) (*readCtx, error) {
 		}
 		rc.snap = s
 		rc.store = st
+		rc.proof = nil
 		err = body(rc)
 		if env.afterRead != nil {
 			env.afterRead()
@@ -1087,6 +1095,7 @@ func queueStatus(env Env, args []string) *wire.Result {
 			retries = append(retries, wire.ObjectValue(wire.NewObject().Set("ticketId", wire.String(id)).Set("ticketRevision", wire.String(string(rec.AcceptanceRevision))).Set("retries", retryObservation(rc, attempts, rec))))
 		}
 		o.Set("retries", wire.Array(retries...))
+		o.Set("journalAudit", wire.String(auditMode(rc)))
 		o.Set("publication", wire.String(string(ticket.NotObserved)))
 		item = wire.ObjectValue(o)
 		return nil

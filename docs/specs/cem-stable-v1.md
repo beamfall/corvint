@@ -40,7 +40,7 @@ No daemon, network account, broad language rewrite or new specification language
 
 ## Acceptance evidence
 
-Stable acceptance remains OPEN until the native tickets retain complete qualification, integration and completion evidence. The current implementation has 57 concrete experimental runner profiles: 21 dynamic, 17 native, 16 platform, two SQL and one Appium Android. Six additional listed IDs explicitly refuse execution; the registry listing is not a support claim. Native Tasks capture/verification and the first portable candidate have passed bounded independent review. A same-target disposable proof also passed genuine focused native Tasks qualification, killed all three CEX controls, observed three generic Go passes and verified candidate references with both consumers. Neither this count nor candidate conformance establishes all-supported execution, a stable CEM1.0 wire or release readiness.
+Stable acceptance remains OPEN until the native tickets retain complete qualification, integration and completion evidence. The current implementation has 55 concrete experimental runner profiles: 21 dynamic, 15 native, 16 platform, two SQL and one Appium Android. Six additional listed IDs explicitly refuse execution; the registry listing is not a support claim. Native Tasks capture/verification and the first portable candidate have passed bounded independent review. A same-target disposable proof also passed genuine focused native Tasks qualification, killed all three CEX controls, observed three generic Go passes and verified candidate references with both consumers. Neither this count nor candidate conformance establishes all-supported execution, a stable CEM1.0 wire or release readiness.
 
 | Requirements | Implemented evidence | Remaining acceptance |
 | --- | --- | --- |
@@ -147,13 +147,46 @@ manufactured, non-executed fixtures. All evidence is experimental self-use.
 | CEM-V1-007, 014 | Optional companion producer and explicit stable verification | Core workflow/report, OCM/frontier/obligation, companion and completion consumers |
 | CEM-V1-008..010 | Original defaults/packets unchanged and optional operation removable | External adoption/outcomes and release/promotion gates |
 
-The current stable verifier admits `primary-clean-config-bounded/1`; ordinary
-SHA256 initialization with a different section order, clone configuration and
-linked worktrees remain outside that envelope. Canonical ordered fixtures do not
-qualify ordinary checkouts. Rollback disables the new optional operation and
-preserves earlier command defaults, candidate assembly, native task history and
-historical packet bytes. Independent producer implementation review and root
-source admission remain separate steps.
+The current stable verifier admits the experimental
+`canonical-repository-bounded/1` envelope of
+`protocol/cem-1.0/stable/REPOSITORY-ENVELOPE.md`, including its expanded admission
+amendment: fixed-order metadata admission without a configuration pre-read, at most
+1,024 logical Git operations, one 30-minute wall deadline with a 10-second
+per-operation deadline and a single 10-second emergency allowance, and owned
+process-group retirement whose unobserved cleanup is `repository` /
+`unsupported-process-containment`. The independently reviewed
+`primary-clean-config-bounded/1` portable envelope remains preserved as history.
+Darwin keeps the quiet-first retirement sequence: after an owned successful group
+signal, signal 0 is polled while the leader is unreaped until the group is no
+longer signalable, then the leader is reaped and post-reap absence is observed.
+Linux uses `ReapAfterSuccessfulSignal`: after the owned successful group signal
+and observed leader exit, the leader is reaped exactly once and only signal-0
+absence polling follows. Linux preserves all `KillGroup` errors, including
+`EPERM`, `ESRCH` and early `Stop` failures; no real numeric group signal may occur
+after reaping begins. The same original retirement allowance is checked before
+and after owner primitives and before accepting post-reap `ESRCH`. Post-reap
+polling is bounded by the intersection of that original allowance and the fixed
+two-second post-reap cap. Both are checked synchronously before each probe and
+immediately before accepting absence; expiration wins simultaneous interval,
+exit or reap readiness, including expiration inside an absence-returning probe.
+An already expired allowance admits no new signal, probe or reap, even when exit
+is observed or its deadline notification has not arrived. A pending
+asynchronous reap can be retained only as sticky `HOLD`, never as a later upgrade
+or retry. This is linked to `CEM-V1-007` consumer migration because stable Core
+verification depends on supported owned-runner containment. At source
+`1a355ea551c2745d3fe9f229a36acc348cb205d8`, actual native Linux arm64 with Go 1.27.1
+passes the five scoped packages and all 54 applicable public full-result cases,
+with exact recursive comparison of all 21 frozen fields. The two historical
+Go 1.24.13 cases separately pass the original portable comparator on Darwin arm64;
+they are not Linux results. The repair build log retains these distinct runtime
+observations and the initial failed qualification harness runs. Linux amd64,
+portable standalone Linux, cross-device topology and escaped-session behaviour
+remain pending; external consumers, default promotion and release readiness are
+not claimed. Legacy Wait/Run is separate from the new Owner qualification. Canonical ordered fixtures do not qualify ordinary
+checkouts. Rollback disables the new optional operation and preserves earlier
+command defaults, candidate assembly, native task history and historical packet
+bytes. Independent producer implementation review and root source admission remain
+separate steps.
 
 ## Stable verification result codes
 
@@ -168,5 +201,6 @@ one owning specification. A code reports a bounded check and never upgrades auth
 | authority-arguments | `artifacts-required` | Exit 2; the explicit artifact root is required even for an empty reference set |
 | runtime | `unsupported-structural-runtime`, `unsupported-process-containment` | Exit 2; an unqualified runtime or containment tuple is explicit and has no weakened fallback |
 | repository | `unsupported-resource-limit`, `unsupported-repository-envelope`, `verification-timeout` | Exit 2; operational limits stay distinct from invalid evidence |
+| repository | `unsupported-patch-inventory` | Exit 2 (`UNSUPPORTED`); a create destination lacks an authenticated base-entry proof, so absence is not inferred |
 | artifacts | `artifact-unavailable`, `artifact-resource-limit` | Exit 2 (`UNSUPPORTED`); declared artifact bytes could not be obtained within bounds, which asserts no mismatch |
 | artifacts | `artifact-changed-during-verification`, `artifact-digest-mismatch` | Exit 1 (`REJECT` issue codes); the bytes were read and changed between the two passes or differ from the declared digest |

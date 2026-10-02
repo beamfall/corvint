@@ -355,6 +355,11 @@ back; repository source, accepted intent, and existing traces remain unchanged.
 | SESSION-V0-021 | `cmd/corvint/dogfood_handoff_bundle.go` | `TestDogfoodHandoffBundleRoundTrip` |
 | SESSION-V0-022 | `cmd/corvint/dogfood_handoff_bundle.go` | `TestDogfoodHandoffBundleDriftWithholdsState`; `TestDogfoodHandoffBundleMalformed` |
 
+All 22 clauses stay inside the single `## Requirements` section, so the OCM denominator and the
+`REQUIREMENTS.tsv` locators both list `SESSION-V0-001..022` exactly
+(`TestSessionContextDividendSpecEnumeratesEveryObligation`, V1-0521). The test enumerates obligations
+only; it proves no clause implemented.
+
 ## Named diagnostics
 
 | Code | Meaning |

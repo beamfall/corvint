@@ -240,11 +240,11 @@ BBF-V0-013	docs/specs/browser-behavior-falsification-v0.md	83	The opt-in `execut
 BKM-V0-001	docs/specs/cross-repository-breakage-map-v0.md	53	The command MUST be explicit, read-only, local and experimental. It
 BKM-V0-002	docs/specs/cross-repository-breakage-map-v0.md	56	The manifest MUST be one strict bounded UTF-8 JSON document with no
 BKM-V0-003	docs/specs/cross-repository-breakage-map-v0.md	62	Each emitted source witness MUST name an immutable Git blob and
-BKM-V0-004	docs/specs/cross-repository-breakage-map-v0.md	67	Go references MUST match the selected function's pinned module
-BKM-V0-005	docs/specs/cross-repository-breakage-map-v0.md	82	EEP V1 repository/entity composition and V2 path composition MUST
-BKM-V0-006	docs/specs/cross-repository-breakage-map-v0.md	91	Byte verification MUST NOT establish assertion truth, behavioral
-BKM-V0-007	docs/specs/cross-repository-breakage-map-v0.md	96	`--base` MUST identify an available ancestor of the selected API
-BKM-V0-008	docs/specs/cross-repository-breakage-map-v0.md	102	Limits MUST be enforced: 8 repositories, 256 source files, 32 path
+BKM-V0-004	docs/specs/cross-repository-breakage-map-v0.md	70	Go references MUST match the selected function's pinned module
+BKM-V0-005	docs/specs/cross-repository-breakage-map-v0.md	85	EEP V1 repository/entity composition and V2 path composition MUST
+BKM-V0-006	docs/specs/cross-repository-breakage-map-v0.md	94	Byte verification MUST NOT establish assertion truth, behavioral
+BKM-V0-007	docs/specs/cross-repository-breakage-map-v0.md	99	`--base` MUST identify an available ancestor of the selected API
+BKM-V0-008	docs/specs/cross-repository-breakage-map-v0.md	105	Limits MUST be enforced: 8 repositories, 256 source files, 32 path
 BRAIN-DOG-001	docs/specs/technical-brain-dogfood.md	27	butterfly-effect MUST return exact direct static references/dependencies,
 BRAIN-DOG-002	docs/specs/technical-brain-dogfood.md	30	E2E discovery MUST map requirements and journeys to exact scenario/test witnesse
 BRAIN-DOG-003	docs/specs/technical-brain-dogfood.md	32	selective-test guidance MUST name mandatory repository gates first and a smaller
@@ -272,57 +272,67 @@ BSD-004	docs/specs/beamfall-shadow-dogfood-v1.md	33	Manifest and artifact reads 
 BSD-005	docs/specs/beamfall-shadow-dogfood-v1.md	37	A new private `0600` receipt is emitted for every outcome after a
 BSD-006	docs/specs/beamfall-shadow-dogfood-v1.md	40	Literal external fixture artifacts and source inputs exist for Go;
 BSD-007	docs/specs/beamfall-shadow-dogfood-v1.md	44	The one-pass artifact byte count and non-race allocation ceiling
-CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	89	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and
-CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	93	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow
-CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	96	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom
-CAL-V0-004	docs/specs/corvint-tasks-agent-leases-v0.md	101	`corvint-tasks cutover --decision <ref>` MUST, under an `OWNER` binding, commit
-CAL-V0-005	docs/specs/corvint-tasks-agent-leases-v0.md	109	After the switch, `import` MUST refuse and write nothing, so a later foreign exp
-CAL-V0-006	docs/specs/corvint-tasks-agent-leases-v0.md	111	The switch MUST leave every record file byte-identical: imported records keep th
-CAL-V0-007	docs/specs/corvint-tasks-agent-leases-v0.md	116	`corvint-tasks claim <ticketId> --holder <label> [--lease-minutes N]
-CAL-V0-008	docs/specs/corvint-tasks-agent-leases-v0.md	123	`claim --next --holder <label>` MUST claim the first `SELECTED` entry of the
-CAL-V0-009	docs/specs/corvint-tasks-agent-leases-v0.md	130	Every command that names an attempt (`renew`, `release`, `submit`, `gate run`,
-CAL-V0-010	docs/specs/corvint-tasks-agent-leases-v0.md	134	`renew` MUST extend a live lease to `recordedAt + lease` and refuse `FENCED` onc
-CAL-V0-011	docs/specs/corvint-tasks-agent-leases-v0.md	136	`release [--reason <code>]` MUST move the attempt to `CANCELLED` with quiescence
-CAL-V0-012	docs/specs/corvint-tasks-agent-leases-v0.md	145	A lease is `{holder:label, grantedSeq:Size, expiresAt:Timestamp}`. The default i
-CAL-V0-013	docs/specs/corvint-tasks-agent-leases-v0.md	150	A ticket whose last attempt is `FAILED` or `CANCELLED` MUST be claimable again a
-CAL-V0-014	docs/specs/corvint-tasks-agent-leases-v0.md	293	`corvint-tasks plan preview` MUST implement `taskman-priority-first/0` (TCP-00
-CAL-V0-015	docs/specs/corvint-tasks-agent-leases-v0.md	313	`submit --tree <oid>` MUST record the candidate tree and move `RUNNING` to `BUIL
-CAL-V0-016	docs/specs/corvint-tasks-agent-leases-v0.md	316	`gate run --gate <gateId> --worktree <path>` MUST refuse unless the worktree's
-CAL-V0-017	docs/specs/corvint-tasks-agent-leases-v0.md	321	`complete --commit <oid>` MUST refuse unless the commit is reachable from the
-CAL-V0-018	docs/specs/corvint-tasks-agent-leases-v0.md	330	A first import MUST cost one full audit plus work proportional to the records it
-CAL-V0-019	docs/specs/corvint-tasks-agent-leases-v0.md	394	A named test suite MUST show, for `external-agent` attempts: two concurrent
-CAL-V0-020	docs/specs/corvint-tasks-agent-leases-v0.md	399	`cutover --execution --decision <ref> --qualification <file>` MUST, under an
-CAL-V0-021	docs/specs/corvint-tasks-agent-leases-v0.md	344	Every `external-agent` attempt MUST carry a scope: a set of `PATH` resources wit
-CAL-V0-022	docs/specs/corvint-tasks-agent-leases-v0.md	352	A `DERIVED` scope MUST come from Corvint's local context index for the ticket's
-CAL-V0-023	docs/specs/corvint-tasks-agent-leases-v0.md	364	Two live attempts MUST collide exactly when their resource sets collide under
-CAL-V0-024	docs/specs/corvint-tasks-agent-leases-v0.md	370	`submit --tree <oid>` MUST refuse `OUT_OF_SCOPE`, naming every offending path,
-CAL-V0-025	docs/specs/corvint-tasks-agent-leases-v0.md	373	`widen --attempt <id> --generation <G> --scope PATH...` MUST add the paths to a
-CAL-V0-026	docs/specs/corvint-tasks-agent-leases-v0.md	378	Each lease command (`claim`, `renew`, `release`, `reap`, `widen`, `submit`, `gat
-CAL-V0-027	docs/specs/corvint-tasks-agent-leases-v0.md	410	A non-fixture queue with null `importMapSha256` MUST admit release creation,
-CAL-V0-028	docs/specs/corvint-tasks-agent-leases-v0.md	438	Policy MAY add optional `pools`; tickets MAY add acceptance-relevant
-CAL-V0-029	docs/specs/corvint-tasks-agent-leases-v0.md	446	Claim and claim-next MUST atomically reserve one eligible free member of an
-CAL-V0-030	docs/specs/corvint-tasks-agent-leases-v0.md	456	Release, expiry/reap and completion MUST quarantine the exact allocation while
-CAL-V0-031	docs/specs/corvint-tasks-agent-leases-v0.md	462	A configured health command MUST acquire durable PREPARING ownership before
-CAL-V0-032	docs/specs/corvint-tasks-agent-leases-v0.md	468	Cleanup MUST acquire durable CLEANING ownership before execution. Pending comman
-CAL-V0-033	docs/specs/corvint-tasks-agent-leases-v0.md	473	Pool commands MUST use bounded trusted operator argv, declared environment keys,
-CAL-V0-034	docs/specs/corvint-tasks-agent-leases-v0.md	480	Queue occupancy and plan preview MUST remain read-only and execute no probes.
-CAL-V0-035	docs/specs/corvint-tasks-agent-leases-v0.md	514	The optional `taskman-codex-supervisor/0` policy profile MUST dispatch a pinned
-CAL-V0-036	docs/specs/corvint-tasks-agent-leases-v0.md	518	Implement, independent review, repair and integrate MUST be native attempt stage
-CAL-V0-037	docs/specs/corvint-tasks-agent-leases-v0.md	526	A live owner MUST NOT be stolen. Explicit quiescent owner release or native iden
-CAL-V0-038	docs/specs/corvint-tasks-agent-leases-v0.md	531	WAIT MUST preserve the exact session, worktree, partial candidate and handoff.
-CAL-V0-039	docs/specs/corvint-tasks-agent-leases-v0.md	535	Every dispatch MUST reserve a turn under the native writer lock. Concurrent lane
-CAL-V0-040	docs/specs/corvint-tasks-agent-leases-v0.md	541	Every assignment/stage MUST use a distinct registered worktree/private Git direc
-CAL-V0-041	docs/specs/corvint-tasks-agent-leases-v0.md	547	Foreground role workers MUST pull eligible work without a daemon, select existin
-CAL-V0-042	docs/specs/corvint-tasks-agent-leases-v0.md	428	A separate `corvint-tasks-archive/0` build path MUST package the Tasks binary,
-CAL-V0-043	docs/specs/corvint-tasks-agent-leases-v0.md	564	`ticket reopen` MUST accept an `OPEN` ticket only for an explicit `OWNER`
-CAL-V0-044	docs/specs/corvint-tasks-agent-leases-v0.md	163	Only an upgraded writer's verified terminal external-agent handoff MAY preserve
-CAL-V0-045	docs/specs/corvint-tasks-agent-leases-v0.md	194	Claim (explicit and next), pure plan preview (including pool/stage selection), a
-CAL-V0-046	docs/specs/corvint-tasks-agent-leases-v0.md	205	An external-agent `release --reason HANDOFF --evidence REF` MUST support work
-CAL-V0-047	docs/specs/corvint-tasks-agent-leases-v0.md	229	Every implemented and omitted public command path and command family MUST return
-CAL-V0-048	docs/specs/corvint-tasks-agent-leases-v0.md	240	`attempt heartbeat --attempt ID --generation G --request-id ID` MUST
-CAL-V0-049	docs/specs/corvint-tasks-agent-leases-v0.md	256	`ticket show`, full `plan preview` entries and `queue status.retries` MUST
-CAL-V0-050	docs/specs/corvint-tasks-agent-leases-v0.md	272	Read-only `policy show` MUST return effective canonical policy, policyVersion
-CAL-V0-051	docs/specs/corvint-tasks-agent-leases-v0.md	279	CREATE help MUST omit --target and --expected-revision, which CREATE refuses.
+CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	93	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and
+CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	97	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow
+CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	100	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom
+CAL-V0-004	docs/specs/corvint-tasks-agent-leases-v0.md	105	`corvint-tasks cutover --decision <ref>` MUST, under an `OWNER` binding, commit
+CAL-V0-005	docs/specs/corvint-tasks-agent-leases-v0.md	113	After the switch, `import` MUST refuse and write nothing, so a later foreign exp
+CAL-V0-006	docs/specs/corvint-tasks-agent-leases-v0.md	115	The switch MUST leave every record file byte-identical: imported records keep th
+CAL-V0-007	docs/specs/corvint-tasks-agent-leases-v0.md	120	`corvint-tasks claim <ticketId> --holder <label> [--lease-minutes N]
+CAL-V0-008	docs/specs/corvint-tasks-agent-leases-v0.md	127	`claim --next --holder <label>` MUST claim the first `SELECTED` entry of the
+CAL-V0-009	docs/specs/corvint-tasks-agent-leases-v0.md	134	Every command that names an attempt (`renew`, `release`, `submit`, `gate run`,
+CAL-V0-010	docs/specs/corvint-tasks-agent-leases-v0.md	138	`renew` MUST extend a live lease to `recordedAt + lease` and refuse `FENCED` onc
+CAL-V0-011	docs/specs/corvint-tasks-agent-leases-v0.md	140	`release [--reason <code>]` MUST move the attempt to `CANCELLED` with quiescence
+CAL-V0-012	docs/specs/corvint-tasks-agent-leases-v0.md	149	A lease is `{holder:label, grantedSeq:Size, expiresAt:Timestamp}`. The default i
+CAL-V0-013	docs/specs/corvint-tasks-agent-leases-v0.md	158	A ticket whose last attempt is `FAILED` or `CANCELLED` MUST be claimable again a
+CAL-V0-014	docs/specs/corvint-tasks-agent-leases-v0.md	301	`corvint-tasks plan preview` MUST implement `taskman-priority-first/0` (TCP-00
+CAL-V0-015	docs/specs/corvint-tasks-agent-leases-v0.md	321	`submit --tree <oid>` MUST record the candidate tree and move `RUNNING` to `BUIL
+CAL-V0-016	docs/specs/corvint-tasks-agent-leases-v0.md	324	`gate run --gate <gateId> --worktree <path>` MUST refuse unless the worktree's
+CAL-V0-017	docs/specs/corvint-tasks-agent-leases-v0.md	329	`complete --commit <oid>` MUST refuse unless the commit is reachable from the
+CAL-V0-018	docs/specs/corvint-tasks-agent-leases-v0.md	338	A first import MUST cost one full audit plus work proportional to the records it
+CAL-V0-019	docs/specs/corvint-tasks-agent-leases-v0.md	402	A named test suite MUST show, for `external-agent` attempts: two concurrent
+CAL-V0-020	docs/specs/corvint-tasks-agent-leases-v0.md	407	`cutover --execution --decision <ref> --qualification <file>` MUST, under an
+CAL-V0-021	docs/specs/corvint-tasks-agent-leases-v0.md	352	Every `external-agent` attempt MUST carry a scope: a set of `PATH` resources wit
+CAL-V0-022	docs/specs/corvint-tasks-agent-leases-v0.md	360	A `DERIVED` scope MUST come from Corvint's local context index for the ticket's
+CAL-V0-023	docs/specs/corvint-tasks-agent-leases-v0.md	372	Two live attempts MUST collide exactly when their resource sets collide under
+CAL-V0-024	docs/specs/corvint-tasks-agent-leases-v0.md	378	`submit --tree <oid>` MUST refuse `OUT_OF_SCOPE`, naming every offending path,
+CAL-V0-025	docs/specs/corvint-tasks-agent-leases-v0.md	381	`widen --attempt <id> --generation <G> --scope PATH...` MUST add the paths to a
+CAL-V0-026	docs/specs/corvint-tasks-agent-leases-v0.md	386	Each lease command (`claim`, `renew`, `release`, `reap`, `widen`, `submit`, `gat
+CAL-V0-027	docs/specs/corvint-tasks-agent-leases-v0.md	418	A non-fixture queue with null `importMapSha256` MUST admit release creation,
+CAL-V0-028	docs/specs/corvint-tasks-agent-leases-v0.md	446	Policy MAY add optional `pools`; tickets MAY add acceptance-relevant
+CAL-V0-029	docs/specs/corvint-tasks-agent-leases-v0.md	454	Claim and claim-next MUST atomically reserve one eligible free member of an
+CAL-V0-030	docs/specs/corvint-tasks-agent-leases-v0.md	464	Release, expiry/reap and completion MUST quarantine the exact allocation while
+CAL-V0-031	docs/specs/corvint-tasks-agent-leases-v0.md	470	A configured health command MUST acquire durable PREPARING ownership before
+CAL-V0-032	docs/specs/corvint-tasks-agent-leases-v0.md	476	Cleanup MUST acquire durable CLEANING ownership before execution. Pending comman
+CAL-V0-033	docs/specs/corvint-tasks-agent-leases-v0.md	481	Pool commands MUST use bounded trusted operator argv, declared environment keys,
+CAL-V0-034	docs/specs/corvint-tasks-agent-leases-v0.md	488	Queue occupancy and plan preview MUST remain read-only and execute no probes.
+CAL-V0-035	docs/specs/corvint-tasks-agent-leases-v0.md	522	The optional `taskman-codex-supervisor/0` policy profile MUST dispatch a pinned
+CAL-V0-036	docs/specs/corvint-tasks-agent-leases-v0.md	526	Implement, independent review, repair and integrate MUST be native attempt stage
+CAL-V0-037	docs/specs/corvint-tasks-agent-leases-v0.md	534	A live owner MUST NOT be stolen. Explicit quiescent owner release or native iden
+CAL-V0-038	docs/specs/corvint-tasks-agent-leases-v0.md	539	WAIT MUST preserve the exact session, worktree, partial candidate and handoff.
+CAL-V0-039	docs/specs/corvint-tasks-agent-leases-v0.md	543	Every dispatch MUST reserve a turn under the native writer lock. Concurrent lane
+CAL-V0-040	docs/specs/corvint-tasks-agent-leases-v0.md	549	Every assignment/stage MUST use a distinct registered worktree/private Git direc
+CAL-V0-041	docs/specs/corvint-tasks-agent-leases-v0.md	555	Foreground role workers MUST pull eligible work without a daemon, select existin
+CAL-V0-042	docs/specs/corvint-tasks-agent-leases-v0.md	436	A separate `corvint-tasks-archive/0` build path MUST package the Tasks binary,
+CAL-V0-043	docs/specs/corvint-tasks-agent-leases-v0.md	572	`ticket reopen` MUST accept an `OPEN` ticket only for an explicit `OWNER`
+CAL-V0-044	docs/specs/corvint-tasks-agent-leases-v0.md	171	Only an upgraded writer's verified terminal external-agent handoff MAY preserve
+CAL-V0-045	docs/specs/corvint-tasks-agent-leases-v0.md	202	Claim (explicit and next), pure plan preview (including pool/stage selection), a
+CAL-V0-046	docs/specs/corvint-tasks-agent-leases-v0.md	213	An external-agent `release --reason HANDOFF --evidence REF` MUST support work
+CAL-V0-047	docs/specs/corvint-tasks-agent-leases-v0.md	237	Every implemented and omitted public command path and command family MUST return
+CAL-V0-048	docs/specs/corvint-tasks-agent-leases-v0.md	248	`attempt heartbeat --attempt ID --generation G --request-id ID` MUST
+CAL-V0-049	docs/specs/corvint-tasks-agent-leases-v0.md	264	`ticket show`, full `plan preview` entries and `queue status.retries` MUST
+CAL-V0-050	docs/specs/corvint-tasks-agent-leases-v0.md	280	Read-only `policy show` MUST return effective canonical policy, policyVersion
+CAL-V0-051	docs/specs/corvint-tasks-agent-leases-v0.md	287	CREATE help MUST omit --target and --expected-revision, which CREATE refuses.
+CAL-V0-052	docs/specs/corvint-tasks-agent-leases-v0.md	648	`dispatch --program ID --config FILE [--once | --ticks N]` MUST decode a closed
+CAL-V0-053	docs/specs/corvint-tasks-agent-leases-v0.md	662	The optional per-ticket work state MUST come from either a `status-line` reader
+CAL-V0-054	docs/specs/corvint-tasks-agent-leases-v0.md	667	The roster MUST be a pure function of the configuration, one observation, the
+CAL-V0-055	docs/specs/corvint-tasks-agent-leases-v0.md	674	Each assignment MUST launch one independent process in its own session, with
+CAL-V0-056	docs/specs/corvint-tasks-agent-leases-v0.md	684	Supervision MUST track every process in the worker's session, process group or
+CAL-V0-057	docs/specs/corvint-tasks-agent-leases-v0.md	699	An ended worker made progress exactly when the key's durable fingerprint changed
+CAL-V0-058	docs/specs/corvint-tasks-agent-leases-v0.md	708	Every decision MUST append one `taskman-dispatch-event/0` line to `events.jsonl`
+CAL-V0-059	docs/specs/corvint-tasks-agent-leases-v0.md	745	The audit checkpoint is derived state with profile `taskman-audit-checkpoint/0`,
+CAL-V0-060	docs/specs/corvint-tasks-agent-leases-v0.md	757	Only a writer retains a checkpoint: after its complete settled audit, while it
+CAL-V0-061	docs/specs/corvint-tasks-agent-leases-v0.md	763	A read command MUST perform at most one journal audit and derive every
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla
@@ -371,38 +381,39 @@ CEM-CB-022	docs/specs/cem-0.2-canonical-binding.md	322	equivalent invocations in
 CEM-CB-023	docs/specs/cem-0.2-canonical-binding.md	227	literal-path tree lookup MUST NOT return an entry, or report an absence, that on
 CEM-CB-024	docs/specs/cem-0.2-canonical-binding.md	290	after canonical derivation and before the patch bytes are returned or memoized,
 CEM-CB-025	docs/specs/cem-0.2-canonical-binding.md	96	from 2026-09-22 the `cem/0.2` profile, with `cem/0.1` as its N-1 profile, is
-CEM-CB-AT-001	docs/specs/cem-0.2-canonical-binding.md	456	| `CEM-CB-AT-001` | genuine pass | Delete the cached patch after `prepare`; `sta
-CEM-CB-AT-002	docs/specs/cem-0.2-canonical-binding.md	457	| `CEM-CB-AT-002` | fabricated fail | A map matching a producer-supplied one-hun
-CEM-CB-AT-003	docs/specs/cem-0.2-canonical-binding.md	458	| `CEM-CB-AT-003` | fabricated fail | A 0.2 `status`, `verify`, or `report` supp
-CEM-CB-AT-004	docs/specs/cem-0.2-canonical-binding.md	459	| `CEM-CB-AT-004` | no input | A 0.2 map missing expected base fails `expected-b
-CEM-CB-AT-005	docs/specs/cem-0.2-canonical-binding.md	460	| `CEM-CB-AT-005` | envelope | Explicit/default 0.1 and canonical 0.2 invocation
-CEM-CB-AT-006	docs/specs/cem-0.2-canonical-binding.md	461	| `CEM-CB-AT-006` | compatibility | Omitting `--patch` for 0.1 reads the histori
-CEM-CB-AT-007	docs/specs/cem-0.2-canonical-binding.md	462	| `CEM-CB-AT-007` | authority | A self-consistent 0.2 map with a substituted bas
-CEM-CB-AT-008	docs/specs/cem-0.2-canonical-binding.md	463	| `CEM-CB-AT-008` | precedence | Multi-defect fixtures cover every adjacent vali
-CEM-CB-AT-009	docs/specs/cem-0.2-canonical-binding.md	464	| `CEM-CB-AT-009` | prepare cache | Fresh/resumed 0.2 `prepare --patch CACHE` wr
-CEM-CB-AT-010	docs/specs/cem-0.2-canonical-binding.md	465	| `CEM-CB-AT-010` | target identity | One 0.2 map verified against caller-suppli
-CEM-CB-AT-011	docs/specs/cem-0.2-canonical-binding.md	466	| `CEM-CB-AT-011` | two-phase bootstrap | `prepare` succeeds when its code targe
-CEM-CB-CO-001	docs/specs/cem-0.2-canonical-binding.md	472	| `CEM-CB-CO-001` | compatibility | Every existing 0.1 conformance vector remain
-CEM-CB-CO-002	docs/specs/cem-0.2-canonical-binding.md	473	| `CEM-CB-CO-002` | compatibility | The upgraded consumer accepts legacy 0.1 via
-CEM-CB-CO-003	docs/specs/cem-0.2-canonical-binding.md	474	| `CEM-CB-CO-003` | mutation | `cite` and `mark` preserve 0.1 or 0.2 exactly and
-CEM-CB-CO-004	docs/specs/cem-0.2-canonical-binding.md	475	| `CEM-CB-CO-004` | resume | Resumed 0.1 and 0.2 maps produce profile-correct ne
-CEM-CB-DE-001	docs/specs/cem-0.2-canonical-binding.md	484	| `CEM-CB-DE-001` | determinism | Hostile ambient/repository diff settings cover
-CEM-CB-DE-002	docs/specs/cem-0.2-canonical-binding.md	485	| `CEM-CB-DE-002` | determinism | Two fresh CLI processes emit byte-identical JS
-CEM-CB-EX-001	docs/specs/cem-0.2-canonical-binding.md	467	| `CEM-CB-EX-001` | genuine pass | Exact `.corvint/change.cem.json` is recorded
-CEM-CB-EX-002	docs/specs/cem-0.2-canonical-binding.md	468	| `CEM-CB-EX-002` | fabricated fail | A base where `.corvint/change.cem.json` is
-CEM-CB-EX-003	docs/specs/cem-0.2-canonical-binding.md	469	| `CEM-CB-EX-003` | fabricated fail | A 0.2 map containing a case variant, custo
-CEM-CB-EX-004	docs/specs/cem-0.2-canonical-binding.md	470	| `CEM-CB-EX-004` | no input | A 0.2 map missing `excludedPath` fails `missing-f
-CEM-CB-EX-005	docs/specs/cem-0.2-canonical-binding.md	471	| `CEM-CB-EX-005` | raw binding | A copied 0.2 input verifies only when its raw
-CEM-CB-GIT-001	docs/specs/cem-0.2-canonical-binding.md	476	| `CEM-CB-GIT-001` | genuine pass | The same commits in a primary checkout and a
-CEM-CB-GIT-002	docs/specs/cem-0.2-canonical-binding.md	477	| `CEM-CB-GIT-002` | genuine pass | Linked-worktree `prepare`, `status`, and `re
-CEM-CB-GIT-003	docs/specs/cem-0.2-canonical-binding.md	478	| `CEM-CB-GIT-003` | fabricated fail | Forged gitfiles pointing into a sibling o
-CEM-CB-GIT-004	docs/specs/cem-0.2-canonical-binding.md	479	| `CEM-CB-GIT-004` | unavailable input | Oversized, growing, symlinked, FIFO, ma
-CEM-CB-GIT-005	docs/specs/cem-0.2-canonical-binding.md	480	| `CEM-CB-GIT-005` | boundary | After reciprocal worktree validation, a non-empt
-CEM-CB-GIT-006	docs/specs/cem-0.2-canonical-binding.md	481	| `CEM-CB-GIT-006` | fabricated fail | In an ordinary loose-object repository, a
-CEM-CB-GIT-007	docs/specs/cem-0.2-canonical-binding.md	482	| `CEM-CB-GIT-007` | fabricated fail | An old-side or new-side blob body replace
-CEM-CB-GIT-008	docs/specs/cem-0.2-canonical-binding.md	483	| `CEM-CB-GIT-008` | genuine pass | A tree entry stored with the legacy regular-
-CEM-CB-OCM-001	docs/specs/cem-0.2-canonical-binding.md	486	| `CEM-CB-OCM-001` | integration | OCM dispatches 0.1 to the historical fixed ex
-CEM-CB-OCM-002	docs/specs/cem-0.2-canonical-binding.md	487	| `CEM-CB-OCM-002` | integration | OCM accepts a real linked worktree, rejects f
+CEM-CB-026	docs/specs/cem-0.2-canonical-binding.md	326	(experimental, V1-0414) `cem status` MUST report every governing instruction fil
+CEM-CB-AT-001	docs/specs/cem-0.2-canonical-binding.md	472	| `CEM-CB-AT-001` | genuine pass | Delete the cached patch after `prepare`; `sta
+CEM-CB-AT-002	docs/specs/cem-0.2-canonical-binding.md	473	| `CEM-CB-AT-002` | fabricated fail | A map matching a producer-supplied one-hun
+CEM-CB-AT-003	docs/specs/cem-0.2-canonical-binding.md	474	| `CEM-CB-AT-003` | fabricated fail | A 0.2 `status`, `verify`, or `report` supp
+CEM-CB-AT-004	docs/specs/cem-0.2-canonical-binding.md	475	| `CEM-CB-AT-004` | no input | A 0.2 map missing expected base fails `expected-b
+CEM-CB-AT-005	docs/specs/cem-0.2-canonical-binding.md	476	| `CEM-CB-AT-005` | envelope | Explicit/default 0.1 and canonical 0.2 invocation
+CEM-CB-AT-006	docs/specs/cem-0.2-canonical-binding.md	477	| `CEM-CB-AT-006` | compatibility | Omitting `--patch` for 0.1 reads the histori
+CEM-CB-AT-007	docs/specs/cem-0.2-canonical-binding.md	478	| `CEM-CB-AT-007` | authority | A self-consistent 0.2 map with a substituted bas
+CEM-CB-AT-008	docs/specs/cem-0.2-canonical-binding.md	479	| `CEM-CB-AT-008` | precedence | Multi-defect fixtures cover every adjacent vali
+CEM-CB-AT-009	docs/specs/cem-0.2-canonical-binding.md	480	| `CEM-CB-AT-009` | prepare cache | Fresh/resumed 0.2 `prepare --patch CACHE` wr
+CEM-CB-AT-010	docs/specs/cem-0.2-canonical-binding.md	481	| `CEM-CB-AT-010` | target identity | One 0.2 map verified against caller-suppli
+CEM-CB-AT-011	docs/specs/cem-0.2-canonical-binding.md	482	| `CEM-CB-AT-011` | two-phase bootstrap | `prepare` succeeds when its code targe
+CEM-CB-CO-001	docs/specs/cem-0.2-canonical-binding.md	488	| `CEM-CB-CO-001` | compatibility | Every existing 0.1 conformance vector remain
+CEM-CB-CO-002	docs/specs/cem-0.2-canonical-binding.md	489	| `CEM-CB-CO-002` | compatibility | The upgraded consumer accepts legacy 0.1 via
+CEM-CB-CO-003	docs/specs/cem-0.2-canonical-binding.md	490	| `CEM-CB-CO-003` | mutation | `cite` and `mark` preserve 0.1 or 0.2 exactly and
+CEM-CB-CO-004	docs/specs/cem-0.2-canonical-binding.md	491	| `CEM-CB-CO-004` | resume | Resumed 0.1 and 0.2 maps produce profile-correct ne
+CEM-CB-DE-001	docs/specs/cem-0.2-canonical-binding.md	500	| `CEM-CB-DE-001` | determinism | Hostile ambient/repository diff settings cover
+CEM-CB-DE-002	docs/specs/cem-0.2-canonical-binding.md	501	| `CEM-CB-DE-002` | determinism | Two fresh CLI processes emit byte-identical JS
+CEM-CB-EX-001	docs/specs/cem-0.2-canonical-binding.md	483	| `CEM-CB-EX-001` | genuine pass | Exact `.corvint/change.cem.json` is recorded
+CEM-CB-EX-002	docs/specs/cem-0.2-canonical-binding.md	484	| `CEM-CB-EX-002` | fabricated fail | A base where `.corvint/change.cem.json` is
+CEM-CB-EX-003	docs/specs/cem-0.2-canonical-binding.md	485	| `CEM-CB-EX-003` | fabricated fail | A 0.2 map containing a case variant, custo
+CEM-CB-EX-004	docs/specs/cem-0.2-canonical-binding.md	486	| `CEM-CB-EX-004` | no input | A 0.2 map missing `excludedPath` fails `missing-f
+CEM-CB-EX-005	docs/specs/cem-0.2-canonical-binding.md	487	| `CEM-CB-EX-005` | raw binding | A copied 0.2 input verifies only when its raw
+CEM-CB-GIT-001	docs/specs/cem-0.2-canonical-binding.md	492	| `CEM-CB-GIT-001` | genuine pass | The same commits in a primary checkout and a
+CEM-CB-GIT-002	docs/specs/cem-0.2-canonical-binding.md	493	| `CEM-CB-GIT-002` | genuine pass | Linked-worktree `prepare`, `status`, and `re
+CEM-CB-GIT-003	docs/specs/cem-0.2-canonical-binding.md	494	| `CEM-CB-GIT-003` | fabricated fail | Forged gitfiles pointing into a sibling o
+CEM-CB-GIT-004	docs/specs/cem-0.2-canonical-binding.md	495	| `CEM-CB-GIT-004` | unavailable input | Oversized, growing, symlinked, FIFO, ma
+CEM-CB-GIT-005	docs/specs/cem-0.2-canonical-binding.md	496	| `CEM-CB-GIT-005` | boundary | After reciprocal worktree validation, a non-empt
+CEM-CB-GIT-006	docs/specs/cem-0.2-canonical-binding.md	497	| `CEM-CB-GIT-006` | fabricated fail | In an ordinary loose-object repository, a
+CEM-CB-GIT-007	docs/specs/cem-0.2-canonical-binding.md	498	| `CEM-CB-GIT-007` | fabricated fail | An old-side or new-side blob body replace
+CEM-CB-GIT-008	docs/specs/cem-0.2-canonical-binding.md	499	| `CEM-CB-GIT-008` | genuine pass | A tree entry stored with the legacy regular-
+CEM-CB-OCM-001	docs/specs/cem-0.2-canonical-binding.md	502	| `CEM-CB-OCM-001` | integration | OCM dispatches 0.1 to the historical fixed ex
+CEM-CB-OCM-002	docs/specs/cem-0.2-canonical-binding.md	503	| `CEM-CB-OCM-002` | integration | OCM accepts a real linked worktree, rejects f
 CEM-EXT-001	docs/specs/cem-external-interop-v0.md	29	the packet MUST provide a Corvint-free Python-standard-library runner that uses
 CEM-EXT-002	docs/specs/cem-external-interop-v0.md	33	`doctor`, `start`, and `consumer` MUST verify the raw frozen manifest SHA-256
 CEM-EXT-003	docs/specs/cem-external-interop-v0.md	39	preflight and execution MUST reconstruct and verify the exact SHA-1, SHA-256, an
@@ -586,13 +597,14 @@ CRT-V0-001	docs/specs/cem-reviewer-trial-v0.md	42	Unit and selection. One change
 CRT-V0-002	docs/specs/cem-reviewer-trial-v0.md	52	Pairing. Every change runs in both arms; the estimate is within-change. The arm
 CRT-V0-003	docs/specs/cem-reviewer-trial-v0.md	55	Withheld-patch construction. The presented patch `P(C)` contains only the source
 CRT-V0-004	docs/specs/cem-reviewer-trial-v0.md	58	Ground truth. Primary gold for `C` is the set of test-or-spec paths `C` itself
-CRT-V0-005	docs/specs/cem-reviewer-trial-v0.md	64	Arms. `control` receives the prompt skeleton, `P(C)`, the numbered hunk list, an
-CRT-V0-006	docs/specs/cem-reviewer-trial-v0.md	73	Reply grammar. Every reply MUST end with one fenced JSON block
-CRT-V0-007	docs/specs/cem-reviewer-trial-v0.md	82	Metrics. `miss(c,a) = |gold(c) \ citedPaths(c,a)| / |gold(c)|`. The primary esti
-CRT-V0-008	docs/specs/cem-reviewer-trial-v0.md	95	Power, pre-declared. 30 pairs is roughly 120 gold items per arm; with clustering
-CRT-V0-009	docs/specs/cem-reviewer-trial-v0.md	111	Pilot. The pilot uses its own seed and partition; its changes are excluded from
-CRT-V0-010	docs/specs/cem-reviewer-trial-v0.md	114	Stopping and publication. There is no interim analysis: the scorer runs once, af
-CRT-V0-011	docs/specs/cem-reviewer-trial-v0.md	128	Invocation lifecycle (proposed). `runCommand` MUST share the
+CRT-V0-005	docs/specs/cem-reviewer-trial-v0.md	70	Arms. `control` receives the prompt skeleton, `P(C)`, the numbered hunk list, an
+CRT-V0-006	docs/specs/cem-reviewer-trial-v0.md	89	Reply grammar. Every reply MUST end with one fenced JSON block
+CRT-V0-007	docs/specs/cem-reviewer-trial-v0.md	98	Metrics. `miss(c,a) = |gold(c) \ citedPaths(c,a)| / |gold(c)|`. The primary esti
+CRT-V0-008	docs/specs/cem-reviewer-trial-v0.md	118	Power, pre-declared. 30 pairs is roughly 120 gold items per arm; with clustering
+CRT-V0-009	docs/specs/cem-reviewer-trial-v0.md	147	Pilot. The pilot uses its own seed and partition; its changes are excluded from
+CRT-V0-010	docs/specs/cem-reviewer-trial-v0.md	150	Stopping and publication. There is no interim analysis: the scorer runs once, af
+CRT-V0-011	docs/specs/cem-reviewer-trial-v0.md	164	Invocation lifecycle (proposed). `runCommand` MUST share the
+CRT-V0-012	docs/specs/cem-reviewer-trial-v0.md	180	Seeded-arm decomposition (proposed 2026-10-01). A seeded run reports
 CTR-V0-001	docs/specs/compat-trial-v0.md	32	Descriptor schema. The fields below are frozen; a runner MUST NOT add, rename or
 CTR-V0-002	docs/specs/compat-trial-v0.md	40	Comparison policy v0. Equality is exact bytes of stdout, stderr and exit status
 CTR-V0-003	docs/specs/compat-trial-v0.md	42	Resource profile, quoted verbatim from `P:237–241`: "64 KiB input, 1 MiB output
@@ -610,6 +622,7 @@ CTS-V0-002	docs/specs/corvint-tasks-store-init-v0.md	49	Only `queue status`, `ro
 CTS-V0-003	docs/specs/corvint-tasks-store-init-v0.md	63	(accepted 2026-09-27, owner decision relayed by the orchestrator session "Work
 CTS-V0-004	docs/specs/corvint-tasks-store-init-v0.md	77	Store resolution MUST resolve symbolic links in the directories above the primar
 CTS-V0-005	docs/specs/corvint-tasks-store-init-v0.md	83	The external-agent setup guide MUST provide canonical queue, policy and ticket-c
+CTS-V0-006	docs/specs/corvint-tasks-store-init-v0.md	88	(requested 2026-10-01, issue 433) A journal-backed read (`withStore` verbs and
 CVI-V0-001	docs/specs/closed-vocabulary-intake-v0.md	27	Publish a versioned schema whose data fields are enums, literal repository paths
 CVI-V0-002	docs/specs/closed-vocabulary-intake-v0.md	31	Validate exact field names and presence, types, enum vocabulary, bounded identif
 CVI-V0-003	docs/specs/closed-vocabulary-intake-v0.md	35	Bind validation to explicit full base/head commit identities. Every behaviour an
@@ -735,6 +748,7 @@ DCP-V1-039	docs/specs/documentation-corpus-v1.md	264	Native answers use `corvint
 DCP-V1-040	docs/specs/documentation-corpus-v1.md	272	The separate experimental `corvint-corpus-index/1` companion wraps a canonical `
 DCP-V1-041	docs/specs/documentation-corpus-v1.md	286	A companion switch-over harness consumes bounded closed recorded questions and
 DCP-V1-042	docs/specs/documentation-corpus-v1.md	296	The separately started experimental hosted companion serves only embedded digest
+DCP-V1-043	docs/specs/documentation-corpus-v1.md	304	The `corvint-corpus-parity` companion is qualified through its own command bound
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	27	Core MUST remain one native Go binary with no required account, network, daemon,
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	30	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	33	Task orientation MUST locate governing intent and original revision-pinned evide
@@ -1046,6 +1060,13 @@ ETS-V1-006	docs/specs/external-test-selection-v1.md	59	A checkout is judged as a
 ETS-V1-007	docs/specs/external-test-selection-v1.md	61	A row whose every checkout side was inspected MUST NOT carry
 ETS-V1-008	docs/specs/external-test-selection-v1.md	64	Both extensions can only widen. For every labelled case, reading a clean, dirty,
 ETS-V1-009	docs/specs/external-test-selection-v1.md	67	The member schema stays `external-test-selection/0`. The new codes and the
+FDM-V0-001	docs/specs/flow-document-maintenance-v0.md	27	`flows docs maintain --preview` MUST write nothing, returning proposed page and
+FDM-V0-002	docs/specs/flow-document-maintenance-v0.md	30	`--apply --expected-proposal SHA256` MUST freshly derive the proposal and refuse
+FDM-V0-003	docs/specs/flow-document-maintenance-v0.md	37	Both outputs absent permits exclusive creation. Both present requires an explici
+FDM-V0-004	docs/specs/flow-document-maintenance-v0.md	42	Stage both files before publication, pin parents, capture original inodes and re
+FDM-V0-005	docs/specs/flow-document-maintenance-v0.md	46	Only after both publications succeed may stdout contain the canonical versioned
+FDM-V0-006	docs/specs/flow-document-maintenance-v0.md	54	With identical material inputs, options and outputs, apply MUST return the previ
+FDM-V0-007	docs/specs/flow-document-maintenance-v0.md	57	Maintenance MUST preserve existing AFU fixed-template rendering and claim semant
 FPK-V0-001	docs/specs/falsifiable-packet-v0.md	55	`prove` MUST be read-only. It MUST NOT write repository, trace, or
 FPK-V0-002	docs/specs/falsifiable-packet-v0.md	58	The document MUST embed the packet that `query` would emit for the same root,
 FPK-V0-003	docs/specs/falsifiable-packet-v0.md	66	`falsifier` MUST be one of `history-consistent`, `reference-resolves`,
@@ -1229,63 +1250,63 @@ GPK-V0-012	docs/specs/go-production-kernel-migration-v0.md	202	Production Go cod
 GPK-V0-013	docs/specs/go-production-kernel-migration-v0.md	206	The promoted Go binary MUST have no Python interpreter, Python package, cgo,
 GPK-V0-014	docs/specs/go-production-kernel-migration-v0.md	210	Before any TCQ-, OCM-, claim-, or frontier-consuming command moves to Go, its pa
 GPK-V0-015	docs/specs/go-production-kernel-migration-v0.md	214	The initial experimental slice MAY implement only non-indexing harness events
-GPK-V0-016	docs/specs/go-production-kernel-migration-v0.md	542	Performance is measured outside both runtimes with an interleaved, preregistered
-GPK-V0-017	docs/specs/go-production-kernel-migration-v0.md	547	A slice may cut over only when all its parity cases pass and: (a) non-query harn
-GPK-V0-018	docs/specs/go-production-kernel-migration-v0.md	638	Public Go artifacts MUST be `CGO_ENABLED=0`, built from one exact clean Git comm
-GPK-V0-019	docs/specs/go-production-kernel-migration-v0.md	659	The existing Python wheel integrity contract remains binding while a wheel ships
-GPK-V0-020	docs/specs/go-production-kernel-migration-v0.md	716	The migration MUST NOT alter `LICENSE`, `LICENSING.md`, `PROVENANCE.md`, or the
-GPK-V0-021	docs/specs/go-production-kernel-migration-v0.md	721	Corvint self-dogfood MUST first use the candidate to orient to this migration, r
-GPK-V0-022	docs/specs/go-production-kernel-migration-v0.md	726	Beamfall dogfood MUST run second at one exact clean Beamfall revision. It MUST c
-GPK-V0-023	docs/specs/go-production-kernel-migration-v0.md	732	Rollout order was fixed: experimental candidate; cross-runtime shadow gate; opt-
-GPK-V0-024	docs/specs/go-production-kernel-migration-v0.md	741	Rollback MUST require no repository, receipt, map, trace, or cache migration.
-GPK-V0-025	docs/specs/go-production-kernel-migration-v0.md	746	Python production retirement is staged. First, Go is default for one release whi
-GPK-V0-026	docs/specs/go-production-kernel-migration-v0.md	754	Promotion claims are per command and per integration surface. Reports MUST state
+GPK-V0-016	docs/specs/go-production-kernel-migration-v0.md	565	Performance is measured outside both runtimes with an interleaved, preregistered
+GPK-V0-017	docs/specs/go-production-kernel-migration-v0.md	570	A slice may cut over only when all its parity cases pass and: (a) non-query harn
+GPK-V0-018	docs/specs/go-production-kernel-migration-v0.md	661	Public Go artifacts MUST be `CGO_ENABLED=0`, built from one exact clean Git comm
+GPK-V0-019	docs/specs/go-production-kernel-migration-v0.md	682	The existing Python wheel integrity contract remains binding while a wheel ships
+GPK-V0-020	docs/specs/go-production-kernel-migration-v0.md	739	The migration MUST NOT alter `LICENSE`, `LICENSING.md`, `PROVENANCE.md`, or the
+GPK-V0-021	docs/specs/go-production-kernel-migration-v0.md	744	Corvint self-dogfood MUST first use the candidate to orient to this migration, r
+GPK-V0-022	docs/specs/go-production-kernel-migration-v0.md	749	Beamfall dogfood MUST run second at one exact clean Beamfall revision. It MUST c
+GPK-V0-023	docs/specs/go-production-kernel-migration-v0.md	755	Rollout order was fixed: experimental candidate; cross-runtime shadow gate; opt-
+GPK-V0-024	docs/specs/go-production-kernel-migration-v0.md	764	Rollback MUST require no repository, receipt, map, trace, or cache migration.
+GPK-V0-025	docs/specs/go-production-kernel-migration-v0.md	769	Python production retirement is staged. First, Go is default for one release whi
+GPK-V0-026	docs/specs/go-production-kernel-migration-v0.md	777	Promotion claims are per command and per integration surface. Reports MUST state
 GPK-V0-027	docs/specs/go-production-kernel-migration-v0.md	222	Before Pulse P0-B, `corvint` MAY expose an experimental one-shot `impact` comman
 GPK-V0-028	docs/specs/go-production-kernel-migration-v0.md	261	Before the complete Phase 2 query port, `corvint` MAY expose one experimental
 GPK-V0-029	docs/specs/go-production-kernel-migration-v0.md	297	`corvint impact` MAY accept revision-absent `.go` files only when the caller
 GPK-V0-030	docs/specs/go-production-kernel-migration-v0.md	311	`corvint impact --base FULL_COMMIT_ID` MAY compile a committed range as the
 GPK-V0-031	docs/specs/go-production-kernel-migration-v0.md	336	Before the complete Phase 2 feature port, `corvint` MAY expose an experimental
 GPK-V0-032	docs/specs/go-production-kernel-migration-v0.md	353	Before complete Phase 2 activation cutover, `corvint` MAY expose one shared
-GPK-V0-033	docs/specs/go-production-kernel-migration-v0.md	666	The frozen spec, not the Python implementation, is the conformance authority.
-GPK-V0-034	docs/specs/go-production-kernel-migration-v0.md	693	Every adjudication under `GPK-V0-033` MUST be recorded in
-GPK-V0-035	docs/specs/go-production-kernel-migration-v0.md	700	Known-divergent cases MUST NOT accumulate unexamined. Every one carries an
-GPK-V0-036	docs/specs/go-production-kernel-migration-v0.md	705	Python retirement is **per command**, and does not wait for the global window
+GPK-V0-033	docs/specs/go-production-kernel-migration-v0.md	689	The frozen spec, not the Python implementation, is the conformance authority.
+GPK-V0-034	docs/specs/go-production-kernel-migration-v0.md	716	Every adjudication under `GPK-V0-033` MUST be recorded in
+GPK-V0-035	docs/specs/go-production-kernel-migration-v0.md	723	Known-divergent cases MUST NOT accumulate unexamined. Every one carries an
+GPK-V0-036	docs/specs/go-production-kernel-migration-v0.md	728	Python retirement is **per command**, and does not wait for the global window
 GPK-V0-037	docs/specs/go-production-kernel-migration-v0.md	368	Before complete Phase 2 OCM cutover, `corvint` MAY expose the read-only
 GPK-V0-038	docs/specs/go-production-kernel-migration-v0.md	391	The harness slice is complete. Under the expansion gate in `GPK-V0-015`, `corvin
 GPK-V0-039	docs/specs/go-production-kernel-migration-v0.md	407	A context packet asserts that the repository answers the caller's task, and the
-GPK-V0-040	docs/specs/go-production-kernel-migration-v0.md	438	A receipt's coverage counts are denominated in the universe of results the ranki
-GPK-V0-041	docs/specs/go-production-kernel-migration-v0.md	463	The typed `unsupported-ocm-python-claims` abstention `GPK-V0-037` requires of th
-GPK-V0-042	docs/specs/go-production-kernel-migration-v0.md	761	A **beta rung** exists in `GPK-V0-023`'s order, between opt-in candidate use and
-GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	910	`corvint query` MAY add a general `repository`-intent profile on Darwin
-GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	976	The standalone `corvint query` `repository`-intent profile introduced
-GPK-V0-045	docs/specs/go-production-kernel-migration-v0.md	486	An abstaining packet MUST name the reason it abstained at every surface that emi
-GPK-V0-046	docs/specs/go-production-kernel-migration-v0.md	503	Product invariant 3 ranks project-owned authority above syntax. A `query` packet
-GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	1046	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave
-GPK-V0-048	docs/specs/go-production-kernel-migration-v0.md	1076	Go declaration set. `GPK-V0-031` names a Go-symbol feature compiler and
-GPK-V0-049	docs/specs/go-production-kernel-migration-v0.md	1094	Refused-grammar disclosure. `GPK-V0-048` requires a Go source the parser refused
-GPK-V0-050	docs/specs/go-production-kernel-migration-v0.md	628	`corvint record` and `corvint dogfood-record` MUST admit a changed `.gitignore`
-GPK-V0-051	docs/specs/go-production-kernel-migration-v0.md	560	`corvint impact --base FULL_COMMIT_ID` MUST admit a `C` or `R` range member when
-GPK-V0-052	docs/specs/go-production-kernel-migration-v0.md	566	(accepted, decision 0052, 2026-09-04) when a query term
-GPK-V0-053	docs/specs/go-production-kernel-migration-v0.md	575	(accepted 2026-09-04 by decision 0051 item 2, which decides this wording change
-GPK-V0-054	docs/specs/go-production-kernel-migration-v0.md	514	`coverage.authoritative_results` counts cited results Corvint does not label
-GPK-V0-055	docs/specs/go-production-kernel-migration-v0.md	1123	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
-GPK-V0-056	docs/specs/go-production-kernel-migration-v0.md	1134	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
-GPK-V0-057	docs/specs/go-production-kernel-migration-v0.md	651	A target is shipped only after its native conformance, filesystem-safety,
-GPK-V0-058	docs/specs/go-production-kernel-migration-v0.md	584	(proposed amendment 2026-09-05, owner review pending; not accepted) a harness
-GPK-V0-059	docs/specs/go-production-kernel-migration-v0.md	1153	(accepted 2026-09-12, decision 0092) An unknown top-level command MUST be refuse
-GPK-V0-060	docs/specs/go-production-kernel-migration-v0.md	1217	(accepted 2026-09-12, decision 0142; case-folded by decision 0159) `GPK-V0-030`
-GPK-V0-061	docs/specs/go-production-kernel-migration-v0.md	1241	(accepted 2026-09-12, decision 0142) The `GPK-V0-060` allowance MUST NOT apply t
-GPK-V0-062	docs/specs/go-production-kernel-migration-v0.md	1168	(accepted 2026-09-13, decision 0172) Under `GPK-V0-001`, a `--help` token after
-GPK-V0-063	docs/specs/go-production-kernel-migration-v0.md	1251	(accepted 2026-09-12, decision 0166; registers `DR-0023`) A context receipt's
-GPK-V0-064	docs/specs/go-production-kernel-migration-v0.md	1184	(accepted 2026-09-13, decision 0173; root preamble amended by decision 0181) Und
-GPK-V0-065	docs/specs/go-production-kernel-migration-v0.md	600	(proposed amendment 2026-09-14, owner review pending; not accepted) a repository
-GPK-V0-066	docs/specs/go-production-kernel-migration-v0.md	1266	(accepted 2026-09-25, decision 0387; V1-0260)
-GPK-V0-068	docs/specs/go-production-kernel-migration-v0.md	1282	(accepted 2026-09-25, decision 0396; panel finding M2)
-GPK-V0-069	docs/specs/go-production-kernel-migration-v0.md	1297	(accepted 2026-09-25, decision 0399; panel blocker B3)
-GPK-V0-070	docs/specs/go-production-kernel-migration-v0.md	1316	(accepted 2026-09-26, decision 0422; panel blocker B4; V1-0263)
-GPK-V0-071	docs/specs/go-production-kernel-migration-v0.md	1340	(proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global a
-GPK-V0-072	docs/specs/go-production-kernel-migration-v0.md	1358	(proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
-GPK-V0-075	docs/specs/go-production-kernel-migration-v0.md	1374	(accepted 2026-09-25, decision 0412; V1-0263; proposed in PR #247 as `GPK-V0-068
+GPK-V0-040	docs/specs/go-production-kernel-migration-v0.md	446	A receipt's coverage counts are denominated in the universe of results the ranki
+GPK-V0-041	docs/specs/go-production-kernel-migration-v0.md	486	The typed `unsupported-ocm-python-claims` abstention `GPK-V0-037` requires of th
+GPK-V0-042	docs/specs/go-production-kernel-migration-v0.md	784	A **beta rung** exists in `GPK-V0-023`'s order, between opt-in candidate use and
+GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	933	`corvint query` MAY add a general `repository`-intent profile on Darwin
+GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	999	The standalone `corvint query` `repository`-intent profile introduced
+GPK-V0-045	docs/specs/go-production-kernel-migration-v0.md	509	An abstaining packet MUST name the reason it abstained at every surface that emi
+GPK-V0-046	docs/specs/go-production-kernel-migration-v0.md	526	Product invariant 3 ranks project-owned authority above syntax. A `query` packet
+GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	1069	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave
+GPK-V0-048	docs/specs/go-production-kernel-migration-v0.md	1099	Go declaration set. `GPK-V0-031` names a Go-symbol feature compiler and
+GPK-V0-049	docs/specs/go-production-kernel-migration-v0.md	1117	Refused-grammar disclosure. `GPK-V0-048` requires a Go source the parser refused
+GPK-V0-050	docs/specs/go-production-kernel-migration-v0.md	651	`corvint record` and `corvint dogfood-record` MUST admit a changed `.gitignore`
+GPK-V0-051	docs/specs/go-production-kernel-migration-v0.md	583	`corvint impact --base FULL_COMMIT_ID` MUST admit a `C` or `R` range member when
+GPK-V0-052	docs/specs/go-production-kernel-migration-v0.md	589	(accepted, decision 0052, 2026-09-04) when a query term
+GPK-V0-053	docs/specs/go-production-kernel-migration-v0.md	598	(accepted 2026-09-04 by decision 0051 item 2, which decides this wording change
+GPK-V0-054	docs/specs/go-production-kernel-migration-v0.md	537	`coverage.authoritative_results` counts cited results Corvint does not label
+GPK-V0-055	docs/specs/go-production-kernel-migration-v0.md	1146	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
+GPK-V0-056	docs/specs/go-production-kernel-migration-v0.md	1157	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
+GPK-V0-057	docs/specs/go-production-kernel-migration-v0.md	674	A target is shipped only after its native conformance, filesystem-safety,
+GPK-V0-058	docs/specs/go-production-kernel-migration-v0.md	607	(proposed amendment 2026-09-05, owner review pending; not accepted) a harness
+GPK-V0-059	docs/specs/go-production-kernel-migration-v0.md	1176	(accepted 2026-09-12, decision 0092) An unknown top-level command MUST be refuse
+GPK-V0-060	docs/specs/go-production-kernel-migration-v0.md	1240	(accepted 2026-09-12, decision 0142; case-folded by decision 0159) `GPK-V0-030`
+GPK-V0-061	docs/specs/go-production-kernel-migration-v0.md	1264	(accepted 2026-09-12, decision 0142) The `GPK-V0-060` allowance MUST NOT apply t
+GPK-V0-062	docs/specs/go-production-kernel-migration-v0.md	1191	(accepted 2026-09-13, decision 0172) Under `GPK-V0-001`, a `--help` token after
+GPK-V0-063	docs/specs/go-production-kernel-migration-v0.md	1274	(accepted 2026-09-12, decision 0166; registers `DR-0023`) A context receipt's
+GPK-V0-064	docs/specs/go-production-kernel-migration-v0.md	1207	(accepted 2026-09-13, decision 0173; root preamble amended by decision 0181) Und
+GPK-V0-065	docs/specs/go-production-kernel-migration-v0.md	623	(proposed amendment 2026-09-14, owner review pending; not accepted) a repository
+GPK-V0-066	docs/specs/go-production-kernel-migration-v0.md	1289	(accepted 2026-09-25, decision 0387; V1-0260)
+GPK-V0-068	docs/specs/go-production-kernel-migration-v0.md	1305	(accepted 2026-09-25, decision 0396; panel finding M2)
+GPK-V0-069	docs/specs/go-production-kernel-migration-v0.md	1320	(accepted 2026-09-25, decision 0399; panel blocker B3)
+GPK-V0-070	docs/specs/go-production-kernel-migration-v0.md	1339	(accepted 2026-09-26, decision 0422; panel blocker B4; V1-0263)
+GPK-V0-071	docs/specs/go-production-kernel-migration-v0.md	1363	(proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global a
+GPK-V0-072	docs/specs/go-production-kernel-migration-v0.md	1381	(proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
+GPK-V0-075	docs/specs/go-production-kernel-migration-v0.md	1397	(accepted 2026-09-25, decision 0412; V1-0263; proposed in PR #247 as `GPK-V0-068
 HAR-V0-001	docs/specs/harness-authority-relation-v0.md	105	the relation string is exactly `harness-execution-attested-v0`. It is a **new**
 HAR-V0-002	docs/specs/harness-authority-relation-v0.md	109	the relation's authority class is exactly `HARNESS_ATTESTED`. It is a fourth cla
 HAR-V0-003	docs/specs/harness-authority-relation-v0.md	115	an `harness-execution-attested-v0` edge is admissible only when its attestation
@@ -1607,6 +1628,9 @@ LQP-V0-015	docs/specs/lsp-quality-platform-v0.md	58	Qualification MUST compare u
 LQP-V0-016	docs/specs/lsp-quality-platform-v0.md	59	A profile MUST report exact correctness, coverage, freshness, cold/warm latency
 LQP-V0-017	docs/specs/lsp-quality-platform-v0.md	60	Supported editor tuples MUST pass real VS Code and one independent LSP client ag
 LQP-V0-018	docs/specs/lsp-quality-platform-v0.md	61	Rollback MUST preserve default Core behavior and offer explicit upstream-off and
+LQP-V0-019	docs/specs/lsp-quality-platform-v0.md	62	The tuples in the frozen qualification record are the only candidate support tup
+LQP-V0-020	docs/specs/lsp-quality-platform-v0.md	63	The frozen record MUST mirror every hard, quality and resource floor of the acce
+LQP-V0-021	docs/specs/lsp-quality-platform-v0.md	64	The protected held-out manifest MUST be produced by an independent custodian out
 LRF-V0-001	docs/specs/lexical-relevance-floor-v0.md	153	the profile MUST accept only a structurally valid CEM and, for obligation checks
 LRF-V0-002	docs/specs/lexical-relevance-floor-v0.md	159	every term set MUST use the frozen identifier algorithm and subject text. A
 LRF-V0-003	docs/specs/lexical-relevance-floor-v0.md	162	an evaluated evidence span MUST be no larger than both 512 raw bytes and 20 logi
@@ -1718,6 +1742,8 @@ NEA-V0-004	docs/specs/new-e2e-test-acceptance-v0.md	37	Preserve Association, Hyg
 NEA-V0-005	docs/specs/new-e2e-test-acceptance-v0.md	40	Mixed repeat outcomes trigger original and reversed file-filter order probes.
 NEA-V0-006	docs/specs/new-e2e-test-acceptance-v0.md	43	Repeat and control execution run in a sanitized self-worker, without inherited
 NEA-V0-007	docs/specs/new-e2e-test-acceptance-v0.md	46	Emit one bounded report tied to request/source identities, environment and build
+NEA-V0-008	docs/specs/new-e2e-test-acceptance-v0.md	49	Each per-test assessment carries its own repeat counts (passed, failed, other),
+NEA-V0-009	docs/specs/new-e2e-test-acceptance-v0.md	58	The body is a fixed Markdown record containing the overall verdict, the product
 NEC-V0-001	docs/specs/necessity-labels-v0.md	46	`corvint [--root PATH] necessity --task TEXT [--subject PATH] [--limit N]` MUST
 NEC-V0-002	docs/specs/necessity-labels-v0.md	50	The verb MUST load the index exactly as `context --task` does (the tree's snapsh
 NEC-V0-003	docs/specs/necessity-labels-v0.md	54	Each counterfactual MUST run over a shallow copy of the index whose `Sources`,
@@ -1823,6 +1849,14 @@ PCCO-V0-014	docs/specs/proof-carrying-context-optimization-v0.md	113	Profiles ar
 PCCO-V0-015	docs/specs/proof-carrying-context-optimization-v0.md	115	(proposed for V1-0012, not accepted) A correctness or cost comparison of the dai
 PCCO-V0-016	docs/specs/proof-carrying-context-optimization-v0.md	125	(proposed for V1-0012, not accepted) Each run MUST emit one result binding the
 PCCO-V0-017	docs/specs/proof-carrying-context-optimization-v0.md	130	(proposed for V1-0012, not accepted) A cost-reduction claim is retained only whe
+PCH-V0-001	docs/specs/postmerge-ci-host-v0.md	33	Publish a host-neutral workflow graph, `protocol/postmerge-host/workflow-graph.j
+PCH-V0-002	docs/specs/postmerge-ci-host-v0.md	40	Document the host adapter contract in `protocol/postmerge-host/README.md`:
+PCH-V0-003	docs/specs/postmerge-ci-host-v0.md	47	Ship a reference pipeline that processes one merged change by full commit id:
+PCH-V0-004	docs/specs/postmerge-ci-host-v0.md	55	Ship a source trigger. It runs on push to the merged branch only, never on a cha
+PCH-V0-005	docs/specs/postmerge-ci-host-v0.md	59	Ship scheduled reconciliation that re-dispatches recent first-parent merges, so
+PCH-V0-006	docs/specs/postmerge-ci-host-v0.md	62	Pin every action to a full commit and check out with `persist-credentials: false
+PCH-V0-007	docs/specs/postmerge-ci-host-v0.md	71	Provide an audit, `internal/postmergehost.Audit`, over a restricted YAML subset.
+PCH-V0-008	docs/specs/postmerge-ci-host-v0.md	115	The README gives a porting guide that maps markers, credential classes, isolatio
 PLE-V0-001	docs/specs/protected-local-execution-v0.md	27	The optional `corvint-protected-execution/0` profile MUST preserve all legacy pr
 PLE-V0-002	docs/specs/protected-local-execution-v0.md	28	A protected immutable release and independently admitted root/policy MUST bind t
 PLE-V0-003	docs/specs/protected-local-execution-v0.md	29	Ingestion MUST bound and independently bind expected Git base/target/tree, CEM,
@@ -1851,6 +1885,15 @@ PMM-V0-004	docs/specs/postmerge-metrics-v0.md	31	Process full retained eligible 
 PMM-V0-005	docs/specs/postmerge-metrics-v0.md	35	Validate contiguous per-class sequence inventories starting at 1 and independent
 PMM-V0-006	docs/specs/postmerge-metrics-v0.md	38	Produce byte-identical reports from the same validated policy, records, immutabl
 PMM-V0-007	docs/specs/postmerge-metrics-v0.md	41	Expose `corvint-postmerge-metrics report --policy FILE --records FILE --from UTC
+PMR-V0-001	docs/specs/postmerge-replay-v0.md	28	Decode a bounded closed fixture containing immutable connector identity and
+PMR-V0-002	docs/specs/postmerge-replay-v0.md	32	Use a separate host-owned policy to pin the connector binding, executable bytes,
+PMR-V0-003	docs/specs/postmerge-replay-v0.md	35	Admit human labels only when one separate pinned registry entry matches full imm
+PMR-V0-004	docs/specs/postmerge-replay-v0.md	38	Execute the pinned adapter bytes in two fresh private directories with bounded
+PMR-V0-005	docs/specs/postmerge-replay-v0.md	42	Require a result bound to the complete fixture digest, runtime digest and change
+PMR-V0-006	docs/specs/postmerge-replay-v0.md	50	Build and validate the actual connector plan, record it twice in each run and pr
+PMR-V0-007	docs/specs/postmerge-replay-v0.md	53	Emit a separate report with fixture/policy/binding identities, canonical JSONL,
+PMR-V0-008	docs/specs/postmerge-replay-v0.md	59	Provide local/CI invocation `corvint-postmerge-workflow replay --change ID --dry
+PMR-V0-009	docs/specs/postmerge-replay-v0.md	66	Replay does not parse or reimplement the issue #389 delta record. The adapter
 PNC-001	docs/specs/analyzer-python-native-candidate.md	86	The candidate MUST remain separately buildable and unreachable from Core.
 PNC-002	docs/specs/analyzer-python-native-candidate.md	87	The scanner MUST prospectively bound canonical request members before decode or
 PNC-003	docs/specs/analyzer-python-native-candidate.md	88	Accepted closed inputs MUST emit only fully typed, deterministic candidate facts
@@ -1946,9 +1989,9 @@ PT-V0-001	docs/specs/proof-tour-v0.md	60	The fresh tour MUST create a labelled d
 PT-V0-002	docs/specs/proof-tour-v0.md	66	The tour MUST execute actual installed Corvint query/context/impact/affected and
 PT-V0-003	docs/specs/proof-tour-v0.md	70	The producer MUST derive the exact documented canonical diff profile, use
 PT-V0-004	docs/specs/proof-tour-v0.md	75	Fresh completion MUST pause with NOT_RUN independent review and exact base,
-PT-V0-005	docs/specs/proof-tour-v0.md	84	Only after the exact supplied accepted ACK may resume rerun strict readiness
-PT-V0-006	docs/specs/proof-tour-v0.md	90	Every owned command MUST run in its own ordinary process group with a bounded
-PT-V0-007	docs/specs/proof-tour-v0.md	95	Focused tests MUST cover syntax/help, populated and symlink output refusal,
+PT-V0-005	docs/specs/proof-tour-v0.md	85	Only after the exact supplied accepted ACK may resume rerun strict readiness
+PT-V0-006	docs/specs/proof-tour-v0.md	91	Every owned command MUST run in its own ordinary process group with a bounded
+PT-V0-007	docs/specs/proof-tour-v0.md	96	Focused tests MUST cover syntax/help, populated and symlink output refusal,
 PUB-V0-001	docs/specs/public-release-v0.md	135	The current version tuple MUST move together to `1.0.0-rc.1`, including native
 PUB-V0-002	docs/specs/public-release-v0.md	138	The existing native CLI archive gate MUST remain independent. An optional
 PUB-V0-003	docs/specs/public-release-v0.md	145	Companion build output MUST be outside the source checkouts, include exact
@@ -2014,6 +2057,8 @@ PWV-V0-007	docs/specs/pi-workflow-v0.md	45	The user cockpit MUST display evidenc
 PWV-V0-008	docs/specs/pi-workflow-v0.md	46	Local completion continuation MUST remain unavailable unless an explicit LCP/AHI
 PWV-V0-009	docs/specs/pi-workflow-v0.md	47	Compatibility MUST name the exact tested host, adapter and native binaries. Pack
 PWV-V0-010	docs/specs/pi-workflow-v0.md	48	Promotion MUST retain focused executable checks, fresh independent review and ex
+PWV-V0-011	docs/specs/pi-workflow-v0.md	49	The registered Pi tools, commands and lifecycle events, and the Core read, Tasks
+PWV-V0-012	docs/specs/pi-workflow-v0.md	50	The read facade MUST carry an actual named task through the native chain: govern
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	29	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	30	The producer MUST retain the exact NUL-terminated invocation, raw output files a
 QAT-V0-003	docs/specs/dogfood-query-abstention-v0.md	31	The report MUST keep the query row `NOT_PRODUCED` with reason `authority-start-t
@@ -2296,56 +2341,60 @@ TCP-V0-001	docs/specs/task-context-packet-v0.md	49	`context` MUST be read-only. 
 TCP-V0-002	docs/specs/task-context-packet-v0.md	52	The invocation is `corvint [--root PATH] context --task TEXT [--subject PATH]
 TCP-V0-003	docs/specs/task-context-packet-v0.md	58	Results are files. Each result row carries `kind`, `id` (the path), `score`,
 TCP-V0-004	docs/specs/task-context-packet-v0.md	76	The slots run in this order and each is capped at three rows before the lexical
-TCP-V0-005	docs/specs/task-context-packet-v0.md	137	The subject is never a result. It is carried under `subject` with its path and a
-TCP-V0-006	docs/specs/task-context-packet-v0.md	144	`state` is `READY` when at least one result exists and `NO_CANDIDATES` otherwise
-TCP-V0-007	docs/specs/task-context-packet-v0.md	155	Output is canonical JSON (`gokernel.CanonicalJSON`), byte-identical over an
-TCP-V0-008	docs/specs/task-context-packet-v0.md	158	(A) The governing generator establishes applicability independently of vocabular
-TCP-V0-009	docs/specs/task-context-packet-v0.md	179	(A) The implementation MUST build a definition-owner resolver; no existing helpe
-TCP-V0-010	docs/specs/task-context-packet-v0.md	194	(A) The implementation MUST build a definition-eligibility predicate applied ins
-TCP-V0-011	docs/specs/task-context-packet-v0.md	199	(A) `coverage` gains four members with fixed shapes. `critical` (what TCP-V0-008
-TCP-V0-012	docs/specs/task-context-packet-v0.md	217	(A) Before TCP-V0-008..011 leaves experimental these tests MUST exist and pass,
-TCP-V0-013	docs/specs/task-context-packet-v0.md	228	Documentation-suffix hits (`.md`, `.mdx`, `.rst`, `.txt`) produced by the lexica
-TCP-V0-014	docs/specs/task-context-packet-v0.md	235	(accepted 2026-09-05 by decision 0066; experimental) The lexical slot scores eve
-TCP-V0-015	docs/specs/task-context-packet-v0.md	263	(proposed 2026-09-05 by decision 0067; experimental) In the retrieval shape (no
-TCP-V0-016	docs/specs/task-context-packet-v0.md	337	(accepted 2026-09-12 by decision 0068's amendment, amended by decision 0146;
-TCP-V0-017	docs/specs/task-context-packet-v0.md	301	(proposed 2026-09-05, not accepted; experimental) `context` offers three read-on
-TCP-V0-018	docs/specs/task-context-packet-v0.md	392	(retired 2026-09-05 by decision 0078) The experimental recipe R and every
-TCP-V0-019	docs/specs/task-context-packet-v0.md	404	(proposed 2026-09-05, not accepted; experimental) With
-TCP-V0-020	docs/specs/task-context-packet-v0.md	459	(proposed 2026-09-05, not accepted; experimental) Under
-TCP-V0-021	docs/specs/task-context-packet-v0.md	433	`tools/retrieval-bench --snapshot-latency` MUST materialize a private copy once
-TCP-V0-022	docs/specs/task-context-packet-v0.md	487	(proposed 2026-09-22, not accepted; experimental; decision 0333) With
-TCP-V0-023	docs/specs/task-context-packet-v0.md	514	(proposed 2026-09-22, not accepted; experimental; decision 0346) Every
-TCP-V0-024	docs/specs/task-context-packet-v0.md	540	(proposed 2026-09-23, not accepted; experimental; decision 0364) This amends the
-TCP-V0-025	docs/specs/task-context-packet-v0.md	701	(proposed 2026-09-23, not accepted; experimental; decision 0366) With
-TCP-V0-026	docs/specs/task-context-packet-v0.md	718	(proposed 2026-09-23, not accepted; experimental; decision 0366) After the core
-TCP-V0-027	docs/specs/task-context-packet-v0.md	728	(proposed 2026-09-23, not accepted; experimental; decision 0366) The declared
-TCP-V0-028	docs/specs/task-context-packet-v0.md	736	(proposed 2026-09-23, not accepted; experimental; decision 0366) With the flag
-TCP-V0-029	docs/specs/task-context-packet-v0.md	752	(proposed 2026-09-23, not accepted; experimental; decision 0366) The evaluation
-TCP-V0-030	docs/specs/task-context-packet-v0.md	647	(proposed 2026-09-23, not accepted; experimental; decision 0367) The full
-TCP-V0-031	docs/specs/task-context-packet-v0.md	661	(proposed 2026-09-23, not accepted; experimental; decision 0367) With
-TCP-V0-032	docs/specs/task-context-packet-v0.md	675	(proposed 2026-09-23, not accepted; experimental; decision 0367) A `graph`
-TCP-V0-033	docs/specs/task-context-packet-v0.md	684	(proposed 2026-09-23, not accepted; experimental; decision 0367) The graph is
-TCP-V0-034	docs/specs/task-context-packet-v0.md	689	(proposed 2026-09-23, not accepted; experimental; decision 0367) The slot is an
-TCP-V0-035	docs/specs/task-context-packet-v0.md	590	(proposed 2026-09-23, not accepted; experimental; decision 0369) With
-TCP-V0-036	docs/specs/task-context-packet-v0.md	608	(proposed 2026-09-23, not accepted; experimental; decision 0369) The blame
-TCP-V0-037	docs/specs/task-context-packet-v0.md	621	(proposed 2026-09-23, not accepted; experimental; decision 0369) The first track
-TCP-V0-038	docs/specs/task-context-packet-v0.md	634	(proposed 2026-09-23, not accepted; experimental; decision 0369) With the flag o
-TCP-V0-039	docs/specs/task-context-packet-v0.md	550	(proposed 2026-09-23, not accepted; experimental; decision 0370) A file's role
-TCP-V0-040	docs/specs/task-context-packet-v0.md	568	(proposed 2026-09-23, not accepted; experimental; decision 0370) With
-TCP-V0-041	docs/specs/task-context-packet-v0.md	578	(proposed 2026-09-23, not accepted; experimental; decision 0370) A row the role
-TCP-V0-042	docs/specs/task-context-packet-v0.md	583	(proposed 2026-09-23, not accepted; experimental; decision 0370) The field stays
-TCP-V0-043	docs/specs/task-context-packet-v0.md	769	(proposed 2026-09-23, not accepted; experimental; decision 0371) With
-TCP-V0-044	docs/specs/task-context-packet-v0.md	775	The `external` member is separate evidence, never a ranking input: `results`,
-TCP-V0-045	docs/specs/task-context-packet-v0.md	781	When gopls is absent, the task names no usable Go seed, the session fails or
-TCP-V0-046	docs/specs/task-context-packet-v0.md	785	The flag is measured before any promotion. A frozen `tools/retrieval-bench` run
-TCP-V0-047	docs/specs/task-context-packet-v0.md	793	When governing rows exist (TCP-V0-008), each governing file's text is split into
-TCP-V0-048	docs/specs/task-context-packet-v0.md	827	(proposed 2026-09-24, not accepted; not implemented; decision 0377) With
-TCP-V0-049	docs/specs/task-context-packet-v0.md	839	(proposed 2026-09-24, not accepted; not implemented; decision 0377) With the
-TCP-V0-050	docs/specs/task-context-packet-v0.md	850	(proposed 2026-09-24, not accepted; not implemented; decision 0377) Two readings
-TCP-V0-051	docs/specs/task-context-packet-v0.md	870	`context --task` accepts at most one `--lsp gopls|off` (including `--lsp=VALUE`)
-TCP-V0-052	docs/specs/task-context-packet-v0.md	876	CLI and the explicit MCP descendant use one shared attachment. Before and after
-TCP-V0-053	docs/specs/task-context-packet-v0.md	882	Required live qualification fails when gopls is missing. Compiled CLI and MCP
-TCP-V0-054	docs/specs/task-context-packet-v0.md	888	(experimental, V1-0482) When Go LSP enrichment has an explicit task subject,
+TCP-V0-005	docs/specs/task-context-packet-v0.md	147	The subject is never a result. It is carried under `subject` with its path and a
+TCP-V0-006	docs/specs/task-context-packet-v0.md	154	`state` is `READY` when at least one result exists and `NO_CANDIDATES` otherwise
+TCP-V0-007	docs/specs/task-context-packet-v0.md	165	Output is canonical JSON (`gokernel.CanonicalJSON`), byte-identical over an
+TCP-V0-008	docs/specs/task-context-packet-v0.md	168	(A) The governing generator establishes applicability independently of vocabular
+TCP-V0-009	docs/specs/task-context-packet-v0.md	189	(A) The implementation MUST build a definition-owner resolver; no existing helpe
+TCP-V0-010	docs/specs/task-context-packet-v0.md	204	(A) The implementation MUST build a definition-eligibility predicate applied ins
+TCP-V0-011	docs/specs/task-context-packet-v0.md	209	(A) `coverage` gains four members with fixed shapes. `critical` (what TCP-V0-008
+TCP-V0-012	docs/specs/task-context-packet-v0.md	227	(A) Before TCP-V0-008..011 leaves experimental these tests MUST exist and pass,
+TCP-V0-013	docs/specs/task-context-packet-v0.md	238	Documentation-suffix hits (`.md`, `.mdx`, `.rst`, `.txt`) produced by the lexica
+TCP-V0-014	docs/specs/task-context-packet-v0.md	245	(accepted 2026-09-05 by decision 0066; experimental) The lexical slot scores eve
+TCP-V0-015	docs/specs/task-context-packet-v0.md	273	(proposed 2026-09-05 by decision 0067; experimental) In the retrieval shape (no
+TCP-V0-016	docs/specs/task-context-packet-v0.md	347	(accepted 2026-09-12 by decision 0068's amendment, amended by decision 0146;
+TCP-V0-017	docs/specs/task-context-packet-v0.md	311	(proposed 2026-09-05, not accepted; experimental) `context` offers three read-on
+TCP-V0-018	docs/specs/task-context-packet-v0.md	402	(retired 2026-09-05 by decision 0078) The experimental recipe R and every
+TCP-V0-019	docs/specs/task-context-packet-v0.md	414	(proposed 2026-09-05, not accepted; experimental) With
+TCP-V0-020	docs/specs/task-context-packet-v0.md	469	(proposed 2026-09-05, not accepted; experimental) Under
+TCP-V0-021	docs/specs/task-context-packet-v0.md	443	`tools/retrieval-bench --snapshot-latency` MUST materialize a private copy once
+TCP-V0-022	docs/specs/task-context-packet-v0.md	497	(proposed 2026-09-22, not accepted; experimental; decision 0333; default
+TCP-V0-023	docs/specs/task-context-packet-v0.md	530	(proposed 2026-09-22, not accepted; experimental; decision 0346) Every
+TCP-V0-024	docs/specs/task-context-packet-v0.md	556	(proposed 2026-09-23, not accepted; experimental; decision 0364) This amends the
+TCP-V0-025	docs/specs/task-context-packet-v0.md	717	(proposed 2026-09-23, not accepted; experimental; decision 0366) With
+TCP-V0-026	docs/specs/task-context-packet-v0.md	734	(proposed 2026-09-23, not accepted; experimental; decision 0366) After the core
+TCP-V0-027	docs/specs/task-context-packet-v0.md	744	(proposed 2026-09-23, not accepted; experimental; decision 0366) The declared
+TCP-V0-028	docs/specs/task-context-packet-v0.md	752	(proposed 2026-09-23, not accepted; experimental; decision 0366) With the flag
+TCP-V0-029	docs/specs/task-context-packet-v0.md	768	(proposed 2026-09-23, not accepted; experimental; decision 0366) The evaluation
+TCP-V0-030	docs/specs/task-context-packet-v0.md	663	(proposed 2026-09-23, not accepted; experimental; decision 0367) The full
+TCP-V0-031	docs/specs/task-context-packet-v0.md	677	(proposed 2026-09-23, not accepted; experimental; decision 0367) With
+TCP-V0-032	docs/specs/task-context-packet-v0.md	691	(proposed 2026-09-23, not accepted; experimental; decision 0367) A `graph`
+TCP-V0-033	docs/specs/task-context-packet-v0.md	700	(proposed 2026-09-23, not accepted; experimental; decision 0367) The graph is
+TCP-V0-034	docs/specs/task-context-packet-v0.md	705	(proposed 2026-09-23, not accepted; experimental; decision 0367) The slot is an
+TCP-V0-035	docs/specs/task-context-packet-v0.md	606	(proposed 2026-09-23, not accepted; experimental; decision 0369) With
+TCP-V0-036	docs/specs/task-context-packet-v0.md	624	(proposed 2026-09-23, not accepted; experimental; decision 0369) The blame
+TCP-V0-037	docs/specs/task-context-packet-v0.md	637	(proposed 2026-09-23, not accepted; experimental; decision 0369) The first track
+TCP-V0-038	docs/specs/task-context-packet-v0.md	650	(proposed 2026-09-23, not accepted; experimental; decision 0369) With the flag o
+TCP-V0-039	docs/specs/task-context-packet-v0.md	566	(proposed 2026-09-23, not accepted; experimental; decision 0370) A file's role
+TCP-V0-040	docs/specs/task-context-packet-v0.md	584	(proposed 2026-09-23, not accepted; experimental; decision 0370) With
+TCP-V0-041	docs/specs/task-context-packet-v0.md	594	(proposed 2026-09-23, not accepted; experimental; decision 0370) A row the role
+TCP-V0-042	docs/specs/task-context-packet-v0.md	599	(proposed 2026-09-23, not accepted; experimental; decision 0370) The field stays
+TCP-V0-043	docs/specs/task-context-packet-v0.md	785	(proposed 2026-09-23, not accepted; experimental; decision 0371) With
+TCP-V0-044	docs/specs/task-context-packet-v0.md	791	The `external` member is separate evidence, never a ranking input: `results`,
+TCP-V0-045	docs/specs/task-context-packet-v0.md	797	When gopls is absent, the task names no usable Go seed, the session fails or
+TCP-V0-046	docs/specs/task-context-packet-v0.md	801	The flag is measured before any promotion. A frozen `tools/retrieval-bench` run
+TCP-V0-047	docs/specs/task-context-packet-v0.md	809	When governing rows exist (TCP-V0-008), each governing file's text is split into
+TCP-V0-048	docs/specs/task-context-packet-v0.md	843	(proposed 2026-09-24, not accepted; not implemented; decision 0377) With
+TCP-V0-049	docs/specs/task-context-packet-v0.md	855	(proposed 2026-09-24, not accepted; not implemented; decision 0377) With the
+TCP-V0-050	docs/specs/task-context-packet-v0.md	866	(proposed 2026-09-24, not accepted; not implemented; decision 0377) Two readings
+TCP-V0-051	docs/specs/task-context-packet-v0.md	886	`context --task` accepts at most one `--lsp gopls|off` (including `--lsp=VALUE`)
+TCP-V0-052	docs/specs/task-context-packet-v0.md	892	CLI and the explicit MCP descendant use one shared attachment. Before and after
+TCP-V0-053	docs/specs/task-context-packet-v0.md	898	Required live qualification fails when gopls is missing. Compiled CLI and MCP
+TCP-V0-054	docs/specs/task-context-packet-v0.md	904	(experimental, V1-0482) When Go LSP enrichment has an explicit task subject,
+TCP-V0-055	docs/specs/task-context-packet-v0.md	926	(experimental, V1-0414) Before reservation, every reserved row (TCP-V0-008
+TCP-V0-056	docs/specs/task-context-packet-v0.md	939	(experimental, V1-0414) A row with any TCP-V0-055 or TCP-V0-057 warning is
+TCP-V0-057	docs/specs/task-context-packet-v0.md	950	(experimental, V1-0414) The packet's diff under review is the working tree
+TCP-V0-058	docs/specs/task-context-packet-v0.md	956	(experimental, V1-0414) The screen adds no input other than the pinned blob and
 TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	92	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its
 TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	100	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as
 TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	103	TCQ MUST emit exactly one claim result for each selected claim edge and no resul

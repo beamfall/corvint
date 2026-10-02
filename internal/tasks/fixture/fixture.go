@@ -32,6 +32,11 @@ const (
 	Timestamp = "2026-09-06T12:00:00Z"
 )
 
+// A test binary reads a planted pending redo at once: fixture stores are
+// never mid-write, so waiting out a writer (CTS-V0-006) would only cost the
+// full patience per read. Tests of the wait itself set Reader.Patience.
+func init() { snapshot.DefaultPatience = snapshot.NoPatience }
+
 // TicketID renders the fixture queue's ticket ID for a local token.
 func TicketID(local string) string { return "ticket:acme:main:" + local }
 
@@ -327,6 +332,31 @@ func PlantReceipt(t *testing.T, r *Repo, seq uint64) {
 	rc := wire.EncodeFile(ReceiptValue(seq, h.LastReceiptSha256, "MUTATION", h.Generation.Uint64()))
 	name, _ := snapshot.ReceiptName(seq)
 	Write(t, filepath.Join(r.StateDir, "receipts", name), rc)
+}
+
+// ApplyReceipt is the writer's last §5.2 effect for a receipt PlantReceipt
+// left pending: it renames the head to name receipt seq, which must be
+// lastSeq+1. Together the two simulate a writer caught inside, then leaving,
+// the REDO_PENDING window (CTS-V0-006).
+func ApplyReceipt(t *testing.T, r *Repo, seq uint64) {
+	t.Helper()
+	hraw, err := os.ReadFile(filepath.Join(r.StateDir, "head.json"))
+	if err != nil {
+		t.Fatalf("read head: %v", err)
+	}
+	h, err := snapshot.DecodeHead(hraw)
+	if err != nil {
+		t.Fatalf("decode head: %v", err)
+	}
+	if seq != h.LastSeq.Uint64()+1 {
+		t.Fatalf("ApplyReceipt %d: head.lastSeq is %s", seq, h.LastSeq)
+	}
+	name, _ := snapshot.ReceiptName(seq)
+	rc, err := os.ReadFile(filepath.Join(r.StateDir, "receipts", name))
+	if err != nil {
+		t.Fatalf("read planted receipt: %v", err)
+	}
+	Write(t, filepath.Join(r.StateDir, "head.json"), wire.EncodeFile(HeadValue(h.PrimaryWorktree, seq, wire.Sum(rc), h.Generation.Uint64(), h.InitSha256)))
 }
 
 // Entry is one row of a tree snapshot.

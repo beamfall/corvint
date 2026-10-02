@@ -64,6 +64,9 @@ with the embedded provider bytes' SHA-256. Entity declarations are not source an
   missing objects, unavailable repositories, invalid spans and unsupported sources
   MUST remain unavailable or refused. HEAD differing from the pinned commit MUST be
   disclosed as historical; the report describes the explicit pinned bytes.
+  Go anchors MUST use physical blob lines irrespective of `//line` directives. Every
+  declaration, reference and provider anchor MUST be ordered and lie within both the blob
+  and its supplied source span before any bytes are sliced; otherwise it stays unresolved.
 - `BKM-V0-004`: Go references MUST match the selected function's pinned module
   import path and parsed package name, including explicit aliases. The selected API's
   bounded ancestor go.mod metadata MUST be checked; an undeclared nested module
@@ -136,6 +139,12 @@ unchanged/renamed/deleted API states, foreign bases and hidden nested modules.
 `TestBreakageBuildConstraintLookalikes` retains callers for directive literals and
 interior platform filename components. `TestBreakageBuildConditional` distinguishes
 actual directive comments and platform suffixes from ordinary comment text and names.
+`TestBreakageLineDirectivesPinPhysicalLines` pins declaration and caller anchors to
+physical lines around inner and preceding `//line` directives, and
+`TestBreakageLineDirectivesOutsideNarrowedSpan` keeps directive-shifted spans that leave a
+narrowed supplied span unresolved. `TestBreakageAnchorRejectsInvalidPhysicalSpans`,
+`TestBreakageSuppliedSourceSpanBounds`, `TestBreakageInvalidProviderAnchorCannotAdvance`
+and `TestBreakageOversizeProviderAnchorCannotAdvance` refuse reversed, zero and oversize spans.
 
 Retain an actual source-bound Corvint map and an explicitly declared Beamfall shell
 association with commit/tree/blob/span pins, the source manifest, output and candidate

@@ -51,3 +51,106 @@ bounded and retained in the native journal evidence; truncated output never qual
 
 Scoped local Codex qualification is recorded in [the build log](build-log/2026-09-29-tasks-codex-supervision.md), including output-limit and unobserved audit boundaries. See
 [the accepted contract](specs/corvint-tasks-agent-leases-v0.md#s10--foreground-codex-programs-issue-341).
+
+# Continuous dispatcher
+
+`corvint-tasks dispatch` keeps a configured roster of host workers (OpenCode, Codex, Claude Code or
+any argv-launched agent) busy on the native queue while it runs. It is started by the operator and
+stops with SIGINT/SIGTERM; workers it launched keep running and the next dispatcher adopts them.
+It holds no queue authority: workers claim, submit and gate through the ordinary CLI under their
+worker ID as holder, and the dispatcher writes only `release` (HANDOFF) and `reap`.
+
+A `taskman-dispatch/0` config names `stateDir`, `workRoot`, `tickSeconds`, `globalCap`,
+`killGraceSeconds`, `hosts` (absolute argv with placeholders such as `{prompt}`, `{ticket}` and
+`{holder}`, plus optional env, `idleIgnore` and `activityPaths`), an optional `workState` reader,
+`roles` (match by labels/kinds/idGlob/states/statuses/planSelected, or a quarantined pool `lane`;
+cap, priority, prompt, idle and wall seconds), `pinned`, `backoff` and `heal`.
+
+```sh
+corvint-tasks dispatch --program night --config dispatch.json
+corvint-tasks dispatch status --program night --config dispatch.json --events 20
+corvint-tasks dispatch unpark --program night --config dispatch.json --key ticket:acme:main:AT-0002
+```
+
+Each tick observes the queue, supervises workers (whole-tree kill on wall cap, idle timeout or an
+orphaned tree), hands off live attempts of ended workers, reaps expired leases, accounts progress,
+and launches the roster. A run that changes no durable ticket state cools the ticket down; after
+`parkAfter` such runs it is parked until its state changes or the operator unparks it. Exhausted
+retries are reported as `needs-owner`; readmission stays the owner's `ticket reopen`. Every
+decision is a plain-language line on stderr and in `events.jsonl`. The `finished` summary is the
+worker's final text when the host emits a recognized event stream (OpenCode `run --format json`,
+Codex `exec --json`, Claude Code `-p --output-format stream-json --verbose`, or `json` without
+`--verbose`, Gemini CLI `-p -o stream-json` or `json`), otherwise the output tail. A Claude Code host can look like this, with `corvint-tasks` on the worker `PATH`
+and user-level settings and hooks excluded:
+
+```json
+"claude": {
+  "argv": ["/opt/homebrew/bin/claude", "-p", "{prompt}", "--output-format", "stream-json",
+           "--verbose", "--setting-sources", "project", "--strict-mcp-config",
+           "--no-session-persistence", "--permission-mode", "dontAsk", "--max-turns", "40",
+           "--allowedTools", "Bash(corvint-tasks claim *)", "Bash(corvint-tasks submit *)",
+           "Bash(corvint-tasks gate run *)", "Bash(go test *)", "Read", "Edit", "Write",
+           "--disallowedTools", "Bash(git push:*)", "WebFetch", "WebSearch"],
+  "env": {"PATH": "/usr/local/bin:/usr/bin:/bin"}
+}
+```
+
+With `--permission-mode dontAsk` a tool outside the allow-list is refused rather than prompted, so
+a headless worker never blocks on approval; list every command the role prompt asks for.
+
+A Codex host runs `codex exec`, which never prompts for approval:
+
+```json
+"codex": {
+  "argv": ["/opt/homebrew/bin/codex", "exec", "--json", "--ephemeral", "--ignore-user-config",
+           "--sandbox", "workspace-write", "--cd", "{workRoot}",
+           "-c", "sandbox_workspace_write.writable_roots=[\"{workRoot}/.git\"]", "{prompt}"],
+  "env": {"PATH": "/usr/local/bin:/usr/bin:/bin"}
+}
+```
+
+The `workspace-write` sandbox keeps `.git` read-only. A worker's `claim` writes the store journal
+and its filesystem probe in the git common directory, so it fails `UNSUPPORTED_FILESYSTEM` until
+that directory is a writable root. When `workRoot` is a linked worktree, name the common directory
+(`git rev-parse --path-format=absolute --git-common-dir`) instead. The writable root also lets the
+worker write refs, objects, hooks, `config` and the store journal itself, so a sandboxed worker can
+still plant commands that later run in the dispatcher's or operator's unsandboxed Git, and can edit
+queue state without the CLI.
+
+A Gemini CLI host runs headless with `-p`, where a tool call no policy rule allows is denied or
+fails, so a `--policy` file is the allow-list. This example is derived from the Gemini CLI 0.54.0
+source and is not live-qualified (see the
+[build log](build-log/2026-10-01-tasks-dispatch-gemini.md)):
+
+```json
+"gemini": {
+  "argv": ["/opt/homebrew/bin/gemini", "-p", "{prompt}", "-o", "stream-json",
+           "--approval-mode", "default", "--policy", "/abs/gemini-worker.toml",
+           "--skip-trust", "-e", "none"],
+  "env": {"PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"}
+}
+```
+
+```toml
+[[rule]]
+toolName = "run_shell_command"
+commandPrefix = ["corvint-tasks claim", "corvint-tasks submit", "corvint-tasks gate run", "go test"]
+decision = "allow"
+priority = 999
+
+[[rule]]
+toolName = ["read_file", "write_file", "replace"]
+decision = "allow"
+priority = 999
+```
+
+The `gemini` launcher runs `node` from `PATH`. Rules from Gemini settings (`tools.allowed`,
+`tools.exclude`, `tools.core`) rank just above priority-100 `--policy` rules, so the allow rules use
+999. A redirected shell command (`go test ./... 2>&1`) still needs confirmation and fails headless.
+`-e none` loads no extensions. `--skip-trust` trusts `workRoot`, so its `.gemini/settings.json` and
+`.env` load alongside `~/.gemini`. Because the policy allows file writes, a worker can widen its
+next run's tools through those files. Gemini needs its own non-interactive authentication (for
+example `GEMINI_API_KEY`). A host's own permission allow/deny-list or sandbox (Claude Code `--allowedTools`,
+Codex `--sandbox`, Gemini `--policy`, OpenCode `OPENCODE_CONFIG_CONTENT`) is the host's
+responsibility, not a containment guarantee. See
+[the accepted contract](specs/corvint-tasks-agent-leases-v0.md#s11--continuous-dispatcher-issue-431).

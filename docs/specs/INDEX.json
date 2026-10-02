@@ -384,7 +384,7 @@
     "reqPrefix": "CRT-V0",
     "intent": "proposed",
     "delivery": "experimental",
-    "claim": "`tools/cem-trial` runs one agent over frozen Beamfall changes under `control` and `treatment` arms and scores withheld test-or-spec evidence per arm.",
+    "claim": "`tools/cem-trial` runs one agent over frozen Beamfall changes under control, treatment and seeded arms and scores base-reachable withheld test-or-spec evidence.",
     "dependsOn": [
       "docs/specs/confidently-wrong-trial-v0.md"
     ],
@@ -622,7 +622,7 @@
     "title": "Corvint Tasks agent leases V0",
     "reqPrefix": "CAL-V0",
     "intent": "accepted (owner decision 2026-09-27)",
-    "delivery": "partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review)",
+    "delivery": "partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement)",
     "claim": "Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.",
     "dependsOn": [
       "docs/specs/corvint-tasks-store-init-v0.md"
@@ -632,6 +632,7 @@
     "implementation": [
       "internal/tasks/authority",
       "internal/tasks/cli",
+      "internal/tasks/dispatch",
       "internal/tasks/snapshot",
       "internal/tasks/store",
       "internal/tasks/supervisor",
@@ -1182,6 +1183,24 @@
     ]
   },
   {
+    "path": "docs/specs/flow-document-maintenance-v0.md",
+    "title": "Flow Document Maintenance V0",
+    "reqPrefix": "FDM-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Explicit flow-document maintenance conditionally publishes a generated page and claims pair with digest-bound previews and committed provenance receipts.",
+    "dependsOn": [
+      "docs/specs/application-flow-understanding-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/appflows/docs_maintain.go",
+      "internal/doccorpus/apply_pair.go",
+      "cmd/corvint/flows_docs.go"
+    ]
+  },
+  {
     "path": "docs/specs/gate-ledger-v0.md",
     "title": "Gate ledger V0",
     "reqPrefix": "GL-V0",
@@ -1691,6 +1710,7 @@
     "closableToday": false,
     "implementation": [
       "benchmarks/lsp-quality",
+      "benchmarks/lsp_quality_freeze_test.go",
       "script/measure-lsp-quality.py"
     ]
   },
@@ -2026,6 +2046,24 @@
     ]
   },
   {
+    "path": "docs/specs/postmerge-ci-host-v0.md",
+    "title": "Post-merge CI Host V0",
+    "reqPrefix": "PCH-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Reference GitHub Actions templates and a host adapter contract run the post-merge workflow with per-step credentials and no write credential in authoring.",
+    "dependsOn": [
+      "docs/specs/authoring-step-scope-v0.md",
+      "docs/specs/postmerge-connectors-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/postmergehost",
+      "protocol/postmerge-host"
+    ]
+  },
+  {
     "path": "docs/specs/postmerge-connectors-v0.md",
     "title": "Post-merge Connectors V0",
     "reqPrefix": "PMC-V0",
@@ -2040,6 +2078,23 @@
     "implementation": [
       "internal/postmergeconnector",
       "cmd/corvint-postmerge-connect"
+    ]
+  },
+  {
+    "path": "docs/specs/postmerge-replay-v0.md",
+    "title": "Post-merge Replay V0",
+    "reqPrefix": "PMR-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "An optional companion runs a pinned local adapter twice and compares typed historical expectations through the actual recording connector.",
+    "dependsOn": [
+      "docs/specs/postmerge-connectors-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/postmergeworkflow",
+      "cmd/corvint-postmerge-workflow"
     ]
   },
   {
@@ -2976,6 +3031,12 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [
+      "internal/cem",
+      "internal/cemcandidate",
+      "internal/groupreap",
+      "interop/cem01-go",
+      "protocol/cem-1.0"
+    ]
   }
 ]

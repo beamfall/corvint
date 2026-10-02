@@ -46,6 +46,8 @@ that exception grants neither a native claim nor native completion and changes n
 - `PWV-V0-008`: Local completion continuation MUST remain unavailable unless an explicit LCP/AHI amendment owns the exact Pi tuple and typed envelope. Legacy stop and agent_settled MUST NOT establish completion. Any admitted bridge MUST have bounded cleanup, initial settlement deadline, one-only idle remediation and visible unresolved release on abort, error, retry, queued messages or recursive settlement.
 - `PWV-V0-009`: Compatibility MUST name the exact tested host, adapter and native binaries. Package peer ranges MUST NOT imply runtime qualification. Native install, update, disable, rollback and uninstall MUST preserve previous artifacts and unrelated state.
 - `PWV-V0-010`: Promotion MUST retain focused executable checks, fresh independent review and exact native host qualification. Provider tokens, cache and billed cost MUST remain NOT_OBSERVED without measurements; superiority needs a separately frozen accepted comparative protocol.
+- `PWV-V0-011`: The registered Pi tools, commands and lifecycle events, and the Core read, Tasks read and Tasks write operations, MUST equal the closed `corvint-pi-capabilities/0` inventory below, and its unavailable set MUST equal the package `unavailableCapabilities`. A Tasks write is negotiated per call: it MUST refuse with `capability-unavailable`, before any mutation argv, unless the installed native `help` result lists the exact verb as implemented; an operation outside the inventory MUST refuse with `unsupported-mutation` without any native call. Deferred routes stay absent until their owning ticket amends this inventory. A new route, state or unavailable entry MUST amend this inventory in the same change.
+- `PWV-V0-012`: The read facade MUST carry an actual named task through the native chain: governing clause, immutable source, changed-path impact and selected tests, each retaining the native receipt verbatim, its pinned blob identities, unknowns and plan-only limits. Those reads and native Tasks inspection in a repository without a task store MUST leave every byte of the worktree and Git directory unchanged and MUST NOT initialize a task store or index.
 
 ## Trust boundary, limits and failure modes
 
@@ -62,6 +64,37 @@ remain visible as raw stderr/stdout. Invalid JSON, spawn failure, interruption a
 faults and never successful receipts. Frontier exit 1 is a valid open queue, not completion failure.
 Native read-only semantics retain only Core's already contracted bounded private observation-ledger
 exceptions. File reads and proof profiles do not acquire any new authority from the Pi wrapper.
+
+## Capability contract
+
+This inventory is the closed route contract that the Tasks workflow (V1-0507), workflow recovery
+(V1-0509) and qualification release (V1-0511) build on. States: `NATIVE_READ` is a closed native
+read; `LIFECYCLE` is an `adapter pi` event under AHI-024 with continuation false; `EXPLICIT_RECORD`
+is explicit outcome persistence under AHI-025; `LOCAL_POLICY` is the caller-owned workflow under
+LCP-V0-008; `OPERATOR_NATIVE_WRITE` is an explicit operator command whose Tasks verb is negotiated
+per call against the installed native `help` result. The exact tuple is the package's, and
+`FALLBACK` support never implies authority. The 0.3.2 package ships no copy of this inventory, so
+the exact qualified tuple is unchanged; a later adapter version may ship it as a declaration, never
+as runtime admission.
+
+```json
+{
+  "profile": "corvint-pi-capabilities/0",
+  "tuple": {"adapterVersion": "0.3.2", "host": "pi", "hostVersion": "0.99.1", "support": "FALLBACK", "surface": "extension"},
+  "tools": {"corvint_context": "NATIVE_READ", "corvint_core_read": "NATIVE_READ", "corvint_expand": "NATIVE_READ", "corvint_record_outcome": "EXPLICIT_RECORD", "corvint_tasks": "NATIVE_READ"},
+  "commands": {"corvint": "NATIVE_READ", "corvint-context": "LIFECYCLE", "corvint-outcome": "LIFECYCLE", "corvint-record": "EXPLICIT_RECORD", "corvint-tasks": "OPERATOR_NATIVE_WRITE", "corvint-workflow": "LOCAL_POLICY"},
+  "events": ["agent_before_settle", "agent_end", "agent_settled", "before_agent_start", "context", "input", "session_compact", "session_shutdown", "session_start", "session_tree", "tool_result"],
+  "coreReadOperations": ["affected", "cem-status", "context", "dogfood-status", "frontier", "impact", "ocm-status", "prove", "query", "review"],
+  "tasksReadOperations": ["attempt", "audit", "blockers", "gate", "gates", "help", "plan", "queue", "readiness", "release", "releases", "roadmap", "ticket"],
+  "tasksWriteOperations": ["claim", "complete", "gate run", "release", "renew", "submit", "ticket prioritize"],
+  "tasksWriteAdmission": "native-help-implemented-per-call",
+  "unavailable": ["Windows descendant cleanup", "authoritative completion continuation", "formal FULL qualification", "protected authority"],
+  "deferred": {"approved ticket create and refine": "V1-0507", "comparative qualification and support-matrix release": "V1-0511", "non-fixture native write qualification": "V1-0507", "workflow recovery qualification": "V1-0509"}
+}
+```
+
+`complete-manual`, `init`, indexing, provider execution and test execution are not routes. The
+contract records what the adapter can attempt; each native receipt still decides what happened.
 
 ## Non-goals and simpler baseline
 
@@ -83,6 +116,8 @@ requires the existing governing interface; missing dependencies remain open.
 | PWV-V0-008 | Explicit future LCP/AHI amendment and native bridge | Continuation is unqualified until closed-envelope, permission, cancellation and exact-host negative tests pass |
 | PWV-V0-009 | Pi package/compatibility and native qualification owner | Exact candidate install/load/unload/rollback observations required |
 | PWV-V0-010 | Integration owner | Independent review, scoped frozen evidence, host tuple and honest measurement exclusions required |
+| PWV-V0-011 | Capability contract above plus every registering module | `capabilities.test.mjs`: registered tools/commands/events, operation sets and unavailable set equal the inventory; per-call native write negotiation and out-of-inventory refusal |
+| PWV-V0-012 | `integrations/pi/core.js`, `tasks.js` reads | `core-host.test.mjs` with actual native Core and Tasks binaries: named task chain and byte-identical worktree/Git directory. Manual qualification only: excluded from `make host-adapter-test`, CI and every gate; run by hand with `node --test integrations/pi/core-host.test.mjs` and `corvint`/`corvint-tasks` on `PATH`, or `CORVINT_BIN`/`CORVINT_TASKS_BIN` set to their paths |
 
 A test path names required evidence, not an assertion that it passed. Final outcome belongs in the
 combined build-log and bound CEM/OCM. Missing or failed acceptance rows keep delivery experimental.
