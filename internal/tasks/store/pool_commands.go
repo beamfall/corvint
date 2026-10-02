@@ -205,6 +205,9 @@ func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutatio
 		if e != nil {
 			return report, e
 		}
+		if e := transaction.CheckPoolExclusions(choice.Lease.Pool, choice.Lease.ExcludeMembers, p); e != nil {
+			return report, e
+		}
 		pool := p.Pool(choice.Lease.Pool)
 		if pool == nil {
 			return report, nil
@@ -214,7 +217,7 @@ func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutatio
 			busy[en.MemberID] = true
 		}
 		member := ""
-		for _, m := range transaction.OrderedPoolMembers(pool, choice.Lease.Stage) {
+		for _, m := range transaction.OrderedPoolMembers(pool, choice.Lease.Stage, choice.Lease.ExcludeMembers) {
 			if !busy[m] {
 				member = m
 				break

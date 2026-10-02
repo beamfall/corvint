@@ -6,6 +6,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
+	"slices"
 )
 
 func loadPools(r Request, in Input, st inputState) (*snapshot.PoolState, error) {
@@ -66,6 +67,13 @@ func (c leaseContext) allocate(a *snapshot.Attempt) (*snapshot.PoolAllocation, e
 	if c.l.Pool == "" {
 		return nil, nil
 	}
+	if e := CheckPoolExclusions(c.l.Pool, c.l.ExcludeMembers, c.st.policy); e != nil {
+		return nil, e
+	}
+	pool := c.st.policy.Pool(c.l.Pool)
+	if pool == nil {
+		return nil, malformed("unknown pool")
+	}
 	if id := c.in.LeaseFacts.Pool.AllocationID; id != "" {
 		for _, en := range c.st.pools.Entries {
 			if en.AllocationID != id {
@@ -73,6 +81,9 @@ func (c leaseContext) allocate(a *snapshot.Attempt) (*snapshot.PoolAllocation, e
 			}
 			if en.State != "PREPARING" || en.PoolID != c.l.Pool || en.Holder != c.l.Holder || en.Stage != c.l.Stage || en.RequestSha256 != PoolClaimBinding(c.r.Lease, c.st.queue.QueueID) {
 				return nil, malformed("prepared allocation claim differs")
+			}
+			if !slices.Contains(OrderedPoolMembers(pool, c.l.Stage, c.l.ExcludeMembers), en.MemberID) {
+				return nil, wire.Errorf(wire.CodeResourceCollision, "pool", "prepared member is not eligible")
 			}
 			o, e := c.observation(&en)
 			if e != nil {
@@ -86,11 +97,7 @@ func (c leaseContext) allocate(a *snapshot.Attempt) (*snapshot.PoolAllocation, e
 		}
 		return nil, malformed("prepared allocation missing")
 	}
-	pool := c.st.policy.Pool(c.l.Pool)
-	if pool == nil {
-		return nil, malformed("unknown pool")
-	}
-	for _, member := range OrderedPoolMembers(pool, c.l.Stage) {
+	for _, member := range OrderedPoolMembers(pool, c.l.Stage, c.l.ExcludeMembers) {
 		occupied := false
 		for _, en := range c.st.pools.Entries {
 			occupied = occupied || en.MemberID == member
@@ -108,18 +115,22 @@ func (c leaseContext) allocate(a *snapshot.Attempt) (*snapshot.PoolAllocation, e
 }
 
 // OrderedPoolMembers returns members eligible for stage, preferring an exact
-// reservation while retaining unreserved members as fallback capacity.
-func OrderedPoolMembers(pool *intent.Pool, stage string) []string {
+// reservation while retaining unreserved members as fallback capacity. The optional
+// exclusion set is applied within each tier (CAL-V0-065).
+func OrderedPoolMembers(pool *intent.Pool, stage string, exclusions ...[]string) []string {
+	excluded := func(member string) bool {
+		return len(exclusions) != 0 && slices.Contains(exclusions[0], member)
+	}
 	members := make([]string, 0, len(pool.Members))
 	if stage != "" {
 		for _, member := range pool.Members {
-			if pool.ReservedFor[member] == stage {
+			if pool.ReservedFor[member] == stage && !excluded(member) {
 				members = append(members, member)
 			}
 		}
 	}
 	for _, member := range pool.Members {
-		if pool.ReservedFor[member] == "" {
+		if pool.ReservedFor[member] == "" && !excluded(member) {
 			members = append(members, member)
 		}
 	}
@@ -217,4 +228,48 @@ func PoolClaimBinding(l *LeaseRequest, q wire.QueueID) wire.Digest {
 		return ""
 	}
 	return wire.Sum(wire.EncodeFile(v))
+}
+
+// checkExcludedMembers validates only request facts, so replay does not depend
+// on today's policy (CAL-V0-065). A nil slice means historical omission.
+func checkExcludedMembers(pool string, excluded []string) error {
+	if excluded == nil {
+		return nil
+	}
+	if pool == "" {
+		return malformed("member exclusions require an explicit pool")
+	}
+	if len(excluded) == 0 || len(excluded) > intent.MaxPoolMembers {
+		return limit("excluded member count")
+	}
+	for i, member := range excluded {
+		if _, e := wire.ParseLabel("excludeMembers", member); e != nil {
+			return e
+		}
+		if i > 0 && excluded[i-1] >= member {
+			return malformed("excluded members must be sorted and duplicate-free")
+		}
+	}
+	return nil
+}
+
+// CheckPoolExclusions checks current requested-pool membership only for fresh
+// selection, health preparation and admission; callers must resolve replay first.
+func CheckPoolExclusions(poolID string, excluded []string, policy *intent.Policy) error {
+	if e := checkExcludedMembers(poolID, excluded); e != nil {
+		return e
+	}
+	if excluded == nil {
+		return nil
+	}
+	pool := policy.Pool(poolID)
+	if pool == nil {
+		return malformed("unknown exclusion pool")
+	}
+	for _, member := range excluded {
+		if !slices.Contains(pool.Members, member) {
+			return malformed("excluded member does not belong to requested pool")
+		}
+	}
+	return nil
 }

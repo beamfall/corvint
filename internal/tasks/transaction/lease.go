@@ -48,6 +48,7 @@ type LeaseRequest struct {
 	LeaseMinutes                              wire.Size
 	Branch, Base                              string
 	Scope                                     []string
+	ExcludeMembers                            []string
 	WholeRepository                           bool
 	AttemptID                                 string
 	Generation                                wire.Size
@@ -93,6 +94,7 @@ const (
 	fieldMember
 	fieldAllocation
 	fieldEvidence
+	fieldExclusions
 )
 
 type leaseShape struct{ required, allowed int }
@@ -105,8 +107,8 @@ var leaseShapes = map[string]leaseShape{
 	LeasePoolCleanup: {fieldMember | fieldAllocation, fieldMember | fieldAllocation},
 	LeasePoolRecover: {fieldMember | fieldAllocation | fieldReason, fieldMember | fieldAllocation | fieldReason},
 	LeasePoolSafe:    {fieldMember | fieldAllocation | fieldEvidence | fieldReason, fieldMember | fieldAllocation | fieldEvidence | fieldReason},
-	LeaseClaim:       {fieldTicket | fieldHolder | fieldMinutes, fieldTicket | fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage},
-	LeaseClaimNext:   {fieldHolder | fieldMinutes, fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage},
+	LeaseClaim:       {fieldTicket | fieldHolder | fieldMinutes, fieldTicket | fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage | fieldExclusions},
+	LeaseClaimNext:   {fieldHolder | fieldMinutes, fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage | fieldExclusions},
 	LeaseHeartbeat:   {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration},
 	LeaseRenew:       {fieldAttempt | fieldGeneration | fieldMinutes, fieldAttempt | fieldGeneration | fieldMinutes},
 	LeaseRelease:     {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldReason | fieldEvidence},
@@ -118,7 +120,7 @@ var leaseShapes = map[string]leaseShape{
 }
 
 func (l *LeaseRequest) present() int {
-	flags := map[int]bool{fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != ""}
+	flags := map[int]bool{fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != ""}
 	bits := 0
 	for bit, set := range flags {
 		if set {
@@ -196,6 +198,9 @@ func checkLabels(values map[string]string) error {
 }
 
 func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
+	if e := checkExcludedMembers(l.Pool, l.ExcludeMembers); e != nil {
+		return e
+	}
 	if !checkPoolStage(l.Stage) {
 		return malformed("unknown pool stage")
 	}
@@ -294,6 +299,10 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 	if l.Stage != "" {
 		v.Obj.Set("stage", s(l.Stage))
 	}
+	// CAL-V0-065: omission preserves every historical request preimage.
+	if l.ExcludeMembers != nil {
+		v.Obj.Set("excludeMembers", wire.Strings(l.ExcludeMembers))
+	}
 	// Keep historical RELEASE preimages byte-identical when evidence is absent.
 	if l.Verb == LeaseRelease && l.Evidence != "" {
 		v.Obj.Set("evidence", s(l.Evidence))
@@ -356,6 +365,10 @@ var leasePlanners = map[string]func(leaseContext) leaseOutcome{
 
 func planLease(r Request, in Input, st inputState) leaseOutcome {
 	c := leaseContext{r: r, l: r.Lease, in: in, st: st, seq: wire.SizeOf(st.head.LastSeq.Uint64() + 1)}
+	// Current membership is a fresh-admission check, after authoritative replay.
+	if e := CheckPoolExclusions(r.Lease.Pool, r.Lease.ExcludeMembers, st.policy); e != nil {
+		return c.fail(e)
+	}
 	if a := st.attempts[r.Lease.AttemptID]; a != nil && a.Supervision != nil && r.Lease.Verb != LeaseSupervisor && r.Lease.Verb != LeaseGateRun && r.Lease.Verb != LeaseComplete {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeQuiescenceUnproved, "supervised attempt requires owned lifecycle transition")
 	}

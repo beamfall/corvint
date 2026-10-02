@@ -6,6 +6,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"slices"
+	"strings"
 )
 
 // planCommand dispatches `plan preview`; `plan record` stays NOT_RUN.
@@ -25,14 +26,21 @@ func planCommand(env Env, args []string) *wire.Result {
 func planPreview(env Env, args []string) *wire.Result {
 	cmd := []string{"plan", "preview"}
 	pool, stage := "", ""
+	var excluded []string
 	selectedOnly := false
 	seen := map[string]bool{}
 	for i := 0; i < len(args); i++ {
-		if seen[args[i]] {
+		if seen[args[i]] && args[i] != "--exclude-member" {
 			return usage(cmd, "duplicate plan flag")
 		}
 		seen[args[i]] = true
 		switch args[i] {
+		case "--exclude-member":
+			if i+1 >= len(args) || args[i+1] == "" || strings.HasPrefix(args[i+1], "--") {
+				return usage(cmd, "--exclude-member needs one nonempty member")
+			}
+			i++
+			excluded = append(excluded, args[i])
 		case "--selected-only":
 			selectedOnly = true
 		case "--pool":
@@ -63,7 +71,10 @@ func planPreview(env Env, args []string) *wire.Result {
 		if err != nil {
 			return err
 		}
-		in.Pool, in.Stage = pool, stage
+		in.Pool, in.Stage, in.ExcludeMembers = pool, stage, scopePaths(excluded)
+		if err := transaction.CheckPoolExclusions(pool, in.ExcludeMembers, in.Policy); err != nil {
+			return err
+		}
 		plan := transaction.PriorityFirst(in)
 		if selectedOnly {
 			item = selectedPlanValue(rc, plan)

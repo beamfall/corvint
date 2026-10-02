@@ -138,6 +138,25 @@ corvint-tasks queue status
 corvint-tasks plan preview --pool test-env --stage implement
 ```
 
+To avoid a known member for a particular claim or preview, repeat the single-value
+`--exclude-member` flag:
+
+```sh
+corvint-tasks claim --next --pool test-env --stage review --exclude-member env-0 --holder reviewer --request-id review-other
+corvint-tasks plan preview --pool test-env --stage review --exclude-member env-0
+```
+
+An exclusion set requires an explicit pool. Reordered duplicates normalize to one
+set; missing/empty values, invalid labels and foreign members refuse. At most 256
+unique members may be excluded. Excluded reserved and unreserved members provide
+no claim or preview capacity and run no health command. Excluding all eligible
+capacity produces `RESOURCE_COLLISION` for a claim. These are explicit caller-selected
+member labels; they do not discover ticket history, authenticate reviewer independence
+or prove separate physical environments. Ordinary resource scope, `requiresPool`
+and quarantine remain binding. An identical request replays its original allocation
+after release, a successor or a permitted policy change; a changed valid exclusion
+set conflicts under the same request ID.
+
 Retain the returned `poolAllocation` alongside attempt ID and generation. Replays return the original
 receipt-bound allocation, including after a retry has acquired a successor. Release, completion and
 reap free the source scope but quarantine the environment. Reads never probe or clean environments.
