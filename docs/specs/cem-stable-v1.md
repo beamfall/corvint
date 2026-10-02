@@ -40,7 +40,7 @@ No daemon, network account, broad language rewrite or new specification language
 
 ## Acceptance evidence
 
-Stable acceptance remains OPEN until the native tickets retain complete qualification, integration and completion evidence. The current implementation has 56 concrete experimental runner profiles: 21 dynamic, 16 native, 16 platform, two SQL and one Appium Android. Six additional listed IDs explicitly refuse execution; the registry listing is not a support claim. Native Tasks capture/verification and the first portable candidate have passed bounded independent review. A same-target disposable proof also passed genuine focused native Tasks qualification, killed all three CEX controls, observed three generic Go passes and verified candidate references with both consumers. Neither this count nor candidate conformance establishes all-supported execution, a stable CEM1.0 wire or release readiness.
+Stable acceptance remains OPEN until the native tickets retain complete qualification, integration and completion evidence. The current implementation has 57 concrete experimental runner profiles: 21 dynamic, 17 native, 16 platform, two SQL and one Appium Android. Six additional listed IDs explicitly refuse execution; the registry listing is not a support claim. Native Tasks capture/verification and the first portable candidate have passed bounded independent review. A same-target disposable proof also passed genuine focused native Tasks qualification, killed all three CEX controls, observed three generic Go passes and verified candidate references with both consumers. Neither this count nor candidate conformance establishes all-supported execution, a stable CEM1.0 wire or release readiness.
 
 | Requirements | Implemented evidence | Remaining acceptance |
 | --- | --- | --- |
@@ -168,4 +168,5 @@ one owning specification. A code reports a bounded check and never upgrades auth
 | authority-arguments | `artifacts-required` | Exit 2; the explicit artifact root is required even for an empty reference set |
 | runtime | `unsupported-structural-runtime`, `unsupported-process-containment` | Exit 2; an unqualified runtime or containment tuple is explicit and has no weakened fallback |
 | repository | `unsupported-resource-limit`, `unsupported-repository-envelope`, `verification-timeout` | Exit 2; operational limits stay distinct from invalid evidence |
-| artifacts | `artifact-unavailable`, `artifact-resource-limit`, `artifact-changed-during-verification`, `artifact-digest-mismatch` | Exit 2; declared artifact bytes could not be read within bounds, changed while read, or differ from the declared digest |
+| artifacts | `artifact-unavailable`, `artifact-resource-limit` | Exit 2 (`UNSUPPORTED`); declared artifact bytes could not be obtained within bounds, which asserts no mismatch |
+| artifacts | `artifact-changed-during-verification`, `artifact-digest-mismatch` | Exit 1 (`REJECT` issue codes); the bytes were read and changed between the two passes or differ from the declared digest |
