@@ -81,3 +81,19 @@ benchmarks; none is needed to alter directory traversal flags. Formal native-hos
 FALLBACK, Frontier authority remains unavailable, and billed tokens/cost are NOT_OBSERVED.
 Official update checks report Core rc1 build163 and Tasks developer build202 already installed;
 unsigned prerelease/developer qualification limits are retained.
+
+## Hosted amd64 repair
+
+The first published source head a4f0f0ea passed the local arm64 Linux parity suite,
+but hosted amd64 Go CI failed compilation: `syscall.O_PATH` is not exposed on
+that architecture. An amd64 cross-compile reproduced the exact failure. Go's
+bundled Linux syscall definitions and vendored x/sys definitions agree on
+O_PATH=0x200000 for supported Linux architectures (sparc64 has a different ABI
+but is not a supported Go Linux target). The repair uses that ABI constant
+without adding a dependency; no traversal or permission behavior changes.
+The prior seal is reverted by an ordinary forward commit to allow real source
+repair, preserving original evidence and avoiding a force-push. Frozen
+plan/base/key remain unchanged. Earlier checked/sealed identities and the
+seal-stale reproduction remain retained; passing arm64 qualification was not
+amd64 compile evidence. Verification must include both architectures before
+publishing the repaired head.
