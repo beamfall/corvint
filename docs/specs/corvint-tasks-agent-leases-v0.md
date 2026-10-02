@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement)
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement); S15 CAL-V0-065 proposed (issue 480; implementation and qualification NOT_RUN)
 Authoritative inputs: owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
 and [issue 430](https://github.com/beamfall/corvint/issues/430), explicitly commissioned 2026-10-01 (CAL-V0-048..051); owner request [issue 342](https://github.com/beamfall/corvint/issues/342),
@@ -22,10 +22,10 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement); S15 CAL-V0-065 proposed (issue 480; implementation and qualification NOT_RUN). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
-- Read next: Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost); Amendments to TCP-00; Failure modes.
+- Read next: Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S15 proposed explicit exclusions); Amendments to TCP-00; Failure modes.
 
 ## User and boundary
 
@@ -76,6 +76,10 @@ one.
 | S8 | CAL-V0-021..026 | Parallel claims: scoped claims, path-overlap collisions, scope enforcement, bounded lock hold |
 | S11 | CAL-V0-052..058 | `dispatch`: continuous roster, supervised host workers, handoff, reap, backoff and events |
 | S12 | CAL-V0-059..061 | Read cost independent of receipt history: one audit per read, resumed from a writer-retained checkpoint |
+| S15 | CAL-V0-065 (proposed) | Opt-in explicit per-claim member exclusions; implementation and qualification NOT_RUN |
+
+CAL-V0-062/063 (S13, issue 456) and CAL-V0-064 (S14, issue 468) are reserved
+by coordinated unlanded work; this seed does not claim their delivery.
 
 S8 was added by owner decision on 2026-09-27 and lands directly after S3, before S4.
 
@@ -461,6 +465,8 @@ Non-fixture release lifecycle (owner request 2026-09-28 to complete the Tasks ta
   no stage admits only unreserved members, and members reserved for another stage remain ineligible.
   Allocated state MUST agree with the complete attempt allocation tuple, holder and stage.
   Replayed claims MUST return their original receipt-bound allocation, never a successor's.
+  Proposed CAL-V0-065 adds explicit per-claim exclusions to this eligibility rule;
+  its delivery remains NOT_RUN until its acceptance evidence is retained.
 - `CAL-V0-030`: Release, expiry/reap and completion MUST quarantine the exact allocation while
   freeing the ordinary scope reservation. A retry MUST acquire a new allocation. Only an
   OWNER/OPERATOR `pool confirm-safe` naming the current allocation, an evidence reference and
@@ -491,6 +497,8 @@ Non-fixture release lifecycle (owner request 2026-09-28 to complete the Tasks ta
   preview batch MUST consume eligible free member capacity under the same ordered eligibility rule
   as claim, excluding other-stage reservations without executing health probes.
   Archive, journal recovery and authority-confined projection publication MUST retain pool state.
+  Proposed CAL-V0-065 applies the same explicit exclusion set to preview capacity;
+  this amendment does not claim delivered preview support.
 
 The optional policy shape is `pools:[{id,members:[MEMBER],reservedFor:{MEMBER:STAGE},
 memberConfig:{MEMBER:{configRef:{revision,path,blob},health:COMMAND,cleanup:COMMAND}}}]`.
@@ -802,6 +810,21 @@ Measured on the live store at 1,829 receipts (macOS, Go 1.27.1, warm cache): `qu
 cost is proportional to the intent tree and the number of retained paths (including retained
 deletions), not to the number of receipts. See
 `docs/build-log/2026-10-01-tasks-read-checkpoint.md`.
+
+### S15 — Explicit pool member exclusions (issue 480, proposed)
+
+Human-owned input: issue 480 permits the smaller per-claim exclusion alternative.
+This is the coordinated CAL-V0-065 intent seed before implementation enrollment.
+Implementation, disposable native qualification and delivery promotion are NOT_RUN.
+
+- `CAL-V0-065`: CLAIM, CLAIM_NEXT and read-only plan preview MAY accept an opt-in bounded set of explicit pool member exclusions. A supplied set MUST require an explicit pool, be nonempty and contain at most 256 sorted unique valid member labels. CLI repeated single-value `--exclude-member` flags MUST normalize order and duplicates while rejecting missing/empty values; other repeated single-value flags retain their existing refusal. Canonical request preimages MUST omit the new field entirely when absent, preserving historical bytes. Shape, syntax, canonical order and absolute bound checks MAY precede authoritative request replay; current-policy member/count eligibility MUST apply only to fresh admission after that replay lookup. An identical receipt-bound claim MUST return its original allocation after release, successor allocation or a permitted policy change, and a changed valid exclusion set under the same request ID MUST conflict before current eligibility checks.
+  Fresh explicit/next claim, every health-selection round, final prepared-allocation admission and preview capacity MUST apply the same stage/order/occupancy/exclusion predicate. Current requested-pool membership MUST be checked before any health preparation. Excluded members MUST never be allocated or probed, including matching-stage reservations and unreserved fallback; otherwise eligible members retain existing deterministic tier and member order. A matching health observation MUST NOT bypass final exclusion validation. No eligible member MUST produce RESOURCE_COLLISION rather than ignored exclusions or fallback to an excluded member. Preview MUST write no receipt, projection, trace or probe state. Ordinary claim resource scope and requiresPool remain binding; CAL-V0-029/030/032/034/046 safety and historical replay rules are unchanged. Exclusions are caller-selected member facts, not automatic ticket-history discovery, authenticated reviewer identity or proof of distinct physical environments.
+
+Failure modes: excluded reserved member/busy remainder; malformed or foreign member; preparation/admission policy drift; replay under changed policy; excluded health-start bypass; caller assumes labels authenticate independence. All remain explicit refusal/uncertainty, never ignored constraints or safe reuse inference.
+
+Acceptance evidence: NOT_RUN at preparation. Planned fixed historical preimage witness, allocation/health/preview/prepared-admission fixtures, both claim-next selectors, identical/changed-set/successor/policy-change replay, CLI repeat normalization, true disposable native fixture and fresh independent implementation review. Existing pool quarantine/stage-order tests remain retained; no claim of tests that do not yet exist.
+
+Non-goals: automatic history inference; per-pool independentStages policy; holder authentication; new physical access broker; issue479 terminal fast release; shrinking complete effect/resource intent. Rollback: opt-in command support can be reverted only with current request/profile compatibility limits retained; no projection stripping, historical-request rewriting or unsafe pool state migration. Absent requests remain exact old bytes.
 
 ## Amendments to TCP-00
 
