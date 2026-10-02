@@ -11,7 +11,6 @@ package swift
 import (
 	"io/fs"
 	"path"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -67,11 +66,16 @@ func (Language) Owns(relative string) bool { return strings.HasSuffix(relative, 
 
 // Units observes every statically resolvable SwiftPM and Xcode target.
 func (Language) Units(root string) (affected.Result, error) {
-	files, err := affected.SourceFiles(root, func(name string) bool { return strings.HasSuffix(name, ".swift") })
+	return Language{}.UnitsSource(affected.DiskSource(root))
+}
+
+// UnitsSource reads only the explicitly supplied source universe.
+func (Language) UnitsSource(root *affected.Source) (affected.Result, error) {
+	files, err := root.Files(func(name string) bool { return strings.HasSuffix(name, ".swift") })
 	if err != nil {
 		return affected.Result{}, err
 	}
-	metadata, err := affected.SourceFiles(root, metadataFile)
+	metadata, err := root.Files(metadataFile)
 	if err != nil {
 		return affected.Result{}, err
 	}
@@ -129,8 +133,8 @@ type packageTarget struct {
 	exclude      []string
 }
 
-func observePackage(root, manifest string, swiftFiles []string, frontier map[string]bool) ([]candidate, error) {
-	body, err := affected.ReadSource(root, manifest)
+func observePackage(root *affected.Source, manifest string, swiftFiles []string, frontier map[string]bool) ([]candidate, error) {
+	body, err := root.Read(manifest)
 	if err != nil {
 		frontier[FrontierManifestUnresolved] = true
 		return nil, nil
@@ -636,8 +640,8 @@ func packageTargetFiles(packageDirectory string, target packageTarget, swiftFile
 	return matched
 }
 
-func observeProject(root, project string, swiftFiles, metadata []string, frontier map[string]bool) ([]candidate, error) {
-	body, err := affected.ReadSource(root, project)
+func observeProject(root *affected.Source, project string, swiftFiles, metadata []string, frontier map[string]bool) ([]candidate, error) {
+	body, err := root.Read(project)
 	if err != nil {
 		frontier[FrontierXcodeProjectUnresolved] = true
 		return nil, nil
@@ -856,7 +860,7 @@ func (object pbxObject) listIDs(name string) []string {
 	return identifierPattern.FindAllString(match[1], -1)
 }
 
-func projectSchemes(root, projectBundle string, metadata []string, objects map[string]pbxObject, frontier map[string]bool) map[string][]string {
+func projectSchemes(root *affected.Source, projectBundle string, metadata []string, objects map[string]pbxObject, frontier map[string]bool) map[string][]string {
 	result := make(map[string][]string)
 	for _, relative := range metadata {
 		if !strings.HasSuffix(relative, ".xcscheme") {
@@ -865,7 +869,7 @@ func projectSchemes(root, projectBundle string, metadata []string, objects map[s
 		if !strings.Contains(relative, "/xcshareddata/xcschemes/") {
 			continue
 		}
-		body, err := affected.ReadSource(root, relative)
+		body, err := root.Read(relative)
 		if err != nil {
 			frontier[FrontierXcodeSchemeUnresolved] = true
 			continue
@@ -972,9 +976,9 @@ func resolveProjectFile(projectRoot, fileRef string, fileRefs map[string]pbxObje
 	return "", false
 }
 
-func inspectSwiftFiles(root string, files []string, imports map[string]bool, frontier map[string]bool) {
+func inspectSwiftFiles(root *affected.Source, files []string, imports map[string]bool, frontier map[string]bool) {
 	for _, relative := range files {
-		body, err := affected.ReadSource(root, relative)
+		body, err := root.Read(relative)
 		if err != nil {
 			frontier[FrontierUnreadableSource] = true
 			continue
@@ -1065,12 +1069,12 @@ func literalArgumentArray(value string) bool {
 	return strings.HasPrefix(remainder, ".")
 }
 
-func splitTestFiles(root string, files []string, ui bool, frontier map[string]bool) ([]string, []string) {
+func splitTestFiles(root *affected.Source, files []string, ui bool, frontier map[string]bool) ([]string, []string) {
 	frameworkKnown := ui
 	tests := make([]string, 0, len(files))
 	sources := make([]string, 0, len(files))
 	for _, relative := range files {
-		body, err := affected.ReadSource(root, relative)
+		body, err := root.Read(relative)
 		if err != nil {
 			sources = append(sources, relative)
 			continue
@@ -1151,7 +1155,7 @@ func claimPaths(paths []string, claimed map[string]bool, frontier map[string]boo
 	return kept
 }
 
-func detectExternalHarnesses(root string, metadata []string, frontier map[string]bool) {
+func detectExternalHarnesses(root *affected.Source, metadata []string, frontier map[string]bool) {
 	for _, relative := range metadata {
 		base := strings.ToLower(path.Base(relative))
 		if strings.HasSuffix(base, ".yaml") || strings.HasSuffix(base, ".yml") {
@@ -1163,14 +1167,14 @@ func detectExternalHarnesses(root string, metadata []string, frontier map[string
 		if !appiumManifest(base) {
 			continue
 		}
-		body, err := affected.ReadSource(root, relative)
+		body, err := root.Read(relative)
 		if err == nil && strings.Contains(strings.ToLower(string(body)), "appium") {
 			frontier[FrontierAppiumExternal] = true
 		}
 	}
-	maestroRoot := filepath.Join(root, ".maestro")
+	maestroRoot := ".maestro"
 	entries := 0
-	_ = filepath.WalkDir(maestroRoot, func(current string, entry fs.DirEntry, err error) error {
+	_ = root.Walk(maestroRoot, func(current string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
