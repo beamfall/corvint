@@ -132,6 +132,15 @@ if [ -n "$original" ]; then
   run_expected 3 corrupt-index "$tour" --resume "$bad" --ack "$test_root/rejected-ack.txt"
   grep -F 'reason=git-status-failed' "$test_root/corrupt-index.out" >/dev/null || fail status-failure-accepted-as-clean
   [ ! -e "$bad/receipts/resume-1-patch.out" ] || fail wrote-after-status-failure
+  # Git's own diagnostic and exit are retained receipts, not only transient stderr.
+  [ "$(cat "$bad/receipts/resume-1-status.exit")" -ne 0 ] || fail status-exit-not-retained
+  grep -F 'fatal:' "$bad/receipts/resume-1-status.stderr" >/dev/null || fail status-diagnostic-lost
+  cp "$bad/receipts/resume-1-status.stderr" "$test_root/status-diagnostic.original"
+  run_expected 3 corrupt-index-retry "$tour" --resume "$bad" --ack "$test_root/rejected-ack.txt"
+  grep -F 'reason=git-status-failed' "$test_root/corrupt-index-retry.out" >/dev/null || fail retry-status-failure-accepted
+  [ -f "$bad/receipts/resume-2-status.exit" ] || fail retry-reused-refused-round
+  cmp -s "$test_root/status-diagnostic.original" "$bad/receipts/resume-1-status.stderr" || fail status-diagnostic-overwritten
+  pass status-diagnostic-retained
   # Every planned output is admitted before the first receipt is created.
   for collision_name in ack.txt tool-identity.txt ready.stderr; do
     collision=$test_root/collision-$collision_name
