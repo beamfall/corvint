@@ -1,15 +1,247 @@
 package store_test
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 )
+
+func handoffPolicyUpdate(t *testing.T, s *leaseStore, change func(wire.Value)) {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(s.repo.PrimaryWorktree, ".taskman", "policy.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := wire.Parse(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	version, _ := v.Obj.Get("policyVersion")
+	n, err := strconv.Atoi(version.Str)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v.Obj.Set("policyVersion", wire.String(strconv.Itoa(n+1)))
+	change(v)
+	r, err := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest(fmt.Sprintf("handoff-policy-%d", n+1), version.Str, wire.EncodeFile(v)), now(t))
+	if err != nil || r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("policy update: %+v %v", r, err)
+	}
+	s.t0 = now(t)
+}
+
+func handoffPoolStore(t *testing.T) *leaseStore {
+	t.Helper()
+	s := newGateStore(t)
+	handoffPolicyUpdate(t, s, func(v wire.Value) {
+		v.Obj.Set("pools", wire.Array(obj("id", str("lanes"), "members", wire.Strings([]string{"a", "b"})), obj("id", str("other"), "members", wire.Strings([]string{"c"}))))
+	})
+	return s
+}
+
+// CAL-V0-044/046: genuine policy receipts, allocation and renewal afterimages
+// bind the complete interval. Restoring relevant endpoints cannot erase it.
+func TestCALV0044_HandoffPolicyReceiptInterval(t *testing.T) {
+	for _, name := range []string{"other-reservation", "version-no-pool", "members-add", "other-pool", "pools-add", "capacity", "budget", "retry", "gate", "roles", "environment", "cem"} {
+		for _, candidate := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/candidate=%v", name, candidate), func(t *testing.T) {
+				s := handoffPoolStore(t)
+				id := s.ticket(t, "interval")
+				if name == "other-reservation" && !candidate {
+					for i := range 2 {
+						failed := s.claim(t, fmt.Sprintf("failed-%d", i), id, 0, "src/")
+						l := releaseOf(failed)
+						l.Reason = wire.CodeGateFailed
+						if r := s.lease(t, fmt.Sprintf("failure-%d", i), l, 0, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
+							t.Fatalf("failure control: %+v", r)
+						}
+					}
+				}
+				claim := claimOf(id, "src/")
+				claim.Stage = "review"
+				if name != "version-no-pool" {
+					claim.Pool = "lanes"
+				}
+				a := s.lease(t, "claim", claim, 0, nil)
+				if a.Outcome.Outcome != mutation.OutcomeCompleted {
+					t.Fatalf("claim: %+v", a)
+				}
+				if candidate {
+					handoffSubmit(t, s, a, "submit", 0)
+				}
+				original, err := os.ReadFile(filepath.Join(s.repo.PrimaryWorktree, ".taskman", "policy.json"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				oldAttempt := s.attempt(t, a.AttemptID)
+				handoffPolicyUpdate(t, s, func(v wire.Value) {
+					pools, _ := v.Obj.Get("pools")
+					switch name {
+					case "other-reservation":
+						pools.Arr[0].Obj.Set("reservedFor", obj("b", str("implement")))
+					case "members-add":
+						pools.Arr[0].Obj.Set("members", wire.Strings([]string{"a", "b", "d"}))
+					case "other-pool":
+						pools.Arr[1].Obj.Set("reservedFor", obj("c", str("review")))
+					case "pools-add":
+						v.Obj.Set("pools", wire.Array(pools.Arr[0], pools.Arr[1], obj("id", str("third"), "members", wire.Strings([]string{"e"}))))
+					case "capacity":
+						x, _ := v.Obj.Get("capacity")
+						x.Obj.Set("maxWorkersTotal", str("5"))
+					case "budget":
+						x, _ := v.Obj.Get("budgets")
+						x.Obj.Set("ticketMultiplier", str("5"))
+					case "retry":
+						x, _ := v.Obj.Get("retries")
+						x.Obj.Set("admissionsPerRevision", str("4"))
+					case "gate":
+						x, _ := v.Obj.Get("gates")
+						x.Arr[0].Obj.Set("timeoutSeconds", str("31"))
+					case "roles":
+						v.Obj.Set("roles", obj("IMPORTER", wire.Strings([]string{"CREATE"})))
+					case "environment":
+						x, _ := v.Obj.Get("environment")
+						x.Obj.Set("allowedEnvKeys", wire.Strings([]string{"PATH"}))
+					case "cem":
+						v.Obj.Set("cemRequired", wire.Bool(true))
+					}
+				})
+				// Renewal preserves the original policy and cannot move the start
+				// of the interval past the incompatible intermediate afterimage.
+				r := s.lease(t, "renew", renewOf(a), 0, nil)
+				if r.Outcome.Outcome != mutation.OutcomeCompleted {
+					t.Fatalf("renew: %+v", r)
+				}
+				handoffPolicyUpdate(t, s, func(v wire.Value) {
+					base, _ := wire.Parse(original)
+					version, _ := v.Obj.Get("policyVersion")
+					*v.Obj = *base.Obj
+					v.Obj.Set("policyVersion", version)
+				})
+				before := fixture.TreeSnapshot(t, s.repo.StateDir)
+				auditOK(t, s.repo)
+				if !fixture.SameTree(before, fixture.TreeSnapshot(t, s.repo.StateDir)) {
+					t.Fatal("audit mutated state")
+				}
+				l := releaseOf(a)
+				l.Reason = wire.CodeReviewReturned
+				if !candidate {
+					l.Evidence = "external-review-result"
+				}
+				r = s.lease(t, "return", l, 0, nil)
+				got := s.attempt(t, a.AttemptID)
+				if name == "other-reservation" || name == "version-no-pool" {
+					if r.Outcome.Outcome != mutation.OutcomeCompleted || got.Phase != "CANCELLED" || got.Quiescence != "FENCED" || got.RetryAccounting.Disposition != wire.CodeReviewReturned || got.RetryCount != oldAttempt.RetryCount || got.PolicySha256 != oldAttempt.PolicySha256 || got.ConfigSha256 != oldAttempt.ConfigSha256 || len(s.entries(t)) != 0 {
+						t.Fatalf("clean return: %+v %+v", r, got)
+					}
+					if replay := s.lease(t, "return", l, 0, nil); replay.Kind != "Replay" {
+						t.Fatalf("replay: %+v", replay)
+					}
+					next := handoffClaim(t, s, id, "implement", "successor", 0)
+					fresh := s.attempt(t, next.AttemptID)
+					if fresh.RetryCount != oldAttempt.RetryCount || fresh.PolicySha256 == oldAttempt.PolicySha256 || fresh.CandidateTreeOid != nil || len(fresh.GateResults) != 0 || fresh.RetryAccounting.Disposition != "NONE" {
+						t.Fatalf("successor retained generation state: %+v", fresh)
+					}
+				} else {
+					refusedWith(t, r, mutation.OutcomeBlocked, wire.CodeStalePolicy)
+					if got.RetryAccounting.Disposition != "NONE" || got.PolicySha256 != oldAttempt.PolicySha256 || len(s.entries(t)) != 1 {
+						t.Fatalf("refusal changed accounting: %+v", got)
+					}
+				}
+				auditOK(t, s.repo)
+			})
+		}
+	}
+}
+
+func TestCALV0044_ConcurrentCompatibleReturnsCommitOnce(t *testing.T) {
+	s := handoffPoolStore(t)
+	id := s.ticket(t, "concurrent")
+	c := claimOf(id, "src/")
+	c.Stage, c.Pool = "review", "lanes"
+	a := s.lease(t, "claim", c, 0, nil)
+	handoffPolicyUpdate(t, s, func(v wire.Value) {
+		p, _ := v.Obj.Get("pools")
+		p.Arr[0].Obj.Set("reservedFor", obj("b", str("review")))
+	})
+	l := releaseOf(a)
+	l.Reason, l.Evidence = wire.CodeReviewReturned, "external-review"
+	reports := race(t, func() (*store.Report, error) { return s.try("return-a", l, s.at(t, 0)) }, func() (*store.Report, error) { return s.try("return-b", l, s.at(t, 0)) })
+	completed := 0
+	for _, r := range reports {
+		if r.Outcome.Outcome == mutation.OutcomeCompleted {
+			completed++
+		} else if !r.Outcome.HasCode(wire.CodeFenced) {
+			t.Fatalf("losing return: %+v", r)
+		}
+	}
+	if completed != 1 || len(s.entries(t)) != 0 {
+		t.Fatalf("committed %d returns", completed)
+	}
+	raw, err := os.ReadFile(filepath.Join(s.repo.StateDir, "attempts", a.AttemptID+".json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	refusedWith(t, s.lease(t, "old-renew", renewOf(a), 0, nil), mutation.OutcomeRevisionConflict, wire.CodeFenced)
+	after, _ := os.ReadFile(filepath.Join(s.repo.StateDir, "attempts", a.AttemptID+".json"))
+	if !bytes.Equal(raw, after) {
+		t.Fatal("fenced holder mutated attempt")
+	}
+	s.consistent(t)
+}
+
+// The moving-policy racer must either follow a committed return or make the
+// return stale. A prepared compatibility observation cannot cross that commit.
+func TestCALV0044_ConcurrentRelevantPolicyAndReturn(t *testing.T) {
+	s := handoffPoolStore(t)
+	id := s.ticket(t, "policy-race")
+	c := claimOf(id, "src/")
+	c.Stage, c.Pool = "review", "lanes"
+	a := s.lease(t, "claim", c, 0, nil)
+	handoffPolicyUpdate(t, s, func(v wire.Value) {
+		p, _ := v.Obj.Get("pools")
+		p.Arr[0].Obj.Set("reservedFor", obj("b", str("implement")))
+	})
+	raw, err := os.ReadFile(filepath.Join(s.repo.PrimaryWorktree, ".taskman", "policy.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := wire.Parse(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v.Obj.Set("policyVersion", str("5")).Set("cemRequired", wire.Bool(true))
+	l := releaseOf(a)
+	l.Reason, l.Evidence = wire.CodeReviewReturned, "external-review"
+	at := s.at(t, 0)
+	reports := race(t,
+		func() (*store.Report, error) { return s.try("return", l, at) },
+		func() (*store.Report, error) {
+			return store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("relevant-policy", "4", wire.EncodeFile(v)), at)
+		},
+	)
+	returned, policy := reports[0], reports[1]
+	if policy.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("policy racer: %+v", policy)
+	}
+	if returned.Outcome.Outcome == mutation.OutcomeCompleted {
+		if returned.Outcome.ReceiptSeq.Uint64() >= policy.Outcome.ReceiptSeq.Uint64() {
+			t.Fatal("stale compatibility crossed the policy commit")
+		}
+	} else {
+		refusedWith(t, returned, mutation.OutcomeBlocked, wire.CodeStalePolicy)
+	}
+	s.consistent(t)
+}
 
 func handoffClaim(t *testing.T, s *leaseStore, id, stage, request string, minute int) *store.Report {
 	t.Helper()

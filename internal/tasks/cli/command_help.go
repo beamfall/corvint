@@ -51,10 +51,10 @@ func commandHelp(args []string) *wire.Result {
 		o.Set("reasonCodes", wire.Strings(wire.Codes))
 		o.Set("handoffPreconditions", wire.Strings([]string{
 			"HANDOFF requires an external-agent implement, review or integrate stage; REVIEW_RETURNED requires review.",
-			"The generation and unexpired lease must match, acceptance and policy must be unchanged, and prospective retry accounting must have no recorded failure or unknown gate.",
+			"The generation and unexpired lease must match, acceptance must be unchanged, policy must be unchanged or proven compatible, and prospective retry accounting must have no recorded failure or unknown gate.",
 			"Without --evidence: submit a candidate first; phase BUILT or CHECKING, scope WITHIN and no pending effects are required.",
 			"With --evidence: RUNNING with no candidate, no gate results, scope UNKNOWN and no pending effects; reference uses Identifier grammar (1..128 bytes). Evidence is forbidden for other reasons and candidate handoffs.",
-			"A policy update fences live handoffs with STALE_POLICY. Failed/unknown gates remain sticky; no historical refund.",
+			"Relevant or unproved policy changes fence handoffs with STALE_POLICY. Only policyVersion and other members' reservations in the allocated pool may differ across a fully audited interval. Failed/unknown gates remain sticky; no historical refund.",
 			"A reference is inert caller evidence, not proof of work or physical cleanup. Release removes the reservation and quarantines an allocated pool; it does not grant completion, review or integration authority.",
 		}))
 		o.Set("handoffRefusalCodes", wire.Strings([]string{wire.CodeFenced, wire.CodeStaleTicket, wire.CodeStalePolicy, wire.CodeTicketState, wire.CodeMissingEvidence, wire.CodeMalformed}))

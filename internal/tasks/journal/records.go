@@ -48,6 +48,9 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 	if r.writerCache {
 		result.RequestDigests = map[string]wire.Digest{}
 	}
+	if r.handoffPolicy != nil {
+		result.HandoffPolicy = &HandoffPolicyHistory{Selector: *r.handoffPolicy, Compatible: true}
+	}
 	if o.stageErr != nil {
 		return result, o.stageErr
 	}
@@ -209,6 +212,11 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 		if o.head == nil && seq == 1 && p.Path == "intent/queue.json" {
 			st.genesisQueue = post
 		}
+		if result.HandoffPolicy != nil {
+			if err := observeHandoffPolicy(result.HandoffPolicy, st, rc, p, post, digest, lim); err != nil {
+				return err
+			}
+		}
 		if rc.TicketID != nil && p.Path == "intent/tickets/"+rc.TicketID.Local+".json" && post != nil {
 			target, err = ticket.Decode(post)
 			if err != nil {
@@ -274,6 +282,51 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 	st.generation = rc.HeadGeneration.Uint64()
 	result.LastSeq = rc.Seq
 	result.LastReceiptSha256 = digest
+	return nil
+}
+
+func observeHandoffPolicy(h *HandoffPolicyHistory, st *chain, rc *snapshot.Receipt, p snapshot.PostEntry, raw []byte, receipt wire.Digest, lim limits) error {
+	if p.Path == "intent/policy.json" {
+		if p.Sha256 == nil {
+			h.FinalPolicySha256 = ""
+			h.Compatible = false
+		} else {
+			h.FinalPolicySha256 = *p.Sha256
+			if h.OriginalPolicy.Raw == nil && *p.Sha256 == h.Selector.OriginalPolicySha256 {
+				if len(raw) > lim.selected-st.selectedBytes {
+					return wire.Errorf(wire.CodeLimitExceeded, p.Path, "original handoff policy exceeds aggregate selected-byte budget")
+				}
+				st.selectedBytes += len(raw)
+				h.OriginalPolicy = Record{Seq: rc.Seq, Sha256: p.Sha256, Raw: append([]byte(nil), raw...)}
+				h.OriginalReceiptSha256 = receipt
+			} else if h.OriginalPolicy.Raw != nil {
+				compatible, err := intent.HandoffPolicyCompatible(h.OriginalPolicy.Raw, raw, h.Selector.PoolID, h.Selector.MemberID)
+				if err != nil {
+					return err
+				}
+				h.Compatible = h.Compatible && compatible
+			}
+		}
+	}
+	if p.Path == "attempts/"+h.Selector.AttemptID+".json" && raw != nil && h.FirstAttemptSeq == "" {
+		a, err := snapshot.DecodeAttempt(raw)
+		if err != nil {
+			return err
+		}
+		if a.Generation != h.Selector.Generation {
+			return nil
+		}
+		h.FirstAttemptSeq, h.FirstAttemptSha256, h.FirstAttemptReceiptSha256 = rc.Seq, wire.Sum(raw), receipt
+		h.FirstPolicySha256, h.FirstConfigSha256, h.FirstCapabilitySha256 = a.PolicySha256, a.ConfigSha256, a.CapabilityProfileSha256
+		allocation := wire.Null()
+		if a.PoolAllocation != nil {
+			allocation = snapshot.PoolAllocationValue(a.PoolAllocation)
+		}
+		h.FirstAllocationSha256 = wire.Sum(wire.EncodeFile(allocation))
+		if h.OriginalPolicy.Raw == nil || h.OriginalPolicy.Seq.Uint64() >= rc.Seq.Uint64() {
+			h.Compatible = false
+		}
+	}
 	return nil
 }
 
