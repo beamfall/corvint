@@ -1438,7 +1438,7 @@
     "reqPrefix": "NEA-V0",
     "intent": "proposed",
     "delivery": "experimental",
-    "claim": "A separate companion combines repeats, controls, validity and a bound body; old /0 is negative-only, optional /1 PTF has bounded local positive evidence, and whole #394 remains partial.",
+    "claim": "A separate companion repeats new Playwright tests, executes approved negative controls and produces one bound assessment and fixed PR body.",
     "dependsOn": [
       "docs/specs/js-live-test-provider-v0.md",
       "docs/specs/browser-behavior-falsification-v0.md"
@@ -2033,7 +2033,7 @@
     "reqPrefix": "PTF-V0",
     "intent": "proposed technical contract; owner approved the implementation plan",
     "delivery": "experimental",
-    "claim": "A trusted local source-direct profile observes source, serving process, runtime and approved CJS dependency bytes and joins full native test/assertion identity to every baseline; scoped source evidence exists, final delivery gates remain.",
+    "claim": "A bounded source-direct Playwright profile observes source, serving-process and runtime identity and joins native assertion controls to every baseline repeat.",
     "dependsOn": [
       "docs/specs/new-e2e-test-acceptance-v0.md",
       "docs/specs/playwright-external-provider-v0.md"
