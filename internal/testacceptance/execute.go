@@ -80,6 +80,9 @@ func RunWorker(ctx context.Context, j Job) WorkerResult {
 		}
 		t := r.Tests[j.TestIndex]
 		c := Control{ID: t.ID, Status: "missing", Unsupported: []string{"baseline-qualified-test-id", "provider-per-test-freshness"}}
+		if r.Schema == FreshRequestSchema {
+			c.Unsupported = []string{}
+		}
 		if t.Control == nil {
 			return WorkerResult{Control: &c}
 		}
@@ -109,6 +112,9 @@ func RunWorker(ctx context.Context, j Job) WorkerResult {
 			c.Unsupported = append(c.Unsupported, "control-verification-failed")
 			c.Status = "invalid"
 			return WorkerResult{Control: &c}
+		}
+		if r.Schema == FreshRequestSchema {
+			c.Evidence = &receipt
 		}
 		c.Status = "blocked"
 		if receipt.Report.Counts[behaviorfalsify.StatusSurvived] > 0 {
@@ -156,22 +162,43 @@ func RunWorker(ctx context.Context, j Job) WorkerResult {
 	for _, f := range j.Files {
 		argv = append(argv, regexp.QuoteMeta(f))
 	}
-	receipt, e := jstestprovider.RunE2E(ctx, jstestprovider.E2EConfig{Config: jstestprovider.Config{Dir: r.TestRepository.Root, TestFiles: files(r), ConfigFile: r.Config, PackageJSON: r.Package, Lockfile: r.Lockfile, RunnerName: "playwright", RunnerVersion: r.RunnerVersion, Timeout: time.Duration(r.TimeoutSeconds) * time.Second, OutputLimit: 4 << 20}, ServerArgv: r.Server.Argv, ServerReadyURL: r.ReadyURL, ServerReadyLimit: 5 * time.Second, TestArgv: argv, AppBuildDir: r.AppBuildDir})
+	cfg := jstestprovider.E2EConfig{Config: jstestprovider.Config{Dir: r.TestRepository.Root, TestFiles: files(r), ConfigFile: r.Config, PackageJSON: r.Package, Lockfile: r.Lockfile, RunnerName: "playwright", RunnerVersion: r.RunnerVersion, Timeout: time.Duration(r.TimeoutSeconds) * time.Second, OutputLimit: 4 << 20}, ServerArgv: r.Server.Argv, ServerReadyURL: r.ReadyURL, ServerReadyLimit: 5 * time.Second, TestArgv: argv, AppBuildDir: r.AppBuildDir}
+	if r.Schema == FreshRequestSchema {
+		cfg.Freshness = &r.Freshness.Provider
+		cfg.DeclaredEnvKeys = []string{"PATH", "LANG", "LC_ALL", "TMPDIR"}
+		cfg.ApplicationAttestation = &jstestprovider.ApplicationAttestationProvider{Argv: r.Freshness.Attestation.Argv, ConfigFile: r.Freshness.AttestationConfiguration.Path, Timeout: 5 * time.Second}
+		cfg.TestArgv = []string{"--retries=0", "--workers=1", "--forbid-only"}
+		if target != "" {
+			cfg.TestArgv = append(cfg.TestArgv, "--grep="+isolationPattern(r.Tests[j.TestIndex].Title))
+		}
+		for _, file := range j.Files {
+			cfg.TestArgv = append(cfg.TestArgv, regexp.QuoteMeta(file))
+		}
+	}
+	receipt, e := jstestprovider.RunE2E(ctx, cfg)
 	if e != nil {
 		return WorkerResult{Error: "provider-execution-error"}
 	}
 	b, _ := json.Marshal(receipt)
 	run := Run{Kind: j.Kind, TestID: target, RequestedFiles: j.Files, ReceiptSHA256: Hash(b), ObservedSchedule: receipt.Schedule, Rows: []Row{}, Reasons: []string{}, NodeVersion: receipt.Identity.NodeVersion}
+	if r.Schema == FreshRequestSchema {
+		native, err := jstestprovider.EncodeFreshness(receipt)
+		if err != nil {
+			return WorkerResult{Error: "freshness-codec-failed"}
+		}
+		run.NativeReceipt = native
+		run.ReceiptSHA256 = Hash(native)
+	}
 	if receipt.Infrastructure != nil {
 		run.Reasons = append(run.Reasons, "provider-infrastructure")
 	}
 	if receipt.Cancelled {
 		run.Reasons = append(run.Reasons, "provider-cancelled")
 	}
-	if receipt.StaleAppBuild || receipt.AppBuildAtStart.Unknown || receipt.AppBuildAtPublish.Unknown {
+	if r.Schema == RequestSchema && (receipt.StaleAppBuild || receipt.AppBuildAtStart.Unknown || receipt.AppBuildAtPublish.Unknown) {
 		run.Reasons = append(run.Reasons, "provider-build-unknown-or-stale")
 	}
-	if receipt.ServerDescendantsGone == nil || !*receipt.ServerDescendantsGone {
+	if (r.Schema == RequestSchema && (receipt.ServerDescendantsGone == nil || !*receipt.ServerDescendantsGone)) || (r.Schema == FreshRequestSchema && (receipt.Freshness == nil || receipt.Freshness.ServerGone == nil || !*receipt.Freshness.ServerGone)) {
 		run.Reasons = append(run.Reasons, "provider-server-cleanup-unknown")
 	}
 	seen := map[string]bool{}
@@ -203,7 +230,10 @@ func RunWorker(ctx context.Context, j Job) WorkerResult {
 		}
 		seen[t.ID] = true
 		row := Row{ID: t.ID, ObservedID: observed.ID, State: observed.State, DurationMS: observed.DurationMS, Retries: observed.Retries, Attempts: len(observed.AttemptDetails), Validity: jstestprovider.ReceiptTestProjection(receipt, observed), IdentityUnknown: []string{}}
-		if observed.ID == "" || observed.ID != t.ID {
+		if r.Schema == FreshRequestSchema {
+			row.Attempts = len(observed.Attempts)
+		}
+		if observed.ID == "" || (r.Schema == RequestSchema && observed.ID != t.ID) {
 			row.IdentityUnknown = append(row.IdentityUnknown, "test-id")
 		}
 		if observed.Project == nil || observed.Project.Name != t.Project {
@@ -266,6 +296,10 @@ func Execute(ctx context.Context, r Request, approved, exe, build string) (Repor
 		return Report{}, errors.New("self-worker-invalid")
 	}
 	report := Report{Schema: Schema, RequestDigest: approved, Product: r.Product, TestRepository: r.TestRepository, Environment: r.Environment, Build: build, Runs: []Run{}, Controls: []Control{}, Unknowns: []string{"provider-per-test-freshness", "qualified-baseline-test-and-browser-identity", "authenticated-operator-and-hook-semantics", "full-descendant-containment", "observed-order-with-owned-provider", "runner-and-hook-import-closure-unqualified", "runner-version-claim-only"}}
+	if r.Schema == FreshRequestSchema {
+		report.Schema = FreshSchema
+		report.Unknowns = []string{"authenticated-operator-and-hook-semantics", "full-descendant-containment", "general-browser-and-host-qualification", "compiled-source-provenance", "unsupported-core-mcp-flows-consumers"}
+	}
 	executableBytes, e := os.ReadFile(exe)
 	if e != nil {
 		return Report{}, errors.New("self-worker-unreadable")

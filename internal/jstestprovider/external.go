@@ -75,6 +75,7 @@ type playwrightBrowserIdentity struct {
 }
 
 type playwrightUseIdentity struct {
+	BaseURL        *string                   `json:"baseURL"`
 	CorvintBrowser playwrightBrowserIdentity `json:"corvintBrowser"`
 	BrowserName    *string                   `json:"browserName"`
 	Channel        *string                   `json:"channel"`
@@ -111,6 +112,9 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	}
 	if cfg.SensitiveInputPolicy != nil {
 		profile = SensitiveExternalProfile
+	}
+	if cfg.Freshness != nil {
+		profile = FreshnessProfile
 	}
 	lifecycle := &ExternalLifecycle{ReadyURL: cfg.ServerReadyURL, DeclaredAppIdentity: cfg.AppIdentity, Ownership: "external", CleanupResponsibility: "external", ServerDescendants: "unknown", ConfigOverride: config}
 	r := Receipt{Profile: profile, Kind: "e2e", Identity: identity, External: lifecycle, SensitiveInputPolicy: cfg.SensitiveInputPolicy, Tests: []TestOutcome{}}
@@ -391,6 +395,9 @@ func externalCommand(c E2EConfig, scratch string) (string, []string, string, err
 	if c.RetainAttemptDetails {
 		attemptOption = ", retainAttemptDetails:true"
 	}
+	if c.Freshness != nil {
+		attemptOption = ", freshnessProfile:true"
+	}
 	config := "const imported = require(" + quoted(c.ConfigFile) + ");\nconst original = imported.default || imported;\nconst base = " + quoted(filepath.Dir(c.ConfigFile)) + ";\nconst resolve = value => require('node:path').resolve(base, value);\nconst modulePath = value => Array.isArray(value) ? value.map(modulePath) : typeof value === 'string' ? require.resolve(value, {paths:[base]}) : value;\nconst paths = object => { const result = {...object}; for (const key of ['testDir', 'outputDir', 'snapshotDir', 'tsconfig']) if (typeof result[key] === 'string') result[key] = resolve(result[key]); return result; };\nmodule.exports = {...paths(original), testDir: original.testDir ? resolve(original.testDir) : base, globalSetup: modulePath(original.globalSetup), globalTeardown: modulePath(original.globalTeardown), projects: original.projects?.map(paths), webServer: undefined, reporter: [[" + quoted(reporterPath) + ", {output:" + quoted(reportPath) + ", sensitiveInputPolicy:" + string(policy) + attemptOption + "}]]};\n"
 	if err := os.WriteFile(reporterPath, qualifiedReporter, 0600); err != nil {
 		return "", nil, "", err
@@ -399,6 +406,10 @@ func externalCommand(c E2EConfig, scratch string) (string, []string, string, err
 		return "", nil, "", err
 	}
 	argv := append([]string{"npx", "--no-install", "playwright", "test", "--config=" + configPath}, c.TestArgv...)
+	if c.Freshness != nil {
+		argv = append(append([]string{}, c.Freshness.Runner.Argv...), "test", "--config="+configPath)
+		argv = append(argv, c.TestArgv...)
+	}
 	return config, argv, reportPath, nil
 }
 
