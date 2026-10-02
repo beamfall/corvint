@@ -180,7 +180,14 @@ func TestTMV0009_AS11_FixtureFoundationEveryPublicationPrefix(t *testing.T) {
 				fixtureMust(t, err)
 			})
 			for _, step := range steps {
-				t.Run(step, func(t *testing.T) {
+				name := step
+				// The pinned evidence digest includes this run's temporary paths.
+				// Keep the fault boundary intact, but give its case a stable name
+				// so confined and unconfined per-test outcomes can be compared.
+				if strings.HasPrefix(name, "durable-post:pinned/") {
+					name = "durable-post:pinned"
+				}
+				t.Run(name, func(t *testing.T) {
 					h, p := ftFlow(t, op)
 					base, err := h.capture()
 					fixtureMust(t, err)

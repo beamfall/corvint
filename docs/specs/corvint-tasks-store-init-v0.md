@@ -170,6 +170,16 @@ from an interrupted run is finished by a rerun before rollback.
 
 CTS-V0-004 is accepted by a CLI test that initializes a repository through a symlinked ancestor,
 checks that `head.json` records the canonical path, and reads the queue through both spellings.
+The safe opening boundary retains a pinned, no-follow descriptor for every directory component.
+On Linux, intermediate descriptors use `O_PATH|O_DIRECTORY`, so traversal does not require
+directory read access; the final directory still opens with `O_RDONLY|O_DIRECTORY`. Both retain
+`O_NOFOLLOW`, and conversion to `os.Root` retains its descriptor identity check. Darwin keeps its
+existing readable intermediate descriptors. `TestCTSV0004_TraversalOnlyAncestors` exercises
+absolute and relative walks through an execute-only directory and refuses an unreadable final
+directory; it explicitly skips when the runner can bypass those permissions. Existing replacement
+tests continue to reject symlinks and FIFOs. This changes neither canonicalization nor store bytes.
+Rollback of this Linux traversal optimization restores readable intermediate descriptors; it
+requires no store migration and makes Landlock confinement of these packages fail again.
 Rollback removes `canonicalAncestors` in `internal/tasks/intent/worktree.go`; a repository under a
 symlinked ancestor is then refused again, and a journal it already wrote keeps the canonical path.
 
@@ -191,6 +201,6 @@ immediate `REDO_PENDING` and the unpaused attempts; no state format or envelope 
 | CTS-V0-001 | `internal/tasks/store/store.go` (`Init`, `existingRecord`, `firstEntry`), `internal/tasks/cli/init.go` | TestCTSV0001_InitRefusesOverExistingRecords, TestCTSV0001_InitRefusesOverCommittedTickets |
 | CTS-V0-002 | `internal/tasks/cli/inventory.go` (`withInventoryStore`), `internal/tasks/cli/cli.go` | TestCTS002JournalAbsentReads, TestCTS002NoFallbackForExistingJournal, TestCTS002ProjectionRaces |
 | CTS-V0-003 | `internal/tasks/importer/importer.go` (`Decode`, `Plan`), `internal/tasks/store/import.go` (`Import`, `importBatch`, `packImport`), `internal/tasks/transaction/model.go` (`ImportApply`, `importPosts`, `importChain`), `internal/tasks/snapshot/stage.go` (`StageImportApply`), `internal/tasks/cli/import.go` | TestCTSV0003_ImportWritesShadowRecordsAndReimportIsIdempotent, TestCTSV0003_ChangedBlockWritesNextRevision, TestCTSV0003_ImportRefusesOverNativeRecord, TestCTSV0003_ImportRefusesWithNothingWritten, TestCTSV0003_ImportBatchesWithinStageLimits, TestCTSV0003_ImportApplyPostsAndChainsRevisions, TestCTSV0003_ImportApplyRefusals, TestCTSV0003_CLIImportWritesShadowRecordsBlockedOnCutover; IMPORT source rules: TestTMV0003_AS02_FieldRelationships, TestTMV0004_AS05_EligibilityDerived |
-| CTS-V0-004 | `internal/tasks/intent/worktree.go` (`finish`, `canonicalAncestors`) | TestCTSV0004_InitThroughSymlinkedAncestor |
+| CTS-V0-004 | `internal/tasks/intent/worktree.go` (`finish`, `canonicalAncestors`), `internal/tasks/safeopen` | TestCTSV0004_InitThroughSymlinkedAncestor, TestCTSV0004_TraversalOnlyAncestors, TestTMV0001_AS10_DirectorySwapNoRedirectOrBlock |
 | CTS-V0-005 | `docs/TASKS-EXTERNAL-AGENTS.md`, `internal/tasks/cli/testdata/external-agents/`, CLI help | TestExternalAgentTemplatesRequireQualification |
 | CTS-V0-006 | `internal/tasks/snapshot/probe.go` (`Reader.Read`, `Reader.Patience`, `DefaultPatience`, `readBackoff`, `afterWait`), `internal/tasks/fixture/fixture.go` (`init`, `ApplyReceipt`) | TestCTSV0006_ReadWaitsForInFlightWriter, TestCTSV0006_ReadReportsPendingAfterPatience, TestCTSV0006_MovedReadsPauseBetweenAttempts, TestCTSV0006_ReadVerbsWaitForWriterToApplyReceipt, TestCTSV0006_ReadVerbsUnderConcurrentWriter; unchanged attempt counts: TestTMV0008_AS36_ReadRetriesThenSnapshotMoved, TestTMV0008_AS07_ReadsLeaveStoreByteIdentical |
