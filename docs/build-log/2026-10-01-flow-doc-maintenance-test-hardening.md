@@ -46,3 +46,14 @@ receipt-integrity condition is mutation-checked as a whole, not per disjunct. Re
 qualification, docs-MCP parity and concurrent-process qualification stay NOT_RUN as recorded for
 #465; repository-wide `make gate` is NOT_RUN by the owner's scoped-work instruction. Rollback
 reverts this change; production behaviour is unchanged by it.
+
+## Correction to `2026-10-01-flow-doc-maintenance-port.md`
+
+This entry corrects the merged #465 entry `docs/build-log/2026-10-01-flow-doc-maintenance-port.md`,
+which stays unedited (decision 0423). Fidelity: that entry says the codex-branch files were "taken
+byte-for-byte". They were copied from a local checkout of the codex branch; neither that branch nor
+`44cf8ac5` is published on origin, so fidelity to the codex source cannot be verified from the
+public repository. What is verifiable is the content of port commit `4c73e037` and the tests above.
+touchPaths: the V1-0465 ticket's touchPaths name `2026-09-28` build-log paths from the codex branch;
+the port recorded its evidence in the `2026-10-01` entry instead, so the delivered path differs from
+the ticket's touchPaths.
