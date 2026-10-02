@@ -3,8 +3,9 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement)
-Authoritative inputs: owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 compatibility proposed, NOT_IMPLEMENTED)
+Authoritative inputs: owner request [issue 482](https://github.com/beamfall/corvint/issues/482) (proposed CAL-V0-044/046 compatibility amendment);
+owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
 and [issue 430](https://github.com/beamfall/corvint/issues/430), explicitly commissioned 2026-10-01 (CAL-V0-048..051); owner request [issue 342](https://github.com/beamfall/corvint/issues/342),
 owner approval on 2026-09-30 of prospective handoff accounting for [issue 412](https://github.com/beamfall/corvint/issues/412) (CAL-V0-044),
@@ -22,7 +23,7 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 compatibility proposed, NOT_IMPLEMENTED). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
 - Read next: Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost); Amendments to TCP-00; Failure modes.
@@ -173,7 +174,8 @@ S3, leases.
   check for an implement/review/integrate lease; `REVIEW_RETURNED` requires a review lease. The live,
   unexpired, current generation MUST have a scope-checked submitted candidate or the explicit
   no-tree evidence branch in CAL-V0-046, no pending effects,
-  unchanged acceptance and policy, and prospective generation accounting without a recorded
+  unchanged acceptance, and unchanged policy/config or the complete proposed issue 482
+  compatibility proof below, and prospective generation accounting without a recorded
   non-PASSED gate result. These reason strings and stage/holder changes alone are not evidence.
   A failed eligibility check MUST refuse without converting the attempt to a clean cancellation.
   Missing legacy accounting remains charged. Ordinary cancellation, failure and expiry remain
@@ -197,6 +199,63 @@ S3, leases.
   Issues 420/421 amend only the explicit retry bound and handoff branch in CAL-V0-045/046. Verification describes recorded accounting eligibility,
   not actor authentication, unreported external failures, physical quiescence or independent review.
 
+### Proposed issue 482 amendment: unrelated policy handoff compatibility
+
+Status: proposed intent; experimental implementation not started. Authoritative human input:
+[issue 482](https://github.com/beamfall/corvint/issues/482). This amendment narrows the meaning of
+unchanged policy/config for clean CAL-V0-044/046 release only; it does not promote a prototype or
+change completion authority. Existing delivered behavior still refuses any changed policy hash
+until the implementation and qualification below are retained.
+
+1. A clean external-agent HANDOFF or REVIEW_RETURNED MAY remain eligible after policyVersion and
+   other-member reservedFor changes in its exact allocated pool only. Every other raw field and
+   ordered array, the own-member reservation/config/definition, acceptance, stage, generation,
+   lease and existing candidate/no-tree/accounting conditions remain bound. No-pool attempts allow
+   only policyVersion differences. Original attempt policy/config/capability hashes never change.
+2. Compatibility MUST cover every committed policy afterimage after the exact original policy
+   through the same settled fully audited head. Any relevant intermediate change stays
+   incompatible after restoration. Retain one original canonical file blob and bounded metadata;
+   no whole-history cache, extra wire or migration. Missing, unknown, malformed or mismatched
+   history MUST refuse. Check every receipt/post/codec and projection even after incompatibility.
+3. Original policy provenance MUST bind nondeleted intent/policy.json path, committed nonzero
+   sequence, exact file digest including LF and containing receipt digest. The first exact
+   attempt/generation post must follow it and carry matching original policy/config identities;
+   renewed GrantedSeq does not substitute for that structural provenance. Historical acceptance,
+   authentication, holder liveness and physical quiescence remain NOT_OBSERVED.
+4. One additional full audit per otherwise eligible stale-release preparation MAY supply this
+   observation under the same ChangeGuard outside the lock, after request replay handling. Bind
+   both observations' head, receipt, inventory, intent and final policy identity; reject staging,
+   pending redo, IntentError and drift. Bounded preparation retries are measured separately.
+   Shared pure comparison uses cloned raw wire trees, preserving every unremoved optional field
+   and all array/member order; only the allocated pool's empty/absent reservation map normalizes.
+5. This exception MUST NOT grant stale-holder reap, physical reuse, old-generation completion,
+   successor gate/candidate/approval authority, retry refunds or actor authentication. Preserve
+   release fencing, ordinary cancellation, pool quarantine and request replay/conflict exactly.
+
+Acceptance must include current-source CLI red/green and multiple allowed updates; budget,
+retry, gate, role and runtime/environment change-then-restore refusals; renewal and history/guard
+controls; legacy/invalid/fenced refusals; stale-policy completion and fresh-successor controls;
+read purity, aggregate bounds and per-preparation scan cost. The CAL-V0-044/046 clauses and owning metadata are seeded before the first plan freeze.
+Named tests and retained independent review/dogfood/native evidence are required before any
+delivery claim; the external-agent guide and help gain the verified behavior at terminal binding.
+Rollback preserves all journal and attempt bytes; a compatible previous writer resumes whole-policy
+refusal after admissions stop. No destructive downgrade or canonical live-policy rewrite.
+
+
+Wire and refusal boundary: the RELEASE reason/evidence request shape, attempt retryAccounting
+and handoffEvidence members, canonical request preimages, policy profile and journal receipt
+codec stay unchanged. Compatibility history is internal preparation evidence, never a new
+persistent authority field. Replay/conflict runs before any new history observation. Both full
+audits must share head/receipt/LastSeq, inventory and intent identities under one ChangeGuard;
+staging, pending redo, IntentError, selected historical drift or final-policy mismatch refuses.
+Only an otherwise eligible stale clean release gets this observation; ordinary cancellation,
+reap, equal-policy handoff and invalid/fenced requests retain their existing reducer ordering.
+The eligible original attempt/generation must carry matching original policy/config/capability
+identities. Exact LF-bearing file digests are required; namespaced policy-body digests cannot
+substitute. All history remains codec/digest checked after incompatibility. Original admitted
+identities, required gate results and candidate/scope authority are never rewritten or inherited.
+No new public verb, flag, schema profile or journal/attempt member is added.
+
 ### Configurable retries, external work handoff and help (issues 420–422)
 
 - `CAL-V0-045`: Claim (explicit and next), pure plan preview (including pool/stage selection), and
@@ -215,7 +274,8 @@ S3, leases.
   permits implement, review and integrate; `REVIEW_RETURNED` permits review only. With REF, the
   live, unexpired current generation MUST be RUNNING, have no candidate, scopeCheck UNKNOWN,
   no gate results or pending effects, and prospective NONE/false retry accounting. Unchanged
-  policy/config and acceptance remain mandatory. Without REF, the existing BUILT/CHECKING,
+  acceptance and unchanged policy/config or the complete proposed issue 482 compatibility
+  proof remain mandatory. Without REF, the existing BUILT/CHECKING,
   candidate and WITHIN requirements remain mandatory. Evidence on ordinary cancellation or a
   candidate-bearing release MUST refuse. A non-PASSED gate remains sticky, and missing legacy
   accounting and supervised attempts never qualify. Failed checks MUST NOT record a clean
@@ -237,7 +297,8 @@ S3, leases.
 - `CAL-V0-047`: Every implemented and omitted public command path and command family MUST return
   read-only OK for an exact trailing `--help` or `-h` help request, with command-specific usage,
   flags and applicable reason codes. The lease release help MUST state CAL-V0-044/046 eligibility
-  and refusal codes, including that policy updates make live handoffs STALE_POLICY. Help MUST
+  and refusal codes, including that relevant or unproved policy changes make live handoffs
+  STALE_POLICY and the proposed issue 482 exception needs a fully audited compatible interval. Help MUST
   require no initialized store and perform no store read/write/lock, stdin read, archive stream,
   command execution or launcher action. Omitted execution remains NOT_RUN and its help MUST say
   so without inventing execution flags. Unknown paths and malformed non-help invocations retain
