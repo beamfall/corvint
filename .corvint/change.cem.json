@@ -206,49 +206,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:3f9984a2b7f5cf19ef07b89273cb1718a40827fa3f317925d7cb771aae0a939e",
+      "id": "hunk:sha256:8b655d1280e4398de2841814434bdb1aceddc757465e52b2daf758fc8f2d6801",
       "newRange": {
-        "count": 11,
-        "start": 8
-      },
-      "oldRange": {
-        "count": 8,
-        "start": 8
-      },
-      "path": "docs/build-log/2026-10-01-flow-doc-maintenance-port.md",
-      "reason": "evidence-backed"
-    },
-    {
-      "basis": [
-        {
-          "evidenceId": "evidence:sha256:dccc8c2c4b00d7f6bedeb7320b90b0a202ece552603da715eb52d06972c96681",
-          "relation": "specification"
-        }
-      ],
-      "disposition": "supported",
-      "id": "hunk:sha256:d13a55b555bc6f644b26cc98301bd9461dd6164eb18b398f42926328e7b44ae0",
-      "newRange": {
-        "count": 6,
-        "start": 26
-      },
-      "oldRange": {
-        "count": 3,
-        "start": 23
-      },
-      "path": "docs/build-log/2026-10-01-flow-doc-maintenance-port.md",
-      "reason": "evidence-backed"
-    },
-    {
-      "basis": [
-        {
-          "evidenceId": "evidence:sha256:dccc8c2c4b00d7f6bedeb7320b90b0a202ece552603da715eb52d06972c96681",
-          "relation": "specification"
-        }
-      ],
-      "disposition": "supported",
-      "id": "hunk:sha256:9107496717445e637eaab7a648f3f524f4587f1a11dcb4c7446832457389d60e",
-      "newRange": {
-        "count": 48,
+        "count": 59,
         "start": 1
       },
       "oldRange": {
@@ -383,6 +343,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "df49f0d771a262dc0a7be5338d16c2341d30e4da8e65bfab3fc843527b00f484",
+  "patchSha256": "b6eda280f61f9c298d0b1ab967da939258d7d0126106395d5365a7206163dccd",
   "spec": "cem/0.2"
 }
