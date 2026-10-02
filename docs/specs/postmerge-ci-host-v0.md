@@ -147,7 +147,9 @@ Corvint stays a local binary. The templates are operator reference material, not
   as untrusted input, never as proof of the pre-authoring state. Workflows that restore Actions
   caches on the same repository inherit the poisoning risk.
 - A dispatch fails on push. Nightly reconciliation re-dispatches the change.
-- A ported template uses an unmodelled construct. The audit refuses it rather than guessing.
+- A ported template uses an unmodelled construct. The restricted YAML parser returns
+  `unsupported-yaml` for input outside its audited subset; the audit refuses it rather than
+  guessing.
 - An `env` variable outside the `STARTUP_ENV` denylist (for example a tool-specific variable such
   as `MAVEN_OPTS` or `GIT_SSH_COMMAND`) changes how a tool runs code, or a script
   reaches the runner's env file without naming `GITHUB_ENV` or `GITHUB_PATH` (for example through
