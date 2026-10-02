@@ -153,8 +153,14 @@ func (d *Dispatcher) LastEvent() uint64 { return d.ledger.EventSeq }
 func (d *Dispatcher) Run(ctx context.Context, ticks int) error {
 	var last error
 	for n := 0; ticks == 0 || n < ticks; n++ {
+		if ctx.Err() != nil {
+			return nil
+		}
 		if last = d.Tick(ctx); last != nil && ctx.Err() == nil {
 			d.emit(Event{Kind: "alert", Message: "tick failed: " + last.Error()})
+		}
+		if ctx.Err() != nil {
+			return nil
 		}
 		if ticks != 0 && n+1 == ticks {
 			break
@@ -173,9 +179,18 @@ func (d *Dispatcher) Run(ctx context.Context, ticks int) error {
 // wall and orphan enforcement runs even when the store is unreadable; ended
 // workers then stay recorded and are accounted on the next readable tick.
 func (d *Dispatcher) Tick(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	defer d.ledger.save(d.dir)
 	obs, err := d.observe(ctx)
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
 	ended := d.supervise()
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
 	if err != nil {
 		return err
 	}
@@ -191,8 +206,17 @@ func (d *Dispatcher) Tick(ctx context.Context) error {
 			return err
 		}
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	d.finish(obs, ended)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	d.unpark(obs)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	d.diff(obs)
 	if ctx.Err() == nil {
 		d.launchRoster(obs)
@@ -202,10 +226,19 @@ func (d *Dispatcher) Tick(ctx context.Context) error {
 
 func (d *Dispatcher) observe(ctx context.Context) (*Observation, error) {
 	obs, err := d.Queue.Observe(ctx)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if err != nil {
 		return nil, err
 	}
-	for _, a := range ReadStates(ctx, d.Config, obs.Tickets) {
+	alerts := ReadStates(ctx, d.Config, obs.Tickets)
+	// An interrupted read is not an observation. In particular, its
+	// synthetic UNKNOWN states must not replace the last good baseline.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	for _, a := range alerts {
 		d.emit(Event{Kind: "alert", Message: a})
 	}
 	return obs, nil
@@ -305,12 +338,18 @@ func (d *Dispatcher) active(w *Worker, procs map[int]proc, h Host) bool {
 // attempted any store write.
 func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker) bool {
 	wrote := false
+	if ctx.Err() != nil {
+		return wrote
+	}
 	done := map[string]bool{}
 	if d.Config.Heal.Handoff {
 		for _, w := range ended {
 			for _, a := range obs.Attempts {
 				if !a.Live || a.Holder != w.ID {
 					continue
+				}
+				if ctx.Err() != nil {
+					return wrote
 				}
 				done[a.ID], wrote = true, true
 				evidence := ""
@@ -334,6 +373,9 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 		for _, a := range obs.Attempts {
 			if !a.Live || done[a.ID] || a.LeaseExpires.IsZero() || a.LeaseExpires.After(now) || d.worker(a.Holder) != nil {
 				continue
+			}
+			if ctx.Err() != nil {
+				return wrote
 			}
 			wrote = true
 			detail := map[string]string{"attempt": a.ID, "generation": a.Generation, "holder": a.Holder}
