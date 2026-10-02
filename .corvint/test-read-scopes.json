@@ -1,0 +1,226 @@
+{
+  "profile": "corvint-test-read-scopes/0",
+  "packages": {
+    "benchmarks": [
+      "go.mod",
+      "internal/cem/"
+    ],
+    "benchmarks/runner": [
+      "benchmarks/blind-v2-manifest.json",
+      "benchmarks/blind-v3-manifest.json",
+      "benchmarks/cases/",
+      "benchmarks/eval-split-v0.json",
+      "benchmarks/learned-trace-fixture-v0.json",
+      "benchmarks/manifest.json",
+      "testing/context-retrieval-goldens.json"
+    ],
+    "cmd/corvint-analyzer-c-jni": [
+      "go.mod",
+      "internal/analyzernativebridge/"
+    ],
+    "cmd/corvint-analyzer-go": [
+      "go.mod",
+      "internal/analyzergo/"
+    ],
+    "cmd/corvint-analyzer-html-css": [
+      "go.mod",
+      "internal/analyzerhtmlcss/"
+    ],
+    "cmd/corvint-analyzer-java": [
+      "go.mod",
+      "internal/analyzernativebridge/"
+    ],
+    "cmd/corvint-analyzer-js": [
+      "go.mod",
+      "internal/analyzerjs/"
+    ],
+    "cmd/corvint-analyzer-objective-c": [
+      "go.mod",
+      "internal/analyzernativebridge/"
+    ],
+    "cmd/corvint-analyzer-structured-data": [
+      "go.mod",
+      "internal/analyzerstructured/"
+    ],
+    "cmd/corvint-analyzer-swift": [
+      "go.mod",
+      "internal/analyzerswift/"
+    ],
+    "cmd/corvint-companion-release": [
+      "script/corvint-companion-release-gate",
+      "script/local-console-release-gate"
+    ],
+    "cmd/corvint-console": [],
+    "cmd/corvint-corpus-http": [],
+    "cmd/corvint-dashboard-snapshot": [],
+    "cmd/corvint-docs-mcp": [],
+    "cmd/corvint-js-test-provider": [],
+    "cmd/corvint-lsp": [],
+    "cmd/corvint-mcp": [],
+    "cmd/corvint-playwright-minimize": [],
+    "cmd/corvint-postmerge-connect": [],
+    "cmd/corvint-postmerge-metrics": [],
+    "cmd/corvint-public-release-check": [],
+    "cmd/corvint-pulse": [
+      "conformance/pulse-snapshot-v0/"
+    ],
+    "cmd/corvint-readiness-record": [],
+    "cmd/corvint-release-gate": [],
+    "cmd/corvint-tests-accept": [],
+    "cmd/corvint-work-queue": [
+      ".corvint/work-queue-policy.json"
+    ],
+    "conformance/go-live-test-v0": [
+      "go.mod",
+      "internal/cem/",
+      "internal/liveverify/"
+    ],
+    "conformance/pulse-snapshot-v0": [
+      "cmd/corvint-pulse/",
+      "go.mod",
+      "internal/pulse/"
+    ],
+    "conformance/release-artifact-v0/archive-verifier": [],
+    "conformance/release-artifact-v0/archiveverify": [],
+    "conformance/use-cases-v0": [
+      ".corvint/changes/",
+      "benchmarks/daily-loop-v0/",
+      "cmd/corvint/",
+      "docs/decisions/",
+      "docs/specs/"
+    ],
+    "conformance/work-queue-v0": [],
+    "examples/evidence-provider/v0/check": [],
+    "experimental/analyzers/sqlnative": [],
+    "internal/analyzerdotnet": [
+      "cmd/corvint-analyzer-dotnet/",
+      "go.mod"
+    ],
+    "internal/analyzerjs": [
+      "cmd/corvint-analyzer-js/"
+    ],
+    "internal/analyzerruby": [
+      "cmd/corvint-analyzer-ruby/",
+      "go.mod"
+    ],
+    "internal/analyzershader": [
+      "cmd/corvint-analyzer-shader/"
+    ],
+    "internal/analyzershell": [
+      "cmd/corvint-analyzer-shell/",
+      "go.mod"
+    ],
+    "internal/analyzerswift": [
+      "cmd/corvint-analyzer-swift/",
+      "go.mod"
+    ],
+    "internal/appflows": [],
+    "internal/attest": [
+      "interop/cem-0.1/"
+    ],
+    "internal/betarung": [
+      "conformance/cli-parity-v0/",
+      "conformance/divergence-register.md"
+    ],
+    "internal/breakagemap": [],
+    "internal/cem/patch": [
+      "interop/cem-0.1/"
+    ],
+    "internal/cem/sim": [
+      "interop/cem-0.1/"
+    ],
+    "internal/cem/verify": [
+      "conformance/cem-0.1/",
+      "interop/cem-0.1/"
+    ],
+    "internal/cem/wire": [
+      "conformance/cem-0.1/",
+      "conformance/cem-0.2/",
+      "interop/cem-0.1/"
+    ],
+    "internal/cem/workflow": [
+      "protocol/cem-0.2/"
+    ],
+    "internal/corpusindex": [],
+    "internal/corpusserve": [],
+    "internal/dashboard/adapters": [
+      "internal/secretscreen/"
+    ],
+    "internal/doccompiler": [],
+    "internal/doccorpus": [
+      "examples/documentation-corpus/"
+    ],
+    "internal/docviews": [],
+    "internal/extevidence": [
+      "cmd/corvint-remote-provider/",
+      "examples/evidence-provider/",
+      "go.mod",
+      "internal/remoteprovider/"
+    ],
+    "internal/frontierrepo": [
+      "conformance/tcq-0/"
+    ],
+    "internal/genesis": [],
+    "internal/liveverify/affected/dotnet": [],
+    "internal/liveverify/affected/kotlin": [],
+    "internal/liveverify/affected/python": [],
+    "internal/liveverify/affected/ruby": [],
+    "internal/liveverify/affected/rust": [],
+    "internal/liveverify/affected/swift": [],
+    "internal/liveverify/affected/typescript": [],
+    "internal/liveverify/godiscovery": [],
+    "internal/liveverify/gorunner": [],
+    "internal/liveverify/parentverify": [],
+    "internal/liveverify/session": [],
+    "internal/localcompletion": [],
+    "internal/lrf": [
+      "conformance/lrf-v0/"
+    ],
+    "internal/lrfrepo": [
+      "docs/specs/"
+    ],
+    "internal/lspevidence": [],
+    "internal/mcp/bridge": [],
+    "internal/mcp/corpusbridge": [],
+    "internal/mcp/testvaliditybridge": [
+      "internal/testvaliditydoc/"
+    ],
+    "internal/observations": [
+      "internal/cem/"
+    ],
+    "internal/plansnapshot": [],
+    "internal/playwrightminimize": [],
+    "internal/postmergeconnector": [],
+    "internal/postmergemetrics": [],
+    "internal/projectpath": [],
+    "internal/pythongrammar": [],
+    "internal/releasecandidate": [],
+    "internal/skillexport": [],
+    "internal/specindex": [
+      "docs/specs/"
+    ],
+    "internal/taskman": [],
+    "internal/tcq": [],
+    "internal/testacceptance": [],
+    "internal/testevidence": [],
+    "internal/testvaliditydoc": [],
+    "internal/trace": [],
+    "internal/unplannedread": [],
+    "internal/witness": [],
+    "internal/worksource": [],
+    "tools/beamfall-shadow": [
+      "go.mod"
+    ],
+    "tools/compat-trial": [
+      "go.mod",
+      "internal/liveverify/",
+      "internal/procgroup/"
+    ],
+    "tools/cw-trial": [
+      "benchmarks/results/"
+    ],
+    "tools/gate-affected-select": [],
+    "tools/heading-nav-bench": [],
+    "tools/retrieval-bench": []
+  }
+}

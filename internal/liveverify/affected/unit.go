@@ -54,6 +54,10 @@ const MaxPathsPerUnit = 20_000
 // root-locating call or a literal that climbs out of its package; AFP-V0-012
 // rule (d)); LocatesRoot reports that a non-test file is the cause, so every
 // unit that compiles this one is unbounded too.
+// ReadScoped reports a unit whose tests' reads the repository declares
+// (AFP-V0-023): ReadScope then holds the sorted, unique repository paths they
+// read outside the unit's directory, a trailing "/" naming a subtree, and the
+// unit is selected only on a dirty path in that scope instead of on any.
 // Frontier holds the sorted, unique reasons that bear only on this unit: the
 // plan names them only when the unit is reached (V1-0289).
 // TestImports name the units only the unit's own tests import. A change there
@@ -70,6 +74,8 @@ type Unit struct {
 	Embeds            bool     `json:"embeds,omitempty"`
 	UnboundedReads    string   `json:"unboundedReads,omitempty"`
 	LocatesRoot       bool     `json:"locatesRoot,omitempty"`
+	ReadScoped        bool     `json:"readScoped,omitempty"`
+	ReadScope         []string `json:"readScope,omitempty"`
 	Frontier          []string `json:"frontier,omitempty"`
 }
 
@@ -115,6 +121,9 @@ func validUnit(unit Unit, namespace string) error {
 	if unit.LocatesRoot && unit.UnboundedReads == "" {
 		return ErrInvalidUnit
 	}
+	if err := validReadScope(unit.ReadScoped, unit.ReadScope); err != nil {
+		return err
+	}
 	if err := validPathList(unit.Sources); err != nil {
 		return err
 	}
@@ -131,6 +140,31 @@ func validUnit(unit Unit, namespace string) error {
 		return err
 	}
 	return validIdentifierList(unit.PathTokens)
+}
+
+// validReadScope accepts a declared scope of canonical paths, each optionally
+// naming a subtree with one trailing "/", in strictly ascending order.
+func validReadScope(scoped bool, scope []string) error {
+	if (!scoped && len(scope) != 0) || len(scope) > MaxPathsPerUnit {
+		return ErrInvalidUnit
+	}
+	previous := ""
+	for _, entry := range scope {
+		if !ValidReadScopeEntry(entry) || entry <= previous {
+			return ErrInvalidUnit
+		}
+		previous = entry
+	}
+	return nil
+}
+
+// ValidReadScopeEntry reports one declared read-scope entry (AFP-V0-023): a
+// canonical repository-relative path, optionally with one trailing "/" naming
+// the subtree below it, that is neither the root .git directory nor inside it,
+// because a dirty set never names a path there.
+func ValidReadScopeEntry(entry string) bool {
+	trimmed := strings.TrimSuffix(entry, "/")
+	return ValidRelativePath(trimmed) && trimmed != ".git" && !strings.HasPrefix(trimmed, ".git/")
 }
 
 func validPathList(values []string) error {
