@@ -526,22 +526,32 @@ func (st *stableState) until(cond func() bool) (<-chan struct{}, func()) {
 // retireLimit bounds one teardown: ten seconds from start within the outer
 // deadline, or, once a terminal event occurred, the single emergency
 // allowance anchored at the first terminal event.
-func (st *stableState) retireLimit(ctx context.Context, start time.Time) (<-chan struct{}, func()) {
-	return st.until(func() bool {
+func (st *stableState) retireExpired(ctx context.Context, deadline time.Time) func() bool {
+	return func() bool {
 		if st.terminal(ctx) {
 			st.mu.Lock()
 			anchor := st.emergency
 			st.mu.Unlock()
 			return !st.now().Before(anchor.Add(EmergencyAllowance))
 		}
-		return !st.now().Before(start.Add(DefaultPerOpTimeout))
-	})
+		return !st.now().Before(deadline)
+	}
+}
+
+func (st *stableState) retireLimit(ctx context.Context, deadline time.Time) (<-chan struct{}, func(), func() bool) {
+	expired := st.retireExpired(ctx, deadline)
+	reached, stop := st.until(expired)
+	return reached, stop, expired
 }
 
 // finish retires one owned group within its bound and records a HOLD.
 func (st *stableState) finish(ctx context.Context, owner *groupreap.Owner, event Event) groupreap.Result {
-	limit, stop := st.retireLimit(ctx, st.now())
-	result := owner.Finish(limit)
+	limit, stop, expired := st.retireLimit(ctx, st.now().Add(DefaultPerOpTimeout))
+	return st.finishBounded(owner, event, limit, stop, expired)
+}
+
+func (st *stableState) finishBounded(owner *groupreap.Owner, event Event, limit <-chan struct{}, stop func(), expired func() bool) groupreap.Result {
+	result := owner.FinishBounded(groupreap.RetirementBound{Done: limit, Expired: expired})
 	stop()
 	event.Name = "released"
 	if result.State != groupreap.Released {

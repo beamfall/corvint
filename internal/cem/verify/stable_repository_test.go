@@ -227,6 +227,14 @@ func s0eMapDigest(c s0eCase) string {
 	return digest
 }
 
+func stableResultDebug(result StableResult) string {
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return err.Error()
+	}
+	return string(data)
+}
+
 func stableRepositoryGit(t *testing.T, repo, stdin string, args ...string) string {
 	t.Helper()
 	command := exec.Command("git", args...)
@@ -289,6 +297,6 @@ func TestStableRepositoryRejectsCreateOverAuthenticatedEmptyBaseTree(t *testing.
 	}
 	result, exit := Stable(context.Background(), raw, StableOptions{Repository: repo, ExpectedBase: base, Target: target, ArtifactRoot: artifacts})
 	if exit != 1 || result.Outcome != "REJECT" || result.Stage != "verification" || len(result.IssueCodes) != 1 || result.IssueCodes[0] != cemcode.InvalidField || result.Axes["changeIntegrity"] != "FAILED" {
-		t.Fatalf("Stable exit=%d result=%+v, want REJECT verification invalid-field with failed integrity", exit, result)
+		t.Fatalf("Stable exit=%d result=%s, want REJECT verification invalid-field with failed integrity", exit, stableResultDebug(result))
 	}
 }

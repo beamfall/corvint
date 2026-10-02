@@ -282,6 +282,25 @@ func TestStableEmergencyAllowanceIsSingle(t *testing.T) {
 	}
 }
 
+func TestStableRetirementBoundCheckedAfterAbsenceProbe(t *testing.T) {
+	var l *lifecycle
+	var once sync.Once
+	l = newLifecycle(4, func(int, bool) groupreap.Primitives {
+		return groupreap.Primitives{
+			RetirementMode: groupreap.ReapAfterSuccessfulSignal,
+			ProbeGroup: func(int) (groupreap.Probe, error) {
+				once.Do(func() { l.advance(DefaultPerOpTimeout) })
+				return groupreap.ProbeAbsent, nil
+			},
+		}
+	})
+	_, err := Run(context.Background(), l.budget, lifecycleShell(), "-c", "echo ok")
+	requireCode(t, err, ProcessContainment)
+	if !l.budget.Held() || l.count("hold") != 1 {
+		t.Fatalf("events = %v held=%v", l.names(), l.budget.Held())
+	}
+}
+
 func TestStableCancelledBeforeSpawn(t *testing.T) {
 	l := newLifecycle(4, nil)
 	ctx, cancel := context.WithCancel(context.Background())

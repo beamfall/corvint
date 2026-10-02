@@ -31,6 +31,8 @@ func canonicalCreateRepo(t *testing.T) (root, base, target string) {
 	t.Helper()
 	root = t.TempDir()
 	gitCmd(t, root, "init", "-q", "--object-format=sha1")
+	canonicalCreateGitInput(t, root, "", "config", "user.name", "Fixture")
+	canonicalCreateGitInput(t, root, "", "config", "user.email", "fixture@invalid")
 	blob := canonicalCreateGitInput(t, root, "created\n", "hash-object", "-w", "--stdin")
 	keep := canonicalCreateGitInput(t, root, "keep\n", "hash-object", "-w", "--stdin")
 	inner := canonicalCreateGitInput(t, root, "inner\n", "hash-object", "-w", "--stdin")

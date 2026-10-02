@@ -35,6 +35,22 @@ const (
 	ProbeAbsent
 )
 
+// RetirementMode selects the platform retirement ordering.
+type RetirementMode int
+
+const (
+	// PlatformDefault uses the operating system's reviewed default.
+	PlatformDefault RetirementMode = iota
+	// RequirePreReapQuiet polls signal 0 before the reap until the group is no
+	// longer signalable, then proves post-reap absence.
+	RequirePreReapQuiet
+	// ReapAfterSuccessfulSignal reaps after the successful owned SIGKILL
+	// decision, then proves post-reap absence with signal 0 only.
+	ReapAfterSuccessfulSignal
+)
+
+var errInvalidRetirementMode = errors.New("groupreap: invalid retirement mode")
+
 // ErrOwnerUnavailable reports a platform without the unreaped-leader owner.
 var ErrOwnerUnavailable = errors.New("groupreap: owned process groups are unavailable on this platform")
 
@@ -50,9 +66,45 @@ type Primitives struct {
 	ProbeGroup func(leader int) (Probe, error)
 	// Reap collects the leader. A non-nil *exec.ExitError is an ordinary status.
 	Reap func(command *exec.Cmd) error
+	// RetirementMode overrides the platform default. Invalid modes are refused
+	// before a process is started.
+	RetirementMode RetirementMode
 	// NewTimer starts a timer. Tests replace it to drive fixed deadlines without
 	// waiting on wall time.
 	NewTimer func(time.Duration) Timer
+}
+
+// RetirementBound is one original retirement allowance shared by callers,
+// synchronous checks and owner waits.
+type RetirementBound struct {
+	Done    <-chan struct{}
+	Expired func() bool
+}
+
+func (b RetirementBound) expired() bool {
+	if b.Expired != nil && b.Expired() {
+		return true
+	}
+	if b.Done != nil {
+		select {
+		case <-b.Done:
+			return true
+		default:
+		}
+	}
+	return false
+}
+
+func (b RetirementBound) wait(timer Timer) bool {
+	if b.expired() {
+		return true
+	}
+	select {
+	case <-b.Done:
+		return true
+	case <-timer.C():
+		return b.expired()
+	}
 }
 
 // Timer is the timer subset Owner needs.
@@ -87,10 +139,12 @@ type Result struct {
 // leader unreaped until no signalable member remains, the leader is reaped,
 // and signal 0 is polled for a bounded interval until the group is absent.
 type Owner struct {
+	finishMu   sync.Mutex
 	mu         sync.Mutex
 	command    *exec.Cmd
 	leader     int
 	p          Primitives
+	mode       RetirementMode
 	state      State
 	signalled  bool
 	signalErr  error
@@ -98,6 +152,7 @@ type Owner struct {
 	exited     chan struct{}
 	events     []string
 	result     Result
+	reapDone   chan error
 }
 
 const (
@@ -117,14 +172,27 @@ func StartWith(command *exec.Cmd, p Primitives) (*Owner, error) {
 	if !OwnerAvailable() {
 		return nil, ErrOwnerUnavailable
 	}
+	var err error
+	p, err = resolvePrimitives(p)
+	if err != nil {
+		return nil, err
+	}
 	containLeader(command)
 	if err := command.Start(); err != nil {
 		return nil, err
 	}
-	return adopt(command, command.Process.Pid, p), nil
+	return newOwner(command, command.Process.Pid, p), nil
 }
 
 func adopt(command *exec.Cmd, leader int, p Primitives) *Owner {
+	p, err := resolvePrimitives(p)
+	if err != nil {
+		panic(err)
+	}
+	return newOwner(command, leader, p)
+}
+
+func resolvePrimitives(p Primitives) (Primitives, error) {
 	defaults := defaultPrimitives()
 	if p.WaitExit == nil {
 		p.WaitExit = defaults.WaitExit
@@ -141,7 +209,18 @@ func adopt(command *exec.Cmd, leader int, p Primitives) *Owner {
 	if p.NewTimer == nil {
 		p.NewTimer = newRealTimer
 	}
-	o := &Owner{command: command, leader: leader, p: p, state: OwnedRunning, exited: make(chan struct{})}
+	switch p.RetirementMode {
+	case PlatformDefault:
+		p.RetirementMode = defaultRetirementMode()
+	case RequirePreReapQuiet, ReapAfterSuccessfulSignal:
+	default:
+		return Primitives{}, errInvalidRetirementMode
+	}
+	return p, nil
+}
+
+func newOwner(command *exec.Cmd, leader int, p Primitives) *Owner {
+	o := &Owner{command: command, leader: leader, p: p, mode: p.RetirementMode, state: OwnedRunning, exited: make(chan struct{})}
 	go o.observe()
 	return o
 }
@@ -217,26 +296,45 @@ func (o *Owner) hold(err error) Result {
 // after the reap a fixed signal-0-only deadline proves absence or HOLDs. A
 // second call returns the first result and performs no action.
 func (o *Owner) Finish(limit <-chan struct{}) Result {
+	return o.FinishBounded(RetirementBound{Done: limit})
+}
+
+// FinishBounded completes the lifecycle under one shared original retirement
+// allowance. A second call returns the first result and performs no action.
+func (o *Owner) FinishBounded(bound RetirementBound) Result {
+	o.finishMu.Lock()
+	defer o.finishMu.Unlock()
 	o.mu.Lock()
 	if o.state == Released || o.state == Hold {
 		defer o.mu.Unlock()
 		return o.result
 	}
+	if bound.expired() {
+		defer o.mu.Unlock()
+		return o.hold(errors.New("groupreap: retirement bound expired before exit observation"))
+	}
 	o.mu.Unlock()
-	select {
-	case <-o.exited:
-	case <-limit:
-		// Prefer an exit that was already observed.
-		select {
-		case <-o.exited:
-		default:
+	exitTicker := time.NewTicker(probeInterval)
+	defer exitTicker.Stop()
+	waiting := true
+	for waiting {
+		if bound.expired() {
 			o.mu.Lock()
 			defer o.mu.Unlock()
 			return o.hold(errors.New("groupreap: leader exit was not observed within the retirement bound"))
 		}
+		select {
+		case <-o.exited:
+			waiting = false
+		case <-bound.Done:
+		case <-exitTicker.C:
+		}
 	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
+	if bound.expired() {
+		return o.hold(errors.New("groupreap: retirement bound expired before group signal"))
+	}
 	if o.observeErr != nil {
 		// Without the unreaped-leader observation the group ID is not
 		// provably ours: no numeric signal is sent.
@@ -251,34 +349,76 @@ func (o *Owner) Finish(limit <-chan struct{}) Result {
 	if o.signalErr != nil {
 		return o.hold(errors.Join(errors.New("groupreap: group signal failed"), o.signalErr))
 	}
-	// Step one: leader unreaped, poll signal 0 until no signalable member.
+	if bound.expired() {
+		return o.hold(errors.New("groupreap: retirement bound expired after group signal"))
+	}
+	if o.mode == RequirePreReapQuiet {
+		if result, ok := o.waitPreReapQuiet(bound); ok {
+			return result
+		}
+	}
+	return o.reapAndProbe(bound)
+}
+
+func (o *Owner) waitPreReapQuiet(bound RetirementBound) (Result, bool) {
 	for {
+		if bound.expired() {
+			return o.hold(errors.New("groupreap: retirement bound expired before group probe")), true
+		}
 		probe, err := o.p.ProbeGroup(o.leader)
 		if err != nil {
-			return o.hold(errors.Join(errors.New("groupreap: group probe failed"), err))
+			return o.hold(errors.Join(errors.New("groupreap: group probe failed"), err)), true
+		}
+		if bound.expired() {
+			return o.hold(errors.New("groupreap: group members remained signalable at the retirement bound")), true
 		}
 		if probe != ProbeLive {
 			o.recordEvent("probe-quiet")
-			break
+			return Result{}, false
 		}
 		o.recordEvent("probe-live")
 		o.mu.Unlock()
-		expired := false
 		timer := o.p.NewTimer(probeInterval)
-		select {
-		case <-limit:
-			expired = true
-		case <-timer.C():
-		}
+		expired := bound.wait(timer)
 		timer.Stop()
 		o.mu.Lock()
 		if expired {
-			return o.hold(errors.New("groupreap: group members remained signalable at the retirement bound"))
+			return o.hold(errors.New("groupreap: group members remained signalable at the retirement bound")), true
 		}
+	}
+}
+
+func (o *Owner) reapAndProbe(bound RetirementBound) Result {
+	if bound.expired() {
+		return o.hold(errors.New("groupreap: retirement bound expired before leader reap"))
 	}
 	o.state = Reaping
 	o.recordEvent("reap")
-	waitErr := o.p.Reap(o.command)
+	if o.reapDone == nil {
+		o.reapDone = make(chan error, 1)
+		go func() { o.reapDone <- o.p.Reap(o.command) }()
+	}
+	reapDone := o.reapDone
+	o.mu.Unlock()
+	var waitErr error
+	ticker := time.NewTicker(probeInterval)
+	defer ticker.Stop()
+	for {
+		if bound.expired() {
+			o.mu.Lock()
+			return o.hold(errors.New("groupreap: leader reap did not complete within the retirement bound"))
+		}
+		select {
+		case waitErr = <-reapDone:
+			goto reaped
+		case <-bound.Done:
+			o.mu.Lock()
+			return o.hold(errors.New("groupreap: leader reap did not complete within the retirement bound"))
+		case <-ticker.C:
+		}
+	}
+reaped:
+	o.mu.Lock()
 	var exit *exec.ExitError
 	if waitErr != nil && !errors.As(waitErr, &exit) {
 		return o.hold(errors.Join(errors.New("groupreap: leader reap failed"), waitErr))
@@ -287,12 +427,31 @@ func (o *Owner) Finish(limit <-chan struct{}) Result {
 	// OQ-12b deadline. No real signal follows the reap.
 	deadline := o.p.NewTimer(postReapProbeDeadline)
 	defer deadline.Stop()
+	capExpired := false
+	expired := func() bool {
+		select {
+		case <-deadline.C():
+			capExpired = true
+		default:
+		}
+		return capExpired || bound.expired()
+	}
 	finalNoted := false
 	for {
+		if expired() {
+			o.hold(errors.New("groupreap: group absence was not observed within the retirement bound"))
+			o.result.WaitErr, o.result.PostReapObserved = waitErr, false
+			return o.result
+		}
 		probe, err := o.p.ProbeGroup(o.leader)
 		if !finalNoted {
 			o.recordEvent("probe-final")
 			finalNoted = true
+		}
+		if expired() {
+			o.hold(errors.New("groupreap: group absence was not observed within the retirement bound"))
+			o.result.WaitErr, o.result.PostReap, o.result.PostReapObserved = waitErr, probe, false
+			return o.result
 		}
 		if err != nil {
 			o.hold(errors.Join(errors.New("groupreap: group absence probe failed after the reap"), err))
@@ -306,16 +465,18 @@ func (o *Owner) Finish(limit <-chan struct{}) Result {
 			return o.result
 		}
 		o.mu.Unlock()
-		expired := false
 		timer := o.p.NewTimer(probeInterval)
+		waitExpired := false
 		select {
+		case <-bound.Done:
+			waitExpired = true
 		case <-deadline.C():
-			expired = true
+			capExpired = true
 		case <-timer.C():
 		}
 		timer.Stop()
 		o.mu.Lock()
-		if expired {
+		if expired() || waitExpired {
 			o.hold(errors.New("groupreap: group absence was not observed after the reap before the post-reap deadline"))
 			o.result.WaitErr, o.result.PostReap, o.result.PostReapObserved = waitErr, probe, true
 			return o.result

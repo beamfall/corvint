@@ -156,12 +156,31 @@ per-operation deadline and a single 10-second emergency allowance, and owned
 process-group retirement whose unobserved cleanup is `repository` /
 `unsupported-process-containment`. The independently reviewed
 `primary-clean-config-bounded/1` portable envelope remains preserved as history.
-Lifecycle behaviour is observed on Darwin only; Linux lifecycle, cross-device
-topology and escaped-session behaviour are NOT_RUN. Canonical ordered fixtures do not
-qualify ordinary checkouts. Rollback disables the new optional operation and
-preserves earlier command defaults, candidate assembly, native task history and
-historical packet bytes. Independent producer implementation review and root
-source admission remain separate steps.
+Darwin keeps the quiet-first retirement sequence: after an owned successful group
+signal, signal 0 is polled while the leader is unreaped until the group is no
+longer signalable, then the leader is reaped and post-reap absence is observed.
+Linux uses `ReapAfterSuccessfulSignal`: after the owned successful group signal
+and observed leader exit, the leader is reaped exactly once and only signal-0
+absence polling follows. Linux preserves all `KillGroup` errors, including
+`EPERM`, `ESRCH` and early `Stop` failures; no real numeric group signal may occur
+after reaping begins. The same original retirement allowance is checked before
+and after owner primitives and before accepting post-reap `ESRCH`. Post-reap
+polling is bounded by the intersection of that original allowance and the fixed
+two-second post-reap cap. Both are checked synchronously before each probe and
+immediately before accepting absence; expiration wins simultaneous interval,
+exit or reap readiness, including expiration inside an absence-returning probe.
+An already expired allowance admits no new signal, probe or reap, even when exit
+is observed or its deadline notification has not arrived. A pending
+asynchronous reap can be retained only as sticky `HOLD`, never as a later upgrade
+or retry. This is linked to `CEM-V1-007` consumer migration because stable Core
+verification depends on supported owned-runner containment. Linux runtime
+qualification, cross-device topology and escaped-session behaviour remain pending
+for root qualification; external consumers, default promotion and release
+readiness are not claimed. Canonical ordered fixtures do not qualify ordinary
+checkouts. Rollback disables the new optional operation and preserves earlier
+command defaults, candidate assembly, native task history and historical packet
+bytes. Independent producer implementation review and root source admission remain
+separate steps.
 
 ## Stable verification result codes
 
