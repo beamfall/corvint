@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-10-02
 Intent status: proposed
-Delivery status: not-started
+Delivery status: experimental
 Authoritative inputs: https://github.com/beamfall/corvint/issues/397; native ticket ticket:corvint:main:V1-0544 revision 2; AGENTS.md; docs/SPEC-DRIVEN-DEVELOPMENT.md.
 
 ## Agent digest
 - Claim: An optional companion builds approved documentation with reproducible provenance and previous-artifact parity and emits one replaceable connector request.
-- Status: proposed; not-started implementation. Human issue intent is explicit; the technical design remains unaccepted. Private synthetic seam evidence and Gate A review do not qualify delivery.
+- Status: proposed; experimental implementation. Human issue intent is explicit; the technical design remains unaccepted. Focused local controls and independent source review qualify only the stated trusted-local profile.
 - Exists: doccorpus.Build/Open/Encode, corpusindex.Build/Open/Query, postmergeconnector fixed renderer, stable-key writer and private atomic file output.
-- Blocked on: separate root code-phase grant, implementation, selected checks, final evidence and native completion; preparation admission and private Gate A are retained separately. Approval authentication is host-owned and remote adapter qualification remains independent.
+- Blocked on: terminal frozen evidence, final review, integration and native completion. Approval authentication is host-owned and remote adapter qualification remains independent.
 - Read next: Requirements; Incremental design; Evidence and open interfaces.
 
 ## Job and verified current state
