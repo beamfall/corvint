@@ -1,0 +1,189 @@
+{
+  "profile": "cem-s0e-public-amendment-manifest/3",
+  "status": "REPAIR6_PROPOSED_PUBLIC_REVIEW_FINDINGS_RESOLVED",
+  "algorithmRevision": "cem-s0e-expanded-admission-r1",
+  "repositoryEnvelope": "canonical-repository-bounded/1",
+  "license": "Apache-2.0 public specifications/data only; no native code",
+  "predecessorPublicManifestSHA256": "bb76906bd468b432d84217c7780b2493a189d2c89833e15b9b58a964cb9eaeb1",
+  "independentReviewSHA256": "107fd1c50944bc4e86a567926cb7d0c90a068c7f03aee7fd8c830bd0bfb02a9e",
+  "rootDecisionsSHA256": "e51ccac0fe0b32a80ac358822b0d79b73fe9ca11bb654f3b628f7466d9bceb30",
+  "priorRootDecisionsSHA256": "7a7d46a6707f637c6cac1813ecf0174e0391eea94a8ed2d936eae22622c3e2ef",
+  "files": [
+    {
+      "path": "CHANGES.md",
+      "sha256": "36d33faf7b62497e16e21de09ed36f0450d08e36c50851d1a7961de7aac233cc",
+      "bytes": 4321
+    },
+    {
+      "path": "FULL-RESULT-CASES.json",
+      "sha256": "a59f490c33b02be55a576496be8ef670dd8b5e5765182f609c8a562b11e66ad1",
+      "bytes": 1059166
+    },
+    {
+      "path": "GAP-DISPOSITIONS.json",
+      "sha256": "d2ca8cef08010453a75feafc3bf447b71526cf7f4fbefe3fea0b71c495c9841b",
+      "bytes": 6147
+    },
+    {
+      "path": "HISTORY-124.json",
+      "sha256": "c99f95030f1b7acc2f71d49bbc6583e6d6e2f62fbb89f60c05dcdacc96eca56f",
+      "bytes": 19661
+    },
+    {
+      "path": "INPUTS.json",
+      "sha256": "eb2a07cf78dfa780c701fa9fecf1f2089af89bafad0c2c4f6ee1b9bec81d1051",
+      "bytes": 29553
+    },
+    {
+      "path": "LICENSE-APACHE-2.0",
+      "sha256": "a55dcdf3a62566e48883e0c0caba22c65f8fe5431aed6437422ba447e60cd27b",
+      "bytes": 11716
+    },
+    {
+      "path": "LOGICAL-LEDGERS.json",
+      "sha256": "10df72e24b43c5f64c42dd2ebf731cf6435fe3c13ec5623816dda2cbed61a2fb",
+      "bytes": 689144
+    },
+    {
+      "path": "OBSERVED-NATIVE.md",
+      "sha256": "6aa650372575a489d3801b61cb0a3e312bb0f241f93fb07300d362596beec116",
+      "bytes": 12878
+    },
+    {
+      "path": "OPEN-QUESTIONS.json",
+      "sha256": "33ebfd58a4967aa798e19a8b8c40cd7e6ef434c81a49af8744345e52a0fcc7b0",
+      "bytes": 14064
+    },
+    {
+      "path": "OPERATION-ERRORS.json",
+      "sha256": "79a019088149f138809e6a0918130b874c16295a4e80c9fea7772224cbeb1182",
+      "bytes": 6248
+    },
+    {
+      "path": "PROPOSED-RULES.md",
+      "sha256": "e58f4fa795a589b66d3d16015c721a3cb95f1c47dd821d4da91ed9007949f3e9",
+      "bytes": 32872
+    },
+    {
+      "path": "README.md",
+      "sha256": "a2626a13b1dd3e11239ffda83edb5d39cc3b50ff5ff10d33dc38ecb8a03904e1",
+      "bytes": 4950
+    },
+    {
+      "path": "REQUIRED-REPAIRS.json",
+      "sha256": "8107ce3d1d82f4c957376e72305e5d880cfb57dc1b02877b8f45dd4921aa0825",
+      "bytes": 7025
+    },
+    {
+      "path": "RESULT.schema.json",
+      "sha256": "6c157e59ae9ed2ac372724084080a7e74263b8d9d3963e995445035fcc89176f",
+      "bytes": 25284
+    },
+    {
+      "path": "REVIEW-DISPOSITIONS.json",
+      "sha256": "5f6aceb67243a40ac59b03fc6fe1362eb7798f2e635057a03bfb1f52d0a05cc6",
+      "bytes": 1369
+    },
+    {
+      "path": "inherited/ALGORITHMS.md",
+      "sha256": "3afc0d35095d7a06c5249d105eed33853f95930824879343b64d311d0de20c62",
+      "bytes": 12853
+    },
+    {
+      "path": "inherited/WP1-OBSERVED.json",
+      "sha256": "78df41faf9736520eb3b3724fc77abd88554ae243257d3b7c1d30e8f68e43630",
+      "bytes": 2622
+    },
+    {
+      "path": "inherited/cem-0.1-algorithms.md",
+      "sha256": "c53c054b28a6e28d89d1a79362c01dc84ccdb95bd1ea6e77e4192a42af42fece",
+      "bytes": 11764
+    },
+    {
+      "path": "inherited/cem-0.3.schema.json",
+      "sha256": "be9ed2f1d0555948def5b0c55c2a520d76e224ed70d1b7e6ab2b75f9bacb842f",
+      "bytes": 11131
+    },
+    {
+      "path": "inherited/fixtures/FIXTURES-ledger-boundary.pack.json",
+      "sha256": "6cf6a34d5a851ea0d93b6e2b146e1cc0001cb23a53615de239548f3ee7fdeead",
+      "bytes": 11634
+    },
+    {
+      "path": "inherited/fixtures/FIXTURES.pack.json",
+      "sha256": "a1f6f2026045e9730bd16b98e048de02b7afe054dca54286412c39f9dbe13998",
+      "bytes": 629020
+    },
+    {
+      "path": "inherited/fixtures/maps/sha1-positive-sealed.json",
+      "sha256": "d9f52a3091a4870404f351943a27401d8fdfd1938ea12278377c19f9e44e9f13",
+      "bytes": 6100
+    },
+    {
+      "path": "inherited/fixtures/maps/sha1-positive-sidecarless.json",
+      "sha256": "d9f52a3091a4870404f351943a27401d8fdfd1938ea12278377c19f9e44e9f13",
+      "bytes": 6100
+    },
+    {
+      "path": "inherited/s0e/ALGORITHMS.md",
+      "sha256": "91ae9068b1b47a0a37d6539de682d7b01791fff4d5e932b88e8fdd536a4c44b4",
+      "bytes": 19285
+    },
+    {
+      "path": "inherited/s0e/MIGRATION.json",
+      "sha256": "a5e5530ad0f6e679380af18e06c4ca8fcc45475d02da085d6dd8a7e4f37c63fa",
+      "bytes": 28660
+    },
+    {
+      "path": "inherited/s0e/OPERATION.json",
+      "sha256": "d229ee84fa90d11e7121d48eb77a4b9bf60d15302514d431f1d117518e47e31b",
+      "bytes": 18316
+    },
+    {
+      "path": "inherited/s0e/PACKING.md",
+      "sha256": "9eee401d26b015f1994523848939e8e8dba9b603bd1c2c0bfca3f8653b50470e",
+      "bytes": 1640
+    },
+    {
+      "path": "inherited/s0e/REPOSITORY-ENVELOPE.cells.json",
+      "sha256": "68432f3e11fe9dff1f47fb4672ed97351dc67fd4875d8405e2b45e1007d065d9",
+      "bytes": 288813
+    },
+    {
+      "path": "inherited/s0e/REPOSITORY-ENVELOPE.md",
+      "sha256": "6435cfc22c30d36bb004510315e45b1470e263395d932fb2ade1defb668d258a",
+      "bytes": 6162
+    },
+    {
+      "path": "inherited/stable-r1/ALGORITHMS.md",
+      "sha256": "58a52688ec75aa2580186f29fa9d1443f86c46a438b803871ad0587fe7f68803",
+      "bytes": 18769
+    },
+    {
+      "path": "inherited/stable-r1/OPERATION.json",
+      "sha256": "dc0c38c95d478e7e45b2457fbabdea453932d0c8e84033b29b68b8724d75ee5d",
+      "bytes": 18263
+    },
+    {
+      "path": "sha1-ledger-336-evidence.json",
+      "sha256": "93ecb9d87d918897b20ca7a18e6dd572f7324460ec0d3dffd4814099e0e08330",
+      "bytes": 192243
+    },
+    {
+      "path": "sha1-ledger-337-evidence.json",
+      "sha256": "6d8ef3468738415f53863b03a097b05cd4621a06fb788195c3a4780ea0efad87",
+      "bytes": 192759
+    },
+    {
+      "path": "sha1-nonstructural-sidecarless.json",
+      "sha256": "edd25e3345e67304601e17fca1af165d3486c02f333ba2b7153047a106eefd8b",
+      "bytes": 6094
+    },
+    {
+      "path": "stable.schema.json",
+      "sha256": "e4b0c453e43af858dc4cc431044e71051c6ae46eae45fbeb95a50d73dde5bddc",
+      "bytes": 17107
+    }
+  ],
+  "newRuntimeEvaluation": "Repair6 portable conformance is logged outside the packet at ../conformance.log; HANDBACK.json records counts and mismatches. Packet semantics are governed by PROPOSED-RULES.md repair6 rules, not by old-reader behavior."
+}
