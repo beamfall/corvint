@@ -2103,7 +2103,7 @@
     "title": "Post-merge Runtime V1",
     "reqPrefix": "PMR-V1",
     "intent": "proposed",
-    "delivery": "not-started",
+    "delivery": "experimental",
     "claim": "Explicit /1 binds actual native stage observations and refuses missing evidence; /0 remains unchanged.",
     "dependsOn": [
       "docs/specs/postmerge-connectors-v0.md",
