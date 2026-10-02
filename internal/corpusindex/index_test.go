@@ -123,6 +123,34 @@ func TestIndexedCorpusReproductionAndProvenance(t *testing.T) {
 		if _, e = Open(context.Background(), fake, pinned); e == nil {
 			t.Fatal("self-consistent forged provenance bypassed operator pin")
 		}
+		t.Run("DCP-V1-040 altered posting alone reaches rederivation guard", func(t *testing.T) {
+			copy := *r.artifact
+			index := *copy.Index
+			index.Paths = make(map[string][]doccorpus.RecordRef, len(copy.Index.Paths))
+			for path, refs := range copy.Index.Paths {
+				index.Paths[path] = append([]doccorpus.RecordRef{}, refs...)
+			}
+			copy.Index = &index
+			unchanged, err := Encode(copy)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Open(context.Background(), unchanged, doccorpus.Digest(unchanged)); err != nil {
+				t.Fatal("unchanged copied postings refused", err)
+			}
+			if len(index.Paths["F00000"]) == 0 {
+				t.Fatal("symbol posting control missing")
+			}
+			index.Paths["F00000"] = []doccorpus.RecordRef{}
+			altered, err := Encode(copy)
+			if err != nil || bytes.Equal(altered, unchanged) {
+				t.Fatal("posting control did not change canonical bytes", err)
+			}
+			_, err = Open(context.Background(), altered, doccorpus.Digest(altered))
+			if err == nil || err.Error() != "indexed offsets or postings differ from corpus" {
+				t.Fatal("posting-only control missed rederivation guard", err)
+			}
+		})
 		tampered := *r.artifact
 		idx := *tampered.Index
 		idx.IDs = map[string]doccorpus.RecordRef{}
