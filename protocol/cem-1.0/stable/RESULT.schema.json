@@ -1,0 +1,1112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://corvint.dev/protocol/cem-1.0/stable/result.schema.json",
+  "title": "PROPOSED stable CEM integrity result",
+  "description": "Closed shape only. ALGORITHMS.md/OPERATION.json define stage-dependent relations and provenance. accept means canonical/reference integrity only, never completion or adequacy.",
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "gitOid": {
+      "type": "string",
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*[\\u0000-\\u001f\\u007f])(?!\\.{1,2}(?:/|$))(?!.*\\/\\.{1,2}(?:/|$))[^/]+(?:/[^/]+)*$"
+    },
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "end"
+      ],
+      "properties": {
+        "start": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "count"
+      ],
+      "properties": {
+        "start": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "blobOid",
+        "path",
+        "span",
+        "spanSha256"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^evidence:sha256:[0-9a-f]{64}$"
+        },
+        "blobOid": {
+          "$ref": "#/$defs/gitOid"
+        },
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "spanSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidenceId",
+        "relation"
+      ],
+      "properties": {
+        "evidenceId": {
+          "type": "string",
+          "pattern": "^evidence:sha256:[0-9a-f]{64}$"
+        },
+        "relation": {
+          "enum": [
+            "call-site",
+            "decision",
+            "dependency",
+            "implementation",
+            "incident",
+            "specification",
+            "test-claim"
+          ]
+        }
+      }
+    },
+    "hunk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "path",
+        "oldRange",
+        "newRange",
+        "disposition",
+        "reason",
+        "basis"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^hunk:sha256:[0-9a-f]{64}$"
+        },
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "oldRange": {
+          "$ref": "#/$defs/range"
+        },
+        "newRange": {
+          "$ref": "#/$defs/range"
+        },
+        "disposition": {
+          "enum": [
+            "supported",
+            "unknown",
+            "mechanical"
+          ]
+        },
+        "reason": {
+          "enum": [
+            "evidence-backed",
+            "no-evidence",
+            "insufficient-evidence",
+            "conflicting-evidence",
+            "whitespace-only",
+            "line-ending-only",
+            "rename",
+            "move",
+            "import-reorder",
+            "formatter-only"
+          ]
+        },
+        "basis": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/basis"
+          }
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        },
+        "discriminates": {
+          "$ref": "#/$defs/discriminates"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "disposition": {
+                "const": "supported"
+              }
+            },
+            "required": [
+              "disposition"
+            ]
+          },
+          "then": {
+            "properties": {
+              "basis": {
+                "minItems": 1
+              },
+              "reason": {
+                "const": "evidence-backed"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "disposition": {
+                "const": "unknown"
+              }
+            },
+            "required": [
+              "disposition"
+            ]
+          },
+          "then": {
+            "properties": {
+              "basis": {
+                "maxItems": 0
+              },
+              "reason": {
+                "enum": [
+                  "conflicting-evidence",
+                  "insufficient-evidence",
+                  "no-evidence"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "disposition": {
+                "const": "mechanical"
+              }
+            },
+            "required": [
+              "disposition"
+            ]
+          },
+          "then": {
+            "properties": {
+              "basis": {
+                "maxItems": 0
+              },
+              "reason": {
+                "enum": [
+                  "line-ending-only",
+                  "whitespace-only",
+                  "rename",
+                  "move",
+                  "import-reorder",
+                  "formatter-only"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "coveredRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "count"
+      ],
+      "properties": {
+        "start": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profileSha256",
+        "testRun",
+        "mode",
+        "state",
+        "covered"
+      ],
+      "properties": {
+        "profileSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "testRun": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]*$"
+        },
+        "mode": {
+          "enum": [
+            "set",
+            "count",
+            "atomic"
+          ]
+        },
+        "state": {
+          "enum": [
+            "covered",
+            "uncovered"
+          ]
+        },
+        "covered": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/coveredRange"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "covered"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "covered": {
+                "minItems": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "covered": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "survivor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operator",
+        "line",
+        "description"
+      ],
+      "properties": {
+        "operator": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]*$"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]*$"
+        }
+      }
+    },
+    "bounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxHunks",
+        "maxMutants",
+        "wallTimeSeconds"
+      ],
+      "properties": {
+        "maxHunks": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "maxMutants": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "wallTimeSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "discriminates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "treeRevision",
+        "selectionSha256",
+        "mutants",
+        "killed",
+        "survived",
+        "survivors",
+        "bounds",
+        "state",
+        "detail"
+      ],
+      "properties": {
+        "treeRevision": {
+          "$ref": "#/$defs/gitOid"
+        },
+        "selectionSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "mutants": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "killed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "survived": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "survivors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/survivor"
+          }
+        },
+        "bounds": {
+          "$ref": "#/$defs/bounds"
+        },
+        "state": {
+          "enum": [
+            "discriminates",
+            "survived",
+            "not-run"
+          ]
+        },
+        "detail": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 512,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]*$"
+        }
+      }
+    },
+    "criterionId": {
+      "type": "string",
+      "pattern": "^criterion:sha256:[0-9a-f]{64}$"
+    },
+    "criterionBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ticketId",
+        "acceptanceRevision",
+        "criterionIndex",
+        "acceptanceSha256",
+        "criterionSha256",
+        "captureSha256",
+        "verificationSha256",
+        "claimTicketSha256",
+        "snapshotHeadReceiptSha256",
+        "snapshotHeadArtifactSha256"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/criterionId"
+        },
+        "ticketId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^ticket:[A-Za-z0-9][A-Za-z0-9._-]*:[A-Za-z0-9][A-Za-z0-9._-]*:[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+        },
+        "acceptanceRevision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,15}$"
+        },
+        "criterionIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "acceptanceSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "criterionSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "captureSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "verificationSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "claimTicketSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "snapshotHeadReceiptSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "snapshotHeadArtifactSha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "runnerReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha256",
+        "profile",
+        "planSha256",
+        "sourceGitBinding",
+        "executionAuthority",
+        "dependencyClosure",
+        "authentication"
+      ],
+      "properties": {
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "profile": {
+          "const": "corvint-test-runner-receipt/0"
+        },
+        "planSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sourceGitBinding": {
+          "const": "NOT_OBSERVED"
+        },
+        "executionAuthority": {
+          "const": "CALLER_OBSERVED"
+        },
+        "dependencyClosure": {
+          "const": "NOT_OBSERVED"
+        },
+        "authentication": {
+          "const": "NOT_OBSERVED"
+        }
+      }
+    },
+    "criterionLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "criterionId",
+        "hunkIds",
+        "evidenceIds",
+        "runnerReceiptSha256s"
+      ],
+      "properties": {
+        "criterionId": {
+          "$ref": "#/$defs/criterionId"
+        },
+        "hunkIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^hunk:sha256:[0-9a-f]{64}$"
+          }
+        },
+        "evidenceIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^evidence:sha256:[0-9a-f]{64}$"
+          }
+        },
+        "runnerReceiptSha256s": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "tasks-capture",
+            "tasks-verification",
+            "tasks-claimed-ticket",
+            "runner-plan",
+            "runner-receipt",
+            "tasks-snapshot-head-receipt"
+          ]
+        },
+        "path": {
+          "$ref": "#/$defs/artifactPath"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "artifactPath": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/path"
+        },
+        {
+          "not": {
+            "pattern": "(^|/)\\.[gG][iI][tT](/|$)"
+          }
+        },
+        {
+          "not": {
+            "const": ".corvint/change.cem.json"
+          }
+        }
+      ],
+      "description": "No case-insensitive .git component; ASCII Git-reserved spelling is refused before filesystem access."
+    },
+    "resultSpan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "end"
+      ],
+      "properties": {
+        "start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "driftRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidenceId",
+        "path",
+        "status",
+        "targetBlobOid",
+        "targetSpan",
+        "baseBlobOid"
+      ],
+      "properties": {
+        "evidenceId": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "deleted",
+            "stable",
+            "stale",
+            "relocated",
+            "ambiguous"
+          ]
+        },
+        "targetBlobOid": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "targetSpan": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/resultSpan"
+            }
+          ]
+        },
+        "baseBlobOid": {
+          "$ref": "#/$defs/gitOid"
+        }
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "profile",
+    "spec",
+    "verificationMode",
+    "outcome",
+    "accept",
+    "stage",
+    "code",
+    "issueCodes",
+    "assurance",
+    "expectedBase",
+    "targetRevision",
+    "mapSha256",
+    "patchSha256",
+    "sidecar",
+    "drift",
+    "hunks",
+    "references",
+    "artifactChecks",
+    "axes",
+    "runtime",
+    "repositoryEnvelope"
+  ],
+  "properties": {
+    "profile": {
+      "const": "cem-stable-verification/1"
+    },
+    "spec": {
+      "const": "cem/1.0"
+    },
+    "verificationMode": {
+      "const": "canonical-and-reference-integrity"
+    },
+    "outcome": {
+      "enum": [
+        "ACCEPT",
+        "REJECT",
+        "UNSUPPORTED"
+      ]
+    },
+    "accept": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "stage": {
+      "enum": [
+        "arguments",
+        "input",
+        "wire",
+        "references",
+        "authority-arguments",
+        "runtime",
+        "repository",
+        "binding",
+        "verification",
+        "drift",
+        "artifacts",
+        "complete"
+      ]
+    },
+    "code": {
+      "enum": [
+        null,
+        "artifact-resource-limit",
+        "artifact-role-closure",
+        "artifact-unavailable",
+        "artifacts-required",
+        "duplicate-reference",
+        "expected-base-required",
+        "git-diff-failed",
+        "git-read-failed",
+        "git-timeout",
+        "invalid-arguments",
+        "invalid-criterion-identity",
+        "invalid-excluded-path",
+        "invalid-field",
+        "invalid-json",
+        "map-unavailable",
+        "missing-field",
+        "reference-coherence",
+        "repository-object-unavailable",
+        "target-required",
+        "unknown-field",
+        "unresolved-reference",
+        "unsupported-object-alternates",
+        "unsupported-patch-inventory",
+        "unsupported-process-containment",
+        "unsupported-repository-envelope",
+        "unsupported-resource-limit",
+        "unsupported-spec",
+        "unsupported-structural-runtime",
+        "unsupported-tree-mode",
+        "verification-timeout"
+      ]
+    },
+    "issueCodes": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "artifact-changed-during-verification",
+          "artifact-digest-mismatch",
+          "base-revision-mismatch",
+          "diff-header",
+          "diff-metadata-mismatch",
+          "duplicate-file-group",
+          "duplicate-hunk-id",
+          "duplicate-new-path",
+          "duplicate-old-path",
+          "empty-input",
+          "evidence-drift",
+          "evidence-unavailable",
+          "excluded-artifact-mismatch",
+          "excluded-path-not-file",
+          "fabricated-evidence-id",
+          "file-header",
+          "hunk-header",
+          "hunk-order",
+          "hunk-payload",
+          "hunk-range",
+          "invalid-field",
+          "metadata",
+          "metadata-repeat",
+          "new-cursor",
+          "newline-marker",
+          "patch",
+          "patch-context",
+          "patch-digest-mismatch",
+          "patch-hunk-count",
+          "patch-top-level",
+          "path",
+          "short-hunk",
+          "surplus-hunk-payload",
+          "too-many-lines",
+          "unchanged-hunk",
+          "unproven-mechanical",
+          "unsupported-tree-mode",
+          "zero-hunks"
+        ]
+      }
+    },
+    "assurance": {
+      "enum": [
+        null,
+        "structural-only",
+        "canonical"
+      ]
+    },
+    "expectedBase": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "targetRevision": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "mapSha256": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "patchSha256": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "sidecar": {
+      "enum": [
+        "NOT_CHECKED",
+        "ABSENT",
+        "EXACT",
+        "MISMATCH",
+        "UNSUPPORTED_KIND"
+      ]
+    },
+    "drift": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/driftRecord"
+      }
+    },
+    "hunks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/hunk"
+      }
+    },
+    "references": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "criterionBindings",
+        "runnerReceipts",
+        "criterionLinks",
+        "artifacts"
+      ],
+      "properties": {
+        "criterionBindings": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/criterionBinding"
+          }
+        },
+        "runnerReceipts": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/runnerReceipt"
+          }
+        },
+        "criterionLinks": {
+          "type": "array",
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/criterionLink"
+          }
+        },
+        "artifacts": {
+          "type": "array",
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/artifact"
+          }
+        }
+      }
+    },
+    "artifactChecks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "path",
+          "sha256",
+          "byteLength"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "tasks-capture",
+              "tasks-verification",
+              "tasks-claimed-ticket",
+              "runner-plan",
+              "runner-receipt",
+              "tasks-snapshot-head-receipt"
+            ]
+          },
+          "path": {
+            "$ref": "#/$defs/artifactPath"
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "byteLength": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4194304
+          }
+        }
+      }
+    },
+    "axes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "changeIntegrity",
+        "referenceIntegrity",
+        "structuralProof",
+        "coverageValidation",
+        "discriminationValidation",
+        "nativeAuthority",
+        "historicalValidity",
+        "currentApplicability",
+        "sourceGitBinding",
+        "sourceInventoryCompleteness",
+        "executionAtCommit",
+        "runnerReceiptSemantics",
+        "runnerExecution",
+        "authentication",
+        "dependencyClosure",
+        "criterionAdequacy",
+        "criterionDiscrimination",
+        "externalInteroperability"
+      ],
+      "properties": {
+        "changeIntegrity": {
+          "enum": [
+            "NOT_CHECKED",
+            "VERIFIED",
+            "FAILED"
+          ]
+        },
+        "referenceIntegrity": {
+          "enum": [
+            "NOT_CHECKED",
+            "REFERENCE_INTEGRITY_ONLY",
+            "EMPTY_REFERENCE_SET",
+            "FAILED"
+          ]
+        },
+        "structuralProof": {
+          "enum": [
+            "NOT_CHECKED",
+            "NOT_REQUIRED",
+            "PROVEN_DECLARED_FILE_PREDICATES",
+            "FAILED",
+            "UNSUPPORTED_RUNTIME"
+          ]
+        },
+        "coverageValidation": {
+          "enum": [
+            "NOT_CHECKED",
+            "ABSENT",
+            "WIRE_VALIDATED_ONLY"
+          ]
+        },
+        "discriminationValidation": {
+          "enum": [
+            "NOT_CHECKED",
+            "ABSENT",
+            "WIRE_VALIDATED_ONLY"
+          ]
+        },
+        "nativeAuthority": {
+          "const": "NOT_OBSERVED"
+        },
+        "historicalValidity": {
+          "const": "NOT_OBSERVED"
+        },
+        "currentApplicability": {
+          "const": "NOT_OBSERVED"
+        },
+        "sourceGitBinding": {
+          "const": "NOT_OBSERVED"
+        },
+        "sourceInventoryCompleteness": {
+          "const": "NOT_OBSERVED"
+        },
+        "executionAtCommit": {
+          "const": "NOT_OBSERVED"
+        },
+        "runnerReceiptSemantics": {
+          "const": "NOT_OBSERVED"
+        },
+        "runnerExecution": {
+          "const": "NOT_OBSERVED"
+        },
+        "authentication": {
+          "const": "NOT_OBSERVED"
+        },
+        "dependencyClosure": {
+          "const": "NOT_OBSERVED"
+        },
+        "criterionAdequacy": {
+          "const": "NOT_OBSERVED"
+        },
+        "criterionDiscrimination": {
+          "const": "NOT_OBSERVED"
+        },
+        "externalInteroperability": {
+          "const": "NOT_OBSERVED"
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "goVersion",
+        "structuralQualification"
+      ],
+      "properties": {
+        "goVersion": {
+          "type": "string"
+        },
+        "structuralQualification": {
+          "enum": [
+            "NOT_REQUIRED",
+            "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS",
+            "QUALIFIED_EXACT_TUPLE",
+            "UNSUPPORTED"
+          ]
+        }
+      }
+    },
+    "repositoryEnvelope": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    }
+  }
+}

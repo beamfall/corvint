@@ -1,0 +1,1 @@
+{"example":"manufactured native-shaped FAILED observation; no execution claim","kind":"runner-receipt","observation":{"tests":[{"failureKind":"INFRASTRUCTURE","id":"sample::criterion","state":"FAILED"}]},"profile":"corvint-test-runner-receipt/0"}

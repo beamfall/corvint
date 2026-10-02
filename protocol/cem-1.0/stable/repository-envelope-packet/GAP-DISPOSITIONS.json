@@ -1,0 +1,179 @@
+{
+  "profile": "cem-s0e-public-gap-dispositions/1",
+  "status": "14_DRAFT_RESPONSES_WITH_EXPLICIT_RUNTIME_AND_QUALIFICATION_BLOCKERS",
+  "gaps": [
+    {
+      "id": "U01",
+      "title": "Repository-marker grammar and size",
+      "parameterDraft": "SPECIFIED_FOR_CRITIQUE",
+      "requiredRuleSection": "PROPOSED-RULES.md section1",
+      "observedFacts": "OBSERVED-NATIVE.md",
+      "implementationStatus": "BLOCKED_PENDING_RB02",
+      "blockers": [
+        "RB02"
+      ],
+      "remainingDecision": "No runtime acceptance is inferred from this draft."
+    },
+    {
+      "id": "U02",
+      "title": "Linked topology resolution",
+      "parameterDraft": "SPECIFIED_FOR_CRITIQUE",
+      "requiredRuleSection": "PROPOSED-RULES.md section1",
+      "observedFacts": "OBSERVED-NATIVE.md",
+      "implementationStatus": "BLOCKED_PENDING_RB02",
+      "blockers": [
+        "RB02"
+      ],
+      "remainingDecision": "No runtime acceptance is inferred from this draft."
+    },
+    {
+      "id": "U03",
+      "title": "Metadata and object static-link closure",
+      "parameterDraft": "SPECIFIED_FOR_CRITIQUE",
+      "requiredRuleSection": "PROPOSED-RULES.md section1",
+      "observedFacts": "OBSERVED-NATIVE.md",
+      "implementationStatus": "BLOCKED_PENDING_RB01",
+      "blockers": [
+        "RB01"
+      ],
+      "remainingDecision": "No runtime acceptance is inferred from this draft."
+    },
+    {
+      "id": "U04",
+      "title": "Attributes admission",
+      "parameterDraft": "SPECIFIED_FOR_CRITIQUE",
+      "requiredRuleSection": "PROPOSED-RULES.md section1",
+      "observedFacts": "OBSERVED-NATIVE.md",
+      "implementationStatus": "BLOCKED_PENDING_RB01",
+      "blockers": [
+        "RB01"
+      ],
+      "remainingDecision": "No runtime acceptance is inferred from this draft."
+    },
+    {
+      "id": "U05",
+      "title": "Alternates admission",
+      "parameterDraft": "SPECIFIED_FOR_CRITIQUE",
+      "requiredRuleSection": "PROPOSED-RULES.md section1",
+      "observedFacts": "OBSERVED-NATIVE.md",
+      "implementationStatus": "BLOCKED_PENDING_RB01,RB02",
+      "blockers": [
+        "RB01",
+        "RB02"
+      ],
+      "remainingDecision": "No runtime acceptance is inferred from this draft."
+    },
+    {
+      "id": "U06",
+      "title": "Configuration/object-format authority",
+      "parameterDraft": "SPECIFIED_FOR_CRITIQUE",
+      "requiredRuleSection": "PROPOSED-RULES.md section2",
+      "observedFacts": "OBSERVED-NATIVE.md",
+      "implementationStatus": "BLOCKED_PENDING_RB07",
+      "blockers": [
+        "RB07"
+      ],
+      "remainingDecision": "No runtime acceptance is inferred from this draft."
+    },
+    {
+      "id": "U07",
+      "title": "Commit/tree/path budget semantics",
+      "parameterDraft": "SPECIFIED_FOR_CRITIQUE",
+      "requiredRuleSection": "PROPOSED-RULES.md section3",
+      "observedFacts": "OBSERVED-NATIVE.md",
+      "implementationStatus": "BLOCKED_PENDING_RB04,RB07",
+      "blockers": [
+        "RB04",
+        "RB07"
+      ],
+      "remainingDecision": "No runtime acceptance is inferred from this draft."
+    },
+    {
+      "id": "U08",
+      "title": "Operation/deadline/output counting",
+      "parameterDraft": "SPECIFIED_FOR_CRITIQUE",
+      "requiredRuleSection": "PROPOSED-RULES.md section3",
+      "observedFacts": "OBSERVED-NATIVE.md",
+      "implementationStatus": "BLOCKED_PENDING_RB03,RB04",
+      "blockers": [
+        "RB03",
+        "RB04"
+      ],
+      "remainingDecision": "No runtime acceptance is inferred from this draft."
+    },
+    {
+      "id": "U09",
+      "title": "Object failure taxonomy",
+      "parameterDraft": "SPECIFIED_FOR_CRITIQUE",
+      "requiredRuleSection": "PROPOSED-RULES.md section4",
+      "observedFacts": "OBSERVED-NATIVE.md",
+      "implementationStatus": "BLOCKED_PENDING_RB03",
+      "blockers": [
+        "RB03"
+      ],
+      "remainingDecision": "No runtime acceptance is inferred from this draft."
+    },
+    {
+      "id": "U10",
+      "title": "Cancellation and lifecycle full-result expectations",
+      "parameterDraft": "SPECIFIED_FOR_CRITIQUE",
+      "requiredRuleSection": "PROPOSED-RULES.md section4/5",
+      "observedFacts": "OBSERVED-NATIVE.md",
+      "implementationStatus": "BLOCKED_PENDING_RB03,RB05,RB06",
+      "blockers": [
+        "RB03",
+        "RB05",
+        "RB06"
+      ],
+      "remainingDecision": "No runtime acceptance is inferred from this draft."
+    },
+    {
+      "id": "U11",
+      "title": "Process ownership implementation admission",
+      "parameterDraft": "SPECIFIED_FOR_CRITIQUE",
+      "requiredRuleSection": "PROPOSED-RULES.md section5",
+      "observedFacts": "OBSERVED-NATIVE.md",
+      "implementationStatus": "BLOCKED_PENDING_RB05",
+      "blockers": [
+        "RB05"
+      ],
+      "remainingDecision": "U11 portable implementing Gate A must freeze exact private keeper framing; native owner repair separately mandatory."
+    },
+    {
+      "id": "U12",
+      "title": "Root-change error and precedence",
+      "parameterDraft": "SPECIFIED_FOR_CRITIQUE",
+      "requiredRuleSection": "PROPOSED-RULES.md section5",
+      "observedFacts": "OBSERVED-NATIVE.md",
+      "implementationStatus": "BLOCKED_PENDING_RB06",
+      "blockers": [
+        "RB06"
+      ],
+      "remainingDecision": "No runtime acceptance is inferred from this draft."
+    },
+    {
+      "id": "U13",
+      "title": "Runtime-specific complete expectations",
+      "parameterDraft": "SPECIFIED_FOR_CRITIQUE",
+      "requiredRuleSection": "PROPOSED-RULES.md section6",
+      "observedFacts": "OBSERVED-NATIVE.md",
+      "implementationStatus": "BLOCKED_PENDING_RB07",
+      "blockers": [
+        "RB07"
+      ],
+      "remainingDecision": "No runtime acceptance is inferred from this draft."
+    },
+    {
+      "id": "U14",
+      "title": "Inherited public packet routing",
+      "parameterDraft": "SPECIFIED_FOR_CRITIQUE",
+      "requiredRuleSection": "PROPOSED-RULES.md section6",
+      "observedFacts": "OBSERVED-NATIVE.md",
+      "implementationStatus": "BLOCKED_PENDING_RB07",
+      "blockers": [
+        "RB07"
+      ],
+      "remainingDecision": "No runtime acceptance is inferred from this draft."
+    }
+  ]
+}
