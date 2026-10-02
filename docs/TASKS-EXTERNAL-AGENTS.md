@@ -246,6 +246,16 @@ and handoff preconditions. Omitted commands explain that execution remains NOT_R
 mutation `operation` and `payloadKeys` help is preserved. A flag value spelled `--help` remains a
 value; unknown command paths still refuse.
 
+## Read beside concurrent writers
+
+A read that probes a writer between its receipt link-in and its head rename waits it out for up
+to two seconds with backoff before it reports `NOT_RUN`/`REDO_PENDING`, and a snapshot that moved
+during the read is re-read within the same budget before `NOT_RUN`/`SNAPSHOT_MOVED` (CTS-V0-006).
+Both outcomes remain `NOT_RUN`, not `ERROR`: nothing was decided, the store was not changed, and the
+warning names the wait and says the read is retryable. A dispatcher that still sees one should
+retry the read rather than treat it as a failed command; `REDO_PENDING` that outlives the budget
+means a writer crashed inside the window and the next mutating command redoes its receipt.
+
 ## Observe holders and retry debt
 
 Send `corvint-tasks attempt heartbeat --attempt ID --generation G --request-id FRESH_ID`

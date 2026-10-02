@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type archiveNative struct{ StateDir, PrimaryWorktree string }
@@ -428,18 +429,51 @@ func sameLayout(a, b *scan) bool {
 	return true
 }
 
-// One retry owner; the inner header probe is always one-shot.
+// One retry owner for movement the body detects; the inner header probe is
+// always one-shot. Every attempt draws on one patience deadline, so the
+// export pauses no longer in total than a single read would (CTS-V0-006),
+// and a failure after any pause names the wait and says it is retryable.
 func readArchive(rd snapshot.Reader, attempt func(*snapshot.Snapshot) error) (*snapshot.Snapshot, error) {
 	rd.Retries = -1
+	patience := rd.Patience
+	if patience == 0 {
+		patience = snapshot.DefaultPatience
+	}
+	start := time.Now()
+	deadline := start.Add(patience)
+	sleep := rd.Sleep
+	if sleep == nil {
+		sleep = time.Sleep
+	}
+	// waits counts every pause; callWaits those of the current Read, which
+	// already names its own wait on the error it returns.
+	waits, callWaits := 0, 0
+	rd.Sleep = func(d time.Duration) {
+		waits++
+		callWaits++
+		sleep(d)
+	}
 	var snap *snapshot.Snapshot
 	var err error
 	for n := 0; n < 4; n++ {
+		rd.Patience = time.Until(deadline)
+		if rd.Patience <= 0 {
+			rd.Patience = snapshot.NoPatience
+		}
+		callWaits = 0
 		snap, err = rd.Read(attempt)
 		if wire.CodeOf(err) != wire.CodeSnapshotMoved {
-			return snap, err
+			break
 		}
 	}
-	return snap, wire.Errorf(wire.CodeSnapshotMoved, "archive", "store moved during all four attempts")
+	if wire.CodeOf(err) == wire.CodeSnapshotMoved {
+		err = wire.Errorf(wire.CodeSnapshotMoved, "archive", "store moved during all four attempts")
+		callWaits = 0
+	}
+	if err != nil && callWaits == 0 {
+		err = snapshot.AfterWait(err, start, waits)
+	}
+	return snap, err
 }
 
 func joinReadClose(primary, cleanup error) error {

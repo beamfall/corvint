@@ -1,7 +1,7 @@
 # Corvint Tasks store initialization V0
 
 Owner: Russell Lewis
-Date: 2026-09-25 (CTS-V0-001, CTS-V0-003 and CTS-V0-004 accepted 2026-09-27; CTS-V0-002 accepted 2026-09-28)
+Date: 2026-09-25 (CTS-V0-001, CTS-V0-003 and CTS-V0-004 accepted 2026-09-27; CTS-V0-002 accepted 2026-09-28; CTS-V0-006 requested 2026-10-01 in issue 433)
 Intent status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 336](https://github.com/beamfall/corvint/issues/336), decision 0397 (corvint-tasks built in tree), `AGENTS.md`,
@@ -11,7 +11,7 @@ Authoritative inputs: owner request [issue 336](https://github.com/beamfall/corv
 
 ## Agent digest
 - Claim: `corvint-tasks init` refuses an intent store that already holds records, and works in a repository reached through a symlinked ancestor such as macOS `/tmp`.
-- Status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28); experimental. CTS-V0-001 through CTS-V0-004 are implemented; CTS-V0-002 permits only four unaudited inventory reads when the journal directory is absent; CTS-V0-005 adds tested non-fixture external-agent setup templates.
+- Status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28); experimental. CTS-V0-001 through CTS-V0-004 are implemented; CTS-V0-002 permits only four unaudited inventory reads when the journal directory is absent; CTS-V0-005 adds tested non-fixture external-agent setup templates; CTS-V0-006 makes journal-backed reads wait out an in-flight writer (issue 433) instead of failing `REDO_PENDING` or `SNAPSHOT_MOVED` at once.
 - Exists: journal-absent inventory reads with no audit identity, the coded init refusal, the ancestor resolution, the `corvint-tasks import` verb with its `IMPORT_APPLY` stage operation, and their store, transaction and CLI tests.
 - Blocked on: broader task-store authority recovery (V1-0310) remains open; CTS-V0-002 has narrow independent owner acceptance. For a non-fixture import writer, V1-0398.
 - Read next: Requirements; Import export and batching; Failure modes; Traceability.
@@ -85,6 +85,20 @@ drains, the import-map writer, and writing or changing the foreign export.
   empty (unobserved, never enforced), use whole-repository fallback for incomplete effects, and
   retain the CAL-V0-020 qualification cutover before admission. The guide MUST distinguish empty
   initialization from journal-absent reads and document canonical UTF-8/set-array input.
+- `CTS-V0-006`: (requested 2026-10-01, issue 433) A journal-backed read (`withStore` verbs and
+  `archive export`) that probes a committed receipt `head.json` does not name yet (`REDO_PENDING`,
+  the §5.2 window between a writer's receipt link-in and its head rename) MUST treat it as a writer
+  in flight, not as a fact about the store: it MUST pause with bounded backoff (25 ms doubling to
+  400 ms) and probe again until the writer has applied the receipt or a patience budget of two
+  seconds is spent, and only then report `REDO_PENDING`. A snapshot that moved between probe and
+  re-probe MUST be paused on and re-read, uncounted, while the same budget lasts; the TM-V0-008
+  attempt bound applies to the unpaused re-reads once it is spent. A failure reported after at
+  least one pause MUST name the wait and say the read is retryable, with the code unchanged. The
+  read MUST NOT write, lock, redo the receipt or lengthen the budget; a writer that crashed inside
+  the window is still reported as `REDO_PENDING` after the budget, and `JOURNAL_FORKED` and every
+  other probe failure stay immediate. The `taskman-command-result/0` envelope and the
+  `outcomeFor` mapping (`NOT_RUN`) are unchanged; a test binary disables the budget so planted
+  pending receipts are reported at once.
 
 ## Import export and batching
 
@@ -124,6 +138,9 @@ revision 1, a broken revision chain, and a target held by a native record or ano
 | Journal directory absent | Only the four inventory verbs return a validated unaudited projection with no snapshot or journal facts (CTS-V0-002). |
 | Journal exists but is partial, corrupt, symlinked or unreadable | Strict failure; no fallback and no repair (CTS-V0-002). |
 | Intent changes repeatedly or journal appears during inventory read | Bounded refusal with `SNAPSHOT_MOVED`; no mixed result (CTS-V0-002). |
+| Read probes a writer between receipt link-in and head rename | Paused with backoff and probed again; succeeds on the new head once the writer finishes (CTS-V0-006). |
+| Writer stays inside the window beyond the two-second budget (crashed, or a loaded host) | `NOT_RUN`/`REDO_PENDING` naming the wait and that the read is retryable; the next mutating command redoes the receipt (CTS-V0-006). |
+| Store commits throughout the budget so no two probes agree | `NOT_RUN`/`SNAPSHOT_MOVED` after the budget plus the unpaused TM-V0-008 attempts, naming the wait (CTS-V0-006). |
 | Journal already initialized | Unchanged: the existing already-initialized refusal applies first. |
 | Store already frozen by an earlier init | Not repaired here; the operator removes `.git/taskman`. CTS-V0-003 imports foreign exports only and does not adopt committed native records. |
 | Import item invalid or duplicated in the export | Refused before the first write; nothing is written (CTS-V0-003). |
@@ -156,6 +173,17 @@ checks that `head.json` records the canonical path, and reads the queue through 
 Rollback removes `canonicalAncestors` in `internal/tasks/intent/worktree.go`; a repository under a
 symlinked ancestor is then refused again, and a journal it already wrote keeps the canonical path.
 
+CTS-V0-006 is accepted by snapshot tests that finish a simulated writer during the pause and read
+the new head, report `REDO_PENDING` only after the budget with the store byte-identical, and pause
+moved re-reads; and by CLI tests that run `queue status` and `plan preview` against a planted
+pending receipt a goroutine applies, and repeatedly under a writer committing twelve receipts with
+a short pending window, where the same test with the budget disabled reproduces issue 433; and by
+archive tests that run `archive export` repeatedly under a writer committing eight receipts (with
+the budget disabled it reproduces the issue) and that bound the pauses of all four archive attempts
+to one budget, with the final `SNAPSHOT_MOVED` naming the wait and called retryable. Rollback
+sets `DefaultPatience` to `NoPatience` in `internal/tasks/snapshot/probe.go`, which restores the
+immediate `REDO_PENDING` and the unpaused attempts; no state format or envelope changes.
+
 ## Traceability
 
 | Requirement | Implementation | Evidence |
@@ -165,3 +193,4 @@ symlinked ancestor is then refused again, and a journal it already wrote keeps t
 | CTS-V0-003 | `internal/tasks/importer/importer.go` (`Decode`, `Plan`), `internal/tasks/store/import.go` (`Import`, `importBatch`, `packImport`), `internal/tasks/transaction/model.go` (`ImportApply`, `importPosts`, `importChain`), `internal/tasks/snapshot/stage.go` (`StageImportApply`), `internal/tasks/cli/import.go` | TestCTSV0003_ImportWritesShadowRecordsAndReimportIsIdempotent, TestCTSV0003_ChangedBlockWritesNextRevision, TestCTSV0003_ImportRefusesOverNativeRecord, TestCTSV0003_ImportRefusesWithNothingWritten, TestCTSV0003_ImportBatchesWithinStageLimits, TestCTSV0003_ImportApplyPostsAndChainsRevisions, TestCTSV0003_ImportApplyRefusals, TestCTSV0003_CLIImportWritesShadowRecordsBlockedOnCutover; IMPORT source rules: TestTMV0003_AS02_FieldRelationships, TestTMV0004_AS05_EligibilityDerived |
 | CTS-V0-004 | `internal/tasks/intent/worktree.go` (`finish`, `canonicalAncestors`) | TestCTSV0004_InitThroughSymlinkedAncestor |
 | CTS-V0-005 | `docs/TASKS-EXTERNAL-AGENTS.md`, `internal/tasks/cli/testdata/external-agents/`, CLI help | TestExternalAgentTemplatesRequireQualification |
+| CTS-V0-006 | `internal/tasks/snapshot/probe.go` (`Reader.Read`, `Reader.Patience`, `DefaultPatience`, `readBackoff`, `afterWait`), `internal/tasks/fixture/fixture.go` (`init`, `ApplyReceipt`) | TestCTSV0006_ReadWaitsForInFlightWriter, TestCTSV0006_ReadReportsPendingAfterPatience, TestCTSV0006_MovedReadsPauseBetweenAttempts, TestCTSV0006_ReadVerbsWaitForWriterToApplyReceipt, TestCTSV0006_ReadVerbsUnderConcurrentWriter; unchanged attempt counts: TestTMV0008_AS36_ReadRetriesThenSnapshotMoved, TestTMV0008_AS07_ReadsLeaveStoreByteIdentical |
