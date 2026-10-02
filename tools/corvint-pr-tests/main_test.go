@@ -171,6 +171,14 @@ func selectedFailureAndFallback(t *testing.T) {
 	if _, err = execute(ctx, o, wrong); err == nil {
 		t.Fatal("Go binary drift executed")
 	}
+	if id.Git == "" {
+		t.Fatal("Git executable missing from frozen identity")
+	}
+	wrong = s
+	wrong.Identity.Git = "changed"
+	if _, err = execute(ctx, o, wrong); err == nil || !strings.Contains(err.Error(), "Git") {
+		t.Fatalf("Git drift executed: %v", err)
+	}
 	code, err = runPR(ctx, o)
 	if err != nil || code != 1 {
 		t.Fatalf("full fallback: %d %v", code, err)
@@ -330,6 +338,116 @@ func interruptionLeavesNoLiveDescendant(t *testing.T) {
 
 func TestClosedEnvironmentAndBoundedOutput(t *testing.T) {
 	t.Run("AFP-V0-013", closedEnvironmentAndBoundedOutput)
+}
+
+// TestTestEnvironmentSilencesGraftAdvice keeps the graft refusal for tests
+// while they see no graft-deprecation advice in combined Git output.
+func TestTestEnvironmentSilencesGraftAdvice(t *testing.T) {
+	t.Run("AFP-V0-013 graft advice", func(t *testing.T) {
+		o := options{root: t.TempDir(), out: t.TempDir()}
+		if err := prepareCache(o); err != nil {
+			t.Fatal(err)
+		}
+		driver, tests := closedEnv(o), testEnv(o)
+		var want []string
+		for _, v := range driver {
+			if v == "GIT_CONFIG_COUNT=0" {
+				want = append(want, "GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=advice.graftFileDeprecated", "GIT_CONFIG_VALUE_0=false")
+			} else {
+				want = append(want, v)
+			}
+		}
+		if !strings.Contains(strings.Join(tests, "\n"), "GIT_GRAFT_FILE="+os.DevNull) || !equal(tests, want) {
+			t.Fatalf("test environment is not closedEnv plus the advice setting: driver=%v tests=%v", driver, tests)
+		}
+		run := func(env []string, args ...string) string {
+			t.Helper()
+			var b strings.Builder
+			code, err := command(context.Background(), o.root, env, &b, &b, time.Minute, "git", args...)
+			if err != nil || code != 0 {
+				t.Fatalf("git %v: %d %v %s", args, code, err, b.String())
+			}
+			return b.String()
+		}
+		run(tests, "init", "-q")
+		run(tests, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "one")
+		if out := run(tests, "log", "--format=%s"); out != "one\n" {
+			t.Fatalf("test Git output carried advice: %q", out)
+		}
+		// Recorded, not asserted: advice wording depends on the Git version.
+		t.Logf("driver environment log output: %q", run(driver, "log", "--format=%s"))
+	})
+}
+
+// TestExecuteGivesTestsSilencedGraftEnvironment pins the environment execute
+// hands to go test: a fixture test fails if grafts are not refused or if
+// combined git log output carries graft-deprecation advice.
+func TestExecuteGivesTestsSilencedGraftEnvironment(t *testing.T) {
+	t.Run("AFP-V0-013 graft advice", func(t *testing.T) {
+		root, tools := t.TempDir(), t.TempDir()
+		o := options{root: root, out: t.TempDir(), mode: "run", source: strings.Repeat("a", 40), planner: filepath.Join(tools, "planner"), selector: filepath.Join(tools, "selector")}
+		o.runtime = filepath.Join(o.out, "runtime")
+		for path, body := range map[string]string{
+			o.planner:                             "identity fixture",
+			o.selector:                            "identity fixture",
+			filepath.Join(root, "go.mod"):         "module example.org/graft\n\ngo 1.27.1\n",
+			filepath.Join(root, "g", "g_test.go"): "package g\nimport (\"os\"; \"os/exec\"; \"testing\")\nfunc TestGitOutput(t *testing.T) {\n\tif os.Getenv(\"GIT_GRAFT_FILE\") != os.DevNull { t.Fatal(\"grafts not refused\") }\n\tout, err := exec.Command(\"git\", \"log\", \"-1\", \"--format=%s\").CombinedOutput()\n\tif err != nil || string(out) != \"base\\n\" { t.Fatalf(\"git output %q: %v\", out, err) }\n}\n",
+		} {
+			if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte(body), 0600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := prepareCache(o); err != nil {
+			t.Fatal(err)
+		}
+		ctx := context.Background()
+		for _, args := range [][]string{{"init", "-q"}, {"add", "."}, {"-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "base"}} {
+			if _, err := git(ctx, o, args...); err != nil {
+				t.Fatal(err)
+			}
+		}
+		id, err := toolIdentity(ctx, o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		code, err := execute(ctx, o, selection{Identity: id, Packages: []string{"./..."}, Reason: "qualification unavailable"})
+		if err != nil || code != 0 {
+			b, _ := os.ReadFile(filepath.Join(o.out, "go.json"))
+			t.Fatalf("go test environment: %d %v\n%s", code, err, b)
+		}
+	})
+}
+
+// TestExecuteRequiresGitIdentity refuses execution when the test Git cannot be
+// identified, even without a frozen identity to compare against.
+func TestExecuteRequiresGitIdentity(t *testing.T) {
+	t.Run("AFP-V0-013", func(t *testing.T) {
+		bin := t.TempDir()
+		for name, body := range map[string]string{
+			"go":  "#!/bin/sh\ncase \"$1:$2\" in\nenv:GOVERSION) printf '%s\\n' go1.27.1 ;;\nenv:CC) printf '%s\\n' /usr/bin/cc ;;\n*) exit 1 ;;\nesac\n",
+			"git": "#!/bin/sh\nexit 1\n",
+		} {
+			if err := os.WriteFile(filepath.Join(bin, name), []byte(body), 0700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
+		o := options{root: t.TempDir(), out: t.TempDir(), mode: "run", source: strings.Repeat("a", 40), planner: filepath.Join(bin, "planner"), selector: filepath.Join(bin, "selector")}
+		o.runtime = filepath.Join(o.out, "runtime")
+		if err := prepareCache(o); err != nil {
+			t.Fatal(err)
+		}
+		code, err := execute(context.Background(), o, selection{Packages: []string{"./..."}})
+		if code != 2 || err == nil || !strings.Contains(err.Error(), "runtime identity unavailable") {
+			t.Fatalf("unidentified Git executed: %d %v", code, err)
+		}
+		if _, err := os.Stat(filepath.Join(o.out, "go.json")); !os.IsNotExist(err) {
+			t.Fatalf("go test launched without a Git identity: %v", err)
+		}
+	})
 }
 
 func closedEnvironmentAndBoundedOutput(t *testing.T) {

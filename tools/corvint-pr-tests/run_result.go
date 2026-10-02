@@ -37,7 +37,7 @@ func containerRunResult(o options, p containerProfile, dir string, exports map[s
 		return 2, err
 	}
 	id := s.Identity
-	if s.Schema != schema || s.Base != o.base || s.Head != o.head || s.Target != o.target || s.ObservedTarget != o.target || !oid.MatchString(s.Tree) || s.ObservedTree != s.Tree || id.Source != o.source || id.GoVersion != "go1.27.0" || id.OS != "linux" || id.Arch != "amd64" || id.GoBinary == "" || id.Compiler == "" || len(id.Env) == 0 || !equal(id.Container, &p) || id.Driver != p.Tools["corvint-pr-tests"] || id.Planner != p.Tools["corvint"] || id.Selector != p.Tools["gate-affected-select"] || !equal(e.Selection, s) || e.Error != "" || e.Exit != code || !equal(e.Env, id.Env) || !equal(id.Args, testArgs) || !equal(e.Args, append(append([]string{}, testArgs...), s.Packages...)) || len(s.Packages) == 0 {
+	if s.Schema != schema || s.Base != o.base || s.Head != o.head || s.Target != o.target || s.ObservedTarget != o.target || !oid.MatchString(s.Tree) || s.ObservedTree != s.Tree || id.Source != o.source || id.GoVersion != "go1.27.0" || id.OS != "linux" || id.Arch != "amd64" || id.GoBinary == "" || id.Compiler == "" || id.Git == "" || len(id.Env) == 0 || !equal(id.Container, &p) || id.Driver != p.Tools["corvint-pr-tests"] || id.Planner != p.Tools["corvint"] || id.Selector != p.Tools["gate-affected-select"] || !equal(e.Selection, s) || e.Error != "" || e.Exit != code || !equal(e.Env, id.Env) || !equal(id.Args, testArgs) || !equal(e.Args, append(append([]string{}, testArgs...), s.Packages...)) || len(s.Packages) == 0 {
 		return 2, errors.New("incoherent run execution evidence")
 	}
 	if s.Reason != "" && !equal(s.Packages, []string{"./..."}) {
