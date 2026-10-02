@@ -9,9 +9,12 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 const (
@@ -28,34 +31,38 @@ type Proc struct {
 
 // Worker is one launched host process and its supervised tree.
 type Worker struct {
-	ID             string    `json:"id"`
-	Role           string    `json:"role"`
-	Host           string    `json:"host"`
-	Slot           int       `json:"slot"`
-	Key            string    `json:"key"`
-	Ticket         string    `json:"ticket,omitempty"`
-	Pool           string    `json:"pool,omitempty"`
-	Member         string    `json:"member,omitempty"`
-	PID            int       `json:"pid"`
-	LeaderIdentity string    `json:"leaderIdentity"`
-	Members        []Proc    `json:"members"`
-	Started        time.Time `json:"started"`
-	LastActive     time.Time `json:"lastActive"`
-	LogBytes       int64     `json:"logBytes"`
-	ActivityPaths  []string  `json:"activityPaths,omitempty"`
-	ActivityMtime  time.Time `json:"activityMtime"`
-	State          string    `json:"state"` // RUNNING or KILLING
-	KillReason     string    `json:"killReason,omitempty"`
-	KillDeadline   time.Time `json:"killDeadline,omitempty"`
-	Fingerprint    string    `json:"fingerprint"`
+	ID              string    `json:"id"`
+	Role            string    `json:"role"`
+	Host            string    `json:"host"`
+	Slot            int       `json:"slot"`
+	Key             string    `json:"key"`
+	Ticket          string    `json:"ticket,omitempty"`
+	Pool            string    `json:"pool,omitempty"`
+	Member          string    `json:"member,omitempty"`
+	PID             int       `json:"pid"`
+	LeaderIdentity  string    `json:"leaderIdentity"`
+	Members         []Proc    `json:"members"`
+	Started         time.Time `json:"started"`
+	LastActive      time.Time `json:"lastActive"`
+	LogBytes        int64     `json:"logBytes"`
+	ActivityPaths   []string  `json:"activityPaths,omitempty"`
+	ActivityMtime   time.Time `json:"activityMtime"`
+	State           string    `json:"state"` // RUNNING or KILLING
+	KillReason      string    `json:"killReason,omitempty"`
+	KillDeadline    time.Time `json:"killDeadline,omitempty"`
+	Fingerprint     string    `json:"fingerprint"`
+	BaseFingerprint string    `json:"baseFingerprint,omitempty"`
+	ProgressDigest  string    `json:"progressDigest,omitempty"`
 }
 
 // Backoff is the CAL-V0-057 per-key no-progress record.
 type BackoffState struct {
-	NoProgress    int       `json:"noProgress"`
-	CooldownUntil time.Time `json:"cooldownUntil"`
-	Parked        bool      `json:"parked"`
-	Fingerprint   string    `json:"fingerprint"`
+	NoProgress      int       `json:"noProgress"`
+	CooldownUntil   time.Time `json:"cooldownUntil"`
+	Parked          bool      `json:"parked"`
+	Fingerprint     string    `json:"fingerprint"`
+	BaseFingerprint string    `json:"baseFingerprint,omitempty"`
+	ProgressDigest  string    `json:"progressDigest,omitempty"`
 }
 
 // Seen is the previous observation, kept to emit change events.
@@ -68,13 +75,22 @@ type Seen struct {
 // Ledger is the dispatcher's private taskman-dispatch-state/0 file. It is
 // never an input to the native store.
 type Ledger struct {
-	Profile   string                   `json:"profile"`
-	Program   string                   `json:"program"`
-	LaunchSeq uint64                   `json:"launchSeq"`
-	EventSeq  uint64                   `json:"eventSeq"`
-	Workers   []*Worker                `json:"workers"`
-	Backoff   map[string]*BackoffState `json:"backoff"`
-	Seen      *Seen                    `json:"seen,omitempty"`
+	Profile   string                      `json:"profile"`
+	Program   string                      `json:"program"`
+	LaunchSeq uint64                      `json:"launchSeq"`
+	EventSeq  uint64                      `json:"eventSeq"`
+	Workers   []*Worker                   `json:"workers"`
+	Backoff   map[string]*BackoffState    `json:"backoff"`
+	Seen      *Seen                       `json:"seen,omitempty"`
+	Progress  map[string]*ProgressHistory `json:"progress,omitempty"`
+}
+
+const maxProgressPerKey, maxProgressProgram = 256, 8192
+
+// ProgressHistory is lifetime replay protection, including deleted keys.
+type ProgressHistory struct {
+	Current string   `json:"current"`
+	Seen    []string `json:"seen"`
 }
 
 // ProgramDir is the dispatcher's state directory for one program.
@@ -95,8 +111,21 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	if err := d.Decode(&l); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
 	}
+	// Presence, including null, enables strict validation. Otherwise a duplicate
+	// progress member ending in null could discard replay history on restart.
+	var members map[string]json.RawMessage
+	_ = json.NewDecoder(bytes.NewReader(raw)).Decode(&members)
+	if progress, present := members["progress"]; present {
+		var extra any
+		if bytes.Equal(bytes.TrimSpace(progress), []byte("null")) || d.Decode(&extra) != io.EOF || !validScalarJSON(raw) || !uniqueProgressJSON(raw) {
+			return nil, errors.New("dispatch state: malformed progress JSON")
+		}
+	}
 	if l.Profile != StateProfile || l.Program != program {
 		return nil, fmt.Errorf("dispatch state belongs to profile %q program %q", l.Profile, l.Program)
+	}
+	if err := l.validateProgress(); err != nil {
+		return nil, fmt.Errorf("dispatch state: %w", err)
 	}
 	if l.Backoff == nil {
 		l.Backoff = map[string]*BackoffState{}
@@ -105,6 +134,121 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 		l.Workers = []*Worker{}
 	}
 	return &l, nil
+}
+
+func validProgressDigest(s string) bool {
+	if len(s) != 64 {
+		return false
+	}
+	for _, c := range s {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+			return false
+		}
+	}
+	return true
+}
+
+// A token-enabled ledger cannot silently overwrite replay history through
+// duplicate JSON members. Its schema has shallow, bounded containers.
+func uniqueProgressJSON(raw []byte) bool {
+	d := json.NewDecoder(bytes.NewReader(raw))
+	var value func(int) bool
+	value = func(depth int) bool {
+		if depth > 32 {
+			return false
+		}
+		token, err := d.Token()
+		if err != nil {
+			return false
+		}
+		switch token {
+		case json.Delim('{'):
+			seen := map[string]bool{}
+			for d.More() {
+				k, err := d.Token()
+				key, ok := k.(string)
+				if err != nil || !ok || seen[key] {
+					return false
+				}
+				seen[key] = true
+				if !value(depth + 1) {
+					return false
+				}
+			}
+			end, err := d.Token()
+			return err == nil && end == json.Delim('}')
+		case json.Delim('['):
+			for d.More() {
+				if !value(depth + 1) {
+					return false
+				}
+			}
+			end, err := d.Token()
+			return err == nil && end == json.Delim(']')
+		case json.Delim('}'), json.Delim(']'):
+			return false
+		default:
+			return true
+		}
+	}
+	if !value(0) {
+		return false
+	}
+	var extra any
+	return d.Decode(&extra) == io.EOF
+}
+
+func (l *Ledger) validateProgress() error {
+	count := 0
+	for key, h := range l.Progress {
+		if _, err := wire.ParseTicketID("progress key", key); err != nil || h == nil || len(h.Seen) == 0 || len(h.Seen) > maxProgressPerKey || !validProgressDigest(h.Current) {
+			return errors.New("invalid progress history")
+		}
+		for i, digest := range h.Seen {
+			if !validProgressDigest(digest) || (i > 0 && h.Seen[i-1] >= digest) {
+				return errors.New("invalid or duplicate progress digest")
+			}
+		}
+		i := sort.SearchStrings(h.Seen, h.Current)
+		if i == len(h.Seen) || h.Seen[i] != h.Current {
+			return errors.New("current progress digest absent from history")
+		}
+		count += len(h.Seen)
+	}
+	if count > maxProgressProgram {
+		return errors.New("progress program capacity exceeded")
+	}
+	check := func(key, base, digest, fp string) error {
+		if base == "" && digest == "" && l.Progress[key] == nil {
+			return nil
+		}
+		h := l.Progress[key]
+		if h == nil || !validProgressDigest(base) || !validProgressDigest(digest) || progressFingerprint(base, digest) != fp {
+			return errors.New("invalid progress accounting baseline")
+		}
+		i := sort.SearchStrings(h.Seen, digest)
+		if i == len(h.Seen) || h.Seen[i] != digest {
+			return errors.New("accounting digest absent from history")
+		}
+		return nil
+	}
+	for _, w := range l.Workers {
+		if w == nil {
+			return errors.New("null worker")
+		}
+		if err := check(w.Key, w.BaseFingerprint, w.ProgressDigest, w.Fingerprint); err != nil {
+			return err
+		}
+	}
+	for key, b := range l.Backoff {
+		if b == nil {
+			return errors.New("null backoff")
+		}
+		if err := check(key, b.BaseFingerprint, b.ProgressDigest, b.Fingerprint); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (l *Ledger) save(dir string) error {
