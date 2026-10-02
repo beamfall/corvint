@@ -321,6 +321,22 @@ the normative shape contract.
   Historical 0.1-only consumers' rejection codes are outside this profile.
 - `CEM-CB-022`: equivalent invocations in fresh processes MUST emit byte-identical compact JSON.
 
+### Self-modified authority report (V1-0414, experimental)
+
+- `CEM-CB-026`: (experimental, V1-0414) `cem status` MUST report every governing instruction file
+  the map's own patch changes: a hunk path whose basename is `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`
+  or `copilot-instructions.md` (case-insensitive) or that is a
+  `.github/instructions/*.instructions.md` file, the same rule as TCP-V0-008's `documentKind`.
+  The result then carries `selfModifiedAuthority`, an array sorted by path of
+  `{path, hunks, citedBy, reason}`, where `hunks` lists the IDs of the hunks changing that path and
+  `citedBy` lists, in map order, every `{hunk, evidenceId, relation}` basis whose evidence row
+  cites that path: a change citing, as authority for its own hunks, the governing file it rewrites
+  (TCP-V0-057; threat recorded in `task-context-packet-v0.md`, V1-0414). The member is absent when
+  the patch changes no governing file, so such a status envelope is byte-identical to before. The
+  report does not change `state`, `ok`, `policyIssues`, the map or any other command's output: a
+  map that was `ready-for-ci` stays `ready-for-ci`, and refusing such citations is a policy the
+  owner has not accepted. A renamed governing file is reported only by its new path.
+
 ## Exact patch-binding envelope
 
 The following fields freeze every WP2-controlled top-level envelope decision for `status`, `verify`,
@@ -564,6 +580,8 @@ If WP2 fails its gate, keep `cem/0.1`, its exact-patch verifier, and the reviewe
 script unchanged. Remove the unaccepted 0.2 producer, schema, conformance additions, CLI canonical
 claims, and OCM integration; do not rewrite retained maps. Mark this spec delivery `failed`, record
 the failing fixture, and keep WP5 blocked until a smaller canonical-binding design is accepted.
+CEM-CB-026 rolls back alone: delete `internal/cem/workflow/self_modified.go`, its test and the
+`selfModifiedAuthority` lines in the `status` case; no map, state or other envelope changes.
 
 ## Traceability
 
@@ -582,6 +600,7 @@ non-authoritative and slated for separate removal.
 | `CEM-CB-017..020` | shared CEM/OCM repository-boundary validation | primary/linked equivalence, bounded oversized/growth/symlink/FIFO metadata, alternate precedence, locally complete promisor tests, `TestResolveIgnoresRepositoryGrafts`, `TestRevisionOperandsAreNeverOptions`, `TestTimeoutReapIsBoundedWhenEscapedDescendantHoldsPipes`, `TestSessionStopIsBoundedWhenEscapedDescendantHoldsPipes` | `PASS` |
 | `CEM-CB-023..024` | `internal/cem/gitauth/{object,diff}.go` per-read tree and blob identity plus changed-path coverage | `TestAccuracyWholeTreePublicReadersAgree`, `TestGitIntegrityCommitAndTreeLinks` nested-tree case, `TestCanonicalDiffRejectsMislabeledBlobInputs`, `TestCanonicalDiffRefusesBlobFreeOmission`, `TestRequestMemoPrimitiveParityAndCopies` child counts | `PASS` |
 | `CEM-CB-021..022` | CEM verifier, workflow, and CLI envelopes | stable error and fresh-process deterministic JSON tests | `PASS` |
+| `CEM-CB-026` | `internal/cem/workflow/self_modified.go` (`selfModifiedAuthority`, `GoverningInstructionPath`), the `status` case in `internal/cem/workflow/read.go` | `TestStatusReportsSelfModifiedAuthority`, `TestStatusOmitsSelfModifiedAuthorityWithoutAGoverningChange`, `TestSelfModifiedAuthorityListsAnUncitedGoverningChange`, `TestCEMGoverningInstructionRuleMatchesThePacket` | `PASS` locally; experimental |
 | `CEM-CB-023` | `internal/cem/gitauth/{object,diff,tree,treediff,patchproof,commitstream}.go`, `internal/cem/gitrun/{gitrun,stream}.go` | `TestCommitStreamSplitFramesAndBoundedMemory`, `TestCommitStreamRefusesMalformedFrames`, `TestCommitTreeLinkRejectsValidUnrelatedObjects`, `TestVerifiedCommitTreesRejectsUnpinnedCommit`, `TestCanonicalDiffPreservesSymbolicRevisions`, `TestCommitVerificationLargeMessagesAndTreeishParity`, `TestCommitVerificationRejectsLooseAndPackedCorruption`, `TestCommitVerificationPreservesGitChildBudget`, `TestCommitTreeStreamsLargeRoot`, `TestRunStreamProcessFailureParity`, `TestRunStreamFastExitKeepsConsumerRefusal`, `TestRunStreamAdmissionAndCancellationParity`, `TestRunStreamContainsDescendants`, `TestGitIntegrityCommitAndTreeLinks`, `TestLookupTreeEntryVerifiedWalkMatchesLsTree`, `TestTreePathsMatchesLsTreeOrder`, `TestTreePathsRefusesMislabeledSubtree`, `TestTreePathsBoundsDepthAndBytes`, `TestCanonicalDiffRefusesMislabeledInputBlob`, `TestCanonicalDiffRefusesMislabeledIntermediateTree`, `TestRequirePatchProvenanceRefusesDoctoredPatch`, `TestCanonicalDiffProvesEveryHonestShape`, `TestCanonicalDiffBoundsChangeSetDepth`, `TestBlobBytesRejectsMislabeledLooseAndPackedObjects` | `PASS` |
 
 ## Decisions requiring acceptance

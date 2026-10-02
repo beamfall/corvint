@@ -68,8 +68,8 @@ func taskContext(ctx context.Context, index *Index, task, subject string, limit 
 
 // contextRow is one admitted file with the relation that admitted it.
 type contextRow struct {
-	kind, path, summary, reason, confidence, authority string
-	score, line                                        int
+	kind, path, summary, reason, confidence, authority, downgrade string
+	score, line                                                   int
 	// lexicalOnly marks a test row bound by the mention signal alone.
 	lexicalOnly bool
 }
@@ -1405,14 +1405,14 @@ func orderRelations(relations []string) []string {
 }
 
 func (compiler *taskContextCompiler) reservedRows() []contextRow {
-	rows := compiler.governingRows()
-	rows = append(rows, compiler.specMentionedRows(rows)...)
-	return append(rows, compiler.instructionRoutedRows(rows)...)
+	rows := compiler.screenAuthority(compiler.governingRows())
+	rows = append(rows, compiler.screenAuthority(compiler.specMentionedRows(rows))...)
+	return demoteScreened(append(rows, compiler.screenAuthority(compiler.instructionRoutedRows(rows))...))
 }
 
 // governingRow keeps the subjectless local-prompt caller's single-row API.
 func (compiler *taskContextCompiler) governingRow() (contextRow, bool) {
-	rows := compiler.governingRows()
+	rows := compiler.screenAuthority(compiler.governingRows())
 	if len(rows) == 0 {
 		return contextRow{}, false
 	}
@@ -1552,7 +1552,7 @@ func (compiler *taskContextCompiler) instructionRoutedRows(taken []contextRow) [
 	materialised := make([]string, 0)
 	rows := make([]contextRow, 0, contextRoutedCap)
 	for _, instruction := range taken {
-		if instruction.kind != governingRelation {
+		if instruction.kind != governingRelation || instruction.downgrade != "" {
 			continue
 		}
 		governing := instruction.path
@@ -2134,8 +2134,8 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 			entry["evidence_gap"] = evidenceGapReason(compiler.index, row.path)
 		}
 		results = append(results, map[string]any{
-			"kind": row.kind, "id": row.path, "score": row.score, "summary": row.summary, "action": rowAction(row),
-			"evidence": []any{entry},
+			"kind": row.kind, "id": row.path, "score": row.score, "summary": row.summary, "action": screenedAction(row),
+			"evidence": []any{compiler.withAuthorityWarnings(entry, row)},
 		})
 	}
 	critical, missing := compiler.criticalSelectors(rows)
