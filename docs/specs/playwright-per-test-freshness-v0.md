@@ -13,9 +13,9 @@ owner message `approved` on 2026-10-02 for plan SHA-256
 
 ## Agent digest
 - Claim: A bounded source-direct Playwright profile observes source, serving-process and runtime identity and joins native assertion controls to every baseline repeat.
-- Status: proposed technical contract; owner approved the implementation plan; experimental. Implementation and consuming-path qualification have not run.
-- Exists: accepted external application-observation machinery and experimental acceptance consumer. This new profile is not yet implemented.
-- Blocked on: frozen enrollment, implementation, exact live matrix, independent diff review, integration and native completion.
+- Status: proposed technical contract; owner approved the implementation plan; experimental. Reviewed source and bounded local consuming-path observations exist; final frozen checks, CEM/OCM, integration and native completion remain pending.
+- Exists: separate native freshness profile and request/assessment /1; actual stable assertion/control acceptance, stale product/test/imported-source controls, closed native joins and bounded dependency readers. Old /0 remains unchanged.
+- Blocked on: final registered clean-head checks, CEM/OCM and integration/native completion. Whole #394/V1-0541 remains partial for new-profile surviving Strength and flaky/order qualification; those are separate from V1-0556 freshness.
 - Read next: Requirements; Source-direct observation; Control join; Qualification and rollback.
 
 ## User and verified current state
@@ -35,7 +35,8 @@ inspection of provider and control evidence. The permanently prose-only JS exper
 
 - `PTF-V0-001`: The profile is explicit, separate and bounded to trusted local source-direct serving
   code, immutable clean product/test Git revisions and trees, one tracked HTML artifact and pinned
-  executable, server/observer entrypoint, configuration, package and imported input bytes. Expected
+  executable, server/observer entrypoint, configuration, package and complete operator-approved local
+  CJS dependency roots/files and their canonical manifest digest. Expected
   identities express the requested target; only actual observations can establish execution currency.
 - `PTF-V0-002`: Capture clean product/test repository and file identities before and after execution.
   Capture the owned server leader PID and host start identity through the existing AfterStart hook.
@@ -46,7 +47,11 @@ inspection of provider and control evidence. The permanently prose-only JS exper
 - `PTF-V0-003`: Record the actual reporter-selected semantic test identity, source anchor/digest,
   resolved built-in browser/page configuration, attempts, Node and Playwright versions, browser
   executable/version/manifest/hash, pinned runner entrypoint bytes and bounded declared execution
-  environment. Reobserve relevant bytes/environment at publication. No caller version label or
+  environment. Bind full selected Name/FullName/Anchor/Project including Use options. Reobserve approved installed
+  dependency bytes and explicit inputs before launch and on every publication return; join actual
+  worker, server and observer CJS import observations to those approved bytes. Missing/unapproved
+  closure is UNKNOWN; observed byte drift is STALE. Reobserve relevant bytes/environment at
+  publication. No caller version label or
   lifecycle boolean alone establishes freshness; unsupported tuples and overridden browser/page
   fixtures remain UNKNOWN.
 - `PTF-V0-004`: Rederive each selected row's CURRENT, STALE or UNKNOWN from receipt-wide observed
@@ -112,6 +117,15 @@ processes at most60s, readiness and application observations at most5s. Secret-s
 after decoding; artifact retention is private evidence and cannot bypass screening via base64.
 All new failures are value-free typed reason codes and fail closed.
 
+The approved dependency inventory has at most 8 roots and 512 files, 32 MiB per file and 128 MiB total.
+Actual reads cover all declared root entries and explicit inputs; extra entries cannot disappear
+from the join. Reject symlinks and non-regular leaves before opening, then recheck descriptor type.
+Darwin/Linux use no-follow, nonblocking, close-on-exec opens; other platforms refuse the observer.
+Cap each read by remaining bytes plus one overflow sentinel, and stop inventory on exhaustion with
+UNKNOWN because any remaining entries cannot be certified. Actual I/O can exceed the total by at
+most that one byte. This gives no hard context deadline for regular-file filesystem I/O and no
+hostile ancestor replacement, ESM/dynamic remote or native-library closure guarantee.
+
 ## Control join
 
 Verify the complete EvidenceReceipt using the existing verifier, without stripping its Unsupported
@@ -119,7 +133,9 @@ list. For each required executed raw attempt, require no omissions and exact nat
 binding. Decode only the new canonical profile and rederive its selected native row and closure.
 The supported single assertion fixture uses actual `PTF-ASSERTION:<assertion-id>` text followed by
 Playwright's locator assertion failure evidence; an unrelated error or assertion cannot count as a
-kill. Match source hash/path, declaration location, full title and project options semantically.
+kill. Match source hash/path, declaration location, full Name/FullName and Project/Use options semantically.
+The approved dependency manifest/digest, actual before/after complete file inventory and worker
+imports must also match every baseline.
 Normalize only independently verified output/temp-config/selector transport arguments; no other
 argv delta is permitted. Compare to every baseline; derive the sole mutation exception using
 PTF-V0-007 before trusting the mutant response. Missing facts leave Strength NOT_MEASURED.
@@ -141,9 +157,20 @@ semantics, automatic dependency installation in the product, release publication
 | PTF-V0-009 | Foreign occupied port, failure and cancellation observations; owned server/runner/browser descendants retired with limitations retained |
 | PTF-V0-010 | Exact consuming tuple live matrix, focused tests/vet/doc/error ownership, independent review, final CEM/OCM and native gate receipts |
 
-These are prospective gates, not claims of tests already run. Only fixture dependency integrity and
-browser availability/trust measurement are currently observed; their retained private evidence is
-`/private/tmp/corvint-394-browser-deps/proof/preparation-summary.json`.
+Source-phase evidence is retained privately with immutable hashes: eight real provider modes
+(stable, product source drift, distinct test source drift, imported implementation drift, response
+mutation, foreign occupied port, old served artifact and cancellation) passed. The consuming path
+accepted two CURRENT/PASSED zero-retry baselines with native KILLED strength and observed-absent
+cleanup. Each baseline bound 197 approved files and 21 actual worker imports. Rehashed generic-valid
+locale, viewport, title, opaque/wrong assertion and observer controls did not become measured native
+strength. Missing/early stale facts and duplicate/forged rows remained nonaccepting.
+
+Independent source review passed after two bounded repairs, retaining actual failing-before and
+passing-after witnesses for semantic joins, imported implementation drift and FIFO/total-budget
+reads. These are source-phase observations, not final registered frozen checks or CEM/OCM receipts.
+The exact source/review/proof hashes and remaining delivery are recorded in
+`docs/build-log/2026-10-02-per-test-freshness.md`. Whole #394 remains partial: historical legacy
+nonasserting/flaky rejection does not qualify new-profile surviving Strength or mixed order probes.
 
 ## Qualification, rollout and rollback
 
