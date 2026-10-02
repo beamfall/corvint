@@ -2029,6 +2029,24 @@
     ]
   },
   {
+    "path": "docs/specs/playwright-per-test-freshness-v0.md",
+    "title": "Playwright Per-test Freshness V0",
+    "reqPrefix": "PTF-V0",
+    "intent": "proposed technical contract; owner approved the implementation plan",
+    "delivery": "experimental",
+    "claim": "A bounded source-direct Playwright profile observes source, serving-process and runtime identity and joins native assertion controls to every baseline repeat.",
+    "dependsOn": [
+      "docs/specs/new-e2e-test-acceptance-v0.md",
+      "docs/specs/playwright-external-provider-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/jstestprovider",
+      "internal/testacceptance"
+    ]
+  },
+  {
     "path": "docs/specs/playwright-suite-interaction-minimizer-v0.md",
     "title": "Playwright Suite-Interaction Minimizer V0",
     "reqPrefix": "PSM-V0",
