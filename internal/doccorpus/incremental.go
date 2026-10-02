@@ -174,6 +174,11 @@ func (c *compiler) importRecordsIncremental(p Provider, r *incrementalBuild) err
 			}
 			continue
 		}
+		// Validate and normalize the immutable source before trusting any retained fields.
+		record, err := c.normalizedRecord(part)
+		if err != nil {
+			return err
+		}
 		fp, err := c.shardFingerprint(p, id, r)
 		if err != nil {
 			return err
@@ -218,6 +223,9 @@ func validateContribution(record ProviderRecord, x ShardContribution) error {
 		aa, e := Encode(a)
 		bb, f := Encode(b)
 		return e == nil && f == nil && bytes.Equal(aa, bb)
+	}
+	if !same(x.Subjects, record.Subjects) || !same(x.Claims, record.Claims) || !same(x.Relations, record.Relations) || !same(x.Journeys, record.Journeys) {
+		return fail("cached record differs from normalized pinned source")
 	}
 	if !same(x.Details, record.Details) || !same(x.Declarations, record.Capabilities) {
 		return fail("cached details or declarations mismatch")

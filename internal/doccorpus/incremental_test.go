@@ -146,3 +146,62 @@ func TestIncrementalCacheRefusals(t *testing.T) {
 		}
 	})
 }
+
+func TestIncrementalNonProviderInputInvalidation(t *testing.T) {
+	t.Run("RCP-V0-007 changed non-provider bytes invalidate every dependent eligible shard", func(t *testing.T) {
+		root, m := shardAdoptionFixture(t, func(first, last *ProviderRecord) { first.Observations = nil })
+		ids := []ShardIdentity{{"adapter", "shards/first.json"}, {"adapter", "shards/last.json"}}
+		_, cache, _, err := BuildIncremental(context.Background(), root, m, ids, nil, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		prior, _ := EncodeIncrementalCache(*cache)
+		path := "evidence/run.json"
+		raw, err := os.ReadFile(filepath.Join(root, path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw = append(raw, '\n')
+		if err := os.WriteFile(filepath.Join(root, path), raw, 0600); err != nil {
+			t.Fatal(err)
+		}
+		git(t, root, "add", path)
+		git(t, root, "commit", "-qm", "changed non-provider immutable dependency")
+		rev := git(t, root, "rev-parse", "HEAD")
+		for i := range m.Inputs {
+			if m.Inputs[i].Path == path {
+				m.Inputs[i].Revision, m.Inputs[i].Blob, m.Inputs[i].SHA256 = rev, git(t, root, "rev-parse", rev+":"+path), Digest(raw)
+			}
+		}
+		for i := range m.Scopes {
+			if m.Scopes[i].Path == path {
+				m.Scopes[i].Revision = rev
+			}
+		}
+		actual, _, stats, err := BuildIncremental(context.Background(), root, m, ids, prior, Digest(prior))
+		if err != nil || len(stats.Compiled) != 2 || len(stats.Reused) != 0 {
+			t.Fatalf("incomplete dependency fingerprint: %+v %v", stats, err)
+		}
+		oracle, err := Build(context.Background(), root, m)
+		if err != nil {
+			t.Fatal(err)
+		}
+		a, _ := Encode(actual)
+		b, _ := Encode(oracle)
+		if !bytes.Equal(a, b) {
+			t.Fatal("dependency invalidation differs from cold oracle")
+		}
+		// Cached contribution matches cannot bypass the original provider-purpose predicate.
+		for i := range m.Inputs {
+			if m.Inputs[i].Path == "shards/first.json" {
+				m.Inputs[i].Purpose = "evidence"
+			}
+		}
+		if _, _, _, err := BuildIncremental(context.Background(), root, m, ids, prior, Digest(prior)); err == nil {
+			t.Fatal("missing declared provider purpose admitted")
+		}
+		if _, err := Build(context.Background(), root, m); err == nil {
+			t.Fatal("ordinary cold predicate drift")
+		}
+	})
+}

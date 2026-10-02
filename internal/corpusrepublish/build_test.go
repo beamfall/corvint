@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/corpusindex"
 	"github.com/Beamfall/corvint/internal/doccorpus"
 )
 
@@ -328,6 +329,83 @@ func TestWholeOmittedEmptyShard(t *testing.T) {
 		prior.ResultBytes[0] = '['
 		if _, e := build(t, root, r, p, prior); e == nil {
 			t.Fatal("corrupt previous result admitted")
+		}
+	})
+}
+
+func TestRepublishVerifiedPriorRefusals(t *testing.T) {
+	t.Run("RCP-V0-004 RCP-V0-007 RCP-V0-008 recomputed outer pins do not confer source authority", func(t *testing.T) {
+		root, r, p := fixture(t)
+		r.Binding.ReuseEligibility = []doccorpus.ShardIdentity{{Provider: "docs", Path: "docs/a.json"}, {Provider: "docs", Path: "docs/b.json"}}
+		p.Binding = r.Binding
+		original, err := build(t, root, r, p, Output{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, name := range []string{"cache fields", "corpus fields", "corpus and cache fields", "indexed digest"} {
+			t.Run(name, func(t *testing.T) {
+				prior := original
+				var result Result
+				if err := Decode(original.ResultBytes, &result); err != nil {
+					t.Fatal(err)
+				}
+				if name == "cache fields" || name == "corpus and cache fields" {
+					var cache doccorpus.IncrementalCache
+					if err := Decode(original.Sidecar, &cache); err != nil {
+						t.Fatal(err)
+					}
+					cache.Shards[0].Contribution.Subjects[0].Name = "self-consistent invented documentation"
+					prior.Sidecar, err = doccorpus.EncodeIncrementalCache(cache)
+					if err != nil {
+						t.Fatal(err)
+					}
+					result.IncrementalSidecar.SHA256 = doccorpus.Digest(prior.Sidecar)
+				}
+				if name == "corpus fields" || name == "corpus and cache fields" {
+					a, err := doccorpus.ParseArtifact(original.Corpus)
+					if err != nil {
+						t.Fatal(err)
+					}
+					for i := range a.Subjects {
+						if a.Subjects[i].ID == "docs:a" {
+							a.Subjects[i].Name = "self-consistent invented documentation"
+						}
+					}
+					a.SHA256 = ""
+					raw, _ := doccorpus.Encode(a)
+					a.SHA256 = doccorpus.Digest(raw)
+					prior.Corpus, _ = doccorpus.Encode(a)
+					if _, err := doccorpus.ParseArtifact(prior.Corpus); err != nil {
+						t.Fatal("outer byte identity must pass", err)
+					}
+					result.CorpusSHA256 = doccorpus.Digest(prior.Corpus)
+					// Forge a structurally consistent indexed digest too; no downstream hash
+					// mismatch may substitute for source correspondence in this control.
+					index, err := doccorpus.BuildQueryIndex(context.Background(), a)
+					if err != nil {
+						t.Fatal(err)
+					}
+					indexed, err := corpusindex.Encode(corpusindex.Artifact{Schema: corpusindex.Schema, Corpus: a, Index: index, ProducerValidation: "source-rederived-at-producer; producer authentication NOT_OBSERVED"})
+					if err != nil {
+						t.Fatal(err)
+					}
+					result.IndexSHA256 = doccorpus.Digest(indexed)
+				}
+				if name == "indexed digest" {
+					result.IndexSHA256 = strings.Repeat("f", 64)
+				}
+				prior.ResultBytes, _ = Encode(result)
+				policy := p
+				policy.PreviousResultSHA256 = doccorpus.Digest(prior.ResultBytes)
+				policy.PreviousArtifactSHA256 = doccorpus.Digest(prior.Corpus)
+				policy.PreviousSidecarProfile = doccorpus.IncrementalSchema
+				policy.PreviousSidecarSHA256 = doccorpus.Digest(prior.Sidecar)
+				if _, err := build(t, root, r, policy, prior); err == nil {
+					t.Fatal("recomputed policy/prior/cache pins admitted source or indexed forgery")
+				} else if name == "indexed digest" && !strings.Contains(err.Error(), "indexed provenance mismatch") {
+					t.Fatal("did not reach independent prior indexed-byte verification", err)
+				}
+			})
 		}
 	})
 }

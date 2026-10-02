@@ -36,8 +36,13 @@ func Build(ctx context.Context, root string, requestRaw, policyRaw []byte, expec
 	if err := admit(ctx, root, req, policy); err != nil {
 		return out, err
 	}
+	eligibility, err := doccorpus.EligibilityDigest(req.Binding.ReuseEligibility)
+	if err != nil {
+		return out, err
+	}
 	var previous *doccorpus.Artifact
 	var prior Result
+	expectedCache := ""
 	if policy.PreviousResultSHA256 == "NONE" && policy.PreviousArtifactSHA256 == "NONE" {
 		if len(previousResult) > 0 || len(previousArtifact) > 0 || len(previousSidecar) > 0 || policy.PreviousSidecarProfile != "NONE" || policy.PreviousSidecarSHA256 != "NONE" || policy.ExpectedPendingGeneration != 0 || policy.ExpectedPendingSHA256 != "NONE" {
 			return out, fmt.Errorf("republish first publication baseline invalid")
@@ -53,46 +58,59 @@ func Build(ctx context.Context, root string, requestRaw, policyRaw []byte, expec
 		if e != nil || !bytes.Equal(canonical, previousResult) || prior.Profile != ResultProfile || prior.CorpusSHA256 != policy.PreviousArtifactSHA256 || prior.Provenance.Binding.Repository != req.Binding.Repository || prior.Provenance.Binding.Target != req.Binding.Target {
 			return out, fmt.Errorf("republish previous result invalid")
 		}
-		previous, e = doccorpus.Open(ctx, root, previousArtifact)
+		// Parsing checks bounded canonical identity, but supplies no source authority.
+		// Minting the token below still requires complete source rederivation/equality.
+		parsed, e := doccorpus.ParseArtifact(previousArtifact)
 		if e != nil {
 			return out, e
 		}
-		pm, _ := doccorpus.Encode(previous.Manifest)
-		if prior.Provenance.Binding.SourceRevision != previous.Manifest.Repository.Revision || prior.Provenance.Binding.ManifestSHA256 != doccorpus.Digest(pm) || !same(prior.Provenance.Inputs, sortedInputs(previous.Manifest.Inputs)) || !same(prior.Provenance.Providers, sortedProviders(previous.Manifest.Providers)) || prior.Provenance.Builder != previous.Builder {
+		pm, _ := doccorpus.Encode(parsed.Manifest)
+		if prior.Provenance.Binding.SourceRevision != parsed.Manifest.Repository.Revision || prior.Provenance.Binding.ManifestSHA256 != doccorpus.Digest(pm) || !same(prior.Provenance.Inputs, sortedInputs(parsed.Manifest.Inputs)) || !same(prior.Provenance.Providers, sortedProviders(parsed.Manifest.Providers)) || prior.Provenance.Builder != parsed.Builder {
 			return out, fmt.Errorf("republish previous provenance mismatch")
 		}
-		index, e := corpusindex.Build(ctx, root, previousArtifact)
+		var verified doccorpus.VerifiedCorpus
+		if len(req.Binding.ReuseEligibility) > 0 {
+			if policy.PreviousSidecarProfile != doccorpus.IncrementalSchema || prior.IncrementalSidecar.Profile != policy.PreviousSidecarProfile || prior.IncrementalSidecar.SHA256 != policy.PreviousSidecarSHA256 || !wire.IsSha256(policy.PreviousSidecarSHA256) || doccorpus.Digest(previousSidecar) != policy.PreviousSidecarSHA256 || prior.ReuseEligibilitySHA256 != eligibility {
+				return out, fmt.Errorf("republish prior sidecar profile digest or eligibility mismatch")
+			}
+			expectedCache = policy.PreviousSidecarSHA256
+			verified, _, e = doccorpus.OpenIncrementalVerified(ctx, root, previousArtifact, req.Binding.ReuseEligibility, previousSidecar, expectedCache)
+		} else {
+			if len(previousSidecar) > 0 || policy.PreviousSidecarProfile != "NONE" || policy.PreviousSidecarSHA256 != "NONE" {
+				return out, fmt.Errorf("republish cold build must not consume cache")
+			}
+			verified, e = doccorpus.OpenVerified(ctx, root, previousArtifact)
+		}
+		if e != nil {
+			return out, e
+		}
+		previous, e = verified.Snapshot()
+		if e != nil {
+			return out, e
+		}
+		index, e := corpusindex.BuildVerified(ctx, verified)
 		if e != nil || doccorpus.Digest(index) != prior.IndexSHA256 {
 			return out, fmt.Errorf("republish previous indexed provenance mismatch")
 		}
 	}
-	eligibility, err := doccorpus.EligibilityDigest(req.Binding.ReuseEligibility)
-	if err != nil {
-		return out, err
-	}
-	expectedCache := ""
-	if len(req.Binding.ReuseEligibility) > 0 && previous != nil {
-		if policy.PreviousSidecarProfile != doccorpus.IncrementalSchema || prior.IncrementalSidecar.Profile != policy.PreviousSidecarProfile || prior.IncrementalSidecar.SHA256 != policy.PreviousSidecarSHA256 || !wire.IsSha256(policy.PreviousSidecarSHA256) || doccorpus.Digest(previousSidecar) != policy.PreviousSidecarSHA256 || prior.ReuseEligibilitySHA256 != eligibility {
-			return out, fmt.Errorf("republish prior sidecar profile digest or eligibility mismatch")
-		}
-		expectedCache = policy.PreviousSidecarSHA256
-	} else if len(previousSidecar) > 0 || policy.PreviousSidecarProfile != "NONE" || policy.PreviousSidecarSHA256 != "NONE" {
-		return out, fmt.Errorf("republish cold build must not consume cache")
-	}
-	var a *doccorpus.Artifact
+	var verified doccorpus.VerifiedCorpus
 	if len(req.Binding.ReuseEligibility) > 0 {
 		var cache *doccorpus.IncrementalCache
-		a, cache, out.Stats, err = doccorpus.BuildIncremental(ctx, root, req.Manifest, req.Binding.ReuseEligibility, previousSidecar, expectedCache)
+		verified, cache, out.Stats, err = doccorpus.BuildIncrementalVerified(ctx, root, req.Manifest, req.Binding.ReuseEligibility, previousSidecar, expectedCache)
 		if err == nil {
 			out.Sidecar, err = doccorpus.EncodeIncrementalCache(*cache)
 		}
 	} else {
-		a, err = doccorpus.Build(ctx, root, req.Manifest)
+		verified, err = doccorpus.BuildVerified(ctx, root, req.Manifest)
 	}
 	if err != nil {
 		return out, err
 	}
-	out.Corpus, err = doccorpus.Encode(a)
+	out.Corpus, err = verified.Bytes()
+	if err != nil {
+		return out, err
+	}
+	a, err := verified.Snapshot()
 	if err != nil {
 		return out, err
 	}
@@ -100,9 +118,9 @@ func Build(ctx context.Context, root string, requestRaw, policyRaw []byte, expec
 	if err != nil {
 		return out, err
 	}
-	// This existing producer independently rederives the full corpus. It remains
-	// the correctness oracle, even when import contribution work was reused.
-	out.Index, err = corpusindex.Build(ctx, root, out.Corpus)
+	// Carry the exact source-validated compiler result into indexed production;
+	// an independent cold Build/Open remains the differential test oracle.
+	out.Index, err = corpusindex.BuildVerified(ctx, verified)
 	if err != nil {
 		return out, err
 	}
@@ -118,7 +136,7 @@ func Build(ctx context.Context, root string, requestRaw, policyRaw []byte, expec
 	if len(out.Sidecar) > 0 {
 		pin = SidecarPin{doccorpus.IncrementalSchema, doccorpus.Digest(out.Sidecar)}
 	}
-	provenance := Provenance{Binding: req.Binding, PolicySHA256: expectedPolicy, DecisionRecord: policy.DecisionRecord, Builder: a.Builder, CompanionRevision: a.Builder.Revision, GoVersion: runtime.Version(), Schemas: []string{Profile, ResultProfile, a.Schema, req.Manifest.Schema, corpusindex.Schema}, Providers: sortedProviders(req.Manifest.Providers), Inputs: sortedInputs(req.Manifest.Inputs), Limits: []string{"trusted-local host-policy provenance; forge approval authenticity NOT_OBSERVED", "host environment and credential isolation NOT_OBSERVED", "indexed consumer retains historical source-validation and producer-authentication limits", "incremental counters measure shard import only; full producer validation still rederives corpus"}}
+	provenance := Provenance{Binding: req.Binding, PolicySHA256: expectedPolicy, DecisionRecord: policy.DecisionRecord, Builder: a.Builder, CompanionRevision: a.Builder.Revision, GoVersion: runtime.Version(), Schemas: []string{Profile, ResultProfile, a.Schema, req.Manifest.Schema, corpusindex.Schema}, Providers: sortedProviders(req.Manifest.Providers), Inputs: sortedInputs(req.Manifest.Inputs), Limits: []string{"trusted-local host-policy provenance; forge approval authenticity NOT_OBSERVED", "host environment and credential isolation NOT_OBSERVED", "indexed consumer retains historical source-validation and producer-authentication limits", "incremental reuse source-validates complete retained contributions; source/global/index validation remains mandatory"}}
 	if strings.Contains(a.Builder.Revision, "dirty") || a.Builder.Revision == "unrecorded" {
 		provenance.Limits = append(provenance.Limits, "builder is dirty or unrecorded; immutable release provenance NOT_QUALIFIED")
 	}

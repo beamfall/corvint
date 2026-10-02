@@ -538,3 +538,41 @@ func TestIndexedCorpusByteAdmissionBounds(t *testing.T) {
 		}
 	})
 }
+
+func TestIndexedVerifiedCorpusIsolation(t *testing.T) {
+	t.Run("DCP-V1-040 RCP-V0-007 source-validated token and unchanged ordinary cold oracle", func(t *testing.T) {
+		ctx := context.Background()
+		root, corpus := fixture(t, 8, 3)
+		verified, err := doccorpus.OpenVerified(ctx, root, corpus)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cold, err := Build(ctx, root, corpus)
+		if err != nil {
+			t.Fatal(err)
+		}
+		actual, err := BuildVerified(ctx, verified)
+		if err != nil || !bytes.Equal(actual, cold) {
+			t.Fatal("verified index differs from cold source oracle", err)
+		}
+		if _, err := BuildVerified(ctx, doccorpus.VerifiedCorpus{}); err == nil {
+			t.Fatal("zero token admitted")
+		}
+		snapshot, _ := verified.Snapshot()
+		snapshot.Subjects[0].Name = "caller supplied fake corpus"
+		copy, _ := verified.Bytes()
+		copy[0] = '['
+		after, err := BuildVerified(ctx, verified)
+		if err != nil || !bytes.Equal(after, actual) {
+			t.Fatal("caller mutated indexed token", err)
+		}
+		reader, err := Open(ctx, actual, doccorpus.Digest(actual))
+		if err != nil {
+			t.Fatal(err)
+		}
+		receipt, err := reader.Query(ctx, doccorpus.Request{Operation: "inventory", Limit: 1})
+		if err != nil || receipt.Envelope == nil || receipt.Envelope.SourceValidation != "index-digest-validated; source-revalidation-unavailable" {
+			t.Fatal("consumer trust upgraded", err)
+		}
+	})
+}
