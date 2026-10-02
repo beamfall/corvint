@@ -97,6 +97,96 @@ func TestCorpusTypedQueryConformance(t *testing.T) {
 		}
 	})
 }
+
+func TestCorpusTypedMultiFileCoverageAndSelectors(t *testing.T) {
+	t.Run("DCP-V1-038 separate selectors and explicit cross-file coverage", func(t *testing.T) {
+		members := []string{"native:file:src/value.go:excerpt", "native:file:src/value_test.go:excerpt"}
+		root, manifest := adoptionFixture(t, func(p *ProviderRecord) {
+			p.Details["adapter:coverage"] = RecordDetails{Coverage: &CoverageDetails{
+				Definition: "claims across two pinned source files", Rule: "explicit-membership",
+				Denominator: members, Numerator: members[:1],
+			}}
+		})
+		artifact, err := Build(context.Background(), root, manifest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		index, err := BuildQueryIndex(context.Background(), artifact)
+		if err != nil {
+			t.Fatal(err)
+		}
+		indexed := *artifact
+		indexed.RuntimeIndex = index
+		seen := map[string]bool{}
+		for i, path := range []string{"src/value.go", "src/value_test.go"} {
+			request := Request{Operation: "claims", Path: path}
+			receipt, err := Query(artifact, request, "fresh", nil)
+			if err != nil || len(receipt.Results) == 0 {
+				t.Fatal("file selector lost claims", path, err)
+			}
+			other, err := Query(&indexed, request, "fresh", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			left, _ := Encode(receipt)
+			right, _ := Encode(other)
+			if string(left) != string(right) {
+				t.Fatal("precomputed index changed complete receipt", path)
+			}
+			found := false
+			for _, result := range receipt.Results {
+				claim := result.(Claim)
+				if seen[claim.ID] {
+					t.Fatal("distinct paths selected the same claim", path, claim.ID)
+				}
+				seen[claim.ID] = true
+				found = found || claim.ID == members[i]
+				if len(claim.Evidence.Anchors) == 0 {
+					t.Fatal("claim lost file evidence", claim.ID)
+				}
+				for _, anchor := range claim.Evidence.Anchors {
+					if anchor.Path != path {
+						t.Fatal("selector returned a different file", path, anchor)
+					}
+				}
+			}
+			if !found {
+				t.Fatal("selector lost exact native excerpt", path, members[i])
+			}
+			recommendation, err := Query(artifact, Request{Operation: "recommend-tests", Path: path}, "fresh", nil)
+			if err != nil || recommendation.Selection == nil || recommendation.Selection.NarrowingAllowed || recommendation.Selection.State != "full-relevant-suite-required" {
+				t.Fatal("cross-file evidence allowed unsafe narrowing", path, err, recommendation.Selection)
+			}
+		}
+		get, err := Query(artifact, Request{Operation: "get", ID: "adapter:coverage"}, "fresh", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		detail := get.Details["adapter:coverage"].Coverage
+		if detail == nil || len(detail.Denominator) != 2 || detail.Denominator[0] != members[0] || detail.Denominator[1] != members[1] || len(detail.Numerator) != 1 || detail.Numerator[0] != members[0] {
+			t.Fatal("cross-file coverage lost membership identities", detail)
+		}
+		coverage, err := Query(artifact, Request{Operation: "coverage"}, "fresh", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, result := range coverage.Results {
+			row, ok := result.(map[string]any)
+			if !ok || row["metric"] != "adapter:coverage" {
+				continue
+			}
+			found = true
+			if row["value"] != 1 || row["denominator"] != 2 || row["defined"] != true || row["definition"] != "claims across two pinned source files" || row["rule"] != "explicit-membership" || row["revision"] != manifest.Repository.Revision || len(row["limitations"].([]string)) == 0 {
+				t.Fatal("coverage changed its named denominator or limits", row)
+			}
+		}
+		if !found {
+			t.Fatal("cross-file coverage metric missing")
+		}
+	})
+}
+
 func TestCorpusRetirementBindings(t *testing.T) {
 	t.Run("DCP-V1-039 age distance and unknown provenance", func(t *testing.T) {
 		a := &Artifact{Schema: SchemaV2, SHA256: strings.Repeat("a", 64), Manifest: Manifest{Repository: Repository{Revision: strings.Repeat("b", 40)}, BuiltAt: "2026-09-19T00:00:00Z"}, Capabilities: []Capability{{Name: "subjects", State: "present"}}}
