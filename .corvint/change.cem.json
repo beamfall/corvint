@@ -1,0 +1,219 @@
+{
+  "baseRevision": "f51f3c9e6fbfc5a6b219692e8bf46e4e43297a36",
+  "evidence": [],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:612468e1bf23bb1269c154c39dc457de35ad64d3bab8e3baffb963d2791a8b18",
+      "newRange": {
+        "count": 9,
+        "start": 79
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 79
+      },
+      "path": "README.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:ba108d6e6f5770708a46561c9faca04e9ec7baddf9dd5431f7b0722c300b1657",
+      "newRange": {
+        "count": 39,
+        "start": 93
+      },
+      "oldRange": {
+        "count": 43,
+        "start": 92
+      },
+      "path": "README.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:33fccf1157843344b1fe37d1c3dbdf001cfb894e27d642d36d09b0ca6f39bfb3",
+      "newRange": {
+        "count": 14,
+        "start": 143
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 146
+      },
+      "path": "README.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:7aa3fe4eb7c8b03f1ab991d2aab3ce0a2dbe9dfefabcc672986f1e832ccd9da6",
+      "newRange": {
+        "count": 10,
+        "start": 231
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 230
+      },
+      "path": "README.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:697d35d97bb6efb3d2e033b9aadca15f90c54480b74eb5c296589beea7e5abcb",
+      "newRange": {
+        "count": 10,
+        "start": 253
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 248
+      },
+      "path": "README.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:de4186aa4808728fa381ea0caf0d8ece4f0e0b74b29368a6e4fa6a8c7b192f2b",
+      "newRange": {
+        "count": 23,
+        "start": 276
+      },
+      "oldRange": {
+        "count": 18,
+        "start": 269
+      },
+      "path": "README.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:b4b70fc80847d8ec6a99d296685cfea97cd95807792c3eafbcddddc6d6e7c0a3",
+      "newRange": {
+        "count": 45,
+        "start": 321
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 309
+      },
+      "path": "README.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:2631c532f3a6b7ee2a255e4d6e80f43d27a6819eb91c36286d7517913569da03",
+      "newRange": {
+        "count": 10,
+        "start": 403
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 357
+      },
+      "path": "README.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:92535e342441c80dd65a31b3617ffc093f74a819263d8df1ebc844f515409a0d",
+      "newRange": {
+        "count": 47,
+        "start": 436
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 389
+      },
+      "path": "README.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:8d8028e6d16935f264049b7fc7f3bd6836f7f97bf6a45301411ebec80a3e8535",
+      "newRange": {
+        "count": 28,
+        "start": 495
+      },
+      "oldRange": {
+        "count": 23,
+        "start": 407
+      },
+      "path": "README.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:2ceba016f99b09ee96148f0f241005f4fd878b56de0931463187546fed475727",
+      "newRange": {
+        "count": 30,
+        "start": 536
+      },
+      "oldRange": {
+        "count": 23,
+        "start": 443
+      },
+      "path": "README.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:db5b9633834f76ae6bd5e6a0f3705fa72d4b00b1ca07ee813379c07247cb94dd",
+      "newRange": {
+        "count": 3,
+        "start": 569
+      },
+      "oldRange": {
+        "count": 40,
+        "start": 469
+      },
+      "path": "README.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:f7771841d0e541ef882420df86929328ae78d2bf236305890857bd06cb7ac6b0",
+      "newRange": {
+        "count": 78,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-02-readme-accuracy.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:c068cb6865c47f93cacac1cfe1c049d4e4f42c350d85c5e20a136dd2dfb776f6",
+      "newRange": {
+        "count": 7,
+        "start": 254
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 254
+      },
+      "path": "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
+      "reason": "no-evidence"
+    }
+  ],
+  "patchSha256": "22eb90e7753216030b9b971284e948b858456af6f6336b713b1dfca3bb903e10",
+  "spec": "cem/0.2"
+}
