@@ -109,7 +109,7 @@ func ApplyDocMaintenance(ctx context.Context, root string, o DocMaintenanceOptio
 		{Path: o.Docs.Claims, Before: p.before[1], Next: []byte(p.proposal.Claims)},
 	}
 	var receipt []byte
-	_, err = doccorpus.PublishMaintenancePair(ctx, root, files, func(publications []doccorpus.MaintenancePublication) error {
+	_, err = publishMaintenancePair(ctx, root, files, func(publications []doccorpus.MaintenancePublication) error {
 		current, e := planDocMaintenance(ctx, root, o)
 		if e != nil {
 			return e
@@ -279,7 +279,7 @@ func planDocMaintenance(ctx context.Context, root string, o DocMaintenanceOption
 		}
 		p.proposal.Evidence = append(p.proposal.Evidence, DocIdentity{Path: name, SHA256: Digest(raw)})
 	}
-	o.Docs.Evidence, err = ReadRunEvidence(o.EvidenceFiles)
+	o.Docs.Evidence, err = readRunEvidence(o.EvidenceFiles)
 	if err != nil {
 		return p, err
 	}
@@ -477,3 +477,10 @@ func maintenanceAbsent(repository *os.Root, name string) error {
 	}
 	return errors.New("cannot establish absent maintenance input")
 }
+
+// Package-private test seams: tests replace these to interleave a competing
+// change between derivation steps. Production always uses the real functions.
+var (
+	publishMaintenancePair = doccorpus.PublishMaintenancePair
+	readRunEvidence        = ReadRunEvidence
+)

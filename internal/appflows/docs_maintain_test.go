@@ -162,3 +162,63 @@ func TestFlowDocMaintenanceReceiptRoundTrip(t *testing.T) {
 		t.Fatalf("repeat changed: %v", err)
 	}
 }
+
+// TestFlowDocMaintenanceDerivationRaces interleaves a competing change between
+// derivation steps through the package seams and requires the named recheck,
+// not the proposal digest, to refuse (FDM-V0-002).
+func TestFlowDocMaintenanceDerivationRaces(t *testing.T) {
+	for _, tc := range []struct{ kind, reason string }{
+		{"evidence-changed-during-read", "maintenance evidence changed during read"},
+		{"head-moved-during-derivation", "maintenance HEAD moved during derivation"},
+		{"inputs-changed-during-staging", "maintenance inputs changed during staging"},
+	} {
+		t.Run(tc.kind, func(t *testing.T) {
+			root := intentRepo(t)
+			evidence := filepath.Join(t.TempDir(), "run.jsonl")
+			writeRaw(t, filepath.Dir(evidence), filepath.Base(evidence), nil)
+			o := DocMaintenanceOptions{Flows: "flows", Docs: DocOptions{Page: "generated.md", Claims: "generated.json"}, EvidenceFiles: []string{evidence}}
+			p, err := PreviewDocMaintenance(context.Background(), root, o)
+			if err != nil {
+				t.Fatal(err)
+			}
+			raced := false
+			race := func() {
+				if raced {
+					return
+				}
+				raced = true
+				if tc.kind == "evidence-changed-during-read" {
+					writeRaw(t, filepath.Dir(evidence), filepath.Base(evidence), []byte("\n"))
+					return
+				}
+				writeRaw(t, root, "unrelated.txt", []byte(tc.kind))
+				commitAll(t, root, "competing HEAD movement")
+			}
+			if tc.kind == "inputs-changed-during-staging" {
+				t.Cleanup(func() { publishMaintenancePair = doccorpus.PublishMaintenancePair })
+				publishMaintenancePair = func(ctx context.Context, root string, files [2]doccorpus.MaintenanceFile, verify func([]doccorpus.MaintenancePublication) error) ([]doccorpus.MaintenancePublication, error) {
+					return doccorpus.PublishMaintenancePair(ctx, root, files, func(planned []doccorpus.MaintenancePublication) error {
+						race()
+						return verify(planned)
+					})
+				}
+			} else {
+				t.Cleanup(func() { readRunEvidence = ReadRunEvidence })
+				readRunEvidence = func(names []string) ([]TestRunEvidence, error) {
+					records, err := ReadRunEvidence(names)
+					race()
+					return records, err
+				}
+			}
+			receipt, err := ApplyDocMaintenance(context.Background(), root, o, p.Digest)
+			if !raced || err == nil || len(receipt) != 0 || !strings.Contains(err.Error(), tc.reason) {
+				t.Fatalf("raced=%v receipt=%s error=%v, want %q", raced, receipt, err, tc.reason)
+			}
+			for _, name := range []string{o.Docs.Page, o.Docs.Claims} {
+				if _, e := os.Lstat(filepath.Join(root, name)); !os.IsNotExist(e) {
+					t.Errorf("refused apply wrote %s", name)
+				}
+			}
+		})
+	}
+}
