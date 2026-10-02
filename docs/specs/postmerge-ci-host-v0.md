@@ -60,6 +60,8 @@ Corvint stays a local binary. The templates are operator reference material, not
   lost dispatch is retried. A manual replay input re-dispatches a committed list of full change ids
   in dry-run mode by default. Repeated runs rely on connector idempotency (PMC-V0-005 to PMC-V0-007).
 - `PCH-V0-006`: Pin every action to a full commit and check out with `persist-credentials: false`.
+  Action references must name an owner beginning with an ASCII letter or digit; local `./` paths
+  are not commit pins even when their path ends in `@<40-hex>`.
   Build Corvint companions from a pinned 40-hex source commit, and refuse any binary whose SHA-256 is
   not in the operator's pin file before its first use.
   Untrusted values reach scripts through `env`, never by expanding expressions into script text.
@@ -96,7 +98,8 @@ Corvint stays a local binary. The templates are operator reference material, not
     starting `LD_`, `DYLD_`, `BASH_FUNC_`, `GIT_CONFIG` or `FORCE_JAVASCRIPT_ACTIONS_TO_NODE` (the
     last three choose the Node.js runtime that loads action code), matched in any letter case
     because Windows runners read environment names without regard to case [STARTUP_ENV];
-  - a run script that names `GITHUB_ENV` or `GITHUB_PATH`, or prints `::set-env` or `::add-path`
+  - a run script that names `GITHUB_ENV` or `GITHUB_PATH`, or contains a literal `set-env` or
+    `add-path` command prefix, in any letter case, in either `::` or legacy `##[` form
     [RUNNER_ENV_FILE];
   - a step or `defaults.run` `working-directory` that is not a literal scalar
     [WORKING_DIRECTORY];
@@ -149,10 +152,12 @@ Corvint stays a local binary. The templates are operator reference material, not
   as `MAVEN_OPTS` or `GIT_SSH_COMMAND`) changes how a tool runs code, or a script
   reaches the runner's env file without naming `GITHUB_ENV` or `GITHUB_PATH` (for example through
   `eval` or a computed path). A script can also set a later step's environment or `PATH` through
-  the `::set-env` and `::add-path` stdout commands when `ACTIONS_ALLOW_UNSECURE_COMMANDS` is set
+  the `set-env` and `add-path` workflow commands when `ACTIONS_ALLOW_UNSECURE_COMMANDS` is set
   outside the workflow text, for example in a self-hosted runner's own environment. The script
-  check matches only the literal command prefixes, so it misses a command string built at run time.
-  The audit is lexical, so it does not see any of these; a pinned action may also write the env file or print these commands. Runner-host
+  check matches literal command prefixes in both `::` and legacy `##[` form, without regard to
+  command-name case, so it misses a command string built at run time.
+  The audit cannot see indirect file access or command strings built at run time; a pinned action
+  may also write the env file or print these commands. Runner-host
   settings such as `ACTIONS_RUNNER_HOOK_JOB_STARTED` and `ACTIONS_RUNNER_CONTAINER_HOOKS` are read
   from the runner's own environment, not the workflow text, and are outside the audit. The
   operator reviews these by hand.

@@ -30,7 +30,7 @@ const (
 )
 
 var (
-	pinnedAction   = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(/[A-Za-z0-9_./-]+)?@[0-9a-f]{40}$`)
+	pinnedAction   = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9_.-]+(/[A-Za-z0-9_./-]+)?@[0-9a-f]{40}$`)
 	expression     = regexp.MustCompile(`\$\{\{(.*?)\}\}`)
 	secretRef      = regexp.MustCompile(`\bsecrets\s*\.\s*([A-Za-z_][A-Za-z0-9_]*)`)
 	secretAny      = regexp.MustCompile(`\bsecrets\b`)
@@ -44,10 +44,11 @@ var (
 	// runnerEnvFile finds a script that touches the runner's env or path
 	// file, which sets variables (such as BASH_ENV) for every later step.
 	runnerEnvFile = regexp.MustCompile(`\bGITHUB_(ENV|PATH)\b`)
-	// unsecureCommand finds the deprecated stdout workflow commands that set
+	// unsecureCommand finds both forms of the deprecated workflow commands that set
 	// an environment variable or PATH entry for later steps when a runner
 	// has ACTIONS_ALLOW_UNSECURE_COMMANDS set outside the workflow text.
-	unsecureCommand = regexp.MustCompile(`::(set-env|add-path)\b`)
+	// The runner matches command names without regard to case.
+	unsecureCommand = regexp.MustCompile(`(?i)(::|##\[)(set-env|add-path)\b`)
 	inputName       = regexp.MustCompile(`^[a-z0-9_-]+$`)
 	// startupEnv names variables that make a shell, the dynamic loader or an
 	// interpreter run code the audit does not see, or that make the runner
@@ -525,7 +526,7 @@ func (a *auditor) steps(where string, steps *Node, commands map[string]bool) {
 			a.add("RUNNER_ENV_FILE", at, "a script may not write $GITHUB_ENV or $GITHUB_PATH, which change later steps' environment")
 		}
 		if unsecureCommand.MatchString(run.Text) {
-			a.add("RUNNER_ENV_FILE", at, "a script may not print ::set-env or ::add-path, which change later steps' environment")
+			a.add("RUNNER_ENV_FILE", at, "a script may not print set-env or add-path workflow commands, which change later steps' environment")
 		}
 		if lineValidation.MatchString(run.Text) {
 			a.add("LINE_ORIENTED_VALIDATION", at, "validate a value with whole-string case and length checks, not grep")
