@@ -161,3 +161,26 @@ func TestMaintenancePairInterruptedProcess(t *testing.T) {
 		t.Fatal("original lost")
 	}
 }
+
+// TestMaintenancePairPostPublishRecheck edits the first published output while
+// the second publishes; only the final recheck can detect it (FDM-V0-004).
+func TestMaintenancePairPostPublishRecheck(t *testing.T) {
+	root := t.TempDir()
+	files := [2]MaintenanceFile{{Path: "a", Before: []byte("old-a"), Next: []byte("new-a")}, {Path: "b", Before: []byte("old-b"), Next: []byte("new-b")}}
+	for _, f := range files {
+		if err := os.WriteFile(filepath.Join(root, f.Path), f.Before, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	states, err := publishMaintenancePair(context.Background(), root, files, nil, func(stage string, i int) {
+		if stage == "before-publish" && i == 1 {
+			_ = os.WriteFile(filepath.Join(root, files[0].Path), []byte("competitor"), 0600)
+		}
+	})
+	if err == nil || !strings.Contains(err.Error(), "maintenance output changed after publication") || len(states) != 2 || !states[0].Published || !states[1].Published {
+		t.Fatalf("post-publication edit hidden: %+v %v", states, err)
+	}
+	if raw, _ := os.ReadFile(filepath.Join(root, files[0].Path)); string(raw) != "competitor" {
+		t.Fatalf("competitor lost %q", raw)
+	}
+}
