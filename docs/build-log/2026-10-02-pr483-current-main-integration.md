@@ -1,0 +1,9 @@
+# PR483 current-main integration
+
+Integrate the unchanged Go1.27.1 go-interop pin from a72c32a400cff7586616d6b2d4d715fef5363e41 with main94a78df0ccd88ceac499d3d37ab2923d78fecd24, preserving the benchmark policy read declaration and all main-base sealed archives. The previous reopened run37057454462 actually checked out10a70d9b (old1fda1b+a72), so its benchmark policy permission failure is not current-main qualification. Fresh hosted CI must prove its actual checkout before acceptance.
+
+The owner accepted this specific PR483 malformed-intent/post-edit cancellation/rebegin repair, conditional on fresh CI, independent review, exact-head consent and native completion. Original41c27 failure, corrected e5b41 post-edit enrollment and sealed-key staleness remain limitations, not retroactive pre-edit proof. No0390 protected status or merge consent is inferred.
+
+A new integration-only plan was frozen at clean94a before importing a72. Following the root-authorized exact preservation method (V1-0527 boundary), only the newly imported f4a1b5e5a134776c6b479a8deb131cd70b3ddabd sealed-map tip copy is omitted before canonical binding: DOGFOOD refuses new sealed CEMs in BASE..HEAD. Original map bytes SHA2563c4ab184108f482be14ef90c4f1b532f7e0cc400c780dccf8b1b3a5090df2e96 are preserved privately and immutably at public a72 ancestry and the untouched original leaf. All main94BASE archives remain byte-identical; no history or base archive is deleted. New integration evidence receives its own checked binding/archive.
+
+Original source review and checked-bind/pure-seal evidence remain historical. Fresh focused documentation and native interop gates bind this integration candidate; final mechanical integration review and all required hosted checks remain mandatory. V1-0675 stays OPEN until guarded integration and native completion/readback/audit succeed.
