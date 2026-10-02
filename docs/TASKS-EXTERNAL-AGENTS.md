@@ -206,6 +206,16 @@ supervised attempts cannot receive this exemption. A `policy update` changes the
 in-flight handoffs refuse STALE_POLICY; do not update policy expecting it to repair those attempts.
 There is no automatic refund or stale-policy bypass.
 
+The reviewed experimental issue 482 writer adds a narrow clean-release exception: only
+policyVersion and reservedFor entries for other members in the exact allocated pool may differ.
+No-pool attempts permit version changes only. It must fully audit every intervening policy
+afterimage against the original claim policy; a relevant change stays stale after restoration.
+Original policy/config/capability hashes, acceptance, allocation, lease and clean-work conditions
+remain bound. Missing or unproved history refuses STALE_POLICY; malformed history fails closed.
+This exception does not permit old-generation completion, live stale-holder reap, retry refunds
+or physical pool reuse. Qualification is scoped to the experimental source and disposable
+fixtures; final delivery remains pending in the issue 482 build-log entry.
+
 | Refusal | Meaning |
 |---|---|
 | FENCED | Generation differs or the lease expired. |

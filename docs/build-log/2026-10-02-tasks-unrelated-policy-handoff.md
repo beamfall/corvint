@@ -1,20 +1,77 @@
-# Tasks unrelated-policy handoff — proposed intent before first freeze
+# Tasks unrelated-policy handoff — experimental source evidence
 
 2026-10-02. Owner issue [482](https://github.com/beamfall/corvint/issues/482); native ticket V1-0678.
-The prepared seed defines the complete R1 interval predicate, structural provenance, rare audit
-trigger and unchanged wire/refusal boundaries under existing CAL-V0-044/046. No new CAL ID.
-Gate A R1 PASS is plan evidence, not implementation, qualification or historical acceptance.
-Public branch/native baseline remains 1fda1b94984245d0cd0ac0a6d17cc72572ce6619. The clean
-prepared seed commit must become the evidence BASE before the first keyed plan freeze.
-The original public-to-prepared prefix and native base remain visible; no retroactive key reset.
+The CAL-V0-044/046/047 amendment remains proposed. This entry records reviewed experimental
+source and disposable fixture qualification, not whole delivery, promotion or store migration.
 
-Seed metadata: header/digest, INDEX (claim<=160), README and staged REQUIREMENTS must agree.
-Run affected first; four existing registry checks are spec-requirements-check, requirement-
-definitions-check, traceability-tests-check and internal/specindex tests. Preserve any initial
-failure/fix on this same seed. Original six frozen check argv remain unchanged.
+The complete R1 interval predicate, structural provenance, rare audit trigger and unchanged wire
+boundaries were seeded before the first keyed freeze. Gate A R1 passed; no new CAL ID was added.
+The genuine intent seed BASE is `abb7f8e30f9881022d41d3af6a3ed16c896d67de`, descending from public
+`94a78df0ccd88ceac499d3d37ab2923d78fecd24`. Original public/native
+`1fda1b94984245d0cd0ac0a6d17cc72572ce6619` and the intervening public prefix remain recorded,
+with no retrospective qualification. Original enrollment, owning intent and six check argv
+remain fixed. The seed's four registry checks passed on its exact staged/committed content.
 
-Exact-source red, implementation, focused tests, current fixture qualification, final review/CI,
-dogfood/CEM binding, integration and native completion are NOT_RUN. Ticket stays OPEN.
-Physical cleanup, actor authentication and historic admission authority remain NOT_OBSERVED.
-Rollback: stop affected admissions and revert source while retaining every journal/attempt byte;
-compatible prior writer resumes whole-policy refusal. No live policy update or store migration.
+## Observed source and candidate qualification
+
+Clean seed source reproduced REFUSED/STALE_POLICY after an unrelated reservation update in the
+allocated pool. Baseline artifact SHA256:
+`85dab5c78ab19397cead4d1f5d3ca88f251594be81ffca38659cc41e77fdc405`.
+Reviewed source commit `a887513e1df0f34cb3a2af756197e80f74ff65f4` changes exactly twelve source
+paths; every committed blob matches the independent-review freeze. Review passed with no P1/P2
+findings. Native acceptance criteria 1–3 passed at source scope; criterion 4 remains delivery-pending.
+
+The candidate artifact SHA256 is
+`81e4210b4844b81046912e2eb5aef258fb8a8cfc817fd82d9eae65a8ca424708` (Go1.27.1, dirty-source
+candidate before promotion). Its actual CLI fixture returned OK/CANCELLED/FENCED after the same
+unrelated update, preserved original policy/config hashes, removed the reservation and retained
+pool quarantine. This is candidate evidence, not final clean-head qualification.
+
+Six Tasks packages passed: journal 3.180s, transaction 3.925s, store 174.748s, snapshot 4.853s,
+CLI 50.348s and intent 53.847s; six-package vet also passed. The store interval suite covers 24
+candidate/evidence-only cases, valid member/pool additions, restored relevant changes, renewal,
+nonzero retry debt and fresh successors. Concurrent clean returns commit once; a relevant-policy
+race permits a clean return only before that policy receipt. Journal tests prove aggregate
+original-byte bounds, continued codec validation after incompatibility and read purity.
+Private instrumentation observed one extra full audit per eligible stale preparation in 24
+cases, and zero extras at the measured boundary in nine equal/invalid/fenced/cancel/reap/failed/
+replay/conflict cases (22.797s total). This scan/time denominator is not token-savings evidence.
+
+Independent scratch controls advanced the second clock sample after history audit past expiry:
+FENCED with unchanged attempt bytes. Corrupting a historical receipt after that audit caused
+MALFORMED with unchanged head and attempt bytes. The first scratch assertion incorrectly required
+expiry refusal to preserve head; it failed because the existing FENCED path records a request-only
+refusal receipt. That failed assertion and corrected passing result remain retained. Historical
+blob-specific post-audit tamper was not separately injected and remains NOT_OBSERVED.
+
+## Retained failures, limits and remaining delivery
+
+Installed Tasks build202 rejected clean HANDOFF as MALFORMED; this is unsupported installed-writer
+evidence, not the source STALE_POLICY red. The optional updater failed its descendant snapshot;
+o verification bypass or dirty-source release install was made. Shared-clone alternates initially
+refused enrollment; a bounded clone-only object closure repair enabled the first successful freeze.
+The initial dogfood-change run refused with missing agent receipts/map/outcome and intent-scope
+drift; it remains startup evidence, not a later clean run. Two own-definition/member-order negative
+fixtures were rejected by stronger existing writer/codec rules; valid additions replaced them.
+A symlinked macOS CLI policy-input path refused; the resolved private path passed. The first
+six-package run failed when the sandbox denied process-table access; the authorized process-access
+rerun passed. All failed evidence is retained alongside the passing source packet.
+
+Source phases returned ordinarily, without refunds. CODE169 had retryCount1 and CODE171 had
+retryCount2. Terminal set-effects advanced native acceptance to4, retaining full future effects;
+the fresh terminal claim uses the genuine abb7 seed as base, preserving the original native1f
+history and excluding an unrelated already-public build-log. Its first claim refused because the
+canonical checkout lacked the leaf seed object. A guarded import of only ten immutable seed-closure
+objects preserved primary refs/index/worktree/native state; the same claim then succeeded as175.
+This was object availability repair, not an accounting reset or qualification of the old prefix.
+
+Final clean binding-head CEM/OCM, six keyed checks, inspected reports, explicit outcome, seal,
+current CI, integration and supported native completion remain pending at this metadata commit.
+Keep V1-0678 OPEN until those outcomes are retained and the native completion write/readback/audit
+succeeds. Physical cleanup, actor authentication, historical acceptance and runtime authority
+remain NOT_OBSERVED. Dedicated stale-hash completion and every populated reservation-map
+cross-product were not newly exercised; source verification retains ordinary completion checks.
+
+Rollback: stop affected admissions and revert the source while retaining all journal/attempt
+bytes; a compatible prior writer resumes whole-policy refusal. No live policy update, automatic
+reopen, persistent profile change or store migration is authorized.
