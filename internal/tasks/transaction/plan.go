@@ -20,15 +20,16 @@ const (
 // intent inventory, whether an admission barrier is present, the live
 // reservations, and every attempt record, which decides retry exhaustion.
 type PlanInput struct {
-	Pool, Stage  string
-	Pools        *snapshot.PoolState
-	Prepared     wire.Digest
-	Queue        *intent.Queue
-	Policy       *intent.Policy
-	Tickets      *ticket.Inventory
-	Barrier      bool
-	Reservations *snapshot.ReservationSet
-	Attempts     map[string]*snapshot.Attempt
+	Pool, Stage    string
+	ExcludeMembers []string
+	Pools          *snapshot.PoolState
+	Prepared       wire.Digest
+	Queue          *intent.Queue
+	Policy         *intent.Policy
+	Tickets        *ticket.Inventory
+	Barrier        bool
+	Reservations   *snapshot.ReservationSet
+	Attempts       map[string]*snapshot.Attempt
 }
 
 // PlanEntry is one planned ticket. Resources are what a claim of it would
@@ -227,11 +228,11 @@ func poolAvailable(in PlanInput, rec *ticket.Record) bool {
 }
 func poolSlots(in PlanInput) int {
 	p := in.Policy.Pool(in.Pool)
-	if p == nil {
+	if CheckPoolExclusions(in.Pool, in.ExcludeMembers, in.Policy) != nil || p == nil {
 		return 0
 	}
 	slots := 0
-	for _, m := range OrderedPoolMembers(p, in.Stage) {
+	for _, m := range OrderedPoolMembers(p, in.Stage, in.ExcludeMembers) {
 		busy := false
 		if in.Pools != nil {
 			for _, en := range in.Pools.Entries {
