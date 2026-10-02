@@ -257,6 +257,26 @@
     {
       "basis": [
         {
+          "evidenceId": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:89decee8ea75285bfca0a6dc188f6c12d746bc271f2b3f26b71952fd636ae072",
+      "newRange": {
+        "count": 31,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-02-postmerge-yaml-error-ownership.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
           "evidenceId": "evidence:sha256:0e749dc28b4e8cb4b3a3ef2618fd638e51456b97708df865c2ae7d97d8da2aef",
           "relation": "specification"
         }
@@ -330,9 +350,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:2255891908d2834e80b147369de746eb286dc35dd2fcaaa46bf0d0a65932ae4d",
+      "id": "hunk:sha256:65d0d7a369347cab74eee4a96f0d113bd6e49a2b3e7007c473cbbfb972bbf906",
       "newRange": {
-        "count": 232,
+        "count": 234,
         "start": 1
       },
       "oldRange": {
@@ -595,6 +615,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "6ba3a8b30deae2bc407a015e99f3c7634dd4447eac87df397f3f015acd3f4d07",
+  "patchSha256": "568485c1ec6a3239c9220544021a9672fc577b7d5ca23cbf54e290daf1cfe3da",
   "spec": "cem/0.2"
 }
