@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -105,21 +106,25 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	if err != nil {
 		return nil, err
 	}
+	var members map[string]json.RawMessage
+	if err := json.NewDecoder(bytes.NewReader(raw)).Decode(&members); err != nil {
+		return nil, fmt.Errorf("dispatch state: %w", err)
+	}
+	// Detect aliases before struct decoding: encoding/json folds field names,
+	// so an uppercase-only member must not fall back to legacy loading.
+	for name := range members {
+		if strings.EqualFold(name, "progress") {
+			if bytes.Equal(bytes.TrimSpace(members["progress"]), []byte("null")) || !validScalarJSON(raw) || !strictProgressJSON(raw) {
+				return nil, errors.New("dispatch state: malformed progress JSON")
+			}
+			break
+		}
+	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	var l Ledger
 	if err := d.Decode(&l); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
-	}
-	// Presence, including null, enables strict validation. Otherwise a duplicate
-	// progress member ending in null could discard replay history on restart.
-	var members map[string]json.RawMessage
-	_ = json.NewDecoder(bytes.NewReader(raw)).Decode(&members)
-	if progress, present := members["progress"]; present {
-		var extra any
-		if bytes.Equal(bytes.TrimSpace(progress), []byte("null")) || d.Decode(&extra) != io.EOF || !validScalarJSON(raw) || !uniqueProgressJSON(raw) {
-			return nil, errors.New("dispatch state: malformed progress JSON")
-		}
 	}
 	if l.Profile != StateProfile || l.Program != program {
 		return nil, fmt.Errorf("dispatch state belongs to profile %q program %q", l.Profile, l.Program)
@@ -148,12 +153,13 @@ func validProgressDigest(s string) bool {
 	return true
 }
 
-// A token-enabled ledger cannot silently overwrite replay history through
-// duplicate JSON members. Its schema has shallow, bounded containers.
-func uniqueProgressJSON(raw []byte) bool {
+// Token-enabled ledgers require canonical struct fields and unique members.
+// Dynamic map keys keep their case-sensitive identities. Container shapes
+// and value types are subsequently checked by the ordinary struct decoder.
+func strictProgressJSON(raw []byte) bool {
 	d := json.NewDecoder(bytes.NewReader(raw))
-	var value func(int) bool
-	value = func(depth int) bool {
+	var value func(int, string) bool
+	value = func(depth int, schema string) bool {
 		if depth > 32 {
 			return false
 		}
@@ -163,23 +169,59 @@ func uniqueProgressJSON(raw []byte) bool {
 		}
 		switch token {
 		case json.Delim('{'):
+			var fields []string
+			switch schema {
+			case "ledger":
+				fields = []string{"profile", "program", "launchSeq", "eventSeq", "workers", "backoff", "seen", "progress"}
+			case "worker":
+				fields = []string{"id", "role", "host", "slot", "key", "ticket", "pool", "member", "pid", "leaderIdentity", "members", "started", "lastActive", "logBytes", "activityPaths", "activityMtime", "state", "killReason", "killDeadline", "fingerprint", "baseFingerprint", "progressDigest"}
+			case "backoff-state":
+				fields = []string{"noProgress", "cooldownUntil", "parked", "fingerprint", "baseFingerprint", "progressDigest"}
+			case "proc":
+				fields = []string{"pid", "identity"}
+			case "seen":
+				fields = []string{"tickets", "claims", "lanes"}
+			case "history":
+				fields = []string{"current", "seen"}
+			}
 			seen := map[string]bool{}
 			for d.More() {
 				k, err := d.Token()
 				key, ok := k.(string)
-				if err != nil || !ok || seen[key] {
+				if err != nil || !ok || seen[key] || (fields != nil && !slices.Contains(fields, key)) {
 					return false
 				}
 				seen[key] = true
-				if !value(depth + 1) {
+				child := ""
+				switch schema {
+				case "ledger":
+					if key == "workers" || key == "backoff" || key == "seen" || key == "progress" {
+						child = key
+					}
+				case "worker":
+					if key == "members" {
+						child = key
+					}
+				case "backoff":
+					child = "backoff-state"
+				case "progress":
+					child = "history"
+				}
+				if !value(depth+1, child) {
 					return false
 				}
 			}
 			end, err := d.Token()
 			return err == nil && end == json.Delim('}')
 		case json.Delim('['):
+			child := ""
+			if schema == "workers" {
+				child = "worker"
+			} else if schema == "members" {
+				child = "proc"
+			}
 			for d.More() {
-				if !value(depth + 1) {
+				if !value(depth+1, child) {
 					return false
 				}
 			}
@@ -191,7 +233,7 @@ func uniqueProgressJSON(raw []byte) bool {
 			return true
 		}
 	}
-	if !value(0) {
+	if !value(0, "ledger") {
 		return false
 	}
 	var extra any

@@ -580,6 +580,74 @@ func TestCALV0064_NoTokenPreservesLegacyLedgerAndFingerprint(t *testing.T) {
 	}
 }
 
+func TestCALV0064_LedgerCanonicalFieldsAndCaseSensitiveKeys(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "state.json")
+	a, b := progressDigest("A"), progressDigest("B")
+	seen := []string{a, b}
+	sort.Strings(seen)
+	key := "ticket:a:q:Case"
+	base := strings.Repeat("a", 64)
+	l := &Ledger{Profile: StateProfile, Program: "prog", Workers: []*Worker{}, Backoff: map[string]*BackoffState{},
+		Progress: map[string]*ProgressHistory{key: {Current: b, Seen: seen}, "ticket:a:q:case": {Current: a, Seen: []string{a}}},
+		Seen:     &Seen{Tickets: map[string]string{"Current": "upper", "current": "lower"}, Claims: map[string]string{}, Lanes: map[string]string{}}}
+	raw, _ := json.Marshal(l)
+	legacy, _ := json.Marshal(&Ledger{Profile: StateProfile, Program: "prog", Workers: []*Worker{}, Backoff: map[string]*BackoffState{}})
+	withAccounting := *l
+	withAccounting.Workers = []*Worker{{ID: "worker", Key: key, BaseFingerprint: base, ProgressDigest: b, Fingerprint: progressFingerprint(base, b), Members: []Proc{{PID: 100, Identity: "identity"}}}}
+	withAccounting.Backoff = map[string]*BackoffState{key: {BaseFingerprint: base, ProgressDigest: b, Fingerprint: progressFingerprint(base, b)}}
+	accounting, _ := json.Marshal(&withAccounting)
+	backoffOnly := *l
+	backoffOnly.Backoff = withAccounting.Backoff
+	backoff, _ := json.Marshal(&backoffOnly)
+	for name, malformed := range map[string]string{
+		"canonical-then-alias-null": strings.TrimSuffix(string(raw), "}") + `,"Progress":null}`,
+		"uppercase-only-null":       strings.TrimSuffix(string(legacy), "}") + `,"Progress":null}`,
+		"uppercase-only-history":    strings.Replace(string(raw), `"progress":`, `"Progress":`, 1),
+		"unicode-folded-progress":   strings.Replace(string(raw), `"progress":`, `"progreſſ":`, 1),
+		"uppercase-only-trailing":   strings.TrimSuffix(string(legacy), "}") + `,"Progress":null} {}`,
+		"uppercase-only-duplicate":  strings.TrimSuffix(string(legacy), "}") + `,"Progress":{},"Progress":null}`,
+		"history-current-alias":     strings.Replace(string(raw), `"current":"`+b+`"`, `"current":"`+b+`","Current":"`+a+`"`, 1),
+		"history-uppercase-current": strings.Replace(string(raw), `"current":"`+b+`"`, `"Current":"`+b+`"`, 1),
+		"history-seen-alias":        strings.Replace(string(raw), `"seen":[`, `"Seen":[`, 1),
+		"worker-alias":              strings.Replace(string(accounting), `"workers":`, `"Workers":`, 1),
+		"worker-baseline-alias":     strings.Replace(string(accounting), `"baseFingerprint":`, `"BaseFingerprint":`, 1),
+		"backoff-digest-alias":      strings.Replace(string(backoff), `"progressDigest":`, `"ProgressDigest":`, 1),
+		"backoff-field-alias":       strings.Replace(string(backoff), `"noProgress":`, `"NoProgress":`, 1),
+		"proc-identity-alias":       strings.Replace(string(accounting), `"identity":`, `"Identity":`, 1),
+		"seen-struct-alias":         strings.Replace(string(raw), `"tickets":`, `"Tickets":`, 1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := os.WriteFile(path, []byte(malformed), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := LoadLedger(dir, "prog"); err == nil {
+				t.Fatal("case-aliased ledger accepted")
+			}
+			after, _ := os.ReadFile(path)
+			if string(after) != malformed {
+				t.Fatal("refusal changed persisted history")
+			}
+		})
+	}
+	for _, valid := range [][]byte{raw, accounting, legacy, []byte(strings.Replace(string(legacy), `"profile":`, `"Profile":`, 1))} {
+		if err := os.WriteFile(path, valid, 0600); err != nil {
+			t.Fatal(err)
+		}
+		loaded, err := LoadLedger(dir, "prog")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if loaded.Progress != nil && (len(loaded.Progress) != 2 || loaded.Progress[key].Current != b || len(loaded.Progress[key].Seen) != 2 || loaded.Seen.Tickets["Current"] != "upper" || loaded.Seen.Tickets["current"] != "lower") {
+			t.Fatal("dynamic keys were folded or restart history changed")
+		}
+		after, _ := os.ReadFile(path)
+		if string(after) != string(valid) {
+			t.Fatal("valid load rewrote persisted bytes")
+		}
+	}
+}
+
 func TestCALV0064_KeyBoundaryAndOperatorUnparkRetainLifetimeBudget(t *testing.T) {
 	d, _, _ := progressDispatcher(t)
 	key := "ticket:a:q:t"
