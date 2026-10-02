@@ -55,15 +55,7 @@ attributable adopter-run evidence are NOT_AVAILABLE. A bare source slice is not 
 External utility, server retirement, deployment/TLS/authentication/security and MCP
 Streamable HTTP remain NOT_OBSERVED. Full #399 acceptance and V1-0546 are unreduced.
 
-## Admission and rollback
-
-The canonical native journal remains in the primary checkout. Initial full admission
-121 was released with supported `COVERAGE_UNKNOWN`, without a clean-handoff or refund
-claim. A temporary narrowed future intent was corrected before source writes: full
-future test/log/CEM effects remain recorded with INCOMPLETE coverage, while generation
-123 claims only the three test files, this unique log and private resources as REQUESTED
-source-phase scope. Terminal CEM writes, submit and gates require restored full coverage
-and supported terminal scope. No active gate was running during either release.
+## Refusals and rollback
 
 The genuine initial dogfood attempt refused the empty base-to-head diff and retained
 missing CEM, intent-scope and outcome inputs plus missing automatic agent-receipt notes.
@@ -74,3 +66,22 @@ evidence; corrected public-base observations were rerun rather than relabelled.
 
 Rollback reverts this test/evidence-only change. Preserve original native receipts,
 private observations, unrelated work and future completion obligations.
+
+## Source review and functional acceptance boundary
+
+Fresh independent source review passed with no findings at source-phase commit
+`b61176af84fce81c067ff9410f78f2fd7d1b58d7`. Existing recorded
+parity vectors distinguish trust/freshness/detail/omission/retirement/citation/limitation/
+selection changes, missing/extra/changed records and per-tool agreement. The actual
+companion command tests also passed (1.524 seconds), including operation/answer mismatch,
+absent IDs, wrong pins, deterministic reports and producer failures. The positive
+recording is a Corvint self-oracle; independently altered negative expectations
+provide discrimination without claiming an actual adopter recording.
+
+The native parent acceptance requires issue #399 capabilities and their evidence,
+focused checks/review/CEM/OCM, integration and successful native completion. It does
+not add an actual adopter-run prerequisite. The corpus acceptance section separates
+local experimental completion from owner promotion
+(`docs/specs/documentation-corpus-v1.md:542-553@8d4efd02`). External qualification
+limits therefore remain non-claims; they are not an invented blanket local completion
+gate. Terminal binding, frozen checks and native completion are still pending here.
