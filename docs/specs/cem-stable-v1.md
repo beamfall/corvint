@@ -173,10 +173,16 @@ An already expired allowance admits no new signal, probe or reap, even when exit
 is observed or its deadline notification has not arrived. A pending
 asynchronous reap can be retained only as sticky `HOLD`, never as a later upgrade
 or retry. This is linked to `CEM-V1-007` consumer migration because stable Core
-verification depends on supported owned-runner containment. Linux runtime
-qualification, cross-device topology and escaped-session behaviour remain pending
-for root qualification; external consumers, default promotion and release
-readiness are not claimed. Canonical ordered fixtures do not qualify ordinary
+verification depends on supported owned-runner containment. At source
+`1a355ea551c2745d3fe9f229a36acc348cb205d8`, actual native Linux arm64 with Go 1.27.1
+passes the five scoped packages and all 54 applicable public full-result cases,
+with exact recursive comparison of all 21 frozen fields. The two historical
+Go 1.24.13 cases separately pass the original portable comparator on Darwin arm64;
+they are not Linux results. The repair build log retains these distinct runtime
+observations and the initial failed qualification harness runs. Linux amd64,
+portable standalone Linux, cross-device topology and escaped-session behaviour
+remain pending; external consumers, default promotion and release readiness are
+not claimed. Legacy Wait/Run is separate from the new Owner qualification. Canonical ordered fixtures do not qualify ordinary
 checkouts. Rollback disables the new optional operation and preserves earlier
 command defaults, candidate assembly, native task history and historical packet
 bytes. Independent producer implementation review and root source admission remain

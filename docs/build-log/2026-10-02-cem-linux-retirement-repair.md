@@ -65,16 +65,40 @@ Finish calls with Stop, and acknowledged late reap completion after HOLD.
 
 ## Qualification Limits
 
-The repair is source-level and locally focused. Actual Linux amd64 and final
-Linux arm64 runtime qualification remain pending, as do external consumer
-adoption, default promotion and release readiness. Existing public packets,
-historical source and prior seals remain unchanged.
+At source `1a355ea551c2745d3fe9f229a36acc348cb205d8`, fresh independent
+source review passed. On Darwin arm64 with Go 1.27.1, the five scoped packages
+pass tests and vet; groupreap/gitrun also pass the race detector. Linux amd64 and
+arm64 compilation and the Windows unavailable-owner compile control pass.
 
-On Darwin arm64 with Go 1.27.1, the five scoped packages pass fresh tests;
-groupreap/gitrun also pass the race detector, and the five packages pass vet.
-All five compile for Linux amd64 and arm64; groupreap compiles for Windows
-amd64 with the unavailable-owner fallback. These are build-readiness results,
-not Linux execution evidence. Corvint path impact and affected advice were used;
-build-constraint/nested-module frontiers and unowned documentation trace gaps
-remain explicit. Registry generation, CEM binding and integration are deferred
-to the owning coordinator.
+Actual Linux arm64 with Go 1.27.1, Git 2.47.3 and kernel 6.8.0-117 now passes the
+five scoped packages and all 54 Go 1.27.1 public full-result cases. Each executed
+public case matches all 21 frozen result fields recursively without replacement
+or normalization. The public packet and original comparator remain unchanged;
+a private additive diagnostic driver supplies Linux execution of the original
+recipes. Existing Darwin-only package controls remain explicitly skipped, and
+the two Go 1.24.13 cases are not represented as Linux results.
+
+The original portable comparator separately passes both Go 1.24.13 compatibility
+cases on actual Darwin arm64: nonstructural acceptance and structural runtime
+refusal. This is historical source-floor compatibility, not Core qualification
+on Go 1.24 or ongoing security support. The existing official task-local compiler
+archive and all 14,179 extracted regular files were verified; the installed
+Go 1.27.1 toolchain and configured paths were unchanged.
+
+Fixture-local Git identity also passes an actual Linux control with author
+environment unset, global/system configuration disabled and useConfigOnly
+required. Two initial Linux qualification harness runs failed: one mounted its
+temporary directory without executable-script support; the other omitted the
+immutable legacy fixture directories. Correcting those harness prerequisites
+required no product edits. Original failures remain retained; later source- and
+binary-bound results establish the stated package passes. All owned controllers
+and containers were retired.
+
+Actual hosted Linux amd64 and portable standalone Linux execution remain pending,
+as do cross-device topology, escaped-session behavior, external consumer adoption,
+default promotion and release readiness. This repair qualifies the new Owner
+paths only; legacy Wait/Run remains a separate tracked issue. Public packets,
+historical source and prior seals remain intact. Corvint impact and affected
+advice were used; build-constraint/nested-module frontiers and unowned
+documentation trace gaps remain explicit. Required final checks, CEM binding
+and integration remain separate completion steps.
