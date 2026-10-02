@@ -1,0 +1,139 @@
+{
+  "profile": "cem-s0e-public-open-questions/3",
+  "status": "ALL_DECIDED_OQ-01_TO_OQ-08",
+  "reviewSHA256": "f12ae7448e89fe4e80113803fcfdcbf9307bd0d4a1c72e9ebf8dc91b6c9bec32",
+  "questions": [
+    {
+      "id": "OQ-01",
+      "source": "D1",
+      "blocking": true,
+      "question": "Which pinned version of OPERATION.json and ALGORITHMS.md is authoritative for routing rank 3?",
+      "context": "INPUTS.json pins stable R1 OPERATION.json dc0c38c95d478e7e45b2457fbabdea453932d0c8e84033b29b68b8724d75ee5d (18263 B) and ALGORITHMS.md 58a52688ec75aa2580186f29fa9d1443f86c46a438b803871ad0587fe7f68803 (18769 B), and original S0E envelope OPERATION.json d229ee84fa90d11e7121d48eb77a4b9bf60d15302514d431f1d117518e47e31b (18316 B) and ALGORITHMS.md 91ae9068b1b47a0a37d6539de682d7b01791fff4d5e932b88e8fdd536a4c44b4 (19285 B). The repair1 routing text says 'original stable schema/operation/algorithms', but this packet amends the S0E envelope packet. Either reading is plausible, and the public author could not compare the contents because they are unavailable.",
+      "candidates": [
+        "A: The S0E envelope versions (inherited/s0e/) are authoritative, because they are the immediate predecessor that this amendment extends. The stable R1 versions are historical inputs only.",
+        "B: The stable R1 versions (inherited/stable-r1/) are authoritative, following the literal 'original stable' wording. The S0E deltas are superseded by this amendment.",
+        "C: Layered. The S0E versions govern the sections that the S0E envelope amended, and stable R1 governs all other sections. This needs an explicit section map."
+      ],
+      "publicAuthorPosition": "No choice made, so as not to guess.",
+      "state": "DECIDED",
+      "decision": "A",
+      "decisionText": "The S0E envelope versions (inherited/s0e/OPERATION.json, inherited/s0e/ALGORITHMS.md) are authoritative at routing rank 3. Root compared both versions: the S0E versions equal stable R1 plus additive pointers to the repository envelope (one repositoryEnvelope string in OPERATION.json; one appended 'Expanded native repository envelope' section in ALGORITHMS.md). Stable R1 versions are retained as historical inputs only. The public author must re-verify this additive claim from the supplied bytes and record any contrary observation instead of accepting it.",
+      "appliedIn": "INPUTS.json /repair3Routing rank 3 routes inherited/s0e/; stable R1 is historical only. The additivity claim was re-verified: confirmed for ALGORITHMS.md, contrary for OPERATION.json (see OQ-08)."
+    },
+    {
+      "id": "OQ-02",
+      "source": "D1",
+      "blocking": true,
+      "question": "Supply the bytes of every reserved inherited file.",
+      "context": "INPUTS.json names only paths relative to each predecessor packet root, and no root location appears in the public material. The firewall allowed reads only at the exact pinned paths, so these files were UNAVAILABLE: OPERATION.json and ALGORITHMS.md (both versions), FIXTURES.pack.json (a1f6f2026045e9730bd16b98e048de02b7afe054dca54286412c39f9dbe13998, 629020 B, identical in both predecessors), fixtures/maps/sha1-positive-sidecarless.json (d9f52a3091a4870404f351943a27401d8fdfd1938ea12278377c19f9e44e9f13) and fixtures/maps/sha1-positive-sealed.json.",
+      "candidates": [
+        "A: Root copies each file byte-for-byte to its reserved path under inherited/, verifies it against INPUTS.json /repair2Routing and regenerates the manifest.",
+        "B: Root gives the public author the exact absolute predecessor locations, so that the public author can copy and verify the files in a further revision."
+      ],
+      "state": "DECIDED",
+      "decision": "A",
+      "decisionText": "Root supplies the bytes in this directory at the reserved packet paths, each verified against the INPUTS.json pins. Copy byte-for-byte, re-hash, regenerate the manifest.",
+      "appliedIn": "All five supplied files copied byte-for-byte to their reserved paths and re-hashed by the public author."
+    },
+    {
+      "id": "OQ-03",
+      "source": "D1",
+      "blocking": true,
+      "question": "Pin the positive maps and confirm their provenance.",
+      "context": "The sealed map has no sha256 or byte pin anywhere in the packet, and the sidecarless map has no byte count. The public author infers that both are members of FIXTURES.pack.json from the wording 'original fixtures/maps/...', but did not verify this.",
+      "candidates": [
+        "A: Pin sha256 and byte count for both maps, extracted from FIXTURES.pack.json, and record the extraction rule.",
+        "B: If the maps are not members of the pack, name their source packet and pin them separately."
+      ],
+      "state": "DECIDED",
+      "decision": "A",
+      "decisionText": "Both positive maps are regular-file members of FIXTURES.pack.json (179 records; fields path,type,bytes,sha256,base64). Extraction rule: base64-decode the record whose path equals the map path; the result must match the record's bytes and sha256.",
+      "appliedIn": "Both maps extracted to inherited/fixtures/maps/ and pinned with the extraction rule. Distinction is the target commit (INPUTS.json /repair3Routing/positiveMapDistinction); no new question."
+    },
+    {
+      "id": "OQ-04",
+      "source": "O6",
+      "blocking": false,
+      "question": "What is the result when an outer cancellation or deadline arrives during ordinary abnormal teardown after a per-operation timeout or an output overflow?",
+      "context": "Precedence rank 2 (outer cancellation or deadline) seems to conflict with PROPOSED-RULES.md section 3: 'A failure already returned by an earlier verifier stage is not retrospectively replaced by an event that arrives later.' No case pins this interaction. Repair2 adds no semantics for it.",
+      "candidates": [
+        "A: The initiating cause wins. The per-operation timeout (git-timeout) or overflow (unsupported-resource-limit) is the transaction's determined failure. A later outer expiry only moves teardown onto the single 10-second emergency allowance.",
+        "B: Rank 2 wins. Arbitration happens once, after all flags are collected, so an outer expiry observed before final arbitration produces verification-timeout at the active checkpoint.",
+        "C: It depends on commitment. If the per-operation failure was already returned to the verifier stage before the expiry, A applies; otherwise B applies.",
+        "All candidates: failed or unobserved teardown still produces repository/unsupported-process-containment (rank 1). After the decision, add one sentence to PROPOSED-RULES.md and one synchronized full-result case."
+      ],
+      "state": "DECIDED",
+      "decision": "C",
+      "decisionText": "Commitment decides. A per-operation failure already returned to a verifier stage before the outer expiry stands; otherwise arbitration at the active checkpoint applies rank 2 and yields verification-timeout. Failed or unobserved teardown is rank 1 in every case. Add one sentence to PROPOSED-RULES.md and one synchronized full-result case per branch.",
+      "appliedIn": "One sentence added to PROPOSED-RULES.md section 3; OPERATION-ERRORS.json /outerExpiryCommitmentRule; LOGICAL-LEDGERS.json /outerExpiryCommitment; two new full-result cases."
+    },
+    {
+      "id": "OQ-05",
+      "source": "O8",
+      "blocking": false,
+      "question": "Should cases carry numeric deadline values?",
+      "context": "The 30-minute outer deadline, the per-operation min(10 seconds, remaining) span and the 10-second emergency allowance are enforced by prose only. No case carries numeric timing fields. Repair2 adds no semantics for this.",
+      "candidates": [
+        "A: Add numeric controlled-monotonic-clock fields to the recipes of the timing cases (canonical-per-op-timeout, simultaneous-outer-cancel-and-overflow, canonical-per-op-timeout-and-overflow and the four outer-expiry cases): outer span, per-operation span and emergency allowance in milliseconds, plus the injection instants.",
+        "B: Keep the cases code-only, and require a separate numeric timing-boundary ledger in the implementing Gate A.",
+        "C: Both A and B."
+      ],
+      "state": "DECIDED",
+      "decision": "B",
+      "decisionText": "Cases stay code-only. Each implementing Gate A must carry a numeric timing-boundary ledger. No public case changes.",
+      "appliedIn": "No case changed. PROPOSED-RULES.md section 6 requires a numeric timing-boundary ledger in each implementing Gate A."
+    },
+    {
+      "id": "OQ-06",
+      "source": "D2",
+      "blocking": false,
+      "question": "Accept the NEW normative test topology T-LINKED and the injection targets chosen for cases 24 and 27-32?",
+      "context": "The public material did not determine the topology or the injection target. Repair2 proposes the minimal layout consistent with PROPOSED-RULES.md section 1 (FULL-RESULT-CASES.json /admissionTopologies). It assumes, following the review, that the original ordinary-sha1 fixture is a primary repository. The expected codes are invariant.",
+      "candidates": [
+        "A: Accept T-LINKED and the per-case bytes as written.",
+        "B: Replace them with a different reciprocal layout, for example relative backpointers or an external common directory, or a different format-injection target such as the gitdir backpointer. No expected code changes."
+      ],
+      "state": "DECIDED",
+      "decision": "A",
+      "decisionText": "T-LINKED and the injection targets for cases 24 and 27-32 are accepted as written. Expected codes unchanged.",
+      "appliedIn": "FULL-RESULT-CASES.json /admissionTopologies status set to accepted."
+    },
+    {
+      "id": "OQ-07",
+      "source": "repair3 (new)",
+      "new": true,
+      "state": "DECIDED",
+      "blocking": true,
+      "question": "Must the pinned S0E files that the authoritative rank-3 text references be in the packet and routed?",
+      "context": "inherited/s0e/ALGORITHMS.md delegates the canonical-repository-bounded/1 admission to REPOSITORY-ENVELOPE.md and its full results to REPOSITORY-ENVELOPE.cells.json; inherited/s0e/OPERATION.json also names REPOSITORY-ENVELOPE.md. Both are pinned in INPUTS.json originalS0EPublicFiles (6435cfc2..., 6162 B; 68432f3e..., 288813 B) but absent from the packet and from the routing order, so envelope behavior that this amendment does not explicitly amend has no in-packet source. ALGORITHMS.md also names MIGRATION.json and PACKING.md (pinned, absent); these concern migration and packing rather than envelope admission. The public author could not read any of them.",
+      "candidates": [
+        "A: Supply REPOSITORY-ENVELOPE.md and REPOSITORY-ENVELOPE.cells.json under inherited/s0e/ and route them at a new rank between the amendment (1) and the stable schemas (2), superseded wherever rank 1 is explicit.",
+        "B: Declare the rank-1 amendment files a complete replacement for REPOSITORY-ENVELOPE.md and its cells for canonical-repository-bounded/1, keeping the cells pin as historical only.",
+        "For MIGRATION.json and PACKING.md in either case: supply them as unrouted historical inputs, or record them as out of scope for envelope admission."
+      ],
+      "decision": "SUPPLIED",
+      "decisionText": "The four files are supplied at inherited/s0e/, verified against the INPUTS.json pins. REPOSITORY-ENVELOPE.md and REPOSITORY-ENVELOPE.cells.json are routed at rank 3 with the S0E operation and algorithm contracts, below the rank 1 amendment files, which override them wherever they differ. MIGRATION.json and PACKING.md are informative for migration and pack extraction and carry no routing rank. If any rank 1 file conflicts with the envelope files in a way that changes an expected result, stop and report it.",
+      "rootDecisionsSHA256": "e51ccac0fe0b32a80ac358822b0d79b73fe9ca11bb654f3b628f7466d9bceb30",
+      "appliedIn": "INPUTS.json /repair4Routing: REPOSITORY-ENVELOPE.md and REPOSITORY-ENVELOPE.cells.json routed at rank 3; MIGRATION.json and PACKING.md informative with no rank; all four re-hashed against their pins. Conflict check /envelopeConflictCheck: no conflict changes an expected result. Pack check /packingCheck."
+    },
+    {
+      "id": "OQ-08",
+      "source": "repair3 (new)",
+      "new": true,
+      "state": "DECIDED",
+      "blocking": false,
+      "question": "Do the stable R1 /resultSemantics/repositoryEnvelope clauses that the S0E OPERATION.json text omits remain in force?",
+      "context": "Contrary to the root additivity claim, the S0E OPERATION.json replaces, rather than extends, the stable R1 string. \"published alongside resource/process constraints\" and \"never merely native\" are absent from the S0E text (INPUTS.json /repair3Routing/additivityCheck). The S0E text keeps \"Exact\" and adds \"on every result\". Repair3 routes the S0E file as decided and adds no semantics.",
+      "candidates": [
+        "A: The omitted clauses remain in force (S0E is intended as additive); record them in the amendment so rank 1 restates them.",
+        "B: The S0E text governs alone; the omitted clauses are retired."
+      ],
+      "decision": "RETAINED",
+      "decisionText": "Both stable R1 clauses remain in force: the envelope value on a result is always an exact envelope ID and never the bare label 'native', and resource and process constraints are published with it (here by the amendment's ledgers). The S0E wording does not contradict either clause.",
+      "rootDecisionsSHA256": "e51ccac0fe0b32a80ac358822b0d79b73fe9ca11bb654f3b628f7466d9bceb30",
+      "appliedIn": "PROPOSED-RULES.md section 6 restates both clauses: the result envelope value is an exact envelope ID, never bare native, and resource and process constraints are published with it through OPERATION-ERRORS.json and LOGICAL-LEDGERS.json. All 56 cases already carry canonical-repository-bounded/1."
+    }
+  ],
+  "rootDecisionsSHA256": "7a7d46a6707f637c6cac1813ecf0174e0391eea94a8ed2d936eae22622c3e2ef",
+  "repair4RootDecisionsSHA256": "e51ccac0fe0b32a80ac358822b0d79b73fe9ca11bb654f3b628f7466d9bceb30"
+}

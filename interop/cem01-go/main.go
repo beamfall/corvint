@@ -15,6 +15,12 @@ type response struct {
 }
 
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == stableKeeperProtocol && stableKeeperControlPresent() {
+		stableKeeperMain()
+	}
+	if len(os.Args) > 1 && os.Args[1] == "verify-stable-canonical" {
+		runStableCanonicalCLI(os.Args[2:])
+	}
 	if len(os.Args) > 1 && os.Args[1] == "verify-stable" {
 		runStableCLI(os.Args[2:])
 	}
