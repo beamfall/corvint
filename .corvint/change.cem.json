@@ -1,0 +1,70 @@
+{
+  "baseRevision": "1fda1b94984245d0cd0ac0a6d17cc72572ce6619",
+  "evidence": [
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:0f36f5f78ab68015f337336033897f6c4db05724f5e13ec202c39d8e5a7db0f2",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 5438,
+        "start": 5176
+      },
+      "spanSha256": "0294635150b1c444569f5d317846f8403e01f3a644c3fe0dda1dc90ca3520eac"
+    },
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:eaa7d87a70d917d65e18787c234bb44d4f13b78669b00a2796cd386a9a985275",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 5175,
+        "start": 4394
+      },
+      "spanSha256": "a3f922c2750b9f59a1ffd2953276640c3a9346add6290f70eb30af2d2cb822f2"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0f36f5f78ab68015f337336033897f6c4db05724f5e13ec202c39d8e5a7db0f2",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3dd22c151223f0913fb284271e7ab595040ea759f1dc920503cf4db9162a26fc",
+      "newRange": {
+        "count": 7,
+        "start": 308
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 308
+      },
+      "path": ".github/workflows/ci.yml",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:eaa7d87a70d917d65e18787c234bb44d4f13b78669b00a2796cd386a9a985275",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:75bef77c0a34e29dfd0ae5d3dc123684000c6fdd99d1dca02e7a5273048a18e2",
+      "newRange": {
+        "count": 34,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-02-cem-interop-ci-floor.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "e48243d3a8b1ad67de5c467e63dedbec738b5b309b58cf26c275fc22ad2a24a4",
+  "spec": "cem/0.2"
+}
