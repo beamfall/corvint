@@ -151,16 +151,16 @@ func (o *Owner) observe() {
 	o.mu.Lock()
 	if err != nil {
 		o.observeErr = err
-		o.note("exit-unobserved")
+		o.recordEvent("exit-unobserved")
 	} else if o.state == OwnedRunning {
 		o.state = OwnedExitObserved
-		o.note("exit-observed")
+		o.recordEvent("exit-observed")
 	}
 	o.mu.Unlock()
 	close(o.exited)
 }
 
-func (o *Owner) note(event string) { o.events = append(o.events, event) }
+func (o *Owner) recordEvent(event string) { o.events = append(o.events, event) }
 
 // Exited is closed once the leader's exit was observed (it stays unreaped) or
 // the observation failed; Finish distinguishes the two.
@@ -197,7 +197,7 @@ func (o *Owner) kill() error {
 		return nil
 	}
 	o.signalled = true
-	o.note("kill-group")
+	o.recordEvent("kill-group")
 	err := o.p.KillGroup(o.leader)
 	if err != nil {
 		o.signalErr = err
@@ -207,7 +207,7 @@ func (o *Owner) kill() error {
 
 func (o *Owner) hold(err error) Result {
 	o.state = Hold
-	o.note("hold")
+	o.recordEvent("hold")
 	o.result = Result{State: Hold, Err: err}
 	return o.result
 }
@@ -258,10 +258,10 @@ func (o *Owner) Finish(limit <-chan struct{}) Result {
 			return o.hold(errors.Join(errors.New("groupreap: group probe failed"), err))
 		}
 		if probe != ProbeLive {
-			o.note("probe-quiet")
+			o.recordEvent("probe-quiet")
 			break
 		}
-		o.note("probe-live")
+		o.recordEvent("probe-live")
 		o.mu.Unlock()
 		expired := false
 		timer := o.p.NewTimer(probeInterval)
@@ -277,7 +277,7 @@ func (o *Owner) Finish(limit <-chan struct{}) Result {
 		}
 	}
 	o.state = Reaping
-	o.note("reap")
+	o.recordEvent("reap")
 	waitErr := o.p.Reap(o.command)
 	var exit *exec.ExitError
 	if waitErr != nil && !errors.As(waitErr, &exit) {
@@ -291,7 +291,7 @@ func (o *Owner) Finish(limit <-chan struct{}) Result {
 	for {
 		probe, err := o.p.ProbeGroup(o.leader)
 		if !finalNoted {
-			o.note("probe-final")
+			o.recordEvent("probe-final")
 			finalNoted = true
 		}
 		if err != nil {
@@ -301,7 +301,7 @@ func (o *Owner) Finish(limit <-chan struct{}) Result {
 		}
 		if probe == ProbeAbsent {
 			o.state = Released
-			o.note("released")
+			o.recordEvent("released")
 			o.result = Result{State: Released, WaitErr: waitErr, PostReap: ProbeAbsent, PostReapObserved: true}
 			return o.result
 		}
