@@ -2,6 +2,7 @@
   "profile": "corvint-test-read-scopes/0",
   "packages": {
     "benchmarks": [
+      "docs/specs/lsp-qualification-evaluation-policy-v0.json",
       "go.mod",
       "internal/cem/"
     ],

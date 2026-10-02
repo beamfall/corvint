@@ -1,0 +1,60 @@
+{
+  "baseRevision": "1fda1b94984245d0cd0ac0a6d17cc72572ce6619",
+  "evidence": [
+    {
+      "blobOid": "50dbe5033c23d00ed7f8aa61455bc2c7c0228acc",
+      "id": "evidence:sha256:0ed2d9d6ebf681ca96a2de980e8e9054ded08a8e31d064530519432d33474c2b",
+      "path": "docs/specs/affected-plan-v0.md",
+      "span": {
+        "end": 48088,
+        "start": 45369
+      },
+      "spanSha256": "f140db1b0e078ac176600479b4f24b3a2543ece5ce9fcfa9e5aa8c86b6f7cc60"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0ed2d9d6ebf681ca96a2de980e8e9054ded08a8e31d064530519432d33474c2b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:51e88d88e0077eb69cd5e8f0140743be834b640048d000b15d43f5eee58fa5e8",
+      "newRange": {
+        "count": 7,
+        "start": 2
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 2
+      },
+      "path": ".corvint/test-read-scopes.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0ed2d9d6ebf681ca96a2de980e8e9054ded08a8e31d064530519432d33474c2b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:bec4da558e2cc09be85f42f6da8cbd094798885be99e0fc6128dbc53748f0358",
+      "newRange": {
+        "count": 35,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-02-benchmarks-lsp-policy-read-scope.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "0fea5a992e72fdadb3ed0fc4f3c7ecbf09a2d4366e8e27d3a645b85bf3da2897",
+  "spec": "cem/0.2"
+}
