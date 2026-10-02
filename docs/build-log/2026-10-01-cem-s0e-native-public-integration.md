@@ -61,3 +61,30 @@ for the unchanged 1,024-operation limit after gitrun gained stable state. The
 reference now names only the unchanged operational constants. This repairs the
 locator without changing the dogfood contract. The addendum path is covered by
 the native reservation’s existing docs namespace.
+
+V1-0663 follow-up: the preserved fixture at
+`/private/tmp/cem10-create-absence-probe-20261001` showed native Stable
+accepting a map whose base commit had `p` as Git's empty tree and target commit
+created `p` as a file, while the portable canonical verifier rejected the same
+base, target and map as `invalid-field`. The first direct repair attempt made
+Stable look up create destinations during simulation; its new regression fixture initially failed wire parsing and it added Git reservations to frozen S0E ledger
+cases, including a 336-evidence case that moved from the expected 1,023
+attempted operations to 1,025. That attempt is not retained.
+
+The repair now reuses authenticated base-side `TreeEntry` values from the
+canonical change-set proof already required by `CanonicalDiff`, before tree
+entries are zeroed for patch-section provenance. Stable consumes only this
+returned proof for create destinations: a zero entry is authenticated absence,
+a non-zero entry rejects as `invalid-field`, and a missing proof is repository
+uncertainty. This is local native verification evidence only; no external
+qualification or public packet expectation change is claimed here.
+
+Root closeout correction: the initial new regression fixture used Darwin's
+symlinked temporary-directory alias and refused at repository admission. It now
+constructs its own physical-path Git fixture with canonical lower-case wire ranges,
+rather than depending on the preserved /private/tmp probe. The proof-returning
+operation retains only create sides of authenticated patch sections, preserves
+the existing bounded patch/tree inventory, and observes cancellation/deadline
+while copying that inventory. It does not parse the patch earlier or change
+digest/failure precedence. The worker's earlier passed checks are retained against
+their actual inputs; final changed inputs require new checks.

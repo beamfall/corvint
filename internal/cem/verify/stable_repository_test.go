@@ -3,6 +3,7 @@ package verify
 import (
 	"bytes"
 	"compress/zlib"
+	"context"
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/hex"
@@ -15,6 +16,9 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cem/patch"
 )
 
 // s0ePublicRootEnv names the directory of the public S0E repair packet
@@ -221,4 +225,70 @@ func requireS0EResult(t *testing.T, c s0eCase, result StableResult, exit int) bo
 func s0eMapDigest(c s0eCase) string {
 	digest, _ := c.ExpectedResult["mapSha256"].(string)
 	return digest
+}
+
+func stableRepositoryGit(t *testing.T, repo, stdin string, args ...string) string {
+	t.Helper()
+	command := exec.Command("git", args...)
+	command.Dir = repo
+	command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1",
+		"GIT_AUTHOR_NAME=Fixture", "GIT_AUTHOR_EMAIL=fixture@invalid", "GIT_COMMITTER_NAME=Fixture", "GIT_COMMITTER_EMAIL=fixture@invalid",
+		"GIT_AUTHOR_DATE=2026-10-01T00:00:00Z", "GIT_COMMITTER_DATE=2026-10-01T00:00:00Z")
+	command.Stdin = strings.NewReader(stdin)
+	out, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, out)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func TestStableRepositoryRejectsCreateOverAuthenticatedEmptyBaseTree(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("stable process containment is only supported on Darwin/Linux")
+	}
+	// The stable boundary intentionally refuses symlink ancestors, including
+	// Darwin's /var alias used by t.TempDir.
+	fixture, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := filepath.Join(fixture, "repo")
+	command := exec.Command("git", "init", "-q", "--object-format=sha1", repo)
+	command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
+	if out, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v: %s", err, out)
+	}
+	empty := stableRepositoryGit(t, repo, "", "mktree")
+	baseTree := stableRepositoryGit(t, repo, "040000 tree "+empty+"\tp\n", "mktree")
+	base := stableRepositoryGit(t, repo, "", "commit-tree", baseTree, "-m", "base")
+	blob := stableRepositoryGit(t, repo, "created\n", "hash-object", "-w", "--stdin")
+	targetTree := stableRepositoryGit(t, repo, "100644 blob "+blob+"\tp\n", "mktree")
+	target := stableRepositoryGit(t, repo, "", "commit-tree", targetTree, "-p", base, "-m", "target")
+	stableRepositoryGit(t, repo, "", "update-ref", "refs/heads/main", target)
+	stableRepositoryGit(t, repo, "", "symbolic-ref", "HEAD", "refs/heads/main")
+	patchBytes := []byte(stableRepositoryGit(t, repo, "", "diff", "--full-index", "--no-renames", base, target) + "\n")
+	parsed, err := patch.Parse(patchBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(parsed.Hunks) != 1 {
+		t.Fatalf("parsed hunks = %d, want1", len(parsed.Hunks))
+	}
+	h := parsed.Hunks[0]
+	raw, err := json.Marshal(map[string]any{
+		"spec": "cem/1.0", "baseRevision": base, "excludedPath": ".corvint/change.cem.json", "patchSha256": stableDigest(patchBytes),
+		"hunks":    []any{map[string]any{"id": h.ID, "path": h.DisplayPath, "oldRange": map[string]int64{"start": h.OldRange.Start, "count": h.OldRange.Count}, "newRange": map[string]int64{"start": h.NewRange.Start, "count": h.NewRange.Count}, "disposition": "unknown", "reason": "no-evidence", "basis": []any{}}},
+		"evidence": []any{}, "criterionBindings": []any{}, "runnerReceipts": []any{}, "criterionLinks": []any{}, "artifacts": []any{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifacts := filepath.Join(fixture, "artifacts")
+	if err := os.Mkdir(artifacts, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	result, exit := Stable(context.Background(), raw, StableOptions{Repository: repo, ExpectedBase: base, Target: target, ArtifactRoot: artifacts})
+	if exit != 1 || result.Outcome != "REJECT" || result.Stage != "verification" || len(result.IssueCodes) != 1 || result.IssueCodes[0] != cemcode.InvalidField || result.Axes["changeIntegrity"] != "FAILED" {
+		t.Fatalf("Stable exit=%d result=%+v, want REJECT verification invalid-field with failed integrity", exit, result)
+	}
 }

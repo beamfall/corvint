@@ -1,10 +1,11 @@
 package verify
 
 import (
-	"errors"
 	"slices"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/patch"
 	"github.com/Beamfall/corvint/internal/cem/sim"
 )
@@ -41,8 +42,7 @@ func parseStableSimulationPatch(t *testing.T, raw string) *patch.Patch {
 	return parsed
 }
 
-func TestStableSimulationCreateOverBaseDirectoryDelegatesToBaseSource(t *testing.T) {
-	refusal := errors.New("base path is not a regular blob")
+func TestStableSimulationCreateOverBaseDirectoryRejectsFromProof(t *testing.T) {
 	parsed := parseStableSimulationPatch(t, ""+
 		"diff --git a/p/old.txt b/p/old.txt\n"+
 		"deleted file mode 100644\n"+
@@ -58,38 +58,109 @@ func TestStableSimulationCreateOverBaseDirectoryDelegatesToBaseSource(t *testing
 		"+new\n")
 	base := &stableSimulationTestSource{
 		blobs: map[string][]byte{"p/old.txt": []byte("old\n")},
-		errs:  map[string]error{"p": refusal},
 	}
-	source := &stableSimulationSource{source: base, authenticatedCreateAbsent: stableAuthenticatedCreateAbsences(parsed)}
-	if err := sim.Simulate(parsed, source); !errors.Is(err, refusal) {
-		t.Fatalf("simulate err = %v, want inherited base-source refusal", err)
+	createAbsent, createBlocked, err := stableAuthenticatedCreateAbsences(parsed, map[string]gitauth.TreeEntry{"p": {OID: "tree", Type: "tree"}})
+	if err != nil {
+		t.Fatal(err)
 	}
-	if !slices.Contains(base.calls, "p") {
-		t.Fatalf("base source calls = %v, want destination p delegated", base.calls)
+	source := &stableSimulationSource{source: base, authenticatedCreateAbsent: createAbsent, authenticatedCreateBlocked: createBlocked}
+	if err := sim.Simulate(parsed, source); cemcode.CodeOf(err) != cemcode.InvalidField {
+		t.Fatalf("simulate err = %v, want invalid-field", err)
+	}
+	if slices.Contains(base.calls, "p") {
+		t.Fatalf("base source calls = %v, did not want destination p delegated", base.calls)
 	}
 }
 
-func TestStableSimulationCreateOverBaseGitlinkDelegatesToBaseSource(t *testing.T) {
+func TestStableSimulationCreateOverBaseGitlinkRejectsFromProof(t *testing.T) {
 	path := "p"
 	parsed := &patch.Patch{Groups: []*patch.Group{
 		{Kind: patch.KindCreate, NewPath: &path, Mode: "100644"},
 		{Kind: patch.KindDelete, OldPath: &path, Mode: "160000"},
 	}}
-	if stableAuthenticatedCreateAbsences(parsed)[path] {
-		t.Fatal("base-side exact path must prevent authenticated create absence")
+	base := &stableSimulationTestSource{}
+	createAbsent, createBlocked, err := stableAuthenticatedCreateAbsences(parsed, map[string]gitauth.TreeEntry{path: {OID: "commit", Type: "commit"}})
+	if err != nil {
+		t.Fatal(err)
 	}
-	refusal := errors.New("base path is not a regular blob")
-	base := &stableSimulationTestSource{errs: map[string]error{path: refusal}}
-	source := &stableSimulationSource{source: base, authenticatedCreateAbsent: stableAuthenticatedCreateAbsences(parsed)}
-	if _, _, _, err := source.BaseBlob(path); !errors.Is(err, refusal) {
-		t.Fatalf("BaseBlob err = %v, want inherited base-source refusal", err)
+	source := &stableSimulationSource{source: base, authenticatedCreateAbsent: createAbsent, authenticatedCreateBlocked: createBlocked}
+	if _, _, _, err := source.BaseBlob(path); cemcode.CodeOf(err) != cemcode.InvalidField {
+		t.Fatalf("BaseBlob err = %v, want invalid-field", err)
 	}
-	if got := base.calls; len(got) != 1 || got[0] != path {
-		t.Fatalf("base source calls = %v, want [%s]", got, path)
+	if len(base.calls) != 0 {
+		t.Fatalf("base source calls = %v, want none", base.calls)
 	}
 }
 
-func TestStableSimulationPlainCreateDoesNotCallBaseSource(t *testing.T) {
+func TestStableSimulationCreateDestinationsAuthenticateBaseEntries(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+	}{
+		{"empty-directory", "p"},
+		{"nonempty-directory", "p"},
+		{"gitlink", "p"},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			parsed := &patch.Patch{Groups: []*patch.Group{
+				{Kind: patch.KindCreate, NewPath: &testCase.path, Mode: "100644"},
+			}}
+			base := &stableSimulationTestSource{}
+			createAbsent, createBlocked, err := stableAuthenticatedCreateAbsences(parsed, map[string]gitauth.TreeEntry{testCase.path: {OID: "base", Type: "tree"}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			source := &stableSimulationSource{source: base, authenticatedCreateAbsent: createAbsent, authenticatedCreateBlocked: createBlocked}
+			if _, _, _, err := source.BaseBlob(testCase.path); cemcode.CodeOf(err) != cemcode.InvalidField {
+				t.Fatalf("BaseBlob err = %v, want invalid-field", err)
+			}
+			if len(base.calls) != 0 {
+				t.Fatalf("base source calls = %v, want none", base.calls)
+			}
+		})
+	}
+}
+
+func TestStableSimulationPlainAndNestedCreatesAuthenticateAbsence(t *testing.T) {
+	cases := []string{"p", ".corvint/change.cem.json", "nested/p"}
+	for _, path := range cases {
+		t.Run(path, func(t *testing.T) {
+			parsed := parseStableSimulationPatch(t, ""+
+				"diff --git a/"+path+" b/"+path+"\n"+
+				"new file mode 100644\n"+
+				"--- /dev/null\n"+
+				"+++ b/"+path+"\n"+
+				"@@ -0,0 +1 @@\n"+
+				"+new\n")
+			base := &stableSimulationTestSource{}
+			createAbsent, createBlocked, err := stableAuthenticatedCreateAbsences(parsed, map[string]gitauth.TreeEntry{path: {}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			source := &stableSimulationSource{source: base, authenticatedCreateAbsent: createAbsent, authenticatedCreateBlocked: createBlocked}
+			if err := sim.Simulate(parsed, source); err != nil {
+				t.Fatal(err)
+			}
+			if len(base.calls) != 0 {
+				t.Fatalf("base source calls = %v, want none", base.calls)
+			}
+		})
+	}
+}
+
+func TestStableSimulationCreateMissingProofRefuses(t *testing.T) {
+	path := "p"
+	parsed := &patch.Patch{Groups: []*patch.Group{
+		{Kind: patch.KindCreate, NewPath: &path, Mode: "100644"},
+	}}
+	if _, _, err := stableAuthenticatedCreateAbsences(parsed, nil); cemcode.CodeOf(err) != "unsupported-patch-inventory" {
+		t.Fatalf("stableAuthenticatedCreateAbsences err = %v, want unsupported-patch-inventory", err)
+	}
+}
+
+func TestStableSimulationCreateOverExistingBlobRejectsInvalidField(t *testing.T) {
+	path := "p"
 	parsed := parseStableSimulationPatch(t, ""+
 		"diff --git a/p b/p\n"+
 		"new file mode 100644\n"+
@@ -98,9 +169,13 @@ func TestStableSimulationPlainCreateDoesNotCallBaseSource(t *testing.T) {
 		"@@ -0,0 +1 @@\n"+
 		"+new\n")
 	base := &stableSimulationTestSource{}
-	source := &stableSimulationSource{source: base, authenticatedCreateAbsent: stableAuthenticatedCreateAbsences(parsed)}
-	if err := sim.Simulate(parsed, source); err != nil {
+	createAbsent, createBlocked, err := stableAuthenticatedCreateAbsences(parsed, map[string]gitauth.TreeEntry{path: {OID: "blob", Type: "blob"}})
+	if err != nil {
 		t.Fatal(err)
+	}
+	source := &stableSimulationSource{source: base, authenticatedCreateAbsent: createAbsent, authenticatedCreateBlocked: createBlocked}
+	if err := sim.Simulate(parsed, source); cemcode.CodeOf(err) != cemcode.InvalidField {
+		t.Fatalf("simulate err = %v, want invalid-field", err)
 	}
 	if len(base.calls) != 0 {
 		t.Fatalf("base source calls = %v, want none", base.calls)

@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
@@ -300,7 +299,7 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 		}
 		r.Sidecar = "EXACT"
 	}
-	patchBytes, err := repo.CanonicalDiff(ctx, d.Change.BaseRevision, target)
+	patchBytes, createDestinations, err := repo.CanonicalDiffWithCreateDestinations(ctx, d.Change.BaseRevision, target)
 	if err != nil {
 		exit = fail("repository", err)
 		return r, exit
@@ -317,7 +316,12 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 		return r, exit
 	}
 	source := &baseSource{ctx: ctx, repository: repo, base: d.Change.BaseRevision}
-	simSource := &stableSimulationSource{source: source, authenticatedCreateAbsent: stableAuthenticatedCreateAbsences(parsed)}
+	createAbsent, createBlocked, err := stableAuthenticatedCreateAbsences(parsed, createDestinations)
+	if err != nil {
+		exit = fail("repository", err)
+		return r, exit
+	}
+	simSource := &stableSimulationSource{source: source, authenticatedCreateAbsent: createAbsent, authenticatedCreateBlocked: createBlocked}
 	if err = sim.Simulate(parsed, simSource); err != nil {
 		exit = fail("verification", err)
 		return r, exit
@@ -465,34 +469,36 @@ func (s *stableProofSource) BaseBlob(path string) ([]byte, string, bool, error) 
 }
 
 type stableSimulationSource struct {
-	source                    sim.BlobSource
-	authenticatedCreateAbsent map[string]bool
+	source                     sim.BlobSource
+	authenticatedCreateAbsent  map[string]bool
+	authenticatedCreateBlocked map[string]bool
 }
 
-func stableAuthenticatedCreateAbsences(parsed *patch.Patch) map[string]bool {
-	candidates := map[string]bool{}
-	basePaths := map[string]bool{}
+func stableAuthenticatedCreateAbsences(parsed *patch.Patch, createDestinations map[string]gitauth.TreeEntry) (map[string]bool, map[string]bool, error) {
+	absent := map[string]bool{}
+	blocked := map[string]bool{}
 	for _, group := range parsed.Groups {
-		if group.Kind == patch.KindCreate && group.NewPath != nil {
-			candidates[*group.NewPath] = true
+		if group.Kind != patch.KindCreate || group.NewPath == nil {
+			continue
 		}
-		if group.OldPath != nil {
-			basePaths[*group.OldPath] = true
+		path := *group.NewPath
+		entry, ok := createDestinations[path]
+		if !ok {
+			return nil, nil, cemcode.New("unsupported-patch-inventory", "create destination %q has no authenticated base entry proof", path)
 		}
+		if entry.OID == "" {
+			absent[path] = true
+			continue
+		}
+		blocked[path] = true
 	}
-	for path := range candidates {
-		prefix := path + "/"
-		for basePath := range basePaths {
-			if basePath == path || strings.HasPrefix(basePath, prefix) {
-				delete(candidates, path)
-				break
-			}
-		}
-	}
-	return candidates
+	return absent, blocked, nil
 }
 
 func (s *stableSimulationSource) BaseBlob(path string) ([]byte, string, bool, error) {
+	if s.authenticatedCreateBlocked[path] {
+		return nil, "", false, cemcode.New(cemcode.InvalidField, "create destination %q exists in the base tree", path)
+	}
 	if s.authenticatedCreateAbsent[path] {
 		return nil, "", false, nil
 	}

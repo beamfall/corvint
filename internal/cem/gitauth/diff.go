@@ -77,6 +77,53 @@ func (r *Repository) CanonicalDiff(ctx context.Context, baseOID, targetOID strin
 	return out, nil
 }
 
+// CanonicalDiffWithCreateDestinations derives the same canonical patch as
+// CanonicalDiff and returns the authenticated base-side tree entry for every
+// create side after the patch provenance has been proved. A zero TreeEntry
+// means the path was absent in the verified base tree.
+func (r *Repository) CanonicalDiffWithCreateDestinations(ctx context.Context, baseOID, targetOID string) ([]byte, map[string]TreeEntry, error) {
+	if r.ObjectFormat == "" {
+		if err := r.LoadObjectFormat(ctx); err != nil {
+			return nil, nil, err
+		}
+	}
+	arguments := []string{
+		"--attr-source=" + r.EmptyTreeOID(),
+		"diff", "--full-index", "--no-color", "--no-ext-diff", "--no-textconv",
+		"--no-renames", "--no-indent-heuristic", "--diff-algorithm=myers",
+		"--unified=3", "--inter-hunk-context=0", "--src-prefix=a/", "--dst-prefix=b/",
+		"--ignore-submodules=none", "--end-of-options", baseOID, targetOID,
+		"--", ".", ":(exclude)" + wire.ExcludedCEMPath,
+	}
+	out, err := r.git(ctx, patch.MaxPatchBytes, arguments...)
+	if err != nil {
+		return nil, nil, canonicalDiffError(err)
+	}
+	changed, err := r.verifiedChangeSet(ctx, baseOID, targetOID)
+	if err != nil {
+		return nil, nil, canonicalDiffError(err)
+	}
+	if err := r.requirePatchProvenance(ctx, out, changed); err != nil {
+		return nil, nil, canonicalDiffError(err)
+	}
+	createDestinations := make(map[string]TreeEntry)
+	for _, entry := range changed {
+		if ctx.Err() != nil || (r.budget != nil && r.budget.OuterExpired()) {
+			return nil, nil, cemcode.New(cemcode.GitCancelled, "canonical create inventory cancelled")
+		}
+		// These are the create sides of the already-proved patch sections.
+		// entry.base retains actual trees before section normalization.
+		if entry.new.OID == "" || (entry.old.OID != "" && entryKind(entry.old.Mode) == entryKind(entry.new.Mode)) {
+			continue
+		}
+		createDestinations[entry.path] = entry.base
+	}
+	if ctx.Err() != nil || (r.budget != nil && r.budget.OuterExpired()) {
+		return nil, nil, cemcode.New(cemcode.GitCancelled, "canonical create inventory cancelled")
+	}
+	return out, createDestinations, nil
+}
+
 func canonicalDiffError(err error) error {
 	switch cemcode.CodeOf(err) {
 	case cemcode.GitExitFailure, cemcode.GitStartFailed:
