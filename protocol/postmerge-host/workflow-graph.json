@@ -1,0 +1,23 @@
+{
+  "profile": "corvint-postmerge-host-graph/0",
+  "stepMarker": "CORVINT_PM_STEP",
+  "credentialClasses": [
+    {"id": "agent-model", "secretPrefix": "CORVINT_PM_AGENT_MODEL_", "outwardWrite": false, "meaning": "model inference for a reader or author; no forge or tracker access"},
+    {"id": "dispatch", "secretPrefix": "CORVINT_PM_DISPATCH_", "outwardWrite": true, "meaning": "start a post-merge run; no content, item or change-request write"},
+    {"id": "forge-read", "secretPrefix": "CORVINT_PM_FORGE_READ_", "outwardWrite": false, "meaning": "read merged change metadata"},
+    {"id": "forge-write", "secretPrefix": "CORVINT_PM_FORGE_WRITE_", "outwardWrite": true, "meaning": "push draft branches, upsert draft change requests or review findings"},
+    {"id": "tracker-read", "secretPrefix": "CORVINT_PM_TRACKER_READ_", "outwardWrite": false, "meaning": "read the linked work item and its parent chain"},
+    {"id": "tracker-write", "secretPrefix": "CORVINT_PM_TRACKER_WRITE_", "outwardWrite": true, "meaning": "upsert the follow-up item or file findings"}
+  ],
+  "steps": [
+    {"id": "trigger", "order": 1, "after": [], "credentials": ["dispatch"], "commands": [], "attestation": "none"},
+    {"id": "intake", "order": 2, "after": ["trigger"], "credentials": ["agent-model", "forge-read", "tracker-read"], "commands": ["corvint-intake reader-check", "corvint-intake validate", "corvint-postmerge-connect read-intake"], "attestation": "none"},
+    {"id": "delta", "order": 3, "after": ["trigger"], "credentials": [], "commands": [], "pendingCommands": ["corvint delta"], "attestation": "none"},
+    {"id": "follow-up-item", "order": 4, "after": ["delta", "intake"], "credentials": ["tracker-read", "tracker-write"], "commands": ["corvint-postmerge-connect plan", "corvint-postmerge-connect write"], "attestation": "none"},
+    {"id": "authoring", "order": 5, "after": ["delta", "intake"], "credentials": ["agent-model"], "commands": ["corvint step env-check", "corvint step snapshot", "corvint step verify"], "attestation": "required"},
+    {"id": "trusted-validation", "order": 6, "after": ["authoring"], "credentials": ["forge-read", "tracker-read"], "commands": ["corvint-postmerge-connect plan", "corvint-tests-accept accept", "corvint-tests-accept plan"], "attestation": "none"},
+    {"id": "draft-change-requests", "order": 7, "after": ["trusted-validation"], "credentials": ["forge-read", "forge-write"], "commands": ["corvint-postmerge-connect write"], "attestation": "none"},
+    {"id": "findings", "order": 8, "after": ["trusted-validation"], "credentials": ["forge-read", "forge-write", "tracker-read", "tracker-write"], "commands": ["corvint-postmerge-connect write"], "attestation": "none"},
+    {"id": "metrics", "order": 9, "after": ["draft-change-requests", "findings"], "credentials": [], "commands": ["corvint-postmerge-metrics report"], "attestation": "none"}
+  ]
+}
