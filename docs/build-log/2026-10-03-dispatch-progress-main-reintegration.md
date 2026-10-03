@@ -46,3 +46,8 @@ candidate, supported submit/gate/complete, readback and receipt audit. Original 
 is not independently replayed. No installedTasks, whole-repository gate or broad external outcome
 qualification is inferred. Rollback preserves current token history and worker accounting; never
 strip new metadata, restore an old ledger or rewrite evidence. Issue464 dependency/authority remains separate.
+
+Pre-binding readback at preliminary merge145655 caught an unanchored trace insertion inside
+the S15 slice table. The ordinary documentation repair restores the exact current-main S15
+row and places CAL064 only in the actual requirement trace table. No frozen check had begun;
+source, BASE, key and plan remain unchanged. The preliminary map is retained as superseded.
