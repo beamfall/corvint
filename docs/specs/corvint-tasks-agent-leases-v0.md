@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement); CAL-V0-064 proposed (issue 468), implementation and qualification NOT_RUN
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement); CAL-V0-064 experimental implementation with focused macOS source qualification and independent review; final bindings, Linux qualification, integration and native completion remain open
 Authoritative inputs: owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
 and [issue 430](https://github.com/beamfall/corvint/issues/430), explicitly commissioned 2026-10-01 (CAL-V0-048..051); owner request [issue 342](https://github.com/beamfall/corvint/issues/342),
@@ -13,6 +13,7 @@ owner requests [issue 420](https://github.com/beamfall/corvint/issues/420),
 [issue 422](https://github.com/beamfall/corvint/issues/422) (CAL-V0-045..047),
 owner request [issue 431](https://github.com/beamfall/corvint/issues/431) (CAL-V0-052..058),
 owner request [issue 446](https://github.com/beamfall/corvint/issues/446) (CAL-V0-059..061),
+owner request [issue 468](https://github.com/beamfall/corvint/issues/468) (proposed CAL-V0-064),
 owner request [issue 378](https://github.com/beamfall/corvint/issues/378),
 owner request [issue 370](https://github.com/beamfall/corvint/issues/370), and
 owner choice on 2026-09-28 to quarantine environments until confirmed safe reuse; owner request [issue 336](https://github.com/beamfall/corvint/issues/336), the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
@@ -22,7 +23,7 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement); CAL-V0-064 experimental implementation with focused macOS source qualification and independent review; final bindings, Linux qualification, integration and native completion remain open. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
 - Read next: Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost); Amendments to TCP-00; Failure modes.
@@ -803,12 +804,14 @@ cost is proportional to the intent tree and the number of retained paths (includ
 deletions), not to the number of receipts. See
 `docs/build-log/2026-10-01-tasks-read-checkpoint.md`.
 
-### S14 — Explicit command progress (issue 468, proposed)
+### S14 — Explicit command progress (issue 468, experimental)
 
 Owner input: issue 468 requests a bounded explicit progress signal independent of role matching.
 The reviewed option is a command-output token. Requirements 062/063 and S13 remain reserved by the separate
 issue-354 composition; this proposal changes neither those meanings nor S12 CAL-V0-059..061.
-Status: proposed technical contract, experimental; implementation and qualification NOT_RUN.
+Status: proposed technical contract with experimental implementation and focused macOS source
+qualification. Independent source review passed at fbc80a5e1de6261ea1ce5290a4aa6451fd0c0b2f.
+Final evidence binding, Linux runtime qualification, public integration and native completion remain open.
 
 - `CAL-V0-064`: A command work-state reader MAY return a legacy state string or a closed object
   with required string `state` and optional string `progress` per ticket. State retains CAL-V0-053's
@@ -841,7 +844,10 @@ Status: proposed technical contract, experimental; implementation and qualificat
   after commit retains completed facts and stops downstream work at the next checkpoint; no
   whole-tick rollback is promised. Strict ledger loading validates full ticket keys, digest grammar,
   sorted uniqueness, current membership, both caps and worker/backoff baseline-history consistency.
-  Programs admitting no tokens omit optional fields and retain legacy fingerprints/member shape.
+  Any case-folded root progress member enables strict validation before struct decoding. Token-enabled
+  ledgers reject duplicate members and aliases of canonical static schema fields; dynamic ticket and
+  observation-map keys retain their case-sensitive identities. Programs admitting no tokens omit
+  optional fields, preserve legacy field matching, and retain legacy fingerprints/member shape.
 
 Failure modes: producer tokens do not verify work, lifetime exhaustion can eventually permit parking,
 and atomic rename gives process-restart visibility, not power-loss durability or exact event delivery.
@@ -851,7 +857,11 @@ Rollback preserves the current ledger and uses backups only as evidence. An olde
 members is a valid fail-closed downgrade; never restore an older snapshot, strip history or reset it.
 Final acceptance requires parser/roles, genuine token change, unchanged/replay/missing/error/cancel,
 parking/restart, capacity, strict-load and checked-save failure witnesses, plus composed cancellation,
-focused checks, independent review, CEM/OCM, integration and native completion. All remain NOT_RUN.
+focused checks, independent review, CEM/OCM, integration and native completion. The focused macOS
+source witnesses and independent source review have passed; enrolled checks and final bindings,
+Linux runtime qualification, public integration and native completion remain open. Optional OCM
+obligations are unassessed, meaning not assessed by this change; manual test traceability below
+and actual selected-check observations remain separate evidence.
 
 ## Amendments to TCP-00
 
@@ -1030,6 +1040,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-059 | `TestCALV0059_CheckpointCodecAndDerivation` (`internal/tasks/journal`) |
 | CAL-V0-060 | `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`), including `pending`, which shares the lease audit with writers |
 | CAL-V0-061 | `TestCALV0061_CheckpointTailEqualsFullAudit`, `TestCALV0061_CheckpointFallsBackToFullAudit`, `TestCALV0061_CheckpointScopeAndMovement`, `TestCALV0061_CheckpointLimitsStayWithFullAudit` (`internal/tasks/journal`); `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`); live-store measurement in `docs/build-log/2026-10-01-tasks-read-checkpoint.md` |
+| CAL-V0-064 | `TestCALV0064_CommandGrammarAndRoleSeparation`; `TestCALV0064_ChangedFileReplayAndRestart`; `TestCALV0064_CheckedSaveFailureDoesNotGrantOrEscapeThroughClose`; `TestCALV0064_LaterSaveFailureCannotReviveGrantedParking`; `TestCALV0064_ActivePendingUnknownAndSeedAccounting`; `TestCALV0064_FirstSeedIsNotProgressAndCancellationIsNotAdmission`; `TestCALV0064_FirstSeedEndedWorkerAndLaterFailure`; `TestCALV0064_CanceledReobservationCannotAdmitEarlierToken`; `TestCALV0064_PostCommitCancellationPreservesFactsAndStopsEffects`; `TestCALV0064_CapacitySortedAllocationAndStrictLoad`; `TestCALV0064_NoTokenPreservesLegacyLedgerAndFingerprint`; `TestCALV0064_LedgerCanonicalFieldsAndCaseSensitiveKeys`; `TestCALV0064_KeyBoundaryAndOperatorUnparkRetainLifetimeBudget` (`internal/tasks/dispatch`); `TestCALV0064_DispatchCLIFileProgressAndReplay` (`internal/tasks/cli`); manual source/test evidence in `docs/build-log/2026-10-02-dispatch-explicit-progress.md`, optional OCM linkage unassessed |
 | CAL-V0-013 | `TestCALV0013_RetryAsNextGenerationUpToThree` (`internal/tasks/store`) |
 | CAL-V0-014 | `TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan`, `TestCALV0014_SelectedOnlyPlanPreviewIsComplete` (`internal/tasks/cli`); `plan preview` in `TestTMV0008_AS07_ReadsLeaveStoreByteIdentical` (`internal/tasks/cli`) |
 | CAL-V0-015 | `TestCALV0015_SubmitRecordsTheCandidateTree` (`internal/tasks/store`) |
