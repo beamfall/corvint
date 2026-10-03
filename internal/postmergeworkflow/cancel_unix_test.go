@@ -64,6 +64,9 @@ func TestNonregularInputDoesNotBlock(t *testing.T) {
 	if err := syscall.Mkfifo(pipe, 0600); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := nativeRead(pipe, MaxBytes); err == nil {
+		t.Fatal("native FIFO admitted")
+	}
 	if _, err := readBounded(pipe); err == nil {
 		t.Fatal("FIFO admitted")
 	}
