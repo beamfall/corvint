@@ -66,7 +66,7 @@ func (c leaseContext) verifyHandoffWork(a *snapshot.Attempt) *leaseOutcome {
 // policy. Invalid or already replayed requests retain their ordinary ordering
 // without paying for a second audit. The reducer rechecks all eligibility later.
 func HandoffPolicyCandidate(r Request, in Input, result Result) *snapshot.Attempt {
-	if r.Operation != Lease || r.Lease == nil || r.Lease.Verb != LeaseRelease || (r.Lease.Reason != wire.CodeHandoff && r.Lease.Reason != wire.CodeReviewReturned) || result.Kind != "Refused" || len(result.Outcome.Codes) != 1 || result.Outcome.Codes[0] != wire.CodeStalePolicy || in.Replay.State != "ABSENT" {
+	if r.Operation != Lease || r.Lease == nil || r.Lease.Verb != LeaseRelease || r.Lease.LaneUntouched || (r.Lease.Reason != wire.CodeHandoff && r.Lease.Reason != wire.CodeReviewReturned) || result.Kind != "Refused" || len(result.Outcome.Codes) != 1 || result.Outcome.Codes[0] != wire.CodeStalePolicy || in.Replay.State != "ABSENT" {
 		return nil
 	}
 	st, err := validateInput(r, in)

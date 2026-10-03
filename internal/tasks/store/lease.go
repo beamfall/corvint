@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -88,6 +89,9 @@ func leaseOnce(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 		facts = claimFacts(ctx, repo, choice)
 	}
 	report, _, err := administrativeWriteWith(ctx, repo, request, now, nil, facts)
+	if err == nil && lease.LaneUntouched && report.Outcome.Outcome == mutation.OutcomeCompleted {
+		return report, releasedUntouched(repo, actor, choice, report)
+	}
 	if err != nil || report.Kind != "Replay" || report.Outcome.ReceiptSeq == nil {
 		return report, err
 	}
@@ -338,4 +342,67 @@ func uniqueSorted(paths []string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// releasedUntouched reconstructs both fresh and replay payloads exclusively
+// from the original receipt. Current successors and policy are irrelevant.
+func releasedUntouched(repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, report *Report) error {
+	fail := func() error {
+		return wire.Errorf(wire.CodeMissingEvidence, "lane-untouched", "original release payload or receipt binding missing/damaged")
+	}
+	if report.Outcome.ReceiptSeq == nil {
+		return fail()
+	}
+	rc, err := readReceipt(repo, report.Outcome.ReceiptSeq.Uint64())
+	if err != nil {
+		return err
+	}
+	l := choice.Lease
+	if rc.Seq != *report.Outcome.ReceiptSeq || rc.Kind != "TRANSITION" || rc.Outcome != mutation.OutcomeCompleted || rc.RequestID == nil || *rc.RequestID != choice.RequestID || rc.AttemptID == nil || *rc.AttemptID != l.AttemptID || rc.Generation == nil || *rc.Generation != l.Generation || rc.ActorID != actor.ID || rc.ActorRole != actor.Role {
+		return fail()
+	}
+	var raw []byte
+	found := false
+	for _, post := range rc.Post {
+		if post.Path != "attempts/"+l.AttemptID+".json" {
+			continue
+		}
+		if found {
+			return fail()
+		}
+		found = true
+		if post.Record != nil {
+			raw = wire.EncodeFile(*post.Record)
+		} else if post.BlobSha256 != nil {
+			raw, err = intent.ReadFile(filepath.Join(repo.StateDir, "evidence", string(*post.BlobSha256)), wire.MaxAttemptRecordBytes)
+			if err != nil {
+				return err
+			}
+			if wire.Sum(raw) != *post.BlobSha256 {
+				return fail()
+			}
+		}
+		if post.Sha256 == nil || wire.Sum(raw) != *post.Sha256 {
+			return fail()
+		}
+	}
+	a, err := snapshot.DecodeAttempt(raw)
+	if err != nil {
+		return err
+	}
+	canonical, err := a.Encode()
+	if err != nil || !bytes.Equal(raw, canonical) {
+		return fail()
+	}
+	x := a.LaneUntouchedAttestation
+	if !found || x == nil || a.AttemptID != l.AttemptID || a.Generation != l.Generation || a.PhaseSinceSeq != rc.Seq || x.RecordedSeq != rc.Seq || x.RecordedAt != rc.RecordedAt || x.ActorID != rc.ActorID || x.ActorRole != rc.ActorRole || x.Evidence != l.Evidence || (l.Reason == "" && a.Cause != nil) || (l.Reason != "" && (a.Cause == nil || *a.Cause != l.Reason)) {
+		return fail()
+	}
+	q, err := snapshot.AttemptQueue(a.AttemptID)
+	if err != nil || q.Raw != choice.QueueID {
+		return fail()
+	}
+	report.AttemptID, report.Generation = a.AttemptID, a.Generation
+	report.PoolAllocation, report.LaneUntouchedAttestation = a.PoolAllocation, x
+	return nil
 }

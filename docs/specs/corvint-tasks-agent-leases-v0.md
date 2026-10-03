@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 compatibility proposed, experimental source implemented and independently reviewed with fixture qualification; terminal delivery pending); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED
 Authoritative inputs: owner request [issue 482](https://github.com/beamfall/corvint/issues/482) (proposed CAL-V0-044/046 compatibility amendment);
 owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
@@ -23,10 +23,10 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 compatibility proposed, experimental source implemented and independently reviewed with fixture qualification; terminal delivery pending); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
-- Read next: Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S15 explicit exclusions); Amendments to TCP-00; Failure modes.
+- Read next: Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S15 explicit exclusions; S17 proposed operator-attested untouched release); Amendments to TCP-00; Failure modes.
 
 ## User and boundary
 
@@ -78,9 +78,12 @@ one.
 | S11 | CAL-V0-052..058 | `dispatch`: continuous roster, supervised host workers, handoff, reap, backoff and events |
 | S12 | CAL-V0-059..061 | Read cost independent of receipt history: one audit per read, resumed from a writer-retained checkpoint |
 | S15 | CAL-V0-065 | Opt-in explicit per-claim member exclusions; focused tests and a compiled native fixture |
+| S17 | CAL-V0-067 | Experimental operator-attested untouched release; scoped native/archive/crash fixtures passed, physical facts NOT_OBSERVED |
 
 CAL-V0-062/063 (S13, issue 456) and CAL-V0-064 (S14, issue 468) are reserved
-by coordinated unlanded work; this seed does not claim their delivery.
+by coordinated unlanded work; CAL-V0-066/S16 remains reserved for issue 464 if used.
+The coordinator assigned CAL-V0-067/S17 to issue 479. This seed does not claim
+implementation or qualification of the new profile or any reserved slice.
 
 S8 was added by owner decision on 2026-09-27 and lands directly after S3, before S4.
 
@@ -195,7 +198,9 @@ S3, leases.
   accounting while preserving or incrementing accumulated debt; gates, candidates, approvals and
   review evidence do not gain successor authority. Supervised attempts may retain inert metadata
   after attachment but MUST NOT receive this exemption. All records remain journal-bound, with
-  original request replay, stale-generation fencing, reservation release and pool quarantine intact.
+  original request replay, stale-generation fencing, reservation release and default pool quarantine intact.
+  The proposed CAL-V0-067 exception affects only its explicitly eligible attested occupancy;
+  it does not grant a retry exemption or change clean-handoff accounting.
   Legacy absent-member bytes MUST round-trip unchanged; unknown/malformed metadata MUST refuse.
   Old readers may refuse from the first accounting-bearing claim. Rollback MUST retain the journal
   and use a compatible reader/writer after stopping admissions; stripping metadata or downgrading
@@ -281,8 +286,8 @@ No new public verb, flag, schema profile or journal/attempt member is added.
   no gate results or pending effects, and prospective NONE/false retry accounting. Unchanged
   acceptance and unchanged policy/config or the complete proposed issue 482 compatibility
   proof remain mandatory. Without REF, the existing BUILT/CHECKING,
-  candidate and WITHIN requirements remain mandatory. Evidence on ordinary cancellation or a
-  candidate-bearing release MUST refuse. A non-PASSED gate remains sticky, and missing legacy
+  candidate and WITHIN requirements remain mandatory. Evidence on ordinary cancellation MUST refuse unless the explicit CAL-V0-067 profile is
+  independently eligible; evidence on a candidate-bearing release MUST refuse. A non-PASSED gate remains sticky, and missing legacy
   accounting and supervised attempts never qualify. Failed checks MUST NOT record a clean
   disposition. The optional attempt member `handoffEvidence` MUST be absent or a nonempty
   `Identifier` (1..128 UTF-8 bytes, no hostile code points or TAB/LF/CR); null, empty, unknown and
@@ -296,7 +301,8 @@ No new public verb, flag, schema profile or journal/attempt member is added.
   refuse and MUST NOT be used to strip or rewrite it. A reference is inert caller evidence, never
   fetched or executed and not proof of its contents, work quality or physical cleanup. Release
   MUST remove the reservation and retain existing pool quarantine; reuse still requires the
-  existing cleanup/safe-confirm flow. Journal consistency, logical fencing and quarantine MUST
+  existing cleanup/safe-confirm flow unless the separately defined explicit CAL-V0-067 profile
+  is requested and independently eligible. An inert handoff reference alone never frees a member. Journal consistency, logical fencing and quarantine MUST
   remain distinct from separately observed physical cleanup. No completion, review, integration,
   publication, automatic reopen or historical refund authority is added.
 - `CAL-V0-047`: Every implemented and omitted public command path and command family MUST return
@@ -528,12 +534,14 @@ Non-fixture release lifecycle (owner request 2026-09-28 to complete the Tasks ta
   Allocated state MUST agree with the complete attempt allocation tuple, holder and stage.
   Replayed claims MUST return their original receipt-bound allocation, never a successor's.
   CAL-V0-065 adds explicit per-claim exclusions to this eligibility rule.
-- `CAL-V0-030`: Release, expiry/reap and completion MUST quarantine the exact allocation while
+- `CAL-V0-030`: By default, release, expiry/reap and completion MUST quarantine the exact allocation while
   freeing the ordinary scope reservation. A retry MUST acquire a new allocation. Only an
   OWNER/OPERATOR `pool confirm-safe` naming the current allocation, an evidence reference and
   reason MAY clear quarantine. Configured cleanup success is necessary but insufficient: the
   confirmation is a local operator attestation of external revocation/reset, not observed physical
   exclusivity. Stale confirmation MUST refuse. There is no TTL or implicit safe reuse.
+  The separately proposed explicit CAL-V0-067 operator-attested release profile is the only
+  proposed exception; it does not apply to ordinary release, expiry/reap or completion.
 - `CAL-V0-031`: A configured health command MUST acquire durable PREPARING ownership before
   execution outside the writer lock. Failed members MUST remain quarantined, be reported with
   reason and observation digest, and be skipped for the current claim. A passing health result
@@ -545,6 +553,8 @@ Non-fixture release lifecycle (owner request 2026-09-28 to complete the Tasks ta
   quarantine an orphan without implying cleanup. Interrupted or uncertain execution MUST never
   make a member free. Journal redo publishes committed artifacts only. Runner PID/start observations
   are local observations, not authentication or an exactly-once execution guarantee.
+  The proposed CAL-V0-067 profile MUST refuse every tracked started, pending, interrupted or
+  uncertain use; missing command metadata alone MUST NOT qualify an allocation for that profile.
 - `CAL-V0-033`: Pool commands MUST use bounded trusted operator argv, declared environment keys,
   a clean repository outside `.taskman`, a 1..300 second timeout and at most 64 KiB captured output.
   Observations retain the output digest, not raw output. The implementation MUST join cancellation
@@ -901,6 +911,70 @@ and projection agreement, with semantic coverage UNKNOWN and runtime qualificati
 NOT_OBSERVED. Exclusions never authenticate a holder or establish physical independence.
 
 Non-goals: automatic history inference; per-pool independentStages policy; holder authentication; new physical access broker; issue479 terminal fast release; shrinking complete effect/resource intent. Rollback: opt-in command support can be reverted only with current request/profile compatibility limits retained; no projection stripping, historical-request rewriting or unsafe pool state migration. Absent requests remain exact old bytes.
+
+### S17 — Operator-attested untouched pool release (issue 479, proposed)
+
+The owner-authored issue 479 accepts an explicit attestation alternative. This candidate
+intent follows the bounded Gate A R1 PASS at proposal SHA-256
+`23269d211a3c2b1b4acef38cb08aa0392634d35ba3b141abb840f29242207198`.
+The coordinator assigned CAL-V0-067/S17 before this intent seed.
+Implementation, tests and native qualification are NOT_RUN.
+
+- `CAL-V0-067`: RELEASE MAY accept an explicit `--lane-untouched --evidence REF` opt-in under
+  a separately labelled local OWNER/OPERATOR attestation profile. It MUST retain four fixed true
+  acknowledgements: no physical lane access occurred, no lane command was issued, no physical
+  lane capability/resource was issued or remains retained, and the operator accepts responsibility
+  for the statement and safe reuse. Logical source/PATH reservations are distinct from those physical
+  resources. REF MUST be a required valid inert Identifier, never fetched or executed. Recorded actor
+  identity is not authentication; physical non-use/revocation remains NOT_OBSERVED. No broker,
+  implicit exemption, arbitrary checker command or automatic history discovery is introduced.
+  Fresh opt-in MUST require exact current policy/config identity, even when ordinary
+  CAL-V0-044/046 handoff could accept the issue 482 compatibility proof. The flagged profile
+  MUST be excluded from HandoffPolicyCandidate fallback; a compatible history observation
+  MUST NOT authorize its physical reuse exception. Ordinary compatible handoff and its
+  quarantine remain unchanged. Original flagged request replay keeps its existing precedence.
+  Fresh eligibility MUST require the exact live/unexpired current external-agent RUNNING generation,
+  unchanged acceptance/policy/member definition and complete holder/stage/allocation tuple, a matching
+  ALLOCATED entry, and a prospective writer-produced `taskman-direct-pool-admission/0` witness.
+  Only upgraded fresh direct no-health CLAIM/CLAIM_NEXT admission MAY mint that witness; it binds
+  original admission sequence, attempt/generation and the full allocation tuple. No prepared/health
+  origin, legacy/backfilled witness or retry inheritance qualifies. Current allocation and pool changed
+  sequences and Lease.GrantedSeq MUST match original admission; renewed leases are ineligible.
+  Started/pending/unknown/interrupted command history, runner identity, worker/spawn/supervision/lane
+  identity, candidate/gate/reviews/manifest, failed-or-unknown retry accounting and pending effects MUST
+  refuse without freeing. Null command metadata is not authority. Programs bytes MUST be decoded
+  against the same inventory/head/queue; absence qualifies only when the inventory proves absence.
+  Matching CurrentAttempt/CurrentGeneration, including ADMITTED before ATTACH with zero leader PID,
+  and ambiguous same-attempt generation associations MUST refuse regardless of phase or OwnerReleased.
+  Missing, unbound, digest-mismatched, malformed, unknown, duplicate or foreign Programs input MUST
+  refuse. Private Dispatcher records are external/non-native and MUST NOT be reported as scanned;
+  known or uncertain external use prevents the operator from honestly making the acknowledgements.
+  An eligible opt-in MUST atomically retain a closed `taskman-lane-untouched-attestation/0` terminal
+  record, end the generation with logical FENCED quiescence, remove its ordinary reservation and omit
+  only its exact current occupancy, without executing configured cleanup. The attestation MUST bind
+  original allocation/member/definition/allocated sequence, attempt/generation/holder/stage, actor role
+  and ID, recorded sequence/time, REF, profile and the four acknowledgements. It MUST NOT claim physical
+  cleanup or PROVED quiescence. Default release/handoff, expiry/reap and completion retain quarantine.
+  Request shape and static field validation MAY precede authoritative replay; fresh current eligibility
+  MUST follow it. New flag/evidence/profile acknowledgements join the request preimage conditionally;
+  absence preserves historical request, attempt and ordinary result bytes. Actually changed named
+  fields under one request ID MUST conflict. Fresh/replay opt-in reports MUST reconstruct the original
+  RELEASE receipt's terminal attempt, inline or bounded blob, verify canonical payload digest and full
+  receipt/actor/profile/evidence/tuple bindings, and return that original allocation and attestation.
+  Successor/current policy state MUST NOT substitute for original payload; missing/damaged payload
+  MUST refuse. Crash/redo and archive round-trip MUST preserve complete afterimages and evidence;
+  a member MUST NOT become free with a live logical attempt or absent attestation. Legacy/new-reader
+  and old-reader refusal limits MUST remain explicit. HANDOFF/REVIEW_RETURNED accounting still applies
+  independently; this profile grants no retry refund, completion, review or integration authority.
+
+Qualification MUST include the configured-cleanup/no-health true-native positive fixture, default
+quarantine/missing-cleanup confirmation controls, legacy/renewal/expiry/wrong-role/history/state/tuple
+negatives, ADMITTED-before-ATTACH controls, original-payload replay after successor/policy change,
+inline/blob damage refusal, archive byte preservation and crash/redo all-or-nothing afterimages.
+Focused snapshot/transaction/store/CLI tests and vet, independent implementation and acceptance review,
+CEM/OCM frozen checks with truthful unknowns, CI/integration and native completion are required.
+Rollback stops future opt-in use while preserving witness/attestation history and exact replay;
+retain a compatible reader, never strip metadata, silently downgrade or rewrite successors.
 
 ## Amendments to TCP-00
 
