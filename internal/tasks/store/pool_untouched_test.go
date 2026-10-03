@@ -5,11 +5,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"github.com/Beamfall/corvint/internal/tasks/archive"
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"io"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
@@ -222,96 +225,296 @@ func untouchedReceiptPayload(t *testing.T) {
 	}
 }
 
-// Terminal qualification only: real receipt-boundary interruption and archive
-// production are deliberately outside the ZERO_GEN replay selector.
+// Terminal qualification only. The publication hook covers each emitted artifact;
+// stage-file/descriptor writes are not artifact callbacks and are not injected here.
 func TestPoolLaneUntouched_ArchiveCrash(t *testing.T) {
-	for _, boundary := range []string{"RECEIPT", "POST"} {
-		t.Run(boundary, func(t *testing.T) {
-			s := newLeaseStore(t)
-			exclusionPolicy(t, s, wire.Null())
-			id := s.ticket(t, "crash")
-			c := claimOf(id, "src")
-			c.Pool, c.Stage = "db", "review"
-			a := s.lease(t, "claim", c, 0, nil)
-			rel := releaseOf(a)
-			rel.LaneUntouched = true
-			rel.Evidence = "local:unused"
+	s, a, rel := untouchedCrashFixture(t)
+	var order []string
+	restore := store.SetPublishFaultForTest(func(x transaction.Artifact) error {
+		order = append(order, untouchedArtifactKey(x, a.AttemptID))
+		return nil
+	})
+	var original *store.Report
+	func() { defer restore(); original = s.lease(t, "release", rel, 0, nil) }()
+	if original.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatal(original)
+	}
+	receiptAt := -1
+	required := map[string]bool{"RECEIPT": false, "POST:attempt": false, "POST:pools.json": false, "POST:reservations.json": false, "POST:request": false, "HEAD:head.json": false}
+	for i, key := range order {
+		if _, ok := required[key]; !ok || required[key] {
+			t.Fatalf("unexpected or duplicate opt-in publication %q in %v", key, order)
+		}
+		required[key] = true
+		if key == "RECEIPT" {
+			receiptAt = i
+		}
+	}
+	for key, seen := range required {
+		if !seen {
+			t.Fatalf("missing publication discriminator %s: %v", key, order)
+		}
+	}
+	t.Logf("actual opt-in artifact order: %v; EVIDENCE artifacts: none emitted; STAGE artifact role: none emitted (stage-file/descriptor internals NOT_INJECTED)", order)
+	for k, key := range order {
+		t.Run(fmt.Sprintf("%02d-%s", k, key), func(t *testing.T) {
+			s, a, rel := untouchedCrashFixture(t)
+			origin := s.attempt(t, a.AttemptID).DirectPoolAdmission
+			head, count := journalState(t, s.repo)
+			n := 0
 			fired := false
-			restore := store.SetPublishFaultForTest(func(a transaction.Artifact) error {
-				if !fired && a.Role == boundary {
+			restore := store.SetPublishFaultForTest(func(x transaction.Artifact) error {
+				if n >= len(order) || untouchedArtifactKey(x, a.AttemptID) != order[n] {
+					t.Fatalf("publication order changed at %d: %+v", n, x.Description)
+				}
+				at := n
+				n++
+				if at == k {
 					fired = true
 					return errInjected
 				}
 				return nil
 			})
-			_, err := store.Lease(context.Background(), s.repo, operator(), store.LeaseChoice{QueueID: fixture.QueueID, RequestID: "release", Root: s.root, Lease: rel}, s.at(t, 0))
-			restore()
-			if !fired || !errors.Is(err, errInjected) {
-				t.Fatal("fault not reached", err)
+			var err error
+			func() {
+				defer restore()
+				_, err = store.Lease(context.Background(), s.repo, operator(), store.LeaseChoice{QueueID: fixture.QueueID, RequestID: "release", Root: s.root, Lease: rel}, s.at(t, 0))
+			}()
+			if !fired || !errors.Is(err, errInjected) || n != k+1 {
+				t.Fatal("fault not reached exactly", key, n, err)
 			}
-			// Before any afterimage is published, the live attempt still occupies its lane.
-			if got := s.attempt(t, a.AttemptID); got.Phase != "RUNNING" || got.LaneUntouchedAttestation != nil {
-				t.Fatal("partial terminal state")
+			committed := k > receiptAt
+			gotHead, gotCount := journalState(t, s.repo)
+			if gotHead != head || gotCount != count+btoi(committed) {
+				t.Fatal("wrong receipt/head fence", key)
 			}
-			raw, err := os.ReadFile(filepath.Join(s.repo.StateDir, "pools.json"))
-			if err != nil {
-				t.Fatal(err)
+			// Intermediate post files are not a readable committed snapshot. They must
+			// also never make a lane free before its terminal attestation is published.
+			current := s.attempt(t, a.AttemptID)
+			pool := untouchedPoolState(t, s)
+			if len(pool.Entries) == 0 || len(s.entries(t)) == 0 {
+				untouchedTerminal(t, current, origin, a.PoolAllocation)
 			}
-			pool, err := snapshot.DecodePools(raw)
-			if err != nil || len(pool.Entries) != 1 || pool.Entries[0].State != "ALLOCATED" {
-				t.Fatal("freed before receipt recovery", err)
+			if current.Live() && (len(pool.Entries) != 1 || pool.Entries[0].State != "ALLOCATED" || len(s.entries(t)) != 1) {
+				t.Fatal("live attempt lost occupancy or reservation")
+			}
+			if _, err := snapshot.Probe(s.repo.StateDir); committed {
+				if wire.CodeOf(err) != wire.CodeRedoPending {
+					t.Fatal("partial committed afterimages exposed", err)
+				}
+			} else if err != nil {
+				t.Fatal("uncommitted interruption changed snapshot", err)
 			}
 			recovered := s.lease(t, "release", rel, 0, nil)
-			if recovered.LaneUntouchedAttestation == nil || recovered.Outcome.Replayed != (boundary == "POST") {
-				t.Fatal("recovery", recovered)
+			if recovered.Outcome.Outcome != mutation.OutcomeCompleted || recovered.Redone != committed || recovered.Outcome.Replayed != committed || recovered.LaneUntouchedAttestation == nil {
+				t.Fatal("receipt-bound recovery", recovered)
 			}
 			terminal := s.attempt(t, a.AttemptID)
-			if terminal.Phase != "CANCELLED" || terminal.Quiescence != "FENCED" || len(s.entries(t)) != 0 {
-				t.Fatal("incomplete recovery")
+			untouchedTerminal(t, terminal, origin, a.PoolAllocation)
+			if !reflect.DeepEqual(recovered.LaneUntouchedAttestation, terminal.LaneUntouchedAttestation) || !reflect.DeepEqual(recovered.PoolAllocation, a.PoolAllocation) || len(s.entries(t)) != 0 || len(untouchedPoolState(t, s).Entries) != 0 {
+				t.Fatal("incomplete recovered response/afterimages")
 			}
-			raw, err = os.ReadFile(filepath.Join(s.repo.StateDir, "pools.json"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			pool, err = snapshot.DecodePools(raw)
-			if err != nil || len(pool.Entries) != 0 {
-				t.Fatal("occupancy remains", err)
-			}
-			var exported bytes.Buffer
-			if _, err := archive.Export(archive.ExportOptions{Repo: s.repo, Stdout: &exported}); err != nil {
-				t.Fatal(err)
-			}
-			verified, err := archive.Verify(bytes.NewReader(exported.Bytes()))
-			if err != nil {
-				t.Fatal(err)
-			}
-			_ = verified
-			// Read tar member bytes independently of the verifier's returned claims.
-			tr := tar.NewReader(bytes.NewReader(exported.Bytes()))
-			want, err := os.ReadFile(filepath.Join(s.repo.StateDir, "attempts", a.AttemptID+".json"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			found := false
-			for {
-				h, err := tr.Next()
-				if err == io.EOF {
-					break
-				}
-				if err != nil {
-					t.Fatal(err)
-				}
-				if h.Name == "attempts/"+a.AttemptID+".json" {
-					got, err := io.ReadAll(tr)
-					if err != nil || !bytes.Equal(want, got) {
-						t.Fatal("archive changed attestation", err)
-					}
-					found = true
-				}
-			}
-			if !found {
-				t.Fatal("archive omitted attempt")
+			auditOK(t, s.repo)
+			before := storeDigest(t, s.repo)
+			again := s.lease(t, "release", rel, 0, nil)
+			if !again.Outcome.Replayed || !bytes.Equal(untouchedResponse(recovered), untouchedResponse(again)) || storeDigest(t, s.repo) != before {
+				t.Fatal("recovery replay changed payload/state")
 			}
 		})
 	}
+	t.Run("archive-historical-replay-after-successor", func(t *testing.T) { untouchedArchivedReplay(t, s, a, rel, original) })
+}
+
+func untouchedArtifactKey(a transaction.Artifact, id string) string {
+	if a.Role == "RECEIPT" {
+		return "RECEIPT"
+	}
+	if a.Target == "attempts/"+id+".json" {
+		return a.Role + ":attempt"
+	}
+	if strings.HasPrefix(a.Target, "requests/") {
+		return a.Role + ":request"
+	}
+	return a.Role + ":" + a.Target
+}
+func untouchedCrashFixture(t *testing.T) (*leaseStore, *store.Report, transaction.LeaseRequest) {
+	t.Helper()
+	s := newLeaseStore(t)
+	exclusionPolicy(t, s, wire.Null())
+	id := s.ticket(t, "crash")
+	c := claimOf(id, "src")
+	c.Pool, c.Stage = "db", "review"
+	a := s.lease(t, "claim", c, 0, nil)
+	if a.PoolAllocation == nil {
+		t.Fatal("claim allocation missing")
+	}
+	rel := releaseOf(a)
+	rel.LaneUntouched = true
+	rel.Evidence = "local:unused"
+	return s, a, rel
+}
+func untouchedPoolState(t *testing.T, s *leaseStore) *snapshot.PoolState {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(s.repo.StateDir, "pools.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := snapshot.DecodePools(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+func untouchedTerminal(t *testing.T, a *snapshot.Attempt, origin *snapshot.DirectPoolAdmission, allocation *snapshot.PoolAllocation) {
+	t.Helper()
+	if a.Phase != "CANCELLED" || a.Quiescence != "FENCED" || a.LaneUntouchedAttestation == nil || !reflect.DeepEqual(a.DirectPoolAdmission, origin) || !reflect.DeepEqual(a.PoolAllocation, allocation) || !reflect.DeepEqual(&a.LaneUntouchedAttestation.DirectPoolAdmission, origin) {
+		t.Fatal("missing complete terminal attestation/origin/allocation")
+	}
+}
+func untouchedResponse(r *store.Report) []byte {
+	return wire.EncodeFile(obj("attemptId", str(r.AttemptID), "generation", str(string(r.Generation)), "poolAllocation", snapshot.PoolAllocationValue(r.PoolAllocation), "laneUntouchedAttestation", snapshot.LaneUntouchedAttestationValue(r.LaneUntouchedAttestation)))
+}
+
+// Recreate a separate test-owned fixture at the recorded authority path, keeping
+// the original fixture byte-preserved next door. This avoids rewriting immutable
+// primaryWorktree/history bindings and does not implement a public restore API.
+func untouchedArchivedReplay(t *testing.T, s *leaseStore, a *store.Report, rel transaction.LeaseRequest, original *store.Report) {
+	t.Helper()
+	originalResponse := untouchedResponse(original)
+	originalAttempt, err := os.ReadFile(filepath.Join(s.repo.StateDir, "attempts", a.AttemptID+".json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	originalReceipt, err := os.ReadFile(filepath.Join(s.repo.StateDir, "receipts", original.Receipt))
+	if err != nil {
+		t.Fatal(err)
+	}
+	terminal, err := snapshot.DecodeAttempt(originalAttempt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claim := claimOf(terminal.TicketID.Raw, "src")
+	claim.Pool, claim.Stage = "db", "review"
+	successor := s.lease(t, "successor", claim, 0, nil)
+	if successor.AttemptID != a.AttemptID || successor.Generation == a.Generation || successor.PoolAllocation == nil || successor.PoolAllocation.AllocationID == a.PoolAllocation.AllocationID {
+		t.Fatal("successor did not overwrite current attempt", successor)
+	}
+	successorRaw, err := os.ReadFile(filepath.Join(s.repo.StateDir, "attempts", a.AttemptID+".json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Equal(originalAttempt, successorRaw) {
+		t.Fatal("historical discriminator absent")
+	}
+	var exported bytes.Buffer
+	if _, err := archive.Export(archive.ExportOptions{Repo: s.repo, Stdout: &exported}); err != nil {
+		t.Fatal(err)
+	}
+	verified, err := archive.Verify(bytes.NewReader(exported.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := map[string][]byte{}
+	tr := tar.NewReader(bytes.NewReader(exported.Bytes()))
+	for {
+		h, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, err := io.ReadAll(tr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if h.Name != archive.ManifestName {
+			files[h.Name] = raw
+		}
+	}
+	if len(files) != len(verified.Manifest.Files) {
+		t.Fatal("archive file inventory changed")
+	}
+	for _, f := range verified.Manifest.Files {
+		if raw, ok := files[f.Path]; !ok || uint64(len(raw)) != f.Bytes.Uint64() || wire.Sum(raw) != f.Sha256 {
+			t.Fatal("preserved member differs", f.Path)
+		}
+	}
+	if !bytes.Equal(files["attempts/"+a.AttemptID+".json"], successorRaw) || !bytes.Equal(files["receipts/"+original.Receipt], originalReceipt) {
+		t.Fatal("archive did not retain successor and immutable release receipt")
+	}
+	rc, err := snapshot.DecodeReceipt(files["receipts/"+original.Receipt])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var historical []byte
+	for _, p := range rc.Post {
+		if p.Path == "attempts/"+a.AttemptID+".json" {
+			if p.Record != nil {
+				historical = wire.EncodeFile(*p.Record)
+			} else if p.BlobSha256 != nil {
+				historical = files["evidence/"+string(*p.BlobSha256)]
+			}
+			if p.Sha256 == nil || wire.Sum(historical) != *p.Sha256 {
+				t.Fatal("archived historical payload digest")
+			}
+		}
+	}
+	if !bytes.Equal(historical, originalAttempt) {
+		t.Fatal("archive lost original terminal afterimage")
+	}
+	decoded, err := snapshot.DecodeAttempt(historical)
+	if err != nil {
+		t.Fatal(err)
+	}
+	untouchedTerminal(t, decoded, terminal.DirectPoolAdmission, a.PoolAllocation)
+	originalRoot := s.repo.PrimaryWorktree
+	backup := originalRoot + "-preserved"
+	preservedBefore := fixture.TreeSnapshot(t, originalRoot)
+	if err := os.Rename(originalRoot, backup); err != nil {
+		t.Fatal(err)
+	}
+	fixture.Write(t, filepath.Join(originalRoot, ".git", "HEAD"), []byte("ref: refs/heads/main\n"))
+	for path, raw := range files {
+		dest := filepath.Join(originalRoot, ".git", "taskman", filepath.FromSlash(path))
+		if strings.HasPrefix(path, "intent/") {
+			dest = filepath.Join(originalRoot, intent.Dir, filepath.FromSlash(strings.TrimPrefix(path, "intent/")))
+		}
+		fixture.Write(t, dest, raw)
+	}
+	for _, dir := range []string{"staging", "receipts", "evidence", "pinned", "requests", "attempts"} {
+		if err := os.MkdirAll(filepath.Join(originalRoot, ".git", "taskman", dir), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	restored, err := intent.Resolve(originalRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for path, raw := range files {
+		dest := filepath.Join(restored.StateDir, filepath.FromSlash(path))
+		if strings.HasPrefix(path, "intent/") {
+			dest = filepath.Join(restored.PrimaryWorktree, intent.Dir, filepath.FromSlash(strings.TrimPrefix(path, "intent/")))
+		}
+		got, err := os.ReadFile(dest)
+		if err != nil || !bytes.Equal(raw, got) {
+			t.Fatal("reconstruction changed archive bytes", path, err)
+		}
+	}
+	restoredBefore := storeDigest(t, restored)
+	replay, err := store.Lease(context.Background(), restored, operator(), store.LeaseChoice{QueueID: fixture.QueueID, RequestID: "release", Root: s.root, Lease: rel}, s.at(t, 0))
+	if err != nil || replay == nil || replay.LaneUntouchedAttestation == nil || !replay.Outcome.Replayed || !bytes.Equal(untouchedResponse(replay), originalResponse) {
+		t.Fatal("archived original receipt replay", replay, err)
+	}
+	if storeDigest(t, restored) != restoredBefore {
+		t.Fatal("archived replay changed successor/history")
+	}
+	got, err := os.ReadFile(filepath.Join(restored.StateDir, "attempts", a.AttemptID+".json"))
+	if err != nil || !bytes.Equal(got, successorRaw) {
+		t.Fatal("successor overwritten by historical replay", err)
+	}
+	if !fixture.SameTree(preservedBefore, fixture.TreeSnapshot(t, backup)) {
+		t.Fatal("separate source fixture modified")
+	}
+	auditOK(t, restored)
 }
