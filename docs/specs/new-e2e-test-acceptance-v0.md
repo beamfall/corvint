@@ -9,9 +9,9 @@ Authoritative inputs: human issue https://github.com/beamfall/corvint/issues/394
 
 ## Agent digest
 - Claim: A separate companion repeats new Playwright tests, executes approved negative controls and produces one bound assessment and fixed PR body.
-- Status: proposed/experimental. Existing per-test Freshness is UNKNOWN; stable asserting tests are blocked, never promoted from caller pins.
+- Status: proposed/experimental. Request /0 stays negative-only with unknown freshness. Opt-in request /1 uses the separate proposed PTF profile and actual observed native joins; caller pins never promote freshness.
 - Exists: `internal/testacceptance`, `cmd/corvint-tests-accept`; focused checks and actual local browser negative assessment; NEA-V0-008/009 attach per-test repeat, cleanup and order/isolation evidence and render a bound Markdown change-request body.
-- Blocked on: V1-0556 qualified per-test freshness; owner acceptance, integration and native completion.
+- Blocked on: final V1-0556 freshness binding/checks/integration; whole V1-0541/#394 remains open for qualified new-profile surviving Strength and actual flaky/order evidence, plus native completion.
 - Read next: Requirements; Trust boundary; Qualification and rollback.
 
 ## User and measurable job
@@ -20,8 +20,11 @@ A maintainer challenges a new test before review, obtaining actual repeat durati
 strength evidence without manually joining commands. The baseline is separate provider/falsification
 runs and manual report assembly. At public base `8f4b866a`, `ReceiptTestProjection` delegates to
 `ToTestProjection`, which supplies no positive execution freshness for ordinary outcomes. Declared
-commits cannot replace observed freshness. This slice delivers truthful rejection and blocked
-assessments, with an explicit capability follow-up, rather than claiming qualified acceptance.
+commits cannot replace observed freshness. That /0 path remains negative-only. The separate
+`playwright-per-test-freshness-v0.md` profile adds optional request/assessment /1 with complete
+native receipts, observed source/runtime/dependency currency and assertion-control joins to every
+baseline. Its bounded local stable acceptance has source-phase evidence; it does not promote /0,
+Core/MCP/flows, generic falsifier authority or the whole requested capability.
 
 ## Requirements
 
@@ -36,7 +39,8 @@ assessments, with an explicit capability follow-up, rather than claiming qualifi
   identities. A surviving control rejects; absent, unsupported, malformed or infrastructure evidence blocks.
 - `NEA-V0-004`: Preserve Association, Hygiene, Freshness and Execution provider axes; derive only
   Strength from matched actual controls. Observed failures/flakes/skips or surviving controls reject.
-  Any remaining unknown required axis blocks. Existing Freshness UNKNOWN prevents accepted outcomes.
+  Any remaining unknown required axis blocks. Request /0 Freshness UNKNOWN prevents accepted
+  outcomes; request /1 requires the separately observed PTF closure and native control join.
 - `NEA-V0-005`: Mixed repeat outcomes trigger original and reversed file-filter order probes.
   Retain requested order separately from observed schedule; filters do not prove runner execution order.
   A flaky test remains rejected even if the probe is inconclusive or unavailable.
@@ -93,15 +97,15 @@ They confer no positive freshness or acceptance qualification.
 | `control-binding-mismatch` (internal/testacceptance/input.go:208), `control-environment-not-safe` (internal/testacceptance/input.go:212), `control-bound` (internal/testacceptance/input.go:216) | Control target/repository/config/runner identities differ, declared environment keys exceed LANG/LC_ALL, or control timeout/wall-clock/attempt/count ceilings are exceeded. |
 | `command-invalid` (internal/testacceptance/input.go:222), `executable-drift` (internal/testacceptance/input.go:226), `argv-invalid` (internal/testacceptance/input.go:230) | Runner/server executable or argv count/hash/file shape is invalid, observed executable bytes drift, or an argument exceeds its size/character limits. |
 | `server-entrypoint-not-pinned` (internal/testacceptance/input.go:235), `runner-prefix-invalid` (internal/testacceptance/input.go:240), `runner-entrypoint-invalid` (internal/testacceptance/input.go:245) | The server entrypoint must be pinned inside the product repository; the runner prefix cannot exceed executable plus one independently byte-pinned CLI entrypoint. |
-| `ready-url-not-loopback` (internal/testacceptance/input.go:250), `build-root-invalid` (internal/testacceptance/input.go:253), `runner-version-invalid` (internal/testacceptance/input.go:256) | Readiness requires an HTTP loopback IP without user/query/fragment; build root must be clean/absolute inside the product root; declared runner version must be nonempty and bounded. |
-| `self-worker-invalid` (internal/testacceptance/execute.go:266), `self-worker-unreadable` (internal/testacceptance/execute.go:271), `report-bound` (internal/testacceptance/execute.go:349) | The trusted companion executable is not a bounded regular absolute file, its bytes cannot be read, or final JSON serialization/size prevents report publication. |
-| `verified-approved-control-survived` (internal/testacceptance/report.go:78), `qualified-baseline-identity-unknown` (internal/testacceptance/report.go:81) | A verified approved control survived, so Strength is SURVIVED and the test is rejected; a killed control with unqualified baseline identity leaves Strength NOT_MEASURED and acceptance blocked. |
-| `isolation-index-invalid` (internal/testacceptance/execute.go:131), `isolation-not-observed` (internal/testacceptance/execute.go:198), `isolation-incomplete` (internal/testacceptance/report.go:197) | An isolation job names no declared test, an isolation run observed another declared test, or fewer than two passed/failed isolated rows were retained; order evidence stays incomplete. |
+| `ready-url-not-loopback` (internal/testacceptance/input.go:250), `build-root-invalid` (internal/testacceptance/input.go:253), `runner-version-invalid` (internal/testacceptance/input.go:261) | Readiness requires an HTTP loopback IP without user/query/fragment; build root must be clean/absolute inside the product root; declared runner version must be nonempty and bounded. |
+| `self-worker-invalid` (internal/testacceptance/execute.go:296), `self-worker-unreadable` (internal/testacceptance/execute.go:305), `report-bound` (internal/testacceptance/execute.go:383) | The trusted companion executable is not a bounded regular absolute file, its bytes cannot be read, or final JSON serialization/size prevents report publication. |
+| `verified-approved-control-survived` (internal/testacceptance/report.go:82), `qualified-baseline-identity-unknown` (internal/testacceptance/report.go:85) | A verified approved control survived, so Strength is SURVIVED and the test is rejected; a killed control with unqualified baseline identity leaves Strength NOT_MEASURED and acceptance blocked. |
+| `isolation-index-invalid` (internal/testacceptance/execute.go:137), `isolation-not-observed` (internal/testacceptance/execute.go:225), `isolation-incomplete` (internal/testacceptance/report.go:201) | An isolation job names no declared test, an isolation run observed another declared test, or fewer than two passed/failed isolated rows were retained; order evidence stays incomplete. |
 
 ## Non-goals
 
-Core registration, remote endpoints, writer credentials, connector publication, changing provider
-projections, claiming accepted freshness, hostile concurrent filesystem containment, arbitrary
+Core registration, remote endpoints, writer credentials, connector publication, promoting old /0
+provider projections or freshness, hostile concurrent filesystem containment, arbitrary
 third-party test execution, or full browser tuple qualification. Optional output is stdout for
 operator-controlled redirection; no product file writer or store migration.
 
@@ -124,8 +128,7 @@ browser versions and failures in the build log. Tests never accept proposed huma
 ## Qualification and rollback
 
 Availability smoke observed Node22.23.3 and Chromium153.0.8010.12; not the provider's qualified
-Node22.23.2 tuple. Actual disposable negative assessment passed: stable asserting BLOCKED, nonasserting REJECTED on surviving response mutation, flaky REJECTED with requested probes. Observed execution order remains UNKNOWN. V1-0556 is the concrete per-test
-freshness blocker. On 2026-10-01 the same tuple also passed NEA-V0-008/009: the flaky test was
+Node22.23.2 tuple. Actual disposable negative assessment passed: stable asserting BLOCKED, nonasserting REJECTED on surviving response mutation, flaky REJECTED with requested probes. Observed execution order remains UNKNOWN. V1-0556 owns the separate observed per-test freshness slice and its final delivery gates. On 2026-10-01 the same tuple also passed NEA-V0-008/009: the flaky test was
 run alone twice (passed, failed), recorded `nondeterministic-in-isolation` with file order
 `not-varied`, and the body rendered both revisions, build and per-test rows. The
 `failures-not-reproduced-in-isolation` (order-dependent) branch is covered by synthetic rows only.
@@ -133,3 +136,18 @@ Promotion needs a separately reviewed observed freshness contract and actual
 qualified identity/environment/browser evidence. Keep the issue open through integration/native
 completion. Rollback: stop invoking the optional companion and revert its isolated commits;
 retain assessment evidence. Version incompatible request/report changes and re-run focused checks.
+
+## Optional native freshness profile and remaining whole-issue qualification
+
+Request/assessment /1 explicitly opts into `corvint-playwright-freshness/0`, retains full canonical
+baseline/control native bytes and rederives observed freshness and qualified killed strength for
+every repeat. Source-phase actual stable acceptance is observed on the named PTF tuple; final
+frozen checks, CEM/OCM and integration/native completion remain separate gates.
+
+Whole #394/V1-0541 remains PARTIAL. The old-profile actual nonasserting and flaky witnesses remain
+historical evidence, not new-profile qualification. In current /1, a survived control rejects with
+`negative-control-survived`, but Strength remains NOT_MEASURED because the native join qualifies
+only kills. No actual /1 mixed/flaky order/isolation witness has been retained. Completing those
+existing requested capabilities needs a separately admitted parent slice, without a third freshness
+reader repair, a new wire shape or broad tuple promotion. The fixed rendered body and per-test order
+attachment already exist; their new-profile negative consuming paths still need actual witnesses.
