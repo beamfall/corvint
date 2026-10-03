@@ -10,6 +10,10 @@ import (
 )
 
 func classify(report *Report, r Request) {
+	if r.Schema == FreshRequestSchema {
+		classifyFreshness(report, r)
+		return
+	}
 	for i, t := range r.Tests {
 		a := Assessment{ID: t.ID, Verdict: "blocked", Reasons: []string{}, Validity: testvalidity.Project(testvalidity.Input{})}
 		reject := false
@@ -261,6 +265,11 @@ func renderBody(report Report, r Request) string {
 		unknowns[i] = safe(codePattern, u)
 	}
 	fmt.Fprintf(&b, "\nUnknowns: %s\n", strings.Join(unknowns, ", "))
-	b.WriteString("\nQualified per-test freshness: UNKNOWN. Accepted outcomes remain blocked (V1-0556).\nOrder probes and isolation runs retain requested filters; observed schedule may be UNKNOWN.\nLocal observation only; integration and native completion remain open.\n")
+	if r.Schema == FreshRequestSchema {
+		b.WriteString("\nPer-test freshness and control strength are rederived from every retained native baseline and control receipt.\n")
+	} else {
+		b.WriteString("\nQualified per-test freshness: UNKNOWN. Accepted outcomes remain blocked (V1-0556).\nOrder probes and isolation runs retain requested filters; observed schedule may be UNKNOWN.\nLocal observation only; integration and native completion remain open.\n")
+	}
+
 	return b.String()
 }

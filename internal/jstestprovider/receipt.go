@@ -51,6 +51,7 @@ type FailureArtifact struct {
 // TestOutcome is one reporter test/assertion result, normalized to this
 // package's ExecutionState vocabulary.
 type TestOutcome struct {
+	ImportedFiles  map[string]string `json:"importedFiles,omitempty"`
 	ID             string            `json:"id,omitempty"`
 	Project        *ProjectIdentity  `json:"project,omitempty"`
 	Attempts       []Attempt         `json:"attempts,omitempty"`
@@ -141,6 +142,7 @@ type AppBuildIdentity struct {
 // failure. It carries no boolean "valid" summary; ToInput below projects it
 // through the shared testvalidity axes instead.
 type Receipt struct {
+	Freshness               *FreshnessBinding                `json:"freshness,omitempty"`
 	DescendantObservation   *procgroup.DescendantObservation `json:"descendantObservation,omitempty"`
 	RunnerResources         *procgroup.ResourceUsage         `json:"runnerResources,omitempty"`
 	Schedule                *ExecutionSchedule               `json:"schedule,omitempty"`
