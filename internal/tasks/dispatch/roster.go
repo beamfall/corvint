@@ -24,6 +24,7 @@ type Ticket struct {
 	Labels                                      []string
 	Plan, PlanReason                            string
 	State                                       string
+	ProgressToken, ProgressDigest               string
 }
 
 // Attempt is the dispatcher's view of one attempt.
@@ -221,8 +222,24 @@ var durablePhases = map[string]bool{"BUILT": true, "CHECKING": true, "REVIEWING"
 
 // Fingerprint is the CAL-V0-057 progress identity of one work key: ticket
 // status, revision and work state plus every attempt that carries durable
-// work. An empty claim followed by a handoff leaves it unchanged.
+// work, with an optional CAL-V0-064 digest from checked progress admission.
+// An empty claim followed by a handoff leaves it unchanged.
 func Fingerprint(obs *Observation, key string) string {
+	base := baseFingerprint(obs, key)
+	for _, t := range obs.Tickets {
+		if t.ID == key && t.ProgressDigest != "" {
+			return progressFingerprint(base, t.ProgressDigest)
+		}
+	}
+	return base
+}
+
+func progressFingerprint(base, digest string) string {
+	sum := sha256.Sum256([]byte("dispatch-progress-v1\x00" + base + "\x00" + digest))
+	return hex.EncodeToString(sum[:])
+}
+
+func baseFingerprint(obs *Observation, key string) string {
 	h := sha256.New()
 	if strings.HasPrefix(key, "lane:") {
 		for _, m := range obs.Members {
