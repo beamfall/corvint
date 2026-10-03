@@ -1,7 +1,7 @@
 {
   "profile": "corvint-docs-ci-qualification/0",
   "approved": true,
-  "treeSha256": "885743592a338f0b0d1951d8919a8af8ca3a0b01575c5bc741f83b36a004116f",
+  "treeSha256": "fa6c9a46ce60da598edff265eac9f85a753a5bb2ee95a0f9bd095e374ed03d5d",
   "classifierSha256": "4191f20310cf8e6e62a26b7651f51e6208703bc627e50cfe4239cedfe373d846",
   "checks": [
     "immutable-local-links",
@@ -13,5 +13,5 @@
     "full-static-build-interop-archive"
   ],
   "inventory": "docs/specs/documentation-ci-v0.md#consumer-inventory",
-  "review": "Independent Astra/medium review docs_ci_plan_review accepted DCI bounded policy, original consumer inventory, repaired source 3e0202fb and release-doc integration d60231e5..85cb2889. Final combined source 369936698b12ac6ef053cca58f7f05d4ed6347c1 passed focused race tests, actual README replay, workflow lint, exact spec-index and documentation checks; sealed CEM 477fd11096068bdebb4ea5b274ac7661e85780f3. See docs/build-log/2026-09-29-documentation-ci.md. Dynamic-reader uncertainty retained; hosted DOCS observation NOT_OBSERVED; exact-head admin control-plane acceptance remains required."
+  "review": "Independent Astra/medium docs_ci_plan_review retained the original bounded consumer policy and reviewed recorder delta 85cb2889..b549b1b5: private artifact exemptions exclude README, tracked changes stay rejected, and new tests use fixture repositories. Combined source edafa4d152926f3537746af2c73ad52cc032cdea passed focused DCI race/spec-index tests and documentation gates. Source/README PRs352,353,348 passed required CI. Original sealed CEM477fd11096068bdebb4ea5b274ac7661e85780f3 and docs/build-log/2026-09-29-documentation-ci.md retain implementation evidence. No scope/check expansion; generic reader uncertainty retained. Hosted DOCS observation NOT_OBSERVED; exact-head admin acceptance still required."
 }
