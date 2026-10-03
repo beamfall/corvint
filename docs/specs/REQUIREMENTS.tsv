@@ -1881,6 +1881,16 @@ PMR-V0-006	docs/specs/postmerge-replay-v0.md	50	Build and validate the actual co
 PMR-V0-007	docs/specs/postmerge-replay-v0.md	53	Emit a separate report with fixture/policy/binding identities, canonical JSONL,
 PMR-V0-008	docs/specs/postmerge-replay-v0.md	59	Provide local/CI invocation `corvint-postmerge-workflow replay --change ID --dry
 PMR-V0-009	docs/specs/postmerge-replay-v0.md	66	Replay does not parse or reimplement the issue #389 delta record. The adapter
+PMR-V1-001	docs/specs/postmerge-runtime-v1.md	22	Independently pin full binding, input snapshots, source/tool/runtime/profile and
+PMR-V1-002	docs/specs/postmerge-runtime-v1.md	23	Execute real connector/intake/delta joins, retain exact native inputs/outputs an
+PMR-V1-003	docs/specs/postmerge-runtime-v1.md	24	Each applicable real author step requires enforced credential/network/filesystem
+PMR-V1-004	docs/specs/postmerge-runtime-v1.md	25	Run actual trusted validation and qualified same-test repeats/falsification/vali
+PMR-V1-005	docs/specs/postmerge-runtime-v1.md	26	Trusted collection verifies real draft parent/tree/path/mode/blob identity and e
+PMR-V1-006	docs/specs/postmerge-runtime-v1.md	27	Only explicitly reviewed schema-specific native-verified semantic projections ma
+PMR-V1-007	docs/specs/postmerge-runtime-v1.md	28	Compare actual outcomes against frozen basis-labelled expectations and report ge
+PMR-V1-008	docs/specs/postmerge-runtime-v1.md	29	Invoke actual metrics and only the separately triggered applicable approved-docu
+PMR-V1-009	docs/specs/postmerge-runtime-v1.md	30	Qualify only the exact independently pinned recording-only, credential-free cand
+PMR-V1-010	docs/specs/postmerge-runtime-v1.md	31	Retain original errors, exact native input/output bytes, truthful fixed stage di
 PNC-001	docs/specs/analyzer-python-native-candidate.md	86	The candidate MUST remain separately buildable and unreachable from Core.
 PNC-002	docs/specs/analyzer-python-native-candidate.md	87	The scanner MUST prospectively bound canonical request members before decode or
 PNC-003	docs/specs/analyzer-python-native-candidate.md	88	Accepted closed inputs MUST emit only fully typed, deterministic candidate facts
