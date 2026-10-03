@@ -9,9 +9,7 @@
 package rust
 
 import (
-	"os"
 	"path"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -99,11 +97,16 @@ func (Language) Owns(relative string) bool { return strings.HasSuffix(relative, 
 
 // Units observes every Cargo package in the repository rooted at root.
 func (Language) Units(root string) (affected.Result, error) {
+	return Language{}.UnitsSource(affected.DiskSource(root))
+}
+
+// UnitsSource reads only the explicitly supplied source universe.
+func (Language) UnitsSource(root *affected.Source) (affected.Result, error) {
 	manifests, err := readManifests(root)
 	if err != nil {
 		return affected.Result{}, err
 	}
-	files, err := affected.SourceFiles(root, func(name string) bool {
+	files, err := root.Files(func(name string) bool {
 		return strings.HasSuffix(name, ".rs")
 	})
 	if err != nil {
@@ -120,7 +123,7 @@ func (Language) Units(root string) (affected.Result, error) {
 		manifest := &packages[index]
 		unit := affected.Unit{ID: unitID(manifest.relative)}
 		for _, relative := range assignments[manifest.relative] {
-			body, readErr := affected.ReadSource(root, relative)
+			body, readErr := root.Read(relative)
 			if readErr != nil {
 				frontier[FrontierUnreadableSource] = true
 				unit.Tests = append(unit.Tests, relative)
@@ -157,7 +160,7 @@ func (Language) Units(root string) (affected.Result, error) {
 			frontier[FrontierCucumberOwnership] = true
 		}
 	}
-	features, err := affected.SourceFiles(root, func(name string) bool {
+	features, err := root.Files(func(name string) bool {
 		return strings.HasSuffix(name, ".feature")
 	})
 	if err != nil {
@@ -196,14 +199,14 @@ type manifest struct {
 	targetConfig      bool
 }
 
-func readManifests(root string) ([]manifest, error) {
-	paths, err := affected.SourceFiles(root, func(name string) bool { return name == "Cargo.toml" })
+func readManifests(root *affected.Source) ([]manifest, error) {
+	paths, err := root.Files(func(name string) bool { return name == "Cargo.toml" })
 	if err != nil {
 		return nil, err
 	}
 	manifests := make([]manifest, 0, len(paths))
 	for _, relative := range paths {
-		body, readErr := affected.ReadSource(root, relative)
+		body, readErr := root.Read(relative)
 		if readErr != nil {
 			manifests = append(manifests, manifest{relative: relative, directory: path.Dir(relative), unresolved: true})
 			continue
@@ -974,7 +977,7 @@ func resolve(units []affected.Unit, packages []manifest, dependencies map[string
 	}
 }
 
-func nextestConfigured(root string, manifests []manifest) bool {
+func nextestConfigured(root *affected.Source, manifests []manifest) bool {
 	candidates := map[string]bool{".config/nextest.toml": true, "nextest.toml": true}
 	for _, parsed := range manifests {
 		for _, suffix := range []string{".config/nextest.toml", "nextest.toml"} {
@@ -982,8 +985,7 @@ func nextestConfigured(root string, manifests []manifest) bool {
 		}
 	}
 	for relative := range candidates {
-		full := filepath.Join(root, filepath.FromSlash(relative))
-		if _, err := os.Lstat(full); err == nil {
+		if _, err := root.Lstat(relative); err == nil {
 			return true
 		}
 	}
