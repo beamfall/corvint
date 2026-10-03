@@ -9,9 +9,9 @@ Authoritative inputs: human request https://github.com/beamfall/corvint/issues/3
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; `AGENTS.md`.
 
 ## Agent digest
-- Claim: Reference CI templates define per-step credentials and author/trusted job separation; paired launcher contract only; hosted replay remains unqualified.
-- Status: proposed/experimental; declared-YAML audit only. Paired candidate technical contract defined; launcher and hosted replay qualification remain pending.
-- Exists: `protocol/postmerge-host` (graph, templates, installer, adapter contract); `internal/postmergehost` (graph validator, YAML-subset parser, audit) and its tests. The optional paired launcher/shim is specified below and remains unimplemented at intent seed.
+- Claim: Reference CI templates and an optional paired launcher have source conformance; physical isolation and hosted replay remain unqualified.
+- Status: proposed/experimental; declared-YAML audit and bounded paired source conformance. Physical boundary and hosted replay qualification remain pending.
+- Exists: `protocol/postmerge-host` (graph, templates, installer, adapter contract); `internal/postmergehost` (audit, strict paired wire, fixed Linux shim, bounded launcher and source conformance tests); `cmd/corvint-postmerge-host-launcher` (optional command). Physical host execution is unqualified.
 - Blocked on: the merge replay set (#395), a hosted dry-run of that set, `corvint delta` (#389), owner acceptance and native completion.
 - Read next: Requirements; Trust boundary; Acceptance evidence.
 
@@ -218,6 +218,15 @@ It checks that:
 Issue #398's first acceptance item is still open. It requires the replay set (#395) to run in
 dry-run mode on a host, and that is `NOT_RUN`.
 
+The paired source checks additionally cover strict profile/request/control bindings, canonical
+single-link snapshots, complete environment refusal, exec/argv attribution, malformed/truncated
+streams, same-object mount and security drift, exact ownership, cancellation-independent cleanup,
+native record retention bounds and null inspection mounts. The actual author fixture checks native
+Verify and the same authored test bytes against addition/subtraction. The full lifecycle tests use
+an in-memory engine; configured mount/environment replies and test-asserted host booleans are not
+physical facts. Retained independent source review closes three source findings after two bounded
+repair cycles. These checks do not replace the original host replay acceptance item.
+
 ## Traceability
 
 | Requirements | Implementation | Evidence |
@@ -227,6 +236,11 @@ dry-run mode on a host, and that is `NOT_RUN`.
 | PCH-V0-003, PCH-V0-004, PCH-V0-005 | `protocol/postmerge-host/github-actions/*.yml` | `TestReferenceTemplatesAuditClean`, `TestAuditRefusesUnsafeTemplates`, `TestReplayRefusesMalformedChange` |
 | PCH-V0-006 | `protocol/postmerge-host/install-pinned.sh`, `github-actions/*.yml`, `audit.go` | `TestInstallPinnedSyntax`, `TestResolveRefusesInjectedChange`, `TestAuditRefusesUnsafeTemplates` |
 | PCH-V0-007 | `yaml.go`, `audit.go` | `TestAuthoringEnvironmentHasNoWriteCredential`, `TestAuditRefusesUnsafeTemplates`, `TestParseYAMLSubset`, `TestShellCommands` |
+| PCH-V0-009 | `launcher.go`, optional command | `TestHostProfileClosedWire`, `TestHostRequestIdentityRefusals`, `TestHostControlBindingRefusals`, `TestClosedLauncherInvocation` |
+| PCH-V0-010, PCH-V0-013 | `launcher.go`, paired-author fixture | `TestHostCandidateMountsRefuseAuthorityAliases`, `TestPairedAuthorSourceConformance` (actual native Verify and guarded negative; physical confinement unqualified) |
+| PCH-V0-011 | `envelope_linux.go`, `envelope_other.go`, `launcher.go` | `TestHostEnvelopeCompleteEnvironment`, `TestHostStreamRefusesIncompleteOrForgedReadiness` (physical envelope pending) |
+| PCH-V0-012 | `launcher.go` | `TestHostExecAttributionRefusesAmbiguity`, `TestHostCleanupIndependentAndExact`, `TestHostStreamCloseJoinsCancellation`, simulated lifecycle cases in `TestPairedAuthorSourceConformance` |
+| PCH-V0-014 | `launcher.go` | `TestHostConfiguredBoundaryRejectsDrift`, `TestHostDocumentedInspectSerialization`, `TestHostNativeRecordsShareRetentionBudget` (exact physical tuple pending) |
 
 ## Qualification and rollback
 
@@ -237,9 +251,10 @@ requires all of the following:
 - `corvint delta` (#389) replacing the delta placeholder;
 - a review of each operator's host-level secret scoping.
 
-Rollback: delete the copied workflows from the operator repository, then revert the
-`protocol/postmerge-host` and `internal/postmergehost` commits. This adds no Core command, no
-installed binary and no store migration.
+Rollback: delete copied workflows from the operator repository and disable/remove the optional
+`cmd/corvint-postmerge-host-launcher` and paired candidate changes, preserving ownership holds and
+failed evidence. Revert task-owned template changes as appropriate. The optional command is not
+installed by default and adds no Core command or store migration.
 
 ## Paired optional-host candidate contract (PCH-V0-009..014)
 
@@ -258,9 +273,13 @@ scope/host graph and authored content, and runs the actual fixture test.
 
 The single selected executable-after-build fixture is paired-add-fixture/. #395's original Add
 case governs it. The reviewed Add fixture defines offline author/main.go and a negative subtraction control.
-It has not been built/executed. After source admission place/build
-the author under internal/postmergehost/testdata/paired-author so its native intake.Decode import
-uses the owning module. Fixture setup creates actual private Git base/merge objects from base/ and
+Its source is retained under `internal/postmergehost/testdata/paired-author`; the source test builds
+and executes the author with actual native intake.Decode from the owning module. It retains the
+original declaration, Host, Before and Preflight across actual author execution and runs native
+Verify on those same canonical objects before semantic tests. A semantics-preserving guarded
+calc.go mutation produces GUARDED_WRITE; restoration passes. Host confinement booleans in this
+source test are assertions, and every native unknown remains in the original receipts. This
+local source proof does not establish a physical execution boundary. Fixture setup creates actual private Git base/merge objects from base/ and
 merged/, records their real OIDs and constructs the closed candidate at runtime. No placeholder
 OID or hand-labelled successful author-input file is accepted. Actual BuildAuthorInput produces
 all author input. tests_claimed=[] is truthful because the new test does not exist in either input
@@ -395,8 +414,33 @@ ReadonlyRootfs=true, Privileged=false, CapDrop=[ALL], CapAdd=[], only no-new-pri
 private PID/IPC (never host/container-sharing), RestartPolicy=no, no ports/devices/API socket,
 exact profile resource limits and complete derived mount/tmpfs topology. Inspect raw facts remain
 retained. The existing PR-container sleep/infinity code is a design lead, not reused author proof.
+Inspection serialization may differ from the create request only for reviewed harmless defaults:
+ConsoleSize is accepted at exactly [0,0] for this non-TTY candidate; bind Consistency may be empty,
+ReadOnly may be omitted only for an expected writable mount, and the documented CreateMountpoint,
+NonRecursive, ReadOnlyNonRecursive and ReadOnlyForceRecursive bind fields may be omitted or false.
+Null mount elements refuse before normalization. Source/target, propagation, read-only authority,
+unknown mount options and nondefault privilege/runtime settings remain exact refusals. The retained
+Engine v1.56 response fixture is constructed documentation evidence, not an observed daemon reply.
+
 Image missing, configured mismatch, extra/unknown image env or incomplete enforcement facts blocks;
 image provisioning is an explicit qualification step after root admission, never a launcher pull.
+
+The controller resolves only the independently pinned existing Docker context to a canonical local
+Unix socket. It accepts no caller-selected URL/socket, TCP/SSH/TLS transport, proxy/redirect fallback,
+engine startup, context switch or image pull. Retain the actual server API minimum/maximum and
+selected compatible version (candidate implemented range 1.44 through 1.56), server platform and
+client bytes. The profile requires an actual Linux/amd64 server; controller architecture alone or
+an emulated image does not discharge that predicate.
+
+Fixed controller-only Engine API routes create the shim exec, start its bidirectional stream and
+inspect that exact exec ID. Before attributing its eventual exit to the author, surround one fixed
+GET /containers/{owned-full-ID}/top with Running exec inspections of the same exec/container/PID.
+The bounded table must have exact PID/COMMAND titles, unambiguous canonical PID rows and the exact
+post-exec author argv. This observes process arguments, not authenticated executable/source
+provenance; independently pinned read-only tools remain necessary. PID reuse/races and fast exit
+without the actual start join stay UNKNOWN/HELD, including exit zero. ExecInspect provides no
+signal field; retain signal=null and never decode 128+N into an author signal. Client/shim failure,
+truncated or disconnected streams, late completion and uncertain cleanup remain separately retained.
 
 Before ready, start only the PINNED trusted guest execution-envelope shim, under the same approved
 UID, fixed /product working directory and an explicitly cleared environment. The shim observes its
@@ -406,7 +450,7 @@ derived/additional key may become observed NONE by inference. Unknown or incompl
 blocks. The original raw observation contains names/digests only, no unknown credential value.
 The shim waits on a private supervisor barrier and executes no author until execute control.
 On release it replaces its own process image with the single pinned author via direct exec, passing
-EXACTLY that observed environment/argv and closing barrier/input/inherited control descriptors
+EXACTLY that observed environment/argv and replacing barrier stdin plus marking non-log descriptors close-on-exec
 (author stdin=/dev/null). This preserves the observed execution envelope; subsequent author logs
 are raw logs and cannot be reparsed as environment-ready/authority frames. Actual runtime enforcement
 proof and negative injected-image-env/extra-effective-env controls follow the build. Image hold-env
@@ -476,3 +520,25 @@ implementation is subsequent work, not a prerequisite to accepting the technical
 Original full #395/#398/#388 acceptance remains open; exact #394 Body/repeat timing/raw graph,
 private per-run connector object verification and deterministic Evidence URL remain separate
 positive draft obligations. No normalization or synthetic stage result is admitted.
+
+## Current candidate qualification limits
+
+The nineteen-file source candidate passed independent source review after two repairs. That verdict
+covers source evidence only. The read-only observed local tuple has a macOS arm64 controller and
+Colima Docker29.5.2 Linux arm64 server, kernel6.8.0-117-generic, API min1.40/max1.54; it conflicts
+with this candidate's Linux/amd64 server predicate. The proposed immutable golang image digest
+sha256:eef6a67266eeed3c86dd47fd01b32faa8bf0229eb83eb3d4d466e80391bd3820 is absent on that daemon.
+Existing private build artifacts precede the final source repair and do not pin the current source.
+No container, image pull, physical author execution or hosted replay has been performed.
+
+The positive #395 paired supervisor/consumer is unavailable; its delivered slice still refuses
+before authoring, and its human-owned contract fork is unresolved. The source test's actual author
+and same-object native Verify do not substitute for that consumer. Independent physical boundary
+qualification requires a separately admitted compatible tuple, exact current build/image/environment
+pins and lifecycle negatives. Actual paired and historical replay require the real supervisor,
+#389 delta, #394 exact raw report/repeat semantics, native connector graph and deterministic Evidence
+URL joins. No normalization or reconstructed chronology is accepted in place of those originals.
+
+The six frozen terminal checks, CEM/OCM binding, publication/integration and native completion are
+separate remaining delivery steps. Raw source tests/review and a source PR cannot close whole #398.
+Preserve proposed/experimental status and all ownership/cleanup holds until actual qualification.

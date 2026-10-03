@@ -2090,7 +2090,7 @@
     "reqPrefix": "PCH-V0",
     "intent": "proposed",
     "delivery": "experimental",
-    "claim": "Reference CI templates define per-step credentials and author/trusted job separation; paired launcher contract only; hosted replay remains unqualified.",
+    "claim": "Reference CI templates and an optional paired launcher have source conformance; physical isolation and hosted replay remain unqualified.",
     "dependsOn": [
       "docs/specs/authoring-step-scope-v0.md",
       "docs/specs/postmerge-connectors-v0.md"
@@ -2098,6 +2098,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
+      "cmd/corvint-postmerge-host-launcher",
       "internal/postmergehost",
       "protocol/postmerge-host"
     ]
