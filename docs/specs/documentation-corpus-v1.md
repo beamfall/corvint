@@ -271,6 +271,11 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   capability-absent, filter-miss, not-found and pagination-exhaustion machine distinctions.
 - `DCP-V1-040`: The separate experimental `corvint-corpus-index/1` companion wraps a canonical `/2`
   corpus and a deterministic rederived ID/path/symbol/term/edge index. Producer Build revalidates source.
+  The experimental republish path may carry that complete source-validation result in a non-wire
+  opaque immutable compiler token. Warm reconstruction validates complete cached records against
+  pinned original inputs under the ordinary provider predicates and requires exact prior corpus bytes;
+  caller artifacts or cache identity alone cannot mint a token. The ordinary cold API remains an
+  independent verification oracle.
   Admission requires an externally operator-pinned complete SHA256; self-consistent embedded hashes
   alone grant no provenance. Read-only consumers have no live source or Git input and report historical
   evidence with freshness unknown, producer authentication NOT_OBSERVED and validation

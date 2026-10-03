@@ -102,6 +102,8 @@ For mutation, evaluation, migration, signing, provider and service routes, obey 
 permission, frozen-input and cleanup boundaries. Optional unavailability never licenses fake input,
 weakened policy or erasing user work.
 
+For the experimental [corpus republish companion](specs/corpus-republish-v0.md), retain separate approved documentation/source pins, deterministic producer bytes, complete previous-inventory parity and an actual indexed inventory receipt. The issue #397 local command and pending-state tests exercise admission, replacement, retry, corrupt-state preservation and destination protection. Incremental reuse is limited to explicitly eligible ordinary adoption contributions; global validation and indexed production still run. Host approval authentication, credential isolation, remote publishing and independent external adoption remain unqualified.
+
 ## Finish through the existing gate
 
 Follow [DOGFOOD §4](DOGFOOD.md#4-produce-the-cem) to commit source, bind and commit the CEM, and prepare

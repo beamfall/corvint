@@ -732,9 +732,9 @@ DCP-V1-037	docs/specs/documentation-corpus-v1.md	249	Qualify the full Build/Open
 DCP-V1-038	docs/specs/documentation-corpus-v1.md	256	CLI and local corpus MCP expose all existing reads, including validate and
 DCP-V1-039	docs/specs/documentation-corpus-v1.md	264	Native answers use `corvint-corpus-receipt/2` for the additive trust envelope; a
 DCP-V1-040	docs/specs/documentation-corpus-v1.md	272	The separate experimental `corvint-corpus-index/1` companion wraps a canonical `
-DCP-V1-041	docs/specs/documentation-corpus-v1.md	286	A companion switch-over harness consumes bounded closed recorded questions and
-DCP-V1-042	docs/specs/documentation-corpus-v1.md	296	The separately started experimental hosted companion serves only embedded digest
-DCP-V1-043	docs/specs/documentation-corpus-v1.md	304	The `corvint-corpus-parity` companion is qualified through its own command bound
+DCP-V1-041	docs/specs/documentation-corpus-v1.md	291	A companion switch-over harness consumes bounded closed recorded questions and
+DCP-V1-042	docs/specs/documentation-corpus-v1.md	301	The separately started experimental hosted companion serves only embedded digest
+DCP-V1-043	docs/specs/documentation-corpus-v1.md	309	The `corvint-corpus-parity` companion is qualified through its own command bound
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	27	Core MUST remain one native Go binary with no required account, network, daemon,
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	30	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	33	Task orientation MUST locate governing intent and original revision-pinned evide
@@ -2085,6 +2085,17 @@ RCB-V0-004	docs/specs/receipt-bundle-v0.md	81	Inclusion rules. Every receipt is 
 RCB-V0-005	docs/specs/receipt-bundle-v0.md	110	The export writes only DIR. DIR must be absolute and must not exist, and its par
 RCB-V0-006	docs/specs/receipt-bundle-v0.md	127	`script/verify-receipt-bundle.sh DIR` needs only `sh`, `sed`, `awk`, `find`, `so
 RCB-V0-007	docs/specs/receipt-bundle-v0.md	138	A bundle grants nothing. The export signs nothing, publishes nothing, contacts n
+RCP-V0-001	docs/specs/corpus-republish-v0.md	22	The operator supplies separate closed request and trusted approval-policy files.
+RCP-V0-002	docs/specs/corpus-republish-v0.md	23	Approval pins bind the exact documentation bytes: every provider/document input
+RCP-V0-003	docs/specs/corpus-republish-v0.md	24	Closed versioned input/output profiles reject unknown/duplicate members, invalid
+RCP-V0-004	docs/specs/corpus-republish-v0.md	25	Provenance names documentation/source commits, repository identity, compiler and
+RCP-V0-005	docs/specs/corpus-republish-v0.md	26	Previous-artifact parity enumerates added, retired and changed stable IDs for su
+RCP-V0-006	docs/specs/corpus-republish-v0.md	27	Parity additionally compares provider/shard input inventories, even for empty or
+RCP-V0-007	docs/specs/corpus-republish-v0.md	28	Where a manifest explicitly admits dependency-closed reuse, rebuild only changed
+RCP-V0-008	docs/specs/corpus-republish-v0.md	29	The actual consumer is the existing indexed artifact reader: build corpusindex f
+RCP-V0-009	docs/specs/corpus-republish-v0.md	30	Emit a typed republish plan through the existing connector package. Its fixed ge
+RCP-V0-010	docs/specs/corpus-republish-v0.md	31	The optional pending-state writer is host-owned, trusted-local and single-writer
+RCP-V0-011	docs/specs/corpus-republish-v0.md	32	The builder, author and deterministic connector writer receive separate host env
 RDG-V0-001	docs/specs/requirement-definition-gate-v0.md	57	The gate MUST read every non-blank row of `docs/specs/REQUIREMENTS.tsv`, take th
 RDG-V0-002	docs/specs/requirement-definition-gate-v0.md	62	The gate MUST exempt every id starting with `CEM-CB-` from RDG-V0-003, because
 RDG-V0-003	docs/specs/requirement-definition-gate-v0.md	65	The gate MUST fail when a checked id (per RDG-V0-001, after the RDG-V0-002 exemp
