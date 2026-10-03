@@ -6,9 +6,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 digests are shape fixtures, not claims that those objects exist or that Core produced those bindings.
 The executable immutable merge fixture is `internal/delta/compile_test.go`; its two actual runs must
 be byte-identical and preserve refs/index/state. `regression_test.go` retains independent-review
-counterexamples. `cmd/corvint/delta_test.go` covers the internal entrypoint only; native argv delivery
-waits for shared dispatcher/help scope. No benchmark, execution attestation or runtime coverage is
-claimed by these vectors.
+counterexamples. `cmd/corvint/delta_test.go` includes entrypoint, public dispatcher and help tests.
+Their source presence does not qualify the current native binary; terminal native replay remains
+pending. No benchmark, execution attestation or runtime coverage is claimed by these vectors.
 
 The schema is `protocol/delta/schema.json`. All fields are closed; unknowns and gaps determine
 `findings` before suite obligations determine `tests-needed`. `docs-only` requires exclusively

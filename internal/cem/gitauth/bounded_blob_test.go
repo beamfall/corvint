@@ -47,6 +47,47 @@ func testBoundedBlobRejectsHeaderWithoutFallback(t *testing.T) {
 func TestBoundedBlobCumulativeBudgetBeforeBody(t *testing.T) {
 	t.Run("DLT-V0-003 cumulative budget before allocation", testBoundedBlobCumulativeBudgetBeforeBody)
 }
+
+func TestBoundedBlobOneMiBHeaderAdmission(t *testing.T) {
+	t.Run("DLT-V0-003 smaller and cumulative bounds refuse before body", func(t *testing.T) {
+		const limit = 1 << 20
+		for _, cumulative := range []bool{false, true} {
+			t.Run(fmt.Sprintf("cumulative=%v", cumulative), func(t *testing.T) {
+				root, _, head := makeRepo(t)
+				r := open(t, root)
+				entry, _, err := r.LookupTreeEntry(context.Background(), head, "f.go")
+				if err != nil {
+					t.Fatal(err)
+				}
+				size := limit + 1
+				if cumulative {
+					size = limit
+					r.blobBytes = MaxTotalBlobBytes - limit + 1
+				}
+				dir := t.TempDir()
+				calls := filepath.Join(dir, "calls")
+				quoted := "'" + strings.ReplaceAll(calls, "'", "'\\''") + "'"
+				// Supply only the header and wait for another request. A consumer
+				// admitting this body must time out; a header refusal returns now.
+				script := fmt.Sprintf("#!/bin/sh\nprintf x >>%s\nIFS= read -r oid\nprintf '%%s blob %d\\n' \"$oid\"\nIFS= read -r next\n", quoted, size)
+				if err := os.WriteFile(filepath.Join(dir, "git"), []byte(script), 0700); err != nil {
+					t.Fatal(err)
+				}
+				t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+				defer cancel()
+				body, err := r.BlobBytesBounded(ctx, entry.OID, limit)
+				if err == nil || body != nil || ctx.Err() != nil {
+					t.Fatalf("header was not refused before requesting body: bytes=%d err=%v deadline=%v", len(body), err, ctx.Err())
+				}
+				raw, err := os.ReadFile(calls)
+				if err != nil || string(raw) != "x" {
+					t.Fatalf("fallback launched: %q %v", raw, err)
+				}
+			})
+		}
+	})
+}
 func testBoundedBlobCumulativeBudgetBeforeBody(t *testing.T) {
 	root, _, head := makeRepo(t)
 	r := open(t, root)

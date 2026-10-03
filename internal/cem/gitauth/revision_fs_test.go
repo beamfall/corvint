@@ -3,14 +3,92 @@ package gitauth
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/cem/gitrun"
 )
 
 func TestRevisionFSImmutableAndBounds(t *testing.T) {
 	t.Run("DLT-V0-002 immutable revision source", testRevisionFSImmutableAndBounds)
+}
+
+func TestRevisionFSReadBoundedBeforeBody_DLT_V0_003(t *testing.T) {
+	t.Run("DLT-V0-003 one MiB admission survives session and memo reuse", func(t *testing.T) {
+		const limit = 1 << 20
+		root, _, _ := makeRepo(t)
+		writeFile(t, root, "exact", strings.Repeat("x", limit))
+		writeFile(t, root, "larger", strings.Repeat("y", limit+1))
+		gitCmd(t, root, "add", ".")
+		gitCmd(t, root, "commit", "-qm", "bounded inputs")
+		head := gitCmd(t, root, "rev-parse", "HEAD")
+		ctx := context.Background()
+		view := open(t, root)
+		if err := view.LoadObjectFormat(ctx); err != nil {
+			t.Fatal(err)
+		}
+		memo, err := NewRequestReadMemo(view)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer memo.Release()
+		r, err := memo.Open(gitrun.NewDefaultBudget())
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer r.BeginObjectSession()()
+		source, err := r.RevisionFS(ctx, head, 4<<20)
+		if err != nil {
+			t.Fatal(err)
+		}
+		bounded := source.(interface {
+			OpenBounded(string, int) (fs.File, error)
+		})
+		entry, ok, err := r.LookupTreeEntry(ctx, head, "larger")
+		if err != nil || !ok {
+			t.Fatalf("entry: %v %v", ok, err)
+		}
+		// Populate the actual request memo, and exercise the ordinary 4MiB reader.
+		if body, err := r.BlobBytes(ctx, entry.OID); err != nil || len(body) != limit+1 {
+			t.Fatalf("memo read: %d %v", len(body), err)
+		}
+		if body, err := fs.ReadFile(source, "larger"); err != nil || len(body) != limit+1 {
+			t.Fatalf("ordinary read: %d %v", len(body), err)
+		}
+		if file, err := bounded.OpenBounded("larger", limit); err == nil || file != nil {
+			t.Fatalf("cached oversized blob admitted: %v", err)
+		}
+		file, err := bounded.OpenBounded("exact", limit)
+		if err != nil {
+			t.Fatal(err)
+		}
+		info, err := file.Stat()
+		if err != nil || info.Size() != limit {
+			t.Fatalf("exact-bound size: %v %v", info, err)
+		}
+		if err := file.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := bounded.OpenBounded("missing", limit); !errors.Is(err, fs.ErrNotExist) {
+			t.Fatalf("missing: %v", err)
+		}
+		if _, err := bounded.OpenBounded("exact", 0); !errors.Is(err, fs.ErrInvalid) {
+			t.Fatalf("invalid bound: %v", err)
+		}
+		smaller, err := r.RevisionFS(ctx, head, limit-1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if file, err := smaller.(interface {
+			OpenBounded(string, int) (fs.File, error)
+		}).OpenBounded("exact", 4<<20); err == nil || file != nil {
+			t.Fatalf("caller enlarged FS bound: %v", err)
+		}
+	})
 }
 func testRevisionFSImmutableAndBounds(t *testing.T) {
 	root, base, head := makeRepo(t)

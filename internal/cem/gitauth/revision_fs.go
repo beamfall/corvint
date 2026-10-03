@@ -51,6 +51,19 @@ func (s *revisionFS) entry(name string) (TreeEntry, error) {
 	return entry, nil
 }
 func (s *revisionFS) Open(name string) (fs.File, error) {
+	return s.open(name, s.maxBlobBytes)
+}
+
+// OpenBounded applies the caller's smaller admission limit before any blob
+// body is allocated, including when this repository has already read the OID.
+func (s *revisionFS) OpenBounded(name string, limit int) (fs.File, error) {
+	if limit < 1 {
+		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrInvalid}
+	}
+	return s.open(name, min(limit, s.maxBlobBytes))
+}
+
+func (s *revisionFS) open(name string, limit int) (fs.File, error) {
 	entry, err := s.entry(name)
 	if err != nil {
 		return nil, &fs.PathError{Op: "open", Path: name, Err: err}
@@ -65,7 +78,7 @@ func (s *revisionFS) Open(name string) (fs.File, error) {
 	if entry.Type != "blob" || !(entry.Mode == "100644" || entry.Mode == "100755") {
 		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrInvalid}
 	}
-	data, err := s.repo.BlobBytesBounded(s.ctx, entry.OID, s.maxBlobBytes)
+	data, err := s.repo.BlobBytesBounded(s.ctx, entry.OID, limit)
 	if err != nil {
 		return nil, err
 	}

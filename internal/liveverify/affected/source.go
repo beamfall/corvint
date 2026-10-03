@@ -104,6 +104,80 @@ func (s *Source) Read(relative string) (bodyOut []byte, errOut error) {
 	}
 	return body, err
 }
+
+// ReadBounded captures a smaller input contract without first asking an
+// immutable backend to Stat or Open, either of which may allocate its body.
+// An opaque filesystem cannot establish that admission bound and is refused.
+func (s *Source) ReadBounded(relative string, limit int) (bodyOut []byte, errOut error) {
+	defer func() { s.retain(errOut) }()
+	if s == nil {
+		return nil, ErrInvalidLanguage
+	}
+	if !ValidRelativePath(relative) || limit < 1 || limit > MaxSourceBytes {
+		return nil, ErrInvalidUnit
+	}
+	var file fs.File
+	var err error
+	if s.fsys != nil {
+		bounded, ok := s.fsys.(interface {
+			OpenBounded(string, int) (fs.File, error)
+		})
+		if !ok {
+			return nil, fmt.Errorf("%w: immutable source lacks bounded open", ErrWalkUnrepresentable)
+		}
+		file, err = bounded.OpenBounded(relative, limit)
+	} else {
+		name := filepath.Join(s.root, filepath.FromSlash(relative))
+		info, statErr := os.Lstat(name)
+		if statErr != nil {
+			return nil, statErr
+		}
+		if !info.Mode().IsRegular() {
+			return nil, ErrInvalidUnit
+		}
+		if info.Size() > int64(limit) {
+			return nil, ErrWalkLimit
+		}
+		file, err = os.Open(name)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			bodyOut, errOut = nil, errors.Join(errOut, closeErr)
+		}
+		// After a successful open, every capture failure is real, even if
+		// one joined cause is ErrNotExist. Only an absent optional open may
+		// use retain's missing-path exemption.
+		if errOut != nil && s.fsys != nil {
+			s.mu.Lock()
+			if s.fatal == nil {
+				s.fatal = errOut
+			}
+			s.mu.Unlock()
+		}
+	}()
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, ErrInvalidUnit
+	}
+	if info.Size() > int64(limit) {
+		return nil, ErrWalkLimit
+	}
+	body, err := io.ReadAll(io.LimitReader(file, int64(limit)+1))
+	if len(body) > limit {
+		return nil, errors.Join(ErrWalkLimit, err)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
 func (s *Source) Stat(relative string) (infoOut fs.FileInfo, errOut error) {
 	defer func() { s.retain(errOut) }()
 	if s == nil || !fs.ValidPath(relative) {

@@ -55,7 +55,7 @@ func testImmutableAllLanguageParity(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			immutable, err := affected.BuildFS(files, lang)
+			immutable, err := affected.BuildFS(boundedMapFS{files}, lang)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -71,6 +71,24 @@ func testImmutableAllLanguageParity(t *testing.T) {
 			}
 		})
 	}
+}
+
+// This fixture can establish the smaller input limit before opening a file.
+// Plain fs.FS deliberately does not promise that admission property.
+type boundedMapFS struct{ fstest.MapFS }
+
+func (source boundedMapFS) OpenBounded(name string, limit int) (fs.File, error) {
+	file, ok := source.MapFS[name]
+	if !ok {
+		return nil, fs.ErrNotExist
+	}
+	if !file.Mode.IsRegular() {
+		return nil, affected.ErrInvalidUnit
+	}
+	if len(file.Data) > limit {
+		return nil, affected.ErrWalkLimit
+	}
+	return source.Open(name)
 }
 
 func TestImmutableNonregularBeforeLanguageFilter(t *testing.T) {

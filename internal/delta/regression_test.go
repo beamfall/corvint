@@ -2,6 +2,8 @@ package delta
 
 import (
 	"context"
+	json "encoding/json/v2"
+	"fmt"
 	"github.com/Beamfall/corvint/internal/flowdocs"
 	"os"
 	"path/filepath"
@@ -125,4 +127,61 @@ func testDeltaReachedUnitDenominatorIncludesDiamond(t *testing.T) {
 	if n != 4 {
 		t.Fatalf("missing diamond gaps: %d", n)
 	}
+}
+
+func TestDeltaUnknownsSurviveObservationLimit_DLT_V0_009(t *testing.T) {
+	t.Run("DLT-V0-009 display limits preserve uncertainty and decision", func(t *testing.T) {
+		for _, kind := range []string{"tests", "documentation"} {
+			t.Run(kind, func(t *testing.T) {
+				r := Record{
+					Schema: Schema, Base: strings.Repeat("1", 40), Head: strings.Repeat("2", 40), Tree: strings.Repeat("3", 40), Build: "test",
+					ChangedPathDigest: digest("paths", []byte("docs/guide.md")), ChangedPaths: []string{"docs/guide.md"},
+					InputDigests: []string{}, Documentation: []Span{}, Tests: []Test{}, Gaps: []Gap{}, WorkKeys: []string{}, Unknowns: []Unknown{},
+					MandatoryChecksRequired: true, Denominators: Denominators{Runtime: "unknown"},
+				}
+				r.unknown("provider-coverage-missing", 2, []byte("before display limit"))
+				before := r.Unknowns[0]
+				for i := 0; i < MaxObservations+3; i++ {
+					path := fmt.Sprintf("pkg/check_%04d.go", i)
+					if kind == "tests" {
+						r.addTest(Test{Path: path, Repository: digest("repository", []byte("root")), Unit: digest("unit", []byte(path)), Origin: "in-repository", Confidence: "unscored"})
+					} else {
+						path = fmt.Sprintf("docs/span-%04d.md", i)
+						r.addSpan(Span{ID: digest("span", []byte(path)), Path: path, State: "added", Digest: digest("body", []byte(path))})
+					}
+				}
+				if !r.RunFullSuite || !hasUnknown(r, "observation-bound-exceeded") {
+					t.Fatalf("display limit did not retain its full-suite uncertainty: %+v", r.Unknowns)
+				}
+				if kind == "tests" && len(r.Tests) != MaxObservations || kind == "documentation" && len(r.Documentation) != MaxObservations {
+					t.Fatalf("display limit: tests=%d documentation=%d", len(r.Tests), len(r.Documentation))
+				}
+				r.unknown("provider-capture-unavailable", 3, []byte("after display limit"))
+				after := r.Unknowns[len(r.Unknowns)-1]
+				r.finalize()
+				if r.Decision != "findings" || !r.RunFullSuite || r.Denominators.Complete || !r.MandatoryChecksRequired {
+					t.Fatalf("display limit hid obligations: decision=%s full-suite=%v complete=%v mandatory=%v", r.Decision, r.RunFullSuite, r.Denominators.Complete, r.MandatoryChecksRequired)
+				}
+				if len(r.Unknowns) != 3 || r.Unknowns[0].Code != "observation-bound-exceeded" || r.Unknowns[0].Count != 3 || r.Unknowns[1] != after || r.Unknowns[2] != before {
+					t.Fatalf("sorted uncertainty/counts/digests changed across limit: %+v", r.Unknowns)
+				}
+				raw, err := r.Canonical()
+				if err != nil {
+					t.Fatal(err)
+				}
+				var round Record
+				if err := json.Unmarshal(raw, &round, json.RejectUnknownMembers(true)); err != nil {
+					t.Fatal(err)
+				}
+				if len(round.Unknowns) != len(r.Unknowns) || round.Decision != "findings" || !round.RunFullSuite || round.Denominators.Complete {
+					t.Fatal("canonical output lost bounded-record uncertainty or decision")
+				}
+				for i, unknown := range r.Unknowns {
+					if round.Unknowns[i] != unknown {
+						t.Fatalf("canonical output changed uncertainty %d: %+v", i, round.Unknowns[i])
+					}
+				}
+			})
+		}
+	})
 }
