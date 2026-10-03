@@ -781,6 +781,16 @@ DIRTY-CACHE-010	docs/specs/revision-cache-dirty-worktree-v0.md	63	the implementa
 DIRTY-CACHE-011	docs/specs/revision-cache-dirty-worktree-v0.md	69	each index build MUST resolve the repository storage object format and exact
 DIRTY-CACHE-012	docs/specs/revision-cache-dirty-worktree-v0.md	76	the separate `working-tree-untracked` impact authority profile (`GPK-V0-029`)
 DIRTY-CACHE-013	docs/specs/revision-cache-dirty-worktree-v0.md	83	the native disk snapshot store (`index-snapshot-v0`) MUST live at
+DLT-V0-001	docs/specs/immutable-delta-v0.md	27	Delta MUST bind full lowercase base/head commit OIDs, head tree, complete
+DLT-V0-002	docs/specs/immutable-delta-v0.md	30	The affected graph MUST read every participating provider's source, config,
+DLT-V0-003	docs/specs/immutable-delta-v0.md	34	Git blob bodies MUST be admitted before allocation by expected OID/type/size,
+DLT-V0-004	docs/specs/immutable-delta-v0.md	37	Documentation drift MUST reuse flowdocs identity/check rules and report stale,
+DLT-V0-005	docs/specs/immutable-delta-v0.md	41	External records MUST be captured once with bounded safe regular-file reads.
+DLT-V0-006	docs/specs/immutable-delta-v0.md	45	Only fresh verified explicit path-to-path asserts relations MAY establish a
+DLT-V0-007	docs/specs/immutable-delta-v0.md	49	Optional bounded work-key extraction MUST use only self-hashed head commit
+DLT-V0-008	docs/specs/immutable-delta-v0.md	52	Output MUST be deterministic canonical JSON containing only validated paths,
+DLT-V0-009	docs/specs/immutable-delta-v0.md	56	The complete record MUST expose sorted uncertainty and a downstream decision
+DLT-V0-010	docs/specs/immutable-delta-v0.md	59	The command MUST be R0: no network, state, tracing, object/ref/index writes or
 DNAS-V0-001	docs/specs/dotnet-affected-selection-v0.md	35	`Name` MUST be `dotnet`; `Owns` MUST accept `.cs` case-insensitively and MUST NO
 DNAS-V0-002	docs/specs/dotnet-affected-selection-v0.md	37	Framework discovery MUST require both project evidence and matching source
 DNAS-V0-003	docs/specs/dotnet-affected-selection-v0.md	41	One statically addressable test unit MUST own one `.cs` file and have identity
