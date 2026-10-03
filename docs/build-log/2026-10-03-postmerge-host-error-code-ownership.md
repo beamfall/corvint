@@ -48,3 +48,16 @@ The accepted ownership contract `ECO-V0-006` also requires the owning row to cit
 verified immutable-source mapping. The earlier indexed GREEN remains bound to its original staged
 inputs; final-target checks must assess the complete cited inventory. No emitter or code meaning
 changed.
+
+At documentation binding `8ac1a1e8e53f3fa393ca35533dfdf722def00f75`, the first five original
+frozen checks passed, but `focused-docs` check 012 failed with 33 source citations missing the
+required content anchors. The failed binding, check logs and earlier observations remain retained.
+The correction appends only anchors produced by `script/check-line-citations.sh --hash` for each
+verified emitting site; source bytes and line numbers are unchanged. Early staged-index
+documentation and ownership checks precede a new binding and six fresh frozen checks; their final
+results and the updated hosted run must be observed separately.
+
+After staging exactly the anchored spec and this log and confirming index/worktree equality,
+the early original focused-docs command and separate error-code-ownership check both passed
+(exit 0; both owned processes joined with groups absent). These early results precede the new
+CEM binding and do not replace its binding-specific checks.

@@ -182,44 +182,44 @@ explicit. An engine-client, shim, controller, or ambiguous exit is never relabel
 
 | Held reason | Observation or refusal | Source |
 |---|---|---|
-| `author-start-unobserved` | The controller cannot establish the actual author start/exit observation, including an author that retires before the process join. | `internal/postmergehost/launcher.go:1812` |
-| `author-timeout-or-supervisor-lost` | The author context deadline expires or its supervisor context is cancelled; this does not infer an author signal. | `internal/postmergehost/launcher.go:1834` |
-| `barrier-disconnected` | The private execute barrier write fails. | `internal/postmergehost/launcher.go:1745` |
-| `boundary-unverified` | The actual ready container inspection does not match the pinned boundary. | `internal/postmergehost/launcher.go:1666` |
-| `cleanup-unresolved` | Independent exact-owner cleanup cannot establish removal and absence. | `internal/postmergehost/launcher.go:1609` |
-| `control-invalid` | The control frame is unreadable or fails the closed wire/identity checks. | `internal/postmergehost/launcher.go:1723` |
-| `control-repeated-or-supervisor-lost` | A further control frame or lost supervisor appears during author execution. | `internal/postmergehost/launcher.go:1838` |
-| `control-timeout` | The ready launcher receives no control frame before its bounded timer expires. | `internal/postmergehost/launcher.go:1717` |
-| `create-ambiguous` | The engine create call or its retained transcript cannot establish an unambiguous result. | `internal/postmergehost/launcher.go:1640` |
-| `environment-unobserved` | The complete actual hold/author execution-envelope observation is missing or fails the pinned comparison. | `internal/postmergehost/launcher.go:1694` |
-| `exec-inspect-unresolved` | An original execution inspection before or after the process-top observation cannot be collected and checked. | `internal/postmergehost/launcher.go:1806` |
-| `hold-start-failed` | Starting the inert owned container fails or cannot be retained. | `internal/postmergehost/launcher.go:1661` |
-| `image-unverified` | The immutable image inspection fails or does not match the pinned image/config/environment. | `internal/postmergehost/launcher.go:1634` |
-| `late-completion-unresolved` | After log completion, final inspection is unavailable or still reports a running execution. | `internal/postmergehost/launcher.go:1852` |
-| `native-control-unverified` | The original native control records do not satisfy the required host/state/preflight binding. | `internal/postmergehost/launcher.go:1737` |
-| `ownership-conflict` | The exact run name is not established absent before creation; a conflicting resource is not removed. | `internal/postmergehost/launcher.go:1629` |
-| `retention-incomplete` | A required original fact or output cannot be retained completely. | `internal/postmergehost/launcher.go:1597` |
-| `retention-overflow` | The cumulative native-record retention reservation exceeds its bound. | `internal/postmergehost/launcher.go:1741` |
-| `shim-create-failed` | Creating the pinned shim execution fails or cannot be retained. | `internal/postmergehost/launcher.go:1677` |
-| `shim-identity-unobserved` | The returned shim execution identity cannot be decoded and pinned. | `internal/postmergehost/launcher.go:1684` |
-| `shim-stream-failed` | The private shim execution stream cannot start. | `internal/postmergehost/launcher.go:1689` |
-| `stream-incomplete` | Author stdout/stderr streaming ends with incomplete collection. | `internal/postmergehost/launcher.go:1789` |
+| `author-start-unobserved` | The controller cannot establish the actual author start/exit observation, including an author that retires before the process join. | `internal/postmergehost/launcher.go:1812@eed97e58` |
+| `author-timeout-or-supervisor-lost` | The author context deadline expires or its supervisor context is cancelled; this does not infer an author signal. | `internal/postmergehost/launcher.go:1834@dd501571` |
+| `barrier-disconnected` | The private execute barrier write fails. | `internal/postmergehost/launcher.go:1745@bf29b694` |
+| `boundary-unverified` | The actual ready container inspection does not match the pinned boundary. | `internal/postmergehost/launcher.go:1666@873ae632` |
+| `cleanup-unresolved` | Independent exact-owner cleanup cannot establish removal and absence. | `internal/postmergehost/launcher.go:1609@74cd4cfc` |
+| `control-invalid` | The control frame is unreadable or fails the closed wire/identity checks. | `internal/postmergehost/launcher.go:1723@2f0d5f09` |
+| `control-repeated-or-supervisor-lost` | A further control frame or lost supervisor appears during author execution. | `internal/postmergehost/launcher.go:1838@3bd18760` |
+| `control-timeout` | The ready launcher receives no control frame before its bounded timer expires. | `internal/postmergehost/launcher.go:1717@47cc3e7d` |
+| `create-ambiguous` | The engine create call or its retained transcript cannot establish an unambiguous result. | `internal/postmergehost/launcher.go:1640@f8c12f93` |
+| `environment-unobserved` | The complete actual hold/author execution-envelope observation is missing or fails the pinned comparison. | `internal/postmergehost/launcher.go:1694@b993928c` |
+| `exec-inspect-unresolved` | An original execution inspection before or after the process-top observation cannot be collected and checked. | `internal/postmergehost/launcher.go:1806@feade6ae` |
+| `hold-start-failed` | Starting the inert owned container fails or cannot be retained. | `internal/postmergehost/launcher.go:1661@125e77f5` |
+| `image-unverified` | The immutable image inspection fails or does not match the pinned image/config/environment. | `internal/postmergehost/launcher.go:1634@b6c1284d` |
+| `late-completion-unresolved` | After log completion, final inspection is unavailable or still reports a running execution. | `internal/postmergehost/launcher.go:1852@1a7e15c2` |
+| `native-control-unverified` | The original native control records do not satisfy the required host/state/preflight binding. | `internal/postmergehost/launcher.go:1737@0bfe5312` |
+| `ownership-conflict` | The exact run name is not established absent before creation; a conflicting resource is not removed. | `internal/postmergehost/launcher.go:1629@bcf1d2d4` |
+| `retention-incomplete` | A required original fact or output cannot be retained completely. | `internal/postmergehost/launcher.go:1597@5794fd25` |
+| `retention-overflow` | The cumulative native-record retention reservation exceeds its bound. | `internal/postmergehost/launcher.go:1741@3560927d` |
+| `shim-create-failed` | Creating the pinned shim execution fails or cannot be retained. | `internal/postmergehost/launcher.go:1677@6956122d` |
+| `shim-identity-unobserved` | The returned shim execution identity cannot be decoded and pinned. | `internal/postmergehost/launcher.go:1684@0b3d3464` |
+| `shim-stream-failed` | The private shim execution stream cannot start. | `internal/postmergehost/launcher.go:1689@a5c71a50` |
+| `stream-incomplete` | Author stdout/stderr streaming ends with incomplete collection. | `internal/postmergehost/launcher.go:1789@a955cf5c` |
 
 Transcript operation names identify retained raw controller facts rather than success assertions:
 
 | Transcript operation | Original fact | Source |
 |---|---|---|
-| `author-top` | Original controller process-top response used for actual author join attribution. | `internal/postmergehost/launcher.go:1819` |
-| `exec-create` | Original engine response that creates the pinned execution-envelope shim. | `internal/postmergehost/launcher.go:1676` |
-| `exec-final` | Original final execution inspection after log collection. | `internal/postmergehost/launcher.go:1851` |
-| `exec-inspect` | Original execution inspection before the actual process-top join. | `internal/postmergehost/launcher.go:1805` |
-| `exec-inspect-after-top` | Original execution inspection after the actual process-top join. | `internal/postmergehost/launcher.go:1824` |
-| `identity-conflict` | Cleanup inspection does not identify the exact owned resource; cleanup refuses removal. | `internal/postmergehost/launcher.go:1453` |
-| `image-inspect` | Original immutable image inspection response. | `internal/postmergehost/launcher.go:1633` |
-| `inspect-owned` | Original exact-owner inspection during independent cleanup. | `internal/postmergehost/launcher.go:1447` |
-| `prior-absence` | Original exact-run absence response before resource creation. | `internal/postmergehost/launcher.go:1628` |
-| `remove-owned` | Original delete response for the verified exact owned resource. | `internal/postmergehost/launcher.go:1466` |
-| `start-inert` | Original response that starts the inert owned container. | `internal/postmergehost/launcher.go:1660` |
+| `author-top` | Original controller process-top response used for actual author join attribution. | `internal/postmergehost/launcher.go:1819@f1ba7eb6` |
+| `exec-create` | Original engine response that creates the pinned execution-envelope shim. | `internal/postmergehost/launcher.go:1676@dc6da87a` |
+| `exec-final` | Original final execution inspection after log collection. | `internal/postmergehost/launcher.go:1851@e3ccc6a9` |
+| `exec-inspect` | Original execution inspection before the actual process-top join. | `internal/postmergehost/launcher.go:1805@1426267f` |
+| `exec-inspect-after-top` | Original execution inspection after the actual process-top join. | `internal/postmergehost/launcher.go:1824@caf5149b` |
+| `identity-conflict` | Cleanup inspection does not identify the exact owned resource; cleanup refuses removal. | `internal/postmergehost/launcher.go:1453@29d57a8e` |
+| `image-inspect` | Original immutable image inspection response. | `internal/postmergehost/launcher.go:1633@7d92363b` |
+| `inspect-owned` | Original exact-owner inspection during independent cleanup. | `internal/postmergehost/launcher.go:1447@ce70b0a1` |
+| `prior-absence` | Original exact-run absence response before resource creation. | `internal/postmergehost/launcher.go:1628@8a7f95da` |
+| `remove-owned` | Original delete response for the verified exact owned resource. | `internal/postmergehost/launcher.go:1466@d9da5110` |
+| `start-inert` | Original response that starts the inert owned container. | `internal/postmergehost/launcher.go:1660@3e700e2e` |
 
 ## Trust boundary
 
