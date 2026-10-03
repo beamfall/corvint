@@ -42,3 +42,9 @@ the actual failure, original source and historical proof artifacts.
 Corvint affected evidence retained scope `UNKNOWN`, 175 selected units and 31 unknowns for the
 original full source range. This repair uses the owner-scoped original six frozen checks plus the
 missing ownership gate; it does not claim equivalent coverage for the broader reader set.
+
+The accepted ownership contract `ECO-V0-006` also requires the owning row to cite the emitting
+`path:line`. Before final binding, the inventory gained only those 33 exact source sites from the
+verified immutable-source mapping. The earlier indexed GREEN remains bound to its original staged
+inputs; final-target checks must assess the complete cited inventory. No emitter or code meaning
+changed.
