@@ -26,6 +26,30 @@ type Record struct {
 	Raw    []byte
 }
 
+// HandoffPolicySelector names one current generation, never a renewed lease's
+// GrantedSeq. It requests internal structural evidence, not admission authority.
+type HandoffPolicySelector struct {
+	AttemptID            string
+	Generation           wire.Size
+	OriginalPolicySha256 wire.Digest
+	PoolID, MemberID     string
+}
+
+// HandoffPolicyHistory retains one original policy blob and bounded provenance.
+// Compatible covers every policy post from that blob through the audited head;
+// an incompatible intermediate revision remains incompatible after restoration.
+type HandoffPolicyHistory struct {
+	Selector                                      HandoffPolicySelector
+	OriginalPolicy                                Record
+	OriginalReceiptSha256                         wire.Digest
+	FirstAttemptSeq                               wire.Size
+	FirstAttemptSha256, FirstAttemptReceiptSha256 wire.Digest
+	FirstPolicySha256, FirstConfigSha256          wire.Digest
+	FirstCapabilitySha256, FirstAllocationSha256  wire.Digest
+	FinalPolicySha256                             wire.Digest
+	Compatible                                    bool
+}
+
 // Result claims only structural consistency and current projection agreement.
 // Even known record codecs do not validate historical acceptance decisions.
 type Result struct {
@@ -46,6 +70,7 @@ type Result struct {
 	// RequestDigests retains bounded metadata, not historical afterimage bytes.
 	// A writer reads the one requested projection under its change guard.
 	RequestDigests map[string]wire.Digest
+	HandoffPolicy  *HandoffPolicyHistory
 	// IntentError is populated only by AuditForWrite. Private consistency is
 	// still mandatory; stable intent divergence permits request replay only.
 	IntentError error
@@ -75,6 +100,7 @@ type Reader struct {
 	unpauseTickets  bool   // set only on a value copy by BarrierRemoval
 	writerCache     bool
 	intentOnly      bool
+	handoffPolicy   *HandoffPolicySelector
 }
 
 // AuditForWrite carries one verified snapshot through request lookup and
@@ -82,6 +108,26 @@ type Reader struct {
 // budget, and only digests for historical requests. It writes nothing.
 func (r Reader) AuditForWrite() (*Result, error) {
 	r.writerCache = true
+	return r.Audit()
+}
+
+// AuditForHandoff always completes one fresh full audit. It does not mutate a
+// cached writer Result or put selector-dependent evidence into the read cache.
+func (r Reader) AuditForHandoff(selector HandoffPolicySelector) (*Result, error) {
+	q, err := snapshot.AttemptQueue(selector.AttemptID)
+	if err != nil || q != r.QueueID {
+		return nil, wire.Errorf(wire.CodeMalformed, "handoff selector", "attempt queue differs")
+	}
+	if n, err := wire.ParseSize("handoff generation", string(selector.Generation)); err != nil || n.Uint64() == 0 {
+		return nil, wire.Errorf(wire.CodeMalformed, "handoff selector", "generation is missing or malformed")
+	}
+	if _, err := wire.ParseDigest("handoff policy", string(selector.OriginalPolicySha256)); err != nil {
+		return nil, err
+	}
+	if (selector.PoolID == "") != (selector.MemberID == "") {
+		return nil, wire.Errorf(wire.CodeMalformed, "handoff selector", "partial allocation")
+	}
+	r.writerCache, r.Checkpoint, r.handoffPolicy = true, nil, &selector
 	return r.Audit()
 }
 

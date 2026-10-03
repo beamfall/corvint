@@ -123,6 +123,26 @@ type Input struct {
 	Attempts    [][]byte
 	HeadReceipt []byte
 	LeaseFacts  LeaseFacts
+	// HandoffPolicy is optional structural history from the writer's additional
+	// full audit. It never changes persistent attempt identities or coverage.
+	HandoffPolicy *HandoffPolicyObservation
+}
+
+type HandoffPolicyObservation struct {
+	AttemptID                                        string
+	Generation, LastSeq                              wire.Size
+	HeadSha256, LastReceiptSha256, FinalPolicySha256 wire.Digest
+	PoolID, MemberID                                 string
+	OriginalPath                                     string
+	OriginalSeq                                      wire.Size
+	OriginalSha256, OriginalReceiptSha256            wire.Digest
+	OriginalRaw                                      []byte
+	FirstAttemptPath                                 string
+	FirstAttemptSeq                                  wire.Size
+	FirstAttemptSha256, FirstAttemptReceiptSha256    wire.Digest
+	FirstPolicySha256, FirstConfigSha256             wire.Digest
+	FirstCapabilitySha256, FirstAllocationSha256     wire.Digest
+	Compatible                                       bool
 }
 
 type Result struct {
