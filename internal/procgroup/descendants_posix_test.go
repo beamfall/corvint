@@ -4,9 +4,12 @@ package procgroup
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -86,7 +89,7 @@ func TestObservedDescendantCancellationReapsEscapedChild(t *testing.T) {
 func TestObservedDescendantIdentityReuseDoesNotExpandOwnership(t *testing.T) {
 	o := descendantObserver{known: map[int]ObservedProcess{12: {PID: 12, Start: "old"}}}
 	o.expand(map[int]ObservedProcess{12: {PID: 12, Start: "new"}, 13: {PID: 13, ParentPID: 12, Start: "child"}})
-	if len(o.known) != 1 {
+	if len(o.known) != 0 {
 		t.Fatal("PID reuse admitted an unrelated descendant")
 	}
 	rows, err := descendantSnapshot(t.Context())
@@ -234,4 +237,236 @@ func TestObservedDescendantSnapshotLossIsRetried(t *testing.T) {
 			t.Fatalf("unobserved run passed: %v %+v", err, report)
 		}
 	})
+}
+
+func TestV10689SnapshotParsing(t *testing.T) {
+	valid := "10 1 Sat Oct 3 16:00:00 2026 S\n"
+	for _, tc := range []struct {
+		name, data string
+		valid      bool
+	}{
+		{"Darwin", valid, true},
+		{"Linux zombie", "11 10 Sat Oct 3 16:00:00 2026 Z+\n", true},
+		{"duplicate same identity", valid + valid, false},
+		{"duplicate different identity", valid + "10 1 Sat Oct 3 16:00:01 2026 S\n", false},
+		{"malformed after valid", valid + "broken\n", false},
+		{"missing", "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rows, err := parseDescendantSnapshot([]byte(tc.data))
+			if tc.valid {
+				if err != nil || len(rows) != 1 {
+					t.Fatalf("valid table refused: %v", err)
+				}
+			} else if err == nil || rows != nil {
+				t.Fatal("partial or ambiguous table accepted")
+			}
+		})
+	}
+}
+
+// TestV10689CancellationHelper supplies explicit readiness and completed child
+// waits. The long child has a separate session; the sentinel is a sibling.
+func TestV10689CancellationHelper(t *testing.T) {
+	role := os.Getenv("CORVINT_V10689_ROLE")
+	if role == "" {
+		return
+	}
+	if role == "long" {
+		time.Sleep(30 * time.Second)
+		os.Exit(0)
+	}
+	if role == "short" {
+		rows, err := descendantSnapshot(context.Background())
+		if err != nil {
+			os.Exit(2)
+		}
+		if err := json.NewEncoder(os.Stdout).Encode(rows[os.Getpid()]); err != nil {
+			os.Exit(3)
+		}
+		_, _ = io.Copy(io.Discard, os.Stdin)
+		os.Exit(0)
+	}
+	dir := os.Getenv("CORVINT_V10689_DIR")
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer stop()
+	child := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestV10689CancellationHelper$")
+	child.Env = append(os.Environ(), "CORVINT_V10689_ROLE=long")
+	child.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if err := child.Start(); err != nil {
+		os.Exit(4)
+	}
+	joined := false
+	defer func() {
+		if !joined {
+			_ = child.Process.Kill()
+			_ = child.Wait()
+		}
+	}()
+	rows, err := descendantSnapshot(context.Background())
+	if err != nil {
+		return
+	}
+	owned, ok := rows[child.Process.Pid]
+	if !ok {
+		return
+	}
+	b, _ := json.Marshal(owned)
+	if os.WriteFile(filepath.Join(dir, "long.json"), b, 0600) != nil {
+		return
+	}
+	deadline := time.Now().Add(8 * time.Second)
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "observed")); err == nil {
+			break
+		}
+		if ctx.Err() != nil || time.Now().After(deadline) {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	var shorts []ObservedProcess
+	for n := 0; n < 4; n++ {
+		short := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestV10689CancellationHelper$")
+		short.Env = append(os.Environ(), "CORVINT_V10689_ROLE=short")
+		output, err := short.StdoutPipe()
+		if err != nil {
+			return
+		}
+		input, err := short.StdinPipe()
+		if err != nil {
+			return
+		}
+		if err := short.Start(); err != nil {
+			return
+		}
+		var acknowledged ObservedProcess
+		decodeErr := json.NewDecoder(output).Decode(&acknowledged)
+		_ = input.Close()
+		waitErr := short.Wait()
+		if decodeErr != nil || waitErr != nil {
+			return
+		}
+		shorts = append(shorts, acknowledged)
+	}
+	b, _ = json.Marshal(shorts)
+	if os.WriteFile(filepath.Join(dir, "shorts-joined.json"), b, 0600) != nil {
+		return
+	}
+	_ = child.Wait()
+	joined = true
+	_ = os.WriteFile(filepath.Join(dir, "long-joined"), []byte("joined\n"), 0600)
+}
+
+func TestV10689BoundedCancellation(t *testing.T) {
+	ctx, cancel := signal.NotifyContext(t.Context(), syscall.SIGTERM, syscall.SIGINT)
+	defer cancel()
+	dir := t.TempDir()
+	sentinel := exec.Command("/bin/sleep", "30")
+	if err := sentinel.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = sentinel.Process.Kill(); _ = sentinel.Wait() }()
+	rows, err := descendantSnapshot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sentinelID, ok := rows[sentinel.Process.Pid]
+	if !ok {
+		t.Fatal("sentinel identity unavailable")
+	}
+	root := exec.Command(os.Args[0], "-test.run=^TestV10689CancellationHelper$")
+	root.Env = append(os.Environ(), "CORVINT_V10689_ROLE=parent", "CORVINT_V10689_DIR="+dir)
+	if err := root.Start(); err != nil {
+		t.Fatal(err)
+	}
+	rootJoined := false
+	var observer *descendantObserver
+	defer func() {
+		if observer != nil {
+			_, _ = observer.finish()
+		}
+		if !rootJoined {
+			_ = root.Process.Signal(syscall.SIGTERM)
+			_ = root.Wait()
+		}
+	}()
+	waitFile := func(name string) []byte {
+		t.Helper()
+		deadline := time.Now().Add(8 * time.Second)
+		for time.Now().Before(deadline) && ctx.Err() == nil {
+			b, e := os.ReadFile(filepath.Join(dir, name))
+			if e == nil && json.Valid(b) {
+				return b
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		t.Fatalf("bounded readiness failed: %s", name)
+		return nil
+	}
+	var child ObservedProcess
+	if err := json.Unmarshal(waitFile("long.json"), &child); err != nil {
+		t.Fatal(err)
+	}
+	pgid, err := syscall.Getpgid(child.PID)
+	if err != nil || pgid != child.PID {
+		t.Fatalf("child session not independent: %d %v", pgid, err)
+	}
+	observer, err = startDescendantObserver(root.Process.Pid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	acknowledged := false
+	for time.Now().Before(deadline) && ctx.Err() == nil {
+		observer.mu.Lock()
+		owned, exists := observer.known[child.PID]
+		observer.mu.Unlock()
+		if exists && owned.Start == child.Start {
+			acknowledged = true
+			break
+		}
+		time.Sleep(descendantInterval)
+	}
+	if !acknowledged {
+		t.Fatal("observer did not acknowledge exact escaped child identity")
+	}
+	if err := os.WriteFile(filepath.Join(dir, "observed"), []byte("ack\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var shorts []ObservedProcess
+	if err := json.Unmarshal(waitFile("shorts-joined.json"), &shorts); err != nil || len(shorts) != 4 {
+		t.Fatalf("short child joins missing: %v", err)
+	}
+	// Cancellation starts final observation/cleanup after exact identity readiness.
+	cancel()
+	report, err := observer.finish()
+	observer = nil
+	if err != nil || !report.Absent {
+		t.Fatalf("cancelled observer cleanup failed: %v %+v", err, report)
+	}
+	if err := root.Wait(); err != nil {
+		rootJoined = true
+		t.Fatal(err)
+	}
+	rootJoined = true
+	if _, err := os.Stat(filepath.Join(dir, "long-joined")); err != nil {
+		t.Fatal("helper did not join escaped child")
+	}
+	rows, err = descendantSnapshot(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, owned := range append(shorts, child) {
+		if current, exists := rows[owned.PID]; exists && current.Start == owned.Start {
+			t.Fatalf("joined child still present: %+v", current)
+		}
+	}
+	if _, exists := rows[root.Process.Pid]; exists {
+		t.Fatal("joined root still present")
+	}
+	if current, exists := rows[sentinelID.PID]; !exists || current.Start != sentinelID.Start || strings.HasPrefix(current.State, "Z") {
+		t.Fatal("unrelated sentinel changed")
+	}
+	t.Logf("owned root=%d escaped=%+v shortJoined=%+v sentinel=%+v preserved; all owned waits completed", root.Process.Pid, child, shorts, sentinelID)
 }
