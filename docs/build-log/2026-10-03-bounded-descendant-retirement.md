@@ -53,6 +53,23 @@ commit, independent source review and the seven frozen post-commit checks/final 
 pending. No production delivery or native completion is claimed. V1-0691's suspected stderr
 resource risk remains separate, runtime NOT_RUN, and is not a prerequisite.
 
+## Independent source review repair
+
+Review of1c8ae48c found no production correctness issue and one fixture lifecycle concern:
+background snapshots and an unbounded helper wait could defeat startup-failure cleanup.
+Repair cycle1 adds explicit snapshot deadlines, helper cancellation propagation and a single
+bounded waiter with kill/join fallback. Deterministic blocked-snapshot timeout and SIGTERM cases
+pass, joining the separate-session child and helper in1.04s and0.04s respectively. The normal
+cancellation/sentinel case also passes; independent host readback confirms all acknowledged
+identities/groups absent. This is a controlled surrogate, not reproduction of an OS ps hang.
+
+All seven selected checks passed at1c8ae48c. This fixture/build-log commit invalidates that
+head binding; fresh selected checks and the same reviewer's narrow re-review remain required.
+The old initial uncited CEM and raw results are preserved as superseded evidence. Native scope
+was corrected from33 to35 resources by ordinary return/reclaim to declare both aliases of the
+wrappers' shared Go cache (V1-0693). Prior baseline cache-write attribution remains unknown;
+the correction does not retroactively establish containment. No wrapper source was changed.
+
 ## Limits and rollback
 
 The observer remains bounded sampling, not atomic kernel identity or full process containment.

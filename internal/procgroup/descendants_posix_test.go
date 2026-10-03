@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -265,6 +266,45 @@ func TestV10689SnapshotParsing(t *testing.T) {
 	}
 }
 
+// v10689Snapshot gives every fixture scan the same explicit bound as the
+// production observer, including scans before readiness and after cancellation.
+func v10689Snapshot(parent context.Context) (map[int]ObservedProcess, error) {
+	ctx, cancel := context.WithTimeout(parent, descendantSnapshotTimeout)
+	defer cancel()
+	// A deterministic blocked-snapshot surrogate exercises timeout and signal
+	// teardown without relying on an operating-system ps hang.
+	if os.Getenv("CORVINT_V10689_BLOCK_SNAPSHOT") == "1" {
+		if err := os.WriteFile(filepath.Join(os.Getenv("CORVINT_V10689_DIR"), "snapshot-blocked"), []byte("ready\n"), 0600); err != nil {
+			return nil, err
+		}
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	return descendantSnapshot(ctx)
+}
+
+// v10689Wait always has one waiter. os.Process.Kill synchronizes with Wait's
+// process state; this never sends a raw PID/PGID signal after a completed wait.
+func v10689Wait(command *exec.Cmd, grace time.Duration) error {
+	done := make(chan error, 1)
+	go func() { done <- command.Wait() }()
+	timer := time.NewTimer(grace)
+	defer timer.Stop()
+	select {
+	case err := <-done:
+		return err
+	case <-timer.C:
+	}
+	killErr := command.Process.Kill()
+	timer.Reset(2 * time.Second)
+	select {
+	case err := <-done:
+		return errors.Join(errors.New("fixture wait exceeded grace; forced child joined"), killErr, err)
+	case <-timer.C:
+		return errors.Join(errors.New("fixture child wait unresolved after forced termination"), killErr)
+	}
+}
+
 // TestV10689CancellationHelper supplies explicit readiness and completed child
 // waits. The long child has a separate session; the sentinel is a sibling.
 func TestV10689CancellationHelper(t *testing.T) {
@@ -277,7 +317,7 @@ func TestV10689CancellationHelper(t *testing.T) {
 		os.Exit(0)
 	}
 	if role == "short" {
-		rows, err := descendantSnapshot(context.Background())
+		rows, err := v10689Snapshot(context.Background())
 		if err != nil {
 			os.Exit(2)
 		}
@@ -288,7 +328,9 @@ func TestV10689CancellationHelper(t *testing.T) {
 		os.Exit(0)
 	}
 	dir := os.Getenv("CORVINT_V10689_DIR")
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	lifetime, end := context.WithTimeout(context.Background(), 20*time.Second)
+	defer end()
+	ctx, stop := signal.NotifyContext(lifetime, syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 	child := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestV10689CancellationHelper$")
 	child.Env = append(os.Environ(), "CORVINT_V10689_ROLE=long")
@@ -300,10 +342,22 @@ func TestV10689CancellationHelper(t *testing.T) {
 	defer func() {
 		if !joined {
 			_ = child.Process.Kill()
-			_ = child.Wait()
+			waitErr := v10689Wait(child, 2*time.Second)
+			if waitErr != nil {
+				if _, ok := waitErr.(*exec.ExitError); !ok {
+					t.Error(waitErr)
+					return
+				}
+			}
+			if err := os.WriteFile(filepath.Join(dir, "long-joined"), []byte("joined\n"), 0600); err != nil {
+				t.Error(err)
+			}
 		}
 	}()
-	rows, err := descendantSnapshot(context.Background())
+	if err := os.WriteFile(filepath.Join(dir, "long-started.json"), []byte(strconv.Itoa(child.Process.Pid)), 0600); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := v10689Snapshot(ctx)
 	if err != nil {
 		return
 	}
@@ -343,7 +397,7 @@ func TestV10689CancellationHelper(t *testing.T) {
 		var acknowledged ObservedProcess
 		decodeErr := json.NewDecoder(output).Decode(&acknowledged)
 		_ = input.Close()
-		waitErr := short.Wait()
+		waitErr := v10689Wait(short, 2*time.Second)
 		if decodeErr != nil || waitErr != nil {
 			return
 		}
@@ -353,8 +407,14 @@ func TestV10689CancellationHelper(t *testing.T) {
 	if os.WriteFile(filepath.Join(dir, "shorts-joined.json"), b, 0600) != nil {
 		return
 	}
-	_ = child.Wait()
+	waitErr := v10689Wait(child, 20*time.Second)
 	joined = true
+	if waitErr != nil {
+		if _, ok := waitErr.(*exec.ExitError); !ok {
+			t.Error(waitErr)
+			return
+		}
+	}
 	_ = os.WriteFile(filepath.Join(dir, "long-joined"), []byte("joined\n"), 0600)
 }
 
@@ -366,8 +426,15 @@ func TestV10689BoundedCancellation(t *testing.T) {
 	if err := sentinel.Start(); err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = sentinel.Process.Kill(); _ = sentinel.Wait() }()
-	rows, err := descendantSnapshot(ctx)
+	defer func() {
+		_ = sentinel.Process.Kill()
+		if err := v10689Wait(sentinel, 2*time.Second); err != nil {
+			if _, ok := err.(*exec.ExitError); !ok {
+				t.Error(err)
+			}
+		}
+	}()
+	rows, err := v10689Snapshot(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -388,7 +455,11 @@ func TestV10689BoundedCancellation(t *testing.T) {
 		}
 		if !rootJoined {
 			_ = root.Process.Signal(syscall.SIGTERM)
-			_ = root.Wait()
+			if err := v10689Wait(root, 2*time.Second); err != nil {
+				if _, ok := err.(*exec.ExitError); !ok {
+					t.Error(err)
+				}
+			}
 		}
 	}()
 	waitFile := func(name string) []byte {
@@ -438,6 +509,13 @@ func TestV10689BoundedCancellation(t *testing.T) {
 	if err := json.Unmarshal(waitFile("shorts-joined.json"), &shorts); err != nil || len(shorts) != 4 {
 		t.Fatalf("short child joins missing: %v", err)
 	}
+	rows, err = v10689Snapshot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current, present := rows[child.PID]; !present || current.Start != child.Start || strings.HasPrefix(current.State, "Z") {
+		t.Fatal("escaped child exited before cancellation")
+	}
 	// Cancellation starts final observation/cleanup after exact identity readiness.
 	cancel()
 	report, err := observer.finish()
@@ -445,7 +523,7 @@ func TestV10689BoundedCancellation(t *testing.T) {
 	if err != nil || !report.Absent {
 		t.Fatalf("cancelled observer cleanup failed: %v %+v", err, report)
 	}
-	if err := root.Wait(); err != nil {
+	if err := v10689Wait(root, 2*time.Second); err != nil {
 		rootJoined = true
 		t.Fatal(err)
 	}
@@ -453,7 +531,7 @@ func TestV10689BoundedCancellation(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, "long-joined")); err != nil {
 		t.Fatal("helper did not join escaped child")
 	}
-	rows, err = descendantSnapshot(context.Background())
+	rows, err = v10689Snapshot(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -469,4 +547,76 @@ func TestV10689BoundedCancellation(t *testing.T) {
 		t.Fatal("unrelated sentinel changed")
 	}
 	t.Logf("owned root=%d escaped=%+v shortJoined=%+v sentinel=%+v preserved; all owned waits completed", root.Process.Pid, child, shorts, sentinelID)
+}
+
+func TestV10689BlockedStartupJoins(t *testing.T) {
+	for _, interrupt := range []bool{false, true} {
+		t.Run(fmt.Sprint("signal=", interrupt), func(t *testing.T) {
+			dir := t.TempDir()
+			root := exec.Command(os.Args[0], "-test.run=^TestV10689CancellationHelper$")
+			root.Env = append(os.Environ(), "CORVINT_V10689_ROLE=parent", "CORVINT_V10689_DIR="+dir, "CORVINT_V10689_BLOCK_SNAPSHOT=1")
+			if err := root.Start(); err != nil {
+				t.Fatal(err)
+			}
+			joined := false
+			defer func() {
+				if !joined {
+					_ = root.Process.Signal(syscall.SIGTERM)
+					if err := v10689Wait(root, 2*time.Second); err != nil {
+						if _, ok := err.(*exec.ExitError); !ok {
+							t.Error(err)
+						}
+					}
+				}
+			}()
+			began := time.Now()
+			deadline := began.Add(3 * time.Second)
+			ready := false
+			for time.Now().Before(deadline) {
+				if _, err := os.Stat(filepath.Join(dir, "snapshot-blocked")); err == nil {
+					ready = true
+					break
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			if !ready {
+				t.Fatal("blocked-snapshot fixture never acknowledged startup")
+			}
+			b, err := os.ReadFile(filepath.Join(dir, "long-started.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			childPID, err := strconv.Atoi(string(b))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if interrupt {
+				if err := root.Process.Signal(syscall.SIGTERM); err != nil {
+					t.Fatal(err)
+				}
+			}
+			err = v10689Wait(root, 3*time.Second)
+			joined = true
+			if err != nil {
+				t.Fatal(err)
+			}
+			if time.Since(began) > 4*time.Second {
+				t.Fatal("startup failure cleanup exceeded its bound")
+			}
+			if _, err := os.Stat(filepath.Join(dir, "long-joined")); err != nil {
+				t.Fatal("escaped child was not joined during startup failure")
+			}
+			rows, err := v10689Snapshot(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, present := rows[childPID]; present {
+				t.Fatal("escaped child remains after failed startup")
+			}
+			if _, present := rows[root.Process.Pid]; present {
+				t.Fatal("helper remains after failed startup")
+			}
+			t.Logf("blocked startup signal=%v root=%d escaped=%d both joined and absent", interrupt, root.Process.Pid, childPID)
+		})
+	}
 }
