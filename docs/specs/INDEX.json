@@ -2119,6 +2119,24 @@
     ]
   },
   {
+    "path": "docs/specs/postmerge-runtime-v1.md",
+    "title": "Post-merge Runtime V1",
+    "reqPrefix": "PMR-V1",
+    "intent": "proposed",
+    "delivery": "not-started",
+    "claim": "Explicit /1 binds actual native stage observations and refuses missing evidence; /0 remains unchanged.",
+    "dependsOn": [
+      "docs/specs/postmerge-connectors-v0.md",
+      "docs/specs/postmerge-replay-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/postmergeworkflow",
+      "cmd/corvint-postmerge-workflow"
+    ]
+  },
+  {
     "path": "docs/specs/postmerge-metrics-v0.md",
     "title": "Post-merge metrics V0",
     "reqPrefix": "PMM-V0",
