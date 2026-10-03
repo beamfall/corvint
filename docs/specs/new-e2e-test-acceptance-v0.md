@@ -151,3 +151,28 @@ only kills. No actual /1 mixed/flaky order/isolation witness has been retained. 
 existing requested capabilities needs a separately admitted parent slice, without a third freshness
 reader repair, a new wire shape or broad tuple promotion. The fixed rendered body and per-test order
 attachment already exist; their new-profile negative consuming paths still need actual witnesses.
+
+### Bounded descendant witnesses (NEA-V0-006/007)
+
+The observer retains at most 4096 resident PID/start identities including its immutable root
+anchor. Still-visible zombies retain ancestry and deduplication slots but are not live cleanup
+targets. Only a successful bounded, wholly parsed snapshot showing absence or a different start
+retires a resident identity. Failed, incomplete, overflowed, malformed or duplicate-PID snapshots
+cannot justify retirement. Matching owned descendants remain tracked after reparenting; a reused
+PID gains no ownership without a current exact matching owned parent. Removal of an old identity
+precedes capacity checks for an independently admitted replacement.
+
+Cleanup considers all owned unresolved identities independently of displayed evidence.
+`Processes` retains at most 4095 descendant witness rows, deterministically prioritizing unresolved
+identities, then other resident identities, then historical witnesses. It is not an exhaustive
+historical process list. Fixed limitations disclose omitted witnesses and any failure-related
+omissions; omission never makes unresolved cleanup or resident overflow count as absence.
+The existing fields, `Scope`, 4 MiB snapshot stdout bound, PID/start representation, transient
+snapshot/signal recovery semantics and observation limitations remain unchanged. The aggregate
+16 MiB report limit still refuses over-limit reports; a per-observer row bound does not promise
+that every maximum-sized aggregate fits.
+
+Source and focused evidence for this repair are recorded in the build-log entry for V1-0689.
+The original N32 result remains unqualified, and `provider-validity-incomplete` remains a separate
+blocker. This observer repair neither retroactively qualifies that run nor authorizes another
+campaign.
