@@ -71,3 +71,8 @@ Rollback stops new opt-in use while retaining the metadata and original receipt 
 compatible reader. Never strip witness/attestation history, silently downgrade to an old reader,
 or overwrite a successor. Issue 479 remains OPEN until its final integration and native
 submit/gate/complete/readback/audit succeed.
+
+The first frozen spec-index check at `4fb8c1d5` failed because the compact catalog delivery
+summary did not exactly match the owning spec header/digest. Both catalog entries were
+restored to the full owning delivery text; no production code or intent changed. This invalidates
+the first binding and requires a fresh CEM binding and all six selected checks again.
