@@ -871,6 +871,62 @@ cost is proportional to the intent tree and the number of retained paths (includ
 deletions), not to the number of receipts. See
 `docs/build-log/2026-10-01-tasks-read-checkpoint.md`.
 
+### S14 — Explicit command progress (issue 468)
+
+Human-owned input: [issue 468](https://github.com/beamfall/corvint/issues/468) requests
+a bounded explicit command token independent of role matching. This is a proposed
+technical contract. The original scoped source has separate reviewed and sealed
+evidence; this intent-only seed makes no current-main integration, Linux, installed
+runtime, native completion or new delivery claim. CAL-V0-062/063 remain reserved.
+
+- `CAL-V0-064`: A command work-state reader MAY return a legacy state string or a closed object
+  with required string `state` and optional string `progress` per ticket. State retains CAL-V0-053's
+  bounds and is the only role-matching value. The optional progress token is byte-opaque printable
+  UTF-8, at most 128 bytes. Missing or empty progress makes no additional claim. Full ticket ID takes
+  precedence over local name, including an empty full-ID state normalized to `NONE`; state and token
+  MUST come from the same selected value. Ordinary JSON whitespace, key order and valid escapes
+  remain compatible. Duplicate ticket/member keys, unknown object members, null or non-string
+  values, invalid UTF-8, lone surrogate escapes and trailing JSON MUST fail as ordinary reader
+  errors; valid surrogate pairs are retained. Unknown-ticket tokens never consume history.
+  The dispatcher retains only SHA-256 digests in private per-ticket history. First valid token seeds
+  a baseline without credit. A never-observed digest advances once; a current duplicate, observed
+  A-to-B-to-A replay or missing token keeps the last accepted digest. UNKNOWN, read failure and
+  cancellation before admission change no token history. This is a producer assertion, not artifact
+  authentication: an unseen old assertion cannot be recognized as stale.
+  History is bounded to 256 lifetime distinct digests per key and 8,192 per program, including first
+  seeds and deleted/completed keys. New slots are allocated in canonical full-ticket-ID byte order.
+  At either cap, retain history, admit no new token, emit a bounded needs-owner diagnostic, and keep
+  ordinary cooldown/parking. No eviction, reset or operator-unpark capacity restoration is allowed.
+  The one checked admission barrier uses the final successful observation after supervision/heal
+  and re-observation, before accounting/unpark/state publication/launch. It stages cloned history,
+  legacy first-seed baselines and token-dependent accounting, checks the outer context, and MUST
+  save atomically before publishing or granting effects. Save failure discards staging and returns
+  an explicit tick error; Close/deferred saves MUST NOT persist failed staging or overwrite successful
+  admission with a captured old ledger. A token grant for an ended worker commits its removal and
+  backoff deletion together; a parked-key grant commits its backoff deletion with consumption.
+  Active-worker credit remains pending relative to its launch digest. A token-enabled ended worker
+  with pending credit and UNKNOWN latest state retains worker/backoff accounting, with a bounded
+  alert, until a healthy observation grants once. Tokenless behavior remains CAL-V0-057. Cancellation
+  after commit retains completed facts and stops downstream work at the next checkpoint; no
+  whole-tick rollback is promised. Strict ledger loading validates full ticket keys, digest grammar,
+  sorted uniqueness, current membership, both caps and worker/backoff baseline-history consistency.
+  Any case-folded root progress member enables strict validation before struct decoding. Token-enabled
+  ledgers reject duplicate members and aliases of canonical static schema fields; dynamic ticket and
+  observation-map keys retain their case-sensitive identities. Programs admitting no tokens omit
+  optional fields, preserve legacy field matching, and retain legacy fingerprints/member shape.
+
+
+Failure modes: producer tokens do not verify work, lifetime exhaustion can eventually permit parking,
+and atomic rename gives process-restart visibility, not power-loss durability or exact event delivery.
+Non-goals: native handoff/evidence wire changes, evidence fetching, progressPaths, changed role rules,
+automatic migration, indefinite retention capacity or fixing all legacy ledger I/O failures.
+Rollback preserves the current ledger and uses backups only as evidence. An older reader refusing new
+members is a valid fail-closed downgrade; never restore an older snapshot, strip history or reset it.
+Final integration acceptance requires fresh parser/role/token/replay/restart/capacity/checked-save
+and cancellation witnesses on the actual composed target, the original four check argv,
+scoped registry checks, CEM/OCM, independent composition inspection, public integration
+and supported native completion. No current-main integration evidence is produced by this seed.
+
 ### S15 — Explicit pool member exclusions (issue 480)
 
 Human-owned input: [issue 480](https://github.com/beamfall/corvint/issues/480) permits
