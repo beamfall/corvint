@@ -48,12 +48,13 @@ func commandHelp(args []string) *wire.Result {
 		o.Set("note", wire.String("Help is available; execution remains NOT_RUN. No execution flags are implemented."))
 	}
 	if name == "release" {
+		o.Set("laneUntouched", wire.String("--lane-untouched --evidence LOCAL_REF records an OWNER/OPERATOR attestation: no physical lane access, no lane commands, no physical capability/resource issued or retained, and responsibility for safe reuse. Requires a fresh direct no-health pooled RUNNING generation, exact current policy/config/acceptance and no tracked use, renewal or native Program association. Physical facts and actor authentication remain NOT_OBSERVED; private Dispatcher is not scanned. Only this eligible explicit profile frees its exact occupancy without configured cleanup; ordinary release/handoff retains quarantine. HANDOFF/REVIEW_RETURNED accounting remains independently required; no retry refund is granted."))
 		o.Set("reasonCodes", wire.Strings(wire.Codes))
 		o.Set("handoffPreconditions", wire.Strings([]string{
 			"HANDOFF requires an external-agent implement, review or integrate stage; REVIEW_RETURNED requires review.",
 			"The generation and unexpired lease must match, acceptance must be unchanged, policy must be unchanged or proven compatible, and prospective retry accounting must have no recorded failure or unknown gate.",
 			"Without --evidence: submit a candidate first; phase BUILT or CHECKING, scope WITHIN and no pending effects are required.",
-			"With --evidence: RUNNING with no candidate, no gate results, scope UNKNOWN and no pending effects; reference uses Identifier grammar (1..128 bytes). Evidence is forbidden for other reasons and candidate handoffs.",
+			"With --evidence: RUNNING with no candidate, no gate results, scope UNKNOWN and no pending effects; reference uses Identifier grammar (1..128 bytes). Evidence is forbidden for other reasons unless --lane-untouched is supplied, and is forbidden for candidate handoffs.",
 			"Relevant or unproved policy changes fence handoffs with STALE_POLICY. Only policyVersion and other members' reservations in the allocated pool may differ across a fully audited interval. Failed/unknown gates remain sticky; no historical refund.",
 			"A reference is inert caller evidence, not proof of work or physical cleanup. Release removes the reservation and quarantines an allocated pool; it does not grant completion, review or integration authority.",
 		}))
@@ -114,7 +115,7 @@ var commandUsage = map[string]string{
 	"release readiness": "corvint-tasks release readiness RELEASE",
 	"claim":             "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--role ROLE]",
 	"renew":             "corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N] [--role ROLE]",
-	"release":           "corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--evidence LOCAL_REF] [--role ROLE]; release <create|update|candidate|record-gate|promote|list|show|readiness> --help",
+	"release":           "corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--evidence LOCAL_REF] [--lane-untouched] [--role ROLE]; release <create|update|candidate|record-gate|promote|list|show|readiness> --help",
 	"reap":              "corvint-tasks reap --request-id ID [--attempt ID --generation G] [--role ROLE]",
 	"widen":             "corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository) [--role ROLE]",
 	"attempt heartbeat": "corvint-tasks attempt heartbeat --attempt ID --generation G --request-id ID [--role ROLE]",

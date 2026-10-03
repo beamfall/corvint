@@ -158,6 +158,11 @@ func (c leaseContext) poolPosts(a *snapshot.Attempt, posts map[string][]byte) er
 			state.Entries[i].ObservationSha256 = &d
 			posts["evidence/"+string(d)] = c.in.LeaseFacts.Pool.Observation
 		}
+		// Only the fresh validated explicit release may omit this occupancy.
+		if !a.Live() && c.l.Verb == LeaseRelease && c.l.LaneUntouched && a.LaneUntouchedAttestation != nil {
+			state.Entries = append(state.Entries[:i], state.Entries[i+1:]...)
+			break
+		}
 		if !a.Live() {
 			state.Entries[i].State = "QUARANTINED"
 			state.Entries[i].ChangedSeq = c.seq
