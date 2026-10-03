@@ -9,9 +9,9 @@ Authoritative inputs: human request https://github.com/beamfall/corvint/issues/3
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; `AGENTS.md`.
 
 ## Agent digest
-- Claim: Reference GitHub Actions templates and a host adapter contract run the post-merge workflow with per-step credentials and no write credential in authoring.
-- Status: proposed/experimental; declared-YAML audit only. No template has run on a hosted runner.
-- Exists: `protocol/postmerge-host` (graph, templates, installer, adapter contract); `internal/postmergehost` (graph validator, YAML-subset parser, audit) and its tests.
+- Claim: Reference CI templates define per-step credentials and author/trusted job separation; paired launcher contract only; hosted replay remains unqualified.
+- Status: proposed/experimental; declared-YAML audit only. Paired candidate technical contract defined; launcher and hosted replay qualification remain pending.
+- Exists: `protocol/postmerge-host` (graph, templates, installer, adapter contract); `internal/postmergehost` (graph validator, YAML-subset parser, audit) and its tests. The optional paired launcher/shim is specified below and remains unimplemented at intent seed.
 - Blocked on: the merge replay set (#395), a hosted dry-run of that set, `corvint delta` (#389), owner acceptance and native completion.
 - Read next: Requirements; Trust boundary; Acceptance evidence.
 
@@ -119,6 +119,14 @@ Corvint stays a local binary. The templates are operator reference material, not
   - no view of organisation, runner or environment secrets, or the implicit runtime token;
   - same-VM attestation is not confinement;
   - no hosted run.
+
+- `PCH-V0-009`: An optional operator-owned launcher accepts only the exact final paired profile/request/control/event schemas, independent immutable admission pins, fixed author argv/cwd and canonical single output root. Reject unknown/duplicate/null/alias/hash/size/depth errors before execution. It adds no default Core command, daemon, automatic execution or live writer credential.
+- `PCH-V0-010`: Native Snapshot/Preflight/Verify observe the same canonical host product worktree and objects across author execution. Derive only the reviewed RO-root/RW-scope/RO-guard topology from the complete native declaration; mask Git administration, refuse sensitive aliases and all other overlapping mounts, and preserve every original native graph/unknown. Copy/digest substitution or inode normalization cannot discharge identity.
+- `PCH-V0-011`: A pinned fixed Linux internal shim from the same optional command clears and observes the complete effective author environment before readiness, waits behind the private execution barrier, then direct-execs the exact pinned author with those same bytes and closed control handles. Native Host.Environment derives from this actual author envelope, never image/hold/overrides. Host/controller implicit authority and unauthenticated native assertions remain explicit.
+- `PCH-V0-012`: Durable exact run ownership exists before engine create. Independent bounded cleanup handles EOF/INT/TERM/author timeout and late-create ambiguity, joins owned descendants and retains raw actual controller/client/shim/author exit attribution. SIGKILL requires supervisor reconciliation; uncertain creation/cleanup/survivors/incomplete facts remain HELD/BLOCKED. Never infer an author signal from 128+exit or client termination, reallocate an uncertain run, or globally prune.
+- `PCH-V0-013`: The selected Add fixture uses actual native intake/BuildAuthorInput, source-derived authored documentation and test, and the real same-object native verification. Fresh trusted validation runs the same authored test bytes against merged addition (PASS) and trusted subtraction control (FAIL). This candidate conformance is not historical labels, delta, accepted NEA proof, drafts, recording or full host replay.
+- `PCH-V0-014`: Candidate limits, actual immutable image/tool/source/shim/author pins, observed full image/hold/author environments, mounts/namespaces and lifecycle facts are retained for the exact executed tuple. The candidate has 16MiB private home/temp, not14GiB copied work. No generalized kernel/security/secret absence or filesystem quota claim follows. Hosted qualification preserves PCH-V0-003 separate fresh author-only/trusted jobs and uses a reviewed default-branch experimental scaffold before manual dispatch; full original dry-run replay and audit remain required for completion.
+
 
 ## Non-goals
 
@@ -232,3 +240,239 @@ requires all of the following:
 Rollback: delete the copied workflows from the operator repository, then revert the
 `protocol/postmerge-host` and `internal/postmergehost` commits. This adds no Core command, no
 installed binary and no store migration.
+
+## Paired optional-host candidate contract (PCH-V0-009..014)
+
+The owner-authorized experimental technical contract below carries the reviewed final paired wire.
+It preserves PCH-V0-001..008 and adds no default execution or host qualification. Candidate values
+and same-object topology here supersede earlier private14GiB/copy/no-root-bind proposals.
+
+## Selected primitive and fixture
+
+One #395 trusted supervisor retains ownership for the entire invocation. It decodes the actual
+native intake/declaration, starts a pinned #398 launcher, observes readiness, takes actual native
+Snapshot/Preflight on ONE host worktree, releases the approved author, joins/cleans it, then performs
+actual Verify on that SAME worktree. Raw facts/unknowns remain original. Fresh trusted validation
+independently reconstructs immutable product and admitted input, verifies the original complete
+scope/host graph and authored content, and runs the actual fixture test.
+
+The single selected executable-after-build fixture is paired-add-fixture/. #395's original Add
+case governs it. The reviewed Add fixture defines offline author/main.go and a negative subtraction control.
+It has not been built/executed. After source admission place/build
+the author under internal/postmergehost/testdata/paired-author so its native intake.Decode import
+uses the owning module. Fixture setup creates actual private Git base/merge objects from base/ and
+merged/, records their real OIDs and constructs the closed candidate at runtime. No placeholder
+OID or hand-labelled successful author-input file is accepted. Actual BuildAuthorInput produces
+all author input. tests_claimed=[] is truthful because the new test does not exist in either input
+commit; calc.go ADD is the verified source claim. Expected conformance outcomes stay outside author.
+
+Author reads admitted closed input and actual immutable calc.go, parses its Add signature/addition
+expression and generates docs/add.md plus tests/add_test.go, including Add(2,3)==5. It emits no
+verdict/connector artifact. Actual native scope/env observations must pass with ALL unknowns
+retained; merged-source go test must pass. The SAME actual authored test bytes against subtraction
+in a separate trusted control root must fail. This is author/scope/trusted-validation conformance,
+not historical labels, actual delta, raw-reader semantics, NEA accepted proof, drafts or recording.
+The earlier Normalize candidate is retained UNSELECTED and creates no second work request.
+
+## Shared exact types and bounds
+
+FileRef exact keys: path:string, sha256:string, bytes:integer. Host path is clean absolute <=512B,
+sha256 is exactly64 lowercase hex, byte count is nonnegative and matches an actual regular,
+non-symlink/single-link bounded snapshot. References never confer authority by themselves.
+Intake is <=1MiB and decoded by actual intake.Decode/BuildAuthorInput; native state/declaration/host
+records retain their existing exact native schemas, hashes and limits. This candidate wire is <=4MiB,
+depth<=64; at most32 raw references and16MiB retained conformance facts/log/output per case. Overflow,
+truncation, incomplete retention or uncertain cleanup returns BLOCKED; no success with partial bytes.
+Candidate fixture uses two preexisting native writable directory scopes and at most two new4KiB
+regular files. Limits do not claim a hard total-filesystem quota for arbitrary future authors.
+
+Profile exact top-level keys:
+
+    profile, mode, implementation, engine, image, admission, command, limits
+
+- profile = corvint-postmerge-author-host/0; mode = candidate-qualification for this slice.
+- implementation = {source_commit, source_tree, launcher_sha256, guest_shim_sha256}, real build pins
+  after build. Guest shim is the same optional launcher source built for Linux, a fixed internal
+  execution-envelope role, not a new adapter or public Core command.
+- engine = {context, client_sha256, server_version, platform}; existing explicit context, no startup
+  or context change. Platform=linux/amd64; actual host/kernel/controller facts are retained separately.
+- image = {manifest_digest, config_digest, environment, hold_environment}; digest-qualified image. environment is
+  the complete separately reviewed image-config key/value/class array (nonnull, classes NONE only).
+  Unknown/credential-bearing/image-derived extras block; it is not inferred from passed flags.
+  hold_environment is the separately pinned COMPLETE effective inert-process environment, including
+  any daemon-added public values; observe it before ready and require exact equality/NONE classes.
+  Set fixed hostname corvint-author; no unknown parent environment becomes implicitly safe.
+- admission = {product_base, product_merge, product_tree, declaration_sha256, admitted_input_sha256,
+  author_sha256}; independent #395 operator/run admission, never author- or fixture-selected.
+- command = {executable, argv, working_directory, environment}. working_directory is exactly
+  /product; executable is exactly /tools/author. argv is exactly
+  [/admitted/author-input.json,/product] for this fixture. environment is a nonnull ordered array
+  of {key,value,class}, exactly HOME=/private/home, TMPDIR=/private/tmp, PATH=/usr/local/go/bin:/usr/bin:/bin,
+  each class=NONE. This is the COMPLETE effective author process environment, not only override
+  arguments. No passed-through host/model/forge/tracker/Actions token, dynamic env or env-file.
+- limits = {cpus_nanos,memory_bytes,swap_bytes,pids,shm_bytes,private_tmpfs_bytes,
+  author_timeout_seconds,engine_timeout_seconds,cleanup_timeout_seconds,output_bytes}; proposed
+  candidate values2e9,8GiB,8GiB,256,1MiB,16MiB,30,30,60,16MiB, respectively.
+
+Exact allowed native declarations and source/input/tool identity are per-run independently pinned
+admission inputs. Ephemeral path/run/profile facts are retained EXACT; no new equality/normalization
+rule is added for future /1 connector recordings. Operational promotion and generalized author
+profiles require their own actual qualification; current mode does not imply either.
+
+Request exact top-level keys:
+
+    profile, run_id, operator_manifest, product, declaration, observer, admitted_input, author, exec_shim, output_root
+
+- profile = corvint-postmerge-author-request/0; run_id =32 lowercase hex generated by supervisor.
+  Native SessionID MUST be run_ + run_id, ObserverID observer_ + run_id, CapabilityID authoring
+  and Author.ID author. Validate actual native ASCII-letter-first grammar/length. Never pass a
+  digit-first hex ID unmodified into native records or relax the native decoder.
+- operator_manifest: FileRef to original independent #395 run configuration, never author-accessible.
+- product = {root,base,merge,tree}; actual canonical host root and independent full native Git pins.
+- declaration: FileRef to COMPLETE corvint-step-declaration/0. Decode with actual native decoder.
+  Its Author.Root MUST equal product.root, full pins must match admission/source, and its native
+  canonical declaration digest must equal profile.admission.declaration_sha256.
+- observer = {id,git_binary}; native ASCII observer ID and FileRef of pinned real host Git executable.
+- admitted_input, author: FileRefs, exact admission digests. Author is one approved compiled program.
+- exec_shim: FileRef of the actual Linux guest execution-envelope bytes, hash equal to independent
+  profile.implementation.guest_shim_sha256. It cannot select an author or change profile settings.
+- output_root: one fresh private operator-chosen path outside product, inputs/tools/Git admin/
+  observer authority and source. It MUST equal CLI --out after strict canonical parent resolution,
+  rejecting symlink/alternate spelling/alias; neither destination may already exist. Launcher creates
+  that ONE directory exclusively,0700, and its pending ownership record exclusively,0600. It stores
+  controller evidence and original native records, never mounted inside author. Launcher owns
+  engine/ownership/log subtrees; trusted supervisor writes actual native Host/Before/Preflight to
+  the reserved native/ subtree only after ready. Every RETAINED event/control FileRef must stay
+  within this exact evidence root; original approved input refs remain distinct external inputs
+  and any retained input copies use inputs/ here. No second unspecified evidence/ownership root.
+
+No request contains engine flags, mount options, arbitrary command/argv/env, narrower post-author
+scope, qualification boolean, accepted/verified verdict, source item, connector input or URL.
+All array/object members are required; duplicates, case aliases, unknown fields, null arrays,
+noninteger counts, malformed Unicode, path/hash/binding mismatch and aliasing fail closed.
+
+## Same objects and fixed mount derivation
+
+Derive topology ONLY from the pinned complete native declaration; do not accept a second mount list.
+For this fixture Author.Root -> /product is read-only. Its exact existing docs/ and tests/ directories
+are nested RW binds of Author.Root/docs and Author.Root/tests, not copies. docs/.keep and tests/.keep
+are native guards and nested RO bindings of their SAME host objects. calc.go/go.mod remain under
+RO product. All native admin paths, including actual git/common dirs and .git path, are masked or
+absent from guest view; actual host Git/admin files remain available only to native trusted observers.
+A source directory containing another sensitive alias is refused, not covered by a lexical mask.
+
+Mount admitted_input -> /admitted/author-input.json, author -> /tools/author and exec_shim ->
+/tools/exec-shim read-only, with exact original pinned bytes.
+Private home/tmp are fresh bounded guest tmpfs. No raw/labels/operator/observer/controller/output,
+runner home/temp, GitHub files, engine/API socket, devices or shared-writer mount exists.
+Only the intentional RO-root -> exact-RW-scope -> RO-guard nesting is allowed; every other overlap,
+symlink/hardlink/alias or guarded descendant bypass is refused. Preparation of fixture permissions
+happens before native Snapshot and is retained; the author never changes host directory ownership.
+
+Native before/after ALWAYS run against the SAME canonical host root and host objects. Docker logical
+paths/inodes are retained as mapping facts, never substituted for native host identities. No clone,
+collection of a tmpfs product, stripping identity hash or comparison across independent filesystems
+is used. New files in docs/tests become actual host files through those binds; original root/scope
+ancestor identity/mode and admin state must remain as native Verify requires. File operations and
+actual mount enforcement are qualified after build; this contract can be accepted before that proof.
+
+## Single owned launcher lifecycle and exact messages
+
+Proposed invocation:
+
+    corvint-postmerge-host-launcher --profile FILE --profile-sha256 SHA --request FILE --request-sha256 SHA --out FRESH_PRIVATE_DIR
+
+It remains alive under #395 supervisor ownership until execution/cleanup finishes; no detached
+handle or caller-owned native attempt is created. Write an exclusive pending ownership record BEFORE
+engine create, naming expected unique container name/label/run/profile/request and controller PID/start
+identity. No resource can be forgotten because create returned its CID late. Existence/conflict or
+uncertain prior resource blocks; no automatic identity retry or broad engine cleanup.
+
+Create/start ONLY this inert image-pinned hold process: Entrypoint=[/bin/sleep], Cmd=[infinity],
+WorkingDir=/, User=65532:65532. Inspect these exact predicates, actual requested manifest/config IDs,
+complete image Config.Env against profile.image.environment, no image volumes, NetworkMode=none,
+ReadonlyRootfs=true, Privileged=false, CapDrop=[ALL], CapAdd=[], only no-new-privileges security opt,
+private PID/IPC (never host/container-sharing), RestartPolicy=no, no ports/devices/API socket,
+exact profile resource limits and complete derived mount/tmpfs topology. Inspect raw facts remain
+retained. The existing PR-container sleep/infinity code is a design lead, not reused author proof.
+Image missing, configured mismatch, extra/unknown image env or incomplete enforcement facts blocks;
+image provisioning is an explicit qualification step after root admission, never a launcher pull.
+
+Before ready, start only the PINNED trusted guest execution-envelope shim, under the same approved
+UID, fixed /product working directory and an explicitly cleared environment. The shim observes its
+COMPLETE actual os.Environ key/value-hash list before any author exists; compare exact names/value
+hashes to complete profile.command.environment and native declaration classes. No unseen/image
+derived/additional key may become observed NONE by inference. Unknown or incomplete observation
+blocks. The original raw observation contains names/digests only, no unknown credential value.
+The shim waits on a private supervisor barrier and executes no author until execute control.
+On release it replaces its own process image with the single pinned author via direct exec, passing
+EXACTLY that observed environment/argv and closing barrier/input/inherited control descriptors
+(author stdin=/dev/null). This preserves the observed execution envelope; subsequent author logs
+are raw logs and cannot be reparsed as environment-ready/authority frames. Actual runtime enforcement
+proof and negative injected-image-env/extra-effective-env controls follow the build. Image hold-env
+is separately actually observed and must equal profile.image.hold_environment with no unknown/
+credential class because it may be guest-readable; neither Config.Env nor override args stand in
+for that observation.
+
+Event exact top-level keys:
+
+    profile, event, run_id, request_sha256, profile_sha256, container_id, facts, author_exit, cleanup, reasons
+
+profile=corvint-postmerge-host-event/0; event=ready|finished|held. container_id is actual full engine
+ID or null if unproduced. facts is a nonnull ordered array of {kind,record}, record=FileRef and
+kind=create|inspect-ready|hold-environment-ready|environment-ready|exec|inspect-exit|cleanup|ownership. Each original preimage stays retained.
+author_exit=null before confirmed actual author execution. Otherwise exact fields {code,signal,
+timed_out}: code is null or integer0..255, signal is null or an actually observed OS signal name,
+timed_out is boolean from the author supervisor clock. Unknown status stays null with explicit
+reason/held result; never infer a signal from an encoded128+ exit or a client kill. Engine-client/
+controller/guest-shim exits belong in separately attributed raw facts (process_kind and exact
+PID/exec identity), not author_exit. Controller exit is observed by #395 after joining it, not
+predicted by the launcher before it exits. cleanup=NOT_RUN|REMOVED|HELD; reasons is a nonnull
+array of fixed codes. No event says native stage observed/verified/accepted or grants qualification.
+ready requires complete checked actual configured boundary but author_exit=null/cleanup=NOT_RUN.
+finished requires actual execution/join plus exact resource removal observations; unresolved facts
+produce held/BLOCKED. Native Host assertions/unknowns are not overwritten by these event names.
+
+On ready, #395 derives the COMPLETE existing native Host from the original observed/configured
+boundary and real Git pin. Host.Environment MUST come from the actual environment-ready AUTHOR
+execution-envelope observation; never from the separately observed inert/image environment or
+only supplied overrides. Preserve missing observation as NULL (unobserved), never observed[],
+and block this positive fixture when the author envelope is incomplete. Retain all native
+unauthenticated/external/transient/concurrency/admin limits. Actual Snapshot and Preflight then run.
+Supervisor sends one control frame over private stdin; that channel is never inherited by author.
+Control exact keys: profile,operation,run_id,request_sha256,profile_sha256,host,before,preflight,reason.
+profile=corvint-postmerge-host-control/0; operation=execute|cancel. Execute uses FileRefs to the actual
+full native Host/State/Preflight originals and reason=null; cancel uses those refs=null and one
+fixed reason. Control profile_sha256 MUST equal the exact CLI-pinned profile digest and the independently
+verified operator-manifest binding; run/request identities must also agree. Ref digests/native
+binding must agree; no author-supplied accepted flag or reduced
+scope is admitted. Repeated/out-of-order/stale control blocks. EOF/timeout/SIGINT/SIGTERM triggers
+bounded cleanup and retained supervisor-lost/cancel facts, never an unowned running author.
+
+Only after execute does launcher run the single pinned program/argv/minimal env, no shell text.
+Exit/log bytes and raw execution facts are bounded. Independent cleanup remains available after
+cancelled execution context: join/retire descendants, stop/remove only the exact owned container,
+verify absence and controller quiescence. Daemon unavailable, late-create ambiguity, identity conflict,
+survivor, incomplete collection or failed removal retains ownership/cleanup hold and BLOCKED.
+#395 takes after state and native Verify only after author retirement, using original before/Host/
+declaration, then independently collects permitted actual content. Docker/launcher exit alone never
+replaces native proof. SIGKILL cannot promise a callback: durable ownership plus supervisor-side
+reconciliation of the exact run identity is required; uncertain state cannot admit a replacement.
+
+## Fresh trusted validation and Gate A / qualification boundary
+
+The fresh trusted runner independently rederives product/base/merge/tree, admitted input, complete
+native scope and operator profile. It verifies original graph preimages and host/control-plane tuple
+rather than trusting uploaded before-state or launcher JSON. Exact authored paths/modes/blobs must
+agree with native after state and allowed scopes. Then apply only verified content to its fresh
+private verification tree and run pinned actual go test with local/offline policy. Reusing these
+same authored test bytes against the independent subtraction control must fail. Keep all raw logs,
+exit status, before/env/after/native findings/unknowns and kernel/mount/process/cleanup facts.
+
+Implementation admission follows the independently reviewed paired contract. This experimental seed
+contains no launcher, runtime qualification or whole-replay evidence. Actual source/tool/image/client/
+kernel/request/job facts are produced only by admitted implementation and qualification. Missing
+implementation is subsequent work, not a prerequisite to accepting the technical contract.
+Original full #395/#398/#388 acceptance remains open; exact #394 Body/repeat timing/raw graph,
+private per-run connector object verification and deterministic Evidence URL remain separate
+positive draft obligations. No normalization or synthetic stage result is admitted.

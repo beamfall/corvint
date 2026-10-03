@@ -2090,7 +2090,7 @@
     "reqPrefix": "PCH-V0",
     "intent": "proposed",
     "delivery": "experimental",
-    "claim": "Reference GitHub Actions templates and a host adapter contract run the post-merge workflow with per-step credentials and no write credential in authoring.",
+    "claim": "Reference CI templates define per-step credentials and author/trusted job separation; paired launcher contract only; hosted replay remains unqualified.",
     "dependsOn": [
       "docs/specs/authoring-step-scope-v0.md",
       "docs/specs/postmerge-connectors-v0.md"
