@@ -16,7 +16,6 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/intake"
 	connector "github.com/Beamfall/corvint/internal/postmergeconnector"
-	"github.com/Beamfall/corvint/internal/tasks/safeopen"
 )
 
 // FixtureProfile is only a bounded dispatch hint. Each route still performs its
@@ -284,7 +283,7 @@ func ReplayNative(ctx context.Context, root, fixtureFile, policyFile, change str
 // spelling: alternate case and mount aliases can name the same directory.
 // Any unavailable identity refuses admission. All opens retain no-follow rules.
 func nativeWithin(root, name string) bool {
-	protected, err := safeopen.File(root)
+	protected, err := nativeOpenFile(root)
 	if err != nil {
 		return true
 	}
@@ -294,7 +293,7 @@ func nativeWithin(root, name string) bool {
 		return true
 	}
 	// Also protect an exact existing destination, including the executable.
-	entry, err := safeopen.File(name)
+	entry, err := nativeOpenFile(name)
 	if err == nil {
 		actual, statErr := entry.Stat()
 		entry.Close()
@@ -308,7 +307,7 @@ func nativeWithin(root, name string) bool {
 		return false
 	}
 	for directory := filepath.Dir(name); ; directory = filepath.Dir(directory) {
-		ancestor, err := safeopen.Root(directory)
+		ancestor, err := nativeOpenRoot(directory)
 		if err != nil {
 			return true
 		}
@@ -364,7 +363,7 @@ func nativeRead(name string, limit int64) ([]byte, error) {
 	if !filepath.IsAbs(name) || filepath.Clean(name) != name || len(name) > 512 || strings.ContainsAny(name, "\x00\r\n") {
 		return nil, fmt.Errorf("runtime-input-invalid")
 	}
-	f, err := safeopen.File(name)
+	f, err := nativeOpenFile(name)
 	if err != nil {
 		return nil, err
 	}
@@ -400,7 +399,7 @@ func newNativeRetention(name string, protected []string) (*nativeRetention, erro
 	}
 	// Exclusive creation and a descriptor anchor protect existing evidence and
 	// avoid following an output directory swapped after its path was checked.
-	parent, err := safeopen.Root(filepath.Dir(name))
+	parent, err := nativeOpenRoot(filepath.Dir(name))
 	if err != nil {
 		return nil, err
 	}
@@ -408,7 +407,7 @@ func newNativeRetention(name string, protected []string) (*nativeRetention, erro
 	if err = parent.Mkdir(filepath.Base(name), 0700); err != nil {
 		return nil, err
 	}
-	anchor, err := safeopen.SubRoot(parent, filepath.Base(name))
+	anchor, err := nativeOpenSubRoot(parent, filepath.Base(name))
 	if err != nil {
 		return nil, err
 	}
@@ -428,7 +427,7 @@ func (r *nativeRetention) save(name string, b []byte) (ArtifactRef, error) {
 	if err != nil || !os.SameFile(current, r.identity) || current.Mode()&os.ModeSymlink != 0 {
 		return ArtifactRef{}, fmt.Errorf("runtime-retention-failed")
 	}
-	f, err := safeopen.InRoot(r.root, name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600, false)
+	f, err := nativeOpenInRoot(r.root, name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600, false)
 	if err != nil {
 		return ArtifactRef{}, err
 	}
