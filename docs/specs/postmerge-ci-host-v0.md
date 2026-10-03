@@ -172,6 +172,54 @@ Corvint stays a local binary. The templates are operator reference material, not
   from the runner's own environment, not the workflow text, and are outside the audit. The
   operator reviews these by hand.
 
+### Experimental launcher reason and transcript code inventory
+
+These fixed codes belong to this optional paired launcher. Event reasons retain a held result and
+the original uncertainty; they do not grant native verification, runtime qualification, or successful
+cleanup. Independent cleanup still runs where ownership is established, and its own outcome remains
+explicit. An engine-client, shim, controller, or ambiguous exit is never relabelled as an author exit.
+
+| Held reason | Observation or refusal |
+|---|---|
+| `author-start-unobserved` | The controller cannot establish the actual author start/exit observation, including an author that retires before the process join. |
+| `author-timeout-or-supervisor-lost` | The author context deadline expires or its supervisor context is cancelled; this does not infer an author signal. |
+| `barrier-disconnected` | The private execute barrier write fails. |
+| `boundary-unverified` | The actual ready container inspection does not match the pinned boundary. |
+| `cleanup-unresolved` | Independent exact-owner cleanup cannot establish removal and absence. |
+| `control-invalid` | The control frame is unreadable or fails the closed wire/identity checks. |
+| `control-repeated-or-supervisor-lost` | A further control frame or lost supervisor appears during author execution. |
+| `control-timeout` | The ready launcher receives no control frame before its bounded timer expires. |
+| `create-ambiguous` | The engine create call or its retained transcript cannot establish an unambiguous result. |
+| `environment-unobserved` | The complete actual hold/author execution-envelope observation is missing or fails the pinned comparison. |
+| `exec-inspect-unresolved` | An original execution inspection before or after the process-top observation cannot be collected and checked. |
+| `hold-start-failed` | Starting the inert owned container fails or cannot be retained. |
+| `image-unverified` | The immutable image inspection fails or does not match the pinned image/config/environment. |
+| `late-completion-unresolved` | After log completion, final inspection is unavailable or still reports a running execution. |
+| `native-control-unverified` | The original native control records do not satisfy the required host/state/preflight binding. |
+| `ownership-conflict` | The exact run name is not established absent before creation; a conflicting resource is not removed. |
+| `retention-incomplete` | A required original fact or output cannot be retained completely. |
+| `retention-overflow` | The cumulative native-record retention reservation exceeds its bound. |
+| `shim-create-failed` | Creating the pinned shim execution fails or cannot be retained. |
+| `shim-identity-unobserved` | The returned shim execution identity cannot be decoded and pinned. |
+| `shim-stream-failed` | The private shim execution stream cannot start. |
+| `stream-incomplete` | Author stdout/stderr streaming ends with incomplete collection. |
+
+Transcript operation names identify retained raw controller facts rather than success assertions:
+
+| Transcript operation | Original fact |
+|---|---|
+| `author-top` | Original controller process-top response used for actual author join attribution. |
+| `exec-create` | Original engine response that creates the pinned execution-envelope shim. |
+| `exec-final` | Original final execution inspection after log collection. |
+| `exec-inspect` | Original execution inspection before the actual process-top join. |
+| `exec-inspect-after-top` | Original execution inspection after the actual process-top join. |
+| `identity-conflict` | Cleanup inspection does not identify the exact owned resource; cleanup refuses removal. |
+| `image-inspect` | Original immutable image inspection response. |
+| `inspect-owned` | Original exact-owner inspection during independent cleanup. |
+| `prior-absence` | Original exact-run absence response before resource creation. |
+| `remove-owned` | Original delete response for the verified exact owned resource. |
+| `start-inert` | Original response that starts the inert owned container. |
+
 ## Trust boundary
 
 The audit reads declared workflow text and grants no authority. Hooks are operator code. Corvint
