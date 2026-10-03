@@ -1,6 +1,7 @@
 package procgroup
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -11,7 +12,11 @@ import (
 )
 
 const (
-	descendantInterval = 20 * time.Millisecond
+	descendantResidentLimit      = 4096
+	descendantWitnessLimit       = descendantResidentLimit - 1
+	descendantWitnessOmission    = "Process rows are a bounded witness sample; omitted historical or resident identities are not an exhaustive process list."
+	descendantUnresolvedOmission = "Additional owned or potentially owned identities may be omitted; cleanup failure remains unresolved."
+	descendantInterval           = 20 * time.Millisecond
 	// A loaded host can starve one snapshot far past the sampling interval, so
 	// each snapshot has its own bound and the final sweep retries inside the
 	// settle window before it reports cleanup as incomplete.
@@ -38,13 +43,33 @@ type DescendantObservation struct {
 	Limitations []string          `json:"limitations"`
 }
 
+type processIdentity struct {
+	pid   int
+	start string
+}
+
+func identity(row ObservedProcess) processIdentity { return processIdentity{row.PID, row.Start} }
+
+func compareProcesses(a, b ObservedProcess) int {
+	if n := cmp.Compare(a.PID, b.PID); n != 0 {
+		return n
+	}
+	return strings.Compare(a.Start, b.Start)
+}
+
 type descendantObserver struct {
-	mu      sync.Mutex
-	known   map[int]ObservedProcess
-	root    int
-	stop    chan struct{}
-	done    chan struct{}
-	failure error
+	mu    sync.Mutex
+	known map[int]ObservedProcess
+	root  int
+	// rootIdentity is immutable and reserves one resident slot, even after exit.
+	// known holds only currently resident descendants, including visible zombies.
+	rootIdentity     ObservedProcess
+	witnesses        map[processIdentity]ObservedProcess
+	witnessOmitted   bool
+	residentOverflow bool
+	stop             chan struct{}
+	done             chan struct{}
+	failure          error
 	// missed counts periodic snapshots that were unavailable. A lost sample is
 	// not a survivor: the final sweep still has to prove every known identity gone.
 	missed int
@@ -81,7 +106,8 @@ func startObserver(o *descendantObserver, pid int) (*descendantObserver, error) 
 	if !ok {
 		return nil, errors.New("descendant observer could not bind leader identity")
 	}
-	o.known = map[int]ObservedProcess{pid: root}
+	o.rootIdentity = root
+	o.known = make(map[int]ObservedProcess)
 	o.expand(rows)
 	o.seen = time.Now()
 	var periodic context.Context
@@ -122,28 +148,118 @@ func (o *descendantObserver) observed() {
 	o.seen = now
 }
 
-// expand admits children only while the observed parent's start identity agrees.
+// expand runs only on a complete, valid snapshot. Historical witnesses never
+// confer ownership; a still-visible zombie does, until absence or PID reuse.
 func (o *descendantObserver) expand(rows map[int]ObservedProcess) {
-	for pass := 0; pass < len(rows); pass++ {
+	for pid, previous := range o.known {
+		current, present := rows[pid]
+		if !present || current.Start != previous.Start {
+			delete(o.known, pid)
+		} else {
+			o.known[pid] = current
+		}
+	}
+	keys := make([]int, 0, len(rows))
+	for pid := range rows {
+		keys = append(keys, pid)
+	}
+	slices.Sort(keys)
+	for pass := 0; pass < len(keys); pass++ {
 		added := false
-		for pid, row := range rows {
+		for _, pid := range keys {
+			row := rows[pid]
+			if identity(row) == identity(o.rootIdentity) {
+				continue
+			}
 			if previous, exists := o.known[pid]; exists && previous.Start == row.Start {
 				continue
 			}
-			parent, owned := o.known[row.ParentPID]
 			current, present := rows[row.ParentPID]
-			if owned && present && parent.Start == current.Start {
-				if len(o.known) >= 4096 {
-					o.failure = errors.New("descendant observation exceeds 4096-process bound")
-					return
-				}
-				o.known[pid] = row
-				added = true
+			if !present {
+				continue
 			}
+			parent, owned := o.known[row.ParentPID]
+			owned = owned && parent.Start == current.Start
+			if identity(current) == identity(o.rootIdentity) {
+				owned = true
+			}
+			if !owned {
+				continue
+			}
+			if len(o.known) >= descendantResidentLimit-1 {
+				if !o.residentOverflow {
+					o.failure = errors.Join(o.failure, errors.New("descendant observation exceeds 4096-process bound"))
+					o.residentOverflow = true
+				}
+				return
+			}
+			o.known[pid] = row
+			o.remember(row)
+			added = true
 		}
 		if !added {
 			return
 		}
+	}
+}
+
+func (o *descendantObserver) remember(row ObservedProcess) {
+	if o.witnesses == nil {
+		o.witnesses = make(map[processIdentity]ObservedProcess)
+	}
+	key := identity(row)
+	if _, exists := o.witnesses[key]; exists {
+		return
+	}
+	if len(o.witnesses) == descendantWitnessLimit {
+		o.witnessOmitted = true
+		return
+	}
+	o.witnesses[key] = row
+}
+
+func (o *descendantObserver) displayProcesses(report *DescendantObservation) {
+	residents := make([]ObservedProcess, 0, len(o.known))
+	for _, row := range o.known {
+		residents = append(residents, row)
+	}
+	// Unknown/live residents take priority over exited residents and history.
+	slices.SortFunc(residents, func(a, b ObservedProcess) int {
+		az, bz := strings.HasPrefix(a.State, "Z"), strings.HasPrefix(b.State, "Z")
+		if az != bz {
+			if az {
+				return 1
+			}
+			return -1
+		}
+		return compareProcesses(a, b)
+	})
+	historical := make([]ObservedProcess, 0, len(o.witnesses))
+	for _, row := range o.witnesses {
+		historical = append(historical, row)
+	}
+	slices.SortFunc(historical, compareProcesses)
+	selected := make(map[processIdentity]bool)
+	for _, rows := range [][]ObservedProcess{residents, historical} {
+		for _, row := range rows {
+			key := identity(row)
+			if selected[key] {
+				continue
+			}
+			if len(report.Processes) == descendantWitnessLimit {
+				o.witnessOmitted = true
+				continue
+			}
+			selected[key] = true
+			report.Processes = append(report.Processes, row)
+		}
+	}
+	slices.SortFunc(report.Processes, compareProcesses)
+	if o.witnessOmitted {
+		report.Limitations = append(report.Limitations, descendantWitnessOmission)
+	}
+	if o.residentOverflow {
+		report.Limitations = append(report.Limitations, descendantUnresolvedOmission)
 	}
 }
 
@@ -167,9 +283,6 @@ func (o *descendantObserver) finish() (*DescendantObservation, error) {
 			o.expand(rows)
 			remains, signalFailure = false, nil
 			for pid, owned := range o.known {
-				if pid == o.root {
-					continue
-				}
 				current, present := rows[pid]
 				// A zombie has exited; only its parent can finish reaping it.
 				if !present || current.Start != owned.Start || strings.HasPrefix(current.State, "Z") {
@@ -200,12 +313,7 @@ func (o *descendantObserver) finish() (*DescendantObservation, error) {
 	if o.missed > 0 {
 		report.Limitations = append(report.Limitations, fmt.Sprintf("%d periodic snapshots were unavailable; a descendant alive only during those intervals can remain unobserved", o.missed))
 	}
-	for pid, row := range o.known {
-		if pid != o.root {
-			report.Processes = append(report.Processes, row)
-		}
-	}
-	slices.SortFunc(report.Processes, func(a, b ObservedProcess) int { return a.PID - b.PID })
+	o.displayProcesses(report)
 	if o.failure != nil {
 		report.Failures = append(report.Failures, o.failure.Error())
 	}

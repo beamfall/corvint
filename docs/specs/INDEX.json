@@ -1468,6 +1468,7 @@
     "closableToday": false,
     "implementation": [
       "internal/testacceptance",
+      "internal/procgroup",
       "cmd/corvint-tests-accept"
     ]
   },

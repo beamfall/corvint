@@ -263,3 +263,50 @@ func TestPTFV0DependencyManifestBound(t *testing.T) {
 		t.Fatal("unsupported dependency symlink admitted")
 	}
 }
+
+// NEA-V0-006/007 witness sampling preserves the existing freshness wire shape.
+func TestV10689BoundedWitnessFreshnessCodec(t *testing.T) {
+	const limitation = "Process rows are a bounded witness sample; omitted historical or resident identities are not an exhaustive process list."
+	for _, state := range []string{"legacy", "sampled", "survivor", "failure"} {
+		t.Run(state, func(t *testing.T) {
+			r := freshFixture(t)
+			if state != "legacy" {
+				r.DescendantObservation.Scope = "observed-pid-start-identities"
+				r.DescendantObservation.Processes = []procgroup.ObservedProcess{{PID: 42, ParentPID: 1, Start: "witness", State: "Z"}}
+				r.DescendantObservation.Limitations = append(r.DescendantObservation.Limitations, limitation)
+			}
+			if state == "survivor" {
+				r.DescendantObservation.Absent = false
+			}
+			if state == "failure" {
+				r.DescendantObservation.Failures = []string{"resident overflow"}
+			}
+			data, err := EncodeFreshness(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			decoded, err := DecodeFreshness(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			again, err := EncodeFreshness(decoded)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(data, again) {
+				t.Fatal("canonical receipt bytes changed on roundtrip")
+			}
+			if state != "legacy" && !bytes.Contains(again, []byte(limitation)) {
+				t.Fatal("witness limitation lost")
+			}
+			got := ReceiptTestProjection(decoded, decoded.Tests[0]).Freshness.State
+			if state == "legacy" || state == "sampled" {
+				if got != testvalidity.FreshnessCurrent {
+					t.Fatalf("valid observation refused: %s", got)
+				}
+			} else if got == testvalidity.FreshnessCurrent {
+				t.Fatal("unresolved cleanup promoted currency")
+			}
+		})
+	}
+}
