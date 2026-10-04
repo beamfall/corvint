@@ -1,6 +1,7 @@
 // Package intent reads the Git-tracked intent store of SPEC §3.1
-// (`.taskman/`), resolves the primary worktree (§3.1, §3.4) and computes the
-// intent tree digest and publication facts. Everything here is read-only:
+// (`.taskman/`), resolves the primary worktree (§3.1, §3.4) and the intent
+// worktree that holds the projection (CTW-V0), and computes the intent tree
+// digest and publication facts. Everything here is read-only:
 // no file is opened for writing, no directory is created, no lock is taken
 // and no subprocess (including git) is run.
 package intent
@@ -29,6 +30,16 @@ type Repository struct {
 	LockPath string
 	// FromLinkedWorktree is true when cwd was inside a linked worktree.
 	FromLinkedWorktree bool
+	// IntentWorktree is the worktree whose `.taskman/` is the intent
+	// projection (CTW-V0-001); read it through IntentRoot.
+	IntentWorktree string
+	// IntentGitDir is the Git directory holding the intent worktree's HEAD:
+	// CommonDir for the primary, `<common>/worktrees/<id>` for a linked one.
+	IntentGitDir string
+	// IntentFix is the repair text resolution recorded when the primary is not
+	// on the intent branch and no linked worktree was admitted (CTW-V0-005,
+	// CTW-V0-006); empty otherwise.
+	IntentFix string
 }
 
 // PrimaryWorktreeSha256 is the SHA-256 of the primary worktree's exact
@@ -157,13 +168,15 @@ func finish(common string, linked bool) (*Repository, error) {
 		return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, common, "common dir is not a directory")
 	}
 	primary := filepath.Dir(common)
-	return &Repository{
+	repo := &Repository{
 		CommonDir:          common,
 		PrimaryWorktree:    primary,
 		StateDir:           filepath.Join(common, "taskman"),
 		LockPath:           filepath.Join(common, "taskman.lock"),
 		FromLinkedWorktree: linked,
-	}, nil
+	}
+	resolveIntentWorktree(repo)
+	return repo, nil
 }
 
 // canonicalAncestors resolves symlinks in the directories above the primary

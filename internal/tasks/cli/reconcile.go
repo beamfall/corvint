@@ -45,7 +45,7 @@ func reconcileInspect(env Env, args []string) *wire.Result {
 		}
 		queue = head.QueueID
 	}
-	reader := journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: queue, PrimaryWorktree: repo.PrimaryWorktree}
+	reader := journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.IntentRoot()}, QueueID: queue, PrimaryWorktree: repo.PrimaryWorktree}
 	var proof *journal.Result
 	if releaseID == "" {
 		proof, err = reader.Reconciliation(target.Raw, "barrier.json")

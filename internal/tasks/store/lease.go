@@ -46,7 +46,8 @@ type claimObserver func(*journal.Result, *transaction.Input) (transaction.LeaseF
 // Lease commits one lease command. A claim or reap survey the model answers
 // with expired leases reaps each one in its own transaction and receipt,
 // then a claim is retried (CAL-V0-011).
-func Lease(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, now wire.Timestamp) (*Report, error) {
+func Lease(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, now wire.Timestamp) (out *Report, outErr error) {
+	defer func() { out, outErr = intentFix(repo, out, outErr) }()
 	reaped := []transaction.ExpiredLease{}
 	reapReceipts := []ReapReceipt{}
 	for round := 0; round <= wire.MaxActiveAttempts; round++ {

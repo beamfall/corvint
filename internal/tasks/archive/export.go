@@ -184,7 +184,7 @@ func Export(opts ExportOptions) (result *ExportResult, retErr error) {
 	var manifest *Manifest
 	var total uint64
 	rd := snapshot.Reader{StateDir: repo.StateDir, IntentTree: func() (wire.Digest, error) {
-		t, err := intent.TreeDigest(repo.PrimaryWorktree)
+		t, err := intent.TreeDigest(repo.IntentRoot())
 		if err != nil {
 			return "", err
 		}
@@ -202,7 +202,7 @@ func Export(opts ExportOptions) (result *ExportResult, retErr error) {
 				streamExceeded = true
 			}
 		}()
-		life := newArchiveRead(archiveNative{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree})
+		life := newArchiveRead(archiveNative{StateDir: repo.StateDir, PrimaryWorktree: repo.IntentRoot()})
 		defer func() {
 			if e := life.close(); e != nil {
 				cleanupErr = errors.Join(cleanupErr, e)

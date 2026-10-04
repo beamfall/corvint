@@ -70,7 +70,7 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	store0, err := intent.Load(repo.PrimaryWorktree)
+	store0, err := intent.Load(repo.IntentRoot())
 	if err != nil {
 		return errorResult(cmd, err)
 	}

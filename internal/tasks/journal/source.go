@@ -30,8 +30,10 @@ type Source interface {
 	List(path string, max int) (Listing, error)
 }
 
-// Native addresses private state and the primary worktree's .taskman using
-// the archive namespace. Paths are explicit read inputs, not authority.
+// Native addresses private state and the intent root's .taskman using the
+// archive namespace. PrimaryWorktree names that root: the primary worktree,
+// or the linked intent worktree CTW-V0-002 selected. Paths are explicit read
+// inputs, not authority.
 type Native struct{ StateDir, PrimaryWorktree string }
 
 func (n Native) path(p string) (string, error) {
