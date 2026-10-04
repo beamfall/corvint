@@ -199,17 +199,28 @@ func TestCALV0064_CheckedSaveFailureDoesNotGrantOrEscapeThroughClose(t *testing.
 		t.Fatal(err)
 	}
 	writeProgress(t, source, "B")
-	if err := os.Chmod(d.dir, 0500); err != nil {
-		t.Fatal(err)
+	// Publish and retire the reader before injecting the checked ledger failure.
+	// A directory failure before Tick would instead refuse its reader marker.
+	saveCalls := 0
+	d.progressSave = func(staged *Ledger, dir string) error {
+		saveCalls++
+		if err := os.Chmod(dir, 0500); err != nil {
+			t.Fatal(err)
+		}
+		probe, err := os.CreateTemp(dir, ".should-fail-*")
+		if err == nil {
+			probe.Close()
+			os.Remove(probe.Name())
+			t.Fatal("fixture did not refuse writes")
+		}
+		return staged.save(dir)
 	}
-	probe, err := os.CreateTemp(d.dir, ".should-fail-*")
-	if err == nil {
-		probe.Close()
-		os.Remove(probe.Name())
-		t.Fatal("fixture did not refuse writes")
-	}
+	t.Cleanup(func() { _ = os.Chmod(d.dir, 0700) })
 	if err := d.Tick(context.Background()); err == nil || !strings.Contains(err.Error(), "admission failed") {
 		t.Fatalf("failed admission: %v", err)
+	}
+	if saveCalls != 1 || d.reader != nil || d.readerErr != nil {
+		t.Fatalf("checked save not reached after reader release: calls=%d held=%v", saveCalls, d.readerErr)
 	}
 	after, err := os.ReadFile(filepath.Join(d.dir, "state.json"))
 	if err != nil || !reflect.DeepEqual(before, after) {

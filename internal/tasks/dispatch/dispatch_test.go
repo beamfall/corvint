@@ -163,7 +163,7 @@ func TestCALV0053_WorkStateReaders(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "t1.md"), []byte("# t1\nstate: built\nstate: later\n"), 0o600)
 	os.WriteFile(filepath.Join(dir, "t2.md"), []byte("state: bad\x01value\n"), 0o600)
-	c := &Config{WorkRoot: dir, WorkState: &WorkState{Kind: "status-line", Path: filepath.Join(dir, "{ticketLocal}.md"), Key: "state"}}
+	c := &Config{StateDir: t.TempDir(), WorkRoot: dir, WorkState: &WorkState{Kind: "status-line", Path: filepath.Join(dir, "{ticketLocal}.md"), Key: "state"}}
 	ts := []Ticket{ticket("t1", "P1", 1), ticket("t2", "P1", 1), ticket("t3", "P1", 1)}
 	alerts := ReadStates(context.Background(), c, ts)
 	if ts[0].State != "built" || ts[1].State != StateUnknown || ts[2].State != StateNone || len(alerts) != 1 {
