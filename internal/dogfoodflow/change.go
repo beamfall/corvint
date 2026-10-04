@@ -421,12 +421,13 @@ func (c *change) citeStep() {
 	_ = os.Chmod(citeOutput, 0o600)
 	status, reason := "PRODUCED", "none"
 	plan, valid := c.validateCitationPlan()
+	matched := valid && c.citationPlanMatchesMap(plan)
 	switch {
 	case !valid:
 		status, reason = "NOT_PRODUCED", "invalid-citation-plan"
-	case len(plan) == 0:
+	case !matched && len(plan) == 0:
 		status, reason = "NOT_PRODUCED", "empty-citation-plan"
-	case !c.citationPlanMatchesMap(plan):
+	case !matched:
 		status, reason = "NOT_PRODUCED", "citation-plan-map-mismatch"
 	case c.citationCount > 1 && exists(c.path(c.citationStage)):
 		status, reason = "NOT_PRODUCED", "citation-stage-exists"
@@ -594,12 +595,12 @@ var ordinal = regexp.MustCompile(`^[1-9][0-9]*$`)
 // (DCW-V0-019): no ordinal may exceed the map's hunk count, a numeric selector
 // must be canonical, and every hunk the map records as unknown must be named by
 // ordinal or full ID unless its path is an intent absent at BASE or more such
-// hunks remain than one 256-row plan can name. An empty plan is refused before
-// this check (DCW-V0-032), and only a regular map is read, at most the native
-// 4 MiB map bound.
+// hunks remain than one 256-row plan can name. An empty plan matches only a map
+// that owes no hunk at all (DCW-V0-032), and only a regular map is read, at
+// most the native 4 MiB map bound.
 func (c *change) citationPlanMatchesMap(plan []byte) bool {
 	mapPath := c.path(".corvint/change.cem.json")
-	if len(plan) == 0 || !isRegular(mapPath) || isSymlink(mapPath) {
+	if !isRegular(mapPath) || isSymlink(mapPath) {
 		return true
 	}
 	bootstrap := map[string]bool{}
@@ -639,7 +640,7 @@ func (c *change) citationPlanMatchesMap(plan []byte) bool {
 		}
 	}
 	// More owed hunks than one plan has rows: split plans stay admissible.
-	if len(owed) > 256 {
+	if len(owed) > 256 && len(plan) > 0 {
 		return true
 	}
 	for _, index := range owed {
@@ -994,7 +995,7 @@ func (c *change) packetCoverage(name string) string {
 var fixHints = []struct{ pattern, hint string }{
 	{"cem-cite:citation-plan-not-provided", "set DOGFOOD_CITATIONS to the path of a TSV plan with one row per hunk of .corvint/change.cem.json"},
 	{"cem-cite:citation-plan-unavailable", "DOGFOOD_CITATIONS must be the path of a TSV file of ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION rows, not the rows themselves"},
-	{"cem-cite:empty-citation-plan", "DOGFOOD_CITATIONS names an empty file; write one row per unknown hunk of .corvint/change.cem.json, or unset DOGFOOD_CITATIONS to prepare the map without citing"},
+	{"cem-cite:empty-citation-plan", "DOGFOOD_CITATIONS names an empty file but .corvint/change.cem.json still has unknown hunks; write one row per unknown hunk, or unset DOGFOOD_CITATIONS to prepare the map without citing"},
 	{"cem-cite:invalid-citation-plan", "each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows"},
 	{"cem-cite:citation-plan-map-mismatch", "the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); or a row's ordinal now names another hunk than when this plan was first cited (a later commit added or removed a hunk before it); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE"},
 	{"cem-cite:cite-span-not-stable", "plan row {row} cites BASE lines that this change edits or deletes; cite a START:END span the change leaves unchanged"},

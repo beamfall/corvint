@@ -236,9 +236,9 @@ func TestChangeNotesAbsentOrStaleAgentReceipts(t *testing.T) {
 	}
 }
 
-// V1-0743: an empty citation plan, and an intents or verify file over its
-// bound, each refuse with a named code instead of a silent no-op or an
-// unbounded read; the empty plan cites nothing.
+// V1-0743: an empty citation plan on a map that still owes a hunk, and an
+// intents or verify file over its bound, each refuse with a named code instead
+// of a silent no-op or an unbounded read; the empty plan cites nothing.
 func TestChangeRefusesEmptyPlanAndOverBoundInputs(t *testing.T) {
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
@@ -261,13 +261,14 @@ func TestChangeRefusesEmptyPlanAndOverBoundInputs(t *testing.T) {
 		return path
 	}
 	cited := false
+	prepared := "{\n  \"hunks\": [\n    {\n      \"disposition\": \"unknown\",\n      \"id\": \"hunk:a\",\n      \"path\": \"a.txt\"\n    }\n  ]\n}\n"
 	steps := Runner{Path: "corvint", Run: func(_ context.Context, _ string, args []string, _, _ io.Writer) int {
 		switch {
 		case len(args) > 1 && args[0] == "cem" && args[1] == "prepare":
 			if err := os.MkdirAll(filepath.Join(root, ".corvint"), 0o777); err != nil {
 				return 1
 			}
-			if err := os.WriteFile(filepath.Join(root, ".corvint/change.cem.json"), []byte("{\n  \"hunks\": [\n    {\n      \"disposition\": \"unknown\",\n      \"id\": \"hunk:a\",\n      \"path\": \"a.txt\"\n    }\n  ]\n}\n"), 0o666); err != nil {
+			if err := os.WriteFile(filepath.Join(root, ".corvint/change.cem.json"), []byte(prepared), 0o666); err != nil {
 				return 1
 			}
 			return 0
@@ -307,6 +308,18 @@ func TestChangeRefusesEmptyPlanAndOverBoundInputs(t *testing.T) {
 	}
 	if cited {
 		t.Error("an empty plan ran cem cite")
+	}
+	// A map that owes no hunk, as local completion reruns it after strict CEM
+	// status (LCP-V0), still admits the empty plan as a zero-citation pass.
+	prepared = strings.Replace(prepared, `"unknown"`, `"cited"`, 1)
+	if _, err := Change(context.Background(), options, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	if report, err = os.ReadFile(filepath.Join(root, ".corvint/dogfood-report.json")); err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"name": "cem-cite", "status": "PRODUCED", "reason": "none"}`; !bytes.Contains(report, []byte(want)) {
+		t.Errorf("empty plan on a bound map: report lacks %s:\n%s", want, report)
 	}
 }
 
