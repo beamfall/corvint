@@ -13,9 +13,9 @@ owner message `approved` on 2026-10-02 for plan SHA-256
 
 ## Agent digest
 - Claim: A bounded source-direct Playwright profile observes source/server/runtime identity and joins every planned native control attempt to every baseline repeat.
-- Status: proposed technical contract; owner approved the implementation plan; experimental. Reviewed source and bounded local consuming-path observations exist; final frozen checks, CEM/OCM, integration and native completion remain pending.
+- Status: proposed technical contract; owner approved the implementation plan; experimental. Child V1-0556 is integrated and natively completed. Parent complete-attempt source review passed; final parent qualification and delivery remain separate.
 - Exists: separate native freshness profile and request/assessment /1; actual stable assertion/control acceptance, stale product/test/imported-source controls, closed native joins and bounded dependency readers. Old /0 remains unchanged.
-- Blocked on: final registered clean-head checks, CEM/OCM and integration/native completion. Whole #394/V1-0541 remains partial for new-profile surviving Strength and flaky/order qualification; those are separate from V1-0556 freshness.
+- Blocked on: parent V1-0541 final clean-bound standalone N2/N32 checks, CEM/OCM and integration/native completion. Reviewed complete-attempt survival joins do not themselves qualify flaky/order execution.
 - Read next: Requirements; Source-direct observation; Control join; Qualification and rollback.
 
 ## User and verified current state
@@ -231,6 +231,24 @@ reads. These are source-phase observations, not final registered frozen checks o
 The exact source/review/proof hashes and remaining delivery are recorded in
 `docs/build-log/2026-10-02-per-test-freshness.md`. Whole #394 remains partial: historical legacy
 nonasserting/flaky rejection does not qualify new-profile surviving Strength or mixed order probes.
+
+## Parent complete-attempt implementation and final witness boundary
+
+Child V1-0556 subsequently completed its frozen gates, public integration and native completion
+(receipt 2169, commit `c5685a3389eea49fb0a465c343a6ee6bb37665ec`). The preceding source-phase
+observations remain historical evidence with their original limits.
+
+The parent implements PTF-V0-006 for every planned generic attempt, deriving complete KILLED or
+SURVIVED native strength with exact ordered survivor gaps. Pure synthetic tests cover multiple
+controls, attempt counts 1, 2 and 16, missing/infrastructure/invalid outcomes,
+forged native semantics and mismatched correspondence. Actual earlier N2 RED/GREEN observations
+are retained with an uncovered inner TMPDIR scope finding; they are not retrospectively admitted.
+
+Independent parent source review passed after one bounded repair of absolute Go launch and full
+actual-body proof. Final standalone stable/nonasserting N2 and one immutable flaky N32 must run at
+the clean committed CEM binding. Their actual JSON/body, process and check receipts determine
+qualification; source review and test definitions cannot predict PASS. Failure preserves the batch
+and keeps the parent open. The parent build log records exact review and retained limitations.
 
 ## Qualification, rollout and rollback
 

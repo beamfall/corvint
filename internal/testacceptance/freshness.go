@@ -207,48 +207,91 @@ func sameFreshClosure(base, mutant jstestprovider.Receipt, baseRow, mutantRow js
 	return true
 }
 
-func joinedFreshControl(c Control, t Test, r Request, baselines []jstestprovider.Receipt) bool {
+// joinedFreshControl measures strength only for a complete generic/native
+// attempt set. A generic survivor may aggregate missing or invalid attempts;
+// those receipts remain valid generic evidence but cannot establish native strength.
+func joinedFreshControl(c Control, t Test, r Request, baselines []jstestprovider.Receipt) string {
+	unknown := testvalidity.StrengthNotMeasured
 	if t.Control == nil || t.Tool == nil || c.ID != t.ID || c.Evidence == nil || c.PlanDigest != t.Control.Digest || c.ReceiptDigest != c.Evidence.Digest || c.Evidence.Tool != *t.Tool || cleanupState(c.Cleanup) != "observed-absent" || behaviorfalsify.VerifyReceipt(*c.Evidence, t.Control.Digest, t.Tool.Executable) != nil {
-		return false
+		return unknown
 	}
 	e := c.Evidence
-	if e.Report.Executed != e.Report.Requested || e.Report.Executed == 0 || len(e.Report.CoverageGaps) != 0 || !e.Report.MutationScore.Defined || e.Report.MutationScore.Killed != e.Report.MutationScore.Denominator || len(e.RawAttempts) == 0 || len(baselines) != r.Repeat {
-		return false
+	approved := *t.Control
+	approved.Digest = ""
+	var retained behaviorfalsify.Plan
+	if behaviorfalsify.Decode(e.PlanPreimage, &retained) != nil || !reflect.DeepEqual(retained, approved) || !slices.Equal(c.Unsupported, e.Unsupported) {
+		return unknown
 	}
-	for _, control := range t.Control.Controls {
-		if _, ok := responseDefinition(control); !ok {
-			return false
-		}
+	controls, attempts := len(approved.Controls), approved.Request.Attempts
+	if controls == 0 || attempts < 1 || attempts > 16 || e.Report.Requested != controls || e.Report.Supported != controls || e.Report.Executed != controls || len(e.Report.Results) != controls || len(e.RawAttempts) != controls*attempts || len(baselines) != r.Repeat || !e.Report.MutationScore.Defined || e.Report.MutationScore.Denominator != controls {
+		return unknown
 	}
-	for _, raw := range e.RawAttempts {
-		if raw.Ordinal < 1 || raw.Ordinal > len(t.Control.Controls) || raw.ControlID != t.Control.Controls[raw.Ordinal-1].ID || len(raw.Omissions) != 0 || Hash(raw.NativeBytes) != raw.NativeSHA256 || Hash(raw.HookBytes) != raw.HookSHA256 {
-			return false
-		}
-		control := t.Control.Controls[raw.Ordinal-1]
+	survivors := []string{}
+	for i, control := range approved.Controls {
 		d, ok := responseDefinition(control)
-		if !ok {
-			return false
+		result := e.Report.Results[i]
+		if !ok || control.Ordinal != i+1 || result.Ordinal != control.Ordinal || result.ID != control.ID || result.Kind != control.Kind || len(result.Attempts) != attempts {
+			return unknown
 		}
-		var hook behaviorfalsify.HookReceipt
-		if behaviorfalsify.Decode(raw.HookBytes, &hook) != nil || hook.NativeReceiptSHA256 != raw.NativeSHA256 || hook.PerturbationSHA256 != control.PerturbationSHA256 || hook.Target != t.Control.Request.Target {
-			return false
-		}
-		native, err := jstestprovider.DecodeFreshness(raw.NativeBytes)
-		if err != nil || !freshRequestBinding(native, r) {
-			return false
-		}
-		row, ok := freshNativeRow(native, t)
-		if !ok || len(native.Tests) != 1 || jstestprovider.FreshnessCurrency(native, row) != testvalidity.FreshnessCurrent || !jstestprovider.TargetAssertionFailure(row, t.Control.Request.Target.AssertionID) {
-			return false
-		}
-		for _, base := range baselines {
-			baseRow, ok := freshNativeRow(base, t)
-			if !ok || !sameFreshClosure(base, native, baseRow, row, r, d) {
-				return false
+		survived := false
+		for j, attempt := range result.Attempts {
+			// Verification checks the retained byte correspondence, not
+			// execution semantics. Require the full planned bijection before the join.
+			raw := e.RawAttempts[i*attempts+j]
+			if attempt.Attempt != j+1 || raw.Attempt != attempt.Attempt || raw.Ordinal != control.Ordinal || raw.ControlID != control.ID || len(raw.Omissions) != 0 || Hash(raw.NativeBytes) != raw.NativeSHA256 || Hash(raw.HookBytes) != raw.HookSHA256 || attempt.HookProcess.StdoutSHA256 != raw.HookSHA256 {
+				return unknown
+			}
+			var hook behaviorfalsify.HookReceipt
+			if behaviorfalsify.Decode(raw.HookBytes, &hook) != nil || !reflect.DeepEqual(attempt.Receipt, &hook) || hook.Attempt != attempt.Attempt || hook.PlanDigest != c.PlanDigest || hook.NativeReceiptSHA256 != raw.NativeSHA256 || hook.PerturbationSHA256 != control.PerturbationSHA256 || hook.Target != approved.Request.Target || hook.Runner != approved.Request.Runner {
+				return unknown
+			}
+			native, err := jstestprovider.DecodeFreshness(raw.NativeBytes)
+			if err != nil || !freshRequestBinding(native, r) {
+				return unknown
+			}
+			row, ok := freshNativeRow(native, t)
+			if !ok || len(native.Tests) != 1 || jstestprovider.FreshnessCurrency(native, row) != testvalidity.FreshnessCurrent {
+				return unknown
+			}
+			switch attempt.Status {
+			case behaviorfalsify.StatusKilled:
+				if !jstestprovider.TargetAssertionFailure(row, approved.Request.Target.AssertionID) {
+					return unknown
+				}
+			case behaviorfalsify.StatusSurvived:
+				if row.State != jstestprovider.StatePassed || len(row.Attempts) != 1 || row.Retries != 0 || row.Attempts[0].State != jstestprovider.StatePassed || row.Attempts[0].Retry != 0 {
+					return unknown
+				}
+				survived = true
+			default:
+				return unknown
+			}
+			for _, base := range baselines {
+				baseRow, ok := freshNativeRow(base, t)
+				if !ok || jstestprovider.FreshnessCurrency(base, baseRow) != testvalidity.FreshnessCurrent || !sameFreshClosure(base, native, baseRow, row, r, d) {
+					return unknown
+				}
 			}
 		}
+		want := behaviorfalsify.StatusKilled
+		if survived {
+			want = behaviorfalsify.StatusSurvived
+			survivors = append(survivors, control.ID)
+		}
+		if result.Status != want {
+			return unknown
+		}
 	}
-	return true
+	if !slices.Equal(e.Report.CoverageGaps, survivors) || e.Report.MutationScore.Killed != controls-len(survivors) {
+		return unknown
+	}
+	if len(survivors) > 0 && c.Status == "survived" {
+		return testvalidity.StrengthSurvived
+	}
+	if len(survivors) == 0 && c.Status == "killed" {
+		return testvalidity.StrengthKilled
+	}
+	return unknown
 }
 
 // classifyFreshness consumes every actual repeat receipt and recomputes axes.
@@ -369,8 +412,13 @@ func classifyFreshness(report *Report, r Request) {
 				reject = true
 				a.Reasons = append(a.Reasons, "control-cleanup-survivor")
 			}
-			if joinedFreshControl(c, t, r, baselines) && currency == testvalidity.FreshnessCurrent {
-				a.Validity.Strength = testvalidity.Axis{State: testvalidity.StrengthKilled, Reason: "verified-native-target-assertion-kill-joined-to-every-repeat"}
+			strength := joinedFreshControl(c, t, r, baselines)
+			if strength != testvalidity.StrengthNotMeasured && currency == testvalidity.FreshnessCurrent {
+				a.Validity.Strength = testvalidity.Axis{State: strength, Reason: "verified-native-target-assertion-kill-joined-to-every-repeat"}
+				if strength == testvalidity.StrengthSurvived {
+					a.Validity.Strength.Reason = "negative-control-survived"
+					reject = true
+				}
 			} else {
 				a.Reasons = append(a.Reasons, "native-control-join-incomplete")
 			}
