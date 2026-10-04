@@ -1830,6 +1830,16 @@ OIF-V0-008	docs/specs/ocm-intent-forms-v0.md	61	A ticket's body is the contiguou
 OIF-V0-009	docs/specs/ocm-intent-forms-v0.md	62	A declared form that yields no requirement fails `missing-requirements`, more th
 OIF-V0-010	docs/specs/ocm-intent-forms-v0.md	63	The `lrf` OCM leg and the change-universe (Frontier/TCQ) OCM surface refuse a ma
 OIF-V0-011	docs/specs/ocm-intent-forms-v0.md	64	The capability is experimental: help labels the flag experimental, and no releas
+ON-V0-001	docs/specs/corvint-tasks-operator-notes-v0.md	49	The ticket MUST carry at most one optional closed operatorNote reference, omitte
+ON-V0-002	docs/specs/corvint-tasks-operator-notes-v0.md	52	Every distinct committed SET or CLEAR MUST create one immutable canonical taskma
+ON-V0-003	docs/specs/corvint-tasks-operator-notes-v0.md	55	NOTE_SET and NOTE_CLEAR MUST use the existing mutation envelope and original-req
+ON-V0-004	docs/specs/corvint-tasks-operator-notes-v0.md	58	Fresh note writes MUST respect existing ticket ownership/state and explicitly gr
+ON-V0-005	docs/specs/corvint-tasks-operator-notes-v0.md	61	A fresh note-only transition MUST preserve the complete audited ticket except it
+ON-V0-006	docs/specs/corvint-tasks-operator-notes-v0.md	64	Note mutation, receipt audit and supported redo MUST prove the same complete ori
+ON-V0-007	docs/specs/corvint-tasks-operator-notes-v0.md	67	Every successful fresh or replayed claim and claim-next MUST deliver the operato
+ON-V0-008	docs/specs/corvint-tasks-operator-notes-v0.md	70	Current-note and anchored-history reads MUST be bounded, immutable reads with ex
+ON-V0-009	docs/specs/corvint-tasks-operator-notes-v0.md	73	The codec/transition foundation and integrated capability MUST have distinct evi
+ON-V0-010	docs/specs/corvint-tasks-operator-notes-v0.md	76	Promotion and rollback MUST preserve all existing evidence and explicit integrat
 PCCO-V0-001	docs/specs/proof-carrying-context-optimization-v0.md	65	An optimization trial MUST begin from one canonical Corvint packet whose exact b
 PCCO-V0-002	docs/specs/proof-carrying-context-optimization-v0.md	69	V0 transformations are only whole-handle omission, exact duplicate elimination,
 PCCO-V0-003	docs/specs/proof-carrying-context-optimization-v0.md	72	Counterfactual search MUST run outside live agent sessions using bounded hierarc
@@ -2288,6 +2298,17 @@ SEG-018	docs/specs/semantic-escalation-gate-v0.md	128	The experimental gate MAY 
 SEG-019	docs/specs/semantic-escalation-gate-v0.md	137	A typed-choice response MUST contain exactly one complete object with exact-case
 SEG-020	docs/specs/semantic-escalation-gate-v0.md	143	A typed-choice provider MUST NOT author an evidence handle, excerpt, authority,
 SEG-021	docs/specs/semantic-escalation-gate-v0.md	147	Typed-choice eligibility MUST require its exact response schema and MUST NOT cha
+SERVICE500-001	docs/specs/corvint-tasks-user-service-v0.md	39	The product MUST expose an explicitly optional user-service profile.
+SERVICE500-002	docs/specs/corvint-tasks-user-service-v0.md	42	Configuration and installation identity MUST be closed and bounded.
+SERVICE500-003	docs/specs/corvint-tasks-user-service-v0.md	45	Durable stop, drain, resume and legacy presence MUST share launch fencing.
+SERVICE500-004	docs/specs/corvint-tasks-user-service-v0.md	49	Darwin units MUST use the bound current user's launchd domain.
+SERVICE500-005	docs/specs/corvint-tasks-user-service-v0.md	52	Linux units MUST use the bound systemd user manager.
+SERVICE500-006	docs/specs/corvint-tasks-user-service-v0.md	55	Service restart debt MUST be durable per managed unit and finite.
+SERVICE500-007	docs/specs/corvint-tasks-user-service-v0.md	58	Helpers and optional runtime logging MUST have owned bounded lifecycles.
+SERVICE500-008	docs/specs/corvint-tasks-user-service-v0.md	61	Status and health MUST be read-only and uncertainty-preserving.
+SERVICE500-009	docs/specs/corvint-tasks-user-service-v0.md	64	Manager operations MUST use a durable recoverable original-request journal.
+SERVICE500-010	docs/specs/corvint-tasks-user-service-v0.md	67	Qualification MUST prove the complete native vertical lifecycle.
+SERVICE500-011	docs/specs/corvint-tasks-user-service-v0.md	70	Integrated delivery MUST retain intent, evidence and native closeout.
 SESSION-V0-001	docs/specs/session-context-dividend-v0.md	67	`session begin` MUST pin the full `HEAD` commit and tree, task-key, SHA-256 and
 SESSION-V0-002	docs/specs/session-context-dividend-v0.md	74	V0 MUST store receipts and deltas only beneath the actual `.git/corvint/sessions
 SESSION-V0-003	docs/specs/session-context-dividend-v0.md	79	a receipt MUST be canonical UTF-8 JSON Lines with one terminal LF per event.
