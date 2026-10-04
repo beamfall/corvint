@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -25,6 +26,9 @@ type Ticket struct {
 	Plan, PlanReason                            string
 	State                                       string
 	ProgressToken, ProgressDigest               string
+	// Gates is the native ERG-V0-009 external review state by gate ID. A
+	// workState program cannot supply it; absent means no record.
+	Gates map[string]GateView
 }
 
 // Attempt is the dispatcher's view of one attempt.
@@ -285,7 +289,7 @@ func matches(m *Match, t Ticket) bool {
 	if contains(m.ExcludeStates, t.State) {
 		return false
 	}
-	return !m.PlanSelected || t.Plan == "SELECTED"
+	return (!m.PlanSelected || t.Plan == "SELECTED") && gatesMatch(m.Gates, t)
 }
 
 // durablePhases are attempt phases that record work beyond an empty claim.
@@ -323,6 +327,7 @@ func baseFingerprint(obs *Observation, key string) string {
 	for _, t := range obs.Tickets {
 		if t.ID == key {
 			fmt.Fprintf(h, "%s|%s|%s\n", t.Status, t.Revision, t.State)
+			gateFingerprint(h, t)
 		}
 	}
 	var rows []string
@@ -336,4 +341,68 @@ func baseFingerprint(obs *Observation, key string) string {
 		fmt.Fprintln(h, r)
 	}
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+// GateView is one gate of the native ERG-V0-009 external review state, read
+// from typed queue events, never from a workState program. Status is CURRENT,
+// STALE or UNKNOWN. Verdict is PASS, RETURN, or empty for a current
+// resubmission awaiting review.
+type GateView struct {
+	Verdict, Status      string
+	Generation, Revision string
+	Resubmitted          bool
+	Head                 string
+}
+
+// Gate predicate states. NONE is a gate with no record; the others need a
+// CURRENT head, so a STALE or UNKNOWN gate matches no predicate.
+const (
+	GatePass        = "PASS"
+	GateReturn      = "RETURN"
+	GateResubmitted = "RESUBMITTED"
+	GateNone        = "NONE"
+)
+
+// GateState is the routing state of one gate: NONE, PASS, RETURN or
+// RESUBMITTED, or the non-CURRENT status (STALE or UNKNOWN) otherwise.
+func (t Ticket) GateState(gate string) string {
+	v, ok := t.Gates[gate]
+	switch {
+	case !ok:
+		return GateNone
+	case v.Status != "CURRENT":
+		if v.Status == "STALE" {
+			return v.Status
+		}
+		return StateUnknown
+	case v.Verdict == GatePass || v.Verdict == GateReturn:
+		return v.Verdict
+	case v.Verdict == "" && v.Resubmitted:
+		return GateResubmitted
+	}
+	return StateUnknown
+}
+
+func gatesMatch(gates []GateMatch, t Ticket) bool {
+	for _, g := range gates {
+		if !contains(g.States, t.GateState(g.Gate)) {
+			return false
+		}
+	}
+	return true
+}
+
+// gateFingerprint adds the native gate heads to a ticket's progress identity:
+// a new verdict or resubmission is progress. A ticket without gates hashes
+// exactly as before.
+func gateFingerprint(h io.Writer, t Ticket) {
+	ids := make([]string, 0, len(t.Gates))
+	for id := range t.Gates {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		v := t.Gates[id]
+		fmt.Fprintf(h, "gate|%s|%s|%s|%s|%s|%t|%s\n", id, v.Status, v.Verdict, v.Generation, v.Revision, v.Resubmitted, v.Head)
+	}
 }

@@ -2,22 +2,23 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: proposed
+Intent status: accepted (owner decision 2026-10-04)
 Delivery status: experimental
 
 Authoritative inputs: owner request [issue 504](https://github.com/beamfall/corvint/issues/504)
 (native ticket V1-0701). The technical contract below adapts the issue's preparation plan
 (proposal labels ER504-001..009, an independent Gate A with two MED and one LOW clarification, an
 independent frozen source review whose one MED finding F1 was repaired, and a same-reviewer PASS of
-that repair). Those reviews were agent reviews, not owner acceptance: the intent stays `proposed`
-until the owner accepts it. The existing [agent lease contract](corvint-tasks-agent-leases-v0.md)
+that repair). Those reviews were agent reviews. On 2026-10-04 the owner accepted this intent as
+drafted, including its defaults for the derived-event slot shared with issue 501, the EVIDENCE
+artifact-binding wire shape and the issue 394 verdict mapping (see Open decisions). The existing [agent lease contract](corvint-tasks-agent-leases-v0.md)
 and the TCP-00 executable gate rules keep their authority; this profile never amends them.
 
 ## Agent digest
 - Claim: Review verdicts (G1/G2 PASS/RETURN) and author resubmissions become typed, CAS-ordered queue events that route work without parsing Markdown.
-- Status: proposed; experimental delivery of the pure four-file codec/reducer seed only; no installed review capability.
-- Exists: closed request/event/reference codecs and a pure transition, current-view and recovery-check helper with focused tests; nothing calls them yet.
-- Blocked on: policy/ticket optional-field wiring, the native locked writer and its derived-event slot (shared with issue 501), CLI/history reads, the native workState adapter, the EVIDENCE artifact producer and the issue 394 producer.
+- Status: accepted (owner decision 2026-10-04); experimental: pure seed, pure read adapter/history and dispatcher gate predicates; no native writer yet.
+- Exists: closed codecs, a pure reducer, a pure gate adapter and anchored history reader, and closed dispatcher `gates` predicates over typed verdicts, with misroute regression tests.
+- Blocked on: the native locked writer on the issue 501 derived-event slot, policy/ticket optional fields, CLI verbs, the native observation filling ticket gates, the EVIDENCE and issue 394 producers.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.
 
 ## User and current state
@@ -30,17 +31,28 @@ returning to authors (10 of 24 sessions without progress); and a second RETURN a
 was invisible. The simpler baseline is the regression-tested parser in use; it remains text
 interpretation and gives neither CAS ordering nor binding to the reviewed content.
 
-At public main `4b10a02144faed4a77b36eba4b0d1cbc315706d3` no Tasks record, policy, writer, CLI verb or
+At public main `4b10a02144faed4a77b36eba4b0d1cbc315706d3` (before this profile) no Tasks record, policy, writer, CLI verb or
 dispatcher input carries an external review. `snapshot/gate.go` executable gate results require an
 executed candidate and exit data for PASSED, and `Attempt.Reviews` is reserved for TCP-00 §7.2
 executable review dispositions; neither is repurposed. `dispatch/workstate.go` accepts only a
 string or a closed `{state,progress}` object from a program and rejects anything else.
 
-This first delivery adds only `internal/tasks/snapshot/external_review.go`,
+The first delivery added `internal/tasks/snapshot/external_review.go`,
 `internal/tasks/transaction/external_review.go` and their tests: closed wire codecs and a pure
-reducer over explicitly supplied observations. No writer, reader, CLI verb, policy field, ticket
-field or dispatcher path calls them. Explicitly deferred: everything in ERG-V0-007..010 beyond the
-pure seed.
+reducer over explicitly supplied observations. The second delivery (issue 504 slice, 2026-10-04)
+adds `internal/tasks/transaction/external_review_read.go`, the pure ERG-V0-009 read side:
+`ExternalReviewGates` maps a ticket's gate references, retained event bytes and the explicit current
+binding of each gate to one `ExternalReviewView` per gate (at most 16; a missing head, a missing
+binding or a binding for another gate gives UNKNOWN), and `ExternalReviewHistory` reads one gate's
+events newest first, anchored at the head reference. It also adds typed gate routing to the
+dispatcher: `dispatch.Ticket.Gates` carries the native `{status,verdict,generation,revision,
+resubmitted,head}` per gate, and a role's `match.gates` is a closed list of at most 16
+`{gate,states}` predicates whose states are 1..4 of PASS, RETURN, RESUBMITTED and NONE. NONE means
+no record for that gate; PASS and RETURN need a CURRENT verdict; RESUBMITTED needs a CURRENT
+resubmission awaiting review; STALE and UNKNOWN match no predicate. A gate head joins the CAL-V0-057
+progress fingerprint, and a ticket without gates fingerprints exactly as before. The workState
+program decoder is unchanged, so a program cannot supply gates. No writer, policy field, ticket field
+or CLI verb exists yet, and the native observation does not yet fill `Ticket.Gates`.
 
 ## Requirements
 
@@ -145,10 +157,10 @@ event, history and ticket bounds above, plus the existing 128 KiB ticket and sto
 
 ## Acceptance evidence and traceability
 
-This delivery supplies only the pure, focused evidence that the four seed files can establish. Every
-integrated witness is NOT_RUN; no row claims installed native behavior.
+These deliveries supply only pure and dispatcher-level focused evidence. Every integrated native
+witness is NOT_RUN; no row claims installed native behavior.
 
-| Requirement | Parent proposal | Delivered evidence (pure seed) | Required integrated evidence (NOT_RUN) |
+| Requirement | Parent proposal | Delivered evidence (pure seed and read slice) | Required integrated evidence (NOT_RUN) |
 |---|---|---|---|
 | ERG-V0-001 | ER504-001 | `TestIssue504ReplayAndAuthority` (recorder roles, reviewer lease, operator attestation), `TestIssue504ResubmitAndSecondReturn` (author lease distinct from reviewer) | trusted native binding, live lease lookup, policy-required lease refusal through the CLI |
 | ERG-V0-002 | ER504-002 | `TestIssue504BoundsAndUnknown` (EVIDENCE union encodes; an unproved candidate link refuses), `TestIssue504MaterialBindings` (subject receipt binding), `TestIssue504HistoricalPreservation` (candidate change) | inactive-member refusal test; real SUBMIT receipt lookup; EVIDENCE artifact producer |
@@ -158,19 +170,25 @@ integrated witness is NOT_RUN; no row claims installed native behavior.
 | ERG-V0-006 | ER504-002, F1 | `TestIssue504HistoricalPreservation`, `TestIssue504ResubmitAndSecondReturn/stale-resubmit-fresh-cycle`, `TestIssue504BoundsAndUnknown` | staleness from real acceptance/submission changes |
 | ERG-V0-007 | ER504-005 | `TestIssue504CanonicalRoundTrip`, `TestIssue504TypedRouting` (GateResult decoder rejects the event) | completion predicates unchanged under native records |
 | ERG-V0-008 | ER504-005, Gate A MED | `TestIssue504MaterialBindings` (rehashed wrong CAS, priorReturn, context, post and subject) | locked staged recovery and crash/redo fixtures |
-| ERG-V0-009 | ER504-001, ER504-005, ER504-006 | none | writer, policy, CLI, history, workState adapter, dispatcher predicates, 1670-byte descriptor measurement |
+| ERG-V0-009 | ER504-001, ER504-005, ER504-006 | `TestIssue504GateAdapter` (16-gate bound, UNKNOWN for missing head or binding, STALE), `TestIssue504AnchoredHistory` (default and maximum page, cursor paging, off-chain cursor, broken link and digest refusals), `TestIssue504DispatchMisroutes` (the three issue misroutes route by typed verdict through adapter and roster), `TestERGV0009_GatePredicates` (closed predicate config, NONE, STALE/UNKNOWN never match, fingerprint compatibility, programs cannot supply gates) | native writer, policy, ticket field, CLI verbs, native observation filling ticket gates, 1670-byte descriptor measurement |
 | ERG-V0-010 | ER504-008, ER504-009 | none | full native fixture set, issue 394 producer, review, integration and native completion |
 
 ## Rollout and rollback
 
-This delivery adds unreferenced pure code and this intent; it installs no feature and changes no
-existing byte format, so rollback is reverting the four files and this spec's catalog entries. Later
+The seed and read slice add pure code and an optional dispatcher predicate; they change no existing
+byte format, and a configuration without `match.gates` behaves and fingerprints as before. Rollback
+is reverting those files and this spec's catalog entries; a dispatch configuration that uses
+`match.gates` must drop the predicate first, since the closed decoder would then refuse it. Later
 slices wire the optional fields and native writer after the issue 501 derived-event slot exists, then
 reads, the workState adapter and producers. Once writes exist, disabling new writes is reversible;
 deleting events or pretending an older closed reader is compatible is not rollback.
 
 ## Open decisions
 
-Owner acceptance of this intent; the exact shared derived-event slot with issue 501; the EVIDENCE
-artifact-binding wire shape; and the issue 394 verdict mapping (accepted to PASS, rejected to RETURN,
-blocked to no verdict is a technical proposal only).
+Resolved by owner decision 2026-10-04: the intent is accepted as drafted, with its defaults for the
+derived-event slot shared with issue 501 (the writer posts the ticket and one event through the
+existing MUTATE transaction on that closed slot, within the six-artifact and 1670-byte bounds), the
+EVIDENCE artifact-binding wire shape (`{kind:"EVIDENCE",sha256,bytes}` admissible only with a prior
+admitted journal-backed artifact link) and the issue 394 verdict mapping (accepted to PASS, rejected
+to RETURN, blocked to no verdict). The issue 501 slot itself is not yet committed; the writer follows
+its committed shape. No open decision remains.
