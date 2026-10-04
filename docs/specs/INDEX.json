@@ -685,7 +685,7 @@
     "path": "docs/specs/corvint-tasks-escalations-v0.md",
     "title": "Corvint Tasks typed escalations V0",
     "reqPrefix": "ESC-V0",
-    "intent": "proposed",
+    "intent": "proposed overall; Gate A decisions accepted (decision 0428, owner answer 2026-10-04)",
     "delivery": "experimental",
     "claim": "Workers raise typed questions from admitted claims, operators answer them by compare-and-set, and the next same-acceptance claim receives the answers.",
     "dependsOn": [
