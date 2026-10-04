@@ -611,9 +611,16 @@ and container qualification; full fallback remains available.
   enters the queue only after the AFP-V0-016 decision on its own head, and a queue commit
   holds only such pull requests on top of `main`. Limits: enabling the queue is the owner's
   ruleset change and hosted queue behavior is `NOT_OBSERVED` until then; each merge runs the
-  suite on the queue commit and again on the `main` push, because AFP-V0-024 admits only
-  pull-request results; the pull-request run still tests a possibly stale merge, so only the
-  queue run closes the AFP-V0-025 residual skews. Rollback: disable the queue in the ruleset
+  suite on the queue commit and again on the `main` push unless the pull-request run tested
+  the same tree, because AFP-V0-024 admits only pull-request results; the pull-request run
+  still tests a possibly stale merge, so only the queue run closes the AFP-V0-025 residual
+  skews; the status is posted only after the whole `CI` run completes, so the queue's
+  status-check timeout must exceed that run; the queue-entry precondition, the branch form
+  and `workflow_run` delivery for `merge_group` runs are GitHub behavior assumed here, and a
+  wrong assumption about the latter two posts nothing; the status stays on a queue commit
+  after its entry leaves the queue, so a pull request whose head is that commit shows it
+  until its own `CI` run completes and AFP-V0-016 replaces it, which can admit only
+  `.github/` content already consented to on a queued head. Rollback: disable the queue in the ruleset
   first, then remove the trigger and the `merge-group` job; removing them while the queue is
   on leaves every entry waiting for checks that never report.
 
