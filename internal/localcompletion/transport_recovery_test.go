@@ -1,7 +1,10 @@
 package localcompletion
 
 import (
+	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -73,7 +76,8 @@ func TestTransportRecoveryRequestClosedCanonical(t *testing.T) {
 // malformed link-time test value admits nothing.
 func TestTransportRecoveryAdmissionsClosed(t *testing.T) {
 	entries := transportAdmissions()
-	if len(entries) != 1 || entries[0].baseRevision != "406f9dc3cb80d6af527de5f160370e132e324e9a" || entries[0].heldRevision != "a79439afd1a8dd0650e598b7a1ec51d79c5c6075" {
+	if len(entries) != 1 || entries[0].baseRevision != "406f9dc3cb80d6af527de5f160370e132e324e9a" || entries[0].heldRevision != "a79439afd1a8dd0650e598b7a1ec51d79c5c6075" ||
+		entries[0].baseBinary != "sha256:0a68e6fe4cdf1adfe0029852ae1e073a3cc38f211161c7df5f23d5d1df42fb16" || entries[0].heldBinary != "sha256:e308360e3ef3f3dbae8ffde39f6309c427856cba80fab7188d2492175b521d66" {
 		t.Fatalf("admissions: %+v", entries)
 	}
 	previous := transportRecoveryTestAdmissions
@@ -81,5 +85,79 @@ func TestTransportRecoveryAdmissionsClosed(t *testing.T) {
 	transportRecoveryTestAdmissions = "a,b,c"
 	if entries = transportAdmissions(); entries != nil {
 		t.Fatalf("malformed admissions: %+v", entries)
+	}
+}
+
+// ALO-V0-024: the compiled-in row admits its provenance only with its pinned
+// adapted executables; a request naming any other binary digest is refused
+// before any repository read, and the pinned pair proceeds to the BASE check.
+func TestTransportRecoveryAdmissionPinsVerifierBinaries(t *testing.T) {
+	row := admittedTransportAdaptations[0]
+	role := func(path, revision, tree, patch, binary string) TransportRecoveryVerifier {
+		return TransportRecoveryVerifier{AdapterPatchSHA256: patch, HistoricalRevision: revision, HistoricalTree: tree, Path: path, SHA256: binary}
+	}
+	request := TransportRecoveryRequest{
+		Base:       role("/opt/base/corvint", row.baseRevision, row.baseTree, row.basePatch, row.baseBinary),
+		Tree:       role("/opt/held/corvint", row.heldRevision, row.heldTree, row.heldPatch, row.heldBinary),
+		PlanDigest: row.planDigest, Profile: TransportAdaptedRecoveryProfile, Qualification: TransportAdaptedQualification, Session: row.session,
+	}
+	// A plan base other than the row's makes the pinned pair stop at the BASE
+	// check, which needs no repository.
+	saved := &state{Session: row.session, PlanDigest: row.planDigest, Plan: Plan{Base: strings.Repeat("0", 40)}}
+	admit := func(change func(*TransportRecoveryRequest)) error {
+		value := request
+		if change != nil {
+			change(&value)
+		}
+		parsed, err := parseTransportRecovery(transportRequestBytes(t, value))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return parsed.admit(context.Background(), nil, saved, snapshot{})
+	}
+	if err := admit(nil); err == nil || err.Error() != "transport-recovery-base-mismatch" {
+		t.Fatalf("pinned binaries: %v", err)
+	}
+	wrong := "sha256:" + strings.Repeat("ab", 32)
+	for name, change := range map[string]func(*TransportRecoveryRequest){
+		"base-binary": func(r *TransportRecoveryRequest) { r.Base.SHA256 = wrong },
+		"held-binary": func(r *TransportRecoveryRequest) { r.Tree.SHA256 = wrong },
+		"swapped":     func(r *TransportRecoveryRequest) { r.Base.SHA256, r.Tree.SHA256 = r.Tree.SHA256, r.Base.SHA256 },
+	} {
+		if err := admit(change); err == nil || err.Error() != "transport-recovery-verifier-not-admitted" {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}
+
+// ALO-V0-025: a verifier that is the running executable is refused even when
+// its digest matches the request.
+func TestTransportRecoveryRefusesRunningExecutable(t *testing.T) {
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	selfSHA, err := regularFileSHA256(self)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other := filepath.Join(t.TempDir(), "corvint")
+	if err = os.WriteFile(other, []byte("other verifier"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	otherSHA, err := regularFileSHA256(other)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recovery := &transportRecovery{request: TransportRecoveryRequest{
+		Base: TransportRecoveryVerifier{Path: self, SHA256: selfSHA},
+		Tree: TransportRecoveryVerifier{Path: other, SHA256: otherSHA},
+	}}
+	if err = recovery.verifyIdentities(); err == nil || err.Error() != "transport-recovery-fixed-verifier" {
+		t.Fatalf("running executable: %v", err)
+	}
+	recovery.request.Base = TransportRecoveryVerifier{Path: other, SHA256: selfSHA}
+	if err = recovery.verifyIdentities(); err == nil || err.Error() != "transport-recovery-identity-drift" {
+		t.Fatalf("drift: %v", err)
 	}
 }

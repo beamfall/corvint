@@ -18,7 +18,11 @@ import (
 func TestAnalyzerSchemaInputs(t *testing.T) {
 	t.Run("IDX-SNAP-V0-017", func(t *testing.T) {
 		const auditedSchema = "corvint-analyzer/101"
-		const auditedSHA256 = "f512402c39e81afa7b4edd3f59e1f8fac982ff07379395d13202e19f17dc2091"
+		// Re-pinned without a schema bump for ALO-V0-017: gitRaw's budgeted
+		// branch runs the same binary, arguments, environment and stdin through
+		// gitrun and returns its stdout unchanged or an error, so facts and
+		// encoding are unchanged.
+		const auditedSHA256 = "f8028dc51ab65291d7af5725d933362fb6fde7c95365d1551f40fc36446d8f08"
 		root := filepath.Join("..", "..")
 		paths := []string{"go.mod"}
 		if _, err := os.Stat(filepath.Join(root, "go.sum")); err == nil {

@@ -10,7 +10,7 @@ legacy learning recorder's 200-path limit, retaining all evidence and refusing p
 - Claim: Explicitly enrolled changes can preserve a complete bounded nonlearning outcome after a bound legacy admitted-path-limit refusal.
 - Status: proposed; experimental; NOT_QUALIFIED; source candidate implemented, qualification incomplete. Gate A passed the plan only.
 - Exists: legacy 200-path admission and an experimental explicit aggregate candidate with native focused witnesses.
-- Blocked on: remaining native qualification, independent source review, final gates and the held recovery attempt (transport-adapted lane admitted 2026-10-04, unexecuted; owner-widened adapter including gitrun/session.go passed cleanup witnesses, awaiting review and the owner's go).
+- Blocked on: remaining native qualification, independent source review, final gates and the held recovery attempt (transport-adapted lane admitted 2026-10-04, unexecuted; owner-widened adapter including gitrun/session.go passed cleanup witnesses; independent-review findings fixed with both adapted verifier binaries pinned; awaiting the owner's go).
 - Read next: Requirements; Wire and authority; Publication and restart; Bounds and ownership; Acceptance and traceability.
 
 This slice proposes a separate, bounded **nonlearning** outcome and an explicit keyed Finish
@@ -86,12 +86,14 @@ or Owner algorithm repair is admitted. Preserve AGPL provenance and all six depe
   qualification, independent source review and bound gates; plan PASS is not delivered capability.
 - `ALO-V0-023`: Held recovery MAY replace the running binary's verifier roles only through the
   recovery-only `dogfood finish --aggregate-outcome-profile corvint-dogfood-aggregate-outcome/0
-  --transport-adapted-recovery <request>` route over the existing pending aggregate transaction.
+  --transport-adapted-recovery <request>` route, while the enrollment's aggregate transaction is
+  absent (after the validated legacy refusal) or pending (not COMMITTED, under three issued).
   Ordinary Finish, aggregate Finish and public check keep LCP-V0-014; public check needs COMMITTED.
 - `ALO-V0-024`: The request MUST be one closed canonical JSON value binding the selected session,
   plan digest, absolute executable paths, digests, historical revisions/trees and adapter patch
-  digests. It MUST match a compiled-in owner admission, the plan base tree and the current HELD
-  target/tree before any producer, preservation or publication; refusal mutates no evidence.
+  digests. It MUST match a compiled-in owner admission, including each role's pinned executable
+  digest, the plan base tree and the current HELD target/tree before any producer, preservation or
+  publication; refusal mutates no evidence.
 - `ALO-V0-025`: BASE and TREE executables MUST be distinct regular files equal to the request and
   unequal to the running binary at admission, check start, every run and publication. The report
   MUST record exactly those identities with no override; any disagreement or HOLD stays pending.
@@ -334,6 +336,12 @@ ReasonUnreadable. Tests/documentation disclose both limits without adding export
 Old unsupported writers and unrelated same-UID Git/filesystem writers cannot be controlled by this
 lock; real coordination and pre/post observed identity checks are required, not sandbox claims.
 
+Known limit (transport-adapted recovery): a worker's startup ownership check,
+`gitstatus.EnableOwnedWorker`, proves only that the worker leads its own process group. It does not
+prove that the parent Owner created or will retire that group. Retirement assurance comes from the
+coordinator's pinned Owner and observed RELEASED, not from the worker. The admitted historical
+adapter patches and their pinned binaries cannot change this check.
+
 Non-goals: learning schema/ranking/slot-weight changes, higher legacy limits, standalone recording,
 network/account/daemon, optional products, CEM1 public fixture changes, release/install, wholesale
 lineage imports, automatic fallback/reset, hostile same-UID confinement or power-loss durability.
@@ -459,11 +467,15 @@ The requirement definition positions above are preserved for the separately owne
   Refusals are `transport-recovery-request-unavailable`, `transport-recovery-request-invalid`,
   `transport-recovery-fixed-verifier`, `transport-recovery-not-pending`,
   `transport-recovery-enrollment-mismatch`, `transport-recovery-not-admitted`,
+  `transport-recovery-verifier-not-admitted`,
   `transport-recovery-base-mismatch`, `transport-recovery-held-mismatch`,
   `transport-recovery-identity-unavailable` and `transport-recovery-identity-drift`; a substituted
   runner invoked outside the aggregate check fails `transport-recovery-requires-aggregate-check`.
   `TestTransportRecoveryRequestClosedCanonical` and `TestTransportRecoveryAdmissionsClosed` cover
-  request parsing and the closed admission list.
+  request parsing and the closed admission list. The row also pins each role's adapted binary
+  (BASE `0a68e6fe`, HELD `e308360e`, from the adapter build witness); another executable digest
+  for admitted provenance fails `transport-recovery-verifier-not-admitted`, covered by
+  `TestTransportRecoveryAdmissionPinsVerifierBinaries` and the native `wrong-binary-digest` case.
   `TestTransportAdaptedRecoveryNative` covers Darwin only; the adapter build, parity and owned-group
   cleanup witnesses are recorded in the 2026-10-04 build log. Linux and Windows are NOT_PRODUCED.
 

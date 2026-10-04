@@ -59,32 +59,37 @@ type TransportRecoveryProvenance struct {
 	TreeSHA256    string `json:"treeVerifierSha256"`
 }
 
-// transportAdaptation is one owner-admitted recovery: the exact enrollment and
-// the exact historical sources and adapter patches it may name.
+// transportAdaptation is one owner-admitted recovery: the exact enrollment,
+// the exact historical sources and adapter patches it may name, and the
+// witnessed adapted executable digest of each role.
 type transportAdaptation struct {
-	session, planDigest               string
-	baseRevision, baseTree, basePatch string
-	heldRevision, heldTree, heldPatch string
+	session, planDigest                           string
+	baseRevision, baseTree, basePatch, baseBinary string
+	heldRevision, heldTree, heldPatch, heldBinary string
 }
 
 // admittedTransportAdaptations is closed. Only the #443 held recovery admitted
 // by the owner's 2026-10-04 transport-adapter decision is listed. Its patch
 // digests pin the owner-widened four-file adapter, which also guards
-// internal/cem/gitrun/session.go (owner approval, 2026-10-04).
+// internal/cem/gitrun/session.go (owner approval, 2026-10-04). Its binary
+// digests are the adapted executables of that adapter's build witness
+// (Darwin arm64, go1.27.1); any other executable is not admitted.
 var admittedTransportAdaptations = []transportAdaptation{{
 	session:      "b36b7ba8858646e93b1b86ac88933736cb66ad8974542e34ebeead7693f9f989",
 	planDigest:   "3c6bab794327c66c014b7523ff64f278008389f373a288141dbe3b862f3d666c",
 	baseRevision: "406f9dc3cb80d6af527de5f160370e132e324e9a",
 	baseTree:     "e0dfeaa577e32c3793f686662f4a40952ff04109",
 	basePatch:    "sha256:c610b712846b044b2c2f2050a08dfe81803a0c90ff909ca1193629316f0dd9b5",
+	baseBinary:   "sha256:0a68e6fe4cdf1adfe0029852ae1e073a3cc38f211161c7df5f23d5d1df42fb16",
 	heldRevision: "a79439afd1a8dd0650e598b7a1ec51d79c5c6075",
 	heldTree:     "d6d6b89020cf8459e2e019bd4e443e9450926147",
 	heldPatch:    "sha256:6f58ea184aa98edbc7919f1f0ec23259d869517ac992184c9650d82d9f6e0c0c",
+	heldBinary:   "sha256:e308360e3ef3f3dbae8ffde39f6309c427856cba80fab7188d2492175b521d66",
 }}
 
 // transportRecoveryTestAdmissions is empty in every product build. Only a test
 // build links extra admissions with -ldflags -X, as ";"-separated entries of
-// eight ","-separated hex fields in transportAdaptation order. No runtime
+// ten ","-separated hex fields in transportAdaptation order. No runtime
 // input, environment variable or request field can reach it.
 var transportRecoveryTestAdmissions string
 
@@ -95,10 +100,10 @@ func transportAdmissions() []transportAdaptation {
 	}
 	for _, row := range strings.Split(transportRecoveryTestAdmissions, ";") {
 		f := strings.Split(row, ",")
-		if len(f) != 8 {
+		if len(f) != 10 {
 			return nil
 		}
-		entries = append(entries, transportAdaptation{f[0], f[1], f[2], f[3], "sha256:" + f[4], f[5], f[6], "sha256:" + f[7]})
+		entries = append(entries, transportAdaptation{f[0], f[1], f[2], f[3], "sha256:" + f[4], "sha256:" + f[5], f[6], f[7], "sha256:" + f[8], "sha256:" + f[9]})
 	}
 	return entries
 }
@@ -191,16 +196,24 @@ func (r *transportRecovery) admit(ctx context.Context, repo *repository, saved *
 	if request.Session != saved.Session || request.PlanDigest != saved.PlanDigest {
 		return errors.New("transport-recovery-enrollment-mismatch")
 	}
-	admitted := false
+	// A row admits the provenance only together with its pinned executables;
+	// verifyIdentities then binds each request digest to the file it names.
+	provenance, admitted := false, false
 	for _, entry := range transportAdmissions() {
 		if entry.session == request.Session && entry.planDigest == request.PlanDigest &&
 			entry.baseRevision == request.Base.HistoricalRevision && entry.baseTree == request.Base.HistoricalTree && entry.basePatch == request.Base.AdapterPatchSHA256 &&
 			entry.heldRevision == request.Tree.HistoricalRevision && entry.heldTree == request.Tree.HistoricalTree && entry.heldPatch == request.Tree.AdapterPatchSHA256 {
-			admitted = true
+			provenance = true
+			if entry.baseBinary == request.Base.SHA256 && entry.heldBinary == request.Tree.SHA256 {
+				admitted = true
+			}
 		}
 	}
-	if !admitted {
+	if !provenance {
 		return errors.New("transport-recovery-not-admitted")
+	}
+	if !admitted {
+		return errors.New("transport-recovery-verifier-not-admitted")
 	}
 	if request.Base.HistoricalRevision != saved.Plan.Base {
 		return errors.New("transport-recovery-base-mismatch")

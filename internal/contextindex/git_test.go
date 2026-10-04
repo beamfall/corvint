@@ -484,3 +484,51 @@ func TestAggregateIndexAdmissionAndPhysicalBatchBoundary(t *testing.T) {
 		t.Fatal("physical plus-one acquisition accepted")
 	}
 }
+
+// IDX-SNAP-V0-017 and ALO-V0-017: the budgeted executor returns byte-identical
+// successful Git output, with and without stdin, so the re-pinned analyzer
+// audit needs no schema bump.
+func TestAggregateGitExecutorSuccessParity(t *testing.T) {
+	root := t.TempDir()
+	for _, args := range [][]string{
+		{"init", "-q"},
+		{"config", "user.email", "parity@example.invalid"},
+		{"config", "user.name", "Parity"},
+	} {
+		if out, err := exec.Command("git", append([]string{"-C", root}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "café \"q\".go"), []byte("package p\n// é\x00\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"add", "-A"}, {"commit", "-qm", "parity"}} {
+		if out, err := exec.Command("git", append([]string{"-C", root}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+	}
+	tree, err := gitRaw(context.Background(), root, 1<<20, 0, nil, "ls-tree", "-r", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	oid := strings.Fields(string(tree))[2]
+	for _, call := range []struct {
+		stdin []byte
+		args  []string
+	}{
+		{nil, []string{"ls-tree", "-r", "-z", "--long", "HEAD"}},
+		{nil, []string{"ls-tree", "-r", "HEAD"}},
+		{nil, []string{"log", "--format=%H%x00%T%x00%s", "HEAD"}},
+		{[]byte(oid + "\n"), []string{"cat-file", "--batch"}},
+	} {
+		legacy, err := gitRaw(context.Background(), root, 1<<20, 64, call.stdin, call.args...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		budget, _ := gitrun.NewOperationBudget(64, time.Now().Add(time.Minute), false)
+		aggregate, err := gitRaw(gitrun.WithOperationBudget(context.Background(), budget), root, 1<<20, 64, call.stdin, call.args...)
+		if err != nil || !bytes.Equal(legacy, aggregate) || len(legacy) == 0 || budget.Used() != 1 {
+			t.Fatalf("%v: err=%v equal=%v used=%d", call.args, err, bytes.Equal(legacy, aggregate), budget.Used())
+		}
+	}
+}

@@ -109,15 +109,8 @@ func TestTransportAdaptedRecoveryNative(t *testing.T) {
 	}
 	basePatch := strings.Repeat("1", 64)
 	heldPatch := strings.Repeat("2", 64)
-	rows := []string{
-		strings.Join([]string{key, saved.PlanDigest, base, baseTree, basePatch, held, heldTree, heldPatch}, ","),
-		// Admitted but naming a BASE other than the plan's base.
-		strings.Join([]string{key, saved.PlanDigest, head, headTree, strings.Repeat("3", 64), held, heldTree, heldPatch}, ","),
-		// Admitted but naming a HELD other than the current target.
-		strings.Join([]string{key, saved.PlanDigest, base, baseTree, basePatch, base, baseTree, strings.Repeat("4", 64)}, ","),
-	}
-	recovery := portableRun{binary: filepath.Join(tmp, "recovery", "corvint"), env: verifierA.env}
-	transportBuild(t, recovery.binary, "-trimpath", "-ldflags=-X github.com/Beamfall/corvint/internal/localcompletion.transportRecoveryTestAdmissions="+strings.Join(rows, ";"))
+	// The verifier binaries exist before the recovery binary links its test
+	// admissions, because each row pins its roles' executable digests.
 	verifierB := filepath.Join(tmp, "b", "corvint")
 	transportBuild(t, verifierB)
 	disagree := filepath.Join(tmp, "d", "corvint")
@@ -127,9 +120,22 @@ func TestTransportAdaptedRecoveryNative(t *testing.T) {
 	if err = os.WriteFile(disagree, []byte("#!/bin/sh\n\""+verifierA.binary+"\" \"$@\"\nstatus=$?\necho transport-disagreement\nexit $status\n"), 0755); err != nil {
 		t.Fatal(err)
 	}
+	shaA, shaB, shaD := transportFileSHA(t, verifierA.binary), transportFileSHA(t, verifierB), transportFileSHA(t, disagree)
+	pin := func(sha string) string { return strings.TrimPrefix(sha, "sha256:") }
+	rows := []string{
+		strings.Join([]string{key, saved.PlanDigest, base, baseTree, basePatch, pin(shaA), held, heldTree, heldPatch, pin(shaB)}, ","),
+		// The same provenance admitting the disagreeing TREE executable.
+		strings.Join([]string{key, saved.PlanDigest, base, baseTree, basePatch, pin(shaA), held, heldTree, heldPatch, pin(shaD)}, ","),
+		// Admitted but naming a BASE other than the plan's base.
+		strings.Join([]string{key, saved.PlanDigest, head, headTree, strings.Repeat("3", 64), pin(shaA), held, heldTree, heldPatch, pin(shaB)}, ","),
+		// Admitted but naming a HELD other than the current target.
+		strings.Join([]string{key, saved.PlanDigest, base, baseTree, basePatch, pin(shaA), base, baseTree, strings.Repeat("4", 64), pin(shaB)}, ","),
+	}
+	recovery := portableRun{binary: filepath.Join(tmp, "recovery", "corvint"), env: verifierA.env}
+	transportBuild(t, recovery.binary, "-trimpath", "-ldflags=-X github.com/Beamfall/corvint/internal/localcompletion.transportRecoveryTestAdmissions="+strings.Join(rows, ";"))
 	fixed := filepath.Join(tmp, "fixed", "corvint")
 	workCopyExecutable(t, recovery.binary, fixed)
-	shaA, shaB, shaD, shaFixed := transportFileSHA(t, verifierA.binary), transportFileSHA(t, verifierB), transportFileSHA(t, disagree), transportFileSHA(t, fixed)
+	shaFixed := transportFileSHA(t, fixed)
 	if len(map[string]bool{shaA: true, shaB: true, shaD: true, shaFixed: true}) != 4 {
 		t.Fatal("verifier identities are not distinct")
 	}
@@ -194,8 +200,11 @@ func TestTransportAdaptedRecoveryNative(t *testing.T) {
 		{"not-admitted", request(roleA, role(verifierB, shaB, held, heldTree, strings.Repeat("9", 64)), nil), "transport-recovery-not-admitted", profile},
 		{"base-mismatch", request(role(verifierA.binary, shaA, head, headTree, strings.Repeat("3", 64)), roleB, nil), "transport-recovery-base-mismatch", profile},
 		{"held-mismatch", request(roleA, role(verifierB, shaB, base, baseTree, strings.Repeat("4", 64)), nil), "transport-recovery-held-mismatch", profile},
-		{"fixed-running-binary", request(role(fixed, shaFixed, base, baseTree, basePatch), roleB, nil), "transport-recovery-fixed-verifier", profile},
-		{"identity-drift", request(role(verifierA.binary, shaB, base, baseTree, basePatch), role(verifierB, shaA, held, heldTree, heldPatch), nil), "transport-recovery-identity-drift", profile},
+		// No row can pin the running binary, whose bytes embed the rows; the
+		// unit test covers the running-executable refusal itself.
+		{"fixed-running-binary", request(role(fixed, shaFixed, base, baseTree, basePatch), roleB, nil), "transport-recovery-verifier-not-admitted", profile},
+		{"wrong-binary-digest", request(role(disagree, shaD, base, baseTree, basePatch), roleB, nil), "transport-recovery-verifier-not-admitted", profile},
+		{"identity-drift", request(role(verifierB, shaA, base, baseTree, basePatch), role(verifierA.binary, shaB, held, heldTree, heldPatch), nil), "transport-recovery-identity-drift", profile},
 	}
 	before := transportEvidenceBytes(t, root)
 	for _, refusal := range refusals {

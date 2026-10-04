@@ -500,6 +500,39 @@ func TestAggregatePreservationCancellationStopsBeforeNextWrite(t *testing.T) {
 	}
 }
 
+// lateCancelContext reports cancellation only from its second Err call, which
+// is writeAggregateExclusiveContext's check between stage close and install.
+type lateCancelContext struct {
+	context.Context
+	calls int
+}
+
+func (c *lateCancelContext) Err() error {
+	c.calls++
+	if c.calls > 1 {
+		return context.Canceled
+	}
+	return nil
+}
+
+// ALO-V0-015: a cancellation between the verified stage close and the
+// exclusive install publishes nothing and leaves no owned stage behind.
+func TestAggregateExclusiveLateCancelRemovesStage(t *testing.T) {
+	directory := t.TempDir()
+	name := filepath.Join(directory, "late")
+	ctx := &lateCancelContext{Context: context.Background()}
+	if err := writeAggregateExclusiveContext(ctx, name, []byte("x")); !errors.Is(err, context.Canceled) || ctx.calls != 2 {
+		t.Fatalf("late cancellation: %v calls=%d", err, ctx.calls)
+	}
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("late cancellation left %v", entries)
+	}
+}
+
 func TestAggregatePreservationProcessHelper(t *testing.T) {
 	root := os.Getenv("CORVINT_AGGREGATE_STORAGE_TEST_ROOT")
 	if root == "" {

@@ -190,9 +190,9 @@ ALO-V0-020	docs/specs/aggregate-local-outcome-v0.md	81	Predecessors MUST refuse 
 ALO-V0-021	docs/specs/aggregate-local-outcome-v0.md	83	Qualification MUST execute the frozen fault, reload, compatibility, boundary and
 ALO-V0-022	docs/specs/aggregate-local-outcome-v0.md	85	Promotion and held recovery MUST require separate concrete admission, actual
 ALO-V0-023	docs/specs/aggregate-local-outcome-v0.md	87	Held recovery MAY replace the running binary's verifier roles only through the
-ALO-V0-024	docs/specs/aggregate-local-outcome-v0.md	91	The request MUST be one closed canonical JSON value binding the selected session
-ALO-V0-025	docs/specs/aggregate-local-outcome-v0.md	95	BASE and TREE executables MUST be distinct regular files equal to the request an
-ALO-V0-026	docs/specs/aggregate-local-outcome-v0.md	98	The result names `TRANSPORT_ADAPTED_HISTORICAL` with the request digest. It neve
+ALO-V0-024	docs/specs/aggregate-local-outcome-v0.md	92	The request MUST be one closed canonical JSON value binding the selected session
+ALO-V0-025	docs/specs/aggregate-local-outcome-v0.md	97	BASE and TREE executables MUST be distinct regular files equal to the request an
+ALO-V0-026	docs/specs/aggregate-local-outcome-v0.md	100	The result names `TRANSPORT_ADAPTED_HISTORICAL` with the request digest. It neve
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,
