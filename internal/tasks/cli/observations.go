@@ -32,7 +32,7 @@ func addHolderObservation(o *wire.Object, a *snapshot.Attempt, now time.Time) {
 }
 func retryObservation(rc *readCtx, attempts map[string]*snapshot.Attempt, rec *ticket.Record) wire.Value {
 	if rc.journalAbsent {
-		return wire.ObjectValue(wire.NewObject().Set("charged", wire.String("NOT_OBSERVED")).Set("limit", wire.String(string(rc.store.Policy.AdmissionsPerRevision))).Set("remaining", wire.String("NOT_OBSERVED")).Set("exhausted", wire.Null()).Set("byReason", wire.Null()).Set("reasonHistory", wire.String("NOT_OBSERVED")))
+		return wire.ObjectValue(wire.NewObject().Set("remainingMeaning", wire.String("RETRY_CAPACITY")).Set("retryAdmissionReason", wire.String("NOT_OBSERVED")).Set("charged", wire.String("NOT_OBSERVED")).Set("limit", wire.String(string(rc.store.Policy.AdmissionsPerRevision))).Set("remaining", wire.String("NOT_OBSERVED")).Set("exhausted", wire.Null()).Set("byReason", wire.Null()).Set("reasonHistory", wire.String("NOT_OBSERVED")))
 	}
 	return transaction.RetryObservation(attempts, rec, rc.store.Policy.AdmissionsPerRevision.Int())
 }
