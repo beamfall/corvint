@@ -334,6 +334,6 @@ func TestTrialProcessHelper(t *testing.T) {
 const trialCapturesStderr = false
 
 func trialRunCommand(ctx context.Context, root string, timeout time.Duration, name string, args ...string) ([]byte, int, string, error) {
-	stdout, code, err := runCommand(ctx, root, timeout, name, args...)
+	stdout, code, _, err := runCommand(ctx, root, timeout, name, args...)
 	return stdout, code, "", err
 }

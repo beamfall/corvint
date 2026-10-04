@@ -17,6 +17,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -162,6 +163,10 @@ type agentResult struct {
 	tokens     any
 	toolCalls  any
 	stderrTail string
+	// replyTruncated and stdoutTruncated record a cut at a capture bound
+	// before the reply reached the record.
+	replyTruncated  bool
+	stdoutTruncated bool
 }
 
 type agent interface {
@@ -468,6 +473,8 @@ func invokeLane(ctx context.Context, configuration options, runner agent, prep, 
 		}
 		record.ExitCode, record.Tokens, record.ToolCalls = result.exitCode, result.tokens, result.toolCalls
 		record.Reply, record.ReplyTruncated = truncate(result.reply, maxReplyBytes)
+		record.ReplyTruncated = record.ReplyTruncated || result.replyTruncated
+		record.StdoutTruncated = result.stdoutTruncated
 		if code, ok := result.exitCode.(int); ok && code != 0 {
 			record.Error = agentExitError(code, result.stderrTail)
 		}
@@ -656,7 +663,7 @@ func verifyOK(raw string) bool {
 }
 
 func corvint(ctx context.Context, configuration options, root string, arguments ...string) (string, error) {
-	stdout, exitCode, _, err := runCommand(ctx, root, corvintTimeout, configuration.corvintGo, append([]string{"--root", root}, arguments...)...)
+	stdout, exitCode, _, _, err := runCommand(ctx, root, corvintTimeout, configuration.corvintGo, append([]string{"--root", root}, arguments...)...)
 	if err != nil {
 		return "", err
 	}
@@ -675,7 +682,7 @@ func corvintIdentity(ctx context.Context, configuration options) map[string]any 
 		sum := sha256.Sum256(data)
 		identity["sha256"] = hex.EncodeToString(sum[:])
 	}
-	if stdout, exitCode, _, err := runCommand(ctx, "", corvintTimeout, configuration.corvintGo, "--version"); err == nil && exitCode == 0 {
+	if stdout, exitCode, _, _, err := runCommand(ctx, "", corvintTimeout, configuration.corvintGo, "--version"); err == nil && exitCode == 0 {
 		identity["version"] = strings.TrimSpace(string(stdout))
 	}
 	return identity
@@ -727,9 +734,13 @@ type citation struct {
 var fencePattern = regexp.MustCompile("(?s)```(?:[a-zA-Z0-9]*)\\n(.*?)```")
 
 // extractCitations finds the reply block: the last fenced block naming
-// "citations", or a reply that is itself one JSON object. ABSENT when there
-// is none, MALFORMED when it does not parse; both score as cited nothing.
+// "citations", or a reply that is itself one JSON object. EMPTY when the
+// reply holds only whitespace, ABSENT when there is no block, MALFORMED when
+// it does not parse; all three score as cited nothing.
 func extractCitations(reply string) ([]citation, string) {
+	if strings.TrimSpace(reply) == "" {
+		return nil, "EMPTY"
+	}
 	block, found := citationsBlock(reply)
 	if !found {
 		return nil, "ABSENT"
@@ -883,19 +894,35 @@ func (runner codexAgent) run(ctx context.Context, root, prompt string, timeout t
 	}
 	defer os.RemoveAll(scratch)
 	replyPath := filepath.Join(scratch, "reply.txt")
-	stdout, exitCode, stderrTail, err := runCommand(ctx, root, timeout, "codex", runner.arguments(root, replyPath, prompt)...)
+	stdout, exitCode, stderrTail, overflow, err := runCommand(ctx, root, timeout, "codex", runner.arguments(root, replyPath, prompt)...)
 	if err != nil {
 		return agentResult{}, err
 	}
 	events := parseCodexEvents(stdout)
-	reply, readErr := os.ReadFile(replyPath)
+	reply, readErr := readPrefix(replyPath, maxReplyBytes+1)
 	if readErr != nil {
 		reply = []byte(events.lastMessage)
 	}
-	return agentResult{
+	result := agentResult{
 		reply: string(reply), exitCode: exitCode, tokens: events.tokens,
 		toolCalls: events.toolCalls, stderrTail: stderrTail,
-	}, nil
+	}
+	if overflow {
+		// A cut event stream lost its tail, so its usage and tool counts are not observations.
+		result.stdoutTruncated, result.tokens, result.toolCalls = true, notObserved, notObserved
+	}
+	return result, nil
+}
+
+// readPrefix reads at most limit bytes of path, so a reply larger than the
+// reply bound is never allocated whole; truncate then records the cut.
+func readPrefix(path string, limit int64) ([]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return io.ReadAll(io.LimitReader(file, limit))
 }
 
 func (runner codexAgent) identity(ctx context.Context) (map[string]any, error) {
@@ -942,10 +969,25 @@ func parseCodexEvents(stdout []byte) codexEvents {
 			result.toolCalls++
 		}
 		if event.Type == "turn.completed" && len(event.Usage) > 0 {
-			result.tokens = event.Usage
+			result.tokens = notObserved
+			if validUsage(event.Usage) {
+				result.tokens = event.Usage
+			}
 		}
 	}
 	return result
+}
+
+// validUsage admits a usage event only when every count is a finite,
+// non-negative number; anything else is not a token observation.
+func validUsage(usage map[string]any) bool {
+	for _, value := range usage {
+		number, numeric := value.(float64)
+		if !numeric || number < 0 || math.IsInf(number, 0) || math.IsNaN(number) {
+			return false
+		}
+	}
+	return true
 }
 
 // scriptAgent is any executable taking the prompt as its only argument and
@@ -953,13 +995,14 @@ func parseCodexEvents(stdout []byte) codexEvents {
 type scriptAgent struct{ command string }
 
 func (runner scriptAgent) run(ctx context.Context, root, prompt string, timeout time.Duration) (agentResult, error) {
-	stdout, exitCode, stderrTail, err := runCommand(ctx, root, timeout, runner.command, prompt)
+	stdout, exitCode, stderrTail, overflow, err := runCommand(ctx, root, timeout, runner.command, prompt)
 	if err != nil {
 		return agentResult{}, err
 	}
 	return agentResult{
 		reply: string(stdout), exitCode: exitCode, tokens: notObserved,
 		toolCalls: notObserved, stderrTail: stderrTail,
+		replyTruncated: overflow, stdoutTruncated: overflow,
 	}, nil
 }
 
@@ -989,16 +1032,16 @@ func newAgent(configuration options) (agent, error) {
 // runCommand runs one invocation with stdin closed, bounded output, and the
 // given timeout; a non-zero exit is returned as the exit code with stdout and
 // the bounded stderr, so the caller can say why the invocation failed.
-func runCommand(ctx context.Context, root string, timeout time.Duration, name string, arguments ...string) ([]byte, int, string, error) {
+func runCommand(ctx context.Context, root string, timeout time.Duration, name string, arguments ...string) ([]byte, int, string, bool, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, 0, "", fmt.Errorf("%s: %v after %s", name, err, timeout)
+		return nil, 0, "", false, fmt.Errorf("%s: %v after %s", name, err, timeout)
 	}
 	if timeout <= 0 {
-		return nil, 0, "", fmt.Errorf("%s: %v after %s", name, context.DeadlineExceeded, timeout)
+		return nil, 0, "", false, fmt.Errorf("%s: %v after %s", name, context.DeadlineExceeded, timeout)
 	}
 	directory, err := filepath.Abs(root)
 	if err != nil {
-		return nil, 0, "", fmt.Errorf("%s: %v", name, err)
+		return nil, 0, "", false, fmt.Errorf("%s: %v", name, err)
 	}
 	executable := name
 	if !filepath.IsAbs(executable) {
@@ -1010,7 +1053,7 @@ func runCommand(ctx context.Context, root string, timeout time.Duration, name st
 				executable, err = filepath.Abs(executable)
 			}
 			if err != nil {
-				return nil, 0, "", fmt.Errorf("%s: %v", name, err)
+				return nil, 0, "", false, fmt.Errorf("%s: %v", name, err)
 			}
 		}
 	}
@@ -1022,20 +1065,20 @@ func runCommand(ctx context.Context, root string, timeout time.Duration, name st
 		OverflowPolicy: procgroup.OverflowTruncate,
 	})
 	if observation.TimedOut {
-		return nil, 0, "", fmt.Errorf("%s: %v after %s", name, context.DeadlineExceeded, timeout)
+		return nil, 0, "", false, fmt.Errorf("%s: %v after %s", name, context.DeadlineExceeded, timeout)
 	}
 	if observation.Cancelled {
-		return nil, 0, "", fmt.Errorf("%s: %v after %s", name, ctx.Err(), timeout)
+		return nil, 0, "", false, fmt.Errorf("%s: %v after %s", name, ctx.Err(), timeout)
 	}
 	stderr := strings.TrimSpace(string(observation.Stderr))
 	if observation.Err != nil {
-		return nil, 0, "", fmt.Errorf("%s: %v: %s", name, observation.Err, stderr)
+		return nil, 0, "", false, fmt.Errorf("%s: %v: %s", name, observation.Err, stderr)
 	}
 	if !observation.ExitObserved || !observation.WaitCompleted ||
 		!observation.PipesDrained || !observation.OwnedProcessGroupCleanup {
-		return nil, 0, "", fmt.Errorf("%s: invocation cleanup or exit observation is incomplete", name)
+		return nil, 0, "", false, fmt.Errorf("%s: invocation cleanup or exit observation is incomplete", name)
 	}
-	return observation.Stdout, observation.ExitStatus, stderr, nil
+	return observation.Stdout, observation.ExitStatus, stderr, observation.StdoutOverflow, nil
 }
 
 func truncate(text string, limit int) (string, bool) {
@@ -1298,6 +1341,7 @@ func (source *reuseSource) apply(record *lane) bool {
 	}
 	record.WallMs, record.ExitCode, record.Tokens, record.ToolCalls = prior.WallMs, prior.ExitCode, prior.Tokens, prior.ToolCalls
 	record.Reply, record.ReplyTruncated, record.CEM = prior.Reply, prior.ReplyTruncated, prior.CEM
+	record.StdoutTruncated = prior.StdoutTruncated
 	record.ReusedFrom = source.identity
 	return true
 }

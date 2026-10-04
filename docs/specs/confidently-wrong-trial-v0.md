@@ -38,7 +38,8 @@ has committed to nothing and is scored as abstaining.
 - `CWT-V0-001`: Claim grammar. Every reply MUST end with one fenced JSON block
   `{"claims":[{"kind":"test-file|source-file|answer","value":"...","confidence":"certain|likely|unsure","evidence":"..."}]}`.
   The scorer takes the last fenced block whose text contains `"claims"`, or a reply that is itself
-  one JSON object naming `"claims"`. No such block is `ABSENT`; a block that does not parse into a
+  one JSON object naming `"claims"`. A reply holding only whitespace is `EMPTY` (amended
+  2026-10-04, V1-0742); otherwise no such block is `ABSENT`; a block that does not parse into a
   `claims` array is `MALFORMED`; a claim outside the grammar (unknown kind or confidence, empty
   value) is `INVALID` and never counts as an action. Path values are compared after trimming
   whitespace, a leading `./`, and a trailing `/`; `answer` values compare case-insensitively.
@@ -47,7 +48,7 @@ has committed to nothing and is scored as abstaining.
   `success` is 1 when any claim is `TRUE`; `confidently_wrong` counts `FALSE` claims with
   confidence `certain` (and `confidently_wrong_task` is 1 when that count is positive);
   `wrong_likely` counts `FALSE` claims with confidence `likely`; `abstained` is 1 when the reply
-  holds no valid claim (`ABSENT`, `MALFORMED`, or an empty array). `UNJUDGED` and `INVALID`
+  holds no valid claim (`EMPTY`, `ABSENT`, `MALFORMED`, or an empty array). `UNJUDGED` and `INVALID`
   claims never move success or the confidently-wrong count in either direction. Placement is
   scored beside the claims: `context_failed` is 1 when the producer failed (and the task is
   otherwise scored as a no-context task, never pooled silently); otherwise `gold_in_context` is
@@ -95,6 +96,13 @@ has committed to nothing and is scored as abstaining.
   rule to the recorded exit code; a non-zero exit that still left a well-formed block is scored.
   A reply cut at the reply bound (`reply_truncated`) whose claims block did not survive is an error
   too (`reply exceeded the reply bound and its claims block was cut`), never an abstention.
+  Amended 2026-10-04 (V1-0742): the `-o` reply file is read only up to one byte past the reply
+  bound, so an oversized reply is never allocated whole and is recorded `reply_truncated`. A usage
+  event whose counts are not all finite, non-negative numbers is not a token observation and
+  records `NOT_OBSERVED`; the report's token totals refuse such a record. When the agent's stdout
+  reached the CWT-V0-014 capture bound, the arm records `stdout_truncated: true`; a cut codex
+  event stream records `tokens` and `tool_calls` as `NOT_OBSERVED`, and a cut `script` reply is
+  `reply_truncated`.
   Under `--access none` only: `--workers N` runs up to N invocations concurrently, each in its own
   empty directory, and changes timings and nothing else because records are written only by their
   own invocation and the report keeps manifest order; `--reuse REPORT` copies the reply and observations of any arm whose prompt
@@ -251,10 +259,10 @@ listed as non-reproducing with its rescored values cited beside the recorded one
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| CWT-V0-001 | `extractClaims`, `claimsBlock`, `verdict`, `normalize` in `tools/cw-trial/main.go` | `TestExtractClaimsPresentAbsentMalformed`; `TestJudgeClaimsGroundsEvidenceInContext` |
+| CWT-V0-001 | `extractClaims`, `claimsBlock`, `verdict`, `normalize` in `tools/cw-trial/main.go` | `TestExtractClaimsPresentAbsentMalformed`; `TestJudgeClaimsGroundsEvidenceInContext`; `TestExtractClaimsKeepsEmptyAbsentAndMalformedDistinct` (2026-10-04 amendment) |
 | CWT-V0-002 | `scoreArm`, `judgeClaims` | `TestScoreArmSuccessConfidentlyWrongAbstain` (success, confidently wrong with likely/unjudged/invalid, abstain by silence, empty block, malformed) |
 | CWT-V0-003 | `skeleton`, `prologues`, `buildPrompt`, `contextBody`, `grepBody`, `aiderBody`, `corvintPacket` | `TestTrialWithScriptAgentScoresEveryArm` (none carries no context, grep lists the gold hit and skips binaries, prompt digests differ); `TestAiderArmRunsTheProducerWithTheSameSeeds`; pilot run `benchmarks/results/cw-trial-pilot-first-run.json` (corvint arm) |
-| CWT-V0-004 | `codexAgent`, `scriptAgent`, `runCommand`, `failedInvocation`, `dispatchTask`, `invokePending`, `checkpointer`, `loadReuse`, `reuseSource.apply` | `TestParseCodexEventsReadsUsageAndLastMessage`; `TestTrialWithScriptAgentScoresEveryArm` (tokens `NOT_OBSERVED`, wall time observed); `TestTrialCountsANonZeroExitWithoutClaimsAsAnError`; `TestTrialReusesIdenticalPromptsAndRunsWorkersUnderNoAccess`; `TestTrialCheckpointsEveryInvocationAndResumesOnlyTheUnfinished`; pilot run (codex tokens observed) |
+| CWT-V0-004 | `codexAgent`, `scriptAgent`, `runCommand`, `failedInvocation`, `dispatchTask`, `invokePending`, `checkpointer`, `loadReuse`, `reuseSource.apply` | `TestParseCodexEventsReadsUsageAndLastMessage`; `TestTrialWithScriptAgentScoresEveryArm` (tokens `NOT_OBSERVED`, wall time observed); `TestTrialCountsANonZeroExitWithoutClaimsAsAnError`; `TestTrialReusesIdenticalPromptsAndRunsWorkersUnderNoAccess`; `TestTrialCheckpointsEveryInvocationAndResumesOnlyTheUnfinished`; pilot run (codex tokens observed); 2026-10-04 amendment: `TestNegativeTokenCountsAreNotObservations`, `TestReadPrefixBoundsTheReplyRead`, `TestCodexRunBoundsTheReplyAndRecordsStdoutTruncation`, `TestScriptRunRecordsStdoutTruncation` |
 | CWT-V0-005 | `workspaces`, `materialize`, `materializeHistory`, `commitKnown`, `writeChunkRows`, `copyTree`, `safeRelative` | `TestMaterializationNeverTouchesTheSnapshot`; `TestChunkFileMaterializesOnlyFileRows`; `TestHistorySnapshotCarriesCommitsAndLeavesTheSourceUntouched` |
 | CWT-V0-006 | `trial`, `prologueIdentity`, `corvintIdentity`, agent `identity` | `TestTrialWithScriptAgentScoresEveryArm` (digests, pilot flag, corvint `NOT_OBSERVED`) |
 | CWT-V0-007 | `finalize`, `summarizeArm`, `wilson`, `sum`, `goldPlacement`, `resultRows`, `rescore`, `write` | `TestTrialFinalizeAndScoreAreByteIdentical`, `TestGoldPlacementSeparatesResultRowsFromMentions` |

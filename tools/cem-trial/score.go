@@ -52,10 +52,13 @@ type lane struct {
 	ExitCode       any            `json:"exit_code"`
 	Reply          string         `json:"reply"`
 	ReplyTruncated bool           `json:"reply_truncated"`
-	PromptSHA256   string         `json:"prompt_sha256"`
-	PromptBytes    int            `json:"prompt_bytes"`
-	ReusedFrom     string         `json:"reused_from,omitempty"`
-	Error          string         `json:"error,omitempty"`
+	// StdoutTruncated records that the agent's stdout reached the capture
+	// bound and was cut (CRT-V0-011).
+	StdoutTruncated bool   `json:"stdout_truncated,omitempty"`
+	PromptSHA256    string `json:"prompt_sha256"`
+	PromptBytes     int    `json:"prompt_bytes"`
+	ReusedFrom      string `json:"reused_from,omitempty"`
+	Error           string `json:"error,omitempty"`
 }
 
 type report struct {
