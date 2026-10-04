@@ -363,6 +363,9 @@ func (e EscalationEvent) Validate() error {
 	return nil
 }
 
+// Validate checks wire bounds only. The 16-OPEN bound applies to questions of
+// the current acceptance revision, which this record alone cannot know, so the
+// writer enforces it; stale OPEN entries count only against the 64-entry cap.
 func (r EscalationRefs) Validate() error {
 	for _, v := range []wire.Count{r.Revision, r.LastControlTicketRevision, r.WorkRevision} {
 		if e := escalationPositive(v); e != nil {
@@ -375,7 +378,7 @@ func (r EscalationRefs) Validate() error {
 	if len(r.Entries) < 1 || len(r.Entries) > 64 {
 		return escalationError("request count")
 	}
-	var total, open int64
+	var total int64
 	for i, e := range r.Entries {
 		if err := escalationID(e.RequestID); err != nil {
 			return err
@@ -402,15 +405,13 @@ func (r EscalationRefs) Validate() error {
 			return escalationError("reference kind")
 		}
 		switch e.State {
-		case "OPEN":
-			open++
-		case "ANSWERED", "SUPERSEDED":
+		case "OPEN", "ANSWERED", "SUPERSEDED":
 		default:
 			return escalationError("reference lifecycle")
 		}
 	}
-	if total > 4096 || open > 16 || r.Revision.Int() > total || total > 2*r.Revision.Int() {
-		return escalationError("event/transaction/open capacity")
+	if total > 4096 || r.Revision.Int() > total || total > 2*r.Revision.Int() {
+		return escalationError("event/transaction capacity")
 	}
 	return nil
 }
