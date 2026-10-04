@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-10-03
 Intent status: proposed extraction of existing owner-authorized repair semantics
-Delivery status: experimental; standalone integration not started
+Delivery status: experimental; source extracted, terminal binding and integration pending
 
 ## Agent digest
 
@@ -54,10 +54,10 @@ join and clean up its children even when interrupted; scans are observations onl
 
 | Requirement | Implementation and executable witness | Current evidence limit |
 |---|---|---|
-| PGO-V0-001 | internal/groupreap/owner.go; TestOwnerNormalExitRetiresProbesReapsAndObservesAbsence (PLANNED); TestOwnerStopSignalsOnceAndFinishDoesNotSignalAgain (PLANNED) | Prior reviewed donor; fresh standalone candidate pending |
-| PGO-V0-002 | internal/groupreap/owner_waitid.go; TestOwnerReapAfterSuccessfulSignalSkipsPreReapQuiet (PLANNED); TestLinuxOwnerPreservesKillGroupESRCH (PLANNED) | Prior actual Linux arm64 report; new candidate native qualification pending |
-| PGO-V0-003 | TestOwnerExpiredAllowanceDoesNotStartWork (PLANNED); TestOwnerSignalConsumesAllowanceBeforeReap (PLANNED); TestOwnerPostReapCapWins (PLANNED); TestOwnerSlowReapLateCompletionKeepsStickyHold (PLANNED); TestOwnerLinuxModeRetirementBoundary (PLANNED) | Existing deterministic matrix retained unchanged |
-| PGO-V0-004 | TestOwnerRejectsInvalidRetirementMode (PLANNED); TestOwnerConcurrentFinishAndStopSignalAndReapOnce (PLANNED); internal/groupreap/owner_other.go | Fresh race/native checks and unavailable-platform compile control pending |
+| PGO-V0-001 | internal/groupreap/owner.go; TestOwnerNormalExitRetiresProbesReapsAndObservesAbsence; TestOwnerStopSignalsOnceAndFinishDoesNotSignalAgain | Exact donor bytes; Darwin tests/race observed; final target checks pending |
+| PGO-V0-002 | internal/groupreap/owner_waitid.go; TestOwnerReapAfterSuccessfulSignalSkipsPreReapQuiet; TestLinuxOwnerPreservesKillGroupESRCH | Actual extracted-source Linux arm64 controls pass; hosted amd64 pending |
+| PGO-V0-003 | TestOwnerExpiredAllowanceDoesNotStartWork; TestOwnerSignalConsumesAllowanceBeforeReap; TestOwnerPostReapCapWins; TestOwnerSlowReapLateCompletionKeepsStickyHold; TestOwnerLinuxModeRetirementBoundary | Deterministic matrix retained and passes on Darwin and Linux arm64 |
+| PGO-V0-004 | TestOwnerRejectsInvalidRetirementMode; TestOwnerConcurrentFinishAndStopSignalAndReapOnce; internal/groupreap/owner_other.go | Darwin race and native checks pass; Windows unavailable-owner compilation passes |
 | PGO-V0-005 | Exact six-file source extraction and unchanged legacy package blob comparison | Source equality is not caller integration or runtime proof |
 
 Required candidate checks: focused groupreap tests and vet, race for concurrent
