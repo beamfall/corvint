@@ -158,7 +158,9 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	fail := func(err error) *wire.Result { return timedFailure(parsed.timing && timingVerbs[name], started, cmd, err) }
+	fail := func(err error) *wire.Result {
+		return timedFailure(parsed.timing && timingVerbs[name], started, cmd, err)
+	}
 	if evidence, supplied := parsed.values["--evidence"]; name == "release" && supplied && evidence == "" {
 		return fail(wire.Errorf(wire.CodeMalformed, "evidence", "handoff reference must be a nonempty Identifier"))
 	}
