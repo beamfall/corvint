@@ -88,3 +88,17 @@ commit/tree. The module and root licensing/provenance files remain exact. This c
 not the allowed import edges above. The actual exported tarball must rebuild offline using
 `go build ./cmd/corvint-tasks`, independently of the npm/VSIX gate; a passing import-direction
 test alone does not qualify the artifact. The full companion release remains separately gated.
+
+## Issue 464 addendum — dispatcher process-group Owner
+
+Agent decision, 2026-10-04, under the owner's goal of landing the open ticket work; it is flagged
+for owner review on the #464 pull request and is not a direct owner statement.
+`docs/specs/process-group-owner-v0.md` names #464 (native V1-0654) as a consumer of the Owner in
+`internal/groupreap` and says reimplementation is unnecessary. Core's `cem/gitrun` also uses that
+package, so it cannot move under `internal/tasks/`. Rule 2 therefore gains one more exact edge:
+`internal/tasks/dispatch` may import `internal/groupreap`, which imports only the Go standard
+library. No other Tasks package may import it, and no other Core edge is admitted.
+`TestImportViolationControls` keeps negative controls for `internal/groupreap` imported from
+another Tasks package and for another Core package imported from `internal/tasks/dispatch`.
+Rule 5's source-archive subset adds `internal/groupreap` so the exported tarball still rebuilds
+offline. Rollback is reverting the dispatcher's Owner use and removing this edge and prefix.
