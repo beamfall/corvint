@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -64,19 +65,48 @@ type EscalationObservation struct {
 	Replay               EscalationReplay
 }
 
-func escalationFailure(code string) error { return fmt.Errorf("escalation: %s", code) }
+// EscalationRefusal is a coded refusal. RequestIDs, when present, names the
+// sorted current questions the caller must choose between (ESC-V0-004).
+type EscalationRefusal struct {
+	Code       string
+	RequestIDs []string
+}
 
-func escalationRecord(s EscalationSnapshot, d wire.Digest) (ticket.EscalationEvent, error) {
-	raw, ok := s.Blobs[d]
+func (e *EscalationRefusal) Error() string {
+	if len(e.RequestIDs) == 0 {
+		return "escalation: " + e.Code
+	}
+	return fmt.Sprintf("escalation: %s (%s)", e.Code, strings.Join(e.RequestIDs, ", "))
+}
+
+func escalationFailure(code string) error { return &EscalationRefusal{Code: code} }
+
+// escalationView decodes each event blob at most once per call. The memo never
+// outlives one exported call, so a blob changed between calls is re-verified.
+type escalationView struct {
+	EscalationSnapshot
+	decoded map[wire.Digest]ticket.EscalationEvent
+}
+
+func newEscalationView(s EscalationSnapshot) *escalationView {
+	return &escalationView{s, make(map[wire.Digest]ticket.EscalationEvent)}
+}
+
+func (s *escalationView) record(d wire.Digest) (ticket.EscalationEvent, error) {
+	e, ok := s.decoded[d]
 	if !ok {
-		return ticket.EscalationEvent{}, escalationFailure("MISSING_EVIDENCE")
-	}
-	if wire.Sum(raw) != d {
-		return ticket.EscalationEvent{}, escalationFailure("JOURNAL_FORKED")
-	}
-	e, err := ticket.DecodeEscalationEvent(raw)
-	if err != nil {
-		return e, err
+		raw, ok := s.Blobs[d]
+		if !ok {
+			return ticket.EscalationEvent{}, escalationFailure("MISSING_EVIDENCE")
+		}
+		if wire.Sum(raw) != d {
+			return ticket.EscalationEvent{}, escalationFailure("JOURNAL_FORKED")
+		}
+		var err error
+		if e, err = ticket.DecodeEscalationEvent(raw); err != nil {
+			return e, err
+		}
+		s.decoded[d] = e
 	}
 	if e.QueueID != s.QueueID || e.TicketID != s.TicketID {
 		return e, escalationFailure("EVENT_IDENTITY")
@@ -84,7 +114,7 @@ func escalationRecord(s EscalationSnapshot, d wire.Digest) (ticket.EscalationEve
 	return e, nil
 }
 
-func validateEscalationSnapshot(s EscalationSnapshot) error {
+func (s *escalationView) validate() error {
 	q, e := wire.ParseQueueID("/queueId", s.QueueID)
 	if e != nil {
 		return e
@@ -117,11 +147,11 @@ func validateEscalationSnapshot(s EscalationSnapshot) error {
 		return escalationFailure("CONTROL_FROM_FUTURE")
 	}
 	for _, ref := range s.Refs.Entries {
-		origin, e := escalationRecord(s, ref.OriginSha256)
+		origin, e := s.record(ref.OriginSha256)
 		if e != nil {
 			return e
 		}
-		head, e := escalationRecord(s, ref.HeadSha256)
+		head, e := s.record(ref.HeadSha256)
 		if e != nil {
 			return e
 		}
@@ -156,7 +186,7 @@ func validateEscalationSnapshot(s EscalationSnapshot) error {
 		byID[ref.RequestID] = ref
 	}
 	for _, ref := range s.Refs.Entries {
-		origin, e := escalationRecord(s, ref.OriginSha256)
+		origin, e := s.record(ref.OriginSha256)
 		if e != nil {
 			return e
 		}
@@ -165,7 +195,7 @@ func validateEscalationSnapshot(s EscalationSnapshot) error {
 			if !ok || old.State != "SUPERSEDED" {
 				return escalationFailure("SUPERSESSION_PAIR_MISSING")
 			}
-			head, e := escalationRecord(s, old.HeadSha256)
+			head, e := s.record(old.HeadSha256)
 			if e != nil {
 				return e
 			}
@@ -174,7 +204,7 @@ func validateEscalationSnapshot(s EscalationSnapshot) error {
 			}
 		}
 		if ref.State == "SUPERSEDED" {
-			head, e := escalationRecord(s, ref.HeadSha256)
+			head, e := s.record(ref.HeadSha256)
 			if e != nil {
 				return e
 			}
@@ -182,7 +212,7 @@ func validateEscalationSnapshot(s EscalationSnapshot) error {
 			if !ok {
 				return escalationFailure("SUPERSESSION_PAIR_MISSING")
 			}
-			next, e := escalationRecord(s, replacement.OriginSha256)
+			next, e := s.record(replacement.OriginSha256)
 			if e != nil {
 				return e
 			}
@@ -196,7 +226,10 @@ func validateEscalationSnapshot(s EscalationSnapshot) error {
 
 // EscalationCapacity checks the declared counts independently of blob material.
 // A two-event supersession consumes two event slots but one transaction slot.
-func EscalationCapacity(r *ticket.EscalationRefs, newRequests, newEvents, openDelta int) error {
+// Only OPEN questions of the current acceptance revision count toward the open
+// bound: a stale OPEN question can be neither answered nor superseded, so
+// counting it would lock the ticket with no recovery route.
+func EscalationCapacity(r *ticket.EscalationRefs, acceptance wire.Count, newRequests, newEvents, openDelta int) error {
 	if !((newRequests == 1 && newEvents == 1 && openDelta == 1) || (newRequests == 1 && newEvents == 2 && openDelta == 0) || (newRequests == 0 && newEvents == 1 && openDelta == -1)) {
 		return escalationFailure("CAPACITY_DELTA")
 	}
@@ -211,7 +244,7 @@ func EscalationCapacity(r *ticket.EscalationRefs, newRequests, newEvents, openDe
 		}
 		for _, x := range r.Entries {
 			total += int(x.Revision.Int())
-			if x.State == "OPEN" {
+			if x.State == "OPEN" && x.AcceptanceRevision == acceptance {
 				open++
 			}
 		}
@@ -303,7 +336,8 @@ func sameEscalationProposal(a, b EscalationProposal) bool {
 
 func computeEscalation(r ticket.EscalationRequest, s EscalationSnapshot, now wire.Timestamp) (EscalationProposal, error) {
 	fail := func(e error) (EscalationProposal, error) { return EscalationProposal{}, e }
-	if e := validateEscalationSnapshot(s); e != nil {
+	v := newEscalationView(s)
+	if e := v.validate(); e != nil {
 		return fail(e)
 	}
 	if _, e := wire.ParseTimestamp("/recordedAt", string(now)); e != nil {
@@ -353,7 +387,7 @@ func computeEscalation(r ticket.EscalationRequest, s EscalationSnapshot, now wir
 	}
 	terminal := func(i int, op string) error {
 		ref := &refs.Entries[i]
-		origin, e := escalationRecord(s, ref.OriginSha256)
+		origin, e := v.record(ref.OriginSha256)
 		if e != nil {
 			return e
 		}
@@ -389,7 +423,7 @@ func computeEscalation(r ticket.EscalationRequest, s EscalationSnapshot, now wir
 			events = 2
 			delta = 0
 		}
-		if e := EscalationCapacity(s.Refs, 1, events, delta); e != nil {
+		if e := EscalationCapacity(s.Refs, s.AcceptanceRevision, 1, events, delta); e != nil {
 			return fail(e)
 		}
 		if r.Open.Supersedes != "" {
@@ -401,7 +435,7 @@ func computeEscalation(r ticket.EscalationRequest, s EscalationSnapshot, now wir
 			if ref.State != "OPEN" || ref.AcceptanceRevision != s.AcceptanceRevision || ref.Revision != r.Open.ExpectedRevision {
 				return fail(escalationFailure("STALE_QUESTION_CAS"))
 			}
-			origin, e := escalationRecord(s, ref.OriginSha256)
+			origin, e := v.record(ref.OriginSha256)
 			if e != nil {
 				return fail(e)
 			}
@@ -424,13 +458,17 @@ func computeEscalation(r ticket.EscalationRequest, s EscalationSnapshot, now wir
 		if r.Answer.RequestID != "" {
 			i = find(r.Answer.RequestID)
 		} else {
+			// Shorthand names every current open question when it cannot pick
+			// exactly one; it never answers all of them or the newest.
+			open := []string{}
 			for j, x := range refs.Entries {
 				if x.State == "OPEN" && x.AcceptanceRevision == s.AcceptanceRevision {
-					if i >= 0 {
-						return fail(escalationFailure("AMBIGUOUS_OPEN_QUESTIONS"))
-					}
+					open = append(open, x.RequestID)
 					i = j
 				}
+			}
+			if len(open) > 1 {
+				return fail(&EscalationRefusal{Code: "AMBIGUOUS_OPEN_QUESTIONS", RequestIDs: open})
 			}
 		}
 		if i < 0 {
@@ -440,7 +478,7 @@ func computeEscalation(r ticket.EscalationRequest, s EscalationSnapshot, now wir
 		if ref.State != "OPEN" || ref.AcceptanceRevision != s.AcceptanceRevision || (r.Answer.RequestID != "" && ref.Revision != r.Answer.ExpectedRevision) {
 			return fail(escalationFailure("STALE_QUESTION_CAS"))
 		}
-		if e := EscalationCapacity(s.Refs, 0, 1, -1); e != nil {
+		if e := EscalationCapacity(s.Refs, s.AcceptanceRevision, 0, 1, -1); e != nil {
 			return fail(e)
 		}
 		if e := terminal(i, "ANSWER"); e != nil {
@@ -452,14 +490,15 @@ func computeEscalation(r ticket.EscalationRequest, s EscalationSnapshot, now wir
 		return fail(e)
 	}
 	result.Refs = refs
-	post := EscalationSnapshot{s.QueueID, s.TicketID, result.TicketRevision, s.AcceptanceRevision, &result.Refs, make(map[wire.Digest][]byte, len(s.Blobs)+2)}
+	post := EscalationSnapshot{QueueID: s.QueueID, TicketID: s.TicketID, TicketRevision: result.TicketRevision, AcceptanceRevision: s.AcceptanceRevision, Refs: &result.Refs, Blobs: make(map[wire.Digest][]byte, len(s.Blobs)+2)}
 	for d, b := range s.Blobs {
 		post.Blobs[d] = b
 	}
 	for _, b := range result.Events {
 		post.Blobs[b.Sha256] = b.Bytes
 	}
-	if _, e := SelectEscalationAnswers(post); e != nil {
+	// The post blobs extend the pre blobs byte for byte, so v's memo stays valid.
+	if _, e := (&escalationView{post, v.decoded}).answers(); e != nil {
 		return fail(e)
 	}
 	return result, nil
@@ -483,7 +522,11 @@ type EscalationAnswerView struct {
 }
 
 func SelectEscalationAnswers(s EscalationSnapshot) ([]EscalationAnswerView, error) {
-	if e := validateEscalationSnapshot(s); e != nil {
+	return newEscalationView(s).answers()
+}
+
+func (s *escalationView) answers() ([]EscalationAnswerView, error) {
+	if e := s.validate(); e != nil {
 		return nil, e
 	}
 	out := []EscalationAnswerView{}
@@ -495,11 +538,11 @@ func SelectEscalationAnswers(s EscalationSnapshot) ([]EscalationAnswerView, erro
 		if ref.State != "ANSWERED" || ref.AcceptanceRevision != s.AcceptanceRevision {
 			continue
 		}
-		origin, e := escalationRecord(s, ref.OriginSha256)
+		origin, e := s.record(ref.OriginSha256)
 		if e != nil {
 			return nil, e
 		}
-		head, e := escalationRecord(s, ref.HeadSha256)
+		head, e := s.record(ref.HeadSha256)
 		if e != nil {
 			return nil, e
 		}
@@ -522,7 +565,7 @@ func SelectEscalationAnswers(s EscalationSnapshot) ([]EscalationAnswerView, erro
 // EscalationHolds derives typed request IDs only, never ticket status or prose.
 // Infrastructure IDs are observations for a later qualified dispatcher adapter.
 func EscalationHolds(s EscalationSnapshot) (held, infrastructure []string, err error) {
-	if e := validateEscalationSnapshot(s); e != nil {
+	if e := newEscalationView(s).validate(); e != nil {
 		return nil, nil, e
 	}
 	held = []string{}
@@ -544,7 +587,7 @@ func EscalationHolds(s EscalationSnapshot) (held, infrastructure []string, err e
 }
 
 func EffectiveEscalationWorkRevision(s EscalationSnapshot) (wire.Count, error) {
-	if e := validateEscalationSnapshot(s); e != nil {
+	if e := newEscalationView(s).validate(); e != nil {
 		return "", e
 	}
 	if s.Refs != nil && s.Refs.LastControlTicketRevision == s.TicketRevision {

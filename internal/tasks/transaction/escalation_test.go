@@ -3,6 +3,7 @@ package transaction
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -18,7 +19,7 @@ func esc502Fixture() (ticket.EscalationRequest, EscalationObservation) {
 	o := EscalationObservation{Snapshot: EscalationSnapshot{QueueID: source.QueueID, TicketID: source.TicketID, TicketRevision: "5", AcceptanceRevision: "1", Blobs: map[wire.Digest][]byte{}}, Actor: r.Actor, ActorRole: r.ActorRole, PolicyDecision: "ALLOWED", Now: "2026-10-04T00:00:00Z", Admission: &EscalationAdmission{OriginState: "AUDITED", ReceiptOperation: "CLAIM", ReceiptOutcome: "OK", ReceiptSource: source, CurrentSource: source, LeaseState: "ACTIVE", ReservationState: "MATCHED", LeaseExpires: "2026-10-04T01:00:00Z"}, Replay: EscalationReplay{State: "ABSENT"}}
 	return r, o
 }
-func esc502Raw(t *testing.T, r ticket.EscalationRequest) []byte {
+func esc502Raw(t testing.TB, r ticket.EscalationRequest) []byte {
 	t.Helper()
 	b, e := ticket.EncodeEscalationRequest(r)
 	if e != nil {
@@ -26,7 +27,7 @@ func esc502Raw(t *testing.T, r ticket.EscalationRequest) []byte {
 	}
 	return b
 }
-func esc502Apply(t *testing.T, r ticket.EscalationRequest, o EscalationObservation) EscalationProposal {
+func esc502Apply(t testing.TB, r ticket.EscalationRequest, o EscalationObservation) EscalationProposal {
 	t.Helper()
 	p, e := ApplyEscalation(esc502Raw(t, r), o)
 	if e != nil {
@@ -59,12 +60,20 @@ func esc502Answer(o EscalationObservation, id, q string) (ticket.EscalationReque
 	return r, o
 }
 func esc502JSON(v any) []byte { b, _ := json.Marshal(v); return b }
-func esc502Refuse(t *testing.T, r ticket.EscalationRequest, o EscalationObservation, want string) {
+
+// esc502Code requires an exact refusal code, not any error or a substring.
+func esc502Code(t *testing.T, e error, want string) *EscalationRefusal {
 	t.Helper()
-	_, e := ApplyEscalation(esc502Raw(t, r), o)
-	if e == nil || !strings.Contains(e.Error(), want) {
+	var refusal *EscalationRefusal
+	if !errors.As(e, &refusal) || refusal.Code != want {
 		t.Fatalf("want %s, got %v", want, e)
 	}
+	return refusal
+}
+func esc502Refuse(t *testing.T, r ticket.EscalationRequest, o EscalationObservation, want string) *EscalationRefusal {
+	t.Helper()
+	_, e := ApplyEscalation(esc502Raw(t, r), o)
+	return esc502Code(t, e, want)
 }
 
 func TestIssue502_AdmissionOriginAndStaleGeneration(t *testing.T) {
@@ -74,29 +83,32 @@ func TestIssue502_AdmissionOriginAndStaleGeneration(t *testing.T) {
 	if p.ActorAuthentication != NotObserved || p.Durability != NotObserved || !bytes.Equal(before, esc502JSON(o)) || o.Snapshot.Refs != nil {
 		t.Fatal("purity/authority")
 	}
-	for name, mutate := range map[string]func(*EscalationObservation){
-		"missing": func(o *EscalationObservation) { o.Admission = nil },
-		"receipt": func(o *EscalationObservation) { o.Admission.ReceiptSource.ReceiptSha256 = wire.Sum([]byte("wrong")) },
-		"post": func(o *EscalationObservation) {
+	for name, c := range map[string]struct {
+		code   string
+		mutate func(*EscalationObservation)
+	}{
+		"missing": {"MISSING_ADMISSION_CONTEXT", func(o *EscalationObservation) { o.Admission = nil }},
+		"receipt": {"STALE_ADMISSION", func(o *EscalationObservation) {
+			o.Admission.ReceiptSource.ReceiptSha256 = wire.Sum([]byte("wrong"))
+		}},
+		"post": {"STALE_ADMISSION", func(o *EscalationObservation) {
 			o.Admission.ReceiptSource.PostAttemptSha256 = wire.Sum([]byte("wrong"))
-		},
-		"generation":    func(o *EscalationObservation) { o.Admission.CurrentSource.Generation = "8" },
-		"holder":        func(o *EscalationObservation) { o.Admission.CurrentSource.Holder = "other" },
-		"reservation":   func(o *EscalationObservation) { o.Admission.ReservationState = "UNKNOWN" },
-		"expired":       func(o *EscalationObservation) { o.Admission.LeaseExpires = o.Now },
-		"notClaim":      func(o *EscalationObservation) { o.Admission.ReceiptOperation = "RENEW" },
-		"actor":         func(o *EscalationObservation) { o.Actor = "other" },
-		"role":          func(o *EscalationObservation) { o.ActorRole = "OWNER" },
-		"policy":        func(o *EscalationObservation) { o.PolicyDecision = "" },
-		"replayUnknown": func(o *EscalationObservation) { o.Replay.State = "" },
-		"acceptance":    func(o *EscalationObservation) { o.Snapshot.AcceptanceRevision = "2" },
+		}},
+		"generation":    {"STALE_ADMISSION", func(o *EscalationObservation) { o.Admission.CurrentSource.Generation = "8" }},
+		"holder":        {"STALE_ADMISSION", func(o *EscalationObservation) { o.Admission.CurrentSource.Holder = "other" }},
+		"reservation":   {"STALE_ADMISSION", func(o *EscalationObservation) { o.Admission.ReservationState = "UNKNOWN" }},
+		"expired":       {"EXPIRED_ADMISSION", func(o *EscalationObservation) { o.Admission.LeaseExpires = o.Now }},
+		"notClaim":      {"MISSING_ADMISSION_CONTEXT", func(o *EscalationObservation) { o.Admission.ReceiptOperation = "RENEW" }},
+		"actor":         {"ACTOR_BINDING", func(o *EscalationObservation) { o.Actor = "other" }},
+		"role":          {"ACTOR_BINDING", func(o *EscalationObservation) { o.ActorRole = "OWNER" }},
+		"policy":        {"POLICY_NOT_ALLOWED", func(o *EscalationObservation) { o.PolicyDecision = "" }},
+		"replayUnknown": {"REPLAY_UNKNOWN", func(o *EscalationObservation) { o.Replay.State = "" }},
+		"acceptance":    {"SOURCE_HOLDER_OR_ACCEPTANCE", func(o *EscalationObservation) { o.Snapshot.AcceptanceRevision = "2" }},
 	} {
 		t.Run(name, func(t *testing.T) {
 			r, o := esc502Fixture()
-			mutate(&o)
-			if _, e := ApplyEscalation(esc502Raw(t, r), o); e == nil {
-				t.Fatal("accepted bad observation")
-			}
+			c.mutate(&o)
+			esc502Refuse(t, r, o, c.code)
 		})
 	}
 	r, o = esc502Fixture()
@@ -169,7 +181,9 @@ func TestIssue502_QuestionAnswerCASAndReplay(t *testing.T) {
 	r.RequestID = "q2"
 	o.Snapshot = esc502Post(o.Snapshot, esc502Apply(t, r, o))
 	amb, ambO := esc502Answer(o, "ambiguous", "")
-	esc502Refuse(t, amb, ambO, "AMBIGUOUS")
+	if named := esc502Refuse(t, amb, ambO, "AMBIGUOUS_OPEN_QUESTIONS"); strings.Join(named.RequestIDs, ",") != "q1,q2" {
+		t.Fatalf("ambiguous shorthand must name the open questions: %v", named.RequestIDs)
+	}
 	exact, exactO := esc502Answer(o, "exact", "q1")
 	expected := o.Snapshot.TicketRevision
 	exact.ExpectedTicketRevision = &expected
@@ -286,15 +300,13 @@ func TestIssue502_ImmutableClaimAnswerSelection(t *testing.T) {
 	// Valid fixture first, then inject the actual missing/corrupt pinned blob.
 	missing := esc502Post(pinned, EscalationProposal{TicketRevision: pinned.TicketRevision, AcceptanceRevision: pinned.AcceptanceRevision, Refs: *pinned.Refs})
 	delete(missing.Blobs, missing.Refs.Entries[0].HeadSha256)
-	if _, e := SelectEscalationAnswers(missing); e == nil {
-		t.Fatal("missing became NONE")
-	}
+	_, e = SelectEscalationAnswers(missing)
+	esc502Code(t, e, "MISSING_EVIDENCE")
 	corrupt := esc502Post(pinned, EscalationProposal{TicketRevision: pinned.TicketRevision, AcceptanceRevision: pinned.AcceptanceRevision, Refs: *pinned.Refs})
 	key := corrupt.Refs.Entries[0].HeadSha256
 	corrupt.Blobs[key] = []byte("bad")
-	if _, e := SelectEscalationAnswers(corrupt); e == nil {
-		t.Fatal("corrupt became NONE")
-	}
+	_, e = SelectEscalationAnswers(corrupt)
+	esc502Code(t, e, "JOURNAL_FORKED")
 	// Rehash an otherwise canonical event but cross-bind it to another origin.
 	material := esc502Post(pinned, EscalationProposal{TicketRevision: pinned.TicketRevision, AcceptanceRevision: pinned.AcceptanceRevision, Refs: *pinned.Refs})
 	head, e := ticket.DecodeEscalationEvent(material.Blobs[key])
@@ -309,9 +321,8 @@ func TestIssue502_ImmutableClaimAnswerSelection(t *testing.T) {
 	newKey := wire.Sum(raw)
 	material.Blobs[newKey] = raw
 	material.Refs.Entries[0].HeadSha256 = newKey
-	if _, e := SelectEscalationAnswers(material); e == nil {
-		t.Fatal("rehash hid source mismatch")
-	}
+	_, e = SelectEscalationAnswers(material)
+	esc502Code(t, e, "REFERENCE_MATERIAL")
 	t.Run("guidanceCapacityBeforePublication", func(t *testing.T) {
 		r, o := esc502Fixture()
 		r.Open.Question = strings.Repeat("q", 4096)
@@ -324,9 +335,7 @@ func TestIssue502_ImmutableClaimAnswerSelection(t *testing.T) {
 			before := esc502JSON(o.Snapshot)
 			p, e := ApplyEscalation(esc502Raw(t, a), ao)
 			if e != nil {
-				if !strings.Contains(e.Error(), "GUIDANCE_CAPACITY") {
-					t.Fatal(e)
-				}
+				esc502Code(t, e, "GUIDANCE_CAPACITY")
 				if !bytes.Equal(before, esc502JSON(o.Snapshot)) || len(p.Events) != 0 {
 					t.Fatal("partial publication")
 				}
@@ -361,9 +370,23 @@ func TestIssue502_SupersessionAndCapacity(t *testing.T) {
 	}
 	// Inject the missing side only after the full two-event fixture succeeds.
 	validPair.Refs.Entries = validPair.Refs.Entries[:1]
-	if _, _, e := EscalationHolds(validPair); e == nil || !strings.Contains(e.Error(), "SUPERSESSION_PAIR_MISSING") {
-		t.Fatalf("missing pair: %v", e)
+	_, _, e := EscalationHolds(validPair)
+	esc502Code(t, e, "SUPERSESSION_PAIR_MISSING")
+	// A rehashed SUPERSEDE head that disagrees with its replacement's OPEN.
+	mismatch := esc502Post(o.Snapshot, p)
+	head, e := ticket.DecodeEscalationEvent(mismatch.Blobs[old.HeadSha256])
+	if e != nil {
+		t.Fatal(e)
 	}
+	head.RecordedAt = "2026-10-04T00:00:01Z"
+	raw, e := ticket.EncodeEscalationEvent(head)
+	if e != nil {
+		t.Fatal(e)
+	}
+	mismatch.Blobs[wire.Sum(raw)] = raw
+	mismatch.Refs.Entries[0].HeadSha256 = wire.Sum(raw)
+	_, _, e = EscalationHolds(mismatch)
+	esc502Code(t, e, "SUPERSESSION_PAIR_MISMATCH")
 	if old.State != "SUPERSEDED" || old.Revision != "2" || replacement.Revision != "1" || old.OriginSha256 != o.Snapshot.Refs.Entries[0].OriginSha256 {
 		t.Fatal("supersession identities")
 	}
@@ -407,7 +430,75 @@ func TestIssue502_SupersessionAndCapacity(t *testing.T) {
 	if e := refs.Validate(); e != nil {
 		t.Fatal(e)
 	}
-	if e := EscalationCapacity(&refs, 1, 2, 0); e == nil {
-		t.Fatal("two-event overflow")
+	esc502Code(t, EscalationCapacity(&refs, "1", 1, 2, 0), "CAPACITY_EXCEEDED")
+	// The worker route cannot supersede another admission's question.
+	r, o = esc502Fixture()
+	o.Snapshot = esc502Post(o.Snapshot, esc502Apply(t, r, o))
+	r.RequestID = "other-source"
+	r.Open.Supersedes = "q1"
+	r.Open.ExpectedRevision = "1"
+	r.Open.Source.Generation = "8"
+	o.Admission.ReceiptSource = r.Open.Source
+	o.Admission.CurrentSource = r.Open.Source
+	esc502Refuse(t, r, o, "SUPERSESSION_SOURCE")
+}
+
+// Stale OPEN questions stay visible but release the current open bound: they
+// can be neither answered nor superseded, so counting them would lock the ticket.
+func TestIssue502_StaleOpenReleasesCapacity(t *testing.T) {
+	r, o := esc502Fixture()
+	for i := 0; i < 16; i++ {
+		r.RequestID = fmt.Sprintf("old%02d", i)
+		o.Snapshot = esc502Post(o.Snapshot, esc502Apply(t, r, o))
+	}
+	r.RequestID = "overflow"
+	esc502Refuse(t, r, o, "CAPACITY_EXCEEDED")
+	// An acceptance-changing edit: the ticket revision and acceptance advance.
+	o.Snapshot.TicketRevision = wire.CountOf(o.Snapshot.TicketRevision.Int() + 1)
+	o.Snapshot.AcceptanceRevision = "2"
+	r.Open.Source.AcceptanceRevision = "2"
+	o.Admission.ReceiptSource = r.Open.Source
+	o.Admission.CurrentSource = r.Open.Source
+	for i := 0; i < 16; i++ {
+		r.RequestID = fmt.Sprintf("new%02d", i)
+		o.Snapshot = esc502Post(o.Snapshot, esc502Apply(t, r, o))
+	}
+	stale := 0
+	for _, x := range o.Snapshot.Refs.Entries {
+		if x.State == "OPEN" && x.AcceptanceRevision == "1" {
+			stale++
+		}
+	}
+	if stale != 16 {
+		t.Fatalf("stale questions must stay visible as OPEN history, got %d", stale)
+	}
+	held, _, e := EscalationHolds(o.Snapshot)
+	if e != nil || len(held) != 16 || held[0] != "new00" {
+		t.Fatalf("only current questions hold: %v %v", held, e)
+	}
+	r.RequestID = "overflow"
+	esc502Refuse(t, r, o, "CAPACITY_EXCEEDED")
+	// A stale question is not answerable, so it cannot free its own slot.
+	a, ao := esc502Answer(o, "answer-old", "old00")
+	esc502Refuse(t, a, ao, "STALE_QUESTION_CAS")
+}
+
+// BenchmarkIssue502_ApplyNearCapacity measures one reducer call over a snapshot
+// at 63 answered questions, the work a native writer would do under its lock.
+func BenchmarkIssue502_ApplyNearCapacity(b *testing.B) {
+	r, o := esc502Fixture()
+	for i := 0; i < 63; i++ {
+		r.RequestID = fmt.Sprintf("q%02d", i)
+		o.Snapshot = esc502Post(o.Snapshot, esc502Apply(b, r, o))
+		a, ao := esc502Answer(o, fmt.Sprintf("a%02d", i), r.RequestID)
+		o.Snapshot = esc502Post(o.Snapshot, esc502Apply(b, a, ao))
+	}
+	r.RequestID = "q63"
+	raw := esc502Raw(b, r)
+	b.ResetTimer()
+	for range b.N {
+		if _, e := ApplyEscalation(raw, o); e != nil {
+			b.Fatal(e)
+		}
 	}
 }
