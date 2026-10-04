@@ -271,11 +271,11 @@ func StatusIn(ctx context.Context, root, temporaryParent string, limit int, run 
 	if err := ScratchOutside(ctx, tempRoot, root, gitdir, common); err != nil {
 		return nil, err
 	}
-	temp, err := os.MkdirTemp(tempRoot, "corvint-git-status-")
+	temp, err := createScratch(tempRoot)
 	if err != nil {
 		return nil, errScratchCreate
 	}
-	defer os.RemoveAll(temp)
+	defer releaseScratch(temp)
 	private := filepath.Join(temp, "metadata")
 	if err := os.Mkdir(private, 0o700); err != nil {
 		return nil, errScratchCreate
@@ -306,8 +306,11 @@ func StatusIn(ctx context.Context, root, temporaryParent string, limit int, run 
 			continue
 		}
 		target := filepath.Join(private, filepath.FromSlash(item.name))
-		if err := os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
-			return nil, unsupported(classScratchDir, "private copy of metadata file "+item.name+" cannot be written")
+		// Mkdir, not MkdirAll: a read abandoned at exit must not recreate the scratch CloseScratch removed.
+		if dir := filepath.Dir(target); dir != private {
+			if err := os.Mkdir(dir, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
+				return nil, unsupported(classScratchDir, "private copy of metadata file "+item.name+" cannot be written")
+			}
 		}
 		if err := os.WriteFile(target, file.data, 0o600); err != nil {
 			return nil, unsupported(classScratchDir, "private copy of metadata file "+item.name+" cannot be written")

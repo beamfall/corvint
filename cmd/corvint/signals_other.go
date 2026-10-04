@@ -13,3 +13,6 @@ func terminationSignals() []os.Signal {
 func dogfoodSignalCodes() map[os.Signal]int {
 	return map[os.Signal]int{os.Interrupt: 130}
 }
+
+// notifyBrokenPipe has nothing to do where a broken pipe raises no signal (AHI-044).
+func notifyBrokenPipe() {}

@@ -820,6 +820,47 @@ do not reinterpret this Frontier result.
 
   This presentation slice MUST preserve AHI-033 through AHI-041 bounds, fixed read commands, escaping, binding, explicit refresh, cancellations and disposal. It adds no Tasks writes, initialization, auto-run, inferred ownership or authority. Acceptance requires focused state/count/status tests, independent review and stock OpenCode current-frame witnesses for Work → Criteria → Change → Checks → Evidence and return, both themes, wide/compact/short layouts, keyboard/pointer navigation, supplementary views, invalidation and interruption cleanup. A rendering witness remains distinct from exact-package AHI-032 qualification. Failure preserves recoverable unavailable/stale states and source bindings. Rollback restores the retained 0.7.5 package/configuration under a new version and leaves native Tasks/evidence receipts intact and changed-package qualification invalid.
 
+- `AHI-044`: Every shipped hook adapter MUST fail open under the faults a host or machine can impose
+  (V1-0711). A table-driven test reads every Claude Code and Codex command from the shipped
+  `hooks.json` files and runs the real binary for each under a cold start without a snapshot, empty
+  stdin, malformed stdin, stdout closed before the write, an unavailable index, a host that never
+  closes stdin, and slow Git on `PATH`. Every run MUST exit 0, the non-blocking status of every
+  native host. When a fault changes the result, stdout MUST name it with a `FALLBACK degraded:` or
+  `Corvint fallback:` code. Empty or malformed input yields `malformed-hook-json` before any spawn.
+  A closed stdout yields `hook-stdout-unwritable` on stderr: the Go adapter receives `SIGPIPE` as an
+  error instead of dying from it, and the Gemini wrapper handles the stream error the same way. The
+  fixture's `.corvint/.gitignore` lets the ledger writers run, and at least one run MUST write the
+  self-observation ledger. Each run MUST leave the repository, home and temporary trees unchanged
+  apart from the declared local ledgers and the writer's `.self-observations.*` temporary. That
+  includes the private `corvint-git-status-*` scratch, which a deadline-abandoned status read used
+  to leave behind. The process now removes it at exit (`gitstatus.CloseScratch`). The test counts
+  every process spawned through `PATH`. A healthy invocation needs at most 15, the cap the test
+  asserts: 15 for session start, prompt and pre-compact, 10 for stop and Codex session end, at most
+  10 for Claude session end and 5 for post-tool. Unparseable input MUST spawn none. Shims for `sh`,
+  `bash`, `zsh`, `dash`, `ksh`, `fish`, `csh` and `tcsh` MUST never run, so no adapter spawns a
+  login shell through `PATH` or `$SHELL`. A spawn by absolute path or a re-exec of the binary itself
+  is invisible to these counts. The Gemini wrapper's empty, malformed, absent-binary and
+  closed-stdout cases run under `TestHostAdapterJavaScriptHosts`.
+  Exemptions:
+  - For Claude Code and Codex, a missing `corvint` binary is the host's own spawn failure, and no
+    Corvint code runs. How each host reports that failure is NOT_OBSERVED.
+  - OpenCode is an in-process plugin, not a hook. Its missing-binary path is covered by the
+    existing OpenCode cases.
+  - A root outside a Git repository stays silent `{}` (decision 0178).
+  - The ticket's case of a host deadline shorter than the adapter's budget is replaced, not met. No
+    budget the adapter derives can meet a kill earlier than the declared one.
+    `TestAHI017AdapterHostKillMatchesDeclaredHooks` keeps the shipped timeouts equal to the declared
+    kill table. The two delay cases force each adapter onto its own deadline first. A host that
+    kills earlier anyway sends `SIGKILL`, so the exit cleanup cannot run. The status scratch, any
+    `.self-observations.*` temporary and running Git children can then remain. That consequence is
+    inferred, not observed. Completing V1-0711 needs explicit acceptance of this disposition.
+  - Elapsed time and how long an abandoned Git child outlives the adapter are logged, not asserted,
+    because the parallel matrix runs under load (decision 0082). The watchdog bound itself stays
+    under AHI-017. Children outliving the adapter are tracked as V1-0734.
+  - Real hosts remain NOT_OBSERVED.
+  Rollback: delete the tests and this requirement. Restoring default `SIGPIPE` handling and the
+  plain scratch removal reintroduces the observed death on a closed stdout and the scratch leak.
+
 ## Native platform profiles
 
 | Platform | Embedded host-admission key | Maintained Corvint package | Native surfaces | Stability rule |
@@ -1027,6 +1068,7 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 | `AHI-033` | `integrations/opencode/src/inspector.js`, `src/tui.tsx`, and inspector RPC in `src/index.js` | `integrations/opencode/inspector.test.mjs`, AHI-033 cases under `TestHostAdapterJavaScriptHosts`, and `tools/qualify-opencode --inspector` (stock native rendering, pinned source, narrow keyboard use and interruption cleanup) |
 | `AHI-034` | `integrations/opencode/src/cockpit.js`, `cockpit-tui.tsx`, `index.js`, `runtime.js` | `integrations/opencode/cockpit.test.mjs` and `tools/qualify-opencode --inspector`: bounded fixed reads, safe output paths, stale/owner/check-rerun races, advisory impact navigation, independent workflow/check state and real native change/proof workflow |
 | `AHI-042` | `integrations/opencode/src/ui-presentation.js`, `cockpit-tui.tsx`, `tui.tsx`, `task-tui.tsx`, `workbench-tui.tsx`, `task-metrics.js` and `workbench.js` | `integrations/opencode/ui-presentation.test.mjs`, AHI-042 declared-gate cases in `task-metrics.test.mjs` / `workbench.test.mjs`, and the stock native inspector witness for bounded Work → Change → Evidence navigation and honest status/limit presentation |
+| `AHI-044` | `cmd/corvint/host_exit.go` (`adapterStdout`, `hookStdout`, `exitProcess`), `cmd/corvint/signals_unix.go` `notifyBrokenPipe`, `internal/gitstatus/scratch.go`, `integrations/gemini-cli/hooks/corvint-hook.mjs` | `cmd/corvint/host_adapter_fail_open_test.go::TestAHI044HookAdaptersFailOpen` (every shipped Claude Code and Codex hook × seven faults: exit 0, named cause, spawn cap, no shell, no writes outside live ledgers), `internal/gitstatus/scratch_test.go` (`TestAHI044ScratchRemovedAtClose`, `TestAHI044ScratchCloseRacesReads`) and the AHI-044 Gemini case under `TestHostAdapterJavaScriptHosts` |
 | `AHI-036`–`AHI-041` | `integrations/opencode/src/workbench.js`, `workbench-tui.tsx`, `session-metrics.js`, `task-metrics.js`, `qualification.js`, and inspector RPC | `integrations/opencode/workbench.test.mjs`, focused AHI-036 task-detail receipt test in `task-metrics.test.mjs`, and stock OpenCode 2 terminal witness; exact-package AHI-032 qualification remains separate |
 | `AHI-025` | `cmd/corvint/pi_tools.go`, `integrations/pi/tools.js` | `TestPiToolContextExpansion`, `TestPiToolRecord`, `TestPiToolClosedInput` and native Pi tool/RPC fixtures |
 | `AHI-026` | `integrations/claude-code/plugins/corvint/hooks/hooks.json`, `compatibility.json` `compactionHooks`, `cmd/corvint/host_adapter.go` declared-kill table | `TestAHI026ClaudeCompactionHooksRegisteredAgainstHostAPI` (matcherless `PreCompact`/`PostCompact` groups, verified host version equals the tested maximum, closed trigger set) and `TestAHI017AdapterHostKillMatchesDeclaredHooks` (the two new declared kills) |

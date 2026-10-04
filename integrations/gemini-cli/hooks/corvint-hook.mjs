@@ -84,6 +84,13 @@ const EVENT_HOOKS = Object.freeze({
   "user-prompt": "BeforeAgent",
 });
 
+// AHI-044: a host that closed stdout cannot read the degradation, so name the cause on stderr
+// instead of dying on an unhandled EPIPE; the exit status stays 0.
+process.stdout.on("error", () => {
+  process.stderr.write("Corvint FALLBACK degraded (hook-stdout-unwritable); unrelated Gemini work may continue.\n");
+});
+process.stderr.on("error", () => {});
+
 function emit(output) {
   process.stdout.write(`${JSON.stringify(output)}\n`);
 }
@@ -137,7 +144,12 @@ async function readHookInput() {
     }
     chunks.push(chunk);
   }
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  } catch {
+    // AHI-044: empty or truncated input names its cause, as the native adapters do.
+    throw new Error("malformed-hook-json");
+  }
 }
 
 function safeEnvironment() {
