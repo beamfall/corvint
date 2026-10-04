@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// unbounded-readers is the AFP-V0-025 ratchet: it fails unless the test units selected
-// on every change (AFP-V0-012 rule (d)) are exactly the repository's recorded set.
+// unbounded-readers is the AFP-V0-025 ratchet: it fails when a test unit selected on
+// every change (AFP-V0-012 rule (d)) is not in the repository's recorded set.
 package main
 
 import (
@@ -98,8 +98,9 @@ func run(root string, stdout, stderr io.Writer) int {
 	// A set, not a count: two changes that each add a unit and its entry merge to a
 	// record that still names both, where two identical edits of a count would not.
 	unrecorded, stale := []string{}, []string{}
-	for _, directory := range units {
-		if !slices.Contains(recorded.Units, directory) {
+	for i, directory := range units {
+		// A second unbounded unit in one directory has no entry of its own.
+		if !slices.Contains(recorded.Units, directory) || i > 0 && units[i-1] == directory {
 			unrecorded = append(unrecorded, directory)
 		}
 	}
@@ -108,21 +109,21 @@ func run(root string, stdout, stderr io.Writer) int {
 			stale = append(stale, directory)
 		}
 	}
-	out := report{Profile: profile, OK: len(unrecorded) == 0 && len(stale) == 0, Count: len(units), Units: units, Unrecorded: unrecorded, Stale: stale}
+	out := report{Profile: profile, OK: len(unrecorded) == 0, Count: len(units), Units: units, Unrecorded: unrecorded, Stale: stale}
 	encoded, err := json.Marshal(out, jsontext.WithIndent("  "))
 	if err != nil {
 		fmt.Fprintln(stderr, "unbounded-readers:", err)
 		return 2
 	}
 	fmt.Fprintln(stdout, string(encoded))
+	// A stale entry only reports: failing on it would break a merge of one change
+	// that bounds a package with another that still lists it.
+	if len(stale) > 0 {
+		fmt.Fprintf(stderr, "unbounded-readers: %s records %v, which are not unbounded test packages; remove the entries to keep the gain.\n", recordPath, stale)
+	}
 	if len(unrecorded) > 0 {
 		fmt.Fprintf(stderr, "unbounded-readers: %v are selected on every change and are not in units of %s. Declare each package's reads in %s (AFP-V0-023) or keep them inside its directory; add it to units only when neither is possible.\n",
 			unrecorded, recordPath, affected.ReadScopesPath)
-	}
-	if len(stale) > 0 {
-		fmt.Fprintf(stderr, "unbounded-readers: %s records %v, which are not unbounded test packages. Remove the entries to keep the gain.\n", recordPath, stale)
-	}
-	if !out.OK {
 		return 1
 	}
 	return 0

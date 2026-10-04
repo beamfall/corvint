@@ -16,16 +16,14 @@ branch, so nothing reran the check against the newer base.
 - `.corvint/unbounded-readers.json` is now `corvint-unbounded-reader-set/0`: `units` lists the 42
   directories the previous count admitted, one per line, strictly ascending; `reasons` is
   unchanged and must name directories in `units`. No package was added or removed.
-- `tools/unbounded-readers` fails when an unbounded test package is not in `units` or a `units`
-  entry is no longer unbounded, and names the directories in both cases. A stale entry was a
-  notice under the count ("lower the ceiling"); it is now a failure, so a gain is kept in the
-  change that makes it. A swap of one package for another, which the count could not see, fails.
+- `tools/unbounded-readers` fails when an unbounded test package is not in `units`, or shares
+  its directory with another unbounded unit, and names the directories. An entry that is no
+  longer unbounded is reported and passes, as a count below the ceiling did.
 - AFP-V0-025 states the set and its residual skews.
 
-Whether a directory is unbounded depends on that package's test files and its declaration, and
-its entry travels in the same change, so the merged record is correct whenever the two sides
-touch different packages. Entries that land on abutting lines conflict textually, which blocks
-the merge before it completes.
+Two changes that each add an unbounded package with its entry now merge to a record that names
+both. Entries that land on abutting lines conflict textually, which blocks the merge before it
+completes.
 
 ## Evidence and limits
 
@@ -33,15 +31,24 @@ the merge before it completes.
   that each add an unbounded test package and its entry, checks each alone, merges them with
   `git merge` and checks the result: all pass. It then adds a package with no entry and requires
   the failure to name it.
-- `TestAFPV0025RatchetFailsOffTheRecordedSet` covers an unrecorded unit, a stale unit, a swap, the
-  old `ceiling` record and the closed grammar.
+- `TestAFPV0025RatchetFailsOffTheRecordedSet` covers an unrecorded unit, a stale unit (reported,
+  passing), a swap, the old `ceiling` record and the closed grammar.
 - `make unbounded-readers-check` passes on this change with the same 42 units as `cd70ba0a`.
-- Not closed: a pull request whose last check ran before the ratchet reached its base; a change
-  to the graph's classification that merges beside a new package; two changes to one package
-  that disagree about its reads. `main`'s push run fails and names the directories. Requiring
-  up-to-date branches or a merge queue would close these; both are owner-held repository
-  settings and were not changed. Hosted behavior of this change is `NOT_OBSERVED` until its
-  own CI run.
+- Not closed, so V1-0752's first clause does not hold in general. A unit is also unbounded when
+  a dependency's non-test code locates the root (`unboundedReaders` in
+  `internal/liveverify/affected/graph.go`). The independent review reproduced it in a scratch
+  repository: one change makes package `h` call `os.Getwd` and records its dependent, another
+  adds a test package importing `h`; each passes alone, the merge is clean and the result fails
+  naming the new package. Also not closed: a pull request whose last check ran before the
+  ratchet reached its base, a change to the graph's classification beside a new package, and
+  two changes to one package that disagree about its reads. In each, `main`'s push run fails
+  and names the directories, after the merge.
+- The review's same experiment showed that failing on a stale entry would add a skew the count
+  did not have (one change bounds a dependency and drops an entry, another adds a dependent
+  with its entry), so a stale entry stays a report.
+- Requiring up-to-date branches or a merge queue would close the remaining cases; both are
+  owner-held repository settings and were not changed. Hosted behavior of this change is
+  `NOT_OBSERVED` until its own CI run.
 - `make gate` was `NOT_RUN` (owner's scoped-work preference).
 
 ## Rollback

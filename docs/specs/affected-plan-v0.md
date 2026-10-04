@@ -587,15 +587,15 @@ and container qualification; full fallback remains available.
   records, for some of those directories, why a package's reads cannot be declared.
   `tools/unbounded-readers` builds the same unit graph the planner builds and
   `make unbounded-readers-check`, a `doc-gates` and `make gate` step, MUST fail, naming the
-  directories, when an unbounded test unit is not in `units`, when a `units` directory is not
-  an unbounded test unit, or when the record is absent or not exactly this grammar, which
-  includes a `reasons` directory outside `units`. Adding a directory to `units` is an
-  ordinary reviewed edit of the record: the check makes growth visible, it does not forbid
-  it. The record is a set and not a count so that it merges the way the tree does (V1-0752):
-  whether a directory is unbounded depends on that package's files and its declaration, so
-  two changes that each add a package with its entry, or one that adds a package while
-  another's last check is stale, merge to a record that still passes, and two edits that
-  cannot be reconciled conflict textually before the merge. Each full pull-request run
+  directories, when an unbounded test unit is not in `units` or shares its directory with
+  another, or when the record is absent or not exactly this grammar, which includes a
+  `reasons` directory outside `units`. A `units` directory that is not an unbounded test
+  unit passes and is reported for removal; nothing removes it automatically. Adding a
+  directory to `units` is an ordinary reviewed edit of the record: the check makes growth
+  visible, it does not forbid it. The record is a set and not a count so that it merges the
+  way the tree does (V1-0752): two changes that each add an unbounded package with its
+  entry, or one that adds such a package while another's last check is stale, merge to a
+  record that names both, where two identical edits of a count merged to one increment. Each full pull-request run
   SHALL also report, in the step summary of shard 0 and as the `affected-share` artifact
   (`corvint-ci-selected-share/0`), the estimated time of the packages the advisory AFP-V0-022
   plan selected as a share of the complete universe, priced with the partition's cost
@@ -604,11 +604,14 @@ and container qualification; full fallback remains available.
   missing plan or unreadable estimates only omit it. Limits: the estimates are one retained
   hosted run, not this run's measured time; the set is of units, not of their cost; a
   `reasons` entry is a reviewed statement, not a proof that no narrower declaration exists.
-  The set does not remove every merge skew: a change whose last check ran before this
-  requirement reached its base, a change to how the graph classifies units, or two changes
-  to the same package that disagree about its reads can still merge to a failing record;
-  the push run then fails and names the directories. Only a required up-to-date branch or a
-  merge queue, which are repository settings outside this contract, closes those.
+  The set does not remove every merge skew, because a unit is also unbounded when a
+  dependency's non-test code locates the root: a change that makes a package locate the
+  root beside a change that adds a test package importing it, a change whose last check
+  ran before this requirement reached its base, a change to how the graph classifies units,
+  or two changes to one package that disagree about its reads can still merge to a failing
+  record; the push run then fails and names the directories. Only a required up-to-date
+  branch or a merge queue, which are repository settings outside this contract, closes
+  those.
   Rollback removes the make step and the two workflow steps.
 
 ## Non-goals and authority

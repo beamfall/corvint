@@ -45,7 +45,7 @@ func TestAFPV0025RatchetFailsOffTheRecordedSet(t *testing.T) {
 	}{
 		"the recorded set":   {head + `"units":["reader"],"reasons":{"reader":"calls os.Getwd"}}`, 0, `"count": 1`},
 		"unrecorded unit":    {head + `"units":[],"reasons":{}}`, 1, "[reader] are selected on every change"},
-		"stale unit":         {head + `"units":["bounded","reader"],"reasons":{}}`, 1, "records [bounded], which are not unbounded test packages"},
+		"stale unit":         {head + `"units":["bounded","reader"],"reasons":{}}`, 0, "records [bounded], which are not unbounded test packages"},
 		"swapped unit":       {head + `"units":["bounded"],"reasons":{}}`, 1, "[reader] are selected on every change"},
 		"reason off the set": {head + `"units":["reader"],"reasons":{"bounded":"none"}}`, 2, "want exactly"},
 		"unknown member":     {head + `"units":["reader"],"reasons":{},"extra":1}`, 2, "want exactly"},
@@ -82,6 +82,7 @@ func TestAFPV0025ConcurrentAdditionsMergeToAPassingRecord(t *testing.T) {
 		t.Helper()
 		cmd := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@example.test", "-c", "commit.gpgsign=false"}, args...)...)
 		cmd.Dir = root
+		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", args, err, out)
 		}
