@@ -533,6 +533,45 @@ func TestAggregateExclusiveLateCancelRemovesStage(t *testing.T) {
 	}
 }
 
+type lateHoldContext struct {
+	context.Context
+	calls int
+}
+
+func (c *lateHoldContext) Err() error {
+	c.calls++
+	if c.calls == 1 {
+		_ = dogfoodoperation.Hold(c.Context, []byte(`{"state":"HOLD"}`), new(int))
+	}
+	return nil
+}
+
+// ALO-V0-015: a cleanup HOLD between the verified stage close and the
+// exclusive install publishes nothing but retains the owned stage as evidence.
+func TestAggregateExclusiveLateHoldRetainsStage(t *testing.T) {
+	gitDir, directory := t.TempDir(), t.TempDir()
+	held, release, err := dogfoodoperation.Acquire(context.Background(), gitDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	name := filepath.Join(directory, "late")
+	ctx := &lateHoldContext{Context: held}
+	if err = writeAggregateExclusiveContext(ctx, name, []byte("x")); !errors.Is(err, dogfoodoperation.ErrCleanupHold) || ctx.calls != 1 {
+		t.Fatalf("late HOLD: %v calls=%d", err, ctx.calls)
+	}
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || !strings.HasPrefix(entries[0].Name(), ".aggregate-stage-") {
+		t.Fatalf("late HOLD stage entries %v", entries)
+	}
+	if raw, err := os.ReadFile(filepath.Join(directory, entries[0].Name())); err != nil || string(raw) != "x" {
+		t.Fatalf("late HOLD stage %q %v", raw, err)
+	}
+}
+
 func TestAggregatePreservationProcessHelper(t *testing.T) {
 	root := os.Getenv("CORVINT_AGGREGATE_STORAGE_TEST_ROOT")
 	if root == "" {

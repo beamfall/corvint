@@ -209,8 +209,8 @@ func gitRaw(ctx context.Context, root string, outputLimit, expected int, stdin [
 		environment = append(environment, "GIT_CEILING_DIRECTORIES="+filepath.Dir(root))
 	}
 	if gitrun.OperationBudgetFrom(ctx) != nil {
-		// ALO-V0-017: charge every physical index/status Git spawn to the
-		// caller's one budget while preserving the default executor exactly.
+		// ALO-V0-017: charge each index/status Git spawn to the caller's one budget;
+		// success output matches the default executor, failure text may differ.
 		out, err := gitrun.Run(ctx, gitrun.NewDefaultBudget(), gitrun.Options{
 			Binary: executable, Env: environment, Stdin: stdin, StdoutLimit: outputLimit,
 			StdoutSizeHint: expected, StderrLimit: maxGitErrorBytes,

@@ -777,8 +777,9 @@ func (repo *repository) aggregatePreservation(a *aggregateState) (bool, error) {
 }
 
 // writeAggregateExclusive closes a unique stage before its exclusive install.
-// Fault stages remain visible and charged; successful cleanup is observed, and
-// a cancellation or deadline between close and install removes its stage.
+// Fault and HOLD stages remain visible and charged; successful cleanup is
+// observed, and a cancellation or deadline between close and install removes
+// its stage.
 // Legacy capture uses its caller's existing lifecycle; selected aggregate
 // publication carries the original operation deadline through every write.
 func writeAggregateExclusive(name string, raw []byte) error {
@@ -829,9 +830,12 @@ func writeAggregateExclusiveContext(ctx context.Context, name string, raw []byte
 	}
 	if err = aggregateWriteAllowed(ctx); err != nil {
 		// Cancellation or the operation deadline after a verified close is not
-		// a fault: this unreferenced owned stage is removed before refusing.
-		// Write, close, readback and install fault stages above stay charged.
-		_ = os.Remove(temporary)
+		// a fault: only then is this unreferenced owned stage removed. A cleanup
+		// HOLD retains it as evidence, and write, close, readback and install
+		// fault stages above stay charged.
+		if !errors.Is(err, dogfoodoperation.ErrCleanupHold) {
+			_ = os.Remove(temporary)
+		}
 		return err
 	}
 	if err = os.Link(temporary, name); err != nil {
