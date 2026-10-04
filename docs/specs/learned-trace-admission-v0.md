@@ -184,6 +184,21 @@ Acceptance: `TestLTAV0013TypedSecrets`, `TestTypedTraceFixtureAdmission`,
 `TestExportTypedArgv`, and the existing frozen v1 tests. Qualification limits remain explicit;
 local codec parity is not an external retrieval outcome measurement.
 
+### Proposed amendment: writer-screen prefilter (2026-10-04, ticket V1-0722, owner-directed)
+
+- `LTA-V0-014`: The writer screen MAY skip a top-level branch of `secretscreen.Pattern` for a text
+  only when a condition necessary for any substring of that text to match the branch is false, and
+  MUST then return exactly the matches `Pattern` returns for the same text, in the same order and
+  at the same byte offsets. A text holding a non-ASCII rune that case-folds to an ASCII letter
+  (U+212A, U+017F) MUST be screened with the complete pattern. The prefilter MUST NOT change
+  `Pattern`'s source text, `StoredV1Pattern`, or what `MatchString`, `Screen` and `MatchArgv`
+  report. It is an execution strategy only; a detector change still needs its own requirement.
+
+Acceptance: `TestLTAV0014PrefilterReturnsPatternMatches`, `TestLTAV0014GeneratedBranchTextsKeepTheirBranchLive`, `TestLTAV0014PatternSourceIsUnchanged`,
+`TestLTAV0014TextWithoutCandidatesSkipsThePattern`, the package `TestMain` observer, which
+compares every text any `internal/secretscreen` test screens with `Pattern` and with each branch
+alone, and `BenchmarkScreen` for the retained before and after.
+
 ## Non-goals and simpler baseline
 
 The simpler baseline is the empty-trace evaluation arm and hard refusal at the existing store cap.
@@ -278,6 +293,7 @@ is weighted; that mismatch is why the gate, not the labels, decides admission.
 | `LTA-V0-010` | a held-out golden with no improvement reports both arms and the delta, refuses admission and writes no file; no labels refuses before scoring; classification thresholds are unit-tested |
 | `LTA-V0-011` | nil weights leave the packet unchanged; weights reorder stably and disclose the trace; the loader refuses symlinked, oversized, malformed, unknown-relation, out-of-range and unevaluated files, and a file under a symlinked store directory, naming the rollback; `batch` `context` equals the weighted standalone packet |
 | `LTA-V0-012` | `eval --reset-slot-weights` removes the admitted file and the next `context` output equals the default bytes, including after a malformed file; a symlinked store is refused with the outside file byte-identical, a leaf symlink is removed without touching its target, and removal through the pinned store ignores a substituted directory |
+| `LTA-V0-014` | every parity fixture, its case, fold, split, JSON and base64 variants and every ordered fixture pair return `Pattern`'s matches, as do texts generated from each branch's own expression; each branch's necessary condition holds wherever that branch alone matches; a text with U+212A or U+017F uses the complete pattern; the writer pattern's source digest is pinned |
 | writer/stored-reader screen compatibility | one shared fixture corpus proves the four baseline patterns agree; new assignment-key and quoted-property cases reject in both writers while Go/Python stored-v1 validation and both dashboard readers retain their previous result; benign quoted properties remain admissible, Git-history screening uses the current detector, and ledger output redacts the synthetic value |
 
 Blind-v4 is not acceptance evidence for this spec. A first development result is first-observation
@@ -310,6 +326,7 @@ repaired by silently changing the oracle after evaluation.
 | `LTA-V0-010` | `internal/evalrepo/slot_weights.go`, `internal/slotlearn` | `TestLTAV0010GateReportsTheDeltaAndRefusesWithoutImprovement`, `TestLTAV0010NoLabelsRefusesWithoutEvaluating`, `TestLTAV0010SlotDeltaClassification`, `TestLTAV0010SelectorPathsKeepOnlyPathBearingSelectors` |
 | `LTA-V0-011` | `internal/contextindex/slot_weights.go`, `internal/contextindex/taskcontext.go`, `cmd/corvint/taskcontext.go`, `internal/slotlearn` | `TestLTAV0011SlotWeightOrderIsIdentityByDefaultAndStable`, `TestLTAV0011WeightedPacketDisclosesTheTraceAndNilIsTaskContext`, `TestLTAV0011AdmittedSlotWeightsLoaderFailsClosed`, `TestBatchContextAppliesAdmittedSlotWeights`, `TestLTAV0011AdmitRefusesASymlinkedStoreAndWritesNothingOutside` |
 | `LTA-V0-012` | `internal/slotlearn`, `cmd/corvint/eval_slot_weights.go`, `internal/contextindex/slot_weights.go` | `TestLTAV0012ResetRestoresTheDefaultPacket`, `TestLTAV0012AdmittedTraceRoundTripsAndResetRestoresDefault`, `TestLTAV0012ResetRefusesASymlinkedStoreAndRemovesALeafLink`, `TestLTAV0012PinnedStoreIgnoresASubstitutedDirectory` |
+| `LTA-V0-014` | `internal/secretscreen/prefilter.go` | `TestLTAV0014PrefilterReturnsPatternMatches`, `TestLTAV0014PatternSourceIsUnchanged`, `TestLTAV0014TextWithoutCandidatesSkipsThePattern`, `FuzzLTAV0014PrefilterReturnsPatternMatches`, `BenchmarkScreen` |
 | writer/stored-reader screen compatibility | `internal/secretscreen`, `internal/trace`, `src/context_corvint_trace.py`, `internal/dashboard/adapters/trace.go`, `conformance/dashboard-snapshot-v0/trace_corpus.go` | `TestSecretPatternParityCorpus`, `TestQuotedCredentialsRejectNewRecordsButRetainStoredV1`, `TestSecretPatternMatchesHistorySecretShapes`, `TestAppendRedactsQuotedCredentialPath`, `TestScreenConsumesWholeQuotedAssignmentValue`, `TestScreenRedactsAWSSecretAdjacentToItsKeyID`, Python `SecretPatternParityTest` and `CorvintLearningTest.test_trace_inputs_fail_closed`; stored-v1 compatibility and intentional-asymmetry tests |
 
 ## Rollback
@@ -323,7 +340,8 @@ copies outside the repository and need no cleanup. For `LTA-V0-009` to `LTA-V0-0
 rollback is `corvint eval --reset-slot-weights`; the code rollback removes `internal/slotlearn`,
 `cmd/corvint/eval_slot_weights.go`, `internal/evalrepo/slot_weights.go`,
 `internal/contextindex/slot_weights.go` and the three hooks, after which an admitted file is ignored
-and the ledgers return to being read by no learning path.
+and the ledgers return to being read by no learning path. For `LTA-V0-014`, make
+`writerMatches` call `Pattern` directly; no stored state depends on the prefilter.
 
 ## Unresolved decisions and promotion or kill criteria
 
