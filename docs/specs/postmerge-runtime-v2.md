@@ -3,14 +3,15 @@
 Owner: Russell Lewis
 Date: 2026-10-03
 Intent status: accepted
-Delivery status: not-started
+Delivery status: partial
 Intent basis: accepted /2 direction by direct human receipt; the executable elaboration below passed independent Gate A.
-No /2 runtime implementation or qualified positive replay is claimed.
+Only the PMR-V2-006 process verifier slice is implemented; no /2 workflow runtime, host qualification
+or qualified positive replay is claimed.
 
 ## Agent digest
-- Claim: Accepted /2 contract compares stable producer decisions and canonical requests across fresh verified runs; conformance data only, no runtime.
-- Status: accepted; not-started; frozen conformance data only, qualification NOT_OBSERVED.
-- Exists: This spec and `conformance/postmerge-runtime-v2/`; no /2 code. /0 and /1 are unchanged.
+- Claim: Accepted /2 contract compares stable producer decisions and canonical requests across fresh verified runs; only its process verifier slice exists.
+- Status: accepted; partial; PMR-V2-006 process verifier slice only, qualification NOT_OBSERVED.
+- Exists: This spec, `conformance/postmerge-runtime-v2/` and the `internal/postmergeproof` verifier; no /2 workflow. /0 and /1 are unchanged.
 - Blocked on: #389 actual delta, #394 producer decision, Linux procfs tuple qualification and real author/scope/validation stages.
 - Read next: Requirements; Closed executable profiles; Remaining work and promotion boundary.
 
@@ -46,6 +47,31 @@ is a dependency proposal, not an applied or qualified producer. Its immutable so
 `e5d777cbd1202dbffb88ce114956b304035bd5c5`. Revalidate the source map at the actual admitted base.
 Synthetic examples demonstrate schema/link topology only; they cannot mint verified process tokens,
 qualify a host, satisfy historical replay, or close native ticket V1-0542.
+
+Since 2026-10-04 the PMR-V2-006 verifier slice (#395) exists in `internal/postmergeproof`.
+`VerifyProcessV2` checks the parent admission, an admitted qualification report, the closed policy and
+the raw proof against retained preimages and an independently constructed graph, and only then mints
+the opaque `VerifiedProcessesV2` token, which no other package can construct. `ValidFor` refuses a
+zero or differently bound token. The `procfs` subpackage reads bracketed Linux birth captures and
+final `/proc` sweeps on amd64 and arm64; other hosts report NOT_OBSERVED with
+`process-observation-unsupported`. No real qualification campaign has been admitted, so every
+production call stays BLOCKED with `process-qualification-unavailable`. No collector, producer,
+workflow or connector consumes the token yet; PMR-V2-009 and PMR-V2-010 are not wired.
+
+Verifier refusals keep their class and never collapse zero, absent and unknown. BLOCKED:
+`process-qualification-unavailable`, `process-host-unsupported`, `process-token-invalid`,
+`process-artifact-unavailable`, `process-bound-exceeded`, `process-graph-invalid`,
+`process-native-source-unsupported`, `process-legacy-sample-unsupported`, `process-role-ambiguous`,
+`process-role-unsupported`, `process-parent-unverified`, `process-native-reference-missing`,
+`process-native-start-unavailable`, `process-cleanup-unknown`, `process-sweep-incomplete`,
+`process-sweep-scope-ambiguous` and `process-verification-cancelled`. REJECTED:
+`process-admission-mismatch`, `process-policy-digest-mismatch`, `process-qualification-invalid`,
+`process-wire-invalid`, `process-graph-substituted`, `process-artifact-digest-mismatch`,
+`process-capture-malformed`, `process-stat-malformed`, `process-birth-changed`,
+`process-bracket-changed`, `process-namespace-mismatch`, `process-executable-mismatch`,
+`process-invocation-mismatch`, `process-retirement-invalid`, `process-trusted-start-mismatch`,
+`process-native-reference-invalid`, `process-cleanup-join-invalid`, `process-cleanup-survivors`,
+`process-sweep-invalid` and `process-sweep-survivor`.
 
 ## Requirements
 
@@ -118,8 +144,9 @@ Complete promotion additionally needs a real historical fixture that triggers ac
 real intake/delta/author/scope/check/metrics/applicable-corpus stages, triageable findings, frozen
 generated/human-verified expectations, two fresh complete attachments and equal decisions/requests.
 Qualify actual local OR CI execution for the exact tuple; neither both nor remote hosting is required.
-Private schema/hash readback and Gate A PASS are design evidence only. All product tests, source review,
-process qualification, full historical workflow and native completion remain NOT_RUN/NOT_PRODUCED.
+Private schema/hash readback and Gate A PASS are design evidence only. The process verifier source
+checks named in Traceability now exist; every other product test, independent source review, process
+qualification, full historical workflow and native completion remain NOT_RUN/NOT_PRODUCED.
 
 ## Rollout, rollback and drift
 
@@ -149,7 +176,7 @@ binding/check/seal. No passed design check is a source-execution authorization.
 | PMR-V2-001, 007, 009, 010 | `internal/postmergeworkflow/v2*.go`, workflow CLI | strict routing, refusal and complete historical replay; NOT_RUN |
 | PMR-V2-002, 003, 004 | `internal/testacceptance/*v2*.go`, provider collector | native rederivation, all source/link tamper cases, fresh graph coverage; NOT_RUN |
 | PMR-V2-005, 008 | `internal/postmergeconnector/*v2*.go` | immutable resolver and actual Git joins, both-call revalidation, idempotent JSONL; NOT_RUN |
-| PMR-V2-006 | `internal/postmergeproof`, `internal/postmergehost`, `internal/procgroup` | concrete token boundary, raw birth/role/cleanup controls and actual tuple qualification; NOT_PRODUCED |
+| PMR-V2-006 | `internal/postmergeproof` (verifier slice delivered), `internal/postmergehost`, `internal/procgroup` | token boundary: TestVerifyProcessMintsBoundToken, TestZeroProcessTokenIsInvalid, TestVerifyProcessAdmissionRefusals, TestQualificationRefusals; raw birth/role/cleanup controls: TestRawProcessProofDerivesLogicalGraph, TestRawProcessRefusals, TestDistinctProcessStates, TestRoleWitnessOrderInvariant, TestProcStatParser, TestPolicyRefusals, TestWireTableMatchesFrozenSchemas; procfs: TestUnsupportedHostIsNotObserved, TestCaptureOwnBirth, TestSweepListsOwnProcess, TestLinuxProcfsOwnedExecution, TestLinuxProcfsSweepFindsSurvivor (Linux arm64 container only; amd64 NOT_RUN); collector integration and actual tuple qualification NOT_PRODUCED |
 
 ## Remaining work and promotion boundary
 
