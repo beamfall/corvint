@@ -1,15 +1,146 @@
 package golang_test
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/cem/gitauth"
+	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 )
+
+func TestImmutableReadScopeParity_AFPV0023(t *testing.T) {
+	t.Run("DLT-V0-002 AFP-V0-023 immutable declared read scopes", func(t *testing.T) {
+		const declaration = `{"profile":"corvint-test-read-scopes/0","packages":{"caller":["docs/"]}}`
+		for _, tc := range []struct {
+			name, body               string
+			symlink, refuse, invalid bool
+		}{
+			{name: "declared", body: declaration},
+			{name: "missing"},
+			{name: "exact one MiB", body: declaration + strings.Repeat(" ", (1<<20)-len(declaration))},
+			{name: "oversized", body: declaration + strings.Repeat(" ", (1<<20)+1-len(declaration)), refuse: true},
+			{name: "malformed", body: "{", invalid: true},
+			{name: "unmatched directory", body: `{"profile":"corvint-test-read-scopes/0","packages":{"missing":[]}}`, invalid: true},
+			{name: "nonregular hidden manifest", symlink: true, refuse: true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				root := readScopeRepository(t, tc.body)
+				manifest := filepath.Join(root, filepath.FromSlash(affected.ReadScopesPath))
+				if tc.symlink {
+					writeFiles(t, root, map[string]string{"real.json": declaration, ".corvint/other": ""})
+					if err := os.Symlink("../real.json", manifest); err != nil {
+						t.Fatal(err)
+					}
+				}
+				live, err := affected.Build(root, golang.New())
+				if err != nil {
+					t.Fatal(err)
+				}
+				liveUnits, err := golang.New().Units(root)
+				if err != nil {
+					t.Fatal(err)
+				}
+				runGit(t, "git", root, "init", "--quiet")
+				runGit(t, "git", root, "add", ".")
+				runGit(t, "git", root, "commit", "--quiet", "-m", "declared source")
+				auth, err := gitauth.Open(root, gitrun.NewDefaultBudget())
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer auth.BeginObjectSession()()
+				ctx := context.Background()
+				pinned, err := auth.Resolve(ctx, "HEAD")
+				if err != nil {
+					t.Fatal(err)
+				}
+				source, err := auth.RevisionFS(ctx, pinned, affected.MaxSourceBytes)
+				if err != nil {
+					t.Fatal(err)
+				}
+				// Move both HEAD and ambient contents away from the explicitly read revision.
+				if tc.symlink {
+					if err := os.Remove(manifest); err != nil {
+						t.Fatal(err)
+					}
+				}
+				writeFiles(t, root, map[string]string{affected.ReadScopesPath: `{"profile":"corvint-test-read-scopes/0","packages":{"caller":[]}}`})
+				runGit(t, "git", root, "add", ".")
+				runGit(t, "git", root, "commit", "--quiet", "-m", "conflicting ambient declaration")
+				current, err := auth.Resolve(ctx, "HEAD")
+				if err != nil || current == pinned {
+					t.Fatalf("fixture did not move HEAD: %s %v", current, err)
+				}
+				immutable, err := affected.BuildFS(source, golang.New())
+				if tc.refuse {
+					if err == nil || immutable != nil {
+						t.Fatalf("invalid immutable input admitted: %v", err)
+					}
+					return
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				if live.Digest() != immutable.Digest() {
+					t.Fatalf("pinned and live graph differ: %s / %s", live.Digest(), immutable.Digest())
+				}
+				immutableUnits, err := golang.New().UnitsSource(affected.FSSource(source))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !reflect.DeepEqual(liveUnits, immutableUnits) {
+					t.Fatalf("pinned units differ from original live units")
+				}
+				if tc.invalid && !reflect.DeepEqual(immutableUnits.Frontier, []string{golang.FrontierReadScopesInvalid}) {
+					t.Fatalf("invalid declaration frontier: %v", immutableUnits.Frontier)
+				}
+				for _, dirty := range []string{"docs/guide.md", "other/notes.md", "caller/caller.go", affected.ReadScopesPath} {
+					a, b := affected.Select(live, []string{dirty}), affected.Select(immutable, []string{dirty})
+					if !reflect.DeepEqual(a, b) {
+						t.Fatalf("selection differs for %s", dirty)
+					}
+					if tc.invalid && b.Scope != affected.ScopeUnknown {
+						t.Fatalf("invalid declaration narrowed scope: %+v", b)
+					}
+				}
+				ambient, err := affected.Build(root, golang.New())
+				if err != nil || ambient.Digest() == immutable.Digest() {
+					t.Fatalf("ambient declaration did not differ: %v", err)
+				}
+			})
+		}
+	})
+}
+
+func TestImmutableReadScopeRefusals_AFPV0023(t *testing.T) {
+	t.Run("DLT-V0-002 AFP-V0-023 immutable read failure refuses graph", func(t *testing.T) {
+		root := readScopeRepository(t, "")
+		for _, source := range []fs.FS{
+			readScopeFailureFS{FS: os.DirFS(root)},
+			os.DirFS(root), // Missing capability must not be misreported as missing manifest.
+		} {
+			graph, err := affected.BuildFS(source, golang.New())
+			if err == nil || graph != nil {
+				t.Fatalf("failed immutable reader admitted: %v", err)
+			}
+			if !errors.Is(err, fs.ErrPermission) && !errors.Is(err, affected.ErrWalkUnrepresentable) {
+				t.Fatalf("unexpected refusal: %v", err)
+			}
+		}
+	})
+}
+
+type readScopeFailureFS struct{ fs.FS }
+
+func (readScopeFailureFS) OpenBounded(string, int) (fs.File, error) { return nil, fs.ErrPermission }
 
 func readScopeRepository(t *testing.T, declaration string) string {
 	t.Helper()
