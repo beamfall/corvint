@@ -28,9 +28,9 @@ outlived its fix is not filed again. Tasks behavior was probed on `corvint-tasks
 After resolving every citation, `script/check-line-citations.sh` runs `git diff --name-only -z`
 with `GIT_OPTIONAL_LOCKS=0`, so the index file on disk is not refreshed. It intersects the result
 with the files it read from the index: scanned documents, cited files, and its own allowlist,
-waiver and requirements inputs. It prints one stderr note naming each match. The note never
-resolves a citation against the worktree, never names a file the gate did not read, and leaves
-the exit status alone. Rejected alternatives:
+waiver and requirements inputs. It prints one stderr note naming each match. The note runs after the index reader has closed. It never
+resolves a citation against the worktree and never names a file the gate did not read. It leaves
+the exit status alone, including when `git diff` itself fails: that failure becomes a note too. Rejected alternatives:
 
 - **Resolving citations against the worktree.** This reopens the defect DCG-V0-013 closed: a
   green local run that CI, reading committed content, fails.
@@ -41,9 +41,16 @@ the exit status alone. Rejected alternatives:
 
 - `script/check-line-citations_test.sh` case 21:
   - An unstaged edit to a cited file passes and is named.
+  - An unstaged edit to a scanned document is named beside a real failure, which still exits 1.
   - An unstaged file the gate never read is not named.
   - Staging the edit clears the note.
 - Run against the previous script, case 21 fails: it reports that the edit was not named.
+- One independent review approved. Its findings were fixed in the same change:
+  - A failed `git diff` could change the exit status; it is now a note.
+  - A path listed twice for an unmerged file was counted twice; paths are now deduplicated.
+  - The scanned-document and failing-run cases were missing from case 21; both are added.
+  - The memory-retirement advice was overstated; it is corrected below.
+  - Paths hidden by `assume-unchanged` or `skip-worktree` are now named as out of scope.
 - `line-citations-check`, `line-citations-test`, `spec-requirements-check`,
   `requirement-definitions-check` and `traceability-tests-check` pass.
 - Tickets V1-0750 and V1-0751 were filed from the primary checkout. Their read-back and
@@ -55,7 +62,7 @@ Once this lands, the owner can make these memory changes:
 
 | Memory | Change |
 |---|---|
-| line-citations-check-reads-head | Delete. Its advice now comes from the gate itself. |
+| line-citations-check-reads-head | Drop the HEAD claim and the commit-first advice: the gate reads the index and now names unstaged edits. Keep its advice not to hide the gate's exit code behind `tail`, and to append new declarations after the last cited line to avoid repins. The note covers neither. |
 | dogfood-bind-amend-breaks-trace | Delete or shorten. Both refusals name their recovery. |
 | interactive-rm-cp-aliases | Keep until the aliases leave the profile. |
 | codex-cli-headless-lanes | Keep until the Codex configuration changes. |

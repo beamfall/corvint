@@ -368,26 +368,32 @@ for my $doc (sort grep { scanned_doc($_) } keys %tracked) {
 push @failures, "unpinned citation count $unpinned_count exceeds committed ceiling $unpinned_ceiling; read and pin citations or lower the ceiling"
     if $unpinned_count > $unpinned_ceiling;
 
+close_index();
+
 # DCG-V0-021: the gate reads the index, so an unstaged edit to a file it read is invisible to it.
 # Name those files instead of letting a pass read as a check of the worktree. This is a note, not
-# a failure, and GIT_OPTIONAL_LOCKS=0 keeps `git diff` from refreshing the index on disk.
-my @unstaged;
+# a failure: a failed `git diff` is reported and leaves the result alone, and GIT_OPTIONAL_LOCKS=0
+# keeps it from refreshing the index on disk.
+my %unstaged;
 {
     local $ENV{GIT_OPTIONAL_LOCKS} = '0';
-    open my $diff, '-|', 'git', 'diff', '--name-only', '-z' or die "git diff: $!\n";
-    local $/ = "\0";
-    while (my $path = <$diff>) {
-        chomp $path;
-        push @unstaged, $path if defined $lines_of{$path};
+    if (open my $diff, '-|', 'git', 'diff', '--name-only', '-z') {
+        local $/ = "\0";
+        while (my $path = <$diff>) {
+            chomp $path;
+            $unstaged{$path} = 1 if defined $lines_of{$path};
+        }
+        close $diff
+            or print STDERR 'line citations: note: could not list unstaged files ('
+                . ($! ? "git diff: $!" : 'git diff exit ' . ($? >> 8)) . ")\n";
+    } else {
+        print STDERR "line citations: note: could not list unstaged files (git diff: $!)\n";
     }
-    close $diff
-        or die $! ? "git diff: $!\n" : 'git diff failed: exit ' . ($? >> 8) . "\n";
 }
 print STDERR "line citations: note: this gate reads the Git index, so unstaged edits to "
-    . scalar(@unstaged) . " file(s) it read were not checked (git add them to include them):\n"
-    . join('', map { "  $_\n" } sort @unstaged)
-    if @unstaged;
-close_index();
+    . scalar(keys %unstaged) . " file(s) it read were not checked (git add them to include them):\n"
+    . join('', map { "  $_\n" } sort keys %unstaged)
+    if %unstaged;
 if (@failures) {
     print STDERR "line citations: " . scalar(@failures) . " citation(s) do not resolve:\n";
     print STDERR "  $_\n" for @failures;

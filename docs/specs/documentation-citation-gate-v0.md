@@ -193,7 +193,9 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   file on stderr in a note saying the gate reads the Git index and did not check the unstaged edit.
   The note MUST NOT change the exit status or any finding, and MUST NOT resolve any citation against
   the worktree; it reads only `git diff --name-only` without refreshing the index on disk. A file the
-  gate did not read MUST NOT be named. This closes the silent-pass case DCG-V0-013 leaves open: an
+  gate did not read MUST NOT be named. If `git diff` cannot run or fails, the gate MUST say so in
+  the note and leave the result unchanged. Paths Git hides from `git diff` (`assume-unchanged`,
+  `skip-worktree`) are out of scope. This closes the silent-pass case DCG-V0-013 leaves open: an
   author who edited a cited file and ran the gate before `git add` saw a pass that never examined
   the edit (V1-0720).
 
