@@ -362,24 +362,35 @@ func reconcileSweep(ctx context.Context, repo *intent.Repository, actor mutation
 				l.Verb = transaction.LeasePoolSafe
 				l.Reason = "operator-declared reset and verification passed"
 			}
-			child, e := sweepWrite(ctx, repo, actor, LeaseChoice{QueueID: c.QueueID, RequestID: sweepChildID(c.RequestID, en), Lease: l}, transaction.PoolFacts{}, nil)
+			lookup := LeaseChoice{QueueID: c.QueueID, RequestID: sweepChildID(c.RequestID, en), Lease: l}
+			child, e := sweepWrite(ctx, repo, actor, lookup, transaction.PoolFacts{}, nil)
 			if e != nil {
 				return out, e
 			}
-			if child == nil || child.Kind != "Replay" || child.Outcome.ReceiptSeq == nil {
-				// The phase never committed. The original stays pending while it
-				// still owns the member; once explicit proved-orphan recovery has
-				// released that owner it ends quarantined, never free, citing its
-				// last committed witness or the owner digest when none exists.
+			if !sweepReplayed(child) {
+				// The phase had not committed. The original stays pending while it
+				// still owns the member; once explicit proved-orphan recovery (or
+				// a terminal write) has released that owner it ends quarantined,
+				// never free, citing its last committed witness or the owner digest
+				// when none exists.
 				held, e := sweepOwnerHeld(ctx, repo, selected, owner)
 				if e != nil || held {
 					return out, e
 				}
-				if last == "" {
-					last = owner
+				// The lookup and the owner snapshot are separate reads, so a live
+				// runner may have committed this phase between them. Release is
+				// monotonic (observe and safe both require the owner), so one
+				// repeated lookup decides whether this phase committed.
+				if child, e = sweepWrite(ctx, repo, actor, lookup, transaction.PoolFacts{}, nil); e != nil {
+					return out, e
 				}
-				complete = true
-				break
+				if !sweepReplayed(child) {
+					if last == "" {
+						last = owner
+					}
+					complete = true
+					break
+				}
 			}
 			after, e := sweepReceiptPools(repo, child.Outcome.ReceiptSeq.Uint64())
 			if e != nil {
@@ -427,6 +438,9 @@ func reconcileSweep(ctx context.Context, repo *intent.Repository, actor mutation
 		return out, err
 	}
 	return sweepHistoricalResult(repo, final)
+}
+func sweepReplayed(r *Report) bool {
+	return r != nil && r.Kind == "Replay" && r.Outcome.ReceiptSeq != nil
 }
 func sweepOwnerHeld(ctx context.Context, repo *intent.Repository, selected snapshot.PoolEntry, owner wire.Digest) (bool, error) {
 	_, state, e := poolSnapshot(ctx, repo)

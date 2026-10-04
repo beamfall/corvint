@@ -106,6 +106,10 @@ func psrBinaryCall(t *testing.T, root string, args ...string) *wire.Result {
 	}
 	return result
 }
+
+// PSR-V0-002/009: the compiled `pool sweep --request-id --timeout-seconds` OWNER
+// foreground mutation frees the quarantined member, and the same request
+// replays the identical aggregate.
 func TestPSRCompiledPoolSweep(t *testing.T) {
 	_ = psrBinary(t)
 	repo, root := psrCLIReady(t, "printf reset")

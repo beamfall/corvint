@@ -20,6 +20,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"strconv"
+	"sync"
 	"syscall"
 
 	"path/filepath"
@@ -200,6 +201,8 @@ func TestPSRConcurrentSweeps(t *testing.T) {
 	}
 }
 
+// PSR-V0-009: a changed allocation or definition refuses before admission or
+// execution, and historical replay precedes the now-inapplicable observation.
 func TestPSRDispatchAllocationFence(t *testing.T) {
 	for _, mode := range []string{"allocation", "definition"} {
 		t.Run(mode, func(t *testing.T) {
@@ -360,6 +363,9 @@ func psrObservations(t *testing.T, s *leaseStore) []snapshot.PoolSweepObservatio
 	}
 	return out
 }
+
+// PSR-V0-005: verify passes only on the declared exit with the stdout literal
+// within the 64KiB bound; overflow or source change cannot pass.
 func TestPSRPredicateAndSourceMatrix(t *testing.T) {
 	for _, mode := range []string{"nonzero-expected", "wrong-exit", "dirty-reset", "dirty-verify", "output-bound", "output-overflow"} {
 		t.Run(mode, func(t *testing.T) {
@@ -450,6 +456,9 @@ func TestPSRPhaseEnvironmentIsolation(t *testing.T) {
 }
 
 func TestPSRRequestConflictAndOrphan(t *testing.T) {
+	// PSR-V0-001/002/009: an occupied safeReuse definition is immutable, a WORKER
+	// is refused before any command runs, and a changed meaningful request with
+	// the same id conflicts without mutation or execution.
 	t.Run("request-and-policy-fences", func(t *testing.T) {
 		marker := filepath.Join(t.TempDir(), "runs")
 		s, a := psrFixture(t, "printf x >> "+marker, "printf verified", "verified", "1", false)
@@ -505,6 +514,10 @@ func TestPSRRequestConflictAndOrphan(t *testing.T) {
 			t.Fatal("conflict reran command", string(raw))
 		}
 	})
+	// PSR-V0-003/009 (H1 retry): host death needs explicit orphan recovery with a
+	// runner identity check; once it releases the owner, retrying the original
+	// request ends it quarantined and not free, citing the owner placeholder,
+	// without running any phase again.
 	t.Run("live-unknown-gone", func(t *testing.T) {
 		marker := filepath.Join(t.TempDir(), "runner")
 		s, a := psrFixtureConfigured(t, "echo $$ > "+marker+"; sleep 60", "printf verified", "verified", "1", false, func(v wire.Value) { _, r := psrReuse(v); r.Set("timeoutSeconds", str("20")) })
@@ -936,5 +949,106 @@ func TestPSROrphanEarlyInitializationCleanup(t *testing.T) {
 	owned.cleanup(t)
 	if !owned.retired {
 		t.Fatal("early initialization cleanup did not prove retirement")
+	}
+}
+
+// PSR-V0-003: a same-request reconcile whose confirm lookup misses while the
+// original runner is live must not end not-free when that runner commits the
+// confirmation (releasing the owner) before the reconcile's owner snapshot.
+func TestPSRReconcileOwnerReleaseRace(t *testing.T) {
+	marker := filepath.Join(t.TempDir(), "runs")
+	s, _ := psrFixture(t, "printf x >> "+marker, "printf verified", "verified", "1", false)
+	verified, resume, confirmed, finished := make(chan struct{}), make(chan struct{}), make(chan struct{}), make(chan struct{})
+	var confirmOnce, finishOnce sync.Once
+	wait := func(ch <-chan struct{}, what string) {
+		select {
+		case <-ch:
+		case <-time.After(30 * time.Second):
+			t.Error("interleaving not reached:", what)
+		}
+	}
+	phase := func() string {
+		raw, e := os.ReadFile(filepath.Join(s.repo.StateDir, "pools.json"))
+		if e != nil {
+			return ""
+		}
+		p, e := snapshot.DecodePools(raw)
+		if e != nil || len(p.Entries) != 1 || p.Entries[0].Sweep == nil {
+			return ""
+		}
+		return p.Entries[0].Sweep.Phase
+	}
+	paused := false
+	// The runner pauses after its verify receipt commits, before it confirms,
+	// and again after confirming until the reconcile has written its finish.
+	runner := store.PSRTestResponseFailure(context.Background(), func(c store.LeaseChoice, r *store.Report, e error) error {
+		completed := e == nil && r != nil && r.Outcome.Outcome == mutation.OutcomeCompleted && r.Outcome.ReceiptSeq != nil
+		if completed && !paused && c.Lease.Verb == transaction.LeasePoolObserve && phase() == "confirm" {
+			paused = true
+			close(verified)
+			wait(resume, "reconcile confirm lookup")
+		}
+		if completed && c.Lease.Verb == transaction.LeasePoolSafe {
+			confirmOnce.Do(func() { close(confirmed) })
+			wait(finished, "reconcile finish")
+		}
+		return e
+	})
+	// The reconcile's confirm lookup misses; the runner then commits confirm
+	// before the reconcile takes its owner snapshot.
+	looked := false
+	reconciler := store.PSRTestResponseFailure(context.Background(), func(c store.LeaseChoice, r *store.Report, e error) error {
+		if looked && c.Lease.Verb == transaction.LeasePoolSweepFinish {
+			finishOnce.Do(func() { close(finished) })
+		}
+		if !looked && c.Lease.Verb == transaction.LeasePoolSafe && (r == nil || r.Kind != "Replay") {
+			looked = true
+			close(resume)
+			wait(confirmed, "runner confirmation")
+		}
+		return e
+	})
+	choice := store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "race", Root: s.root, TimeoutSeconds: "60"}
+	done := make(chan psrOutcome, 1)
+	go func() {
+		r, e := store.PoolSweep(runner, s.repo, operator(), choice)
+		done <- psrOutcome{r, e}
+	}()
+	wait(verified, "runner verify")
+	b, e := store.PoolSweep(reconciler, s.repo, operator(), choice)
+	if !looked {
+		close(resume)
+	}
+	finishOnce.Do(func() { close(finished) })
+	var a psrOutcome
+	select {
+	case a = <-done:
+	case <-time.After(90 * time.Second):
+		t.Fatal("runner did not return")
+	}
+	if !looked {
+		t.Fatal("reconcile confirm lookup not reached")
+	}
+	free := func(name string, r *store.PoolSweepReport, err error) []byte {
+		t.Helper()
+		var row struct {
+			Members []struct{ Free bool }
+		}
+		if err != nil || r == nil || r.Pending || json.Unmarshal(r.Result, &row) != nil || len(row.Members) != 1 || !row.Members[0].Free {
+			if r == nil {
+				r = &store.PoolSweepReport{}
+			}
+			t.Fatalf("%s did not finish free: pending=%v err=%v result=%s", name, r.Pending, err, r.Result)
+		}
+		return r.Result
+	}
+	if !bytes.Equal(free("reconcile", b, e), free("runner", a.report, a.err)) {
+		t.Fatal("runner and reconcile results differ")
+	}
+	if p := psrPools(t, s); len(p.Entries) != 0 {
+		t.Fatal("confirmed member not freed", p)
+	}
+	if raw, _ := os.ReadFile(marker); string(raw) != "x" {
+		t.Fatal("reset not reached once", string(raw))
 	}
 }

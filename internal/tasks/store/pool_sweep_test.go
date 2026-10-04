@@ -81,6 +81,9 @@ func psrPools(t *testing.T, s *leaseStore) *snapshot.PoolState {
 func psrRun(s *leaseStore, id string) (*store.PoolSweepReport, error) {
 	return store.PoolSweep(context.Background(), s.repo, operator(), store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: id, Root: s.root, TimeoutSeconds: "15"})
 }
+
+// PSR-V0-009: the same request replays the original result after env file
+// deletion and successor allocation, without execution or touching the successor.
 func TestPSRSweepSuccessReplaySuccessor(t *testing.T) {
 	s, a := psrFixture(t, "printf reset", "printf 'literal[ok]'", "literal[ok]", "1", true)
 	out, e := psrRun(s, "sweep")
@@ -117,6 +120,9 @@ func TestPSRSweepSuccessReplaySuccessor(t *testing.T) {
 		t.Fatal("replay touched successor")
 	}
 }
+
+// PSR-V0-005: a stdout literal mismatch never passes verify; the retry stays
+// within maxAttempts and the member stays quarantined.
 func TestPSRSweepMismatchRetries(t *testing.T) {
 	marker := filepath.Join(t.TempDir(), "reached")
 	s, _ := psrFixture(t, "printf x >> "+marker, "printf wrong", "expected", "2", false)
@@ -188,6 +194,8 @@ func TestPSRSweepOwnerBarrier(t *testing.T) {
 		t.Fatal("confirmation failed")
 	}
 }
+
+// PSR-V0-005: stderr cannot satisfy the stdout literal.
 func TestPSRSweepStderrIsNotStdout(t *testing.T) {
 	s, _ := psrFixture(t, "true", "printf expected >&2", "expected", "1", false)
 	_, e := psrRun(s, "stderr")

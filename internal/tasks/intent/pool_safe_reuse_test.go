@@ -28,6 +28,8 @@ func TestPSRSafeReuseBounds(t *testing.T) {
 	}
 }
 
+// PSR-V0-001: policy without safeReuse keeps its bytes and member definition; the
+// closed safeReuse shape refuses null, unknown and out-of-bound fields.
 func TestPSRPolicyLegacyAndOccupiedDefinition(t *testing.T) {
 	legacy := []byte("{\"pools\":[{\"id\":\"db\",\"members\":[\"a\"]}]}\n")
 	v, e := wire.Parse(legacy)

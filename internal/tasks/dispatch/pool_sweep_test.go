@@ -164,6 +164,10 @@ func TestPSRDispatchConfigAndLedger(t *testing.T) {
 	}
 	delete(d.ledger.Backoff, "unrelated")
 }
+
+// PSR-V0-009/010 (H1 retry): STARTING is durable before invocation; restart and
+// interval retries reuse the identical original request, and a Pending original
+// reaches TERMINAL only by replaying that request.
 func TestPSRDispatchStartAndReplay(t *testing.T) {
 	t.Run("save-before-invoke", func(t *testing.T) {
 		d, q := psrDispatch(t, func(context.Context, PoolSweepRequest) (PoolSweepResult, error) { return PoolSweepResult{}, nil })
@@ -523,6 +527,73 @@ func TestPSRDispatchCancellationJoin(t *testing.T) {
 			}
 			if d.sweepJob != nil {
 				t.Fatal("retained running operation")
+			}
+		})
+	}
+}
+
+// PSR-V0-010: under a reader HOLD, Run and Close still cancel and join an
+// in-flight sweep before returning, publish no ledger or event (the record
+// stays STARTING for the next dispatcher), and return readerErr unchanged.
+func TestPSRDispatchReaderHoldJoinsSweep(t *testing.T) {
+	for _, mode := range []string{"Close", "Run"} {
+		t.Run(mode, func(t *testing.T) {
+			var joined atomic.Bool
+			d, q := psrDispatch(t, func(ctx context.Context, _ PoolSweepRequest) (PoolSweepResult, error) {
+				<-ctx.Done()
+				// A join that does not wait for the actual return is observable.
+				time.Sleep(100 * time.Millisecond)
+				joined.Store(true)
+				return PoolSweepResult{Pending: true}, ctx.Err()
+			})
+			if e := d.Tick(context.Background()); e != nil {
+				t.Fatal(e)
+			}
+			psrCall(t, q)
+			if d.sweepJob == nil {
+				t.Fatal("sweep not in flight")
+			}
+			files := func() (ledger, events []byte) {
+				var e error
+				if ledger, e = os.ReadFile(filepath.Join(d.dir, "state.json")); e != nil {
+					t.Fatal(e)
+				}
+				if events, e = os.ReadFile(filepath.Join(d.dir, "events.jsonl")); e != nil {
+					t.Fatal(e)
+				}
+				return ledger, events
+			}
+			ledgerBefore, eventsBefore := files()
+			readerErr := d.poisonReader(errors.New("injected reader hold"))
+			if mode == "Run" {
+				if got := d.Run(context.Background(), 1); got != readerErr {
+					t.Fatalf("Run returned %v, want readerErr unchanged", got)
+				}
+				if !joined.Load() || d.sweepJob != nil {
+					t.Fatal("Run returned before the sweep was joined")
+				}
+			}
+			if got := d.Close(); got != readerErr {
+				t.Fatalf("Close returned %v, want readerErr unchanged", got)
+			}
+			if !joined.Load() || d.sweepJob != nil {
+				t.Fatal("Close returned before the sweep was joined")
+			}
+			ledgerAfter, eventsAfter := files()
+			if !bytes.Equal(ledgerBefore, ledgerAfter) || !bytes.Equal(eventsBefore, eventsAfter) {
+				t.Fatal("HOLD published ledger or event bytes")
+			}
+			l, e := LoadLedger(d.dir, "prog")
+			if e != nil {
+				t.Fatal(e)
+			}
+			if len(l.PoolSweeps) != 1 {
+				t.Fatal("sweep record absent", l.PoolSweeps)
+			}
+			for _, r := range l.PoolSweeps {
+				if r.Phase != "STARTING" {
+					t.Fatal("record not left STARTING", r.Phase)
+				}
 			}
 		})
 	}
