@@ -25,6 +25,9 @@ The frozen executable packet SHA-256 is `00f4536dedff1331f667eb62738af600ff61d74
 Independent repair-1 Gate A PASS SHA-256 is `88f5e73beec92f170c13b3bc3508ceed9f899a6a43e2b5bc5695492813b734da`:
 H1, H2 and M1 closed; no remaining actionable HIGH/MED/LOW in that bounded design review.
 Project authority, the existing /1 runtime and native producer contracts govern all inherited obligations.
+Owner decision 2026-10-04, given through the orchestrator session's question to the owner: the
+process verifier's host tuple identity, SHA-256 over the domain `postmerge-host-tuple/2`, NUL and the
+wire-canonical `HostTupleV2` JSON, is ratified as chosen. The frozen conformance data is unchanged.
 
 This one owning spec registers the producer decision, process proof and connector admission helpers
 because they share the deterministic historical replay outcome and its promotion gate. The provisional

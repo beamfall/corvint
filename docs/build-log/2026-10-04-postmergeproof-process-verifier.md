@@ -47,8 +47,9 @@ the frozen `conformance/postmerge-runtime-v2/` data are unchanged.
 ## Implementation decisions inside the frozen contract
 
 - The host tuple identity is SHA-256 over the domain `postmerge-host-tuple/2`, then NUL, then the
-  wire-canonical JSON. The frozen data names no domain for it, so a future conformance revision
-  must ratify or replace it.
+  wire-canonical JSON. The frozen data names no domain for it. Owner decision 2026-10-04, given
+  through the orchestrator session's question to the owner: this domain is ratified as chosen. The
+  spec's Authority section records it; the frozen conformance data is unchanged.
 - Birth key: (boot ID, PID-namespace device, inode, PID, start ticks).
   - The before and after stat must agree on PID, parent PID and start; otherwise the result is
     `process-birth-changed`.
