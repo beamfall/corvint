@@ -99,7 +99,7 @@ by legitimate exploration that no packet could have anticipated.
   planned row carrying a path, size or `size_known`), `path-not-project-relative` (an unplanned row
   whose path is empty, absolute, or has an empty, `.` or `..` segment), and `unterminated-row` (a
   final row without a newline in a ledger under the cap). It MUST report when the ledger exceeded
-  128 KiB and only its first 128 KiB were read; the row that cap splits is neither folded nor
+  128 KiB and only its first 128 KiB were read; a row ending past that cap is neither folded nor
   rejected. The digest prints `REJECTED-ROWS reason=<reason> count=<n>` lines in reason order and
   `LEDGER-CUT cap-bytes=131072`.
 - **URE-V0-006.** `HookPostTool(root, packetPaths, payload)` MUST return `nil` on every path,

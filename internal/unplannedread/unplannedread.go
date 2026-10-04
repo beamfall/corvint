@@ -797,10 +797,10 @@ func Read(root string) (Digest, error) {
 		terminated := len(trimmed) < len(row)
 		switch {
 		case len(trimmed) == 0:
+		case result.Truncated:
+			// This row ends past the cap; Truncated already reports it.
 		case len(trimmed) > maxRowBytes:
 			result.SkippedRows++
-		case !terminated && result.Truncated:
-			// The cap cut this row; Truncated already reports it.
 		case !terminated:
 			result.Rejected["unterminated-row"]++
 		default:

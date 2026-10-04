@@ -679,6 +679,15 @@ func TestReadRejectsContractViolationsAndReportsCut(t *testing.T) {
 	if !maps.Equal(digest.Rejected, want) || digest.Events != 1 || len(digest.Misses) != 0 || len(digest.Latencies) != 0 || digest.Truncated {
 		t.Fatalf("digest = %+v", digest)
 	}
+	// JSON whitespace inside the last row fills the file to exactly the cap.
+	exact := strings.Repeat(valid, maxFileBytes/len(valid)-1)
+	exact += valid[:len(valid)-2] + strings.Repeat(" ", maxFileBytes-len(exact)-len(valid)) + "}\n"
+	if err := os.WriteFile(path, []byte(exact), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if digest, err = Read(root); err != nil || digest.Truncated || len(digest.Rejected) != 0 || digest.Events != maxFileBytes/len(valid) {
+		t.Fatalf("a ledger of exactly the cap was cut: %+v, %v", digest, err)
+	}
 	if err := os.WriteFile(path, []byte(strings.Repeat(valid, maxFileBytes/len(valid)+2)), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -736,7 +745,8 @@ func writeIgnore(t *testing.T, root string) {
 
 // TestFalsificationRateCountsJudgedRowsOnly: NOT_RUN and `none` rows are not
 // judgments, so they never move the rate; a proof row with an unknown verdict,
-// a negative or oversized count, or no counts is rejected; the triage lines
+// a negative or oversized count is rejected, one with no counts judges
+// nothing; the triage lines
 // carry the rate over every retained proof and per falsifier, and nothing is
 // drafted.
 func TestFalsificationRateCountsJudgedRowsOnly(t *testing.T) {
@@ -783,7 +793,7 @@ func TestFalsificationRateCountsJudgedRowsOnly(t *testing.T) {
 	}
 	want := "SELF-OBSERVATIONS events=0 zero-authoritative-rate=NOT_OBSERVED budget-omission-rate=NOT_OBSERVED latency-p50=0ms latency-p95=0ms\n" +
 		"REJECTED-ROWS reason=contract-counts-verdict count=1\n" +
-		"REJECTED-ROWS reason=proof-counts count=3\n" +
+		"REJECTED-ROWS reason=proof-counts count=2\n" +
 		"FALSIFICATION proofs=3 judged=14 failed=4 rate=4/14\n" +
 		"FALSIFIER key=history-consistent judged=10 failed=1 not-run=0 rate=1/10\n" +
 		"FALSIFIER key=none judged=0 failed=0 not-run=4 rate=NOT_OBSERVED\n" +

@@ -2376,11 +2376,11 @@ SOL-V0-002	docs/specs/self-observation-ledger-v0.md	41	Rows MUST contain no task
 SOL-V0-003	docs/specs/self-observation-ledger-v0.md	43	Each row is at most 2 KiB; the ledger is at most 128 KiB. On overflow, the write
 SOL-V0-004	docs/specs/self-observation-ledger-v0.md	50	Rows MAY report support, freshness, degradation codes, uncertainty, omitted and
 SOL-V0-005	docs/specs/self-observation-ledger-v0.md	53	Triage MUST be read-only and stdout-only. Its bounded digest reports degradation
-SOL-V0-006	docs/specs/self-observation-ledger-v0.md	69	A degradation present in at least 90% of recorded events MUST be labelled
-SOL-V0-007	docs/specs/self-observation-ledger-v0.md	71	Every emitted `unsupported-*` CLI failure SHOULD be recorded with only
-SOL-V0-008	docs/specs/self-observation-ledger-v0.md	109	**Accepted 2026-09-01.** `corvint dogfood-observe` is the one additional bounded
-SOL-V0-009	docs/specs/self-observation-ledger-v0.md	115	`corvint prove-observe` is the second bounded internal process writer surface.
-SOL-V0-010	docs/specs/self-observation-ledger-v0.md	122	The `codex` and `claude-code` host adapters (`corvint adapter`) MUST attempt one
+SOL-V0-006	docs/specs/self-observation-ledger-v0.md	70	A degradation present in at least 90% of recorded events MUST be labelled
+SOL-V0-007	docs/specs/self-observation-ledger-v0.md	72	Every emitted `unsupported-*` CLI failure SHOULD be recorded with only
+SOL-V0-008	docs/specs/self-observation-ledger-v0.md	110	**Accepted 2026-09-01.** `corvint dogfood-observe` is the one additional bounded
+SOL-V0-009	docs/specs/self-observation-ledger-v0.md	116	`corvint prove-observe` is the second bounded internal process writer surface.
+SOL-V0-010	docs/specs/self-observation-ledger-v0.md	123	The `codex` and `claude-code` host adapters (`corvint adapter`) MUST attempt one
 SOP-V0-001	docs/specs/stable-operations-v0.md	76	The install-lifecycle check MUST accept either one release archive whose single
 SOP-V0-002	docs/specs/stable-operations-v0.md	80	The check MUST create a committed fixture repository in its own temporary direct
 SOP-V0-003	docs/specs/stable-operations-v0.md	84	An upgrade MUST install into a second store beside the first and run `corvint

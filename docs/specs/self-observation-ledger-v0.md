@@ -62,9 +62,10 @@ local append-only diagnostic proposal stream and `corvint observations` is its r
   folding any of it: `malformed-json`, `unterminated-row` (a final row without a newline in a ledger
   under the cap), `contract-<field>` (the writer contract's closed field name, such as
   `contract-kind`, `contract-paths` or `contract-negative-count`), `unsafe-key`, and `proof-counts`
-  (a proof row with an unknown verdict, an out-of-range count or no counts). It MUST report when the
-  ledger exceeded 128 KiB and only its first 128 KiB were read; the row that cap splits is neither
-  folded nor rejected. The digest prints `REJECTED-ROWS reason=<reason> count=<n>` lines in reason
+  (a proof row with an unknown verdict or an out-of-range count; a proof row with no counts, which
+  `prove` writes for a document with no rows, judges nothing and is not rejected). It MUST report when the
+  ledger exceeded 128 KiB and only its first 128 KiB were read; a row ending past that cap is
+  neither folded nor rejected. The digest prints `REJECTED-ROWS reason=<reason> count=<n>` lines in reason
   order and `LEDGER-CUT cap-bytes=131072`.
 - `SOL-V0-006`: A degradation present in at least 90% of recorded events MUST be labelled
   `STANDING`; this is a candidate defect, not proof of defect cause or severity.

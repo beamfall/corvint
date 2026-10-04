@@ -362,7 +362,7 @@ func TestDigestMath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if digest.Unplanned != 2 || digest.Planned != 2 {
+	if digest.Unplanned != 2 || digest.Planned != 2 || len(digest.Rejected) != 0 {
 		t.Fatalf("counts: %+v", digest)
 	}
 	if digest.TotalBytes != 512+13 {
@@ -448,23 +448,42 @@ func TestReadRejectsRowsOutsideTheWriterContract(t *testing.T) {
 }
 
 // URE-V0-005 (V1-0740): a ledger over maxFileBytes is reported as cut, and
-// the row the cap split is neither folded nor counted as rejected.
+// the row the cap split is neither folded nor counted as rejected; a ledger
+// of exactly maxFileBytes is whole.
 func TestReadReportsLedgerCut(t *testing.T) {
 	root := worktree(t)
 	row := `{"ts":"t","tool":"Read","path":"kept.go","bytes":1,"size_known":true,"packet":"sha256:p","planned":false}` + "\n"
-	data := strings.Repeat(row, maxFileBytes/len(row)+2)
+	whole := maxFileBytes / len(row)
 	if err := os.MkdirAll(filepath.Join(root, ".corvint"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".corvint", "unplanned-reads.jsonl"), []byte(data), 0o600); err != nil {
-		t.Fatal(err)
+	ledger := filepath.Join(root, ".corvint", "unplanned-reads.jsonl")
+	// JSON whitespace inside the last row fills the file to exactly the cap.
+	exact := strings.Repeat(row, whole-1)
+	exact += row[:len(row)-2] + strings.Repeat(" ", maxFileBytes-len(exact)-len(row)) + "}\n"
+	for name, data := range map[string]string{
+		"exact":            exact,
+		"cap-on-newline":   exact + row,
+		"row-straddles":    strings.Repeat(row, whole+2),
+		"newline-past-cap": strings.Repeat(" ", maxFileBytes-len(row)+1) + row,
+	} {
+		if err := os.WriteFile(ledger, []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		digest, err := Read(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wantUnplanned, wantCut := whole, name != "exact"
+		if name == "newline-past-cap" {
+			wantUnplanned = 0
+		}
+		if digest.Truncated != wantCut || len(digest.Rejected) != 0 || digest.Unplanned != wantUnplanned {
+			t.Fatalf("%s: digest = %+v", name, digest)
+		}
 	}
-	digest, err := Read(root)
-	if err != nil {
+	if err := os.WriteFile(ledger, []byte(strings.Repeat(row, whole+2)), 0o600); err != nil {
 		t.Fatal(err)
-	}
-	if !digest.Truncated || len(digest.Rejected) != 0 || digest.Unplanned != maxFileBytes/len(row) {
-		t.Fatalf("digest = %+v", digest)
 	}
 	var rendered bytes.Buffer
 	if err := Render(root, 120, &rendered); err != nil {
