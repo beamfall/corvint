@@ -10,7 +10,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +28,12 @@ const (
 // ticket's State with a value, NONE, or UNKNOWN, and returns one alert per
 // failed read. A missing reader leaves every state NONE.
 func ReadStates(ctx context.Context, c *Config, tickets []Ticket) []string {
+	return readStates(ctx, c, tickets, func(ctx context.Context, _ string, argv []string) (map[string]commandState, error) {
+		return standaloneStateCommand(ctx, c, argv)
+	})
+}
+
+func readStates(ctx context.Context, c *Config, tickets []Ticket, command func(context.Context, string, []string) (map[string]commandState, error)) []string {
 	for i := range tickets {
 		tickets[i].State = StateNone
 		tickets[i].ProgressToken, tickets[i].ProgressDigest = "", ""
@@ -50,7 +55,7 @@ func ReadStates(ctx context.Context, c *Config, tickets []Ticket) []string {
 		}
 		return alerts
 	}
-	states, err := stateCommand(ctx, c.WorkRoot, w.Argv)
+	states, err := command(ctx, c.WorkRoot, w.Argv)
 	for i := range tickets {
 		switch {
 		case err != nil:
@@ -106,23 +111,6 @@ func stateValue(v string) (string, error) {
 		return "", fmt.Errorf("state value is longer than %d bytes or has control characters", maxStateValue)
 	}
 	return v, nil
-}
-
-func stateCommand(ctx context.Context, dir string, argv []string) (map[string]commandState, error) {
-	ctx, cancel := context.WithTimeout(ctx, stateTimeout)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
-	cmd.Dir = dir
-	cmd.WaitDelay = time.Second
-	var out bounded
-	cmd.Stdout = &out
-	if err := cmd.Run(); err != nil {
-		return nil, err
-	}
-	if out.over {
-		return nil, fmt.Errorf("output exceeds %d bytes", maxStateCommand)
-	}
-	return decodeCommandStates(out.buf.Bytes())
 }
 
 type commandState struct{ State, Progress string }

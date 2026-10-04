@@ -405,6 +405,25 @@ func (d *Dispatcher) publishSweepReturn(job *poolSweepJob) error {
 	return nil
 }
 
+// retirePoolSweep joins any in-flight sweep. Under a reader HOLD it joins
+// without publishing: HOLD writes no ledger or event, so the record stays
+// STARTING and the next dispatcher reconciles it by replaying the same
+// request. Otherwise it is stopPoolSweep.
+func (d *Dispatcher) retirePoolSweep() error {
+	if d.readerErr == nil {
+		return d.stopPoolSweep()
+	}
+	if job := d.sweepJob; job != nil {
+		job.cancel()
+		if job.returned == nil {
+			got := <-job.done
+			job.returned = &got
+		}
+		d.sweepJob = nil
+	}
+	return nil
+}
+
 // stopPoolSweep NEVER races a timer against a still-live native writer. The
 // bounded native engine must actually return; supervision continues until join.
 func (d *Dispatcher) stopPoolSweep() error {

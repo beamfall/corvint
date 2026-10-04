@@ -11,12 +11,14 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/groupreap"
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 )
 
@@ -29,12 +31,16 @@ type Dispatcher struct {
 	Out     io.Writer
 	Now     func() time.Time
 
-	dir    string
-	nonce  string
-	ledger *Ledger
-	exits  map[string]<-chan int
-	codes  map[string]int
-	lock   *os.File
+	dir       string
+	nonce     string
+	ledger    *Ledger
+	exits     map[string]<-chan int
+	codes     map[string]int
+	lock      *os.File
+	reader    *readerSlot
+	readerErr error
+	// Tests inject faults through the real creation-owned API.
+	readerStart func(*exec.Cmd) (*groupreap.Owner, error)
 	// Tests place cancellation exactly across the checked atomic write.
 	progressSave  func(*Ledger, string) error
 	poolSweepSave func(*Ledger, string) error
@@ -56,7 +62,7 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 		return nil, fmt.Errorf("program name must match [a-z][a-z0-9-]{0,23}")
 	}
 	dir := ProgramDir(c, program)
-	if err := os.MkdirAll(filepath.Join(dir, "requests"), 0o700); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
 	lock, err := os.OpenFile(filepath.Join(dir, "lock"), os.O_RDWR|os.O_CREATE, 0o600)
@@ -66,6 +72,15 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 	if err := lockExclusive(lock); err != nil {
 		lock.Close()
 		return nil, fmt.Errorf("another dispatcher holds %s: %w", dir, err)
+	}
+	// A prior unresolved reader refuses before owner/ledger/event writes or adoption.
+	if err := checkReaderQuarantine(dir, program); err != nil {
+		lock.Close()
+		return nil, err
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "requests"), 0o700); err != nil {
+		lock.Close()
+		return nil, err
 	}
 	if err := writeOwner(lock); err != nil {
 		lock.Close()
@@ -105,6 +120,18 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 func (d *Dispatcher) Close() error {
 	if d.closed {
 		return d.closeErr
+	}
+	if d.readerErr != nil {
+		// Join first so no sweep goroutine outlives Close; HOLD still writes
+		// no ledger or event, so retirePoolSweep publishes nothing here.
+		_ = d.retirePoolSweep()
+		// Terminal UNKNOWN permits releasing the lock, not recovery. The
+		// pre-spawn marker survives even when this diagnostic cannot be written.
+		if d.Out != nil {
+			_, _ = fmt.Fprintln(d.Out, d.readerErr)
+		}
+		_ = d.lock.Close()
+		return d.readerErr
 	}
 	joinedErr := d.stopPoolSweep()
 	d.emit(Event{Kind: "stopped", Message: fmt.Sprintf("dispatcher stopped; %d worker(s) left running for the next dispatcher", len(d.ledger.Workers))})
@@ -169,13 +196,24 @@ func (d *Dispatcher) LastEvent() uint64 { return d.ledger.EventSeq }
 // Run ticks until ctx ends or ticks reach the bound (0 is unbounded). A
 // failed tick is an alert, not an exit, so the dispatcher keeps supervising.
 func (d *Dispatcher) Run(ctx context.Context, ticks int) (result error) {
-	defer func() { result = errors.Join(result, d.stopPoolSweep()) }()
+	defer func() {
+		if e := d.retirePoolSweep(); e != nil {
+			result = errors.Join(result, e)
+		}
+	}()
+	if d.readerErr != nil {
+		return d.readerErr
+	}
 	var last error
 	for n := 0; ticks == 0 || n < ticks; n++ {
 		if ctx.Err() != nil {
 			return nil
 		}
-		if last = d.Tick(ctx); last != nil && ctx.Err() == nil {
+		last = d.Tick(ctx)
+		if d.readerErr != nil {
+			return d.readerErr
+		}
+		if last != nil && ctx.Err() == nil {
 			d.emit(Event{Kind: "alert", Message: "tick failed: " + last.Error()})
 		}
 		if ctx.Err() != nil {
@@ -198,13 +236,23 @@ func (d *Dispatcher) Run(ctx context.Context, ticks int) (result error) {
 // wall and orphan enforcement runs even when the store is unreadable; ended
 // workers then stay recorded and are accounted on the next readable tick.
 func (d *Dispatcher) Tick(ctx context.Context) error {
+	if d.readerErr != nil {
+		return d.readerErr
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	// Admission publishes a new ledger only after its checked write. Resolve
 	// this receiver at return so an old pointer cannot overwrite that commit.
-	defer func() { _ = d.ledger.save(d.dir) }()
+	defer func() {
+		if d.readerErr == nil {
+			_ = d.ledger.save(d.dir)
+		}
+	}()
 	obs, err := d.observe(ctx)
+	if d.readerErr != nil {
+		return d.readerErr
+	}
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
@@ -261,7 +309,12 @@ func (d *Dispatcher) observe(ctx context.Context) (*Observation, error) {
 	if err != nil {
 		return nil, err
 	}
-	alerts := ReadStates(ctx, d.Config, obs.Tickets)
+	alerts := readStates(ctx, d.Config, obs.Tickets, d.stateCommand)
+	if d.readerErr != nil {
+		return nil, d.readerErr
+	}
+	// An interrupted read is not an observation. In particular, its
+	// synthetic UNKNOWN states must not replace the last good baseline.
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
@@ -523,6 +576,9 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 	if d.Config.Heal.Handoff {
 		for _, w := range ended {
 			for _, a := range obs.Attempts {
+				if ctx.Err() != nil {
+					return wrote
+				}
 				if !a.Live || a.Holder != w.ID {
 					continue
 				}
@@ -546,6 +602,9 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 	if d.Config.Heal.Reap {
 		now := d.Now()
 		for _, a := range obs.Attempts {
+			if ctx.Err() != nil {
+				return wrote
+			}
 			if !a.Live || done[a.ID] || a.LeaseExpires.IsZero() || a.LeaseExpires.After(now) || d.worker(a.Holder) != nil {
 				continue
 			}

@@ -1,0 +1,207 @@
+{
+  "comparison": "EXAMPLE_LOGICAL_WITNESSES_EQUAL_RAW_ORDER_PRESERVED",
+  "precondition": "These are assumed already injectively verified logical mappings, not a token or sufficient proof. Native constructor still requires full qualified bytes.",
+  "profile": "synthetic-process-ordering-example/1",
+  "qualification": "NOT_OBSERVED",
+  "run1": {
+    "decision_witnesses": [
+      {
+        "parent_pid": {
+          "profile": "postmerge-process-proof/2",
+          "verified": true
+        },
+        "pid": {
+          "birth_distinct_from": [],
+          "node": "proc/1/runner/default",
+          "parent": "proc/1/assessment-worker/default",
+          "role": "runner",
+          "run_kind": "repeat",
+          "run_ordinal": 1,
+          "state": "gone"
+        },
+        "start": {
+          "profile": "postmerge-process-proof/2",
+          "verified": true
+        },
+        "state": "observed"
+      },
+      {
+        "parent_pid": {
+          "profile": "postmerge-process-proof/2",
+          "verified": true
+        },
+        "pid": {
+          "birth_distinct_from": [],
+          "node": "proc/1/server/default",
+          "parent": "proc/1/assessment-worker/default",
+          "role": "server",
+          "run_kind": "repeat",
+          "run_ordinal": 1,
+          "state": "gone"
+        },
+        "start": {
+          "profile": "postmerge-process-proof/2",
+          "verified": true
+        },
+        "state": "observed"
+      }
+    ],
+    "mapped_before_sort": [
+      {
+        "parent_pid": {
+          "profile": "postmerge-process-proof/2",
+          "verified": true
+        },
+        "pid": {
+          "birth_distinct_from": [],
+          "node": "proc/1/runner/default",
+          "parent": "proc/1/assessment-worker/default",
+          "role": "runner",
+          "run_kind": "repeat",
+          "run_ordinal": 1,
+          "state": "gone"
+        },
+        "start": {
+          "profile": "postmerge-process-proof/2",
+          "verified": true
+        },
+        "state": "observed"
+      },
+      {
+        "parent_pid": {
+          "profile": "postmerge-process-proof/2",
+          "verified": true
+        },
+        "pid": {
+          "birth_distinct_from": [],
+          "node": "proc/1/server/default",
+          "parent": "proc/1/assessment-worker/default",
+          "role": "server",
+          "run_kind": "repeat",
+          "run_ordinal": 1,
+          "state": "gone"
+        },
+        "start": {
+          "profile": "postmerge-process-proof/2",
+          "verified": true
+        },
+        "state": "observed"
+      }
+    ],
+    "raw_witnesses": [
+      {
+        "parent_pid": 100,
+        "pid": 101,
+        "start": "raw-birth-first-runner",
+        "state": "observed"
+      },
+      {
+        "parent_pid": 100,
+        "pid": 102,
+        "start": "raw-birth-first-server",
+        "state": "observed"
+      }
+    ]
+  },
+  "run2": {
+    "decision_witnesses": [
+      {
+        "parent_pid": {
+          "profile": "postmerge-process-proof/2",
+          "verified": true
+        },
+        "pid": {
+          "birth_distinct_from": [],
+          "node": "proc/1/runner/default",
+          "parent": "proc/1/assessment-worker/default",
+          "role": "runner",
+          "run_kind": "repeat",
+          "run_ordinal": 1,
+          "state": "gone"
+        },
+        "start": {
+          "profile": "postmerge-process-proof/2",
+          "verified": true
+        },
+        "state": "observed"
+      },
+      {
+        "parent_pid": {
+          "profile": "postmerge-process-proof/2",
+          "verified": true
+        },
+        "pid": {
+          "birth_distinct_from": [],
+          "node": "proc/1/server/default",
+          "parent": "proc/1/assessment-worker/default",
+          "role": "server",
+          "run_kind": "repeat",
+          "run_ordinal": 1,
+          "state": "gone"
+        },
+        "start": {
+          "profile": "postmerge-process-proof/2",
+          "verified": true
+        },
+        "state": "observed"
+      }
+    ],
+    "mapped_before_sort": [
+      {
+        "parent_pid": {
+          "profile": "postmerge-process-proof/2",
+          "verified": true
+        },
+        "pid": {
+          "birth_distinct_from": [],
+          "node": "proc/1/server/default",
+          "parent": "proc/1/assessment-worker/default",
+          "role": "server",
+          "run_kind": "repeat",
+          "run_ordinal": 1,
+          "state": "gone"
+        },
+        "start": {
+          "profile": "postmerge-process-proof/2",
+          "verified": true
+        },
+        "state": "observed"
+      },
+      {
+        "parent_pid": {
+          "profile": "postmerge-process-proof/2",
+          "verified": true
+        },
+        "pid": {
+          "birth_distinct_from": [],
+          "node": "proc/1/runner/default",
+          "parent": "proc/1/assessment-worker/default",
+          "role": "runner",
+          "run_kind": "repeat",
+          "run_ordinal": 1,
+          "state": "gone"
+        },
+        "start": {
+          "profile": "postmerge-process-proof/2",
+          "verified": true
+        },
+        "state": "observed"
+      }
+    ],
+    "raw_witnesses": [
+      {
+        "parent_pid": 100,
+        "pid": 101,
+        "start": "raw-birth-second-server",
+        "state": "observed"
+      },
+      {
+        "parent_pid": 100,
+        "pid": 102,
+        "start": "raw-birth-second-runner",
+        "state": "observed"
+      }
+    ]
+  },
+  "scheduleRule": "Actual test/run/worker/start/control/attempt schedules not sorted; a reordered native schedule still mismatches."
+}

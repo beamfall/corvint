@@ -30,12 +30,17 @@ func importViolation(rel, path string) string {
 	if strings.HasPrefix(rel, "internal/tasks/wire/") {
 		return "the Tasks wire package imports no module package"
 	}
-	// CAL-V0-022's accepted in-process pack adapter is the sole production
-	// exception to decision 0397; its Core dependencies remain explicit.
+	// CAL-V0-022's accepted in-process pack adapter is one production
+	// exception to decision 0397 rule 2; its Core dependencies remain explicit.
 	if strings.HasPrefix(rel, "internal/tasks/scopes/") && (path == modulePrefix+"internal/contextindex" || path == modulePrefix+"internal/runtimeenv") {
 		return ""
 	}
 	if rel == "internal/tasks/cli/scope_test.go" && path == modulePrefix+"internal/contextindex" {
+		return ""
+	}
+	// The dispatcher's process-group Owner edge (decision 0397's #464 addendum)
+	// admits only the standard-library-only internal/groupreap.
+	if strings.HasPrefix(rel, "internal/tasks/dispatch/") && path == modulePrefix+"internal/groupreap" {
 		return ""
 	}
 	if tasksSide && !strings.HasPrefix(path, tasksPrefix) {
@@ -77,6 +82,8 @@ func TestImportViolationControls(t *testing.T) {
 		{"internal/tasks/scopes/derive.go", modulePrefix + "internal/gitstatus"},
 		{"internal/tasks/cli/cli.go", modulePrefix + "internal/contextindex"},
 		{"internal/tasks/cli/scope_test.go", modulePrefix + "internal/runtimeenv"},
+		{"internal/tasks/cli/dispatch.go", modulePrefix + "internal/groupreap"},
+		{"internal/tasks/dispatch/loop.go", modulePrefix + "internal/gokernel"},
 	}
 	for _, c := range cases {
 		if importViolation(c.rel, c.path) == "" {
@@ -90,9 +97,11 @@ func TestImportViolationControls(t *testing.T) {
 		{"internal/tasks/scopes/derive.go", modulePrefix + "internal/contextindex"},
 		{"internal/tasks/scopes/derive.go", modulePrefix + "internal/runtimeenv"},
 		{"internal/tasks/cli/scope_test.go", modulePrefix + "internal/contextindex"},
+		{"internal/tasks/dispatch/loop.go", modulePrefix + "internal/groupreap"},
+		{"internal/tasks/dispatch/reader_test.go", modulePrefix + "internal/groupreap"},
 	} {
 		if got := importViolation(c.rel, c.path); got != "" {
-			t.Errorf("accepted pack adapter refused: %s", got)
+			t.Errorf("accepted Core edge refused: %s", got)
 		}
 	}
 }
