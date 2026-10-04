@@ -1,0 +1,390 @@
+{
+  "baseRevision": "e8c439f9f397960019410fd96f194996d98e4441",
+  "evidence": [
+    {
+      "blobOid": "a11d45a7d1e90fb57c4430bfb345d4463d4c94fd",
+      "id": "evidence:sha256:1ca85ccadae771aa8565c7de23149a1c380f798990342e582b3a162d0d8e22da",
+      "path": "docs/specs/corvint-tasks-pool-safe-reuse-v0.md",
+      "span": {
+        "end": 3122,
+        "start": 2715
+      },
+      "spanSha256": "0f2d9ea80b56f084bee99131933b9832e6af5fb85654cdb067614eab805b4c82"
+    },
+    {
+      "blobOid": "a11d45a7d1e90fb57c4430bfb345d4463d4c94fd",
+      "id": "evidence:sha256:74819f9d343118df2c89ad193dbc1a930f9c656edd362d3b45a8cd34640b27cb",
+      "path": "docs/specs/corvint-tasks-pool-safe-reuse-v0.md",
+      "span": {
+        "end": 12731,
+        "start": 11310
+      },
+      "spanSha256": "8012bfdeca841df4b372be5cfb26b517d590447dde9f0f700f53430eaac7987b"
+    },
+    {
+      "blobOid": "a11d45a7d1e90fb57c4430bfb345d4463d4c94fd",
+      "id": "evidence:sha256:d28a2ea09603bc2c93d819f3e41c7735e6bcece9c55eeaa58e91a0bd84a6b77d",
+      "path": "docs/specs/corvint-tasks-pool-safe-reuse-v0.md",
+      "span": {
+        "end": 14922,
+        "start": 12732
+      },
+      "spanSha256": "d1c69e1525f689370bcdf8fedb9d615a93441c2118c23c98602de42ef85aa1eb"
+    },
+    {
+      "blobOid": "a11d45a7d1e90fb57c4430bfb345d4463d4c94fd",
+      "id": "evidence:sha256:4f1633f4394ce6c973d24af2e54c04696d1f862904fa117bc9515838c60c850e",
+      "path": "docs/specs/corvint-tasks-pool-safe-reuse-v0.md",
+      "span": {
+        "end": 2714,
+        "start": 2275
+      },
+      "spanSha256": "13f97ebacd8de2682dc41eba141ba27672357a735ae97df0a59acb0830b07fdd"
+    },
+    {
+      "blobOid": "a11d45a7d1e90fb57c4430bfb345d4463d4c94fd",
+      "id": "evidence:sha256:e44095550212e2369c871cb5313af5c450b8e1d8c1822a7342225cbc29f61127",
+      "path": "docs/specs/corvint-tasks-pool-safe-reuse-v0.md",
+      "span": {
+        "end": 4477,
+        "start": 3123
+      },
+      "spanSha256": "3dd1a6a2acbf54b00c72e1d9c10abbb44d5bfc1ef6a36704bb609bafa89a32ce"
+    },
+    {
+      "blobOid": "a11d45a7d1e90fb57c4430bfb345d4463d4c94fd",
+      "id": "evidence:sha256:3af62836a27051f127fa241e13b1c4e511e1c9840b571d3dcd4474a0f81c0b1c",
+      "path": "docs/specs/corvint-tasks-pool-safe-reuse-v0.md",
+      "span": {
+        "end": 6396,
+        "start": 5897
+      },
+      "spanSha256": "49389ff933a6b352da5c69a93e68fb135378229f4810b366e9ba260c186de987"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1ca85ccadae771aa8565c7de23149a1c380f798990342e582b3a162d0d8e22da",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:74819f9d343118df2c89ad193dbc1a930f9c656edd362d3b45a8cd34640b27cb",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:276174cf9370642fd934f079f20889944e11b16e1bb1a28acbaa907e8a16f03d",
+      "newRange": {
+        "count": 10,
+        "start": 106
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 106
+      },
+      "path": "internal/tasks/cli/pool_sweep_integration_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:74819f9d343118df2c89ad193dbc1a930f9c656edd362d3b45a8cd34640b27cb",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:d28a2ea09603bc2c93d819f3e41c7735e6bcece9c55eeaa58e91a0bd84a6b77d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3ad56ed6bcacdff089362b438bfdeeef1a4f4b2717f25b8e187fe5ad39e3c1ce",
+      "newRange": {
+        "count": 10,
+        "start": 164
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 164
+      },
+      "path": "internal/tasks/dispatch/pool_sweep_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d28a2ea09603bc2c93d819f3e41c7735e6bcece9c55eeaa58e91a0bd84a6b77d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:47ad78834e8b124a6581555f9e662a1622f393ddc629baa47db45fcb1fb833a2",
+      "newRange": {
+        "count": 70,
+        "start": 531
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 527
+      },
+      "path": "internal/tasks/dispatch/pool_sweep_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:4f1633f4394ce6c973d24af2e54c04696d1f862904fa117bc9515838c60c850e",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c37dad7f940bccab7ddbf3a4154f1ec8861a372a2ffc15c8403b0fcd58d5664c",
+      "newRange": {
+        "count": 8,
+        "start": 28
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 28
+      },
+      "path": "internal/tasks/intent/pool_safe_reuse_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:e44095550212e2369c871cb5313af5c450b8e1d8c1822a7342225cbc29f61127",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:fc1909eefa27c0b421268c01fa6c0efd827fa40c463f24ca0a74834256deb39e",
+      "newRange": {
+        "count": 35,
+        "start": 362
+      },
+      "oldRange": {
+        "count": 24,
+        "start": 362
+      },
+      "path": "internal/tasks/store/pool_sweep.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:e44095550212e2369c871cb5313af5c450b8e1d8c1822a7342225cbc29f61127",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:268996ea0dfb99a0b74ae0fd4e045a83d31781a046f61addd446126618eb092b",
+      "newRange": {
+        "count": 9,
+        "start": 439
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 428
+      },
+      "path": "internal/tasks/store/pool_sweep.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:e44095550212e2369c871cb5313af5c450b8e1d8c1822a7342225cbc29f61127",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:970ce39738525e86b5077cc2a4f22f62464f48c230cc0b40b32129b40a43b78f",
+      "newRange": {
+        "count": 7,
+        "start": 20
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 20
+      },
+      "path": "internal/tasks/store/pool_sweep_lifecycle_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:74819f9d343118df2c89ad193dbc1a930f9c656edd362d3b45a8cd34640b27cb",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f183abe40b6263e765f9d41a2d16f3b55defdaefb05146313e9f011225fc45e1",
+      "newRange": {
+        "count": 8,
+        "start": 201
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 200
+      },
+      "path": "internal/tasks/store/pool_sweep_lifecycle_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:3af62836a27051f127fa241e13b1c4e511e1c9840b571d3dcd4474a0f81c0b1c",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:24058d871ba18094b3cdfea0de68ef95348dc2e8a995fc8835efdb22de323801",
+      "newRange": {
+        "count": 9,
+        "start": 363
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 360
+      },
+      "path": "internal/tasks/store/pool_sweep_lifecycle_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:4f1633f4394ce6c973d24af2e54c04696d1f862904fa117bc9515838c60c850e",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:1ca85ccadae771aa8565c7de23149a1c380f798990342e582b3a162d0d8e22da",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:74819f9d343118df2c89ad193dbc1a930f9c656edd362d3b45a8cd34640b27cb",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8e707bbbb511ddf11d6f3151ab5de3e129a1ae29caeb597249752e725f72b62e",
+      "newRange": {
+        "count": 9,
+        "start": 456
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 450
+      },
+      "path": "internal/tasks/store/pool_sweep_lifecycle_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:e44095550212e2369c871cb5313af5c450b8e1d8c1822a7342225cbc29f61127",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:74819f9d343118df2c89ad193dbc1a930f9c656edd362d3b45a8cd34640b27cb",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c86202ab0349e1f9ec095a931ff8e8ccd28a6c575e7e5d767ffd94d9d1e4b721",
+      "newRange": {
+        "count": 10,
+        "start": 514
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 505
+      },
+      "path": "internal/tasks/store/pool_sweep_lifecycle_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:e44095550212e2369c871cb5313af5c450b8e1d8c1822a7342225cbc29f61127",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4b09fbc141161e8d4dd5ceabc7e728c53a7695d2a35ea0077a733cc58b2d20bf",
+      "newRange": {
+        "count": 104,
+        "start": 951
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 938
+      },
+      "path": "internal/tasks/store/pool_sweep_lifecycle_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:74819f9d343118df2c89ad193dbc1a930f9c656edd362d3b45a8cd34640b27cb",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ad6219242cab5e0ad3f4dfdc34a70a81dd8139c355b3da24da4ed6f814c69d0b",
+      "newRange": {
+        "count": 9,
+        "start": 81
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 81
+      },
+      "path": "internal/tasks/store/pool_sweep_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:3af62836a27051f127fa241e13b1c4e511e1c9840b571d3dcd4474a0f81c0b1c",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:aad3ab93fe6bb634b4e8990c8d58c15bb72b1637a8c1c20877e2841397ae2168",
+      "newRange": {
+        "count": 9,
+        "start": 120
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 117
+      },
+      "path": "internal/tasks/store/pool_sweep_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:3af62836a27051f127fa241e13b1c4e511e1c9840b571d3dcd4474a0f81c0b1c",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b064c1c7a69107db15ca473cd76b8337de3f42cb75352df8b0b289dff155aaad",
+      "newRange": {
+        "count": 8,
+        "start": 194
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 188
+      },
+      "path": "internal/tasks/store/pool_sweep_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "d74bf0cef388512d7f142dabb96e8697893ab07e8ddb07c4a47c2887473cd869",
+  "spec": "cem/0.2"
+}
