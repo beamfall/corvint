@@ -52,6 +52,26 @@
       "spanSha256": "46e69c5e97297b36c204ff585b335a484633ade4ec166dbc695fd46e7c6dc76c"
     },
     {
+      "blobOid": "920a953643392586fa346d61b7f183124fc1f6d0",
+      "id": "evidence:sha256:9c52caccee0d86098ac46c081d1e7342a25639e34532fbc3d52f3e4ec936066e",
+      "path": "docs/DOGFOOD.md",
+      "span": {
+        "end": 48236,
+        "start": 47758
+      },
+      "spanSha256": "3ef4940802a9dfc90b811306d157b7f5615d0fd18cf4c10e3931adda4ceb34a3"
+    },
+    {
+      "blobOid": "920a953643392586fa346d61b7f183124fc1f6d0",
+      "id": "evidence:sha256:8332f2a696b6649965b9075f8963969c297b8f3e53e0ec15aaf43fb9e61ed809",
+      "path": "docs/DOGFOOD.md",
+      "span": {
+        "end": 51812,
+        "start": 51522
+      },
+      "spanSha256": "741db372bbf7449f501b7b5fb4cc84df67bea08df4a736cc48efab5d038dda7d"
+    },
+    {
       "blobOid": "53d441ea1b0fa5c4acaedd35b0764a9118a18c31",
       "id": "evidence:sha256:ab314e652edecb47b6b4af121afbe796d6e0b4b51047238a3edfabb98a2271d3",
       "path": "docs/build-log/2026-10-04-issue389-seeded-successor.md",
@@ -675,14 +695,22 @@
           "relation": "specification"
         },
         {
+          "evidenceId": "evidence:sha256:9c52caccee0d86098ac46c081d1e7342a25639e34532fbc3d52f3e4ec936066e",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:8332f2a696b6649965b9075f8963969c297b8f3e53e0ec15aaf43fb9e61ed809",
+          "relation": "specification"
+        },
+        {
           "evidenceId": "evidence:sha256:ab314e652edecb47b6b4af121afbe796d6e0b4b51047238a3edfabb98a2271d3",
           "relation": "specification"
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:06eb7775936bd995b7fa689bf39b9b3761a805dcaeb9d95f637ead0a085e28c9",
+      "id": "hunk:sha256:d9117ccf02c1cc3094421ca3ea3ffb02c9ab704d8aee4e3e39fde62ccca51e9c",
       "newRange": {
-        "count": 22,
+        "count": 49,
         "start": 37
       },
       "oldRange": {
@@ -2493,6 +2521,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "d84bd99b0e818706dfe7aa8f3547d219e2ce970cc9288dc5ba4b6d0c037e9fb7",
+  "patchSha256": "4435571bbe240bd19064568825c226a7a9d7fa4e4d5bde3e2ccc2d994374b8a1",
   "spec": "cem/0.2"
 }
