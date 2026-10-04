@@ -130,6 +130,16 @@
         "start": 45369
       },
       "spanSha256": "cbf59d407c63f363ef5f8fc2d2f950b09f06f6c6b53298aabd9d4bcc5497cda2"
+    },
+    {
+      "blobOid": "14f492a7a5e3d3305b175c293205ad480dbeba92",
+      "id": "evidence:sha256:fc7c308f735ba722a606ce3b6778a18897d8ab1317b4f7542b569f3f24f02259",
+      "path": "docs/specs/immutable-delta-v0.md",
+      "span": {
+        "end": 2289,
+        "start": 2001
+      },
+      "spanSha256": "970b9cfae03f5a938b7c717746241c47bac6647599a10507ab096c89ff233896"
     }
   ],
   "excludedPath": ".corvint/change.cem.json",
@@ -1733,6 +1743,46 @@
     {
       "basis": [
         {
+          "evidenceId": "evidence:sha256:fc7c308f735ba722a606ce3b6778a18897d8ab1317b4f7542b569f3f24f02259",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:77d8040b986dd3b7bc94ecaba22ed3ce9a1235830686f8dd4824f1fdfc511e26",
+      "newRange": {
+        "count": 10,
+        "start": 38
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 38
+      },
+      "path": "internal/liveverify/affected/observation_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fc7c308f735ba722a606ce3b6778a18897d8ab1317b4f7542b569f3f24f02259",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:351f218b66dabc0e433577f33485362e15d0b91ee8f4214de26af65e98b5f943",
+      "newRange": {
+        "count": 10,
+        "start": 177
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 174
+      },
+      "path": "internal/liveverify/affected/observation_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
           "evidenceId": "evidence:sha256:962ddec7a35de9fccb9ed2ac306f7f9a6cc27469bc0c1110e16e8046c87ca215",
           "relation": "specification"
         }
@@ -2331,6 +2381,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "ab5739095cf5a63f7668ffdcfcfe52c5c862ffaad5dae9d6ab65c4c157c2a49f",
+  "patchSha256": "ec47be8cf16f719adaacf70c0de332280a52e657d7998665946846686c02ded4",
   "spec": "cem/0.2"
 }
