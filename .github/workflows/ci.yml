@@ -2,6 +2,10 @@ name: CI
 
 on:
   pull_request:
+  # A merge-queue entry runs the complete suite on the exact commit that becomes main: every
+  # pull_request-gated narrowing below is off for it, so docs-plan selects FULL (AFP-V0-026).
+  merge_group:
+    types: [checks_requested]
   push:
     branches: [main]
 
