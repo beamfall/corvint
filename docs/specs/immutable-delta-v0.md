@@ -63,6 +63,14 @@ This prototype does not depend on the unmerged non-Go impact ABI from issue #390
 ## Bounds and failures
 
 Source blobs: 4 MiB before allocation; existing cumulative Git and affected unit/walk limits apply.
+Git operations: one compilation declares 1,024 + 2 x 400,000 (`affected.MaxWalkEntries`) =
+801,024 operations within the shared 30-minute wall budget, not the frozen 1,024 default.
+Immutable paths resolve through verified parent listings: one operation per first-listed
+directory plus one per blob read, with verified sizes reused for Stat. Exhaustion stays fail-closed
+as `immutable-graph-unavailable` with the full suite required; it never narrows selection.
+Documentation drift admits at most 32 scopes and so runs up to 128 context builds per record.
+Unix input capture's no-follow refusal covers only the final path component; parent directories of
+an explicit input path are trusted to the caller (known limit).
 At most 32 provider records, 1 MiB each and 16 MiB aggregate. Prior generation: 16 MiB.
 Work pattern: 1024 bytes; key: 128 ASCII bytes; extraction and output counts are bounded.
 Unix capture uses nonblocking, no-follow open and fstat regularity, bounded read and close.
@@ -131,15 +139,15 @@ Each requirement is anchored by exact-ID Go subtests (`t.Run("DLT-V0-NNN ...")`,
 | Requirement | Anchoring tests |
 |---|---|
 | DLT-V0-001 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree, TestDeltaNoOpAndBadRevision; `internal/cem/gitauth`: TestDeltaPathsIncludeCEMAndTypeChanges |
-| DLT-V0-002 | `internal/cem/gitauth`: TestRevisionFSImmutableAndBounds; `internal/liveverify/affected`: TestImmutableAllLanguageParity, TestImmutableNonregularBeforeLanguageFilter, TestImmutableSwallowedReadRefusesGraph, TestSourceReadBoundsAndStickyFailure, TestSourceHiddenWalkRetainsIgnoredFailure |
-| DLT-V0-003 | `internal/cem/gitauth`: TestBoundedBlobRejectsHeaderWithoutFallback, TestBoundedBlobCumulativeBudgetBeforeBody, TestBoundedBlobCancellationRetiresDescendant, TestBoundedBlobIdentityAndNoMemoBypass, TestBoundedBlobFourMiBBoundary |
+| DLT-V0-002 | `internal/cem/gitauth`: TestRevisionFSImmutableAndBounds; `internal/delta`: TestDeltaGraphAboveDefaultGitBudget; `internal/liveverify/affected`: TestImmutableAllLanguageParity, TestImmutableNonregularBeforeLanguageFilter, TestImmutableSwallowedReadRefusesGraph, TestSourceReadBoundsAndStickyFailure, TestSourceHiddenWalkRetainsIgnoredFailure |
+| DLT-V0-003 | `internal/cem/gitauth`: TestRevisionFSListingCostScalesWithDirectories_DLT_V0_003, TestBoundedBlobRejectsHeaderWithoutFallback, TestBoundedBlobCumulativeBudgetBeforeBody, TestBoundedBlobCancellationRetiresDescendant, TestBoundedBlobIdentityAndNoMemoBypass, TestBoundedBlobFourMiBBoundary |
 | DLT-V0-004 | `internal/delta`: TestDeltaPreviousGeneration, TestDeltaEmptyChangeBindsPrevious, TestDeltaDocumentationExclusionsAndHTML |
 | DLT-V0-005 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree, TestDeltaIncompleteProviderRequiresFullSuite, TestDeltaCaptureBoundAndTransport, TestDeltaCaptureFIFORefusesWithoutWriter; `internal/extevidence`: TestCapturedSelectionParityAndMutation, TestCapturedFailuresDoNotNarrow |
 | DLT-V0-006 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree, TestDeltaReachedUnitDenominatorIncludesDiamond; `internal/extevidence`: TestCapturedAssertsDistinctFromVerifies |
 | DLT-V0-007 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree; `internal/cem/gitauth`: TestDeltaMetadataAndBoundedSHA256 |
-| DLT-V0-008 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree, TestDeltaRecordRejectsProseAndInvalidEnums, TestDeltaSchemaPathCorpus, TestDeltaRefusesControlCharacterGitPaths |
+| DLT-V0-008 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree, TestDeltaRecordRejectsProseAndInvalidEnums, TestDeltaSchemaPathCorpus, TestDeltaRefusesControlCharacterGitPaths, TestDeltaRecordsMatchPublishedSchema |
 | DLT-V0-009 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree, TestDeltaNoOpAndBadRevision, TestDeltaPublishedDecisionVectors (all four wire decisions; native docs-only deferred below) |
-| DLT-V0-010 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree; `cmd/corvint`: TestDeltaInternalCLIExplicitImmutableNoOp |
+| DLT-V0-010 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree; `cmd/corvint`: TestDeltaInternalCLIExplicitImmutableNoOp, TestDeltaCLIPreservesClosedRefusalCodes |
 
 Execution evidence is retained in `docs/build-log/2026-09-30-immutable-delta-public-integration.md`.
 Final integration uses approved public base `7bd7f5e03ad177e7496ce5dbd1563b8466f591a4`.

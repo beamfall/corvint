@@ -83,3 +83,82 @@ every check id, timeout and reuse flag. Only these argv values change:
 
 The focused documentation and format checks still run `make` targets whose recipe-level Go cache
 lives under `/tmp`; that is repository behaviour and is not changed here.
+
+## Review findings after bc645212
+
+An independent review of bc645212d5af1229dfa93d14183ef3d7456af00e returned PASS-WITH-FINDINGS,
+including one HIGH finding. The fixes are new commits on top of bc645212. Nothing was amended.
+
+### HIGH: Git operation budget
+
+The default `gitrun` budget allows 1,024 operations. `revisionFS` spent one `ls-tree` per path
+lookup plus one per blob read, so every entry cost about two operations. On this repository,
+`BuildFS` failed with `git-budget-exceeded` at entry 4,947, against 6,005 files and 816
+directories. As a result, every delta on a repository past roughly 500 entries reported
+`immutable-graph-unavailable` and selected 0 tests.
+
+The fix has two parts:
+
+- **Cheaper lookups.** `revisionFS` resolves each path through its parent directory's cached,
+  verified listing. A listing costs one operation per directory, and each blob read costs one
+  operation. `Stat` reuses the blob size cached by object ID.
+- **A declared delta budget.** `delta.GitOperations` is 1,024 + 2 × `affected.MaxWalkEntries`,
+  which is 801,024 operations within the same 30-minute wall budget. This is enough for the
+  largest walk the graph accepts. Running out is still fail-closed: the result is
+  `immutable-graph-unavailable` with the full suite required.
+
+Both bounds are recorded under "Bounds and failures" in `immutable-delta-v0.md`.
+
+Each part has a test that fails without the fix:
+
+- `TestRevisionFSListingCostScalesWithDirectories_DLT_V0_003` uses 600 entries, each stat'ed
+  twice, under the default budget.
+- `TestDeltaGraphAboveDefaultGitBudget` uses 1,200 Go files.
+
+Evidence on this repository, delta from c58325c4 to bc645212:
+
+| | Before | After |
+|---|---|---|
+| Graph | `immutable-graph-unavailable` | builds (about 65 s) |
+| Tests selected | 0 | 867 |
+| Affected units | 0 | 156 |
+
+`runFullSuite` stays true in both runs, because the remaining unknowns still require the full
+suite. Those unknowns are `documentation-baseline-unavailable`, `provider-coverage-missing`,
+`affected-scope-incomplete` and `unit-assertion-witness-unavailable`.
+
+### MED: CLI error codes
+
+The CLI mapped every compile error to `delta-unavailable`, a code outside the closed error table.
+Compile errors now carry a typed `delta.Refusal`, and the CLI prints that code unchanged. An
+untyped error prints `delta-record-invalid`, because no record can be emitted. The new test
+`TestDeltaCLIPreservesClosedRefusalCodes` covers five codes:
+
+- `delta-invalid-arguments`
+- `delta-repository-unavailable`
+- `delta-head-unavailable`
+- `delta-change-set-unavailable`
+- `delta-unrepresentable-path`
+
+### MED: license marker
+
+`conformance/delta-v0/README.md` declared AGPL-3.0-or-later. `LICENSING.md` assigns
+`conformance/**` to Apache-2.0, so the marker now reads Apache-2.0.
+
+### LOW findings
+
+- **Schema validation.** `TestDeltaRecordsMatchPublishedSchema` validates the decision vectors and
+  two compiled records against `protocol/delta/schema.json`. Its validator refuses any keyword it
+  does not implement, instead of skipping it.
+- **Shared reach step.** `ReachedUnitIDs` and `Select` now share one `reach` step, so declared
+  read-scope readers are reached by both. `TestReachedUnitIDsIncludeDeclaredReadScopeReaders`
+  fails without this change.
+- **Documented limits.** `O_NOFOLLOW` guards only the final path component. Documentation impact
+  costs at most 32 scopes × 4 builds = 128 context builds.
+
+### Known test limit
+
+`TestSelectionOnTheLiveDirtyWorktree` reads the caller's live dirty worktree. With only an
+uncommitted `.md` edit under `conformance/`, it fails on unmodified bc645212 as well, with an
+`ENCLOSING_PACKAGE` witness that has no owner. The failure is therefore an artefact of a dirty
+worktree, not of this change. The test is run on clean commits.
