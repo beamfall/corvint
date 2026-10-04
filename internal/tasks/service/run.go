@@ -81,6 +81,7 @@ func Run(ctx context.Context, o RunOptions) error {
 		lastHold string
 		stamp    exeStamp
 		pulseAt  time.Time
+		pulsed   string
 	)
 	stop := func() {
 		if ctl == nil {
@@ -111,10 +112,20 @@ func Run(ctx context.Context, o RunOptions) error {
 		}
 		if ctl == nil && d.run && d.hold == "" && !o.now().Before(retryAt) {
 			c, err := o.Open(o.Program, d.config)
-			if err != nil {
+			if err == nil {
+				// A stop saved before Open took ownership is seen here; one
+				// saved after it sees the owner and stays PENDING.
+				if again := o.observe(root, &stamp); !again.run || again.ident != d.ident {
+					_ = c.Close()
+					c, d = nil, again
+				}
+			}
+			switch {
+			case err != nil:
 				d.hold = "dispatcher open: " + describe(err)
 				retryAt = o.now().Add(o.Retry)
-			} else {
+			case c == nil:
+			default:
 				runCtx, cf := context.WithCancel(ctx)
 				ctl, cancel, done, runIdent = c, cf, make(chan error, 1), d.ident
 				go func(c Controller, ch chan error) { ch <- c.Run(runCtx, 0) }(c, done)
@@ -124,17 +135,19 @@ func Run(ctx context.Context, o RunOptions) error {
 			d.hold = lastHold
 		}
 		lastHold = d.hold
-		if d.ident != "" && (o.now().Sub(pulseAt) >= o.Pulse || pulseAt.IsZero()) {
-			state := "IDLE"
-			switch {
-			case d.hold != "":
-				state = "HOLD"
-			case ctl != nil:
-				state = "RUNNING"
-			}
+		state := "IDLE"
+		switch {
+		case d.hold != "":
+			state = "HOLD"
+		case ctl != nil:
+			state = "RUNNING"
+		}
+		// A state change is published at once so a stale RUNNING pulse does
+		// not outlive the dispatcher by a whole pulse interval.
+		if d.ident != "" && (o.now().Sub(pulseAt) >= o.Pulse || pulseAt.IsZero() || state != pulsed) {
 			p := Pulse{Program: o.Program, ManifestSha256: d.ident, PID: os.Getpid(), Identity: self, State: state, Hold: truncate(d.hold, 1024), At: o.now().Unix()}
 			if raw, err := EncodePulse(p); err == nil && writeAtomic(root, pulseFile, raw) == nil {
-				pulseAt = o.now()
+				pulseAt, pulsed = o.now(), state
 			}
 		}
 		select {

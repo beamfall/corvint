@@ -7,6 +7,11 @@ intent as drafted. This replaces the earlier owner-delegated (agent decided) acc
 and operator-installed, the default product keeps no permanent daemon, and real platform
 qualification stays NOT_RUN until disposable evidence exists.
 
+**Owner decision, 2026-10-04: platform qualification is deferred.** The slice ships with real
+launchd and systemd qualification marked NOT_RUN. Native ticket V1-0697 stays open until a
+disposable Darwin/Linux target exists. The deferral accepts no SERVICE500-004, -005 or -010
+platform witness.
+
 The governing contract is `docs/specs/corvint-tasks-user-service-v0.md`, SERVICE500-001..011.
 
 ## Delivered
@@ -45,16 +50,38 @@ This slice delivers gap items 1-3, 6 and 8 of the issue analysis, plus the manag
 ## Decisions
 
 - **Stop is an observed-boundary suppression.** The managed main polls control about every 2s and
-  closes the dispatcher. Without an OpenControlled pre-spawn fence, a launch already past
-  admission can still start one worker. This is stated in Traceability and not claimed as
-  SERVICE500-003 closure.
+  cancels the dispatcher; a cancelled roster launches nothing further (a per-launch context check
+  in `dispatch.launchRoster`). Without an OpenControlled pre-spawn fence, workers can still start
+  for at most one poll plus one roster (each roster ≤ globalCap) after STOPPED is saved. This is
+  stated in Traceability and not claimed as SERVICE500-003 closure.
+- **ACKNOWLEDGED is ordered after the save.** Stop reads the dispatcher owner and the pulse after
+  STOPPED is durable, and the managed main re-reads control after `Open` takes ownership and
+  before `Run`. Either the main sees STOPPED and closes without running, or stop sees the owner
+  and answers PENDING. A live RUNNING pulse also keeps stop PENDING, and the main publishes its
+  pulse at once on a state change.
+- **Control requests replay through a bounded ledger.** `requests.json` keeps the most recent 256
+  stop/resume (and unjournaled NO_CHANGE install) request ids with their hashes. A delayed retry
+  of an older request replays the current control instead of reapplying over a later change. A
+  superseded stop answers SUPERSEDED. Control is written before the ledger, and the next request
+  first records control's last request, so an interrupted write cannot lose it.
+- **Journal headroom.** A NO_CHANGE install takes no journal slot. Installs refuse at 248 records,
+  so uninstall always has the last 8. Finished records are never pruned; pruning is remainder.
+- **Rollback restores the manifest.** If a commit renamed before its readback failed, rollback
+  restores the previous manifest exactly or removes a fresh install's manifest, and refuses a
+  manifest that is neither.
 - **`--drain`, helpers and `legacyStopFile` refuse UNSUPPORTED.** That is better than a partial
   semantic.
 - **Runtime restart debt is NOT_OBSERVED and never charged.** The controller never exits on a
   hold, so the manager keepalive cannot loop.
 - **The install request hash binds the service profile bytes only.** Changing the dispatch config
   under the same request id replays the original operation. A new id observes the new pins.
-- **A replayed ROLLED_BACK install answers ERROR with code RESTORED.**
+- **Every ROLLED_BACK install answers RESTORED.** That covers the first attempt, the call that
+  completes a held rollback, and a replay. The failure that caused the rollback stays in the
+  diagnostic.
+- **systemd drop-ins are observed system-wide.** Per-unit drop-ins under the user root and the
+  `/etc`, `/run`, `/usr/local/lib` and `/usr/lib` `systemd/user` roots block adoption. Type-wide
+  drop-ins and generator output are not observed.
+- **An invalid profile is refused before the registry is created.**
 - **Reinstall after uninstall keeps the retained STOPPED control until `service resume`.**
 
 ## Evidence
@@ -66,10 +93,17 @@ This slice delivers gap items 1-3, 6 and 8 of the issue analysis, plus the manag
   restart, worker adoption and boot/login scope. No disposable Darwin user or Linux
   systemd --user target was admitted, and no service was installed on the owner's host.
 
+Independent review of `cd70ba0a..03107d50` returned CHANGES_REQUIRED with no HIGH findings. Its
+four MEDIUM findings (control replay, stop disclosure and ACK ordering, rollback manifest
+restore, journal headroom) and the LOW and NIT findings are fixed as recorded above. The
+request-id binding to profile bytes was confirmed as intended.
+
 ## Remainder
 
 - Gap 4: OpenControlled pre-spawn fence, drain and the legacy stop-file adapter.
 - Gap 5: helpers, `run-helper` and runtime logging.
-- Gap 7: disposable Darwin/Linux lifecycle qualification.
+- Gap 7: disposable Darwin/Linux lifecycle qualification (owner-deferred 2026-10-04; V1-0697
+  stays open until a disposable target exists).
+- Pruning of finished journal records, and observation of type-wide systemd drop-ins.
 - Durable runtime restart-debt charging.
 - Native closeout.

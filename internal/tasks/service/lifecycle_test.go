@@ -233,6 +233,13 @@ func TestSERVICE500_InstallJournalReplayAndConflict(t *testing.T) {
 	if err != nil || field(t, same, "phase") != "NO_CHANGE" || s.mgr.effects() != effects {
 		t.Fatalf("identical install changed state: %v", err)
 	}
+	if ops, _ := s.h.operations(s.root(t)); len(ops) != 1 {
+		t.Fatalf("NO_CHANGE install took a journal slot: %d records", len(ops))
+	}
+	_, err = s.install(t, "install-2", true)
+	codeIs(t, err, wire.CodeRequestIDConflict)
+	_, err = s.h.Stop("site", "install-1", false)
+	codeIs(t, err, wire.CodeRequestIDConflict)
 	_, err = s.install(t, "install-1", true)
 	codeIs(t, err, wire.CodeRequestIDConflict)
 	s.cfg.TickSeconds = 2
@@ -288,6 +295,7 @@ func TestSERVICE500_ReplaceRestoresDesiredAndRollsBack(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "rolled back") {
 		t.Fatalf("want completed rollback, got %v", err)
 	}
+	codeIs(t, err, wire.CodeRestored)
 	if !s.mgr.isRegistered(next.Units[0].Label) {
 		t.Fatal("prior registration not restored")
 	}
@@ -313,6 +321,7 @@ func TestSERVICE500_FreshRegisterFailureRemovesPublishedUnit(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "rolled back") {
 		t.Fatalf("want rollback, got %v", err)
 	}
+	codeIs(t, err, wire.CodeRestored)
 	if _, _, err := s.h.readManifest(s.root(t)); !absent(err) {
 		t.Fatal("manifest committed by a failed install")
 	}
@@ -456,7 +465,7 @@ func TestSERVICE500_StopResumeFenceAndConflicts(t *testing.T) {
 	s.cfg.TickSeconds = 1
 	s.writeConfig(t)
 	out, err = s.h.Resume("site", "resume-1")
-	if err != nil || field(t, out, "desired") != "RUNNING" || field(t, out, "restartDebt") != "NOT_TRACKED" {
+	if err != nil || field(t, out, "desired") != "RUNNING" || field(t, out, "restartDebt") != "NOT_OBSERVED" {
 		t.Fatalf("resume %v", err)
 	}
 	if out, err := s.h.Resume("site", "resume-1"); err != nil || field(t, out, "replayed") != "true" {
@@ -464,6 +473,56 @@ func TestSERVICE500_StopResumeFenceAndConflicts(t *testing.T) {
 	}
 	_, err = s.h.Stop("site", "resume-1", false)
 	codeIs(t, err, wire.CodeRequestIDConflict)
+
+	// A delayed retry of an older resume after a later stop replays: it
+	// never republishes RUNNING over the operator's stop.
+	if out, err := s.h.Stop("site", "stop-3", false); err != nil || field(t, out, "state") != "ACKNOWLEDGED" {
+		t.Fatalf("stop after resume %v", err)
+	}
+	rev = s.control(t).Revision
+	out, err = s.h.Resume("site", "resume-1")
+	if err != nil || field(t, out, "replayed") != "true" || field(t, out, "desired") != "STOPPED" {
+		t.Fatalf("delayed resume retry %v", err)
+	}
+	if c := s.control(t); c.Desired != "STOPPED" || c.Revision != rev {
+		t.Fatalf("delayed resume retry changed control: %+v", c)
+	}
+	// The same holds for an older stop after a later resume.
+	if _, err := s.h.Resume("site", "resume-2"); err != nil {
+		t.Fatal(err)
+	}
+	out, err = s.h.Stop("site", "stop-2", false)
+	if err != nil || field(t, out, "replayed") != "true" || field(t, out, "state") != "SUPERSEDED" || s.control(t).Desired != "RUNNING" {
+		t.Fatalf("delayed stop retry %v", err)
+	}
+	// A control change interrupted before its ledger write is recorded
+	// from control by the next request.
+	if err := os.Remove(filepath.Join(s.root(t), requestsFile)); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := s.h.Resume("site", "resume-2"); err != nil || field(t, out, "replayed") != "true" {
+		t.Fatalf("resume replay after ledger loss %v", err)
+	}
+}
+
+// The ledger keeps the most recent maxControlRequests ids in order.
+func TestSERVICE500_ControlRequestLedgerIsBounded(t *testing.T) {
+	s := newServiceHome(t)
+	if _, err := s.install(t, "install-1", false); err != nil {
+		t.Fatal(err)
+	}
+	root := s.root(t)
+	rs := []controlRequest{}
+	var err error
+	for i := 0; i < maxControlRequests+3; i++ {
+		if rs, err = s.h.rememberRequest(root, rs, fmt.Sprintf("req-%03d", i), wire.Sum([]byte(strconv.Itoa(i)))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	back, err := s.h.controlRequests(root, nil)
+	if err != nil || len(back) != maxControlRequests || back[0].ID != "req-003" {
+		t.Fatalf("ledger %d %v", len(back), err)
+	}
 }
 
 func TestSERVICE500_HistoryCapRefusesBeforeEffect(t *testing.T) {
@@ -472,7 +531,7 @@ func TestSERVICE500_HistoryCapRefusesBeforeEffect(t *testing.T) {
 		t.Fatal(err)
 	}
 	m, _ := s.manifest(t)
-	for i := 1; i < maxOperations; i++ {
+	for i := 1; i < maxOperations-uninstallReserve; i++ {
 		op := &Operation{Kind: "INSTALL", RequestID: fmt.Sprintf("filler-%03d", i), Program: "site", Phase: "NO_CHANGE", RequestSha256: wire.Sum([]byte(strconv.Itoa(i))), Next: m, Actions: []Action{{Kind: "NO_CHANGE_PRESERVE_CONTROL_DEBT_WORKERS"}}, Completed: 1, Published: []string{}}
 		raw, err := EncodeOperation(*op)
 		if err != nil {
@@ -486,6 +545,104 @@ func TestSERVICE500_HistoryCapRefusesBeforeEffect(t *testing.T) {
 	codeIs(t, err, wire.CodeLimitExceeded)
 	if _, err := s.install(t, "install-0", false); err != nil {
 		t.Fatalf("replay must still answer at the cap: %v", err)
+	}
+	// The reserved headroom still lets the operator remove the service.
+	if out, err := s.h.Uninstall("site", "uninstall-1"); err != nil || field(t, out, "phase") != "REMOVED" {
+		t.Fatalf("uninstall at the install cap: %v", err)
+	}
+}
+
+// SERVICE500-001: a manifest commit that renamed before its readback
+// failed is undone by rollback, so control stays bound and uninstall works.
+func TestSERVICE500_RollbackRestoresCommittedManifest(t *testing.T) {
+	s := newServiceHome(t)
+	if _, err := s.install(t, "install-1", false); err != nil {
+		t.Fatal(err)
+	}
+	_, ident := s.manifest(t)
+	s.cfg.TickSeconds = 2
+	s.writeConfig(t)
+	s.mgr.fail["bootstrap"] = 5
+	if _, err := s.install(t, "replace-1", true); err == nil || !strings.Contains(err.Error(), "ROLLBACK_REQUIRED") {
+		t.Fatalf("want held rollback, got %v", err)
+	}
+	delete(s.mgr.fail, "bootstrap")
+	root := s.root(t)
+	ops, err := s.h.operations(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var held *Operation
+	for _, o := range ops {
+		if o.RequestID == "replace-1" {
+			held = o
+		}
+	}
+	nextRaw, err := held.Next.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeAtomic(root, manifestFile, nextRaw); err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.install(t, "replace-1", true)
+	codeIs(t, err, wire.CodeRestored)
+	if _, now := s.manifest(t); now != ident {
+		t.Fatal("rollback left the uncommitted manifest")
+	}
+	if c := s.control(t); c.ManifestIdentity != ident {
+		t.Fatalf("control unbound after rollback: %+v", c)
+	}
+	if out, err := s.h.Uninstall("site", "uninstall-1"); err != nil || field(t, out, "phase") != "REMOVED" {
+		t.Fatalf("uninstall after rollback: %v", err)
+	}
+
+	// A fresh install's manifest is removed exactly.
+	op := &Operation{Next: held.Next}
+	if err := writeAtomic(root, manifestFile, nextRaw); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.h.restoreManifest(root, op); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.h.readManifest(root); !absent(err) {
+		t.Fatal("fresh rollback left a manifest")
+	}
+	if err := writeAtomic(root, manifestFile, []byte("{}\n")); err != nil {
+		t.Fatal(err)
+	}
+	codeIs(t, s.h.restoreManifest(root, op), wire.CodeResourceCollision)
+}
+
+// SERVICE500-001: an invalid profile is refused before the registry exists.
+func TestSERVICE500_RefusedInstallCreatesNoRegistry(t *testing.T) {
+	s := newServiceHome(t)
+	_, err := s.h.Install(InstallRequest{Program: "site", Config: filepath.Join(s.home, "config", "missing.json"), RequestID: "install-1"})
+	if err == nil {
+		t.Fatal("missing profile accepted")
+	}
+	if _, err := os.Stat(filepath.Join(s.home, ".local")); !absent(err) {
+		t.Fatal("refused install created registry state")
+	}
+}
+
+// SERVICE500-001: a per-unit drop-in in a system-wide systemd --user root
+// is observed, so the unit is not adopted.
+func TestSERVICE500_SystemWideDropInsAreObserved(t *testing.T) {
+	sys := t.TempDir()
+	saved := systemdUserDropInRoots
+	systemdUserDropInRoots = []string{sys}
+	t.Cleanup(func() { systemdUserDropInRoots = saved })
+	m := &Manifest{Manager: "systemd-user"}
+	u := Unit{Path: filepath.Join(t.TempDir(), "org.corvint.x.site.service")}
+	if dropIns(m, u) {
+		t.Fatal("drop-in reported without one")
+	}
+	if err := os.Mkdir(filepath.Join(sys, "org.corvint.x.site.service.d"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if !dropIns(m, u) {
+		t.Fatal("system-wide drop-in not observed")
 	}
 }
 
@@ -624,8 +781,8 @@ func TestSERVICE500_ManagedMainFollowsControlAndPins(t *testing.T) {
 	if st, _ := s.h.pulseState(root, ""); st != "RUNNING" {
 		t.Fatalf("pulse state %s", st)
 	}
-	if _, err := s.h.Stop("site", "stop-1", false); err != nil {
-		t.Fatal(err)
+	if out, err := s.h.Stop("site", "stop-1", false); err != nil || field(t, out, "state") != "PENDING" {
+		t.Fatalf("stop with a live RUNNING pulse must stay PENDING: %v", err)
 	}
 	recv(closed, "dispatcher close after STOPPED")
 	waitFor(t, "IDLE pulse", pulse("IDLE"))
@@ -684,4 +841,49 @@ func TestSERVICE500_FencePruningBoundsSettledHistory(t *testing.T) {
 	if len(opaque.Fences) != 2 {
 		t.Fatal("opaque generations must never be pruned")
 	}
+}
+
+// SERVICE500-003: a stop saved while Open is taking ownership is observed
+// before the dispatcher runs: the opened controller closes without Run.
+func TestSERVICE500_ManagedMainRechecksControlAfterOpen(t *testing.T) {
+	s := newServiceHome(t)
+	if _, err := s.install(t, "install-1", false); err != nil {
+		t.Fatal(err)
+	}
+	root := s.root(t)
+	ran, closed := make(chan struct{}, 8), make(chan struct{}, 8)
+	open := func(string, *dispatch.Config) (Controller, error) {
+		if _, err := s.h.Stop("site", "stop-1", false); err != nil {
+			return nil, err
+		}
+		return &racingController{ran: ran, closed: closed}, nil
+	}
+	opts := RunOptions{Host: s.h, Program: "site", Manifest: filepath.Join(root, manifestFile), Executable: s.exe, Open: open, Poll: 5 * time.Millisecond, Pulse: 5 * time.Millisecond, Retry: 5 * time.Millisecond}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- Run(ctx, opts) }()
+	select {
+	case <-closed:
+	case <-time.After(10 * time.Second):
+		t.Fatal("opened controller was not closed after STOPPED")
+	}
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if len(ran) != 0 {
+		t.Fatal("dispatcher ran after STOPPED was saved during Open")
+	}
+}
+
+type racingController struct{ ran, closed chan struct{} }
+
+func (r *racingController) Run(ctx context.Context, _ int) error {
+	r.ran <- struct{}{}
+	<-ctx.Done()
+	return nil
+}
+func (r *racingController) Close() error {
+	r.closed <- struct{}{}
+	return nil
 }

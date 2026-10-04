@@ -134,13 +134,27 @@ func (h Host) unitFile(u Unit) string {
 	return fileModified
 }
 
-// dropIns reports whether a systemd drop-in directory exists for the unit.
+// systemdUserDropInRoots are the system-wide systemd --user unit roots
+// whose per-unit drop-ins also apply to a user unit. Type-wide drop-ins
+// (for example service.d) and generator output are not observed.
+var systemdUserDropInRoots = []string{"/etc/systemd/user", "/run/systemd/user", "/usr/local/lib/systemd/user", "/usr/lib/systemd/user"}
+
+// dropIns reports whether a systemd drop-in directory exists, or cannot be
+// proved absent, for the unit in the user root or a system-wide root.
 func dropIns(m *Manifest, u Unit) bool {
 	if m.Manager != "systemd-user" {
 		return false
 	}
-	_, err := os.Lstat(u.Path + ".d")
-	return !absent(err)
+	paths := []string{u.Path + ".d"}
+	for _, root := range systemdUserDropInRoots {
+		paths = append(paths, filepath.Join(root, filepath.Base(u.Path)+".d"))
+	}
+	for _, p := range paths {
+		if _, err := os.Lstat(p); !absent(err) {
+			return true
+		}
+	}
+	return false
 }
 
 // existing observes one manifest unit as the planner's ExistingUnit.

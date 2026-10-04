@@ -110,11 +110,18 @@ func serviceCommand(env Env, args []string) *wire.Result {
 	case "run":
 		return serviceRun(env, cmd, h, program, values["--manifest"])
 	}
+	return serviceResult(cmd, o, err)
+}
+
+// serviceResult maps a lifecycle answer. Every ROLLED_BACK install answers
+// RESTORED: the first attempt and the call completing a held rollback
+// return it as the error code, and a replay of the finished record is
+// mapped here because it did not take effect.
+func serviceResult(cmd []string, o *wire.Object, err error) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
 	res := &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{wire.ObjectValue(o)}}
-	// A replayed request whose install was rolled back did not take effect.
 	if phase, ok := o.Get("phase"); ok && phase.Kind == wire.KindString && phase.Str == "ROLLED_BACK" {
 		res.Outcome, res.Codes = wire.OutcomeError, []string{wire.CodeRestored}
 	}

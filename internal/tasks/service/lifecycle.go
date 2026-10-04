@@ -63,9 +63,14 @@ func (h Host) begin(program, request string) (string, func(), error) {
 	return root, unlock, nil
 }
 
+// uninstallReserve keeps journal headroom only an uninstall may use, so a
+// full history never prevents removing the service.
+const uninstallReserve = 8
+
 // journal finds this request's record and refuses conflicts, other
-// unfinished operations and a full history before any effect.
-func (h Host) journal(root, request string, sum wire.Digest) (*Operation, error) {
+// unfinished operations and a history of limit records before any effect.
+// An unjournaled NO_CHANGE install is found in the request ledger.
+func (h Host) journal(root, request string, sum wire.Digest, limit int) (*Operation, error) {
 	ops, err := h.operations(root)
 	if err != nil {
 		return nil, err
@@ -78,13 +83,20 @@ func (h Host) journal(root, request string, sum wire.Digest) (*Operation, error)
 			return o, nil
 		}
 	}
+	rs, err := h.controlRequests(root, nil)
+	if err != nil {
+		return nil, err
+	}
+	if prior, ok := lookupRequest(rs, request); ok && prior != sum {
+		return nil, wire.Errorf(wire.CodeRequestIDConflict, "/requestId", "request id was already used for a different service request")
+	}
 	for _, o := range ops {
 		if !o.finished() {
 			return nil, wire.Errorf(wire.CodeResourceCollision, "/operations", "operation %s is unfinished (%s); rerun it with its own request id first", o.RequestID, o.Phase)
 		}
 	}
-	if len(ops) >= maxOperations {
-		return nil, wire.Errorf(wire.CodeLimitExceeded, "/operations", "operation history holds %d records; nothing was changed", maxOperations)
+	if len(ops) >= limit {
+		return nil, wire.Errorf(wire.CodeLimitExceeded, "/operations", "operation history holds %d records; nothing was changed", len(ops))
 	}
 	return nil, nil
 }
@@ -221,17 +233,18 @@ func plain(actions []Action) []Action {
 // Install binds the profile, plans against observed ownership, journals the
 // original request before any effect and executes or reconciles it.
 func (h Host) Install(req InstallRequest) (*wire.Object, error) {
+	// The profile is validated before the registry is created.
+	p, raw, err := h.readProfile(req.Config)
+	if err != nil {
+		return nil, err
+	}
 	root, unlock, err := h.begin(req.Program, req.RequestID)
 	if err != nil {
 		return nil, err
 	}
 	defer unlock()
-	p, raw, err := h.readProfile(req.Config)
-	if err != nil {
-		return nil, err
-	}
 	sum := requestSum("INSTALL", req.Program, string(wire.Sum(raw)), strconv.FormatBool(req.Replace))
-	op, err := h.journal(root, req.RequestID, sum)
+	op, err := h.journal(root, req.RequestID, sum, maxOperations-uninstallReserve)
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +287,17 @@ func (h Host) Install(req InstallRequest) (*wire.Object, error) {
 	}
 	op = &Operation{Kind: "INSTALL", RequestID: req.RequestID, RequestSha256: sum, Program: req.Program, Phase: "INSTALLING", Previous: cur, Next: next, Actions: plain(actions), Published: []string{}}
 	if len(actions) == 1 && actions[0].Kind == "NO_CHANGE_PRESERVE_CONTROL_DEBT_WORKERS" {
+		// A NO_CHANGE install has no effect to reconcile, so it takes no
+		// journal slot; the request ledger keeps its id bound.
 		op.Phase, op.Previous, op.Completed = "NO_CHANGE", nil, 1
+		rs, err := h.controlRequests(root, nil)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := h.rememberRequest(root, rs, req.RequestID, sum); err != nil {
+			return nil, err
+		}
+		return h.operationResult(root, op, false), nil
 	}
 	if c, err := h.readControl(root); err == nil {
 		op.PriorDesired = c.Desired
@@ -320,7 +343,7 @@ func (h Host) Uninstall(program, request string) (*wire.Object, error) {
 		return nil, wire.Errorf(wire.CodeResourceCollision, "/manifest", "no service is installed for program %s", program)
 	}
 	sum := requestSum("UNINSTALL", program, ident)
-	op, err := h.journal(root, request, sum)
+	op, err := h.journal(root, request, sum, maxOperations)
 	if err != nil {
 		return nil, err
 	}
@@ -630,6 +653,9 @@ func (h Host) rollback(root string, op *Operation, cause error) error {
 			return held(err)
 		}
 	}
+	if err := h.restoreManifest(root, op); err != nil {
+		return held(err)
+	}
 	if c, err := h.readControl(root); err == nil && op.PriorDesired != "" && c.Desired != op.PriorDesired {
 		next := *c
 		next.Revision = wire.CountOf(c.Revision.Int() + 1)
@@ -642,10 +668,59 @@ func (h Host) rollback(root string, op *Operation, cause error) error {
 	if err := h.saveOperation(root, op); err != nil {
 		return err
 	}
+	return rolledBack(cause)
+}
+
+// rolledBack is the one answer for a ROLLED_BACK install: RESTORED, with
+// the failure that caused the rollback kept as the diagnostic.
+func rolledBack(cause error) error {
 	if cause == nil {
-		cause = wire.Errorf(wire.CodeUncertainEffect, "/operation", "a previous attempt of this request failed")
+		return wire.Errorf(wire.CodeRestored, "/operation", "install rolled back after a previous attempt of this request failed; the prior installation is restored")
 	}
-	return wire.Errorf(wire.CodeOf(cause), "/operation", "install rolled back: %v", cause)
+	return wire.Errorf(wire.CodeRestored, "/operation", "install rolled back; the prior installation is restored (cause %s: %v)", wire.CodeOf(cause), cause)
+}
+
+// restoreManifest undoes a manifest commit that renamed before its
+// readback failed: the previous manifest is restored exactly, or a fresh
+// install's manifest is removed. A manifest that is neither is foreign.
+func (h Host) restoreManifest(root string, op *Operation) error {
+	nextRaw, err := op.Next.Encode()
+	if err != nil {
+		return err
+	}
+	var prevRaw []byte
+	if op.Previous != nil {
+		if prevRaw, err = op.Previous.Encode(); err != nil {
+			return err
+		}
+	}
+	path := filepath.Join(root, manifestFile)
+	cur, err := h.readPrivate(path, maxManifest)
+	switch {
+	case absent(err):
+		if prevRaw == nil {
+			return nil
+		}
+	case err != nil:
+		return err
+	case prevRaw != nil && bytes.Equal(cur, prevRaw):
+		return nil
+	case !bytes.Equal(cur, nextRaw):
+		return wire.Errorf(wire.CodeResourceCollision, "/manifest", "manifest is neither this operation's previous nor next installation")
+	case prevRaw == nil:
+		return h.removeExact(path, wire.Sum(nextRaw))
+	}
+	if err := writeAtomic(root, manifestFile, prevRaw); err != nil {
+		return err
+	}
+	back, err := h.readPrivate(path, maxManifest)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(back, prevRaw) {
+		return wire.Errorf(wire.CodeUncertainEffect, "/manifest", "restored manifest readback differs")
+	}
+	return nil
 }
 
 func (h Host) operationResult(root string, op *Operation, replay bool) *wire.Object {
@@ -699,7 +774,8 @@ func dispatchDir(m *Manifest) string {
 }
 
 // Stop saves STOPPED under the service lock. It is ACKNOWLEDGED only when
-// no dispatcher runs; otherwise PENDING until the controller observes it.
+// no dispatcher owner and no live RUNNING pulse are observed after the
+// save; otherwise PENDING until the controller observes it.
 func (h Host) Stop(program, request string, drain bool) (*wire.Object, error) {
 	if drain {
 		return nil, wire.Errorf(wire.CodeUnsupported, "/drain", "drain is not supported by this service runtime yet; use stop")
@@ -709,36 +785,85 @@ func (h Host) Stop(program, request string, drain bool) (*wire.Object, error) {
 		return nil, err
 	}
 	defer unlock()
-	m, _, c, err := h.controlled(root)
+	m, ident, c, err := h.controlled(root)
 	if err != nil {
 		return nil, err
 	}
-	if c.LastRequest == request && c.LastRequestSha256 != wire.Sum([]byte(request+"\nSTOPPED\n"+string(c.ManifestIdentity))) {
-		return nil, wire.Errorf(wire.CodeRequestIDConflict, "/requestId", "request id was already used for a different control change")
-	}
-	running := dispatch.OwnerState(dispatchDir(m)) != "NOT_RUNNING"
-	facts := ControlFacts{FenceHeld: true, Fresh: true, Published: true, ObservedRevision: c.Revision, IntentStates: []string{}}
-	if running {
-		facts.IntentStates = []string{"UNSETTLED"}
-	}
-	p, err := Suppress(*c, request, "STOPPED", facts)
+	hash := wire.Sum([]byte(request + "\nSTOPPED\n" + string(ident)))
+	rs, replay, err := h.controlReplay(root, c, request, hash)
 	if err != nil {
-		return nil, wire.Errorf(wire.CodeResourceCollision, "/control", "%v", err)
+		return nil, err
 	}
-	if p.Control != *c {
+	next := *c
+	if !replay {
+		running := h.dispatcherLive(root, m, ident)
+		facts := ControlFacts{FenceHeld: true, Fresh: true, Published: true, ObservedRevision: c.Revision, IntentStates: []string{}}
+		if running {
+			facts.IntentStates = []string{"UNSETTLED"}
+		}
+		p, err := Suppress(*c, request, "STOPPED", facts)
+		if err != nil {
+			return nil, wire.Errorf(wire.CodeResourceCollision, "/control", "%v", err)
+		}
 		if err := h.writeControl(root, p.Control); err != nil {
 			return nil, err
 		}
+		if _, err := h.rememberRequest(root, rs, request, hash); err != nil {
+			return nil, err
+		}
+		next = p.Control
 	}
+	// The owner and pulse are read after STOPPED is durable: a controller
+	// that opens later re-reads control before running and sees STOPPED.
 	state := "ACKNOWLEDGED"
-	if p.State != "SUPPRESSION_ACKNOWLEDGED" {
+	switch {
+	case next.Desired != "STOPPED":
+		state = "SUPERSEDED"
+	case h.dispatcherLive(root, m, ident):
 		state = "PENDING"
 	}
-	return wire.NewObject().Set("profile", wire.String(StopResultName)).Set("program", wire.String(program)).Set("requestId", wire.String(request)).Set("desired", wire.String(p.Control.Desired)).Set("revision", wire.String(string(p.Control.Revision))).Set("state", wire.String(state)).Set("workers", wire.String("PRESERVED")), nil
+	return wire.NewObject().Set("profile", wire.String(StopResultName)).Set("program", wire.String(program)).Set("requestId", wire.String(request)).Set("desired", wire.String(next.Desired)).Set("revision", wire.String(string(next.Revision))).Set("replayed", wire.Bool(replay)).Set("state", wire.String(state)).Set("workers", wire.String("PRESERVED")), nil
+}
+
+// dispatcherLive reports a dispatcher owner that is not proved stopped, or
+// a fresh RUNNING controller pulse.
+func (h Host) dispatcherLive(root string, m *Manifest, ident wire.Digest) bool {
+	if dispatch.OwnerState(dispatchDir(m)) != "NOT_RUNNING" {
+		return true
+	}
+	st, _ := h.pulseState(root, ident)
+	return st == "RUNNING"
+}
+
+// controlReplay finds request in the control request ledger: the same hash
+// is a replay, any other binding (including a journaled install or
+// uninstall) is a conflict.
+func (h Host) controlReplay(root string, c *Control, request string, hash wire.Digest) ([]controlRequest, bool, error) {
+	rs, err := h.controlRequests(root, c)
+	if err != nil {
+		return nil, false, err
+	}
+	if sum, ok := lookupRequest(rs, request); ok {
+		if sum != hash {
+			return nil, false, wire.Errorf(wire.CodeRequestIDConflict, "/requestId", "request id was already used for a different control change")
+		}
+		return rs, true, nil
+	}
+	ops, err := h.operations(root)
+	if err != nil {
+		return nil, false, err
+	}
+	for _, o := range ops {
+		if o.RequestID == request {
+			return nil, false, wire.Errorf(wire.CodeRequestIDConflict, "/requestId", "request id was already used for a service operation")
+		}
+	}
+	return rs, false, nil
 }
 
 // Resume publishes RUNNING after STOPPED once the dispatcher is proved not
-// running and the pinned executable and dispatch config are unchanged.
+// running and the pinned executable and dispatch config are unchanged. A
+// replay reports the current control without changing it.
 func (h Host) Resume(program, request string) (*wire.Object, error) {
 	root, unlock, err := h.begin(program, request)
 	if err != nil {
@@ -750,15 +875,15 @@ func (h Host) Resume(program, request string) (*wire.Object, error) {
 		return nil, err
 	}
 	hash := wire.Sum([]byte(request + "\nRESUME\n" + string(ident)))
-	replay := c.LastRequest == request
-	switch {
-	case replay && c.LastRequestSha256 != hash:
-		return nil, wire.Errorf(wire.CodeRequestIDConflict, "/requestId", "request id was already used for a different control change")
-	case !replay && c.Desired != "STOPPED":
-		return nil, wire.Errorf(wire.CodeResourceCollision, "/control", "desired state is %s; resume applies only to STOPPED", c.Desired)
+	rs, replay, err := h.controlReplay(root, c, request, hash)
+	if err != nil {
+		return nil, err
 	}
 	next := *c
 	if !replay {
+		if c.Desired != "STOPPED" {
+			return nil, wire.Errorf(wire.CodeResourceCollision, "/control", "desired state is %s; resume applies only to STOPPED", c.Desired)
+		}
 		if st := dispatch.OwnerState(dispatchDir(m)); st != "NOT_RUNNING" {
 			return nil, wire.Errorf(wire.CodeResourceCollision, "/dispatcher", "dispatcher state is %s; resume waits until it is proved NOT_RUNNING", st)
 		}
@@ -771,8 +896,11 @@ func (h Host) Resume(program, request string) (*wire.Object, error) {
 		if err := h.writeControl(root, next); err != nil {
 			return nil, err
 		}
+		if _, err := h.rememberRequest(root, rs, request, hash); err != nil {
+			return nil, err
+		}
 	}
-	return wire.NewObject().Set("profile", wire.String(ResumeResultName)).Set("program", wire.String(program)).Set("requestId", wire.String(request)).Set("desired", wire.String(next.Desired)).Set("revision", wire.String(string(next.Revision))).Set("replayed", wire.Bool(replay)).Set("restartDebt", wire.String("NOT_TRACKED")), nil
+	return wire.NewObject().Set("profile", wire.String(ResumeResultName)).Set("program", wire.String(program)).Set("requestId", wire.String(request)).Set("desired", wire.String(next.Desired)).Set("revision", wire.String(string(next.Revision))).Set("replayed", wire.Bool(replay)).Set("restartDebt", wire.String("NOT_OBSERVED")), nil
 }
 
 // pinsValid requires the executable and dispatch config bytes bound by the

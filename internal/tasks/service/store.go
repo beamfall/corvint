@@ -658,3 +658,118 @@ func describe(err error) string {
 	}
 	return fmt.Sprint(err)
 }
+
+// Control requests: the bounded ordered ledger of stop/resume request ids
+// (and install suppressions) with the hash each one bound. It lets a delayed
+// retry of an older request replay instead of reapplying over a later
+// change. The oldest entry is evicted past maxControlRequests, so replay
+// detection spans the most recent maxControlRequests control requests.
+const (
+	RequestsName       = "taskman-user-service-requests/0"
+	requestsFile       = "requests.json"
+	maxControlRequests = 256
+	maxRequests        = 64 * wire.KiB
+)
+
+type controlRequest struct {
+	ID     string
+	Sha256 wire.Digest
+}
+
+func encodeRequests(rs []controlRequest) ([]byte, error) {
+	items := make([]wire.Value, 0, len(rs))
+	for _, r := range rs {
+		items = append(items, wire.ObjectValue(wire.NewObject().Set("requestId", wire.String(r.ID)).Set("sha256", wire.String(string(r.Sha256)))))
+	}
+	raw := wire.EncodeFile(wire.ObjectValue(wire.NewObject().Set("profile", wire.String(RequestsName)).Set("requests", wire.Array(items...))))
+	if len(rs) > maxControlRequests || len(raw) > maxRequests {
+		return nil, wire.Errorf(wire.CodeLimitExceeded, "/requests", "control request ledger exceeds its bound")
+	}
+	return raw, nil
+}
+
+func decodeRequests(raw []byte) ([]controlRequest, error) {
+	if len(raw) > maxRequests {
+		return nil, wire.Errorf(wire.CodeLimitExceeded, "/requests", "control request ledger exceeds %d bytes", maxRequests)
+	}
+	v, err := wire.Parse(raw)
+	if err != nil {
+		return nil, err
+	}
+	r := wire.NewReader(v, "/")
+	r.Closed("profile", "requests")
+	if err := wire.CheckProfile("/profile", r.Field("profile").String(), RequestsName); err != nil {
+		return nil, err
+	}
+	out := []controlRequest{}
+	seen := map[string]bool{}
+	for _, it := range r.Field("requests").Array(maxControlRequests, true) {
+		it.Closed("requestId", "sha256")
+		e := controlRequest{ID: it.Field("requestId").Identifier(), Sha256: it.Field("sha256").Digest()}
+		if r.Err() != nil {
+			break
+		}
+		if seen[e.ID] {
+			return nil, wire.Errorf(wire.CodeMalformed, "/requests", "duplicate control request id")
+		}
+		seen[e.ID] = true
+		out = append(out, e)
+	}
+	if err := r.Err(); err != nil {
+		return nil, err
+	}
+	if again, err := encodeRequests(out); err != nil || string(again) != string(raw) {
+		return nil, wire.Errorf(wire.CodeMalformed, "/requests", "control request ledger is not canonical")
+	}
+	return out, nil
+}
+
+// controlRequests reads the ledger and first records the control's last
+// request when an interrupted change wrote control but not the ledger.
+func (h Host) controlRequests(root string, c *Control) ([]controlRequest, error) {
+	rs := []controlRequest{}
+	raw, err := h.readPrivate(filepath.Join(root, requestsFile), maxRequests)
+	switch {
+	case absent(err):
+	case err != nil:
+		return nil, err
+	default:
+		if rs, err = decodeRequests(raw); err != nil {
+			return nil, err
+		}
+	}
+	if c != nil && c.LastRequest != "" {
+		if _, ok := lookupRequest(rs, c.LastRequest); !ok {
+			return h.rememberRequest(root, rs, c.LastRequest, c.LastRequestSha256)
+		}
+	}
+	return rs, nil
+}
+
+func lookupRequest(rs []controlRequest, id string) (wire.Digest, bool) {
+	for _, r := range rs {
+		if r.ID == id {
+			return r.Sha256, true
+		}
+	}
+	return "", false
+}
+
+// rememberRequest appends one request, evicting the oldest past the bound.
+func (h Host) rememberRequest(root string, rs []controlRequest, id string, sum wire.Digest) ([]controlRequest, error) {
+	if _, ok := lookupRequest(rs, id); ok {
+		return rs, nil
+	}
+	next := append(append([]controlRequest(nil), rs...), controlRequest{ID: id, Sha256: sum})
+	if len(next) > maxControlRequests {
+		next = next[len(next)-maxControlRequests:]
+	}
+	raw, err := encodeRequests(next)
+	if err != nil {
+		return nil, err
+	}
+	if err := writeAtomic(root, requestsFile, raw); err != nil {
+		return nil, err
+	}
+	return next, nil
+}
