@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle with focused tests and independent review; live Linux sampling NOT_RUN, current-main integration and native completion pending
 Authoritative inputs: owner request [issue 482](https://github.com/beamfall/corvint/issues/482) (proposed CAL-V0-044/046 compatibility amendment);
 owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
@@ -13,6 +13,7 @@ owner requests [issue 420](https://github.com/beamfall/corvint/issues/420),
 [issue 421](https://github.com/beamfall/corvint/issues/421) and
 [issue 422](https://github.com/beamfall/corvint/issues/422) (CAL-V0-045..047),
 owner request [issue 431](https://github.com/beamfall/corvint/issues/431) (CAL-V0-052..058),
+owner request [issue 497](https://github.com/beamfall/corvint/issues/497) (CAL-V0-068),
 owner request [issue 446](https://github.com/beamfall/corvint/issues/446) (CAL-V0-059..061),
 owner request [issue 378](https://github.com/beamfall/corvint/issues/378),
 owner request [issue 370](https://github.com/beamfall/corvint/issues/370), and
@@ -23,10 +24,10 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle with focused tests and independent review; live Linux sampling NOT_RUN, current-main integration and native completion pending. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
-- Read next: #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release); Amendments to TCP-00; Failure modes.
+- Read next: #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle); Amendments to TCP-00; Failure modes.
 
 ## User and boundary
 
@@ -80,10 +81,11 @@ one.
 | S14 | CAL-V0-064 | Proposed explicit command progress; original reviewed source and sealed evidence retained, current-main composition pending |
 | S15 | CAL-V0-065 | Opt-in explicit per-claim member exclusions; focused tests and a compiled native fixture |
 | S17 | CAL-V0-067 | Experimental operator-attested untouched release; scoped native/archive/crash fixtures passed, physical facts NOT_OBSERVED |
+| S18 | CAL-V0-068 | Experimental host-pressure launch throttle: hysteresis level caps new non-exempt launches; running workers untouched |
 
 CAL-V0-062/063 (S13, issue 456) and CAL-V0-064 (S14, issue 468) are reserved
 by coordinated unlanded work; CAL-V0-066/S16 remains reserved for issue 464 if used.
-The coordinator assigned CAL-V0-067/S17 to issue 479. This seed does not claim
+The coordinator assigned CAL-V0-067/S17 to issue 479 and CAL-V0-068/S18 to issue 497. This seed does not claim
 implementation or qualification of the new profile or any reserved slice.
 
 S8 was added by owner decision on 2026-09-27 and lands directly after S3, before S4.
@@ -776,7 +778,8 @@ derived from the installed CLI source and is not live-qualified; see
   unknown members, trailing data, unknown placeholders and out-of-range bounds. The bounds are:
   tickSeconds 1..3600, globalCap 1..64, killGraceSeconds 1..120, 1..8 hosts with absolute
   executables, 1..32 roles, cap 1..64, priority 0..1000, idleSeconds 30..86400,
-  wallSeconds 60..604800, cooldownSeconds 0..86400, parkAfter 1..100 and at most 256 pins.
+  wallSeconds 60..604800, cooldownSeconds 0..86400, parkAfter 1..100 and at most 256 pins. The
+  optional `pressure` member has the bounds in CAL-V0-068.
   Host env MUST NOT set `CORVINT_DISPATCH_*`. One exclusive non-blocking lock per program state
   directory MUST refuse a second dispatcher. `dispatch status` and `dispatch unpark` MUST NOT read,
   lock or write the native store. Status reports workers, parked and cooling keys, the dispatcher's
@@ -796,6 +799,7 @@ derived from the installed CLI source and is not live-qualified; see
   one pool. A ticket with any live attempt is never a candidate; an expired lease becomes free only
   after a reap. Candidates order by pin, role priority, P-rank, plan order, key and role index. The
   global cap, then the per-role cap, bound the result, and each assignment takes the lowest free slot.
+  An optional pressure budget (CAL-V0-068) is applied after these fences and only holds candidates.
   One key holds at most one worker.
 - `CAL-V0-055`: Each assignment MUST launch one independent process in its own session, with
   stdout and stderr appended to per-worker logs. The prompt and argv are rendered in a single pass,
@@ -834,7 +838,8 @@ derived from the installed CLI source and is not live-qualified; see
 - `CAL-V0-058`: Every decision MUST append one `taskman-dispatch-event/0` line to `events.jsonl`
   and print it to stderr as plain language. The event kinds form a closed vocabulary: started,
   stopped, adopted, launched, launch-failed, finished, killing, killed, handoff, handoff-refused,
-  reaped, state, claim, release, lane, cooldown, parked, unparked, alert and needs-owner. A
+  reaped, state, claim, release, lane, cooldown, parked, unparked, alert, needs-owner and throttled
+  (CAL-V0-068). A
   `finished` event carries the exit code (`NOT_OBSERVED` for an adopted worker), whether progress was
   made, and a bounded summary of the worker's last agent message: the final text of a recognized
   host event stream (OpenCode `run --format json`, Codex `exec --json`, Claude Code `-p
@@ -1090,6 +1095,60 @@ CEM/OCM frozen checks with truthful unknowns, CI/integration and native completi
 Rollback stops future opt-in use while preserving witness/attestation history and exact replay;
 retain a compatible reader, never strip metadata, silently downgrade or rewrite successors.
 
+### S18 — Host-pressure launch throttle (issue 497)
+
+Authoritative input: owner request [issue 497](https://github.com/beamfall/corvint/issues/497),
+which asks the dispatcher to sample host load and swap each tick, cap new launches by pressure level
+with hysteresis, never stop running workers, keep pinned and explicitly exempt work running, and
+report the level, inputs and held work. The issue's free-form `exempt` list is refined here into two
+explicit identity lists. No role or ticket is inferred to be critical path, review or integration
+from its name. The coordinator assigned CAL-V0-068/S18 to this issue.
+
+- `CAL-V0-068`: The `taskman-dispatch/0` configuration MAY carry one closed `pressure` object:
+  `calmLoadPerCpu < loadPerCpuHigh < loadPerCpuCritical` (finite, non-negative),
+  `calmSwap < swapHigh < swapCritical <= 1` (non-negative), `ticksToChange` 1..3600, `levelCaps`
+  with exactly the levels `"1"` and `"2"` where `0 <= cap2 <= cap1 <= 64`, at most 32 unique
+  `exemptRoles` that name configured roles, and at most 512 unique `exemptTickets` of 1..256 bytes
+  without spaces, control characters or glob characters. When it is present, each tick that reaches
+  launch admission MUST take one bounded host sample: on Linux `/proc/loadavg`, `/proc/stat` and
+  `/proc/meminfo` read with byte limits; on macOS one `/usr/sbin/sysctl vm.loadavg vm.swapusage
+  hw.logicalcpu` with a 2 s timeout and bounded output; on any other OS an UNKNOWN sample. The
+  inputs are the one-minute load average per host-visible CPU and used/total swap, where zero total
+  swap is an observed fraction of zero. The level (0, 1 or 2) is a pure step. Either metric at or
+  above its critical threshold targets level 2, and at or above its high threshold targets at least
+  level 1. Only both metrics at or below their calm thresholds target level 0; otherwise the target is
+  the current level, so a throttle never steps down from 2 to 1 and releases only to 0. The level changes only
+  after `ticksToChange` consecutive ticks target the same new level. A sample with either input
+  UNKNOWN MUST keep the current level, cancel pending dwell, and never count as calm. Above level 0,
+  the roster (CAL-V0-054) MUST admit at most `levelCaps[level]` non-exempt workers, counting the
+  running non-exempt workers. The pressure budget is consulted only after the global cap, the
+  key, skip and per-role fences admit a candidate, so a held candidate consumes no slot and
+  reserves no key. A refused candidate is reported as held only while the role and global caps,
+  charged with earlier launches and holds, would still have admitted it. Pins, `exemptTickets` (by ticket ID or local name) and `exemptRoles` are exempt
+  and are never held. Pressure MUST NOT stop, signal or otherwise change a running worker, and MUST
+  NOT bypass any static cap or native lease check. The level, pending dwell, newest bounded sample
+  (valid UTF-8; source at most 256 bytes, at most 8 problems of at most 200 bytes) and at most 8192 held
+  launches are kept in the private ledger. A restart keeps the recorded level, cancels pending
+  dwell, clears the previous sample and is UNKNOWN until its first sample. If the budget cannot be
+  built, the tick launches nothing and appends an `alert`. Removing `pressure` from the configuration drops the
+  record. `dispatch status` MUST report the level, pending dwell, sample (`OBSERVED` or `UNKNOWN`),
+  each input or `UNKNOWN`, problems, the active cap (`NONE` at level 0, otherwise from the
+  configuration given to `dispatch status`, or `UNKNOWN` without one) and the held launches. One
+  `throttled` event (CAL-V0-058) MUST be appended when the level, the sample's knowledge or the set
+  of held keys changes, naming the level, the inputs and at most ten held tickets.
+
+Non-goals: stopping, pausing or deprioritizing running workers; inferring critical path, review or
+integration roles; memory compression, PSI or OS memory-pressure signals; container or cgroup
+limits; per-role pressure caps; and any network or hosted metric. Failure modes: an unreadable,
+oversized, malformed or timed-out sample is UNKNOWN and keeps the level, so a throttle is never
+released on missing evidence and never raised without it; a saturated host with an all-exempt
+roster keeps launching exempt work; load from processes outside the dispatcher still counts.
+Rollback removes `pressure` from the configuration (the record is dropped at the next start) or
+stops the dispatcher; running workers are unaffected either way. A binary without CAL-V0-068 refuses
+a ledger that carries the record, so a downgrade first needs one start without `pressure`. Linux sampling is covered by
+fixture parsing only; live Linux sampling is NOT_RUN, and other operating systems are always
+UNKNOWN. Regression witnesses are the CAL-V0-068 and issue-497 tests in the traceability table.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -1192,6 +1251,8 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
 | Context index absent or stale | No derivation | The scope is `WHOLE_REPOSITORY`, which serializes that claim as today |
 | Dispatcher crashes or is stopped | Workers keep running unsupervised | The next `dispatch` adopts workers whose recorded identities still match, then supervises and heals them (CAL-V0-056) |
 | Dispatched worker loops without progress | Repeated launches spend host budget | Cooldown, then park and `needs-owner` after `parkAfter` runs (CAL-V0-057) |
+| Host saturated by load or swap while the dispatcher launches | New workers deepen the overload | With `pressure` configured, the level caps new non-exempt launches after its dwell and a `throttled` event names the held work; running workers are untouched (CAL-V0-068) |
+| Host pressure sample unreadable, oversized, malformed or timed out | The level cannot be recomputed | The sample is `UNKNOWN`, the level and its cap are kept and pending dwell restarts; it never counts as calm (CAL-V0-068) |
 | Checkpoint absent, corrupt, oversized, foreign or ahead of the head | A read cannot resume | The read runs the complete audit and reports `FULL`; output is otherwise identical (CAL-V0-061) |
 | Checkpoint disagrees with a receipt, projection, staging or the intent tree | A resumed read would mis-state the store | The resumed path refuses internally and the complete audit decides the reported verdict (CAL-V0-061) |
 | Journal prefix, or a checkpoint entry together with its projection, altered behind a still-matching checkpoint | A resumed read does not see it | `receipt audit` and every mutation run the complete audit and refuse; the read's verdict says `CHECKPOINT_PLUS_TAIL`, not `CONSISTENT` (CAL-V0-061) |
@@ -1264,6 +1325,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-056 | `TestCALV0056_CancelledHealingStopsNextWrite`, `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0056_KillsOrphanedProcessesBySession`, `TestCALV0056_IdentityOutageAndUnknownState` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
 | CAL-V0-057 | `TestCALV0057_FingerprintIgnoresNonDurableAttempts`, `TestCALV0055_LaunchFinishBackoffAndPark` (`internal/tasks/dispatch`) |
 | CAL-V0-058 | Event assertions in `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0058_SummaryReadsHostFinalText` (`internal/tasks/dispatch`) and `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
+| CAL-V0-068 | `TestCALV0068_RosterPressurePrecedence`, `TestCALV0068_HeldRespectsStaticCaps`, `TestCALV0068_ConfigValidation`, `TestCALV0068_DispatcherThrottlesNewLaunchesOnly`, `TestCALV0068_RestartKeepsLevelAndDisableClears`, `TestCALV0068_LedgerPressureRecordValidated`, `TestIssue497_PressureHysteresis`, `TestIssue497_UnknownRetainsLevel`, `TestIssue497_NormalizesHostCPU`, `TestIssue497_MixedMetricTransitions`, `TestIssue497_NonExemptBudget`, `TestIssue497_InvalidConfig`, `TestIssue497_SampleParsing`, `TestIssue497_BoundedFileReads`, `TestIssue497_CommandFixture`, `TestIssue497_CommandLifecycle`, `TestIssue497_LiveSampler` (`internal/tasks/dispatch`); `TestCALV0068_DispatchStatusPressure` (`internal/tasks/cli`); live Linux sampling NOT_RUN |
 | CAL-V0-059 | `TestCALV0059_CheckpointCodecAndDerivation` (`internal/tasks/journal`) |
 | CAL-V0-060 | `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`), including `pending`, which shares the lease audit with writers |
 | CAL-V0-061 | `TestCALV0061_CheckpointTailEqualsFullAudit`, `TestCALV0061_CheckpointFallsBackToFullAudit`, `TestCALV0061_CheckpointScopeAndMovement`, `TestCALV0061_CheckpointLimitsStayWithFullAudit` (`internal/tasks/journal`); `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`); live-store measurement in `docs/build-log/2026-10-01-tasks-read-checkpoint.md` |

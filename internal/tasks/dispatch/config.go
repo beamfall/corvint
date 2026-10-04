@@ -37,6 +37,8 @@ type Config struct {
 	Pinned           []string         `json:"pinned,omitempty"`
 	Backoff          Backoff          `json:"backoff"`
 	Heal             Heal             `json:"heal"`
+	// Pressure is the optional CAL-V0-068 host-pressure launch throttle.
+	Pressure *PressureConfig `json:"pressure,omitempty"`
 }
 
 // Host is one worker runtime. argv[0] is an absolute executable; every argv
@@ -241,6 +243,16 @@ func (c *Config) validate() error {
 	}
 	if len(c.Pinned) > 256 {
 		return fail("pinned is limited to 256 tickets")
+	}
+	if p := c.Pressure; p != nil {
+		if err := p.Validate(); err != nil {
+			return fail("%v", err)
+		}
+		for _, r := range p.ExemptRoles {
+			if !seen[r] {
+				return fail("pressure exempt role %q is not a configured role", r)
+			}
+		}
 	}
 	return nil
 }
