@@ -143,7 +143,7 @@ func verifyRepo(r Repository) error {
 	return nil
 }
 func Validate(r Request) error {
-	if r.Schema != RequestSchema || !idPattern.MatchString(r.Environment) || r.Repeat < 2 || r.Repeat > 100 || r.TimeoutSeconds < 1 || r.TimeoutSeconds > 60 || len(r.Tests) < 1 || len(r.Tests) > 32 || len(r.Inputs) > 128 {
+	if (r.Schema != RequestSchema && r.Schema != FreshRequestSchema) || (r.Schema == RequestSchema && r.Freshness != nil) || (r.Schema == FreshRequestSchema && r.Freshness == nil) || !idPattern.MatchString(r.Environment) || r.Repeat < 2 || r.Repeat > 100 || r.TimeoutSeconds < 1 || r.TimeoutSeconds > 60 || len(r.Tests) < 1 || len(r.Tests) > 32 || len(r.Inputs) > 128 {
 		return errors.New("request-bound")
 	}
 	if e := verifyRepo(r.Product); e != nil {
@@ -249,8 +249,13 @@ func Validate(r Request) error {
 	if e != nil || u.Scheme != "http" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || net.ParseIP(u.Hostname()) == nil || !net.ParseIP(u.Hostname()).IsLoopback() {
 		return errors.New("ready-url-not-loopback")
 	}
-	if !cleanAbsolute(r.AppBuildDir) || !within(r.AppBuildDir, r.Product.Root) {
+	if r.Schema == RequestSchema && (!cleanAbsolute(r.AppBuildDir) || !within(r.AppBuildDir, r.Product.Root)) {
 		return errors.New("build-root-invalid")
+	}
+	if r.Schema == FreshRequestSchema {
+		if err := validateFreshnessOptions(r); err != nil {
+			return err
+		}
 	}
 	if len(r.RunnerVersion) > 64 || r.RunnerVersion == "" {
 		return errors.New("runner-version-invalid")

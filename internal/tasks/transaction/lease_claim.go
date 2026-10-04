@@ -219,6 +219,9 @@ func (c leaseContext) admitted(rec *ticket.Record, prior *snapshot.Attempt, sc *
 	a.Lease = &snapshot.Lease{Holder: c.l.Holder, GrantedSeq: c.seq, ExpiresAt: addMinutes(c.in.RecordedAt, c.l.LeaseMinutes)}
 	if prior == nil {
 		a.AttemptID, e = c.freshID()
+		if e == nil && a.PoolAllocation != nil && c.in.LeaseFacts.Pool.AllocationID == "" {
+			a.DirectPoolAdmission = &snapshot.DirectPoolAdmission{AttemptID: a.AttemptID, Generation: a.Generation, OriginalAdmissionSeq: c.seq, Allocation: a.PoolAllocation, Holder: a.Lease.Holder, Stage: a.Stage}
+		}
 		return a, e
 	}
 	a.AttemptID = prior.AttemptID

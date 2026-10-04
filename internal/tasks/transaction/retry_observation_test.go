@@ -55,3 +55,37 @@ func TestCALV0049_ChargeReasonPartition(t *testing.T) {
 		t.Fatal("legacy debt invented reasons")
 	}
 }
+
+func TestIssue503_RetryExplanation(t *testing.T) {
+	t.Run("CAL-V0-049 retry reason exemptions", func(t *testing.T) {
+		rec := fixture.Ticket("AT-01")
+		for _, tc := range []struct {
+			name, phase, revision string
+			handoff               bool
+			want                  string
+		}{
+			{"initial", "", "", false, "INITIAL_ADMISSION"},
+			{"completed", "COMPLETED", "1", false, "COMPLETED_ATTEMPT"},
+			{"new acceptance", "CANCELLED", "2", false, "NEW_ACCEPTANCE"},
+			{"handoff", "CANCELLED", "1", true, "VERIFIED_HANDOFF"},
+			{"exhausted", "CANCELLED", "1", false, "RETRY_EXHAUSTED"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				attempts := map[string]*snapshot.Attempt{}
+				if tc.phase != "" {
+					a := &snapshot.Attempt{TicketID: rec.TicketID, TicketRevision: wire.Count(tc.revision), Generation: "1", Phase: tc.phase, RetryCount: "3", RuntimeID: snapshot.RuntimeExternalAgent}
+					if tc.handoff {
+						a.RetryAccounting = &snapshot.RetryAccounting{Disposition: wire.CodeHandoff}
+					}
+					attempts["a"] = a
+				}
+				v := RetryObservation(attempts, rec, 0)
+				reason, _ := v.Obj.Get("retryAdmissionReason")
+				meaning, _ := v.Obj.Get("remainingMeaning")
+				if reason.Str != tc.want || meaning.Str != "RETRY_CAPACITY" {
+					t.Fatalf("%s", wire.Encode(v))
+				}
+			})
+		}
+	})
+}

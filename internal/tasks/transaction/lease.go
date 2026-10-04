@@ -43,6 +43,7 @@ const (
 // LeaseRequest is one lease command. Fields a verb does not take stay empty;
 // the closed shape table below refuses any other combination.
 type LeaseRequest struct {
+	LaneUntouched                             bool
 	Pool, Stage, Member, Allocation, Evidence string
 	Verb, TicketID, Holder                    string
 	LeaseMinutes                              wire.Size
@@ -95,6 +96,7 @@ const (
 	fieldAllocation
 	fieldEvidence
 	fieldExclusions
+	fieldLaneUntouched
 )
 
 type leaseShape struct{ required, allowed int }
@@ -111,7 +113,7 @@ var leaseShapes = map[string]leaseShape{
 	LeaseClaimNext:   {fieldHolder | fieldMinutes, fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage | fieldExclusions},
 	LeaseHeartbeat:   {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration},
 	LeaseRenew:       {fieldAttempt | fieldGeneration | fieldMinutes, fieldAttempt | fieldGeneration | fieldMinutes},
-	LeaseRelease:     {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldReason | fieldEvidence},
+	LeaseRelease:     {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldReason | fieldEvidence | fieldLaneUntouched},
 	LeaseReap:        {0, fieldAttempt | fieldGeneration},
 	LeaseWiden:       {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldScope | fieldWhole},
 	LeaseSubmit:      {fieldAttempt | fieldGeneration | fieldTree, fieldAttempt | fieldGeneration | fieldTree},
@@ -120,7 +122,7 @@ var leaseShapes = map[string]leaseShape{
 }
 
 func (l *LeaseRequest) present() int {
-	flags := map[int]bool{fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != ""}
+	flags := map[int]bool{fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != ""}
 	bits := 0
 	for bit, set := range flags {
 		if set {
@@ -198,6 +200,9 @@ func checkLabels(values map[string]string) error {
 }
 
 func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
+	if l.LaneUntouched && l.Evidence == "" {
+		return malformed("lane-untouched requires inert evidence Identifier")
+	}
 	if e := checkExcludedMembers(l.Pool, l.ExcludeMembers); e != nil {
 		return e
 	}
@@ -210,7 +215,7 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 		}
 	}
 	if l.Evidence != "" {
-		if l.Verb == LeaseRelease && l.Reason != wire.CodeHandoff && l.Reason != wire.CodeReviewReturned {
+		if l.Verb == LeaseRelease && l.Reason != wire.CodeHandoff && l.Reason != wire.CodeReviewReturned && !l.LaneUntouched {
 			return malformed("release evidence requires HANDOFF or REVIEW_RETURNED")
 		}
 		if _, e := wire.ParseIdentifier("evidence", l.Evidence); e != nil {
@@ -314,6 +319,11 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 		v.Obj.Set("member", s(l.Member))
 		v.Obj.Set("allocation", s(l.Allocation))
 		v.Obj.Set("evidence", s(l.Evidence))
+	}
+	if l.LaneUntouched {
+		v.Obj.Set("laneUntouched", wire.Bool(true))
+		v.Obj.Set("laneUntouchedProfile", s(snapshot.ProfileLaneUntouched))
+		v.Obj.Set("acknowledgements", snapshot.LaneUntouchedAcknowledgementsValue())
 	}
 	return v, nil
 }
@@ -503,7 +513,15 @@ func planRelease(c leaseContext) leaseOutcome {
 	if why := c.fenced(a); why != "" {
 		return c.recordFenced(a, why)
 	}
+	if c.l.LaneUntouched {
+		if err := c.verifyLaneUntouched(a); err != nil {
+			return c.fail(err)
+		}
+	}
 	next := *a
+	if c.l.LaneUntouched {
+		next.LaneUntouchedAttestation = &snapshot.LaneUntouchedAttestation{DirectPoolAdmission: *a.DirectPoolAdmission, ActorID: c.r.Actor.ID, ActorRole: c.r.Actor.Role, Evidence: c.l.Evidence, RecordedSeq: c.seq, RecordedAt: c.in.RecordedAt}
+	}
 	if c.l.Reason == wire.CodeHandoff || c.l.Reason == wire.CodeReviewReturned {
 		if refusal := c.verifyHandoff(a); refusal != nil {
 			return *refusal

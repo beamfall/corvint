@@ -70,6 +70,10 @@ or qualification of the whole workflow, and passing expectations do not accept g
   command lands on the base, an adapter supplies these values from its own runtime, bound by
   `runtime_sha256`, and the report gains no delta qualification.
 
+The explicit native `postmerge-replay/1` route is governed by `postmerge-runtime-v1.md`.
+Its experimental connector/intake refusal slice always blocks and does not change this `/0`
+adapter contract or add positive whole-workflow qualification.
+
 ## Trust and limits
 
 The operator supplies trusted policy, runtime/configuration binding and adapter implementation.

@@ -623,7 +623,7 @@
     "title": "Corvint Tasks agent leases V0",
     "reqPrefix": "CAL-V0",
     "intent": "accepted (owner decision 2026-09-27)",
-    "delivery": "partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review",
+    "delivery": "partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending",
     "claim": "Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.",
     "dependsOn": [
       "docs/specs/corvint-tasks-store-init-v0.md"
@@ -1468,6 +1468,7 @@
     "closableToday": false,
     "implementation": [
       "internal/testacceptance",
+      "internal/procgroup",
       "cmd/corvint-tests-accept"
     ]
   },
@@ -2049,6 +2050,24 @@
     ]
   },
   {
+    "path": "docs/specs/playwright-per-test-freshness-v0.md",
+    "title": "Playwright Per-test Freshness V0",
+    "reqPrefix": "PTF-V0",
+    "intent": "proposed technical contract; owner approved the implementation plan",
+    "delivery": "experimental",
+    "claim": "A bounded source-direct Playwright profile observes source/server/runtime identity and joins every planned native control attempt to every baseline repeat.",
+    "dependsOn": [
+      "docs/specs/new-e2e-test-acceptance-v0.md",
+      "docs/specs/playwright-external-provider-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/jstestprovider",
+      "internal/testacceptance"
+    ]
+  },
+  {
     "path": "docs/specs/playwright-suite-interaction-minimizer-v0.md",
     "title": "Playwright Suite-Interaction Minimizer V0",
     "reqPrefix": "PSM-V0",
@@ -2072,7 +2091,7 @@
     "reqPrefix": "PCH-V0",
     "intent": "proposed",
     "delivery": "experimental",
-    "claim": "Reference GitHub Actions templates and a host adapter contract run the post-merge workflow with per-step credentials and no write credential in authoring.",
+    "claim": "Reference CI templates and an optional paired launcher have source conformance; physical isolation and hosted replay remain unqualified.",
     "dependsOn": [
       "docs/specs/authoring-step-scope-v0.md",
       "docs/specs/postmerge-connectors-v0.md"
@@ -2080,6 +2099,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
+      "cmd/corvint-postmerge-host-launcher",
       "internal/postmergehost",
       "protocol/postmerge-host"
     ]
@@ -2110,6 +2130,24 @@
     "claim": "An optional companion runs a pinned local adapter twice and compares typed historical expectations through the actual recording connector.",
     "dependsOn": [
       "docs/specs/postmerge-connectors-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/postmergeworkflow",
+      "cmd/corvint-postmerge-workflow"
+    ]
+  },
+  {
+    "path": "docs/specs/postmerge-runtime-v1.md",
+    "title": "Post-merge Runtime V1",
+    "reqPrefix": "PMR-V1",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Explicit /1 binds actual native stage observations and refuses missing evidence; /0 remains unchanged.",
+    "dependsOn": [
+      "docs/specs/postmerge-connectors-v0.md",
+      "docs/specs/postmerge-replay-v0.md"
     ],
     "supersededBy": null,
     "closableToday": false,
@@ -3028,6 +3066,20 @@
       "internal/contextindex",
       "internal/groupreap",
       "cmd/corvint"
+    ]
+  },
+  {
+    "path": "docs/specs/process-group-owner-v0.md",
+    "title": "Process-group Owner V0",
+    "reqPrefix": "PGO-V0",
+    "intent": "proposed extraction of existing owner-authorized repair semantics",
+    "delivery": "experimental",
+    "claim": "An optional process-group Owner preserves leader identity through retirement and reports unproved cleanup as HOLD.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/groupreap"
     ]
   }
 ]

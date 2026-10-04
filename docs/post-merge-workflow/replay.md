@@ -8,7 +8,7 @@ GOTOOLCHAIN=local go build -o /tmp/corvint-postmerge-workflow ./cmd/corvint-post
   --fixture /absolute/historical.json --policy /absolute/host-policy.json --root /absolute/product-repo
 ```
 
-Exit 0 means MATCH, 1 means MISMATCH and 2 means BLOCKED or invalid invocation. The JSON report
+For the legacy `postmerge-replay/0` fixture/policy, exit 0 means MATCH, 1 means MISMATCH and 2 means BLOCKED or invalid invocation. The JSON report
 contains canonical `recording_jsonl`, its digest, input/policy bindings, `human_verified_mismatches`
 and `generated_mismatches` as separate lists, `deferred_stages`, reasons and qualification limits. MATCH never implies whole-workflow acceptance: qualification is
 always `NOT_OBSERVED` in this experimental slice. Redirect the report to a trusted private location
@@ -53,3 +53,36 @@ scope/validation/metrics integrations, historical expectations with generated or
 local and CI host qualification, independent review, final change evidence, landing and native
 completion remain required for the whole issue. Human labels are optional; human-verified coverage
 remains `NOT_OBSERVED`.
+
+## Native refusal profile
+
+A fixture whose `profile` is exactly `postmerge-replay/1` selects the experimental native route
+through the same CLI invocation. It uses the closed wire in
+`docs/specs/postmerge-runtime-v1.md`; the `/0` adapter schema and behavior remain unchanged.
+
+Supply a separate operator-owned `/1` policy with `profile`, existing `connector` policy,
+absolute `manifest` path and its exact `manifest_sha256`. The manifest is
+`postmerge-runtime-manifest/1` and contains `mode`, `implementation` (source commit/tree provenance
+and actual executable SHA-256), immutable `product` base/merge/tree, exact `fixture_sha256`,
+independently pinned `reader_candidate` path/SHA-256 and one fresh `retained_output_root`.
+Use absolute regular input files with no symlink components. Keep the manifest outside product
+and fixture/policy directories, and the output directory outside product, Git administration,
+all input directories and the executable. Existing output directories refuse. Artifacts use
+private 0700 directories and 0600 files, bounded by 4 MiB per artifact and 16 MiB/32 files total.
+
+In `candidate-qualification` mode this slice calls actual `connector.Read` and
+`intake.BuildAuthorInput` with an independently pinned closed intake candidate. It retains their
+exact native outputs and admitted snapshots privately. The candidate does not establish raw-reader
+execution, host isolation or semantic correctness. Expected labels are never author input;
+only generated labels are admitted. `operational` mode and human-verified labels refuse.
+
+Every `/1` run reports `BLOCKED` and exits 2. Successful connector/intake observations are followed
+by `delta` blocked with `actual-delta-unavailable`, bound to this source slice. Subsequent author,
+scope, test, draft, findings, metrics, approved-republish and recording stages are not run. The
+report contains exact private artifact path/hash/byte references, `comparison_status: NOT_RUN`,
+empty uncomputed mismatch arrays and `workflow_qualification: NOT_OBSERVED`. Original native
+errors stay in private retained files; stdout contains fixed reasons. No draft, ledger recording,
+request equality, historical correctness or host qualification is produced by this slice.
+
+Retain the operator manifest and report with its private output bundle. Keep earlier failed
+preparation/enrollment evidence; a native conformance pass does not complete issue #395 or #388.

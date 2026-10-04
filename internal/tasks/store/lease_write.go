@@ -179,6 +179,36 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 		return nil, err
 	}
 	p.result = transaction.Model(request, input)
+	if a := transaction.HandoffPolicyCandidate(request, input, p.result); a != nil {
+		selector := journal.HandoffPolicySelector{AttemptID: a.AttemptID, Generation: a.Generation, OriginalPolicySha256: a.PolicySha256}
+		if a.PoolAllocation != nil {
+			selector.PoolID, selector.MemberID = a.PoolAllocation.PoolID, a.PoolAllocation.MemberID
+		}
+		// This fresh full scan is outside the lock, under the same guard. Never
+		// mutate/cache the first Result or retain the interval's other blobs.
+		history, err := journalReader(repo, p.proof.Head).AuditForHandoff(selector)
+		if err != nil {
+			return nil, err
+		}
+		if history.IntentError != nil {
+			return nil, history.IntentError
+		}
+		if history.Pending || history.StagingPresent || history.Mode != journal.ModeFull || history.Identity != p.proof.Identity || history.LastSeq != p.proof.LastSeq || history.LastReceiptSha256 != p.proof.LastReceiptSha256 || history.Records["intent/policy.json"].Sha256 == nil || *history.Records["intent/policy.json"].Sha256 != wire.Sum(input.Policy) {
+			return nil, wire.Errorf(wire.CodeSnapshotMoved, "handoff history", "additional audit differs from prepared snapshot")
+		}
+		if err := g.Check(); err != nil {
+			return nil, err
+		}
+		h := history.HandoffPolicy
+		if h == nil || h.OriginalPolicy.Sha256 == nil {
+			// Missing provenance keeps the original STALE_POLICY refusal.
+			return p, g.Check()
+		}
+		input.HandoffPolicy = &transaction.HandoffPolicyObservation{AttemptID: selector.AttemptID, Generation: selector.Generation, PoolID: selector.PoolID, MemberID: selector.MemberID, HeadSha256: history.Identity.HeadSha256, LastSeq: history.LastSeq, LastReceiptSha256: history.LastReceiptSha256, FinalPolicySha256: h.FinalPolicySha256, OriginalPath: "intent/policy.json", OriginalSeq: h.OriginalPolicy.Seq, OriginalSha256: *h.OriginalPolicy.Sha256, OriginalReceiptSha256: h.OriginalReceiptSha256, OriginalRaw: h.OriginalPolicy.Raw, FirstAttemptPath: "attempts/" + selector.AttemptID + ".json", FirstAttemptSeq: h.FirstAttemptSeq, FirstAttemptSha256: h.FirstAttemptSha256, FirstAttemptReceiptSha256: h.FirstAttemptReceiptSha256, FirstPolicySha256: h.FirstPolicySha256, FirstConfigSha256: h.FirstConfigSha256, FirstCapabilitySha256: h.FirstCapabilitySha256, FirstAllocationSha256: h.FirstAllocationSha256, Compatible: h.Compatible}
+		// A long history scan must not hide expiry behind the earlier sample.
+		input.RecordedAt = recordedAt(ctx, input.RecordedAt)
+		p.result = transaction.Model(request, input)
+	}
 	return p, g.Check()
 }
 

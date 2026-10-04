@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +15,63 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
+
+// CAL-V0-044/046: the command boundary uses audited policy history for an
+// evidence-only review return without rewriting the claim's policy hashes.
+func TestCALV0044_CLIUnrelatedPoolPolicyReturn(t *testing.T) {
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	runOK := func(args ...string) run {
+		t.Helper()
+		r := handoffCLI(t, root, args...)
+		if r.res.Outcome != wire.OutcomeOK {
+			t.Fatalf("%v: %s", args, r.stdout)
+		}
+		return r
+	}
+	loaded, err := intent.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := wire.Parse(loaded.Policy.Raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v.Obj.Set("policyVersion", wire.String("2"))
+	v.Obj.Set("pools", wire.Array(wire.ObjectValue(wire.NewObject().Set("id", wire.String("lanes")).Set("members", wire.Strings([]string{"a", "b"})))))
+	policyDir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	policyFile := filepath.Join(policyDir, "policy.json")
+	if err := os.WriteFile(policyFile, wire.EncodeFile(v), 0600); err != nil {
+		t.Fatal(err)
+	}
+	runOK("policy", "update", "--request-id", "pool-policy", "--expected-policy-version", "1", "--file", policyFile)
+	id := planTicket(t, root, "policy-handoff", "P1", `["src/"]`)
+	c := runOK("claim", id, "--holder", "reviewer", "--stage", "review", "--pool", "lanes", "--request-id", "claim")
+	a, g := field(c.res.Items[0], "attemptId").Str, field(c.res.Items[0], "generation").Str
+	before := runOK("attempt", "show", a)
+	v.Obj.Set("policyVersion", wire.String("3"))
+	pools, _ := v.Obj.Get("pools")
+	pools.Arr[0].Obj.Set("reservedFor", wire.ObjectValue(wire.NewObject().Set("b", wire.String("implement"))))
+	if err := os.WriteFile(policyFile, wire.EncodeFile(v), 0600); err != nil {
+		t.Fatal(err)
+	}
+	runOK("policy", "update", "--request-id", "other-reservation", "--expected-policy-version", "2", "--file", policyFile)
+	args := []string{"release", "--attempt", a, "--generation", g, "--request-id", "return", "--reason", wire.CodeReviewReturned, "--evidence", "external-review"}
+	runOK(args...)
+	after := runOK("attempt", "show", a)
+	for _, key := range []string{"policySha256", "configSha256", "capabilityProfileSha256", "retryCount"} {
+		if !bytes.Equal(wire.Encode(field(before.res.Items[0], key)), wire.Encode(field(after.res.Items[0], key))) {
+			t.Fatalf("return rewrote %s", key)
+		}
+	}
+	if field(after.res.Items[0], "phase").Str != "CANCELLED" || field(after.res.Items[0], "quiescence").Str != "FENCED" {
+		t.Fatalf("return: %s", after.stdout)
+	}
+	runOK(args...)
+	runOK("receipt", "audit")
+}
 
 // An optional compiled binary drives the same lifecycle as the in-process CLI.
 // Qualification supplies the exact new binary and pinned old reader explicitly.

@@ -30,6 +30,13 @@ func run() int {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if postmergeworkflow.FixtureProfile(*fixture) == postmergeworkflow.NativeProfile {
+		report, _ := postmergeworkflow.ReplayNative(ctx, *root, *fixture, *policy, *change)
+		if e := json.NewEncoder(os.Stdout).Encode(report); e != nil {
+			return 2
+		}
+		return 2 // Every /1 outcome in this bounded slice is BLOCKED.
+	}
 	report, err := postmergeworkflow.Replay(ctx, *root, *fixture, *policy, *change)
 	if e := json.NewEncoder(os.Stdout).Encode(report); e != nil {
 		return 2

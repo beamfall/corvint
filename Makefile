@@ -136,6 +136,7 @@ spec-requirements:
 
 spec-requirements-check:
 	@tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT INT TERM; script/gen-spec-requirements.sh >"$$tmp"; cmp "$$tmp" docs/specs/REQUIREMENTS.tsv || { echo "REQUIREMENTS.tsv is stale: stage the changed spec, then run make spec-requirements" >&2; exit 1; }
+	$(GO_TEST_COMMAND) ./internal/specindex
 
 # spec-requirements-test pins SRG-V0-001: the generator enumerates the Git index, so no
 # untracked, deleted-from-the-worktree, or unstaged spec can change the index a fresh clone
