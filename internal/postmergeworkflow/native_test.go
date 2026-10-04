@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -148,6 +149,7 @@ func TestNativeActualIntakeDeltaThenFollowUpRefusal(t *testing.T) {
 	if len(r.Stages[3].Inputs) != 1 || strings.Contains(string(readNativeRef(t, r.Stages[3].Inputs[0])), "affected_flows") {
 		t.Fatalf("delta input not the code-fixed options %+v", r.Stages[3].Inputs)
 	}
+	assertNativeDeltaRequest(t, r.Stages[3].Inputs[0], n.root, delta.Options{Base: n.m.Product.Base, Head: n.m.Product.Merge, Build: n.m.Implementation.SourceCommit})
 	// The unconfigured providers and baseline stay exact uncertainty, never an
 	// empty no-work record.
 	if actualDelta.Denominators.Complete || len(actualDelta.Unknowns) == 0 || actualDelta.Decision == "no-op" {
@@ -692,6 +694,10 @@ func TestNativeDeltaRefusalBlocksDependents(t *testing.T) {
 	if r.Stages[3].Disposition != "blocked" || r.Stages[3].Reasons[0] != "native-delta-failed" || r.Stages[3].Output != nil || r.Stages[3].NativeProfile != "" {
 		t.Fatalf("delta %+v", r.Stages[3])
 	}
+	if len(r.Stages[3].Inputs) != 1 {
+		t.Fatalf("refused delta request not retained %+v", r.Stages[3].Inputs)
+	}
+	assertNativeDeltaRequest(t, r.Stages[3].Inputs[0], n.root, delta.Options{Base: n.m.Product.Base, Head: merge, Build: n.m.Implementation.SourceCommit})
 	original, e := os.ReadFile(filepath.Join(n.m.RetainedOutputRoot, "delta-error.txt"))
 	if e != nil || string(original) != "delta-change-set-unavailable" {
 		t.Fatalf("original delta refusal %q %v", original, e)
@@ -700,5 +706,18 @@ func TestNativeDeltaRefusalBlocksDependents(t *testing.T) {
 		if s.Disposition != "not-run" || s.Reasons[0] != "dependency-delta-blocked" || s.Output != nil {
 			t.Fatalf("dependent stage not refused %+v", s)
 		}
+	}
+}
+
+// assertNativeDeltaRequest checks the retained delta request is exactly the
+// code-fixed root and Options, with no provider, checkout or work-key input.
+func assertNativeDeltaRequest(t *testing.T, ref ArtifactRef, root string, want delta.Options) {
+	t.Helper()
+	var got nativeDeltaRequest
+	if e := json.Unmarshal(readNativeRef(t, ref), &got); e != nil {
+		t.Fatal(e)
+	}
+	if got.Root != root || !reflect.DeepEqual(got.Options, want) {
+		t.Fatalf("retained delta request %+v, want root %q options %+v", got, root, want)
 	}
 }

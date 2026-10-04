@@ -281,16 +281,10 @@ func ReplayNative(ctx context.Context, root, fixtureFile, policyFile, change str
 	// record keeps the resulting unknowns and full-suite obligations exactly.
 	// The build label is the operator-pinned source commit, not an attestation.
 	options := delta.Options{Base: m.Product.Base, Head: m.Product.Merge, Build: m.Implementation.SourceCommit}
-	deltaInput, _ := json.Marshal(struct {
-		Root               string   `json:"root"`
-		Base               string   `json:"base"`
-		Head               string   `json:"head"`
-		Build              string   `json:"build"`
-		PreviousGeneration string   `json:"previous_generation"`
-		WorkKeyPattern     string   `json:"work_key_pattern"`
-		Providers          []string `json:"providers"`
-		Checkouts          []string `json:"checkouts"`
-	}{root, options.Base, options.Head, options.Build, "", "", []string{}, []string{}})
+	deltaInput, err := json.Marshal(nativeDeltaRequest{Root: root, Options: options})
+	if err != nil {
+		return block(3, "runtime-retention-failed", err)
+	}
 	deltaRef, err := retained.save("delta-input.json", deltaInput)
 	if err != nil {
 		return block(3, "runtime-retention-failed", err)
@@ -303,6 +297,8 @@ func ReplayNative(ctx context.Context, root, fixtureFile, policyFile, change str
 	if err != nil {
 		return block(3, nativeCallCode(ctx, "native-delta-failed"), err)
 	}
+	// Defensive only: Compile resolves the admitted pinned commits, so drift is
+	// not reachable from a fixture and this branch has no test.
 	if record.Base != m.Product.Base || record.Head != m.Product.Merge || record.Tree != m.Product.Tree {
 		return block(3, "native-delta-failed", fmt.Errorf("delta-binding-mismatch"))
 	}
@@ -508,4 +504,11 @@ func (r *nativeRetention) verify() error {
 		}
 	}
 	return nil
+}
+
+// nativeDeltaRequest is the retained delta request: the compiler root and
+// the exact Options value passed to delta.Compile, so it cannot drift.
+type nativeDeltaRequest struct {
+	Root    string        `json:"root"`
+	Options delta.Options `json:"options"`
 }
