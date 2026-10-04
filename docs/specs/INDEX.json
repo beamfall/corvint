@@ -3095,5 +3095,21 @@
     "implementation": [
       "internal/groupreap"
     ]
+  },
+  {
+    "path": "docs/specs/corvint-tasks-user-service-v0.md",
+    "title": "Corvint Tasks user service V0",
+    "reqPrefix": "SERVICE500",
+    "intent": "accepted optional profile (owner-delegated decision 2026-10-04 (agent decided))",
+    "delivery": "experimental",
+    "claim": "An explicit user-service profile restarts dispatcher/helper controllers while preserving workers and durable suppression under verified ownership.",
+    "dependsOn": [
+      "docs/specs/corvint-tasks-agent-leases-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/tasks/service"
+    ]
   }
 ]
