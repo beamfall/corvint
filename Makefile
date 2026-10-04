@@ -218,9 +218,9 @@ ci-least-privilege-check:
 ci-least-privilege-test:
 	@script/check-ci-least-privilege_test.sh
 
-# unbounded-readers-check fails when more test packages are selected on every change than the
-# ceiling in .corvint/unbounded-readers.json, or when that record keeps a reason for a package
-# that is no longer unbounded (AFP-V0-025, docs/specs/affected-plan-v0.md).
+# unbounded-readers-check fails unless the test packages selected on every change are exactly
+# the units recorded in .corvint/unbounded-readers.json (AFP-V0-025,
+# docs/specs/affected-plan-v0.md).
 unbounded-readers-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/unbounded-readers >/dev/null
 
