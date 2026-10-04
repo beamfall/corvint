@@ -59,6 +59,7 @@ type EscalationObservation struct {
 	Snapshot             EscalationSnapshot
 	Actor, ActorRole     string
 	PolicyDecision       string // ALLOWED is an explicit supplied operation grant.
+	PolicyOperation      string // The one request operation the grant covers (ESC-V0-004).
 	Now                  wire.Timestamp
 	Admission            *EscalationAdmission
 	BlockedRelationState string // VALIDATED when the request names a blocked relation.
@@ -304,7 +305,9 @@ func ApplyEscalation(raw []byte, o EscalationObservation) (EscalationProposal, e
 	default:
 		return EscalationProposal{}, escalationFailure("REPLAY_UNKNOWN")
 	}
-	if o.PolicyDecision != "ALLOWED" {
+	// A grant covers one operation, so a source holder's OPEN grant is never
+	// answer authority (ESC-V0-004).
+	if o.PolicyDecision != "ALLOWED" || o.PolicyOperation != r.Operation {
 		return EscalationProposal{}, escalationFailure("POLICY_NOT_ALLOWED")
 	}
 	if _, e := wire.ParseTimestamp("/now", string(o.Now)); e != nil {
@@ -487,6 +490,9 @@ func computeEscalation(r ticket.EscalationRequest, s EscalationSnapshot, now wir
 			}
 			if len(open) > 1 {
 				return fail(&EscalationRefusal{Code: "AMBIGUOUS_OPEN_QUESTIONS", RequestIDs: open})
+			}
+			if len(open) == 0 {
+				return fail(escalationFailure("NO_OPEN_QUESTION"))
 			}
 		}
 		if i < 0 {
