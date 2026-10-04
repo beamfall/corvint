@@ -45,6 +45,20 @@ func Build(ctx context.Context, root string, raw []byte) ([]byte, error) {
 	if e != nil {
 		return nil, e
 	}
+	return buildSourceValidated(ctx, a)
+}
+
+// BuildVerified consumes only an immutable result minted by the source-pinned
+// corpus compiler. It cannot admit an arbitrary parsed or caller-mutated Artifact.
+func BuildVerified(ctx context.Context, verified doccorpus.VerifiedCorpus) ([]byte, error) {
+	a, err := verified.Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	return buildSourceValidated(ctx, a)
+}
+
+func buildSourceValidated(ctx context.Context, a *doccorpus.Artifact) ([]byte, error) {
 	if a.Schema != doccorpus.SchemaV2 {
 		return nil, fmt.Errorf("indexed profile requires corpus /2")
 	}

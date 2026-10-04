@@ -1,0 +1,297 @@
+{
+  "provenance": {
+    "kind": "constructed documented response; NOT a physical daemon observation",
+    "source": "https://docs.docker.com/reference/api/engine/version/v1.56.yaml",
+    "definitions": [
+      "HostConfig.ConsoleSize",
+      "Mount.ReadOnly",
+      "Mount.Consistency",
+      "Mount.BindOptions"
+    ],
+    "qualification": "Serialization discriminator for the reviewed fixed candidate; actual pinned engine inspection remains pending."
+  },
+  "inspection": {
+    "Id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "Name": "/corvint-author-11111111111111111111111111111111",
+    "Image": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "State": {
+      "Running": true,
+      "Paused": false,
+      "Restarting": false,
+      "Dead": false,
+      "Pid": 123
+    },
+    "Config": {
+      "Image": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Hostname": "corvint-author",
+      "User": "65532:65532",
+      "Entrypoint": [
+        "/bin/sleep"
+      ],
+      "Cmd": [
+        "infinity"
+      ],
+      "WorkingDir": "/",
+      "Env": [],
+      "Labels": {
+        "com.corvint.author-run": "11111111111111111111111111111111",
+        "com.corvint.author-request": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "com.corvint.author-profile": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "Tty": false,
+      "OpenStdin": false,
+      "AttachStdin": false,
+      "AttachStdout": false,
+      "AttachStderr": false,
+      "Volumes": null,
+      "ExposedPorts": null,
+      "Healthcheck": null,
+      "OnBuild": null,
+      "Shell": null
+    },
+    "HostConfig": {
+      "NetworkMode": "none",
+      "ReadonlyRootfs": true,
+      "Privileged": false,
+      "CapDrop": [
+        "ALL"
+      ],
+      "CapAdd": null,
+      "SecurityOpt": [
+        "no-new-privileges:true"
+      ],
+      "PidMode": "",
+      "IpcMode": "private",
+      "CgroupnsMode": "private",
+      "RestartPolicy": {
+        "Name": "no",
+        "MaximumRetryCount": 0
+      },
+      "PublishAllPorts": false,
+      "PortBindings": {},
+      "Devices": [],
+      "DeviceRequests": null,
+      "Mounts": [
+        {
+          "Type": "bind",
+          "Source": "/private/tmp/product",
+          "Target": "/product",
+          "Consistency": "",
+          "BindOptions": {
+            "Propagation": "rprivate",
+            "NonRecursive": false,
+            "ReadOnlyNonRecursive": false,
+            "ReadOnlyForceRecursive": false
+          },
+          "ReadOnly": true
+        },
+        {
+          "Type": "bind",
+          "Source": "/private/tmp/product/docs",
+          "Target": "/product/docs",
+          "Consistency": "",
+          "BindOptions": {
+            "Propagation": "rprivate",
+            "NonRecursive": false,
+            "ReadOnlyNonRecursive": false,
+            "ReadOnlyForceRecursive": false
+          }
+        },
+        {
+          "Type": "bind",
+          "Source": "/private/tmp/product/tests",
+          "Target": "/product/tests",
+          "Consistency": "",
+          "BindOptions": {
+            "Propagation": "rprivate",
+            "NonRecursive": false,
+            "ReadOnlyNonRecursive": false,
+            "ReadOnlyForceRecursive": false
+          }
+        },
+        {
+          "Type": "bind",
+          "Source": "/private/tmp/product/docs/.keep",
+          "Target": "/product/docs/.keep",
+          "Consistency": "",
+          "BindOptions": {
+            "Propagation": "rprivate",
+            "NonRecursive": false,
+            "ReadOnlyNonRecursive": false,
+            "ReadOnlyForceRecursive": false
+          },
+          "ReadOnly": true
+        },
+        {
+          "Type": "bind",
+          "Source": "/private/tmp/product/tests/.keep",
+          "Target": "/product/tests/.keep",
+          "Consistency": "",
+          "BindOptions": {
+            "Propagation": "rprivate",
+            "NonRecursive": false,
+            "ReadOnlyNonRecursive": false,
+            "ReadOnlyForceRecursive": false
+          },
+          "ReadOnly": true
+        },
+        {
+          "Type": "bind",
+          "Source": "/private/tmp/admitted.json",
+          "Target": "/admitted/author-input.json",
+          "Consistency": "",
+          "BindOptions": {
+            "Propagation": "rprivate",
+            "NonRecursive": false,
+            "ReadOnlyNonRecursive": false,
+            "ReadOnlyForceRecursive": false
+          },
+          "ReadOnly": true
+        },
+        {
+          "Type": "bind",
+          "Source": "/private/tmp/author",
+          "Target": "/tools/author",
+          "Consistency": "",
+          "BindOptions": {
+            "Propagation": "rprivate",
+            "NonRecursive": false,
+            "ReadOnlyNonRecursive": false,
+            "ReadOnlyForceRecursive": false
+          },
+          "ReadOnly": true
+        },
+        {
+          "Type": "bind",
+          "Source": "/private/tmp/shim",
+          "Target": "/tools/exec-shim",
+          "Consistency": "",
+          "BindOptions": {
+            "Propagation": "rprivate",
+            "NonRecursive": false,
+            "ReadOnlyNonRecursive": false,
+            "ReadOnlyForceRecursive": false
+          },
+          "ReadOnly": true
+        }
+      ],
+      "Tmpfs": {
+        "/private": "rw,nosuid,nodev,noexec,size=16777216,mode=0700,uid=65532,gid=65532"
+      },
+      "NanoCpus": 2000000000,
+      "Memory": 8589934592,
+      "MemorySwap": 8589934592,
+      "PidsLimit": 256,
+      "ShmSize": 1048576,
+      "MaskedPaths": [
+        "/proc/acpi",
+        "/proc/asound",
+        "/proc/interrupts",
+        "/proc/kcore",
+        "/proc/keys",
+        "/proc/latency_stats",
+        "/proc/timer_list",
+        "/proc/timer_stats",
+        "/proc/sched_debug",
+        "/proc/scsi",
+        "/sys/firmware",
+        "/sys/devices/virtual/powercap",
+        "/product/.git"
+      ],
+      "ReadonlyPaths": [
+        "/proc/bus",
+        "/proc/fs",
+        "/proc/irq",
+        "/proc/sys",
+        "/proc/sysrq-trigger"
+      ],
+      "AutoRemove": false,
+      "Init": false,
+      "LogConfig": {
+        "Type": "none",
+        "Config": {}
+      },
+      "Runtime": "runc",
+      "ConsoleSize": [
+        0,
+        0
+      ],
+      "Binds": null,
+      "ContainerIDFile": "",
+      "VolumeDriver": "",
+      "VolumesFrom": null,
+      "Dns": [],
+      "DnsOptions": [],
+      "DnsSearch": [],
+      "ExtraHosts": null,
+      "Ulimits": null
+    },
+    "Mounts": [
+      {
+        "Type": "bind",
+        "Source": "/private/tmp/product",
+        "Destination": "/product",
+        "RW": false,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/private/tmp/product/docs",
+        "Destination": "/product/docs",
+        "RW": true,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/private/tmp/product/tests",
+        "Destination": "/product/tests",
+        "RW": true,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/private/tmp/product/docs/.keep",
+        "Destination": "/product/docs/.keep",
+        "RW": false,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/private/tmp/product/tests/.keep",
+        "Destination": "/product/tests/.keep",
+        "RW": false,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/private/tmp/admitted.json",
+        "Destination": "/admitted/author-input.json",
+        "RW": false,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/private/tmp/author",
+        "Destination": "/tools/author",
+        "RW": false,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/private/tmp/shim",
+        "Destination": "/tools/exec-shim",
+        "RW": false,
+        "Propagation": "rprivate"
+      }
+    ],
+    "NetworkSettings": {
+      "Ports": {},
+      "Networks": {
+        "none": {
+          "IPAddress": "",
+          "GlobalIPv6Address": ""
+        }
+      }
+    }
+  }
+}

@@ -33,22 +33,24 @@ var leaseAudits struct {
 }
 
 type preparedLease struct {
-	guard   *authority.ChangeGuard
-	proof   *journal.Result
-	head    []byte
-	branch  string
-	result  transaction.Result
-	pending bool
-	failure error
+	guard              *authority.ChangeGuard
+	proof              *journal.Result
+	head               []byte
+	branch             string
+	result             transaction.Result
+	pending            bool
+	failure            error
+	observationFailure error
+	fatalCleanup       []inventoryCleanup
 }
 
-func leaseAudit(repo *intent.Repository, guard *authority.ChangeGuard, inv *transaction.Inventory, headRaw []byte) (*journal.Result, error) {
+func leaseKey(repo *intent.Repository, guard *authority.ChangeGuard, inv *transaction.Inventory, headRaw []byte) (leaseAuditKey, error) {
 	head, err := snapshot.DecodeHead(headRaw)
 	if err != nil {
-		return nil, err
+		return leaseAuditKey{}, err
 	}
 	if head.LastReceiptSha256 == nil {
-		return nil, wire.Errorf(wire.CodeJournalForked, "head", "missing receipt digest")
+		return leaseAuditKey{}, wire.Errorf(wire.CodeJournalForked, "head", "missing receipt digest")
 	}
 	h := sha256.New()
 	var intents []intent.File
@@ -58,30 +60,63 @@ func leaseAudit(repo *intent.Repository, guard *authority.ChangeGuard, inv *tran
 			intents = append(intents, intent.File{Path: strings.TrimPrefix(file.Path, "intent/"), Sha256: file.Sha256, Bytes: int(file.Bytes.Uint64())})
 		}
 	}
-	key := leaseAuditKey{repo.StateDir, wire.Sum(headRaw), *head.LastReceiptSha256, intent.DigestOfFiles(intents), wire.Digest(fmt.Sprintf("%x", h.Sum(nil))), guard.Membership()}
+	return leaseAuditKey{repo.StateDir, wire.Sum(headRaw), *head.LastReceiptSha256, intent.DigestOfFiles(intents), wire.Digest(fmt.Sprintf("%x", h.Sum(nil))), guard.Membership()}, nil
+}
+
+// A possible hit selects the conservative inventory-first path. This hint
+// grants nothing: leaseAuditObserved still compares the complete physical key.
+func possibleLeaseAudit(repo *intent.Repository, headRaw []byte) bool {
 	leaseAudits.Lock()
-	proof := leaseAudits.proof
-	hit := proof != nil && leaseAudits.key == key
-	leaseAudits.Unlock()
-	if hit {
-		return proof, nil
-	}
-	proof, err = journalReader(repo, head).AuditForWrite()
+	defer leaseAudits.Unlock()
+	return leaseAudits.proof != nil && leaseAudits.key.root == repo.StateDir && leaseAudits.key.head == wire.Sum(headRaw)
+}
+
+func leaseAudit(repo *intent.Repository, guard *authority.ChangeGuard, inv *transaction.Inventory, headRaw []byte) (*journal.Result, error) {
+	proof, err, _ := leaseAuditObserved(repo, guard, inv, headRaw, nil, func(r journal.Reader) (*journal.Result, journal.PhysicalObservation, error) {
+		proof, err := r.AuditForWrite()
+		return proof, journal.PhysicalObservation{}, err
+	})
+	return proof, err
+}
+
+// Cleanup is a separate return channel because a changed guard must never
+// transform failed native closure into a retryable ordinary observation.
+func leaseAuditObserved(repo *intent.Repository, guard *authority.ChangeGuard, inv *transaction.Inventory, headRaw []byte, supplied *journal.Result, audit func(journal.Reader) (*journal.Result, journal.PhysicalObservation, error)) (*journal.Result, error, error) {
+	key, err := leaseKey(repo, guard, inv, headRaw)
 	if err != nil {
-		return proof, err
+		return nil, err, nil
+	}
+	proof := supplied
+	if proof == nil {
+		leaseAudits.Lock()
+		cached := leaseAudits.proof
+		hit := cached != nil && leaseAudits.key == key
+		leaseAudits.Unlock()
+		if hit {
+			return cached, nil, nil
+		}
+		head, err := snapshot.DecodeHead(headRaw)
+		if err != nil {
+			return nil, err, nil
+		}
+		var observation journal.PhysicalObservation
+		proof, observation, err = audit(journalReader(repo, head))
+		if err != nil || observation.Cleanup != nil {
+			return proof, err, observation.Cleanup
+		}
 	}
 	if proof.Identity.HeadSha256 != key.head || proof.Identity.IntentTreeSha256 != key.intent {
-		return nil, wire.Errorf(wire.CodeSnapshotMoved, "audit cache", "inventory differs from audit")
+		return nil, wire.Errorf(wire.CodeSnapshotMoved, "audit cache", "inventory differs from audit"), nil
 	}
 	if err := guard.Check(); err != nil {
-		return nil, err
+		return nil, err, nil
 	}
 	if !proof.StagingPresent && !proof.Pending {
 		leaseAudits.Lock()
 		leaseAudits.key, leaseAudits.proof = key, proof
 		leaseAudits.Unlock()
 	}
-	return proof, nil
+	return proof, nil, nil
 }
 
 func prepareLease(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, facts claimObserver) (prepared *preparedLease, err error) {
@@ -91,26 +126,54 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 	}
 	p := &preparedLease{guard: g}
 	defer func() {
-		if err != nil {
-			if moved := g.Check(); moved != nil {
-				err = moved
-			}
-			// A failed read can be a live writer's intermediate state. Keep
-			// its monitor until that writer has released the lock too.
+		if err != nil || len(p.fatalCleanup) > 0 {
 			p.failure = err
+			p.observationFailure = g.Check()
+			// Keep ordinary failures for the writer-locked recheck. Cleanup ownership
+			// is independent: a dirty observation cannot make a failed close retryable.
 			prepared, err = p, nil
 		}
 	}()
-	inv, err := inventory(repo)
-	if err != nil {
-		return nil, err
-	}
+	hooks := hooksForInventory(ctx)
 	head, barrier, reservations, err := journalBytes(repo)
 	if err != nil {
 		return nil, err
 	}
 	p.head = head
-	p.proof, err = leaseAudit(repo, g, inv, head)
+	var inv *transaction.Inventory
+	var supplied *journal.Result
+	if !possibleLeaseAudit(repo, head) {
+		decoded, decodeErr := snapshot.DecodeHead(head)
+		if decodeErr != nil {
+			return nil, decodeErr
+		}
+		proof, observation, auditErr := hooks.audit(journalReader(repo, decoded))
+		if observation.Cleanup != nil {
+			p.recordCleanup("journal audit close", observation.Cleanup)
+			return p, auditErr
+		}
+		if auditErr == nil && proof != nil && proof.Mode == journal.ModeFull && !proof.Pending && !proof.StagingPresent && proof.IntentError == nil && observation.Files != nil {
+			inv, err, p.fatalCleanup = guardedLeaseInventory(repo, g, hooks, observation.Files)
+			if err != nil || len(p.fatalCleanup) > 0 {
+				return p, err
+			}
+			supplied = proof
+		}
+		// Partial, divergent or failed audits supply no inventory metadata.
+		// Preserve the ordinary inventory-first replay/recovery path below.
+	}
+	if inv == nil {
+		inv, err, p.fatalCleanup = guardedLeaseInventory(repo, g, hooks)
+		if err != nil || len(p.fatalCleanup) > 0 {
+			return p, err
+		}
+	}
+	var cleanup error
+	p.proof, err, cleanup = leaseAuditObserved(repo, g, inv, head, supplied, hooks.audit)
+	if cleanup != nil {
+		p.recordCleanup("journal audit close", cleanup)
+		return p, err
+	}
 	if wire.CodeOf(err) == wire.CodeRedoPending && p.proof != nil && p.proof.Pending {
 		p.pending = true
 		return p, g.Check()
@@ -179,14 +242,44 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 		return nil, err
 	}
 	p.result = transaction.Model(request, input)
+	if a := transaction.HandoffPolicyCandidate(request, input, p.result); a != nil {
+		selector := journal.HandoffPolicySelector{AttemptID: a.AttemptID, Generation: a.Generation, OriginalPolicySha256: a.PolicySha256}
+		if a.PoolAllocation != nil {
+			selector.PoolID, selector.MemberID = a.PoolAllocation.PoolID, a.PoolAllocation.MemberID
+		}
+		// This fresh full scan is outside the lock, under the same guard. Never
+		// mutate/cache the first Result or retain the interval's other blobs.
+		history, err := journalReader(repo, p.proof.Head).AuditForHandoff(selector)
+		if err != nil {
+			return nil, err
+		}
+		if history.IntentError != nil {
+			return nil, history.IntentError
+		}
+		if history.Pending || history.StagingPresent || history.Mode != journal.ModeFull || history.Identity != p.proof.Identity || history.LastSeq != p.proof.LastSeq || history.LastReceiptSha256 != p.proof.LastReceiptSha256 || history.Records["intent/policy.json"].Sha256 == nil || *history.Records["intent/policy.json"].Sha256 != wire.Sum(input.Policy) {
+			return nil, wire.Errorf(wire.CodeSnapshotMoved, "handoff history", "additional audit differs from prepared snapshot")
+		}
+		if err := g.Check(); err != nil {
+			return nil, err
+		}
+		h := history.HandoffPolicy
+		if h == nil || h.OriginalPolicy.Sha256 == nil {
+			// Missing provenance keeps the original STALE_POLICY refusal.
+			return p, g.Check()
+		}
+		input.HandoffPolicy = &transaction.HandoffPolicyObservation{AttemptID: selector.AttemptID, Generation: selector.Generation, PoolID: selector.PoolID, MemberID: selector.MemberID, HeadSha256: history.Identity.HeadSha256, LastSeq: history.LastSeq, LastReceiptSha256: history.LastReceiptSha256, FinalPolicySha256: h.FinalPolicySha256, OriginalPath: "intent/policy.json", OriginalSeq: h.OriginalPolicy.Seq, OriginalSha256: *h.OriginalPolicy.Sha256, OriginalReceiptSha256: h.OriginalReceiptSha256, OriginalRaw: h.OriginalPolicy.Raw, FirstAttemptPath: "attempts/" + selector.AttemptID + ".json", FirstAttemptSeq: h.FirstAttemptSeq, FirstAttemptSha256: h.FirstAttemptSha256, FirstAttemptReceiptSha256: h.FirstAttemptReceiptSha256, FirstPolicySha256: h.FirstPolicySha256, FirstConfigSha256: h.FirstConfigSha256, FirstCapabilitySha256: h.FirstCapabilitySha256, FirstAllocationSha256: h.FirstAllocationSha256, Compatible: h.Compatible}
+		// A long history scan must not hide expiry behind the earlier sample.
+		input.RecordedAt = recordedAt(ctx, input.RecordedAt)
+		p.result = transaction.Model(request, input)
+	}
 	return p, g.Check()
 }
 
 // leaseWrite carries immutable audit and model results to a bounded critical
 // section. Contention invalidates the entire preparation, including refusals
 // and replays. No fallback scans the store while holding the lock.
-func leaseWrite(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, beforeCommit func() error, facts claimObserver) (*Report, *journal.Result, error) {
-	report := &Report{}
+func leaseWrite(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, beforeCommit func() error, facts claimObserver) (report *Report, proof *journal.Result, err error) {
+	report = &Report{}
 	if repo == nil {
 		return report, nil, wire.Errorf(wire.CodeMalformed, "repository", "missing repository")
 	}
@@ -200,6 +293,25 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 	if _, err := authority.Qualify(repo.CommonDir); err != nil {
 		return report, nil, err
 	}
+	// Serializing cooperating preparations prevents each successful lease commit
+	// from discarding other lease writers' full inventory/audit work. This gate is
+	// not writer authority: noncooperating writers and settlement still require
+	// every existing guarded observation and locked rebind below.
+	preparation, err := authority.AcquirePreparation(ctx, repo, authority.LockOptions{})
+	if err != nil {
+		return report, nil, err
+	}
+	hooks := hooksForInventory(ctx)
+	var terminal *preparedLease
+	defer func() {
+		closeErr := hooks.closePreparation(preparation)
+		if terminal != nil {
+			terminal.recordCleanup("preparation gate close", closeErr)
+			proof, err = nil, terminal.fatalError()
+		} else if closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
+	}()
 	for round := 0; round < 16; round++ {
 		if err := ctx.Err(); err != nil {
 			return report, nil, err
@@ -216,6 +328,11 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 			return guardFailureAudit(report, request.RequestID, err)
 		}
 		p, err := prepareLease(ctx, repo, request, now, facts)
+		if p != nil && len(p.fatalCleanup) > 0 {
+			terminal = p
+			p.recordCleanup("change guard close", hooks.closeGuard(p.guard))
+			return report, nil, p.fatalError()
+		}
 		if err != nil {
 			if wire.CodeOf(err) == wire.CodeSnapshotMoved || os.IsNotExist(err) {
 				continue
@@ -223,7 +340,12 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 			return guardFailureAudit(report, request.RequestID, err)
 		}
 		err = commitLease(ctx, repo, request, p, report, beforeCommit)
-		closeErr := p.guard.Close() // thousands of descriptors, always unlocked
+		closeErr := hooks.closeGuard(p.guard) // thousands of descriptors, always unlocked
+		if len(p.fatalCleanup) > 0 {
+			terminal = p
+			p.recordCleanup("change guard close", closeErr)
+			return report, nil, p.fatalError()
+		}
 		if closeErr != nil {
 			return report, nil, errors.Join(err, closeErr)
 		}
@@ -247,6 +369,9 @@ func setLeaseReport(report *Report, result transaction.Result) {
 }
 
 func commitLease(ctx context.Context, repo *intent.Repository, request transaction.Request, p *preparedLease, report *Report, beforeCommit func() error) (err error) {
+	if len(p.fatalCleanup) > 0 {
+		return p.fatalError()
+	}
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})
 	if err != nil {
 		return err

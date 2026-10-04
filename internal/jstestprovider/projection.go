@@ -14,6 +14,9 @@ import (
 // ReceiptTestProjection carries lifecycle and identity uncertainty into every
 // qualified row, including retained/MCP readers that recompute projections.
 func ReceiptTestProjection(r Receipt, t TestOutcome) testvalidity.Projection {
+	if r.Profile == FreshnessProfile {
+		return freshTestProjection(r, t)
+	}
 	if isExternalProfile(r.Profile) {
 		if r.Cancelled {
 			t.State = StateInterrupted
@@ -60,6 +63,14 @@ func EncodeQualified(r Receipt) ([]byte, error) {
 }
 
 func qualifiedProfileShapeError(r Receipt) error {
+	for _, row := range r.Tests {
+		if len(row.ImportedFiles) != 0 {
+			return errors.New("freshness-imports-require-separate-codec")
+		}
+	}
+	if r.Freshness != nil || r.Profile == FreshnessProfile {
+		return errors.New("freshness-requires-separate-codec")
+	}
 	if r.Profile != "" && r.Profile != AttemptExternalProfile && hasAttemptDetails(r) {
 		return errors.New("external-profile-has-attempt-details")
 	}
@@ -236,6 +247,30 @@ func anchorString(a Anchor) string {
 // exist with zero test outcomes, and staleness is a fact about the whole
 // run's served build, not any one test.
 func ReceiptRunProjection(r Receipt) testvalidity.Projection {
+	if r.Profile == FreshnessProfile {
+		currency := testvalidity.FreshnessCurrent
+		if len(r.Tests) == 0 {
+			currency = FreshnessCurrency(r, TestOutcome{})
+		}
+		for _, t := range r.Tests {
+			observed := FreshnessCurrency(r, t)
+			if observed == testvalidity.FreshnessStale {
+				currency = observed
+			} else if observed != testvalidity.FreshnessCurrent && currency != testvalidity.FreshnessStale {
+				currency = testvalidity.FreshnessUnknown
+			}
+		}
+		facts := testvalidity.ExecutionFacts{Currency: currency}
+		if r.Cancelled {
+			facts.Outcome = "INCOMPLETE"
+			facts.Cause = "CANCELLATION"
+		} else if r.Infrastructure != nil {
+			facts.Outcome = "INCOMPLETE"
+			facts.Cause = "INFRASTRUCTURE"
+		}
+		return testvalidity.Project(testvalidity.Input{Execution: &facts})
+	}
+
 	var execution *testvalidity.ExecutionFacts
 	switch {
 	case r.Cancelled:

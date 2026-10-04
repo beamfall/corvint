@@ -1,0 +1,60 @@
+{
+  "baseRevision": "c9d6ece45014c573afe26978ebb081f4abc30791",
+  "evidence": [
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3118,
+        "start": 2775
+      },
+      "spanSha256": "46e69c5e97297b36c204ff585b335a484633ade4ec166dbc695fd46e7c6dc76c"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:dcf166e551aa07b4d768cf285e69f62224156458dd346c334225b0a14f37176a",
+      "newRange": {
+        "count": 15,
+        "start": 18
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 18
+      },
+      "path": "docs/build-log/2026-10-01-declared-floor-read-scopes.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3484fef032dca45d394791306ef3700736ab0d83a6ffd2a38e1e33fd69d1060d",
+      "newRange": {
+        "count": 13,
+        "start": 56
+      },
+      "oldRange": {
+        "count": 13,
+        "start": 52
+      },
+      "path": "docs/build-log/2026-10-01-declared-floor-read-scopes.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "60dff9b40bf874d539ed7a00404ce282db33ae04c987effee1f9999bdf5d27db",
+  "spec": "cem/0.2"
+}

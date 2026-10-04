@@ -22,6 +22,9 @@ const (
 	// WitnessUnboundedReader names a unit whose reads no literal bounds, so it
 	// is selected on any dirty path (AFP-V0-012 rule (d)).
 	WitnessUnboundedReader = "UNBOUNDED_READER"
+	// WitnessDeclaredReadScope names a unit whose declared read scope holds a
+	// dirty path (AFP-V0-023).
+	WitnessDeclaredReadScope = "DECLARED_READ_SCOPE"
 )
 
 // Exclusion reasons. Every eligible unit that is not selected carries one,
@@ -140,6 +143,7 @@ func Select(graph *Graph, dirty []string) Plan {
 	mergeWitnesses(reached, enclosing)
 	graph.readers(reached, normalized)
 	graph.unboundedReadersOf(reached, normalized)
+	graph.scopedReadersOf(reached, normalized)
 	plan.Unknown = append(graph.frontierUnknowns(reached, normalized), unknown...)
 	plan.Unknown = append(plan.Unknown, graph.tokenBounds(reached, normalized)...)
 	for _, id := range graph.order {

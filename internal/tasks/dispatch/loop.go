@@ -11,12 +11,14 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/groupreap"
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 )
 
@@ -29,12 +31,18 @@ type Dispatcher struct {
 	Out     io.Writer
 	Now     func() time.Time
 
-	dir    string
-	nonce  string
-	ledger *Ledger
-	exits  map[string]<-chan int
-	codes  map[string]int
-	lock   *os.File
+	dir       string
+	nonce     string
+	ledger    *Ledger
+	exits     map[string]<-chan int
+	codes     map[string]int
+	lock      *os.File
+	reader    *readerSlot
+	readerErr error
+	// Tests inject faults through the real creation-owned API.
+	readerStart func(*exec.Cmd) (*groupreap.Owner, error)
+	// Tests place cancellation exactly across the checked atomic write.
+	progressSave func(*Ledger, string) error
 }
 
 // Open locks the program's state directory, loads the ledger and adopts
@@ -48,7 +56,7 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 		return nil, fmt.Errorf("program name must match [a-z][a-z0-9-]{0,23}")
 	}
 	dir := ProgramDir(c, program)
-	if err := os.MkdirAll(filepath.Join(dir, "requests"), 0o700); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
 	lock, err := os.OpenFile(filepath.Join(dir, "lock"), os.O_RDWR|os.O_CREATE, 0o600)
@@ -58,6 +66,15 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 	if err := lockExclusive(lock); err != nil {
 		lock.Close()
 		return nil, fmt.Errorf("another dispatcher holds %s: %w", dir, err)
+	}
+	// A prior unresolved reader refuses before owner/ledger/event writes or adoption.
+	if err := checkReaderQuarantine(dir, program); err != nil {
+		lock.Close()
+		return nil, err
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "requests"), 0o700); err != nil {
+		lock.Close()
+		return nil, err
 	}
 	if err := writeOwner(lock); err != nil {
 		lock.Close()
@@ -91,6 +108,15 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 // Close records the stop and releases the lock. Workers keep running and
 // are adopted by the next dispatcher.
 func (d *Dispatcher) Close() error {
+	if d.readerErr != nil {
+		// Terminal UNKNOWN permits releasing the lock, not recovery. The
+		// pre-spawn marker survives even when this diagnostic cannot be written.
+		if d.Out != nil {
+			_, _ = fmt.Fprintln(d.Out, d.readerErr)
+		}
+		_ = d.lock.Close()
+		return d.readerErr
+	}
 	d.emit(Event{Kind: "stopped", Message: fmt.Sprintf("dispatcher stopped; %d worker(s) left running for the next dispatcher", len(d.ledger.Workers))})
 	err := d.ledger.save(d.dir)
 	_ = d.lock.Truncate(0)
@@ -151,10 +177,23 @@ func (d *Dispatcher) LastEvent() uint64 { return d.ledger.EventSeq }
 // Run ticks until ctx ends or ticks reach the bound (0 is unbounded). A
 // failed tick is an alert, not an exit, so the dispatcher keeps supervising.
 func (d *Dispatcher) Run(ctx context.Context, ticks int) error {
+	if d.readerErr != nil {
+		return d.readerErr
+	}
 	var last error
 	for n := 0; ticks == 0 || n < ticks; n++ {
-		if last = d.Tick(ctx); last != nil && ctx.Err() == nil {
+		if ctx.Err() != nil {
+			return nil
+		}
+		last = d.Tick(ctx)
+		if d.readerErr != nil {
+			return d.readerErr
+		}
+		if last != nil && ctx.Err() == nil {
 			d.emit(Event{Kind: "alert", Message: "tick failed: " + last.Error()})
+		}
+		if ctx.Err() != nil {
+			return nil
 		}
 		if ticks != 0 && n+1 == ticks {
 			break
@@ -173,9 +212,30 @@ func (d *Dispatcher) Run(ctx context.Context, ticks int) error {
 // wall and orphan enforcement runs even when the store is unreadable; ended
 // workers then stay recorded and are accounted on the next readable tick.
 func (d *Dispatcher) Tick(ctx context.Context) error {
-	defer d.ledger.save(d.dir)
+	if d.readerErr != nil {
+		return d.readerErr
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	// Admission publishes a new ledger only after its checked write. Resolve
+	// this receiver at return so an old pointer cannot overwrite that commit.
+	defer func() {
+		if d.readerErr == nil {
+			_ = d.ledger.save(d.dir)
+		}
+	}()
 	obs, err := d.observe(ctx)
+	if d.readerErr != nil {
+		return d.readerErr
+	}
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
 	ended := d.supervise()
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
 	if err != nil {
 		return err
 	}
@@ -191,8 +251,24 @@ func (d *Dispatcher) Tick(ctx context.Context) error {
 			return err
 		}
 	}
-	d.finish(obs, ended)
+	granted, pending, unparked, err := d.admitProgress(ctx, obs, ended)
+	if err != nil {
+		return err
+	}
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	for _, key := range unparked {
+		d.emit(Event{Kind: "unparked", Ticket: key, Message: fmt.Sprintf("unparked %s because declared progress changed", d.keyText(key))})
+	}
+	d.finish(obs, ended, granted, pending)
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
 	d.unpark(obs)
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
 	d.diff(obs)
 	if ctx.Err() == nil {
 		d.launchRoster(obs)
@@ -202,13 +278,179 @@ func (d *Dispatcher) Tick(ctx context.Context) error {
 
 func (d *Dispatcher) observe(ctx context.Context) (*Observation, error) {
 	obs, err := d.Queue.Observe(ctx)
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	if err != nil {
 		return nil, err
 	}
-	for _, a := range ReadStates(ctx, d.Config, obs.Tickets) {
+	alerts := readStates(ctx, d.Config, obs.Tickets, d.stateCommand)
+	if d.readerErr != nil {
+		return nil, d.readerErr
+	}
+	// An interrupted read is not an observation. In particular, its
+	// synthetic UNKNOWN states must not replace the last good baseline.
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	for _, a := range alerts {
 		d.emit(Event{Kind: "alert", Message: a})
 	}
 	return obs, nil
+}
+
+// admitProgress commits replay protection and consumption together. Other
+// supervision facts are copied from the current ledger, never an old snapshot.
+func (d *Dispatcher) admitProgress(ctx context.Context, obs *Observation, ended []*Worker) (map[string]bool, map[string]bool, []string, error) {
+	granted, pending := map[string]bool{}, map[string]bool{}
+	var unparked []string
+	if err := ctx.Err(); err != nil {
+		return nil, nil, nil, err
+	}
+	enabled := len(d.ledger.Progress) != 0
+	for _, t := range obs.Tickets {
+		enabled = enabled || t.ProgressToken != ""
+	}
+	if !enabled {
+		return granted, pending, nil, nil
+	}
+	raw, err := json.Marshal(d.ledger)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	var staged Ledger
+	if err := json.Unmarshal(raw, &staged); err != nil {
+		return nil, nil, nil, err
+	}
+	if staged.Progress == nil {
+		staged.Progress = map[string]*ProgressHistory{}
+	}
+	count := 0
+	for _, h := range staged.Progress {
+		count += len(h.Seen)
+	}
+	indices := make([]int, len(obs.Tickets))
+	for i := range indices {
+		indices[i] = i
+	}
+	sort.Slice(indices, func(i, j int) bool { return obs.Tickets[indices[i]].ID < obs.Tickets[indices[j]].ID })
+	changed, exhausted := false, false
+	for _, i := range indices {
+		t := obs.Tickets[i]
+		if t.State == StateUnknown || t.ProgressToken == "" {
+			continue
+		}
+		sum := sha256.Sum256([]byte(t.ProgressToken))
+		digest := hex.EncodeToString(sum[:])
+		h := staged.Progress[t.ID]
+		if h != nil {
+			at := sort.SearchStrings(h.Seen, digest)
+			if at < len(h.Seen) && h.Seen[at] == digest {
+				continue
+			}
+			if len(h.Seen) == maxProgressPerKey {
+				exhausted = true
+				continue
+			}
+		}
+		if count == maxProgressProgram {
+			exhausted = true
+			continue
+		}
+		if h == nil {
+			h = &ProgressHistory{Current: digest, Seen: []string{digest}}
+			staged.Progress[t.ID] = h
+			// Existing accounting receives the first token as its baseline,
+			// while retaining its original durable fingerprint.
+			for _, w := range staged.Workers {
+				if w.Key == t.ID {
+					w.BaseFingerprint, w.ProgressDigest = w.Fingerprint, digest
+					w.Fingerprint = progressFingerprint(w.BaseFingerprint, digest)
+				}
+			}
+			if b := staged.Backoff[t.ID]; b != nil {
+				b.BaseFingerprint, b.ProgressDigest = b.Fingerprint, digest
+				b.Fingerprint = progressFingerprint(b.BaseFingerprint, digest)
+			}
+		} else {
+			h.Current = digest
+			h.Seen = append(h.Seen, digest)
+			sort.Strings(h.Seen)
+		}
+		count++
+		changed = true
+	}
+	endedIDs := map[string]bool{}
+	for _, w := range ended {
+		endedIDs[w.ID] = true
+	}
+	for _, w := range staged.Workers {
+		h := staged.Progress[w.Key]
+		if !endedIDs[w.ID] || h == nil || h.Current == w.ProgressDigest {
+			continue
+		}
+		if stateUnknown(obs, w.Key) {
+			pending[w.ID] = true
+			continue
+		}
+		granted[w.ID] = true
+		delete(staged.Backoff, w.Key)
+		changed = true
+	}
+	if len(granted) != 0 {
+		workers := staged.Workers[:0]
+		for _, w := range staged.Workers {
+			if !granted[w.ID] {
+				workers = append(workers, w)
+			}
+		}
+		staged.Workers = workers
+	}
+	keys := make([]string, 0, len(staged.Backoff))
+	for key := range staged.Backoff {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		b, h := staged.Backoff[key], staged.Progress[key]
+		if b.Parked && h != nil && h.Current != b.ProgressDigest && !stateUnknown(obs, key) {
+			delete(staged.Backoff, key)
+			unparked = append(unparked, key)
+			changed = true
+		}
+	}
+	if changed {
+		if err := staged.validateProgress(); err != nil {
+			return nil, nil, nil, err
+		}
+		if err := ctx.Err(); err != nil {
+			return nil, nil, nil, err
+		}
+		var saveErr error
+		if d.progressSave == nil {
+			saveErr = staged.save(d.dir)
+		} else {
+			saveErr = d.progressSave(&staged, d.dir)
+		}
+		if saveErr != nil {
+			return nil, nil, nil, fmt.Errorf("declared progress admission failed: %w", saveErr)
+		}
+		d.ledger = &staged
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, nil, nil, err
+	}
+	// Only committed digests reach the observation/fingerprint. A missing or
+	// repeated old token keeps the accepted current digest.
+	for i := range obs.Tickets {
+		if h := d.ledger.Progress[obs.Tickets[i].ID]; h != nil {
+			obs.Tickets[i].ProgressDigest = h.Current
+		}
+	}
+	if exhausted {
+		d.emit(Event{Kind: "needs-owner", Message: "declared progress lifetime capacity exhausted; new tokens are ignored without resetting history"})
+	}
+	return granted, pending, unparked, nil
 }
 
 // supervise refreshes every worker's tree and activity, kills idle,
@@ -309,6 +551,9 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 	if d.Config.Heal.Handoff {
 		for _, w := range ended {
 			for _, a := range obs.Attempts {
+				if ctx.Err() != nil {
+					return wrote
+				}
 				if !a.Live || a.Holder != w.ID {
 					continue
 				}
@@ -332,6 +577,9 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 	if d.Config.Heal.Reap {
 		now := d.Now()
 		for _, a := range obs.Attempts {
+			if ctx.Err() != nil {
+				return wrote
+			}
 			if !a.Live || done[a.ID] || a.LeaseExpires.IsZero() || a.LeaseExpires.After(now) || d.worker(a.Holder) != nil {
 				continue
 			}
@@ -357,9 +605,16 @@ func requestID(parts ...string) string {
 
 // finish accounts for ended workers: progress resets backoff; no progress
 // starts a cooldown and, at parkAfter, parks the key for the owner.
-func (d *Dispatcher) finish(obs *Observation, ended []*Worker) {
+func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending map[string]bool) {
 	now := d.Now()
 	for _, w := range ended {
+		if pending[w.ID] {
+			d.emit(Event{Kind: "alert", Ticket: w.Ticket, Worker: w.ID, Message: "declared progress accounting deferred until a known work state"})
+			continue
+		}
+		if current := d.worker(w.ID); current != nil {
+			w = current // first-token seeding published a cloned baseline
+		}
 		if exit := d.exits[w.ID]; exit != nil {
 			// The tree can empty a moment before Wait reports the exit.
 			select {
@@ -378,7 +633,7 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker) {
 		if unknown {
 			fp = w.Fingerprint
 		}
-		progress := fp != w.Fingerprint
+		progress := granted[w.ID] || fp != w.Fingerprint
 		summary := Summary(d.workerDir(w.ID))
 		msg := fmt.Sprintf("%s worker %s finished on %s (exit %s, %s)", w.Role, w.ID, d.keyText(w.Key), code, map[bool]string{true: "progress recorded", false: "no progress"}[progress])
 		if summary != "" {
@@ -397,6 +652,10 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker) {
 		}
 		b.NoProgress++
 		b.Fingerprint = fp
+		b.BaseFingerprint, b.ProgressDigest = w.BaseFingerprint, w.ProgressDigest
+		if b.ProgressDigest != "" && !unknown {
+			b.BaseFingerprint = baseFingerprint(obs, w.Key)
+		}
 		if b.NoProgress >= d.Config.Backoff.ParkAfter {
 			b.Parked = true
 			d.emit(Event{Kind: "parked", Ticket: w.Ticket, Message: fmt.Sprintf("parked %s after %d run(s) without progress", d.keyText(w.Key), b.NoProgress)})
@@ -509,6 +768,9 @@ func (d *Dispatcher) launchRoster(obs *Observation) {
 			b := d.ledger.Backoff[a.Key]
 			if b == nil {
 				b = &BackoffState{Fingerprint: Fingerprint(obs, a.Key)}
+				if h := d.ledger.Progress[a.Key]; h != nil {
+					b.BaseFingerprint, b.ProgressDigest = baseFingerprint(obs, a.Key), h.Current
+				}
 				d.ledger.Backoff[a.Key] = b
 			}
 			b.CooldownUntil = now.Add(time.Duration(d.Config.TickSeconds) * time.Second * 10)
@@ -516,6 +778,9 @@ func (d *Dispatcher) launchRoster(obs *Observation) {
 			continue
 		}
 		w := &Worker{ID: id, Role: a.Role, Host: role.Host, Slot: a.Slot, Key: a.Key, Ticket: a.Ticket, Pool: a.Pool, Member: a.Member, PID: pid, LeaderIdentity: identity, Members: []Proc{{PID: pid, Identity: identity}}, Started: now, LastActive: now, State: "RUNNING", Fingerprint: Fingerprint(obs, a.Key)}
+		if h := d.ledger.Progress[a.Key]; h != nil {
+			w.BaseFingerprint, w.ProgressDigest = baseFingerprint(obs, a.Key), h.Current
+		}
 		for _, p := range host.ActivityPaths {
 			w.ActivityPaths = append(w.ActivityPaths, Render(p, values))
 		}

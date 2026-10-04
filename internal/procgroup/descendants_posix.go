@@ -29,6 +29,10 @@ func descendantSnapshot(ctx context.Context) (map[int]ObservedProcess, error) {
 	if overflow {
 		return nil, errors.New("descendant snapshot exceeds bound")
 	}
+	return parseDescendantSnapshot(data)
+}
+
+func parseDescendantSnapshot(data []byte) (map[int]ObservedProcess, error) {
 	rows := map[int]ObservedProcess{}
 	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
 		fields := strings.Fields(line)
@@ -39,6 +43,9 @@ func descendantSnapshot(ctx context.Context) (map[int]ObservedProcess, error) {
 		parent, e2 := strconv.Atoi(fields[1])
 		if e1 != nil || e2 != nil || pid <= 0 {
 			return nil, errors.New("invalid descendant snapshot identity")
+		}
+		if _, exists := rows[pid]; exists {
+			return nil, errors.New("duplicate descendant snapshot identity")
 		}
 		rows[pid] = ObservedProcess{PID: pid, ParentPID: parent, Start: strings.Join(fields[2:7], " "), State: fields[7]}
 	}

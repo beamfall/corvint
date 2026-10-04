@@ -138,6 +138,7 @@ func (language Language) Units(root string) (affected.Result, error) {
 	}
 	directories, owners := groupByDirectory(files, modules)
 	units := make([]affected.Unit, 0, len(directories))
+	unitDirectories := make([]string, 0, len(directories))
 	imports := make(map[string]map[string]bool, len(directories))
 	testImports := make(map[string]map[string]bool, len(directories))
 	for _, directory := range sortedKeys(directories) {
@@ -149,10 +150,12 @@ func (language Language) Units(root string) (affected.Result, error) {
 			continue
 		}
 		units = append(units, unit)
+		unitDirectories = append(unitDirectories, directory)
 		imports[unit.ID] = importPaths
 		testImports[unit.ID] = testImportPaths
 	}
 	resolve(units, imports, testImports, modulePaths(modules))
+	applyReadScopes(root, units, unitDirectories, frontier)
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
 }
 

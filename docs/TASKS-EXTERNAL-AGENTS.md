@@ -138,6 +138,25 @@ corvint-tasks queue status
 corvint-tasks plan preview --pool test-env --stage implement
 ```
 
+To avoid a known member for a particular claim or preview, repeat the single-value
+`--exclude-member` flag:
+
+```sh
+corvint-tasks claim --next --pool test-env --stage review --exclude-member env-0 --holder reviewer --request-id review-other
+corvint-tasks plan preview --pool test-env --stage review --exclude-member env-0
+```
+
+An exclusion set requires an explicit pool. Reordered duplicates normalize to one
+set; missing/empty values, invalid labels and foreign members refuse. At most 256
+unique members may be excluded. Excluded reserved and unreserved members provide
+no claim or preview capacity and run no health command. Excluding all eligible
+capacity produces `RESOURCE_COLLISION` for a claim. These are explicit caller-selected
+member labels; they do not discover ticket history, authenticate reviewer independence
+or prove separate physical environments. Ordinary resource scope, `requiresPool`
+and quarantine remain binding. An identical request replays its original allocation
+after release, a successor or a permitted policy change; a changed valid exclusion
+set conflicts under the same request ID.
+
 Retain the returned `poolAllocation` alongside attempt ID and generation. Replays return the original
 receipt-bound allocation, including after a retry has acquired a successor. Release, completion and
 reap free the source scope but quarantine the environment. Reads never probe or clean environments.
@@ -206,6 +225,62 @@ supervised attempts cannot receive this exemption. A `policy update` changes the
 in-flight handoffs refuse STALE_POLICY; do not update policy expecting it to repair those attempts.
 There is no automatic refund or stale-policy bypass.
 
+The reviewed experimental issue 482 writer adds a narrow clean-release exception: only
+policyVersion and reservedFor entries for other members in the exact allocated pool may differ.
+No-pool attempts permit version changes only. It must fully audit every intervening policy
+afterimage against the original claim policy; a relevant change stays stale after restoration.
+Original policy/config/capability hashes, acceptance, allocation, lease and clean-work conditions
+remain bound. Missing or unproved history refuses STALE_POLICY; malformed history fails closed.
+This exception does not permit old-generation completion, live stale-holder reap, retry refunds
+or physical pool reuse. Issue 482 was integrated at public commit `094700bfbc7b637bd2d6405cd82ab5508ac4aa20`
+and natively completed at receipt 2173. Qualification remains scoped to disposable fixtures;
+actor authentication, runtime qualification, history and liveness remain NOT_OBSERVED.
+
+### Explicit operator-attested untouched pool release
+
+```sh
+corvint-tasks release --attempt ID --generation G --request-id ID \
+  --lane-untouched --evidence LOCAL_REF
+```
+
+This optional CAL-V0-067 profile records an OWNER/OPERATOR statement with four fixed
+acknowledgements: no physical lane access occurred, no lane command was issued, no physical
+capability/resource was issued or remains retained, and the operator accepts responsibility
+for the statement and safe reuse. Logical source reservations are separate. The required
+reference is an inert Identifier (1..128 UTF-8 bytes); it is never fetched or executed.
+Recorded identity is not authentication. Physical non-use and revocation remain NOT_OBSERVED;
+private Dispatcher records are not scanned. Known or uncertain external use prevents an honest
+attestation.
+
+Only a fresh direct no-health pooled claim with a prospective origin witness can qualify.
+The current unexpired external-agent RUNNING generation must retain its exact original
+allocation, holder, stage and admission sequences, unchanged acceptance and exact current
+policy/config. Legacy, prepared/health, renewed, retry-inherited or used generations refuse.
+Candidate, gate, review, manifest, failed/unknown retry accounting, pending effects, runner,
+worker or supervision identity also refuses. Inventory-bound native Program association,
+including ADMITTED before ATTACH with zero leader PID, refuses regardless of phase.
+The ordinary compatible-policy handoff exception above never authorizes this profile.
+
+An eligible release atomically records the original allocation and closed attestation,
+cancels and logically fences the generation, releases reservations and removes only its
+exact occupancy without configured cleanup. It does not claim PROVED physical quiescence.
+The response on both fresh execution and replay comes from the original release receipt,
+even after a successor or policy change. Missing or damaged original payload refuses;
+changed request fields under the same request ID conflict.
+
+Optional HANDOFF or REVIEW_RETURNED reasons must independently satisfy their existing
+accounting and stage rules; the flag grants no retry refund or completion authority.
+Without the flag, release/handoff, expiry, reap and completion retain quarantine and
+configured cleanup/safe-confirm requirements. Stop future opt-in use for rollback, retain
+compatible readers and metadata, and preserve exact replay. Old readers may refuse new
+metadata: never strip it, silently downgrade, or overwrite a successor.
+
+Scoped source review and native/archive/crash fixtures passed. The native fixture uses
+synthetic cutover input as parser/admission test setup, not CAL019 or deployment qualification.
+Publication-artifact faults cover receipt, attempt, pool, request, reservation and head;
+stage-file/descriptor internals are NOT_INJECTED. Final issue integration and native completion
+remain separate from these local proofs.
+
 | Refusal | Meaning |
 |---|---|
 | FENCED | Generation differs or the lease expired. |
@@ -213,7 +288,7 @@ There is no automatic refund or stale-policy bypass.
 | STALE_POLICY | Policy/config binding differs from the claim. |
 | TICKET_STATE | Runtime or stage is ineligible; REVIEW_RETURNED requires review. |
 | MISSING_EVIDENCE | Prospective accounting or the selected tree/no-tree conditions are missing. |
-| MALFORMED | Evidence or request shape is invalid, including evidence on ordinary cancellation. |
+| MALFORMED | Evidence or request shape is invalid, including evidence on ordinary cancellation without the explicit untouched profile. |
 | REQUEST_ID_CONFLICT | The same request ID was reused with different content. |
 
 Before handing off, retire the processes you own and retain any separately observed cleanup

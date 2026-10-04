@@ -76,6 +76,9 @@ const ProfileRetryAccounting = "taskman-retry-accounting/0"
 
 // Attempt is a validated taskman-attempt/0.
 type Attempt struct {
+	DirectPoolAdmission      *DirectPoolAdmission
+	LaneUntouchedAttestation *LaneUntouchedAttestation
+
 	LastHeartbeatAt         *wire.Timestamp
 	RetryReasons            map[string]wire.Count
 	RetryAccounting         *RetryAccounting
@@ -227,7 +230,7 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
-	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation", "supervision", "retryAccounting", "handoffEvidence", "lastHeartbeatAt", "retryReasons")...)
+	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation", "supervision", "retryAccounting", "handoffEvidence", "lastHeartbeatAt", "retryReasons", "directPoolAdmission", "laneUntouchedAttestation")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -235,6 +238,12 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 		return nil, err
 	}
 	a := &Attempt{}
+	if wire.Has(v, "directPoolAdmission") {
+		a.DirectPoolAdmission = readDirectPoolAdmission(r.Field("directPoolAdmission"))
+	}
+	if wire.Has(v, "laneUntouchedAttestation") {
+		a.LaneUntouchedAttestation = readLaneUntouched(r.Field("laneUntouchedAttestation"))
+	}
 	if wire.Has(v, "lastHeartbeatAt") {
 		x := r.Field("lastHeartbeatAt").Timestamp()
 		a.LastHeartbeatAt = &x
@@ -323,6 +332,9 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 // A9 lease and A12 scope exactly for external-agent, and the attempt
 // identity naming the ticket's queue.
 func (a *Attempt) check() error {
+	if err := a.checkLaneUntouched(); err != nil {
+		return err
+	}
 	q, err := AttemptQueue(a.AttemptID)
 	if err != nil {
 		return err
@@ -421,8 +433,17 @@ func priorValue(ps []PriorGeneration) wire.Value {
 
 // Encode renders the attempt and proves it decodes.
 func (a *Attempt) Encode() ([]byte, error) {
+	if err := a.checkLaneUntouched(); err != nil {
+		return nil, err
+	}
 	o := wire.NewObject()
 	o.Set("profile", wire.String(ProfileAttempt))
+	if a.DirectPoolAdmission != nil {
+		o.Set("directPoolAdmission", DirectPoolAdmissionValue(a.DirectPoolAdmission))
+	}
+	if a.LaneUntouchedAttestation != nil {
+		o.Set("laneUntouchedAttestation", LaneUntouchedAttestationValue(a.LaneUntouchedAttestation))
+	}
 	if a.LastHeartbeatAt != nil {
 		o.Set("lastHeartbeatAt", wire.String(string(*a.LastHeartbeatAt)))
 	}

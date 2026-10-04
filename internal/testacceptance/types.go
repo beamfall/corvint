@@ -11,6 +11,8 @@ import (
 
 const Schema = "corvint-new-e2e-assessment/0"
 const RequestSchema = "corvint-new-e2e-request/0"
+const FreshRequestSchema = "corvint-new-e2e-request/1"
+const FreshSchema = "corvint-new-e2e-assessment/1"
 const InputLimit = 4 << 20
 const ReportLimit = 16 << 20
 
@@ -39,22 +41,29 @@ type Test struct {
 	Tool           *behaviorfalsify.ToolIdentity `json:"tool,omitempty"`
 }
 type Request struct {
-	Schema         string     `json:"schema"`
-	Product        Repository `json:"product"`
-	TestRepository Repository `json:"test_repository"`
-	Inputs         []File     `json:"inputs"`
-	Tests          []Test     `json:"tests"`
-	Config         string     `json:"config"`
-	Package        string     `json:"package"`
-	Lockfile       string     `json:"lockfile"`
-	Runner         Command    `json:"runner"`
-	Server         Command    `json:"server"`
-	ReadyURL       string     `json:"ready_url"`
-	AppBuildDir    string     `json:"app_build_dir"`
-	RunnerVersion  string     `json:"runner_version"`
-	Environment    string     `json:"environment"`
-	Repeat         int        `json:"repeat"`
-	TimeoutSeconds int        `json:"timeout_seconds"`
+	Freshness      *FreshnessOptions `json:"freshness,omitempty"`
+	Schema         string            `json:"schema"`
+	Product        Repository        `json:"product"`
+	TestRepository Repository        `json:"test_repository"`
+	Inputs         []File            `json:"inputs"`
+	Tests          []Test            `json:"tests"`
+	Config         string            `json:"config"`
+	Package        string            `json:"package"`
+	Lockfile       string            `json:"lockfile"`
+	Runner         Command           `json:"runner"`
+	Server         Command           `json:"server"`
+	ReadyURL       string            `json:"ready_url"`
+	AppBuildDir    string            `json:"app_build_dir"`
+	RunnerVersion  string            `json:"runner_version"`
+	Environment    string            `json:"environment"`
+	Repeat         int               `json:"repeat"`
+	TimeoutSeconds int               `json:"timeout_seconds"`
+}
+
+type FreshnessOptions struct {
+	Provider                 jstestprovider.FreshnessConfig `json:"provider"`
+	Attestation              Command                        `json:"attestation"`
+	AttestationConfiguration File                           `json:"attestation_configuration"`
 }
 type Row struct {
 	ID              string                        `json:"id"`
@@ -75,6 +84,7 @@ type Cleanup struct {
 	TimedOut      bool                             `json:"timed_out"`
 }
 type Run struct {
+	NativeReceipt    []byte                            `json:"native_receipt,omitempty"`
 	Kind             string                            `json:"kind"`
 	Ordinal          int                               `json:"ordinal"`
 	TestID           string                            `json:"test_id,omitempty"`
@@ -87,12 +97,13 @@ type Run struct {
 	NodeVersion      string                            `json:"node_version,omitempty"`
 }
 type Control struct {
-	ID            string   `json:"id"`
-	PlanDigest    string   `json:"plan_digest,omitempty"`
-	ReceiptDigest string   `json:"receipt_digest,omitempty"`
-	Status        string   `json:"status"`
-	Unsupported   []string `json:"unsupported"`
-	Cleanup       Cleanup  `json:"cleanup"`
+	Evidence      *behaviorfalsify.EvidenceReceipt `json:"evidence,omitempty"`
+	ID            string                           `json:"id"`
+	PlanDigest    string                           `json:"plan_digest,omitempty"`
+	ReceiptDigest string                           `json:"receipt_digest,omitempty"`
+	Status        string                           `json:"status"`
+	Unsupported   []string                         `json:"unsupported"`
+	Cleanup       Cleanup                          `json:"cleanup"`
 }
 type Assessment struct {
 	ID       string                  `json:"id"`

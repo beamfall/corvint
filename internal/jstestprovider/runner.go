@@ -206,6 +206,7 @@ func errString(err error) string {
 // acceptance line requiring proven descendant cleanup.
 type E2EConfig struct {
 	Config
+	Freshness              *FreshnessConfig
 	ObserveDescendants     bool
 	ExternalServer         bool
 	AppIdentity            string
@@ -226,6 +227,9 @@ type E2EConfig struct {
 // and again after the test command completes; a mismatch is reported as
 // StaleAppBuild rather than silently trusted.
 func RunE2E(ctx context.Context, cfg E2EConfig) (Receipt, error) {
+	if cfg.Freshness != nil {
+		return RunFreshE2E(ctx, cfg)
+	}
 	if cfg.RetainAttemptDetails && (!cfg.ExternalServer || cfg.ApplicationAttestation != nil || cfg.SensitiveInputPolicy != nil) {
 		return Receipt{}, errors.New("external-attempt-details-composition-unsupported")
 	}

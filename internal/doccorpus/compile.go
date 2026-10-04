@@ -82,6 +82,10 @@ func Inventory(ctx context.Context, root, revision, scope, timestamp string) (Ma
 
 // Build compiles only original immutable inputs. No output is written to disk.
 func Build(ctx context.Context, root string, m Manifest) (*Artifact, error) {
+	return build(ctx, root, m, nil)
+}
+
+func build(ctx context.Context, root string, m Manifest, reuse *incrementalBuild) (*Artifact, error) {
 	ctx = gitstatus.WithIsolation(ctx)
 	if _, err := Encode(m); err != nil {
 		return nil, err
@@ -121,7 +125,7 @@ func Build(ctx context.Context, root string, m Manifest) (*Artifact, error) {
 			}
 			continue
 		}
-		if err := c.importRecords(p); err != nil {
+		if err := c.importRecordsIncremental(p, reuse); err != nil {
 			return nil, err
 		}
 	}

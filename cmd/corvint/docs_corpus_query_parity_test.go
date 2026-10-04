@@ -81,6 +81,53 @@ func typedCorpusCLIFixture(t *testing.T) (string, doccorpus.Manifest) {
 }
 
 func TestCorpusTypedCLIMCPEndToEnd(t *testing.T) {
+	t.Run("DCP-V1-038 symbol selectors preserve exact claims", func(t *testing.T) {
+		root, _ := typedCorpusCLIFixture(t)
+		registry, err := corpusbridge.New(root, "corpus.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, selector := range []string{"Checkout", "UndocumentedSymbol"} {
+			code, out, stderr := corpusCLI(t, root, "docs", "corpus", "claims", "--artifact", "corpus.json", "--path", selector)
+			if code != 0 {
+				t.Fatal(code, stderr)
+			}
+			var receipt, other doccorpus.Receipt
+			if err := json.Unmarshal([]byte(out), &receipt); err != nil {
+				t.Fatal(err)
+			}
+			args, _ := json.Marshal(map[string]string{"path": selector})
+			_, text, failure, protocol := registry.Call(context.Background(), "corvint.docs_claims", args)
+			if failure != nil || protocol != nil {
+				t.Fatal(failure, protocol)
+			}
+			if err := json.Unmarshal([]byte(text), &other); err != nil || !reflect.DeepEqual(receipt, other) {
+				t.Fatal("symbol CLI/MCP complete receipt mismatch", err)
+			}
+			if selector == "UndocumentedSymbol" {
+				if len(receipt.Results) != 0 || receipt.Meaning != "not documented" || receipt.Miss != "no-match" {
+					t.Fatal("undocumented symbol lost typed miss", receipt)
+				}
+				continue
+			}
+			found := false
+			for _, result := range receipt.Results {
+				data, _ := json.Marshal(result)
+				var claim doccorpus.Claim
+				if err := json.Unmarshal(data, &claim); err != nil {
+					t.Fatal(err)
+				}
+				found = found || claim.ID == "proof:claim"
+			}
+			anchored := false
+			for _, citation := range receipt.Citations {
+				anchored = anchored || citation.Symbol == "Checkout" && citation.Path == "proof.go"
+			}
+			if !found || !anchored {
+				t.Fatal("symbol selector lost exact claim or anchor", receipt)
+			}
+		}
+	})
 	t.Run("DCP-V1-038 DCP-V1-039 real typed claims parity", func(t *testing.T) {
 		root, m := typedCorpusCLIFixture(t)
 		code, out, stderr := corpusCLI(t, root, "docs", "corpus", "claims", "--artifact", "corpus.json", "--path", "proof.go")

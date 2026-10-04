@@ -92,3 +92,65 @@ type Report struct {
 	WorkflowQualification   string     `json:"workflow_qualification"`
 	Limits                  []string   `json:"limits"`
 }
+
+// NativeProfile is the experimental intake/refusal route, not whole-workflow qualification.
+const NativeProfile = "postmerge-replay/1"
+const NativeManifestProfile = "postmerge-runtime-manifest/1"
+
+type NativePolicy struct {
+	Profile        string           `json:"profile"`
+	Connector      connector.Policy `json:"connector"`
+	Manifest       string           `json:"manifest"`
+	ManifestSHA256 string           `json:"manifest_sha256"`
+}
+type Implementation struct {
+	SourceCommit     string `json:"source_commit"`
+	SourceTree       string `json:"source_tree"`
+	ExecutableSHA256 string `json:"executable_sha256"`
+}
+type NativeManifest struct {
+	Profile        string         `json:"profile"`
+	Mode           string         `json:"mode"`
+	Implementation Implementation `json:"implementation"`
+	Product        struct {
+		Base  string `json:"base"`
+		Merge string `json:"merge"`
+		Tree  string `json:"tree"`
+	} `json:"product"`
+	FixtureSHA256   string `json:"fixture_sha256"`
+	ReaderCandidate struct {
+		Path   string `json:"path"`
+		SHA256 string `json:"sha256"`
+	} `json:"reader_candidate"`
+	RetainedOutputRoot string `json:"retained_output_root"`
+}
+
+// ArtifactRef describes exact private bytes; it does not attest native execution.
+type ArtifactRef struct {
+	Path   string `json:"path"`
+	SHA256 string `json:"sha256"`
+	Bytes  int64  `json:"bytes"`
+}
+type NativeStage struct {
+	Name          string        `json:"name"`
+	Disposition   string        `json:"disposition"`
+	NativeProfile string        `json:"native_profile"`
+	Inputs        []ArtifactRef `json:"inputs"`
+	Output        *ArtifactRef  `json:"output"`
+	Reasons       []string      `json:"reasons"`
+}
+type NativeReport struct {
+	Profile                 string            `json:"profile"`
+	Binding                 connector.Binding `json:"binding"`
+	FixtureSHA256           string            `json:"fixture_sha256"`
+	PolicySHA256            string            `json:"policy_sha256"`
+	ManifestSHA256          string            `json:"manifest_sha256"`
+	Implementation          Implementation    `json:"implementation"`
+	Status                  string            `json:"status"`
+	Reasons                 []string          `json:"reasons"`
+	Stages                  []NativeStage     `json:"stages"`
+	ComparisonStatus        string            `json:"comparison_status"`
+	GeneratedMismatches     []Mismatch        `json:"generated_mismatches"`
+	HumanVerifiedMismatches []Mismatch        `json:"human_verified_mismatches"`
+	WorkflowQualification   string            `json:"workflow_qualification"`
+}

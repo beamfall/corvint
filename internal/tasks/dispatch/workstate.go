@@ -10,10 +10,11 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 )
 
 const (
@@ -27,8 +28,15 @@ const (
 // ticket's State with a value, NONE, or UNKNOWN, and returns one alert per
 // failed read. A missing reader leaves every state NONE.
 func ReadStates(ctx context.Context, c *Config, tickets []Ticket) []string {
+	return readStates(ctx, c, tickets, func(ctx context.Context, _ string, argv []string) (map[string]commandState, error) {
+		return standaloneStateCommand(ctx, c, argv)
+	})
+}
+
+func readStates(ctx context.Context, c *Config, tickets []Ticket, command func(context.Context, string, []string) (map[string]commandState, error)) []string {
 	for i := range tickets {
 		tickets[i].State = StateNone
+		tickets[i].ProgressToken, tickets[i].ProgressDigest = "", ""
 	}
 	w := c.WorkState
 	if w == nil {
@@ -47,15 +55,19 @@ func ReadStates(ctx context.Context, c *Config, tickets []Ticket) []string {
 		}
 		return alerts
 	}
-	states, err := stateCommand(ctx, c.WorkRoot, w.Argv)
+	states, err := command(ctx, c.WorkRoot, w.Argv)
 	for i := range tickets {
 		switch {
 		case err != nil:
 			tickets[i].State = StateUnknown
-		case states[tickets[i].ID] != "":
-			tickets[i].State = states[tickets[i].ID]
-		case states[tickets[i].Local] != "":
-			tickets[i].State = states[tickets[i].Local]
+		default:
+			v, ok := states[tickets[i].ID]
+			if !ok {
+				v, ok = states[tickets[i].Local]
+			}
+			if ok {
+				tickets[i].State, tickets[i].ProgressToken = v.State, v.Progress
+			}
 		}
 	}
 	if err != nil {
@@ -101,31 +113,121 @@ func stateValue(v string) (string, error) {
 	return v, nil
 }
 
-func stateCommand(ctx context.Context, dir string, argv []string) (map[string]string, error) {
-	ctx, cancel := context.WithTimeout(ctx, stateTimeout)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
-	cmd.Dir = dir
-	cmd.WaitDelay = time.Second
-	var out bounded
-	cmd.Stdout = &out
-	if err := cmd.Run(); err != nil {
-		return nil, err
+type commandState struct{ State, Progress string }
+
+// JSON's replacement of invalid UTF-8 and lone surrogates must not invent
+// a progress assertion. Validate scalar strings before the ordinary decoder.
+func validScalarJSON(raw []byte) bool {
+	if !utf8.Valid(raw) || !json.Valid(raw) {
+		return false
 	}
-	if out.over {
-		return nil, fmt.Errorf("output exceeds %d bytes", maxStateCommand)
-	}
-	var raw map[string]string
-	if err := json.Unmarshal(out.buf.Bytes(), &raw); err != nil {
-		return nil, fmt.Errorf("output is not one JSON object of strings: %w", err)
-	}
-	states := map[string]string{}
-	for k, v := range raw {
-		s, err := stateValue(v)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", k, err)
+	quoted := false
+	for i := 0; i < len(raw); i++ {
+		if raw[i] == '"' {
+			quoted = !quoted
+			continue
 		}
-		states[k] = s
+		if !quoted || raw[i] != '\\' {
+			continue
+		}
+		i++
+		if raw[i] != 'u' {
+			continue
+		}
+		n, _ := strconv.ParseUint(string(raw[i+1:i+5]), 16, 16)
+		i += 4
+		if n >= 0xdc00 && n <= 0xdfff {
+			return false
+		}
+		if n >= 0xd800 && n <= 0xdbff {
+			if i+6 >= len(raw) || raw[i+1] != '\\' || raw[i+2] != 'u' {
+				return false
+			}
+			low, _ := strconv.ParseUint(string(raw[i+3:i+7]), 16, 16)
+			if low < 0xdc00 || low > 0xdfff {
+				return false
+			}
+			i += 6
+		}
+	}
+	return true
+}
+
+func decodeCommandStates(raw []byte) (map[string]commandState, error) {
+	bad := func() (map[string]commandState, error) {
+		return nil, errors.New("output is not one closed JSON object of states and optional progress tokens")
+	}
+	if len(raw) > maxStateCommand || !validScalarJSON(raw) {
+		return bad()
+	}
+	d := json.NewDecoder(bytes.NewReader(raw))
+	t, err := d.Token()
+	if err != nil || t != json.Delim('{') {
+		return bad()
+	}
+	states := map[string]commandState{}
+	for d.More() {
+		k, err := d.Token()
+		if err != nil {
+			return bad()
+		}
+		key, ok := k.(string)
+		if !ok {
+			return bad()
+		}
+		if _, duplicate := states[key]; duplicate {
+			return bad()
+		}
+		v, err := d.Token()
+		if err != nil {
+			return bad()
+		}
+		var state commandState
+		if s, ok := v.(string); ok {
+			state.State = s
+		} else if v == json.Delim('{') {
+			seen := map[string]bool{}
+			for d.More() {
+				field, err := d.Token()
+				if err != nil {
+					return bad()
+				}
+				name, ok := field.(string)
+				if !ok || seen[name] || (name != "state" && name != "progress") {
+					return bad()
+				}
+				seen[name] = true
+				value, err := d.Token()
+				s, ok := value.(string)
+				if err != nil || !ok {
+					return bad()
+				}
+				if name == "state" {
+					state.State = s
+				} else {
+					state.Progress = s
+				}
+			}
+			end, err := d.Token()
+			if err != nil || end != json.Delim('}') || !seen["state"] {
+				return bad()
+			}
+		} else {
+			return bad()
+		}
+		state.State, err = stateValue(state.State)
+		if err != nil || len(state.Progress) > 128 || strings.IndexFunc(state.Progress, func(r rune) bool { return !unicode.IsPrint(r) }) >= 0 {
+			return bad()
+		}
+		states[key] = state
+	}
+	end, err := d.Token()
+	if err != nil || end != json.Delim('}') {
+		return bad()
+	}
+	var extra any
+	if d.Decode(&extra) != io.EOF {
+		return bad()
 	}
 	return states, nil
 }

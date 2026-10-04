@@ -15,7 +15,10 @@ func NextClaimTicket(queueID string, in Input, choice ...LeaseRequest) (*ticket.
 	if len(choice) > 0 {
 		l = choice[0]
 	}
-	plan := PriorityFirst(PlanInput{Pool: l.Pool, Stage: l.Stage, Pools: state.pools, Prepared: in.LeaseFacts.Pool.AllocationID, Queue: state.queue, Policy: state.policy, Tickets: state.tickets, Barrier: state.barrier != nil, Reservations: state.reservations, Attempts: state.attempts})
+	if err := CheckPoolExclusions(l.Pool, l.ExcludeMembers, state.policy); err != nil {
+		return nil, err
+	}
+	plan := PriorityFirst(PlanInput{Pool: l.Pool, Stage: l.Stage, ExcludeMembers: l.ExcludeMembers, Pools: state.pools, Prepared: in.LeaseFacts.Pool.AllocationID, Queue: state.queue, Policy: state.policy, Tickets: state.tickets, Barrier: state.barrier != nil, Reservations: state.reservations, Attempts: state.attempts})
 	chosen := plan.Selected()
 	if chosen == nil {
 		return nil, nil

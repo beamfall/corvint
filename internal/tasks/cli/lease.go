@@ -39,11 +39,13 @@ var leaseVerbs = map[string]string{
 // leaseArgs is the parsed argv of one lease command. --scope takes every
 // following argument up to the next flag, and may repeat.
 type leaseArgs struct {
-	values map[string]string
-	scope  []string
-	whole  bool
-	next   bool
-	pos    []string
+	laneUntouched bool
+	values        map[string]string
+	scope         []string
+	excluded      []string
+	whole         bool
+	next          bool
+	pos           []string
 }
 
 var leaseValueFlags = map[string]bool{
@@ -58,10 +60,21 @@ func parseLeaseArgs(args []string) (leaseArgs, error) {
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		switch {
+		case a == "--lane-untouched":
+			if out.laneUntouched {
+				return out, wire.Errorf(wire.CodeMalformed, "argv", "repeated --lane-untouched")
+			}
+			out.laneUntouched = true
 		case a == "--whole-repository":
 			out.whole = true
 		case a == "--next":
 			out.next = true
+		case a == "--exclude-member":
+			if i+1 >= len(args) || args[i+1] == "" || strings.HasPrefix(args[i+1], "--") {
+				return out, wire.Errorf(wire.CodeMalformed, "argv", "--exclude-member needs one nonempty member")
+			}
+			i++
+			out.excluded = append(out.excluded, args[i])
 		case a == "--scope":
 			n := scopeRun(args[i+1:])
 			if n == 0 {
@@ -115,7 +128,7 @@ func (a leaseArgs) request(verb, queueID string) (transaction.LeaseRequest, erro
 	if a.next {
 		verb = transaction.LeaseClaimNext
 	}
-	req := transaction.LeaseRequest{Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), Reason: a.values["--reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"]}
+	req := transaction.LeaseRequest{LaneUntouched: a.laneUntouched, Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), ExcludeMembers: scopePaths(a.excluded), WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), Reason: a.values["--reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"]}
 	if verb == transaction.LeaseClaim {
 		if len(a.pos) != 1 {
 			return req, wire.Errorf(wire.CodeMalformed, "argv", "claim takes exactly one ticket id or local token")
@@ -208,6 +221,9 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 	o := res.Items[0].Obj
 	if report.PoolAllocation != nil {
 		o.Set("poolAllocation", snapshot.PoolAllocationValue(report.PoolAllocation))
+	}
+	if report.LaneUntouchedAttestation != nil {
+		o.Set("laneUntouchedAttestation", snapshot.LaneUntouchedAttestationValue(report.LaneUntouchedAttestation))
 	}
 	o.Set("attemptId", stringOrNull(report.AttemptID))
 	o.Set("generation", stringOrNull(string(report.Generation)))

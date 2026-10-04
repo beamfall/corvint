@@ -3,8 +3,9 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement)
-Authoritative inputs: owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending
+Authoritative inputs: owner request [issue 482](https://github.com/beamfall/corvint/issues/482) (proposed CAL-V0-044/046 compatibility amendment);
+owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
 and [issue 430](https://github.com/beamfall/corvint/issues/430), explicitly commissioned 2026-10-01 (CAL-V0-048..051); owner request [issue 342](https://github.com/beamfall/corvint/issues/342),
 owner approval on 2026-09-30 of prospective handoff accounting for [issue 412](https://github.com/beamfall/corvint/issues/412) (CAL-V0-044),
@@ -22,10 +23,10 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
-- Read next: Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost); Amendments to TCP-00; Failure modes.
+- Read next: #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release); Amendments to TCP-00; Failure modes.
 
 ## User and boundary
 
@@ -41,7 +42,7 @@ supervisor: `admit` reserves the ticket, a supervisor forks a `lane-leader`, a `
 handshake proves whether the runtime ran, and process-group liveness decides when a reservation may
 be released (§6.2 to §6.4). None of that is built in tree: the only reservations are S3's
 `external-agent` leases, `cutover` requires an empty reservation set
-(`internal/tasks/transaction/model.go:560@afae0d34`), and until S1 the writer refused every queue
+(`internal/tasks/transaction/model.go:580@afae0d34`), and until S1 the writer refused every queue
 that was not a fixture.
 
 The agents that use these queues are not processes corvint-tasks starts. They are interactive or
@@ -76,6 +77,14 @@ one.
 | S8 | CAL-V0-021..026 | Parallel claims: scoped claims, path-overlap collisions, scope enforcement, bounded lock hold |
 | S11 | CAL-V0-052..058 | `dispatch`: continuous roster, supervised host workers, handoff, reap, backoff and events |
 | S12 | CAL-V0-059..061 | Read cost independent of receipt history: one audit per read, resumed from a writer-retained checkpoint |
+| S14 | CAL-V0-064 | Proposed explicit command progress; original reviewed source and sealed evidence retained, current-main composition pending |
+| S15 | CAL-V0-065 | Opt-in explicit per-claim member exclusions; focused tests and a compiled native fixture |
+| S17 | CAL-V0-067 | Experimental operator-attested untouched release; scoped native/archive/crash fixtures passed, physical facts NOT_OBSERVED |
+
+CAL-V0-062/063 (S13, issue 456) and CAL-V0-064 (S14, issue 468) are reserved
+by coordinated unlanded work; CAL-V0-066/S16 remains reserved for issue 464 if used.
+The coordinator assigned CAL-V0-067/S17 to issue 479. This seed does not claim
+implementation or qualification of the new profile or any reserved slice.
 
 S8 was added by owner decision on 2026-09-27 and lands directly after S3, before S4.
 
@@ -173,7 +182,8 @@ S3, leases.
   check for an implement/review/integrate lease; `REVIEW_RETURNED` requires a review lease. The live,
   unexpired, current generation MUST have a scope-checked submitted candidate or the explicit
   no-tree evidence branch in CAL-V0-046, no pending effects,
-  unchanged acceptance and policy, and prospective generation accounting without a recorded
+  unchanged acceptance, and unchanged policy/config or the complete proposed issue 482
+  compatibility proof below, and prospective generation accounting without a recorded
   non-PASSED gate result. These reason strings and stage/holder changes alone are not evidence.
   A failed eligibility check MUST refuse without converting the attempt to a clean cancellation.
   Missing legacy accounting remains charged. Ordinary cancellation, failure and expiry remain
@@ -189,13 +199,73 @@ S3, leases.
   accounting while preserving or incrementing accumulated debt; gates, candidates, approvals and
   review evidence do not gain successor authority. Supervised attempts may retain inert metadata
   after attachment but MUST NOT receive this exemption. All records remain journal-bound, with
-  original request replay, stale-generation fencing, reservation release and pool quarantine intact.
+  original request replay, stale-generation fencing, reservation release and default pool quarantine intact.
+  The proposed CAL-V0-067 exception affects only its explicitly eligible attested occupancy;
+  it does not grant a retry exemption or change clean-handoff accounting.
   Legacy absent-member bytes MUST round-trip unchanged; unknown/malformed metadata MUST refuse.
   Old readers may refuse from the first accounting-bearing claim. Rollback MUST retain the journal
   and use a compatible reader/writer after stopping admissions; stripping metadata or downgrading
   an affected store is not supported. No historical refund, live migration or automatic owner reopen is authorized.
   Issues 420/421 amend only the explicit retry bound and handoff branch in CAL-V0-045/046. Verification describes recorded accounting eligibility,
   not actor authentication, unreported external failures, physical quiescence or independent review.
+
+### Proposed issue 482 amendment: unrelated policy handoff compatibility
+
+Status: proposed intent; experimental source implemented, independently reviewed and qualified in disposable fixtures. Final keyed qualification, integration and native completion remain pending. Authoritative human input:
+[issue 482](https://github.com/beamfall/corvint/issues/482). This amendment narrows the meaning of
+unchanged policy/config for clean CAL-V0-044/046 release only; it does not promote a prototype or
+change completion authority. Existing installed writers retain their qualified behavior. The
+experimental source and scoped candidate qualification are recorded in
+`docs/build-log/2026-10-02-tasks-unrelated-policy-handoff.md`; this is not whole-delivery promotion.
+
+1. A clean external-agent HANDOFF or REVIEW_RETURNED MAY remain eligible after policyVersion and
+   other-member reservedFor changes in its exact allocated pool only. Every other raw field and
+   ordered array, the own-member reservation/config/definition, acceptance, stage, generation,
+   lease and existing candidate/no-tree/accounting conditions remain bound. No-pool attempts allow
+   only policyVersion differences. Original attempt policy/config/capability hashes never change.
+2. Compatibility MUST cover every committed policy afterimage after the exact original policy
+   through the same settled fully audited head. Any relevant intermediate change stays
+   incompatible after restoration. Retain one original canonical file blob and bounded metadata;
+   no whole-history cache, extra wire or migration. Missing, unknown, malformed or mismatched
+   history MUST refuse. Check every receipt/post/codec and projection even after incompatibility.
+3. Original policy provenance MUST bind nondeleted intent/policy.json path, committed nonzero
+   sequence, exact file digest including LF and containing receipt digest. The first exact
+   attempt/generation post must follow it and carry matching original policy/config identities;
+   renewed GrantedSeq does not substitute for that structural provenance. Historical acceptance,
+   authentication, holder liveness and physical quiescence remain NOT_OBSERVED.
+4. One additional full audit per otherwise eligible stale-release preparation MAY supply this
+   observation under the same ChangeGuard outside the lock, after request replay handling. Bind
+   both observations' head, receipt, inventory, intent and final policy identity; reject staging,
+   pending redo, IntentError and drift. Bounded preparation retries are measured separately.
+   Shared pure comparison uses cloned raw wire trees, preserving every unremoved optional field
+   and all array/member order; only the allocated pool's empty/absent reservation map normalizes.
+5. This exception MUST NOT grant stale-holder reap, physical reuse, old-generation completion,
+   successor gate/candidate/approval authority, retry refunds or actor authentication. Preserve
+   release fencing, ordinary cancellation, pool quarantine and request replay/conflict exactly.
+
+Acceptance must include current-source CLI red/green and multiple allowed updates; budget,
+retry, gate, role and runtime/environment change-then-restore refusals; renewal and history/guard
+controls; legacy/invalid/fenced refusals; stale-policy completion and fresh-successor controls;
+read purity, aggregate bounds and per-preparation scan cost. The CAL-V0-044/046 clauses and owning metadata are seeded before the first plan freeze.
+Named tests and retained independent review/dogfood/native evidence are required before any
+delivery claim; the external-agent guide and help gain the verified behavior at terminal binding.
+Rollback preserves all journal and attempt bytes; a compatible previous writer resumes whole-policy
+refusal after admissions stop. No destructive downgrade or canonical live-policy rewrite.
+
+
+Wire and refusal boundary: the RELEASE reason/evidence request shape, attempt retryAccounting
+and handoffEvidence members, canonical request preimages, policy profile and journal receipt
+codec stay unchanged. Compatibility history is internal preparation evidence, never a new
+persistent authority field. Replay/conflict runs before any new history observation. Both full
+audits must share head/receipt/LastSeq, inventory and intent identities under one ChangeGuard;
+staging, pending redo, IntentError, selected historical drift or final-policy mismatch refuses.
+Only an otherwise eligible stale clean release gets this observation; ordinary cancellation,
+reap, equal-policy handoff and invalid/fenced requests retain their existing reducer ordering.
+The eligible original attempt/generation must carry matching original policy/config/capability
+identities. Exact LF-bearing file digests are required; namespaced policy-body digests cannot
+substitute. All history remains codec/digest checked after incompatibility. Original admitted
+identities, required gate results and candidate/scope authority are never rewritten or inherited.
+No new public verb, flag, schema profile or journal/attempt member is added.
 
 ### Configurable retries, external work handoff and help (issues 420–422)
 
@@ -215,9 +285,10 @@ S3, leases.
   permits implement, review and integrate; `REVIEW_RETURNED` permits review only. With REF, the
   live, unexpired current generation MUST be RUNNING, have no candidate, scopeCheck UNKNOWN,
   no gate results or pending effects, and prospective NONE/false retry accounting. Unchanged
-  policy/config and acceptance remain mandatory. Without REF, the existing BUILT/CHECKING,
-  candidate and WITHIN requirements remain mandatory. Evidence on ordinary cancellation or a
-  candidate-bearing release MUST refuse. A non-PASSED gate remains sticky, and missing legacy
+  acceptance and unchanged policy/config or the complete proposed issue 482 compatibility
+  proof remain mandatory. Without REF, the existing BUILT/CHECKING,
+  candidate and WITHIN requirements remain mandatory. Evidence on ordinary cancellation MUST refuse unless the explicit CAL-V0-067 profile is
+  independently eligible; evidence on a candidate-bearing release MUST refuse. A non-PASSED gate remains sticky, and missing legacy
   accounting and supervised attempts never qualify. Failed checks MUST NOT record a clean
   disposition. The optional attempt member `handoffEvidence` MUST be absent or a nonempty
   `Identifier` (1..128 UTF-8 bytes, no hostile code points or TAB/LF/CR); null, empty, unknown and
@@ -231,13 +302,15 @@ S3, leases.
   refuse and MUST NOT be used to strip or rewrite it. A reference is inert caller evidence, never
   fetched or executed and not proof of its contents, work quality or physical cleanup. Release
   MUST remove the reservation and retain existing pool quarantine; reuse still requires the
-  existing cleanup/safe-confirm flow. Journal consistency, logical fencing and quarantine MUST
+  existing cleanup/safe-confirm flow unless the separately defined explicit CAL-V0-067 profile
+  is requested and independently eligible. An inert handoff reference alone never frees a member. Journal consistency, logical fencing and quarantine MUST
   remain distinct from separately observed physical cleanup. No completion, review, integration,
   publication, automatic reopen or historical refund authority is added.
 - `CAL-V0-047`: Every implemented and omitted public command path and command family MUST return
   read-only OK for an exact trailing `--help` or `-h` help request, with command-specific usage,
   flags and applicable reason codes. The lease release help MUST state CAL-V0-044/046 eligibility
-  and refusal codes, including that policy updates make live handoffs STALE_POLICY. Help MUST
+  and refusal codes, including that relevant or unproved policy changes make live handoffs
+  STALE_POLICY and the proposed issue 482 exception needs a fully audited compatible interval. Help MUST
   require no initialized store and perform no store read/write/lock, stdin read, archive stream,
   command execution or launcher action. Omitted execution remains NOT_RUN and its help MUST say
   so without inventing execution flags. Unknown paths and malformed non-help invocations retain
@@ -276,6 +349,22 @@ S3, leases.
   new acceptance resets them. Legacy debt becomes UNKNOWN, never inferred specific reasons.
   reasonHistory is INCOMPLETE while UNKNOWN is nonzero, otherwise COMPLETE; this records cause
   classification, not authenticated physical failures or historical acceptance qualification.
+  Issue 503 adds advisory `remainingMeaning: RETRY_CAPACITY` and `retryAdmissionReason`
+  (`INITIAL_ADMISSION`, `NEW_ACCEPTANCE`, `COMPLETED_ATTEMPT`, `VERIFIED_HANDOFF`,
+  `RETRY_AVAILABLE`, `RETRY_EXHAUSTED`; `NOT_OBSERVED` without a journal). Zero remaining
+  does not itself establish exhaustion: initial admission, a completed latest attempt and a
+  verified clean handoff retain the existing admission exceptions without changing charged debt.
+  `ticket show` and `ticket blockers` MUST expose boolean-or-null `claimable`,
+  `claimabilityReason` and `claimabilityScope: RECORDED_DEFAULT_EXTERNAL_AGENT_PLAN`.
+  The observation is this ticket's recorded default external-agent plan before reap, without
+  earlier proposed selections; it never reserves capacity, validates caller branch/base/holder
+  or scope arguments, proves physical quiescence or promises a future or pool/supervised claim.
+  Unknown-only admission evidence yields null; a known blocker, reservation collision or capacity
+  limit yields false even with unknown evidence. Existing whole-repository coverage fallback
+  remains unchanged. Reasons describe this read profile, not the writer's first refusal ordering.
+  Journal absence yields null claimability and `NOT_OBSERVED`; invalid audited inputs retain read
+  refusal. Recorded expired reservations remain until an explicit reap. Read projections MUST
+  NOT mutate attempts, reservations, retry accounting or queue state.
 
 - `CAL-V0-050`: Read-only `policy show` MUST return effective canonical policy, policyVersion
   and the existing policySha256 content identity from one consistent snapshot, without writing,
@@ -368,7 +457,8 @@ silently shared.
   `claim --next`, derive only the ticket selected by the existing conservative priority plan,
   bind the facts to that ticket, and recheck collisions; a blocked plan stays blocked.
   Decision 0397's CAL-V0-022 addendum permits only the scope adapter's Core imports and its
-  pack-fixture test import. Standalone source-archive rebuild remains blocked by V1-0456.
+  pack-fixture test import; its separate #464 addendum admits only `internal/tasks/dispatch`
+  importing `internal/groupreap`. Standalone source-archive rebuild remains blocked by V1-0456.
 - `CAL-V0-023`: Two live attempts MUST collide exactly when their resource sets collide under
   TCP-00 §4.2 path normalization; `WHOLE_REPOSITORY` collides with every live entry and every live
   entry collides with it. A colliding `claim` refuses `RESOURCE_COLLISION` naming the other
@@ -396,6 +486,23 @@ silently shared.
   Locked guards bind the prepared result to the unchanged head and monitored bytes before applying
   the bounded writes. A changed observation retries; unavailable monitoring refuses. Pending-receipt
   recovery prepares its full proof outside the lock before bounded redo. This changes no store format.
+
+#### Issue 494: bounded preparation admission
+
+Cooperating lease preparations use a bounded registered-order admission step before the existing `taskman.prepare.lock`. A successfully published registration cannot enter preparation while a smaller continuously live registration exists. Publication order is not CLI arrival order; pre-registration scheduling, mixed-version fairness and universal starvation freedom are not qualified. The default and maximum acquisition wait remain 30 seconds total from acquisition entry across identity resolution, registration, scans, queue wait and the final gate. It must never restart at phase boundaries. Full audits, journal/intent formats, writer authority, request identity, replay and the original shared 180-second qualification context remain unchanged.
+
+The private coordination namespace consists of the inert `taskman.prepare.registry.lock` and 64 fixed `taskman.prepare.slot.00` through `.63` regular files under the pinned Git common directory, outside journal and intent. A slot has 16 bytes: `CPA1`, four zero reserved bytes, unsigned 64-bit big-endian nonzero rank. A live slot is owned by an exclusive nonblocking-flock open description. Registry-held publication chooses one greater than the maximum live rank, or 1 when none are live. Rank overflow and a scan observing 64 live slots refuse LIMIT_EXCEEDED without a receipt. This fixed technical bound includes the serving holder and is independent of lease/reservation capacity. A scan is not an instantaneous-capacity promise. No arbitrary namespace enumeration, durable counter, PID/time-based eviction, daemon, database service or new authority is introduced.
+
+Only a successful lock probe proves an abandoned slot reusable. Held malformed/duplicate-rank state, unknown format, unsafe objects and observed name/root/inode drift refuse. Partial unowned bytes can be overwritten only through the acquired slot descriptor under the registry. The registry must not surround a sleep, final preparation gate, writer work, inventory/audit, monitor teardown or external execution. Slot/registry files are not normally removed or replaced. Scratch bytes are scheduling data, never proof/intent/ranking/attempt authority; read verbs do not create, clean or mutate them. Existing final-gate exclusion remains compatible with older callers, while their bypass of registration leaves mixed-version fairness unqualified.
+
+Preparation owns all registry/slot/probe/gate/root descriptors it obtains. Every locally owned cleanup failure is retained with the primary error. Temporary-root cleanup completes before returning a successful composite handle; if it fails after gate acquisition, gate and slot are retired and the call fails. This does not broaden the public writer helper's cleanup behavior or claim coverage of hidden safeopen traversal ownership. One synchronized composite Close owns retirement: gate first, slot regardless of gate error, aggregate all failures, then deliver one observation. Hold measurement ends at the actual gate-release boundary; observation delivery waits for mandatory slot cleanup. An acquired-but-not-cleanly-released handle cannot be reported as fully released success. Concurrent/double Close returns the recorded result without duplicate cleanup or callback. Close/cancel never requires registry ownership; observers run outside internal locks and never under registry ownership.
+
+Cancellation closes owned references; process-death recovery requires those references actually gone, demonstrated after joined exit. CLOEXEC is mandatory; no descriptor handoff to helpers is permitted. A still-held inherited or leaked reference remains live and is never evicted by age. Process exit may release descriptors at different instants, so transient conservative refusal before joined exit is allowed. Normal machine restart leaves no live owner locks, so stale scheduling bytes convey no authority and need no durable recovery claim. Boundary identity checking is not continuous hostile-filesystem monitoring.
+
+Deterministic proof must acknowledge reached publication/entry/injection boundaries and cover registered non-overtaking, head/middle cancellation, death before/during partial publication and after publication/while registry/while serving, actual independent-open exclusion, exec closed-FD witness, capacity/overflow/malformed/identity refusals, total deadline, locally owned cleanup failures and synchronized composite Close. Canonical fixture initialization/audit precedes injection; journal/intent snapshots and authorized product effects are asserted separately from scheduling scratch. Actual Darwin and Linux execution evidence is required before the corresponding platform claim; cross-compilation is insufficient and an absent runner stays NOT_RUN.
+
+After focused checks and independent source PASS, one unchanged original 5000-receipt/10-worker/30-operation mixed qualification must show 5000→5030 full consistent/agreeing audits, unique completed operations, ten stable identities/generations, all final CANCELLED/FENCED, zero active reservations, exact-ID replays with unchanged digest and after-replay audit 5030, plus bound source/binary and retired owned processes. Retain phase/rank/publication diagnostics on timeout without retries or changed deadlines. A failed wave is preserved and triggers diagnosis, not another automatic wave. The existing original CAL-V0-026 acceptance is not replaced by this test.
+
 
 S7, qualification and execution cutover.
 
@@ -461,12 +568,15 @@ Non-fixture release lifecycle (owner request 2026-09-28 to complete the Tasks ta
   no stage admits only unreserved members, and members reserved for another stage remain ineligible.
   Allocated state MUST agree with the complete attempt allocation tuple, holder and stage.
   Replayed claims MUST return their original receipt-bound allocation, never a successor's.
-- `CAL-V0-030`: Release, expiry/reap and completion MUST quarantine the exact allocation while
+  CAL-V0-065 adds explicit per-claim exclusions to this eligibility rule.
+- `CAL-V0-030`: By default, release, expiry/reap and completion MUST quarantine the exact allocation while
   freeing the ordinary scope reservation. A retry MUST acquire a new allocation. Only an
   OWNER/OPERATOR `pool confirm-safe` naming the current allocation, an evidence reference and
   reason MAY clear quarantine. Configured cleanup success is necessary but insufficient: the
   confirmation is a local operator attestation of external revocation/reset, not observed physical
   exclusivity. Stale confirmation MUST refuse. There is no TTL or implicit safe reuse.
+  The separately proposed explicit CAL-V0-067 operator-attested release profile is the only
+  proposed exception; it does not apply to ordinary release, expiry/reap or completion.
 - `CAL-V0-031`: A configured health command MUST acquire durable PREPARING ownership before
   execution outside the writer lock. Failed members MUST remain quarantined, be reported with
   reason and observation digest, and be skipped for the current claim. A passing health result
@@ -478,6 +588,8 @@ Non-fixture release lifecycle (owner request 2026-09-28 to complete the Tasks ta
   quarantine an orphan without implying cleanup. Interrupted or uncertain execution MUST never
   make a member free. Journal redo publishes committed artifacts only. Runner PID/start observations
   are local observations, not authentication or an exactly-once execution guarantee.
+  The proposed CAL-V0-067 profile MUST refuse every tracked started, pending, interrupted or
+  uncertain use; missing command metadata alone MUST NOT qualify an allocation for that profile.
 - `CAL-V0-033`: Pool commands MUST use bounded trusted operator argv, declared environment keys,
   a clean repository outside `.taskman`, a 1..300 second timeout and at most 64 KiB captured output.
   Observations retain the output digest, not raw output. The implementation MUST join cancellation
@@ -491,6 +603,7 @@ Non-fixture release lifecycle (owner request 2026-09-28 to complete the Tasks ta
   preview batch MUST consume eligible free member capacity under the same ordered eligibility rule
   as claim, excluding other-stage reservations without executing health probes.
   Archive, journal recovery and authority-confined projection publication MUST retain pool state.
+  CAL-V0-065 applies the same explicit exclusion set to preview capacity.
 
 The optional policy shape is `pools:[{id,members:[MEMBER],reservedFor:{MEMBER:STAGE},
 memberConfig:{MEMBER:{configRef:{revision,path,blob},health:COMMAND,cleanup:COMMAND}}}]`.
@@ -580,6 +693,13 @@ explicit uncertainty is carried unchanged. No inferred context becomes accepted 
   MUST refuse. The pure mutation observation MUST bind the ticket and acceptance revision;
   a missing observation MUST NOT authorize recovery. Existing completed-ticket reopen semantics
   and policy role narrowing remain unchanged.
+  Issue 503 requires OPEN recovery refusals to explain the failed recorded condition:
+  missing/mismatched recovery observation, reservation, ambiguous generation, live attempt,
+  pending effects, unproved quiescence/unknown runtime, absent prior attempt, acceptance mismatch,
+  unexhausted retry budget or a latest phase other than FAILED/CANCELLED. The result retains
+  `TICKET_STATE`; diagnostic detail grants no recovery authority. An unexhausted budget refusal
+  directs the operator to `ticket show` claimability instead of implying that an OPEN ticket
+  needs reopening. Ticket/revision binding, OWNER policy and all recovery predicates stay intact.
   Recovery MUST increment ticket revision and acceptance revision exactly once, preserving the
   acceptance criteria, dependencies, gates, effects, prior records, attempts and gate history.
   A later claim MUST start a fresh attempt with zero retries and remain subject to ordinary
@@ -663,7 +783,7 @@ derived from the installed CLI source and is not live-qualified; see
   `key: value` line in an absolute per-ticket file of at most 64 KiB) or a `command` reader (one JSON
   object of ticket ID or local name to state, at most 1 MiB of output, 60 s timeout). Values are at most
   64 printable bytes. A missing file is `NONE`. Every read failure MUST yield `UNKNOWN` and an alert,
-  never a guessed state. Roles that match states MUST refuse without a reader.
+  never a guessed state. Roles that match states MUST refuse without a reader. See the #464 command-reader lifecycle amendment below.
 - `CAL-V0-054`: The roster MUST be a pure function of the configuration, one observation, the
   running workers and the backoff skip set. Roles match tickets by labels, kinds, an ID glob, work
   states, excluded states, statuses and plan selection, or lane roles match quarantined members of
@@ -802,6 +922,167 @@ Measured on the live store at 1,829 receipts (macOS, Go 1.27.1, warm cache): `qu
 cost is proportional to the intent tree and the number of retained paths (including retained
 deletions), not to the number of receipts. See
 `docs/build-log/2026-10-01-tasks-read-checkpoint.md`.
+
+### S14 — Explicit command progress (issue 468)
+
+Human-owned input: [issue 468](https://github.com/beamfall/corvint/issues/468) requests
+a bounded explicit command token independent of role matching. This is a proposed
+technical contract. The original scoped source has separate reviewed and sealed
+evidence; this intent-only seed makes no current-main integration, Linux, installed
+runtime, native completion or new delivery claim. CAL-V0-062/063 remain reserved.
+
+- `CAL-V0-064`: A command work-state reader MAY return a legacy state string or a closed object
+  with required string `state` and optional string `progress` per ticket. State retains CAL-V0-053's
+  bounds and is the only role-matching value. The optional progress token is byte-opaque printable
+  UTF-8, at most 128 bytes. Missing or empty progress makes no additional claim. Full ticket ID takes
+  precedence over local name, including an empty full-ID state normalized to `NONE`; state and token
+  MUST come from the same selected value. Ordinary JSON whitespace, key order and valid escapes
+  remain compatible. Duplicate ticket/member keys, unknown object members, null or non-string
+  values, invalid UTF-8, lone surrogate escapes and trailing JSON MUST fail as ordinary reader
+  errors; valid surrogate pairs are retained. Unknown-ticket tokens never consume history.
+  The dispatcher retains only SHA-256 digests in private per-ticket history. First valid token seeds
+  a baseline without credit. A never-observed digest advances once; a current duplicate, observed
+  A-to-B-to-A replay or missing token keeps the last accepted digest. UNKNOWN, read failure and
+  cancellation before admission change no token history. This is a producer assertion, not artifact
+  authentication: an unseen old assertion cannot be recognized as stale.
+  History is bounded to 256 lifetime distinct digests per key and 8,192 per program, including first
+  seeds and deleted/completed keys. New slots are allocated in canonical full-ticket-ID byte order.
+  At either cap, retain history, admit no new token, emit a bounded needs-owner diagnostic, and keep
+  ordinary cooldown/parking. No eviction, reset or operator-unpark capacity restoration is allowed.
+  The one checked admission barrier uses the final successful observation after supervision/heal
+  and re-observation, before accounting/unpark/state publication/launch. It stages cloned history,
+  legacy first-seed baselines and token-dependent accounting, checks the outer context, and MUST
+  save atomically before publishing or granting effects. Save failure discards staging and returns
+  an explicit tick error; Close/deferred saves MUST NOT persist failed staging or overwrite successful
+  admission with a captured old ledger. A token grant for an ended worker commits its removal and
+  backoff deletion together; a parked-key grant commits its backoff deletion with consumption.
+  Active-worker credit remains pending relative to its launch digest. A token-enabled ended worker
+  with pending credit and UNKNOWN latest state retains worker/backoff accounting, with a bounded
+  alert, until a healthy observation grants once. Tokenless behavior remains CAL-V0-057. Cancellation
+  after commit retains completed facts and stops downstream work at the next checkpoint; no
+  whole-tick rollback is promised. Strict ledger loading validates full ticket keys, digest grammar,
+  sorted uniqueness, current membership, both caps and worker/backoff baseline-history consistency.
+  Any case-folded root progress member enables strict validation before struct decoding. Token-enabled
+  ledgers reject duplicate members and aliases of canonical static schema fields; dynamic ticket and
+  observation-map keys retain their case-sensitive identities. Programs admitting no tokens omit
+  optional fields, preserve legacy field matching, and retain legacy fingerprints/member shape.
+
+
+Failure modes: producer tokens do not verify work, lifetime exhaustion can eventually permit parking,
+and atomic rename gives process-restart visibility, not power-loss durability or exact event delivery.
+Non-goals: native handoff/evidence wire changes, evidence fetching, progressPaths, changed role rules,
+automatic migration, indefinite retention capacity or fixing all legacy ledger I/O failures.
+Rollback preserves the current ledger and uses backups only as evidence. An older reader refusing new
+members is a valid fail-closed downgrade; never restore an older snapshot, strip history or reset it.
+Final integration acceptance requires fresh parser/role/token/replay/restart/capacity/checked-save
+and cancellation witnesses on the actual composed target, the original four check argv,
+scoped registry checks, CEM/OCM, independent composition inspection, public integration
+and supported native completion. No current-main integration evidence is produced by this seed.
+
+
+Original reviewed source fbc80a5e1de6261ea1ce5290a4aa6451fd0c0b2f is unchanged in this
+composition. Historical binds 5565697748a56c285a2e30d747a05d70c04d0df3 and
+e359cc16c7b9c4e1bd5b025b0ea815b3173cdd49 and pure seals 95b7d5a/021cf0f4 remain
+in ordinary public ancestry. PR491 passed Linux CI on main094, with tested tree7df05582;
+that success does not qualify current def2a85a composition. Fresh CEM/frozen checks,
+independent composition inspection, combined CI and native completion remain pending.
+The owner-authored issue permits any one signal and explicitly names the chosen object
+option; detailed technical CAL064 remains proposed, with no new ratification claim.
+
+### S15 — Explicit pool member exclusions (issue 480)
+
+Human-owned input: [issue 480](https://github.com/beamfall/corvint/issues/480) permits
+the per-claim exclusion alternative. CAL-V0-065 was seeded before implementation
+enrollment. Scoped focused tests, a compiled disposable native fixture and
+independent source review passed; broad runtime qualification is NOT_OBSERVED.
+
+- `CAL-V0-065`: CLAIM, CLAIM_NEXT and read-only plan preview MAY accept an opt-in bounded set of explicit pool member exclusions. A supplied set MUST require an explicit pool, be nonempty and contain at most 256 sorted unique valid member labels. CLI repeated single-value `--exclude-member` flags MUST normalize order and duplicates while rejecting missing/empty values; other repeated single-value flags retain their existing refusal. Canonical request preimages MUST omit the new field entirely when absent, preserving historical bytes. Shape, syntax, canonical order and absolute bound checks MAY precede authoritative request replay; current-policy member/count eligibility MUST apply only to fresh admission after that replay lookup. An identical receipt-bound claim MUST return its original allocation after release, successor allocation or a permitted policy change, and a changed valid exclusion set under the same request ID MUST conflict before current eligibility checks.
+  Fresh explicit/next claim, every health-selection round, final prepared-allocation admission and preview capacity MUST apply the same stage/order/occupancy/exclusion predicate. Current requested-pool membership MUST be checked before any health preparation. Excluded members MUST never be allocated or probed, including matching-stage reservations and unreserved fallback; otherwise eligible members retain existing deterministic tier and member order. A matching health observation MUST NOT bypass final exclusion validation. No eligible member MUST produce RESOURCE_COLLISION rather than ignored exclusions or fallback to an excluded member. Preview MUST write no receipt, projection, trace or probe state. Ordinary claim resource scope and requiresPool remain binding; CAL-V0-029/030/032/034/046 safety and historical replay rules are unchanged. Exclusions are caller-selected member facts, not automatic ticket-history discovery, authenticated reviewer identity or proof of distinct physical environments.
+
+Failure modes: excluded reserved member/busy remainder; malformed or foreign member; preparation/admission policy drift; replay under changed policy; excluded health-start bypass; caller assumes labels authenticate independence. All remain explicit refusal/uncertainty, never ignored constraints or safe reuse inference.
+
+Acceptance evidence: focused transaction/store/CLI tests passed for the fixed
+historical preimage/digest witness, shape and membership validation, allocation
+order, preview capacity and purity, prepared admission, health filtering,
+both claim-next selectors, explicit/next replay after successor and policy changes,
+and both CLI parsers. `TestCALV0065_NativeFixture` builds and runs the candidate
+executable against a disposable native store, preserving ordinary quarantine.
+Independent source review of the frozen twelve-path implementation passed with no
+P1/P2 finding. Existing pool/quarantine/stage-order tests and three-package vet passed.
+
+Limits: health-backed CLAIM_NEXT with exclusions and concurrent policy change
+between health preparation and final admission were inspected in source rather
+than executed as combined fixtures. The historical preimage control is an
+independently retained literal from the old source; a separate baseline executable
+measurement is NOT_EXECUTED. Native journal audit establishes structural consistency
+and projection agreement, with semantic coverage UNKNOWN and runtime qualification
+NOT_OBSERVED. Exclusions never authenticate a holder or establish physical independence.
+
+Non-goals: automatic history inference; per-pool independentStages policy; holder authentication; new physical access broker; issue479 terminal fast release; shrinking complete effect/resource intent. Rollback: opt-in command support can be reverted only with current request/profile compatibility limits retained; no projection stripping, historical-request rewriting or unsafe pool state migration. Absent requests remain exact old bytes.
+
+### S17 — Operator-attested untouched pool release (issue 479, proposed)
+
+The owner-authored issue 479 accepts an explicit attestation alternative. This candidate
+intent follows the bounded Gate A R1 PASS at proposal SHA-256
+`23269d211a3c2b1b4acef38cb08aa0392634d35ba3b141abb840f29242207198`.
+The coordinator assigned CAL-V0-067/S17 before this intent seed.
+Implementation, tests and native qualification are NOT_RUN.
+
+- `CAL-V0-067`: RELEASE MAY accept an explicit `--lane-untouched --evidence REF` opt-in under
+  a separately labelled local OWNER/OPERATOR attestation profile. It MUST retain four fixed true
+  acknowledgements: no physical lane access occurred, no lane command was issued, no physical
+  lane capability/resource was issued or remains retained, and the operator accepts responsibility
+  for the statement and safe reuse. Logical source/PATH reservations are distinct from those physical
+  resources. REF MUST be a required valid inert Identifier, never fetched or executed. Recorded actor
+  identity is not authentication; physical non-use/revocation remains NOT_OBSERVED. No broker,
+  implicit exemption, arbitrary checker command or automatic history discovery is introduced.
+  Fresh opt-in MUST require exact current policy/config identity, even when ordinary
+  CAL-V0-044/046 handoff could accept the issue 482 compatibility proof. The flagged profile
+  MUST be excluded from HandoffPolicyCandidate fallback; a compatible history observation
+  MUST NOT authorize its physical reuse exception. Ordinary compatible handoff and its
+  quarantine remain unchanged. Original flagged request replay keeps its existing precedence.
+  Fresh eligibility MUST require the exact live/unexpired current external-agent RUNNING generation,
+  unchanged acceptance/policy/member definition and complete holder/stage/allocation tuple, a matching
+  ALLOCATED entry, and a prospective writer-produced `taskman-direct-pool-admission/0` witness.
+  Only upgraded fresh direct no-health CLAIM/CLAIM_NEXT admission MAY mint that witness; it binds
+  original admission sequence, attempt/generation and the full allocation tuple. No prepared/health
+  origin, legacy/backfilled witness or retry inheritance qualifies. Current allocation and pool changed
+  sequences and Lease.GrantedSeq MUST match original admission; renewed leases are ineligible.
+  Started/pending/unknown/interrupted command history, runner identity, worker/spawn/supervision/lane
+  identity, candidate/gate/reviews/manifest, failed-or-unknown retry accounting and pending effects MUST
+  refuse without freeing. Null command metadata is not authority. Programs bytes MUST be decoded
+  against the same inventory/head/queue; absence qualifies only when the inventory proves absence.
+  Matching CurrentAttempt/CurrentGeneration, including ADMITTED before ATTACH with zero leader PID,
+  and ambiguous same-attempt generation associations MUST refuse regardless of phase or OwnerReleased.
+  Missing, unbound, digest-mismatched, malformed, unknown, duplicate or foreign Programs input MUST
+  refuse. Private Dispatcher records are external/non-native and MUST NOT be reported as scanned;
+  known or uncertain external use prevents the operator from honestly making the acknowledgements.
+  An eligible opt-in MUST atomically retain a closed `taskman-lane-untouched-attestation/0` terminal
+  record, end the generation with logical FENCED quiescence, remove its ordinary reservation and omit
+  only its exact current occupancy, without executing configured cleanup. The attestation MUST bind
+  original allocation/member/definition/allocated sequence, attempt/generation/holder/stage, actor role
+  and ID, recorded sequence/time, REF, profile and the four acknowledgements. It MUST NOT claim physical
+  cleanup or PROVED quiescence. Default release/handoff, expiry/reap and completion retain quarantine.
+  Request shape and static field validation MAY precede authoritative replay; fresh current eligibility
+  MUST follow it. New flag/evidence/profile acknowledgements join the request preimage conditionally;
+  absence preserves historical request, attempt and ordinary result bytes. Actually changed named
+  fields under one request ID MUST conflict. Fresh/replay opt-in reports MUST reconstruct the original
+  RELEASE receipt's terminal attempt, inline or bounded blob, verify canonical payload digest and full
+  receipt/actor/profile/evidence/tuple bindings, and return that original allocation and attestation.
+  Successor/current policy state MUST NOT substitute for original payload; missing/damaged payload
+  MUST refuse. Crash/redo and archive round-trip MUST preserve complete afterimages and evidence;
+  a member MUST NOT become free with a live logical attempt or absent attestation. Legacy/new-reader
+  and old-reader refusal limits MUST remain explicit. HANDOFF/REVIEW_RETURNED accounting still applies
+  independently; this profile grants no retry refund, completion, review or integration authority.
+
+Qualification MUST include the configured-cleanup/no-health true-native positive fixture, default
+quarantine/missing-cleanup confirmation controls, legacy/renewal/expiry/wrong-role/history/state/tuple
+negatives, ADMITTED-before-ATTACH controls, original-payload replay after successor/policy change,
+inline/blob damage refusal, archive byte preservation and crash/redo all-or-nothing afterimages.
+Focused snapshot/transaction/store/CLI tests and vet, independent implementation and acceptance review,
+CEM/OCM frozen checks with truthful unknowns, CI/integration and native completion are required.
+Rollback stops future opt-in use while preserving witness/attestation history and exact replay;
+retain a compatible reader, never strip metadata, silently downgrade or rewrite successors.
 
 ## Amendments to TCP-00
 
@@ -970,16 +1251,18 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-045 | `TestCALV0045_RetryPolicyBounds` (`internal/tasks/intent`); `TestCALV0045_PolicyControlsAdmissionAndRecovery`, `TestCALV0045_RecoveryUsesCurrentPolicy` (`internal/tasks/store`); `TestCALV0045_CLIConfiguredRetriesAndNoTreeHandoff` (`internal/tasks/cli`) |
 | CAL-V0-046 | `TestCALV0046_ReleasePreimageCompatibility`, `TestCALV0046_NoTreeEligibilityBindings` (`internal/tasks/transaction`); `TestCALV0046_NoTreeHandoffSchema` (`internal/tasks/snapshot`); `TestCALV0046_NoTreeHandoffAndIntegrate`, `TestCALV0046_NoTreeRefusals` (`internal/tasks/store`); `TestCALV0045_CLIConfiguredRetriesAndNoTreeHandoff`, `TestCALV0046_CLICompatibility`, `TestCALV0046_CLIPoolHandoffQuarantines` (`internal/tasks/cli`) |
 | CAL-V0-047 | `TestCALV0047_AllCommandHelpIsReadOnly`, `TestCALV0047_MalformedInputsStillRefuse` (`internal/tasks/cli`) |
-| CAL-V0-052 | `TestCALV0052_DecodeConfigIsClosedAndBounded`, `TestCALV0052_RenderIsSinglePass` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
-| CAL-V0-053 | `TestCALV0053_WorkStateReaders` (`internal/tasks/dispatch`) |
+| CAL-V0-052 | `TestCALV0052_RunNormalizesShutdown`, `TestCALV0052_DecodeConfigIsClosedAndBounded`, `TestCALV0052_RenderIsSinglePass` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
+| CAL-V0-053 | `TestCALV0053_WorkStateReaders`, `TestCALV0053_ReaderReleased`, `TestCALV0053_ReaderFixedRetirementBound`, `TestCALV0053_ReaderExpiredBeforeRetirement`, `TestCALV0053_ReaderHoldIsSticky`, `TestCALV0053_ReaderMarkerRefusesUnsafeEvidence`, `TestCALV0053_ReaderMarkerIdentityAndSetup`, `TestCALV0053_ReaderLocalTimeout`, `TestCALV0053_ReaderClearFailureQuarantines`, `TestCALV0053_ReaderFilesystemFailures`, `TestCALV0053_ReaderFailedDiagnostic`, `TestCALV0053_ReaderDescendants`, `TestCALV0053_CancelledTickKeepsState`, `TestCALV0053_CancelledReobservationKeepsDurableState`, `TestCALV0053_EndedContextDoesNotObserve` (`internal/tasks/dispatch`); `TestCALV0053_DispatchReaderCLIQuarantineAndStatus`, `TestCALV0053_DispatchReaderCLIClearFailure`, `TestCALV0053_DispatchReaderCLIReleased`, `TestCALV0053_DispatchReaderCLICrashRetainsQuarantine` (`internal/tasks/cli`); #464 evidence and limits below |
 | CAL-V0-054 | `TestCALV0054_RosterIsDeterministicAndCapped`, `TestCALV0054_RosterStatePredicatesAndLanes` (`internal/tasks/dispatch`) |
 | CAL-V0-055 | `TestCALV0055_LaunchFinishBackoffAndPark` (`internal/tasks/dispatch`); live OpenCode run in `docs/build-log/2026-10-01-tasks-continuous-dispatch.md`; live Claude Code and Codex runs in `docs/build-log/2026-10-01-tasks-dispatch-claude-code.md` and `docs/build-log/2026-10-01-tasks-dispatch-codex.md` |
-| CAL-V0-056 | `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0056_KillsOrphanedProcessesBySession`, `TestCALV0056_IdentityOutageAndUnknownState` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
+| CAL-V0-056 | `TestCALV0056_CancelledHealingStopsNextWrite`, `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0056_KillsOrphanedProcessesBySession`, `TestCALV0056_IdentityOutageAndUnknownState` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
 | CAL-V0-057 | `TestCALV0057_FingerprintIgnoresNonDurableAttempts`, `TestCALV0055_LaunchFinishBackoffAndPark` (`internal/tasks/dispatch`) |
 | CAL-V0-058 | Event assertions in `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0058_SummaryReadsHostFinalText` (`internal/tasks/dispatch`) and `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
 | CAL-V0-059 | `TestCALV0059_CheckpointCodecAndDerivation` (`internal/tasks/journal`) |
 | CAL-V0-060 | `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`), including `pending`, which shares the lease audit with writers |
 | CAL-V0-061 | `TestCALV0061_CheckpointTailEqualsFullAudit`, `TestCALV0061_CheckpointFallsBackToFullAudit`, `TestCALV0061_CheckpointScopeAndMovement`, `TestCALV0061_CheckpointLimitsStayWithFullAudit` (`internal/tasks/journal`); `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`); live-store measurement in `docs/build-log/2026-10-01-tasks-read-checkpoint.md` |
+| CAL-V0-064 | `TestCALV0064_CommandGrammarAndRoleSeparation`; `TestCALV0064_ChangedFileReplayAndRestart`; `TestCALV0064_CheckedSaveFailureDoesNotGrantOrEscapeThroughClose`; `TestCALV0064_LaterSaveFailureCannotReviveGrantedParking`; `TestCALV0064_ActivePendingUnknownAndSeedAccounting`; `TestCALV0064_FirstSeedIsNotProgressAndCancellationIsNotAdmission`; `TestCALV0064_FirstSeedEndedWorkerAndLaterFailure`; `TestCALV0064_CanceledReobservationCannotAdmitEarlierToken`; `TestCALV0064_PostCommitCancellationPreservesFactsAndStopsEffects`; `TestCALV0064_CapacitySortedAllocationAndStrictLoad`; `TestCALV0064_NoTokenPreservesLegacyLedgerAndFingerprint`; `TestCALV0064_LedgerCanonicalFieldsAndCaseSensitiveKeys`; `TestCALV0064_KeyBoundaryAndOperatorUnparkRetainLifetimeBudget` (`internal/tasks/dispatch`); `TestCALV0064_DispatchCLIFileProgressAndReplay` (`internal/tasks/cli`); manual source/test evidence in `docs/build-log/2026-10-02-dispatch-explicit-progress.md`, optional OCM linkage unassessed |
+| CAL-V0-065 | `TestCALV0065_AbsentPreimage`, `TestCALV0065_RequestShapeAndCurrentMembership`, `TestCALV0065_AllocationPreviewAndPreparedAdmission` (`internal/tasks/transaction`); `TestCALV0065_HealthFiltersEveryRound`, `TestCALV0065_ReplayAfterSuccessorAndPolicyChange`, `TestCALV0065_ClaimNextSelectors` (`internal/tasks/store`); `TestCALV0065_CLIExclusionsAndPreviewPurity`, `TestCALV0065_NativeFixture` (`internal/tasks/cli`); scoped evidence and limits in `docs/build-log/2026-10-02-tasks-member-exclusions.md` |
 | CAL-V0-013 | `TestCALV0013_RetryAsNextGenerationUpToThree` (`internal/tasks/store`) |
 | CAL-V0-014 | `TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan`, `TestCALV0014_SelectedOnlyPlanPreviewIsComplete` (`internal/tasks/cli`); `plan preview` in `TestTMV0008_AS07_ReadsLeaveStoreByteIdentical` (`internal/tasks/cli`) |
 | CAL-V0-015 | `TestCALV0015_SubmitRecordsTheCandidateTree` (`internal/tasks/store`) |
@@ -1000,12 +1283,21 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 
 ## Holder, retry and policy observation acceptance
 
+
+Issue 494 preparation admission has focused and independent source review plus ten reached protocol cases on local Darwin/APFS and Linux/arm64 Colima/tmpfs. Source snapshot `82d8d532f7f537e93af2889d2fc1468a7953e9df0ccc39ff8e690e3c499c9e92` binds those protocol runs. The only later source change repairs the mixed harness replay receipt assumption; the tiny `TestGH494CLIResultContract` passed its parent and eight cases with exact captured identities on source snapshot `e716f41b793d1ad6517eeb47d3601fd227c4ee6357500e50b5fe94a07886a77b`. The original mixed Go test remains failed; independent raw readback establishes 30/30 operations, full 5000→5030→5030 audits, ten fenced attempts, empty reservations and exact-ID replay without changed bytes. No repeated mixed wave is implied. Current-source CAL-V0-026 measurement met the original threshold on local macOS with Go 1.27.1 and GOMAXPROCS=2: 3000 tickets, 20 samples per verb, claim p95 108.467584 ms and renew p95 97.003583 ms. All 105 host-load observations were below 12 CPUs. Raw measurement SHA256 `25b0076542c81b7bcce9c62badbc2f0bb9f18732eb821058218e64036830eecd`, host observation SHA256 `3a29706d5f4abee9d20313fd0f499a326a6495bcf26a4d6aef6b09114c54fd33` and source manifest `e716f41b793d1ad6517eeb47d3601fd227c4ee6357500e50b5fe94a07886a77b` bind this result. Linux and default-parallelism performance remain unqualified. Committed pending-receipt redo and the other four selected checks are recorded through the keyed post-commit plan in the build log; their results must be read from receipts bound to the actual commit. Terminal independent review, CEM/check/seal, integration and native completion remain pending. No mixed-version fairness, CLI arrival order or universal starvation freedom is claimed. See `docs/build-log/2026-10-04-gh494-fair-preparation-admission.md`. Rollback retires owned work before reverting code, while preserving store/journal/intent and inert coordination files.
+
+
 Tests for `CAL-V0-048`: `TestCALV0048_HeartbeatLegacyRoundTrip`,
 `TestCALV0048_HeartbeatFenceReplayAndLeaseInvariant`,
 `TestCALV0048_HeartbeatCLIReplayAndFence`, `TestCALV0048_HolderObservationBoundaries`.
 Tests for `CAL-V0-049`: `TestCALV0049_ReasonTotalsAndClosedSchema`,
 `TestCALV0049_RetryObservationMatchesAdmission`, `TestCALV0049_ChargeReasonPartition`,
-`TestCALV0049_RetryReadProjections`.
+`TestCALV0049_RetryReadProjections`, `TestIssue503_ZeroRemainingHandoffAdmission`,
+`TestIssue503_JournalAbsentAdmissionUnknown`, `TestIssue503_RecordedAdmissionProvenance`,
+`TestIssue503_RetryExplanation`. `CAL-V0-043` refusal diagnostics are covered by
+`TestIssue503_ReopenReasonDoesNotAuthorize` and `TestCALV0043_RecoveryExaminesEveryAttempt`.
+Rollback of issue 503 removes these additive read fields and diagnostic detail; no stored schema,
+retry charging, migration or acceptance reset changes are required.
 Tests for `CAL-V0-050`: `TestCALV0050_PolicyShowPureAndUpdateHelp` plus existing policy-update refusal/replay tests.
 Tests for `CAL-V0-051`: `TestCALV0051_CreateHelpAndMeaningfulIDs` plus existing allocator/collision tests.
 Failure modes retain stale-generation refusals, expired heartbeat replay, backwards clocks,
@@ -1014,3 +1306,44 @@ Rollback requires a compatible reader/writer for added optional attempt members;
 and request bytes, stop admissions before replacing a writer, and never silently downgrade over
 records an older closed codec cannot read. Focused qualification establishes these disposable
 seams only; repository-wide gate, production process liveness and hosted outcomes remain unclaimed.
+
+## #464 command-reader lifecycle amendment
+
+This records the experimental implementation of the existing CAL-V0-053 repair
+under GitHub #464 / V1-0654. It adds no requirement ID or new acceptance of the
+proposed `process-group-owner-v0.md` contract. The accepted work-state limits and
+UNKNOWN/alert behavior above remain in force. Final integration qualification is
+pending; see `docs/build-log/2026-10-04-dispatch-reader-lifecycle-integration.md`.
+
+A command reader holds one creation-owned process slot through result handling.
+After command exit or cancellation, retirement uses one fixed deadline: the earlier
+of command deadline plus one second and retirement trigger plus one second. Only
+Owner RELEASED permits inspecting output and returning ordinary read results.
+Unproved retirement retains UNKNOWN and poisons the dispatcher invocation;
+subsequent Tick/Run calls stop, including bounded runs and canceled contexts.
+Close releases the lock through the terminal UNKNOWN path without normal ledger
+or event writes. Cancellation also stops subsequent healing writes; it does not
+roll back an already completed mutation.
+
+Before spawning, the locked program directory receives a bounded canonical
+`reader-lifecycle.json` marker with profile `taskman-dispatch-reader-lifecycle/0`,
+program, random run identifier and lifecycle UNKNOWN. It contains no PID authority.
+Restart checks refuse unresolved, malformed, symlink or nonregular evidence before
+owner/ledger/event writes or worker adoption. Only matching file identity and bytes
+are cleared after RELEASED/result handling or a start failure that owns no child.
+Publication or clear failure stops this invocation; failed diagnostics do not clear
+quarantine. A publication failure before creation need not leave a marker because
+no reader was spawned. There is no automatic recovery or marker-clear endpoint.
+
+Read-only status separates `readerContainment`, `readerQuarantined` and
+`readerDiagnostic` from dispatcher PID liveness. Marker absence is NOT_OBSERVED,
+not proof of RELEASED. Exported ReadStates command calls retain the same boundary
+under the private `work-state-reader` program; status-line reads retain their
+existing behavior. Unsupported process-owner platforms refuse before creation.
+
+The marker covers process restart/crash visibility, not power loss. Old binaries,
+manual deletion and alternate state directories can bypass it. No escaped-session
+or host-wide containment, immortal handle retention, Linux amd64 runtime, or
+promotion of the Owner dependency is claimed. Rollback requires quiescing owned
+readers and preserving unresolved markers/evidence; reverting code alone does not
+prove cleanup or make an older reader safe.

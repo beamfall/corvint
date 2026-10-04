@@ -24,7 +24,7 @@
   },
   {
     "path": "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
-    "title": "Frontier decision brief \u2014 2026-08-29",
+    "title": "Frontier decision brief — 2026-08-29",
     "reqPrefix": "",
     "intent": "not-applicable (reading aid; decides nothing)",
     "delivery": "not-applicable",
@@ -38,7 +38,7 @@
     "path": "docs/specs/affected-plan-v0.md",
     "title": "Affected Plan V0",
     "reqPrefix": "AFP-V0",
-    "intent": "accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); other AFP-V0 requirements proposed",
+    "intent": "accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); other AFP-V0 requirements proposed",
     "delivery": "experimental",
     "claim": "`corvint affected` emits a read-only, non-authoritative affected-test selection plan with provider-ready Go package paths.",
     "dependsOn": [
@@ -53,7 +53,8 @@
       "script/gate-affected.sh",
       "tools/gate-affected-select",
       "tools/corvint-pr-tests",
-      ".github/cishards"
+      ".github/cishards",
+      ".github/testconfine"
     ]
   },
   {
@@ -172,7 +173,7 @@
   },
   {
     "path": "docs/specs/application-flow-understanding-v1.md",
-    "title": "Application Flow Understanding V1 \u2014 proven flows, safe E2E selection, navigation and documentation",
+    "title": "Application Flow Understanding V1 — proven flows, safe E2E selection, navigation and documentation",
     "reqPrefix": "AFU-V1",
     "intent": "accepted (decision 0385)",
     "delivery": "partially delivered; original issue-175 flows qualified locally",
@@ -622,7 +623,7 @@
     "title": "Corvint Tasks agent leases V0",
     "reqPrefix": "CAL-V0",
     "intent": "accepted (owner decision 2026-09-27)",
-    "delivery": "partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement)",
+    "delivery": "partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending",
     "claim": "Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.",
     "dependsOn": [
       "docs/specs/corvint-tasks-store-init-v0.md"
@@ -638,6 +639,23 @@
       "internal/tasks/supervisor",
       "internal/tasks/ticket",
       "internal/tasks/transaction"
+    ]
+  },
+  {
+    "path": "docs/specs/corvint-tasks-external-reviews-v0.md",
+    "title": "Corvint Tasks external reviews V0",
+    "reqPrefix": "ERG-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Review verdicts (G1/G2 PASS/RETURN) and author resubmissions become typed, CAS-ordered queue events that route work without parsing Markdown.",
+    "dependsOn": [
+      "docs/specs/corvint-tasks-agent-leases-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/tasks/snapshot/external_review.go",
+      "internal/tasks/transaction/external_review.go"
     ]
   },
   {
@@ -853,6 +871,26 @@
     "implementation": [
       "script/check-line-citations.sh",
       "script/check-line-citations_test.sh"
+    ]
+  },
+  {
+    "path": "docs/specs/corpus-republish-v0.md",
+    "title": "Corpus Republish V0",
+    "reqPrefix": "RCP-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "An optional companion builds approved documentation with reproducible provenance and previous-artifact parity and emits one replaceable connector request.",
+    "dependsOn": [
+      "docs/specs/documentation-corpus-v1.md",
+      "docs/specs/postmerge-connectors-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/corpusrepublish",
+      "cmd/corvint-corpus-republish",
+      "internal/doccorpus",
+      "internal/postmergeconnector"
     ]
   },
   {
@@ -1079,7 +1117,7 @@
   },
   {
     "path": "docs/specs/external-evidence-provider-v1.md",
-    "title": "External Evidence Provider V1 \u2014 repository identity",
+    "title": "External Evidence Provider V1 — repository identity",
     "reqPrefix": "EEP-V1",
     "intent": "accepted (decision 0310)",
     "delivery": "experimental (file transport only)",
@@ -1096,7 +1134,7 @@
   },
   {
     "path": "docs/specs/external-evidence-provider-v2.md",
-    "title": "External Evidence Provider V2 \u2014 opt-in path-to-path relations",
+    "title": "External Evidence Provider V2 — opt-in path-to-path relations",
     "reqPrefix": "EEP-V2",
     "intent": "accepted (decision 0312)",
     "delivery": "experimental (file transport only)",
@@ -1114,7 +1152,7 @@
   },
   {
     "path": "docs/specs/external-frontier-obligations-v0.md",
-    "title": "External Frontier Obligations V0 \u2014 a reference-only Change Frontier sidecar",
+    "title": "External Frontier Obligations V0 — a reference-only Change Frontier sidecar",
     "reqPrefix": "EFO-V0",
     "intent": "accepted (decision 0313)",
     "delivery": "experimental (file transport only)",
@@ -1132,7 +1170,7 @@
   },
   {
     "path": "docs/specs/external-test-selection-v0.md",
-    "title": "External Test Selection V0 \u2014 fail-closed advice from verification relations",
+    "title": "External Test Selection V0 — fail-closed advice from verification relations",
     "reqPrefix": "ETS-V0",
     "intent": "accepted (decision 0311)",
     "delivery": "experimental (file transport only)",
@@ -1150,7 +1188,7 @@
   },
   {
     "path": "docs/specs/external-test-selection-v1.md",
-    "title": "External Test Selection V1 \u2014 transitive obligations and checkout worktree reads",
+    "title": "External Test Selection V1 — transitive obligations and checkout worktree reads",
     "reqPrefix": "ETS-V1",
     "intent": "accepted (decision 0315)",
     "delivery": "experimental (file transport only)",
@@ -1447,6 +1485,7 @@
     "closableToday": false,
     "implementation": [
       "internal/testacceptance",
+      "internal/procgroup",
       "cmd/corvint-tests-accept"
     ]
   },
@@ -1994,7 +2033,7 @@
     "path": "docs/specs/pi-workflow-v0.md",
     "title": "Pi Workflow V0",
     "reqPrefix": "PWV-V0",
-    "intent": "accepted direction (owner instruction \u201cdo it. parallel\u201d, 2026-09-29)",
+    "intent": "accepted direction (owner instruction “do it. parallel”, 2026-09-29)",
     "delivery": "experimental",
     "claim": "Pi offers bounded native Core reads and an explicitly authorized Tasks workflow without acquiring evidence or execution authority.",
     "dependsOn": [
@@ -2028,6 +2067,24 @@
     ]
   },
   {
+    "path": "docs/specs/playwright-per-test-freshness-v0.md",
+    "title": "Playwright Per-test Freshness V0",
+    "reqPrefix": "PTF-V0",
+    "intent": "proposed technical contract; owner approved the implementation plan",
+    "delivery": "experimental",
+    "claim": "A bounded source-direct Playwright profile observes source/server/runtime identity and joins every planned native control attempt to every baseline repeat.",
+    "dependsOn": [
+      "docs/specs/new-e2e-test-acceptance-v0.md",
+      "docs/specs/playwright-external-provider-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/jstestprovider",
+      "internal/testacceptance"
+    ]
+  },
+  {
     "path": "docs/specs/playwright-suite-interaction-minimizer-v0.md",
     "title": "Playwright Suite-Interaction Minimizer V0",
     "reqPrefix": "PSM-V0",
@@ -2051,7 +2108,7 @@
     "reqPrefix": "PCH-V0",
     "intent": "proposed",
     "delivery": "experimental",
-    "claim": "Reference GitHub Actions templates and a host adapter contract run the post-merge workflow with per-step credentials and no write credential in authoring.",
+    "claim": "Reference CI templates and an optional paired launcher have source conformance; physical isolation and hosted replay remain unqualified.",
     "dependsOn": [
       "docs/specs/authoring-step-scope-v0.md",
       "docs/specs/postmerge-connectors-v0.md"
@@ -2059,6 +2116,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
+      "cmd/corvint-postmerge-host-launcher",
       "internal/postmergehost",
       "protocol/postmerge-host"
     ]
@@ -2093,6 +2151,46 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
+      "internal/postmergeworkflow",
+      "cmd/corvint-postmerge-workflow"
+    ]
+  },
+  {
+    "path": "docs/specs/postmerge-runtime-v1.md",
+    "title": "Post-merge Runtime V1",
+    "reqPrefix": "PMR-V1",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Explicit /1 binds actual native stage observations and refuses missing evidence; /0 remains unchanged.",
+    "dependsOn": [
+      "docs/specs/postmerge-connectors-v0.md",
+      "docs/specs/postmerge-replay-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/postmergeworkflow",
+      "cmd/corvint-postmerge-workflow"
+    ]
+  },
+  {
+    "path": "docs/specs/postmerge-runtime-v2.md",
+    "title": "Post-merge Runtime V2",
+    "reqPrefix": "PMR-V2",
+    "intent": "accepted",
+    "delivery": "not-started",
+    "claim": "Accepted /2 contract compares stable producer decisions and canonical requests across fresh verified runs; conformance data only, no runtime.",
+    "dependsOn": [
+      "docs/specs/postmerge-runtime-v1.md",
+      "docs/specs/postmerge-connectors-v0.md",
+      "docs/specs/new-e2e-test-acceptance-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/testacceptance",
+      "internal/postmergeproof",
+      "internal/postmergeconnector",
       "internal/postmergeworkflow",
       "cmd/corvint-postmerge-workflow"
     ]
@@ -2982,6 +3080,36 @@
       "internal/contextindex/range_impact.go",
       "internal/mcp/bridge/bridge.go",
       "cmd/corvint/help.go"
+    ]
+  },
+  {
+    "path": "docs/specs/process-group-owner-v0.md",
+    "title": "Process-group Owner V0",
+    "reqPrefix": "PGO-V0",
+    "intent": "proposed extraction of existing owner-authorized repair semantics",
+    "delivery": "experimental",
+    "claim": "An optional process-group Owner preserves leader identity through retirement and reports unproved cleanup as HOLD.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/groupreap"
+    ]
+  },
+  {
+    "path": "docs/specs/corvint-tasks-user-service-v0.md",
+    "title": "Corvint Tasks user service V0",
+    "reqPrefix": "SERVICE500",
+    "intent": "accepted optional profile (owner-delegated decision 2026-10-04 (agent decided))",
+    "delivery": "experimental",
+    "claim": "An explicit user-service profile restarts dispatcher/helper controllers while preserving workers and durable suppression under verified ownership.",
+    "dependsOn": [
+      "docs/specs/corvint-tasks-agent-leases-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/tasks/service"
     ]
   },
   {

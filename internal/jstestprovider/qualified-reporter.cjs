@@ -316,9 +316,9 @@ function bundledBrowserIdentity(headless) {
   return browser;
 }
 
-function qualifiedBundledIdentity(browser) {
+function qualifiedBundledIdentity(browser, freshnessProfile = false) {
   const qualified = qualifiedBundledBrowser;
-  return browser && browser.platform === 'darwin' && browser.arch === 'arm64' && browser.nodeVersion === 'v22.23.2' &&
+  return browser && browser.platform === 'darwin' && browser.arch === 'arm64' && browser.nodeVersion === (freshnessProfile ? 'v22.23.3' : 'v22.23.2') &&
     browser.browserType === 'chromium' && browser.browserVersion === qualified.observedVersion && browser.channel === '' &&
     browser.executableSource === 'playwright-bundled' && browser.executableName === qualified.executableName &&
     browser.executablePath.endsWith(qualified.pathSuffix) && browser.executableSha256 === qualified.executableSha256 &&
@@ -328,12 +328,12 @@ function qualifiedBundledIdentity(browser) {
 
 // Qualified against 1.60.0 and 1.63.0 in-process reporter objects. Serialization or a
 // custom executable fixture can erase effective options; that is unknown.
-function effectiveUse(test, project, version) {
+function effectiveUse(test, project, version, freshnessProfile = false) {
   if (!['1.60.0', '1.63.0'].includes(version) || !Array.isArray(test._testType?.fixtures)) return null;
   const use = {};
   const assign = (fixtures, builtin) => {
     if (!builtin && ['browser', 'context', 'page', 'playwright', '_browserOptions', '_combinedContextOptions', '_optionConnectOptions'].some(k => Object.hasOwn(fixtures, k))) return false;
-    for (const key of identityKeys) {
+    for (const key of (freshnessProfile ? [...identityKeys, 'baseURL'] : identityKeys)) {
       if (!Object.hasOwn(fixtures, key)) continue;
       let value = fixtures[key];
       if (Array.isArray(value) && value.length === 2 && value[1] && typeof value[1] === 'object' && ('option' in value[1] || 'scope' in value[1] || 'auto' in value[1])) value = value[0];
@@ -372,7 +372,7 @@ function effectiveUse(test, project, version) {
     resolved.channel = resolved.channel || '';
     resolved.corvintBrowser = executablePath ? {platform: process.platform, arch: process.arch, nodeVersion: process.version, browserType: resolved.browserName, browserVersion: executableVersion, channel: resolved.channel, executablePath, headlessShellAvailable: headlessShell !== '' && fs.existsSync(headlessShell)} : bundledBrowserIdentity(resolved.headless);
     const systemQualified = resolved.corvintBrowser?.platform === 'darwin' && resolved.corvintBrowser?.arch === 'arm64' && resolved.corvintBrowser?.nodeVersion === 'v22.23.2' && resolved.corvintBrowser?.browserType === 'chromium' && resolved.corvintBrowser?.browserVersion === 'Google Chrome 153.0.8010.48' && resolved.corvintBrowser?.channel === '' && resolved.corvintBrowser?.executablePath === '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' && resolved.corvintBrowser?.headlessShellAvailable === true;
-    if (resolved.corvintBrowser?.browserType !== resolved.browserName || (!systemQualified && !qualifiedBundledIdentity(resolved.corvintBrowser))) return null;
+    if (resolved.corvintBrowser?.browserType !== resolved.browserName || (!(systemQualified && !freshnessProfile) && !qualifiedBundledIdentity(resolved.corvintBrowser, freshnessProfile))) return null;
   } else {
     delete resolved.headless;
     delete resolved.connectOptions;
@@ -382,14 +382,15 @@ function effectiveUse(test, project, version) {
 
 // The config supplies only a private output path. Nothing is read from stdout.
 class Reporter {
-  constructor(options) { this.path = options.output; this.tests = new Map(); this.errors = []; this.sensitiveInputPolicy = options.sensitiveInputPolicy || null; this.policy = sensitivePolicy(this.sensitiveInputPolicy); this.hasSensitiveInput = false; this.sensitiveValues = new Set(); this.sensitiveStepCount = 0; this.retainAttemptDetails = options.retainAttemptDetails === true; if (this.retainAttemptDetails && this.policy) throw new Error('external-attempt-details-composition-unsupported'); }
+  constructor(options) { this.freshnessProfile = options.freshnessProfile === true; this.path = options.output; this.tests = new Map(); this.errors = []; this.sensitiveInputPolicy = options.sensitiveInputPolicy || null; this.policy = sensitivePolicy(this.sensitiveInputPolicy); this.hasSensitiveInput = false; this.sensitiveValues = new Set(); this.sensitiveStepCount = 0; this.retainAttemptDetails = options.retainAttemptDetails === true; if (this.retainAttemptDetails && this.policy) throw new Error('external-attempt-details-composition-unsupported'); }
   onBegin(config, suite) {
 	this.schedule = {workers: config.workers, starts: []};
     this.version = config.version;
     this.files = {};
     this.configFiles = {};
     for (const file of Object.keys(require.cache)) {
-      if (file.includes('/node_modules/') || file.startsWith(require('node:path').dirname(this.path) + '/')) continue;
+      const outputRoot = this.freshnessProfile ? fs.realpathSync(path.dirname(this.path)) : path.dirname(this.path);
+      if ((!this.freshnessProfile && file.includes('/node_modules/')) || file.startsWith(outputRoot + '/')) continue;
       // A module moved or removed since it was loaded is skipped rather than aborting onBegin.
       try { if (fs.statSync(file).isFile()) this.configFiles[file] = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'); } catch { continue; }
     }
@@ -406,7 +407,7 @@ class Reporter {
   }
   onTestEnd(test, result) {
     const project = test.parent.project();
-    const use = project ? effectiveUse(test, project, this.version) : null;
+    const use = project ? effectiveUse(test, project, this.version, this.freshnessProfile) : null;
     const errors = result.errors || [];
     let message = errors.map(e => e.message || '').join('\n');
     if (this.policy) {
@@ -429,6 +430,17 @@ class Reporter {
     attempts.push({state, retry: result.retry, failureKind: infrastructure ? 'browser-or-fixture' : state === 'failed' ? 'assertion-or-test' : state === 'timedOut' ? 'test-timeout' : 'none', ...(this.policy ? {steps} : {})});
     const repeat = test.repeatEachIndex > 0 ? ` > repeat ${test.repeatEachIndex}` : '';
     const artifacts = (result.attachments || []).filter(a => a.path).map(a => sensitive ? {name: redactionMarker, path: redactionMarker} : {name: a.name, path: a.path});
+
+    let importedFiles;
+    if (this.freshnessProfile) {
+      const imports = (result.stdout || []).map(value => value.toString()).join('').split('\n').filter(line => line.startsWith('CORVINT-PTF-IMPORTS '));
+      if (imports.length === 1 && imports[0].length <= 128 * 1024) {
+        try { const parsed = JSON.parse(imports[0].slice('CORVINT-PTF-IMPORTS '.length));
+          const outputRoot=fs.realpathSync(path.dirname(this.path));for (const name of ['playwright.config.cjs','reporter.cjs']) delete parsed?.[path.join(outputRoot,name)];
+          if (parsed && !Array.isArray(parsed) && typeof parsed === 'object' && Object.keys(parsed).length <= 512 && Object.entries(parsed).every(([file,digest]) => path.isAbsolute(file) && typeof digest === 'string' && /^[a-f0-9]{64}$/.test(digest))) importedFiles=parsed;
+        } catch {}
+      }
+    }
     const anchor = {file: test.location.file, line: test.location.line};
     const attemptDetails = previous?.attemptDetails || [];
     if (this.retainAttemptDetails) {
@@ -441,7 +453,7 @@ class Reporter {
       retries: result.retry, durationMs: result.duration,
       anchor,
       failureMessage: message, attempts,
-      artifacts, ...(this.retainAttemptDetails ? {attemptDetails} : {})
+      artifacts, ...(this.freshnessProfile ? {importedFiles} : {}), ...(this.retainAttemptDetails ? {attemptDetails} : {})
     });
   }
   onEnd(result) {

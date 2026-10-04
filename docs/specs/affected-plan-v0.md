@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-01
 Requirement prefix: `AFP-V0`
-Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); other AFP-V0 requirements proposed
+Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); other AFP-V0 requirements proposed
 Delivery status: experimental
 Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wire and non-goals),
 `docs/specs/live-proof-carrying-verification-v0.md` (future composer, not-started),
@@ -11,8 +11,8 @@ Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wi
 
 ## Agent digest
 - Claim: `corvint affected` emits a read-only, non-authoritative affected-test selection plan with provider-ready Go package paths.
-- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); other AFP-V0 requirements proposed/experimental
-- Exists: `internal/liveverify/affected`, `corvint affected`, `cmd/corvint/affected_test.go`, the `advice` member (AFP-V0-009: repository-declared mandatory checks, one advisory Go command, the unknown frontier), the `--base FULL_COMMIT_ID` range form and `range` member (AFP-V0-010), and the `make gate-affected` fast tier over the receipt (AFP-V0-011: `script/gate-affected.sh`, fail-closed to the full `go-test` run; not the push gate), whose union is attributed per dirty path from a static repository index of imports and path literals (AFP-V0-012), whose literal-reader rule also adds, in the plan itself, selections for every dirty path a package names, without narrowing an unowned path's `UNKNOWN` scope (AFP-V0-021); `tools/corvint-pr-tests` and `.github/workflows/ci.yml` remain full until separately pinned AFP-V0-014 qualification; AFP-V0-022 adds complete advisory CI partitions and a digest-bound experimental sharded PR profile.
+- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); other AFP-V0 requirements proposed/experimental
+- Exists: `internal/liveverify/affected`, `corvint affected`, `cmd/corvint/affected_test.go`, the `advice` member (AFP-V0-009: repository-declared mandatory checks, one advisory Go command, the unknown frontier), the `--base FULL_COMMIT_ID` range form and `range` member (AFP-V0-010), and the `make gate-affected` fast tier over the receipt (AFP-V0-011: `script/gate-affected.sh`, fail-closed to the full `go-test` run; not the push gate), whose union is attributed per dirty path from a static repository index of imports and path literals (AFP-V0-012), whose literal-reader rule also adds, in the plan itself, selections for every dirty path a package names, without narrowing an unowned path's `UNKNOWN` scope (AFP-V0-021); `tools/corvint-pr-tests` and `.github/workflows/ci.yml` remain full until separately pinned AFP-V0-014 qualification; AFP-V0-022 adds complete advisory CI partitions and a digest-bound experimental sharded PR profile; AFP-V0-023 lets a project-owned `.corvint/test-read-scopes.json` take a root-locating package off the rule (d) floor, enforced in full CI by the Landlock wrapper `.github/testconfine`.
 - Blocked on: the LPCV-V0 composer accepting or replacing this wire; genuine 200-row qualification and matching reviewed pins (AFP-V0-014/017); the 201-commit prerequisite is met at `adf8358220769b8d6724ad27d27625602b8a7c62`, but no campaign PASS is implied.
 - Read next: Requirements; Non-goals and authority; Failure modes.
 
@@ -29,7 +29,8 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
 ## Requirements
 
 - **AFP-V0-001:** The command MUST be read-only: one bounded `git status`, one HEAD identity read,
-  one source walk, at most two bounded advice-declaration reads (AFP-V0-009), with `--base` one
+  one source walk, at most two bounded advice-declaration reads (AFP-V0-009), one bounded
+  read-scope declaration read (AFP-V0-023), with `--base` one
   bounded base identity read and one bounded `git diff --name-only` (AFP-V0-010), no test
   execution, no index, trace, cache, or ledger write, and no `observeUnsupported` call on failure.
 - **AFP-V0-002:** The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,
@@ -89,7 +90,9 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   deterministic JSON projection `{"languages","frontier","units"}`: the sorted participating plugin
   names, the sorted graph frontier, and, in unit-id order, each unit's `id`, `sources`, `tests`,
   `imports`, `testImports`, `pathTokens`, `pathTokensBounded`, `embeds`, `unboundedReads`,
-  `locatesRoot` and `frontier`, every member always present (`digestBody` and `digestUnit` in
+  `locatesRoot`, `readScoped`, `readScope` (AFP-V0-023) and `frontier`, every member always present
+  except `readScoped` and `readScope`, which appear only for a declared unit so that an undeclared
+  graph keeps its digest (`digestBody` and `digestUnit` in
   `internal/liveverify/affected/graph.go`). The projection is fixed there, not by the internal
   `Unit` struct, so a new internal field changes the digest only when it is added to the
   projection, and a unit field left out of it fails the test. The value is an identity, not a
@@ -251,7 +254,8 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   package MAY establish the root for a separate naming fragment because the literal-only index
   cannot prove whether the expressions compose; a `.corvint` or `change.cem.json` token joined only
   to a fixture root selects nothing, and rules (a), (b), and (d) are unchanged;
-  (d) whenever `plan.dirty` is non-empty (`unresolved`), every package whose reads no literal bounds.
+  (d) whenever `plan.dirty` is non-empty (`unresolved`), every package whose reads no literal bounds
+  and that no valid AFP-V0-023 declaration names; a declared one is selected by its scope instead.
   Such a package calls `runtime.Caller` or `os.Getwd` or carries the literal `--show-toplevel` in any
   file, or has a file that does not lex. A call counts under whatever local name the file's own
   import gave the callee package — its default name, an alias (`rt "runtime"`), or unqualified under
@@ -490,6 +494,47 @@ and container qualification; full fallback remains available.
   timing simulations cannot establish hosted speedup. Rollback clears the selection pins and
   reverts partition placement to the previous complete round-robin workflow.
 
+### Declared confined test read scopes
+
+- **AFP-V0-023:** (owner-directed, proposed, 2026-10-01; V1-0246, V1-0081) A project MAY commit
+  `.corvint/test-read-scopes.json`, the closed object `{"profile":"corvint-test-read-scopes/0",
+  "packages":{DIR:[ENTRY...]}}`, at most 1 MiB, 4096 packages and 256 entries per package. `DIR` is
+  a canonical relative directory, never `.`, holding an observed Go package of the root module; an
+  `ENTRY` is a canonical relative path, optionally ending in one `/` to name a subtree, never `.git`
+  or below it, strictly ascending within its package. The declaration states that the package's
+  test processes read nothing under the repository root except its own directory subtree and the
+  declared entries. The planner (`readScoped`/`readScope` unit members, part of the AFP-V0-005
+  projection) and the AFP-V0-012 selector MUST then leave that package out of rule (d), whatever
+  makes it unbounded, and select it, with witness `DECLARED_READ_SCOPE` or the selector line
+  `declared <pkg> <- <path>`, when a dirty path is in its subtree, equals or lies under an entry,
+  is an ancestor of an entry, or is the declaration itself. Rules (a) to (c) and every dependency
+  edge are unchanged; a package that depends on a declared root locator but is not itself declared
+  stays on the floor. A declaration that is present but not a regular file, oversized, not exactly
+  this grammar, or names a directory with no package MUST declare nothing: the planner raises the
+  module-level frontier `go:test-read-scopes-invalid` and the selector falls back (AFP-V0-011).
+  Full CI SHALL run the root Go test command with `-exec` set to the owner-protected wrapper
+  `.github/testconfine`, built isolated from tested module directives, which loads the same
+  grammar independently, fails the run on any invalid declaration, a Landlock ABI below 2, an
+  existing declared directory or entry reached through a symbolic link, or an entry whose trailing `/`
+  disagrees with whether it is a directory, never grants a symbolic link outside the root, and
+  execs each declared package's test binary under a Landlock ruleset granting read access to every
+  path outside the root, the package subtree and the existing declared entries only, with
+  `-buildvcs=false` appended to `GOFLAGS` because a nested `go build` cannot read `.git` to stamp
+  VCS information; undeclared packages run unconfined. The ruleset also handles and grants link/rename reparenting (REFER)
+  everywhere, because an unhandled REFER refuses every cross-directory link or rename; Landlock
+  still refuses a reparenting that would widen a file's read access, such as a move out of a denied
+  tree. A declaration that is too narrow therefore fails that package's tests
+  in full CI rather than silently under-selecting. Residuals, each retained rather than closed:
+  Landlock does not mediate `stat`, `access`, `readlink` or the existence of a path, so a test
+  whose outcome depends only on metadata or absence under the root is not confined; a test that
+  tolerates a denied read is not detected; a subprocess outside the test binary (a `go build` of
+  another package) inherits the ruleset, so such a package cannot be declared narrowly; the
+  AFP-V0-013 driver's selected and shadow runs are not confined until its frozen argv and
+  identity carry the wrapper, which MUST precede any AFP-V0-014 campaign that relies on a
+  declaration; and `make gate-ledger` `-unresolved`/`-bounds` stay whole-tree for declared
+  packages. Rollback deletes the declaration, which restores rule (d) for every package; removing
+  the `-exec` wrapper alone without deleting the declaration is not a supported state.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -520,7 +565,8 @@ package, or the importers of a package that is gone, rather than claiming no dep
 compilation: `unsupported-affected-drift`. A `--base` that is not a full commit id:
 `invalid-arguments`; one that is not a commit here: `unsupported-affected-revision`; a range diff
 over its bound: `unsupported-affected-status`. In the fast tier every one of these, a plan the
-script cannot read, a module-level Go frontier, a dirty root module definition, or an empty
+script cannot read, a module-level Go frontier (including an invalid AFP-V0-023 read-scope
+declaration), a dirty root module definition, or an empty
 selection over a non-empty diff, or a repository the selector cannot index (AFP-V0-012) runs the
 full `./...` command instead of a narrowed one, so the
 worst case of `make gate-affected` is the cost of `make go-test`, never a skipped package.
@@ -541,6 +587,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-011 | `gate-affected`, `gate-affected-test`, `GO_TEST_COMMAND` in `Makefile`; `script/gate-affected.sh`; its selection step `selectPackages` in `tools/gate-affected-select/main.go` (native Go, no Python runtime, decision 0088) | `script/gate-affected_test.sh` via `make gate-affected-test` (a shell test over `testdata/fixture` in a scratch repository with a recording go-test command: clean tree runs nothing; a core edit selects core and leaf; a deleted `core/core.go` is a `frontier` line for core, mid, and leaf; a document no package reads beside a core edit is `data`, does not fall back, and adds no package; a dirty `go.mod` falls back; a committed edit under `BASE` selects; an unresolvable base falls back; an interrupted planner exits nonzero without running go test); `TestSelectPackagesAttributesEveryDirtyPath` (a control character in a dirty path falls back) in `tools/gate-affected-select/main_test.go`; `TestSelectPackagesRejectsSiblingModulePrefix` (a package path that only shares the module's characters as a string prefix, with no `/` boundary, falls back instead of being selected); the 50-commit replay in AFP-V0-011 |
 | AFP-V0-012 | `indexRepository`, `scanSource`, `escapesPackage`, `dependents`, `readers`, `enclosing`, `unresolved`, `namesPath` in `tools/gate-affected-select/readers.go`; the per-path loop in `selectPackages` (decision 0131) | `TestSelectPackagesAttributesEveryDirtyPath` in `tools/gate-affected-select/main_test.go` (a deleted source widens to its importers; a Go file read as data selects its reader; a document selects the package that names it; a testdata fixture selects its enclosing package; a `runtime.Caller` package is selected on every dirty path; a nested module's literals select nothing); `TestSelectPackagesFallsBackWhenAttributionFails` (imports that do not parse fall back); `TestSelectPackagesReachesEmbeddingAncestorDependents` (a data path under an embedding ancestor reaches that ancestor's dependents); `TestSelectPackagesResolvesAliasedAndDotRootLocatorImports` (an aliased or dot-imported `runtime.Caller` still marks the package unresolved); `TestIndexRepositoryFailsClosedOnSymlinkedGoFile` (a symlinked `.go` file falls back instead of being silently skipped) |
 | AFP-V0-022 | `.github/cishards`, `tools/corvint-pr-tests`, CI and qualification workflows | `TestAFPMixedAdmissionPreservesSelectedUnion`, `TestAFPCompleteBalancedPartition`, `TestAFPIsolatedBuildIgnoresModuleRedirection`, `TestShardedPRExecution_AFPV0022`; hosted timing and narrowing qualification NOT_RUN |
+| AFP-V0-023 | `ReadScopesPath`, `InReadScope`, `ValidReadScopeEntry`, `Graph.scopedReadersOf`, `WitnessDeclaredReadScope`, `Unit.ReadScoped`, `Unit.ReadScope` in `internal/liveverify/affected`; `readScopes`, `applyReadScopes`, `FrontierReadScopesInvalid` in `internal/liveverify/affected/golang/readscopes.go`; `readScopes`, `inReadScope` in `tools/gate-affected-select/readscopes.go`; `.github/testconfine` (`Load`, `Rules`, `ExecConfined`, `ConfinedEnv`, `cmd`) and the full-run `-exec` in `.github/workflows/ci.yml` | `TestDeclaredReadScopeNarrowsAnUnboundedReader_AFPV0023`, `TestInvalidReadScopeDeclarationDeclaresNothing_AFPV0023`, `TestGraphDigestIsTheDomainTaggedProjection_V1_0299`, `TestSelectPackagesHonorsDeclaredReadScopes`, `TestLoadAcceptsOnlyTheExactGrammar_AFPV0023`, `TestRulesGrantOutsideRootPackageAndEntriesOnly_AFPV0023`, `TestSelectionOnTheLiveDirtyWorktree`, `TestConfinedEnvTurnsOffVCSStamping_AFPV0023`, `TestExecConfinedDeniesUndeclaredRepositoryReads_AFPV0023` (Linux; run on a kernel reporting Landlock ABI 4, including granted and refused reparenting); per-package declarations verified under the wrapper in a Linux container (build log 2026-10-01-declared-test-read-scopes); hosted confined full run NOT_RUN until the protected workflow change is admitted |
 | AFP-V0-013 | `tools/corvint-pr-tests` and `.github/workflows/ci.yml` | `TestSelectedFailureAndFallback`, `TestInterruptionLeavesNoLiveDescendant`; trusted pins empty, hosted execution unavailable |
 | AFP-V0-015 | `tools/corvint-pr-tests/container.go` and indexed shadow execution | `TestContainerProfileAndArchive`, `TestColdRuntime`, `TestFrozenRowIndex`, `TestDockerCLIInterruption`, `TestContainerCleanupRefusal`; real Linux row/hosted NOT_RUN |
 | AFP-V0-014 | `tools/corvint-pr-tests/shadow.go` | `TestQualificationAndTerminalFailures`, `TestToolIdentityRequiresCurrentGoVersion`; frozen 200-row qualification NOT_RUN |

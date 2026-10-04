@@ -33,6 +33,8 @@ var genesisDirectories = []string{"receipts", "evidence", "pinned", "requests", 
 // Report is what one applied transaction did, in terms the envelope can
 // state without inventing a fact.
 type Report struct {
+	LaneUntouchedAttestation *snapshot.LaneUntouchedAttestation
+
 	PoolAllocation *snapshot.PoolAllocation
 	// Outcome is the model's outcome, unchanged.
 	Outcome mutation.Outcome
