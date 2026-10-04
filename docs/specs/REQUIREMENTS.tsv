@@ -59,6 +59,7 @@ AFP-V0-022	docs/specs/affected-plan-v0.md	480	(owner-directed experimental profi
 AFP-V0-023	docs/specs/affected-plan-v0.md	517	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081) A project MAY commit
 AFP-V0-024	docs/specs/affected-plan-v0.md	555	(owner-directed, proposed, 2026-10-04; V1-0717) A push to `main` MAY reuse a
 AFP-V0-025	docs/specs/affected-plan-v0.md	581	(owner-directed, proposed, 2026-10-04; V1-0719) The repository SHALL commit
+AFP-V0-026	docs/specs/affected-plan-v0.md	602	(owner-directed, proposed, 2026-10-04; V1-0752) `.github/workflows/ci.yml`
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
