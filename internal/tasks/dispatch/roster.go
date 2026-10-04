@@ -54,16 +54,17 @@ type Queue interface {
 	Reap(ctx context.Context, a Attempt, requestID string) error
 }
 
-// Assignment is one roster decision: a role slot bound to one work key.
+// Assignment is one roster decision: a role slot bound to one work key at
+// one CAL-V0-057 escalation tier (0 is the base model).
 type Assignment struct {
 	Role, Key, Ticket, Local, State, Pool, Member string
-	Slot                                          int
+	Slot, Tier                                    int
 }
 
-// Busy is a running worker's claim on a role slot and a work key.
+// Busy is a running worker's claim on a role slot, a work key and a tier.
 type Busy struct {
-	Role, Key string
-	Slot      int
+	Role, Key  string
+	Slot, Tier int
 }
 
 func laneKey(pool, member string) string { return "lane:" + pool + "/" + member }
@@ -86,7 +87,15 @@ func liveAttempts(obs *Observation) map[string]Attempt {
 // Roster is the CAL-V0-054 pure roster: the same configuration,
 // observation, running set and skip set always produce the same assignments.
 func Roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool) []Assignment {
-	out, _ := RosterWithPressure(c, obs, busy, skip, nil)
+	out, _ := roster(c, obs, busy, skip, nil, nil)
+	return out
+}
+
+// RosterTiers is Roster with each candidate's escalation tier from the pure
+// tierOf (nil means every tier is 0). A candidate whose tier is at its tier
+// cap waits; it never falls back to a lower tier.
+func RosterTiers(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tierOf func(role, key string) int) []Assignment {
+	out, _ := roster(c, obs, busy, skip, tierOf, nil)
 	return out
 }
 
@@ -94,10 +103,17 @@ func Roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool) []As
 // The budget is consulted only after every static fence admits a candidate
 // and before the candidate consumes a slot or reserves its key, so a held
 // candidate reserves nothing. held lists each held work key once, in roster
-// order, while the role and global caps (charged with launches and earlier
-// holds) would have admitted it, unless a later exempt candidate launched the
+// order, while the role, tier and global caps (charged with launches and
+// earlier holds) would have admitted it, unless a later exempt candidate launched the
 // same key.
 func RosterWithPressure(c *Config, obs *Observation, busy []Busy, skip map[string]bool, budget *PressureBudget) (out, held []Assignment) {
+	return roster(c, obs, busy, skip, nil, budget)
+}
+
+// roster is the shared pure roster behind Roster, RosterTiers and
+// RosterWithPressure. The CAL-V0-057 tier cap is a static fence, so it is
+// checked before the CAL-V0-068 pressure budget is charged.
+func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tierOf func(role, key string) int, budget *PressureBudget) (out, held []Assignment) {
 	type candidate struct {
 		a                    Assignment
 		pin, role, prio, ord int
@@ -158,11 +174,17 @@ func RosterWithPressure(c *Config, obs *Observation, busy []Busy, skip map[strin
 		}
 		return x.ord < y.ord
 	})
-	caps := map[string]int{}
+	caps, tierCaps := map[string]int{}, map[string]int{}
+	tierKey := func(role string, tier int) string { return fmt.Sprintf("%s\x00%d", role, tier) }
 	for _, r := range c.Roles {
 		caps[r.Name] = r.Cap
+		for i, t := range r.Escalate {
+			if t.Cap > 0 {
+				tierCaps[tierKey(r.Name, i+1)] = t.Cap
+			}
+		}
 	}
-	taken, slots, count := map[string]bool{}, map[string]map[int]bool{}, map[string]int{}
+	taken, slots, count, tierCount := map[string]bool{}, map[string]map[int]bool{}, map[string]int{}, map[string]int{}
 	total := 0
 	for _, b := range busy {
 		taken[b.Key] = true
@@ -171,9 +193,10 @@ func RosterWithPressure(c *Config, obs *Observation, busy []Busy, skip map[strin
 		}
 		slots[b.Role][b.Slot] = true
 		count[b.Role]++
+		tierCount[tierKey(b.Role, b.Tier)]++
 		total++
 	}
-	heldKeys, heldCount, heldTotal := map[string]bool{}, map[string]int{}, 0
+	heldKeys, heldCount, heldTierCount, heldTotal := map[string]bool{}, map[string]int{}, map[string]int{}, 0
 	for _, cd := range cands {
 		if total >= c.GlobalCap {
 			break
@@ -182,13 +205,23 @@ func RosterWithPressure(c *Config, obs *Observation, busy []Busy, skip map[strin
 		if taken[a.Key] || skip[a.Key] || count[a.Role] >= caps[a.Role] {
 			continue
 		}
+		if tierOf != nil {
+			a.Tier = tierOf(a.Role, a.Key)
+		}
+		tk := tierKey(a.Role, a.Tier)
+		if n, ok := tierCaps[tk]; ok && tierCount[tk] >= n {
+			continue
+		}
 		if budget != nil && !budget.Accept(a) {
-			// Report a hold only while the static role and global caps,
-			// charged with earlier launches and holds, would still admit
-			// the candidate. The shadow counters never affect admission.
-			if !heldKeys[a.Key] && count[a.Role]+heldCount[a.Role] < caps[a.Role] && total+heldTotal < c.GlobalCap {
+			// Report a hold only while the static role, tier and global
+			// caps, charged with earlier launches and holds, would still
+			// admit the candidate. The shadow counters never affect
+			// admission.
+			n, capped := tierCaps[tk]
+			if !heldKeys[a.Key] && count[a.Role]+heldCount[a.Role] < caps[a.Role] && total+heldTotal < c.GlobalCap && (!capped || tierCount[tk]+heldTierCount[tk] < n) {
 				heldKeys[a.Key] = true
 				heldCount[a.Role]++
+				heldTierCount[tk]++
 				heldTotal++
 				held = append(held, a)
 			}
@@ -202,6 +235,7 @@ func RosterWithPressure(c *Config, obs *Observation, busy []Busy, skip map[strin
 		slots[a.Role][a.Slot] = true
 		taken[a.Key] = true
 		count[a.Role]++
+		tierCount[tierKey(a.Role, a.Tier)]++
 		total++
 		out = append(out, a)
 	}
