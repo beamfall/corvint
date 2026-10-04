@@ -3,7 +3,8 @@
 // mutations through the §5.2 journal writer. Unbuilt administrative and
 // runtime verbs answer NOT_RUN. Output is always one taskman-command-result/0
 // envelope (§3.3) on stdout, except `archive export`, whose stdout is the
-// archive stream and whose envelope goes to stderr.
+// archive stream and whose envelope goes to stderr. Attempt-mode `run` keeps
+// the envelope on stdout and sends the command's own output to stderr.
 package cli
 
 import (
@@ -114,6 +115,9 @@ func Run(env Env) int {
 		}
 		return emit(env.Stdout, usage([]string{"program"}, "expected show"))
 	case "run":
+		if attemptMode(args[1:]) {
+			return attemptRun(env, args[1:])
+		}
 		return emit(env.Stdout, programRun(env, args[1:]))
 	case "dispatch":
 		return emit(env.Stdout, dispatchCommand(env, args[1:]))
@@ -298,6 +302,7 @@ func helpResult() *wire.Result {
 	o.Set("supervisionLimits", wire.Strings([]string{"Codex-only optional policy profile; pinned executable and Core CLI required", "Token usage is observed, not hard-enforced; absent counters remain unknown", "Shared observed cutoffs permit one already-admitted turn per active lane of overshoot", "Explicit clean integration checkout and exact candidate/base grant required; no publication"}))
 	o.Set("usage", wire.Strings([]string{
 		"corvint-tasks run --program ID --config FILE --role implementer|reviewer|integrator --count N --host codex",
+		"corvint-tasks run --attempt ID --generation G --timeout SECONDS [--lease-minutes N] [--role ROLE] -- COMMAND...   (command output on stderr; exit status is the command's)",
 		"corvint-tasks admit|resume|retry|drain|cancel --program ID --config FILE",
 		"corvint-tasks answer --program ID --config FILE --question SHA256 --revision N --answer TEXT",
 		"corvint-tasks pending; corvint-tasks program show",

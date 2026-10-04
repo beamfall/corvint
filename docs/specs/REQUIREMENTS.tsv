@@ -225,6 +225,13 @@ ATI-V0-009	docs/specs/authority-trigger-index-v0.md	95	The table MUST be bounded
 ATI-V0-010	docs/specs/authority-trigger-index-v0.md	97	The result MUST separately name its two blind spots: every requested path the in
 ATI-V0-011	docs/specs/authority-trigger-index-v0.md	100	The command MUST be read-only over repository and trace state, MUST refuse a pat
 ATI-V0-012	docs/specs/authority-trigger-index-v0.md	103	The index MUST NOT be emitted through `harness event`. `GPK-V0-002` pins that
+ATR-V0-001	docs/specs/corvint-tasks-attempt-runner-v0.md	44	`corvint-tasks run` MUST enter attempt mode only when `--attempt` appears before
+ATR-V0-002	docs/specs/corvint-tasks-attempt-runner-v0.md	45	Before launch the runner MUST heartbeat the attempt, then renew it only when the
+ATR-V0-003	docs/specs/corvint-tasks-attempt-runner-v0.md	46	The command MUST be started once through `groupreap.Start` as the leader of an o
+ATR-V0-004	docs/specs/corvint-tasks-attempt-runner-v0.md	47	The runner MUST preserve the command's exit status and distinguish the outcome c
+ATR-V0-005	docs/specs/corvint-tasks-attempt-runner-v0.md	48	Every started run, and every spawn failure, MUST be recorded by one `RUN_OUTCOME
+ATR-V0-006	docs/specs/corvint-tasks-attempt-runner-v0.md	49	While the command runs the runner MUST heartbeat about every 240 seconds with at
+ATR-V0-007	docs/specs/corvint-tasks-attempt-runner-v0.md	50	A platform without the owned process-group API MUST refuse with `UNSUPPORTED` be
 BBF-V0-001	docs/specs/browser-behavior-falsification-v0.md	34	Planning and execution are separate opt-in operations. A plan is deterministic,
 BBF-V0-002	docs/specs/browser-behavior-falsification-v0.md	37	Every plan and result binds the exact contract ID/digest, criterion and assertio
 BBF-V0-003	docs/specs/browser-behavior-falsification-v0.md	41	The closed control vocabulary is `wrong-locator`, `wrong-expected-value`,

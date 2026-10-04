@@ -67,6 +67,8 @@ type LeaseFacts struct {
 	AttemptID, BaseCommit, DerivedTicketID string
 	DerivedPaths                           []string
 	DerivationSha256                       wire.Digest
+	// RunOutcome is the outcome document a RUN_OUTCOME posts (ATR-V0-005).
+	RunOutcome []byte
 	gateFacts
 }
 
@@ -119,6 +121,7 @@ var leaseShapes = map[string]leaseShape{
 	LeaseSubmit:      {fieldAttempt | fieldGeneration | fieldTree, fieldAttempt | fieldGeneration | fieldTree},
 	LeaseGateRun:     {fieldAttempt | fieldGeneration | fieldGate, fieldAttempt | fieldGeneration | fieldGate},
 	LeaseComplete:    {fieldAttempt | fieldGeneration | fieldCommit, fieldAttempt | fieldGeneration | fieldCommit},
+	LeaseRunOutcome:  {fieldAttempt | fieldGeneration | fieldEvidence, fieldAttempt | fieldGeneration | fieldEvidence},
 }
 
 func (l *LeaseRequest) present() int {
@@ -221,6 +224,11 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 		if _, e := wire.ParseIdentifier("evidence", l.Evidence); e != nil {
 			return e
 		}
+		if l.Verb == LeaseRunOutcome {
+			if _, e := wire.ParseDigest("evidence", l.Evidence); e != nil {
+				return e
+			}
+		}
 	}
 	if l.TicketID != "" {
 		id, e := wire.ParseTicketID("ticketId", l.TicketID)
@@ -312,7 +320,7 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 	if l.Verb == LeaseRelease && l.Evidence != "" {
 		v.Obj.Set("evidence", s(l.Evidence))
 	}
-	if l.Verb == LeaseProgram || l.Verb == LeaseSupervisor {
+	if l.Verb == LeaseProgram || l.Verb == LeaseSupervisor || l.Verb == LeaseRunOutcome {
 		v.Obj.Set("evidence", s(l.Evidence))
 	}
 	if l.Verb == LeasePoolSafe || l.Verb == LeasePoolPrepare || l.Verb == LeasePoolObserve || l.Verb == LeasePoolCleanup || l.Verb == LeasePoolRecover {
@@ -371,6 +379,8 @@ var leasePlanners = map[string]func(leaseContext) leaseOutcome{
 	LeaseSubmit:    planSubmit,
 	LeaseGateRun:   planGateRun,
 	LeaseComplete:  planComplete,
+	// ATR-V0-005: an observation-only outcome post.
+	LeaseRunOutcome: planRunOutcome,
 }
 
 func planLease(r Request, in Input, st inputState) leaseOutcome {

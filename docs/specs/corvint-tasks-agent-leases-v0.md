@@ -457,8 +457,9 @@ silently shared.
   `claim --next`, derive only the ticket selected by the existing conservative priority plan,
   bind the facts to that ticket, and recheck collisions; a blocked plan stays blocked.
   Decision 0397's CAL-V0-022 addendum permits only the scope adapter's Core imports and its
-  pack-fixture test import; its separate #464 addendum admits only `internal/tasks/dispatch`
-  importing `internal/groupreap`. Standalone source-archive rebuild remains blocked by V1-0456.
+  pack-fixture test import; its #464 addendum admits `internal/tasks/dispatch` importing
+  `internal/groupreap`, and its #481 addendum admits only `internal/tasks/cli/attempt_run.go` and
+  `attempt_run_test.go` importing it, both owner-approved on 2026-10-04. Standalone source-archive rebuild remains blocked by V1-0456.
 - `CAL-V0-023`: Two live attempts MUST collide exactly when their resource sets collide under
   TCP-00 §4.2 path normalization; `WHOLE_REPOSITORY` collides with every live entry and every live
   entry collides with it. A colliding `claim` refuses `RESOURCE_COLLISION` naming the other

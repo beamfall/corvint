@@ -43,6 +43,11 @@ func importViolation(rel, path string) string {
 	if strings.HasPrefix(rel, "internal/tasks/dispatch/") && path == modulePrefix+"internal/groupreap" {
 		return ""
 	}
+	// The #481 attempt runner's process-group Owner edge (same addendum)
+	// admits only its two files.
+	if (rel == "internal/tasks/cli/attempt_run.go" || rel == "internal/tasks/cli/attempt_run_test.go") && path == modulePrefix+"internal/groupreap" {
+		return ""
+	}
 	if tasksSide && !strings.HasPrefix(path, tasksPrefix) {
 		return "Tasks imports no Core package"
 	}
@@ -84,6 +89,10 @@ func TestImportViolationControls(t *testing.T) {
 		{"internal/tasks/cli/scope_test.go", modulePrefix + "internal/runtimeenv"},
 		{"internal/tasks/cli/dispatch.go", modulePrefix + "internal/groupreap"},
 		{"internal/tasks/dispatch/loop.go", modulePrefix + "internal/gokernel"},
+		{"internal/tasks/cli/cli.go", modulePrefix + "internal/groupreap"},
+		{"internal/tasks/cli/attempt_run_helper.go", modulePrefix + "internal/groupreap"},
+		{"internal/tasks/cli/attempt_run.go", modulePrefix + "internal/gitstatus"},
+		{"internal/tasks/cli/attempt_run_test.go", modulePrefix + "internal/contextindex"},
 	}
 	for _, c := range cases {
 		if importViolation(c.rel, c.path) == "" {
@@ -99,6 +108,8 @@ func TestImportViolationControls(t *testing.T) {
 		{"internal/tasks/cli/scope_test.go", modulePrefix + "internal/contextindex"},
 		{"internal/tasks/dispatch/loop.go", modulePrefix + "internal/groupreap"},
 		{"internal/tasks/dispatch/reader_test.go", modulePrefix + "internal/groupreap"},
+		{"internal/tasks/cli/attempt_run.go", modulePrefix + "internal/groupreap"},
+		{"internal/tasks/cli/attempt_run_test.go", modulePrefix + "internal/groupreap"},
 	} {
 		if got := importViolation(c.rel, c.path); got != "" {
 			t.Errorf("accepted Core edge refused: %s", got)
