@@ -1,0 +1,300 @@
+{
+  "baseRevision": "431d6b150b14197ed595712b8f7086cf8bf3503c",
+  "evidence": [
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 2723,
+        "start": 2263
+      },
+      "spanSha256": "e979056d21f736aae082c28eeea2656ae6417117c2f2c674beee075f2033d0e2"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b1383fad93712df9adb9b4d24cac3e3a0a7040b5158fa582c493547d319b4bb0",
+      "newRange": {
+        "count": 86,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-04-secretscreen-prefilter.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a95ef83787ef6c88288ec52ac63f1a9a38d8de1679f1a5a83cdf64a5d0120f3b",
+      "newRange": {
+        "count": 7,
+        "start": 1686
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 1686
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5894e98659fba7280b76e822446495c4849cd60aa411c918d8f77d6f6b9a74db",
+      "newRange": {
+        "count": 21,
+        "start": 184
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 184
+      },
+      "path": "docs/specs/learned-trace-admission-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:323cd830c3ed435a69251ce55a453121ddd6b19ff09c5b1906b3eab265f9ce1b",
+      "newRange": {
+        "count": 7,
+        "start": 293
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 278
+      },
+      "path": "docs/specs/learned-trace-admission-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:fb6f24f5cdd97030bea831c10caff97e7f3929048651c3ffb4949d5135dae194",
+      "newRange": {
+        "count": 7,
+        "start": 326
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 310
+      },
+      "path": "docs/specs/learned-trace-admission-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7d7dc065e64c83aa48bca3657650ff6f02432e94bd523ae4fe5061780767a752",
+      "newRange": {
+        "count": 8,
+        "start": 340
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 323
+      },
+      "path": "docs/specs/learned-trace-admission-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8ccc31372dce7fe8cdf8cc9ef765c4825cd8e61fb82eb75daa06eff743d2f536",
+      "newRange": {
+        "count": 300,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/secretscreen/prefilter.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:629d21c0430a26727d412dd5800304cdca43cc9249acbdd5a6be7d91ce76c291",
+      "newRange": {
+        "count": 393,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/secretscreen/prefilter_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:22318e1215f3698edb9ccef3a10ff72ef5809dae98ad0e012103854c5975659f",
+      "newRange": {
+        "count": 7,
+        "start": 115
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 115
+      },
+      "path": "internal/secretscreen/secretscreen.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f0d614304afe254a4f9a86d09902a16dd92433570657e954e926c408c721f3a1",
+      "newRange": {
+        "count": 13,
+        "start": 125
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 125
+      },
+      "path": "internal/secretscreen/secretscreen.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:28a2cc5e9a1928c4fa28d0b0e2daa9e5cf737e1473b1dc9f1a3c273ddc89de8f",
+      "newRange": {
+        "count": 11,
+        "start": 141
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 139
+      },
+      "path": "internal/secretscreen/secretscreen.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0b05646ff674c28eedc87b4f676e227aa56266647c213afa646fcbc775acdc53",
+      "newRange": {
+        "count": 7,
+        "start": 159
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 155
+      },
+      "path": "internal/secretscreen/secretscreen.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3870144de2c55e24e6820de38efa5af049248e2b61caa5501d57fbc184476444",
+      "newRange": {
+        "count": 53,
+        "start": 173
+      },
+      "oldRange": {
+        "count": 31,
+        "start": 172
+      },
+      "path": "internal/secretscreen/secretscreen.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:209384fe80dbf7bf2e0cdc1a149acef77c6d86d22fb0d9180b8a840bd8bf21d2",
+      "newRange": {
+        "count": 7,
+        "start": 19
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 19
+      },
+      "path": "internal/secretscreen/secretscreen_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "a074c576daec44ae269fa752a69ae00a91ad6e54e10538564ec64b07767521ec",
+  "spec": "cem/0.2"
+}
