@@ -109,6 +109,32 @@ jobs:
           name: docs-ci-plan
           path: ${{ runner.temp }}/docs-ci-plan.json
           if-no-files-found: ignore
+      - name: Plan affected-first package order from trusted base code (advisory)
+        # AFP-V0-022: the plan only orders the complete universe inside each shard. The
+        # planner is built from the event base, never the PR head; any failure here keeps
+        # the current order and never changes which packages run.
+        if: github.event_name == 'pull_request' && steps.plan.outputs.mode != 'DOCS'
+        continue-on-error: true
+        timeout-minutes: 5
+        working-directory: trusted-docs
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$PR_BASE"
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/order-planner" ./cmd/corvint
+          mkdir -p "$RUNNER_TEMP/affected-order"
+          "$RUNNER_TEMP/order-planner" --root "$GITHUB_WORKSPACE/source" affected --base "$PR_BASE" \
+            > "$RUNNER_TEMP/affected-order/plan.json.partial"
+          mv "$RUNNER_TEMP/affected-order/plan.json.partial" "$RUNNER_TEMP/affected-order/plan.json"
+      - name: Retain affected-first order plan
+        if: github.event_name == 'pull_request' && steps.plan.outputs.mode != 'DOCS'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: affected-order
+          path: ${{ runner.temp }}/affected-order/plan.json
+          if-no-files-found: ignore
 
   go-product-shard:
     needs: docs-plan
@@ -197,7 +223,7 @@ jobs:
           # the isolated module; tested go.mod/replace directives cannot redirect its import.
           d="$RUNNER_TEMP/ci-shards-source"
           mkdir -p "$d/cmd"
-          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/package-costs.json "$d/"
+          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/package-costs.json "$d/"
           cp .github/cishards/cmd/main.go "$d/cmd/"
           printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.1\n' > "$d/go.mod"
           cd "$d"
@@ -233,6 +259,14 @@ jobs:
             go vet ./...
             CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
           fi
+      - name: Fetch advisory affected-first order plan
+        if: github.event_name == 'pull_request' && needs.docs-plan.outputs.mode != 'DOCS'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: affected-order
+          path: ${{ runner.temp }}/affected-order
       - name: Go tests (full until matching shadow qualification)
         if: needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS'
         working-directory: source
@@ -250,7 +284,9 @@ jobs:
           else
             echo "corvint-pr-tests: FULL (main/release or trusted tool pin unavailable), shard $SHARD of $SHARDS"
             go list ./... > "$RUNNER_TEMP/ci-package-universe"
-            packages=$("$RUNNER_TEMP/ci-shards" --shard "$SHARD" --shards "$SHARDS" < "$RUNNER_TEMP/ci-package-universe")
+            # The same shard as without --order; a readable plan only moves its selected
+            # packages to the front, so a failure in a changed package surfaces early.
+            packages=$("$RUNNER_TEMP/ci-shards" --shard "$SHARD" --shards "$SHARDS" --order "$RUNNER_TEMP/affected-order/plan.json" < "$RUNNER_TEMP/ci-package-universe")
             if [ -z "$packages" ]; then
               echo "Complete-universe shard $SHARD has no packages."
               exit 0

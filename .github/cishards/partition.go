@@ -20,7 +20,7 @@ const MaxInputBytes = 8 << 20
 
 // Protected source bytes bind both the driver and its isolated fallback helper.
 //
-//go:embed partition.go cmd/main.go package-costs.json
+//go:embed partition.go order.go cmd/main.go package-costs.json
 var profileFiles embed.FS
 
 //go:embed package-costs.json
@@ -29,7 +29,7 @@ var defaultCosts []byte
 func ProfileDigest() string {
 	h := sha256.New()
 	h.Write([]byte("corvint-ci-partition/1\n"))
-	for _, name := range []string{"partition.go", "cmd/main.go", "package-costs.json"} {
+	for _, name := range []string{"partition.go", "order.go", "cmd/main.go", "package-costs.json"} {
 		b, err := profileFiles.ReadFile(name)
 		if err != nil {
 			panic(err)
