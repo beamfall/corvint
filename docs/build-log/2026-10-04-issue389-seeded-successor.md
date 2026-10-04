@@ -56,3 +56,30 @@ BASE bytes. The candidate's historical shared CEM (SHA-256
 01f1d27210f86ab1a816dbeae7fd2b5e8ea5dda10c985c5f17f4ee3d6d4abd76) is not carried, and a fresh map
 is bound against c58325c4. The candidate's `2026-10-04-immutable-delta-current-main-preservation.md`
 entry describes the candidate branch's own archive disposition, not this successor's.
+
+## Native-replay root decision
+
+Under key 02e7d9fc, at target 05075d048d04e80d462717275cb847c37116b944, nine of the ten checks
+qualified. `native-replay` failed with `source is dirty`. Its frozen `--root` named the retained
+Codex checkout, which is pinned at 4be1a767 with a modified shared CEM. A clean run there would
+still have built 4be1a767, not the successor. That failure stands as a disclosed NON_SUCCESS of key
+02e7d9fc, which was then cancelled with its observations retained. The original key 61668a08 and
+its checkout are untouched.
+
+On 2026-10-04 the owner decided: "New plan, root = successor". Plan digest
+fd38b4891deb8a3d1b060c1633e4054d1ca57e8160eba0356b94a5da2bf9c2b1 under key
+8f0a348bceb30a78beca153bde5c0ee42a2a0bb52d763e9a0be8c4f38c02d977 keeps the base, the intents and
+every check id, timeout and reuse flag. Only these argv values change:
+
+- `native-replay --root` names the successor checkout, so the replay builds the bound target.
+- The runner copy keeps the frozen runner bytes except one constant: `native-replay.py` moves its
+  Go build cache from the shared batch directory into the private copy. Its SHA-256 changes from
+  3365c325d3cda59f3ab78b49f1c2df96f2cbabb60a29c639cd85d922c6b67f3a to
+  933b18a896260174625646b54bec6affce48836b9e2e416b2a6c0e17b47dcee6. `go-test-check.py` is
+  byte-identical. The manifest SHA-256 changes from
+  4edbaf7a489cccb002c204ba6fbbda9152a01b5844f8f9e33a8af28f60e430d3 to
+  91dacf237f46fba839301e7788115179c94ccdd255964e60cf3344fad317e3dd. The Python runtime, Go binary
+  and distribution pins are unchanged. `--out-parent` and the `GOCACHE=` arguments follow the copy.
+
+The focused documentation and format checks still run `make` targets whose recipe-level Go cache
+lives under `/tmp`; that is repository behaviour and is not changed here.
