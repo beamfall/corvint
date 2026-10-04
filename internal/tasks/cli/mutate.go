@@ -66,36 +66,7 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	repo, err := intent.Resolve(env.Cwd)
-	if err != nil {
-		return errorResult(cmd, err)
-	}
-	store0, err := intent.Load(repo.PrimaryWorktree)
-	if err != nil {
-		return errorResult(cmd, err)
-	}
-	now, err := wire.ParseTimestamp("recordedAt", time.Now().UTC().Format("2006-01-02T15:04:05Z"))
-	if err != nil {
-		return errorResult(cmd, err)
-	}
-	// The request digest is the digest of the envelope bytes, and issuedAt is
-	// one of them, so a retry replays only when it reproduces the same
-	// timestamp. A first issue defaults to now; a retry passes --issued-at.
-	issued := now
-	if flags.issuedAt != "" {
-		if issued, err = wire.ParseTimestamp("issuedAt", flags.issuedAt); err != nil {
-			return errorResult(cmd, err)
-		}
-	}
-	envelope, err := buildEnvelope(operation, store0.Queue.QueueID.Raw, actor, flags, payload, issued)
-	if err != nil {
-		return errorResult(cmd, err)
-	}
-	report, err := store.Mutate(writerContext(), repo, actor, envelope, now)
-	if err != nil {
-		return errorResult(cmd, err)
-	}
-	return mutateResult(cmd, report)
+	return submitMutation(env, cmd, operation, actor, flags, payload)
 }
 
 func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
@@ -165,7 +136,8 @@ func readPayloadWithWhitespace(env Env, f mutateFlags, compact bool) (wire.Value
 }
 
 // buildEnvelope composes the closed §3.3 envelope. targetId and
-// expectedRevision are null exactly for CREATE, which names no prior record.
+// expectedRevision are null for CREATE, which names no prior record; a note
+// operation may also leave expectedRevision null (ON-V0-003).
 func buildEnvelope(operation, queueID string, actor mutation.Binding, f mutateFlags, payload wire.Value, now wire.Timestamp) ([]byte, error) {
 	target := wire.Null()
 	expected := wire.Null()
@@ -174,11 +146,13 @@ func buildEnvelope(operation, queueID string, actor mutation.Binding, f mutateFl
 			return nil, wire.Errorf(wire.CodeMalformed, "targetId", "CREATE names no target or expected revision")
 		}
 	} else {
-		if f.target == "" || f.expected == "" {
+		if f.target == "" || (f.expected == "" && !mutation.IsNoteOperation(operation)) {
 			return nil, wire.Errorf(wire.CodeMalformed, "targetId", "%s needs --target and --expected-revision", operation)
 		}
 		target = wire.String(qualifyTicket(queueID, f.target))
-		expected = wire.String(f.expected)
+		if f.expected != "" {
+			expected = wire.String(f.expected)
+		}
 	}
 	o := wire.NewObject()
 	o.Set("profile", wire.String(mutation.Profile))
@@ -263,4 +237,39 @@ func nullableCount(c *wire.Count) wire.Value {
 		return wire.Null()
 	}
 	return wire.String(string(*c))
+}
+
+// submitMutation composes the envelope around an already-read payload and
+// commits it through the §5.2 writer; mutateCommand and `ticket note` share it.
+func submitMutation(env Env, cmd []string, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value) *wire.Result {
+	repo, err := intent.Resolve(env.Cwd)
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	store0, err := intent.Load(repo.PrimaryWorktree)
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	now, err := wire.ParseTimestamp("recordedAt", time.Now().UTC().Format("2006-01-02T15:04:05Z"))
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	// The request digest is the digest of the envelope bytes, and issuedAt is
+	// one of them, so a retry replays only when it reproduces the same
+	// timestamp. A first issue defaults to now; a retry passes --issued-at.
+	issued := now
+	if flags.issuedAt != "" {
+		if issued, err = wire.ParseTimestamp("issuedAt", flags.issuedAt); err != nil {
+			return errorResult(cmd, err)
+		}
+	}
+	envelope, err := buildEnvelope(operation, store0.Queue.QueueID.Raw, actor, flags, payload, issued)
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	report, err := store.Mutate(writerContext(), repo, actor, envelope, now)
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	return mutateResult(cmd, report)
 }

@@ -152,6 +152,9 @@ func init() {
 	for _, verb := range []string{"run", "admit", "resume", "retry", "drain", "cancel", "answer"} {
 		commandUsage[verb] = "corvint-tasks " + verb + " --program ID --config FILE [--role implementer|reviewer|integrator] [--count N] [--ticket ID] [--host codex] [--grant FILE] [--question SHA256] [--revision N] [--answer TEXT]"
 	}
+	commandUsage["ticket note set"] = "corvint-tasks ticket note set <ticketId|local> --request-id ID (--text TEXT | --text-stdin) [--supersedes N] [--expected-revision N] [--issued-at TS] [--role OWNER|OPERATOR]"
+	commandUsage["ticket note clear"] = "corvint-tasks ticket note clear <ticketId|local> --request-id ID [--supersedes N] [--expected-revision N] [--issued-at TS] [--role OWNER|OPERATOR]"
+	commandUsage["ticket note show"] = "corvint-tasks ticket note show <ticketId|local>"
 	commandUsage["run"] += "; corvint-tasks run --attempt ID --generation G --timeout SECONDS [--lease-minutes N] [--role ROLE] -- COMMAND..."
 }
 

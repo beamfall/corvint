@@ -52,7 +52,6 @@ func loadRecord(t *testing.T, repo *intent.Repository, id string) *ticket.Record
 	return rec
 }
 
-
 // TestONV0006_NativeNoteSetClearReplayAndAudit is the first native fixture:
 // SET posts the ticket and its event in one MUTATE stage, the reference and
 // event agree, identical replay returns the original outcome, a stale
