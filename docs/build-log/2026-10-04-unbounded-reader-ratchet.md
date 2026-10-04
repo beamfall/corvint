@@ -43,9 +43,10 @@ no run reported how much of the suite a plan selected.
 - `TestAFPV0025RatchetFailsAboveTheRecordedCeiling`, `TestAFPV0025RatchetWithoutARecordRefuses`
   and `TestAFPV0025ShareReportsSelectedEstimatedTime` pass; the helper also passes in the isolated
   module the workflow builds. `actionlint` and `ci-least-privilege-check` pass.
-- Scopes were verified in a local Linux container (kernel 6.8, Landlock ABI 4, `/tmp` on tmpfs)
-  without `-race`; hosted CI runs them with `-race` and is the first hosted observation. A scope
-  that is too narrow fails that package in full CI rather than under-selecting.
+- Scopes were verified in a local Linux container (kernel 6.8, Landlock ABI 4, `/tmp` on tmpfs):
+  all six packages pass confined with the committed declaration, also with `-race`. Hosted CI is
+  the first hosted observation. A scope that is too narrow fails that package in full CI rather
+  than under-selecting.
 - The hosted share report is `NOT_OBSERVED` until this change's own pull-request run. The estimates
   are one retained main run, and 45 packages are unpriced and take the median.
 - Declared scopes change no CI selection today: pull-request CI still runs the complete universe.
