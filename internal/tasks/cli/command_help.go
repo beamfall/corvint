@@ -73,6 +73,9 @@ func commandHelp(args []string) *wire.Result {
 	if name == "pool recover" || name == "pool confirm-safe" {
 		o.Set("note", wire.String("--reason is free-form prose (1..4096 bytes), not a closed release reason code."))
 	}
+	if name == "ticket note set" || name == "ticket note clear" {
+		o.Set("note", wire.String("Advisory operator prose; never instructions, acceptance or authority. Each note write retains a derived event, and receipt audit does not yet bind it per operation, so receipt audit reports this store's semantic coverage as UNKNOWN until that binding ships (ON-V0-006)."))
+	}
 	if name == "archive verify" {
 		o.Set("note", wire.String("Reads FILE, or stdin when FILE is absent or -. Help reads neither."))
 	}
@@ -152,6 +155,9 @@ func init() {
 	for _, verb := range []string{"run", "admit", "resume", "retry", "drain", "cancel", "answer"} {
 		commandUsage[verb] = "corvint-tasks " + verb + " --program ID --config FILE [--role implementer|reviewer|integrator] [--count N] [--ticket ID] [--host codex] [--grant FILE] [--question SHA256] [--revision N] [--answer TEXT]"
 	}
+	commandUsage["ticket note set"] = "corvint-tasks ticket note set <ticketId|local> --request-id ID (--text TEXT | --text-stdin) [--supersedes N] [--expected-revision N] [--issued-at TS] [--role OWNER|OPERATOR]"
+	commandUsage["ticket note clear"] = "corvint-tasks ticket note clear <ticketId|local> --request-id ID [--supersedes N] [--expected-revision N] [--issued-at TS] [--role OWNER|OPERATOR]"
+	commandUsage["ticket note show"] = "corvint-tasks ticket note show <ticketId|local>"
 	commandUsage["run"] += "; corvint-tasks run --attempt ID --generation G --timeout SECONDS [--lease-minutes N] [--role ROLE] -- COMMAND..."
 }
 

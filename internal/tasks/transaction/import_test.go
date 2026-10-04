@@ -107,6 +107,34 @@ func TestCTSV0003_ImportApplyRefusals(t *testing.T) {
 	late := imported("BF-1", "one")
 	late.Revision = "2"
 	refusedWith(t, "new ticket past revision 1", Model(importRequest(late), in), wire.CodeMalformed)
+	// ON-V0-004: an import never adds, rewrites or drops an operator-note
+	// reference; only NOTE_SET/NOTE_CLEAR change it.
+	h := wire.Sum([]byte("forged note event"))
+	forged := &ticket.OperatorNoteReference{Revision: "7", Current: &h, Head: h}
+	noted := imported("BF-9", "nine")
+	noted.OperatorNote = forged
+	refusedWith(t, "new ticket with a note reference", Model(importRequest(noted), in), wire.CodeMalformed)
+	pre := imported("BF-9", "nine")
+	digest := pre.FileDigest()
+	chained := func(note *ticket.OperatorNoteReference) *ticket.Record {
+		next := imported("BF-9", "nine, changed")
+		next.Revision, next.AcceptanceRevision, next.PreviousRecordSha256, next.OperatorNote = "2", "2", &digest, note
+		return next
+	}
+	plain := withTicket(t, in, pre, pre.Encode())
+	refusedWith(t, "revision adding a note reference", Model(importRequest(chained(forged)), plain), wire.CodeMalformed)
+	if r := Model(importRequest(chained(nil)), plain); r.Kind != "Transaction" {
+		t.Fatalf("un-noted chained import: %+v", r)
+	}
+	pre.OperatorNote = forged
+	digest = pre.FileDigest()
+	noteHeld := withTicket(t, in, pre, pre.Encode())
+	refusedWith(t, "revision dropping the note reference", Model(importRequest(chained(nil)), noteHeld), wire.CodeMalformed)
+	other := wire.Sum([]byte("other note event"))
+	refusedWith(t, "revision rewriting the note reference", Model(importRequest(chained(&ticket.OperatorNoteReference{Revision: "8", Current: &other, Head: other})), noteHeld), wire.CodeMalformed)
+	if r := Model(importRequest(chained(forged)), noteHeld); r.Kind != "Transaction" {
+		t.Fatalf("carried-forward note reference: %+v", r)
+	}
 	if _, e := Digest(importRequest()); e == nil {
 		t.Error("empty batch digested")
 	}

@@ -68,6 +68,7 @@ var ReadVerbs = []string{
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
 	"dispatch", "dispatch status", "dispatch unpark",
 	"submit", "gate run", "complete", "health", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe",
+	"ticket note set", "ticket note clear", "ticket note show",
 }
 
 // OmittedVerbs are the verb paths the SPEC names that this binary does not
@@ -138,6 +139,9 @@ func Run(env Env) int {
 			return emit(env.Stdout, ticketShow(env, args[2:], false))
 		case "export":
 			return emit(env.Stdout, ticketExport(env, args[2:]))
+		}
+		if args[1] == "note" {
+			return emit(env.Stdout, noteCommand(env, args[2:]))
 		}
 		if _, ok := mutationVerbs[args[1]]; ok {
 			return emit(env.Stdout, mutateCommand(env, args[1], args[2:]))
@@ -999,6 +1003,9 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 				return e
 			}
 			attempts = in.Attempts
+		}
+		if includeRecord {
+			val.Obj.Set("operatorNote", operatorNoteShowValue(rc, v.Record))
 		}
 		val.Obj.Set("retries", retryObservation(rc, attempts, v.Record))
 		val.Obj.Set("claimabilityScope", wire.String("RECORDED_DEFAULT_EXTERNAL_AGENT_PLAN"))
