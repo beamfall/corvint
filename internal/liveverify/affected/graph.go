@@ -334,18 +334,7 @@ func sortedKeys(set map[string]bool) []string {
 // units with no tests. Keep this walk aligned with Select; witness chains alone
 // enumerate only one path and cannot establish the denominator of a diamond.
 func (graph *Graph) ReachedUnitIDs(dirty []string) []string {
-	normalized := NormalizePaths(dirty)
-	seeds, _ := graph.seed(normalized)
-	changed, traversed, enclosing := graph.goStructure(normalized)
-	mergeWitnesses(seeds, changed)
-	start := make(map[string]Witness, len(seeds)+len(traversed))
-	mergeWitnesses(start, seeds)
-	mergeWitnesses(start, traversed)
-	reached := graph.traverse(start)
-	graph.testUsersOf(reached)
-	mergeWitnesses(reached, enclosing)
-	graph.readers(reached, normalized)
-	graph.unboundedReadersOf(reached, normalized)
+	reached, _, _ := graph.reach(NormalizePaths(dirty))
 	ids := make([]string, 0, len(reached))
 	for id := range reached {
 		ids = append(ids, id)

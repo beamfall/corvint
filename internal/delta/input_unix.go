@@ -7,6 +7,9 @@ import (
 	"syscall"
 )
 
+// openRegular refuses a symlink only as the final path component: O_NOFOLLOW
+// does not constrain parent directories, so a caller-supplied input path is
+// trusted to name its own directory chain. This is a documented known limit.
 func openRegular(name string) (*os.File, error) {
 	fd, err := syscall.Open(name, syscall.O_RDONLY|syscall.O_NONBLOCK|syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0)
 	if err != nil {

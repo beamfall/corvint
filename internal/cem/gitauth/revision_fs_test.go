@@ -175,3 +175,54 @@ func testBoundedBlobFourMiBBoundary(t *testing.T) {
 		}
 	}
 }
+
+func TestRevisionFSListingCostScalesWithDirectories_DLT_V0_003(t *testing.T) {
+	t.Run("DLT-V0-003 repeated stat above the default operation ceiling", func(t *testing.T) {
+		// Per-path lookups cost two operations per stat (2,400 > 1,024); verified
+		// listings cost one per directory plus one blob read per file (606).
+		root, _, _ := makeRepo(t)
+		const directories, perDirectory = 6, 100
+		for d := range directories {
+			for f := range perDirectory {
+				writeFile(t, root, filepath.Join("d"+strings.Repeat("x", d), "f"+strings.Repeat("y", f)), "z")
+			}
+		}
+		gitCmd(t, root, "add", ".")
+		gitCmd(t, root, "commit", "-qm", "wide tree")
+		head := gitCmd(t, root, "rev-parse", "HEAD")
+		ctx := context.Background()
+		r, err := Open(root, gitrun.NewDefaultBudget())
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer r.BeginObjectSession()()
+		source, err := r.RevisionFS(ctx, head, 4<<20)
+		if err != nil {
+			t.Fatal(err)
+		}
+		files := 0
+		err = fs.WalkDir(source, ".", func(name string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			for range 2 {
+				if _, err := fs.Stat(source, name); err != nil {
+					return err
+				}
+			}
+			if !entry.IsDir() {
+				files++
+			}
+			return nil
+		})
+		if err != nil || files < directories*perDirectory {
+			t.Fatalf("walk %d files: %v", files, err)
+		}
+		if _, err := fs.Stat(source, "d/absent"); !errors.Is(err, fs.ErrNotExist) {
+			t.Fatalf("absent child: %v", err)
+		}
+		if _, err := fs.Stat(source, "d/fy/below-blob"); !errors.Is(err, fs.ErrNotExist) {
+			t.Fatalf("child of blob: %v", err)
+		}
+	})
+}

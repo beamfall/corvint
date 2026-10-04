@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/Beamfall/corvint/internal/delta"
@@ -80,7 +81,11 @@ func runDelta(ctx context.Context, root string, args []string, out, diagnostic i
 	}
 	result, err := delta.Compile(ctx, root, o)
 	if err != nil {
-		fmt.Fprintln(diagnostic, "delta-unavailable")
+		var refusal delta.Refusal
+		if !errors.As(err, &refusal) {
+			refusal = "delta-record-invalid" // no record can be emitted
+		}
+		fmt.Fprintln(diagnostic, string(refusal))
 		return 2
 	}
 	raw, err := result.Canonical()

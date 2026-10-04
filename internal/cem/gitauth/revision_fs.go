@@ -22,7 +22,7 @@ func (r *Repository) RevisionFS(ctx context.Context, commit string, maxBlobBytes
 	if err != nil {
 		return nil, err
 	}
-	return &revisionFS{ctx: ctx, repo: r, commit: commit, root: tree, maxBlobBytes: maxBlobBytes, dirs: map[string][]fs.DirEntry{}}, nil
+	return &revisionFS{ctx: ctx, repo: r, commit: commit, root: tree, maxBlobBytes: maxBlobBytes, dirs: map[string][]fs.DirEntry{}, resolved: map[string]TreeEntry{}, sizes: map[string]int64{}}, nil
 }
 
 type revisionFS struct {
@@ -30,6 +30,8 @@ type revisionFS struct {
 	repo         *Repository
 	commit, root string
 	dirs         map[string][]fs.DirEntry
+	resolved     map[string]TreeEntry // child entries of verified listed trees
+	sizes        map[string]int64     // verified blob sizes by OID, for Stat
 	entries      int
 	maxBlobBytes int
 }
@@ -41,10 +43,24 @@ func (s *revisionFS) entry(name string) (TreeEntry, error) {
 	if name == "." {
 		return TreeEntry{Mode: "040000", Type: "tree", OID: s.root}, nil
 	}
-	entry, ok, err := s.repo.LookupTreeEntry(s.ctx, s.commit, name)
+	if entry, ok := s.resolved[name]; ok {
+		return entry, nil
+	}
+	// Resolve through the parent's verified listing instead of one Git
+	// operation per path: each tree body is self-hashed and linked to the
+	// OID its verified parent names, so a path costs one operation per
+	// directory on first use and none afterwards (DLT-V0-003).
+	parent, err := s.entry(path.Dir(name))
 	if err != nil {
 		return TreeEntry{}, err
 	}
+	if parent.Type != "tree" {
+		return TreeEntry{}, fs.ErrNotExist
+	}
+	if _, err := s.ReadDir(path.Dir(name)); err != nil {
+		return TreeEntry{}, err
+	}
+	entry, ok := s.resolved[name]
 	if !ok {
 		return TreeEntry{}, fs.ErrNotExist
 	}
@@ -82,6 +98,7 @@ func (s *revisionFS) open(name string, limit int) (fs.File, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.sizes[entry.OID] = int64(len(data))
 	mode := fs.FileMode(0644)
 	if entry.Mode == "100755" {
 		mode = 0755
@@ -127,6 +144,7 @@ func (s *revisionFS) ReadDir(name string) ([]fs.DirEntry, error) {
 		case "160000":
 			mode = fs.ModeIrregular
 		}
+		s.resolved[path.Join(directory, name)] = item
 		out = append(out, revisionEntry{revisionInfo: revisionInfo{name: name, mode: mode}, source: s, path: path.Join(directory, name)})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name() < out[j].Name() })
@@ -149,6 +167,13 @@ func (s *revisionFS) Stat(name string) (fs.FileInfo, error) {
 	case "160000":
 		mode = fs.ModeIrregular
 	case "100644", "100755":
+		if size, ok := s.sizes[entry.OID]; ok {
+			mode = 0644
+			if entry.Mode == "100755" {
+				mode = 0755
+			}
+			return revisionInfo{name: path.Base(name), mode: mode, size: size}, nil
+		}
 		f, e := s.Open(name)
 		if e != nil {
 			return nil, e

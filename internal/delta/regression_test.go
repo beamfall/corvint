@@ -185,3 +185,30 @@ func TestDeltaUnknownsSurviveObservationLimit_DLT_V0_009(t *testing.T) {
 		}
 	})
 }
+
+func TestDeltaGraphAboveDefaultGitBudget(t *testing.T) {
+	t.Run("DLT-V0-002 immutable graph admits a tree above the default Git operation ceiling", testDeltaGraphAboveDefaultGitBudget)
+}
+func testDeltaGraphAboveDefaultGitBudget(t *testing.T) {
+	root, _, _ := fixtureMerge(t)
+	const packages, perPackage = 12, 100 // 1,200 Go sources: one blob read each exceeds 1,024
+	for p := range packages {
+		for f := range perPackage {
+			put(t, root, fmt.Sprintf("wide/p%02d/f%03d.go", p, f), fmt.Sprintf("package p%02d\nfunc F%03d() {}\n", p, f))
+		}
+	}
+	git(t, root, "add", ".")
+	git(t, root, "commit", "-qm", "wide")
+	base := git(t, root, "rev-parse", "HEAD")
+	put(t, root, "wide/p00/f000.go", "package p00\nfunc F000() { println(1) }\n")
+	git(t, root, "add", ".")
+	git(t, root, "commit", "-qm", "change one")
+	head := git(t, root, "rev-parse", "HEAD")
+	r, err := Compile(context.Background(), root, Options{Base: base, Head: head, Build: "163"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasUnknown(r, "immutable-graph-unavailable") || r.Denominators.AffectedUnits == 0 {
+		t.Fatalf("graph refused above default budget: units %d unknowns %+v", r.Denominators.AffectedUnits, r.Unknowns)
+	}
+}

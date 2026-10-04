@@ -38,6 +38,8 @@ func (r *Record) documentation(ctx context.Context, root string, o Options) {
 		names = names[:32]
 	}
 	touched := map[string]bool{}
+	// Cost bound: each of at most 32 scopes admits base and head scope and
+	// generates both sides, so one record runs up to 128 context builds.
 	for _, scope := range names {
 		if !r.documentationScope(ctx, root, o.Base, scope) || !r.documentationScope(ctx, root, o.Head, scope) {
 			r.RunFullSuite = true

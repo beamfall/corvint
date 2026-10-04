@@ -3,7 +3,6 @@ package delta
 import (
 	"context"
 	json "encoding/json/v2"
-	"errors"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/wire"
@@ -21,7 +20,29 @@ type Options struct {
 	Checkouts                                             []extevidence.Checkout
 }
 
-var errArguments = errors.New("delta-invalid-arguments")
+// GitOperations is the declared Git operation bound for one compilation.
+// Immutable source reads cost one operation per first-listed directory and
+// one per blob read, and every provider walk is capped at
+// affected.MaxWalkEntries, so the frozen 1,024-operation default would refuse
+// any medium repository. Exhaustion stays fail-closed: the graph becomes
+// immutable-graph-unavailable and the record requires the full suite.
+const GitOperations = gitrun.DefaultOperations + 2*affected.MaxWalkEntries
+
+// Refusal is a closed compiler refusal code from the spec's error table.
+// Compile returns no other error, so a caller can emit the code unchanged.
+type Refusal string
+
+func (r Refusal) Error() string { return string(r) }
+
+const (
+	errArguments       Refusal = "delta-invalid-arguments"
+	errRepository      Refusal = "delta-repository-unavailable"
+	errHead            Refusal = "delta-head-unavailable"
+	errChangeSet       Refusal = "delta-change-set-unavailable"
+	errUnrepresentable Refusal = "delta-unrepresentable-path"
+	errRecord          Refusal = "delta-record-invalid"
+)
+
 var opaqueKey = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.:/#-]{0,127}$`)
 
 func Compile(ctx context.Context, root string, o Options) (Record, error) {
@@ -36,25 +57,25 @@ func Compile(ctx context.Context, root string, o Options) (Record, error) {
 			return Record{}, errArguments
 		}
 	}
-	auth, err := gitauth.Open(root, gitrun.NewDefaultBudget())
+	auth, err := gitauth.Open(root, gitrun.NewBudget(GitOperations, gitrun.DefaultTotalBudget))
 	if err != nil {
-		return Record{}, errors.New("delta-repository-unavailable")
+		return Record{}, errRepository
 	}
 	release := auth.BeginObjectSession()
 	defer release()
 	tree, err := auth.CommitTree(ctx, o.Head)
 	if err != nil {
-		return Record{}, errors.New("delta-head-unavailable")
+		return Record{}, errHead
 	}
 	changes, err := auth.DeltaPaths(ctx, o.Base, o.Head)
 	if err != nil {
-		return Record{}, errors.New("delta-change-set-unavailable")
+		return Record{}, errChangeSet
 	}
 	raw, _ := json.Marshal(changes, json.Deterministic(true))
 	r := Record{Schema: Schema, Base: o.Base, Head: o.Head, Tree: tree, Build: o.Build, ChangedPathDigest: digest("paths", raw), ChangedPaths: []string{}, InputDigests: []string{}, Documentation: []Span{}, Tests: []Test{}, Gaps: []Gap{}, WorkKeys: []string{}, Unknowns: []Unknown{}, MandatoryChecksRequired: true, Denominators: Denominators{Runtime: "unknown"}}
 	for _, change := range changes {
 		if !validPath(change.Path) {
-			return Record{}, errors.New("delta-unrepresentable-path")
+			return Record{}, errUnrepresentable
 		}
 		r.ChangedPaths = append(r.ChangedPaths, change.Path)
 	}
@@ -139,7 +160,7 @@ func Compile(ctx context.Context, root string, o Options) (Record, error) {
 	}
 	r.finalize()
 	if _, err := r.Canonical(); err != nil {
-		return Record{}, err
+		return Record{}, errRecord
 	}
 	return r, nil
 }

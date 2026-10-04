@@ -76,3 +76,55 @@ func TestDeltaPublicHelp(t *testing.T) {
 		}
 	}
 }
+
+func TestDeltaCLIPreservesClosedRefusalCodes(t *testing.T) {
+	t.Run("DLT-V0-010 compiler refusal codes reach the CLI unchanged", testDeltaCLIPreservesClosedRefusalCodes)
+}
+func testDeltaCLIPreservesClosedRefusalCodes(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	bare, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	git := func(args ...string) string {
+		c := exec.Command("git", args...)
+		c.Dir = root
+		c.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null")
+		raw, err := c.CombinedOutput()
+		if err != nil {
+			t.Fatalf("%v: %v %s", args, err, raw)
+		}
+		return strings.TrimSpace(string(raw))
+	}
+	git("init", "-q")
+	git("config", "user.name", "fixture")
+	git("config", "user.email", "fixture@example.invalid")
+	git("commit", "--allow-empty", "-qm", "base")
+	base := git("rev-parse", "HEAD")
+	if err := os.WriteFile(filepath.Join(root, "tab\tfile"), []byte("data"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git("add", ".")
+	git("commit", "-qm", "control")
+	control := git("rev-parse", "HEAD")
+	absent := strings.Repeat("0", len(base))
+	for _, c := range []struct {
+		root string
+		args []string
+		code string
+	}{
+		{root, []string{"--base", base, "--head", base, "--work-key-pattern", "("}, "delta-invalid-arguments"},
+		{bare, []string{"--base", base, "--head", base}, "delta-repository-unavailable"},
+		{root, []string{"--base", base, "--head", absent}, "delta-head-unavailable"},
+		{root, []string{"--base", absent, "--head", base}, "delta-change-set-unavailable"},
+		{root, []string{"--base", base, "--head", control}, "delta-unrepresentable-path"},
+	} {
+		var out, diagnostic bytes.Buffer
+		if code := runDelta(context.Background(), c.root, c.args, &out, &diagnostic); code != 2 || out.Len() != 0 || diagnostic.String() != c.code+"\n" {
+			t.Errorf("%v: code %d stdout %q diagnostic %q, want %s", c.args, code, out.String(), diagnostic.String(), c.code)
+		}
+	}
+}

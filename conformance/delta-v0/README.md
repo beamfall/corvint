@@ -1,6 +1,6 @@
 # Immutable delta V0 conformance
 
-SPDX-License-Identifier: AGPL-3.0-or-later
+SPDX-License-Identifier: Apache-2.0
 
 `decision-vectors.json` contains closed wire/decision vectors. Their repeated fixture OIDs and
 digests are shape fixtures, not claims that those objects exist or that Core produced those bindings.
