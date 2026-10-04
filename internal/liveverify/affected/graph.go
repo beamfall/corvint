@@ -245,6 +245,11 @@ func (graph *Graph) Frontier() []string { return append([]string(nil), graph.fro
 // UnitIDs lists every unit identity, sorted.
 func (graph *Graph) UnitIDs() []string { return append([]string(nil), graph.order...) }
 
+// UnboundedReaders lists, sorted, every unit whose reads no literal or declared
+// scope bounds: the units rule (d) selects on any dirty path (AFP-V0-012,
+// AFP-V0-023).
+func (graph *Graph) UnboundedReaders() []string { return append([]string(nil), graph.unbounded...) }
+
 // Unit returns one unit by identity.
 func (graph *Graph) Unit(id string) (Unit, bool) {
 	unit, ok := graph.units[id]

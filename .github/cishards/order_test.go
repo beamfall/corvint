@@ -50,3 +50,31 @@ func TestAFPV0022OrderFallsBackToTheCurrentOrder(t *testing.T) {
 		t.Errorf("empty selection: ok=%v got=%v", ok, got)
 	}
 }
+
+func TestAFPV0025ShareReportsSelectedEstimatedTime(t *testing.T) {
+	costs := []byte(`{"profile":"corvint-ci-package-costs/0","source":{"goVersion":"go1.27.1","revision":"0000000000000000000000000000000000000000","runUrl":"https://github.com/beamfall/corvint/actions/runs/1"},"milliseconds":{"m/a":1000,"m/b":3000,"m/c":2000,"m/d":4000}}`)
+	plan := []byte(`{"profile":"affected-plan/0","ok":true,"plan":{"selected":[
+		{"unitId":"go:m/a","witness":{"kind":"DIRECT_SOURCE_CHANGE"}},
+		{"unitId":"go:m/d","witness":{"kind":"UNBOUNDED_READER"}},
+		{"unitId":"go:m/e","witness":{"kind":"UNBOUNDED_READER"}},
+		{"unitId":"go:m/absent","witness":{"kind":"DIRECT_SOURCE_CHANGE"}},
+		{"unitId":"dotnet:m/b","witness":{"kind":"DIRECT_SOURCE_CHANGE"}}]}}`)
+	got, ok := shareOf([]string{"m/a", "m/b", "m/c", "m/d", "m/e"}, plan, costs)
+	// m/e is unpriced and takes the median, 3000.
+	want := Share{Profile: "corvint-ci-selected-share/0", SelectedPackages: 3, UniversePackages: 5, UnboundedPackages: 2,
+		SelectedMilliseconds: 8000, UniverseMilliseconds: 13000, UnboundedMilliseconds: 7000, UnpricedPackages: 1, SelectedPermille: 615}
+	if !ok || got != want {
+		t.Fatalf("ok=%v got=%+v want=%+v", ok, got, want)
+	}
+	for name, bad := range map[string][2][]byte{
+		"unreadable plan":  {[]byte(`{"profile":"affected-plan/0","ok":false}`), costs},
+		"unreadable costs": {plan, []byte(`{}`)},
+	} {
+		if _, ok := shareOf([]string{"m/a"}, bad[0], bad[1]); ok {
+			t.Fatalf("%s: reported a share", name)
+		}
+	}
+	if _, ok := ShareOf(nil, plan); ok {
+		t.Fatal("empty universe reported a share")
+	}
+}
