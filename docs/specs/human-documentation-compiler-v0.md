@@ -1130,7 +1130,7 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `tool-too-large` | `internal/doccompiler/paths.go:175` | 1 | "<value> exceeds its byte limit" |
 | `tool-unavailable` | `internal/doccompiler/paths.go:149` | 4 | "cannot inspect <value>" |
 | `unadmitted-markdown` | `internal/doccompiler/plan.go:86@f73251ba` | 1 | "experimental plans accept only structured claims; Markdown must be empty" |
-| `unadmitted-prose` | `internal/doccompiler/admission.go:331` | 1 | "candidate prose is not admitted clause text within <value>" |
+| `unadmitted-prose` | `internal/doccompiler/admission.go:404` | 1 | "candidate prose is not admitted clause text within <value>" |
 | `unknown-clause` | `internal/doccompiler/admittedplan.go:282@e7f16961` | 1 | "operation <value> names an unadmitted clause <value>" |
 | `unordered-set` | `internal/doccompiler/admittedplan.go:569@0420bea2` | 1 | "plan carries an unordered or repeated path or ID set" |
 | `unpinned-target` | `internal/doccompiler/admittedplan.go:306@1efbd577` | 2 | "target <value> is tracked but its bytes are not pinned" |
