@@ -1,0 +1,510 @@
+{
+  "profile": "cmocka-native-fixture-provenance/1",
+  "tuple": "CMocka2.0.2 static, AppleClang21.0.0,macOSarm64",
+  "upstreamCommit": "fefa2b8a023121f7235e18ed17249e4012dd144f",
+  "archiveSHA256": "39f92f366bdf3f1a02af4da75b4a5c52df6c9f7e736c7d65de13283f9f0ef416",
+  "publisherAuthenticity": "NOT_OBSERVED; root admitted bounded trusted-local experiment",
+  "licenses": {
+    "Apache2": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "CMakeScripts": "46cde7dc11e64c78d650b4851b88f6704b4665ff60f22a1caf68ceb15e217e5b"
+  },
+  "fixtureSource": {
+    "sha256": "2f6cbea6457ccb3f81a16f4fcee4261442d1f5161020433d6d6ea84f1333a04e",
+    "base64": "I2luY2x1ZGUgPGNtb2NrYS5oPgojaW5jbHVkZSA8c3RkaW8uaD4Kc3RhdGljIHZvaWQgdGVzdF9wYXNzKHZvaWQgKipzdGF0ZSkgeyAodm9pZClzdGF0ZTsgYXNzZXJ0X2ludF9lcXVhbCg3LCA3KTsgfQpzdGF0aWMgdm9pZCB0ZXN0X3Bhc3NfZGVjb3kodm9pZCAqKnN0YXRlKSB7ICh2b2lkKXN0YXRlOyBwdXRzKCJDTU9DS0FfREVDT1lfRVhFQ1VURUQiKTsgZmFpbCgpOyB9CnN0YXRpYyB2b2lkIHRlc3RfZmFpbCh2b2lkICoqc3RhdGUpIHsgKHZvaWQpc3RhdGU7IGFzc2VydF9pbnRfZXF1YWwoNywgOSk7IH0Kc3RhdGljIHZvaWQgdGVzdF9za2lwKHZvaWQgKipzdGF0ZSkgeyAodm9pZClzdGF0ZTsgc2tpcCgpOyB9CnN0YXRpYyBpbnQgZml4dHVyZV9lcnJvcih2b2lkICoqc3RhdGUpIHsgKHZvaWQpc3RhdGU7IHJldHVybiAtMTsgfQppbnQgbWFpbih2b2lkKSB7CiNpZiBNT0RFID09IDAKIGNvbnN0IHN0cnVjdCBDTVVuaXRUZXN0IHRlc3RzW10gPSB7Y21vY2thX3VuaXRfdGVzdCh0ZXN0X3Bhc3MpLCBjbW9ja2FfdW5pdF90ZXN0KHRlc3RfZmFpbCksIGNtb2NrYV91bml0X3Rlc3QodGVzdF9za2lwKX07CiNlbGlmIE1PREUgPT0gMQogY29uc3Qgc3RydWN0IENNVW5pdFRlc3QgdGVzdHNbXSA9IHtjbW9ja2FfdW5pdF90ZXN0KHRlc3RfcGFzcyksIGNtb2NrYV91bml0X3Rlc3QodGVzdF9wYXNzX2RlY295KX07CiNlbGlmIE1PREUgPT0gMwogY29uc3Qgc3RydWN0IENNVW5pdFRlc3QgdGVzdHNbXSA9IHtjbW9ja2FfdW5pdF90ZXN0X3NldHVwKHRlc3RfcGFzcywgZml4dHVyZV9lcnJvcil9OwojZWxpZiBNT0RFID09IDQKIGNvbnN0IHN0cnVjdCBDTVVuaXRUZXN0IHRlc3RzW10gPSB7Y21vY2thX3VuaXRfdGVzdF90ZWFyZG93bih0ZXN0X3Bhc3MsIGZpeHR1cmVfZXJyb3IpfTsKI2Vsc2UKIGNvbnN0IHN0cnVjdCBDTVVuaXRUZXN0IHRlc3RzW10gPSB7Y21vY2thX3VuaXRfdGVzdCh0ZXN0X3Bhc3MpfTsKI2VuZGlmCiByZXR1cm4gY21vY2thX3J1bl9ncm91cF90ZXN0c19uYW1lKCJDUHJvb2YiLCB0ZXN0cywKI2lmIE1PREUgPT0gNQogZml4dHVyZV9lcnJvciwKI2Vsc2UKIE5VTEwsCiNlbmRpZgojaWYgTU9ERSA9PSA2CiBmaXh0dXJlX2Vycm9yCiNlbHNlCiBOVUxMCiNlbmRpZgogKTsKfQo="
+  },
+  "cases": [
+    {
+      "name": "mixed",
+      "target": "CProof",
+      "selectors": [],
+      "expectedTests": [
+        "CProof::test_pass",
+        "CProof::test_fail",
+        "CProof::test_skip"
+      ],
+      "nativeExit": 1,
+      "cliExit": 1,
+      "complete": true,
+      "nativeStates": {
+        "CProof::test_pass": "PASSED",
+        "CProof::test_fail": "FAILED",
+        "CProof::test_skip": "SKIPPED"
+      },
+      "publicStates": {
+        "CProof::test_pass": "PASSED",
+        "CProof::test_fail": "FAILED",
+        "CProof::test_skip": "SKIPPED"
+      },
+      "executableSHA256": "1084287cdbea78c0dfd681dfb485108fb8ccc907c4051397c2951b6e231f0b8c",
+      "files": {
+        "cmocka.xml": {
+          "sha256": "a90b34ab46993abd345fd5d841539ca55454b5b15e4675d9bced87769c2e9504",
+          "base64": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiID8+Cjx0ZXN0c3VpdGVzPgogIDx0ZXN0c3VpdGUgbmFtZT0iQ1Byb29mIiB0aW1lPSIwLjAwMCIgdGVzdHM9IjMiIGZhaWx1cmVzPSIxIiBlcnJvcnM9IjAiIHNraXBwZWQ9IjEiID4KICAgIDx0ZXN0Y2FzZSBuYW1lPSJ0ZXN0X3Bhc3MiIHRpbWU9IjAuMDAwIiA+CiAgICA8L3Rlc3RjYXNlPgogICAgPHRlc3RjYXNlIG5hbWU9InRlc3RfZmFpbCIgdGltZT0iMC4wMDAiID4KICAgICAgPGZhaWx1cmU+PCFbQ0RBVEFbNyAhPSA5ClsgICBMSU5FICAgXSAtLS0gL3ByaXZhdGUvdG1wL2NlbTEwLWJ1aWxkL3N0YWJsZS1uZXh0L2Ntb2NrYS1wcm9maWxlLXByb3Bvc2FsL25hdGl2ZS9maXh0dXJlcy9wcm9iZS5jOjU6IGVycm9yOiBGYWlsdXJlIS9wcml2YXRlL3RtcC9jZW0xMC1idWlsZC9zdGFibGUtbmV4dC9jbW9ja2EtcHJvZmlsZS1wcm9wb3NhbC9uYXRpdmUvZml4dHVyZXMvcHJvYmUuYzo1OiBlcnJvcjogRmFpbHVyZSFdXT48L2ZhaWx1cmU+CiAgICA8L3Rlc3RjYXNlPgogICAgPHRlc3RjYXNlIG5hbWU9InRlc3Rfc2tpcCIgdGltZT0iMC4wMDAiID4KICAgICAgPHNraXBwZWQvPgogICAgPC90ZXN0Y2FzZT4KICA8L3Rlc3RzdWl0ZT4KPC90ZXN0c3VpdGVzPgo="
+        },
+        ".phase-00-stdout": {
+          "sha256": "b90c2792e0251be98816263cee18066c0944e7456579613bea37c93e4356bd31",
+          "base64": "Wz09PT09PT09PT1dIENQcm9vZjogUnVubmluZyAzIHRlc3QocykuClsgUlVOICAgICAgXSB0ZXN0X3Bhc3MKWyAgICAgICBPSyBdIHRlc3RfcGFzcwpbIFJVTiAgICAgIF0gdGVzdF9mYWlsClsgIEZBSUxFRCAgXSB0ZXN0X2ZhaWwKWyBSVU4gICAgICBdIHRlc3Rfc2tpcApbICBTS0lQUEVEIF0gdGVzdF9za2lwCls9PT09PT09PT09XSBDUHJvb2Y6IDMgdGVzdChzKSBydW4uCg=="
+        },
+        ".phase-00-stderr": {
+          "sha256": "698e2ca3a238b67dacf68bee84a59a5b22fe51f7f8f7f35cc2bedeb9ba160315",
+          "base64": "WyAgRVJST1IgICBdIC0tLSA3ICE9IDkKWyAgIExJTkUgICBdIC0tLSAvcHJpdmF0ZS90bXAvY2VtMTAtYnVpbGQvc3RhYmxlLW5leHQvY21vY2thLXByb2ZpbGUtcHJvcG9zYWwvbmF0aXZlL2ZpeHR1cmVzL3Byb2JlLmM6NTogZXJyb3I6IEZhaWx1cmUhL3ByaXZhdGUvdG1wL2NlbTEwLWJ1aWxkL3N0YWJsZS1uZXh0L2Ntb2NrYS1wcm9maWxlLXByb3Bvc2FsL25hdGl2ZS9maXh0dXJlcy9wcm9iZS5jOjU6IGVycm9yOiBGYWlsdXJlIQpbICBQQVNTRUQgIF0gMSB0ZXN0KHMpLgpbICBTS0lQUEVEIF0gQ1Byb29mOiAxIHRlc3QocyksIGxpc3RlZCBiZWxvdzoKWyAgU0tJUFBFRCBdIHRlc3Rfc2tpcAoKIDEgU0tJUFBFRCBURVNUKFMpClsgIEZBSUxFRCAgXSBDUHJvb2Y6IDEgdGVzdChzKSwgbGlzdGVkIGJlbG93OgpbICBGQUlMRUQgIF0gdGVzdF9mYWlsCgogMSBGQUlMRUQgVEVTVChTKQo="
+        }
+      }
+    },
+    {
+      "name": "pass-only",
+      "target": "CProof",
+      "selectors": [
+        "CProof::test_pass"
+      ],
+      "expectedTests": [
+        "CProof::test_pass"
+      ],
+      "nativeExit": 0,
+      "cliExit": 0,
+      "complete": true,
+      "nativeStates": {
+        "CProof::test_pass": "PASSED"
+      },
+      "publicStates": {
+        "CProof::test_pass": "PASSED"
+      },
+      "executableSHA256": "61b8132e8cf20059a14aad46066158ac153467352f98d01282f13ddb58bed441",
+      "files": {
+        "cmocka.xml": {
+          "sha256": "d2d5d2f168fde9a9dad8a91495549b5e4238190a4f2323f920c4febfe3cfcb6e",
+          "base64": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiID8+Cjx0ZXN0c3VpdGVzPgogIDx0ZXN0c3VpdGUgbmFtZT0iQ1Byb29mIiB0aW1lPSIwLjAwMCIgdGVzdHM9IjEiIGZhaWx1cmVzPSIwIiBlcnJvcnM9IjAiIHNraXBwZWQ9IjAiID4KICAgIDx0ZXN0Y2FzZSBuYW1lPSJ0ZXN0X3Bhc3MiIHRpbWU9IjAuMDAwIiA+CiAgICA8L3Rlc3RjYXNlPgogIDwvdGVzdHN1aXRlPgo8L3Rlc3RzdWl0ZXM+Cg=="
+        },
+        ".phase-00-stdout": {
+          "sha256": "6a856d01faa0ec4e2c3104b15261cdfdc2ba41342c8d3d137dd35e4a93c3264b",
+          "base64": "Wz09PT09PT09PT1dIENQcm9vZjogUnVubmluZyAxIHRlc3QocykuClsgUlVOICAgICAgXSB0ZXN0X3Bhc3MKWyAgICAgICBPSyBdIHRlc3RfcGFzcwpbPT09PT09PT09PV0gQ1Byb29mOiAxIHRlc3QocykgcnVuLgo="
+        },
+        ".phase-00-stderr": {
+          "sha256": "ecb7c6724d372b2e5ba6ed775a87049a67033fd881afa8b4ef1d4f02ea977b96",
+          "base64": "WyAgUEFTU0VEICBdIDEgdGVzdChzKS4K"
+        }
+      }
+    },
+    {
+      "name": "skip-only",
+      "target": "CProof",
+      "selectors": [
+        "CProof::test_skip"
+      ],
+      "expectedTests": [
+        "CProof::test_skip"
+      ],
+      "nativeExit": 0,
+      "cliExit": 0,
+      "complete": true,
+      "nativeStates": {
+        "CProof::test_skip": "SKIPPED"
+      },
+      "publicStates": {
+        "CProof::test_skip": "SKIPPED"
+      },
+      "executableSHA256": "1084287cdbea78c0dfd681dfb485108fb8ccc907c4051397c2951b6e231f0b8c",
+      "files": {
+        "cmocka.xml": {
+          "sha256": "9132b2bff1a95604106491565abdf7d53ac44a290902738b5fdab99042ed00a5",
+          "base64": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiID8+Cjx0ZXN0c3VpdGVzPgogIDx0ZXN0c3VpdGUgbmFtZT0iQ1Byb29mIiB0aW1lPSIwLjAwMCIgdGVzdHM9IjEiIGZhaWx1cmVzPSIwIiBlcnJvcnM9IjAiIHNraXBwZWQ9IjEiID4KICAgIDx0ZXN0Y2FzZSBuYW1lPSJ0ZXN0X3NraXAiIHRpbWU9IjAuMDAwIiA+CiAgICAgIDxza2lwcGVkLz4KICAgIDwvdGVzdGNhc2U+CiAgPC90ZXN0c3VpdGU+CjwvdGVzdHN1aXRlcz4K"
+        },
+        ".phase-00-stdout": {
+          "sha256": "73f292c6c013691129f4dcadad4f3459c6ee0e653b1df3e588d3b801e32f39c4",
+          "base64": "Wz09PT09PT09PT1dIENQcm9vZjogUnVubmluZyAxIHRlc3QocykuClsgUlVOICAgICAgXSB0ZXN0X3NraXAKWyAgU0tJUFBFRCBdIHRlc3Rfc2tpcApbPT09PT09PT09PV0gQ1Byb29mOiAxIHRlc3QocykgcnVuLgo="
+        },
+        ".phase-00-stderr": {
+          "sha256": "fd4fa3caf9f9f17335f593337ddfdcb970bff438244e579a60a9c0e89b2272c9",
+          "base64": "WyAgUEFTU0VEICBdIDAgdGVzdChzKS4KWyAgU0tJUFBFRCBdIENQcm9vZjogMSB0ZXN0KHMpLCBsaXN0ZWQgYmVsb3c6ClsgIFNLSVBQRUQgXSB0ZXN0X3NraXAKCiAxIFNLSVBQRUQgVEVTVChTKQo="
+        }
+      }
+    },
+    {
+      "name": "zero",
+      "target": "CProof",
+      "selectors": [
+        "CProof::test_absent"
+      ],
+      "expectedTests": [
+        "CProof::test_absent"
+      ],
+      "nativeExit": 0,
+      "cliExit": 1,
+      "complete": false,
+      "nativeStates": {},
+      "publicStates": {},
+      "executableSHA256": "cad92937aa9cda9ffaceaabd241c5d7f2a9d00a800b9ffa9a36addda00aef477",
+      "files": {
+        "cmocka.xml": {
+          "sha256": "fa151e9a04700be3a068b1515db7f9e59b62a4986a07569c9eaef6421539157b",
+          "base64": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiID8+Cjx0ZXN0c3VpdGVzPgogIDx0ZXN0c3VpdGUgbmFtZT0iQ1Byb29mIiB0aW1lPSIwLjAwMCIgdGVzdHM9IjAiIGZhaWx1cmVzPSIwIiBlcnJvcnM9IjAiIHNraXBwZWQ9IjAiID4KICA8L3Rlc3RzdWl0ZT4KPC90ZXN0c3VpdGVzPgo="
+        },
+        ".phase-00-stdout": {
+          "sha256": "c60983dadce7940c23cb109e63afc00699908533c5677191b9e51f78c8f209e8",
+          "base64": "Wz09PT09PT09PT1dIENQcm9vZjogUnVubmluZyAwIHRlc3QocykuCls9PT09PT09PT09XSBDUHJvb2Y6IDAgdGVzdChzKSBydW4uCg=="
+        },
+        ".phase-00-stderr": {
+          "sha256": "6ae22347b80179d7351fcf5b73cdf030a6b85012ba6c89e05799d9eac0c6b542",
+          "base64": "WyAgUEFTU0VEICBdIDAgdGVzdChzKS4K"
+        }
+      }
+    },
+    {
+      "name": "test-setup",
+      "target": "CProof",
+      "selectors": [],
+      "expectedTests": [
+        "CProof::test_pass"
+      ],
+      "nativeExit": 1,
+      "cliExit": 1,
+      "complete": false,
+      "nativeStates": {
+        "CProof::test_pass": "FAILED"
+      },
+      "publicStates": {
+        "CProof::test_pass": "UNKNOWN"
+      },
+      "executableSHA256": "671f00df5447aa08f6fe94e742f28ad2455fa27549aa726c8e85cba433ea8c5b",
+      "files": {
+        "cmocka.xml": {
+          "sha256": "08b0afb3105311d5125c7536d7369b7c119187408585e8c538e8cdb34728f0fd",
+          "base64": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiID8+Cjx0ZXN0c3VpdGVzPgogIDx0ZXN0c3VpdGUgbmFtZT0iQ1Byb29mIiB0aW1lPSIwLjAwMCIgdGVzdHM9IjEiIGZhaWx1cmVzPSIwIiBlcnJvcnM9IjEiIHNraXBwZWQ9IjAiID4KICAgIDx0ZXN0Y2FzZSBuYW1lPSJ0ZXN0X3Bhc3MiIHRpbWU9IjAuMDAwIiA+CiAgICAgIDxmYWlsdXJlPjwhW0NEQVRBW1Rlc3Qgc2V0dXAgZmFpbGVkXV0+PC9mYWlsdXJlPgogICAgPC90ZXN0Y2FzZT4KICA8L3Rlc3RzdWl0ZT4KPC90ZXN0c3VpdGVzPgo="
+        },
+        ".phase-00-stdout": {
+          "sha256": "36a063d498993ad9ec1444f23881426787c35b0ea29147cb2f319b6ba88dfc01",
+          "base64": "Wz09PT09PT09PT1dIENQcm9vZjogUnVubmluZyAxIHRlc3QocykuClsgUlVOICAgICAgXSB0ZXN0X3Bhc3MKWz09PT09PT09PT1dIENQcm9vZjogMSB0ZXN0KHMpIHJ1bi4K"
+        },
+        ".phase-00-stderr": {
+          "sha256": "08fd396eb3c8325a1a20d923694dded68d9ceecb03312c21f630a87687cf56c6",
+          "base64": "Q291bGQgbm90IHJ1biB0ZXN0OiBUZXN0IHNldHVwIGZhaWxlZApbICBFUlJPUiAgIF0gdGVzdF9wYXNzClsgIFBBU1NFRCAgXSAwIHRlc3QocykuCg=="
+        }
+      }
+    },
+    {
+      "name": "test-teardown",
+      "target": "CProof",
+      "selectors": [],
+      "expectedTests": [
+        "CProof::test_pass"
+      ],
+      "nativeExit": 1,
+      "cliExit": 1,
+      "complete": false,
+      "nativeStates": {
+        "CProof::test_pass": "FAILED"
+      },
+      "publicStates": {
+        "CProof::test_pass": "UNKNOWN"
+      },
+      "executableSHA256": "9613520ddeca1ac613dd65085d40ee025b78e19a0e219c11fbe5491b0a967a93",
+      "files": {
+        "cmocka.xml": {
+          "sha256": "e7f6ed8e9ba30f193742e0701b8c928f6399dbcc3d055c246d1b9dfe15bc5e23",
+          "base64": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiID8+Cjx0ZXN0c3VpdGVzPgogIDx0ZXN0c3VpdGUgbmFtZT0iQ1Byb29mIiB0aW1lPSIwLjAwMCIgdGVzdHM9IjEiIGZhaWx1cmVzPSIwIiBlcnJvcnM9IjEiIHNraXBwZWQ9IjAiID4KICAgIDx0ZXN0Y2FzZSBuYW1lPSJ0ZXN0X3Bhc3MiIHRpbWU9IjAuMDAwIiA+CiAgICAgIDxmYWlsdXJlPjwhW0NEQVRBW1Rlc3QgdGVhcmRvd24gZmFpbGVkXV0+PC9mYWlsdXJlPgogICAgPC90ZXN0Y2FzZT4KICA8L3Rlc3RzdWl0ZT4KPC90ZXN0c3VpdGVzPgo="
+        },
+        ".phase-00-stdout": {
+          "sha256": "36a063d498993ad9ec1444f23881426787c35b0ea29147cb2f319b6ba88dfc01",
+          "base64": "Wz09PT09PT09PT1dIENQcm9vZjogUnVubmluZyAxIHRlc3QocykuClsgUlVOICAgICAgXSB0ZXN0X3Bhc3MKWz09PT09PT09PT1dIENQcm9vZjogMSB0ZXN0KHMpIHJ1bi4K"
+        },
+        ".phase-00-stderr": {
+          "sha256": "c7b6bf6e25676cba4f11e3d192a4edb5f5089297b75becf6f3ce02e4d2ed0111",
+          "base64": "Q291bGQgbm90IHJ1biB0ZXN0OiBUZXN0IHRlYXJkb3duIGZhaWxlZApbICBFUlJPUiAgIF0gdGVzdF9wYXNzClsgIFBBU1NFRCAgXSAwIHRlc3QocykuCg=="
+        }
+      }
+    },
+    {
+      "name": "group-setup",
+      "target": "CProof",
+      "selectors": [],
+      "expectedTests": [
+        "CProof::test_pass"
+      ],
+      "nativeExit": 1,
+      "cliExit": 1,
+      "complete": false,
+      "nativeStates": {},
+      "publicStates": {},
+      "executableSHA256": "c8a3620d9c0a69aff61e6c6130b232ac331e63f8171e71641c1655890ba79f0d",
+      "files": {
+        "cmocka.xml": {
+          "sha256": "d91c2fbaa1dea987c06e838e83d362ef9e76f96837a7e1aaa1afb4670555ac65",
+          "base64": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiID8+Cjx0ZXN0c3VpdGVzPgogIDx0ZXN0c3VpdGUgbmFtZT0iQ1Byb29mIiB0aW1lPSIwLjAwMCIgdGVzdHM9IjAiIGZhaWx1cmVzPSIwIiBlcnJvcnM9IjEiIHNraXBwZWQ9IjAiID4KICA8L3Rlc3RzdWl0ZT4KPC90ZXN0c3VpdGVzPgo="
+        },
+        ".phase-00-stdout": {
+          "sha256": "ec07dda3cb45a8138f5f519bfae6ef2cc63abfe82b3f6ffda7a0c11aa2fe097a",
+          "base64": "Wz09PT09PT09PT1dIENQcm9vZjogUnVubmluZyAxIHRlc3QocykuCls9PT09PT09PT09XSBDUHJvb2Y6IDAgdGVzdChzKSBydW4uCg=="
+        },
+        ".phase-00-stderr": {
+          "sha256": "d629b722bdd62c5891531ef8b606f79a3b9ead86dbb5998a6118ab264d25efbf",
+          "base64": "WyAgRkFJTEVEICBdIEdST1VQIFNFVFVQClsgIEVSUk9SICAgXSBDUHJvb2YKWyAgUEFTU0VEICBdIDAgdGVzdChzKS4K"
+        }
+      }
+    },
+    {
+      "name": "group-teardown",
+      "target": "CProof",
+      "selectors": [],
+      "expectedTests": [
+        "CProof::test_pass"
+      ],
+      "nativeExit": 0,
+      "cliExit": 1,
+      "complete": false,
+      "nativeStates": {
+        "CProof::test_pass": "PASSED"
+      },
+      "publicStates": {
+        "CProof::test_pass": "UNKNOWN"
+      },
+      "executableSHA256": "b9067f2784c1a97f0e9ef8deecb7da62000983ab0eb9066048df4b7da065942f",
+      "files": {
+        "cmocka.xml": {
+          "sha256": "d2d5d2f168fde9a9dad8a91495549b5e4238190a4f2323f920c4febfe3cfcb6e",
+          "base64": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiID8+Cjx0ZXN0c3VpdGVzPgogIDx0ZXN0c3VpdGUgbmFtZT0iQ1Byb29mIiB0aW1lPSIwLjAwMCIgdGVzdHM9IjEiIGZhaWx1cmVzPSIwIiBlcnJvcnM9IjAiIHNraXBwZWQ9IjAiID4KICAgIDx0ZXN0Y2FzZSBuYW1lPSJ0ZXN0X3Bhc3MiIHRpbWU9IjAuMDAwIiA+CiAgICA8L3Rlc3RjYXNlPgogIDwvdGVzdHN1aXRlPgo8L3Rlc3RzdWl0ZXM+Cg=="
+        },
+        ".phase-00-stdout": {
+          "sha256": "6a856d01faa0ec4e2c3104b15261cdfdc2ba41342c8d3d137dd35e4a93c3264b",
+          "base64": "Wz09PT09PT09PT1dIENQcm9vZjogUnVubmluZyAxIHRlc3QocykuClsgUlVOICAgICAgXSB0ZXN0X3Bhc3MKWyAgICAgICBPSyBdIHRlc3RfcGFzcwpbPT09PT09PT09PV0gQ1Byb29mOiAxIHRlc3QocykgcnVuLgo="
+        },
+        ".phase-00-stderr": {
+          "sha256": "9580de7bbec3990d3df46eb5390eaa6bf15ea557bbf0df85188041dfd76cb5d6",
+          "base64": "WyAgRkFJTEVEICBdIEdST1VQIFRFQVJET1dOClsgIEVSUk9SICAgXSBDUHJvb2YKWyAgUEFTU0VEICBdIDEgdGVzdChzKS4K"
+        }
+      }
+    },
+    {
+      "name": "wrong-target",
+      "target": "Other",
+      "selectors": [],
+      "expectedTests": [
+        "Other::test_pass"
+      ],
+      "nativeExit": 0,
+      "cliExit": 1,
+      "complete": false,
+      "nativeStates": {},
+      "publicStates": {},
+      "executableSHA256": "cad92937aa9cda9ffaceaabd241c5d7f2a9d00a800b9ffa9a36addda00aef477",
+      "files": {
+        "cmocka.xml": {
+          "sha256": "d2d5d2f168fde9a9dad8a91495549b5e4238190a4f2323f920c4febfe3cfcb6e",
+          "base64": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiID8+Cjx0ZXN0c3VpdGVzPgogIDx0ZXN0c3VpdGUgbmFtZT0iQ1Byb29mIiB0aW1lPSIwLjAwMCIgdGVzdHM9IjEiIGZhaWx1cmVzPSIwIiBlcnJvcnM9IjAiIHNraXBwZWQ9IjAiID4KICAgIDx0ZXN0Y2FzZSBuYW1lPSJ0ZXN0X3Bhc3MiIHRpbWU9IjAuMDAwIiA+CiAgICA8L3Rlc3RjYXNlPgogIDwvdGVzdHN1aXRlPgo8L3Rlc3RzdWl0ZXM+Cg=="
+        },
+        ".phase-00-stdout": {
+          "sha256": "6a856d01faa0ec4e2c3104b15261cdfdc2ba41342c8d3d137dd35e4a93c3264b",
+          "base64": "Wz09PT09PT09PT1dIENQcm9vZjogUnVubmluZyAxIHRlc3QocykuClsgUlVOICAgICAgXSB0ZXN0X3Bhc3MKWyAgICAgICBPSyBdIHRlc3RfcGFzcwpbPT09PT09PT09PV0gQ1Byb29mOiAxIHRlc3QocykgcnVuLgo="
+        },
+        ".phase-00-stderr": {
+          "sha256": "ecb7c6724d372b2e5ba6ed775a87049a67033fd881afa8b4ef1d4f02ea977b96",
+          "base64": "WyAgUEFTU0VEICBdIDEgdGVzdChzKS4K"
+        }
+      }
+    }
+  ],
+  "limits": [
+    "Native originals retained; no synthetic framework reports.",
+    "No lifecycle/SDK/Tasks semantic authority or all-C coverage."
+  ],
+  "buildCommands": [
+    {
+      "label": "configure",
+      "argv": [
+        "/opt/homebrew/Cellar/cmake/4.4.3/bin/cmake",
+        "-S",
+        "/private/tmp/cem10-build/stable-next/cmocka-acquisition/release-source",
+        "-B",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/upstream-build",
+        "-G",
+        "Unix Makefiles",
+        "-DCMAKE_MAKE_PROGRAM=/usr/bin/make",
+        "-DCMAKE_C_COMPILER=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+        "-DBUILD_SHARED_LIBS=OFF",
+        "-DWITH_EXAMPLES=OFF",
+        "-DUNIT_TESTING=OFF",
+        "-DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=TRUE",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "env": null,
+      "exit": 0,
+      "elapsed": 25.378494375,
+      "signals": []
+    },
+    {
+      "label": "static-library",
+      "argv": [
+        "/opt/homebrew/Cellar/cmake/4.4.3/bin/cmake",
+        "--build",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/upstream-build",
+        "--target",
+        "cmocka",
+        "--verbose"
+      ],
+      "env": null,
+      "exit": 0,
+      "elapsed": 0.5094490829999998,
+      "signals": []
+    },
+    {
+      "label": "compile-0",
+      "argv": [
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+        "-std=c11",
+        "-DCMOCKA_STATIC",
+        "-DMODE=0",
+        "-I/private/tmp/cem10-build/stable-next/cmocka-acquisition/release-source/include",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/fixtures/probe.c",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/upstream-build/src/libcmocka.a",
+        "-o",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/fixtures/probe-0"
+      ],
+      "env": null,
+      "exit": 0,
+      "elapsed": 0.13310191700000118,
+      "signals": []
+    },
+    {
+      "label": "compile-1",
+      "argv": [
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+        "-std=c11",
+        "-DCMOCKA_STATIC",
+        "-DMODE=1",
+        "-I/private/tmp/cem10-build/stable-next/cmocka-acquisition/release-source/include",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/fixtures/probe.c",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/upstream-build/src/libcmocka.a",
+        "-o",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/fixtures/probe-1"
+      ],
+      "env": null,
+      "exit": 0,
+      "elapsed": 0.1386390829999975,
+      "signals": []
+    },
+    {
+      "label": "compile-2",
+      "argv": [
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+        "-std=c11",
+        "-DCMOCKA_STATIC",
+        "-DMODE=2",
+        "-I/private/tmp/cem10-build/stable-next/cmocka-acquisition/release-source/include",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/fixtures/probe.c",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/upstream-build/src/libcmocka.a",
+        "-o",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/fixtures/probe-2"
+      ],
+      "env": null,
+      "exit": 0,
+      "elapsed": 0.12933208299999777,
+      "signals": []
+    },
+    {
+      "label": "compile-3",
+      "argv": [
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+        "-std=c11",
+        "-DCMOCKA_STATIC",
+        "-DMODE=3",
+        "-I/private/tmp/cem10-build/stable-next/cmocka-acquisition/release-source/include",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/fixtures/probe.c",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/upstream-build/src/libcmocka.a",
+        "-o",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/fixtures/probe-3"
+      ],
+      "env": null,
+      "exit": 0,
+      "elapsed": 0.12645158299999792,
+      "signals": []
+    },
+    {
+      "label": "compile-4",
+      "argv": [
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+        "-std=c11",
+        "-DCMOCKA_STATIC",
+        "-DMODE=4",
+        "-I/private/tmp/cem10-build/stable-next/cmocka-acquisition/release-source/include",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/fixtures/probe.c",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/upstream-build/src/libcmocka.a",
+        "-o",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/fixtures/probe-4"
+      ],
+      "env": null,
+      "exit": 0,
+      "elapsed": 0.13189283399999852,
+      "signals": []
+    },
+    {
+      "label": "compile-5",
+      "argv": [
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+        "-std=c11",
+        "-DCMOCKA_STATIC",
+        "-DMODE=5",
+        "-I/private/tmp/cem10-build/stable-next/cmocka-acquisition/release-source/include",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/fixtures/probe.c",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/upstream-build/src/libcmocka.a",
+        "-o",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/fixtures/probe-5"
+      ],
+      "env": null,
+      "exit": 0,
+      "elapsed": 0.13479712499999863,
+      "signals": []
+    },
+    {
+      "label": "compile-6",
+      "argv": [
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+        "-std=c11",
+        "-DCMOCKA_STATIC",
+        "-DMODE=6",
+        "-I/private/tmp/cem10-build/stable-next/cmocka-acquisition/release-source/include",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/fixtures/probe.c",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/upstream-build/src/libcmocka.a",
+        "-o",
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/fixtures/probe-6"
+      ],
+      "env": null,
+      "exit": 0,
+      "elapsed": 0.1241045000000014,
+      "signals": []
+    },
+    {
+      "label": "format-mixed",
+      "argv": [
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/fixtures/probe-0"
+      ],
+      "env": {
+        "PATH": "/usr/bin:/bin",
+        "LANG": "C.UTF-8",
+        "TZ": "UTC",
+        "CMOCKA_MESSAGE_OUTPUT": "STANDARD,XML",
+        "CMOCKA_XML_FILE": "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/format-mixed/cmocka.xml",
+        "CMOCKA_ERROR_OUTPUT": "STDERR"
+      },
+      "exit": 1,
+      "elapsed": 0.23888083299999963,
+      "signals": []
+    },
+    {
+      "label": "format-group-teardown",
+      "argv": [
+        "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/fixtures/probe-6"
+      ],
+      "env": {
+        "PATH": "/usr/bin:/bin",
+        "LANG": "C.UTF-8",
+        "TZ": "UTC",
+        "CMOCKA_MESSAGE_OUTPUT": "STANDARD,XML",
+        "CMOCKA_XML_FILE": "/private/tmp/cem10-build/stable-next/cmocka-profile-proposal/native/format-group-teardown/cmocka.xml",
+        "CMOCKA_ERROR_OUTPUT": "STDERR"
+      },
+      "exit": 0,
+      "elapsed": 0.23119379200000267,
+      "signals": []
+    }
+  ],
+  "librarySHA256": "0bdc0bbb3c2efd1ed88f0f1c46c9b8ae9fea225220b3837ca4967d7295273274"
+}

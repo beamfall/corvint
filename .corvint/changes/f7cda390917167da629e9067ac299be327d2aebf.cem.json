@@ -1,0 +1,880 @@
+{
+  "baseRevision": "1bf87fa9c573ccc4d124d59f23aad29c79036b94",
+  "evidence": [
+    {
+      "blobOid": "a8d339e7cf2b93bc7cc0d9d5a93f915117e758bd",
+      "id": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+      "path": "docs/specs/cem-stable-v1.md",
+      "span": {
+        "end": 4358,
+        "start": 1853
+      },
+      "spanSha256": "16911c1c4096377a3abcec8b65049c9dbd1550472343473b0a42a8269104fb3f"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8a71a7fe69aacdc8efffc3487d232e6bc4534ea23965cc69c4fe4cbadd3253f7",
+      "newRange": {
+        "count": 68,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-01-cem-s0e-portable-repository-envelope.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d6b5b65da55412bd303e0d7b9e3044c414d42e3a039b01ae666c22c018b0c93c",
+      "newRange": {
+        "count": 12,
+        "start": 15
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 15
+      },
+      "path": "interop/cem01-go/main.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:54225d6513efebaed0e7414abb09100ef0c160a43a6533e903390e45092cc319",
+      "newRange": {
+        "count": 745,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "interop/cem01-go/stable_process_darwin.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ef20ad311aad2002254163f1060a66e00471ddb2274148abb1f93c78eec9cea9",
+      "newRange": {
+        "count": 299,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "interop/cem01-go/stable_process_darwin_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d9c074c48ba4c7e09e5e4b7c1aa3f067ee1593eb08e2cba27dda4427244e098d",
+      "newRange": {
+        "count": 21,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "interop/cem01-go/stable_process_other.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6b7052ffbb9fdf788b2aa115308beb684fa06deca94a298178aea3384519570a",
+      "newRange": {
+        "count": 1139,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "interop/cem01-go/stable_repository.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:093e48339887e0e132973d61cc059f4663888d3dc43609716cf486cd794cf178",
+      "newRange": {
+        "count": 1221,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "interop/cem01-go/stable_repository_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:75775b3db9888cf64dc34003be6f1fd40eff2da48d17af10fd121ff1d381d495",
+      "newRange": {
+        "count": 78,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/CHANGES.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a617b6c3adcc594fe6ba0084eb80f7ecdc8484d390bc66be6bfde13b544d31bb",
+      "newRange": {
+        "count": 25395,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/FULL-RESULT-CASES.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:86b3488139e2bfef4e1b40993fe2c36803f9edf023b744b1cc187f2a41eefc91",
+      "newRange": {
+        "count": 179,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/GAP-DISPOSITIONS.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a91f24b1a66142f93aa1a8b7e8887af1f14aa96f622407905c4fd0c9a68106d1",
+      "newRange": {
+        "count": 503,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/HISTORY-124.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2aa812e131b6734f572bd2f42cdec5e41924e8f573a5bbb4f8b6955302379218",
+      "newRange": {
+        "count": 582,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/INPUTS.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e7bc0b47a0b66e01fedd1211554aa42a4e8dbfda09481b313bded85deefaa9a3",
+      "newRange": {
+        "count": 210,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/LICENSE-APACHE-2.0",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:dbe562f4c6e2c52c387b2ebff80f26c33b6ca6fd5894fc3dfbb1fe8ca4c143d8",
+      "newRange": {
+        "count": 18174,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/LOGICAL-LEDGERS.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5d915ac000eaca0f0f0ac941a5e83df22e156228a5f69c62820170a83413e082",
+      "newRange": {
+        "count": 195,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/OBSERVED-NATIVE.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2d54f944979e44c778c9d17720e7799e3f24f1f3c59eb4cad1f373eaf62ca48a",
+      "newRange": {
+        "count": 139,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/OPEN-QUESTIONS.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7f12075b2b8091a0b5ee358ade69ad5dce11d3647fd76cd2199c09c9ef172bf7",
+      "newRange": {
+        "count": 115,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/OPERATION-ERRORS.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a8f52a67a2089b88d4e3e77e5775def9999390071894e2d215494d373161f0ca",
+      "newRange": {
+        "count": 463,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/PROPOSED-RULES.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7fd4794558e7b0733baa7b3d2eb7e8737efed93a82aeab2bfed3e5985c058853",
+      "newRange": {
+        "count": 80,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f36da7156ef940e3bc15cd69e6926d42ecfa86e6b2599747e4d90590e32c4374",
+      "newRange": {
+        "count": 146,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/REQUIRED-REPAIRS.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c43e626f039478aa0900618e97d605cdf159984471487d558c3fa3becacfbcf3",
+      "newRange": {
+        "count": 1112,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/RESULT.schema.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b4e7bdfc1d9531e740ae66e36913d2d2be55cee5b95b3c191d1759dbf99aaf44",
+      "newRange": {
+        "count": 36,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/REVIEW-DISPOSITIONS.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2b44c0ee507663870f0a72c0568dd44153ba8a4ad5b2d35934ecd2a35e7bcdaf",
+      "newRange": {
+        "count": 174,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/inherited/ALGORITHMS.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:287b1306f500f3fe660f291d22b936ae26fd6b740f8668924928ccb8bcaa7ee6",
+      "newRange": {
+        "count": 84,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/inherited/WP1-OBSERVED.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cff2e1d8cbd94cee668872ae6fdb070c12714d46f5709a640e8c3b2eab6f77c5",
+      "newRange": {
+        "count": 172,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/inherited/cem-0.1-algorithms.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:382dca46d89a2cda1649a885ca1da9f8c0e22065859eb888482152ddb70a3b43",
+      "newRange": {
+        "count": 497,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/inherited/cem-0.3.schema.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6a484a6dc336fa60c23515d152cadc5e956005f80db43d60dba9e55369b2d9f6",
+      "newRange": {
+        "count": 104,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/inherited/fixtures/FIXTURES-ledger-boundary.pack.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2d993d7455d79fd509e3419d39caa5108263af04bfad80104ba80e9b4aa00120",
+      "newRange": {
+        "count": 1258,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/inherited/fixtures/FIXTURES.pack.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:752a4f7c08645c11fad582431433411ae679f18379eb988187ea466f8a6d5b3d",
+      "newRange": {
+        "count": 182,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/inherited/fixtures/maps/sha1-positive-sealed.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ebcba0aceb63aa95d0572b6f74acee4d99bd9bc2df9d6dcc280d54897cdc2a10",
+      "newRange": {
+        "count": 182,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/inherited/fixtures/maps/sha1-positive-sidecarless.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e02fef615369ebec98a398d8e421a32428747ca09aae2e5f6ae2a464de244f29",
+      "newRange": {
+        "count": 294,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/inherited/s0e/ALGORITHMS.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:38c7210fa1dfbc9fc8a48d2a8ed00c3f421685c4bd1020cc044e3a75f0e77c16",
+      "newRange": {
+        "count": 455,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/inherited/s0e/MIGRATION.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:78a2ba97126ebcad179ace5169124282967a7593d53ee86b41b0b2713f3139cc",
+      "newRange": {
+        "count": 413,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/inherited/s0e/OPERATION.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8e05d787be8bebb4bb9408d49698e1bbf78235dc2634c336d348cbfe1c8032e1",
+      "newRange": {
+        "count": 24,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/inherited/s0e/PACKING.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:72873f56eec98060c5a9cff5cf8224f265303da774c3f894f88d24e150cf20ba",
+      "newRange": {
+        "count": 7111,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/inherited/s0e/REPOSITORY-ENVELOPE.cells.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cbd378130ed6fa7a085b0372eede44e95e27f1c60502311c46ffb5767c4ef4bb",
+      "newRange": {
+        "count": 96,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/inherited/s0e/REPOSITORY-ENVELOPE.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6cf4175d01cb85691a78d09824856e3787820a0aff715f7bfe391c4689894ba0",
+      "newRange": {
+        "count": 285,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/inherited/stable-r1/ALGORITHMS.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:25526aa1436619207ec1beadbfcf73893f9a18707ad9ba81d6cab161ce648fb4",
+      "newRange": {
+        "count": 413,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/inherited/stable-r1/OPERATION.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6ebded92cf7ba928a1b724eb26c6befaa25d220adda055c380aa4a818abf2aff",
+      "newRange": {
+        "count": 189,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/manifest.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:32fe913607d86be5847de356333f1dab74ca54bb9977b395816e87966e917a0d",
+      "newRange": {
+        "count": 5362,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/sha1-ledger-336-evidence.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:bae04783bdc7a674c4a852589b9e212fed8a8ba249531eb285a9456d3f1106cb",
+      "newRange": {
+        "count": 5376,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/sha1-ledger-337-evidence.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:eedcbd9cc5a4979060a4c5cf2034461ecd0f02c1741d5b0f0584b8947f394d31",
+      "newRange": {
+        "count": 182,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/sha1-nonstructural-sidecarless.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9c6dc16e147ba79f215e6b634cfa202b4ff9f1d446e37063bdd594526d91e38f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5f96d7cf1dbe16a3e9ca064578e6deb8850488fc9bb88f820bbd910d0128e19b",
+      "newRange": {
+        "count": 753,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-1.0/stable/repository-envelope-packet/stable.schema.json",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "92afa7ea8a7862a5ff5188449d4e087d6315d3621964cfd8831a0056183911c9",
+  "spec": "cem/0.2"
+}
