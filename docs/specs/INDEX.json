@@ -24,7 +24,7 @@
   },
   {
     "path": "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
-    "title": "Frontier decision brief \u2014 2026-08-29",
+    "title": "Frontier decision brief — 2026-08-29",
     "reqPrefix": "",
     "intent": "not-applicable (reading aid; decides nothing)",
     "delivery": "not-applicable",
@@ -173,7 +173,7 @@
   },
   {
     "path": "docs/specs/application-flow-understanding-v1.md",
-    "title": "Application Flow Understanding V1 \u2014 proven flows, safe E2E selection, navigation and documentation",
+    "title": "Application Flow Understanding V1 — proven flows, safe E2E selection, navigation and documentation",
     "reqPrefix": "AFU-V1",
     "intent": "accepted (decision 0385)",
     "delivery": "partially delivered; original issue-175 flows qualified locally",
@@ -1121,7 +1121,7 @@
   },
   {
     "path": "docs/specs/external-evidence-provider-v1.md",
-    "title": "External Evidence Provider V1 \u2014 repository identity",
+    "title": "External Evidence Provider V1 — repository identity",
     "reqPrefix": "EEP-V1",
     "intent": "accepted (decision 0310)",
     "delivery": "experimental (file transport only)",
@@ -1138,7 +1138,7 @@
   },
   {
     "path": "docs/specs/external-evidence-provider-v2.md",
-    "title": "External Evidence Provider V2 \u2014 opt-in path-to-path relations",
+    "title": "External Evidence Provider V2 — opt-in path-to-path relations",
     "reqPrefix": "EEP-V2",
     "intent": "accepted (decision 0312)",
     "delivery": "experimental (file transport only)",
@@ -1156,7 +1156,7 @@
   },
   {
     "path": "docs/specs/external-frontier-obligations-v0.md",
-    "title": "External Frontier Obligations V0 \u2014 a reference-only Change Frontier sidecar",
+    "title": "External Frontier Obligations V0 — a reference-only Change Frontier sidecar",
     "reqPrefix": "EFO-V0",
     "intent": "accepted (decision 0313)",
     "delivery": "experimental (file transport only)",
@@ -1174,7 +1174,7 @@
   },
   {
     "path": "docs/specs/external-test-selection-v0.md",
-    "title": "External Test Selection V0 \u2014 fail-closed advice from verification relations",
+    "title": "External Test Selection V0 — fail-closed advice from verification relations",
     "reqPrefix": "ETS-V0",
     "intent": "accepted (decision 0311)",
     "delivery": "experimental (file transport only)",
@@ -1192,7 +1192,7 @@
   },
   {
     "path": "docs/specs/external-test-selection-v1.md",
-    "title": "External Test Selection V1 \u2014 transitive obligations and checkout worktree reads",
+    "title": "External Test Selection V1 — transitive obligations and checkout worktree reads",
     "reqPrefix": "ETS-V1",
     "intent": "accepted (decision 0315)",
     "delivery": "experimental (file transport only)",
@@ -2037,7 +2037,7 @@
     "path": "docs/specs/pi-workflow-v0.md",
     "title": "Pi Workflow V0",
     "reqPrefix": "PWV-V0",
-    "intent": "accepted direction (owner instruction \u201cdo it. parallel\u201d, 2026-09-29)",
+    "intent": "accepted direction (owner instruction “do it. parallel”, 2026-09-29)",
     "delivery": "experimental",
     "claim": "Pi offers bounded native Core reads and an explicitly authorized Tasks workflow without acquiring evidence or execution authority.",
     "dependsOn": [
