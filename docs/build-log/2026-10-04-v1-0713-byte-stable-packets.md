@@ -24,21 +24,26 @@ exemption, not refiled.
   and UserPromptSubmit stdout for an unchanged tree, worktree, hook input and session key, forbids
   per-invocation values in the model-visible packet, and names the deadline-outcome and
   changed-state exemptions.
-- `cmd/corvint/host_adapter_stability_test.go` runs `runHostAdapter` for session-start (startup
-  and resume) and user-prompt twice inside a `testing/synctest` bubble, 61 s apart on the fake
-  clock, against a committed fixture with an unchanged untracked file. Each run must produce a full
-  repository envelope, not a deadline or stale-index fallback, so equal fallbacks cannot pass
-  vacuously. Recorded byte counts: session-start 3,336 and 3,336 for both sources, user-prompt
-  3,646 and 3,646 (they vary slightly with the temporary directory length).
+- `cmd/corvint/host_adapter_stability_test.go` runs `runHostAdapter` for session-start (startup and
+  resume) and user-prompt three times inside a `testing/synctest` bubble, 61 s and then 25 h apart
+  on the fake clock, so minute, hour and day boundaries are all crossed, against a committed fixture
+  with an unchanged untracked file. Each run must produce a full repository envelope, not a deadline
+  or stale-index fallback, so equal fallbacks cannot pass vacuously. Recorded byte counts:
+  session-start 3,336 on every run for both sources, user-prompt 3,646 on every run (they vary
+  slightly with the temporary directory length).
 - A mutation check that appended `time.Now()` to the adapter's stdout made the test fail on its
   first case. The mutation was reverted before commit.
 
 ### Limits
 
-The fixture has no task store, so its packets report `frontier-authority-unavailable`. A frontier
-or policy-bearing packet is covered by the no-wall-clock rule but not by this test's bytes. Cache
-impact is mainly a SessionStart concern: a UserPromptSubmit packet lands in the newest message,
-after any cached prefix. Actual Claude Code cache-hit rates were not measured (`NOT_OBSERVED`).
+Every Claude dogfood packet reports `frontier-authority-unavailable`, because the envelope fixes its
+frontier as unavailable (`cmd/corvint/local_completion_event.go`). A policy-bearing packet (an
+active dogfood lifecycle) is covered by the no-wall-clock rule but not by this test's bytes. The
+independent review also found two deadline-derived outcomes the first draft of `AHI-043` left
+unnamed, `adapter-host-kill-deadline` and the opt-in experimental compaction kernel's `NOT_RUN`
+note. Both are now listed under the deadline exemption. Cache impact is mainly a SessionStart
+concern: a UserPromptSubmit packet lands in the newest message, after any cached prefix. Actual
+Claude Code cache-hit rates were not measured (`NOT_OBSERVED`).
 
 Rollback: delete the test, `AHI-043` and its trace row, and regenerate `REQUIREMENTS.tsv`. Runtime
 behaviour is unchanged by this entry.

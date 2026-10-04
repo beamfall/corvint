@@ -16,7 +16,8 @@ import (
 // AHI-043: for an unchanged tree, worktree, hook input and session, the Claude SessionStart and
 // UserPromptSubmit stdout is byte-identical across invocations whatever the wall clock reads, so
 // an injected packet never busts the host's prompt cache by itself. synctest's fake clock moves
-// 61 s between the two invocations without the test waiting for it.
+// 61 s and then 25 h between invocations, crossing minute, hour and day boundaries, without the
+// test waiting for it.
 func TestAHI043ClaudeContextPacketsAreByteStableAcrossTime(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
@@ -72,19 +73,24 @@ func TestAHI043ClaudeContextPacketsAreByteStableAcrossTime(t *testing.T) {
 				}
 				return stdout.Bytes()
 			}
+			label := test.event
+			if source, ok := test.payload["source"].(string); ok {
+				label += " " + source
+			}
 			first := invoke()
-			time.Sleep(61 * time.Second)
-			second := invoke()
-			if !bytes.Equal(first, second) {
-				t.Fatalf("%s %v packet changed after 61 s on unchanged state:\nfirst  %s\nsecond %s", test.event, test.payload["source"], first, second)
+			for _, gap := range []time.Duration{61 * time.Second, 25 * time.Hour} {
+				time.Sleep(gap)
+				if later := invoke(); !bytes.Equal(first, later) {
+					t.Fatalf("%s packet changed after %s on unchanged state:\nfirst %s\nlater %s", label, gap, first, later)
+				}
 			}
 			// Two identical deadline or stale-index fallbacks would compare equal without proving the
 			// packet is stable, so each case must carry the full repository envelope.
 			text := string(first)
 			if !strings.Contains(text, "BEGIN CORVINT REPOSITORY DATA") || strings.Contains(text, "dogfood-event-deadline") || strings.Contains(text, "index-snapshot-stale") {
-				t.Fatalf("%s %v produced no full repository packet, so equality proves nothing: %s", test.event, test.payload["source"], first)
+				t.Fatalf("%s produced no full repository packet, so equality proves nothing: %s", label, first)
 			}
-			t.Logf("%s %v: %d identical bytes", test.event, test.payload["source"], len(first))
+			t.Logf("%s: %d identical bytes", label, len(first))
 		})
 	}
 }

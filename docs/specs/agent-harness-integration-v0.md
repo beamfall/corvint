@@ -828,11 +828,13 @@ do not reinterpret this Frontier result.
   value; such a value belongs in the private degradation ledger or the user-only notice instead.
   Two exemptions are deliberate and are not byte-stability defects. First, whether an invocation
   finishes inside its deadline (`AHI-012`, `AHI-017`) depends on host load, so the same state can
-  yield the full packet once and a `dogfood-event-deadline` or `dogfood-event-index-snapshot-stale`
-  FALLBACK packet another time; that variance is tracked as deadline reliability (V1-0607), and each
-  outcome is itself byte-stable. Second, a changed tree, dirty path set, prompt, session key, index
+  yield the full packet once and a deadline-derived outcome another time: a
+  `dogfood-event-deadline`, `dogfood-event-index-snapshot-stale` or `adapter-host-kill-deadline`
+  FALLBACK packet, or, only with the opt-in `CORVINT_EXPERIMENTAL_COMPACTION_KERNEL=1`, a trailing
+  experimental-kernel `NOT_RUN` note. That variance is tracked as deadline reliability (V1-0607),
+  and each outcome is itself byte-stable. Second, a changed tree, dirty path set, prompt, session key, index
   snapshot or installed binary changes the packet by design. Acceptance: a test runs both adapters
-  twice, 61 s apart on a fake clock, against an unchanged fixture repository with a dirty path, and
+  three times, 61 s and then 25 h apart on a fake clock, against an unchanged fixture repository with a dirty path, and
   requires identical bytes and a full repository envelope from each run. Rollback removes this
   requirement and its test; packets keep their current content.
 
@@ -1043,7 +1045,7 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 | `AHI-033` | `integrations/opencode/src/inspector.js`, `src/tui.tsx`, and inspector RPC in `src/index.js` | `integrations/opencode/inspector.test.mjs`, AHI-033 cases under `TestHostAdapterJavaScriptHosts`, and `tools/qualify-opencode --inspector` (stock native rendering, pinned source, narrow keyboard use and interruption cleanup) |
 | `AHI-034` | `integrations/opencode/src/cockpit.js`, `cockpit-tui.tsx`, `index.js`, `runtime.js` | `integrations/opencode/cockpit.test.mjs` and `tools/qualify-opencode --inspector`: bounded fixed reads, safe output paths, stale/owner/check-rerun races, advisory impact navigation, independent workflow/check state and real native change/proof workflow |
 | `AHI-042` | `integrations/opencode/src/ui-presentation.js`, `cockpit-tui.tsx`, `tui.tsx`, `task-tui.tsx`, `workbench-tui.tsx`, `task-metrics.js` and `workbench.js` | `integrations/opencode/ui-presentation.test.mjs`, AHI-042 declared-gate cases in `task-metrics.test.mjs` / `workbench.test.mjs`, and the stock native inspector witness for bounded Work → Change → Evidence navigation and honest status/limit presentation |
-| `AHI-043` | `cmd/corvint/host_adapter.go` Claude SessionStart/UserPromptSubmit output | `cmd/corvint/host_adapter_stability_test.go::TestAHI043ClaudeContextPacketsAreByteStableAcrossTime` (fake-clock 61 s gap, unchanged dirty fixture, full envelope required) |
+| `AHI-043` | `cmd/corvint/host_adapter.go` Claude SessionStart/UserPromptSubmit output | `cmd/corvint/host_adapter_stability_test.go::TestAHI043ClaudeContextPacketsAreByteStableAcrossTime` (fake-clock 61 s and 25 h gaps, unchanged dirty fixture, full envelope required) |
 | `AHI-036`–`AHI-041` | `integrations/opencode/src/workbench.js`, `workbench-tui.tsx`, `session-metrics.js`, `task-metrics.js`, `qualification.js`, and inspector RPC | `integrations/opencode/workbench.test.mjs`, focused AHI-036 task-detail receipt test in `task-metrics.test.mjs`, and stock OpenCode 2 terminal witness; exact-package AHI-032 qualification remains separate |
 | `AHI-025` | `cmd/corvint/pi_tools.go`, `integrations/pi/tools.js` | `TestPiToolContextExpansion`, `TestPiToolRecord`, `TestPiToolClosedInput` and native Pi tool/RPC fixtures |
 | `AHI-026` | `integrations/claude-code/plugins/corvint/hooks/hooks.json`, `compatibility.json` `compactionHooks`, `cmd/corvint/host_adapter.go` declared-kill table | `TestAHI026ClaudeCompactionHooksRegisteredAgainstHostAPI` (matcherless `PreCompact`/`PostCompact` groups, verified host version equals the tested maximum, closed trigger set) and `TestAHI017AdapterHostKillMatchesDeclaredHooks` (the two new declared kills) |
