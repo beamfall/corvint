@@ -884,6 +884,22 @@ func TestDogfoodReasonAdmitsCitationPlanMapMismatch(t *testing.T) {
 	}
 }
 
+// TestDogfoodReasonAdmitsInputRefusals: the empty-plan and over-bound input
+// refusals of `dogfood change`, and the unreadable verify file, reach the
+// self-observation ledger like its other step reasons (DCW-V0-032, V1-0743).
+func TestDogfoodReasonAdmitsInputRefusals(t *testing.T) {
+	for _, row := range []Event{
+		{Kind: "dogfood-step", Step: "cem-cite", Status: "NOT_PRODUCED", Reason: "empty-citation-plan"},
+		{Kind: "dogfood-step", Step: "ocm-aggregate", Status: "NOT_PRODUCED", Reason: "intent-manifest-over-bound"},
+		{Kind: "dogfood-step", Step: "local-outcome", Status: "NOT_PRODUCED", Reason: "verify-file-over-bound"},
+		{Kind: "dogfood-step", Step: "local-outcome", Status: "NOT_PRODUCED", Reason: "verify-file-unavailable"},
+	} {
+		if err := validateWriterContract(row); err != nil {
+			t.Errorf("%s refused as a dogfood reason: %v", row.Reason, err)
+		}
+	}
+}
+
 // TestDogfoodReasonAdmitsCitationStageRefusals: the two citation-stage refusals
 // of `dogfood change` are observable like its other cem-cite reasons (V1-0228).
 func TestDogfoodReasonAdmitsCitationStageRefusals(t *testing.T) {

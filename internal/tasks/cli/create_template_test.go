@@ -41,10 +41,10 @@ func templateRun(t *testing.T, root string, extra ...string) *wire.Result {
 	return res
 }
 
-// TestCALV0069_CreateTemplateIsReadOnlyAndAccepted is V1-0751 acceptance
+// TestCALV0073_CreateTemplateIsReadOnlyAndAccepted is V1-0751 acceptance
 // criteria 1 and 3: the template writes nothing and takes no lock, and once
 // title, body and acceptanceCriteria are filled in, ticket create accepts it.
-func TestCALV0069_CreateTemplateIsReadOnlyAndAccepted(t *testing.T) {
+func TestCALV0073_CreateTemplateIsReadOnlyAndAccepted(t *testing.T) {
 	r := receiptFixture(t) // initialized store with one ticket; lock removed
 	state, intents := fixture.TreeSnapshot(t, r.StateDir), fixture.TreeSnapshot(t, r.IntentDir)
 	res := templateRun(t, r.Root)
@@ -88,11 +88,11 @@ func TestCALV0069_CreateTemplateIsReadOnlyAndAccepted(t *testing.T) {
 	}
 }
 
-// TestCALV0069_CreateTemplateNamesEnumsAndNullableKeys is acceptance
+// TestCALV0073_CreateTemplateNamesEnumsAndNullableKeys is acceptance
 // criterion 2: every CREATE key, nested effects and source member is
 // documented, enum values come from the decoder's vocabularies, and the
 // nullable keys are named. It also works before init: it reads queue.json.
-func TestCALV0069_CreateTemplateNamesEnumsAndNullableKeys(t *testing.T) {
+func TestCALV0073_CreateTemplateNamesEnumsAndNullableKeys(t *testing.T) {
 	r := fixture.TempRepo(t)
 	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
 	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
@@ -156,9 +156,9 @@ func TestCALV0069_CreateTemplateNamesEnumsAndNullableKeys(t *testing.T) {
 	}
 }
 
-// TestCALV0069_TemplateRefusesOtherVerbsAndFlags keeps --template a pure
+// TestCALV0073_TemplateRefusesOtherVerbsAndFlags keeps --template a pure
 // read: no other verb takes it and it composes with no mutation flag.
-func TestCALV0069_TemplateRefusesOtherVerbsAndFlags(t *testing.T) {
+func TestCALV0073_TemplateRefusesOtherVerbsAndFlags(t *testing.T) {
 	r := fixture.TempRepo(t)
 	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
 	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
@@ -217,12 +217,12 @@ func nullAt(t *testing.T, canonical, path string) []byte {
 	return wire.Encode(v)
 }
 
-// TestCALV0069_TemplateFieldsMatchPayloadNullability is the drift guard:
+// TestCALV0073_TemplateFieldsMatchPayloadNullability is the drift guard:
 // every key path of the emitted payload (with one dependency and one
 // resource element populated) has a fields entry, fields has no other
 // entries than those paths and optionalKeys, and each path's nullable flag
 // matches what ticket create actually accepts on the fixture.
-func TestCALV0069_TemplateFieldsMatchPayloadNullability(t *testing.T) {
+func TestCALV0073_TemplateFieldsMatchPayloadNullability(t *testing.T) {
 	r := receiptFixture(t)
 	item := templateRun(t, r.Root).Items[0]
 	fields := field(item, "fields")

@@ -13,6 +13,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 const (
@@ -134,6 +136,15 @@ type Match struct {
 	ExcludeStates []string `json:"excludeStates,omitempty"`
 	Statuses      []string `json:"statuses,omitempty"`
 	PlanSelected  bool     `json:"planSelected,omitempty"`
+	// Gates is a conjunction of ERG-V0-009 native external review predicates.
+	Gates []GateMatch `json:"gates,omitempty"`
+}
+
+// GateMatch requires one gate's routing state (Ticket.GateState) to be one
+// of States: PASS, RETURN, RESUBMITTED or NONE.
+type GateMatch struct {
+	Gate   string   `json:"gate"`
+	States []string `json:"states"`
 }
 
 // Lane selects pool members in one native pool state (QUARANTINED by default).
@@ -284,6 +295,9 @@ func (c *Config) validate() error {
 			if len(m.States)+len(m.ExcludeStates) > 0 && c.WorkState == nil {
 				return fail("role %s matches work states without a workState reader", r.Name)
 			}
+			if err := validGates(m.Gates); err != nil {
+				return fail("role %s gates: %v", r.Name, err)
+			}
 		}
 		if l := r.Lane; l != nil && (l.Pool == "" || len(l.Pool) > 64) {
 			return fail("role %s lane needs a pool", r.Name)
@@ -400,4 +414,30 @@ func Render(s string, values map[string]string) string {
 		pairs = append(pairs, k, values[k])
 	}
 	return strings.NewReplacer(pairs...).Replace(s)
+}
+
+// validGates bounds gate predicates: at most 16 distinct gate labels, each
+// with 1..4 distinct states.
+func validGates(gates []GateMatch) error {
+	if len(gates) > 16 {
+		return fmt.Errorf("at most 16 predicates")
+	}
+	seen := map[string]bool{}
+	for _, g := range gates {
+		if _, err := wire.ParseLabel("gate", g.Gate); err != nil || seen[g.Gate] {
+			return fmt.Errorf("gate %q is not a label or is repeated", g.Gate)
+		}
+		seen[g.Gate] = true
+		if len(g.States) == 0 || len(g.States) > 4 {
+			return fmt.Errorf("gate %s needs 1..4 states", g.Gate)
+		}
+		states := map[string]bool{}
+		for _, s := range g.States {
+			if states[s] || !contains([]string{GatePass, GateReturn, GateResubmitted, GateNone}, s) {
+				return fmt.Errorf("gate %s state %q is not PASS, RETURN, RESUBMITTED or NONE, or is repeated", g.Gate, s)
+			}
+			states[s] = true
+		}
+	}
+	return nil
 }

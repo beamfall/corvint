@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; V1-0751 CAL-V0-069 read-only CREATE payload template implemented with focused fixture tests
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests
 Authoritative inputs: owner request [issue 482](https://github.com/beamfall/corvint/issues/482) (proposed CAL-V0-044/046 compatibility amendment);
 owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
@@ -16,7 +16,7 @@ owner request [issue 431](https://github.com/beamfall/corvint/issues/431) (CAL-V
 owner request [issue 499](https://github.com/beamfall/corvint/issues/499) (CAL-V0-052, 054, 055, 057 and 058 escalation ladder),
 owner request [issue 497](https://github.com/beamfall/corvint/issues/497) (CAL-V0-068),
 owner request [issue 446](https://github.com/beamfall/corvint/issues/446) (CAL-V0-059..061),
-owner request [issue 354](https://github.com/beamfall/corvint/issues/354) (CAL-V0-062..063),
+owner request [issue 354](https://github.com/beamfall/corvint/issues/354) (CAL-V0-062..063, 071..072; owner scope split 2026-10-04),
 owner request [issue 378](https://github.com/beamfall/corvint/issues/378),
 owner request [issue 370](https://github.com/beamfall/corvint/issues/370), and
 owner choice on 2026-09-28 to quarantine environments until confirmed safe reuse; owner request [issue 336](https://github.com/beamfall/corvint/issues/336), the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
@@ -26,10 +26,10 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; V1-0751 CAL-V0-069 read-only CREATE payload template implemented with focused fixture tests. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
-- Read next: #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle); Amendments to TCP-00; Failure modes.
+- Read next: #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle; S21 multi-repository programs); Amendments to TCP-00; Failure modes.
 
 ## User and boundary
 
@@ -85,10 +85,11 @@ one.
 | S15 | CAL-V0-065 | Opt-in explicit per-claim member exclusions; focused tests and a compiled native fixture |
 | S17 | CAL-V0-067 | Experimental operator-attested untouched release; scoped native/archive/crash fixtures passed, physical facts NOT_OBSERVED |
 | S18 | CAL-V0-068 | Experimental host-pressure launch throttle: hysteresis level caps new non-exempt launches; running workers untouched |
+| S21 | CAL-V0-071..072 | Multi-repository supervised programs: policy-pinned extra checkouts, sibling worktrees, composite candidate and review binding; gates and integration fail closed |
 
 CAL-V0-062/063 are defined in S13 (issue 354). CAL-V0-064 (S14, issue 468) is reserved
 by coordinated unlanded work; CAL-V0-066/S16 remains reserved for issue 464 if used.
-The coordinator assigned CAL-V0-067/S17 to issue 479 and CAL-V0-068/S18 to issue 497. This seed does not claim
+The coordinator assigned CAL-V0-067/S17 to issue 479 and CAL-V0-068/S18 to issue 497. CAL-V0-071..072/S21 extend issue 354 (CAL-V0-069..070 and S19..S20 are left to coordinated unlanded work). CAL-V0-073 is the V1-0751 CREATE payload template amendment. This seed does not claim
 implementation or qualification of the new profile or any reserved slice.
 
 S8 was added by owner decision on 2026-09-27 and lands directly after S3, before S4.
@@ -984,8 +985,11 @@ Authoritative input: owner request [issue 354](https://github.com/beamfall/corvi
 the S10 supervisor's fixed `effort: "low"` and `wallSeconds` 1..3600 config bounds, and native
 ticket V1-0475 criteria 4 and 5. This slice delivers only owner-bounded effort and a longer
 policy-bounded stage wall for the existing `taskman-codex-supervisor/0` Codex supervisor.
-Multi-repository programs, non-Codex supervisor adapters and checkpointed continuation beyond the
-existing WAIT/resume path remain open under V1-0475. The continuous dispatcher (S11) is unchanged:
+Owner scope decision 2026-10-04: issue 354 closes on multi-repository programs and Codex
+continuation across longer runs, using the effort delivered here; Claude Code and OpenCode
+supervisor hosts move to separate native tickets V1-0755 and V1-0756 and are non-goals of this spec's issue 354 slices.
+Multi-repository programs are delivered partially in S21; checkpointed continuation beyond the
+existing WAIT/resume path, and multi-repository gates and integration, remain open under V1-0475. The continuous dispatcher (S11) is unchanged:
 its host argv already carries any effort flag and its role `wallSeconds` already reach seven days.
 
 - `CAL-V0-062`: The optional policy `supervision` object MAY carry `efforts`, a closed object whose
@@ -995,8 +999,10 @@ its host argv already carries any effort flag and its role `wallSeconds` already
   keep their meaning. The supervisor config MAY carry `stageEfforts`, a map from those stages to an
   effort overriding `effort` for that stage. A new program MUST be refused, before its runtime read,
   program record, worktree, effect or host process, when its config names an unknown stage or any
-  stage effort the policy does not admit. An existing program MUST be re-checked against the current
-  policy before every stage launch, so a later narrowing refuses further stages without blocking
+  stage effort the policy does not admit, or when its base `effort` is not itself one of `low`,
+  `medium` or `high`, even if every stage is overridden. An existing program MUST be re-checked
+  against the current policy before every stage launch, without the base-effort rule, so a program
+  recorded before that rule is not stranded while every stage stays overridden, so a later narrowing refuses further stages without blocking
   `drain` or `cancel`. The admitted stage effort MUST be
   the `model_reasoning_effort` of both new and resumed Codex invocations for that stage.
 - `CAL-V0-063`: The optional policy `supervision.stageWallMinutes` (Count 1..240, the lane
@@ -1013,12 +1019,15 @@ Non-goals: efforts beyond `low|medium|high` (for example Codex `minimal` or `xhi
 models; proof that the provider applied the requested effort, which stays `NOT_OBSERVED` beyond the
 argv the supervisor passed; and any change to token accounting. Failure modes: a policy that admits
 `medium` only for `implement` refuses a config whose default `effort` is `low` (the default applies
-to every stage); a lane cap shorter than `wallSeconds` silently shortens the stage, as before.
+to every stage); a lane cap shorter than `wallSeconds` silently shortens the stage, as before; a
+program recorded with an empty base `effort` keeps running only while `stageEfforts` overrides every
+stage, and a stage it does not override is refused as an effort the policy does not admit.
 Rollback removes `efforts` and `stageWallMinutes` from the policy, which restores the low-only,
 one-hour behaviour for every later dispatch; recorded program configs keep their digests because
 `stageEfforts` is omitted when absent. Regression witnesses: `TestCALV0062_PolicyEffortAllowlist`,
 `TestCALV0063_PolicyStageWallBound` (`internal/tasks/intent`); `TestCALV0062_StageEffortSelection`,
-`TestCALV0062_CheckProgramConfigEffort`, `TestCALV0062_StageRechecksCurrentPolicy`,
+`TestCALV0062_CheckProgramConfigEffort`, `TestCALV0062_BaseEffortRequired`,
+`TestCALV0062_StageRechecksCurrentPolicy`,
 `TestCALV0063_CheckProgramConfigStageWall` and
 `TestCALV0062_OpenWorkflowRefusesBeforeMutation` (`internal/tasks/store`). Live Codex qualification at
 a non-low effort is `NOT_RUN`; see `docs/build-log/2026-10-01-tasks-supervisor-effort-wall.md`.
@@ -1238,6 +1247,73 @@ a ledger that carries the record, so a downgrade first needs one start without `
 fixture parsing only; live Linux sampling and a live multi-agent dispatch under real host saturation are NOT_RUN, and other operating systems are always
 UNKNOWN. Regression witnesses are the CAL-V0-068 and issue-497 tests in the traceability table.
 
+### S21 — Multi-repository supervised programs (issue 354, partial)
+
+Authoritative input: owner request [issue 354](https://github.com/beamfall/corvint/issues/354) and
+the owner scope decision of 2026-10-04 recorded in S13; native ticket V1-0475. This slice lets one
+`taskman-codex-supervisor/0` program carry candidate changes in up to eight additional,
+operator-declared Git checkouts beside the queue repository, and binds them into one reviewable
+candidate. It does not integrate them: multi-repository gates and integration fail closed until a
+later slice defines cross-repository landing and crash recovery.
+
+- `CAL-V0-071`: The optional policy `supervision` object MAY carry `repositories`, a closed object of
+  1..8 entries keyed by a name (a lowercase ASCII letter followed by lowercase letters, digits or
+  `-`, at most 32 bytes), each a closed object `{pathSha256}` pinning the SHA-256 of one absolute
+  checkout path. The supervisor config MAY carry `repositories`, a name-sorted, duplicate-free array
+  of `{name, checkout}`. A new program MUST be refused, before its runtime read, program record,
+  worktree, effect or host process, when any entry is not declared by the policy, its checkout is not
+  an absolute, lexically clean path, or its path digest differs from the pin; an existing program is re-checked
+  at every stage launch as in CAL-V0-062. At admission the supervisor MUST record, for each entry,
+  the checkout, its Git common-directory identity and its `HEAD` commit as the repository base, with
+  no candidate. Each repository's worktree is the detached sibling `<primary worktree>@<name>` at
+  that base for `implement` and at its recorded candidate for later stages. Only the `implement`
+  Codex invocation receives those sibling worktrees as `sandbox_workspace_write.writable_roots`;
+  review and integrate invocations receive none. A later program transaction MUST refuse a changed
+  repository name, checkout or identity (`immutable repository binding differs`); a base changes
+  only on reassignment, which also clears the candidate. Changed paths in repository `name` are
+  scope-checked as `@name/<path>` against the ticket's touch paths, so an undeclared repository path
+  blocks the program `OUT_OF_SCOPE` exactly like a primary path. Absent `repositories`, policy,
+  config and `programs.json` bytes are unchanged.
+- `CAL-V0-072`: After `implement`, each repository with changes MUST receive a candidate commit
+  under its own `refs/corvint/tasks/` namespace, parented on its base, without moving that
+  checkout's `HEAD` or index. The program candidate MUST then be the composite tree whose `.queue`
+  entry is the primary candidate tree and whose `<name>` entries are `160000` gitlinks to each
+  repository candidate (or base when unchanged); a primary changed path beginning with `@` returns
+  the question `ambiguous multi-repository path` instead of a tree. Review MUST recompute the
+  composite from the recorded candidates and refuse any mismatch, so `READY_FOR_INTEGRATION` binds
+  every repository's exact commit. Until a later slice is accepted, an integrator stage MUST refuse
+  `multi-repository integration is not yet supported` before any grant or checkout mutation, and a
+  reviewed program whose ticket or policy requires gates MUST refuse `multi-repository gate
+  evaluation is not yet supported` before any gate runs, so it never reaches
+  `READY_FOR_INTEGRATION`.
+
+Non-goals: integration into, or pushing, any additional checkout; cross-repository atomic landing or
+crash recovery; gates over the composite tree; per-repository Core context packets (context stays
+primary-only); submodule semantics in the operator's checkouts (the gitlinks exist only in the
+composite object); Claude Code and OpenCode supervisor hosts (V1-0755, V1-0756); and
+checkpointed continuation beyond WAIT/resume (open under V1-0475). Failure modes: a checkout moved
+to another path no longer matches its pin and is refused; a sibling worktree whose common
+identity, commit or cleanliness differs from the record refuses the stage rather than overwriting
+work; uncommitted edits in the operator's checkout are neither read nor carried, because the
+sibling starts from the recorded commit; an extra repository edit outside the
+declared `@name/` touch paths blocks the program; a checkout re-cloned or retargeted after
+admission keeps its path pin but is refused by its recorded common identity before Git registers a
+worktree in it; two queues sharing one extra checkout and one program ID collide on its
+`refs/corvint/tasks/` candidate ref, and the second ref write fails closed; the composite tree object
+is referenced by no ref and may be pruned by `git gc`, which is harmless because review recomputes it
+from the recorded per-repository candidates; and the fail-closed gate and integration checks live in
+the store workflow, while a direct `gate run` on such an attempt refuses `STALE_TREE` because no
+ordinary worktree's `HEAD` tree is the composite. Downgrade is one-way: a binary without this slice
+refuses a `programs.json` that records repositories (`unknown field`), and because a full journal
+walk revalidates every retained post, it also refuses the retained history once any
+multi-repository program record is journaled, even after those programs are drained or cancelled,
+unless its reader resumes from a checkpoint after that record. Rollback removes `repositories` from the policy, which refuses every later stage of a
+multi-repository program while leaving single-repository programs and their bytes unchanged; the
+candidate refs and sibling worktrees are ordinary Git state the operator may remove. Regression
+witnesses are the CAL-V0-071 and CAL-V0-072 rows in the traceability table, including the fake-host
+end-to-end `TestCALV0071_MultiRepositoryProgramFakeHost`. Live Codex qualification is `NOT_RUN`;
+see `docs/build-log/2026-10-04-tasks-multirepo-programs.md`.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -1349,6 +1425,9 @@ The experimental `RUN_OUTCOME` observation verb is amended in by `corvint-tasks-
 | Checkpoint disagrees with a receipt, projection, staging or the intent tree | A resumed read would mis-state the store | The resumed path refuses internally and the complete audit decides the reported verdict (CAL-V0-061) |
 | Journal prefix, or a checkpoint entry together with its projection, altered behind a still-matching checkpoint | A resumed read does not see it | `receipt audit` and every mutation run the complete audit and refuse; the read's verdict says `CHECKPOINT_PLUS_TAIL`, not `CONSISTENT` (CAL-V0-061) |
 | Writer cannot retain the checkpoint (full disk, permissions, crash before rename) | Reads stay at complete-audit cost | The transaction is unaffected; the next successful writer retains one (CAL-V0-060) |
+| Extra repository moved, re-cloned, retargeted or undeclared | A program would edit an unintended checkout | Admission and every stage refuse unless the policy `supervision.repositories` pin matches the configured path, and every stage refuses a checkout whose common Git identity differs from the program record before any Git write (CAL-V0-071) |
+| Extra repository edited outside the ticket's `@name/` touch paths | Candidate widens scope silently | The implement stage blocks `OUT_OF_SCOPE` with no candidate (CAL-V0-071) |
+| Multi-repository program reaches gates or integration | No cross-repository landing or recovery contract exists yet | Review refuses before any gate runs and the integrator refuses before any grant; the composite candidate stays recorded (CAL-V0-072) |
 
 ## Acceptance and rollback
 
@@ -1421,10 +1500,12 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-059 | `TestCALV0059_CheckpointCodecAndDerivation` (`internal/tasks/journal`) |
 | CAL-V0-060 | `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`), including `pending`, which shares the lease audit with writers |
 | CAL-V0-061 | `TestCALV0061_CheckpointTailEqualsFullAudit`, `TestCALV0061_CheckpointFallsBackToFullAudit`, `TestCALV0061_CheckpointScopeAndMovement`, `TestCALV0061_CheckpointLimitsStayWithFullAudit` (`internal/tasks/journal`); `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`); live-store measurement in `docs/build-log/2026-10-01-tasks-read-checkpoint.md` |
-| CAL-V0-062 | `TestCALV0062_PolicyEffortAllowlist` (`internal/tasks/intent`); `TestCALV0062_StageEffortSelection`, `TestCALV0062_CheckProgramConfigEffort`, `TestCALV0062_StageRechecksCurrentPolicy`, `TestCALV0062_OpenWorkflowRefusesBeforeMutation` (`internal/tasks/store`); live Codex at non-low effort NOT_RUN |
+| CAL-V0-062 | `TestCALV0062_PolicyEffortAllowlist` (`internal/tasks/intent`); `TestCALV0062_StageEffortSelection`, `TestCALV0062_CheckProgramConfigEffort`, `TestCALV0062_BaseEffortRequired`, `TestCALV0062_StageRechecksCurrentPolicy`, `TestCALV0062_OpenWorkflowRefusesBeforeMutation` (`internal/tasks/store`); live Codex at non-low effort NOT_RUN |
 | CAL-V0-063 | `TestCALV0063_PolicyStageWallBound` (`internal/tasks/intent`); `TestCALV0063_CheckProgramConfigStageWall`, `TestCALV0062_OpenWorkflowRefusesBeforeMutation` (`internal/tasks/store`); live stage beyond one hour NOT_RUN |
 | CAL-V0-064 | `TestCALV0064_CommandGrammarAndRoleSeparation`; `TestCALV0064_ChangedFileReplayAndRestart`; `TestCALV0064_CheckedSaveFailureDoesNotGrantOrEscapeThroughClose`; `TestCALV0064_LaterSaveFailureCannotReviveGrantedParking`; `TestCALV0064_ActivePendingUnknownAndSeedAccounting`; `TestCALV0064_FirstSeedIsNotProgressAndCancellationIsNotAdmission`; `TestCALV0064_FirstSeedEndedWorkerAndLaterFailure`; `TestCALV0064_CanceledReobservationCannotAdmitEarlierToken`; `TestCALV0064_PostCommitCancellationPreservesFactsAndStopsEffects`; `TestCALV0064_CapacitySortedAllocationAndStrictLoad`; `TestCALV0064_NoTokenPreservesLegacyLedgerAndFingerprint`; `TestCALV0064_LedgerCanonicalFieldsAndCaseSensitiveKeys`; `TestCALV0064_KeyBoundaryAndOperatorUnparkRetainLifetimeBudget` (`internal/tasks/dispatch`); `TestCALV0064_DispatchCLIFileProgressAndReplay` (`internal/tasks/cli`); manual source/test evidence in `docs/build-log/2026-10-02-dispatch-explicit-progress.md`, optional OCM linkage unassessed |
 | CAL-V0-065 | `TestCALV0065_AbsentPreimage`, `TestCALV0065_RequestShapeAndCurrentMembership`, `TestCALV0065_AllocationPreviewAndPreparedAdmission` (`internal/tasks/transaction`); `TestCALV0065_HealthFiltersEveryRound`, `TestCALV0065_ReplayAfterSuccessorAndPolicyChange`, `TestCALV0065_ClaimNextSelectors` (`internal/tasks/store`); `TestCALV0065_CLIExclusionsAndPreviewPurity`, `TestCALV0065_NativeFixture` (`internal/tasks/cli`); scoped evidence and limits in `docs/build-log/2026-10-02-tasks-member-exclusions.md` |
+| CAL-V0-071 | `TestCALV0071_PolicyRepositories` (`internal/tasks/intent`); `TestCALV0071_ProgramRepositoryRecords` (`internal/tasks/snapshot`); `TestCALV0071_RepositoryBindingImmutable` (`internal/tasks/transaction`); `TestCALV0071_CheckProgramConfigRepositories`, `TestCALV0071_WritableRoots`, `TestCALV0071_UndeclaredRepositoryRefusedBeforeMutation`, `TestCALV0071_ExtraRepositoryPathsAreScoped`, `TestCALV0071_RetargetedCheckoutRefusedBeforeWrite`, `TestCALV0071_MultiRepositoryProgramFakeHost` (`internal/tasks/store`); live Codex NOT_RUN |
+| CAL-V0-072 | `TestCALV0071_MultiRepositoryProgramFakeHost` (composite tree, unmoved checkout `HEAD`, review binding, integrator refusal), `TestCALV0072_MultiRepositoryGatesFailClosed` (`internal/tasks/store`); live Codex NOT_RUN |
 | CAL-V0-013 | `TestCALV0013_RetryAsNextGenerationUpToThree` (`internal/tasks/store`) |
 | CAL-V0-014 | `TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan`, `TestCALV0014_SelectedOnlyPlanPreviewIsComplete` (`internal/tasks/cli`); `plan preview` in `TestTMV0008_AS07_ReadsLeaveStoreByteIdentical` (`internal/tasks/cli`) |
 | CAL-V0-015 | `TestCALV0015_SubmitRecordsTheCandidateTree` (`internal/tasks/store`) |
@@ -1520,7 +1601,7 @@ shapes, null-able keys and the `order` string were discoverable only by refusal,
 `source.sourceQueueId` had to be guessed from `queue.json`. This amendment adds one read-only
 command. It changes no wire profile, payload key, validation rule or writer.
 
-- `CAL-V0-069`: `corvint-tasks ticket create --template` MUST return, in one
+- `CAL-V0-073`: `corvint-tasks ticket create --template` MUST return, in one
   `taskman-command-result/0` item, a byte-canonical CREATE `payload` for the current queue (also
   as the exact string `payloadCanonical`) whose `source` is `NATIVE` with `sourceQueueId` read
   from `queue.json`, and which `ticket create` accepts once `title`, `body` and
@@ -1551,4 +1632,4 @@ removes the flag; no store, wire or journal state depends on it.
 
 | Requirement | Evidence |
 | --- | --- |
-| CAL-V0-069 | `TestCALV0069_CreateTemplateIsReadOnlyAndAccepted`, `TestCALV0069_CreateTemplateNamesEnumsAndNullableKeys`, `TestCALV0069_TemplateRefusesOtherVerbsAndFlags`, `TestCALV0069_TemplateFieldsMatchPayloadNullability` (`internal/tasks/cli`) |
+| CAL-V0-073 | `TestCALV0073_CreateTemplateIsReadOnlyAndAccepted`, `TestCALV0073_CreateTemplateNamesEnumsAndNullableKeys`, `TestCALV0073_TemplateRefusesOtherVerbsAndFlags`, `TestCALV0073_TemplateFieldsMatchPayloadNullability` (`internal/tasks/cli`) |

@@ -5,7 +5,9 @@ the canonical rules, but value types, the nested `effects` and `source` shapes, 
 `order` string and the queue's `sourceQueueId` were discoverable only by refusal. An agent should
 be able to print a valid payload, edit three fields and submit.
 
-Requirement: `CAL-V0-069` in `docs/specs/corvint-tasks-agent-leases-v0.md` (V1-0751 amendment).
+Requirement: `CAL-V0-073` in `docs/specs/corvint-tasks-agent-leases-v0.md` (V1-0751 amendment).
+The first draft used `CAL-V0-069`, which main reserves for issue 494's coordinated unlanded work
+(PR 557); the merge with main renumbered it to the first ID free on main and every open PR branch.
 
 ### Change
 
@@ -49,7 +51,7 @@ validation, canonicalization or wire profiles.
 
 ### Evidence
 
-- `GOTOOLCHAIN=local go test -count=1 -run CALV0069 -v ./internal/tasks/cli/`: four tests PASS. The
+- `GOTOOLCHAIN=local go test -count=1 -run CALV0073 -v ./internal/tasks/cli/`: four tests PASS. The
   first feeds the printed template, with title, body and acceptanceCriteria filled, back through
   `ticket create --payload-stdin` on a fixture store and sees an OPEN ticket; it also proves the
   store and intent trees byte-identical, no `taskman.lock`, and no stdin read (panicking reader).

@@ -13,10 +13,10 @@ import (
 )
 
 // createTemplateFill names the payload members a caller replaces before
-// submitting the template (CAL-V0-069).
+// submitting the template (CAL-V0-073).
 var createTemplateFill = []string{"acceptanceCriteria", "body", "title"}
 
-// createTemplate is the read-only `ticket create --template` (CAL-V0-069):
+// createTemplate is the read-only `ticket create --template` (CAL-V0-073):
 // a canonical CREATE payload for the current queue plus a field table that
 // names every type, enum and nullable key. It reads only the intent store:
 // no journal, lock, stdin or write.
