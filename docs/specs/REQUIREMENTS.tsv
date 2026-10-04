@@ -1682,10 +1682,10 @@ LTA-V0-006	docs/specs/learned-trace-admission-v0.md	103	`corvint skill-export --
 LTA-V0-007	docs/specs/learned-trace-admission-v0.md	109	An admitted learned rule is a stored row with outcome `passed` that the reader
 LTA-V0-008	docs/specs/learned-trace-admission-v0.md	116	Each exported skill MUST load under the Agent Skills frontmatter contract that
 LTA-V0-009	docs/specs/learned-trace-admission-v0.md	121	(decision 0368, accepted by 0373, experimental) `corvint eval --learn-slot-weigh
-LTA-V0-010	docs/specs/learned-trace-admission-v0.md	132	(decision 0368, accepted by 0373, experimental) Each proposal MUST be scored aga
-LTA-V0-011	docs/specs/learned-trace-admission-v0.md	141	(decision 0368, accepted by 0373, experimental) Only `--admit` with an `improved
-LTA-V0-012	docs/specs/learned-trace-admission-v0.md	159	(decision 0368, accepted by 0373, experimental) `corvint eval --reset-slot-weigh
-LTA-V0-013	docs/specs/learned-trace-admission-v0.md	167	Schema-2 verification defined by `LTPM-V0-013` MUST pass the shared
+LTA-V0-010	docs/specs/learned-trace-admission-v0.md	136	(decision 0368, accepted by 0373, experimental) Each proposal MUST be scored aga
+LTA-V0-011	docs/specs/learned-trace-admission-v0.md	145	(decision 0368, accepted by 0373, experimental) Only `--admit` with an `improved
+LTA-V0-012	docs/specs/learned-trace-admission-v0.md	163	(decision 0368, accepted by 0373, experimental) `corvint eval --reset-slot-weigh
+LTA-V0-013	docs/specs/learned-trace-admission-v0.md	171	Schema-2 verification defined by `LTPM-V0-013` MUST pass the shared
 LTPM-V0-001	docs/specs/local-trace-producer-migration-v0.md	55	`record_trace` MUST obtain the clean `HEAD` commit and its tree from one reposit
 LTPM-V0-002	docs/specs/local-trace-producer-migration-v0.md	59	The Python reader MUST accept canonical rows only when their filename and row na
 LTPM-V0-003	docs/specs/local-trace-producer-migration-v0.md	64	Dry-run MUST be read-only and bind its plan digest to the stable current commit/
@@ -2376,11 +2376,11 @@ SOL-V0-002	docs/specs/self-observation-ledger-v0.md	41	Rows MUST contain no task
 SOL-V0-003	docs/specs/self-observation-ledger-v0.md	43	Each row is at most 2 KiB; the ledger is at most 128 KiB. On overflow, the write
 SOL-V0-004	docs/specs/self-observation-ledger-v0.md	50	Rows MAY report support, freshness, degradation codes, uncertainty, omitted and
 SOL-V0-005	docs/specs/self-observation-ledger-v0.md	53	Triage MUST be read-only and stdout-only. Its bounded digest reports degradation
-SOL-V0-006	docs/specs/self-observation-ledger-v0.md	60	A degradation present in at least 90% of recorded events MUST be labelled
-SOL-V0-007	docs/specs/self-observation-ledger-v0.md	62	Every emitted `unsupported-*` CLI failure SHOULD be recorded with only
-SOL-V0-008	docs/specs/self-observation-ledger-v0.md	100	**Accepted 2026-09-01.** `corvint dogfood-observe` is the one additional bounded
-SOL-V0-009	docs/specs/self-observation-ledger-v0.md	106	`corvint prove-observe` is the second bounded internal process writer surface.
-SOL-V0-010	docs/specs/self-observation-ledger-v0.md	113	The `codex` and `claude-code` host adapters (`corvint adapter`) MUST attempt one
+SOL-V0-006	docs/specs/self-observation-ledger-v0.md	69	A degradation present in at least 90% of recorded events MUST be labelled
+SOL-V0-007	docs/specs/self-observation-ledger-v0.md	71	Every emitted `unsupported-*` CLI failure SHOULD be recorded with only
+SOL-V0-008	docs/specs/self-observation-ledger-v0.md	109	**Accepted 2026-09-01.** `corvint dogfood-observe` is the one additional bounded
+SOL-V0-009	docs/specs/self-observation-ledger-v0.md	115	`corvint prove-observe` is the second bounded internal process writer surface.
+SOL-V0-010	docs/specs/self-observation-ledger-v0.md	122	The `codex` and `claude-code` host adapters (`corvint adapter`) MUST attempt one
 SOP-V0-001	docs/specs/stable-operations-v0.md	76	The install-lifecycle check MUST accept either one release archive whose single
 SOP-V0-002	docs/specs/stable-operations-v0.md	80	The check MUST create a committed fixture repository in its own temporary direct
 SOP-V0-003	docs/specs/stable-operations-v0.md	84	An upgrade MUST install into a second store beside the first and run `corvint
@@ -2628,10 +2628,10 @@ URE-V0-002	docs/specs/unplanned-read-events-v0.md	46	The recognized tools are `R
 URE-V0-003	docs/specs/unplanned-read-events-v0.md	65	`Append(root, event)` MUST be a no-op returning `nil` unless the opt-in marker
 URE-V0-004	docs/specs/unplanned-read-events-v0.md	71	When enabled, `Append` and `RecordPacket` MUST write one JSON row per line to
 URE-V0-005	docs/specs/unplanned-read-events-v0.md	88	`Read(root)` MUST be read-only and return the count of unplanned and planned
-URE-V0-006	docs/specs/unplanned-read-events-v0.md	95	`HookPostTool(root, packetPaths, payload)` MUST return `nil` on every path,
-URE-V0-007	docs/specs/unplanned-read-events-v0.md	100	`corvint [--root PATH] reads [--limit N]` MUST print the digest and write
-URE-V0-008	docs/specs/unplanned-read-events-v0.md	106	After a Claude Code `user-prompt` event renders a delivered context,
-URE-V0-009	docs/specs/unplanned-read-events-v0.md	120	`corvint host-adapter claude-code post-tool` MUST call
+URE-V0-006	docs/specs/unplanned-read-events-v0.md	105	`HookPostTool(root, packetPaths, payload)` MUST return `nil` on every path,
+URE-V0-007	docs/specs/unplanned-read-events-v0.md	110	`corvint [--root PATH] reads [--limit N]` MUST print the digest and write
+URE-V0-008	docs/specs/unplanned-read-events-v0.md	116	After a Claude Code `user-prompt` event renders a delivered context,
+URE-V0-009	docs/specs/unplanned-read-events-v0.md	130	`corvint host-adapter claude-code post-tool` MUST call
 VAF-001	docs/specs/verified-absence-frontier-v0.md	58	every result MUST bind the repository identity, base revision, target revision,
 VAF-002	docs/specs/verified-absence-frontier-v0.md	60	Corvint MUST distinguish `missing`, `stale`, `unobserved`, and `out-of-scope`. I
 VAF-003	docs/specs/verified-absence-frontier-v0.md	62	a closed frontier MUST be scoped to a named, finite obligation universe. The CLI

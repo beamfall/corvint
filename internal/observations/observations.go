@@ -370,6 +370,9 @@ func validateWriterContract(event Event) error {
 	default:
 		return prohibitedContent("kind")
 	}
+	if event.UncertaintyCount < 0 || event.OmittedCount < 0 || event.CriticalMissing < 0 || event.Authoritative < 0 || event.LatencyMS < 0 {
+		return prohibitedContent("negative-count")
+	}
 
 	if event.Event != "" && event.Event != "session-start" && event.Event != "user-prompt" && event.Event != "file-change" {
 		return prohibitedContent("event")
@@ -813,6 +816,12 @@ type Digest struct {
 	// SOL-V0-005 (failure modes, "malformed ledger row") requires triage to skip
 	// an oversized row and keep reading bounded rows rather than abort.
 	SkippedRows int
+	// Rejected counts, by closed reason, the bounded rows the writer contract
+	// refuses (SOL-V0-005). None of them contributes to any other field.
+	Rejected map[string]int
+	// Truncated reports that the ledger exceeded maxFileBytes and only its
+	// first maxFileBytes were read.
+	Truncated bool
 }
 
 // Falsification is the share of judged rows (PASS or FAIL; NOT_RUN and
@@ -858,7 +867,7 @@ func openLedger(root string) (*os.File, error) {
 }
 
 func Read(root string) (Digest, error) {
-	result := Digest{Degradations: map[string]int{}, Misses: map[string]int{}, Unsupported: map[string]int{}, Verdicts: map[string]map[string]int{}, Adapter: map[string]int{}, AdapterLatest: map[string]string{}}
+	result := Digest{Degradations: map[string]int{}, Misses: map[string]int{}, Unsupported: map[string]int{}, Verdicts: map[string]map[string]int{}, Adapter: map[string]int{}, AdapterLatest: map[string]string{}, Rejected: map[string]int{}}
 	file, err := openLedger(root)
 	if os.IsNotExist(err) {
 		return result, nil
@@ -868,13 +877,24 @@ func Read(root string) (Digest, error) {
 	}
 	defer file.Close()
 	reader := bufio.NewReader(io.LimitReader(file, maxFileBytes+1))
+	var consumed int
 	for {
 		row, err := reader.ReadBytes('\n')
-		if trimmed := bytes.TrimSuffix(row, []byte("\n")); len(trimmed) > 0 {
-			if len(trimmed) > maxRowBytes {
-				result.SkippedRows++
-			} else if len(row) > 0 && row[len(row)-1] == '\n' {
-				readRow(&result, trimmed)
+		consumed += len(row)
+		result.Truncated = consumed > maxFileBytes
+		trimmed := bytes.TrimSuffix(row, []byte("\n"))
+		terminated := len(trimmed) < len(row)
+		switch {
+		case len(trimmed) == 0:
+		case len(trimmed) > maxRowBytes:
+			result.SkippedRows++
+		case !terminated && result.Truncated:
+			// The cap cut this row; Truncated already reports it.
+		case !terminated:
+			result.Rejected["unterminated-row"]++
+		default:
+			if reason := readRow(&result, trimmed); reason != "" {
+				result.Rejected[reason]++
 			}
 		}
 		if err != nil {
@@ -886,19 +906,30 @@ func Read(root string) (Digest, error) {
 	}
 }
 
-// readRow folds one well-formed ledger row into the digest. A row that fails
-// to parse, or whose rendered key could break a triage line, is silently
-// skipped, same as an oversized row counted by the caller.
-func readRow(result *Digest, row []byte) {
+// readRow folds one bounded ledger row into the digest and returns "", or
+// returns the closed reason it was rejected for without folding any of it. It
+// re-applies the writer contract, so a row Append could not have written never
+// becomes a count, a miss path, or a learning label (SOL-V0-005).
+func readRow(result *Digest, row []byte) string {
 	if !strictJSONObject(row) {
-		return
+		return "malformed-json"
 	}
 	var event Event
 	if json.Unmarshal(row, &event) != nil {
-		return
+		return "malformed-json"
+	}
+	if err := validateWriterContract(event); err != nil {
+		var contract *Error
+		if errors.As(err, &contract) {
+			return "contract-" + contract.Field
+		}
+		return "contract"
 	}
 	if !renderedKeysLineSafe(event) {
-		return
+		return "unsafe-key"
+	}
+	if event.Kind == "proof" && !wellFormedProof(event.Counts) {
+		return "proof-counts"
 	}
 	if event.Kind == "event" {
 		result.Events++
@@ -923,13 +954,14 @@ func readRow(result *Digest, row []byte) {
 	if event.Kind == "unsupported" {
 		result.Unsupported[event.Code+"/"+event.QueryIntent]++
 	}
-	if event.Kind == "proof" && wellFormedProof(event.Counts) {
+	if event.Kind == "proof" {
 		result.Proofs++
 		addVerdicts(result.Verdicts, event.Counts)
 	}
-	if event.Kind == KindAdapterDegradation && validateAdapterDegradation(event) == nil {
+	if event.Kind == KindAdapterDegradation {
 		addAdapterDegradation(result, event)
 	}
+	return ""
 }
 
 func strictJSONObject(row []byte) bool {
@@ -1066,6 +1098,17 @@ func Render(root string, limit int, output io.Writer) error {
 	lines := []string{fmt.Sprintf("SELF-OBSERVATIONS events=%d zero-authoritative-rate=%s budget-omission-rate=%s latency-p50=%dms latency-p95=%dms", data.Events, rate(data.ZeroResults, data.Events), rate(data.BudgetOmit, data.Events), percentile(data.Latencies, 50), percentile(data.Latencies, 95))}
 	if data.SkippedRows > 0 {
 		lines = append(lines, fmt.Sprintf("SKIPPED-ROWS count=%d oversized", data.SkippedRows))
+	}
+	reasons := make([]string, 0, len(data.Rejected))
+	for reason := range data.Rejected {
+		reasons = append(reasons, reason)
+	}
+	sort.Strings(reasons)
+	for _, reason := range reasons {
+		lines = append(lines, fmt.Sprintf("REJECTED-ROWS reason=%s count=%d", reason, data.Rejected[reason]))
+	}
+	if data.Truncated {
+		lines = append(lines, fmt.Sprintf("LEDGER-CUT cap-bytes=%d", maxFileBytes))
 	}
 	lines = append(lines, falsificationLines(data)...)
 	lines = append(lines, ranked("DEGRADATION", data.Degradations, data.Events, true)...)

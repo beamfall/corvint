@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -383,6 +384,100 @@ func TestDigestMath(t *testing.T) {
 	if !strings.Contains(rendered.String(), "ratio=0.500") {
 		t.Fatalf("render: %q", rendered.String())
 	}
+}
+
+// URE-V0-005 (V1-0740): Read re-applies the writer's row contract and counts
+// each refused row by a closed reason; none adds a read, a byte, or a path.
+func TestReadRejectsRowsOutsideTheWriterContract(t *testing.T) {
+	root := worktree(t)
+	read := func(path string, bytes int) string {
+		return `{"ts":"t","tool":"Read","path":"` + path + `","bytes":` + strings.TrimSpace(strings.Repeat(" ", 0)) + itoa(bytes) + `,"size_known":true,"packet":"sha256:p","planned":false}`
+	}
+	rows := []string{
+		read("kept.go", 7),
+		`{"kind":"packet","packet":"sha256:p","paths":["kept.go"]}`,
+		`{"kind":"error","reason":"write-failed"}`,
+		`{}`,
+		`null`,
+		`[1]`,
+		`not json`,
+		`{"kind":"forged","tool":"Read","path":"forged.go","bytes":1}`,
+		`{"kind":"error","reason":"made-up"}`,
+		`{"tool":"Write","path":"w.go","bytes":1}`,
+		read("negative.go", -5),
+		`{"tool":"Read","path":"planned.go","bytes":0,"planned":true}`,
+		read("../../escape.go", 1),
+		read("/abs.go", 1),
+		read("a//b.go", 1),
+		read("./dot.go", 1),
+		read("", 1),
+	}
+	data := strings.Join(rows, "\n") + "\n" + read("unterminated.go", 3)
+	if err := os.MkdirAll(filepath.Join(root, ".corvint"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".corvint", "unplanned-reads.jsonl"), []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	digest, err := Read(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]int{
+		"malformed-json": 3, "unknown-kind": 1, "unknown-error-reason": 1, "unknown-tool": 2,
+		"negative-bytes": 1, "planned-row-fields": 1, "path-not-project-relative": 5, "unterminated-row": 1,
+	}
+	if !maps.Equal(digest.Rejected, want) {
+		t.Fatalf("rejected = %v, want %v", digest.Rejected, want)
+	}
+	if digest.Unplanned != 1 || digest.Planned != 0 || digest.TotalBytes != 7 || len(digest.TopPaths) != 1 || digest.TopPaths[0].Path != "kept.go" || digest.DroppedErrors != 1 || digest.Truncated {
+		t.Fatalf("digest = %+v", digest)
+	}
+	var rendered bytes.Buffer
+	if err := Render(root, 120, &rendered); err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range []string{"REJECTED-ROWS reason=malformed-json count=3", "REJECTED-ROWS reason=path-not-project-relative count=5"} {
+		if !strings.Contains(rendered.String(), line+"\n") {
+			t.Fatalf("render lacks %q:\n%s", line, rendered.String())
+		}
+	}
+	if strings.Contains(rendered.String(), "LEDGER-CUT") {
+		t.Fatalf("render reports a cut ledger:\n%s", rendered.String())
+	}
+}
+
+// URE-V0-005 (V1-0740): a ledger over maxFileBytes is reported as cut, and
+// the row the cap split is neither folded nor counted as rejected.
+func TestReadReportsLedgerCut(t *testing.T) {
+	root := worktree(t)
+	row := `{"ts":"t","tool":"Read","path":"kept.go","bytes":1,"size_known":true,"packet":"sha256:p","planned":false}` + "\n"
+	data := strings.Repeat(row, maxFileBytes/len(row)+2)
+	if err := os.MkdirAll(filepath.Join(root, ".corvint"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".corvint", "unplanned-reads.jsonl"), []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	digest, err := Read(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !digest.Truncated || len(digest.Rejected) != 0 || digest.Unplanned != maxFileBytes/len(row) {
+		t.Fatalf("digest = %+v", digest)
+	}
+	var rendered bytes.Buffer
+	if err := Render(root, 120, &rendered); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(rendered.String(), "LEDGER-CUT cap-bytes=131072\n") {
+		t.Fatalf("render hides the cut ledger:\n%s", rendered.String())
+	}
+}
+
+func itoa(value int) string {
+	encoded, _ := json.Marshal(value)
+	return string(encoded)
 }
 
 // URE-V0-006: the hook never returns an error, enabled or not, whatever the
