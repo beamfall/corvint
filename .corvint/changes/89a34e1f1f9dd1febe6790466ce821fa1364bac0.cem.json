@@ -1,0 +1,90 @@
+{
+  "baseRevision": "ca0966f1bf6952082c4d6fb4585591d400687fa7",
+  "evidence": [
+    {
+      "blobOid": "50dbe5033c23d00ed7f8aa61455bc2c7c0228acc",
+      "id": "evidence:sha256:9012cbdbc7b49d7a7d4c595b747d5ae5e5731f9d253fc7d85cc6589e3d2610da",
+      "path": "docs/specs/affected-plan-v0.md",
+      "span": {
+        "end": 48184,
+        "start": 45369
+      },
+      "spanSha256": "af43e9ef24687114c938eaf21ab2ba2449b6d3bc55f2897bae85e4eea8cc24ad"
+    },
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3118,
+        "start": 2775
+      },
+      "spanSha256": "46e69c5e97297b36c204ff585b335a484633ade4ec166dbc695fd46e7c6dc76c"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9012cbdbc7b49d7a7d4c595b747d5ae5e5731f9d253fc7d85cc6589e3d2610da",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:eab09f5826b58d0e26b7029e1f45411a4a6fe345039f7a3b86c46d0749e49f1a",
+      "newRange": {
+        "count": 12,
+        "start": 133
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 133
+      },
+      "path": ".corvint/test-read-scopes.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1234a64c38f4a08aa56381a17b1100cc895c888d00afd31cd49b1741a355a51c",
+      "newRange": {
+        "count": 9,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 1
+      },
+      "path": "docs/build-log/2026-10-04-cem10-pr443-ci-repairs.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1062422991f1eabefccde2e8163657c170fdfe86548a114ac7deb7e5b02f7efb",
+      "newRange": {
+        "count": 11,
+        "start": 13
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 12
+      },
+      "path": "docs/build-log/2026-10-04-cem10-pr443-ci-repairs.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "99f9a8a1f762cbb5df9e9c0ff4dcc6bbf026477c6ddaaa095fccb3eb0c0df4ed",
+  "spec": "cem/0.2"
+}

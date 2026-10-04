@@ -1,0 +1,1 @@
+using Xunit; namespace MtpProbe; public class Probe { [Fact] public void Pass() {Assert.Equal(1,1);} [Fact] public void Fail(){Assert.True(false,"MTP_ASSERTION");} [Fact(Skip="MTP_SKIP")] public void Skip(){} }

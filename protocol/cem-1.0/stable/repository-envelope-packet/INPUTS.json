@@ -1,0 +1,582 @@
+{
+  "profile": "cem-s0e-public-amendment-inputs/5",
+  "originalPublicEnvelopeManifestSHA256": "37ffdc81935319fb3d624507fbac06db85d57c0f59a9c1975dd6ec93de6c0967",
+  "originalStableR1ManifestSHA256": "037a21dccb894a0f06ed41f020ddcc2de54c18c40cbdebcedf4518382579edca",
+  "originalStableR1PublicPayload": [
+    {
+      "path": "ALGORITHMS.md",
+      "type": "regular",
+      "bytes": 18769,
+      "sha256": "58a52688ec75aa2580186f29fa9d1443f86c46a438b803871ad0587fe7f68803"
+    },
+    {
+      "path": "FIXTURES.pack.json",
+      "type": "regular",
+      "bytes": 629020,
+      "sha256": "a1f6f2026045e9730bd16b98e048de02b7afe054dca54286412c39f9dbe13998"
+    },
+    {
+      "path": "LICENSE-APACHE-2.0",
+      "type": "regular",
+      "bytes": 11716,
+      "sha256": "a55dcdf3a62566e48883e0c0caba22c65f8fe5431aed6437422ba447e60cd27b"
+    },
+    {
+      "path": "MIGRATION.json",
+      "type": "regular",
+      "bytes": 28660,
+      "sha256": "a5e5530ad0f6e679380af18e06c4ca8fcc45475d02da085d6dd8a7e4f37c63fa"
+    },
+    {
+      "path": "OPERATION.json",
+      "type": "regular",
+      "bytes": 18263,
+      "sha256": "dc0c38c95d478e7e45b2457fbabdea453932d0c8e84033b29b68b8724d75ee5d"
+    },
+    {
+      "path": "PACKING.md",
+      "type": "regular",
+      "bytes": 1640,
+      "sha256": "9eee401d26b015f1994523848939e8e8dba9b603bd1c2c0bfca3f8653b50470e"
+    },
+    {
+      "path": "R1-EXPECTED.json",
+      "type": "regular",
+      "bytes": 37569,
+      "sha256": "4a84f1070eae60cbd06e076e68ca4005de67daf46db946b83420b9a6fb683b1c"
+    },
+    {
+      "path": "README.md",
+      "type": "regular",
+      "bytes": 3298,
+      "sha256": "ca6565344c3434eea8f70a954d811695dfdd9d7825fe720cbee705fb06f59d4d"
+    },
+    {
+      "path": "RESULT.schema.json",
+      "type": "regular",
+      "bytes": 25284,
+      "sha256": "6c157e59ae9ed2ac372724084080a7e74263b8d9d3963e995445035fcc89176f"
+    },
+    {
+      "path": "inherited/ALGORITHMS.md",
+      "type": "regular",
+      "bytes": 12853,
+      "sha256": "3afc0d35095d7a06c5249d105eed33853f95930824879343b64d311d0de20c62"
+    },
+    {
+      "path": "inherited/WP1-OBSERVED.json",
+      "type": "regular",
+      "bytes": 2622,
+      "sha256": "78df41faf9736520eb3b3724fc77abd88554ae243257d3b7c1d30e8f68e43630"
+    },
+    {
+      "path": "inherited/cem-0.1-algorithms.md",
+      "type": "regular",
+      "bytes": 11764,
+      "sha256": "c53c054b28a6e28d89d1a79362c01dc84ccdb95bd1ea6e77e4192a42af42fece"
+    },
+    {
+      "path": "inherited/cem-0.3.schema.json",
+      "type": "regular",
+      "bytes": 11131,
+      "sha256": "be9ed2f1d0555948def5b0c55c2a520d76e224ed70d1b7e6ab2b75f9bacb842f"
+    },
+    {
+      "path": "stable.schema.json",
+      "type": "regular",
+      "bytes": 17107,
+      "sha256": "e4b0c453e43af858dc4cc431044e71051c6ae46eae45fbeb95a50d73dde5bddc"
+    }
+  ],
+  "originalS0EPublicFiles": [
+    {
+      "path": "ALGORITHMS.md",
+      "sha256": "91ae9068b1b47a0a37d6539de682d7b01791fff4d5e932b88e8fdd536a4c44b4",
+      "bytes": 19285
+    },
+    {
+      "path": "FIXTURES.pack.json",
+      "sha256": "a1f6f2026045e9730bd16b98e048de02b7afe054dca54286412c39f9dbe13998",
+      "bytes": 629020
+    },
+    {
+      "path": "LICENSE-APACHE-2.0",
+      "sha256": "a55dcdf3a62566e48883e0c0caba22c65f8fe5431aed6437422ba447e60cd27b",
+      "bytes": 11716
+    },
+    {
+      "path": "MIGRATION.json",
+      "sha256": "a5e5530ad0f6e679380af18e06c4ca8fcc45475d02da085d6dd8a7e4f37c63fa",
+      "bytes": 28660
+    },
+    {
+      "path": "OPERATION.json",
+      "sha256": "d229ee84fa90d11e7121d48eb77a4b9bf60d15302514d431f1d117518e47e31b",
+      "bytes": 18316
+    },
+    {
+      "path": "PACKING.md",
+      "sha256": "9eee401d26b015f1994523848939e8e8dba9b603bd1c2c0bfca3f8653b50470e",
+      "bytes": 1640
+    },
+    {
+      "path": "R1-EXPECTED.json",
+      "sha256": "4a84f1070eae60cbd06e076e68ca4005de67daf46db946b83420b9a6fb683b1c",
+      "bytes": 37569
+    },
+    {
+      "path": "README.md",
+      "sha256": "d14e4f2caab498e6eb42ed85ddddc76405e0c923490d4637023d984d3cc7e5be",
+      "bytes": 3814
+    },
+    {
+      "path": "REPOSITORY-ENVELOPE.cells.json",
+      "sha256": "68432f3e11fe9dff1f47fb4672ed97351dc67fd4875d8405e2b45e1007d065d9",
+      "bytes": 288813
+    },
+    {
+      "path": "REPOSITORY-ENVELOPE.md",
+      "sha256": "6435cfc22c30d36bb004510315e45b1470e263395d932fb2ade1defb668d258a",
+      "bytes": 6162
+    },
+    {
+      "path": "RESULT.schema.json",
+      "sha256": "6c157e59ae9ed2ac372724084080a7e74263b8d9d3963e995445035fcc89176f",
+      "bytes": 25284
+    },
+    {
+      "path": "inherited/ALGORITHMS.md",
+      "sha256": "3afc0d35095d7a06c5249d105eed33853f95930824879343b64d311d0de20c62",
+      "bytes": 12853
+    },
+    {
+      "path": "inherited/WP1-OBSERVED.json",
+      "sha256": "78df41faf9736520eb3b3724fc77abd88554ae243257d3b7c1d30e8f68e43630",
+      "bytes": 2622
+    },
+    {
+      "path": "inherited/cem-0.1-algorithms.md",
+      "sha256": "c53c054b28a6e28d89d1a79362c01dc84ccdb95bd1ea6e77e4192a42af42fece",
+      "bytes": 11764
+    },
+    {
+      "path": "inherited/cem-0.3.schema.json",
+      "sha256": "be9ed2f1d0555948def5b0c55c2a520d76e224ed70d1b7e6ab2b75f9bacb842f",
+      "bytes": 11131
+    },
+    {
+      "path": "manifest.json",
+      "sha256": "37ffdc81935319fb3d624507fbac06db85d57c0f59a9c1975dd6ec93de6c0967",
+      "bytes": 1784
+    },
+    {
+      "path": "stable.schema.json",
+      "sha256": "e4b0c453e43af858dc4cc431044e71051c6ae46eae45fbeb95a50d73dde5bddc",
+      "bytes": 17107
+    }
+  ],
+  "originalS0E29ExpectedCellsSHA256": "68432f3e11fe9dff1f47fb4672ed97351dc67fd4875d8405e2b45e1007d065d9",
+  "original50LiteralPackSHA256": "a1f6f2026045e9730bd16b98e048de02b7afe054dca54286412c39f9dbe13998",
+  "note": "Recursive enumeration here explicitly includes all four inherited files omitted by the earlier top-level-only envelope manifest. Existing packets are unchanged.",
+  "repair3Routing": "Renamed to /repair4Routing in repair4. Every repair3 field is retained there; repair4 updates are listed in CHANGES.md.",
+  "repair4Routing": {
+    "status": "ROUTED_ROLES_COMPLETE",
+    "rootDecisions": {
+      "path": "not in packet: s0e-publicrepair2-root-inputs/ROOT-DECISIONS.json",
+      "sha256": "7a7d46a6707f637c6cac1813ecf0174e0391eea94a8ed2d936eae22622c3e2ef",
+      "applied": [
+        "OQ-01 A",
+        "OQ-02 A",
+        "OQ-03 A",
+        "OQ-04 C",
+        "OQ-05 B",
+        "OQ-06 A"
+      ]
+    },
+    "repair4RootDecisions": {
+      "path": "not in packet: s0e-publicrepair3-root-inputs/ROOT-DECISIONS.json",
+      "sha256": "e51ccac0fe0b32a80ac358822b0d79b73fe9ca11bb654f3b628f7466d9bceb30",
+      "applied": [
+        "OQ-07 SUPPLIED",
+        "OQ-08 RETAINED"
+      ],
+      "correctionAcknowledged": "Root withdrew its claim that the S0E OPERATION.json is purely additive over stable R1; /additivityCheck/OPERATION.json stands."
+    },
+    "routingOrder": [
+      {
+        "rank": 1,
+        "scope": "explicitly amended envelope behavior",
+        "paths": [
+          "PROPOSED-RULES.md",
+          "OPERATION-ERRORS.json",
+          "LOGICAL-LEDGERS.json",
+          "FULL-RESULT-CASES.json"
+        ]
+      },
+      {
+        "rank": 2,
+        "scope": "original stable result and map schemas",
+        "paths": [
+          "RESULT.schema.json",
+          "stable.schema.json"
+        ]
+      },
+      {
+        "rank": 3,
+        "scope": "original operation and algorithm contracts and the repository envelope they delegate to (S0E envelope versions); overridden by rank 1 wherever they differ",
+        "paths": [
+          "inherited/s0e/OPERATION.json",
+          "inherited/s0e/ALGORITHMS.md",
+          "inherited/s0e/REPOSITORY-ENVELOPE.md",
+          "inherited/s0e/REPOSITORY-ENVELOPE.cells.json"
+        ]
+      },
+      {
+        "rank": 4,
+        "scope": "corrected inherited algorithms",
+        "paths": [
+          "inherited/ALGORITHMS.md"
+        ]
+      },
+      {
+        "rank": 5,
+        "scope": "canonical 0.1 algorithms",
+        "paths": [
+          "inherited/cem-0.1-algorithms.md"
+        ]
+      },
+      {
+        "rank": "informative",
+        "scope": "migration proposal and pack extraction procedure; carry no routing rank (root decision OQ-07)",
+        "paths": [
+          "inherited/s0e/MIGRATION.json",
+          "inherited/s0e/PACKING.md"
+        ]
+      }
+    ],
+    "roles": [
+      {
+        "role": "stable-result-schema",
+        "routingRank": 2,
+        "authoritativePath": "RESULT.schema.json",
+        "sha256": "6c157e59ae9ed2ac372724084080a7e74263b8d9d3963e995445035fcc89176f",
+        "bytes": 25284,
+        "inPacket": true,
+        "check": "MATCHES_STABLE_R1_AND_S0E_PINS"
+      },
+      {
+        "role": "stable-map-schema",
+        "routingRank": 2,
+        "authoritativePath": "stable.schema.json",
+        "sha256": "e4b0c453e43af858dc4cc431044e71051c6ae46eae45fbeb95a50d73dde5bddc",
+        "bytes": 17107,
+        "inPacket": true,
+        "check": "MATCHES_STABLE_R1_AND_S0E_PINS"
+      },
+      {
+        "role": "operation-contract",
+        "routingRank": 3,
+        "authoritativePath": "inherited/s0e/OPERATION.json",
+        "sourceManifestSHA256": "37ffdc81935319fb3d624507fbac06db85d57c0f59a9c1975dd6ec93de6c0967",
+        "sourcePath": "OPERATION.json",
+        "sha256": "d229ee84fa90d11e7121d48eb77a4b9bf60d15302514d431f1d117518e47e31b",
+        "bytes": 18316,
+        "inPacket": true,
+        "check": "REHASHED_BY_PUBLIC_AUTHOR_MATCHES_S0E_PIN",
+        "decision": "OPEN-QUESTIONS.json OQ-01, root decision A",
+        "historicalOnly": {
+          "path": "inherited/stable-r1/OPERATION.json",
+          "sourceManifestSHA256": "037a21dccb894a0f06ed41f020ddcc2de54c18c40cbdebcedf4518382579edca",
+          "sha256": "dc0c38c95d478e7e45b2457fbabdea453932d0c8e84033b29b68b8724d75ee5d",
+          "bytes": 18263,
+          "inPacket": true,
+          "check": "REHASHED_BY_PUBLIC_AUTHOR_MATCHES_STABLE_R1_PIN",
+          "routing": "not routed; historical input only"
+        }
+      },
+      {
+        "role": "algorithms-contract",
+        "routingRank": 3,
+        "authoritativePath": "inherited/s0e/ALGORITHMS.md",
+        "sourceManifestSHA256": "37ffdc81935319fb3d624507fbac06db85d57c0f59a9c1975dd6ec93de6c0967",
+        "sourcePath": "ALGORITHMS.md",
+        "sha256": "91ae9068b1b47a0a37d6539de682d7b01791fff4d5e932b88e8fdd536a4c44b4",
+        "bytes": 19285,
+        "inPacket": true,
+        "check": "REHASHED_BY_PUBLIC_AUTHOR_MATCHES_S0E_PIN",
+        "decision": "OPEN-QUESTIONS.json OQ-01, root decision A",
+        "historicalOnly": {
+          "path": "inherited/stable-r1/ALGORITHMS.md",
+          "sourceManifestSHA256": "037a21dccb894a0f06ed41f020ddcc2de54c18c40cbdebcedf4518382579edca",
+          "sha256": "58a52688ec75aa2580186f29fa9d1443f86c46a438b803871ad0587fe7f68803",
+          "bytes": 18769,
+          "inPacket": true,
+          "check": "REHASHED_BY_PUBLIC_AUTHOR_MATCHES_STABLE_R1_PIN",
+          "routing": "not routed; historical input only"
+        }
+      },
+      {
+        "role": "repository-envelope-contract",
+        "routingRank": 3,
+        "authoritativePath": "inherited/s0e/REPOSITORY-ENVELOPE.md",
+        "sourceManifestSHA256": "37ffdc81935319fb3d624507fbac06db85d57c0f59a9c1975dd6ec93de6c0967",
+        "sourcePath": "REPOSITORY-ENVELOPE.md",
+        "sha256": "6435cfc22c30d36bb004510315e45b1470e263395d932fb2ade1defb668d258a",
+        "bytes": 6162,
+        "inPacket": true,
+        "check": "REHASHED_BY_PUBLIC_AUTHOR_MATCHES_S0E_PIN",
+        "decision": "OPEN-QUESTIONS.json OQ-07, root decision SUPPLIED"
+      },
+      {
+        "role": "repository-envelope-cells",
+        "routingRank": 3,
+        "authoritativePath": "inherited/s0e/REPOSITORY-ENVELOPE.cells.json",
+        "sourceManifestSHA256": "37ffdc81935319fb3d624507fbac06db85d57c0f59a9c1975dd6ec93de6c0967",
+        "sourcePath": "REPOSITORY-ENVELOPE.cells.json",
+        "sha256": "68432f3e11fe9dff1f47fb4672ed97351dc67fd4875d8405e2b45e1007d065d9",
+        "bytes": 288813,
+        "inPacket": true,
+        "check": "REHASHED_BY_PUBLIC_AUTHOR_MATCHES_S0E_PIN",
+        "decision": "OPEN-QUESTIONS.json OQ-07, root decision SUPPLIED"
+      },
+      {
+        "role": "corrected-inherited-algorithms",
+        "routingRank": 4,
+        "authoritativePath": "inherited/ALGORITHMS.md",
+        "sha256": "3afc0d35095d7a06c5249d105eed33853f95930824879343b64d311d0de20c62",
+        "bytes": 12853,
+        "inPacket": true,
+        "check": "MATCHES_STABLE_R1_AND_S0E_PINS"
+      },
+      {
+        "role": "canonical-0.1-algorithms",
+        "routingRank": 5,
+        "authoritativePath": "inherited/cem-0.1-algorithms.md",
+        "sha256": "c53c054b28a6e28d89d1a79362c01dc84ccdb95bd1ea6e77e4192a42af42fece",
+        "bytes": 11764,
+        "inPacket": true,
+        "check": "MATCHES_STABLE_R1_AND_S0E_PINS"
+      },
+      {
+        "role": "literal-fixture-pack",
+        "routingRank": "fixture",
+        "authoritativePath": "inherited/fixtures/FIXTURES.pack.json",
+        "sourcePath": "FIXTURES.pack.json",
+        "sourceManifestSHA256": [
+          "037a21dccb894a0f06ed41f020ddcc2de54c18c40cbdebcedf4518382579edca",
+          "37ffdc81935319fb3d624507fbac06db85d57c0f59a9c1975dd6ec93de6c0967"
+        ],
+        "sha256": "a1f6f2026045e9730bd16b98e048de02b7afe054dca54286412c39f9dbe13998",
+        "bytes": 629020,
+        "versionAmbiguity": "none: both predecessor sets pin identical bytes",
+        "inPacket": true,
+        "check": "REHASHED_BY_PUBLIC_AUTHOR_MATCHES_BOTH_PINS; all 178 regular records decode to their declared bytes and sha256"
+      },
+      {
+        "role": "positive-map-sidecarless",
+        "routingRank": "fixture",
+        "authoritativePath": "inherited/fixtures/maps/sha1-positive-sidecarless.json",
+        "originalPath": "fixtures/maps/sha1-positive-sidecarless.json",
+        "sha256": "d9f52a3091a4870404f351943a27401d8fdfd1938ea12278377c19f9e44e9f13",
+        "bytes": 6100,
+        "provenance": "Member of inherited/fixtures/FIXTURES.pack.json (record fixtures/maps/sha1-positive-sidecarless.json, type regular); pinned by root (OPEN-QUESTIONS.json OQ-03, decision A) and re-verified by the public author.",
+        "usedBy": "50 of 54 FULL-RESULT-CASES expectedResult.mapSha256 values and LOGICAL-LEDGERS positive-sidecar-absent",
+        "inPacket": true,
+        "extractionRule": "First validate the whole FIXTURES.pack.json exactly as inherited/s0e/PACKING.md requires (paths, components, prefix collisions, record types, strict base64, decoded length and sha256, per-record, pack, aggregate and record-count limits, and Git object headers/OIDs against fixtures/manifest.json). Then base64-decode the single record whose path equals the original map path; the decoded bytes must equal the record bytes count and sha256.",
+        "check": "PACK_VALIDATED_PER_PACKING_MD_THEN_EXTRACTED_AND_REHASHED_MATCHES_ROOT_PIN"
+      },
+      {
+        "role": "positive-map-sealed",
+        "routingRank": "fixture",
+        "authoritativePath": "inherited/fixtures/maps/sha1-positive-sealed.json",
+        "originalPath": "fixtures/maps/sha1-positive-sealed.json",
+        "sha256": "d9f52a3091a4870404f351943a27401d8fdfd1938ea12278377c19f9e44e9f13",
+        "bytes": 6100,
+        "provenance": "Member of inherited/fixtures/FIXTURES.pack.json (record fixtures/maps/sha1-positive-sealed.json, type regular); pinned by root (OPEN-QUESTIONS.json OQ-03, decision A) and re-verified by the public author.",
+        "usedBy": "LOGICAL-LEDGERS positive-sidecar-present-and-changed-level",
+        "inPacket": true,
+        "extractionRule": "First validate the whole FIXTURES.pack.json exactly as inherited/s0e/PACKING.md requires (paths, components, prefix collisions, record types, strict base64, decoded length and sha256, per-record, pack, aggregate and record-count limits, and Git object headers/OIDs against fixtures/manifest.json). Then base64-decode the single record whose path equals the original map path; the decoded bytes must equal the record bytes count and sha256.",
+        "check": "PACK_VALIDATED_PER_PACKING_MD_THEN_EXTRACTED_AND_REHASHED_MATCHES_ROOT_PIN"
+      },
+      {
+        "role": "migration-proposal",
+        "routingRank": "informative",
+        "authoritativePath": "inherited/s0e/MIGRATION.json",
+        "sourceManifestSHA256": "37ffdc81935319fb3d624507fbac06db85d57c0f59a9c1975dd6ec93de6c0967",
+        "sourcePath": "MIGRATION.json",
+        "sha256": "a5e5530ad0f6e679380af18e06c4ca8fcc45475d02da085d6dd8a7e4f37c63fa",
+        "bytes": 28660,
+        "inPacket": true,
+        "check": "REHASHED_BY_PUBLIC_AUTHOR_MATCHES_S0E_PIN",
+        "decision": "OPEN-QUESTIONS.json OQ-07, root decision SUPPLIED",
+        "note": "Informative only. Its parentPlan \"../migration-plan.json\" and its consumer source paths are neither pinned nor supplied; the public author did not resolve or read them."
+      },
+      {
+        "role": "pack-extraction-procedure",
+        "routingRank": "informative",
+        "authoritativePath": "inherited/s0e/PACKING.md",
+        "sourceManifestSHA256": "37ffdc81935319fb3d624507fbac06db85d57c0f59a9c1975dd6ec93de6c0967",
+        "sourcePath": "PACKING.md",
+        "sha256": "9eee401d26b015f1994523848939e8e8dba9b603bd1c2c0bfca3f8653b50470e",
+        "bytes": 1640,
+        "inPacket": true,
+        "check": "REHASHED_BY_PUBLIC_AUTHOR_MATCHES_S0E_PIN",
+        "decision": "OPEN-QUESTIONS.json OQ-07, root decision SUPPLIED",
+        "note": "Informative only. Governs how the positive maps are extracted (see /packingCheck)."
+      }
+    ],
+    "additivityCheck": {
+      "rootClaim": "The S0E versions equal stable R1 plus additive pointers to the repository envelope.",
+      "method": "Public author byte diff of inherited/stable-r1/ against inherited/s0e/, plus a JSON tree diff of OPERATION.json.",
+      "ALGORITHMS.md": "CONFIRMED ADDITIVE: lines 1-285 are byte-identical; S0E appends one blank line and the section \"Expanded native repository envelope\" (lines 286-294).",
+      "OPERATION.json": "CONTRARY OBSERVATION, NOT PURELY ADDITIVE: the only difference is a replaced string value at /resultSemantics/repositoryEnvelope. Stable R1 reads \"Exact implementation-admitted envelope ID published alongside resource/process constraints; never merely native. Prototype primary-clean-config-bounded/1 limitations retained.\" S0E reads \"Exact selected implementation envelope on every result: primary-clean-config-bounded/1 remains preserved; optional native canonical-repository-bounded/1 is specified in REPOSITORY-ENVELOPE.md. No authority or platform promotion.\" The clauses \"published alongside resource/process constraints\" and \"never merely native\" do not appear in the S0E text. Key order and every other value are identical. Recorded as OPEN-QUESTIONS.json OQ-08.",
+      "danglingReferences": "RESOLVED in repair4: REPOSITORY-ENVELOPE.md, REPOSITORY-ENVELOPE.cells.json, MIGRATION.json and PACKING.md are in the packet under inherited/s0e/ and match their originalS0EPublicFiles pins (OQ-07 SUPPLIED). MIGRATION.json refers to an unpinned ../migration-plan.json that stays outside the packet; it is informative only.",
+      "rootAcknowledgement": "Root (ROOT-DECISIONS.json e51ccac0..., correction) accepts the contrary OPERATION.json observation. OQ-08 RETAINED keeps both omitted stable R1 clauses in force."
+    },
+    "positiveMapDistinction": "The two positive maps are byte-identical; the cases differ only by target commit, as declared in public material and re-verified from the pack object bytes. fixtures/manifest.json cases sha1-positive-sealed and sha1-positive-sidecarless share expectedBase bff36ef7f94a44f0b43dd71ba7125e0185f01fe1. Sidecarless uses contentTarget 45721f1cb4ce430d59e4a495898186c60b5bec49 (sidecar ABSENT); sealed uses exactSidecarTarget df752f00a5487e6f913b728a1a4addbfe194b989 (sidecar EXACT). The sealed commit has the sidecarless commit as its only parent, and its tree adds exactly one entry, .corvint/change.cem.json, mode 100644, blob 632d2d79485d3bb3b509fb0a309f5c2e244133d6, whose payload equals the 6100 map bytes. fixtures/README.md states that the exact target-sidecar bytes equal the primary map. No new open question is needed.",
+    "packingCheck": {
+      "method": "Public author validated FIXTURES.pack.json in memory against every PACKING.md whole-pack rule; nothing was written to disk and no record or manifest command was executed.",
+      "result": "PASS",
+      "observations": [
+        "179 records: 178 regular and 1 symlink; record count <= 200.",
+        "Paths unique, relative POSIX, no empty/dot/dot-dot/backslash/NUL components, no file/directory prefix collision.",
+        "No unknown record type; every regular record is strict canonical base64 whose decoded length and sha256 equal the record.",
+        "Pack 629020 bytes <= 4MiB; largest record and aggregate decoded bytes (439875) within 4MiB and 16MiB.",
+        "All 54 Git objects in fixtures/manifest.json match their header, body length, rawSHA256 and OID.",
+        "The single symlink record fixtures/artifact-roots/symlink/tasks-capture.json is a descriptor; it was not created or followed."
+      ],
+      "extractionRuleAgreement": "PARTIAL in repair3: the repair3 rule decoded one record without first validating the whole pack, which PACKING.md requires. Repair4 amends both map extractionRule texts to validate the whole pack first. The extracted map bytes are unchanged.",
+      "reviewerNote": "PACKING.md says to reconstruct only in a private scratch directory and not to commit the expanded tree. The two in-packet maps are single pinned records copied as packet files, not an expanded fixture tree; this reading is the public author's and is offered for review."
+    },
+    "envelopeConflictCheck": {
+      "question": "Does any rank 1 amendment file conflict with REPOSITORY-ENVELOPE.md or REPOSITORY-ENVELOPE.cells.json in a way that changes an existing expected result?",
+      "result": "NO_CONFLICT_CHANGES_AN_EXPECTED_RESULT",
+      "method": "Each of the 29 cells and the 5 additionalRequirements was checked against PROPOSED-RULES.md, OPERATION-ERRORS.json and FULL-RESULT-CASES.json. Full 21-key results were compared field by field where a structurally matching amendment case exists.",
+      "fieldEqual": [
+        "cancelledContextExpectedResult equals FULL-RESULT-CASES cancel-before-content (all 21 keys).",
+        "ordinary-sha1, origin-sha1, linked-sha1, relative-sha1, comments, shallow-complete and hostile equal normal-exit-lingering-descendant-contained (all 21 keys).",
+        "alternates and ambient-alternates equal empty-http-alternates; attributes and linked-attributes differ from it only in code, as the error table requires.",
+        "bad-marker equals metadata-CRLF and optional-attributes-EACCES (repository-object-unavailable, NOT_CHECKED).",
+        "missing-target-blob and corrupt-target-blob equal canonical-nonzero-exit (git-diff-failed, EXACT)."
+      ],
+      "ruleConsistent": [
+        "Envelope ID is exactly canonical-repository-bounded/1 on all 29 cells and the cancelled-context result, never bare native (OQ-08 RETAINED).",
+        "attributes, linked-attributes, comments: PROPOSED-RULES section 1 attributes grammar.",
+        "object-link, pack-link, info-link, root-link, bad-marker, linked-wrong-backpointer: section 1 no-follow set, marker grammar and reciprocity -> repository-object-unavailable.",
+        "linked-missing-common (commondir /missing/common): absolute commondir is unsupported grammar -> repository-object-unavailable, as in amendment case absolute-commondir.",
+        "missing-target-tree -> repository-object-unavailable and missing/corrupt changed blob -> git-diff-failed: stated verbatim in section 4.",
+        "origin and hostile: inert remote/user/branch settings admissible; no helper execution (section 2).",
+        "sha256 positive cells: same shape as sha1 positives, differing only in format-specific identities.",
+        "N16 to N20: consistent with amendment cancellation, containment, limits and the Darwin-only observed tuple; they set no expected result that the amendment changes."
+      ],
+      "interpretiveNotes": [
+        "missing-base, corrupt-base, shallow-missing, missing-promisor expect git-read-failed. Under OPERATION-ERRORS resolve-commit this holds when the failure is observed as launch failure or child nonzero; a complete in-band missing/wrong-kind answer would map to repository-object-unavailable. The amendment does not pin the resolve-commit observation channel, so the rank 3 cells stand and fix it for these recipes. No amendment case covers a missing base commit.",
+        "REPOSITORY-ENVELOPE.md says \"thirty minutes cumulative\". Rank 1 (section 3) overrides it with one outer monotonic 30-minute wall deadline plus one 10-second emergency-retirement allowance. No cell depends on it."
+      ],
+      "notChecked": "No cell or amendment case was executed; agreement is textual and structural only."
+    },
+    "rootClosureSteps": []
+  },
+  "repair5Routing": {
+    "status": "PUBLICREPAIR5_FIXTURE_TARGET_ADDED",
+    "decision": "Wire contract retained: every evidence record must be cited by at least one hunk basis, and each hunk basis remains capped at 32 items. Added sibling pack inherited/fixtures/FIXTURES-ledger-boundary.pack.json instead of mutating inherited/fixtures/FIXTURES.pack.json.",
+    "ledgerBoundaryFixture": {
+      "path": "inherited/fixtures/FIXTURES-ledger-boundary.pack.json",
+      "targetRevision": "c82a33df6ae9eea3b210fa4002b3c5bcf66d4206",
+      "parentRevision": "45721f1cb4ce430d59e4a495898186c60b5bec49",
+      "patchSha256": "4bcfaa018f87fc9f988bcd760358f9b613eae0fea831178b8a7cc52ccdc86eb4",
+      "totalHunks": 12,
+      "supportedHunks": 11,
+      "basisCapacity": 352,
+      "changedPaths": [
+        "app.txt",
+        "ledger-supported-001.txt",
+        "ledger-supported-002.txt",
+        "ledger-supported-003.txt",
+        "ledger-supported-004.txt",
+        "ledger-supported-005.txt",
+        "ledger-supported-006.txt",
+        "ledger-supported-007.txt",
+        "ledger-supported-008.txt",
+        "ledger-supported-009.txt",
+        "ledger-supported-010.txt",
+        "sort.go"
+      ]
+    },
+    "maps": [
+      {
+        "path": "sha1-ledger-336-evidence.json",
+        "sha256": "93ecb9d87d918897b20ca7a18e6dd572f7324460ec0d3dffd4814099e0e08330",
+        "bytes": 192243
+      },
+      {
+        "path": "sha1-ledger-337-evidence.json",
+        "sha256": "6d8ef3468738415f53863b03a097b05cd4621a06fb788195c3a4780ea0efad87",
+        "bytes": 192759
+      }
+    ]
+  },
+  "repair6Routing": {
+    "status": "PUBLICREPAIR6_REVIEW_FINDINGS_RESOLVED_TEXT_AND_DATA",
+    "sourceReview": {
+      "path": "../REVIEW-of-repair5.json",
+      "sha256": "107fd1c50944bc4e86a567926cb7d0c90a068c7f03aee7fd8c830bd0bfb02a9e",
+      "decision": "REJECTED repair5; all findings addressed in repair6."
+    },
+    "rules": {
+      "path": "PROPOSED-RULES.md",
+      "section": "Repair6 rules",
+      "rank": "Rank 1 amendment overriding inherited text on the listed boundary details only.",
+      "sha256": "e58f4fa795a589b66d3d16015c721a3cb95f1c47dd821d4da91ed9007949f3e9",
+      "bytes": 32872
+    },
+    "driftOrdering": {
+      "inheritedText": "public/inherited/ALGORITHMS.md says: Retain all evidence drift records in ascending evidence ID order.",
+      "decision": "Process drift lookups and emit retained drift records in ascending evidence-ID byte order, independent of map input order.",
+      "affectedCases": [
+        "ledger-337-evidence",
+        "partial-drift-one-item-cancel"
+      ],
+      "boundary337CompletedCount": 335,
+      "boundary337FirstRefusedEvidenceId": "evidence:sha256:ffb2f5cae197cfdc23105801633f23d9f2ba83b4630c6147e7c79880278d89bd",
+      "boundary337UnattemptedEvidenceId": "evidence:sha256:ffd48e2371898cefdcf11da2d9f5a5ad438618dfc619b01a6546e41f14e82295"
+    },
+    "ledgerAfterRefusal": {
+      "decision": "LOGICAL-LEDGERS records the attempted trace. The refused reservation is the final row, marked reservationOutcome=refused-before-spawn; there are no rows after refusal.",
+      "boundary337Rows": 1025,
+      "firstRefusedOrdinal": 1025
+    },
+    "fixedPrefix": {
+      "decision": 15,
+      "arithmetic": "336 accepted = 15 + 2*336 + 336 = 1023; 337 refused = 15 + 2*337 + 335 admitted drift + 1 refused reservation = 1025 attempted rows. A complete theoretical 337 trace would require 1026 rows.",
+      "rejectedSixteenthCandidate": "canonical changed-level batch for the new 12-hunk sidecarless target; repair6 reads the public text as not requiring this call when no target sidecar adds a changed .corvint level."
+    },
+    "files": [
+      {
+        "path": "PROPOSED-RULES.md",
+        "sha256": "e58f4fa795a589b66d3d16015c721a3cb95f1c47dd821d4da91ed9007949f3e9",
+        "bytes": 32872
+      },
+      {
+        "path": "FULL-RESULT-CASES.json",
+        "sha256": "a59f490c33b02be55a576496be8ef670dd8b5e5765182f609c8a562b11e66ad1",
+        "bytes": 1059166
+      },
+      {
+        "path": "LOGICAL-LEDGERS.json",
+        "sha256": "10df72e24b43c5f64c42dd2ebf731cf6435fe3c13ec5623816dda2cbed61a2fb",
+        "bytes": 689144
+      },
+      {
+        "path": "README.md",
+        "sha256": "a2626a13b1dd3e11239ffda83edb5d39cc3b50ff5ff10d33dc38ecb8a03904e1",
+        "bytes": 4950
+      },
+      {
+        "path": "CHANGES.md",
+        "sha256": "36d33faf7b62497e16e21de09ed36f0450d08e36c50851d1a7961de7aac233cc",
+        "bytes": 4321
+      }
+    ]
+  }
+}

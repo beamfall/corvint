@@ -228,6 +228,9 @@ func (w *Workflow) candidateCommit() (string, error) {
 	return resolveObject(w.repo.PrimaryWorktree, ref, "commit")
 }
 func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome, error) {
+	if e := CheckProgramConfig(w.cfg, w.policy.Supervision); e != nil {
+		return supervisor.Outcome{}, e
+	}
 	w.program.OwnerReleased = false
 	commit := w.attempt.BaseCommit
 	if stage != "implement" || w.attempt.Phase == "RETURNED" {
@@ -303,14 +306,11 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 			env = append(env, key+"="+v)
 		}
 	}
-	sandbox := "read-only"
-	if stage == "implement" {
-		sandbox = "workspace-write"
+	session := ""
+	if w.attempt.Supervision.Answer != "" {
+		session = w.attempt.Supervision.SessionID
 	}
-	argv := []string{"exec", "--json", "--sandbox", sandbox, "--model", w.cfg.Model, "-c", "model_reasoning_effort=" + strconv.Quote(w.cfg.Effort), "-c", "mcp_servers={}", "-"}
-	if w.attempt.Supervision.Answer != "" && w.attempt.Supervision.SessionID != "" {
-		argv = []string{"exec", "resume", w.attempt.Supervision.SessionID, "--json", "--model", w.cfg.Model, "-c", "model_reasoning_effort=" + strconv.Quote(w.cfg.Effort), "-c", "sandbox_mode=" + strconv.Quote(sandbox), "-c", "mcp_servers={}", "-"}
-	}
+	argv := codexStageArgv(w.cfg, stage, session)
 	dir, e := os.MkdirTemp(filepath.Dir(path), "effect-")
 	if e != nil {
 		return supervisor.Outcome{}, e
@@ -516,7 +516,7 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 }
 
 func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.Binding, id, self string, c ProgramConfig, ticketID string, groupID ...string) (*Workflow, error) {
-	if !programID(id) || c.Profile != snapshot.SupervisedProfile || c.WallSeconds < 1 || c.WallSeconds > 3600 || c.Model == "" || c.Effort != "low" || !filepath.IsAbs(c.WorkRoot) {
+	if !programID(id) || c.Profile != snapshot.SupervisedProfile || c.Model == "" || !filepath.IsAbs(c.WorkRoot) {
 		return nil, fmt.Errorf("invalid supervised config/id")
 	}
 	proof, e := readLeaseProof(ctx, repo)
@@ -530,6 +530,26 @@ func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.B
 	policy, e := intent.DecodePolicy(proof.Records["intent/policy.json"].Raw)
 	if e != nil {
 		return nil, e
+	}
+	w := &Workflow{repo: repo, actor: actor, cfg: c, queue: q, policy: policy, self: self}
+	if raw := proof.Records["programs.json"].Raw; len(raw) > 0 {
+		ps, e := snapshot.DecodePrograms(raw)
+		if e != nil {
+			return nil, e
+		}
+		for _, p := range ps.Entries {
+			if p.ID == id {
+				w.program = p
+			}
+		}
+	}
+	if w.program.ID == "" {
+		// A new program is refused before its runtime read or first record;
+		// an existing one stays drainable and cancellable after a policy
+		// narrowing, and is re-checked before every stage launch instead.
+		if e = CheckProgramConfig(c, policy.Supervision); e != nil {
+			return nil, e
+		}
 	}
 	runtimeBytes, e := supervisor.ReadBounded(c.Executable, 256<<20)
 	if e != nil {
@@ -558,18 +578,6 @@ func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.B
 		return nil, fmt.Errorf("supervisor identity unavailable")
 	}
 	config, _ := json.Marshal(c)
-	w := &Workflow{repo: repo, actor: actor, cfg: c, queue: q, policy: policy, self: self}
-	if raw := proof.Records["programs.json"].Raw; len(raw) > 0 {
-		ps, e := snapshot.DecodePrograms(raw)
-		if e != nil {
-			return nil, e
-		}
-		for _, p := range ps.Entries {
-			if p.ID == id {
-				w.program = p
-			}
-		}
-	}
 	if w.program.ID == "" {
 		base, _, e := poolSource(repo.PrimaryWorktree)
 		if e != nil {
@@ -1026,4 +1034,19 @@ func (w *Workflow) noExec(reason string) error {
 	w.program.ResultSHA256 = supervisor.Digest(nil)
 	w.program.OwnerReleased = true
 	return w.persist("FINISHED")
+}
+
+// codexStageArgv is the pinned Codex invocation for one supervised stage. A
+// nonempty session resumes that exact session; the stage's configured effort
+// (CAL-V0-062) applies to both forms.
+func codexStageArgv(c ProgramConfig, stage, session string) []string {
+	sandbox := "read-only"
+	if stage == "implement" {
+		sandbox = "workspace-write"
+	}
+	effort := "model_reasoning_effort=" + strconv.Quote(c.StageEffort(stage))
+	if session != "" {
+		return []string{"exec", "resume", session, "--json", "--model", c.Model, "-c", effort, "-c", "sandbox_mode=" + strconv.Quote(sandbox), "-c", "mcp_servers={}", "-"}
+	}
+	return []string{"exec", "--json", "--sandbox", sandbox, "--model", c.Model, "-c", effort, "-c", "mcp_servers={}", "-"}
 }
