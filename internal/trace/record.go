@@ -342,9 +342,13 @@ func normalizeCurrentPaths(values []string, label, treeRevision string, tracked 
 // the same per-path admission primitive NewRecord uses. Malformed input fails;
 // valid paths outside the exact tracked source set are filtered.
 func AdmissibleCurrentPaths(values, trackedPaths []string) ([]string, error) {
+	return admissibleCurrentPaths(values, trackedPaths, MaxAdmissionCandidates, MaxTracePaths, "candidate-limit", "admitted-path-limit")
+}
+
+func admissibleCurrentPaths(values, trackedPaths []string, candidateLimit, admittedLimit int, candidateReason, admittedReason string) ([]string, error) {
 	candidates := sortedUnique(values)
-	if len(candidates) > MaxAdmissionCandidates {
-		return nil, admissionFailure("candidate-limit", fmt.Errorf("changed-path candidates exceed %d paths", MaxAdmissionCandidates))
+	if len(candidates) > candidateLimit {
+		return nil, admissionFailure(candidateReason, fmt.Errorf("changed-path candidates exceed %d paths", candidateLimit))
 	}
 	tracked := stringSet(trackedPaths)
 	admitted := make([]string, 0, len(candidates))
@@ -357,8 +361,8 @@ func AdmissibleCurrentPaths(values, trackedPaths []string) ([]string, error) {
 			admitted = append(admitted, value)
 		}
 	}
-	if len(admitted) > MaxTracePaths {
-		return nil, admissionFailure("admitted-path-limit", fmt.Errorf("changed_paths exceeds %d paths", MaxTracePaths))
+	if len(admitted) > admittedLimit {
+		return nil, admissionFailure(admittedReason, fmt.Errorf("changed_paths exceeds %d paths", admittedLimit))
 	}
 	return admitted, nil
 }
@@ -570,4 +574,10 @@ func hasParentPart(value string) bool {
 		}
 	}
 	return false
+}
+
+// AdmissibleAggregateCurrentPaths is the separate nonlearning aggregate policy.
+// ALO-V0-002/003: ordinary trace admission remains capped at MaxTracePaths.
+func AdmissibleAggregateCurrentPaths(values, trackedPaths []string) ([]string, error) {
+	return admissibleCurrentPaths(values, trackedPaths, 4096, 512, "aggregate-candidate-limit", "aggregate-admitted-limit")
 }

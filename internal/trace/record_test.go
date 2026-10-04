@@ -457,3 +457,44 @@ func TestMigrationTransformRejectsExpandedTargetStore(t *testing.T) {
 func commandSuffix(value int) string {
 	return string(rune('a'+value/26)) + string(rune('a'+value%26))
 }
+
+// ALO-V0-002/003/004: an aggregate never changes the legacy recorder's cap.
+func TestAggregateCurrentPathAdmissionSeparateBounds(t *testing.T) {
+	for _, n := range []int{200, 201, 299, 512, 513} {
+		t.Run(fmt.Sprint(n), func(t *testing.T) {
+			paths := make([]string, n)
+			for i := range paths {
+				paths[i] = fmt.Sprintf("source/f%04d.go", i)
+			}
+			_, legacyErr := AdmissibleCurrentPaths(paths, paths)
+			if n > 200 && AdmissionFailureReason(legacyErr) != "admitted-path-limit" {
+				t.Fatalf("legacy cap changed: %v", legacyErr)
+			}
+			got, err := AdmissibleAggregateCurrentPaths(paths, paths)
+			if n <= 512 && (err != nil || !reflect.DeepEqual(got, paths)) {
+				t.Fatalf("complete %d-path aggregate: len=%d err=%v", n, len(got), err)
+			}
+			if n == 513 && AdmissionFailureReason(err) != "aggregate-admitted-limit" {
+				t.Fatalf("513 must refuse: %v", err)
+			}
+		})
+	}
+	paths := make([]string, 4097)
+	for i := range paths {
+		paths[i] = fmt.Sprintf("source/f%04d.go", i)
+	}
+	if _, err := AdmissibleAggregateCurrentPaths(paths, nil); AdmissionFailureReason(err) != "aggregate-candidate-limit" {
+		t.Fatalf("4097 candidates must refuse before filtering: %v", err)
+	}
+}
+
+// ALO-V0-003: the same classifier handles malformed, forbidden and non-source paths.
+func TestAggregateCurrentPathAdmissionPolicyParity(t *testing.T) {
+	for _, paths := range [][]string{{"a.go", "b.go", "README.md", "image.png"}, {"../a.go"}, {".env", "a.go"}, {"a.go", "a.go"}, {"bad\\path.go"}} {
+		a, ae := AdmissibleCurrentPaths(paths, []string{"a.go", "README.md"})
+		b, be := AdmissibleAggregateCurrentPaths(paths, []string{"a.go", "README.md"})
+		if !reflect.DeepEqual(a, b) || fmt.Sprint(ae) != fmt.Sprint(be) {
+			t.Fatalf("policy diverged for %q: legacy=%q/%v aggregate=%q/%v", paths, a, ae, b, be)
+		}
+	}
+}

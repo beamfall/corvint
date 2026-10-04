@@ -17,6 +17,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 )
 
@@ -205,6 +207,40 @@ func gitRaw(ctx context.Context, root string, outputLimit, expected int, stdin [
 	}
 	if gitstatus.Isolated(ctx) {
 		environment = append(environment, "GIT_CEILING_DIRECTORIES="+filepath.Dir(root))
+	}
+	if gitrun.OperationBudgetFrom(ctx) != nil {
+		// ALO-V0-017: charge every physical index/status Git spawn to the
+		// caller's one budget while preserving the default executor exactly.
+		out, err := gitrun.Run(ctx, gitrun.NewDefaultBudget(), gitrun.Options{
+			Binary: executable, Env: environment, Stdin: stdin, StdoutLimit: outputLimit,
+			StdoutSizeHint: expected, StderrLimit: maxGitErrorBytes,
+		}, commandArguments...)
+		if err == nil {
+			return out, nil
+		}
+		if ctx.Err() != nil {
+			return nil, contextError(ctx)
+		}
+		if start, ok := cemcode.GitStartFailureDetails(err); ok {
+			return nil, &Error{Message: "Git error: cannot start Git", gitFailure: &GitFailure{Arguments: arguments, ExitCode: -1, StartError: start}}
+		}
+		if failure, ok := cemcode.GitExitFailureDetails(err); ok {
+			detail := strings.TrimSpace(string(failure.Stderr))
+			if detail == "" {
+				detail = fmt.Sprintf("exit status %d", failure.ExitCode)
+			}
+			return nil, &Error{Message: "Git error: " + detail,
+				gitFailure: &GitFailure{Arguments: arguments, Stderr: failure.Stderr, ExitCode: failure.ExitCode}}
+		}
+		var overflow *gitrun.OperationOutputFailure
+		if errors.As(err, &overflow) {
+			message := "Git output exceeds its byte limit"
+			if overflow.Stream == "stderr" {
+				message = "Git error exceeds its byte limit"
+			}
+			return nil, &Error{Message: message, Cause: err}
+		}
+		return nil, err
 	}
 	command := exec.CommandContext(ctx, executable, commandArguments...)
 	command.Env = environment

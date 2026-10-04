@@ -2,15 +2,15 @@
 
 Owner: repository owner. Proposed build slice: V1-0611. Date: 2026-10-02.
 Intent status: proposed
-Delivery status: experimental; NOT_QUALIFIED; implementation NOT_RUN
+Delivery status: experimental; NOT_QUALIFIED; source candidate implemented, qualification incomplete
 Human job: finish a complete explicitly enrolled change whose current-path admission exceeds the
 legacy learning recorder's 200-path limit, retaining all evidence and refusing partial completion.
 
 ## Agent digest
 - Claim: Explicitly enrolled changes can preserve a complete bounded nonlearning outcome after a bound legacy admitted-path-limit refusal.
-- Status: proposed; experimental; NOT_QUALIFIED; implementation NOT_RUN. Gate A passed the plan only.
-- Exists: legacy enrolled completion and complete current-path admission with a 200-path learning limit.
-- Blocked on: implementation, native qualification, independent source review, final gates and held recovery entrypoint admission.
+- Status: proposed; experimental; NOT_QUALIFIED; source candidate implemented. Gate A passed the plan only.
+- Exists: legacy 200-path admission and an experimental explicit aggregate candidate with native focused witnesses.
+- Blocked on: remaining native qualification, independent source review, final gates and held recovery entrypoint admission.
 - Read next: Requirements; Wire and authority; Publication and restart; Bounds and ownership; Acceptance and traceability.
 
 This slice proposes a separate, bounded **nonlearning** outcome and an explicit keyed Finish
@@ -391,3 +391,71 @@ isolated. Revert candidate source under normal reviewed authority if needed. Pre
 aggregate discriminator, pending bytes, reservations and history; predecessor refusal is expected
 and must not be bypassed by deleting state. Diagnosis/recovery requires current qualified reader
 and explicit scope. No evidence eviction, automatic lock theft or downgrade/reset is rollback.
+
+
+## Experimental source candidate and focused evidence (2026-10-03)
+
+This section records source and development observations. It does not change the proposed intent,
+waive the mandatory inventory above, promote the profile, or replace the six frozen commands.
+The requirement definition positions above are preserved for the separately owned registry pass.
+
+- Evidence for `ALO-V0-001..007`: `internal/tracerecordrepo/aggregate_outcome.go` constructs and independently
+  reacquires the complete receipt; `internal/trace/record.go` shares the existing classifier while
+  keeping the learning cap at 200. Tests cover real 201/299/512-path acquisition, 513 refusal,
+  4096/4097 candidates, an exact 4-MiB canonical receipt and plus-one refusal, metadata limits,
+  digest domains, self-consistent omissions, dirty source and zero trace-store opener attempts.
+  Current `tracerepopaths.Paths` authority includes every `index.Sources` key, even a retained
+  opaque source with `Valid=false`; the aggregate does not add a parser-validity admission rule.
+- Evidence for `ALO-V0-008..016`: local-completion state, preservation and publication retain the original
+  enrollment, immutable snapshot history and issued-prefix rules. Separate-process fault tests
+  cover 14 preservation boundaries and ten outcome/report publication boundaries. The native CLI
+  witness completes a genuine reviewed, frozen-check workflow after the actual legacy refusal.
+  It verifies unchanged evidence on status and repeated success, pending selector refusal, and
+  actual pre-change predecessor status/Finish/event refusal across all four phase discriminators.
+  Lower-bound phase dispatch fixtures are distinguished from actual crash witnesses.
+- Evidence for `ALO-V0-017..019`: physical Git admission is shared through context. The native outcome worker
+  verifies group ownership before ordinary startup. Strict aggregate checks execute native
+  verifiers through the separate `dogfood-verifier-worker` entrypoint, whose closed argv grammar
+  permits only the exact impact, CEM status, dogfood-OCM status and bound authority-query abstention
+  replay reads used by Check. It inherits
+  the owned group without charging excluded CEM/OCM work to aggregate acquisition. Executable
+  hashes are observed before and after each verifier run. Old verifier binaries without this
+  entrypoint cannot supply aggregate verifier qualification; the held recovery entrypoint remains
+  pending. No arbitrary aggregate producer or validator was added.
+  Both worker paths use bounded streams and the unchanged pinned Owner. They reserve retirement
+  admission before spawning and retain the earlier caller deadline. Actual Darwin tests observe
+  descendant absence after normal exit, cancellation, timeout and output overflow.
+- Evidence for `ALO-V0-020`: console and receipt-bundle tests retain explicit `/1` refusal, including
+  `ReasonUnreadable` in the bundle. Legacy default dispatch remains separate.
+- Evidence for `ALO-V0-021..022`: independent source review, the complete frozen qualification inventory,
+  the six terminal receipts, Linux execution and the held recovery integration remain outstanding.
+  Development checks are not terminal gate receipts. Source, raw invocation and result hashes are
+  retained by the task's private qualification packet for the coordinator's exact-source review.
+
+The source-level fault hooks are private repository test seams, not public options. No production
+environment variable activates faults, chooses an aggregate producer, or bypasses preservation.
+The tests found and repaired a missing strict-JSON tag and a post-manifest/pre-state crash
+acknowledgement; all failed runs remain retained. A pending state never repairs that acknowledgement
+on a read; explicit resumed preservation does.
+
+A frozen 32-boundary native controlled-error campaign exercised new-process recovery across
+preservation, publication, actual strict-check captures and terminal save. Its original run had
+28 passing boundaries and four report/check-report staging failures. Ordinary publication errors
+now retire only the anonymous temporary copy, preserving prepared bytes and issued identities;
+the focused four-boundary repair is separately retained. These controlled errors are not SIGKILL
+or power-loss witnesses. Actual process-crash publication tests remain separate evidence.
+The actual current stop event after successful Finish returned a read-only fail-closed
+`final-check-required` result; its captured private evidence hashes were unchanged. This does not
+qualify positive event completion under the hook's shorter deadline.
+
+Repair1 retains the first independent review's three source findings and their regression evidence.
+Caller HOLD is sticky in the existing writer capability: its lock, Owner reference and bounded
+capture identity survive ordinary release; later borrowing, worker starts and publication refuse.
+No Owner algorithm or event deadline changed. The query exception admits only the existing exact
+authority-start replay and retains its governed task validation and same-pin executable checks.
+Strict-check streams now exist as bounded exclusive private files from outset, with an unqualified
+start descriptor. Ordinary close records the observed prefix independently of success validation;
+failed publication retains its diagnostic. Cancellation/HOLD never turns that observation into a
+qualified check. KILL leaves an incomplete observation and lock; no automatic lock recovery exists.
+All bytes remain charged to the existing reservation/history limits. Focused native capture-boundary
+signal tests and real query replay are development evidence, not the remaining full qualification.

@@ -704,3 +704,22 @@ the self-test look sophisticated.
 For Corvint itself or explicit repository adoption, use [the shared stage guide](SELF-DEVELOPMENT.md)
 to select applicable existing feature routes around this loop. Retain real outputs and concrete
 exclusions; the guide adds no mandatory all-feature loop, new receipt schema or closing authority.
+
+
+## Experimental aggregate outcome candidate
+
+The proposed [aggregate local outcome profile](specs/aggregate-local-outcome-v0.md) has an
+experimental source candidate for an enrolled change whose actual legacy recorder refuses more
+than 200 admitted current paths. It is **NOT_QUALIFIED** and is not a release/install instruction.
+The candidate command is `corvint dogfood finish --session-key KEY
+--aggregate-outcome-profile corvint-dogfood-aggregate-outcome/0` (one argv invocation).
+It requires the original enrollment, passing selected checks, current reviewed reports and a
+retained actual typed legacy refusal. It does not change the learning recorder's limit or open
+its trace store.
+
+The separate `/1` report carries `completionState`, the enrollment and the aggregate profile;
+it omits the old `complete` member. Status is read-only. Pending recovery needs the same explicit
+selector and preserved history. Do not delete a discriminator, reservation, stage or old evidence
+to force a downgrade. Unsupported predecessor readers, console and receipt-bundle consumers
+refuse the new profile. Held-change recovery and terminal qualification need their separately
+admitted integration; the candidate alone does not complete an existing ticket or held change.

@@ -83,7 +83,7 @@ func runLocalCompletion(ctx context.Context, root string, args []string, stdin i
 	case "verify":
 		result, err = localcompletion.Verify(ctx, root, key, flags["--check"])
 	case "finish":
-		result, err = localcompletion.Finish(ctx, root, key, localCompletionPublicCommand)
+		result, err = localcompletion.FinishWithAggregateProfile(ctx, root, key, flags["--aggregate-outcome-profile"], localCompletionPublicCommand)
 	case "review":
 		result, err = localcompletion.Review(ctx, root, key, flags["--report-set"])
 	case "cancel":
@@ -122,7 +122,9 @@ func localCompletionFlags(args []string) (map[string]string, error) {
 		required = "--check"
 	case "review":
 		required = "--report-set"
-	case "status", "finish", "cancel":
+	case "finish":
+		allowed["--aggregate-outcome-profile"] = true
+	case "status", "cancel":
 	case "handoff":
 		allowed["--anchors"], allowed["--receipt"] = true, true
 		allowed["--task-state"], allowed["--bundle"] = true, true

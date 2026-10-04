@@ -470,3 +470,13 @@ startup sources, read-only state and closed host admission. `tests/test_local_co
 and the existing adapter suites cover exact golden domains, all six stdio routes, resealed
 provenance negatives, complete-frame bounds and interruption. These are adapter/core fixtures,
 not observations of a real Claude/Codex model-host lifecycle.
+
+
+## Proposed aggregate outcome extension
+
+[Aggregate Local Outcome V0](aggregate-local-outcome-v0.md) owns the experimental, explicit
+aggregate selector, nonlearning receipt, `/1` report and additive pending state discriminator.
+Its source candidate is **NOT_QUALIFIED**. The default `/0` workflow and 200-path learning limit
+remain governed by this existing contract. Aggregate acceptance requires the extension's native
+qualification, independent review and frozen terminal gates; a source patch or focused test pass
+does not satisfy those requirements. The held recovery entrypoint is separately pending.

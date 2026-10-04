@@ -4,11 +4,16 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // gitBlobHashAllocationPayload is deliberately constructed before benchmark
@@ -352,5 +357,130 @@ func TestBoundedBufferPromotesNoBypassingWriter(t *testing.T) {
 	}
 	if _, promoted := buffer.(io.StringWriter); promoted {
 		t.Error("*boundedBuffer satisfies io.StringWriter; WriteString will bypass the byte limit")
+	}
+}
+
+// ALO-V0-017: the shared executor retains index errors and charges each real
+// process, including failed starts and status/index calls nested by its caller.
+func TestAggregateGitExecutorErrorParity(t *testing.T) {
+	if os.PathSeparator != '/' {
+		t.Skip("Unix executable fixture")
+	}
+	for _, tc := range []struct {
+		name, script string
+		limit        int
+	}{
+		{"exit-empty", "exit 7", 1024},
+		{"exit-detail", "echo detail >&2; exit 9", 1024},
+		{"stdout-over", "printf 123456789", 4},
+		{"stderr-over", "i=0; while [ $i -lt 7000 ]; do printf 1234567890 >&2; i=$((i+1)); done", 1024},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			path := filepath.Join(root, "git")
+			if err := os.WriteFile(path, []byte("#!/bin/sh\n"+tc.script+"\n"), 0755); err != nil {
+				t.Fatal(err)
+			}
+			ctx := context.WithValue(context.Background(), gitExecutionKey{}, gitExecution{executable: path, environment: os.Environ()})
+			_, legacy := gitRaw(ctx, root, tc.limit, 0, nil, "status")
+			budget, _ := gitrun.NewOperationBudget(64, time.Now().Add(time.Minute), false)
+			_, aggregate := gitRaw(gitrun.WithOperationBudget(ctx, budget), root, tc.limit, 0, nil, "status")
+			if legacy == nil || aggregate == nil || legacy.Error() != aggregate.Error() {
+				t.Fatalf("legacy=%v aggregate=%v", legacy, aggregate)
+			}
+			if budget.Used() != 1 {
+				t.Fatalf("physical spawns=%d", budget.Used())
+			}
+		})
+	}
+}
+
+func TestAggregateIndexAdmissionAndPhysicalBatchBoundary(t *testing.T) {
+	// Independent 128-byte-per-file admission oracle, with every source below
+	// the 1,000,000-byte source limit. No production sizing helper sets want.
+	const limit = 128 * 1024 * 1024
+	const count = 135
+	entries := make([]treeEntry, count)
+	remaining := limit - count*128
+	for i := range entries {
+		size := 999999
+		if i == count-1 {
+			size = remaining
+		}
+		entries[i] = treeEntry{path: "source/f" + strconv.Itoa(i) + ".go", size: size, oid: strings.Repeat("a", 40)}
+		remaining -= size
+	}
+	if remaining != 0 || entries[count-1].size <= 0 || entries[count-1].size > 1000000 {
+		t.Fatal("independent fixture invalid")
+	}
+	if err := validateBlobAdmission(entries); err != nil {
+		t.Fatalf("exact admission: %v", err)
+	}
+	entries[count-1].size++
+	if err := validateBlobAdmission(entries); err == nil || !strings.Contains(err.Error(), "134217729 with per-file framing") {
+		t.Fatalf("plus-one admission: %v", err)
+	}
+
+	// The physical cat-file ceiling has smaller actual headers than the
+	// conservative admission allowance. Exercise it separately, without
+	// mislabelling this lower-level acquisition as end-to-end admission.
+	root := t.TempDir()
+	git := func(input []byte, args ...string) []byte {
+		t.Helper()
+		command := exec.Command("git", append([]string{"-C", root}, args...)...)
+		command.Stdin = bytes.NewReader(input)
+		out, err := command.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+		return out
+	}
+	git(nil, "init", "-q")
+	physical := make([]treeEntry, 0, count)
+	actualTotal := 0
+	for i := 0; i < count; i++ {
+		size := 999999
+		if i == count-1 {
+			// This remaining body has six decimal digits; its exact SHA-1
+			// header plus trailing newline is 40+6+6+1+1 bytes.
+			size = limit - actualTotal - (40 + 6 + 6 + 1 + 1)
+		}
+		payload := bytes.Repeat([]byte{'x'}, size)
+		copy(payload, []byte("package source\n// blob "+strconv.Itoa(i)+"\n"))
+		oid := strings.TrimSpace(string(git(payload, "hash-object", "-w", "--stdin")))
+		if len(oid) != 40 || size > 1000000 || size < 100000 {
+			t.Fatal("physical fixture identity/size invalid")
+		}
+		actualTotal += len(oid) + len(" blob ") + len(strconv.Itoa(size)) + 1 + size + 1
+		physical = append(physical, treeEntry{path: "source/f" + strconv.Itoa(i) + ".go", oid: oid, size: size})
+	}
+	if actualTotal != limit {
+		t.Fatalf("independent physical framing total=%d", actualTotal)
+	}
+	if err := validateBlobAdmission(physical); err == nil {
+		t.Fatal("expected earlier conservative end-to-end refusal")
+	}
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	start := time.Now()
+	blobs, err := fetchBlobs(context.Background(), root, physical)
+	if err != nil || len(blobs) != count {
+		t.Fatalf("exact physical acquisition len=%d: %v", len(blobs), err)
+	}
+	for _, entry := range physical {
+		if len(blobs[entry.oid]) != entry.size {
+			t.Fatal("truncated blob")
+		}
+	}
+	runtime.ReadMemStats(&after)
+	t.Logf("physical exact bytes=%d elapsed=%s totalAllocDelta=%d", actualTotal, time.Since(start), after.TotalAlloc-before.TotalAlloc)
+	blobs = nil
+	runtime.GC()
+	last := &physical[count-1]
+	payload := bytes.Repeat([]byte{'y'}, last.size+1)
+	last.size++
+	last.oid = strings.TrimSpace(string(git(payload, "hash-object", "-w", "--stdin")))
+	if _, err = fetchBlobs(context.Background(), root, physical); err == nil {
+		t.Fatal("physical plus-one acquisition accepted")
 	}
 }
