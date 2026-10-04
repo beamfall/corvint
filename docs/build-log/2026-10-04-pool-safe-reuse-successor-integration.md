@@ -19,6 +19,10 @@ including main archives 63368234 and f400a78e, and omits candidate tips cd3a19d8
 36 PSR runtime/test paths equal c247 and the six Owner blobs equal main. The PSR catalog record
 takes the candidate delivery and implementation metadata, CAL-V0-030 arrives with exactly c247's
 delta, and REQUIREMENTS is regenerated. The PSR requirement clauses are byte-identical to the seed.
+The merged candidate entry `2026-10-04-pool-safe-reuse-integration.md` is retained as c247 history;
+its BASE-211916 archive restoration plan does not apply to this successor. The merge had re-escaped
+eight non-PSR INDEX records; commit f1b1765eb19285ab1b1d6a434fbfc7915ba29fb6 restores main's
+literal bytes for every non-PSR record, and the catalog and specindex checks pass after it.
 
 At that merge (tree b3c8b3eabad11ae2081d9197fae2a66df9737eea), go1.27.1 darwin/arm64 built a fresh
 corvint-tasks with SHA-256 8d2a060c4d569993c84d981a7d0e8e8d9127fa9b78114ca4877b90486087a813, used
