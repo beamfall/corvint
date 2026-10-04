@@ -185,6 +185,17 @@ func dispatchAux(env Env, verb string, args []string) *wire.Result {
 func dispatchStatusValue(dir string, l *dispatch.Ledger, events []dispatch.Event, now time.Time) wire.Value {
 	str := wire.String
 	ts := func(t time.Time) wire.Value { return str(t.UTC().Format(time.RFC3339)) }
+	sweeps := []wire.Value{}
+	keysSweep := make([]string, 0, len(l.PoolSweeps))
+	for key := range l.PoolSweeps {
+		keysSweep = append(keysSweep, key)
+	}
+	sort.Strings(keysSweep)
+	for _, key := range keysSweep {
+		r := l.PoolSweeps[key]
+		o := wire.NewObject().Set("requestId", str(r.RequestID)).Set("pool", str(r.Pool)).Set("member", str(r.Member)).Set("allocation", str(r.Allocation)).Set("phase", str(r.Phase)).Set("receiptSeq", str(r.Result.ReceiptSeq)).Set("evidence", str(r.Result.Evidence)).Set("reason", str(r.Reason))
+		sweeps = append(sweeps, wire.ObjectValue(o))
+	}
 	workers := []wire.Value{}
 	for _, w := range l.Workers {
 		o := wire.NewObject()
@@ -231,6 +242,9 @@ func dispatchStatusValue(dir string, l *dispatch.Ledger, events []dispatch.Event
 	o.Set("program", str(l.Program))
 	o.Set("stateDir", str(dir))
 	o.Set("dispatcherRunning", str(dispatch.OwnerState(dir)))
+	if len(sweeps) > 0 {
+		o.Set("poolSweeps", wire.Array(sweeps...))
+	}
 	o.Set("workers", wire.Value{Kind: wire.KindArray, Arr: workers})
 	o.Set("parked", wire.Strings(parked))
 	o.Set("cooling", wire.Value{Kind: wire.KindArray, Arr: cooling})
@@ -279,7 +293,11 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 		sort.Slice(obs.Attempts, func(i, j int) bool { return obs.Attempts[i].ID < obs.Attempts[j].ID })
 		if in.Pools != nil {
 			for _, m := range in.Pools.Entries {
-				obs.Members = append(obs.Members, dispatch.Member{Pool: m.PoolID, Member: m.MemberID, State: m.State, Holder: m.Holder, Attempt: m.AttemptID})
+				configured := false
+				if pool := in.Policy.Pool(m.PoolID); pool != nil {
+					configured = pool.MemberConfig[m.MemberID].SafeReuse != nil
+				}
+				obs.Members = append(obs.Members, dispatch.Member{Pool: m.PoolID, Member: m.MemberID, State: m.State, Holder: m.Holder, Attempt: m.AttemptID, Queue: in.Queue.QueueID.Raw, Allocation: string(m.AllocationID), Definition: string(m.DefinitionSha256), SafeReuse: configured, Owned: m.Sweep != nil})
 			}
 		}
 		return nil

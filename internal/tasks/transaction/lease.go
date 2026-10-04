@@ -17,23 +17,25 @@ const Lease = snapshot.StageLease
 
 // Lease verbs and bounds (CAL-V0-012, CAL-V0-013).
 const (
-	LeaseSupervisor     = "SUPERVISOR"
-	LeaseProgram        = "PROGRAM"
-	LeasePoolPrepare    = "POOL_PREPARE"
-	LeasePoolObserve    = "POOL_OBSERVE"
-	LeasePoolCleanup    = "POOL_CLEANUP"
-	LeasePoolRecover    = "POOL_RECOVER"
-	LeasePoolSafe       = "POOL_CONFIRM_SAFE"
-	LeaseClaim          = "CLAIM"
-	LeaseClaimNext      = "CLAIM_NEXT"
-	LeaseRenew          = "RENEW"
-	LeaseHeartbeat      = "HEARTBEAT"
-	LeaseRelease        = "RELEASE"
-	LeaseReap           = "REAP"
-	LeaseWiden          = "WIDEN"
-	DefaultLeaseMinutes = 60
-	MinLeaseMinutes     = 5
-	MaxLeaseMinutes     = 1440
+	LeaseSupervisor      = "SUPERVISOR"
+	LeaseProgram         = "PROGRAM"
+	LeasePoolPrepare     = "POOL_PREPARE"
+	LeasePoolObserve     = "POOL_OBSERVE"
+	LeasePoolCleanup     = "POOL_CLEANUP"
+	LeasePoolRecover     = "POOL_RECOVER"
+	LeasePoolSafe        = "POOL_CONFIRM_SAFE"
+	LeasePoolSweep       = "POOL_SWEEP"
+	LeasePoolSweepFinish = "POOL_SWEEP_FINISH"
+	LeaseClaim           = "CLAIM"
+	LeaseClaimNext       = "CLAIM_NEXT"
+	LeaseRenew           = "RENEW"
+	LeaseHeartbeat       = "HEARTBEAT"
+	LeaseRelease         = "RELEASE"
+	LeaseReap            = "REAP"
+	LeaseWiden           = "WIDEN"
+	DefaultLeaseMinutes  = 60
+	MinLeaseMinutes      = 5
+	MaxLeaseMinutes      = 1440
 	// MaxRetries is the legacy default, not the policy enforcement limit.
 	MaxRetries         = 3
 	wholeRepositoryKey = "repo"
@@ -44,6 +46,7 @@ const (
 // the closed shape table below refuses any other combination.
 type LeaseRequest struct {
 	LaneUntouched                             bool
+	SweepSeconds                              wire.Count
 	Pool, Stage, Member, Allocation, Evidence string
 	Verb, TicketID, Holder                    string
 	LeaseMinutes                              wire.Size
@@ -97,32 +100,35 @@ const (
 	fieldEvidence
 	fieldExclusions
 	fieldLaneUntouched
+	fieldSweepSeconds
 )
 
 type leaseShape struct{ required, allowed int }
 
 var leaseShapes = map[string]leaseShape{
-	LeaseSupervisor:  {fieldAttempt | fieldGeneration | fieldEvidence, fieldAttempt | fieldGeneration | fieldEvidence | fieldPool | fieldStage | fieldHolder},
-	LeaseProgram:     {fieldEvidence, fieldEvidence},
-	LeasePoolPrepare: {fieldPool | fieldMember | fieldHolder | fieldEvidence, fieldPool | fieldMember | fieldHolder | fieldStage | fieldEvidence},
-	LeasePoolObserve: {fieldMember | fieldAllocation, fieldMember | fieldAllocation},
-	LeasePoolCleanup: {fieldMember | fieldAllocation, fieldMember | fieldAllocation},
-	LeasePoolRecover: {fieldMember | fieldAllocation | fieldReason, fieldMember | fieldAllocation | fieldReason},
-	LeasePoolSafe:    {fieldMember | fieldAllocation | fieldEvidence | fieldReason, fieldMember | fieldAllocation | fieldEvidence | fieldReason},
-	LeaseClaim:       {fieldTicket | fieldHolder | fieldMinutes, fieldTicket | fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage | fieldExclusions},
-	LeaseClaimNext:   {fieldHolder | fieldMinutes, fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage | fieldExclusions},
-	LeaseHeartbeat:   {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration},
-	LeaseRenew:       {fieldAttempt | fieldGeneration | fieldMinutes, fieldAttempt | fieldGeneration | fieldMinutes},
-	LeaseRelease:     {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldReason | fieldEvidence | fieldLaneUntouched},
-	LeaseReap:        {0, fieldAttempt | fieldGeneration},
-	LeaseWiden:       {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldScope | fieldWhole},
-	LeaseSubmit:      {fieldAttempt | fieldGeneration | fieldTree, fieldAttempt | fieldGeneration | fieldTree},
-	LeaseGateRun:     {fieldAttempt | fieldGeneration | fieldGate, fieldAttempt | fieldGeneration | fieldGate},
-	LeaseComplete:    {fieldAttempt | fieldGeneration | fieldCommit, fieldAttempt | fieldGeneration | fieldCommit},
+	LeasePoolSweep:       {fieldSweepSeconds, fieldSweepSeconds | fieldMember | fieldAllocation},
+	LeasePoolSweepFinish: {fieldEvidence, fieldEvidence},
+	LeaseSupervisor:      {fieldAttempt | fieldGeneration | fieldEvidence, fieldAttempt | fieldGeneration | fieldEvidence | fieldPool | fieldStage | fieldHolder},
+	LeaseProgram:         {fieldEvidence, fieldEvidence},
+	LeasePoolPrepare:     {fieldPool | fieldMember | fieldHolder | fieldEvidence, fieldPool | fieldMember | fieldHolder | fieldStage | fieldEvidence},
+	LeasePoolObserve:     {fieldMember | fieldAllocation, fieldMember | fieldAllocation | fieldEvidence},
+	LeasePoolCleanup:     {fieldMember | fieldAllocation, fieldMember | fieldAllocation},
+	LeasePoolRecover:     {fieldMember | fieldAllocation | fieldReason, fieldMember | fieldAllocation | fieldReason},
+	LeasePoolSafe:        {fieldMember | fieldAllocation | fieldEvidence | fieldReason, fieldMember | fieldAllocation | fieldEvidence | fieldReason},
+	LeaseClaim:           {fieldTicket | fieldHolder | fieldMinutes, fieldTicket | fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage | fieldExclusions},
+	LeaseClaimNext:       {fieldHolder | fieldMinutes, fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage | fieldExclusions},
+	LeaseHeartbeat:       {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration},
+	LeaseRenew:           {fieldAttempt | fieldGeneration | fieldMinutes, fieldAttempt | fieldGeneration | fieldMinutes},
+	LeaseRelease:         {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldReason | fieldEvidence | fieldLaneUntouched},
+	LeaseReap:            {0, fieldAttempt | fieldGeneration},
+	LeaseWiden:           {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldScope | fieldWhole},
+	LeaseSubmit:          {fieldAttempt | fieldGeneration | fieldTree, fieldAttempt | fieldGeneration | fieldTree},
+	LeaseGateRun:         {fieldAttempt | fieldGeneration | fieldGate, fieldAttempt | fieldGeneration | fieldGate},
+	LeaseComplete:        {fieldAttempt | fieldGeneration | fieldCommit, fieldAttempt | fieldGeneration | fieldCommit},
 }
 
 func (l *LeaseRequest) present() int {
-	flags := map[int]bool{fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != ""}
+	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != ""}
 	bits := 0
 	for bit, set := range flags {
 		if set {
@@ -200,6 +206,9 @@ func checkLabels(values map[string]string) error {
 }
 
 func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
+	if l.Verb == LeasePoolSweep && l.Allocation != "" && l.Member == "" {
+		return malformed("sweep allocation requires member")
+	}
 	if l.LaneUntouched && l.Evidence == "" {
 		return malformed("lane-untouched requires inert evidence Identifier")
 	}
@@ -267,6 +276,15 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 			return e
 		}
 	}
+	if l.SweepSeconds != "" {
+		n, e := wire.ParseCount("sweepSeconds", string(l.SweepSeconds))
+		if e != nil {
+			return e
+		}
+		if n.Int() < 1 || n.Int() > 1800 {
+			return malformed("sweepSeconds outside1..1800")
+		}
+	}
 	return checkGateFields(l)
 }
 
@@ -320,6 +338,16 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 		v.Obj.Set("allocation", s(l.Allocation))
 		v.Obj.Set("evidence", s(l.Evidence))
 	}
+	if l.Verb == LeasePoolSweep {
+		v.Obj.Set("member", s(l.Member))
+		v.Obj.Set("sweepSeconds", s(string(l.SweepSeconds)))
+		if l.Allocation != "" {
+			v.Obj.Set("allocation", s(l.Allocation))
+		}
+	}
+	if l.Verb == LeasePoolSweepFinish {
+		v.Obj.Set("evidence", s(l.Evidence))
+	}
 	if l.LaneUntouched {
 		v.Obj.Set("laneUntouched", wire.Bool(true))
 		v.Obj.Set("laneUntouchedProfile", s(snapshot.ProfileLaneUntouched))
@@ -357,10 +385,12 @@ type leaseContext struct {
 }
 
 var leasePlanners = map[string]func(leaseContext) leaseOutcome{
-	LeaseSupervisor:  planSupervisor,
-	LeaseProgram:     planProgram,
-	LeasePoolSafe:    planPoolSafe,
-	LeasePoolPrepare: planPoolPrepare, LeasePoolObserve: planPoolObserve, LeasePoolCleanup: planPoolCleanup, LeasePoolRecover: planPoolRecover,
+	LeasePoolSweep:       planPoolSweep,
+	LeasePoolSweepFinish: planPoolSweepFinish,
+	LeaseSupervisor:      planSupervisor,
+	LeaseProgram:         planProgram,
+	LeasePoolSafe:        planPoolSafe,
+	LeasePoolPrepare:     planPoolPrepare, LeasePoolObserve: planPoolObserve, LeasePoolCleanup: planPoolCleanup, LeasePoolRecover: planPoolRecover,
 	LeaseClaim:     planClaim,
 	LeaseClaimNext: planClaimNext,
 	LeaseHeartbeat: planHeartbeat,
