@@ -21,8 +21,9 @@ as NOT_OBSERVED. The administrative cross-holder supersession route stays unsupp
 
 ## Delivered
 
-The four source files are reused byte-for-byte from the independently reviewed preparation source
-patch. That patch already carried its review corrections. Codex rewrote none of it. The new spec
+The four source files were applied unchanged from the preparation's independently reviewed
+`SOURCE.patch`, which already carried its review corrections. Before commit, `cmp` confirmed each
+file byte-identical to the preparation leaf checkout. Nothing was rewritten. The new spec
 maps the plan's ESC502-001..011 to ESC-V0-001..011. It keeps the integration obligations visible:
 
 - the native writer, stage, material and replay;
@@ -49,6 +50,20 @@ Two minor source observations remain open; neither blocks the pure slice:
 
 - a `blockedBy` relation may name its own ticket;
 - a blocked question without a relation holds through the question itself.
+
+A fresh independent review of the delivered diff returned PASS-WITH-NITS. It found no HIGH issue.
+It found one MED: stale OPEN questions from an earlier acceptance revision count toward the 16-open
+bound but cannot be answered or superseded, so they can lock a ticket's capacity. It also found
+several LOW items:
+
+- one policy decision covers every operation;
+- untested supersession refusal branches and the untested event byte cap;
+- refusal assertions that check only for an error, not its code;
+- shorthand refusals that do not name the open questions;
+- repeated blob decoding.
+
+The traceability rows were corrected. The source findings are recorded as open in the spec under
+Unresolved decisions rather than patched here, so the reused reviewed source stays byte-identical.
 
 ## Evidence
 

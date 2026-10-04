@@ -6,8 +6,8 @@ Intent status: proposed
 Delivery status: experimental
 
 Authoritative inputs: owner request [issue 502](https://github.com/beamfall/corvint/issues/502)
-(native ticket V1-0699); the issue's ESC502-001..011 preparation intent with the three accepted
-precision corrections of its independent Gate A review; the existing
+(native ticket V1-0699); the issue's ESC502-001..011 preparation intent with the three precision corrections adopted
+during its independent preparation review (not owner acceptance); the existing
 [agent lease contract](corvint-tasks-agent-leases-v0.md); and two neighbouring intents this one
 composes with but does not restate: issue 501's operator notes (claim-snapshot delivery) and issue
 499's dispatch model-escalation tiers. No owner acceptance of this intent has been recorded. The
@@ -102,7 +102,7 @@ no row claims delivered native behavior.
 | Requirement | Parent intent | Implementation boundary | Delivered evidence | Required integrated evidence (NOT_RUN) |
 |---|---|---|---|---|
 | ESC-V0-001 | ESC502-001 | CLI producer; receipt/grant adapter; writer fences | `TestIssue502_EscalationCodecAndBounds` (question/options bounds); `TestIssue502_AdmissionOriginAndStaleGeneration` (missing context, stale generation/holder/receipt/acceptance, expiry, actor and policy binding, unknown replay) | real claim receipt, forged/wrong-queue origins, compiled CLI, supervised UNSUPPORTED |
-| ESC-V0-002 | ESC502-002 | ticket record and Core codecs; evidence store | `TestIssue502_EscalationCodecAndBounds` (closed shapes, noncanonical framing, event/request caps); `TestIssue502_SupersessionAndCapacity` (transaction vs event counts) | legacy bytes through the record codec, import/CREATE injection refusal, Core reader |
+| ESC-V0-002 | ESC502-002 | ticket record and Core codecs; evidence store | `TestIssue502_EscalationCodecAndBounds` (closed shapes, noncanonical framing, question bound, 64-revision history cap; the 65536-byte event cap is untested); `TestIssue502_SupersessionAndCapacity` (transaction vs event counts) | legacy bytes through the record codec, import/CREATE injection refusal, Core reader |
 | ESC-V0-003 | ESC502-003 | reducer; native writer | `TestIssue502_SupersessionAndCapacity` (paired supersession, last-slot refusal); `TestIssue502_ImmutableClaimAnswerSelection` (stale acceptance excluded) | acceptance edit yields STALE across show/plan/claim; administrative route |
 | ESC-V0-004 | ESC502-004 | reducer; native writer; CLI | `TestIssue502_QuestionAnswerCASAndReplay` (ambiguous shorthand, exact CAS, Q1-answer then Q2-open shorthand replay, changed-selector conflict) | real writer race with one winner, compiled CLI |
 | ESC-V0-005 | ESC502-005 | lease admission; original-receipt materializer | `TestIssue502_ImmutableClaimAnswerSelection` (pinned selection, guidance capacity) | original claim snapshot after concurrent answers, missing-receipt replay, 1 MiB output |
@@ -110,7 +110,7 @@ no row claims delivered native behavior.
 | ESC-V0-007 | ESC502-007 | dispatch ledger, loop and status | none | restart before/after spawn, failed save, duplicate session, final allowed and next exhausted launch, cooldown caps |
 | ESC-V0-008 | ESC502-008 | dispatch roster/fingerprint; 499 tiers | `TestIssue502_TypedDispositionAndWorkRevision` (control vs work revision) | refine/escalate/answer sequence, mixed 499 tier witness |
 | ESC-V0-009 | ESC502-009 | CLI reads; dispatch status | none | pagination, cursors, age and clock, program UNKNOWN, reads do not mutate |
-| ESC-V0-010 | ESC502-010 | transaction/stage/material/redo | `TestIssue502_SupersessionAndCapacity` (rehashed material mismatch, single atomic proposal) | measured descriptor, interrupted paired publication, redo |
+| ESC-V0-010 | ESC502-010 | transaction/stage/material/redo | `TestIssue502_ImmutableClaimAnswerSelection` (rehashed material mismatch); `TestIssue502_SupersessionAndCapacity` (missing supersession pair, single atomic proposal; SUPERSESSION_PAIR_MISMATCH and SUPERSESSION_SOURCE untested) | measured descriptor, interrupted paired publication, redo |
 | ESC-V0-011 | ESC502-011 | four-file foundation; layering | `TestIssue502_EscalationCodecAndBounds`, `TestIssue502_AdmissionOriginAndStaleGeneration`, `TestIssue502_QuestionAnswerCASAndReplay`, `TestIssue502_TypedDispositionAndWorkRevision`, `TestIssue502_ImmutableClaimAnswerSelection`, `TestIssue502_SupersessionAndCapacity`; `ticket` imports only `wire` | full integration matrix, independent integrated review, native completion |
 
 ## Unresolved decisions
@@ -122,6 +122,23 @@ blocked reason defaulting to the explicitly typed question; infrastructure exhau
 visible automation hold; the typed-control workRevision exclusion; and the optional-reference
 capacities with a specialized StageLease shape. Kill criterion: if the typed-event stage cannot fit
 existing StageLease bounds, revise this contract rather than widen the bounds or bypass them.
+
+Open findings from the independent review of this delivery, which are not yet fixed in the pure
+source:
+
+- Stale OPEN questions lock capacity. An OPEN question from an earlier acceptance revision cannot be
+  answered or superseded, because both routes require the same acceptance, yet it still counts
+  toward the 16-open bound. Sixteen stale questions therefore refuse every later OPEN on that ticket
+  with no recovery route. Before integration, either count only same-acceptance OPEN questions or
+  add an explicit retirement route.
+- One supplied policy decision covers every operation. The reducer does not refuse an answer by the
+  question's own source holder, so the answer-grant separation of ESC-V0-004 must be enforced by an
+  operation-scoped grant in the writer slice.
+- Refusals of ambiguous or missing shorthand do not yet name the open questions. Naming them is
+  assigned to the CLI slice.
+- Several refusal tests assert only that an error occurred, not its code.
+- Each call decodes every blob several times, which is slow near capacity (inference from test
+  timing). Measure this before the native writer runs the reducer under its lock.
 
 ## Rollout and rollback
 
