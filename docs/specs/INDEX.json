@@ -2174,6 +2174,28 @@
     ]
   },
   {
+    "path": "docs/specs/postmerge-runtime-v2.md",
+    "title": "Post-merge Runtime V2",
+    "reqPrefix": "PMR-V2",
+    "intent": "accepted",
+    "delivery": "not-started",
+    "claim": "Accepted /2 contract compares stable producer decisions and canonical requests across fresh verified runs; conformance data only, no runtime.",
+    "dependsOn": [
+      "docs/specs/postmerge-runtime-v1.md",
+      "docs/specs/postmerge-connectors-v0.md",
+      "docs/specs/new-e2e-test-acceptance-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/testacceptance",
+      "internal/postmergeproof",
+      "internal/postmergeconnector",
+      "internal/postmergeworkflow",
+      "cmd/corvint-postmerge-workflow"
+    ]
+  },
+  {
     "path": "docs/specs/postmerge-metrics-v0.md",
     "title": "Post-merge metrics V0",
     "reqPrefix": "PMM-V0",
