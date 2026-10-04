@@ -18,7 +18,7 @@ explicit acceptance.
 ## Agent digest
 - Claim: Workers raise typed questions from admitted claims, operators answer them by compare-and-set, and the next same-acceptance claim receives the answers.
 - Status: proposed intent; experimental delivery of the pure four-file foundation only; no installed escalation capability.
-- Exists: closed request/event/reference codecs and a pure reducer with answer selection, derived holds and effective work revision, plus focused tests. Nothing calls them yet.
+- Exists: closed request/event/reference codecs and a pure reducer with answer selection, derived holds, effective work revision, coded refusals and a per-call decode memo, plus focused tests and a near-capacity benchmark. Nothing calls them yet.
 - Blocked on: owner acceptance of the Gate A decisions; native writer/stage/material/replay integration, CLI, native holds, the 501 claim-snapshot path, dispatcher retry and 499 tier composition.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.
 
@@ -47,13 +47,13 @@ writer, stage, CLI or dispatch file changes.
   The question is 1..4096 UTF-8 bytes and not whitespace-only. Options are at most 8 unique nonempty strings of at most 256 bytes each. Text is advisory data and never classifies kind. The native origin is the exact successful CLAIM or CLAIM_NEXT receipt sequence and hash plus its POST attempt digest, supplied through the worker's invocation context; ticket, acceptance revision, generation and holder are resolved from that receipt, not from the latest attempt projection, because retries reuse attempt IDs. There is no caller generation, ticket, head or timestamp override. Missing or ambiguous origin refuses `MISSING_ADMISSION_CONTEXT`. A fresh OPEN additionally requires, under the writer lock, the same current generation, holder, reservation and acceptance revision and an active unexpired lease. The invoking local actor must equal the source holder and hold an explicit policy grant. Actor equality is a consistency fence, not authentication: ActorAuthentication stays NOT_OBSERVED. Actor binding, then canonical request replay, precede fresh expiry, state and CAS checks, so a committed question replays after its source expires. Supervised runtimes return UNSUPPORTED until their grant adapter is qualified.
 
 - `ESC-V0-002`: Questions MUST be stored as an optional tool-owned `escalations` reference on the existing native ticket plus immutable canonical `taskman-escalation-event/0` evidence blobs, with one current event per question and no separate store.
-  The reference is omitted until the first typed operation, so legacy ticket and attempt bytes stay identical. It holds a transaction revision, `lastControlTicketRevision`, `workRevision` and a sorted list of at most 64 lifetime request entries, at most 16 OPEN. Each entry has request ID, origin digest (the immutable OPEN event blob digest), current head digest, event revision, source acceptance revision, kind and lifecycle OPEN, ANSWERED or SUPERSEDED. The transaction revision counts typed transactions; the sum of entry event revisions counts events, with a wire ceiling of 4096 events and 64 per request. Each event is at most 65536 encoded bytes including LF. OPEN carries the question once in its nested original request and has no self-digest; ANSWER and SUPERSEDE carry the origin and previous head digests. Native receipt identity, the question origin digest and the operation's `requestSha256` are distinct identities. Closed operation-specific shapes refuse unknown, aliased or injected fields. Capacity exhaustion refuses before publication; nothing is evicted or pruned. CREATE, REFINE, ADOPT and import cannot inject or delete the reference, and the Core reader must preserve it.
+  The reference is omitted until the first typed operation, so legacy ticket and attempt bytes stay identical. It holds a transaction revision, `lastControlTicketRevision`, `workRevision` and a sorted list of at most 64 lifetime request entries, at most 16 of them OPEN at the current acceptance revision. A stale OPEN entry counts only against the 64 lifetime entries; the 16 bound needs the current acceptance revision, so the writer and every reader enforce it, not the reference codec, and a reference over it refuses as `OPEN_CAPACITY`. Each entry has request ID, origin digest (the immutable OPEN event blob digest), current head digest, event revision, source acceptance revision, kind and lifecycle OPEN, ANSWERED or SUPERSEDED. The transaction revision counts typed transactions; the sum of entry event revisions counts events, with a wire ceiling of 4096 events and 64 per request. Each event is at most 65536 encoded bytes including LF. OPEN carries the question once in its nested original request and has no self-digest; ANSWER and SUPERSEDE carry the origin and previous head digests. Native receipt identity, the question origin digest and the operation's `requestSha256` are distinct identities. Closed operation-specific shapes refuse unknown, aliased or injected fields. Capacity exhaustion refuses before publication; nothing is evicted or pruned. CREATE, REFINE, ADOPT and import cannot inject or delete the reference, and the Core reader must preserve it.
 
 - `ESC-V0-003`: Applicability MUST derive from the source acceptance revision versus the current ticket acceptance revision, not from lease state.
   An ended or expired source attempt does not close an unanswered same-acceptance question. An acceptance-changing mutation leaves old requests visible as STALE, removes them from current holds and claim guidance, and never promotes an old answer to the new scope. Unrelated content changes keep them current. Explicit supersession, `--supersedes Q --expected-request-revision N`, replaces one OPEN question atomically: the old request gains one SUPERSEDE event, the replacement starts at revision 1, two event slots and one transaction are charged, and ticket content increments once. The worker route requires the same admitted source. A worker cannot supersede an answered question or another source's question, and the administrative cross-source route stays unsupported until separately admitted. Supersession is never inferred from similar text.
 
 - `ESC-V0-004`: `ticket answer --target T --text TEXT` MUST close exactly one question, either the sole same-acceptance OPEN question at commit or an exact `--request Q --expected-request-revision N` compare-and-set.
-  Shorthand with zero or several open questions refuses and names them; it never answers all or the newest. The original request retains only the caller's selector, text and optional CAS. The writer-resolved request ID and prior revision live in event material, so replay of a committed shorthand answer returns its original question after later questions open. Exact mode cross-checks the derived fields against the caller's. Concurrent answers to one question have one winner; changed bytes under a reused request ID conflict. Answer text is 1..8192 UTF-8 bytes and not whitespace-only. OWNER may answer subject to policy narrowing; OPERATOR needs an explicit answer grant; a source-holder grant is not answer authority. An answer closes its request and removes only that request's hold. It approves no scope, changes no acceptance, clears no dependency, hold or budget, and selects no option.
+  Shorthand with zero or several open questions refuses and names them (`AMBIGUOUS_OPEN_QUESTIONS` carries the sorted request IDs); it never answers all or the newest. The original request retains only the caller's selector, text and optional CAS. The writer-resolved request ID and prior revision live in event material, so replay of a committed shorthand answer returns its original question after later questions open. Exact mode cross-checks the derived fields against the caller's. Concurrent answers to one question have one winner; changed bytes under a reused request ID conflict. Answer text is 1..8192 UTF-8 bytes and not whitespace-only. OWNER may answer subject to policy narrowing; OPERATOR needs an explicit answer grant; a source-holder grant is not answer authority. An answer closes its request and removes only that request's hold. It approves no scope, changes no acceptance, clears no dependency, hold or budget, and selects no option.
 
 - `ESC-V0-005`: Claim and claim-next MUST return current same-acceptance answers as an `escalationAnswers` field separate from `operatorNote`, pinned by the claim's own admission.
   Under the claim writer lock, sorted answer origin and head references are copied into an optional admitted Attempt field from the same audited ticket snapshot as TicketRecordSha256; no-answer attempts omit it. Output resolves only from the successful claim receipt's POST attempt, so a claim, a later answer and a replay still yield the original snapshot. Each answer carries request ID, original question, options and kind, source provenance, answer actor, time and head, and event revision. Delivery does not consume or acknowledge an answer, and SUPERSEDED and STALE answers are history only. Aggregate guidance is at most 256 KiB encoded and full claim output at most 1 MiB, checked before admission; an answer that would exceed capacity refuses instead of truncating. A materialization failure after commit preserves the attempt and receipt and instructs exact replay. This depends on the 501 claim-snapshot path.
@@ -102,16 +102,16 @@ no row claims delivered native behavior.
 | Requirement | Parent intent | Implementation boundary | Delivered evidence | Required integrated evidence (NOT_RUN) |
 |---|---|---|---|---|
 | ESC-V0-001 | ESC502-001 | CLI producer; receipt/grant adapter; writer fences | `TestIssue502_EscalationCodecAndBounds` (question/options bounds); `TestIssue502_AdmissionOriginAndStaleGeneration` (missing context, stale generation/holder/receipt/acceptance, expiry, actor and policy binding, unknown replay) | real claim receipt, forged/wrong-queue origins, compiled CLI, supervised UNSUPPORTED |
-| ESC-V0-002 | ESC502-002 | ticket record and Core codecs; evidence store | `TestIssue502_EscalationCodecAndBounds` (closed shapes, noncanonical framing, question bound, 64-revision history cap; the 65536-byte event cap is untested); `TestIssue502_SupersessionAndCapacity` (transaction vs event counts) | legacy bytes through the record codec, import/CREATE injection refusal, Core reader |
-| ESC-V0-003 | ESC502-003 | reducer; native writer | `TestIssue502_SupersessionAndCapacity` (paired supersession, last-slot refusal); `TestIssue502_ImmutableClaimAnswerSelection` (stale acceptance excluded) | acceptance edit yields STALE across show/plan/claim; administrative route |
-| ESC-V0-004 | ESC502-004 | reducer; native writer; CLI | `TestIssue502_QuestionAnswerCASAndReplay` (ambiguous shorthand, exact CAS, Q1-answer then Q2-open shorthand replay, changed-selector conflict) | real writer race with one winner, compiled CLI |
+| ESC-V0-002 | ESC502-002 | ticket record and Core codecs; evidence store | `TestIssue502_EscalationCodecAndBounds` (closed shapes, noncanonical framing, question bound, 64-revision history cap; the 65536-byte event cap is untested); `TestIssue502_SupersessionAndCapacity` (transaction vs event counts); `TestIssue502_StaleOpenReleasesCapacity` (16-open bound counts the current acceptance revision only); `TestIssue502_ReadersRefuseOpenOverflow` (readers refuse a crafted 17-open reference; the capacity check refuses an invalid or older acceptance argument) | legacy bytes through the record codec, import/CREATE injection refusal, Core reader |
+| ESC-V0-003 | ESC502-003 | reducer; native writer | `TestIssue502_SupersessionAndCapacity` (paired supersession, last-slot refusal, cross-source `SUPERSESSION_SOURCE`); `TestIssue502_ImmutableClaimAnswerSelection` (stale acceptance excluded); `TestIssue502_StaleOpenReleasesCapacity` (stale OPEN stays visible, holds nothing, refuses an answer) | acceptance edit yields STALE across show/plan/claim; administrative route |
+| ESC-V0-004 | ESC502-004 | reducer; native writer; CLI | `TestIssue502_QuestionAnswerCASAndReplay` (ambiguous shorthand naming its open questions, exact CAS, Q1-answer then Q2-open shorthand replay, changed-selector conflict) | real writer race with one winner, compiled CLI |
 | ESC-V0-005 | ESC502-005 | lease admission; original-receipt materializer | `TestIssue502_ImmutableClaimAnswerSelection` (pinned selection, guidance capacity) | original claim snapshot after concurrent answers, missing-receipt replay, 1 MiB output |
 | ESC-V0-006 | ESC502-006 | native eligibility; dispatch status | `TestIssue502_TypedDispositionAndWorkRevision` (four kinds, held vs infrastructure IDs) | hold parity across direct claim, claim-next and plan |
 | ESC-V0-007 | ESC502-007 | dispatch ledger, loop and status | none | restart before/after spawn, failed save, duplicate session, final allowed and next exhausted launch, cooldown caps |
 | ESC-V0-008 | ESC502-008 | dispatch roster/fingerprint; 499 tiers | `TestIssue502_TypedDispositionAndWorkRevision` (control vs work revision) | refine/escalate/answer sequence, mixed 499 tier witness |
 | ESC-V0-009 | ESC502-009 | CLI reads; dispatch status | none | pagination, cursors, age and clock, program UNKNOWN, reads do not mutate |
-| ESC-V0-010 | ESC502-010 | transaction/stage/material/redo | `TestIssue502_ImmutableClaimAnswerSelection` (rehashed material mismatch); `TestIssue502_SupersessionAndCapacity` (missing supersession pair, single atomic proposal; SUPERSESSION_PAIR_MISMATCH and SUPERSESSION_SOURCE untested) | measured descriptor, interrupted paired publication, redo |
-| ESC-V0-011 | ESC502-011 | four-file foundation; layering | `TestIssue502_EscalationCodecAndBounds`, `TestIssue502_AdmissionOriginAndStaleGeneration`, `TestIssue502_QuestionAnswerCASAndReplay`, `TestIssue502_TypedDispositionAndWorkRevision`, `TestIssue502_ImmutableClaimAnswerSelection`, `TestIssue502_SupersessionAndCapacity`; `ticket` imports only `wire` | full integration matrix, independent integrated review, native completion |
+| ESC-V0-010 | ESC502-010 | transaction/stage/material/redo | `TestIssue502_ImmutableClaimAnswerSelection` (rehashed material mismatch); `TestIssue502_SupersessionAndCapacity` (missing and mismatched supersession pair, single atomic proposal); `BenchmarkIssue502_ApplyNearCapacity` (reducer cost at 63 answered questions) | measured descriptor, interrupted paired publication, redo |
+| ESC-V0-011 | ESC502-011 | four-file foundation; layering | `TestIssue502_EscalationCodecAndBounds`, `TestIssue502_AdmissionOriginAndStaleGeneration`, `TestIssue502_QuestionAnswerCASAndReplay`, `TestIssue502_TypedDispositionAndWorkRevision`, `TestIssue502_ImmutableClaimAnswerSelection`, `TestIssue502_SupersessionAndCapacity`, `TestIssue502_StaleOpenReleasesCapacity`, `TestIssue502_ReadersRefuseOpenOverflow`; `ticket` imports only `wire` | full integration matrix, independent integrated review, native completion |
 
 ## Unresolved decisions
 
@@ -120,25 +120,29 @@ invocation context for the shorthand with NOT_OBSERVED authentication; one curre
 question rather than one question per ticket; sole-open-at-commit shorthand next to exact CAS;
 blocked reason defaulting to the explicitly typed question; infrastructure exhaustion as a distinct
 visible automation hold; the typed-control workRevision exclusion; and the optional-reference
-capacities with a specialized StageLease shape. Kill criterion: if the typed-event stage cannot fit
+capacities, including the 16-open bound counting only the current acceptance revision, with a
+specialized StageLease shape. Kill criterion: if the typed-event stage cannot fit
 existing StageLease bounds, revise this contract rather than widen the bounds or bypass them.
 
-Open findings from the independent review of this delivery, which are not yet fixed in the pure
-source:
+Findings from the independent review of the first delivery and their disposition:
 
-- Stale OPEN questions lock capacity. An OPEN question from an earlier acceptance revision cannot be
-  answered or superseded, because both routes require the same acceptance, yet it still counts
-  toward the 16-open bound. Sixteen stale questions therefore refuse every later OPEN on that ticket
-  with no recovery route. Before integration, either count only same-acceptance OPEN questions or
-  add an explicit retirement route.
-- One supplied policy decision covers every operation. The reducer does not refuse an answer by the
-  question's own source holder, so the answer-grant separation of ESC-V0-004 must be enforced by an
-  operation-scoped grant in the writer slice.
-- Refusals of ambiguous or missing shorthand do not yet name the open questions. Naming them is
-  assigned to the CLI slice.
-- Several refusal tests assert only that an error occurred, not its code.
-- Each call decodes every blob several times, which is slow near capacity (inference from test
-  timing). Measure this before the native writer runs the reducer under its lock.
+- Stale OPEN questions locked capacity. Fixed in the pure source by counting only same-acceptance
+  OPEN questions toward the 16 bound (agent decision, 2026-10-04, pending the Gate A capacity
+  acceptance above); the alternative, an explicit retirement route, adds a mutation with its own
+  authority and was not chosen. Stale questions stay visible and still count toward the 64
+  lifetime entries, so no history is evicted.
+- One supplied policy decision covers every operation. Still open: the reducer does not refuse an
+  answer by the question's own source holder, so the answer-grant separation of ESC-V0-004 must be
+  enforced by an operation-scoped grant in the writer slice.
+- Refusals of ambiguous shorthand now name the open questions in the reducer
+  (`EscalationRefusal.RequestIDs`); rendering them is left to the CLI slice.
+- Reducer refusal tests now assert exact codes through `EscalationRefusal.Code`. Ticket codec
+  refusals are plain errors and still assert only that they refuse.
+- Each call decoded every blob several times. Measured with `BenchmarkIssue502_ApplyNearCapacity`
+  on a loaded 12-core host (load average about 7 to 8): 57 ms, 43 MB and 526k allocations per call
+  before a per-call decode memo, 14 ms, 12 MB and 143k allocations after it. The memo never
+  outlives one exported call, so a blob changed between calls is re-verified. A quiet-host figure
+  is NOT_RUN.
 
 ## Rollout and rollback
 

@@ -9,8 +9,8 @@ Requirements: CAL-V0-071, CAL-V0-072 (new, S21) and an amendment to CAL-V0-062 (
 
 On 2026-10-04 the owner split #354. The issue closes on (a) multi-repository programs and (b) Codex
 continuation across longer runs, using the configurable effort already delivered (CAL-V0-062/063).
-Claude Code and OpenCode supervisor hosts move to separate native tickets, which the coordinator
-files. They are out of scope here, and S13 records the split.
+Claude Code and OpenCode supervisor hosts move to separate native tickets: V1-0755 (Claude Code)
+and V1-0756 (OpenCode). They are out of scope here, and S13 records the split.
 
 ## Decisions
 
@@ -63,7 +63,7 @@ files. They are out of scope here, and S13 records the split.
   `TestPSR*` pool-sweep tests in `internal/tasks/store`. Those fail identically at base `cd70ba0a`
   when `TMPDIR` is the symlinked `/var/folders/...` (`UNSUPPORTED_FILESYSTEM: env file:
   non-directory or symlink parent`), and they pass on this branch with `TMPDIR` resolved to
-  `/private/var/folders/...`. The failure is environmental and predates this change.
+  `/private/var/folders/...`. The failure is environmental, predates this change, and is filed as V1-0753.
 - **Affected plan:** `corvint affected` selected 172 units with scope `UNKNOWN`. The doc edits reach
   most of them through documentation readers. Units beyond the packages above are `NOT_RUN`, per
   the owner's focused-test preference.
