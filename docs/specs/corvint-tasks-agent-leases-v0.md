@@ -85,6 +85,7 @@ one.
 | S15 | CAL-V0-065 | Opt-in explicit per-claim member exclusions; focused tests and a compiled native fixture |
 | S17 | CAL-V0-067 | Experimental operator-attested untouched release; scoped native/archive/crash fixtures passed, physical facts NOT_OBSERVED |
 | S18 | CAL-V0-068 | Experimental host-pressure launch throttle: hysteresis level caps new non-exempt launches; running workers untouched |
+| S20 | CAL-V0-070 | Proposed writer cost independent of receipt history (V1-0645): baseline benchmark only; implementation NOT_RUN |
 
 CAL-V0-062/063 are defined in S13 (issue 354). CAL-V0-064 (S14, issue 468) is reserved
 by coordinated unlanded work; CAL-V0-066/S16 remains reserved for issue 464 if used.
@@ -1238,6 +1239,180 @@ a ledger that carries the record, so a downgrade first needs one start without `
 fixture parsing only; live Linux sampling is NOT_RUN, and other operating systems are always
 UNKNOWN. Regression witnesses are the CAL-V0-068 and issue-497 tests in the traceability table.
 
+### S20 — Writer cost independent of receipt history (V1-0645, proposed)
+
+Authoritative input: native ticket V1-0645, the writer follow-up named in S12's non-goals,
+owner-prioritised on 2026-10-04 as the root cause behind issues 494 and 545. An uncontended mutation
+costs about 2.9 s at 7,140 live receipts. Ten concurrent writers therefore sit at the 30-second
+admission budget, and a 14-writer wave completed 55 of 70 operations with three LOCK_TIMEOUT
+refusals. Intent status: proposed. This section governs nothing until the owner accepts it. Until
+then, the last sentence of CAL-V0-061 still applies unchanged: every mutation and request lookup
+keeps the complete audit. CAL-V0-070/S20 is provisional: CAL-V0-069/S19 (issue 494) and
+CAL-V0-071..072/S21 (issue 354) are held by unlanded work, and the coordinator confirms the ID.
+Delivered so far: the baseline measurement only. Implementation is NOT_RUN.
+
+Measured cost. The opt-in `TestCALV0070_WriterHistoryProfile` (`internal/tasks/store`) measures
+each writer primitive separately on a settled synthetic store. The store has 50 tickets, and every
+receipt posts one request plus one 4 KiB-padded ticket afterimage (about 6 KB per receipt). It has
+no evidence, attempts or reservations. Conditions: Apple M2 Max, 12 CPUs, Go 1.27.1, darwin/arm64,
+medians of 3, host load average 25–33 from concurrent agents.
+
+| Receipts | Request lookup audit | Inventory | Complete audit | `Mutate` total | Lease observed audit | Guarded inventory | S12 checkpoint + tail |
+|---|---|---|---|---|---|---|---|
+| 500 | 412 ms | 320 ms | 513 ms | 1,471 ms | 525 ms | 8.5 ms | 14 ms |
+| 2,000 | 1,534 ms | 1,415 ms | 1,434 ms | 5,033 ms | 1,364 ms | 22 ms | 12 ms |
+| 7,000 | 4,558 ms | 4,129 ms | 3,939 ms | 16,561 ms | 4,716 ms | 56 ms | 13 ms |
+
+No single step dominates. `store.Mutate` takes three passes over history under the writer lock:
+- the request-lookup audit;
+- an inventory that opens, reads and hashes every state file;
+- a second complete audit for the projected records.
+
+Each pass costs about a third, roughly 0.5–0.6 ms per receipt. Lease commands (claim, renew,
+heartbeat, release), which issues 494 and 545 exercise, already make one observed pass and reuse
+its digests. They still pay that pass, plus a change guard that watches every retained file (570 ms
+at 7,000 receipts). The live figure of 2.9 s per operation is consistent with that single pass on a
+quieter host, which is an inference.
+
+CPU profiles of three mutations put most of the time in these passes:
+
+| Receipts | Journal audits | Inventory | Capacity model |
+|---|---|---|---|
+| 2,000 | 64% | 29% | — |
+| 7,000 | 59% | 37% | under 3% |
+
+Most of that time is per-file `safeopen` work, which descends from `/` for every path (41%
+cumulative in `InRoot` at 2,000 receipts, with flat time mostly in syscalls). SHA-256 is not visible
+in the profile. Each mutation allocates about 1.65 GB, in 9.0 million allocations (receipt and
+record decode/encode). The wall-time remainder of about 0.66 ms per receipt appears as no separate
+CPU step; the likely cause is contention and GC under host load, which is an inference.
+
+Two bounded paths already exist:
+- the S12 checkpoint-plus-tail read is flat at 12–14 ms;
+- the lease path's guarded inventory, which reuses the digests observed by its one audit, costs
+  22 ms against 1,415 ms for a fresh inventory.
+
+The maintained `BenchmarkCALV0070_MutateAt2000Receipts` records the before number. See
+`docs/build-log/2026-10-04-tasks-writer-history-cost.md`.
+
+- `CAL-V0-070`: A journal writer (`store.Mutate` and lease preparation) MUST make at most one pass
+  over receipt history, and only when its writer checkpoint cannot be used. It MUST NOT otherwise
+  read, hash, open or individually watch the files that history alone retains.
+  1. One pass. Whenever the complete audit runs, it runs once per mutation. The request lookup
+     and the projected records come from that one observation. The inventory reuses the physical
+     digests that observation read, as lease preparation already does.
+  2. Writer checkpoint. The file is `<state directory>.writer-checkpoint.json`, with profile
+     `taskman-writer-checkpoint/0`. It sits beside the journal state directory, never inside it,
+     and is separate from the S12 read checkpoint so that older runtimes neither read nor replace
+     it. Its codec is closed and bounded by the CAL-V0-059 limits. It records:
+     - everything CAL-V0-059 records;
+     - the request index: every `requests/` path with the sequence and digest of its afterimage,
+       path-ordered;
+     - the name sets of `receipts/`, `requests/` and `evidence/`, together with the exact count,
+       byte and archive-manifest-encoding contribution of those write-once files, so that capacity
+       is measured without opening them.
+
+     It MUST be derived only from a complete, settled, consistent `FULL` audit, retained by the
+     writer under CAL-V0-060's conditions, and never derived from a resumed observation. A request
+     index that would exceed the codec bound is not retained; writers then keep the complete audit.
+  3. Rebinding. Under the writer lock and after pending-receipt redo, a writer that resumes MUST
+     confirm:
+     - the queue ID, primary worktree, init digest, generation and version digest;
+     - that the head is at or beyond the checkpoint sequence by at most `K` receipts;
+     - that the named receipt still hashes to its recorded digest;
+     - that a names-only listing of each write-once directory equals the checkpoint's names plus
+       the tail's posts.
+
+     It MUST then:
+     - replay every tail receipt with the unchanged per-receipt validators, including the duplicate
+       request check against the request index;
+     - verify every live projection, staging emptiness, the barrier, reservations and the intent
+       tree exactly as the complete audit does;
+     - verify the target request: for a replay it is present with its indexed digest, and for a
+       new request it is absent from both the index and the listing.
+
+     Lease preparation resumes the same way. Its change guard watches the live files and the
+     write-once directories rather than every retained file.
+  4. Equivalence. Wherever the resumed path completes, the outcome, receipt bytes, replay result and
+     capacity cost MUST equal those of the complete-audit path. Any decode error, mismatch, refusal
+     or oversized tail MUST fall back to the complete audit, whose verdict governs. An unusable
+     checkpoint never yields a refusal, a receipt or a capacity verdict that the complete audit
+     would not. Every barrier removal, reconciliation and `receipt audit` keeps the complete audit,
+     and so does every mutation once `K` receipts have landed since the last complete audit.
+
+Detection limit (the owner trade-off). A resumed writer does not re-read history before the
+checkpoint sequence. An altered prefix receipt, an altered `requests/` or `evidence/` file that the
+tail does not post, or a checkpoint altered together with its projection is therefore detected only
+by the next complete audit, at most `K` receipts later, or by `receipt audit`. Up to `K` receipts may
+land on such a prefix before the store refuses, as it refuses today. `K` is owner-set; this
+proposal suggests 256, which at the measured 0.5–0.7 ms per replayed receipt bounds a resumed tail
+at roughly 0.2 s (an inference). Name-level strays, gaps and
+deletions in the write-once directories, and duplicate request IDs, are still refused or fall back
+on every mutation.
+
+Interaction with product invariant 7. The writer checkpoint is derived state: a write-once encoding
+that is replaced by rename and that nothing ever updates in place. It is not a database, has no query
+engine, needs no daemon, and is never an input to authority, ranking or archive content. Deleting it
+costs one complete audit. Because it is an immutable derived index encoding, it still needs the
+benchmark and format gate before acceptance:
+- this benchmark, before and after on the same host;
+- decode-limit and malformed-input tests for the closed codec;
+- an exact capacity-parity test against the full inventory;
+- a build-log format entry.
+
+Non-goals:
+- any change to the receipt, journal, intent, request, evidence or archive format;
+- writer-retained state that a read mutates;
+- relaxing CAL-V0-061 for reads;
+- lock admission and fairness (issue 494);
+- evidence deduplication;
+- removing the per-read intent-tree passes (V1-0646).
+
+Failure modes:
+
+| Failure | Handling |
+|---|---|
+| Crash during retention (torn temporary file) | The rename leaves the old or the new file; a decode error falls back to the complete audit |
+| Stale checkpoint | The tail is replayed; a tail longer than `K` forces the complete audit |
+| Checkpoint from another queue, generation or forked history | Rebinding fails, and the complete audit governs |
+| Older runtime writes receipts without maintaining the checkpoint | The tail grows until `K` forces a complete audit |
+| Write-once name added, removed or missing | The listing disagrees, so the complete audit governs |
+| Prefix bytes tampered | Detected at most `K` receipts later, as under the detection limit above |
+| Capacity aggregate wrong (defect) | The parity tests and every complete audit recompute it; the complete audit governs |
+
+The S12 read checkpoint is then refreshed only on complete audits, so a read replays at most `K`
+receipts.
+
+Acceptance evidence:
+1. `BenchmarkCALV0070_MutateAt2000Receipts` before and after, on the same host and fixture with
+   `-benchtime 5x`, recording load.
+2. `TestCALV0070_WriterHistoryProfile` at 500, 2,000 and 7,000 receipts, where the resumed
+   `Mutate` cost at 7,000 is within an owner-set factor of its cost at 500.
+3. A differential test, for every mutation kind, showing that the resumed and complete paths
+   produce identical outcomes, receipt bytes and capacity cost.
+4. Refusal or fallback for each of these counterexamples:
+   - a duplicate request ID against the prefix, with its projection deleted;
+   - an altered receipt at the checkpoint sequence;
+   - a stray, missing or gapped receipt;
+   - a foreign or torn checkpoint;
+   - a tail longer than `K`;
+   - capacity at each hard limit.
+5. Crash injection before and after the retention rename.
+6. `receipt audit` returning `FULL` with CONSISTENT/AGREES after a concurrent wave.
+7. The opt-in issue 545 wave at 7,140 receipts, with its outcome counts and worst latency retained.
+
+Rollback: delete `<state directory>.writer-checkpoint.json` to force the complete audit until the
+next complete audit retains a new one, or revert the writer option. No retained format changes.
+
+Implementation plan, in order (none of it done):
+- (A) Merge the lookup and complete audits and reuse the observed digests in the inventory. This
+  needs no format change, and the primitives above project about 2.0–2.1 s at 2,000 receipts. That
+  figure is an inference, not a measurement, and the result is still proportional to history.
+  Lease commands already work this way, so step (A) does not help them.
+- (B) Open the state-directory root once per scan instead of descending from `/` for each file,
+  keeping the no-follow and identity checks. This is a constant factor.
+- (C) The writer checkpoint and rebinding above, delivered as its own reviewed slice.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -1442,6 +1617,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-042 | `internal/companionrelease/tasks_archive.go`, companion release `-tasks-only`; `TestTasksArchiveAssembly`, `TestTasksArchiveHelpRefusesOldRuntime`; native archive build retained in change evidence |
 
 | CAL-V0-027 | `TestCALV0027_CompiledNonfixtureReleaseLifecycle`, `TestCALV0027_NonfixtureReleaseBindings`, `TestCALV0027_NonfixtureReleaseReadinessRefusals` (`internal/tasks/cli`); `TestCALV0027_ReleaseAfterQualifiedCutover`, `TestCALV0027_ReleaseInterruptionRecovery`, `TestCALV0027_ReleaseActiveStageAndReconciliation`, `TestCALV0027_ReleaseWrongActor`, `TestCALV0027_ActualCompletedStages` (`internal/tasks/store`); `TestCALV0027_NonfixtureStageBinding`, `TestCALV0027_CompletedStageReceiptKinds`, `TestCALV0027_CompletedStageInnerBindings` (`internal/tasks/snapshot`). |
+| CAL-V0-070 | Proposed. Baseline only: `BenchmarkCALV0070_MutateAt2000Receipts` and opt-in `TestCALV0070_WriterHistoryProfile` (`internal/tasks/store`); see `docs/build-log/2026-10-04-tasks-writer-history-cost.md`. Implementation and acceptance tests NOT_RUN |
 
 ## Holder, retry and policy observation acceptance
 
