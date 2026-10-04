@@ -1,0 +1,4624 @@
+{
+  "$defs": {
+    "descendants": {
+      "additionalProperties": false,
+      "properties": {
+        "Absent": {
+          "type": "boolean"
+        },
+        "Failures": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "IntervalMS": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "Limitations": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Processes": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/logical-process"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Scope": {
+          "maxLength": 4096,
+          "type": "string"
+        }
+      },
+      "required": [
+        "Scope",
+        "IntervalMS",
+        "Processes",
+        "Absent",
+        "Failures",
+        "Limitations"
+      ],
+      "type": "object"
+    },
+    "git-draft": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "type": "string"
+        },
+        "files": {
+          "items": {
+            "$ref": "#/$defs/git-file"
+          },
+          "maxItems": 20000,
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "docs",
+            "tests",
+            "corpus"
+          ]
+        },
+        "parent": {
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "type": "string"
+        },
+        "tree": {
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "commit",
+        "tree",
+        "parent",
+        "files"
+      ],
+      "type": "object"
+    },
+    "git-file": {
+      "additionalProperties": false,
+      "properties": {
+        "blob": {
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "type": "string"
+        },
+        "bytes": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mode": {
+          "enum": [
+            "100644",
+            "100755",
+            "120000",
+            "160000"
+          ]
+        },
+        "path": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "mode",
+        "blob",
+        "sha256",
+        "bytes"
+      ],
+      "type": "object"
+    },
+    "host-policy": {
+      "additionalProperties": false,
+      "properties": {
+        "implementation_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "logical_mounts": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "pattern": "^[a-z][a-z0-9-]{0,63}$",
+                "type": "string"
+              },
+              "path": {
+                "maxLength": 4096,
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "path"
+            ],
+            "type": "object"
+          },
+          "maxItems": 8,
+          "type": "array"
+        },
+        "policy_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "profile": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "qualification_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile",
+        "policy_sha256",
+        "implementation_sha256",
+        "qualification_sha256",
+        "logical_mounts"
+      ],
+      "type": "object"
+    },
+    "log-fact": {
+      "additionalProperties": false,
+      "properties": {
+        "consumer": {
+          "const": "retained-uninterpreted-success-log/0"
+        },
+        "state": {
+          "enum": [
+            "absent",
+            "empty",
+            "present"
+          ]
+        }
+      },
+      "required": [
+        "state",
+        "consumer"
+      ],
+      "type": "object"
+    },
+    "logical-process": {
+      "additionalProperties": false,
+      "properties": {
+        "birth_distinct_from": {
+          "items": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "maxItems": 256,
+          "type": "array"
+        },
+        "node": {
+          "pattern": "^proc/(0|[1-9][0-9]*)/(host-supervisor|workflow-root|assessment-worker|runner|server|observer|attestor|control-hook|cleanup-hook|playwright-worker|browser-main|browser-zygote|browser-renderer|browser-gpu|browser-utility)/(main|default|sandboxed|unsandboxed|network|storage)$",
+          "type": "string"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "maxLength": 4096,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "role": {
+          "enum": [
+            "host-supervisor",
+            "workflow-root",
+            "assessment-worker",
+            "runner",
+            "server",
+            "observer",
+            "attestor",
+            "control-hook",
+            "cleanup-hook",
+            "playwright-worker",
+            "browser-main",
+            "browser-zygote",
+            "browser-renderer",
+            "browser-gpu",
+            "browser-utility"
+          ]
+        },
+        "run_kind": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "run_ordinal": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "state": {
+          "maxLength": 4096,
+          "type": "string"
+        }
+      },
+      "required": [
+        "node",
+        "role",
+        "run_kind",
+        "run_ordinal",
+        "parent",
+        "state",
+        "birth_distinct_from"
+      ],
+      "type": "object"
+    },
+    "measurement": {
+      "additionalProperties": false,
+      "properties": {
+        "rule": {
+          "const": "native-elapsed-no-acceptance-rule/0"
+        },
+        "state": {
+          "enum": [
+            "absent",
+            "null",
+            "zero",
+            "measured",
+            "unknown"
+          ]
+        },
+        "thresholds": {
+          "items": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "maxItems": 32,
+          "type": "array"
+        }
+      },
+      "required": [
+        "state",
+        "rule",
+        "thresholds"
+      ],
+      "type": "object"
+    },
+    "native-seal": {
+      "additionalProperties": false,
+      "properties": {
+        "profile": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "verified": {
+          "const": true
+        }
+      },
+      "required": [
+        "profile",
+        "verified"
+      ],
+      "type": "object"
+    },
+    "pinned-json-bytes": {
+      "contentEncoding": "base64",
+      "maxLength": 1048576,
+      "type": "string"
+    },
+    "rendering": {
+      "additionalProperties": false,
+      "properties": {
+        "present": {
+          "type": "boolean"
+        },
+        "renderer": {
+          "const": "testacceptance.renderBody/1"
+        },
+        "verified": {
+          "const": true
+        }
+      },
+      "required": [
+        "present",
+        "renderer",
+        "verified"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.Approval": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "$ref": "#/$defs/native-seal"
+        },
+        "method": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "plan_digest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "schema": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema",
+        "plan_digest",
+        "method",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.Artifact": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "sha256": {
+          "oneOf": [
+            {
+              "maxLength": 4096,
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/semantic-link"
+            }
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.AttemptResult": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt": {
+          "type": "integer"
+        },
+        "cleanup_process": {
+          "$ref": "#/$defs/sem.behaviorfalsify.ProcessEvidence"
+        },
+        "hook_process": {
+          "$ref": "#/$defs/sem.behaviorfalsify.ProcessEvidence"
+        },
+        "reasons": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.behaviorfalsify.HookReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retained_artifacts": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.behaviorfalsify.Artifact"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "workspace_after": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "workspace_before": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "attempt",
+        "status",
+        "reasons",
+        "hook_process",
+        "cleanup_process",
+        "workspace_before",
+        "workspace_after",
+        "retained_artifacts"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.Command": {
+      "additionalProperties": false,
+      "properties": {
+        "executable_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "path": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "executable_sha256"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.ControlResult": {
+      "additionalProperties": false,
+      "properties": {
+        "attempts": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.behaviorfalsify.AttemptResult"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "ordinal": {
+          "type": "integer"
+        },
+        "reasons": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "ordinal",
+        "status",
+        "reasons",
+        "attempts"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.ControlSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "definition": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "disposition": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "hook": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.behaviorfalsify.Command"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "required_setup": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unrelated_criteria": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "disposition",
+        "definition",
+        "unrelated_criteria",
+        "required_setup"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.CriterionObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "assertion_id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "criterion_id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "failure_kind": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "state": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "criterion_id",
+        "state"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.EvidenceReceipt": {
+      "additionalProperties": false,
+      "properties": {
+        "approval": {
+          "$ref": "#/$defs/sem.behaviorfalsify.Approval"
+        },
+        "digest": {
+          "$ref": "#/$defs/native-seal"
+        },
+        "plan_preimage": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "raw_attempts": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.behaviorfalsify.RawAttempt"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "report": {
+          "$ref": "#/$defs/sem.behaviorfalsify.Report"
+        },
+        "schema": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "tool": {
+          "$ref": "#/$defs/sem.behaviorfalsify.ToolIdentity"
+        },
+        "unsupported": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema",
+        "plan_preimage",
+        "approval",
+        "tool",
+        "raw_attempts",
+        "report",
+        "unsupported",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.HookReceipt": {
+      "additionalProperties": false,
+      "properties": {
+        "artifacts": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.behaviorfalsify.Artifact"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attempt": {
+          "type": "integer"
+        },
+        "infrastructure": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.behaviorfalsify.InfrastructureFailure"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "native_receipt_sha256": {
+          "$ref": "#/$defs/semantic-link"
+        },
+        "perturbation_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "plan_digest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "retry": {
+          "type": "integer"
+        },
+        "runner": {
+          "$ref": "#/$defs/sem.behaviorfalsify.RunnerIdentity"
+        },
+        "schema": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "setup": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.behaviorfalsify.SetupObservation"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target": {
+          "$ref": "#/$defs/sem.behaviorfalsify.TargetIdentity"
+        },
+        "target_observation": {
+          "$ref": "#/$defs/sem.behaviorfalsify.CriterionObservation"
+        },
+        "test_outcome": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "unrelated": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.behaviorfalsify.CriterionObservation"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema",
+        "plan_digest",
+        "perturbation_sha256",
+        "target",
+        "runner",
+        "attempt",
+        "retry",
+        "native_receipt_sha256",
+        "test_outcome",
+        "target_observation",
+        "unrelated",
+        "setup",
+        "artifacts"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.InfrastructureFailure": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.MutationScore": {
+      "additionalProperties": false,
+      "properties": {
+        "defined": {
+          "type": "boolean"
+        },
+        "denominator": {
+          "type": "integer"
+        },
+        "killed": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "defined",
+        "killed",
+        "denominator"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.Plan": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "planned_controls": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.behaviorfalsify.PlannedControl"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request": {
+          "$ref": "#/$defs/sem.behaviorfalsify.Request"
+        },
+        "schema": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "workspace_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema",
+        "request",
+        "planned_controls",
+        "workspace_sha256",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.PlannedControl": {
+      "additionalProperties": false,
+      "properties": {
+        "definition": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "disposition": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "hook": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.behaviorfalsify.Command"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "ordinal": {
+          "type": "integer"
+        },
+        "perturbation_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "required_setup": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unrelated_criteria": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "disposition",
+        "definition",
+        "unrelated_criteria",
+        "required_setup",
+        "ordinal",
+        "perturbation_sha256"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.ProcessEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "cancelled": {
+          "type": "boolean"
+        },
+        "completed": {
+          "type": "boolean"
+        },
+        "descendants_gone": {
+          "type": "boolean"
+        },
+        "error": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "exit": {
+          "type": "integer"
+        },
+        "overflow": {
+          "type": "boolean"
+        },
+        "owned_cleanup": {
+          "type": "boolean"
+        },
+        "started": {
+          "type": "boolean"
+        },
+        "stderr_sha256": {
+          "$ref": "#/$defs/log-fact"
+        },
+        "stdout_sha256": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/semantic-link"
+            },
+            {
+              "$ref": "#/$defs/log-fact"
+            }
+          ]
+        },
+        "timed_out": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "exit",
+        "started",
+        "completed",
+        "cancelled",
+        "timed_out",
+        "overflow",
+        "owned_cleanup",
+        "descendants_gone",
+        "stdout_sha256",
+        "stderr_sha256"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.RawAttempt": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt": {
+          "type": "integer"
+        },
+        "control_id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "hook_bytes": {
+          "$ref": "#/$defs/semantic-link"
+        },
+        "hook_sha256": {
+          "$ref": "#/$defs/semantic-link"
+        },
+        "native_bytes": {
+          "$ref": "#/$defs/semantic-link"
+        },
+        "native_sha256": {
+          "$ref": "#/$defs/semantic-link"
+        },
+        "omissions": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ordinal": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "control_id",
+        "ordinal",
+        "attempt",
+        "hook_bytes",
+        "hook_sha256",
+        "native_bytes",
+        "native_sha256",
+        "omissions"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.Report": {
+      "additionalProperties": false,
+      "properties": {
+        "complete_vocabulary": {
+          "type": "boolean"
+        },
+        "counts": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage_gaps": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "digest": {
+          "$ref": "#/$defs/native-seal"
+        },
+        "executed": {
+          "type": "integer"
+        },
+        "fallback": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "limitations": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mutation_score": {
+          "$ref": "#/$defs/sem.behaviorfalsify.MutationScore"
+        },
+        "plan_digest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "requested": {
+          "type": "integer"
+        },
+        "results": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.behaviorfalsify.ControlResult"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "supported": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema",
+        "plan_digest",
+        "results",
+        "counts",
+        "requested",
+        "supported",
+        "executed",
+        "complete_vocabulary",
+        "mutation_score",
+        "coverage_gaps",
+        "fallback",
+        "limitations",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.RepositoryRoots": {
+      "additionalProperties": false,
+      "properties": {
+        "application": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "documentation": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "test": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "application",
+        "test",
+        "documentation"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.Request": {
+      "additionalProperties": false,
+      "properties": {
+        "attempts": {
+          "type": "integer"
+        },
+        "cleanup": {
+          "$ref": "#/$defs/sem.behaviorfalsify.Command"
+        },
+        "controls": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.behaviorfalsify.ControlSpec"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "declared_env_keys": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "disposable_root": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "external_state": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "marker_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "repositories": {
+          "$ref": "#/$defs/sem.behaviorfalsify.RepositoryRoots"
+        },
+        "runner": {
+          "$ref": "#/$defs/sem.behaviorfalsify.RunnerIdentity"
+        },
+        "target": {
+          "$ref": "#/$defs/sem.behaviorfalsify.TargetIdentity"
+        },
+        "timeout_seconds": {
+          "type": "integer"
+        },
+        "wall_clock_seconds": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "target",
+        "runner",
+        "controls",
+        "cleanup",
+        "disposable_root",
+        "repositories",
+        "marker_sha256",
+        "declared_env_keys",
+        "attempts",
+        "timeout_seconds",
+        "wall_clock_seconds",
+        "external_state"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.RunnerIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "browser": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "browser_version": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "config_file": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "config_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "environment_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "runner": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "runner_version": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "runner",
+        "runner_version",
+        "browser",
+        "browser_version",
+        "config_file",
+        "config_sha256",
+        "environment_sha256"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.SetupObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "state": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "state"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.TargetIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "application_revision": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "assertion_id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "contract_file": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "contract_id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "contract_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "criterion_id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "documentation_revision": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "project": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "test_file": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "test_id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "test_line": {
+          "type": "integer"
+        },
+        "test_revision": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "test_title": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "contract_id",
+        "contract_sha256",
+        "criterion_id",
+        "assertion_id",
+        "application_revision",
+        "test_revision",
+        "documentation_revision",
+        "contract_file",
+        "test_id",
+        "test_file",
+        "test_line",
+        "test_title",
+        "project"
+      ],
+      "type": "object"
+    },
+    "sem.behaviorfalsify.ToolIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "executable_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "revision": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "source_dirty": {
+          "type": "boolean"
+        },
+        "version": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "revision",
+        "executable_sha256",
+        "source_dirty"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.Anchor": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "line": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "file",
+        "line"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.AppBuildIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "unknown": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "digest",
+        "unknown"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.ApplicationArtifactIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.ApplicationAttestation": {
+      "additionalProperties": false,
+      "properties": {
+        "build": {
+          "$ref": "#/$defs/sem.jstestprovider.ApplicationArtifactIdentity"
+        },
+        "configuration": {
+          "$ref": "#/$defs/sem.jstestprovider.ApplicationArtifactIdentity"
+        },
+        "health": {
+          "$ref": "#/$defs/sem.jstestprovider.ApplicationHealth"
+        },
+        "instance": {
+          "$ref": "#/$defs/sem.jstestprovider.ApplicationInstanceIdentity"
+        },
+        "profile": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "repository": {
+          "$ref": "#/$defs/sem.jstestprovider.ApplicationRepositoryIdentity"
+        }
+      },
+      "required": [
+        "profile",
+        "repository",
+        "build",
+        "configuration",
+        "instance",
+        "health"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.ApplicationAttestationExpectation": {
+      "additionalProperties": false,
+      "properties": {
+        "build": {
+          "$ref": "#/$defs/sem.jstestprovider.ApplicationArtifactIdentity"
+        },
+        "configuration": {
+          "$ref": "#/$defs/sem.jstestprovider.ApplicationArtifactIdentity"
+        },
+        "instanceKind": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "repository": {
+          "$ref": "#/$defs/sem.jstestprovider.ApplicationRepositoryExpectation"
+        }
+      },
+      "required": [
+        "repository",
+        "build",
+        "configuration",
+        "instanceKind"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.ApplicationAttestationObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "attestation": {
+          "$ref": "#/$defs/sem.jstestprovider.ApplicationAttestation"
+        },
+        "outputDigest": {
+          "$ref": "#/$defs/semantic-link"
+        }
+      },
+      "required": [
+        "outputDigest",
+        "attestation"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.ApplicationAttestationProviderIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "argv": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "configDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "configPath": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "environment": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "executableDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "executablePath": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "profile": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile",
+        "argv",
+        "executablePath",
+        "executableDigest",
+        "configPath",
+        "configDigest",
+        "environment"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.ApplicationAttestationReceipt": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.ApplicationAttestationObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "before": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.ApplicationAttestationObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expectation": {
+          "$ref": "#/$defs/sem.jstestprovider.ApplicationAttestationExpectation"
+        },
+        "failures": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider": {
+          "$ref": "#/$defs/sem.jstestprovider.ApplicationAttestationProviderIdentity"
+        }
+      },
+      "required": [
+        "provider",
+        "expectation",
+        "failures"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.ApplicationHealth": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "state": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.ApplicationInstanceIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/logical-process"
+        },
+        "kind": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "startGeneration": {
+          "$ref": "#/$defs/native-seal"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "startGeneration"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.ApplicationRepositoryExpectation": {
+      "additionalProperties": false,
+      "properties": {
+        "dirtyDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "dirtyPolicy": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "revision": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "rootCommit": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "tree": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "rootCommit",
+        "revision",
+        "tree",
+        "dirtyPolicy"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.ApplicationRepositoryIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "dirtyDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "dirtyState": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "revision": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "rootCommit": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "tree": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "rootCommit",
+        "revision",
+        "tree",
+        "dirtyState"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.Attempt": {
+      "additionalProperties": false,
+      "properties": {
+        "failureKind": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "retry": {
+          "type": "integer"
+        },
+        "state": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "steps": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.jstestprovider.BrowserStep"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "state",
+        "retry",
+        "failureKind"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.AttemptDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "anchor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.Anchor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "artifacts": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.jstestprovider.FailureArtifact"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "durationMs": {
+          "$ref": "#/$defs/measurement"
+        },
+        "failureMessage": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "retry": {
+          "type": "integer"
+        },
+        "state": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "retry",
+        "durationMs"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.BrowserStep": {
+      "additionalProperties": false,
+      "properties": {
+        "attachments": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.jstestprovider.FailureArtifact"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "category": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "error": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "redacted": {
+          "type": "boolean"
+        },
+        "steps": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.jstestprovider.BrowserStep"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "title": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "title"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.ExecutionSchedule": {
+      "additionalProperties": false,
+      "properties": {
+        "starts": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.jstestprovider.ExecutionStart"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "workers": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "workers",
+        "starts"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.ExecutionStart": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "fullName": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "fullyParallel": {
+          "type": "boolean"
+        },
+        "line": {
+          "type": "integer"
+        },
+        "project": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "retries": {
+          "type": "integer"
+        },
+        "retry": {
+          "type": "integer"
+        },
+        "worker": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "fullName",
+        "file",
+        "line",
+        "project",
+        "retry",
+        "retries",
+        "worker",
+        "fullyParallel"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.ExternalLifecycle": {
+      "additionalProperties": false,
+      "properties": {
+        "cleanupResponsibility": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "configOverride": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "declaredAppIdentity": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "inputsUnchanged": {
+          "type": "boolean"
+        },
+        "ownership": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "readyAtPublish": {
+          "type": "boolean"
+        },
+        "readyAtStart": {
+          "type": "boolean"
+        },
+        "readyUrl": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "runnerDescendantsGone": {
+          "type": "boolean"
+        },
+        "serverDescendants": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "readyUrl",
+        "declaredAppIdentity",
+        "ownership",
+        "cleanupResponsibility",
+        "serverDescendants",
+        "readyAtStart",
+        "readyAtPublish",
+        "runnerDescendantsGone",
+        "inputsUnchanged",
+        "configOverride"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.FailureArtifact": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "path": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "path"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.FreshCommandBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.FreshCommandIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "before": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.FreshCommandIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expected": {
+          "$ref": "#/$defs/sem.jstestprovider.FreshCommandIdentity"
+        }
+      },
+      "required": [
+        "expected"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.FreshCommandIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "argv": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entrypointDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "executableDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "argv",
+        "executableDigest",
+        "entrypointDigest"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.FreshDependencyManifest": {
+      "additionalProperties": false,
+      "properties": {
+        "files": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "roots": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "roots",
+        "files"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.FreshDependencyObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "failures": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "files": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "files",
+        "failures"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.FreshProcessIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "pid": {
+          "$ref": "#/$defs/logical-process"
+        },
+        "start": {
+          "$ref": "#/$defs/native-seal"
+        }
+      },
+      "required": [
+        "pid",
+        "start"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.FreshServeObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "observerImports": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "process": {
+          "$ref": "#/$defs/sem.jstestprovider.FreshProcessIdentity"
+        },
+        "serverImports": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "url": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "url",
+        "process",
+        "body",
+        "serverImports",
+        "observerImports"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.FreshnessBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "artifactAfter": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "artifactBefore": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "artifactPath": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "dependencies": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.FreshDependencyManifest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dependenciesAfter": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.FreshDependencyObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dependenciesBefore": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.FreshDependencyObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dependencyDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "documentUrl": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "environmentAfter": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "environmentBefore": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "failures": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "identityAfter": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.Identity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "leader": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.FreshProcessIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mutation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.ResponseMutationDefinition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observer": {
+          "$ref": "#/$defs/sem.jstestprovider.FreshCommandBinding"
+        },
+        "observerConfigAfter": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "observerConfigBefore": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "productAfter": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.ApplicationRepositoryIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "productBefore": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.ApplicationRepositoryIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "productExpected": {
+          "$ref": "#/$defs/sem.jstestprovider.ApplicationRepositoryIdentity"
+        },
+        "runner": {
+          "$ref": "#/$defs/sem.jstestprovider.FreshCommandBinding"
+        },
+        "servedAfter": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.FreshServeObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "servedBefore": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.FreshServeObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "server": {
+          "$ref": "#/$defs/sem.jstestprovider.FreshCommandBinding"
+        },
+        "serverDescendants": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.procgroup.DescendantObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "serverGone": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "serverInputDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "source": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sourceDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "testExpected": {
+          "$ref": "#/$defs/sem.jstestprovider.ApplicationRepositoryIdentity"
+        }
+      },
+      "required": [
+        "dependencies",
+        "dependencyDigest",
+        "serverInputDigest",
+        "productExpected",
+        "testExpected",
+        "artifactPath",
+        "source",
+        "sourceDigest",
+        "artifactBefore",
+        "artifactAfter",
+        "documentUrl",
+        "runner",
+        "server",
+        "observer",
+        "observerConfigBefore",
+        "observerConfigAfter",
+        "environmentBefore",
+        "environmentAfter",
+        "failures"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.FreshnessConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "artifactPath": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "dependencies": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.FreshDependencyManifest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dependencyDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "documentUrl": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "mutation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.ResponseMutationDefinition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observer": {
+          "$ref": "#/$defs/sem.jstestprovider.FreshCommandIdentity"
+        },
+        "observerConfigDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "observerConfigFile": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "productDir": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "productExpected": {
+          "$ref": "#/$defs/sem.jstestprovider.ApplicationRepositoryIdentity"
+        },
+        "runner": {
+          "$ref": "#/$defs/sem.jstestprovider.FreshCommandIdentity"
+        },
+        "server": {
+          "$ref": "#/$defs/sem.jstestprovider.FreshCommandIdentity"
+        },
+        "sourceDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "testExpected": {
+          "$ref": "#/$defs/sem.jstestprovider.ApplicationRepositoryIdentity"
+        }
+      },
+      "required": [
+        "dependencies",
+        "dependencyDigest",
+        "productDir",
+        "productExpected",
+        "testExpected",
+        "artifactPath",
+        "sourceDigest",
+        "documentUrl",
+        "runner",
+        "server",
+        "observer",
+        "observerConfigFile",
+        "observerConfigDigest"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.Identity": {
+      "additionalProperties": false,
+      "properties": {
+        "argv": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "configDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "configFile": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "configInputDigests": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "environment": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "nodeVersion": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "packageDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "runnerName": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "runnerVersion": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "testFileDigests": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "testFileDigests",
+        "configFile",
+        "configDigest",
+        "packageDigest",
+        "nodeVersion",
+        "runnerName",
+        "runnerVersion",
+        "environment",
+        "argv"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.InfrastructureFailure": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason",
+        "detail"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.ProjectIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "browser": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "configDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "device": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "use": {
+          "$ref": "#/$defs/pinned-json-bytes"
+        }
+      },
+      "required": [
+        "name",
+        "browser",
+        "device",
+        "use",
+        "configDigest"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.Receipt": {
+      "additionalProperties": false,
+      "properties": {
+        "appBuildAtPublish": {
+          "$ref": "#/$defs/sem.jstestprovider.AppBuildIdentity"
+        },
+        "appBuildAtStart": {
+          "$ref": "#/$defs/sem.jstestprovider.AppBuildIdentity"
+        },
+        "applicationAttestation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.ApplicationAttestationReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cancelled": {
+          "type": "boolean"
+        },
+        "descendantObservation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.procgroup.DescendantObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "external": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.ExternalLifecycle"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "freshness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.FreshnessBinding"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "identity": {
+          "$ref": "#/$defs/sem.jstestprovider.Identity"
+        },
+        "infrastructure": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.InfrastructureFailure"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "profile": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "runnerResources": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "MaxRSSBytes": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "rule": {
+                      "const": "native-resource-no-acceptance-rule/0"
+                    },
+                    "state": {
+                      "enum": [
+                        "zero",
+                        "measured"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "rule"
+                  ],
+                  "type": "object"
+                },
+                "SystemCPUNs": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "rule": {
+                      "const": "native-resource-no-acceptance-rule/0"
+                    },
+                    "state": {
+                      "enum": [
+                        "zero",
+                        "measured"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "rule"
+                  ],
+                  "type": "object"
+                },
+                "UserCPUNs": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "rule": {
+                      "const": "native-resource-no-acceptance-rule/0"
+                    },
+                    "state": {
+                      "enum": [
+                        "zero",
+                        "measured"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "rule"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "UserCPUNs",
+                "SystemCPUNs",
+                "MaxRSSBytes"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schedule": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.ExecutionSchedule"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sensitiveInputPolicy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.SensitiveInputPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "serverDescendantsGone": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "staleAppBuild": {
+          "type": "boolean"
+        },
+        "testRepositoryAtPublish": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.ApplicationRepositoryIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "testRepositoryAtStart": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.ApplicationRepositoryIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tests": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.jstestprovider.TestOutcome"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "identity",
+        "appBuildAtStart",
+        "appBuildAtPublish",
+        "staleAppBuild",
+        "tests",
+        "cancelled"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.ResponseMutationDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "artifactPath": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "from": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "mutantSha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "sourceSha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "to": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifactPath",
+        "sourceSha256",
+        "from",
+        "to",
+        "mutantSha256"
+      ],
+      "type": "object"
+    },
+    "sem.jstestprovider.SensitiveInputPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "additionalActionPatterns": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "additionalSensitiveFields": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "sem.jstestprovider.TestOutcome": {
+      "additionalProperties": false,
+      "properties": {
+        "anchor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.Anchor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "artifacts": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.jstestprovider.FailureArtifact"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attemptDetails": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.jstestprovider.AttemptDetail"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attempts": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.jstestprovider.Attempt"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "durationMs": {
+          "$ref": "#/$defs/measurement"
+        },
+        "failureMessage": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "fullName": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "importedFiles": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "project": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.ProjectIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retries": {
+          "type": "integer"
+        },
+        "state": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "fullName",
+        "state",
+        "retries",
+        "durationMs"
+      ],
+      "type": "object"
+    },
+    "sem.procgroup.DescendantObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "absent": {
+          "type": "boolean"
+        },
+        "failures": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "interval_ms": {
+          "type": "integer"
+        },
+        "limitations": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "processes": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.procgroup.ObservedProcess"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scope": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "scope",
+        "interval_ms",
+        "processes",
+        "absent",
+        "failures",
+        "limitations"
+      ],
+      "type": "object"
+    },
+    "sem.procgroup.ObservedProcess": {
+      "additionalProperties": false,
+      "properties": {
+        "parent_pid": {
+          "$ref": "#/$defs/native-seal"
+        },
+        "pid": {
+          "$ref": "#/$defs/logical-process"
+        },
+        "start": {
+          "$ref": "#/$defs/native-seal"
+        },
+        "state": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "pid",
+        "parent_pid",
+        "start",
+        "state"
+      ],
+      "type": "object"
+    },
+    "sem.procgroup.ResourceUsage": {
+      "additionalProperties": false,
+      "properties": {
+        "MaxRSSBytes": {
+          "type": "integer"
+        },
+        "SystemCPUNs": {
+          "type": "integer"
+        },
+        "UserCPUNs": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "UserCPUNs",
+        "SystemCPUNs",
+        "MaxRSSBytes"
+      ],
+      "type": "object"
+    },
+    "sem.testacceptance.Assessment": {
+      "additionalProperties": false,
+      "properties": {
+        "cleanup": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "order": {
+          "$ref": "#/$defs/sem.testacceptance.OrderEvidence"
+        },
+        "reasons": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "repeats": {
+          "$ref": "#/$defs/sem.testacceptance.RepeatSummary"
+        },
+        "validity": {
+          "$ref": "#/$defs/sem.testvalidity.Projection"
+        },
+        "verdict": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "verdict",
+        "reasons",
+        "validity",
+        "repeats",
+        "cleanup",
+        "order"
+      ],
+      "type": "object"
+    },
+    "sem.testacceptance.Cleanup": {
+      "additionalProperties": false,
+      "properties": {
+        "cancelled": {
+          "type": "boolean"
+        },
+        "descendants": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.procgroup.DescendantObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "owned_group": {
+          "type": "boolean"
+        },
+        "qualification": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "status": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "timed_out": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "owned_group",
+        "status",
+        "qualification",
+        "cancelled",
+        "timed_out"
+      ],
+      "type": "object"
+    },
+    "sem.testacceptance.Command": {
+      "additionalProperties": false,
+      "properties": {
+        "argv": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entrypoint_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "executable_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "argv",
+        "executable_sha256"
+      ],
+      "type": "object"
+    },
+    "sem.testacceptance.Control": {
+      "additionalProperties": false,
+      "properties": {
+        "cleanup": {
+          "$ref": "#/$defs/sem.testacceptance.Cleanup"
+        },
+        "evidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.behaviorfalsify.EvidenceReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "plan_digest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "receipt_digest": {
+          "$ref": "#/$defs/semantic-link"
+        },
+        "status": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "unsupported": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "unsupported",
+        "cleanup"
+      ],
+      "type": "object"
+    },
+    "sem.testacceptance.File": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "sem.testacceptance.FreshnessOptions": {
+      "additionalProperties": false,
+      "properties": {
+        "attestation": {
+          "$ref": "#/$defs/sem.testacceptance.Command"
+        },
+        "attestation_configuration": {
+          "$ref": "#/$defs/sem.testacceptance.File"
+        },
+        "provider": {
+          "$ref": "#/$defs/sem.jstestprovider.FreshnessConfig"
+        }
+      },
+      "required": [
+        "provider",
+        "attestation",
+        "attestation_configuration"
+      ],
+      "type": "object"
+    },
+    "sem.testacceptance.OrderEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "isolated_states": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "original_state": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "requested_file_order": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "reversed_state": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "status": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "requested_file_order",
+        "original_state",
+        "reversed_state",
+        "isolated_states"
+      ],
+      "type": "object"
+    },
+    "sem.testacceptance.RepeatSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "failed": {
+          "type": "integer"
+        },
+        "max_duration_ms": {
+          "$ref": "#/$defs/measurement"
+        },
+        "min_duration_ms": {
+          "$ref": "#/$defs/measurement"
+        },
+        "other": {
+          "type": "integer"
+        },
+        "passed": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "passed",
+        "failed",
+        "other"
+      ],
+      "type": "object"
+    },
+    "sem.testacceptance.Report": {
+      "additionalProperties": false,
+      "properties": {
+        "assessments": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.testacceptance.Assessment"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "body": {
+          "$ref": "#/$defs/rendering"
+        },
+        "build": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "controls": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.testacceptance.Control"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "environment": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "executable_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "product": {
+          "$ref": "#/$defs/sem.testacceptance.Repository"
+        },
+        "reasons": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_digest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "runs": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.testacceptance.Run"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "test_repository": {
+          "$ref": "#/$defs/sem.testacceptance.Repository"
+        },
+        "unknowns": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verdict": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "verdict",
+        "reasons",
+        "schema",
+        "request_digest",
+        "product",
+        "test_repository",
+        "environment",
+        "build",
+        "executable_sha256",
+        "runs",
+        "controls",
+        "assessments",
+        "unknowns",
+        "body"
+      ],
+      "type": "object"
+    },
+    "sem.testacceptance.Repository": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "root": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "tree": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "root",
+        "commit",
+        "tree"
+      ],
+      "type": "object"
+    },
+    "sem.testacceptance.Request": {
+      "additionalProperties": false,
+      "properties": {
+        "app_build_dir": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "config": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "environment": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "freshness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.testacceptance.FreshnessOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inputs": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.testacceptance.File"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lockfile": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "package": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "product": {
+          "$ref": "#/$defs/sem.testacceptance.Repository"
+        },
+        "ready_url": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "repeat": {
+          "type": "integer"
+        },
+        "runner": {
+          "$ref": "#/$defs/sem.testacceptance.Command"
+        },
+        "runner_version": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "schema": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "server": {
+          "$ref": "#/$defs/sem.testacceptance.Command"
+        },
+        "test_repository": {
+          "$ref": "#/$defs/sem.testacceptance.Repository"
+        },
+        "tests": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.testacceptance.Test"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timeout_seconds": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema",
+        "product",
+        "test_repository",
+        "inputs",
+        "tests",
+        "config",
+        "package",
+        "lockfile",
+        "runner",
+        "server",
+        "ready_url",
+        "app_build_dir",
+        "runner_version",
+        "environment",
+        "repeat",
+        "timeout_seconds"
+      ],
+      "type": "object"
+    },
+    "sem.testacceptance.Row": {
+      "additionalProperties": false,
+      "properties": {
+        "attempts": {
+          "type": "integer"
+        },
+        "duration_ms": {
+          "$ref": "#/$defs/measurement"
+        },
+        "id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "identity_unknown": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observed_id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "retries": {
+          "type": "integer"
+        },
+        "state": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "validity": {
+          "$ref": "#/$defs/sem.testvalidity.Projection"
+        }
+      },
+      "required": [
+        "id",
+        "state",
+        "duration_ms",
+        "retries",
+        "attempts",
+        "validity",
+        "identity_unknown"
+      ],
+      "type": "object"
+    },
+    "sem.testacceptance.Run": {
+      "additionalProperties": false,
+      "properties": {
+        "cleanup": {
+          "$ref": "#/$defs/sem.testacceptance.Cleanup"
+        },
+        "kind": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "native_receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/semantic-link"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "node_version": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "observed_schedule": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.jstestprovider.ExecutionSchedule"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ordinal": {
+          "type": "integer"
+        },
+        "reasons": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receipt_sha256": {
+          "$ref": "#/$defs/semantic-link"
+        },
+        "requested_files": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rows": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/sem.testacceptance.Row"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "test_id": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "ordinal",
+        "requested_files",
+        "rows",
+        "reasons",
+        "cleanup"
+      ],
+      "type": "object"
+    },
+    "sem.testacceptance.Test": {
+      "additionalProperties": false,
+      "properties": {
+        "control": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.behaviorfalsify.Plan"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "control_command": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.testacceptance.Command"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "file": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "line": {
+          "type": "integer"
+        },
+        "project": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "tool": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sem.behaviorfalsify.ToolIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "file",
+        "line",
+        "title",
+        "project"
+      ],
+      "type": "object"
+    },
+    "sem.testvalidity.Axis": {
+      "additionalProperties": false,
+      "properties": {
+        "anchors": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "state": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "reason",
+        "anchors"
+      ],
+      "type": "object"
+    },
+    "sem.testvalidity.Projection": {
+      "additionalProperties": false,
+      "properties": {
+        "association": {
+          "$ref": "#/$defs/sem.testvalidity.Axis"
+        },
+        "execution": {
+          "$ref": "#/$defs/sem.testvalidity.Axis"
+        },
+        "freshness": {
+          "$ref": "#/$defs/sem.testvalidity.Axis"
+        },
+        "hygiene": {
+          "$ref": "#/$defs/sem.testvalidity.Axis"
+        },
+        "strength": {
+          "$ref": "#/$defs/sem.testvalidity.Axis"
+        }
+      },
+      "required": [
+        "association",
+        "hygiene",
+        "freshness",
+        "execution",
+        "strength"
+      ],
+      "type": "object"
+    },
+    "semantic-link": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "provider"
+            },
+            "locator": {
+              "pattern": "^/providers/(0|[1-9][0-9]*)/receipt$",
+              "type": "string"
+            },
+            "sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "locator",
+            "sha256"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "hook"
+            },
+            "locator": {
+              "pattern": "^/hooks/(0|[1-9][0-9]*)/receipt$",
+              "type": "string"
+            },
+            "sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "locator",
+            "sha256"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "control-evidence"
+            },
+            "locator": {
+              "pattern": "^/assessment/controls/(0|[1-9][0-9]*)/evidence$",
+              "type": "string"
+            },
+            "sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "locator",
+            "sha256"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "attestation"
+            },
+            "locator": {
+              "pattern": "^/providers/(0|[1-9][0-9]*)/receipt/applicationAttestation/(before|after)/attestation$",
+              "type": "string"
+            },
+            "sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "locator",
+            "sha256"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "tool": {
+      "additionalProperties": false,
+      "properties": {
+        "build": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "config_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "executable_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "role": {
+          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+          "type": "string"
+        },
+        "runtime": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "source_commit": {
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "type": "string"
+        },
+        "source_tree": {
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "source_commit",
+        "source_tree",
+        "executable_sha256",
+        "build",
+        "runtime",
+        "config_sha256"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:corvint:new-e2e-decision:2",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assessment": {
+      "$ref": "#/$defs/sem.testacceptance.Report"
+    },
+    "hooks": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "control_id": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "id": {
+            "pattern": "^/hooks/(0|[1-9][0-9]*)/receipt$",
+            "type": "string"
+          },
+          "ordinal": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "receipt": {
+            "$ref": "#/$defs/sem.behaviorfalsify.HookReceipt"
+          }
+        },
+        "required": [
+          "id",
+          "control_id",
+          "ordinal",
+          "attempt",
+          "receipt"
+        ],
+        "type": "object"
+      },
+      "maxItems": 4096,
+      "type": "array"
+    },
+    "identity": {
+      "additionalProperties": false,
+      "properties": {
+        "draft": {
+          "$ref": "#/$defs/git-draft"
+        },
+        "field_map_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "host": {
+          "$ref": "#/$defs/host-policy"
+        },
+        "manifest_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "product_commit": {
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "type": "string"
+        },
+        "product_tree": {
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "type": "string"
+        },
+        "request_digest": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "source_schema_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "test_commit": {
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "type": "string"
+        },
+        "test_tree": {
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "type": "string"
+        },
+        "tools": {
+          "items": {
+            "$ref": "#/$defs/tool"
+          },
+          "maxItems": 32,
+          "type": "array"
+        }
+      },
+      "required": [
+        "manifest_sha256",
+        "request_digest",
+        "product_commit",
+        "product_tree",
+        "test_commit",
+        "test_tree",
+        "draft",
+        "tools",
+        "host",
+        "field_map_sha256",
+        "source_schema_sha256"
+      ],
+      "type": "object"
+    },
+    "limitations": {
+      "items": {
+        "maxLength": 4096,
+        "type": "string"
+      },
+      "maxItems": 64,
+      "type": "array"
+    },
+    "processes": {
+      "items": {
+        "$ref": "#/$defs/logical-process"
+      },
+      "maxItems": 4096,
+      "type": "array"
+    },
+    "profile": {
+      "const": "corvint-new-e2e-decision/2"
+    },
+    "providers": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "control_id": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "control_ordinal": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "pattern": "^/providers/(0|[1-9][0-9]*)/receipt$",
+            "type": "string"
+          },
+          "receipt": {
+            "$ref": "#/$defs/sem.jstestprovider.Receipt"
+          },
+          "role": {
+            "enum": [
+              "baseline",
+              "control-native"
+            ]
+          },
+          "run_kind": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "run_ordinal": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "test_ids": {
+            "items": {
+              "maxLength": 4096,
+              "type": "string"
+            },
+            "maxItems": 32,
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "run_kind",
+          "run_ordinal",
+          "control_id",
+          "control_ordinal",
+          "attempt",
+          "receipt",
+          "test_ids"
+        ],
+        "type": "object"
+      },
+      "maxItems": 4096,
+      "type": "array"
+    }
+  },
+  "required": [
+    "profile",
+    "identity",
+    "assessment",
+    "providers",
+    "hooks",
+    "processes",
+    "limitations"
+  ],
+  "type": "object"
+}
