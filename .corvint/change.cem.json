@@ -2,14 +2,14 @@
   "baseRevision": "9e8a5c6ed3ff35cd4884c0722d92818ec339298c",
   "evidence": [
     {
-      "blobOid": "614a9bcabc52fabe2f7b114e5d4598425d4ae39f",
-      "id": "evidence:sha256:695cf10c3228d6b85da2b594a7f4d63edb4e6e59ac445a4ba6d84024cbe5edd3",
-      "path": "docs/specs/process-group-owner-v0.md",
+      "blobOid": "53d5310ee474c2bd8b7fd2dddaaf4efaf473800a",
+      "id": "evidence:sha256:f68a338c7694a2229cc63d32f9ab37f0c642ecd64a799295675784271640e7a4",
+      "path": "docs/AGENT-ROUTES.md",
       "span": {
-        "end": 6102,
-        "start": 4758
+        "end": 12134,
+        "start": 11956
       },
-      "spanSha256": "7a15df4b3683b6703de5a762a321a445cd379eb5ac7edd58fdf6a0fc795491c6"
+      "spanSha256": "072d9966574964f968ed98c6a02d4b3805db8fbec0042283b94ef253e9c92125"
     },
     {
       "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
@@ -40,6 +40,16 @@
         "start": 4350
       },
       "spanSha256": "a9ca462fabbe13fbfdec8cc2ee879a711d5e7ea3eba19f726197a03747da894d"
+    },
+    {
+      "blobOid": "614a9bcabc52fabe2f7b114e5d4598425d4ae39f",
+      "id": "evidence:sha256:695cf10c3228d6b85da2b594a7f4d63edb4e6e59ac445a4ba6d84024cbe5edd3",
+      "path": "docs/specs/process-group-owner-v0.md",
+      "span": {
+        "end": 6102,
+        "start": 4758
+      },
+      "spanSha256": "7a15df4b3683b6703de5a762a321a445cd379eb5ac7edd58fdf6a0fc795491c6"
     },
     {
       "blobOid": "614a9bcabc52fabe2f7b114e5d4598425d4ae39f",
@@ -77,7 +87,67 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:695cf10c3228d6b85da2b594a7f4d63edb4e6e59ac445a4ba6d84024cbe5edd3",
+          "evidenceId": "evidence:sha256:f68a338c7694a2229cc63d32f9ab37f0c642ecd64a799295675784271640e7a4",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:fa1582d35c95e3363ed6f77fd608b52eb2172fce5d28b1569d432cbd9dee915e",
+      "newRange": {
+        "count": 7,
+        "start": 136
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 136
+      },
+      "path": "Makefile",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:f68a338c7694a2229cc63d32f9ab37f0c642ecd64a799295675784271640e7a4",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:75a8c8c5666c30b4b7b7ac69318e14ad30fc6559e073135731ad2f37ebc7025a",
+      "newRange": {
+        "count": 11,
+        "start": 131
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 131
+      },
+      "path": "docs/AGENT-ROUTES.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0e749dc28b4e8cb4b3a3ef2618fd638e51456b97708df865c2ae7d97d8da2aef",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:640b011dcc847877315900634cbe884a79c0e4a40b6e73b80b0aa4c1bc3d472e",
+      "newRange": {
+        "count": 9,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-03-owner-spec-index-repair.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0e749dc28b4e8cb4b3a3ef2618fd638e51456b97708df865c2ae7d97d8da2aef",
           "relation": "specification"
         }
       ],
@@ -97,12 +167,12 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:0e749dc28b4e8cb4b3a3ef2618fd638e51456b97708df865c2ae7d97d8da2aef",
+          "evidenceId": "evidence:sha256:21ba4707d597f1cca5f13198542285bed647e99eed68bc0507b89acb26c1aa0c",
           "relation": "specification"
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:62f41c7c2c042d92b222a2be48ceddc187dd0009d79e10de8afa8ede097cedd2",
+      "id": "hunk:sha256:d0c49c598382e09302c403a17133697b9d1993d5a43afb7a90cffaee0f138925",
       "newRange": {
         "count": 7,
         "start": 6
@@ -117,18 +187,18 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:21ba4707d597f1cca5f13198542285bed647e99eed68bc0507b89acb26c1aa0c",
+          "evidenceId": "evidence:sha256:c396092d289350470778ebfb371399452641ba1ac69c8440c66f7cd6a970e003",
           "relation": "specification"
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:be0464145f218d6a2ccc6cc24994d189dd924739ba5384853a5591c3592df12d",
+      "id": "hunk:sha256:ab37fede1ab9b66dd7c3bcd5efd59b087ef84c3a9ae621e61239c3ff0a4cb902",
       "newRange": {
-        "count": 7,
+        "count": 13,
         "start": 3
       },
       "oldRange": {
-        "count": 7,
+        "count": 13,
         "start": 3
       },
       "path": "docs/specs/process-group-owner-v0.md",
@@ -137,7 +207,7 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:c396092d289350470778ebfb371399452641ba1ac69c8440c66f7cd6a970e003",
+          "evidenceId": "evidence:sha256:695cf10c3228d6b85da2b594a7f4d63edb4e6e59ac445a4ba6d84024cbe5edd3",
           "relation": "specification"
         }
       ],
@@ -275,6 +345,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "718e8eaa1a5f5828ebfa13539301a989f86aa167894ab4d8e62e0cadf8544588",
+  "patchSha256": "292f7b086f3f4abb12b17bf0f3be54192a59c6ecf3c3f620f31f1e23d32c52c7",
   "spec": "cem/0.2"
 }
