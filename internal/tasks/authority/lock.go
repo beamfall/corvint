@@ -68,6 +68,17 @@ type Lock struct {
 //     closed before returning, so a failed call never holds the lock.
 //   - ENOLCK/EOPNOTSUPP/ENOTSUP fail UNSUPPORTED_FILESYSTEM (§5.1).
 func AcquireLock(ctx context.Context, repo *intent.Repository, opts LockOptions) (*Lock, error) {
+	return acquireLock(ctx, repo, opts, false)
+}
+
+// acquireLock admits only the two fixed native coordination filenames. A
+// preparation handle stays private to its distinct wrapper and cannot authorize
+// a writer session. Both paths retain the repository writer-lock tuple checks.
+func acquireLock(ctx context.Context, repo *intent.Repository, opts LockOptions, preparation bool) (*Lock, error) {
+	name := LockFileName
+	if preparation {
+		name = preparationLockFileName
+	}
 	if !supportedPlatform {
 		return nil, fsErr("", "unsupported platform")
 	}
@@ -81,9 +92,10 @@ func AcquireLock(ctx context.Context, repo *intent.Repository, opts LockOptions)
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	wantLock := filepath.Join(repo.CommonDir, LockFileName)
-	if repo.LockPath != wantLock {
-		return nil, fsErr(repo.LockPath, "lock path is not %s (repository identity drift)", wantLock)
+	wantWriterLock := filepath.Join(repo.CommonDir, LockFileName)
+	wantLock := filepath.Join(repo.CommonDir, name)
+	if repo.LockPath != wantWriterLock {
+		return nil, fsErr(repo.LockPath, "lock path is not %s (repository identity drift)", wantWriterLock)
 	}
 	again, err := intent.Resolve(repo.PrimaryWorktree)
 	if err != nil {
@@ -109,23 +121,34 @@ func AcquireLock(ctx context.Context, repo *intent.Repository, opts LockOptions)
 		return nil, fsErr(repo.CommonDir, "common directory identity drift")
 	}
 
-	pre, err := root.Lstat(LockFileName)
+	pre, err := root.Lstat(name)
 	exists := err == nil
 	if err != nil && !os.IsNotExist(err) {
 		return nil, fsErr(wantLock, "cannot stat: %v", err)
 	}
 	if exists {
 		if pre.Mode()&os.ModeSymlink != 0 {
-			return nil, fsErr(wantLock, "taskman.lock is a symlink")
+			return nil, fsErr(wantLock, "%s is a symlink", name)
 		}
 		if !pre.Mode().IsRegular() {
-			return nil, fsErr(wantLock, "taskman.lock is not a regular file (mode %v)", pre.Mode())
+			return nil, fsErr(wantLock, "%s is not a regular file (mode %v)", name, pre.Mode())
 		}
 	}
+	wait := EffectiveWait(opts.Wait)
+	deadline := start.Add(wait)
 	// No O_TRUNC, no O_APPEND: the file's bytes are never touched.
-	f, err := safeopen.InRoot(root, LockFileName, os.O_RDWR|os.O_CREATE, 0o644, false)
-	if err != nil {
-		return nil, fsErr(wantLock, "cannot open or create: %v", err)
+	var f *os.File
+	if preparation {
+		f, pre, err = openPreparationFile(ctx, root, pre, wantLock, deadline, wait)
+		if err != nil {
+			return nil, err
+		}
+		exists = pre != nil
+	} else {
+		f, err = safeopen.InRoot(root, name, os.O_RDWR|os.O_CREATE, 0o644, false)
+		if err != nil {
+			return nil, fsErr(wantLock, "cannot open or create: %v", err)
+		}
 	}
 	st, err := f.Stat()
 	if err != nil {
@@ -140,18 +163,16 @@ func AcquireLock(ctx context.Context, repo *intent.Repository, opts LockOptions)
 		f.Close()
 		return nil, fsErr(wantLock, "lock file replaced between stat and open (identity drift)")
 	}
-	post, err := root.Lstat(LockFileName)
+	post, err := root.Lstat(name)
 	if err != nil || post.Mode()&os.ModeSymlink != 0 || !os.SameFile(post, st) {
 		f.Close()
 		return nil, fsErr(wantLock, "lock file replaced after open (identity drift)")
 	}
 
-	wait := EffectiveWait(opts.Wait)
 	poll := opts.Poll
 	if poll <= 0 {
 		poll = DefaultLockPoll
 	}
-	deadline := start.Add(wait)
 	var acquired time.Time
 	for {
 		if err := ctx.Err(); err != nil {
@@ -180,7 +201,7 @@ func AcquireLock(ctx context.Context, repo *intent.Repository, opts LockOptions)
 		now := time.Now()
 		if !now.Before(deadline) {
 			f.Close()
-			return nil, wire.Errorf(wire.CodeLockTimeout, wantLock, "taskman.lock is held by another process; waited %v", wait)
+			return nil, wire.Errorf(wire.CodeLockTimeout, wantLock, "%s is held by another process; waited %v", name, wait)
 		}
 		if err := ctx.Err(); err != nil {
 			f.Close()
@@ -211,7 +232,7 @@ func AcquireLock(ctx context.Context, repo *intent.Repository, opts LockOptions)
 	// The flock is on the open file description; if the directory entry
 	// was unlinked or replaced while waiting, the lock guards an orphan
 	// and a concurrent process could hold the new file. Refuse.
-	cur, err := root.Lstat(LockFileName)
+	cur, err := root.Lstat(name)
 	if err != nil || cur.Mode()&os.ModeSymlink != 0 || !os.SameFile(cur, st) {
 		relErr := withFD(f, flockRelease)
 		closeErr := f.Close()
@@ -230,7 +251,10 @@ func AcquireLock(ctx context.Context, repo *intent.Repository, opts LockOptions)
 		f.Close()
 		return nil, wire.Errorf(wire.CodeLockTimeout, wantLock, "lock acquisition exceeded %v", wait)
 	}
-	observe, _ := ctx.Value(lockObserverKey{}).(func(time.Duration))
+	var observe func(time.Duration)
+	if !preparation {
+		observe, _ = ctx.Value(lockObserverKey{}).(func(time.Duration))
+	}
 	return &Lock{f: f, path: wantLock, acquired: acquired, observe: observe}, nil
 }
 
@@ -264,4 +288,37 @@ func (l *Lock) Close() error {
 		l.observe(released.Sub(l.acquired))
 	}
 	return nil
+}
+
+// acquirePreparationGate spends the original admission deadline. It never feeds
+// a remaining duration through EffectiveWait, which would reset an expired wait.
+// Public writer acquisition above keeps its original behavior and cleanup scope.
+func acquirePreparationGate(repo *intent.Repository, b *preparationBudget) (lock *Lock, err error) {
+	s, err := openPreparationScope(repo, b)
+	if err != nil {
+		return nil, err
+	}
+	var p *preparationFile
+	defer func() {
+		err = withCleanup(err, s.close())
+		if err != nil {
+			err = withCleanup(err, p.close())
+			lock = nil
+		}
+	}()
+	p, err = s.open(preparationLockFileName, true, b)
+	if err != nil {
+		return nil, err
+	}
+	if err = preparationTake(p, b, flockNB); err != nil {
+		return nil, err
+	}
+	acquired := p.acquired
+	if err = s.validate(p); err != nil {
+		return nil, err
+	}
+	if err = b.check(); err != nil {
+		return nil, err
+	}
+	return &Lock{f: p.f, path: filepath.Join(repo.CommonDir, preparationLockFileName), acquired: acquired}, nil
 }
