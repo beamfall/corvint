@@ -38,3 +38,9 @@ Documentation, specindex and catalog checks passed at the merge.
 The selected keyed checks, exact-target independent review, hosted integration and native
 completion are not recorded here. Linux runtime and physical external cleanup remain unqualified.
 Rollback reverts the merge and this entry; quarantine, pending owners and evidence are preserved.
+
+Follow-up correction after review: the statement that merge 8b409a2f keeps main archives 63368234
+and f400a78e is true only of that merge. Main merge 4620e343 (#508, commit f56569a6) later removed
+both, and the main merge 43afacc18724e06f2b2123e8bfc2cef6dfb7b9cd took that removal, so the branch
+from 43afacc1 onward lacks them. Main restored both in #510 (8934e540, merged as e5d47da8). The
+branch does not touch either path, so merging it into current main keeps the restored archives.
