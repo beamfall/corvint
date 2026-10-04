@@ -27,7 +27,7 @@ sources under `internal/tasks`.
 - Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
-- Read next: Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release); Amendments to TCP-00; Failure modes.
+- Read next: #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release); Amendments to TCP-00; Failure modes.
 
 ## User and boundary
 
@@ -459,7 +459,8 @@ silently shared.
   `claim --next`, derive only the ticket selected by the existing conservative priority plan,
   bind the facts to that ticket, and recheck collisions; a blocked plan stays blocked.
   Decision 0397's CAL-V0-022 addendum permits only the scope adapter's Core imports and its
-  pack-fixture test import. Standalone source-archive rebuild remains blocked by V1-0456.
+  pack-fixture test import; its separate #464 addendum admits only `internal/tasks/dispatch`
+  importing `internal/groupreap`. Standalone source-archive rebuild remains blocked by V1-0456.
 - `CAL-V0-023`: Two live attempts MUST collide exactly when their resource sets collide under
   TCP-00 §4.2 path normalization; `WHOLE_REPOSITORY` collides with every live entry and every live
   entry collides with it. A colliding `claim` refuses `RESOURCE_COLLISION` naming the other
@@ -784,7 +785,7 @@ derived from the installed CLI source and is not live-qualified; see
   `key: value` line in an absolute per-ticket file of at most 64 KiB) or a `command` reader (one JSON
   object of ticket ID or local name to state, at most 1 MiB of output, 60 s timeout). Values are at most
   64 printable bytes. A missing file is `NONE`. Every read failure MUST yield `UNKNOWN` and an alert,
-  never a guessed state. Roles that match states MUST refuse without a reader.
+  never a guessed state. Roles that match states MUST refuse without a reader. See the #464 command-reader lifecycle amendment below.
 - `CAL-V0-054`: The roster MUST be a pure function of the configuration, one observation, the
   running workers and the backoff skip set. Roles match tickets by labels, kinds, an ID glob, work
   states, excluded states, statuses and plan selection, or lane roles match quarantined members of
@@ -1297,11 +1298,11 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-045 | `TestCALV0045_RetryPolicyBounds` (`internal/tasks/intent`); `TestCALV0045_PolicyControlsAdmissionAndRecovery`, `TestCALV0045_RecoveryUsesCurrentPolicy` (`internal/tasks/store`); `TestCALV0045_CLIConfiguredRetriesAndNoTreeHandoff` (`internal/tasks/cli`) |
 | CAL-V0-046 | `TestCALV0046_ReleasePreimageCompatibility`, `TestCALV0046_NoTreeEligibilityBindings` (`internal/tasks/transaction`); `TestCALV0046_NoTreeHandoffSchema` (`internal/tasks/snapshot`); `TestCALV0046_NoTreeHandoffAndIntegrate`, `TestCALV0046_NoTreeRefusals` (`internal/tasks/store`); `TestCALV0045_CLIConfiguredRetriesAndNoTreeHandoff`, `TestCALV0046_CLICompatibility`, `TestCALV0046_CLIPoolHandoffQuarantines` (`internal/tasks/cli`) |
 | CAL-V0-047 | `TestCALV0047_AllCommandHelpIsReadOnly`, `TestCALV0047_MalformedInputsStillRefuse` (`internal/tasks/cli`) |
-| CAL-V0-052 | `TestCALV0052_DecodeConfigIsClosedAndBounded`, `TestCALV0052_RenderIsSinglePass` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
-| CAL-V0-053 | `TestCALV0053_WorkStateReaders` (`internal/tasks/dispatch`) |
+| CAL-V0-052 | `TestCALV0052_RunNormalizesShutdown`, `TestCALV0052_DecodeConfigIsClosedAndBounded`, `TestCALV0052_RenderIsSinglePass` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
+| CAL-V0-053 | `TestCALV0053_WorkStateReaders`, `TestCALV0053_ReaderReleased`, `TestCALV0053_ReaderFixedRetirementBound`, `TestCALV0053_ReaderExpiredBeforeRetirement`, `TestCALV0053_ReaderHoldIsSticky`, `TestCALV0053_ReaderMarkerRefusesUnsafeEvidence`, `TestCALV0053_ReaderMarkerIdentityAndSetup`, `TestCALV0053_ReaderLocalTimeout`, `TestCALV0053_ReaderClearFailureQuarantines`, `TestCALV0053_ReaderFilesystemFailures`, `TestCALV0053_ReaderFailedDiagnostic`, `TestCALV0053_ReaderDescendants`, `TestCALV0053_CancelledTickKeepsState`, `TestCALV0053_CancelledReobservationKeepsDurableState`, `TestCALV0053_EndedContextDoesNotObserve` (`internal/tasks/dispatch`); `TestCALV0053_DispatchReaderCLIQuarantineAndStatus`, `TestCALV0053_DispatchReaderCLIClearFailure`, `TestCALV0053_DispatchReaderCLIReleased`, `TestCALV0053_DispatchReaderCLICrashRetainsQuarantine` (`internal/tasks/cli`); #464 evidence and limits below |
 | CAL-V0-054 | `TestCALV0054_RosterIsDeterministicAndCapped`, `TestCALV0054_RosterStatePredicatesAndLanes` (`internal/tasks/dispatch`) |
 | CAL-V0-055 | `TestCALV0055_LaunchFinishBackoffAndPark` (`internal/tasks/dispatch`); live OpenCode run in `docs/build-log/2026-10-01-tasks-continuous-dispatch.md`; live Claude Code and Codex runs in `docs/build-log/2026-10-01-tasks-dispatch-claude-code.md` and `docs/build-log/2026-10-01-tasks-dispatch-codex.md` |
-| CAL-V0-056 | `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0056_KillsOrphanedProcessesBySession`, `TestCALV0056_IdentityOutageAndUnknownState` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
+| CAL-V0-056 | `TestCALV0056_CancelledHealingStopsNextWrite`, `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0056_KillsOrphanedProcessesBySession`, `TestCALV0056_IdentityOutageAndUnknownState` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
 | CAL-V0-057 | `TestCALV0057_FingerprintIgnoresNonDurableAttempts`, `TestCALV0055_LaunchFinishBackoffAndPark` (`internal/tasks/dispatch`) |
 | CAL-V0-058 | Event assertions in `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0058_SummaryReadsHostFinalText` (`internal/tasks/dispatch`) and `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
 | CAL-V0-059 | `TestCALV0059_CheckpointCodecAndDerivation` (`internal/tasks/journal`) |
@@ -1354,3 +1355,44 @@ Rollback requires a compatible reader/writer for added optional attempt members;
 and request bytes, stop admissions before replacing a writer, and never silently downgrade over
 records an older closed codec cannot read. Focused qualification establishes these disposable
 seams only; repository-wide gate, production process liveness and hosted outcomes remain unclaimed.
+
+## #464 command-reader lifecycle amendment
+
+This records the experimental implementation of the existing CAL-V0-053 repair
+under GitHub #464 / V1-0654. It adds no requirement ID or new acceptance of the
+proposed `process-group-owner-v0.md` contract. The accepted work-state limits and
+UNKNOWN/alert behavior above remain in force. Final integration qualification is
+pending; see `docs/build-log/2026-10-04-dispatch-reader-lifecycle-integration.md`.
+
+A command reader holds one creation-owned process slot through result handling.
+After command exit or cancellation, retirement uses one fixed deadline: the earlier
+of command deadline plus one second and retirement trigger plus one second. Only
+Owner RELEASED permits inspecting output and returning ordinary read results.
+Unproved retirement retains UNKNOWN and poisons the dispatcher invocation;
+subsequent Tick/Run calls stop, including bounded runs and canceled contexts.
+Close releases the lock through the terminal UNKNOWN path without normal ledger
+or event writes. Cancellation also stops subsequent healing writes; it does not
+roll back an already completed mutation.
+
+Before spawning, the locked program directory receives a bounded canonical
+`reader-lifecycle.json` marker with profile `taskman-dispatch-reader-lifecycle/0`,
+program, random run identifier and lifecycle UNKNOWN. It contains no PID authority.
+Restart checks refuse unresolved, malformed, symlink or nonregular evidence before
+owner/ledger/event writes or worker adoption. Only matching file identity and bytes
+are cleared after RELEASED/result handling or a start failure that owns no child.
+Publication or clear failure stops this invocation; failed diagnostics do not clear
+quarantine. A publication failure before creation need not leave a marker because
+no reader was spawned. There is no automatic recovery or marker-clear endpoint.
+
+Read-only status separates `readerContainment`, `readerQuarantined` and
+`readerDiagnostic` from dispatcher PID liveness. Marker absence is NOT_OBSERVED,
+not proof of RELEASED. Exported ReadStates command calls retain the same boundary
+under the private `work-state-reader` program; status-line reads retain their
+existing behavior. Unsupported process-owner platforms refuse before creation.
+
+The marker covers process restart/crash visibility, not power loss. Old binaries,
+manual deletion and alternate state directories can bypass it. No escaped-session
+or host-wide containment, immortal handle retention, Linux amd64 runtime, or
+promotion of the Owner dependency is claimed. Rollback requires quiescing owned
+readers and preserving unresolved markers/evidence; reverting code alone does not
+prove cleanup or make an older reader safe.
