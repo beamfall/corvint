@@ -4,7 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/dogfoodoperation"
+	"github.com/Beamfall/corvint/internal/tracerecordrepo"
 	"io"
 	"os"
 	"path/filepath"
@@ -17,16 +21,17 @@ import (
 // ChangeOptions are the inputs of `corvint dogfood change`; the text fields
 // carry the DOGFOOD_* values the former script read from its environment.
 type ChangeOptions struct {
-	Root        string
-	Base        string
-	Steps       Runner
-	Task        string
-	Verify      string
-	VerifyFile  string
-	Outcome     string
-	IntentsFile string
-	Citations   string
-	OCMLinks    string
+	CaptureLegacyRecord func(LegacyRecordAttempt) error
+	Root                string
+	Base                string
+	Steps               Runner
+	Task                string
+	Verify              string
+	VerifyFile          string
+	Outcome             string
+	IntentsFile         string
+	Citations           string
+	OCMLinks            string
 }
 
 type step struct{ name, status, reason string }
@@ -63,6 +68,7 @@ type change struct {
 // .corvint/dogfood-report.json, exactly as script/dogfood-change.sh did.
 func Change(ctx context.Context, options ChangeOptions, stderr io.Writer) (int, error) {
 	run := &change{flow: flow{ctx: ctx, prefix: "dogfood-change", root: options.Root, stderr: stderr}, options: options}
+	defer run.releaseOperation()
 	return boundary(ctx, run.run, run.cleanup)
 }
 
@@ -86,6 +92,10 @@ func (c *change) path(name string) string {
 func (c *change) run() int {
 	c.requireRoot()
 	c.gitDir = c.gitValue("rev-parse", "--absolute-git-dir")
+	c.acquireOperation()
+	if present, err := AggregateMarkerPresent(c.root, c.gitDir); err != nil || present {
+		c.refuse("aggregate-enrollment-required")
+	}
 	c.base = c.gitValue("rev-parse", c.options.Base+"^{commit}")
 	c.target = c.gitValue("rev-parse", "HEAD^{commit}")
 	task := c.options.Task
@@ -281,7 +291,10 @@ func (c *change) localOutcome(task string) step {
 	output := c.evidence + "/local-outcome.json"
 	errorFile := c.evidence + "/local-outcome.stderr"
 	args := append([]string{"dogfood-record", "--base", c.base, "--target", c.target, "--task", task}, verify...)
-	status := c.exec(append(args, "--outcome", c.options.Outcome), output, errorFile)
+	status, captureErr := c.recordWithClosedStages(append(args, "--outcome", c.options.Outcome), output, errorFile)
+	if captureErr != nil {
+		return step{"local-outcome", "NOT_PRODUCED", "aggregate-publication-failed"}
+	}
 	if status != 0 {
 		return step{"local-outcome", "NOT_PRODUCED", failureReason(readFile(errorFile), status)}
 	}
@@ -1075,4 +1088,388 @@ func (c *change) reportFailures() int {
 	}
 	c.say("  full report: %s\n", c.path(".corvint/dogfood-report.json"))
 	return 1
+}
+
+const AggregateReportProfile = "corvint-dogfood-change/1"
+
+type AggregateEnrollment struct {
+	Session       string `json:"session"`
+	Generation    string `json:"generation"`
+	PlanDigest    string `json:"planDigest"`
+	BindingSHA256 string `json:"bindingSha256"`
+}
+type AggregateReportStep struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	Reason string `json:"reason"`
+}
+type AggregateReportAnchor struct {
+	State     string  `json:"state"`
+	MergeBase *string `json:"mergeBase"`
+}
+type AggregateReportPolicy struct {
+	BootstrapUnknown             int `json:"bootstrapUnknown"`
+	MaximumUnknownAfterBootstrap int `json:"maximumUnknownAfterBootstrap"`
+}
+type AggregateCheckResult struct {
+	BaseVerifierSHA256           string  `json:"baseVerifierSha256"`
+	TreeVerifierSHA256           string  `json:"treeVerifierSha256"`
+	OverrideVerifierSHA256       *string `json:"overrideVerifierSha256"`
+	BootstrapUnknown             int     `json:"bootstrapUnknown"`
+	MaximumUnknownAfterBootstrap int     `json:"maximumUnknownAfterBootstrap"`
+	OutputsAgree                 bool    `json:"outputsAgree"`
+}
+
+// AggregateReport intentionally has no Complete member. The native /1 reader
+// checks a closed structural representation, including the real enrollment.
+type AggregateReport struct {
+	Profile                         string                `json:"profile"`
+	Base                            string                `json:"base"`
+	Target                          string                `json:"target"`
+	CompletionState                 string                `json:"completionState"`
+	Steps                           []AggregateReportStep `json:"steps"`
+	OCMStatus                       json.RawMessage       `json:"ocmStatus"`
+	LocalOutcomeEvidenceSHA256      string                `json:"localOutcomeEvidenceSha256"`
+	ContextAbstentionEvidenceSHA256 *string               `json:"contextAbstentionEvidenceSha256"`
+	QueryAbstentionEvidenceSHA256   *string               `json:"queryAbstentionEvidenceSha256"`
+	Anchor                          AggregateReportAnchor `json:"anchor"`
+	OCMLinkPlan                     json.RawMessage       `json:"ocmLinkPlan"`
+	DogfoodPolicy                   AggregateReportPolicy `json:"dogfoodPolicy"`
+	PacketCoverage                  []json.RawMessage     `json:"packetCoverage"`
+	DogfoodCheck                    *AggregateCheckResult `json:"dogfoodCheck"`
+	Enrollment                      AggregateEnrollment   `json:"enrollment"`
+	LocalOutcomeProfile             string                `json:"localOutcomeProfile"`
+}
+
+var aggregateDigestPattern = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+var aggregateKeyPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
+
+func ParseAggregateReport(raw []byte) (AggregateReport, error) {
+	var value AggregateReport
+	bad := errors.New("aggregate-schema-invalid")
+	if len(raw) == 0 || len(raw) > 4<<20 {
+		return value, bad
+	}
+	parsed, err := wire.Parse(raw)
+	if err != nil {
+		return value, bad
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err = decoder.Decode(&value); err != nil {
+		return value, bad
+	}
+	// Canonical comparison requires every member and rejects null scalar values;
+	// incoming whitespace and object key order are not semantic constraints.
+	encoded, err := aggregateWorkerJSON(value)
+	if err != nil || !bytes.Equal(wire.CanonicalValue(parsed), bytes.TrimSuffix(encoded, []byte{'\n'})) {
+		return value, bad
+	}
+	if value.Profile != AggregateReportProfile || value.LocalOutcomeProfile != tracerecordrepo.AggregateOutcomeProfile || !fullRevision.MatchString(value.Base) || !fullRevision.MatchString(value.Target) || !aggregateDigestPattern.MatchString(value.LocalOutcomeEvidenceSHA256) || !aggregateKeyPattern.MatchString(value.Enrollment.Session) || !aggregateKeyPattern.MatchString(value.Enrollment.PlanDigest) || !aggregateDigestPattern.MatchString(value.Enrollment.BindingSHA256) || len(value.Enrollment.Generation) != 68 || !strings.HasPrefix(value.Enrollment.Generation, value.Enrollment.PlanDigest+"-") {
+		return value, bad
+	}
+	if value.CompletionState != "complete" && value.CompletionState != "incomplete" {
+		return value, bad
+	}
+	if len(value.Steps) < 1 || len(value.Steps) > 256 || value.DogfoodPolicy.BootstrapUnknown < 0 || value.DogfoodPolicy.MaximumUnknownAfterBootstrap != 0 {
+		return value, bad
+	}
+	outcomeRows := 0
+	rows := &change{}
+	for _, row := range value.Steps {
+		if row.Status != "PRODUCED" && row.Status != "NOT_PRODUCED" {
+			return value, bad
+		}
+		if row.Name == "local-outcome" {
+			outcomeRows++
+			if row.Status != "PRODUCED" || row.Reason != "none" {
+				return value, bad
+			}
+		}
+		rows.rows = append(rows.rows, step{row.Name, row.Status, row.Reason})
+	}
+	if value.QueryAbstentionEvidenceSHA256 != nil {
+		if !aggregateDigestPattern.MatchString(*value.QueryAbstentionEvidenceSHA256) {
+			return value, bad
+		}
+		rows.queryAbstentionSHA = *value.QueryAbstentionEvidenceSHA256
+	}
+	if value.ContextAbstentionEvidenceSHA256 != nil && !aggregateDigestPattern.MatchString(*value.ContextAbstentionEvidenceSHA256) {
+		return value, bad
+	}
+	if outcomeRows != 1 || (value.CompletionState == "complete" && !rows.complete()) {
+		return value, bad
+	}
+	if value.Anchor.State == "OBSERVED" {
+		if value.Anchor.MergeBase == nil || !fullRevision.MatchString(*value.Anchor.MergeBase) {
+			return value, bad
+		}
+	} else if value.Anchor.State != "NOT_OBSERVED" || value.Anchor.MergeBase != nil {
+		return value, bad
+	}
+	if value.DogfoodCheck != nil {
+		check := value.DogfoodCheck
+		if !aggregateDigestPattern.MatchString(check.BaseVerifierSHA256) || !aggregateDigestPattern.MatchString(check.TreeVerifierSHA256) || (check.OverrideVerifierSHA256 != nil && !aggregateDigestPattern.MatchString(*check.OverrideVerifierSHA256)) || check.BootstrapUnknown < 0 || check.MaximumUnknownAfterBootstrap != 0 {
+			return value, bad
+		}
+	}
+	return value, nil
+}
+
+// PrepareAggregateReport retains the original governed fields and changes only
+// the witnessed local-outcome row and the explicit /1 enrollment discriminator.
+func PrepareAggregateReport(old []byte, enrollment AggregateEnrollment, receipt []byte) ([]byte, error) {
+	outcome, err := tracerecordrepo.ParseAggregateOutcome(receipt)
+	if err != nil {
+		return nil, err
+	}
+	binding, err := tracerecordrepo.AggregateBinding(outcome)
+	if err != nil || binding != enrollment.BindingSHA256 || outcome.Task != "Local completion "+enrollment.PlanDigest || outcome.Outcome != "passed" {
+		return nil, errors.New("aggregate-binding-drift")
+	}
+	if len(old) > 4<<20 {
+		return nil, errors.New("aggregate-schema-invalid")
+	}
+	if _, err := wire.Parse(old); err != nil {
+		return nil, err
+	}
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(old, &object); err != nil {
+		return nil, err
+	}
+	var base, target string
+	if json.Unmarshal(object["base"], &base) != nil || json.Unmarshal(object["target"], &target) != nil || base != outcome.Base || target != outcome.Target {
+		return nil, errors.New("aggregate-binding-drift")
+	}
+	var profile string
+	if json.Unmarshal(object["profile"], &profile) != nil || profile != "corvint-dogfood-change/0" {
+		return nil, errors.New("aggregate-schema-invalid")
+	}
+	if _, ok := object["complete"]; !ok {
+		return nil, errors.New("aggregate-schema-invalid")
+	}
+	if _, ok := object["completionState"]; ok {
+		return nil, errors.New("aggregate-schema-invalid")
+	}
+	if _, ok := object["enrollment"]; ok {
+		return nil, errors.New("aggregate-schema-invalid")
+	}
+	if _, ok := object["localOutcomeProfile"]; ok {
+		return nil, errors.New("aggregate-schema-invalid")
+	}
+	put := func(key string, value any) { object[key], _ = json.Marshal(value) }
+	delete(object, "complete")
+	put("profile", AggregateReportProfile)
+	put("enrollment", enrollment)
+	put("localOutcomeProfile", tracerecordrepo.AggregateOutcomeProfile)
+	put("localOutcomeEvidenceSha256", "sha256:"+sha256Hex(receipt))
+	put("dogfoodCheck", nil)
+	var rows []AggregateReportStep
+	if err := json.Unmarshal(object["steps"], &rows); err != nil {
+		return nil, err
+	}
+	changed := 0
+	for i, row := range rows {
+		if row.Name == "local-outcome" {
+			if row.Status != "NOT_PRODUCED" || row.Reason != "admitted-path-limit" {
+				return nil, errors.New("aggregate-legacy-failure-unverified")
+			}
+			rows[i] = AggregateReportStep{"local-outcome", "PRODUCED", "none"}
+			changed++
+		}
+	}
+	if changed != 1 {
+		return nil, errors.New("aggregate-legacy-failure-unverified")
+	}
+	put("steps", rows)
+	put("completionState", "incomplete")
+	raw, err := aggregateWorkerJSON(object)
+	if err != nil {
+		return nil, err
+	}
+	value, err := ParseAggregateReport(raw)
+	if err != nil {
+		return nil, err
+	}
+	completion := &change{}
+	for _, row := range value.Steps {
+		completion.rows = append(completion.rows, step{row.Name, row.Status, row.Reason})
+	}
+	if value.QueryAbstentionEvidenceSHA256 != nil {
+		completion.queryAbstentionSHA = *value.QueryAbstentionEvidenceSHA256
+	}
+	if completion.complete() {
+		value.CompletionState = "complete"
+	}
+	return EncodeAggregateReport(value)
+}
+func EncodeAggregateReport(value AggregateReport) ([]byte, error) {
+	raw, err := aggregateWorkerJSON(value)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = ParseAggregateReport(raw); err != nil {
+		return nil, err
+	}
+	return raw, nil
+}
+
+func aggregateReadFile(name string, bound int) ([]byte, error) {
+	if err := dogfoodoperation.CheckParents(name); err != nil {
+		return nil, err
+	}
+	file, err := os.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() || info.Size() > int64(bound) {
+		return nil, errors.New("aggregate-prior-evidence-drift")
+	}
+	raw, err := io.ReadAll(io.LimitReader(file, int64(bound)+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) > bound {
+		return nil, errors.New("aggregate-prior-evidence-drift")
+	}
+	return raw, nil
+}
+
+// AggregateMarkerPresent is a read-only downgrade guard, not an authority
+// validator. Positive Check/Seal authority still comes from the loaded owner.
+func AggregateMarkerPresent(root, gitDir string) (bool, error) {
+	// Repository spelling aliases (such as /tmp and /private/tmp) are already
+	// supported. Resolve the root, then reject symlinks below that boundary.
+	canonicalRoot, rootErr := filepath.EvalSymlinks(root)
+	if rootErr != nil {
+		return false, rootErr
+	}
+	root = canonicalRoot
+	owner, err := aggregateReadFile(filepath.Join(gitDir, "corvint", "local-completion", "owner"), 65)
+	if err != nil && !os.IsNotExist(err) {
+		return false, err
+	}
+	if err == nil {
+		key := strings.TrimSuffix(string(owner), "\n")
+		if !aggregateKeyPattern.MatchString(key) {
+			return false, errors.New("aggregate-enrollment-required")
+		}
+		raw, readErr := aggregateReadFile(filepath.Join(gitDir, "corvint", "local-completion", key, "state.json"), 256<<10)
+		if readErr != nil {
+			return false, readErr
+		}
+		if _, err := wire.Parse(raw); err != nil {
+			return false, err
+		}
+		var state map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &state); err != nil {
+			return false, err
+		}
+		if _, ok := state["aggregateOutcome"]; ok {
+			return true, nil
+		}
+	}
+	for _, name := range []string{filepath.Join(root, ".corvint", "dogfood-report.json"), filepath.Join(gitDir, "corvint", "local-outcome.json")} {
+		raw, err := aggregateReadFile(name, 4<<20)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return false, err
+		}
+		var object map[string]json.RawMessage
+		if json.Unmarshal(raw, &object) != nil {
+			continue
+		} // Legacy failed output is not an aggregate marker.
+		var profile string
+		_ = json.Unmarshal(object["profile"], &profile)
+		if profile == AggregateReportProfile || profile == tracerecordrepo.AggregateOutcomeProfile {
+			return true, nil
+		}
+		if _, ok := object["localOutcomeProfile"]; ok {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// LegacyRecordAttempt is an actual recorder invocation, captured only after
+// bounded stdout/stderr stages close successfully. It is not inferred from a
+// report reason or a stderr substring.
+// The legacy diff admits 64 MiB of names. JSON escaping is at most six bytes
+// per input byte; the extra allowance covers bounded admitted paths/trace fields.
+const legacyRecorderOutputLimit = 6*(64<<20) + (4 << 20)
+
+type LegacyRecordAttempt struct {
+	Exit           int
+	Stdout, Stderr []byte
+}
+type recorderStage struct {
+	file      *os.File
+	remaining int
+	overflow  bool
+}
+
+func (s *recorderStage) Write(raw []byte) (int, error) {
+	n := min(len(raw), s.remaining)
+	written, err := s.file.Write(raw[:n])
+	s.remaining -= written
+	if err != nil {
+		return written, err
+	}
+	if n < len(raw) {
+		s.overflow = true
+		return written, io.ErrShortWrite
+	}
+	return written, nil
+}
+func (c *change) recordWithClosedStages(args []string, output, errorFile string) (int, error) {
+	stdout, err := os.CreateTemp(c.evidence, ".local-outcome-*.stdout")
+	if err != nil {
+		return 1, err
+	}
+	stderr, err := os.CreateTemp(c.evidence, ".local-outcome-*.stderr")
+	if err != nil {
+		_ = stdout.Close()
+		return 1, err
+	}
+	outStage := &recorderStage{file: stdout, remaining: legacyRecorderOutputLimit}
+	errStage := &recorderStage{file: stderr, remaining: 64 << 10}
+	status := c.options.Steps.Run(c.ctx, c.root, args, outStage, errStage)
+	outClose, errClose := stdout.Close(), stderr.Close()
+	if outClose != nil {
+		return 1, outClose
+	}
+	if errClose != nil {
+		return 1, errClose
+	}
+	if outStage.overflow || errStage.overflow {
+		return 1, errors.New("aggregate-publication-failed")
+	}
+	outRaw, err := aggregateReadFile(stdout.Name(), legacyRecorderOutputLimit)
+	if err != nil {
+		return 1, err
+	}
+	errRaw, err := aggregateReadFile(stderr.Name(), 64<<10)
+	if err != nil {
+		return 1, err
+	}
+	if c.options.CaptureLegacyRecord != nil {
+		if err = c.options.CaptureLegacyRecord(LegacyRecordAttempt{status, outRaw, errRaw}); err != nil {
+			return 1, err
+		}
+	}
+	if err = os.Rename(stdout.Name(), output); err != nil {
+		return 1, err
+	}
+	if err = os.Rename(stderr.Name(), errorFile); err != nil {
+		return 1, err
+	}
+	c.checkpoint()
+	return status, nil
 }

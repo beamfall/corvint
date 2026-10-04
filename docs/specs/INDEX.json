@@ -3156,6 +3156,31 @@
     ]
   },
   {
+    "path": "docs/specs/aggregate-local-outcome-v0.md",
+    "title": "Aggregate Local Outcome V0",
+    "reqPrefix": "ALO-V0",
+    "intent": "proposed",
+    "delivery": "experimental; NOT_QUALIFIED; source candidate implemented, qualification incomplete",
+    "claim": "Explicitly enrolled changes can preserve a complete bounded nonlearning outcome after a bound legacy admitted-path-limit refusal.",
+    "dependsOn": [
+      "docs/specs/local-completion-policy-v0.md",
+      "docs/specs/daily-change-evidence-workflow-v0.md",
+      "docs/specs/core-compatibility-freeze-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/tracerecordrepo",
+      "internal/dogfoodflow",
+      "internal/dogfoodoperation",
+      "internal/localcompletion",
+      "internal/cem/gitrun",
+      "internal/contextindex",
+      "internal/groupreap",
+      "cmd/corvint"
+    ]
+  },
+  {
     "path": "docs/specs/process-group-owner-v0.md",
     "title": "Process-group Owner V0",
     "reqPrefix": "PGO-V0",

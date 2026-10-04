@@ -119,18 +119,19 @@ type terminal struct {
 }
 
 type state struct {
-	Session        string          `json:"session"`
-	Lifecycle      string          `json:"lifecycle"`
-	Plan           Plan            `json:"plan"`
-	PlanDigest     string          `json:"planDigest"`
-	IntentPointers []IntentPointer `json:"intentPointers"`
-	Observations   []observation   `json:"observations"`
-	ReportSet      *reportSet      `json:"reportSet"`
-	Review         string          `json:"review"`
-	Terminal       *terminal       `json:"terminal"`
-	Coordination   []artifact      `json:"coordination"`
-	Executables    []string        `json:"executables"`
-	Generation     string          `json:"generation"`
+	AggregateOutcome *aggregateState `json:"aggregateOutcome,omitempty"`
+	Session          string          `json:"session"`
+	Lifecycle        string          `json:"lifecycle"`
+	Plan             Plan            `json:"plan"`
+	PlanDigest       string          `json:"planDigest"`
+	IntentPointers   []IntentPointer `json:"intentPointers"`
+	Observations     []observation   `json:"observations"`
+	ReportSet        *reportSet      `json:"reportSet"`
+	Review           string          `json:"review"`
+	Terminal         *terminal       `json:"terminal"`
+	Coordination     []artifact      `json:"coordination"`
+	Executables      []string        `json:"executables"`
+	Generation       string          `json:"generation"`
 }
 
 func HashSession(raw string) string {
@@ -157,3 +158,99 @@ func SessionKey(explicit string) (string, error) {
 
 func digest(raw []byte) string     { sum := sha256.Sum256(raw); return hex.EncodeToString(sum[:]) }
 func valueDigest(value any) string { raw, _ := json.Marshal(value); return digest(raw) }
+
+// Aggregate state is a closed additive discriminator. Omitting it preserves
+// legacy state bytes; every aggregate phase is visible to strict old readers.
+type aggregateState struct {
+	Profile              string                       `json:"profile"`
+	BindingSHA256        string                       `json:"bindingSha256"`
+	ReceiptSHA256        string                       `json:"receiptSha256"`
+	LegacyFailureSHA256  string                       `json:"legacyFailureSha256"`
+	AttemptCount         int                          `json:"attemptCount"`
+	Phase                string                       `json:"phase"`
+	ActiveSnapshotSHA256 string                       `json:"activeSnapshotSha256"`
+	PreservationState    string                       `json:"preservationState"`
+	ExpectedOld          aggregateExpectedOld         `json:"expectedOld"`
+	Issued               []aggregateIssued            `json:"issued"`
+	Snapshots            []aggregateSnapshotReference `json:"snapshots"`
+}
+
+type aggregateOld struct {
+	SHA256 string `json:"sha256"`
+	Bytes  int64  `json:"bytes"`
+	Kind   string `json:"kind"`
+}
+type aggregateExpectedOld struct {
+	Outcome *aggregateOld `json:"outcome"`
+	Report  *aggregateOld `json:"report"`
+}
+type aggregateIssued struct {
+	Role   string `json:"role"`
+	SHA256 string `json:"sha256"`
+	Bytes  int64  `json:"bytes"`
+}
+type aggregateSnapshotReference struct {
+	Ordinal        int    `json:"ordinal"`
+	SnapshotSHA256 string `json:"snapshotSha256"`
+	ReservedBytes  int64  `json:"reservedBytes"`
+}
+type aggregateSnapshotEntry struct {
+	Role    string  `json:"role"`
+	Present bool    `json:"present"`
+	SHA256  *string `json:"sha256"`
+	Bytes   int64   `json:"bytes"`
+}
+type aggregateSnapshotManifest struct {
+	Profile           string                   `json:"profile"`
+	BindingSHA256     string                   `json:"bindingSha256"`
+	SourceStateSHA256 string                   `json:"sourceStateSha256"`
+	Entries           []aggregateSnapshotEntry `json:"entries"`
+}
+type aggregateReservation struct {
+	Ordinal           int                      `json:"ordinal"`
+	BindingSHA256     string                   `json:"bindingSha256"`
+	SnapshotSHA256    string                   `json:"snapshotSha256"`
+	SourceStateSHA256 string                   `json:"sourceStateSha256"`
+	ExpectedOld       aggregateExpectedOld     `json:"expectedOld"`
+	Entries           []aggregateSnapshotEntry `json:"entries"`
+	MaximumBytes      int64                    `json:"maximumBytes"`
+}
+
+type aggregateLegacyFailure struct {
+	Base            string   `json:"base"`
+	Target          string   `json:"target"`
+	Tree            string   `json:"tree"`
+	Session         string   `json:"session"`
+	Generation      string   `json:"generation"`
+	PlanDigest      string   `json:"planDigest"`
+	ReportSetDigest string   `json:"reportSetDigest"`
+	CEMSHA256       string   `json:"cemSha256"`
+	ReportSHA256    string   `json:"reportSha256"`
+	ExitStatus      int      `json:"exitStatus"`
+	StdoutSHA256    string   `json:"stdoutSha256"`
+	StderrSHA256    string   `json:"stderrSha256"`
+	CaptureOrdinal  int      `json:"captureOrdinal"`
+	Task            string   `json:"task"`
+	Verification    []string `json:"verification"`
+	Outcome         string   `json:"outcome"`
+}
+
+type aggregateCheckCapture struct {
+	Session            string  `json:"session"`
+	Generation         string  `json:"generation"`
+	PlanDigest         string  `json:"planDigest"`
+	BindingSHA256      string  `json:"bindingSha256"`
+	SnapshotSHA256     string  `json:"snapshotSha256"`
+	ReportSetDigest    string  `json:"reportSetDigest"`
+	Base               string  `json:"base"`
+	Target             string  `json:"target"`
+	Tree               string  `json:"tree"`
+	ReportBeforeSHA256 string  `json:"reportBeforeSha256"`
+	ReportAfterSHA256  *string `json:"reportAfterSha256"`
+	ExitStatus         int     `json:"exitStatus"`
+	Failed             bool    `json:"failed"`
+	StdoutSHA256       string  `json:"stdoutSha256"`
+	StderrSHA256       string  `json:"stderrSha256"`
+	StdoutBytes        int64   `json:"stdoutBytes"`
+	StderrBytes        int64   `json:"stderrBytes"`
+}

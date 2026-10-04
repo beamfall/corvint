@@ -1547,6 +1547,15 @@ func pythonJSONString(value string) string {
 }
 
 func main() {
+	// Startup-only owned-group verification precedes signal goroutines, Git
+	// resolution and every ordinary Core entrypoint.
+	if len(os.Args) > 1 && os.Args[1] == "dogfood-outcome-worker" {
+		os.Exit(runDogfoodOutcomeWorker(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
+	}
+	if len(os.Args) > 1 && os.Args[1] == "dogfood-verifier-worker" {
+		os.Exit(runDogfoodVerifierWorker(os.Args[2:], os.Stdout, os.Stderr))
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), terminationSignals()...)
 	defer cancel()
 	ctx, release := adapterHostKillContext(ctx, os.Args[1:], adapterProcessStart)

@@ -104,6 +104,16 @@ another Tasks package and for another Core package imported from `internal/tasks
 Rule 5's source-archive subset adds `internal/groupreap` so the exported tarball still rebuilds
 offline. Rollback is reverting the dispatcher's Owner use and removing this edge and prefix.
 
+## Issue 443 addendum — contextindex Git runner closure
+
+Agent decision, 2026-10-04, made while integrating PR #524 (issue #443); it is not a direct owner
+statement. That change routes `internal/contextindex` Git reads through Core's `internal/cem/gitrun`,
+which imports `internal/cem/cemcode` and `internal/groupreap`. This is a transitive dependency of the
+admitted contextindex edge, not a new Tasks import edge; rule 2 is unchanged. Rule 5's source-archive
+subset adds `internal/cem/cemcode` and `internal/cem/gitrun` so the exported tarball still rebuilds
+offline (`TestCurrentTasksSourceArchiveBuildsOffline`). Rollback is removing these two prefixes
+together with the contextindex change that needs them.
+
 ## Issue 481 addendum — attempt-runner process-group Owner
 
 Owner decision, 2026-10-04: the owner approved the attempt-runner `internal/groupreap` edge in the

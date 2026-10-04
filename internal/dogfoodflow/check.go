@@ -3,6 +3,8 @@ package dogfoodflow
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,21 +13,48 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/dogfoodoperation"
 )
 
 // CheckOptions are the inputs of `corvint dogfood check` and `dogfood seal`.
 // The base and tree verifiers must be distinct identities only when the caller
 // has them; a portable check may pass the running binary for both.
 type CheckOptions struct {
-	Root         string
-	Base         string
-	BaseVerifier Runner
-	TreeVerifier Runner
-	Override     *Runner
-	Exception    string
+	AggregateBegin    func(context.Context, string, []byte) (*AggregateCheckStage, error)
+	AggregateValidate func(context.Context, string, []byte) error
+	AggregatePublish  func(context.Context, string, AggregateCheckCapture) error
+	Root              string
+	Base              string
+	BaseVerifier      Runner
+	TreeVerifier      Runner
+	Override          *Runner
+	Exception         string
+}
+
+// AggregateCheckStage is an already admitted private observation. Finish only
+// closes and retains its bytes; it confers no successful-check authority.
+type AggregateCheckStage struct {
+	Stdout, Stderr io.Writer
+	Finish         func(int, error) (AggregateCheckCapture, error)
+	RetainFailure  func(error) error
+}
+
+type AggregateCheckCapture struct {
+	OriginalReport []byte
+	ProposedReport []byte
+	Exit           int
+	Stdout         []byte
+	Stderr         []byte
+	Failed         bool
 }
 
 type check struct {
+	aggregateCapture                           *AggregateCheckStage
+	aggregateSavedStdout, aggregateSavedStderr io.Writer
+	aggregate                                  *AggregateReport
+	aggregateOriginal                          []byte
+	aggregatePrepared                          []byte
 	flow
 	options     CheckOptions
 	stdout      io.Writer
@@ -44,19 +73,29 @@ type verification struct {
 // Check verifies the bound change against the report, as script/dogfood-check.sh did.
 func Check(ctx context.Context, options CheckOptions, stdout, stderr io.Writer) (int, error) {
 	run := newCheck(ctx, "dogfood-check", options, stdout, stderr)
-	return boundary(ctx, run.run, func() {})
+	defer run.releaseOperation()
+	code, err := boundary(ctx, run.run, func() {})
+	if publishErr := run.finishAggregateCapture(code, err); publishErr != nil {
+		return 2, publishErr
+	}
+	return code, err
 }
 
 // Seal checks the bound change, then moves its CEM out of the one shared
 // tracked path in a rename-only commit (docs/DOGFOOD.md §4, DOGFOOD-013).
 func Seal(ctx context.Context, options CheckOptions, stdout, stderr io.Writer) (int, error) {
 	run := newCheck(ctx, "dogfood-check", options, stdout, stderr)
+	defer run.releaseOperation()
 	return boundary(ctx, func() int {
 		// The check's own exits, including its no-change PASS, return here as the
 		// former `dogfood-check.sh || exit` did.
 		code, err := boundary(ctx, run.run, func() {})
+		publishErr := run.finishAggregateCapture(code, err)
 		if err != nil {
 			run.exit(-1)
+		}
+		if publishErr != nil {
+			run.refuse(publishErr.Error())
 		}
 		if code != 0 {
 			return code
@@ -137,6 +176,8 @@ func (c *check) run() int {
 	c.base = c.gitValue("rev-parse", c.options.Base+"^{commit}")
 	c.target = c.gitValue("rev-parse", "HEAD^{commit}")
 	c.gitDir = c.gitValue("rev-parse", "--absolute-git-dir")
+	c.acquireOperation()
+	c.enableAggregateCapture()
 	c.report = c.root + "/.corvint/dogfood-report.json"
 	c.evidence = c.gitDir + "/corvint"
 	c.resolveAnchor()
@@ -145,13 +186,23 @@ func (c *check) run() int {
 		c.say("  HEAD only seals the bound CEM; check its parent: git checkout --detach HEAD^\n")
 		c.exit(2)
 	}
+	var report []byte
+	marker, markerErr := AggregateMarkerPresent(c.root, c.gitDir)
+	if markerErr != nil {
+		c.refuse("aggregate-enrollment-required")
+	}
+	if marker {
+		report = c.checkReport()
+	}
 	c.requireCleanChange()
 	c.reportUnboundCommits()
 	if c.options.Exception != "" {
 		c.say("dogfood-check: FAIL exception-contract-undefined\n")
 		c.exit(2)
 	}
-	report := c.checkReport()
+	if report == nil {
+		report = c.checkReport()
+	}
 	abstention := c.checkContextAbstention(report)
 	queryTask, queryAbstention := c.checkQueryAbstention(report)
 	c.resolveVerifiers()
@@ -210,6 +261,47 @@ func (c *check) checkReport() []byte {
 		c.fail("dogfood-report-missing", lines...)
 	}
 	report := readFile(c.report)
+	var profile struct {
+		Profile string `json:"profile"`
+	}
+	_ = json.Unmarshal(report, &profile)
+	marker, markerErr := AggregateMarkerPresent(c.root, c.gitDir)
+	if markerErr != nil {
+		c.refuse("aggregate-enrollment-required")
+	}
+	if marker || profile.Profile == AggregateReportProfile {
+		canonicalRoot, rootErr := filepath.EvalSymlinks(c.root)
+		if rootErr != nil {
+			c.fail("aggregate-prior-evidence-drift")
+		}
+		bounded, err := aggregateReadFile(filepath.Join(canonicalRoot, ".corvint", "dogfood-report.json"), 4<<20)
+		if err != nil {
+			c.fail("aggregate-prior-evidence-drift")
+		}
+		value, err := ParseAggregateReport(bounded)
+		if err != nil {
+			c.fail("aggregate-schema-invalid")
+		}
+		if value.Base != c.base || value.Target != c.target || value.CompletionState != "complete" {
+			c.fail("aggregate-binding-drift")
+		}
+		if value.Anchor.State == "OBSERVED" {
+			if !c.anchorObserved || value.Anchor.MergeBase == nil || *value.Anchor.MergeBase != c.anchorMergeBase {
+				c.fail("aggregate-binding-drift")
+			}
+		} else if c.anchorObserved {
+			c.fail("aggregate-binding-drift")
+		}
+		if c.options.AggregateValidate == nil || c.options.AggregatePublish == nil {
+			c.refuse("aggregate-enrollment-required")
+		}
+		if err = c.options.AggregateValidate(c.ctx, c.root, bounded); err != nil {
+			c.fail(err.Error())
+		}
+		c.aggregate = &value
+		c.aggregateOriginal = bounded
+		return bounded
+	}
 	if allCaptures(reportBase, report) != c.base || allCaptures(reportTarget, report) != c.target {
 		c.fail("dogfood-report-drift", "  fix: the report binds another BASE or HEAD; rerun corvint dogfood change "+c.base+" on this HEAD")
 	}
@@ -235,13 +327,23 @@ func (c *check) checkReport() []byte {
 // claims, or its absence, and reports whether one is claimed.
 func (c *check) checkContextAbstention(report []byte) bool {
 	digest := allCaptures(abstentionDigest, report)
+	if c.aggregate != nil && c.aggregate.ContextAbstentionEvidenceSHA256 != nil {
+		digest = strings.TrimPrefix(*c.aggregate.ContextAbstentionEvidenceSHA256, "sha256:")
+	}
 	artifact := c.evidence + "/coordination-time-impact-abstention.json"
 	reason, _ := firstCapture(abstentionRow, report)
+	if c.aggregate != nil {
+		for _, row := range c.aggregate.Steps {
+			if row.Name == "coordination-time-impact" && row.Status == "NOT_PRODUCED" {
+				reason = row.Reason
+			}
+		}
+	}
 	if !impactAbstentions[reason] {
 		if _, err := os.Stat(artifact); digest != "" || err == nil {
 			c.fail("context-abstention-evidence-drift")
 		}
-		if !hasLine(report, `  ,"contextAbstentionEvidenceSha256": null`) {
+		if c.aggregate == nil && !hasLine(report, `  ,"contextAbstentionEvidenceSha256": null`) {
 			c.fail("dogfood-report-drift")
 		}
 		return false
@@ -306,6 +408,30 @@ func (c *check) resolveVerifiers() {
 }
 
 func (c *check) verify(runner Runner, args ...string) verification {
+	if c.aggregate != nil {
+		before, err := fileSHA256(runner.Path)
+		if err != nil {
+			c.refuse("verifier-unavailable")
+		}
+		for _, identity := range []struct{ path, sha string }{{c.options.BaseVerifier.Path, c.baseSHA}, {c.options.TreeVerifier.Path, c.treeSHA}} {
+			if identity.path == runner.Path && identity.sha != before {
+				c.refuse("verifier-disagreement")
+			}
+		}
+		if c.options.Override != nil && c.options.Override.Path == runner.Path && c.overrideSHA != before {
+			c.refuse("verifier-disagreement")
+		}
+		result, err := runAggregateVerifier(c.ctx, runner, c.root, args)
+		if err != nil {
+			c.refuse(err.Error())
+		}
+		after, err := fileSHA256(runner.Path)
+		if err != nil || before != after {
+			c.refuse("verifier-disagreement")
+		}
+		c.checkpoint()
+		return result
+	}
 	var stdout, stderr bytes.Buffer
 	status := runner.Run(c.ctx, c.root, args, &stdout, &stderr)
 	c.checkpoint()
@@ -366,7 +492,16 @@ func (c *check) verifyBinding(report []byte) int {
 	// The declaration and the report's ocmStatus must agree, so a swapped
 	// snapshot cannot skip OCM verification (DCW-V0-024).
 	noIntent := bytes.Equal(readFile(intentSnapshot), noIntentManifest)
-	if noIntent != hasLine(report, noIntentOCMStatus) {
+	reportedNoIntent := hasLine(report, noIntentOCMStatus)
+	if c.aggregate != nil {
+		var status struct {
+			State  string `json:"state"`
+			Reason string `json:"reason"`
+		}
+		_ = json.Unmarshal(c.aggregate.OCMStatus, &status)
+		reportedNoIntent = status.State == "NOT_ASSESSED" && status.Reason == "no-intent-declared"
+	}
+	if noIntent != reportedNoIntent {
 		c.fail("dogfood-report-drift")
 	}
 	ocmLine := []byte("dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared\n")
@@ -375,7 +510,11 @@ func (c *check) verifyBinding(report []byte) int {
 		ocmLine = c.verifyOCM(aggregate)
 		bootstrap = bootstrapUnknowns(&c.flow, readLines(readFile(intentSnapshot)))
 	}
-	if !bytes.Contains(report, []byte(`  ,"dogfoodPolicy": {"bootstrapUnknown": `+strconv.Itoa(bootstrap)+`, "maximumUnknownAfterBootstrap": 0}`)) {
+	policyMatches := bytes.Contains(report, []byte(`  ,"dogfoodPolicy": {"bootstrapUnknown": `+strconv.Itoa(bootstrap)+`, "maximumUnknownAfterBootstrap": 0}`))
+	if c.aggregate != nil {
+		policyMatches = c.aggregate.DogfoodPolicy.BootstrapUnknown == bootstrap && c.aggregate.DogfoodPolicy.MaximumUnknownAfterBootstrap == 0
+	}
+	if !policyMatches {
 		_ = c.record(true, bootstrap)
 		c.fail("dogfood-report-drift")
 	}
@@ -423,6 +562,21 @@ func (c *check) verifyOCM(aggregate string) []byte {
 // record replaces the report's single dogfoodCheck line with the verifier
 // identities and their agreement.
 func (c *check) record(agreed bool, bootstrap int) error {
+	if c.aggregate != nil {
+		value := *c.aggregate
+		result := &AggregateCheckResult{BaseVerifierSHA256: "sha256:" + c.baseSHA, TreeVerifierSHA256: "sha256:" + c.treeSHA, BootstrapUnknown: bootstrap, OutputsAgree: agreed}
+		if c.overrideSHA != "" {
+			identity := "sha256:" + c.overrideSHA
+			result.OverrideVerifierSHA256 = &identity
+		}
+		value.DogfoodCheck = result
+		raw, err := EncodeAggregateReport(value)
+		if err != nil {
+			return err
+		}
+		c.aggregatePrepared = raw
+		return nil
+	}
 	override := "null"
 	if c.overrideSHA != "" {
 		override = `"sha256:` + c.overrideSHA + `"`
@@ -572,4 +726,75 @@ func (c *check) reportUnboundCommits() {
 			c.say("  retroactive %s\n", commit)
 		}
 	}
+}
+
+func (c *check) enableAggregateCapture() {
+	if c.options.AggregatePublish == nil {
+		return
+	}
+	raw, err := aggregateReadFile(filepath.Join(c.root, ".corvint", "dogfood-report.json"), 4<<20)
+	if err != nil {
+		return
+	}
+	if _, err = ParseAggregateReport(raw); err != nil {
+		return
+	}
+	if c.options.AggregateBegin == nil {
+		c.refuse("aggregate-enrollment-required")
+	}
+	stage, err := c.options.AggregateBegin(c.ctx, c.root, raw)
+	if err != nil {
+		c.refuse(err.Error())
+	}
+	if stage == nil || stage.Stdout == nil || stage.Stderr == nil || stage.Finish == nil {
+		c.refuse("aggregate-publication-failed")
+	}
+	c.aggregateCapture = stage
+	c.aggregateOriginal = raw
+	if c.stdout == nil {
+		c.stdout = io.Discard
+	}
+	if c.stderr == nil {
+		c.stderr = io.Discard
+	}
+	c.aggregateSavedStdout, c.aggregateSavedStderr = c.stdout, c.stderr
+	c.stdout = io.MultiWriter(stage.Stdout, c.stdout)
+	c.stderr = io.MultiWriter(stage.Stderr, c.stderr)
+}
+func (c *check) finishAggregateCapture(code int, runErr error) error {
+	if c.aggregateCapture == nil {
+		return dogfoodoperation.Check(c.ctx)
+	}
+	// Closing an admitted observation is independent of current source validity,
+	// cancellation and HOLD. It starts no process and publishes no success.
+	stage := c.aggregateCapture
+	capture, closeErr := stage.Finish(code, runErr)
+	c.stdout, c.stderr = c.aggregateSavedStdout, c.aggregateSavedStderr
+	c.aggregateCapture = nil
+	if err := dogfoodoperation.Check(c.ctx); err != nil {
+		return err
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	if runErr != nil {
+		return runErr
+	}
+	if err := c.ctx.Err(); err != nil {
+		return err
+	}
+	if code != 0 || capture.Failed {
+		return nil
+	}
+	if c.aggregate == nil || c.options.AggregatePublish == nil {
+		return fmt.Errorf("aggregate-publication-failed")
+	}
+	capture.OriginalReport, capture.ProposedReport = c.aggregateOriginal, c.aggregatePrepared
+	if err := c.options.AggregatePublish(c.ctx, c.root, capture); err != nil {
+		if stage.RetainFailure != nil {
+			return errors.Join(err, stage.RetainFailure(err))
+		}
+		return err
+	}
+	return nil
 }

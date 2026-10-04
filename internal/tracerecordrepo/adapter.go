@@ -29,6 +29,11 @@ const (
 
 var replayAncestryLimit = maximumAncestry // unexported regression-test hook
 
+// Seams cover both store entry points so read-only aggregate qualification can
+// observe attempts even when opening a store would leave no filesystem change.
+var openTraceStore = trace.NewStore
+var recoverTraceAppend = trace.RecoverInterruptedAppend
+
 type revisionBindingMode uint8
 
 const (
@@ -210,7 +215,7 @@ func recordWithIndex(ctx context.Context, root string, index *contextindex.Index
 		recordValidated = true
 		return nil
 	}
-	if err := trace.RecoverInterruptedAppend(root, stable, validateRecord); err != nil {
+	if err := recoverTraceAppend(root, stable, validateRecord); err != nil {
 		return Result{}, err
 	}
 	revisions, truncatedAncestry, err := bindRevisions(ctx, root, index, tracked, recordRevisionBinding)
@@ -222,7 +227,7 @@ func recordWithIndex(ctx context.Context, root string, index *contextindex.Index
 			return Result{}, err
 		}
 	}
-	store, err := trace.NewStore(root, revisions, stable)
+	store, err := openTraceStore(root, revisions, stable)
 	if err != nil {
 		return Result{}, err
 	}
@@ -506,6 +511,10 @@ func changedPaths(ctx context.Context, root, base, target string) ([]string, err
 	if len(raw) > maximumTreeBytes {
 		return nil, fmt.Errorf("changed-path candidates exceed %d bytes", maximumTreeBytes)
 	}
+	return parseChangedPaths(raw, trace.MaxAdmissionCandidates, fmt.Sprintf("changed-path candidates exceed %d paths", trace.MaxAdmissionCandidates))
+}
+
+func parseChangedPaths(raw []byte, candidateLimit int, limitReason string) ([]string, error) {
 	if len(raw) != 0 && raw[len(raw)-1] != 0 {
 		return nil, fmt.Errorf("Git changed-path output is malformed")
 	}
@@ -525,8 +534,8 @@ func changedPaths(ctx context.Context, root, base, target string) ([]string, err
 		}
 		seen[value] = struct{}{}
 		paths = append(paths, value)
-		if len(paths) > trace.MaxAdmissionCandidates {
-			return nil, fmt.Errorf("changed-path candidates exceed %d paths", trace.MaxAdmissionCandidates)
+		if len(paths) > candidateLimit {
+			return nil, errors.New(limitReason)
 		}
 	}
 	sort.Strings(paths)

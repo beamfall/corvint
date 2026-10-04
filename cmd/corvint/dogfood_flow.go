@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/dogfoodflow"
+	"github.com/Beamfall/corvint/internal/localcompletion"
 )
 
 // dogfoodFlowOptions names the options each daily-path subverb accepts
@@ -125,6 +126,7 @@ func runDogfoodAction(ctx context.Context, root, action, base string, flags map[
 		override := runner("--override-verifier")
 		options.Override = &override
 	}
+	options = localcompletion.ConfigureAggregateCheck(options, false)
 	if action == "seal" {
 		return dogfoodflow.Seal(ctx, options, stdout, stderr)
 	}
