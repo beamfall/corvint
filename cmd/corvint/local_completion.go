@@ -9,6 +9,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/cli"
 	"github.com/Beamfall/corvint/internal/localcompletion"
+	"github.com/Beamfall/corvint/internal/tracerecordrepo"
 )
 
 func parseLocalCompletionInvocation(arguments []string) (string, []string, bool, error) {
@@ -83,6 +84,9 @@ func runLocalCompletion(ctx context.Context, root string, args []string, stdin i
 	case "verify":
 		result, err = localcompletion.Verify(ctx, root, key, flags["--check"])
 	case "finish":
+		if flags["--transport-adapted-recovery"] != "" {
+			return runTransportAdaptedRecovery(ctx, root, key, flags, stdout, stderr)
+		}
 		result, err = localcompletion.FinishWithAggregateProfile(ctx, root, key, flags["--aggregate-outcome-profile"], localCompletionPublicCommand)
 	case "review":
 		result, err = localcompletion.Review(ctx, root, key, flags["--report-set"])
@@ -124,6 +128,7 @@ func localCompletionFlags(args []string) (map[string]string, error) {
 		required = "--report-set"
 	case "finish":
 		allowed["--aggregate-outcome-profile"] = true
+		allowed["--transport-adapted-recovery"] = true
 	case "status", "cancel":
 	case "handoff":
 		allowed["--anchors"], allowed["--receipt"] = true, true
@@ -166,7 +171,34 @@ func localCompletionFlags(args []string) (map[string]string, error) {
 			return nil, errors.New("invalid-local-completion-option")
 		}
 	}
+	if flags["--transport-adapted-recovery"] != "" && flags["--aggregate-outcome-profile"] != tracerecordrepo.AggregateOutcomeProfile {
+		return nil, errors.New("invalid-local-completion-option")
+	}
 	return flags, nil
+}
+
+// runTransportAdaptedRecovery is the recovery-only aggregate finish route
+// (ALO-V0-023). Ordinary finish never reaches it.
+func runTransportAdaptedRecovery(ctx context.Context, root, key string, flags map[string]string, stdout, stderr io.Writer) int {
+	raw, err := localcompletion.ReadTransportRecoveryRequest(flags["--transport-adapted-recovery"])
+	if err != nil {
+		return emitLocalCompletionFailure(stderr, err.Error())
+	}
+	result, provenance, err := localcompletion.FinishAggregateRecovery(ctx, root, key, raw, localCompletionPublicCommand)
+	if err != nil {
+		if result.Lifecycle != "" {
+			_ = emit(stdout, map[string]any{"ok": false, "profile": "corvint-local-completion/0", "tool": "dogfood-finish", "policy": result, "transportAdaptedRecovery": provenance})
+		}
+		return emitLocalCompletionFailure(stderr, err.Error())
+	}
+	payload := map[string]any{"ok": true, "profile": "corvint-local-completion/0", "tool": "dogfood-finish", "mutates": true, "policy": result, "claim": "caller-owned-selected-workflow-only", "transportAdaptedRecovery": provenance}
+	if err = emit(stdout, payload); err != nil {
+		return emitLocalCompletionFailure(stderr, "output-failed")
+	}
+	if !result.Satisfied {
+		return 1
+	}
+	return 0
 }
 
 func localCompletionPublicCommand(ctx context.Context, root string, args []string, stdout, stderr io.Writer) int {

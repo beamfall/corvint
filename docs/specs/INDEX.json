@@ -3048,7 +3048,7 @@
     "title": "Aggregate Local Outcome V0",
     "reqPrefix": "ALO-V0",
     "intent": "proposed",
-    "delivery": "experimental; NOT_QUALIFIED; implementation NOT_RUN",
+    "delivery": "experimental; NOT_QUALIFIED; source candidate implemented, qualification incomplete",
     "claim": "Explicitly enrolled changes can preserve a complete bounded nonlearning outcome after a bound legacy admitted-path-limit refusal.",
     "dependsOn": [
       "docs/specs/local-completion-policy-v0.md",

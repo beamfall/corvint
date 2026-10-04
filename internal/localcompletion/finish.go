@@ -34,6 +34,10 @@ func Finish(ctx context.Context, root, key string, command PublicCommand) (Evalu
 }
 
 func FinishWithAggregateProfile(ctx context.Context, root, key, profile string, command PublicCommand) (Evaluation, error) {
+	return finishWithProfile(ctx, root, key, profile, command, nil)
+}
+
+func finishWithProfile(ctx context.Context, root, key, profile string, command PublicCommand, recovery *transportRecovery) (Evaluation, error) {
 	if profile != "" && profile != tracerecordrepo.AggregateOutcomeProfile {
 		return Evaluation{}, errors.New("aggregate-profile-unsupported")
 	}
@@ -60,7 +64,7 @@ func FinishWithAggregateProfile(ctx context.Context, root, key, profile string, 
 		return Evaluation{}, errors.New("aggregate-enrollment-required")
 	}
 	if profile == tracerecordrepo.AggregateOutcomeProfile {
-		return repo.finishAggregate(ctx, saved, command)
+		return repo.finishAggregate(ctx, saved, command, recovery)
 	}
 	evaluation, err := repo.evaluate(ctx, saved)
 	if err != nil || evaluation.Satisfied {
@@ -931,10 +935,10 @@ func (repo *repository) commitAggregate(ctx context.Context, saved *state, snap 
 	return repo.aggregateFaultPoint("terminal-state-committed")
 }
 
-func (repo *repository) finishAggregate(ctx context.Context, saved *state, command PublicCommand) (Evaluation, error) {
+func (repo *repository) finishAggregate(ctx context.Context, saved *state, command PublicCommand, recovery *transportRecovery) (Evaluation, error) {
 	// An identical qualified success is a semantic read-only no-op before any
 	// preservation admission, snapshot ordinal, publication or state change.
-	if saved.AggregateOutcome != nil && saved.AggregateOutcome.Phase == "COMMITTED" {
+	if recovery == nil && saved.AggregateOutcome != nil && saved.AggregateOutcome.Phase == "COMMITTED" {
 		evaluation, err := repo.evaluate(ctx, saved)
 		if err != nil || evaluation.Satisfied {
 			return evaluation, err
@@ -946,6 +950,13 @@ func (repo *repository) finishAggregate(ctx context.Context, saved *state, comma
 	}
 	if err = repo.aggregatePrerequisites(ctx, saved, snap); err != nil {
 		return Evaluation{}, err
+	}
+	// Recovery identities are admitted before any producer, preservation or
+	// publication, against the selected enrollment and current HELD target.
+	if recovery != nil {
+		if err = recovery.admit(ctx, repo, saved, snap); err != nil {
+			return Evaluation{}, err
+		}
 	}
 	opCtx, err := aggregateOperationContext(ctx)
 	if err != nil {
@@ -1089,6 +1100,12 @@ func (repo *repository) finishAggregate(ctx context.Context, saved *state, comma
 	}
 	checked := repo.runFlow(ctx, command, func(ctx context.Context, steps dogfoodflow.Runner, stdout, stderr io.Writer) (int, error) {
 		options := ConfigureAggregateCheck(dogfoodflow.CheckOptions{Root: repo.auth.Root, Base: saved.Plan.Base, BaseVerifier: steps, TreeVerifier: steps}, true)
+		if recovery != nil {
+			if err := recovery.verifyIdentities(); err != nil {
+				return 2, err
+			}
+			options = recovery.configure(options)
+		}
 		return dogfoodflow.Check(ctx, options, stdout, stderr)
 	})
 	if !processPassed(checked) {

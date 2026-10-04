@@ -8,9 +8,9 @@ legacy learning recorder's 200-path limit, retaining all evidence and refusing p
 
 ## Agent digest
 - Claim: Explicitly enrolled changes can preserve a complete bounded nonlearning outcome after a bound legacy admitted-path-limit refusal.
-- Status: proposed; experimental; NOT_QUALIFIED; source candidate implemented. Gate A passed the plan only.
+- Status: proposed; experimental; NOT_QUALIFIED; source candidate implemented, qualification incomplete. Gate A passed the plan only.
 - Exists: legacy 200-path admission and an experimental explicit aggregate candidate with native focused witnesses.
-- Blocked on: remaining native qualification, independent source review, final gates and held recovery entrypoint admission.
+- Blocked on: remaining native qualification, independent source review, final gates and the held recovery attempt (transport-adapted lane admitted 2026-10-04, unexecuted; adapter cancel/timeout cleanup failed in gitrun/session.go).
 - Read next: Requirements; Wire and authority; Publication and restart; Bounds and ownership; Acceptance and traceability.
 
 This slice proposes a separate, bounded **nonlearning** outcome and an explicit keyed Finish
@@ -84,6 +84,20 @@ or Owner algorithm repair is admitted. Preserve AGPL provenance and all six depe
   native process witnesses with source-bound raw evidence; skips or simulation are not native pass.
 - `ALO-V0-022`: Promotion and held recovery MUST require separate concrete admission, actual
   qualification, independent source review and bound gates; plan PASS is not delivered capability.
+- `ALO-V0-023`: Held recovery MAY replace the running binary's verifier roles only through the
+  recovery-only `dogfood finish --aggregate-outcome-profile corvint-dogfood-aggregate-outcome/0
+  --transport-adapted-recovery <request>` route over the existing pending aggregate transaction.
+  Ordinary Finish, aggregate Finish and public check keep LCP-V0-014; public check needs COMMITTED.
+- `ALO-V0-024`: The request MUST be one closed canonical JSON value binding the selected session,
+  plan digest, absolute executable paths, digests, historical revisions/trees and adapter patch
+  digests. It MUST match a compiled-in owner admission, the plan base tree and the current HELD
+  target/tree before any producer, preservation or publication; refusal mutates no evidence.
+- `ALO-V0-025`: BASE and TREE executables MUST be distinct regular files equal to the request and
+  unequal to the running binary at admission, check start, every run and publication. The report
+  MUST record exactly those identities with no override; any disagreement or HOLD stays pending.
+- `ALO-V0-026`: The result names `TRANSPORT_ADAPTED_HISTORICAL` with the request digest. It never
+  satisfies a pristine historical-binary requirement, rewrites original receipts, or reruns after
+  COMMITTED; the adapter source, parity and ownership witnesses stay outside the product source.
 
 ## Wire and authority
 
@@ -340,6 +354,7 @@ structural-refusal compatibility evidence only; they are not current build/CI qu
 | physical budget and owned cleanup | 017..019 | internal/cem/gitrun/operation_budget_test.go; internal/contextindex/git_test.go; unchanged Owner tests and actual native RELEASED witnesses |
 | dispatch and predecessor | 020 | cmd/corvint event/portable/worker tests; console/receiptbundle tests; actual original-main predecessor refuses genuine /1 state and legacy /0 still works |
 | source-bound qualification | 021,022 | immutable candidate manifests/raw argv/exit/stdout/stderr, fresh process phase snapshots, independent review, CEM/OCM and native gate receipts |
+| transport-adapted held recovery | 023..026 | cmd/corvint/transport_recovery_test.go TestTransportAdaptedRecoveryNative; internal/localcompletion/transport_recovery_test.go TestTransportRecoveryRequestClosedCanonical, TestTransportRecoveryAdmissionsClosed; refusals with unchanged evidence bytes, pending disagreement, public-check refusal, recorded A/B identities, committed refusal |
 
 Mandatory inventory includes: legacy 200 success/201 refusal; short-path aggregate 201/299/512
 success, 513 refusal, candidate 4097 refusal; byte exact/+1 independent of capacities; source/total
@@ -379,8 +394,9 @@ integration and native ticket completion. Full CEM1, S1-S9, release and external
 remain open. Never advertise this prototype as an official release or install dirty source.
 
 The selected prospective held recovery uses a clean qualified fixed native coordinator with
-independently built original-base and exact-held verifier binaries. This entrypoint is **PENDING**
-project admission and must not execute yet. An old wrapper's CORVINT_BIN override does not replace
+independently built original-base and exact-held verifier binaries. The owner's 2026-10-04
+decision admits only the transport-adapted lane of `ALO-V0-023..026` for scoped implementation
+and testing; executing it against the held store still needs post-review authorization. An old wrapper's CORVINT_BIN override does not replace
 its old coordinator. Do not import ALO into the held source, expand its frozen three intents,
 reset session/base/plan or claim changed-target satisfaction. Preserve held a794, original406,
 original session/plan/generation, four actual checks and all retained failures. Independent verifier
@@ -431,6 +447,24 @@ The requirement definition positions above are preserved for the separately owne
   the six terminal receipts, Linux execution and the held recovery integration remain outstanding.
   Development checks are not terminal gate receipts. Source, raw invocation and result hashes are
   retained by the task's private qualification packet for the coordinator's exact-source review.
+- Evidence for `ALO-V0-023..026` (2026-10-04): `internal/localcompletion/transport_recovery.go`
+  parses request profile `corvint-transport-adapted-held-recovery/0` with fields `base`, `tree`
+  (`adapterPatchSha256`, `historicalRevision`, `historicalTree`, `path`, `sha256`),
+  `planDigest`, `profile`, `qualification` and `session`, as `json.Marshal` bytes plus one LF.
+  The only admission is #443's key/plan with BASE `406f9dc3`/tree `e0dfeaa5`, HELD
+  `a79439af`/tree `d6d6b890` and the two pinned adapter patch digests; tests link extra rows only
+  with `-ldflags -X`. Verifiers still run through the `dogfood-verifier-worker` route; their public
+  route refuses. Request provenance is returned on stdout, not stored in local-completion state.
+  Refusals are `transport-recovery-request-unavailable`, `transport-recovery-request-invalid`,
+  `transport-recovery-fixed-verifier`, `transport-recovery-not-pending`,
+  `transport-recovery-enrollment-mismatch`, `transport-recovery-not-admitted`,
+  `transport-recovery-base-mismatch`, `transport-recovery-held-mismatch`,
+  `transport-recovery-identity-unavailable` and `transport-recovery-identity-drift`; a substituted
+  runner invoked outside the aggregate check fails `transport-recovery-requires-aggregate-check`.
+  `TestTransportRecoveryRequestClosedCanonical` and `TestTransportRecoveryAdmissionsClosed` cover
+  request parsing and the closed admission list.
+  `TestTransportAdaptedRecoveryNative` covers Darwin only; the adapter build, parity and owned-group
+  cleanup witnesses are recorded in the 2026-10-04 build log. Linux and Windows are NOT_PRODUCED.
 
 The source-level fault hooks are private repository test seams, not public options. No production
 environment variable activates faults, chooses an aggregate producer, or bypasses preservation.
