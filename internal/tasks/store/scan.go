@@ -10,6 +10,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/archive"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -30,18 +31,24 @@ var scanDirectories = []string{"receipts", "requests", "evidence", "pinned", "at
 // unrecognized path can never be silently dropped from a capacity or
 // projection check.
 func inventory(repo *intent.Repository) (*transaction.Inventory, error) {
-	files, dirs, err := scan(repo)
+	files, dirs, err := scanWithReader(repo, intent.ReadFile)
 	if err != nil {
 		return nil, err
 	}
 	return transaction.NewInventory(files, dirs)
 }
 
+type inventoryReader func(string, int) ([]byte, error)
+
 func scan(repo *intent.Repository) ([]archive.FileEntry, []string, error) {
+	return scanWithReader(repo, intent.ReadFile)
+}
+
+func scanWithReader(repo *intent.Repository, read inventoryReader, observed ...map[string]journal.PhysicalFile) ([]archive.FileEntry, []string, error) {
 	files := []archive.FileEntry{}
 	dirs := []string{}
 	for _, name := range stateFiles {
-		entry, ok, err := fileEntry(filepath.Join(repo.StateDir, name), name)
+		entry, ok, err := fileEntryWithReader(filepath.Join(repo.StateDir, name), name, read, observed...)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -50,7 +57,7 @@ func scan(repo *intent.Repository) ([]archive.FileEntry, []string, error) {
 		}
 	}
 	for _, dir := range scanDirectories {
-		found, children, err := scanDir(repo.StateDir, dir)
+		found, children, err := scanDirWithReader(repo.StateDir, dir, read, observed...)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -61,7 +68,7 @@ func scan(repo *intent.Repository) ([]archive.FileEntry, []string, error) {
 		dirs = append(dirs, children.dirs...)
 		files = append(files, children.files...)
 	}
-	intentFiles, err := scanIntent(repo)
+	intentFiles, err := scanIntentWithReader(repo, read, observed...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -80,6 +87,10 @@ type children struct {
 // directory anywhere else, and any nested directory under a shard, is outside
 // the §3.4 layout and refused.
 func scanDir(stateDir, dir string) (bool, children, error) {
+	return scanDirWithReader(stateDir, dir, intent.ReadFile)
+}
+
+func scanDirWithReader(stateDir, dir string, read inventoryReader, observed ...map[string]journal.PhysicalFile) (bool, children, error) {
 	var out children
 	root := filepath.Join(stateDir, dir)
 	entries, err := os.ReadDir(root)
@@ -95,7 +106,7 @@ func scanDir(stateDir, dir string) (bool, children, error) {
 			if dir != "requests" {
 				return false, out, wire.Errorf(wire.CodeMalformed, rel, "unexpected directory in %s", dir)
 			}
-			shard, err := scanShard(stateDir, rel)
+			shard, err := scanShardWithReader(stateDir, rel, read, observed...)
 			if err != nil {
 				return false, out, err
 			}
@@ -103,7 +114,7 @@ func scanDir(stateDir, dir string) (bool, children, error) {
 			out.files = append(out.files, shard...)
 			continue
 		}
-		entry, ok, err := fileEntry(filepath.Join(root, e.Name()), rel)
+		entry, ok, err := fileEntryWithReader(filepath.Join(root, e.Name()), rel, read, observed...)
 		if err != nil {
 			return false, out, err
 		}
@@ -115,6 +126,10 @@ func scanDir(stateDir, dir string) (bool, children, error) {
 }
 
 func scanShard(stateDir, shard string) ([]archive.FileEntry, error) {
+	return scanShardWithReader(stateDir, shard, intent.ReadFile)
+}
+
+func scanShardWithReader(stateDir, shard string, read inventoryReader, observed ...map[string]journal.PhysicalFile) ([]archive.FileEntry, error) {
 	root := filepath.Join(stateDir, shard)
 	entries, err := os.ReadDir(root)
 	if err != nil {
@@ -126,7 +141,7 @@ func scanShard(stateDir, shard string) ([]archive.FileEntry, error) {
 		if e.IsDir() {
 			return nil, wire.Errorf(wire.CodeMalformed, rel, "unexpected directory in a request shard")
 		}
-		entry, ok, err := fileEntry(filepath.Join(root, e.Name()), rel)
+		entry, ok, err := fileEntryWithReader(filepath.Join(root, e.Name()), rel, read, observed...)
 		if err != nil {
 			return nil, err
 		}
@@ -141,10 +156,14 @@ func scanShard(stateDir, shard string) ([]archive.FileEntry, error) {
 // paths. The inventory names them `intent/...` because that is how a plan's
 // post paths name them (§3.4).
 func scanIntent(repo *intent.Repository) ([]archive.FileEntry, error) {
+	return scanIntentWithReader(repo, intent.ReadFile)
+}
+
+func scanIntentWithReader(repo *intent.Repository, read inventoryReader, observed ...map[string]journal.PhysicalFile) ([]archive.FileEntry, error) {
 	root := filepath.Join(repo.PrimaryWorktree, intent.Dir)
 	files := []archive.FileEntry{}
 	for _, name := range []string{"queue.json", "policy.json"} {
-		entry, ok, err := fileEntry(filepath.Join(root, name), "intent/"+name)
+		entry, ok, err := fileEntryWithReader(filepath.Join(root, name), "intent/"+name, read, observed...)
 		if err != nil {
 			return nil, err
 		}
@@ -165,7 +184,7 @@ func scanIntent(repo *intent.Repository) ([]archive.FileEntry, error) {
 				continue
 			}
 			rel := "intent/" + dir + "/" + e.Name()
-			entry, ok, err := fileEntry(filepath.Join(root, dir, e.Name()), rel)
+			entry, ok, err := fileEntryWithReader(filepath.Join(root, dir, e.Name()), rel, read, observed...)
 			if err != nil {
 				return nil, err
 			}
@@ -180,11 +199,23 @@ func scanIntent(repo *intent.Repository) ([]archive.FileEntry, error) {
 // fileEntry digests one file. An absent file is reported as absent rather
 // than as an error: the caller decides whether its absence is legal.
 func fileEntry(full, rel string) (archive.FileEntry, bool, error) {
+	return fileEntryWithReader(full, rel, intent.ReadFile)
+}
+
+func fileEntryWithReader(full, rel string, read inventoryReader, observed ...map[string]journal.PhysicalFile) (archive.FileEntry, bool, error) {
 	bound, ok := intent.BoundFor(rel)
 	if !ok {
 		bound = wire.MaxEvidenceBlobBytes
 	}
-	raw, err := intent.ReadFile(full, bound)
+	if len(observed) > 0 {
+		if file, present := observed[0][rel]; present {
+			if file.Bytes < 0 || file.Bytes > bound {
+				return archive.FileEntry{}, false, wire.Errorf(wire.CodeLimitExceeded, rel, "observed inventory bytes exceed bound")
+			}
+			return archive.FileEntry{Path: rel, Sha256: file.Sha256, Bytes: wire.SizeOf(uint64(file.Bytes))}, true, nil
+		}
+	}
+	raw, err := read(full, bound)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return archive.FileEntry{}, false, nil

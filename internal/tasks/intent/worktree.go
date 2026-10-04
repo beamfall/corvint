@@ -6,6 +6,7 @@
 package intent
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -186,7 +187,11 @@ func canonicalAncestors(common string) (string, error) {
 // and propagates every read error: a short read is never returned as
 // success.
 func readBounded(path string, max int) ([]byte, error) {
-	fi, err := os.Lstat(path)
+	return readBoundedUsing(path, max, func() (os.FileInfo, error) { return os.Lstat(path) }, func() (*os.File, error) { return openReadFile(path) })
+}
+
+func readBoundedUsing(path string, max int, stat func() (os.FileInfo, error), open func() (*os.File, error)) ([]byte, error) {
+	fi, err := stat()
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, err
@@ -202,7 +207,7 @@ func readBounded(path string, max int) ([]byte, error) {
 	if fi.Size() > int64(max) {
 		return nil, wire.Errorf(wire.CodeLimitExceeded, path, "file larger than %d bytes (%d)", max, fi.Size())
 	}
-	f, err := openReadFile(path)
+	f, err := open()
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, err
@@ -253,3 +258,29 @@ func ReadFile(path string, max int) ([]byte, error) {
 
 // Replaced only by deterministic stat/open race tests.
 var openReadFile = safeopen.File
+
+// ReadFileFromRoot reads one basename beneath an already pinned parent. The
+// label is diagnostic only; validation, identity checks and byte bounds match
+// ReadFile. The caller owns the parent lifetime and its named-path binding.
+func ReadFileFromRoot(root *os.Root, label, name string, max int) ([]byte, error) {
+	if root == nil || name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\`) || filepath.Base(name) != name {
+		return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, label, "expected a pinned parent and one basename")
+	}
+	return readBoundedUsing(label, max, func() (os.FileInfo, error) { return root.Lstat(name) }, func() (*os.File, error) {
+		file, err := openRootReadFile(root, name)
+		if os.IsNotExist(err) {
+			var pathErr *os.PathError
+			// Only the final basename may be optional. A failure opening the pinned
+			// parent or traversal dot must never be interpreted as a missing file.
+			if !errors.As(err, &pathErr) || pathErr.Path != name {
+				return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, label, "pinned parent traversal: %v", err)
+			}
+		}
+		return file, err
+	})
+}
+
+// Replaced only by deterministic pinned-reader stat/open race tests.
+var openRootReadFile = func(root *os.Root, name string) (*os.File, error) {
+	return safeopen.InRoot(root, name, os.O_RDONLY, 0, false)
+}
