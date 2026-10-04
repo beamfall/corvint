@@ -141,6 +141,8 @@ func helpText(topic string) string {
 		return rootHelp
 	case "query":
 		return fmt.Sprintf(queryHelpFormat, authorityStartPrompt)
+	case "delta":
+		return deltaHelp
 	case "impact":
 		return impactHelp
 	case "feature":
@@ -255,6 +257,7 @@ Usage:
   corvint [--root PATH] features | overview
   corvint [--root PATH] review --base FULL_COMMIT_ID [--max-refs N]
   corvint [--root PATH] affected
+  corvint [--root PATH] delta --base FULL_SHA --head FULL_SHA [OPTIONS]
   corvint obligations --cem FILE --impact FILE [--limit N]
   corvint [--root PATH] step (snapshot | verify | env-check) --declaration FILE --host FILE
     [--before FILE]
@@ -280,7 +283,7 @@ Usage:
   corvint [--root PATH] witness --base REV [--head REV] [--cem MAP] [--json]
   corvint test-validity [--receipt FILE]
   corvint [--root PATH] COMMAND --help
-  corvint help [init|adopt|query|feature|eval|impact|cem|ocm|lrf|frontier|record|migrate-traces|migration-ratchet|observations|affected|obligations|features|overview|review|prove|context|index|batch|docs|depsource|necessity|surprise|answerability|kernel|lease|reads|calibrate|skill-export|dogfood|work|prove-observe|adapter|dogfood-ocm|witness|test-validity|flows|step]
+  corvint help [init|adopt|query|feature|eval|impact|cem|ocm|lrf|frontier|record|migrate-traces|migration-ratchet|observations|affected|obligations|features|overview|review|prove|context|index|batch|docs|depsource|necessity|surprise|answerability|kernel|lease|reads|calibrate|skill-export|dogfood|work|prove-observe|adapter|dogfood-ocm|witness|test-validity|flows|step|delta]
   corvint help harness [event]
   corvint --version
 
@@ -353,6 +356,8 @@ Commands:
                  five-axis test-validity shape; never writes. Experimental.
   step           Verify experimental declared authoring scope with local read-only
                  observations and citeable receipts; host enforcement is separate.
+  delta          Compile one source-content-free record for an explicit immutable
+                 change; never writes. Experimental.
 
 Global options:
   --root PATH  Repository root (default: current directory). An explicit root is
@@ -1276,7 +1281,7 @@ const commandMaturityHelp = `Command maturity:
     calibrate (OCL-V0), witness (AGW-V0), test-validity (MTV-V0),
     features (RGV-V0), overview (RGV-V0), review (RGV-V0),
     migration-ratchet (MER-V0), flows (AFU-V0), skill-export (LTA-V0),
-    breakage (BKM-V0), step (ASS-V0)
+    breakage (BKM-V0), step (ASS-V0), delta (DLT-V0)
 
 `
 
@@ -1315,4 +1320,22 @@ This command writes only stdout and fixed errors, never repository/index/trace
 state. Host assertions remain unauthenticated. Receipts do not prove confinement,
 concurrency, transient writes, ACL/xattr/timestamps or credential isolation, and
 never stop a job or authorize execution. Proposed contract: ASS-V0.
+`
+
+const deltaHelp = `Experimental immutable change record (corvint-delta/0).
+
+Usage:
+  corvint [--root PATH] delta --base FULL_SHA --head FULL_SHA
+    [--previous-generation FILE] [--provider FILE] [--checkout ID=PATH]
+    [--work-key-pattern PATTERN]
+
+Base and head must be full lowercase commit OIDs. Provider and checkout may repeat;
+provider inputs are bounded local records, with no command or network redispatch.
+A previous generation is a repository/base-bound docs flows manifest. Work keys
+are opaque commit-metadata identifiers; commit prose and source content are excluded.
+
+Prints deterministic canonical JSON without state, object, ref or index writes.
+Incomplete coverage retains uncertainty and runFullSuite. Lexical documentation
+and assertion denominators do not establish runtime coverage. This profile remains
+proposed and experimental pending acceptance and integration evidence.
 `

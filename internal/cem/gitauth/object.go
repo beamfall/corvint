@@ -477,6 +477,9 @@ func findTreeEntry(raw []byte, name string, width int) (TreeEntry, bool, error) 
 // nextTreeEntry decodes the first entry of a tree body and returns the rest.
 // Entries are "<mode> <name>\0<raw oid>"; the mode is reported zero-padded to
 // six octal digits and typed exactly as ls-tree reports it.
+// A name Git itself never writes (empty, ".", "..", or holding "/" or NUL)
+// is refused here, for every caller, before it can alias another path in a
+// verified listing; the refusal is an integrity failure, never ErrNotExist.
 func nextTreeEntry(raw []byte, width int) (string, TreeEntry, []byte, error) {
 	header, rest, found := bytes.Cut(raw, []byte{0})
 	if !found || len(rest) < width {
@@ -485,6 +488,9 @@ func nextTreeEntry(raw []byte, width int) (string, TreeEntry, []byte, error) {
 	mode, name, found := bytes.Cut(header, []byte{' '})
 	if !found {
 		return "", TreeEntry{}, nil, unavailable("tree body is malformed")
+	}
+	if len(name) == 0 || string(name) == "." || string(name) == ".." || bytes.ContainsAny(name, "/\x00") {
+		return "", TreeEntry{}, nil, unavailable("tree entry name is malformed")
 	}
 	bits, err := strconv.ParseUint(string(mode), 8, 32)
 	if err != nil {

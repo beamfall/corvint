@@ -753,6 +753,12 @@ type Digest struct {
 	Tools       map[string]int
 	TopPaths    []PathBytes
 	SkippedRows int
+	// Rejected counts, by closed reason, the bounded rows the writer could not
+	// have produced (URE-V0-005). None of them contributes to any other field.
+	Rejected map[string]int
+	// Truncated reports that the ledger exceeded maxFileBytes and only its
+	// first maxFileBytes were read.
+	Truncated bool
 	// LastError is the reason code of the newest retained error row and
 	// DroppedErrors counts every retained error row.
 	LastError     string
@@ -771,7 +777,7 @@ func (d Digest) Ratio() string {
 
 // Read folds the ledger into a digest. It writes nothing.
 func Read(root string) (Digest, error) {
-	result := Digest{Tools: map[string]int{}}
+	result := Digest{Tools: map[string]int{}, Rejected: map[string]int{}}
 	file, err := openLedger(root)
 	if os.IsNotExist(err) {
 		return result, nil
@@ -782,13 +788,24 @@ func Read(root string) (Digest, error) {
 	defer file.Close()
 	bytesByPath := map[string]int64{}
 	reader := bufio.NewReader(io.LimitReader(file, maxFileBytes+1))
+	var consumed int
 	for {
 		row, readErr := reader.ReadBytes('\n')
-		if trimmed := bytes.TrimSuffix(row, []byte("\n")); len(trimmed) > 0 {
-			if len(trimmed) > maxRowBytes {
-				result.SkippedRows++
-			} else {
-				foldRow(&result, bytesByPath, trimmed)
+		consumed += len(row)
+		result.Truncated = consumed > maxFileBytes
+		trimmed := bytes.TrimSuffix(row, []byte("\n"))
+		terminated := len(trimmed) < len(row)
+		switch {
+		case len(trimmed) == 0:
+		case result.Truncated:
+			// This row ends past the cap; Truncated already reports it.
+		case len(trimmed) > maxRowBytes:
+			result.SkippedRows++
+		case !terminated:
+			result.Rejected["unterminated-row"]++
+		default:
+			if reason := foldRow(&result, bytesByPath, trimmed); reason != "" {
+				result.Rejected[reason]++
 			}
 		}
 		if readErr != nil {
@@ -801,35 +818,83 @@ func Read(root string) (Digest, error) {
 	}
 }
 
-func foldRow(result *Digest, bytesByPath map[string]int64, row []byte) {
+// errorReasons is the closed set errorReason writes.
+var errorReasons = map[string]bool{"row-exceeds-bound": true, "planned-row-path": true, "write-failed": true}
+
+// foldRow folds one bounded row and returns "" when it counted, or the closed
+// reason it was rejected for. It re-applies the writer's row contract, so a
+// hand- or agent-written row the writer could not have produced is counted as
+// rejected and never becomes a read, a path, or a byte count (URE-V0-005).
+func foldRow(result *Digest, bytesByPath map[string]int64, row []byte) string {
 	var probe struct {
 		Kind   string `json:"kind"`
 		Reason string `json:"reason"`
 	}
-	if json.Unmarshal(row, &probe) != nil {
-		return
+	if !bytes.HasPrefix(row, []byte("{")) || json.Unmarshal(row, &probe) != nil {
+		return "malformed-json"
 	}
-	if probe.Kind == errorKind && probe.Reason != "" {
+	switch probe.Kind {
+	case "":
+	case errorKind:
+		if !errorReasons[probe.Reason] {
+			return "unknown-error-reason"
+		}
 		result.LastError = probe.Reason
 		result.DroppedErrors++
-		return
-	}
-	// Packet rows and any unrecognized kind are not reads.
-	if probe.Kind != "" {
-		return
+		return ""
+	case packetKind:
+		// Packet rows are not reads; only packet lookup reads them.
+		return ""
+	default:
+		return "unknown-kind"
 	}
 	var event Event
 	if json.Unmarshal(row, &event) != nil {
-		return
+		return "malformed-json"
+	}
+	if reason := readRowProblem(event); reason != "" {
+		return reason
 	}
 	if event.Planned {
 		result.Planned++
-		return
+		return ""
 	}
 	result.Unplanned++
 	result.TotalBytes += event.Bytes
 	result.Tools[event.Tool]++
 	bytesByPath[event.Path] += event.Bytes
+	return ""
+}
+
+// readRowProblem names the first way a read row breaks the writer contract:
+// one of the recognized tools, no path or size on a planned row, and a
+// project-relative path with a non-negative size on an unplanned one.
+func readRowProblem(event Event) string {
+	switch {
+	case event.Tool != "Read" && event.Tool != "Grep" && event.Tool != "Glob" && event.Tool != "Bash":
+		return "unknown-tool"
+	case event.Bytes < 0:
+		return "negative-bytes"
+	case event.Planned && (event.Path != "" || event.Bytes != 0 || event.SizeKnown):
+		return "planned-row-fields"
+	case !event.Planned && !ProjectRelative(event.Path):
+		return "path-not-project-relative"
+	}
+	return ""
+}
+
+// ProjectRelative reports whether path has the shape a classified read stores:
+// a non-empty slash path below the root with no empty, "." or ".." component.
+func ProjectRelative(path string) bool {
+	if path == "" || strings.HasPrefix(path, "/") {
+		return false
+	}
+	for _, part := range strings.Split(path, "/") {
+		if part == "" || part == "." || part == ".." {
+			return false
+		}
+	}
+	return true
 }
 
 func rankPaths(bytesByPath map[string]int64) []PathBytes {
@@ -858,6 +923,12 @@ func Render(root string, limit int, output io.Writer) error {
 	lines := []string{fmt.Sprintf("UNPLANNED-READS enabled=%t unplanned=%d planned=%d ratio=%s bytes=%d", Enabled(root), data.Unplanned, data.Planned, data.Ratio(), data.TotalBytes)}
 	if data.SkippedRows > 0 {
 		lines = append(lines, fmt.Sprintf("SKIPPED-ROWS count=%d oversized", data.SkippedRows))
+	}
+	for _, reason := range sortedKeys(data.Rejected) {
+		lines = append(lines, fmt.Sprintf("REJECTED-ROWS reason=%s count=%d", reason, data.Rejected[reason]))
+	}
+	if data.Truncated {
+		lines = append(lines, fmt.Sprintf("LEDGER-CUT cap-bytes=%d", maxFileBytes))
 	}
 	if data.LastError != "" {
 		lines = append(lines, fmt.Sprintf("LAST-ERROR reason=%s count=%d", data.LastError, data.DroppedErrors))
