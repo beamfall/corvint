@@ -2,6 +2,20 @@
 
 Corvint is a local-first, proof-carrying context compiler for software agents.
 
+## Delivery and context
+
+- Prove the smallest useful end-to-end result early and finish required integration and verification.
+  Reuse accepted decisions; add work only for the request or an observed blocker.
+- Read only the task's applicable context route and original evidence. Keep procedural details in
+  the linked contracts; do not preload every spec, backlog, feature or skill.
+- Use focused checks while building, one independent review, and the required final gate. Reuse
+  evidence only under its binding rules; repeat for changed inputs, failure or an explicit mandate.
+- Record evidence as work completes. Avoid duplicate reports, status-only handoffs and administrative
+  closeout rounds. When process delays delivery, simplify it without weakening gates or approvals.
+- Choose task-fit effort; reserve deeper reasoning for uncertain design, authority, evidence
+  bindings, concurrency or security. Instruction tuning is a hypothesis until measured; missing
+  telemetry stays `NOT_OBSERVED`.
+
 ## Product invariants
 
 1. Evidence is pinned to immutable Git content and always explains its inclusion.
@@ -52,12 +66,24 @@ the delivered diff to a CEM, inspect the reviewer report, run the relevant froze
 record the explicit local outcome. Corvint self-use is product evidence and friction discovery, never
 a substitute for independent interoperability or external outcome validation.
 
-At change start run `make dogfood-change BASE=<sha>`. Final binding and checking are post-commit:
+For substantive work, at change start run `make dogfood-change BASE=<sha>`. Final binding and checking are post-commit:
 follow `docs/DOGFOOD.md` §4, commit the CEM, then rerun `dogfood-change` and `dogfood-check` from
 a clean worktree against the same base, and finish with `make dogfood-seal BASE=<sha>`, which moves
 the checked CEM out of the shared tracked path. Keep every `NOT_PRODUCED` reason visible.
 
 ## Repository etiquette
+
+### Standing publication approval
+
+For requested Corvint issue work, automatically push verified task branches to this repository's
+configured origin and open or update ready (non-draft) pull requests, including stacked PRs; a
+machine PreToolUse hook refuses draft PR creation. This is an explicit exception to the
+outward-action confirmation rule; no additional approval is required. Publish only task-owned
+commits after the required checks and review, preserving recorded limits and uncertainty. After
+opening a task PR, also arm GitHub auto-merge with the merge-commit method, never squash or rebase
+(decision 0319); the owner approved this default on 2026-09-27 (beamfall/corvint#310). If arming is
+refused, leave it for the owner. Merging by hand, force-pushing, deleting remote branches, and
+publishing releases still require explicit approval.
 
 Base every branch and worktree on `origin/main`. The pre-snapshot private lineage (local `main` in some
 checkouts) has no merge base with it and must never be merged or cherry-picked wholesale; see

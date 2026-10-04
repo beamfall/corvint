@@ -132,12 +132,19 @@
     ],
     "internal/cem/verify": [
       "conformance/cem-0.1/",
-      "interop/cem-0.1/"
+      "interop/cem-0.1/",
+      "protocol/cem-1.0/artifacts/",
+      "protocol/cem-1.0/manifest.json",
+      "protocol/cem-1.0/maps/",
+      "protocol/cem-1.0/patches/",
+      "protocol/cem-1.0/repository/",
+      "protocol/cem-1.0/stable/repository-envelope-packet/"
     ],
     "internal/cem/wire": [
       "conformance/cem-0.1/",
       "conformance/cem-0.2/",
-      "interop/cem-0.1/"
+      "interop/cem-0.1/",
+      "protocol/cem-1.0/maps/"
     ],
     "internal/cem/workflow": [
       "protocol/cem-0.2/"

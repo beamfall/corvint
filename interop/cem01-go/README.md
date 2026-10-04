@@ -61,3 +61,45 @@ LOW findings.
 This interoperability implementation is licensed under plain Apache-2.0 as listed in
 `../../LICENSING.md`. Publication still requires the repository's release-integrity and
 product-evidence gates.
+
+### Experimental CEM 1.0 candidate
+
+The additive `verify-candidate` command implements the public
+[`protocol/cem-1.0/ALGORITHMS.md`](../../protocol/cem-1.0/ALGORITHMS.md)
+contract. It does not change `verify` or `ci`, and historical interfaces still
+refuse candidate maps. Building now requires Go 1.24 or later for rooted artifact
+reads; the consumer remains standard-library-only.
+
+```
+cem01-go verify-candidate --repository /absolute/repo --map candidate.json \
+  --expected-base FULL_BASE_OID --target FULL_TARGET_OID --artifacts /absolute/artifacts
+```
+
+Exit zero means canonical change integrity plus opaque referenced-byte integrity.
+It never means a criterion passed or a native Tasks/runner record was authoritative.
+Every output includes `REFERENCE_INTEGRITY_ONLY` and eight `NOT_OBSERVED` limits.
+The packet deliberately includes an illustrative failed infrastructure receipt;
+its intact bytes cannot become a semantic success claim.
+
+The portable candidate path independently self-hashes commit, tree and required
+blob objects, inventories both trees, derives the canonical diff, replays it into
+verified target bytes, verifies evidence identity and drift, and checks artifact
+bytes before and after Git verification. It keeps the candidate spec unchanged
+when reusing format-neutral evidence and patch mechanics.
+
+This reference path admits only primary SHA-1/SHA-256 repositories with a regular
+`.git` directory, regular tracked files, and a narrow local configuration containing
+only ordinary core repository settings and the object-format extension. Linked
+worktrees, shallow repositories, alternates, grafts, info attributes, config
+includes, remotes and other custom config sections, symlinks and gitlinks refuse.
+Trees are limited to depth 32 and 4096 files; inherited object/patch/time limits
+also apply. This is an operational portability profile, not qualification for all
+native repository forms or a hostile same-user filesystem sandbox. Native runtime
+schema validation, source attestation, 0.3 witness/structural capability migration,
+independently authored external consumers and outcome evaluation remain outside
+this candidate. Stable CEM 1.0 remains blocked on those qualifications.
+
+`TestCandidateNormativePacket` reconstructs the new frozen SHA-1 and SHA-256
+repositories and checks all 31 cases through the executable, separately from the
+unchanged historical manifests. The packet and both consumers are Corvint-authored
+reference portability evidence, not independent external interoperability evidence.

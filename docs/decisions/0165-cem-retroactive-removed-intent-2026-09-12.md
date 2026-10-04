@@ -7,7 +7,7 @@ record them (orchestration thread, 2026-09-12).
 cannot cite the backlog entry that commit removes, even when that entry was the only recorded
 intent. `cem cite` reads the span from `baseRevision`, but its `CEM-CB-005` precheck and the
 canonical target-drift check both classify a removed span as `stale` or `deleted` and refuse it
-(`internal/cem/verify/verify.go:425-480@92b33007`), so `DOGFOOD-BIND-007` marks the hunk unknown
+(`internal/cem/verify/verify.go:430-485@92b33007`), so `DOGFOOD-BIND-007` marks the hunk unknown
 with a free-text detail that names nothing checkable. The entry's proposed fix was a `cem/0.3`
 profile adding per-evidence `"scope":"base-only"`.
 

@@ -1,0 +1,305 @@
+{
+  "artifactAuthority": "MANUFACTURED_REFERENCE_BYTES_ONLY",
+  "artifactSha256": {
+    "artifacts/runner-plan.json": "62667bd9e3e601f5e4097cd7b23da77c87829c569be32636c81798b4e697590b",
+    "artifacts/runner-receipt.json": "4a86ed9613ad3aa4c2a57149331205d9fa0ad57293561dc52d7ada7e2f1b8be4",
+    "artifacts/tasks-capture.json": "eb00599e757b0f6be74bcadb5a80fdabcd8420f11c94cadf3824720c072465f4",
+    "artifacts/tasks-claimed-ticket.json": "b784b4d9fb27e12f6c43cbfc7d264f5f7b7ba556fb9612d71f59665f110818fc",
+    "artifacts/tasks-verification.json": "20db8c79a9dc42c92345e18dd92a582d4e56f83a9cdb0534dc2bf85660fe0d38",
+    "maps/artifact-mixedcase-git.json": "530727d4cd8e962229dc9166ca12830d8e410c3318faa2cf4cc664525dd7a31e",
+    "maps/artifact-path-escape.json": "5164d6123879db80655ce072c58a3f149a5af904f2bc23345a4195b391e8d0b8",
+    "maps/artifact-role-conflict.json": "e41e6007530350a077f4b5fe764cb853f2220337b9614f4877ce38e8098ab6dc",
+    "maps/criterion-hash-tamper.json": "db2f69eff9117ea858a215ab7ef4600a28cf1373313cf975d5fdff6bef80c480",
+    "maps/criterion-index-255.json": "ffd2b07e46c54bdd3ce78627f870ab51612e25a54b4020dfa2bc622175e5da1a",
+    "maps/criterion-index-array.json": "a7be91e24555316e630417102405e193a9fc379308e099956410a5bb92f469d5",
+    "maps/criterion-index-boolean.json": "70bab866469360b106ba170e995e132866ab86b34a3f80f8437df1595ba4f7f8",
+    "maps/criterion-index-exponent.json": "131edc6784eb3fab7fb9c3660208cf54a3ba03df1a63c6cdf7ecd1a93a88be01",
+    "maps/criterion-index-fraction.json": "8aea78719e5c77ff8f72dde0d585383085c765a567a99a9cd295a11820969dfd",
+    "maps/criterion-index-max-wire.json": "0fe923d4d490ebad7bbe9996896c9a10fe9475ea1710b665df920ffc1067621e",
+    "maps/criterion-index-object.json": "9982501bc9d2ff9e67aa7447c61f08ad0c5950a22bfd83dc988c92984a38c6ce",
+    "maps/criterion-index-overflow-wire.json": "9ac117c0453b74c8866da892dcbe4dbb127eb4988bd73f7c8853a1d654e76f26",
+    "maps/criterion-index-string.json": "d5eeef8f40af27019dd11aefaabdf0a4bccd0910db7014c38366b23891cc5076",
+    "maps/criterion-null-forged-id.json": "93e40e99931bee06a7c5d0150dcd675c78390c4ea7e3bb9ebbddb92519a2e0fe",
+    "maps/criterion-revision-max-wire.json": "0338f367ce1564a0a1759f9b8f6433b36797c3dd34e3c7b71e55453042651134",
+    "maps/dangling-hunk.json": "9f1a001680e631a4878769d5d180c515ef84ec91b09737e4e10a68862246ad61",
+    "maps/duplicate-artifact-path.json": "a073eea83e96ce8442fca67cdcbb17f93ec44e798228ac265a07ed0698fb3957",
+    "maps/duplicate-criterion.json": "903f9a00d3089d8feb929697507ed3c5d997f722a66a1011b02414a45943c10a",
+    "maps/duplicate-json-key.json": "1478a703113c46c4eec9d951e4f671cfe09f61b003266a7c1813f95e90a73cb7",
+    "maps/duplicate-link-reference.json": "fe6292a3cbf2b399f7af14e8f773b4d82d76737da8d4a171019a29acdbb8cc5f",
+    "maps/invented-source-assurance.json": "90a58c9d68fb314d9261adbaf2d3334de249023d3193efd466f92e66185b4509",
+    "maps/missing-artifact-declaration.json": "9acbe4eaa9be5f321b209f514f057259da555ce03808bb6ac3ec0e5c03dfe96e",
+    "maps/sha1-valid.json": "a8fef4b9b5f87d2b83a524eb7110e9f51c5200f66dd131e0ed16f9727181661d",
+    "maps/sha256-valid.json": "6d86ece7bc99f1d48905cbf8112a050349f8685ba8aa2fc0f07cd08ef66d89ba",
+    "maps/sidecar-byte-mismatch.json": "570d8f2840dba20c2a4db1a140429c8155fd8255869c8485e706e0a07d21b288",
+    "maps/unknown-field-killed.json": "c38a5e6cc41abd8044a2e467f24a9be618d1624db8784fcc8ee90b3dc16d8b3c",
+    "maps/unknown-receipt-profile.json": "1eb21e429ab9f46aa797e5a83be83d53306f0b3c6fb08e799a3ecd07b5ad6d53",
+    "maps/unknown-stable-profile.json": "27724f41bb912fe64e1098e323d6a33c9c499e37c086a22c3d3bad2a3541fbd2",
+    "maps/unsupported-coverage.json": "57d5e690cd3ec7d75d4f0f686940a5434f040d4aa19266c22e6e709d1420cdcf",
+    "patches/sha1.patch": "d05ddf46e8bb0e27ee08c77f894961e12334a0be32563d77b155f808d703c399",
+    "patches/sha256.patch": "fd7d14bd8ff1f9e5cc8a05c9f6a0432f35448d772b698916de29aba592561ff4",
+    "repository/base/app.txt": "9160d4be34c8695bd172a76c7c7966587ea5a4d991ad22c87b2b91af54aa9ebb",
+    "repository/base/rule.txt": "2cd9a2fee55f9fb0a3130dce64893d05ba8d27a0ee81184476a2116746b47eac"
+  },
+  "author": "Candidate Proof <proof@example.invalid>",
+  "baseMessage": "candidate base",
+  "cases": [
+    {
+      "exit": 0,
+      "integrity": "VERIFIED",
+      "map": "maps/sha1-valid.json",
+      "name": "sha1-valid",
+      "repository": "sha1"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/unknown-stable-profile.json",
+      "name": "unknown-stable-profile",
+      "repository": "sha1"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/unknown-field-killed.json",
+      "name": "unknown-field-killed",
+      "repository": "sha1"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/criterion-hash-tamper.json",
+      "name": "criterion-hash-tamper",
+      "repository": "sha1"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/duplicate-criterion.json",
+      "name": "duplicate-criterion",
+      "repository": "sha1"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/duplicate-link-reference.json",
+      "name": "duplicate-link-reference",
+      "repository": "sha1"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/dangling-hunk.json",
+      "name": "dangling-hunk",
+      "repository": "sha1"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/unknown-receipt-profile.json",
+      "name": "unknown-receipt-profile",
+      "repository": "sha1"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/invented-source-assurance.json",
+      "name": "invented-source-assurance",
+      "repository": "sha1"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/missing-artifact-declaration.json",
+      "name": "missing-artifact-declaration",
+      "repository": "sha1"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/duplicate-artifact-path.json",
+      "name": "duplicate-artifact-path",
+      "repository": "sha1"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/artifact-path-escape.json",
+      "name": "artifact-path-escape",
+      "repository": "sha1"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/artifact-role-conflict.json",
+      "name": "artifact-role-conflict",
+      "repository": "sha1"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/unsupported-coverage.json",
+      "name": "unsupported-coverage",
+      "repository": "sha1"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/duplicate-json-key.json",
+      "name": "duplicate-json-key",
+      "repository": "sha1"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/sidecar-byte-mismatch.json",
+      "name": "sidecar-byte-mismatch",
+      "repository": "sha1"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/sha1-valid.json",
+      "name": "missing-artifact-bytes",
+      "omitArtifact": "artifacts/runner-receipt.json",
+      "repository": "sha1"
+    },
+    {
+      "changeArtifact": "artifacts/runner-receipt.json",
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/sha1-valid.json",
+      "name": "changed-artifact-bytes",
+      "repository": "sha1"
+    },
+    {
+      "exit": 0,
+      "integrity": "VERIFIED",
+      "map": "maps/sha256-valid.json",
+      "name": "sha256-valid",
+      "repository": "sha256"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/criterion-null-forged-id.json",
+      "name": "criterion-null-forged-id",
+      "repository": "sha1",
+      "target": "content"
+    },
+    {
+      "artifactDirectory": ".GiT",
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/artifact-mixedcase-git.json",
+      "name": "artifact-mixedcase-git",
+      "repository": "sha1",
+      "target": "content"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/criterion-index-boolean.json",
+      "name": "criterion-index-boolean",
+      "repository": "sha1",
+      "target": "content"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/criterion-index-string.json",
+      "name": "criterion-index-string",
+      "repository": "sha1",
+      "target": "content"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/criterion-index-object.json",
+      "name": "criterion-index-object",
+      "repository": "sha1",
+      "target": "content"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/criterion-index-array.json",
+      "name": "criterion-index-array",
+      "repository": "sha1",
+      "target": "content"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/criterion-index-fraction.json",
+      "name": "criterion-index-fraction",
+      "repository": "sha1",
+      "target": "content"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/criterion-index-max-wire.json",
+      "name": "criterion-index-max-wire",
+      "repository": "sha1",
+      "target": "content"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/criterion-index-overflow-wire.json",
+      "name": "criterion-index-overflow-wire",
+      "repository": "sha1",
+      "target": "content"
+    },
+    {
+      "exit": 0,
+      "integrity": "VERIFIED",
+      "map": "maps/criterion-index-255.json",
+      "name": "criterion-index-255",
+      "repository": "sha1",
+      "target": "content"
+    },
+    {
+      "exit": 0,
+      "integrity": "VERIFIED",
+      "map": "maps/criterion-revision-max-wire.json",
+      "name": "criterion-revision-max-wire",
+      "repository": "sha1",
+      "target": "content"
+    },
+    {
+      "exit": 1,
+      "integrity": "NOT_VERIFIED",
+      "map": "maps/criterion-index-exponent.json",
+      "name": "criterion-index-exponent",
+      "repository": "sha1",
+      "target": "content"
+    }
+  ],
+  "contentMessage": "candidate content",
+  "profile": "cem-candidate-vectors/1",
+  "repositories": [
+    {
+      "baseRevision": "37e772309d91e1c5cd08d053a305aea304409f50",
+      "contentRevision": "ee5d2ac0e48c43383f609d87d2b5b2aaf0a260d6",
+      "map": "maps/sha1-valid.json",
+      "name": "sha1",
+      "objectFormat": "sha1",
+      "patch": "patches/sha1.patch",
+      "targetRevision": "575cd973911453406f5048a88d9a7cc14f05bda4"
+    },
+    {
+      "baseRevision": "8f3fb15999ab218513755a104b99e334849107a46693a78a2a621cbef486ab2b",
+      "contentRevision": "1d7c86fb9ba03c4bf2c5256b63585d06702b8882b30eb84151d186360db4d6f0",
+      "map": "maps/sha256-valid.json",
+      "name": "sha256",
+      "objectFormat": "sha256",
+      "patch": "patches/sha256.patch",
+      "targetRevision": "52d4237408508ea2a25bf19de233848e10750af6937ad6ff46f038b25297103f"
+    }
+  ],
+  "spec": "cem/1.0-experimental.1",
+  "status": "experimental",
+  "targetMessage": "candidate sidecar",
+  "timestamp": "2026-01-01T00:00:00Z"
+}
