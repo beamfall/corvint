@@ -104,12 +104,12 @@ The first delivery is the pure foundation in `internal/tasks/service` (profile.g
 
 | Requirement | Pure foundation witness | Evidence limit |
 |---|---|---|
-| SERVICE500-001 | ProfileName/ManifestName constants; TestIssue500_ProfileClosedAndBounded | No public or internal service route exists; CLI routing NOT_RUN |
-| SERVICE500-002 | Profile.Validate/Encode, DecodeProfile, BuildManifest; TestIssue500_ProfileClosedAndBounded | Ownership, mode and symlink facts are supplied, not observed; descriptor checks NOT_RUN |
+| SERVICE500-001 | ProfileName/ManifestName constants only; no test exercises a route | No public or internal service route exists; CLI routing NOT_RUN |
+| SERVICE500-002 | Profile.Validate/Encode, DecodeProfile, BuildManifest; TestIssue500_ProfileClosedAndBounded | Ownership, mode and symlink facts are supplied, not observed; descriptor checks NOT_RUN. The manifest binds rendered unit hashes, not unit bytes; temporary-root rejection covers only /tmp, /private/tmp and /var/tmp |
 | SERVICE500-003 | PlanLaunch, Suppress, LegacyPresence, LegacyLatch, Resume; TestIssue500_ControlLaunchFencePlan; TestIssue500_LegacyPresenceLatchRevision; TestIssue500_ResumeOperationReplayAndPartialPublication | Models only; real fence, CAS publication, OpenControlled contention and crash recovery NOT_RUN |
-| SERVICE500-004 | RenderUnits launchd plist; TestIssue500_UnitRenderingAndArgumentEscaping | Rendered bytes only; launchd bootstrap, restart, adoption and login scope NOT_RUN |
-| SERVICE500-005 | RenderUnits systemd user unit; TestIssue500_UnitRenderingAndArgumentEscaping | Rendered bytes only; systemd user manager, cgroup and linger behavior NOT_RUN |
-| SERVICE500-006 | ChargeFailure, Eligibility, ObserveHealth; TestIssue500_FiniteRestartDebtAndReset | Supplied observations; durable generation journal and real crash/boot timing NOT_RUN |
+| SERVICE500-004 | RenderUnits launchd plist; TestIssue500_UnitRenderingAndArgumentEscaping asserts argv, AbandonProcessGroup and no DTD only | Rendered bytes only; other plist keys are unasserted; launchd bootstrap, restart, adoption and login scope NOT_RUN |
+| SERVICE500-005 | RenderUnits systemd user unit; TestIssue500_UnitRenderingAndArgumentEscaping asserts ExecStart, KillMode, StartLimitIntervalSec and StandardOutput only | Rendered bytes only; other unit keys are unasserted and the quoted WorkingDirectory value is an open review finding; systemd user manager, cgroup and linger behavior NOT_RUN |
+| SERVICE500-006 | ChargeFailure, Eligibility, ObserveHealth; TestIssue500_FiniteRestartDebtAndReset | Supplied observations; ObserveHealth does not yet reject a healthy-since time after now, and an overflow error returns mutated debt (open review findings); durable generation journal and real crash/boot timing NOT_RUN |
 | SERVICE500-007 | Helper manifest identity in BuildManifest and RenderUnits; TestIssue500_UnitRenderingAndArgumentEscaping | Helper spawn, descendant retirement and log rotation are unimplemented; NOT_RUN |
 | SERVICE500-008 | none | Status and health are unimplemented; NOT_RUN |
 | SERVICE500-009 | PlanOperation, PlanRollback; TestIssue500_OwnedInstallAndForeignRefusal; TestIssue500_UninstallAndRollbackPlan; TestIssue500_ExactUninstallAndPartialRollback | Hypothetical plans; no journal writer or manager call; real interruption recovery NOT_RUN |

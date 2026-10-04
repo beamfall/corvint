@@ -48,6 +48,15 @@ journal recovery, OpenControlled fencing, #464 helper ownership, launchd/systemd
 manager operations, login/boot scope, and Darwin/Linux runtime qualification. Model and renderer
 results do not qualify a service. Native ticket completion remains open.
 
+## Independent review of this delivery
+
+PASS with nits. Open source findings, left unfixed so the reviewed bytes stay unchanged: the
+systemd WorkingDirectory value is quoted (MED; inferred unit load failure, not run on Linux);
+ObserveHealth accepts a healthy-since time after now; a ChargeFailure overflow error returns
+mutated debt; temporary-root rejection omits /var/folders, /dev/shm and /run/user; the 128-fence
+store has no pruning. Each must close, with re-review, before any integration slice uses the
+package. The traceability table was narrowed to what the tests actually assert.
+
 ## Rollback
 
 Revert the commit. The package has no callers and the spec adds intent and catalog rows only, so
