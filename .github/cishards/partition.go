@@ -191,3 +191,10 @@ func Intersect(universe, selected []string, shard, total int) ([]string, error) 
 	}
 	return out, nil
 }
+
+// Costs returns the admitted package estimates in raw, or false when partition
+// would discard raw and fall back to lexical round-robin.
+func Costs(raw []byte) (map[string]int64, bool) {
+	w, _, ok := weights(raw)
+	return w, ok
+}
