@@ -27,15 +27,18 @@ type ProgramConfig struct {
 	ExecutableSHA256       string `json:"executableSha256"`
 	Model                  string `json:"model"`
 	Effort                 string `json:"effort"`
-	Prompt                 string `json:"prompt"`
-	WorkRoot               string `json:"workRoot"`
-	WallSeconds            int    `json:"wallSeconds"`
+	// StageEfforts optionally overrides Effort per supervised stage
+	// (implement, review, integrate); every value needs a policy allowance.
+	StageEfforts map[string]string `json:"stageEfforts,omitempty"`
+	Prompt       string            `json:"prompt"`
+	WorkRoot     string            `json:"workRoot"`
+	WallSeconds  int               `json:"wallSeconds"`
 }
 
 func RunProgram(ctx context.Context, repo *intent.Repository, actor mutation.Binding, id, self string, c ProgramConfig) (snapshot.Program, supervisor.Outcome, error) {
 	p := snapshot.Program{}
 	out := supervisor.Outcome{}
-	if c.Profile != snapshot.SupervisedProfile || c.WallSeconds < 1 || c.WallSeconds > 3600 || c.Model == "" || c.Effort != "low" || !filepath.IsAbs(c.WorkRoot) {
+	if c.Profile != snapshot.SupervisedProfile || c.Model == "" || !filepath.IsAbs(c.WorkRoot) {
 		return p, out, fmt.Errorf("unsupported program config")
 	}
 	proof, e := readLeaseProof(ctx, repo)
@@ -48,6 +51,9 @@ func RunProgram(ctx context.Context, repo *intent.Repository, actor mutation.Bin
 	}
 	policy, e := intent.DecodePolicy(proof.Records["intent/policy.json"].Raw)
 	if e != nil {
+		return p, out, e
+	}
+	if e = CheckProgramConfig(c, policy.Supervision); e != nil {
 		return p, out, e
 	}
 	raw, e := supervisor.ReadBounded(c.Executable, 256<<20)
@@ -136,9 +142,41 @@ func RunProgram(ctx context.Context, repo *intent.Repository, actor mutation.Bin
 			env = append(env, k+"="+v)
 		}
 	}
-	capsule := supervisor.Capsule{Profile: c.Profile, Effect: p.Effect, Executable: c.Executable, ExecutableSHA256: c.ExecutableSHA256, Directory: work, Prompt: c.Prompt, Env: env, Argv: []string{"exec", "--json", "--sandbox", "read-only", "--model", c.Model, "-c", "model_reasoning_effort=" + strconv.Quote(c.Effort), "-c", "mcp_servers={}", "-"}}
+	capsule := supervisor.Capsule{Profile: c.Profile, Effect: p.Effect, Executable: c.Executable, ExecutableSHA256: c.ExecutableSHA256, Directory: work, Prompt: c.Prompt, Env: env, Argv: []string{"exec", "--json", "--sandbox", "read-only", "--model", c.Model, "-c", "model_reasoning_effort=" + strconv.Quote(c.StageEffort("implement")), "-c", "mcp_servers={}", "-"}}
 	deadline, cancel := context.WithTimeout(ctx, time.Duration(c.WallSeconds)*time.Second)
 	defer cancel()
 	out, e = supervisor.Run(deadline, self, protocol, capsule, record)
 	return p, out, e
+}
+
+// StageEffort is the configured Codex reasoning effort for one stage.
+func (c ProgramConfig) StageEffort(stage string) string {
+	if e, ok := c.StageEfforts[stage]; ok {
+		return e
+	}
+	return c.Effort
+}
+
+// CheckProgramConfig refuses a supervised config whose effort or wall time
+// the owner policy does not allow (CAL-V0-062, CAL-V0-063). It runs before
+// any program record, worktree or host process is created.
+func CheckProgramConfig(c ProgramConfig, policy *intent.SupervisionPolicy) error {
+	if c.WallSeconds < 1 || c.WallSeconds > policy.StageWallSeconds() {
+		return fmt.Errorf("wallSeconds outside 1..%d allowed by policy", policy.StageWallSeconds())
+	}
+	for stage := range c.StageEfforts {
+		known := false
+		for _, s := range intent.SupervisedStages {
+			known = known || s == stage
+		}
+		if !known {
+			return fmt.Errorf("stageEfforts names unknown stage %q", stage)
+		}
+	}
+	for _, stage := range intent.SupervisedStages {
+		if e := c.StageEffort(stage); !policy.AllowsEffort(stage, e) {
+			return fmt.Errorf("effort %q for stage %s is not allowed by policy", e, stage)
+		}
+	}
+	return nil
 }

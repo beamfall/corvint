@@ -1,0 +1,455 @@
+{
+  "profile": "cem-stable-consumer-migration-proposal/1",
+  "status": "PROPOSED_NOT_IMPLEMENTED",
+  "parentPlan": "../migration-plan.json",
+  "parentPlanSHA256": "1218845629d95bd03648c6e91124064359cfd70e8124beed998cbdc132237cd2",
+  "ownerTickets": "Existing native Corvint Tasks V1-0591..0596; this file is a review artifact, not a competing queue.",
+  "consumerFamilies": [
+    {
+      "id": "C01",
+      "consumer": "Core CEM parser/validator",
+      "paths": [
+        "internal/cem/wire/map.go",
+        "internal/cem/verify/verify.go"
+      ],
+      "priorProfileObservation": "0.1 exact;0.2/0.3 canonical",
+      "priorObservationScope": "Reused migration-plan inventory, not a fresh source/callsite audit. Candidate/03 followups are separately pinned inputs.",
+      "migrationPhase": "VERTICAL_FIRST",
+      "dependsOn": [
+        "GATE_A"
+      ],
+      "stableDecision": "Add StableMap/ParseStable/EncodeStable and an exact-profile Document tag; retain OriginalBytes for sidecar/hash. Stable verifier accepts explicit artifact root and returns separate integrity/authority axes. Existing ParseMap/Canonical/ParseCandidate remain closed.",
+      "acceptanceEvidenceRequired": "Roundtrip both witness objects and all four reference arrays; malformed stable and old/candidate dispatch controls; independent canonical object/sidecar/closure refusal cases.",
+      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
+    },
+    {
+      "id": "C02",
+      "consumer": "Core producer/mutators",
+      "paths": [
+        "internal/cem/workflow/commands.go",
+        "internal/cem/workflow/cover.go",
+        "internal/cem/workflow/discriminate.go"
+      ],
+      "priorProfileObservation": "prepare0.2; structural/coverage/discrimination copies0.3",
+      "priorObservationScope": "Reused migration-plan inventory, not a fresh source/callsite audit. Candidate/03 followups are separately pinned inputs.",
+      "migrationPhase": "AFTER_VERTICAL",
+      "dependsOn": [
+        "C01",
+        "C03",
+        "C04"
+      ],
+      "stableDecision": "Add explicit stable prepare/assembly and stable-owned mark/cite/cover/discriminate operations. Never pass stable through a 0.x serializer. Preserve optional absence and full links/artifacts; reject mutations making links/digests stale. Keep default prepare0.2 and old0.3 output prohibitions.",
+      "acceptanceEvidenceRequired": "Actual CLI writer readback retains reference graph and caller witness fields; changed hunk/link/artifact invalidates rather than truncates; original default output byte fixtures unchanged.",
+      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
+    },
+    {
+      "id": "C03",
+      "consumer": "Core reviewer/CLI/MCP",
+      "paths": [
+        "internal/cem/workflow/read.go",
+        "internal/cem/workflow/review_projection.go",
+        "internal/cem/mdreport",
+        "internal/cem/cli/cli.go",
+        "cmd/corvint/main.go",
+        "internal/mcp/bridge/bridge.go"
+      ],
+      "priorProfileObservation": "shared native dispatch0.1..0.3",
+      "priorObservationScope": "Reused migration-plan inventory, not a fresh source/callsite audit. Candidate/03 followups are separately pinned inputs.",
+      "migrationPhase": "VERTICAL_FIRST",
+      "dependsOn": [
+        "C01"
+      ],
+      "stableDecision": "Add corvint cem verify-stable with the five explicit inputs; status/report/MCP gain explicit tagged stable read context and artifact root. Render full integrity axes and graph/witness state, never a generic complete label. Keep historical command ABI in first slice.",
+      "acceptanceEvidenceRequired": "CLI result preserves decoded covered/uncovered/survived/not-run witness values and all13 NOT_OBSERVED axes. Exact raw artifact readback retains FAILED/SKIPPED-containing opaque runner receipt bytes and their references; low-level output does not project these observations. Separately admitted runner-semantic companion rendering requires its own later bound proof. Explicit Core CLI executes exact stable sidecar, missing-root and wrong-profile cases. Status/report/MCP remain later integrations.",
+      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
+    },
+    {
+      "id": "C04",
+      "consumer": "Portable Go verify/ci",
+      "paths": [
+        "interop/cem01-go/cem.go",
+        "interop/cem01-go/ci.go",
+        "interop/cem01-go/main.go"
+      ],
+      "priorProfileObservation": "0.1 ONLY,0.2 explicitly rejected by compatibility tests",
+      "priorObservationScope": "Reused migration-plan inventory, not a fresh source/callsite audit. Candidate/03 followups are separately pinned inputs.",
+      "migrationPhase": "VERTICAL_FIRST",
+      "dependsOn": [
+        "GATE_A"
+      ],
+      "stableDecision": "Add verify-stable in existing Apache Go files from public algorithms; keep verify/ci/verify-candidate/verify-03 distinct. Pure shared primitives may be reused but the stable schema/result remain separate. Native AGPL implementation cannot be imported or translated.",
+      "acceptanceEvidenceRequired": "Same raw fixtures and exact base/target/artifacts through native and portable process outputs; old0.1/0.2/candidate frozen packets unchanged; Go floor and structural tuple evidence distinct.",
+      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
+    },
+    {
+      "id": "C05",
+      "consumer": "OCM/LRF",
+      "paths": [
+        "internal/lrfrepo/adapter.go",
+        "internal/lrfrepo/ocm_read.go",
+        "internal/lrfrepo/ocm_write.go",
+        "internal/lrfrepo/universe.go",
+        "internal/lrf/validate.go"
+      ],
+      "priorProfileObservation": "LRF0.1/0.2;OCM/universe0.2",
+      "priorObservationScope": "Reused migration-plan inventory, not a fresh source/callsite audit. Candidate/03 followups are separately pinned inputs.",
+      "migrationPhase": "AFTER_VERTICAL",
+      "dependsOn": [
+        "C01",
+        "C03",
+        "C04"
+      ],
+      "stableDecision": "Add an explicit cem/1.0 OCM/LRF adapter and owning profile admission. Authenticate exact original CEM bytes, base/target, artifacts and upstream universe; use read-only verified change projection while retaining full stable digest/profile.",
+      "acceptanceEvidenceRequired": "Stable sidecar/OCM chain retains unsatisfied obligations; swapped artifact/map/profile or missing root cannot yield closed/empty frontier; old OCM/LRF admission remains unchanged.",
+      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
+    },
+    {
+      "id": "C06",
+      "consumer": "TCQ/frontier",
+      "paths": [
+        "internal/tcq/canonical.go",
+        "internal/tcq/evaluate.go",
+        "internal/frontier/types.go",
+        "internal/frontier/upstream.go",
+        "internal/frontierrepo"
+      ],
+      "priorProfileObservation": "0.2 ONLY",
+      "priorObservationScope": "Reused migration-plan inventory, not a fresh source/callsite audit. Candidate/03 followups are separately pinned inputs.",
+      "migrationPhase": "AFTER_CLOSURE_CHAIN",
+      "dependsOn": [
+        "C05"
+      ],
+      "stableDecision": "Extend exact TCQ/frontier profile admissions and upstream bindings; recompute against full stable CEM and required artifact result. A criterion link or caller discrimination witness never grants TCQ adequacy/EMPTY.",
+      "acceptanceEvidenceRequired": "Stable OCM/frontier path preserves open edges and runtime unknowns; invalid root/digest/generation/receipt cannot close. Source selection is not execution.",
+      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
+    },
+    {
+      "id": "C07",
+      "consumer": "Obligation sidecar",
+      "paths": [
+        "internal/extevidence/obligations.go",
+        "cmd/corvint/obligations.go"
+      ],
+      "priorProfileObservation": "0.2 ONLY",
+      "priorObservationScope": "Reused migration-plan inventory, not a fresh source/callsite audit. Candidate/03 followups are separately pinned inputs.",
+      "migrationPhase": "AFTER_CLOSURE_CHAIN",
+      "dependsOn": [
+        "C05",
+        "C06"
+      ],
+      "stableDecision": "Add stable obligation admission with exact upstream CEM hash/profile and bounded artifact context; keep obligation evidence separate from declared criterion associations.",
+      "acceptanceEvidenceRequired": "Stable obligation projection works without erasing unresolved obligations; dangling/upstream-stale maps refuse; obligation closure requires its own authority.",
+      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
+    },
+    {
+      "id": "C08",
+      "consumer": "Criterion experiment companion",
+      "paths": [
+        "internal/criterionexperiment/authority.go",
+        "cmd/corvint-cem-experiments/main.go"
+      ],
+      "priorProfileObservation": "0.2 ONLY; native Tasks capture/verify separate",
+      "priorObservationScope": "Reused migration-plan inventory, not a fresh source/callsite audit. Candidate/03 followups are separately pinned inputs.",
+      "migrationPhase": "AFTER_CLOSURE_CHAIN",
+      "dependsOn": [
+        "C01",
+        "C03",
+        "C05",
+        "C06"
+      ],
+      "stableDecision": "Add explicit stable input mode at companion boundary; reuse native Tasks wire and actual pinned historical/live verifier, and shared runner semantic contract. Low-level CEM stays stdlib+Git. No copied partial native validator or authority from retained JSON.",
+      "acceptanceEvidenceRequired": "Disposable exact-target Tasks historical check plus fresh current gate, stale-generation/policy negative, native runner plan/receipt identity, classified criterion oracle controls; changed inputs invalidate.",
+      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
+    },
+    {
+      "id": "C09",
+      "consumer": "Native local completion/dogfood",
+      "paths": [
+        "internal/localcompletion/lifecycle.go",
+        "internal/localcompletion/finish.go",
+        "cmd/corvint/local_completion.go",
+        "script/dogfood-change.sh"
+      ],
+      "priorProfileObservation": "ParseMap + Canonical; no current candidate support",
+      "priorObservationScope": "Reused migration-plan inventory, not a fresh source/callsite audit. Candidate/03 followups are separately pinned inputs.",
+      "migrationPhase": "AFTER_NATIVE_AUTHORITY",
+      "dependsOn": [
+        "C05",
+        "C06",
+        "C08"
+      ],
+      "stableDecision": "Add stable completion/dogfood path only after full integrity and separate native authority chain. Frozen gate binds exact map/artifact/source inputs. Sidecar-only reuse needs full verification and unchanged relevant artifact inputs.",
+      "acceptanceEvidenceRequired": "Disposable lifecycle reaches native completion only with required current receipts; sidecar exact bytes alone cannot complete; changed artifact/source invalidates reuse; no primary queue fixture mutation.",
+      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
+    },
+    {
+      "id": "C10",
+      "consumer": "CEM bundles/export",
+      "paths": [
+        "internal/receiptbundle/receiptbundle.go",
+        "cmd/corvint/cem_export.go"
+      ],
+      "priorProfileObservation": "ParseMap + Canonical + committed sidecar",
+      "priorObservationScope": "Reused migration-plan inventory, not a fresh source/callsite audit. Candidate/03 followups are separately pinned inputs.",
+      "migrationPhase": "AFTER_VERTICAL",
+      "dependsOn": [
+        "C01",
+        "C03"
+      ],
+      "stableDecision": "Add stable bundle/export schema admission carrying the full six-role artifact set as exact bytes plus stable map/base/target. Relocate root while preserving internal artifact paths/digests; refuse missing/unused/escaping entries.",
+      "acceptanceEvidenceRequired": "Export/import relocation verifies same map and all roles, including snapshot-head bytes; byte tamper and omitted artifact refuse; no 0.x map rewrite.",
+      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
+    },
+    {
+      "id": "C11",
+      "consumer": "Attestation/prove",
+      "paths": [
+        "internal/attest/cem.go",
+        "internal/attest/cem_v1.go",
+        "cmd/corvint/prove.go",
+        "cmd/corvint/prove_attest_cem.go"
+      ],
+      "priorProfileObservation": "ParseMap; attestation profile1 is NOT CEM1",
+      "priorObservationScope": "Reused migration-plan inventory, not a fresh source/callsite audit. Candidate/03 followups are separately pinned inputs.",
+      "migrationPhase": "AFTER_VERTICAL",
+      "dependsOn": [
+        "C01",
+        "C03",
+        "C10"
+      ],
+      "stableDecision": "Add explicit CEM1.0 document admission to attest/prove while retaining attestation-profile version distinction. Bind signature to exact map and declared artifact closure; signature validates provenance of bytes only.",
+      "acceptanceEvidenceRequired": "Stable map and artifact tampering invalidates attest binding; successful signature cannot upgrade nativeAuthority/execution/criterion axes; existing attestation fixtures unchanged.",
+      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
+    },
+    {
+      "id": "C12",
+      "consumer": "Git notes",
+      "paths": [
+        "internal/gitnotes/anchor.go",
+        "cmd/corvint/cem_anchor.go"
+      ],
+      "priorProfileObservation": "ParseMap",
+      "priorObservationScope": "Reused migration-plan inventory, not a fresh source/callsite audit. Candidate/03 followups are separately pinned inputs.",
+      "migrationPhase": "AFTER_VERTICAL",
+      "dependsOn": [
+        "C01",
+        "C03",
+        "C10"
+      ],
+      "stableDecision": "Add exact stable note/anchor admission with original map digest/profile and committed target; carry full closure manifest or explicit root requirement. Existing notes stay unchanged.",
+      "acceptanceEvidenceRequired": "Notes roundtrip original stable bytes and target, missing external artifacts stays unavailable, and detached/wrong target refuses.",
+      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
+    },
+    {
+      "id": "C13",
+      "consumer": "Documentation CEM projection",
+      "paths": [
+        "internal/doccorpus/cem.go"
+      ],
+      "priorProfileObservation": "ParseMap original-span projection",
+      "priorObservationScope": "Reused migration-plan inventory, not a fresh source/callsite audit. Candidate/03 followups are separately pinned inputs.",
+      "migrationPhase": "AFTER_VERTICAL",
+      "dependsOn": [
+        "C01",
+        "C03"
+      ],
+      "stableDecision": "Add read-only stable documentation projection through tagged verified change view; retain full source map digest/profile, original evidence spans and unknown authority. It never serializes a reduced stable map.",
+      "acceptanceEvidenceRequired": "Projection cites correct immutable spans with map identity and reference limits; edits or wrong base do not fabricate authority; writer fallback forbidden.",
+      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
+    },
+    {
+      "id": "C14",
+      "consumer": "Witness and collapse",
+      "paths": [
+        "internal/witness/witness.go",
+        "internal/witnesscollapse/compile.go"
+      ],
+      "priorProfileObservation": "ParseMap structural basis consumers",
+      "priorObservationScope": "Reused migration-plan inventory, not a fresh source/callsite audit. Candidate/03 followups are separately pinned inputs.",
+      "migrationPhase": "AFTER_VERTICAL",
+      "dependsOn": [
+        "C01",
+        "C03"
+      ],
+      "stableDecision": "Add stable witness/collapse admission using complete input binding, exact basis relations and full semantic limits. Collapsing a presentation cannot remove original graph/witness evidence or turn caller mutation state into criterion satisfaction.",
+      "acceptanceEvidenceRequired": "Collapsed output retains link to full map/artifacts and NOT_OBSERVED axes; evidence drift and unsupported runtime refuse rather than yielding equivalent proof.",
+      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
+    },
+    {
+      "id": "C15",
+      "consumer": "Local authority capsule",
+      "paths": [
+        "tools/local-authority/capsule_closure.go"
+      ],
+      "priorProfileObservation": "ParseMap",
+      "priorObservationScope": "Reused migration-plan inventory, not a fresh source/callsite audit. Candidate/03 followups are separately pinned inputs.",
+      "migrationPhase": "AFTER_NATIVE_AUTHORITY",
+      "dependsOn": [
+        "C08",
+        "C10"
+      ],
+      "stableDecision": "Add stable capsule closure as exact raw map plus artifacts and separately admitted native evidence. No graph/hash-only shortcut to authority. Keep native wire identities untouched.",
+      "acceptanceEvidenceRequired": "Capsule tamper/missing-role/stale-live-gate controls refuse; closure list accounts all six roles and required native context, not only outer reference integrity.",
+      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
+    },
+    {
+      "id": "C16",
+      "consumer": "Console chain",
+      "paths": [
+        "internal/console/chain.go"
+      ],
+      "priorProfileObservation": "explicit0.1/0.2/0.3 registry",
+      "priorObservationScope": "Reused migration-plan inventory, not a fresh source/callsite audit. Candidate/03 followups are separately pinned inputs.",
+      "migrationPhase": "AFTER_VERTICAL",
+      "dependsOn": [
+        "C03"
+      ],
+      "stableDecision": "Extend console profile registry/display for stable only when operation is integrated. Show change/reference/authority axes, sidecar state and unsupported envelope; never execute artifact content.",
+      "acceptanceEvidenceRequired": "UI snapshot distinguishes valid references from task completion and shows unknown/stale/survived states; closed registry rejects unsupported profiles.",
+      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
+    },
+    {
+      "id": "C17",
+      "consumer": "Dashboard snapshots",
+      "paths": [
+        "internal/dashboard/adapters/registry.go",
+        "internal/dashboard/adapters/request.go",
+        "internal/dashboard/model/registry_policy.go",
+        "internal/dashboard/source/types.go",
+        "cmd/corvint-dashboard-snapshot/main.go"
+      ],
+      "priorProfileObservation": "0.1+OCM0.1/0.2+OCM0.1",
+      "priorObservationScope": "Reused migration-plan inventory, not a fresh source/callsite audit. Candidate/03 followups are separately pinned inputs.",
+      "migrationPhase": "AFTER_CLOSURE_CHAIN",
+      "dependsOn": [
+        "C03",
+        "C05",
+        "C06"
+      ],
+      "stableDecision": "Extend dashboard source/registry policy and snapshot schema for exact stable plus admitted OCM versions. Preserve full digest and projections with visible integrity/authority gaps.",
+      "acceptanceEvidenceRequired": "Stable snapshot readback retains axes, base/target and input hash; unavailable artifacts or OCM failure cannot present complete status.",
+      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
+    },
+    {
+      "id": "C18",
+      "consumer": "Portable packets/runners",
+      "paths": [
+        "interop/cem-0.1/runner.py",
+        "tools/cem-interop-runner/consumer.go",
+        "tools/cem-interop-runner/packet.go",
+        "tools/cem-trial/main.go"
+      ],
+      "priorProfileObservation": "frozen0.1 matrix; protocol/cem-0.2 supplemental compatibility",
+      "priorObservationScope": "Reused migration-plan inventory, not a fresh source/callsite audit. Candidate/03 followups are separately pinned inputs.",
+      "migrationPhase": "FROZEN_OLD_PLUS_STABLE_SIBLING",
+      "dependsOn": [
+        "C01",
+        "C04"
+      ],
+      "stableDecision": "Keep frozen0.1 runner and0.2/candidate packets byte-identical. Add separate stable packet/runner/trial registration with strict schema, complete result axes and supplied artifact root. Old commands stay explicitly historical.",
+      "acceptanceEvidenceRequired": "Hash all frozen files before/after; native/portable stable positives/adversaries separately qualified. External authored consumer remains a mandatory separate evidence item.",
+      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
+    },
+    {
+      "id": "C19",
+      "consumer": "Example CI integrations",
+      "paths": [
+        "examples/cem/verify-pr.sh",
+        "examples/cem/verify-portable.sh",
+        "examples/cem/recipes/ci-verify.sh"
+      ],
+      "priorProfileObservation": "Core0.1/0.2 or portable0.1",
+      "priorObservationScope": "Reused migration-plan inventory, not a fresh source/callsite audit. Candidate/03 followups are separately pinned inputs.",
+      "migrationPhase": "AFTER_VERTICAL",
+      "dependsOn": [
+        "C03",
+        "C04",
+        "C10"
+      ],
+      "stableDecision": "Add explicitly named stable CI recipe with immutable independent base/target and artifact root; existing examples remain versioned historical recipes. The recipe states integrity-only result and requires separate native gate for completion claims.",
+      "acceptanceEvidenceRequired": "Execute real shell recipe against good sidecar/full closure and tampered/root-missing input; proper exit propagation; no automatic old default cutover.",
+      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
+    }
+  ],
+  "laterAdditions": [
+    {
+      "id": "A01",
+      "consumer": "Candidate/stable assembler companion",
+      "paths": [
+        "internal/cemcandidate/assemble.go",
+        "cmd/corvint-cem-candidate/main.go"
+      ],
+      "decision": "Candidate exact0.2 path stays unchanged. A distinct stable assembly operation may read explicitly verified0.2/0.3 source through a typed conversion that creates a NEW cem/1.0 document, preserves every existing witness value/absence and attaches complete native-declared graph/artifacts; never relabel candidate or hide conversion provenance. Require reviewed independent base/target, declared artifact digests, source byte bindings and actual stable verifier before output. Stable-to-stable edits are lossless full-document mutations. Stable assembly must obtain and independently hash retained raw snapshot-head bytes, preserve the native snapshot identity unchanged, and populate distinct snapshotHeadArtifactSha256. Availability/linkage is an OPEN producer/Tasks boundary obligation; never synthesize equality.",
+      "dependsOn": [
+        "C01",
+        "C02",
+        "C08"
+      ],
+      "evidence": "Actual native artifact bytes preserved; empty/nonempty reference variants; exact sidecar lifecycle; no new native authority from opaque capture; changed-source and target-sidecar conflict controls.",
+      "status": "OPEN"
+    },
+    {
+      "id": "A02",
+      "consumer": "Companion release Core evidence readers",
+      "paths": [
+        "internal/companionrelease/core_evidence.go",
+        "internal/companionrelease/core_native_json.go"
+      ],
+      "decision": "Recognize exact stable result schema/mode and every authority/runtime/envelope limit only after integration; all required native authority and release evidence remains separately mandatory. Do not infer release support from accept=true or binary version.",
+      "dependsOn": [
+        "C09",
+        "C18"
+      ],
+      "evidence": "Release readiness refuses incomplete runner/platform/external outcomes and unsupported admission even when stable reference integrity passes.",
+      "status": "OPEN"
+    }
+  ],
+  "verticalOrder": [
+    "GATE_A accepts revised technical contract and source admission before implementation.",
+    "First bounded native C01 wire/result/canonical/reference path and C03 explicit Core verify-stable JSON CLI; retain full actual result and exact raw artifact bytes.",
+    "Next independently implemented portable C04 uses only public algorithms and compares full results. This is a separate required proof before writers/consumer fanout, not a prerequisite to observing the first native path.",
+    "Then C02 and remaining C03 status/report/MCP plus C05..C19/additions by dependencies; all unfinished obligations remain OPEN."
+  ],
+  "firstVerticalAssertions": [
+    "Both literal Git object formats and exact committed sidecar retain full structural/coverage/discrimination and six-role reference graph.",
+    "Separate encoder roundtrip preserves values/order/absence, while OriginalBytes retains exact raw sidecar/map digest.",
+    "Native/portable verifier independently derives Git patch and full six-field drift; does not accept caller patch, translated profile, or missing artifact.",
+    "CLI result preserves decoded covered/uncovered/survived/not-run witness values and all13 NOT_OBSERVED axes. Exact raw artifact readback retains FAILED/SKIPPED-containing opaque runner receipt bytes and their references; low-level output does not project these observations. Separately admitted runner-semantic companion rendering requires its own later bound proof.",
+    "Old/candidate frozen hashes and process ABI unchanged."
+  ],
+  "mandatoryLaterEvidence": [
+    "Complete runtime/parser/scanner/formatter tuples and repository/process envelopes",
+    "Every supported actual runner, lifecycle/negative platform matrix and source/receipt limits",
+    "Native historical Tasks verification distinct from fresh live gate/current applicability",
+    "Independent external authored consumer conformance",
+    "Matched external outcome evaluation",
+    "Governing terminal release gates, explicit promotion and native Tasks completion"
+  ],
+  "technicalDecisionsForGateA": [
+    "Stable sixth tasks-snapshot-head-receipt role plus distinct required snapshotHeadArtifactSha256 raw-byte digest; preserve native snapshotHeadReceiptSha256 identity and require separately admitted native verifier for its linkage. Candidate remains metadata-only and unchanged.",
+    "All four reference arrays empty is valid no-evidence state; partial/orphan graph rejects",
+    "Always explicit artifact root and no Git-only fallback through full verifier result",
+    "Result authority axes are fixed NOT_OBSERVED in reference verifier; native authority observations live in separate bound companion result",
+    "Read-only change views cannot become writers or drop stable fields",
+    "Prototype repository/runtime limits cannot be advertised as native-wide support"
+  ]
+}

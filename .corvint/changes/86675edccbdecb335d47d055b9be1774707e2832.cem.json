@@ -1,0 +1,40 @@
+{
+  "baseRevision": "308f1c4da89c18f34e514bd0831dd4707f04ca3b",
+  "evidence": [
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3118,
+        "start": 2775
+      },
+      "spanSha256": "46e69c5e97297b36c204ff585b335a484633ade4ec166dbc695fd46e7c6dc76c"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6b1ff269a49d24a24a395b117400d3322b4d72ed459f6e50133cc557582a8d00",
+      "newRange": {
+        "count": 18,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 18,
+        "start": 1
+      },
+      "path": "docs/build-log/2026-10-01-cem-current-public-integration.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "48534a69089a64b78a5eb3216dfa42602e1ebfa5b1c3f5a1b16e3ec4948c6549",
+  "spec": "cem/0.2"
+}
