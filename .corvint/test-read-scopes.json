@@ -179,6 +179,10 @@
     "internal/dashboard/adapters": [
       "internal/secretscreen/"
     ],
+    "internal/delta": [
+      "conformance/delta-v0/decision-vectors.json",
+      "protocol/delta/schema.json"
+    ],
     "internal/doccompiler": [],
     "internal/doccorpus": [
       "examples/documentation-corpus/"

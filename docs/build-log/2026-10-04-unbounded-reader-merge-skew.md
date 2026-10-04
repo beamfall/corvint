@@ -43,6 +43,12 @@ every change based on the merged `main`. The 45 counted before are a subset of t
 - The skew can recur: a pull request whose branch predates a new unbounded package passes its own
   check and breaks `main` on merge. With the ceiling equal to the count there is no slack to
   absorb one. Nothing here prevents that; it is filed as V1-0752.
+- Recurrence, same day: `internal/delta` reached `main` at `dd485091` while this change was
+  open and made the count 43. It is declared here too: its tests read
+  `conformance/delta-v0/decision-vectors.json` and `protocol/delta/schema.json` and nothing else
+  outside the directory. Confined with an empty declaration it failed on exactly those two
+  files; with them it passes, also with `-race`, and runs the same 16 tests with no skip as
+  unconfined. The ceiling stays 42.
 
 ## Rollback
 
