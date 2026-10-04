@@ -151,7 +151,7 @@ func CheckSortedUnique(where string, vs []Value) error {
 				return Errorf(CodeMalformed, where, "duplicate element at index %d", i)
 			}
 			if key < prev {
-				return Errorf(CodeMalformed, where, "array is not canonical-byte sorted at index %d", i)
+				return Errorf(CodeMalformed, where, "array is not canonical-byte sorted at index %d: it is a set, so sort its elements by their canonical JSON bytes", i)
 			}
 		}
 		prev = key

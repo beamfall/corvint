@@ -67,17 +67,85 @@ func ParseWith(data []byte, opts ParseOptions) (Value, error) {
 		for off < len(enc) && off < len(body) && enc[off] == body[off] {
 			off++
 		}
-		return Value{}, Errorf(CodeMalformed, fmt.Sprintf("byte %d", off), "non-canonical encoding (key order, whitespace or escape form)")
+		// Whitespace is refused while parsing, so only key order or an escape
+		// form can differ here; name the one that does (V1-0750).
+		if path, ok := unsortedKeys(v, ""); ok {
+			return Value{}, Errorf(CodeMalformed, fmt.Sprintf("byte %d", off), "non-canonical key order: the keys of the object at %q must be sorted in UTF-8 byte order", path)
+		}
+		return Value{}, Errorf(CodeMalformed, fmt.Sprintf("byte %d", off), "non-canonical string escape form: write literal UTF-8, use only the \\t \\n \\r \\\" \\\\ short escapes, and lowercase \\u00xx for any other control")
+	}
+	return v, nil
+}
+
+// unsortedKeys returns the JSON pointer of the first object, in document
+// order, whose keys were parsed out of UTF-8 byte order.
+func unsortedKeys(v Value, path string) (string, bool) {
+	switch v.Kind {
+	case KindObject:
+		if v.Obj == nil {
+			return "", false
+		}
+		for i := 1; i < len(v.Obj.Keys); i++ {
+			if v.Obj.Keys[i] < v.Obj.Keys[i-1] {
+				if path == "" {
+					return "/", true
+				}
+				return path, true
+			}
+		}
+		for _, k := range v.Obj.Keys {
+			if p, ok := unsortedKeys(v.Obj.Vals[k], path+"/"+k); ok {
+				return p, true
+			}
+		}
+	case KindArray:
+		for i, e := range v.Arr {
+			if p, ok := unsortedKeys(e, path+"/"+itoa(i)); ok {
+				return p, true
+			}
+		}
+	}
+	return "", false
+}
+
+// ParseInput decodes one caller-supplied JSON value under the same value
+// rules as Parse (decode bounds, duplicate keys, no JSON numbers, valid UTF-8,
+// no lone surrogates or hostile code points) but without the canonical
+// framing rules: insignificant JSON whitespace (space, TAB, LF, CR) may
+// surround any token, object keys may appear in any order, any valid JSON
+// escape form is decoded, and the trailing LF is optional. It is the CLI input
+// boundary only (V1-0750): the caller re-encodes the value with Encode, so
+// stored records, envelopes and digests stay canonical. Array order is
+// preserved exactly; sorting a set is the schema's decision, never the parser's.
+func ParseInput(data []byte) (Value, error) {
+	if len(data) == 0 {
+		return Value{}, Errorf(CodeMalformed, "byte 0", "empty document")
+	}
+	if !utf8.Valid(data) {
+		return Value{}, Errorf(CodeMalformed, "", "invalid UTF-8")
+	}
+	if len(data) >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF {
+		return Value{}, Errorf(CodeMalformed, "byte 0", "byte order mark is a hostile code point")
+	}
+	p := &parser{data: data, opts: ParseOptions{WideArrayMax: MaxJSONArrayElements, MaxNodes: MaxJSONNodes}, lenient: true}
+	v, err := p.value()
+	if err != nil {
+		return Value{}, err
+	}
+	p.ws()
+	if p.pos != len(data) {
+		return Value{}, Errorf(CodeMalformed, p.where(), "trailing bytes after the document")
 	}
 	return v, nil
 }
 
 type parser struct {
-	data  []byte
-	pos   int
-	depth int
-	nodes int
-	opts  ParseOptions
+	data    []byte
+	pos     int
+	depth   int
+	nodes   int
+	opts    ParseOptions
+	lenient bool
 	// wide is set while the value of the top-level WideArrayKey member is
 	// being parsed; only an array opened directly at that point (depth 2)
 	// takes the wide bound.
@@ -85,6 +153,25 @@ type parser struct {
 }
 
 func (p *parser) where() string { return fmt.Sprintf("byte %d", p.pos) }
+
+func isJSONSpace(c byte) bool { return c == ' ' || c == '\t' || c == '\n' || c == '\r' }
+
+// ws skips insignificant whitespace in lenient (ParseInput) mode only.
+func (p *parser) ws() {
+	for p.lenient && p.pos < len(p.data) && isJSONSpace(p.data[p.pos]) {
+		p.pos++
+	}
+}
+
+// expected reports a structural mismatch. Where the offending byte is
+// whitespace it names whitespace, the only defect a pretty-printed but
+// otherwise valid document has (V1-0750), instead of the token it expected.
+func (p *parser) expected(what string) error {
+	if p.pos < len(p.data) && isJSONSpace(p.data[p.pos]) {
+		return p.fail("insignificant whitespace is not canonical (expected %s)", what)
+	}
+	return p.fail("expected %s", what)
+}
 
 func (p *parser) fail(format string, args ...interface{}) error {
 	return Errorf(CodeMalformed, p.where(), format, args...)
@@ -99,6 +186,7 @@ func (p *parser) node() error {
 }
 
 func (p *parser) value() (Value, error) {
+	p.ws()
 	if err := p.node(); err != nil {
 		return Value{}, err
 	}
@@ -124,7 +212,7 @@ func (p *parser) value() (Value, error) {
 		return p.literal("null", Null())
 	case c == '-' || (c >= '0' && c <= '9'):
 		return Value{}, p.fail("JSON numbers are not used by any taskman profile; Count and Size are decimal strings")
-	case c == ' ' || c == '\t' || c == '\n' || c == '\r':
+	case isJSONSpace(c):
 		return Value{}, p.fail("insignificant whitespace is not canonical")
 	default:
 		return Value{}, p.fail("unexpected byte 0x%02x", c)
@@ -153,14 +241,16 @@ func (p *parser) object() (Value, error) {
 	}
 	p.pos++ // '{'
 	obj := NewObject()
+	p.ws()
 	if p.pos < len(p.data) && p.data[p.pos] == '}' {
 		p.pos++
 		p.depth--
 		return ObjectValue(obj), nil
 	}
 	for {
+		p.ws()
 		if p.pos >= len(p.data) || p.data[p.pos] != '"' {
-			return Value{}, p.fail("expected object key")
+			return Value{}, p.expected("object key")
 		}
 		key, err := p.str()
 		if err != nil {
@@ -169,8 +259,9 @@ func (p *parser) object() (Value, error) {
 		if _, dup := obj.Vals[key]; dup {
 			return Value{}, p.fail("duplicate key %q", key)
 		}
+		p.ws()
 		if p.pos >= len(p.data) || p.data[p.pos] != ':' {
-			return Value{}, p.fail("expected ':' after key %q", key)
+			return Value{}, p.expected(fmt.Sprintf("':' after key %q", key))
 		}
 		p.pos++
 		p.wide = p.depth == 1 && p.opts.WideArrayKey != "" && key == p.opts.WideArrayKey
@@ -180,6 +271,7 @@ func (p *parser) object() (Value, error) {
 			return Value{}, err
 		}
 		obj.Set(key, v)
+		p.ws()
 		if p.pos >= len(p.data) {
 			return Value{}, p.fail("unterminated object")
 		}
@@ -191,7 +283,7 @@ func (p *parser) object() (Value, error) {
 			p.depth--
 			return ObjectValue(obj), nil
 		default:
-			return Value{}, p.fail("expected ',' or '}'")
+			return Value{}, p.expected("',' or '}'")
 		}
 	}
 }
@@ -210,6 +302,7 @@ func (p *parser) array() (Value, error) {
 	}
 	p.wide = false
 	arr := []Value{}
+	p.ws()
 	if p.pos < len(p.data) && p.data[p.pos] == ']' {
 		p.pos++
 		p.depth--
@@ -224,6 +317,7 @@ func (p *parser) array() (Value, error) {
 		if len(arr) > bound {
 			return Value{}, Errorf(CodeLimitExceeded, p.where(), "array longer than %d elements", bound)
 		}
+		p.ws()
 		if p.pos >= len(p.data) {
 			return Value{}, p.fail("unterminated array")
 		}
@@ -235,7 +329,7 @@ func (p *parser) array() (Value, error) {
 			p.depth--
 			return Array(arr...), nil
 		default:
-			return Value{}, p.fail("expected ',' or ']'")
+			return Value{}, p.expected("',' or ']'")
 		}
 	}
 }

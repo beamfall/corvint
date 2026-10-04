@@ -1,6 +1,8 @@
 package cli_test
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -206,4 +208,156 @@ func TestCALV0043_CLIRecoveryAndPreview(t *testing.T) {
 		}
 		ok("receipt", "audit")
 	})
+}
+
+// v10750Repo is an initialized fixture store for the V1-0750 cases.
+func v10750Repo(t *testing.T) string {
+	t.Helper()
+	r := fixture.TempRepo(t)
+	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
+	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
+	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("init: %+v", x.res)
+	}
+	return r.Root
+}
+
+// reverseKeys renders a canonical JSON document compactly with every
+// object's keys in reverse byte order, string bytes untouched.
+func reverseKeys(t *testing.T, canonical string) string {
+	t.Helper()
+	v, err := wire.Parse([]byte(canonical + "\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var render func(v wire.Value) string
+	render = func(v wire.Value) string {
+		switch v.Kind {
+		case wire.KindObject:
+			keys := v.Obj.SortedKeys()
+			parts := make([]string, 0, len(keys))
+			for i := len(keys) - 1; i >= 0; i-- {
+				parts = append(parts, string(wire.Encode(wire.String(keys[i])))+":"+render(v.Obj.Vals[keys[i]]))
+			}
+			return "{" + strings.Join(parts, ",") + "}"
+		case wire.KindArray:
+			parts := make([]string, len(v.Arr))
+			for i, e := range v.Arr {
+				parts[i] = render(e)
+			}
+			return "[" + strings.Join(parts, ",") + "]"
+		}
+		return string(wire.Encode(v))
+	}
+	return render(v)
+}
+
+func indentJSON(t *testing.T, canonical, sep string) string {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := json.Indent(&buf, []byte(canonical), "", " "); err != nil {
+		t.Fatal(err)
+	}
+	return strings.ReplaceAll(buf.String(), "\n", sep)
+}
+
+// TestV10750_MutationPayloadsAreCanonicalizedBeforeTheDigest is V1-0750:
+// ticket create and ticket refine accept a semantically valid payload with
+// whitespace, unsorted object keys or unsorted set arrays, and record the
+// same request digest as the canonical form. The proof is the idempotency
+// key: a retry with the canonical payload under the same request ID and
+// issuedAt replays, which it does only when the envelope digests are equal.
+func TestV10750_MutationPayloadsAreCanonicalizedBeforeTheDigest(t *testing.T) {
+	sets := strings.NewReplacer(`"labels":[]`, `"labels":["alpha","zeta"]`,
+		`"requirementRefs":[]`, `"requirementRefs":["REQ-1","REQ-2"]`,
+		`"touchPaths":[]`, `"touchPaths":["a/y.go","b/x.go"]`)
+	canonicalSets := sets.Replace(createPayloadJSON)
+	unsortedSets := strings.NewReplacer(`["alpha","zeta"]`, `["zeta","alpha"]`,
+		`["REQ-1","REQ-2"]`, `["REQ-2","REQ-1"]`, `["a/y.go","b/x.go"]`, `["b/x.go","a/y.go"]`).Replace(canonicalSets)
+	cases := []struct {
+		name, variant, canonical string
+	}{
+		{"pretty-printed with newlines", indentJSON(t, createPayloadJSON, "\n") + "\n", createPayloadJSON},
+		{"pretty-printed folded to spaces", indentJSON(t, createPayloadJSON, " "), createPayloadJSON},
+		{"default separators", strings.NewReplacer(`,"`, `, "`, `":`, `": `).Replace(createPayloadJSON), createPayloadJSON},
+		{"reversed object keys", reverseKeys(t, createPayloadJSON), createPayloadJSON},
+		{"unsorted set arrays", unsortedSets, canonicalSets},
+		{"all at once", indentJSON(t, reverseKeys(t, unsortedSets), " "), canonicalSets},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if c.variant == c.canonical {
+				t.Fatal("the variant is already canonical")
+			}
+			root := v10750Repo(t)
+			args := []string{"ticket", "create", "--request-id", "req-1", "--issued-at", "2026-09-07T12:00:00Z"}
+			first := atm(t, root, []byte(c.variant), append(args, "--payload-stdin")...)
+			if first.res.Outcome != wire.OutcomeOK || field(first.res.Items[0], "replayed").Bool {
+				t.Fatalf("variant create: %+v", first.res)
+			}
+			again := atm(t, root, nil, append(args, "--payload", c.canonical)...)
+			if again.res.Outcome != wire.OutcomeOK || !field(again.res.Items[0], "replayed").Bool {
+				t.Fatalf("the canonical retry did not replay, so the digests differ: %+v", again.res)
+			}
+		})
+	}
+
+	t.Run("refine", func(t *testing.T) {
+		root := v10750Repo(t)
+		created := atm(t, root, nil, "ticket", "create", "--request-id", "req-1",
+			"--issued-at", "2026-09-07T12:00:00Z", "--payload", createPayloadJSON)
+		if created.res.Outcome != wire.OutcomeOK {
+			t.Fatalf("create: %+v", created.res)
+		}
+		id := field(created.res.Items[0], "ticketId").Str
+		args := []string{"ticket", "refine", "--request-id", "req-2", "--target", id,
+			"--expected-revision", field(created.res.Items[0], "resultingRevision").Str,
+			"--issued-at", "2026-09-07T12:01:00Z"}
+		variant := "{\n \"title\": \"Refined\",\n \"requirementRefs\": [\"REQ-9\", \"REQ-1\"],\n \"labels\": [\"zeta\", \"alpha\"]\n}\n"
+		first := atm(t, root, []byte(variant), append(args, "--payload-stdin")...)
+		if first.res.Outcome != wire.OutcomeOK || field(first.res.Items[0], "replayed").Bool {
+			t.Fatalf("variant refine: %+v", first.res)
+		}
+		canonical := `{"labels":["alpha","zeta"],"requirementRefs":["REQ-1","REQ-9"],"title":"Refined"}`
+		again := atm(t, root, nil, append(args, "--payload", canonical)...)
+		if again.res.Outcome != wire.OutcomeOK || !field(again.res.Items[0], "replayed").Bool {
+			t.Fatalf("the canonical refine retry did not replay: %+v", again.res)
+		}
+	})
+}
+
+// TestV10750_OrderedArraysKeepTheirOrderAndSetDuplicatesRefuse: only arrays
+// the closed schema reads as sets are sorted. acceptanceCriteria is ordered,
+// so its given order is recorded and a retry that sorts it is a different
+// request; a duplicate set element is refused with its path.
+func TestV10750_OrderedArraysKeepTheirOrderAndSetDuplicatesRefuse(t *testing.T) {
+	root := v10750Repo(t)
+	ordered := strings.Replace(createPayloadJSON, `"acceptanceCriteria":["it exists"]`,
+		`"acceptanceCriteria":["second step","first step"]`, 1)
+	args := []string{"ticket", "create", "--request-id", "req-1", "--issued-at", "2026-09-07T12:00:00Z"}
+	created := atm(t, root, nil, append(args, "--payload", indentJSON(t, ordered, " "))...)
+	if created.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("create: %+v", created.res)
+	}
+	shown := atm(t, root, nil, "ticket", "show", field(created.res.Items[0], "ticketId").Str)
+	if shown.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("show: %+v", shown.res)
+	}
+	criteria := field(field(shown.res.Items[0], "record"), "acceptanceCriteria")
+	if got := string(wire.Encode(criteria)); got != `["second step","first step"]` {
+		t.Errorf("acceptanceCriteria recorded as %s, want the given order", got)
+	}
+	sorted := strings.Replace(ordered, `["second step","first step"]`, `["first step","second step"]`, 1)
+	if again := atm(t, root, nil, append(args, "--payload", sorted)...); again.res.Outcome == wire.OutcomeOK && field(again.res.Items[0], "replayed").Bool {
+		t.Error("sorting an ordered array replayed the original request, so the order was not significant")
+	}
+
+	dup := strings.Replace(createPayloadJSON, `"labels":[]`, `"labels":["b","a","b"]`, 1)
+	x := atm(t, root, nil, "ticket", "create", "--request-id", "req-dup", "--payload", dup)
+	if x.res.Outcome == wire.OutcomeOK {
+		t.Fatal("a duplicate set element was accepted")
+	}
+	if msg := strings.Join(x.res.Warnings, " ") + fmt.Sprint(x.res.Items); !strings.Contains(msg, "/payload/labels") {
+		t.Errorf("duplicate refusal does not name /payload/labels: %+v", x.res)
+	}
 }
