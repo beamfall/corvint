@@ -1,0 +1,90 @@
+{
+  "profile": "cem-stable-protocol-manifest/1",
+  "status": "EXPERIMENTAL",
+  "repositoryEnvelope": "canonical-repository-bounded/1",
+  "license": "Apache-2.0 public specifications/data only; no native code",
+  "publicAmendmentManifestSHA256": "21655c5d73a4b9b9af9f91e6dacbf702a8d2f95cdc9b40368a4cc240dedbd535",
+  "note": "Recursive hashes of every regular file under protocol/cem-1.0/stable except this manifest.",
+  "files": [
+    {
+      "path": "ALGORITHMS.md",
+      "sha256": "58a52688ec75aa2580186f29fa9d1443f86c46a438b803871ad0587fe7f68803",
+      "bytes": 18769
+    },
+    {
+      "path": "FIXTURES.pack.json",
+      "sha256": "a1f6f2026045e9730bd16b98e048de02b7afe054dca54286412c39f9dbe13998",
+      "bytes": 629020
+    },
+    {
+      "path": "LICENSE-APACHE-2.0",
+      "sha256": "a55dcdf3a62566e48883e0c0caba22c65f8fe5431aed6437422ba447e60cd27b",
+      "bytes": 11716
+    },
+    {
+      "path": "MIGRATION.json",
+      "sha256": "a5e5530ad0f6e679380af18e06c4ca8fcc45475d02da085d6dd8a7e4f37c63fa",
+      "bytes": 28660
+    },
+    {
+      "path": "OPERATION.json",
+      "sha256": "dc0c38c95d478e7e45b2457fbabdea453932d0c8e84033b29b68b8724d75ee5d",
+      "bytes": 18263
+    },
+    {
+      "path": "PACKING.md",
+      "sha256": "9eee401d26b015f1994523848939e8e8dba9b603bd1c2c0bfca3f8653b50470e",
+      "bytes": 1640
+    },
+    {
+      "path": "R1-EXPECTED.json",
+      "sha256": "4a84f1070eae60cbd06e076e68ca4005de67daf46db946b83420b9a6fb683b1c",
+      "bytes": 37569
+    },
+    {
+      "path": "README.md",
+      "sha256": "ca6565344c3434eea8f70a954d811695dfdd9d7825fe720cbee705fb06f59d4d",
+      "bytes": 3298
+    },
+    {
+      "path": "REPOSITORY-ENVELOPE.cells.json",
+      "sha256": "c3eed8b8371322ffb6d03a7bd3065fbf956c1c6d312c92826699a406c396d257",
+      "bytes": 302453
+    },
+    {
+      "path": "REPOSITORY-ENVELOPE.md",
+      "sha256": "9c35b7a5e681c80fb148cd85d972f3200d67c838782242aa41116590a4f3dbab",
+      "bytes": 9705
+    },
+    {
+      "path": "RESULT.schema.json",
+      "sha256": "6c157e59ae9ed2ac372724084080a7e74263b8d9d3963e995445035fcc89176f",
+      "bytes": 25284
+    },
+    {
+      "path": "inherited/ALGORITHMS.md",
+      "sha256": "3afc0d35095d7a06c5249d105eed33853f95930824879343b64d311d0de20c62",
+      "bytes": 12853
+    },
+    {
+      "path": "inherited/WP1-OBSERVED.json",
+      "sha256": "78df41faf9736520eb3b3724fc77abd88554ae243257d3b7c1d30e8f68e43630",
+      "bytes": 2622
+    },
+    {
+      "path": "inherited/cem-0.1-algorithms.md",
+      "sha256": "c53c054b28a6e28d89d1a79362c01dc84ccdb95bd1ea6e77e4192a42af42fece",
+      "bytes": 11764
+    },
+    {
+      "path": "inherited/cem-0.3.schema.json",
+      "sha256": "be9ed2f1d0555948def5b0c55c2a520d76e224ed70d1b7e6ab2b75f9bacb842f",
+      "bytes": 11131
+    },
+    {
+      "path": "stable.schema.json",
+      "sha256": "e4b0c453e43af858dc4cc431044e71051c6ae46eae45fbeb95a50d73dde5bddc",
+      "bytes": 17107
+    }
+  ]
+}

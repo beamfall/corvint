@@ -826,6 +826,9 @@ func run(arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
 }
 
 func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	if code, handled := cemcli.RunStableInvocation(ctx, arguments, stdout); handled {
+		return code
+	}
 	if exit, handled := runCorpusIntegration(ctx, arguments, stdin, stdout, stderr); handled {
 		return exit
 	}

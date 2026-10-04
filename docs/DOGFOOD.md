@@ -397,7 +397,7 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
   (`current-tree-corvint-build-failed`). The 256-commit refusal is not a promise that one piece fits:
   size each piece for both the 256-row citation-plan limit
   (`script/dogfood-bind-range.sh:93-100@3b3a27f5`) and the verifier's 1,024-logical-Git-operation
-  budget (`internal/cem/gitrun/gitrun.go:32-53@524eb1ce`). For the current object-identity and
+  budget (`internal/cem/gitrun/gitrun.go:32-38@a875e210`). For the current object-identity and
   tree-walk checks, use roughly 5.7 operations per changed path plus 10 per evidence record as a
   planning estimate; path depth, shared objects, and request-memo hits change the exact count, so
   reduce the piece before either bound rather than relying on the commit count.
@@ -438,7 +438,7 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
   MUST cite a stable owning spec requirement or accepted decision instead. The producer reads a
   requested span from `baseRevision` (`internal/cem/workflow/commands.go:304-321@d53a3b0c`), but
   both its stability precheck and canonical target-drift verification reject that removed span
-  (`internal/cem/verify/verify.go:425-480@92b33007`). A backlog entry that was the only recorded
+  (`internal/cem/verify/verify.go:430-485@92b33007`). A backlog entry that was the only recorded
   intent therefore binds as `NOT_PRODUCED`, never as an
   invented citation, with an unknown `no-evidence` row. Its detail is the
   `removed-intent.<blob OID>.<start>-<end>` pin that the refused `cem cite` names (`CEM-CB-005`,

@@ -38,7 +38,10 @@ func observationRepository(t *testing.T) (string, string) {
 	}
 	git := func(argv ...string) {
 		t.Helper()
-		command := exec.Command(gitExecutable, append([]string{"-C", root}, argv...)...)
+		// GIT_CONFIG_GLOBAL=/dev/null hides the host's maintenance settings, so disable
+		// auto maintenance here: a detached `git maintenance` outliving a commit races
+		// the TempDir cleanup.
+		command := exec.Command(gitExecutable, append([]string{"-C", root, "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, argv...)...)
 		command.Env = append(os.Environ(),
 			"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
 			"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.test",
@@ -174,7 +177,10 @@ func TestDirtyNonUTF8PathIsDisclosedNotRefused(t *testing.T) {
 	}
 	git := func(stdin string, argv ...string) string {
 		t.Helper()
-		command := exec.Command(gitExecutable, append([]string{"-C", root}, argv...)...)
+		// GIT_CONFIG_GLOBAL=/dev/null hides the host's maintenance settings, so disable
+		// auto maintenance here: a detached `git maintenance` outliving a commit races
+		// the TempDir cleanup.
+		command := exec.Command(gitExecutable, append([]string{"-C", root, "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, argv...)...)
 		command.Env = append(os.Environ(),
 			"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
 			"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.test",
