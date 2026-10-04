@@ -98,6 +98,7 @@ type Reader struct {
 	afterCapture    func() // deterministic capture/body boundary witness
 	divergentIntent string // set only on a value copy by Reconciliation
 	unpauseTickets  bool   // set only on a value copy by BarrierRemoval
+	physical        *PhysicalObservation
 	writerCache     bool
 	intentOnly      bool
 	handoffPolicy   *HandoffPolicySelector
@@ -253,6 +254,9 @@ func (r Reader) audit(paths []string, request string, lim limits, checkIntent bo
 }
 
 func (r Reader) auditAttempt(selected map[string]bool, request string, lim limits, checkIntent bool, cp *Checkpoint) (result *Result, err error) {
+	if r.physical != nil {
+		*r.physical = PhysicalObservation{}
+	}
 	var native *nativeRead
 	switch n := r.Source.(type) {
 	case Native:
@@ -265,10 +269,20 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 	}
 	if native != nil {
 		r.Source = native
+		if r.physical != nil {
+			native.physical = newPhysicalReads()
+		}
 		defer func() {
-			if e := native.close(); e != nil {
+			cleanup := native.close()
+			if cleanup != nil {
 				result = nil
-				err = wire.Errorf(wire.CodeUnsupportedFilesystem, "read lifetime", "%v; close: %v", err, e)
+				err = wire.Errorf(wire.CodeUnsupportedFilesystem, "read lifetime", "%v; close: %v", err, cleanup)
+			}
+			if r.physical != nil {
+				r.physical.Cleanup = cleanup
+				if err == nil && result != nil && result.Mode == ModeFull && !result.Pending && !result.StagingPresent && result.IntentError == nil {
+					r.physical.Files = native.physical.files
+				}
 			}
 		}()
 	}
