@@ -86,6 +86,18 @@ func liveAttempts(obs *Observation) map[string]Attempt {
 // Roster is the CAL-V0-054 pure roster: the same configuration,
 // observation, running set and skip set always produce the same assignments.
 func Roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool) []Assignment {
+	out, _ := RosterWithPressure(c, obs, busy, skip, nil)
+	return out
+}
+
+// RosterWithPressure is Roster with an optional CAL-V0-068 pressure budget.
+// The budget is consulted only after every static fence admits a candidate
+// and before the candidate consumes a slot or reserves its key, so a held
+// candidate reserves nothing. held lists each held work key once, in roster
+// order, while the role and global caps (charged with launches and earlier
+// holds) would have admitted it, unless a later exempt candidate launched the
+// same key.
+func RosterWithPressure(c *Config, obs *Observation, busy []Busy, skip map[string]bool, budget *PressureBudget) (out, held []Assignment) {
 	type candidate struct {
 		a                    Assignment
 		pin, role, prio, ord int
@@ -161,13 +173,25 @@ func Roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool) []As
 		count[b.Role]++
 		total++
 	}
-	var out []Assignment
+	heldKeys, heldCount, heldTotal := map[string]bool{}, map[string]int{}, 0
 	for _, cd := range cands {
 		if total >= c.GlobalCap {
 			break
 		}
 		a := cd.a
 		if taken[a.Key] || skip[a.Key] || count[a.Role] >= caps[a.Role] {
+			continue
+		}
+		if budget != nil && !budget.Accept(a) {
+			// Report a hold only while the static role and global caps,
+			// charged with earlier launches and holds, would still admit
+			// the candidate. The shadow counters never affect admission.
+			if !heldKeys[a.Key] && count[a.Role]+heldCount[a.Role] < caps[a.Role] && total+heldTotal < c.GlobalCap {
+				heldKeys[a.Key] = true
+				heldCount[a.Role]++
+				heldTotal++
+				held = append(held, a)
+			}
 			continue
 		}
 		if slots[a.Role] == nil {
@@ -181,7 +205,16 @@ func Roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool) []As
 		total++
 		out = append(out, a)
 	}
-	return out
+	if len(held) > 0 {
+		kept := held[:0]
+		for _, h := range held {
+			if !taken[h.Key] {
+				kept = append(kept, h)
+			}
+		}
+		held = kept
+	}
+	return out, held
 }
 
 func matches(m *Match, t Ticket) bool {
