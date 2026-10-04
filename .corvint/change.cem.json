@@ -1,0 +1,280 @@
+{
+  "baseRevision": "9e8a5c6ed3ff35cd4884c0722d92818ec339298c",
+  "evidence": [
+    {
+      "blobOid": "614a9bcabc52fabe2f7b114e5d4598425d4ae39f",
+      "id": "evidence:sha256:695cf10c3228d6b85da2b594a7f4d63edb4e6e59ac445a4ba6d84024cbe5edd3",
+      "path": "docs/specs/process-group-owner-v0.md",
+      "span": {
+        "end": 6102,
+        "start": 4758
+      },
+      "spanSha256": "7a15df4b3683b6703de5a762a321a445cd379eb5ac7edd58fdf6a0fc795491c6"
+    },
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:0e749dc28b4e8cb4b3a3ef2618fd638e51456b97708df865c2ae7d97d8da2aef",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 2774,
+        "start": 2288
+      },
+      "spanSha256": "a5ef358e5716557d5f42d57c7271d3289afdc8ff20143da2026e5fd075f876f4"
+    },
+    {
+      "blobOid": "1862a80fbf50b3376a2dfdb17a05a3a31b0d3a29",
+      "id": "evidence:sha256:21ba4707d597f1cca5f13198542285bed647e99eed68bc0507b89acb26c1aa0c",
+      "path": "docs/SPEC-DRIVEN-DEVELOPMENT.md",
+      "span": {
+        "end": 2930,
+        "start": 1908
+      },
+      "spanSha256": "5297d76bada8cabb278dc2e568c9f0332fd6910b5fdd2d6f7e916ecf093ae1f5"
+    },
+    {
+      "blobOid": "1862a80fbf50b3376a2dfdb17a05a3a31b0d3a29",
+      "id": "evidence:sha256:c396092d289350470778ebfb371399452641ba1ac69c8440c66f7cd6a970e003",
+      "path": "docs/SPEC-DRIVEN-DEVELOPMENT.md",
+      "span": {
+        "end": 4702,
+        "start": 4350
+      },
+      "spanSha256": "a9ca462fabbe13fbfdec8cc2ee879a711d5e7ea3eba19f726197a03747da894d"
+    },
+    {
+      "blobOid": "614a9bcabc52fabe2f7b114e5d4598425d4ae39f",
+      "id": "evidence:sha256:8913911bafbd1cba75c7ed7951dbccef3500badca238d6a0b01adcebcca09e70",
+      "path": "docs/specs/process-group-owner-v0.md",
+      "span": {
+        "end": 2644,
+        "start": 1645
+      },
+      "spanSha256": "b7609542fd3910249bb0b612b834e3dbefd92df15bb170e6c7304ac4a868f888"
+    },
+    {
+      "blobOid": "614a9bcabc52fabe2f7b114e5d4598425d4ae39f",
+      "id": "evidence:sha256:59666b17851d6c533bff28a577f9bf535a79fcb7693d3876ea8fba8667766c0d",
+      "path": "docs/specs/process-group-owner-v0.md",
+      "span": {
+        "end": 2475,
+        "start": 1645
+      },
+      "spanSha256": "3e69996de8d57ef61b2e226c1260a547d1d18544fbf52488f2ed6a0fe709d4cc"
+    },
+    {
+      "blobOid": "614a9bcabc52fabe2f7b114e5d4598425d4ae39f",
+      "id": "evidence:sha256:0e90961169dc59fa63af0b2075d9a0b33b56575767a33b86b20b2a1d174fa8bd",
+      "path": "docs/specs/process-group-owner-v0.md",
+      "span": {
+        "end": 2644,
+        "start": 2312
+      },
+      "spanSha256": "4926df5c620e848ace98dcf0c56f3857f9dc1cbf414b16bf7c29ef41a98be229"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:695cf10c3228d6b85da2b594a7f4d63edb4e6e59ac445a4ba6d84024cbe5edd3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:461bebe2f0a49d0323a2c7a4072cad38aac2c4151263490e8ec1dbafa0d747db",
+      "newRange": {
+        "count": 43,
+        "start": 27
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 27
+      },
+      "path": "docs/build-log/2026-10-03-process-group-owner-extraction.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0e749dc28b4e8cb4b3a3ef2618fd638e51456b97708df865c2ae7d97d8da2aef",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:62f41c7c2c042d92b222a2be48ceddc187dd0009d79e10de8afa8ede097cedd2",
+      "newRange": {
+        "count": 7,
+        "start": 6
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 6
+      },
+      "path": "docs/specs/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:21ba4707d597f1cca5f13198542285bed647e99eed68bc0507b89acb26c1aa0c",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:be0464145f218d6a2ccc6cc24994d189dd924739ba5384853a5591c3592df12d",
+      "newRange": {
+        "count": 7,
+        "start": 3
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 3
+      },
+      "path": "docs/specs/process-group-owner-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c396092d289350470778ebfb371399452641ba1ac69c8440c66f7cd6a970e003",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:709325e88e93f831f1a7f7ee1e99891cb659168870be912316ea2ed5cd54ab74",
+      "newRange": {
+        "count": 10,
+        "start": 54
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 54
+      },
+      "path": "docs/specs/process-group-owner-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8913911bafbd1cba75c7ed7951dbccef3500badca238d6a0b01adcebcca09e70",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2137aa970e85e3a67476240324d80acdbfd0c4a153f211bf44757764d76d6084",
+      "newRange": {
+        "count": 485,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/groupreap/owner.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:59666b17851d6c533bff28a577f9bf535a79fcb7693d3876ea8fba8667766c0d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1777fc511f498b4dab0b7e788e5ff80320a348bd23d90fd1ef9928334669abf8",
+      "newRange": {
+        "count": 255,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/groupreap/owner_linux_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0e90961169dc59fa63af0b2075d9a0b33b56575767a33b86b20b2a1d174fa8bd",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:130578a206e20a5b9ed1d684251ebdcaf41872e0a58d9cb1b2470da23560d44c",
+      "newRange": {
+        "count": 21,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/groupreap/owner_other.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8913911bafbd1cba75c7ed7951dbccef3500badca238d6a0b01adcebcca09e70",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5228d2a4cb40bca132abe16d3d4170d9c3f55e5bbc7c3710177bc8b1a152e145",
+      "newRange": {
+        "count": 585,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/groupreap/owner_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8913911bafbd1cba75c7ed7951dbccef3500badca238d6a0b01adcebcca09e70",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:954022f13c186aa373e0563a67dc456c2ffc6c6bff168060783f6d5375541caf",
+      "newRange": {
+        "count": 233,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/groupreap/owner_unix_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:59666b17851d6c533bff28a577f9bf535a79fcb7693d3876ea8fba8667766c0d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3eb2ebeebbfbe3c0f38d1c45052c990556ad4b28a41404e25bf73a3316e300c1",
+      "newRange": {
+        "count": 52,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/groupreap/owner_waitid.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "718e8eaa1a5f5828ebfa13539301a989f86aa167894ab4d8e62e0cadf8544588",
+  "spec": "cem/0.2"
+}
