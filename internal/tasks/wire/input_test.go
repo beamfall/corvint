@@ -124,3 +124,42 @@ func TestV10750_SetSortingReaderSortsOnlySets(t *testing.T) {
 		t.Errorf("strict unsorted set: err %v, want the path and the sort fix", err)
 	}
 }
+
+// TestV10750_StrictParseRefusesWhitespaceBeforeTheReencode pins the
+// assumption behind ParseWith's fallback message: once every object's keys
+// are sorted, a re-encode mismatch is reported as an escape form, which is
+// only true because strict parsing refuses insignificant whitespace first.
+// Every structural gap of a sorted-key canonical document, filled with each
+// JSON whitespace byte, must be refused by the parser itself; if strict mode
+// ever let whitespace through, the re-encode comparison would mislabel it as
+// an escape form and this test fails.
+func TestV10750_StrictParseRefusesWhitespaceBeforeTheReencode(t *testing.T) {
+	body := `{"a":["x",{"b":"y"},[]],"c":{},"d":"z"}`
+	if _, err := Parse([]byte(body + "\n")); err != nil {
+		t.Fatalf("canonical document refused: %v", err)
+	}
+	inString := false
+	for i := 0; i <= len(body); i++ {
+		if i > 0 && body[i-1] == '"' {
+			inString = !inString
+		}
+		if inString {
+			continue
+		}
+		for _, ws := range []string{" ", "\t", "\n", "\r"} {
+			in := body[:i] + ws + body[i:] + "\n"
+			_, err := Parse([]byte(in))
+			if err == nil {
+				t.Errorf("gap %d %q: strict parse accepted whitespace", i, ws)
+				continue
+			}
+			if msg := err.Error(); strings.Contains(msg, "non-canonical string escape form") || strings.Contains(msg, "non-canonical key order") {
+				t.Errorf("gap %d %q: whitespace reached the re-encode comparison: %q", i, ws, msg)
+			}
+		}
+	}
+	// With whitespace excluded, a sorted-key mismatch is an escape form.
+	if _, err := Parse([]byte(`{"a":"\/","b":"1"}` + "\n")); err == nil || !strings.Contains(err.Error(), "non-canonical string escape form") {
+		t.Errorf("sorted keys with a solidus escape: %v, want the escape-form message", err)
+	}
+}

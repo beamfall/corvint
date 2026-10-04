@@ -67,8 +67,14 @@ func ParseWith(data []byte, opts ParseOptions) (Value, error) {
 		for off < len(enc) && off < len(body) && enc[off] == body[off] {
 			off++
 		}
-		// Whitespace is refused while parsing, so only key order or an escape
-		// form can differ here; name the one that does (V1-0750).
+		// The strict parse has already refused insignificant whitespace,
+		// duplicate keys, JSON numbers and non-exact literals, so the parsed
+		// bytes can differ from their encoding only in object key order or
+		// in a string's escape form (V1-0750). The fallback below therefore
+		// reports an escape form whenever every object's keys are sorted.
+		// That inference holds only while whitespace stays a parse error in
+		// strict mode: TestV10750_StrictParseRefusesWhitespaceBeforeTheReencode
+		// pins it, and must fail if strict whitespace ever reaches this point.
 		if path, ok := unsortedKeys(v, ""); ok {
 			return Value{}, Errorf(CodeMalformed, fmt.Sprintf("byte %d", off), "non-canonical key order: the keys of the object at %q must be sorted in UTF-8 byte order", path)
 		}

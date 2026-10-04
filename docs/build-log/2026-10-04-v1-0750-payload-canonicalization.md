@@ -52,6 +52,20 @@ order, the non-replay of a sorted-criteria retry, and the `/payload/labels` dupl
 `internal/tasks/wire/input_test.go` covers `ParseInput` canonicalization and its retained value
 rules, the strict-parse messages (no `expected object key` for whitespace), and set-only
 sorting with argv order preserved.
+`TestV10750_ReleasePayloadsCanonicalizeFramingButKeepSetOrderStrict` covers the release path:
+a `release create` payload with reversed keys and `\u0030`, `\/`, `\u0041` escapes is accepted,
+its canonical retry replays, and a different payload under the same request does not. An
+unsorted `ticketIds` set refuses, naming `/payload/ticketIds` and the sort fix. It fails against
+the previous `mutate.go` and `release.go`. `TestV10750_StrictParseRefusesWhitespaceBeforeTheReencode`
+pins the assumption behind the escape-form fallback. If keys are sorted, a re-encode mismatch
+can only be an escape form, because strict parsing refuses whitespace first. Every structural
+gap of a canonical document, filled with each whitespace byte, must be refused before the
+comparison. Letting strict mode skip whitespace makes the test fail.
+
+Known limit, pre-existing and unchanged: `--payload-stdin` is bounded at `MaxTicketFileBytes`,
+but the inline `--payload` argument has no matching CLI byte bound. Only the operating system's
+argument limit and the parser's decode bounds constrain it. This change does not alter that
+asymmetry.
 
 Rollback: revert the change. CLI payloads again must be canonical bytes, and refusals return to
 the previous messages. Stored data, receipts and digests need no migration in either direction.

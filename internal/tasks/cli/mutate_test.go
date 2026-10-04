@@ -361,3 +361,49 @@ func TestV10750_OrderedArraysKeepTheirOrderAndSetDuplicatesRefuse(t *testing.T) 
 		t.Errorf("duplicate refusal does not name /payload/labels: %+v", x.res)
 	}
 }
+
+// TestV10750_ReleasePayloadsCanonicalizeFramingButKeepSetOrderStrict is
+// V1-0750 for the release verbs: a release payload with unsorted object keys
+// and non-canonical string escapes is accepted and records the canonical
+// request digest (the canonical retry replays), while a release set array
+// given out of order is refused with a message naming its path and the fix.
+// Release payloads do not sort sets for the caller.
+func TestV10750_ReleasePayloadsCanonicalizeFramingButKeepSetOrderStrict(t *testing.T) {
+	r := fixture.TempRepo(t)
+	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), releaseQueueBytes(true))
+	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
+	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("init: %+v", x.res)
+	}
+	t1 := createTicket(t, r.Root, "release-ticket-one")
+	t2 := createTicket(t, r.Root, "release-ticket-two")
+
+	canonical := releaseCreatePayload("v0-9", "Version 0.9/A", t1, "")
+	loose := fmt.Sprintf(`{"version":"v0-9","title":"Version 0.9\/A","ticketIds":[%q],"requiredGates":[],"predecessorReleaseIds":[],"acceptanceCriteria":["release criterion"]}`, t1)
+	args := func(payload string) []string {
+		return []string{"release", "create", "--request-id", "release-canonical", "--target", "v0-9", "--issued-at", "2026-09-20T12:01:00Z", "--payload", payload}
+	}
+	if x := atm(t, r.Root, nil, args(loose)...); x.res.Outcome != wire.OutcomeOK || field(x.res.Items[0], "replayed").Bool {
+		t.Fatalf("release payload with unsorted keys and escapes: %+v", x.res)
+	}
+	if x := atm(t, r.Root, nil, args(canonical)...); x.res.Outcome != wire.OutcomeOK || !field(x.res.Items[0], "replayed").Bool {
+		t.Fatalf("canonical retry did not replay, so the digests differ: %+v", x.res)
+	}
+	if x := atm(t, r.Root, nil, args(releaseCreatePayload("v0-9", "Version 0.9/B", t1, ""))...); x.res.Outcome == wire.OutcomeOK {
+		t.Fatalf("a different payload under the same request replayed, so the replay proves nothing: %+v", x.res)
+	}
+
+	lo, hi := t1, t2
+	if hi < lo {
+		lo, hi = hi, lo
+	}
+	unsorted := strings.Replace(releaseCreatePayload("v1-0", "Version 1.0", t1, ""), fmt.Sprintf(`"ticketIds":[%q]`, t1), fmt.Sprintf(`"ticketIds":[%q,%q]`, hi, lo), 1)
+	x := atm(t, r.Root, nil, "release", "create", "--request-id", "release-unsorted-set", "--target", "v1-0", "--issued-at", "2026-09-20T12:02:00Z", "--payload", unsorted)
+	if x.res.Outcome == wire.OutcomeOK {
+		t.Fatal("a release payload with an unsorted set array was accepted")
+	}
+	msg := strings.Join(x.res.Warnings, " ") + fmt.Sprint(x.res.Items)
+	if !strings.Contains(msg, "/payload/ticketIds") || !strings.Contains(msg, "sort its elements") {
+		t.Errorf("unsorted set refusal does not name /payload/ticketIds and the fix: %+v", x.res)
+	}
+}
