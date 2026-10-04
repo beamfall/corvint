@@ -67,7 +67,7 @@ var ReadVerbs = []string{
 	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview",
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
 	"dispatch", "dispatch status", "dispatch unpark",
-	"submit", "gate run", "complete", "health", "pool cleanup", "pool recover", "pool confirm-safe",
+	"submit", "gate run", "complete", "health", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe",
 }
 
 // OmittedVerbs are the verb paths the SPEC names that this binary does not
@@ -157,6 +157,9 @@ func Run(env Env) int {
 	case "health", "claim", "renew", "reap", "widen", "submit", "complete":
 		return emit(env.Stdout, leaseCommand(env, args[0], args[1:]))
 	case "pool":
+		if len(args) > 1 && args[1] == "sweep" {
+			return emit(env.Stdout, poolSweepCommand(env, args[2:]))
+		}
 		if len(args) == 2 && args[1] == "--help" {
 			return emit(env.Stdout, usage([]string{"pool"}, "pool confirm-safe --member MEMBER --allocation SHA256 --evidence LOCAL_REF --reason REASON"))
 		}
@@ -325,6 +328,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks release list|show RELEASE|readiness RELEASE",
 		"corvint-tasks claim <ticketId|local> --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate]",
 		"corvint-tasks health --member ID [--stage STAGE] --request-id ID",
+		"corvint-tasks pool sweep --request-id ID --timeout-seconds N [--member ID] [--role ROLE]",
 		"corvint-tasks pool cleanup --member ID --allocation SHA256 --request-id ID",
 		"corvint-tasks pool recover --member ID --allocation SHA256 --reason TEXT --request-id ID",
 		"corvint-tasks pool confirm-safe --member ID --allocation SHA256 --evidence REF --reason TEXT --request-id ID",

@@ -42,7 +42,13 @@ type Dispatcher struct {
 	// Tests inject faults through the real creation-owned API.
 	readerStart func(*exec.Cmd) (*groupreap.Owner, error)
 	// Tests place cancellation exactly across the checked atomic write.
-	progressSave func(*Ledger, string) error
+	progressSave  func(*Ledger, string) error
+	poolSweepSave func(*Ledger, string) error
+	sweepJob      *poolSweepJob
+	sweepTried    map[string]bool
+	sweepNext     time.Time
+	closed        bool
+	closeErr      error
 	// pressureSampler reads host pressure once per tick (CAL-V0-068); tests
 	// inject samples. Nil uses the platform sampler.
 	pressureSampler func(context.Context, time.Time) PressureSample
@@ -122,13 +128,23 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 		}
 		d.emit(Event{Kind: "adopted", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg})
 	}
-	return d, d.ledger.save(dir)
+	if err := d.ledger.save(dir); err != nil {
+		_ = d.lock.Close()
+		return nil, err
+	}
+	return d, nil
 }
 
 // Close records the stop and releases the lock. Workers keep running and
 // are adopted by the next dispatcher.
 func (d *Dispatcher) Close() error {
+	if d.closed {
+		return d.closeErr
+	}
 	if d.readerErr != nil {
+		// Join first so no sweep goroutine outlives Close; HOLD still writes
+		// no ledger or event, so retirePoolSweep publishes nothing here.
+		_ = d.retirePoolSweep()
 		// Terminal UNKNOWN permits releasing the lock, not recovery. The
 		// pre-spawn marker survives even when this diagnostic cannot be written.
 		if d.Out != nil {
@@ -137,8 +153,11 @@ func (d *Dispatcher) Close() error {
 		_ = d.lock.Close()
 		return d.readerErr
 	}
+	joinedErr := d.stopPoolSweep()
 	d.emit(Event{Kind: "stopped", Message: fmt.Sprintf("dispatcher stopped; %d worker(s) left running for the next dispatcher", len(d.ledger.Workers))})
-	err := d.ledger.save(d.dir)
+	err := errors.Join(joinedErr, d.ledger.save(d.dir))
+	d.closed = true
+	d.closeErr = err
 	_ = d.lock.Truncate(0)
 	d.lock.Close()
 	return err
@@ -196,7 +215,12 @@ func (d *Dispatcher) LastEvent() uint64 { return d.ledger.EventSeq }
 
 // Run ticks until ctx ends or ticks reach the bound (0 is unbounded). A
 // failed tick is an alert, not an exit, so the dispatcher keeps supervising.
-func (d *Dispatcher) Run(ctx context.Context, ticks int) error {
+func (d *Dispatcher) Run(ctx context.Context, ticks int) (result error) {
+	defer func() {
+		if e := d.retirePoolSweep(); e != nil {
+			result = errors.Join(result, e)
+		}
+	}()
 	if d.readerErr != nil {
 		return d.readerErr
 	}
@@ -291,10 +315,11 @@ func (d *Dispatcher) Tick(ctx context.Context) error {
 		return ctx.Err()
 	}
 	d.diff(obs)
+	obs, sweepErr := d.tickPoolSweep(ctx, obs)
 	if ctx.Err() == nil {
 		d.launchRoster(ctx, obs)
 	}
-	return nil
+	return sweepErr
 }
 
 func (d *Dispatcher) observe(ctx context.Context) (*Observation, error) {
@@ -847,6 +872,11 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 	skip := map[string]bool{}
 	for k, b := range d.ledger.Backoff {
 		skip[k] = b.Parked || b.CooldownUntil.After(now)
+	}
+	for _, m := range obs.Members {
+		if d.sweepLaneHeld(m.Pool, m.Member) {
+			skip[laneKey(m.Pool, m.Member)] = true
+		}
 	}
 	budget, ok := d.pressureBudget(ctx, obs)
 	if !ok {

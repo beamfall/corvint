@@ -183,6 +183,7 @@ type armRecord struct {
 	Commands         []string           `json:"commands,omitempty"`
 	Reply            string             `json:"reply"`
 	ReplyTruncated   bool               `json:"reply_truncated"`
+	StdoutTruncated  bool               `json:"stdout_truncated,omitempty"`
 	Error            string             `json:"error,omitempty"`
 	ReusedFrom       string             `json:"reused_from,omitempty"`
 	BlockState       string             `json:"block_state"`
@@ -257,11 +258,13 @@ type options struct {
 
 // agentResult is one reply plus what the agent CLI reported about itself.
 type agentResult struct {
-	reply     string
-	exitCode  any
-	tokens    any
-	toolCalls any
-	commands  []string
+	reply           string
+	replyTruncated  bool
+	stdoutTruncated bool
+	exitCode        any
+	tokens          any
+	toolCalls       any
+	commands        []string
 }
 
 type agent interface {
@@ -1016,6 +1019,7 @@ func (source *reuseSource) apply(id, arm string, record *armRecord) bool {
 	}
 	record.WallMs, record.ExitCode, record.Tokens, record.ToolCalls, record.Commands = prior.WallMs, prior.ExitCode, prior.Tokens, prior.ToolCalls, prior.Commands
 	record.Reply, record.ReplyTruncated, record.ReusedFrom = prior.Reply, prior.ReplyTruncated, source.identity
+	record.StdoutTruncated = prior.StdoutTruncated
 	return true
 }
 
@@ -1054,6 +1058,8 @@ func invokeArm(ctx context.Context, configuration options, runner agent, root, p
 		}
 		record.ExitCode, record.Tokens, record.ToolCalls, record.Commands = result.exitCode, result.tokens, result.toolCalls, result.commands
 		record.Reply, record.ReplyTruncated = truncate(result.reply, maxReplyBytes)
+		record.ReplyTruncated = record.ReplyTruncated || result.replyTruncated
+		record.StdoutTruncated = result.stdoutTruncated
 	})
 }
 
@@ -1324,16 +1330,34 @@ func (runner codexAgent) run(ctx context.Context, root, prompt string, timeout t
 	}
 	defer os.RemoveAll(scratch)
 	replyPath := filepath.Join(scratch, "reply.txt")
-	stdout, exitCode, err := runCommand(ctx, root, timeout, "codex", runner.arguments(root, replyPath, prompt)...)
+	stdout, exitCode, overflow, err := runCommand(ctx, root, timeout, "codex", runner.arguments(root, replyPath, prompt)...)
 	if err != nil {
 		return agentResult{}, err
 	}
 	events := parseCodexEvents(stdout)
-	reply, readErr := os.ReadFile(replyPath)
+	reply, readErr := readPrefix(replyPath, maxReplyBytes+1)
 	if readErr != nil {
 		reply = []byte(events.lastMessage)
 	}
-	return agentResult{reply: string(reply), exitCode: exitCode, tokens: events.tokens, toolCalls: events.toolCalls, commands: events.commands}, nil
+	result := agentResult{reply: string(reply), exitCode: exitCode, tokens: events.tokens, toolCalls: events.toolCalls, commands: events.commands}
+	if overflow {
+		// A cut event stream lost its tail, so its usage and tool counts are not observations.
+		result.stdoutTruncated, result.tokens, result.toolCalls = true, notObserved, notObserved
+		// Without a reply file the reply came from the cut stream, which may have lost the final message.
+		result.replyTruncated = readErr != nil
+	}
+	return result, nil
+}
+
+// readPrefix reads at most limit bytes of path, so a reply larger than the
+// reply bound is never allocated whole; truncate then records the cut.
+func readPrefix(path string, limit int64) ([]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return io.ReadAll(io.LimitReader(file, limit))
 }
 
 func (runner codexAgent) identity(ctx context.Context) (map[string]any, error) {
@@ -1396,10 +1420,25 @@ func parseCodexEvents(stdout []byte) codexEvents {
 			}
 		}
 		if event.Type == "turn.completed" && len(event.Usage) > 0 {
-			result.tokens = event.Usage
+			result.tokens = notObserved
+			if validUsage(event.Usage) {
+				result.tokens = event.Usage
+			}
 		}
 	}
 	return result
+}
+
+// validUsage admits a usage event only when every count is a finite,
+// non-negative number; anything else is not a token observation.
+func validUsage(usage map[string]any) bool {
+	for _, value := range usage {
+		number, numeric := value.(float64)
+		if !numeric || number < 0 || math.IsInf(number, 0) || math.IsNaN(number) {
+			return false
+		}
+	}
+	return true
 }
 
 // scriptAgent is any executable that takes the prompt as its only argument,
@@ -1410,11 +1449,11 @@ type scriptAgent struct {
 }
 
 func (runner scriptAgent) run(ctx context.Context, root, prompt string, timeout time.Duration) (agentResult, error) {
-	stdout, exitCode, err := runCommand(ctx, root, timeout, runner.command, prompt)
+	stdout, exitCode, overflow, err := runCommand(ctx, root, timeout, runner.command, prompt)
 	if err != nil {
 		return agentResult{}, err
 	}
-	return agentResult{reply: string(stdout), exitCode: exitCode, tokens: notObserved, toolCalls: notObserved}, nil
+	return agentResult{reply: string(stdout), replyTruncated: overflow, stdoutTruncated: overflow, exitCode: exitCode, tokens: notObserved, toolCalls: notObserved}, nil
 }
 
 func (runner scriptAgent) identity(context.Context) (map[string]any, error) {
@@ -1428,17 +1467,18 @@ func (runner scriptAgent) identity(context.Context) (map[string]any, error) {
 
 // runCommand runs one agent invocation with stdin closed, bounded output,
 // and the per-invocation timeout; a non-zero exit is returned as the exit
-// code with stdout, a timeout or launch failure as an error.
-func runCommand(ctx context.Context, root string, timeout time.Duration, name string, arguments ...string) ([]byte, int, error) {
+// code with stdout, a timeout or launch failure as an error. The boolean
+// reports that stdout overflowed its bound and was truncated.
+func runCommand(ctx context.Context, root string, timeout time.Duration, name string, arguments ...string) ([]byte, int, bool, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, 0, fmt.Errorf("%s: %v after %s", name, err, timeout)
+		return nil, 0, false, fmt.Errorf("%s: %v after %s", name, err, timeout)
 	}
 	if timeout <= 0 {
-		return nil, 0, fmt.Errorf("%s: %v after %s", name, context.DeadlineExceeded, timeout)
+		return nil, 0, false, fmt.Errorf("%s: %v after %s", name, context.DeadlineExceeded, timeout)
 	}
 	directory, err := filepath.Abs(root)
 	if err != nil {
-		return nil, 0, fmt.Errorf("%s: %v", name, err)
+		return nil, 0, false, fmt.Errorf("%s: %v", name, err)
 	}
 	executable := name
 	if !filepath.IsAbs(executable) {
@@ -1450,7 +1490,7 @@ func runCommand(ctx context.Context, root string, timeout time.Duration, name st
 				executable, err = filepath.Abs(executable)
 			}
 			if err != nil {
-				return nil, 0, fmt.Errorf("%s: %v", name, err)
+				return nil, 0, false, fmt.Errorf("%s: %v", name, err)
 			}
 		}
 	}
@@ -1462,26 +1502,30 @@ func runCommand(ctx context.Context, root string, timeout time.Duration, name st
 		OverflowPolicy: procgroup.OverflowTruncate,
 	})
 	if observation.TimedOut {
-		return nil, 0, fmt.Errorf("%s: %v after %s", name, context.DeadlineExceeded, timeout)
+		return nil, 0, false, fmt.Errorf("%s: %v after %s", name, context.DeadlineExceeded, timeout)
 	}
 	if observation.Cancelled {
-		return nil, 0, fmt.Errorf("%s: %v after %s", name, ctx.Err(), timeout)
+		return nil, 0, false, fmt.Errorf("%s: %v after %s", name, ctx.Err(), timeout)
 	}
 	stderr := strings.TrimSpace(string(observation.Stderr))
 	if observation.Err != nil {
-		return nil, 0, fmt.Errorf("%s: %v: %s", name, observation.Err, stderr)
+		return nil, 0, false, fmt.Errorf("%s: %v: %s", name, observation.Err, stderr)
 	}
 	if !observation.ExitObserved || !observation.WaitCompleted ||
 		!observation.PipesDrained || !observation.OwnedProcessGroupCleanup {
-		return nil, 0, fmt.Errorf("%s: invocation cleanup or exit observation is incomplete", name)
+		return nil, 0, false, fmt.Errorf("%s: invocation cleanup or exit observation is incomplete", name)
 	}
-	return observation.Stdout, observation.ExitStatus, nil
+	return observation.Stdout, observation.ExitStatus, observation.StdoutOverflow, nil
 }
 
 // extractClaims finds the claims block: the last fenced block whose text
-// names "claims", or a reply that is itself one JSON object. ABSENT when
-// there is none, MALFORMED when it does not parse into a claims array.
+// names "claims", or a reply that is itself one JSON object. EMPTY when the
+// reply holds only whitespace, ABSENT when there is no block, MALFORMED when
+// it does not parse into a claims array.
 func extractClaims(reply string) ([]claim, string) {
+	if strings.TrimSpace(reply) == "" {
+		return nil, "EMPTY"
+	}
 	block, found := claimsBlock(reply)
 	if !found {
 		return nil, "ABSENT"
@@ -1948,12 +1992,11 @@ func addTokens(sums map[string]float64, observed any) bool {
 	if !ok {
 		return false
 	}
+	if !validUsage(counts) {
+		return false
+	}
 	for key, value := range counts {
-		number, numeric := value.(float64)
-		if !numeric {
-			return false
-		}
-		sums[key] += number
+		sums[key] += value.(float64)
 	}
 	return true
 }

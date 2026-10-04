@@ -661,6 +661,27 @@
     ]
   },
   {
+    "path": "docs/specs/corvint-tasks-pool-safe-reuse-v0.md",
+    "title": "Corvint Tasks pool safe reuse V0",
+    "reqPrefix": "PSR-V0",
+    "intent": "accepted feature intent (issue498)",
+    "delivery": "experimental",
+    "claim": "Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.",
+    "dependsOn": [
+      "docs/specs/corvint-tasks-agent-leases-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/tasks/intent",
+      "internal/tasks/snapshot",
+      "internal/tasks/transaction",
+      "internal/tasks/store",
+      "internal/tasks/cli",
+      "internal/tasks/dispatch"
+    ]
+  },
+  {
     "path": "docs/specs/corvint-tasks-escalations-v0.md",
     "title": "Corvint Tasks typed escalations V0",
     "reqPrefix": "ESC-V0",

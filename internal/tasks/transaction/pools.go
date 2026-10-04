@@ -199,6 +199,9 @@ func planPoolSafe(c leaseContext) leaseOutcome {
 	if found == nil {
 		return c.refuse(mutation.OutcomeRevisionConflict, wire.CodeFenced, "allocation is not current")
 	}
+	if found.Sweep != nil {
+		return planPoolSweepSafe(c, found)
+	}
 	if found.State != "QUARANTINED" {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeAttemptLive, "member is not quarantined")
 	}

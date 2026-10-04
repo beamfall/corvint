@@ -426,6 +426,10 @@ func parseClaude(raw []byte) object {
 	metrics[0]["sidechain"] = metrics[1]
 	return metrics[0]
 }
+
+// codexUsageKinds are the Codex record types that carry token usage.
+var codexUsageKinds = []string{"token_count", "turn.completed"}
+
 func parseCodex(raw []byte) object {
 	metrics := emptyMetrics(unknown)
 	turns := 0
@@ -444,6 +448,11 @@ func parseCodex(raw []byte) object {
 		if member(kind, "turn.completed", "task_complete", "agent_message") {
 			turns++
 			sawTurn = true
+		}
+		// Usage counts only from a token-count record: a tool result or message
+		// that echoes a usage object is content, not telemetry.
+		if !member(kind, codexUsageKinds...) && !member(container["type"], codexUsageKinds...) {
+			return
 		}
 		if usage := asObject(container["total_token_usage"]); usage != nil {
 			snapshot = cumulative(snapshot, usage, codexFields)
