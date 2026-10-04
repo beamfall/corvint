@@ -11,8 +11,8 @@ or qualified positive replay is claimed.
 ## Agent digest
 - Claim: Accepted /2 contract compares stable producer decisions and canonical requests across fresh verified runs; only its process verifier slice exists.
 - Status: accepted; partial; PMR-V2-006 process verifier slice only, qualification NOT_OBSERVED.
-- Exists: This spec, `conformance/postmerge-runtime-v2/` and the `internal/postmergeproof` verifier; no /2 workflow. /0 and /1 are unchanged.
-- Blocked on: #389 actual delta, #394 producer decision, Linux procfs tuple qualification and real author/scope/validation stages.
+- Exists: This spec, `conformance/postmerge-runtime-v2/` and the `internal/postmergeproof` verifier; no /2 workflow. /0 is unchanged; inherited /1 now observes provider-free native delta, then blocks at follow-up.
+- Blocked on: #394 producer decision (needs a qualified PMR-V2-006 process proof), provider-backed delta, Linux procfs tuple qualification and real follow-up/author/scope/validation stages.
 - Read next: Requirements; Closed executable profiles; Remaining work and promotion boundary.
 
 ## Authority
@@ -50,6 +50,16 @@ is a dependency proposal, not an applied or qualified producer. Its immutable so
 `e5d777cbd1202dbffb88ce114956b304035bd5c5`. Revalidate the source map at the actual admitted base.
 Synthetic examples demonstrate schema/link topology only; they cannot mint verified process tokens,
 qualify a host, satisfy historical replay, or close native ticket V1-0542.
+
+Current state 2026-10-04 (delta slice; not acceptance evidence for any PMR-V2 requirement):
+#389 is closed and `corvint delta` (`internal/delta`) is on main. The inherited /1 delta stage now
+runs actual `delta.Compile` without providers, documentation baseline or work keys, retains its exact
+canonical record, then blocks at follow-up (PMR-V1-002). Every /1 report is still BLOCKED/CLI2.
+Every added line of patch `da35448e` is already present on main, and it contains no /2 decision
+emitter. `internal/testacceptance` has no `ExportDecisionV2`/`VerifyDecisionV2`. The PMR-V2-006
+verifier described next mints no token without an admitted qualification, so the required decision
+`processes` member still has no verified source and the PMR-V2-002 emitter stays NOT_PRODUCED until a
+qualified process proof exists.
 
 Since 2026-10-04 the PMR-V2-006 verifier slice (#395) exists in `internal/postmergeproof`.
 `VerifyProcessV2` checks the parent admission, an admitted qualification report, the closed policy and
@@ -184,12 +194,13 @@ binding/check/seal. No passed design check is a source-execution authorization.
 | PMR-V2-002, 003, 004 | `internal/testacceptance/*v2*.go`, provider collector | native rederivation, all source/link tamper cases, fresh graph coverage; NOT_RUN |
 | PMR-V2-005, 008 | `internal/postmergeconnector/*v2*.go` | immutable resolver and actual Git joins, both-call revalidation, idempotent JSONL; NOT_RUN |
 | PMR-V2-006 | `internal/postmergeproof` (verifier slice delivered), `internal/postmergehost`, `internal/procgroup` | token boundary: TestVerifyProcessMintsBoundToken, TestZeroProcessTokenIsInvalid, TestVerifyProcessAdmissionRefusals, TestQualificationRefusals; raw birth/role/cleanup controls: TestRawProcessProofDerivesLogicalGraph, TestRawProcessRefusals, TestDistinctProcessStates, TestRoleWitnessOrderInvariant, TestProcStatParser, TestPolicyRefusals, TestWireTableMatchesFrozenSchemas; procfs: TestUnsupportedHostIsNotObserved, TestCaptureOwnBirth, TestSweepListsOwnProcess, TestLinuxProcfsOwnedExecution, TestLinuxProcfsSweepFindsSurvivor (Linux arm64 container only; amd64 NOT_RUN); collector integration and actual tuple qualification NOT_PRODUCED |
+| PMR-V2-007, 010 (prerequisite only) | inherited /1 `internal/postmergeworkflow/native.go` delta stage | provider-free actual delta observed and repeated byte-identically (`TestNativeDeltaRepeatsExactly`); provider-backed delta and later stages NOT_PRODUCED |
 
 ## Remaining work and promotion boundary
 
 Root must admit the seed and implementation resource scopes, actual base, own-object repositories,
 closed environment/cache/process effects and shared GEN lane before execution. The first producer/
-connector/refusal slice may remain PARTIAL. Actual native delta and all full-workflow stages remain
+connector/refusal slice may remain PARTIAL. Provider-backed native delta and all later full-workflow stages remain
 required upstream work; frozen patches cannot stand in for author execution. A native ticket stays
 OPEN until full acceptance, integration and successful native completion. Kill promotion if complete
 native proof, unique process mapping or deterministic canonical recording cannot be established within
