@@ -2,9 +2,11 @@ package cli_test
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/cli"
@@ -120,10 +122,27 @@ func TestCALV0069_CreateTemplateNamesEnumsAndNullableKeys(t *testing.T) {
 		"kind": ticket.Kinds, "priority": ticket.Priorities, "executionClass": ticket.ExecutionClasses,
 		"effects.coverage": ticket.Coverages, "effects.resources[].class": ticket.ResourceClasses,
 		"source.kind": ticket.SourceKinds, "dependencies[].obligation": ticket.Obligations,
-		"requiredRoles": ticket.StageRoles, "source.sourceQueueId": {queueID}, "requiredGates": {"verify"},
 	} {
 		if got := strs(field(field(fields, k), "values")); !slices.Equal(got, want) {
 			t.Errorf("%s values = %v, want %v", k, got, want)
+		}
+	}
+	// values is reserved for a key's own closed enum: array members use
+	// elementValues and the open queue identifier uses current.
+	for _, c := range []struct {
+		key, name string
+		want      []string
+	}{
+		{"requiredRoles", "elementValues", ticket.StageRoles},
+		{"requiredGates", "elementValues", []string{"verify"}},
+		{"source.sourceQueueId", "current", []string{queueID}},
+	} {
+		entry := field(fields, c.key)
+		if got := strs(field(entry, c.name)); !slices.Equal(got, c.want) {
+			t.Errorf("%s %s = %v, want %v", c.key, c.name, got, c.want)
+		}
+		if _, ok := entry.Obj.Get("values"); ok {
+			t.Errorf("%s carries values though it is not a closed scalar enum", c.key)
 		}
 	}
 	wantNull := []string{"body", "dependencies[].gateId", "dueDate", "estimateMinutes", "milestone", "owner",
@@ -146,11 +165,116 @@ func TestCALV0069_TemplateRefusesOtherVerbsAndFlags(t *testing.T) {
 	if x := atm(t, r.Root, nil, "ticket", "refine", "--template"); x.res.Outcome == wire.OutcomeOK {
 		t.Error("refine accepted --template")
 	}
-	if res := templateRun(t, r.Root, "--request-id", "x"); res.Outcome == wire.OutcomeOK {
-		t.Error("--template accepted --request-id")
+	// Refusal is by flag presence, so a flag set to its default value or to
+	// the empty string is refused too.
+	for _, extra := range [][]string{{"--request-id", "x"}, {"--role", "OWNER"}, {"--payload", ""}, {"--payload-stdin"}} {
+		if res := templateRun(t, r.Root, extra...); res.Outcome == wire.OutcomeOK {
+			t.Errorf("--template accepted %v", extra)
+		}
 	}
 	help := atm(t, r.Root, nil, "ticket", "create", "--help")
 	if !slices.Contains(strs(field(help.res.Items[0], "flags")), "--template") || field(help.res.Items[0], "template").Str == "" {
 		t.Errorf("create help does not name --template: %s", help.stdout)
+	}
+}
+
+// payloadPaths lists every dotted key path of a payload object; an array
+// of objects contributes NAME[].MEMBER paths from its first element.
+func payloadPaths(prefix string, v wire.Value) []string {
+	out := []string{}
+	for _, k := range v.Obj.SortedKeys() {
+		c, _ := v.Obj.Get(k)
+		p := prefix + k
+		out = append(out, p)
+		switch {
+		case c.Kind == wire.KindObject:
+			out = append(out, payloadPaths(p+".", c)...)
+		case c.Kind == wire.KindArray && len(c.Arr) > 0 && c.Arr[0].Kind == wire.KindObject:
+			out = append(out, payloadPaths(p+"[].", c.Arr[0])...)
+		}
+	}
+	return out
+}
+
+// nullAt returns a copy of the canonical payload with the member at path
+// set to null; a NAME[] segment descends into the first element.
+func nullAt(t *testing.T, canonical, path string) []byte {
+	t.Helper()
+	v, err := wire.Parse([]byte(canonical + "\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cur := v
+	segs := strings.Split(path, ".")
+	for _, s := range segs[:len(segs)-1] {
+		next, _ := cur.Obj.Get(strings.TrimSuffix(s, "[]"))
+		if strings.HasSuffix(s, "[]") {
+			next = next.Arr[0]
+		}
+		cur = next
+	}
+	cur.Obj.Set(segs[len(segs)-1], wire.Null())
+	return wire.Encode(v)
+}
+
+// TestCALV0069_TemplateFieldsMatchPayloadNullability is the drift guard:
+// every key path of the emitted payload (with one dependency and one
+// resource element populated) has a fields entry, fields has no other
+// entries than those paths and optionalKeys, and each path's nullable flag
+// matches what ticket create actually accepts on the fixture.
+func TestCALV0069_TemplateFieldsMatchPayloadNullability(t *testing.T) {
+	r := receiptFixture(t)
+	item := templateRun(t, r.Root).Items[0]
+	fields := field(item, "fields")
+	payload := field(item, "payload")
+	payload.Obj.Set("title", wire.String("Drift probe"))
+	payload.Obj.Set("body", wire.String("probe"))
+	payload.Obj.Set("acceptanceCriteria", wire.Strings([]string{"probe"}))
+	base := atm(t, r.Root, []byte(string(wire.Encode(payload))), "ticket", "create",
+		"--request-id", "drift-dep-target", "--issued-at", "2026-10-04T12:00:00Z", "--payload-stdin")
+	if base.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("dependency target refused: %+v", base.res)
+	}
+	dep := wire.NewObject()
+	dep.Set("gateId", wire.String("verify"))
+	dep.Set("obligation", wire.String("GATE_PASSED"))
+	dep.Set("ticketId", wire.String(field(base.res.Items[0], "ticketId").Str))
+	payload.Obj.Set("dependencies", wire.Array(wire.ObjectValue(dep)))
+	res := wire.NewObject()
+	res.Set("class", wire.String("PATH"))
+	res.Set("key", wire.String("docs"))
+	effects, _ := payload.Obj.Get("effects")
+	effects.Obj.Set("resources", wire.Array(wire.ObjectValue(res)))
+	canonical := string(wire.Encode(payload))
+	if x := atm(t, r.Root, []byte(canonical), "ticket", "create", "--request-id", "drift-base",
+		"--issued-at", "2026-10-04T12:00:00Z", "--payload-stdin"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("populated probe refused: %+v", x.res)
+	}
+
+	paths := payloadPaths("", payload)
+	want := append(slices.Clone(paths), strs(field(item, "optionalKeys"))...)
+	slices.Sort(want)
+	if got := fields.Obj.SortedKeys(); !slices.Equal(got, want) {
+		t.Fatalf("fields keys = %v\nwant payload paths plus optionalKeys = %v", got, want)
+	}
+	// dependencies[].gateId is conditionally nullable: null with the probe's
+	// GATE_PASSED obligation must refuse, and the nullability probe below
+	// pairs the null with COMPLETED, as its fields note says.
+	if x := atm(t, r.Root, nullAt(t, canonical, "dependencies[].gateId"), "ticket", "create", "--request-id", "drift-gate-passed-null",
+		"--issued-at", "2026-10-04T12:00:00Z", "--payload-stdin"); x.res.Outcome == wire.OutcomeOK {
+		t.Error("a null gateId with obligation GATE_PASSED was accepted")
+	}
+	completed := strings.Replace(canonical, `"obligation":"GATE_PASSED"`, `"obligation":"COMPLETED"`, 1)
+	for i, p := range paths {
+		nullable := field(field(fields, p), "nullable").Bool
+		src := canonical
+		if p == "dependencies[].gateId" {
+			src = completed
+		}
+		x := atm(t, r.Root, nullAt(t, src, p), "ticket", "create", "--request-id", fmt.Sprintf("drift-null-%d", i),
+			"--issued-at", "2026-10-04T12:00:00Z", "--payload-stdin")
+		if accepted := x.res.Outcome == wire.OutcomeOK; accepted != nullable {
+			t.Errorf("%s: fields nullable=%v but null accepted=%v (%s)", p, nullable, accepted, x.stdout)
+		}
 	}
 }

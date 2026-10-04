@@ -88,6 +88,14 @@ func templateField(typ string, nullable bool, values []string, note string) wire
 	return wire.ObjectValue(o)
 }
 
+// withValues adds a non-enum value list under key: elementValues is the
+// closed set each array element is drawn from, current is this queue's
+// value of an open field. values always means a closed enum for the key.
+func withValues(v wire.Value, key string, vals []string) wire.Value {
+	v.Obj.Set(key, wire.Strings(slices.Clone(vals)))
+	return v
+}
+
 // createTemplateFields documents each CREATE member by dotted path. Enum
 // values come from the vocabularies the decoder enforces; gate and pool
 // values come from the current policy.
@@ -106,7 +114,7 @@ func createTemplateFields(queueID string, policy *intent.Policy) *wire.Object {
 	f.Set("body", templateField(fmt.Sprintf("prose string, at most %d bytes", wire.MaxBodyBytes), true, nil, "fill in"))
 	f.Set("capabilities", templateField(set("Identifier", wire.MaxCapabilities), false, nil, ""))
 	f.Set("dependencies", templateField(fmt.Sprintf("ordered array of {gateId, obligation, ticketId} objects, at most %d", wire.MaxDependencies), false, nil, "each ticketId must exist in the queue"))
-	f.Set("dependencies[].gateId", templateField("Label naming a policy gate", true, gates, ""))
+	f.Set("dependencies[].gateId", templateField("Label naming a policy gate", true, gates, "null iff obligation is COMPLETED; a gate id iff GATE_PASSED"))
 	f.Set("dependencies[].obligation", templateField("enum", false, ticket.Obligations, ""))
 	f.Set("dependencies[].ticketId", templateField("TicketID ticket:AUTHORITY:QUEUE:LOCAL", false, nil, ""))
 	f.Set("dueDate", templateField("date YYYY-MM-DD", true, nil, ""))
@@ -126,14 +134,14 @@ func createTemplateFields(queueID string, policy *intent.Policy) *wire.Object {
 	f.Set("order", templateField("Count decimal string", false, nil, "rank within priority; a string such as \"0\", not a number"))
 	f.Set("owner", templateField("Label", true, nil, ""))
 	f.Set("priority", templateField("enum", false, ticket.Priorities, ""))
-	f.Set("requiredGates", templateField(set("Label naming a policy gate", wire.MaxRequiredGates), false, gates, ""))
-	f.Set("requiredRoles", templateField("optional object {implement, review, integrate}, each a non-empty sorted array of roles", false, ticket.StageRoles, "keys: "+strings.Join(ticket.Stages, ", ")))
+	f.Set("requiredGates", withValues(templateField(set("Label naming a policy gate", wire.MaxRequiredGates), false, nil, ""), "elementValues", gates))
+	f.Set("requiredRoles", withValues(templateField("optional object {implement, review, integrate}, each a non-empty sorted array of roles", false, nil, "keys: "+strings.Join(ticket.Stages, ", ")), "elementValues", ticket.StageRoles))
 	f.Set("requirementRefs", templateField(set("Identifier", wire.MaxRequirementRefs), false, nil, ""))
 	f.Set("requiresPool", templateField("optional Label naming a policy pool", false, pools, ""))
 	f.Set("source", templateField("object {kind, sourceItemId, sourceQueueId, sourceRevisionSha256}", false, nil, ""))
 	f.Set("source.kind", templateField("enum", false, ticket.SourceKinds, "NATIVE for tickets created here"))
 	f.Set("source.sourceItemId", templateField("Identifier", true, nil, ""))
-	f.Set("source.sourceQueueId", templateField("Identifier", false, []string{queueID}, "this queue's id for NATIVE"))
+	f.Set("source.sourceQueueId", withValues(templateField("Identifier", false, nil, "this queue's id for NATIVE"), "current", []string{queueID}))
 	f.Set("source.sourceRevisionSha256", templateField("lowercase sha256 hex digest", true, nil, ""))
 	f.Set("supersededBy", templateField("TicketID of an existing ticket", true, nil, ""))
 	f.Set("supersedes", templateField("TicketID of an existing ticket", true, nil, ""))

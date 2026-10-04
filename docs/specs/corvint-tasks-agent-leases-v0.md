@@ -1527,20 +1527,28 @@ command. It changes no wire profile, payload key, validation rule or writer.
   `acceptanceCriteria` (named in `fill`) are filled in. The template title is empty, so an
   unedited template refuses. A separate `fields` object MUST document every CREATE key, the
   optional `localToken`, `requiredRoles` and `requiresPool`, and the nested `effects`, `source`,
-  `effects.resources[]` and `dependencies[]` members by dotted path, each with its type,
-  `nullable` flag and, for enums, its allowed `values` taken from the vocabularies the decoder
-  enforces (gate and pool values from the current policy); `nullableKeys` lists the nullable
-  paths. The payload is rendered by the CREATE codec's own encoder so its key set cannot drift.
+  `effects.resources[]` and `dependencies[]` members by dotted path, each with its type and
+  `nullable` flag. `values` MUST mean only the closed enum of that key's own scalar value, taken
+  from the vocabularies the decoder enforces (gate and pool values from the current policy);
+  `elementValues` is the closed set each array element is drawn from (`requiredGates`, and the
+  roles inside `requiredRoles`); `current` is this queue's value of an open field
+  (`source.sourceQueueId`, an Identifier). `nullableKeys` lists the paths marked nullable;
+  `dependencies[].gateId` is nullable only with obligation `COMPLETED`, as its note says.
   The command reads only the intent store: it MUST NOT read stdin or the journal, take the lock,
-  or write any file, works before `init`, refuses `--template` on other verbs and combined with
-  any mutation flag, and `ticket create --help` names it.
+  or write any file, works before `init`, refuses `--template` on other verbs and when any other
+  flag is passed (by presence, whatever its value), and `ticket create --help` names it.
 
 Non-goals: templates for other verbs, interactive prompting, defaults inferred from history, and
-any change to CREATE validation or canonicalization. Failure modes: a decoder change that adds a
-key or enum value is reflected automatically in `payload` and enum `values`; a new key without a
-`fields` entry fails the CAL-V0-069 field-coverage test. Rollback removes the flag; no store, wire
-or journal state depends on it.
+any change to CREATE validation or canonicalization. Failure modes, as the tests enforce them: the
+`fields` keys MUST equal the key paths of the emitted payload (with one `dependencies[]` and one
+`effects.resources[]` element populated) plus `optionalKeys`, and each of the CREATE keys in
+`mutation.PayloadKeys`; each payload path marked nullable MUST be accepted as null by `ticket
+create` and each path marked non-nullable MUST be refused as null. The nullability of the optional
+`localToken`, `requiredRoles` and `requiresPool` is documented but not probed, and `type`, `note`
+and enum `values` text is checked only for the enum vocabularies listed in the test. A decoder key
+the template does not render is not detected unless it is a `mutation.PayloadKeys` entry. Rollback
+removes the flag; no store, wire or journal state depends on it.
 
 | Requirement | Evidence |
 | --- | --- |
-| CAL-V0-069 | `TestCALV0069_CreateTemplateIsReadOnlyAndAccepted`, `TestCALV0069_CreateTemplateNamesEnumsAndNullableKeys`, `TestCALV0069_TemplateRefusesOtherVerbsAndFlags` (`internal/tasks/cli`) |
+| CAL-V0-069 | `TestCALV0069_CreateTemplateIsReadOnlyAndAccepted`, `TestCALV0069_CreateTemplateNamesEnumsAndNullableKeys`, `TestCALV0069_TemplateRefusesOtherVerbsAndFlags`, `TestCALV0069_TemplateFieldsMatchPayloadNullability` (`internal/tasks/cli`) |

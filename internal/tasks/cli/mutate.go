@@ -39,6 +39,9 @@ type mutateFlags struct {
 	role, requestID, target, expected, payload string
 	issuedAt                                   string
 	payloadFromStdin, help, template           bool
+	// others counts the flags passed besides --help and --template, so
+	// --template refuses any flag by presence, not by value.
+	others int
 }
 
 // mutateCommand runs one ticket mutation against the real journal. The
@@ -59,7 +62,7 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 		if operation != mutation.OpCreate {
 			return usage(cmd, "--template is available only for ticket create")
 		}
-		if flags != (mutateFlags{role: "OWNER", template: true}) {
+		if flags.others != 0 {
 			return usage(cmd, "--template takes no other flag")
 		}
 		return createTemplate(env, cmd)
@@ -117,6 +120,7 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 	for i := 0; i < len(args); i++ {
 		if args[i] == "--payload-stdin" {
 			f.payloadFromStdin = true
+			f.others++
 			continue
 		}
 		if args[i] == "--help" {
@@ -136,6 +140,7 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 		}
 		i++
 		*dest = args[i]
+		f.others++
 	}
 	if f.payload != "" && f.payloadFromStdin {
 		return f, usage(cmd, "--payload and --payload-stdin are exclusive")

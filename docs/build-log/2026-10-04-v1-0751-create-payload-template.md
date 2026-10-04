@@ -11,12 +11,13 @@ Requirement: `CAL-V0-069` in `docs/specs/corvint-tasks-agent-leases-v0.md` (V1-0
 
 - `corvint-tasks ticket create --template` returns one `taskman-command-result/0` item with
   `payload` (canonical CREATE object for this queue), `payloadCanonical` (its exact bytes),
-  `fill` (`acceptanceCriteria`, `body`, `title`), `fields` (type, `nullable` and enum `values`
-  per dotted path, including nested `effects`, `source`, `effects.resources[]`,
+  `fill` (`acceptanceCriteria`, `body`, `title`), `fields` (type, `nullable`, and `values` for a
+  closed scalar enum, `elementValues` for array members or `current` for the open queue id, per
+  dotted path, including nested `effects`, `source`, `effects.resources[]`,
   `dependencies[]` and the optional `localToken`, `requiredRoles`, `requiresPool`),
   `nullableKeys`, `optionalKeys`, `usage` and `note`.
 - The payload is a `mutation.CreatePayload` rendered by `mutation.PayloadValue`, the CREATE codec's
-  encoder, so the key set follows the decoder. Enum values come from the `ticket` vocabularies the
+  encoder. Enum values come from the `ticket` vocabularies the
   decoder enforces; `requiredGates` and `dependencies[].gateId` values come from the current policy
   gates, `requiresPool` from its pools, and `source.sourceQueueId` from `queue.json`. The stage-role
   enum moved from a literal inside `ticket.ReadStageRoles` to `ticket.StageRoles`/`ticket.Stages`
@@ -25,7 +26,8 @@ Requirement: `CAL-V0-069` in `docs/specs/corvint-tasks-agent-leases-v0.md` (V1-0
   touch paths do not qualify effects), `source.kind` `NATIVE`. The title is empty, so an unedited
   template refuses; an empty `acceptanceCriteria` would leave the ticket `DRAFT`.
 - The command reads only the intent store (`intent.Load`), never stdin, the journal or the lock, and
-  works before `init`. `--template` is refused on other verbs and with any mutation flag.
+  works before `init`. `--template` is refused on other verbs and when any other flag is passed,
+  detected by presence (so `--role OWNER` and `--payload ""` refuse too).
   `ticket create --help` lists `--template` and the top-level help names it.
 - `readPayload` and the wire parser are untouched (V1-0750 owns payload canonicalization).
 
@@ -36,14 +38,18 @@ validation, canonicalization or wire profiles.
 
 ### Failure modes
 
-- A new decoder key appears in `payload` automatically; without a matching `fields` entry the
-  field-coverage test fails.
-- A changed enum vocabulary is reflected in `fields.values` automatically.
+- Drift guard (review finding): `fields` keys must equal the emitted payload's key paths (with one
+  dependency and one resource element populated) plus `optionalKeys`; every payload path marked
+  nullable is submitted as null and must be accepted, every other path must be refused. Writing it
+  found that `dependencies[].gateId` is nullable only with obligation `COMPLETED`; its note now
+  says so. Optional-key nullability and free-text `type` strings are not probed.
+- A changed enum vocabulary is read from the `ticket` variables at run time; the test checks the
+  listed vocabularies.
 - Agents that resubmit the template unedited get a refusal (empty title), not a junk ticket.
 
 ### Evidence
 
-- `GOTOOLCHAIN=local go test -count=1 -run CALV0069 -v ./internal/tasks/cli/`: three tests PASS. The
+- `GOTOOLCHAIN=local go test -count=1 -run CALV0069 -v ./internal/tasks/cli/`: four tests PASS. The
   first feeds the printed template, with title, body and acceptanceCriteria filled, back through
   `ticket create --payload-stdin` on a fixture store and sees an OPEN ticket; it also proves the
   store and intent trees byte-identical, no `taskman.lock`, and no stdin read (panicking reader).
