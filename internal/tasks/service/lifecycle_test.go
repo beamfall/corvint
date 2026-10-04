@@ -713,6 +713,9 @@ func (failingManager) Run(context.Context, []string) (int, []byte, error) {
 // fakeController is an in-process dispatcher stand-in.
 type fakeController struct {
 	opened, closed chan struct{}
+	// gate, when set, holds Close (and so the main loop's next pulse)
+	// until the test closes it.
+	gate chan struct{}
 }
 
 func (f *fakeController) Run(ctx context.Context, _ int) error {
@@ -720,6 +723,9 @@ func (f *fakeController) Run(ctx context.Context, _ int) error {
 	return nil
 }
 func (f *fakeController) Close() error {
+	if f.gate != nil {
+		<-f.gate
+	}
 	f.closed <- struct{}{}
 	return nil
 }
@@ -743,12 +749,16 @@ func TestSERVICE500_ManagedMainFollowsControlAndPins(t *testing.T) {
 	}
 	root := s.root(t)
 	opened, closed := make(chan struct{}, 8), make(chan struct{}, 8)
+	// The gate keeps the first Close, and so the RUNNING pulse, in place
+	// until stop has answered; without it a loaded host can let the main
+	// publish IDLE first, and stop then rightly answers ACKNOWLEDGED.
+	gate := make(chan struct{})
 	open := func(program string, c *dispatch.Config) (Controller, error) {
 		if program != "site" || c.WorkRoot != s.work {
 			return nil, errors.New("wrong binding")
 		}
 		opened <- struct{}{}
-		return &fakeController{opened: opened, closed: closed}, nil
+		return &fakeController{opened: opened, closed: closed, gate: gate}, nil
 	}
 	opts := RunOptions{Host: s.h, Program: "site", Manifest: filepath.Join(root, manifestFile), Executable: s.exe, Open: open, Poll: 5 * time.Millisecond, Pulse: 5 * time.Millisecond, Retry: 5 * time.Millisecond}
 	bad := opts
@@ -781,9 +791,11 @@ func TestSERVICE500_ManagedMainFollowsControlAndPins(t *testing.T) {
 	if st, _ := s.h.pulseState(root, ""); st != "RUNNING" {
 		t.Fatalf("pulse state %s", st)
 	}
-	if out, err := s.h.Stop("site", "stop-1", false); err != nil || field(t, out, "state") != "PENDING" {
+	out, err := s.h.Stop("site", "stop-1", false)
+	if err != nil || field(t, out, "state") != "PENDING" {
 		t.Fatalf("stop with a live RUNNING pulse must stay PENDING: %v", err)
 	}
+	close(gate)
 	recv(closed, "dispatcher close after STOPPED")
 	waitFor(t, "IDLE pulse", pulse("IDLE"))
 	if _, err := s.h.Resume("site", "resume-1"); err != nil {
