@@ -21,7 +21,6 @@ import (
 	"go/scanner"
 	"go/token"
 	"io/fs"
-	"os"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -104,8 +103,13 @@ func (Language) Owns(relative string) bool {
 // Units observes every Go package in the repository rooted at root: the root
 // module alone, or every module a root go.work lists.
 func (language Language) Units(root string) (affected.Result, error) {
+	return language.UnitsSource(affected.DiskSource(root))
+}
+
+// UnitsSource reads only the explicitly supplied source universe.
+func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {
 	frontier := map[string]bool{}
-	observed, includedDirectoryBounded, err := affected.SourceFilesIncluding(root, func(name string) bool {
+	observed, includedDirectoryBounded, err := root.FilesIncluding(func(name string) bool {
 		return strings.HasSuffix(name, ".go") || name == "go.mod"
 	}, "build", "dist", "target")
 	if err != nil {
@@ -124,7 +128,7 @@ func (language Language) Units(root string) (affected.Result, error) {
 		files = append(files, relative)
 	}
 	if len(files) == 0 && len(manifests) == 0 {
-		_, statErr := os.Stat(filepath.Join(root, "go.work"))
+		_, statErr := root.Stat("go.work")
 		if errors.Is(statErr, fs.ErrNotExist) {
 			return affected.Result{Frontier: sortedKeys(frontier)}, nil
 		}
@@ -161,7 +165,7 @@ func (language Language) Units(root string) (affected.Result, error) {
 
 // observeDirectory turns one directory of Go files into one unit plus the raw
 // import path sets its non-test files and its test files declare.
-func (Language) observeDirectory(root string, owner module, directory string, files []string, frontier map[string]bool) (affected.Unit, map[string]bool, map[string]bool, error) {
+func (Language) observeDirectory(root *affected.Source, owner module, directory string, files []string, frontier map[string]bool) (affected.Unit, map[string]bool, map[string]bool, error) {
 	sources := make([]string, 0, len(files))
 	tests := make([]string, 0, len(files))
 	importPaths := make(map[string]bool, 16)
@@ -171,7 +175,7 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 	var reads unboundedReads
 	fileSet := token.NewFileSet()
 	for _, relative := range files {
-		body, err := affected.ReadSource(root, relative)
+		body, err := root.Read(relative)
 		if err != nil {
 			frontier[FrontierUnparsedSource] = true
 			continue
@@ -402,14 +406,14 @@ func relativeTo(directory, moduleDir string) string {
 // the root module, or the go.work use set when the root declares one; a go.mod
 // outside that set is a frontier, and its packages are dropped from the graph
 // rather than attributed to the module above them.
-func observeModules(root string, manifests []string, frontier map[string]bool) (map[string]module, error) {
+func observeModules(root *affected.Source, manifests []string, frontier map[string]bool) (map[string]module, error) {
 	listed, err := workspaceDirectories(root, frontier)
 	if err != nil {
 		return nil, err
 	}
 	modules := make(map[string]module, len(listed)+len(manifests))
 	for _, directory := range listed {
-		modulePath, err := readModulePath(filepath.Join(root, filepath.FromSlash(directory)))
+		modulePath, err := readModuleSourcePath(root, directory)
 		if err != nil {
 			frontier[FrontierModulePath] = true
 		}
@@ -433,8 +437,8 @@ func observeModules(root string, manifests []string, frontier map[string]bool) (
 // or the root alone when there is no go.work. Only the use grammar is read: a
 // "use DIR" line or a "use (" block with one directory per line. A directory
 // outside the root cannot be observed; it is skipped and raised as a frontier.
-func workspaceDirectories(root string, frontier map[string]bool) ([]string, error) {
-	body, err := os.ReadFile(filepath.Join(root, "go.work"))
+func workspaceDirectories(root *affected.Source, frontier map[string]bool) ([]string, error) {
+	body, err := root.Read("go.work")
 	if errors.Is(err, fs.ErrNotExist) {
 		return []string{"."}, nil
 	}
@@ -499,7 +503,11 @@ func enclosingModule(directory string, modules map[string]module) (module, bool)
 // module tooling: the first "module <path>" line wins, which is the whole of
 // the grammar that matters here.
 func readModulePath(root string) (string, error) {
-	body, err := os.ReadFile(filepath.Join(root, "go.mod"))
+	return readModuleSourcePath(affected.DiskSource(root), ".")
+}
+
+func readModuleSourcePath(root *affected.Source, directory string) (string, error) {
+	body, err := root.Read(path.Join(directory, "go.mod"))
 	if err != nil {
 		return "", err
 	}
