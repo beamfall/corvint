@@ -34,7 +34,7 @@ func strPtr(s string) *string { return &s }
 
 func expectedLogical(kind string, ordinal int, runnerState string) []LogicalProcessV2 {
 	return []LogicalProcessV2{
-		{Node: "proc/0/host-supervisor/default", Role: "host-supervisor", RunKind: "workflow", State: "outside-workload/live", BirthDistinctFrom: []string{}},
+		{Node: "proc/0/host-supervisor/default", Role: "host-supervisor", RunKind: "workflow", State: "outside-workload/exit:unknown", BirthDistinctFrom: []string{}},
 		{Node: "proc/0/workflow-root/default", Role: "workflow-root", RunKind: "workflow", Parent: strPtr("proc/0/host-supervisor/default"),
 			State: "completed/exit:0", BirthDistinctFrom: []string{}},
 		{Node: "proc/1/browser-main/main", Role: "browser-main", RunKind: kind, RunOrdinal: ordinal, Parent: strPtr("proc/1/runner/default"),
@@ -224,6 +224,13 @@ func TestQualificationRefusals(t *testing.T) {
 			expectRefusal(t, err, "REJECTED", "process-qualification-invalid")
 		})
 	}
+	t.Run("negative control read unavailable", func(t *testing.T) {
+		w := newProcWorld(t)
+		w.qualify(t)
+		delete(w.store.data, "q-reuse/report")
+		err := verifyQualificationV2(testContext(), w.admission, w.policy, w.policyRef.SHA256, w.qualificationBytes, w.store)
+		expectRefusal(t, err, "BLOCKED", "process-artifact-unavailable")
+	})
 	t.Run("case artifact unavailable", func(t *testing.T) {
 		w := newProcWorld(t)
 		w.qualify(t)
@@ -302,6 +309,18 @@ func TestRawProcessRefusals(t *testing.T) {
 			p := f.procs["runner"]
 			f.proof.Captures[3].StatAfter = statBytes(p.pid, p.comm, 'S', p.ppid, p.start+1)
 		})},
+		{"reparented in bracket", "BLOCKED", "process-parent-unverified", proof(func(f *procFixture) {
+			p := f.procs["runner"]
+			f.proof.Captures[3].StatAfter = statBytes(p.pid, p.comm, 'S', 1, p.start)
+		})},
+		{"pre-3.5 stat layout", "BLOCKED", "process-host-unsupported", proof(func(f *procFixture) {
+			p := f.procs["runner"]
+			legacy := legacyStatBytes(p.pid, p.comm, 'S', p.ppid, p.start)
+			f.proof.Captures[3].StatBefore, f.proof.Captures[3].StatAfter = legacy, legacy
+		})},
+		{"native start tool differs", "REJECTED", "process-capture-malformed", proof(func(f *procFixture) {
+			f.proof.Captures[5].NativeStartTool = f.w.exe["sh"]
+		})},
 		{"argv changed in bracket", "REJECTED", "process-bracket-changed", proof(func(f *procFixture) {
 			f.proof.Captures[3].CmdlineAfter = argvBytes([]string{"runner", "t2"})
 		})},
@@ -329,6 +348,12 @@ func TestRawProcessRefusals(t *testing.T) {
 		{"reparented birth", "BLOCKED", "process-parent-unverified", proof(func(f *procFixture) {
 			p := f.procs["root"]
 			f.restat(7, "root", 'Z', 1, p.start)
+		})},
+		{"parent born after child", "BLOCKED", "process-parent-unverified", proof(func(f *procFixture) {
+			p := f.procs["root"]
+			later := f.procs["runner"].start + 10
+			f.restat(2, "root", 'S', p.ppid, later)
+			f.restat(7, "root", 'Z', p.ppid, later)
 		})},
 		{"wrong launch parent", "BLOCKED", "process-parent-unverified", proof(func(f *procFixture) { f.proof.Launches[4].ParentCaptureIndex = intPtr(2) })},
 		{"no launch parent", "BLOCKED", "process-parent-unverified", proof(func(f *procFixture) { f.proof.Launches[4].ParentCaptureIndex = nil })},
@@ -594,9 +619,12 @@ func TestProcStatParser(t *testing.T) {
 		"starttime with zero": bytes.Replace(statBytes(300, "x", 'S', 1, 42), []byte(" 42 "), []byte(" 042 "), 1),
 		"no comm":             []byte("300 x S 1\n"),
 	} {
-		if _, err := parseProcStatV2(raw); err == nil {
-			t.Errorf("%s: parsed", name)
+		if _, err := parseProcStatV2(raw); err == nil || errors.Is(err, errStatLegacyLayout) {
+			t.Errorf("%s: %v", name, err)
 		}
+	}
+	if _, err := parseProcStatV2(legacyStatBytes(300, "x", 'S', 1, 42)); !errors.Is(err, errStatLegacyLayout) {
+		t.Errorf("pre-3.5 layout: %v", err)
 	}
 }
 

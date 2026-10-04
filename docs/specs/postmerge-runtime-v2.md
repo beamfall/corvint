@@ -59,7 +59,11 @@ zero or differently bound token. The `procfs` subpackage reads bracketed Linux b
 final `/proc` sweeps on amd64 and arm64; other hosts report NOT_OBSERVED with
 `process-observation-unsupported`. No real qualification campaign has been admitted, so every
 production call stays BLOCKED with `process-qualification-unavailable`. No collector, producer,
-workflow or connector consumes the token yet; PMR-V2-009 and PMR-V2-010 are not wired.
+workflow or connector consumes the token yet; PMR-V2-009 and PMR-V2-010 are not wired. Retained
+limitations: a double-forked descendant reparented to PID 1 outside the captured tree escapes the
+final sweep, and no token field carries that gap; each proof must use one native start tool, but
+neither policy nor qualification pins it; the host supervisor's state is
+`outside-workload/exit:unknown` because nothing observes its liveness.
 
 Verifier refusals keep their class and never collapse zero, absent and unknown. BLOCKED:
 `process-qualification-unavailable`, `process-host-unsupported`, `process-token-invalid`,

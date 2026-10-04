@@ -307,7 +307,7 @@ func TestLinuxProcfsOwnedExecution(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []LogicalProcessV2{
-		{Node: "proc/0/host-supervisor/default", Role: "host-supervisor", RunKind: "workflow", State: "outside-workload/live", BirthDistinctFrom: []string{}},
+		{Node: "proc/0/host-supervisor/default", Role: "host-supervisor", RunKind: "workflow", State: "outside-workload/exit:unknown", BirthDistinctFrom: []string{}},
 		{Node: "proc/0/workflow-root/default", Role: "workflow-root", RunKind: "workflow", Parent: strPtr("proc/0/host-supervisor/default"),
 			State: "completed/" + mustExitFacts(t, r.proof.Captures[4]), BirthDistinctFrom: []string{}},
 		{Node: "proc/1/runner/default", Role: "runner", RunKind: "repeat", Parent: strPtr("proc/0/workflow-root/default"),

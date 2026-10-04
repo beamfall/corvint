@@ -16,7 +16,16 @@ type procStatV2 struct {
 	startTicks uint64
 }
 
-const procStatMinFields = 52
+// procStatMinFields is the Linux 3.5+ layout ending in exit_code;
+// procStatStartField is starttime, the last field the birth key needs.
+const (
+	procStatMinFields  = 52
+	procStatStartField = 22
+)
+
+// errStatLegacyLayout marks an otherwise well-formed stat from a kernel older
+// than 3.5: an unsupported host rather than malformed evidence.
+var errStatLegacyLayout = errors.New("stat has the pre-3.5 kernel layout")
 
 // parseProcStatV2 parses raw /proc/PID/stat bytes without trimming: a decimal
 // PID before ` (`, comm up to the final `) `, then single-space fields ending in
@@ -42,7 +51,7 @@ func parseProcStatV2(raw []byte) (procStatV2, error) {
 		return procStatV2{}, errors.New("stat has more than one line")
 	}
 	fields := bytes.Split(tail, []byte(" "))
-	if len(fields)+2 < procStatMinFields {
+	if len(fields)+2 < procStatStartField {
 		return procStatV2{}, errors.New("stat has too few fields")
 	}
 	for _, field := range fields {
@@ -60,6 +69,9 @@ func parseProcStatV2(raw []byte) (procStatV2, error) {
 	start, err := strconv.ParseUint(string(fields[19]), 10, 64)
 	if err != nil || (len(fields[19]) > 1 && fields[19][0] == '0') {
 		return procStatV2{}, errors.New("stat starttime is invalid")
+	}
+	if len(fields)+2 < procStatMinFields {
+		return procStatV2{}, errStatLegacyLayout
 	}
 	return procStatV2{pid: pid, state: fields[0][0], ppid: ppid, startTicks: start}, nil
 }

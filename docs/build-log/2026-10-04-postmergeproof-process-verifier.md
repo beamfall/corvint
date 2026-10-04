@@ -31,7 +31,9 @@ the frozen `conformance/postmerge-runtime-v2/` data are unchanged.
   cases through it, so qualification does not call itself.
   - Negative cases must produce their hardcoded native code.
   - A case that is REJECTED surfaces as `process-qualification-invalid` with
-    `caseID: code: detail`. A BLOCKED case keeps its own code.
+    `caseID: code: detail`.
+  - A BLOCKED read (artifact unavailable, bound exceeded or cancelled) keeps its own code, in
+    positive and negative cases alike: the case could not be judged.
 - `procfs` (Linux amd64/arm64 only, by build tag) reads bracketed birth captures and the final
   `/proc` sweep. It reads in this order:
   1. boot ID
@@ -51,8 +53,13 @@ the frozen `conformance/postmerge-runtime-v2/` data are unchanged.
   through the orchestrator session's question to the owner: this domain is ratified as chosen. The
   spec's Authority section records it; the frozen conformance data is unchanged.
 - Birth key: (boot ID, PID-namespace device, inode, PID, start ticks).
-  - The before and after stat must agree on PID, parent PID and start; otherwise the result is
+  - The before and after stat must agree on PID and start; otherwise the result is
     `process-birth-changed`.
+  - A parent-PID-only change within a bracket is the kernel reparenting a birth whose parent
+    exited. It is benign, so the result is BLOCKED `process-parent-unverified`, not tampering.
+  - A stat with 22 to 51 fields is the pre-3.5 kernel layout, which lacks the exit-code field.
+    It is BLOCKED `process-host-unsupported`. Fewer fields or any other format error is REJECTED
+    `process-stat-malformed`.
   - Zombie state, argv, executable link and executable digest must agree; otherwise the result is
     `process-bracket-changed`.
   - The PID namespace is the observer's own `/proc/self/ns/pid`. It stays readable when the target
@@ -63,7 +70,11 @@ the frozen `conformance/postmerge-runtime-v2/` data are unchanged.
 
   The capture runs `ps` under `TZ=UTC`, and joins compare strings exactly. A producer that recorded
   lstart in another time zone fails with `process-native-reference-invalid`; it is never coerced.
-- Process state joins on the first stat state byte.
+- The native start tool is the join key, so every capture that records a native start must name
+  one identical tool artifact; otherwise the result is REJECTED `process-capture-malformed`.
+  Neither policy nor qualification pins which tool yet. That remains a limitation.
+- Process state joins on the first character only, by design. procfs state is one byte, while
+  ps(1) may append modifiers such as `s` or `+` to a native descendant row's state.
 - Descendant cleanup keeps three cases distinct:
   - no descendants recorded;
   - descendants recorded absent;
@@ -77,6 +88,10 @@ the frozen `conformance/postmerge-runtime-v2/` data are unchanged.
   - Logical nodes are keyed by (context, role, slot).
   - Chromium-switch roles match a token exactly, or as a `switch=` prefix when the token has no `=`.
   - Births are visited in birth-key order, so witness order cannot change the result.
+  - A launch's named parent must have the child's parent PID and the parent role, and must not be
+    born after the child. A later birth that reused the PID is BLOCKED `process-parent-unverified`.
+  - Nothing observes the host supervisor's liveness, so its logical state is
+    `outside-workload/exit:unknown`; no liveness is claimed.
 - Excluded from tracked workload absence: the trusted-start observer and the final-sweep observer
   witnesses.
 - Native sources are sorted by (kind, id). Hook, control, attestation and producer-job locators are
@@ -94,7 +109,12 @@ the frozen `conformance/postmerge-runtime-v2/` data are unchanged.
     `/proc/<pid>/cmdline` to equal argv.
 - **Reparented orphan.** A descendant reparented outside the captured tree is visible only if it was
   captured. A final sweep can prove a captured birth absent, but it cannot find a birth that was
-  never captured. This limitation remains.
+  never captured. A double-forked grandchild reparented to PID 1 escapes the sweep's scope check,
+  because its parent is no tracked birth. Neither `LogicalProcessV2` nor the token has a field for
+  limitations, so this is retained here and in the spec's current state, not solved.
+- **Independent review of b96b6ec2: APPROVE_WITH_FIXES.**
+  - One MEDIUM finding (parent birth order) and six LOW/NIT findings were fixed in this change.
+  - Each new guard has a refusal test, and each test fails with its guard removed.
 
 ## Evidence
 
@@ -119,6 +139,8 @@ The following are NOT_PRODUCED:
 
 - the `internal/postmergehost` collector and producer integration (with exec-settle re-capture);
 - PMR-V2-009/010 wiring;
+- pinning the native start tool in policy or qualification;
+- a limitations field that carries the reparented-orphan gap on the token;
 - `playwright-node-worker/0`;
 - the real qualification campaign;
 - control-mutant server distinctness;

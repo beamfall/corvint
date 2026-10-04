@@ -65,6 +65,12 @@ func statBytes(pid int, comm string, state byte, ppid int, start uint64) []byte 
 	return []byte(b.String())
 }
 
+// legacyStatBytes is statBytes cut to the 44-field pre-3.5 kernel layout.
+func legacyStatBytes(pid int, comm string, state byte, ppid int, start uint64) []byte {
+	fields := strings.Fields(string(statBytes(pid, comm, state, ppid, start)))
+	return []byte(strings.Join(fields[:44], " ") + "\n")
+}
+
 // procWorld is one admitted policy, implementation and host with its
 // synthetic executables and, optionally, a passing qualification report.
 type procWorld struct {

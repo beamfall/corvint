@@ -115,6 +115,11 @@ func verifyQualificationCaseV2(ctx context.Context, admission ProcessAdmissionV2
 		runs[i] = qualifiedRunV2{graphSHA: result.graphSHA, proofSHA: ref.SHA256, result: result}
 		failures = append(failures, err)
 	}
+	for _, err := range failures {
+		if blockedReadV2(err) {
+			return err
+		}
+	}
 	if code, negative := qualificationRefusalsV2[c.ID]; negative {
 		for _, err := range failures {
 			var refusal *ProcessErrorV2
@@ -133,6 +138,20 @@ func verifyQualificationCaseV2(ctx context.Context, admission ProcessAdmissionV2
 		return invalid("frozen case invariant does not hold")
 	}
 	return nil
+}
+
+// blockedReadV2 reports a refusal from reading evidence rather than from the
+// evidence itself: the case cannot be judged, so it keeps its own code.
+func blockedReadV2(err error) bool {
+	var refusal *ProcessErrorV2
+	if !errors.As(err, &refusal) || refusal.Outcome != OutcomeBlockedV2 {
+		return false
+	}
+	switch refusal.Code {
+	case "process-artifact-unavailable", "process-bound-exceeded", "process-verification-cancelled":
+		return true
+	}
+	return false
 }
 
 func qualificationInvariantV2(id string, runs []qualifiedRunV2) bool {

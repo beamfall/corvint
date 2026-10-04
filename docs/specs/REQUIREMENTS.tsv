@@ -2002,16 +2002,16 @@ PMR-V1-007	docs/specs/postmerge-runtime-v1.md	28	Compare actual outcomes against
 PMR-V1-008	docs/specs/postmerge-runtime-v1.md	29	Invoke actual metrics and only the separately triggered applicable approved-docu
 PMR-V1-009	docs/specs/postmerge-runtime-v1.md	30	Qualify only the exact independently pinned recording-only, credential-free cand
 PMR-V1-010	docs/specs/postmerge-runtime-v1.md	31	Retain original errors, exact native input/output bytes, truthful fixed stage di
-PMR-V2-001	docs/specs/postmerge-runtime-v2.md	81	Closed dispatch and authority. Explicit `/2` dispatch admits only independently
-PMR-V2-002	docs/specs/postmerge-runtime-v2.md	82	Producer decision, not adapter reconstruction. The #394 native producer emits a
-PMR-V2-003	docs/specs/postmerge-runtime-v2.md	83	Stable canonical identity. Canonical UTF-8 JSON uses an agreed bounded schema, l
-PMR-V2-004	docs/specs/postmerge-runtime-v2.md	84	Verified fresh proof attachments. Each execution retains a separate immutable at
-PMR-V2-005	docs/specs/postmerge-runtime-v2.md	85	Immutable Evidence URL and connector join. The writer-visible admitted-origin HT
-PMR-V2-006	docs/specs/postmerge-runtime-v2.md	86	Process and time semantics. Fresh numeric PID/parent PID/start-clock values and
-PMR-V2-007	docs/specs/postmerge-runtime-v2.md	87	Compare complete fresh executions. Run the complete applicable workflow twice fr
-PMR-V2-008	docs/specs/postmerge-runtime-v2.md	88	Recording and idempotence. Each execution uses its own ledger and calls Record t
-PMR-V2-009	docs/specs/postmerge-runtime-v2.md	89	Failure, rejection and comparison. Missing/unsupported/unverifiable evidence, un
-PMR-V2-010	docs/specs/postmerge-runtime-v2.md	90	Original outcome and bounded qualification. Acceptance evidence includes a histo
+PMR-V2-001	docs/specs/postmerge-runtime-v2.md	85	Closed dispatch and authority. Explicit `/2` dispatch admits only independently
+PMR-V2-002	docs/specs/postmerge-runtime-v2.md	86	Producer decision, not adapter reconstruction. The #394 native producer emits a
+PMR-V2-003	docs/specs/postmerge-runtime-v2.md	87	Stable canonical identity. Canonical UTF-8 JSON uses an agreed bounded schema, l
+PMR-V2-004	docs/specs/postmerge-runtime-v2.md	88	Verified fresh proof attachments. Each execution retains a separate immutable at
+PMR-V2-005	docs/specs/postmerge-runtime-v2.md	89	Immutable Evidence URL and connector join. The writer-visible admitted-origin HT
+PMR-V2-006	docs/specs/postmerge-runtime-v2.md	90	Process and time semantics. Fresh numeric PID/parent PID/start-clock values and
+PMR-V2-007	docs/specs/postmerge-runtime-v2.md	91	Compare complete fresh executions. Run the complete applicable workflow twice fr
+PMR-V2-008	docs/specs/postmerge-runtime-v2.md	92	Recording and idempotence. Each execution uses its own ledger and calls Record t
+PMR-V2-009	docs/specs/postmerge-runtime-v2.md	93	Failure, rejection and comparison. Missing/unsupported/unverifiable evidence, un
+PMR-V2-010	docs/specs/postmerge-runtime-v2.md	94	Original outcome and bounded qualification. Acceptance evidence includes a histo
 PNC-001	docs/specs/analyzer-python-native-candidate.md	86	The candidate MUST remain separately buildable and unreachable from Core.
 PNC-002	docs/specs/analyzer-python-native-candidate.md	87	The scanner MUST prospectively bound canonical request members before decode or
 PNC-003	docs/specs/analyzer-python-native-candidate.md	88	Accepted closed inputs MUST emit only fully typed, deterministic candidate facts

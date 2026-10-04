@@ -5,6 +5,7 @@ package postmergeproof
 import (
 	"bytes"
 	"context"
+	"errors"
 	"slices"
 	"strconv"
 	"strings"
@@ -383,6 +384,16 @@ func normalizeNativeStart(output []byte) (trimmed, joined string, ok bool) {
 	return strings.TrimSpace(string(output)), strings.Join(fields, " "), true
 }
 
+// statRefusalV2 maps a stat parse failure: a pre-3.5 kernel layout is an
+// unsupported host, anything else is malformed evidence.
+func statRefusalV2(i int, which string, err error) error {
+	detail := "capture " + strconv.Itoa(i) + " " + which + ": " + err.Error()
+	if errors.Is(err, errStatLegacyLayout) {
+		return blocked("process-host-unsupported", detail)
+	}
+	return rejected("process-stat-malformed", detail)
+}
+
 // checkCapturesV2 parses every bracketed capture and groups them by birth key.
 func (v *verifierV2) checkCapturesV2() error {
 	captures := v.proof.Captures
@@ -393,6 +404,7 @@ func (v *verifierV2) checkCapturesV2() error {
 		return blocked("process-role-unsupported", "proof has no captures")
 	}
 	v.captures = make([]captureV2, len(captures))
+	var nativeTool *ArtifactRefV2
 	for i := range captures {
 		c := &captures[i]
 		if c.Index != i {
@@ -400,18 +412,23 @@ func (v *verifierV2) checkCapturesV2() error {
 		}
 		before, err := parseProcStatV2(c.StatBefore)
 		if err != nil {
-			return rejected("process-stat-malformed", "capture "+strconv.Itoa(i)+" stat_before: "+err.Error())
+			return statRefusalV2(i, "stat_before", err)
 		}
 		after, err := parseProcStatV2(c.StatAfter)
 		if err != nil {
-			return rejected("process-stat-malformed", "capture "+strconv.Itoa(i)+" stat_after: "+err.Error())
+			return statRefusalV2(i, "stat_after", err)
 		}
-		if before.pid != after.pid || before.ppid != after.ppid || before.startTicks != after.startTicks {
+		if before.pid != after.pid || before.startTicks != after.startTicks {
 			return rejected("process-birth-changed", "capture "+strconv.Itoa(i)+" changed birth within its bracket")
 		}
 		if before.zombie() != after.zombie() || !bytes.Equal(c.Cmdline, c.CmdlineAfter) ||
 			!bytes.Equal(c.ExecutableLinkBytes, c.ExecutableLinkAfterBytes) || c.Executable != c.ExecutableAfter {
 			return rejected("process-bracket-changed", "capture "+strconv.Itoa(i)+" changed within its bracket")
+		}
+		// A PPID-only change is the kernel reparenting a birth whose parent
+		// exited mid-bracket: benign, but the parent edge is then unverified.
+		if before.ppid != after.ppid {
+			return blocked("process-parent-unverified", "capture "+strconv.Itoa(i)+" was reparented within its bracket")
 		}
 		inode, ok := namespaceLinkInode(c.NamespaceLinkBytes)
 		if len(c.BootIDBytes) == 0 || !ok || inode != c.NamespaceInode {
@@ -437,6 +454,13 @@ func (v *verifierV2) checkCapturesV2() error {
 		if len(c.NativeStartOutput) != 0 || !emptyRef(c.NativeStartTool) {
 			if trimmed, joined, ok = normalizeNativeStart(c.NativeStartOutput); !ok || emptyRef(c.NativeStartTool) {
 				return rejected("process-capture-malformed", "capture "+strconv.Itoa(i)+" native start output is malformed")
+			}
+			// The tool is the native-reference join key, so every capture
+			// must use one; qualification does not yet pin which one.
+			if nativeTool == nil {
+				nativeTool = &c.NativeStartTool
+			} else if *nativeTool != c.NativeStartTool {
+				return rejected("process-capture-malformed", "capture "+strconv.Itoa(i)+" uses another native start tool")
 			}
 			if err := v.verifyExecutable(c.NativeStartTool); err != nil {
 				return err
@@ -629,7 +653,7 @@ func (v *verifierV2) checkLaunchesV2() error {
 			return rejected("process-invocation-mismatch", "launch "+strconv.Itoa(i)+" parent capture is invalid")
 		}
 		parent := v.births[parentCapture.birth]
-		if parent == birth || parent.key.pid != birth.ppid || parent.launch < 0 || parent.role != rule.ParentRole {
+		if parent == birth || parent.key.pid != birth.ppid || parent.key.start > birth.key.start || parent.launch < 0 || parent.role != rule.ParentRole {
 			return blocked("process-parent-unverified", "launch "+strconv.Itoa(i)+" parent is not the mapped "+rule.ParentRole)
 		}
 		birth.parent = parent
@@ -860,6 +884,8 @@ func (v *verifierV2) checkNativeReferencesV2() error {
 			}
 		case "descendant":
 			pid, ppid, start, state, ok := descendantFragment(locator.node)
+			// procfs state is one byte; ps(1) may append modifiers such as
+			// "s" or "+", so only the first character is the kernel state.
 			if !ok || pid != int64(c.stat.pid) || ppid != int64(c.stat.ppid) || start != c.startFields || state[0] != c.stat.state {
 				return rejected("process-native-reference-invalid", where+" does not join the observed descendant")
 			}
@@ -1041,7 +1067,8 @@ func (v *verifierV2) logicalV2() rawProcessResultV2 {
 
 func (v *verifierV2) logicalState(birth *birthV2) string {
 	if birth.role == "host-supervisor" {
-		return "outside-workload/live"
+		// Nothing observes the supervisor's liveness, so none is claimed.
+		return "outside-workload/" + exitUnknown
 	}
 	if birth.launch < 0 {
 		return "observed/" + exitUnknown
