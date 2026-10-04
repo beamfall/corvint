@@ -49,6 +49,9 @@ CONVENTIONAL = re.compile(r"^[a-z]+(\([^)]*\))?!?: ")
 STOPWORDS = {"the", "and", "for", "with", "from", "into", "onto", "that", "this", "their", "them"}
 ORIENTATION_MAX_FILES = 100
 PACKET_LIMIT = 20
+MAX_OBSERVATION_BYTES = 1 << 20
+MAX_OBSERVATION_ROWS = 10000
+COST_FIELDS = ("arm", "caseId", "completeTaskTokens", "humanFailure")
 USE_CASES = {"orientation": "UC-TASK-ORIENTATION", "consequence": "UC-CHANGE-CONSEQUENCE",
              "completion": "UC-EVIDENCE-CARRYING-COMPLETION"}
 CITATION_SPAN = "26:28"
@@ -578,10 +581,12 @@ def agent_cost(path, outcomes):
         return {"completeTaskCost": "NOT_OBSERVED", "humanFailureRate": "NOT_OBSERVED",
                 "reason": "no live model-driven agent or human reviewer ran this benchmark",
                 "savingsClaim": "measured, no savings claim"}
-    rows = [json.loads(l) for l in open(path) if l.strip()]
-    problems = cost_problems(rows)
+    rows, problem = read_observations(path)
+    problems = [problem] if problem else cost_problems(rows)
     if problems:
-        return {"observations": rows, "invalidObservations": problems, "savingsClaim": "measured, no savings claim"}
+        # Only the class names reach the result: an invalid row is never copied into a sealed file.
+        return {"invalidObservations": problems, "savingsClaim": "measured, no savings claim"}
+    rows = [{k: r[k] for k in COST_FIELDS} for r in rows]
     arms = {a: [r for r in rows if r["arm"] == a] for a in ARMS}
     tokens = {a: [r["completeTaskTokens"] for r in v] for a, v in arms.items()}
     med = {a: statistics.median(v) for a, v in tokens.items()}
@@ -593,13 +598,46 @@ def agent_cost(path, outcomes):
             "humanFailureRate": failures, "savingsClaim": "threshold met" if met else "measured, no savings claim"}
 
 
+# The observations file is operator input: read it under a byte and row bound, and report prose,
+# a non-object row or an over-bound file as a named class instead of raising.
+def read_observations(path):
+    with open(path, "rb") as f:
+        data = f.read(MAX_OBSERVATION_BYTES + 1)
+    if len(data) > MAX_OBSERVATION_BYTES:
+        return None, "observations-over-bound"
+    try:
+        # JSON Lines rows end at LF only; splitlines would also split inside a string at U+2028.
+        lines = [l for l in data.decode("utf-8").split("\n") if l.strip()]
+    except UnicodeDecodeError:
+        return None, "observations-unparseable"
+    if len(lines) > MAX_OBSERVATION_ROWS:
+        return None, "observations-over-bound"
+    rows = []
+    for line in lines:
+        try:
+            row = json.loads(line)
+            # A lone surrogate parses but cannot be written to a UTF-8 receipt.
+            json.dumps(row, ensure_ascii=False).encode("utf-8")
+            rows.append(row)
+        except (ValueError, RecursionError):
+            return None, "observations-unparseable"
+    if any(not isinstance(r, dict) for r in rows):
+        return None, "observation-not-object"
+    return rows, None
+
+
 def cost_row_problem(r):
     if not isinstance(r, dict) or r.get("arm") not in ARMS:
         return "unknown-arm"
     if not isinstance(r.get("caseId"), str) or not r["caseId"]:
         return "case-id-missing"
     t = r.get("completeTaskTokens")
-    if isinstance(t, bool) or not isinstance(t, (int, float)) or not math.isfinite(t) or t <= 0:
+    if isinstance(t, bool) or not isinstance(t, (int, float)) or t <= 0:
+        return "tokens-invalid"
+    try:
+        if not math.isfinite(t):
+            return "tokens-invalid"
+    except OverflowError:
         return "tokens-invalid"
     if not isinstance(r.get("humanFailure"), bool):
         return "outcome-missing"

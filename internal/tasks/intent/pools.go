@@ -18,6 +18,7 @@ type PoolCommand struct {
 type MemberConfig struct {
 	ConfigRef       *ConfigRef
 	Health, Cleanup *PoolCommand
+	SafeReuse       *SafeReuse
 }
 type Pool struct {
 	ID           string
@@ -84,7 +85,7 @@ func readPools(r *wire.Reader, env []string) []Pool {
 					p.ReservedFor[name] = cr.Enum(StageRoles...)
 					continue
 				}
-				cr.Closed(wire.OptionalKeys(cr.Value(), nil, "configRef", "health", "cleanup")...)
+				cr.Closed(wire.OptionalKeys(cr.Value(), nil, "configRef", "health", "cleanup", "safeReuse")...)
 				c := MemberConfig{}
 				if wire.Has(cr.Value(), "configRef") {
 					c.ConfigRef = ReadConfigRef(cr.Field("configRef"))
@@ -101,6 +102,9 @@ func readPools(r *wire.Reader, env []string) []Pool {
 				if wire.Has(cr.Value(), "cleanup") {
 					c.Cleanup = readPoolCommand(cr.Field("cleanup"))
 					subsetOf(cr, c.Cleanup.Env, env, "pool cleanup environment")
+				}
+				if wire.Has(cr.Value(), "safeReuse") {
+					c.SafeReuse = readSafeReuse(cr.Field("safeReuse"), env)
 				}
 				p.MemberConfig[name] = c
 			}

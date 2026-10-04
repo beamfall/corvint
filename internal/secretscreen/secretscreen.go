@@ -115,7 +115,7 @@ var curlUserPassword = `(?:"` + doubleQuotedUnit + `*:` + doubleQuotedUnit + `*(
 	`|'` + singleQuotedUnit + `*:` + singleQuotedUnit + `*(?:'|` + quotedArgumentTerminate + `)` +
 	`|(?:[^` + pythonWhitespace + `:"'\\]|\\[^` + pythonWhitespace + `])+:` + bareArgumentUnit + `+)`
 
-// writerCredentialFlagAlt matches command-line credentials: a long or
+// writerCredentialFlagAlts matches command-line credentials: a long or
 // single-dash credential-vocabulary flag followed by a separate credential
 // argument (`--password hunter2`, `--db-token abc123`); a `-p` separate or
 // `=`-joined credential argument after `login`, `-u` or `--user` on the same
@@ -125,11 +125,13 @@ var curlUserPassword = `(?:"` + doubleQuotedUnit + `*:` + doubleQuotedUnit + `*(
 // a hyphenated host (`svc-users:8080`) is not read as the flag. `=`-joined long flags are already matched by the
 // generic assignment branch. Appended after secretPattern: none of these
 // shapes starts where an earlier alternative can match.
-var writerCredentialFlagAlt = `\B--?(?:[a-z0-9]+[_-])*(?:` + writerAssignmentNames + `|pass)[ \t]+` + credentialArgument + `|` +
-	`(?:\blogin\b|\B-u)[^\n]*?[ \t]-p(?:[ \t]+|=)` + credentialArgument + `|` +
-	`\bcurl[ \t](?:[^\n]*?[ \t])?(?:-u[ \t]*|--user[ \t]+)` + curlUserPassword
+var writerCredentialFlagAlts = []string{
+	`\B--?(?:[a-z0-9]+[_-])*(?:` + writerAssignmentNames + `|pass)[ \t]+` + credentialArgument,
+	`(?:\blogin\b|\B-u)[^\n]*?[ \t]-p(?:[ \t]+|=)` + credentialArgument,
+	`\bcurl[ \t](?:[^\n]*?[ \t])?(?:-u[ \t]*|--user[ \t]+)` + curlUserPassword,
+}
 
-// writerOnlyVendorAlt matches vendor token and endpoint shapes with no
+// writerOnlyVendorAlts matches vendor token and endpoint shapes with no
 // pre-existing shorter alternative to out-race, so it is appended after
 // secretPattern rather than needing precedence: Svix/Stripe-style webhook
 // signing secrets (`whsec_`), Hugging Face tokens (`hf_`), DigitalOcean
@@ -139,9 +141,11 @@ var writerCredentialFlagAlt = `\B--?(?:[a-z0-9]+[_-])*(?:` + writerAssignmentNam
 // deploy tokens (`glrt-`, `gldt-`), and Slack incoming-webhook URLs (which
 // carry no `@`, so the credentialed-URL branch in secretPattern never sees
 // them). Writer-only so StoredV1Pattern does not gain new vendor shapes.
-const writerOnlyVendorAlt = `whsec_[a-z0-9+/=_-]{20,}|hf_[a-z0-9]{20,}|dop_v1_[a-f0-9]{20,}|xapp-[a-z0-9-]{10,}|` +
-	`ya29\.[a-z0-9_-]{20,}|gocspx-[a-z0-9_-]{20,}|shp(?:at|ss|ca)_[a-z0-9]{20,}|gl(?:rt|dt)-[a-z0-9_-]{20,}|` +
-	`https?://hooks\.slack\.com/services/[a-z0-9]+/[a-z0-9]+/[a-z0-9]+`
+var writerOnlyVendorAlts = []string{
+	`whsec_[a-z0-9+/=_-]{20,}`, `hf_[a-z0-9]{20,}`, `dop_v1_[a-f0-9]{20,}`, `xapp-[a-z0-9-]{10,}`,
+	`ya29\.[a-z0-9_-]{20,}`, `gocspx-[a-z0-9_-]{20,}`, `shp(?:at|ss|ca)_[a-z0-9]{20,}`, `gl(?:rt|dt)-[a-z0-9_-]{20,}`,
+	`https?://hooks\.slack\.com/services/[a-z0-9]+/[a-z0-9]+/[a-z0-9]+`,
+}
 
 // Pattern is the current secret-shaped-text detector: key=value/key: value,
 // quoted credential values (bare assignment or double-quoted JSON property,
@@ -155,10 +159,7 @@ const writerOnlyVendorAlt = `whsec_[a-z0-9+/=_-]{20,}|hf_[a-z0-9]{20,}|dop_v1_[a
 // shapes (GitHub, GitLab, Slack, AWS, Azure account keys, Google, npm,
 // Stripe, PyPI, SendGrid, Shopify, Svix/Stripe webhook secrets, Hugging
 // Face, DigitalOcean, bearer tokens, and JWT-shaped strings).
-var Pattern = regexp.MustCompile(`(?i)` + writerQuotedAssignmentAlt + `|` + awsAccessKeyIDWithSecretAlt + `|` + authorizationSchemeAlt + `|` +
-	writerURLTokenUserinfoAlt + `|` +
-	secretPattern(writerAssignmentFields, writerCredentialedURLAlt) + `|"` + writerAssignmentFields + `"[` + pythonWhitespace + `]*:[` + pythonWhitespace + `]*(?:"(?:[^"\\]|\\[\s\S])*(?:"|\\?\z)|[^` + pythonWhitespace + `]+)|` +
-	writerOnlyVendorAlt + `|` + writerCredentialFlagAlt)
+var Pattern = regexp.MustCompile(writerExpression(writerAlternatives))
 
 // StoredV1Pattern preserves the detector used when schema-version 1 trace
 // rows were written. It is intentionally narrower than the current writer
@@ -172,31 +173,53 @@ func writerMatches(text string) [][]int {
 	// assignment grammar sees `PASS:` as a credential field. Mask only that
 	// structural prefix, keeping byte positions unchanged so Pattern's matches
 	// still address text and secrets inside the test name remain screenable.
-	masked := []byte(text)
-	for _, marker := range goVerbosePassMarker.FindAllStringIndex(text, -1) {
-		pass := strings.Index(text[marker[0]:marker[1]], "PASS:")
-		if pass >= 0 {
-			copy(masked[marker[0]+pass:], "GOOK ")
+	// Every marker contains the literal tested here, so the marker scan and
+	// the copy are skipped without it.
+	if strings.Contains(text, "--- PASS: ") {
+		masked := []byte(text)
+		for _, marker := range goVerbosePassMarker.FindAllStringIndex(text, -1) {
+			pass := strings.Index(text[marker[0]:marker[1]], "PASS:")
+			if pass >= 0 {
+				copy(masked[marker[0]+pass:], "GOOK ")
+			}
 		}
+		text = string(masked)
 	}
-	return Pattern.FindAllStringIndex(string(masked), -1)
+	var matches [][]int
+	if pattern := livePattern(text); pattern != nil {
+		matches = pattern.FindAllStringIndex(text, -1)
+	}
+	if observeMatches != nil {
+		observeMatches(text, matches)
+	}
+	return matches
+}
+
+// observeMatches, set only by this package's tests, receives every screened
+// text after masking together with the matches returned for it.
+var observeMatches func(masked string, matches [][]int)
+
+func secretAlternatives(assignmentFields, credentialedURLAlt string) []string {
+	return []string{
+		assignmentFields + `[` + pythonWhitespace + `]*[:=][` + pythonWhitespace + `]*[^` + pythonWhitespace + `]+`,
+		`-----BEGIN [A-Z ]*PRIVATE KEY-----(?s:.*?)-----END [A-Z ]*PRIVATE KEY-----`,
+		`-----BEGIN [A-Z ]*PRIVATE KEY-----`,
+		`-----BEGIN PGP PRIV[A]TE KEY BLOCK-----(?s:.*?)-----END PGP PRIV[A]TE KEY BLOCK-----`,
+		`-----BEGIN PGP PRIV[A]TE KEY BLOCK-----`,
+		credentialedURLAlt,
+		`gh[pousr]_[a-z0-9]{20,}`, `github_pat_[a-z0-9_]{20,}`,
+		`glpat-[a-z0-9_-]{20,}`, `xox[a-z]-[a-z0-9-]{10,}`,
+		`(?:akia|asia)[a-z0-9]{16}`, `aiza[a-z0-9_-]{30,}`, `npm_[a-z0-9]{20,}`,
+		`\bsk-[a-z0-9_-]{20,}`, `(?:sk|rk)_(?:live|test)_[a-z0-9]{16,}`,
+		`pypi-ageichlwasi5vcmc[a-z0-9_-]{20,}`,
+		`sg\.[a-z0-9_-]{16,}\.[a-z0-9_-]{32,}`, `sk[0-9a-f]{32}`,
+		`bearer[` + pythonWhitespace + `]+[a-z0-9][a-z0-9_.~+/-]{15,}`,
+		`[a-z0-9_-]{10,}\.[a-z0-9_-]{10,}\.[a-z0-9_-]{10,}`,
+	}
 }
 
 func secretPattern(assignmentFields, credentialedURLAlt string) string {
-	return `(?i)` + assignmentFields + `[` + pythonWhitespace + `]*[:=][` + pythonWhitespace + `]*[^` + pythonWhitespace + `]+|` +
-		`-----BEGIN [A-Z ]*PRIVATE KEY-----(?s:.*?)-----END [A-Z ]*PRIVATE KEY-----|` +
-		`-----BEGIN [A-Z ]*PRIVATE KEY-----|` +
-		`-----BEGIN PGP PRIV[A]TE KEY BLOCK-----(?s:.*?)-----END PGP PRIV[A]TE KEY BLOCK-----|` +
-		`-----BEGIN PGP PRIV[A]TE KEY BLOCK-----|` +
-		credentialedURLAlt + `|` +
-		`gh[pousr]_[a-z0-9]{20,}|github_pat_[a-z0-9_]{20,}|` +
-		`glpat-[a-z0-9_-]{20,}|xox[a-z]-[a-z0-9-]{10,}|` +
-		`(?:akia|asia)[a-z0-9]{16}|aiza[a-z0-9_-]{30,}|npm_[a-z0-9]{20,}|` +
-		`\bsk-[a-z0-9_-]{20,}|(?:sk|rk)_(?:live|test)_[a-z0-9]{16,}|` +
-		`pypi-ageichlwasi5vcmc[a-z0-9_-]{20,}|` +
-		`sg\.[a-z0-9_-]{16,}\.[a-z0-9_-]{32,}|sk[0-9a-f]{32}|` +
-		`bearer[` + pythonWhitespace + `]+[a-z0-9][a-z0-9_.~+/-]{15,}|` +
-		`[a-z0-9_-]{10,}\.[a-z0-9_-]{10,}\.[a-z0-9_-]{10,}`
+	return `(?i)` + strings.Join(secretAlternatives(assignmentFields, credentialedURLAlt), `|`)
 }
 
 // MatchString reports whether text contains secret-shaped content for new

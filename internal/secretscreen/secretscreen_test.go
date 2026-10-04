@@ -19,7 +19,7 @@ type parityCase struct {
 	Redacted string `json:"redacted"`
 }
 
-func loadParityCorpus(t *testing.T) parityCorpus {
+func loadParityCorpus(t testing.TB) parityCorpus {
 	t.Helper()
 	raw, err := os.ReadFile("testdata/parity.json")
 	if err != nil {

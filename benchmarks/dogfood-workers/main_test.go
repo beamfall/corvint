@@ -30,6 +30,18 @@ func codexEvent(mode string, values ...any) object {
 	}
 	return object{"type": "token_count", mode: usage}
 }
+
+// echoed copies a token-count event's usage into an item.completed record,
+// the shape of a tool result or message that prints a usage object.
+func echoed(event object) object {
+	copied := object{"type": "item.completed"}
+	for key, value := range event {
+		if key != "type" {
+			copied[key] = value
+		}
+	}
+	return copied
+}
 func assertMetric(t *testing.T, metrics object, key string, want any) {
 	t.Helper()
 	if fmt.Sprint(metrics[key]) != fmt.Sprint(want) {
@@ -64,6 +76,9 @@ func TestCodexCumulativeAccounting(t *testing.T) {
 		{"reset", []object{first, codexEvent("total_token_usage", 0, 0, 0)}, [3]any{unknown, unknown, unknown}},
 		{"zero observed", []object{codexEvent("total_token_usage", 0, 0, 0)}, [3]any{0, 0, 0}},
 		{"snapshot supersedes invalid delta", []object{codexEvent("last_token_usage", -1, 1, 1), first}, [3]any{100, 10, 20}},
+		{"echoed usage is not counted", []object{first, echoed(first), echoed(large)}, [3]any{100, 10, 20}},
+		{"only echoed usage", []object{echoed(large), echoed(delta)}, [3]any{unknown, unknown, unknown}},
+		{"wrapped token count", []object{{"type": "event_msg", "msg": first}}, [3]any{100, 10, 20}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			got := parseCodex(jsonLines(t, test.events...))

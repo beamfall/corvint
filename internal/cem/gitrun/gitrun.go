@@ -215,6 +215,15 @@ func RunReserved(ctx context.Context, perOp time.Duration, options Options, args
 }
 
 func runReservedStream(ctx context.Context, perOp time.Duration, options Options, consumer io.Writer, args ...string) ([]byte, error) {
+	operation := OperationBudgetFrom(ctx)
+	if operation != nil {
+		var err error
+		perOp, err = operation.reserve(ctx, perOp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	inheritedGroup := inheritsWorkerGroup(ctx) || (operation != nil && operation.inheritedGroup)
 	binary := options.Binary
 	if binary == "" {
 		binary = defaultBinary()
@@ -229,7 +238,13 @@ func runReservedStream(ctx context.Context, perOp time.Duration, options Options
 		command.Stdin = bytes.NewReader(options.Stdin)
 	}
 	command.WaitDelay = pipeDrainDelay
-	containChild(command)
+	if inheritedGroup {
+		// ALO-V0-018: the parent Owner owns the whole native worker group.
+		// Never create or signal a Git-child process group in this mode.
+		command.WaitDelay = 2 * time.Second
+	} else {
+		containChild(command)
+	}
 
 	overrun := make(chan struct{})
 	var overrunOnce sync.Once
@@ -255,7 +270,23 @@ func runReservedStream(ctx context.Context, perOp time.Duration, options Options
 		return nil, cemcode.NewGitStartFailure(fmt.Sprintf("Git could not start: %v", err), err)
 	}
 	waited := make(chan error, 1)
-	go func() { waited <- groupreap.Wait(command) }()
+	go func() {
+		if inheritedGroup {
+			waited <- command.Wait()
+		} else {
+			waited <- groupreap.Wait(command)
+		}
+	}()
+	killAndReap := func() {
+		if inheritedGroup {
+			// Process.Kill targets only this unreaped direct child and refuses an
+			// already reaped Process. Parent Owner retires remaining descendants.
+			_ = command.Process.Kill()
+			<-waited
+		} else {
+			killGroupThenReap(command, waited)
+		}
+	}
 
 	timer := time.NewTimer(perOp)
 	defer timer.Stop()
@@ -281,19 +312,26 @@ func runReservedStream(ctx context.Context, perOp time.Duration, options Options
 			)
 		}
 	case <-overrun:
-		killGroupThenReap(command, waited)
+		killAndReap()
 		if streamErr := stream.failure(); streamErr != nil {
 			return nil, streamErr
 		}
 		failure = cemcode.New(cemcode.GitOutputExceeded, "Git output exceeded its byte bound")
 	case <-ctx.Done():
-		killGroupThenReap(command, waited)
+		killAndReap()
 		failure = cemcode.New(cemcode.GitCancelled, "Git operation cancelled")
 	case <-timer.C:
-		killGroupThenReap(command, waited)
+		killAndReap()
 		failure = cemcode.New(cemcode.GitTimeout, "Git operation timed out")
 	}
 	if failure != nil {
+		if operation != nil && cemcode.CodeOf(failure) == cemcode.GitOutputExceeded {
+			stream := "stderr"
+			if _, exceeded := stdout.snapshot(); exceeded {
+				stream = "stdout"
+			}
+			return nil, &OperationOutputFailure{Stream: stream, Cause: failure}
+		}
 		return nil, failure
 	}
 	data, _ := stdout.snapshot()

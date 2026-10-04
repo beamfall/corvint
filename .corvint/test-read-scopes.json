@@ -47,12 +47,15 @@
       "go.mod",
       "internal/analyzerswift/"
     ],
+    "cmd/corvint-cem-candidate": [],
     "cmd/corvint-companion-release": [
       "script/corvint-companion-release-gate",
       "script/local-console-release-gate"
     ],
     "cmd/corvint-console": [],
     "cmd/corvint-corpus-http": [],
+    "cmd/corvint-corpus-parity": [],
+    "cmd/corvint-corpus-republish": [],
     "cmd/corvint-dashboard-snapshot": [],
     "cmd/corvint-docs-mcp": [],
     "cmd/corvint-go-test-provider": [
@@ -75,6 +78,7 @@
     ],
     "cmd/corvint-readiness-record": [],
     "cmd/corvint-release-gate": [],
+    "cmd/corvint-test-runner": [],
     "cmd/corvint-tests-accept": [],
     "cmd/corvint-work-queue": [
       ".corvint/work-queue-policy.json"
@@ -140,6 +144,7 @@
       "conformance/divergence-register.md"
     ],
     "internal/breakagemap": [],
+    "internal/cem/gitauth": [],
     "internal/cem/patch": [
       "interop/cem-0.1/"
     ],
@@ -165,16 +170,25 @@
     "internal/cem/workflow": [
       "protocol/cem-0.2/"
     ],
+    "internal/cemcandidate": [
+      "protocol/cem-1.0/"
+    ],
     "internal/corpusindex": [],
+    "internal/corpusrepublish": [],
     "internal/corpusserve": [],
     "internal/dashboard/adapters": [
       "internal/secretscreen/"
+    ],
+    "internal/delta": [
+      "conformance/delta-v0/decision-vectors.json",
+      "protocol/delta/schema.json"
     ],
     "internal/doccompiler": [],
     "internal/doccorpus": [
       "examples/documentation-corpus/"
     ],
     "internal/docviews": [],
+    "internal/dogfoodflow": [],
     "internal/extevidence": [
       "cmd/corvint-remote-provider/",
       "examples/evidence-provider/",
@@ -224,18 +238,25 @@
       "docs/specs/"
     ],
     "internal/taskman": [],
+    "internal/tasks/archive": [],
     "internal/tasks/authority": [
       "go.mod"
     ],
     "internal/tasks/intent": [
       "go.mod"
     ],
+    "internal/tasks/journal": [],
     "internal/tasks/store": [
       "go.mod"
     ],
     "internal/tcq": [],
     "internal/testacceptance": [],
     "internal/testevidence": [],
+    "internal/testrunner/dynamic": [],
+    "internal/testrunner/mobile": [],
+    "internal/testrunner/native": [],
+    "internal/testrunner/platform": [],
+    "internal/testrunner/registry": [],
     "internal/testvaliditydoc": [],
     "internal/trace": [],
     "internal/unplannedread": [],

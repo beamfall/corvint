@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"github.com/Beamfall/corvint/internal/dogfoodoperation"
+	"github.com/Beamfall/corvint/internal/tracerecordrepo"
 	"io"
 	"os"
 	"os/exec"
@@ -253,5 +256,113 @@ func TestMapHunksReadsAnyJSONLayout(t *testing.T) {
 	}
 	if got := mapHunks([]byte(`{"hunks": [`)); len(got) != 0 {
 		t.Errorf("truncated map: mapHunks = %v; want no hunks", got)
+	}
+}
+
+func TestAggregateWritersShareOperationLockBeforeCleanup(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	testGit(t, root, "commit", "--allow-empty", "-qm", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	gitDir := testGit(t, root, "rev-parse", "--absolute-git-dir")
+	_, unlock, err := dogfoodoperation.Acquire(context.Background(), gitDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unlock()
+	sentinel := filepath.Join(gitDir, "corvint", "local-outcome.stderr")
+	if err := os.WriteFile(sentinel, []byte("preserve failure"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, mode := range []string{"change", "check", "seal"} {
+		t.Run(mode, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			var code int
+			var err error
+			switch mode {
+			case "change":
+				code, err = Change(context.Background(), ChangeOptions{Root: root, Base: base}, &stderr)
+			case "check":
+				code, err = Check(context.Background(), CheckOptions{Root: root, Base: base}, &stdout, &stderr)
+			case "seal":
+				code, err = Seal(context.Background(), CheckOptions{Root: root, Base: base}, &stdout, &stderr)
+			}
+			if err != nil || code != 2 || !strings.Contains(stderr.String(), "operation-in-progress") {
+				t.Fatalf("code=%d err=%v stderr=%s", code, err, stderr.String())
+			}
+			if raw, err := os.ReadFile(sentinel); err != nil || string(raw) != "preserve failure" {
+				t.Fatalf("prior evidence changed: %s %v", raw, err)
+			}
+		})
+	}
+}
+
+func TestAggregateReportClosedVersionAndWhitespace(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	testGit(t, root, "commit", "--allow-empty", "-qm", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	for i := 0; i < 201; i++ {
+		if err := os.WriteFile(filepath.Join(root, fmt.Sprintf("f%03d.go", i)), []byte(fmt.Sprintf("package fixture\nconst V%d = %d\n", i, i)), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-qm", "source")
+	plan := strings.Repeat("a", 64)
+	expected := tracerecordrepo.AggregateExpected{ObjectFormat: "sha1", Base: base, Target: testGit(t, root, "rev-parse", "HEAD"), Tree: testGit(t, root, "rev-parse", "HEAD^{tree}"), AdmissionPolicy: tracerecordrepo.AggregateAdmissionPolicy, Task: "Local completion " + plan, Verification: []string{"go test ./..."}, Outcome: "passed"}
+	receipt, err := tracerecordrepo.ProduceAggregateOutcome(context.Background(), root, expected)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outcome, err := tracerecordrepo.ParseAggregateOutcome(receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	binding, err := tracerecordrepo.AggregateBinding(outcome)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := map[string]any{"profile": "corvint-dogfood-change/0", "base": base, "target": expected.Target, "complete": false, "steps": []AggregateReportStep{{"local-outcome", "NOT_PRODUCED", "admitted-path-limit"}, {"coordination-time-query", "PRODUCED", "none"}}, "ocmStatus": nil, "localOutcomeEvidenceSha256": nil, "contextAbstentionEvidenceSha256": nil, "queryAbstentionEvidenceSha256": nil, "anchor": AggregateReportAnchor{State: "NOT_OBSERVED"}, "ocmLinkPlan": nil, "dogfoodPolicy": AggregateReportPolicy{}, "packetCoverage": []any{}, "dogfoodCheck": nil}
+	oldRaw, _ := json.Marshal(old)
+	raw, err := PrepareAggregateReport(oldRaw, AggregateEnrollment{strings.Repeat("b", 64), plan + "-001", plan, binding}, receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, err := ParseAggregateReport(raw)
+	if err != nil || value.CompletionState != "complete" {
+		t.Fatal(value.CompletionState, err)
+	}
+	var members map[string]any
+	if err := json.Unmarshal(raw, &members); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := members["complete"]; ok {
+		t.Fatal("legacy completeness leaked")
+	}
+	reformatted, _ := json.MarshalIndent(members, "", "  ")
+	if _, err := ParseAggregateReport(reformatted); err != nil {
+		t.Fatal("structural reader rejected whitespace", err)
+	}
+	for _, test := range []struct {
+		name   string
+		mutate func(map[string]any)
+	}{
+		{"hybrid", func(m map[string]any) { m["complete"] = true }},
+		{"downgrade", func(m map[string]any) { m["profile"] = "corvint-dogfood-change/0" }},
+		{"unknown", func(m map[string]any) { m["futureAuthority"] = true }},
+		{"missing", func(m map[string]any) { delete(m, "completionState") }},
+		{"null-state", func(m map[string]any) { m["completionState"] = nil }},
+		{"unbound-enrollment", func(m map[string]any) { m["enrollment"].(map[string]any)["extra"] = true }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var m map[string]any
+			_ = json.Unmarshal(raw, &m)
+			test.mutate(m)
+			changed, _ := json.Marshal(m)
+			if _, err := ParseAggregateReport(changed); err == nil {
+				t.Fatal("mutation accepted")
+			}
+		})
 	}
 }

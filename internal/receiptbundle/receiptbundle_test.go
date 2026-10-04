@@ -251,15 +251,16 @@ func TestExportBindsTheWitnessAndGateReceiptToTheTarget(t *testing.T) {
 
 	dogfoodPath := filepath.Join(f.root, ".corvint", "dogfood-report.json")
 	dogfoods := map[string]string{
-		"other revision": `{"profile":"corvint-dogfood-change/0","base":"` + f.base + `","target":"` + f.base + `"}`,
-		"symbolic":       `{"profile":"corvint-dogfood-change/0","base":"` + f.base + `","target":"HEAD"}`,
-		"wrong profile":  `{"profile":"corvint-witness/0","base":"` + f.base + `","target":"` + f.target + `"}`,
+		"other revision":    `{"profile":"corvint-dogfood-change/0","base":"` + f.base + `","target":"` + f.base + `"}`,
+		"symbolic":          `{"profile":"corvint-dogfood-change/0","base":"` + f.base + `","target":"HEAD"}`,
+		"wrong profile":     `{"profile":"corvint-witness/0","base":"` + f.base + `","target":"` + f.target + `"}`,
+		"aggregate profile": `{"profile":"corvint-dogfood-change/1","base":"` + f.base + `","target":"` + f.target + `","completionState":"complete","aggregateOutcomeProfile":"corvint-dogfood-aggregate-outcome/0"}`,
 		"oversize": `{"profile":"corvint-dogfood-change/0","base":"` + f.base + `","target":"` + f.target + `"}` +
 			strings.Repeat(" ", MaxReceiptBytes),
 	}
 	dogfoodReasons := map[string]string{
 		"other revision": ReasonOtherRevision, "symbolic": ReasonOtherRevision,
-		"wrong profile": ReasonUnreadable, "oversize": ReasonUnreadable,
+		"wrong profile": ReasonUnreadable, "aggregate profile": ReasonUnreadable, "oversize": ReasonUnreadable,
 	}
 	for name, content := range dogfoods {
 		writeFixture(t, dogfoodPath, content)

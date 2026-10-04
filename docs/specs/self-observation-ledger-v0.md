@@ -57,6 +57,16 @@ local append-only diagnostic proposal stream and `corvint observations` is its r
   key at any depth; any other row is malformed and MUST be skipped. A row whose rendered key (code,
   query intent, degradation, touched or ranked path, or falsifier name) contains a control character
   or U+2028/U+2029 is malformed and MUST be skipped, so a hand-edited row cannot forge a triage line.
+  (amended 2026-10-04, V1-0740) Triage MUST also re-apply `Append`'s writer contract, which refuses a
+  negative count or latency, and count each bounded row it refuses by one closed reason without
+  folding any of it: `malformed-json`, `unterminated-row` (a final row without a newline in a ledger
+  under the cap), `contract-<field>` (the writer contract's closed field name, such as
+  `contract-kind`, `contract-paths` or `contract-negative-count`), `unsafe-key`, and `proof-counts`
+  (a proof row with an unknown verdict or an out-of-range count; a proof row with no counts, which
+  `prove` writes for a document with no rows, judges nothing and is not rejected). It MUST report when the
+  ledger exceeded 128 KiB and only its first 128 KiB were read; a row ending past that cap is
+  neither folded nor rejected. The digest prints `REJECTED-ROWS reason=<reason> count=<n>` lines in reason
+  order and `LEDGER-CUT cap-bytes=131072`.
 - `SOL-V0-006`: A degradation present in at least 90% of recorded events MUST be labelled
   `STANDING`; this is a candidate defect, not proof of defect cause or severity.
 - `SOL-V0-007`: Every emitted `unsupported-*` CLI failure SHOULD be recorded with only
@@ -150,7 +160,9 @@ the existing agent-memory convention.
 | `.corvint` or the ledger is a symlink or other non-regular entry at triage | `Read` fails without digesting it; `corvint observations` exits 2 with a JSON stderr error; `prove` omits the `ledger` block |
 | row or file bound exceeded | drop oldest complete rows; never truncate a JSON row |
 | mixed worktree | record `MISS_DETECTION_NOT_OBSERVED` |
-| malformed ledger row | triage skips it and keeps reading bounded rows |
+| malformed ledger row | triage rejects it under a closed reason, counts it, and keeps reading bounded rows |
+| row outside the writer contract (unknown kind, escaping path, negative count) | triage rejects it as `contract-<field>`; it is never a count, miss path or label |
+| ledger over 128 KiB | triage reads the first 128 KiB and reports `LEDGER-CUT` |
 | unsupported code lacks owning spec | print an explicit DRAFT capability gap, never invent ownership |
 | adapter degradation before root resolution, or Codex kill deadline | no row; the hook output is unchanged |
 | adapter rejection code outside the closed registries | record bare `corvint-event-rejected`, never the unregistered code |
@@ -165,7 +177,7 @@ that OCM enumerates all ten clauses from this document; it does not validate the
 | Requirement | Evidence |
 |---|---|
 | SOL-V0-001..004 | `internal/observations` append/rotation and ignore-coverage tests; `TestAppendRepairDiscardsUnterminatedRows`; `TestAppendRefusesSymlinkedLedgerDirectoryOrFile`; `TestReadRefusesSymlinkedLedgerDirectoryOrFile`; `TestAppendReadsOnlyBoundedRegularIgnoreFilesInsideTheRepository`; `TestIndexBootstrapsIgnoredObservationLedger`; harness tests |
-| SOL-V0-005..006 | golden triage test, `TestRenderSkipsMalformedJSONLinesRows`, `TestRenderSkipsRowWhoseKeyCarriesALineBreak`, and stdout-only CLI test |
+| SOL-V0-005..006 | golden triage test, `TestRenderSkipsMalformedJSONLinesRows`, `TestRenderSkipsRowWhoseKeyCarriesALineBreak`, `TestReadRejectsContractViolationsAndReportsCut`, and stdout-only CLI test |
 | SOL-V0-007 | unsupported aggregation test; `TestUnsupportedByDesignCodeIsReportedSeparately`; `TestOCMUnsupportedRefusalAppendsOneObservation`; `TestLRFCEMAndDogfoodOCMUnsupportedRefusalsAppendOneObservationEach`; `TestIndexBuildingCommandsRecordUnsupportedRefusal`; `TestRunFrontierUnsupportedRefusalLeavesRepositoryUnchanged` (exclusion); `TestRecordUnsupportedVerifySyntaxAppendsOneObservation`; `TestRecordUnsupportedSkipsObservationBehindAnOversizedIgnoreFile`; `TestDogfoodRecordUnsupportedVerifySyntaxAppendsOneObservation`; `TestRefusalSnapshotExceptsOnlyTheIgnoredLedger` (conformance refusal snapshot); `TestHostAdapterUnsupportedHookEventRecordsNoObservation` (exclusion); `TestBatchRefusesWithoutSnapshot` (exclusion); `TestCLIReadVerbsLeaveTheRepositoryByteIdentical` (adapter codex/claude-code CLI-level exclusion) |
 | SOL-V0-008 | bounded writer CLI test, report-row integration test, append concurrency tests, and `TestDogfoodReasonAdmitsEveryRegisteredCEMCode` |
 | SOL-V0-009 | `TestFalsificationRateCountsJudgedRowsOnly`, `TestProveObserveRecordsOnlyTheVerdictCounts`, `TestProveObserveRejectsWhatIsNotAProof` |

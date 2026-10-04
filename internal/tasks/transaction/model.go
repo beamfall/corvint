@@ -740,7 +740,7 @@ func (absentIndex) Lookup(string) (mutation.IndexEntry, bool, error) {
 // Cancels reports a lease release or reap, which an ALL barrier lets through
 // as it does cancel (TCP-00 §3.4).
 func Cancels(r Request) bool {
-	return r.Operation == Lease && (r.Lease.Verb == LeaseRelease || r.Lease.Verb == LeaseReap || r.Lease.Verb == LeasePoolObserve || r.Lease.Verb == LeasePoolRecover || r.Lease.Verb == LeasePoolCleanup || r.Lease.Verb == LeasePoolSafe)
+	return r.Operation == Lease && (r.Lease.Verb == LeasePoolSweepFinish || r.Lease.Verb == LeaseRelease || r.Lease.Verb == LeaseReap || r.Lease.Verb == LeasePoolObserve || r.Lease.Verb == LeasePoolRecover || r.Lease.Verb == LeasePoolCleanup || r.Lease.Verb == LeasePoolSafe)
 }
 
 func emptyReservations(q string) []byte {

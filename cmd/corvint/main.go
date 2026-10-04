@@ -766,7 +766,7 @@ var (
 		"record", "migrate-traces", "harness", "cem", "ocm", "work", "context", "adapter",
 		"dogfood", "dogfood-ocm", "frontier", "observations", "affected", "obligations", "prove", "prove-observe",
 		"index", "batch", "docs", "depsource", "necessity", "surprise", "answerability",
-		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "features", "overview", "review", "migration-ratchet", "flows", "skill-export", "breakage", "step"}
+		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "features", "overview", "review", "migration-ratchet", "flows", "skill-export", "breakage", "step", "delta"}
 )
 
 func knownHost(value string) bool {
@@ -839,6 +839,13 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		return runProtectedEvent(ctx, arguments, stdin, stdout, stderr)
 	}
 	if _, requested, _ := parseHelpInvocation(arguments); !requested {
+		if root, rest, handled, err := parseDeltaInvocation(arguments); handled {
+			if err != nil {
+				fmt.Fprintln(stderr, "delta-invalid-arguments")
+				return 2
+			}
+			return runDelta(ctx, root, rest, stdout, stderr)
+		}
 		if profile, isRatchet, ratchetErr := parseMigrationRatchetInvocation(arguments); isRatchet {
 			if ratchetErr != nil {
 				emitError(stderr, ratchetErr)
@@ -1540,6 +1547,15 @@ func pythonJSONString(value string) string {
 }
 
 func main() {
+	// Startup-only owned-group verification precedes signal goroutines, Git
+	// resolution and every ordinary Core entrypoint.
+	if len(os.Args) > 1 && os.Args[1] == "dogfood-outcome-worker" {
+		os.Exit(runDogfoodOutcomeWorker(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
+	}
+	if len(os.Args) > 1 && os.Args[1] == "dogfood-verifier-worker" {
+		os.Exit(runDogfoodVerifierWorker(os.Args[2:], os.Stdout, os.Stderr))
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), terminationSignals()...)
 	defer cancel()
 	ctx, release := adapterHostKillContext(ctx, os.Args[1:], adapterProcessStart)

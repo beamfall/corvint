@@ -20,6 +20,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/Beamfall/corvint/internal/dogfoodoperation"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
@@ -83,6 +84,7 @@ type stop struct{ code int }
 
 // flow holds the state both the change and the check resolve first.
 type flow struct {
+	operationUnlock func()
 	ctx             context.Context
 	prefix          string
 	root            string
@@ -123,6 +125,9 @@ func (f *flow) exit(code int) {
 }
 
 func (f *flow) checkpoint() {
+	if err := dogfoodoperation.Check(f.ctx); err != nil {
+		f.refuse(err.Error())
+	}
 	if f.ctx.Err() != nil {
 		panic(stop{-1})
 	}
@@ -141,6 +146,7 @@ func (f *flow) say(format string, values ...any) {
 // environment, with no credential helper and no transport, and returns its
 // stdout and exit status; its stderr reaches the caller unless quiet.
 func (f *flow) git(quiet bool, args ...string) (string, int) {
+	f.checkpoint()
 	var stdout bytes.Buffer
 	command := exec.CommandContext(f.ctx, "git", append([]string{"-C", f.root, "-c", "credential.helper="}, args...)...)
 	command.Env = gokernel.SanitizedGitEnvironment()
@@ -403,4 +409,21 @@ var impactAbstentions = map[string]bool{
 	"unsupported-impact-range":      true,
 	"unsupported-impact-repository": true,
 	"unsupported-impact-path":       true,
+}
+
+func (f *flow) acquireOperation() {
+	if f.operationUnlock != nil {
+		return
+	}
+	ctx, unlock, err := dogfoodoperation.Acquire(f.ctx, f.gitDir)
+	if err != nil {
+		f.refuse(err.Error())
+	}
+	f.ctx, f.operationUnlock = ctx, unlock
+}
+func (f *flow) releaseOperation() {
+	if f.operationUnlock != nil {
+		f.operationUnlock()
+		f.operationUnlock = nil
+	}
 }

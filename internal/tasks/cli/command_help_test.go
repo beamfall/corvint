@@ -98,3 +98,16 @@ func TestCALV0047_MalformedInputsStillRefuse(t *testing.T) {
 		}
 	}
 }
+
+func TestPSRPublicRouteAndHelp(t *testing.T) {
+	for _, args := range [][]string{{"pool", "sweep", "--help"}, {"pool", "sweep", "-h"}} {
+		var out bytes.Buffer
+		if cli.Run(cli.Env{Cwd: t.TempDir(), Args: args, Stdin: unreadHelpInput{}, Stdout: &out}) != 0 {
+			t.Fatal(out.String())
+		}
+		result, err := wire.DecodeResult(out.Bytes())
+		if err != nil || !strings.Contains(field(result.Items[0], "usage").Str, "--timeout-seconds") || !strings.Contains(field(result.Items[0], "note").Str, "Private logs") {
+			t.Fatal(result, err)
+		}
+	}
+}

@@ -133,7 +133,7 @@ above stands with that substitution.
   both exit 2 with `output-failed` (`cmd/corvint/prove.go:489-493@4c0799f8`, `cmd/corvint/prove.go:501-503@ea3220b5`). A failed write
   MAY leave partial bytes on stdout, so a consumer MUST read the exit status, never stdout
   emptiness, as the signal that no verdict was produced — the same exit-2 signal the harness
-  gives for its own write failure (`cmd/corvint/main.go:1250-1252@f3b5fd7c`), which the adapter contract
+  gives for its own write failure (`cmd/corvint/main.go:1257-1259@f3b5fd7c`), which the adapter contract
   converts into a visible host-valid no-op (`docs/specs/agent-harness-integration-v0.md:68-69`).
   This clause's code list is also extended, under `--checkpoint` only, by the six codes FPK-V0-024
   enumerates: `unreadable-checkpoint-document`, `invalid-checkpoint-document`,
@@ -439,7 +439,7 @@ above stands with that substitution.
   canonical-JSON encoding of the sorted dirty path list `affected.DirtyPaths` returns
   (`internal/liveverify/affected/dirty.go:46@abebde5b` is the entry point; the deduplication and sort happen
   in `DecodeStatus` at `internal/liveverify/affected/dirty.go:195@a543bfa1` via `NormalizePaths`,
-  `internal/liveverify/affected/select.go:430-443@eadff8fe`), by the same construction
+  `internal/liveverify/affected/select.go:437-450@eadff8fe`), by the same construction
   `internal/gokernel/repository.go:403-404@425ed3ff` and `internal/gokernel/repository.go:414@54fe2926` already take — cited as a construction
   precedent only, since that digest's input is gokernel's own status list, whereas this digest's
   input is the `affected.DirtyPaths` list the run already reads (`cmd/corvint/prove.go:517-519@6b81d3a5`). It hashes
@@ -454,7 +454,7 @@ above stands with that substitution.
   every `blob_hash` against that declared format's object-id shape, stated here rather than
   borrowed as a mechanism: exactly 40 lowercase hex digits under `sha1` and exactly 64 under
   `sha256`. That is the shape the index applies to Git's own output (`validObjectID`,
-  `internal/contextindex/git.go:464-477@f2d5aceb`, called at `internal/contextindex/git.go:403@842ac930`), cited as precedent only: the
+  `internal/contextindex/git.go:500-513@f2d5aceb`, called at `internal/contextindex/git.go:439@842ac930`), cited as precedent only: the
   predicate is unexported, and this clause requires no change to it or to any other code outside
   the checkpoint branch. A value of the wrong shape is `invalid-checkpoint-document`, refused
   before any handle is judged. `handles` MUST be total over its paths: two entries sharing a `path`
@@ -543,7 +543,7 @@ above stands with that substitution.
   `internal/contextindex/index.go:209@1e49fe84`, `internal/contextindex/index.go:477-479@02852e4a`); a mismatch is refused under FPK-V0-024 as
   `object-format-mismatch`. This is decided after `Build`, not before every `cat-file` call in the
   run: `Build` itself reads blobs through `cat-file --batch` while pinning sources
-  (`internal/contextindex/git.go:519-529@875d1117`, `internal/contextindex/index.go:457-459@16cf1c1f`, `internal/contextindex/index.go:1418-1420@b9840036`), so `Index.ObjectFormat`
+  (`internal/contextindex/git.go:555-565@875d1117`, `internal/contextindex/index.go:457-459@16cf1c1f`, `internal/contextindex/index.go:1418-1420@b9840036`), so `Index.ObjectFormat`
   is not known until that call has already made its own `cat-file` calls. It is the unframable
   class one level up: as an LF-bearing path cannot
   be framed for Git at all, a document whose `blob_hash` values were computed under another object
@@ -569,7 +569,7 @@ above stands with that substitution.
   (5) `blob-changed` — the current blob differs from `blob_hash`;
   (6) `unchanged` — the current blob equals `blob_hash`. Directories and gitlinks are decided at
   step (2) by mode: `git ls-tree --full-tree <tree> -- <path>` reports `040000` for a directory and
-  `160000` for a gitlink, neither of which the index admits (`internal/contextindex/git.go:396-404@7e57b664`), so
+  `160000` for a gitlink, neither of which the index admits (`internal/contextindex/git.go:432-440@7e57b664`), so
   both MUST be `unsupported` whatever `cat-file` then returns — a tree object for the directory, a
   commit object or `missing` for the gitlink — and only `100644`, `100755`, and `120000` continue
   past step (2). `path-deleted` means the path is not present at the current tree, never that it
@@ -708,8 +708,8 @@ above stands with that substitution.
   and then its immutable tree, before `readBoundedFile`, to settle this case ahead of the file read; (9) the tree
   cannot be listed at HEAD, or the `git ls-tree` output passes the same 64 MiB bound
   `readTreeEntries`
-  already applies to a full-tree listing (`maxTreeBytes`, `internal/contextindex/git.go:28@0e8ce572`,
-  `internal/contextindex/git.go:377@33f5b343`)
+  already applies to a full-tree listing (`maxTreeBytes`, `internal/contextindex/git.go:30@0e8ce572`,
+  `internal/contextindex/git.go:413@33f5b343`)
   — `unsupported-prove-tree`, a code this requirement added because no earlier `prove` code named
   a tree-listing failure; the checkpoint compile function performs this bounded, whole-tree `git
   ls-tree -r -t -z --full-tree <tree>` read once (`readCheckpointTree`,
@@ -722,23 +722,23 @@ above stands with that substitution.
   `contextindex.Build` (`internal/contextindex/index.go:277@1cafb447`) and surfaced with its own code
   unchanged, which `--checkpoint` MUST NOT re-code, so the exact expected code is
   whatever `Build` returns for that repository. A `Build` error can carry no code at all
-  (`internal/contextindex/git.go:390-391@bf504d51`), and `emitError` deliberately prints such an error without
-  a `code` member (`cmd/corvint/main.go:1429-1431@a109d3d7`); because this clause requires every checkpoint
+  (`internal/contextindex/git.go:426-427@bf504d51`), and `emitError` deliberately prints such an error without
+  a `code` member (`cmd/corvint/main.go:1436-1438@a109d3d7`); because this clause requires every checkpoint
   refusal to bear a code, a code-less `Build` error MUST be reported as `unsupported-prove-index`,
   a checkpoint-only mapping that preserves the `Build` message verbatim as the refusal's `error`
   member — for an error carrying no `DRC-V0` diagnostic, which this refusal never does, the only
   members `emitError` writes are `code`, `error`, and `ok`
-  (`cmd/corvint/main.go:1433-1437@b96186e4`), so there is no `reason` member on this wire — and MUST NOT
+  (`cmd/corvint/main.go:1440-1444@b96186e4`), so there is no `reason` member on this wire — and MUST NOT
   change what plain `prove` emits for the same error. The mapping MUST construct a
   fresh `&gokernel.Error{Code: "unsupported-prove-index", Message: buildErr.Error()}` that does
   NOT wrap the `*contextindex.Error`: `emitError` prints without a `code` member for an error
-  that unwraps to a code-less context error (`cmd/corvint/main.go:1414-1425@a9930fba`), so wrapping to preserve the message
+  that unwraps to a code-less context error (`cmd/corvint/main.go:1421-1432@a9930fba`), so wrapping to preserve the message
   would still emit an uncoded refusal, which this clause forbids. That mapping MUST live in the
   checkpoint branch's own compile function — `compileCheckpointProof` (`cmd/corvint/prove.go:603@01d34b22`), the sibling of
   `compileCEMProof` (`cmd/corvint/prove.go:822@e469a50d`) that `compileProof` dispatches to on the
   checkpoint mode (`cmd/corvint/prove.go:512@6d433de3`, `cmd/corvint/prove.go:521-523@acc310b7`) — between its
   index build and its return to `runProve` (`cmd/corvint/prove.go:616-626@5563dd2e`, `cmd/corvint/prove.go:473-481@33fabac8`). It MUST NOT be placed in
-  `emitError` (`cmd/corvint/main.go:1423-1425@4f554a82`), which plain `prove` shares, so plain `prove`'s
+  `emitError` (`cmd/corvint/main.go:1430-1432@4f554a82`), which plain `prove` shares, so plain `prove`'s
   stderr for the same code-less `Build` error stays byte-unchanged, which FPK-V0-026 requires as a
   named test; (11) `repository.object_format` differs from the object format of the index
   built at the current revision (FPK-V0-021) — `object-format-mismatch`, decided after the index
@@ -747,7 +747,7 @@ above stands with that substitution.
   every handle. It is NOT decided before every `cat-file` call in the run: `Build` itself reads
   blobs
   through `git cat-file --batch` while pinning sources (`fetchBlobs`,
-  `internal/contextindex/git.go:519-529@875d1117`,
+  `internal/contextindex/git.go:555-565@875d1117`,
   called from `pinCandidates`/`readResidualBlobs`, `internal/contextindex/index.go:457-459@16cf1c1f`, `internal/contextindex/index.go:1418-1420@b9840036`), so `Build` (case
   10) necessarily runs, and necessarily calls `cat-file`, before `Index.ObjectFormat` is even known
   to compare; (12) the `cat-file --batch` stream fails or passes its 64 MiB
@@ -791,10 +791,10 @@ above stands with that substitution.
   (`internal/contextindex/index.go:277@1cafb447`) directly, as prove's impact and change modes did until `IDX-SNAP-V0-020`, which
   left them `Build` only on a snapshot miss (`cmd/corvint/prove.go:1082@a1c6494d`, `cmd/corvint/index_snapshot.go:84@90129c09`), and MUST NOT read an on-disk index snapshot. `prove --task` is not the model
   for this: its project-operations query profile acquires through `standaloneQueryContext`
-  (`cmd/corvint/prove.go:1068-1070@d473eb95`, `cmd/corvint/main.go:1288-1299@4e7cdb10`), which reaches `deferredSnapshotIndex` and `snapshotIndex`
-  (`cmd/corvint/index_snapshot.go:72-73@5959c784`, `cmd/corvint/index_snapshot.go:58-59@123f0830`) at `cmd/corvint/main.go:1317-1318@c39315fe` and
+  (`cmd/corvint/prove.go:1068-1070@d473eb95`, `cmd/corvint/main.go:1295-1306@4e7cdb10`), which reaches `deferredSnapshotIndex` and `snapshotIndex`
+  (`cmd/corvint/index_snapshot.go:72-73@5959c784`, `cmd/corvint/index_snapshot.go:58-59@123f0830`) at `cmd/corvint/main.go:1324-1325@c39315fe` and
   `cmd/corvint/harness_context.go:69-70@70282d2c` and only builds (`BuildQuery`, `internal/contextindex/index.go:396-398@9faff3e7`, called at
-  `cmd/corvint/main.go:1313@e0e5c824`; `BuildEval`, `internal/contextindex/index.go:303-304@b1c33c59`, called at `cmd/corvint/harness_context.go:71@54018a6a`) on a miss — so plain
+  `cmd/corvint/main.go:1320@e0e5c824`; `BuildEval`, `internal/contextindex/index.go:303-304@b1c33c59`, called at `cmd/corvint/harness_context.go:71@54018a6a`) on a miss — so plain
   `prove --task` does read the snapshot today, which a run of the binary confirms: with a
   populated `.corvint/index/`, the snapshot file's access time advances under `prove --task` and
   did not under `prove PATH...` before `IDX-SNAP-V0-020` (decision 0180) gave impact and change modes the same read. `IDX-SNAP-V0-008` (`docs/specs/index-snapshot-v0.md:79-81`)
@@ -870,7 +870,7 @@ above stands with that substitution.
   refusal, and each other case FPK-V0-024 enumerates yields the exact code that clause names for
   it, an invented code being a failure; a `Build` error carrying its own code yields that code
   unchanged, and a code-less `Build` error yields `unsupported-prove-index` carrying the `Build`
-  message verbatim as its `error` member (`cmd/corvint/main.go:1433-1437@b96186e4`), an uncoded refusal
+  message verbatim as its `error` member (`cmd/corvint/main.go:1440-1444@b96186e4`), an uncoded refusal
   being a failure; and a checkpoint whose
   `repository.object_format` is `sha256` replayed in a sha1 repository refuses
   `object-format-mismatch` before any handle verdict, a confident all-`blob-changed` document being

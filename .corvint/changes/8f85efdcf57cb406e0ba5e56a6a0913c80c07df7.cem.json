@@ -1,0 +1,80 @@
+{
+  "baseRevision": "c34de8d6048cb13ff7cb207b3433ddb6ba9afdd8",
+  "evidence": [
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 2723,
+        "start": 2263
+      },
+      "spanSha256": "e979056d21f736aae082c28eeea2656ae6417117c2f2c674beee075f2033d0e2"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:afae6a19fd7807713aac852bf7a0fc01a3796d2951ea4a1e8d282097d86a127c",
+      "newRange": {
+        "count": 10,
+        "start": 27
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 27
+      },
+      "path": "docs/build-log/2026-10-04-secretscreen-prefilter.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5dc86f76fd2fcb4a628444f4e41024d395feab8d37a07a80309ea618735c5a9d",
+      "newRange": {
+        "count": 7,
+        "start": 13
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 13
+      },
+      "path": "internal/contextindex/analyzer_schema.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f02136db7f65aa1c4f3ebde54713c3796b1b9b2df88d55b261dfef650da6777a",
+      "newRange": {
+        "count": 8,
+        "start": 17
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 17
+      },
+      "path": "internal/contextindex/analyzer_schema_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "8ab539e1efac77f166d9ce8d4dfb818f57c96786acc65eaccdfe694ccb92abac",
+  "spec": "cem/0.2"
+}
