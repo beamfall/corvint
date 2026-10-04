@@ -1,0 +1,60 @@
+{
+  "baseRevision": "e7f0e51a4a4dadd68234b37d5746eda5d7660008",
+  "evidence": [
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 2723,
+        "start": 2263
+      },
+      "spanSha256": "e979056d21f736aae082c28eeea2656ae6417117c2f2c674beee075f2033d0e2"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a79cd92eb1c0d20148a19ecd49a2c57fbe4d61bad70c3e0b6b4b808034286a3c",
+      "newRange": {
+        "count": 10,
+        "start": 179
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 179
+      },
+      "path": ".corvint/test-read-scopes.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8f9a4a00f7f05e3c748187301fdd4ec646adb155ac2d2d1f22840156e5cfa887",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f5504cb8a54184eeb0a9b38006d9601c79404f7dfc6bdd3d6f56faa759193b04",
+      "newRange": {
+        "count": 12,
+        "start": 43
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 43
+      },
+      "path": "docs/build-log/2026-10-04-unbounded-reader-merge-skew.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "25c69e44bb603fc8797d12ce68f7477118b4ca78745e4524121f33f3cacc17e7",
+  "spec": "cem/0.2"
+}

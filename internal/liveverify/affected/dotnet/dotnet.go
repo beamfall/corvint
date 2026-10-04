@@ -76,7 +76,12 @@ func Address(id string) (project, filter string, ok bool) {
 
 // Units observes C# compilation projects and statically discoverable tests.
 func (Language) Units(root string) (affected.Result, error) {
-	files, err := affected.SourceFiles(root, func(name string) bool {
+	return Language{}.UnitsSource(affected.DiskSource(root))
+}
+
+// UnitsSource reads only the explicitly supplied source universe.
+func (Language) UnitsSource(root *affected.Source) (affected.Result, error) {
+	files, err := root.Files(func(name string) bool {
 		lower := strings.ToLower(name)
 		return strings.HasSuffix(lower, ".cs") || strings.HasSuffix(lower, ".csproj") ||
 			strings.HasSuffix(lower, ".fsproj") || strings.HasSuffix(lower, ".vbproj") ||
@@ -196,8 +201,8 @@ type projectXML struct {
 	Imports []struct{} `xml:"Import"`
 }
 
-func readProject(root, relative string) (project, error) {
-	body, err := affected.ReadSource(root, relative)
+func readProject(root *affected.Source, relative string) (project, error) {
+	body, err := root.Read(relative)
 	if err != nil {
 		return project{}, err
 	}
@@ -323,7 +328,7 @@ func classifyPackages(value *project) {
 	}
 }
 
-func observeProject(root string, value *project, projects map[string]*project) ([]affected.Unit, map[string]bool) {
+func observeProject(root *affected.Source, value *project, projects map[string]*project) ([]affected.Unit, map[string]bool) {
 	flags := map[string]bool{}
 	projectID := "dotnet:" + value.path
 	imports := make([]string, 0, len(value.references))
@@ -341,7 +346,7 @@ func observeProject(root string, value *project, projects map[string]*project) (
 	staticTests := 0
 	methodOwners := map[string]string{}
 	for _, relative := range value.files {
-		body, err := affected.ReadSource(root, relative)
+		body, err := root.Read(relative)
 		if err != nil {
 			flags[FrontierUnparsedSource] = true
 			continue
