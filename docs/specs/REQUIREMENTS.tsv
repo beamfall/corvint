@@ -734,6 +734,7 @@ DCG-V0-017	docs/specs/documentation-citation-gate-v0.md	157	The gate MUST count 
 DCG-V0-018	docs/specs/documentation-citation-gate-v0.md	163	`script/line-citation-legacy-documents.txt` MUST be the closed allowlist of scan
 DCG-V0-019	docs/specs/documentation-citation-gate-v0.md	177	A citation a citing document explicitly frames as historical — reviewed once aga
 DCG-V0-020	docs/specs/documentation-citation-gate-v0.md	183	`script/line-citation-drift-waivers.txt` MAY name one citation, as
+DCG-V0-021	docs/specs/documentation-citation-gate-v0.md	191	When a file the gate read from the index (a scanned document, a cited file, or o
 DCI-V0-001	docs/specs/documentation-ci-v0.md	33	The classifier MUST read a clean checkout at the full captured target SHA, requi
 DCI-V0-002	docs/specs/documentation-ci-v0.md	40	The closed path scope MUST be modified existing mode-100644 `README.md` and,
 DCI-V0-003	docs/specs/documentation-ci-v0.md	44	README fenced and indented code bytes MUST remain identical. The admitted Markdo
