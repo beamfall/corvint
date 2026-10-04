@@ -47,6 +47,13 @@ func TestCALV0052_EscalationConfigRefusesUnsupportedModels(t *testing.T) {
 		"same model as tier below":    func(c *Config) { c.Roles[0].Escalate[1].Model = "B" },
 		"tier cap above role cap":     func(c *Config) { c.Roles[0].Escalate[1].Cap = 3 },
 		"notes control character":     func(c *Config) { c.Roles[0].Escalate[1].Notes = "a\nb" },
+		"{model} activity path without model": func(c *Config) {
+			c.Hosts["sh"] = Host{Argv: c.Hosts["sh"].Argv[:1], ActivityPaths: []string{"/tmp/{model}"}}
+			c.Roles[0].Model, c.Roles[0].Escalate = "", nil
+		},
+		"model only in activity path": func(c *Config) {
+			c.Hosts["sh"] = Host{Argv: c.Hosts["sh"].Argv[:1], ActivityPaths: []string{"/tmp/{model}"}}
+		},
 		"lane ladder": func(c *Config) {
 			c.Roles[0].Match, c.Roles[0].Lane = nil, &Lane{Pool: "p"}
 		},
@@ -229,6 +236,81 @@ func TestCALV0057_StickyTierAndOperatorUnparkKeepStreak(t *testing.T) {
 	waitEnded(t, d)
 }
 
+// CAL-V0-057: progress made outside a session, by a state change or a
+// newly declared progress token while the ticket is parked or cooling down,
+// resets the streak, so the next session starts on the base model.
+func TestCALV0057_ProgressOutsideSessionResetsLadder(t *testing.T) {
+	writeToken := func(t *testing.T, source, token string) {
+		t.Helper()
+		if err := os.WriteFile(source, []byte(`{"t1":{"state":"work","progress":"`+token+`"}}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	const key = "ticket:a:q:t1"
+	open := func(t *testing.T, c *Config) (*Dispatcher, *fakeQueue, string) {
+		t.Helper()
+		source := filepath.Join(c.WorkRoot, "states.json")
+		c.WorkState = &WorkState{Kind: "command", Argv: []string{"/bin/cat", source}}
+		writeToken(t, source, "p1")
+		q := &fakeQueue{obs: Observation{Tickets: []Ticket{ticket("t1", "P1", 1)}}}
+		d, err := Open("prog", c, q, io.Discard)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { d.Close() })
+		return d, q, source
+	}
+	ctx := context.Background()
+	for name, change := range map[string]func(*testing.T, *fakeQueue, string){
+		"state change":      func(_ *testing.T, q *fakeQueue, _ string) { q.obs.Tickets[0].Revision = "2" },
+		"declared progress": func(t *testing.T, _ *fakeQueue, source string) { writeToken(t, source, "p2") },
+	} {
+		t.Run("parked "+name, func(t *testing.T) {
+			c := ladderConfig(t)
+			c.Backoff.ParkAfter = 2
+			d, q, source := open(t, c)
+			for i := 0; i < 2; i++ {
+				if err := d.Tick(ctx); err != nil || d.Running() != 1 {
+					t.Fatalf("tick %d: %v", i, err)
+				}
+				waitEnded(t, d)
+			}
+			if err := d.Tick(ctx); err != nil || d.Running() != 0 || !d.ledger.Backoff[key].Parked || d.ledger.Escalation[key].Streak != 2 {
+				t.Fatalf("not parked at streak 2: %v %+v", err, d.ledger.Escalation[key])
+			}
+			change(t, q, source)
+			if err := d.Tick(ctx); err != nil || d.Running() != 1 {
+				t.Fatalf("not unparked: %v", err)
+			}
+			if w := d.ledger.Workers[0]; w.Tier != 0 || readModelWait(t, c, d) != "A" {
+				t.Fatalf("relaunched at tier %d after progress outside a session", w.Tier)
+			}
+			if e := d.ledger.Escalation[key]; e != nil && e.Streak != 0 {
+				t.Fatalf("streak kept after progress: %+v", e)
+			}
+		})
+	}
+	t.Run("cooling down", func(t *testing.T) {
+		c := ladderConfig(t)
+		c.Backoff.CooldownSeconds = 3600
+		d, q, _ := open(t, c)
+		if err := d.Tick(ctx); err != nil || d.Running() != 1 {
+			t.Fatalf("tick: %v", err)
+		}
+		waitEnded(t, d)
+		if err := d.Tick(ctx); err != nil || d.Running() != 0 || d.ledger.Escalation[key].Streak != 1 {
+			t.Fatalf("no cooldown at streak 1: %v", err)
+		}
+		q.obs.Tickets[0].Revision = "2"
+		if err := d.Tick(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if e := d.ledger.Escalation[key]; e != nil {
+			t.Fatalf("streak kept after progress during cooldown: %+v", e)
+		}
+	})
+}
+
 func readModelWait(t *testing.T, c *Config, d *Dispatcher) string {
 	t.Helper()
 	w := d.ledger.Workers[0]
@@ -236,12 +318,125 @@ func readModelWait(t *testing.T, c *Config, d *Dispatcher) string {
 	return readModel(t, c, w)
 }
 
+// legacyLedger is the state file the pre-ladder encoder (4b10a021) wrote for
+// a ledger exercising every legacy member.
+const legacyLedger = `{
+  "profile": "taskman-dispatch-state/0",
+  "program": "prog",
+  "launchSeq": 3,
+  "eventSeq": 9,
+  "workers": [
+    {
+      "id": "prog.impl.1.x-3",
+      "role": "impl",
+      "host": "sh",
+      "slot": 1,
+      "key": "ticket:a:q:t1",
+      "ticket": "ticket:a:q:t1",
+      "pid": 42,
+      "leaderIdentity": "id42",
+      "members": [
+        {
+          "pid": 43,
+          "identity": "id43"
+        }
+      ],
+      "started": "2026-10-04T12:00:00Z",
+      "lastActive": "2026-10-04T12:01:00Z",
+      "logBytes": 7,
+      "activityPaths": [
+        "/tmp/a"
+      ],
+      "activityMtime": "2026-10-04T12:01:00Z",
+      "state": "KILLING",
+      "killReason": "idle",
+      "killDeadline": "2026-10-04T12:02:00Z",
+      "fingerprint": "f1",
+      "baseFingerprint": "b1",
+      "progressDigest": "d1"
+    },
+    {
+      "id": "prog.lane.1.x-2",
+      "role": "lane",
+      "host": "sh",
+      "slot": 1,
+      "key": "lane:p:m",
+      "pool": "p",
+      "member": "m",
+      "pid": 44,
+      "leaderIdentity": "id44",
+      "members": [],
+      "started": "2026-10-04T12:00:00Z",
+      "lastActive": "2026-10-04T12:00:00Z",
+      "logBytes": 0,
+      "activityMtime": "0001-01-01T00:00:00Z",
+      "state": "RUNNING",
+      "killDeadline": "0001-01-01T00:00:00Z",
+      "fingerprint": "f2"
+    }
+  ],
+  "backoff": {
+    "ticket:a:q:t2": {
+      "noProgress": 2,
+      "cooldownUntil": "2026-10-04T13:00:00Z",
+      "parked": true,
+      "fingerprint": "f3",
+      "baseFingerprint": "b3",
+      "progressDigest": "d3"
+    }
+  },
+  "seen": {
+    "tickets": {
+      "ticket:a:q:t1": "r1"
+    },
+    "claims": {},
+    "lanes": {
+      "p": "m"
+    }
+  },
+  "progress": {
+    "ticket:a:q:t1": {
+      "current": "d1",
+      "seen": [
+        "d1"
+      ]
+    }
+  }
+}
+`
+
 // A configuration without a ladder leaves no escalation member, and a
-// dispatcher opened without one drops a stale record.
+// dispatcher opened without one drops a stale record: the state file stays
+// byte-identical to the pre-ladder encoding.
 func TestCALV0057_NoLadderKeepsLegacyLedger(t *testing.T) {
+	dir := t.TempDir()
+	encode := func(l *Ledger) string {
+		t.Helper()
+		if err := l.save(dir); err != nil {
+			t.Fatal(err)
+		}
+		raw, err := os.ReadFile(filepath.Join(dir, "state.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(raw)
+	}
+	var l Ledger
+	if err := json.Unmarshal([]byte(legacyLedger), &l); err != nil {
+		t.Fatal(err)
+	}
+	if got := encode(&l); got != legacyLedger {
+		t.Fatalf("ladder-free encoding differs from the pre-ladder bytes:\n%s", got)
+	}
+	l.Escalation = map[string]*EscalationState{"ticket:a:q:t1": {Streak: 4, Tiers: map[string]int{"impl": 1}}}
+	(&Dispatcher{Config: testConfig(t, "exit 0"), ledger: &l}).reconcileEscalation()
+	if got := encode(&l); got != legacyLedger {
+		t.Fatalf("stale record survived a ladder-free reconcile:\n%s", got)
+	}
+
 	c := testConfig(t, "exit 0")
 	q := &fakeQueue{obs: Observation{Tickets: []Ticket{ticket("t1", "P1", 1)}}}
-	dir := ProgramDir(c, "prog")
+	dir = ProgramDir(c, "prog")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}

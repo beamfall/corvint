@@ -775,8 +775,8 @@ derived from the installed CLI source and is not live-qualified; see
   executables, 1..32 roles, cap 1..64, priority 0..1000, idleSeconds 30..86400,
   wallSeconds 60..604800, cooldownSeconds 0..86400, parkAfter 1..100 and at most 256 pins.
   A role MAY name a base `model` (`[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,127}`) only when its host's argv
-  or env renders `{model}`, and a host that renders `{model}` MAY serve only roles that name one, so
-  an unsupported model configuration is refused rather than silently ignored. `escalate` (1..8 tiers
+  or env renders `{model}`, and a host whose argv, env or `activityPaths` renders `{model}` MAY serve
+  only roles that name one, so an unsupported model configuration is refused rather than silently ignored. `escalate` (1..8 tiers
   of `after`, `model`, optional `cap` and `notes`) and `deescalateOnProgress` (default true) require a
   base model and a match role; `after` is 1..100 and strictly increasing, each tier's model differs
   from the tier below, a tier `cap` is 0 (role cap only) or 1..role cap, and notes are at most
@@ -843,9 +843,13 @@ derived from the installed CLI source and is not live-qualified; see
   observed ticket, the streak of consecutive finished sessions without progress (counted from when a
   ladder is configured) and the tier each escalating role last launched at. Progress resets the
   streak to 0 and returns every role with `deescalateOnProgress` to its base model; a role with
-  `deescalateOnProgress: false` keeps its reached tier. An operator unpark does not reset the streak.
-  A launch uses the highest tier whose `after` is at most the streak, or the kept tier when higher.
-  A tier whose `after` is at least `parkAfter` is reached only after an operator unpark. Records are
+  `deescalateOnProgress: false` keeps its reached tier. Progress is a finished session with progress
+  or, for a backed-off key with no worker, a known fingerprint change between sessions, including a
+  newly admitted declared progress token (CAL-V0-064) that unparks it. An operator unpark is not
+  progress and does not reset the streak. A launch uses the highest tier whose `after` is at most
+  the streak, or the kept tier when higher. A tier whose `after` is at least `parkAfter` is reached
+  only by a launch after an operator unpark, because a state change that unparks the key resets the
+  streak. Records are
   dropped for tickets absent from the observation and, with no ladder configured, entirely.
   A `RETRY_EXHAUSTED` plan entry MUST NOT be readmitted by the dispatcher.
   It emits `needs-owner` naming `ticket reopen` (CAL-V0-043), because readmission is owner
@@ -885,8 +889,8 @@ Regression witnesses are the CAL-V0-052..058 tests in the traceability table: in
 `TestCALV0057_FingerprintIgnoresNonDurableAttempts` and `TestCALV0058_SummaryReadsHostFinalText`;
 for the issue 499 ladder, `TestCALV0052_EscalationConfigRefusesUnsupportedModels`,
 `TestCALV0054_RosterTierCapsWaitWithoutDowngrade`, `TestCALV0057_EscalationLadderClimbsAndResetsOnProgress`,
-`TestCALV0057_StickyTierAndOperatorUnparkKeepStreak`, `TestCALV0057_NoLadderKeepsLegacyLedger`
-and `TestCALV0057_LedgerEscalationIsBounded`, with `TestCALV0057_DispatchStatusShowsTierAndStreak`
+`TestCALV0057_StickyTierAndOperatorUnparkKeepStreak`, `TestCALV0057_ProgressOutsideSessionResetsLadder`,
+`TestCALV0057_NoLadderKeepsLegacyLedger` and `TestCALV0057_LedgerEscalationIsBounded`, with `TestCALV0057_DispatchStatusShowsTierAndStreak`
 in `internal/tasks/cli`; and
 `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`).
 
@@ -1294,7 +1298,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-054 | `TestCALV0054_RosterIsDeterministicAndCapped`, `TestCALV0054_RosterStatePredicatesAndLanes`, `TestCALV0054_RosterTierCapsWaitWithoutDowngrade` (`internal/tasks/dispatch`) |
 | CAL-V0-055 | `TestCALV0055_LaunchFinishBackoffAndPark` (`internal/tasks/dispatch`); live OpenCode run in `docs/build-log/2026-10-01-tasks-continuous-dispatch.md`; live Claude Code and Codex runs in `docs/build-log/2026-10-01-tasks-dispatch-claude-code.md` and `docs/build-log/2026-10-01-tasks-dispatch-codex.md` |
 | CAL-V0-056 | `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0056_KillsOrphanedProcessesBySession`, `TestCALV0056_IdentityOutageAndUnknownState` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
-| CAL-V0-057 | `TestCALV0057_FingerprintIgnoresNonDurableAttempts`, `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0057_EscalationLadderClimbsAndResetsOnProgress`, `TestCALV0057_StickyTierAndOperatorUnparkKeepStreak`, `TestCALV0057_NoLadderKeepsLegacyLedger`, `TestCALV0057_LedgerEscalationIsBounded` (`internal/tasks/dispatch`); `TestCALV0057_DispatchStatusShowsTierAndStreak` (`internal/tasks/cli`); live model-host qualification NOT_RUN |
+| CAL-V0-057 | `TestCALV0057_FingerprintIgnoresNonDurableAttempts`, `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0057_EscalationLadderClimbsAndResetsOnProgress`, `TestCALV0057_StickyTierAndOperatorUnparkKeepStreak`, `TestCALV0057_ProgressOutsideSessionResetsLadder`, `TestCALV0057_NoLadderKeepsLegacyLedger`, `TestCALV0057_LedgerEscalationIsBounded` (`internal/tasks/dispatch`); `TestCALV0057_DispatchStatusShowsTierAndStreak` (`internal/tasks/cli`); live model-host qualification NOT_RUN |
 | CAL-V0-058 | Event assertions in `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0058_SummaryReadsHostFinalText`, `TestCALV0057_EscalationLadderClimbsAndResetsOnProgress` (`internal/tasks/dispatch`) and `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
 | CAL-V0-059 | `TestCALV0059_CheckpointCodecAndDerivation` (`internal/tasks/journal`) |
 | CAL-V0-060 | `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`), including `pending`, which shares the lease audit with writers |

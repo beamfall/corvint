@@ -219,6 +219,7 @@ func (d *Dispatcher) Tick(ctx context.Context) error {
 		return ctx.Err()
 	}
 	for _, key := range unparked {
+		d.account(key, true)
 		d.emit(Event{Kind: "unparked", Ticket: key, Message: fmt.Sprintf("unparked %s because declared progress changed", d.keyText(key))})
 	}
 	d.finish(obs, ended, granted, pending)
@@ -699,8 +700,10 @@ type UnparkRequest struct {
 	Unpark string `json:"unpark"`
 }
 
-// unpark releases parked keys whose state changed and consumes operator
-// unpark requests.
+// unpark treats a known state change of a backed-off key with no worker as
+// progress made outside a session: it resets the key's ladder and releases
+// the key when parked. It also consumes operator unpark requests, which
+// release a key without resetting its ladder.
 func (d *Dispatcher) unpark(obs *Observation) {
 	keys := make([]string, 0, len(d.ledger.Backoff))
 	for k := range d.ledger.Backoff {
@@ -708,7 +711,12 @@ func (d *Dispatcher) unpark(obs *Observation) {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		if b := d.ledger.Backoff[k]; b.Parked && !stateUnknown(obs, k) && Fingerprint(obs, k) != b.Fingerprint {
+		b := d.ledger.Backoff[k]
+		if stateUnknown(obs, k) || Fingerprint(obs, k) == b.Fingerprint || d.busy(k) {
+			continue
+		}
+		d.account(k, true)
+		if b.Parked {
 			delete(d.ledger.Backoff, k)
 			d.emit(Event{Kind: "unparked", Ticket: ticketOf(k), Message: fmt.Sprintf("unparked %s because its state changed", d.keyText(k))})
 		}
@@ -979,6 +987,16 @@ func (d *Dispatcher) role(name string) *Role {
 		}
 	}
 	return nil
+}
+
+// busy reports a key with a worker in the ledger.
+func (d *Dispatcher) busy(key string) bool {
+	for _, w := range d.ledger.Workers {
+		if w.Key == key {
+			return true
+		}
+	}
+	return false
 }
 
 func (d *Dispatcher) worker(id string) *Worker {

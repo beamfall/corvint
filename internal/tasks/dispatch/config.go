@@ -301,11 +301,16 @@ func (c *Config) validateLadder(r Role) error {
 	for _, v := range h.Env {
 		uses = uses || strings.Contains(v, "{model}")
 	}
+	// An activity path can name the model but does not deliver it.
+	renders := uses
+	for _, p := range h.ActivityPaths {
+		renders = renders || strings.Contains(p, "{model}")
+	}
 	if r.Model == "" {
 		if len(r.Escalate) > 0 || r.DeescalateOnProgress != nil {
 			return fmt.Errorf("escalate and deescalateOnProgress need a base model")
 		}
-		if uses || strings.Contains(r.Prompt, "{model}") {
+		if renders || strings.Contains(r.Prompt, "{model}") {
 			return fmt.Errorf("uses a {model} placeholder but names no model")
 		}
 		return nil
