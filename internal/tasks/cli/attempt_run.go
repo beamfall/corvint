@@ -46,6 +46,18 @@ const (
 // attemptBeatInterval separates heartbeats while the command runs.
 var attemptBeatInterval = 240 * time.Second
 
+// Test-only fault injection; both are zero in production. attemptWriteFault,
+// when set, can fail a lease write of the named verb before it is attempted;
+// attemptGroupPrimitives replaces the owned group's host operations.
+var (
+	attemptWriteFault      func(verb string) error
+	attemptGroupPrimitives groupreap.Primitives
+)
+
+// runnerSignals end a started run through the group stop and outcome path
+// (ATR-V0-003). SIGKILL cannot be caught; see the spec's crash limit.
+var runnerSignals = []os.Signal{os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT}
+
 // attemptMode reports whether `run` names an attempt rather than a program.
 func attemptMode(args []string) bool {
 	for _, a := range args {
@@ -72,6 +84,11 @@ type attemptRunner struct {
 	seq        int
 	beats      int
 	renewals   int
+	// interrupt is the runner's own terminating signal, or 0.
+	interrupt int
+	// beatErrors counts heartbeat writes that failed without a refusal.
+	beatErrors int
+	lastBeat   error
 }
 
 type beatResult struct {
@@ -93,7 +110,9 @@ func attemptRun(env Env, args []string) int {
 		return emit(env.Stdout, &wire.Result{Command: cmd, Outcome: wire.OutcomeRefused, Codes: []string{wire.CodeUnsupported}, Warnings: []string{"attempt run needs an owned process group, which this platform does not provide; nothing was written or started"}})
 	}
 	interrupts := make(chan os.Signal, 1)
-	signal.Notify(interrupts, os.Interrupt, syscall.SIGTERM)
+	// Notify stays in force until return, so a further signal during cleanup
+	// or the outcome write is absorbed rather than killing the runner.
+	signal.Notify(interrupts, runnerSignals...)
 	defer signal.Stop(interrupts)
 	if code, res := r.prepare(); res != nil {
 		return emitCode(env.Stdout, res, code)
@@ -187,6 +206,11 @@ func (r *attemptRunner) nextID() string {
 }
 
 func (r *attemptRunner) leaseWrite(ctx context.Context, id, verb string, minutes uint64) (*store.Report, error) {
+	if attemptWriteFault != nil {
+		if err := attemptWriteFault(verb); err != nil {
+			return nil, err
+		}
+	}
 	lease := transaction.LeaseRequest{Verb: verb, AttemptID: r.attemptID, Generation: r.generation}
 	if verb == transaction.LeaseRenew {
 		lease.LeaseMinutes = wire.SizeOf(minutes)
@@ -200,15 +224,26 @@ func bounded() (context.Context, context.CancelFunc) {
 }
 
 // refusal is the closed code of a lease write that did not complete, or ""
-// when it completed.
+// when it completed. A refusal without a code (an unauthorized binding)
+// carries MALFORMED, as wire.CodeOf does for an uncoded error; FENCED is
+// reported only when the writer refused with it.
 func refusal(report *store.Report) string {
 	if report.Outcome.Outcome == mutation.OutcomeCompleted {
 		return ""
 	}
-	if report.Outcome.HasCode(wire.CodeFenced) || len(report.Outcome.Codes) == 0 {
+	if report.Outcome.HasCode(wire.CodeFenced) {
 		return wire.CodeFenced
 	}
+	if len(report.Outcome.Codes) == 0 {
+		return wire.CodeMalformed
+	}
 	return report.Outcome.Codes[0]
+}
+
+// beatFailed keeps a heartbeat write error as a warning (ATR-V0-006).
+func (r *attemptRunner) beatFailed(err error) {
+	r.beatErrors++
+	r.lastBeat = err
 }
 
 // prepare heartbeats, then renews only when the current lease does not cover
@@ -284,7 +319,7 @@ func (r *attemptRunner) execute(argv []string, interrupts <-chan os.Signal) tran
 	command.Dir = r.env.Cwd
 	command.Stdin, command.Stdout, command.Stderr = r.env.Stdin, r.env.Stderr, r.env.Stderr
 	command.WaitDelay = time.Second
-	owner, err := groupreap.Start(command)
+	owner, err := groupreap.StartWith(command, attemptGroupPrimitives)
 	if err != nil {
 		out.Class, out.EndedAt = transaction.RunSpawnFailed, string(nowStamp())
 		return out
@@ -306,8 +341,7 @@ func (r *attemptRunner) execute(argv []string, interrupts <-chan os.Signal) tran
 			trigger = transaction.RunTimeout
 		case sig := <-interrupts:
 			trigger = transaction.RunInterrupted
-			n := signalNumber(sig)
-			out.Signal = &n
+			r.interrupt = signalNumber(sig)
 		case <-ticker.C:
 			if !beating {
 				beating = true
@@ -323,7 +357,9 @@ func (r *attemptRunner) execute(argv []string, interrupts <-chan os.Signal) tran
 			beating = false
 			// A write error is not a refusal: the lease already covers the
 			// timeout and cleanup, so only a refused beat ends the run.
-			if b.err == nil {
+			if b.err != nil {
+				r.beatFailed(b.err)
+			} else {
 				if why := refusal(b.report); why != "" {
 					trigger = transaction.RunLostLease
 					out.LostLease = &why
@@ -340,7 +376,9 @@ func (r *attemptRunner) execute(argv []string, interrupts <-chan os.Signal) tran
 	result := owner.FinishBounded(groupreap.RetirementBound{Done: limit.Done()})
 	cancel()
 	if beating {
-		if b := <-beats; b.err == nil && refusal(b.report) == "" {
+		if b := <-beats; b.err != nil {
+			r.beatFailed(b.err)
+		} else if refusal(b.report) == "" {
 			r.beats++
 		}
 	}
@@ -351,13 +389,13 @@ func (r *attemptRunner) execute(argv []string, interrupts <-chan os.Signal) tran
 		return out
 	}
 	out.Cleanup = transaction.CleanupReleased
+	// The child's own status, never the runner's signal: an interrupted
+	// run's child usually dies from the group SIGKILL (ATR-V0-004).
 	var exit *exec.ExitError
 	if errors.As(result.WaitErr, &exit) {
 		if ws, ok := exit.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
-			if out.Signal == nil {
-				n := int(ws.Signal())
-				out.Signal = &n
-			}
+			n := int(ws.Signal())
+			out.Signal = &n
 		} else {
 			code := exit.ExitCode()
 			out.ExitCode = &code
@@ -367,13 +405,7 @@ func (r *attemptRunner) execute(argv []string, interrupts <-chan os.Signal) tran
 		out.ExitCode = &zero
 	}
 	if trigger == transaction.RunExit && out.Signal != nil {
-		out.Class, out.ExitCode = transaction.RunSignal, nil
-	}
-	if out.Class == transaction.RunInterrupted {
-		out.ExitCode = nil
-	}
-	if out.ExitCode != nil && out.Signal != nil {
-		out.ExitCode = nil
+		out.Class = transaction.RunSignal
 	}
 	return out
 }
@@ -392,7 +424,9 @@ func (r *attemptRunner) finish(out transaction.RunOutcome) int {
 		ctx, cancel := bounded()
 		report, err := r.leaseWrite(ctx, r.nextID(), transaction.LeaseHeartbeat, 0)
 		cancel()
-		if err == nil {
+		if err != nil {
+			r.beatFailed(err)
+		} else {
 			if why := refusal(report); why != "" {
 				out.Class, out.LostLease = transaction.RunLostLease, &why
 			} else {
@@ -405,6 +439,9 @@ func (r *attemptRunner) finish(out transaction.RunOutcome) int {
 	item := wire.NewObject()
 	receipt, digest := wire.Null(), wire.Null()
 	raw, err := transaction.EncodeRunOutcome(out)
+	if err == nil && attemptWriteFault != nil {
+		err = attemptWriteFault(transaction.LeaseRunOutcome)
+	}
 	if err == nil {
 		digest = wire.String(string(wire.Sum(raw)))
 		var report *store.Report
@@ -418,12 +455,15 @@ func (r *attemptRunner) finish(out transaction.RunOutcome) int {
 			receipt = wire.String(report.Receipt)
 		}
 	}
-	status := runStatus(out)
+	status := runStatus(out, r.interrupt)
+	if r.beatErrors > 0 {
+		res.Warnings = append(res.Warnings, prose(strconv.Itoa(r.beatErrors)+" heartbeat write(s) failed and were not retried; the lease covered the run before launch; last error: "+r.lastBeat.Error()))
+	}
 	switch out.Class {
 	case transaction.RunTimeout:
 		res.Outcome, res.Codes = wire.OutcomeRefused, []string{wire.CodeLimitExceeded}
 	case transaction.RunLostLease:
-		res.Outcome, res.Codes = wire.OutcomeRefused, []string{wire.CodeFenced}
+		res.Outcome, res.Codes = wire.OutcomeRefused, []string{*out.LostLease}
 	case transaction.RunInterrupted:
 		res.Outcome = wire.OutcomeRefused
 	case transaction.RunSpawnFailed:
@@ -448,9 +488,12 @@ func (r *attemptRunner) finish(out transaction.RunOutcome) int {
 	return emitCode(r.env.Stdout, res, status)
 }
 
-// runStatus maps a recorded class to the runner's exit status.
-func runStatus(out transaction.RunOutcome) int {
+// runStatus maps a recorded class to the runner's exit status; an
+// interrupted run reports the runner's own signal.
+func runStatus(out transaction.RunOutcome, interrupt int) int {
 	switch out.Class {
+	case transaction.RunInterrupted:
+		return 128 + interrupt
 	case transaction.RunCleanupHold:
 		return runExitCleanupHold
 	case transaction.RunLostLease:

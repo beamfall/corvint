@@ -57,7 +57,20 @@ LF and exactly these keys in this order: `profile`, `runId`, `attemptId`, `gener
 (null exactly for `SPAWN_FAILED`), `endedAt`, `class`, `exitCode`, `signal` (never both set),
 `cleanup` (`NOT_STARTED` exactly for `SPAWN_FAILED`, else `RELEASED` or `HOLD`), `heartbeats`,
 `renewals`, and `lostLease` (a closed code or null). Unknown keys, non-canonical bytes and
-contradictory facts refuse. Command output and exec errors are not native evidence.
+contradictory facts refuse as `MALFORMED`. Command output and exec errors are not native evidence.
+
+Class consistency (contradictory facts). `exitCode` is 0..255 and `signal` 1..127 when set; `endedAt`
+is not earlier than `startedAt`. A released group was reaped, so exactly one of `exitCode` and
+`signal` is known; `signal` is the signal the child died from, never the runner's own.
+
+| Class | `startedAt` | `cleanup` | `exitCode` / `signal` | `lostLease` |
+| --- | --- | --- | --- | --- |
+| `EXIT` | set | `RELEASED` | `exitCode` only | null |
+| `SIGNAL` | set | `RELEASED` | `signal` only | null |
+| `TIMEOUT`, `INTERRUPTED` | set | `RELEASED` | exactly one | null |
+| `LOST_LEASE` | set | `RELEASED` | exactly one | the refusal code |
+| `SPAWN_FAILED` | null | `NOT_STARTED` | neither | null |
+| `CLEANUP_HOLD` | set | `HOLD` | neither | null, or the refusal code that stopped the run |
 
 ## Exit status and envelope
 
@@ -69,9 +82,9 @@ envelope goes to stdout, as for every other verb except `archive export`.
 | Command exited | its status | `OK` |
 | Command killed by a signal it did not get from the runner | 128 + signal | `OK`, class `SIGNAL` |
 | Timeout | 124 | `REFUSED`, `LIMIT_EXCEEDED` |
-| Lost lease (pre-launch FENCED refusal, refused beat or final beat) | 125 | `REFUSED`, `FENCED` |
+| Lost lease (pre-launch FENCED refusal, refused beat or final beat) | 125 | `REFUSED` with the writer's refusal code (`FENCED`, `TICKET_STATE`, ...; `MALFORMED` for a refusal without a code); FENCED is never inferred |
 | Spawn failure | 126 | `ERROR`, `NOEXEC` |
-| Runner interrupted by SIGINT or SIGTERM | 128 + signal | `REFUSED` |
+| Runner interrupted by SIGINT, SIGTERM, SIGHUP or SIGQUIT | 128 + the runner's signal | `REFUSED`; `childSignal` is the child's own (usually 9, the group SIGKILL) |
 | Cleanup `HOLD` | 2 (outranks every other status) | `ERROR`, `SURVIVORS` |
 | Outcome not recorded after a released run | 127 | `ERROR` plus the write's code |
 | Usage, other pre-launch refusal, unsupported platform | 1 | `REFUSED`/`ERROR` |
@@ -88,12 +101,13 @@ from a runner status by `class`.
 | Attempt fenced, released or of another generation before launch | Heartbeat refused; exit 125 for `FENCED`, otherwise 1; nothing starts or is recorded (ATR-V0-002). |
 | Lease too short for the timeout | One renewal before launch; never shortens a longer lease (ATR-V0-002). |
 | Lease released or reaped while the command runs | Next heartbeat refused; group stopped and retired; `LOST_LEASE` recorded (ATR-V0-006). |
-| Heartbeat write error while running | Warning only; the up-front coverage still holds (ATR-V0-006). |
+| Heartbeat write error while running or at the final beat | One envelope warning with the count and last error; the up-front coverage still holds (ATR-V0-006). |
+| Further signal during cleanup or the outcome write | Absorbed: the runner keeps its handler until it returns, so cleanup and the outcome write finish (ATR-V0-003). |
 | Backgrounded descendant in the group | Killed with the group before cleanup is reported (ATR-V0-003). |
 | Descendant that left the group (for example `setsid`) or holds the output pipes | Not retired by this runner; output copying is bounded by a one-second `WaitDelay`. An explicit limit. |
 | Group cannot be confirmed retired within 10 seconds | `CLEANUP_HOLD`, exit 2; recorded as an observation, not as released (ATR-V0-003). |
 | Outcome write fails or is refused | Exit 127 (or 2 under `HOLD`); the command's status stays in the envelope; no native completion is implied (ATR-V0-005). |
-| Runner killed with SIGKILL, or host crash | No outcome is recorded and no quarantine marker exists in V0; the lease expires normally. An explicit limit. |
+| Runner killed with SIGKILL or otherwise crashed (panic, OOM kill) | The command's group is never signalled: it keeps running, unsupervised and past its timeout and lease, until it exits. No outcome is recorded and no quarantine marker exists in V0; the lease expires normally. A host crash ends both. An explicit limit. |
 
 ## Acceptance and rollback
 
@@ -113,8 +127,8 @@ applies only to stores that recorded none. No state is erased or rewritten.
 | --- | --- | --- |
 | ATR-V0-001 | `internal/tasks/cli/attempt_run.go` (`attemptMode`, `parseAttemptRun`), `internal/tasks/cli/cli.go` | TestATRV0001_UsageRefusesBeforeEffects, TestATRV0004_ExitStatusPassesThrough |
 | ATR-V0-002 | `internal/tasks/cli/attempt_run.go` (`prepare`, `covers`), `internal/tasks/store/attempt_run.go` (`AttemptRecord`) | TestATRV0002_RefusedAuthorityStartsNothing, TestATRV0002_RenewsOnlyWhenCoverageIsShort |
-| ATR-V0-003 | `internal/tasks/cli/attempt_run.go` (`execute`), `internal/groupreap/owner.go` | TestATRV0003_TimeoutRetiresDescendants |
-| ATR-V0-004 | `internal/tasks/cli/attempt_run.go` (`execute`, `finish`, `runStatus`) | TestATRV0004_ExitStatusPassesThrough, TestATRV0004_SignalAndSpawnClasses, TestATRV0004_InterruptStopsTheRun |
-| ATR-V0-005 | `internal/tasks/transaction/attempt_run.go` (`EncodeRunOutcome`, `DecodeRunOutcome`, `planRunOutcome`), `internal/tasks/transaction/lease.go`, `internal/tasks/store/attempt_run.go` (`RecordRunOutcome`) | TestATRV0005_OutcomeBindsItsAttemptGeneration, TestATRV0005_OutcomeDocumentIsClosed |
-| ATR-V0-006 | `internal/tasks/cli/attempt_run.go` (`execute`, `finish`) | TestATRV0006_LostLeaseKillsTheRun |
+| ATR-V0-003 | `internal/tasks/cli/attempt_run.go` (`attemptRun`, `execute`, `finish`, `runStatus`), `internal/groupreap/owner.go` | TestATRV0003_TimeoutRetiresDescendants, TestATRV0003_CleanupHoldOutranksStatus, TestATRV0004_HangupStopsTheRun, TestATRV0004_UnrecordedOutcomeExits127 |
+| ATR-V0-004 | `internal/tasks/cli/attempt_run.go` (`execute`, `finish`, `runStatus`) | TestATRV0004_ExitStatusPassesThrough, TestATRV0004_SignalAndSpawnClasses, TestATRV0004_InterruptStopsTheRun, TestATRV0004_HangupStopsTheRun, TestATRV0004_UnrecordedOutcomeExits127 |
+| ATR-V0-005 | `internal/tasks/transaction/attempt_run.go` (`EncodeRunOutcome`, `DecodeRunOutcome`, `runFactsDisagree`, `planRunOutcome`), `internal/tasks/transaction/lease.go`, `internal/tasks/store/attempt_run.go` (`RecordRunOutcome`) | TestATRV0005_OutcomeBindsItsAttemptGeneration, TestATRV0005_OutcomeDocumentIsClosed, TestATRV0005_OutcomeFactsAgree |
+| ATR-V0-006 | `internal/tasks/cli/attempt_run.go` (`execute`, `finish`) | TestATRV0006_LostLeaseKillsTheRun, TestATRV0006_HeartbeatWriteErrorWarns |
 | ATR-V0-007 | `internal/tasks/cli/attempt_run.go` (`attemptRun`), `internal/tasks/transaction/lease.go` (`planLease`) | NOT_PRODUCED: no test runs on a platform without the owned group API or against a supervised attempt |

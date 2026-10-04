@@ -1,3 +1,5 @@
+//go:build darwin || linux
+
 package cli_test
 
 import (
@@ -6,9 +8,11 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -271,7 +275,8 @@ func TestATRV0006_LostLeaseKillsTheRun(t *testing.T) {
 }
 
 // TestATRV0004_InterruptStopsTheRun: SIGTERM to the runner stops the group
-// and returns 128+15.
+// and returns 128+15; the outcome records the child's own death by the group
+// SIGKILL, not the runner's signal.
 func TestATRV0004_InterruptStopsTheRun(t *testing.T) {
 	root, a := attemptStore(t)
 	started := filepath.Join(t.TempDir(), "started")
@@ -283,8 +288,160 @@ func TestATRV0004_InterruptStopsTheRun(t *testing.T) {
 	if r.code != 128+15 || r.res.Outcome != wire.OutcomeRefused {
 		t.Fatalf("interrupt: code %d %+v", r.code, r.res)
 	}
-	if o := recordedOutcome(t, root, r); o.Class != transaction.RunInterrupted || o.Signal == nil || *o.Signal != 15 || o.ExitCode != nil {
+	if o := recordedOutcome(t, root, r); o.Class != transaction.RunInterrupted || o.Signal == nil || *o.Signal != 9 || o.ExitCode != nil {
 		t.Fatalf("interrupt outcome %+v", o)
+	}
+	if got := field(r.res.Items[0], "childSignal").Str; got != "9" {
+		t.Fatalf("childSignal %q, want the group SIGKILL", got)
+	}
+}
+
+// hangupEnv carries the root and argv of a runner subprocess.
+const hangupEnv = "ATR_HANGUP_RUNNER"
+
+// TestATRV0004_HangupStopsTheRun: SIGHUP to a runner process takes the same
+// group-stop and outcome path as SIGTERM: the runner exits 128+1, the owned
+// group is gone and the outcome is recorded.
+func TestATRV0004_HangupStopsTheRun(t *testing.T) {
+	if spec := os.Getenv(hangupEnv); spec != "" {
+		parts := strings.Split(spec, "\x1f")
+		var out bytes.Buffer
+		code := cli.Run(cli.Env{Cwd: parts[0], Args: parts[1:], Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: os.Stderr})
+		_, _ = os.Stdout.Write(out.Bytes())
+		os.Exit(code)
+	}
+	root, a := attemptStore(t)
+	dir := t.TempDir()
+	pidFile := filepath.Join(dir, "pid")
+	args := []string{root, "run", "--attempt", a.AttemptID, "--generation", gen(a), "--timeout", "60", "--", "/bin/sh", "-c", "echo $$ > " + pidFile + ".tmp && mv " + pidFile + ".tmp " + pidFile + "; sleep 60 & wait"}
+	runner := exec.Command(os.Args[0], "-test.run=^TestATRV0004_HangupStopsTheRun$")
+	runner.Env = append(os.Environ(), hangupEnv+"="+strings.Join(args, "\x1f"))
+	var out, errb bytes.Buffer
+	runner.Stdout, runner.Stderr = &out, &errb
+	// A surviving command holds the output pipes; do not wait for it.
+	runner.WaitDelay = 2 * time.Second
+	if err := runner.Start(); err != nil {
+		t.Fatal(err)
+	}
+	exited := make(chan error, 1)
+	go func() { exited <- runner.Wait() }()
+	group := 0
+	t.Cleanup(func() {
+		if t.Failed() && group > 0 {
+			_ = syscall.Kill(-group, syscall.SIGKILL)
+		}
+	})
+	for deadline := time.Now().Add(60 * time.Second); group == 0; time.Sleep(20 * time.Millisecond) {
+		if raw, err := os.ReadFile(pidFile); err == nil {
+			if group, err = strconv.Atoi(strings.TrimSpace(string(raw))); err != nil {
+				t.Fatal(err)
+			}
+		} else if time.Now().After(deadline) {
+			_ = runner.Process.Kill()
+			t.Fatalf("command never started\n%s", errb.Bytes())
+		}
+	}
+	if err := runner.Process.Signal(syscall.SIGHUP); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-exited:
+	case <-time.After(60 * time.Second):
+		_ = runner.Process.Kill()
+		t.Fatal("runner did not exit after SIGHUP")
+	}
+	for i := 0; ; i++ {
+		if err := syscall.Kill(-group, 0); errors.Is(err, syscall.ESRCH) {
+			break
+		}
+		if i > 200 {
+			t.Fatalf("command group %d survived the runner's SIGHUP (runner %s)\n%s", group, runner.ProcessState, errb.Bytes())
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	res, err := wire.DecodeResult(out.Bytes())
+	if err != nil {
+		t.Fatalf("envelope: %v (runner %s)\nstdout=%s\nstderr=%s", err, runner.ProcessState, out.Bytes(), errb.Bytes())
+	}
+	r := run{code: runner.ProcessState.ExitCode(), stdout: out.Bytes(), stderr: errb.Bytes(), res: res}
+	if r.code != 128+1 || r.res.Outcome != wire.OutcomeRefused {
+		t.Fatalf("hangup: code %d %+v", r.code, r.res)
+	}
+	if o := recordedOutcome(t, root, r); o.Class != transaction.RunInterrupted || o.Cleanup != transaction.CleanupReleased {
+		t.Fatalf("hangup outcome %+v", o)
+	}
+}
+
+// failVerb is a write fault that fails every write of verb with LOCK_TIMEOUT.
+func failVerb(verb string) func(string) error {
+	return func(v string) error {
+		if v == verb {
+			return wire.Errorf(wire.CodeLockTimeout, "attempt run", "injected %s write error", v)
+		}
+		return nil
+	}
+}
+
+// TestATRV0006_HeartbeatWriteErrorWarns: heartbeat write errors after launch
+// neither stop the command nor go unreported: the envelope carries one
+// warning and the outcome is recorded.
+func TestATRV0006_HeartbeatWriteErrorWarns(t *testing.T) {
+	root, a := attemptStore(t)
+	defer cli.SetAttemptBeatInterval(50 * time.Millisecond)()
+	var beats atomic.Int32
+	defer cli.SetAttemptWriteFault(func(verb string) error {
+		// The pre-launch heartbeat succeeds; every later one fails.
+		if verb == transaction.LeaseHeartbeat && beats.Add(1) > 1 {
+			return wire.Errorf(wire.CodeLockTimeout, "heartbeat", "injected heartbeat write error")
+		}
+		return nil
+	})()
+	r := runAttempt(t, root, a, gen(a), []string{"--timeout", "30"}, "/bin/sh", "-c", "sleep 1; exit 0")
+	if r.code != 0 || r.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("beat errors: code %d %+v", r.code, r.res)
+	}
+	if len(r.res.Warnings) != 1 || !strings.Contains(r.res.Warnings[0], "heartbeat write(s) failed") || !strings.Contains(r.res.Warnings[0], "injected heartbeat write error") {
+		t.Fatalf("warnings %q", r.res.Warnings)
+	}
+	if o := recordedOutcome(t, root, r); o.Class != transaction.RunExit || o.Heartbeats != 1 {
+		t.Fatalf("beat-error outcome %+v", o)
+	}
+}
+
+// TestATRV0004_UnrecordedOutcomeExits127: a released run whose outcome write
+// fails exits 127 with the write's code; the command's status stays in the
+// envelope and no receipt is claimed.
+func TestATRV0004_UnrecordedOutcomeExits127(t *testing.T) {
+	root, a := attemptStore(t)
+	defer cli.SetAttemptWriteFault(failVerb(transaction.LeaseRunOutcome))()
+	r := runAttempt(t, root, a, gen(a), []string{"--timeout", "30"}, "/bin/sh", "-c", "exit 3")
+	if r.code != 127 || r.res.Outcome != wire.OutcomeError || !hasCode(r.res, wire.CodeLockTimeout) {
+		t.Fatalf("unrecorded: code %d %+v", r.code, r.res)
+	}
+	item := r.res.Items[0]
+	if field(item, "class").Str != transaction.RunExit || field(item, "childExit").Str != "3" || field(item, "outcomeReceipt").Kind != wire.KindNull || field(item, "exitStatus").Str != "127" {
+		t.Fatalf("unrecorded item %+v", item)
+	}
+}
+
+// TestATRV0003_CleanupHoldOutranksStatus: a group whose retirement cannot be
+// proved is HOLD, exits 2 with SURVIVORS and is recorded; an unrecorded
+// outcome under HOLD still exits 2.
+func TestATRV0003_CleanupHoldOutranksStatus(t *testing.T) {
+	root, a := attemptStore(t)
+	defer cli.SetAttemptGroupSignalFault()()
+	r := runAttempt(t, root, a, gen(a), []string{"--timeout", "30"}, "/bin/sh", "-c", "exit 3")
+	if r.code != 2 || r.res.Outcome != wire.OutcomeError || !hasCode(r.res, wire.CodeSurvivors) {
+		t.Fatalf("hold: code %d %+v", r.code, r.res)
+	}
+	// No final heartbeat is sent under HOLD.
+	if o := recordedOutcome(t, root, r); o.Class != transaction.RunCleanupHold || o.Cleanup != transaction.CleanupHold || o.ExitCode != nil || o.Signal != nil || o.Heartbeats != 1 {
+		t.Fatalf("hold outcome %+v", o)
+	}
+	defer cli.SetAttemptWriteFault(failVerb(transaction.LeaseRunOutcome))()
+	r = runAttempt(t, root, a, gen(a), []string{"--timeout", "30"}, "/bin/sh", "-c", "exit 3")
+	if r.code != 2 || r.res.Outcome != wire.OutcomeError || !hasCode(r.res, wire.CodeSurvivors) || !hasCode(r.res, wire.CodeLockTimeout) {
+		t.Fatalf("unrecorded hold: code %d %+v", r.code, r.res)
 	}
 }
 

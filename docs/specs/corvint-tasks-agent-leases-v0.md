@@ -1088,6 +1088,7 @@ retain a compatible reader, never strip metadata, silently downgrade or rewrite 
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
+The experimental `RUN_OUTCOME` observation verb is amended in by `corvint-tasks-attempt-runner-v0.md` (ATR-V0-005), not here.
 
 - A18: CAL-V0-045 raises the admitted retry bound to 16 without changing legacy value-3
   semantics. CAL-V0-046 adds absent-only optional `handoffEvidence` to the closed attempt codec

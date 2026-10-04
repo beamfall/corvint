@@ -114,14 +114,56 @@ func DecodeRunOutcome(raw []byte) (*RunOutcome, error) {
 	if o.LostLease != nil && !wire.IsCode(*o.LostLease) {
 		return nil, malformed("run outcome lostLease is not a closed code")
 	}
-	started := o.StartedAt != nil
-	if started == (o.Class == RunSpawnFailed) || started == (o.Cleanup == CleanupNotStarted) {
-		return nil, malformed("run outcome start, class and cleanup disagree")
+	if o.TimeoutSeconds < 1 || o.Heartbeats < 0 || o.Renewals < 0 {
+		return nil, malformed("run outcome counters are out of range")
 	}
-	if o.TimeoutSeconds < 1 || o.Heartbeats < 0 || o.Renewals < 0 || o.ExitCode != nil && o.Signal != nil {
-		return nil, malformed("run outcome counters or status are out of range")
+	if why := runFactsDisagree(&o); why != "" {
+		return nil, malformed("run outcome facts disagree: " + why)
 	}
 	return &o, nil
+}
+
+// runFactsDisagree applies the spec's class consistency table (ATR-V0-005,
+// "Outcome document"); it names the first contradiction, or returns "".
+func runFactsDisagree(o *RunOutcome) string {
+	if (o.StartedAt != nil) == (o.Class == RunSpawnFailed) {
+		return "startedAt is null exactly for SPAWN_FAILED"
+	}
+	cleanup := CleanupReleased
+	switch o.Class {
+	case RunSpawnFailed:
+		cleanup = CleanupNotStarted
+	case RunCleanupHold:
+		cleanup = CleanupHold
+	}
+	if o.Cleanup != cleanup {
+		return "class " + o.Class + " requires cleanup " + cleanup
+	}
+	if o.ExitCode != nil && (*o.ExitCode < 0 || *o.ExitCode > 255) {
+		return "exitCode is outside 0..255"
+	}
+	if o.Signal != nil && (*o.Signal < 1 || *o.Signal > 127) {
+		return "signal is outside 1..127"
+	}
+	// A released group was reaped, so exactly one of exitCode and signal is
+	// known; an unstarted or held command has neither.
+	if cleanup == CleanupReleased && (o.ExitCode == nil) == (o.Signal == nil) {
+		return "class " + o.Class + " requires exactly one of exitCode and signal"
+	}
+	if cleanup != CleanupReleased && (o.ExitCode != nil || o.Signal != nil) {
+		return "class " + o.Class + " has neither exitCode nor signal"
+	}
+	if o.Class == RunExit && o.ExitCode == nil || o.Class == RunSignal && o.Signal == nil {
+		return "EXIT requires exitCode and SIGNAL requires signal"
+	}
+	if o.Class != RunCleanupHold && (o.LostLease != nil) != (o.Class == RunLostLease) {
+		return "lostLease is set exactly for LOST_LEASE (and may be set for CLEANUP_HOLD)"
+	}
+	// Timestamps are validated fixed-width UTC, so bytes order as instants.
+	if o.StartedAt != nil && o.EndedAt < *o.StartedAt {
+		return "endedAt is earlier than startedAt"
+	}
+	return ""
 }
 
 // planRunOutcome posts one outcome document for an attempt generation that
