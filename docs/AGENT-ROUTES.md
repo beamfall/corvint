@@ -131,11 +131,11 @@ pin Git identities when asserting evidence. A short answer must still expose an 
 
 ```sh
 nice -n 15 make spec-requirements-check requirement-definitions-check traceability-tests-check decision-numbers-check line-citations-check
-nice -n 15 env GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local go test -count=1 ./internal/specindex
 ```
 
-`internal/specindex` checks index/header/digest/README consistency; the Make targets check
-requirement locators, definitions, named tests, decision numbering and line-citation shape.
+`spec-requirements-check` checks requirement locators and runs `internal/specindex` for
+index/header/digest/README consistency. The other Make targets check definitions, named tests,
+decision numbering and line-citation shape.
 Neither proves link meaning, semantic agreement, owner acceptance or exhaustive OCM enumeration.
 After moving clauses, regenerate the TSV with `script/gen-spec-requirements.sh` and inspect its
 diff. Keep IDs and historical decisions stable. Full verification remains [Makefile](../Makefile)

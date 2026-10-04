@@ -1,0 +1,26 @@
+{
+  "profile": "corvint-394-qualification-summary/0",
+  "binding": "ceaaddaa9a323760cd605235789218282ddc8fe7",
+  "seal": "1a5d734a5076193810c103b7d4bf16e82f363213",
+  "cemSha256": "0a13c2e30f023f3a125decaf6854aa25d8025976e2c62cca2dda6209d843921d",
+  "finalPacketSha256": "b5d01a809b459171bc1cc9bd162fb79e71ade6d73e5d63a6393a477c529302d2",
+  "privateInventorySha256": "e5f9448e0a5cf4d0e9e0c4c16a2d243396990a7e8092a3ae8734dae2036e7d17",
+  "durableRoot": "/Users/russelllewis/projects/corvint/.corvint/test-evidence/394-post493-01",
+  "privateInventory": "394-post493-01-evidence-manifest.json",
+  "retentionState": "COPIED_AND_ALL_DESTINATION_HASHES_VERIFIED",
+  "fileCount": 161,
+  "bytes": 19457371,
+  "selectedChecks": 8,
+  "keyedEnrollmentRelativePath": "implementation-leaf/.git/corvint/local-completion/8fbe4ea4f31a428448961d3bef6c807491f3e42cb0f52662d5bbcda9188db58c/0f107d76b5bf2ff3c85db7b1f52b50305bd7ec36a006701ee7e6e9bee4c8b8cc-001",
+  "liveSummarySha256": "de61df0ccc4b5613775c0d1520f36f5f51ff08929c92107ca372a89457b5950e",
+  "markerSha256": "7644a70f74fb51b1dbe40735c09efdc01a63f5d7a55dee94f7e09b11af58abcf",
+  "limitations": [
+    "OCM 0/19 linked; all unassessed",
+    "post-seal keyed status stale; binding satisfaction and archived CEM verification separately retained",
+    "full make gate NOT_RUN",
+    "no new live run authorized by this follow-up"
+  ],
+  "retainedAt": "2026-10-04T02:10:06.829029+00:00",
+  "retentionReceipt": "RETENTION-RECEIPT.json",
+  "retentionReceiptSha256": "454b96cb5e91f95a4a055dc960df0da640ecc31133c23b5c1a8c6fe8e6caf774"
+}

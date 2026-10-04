@@ -21,6 +21,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
+	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -985,14 +986,23 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 		v, _ := rc.store.Inventory.View(id, ctx)
 		val := v.Value(includeRecord)
 		attempts := map[string]*snapshot.Attempt{}
+		var in transaction.PlanInput
 		if !rc.journalAbsent {
-			in, _, e := planInput(rc)
+			var e error
+			in, _, e = planInput(rc)
 			if e != nil {
 				return e
 			}
 			attempts = in.Attempts
 		}
 		val.Obj.Set("retries", retryObservation(rc, attempts, v.Record))
+		val.Obj.Set("claimabilityScope", wire.String("RECORDED_DEFAULT_EXTERNAL_AGENT_PLAN"))
+		if rc.journalAbsent {
+			val.Obj.Set("claimable", wire.Null()).Set("claimabilityReason", wire.String("NOT_OBSERVED"))
+		} else {
+			claimable, reason := transaction.RecordedClaimability(in, v.Record)
+			val.Obj.Set("claimable", claimable).Set("claimabilityReason", wire.String(reason))
+		}
 		item = &val
 		return nil
 	})
