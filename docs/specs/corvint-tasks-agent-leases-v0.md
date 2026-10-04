@@ -78,11 +78,12 @@ one.
 | S8 | CAL-V0-021..026 | Parallel claims: scoped claims, path-overlap collisions, scope enforcement, bounded lock hold |
 | S11 | CAL-V0-052..058 | `dispatch`: continuous roster, supervised host workers, handoff, reap, backoff and events |
 | S12 | CAL-V0-059..061 | Read cost independent of receipt history: one audit per read, resumed from a writer-retained checkpoint |
+| S13 | CAL-V0-062..063 | Policy-bounded supervised Codex effort and stage wall; focused tests, live Codex qualification NOT_RUN |
 | S14 | CAL-V0-064 | Proposed explicit command progress; original reviewed source and sealed evidence retained, current-main composition pending |
 | S15 | CAL-V0-065 | Opt-in explicit per-claim member exclusions; focused tests and a compiled native fixture |
 | S17 | CAL-V0-067 | Experimental operator-attested untouched release; scoped native/archive/crash fixtures passed, physical facts NOT_OBSERVED |
 
-CAL-V0-062/063 (S13, issue 456) and CAL-V0-064 (S14, issue 468) are reserved
+CAL-V0-062/063 are defined in S13 (issue 354). CAL-V0-064 (S14, issue 468) is reserved
 by coordinated unlanded work; CAL-V0-066/S16 remains reserved for issue 464 if used.
 The coordinator assigned CAL-V0-067/S17 to issue 479. This seed does not claim
 implementation or qualification of the new profile or any reserved slice.
