@@ -31,7 +31,13 @@ func oneOf(s, allowed string) bool {
 // optional key with no entry here, so a key the Tasks codec gains fails this
 // reader closed until it is validated.
 var optionalTicketMembers = map[string]func(v wire.Value, revision, acceptance uint64) error{
-	"requiresPool": func(v wire.Value, _, _ uint64) error { _, e := text(v); return e },
+	"requiresPool": func(v wire.Value, _, _ uint64) error {
+		if v.Kind != wire.KindString {
+			return errors.New("label required")
+		}
+		_, e := taskswire.ParseLabel("/requiresPool", v.Str)
+		return e
+	},
 	"requiredRoles": func(v wire.Value, _, _ uint64) error {
 		if e := object(v, "implement review integrate"); e != nil {
 			return e
@@ -41,9 +47,12 @@ var optionalTicketMembers = map[string]func(v wire.Value, revision, acceptance u
 			if e != nil || len(roles) == 0 {
 				return errors.New("stage roles")
 			}
-			for _, r := range roles {
+			for i, r := range roles {
 				if r.Kind != wire.KindString || !oneOf(r.Str, "BUILDER REVIEWER VERIFIER REPAIR DOCS") {
 					return errors.New("stage role")
+				}
+				if i > 0 && roles[i-1].Str >= r.Str {
+					return errors.New("unsorted/duplicate stage roles")
 				}
 			}
 		}
@@ -73,10 +82,11 @@ func ticketObject(v wire.Value) ([]string, error) {
 	return present, object(v, keys)
 }
 
-// escalationRefs checks the issue 502 reference shape (ESC-V0-002) and that
-// it names no control write or acceptance revision after the record's own.
-// Event chains and the open-question bound stay with the Tasks readers, which
-// hold the evidence blobs.
+// escalationRefs checks the issue 502 reference (ESC-V0-002) as far as the
+// record alone allows: its shape, the event/transaction capacity, the
+// current-acceptance OPEN bound, and that it names no control write or
+// acceptance revision after the record's own. Event chains stay with the Tasks
+// readers, which hold the evidence blobs.
 func escalationRefs(v wire.Value, revision, acceptance uint64) error {
 	if e := object(v, "revision lastControlTicketRevision workRevision entries"); e != nil {
 		return e
@@ -96,28 +106,60 @@ func escalationRefs(v wire.Value, revision, acceptance uint64) error {
 	if e != nil || len(entries) == 0 {
 		return errors.New("request count")
 	}
+	var total uint64
+	open := 0
 	for i, x := range entries {
 		if e = object(x, "requestId originSha256 headSha256 revision acceptanceRevision kind state"); e != nil {
 			return e
 		}
 		id := stringAt(x, "requestId")
-		if value(x, "requestId").Kind != wire.KindString || !identifier(id) || i > 0 && stringAt(entries[i-1], "requestId") >= id {
+		if value(x, "requestId").Kind != wire.KindString {
+			return errors.New("request identifier")
+		}
+		if _, e = taskswire.ParseIdentifier("/escalations/entries/requestId", id); e != nil {
+			return e
+		}
+		if i > 0 && stringAt(entries[i-1], "requestId") >= id {
 			return errors.New("unsorted/duplicate requests")
 		}
 		if !digest(stringAt(x, "originSha256")) || !digest(stringAt(x, "headSha256")) {
 			return errors.New("request digest")
 		}
-		if n, e := number(value(x, "revision"), 64); e != nil || n == 0 {
+		n, e := number(value(x, "revision"), 64)
+		if e != nil || n == 0 {
 			return errors.New("request history cap")
 		}
-		if n, e := number(value(x, "acceptanceRevision"), 2147483647); e != nil || n == 0 || n > acceptance {
+		total += n
+		a, e := number(value(x, "acceptanceRevision"), 2147483647)
+		if e != nil || a == 0 || a > acceptance {
 			return errors.New("request acceptance revision")
 		}
 		if !oneOf(stringAt(x, "kind"), "decision infrastructure scope blocked") || !oneOf(stringAt(x, "state"), "OPEN ANSWERED SUPERSEDED") {
 			return errors.New("request enum")
 		}
+		if stringAt(x, "state") == "OPEN" && a == acceptance {
+			open++
+		}
+	}
+	if total > 4096 || counts[0] > total || total > 2*counts[0] {
+		return errors.New("event/transaction capacity")
+	}
+	if open > taskswire.EscalationMaxCurrentOpen {
+		return errors.New("current OPEN request bound")
 	}
 	return nil
+}
+
+// escalationHeld reports a current OPEN decision, scope or blocked question,
+// the ESCALATION_PENDING derived hold (ESC-V0-006). Infrastructure questions
+// do not hold admission.
+func escalationHeld(t ticket) bool {
+	for _, x := range value(value(t.raw, "escalations"), "entries").Arr {
+		if stringAt(x, "state") == "OPEN" && stringAt(x, "acceptanceRevision") == t.revision && stringAt(x, "kind") != "infrastructure" {
+			return true
+		}
+	}
+	return false
 }
 func boolField(v wire.Value, k string) error {
 	if value(v, k).Kind != wire.KindBool {

@@ -15,9 +15,8 @@ const EscalationEventProfile = "taskman-escalation-event/0"
 const EscalationRequestProfile = "taskman-escalation-request/0"
 const EscalationMaxEventBytes = 65536
 
-// EscalationMaxCurrentOpen bounds the OPEN questions of the ticket's current
-// acceptance revision. Stale OPEN questions do not count toward it.
-const EscalationMaxCurrentOpen = 16
+// EscalationMaxCurrentOpen is the shared current-acceptance OPEN bound.
+const EscalationMaxCurrentOpen = wire.EscalationMaxCurrentOpen
 
 // EscalationSource identifies an immutable successful admission, not the latest
 // projection of an attempt (whose identifier may be reused across generations).

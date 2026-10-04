@@ -1,6 +1,7 @@
 package taskman
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -108,6 +109,15 @@ func TestIssue502_ReaderRefusesMalformedOptionalKeys(t *testing.T) {
 		{"bad digest", "request digest", func(v wire.Value) { setMember(entry(v, 0), "headSha256", str502("00")) }},
 		{"history cap", "history cap", func(v wire.Value) { setMember(entry(v, 0), "revision", str502("65")) }},
 		{"unknown state", "request enum", func(v wire.Value) { setMember(entry(v, 0), "state", str502("CLOSED")) }},
+		{"long pool", "label", func(v wire.Value) { setMember(v, "requiresPool", str502(strings.Repeat("p", 65))) }},
+		{"duplicate stage role", "stage roles", func(v wire.Value) {
+			setMember(value(v, "requiredRoles"), "review", wire.Value{Kind: wire.KindArray, Arr: []wire.Value{str502("REVIEWER"), str502("REVIEWER")}})
+		}},
+		{"unsorted stage roles", "stage roles", func(v wire.Value) {
+			setMember(value(v, "requiredRoles"), "review", wire.Value{Kind: wire.KindArray, Arr: []wire.Value{str502("VERIFIER"), str502("REVIEWER")}})
+		}},
+		{"events beyond requests", "capacity", func(v wire.Value) { setMember(esc(v), "revision", str502("100")) }},
+		{"seventeen current OPEN", "OPEN request bound", func(v wire.Value) { openEntries(v, 17) }},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -115,6 +125,88 @@ func TestIssue502_ReaderRefusesMalformedOptionalKeys(t *testing.T) {
 			c.edit(v)
 			if _, e := decodeTicket(v); e == nil || !strings.Contains(e.Error(), c.detail) {
 				t.Fatalf("decoded with %v; want a refusal naming %q", e, c.detail)
+			}
+		})
+	}
+}
+
+// openEntries replaces the fixture's questions with n current-acceptance OPEN
+// decision questions, one event each.
+func openEntries(v wire.Value, n int) {
+	esc := value(v, "escalations")
+	base := value(esc, "entries").Arr[1]
+	var arr []wire.Value
+	for i := 0; i < n; i++ {
+		x := wire.Value{Kind: wire.KindObject, Obj: &wire.Object{Values: map[string]wire.Value{}}}
+		for _, k := range base.Obj.Keys {
+			setMember(x, k, base.Obj.Values[k])
+		}
+		setMember(x, "requestId", str502(fmt.Sprintf("q-%02d", i)))
+		arr = append(arr, x)
+	}
+	setMember(esc, "entries", wire.Value{Kind: wire.KindArray, Arr: arr})
+	setMember(esc, "revision", str502(fmt.Sprint(n)))
+}
+
+// TestIssue502_ReaderMatchesCodecBounds: Core admits what the Tasks codec
+// admits at the boundaries the record alone decides: 16 current OPEN
+// questions, and identifiers the native Identifier rule accepts.
+func TestIssue502_ReaderMatchesCodecBounds(t *testing.T) {
+	v := issue502Record(t)
+	openEntries(v, taskswire.EscalationMaxCurrentOpen)
+	if _, e := decodeTicket(v); e != nil {
+		t.Fatalf("16 current OPEN refused: %v", e)
+	}
+	v = issue502Record(t)
+	setMember(value(value(v, "escalations"), "entries").Arr[1], "requestId", str502("q-2\u200d"))
+	if _, e := decodeTicket(v); e != nil {
+		t.Fatalf("native identifier refused: %v", e)
+	}
+}
+
+// TestIssue502_PlannerBlocksUnmodelledConstraints: the planner observes no
+// pools, roles or question answers, so a ticket requiring a pool or roles is
+// CAPABILITY_UNAVAILABLE and a current OPEN decision, scope or blocked question
+// holds it (ESC-V0-006). Infrastructure and stale questions do not hold it.
+func TestIssue502_PlannerBlocksUnmodelledConstraints(t *testing.T) {
+	fixture := issue502Record(t)
+	question := func(kind, acceptance string) func(*captured) {
+		return func(c *captured) {
+			esc := value(issue502Record(t), "escalations")
+			for _, x := range value(esc, "entries").Arr {
+				setMember(x, "kind", str502(kind))
+				setMember(x, "acceptanceRevision", str502(acceptance))
+			}
+			setMember(c.tickets[0].raw, "escalations", esc)
+		}
+	}
+	tests := []struct {
+		name, state, reason string
+		mutate              func(*captured)
+	}{
+		{"none", "SELECTED", "", func(*captured) {}},
+		{"pool", "BLOCKED", "CAPABILITY_UNAVAILABLE", func(c *captured) { setMember(c.tickets[0].raw, "requiresPool", value(fixture, "requiresPool")) }},
+		{"roles", "BLOCKED", "CAPABILITY_UNAVAILABLE", func(c *captured) { setMember(c.tickets[0].raw, "requiredRoles", value(fixture, "requiredRoles")) }},
+		{"decision", "BLOCKED", "TICKET_STATE", nil},
+		{"scope", "BLOCKED", "TICKET_STATE", nil},
+		{"blocked", "BLOCKED", "TICKET_STATE", nil},
+		{"infrastructure", "SELECTED", "", nil},
+		{"stale decision", "SELECTED", "", nil},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := testCapture(t)
+			switch {
+			case tc.mutate != nil:
+				tc.mutate(&c)
+			case tc.name == "stale decision":
+				question("decision", "999")(&c)
+			default:
+				question(tc.name, c.tickets[0].revision)(&c)
+			}
+			e := testPlan(t, c).Entries[0]
+			if e.State != tc.state || tc.reason != "" && e.Reason != tc.reason {
+				t.Fatalf("%s/%s; want %s/%s", e.State, e.Reason, tc.state, tc.reason)
 			}
 		})
 	}

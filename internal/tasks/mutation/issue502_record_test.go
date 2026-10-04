@@ -109,14 +109,22 @@ func TestIssue502_AdoptRefusesEscalationEdits(t *testing.T) {
 // requiresPool, so it refuses the file instead of dropping the key and
 // reporting the file adopted.
 func TestIssue502_AdoptRefusesUncomposedAddedKey(t *testing.T) {
-	canonical := fixture.Ticket("AT-01")
-	before := string(canonical.Encode())
-	file := fileOf(t, canonical, func(r *ticket.Record) { r.RequiresPool = "gpu" })
-	plan := adopt(t, newCtx(t, owner, nil, canonical), canonical, file)
-	want(t, plan, mutation.OutcomeValidationFailed, wire.CodeAdoptUnsupportedField)
-	stillDiverged(t, plan, canonical, before)
-	if !strings.Contains(plan.Detail, "requiresPool") {
-		t.Fatalf("detail %q does not name the key", plan.Detail)
+	roles := map[string][]string{"implement": {"BUILDER"}, "review": {"REVIEWER"}, "integrate": {"VERIFIER"}}
+	for key, edit := range map[string]func(*ticket.Record){
+		"requiresPool":  func(r *ticket.Record) { r.RequiresPool = "gpu" },
+		"requiredRoles": func(r *ticket.Record) { r.RequiredRoles = roles },
+	} {
+		t.Run(key, func(t *testing.T) {
+			canonical := fixture.Ticket("AT-01")
+			before := string(canonical.Encode())
+			file := fileOf(t, canonical, edit)
+			plan := adopt(t, newCtx(t, owner, nil, canonical), canonical, file)
+			want(t, plan, mutation.OutcomeValidationFailed, wire.CodeAdoptUnsupportedField)
+			stillDiverged(t, plan, canonical, before)
+			if !strings.Contains(plan.Detail, key) {
+				t.Fatalf("detail %q does not name the key", plan.Detail)
+			}
+		})
 	}
 }
 
