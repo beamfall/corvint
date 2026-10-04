@@ -1989,6 +1989,16 @@ PSM-V0-010	docs/specs/playwright-suite-interaction-minimizer-v0.md	70	Every tria
 PSM-V0-011	docs/specs/playwright-suite-interaction-minimizer-v0.md	72	Missing or invalid runner qualification (#39), stability identity (#42), or
 PSM-V0-012	docs/specs/playwright-suite-interaction-minimizer-v0.md	75	Synthetic qualification MUST cover a true predecessor leak, a load-only failure,
 PSM-V0-013	docs/specs/playwright-suite-interaction-minimizer-v0.md	78	The closed `corvint-playwright-suite-interaction-live/0` CLI MUST require
+PSR-V0-001	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	23	Optional `memberConfig[MEMBER].safeReuse` adds operator-owned reset argv, verify
+PSR-V0-002	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	25	`pool sweep [--member M] --request-id ID` is an OWNER/OPERATOR foreground mutati
+PSR-V0-003	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	27	The writer durably records exclusive command ownership bound to original allocat
+PSR-V0-004	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	29	Bounds: 1..900 seconds per member attempt, shared reset+verify deadline; maxAtte
+PSR-V0-005	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	31	Verification: reset requires exit0 and proved group cleanup; then verify must ex
+PSR-V0-006	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	33	Preserve existing allowlisted environment names; optional `env:"file:PATH"` name
+PSR-V0-007	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	35	Retain each phase's exit code or explicit unknown/signal class, stdout/stderr di
+PSR-V0-008	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	37	Only after reset+verify pass, evidence is durable and descendants are proved ret
+PSR-V0-009	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	39	Canonical caller request identity includes member selector and explicit total bu
+PSR-V0-010	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	41	Foreground CLI handler installs INT/TERM cancellation using signal.NotifyContext
 PT-V0-001	docs/specs/proof-tour-v0.md	60	The fresh tour MUST create a labelled disposable synthetic Git fixture in a new
 PT-V0-002	docs/specs/proof-tour-v0.md	66	The tour MUST execute actual installed Corvint query/context/impact/affected and
 PT-V0-003	docs/specs/proof-tour-v0.md	70	The producer MUST derive the exact documented canonical diff profile, use
