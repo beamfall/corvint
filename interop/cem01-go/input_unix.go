@@ -14,3 +14,11 @@ func openInputNonblocking(path string) (*os.File, error) {
 	}
 	return os.NewFile(uintptr(fd), path), nil
 }
+
+func openStableNoFollow(parent *os.Root, part string, directory bool) (*os.File, error) {
+	flags := os.O_RDONLY | syscall.O_NOFOLLOW | syscall.O_NONBLOCK | syscall.O_CLOEXEC
+	if directory {
+		flags |= syscall.O_DIRECTORY
+	}
+	return parent.OpenFile(part, flags, 0)
+}

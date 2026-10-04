@@ -44,7 +44,7 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   that runner's conventional test directories (`__tests__` for Jest; `cypress`, `playwright`, `e2e`,
   `spec`, `specs` for browser runners) test candidates even without configuration; the dependency
   alone assigns the unknown runner rather than silently classifying the file as source.
-- `TJAA-V0-004`: Vitest, Jest, AVA, `node:test`, Playwright Test, Bun test, Deno test, Cypress,
+- `TJAA-V0-004`: Vitest, Jest, AVA, Mocha, `node:test`, Playwright Test, Bun test, Deno test, Cypress,
   WebdriverIO, TestCafe, Nightwatch, Detox, legacy Storybook test-runner, and Storybook's Vitest
   addon MUST remain distinct runner identities. A Puppeteer import MUST identify browser automation,
   not invent a runner; its host runner remains authoritative.
@@ -80,7 +80,11 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   claimed covered. Rollback restores the frontier for every workspace-package import.
 - `TJAA-V0-006`: Owned framework config MUST be an affecting source unit for every governed test.
   Non-owned manifests/config and project, environment, loader, permission, browser, device, tag, or
-  setup values that this observer cannot reconstruct MUST remain unknown.
+  setup values that this observer cannot reconstruct MUST remain unknown. Recognized Mocha
+  `.mocharc.js`, `.cjs`, `.mjs`, `.json`, `.jsonc`, `.yaml` and `.yml` configurations and
+  manifest `mocha` configuration may identify the runner but retain a configuration frontier:
+  require/loader/spec inputs can broaden discovery. Mocha TypeScript and TSX execution
+  flags remain unknown; Chai alone, dependency-only and scripts-only evidence cannot select Mocha.
 - `TJAA-V0-007`: Multiple runners/configs that can own one physical test path MUST produce one
   `unknown` test unit plus an ambiguity frontier. The adapter MUST NOT choose a winner or emit two
   units that violate the seam's unique path ownership rule.
