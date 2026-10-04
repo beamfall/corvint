@@ -1360,34 +1360,34 @@ HDCV0-021	docs/specs/human-documentation-compiler-v0.md	733	Offline-plugin confi
 HDCV0-022	docs/specs/human-documentation-compiler-v0.md	738	Strict validation is the resolved MkDocs 1.6+ configuration plus the mandatory C
 HDCV0-023	docs/specs/human-documentation-compiler-v0.md	745	Every output clause MUST have a stable clause ID (1..256 bytes of UTF-8 with no
 HDCV0-024	docs/specs/human-documentation-compiler-v0.md	759	Authority is artifact-class-specific. An anchor `authority` is exactly
-HDCV0-025	docs/specs/human-documentation-compiler-v0.md	770	Tests and build output establish only the exact observed behavior at the pinned
-HDCV0-026	docs/specs/human-documentation-compiler-v0.md	776	Model-generated prose is a candidate transformation only. Each behavioral senten
-HDCV0-027	docs/specs/human-documentation-compiler-v0.md	781	The plan profile is `corvint-human-documentation-plan/0`. It is closed and conta
-HDCV0-028	docs/specs/human-documentation-compiler-v0.md	788	An operation is exactly `create_file`, `insert_after`, or `edit_nav`. It names o
-HDCV0-029	docs/specs/human-documentation-compiler-v0.md	801	P0 does not replace existing accepted prose. `edit_nav` under `HDCV0-030` is the
-HDCV0-030	docs/specs/human-documentation-compiler-v0.md	808	`edit_nav` MUST bind both the exact config-source bytes and the authority snapsh
-HDCV0-031	docs/specs/human-documentation-compiler-v0.md	814	The output root contains only `plan.json`, `proposal.patch`, `draft/`, `build/si
-HDCV0-032	docs/specs/human-documentation-compiler-v0.md	819	P0 MUST NOT expose an apply mode. It MUST perform no repository write, Git opera
-HDCV0-033	docs/specs/human-documentation-compiler-v0.md	826	The candidate snapshot MUST be created from the frozen manifest outside the repo
-HDCV0-034	docs/specs/human-documentation-compiler-v0.md	831	The build argv is an argument vector, never a shell string: the exact pinned MkD
-HDCV0-035	docs/specs/human-documentation-compiler-v0.md	836	Build environment is constructed from an allowlist, not inherited wholesale. It
-HDCV0-036	docs/specs/human-documentation-compiler-v0.md	842	One aggregate deadline covers identity probe, config authority load, candidate c
-HDCV0-037	docs/specs/human-documentation-compiler-v0.md	848	Exit zero is necessary but insufficient for `BUILD_STRICT_PASS`. Corvint MUST al
-HDCV0-038	docs/specs/human-documentation-compiler-v0.md	853	`OFFLINE_QUALIFIED=PASS` requires an independently identified external network-d
-HDCV0-039	docs/specs/human-documentation-compiler-v0.md	860	If executable JavaScript, custom templates, plugins, hooks, or extensions can co
-HDCV0-040	docs/specs/human-documentation-compiler-v0.md	866	The receipt profile is `corvint-human-documentation-receipt/0`. It MUST bind the
-HDCV0-041	docs/specs/human-documentation-compiler-v0.md	872	Canonical JSON is valid UTF-8: exactly one JSON value, no insignificant whitespa
-HDCV0-042	docs/specs/human-documentation-compiler-v0.md	883	Receipt limits, failures, `NOT_RUN`, `NOT_OBSERVED`, `UNKNOWN`, contradictions,
-HDCV0-043	docs/specs/human-documentation-compiler-v0.md	944	Unit and conformance suites MUST cover canonical plan/receipt bytes, closed sche
-HDCV0-044	docs/specs/human-documentation-compiler-v0.md	951	Config hostility MUST cover duplicate keys, tags, aliases, merges, recursive and
-HDCV0-045	docs/specs/human-documentation-compiler-v0.md	956	Material fixtures MUST cover minimal `theme.name: material`; exact `site_url`; a
-HDCV0-046	docs/specs/human-documentation-compiler-v0.md	962	Process hostility MUST cover pre-cancellation, timeout, endless stdout/stderr, o
-HDCV0-047	docs/specs/human-documentation-compiler-v0.md	968	Evidence hostility MUST cover stale Git blobs, dirty sources, out-of-range and o
-HDCV0-048	docs/specs/human-documentation-compiler-v0.md	972	Offline/privacy hostility MUST include a local network canary reached by a plugi
-HDCV0-049	docs/specs/human-documentation-compiler-v0.md	977	Verification for implementation promotion MUST pass focused Go tests after each
-HDCV0-050	docs/specs/human-documentation-compiler-v0.md	984	The first real delivery evidence MUST use a Corvint-contained Material corpus an
-HDCV0-051	docs/specs/human-documentation-compiler-v0.md	989	The implementation core and optional CLI MUST use Go 1.27 and its standard libra
-HDCV0-052	docs/specs/human-documentation-compiler-v0.md	995	Machine failures use exactly one primary code from `INVALID_REQUEST`,
+HDCV0-025	docs/specs/human-documentation-compiler-v0.md	779	Tests and build output establish only the exact observed behavior at the pinned
+HDCV0-026	docs/specs/human-documentation-compiler-v0.md	785	Model-generated prose is a candidate transformation only. Each behavioral senten
+HDCV0-027	docs/specs/human-documentation-compiler-v0.md	790	The plan profile is `corvint-human-documentation-plan/0`. It is closed and conta
+HDCV0-028	docs/specs/human-documentation-compiler-v0.md	797	An operation is exactly `create_file`, `insert_after`, or `edit_nav`. It names o
+HDCV0-029	docs/specs/human-documentation-compiler-v0.md	810	P0 does not replace existing accepted prose. `edit_nav` under `HDCV0-030` is the
+HDCV0-030	docs/specs/human-documentation-compiler-v0.md	817	`edit_nav` MUST bind both the exact config-source bytes and the authority snapsh
+HDCV0-031	docs/specs/human-documentation-compiler-v0.md	823	The output root contains only `plan.json`, `proposal.patch`, `draft/`, `build/si
+HDCV0-032	docs/specs/human-documentation-compiler-v0.md	828	P0 MUST NOT expose an apply mode. It MUST perform no repository write, Git opera
+HDCV0-033	docs/specs/human-documentation-compiler-v0.md	835	The candidate snapshot MUST be created from the frozen manifest outside the repo
+HDCV0-034	docs/specs/human-documentation-compiler-v0.md	840	The build argv is an argument vector, never a shell string: the exact pinned MkD
+HDCV0-035	docs/specs/human-documentation-compiler-v0.md	845	Build environment is constructed from an allowlist, not inherited wholesale. It
+HDCV0-036	docs/specs/human-documentation-compiler-v0.md	851	One aggregate deadline covers identity probe, config authority load, candidate c
+HDCV0-037	docs/specs/human-documentation-compiler-v0.md	857	Exit zero is necessary but insufficient for `BUILD_STRICT_PASS`. Corvint MUST al
+HDCV0-038	docs/specs/human-documentation-compiler-v0.md	862	`OFFLINE_QUALIFIED=PASS` requires an independently identified external network-d
+HDCV0-039	docs/specs/human-documentation-compiler-v0.md	869	If executable JavaScript, custom templates, plugins, hooks, or extensions can co
+HDCV0-040	docs/specs/human-documentation-compiler-v0.md	875	The receipt profile is `corvint-human-documentation-receipt/0`. It MUST bind the
+HDCV0-041	docs/specs/human-documentation-compiler-v0.md	881	Canonical JSON is valid UTF-8: exactly one JSON value, no insignificant whitespa
+HDCV0-042	docs/specs/human-documentation-compiler-v0.md	892	Receipt limits, failures, `NOT_RUN`, `NOT_OBSERVED`, `UNKNOWN`, contradictions,
+HDCV0-043	docs/specs/human-documentation-compiler-v0.md	953	Unit and conformance suites MUST cover canonical plan/receipt bytes, closed sche
+HDCV0-044	docs/specs/human-documentation-compiler-v0.md	960	Config hostility MUST cover duplicate keys, tags, aliases, merges, recursive and
+HDCV0-045	docs/specs/human-documentation-compiler-v0.md	965	Material fixtures MUST cover minimal `theme.name: material`; exact `site_url`; a
+HDCV0-046	docs/specs/human-documentation-compiler-v0.md	971	Process hostility MUST cover pre-cancellation, timeout, endless stdout/stderr, o
+HDCV0-047	docs/specs/human-documentation-compiler-v0.md	977	Evidence hostility MUST cover stale Git blobs, dirty sources, out-of-range and o
+HDCV0-048	docs/specs/human-documentation-compiler-v0.md	981	Offline/privacy hostility MUST include a local network canary reached by a plugi
+HDCV0-049	docs/specs/human-documentation-compiler-v0.md	986	Verification for implementation promotion MUST pass focused Go tests after each
+HDCV0-050	docs/specs/human-documentation-compiler-v0.md	993	The first real delivery evidence MUST use a Corvint-contained Material corpus an
+HDCV0-051	docs/specs/human-documentation-compiler-v0.md	998	The implementation core and optional CLI MUST use Go 1.27 and its standard libra
+HDCV0-052	docs/specs/human-documentation-compiler-v0.md	1004	Machine failures use exactly one primary code from `INVALID_REQUEST`,
 HDCV0-CAP-001	docs/specs/human-documentation-compiler-v0.md	263	`corvint-human-documentation-request/0` remains the request profile. Its
 HDCV0-CAP-002	docs/specs/human-documentation-compiler-v0.md	309	The request additionally binds the existing repository/config/intent/output/limi
 HDCV0-CAP-003	docs/specs/human-documentation-compiler-v0.md	319	Admission requires a native Linux host, kernel 5.12 or newer, systemd exactly 26

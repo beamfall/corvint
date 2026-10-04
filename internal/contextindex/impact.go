@@ -516,6 +516,24 @@ func documentAuthority(record Record) (authority, confidence string) {
 	return authority, confidence
 }
 
+// AcceptedIntentDocument reports whether text, read from source, is
+// project-owned accepted intent under documentAuthority: an instructions file,
+// or a spec or decision whose own status binds (HDCV0-024).
+func AcceptedIntentDocument(source Source, text string) bool {
+	record, ok := documentRecord(source, text, nil)
+	if !ok {
+		return false
+	}
+	authority, _ := documentAuthority(record)
+	return authority == "project-instructions" || authority == "accepted-decision" || authority == "accepted-spec"
+}
+
+// IsTestPath reports whether a repository path names a test by the same rule
+// impact uses to select tests.
+func IsTestPath(value string) bool {
+	return isTestPath(value)
+}
+
 func documentResult(index *Index, record Record, score int, reason string) map[string]any {
 	status, _ := record.Fields["status"].(string)
 	authority, confidence := documentAuthority(record)
