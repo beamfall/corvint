@@ -11,3 +11,8 @@ var TicketRecordKeys = []string{
 	"estimateMinutes", "supersedes", "supersededBy", "shadowOverlay", "createdAt", "updatedAt",
 	"updatedBy",
 }
+
+// TicketRecordOptionalKeys are the taskman-ticket/0 record keys a record may
+// omit. The native codec and Core's read-only planner both admit exactly
+// these, so a new optional key cannot reach one reader and not the other.
+var TicketRecordOptionalKeys = []string{"requiresPool", "requiredRoles", "escalations"}

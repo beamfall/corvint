@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
@@ -24,6 +25,100 @@ func oneOf(s, allowed string) bool {
 	}
 	return false
 }
+
+// optionalTicketMembers validates each record key a ticket may omit, given the
+// record's revision and acceptance revision. ticketObject refuses a shared
+// optional key with no entry here, so a key the Tasks codec gains fails this
+// reader closed until it is validated.
+var optionalTicketMembers = map[string]func(v wire.Value, revision, acceptance uint64) error{
+	"requiresPool": func(v wire.Value, _, _ uint64) error { _, e := text(v); return e },
+	"requiredRoles": func(v wire.Value, _, _ uint64) error {
+		if e := object(v, "implement review integrate"); e != nil {
+			return e
+		}
+		for _, stage := range []string{"implement", "review", "integrate"} {
+			roles, e := array(value(v, stage), 1024)
+			if e != nil || len(roles) == 0 {
+				return errors.New("stage roles")
+			}
+			for _, r := range roles {
+				if r.Kind != wire.KindString || !oneOf(r.Str, "BUILDER REVIEWER VERIFIER REPAIR DOCS") {
+					return errors.New("stage role")
+				}
+			}
+		}
+		return nil
+	},
+	"escalations": escalationRefs,
+}
+
+// ticketObject checks the closed ticket record object and returns the
+// optional members it carries.
+func ticketObject(v wire.Value) ([]string, error) {
+	if v.Kind != wire.KindObject {
+		return nil, errors.New("object required")
+	}
+	keys := ticketKeys
+	var present []string
+	for _, k := range taskswire.TicketRecordOptionalKeys {
+		if _, ok := v.Obj.Values[k]; !ok {
+			continue
+		}
+		if optionalTicketMembers[k] == nil {
+			return nil, fmt.Errorf("unsupported optional member %s", k)
+		}
+		present = append(present, k)
+		keys += " " + k
+	}
+	return present, object(v, keys)
+}
+
+// escalationRefs checks the issue 502 reference shape (ESC-V0-002) and that
+// it names no control write or acceptance revision after the record's own.
+// Event chains and the open-question bound stay with the Tasks readers, which
+// hold the evidence blobs.
+func escalationRefs(v wire.Value, revision, acceptance uint64) error {
+	if e := object(v, "revision lastControlTicketRevision workRevision entries"); e != nil {
+		return e
+	}
+	var counts [3]uint64
+	for i, k := range []string{"revision", "lastControlTicketRevision", "workRevision"} {
+		n, e := number(value(v, k), 2147483647)
+		if e != nil || n == 0 {
+			return errors.New("positive revision required")
+		}
+		counts[i] = n
+	}
+	if counts[2] >= counts[1] || counts[1] > revision {
+		return errors.New("work/control revision")
+	}
+	entries, e := array(value(v, "entries"), 64)
+	if e != nil || len(entries) == 0 {
+		return errors.New("request count")
+	}
+	for i, x := range entries {
+		if e = object(x, "requestId originSha256 headSha256 revision acceptanceRevision kind state"); e != nil {
+			return e
+		}
+		id := stringAt(x, "requestId")
+		if value(x, "requestId").Kind != wire.KindString || !identifier(id) || i > 0 && stringAt(entries[i-1], "requestId") >= id {
+			return errors.New("unsorted/duplicate requests")
+		}
+		if !digest(stringAt(x, "originSha256")) || !digest(stringAt(x, "headSha256")) {
+			return errors.New("request digest")
+		}
+		if n, e := number(value(x, "revision"), 64); e != nil || n == 0 {
+			return errors.New("request history cap")
+		}
+		if n, e := number(value(x, "acceptanceRevision"), 2147483647); e != nil || n == 0 || n > acceptance {
+			return errors.New("request acceptance revision")
+		}
+		if !oneOf(stringAt(x, "kind"), "decision infrastructure scope blocked") || !oneOf(stringAt(x, "state"), "OPEN ANSWERED SUPERSEDED") {
+			return errors.New("request enum")
+		}
+	}
+	return nil
+}
 func boolField(v wire.Value, k string) error {
 	if value(v, k).Kind != wire.KindBool {
 		return errors.New("boolean required")
@@ -32,7 +127,8 @@ func boolField(v wire.Value, k string) error {
 }
 func decodeTicket(v wire.Value) (ticket, error) {
 	t := ticket{raw: v, id: stringAt(v, "ticketId"), revision: stringAt(v, "acceptanceRevision"), status: stringAt(v, "status"), priority: stringAt(v, "priority")}
-	if e := object(v, ticketKeys); e != nil {
+	present, e := ticketObject(v)
+	if e != nil {
 		return t, e
 	}
 	if stringAt(v, "profile") != "taskman-ticket/0" || !strings.HasPrefix(t.id, "ticket:") {
@@ -45,6 +141,11 @@ func decodeTicket(v wire.Value) (ticket, error) {
 	chain, e := number(value(v, "revision"), 2147483647)
 	if e != nil || chain < rev {
 		return t, errors.New("ticket revision")
+	}
+	for _, k := range present {
+		if e = optionalTicketMembers[k](value(v, k), chain, rev); e != nil {
+			return t, fmt.Errorf("%s: %w", k, e)
+		}
 	}
 	t.order, e = number(value(v, "order"), 2147483647)
 	if e != nil {

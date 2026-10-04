@@ -22,6 +22,7 @@ const AdoptOperation = "ADOPT_FILE"
 var AdoptProtectedFields = []string{
 	"status", "archivedFrom", "completion", "approvals", "revision", "acceptanceRevision",
 	"previousRecordSha256", "source", "shadowOverlay", "supersededBy", "createdAt", "updatedBy",
+	"escalations",
 }
 
 // adoptIgnoredFields are compared neither for difference nor for coverage:
@@ -167,12 +168,13 @@ func derivableStatus(status string) bool {
 	return status == ticket.StatusDraft || status == ticket.StatusOpen || status == ticket.StatusHeld
 }
 
-// differingFields compares every record key by canonical bytes.
+// differingFields compares every record key by canonical bytes, including
+// an optional key present on only one side.
 func differingFields(a, b *ticket.Record) map[string]bool {
 	ao := a.Value().Obj
 	bo := b.Value().Obj
 	out := map[string]bool{}
-	for _, k := range ao.SortedKeys() {
+	for _, k := range unionKeys(ao, bo) {
 		av, _ := ao.Get(k)
 		bv, _ := bo.Get(k)
 		if !wire.Equal(av, bv) {
@@ -180,6 +182,16 @@ func differingFields(a, b *ticket.Record) map[string]bool {
 		}
 	}
 	return out
+}
+
+func unionKeys(a, b *wire.Object) []string {
+	keys := a.SortedKeys()
+	for _, k := range b.SortedKeys() {
+		if _, ok := a.Get(k); !ok {
+			keys = append(keys, k)
+		}
+	}
+	return keys
 }
 
 // composeAdopt maps the differing fields onto operations in the fixed §3.3
@@ -307,7 +319,7 @@ func holdValue(h ticket.Hold) wire.Value {
 func adoptCovered(canonical, work, file *ticket.Record) *refusal {
 	wo := work.Value().Obj
 	fo := file.Value().Obj
-	for _, k := range wo.SortedKeys() {
+	for _, k := range unionKeys(wo, fo) {
 		if adoptIgnoredFields[k] || k == "holds" || k == "status" {
 			continue
 		}
