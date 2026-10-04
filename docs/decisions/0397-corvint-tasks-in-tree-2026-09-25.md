@@ -91,13 +91,14 @@ test alone does not qualify the artifact. The full companion release remains sep
 
 ## Issue 464 addendum — dispatcher process-group Owner
 
-Agent decision, 2026-10-04, under the owner's goal of landing the open ticket work; it is flagged
-for owner review on the #464 pull request and is not a direct owner statement.
+Proposed as an agent decision on 2026-10-04 under the owner's goal of landing the open ticket
+work. The owner approved it the same day ("Admit dispatch + #481 runner", 2026-10-04), together
+with the #481 attempt-runner edge below.
 `docs/specs/process-group-owner-v0.md` names #464 (native V1-0654) as a consumer of the Owner in
 `internal/groupreap` and says reimplementation is unnecessary. Core's `cem/gitrun` also uses that
 package, so it cannot move under `internal/tasks/`. Rule 2 therefore gains one more exact edge:
 `internal/tasks/dispatch` may import `internal/groupreap`, which imports only the Go standard
-library. No other Tasks package may import it, and no other Core edge is admitted.
+library. No other Tasks package may import it except the two #481 files admitted below, and no other Core edge is admitted.
 `TestImportViolationControls` keeps negative controls for `internal/groupreap` imported from
 another Tasks package and for another Core package imported from `internal/tasks/dispatch`.
 Rule 5's source-archive subset adds `internal/groupreap` so the exported tarball still rebuilds
@@ -112,3 +113,18 @@ admitted contextindex edge, not a new Tasks import edge; rule 2 is unchanged. Ru
 subset adds `internal/cem/cemcode` and `internal/cem/gitrun` so the exported tarball still rebuilds
 offline (`TestCurrentTasksSourceArchiveBuildsOffline`). Rollback is removing these two prefixes
 together with the contextindex change that needs them.
+
+## Issue 481 addendum — attempt-runner process-group Owner
+
+Owner decision, 2026-10-04: the owner approved the attempt-runner `internal/groupreap` edge in the
+same statement and directed that the import-direction exception be applied on 2026-10-04. The
+experimental attempt runner (`docs/specs/corvint-tasks-attempt-runner-v0.md`, issue #481, native
+V1-0677) starts its command through the same Owner. Rule 2 gains one more exact edge, limited to
+two files: `internal/tasks/cli/attempt_run.go` and `internal/tasks/cli/attempt_run_test.go` may
+import `internal/groupreap`. The rest of `internal/tasks/cli` stays refused, and these files admit
+no other Core package. `TestImportViolationControls` keeps negative controls for another cli file
+importing `internal/groupreap` and for another Core package imported from the admitted files, and
+positive controls for the two admitted edges. Rule 5 needs no change because `internal/groupreap`
+is already in the source-archive subset. This approves the boundary only; the attempt-runner
+profile stays experimental. Rollback is reverting the attempt runner and removing this two-file
+edge; the #464 edge and the archive prefix stay.

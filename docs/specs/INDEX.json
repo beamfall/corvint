@@ -642,6 +642,25 @@
     ]
   },
   {
+    "path": "docs/specs/corvint-tasks-attempt-runner-v0.md",
+    "title": "Corvint Tasks attempt runner V0",
+    "reqPrefix": "ATR-V0",
+    "intent": "proposed (owner issue 481; technical profile not owner-accepted)",
+    "delivery": "experimental",
+    "claim": "An experimental attempt runner keeps an externally leased attempt's heartbeat current, retires its owned process group and records an observational outcome.",
+    "dependsOn": [
+      "docs/specs/corvint-tasks-agent-leases-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/groupreap",
+      "internal/tasks/cli",
+      "internal/tasks/store",
+      "internal/tasks/transaction"
+    ]
+  },
+  {
     "path": "docs/specs/corvint-tasks-pool-safe-reuse-v0.md",
     "title": "Corvint Tasks pool safe reuse V0",
     "reqPrefix": "PSR-V0",

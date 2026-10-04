@@ -152,6 +152,7 @@ func init() {
 	for _, verb := range []string{"run", "admit", "resume", "retry", "drain", "cancel", "answer"} {
 		commandUsage[verb] = "corvint-tasks " + verb + " --program ID --config FILE [--role implementer|reviewer|integrator] [--count N] [--ticket ID] [--host codex] [--grant FILE] [--question SHA256] [--revision N] [--answer TEXT]"
 	}
+	commandUsage["run"] += "; corvint-tasks run --attempt ID --generation G --timeout SECONDS [--lease-minutes N] [--role ROLE] -- COMMAND..."
 }
 
 func helpFlags(o *wire.Object, key string) []string {
