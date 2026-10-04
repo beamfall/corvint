@@ -3,13 +3,13 @@
 Owner: Russell Lewis
 Date: 2026-10-03
 Intent status: proposed extraction of existing owner-authorized repair semantics
-Delivery status: experimental; source extracted, terminal binding and integration pending
+Delivery status: experimental
 
 ## Agent digest
-
 - Claim: An optional process-group Owner preserves leader identity through retirement and reports unproved cleanup as HOLD.
-- Scope: Exact six-file Owner extraction from public PR443 head f3fba61ba0a4b0192e89a0ad9f1128c021ae5da9; no caller or legacy Wait/Run changes.
-- Authority: V1-0668 accepted repair criteria and prior explicit repair grant; this extraction does not claim new human acceptance or broaden that grant.
+- Status: proposed extraction of existing owner-authorized repair semantics; experimental.
+- Exists: Exact reviewed six-file Owner extraction from public PR443 head f3fba61ba0a4b0192e89a0ad9f1128c021ae5da9; no caller or legacy Wait/Run changes.
+- Blocked on: Hosted amd64 qualification, integration and full V1-0668 acceptance; existing repair authority does not imply new human acceptance.
 - Read next: Requirements, Acceptance evidence, Rollout and rollback.
 
 ## Owner context and current state
