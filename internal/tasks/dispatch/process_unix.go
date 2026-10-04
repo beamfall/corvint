@@ -255,3 +255,8 @@ func busyChild(w *Worker, procs map[int]proc, ignore []string) bool {
 	}
 	return false
 }
+
+// openReaderMarker refuses symlinks and cannot block on a raced FIFO.
+func openReaderMarker(path string) (*os.File, error) {
+	return os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+}
