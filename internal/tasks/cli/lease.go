@@ -45,6 +45,7 @@ type leaseArgs struct {
 	excluded      []string
 	whole         bool
 	next          bool
+	timing        bool
 	pos           []string
 }
 
@@ -69,6 +70,8 @@ func parseLeaseArgs(args []string) (leaseArgs, error) {
 			out.whole = true
 		case a == "--next":
 			out.next = true
+		case a == "--timing":
+			out.timing = true
 		case a == "--exclude-member":
 			if i+1 >= len(args) || args[i+1] == "" || strings.HasPrefix(args[i+1], "--") {
 				return out, wire.Errorf(wire.CodeMalformed, "argv", "--exclude-member needs one nonempty member")
@@ -149,6 +152,7 @@ func (a leaseArgs) request(verb, queueID string) (transaction.LeaseRequest, erro
 // under the store lock; a claim first reaps, one receipt each, the expired
 // leases that would block it.
 func leaseCommand(env Env, name string, args []string) *wire.Result {
+	started := time.Now()
 	cmd := strings.Fields(name)
 	parsed, err := parseLeaseArgs(args)
 	if err != nil {
@@ -160,6 +164,9 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	worktree, hasWorktree := parsed.values["--worktree"]
 	if hasWorktree && name != "gate run" {
 		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--worktree belongs to gate run"))
+	}
+	if parsed.timing && !timingVerbs[name] {
+		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--timing belongs to claim, renew, attempt heartbeat and release"))
 	}
 	role := parsed.values["--role"]
 	if role == "" {
@@ -208,6 +215,9 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	} else {
 		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
+		if parsed.timing {
+			return timedLease(ctx, started, cmd, repo, actor, choice, now)
+		}
 		report, err = store.Lease(ctx, repo, actor, choice, now)
 	}
 	if err != nil {
