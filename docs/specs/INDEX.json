@@ -3042,5 +3042,19 @@
       "internal/mcp/bridge/bridge.go",
       "cmd/corvint/help.go"
     ]
+  },
+  {
+    "path": "docs/specs/process-group-owner-v0.md",
+    "title": "Process-group Owner V0",
+    "reqPrefix": "PGO-V0",
+    "intent": "proposed extraction of existing owner-authorized repair semantics",
+    "delivery": "experimental",
+    "claim": "An optional process-group Owner preserves leader identity through retirement and reports unproved cleanup as HOLD.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/groupreap"
+    ]
   }
 ]

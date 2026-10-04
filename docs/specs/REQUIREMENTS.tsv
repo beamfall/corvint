@@ -1851,6 +1851,11 @@ PCH-V0-011	docs/specs/postmerge-ci-host-v0.md	125	A pinned fixed Linux internal 
 PCH-V0-012	docs/specs/postmerge-ci-host-v0.md	126	Durable exact run ownership exists before engine create. Independent bounded cle
 PCH-V0-013	docs/specs/postmerge-ci-host-v0.md	127	The selected Add fixture uses actual native intake/BuildAuthorInput, source-deri
 PCH-V0-014	docs/specs/postmerge-ci-host-v0.md	128	Candidate limits, actual immutable image/tool/source/shim/author pins, observed
+PGO-V0-001	docs/specs/process-group-owner-v0.md	32	Own a process group through its unreaped leader; send at most one real group sig
+PGO-V0-002	docs/specs/process-group-owner-v0.md	33	Preserve Darwin quiet-first retirement and Linux ReapAfterSuccessfulSignal retir
+PGO-V0-003	docs/specs/process-group-owner-v0.md	34	Check the original retirement allowance before new primitives and before accepti
+PGO-V0-004	docs/specs/process-group-owner-v0.md	35	Serialize concurrent Finish and Stop so signalling and reaping occur once. Refus
+PGO-V0-005	docs/specs/process-group-owner-v0.md	36	Preserve existing Wait/Run and callers. Only RELEASED proves cleanup; HOLD must
 PLE-V0-001	docs/specs/protected-local-execution-v0.md	27	The optional `corvint-protected-execution/0` profile MUST preserve all legacy pr
 PLE-V0-002	docs/specs/protected-local-execution-v0.md	28	A protected immutable release and independently admitted root/policy MUST bind t
 PLE-V0-003	docs/specs/protected-local-execution-v0.md	29	Ingestion MUST bound and independently bind expected Git base/target/tree, CEM,
