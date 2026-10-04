@@ -5,10 +5,7 @@ import (
 	json "encoding/json/v2"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
-	"os"
-	"path/filepath"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
@@ -40,29 +37,13 @@ type readScopeFile struct {
 // readScopes returns the declared scopes by package directory: nil with no
 // declaration, an error for one that is unreadable, oversized, not a regular
 // file, or invalid in any member.
-func readScopes(root string) (map[string][]string, error) {
-	name := filepath.Join(root, filepath.FromSlash(affected.ReadScopesPath))
-	info, err := os.Lstat(name)
+func readScopes(root *affected.Source) (map[string][]string, error) {
+	body, err := root.ReadBounded(affected.ReadScopesPath, maxReadScopeBytes)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
-	}
-	if !info.Mode().IsRegular() {
-		return nil, fmt.Errorf("%s is not a regular file", affected.ReadScopesPath)
-	}
-	file, err := os.Open(name)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	body, err := io.ReadAll(io.LimitReader(file, maxReadScopeBytes+1))
-	if err != nil {
-		return nil, err
-	}
-	if len(body) > maxReadScopeBytes {
-		return nil, fmt.Errorf("%s exceeds %d bytes", affected.ReadScopesPath, maxReadScopeBytes)
 	}
 	var declared readScopeFile
 	if err := json.UnmarshalRead(bytes.NewReader(body), &declared, json.RejectUnknownMembers(true)); err != nil {
@@ -89,7 +70,7 @@ func readScopes(root string) (map[string][]string, error) {
 // applyReadScopes marks each declared unit, given each unit's directory. Any
 // failure, including a declaration naming a directory that holds no observed
 // package, declares nothing and widens every plan instead.
-func applyReadScopes(root string, units []affected.Unit, directories []string, frontier map[string]bool) {
+func applyReadScopes(root *affected.Source, units []affected.Unit, directories []string, frontier map[string]bool) {
 	scopes, err := readScopes(root)
 	if err == nil {
 		err = matchReadScopes(scopes, units, directories)

@@ -493,6 +493,16 @@ and container qualification; full fallback remains available.
   remains blocked until genuine qualification and reviewed immutable pins; local fixtures and
   timing simulations cannot establish hosted speedup. Rollback clears the selection pins and
   reverts partition placement to the previous complete round-robin workflow.
+  (V1-0716) Within a full pull-request shard the affected plan MAY order, never select: the
+  protected helper's `--order` moves the plan's selected Go packages to the front of the shard
+  (changed units, including a package whose own non-Go file changed, and their dependents, then other bounded witnesses, then unbounded readers, then every
+  unselected package), keeping the helper's existing order inside each class. The output SHALL be
+  a permutation of the same shard, so no ordering input can add, omit or move a package between
+  shards. The planner SHALL be built from the pull-request event base commit, never the tested
+  head. A planner that fails to build or run, a missing artifact, or a plan that is oversized,
+  unparseable, not `affected-plan/0` or not `ok` SHALL leave the current order. The plan carries
+  no selection or skip authority here and needs no AFP-V0-014 qualification. Rollback removes
+  `--order` from the workflow.
 
 ### Declared confined test read scopes
 
@@ -534,6 +544,53 @@ and container qualification; full fallback remains available.
   declaration; and `make gate-ledger` `-unresolved`/`-bounds` stay whole-tree for declared
   packages. Rollback deletes the declaration, which restores rule (d) for every package; removing
   the `-exec` wrapper alone without deleting the declaration is not a supported state.
+- **AFP-V0-024:** (owner-directed, proposed, 2026-10-04; V1-0717) A push to `main` MAY reuse a
+  passed pull-request result instead of repeating the root Go race invocation, only when all of
+  the following hold: the pushed commit is a two-parent merge; a completed, successful
+  `pull_request` run of `.github/workflows/ci.yml` in this repository exists for the merged head;
+  and that run retained, for every shard of the current shard count, a record named
+  `ci-tested-tree-TREE-full-SHARD-of-SHARDS` whose `TREE` is exactly the pushed commit's tree
+  id. A shard SHALL retain that record only after its complete package set passed in the full
+  branch, so a documentation-only (DCI-V0) or selection-narrowed run can never be reused. Tree
+  identity binds every tracked file, including the workflow file blob and the pinned Go
+  version; no separate comparison is trusted. REUSE therefore means that the pull-request
+  merge-ref commit with the identical tree passed. A fork pull-request run is admitted like any
+  other: it runs in this repository, and a record for the merged head can only come from a
+  workflow that head, and so the merged tree, contains. The decision SHALL be made by `tools/ci-reuse-plan`, built from
+  the pushed `main` commit, over retained public run and artifact listings read with no
+  permission beyond `contents: read` (ARTIFACT-V0-008 is unchanged); artifact contents are not
+  downloaded. Only the root race invocation is omitted: static, build, interop, documentation
+  and artifact checks still run. The decision, with the reused run id and tree id, SHALL be
+  retained as the `ci-reuse` artifact. A missing record, an unreachable API, a failed build, any
+  other event or any mismatch runs FULL. Limits: the record name is written by the reused run's
+  own workflow steps, which the tree identity binds to the merged, owner-protected workflow;
+  the commit id and history of the checkout, the event environment, the installed host
+  packages and the hosted runner image are not part of the identity and may differ between the
+  two runs; the
+  hosted reuse path and its effect on completed `main` results are `NOT_OBSERVED` until a
+  merge lands with matching records. Rollback removes the `reuse` step, which restores FULL
+  for every push.
+- **AFP-V0-025:** (owner-directed, proposed, 2026-10-04; V1-0719) The repository SHALL commit
+  `.corvint/unbounded-readers.json`, the closed object
+  `{"profile":"corvint-unbounded-reader-ceiling/0","ceiling":N,"reasons":{DIR:REASON}}`, at most
+  64 KiB. `N` is the largest admitted number of unbounded test units: units with tests that
+  rule (d) selects on any dirty path because neither a literal nor a declared read scope
+  (AFP-V0-023) bounds their reads. `reasons` records, by test directory, why a package's reads
+  cannot be declared. `tools/unbounded-readers` builds the same unit graph the planner builds
+  and `make unbounded-readers-check`, a `doc-gates` and `make gate` step, MUST fail when the
+  count exceeds `N`, when a `reasons` directory is not an unbounded test unit, or when the
+  record is absent or not exactly this grammar. A count below `N` passes and asks for `N` to
+  be lowered; nothing lowers it automatically. Raising `N` is an ordinary reviewed edit of the
+  record: the check makes growth visible, it does not forbid it. Each full pull-request run
+  SHALL also report, in the step summary of shard 0 and as the `affected-share` artifact
+  (`corvint-ci-selected-share/0`), the estimated time of the packages the advisory AFP-V0-022
+  plan selected as a share of the complete universe, priced with the partition's cost
+  estimates and the median for an unpriced package, with the part held by packages selected
+  only as unbounded readers. The report is a shadow metric: it never narrows what runs, and a
+  missing plan or unreadable estimates only omit it. Limits: the estimates are one retained
+  hosted run, not this run's measured time; the count is of units, not of their cost; a
+  `reasons` entry is a reviewed statement, not a proof that no narrower declaration exists.
+  Rollback removes the make step and the two workflow steps.
 
 ## Non-goals and authority
 
@@ -586,10 +643,12 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-010 | `parseAffectedBase`, `affectedRangePaths`, `affectedRange` in `cmd/corvint/affected.go`; `RangePaths`, `DecodeNameList` in `internal/liveverify/affected/dirty.go` | `TestAffectedBaseRangeJoinsCommittedPathsAndFailsClosed` (committed edit with a clean worktree selects the dependents; `range.base`/`range.paths`; `main` and an unknown id exit 2 with no document), `TestDecodeNameListNormalizesAndFailsClosed`, `TestAffectedReceiptMembersAreClosedAndByteStable` (the closed member set includes `range`) |
 | AFP-V0-011 | `gate-affected`, `gate-affected-test`, `GO_TEST_COMMAND` in `Makefile`; `script/gate-affected.sh`; its selection step `selectPackages` in `tools/gate-affected-select/main.go` (native Go, no Python runtime, decision 0088) | `script/gate-affected_test.sh` via `make gate-affected-test` (a shell test over `testdata/fixture` in a scratch repository with a recording go-test command: clean tree runs nothing; a core edit selects core and leaf; a deleted `core/core.go` is a `frontier` line for core, mid, and leaf; a document no package reads beside a core edit is `data`, does not fall back, and adds no package; a dirty `go.mod` falls back; a committed edit under `BASE` selects; an unresolvable base falls back; an interrupted planner exits nonzero without running go test); `TestSelectPackagesAttributesEveryDirtyPath` (a control character in a dirty path falls back) in `tools/gate-affected-select/main_test.go`; `TestSelectPackagesRejectsSiblingModulePrefix` (a package path that only shares the module's characters as a string prefix, with no `/` boundary, falls back instead of being selected); the 50-commit replay in AFP-V0-011 |
 | AFP-V0-012 | `indexRepository`, `scanSource`, `escapesPackage`, `dependents`, `readers`, `enclosing`, `unresolved`, `namesPath` in `tools/gate-affected-select/readers.go`; the per-path loop in `selectPackages` (decision 0131) | `TestSelectPackagesAttributesEveryDirtyPath` in `tools/gate-affected-select/main_test.go` (a deleted source widens to its importers; a Go file read as data selects its reader; a document selects the package that names it; a testdata fixture selects its enclosing package; a `runtime.Caller` package is selected on every dirty path; a nested module's literals select nothing); `TestSelectPackagesFallsBackWhenAttributionFails` (imports that do not parse fall back); `TestSelectPackagesReachesEmbeddingAncestorDependents` (a data path under an embedding ancestor reaches that ancestor's dependents); `TestSelectPackagesResolvesAliasedAndDotRootLocatorImports` (an aliased or dot-imported `runtime.Caller` still marks the package unresolved); `TestIndexRepositoryFailsClosedOnSymlinkedGoFile` (a symlinked `.go` file falls back instead of being silently skipped) |
-| AFP-V0-022 | `.github/cishards`, `tools/corvint-pr-tests`, CI and qualification workflows | `TestAFPMixedAdmissionPreservesSelectedUnion`, `TestAFPCompleteBalancedPartition`, `TestAFPIsolatedBuildIgnoresModuleRedirection`, `TestShardedPRExecution_AFPV0022`; hosted timing and narrowing qualification NOT_RUN |
+| AFP-V0-022 | `.github/cishards`, `tools/corvint-pr-tests`, CI and qualification workflows | `TestAFPMixedAdmissionPreservesSelectedUnion`, `TestAFPCompleteBalancedPartition`, `TestAFPIsolatedBuildIgnoresModuleRedirection`, `TestShardedPRExecution_AFPV0022`, `TestAFPV0022OrderRunsSelectedUnitsFirstWithoutChangingTheSet`, `TestAFPV0022OrderFallsBackToTheCurrentOrder`; hosted timing and narrowing qualification NOT_RUN |
 | AFP-V0-023 | `ReadScopesPath`, `InReadScope`, `ValidReadScopeEntry`, `Graph.scopedReadersOf`, `WitnessDeclaredReadScope`, `Unit.ReadScoped`, `Unit.ReadScope` in `internal/liveverify/affected`; `readScopes`, `applyReadScopes`, `FrontierReadScopesInvalid` in `internal/liveverify/affected/golang/readscopes.go`; `readScopes`, `inReadScope` in `tools/gate-affected-select/readscopes.go`; `.github/testconfine` (`Load`, `Rules`, `ExecConfined`, `ConfinedEnv`, `cmd`) and the full-run `-exec` in `.github/workflows/ci.yml` | `TestDeclaredReadScopeNarrowsAnUnboundedReader_AFPV0023`, `TestInvalidReadScopeDeclarationDeclaresNothing_AFPV0023`, `TestGraphDigestIsTheDomainTaggedProjection_V1_0299`, `TestSelectPackagesHonorsDeclaredReadScopes`, `TestLoadAcceptsOnlyTheExactGrammar_AFPV0023`, `TestRulesGrantOutsideRootPackageAndEntriesOnly_AFPV0023`, `TestSelectionOnTheLiveDirtyWorktree`, `TestConfinedEnvTurnsOffVCSStamping_AFPV0023`, `TestExecConfinedDeniesUndeclaredRepositoryReads_AFPV0023` (Linux; run on a kernel reporting Landlock ABI 4, including granted and refused reparenting); per-package declarations verified under the wrapper in a Linux container (build log 2026-10-01-declared-test-read-scopes); hosted confined full run NOT_RUN until the protected workflow change is admitted |
 | AFP-V0-013 | `tools/corvint-pr-tests` and `.github/workflows/ci.yml` | `TestSelectedFailureAndFallback`, `TestInterruptionLeavesNoLiveDescendant`; trusted pins empty, hosted execution unavailable |
 | AFP-V0-015 | `tools/corvint-pr-tests/container.go` and indexed shadow execution | `TestContainerProfileAndArchive`, `TestColdRuntime`, `TestFrozenRowIndex`, `TestDockerCLIInterruption`, `TestContainerCleanupRefusal`; real Linux row/hosted NOT_RUN |
+| AFP-V0-024 | `tools/ci-reuse-plan`; `docs-plan` and `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0024ReusesOnlyAnExactTreeRecordedByEveryShard`, `TestAFPV0024AnythingElseRunsInFull`; local replay of the push step against the live API returned FULL; hosted reuse `NOT_OBSERVED` |
+| AFP-V0-025 | `tools/unbounded-readers`, `.corvint/unbounded-readers.json`, `make unbounded-readers-check`; `Graph.UnboundedReaders`; `ShareOf` in `.github/cishards/order.go`; `doc-gates` and `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0025RatchetFailsAboveTheRecordedCeiling`, `TestAFPV0025RatchetWithoutARecordRefuses`, `TestAFPV0025ShareReportsSelectedEstimatedTime`; hosted share report `NOT_OBSERVED` until this change's own CI run |
 | AFP-V0-014 | `tools/corvint-pr-tests/shadow.go` | `TestQualificationAndTerminalFailures`, `TestToolIdentityRequiresCurrentGoVersion`; frozen 200-row qualification NOT_RUN |
 | AFP-V0-016 | `.github/workflows/ci-control-plane.yml`; the `main` repository ruleset | `actionlint`; `success` posted on PR #26 (run 35444060752) and PR #24 (run 35446378936); ruleset 23699808 active with the decision 0320 settings; the decision 0390 settings (no bypass, `doc-gates` required) and the admin-status consent path NOT_VERIFIED until the owner applies them; `failure` path NOT_RUN on a real PR |
 | AFP-V0-017 | `.github/workflows/pr-tests-qualification.yml` | `actionlint`; dispatch NOT_RUN (`main` has fewer than 201 first-parent commits) |
