@@ -94,6 +94,20 @@ func TestGH494_LeaseTimingIsOptInDiagnostic(t *testing.T) {
 	}
 	leaseTimingOf(t, failed.res.Items[0])
 
+	// An ERROR before the writer ran reports zeros except totalMillis.
+	for _, at := range []struct{ root, request string }{{root, "bad request id"}, {t.TempDir(), "claim-unresolved"}} {
+		early := atm(t, at.root, nil, "claim", "NOT A TICKET", "--holder", "h", "--request-id", at.request, "--timing")
+		if early.res.Outcome != wire.OutcomeError || len(early.res.Items) != 1 {
+			t.Fatalf("early failing claim %q: %+v", at.request, early.res)
+		}
+		timing := leaseTimingOf(t, early.res.Items[0])
+		for _, key := range leaseTimingFields[2:] {
+			if field(timing, key).Str != "0" {
+				t.Fatalf("early failure %q reports %s: %s", at.request, key, wire.Encode(timing))
+			}
+		}
+	}
+
 	for _, args := range [][]string{
 		{"reap", "--request-id", "reap-timed", "--timing"},
 		{"widen", "--attempt", a.AttemptID, "--generation", string(a.Generation), "--request-id", "widen-timed", "--whole-repository", "--timing"},

@@ -328,9 +328,11 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 		// Guard-before-recovery is preserved; clean stores take no extra lock.
 		head, err := writerGuards(repo, guardOperation(request))
 		if err != nil {
+			timing.Guards += time.Since(guards)
 			return guardFailureAudit(report, request.RequestID, err)
 		}
 		if head.QueueID.Raw != request.QueueID {
+			timing.Guards += time.Since(guards)
 			return report, nil, wire.Errorf(wire.CodeOutOfScope, "queueId", "request queue differs")
 		}
 		err = clearLeaseOrphans(ctx, repo, guardOperation(request))

@@ -14,7 +14,7 @@ Decision 1, timing. `--timing` is an opt-in boolean on `claim`, `renew`, `attemp
 
 Fsync is measured inside the authority session at its three sync call sites. The tests' `syncFile`/`syncDirectory` indirection is unchanged. The object is profile `taskman-lease-timing/0` in the first result item, and on ERROR it is the only member of one item. It is diagnostic only and never persisted. A separate `--json` timing mode was rejected because the envelope is already JSON. A per-call environment variable was rejected because it is invisible in help.
 
-Decision 2, retry charging: conflict reported, no semantic change. Charging happens only in `admitted` (`internal/tasks/transaction/lease_claim.go`), and only when a prior attempt exists and was not a clean handoff:
+Decision 2, retry charging: unresolved owner decision, no semantic change. Charging happens only in `admitted` (`internal/tasks/transaction/lease_claim.go`), and only when a prior attempt exists and was not a clean handoff:
 - `LEASE_EXPIRED` failure charges EXPIRED
 - other failure charges FAILED
 - cancellation charges RELEASED
@@ -26,14 +26,17 @@ Exempting that case contradicts accepted text:
 - `CAL-V0-045`: failures, cancellations and expiry remain charged
 - `CAL-V0-067`: not a retry exemption
 
-The spec is accepted by owner decision 2026-09-27, so this slice does not change it. Any exemption also needs evidence that the attempt was never used, such as no heartbeat, submit or evidence since admission; the store records none of that today. That is an owner decision.
+The spec is accepted by owner decision 2026-09-27, and the independent review confirmed the conflict, so this slice does not change it. Any exemption also needs evidence that the attempt was never used, such as no heartbeat, submit or evidence since admission; the store records none of that today. The owner must decide whether to amend CAL-V0-044/045/067 and which recorded evidence proves an attempt unused. The spec records this as an unresolved owner decision in the S19 section.
 
 Decision 3, recovery. `TestGH494_TimedOutClaimReplaysExactly` pins exact-request-ID recovery:
-- A claim cancelled in admission leaves the tree and head byte-identical. Its retry admits generation 1 with zero retry charges.
-- A committed claim replays the same attempt and generation at +1, +30 and +90 minutes. +90 is past its 60-minute lease, because replay lookup precedes reaping. The head digest and journal tree stay unchanged.
+- A claim cancelled in admission leaves every journal file SHA-256 and the head digest unchanged. Its retry admits generation 1 with zero retry charges.
+- After two released attempts (the second already charged once), a claim cancelled in admission adds no charge: its retry carries exactly two charges, one per released attempt.
+- A committed claim replays the same attempt, generation and attempt record (including its lease) at +1, +30 and +90 minutes. +90 is past its 60-minute lease, because replay lookup precedes reaping. The head digest and journal tree stay unchanged.
 - A claim faulted after its receipt is redone by the retry and then replays with an unchanged head digest.
 
 Decision 4, latency. The specification records the issue 545 numbers as an observation with their conditions: 7,140 receipts, ten writers, median 28 s, worst 33 s, and about 2.9 s per serialized preparation. It is not a promise or a p95 budget.
+
+Review repairs: `--timing` on a timing verb now also attaches the zero-phase timing item when the command fails before the store writer (request ID, store resolution, probe, request parse), and guard time is counted when writer guards fail.
 
 Observed while testing: a colliding claim over one expired lease runs three lease transactions (refused claim, reap, claim). `--timing` reports all of them.
 

@@ -56,3 +56,13 @@ func leaseTimingValue(t *store.LeaseTiming, total time.Duration) wire.Value {
 	o.Set("fsyncMillis", ms(t.Fsync))
 	return wire.ObjectValue(o)
 }
+
+// timedFailure reports an ERROR raised before the store writer ran; with
+// `--timing` on a timing verb it carries the timing item with every phase 0.
+func timedFailure(timed bool, started time.Time, cmd []string, err error) *wire.Result {
+	res := errorResult(cmd, err)
+	if timed {
+		res.Items = []wire.Value{wire.ObjectValue(wire.NewObject().Set("timing", leaseTimingValue(&store.LeaseTiming{}, time.Since(started))))}
+	}
+	return res
+}
