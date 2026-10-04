@@ -34,7 +34,7 @@ jobs:
           cache: false
           go-version: "1.27.1"
       - name: Documentation gate steps
-        run: make -s spec-requirements-check requirement-definitions-check traceability-tests-check decision-numbers-check line-citations-check error-code-ownership-check
+        run: make -s spec-requirements-check requirement-definitions-check traceability-tests-check decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check
       - name: Use-case receipt pins (run script/repin-use-case-receipts.sh on failure)
         run: |
           make -s use-case-receipts-check use-case-receipts-test
@@ -46,7 +46,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:
-      mode: ${{ steps.plan.outputs.mode }}
+      mode: ${{ steps.reuse.outputs.mode || steps.plan.outputs.mode }}
     env:
       GOTOOLCHAIN: local
       GOENV: "off"
@@ -108,6 +108,62 @@ jobs:
         with:
           name: docs-ci-plan
           path: ${{ runner.temp }}/docs-ci-plan.json
+          if-no-files-found: ignore
+      - name: Find a passed pull-request result for this exact tree
+        # AFP-V0-024: a main push whose tree a successful pull-request run of this workflow
+        # already tested in full skips only the root race invocation. The decision tool is
+        # built from the pushed main commit; every failure here keeps FULL. REUSE_SHARDS
+        # must equal the go-product-shard matrix, or no record name matches and CI runs FULL.
+        id: reuse
+        if: github.event_name == 'push'
+        continue-on-error: true
+        timeout-minutes: 5
+        working-directory: trusted-docs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REUSE_SHARDS: "4"
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          src="$GITHUB_WORKSPACE/source"
+          tree=$(git -C "$src" rev-parse --verify -q "$GITHUB_SHA^{tree}")
+          if ! head=$(git -C "$src" rev-parse --verify -q "$GITHUB_SHA^2") || git -C "$src" rev-parse --verify -q "$GITHUB_SHA^3" > /dev/null; then
+            echo 'Full CI: the pushed commit is not a two-parent merge.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-reuse-plan" ./tools/ci-reuse-plan
+          d="$RUNNER_TEMP/ci-reuse"
+          mkdir -p "$d/artifacts"
+          api="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions"
+          # Public run and artifact listings need no actions permission; the anonymous retry
+          # covers a token the API refuses. Artifact contents are never downloaded.
+          get() {
+            curl -fsS --max-time 30 --max-filesize 4194304 -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer $GH_TOKEN" -o "$2" "$1" ||
+              curl -fsS --max-time 30 --max-filesize 4194304 -H 'Accept: application/vnd.github+json' -o "$2" "$1"
+          }
+          # An unreadable listing leaves an empty file, so the tool still retains a FULL decision.
+          get "$api/workflows/ci.yml/runs?head_sha=$head&event=pull_request&status=success&per_page=20" "$d/runs.json" ||
+            : > "$d/runs.json"
+          for id in $(jq -r '.workflow_runs[]?.id | select(type == "number")' "$d/runs.json" | head -n 5); do
+            get "$api/runs/$id/artifacts?per_page=100" "$d/artifacts/$id.json" || true
+          done
+          "$RUNNER_TEMP/ci-reuse-plan" --repository "$GITHUB_REPOSITORY" --tree "$tree" --head "$head" --shards "$REUSE_SHARDS" \
+            --runs "$d/runs.json" --artifacts "$d/artifacts" > "$d/decision.json.partial"
+          mv "$d/decision.json.partial" "$d/decision.json"
+          cat "$d/decision.json" >> "$GITHUB_STEP_SUMMARY"
+          if jq -e --arg tree "$tree" --arg head "$head" --argjson shards "$REUSE_SHARDS" \
+            '.profile == "corvint-ci-reuse/0" and .mode == "REUSE" and .tree == $tree and .head == $head and (.runId | type == "number") and (.records | length == $shards)' \
+            "$d/decision.json" > /dev/null; then
+            echo 'mode=REUSE' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Retain reuse decision
+        if: github.event_name == 'push'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-reuse
+          path: ${{ runner.temp }}/ci-reuse/decision.json
           if-no-files-found: ignore
       - name: Plan affected-first package order from trusted base code (advisory)
         # AFP-V0-022: the plan only orders the complete universe inside each shard. The
@@ -267,8 +323,36 @@ jobs:
         with:
           name: affected-order
           path: ${{ runner.temp }}/affected-order
+      - name: Report the plan's selected share of estimated suite time (advisory)
+        # AFP-V0-025: a shadow metric only. The plan still orders, and never narrows, what runs.
+        if: github.event_name == 'pull_request' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE' && strategy.job-index == 0
+        continue-on-error: true
+        timeout-minutes: 2
+        working-directory: source
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/affected-share"
+          go list ./... | "$RUNNER_TEMP/ci-shards" --share "$RUNNER_TEMP/affected-order/plan.json" \
+            > "$RUNNER_TEMP/affected-share/share.json.partial"
+          mv "$RUNNER_TEMP/affected-share/share.json.partial" "$RUNNER_TEMP/affected-share/share.json"
+          {
+            echo '### Affected plan: selected share of estimated suite time (advisory)'
+            jq -r '"\(.selectedPermille / 10)% selected: \(.selectedMilliseconds / 1000 | floor) s of \(.universeMilliseconds / 1000 | floor) s, \(.selectedPackages) of \(.universePackages) packages. Unbounded readers: \(.unboundedPackages) packages, \(.unboundedMilliseconds / 1000 | floor) s. Unpriced packages take the median: \(.unpricedPackages)."' \
+              "$RUNNER_TEMP/affected-share/share.json"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain selected share
+        if: github.event_name == 'pull_request' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE' && strategy.job-index == 0
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: affected-share
+          path: ${{ runner.temp }}/affected-share/share.json
+          if-no-files-found: ignore
       - name: Go tests (full until matching shadow qualification)
-        if: needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS'
+        id: tests
+        # DOCS (DCI-V0) and REUSE (AFP-V0-024) are the only modes that omit this invocation.
+        if: needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')
         working-directory: source
         env:
           PR_BASE: ${{ github.event.pull_request.base.sha }}
@@ -295,7 +379,24 @@ jobs:
             # Declared packages run confined to their read scopes (AFP-V0-023).
             # shellcheck disable=SC2086
             CORVINT_CONFINE_ROOT="$PWD" go test -exec "$RUNNER_TEMP/test-confine" -json -p 1 -count=1 -race -timeout 50m $packages
+            # AFP-V0-024: only a complete pull-request shard that passed names the tested tree.
+            if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+              tree=$(git rev-parse --verify -q "$TESTED_MERGE^{tree}")
+              mkdir -p "$RUNNER_TEMP/tested-tree"
+              printf '{"profile":"corvint-ci-tested-tree/0","tree":"%s","target":"%s","shard":%s,"shards":%s,"runId":%s}\n' \
+                "$tree" "$TESTED_MERGE" "$SHARD" "$SHARDS" "$GITHUB_RUN_ID" > "$RUNNER_TEMP/tested-tree/record.json"
+              echo "record=ci-tested-tree-$tree-full-$SHARD-of-$SHARDS" >> "$GITHUB_OUTPUT"
+            fi
           fi
+      - name: Retain tested-tree record
+        if: steps.tests.outputs.record != ''
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.tests.outputs.record }}
+          path: ${{ runner.temp }}/tested-tree/record.json
+          if-no-files-found: ignore
       - name: Selection audit
         if: always()
         run: |
