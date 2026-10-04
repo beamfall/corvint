@@ -1,0 +1,42 @@
+// PRIVATE proposed typed producer contract; not compiled or installed.
+// Copyright 2026 Corvint contributors.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+package testacceptance
+
+type SemanticKindV2 string
+const (
+ SemanticProviderV2 SemanticKindV2 = "provider"
+ SemanticHookV2 SemanticKindV2 = "hook"
+ SemanticControlEvidenceV2 SemanticKindV2 = "control-evidence"
+ SemanticAttestationV2 SemanticKindV2 = "attestation"
+)
+type SemanticLinkV2 struct {
+ Kind SemanticKindV2 `json:"kind"`
+ Locator string `json:"locator"`
+ SHA256 string `json:"sha256"`
+}
+type SemanticAssociationV2 struct {
+ RequestDigest string `json:"request_digest"`
+ ProductCommit string `json:"product_commit"`
+ TestCommit string `json:"test_commit"`
+ DraftCommit string `json:"draft_commit"`
+ RunIndex *int `json:"run_index"`
+ RunKind string `json:"run_kind"`
+ RunOrdinal int `json:"run_ordinal"`
+ TestIDs []string `json:"test_ids"`
+ ControlIndex *int `json:"control_index"`
+ PlannedControlID *string `json:"planned_control_id"`
+ ControlOrdinal *int `json:"control_ordinal"`
+ AttemptOrdinal *int `json:"attempt_ordinal"`
+ AttestationPhase *string `json:"attestation_phase"`
+}
+// Payload types are the new concrete types traced to sem.* in decision.schema.json,
+// not raw /1 structs, any/json.RawMessage or arbitrary caller object maps.
+// Each private function hashes exactly its own typed four-member envelope.
+func providerLinkV2(locator string, a SemanticAssociationV2, p ProviderDecisionV2) (SemanticLinkV2, error)
+func hookLinkV2(locator string, a SemanticAssociationV2, p HookDecisionV2) (SemanticLinkV2, error)
+func controlEvidenceLinkV2(locator string, a SemanticAssociationV2, p EvidenceDecisionV2) (SemanticLinkV2, error)
+func attestationLinkV2(locator string, a SemanticAssociationV2, p AttestationDecisionV2) (SemanticLinkV2, error)
+// Resolver is a four-case private switch with canonical literal locator validation.
+// It derives target association from verified native context and reads only the
+// frozen registry/nested typed subtree, never general JSON-pointer traversal.
