@@ -130,16 +130,16 @@ Each requirement is anchored by exact-ID Go subtests (`t.Run("DLT-V0-NNN ...")`,
 
 | Requirement | Anchoring tests |
 |---|---|
-| DLT-V0-001 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree (PLANNED), TestDeltaNoOpAndBadRevision (PLANNED); `internal/cem/gitauth`: TestDeltaPathsIncludeCEMAndTypeChanges (PLANNED) |
-| DLT-V0-002 | `internal/cem/gitauth`: TestRevisionFSImmutableAndBounds (PLANNED); `internal/liveverify/affected`: TestImmutableAllLanguageParity (PLANNED), TestImmutableNonregularBeforeLanguageFilter (PLANNED), TestImmutableSwallowedReadRefusesGraph (PLANNED), TestSourceReadBoundsAndStickyFailure (PLANNED), TestSourceHiddenWalkRetainsIgnoredFailure (PLANNED) |
-| DLT-V0-003 | `internal/cem/gitauth`: TestBoundedBlobRejectsHeaderWithoutFallback (PLANNED), TestBoundedBlobCumulativeBudgetBeforeBody (PLANNED), TestBoundedBlobCancellationRetiresDescendant (PLANNED), TestBoundedBlobIdentityAndNoMemoBypass (PLANNED), TestBoundedBlobFourMiBBoundary (PLANNED) |
-| DLT-V0-004 | `internal/delta`: TestDeltaPreviousGeneration (PLANNED), TestDeltaEmptyChangeBindsPrevious (PLANNED), TestDeltaDocumentationExclusionsAndHTML (PLANNED) |
-| DLT-V0-005 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree (PLANNED), TestDeltaIncompleteProviderRequiresFullSuite (PLANNED), TestDeltaCaptureBoundAndTransport (PLANNED), TestDeltaCaptureFIFORefusesWithoutWriter (PLANNED); `internal/extevidence`: TestCapturedSelectionParityAndMutation (PLANNED), TestCapturedFailuresDoNotNarrow (PLANNED) |
-| DLT-V0-006 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree (PLANNED), TestDeltaReachedUnitDenominatorIncludesDiamond (PLANNED); `internal/extevidence`: TestCapturedAssertsDistinctFromVerifies (PLANNED) |
-| DLT-V0-007 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree (PLANNED); `internal/cem/gitauth`: TestDeltaMetadataAndBoundedSHA256 (PLANNED) |
-| DLT-V0-008 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree (PLANNED), TestDeltaRecordRejectsProseAndInvalidEnums (PLANNED), TestDeltaSchemaPathCorpus (PLANNED), TestDeltaRefusesControlCharacterGitPaths (PLANNED) |
-| DLT-V0-009 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree (PLANNED), TestDeltaNoOpAndBadRevision (PLANNED), TestDeltaPublishedDecisionVectors (PLANNED) (all four wire decisions; native docs-only deferred below) |
-| DLT-V0-010 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree (PLANNED); `cmd/corvint`: TestDeltaInternalCLIExplicitImmutableNoOp (PLANNED) |
+| DLT-V0-001 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree, TestDeltaNoOpAndBadRevision; `internal/cem/gitauth`: TestDeltaPathsIncludeCEMAndTypeChanges |
+| DLT-V0-002 | `internal/cem/gitauth`: TestRevisionFSImmutableAndBounds; `internal/liveverify/affected`: TestImmutableAllLanguageParity, TestImmutableNonregularBeforeLanguageFilter, TestImmutableSwallowedReadRefusesGraph, TestSourceReadBoundsAndStickyFailure, TestSourceHiddenWalkRetainsIgnoredFailure |
+| DLT-V0-003 | `internal/cem/gitauth`: TestBoundedBlobRejectsHeaderWithoutFallback, TestBoundedBlobCumulativeBudgetBeforeBody, TestBoundedBlobCancellationRetiresDescendant, TestBoundedBlobIdentityAndNoMemoBypass, TestBoundedBlobFourMiBBoundary |
+| DLT-V0-004 | `internal/delta`: TestDeltaPreviousGeneration, TestDeltaEmptyChangeBindsPrevious, TestDeltaDocumentationExclusionsAndHTML |
+| DLT-V0-005 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree, TestDeltaIncompleteProviderRequiresFullSuite, TestDeltaCaptureBoundAndTransport, TestDeltaCaptureFIFORefusesWithoutWriter; `internal/extevidence`: TestCapturedSelectionParityAndMutation, TestCapturedFailuresDoNotNarrow |
+| DLT-V0-006 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree, TestDeltaReachedUnitDenominatorIncludesDiamond; `internal/extevidence`: TestCapturedAssertsDistinctFromVerifies |
+| DLT-V0-007 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree; `internal/cem/gitauth`: TestDeltaMetadataAndBoundedSHA256 |
+| DLT-V0-008 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree, TestDeltaRecordRejectsProseAndInvalidEnums, TestDeltaSchemaPathCorpus, TestDeltaRefusesControlCharacterGitPaths |
+| DLT-V0-009 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree, TestDeltaNoOpAndBadRevision, TestDeltaPublishedDecisionVectors (all four wire decisions; native docs-only deferred below) |
+| DLT-V0-010 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree; `cmd/corvint`: TestDeltaInternalCLIExplicitImmutableNoOp |
 
 Execution evidence is retained in `docs/build-log/2026-09-30-immutable-delta-public-integration.md`.
 Final integration uses approved public base `7bd7f5e03ad177e7496ce5dbd1563b8466f591a4`.

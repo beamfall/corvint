@@ -103,13 +103,18 @@ type loadRef struct {
 
 // Units observes every Ruby file in the repository rooted at root.
 func (language Language) Units(root string) (affected.Result, error) {
-	files, err := affected.SourceFiles(root, func(name string) bool {
+	return language.UnitsSource(affected.DiskSource(root))
+}
+
+// UnitsSource reads only the explicitly supplied source universe.
+func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {
+	files, err := root.Files(func(name string) bool {
 		return strings.HasSuffix(name, ".rb")
 	})
 	if err != nil {
 		return affected.Result{}, err
 	}
-	features, err := affected.SourceFiles(root, func(name string) bool {
+	features, err := root.Files(func(name string) bool {
 		return strings.HasSuffix(name, ".feature")
 	})
 	if err != nil {
@@ -131,7 +136,7 @@ func (language Language) Units(root string) (affected.Result, error) {
 	}
 	observed := make([]observation, 0, len(files))
 	for _, relative := range files {
-		body, readErr := affected.ReadSource(root, relative)
+		body, readErr := root.Read(relative)
 		if readErr != nil || !utf8.Valid(body) {
 			frontier[FrontierUnreadableSource] = true
 			continue
@@ -249,7 +254,7 @@ func hasDirectFramework(body string) bool {
 	return explicitMinitest(body) || rspecQualified.MatchString(body) || railsTestClass.MatchString(body)
 }
 
-func helperFramework(root, owner string, loads []loadRef, files map[string]bool, loadRoots []string) (framework, bool, bool) {
+func helperFramework(root *affected.Source, owner string, loads []loadRef, files map[string]bool, loadRoots []string) (framework, bool, bool) {
 	runnerHints := make(map[framework]bool, 2)
 	rails := false
 	visited := make(map[string]bool)
@@ -264,7 +269,7 @@ func helperFramework(root, owner string, loads []loadRef, files map[string]bool,
 					continue
 				}
 				visited[candidate] = true
-				body, err := affected.ReadSource(root, candidate)
+				body, err := root.Read(candidate)
 				if err != nil || !utf8.Valid(body) {
 					continue
 				}
@@ -477,14 +482,14 @@ func aliasesFor(item observation, loadRoots []string) []string {
 	return sortedKeys(aliases)
 }
 
-func rakeLoadRoots(root string, frontier map[string]bool) ([]string, error) {
-	files, err := affected.SourceFiles(root, func(name string) bool { return name == "Rakefile" })
+func rakeLoadRoots(root *affected.Source, frontier map[string]bool) ([]string, error) {
+	files, err := root.Files(func(name string) bool { return name == "Rakefile" })
 	if err != nil {
 		return nil, err
 	}
 	roots := make(map[string]bool)
 	for _, relative := range files {
-		body, readErr := affected.ReadSource(root, relative)
+		body, readErr := root.Read(relative)
 		if readErr != nil || !utf8.Valid(body) {
 			frontier[FrontierUnreadableSource] = true
 			continue
