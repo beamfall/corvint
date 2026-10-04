@@ -1,8 +1,9 @@
 # PR443 CEM runner foundation hosted CI repairs (V1-0632)
 
 PR443 head `f3fba61b10b5c2ad7cbbea54c56a0dccfa76b6d1` failed three hosted go-product
-shards. Merge `eb7bc224a4b811742fb61a7eabdddaf61590e367` brings current public main
-into the branch; the failures were reproduced or explained against that merge.
+shards. Merge `eb7bc224a4b811742fb61a7eabdddaf61590e367` brings public main at
+`5d46b4b5` into the branch; the failures were reproduced or explained against that
+merge. A later merge `ca0966f1` brings main at `be98482b`.
 
 Read scopes. Shard 3 (`internal/cem/verify`: `TestCandidatePortablePacket`,
 `TestStableS0EPublicCases`, `TestStableS0ELinkedControl`) and shard 2
@@ -12,10 +13,11 @@ declared in `.corvint/test-read-scopes.json` (AFP-V0-023) without the CEM 1.0 pa
 branch's new tests read, so the Landlock wrapper refuses the reads. This is Linux-only:
 the wrapper confines only on Linux. A local Go 1.27.1 Linux arm64 container (Landlock ABI
 4) running the unchanged `.github/testconfine` wrapper reproduced all five failures at
-the merge. The repair adds `protocol/cem-1.0/` to `internal/cem/verify` (manifest,
-listed artifacts and the stable repository-envelope packet) and the narrower
-`protocol/cem-1.0/maps/` to `internal/cem/wire`, in ascending order. Reader code, the
-confiner and all other allowances are unchanged.
+the merge. The repair grants `internal/cem/verify` only what its tests read: the
+`protocol/cem-1.0/manifest.json` file and the `artifacts/`, `maps/`, `patches/`,
+`repository/` and `stable/repository-envelope-packet/` subtrees. It grants
+`internal/cem/wire` only `protocol/cem-1.0/maps/`. Entries stay in ascending order.
+Reader code, the confiner and all other allowances are unchanged.
 
 Detached maintenance. Shard 0 `TestDirtyNonUTF8PathIsDisclosedNotRefused` failed only in
 TempDir cleanup (`unlinkat .../.git: directory not empty`). Its Git helper sets
