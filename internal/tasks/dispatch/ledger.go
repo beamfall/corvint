@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -94,8 +95,81 @@ type Ledger struct {
 	Backoff   map[string]*BackoffState    `json:"backoff"`
 	Seen      *Seen                       `json:"seen,omitempty"`
 	Progress  map[string]*ProgressHistory `json:"progress,omitempty"`
+	Pressure  *PressureRecord             `json:"pressure,omitempty"`
 	// Escalation is present only while the configuration has a ladder.
 	Escalation map[string]*EscalationState `json:"escalation,omitempty"`
+}
+
+const maxPressureHeld, maxPressureProblems, maxPressureProblem = 8192, 8, 200
+
+// PressureRecord is the CAL-V0-068 derived pressure state: hysteresis, the
+// newest bounded sample and the work keys the last roster held. It exists
+// only while pressure is configured and is never a native-store input.
+type PressureRecord struct {
+	State  PressureState  `json:"state"`
+	Sample PressureSample `json:"sample"`
+	Held   []HeldLaunch   `json:"held"`
+}
+
+// HeldLaunch is one roster candidate held by the pressure budget.
+type HeldLaunch struct {
+	Role   string `json:"role"`
+	Key    string `json:"key"`
+	Ticket string `json:"ticket,omitempty"`
+}
+
+func (r *PressureRecord) validate() error {
+	st := r.State
+	if st.Level < 0 || st.Level > 2 || st.PendingLevel < 0 || st.PendingLevel > 2 || st.PendingTicks < 0 || st.PendingTicks >= 3600 {
+		return errors.New("invalid pressure state")
+	}
+	if len(r.Held) > maxPressureHeld || len(r.Sample.Problems) > maxPressureProblems || len(r.Sample.Source) > 256 {
+		return errors.New("pressure record exceeds bounds")
+	}
+	for _, p := range r.Sample.Problems {
+		if len(p) > maxPressureProblem {
+			return errors.New("pressure record exceeds bounds")
+		}
+	}
+	keys := map[string]bool{}
+	for _, h := range r.Held {
+		if !ValidName(h.Role) || h.Key == "" || len(h.Key) > 512 || len(h.Ticket) > 512 || keys[h.Key] {
+			return errors.New("invalid or duplicate pressure held launch")
+		}
+		keys[h.Key] = true
+	}
+	return nil
+}
+
+// boundPressureSample keeps a sample's diagnostics inside the ledger bounds.
+func boundPressureSample(s PressureSample) PressureSample {
+	if !finiteNonnegative(s.LoadAverage) {
+		s.LoadAverage, s.LoadKnown = 0, false
+	}
+	s.Source = boundUTF8(s.Source, 256)
+	var problems []string
+	for _, p := range s.Problems {
+		if len(problems) == maxPressureProblems {
+			break
+		}
+		problems = append(problems, boundUTF8(p, maxPressureProblem))
+	}
+	s.Problems = problems
+	return s
+}
+
+// boundUTF8 replaces invalid UTF-8 and truncates s to at most n bytes at a
+// rune boundary.
+func boundUTF8(s string, n int) string {
+	s = strings.ToValidUTF8(s, "\uFFFD")
+	if len(s) <= n {
+		return s
+	}
+	s = s[:n]
+	for len(s) > 0 && !utf8.ValidString(s) {
+		s = s[:len(s)-1]
+	}
+	return s
 }
 
 const maxProgressPerKey, maxProgressProgram = 256, 8192
@@ -147,6 +221,11 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	if err := l.validateEscalation(); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
 	}
+	if l.Pressure != nil {
+		if err := l.Pressure.validate(); err != nil {
+			return nil, fmt.Errorf("dispatch state: %w", err)
+		}
+	}
 	if l.Backoff == nil {
 		l.Backoff = map[string]*BackoffState{}
 	}
@@ -187,7 +266,7 @@ func strictProgressJSON(raw []byte) bool {
 			var fields []string
 			switch schema {
 			case "ledger":
-				fields = []string{"profile", "program", "launchSeq", "eventSeq", "workers", "backoff", "seen", "progress", "escalation"}
+				fields = []string{"profile", "program", "launchSeq", "eventSeq", "workers", "backoff", "seen", "progress", "pressure", "escalation"}
 			case "worker":
 				fields = []string{"id", "role", "host", "slot", "key", "ticket", "pool", "member", "pid", "leaderIdentity", "members", "started", "lastActive", "logBytes", "activityPaths", "activityMtime", "state", "killReason", "killDeadline", "fingerprint", "baseFingerprint", "progressDigest", "tier", "model"}
 			case "backoff-state":
@@ -392,7 +471,7 @@ type Event struct {
 }
 
 // EventKinds is the closed CAL-V0-058 event vocabulary.
-var EventKinds = []string{"started", "stopped", "adopted", "launched", "launch-failed", "finished", "killing", "killed", "handoff", "handoff-refused", "reaped", "state", "claim", "release", "lane", "cooldown", "parked", "unparked", "alert", "needs-owner", "escalated"}
+var EventKinds = []string{"started", "stopped", "adopted", "launched", "launch-failed", "finished", "killing", "killed", "handoff", "handoff-refused", "reaped", "state", "claim", "release", "lane", "cooldown", "parked", "unparked", "alert", "needs-owner", "throttled", "escalated"}
 
 // appendEvent writes one event line, rotating the log once at 16 MiB.
 func appendEvent(dir string, e Event) error {

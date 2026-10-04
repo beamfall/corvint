@@ -260,6 +260,9 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 	if c.Escalates() {
 		o.Set("escalation", dispatchEscalationValue(c, l))
 	}
+	if l.Pressure != nil {
+		o.Set("pressure", dispatchPressureValue(l.Pressure, c.Pressure))
+	}
 	o.Set("lastEventSeq", str(strconv.FormatUint(l.EventSeq, 10)))
 	o.Set("events", wire.Value{Kind: wire.KindArray, Arr: evs})
 	return wire.Value{Kind: wire.KindObject, Obj: o}
@@ -296,6 +299,75 @@ func dispatchEscalationValue(c *dispatch.Config, l *dispatch.Ledger) wire.Value 
 		out = append(out, wire.Value{Kind: wire.KindObject, Obj: o})
 	}
 	return wire.Value{Kind: wire.KindArray, Arr: out}
+}
+
+// dispatchPressureValue is the CAL-V0-068 status view: the recorded level
+// and dwell, the newest sample's observed inputs (UNKNOWN when unobserved),
+// the active non-exempt cap under the given configuration, and held work.
+func dispatchPressureValue(r *dispatch.PressureRecord, pc *dispatch.PressureConfig) wire.Value {
+	str := wire.String
+	num := func(x float64, ok bool) wire.Value {
+		if !ok {
+			return str(dispatch.StateUnknown)
+		}
+		return str(strconv.FormatFloat(x, 'f', 3, 64))
+	}
+	s := r.Sample
+	o := wire.NewObject()
+	o.Set("level", str(strconv.Itoa(r.State.Level)))
+	o.Set("pendingLevel", str(strconv.Itoa(r.State.PendingLevel)))
+	o.Set("pendingTicks", str(strconv.Itoa(r.State.PendingTicks)))
+	sample := "OBSERVED"
+	if r.State.Unknown {
+		sample = dispatch.StateUnknown
+	}
+	o.Set("sample", str(sample))
+	sampledAt := dispatch.StateUnknown
+	if !s.SampledAt.IsZero() {
+		sampledAt = s.SampledAt.UTC().Format(time.RFC3339)
+	}
+	o.Set("sampledAt", str(sampledAt))
+	source := dispatch.StateUnknown
+	if s.Source != "" {
+		source = prose(s.Source)
+	}
+	o.Set("source", str(source))
+	o.Set("loadAverage", num(s.LoadAverage, s.LoadKnown))
+	cpus := dispatch.StateUnknown
+	if s.CPUKnown && s.CPUs > 0 {
+		cpus = strconv.Itoa(s.CPUs)
+	}
+	o.Set("cpus", str(cpus))
+	o.Set("loadPerCpu", num(s.LoadPerCPU()))
+	o.Set("swapFraction", num(s.SwapFraction()))
+	swapUsed, swapTotal := dispatch.StateUnknown, dispatch.StateUnknown
+	if s.SwapKnown {
+		swapUsed, swapTotal = strconv.FormatUint(s.SwapUsedBytes, 10), strconv.FormatUint(s.SwapTotalBytes, 10)
+	}
+	o.Set("swapUsedBytes", str(swapUsed))
+	o.Set("swapTotalBytes", str(swapTotal))
+	problems := make([]string, 0, len(s.Problems))
+	for _, p := range s.Problems {
+		problems = append(problems, prose(p))
+	}
+	o.Set("problems", wire.Strings(problems))
+	limit := "NONE"
+	if r.State.Level > 0 {
+		limit = dispatch.StateUnknown
+		if pc != nil {
+			limit = strconv.Itoa(pc.LevelCaps[strconv.Itoa(r.State.Level)])
+		}
+	}
+	o.Set("cap", str(limit))
+	held := []wire.Value{}
+	for _, h := range r.Held {
+		x := wire.NewObject()
+		x.Set("role", str(h.Role))
+		x.Set("key", str(h.Key))
+		held = append(held, wire.Value{Kind: wire.KindObject, Obj: x})
+	}
+	o.Set("held", wire.Value{Kind: wire.KindArray, Arr: held})
+	return wire.Value{Kind: wire.KindObject, Obj: o}
 }
 
 // dispatchQueue is the native store boundary of the dispatcher: one pure
