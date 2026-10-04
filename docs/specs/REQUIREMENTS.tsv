@@ -1009,6 +1009,16 @@ EPG-V0-006	docs/specs/eol-policy-gate-v0.md	66	The gate MUST scan the whole list
 EPG-V0-007	docs/specs/eol-policy-gate-v0.md	70	Failure to start or successfully close `git ls-files --eol`, and an unparsable
 EPG-V0-008	docs/specs/eol-policy-gate-v0.md	73	A drift-free run MUST exit 0 and print exactly one summary line containing the
 EPG-V0-009	docs/specs/eol-policy-gate-v0.md	75	`make gate` MUST invoke both `eol-policy-check`, which runs the policy script, a
+ERG-V0-001	docs/specs/corvint-tasks-external-reviews-v0.md	47	A review record MUST distinguish the reviewed subject from the recording actor.
+ERG-V0-002	docs/specs/corvint-tasks-external-reviews-v0.md	56	The reviewed candidate MUST be a closed tagged union bound to the subject.
+ERG-V0-003	docs/specs/corvint-tasks-external-reviews-v0.md	62	Each committed record or resubmission MUST be one immutable canonical `taskman-e
+ERG-V0-004	docs/specs/corvint-tasks-external-reviews-v0.md	74	A ticket MAY carry an optional bounded `externalReviews` map of at most 16 gate
+ERG-V0-005	docs/specs/corvint-tasks-external-reviews-v0.md	80	Records and resubmissions MUST be ordered by exact generation and revision CAS.
+ERG-V0-006	docs/specs/corvint-tasks-external-reviews-v0.md	90	Current routing state MUST become STALE when the acceptance revision, external g
+ERG-V0-007	docs/specs/corvint-tasks-external-reviews-v0.md	97	External review events MUST remain routing evidence only.
+ERG-V0-008	docs/specs/corvint-tasks-external-reviews-v0.md	103	Recovery MUST validate material bindings, not only digests.
+ERG-V0-009	docs/specs/corvint-tasks-external-reviews-v0.md	111	The native writer, policy, reads and workState adapter MUST be installed before
+ERG-V0-010	docs/specs/corvint-tasks-external-reviews-v0.md	124	Promotion and rollback MUST keep the pure seed, full integration and producers d
 ERI-V0-001	docs/specs/expanded-range-impact-v0.md	35	`corvint impact --base FULL_COMMIT_ID --range-profile expanded-256` MUST explici
 ERI-V0-002	docs/specs/expanded-range-impact-v0.md	41	The experimental profile MUST use the complete original base-to-captured-HEAD
 ERI-V0-003	docs/specs/expanded-range-impact-v0.md	50	Only this profile's path capacity changes. The cumulative 10,000-admitted-hunk a
