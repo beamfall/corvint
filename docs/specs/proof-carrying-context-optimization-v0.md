@@ -133,6 +133,12 @@ research direction only.
   cost thresholds with zero treatment-only critical misses; otherwise the result reads "measured,
   no savings claim". Complete task tokens and human failure rate stay `NOT_OBSERVED` without a live
   model-driven agent or human reviewer and are never estimated from latency or byte counts.
+  The agent-observations file is read under a 1 MiB and 10,000-row bound (V1-0742): prose or
+  non-UTF-8 input, or a row holding a lone surrogate, is `observations-unparseable` (rows end at LF
+  only), a token count too large for a float is `tokens-invalid`, a non-object row is `observation-not-object`, and
+  a larger file is `observations-over-bound`. An invalid file records only its class names; no
+  invalid row is copied into the result, and a well-formed row is recorded with only its `arm`,
+  `caseId`, `completeTaskTokens` and `humanFailure` fields.
 
 ## Promotion gate
 

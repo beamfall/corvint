@@ -635,12 +635,12 @@ CRT-V0-003	docs/specs/cem-reviewer-trial-v0.md	55	Withheld-patch construction. T
 CRT-V0-004	docs/specs/cem-reviewer-trial-v0.md	58	Ground truth. Primary gold for `C` is the set of test-or-spec paths `C` itself
 CRT-V0-005	docs/specs/cem-reviewer-trial-v0.md	70	Arms. `control` receives the prompt skeleton, `P(C)`, the numbered hunk list, an
 CRT-V0-006	docs/specs/cem-reviewer-trial-v0.md	89	Reply grammar. Every reply MUST end with one fenced JSON block
-CRT-V0-007	docs/specs/cem-reviewer-trial-v0.md	98	Metrics. `miss(c,a) = |gold(c) \ citedPaths(c,a)| / |gold(c)|`. The primary esti
-CRT-V0-008	docs/specs/cem-reviewer-trial-v0.md	118	Power, pre-declared. 30 pairs is roughly 120 gold items per arm; with clustering
-CRT-V0-009	docs/specs/cem-reviewer-trial-v0.md	147	Pilot. The pilot uses its own seed and partition; its changes are excluded from
-CRT-V0-010	docs/specs/cem-reviewer-trial-v0.md	150	Stopping and publication. There is no interim analysis: the scorer runs once, af
-CRT-V0-011	docs/specs/cem-reviewer-trial-v0.md	164	Invocation lifecycle (proposed). `runCommand` MUST share the
-CRT-V0-012	docs/specs/cem-reviewer-trial-v0.md	180	Seeded-arm decomposition (proposed 2026-10-01). A seeded run reports
+CRT-V0-007	docs/specs/cem-reviewer-trial-v0.md	102	Metrics. `miss(c,a) = |gold(c) \ citedPaths(c,a)| / |gold(c)|`. The primary esti
+CRT-V0-008	docs/specs/cem-reviewer-trial-v0.md	122	Power, pre-declared. 30 pairs is roughly 120 gold items per arm; with clustering
+CRT-V0-009	docs/specs/cem-reviewer-trial-v0.md	151	Pilot. The pilot uses its own seed and partition; its changes are excluded from
+CRT-V0-010	docs/specs/cem-reviewer-trial-v0.md	154	Stopping and publication. There is no interim analysis: the scorer runs once, af
+CRT-V0-011	docs/specs/cem-reviewer-trial-v0.md	168	Invocation lifecycle (proposed). `runCommand` MUST share the
+CRT-V0-012	docs/specs/cem-reviewer-trial-v0.md	189	Seeded-arm decomposition (proposed 2026-10-01). A seeded run reports
 CTR-V0-001	docs/specs/compat-trial-v0.md	32	Descriptor schema. The fields below are frozen; a runner MUST NOT add, rename or
 CTR-V0-002	docs/specs/compat-trial-v0.md	40	Comparison policy v0. Equality is exact bytes of stdout, stderr and exit status
 CTR-V0-003	docs/specs/compat-trial-v0.md	42	Resource profile, quoted verbatim from `P:237–241`: "64 KiB input, 1 MiB output
@@ -694,19 +694,19 @@ CWR-V0-013	docs/specs/change-witness-relation-v0.md	187	the relation MUST NOT be
 CWR-V0-014	docs/specs/change-witness-relation-v0.md	196	the declared resolver is exactly Go `go/parser` plus `go/ast` over the target
 CWR-V0-015	docs/specs/change-witness-relation-v0.md	206	the evaluator returns exactly one outcome, `witnessed`, `withheld`, or `abstaine
 CWT-V0-001	docs/specs/confidently-wrong-trial-v0.md	38	Claim grammar. Every reply MUST end with one fenced JSON block
-CWT-V0-002	docs/specs/confidently-wrong-trial-v0.md	45	Verdicts. A claim whose kind the task's gold covers is `TRUE` when its value is
-CWT-V0-003	docs/specs/confidently-wrong-trial-v0.md	61	Arms. `none` supplies the task text only; `grep` adds the top-K paths of
-CWT-V0-004	docs/specs/confidently-wrong-trial-v0.md	81	Dispatch. One invocation per task per arm, inside the task's materialised copy
-CWT-V0-005	docs/specs/confidently-wrong-trial-v0.md	109	Materialisation. A snapshot is a bench chunk file
-CWT-V0-006	docs/specs/confidently-wrong-trial-v0.md	119	Identity. The report MUST record `profile` (`corvint-cw-trial/0`), `partition`,
-CWT-V0-007	docs/specs/confidently-wrong-trial-v0.md	127	Summary and determinism. Per arm the report carries `tasks`, `errors`, and 95%
-CWT-V0-008	docs/specs/confidently-wrong-trial-v0.md	137	Task manifest. `partition` is required; a task needs `id`, `kind`
-CWT-V0-009	docs/specs/confidently-wrong-trial-v0.md	177	No verdict field. The report carries the rates the bet's kill criteria read
-CWT-V0-010	docs/specs/confidently-wrong-trial-v0.md	144	Access. `--access read-only` (the pilot's mode) lets the agent read the copy in
-CWT-V0-011	docs/specs/confidently-wrong-trial-v0.md	153	Held-out import. `cw-trial import-heldout --tasks tasks.jsonl --manifest
-CWT-V0-012	docs/specs/confidently-wrong-trial-v0.md	161	Unseen set generation. `cw-trial generate --repo DIR --name OWNER/NAME --since
-CWT-V0-013	docs/specs/confidently-wrong-trial-v0.md	182	Retrieval-native metrics (decision 0034). Beside the agent's outcome, each
-CWT-V0-014	docs/specs/confidently-wrong-trial-v0.md	203	Invocation lifecycle (proposed). On Darwin and Linux, `runCommand`
+CWT-V0-002	docs/specs/confidently-wrong-trial-v0.md	46	Verdicts. A claim whose kind the task's gold covers is `TRUE` when its value is
+CWT-V0-003	docs/specs/confidently-wrong-trial-v0.md	62	Arms. `none` supplies the task text only; `grep` adds the top-K paths of
+CWT-V0-004	docs/specs/confidently-wrong-trial-v0.md	82	Dispatch. One invocation per task per arm, inside the task's materialised copy
+CWT-V0-005	docs/specs/confidently-wrong-trial-v0.md	117	Materialisation. A snapshot is a bench chunk file
+CWT-V0-006	docs/specs/confidently-wrong-trial-v0.md	127	Identity. The report MUST record `profile` (`corvint-cw-trial/0`), `partition`,
+CWT-V0-007	docs/specs/confidently-wrong-trial-v0.md	135	Summary and determinism. Per arm the report carries `tasks`, `errors`, and 95%
+CWT-V0-008	docs/specs/confidently-wrong-trial-v0.md	145	Task manifest. `partition` is required; a task needs `id`, `kind`
+CWT-V0-009	docs/specs/confidently-wrong-trial-v0.md	185	No verdict field. The report carries the rates the bet's kill criteria read
+CWT-V0-010	docs/specs/confidently-wrong-trial-v0.md	152	Access. `--access read-only` (the pilot's mode) lets the agent read the copy in
+CWT-V0-011	docs/specs/confidently-wrong-trial-v0.md	161	Held-out import. `cw-trial import-heldout --tasks tasks.jsonl --manifest
+CWT-V0-012	docs/specs/confidently-wrong-trial-v0.md	169	Unseen set generation. `cw-trial generate --repo DIR --name OWNER/NAME --since
+CWT-V0-013	docs/specs/confidently-wrong-trial-v0.md	190	Retrieval-native metrics (decision 0034). Beside the agent's outcome, each
+CWT-V0-014	docs/specs/confidently-wrong-trial-v0.md	211	Invocation lifecycle (proposed). On Darwin and Linux, `runCommand`
 DCG-V0-001	docs/specs/documentation-citation-gate-v0.md	76	The gate MUST check every backticked citation in `docs/specs/*.md`,
 DCG-V0-002	docs/specs/documentation-citation-gate-v0.md	86	For every checked citation the gate MUST fail when the named file is not tracked
 DCG-V0-003	docs/specs/documentation-citation-gate-v0.md	91	The gate MUST additionally fail when a cited line is blank or contains only
