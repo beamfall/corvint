@@ -37,3 +37,22 @@ four-class human acceptance is still PARTIAL, and the native docs-only class sta
 V1-0579. This decision completes no ticket.
 
 Rollback: revert the seed and seal commits. Nothing else depends on them until the successor merge.
+
+## Successor enrollment
+
+The seed's documentation enrollment (key
+3e09dda7295876cf702c1349358155b6f95805d3986bb42c2aa54d2c89ee6fbe) finished satisfied at its bound
+target 541b6462468b5cf0d5db23d3aa070e980b24ac73, and `dogfood-check` and `dogfood-seal` passed.
+The seal c58325c4b128d69828640952b421d660a5aebc7b made that key stale, so it was cancelled as the
+decision requires. Its pre-seal result stands and is not a failed seed check.
+
+The successor key 02e7d9fcf8283d9beb6669260414a80502d96a43f7bf7412c5619a374b815c81
+was enrolled at c58325c4 with plan digest
+3ee04d546ffbf10134bab4fceb340e098140424e99826a7450c175c86f6c1849: the three original intents and
+all ten original checks, unchanged. The retained candidate 4be1a767 was merged ordinarily. The three
+catalogs merged to the seed bytes, the DLT spec took the candidate bytes so its `(PLANNED)`
+markers came off with the arriving tests, and main's archives 0ab7b241 and 1722ce93 keep their
+BASE bytes. The candidate's historical shared CEM (SHA-256
+01f1d27210f86ab1a816dbeae7fd2b5e8ea5dda10c985c5f17f4ee3d6d4abd76) is not carried, and a fresh map
+is bound against c58325c4. The candidate's `2026-10-04-immutable-delta-current-main-preservation.md`
+entry describes the candidate branch's own archive disposition, not this successor's.
