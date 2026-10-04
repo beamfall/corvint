@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -628,5 +629,28 @@ func TestSourceFilesRefusesAnUnrepresentableAcceptedName(t *testing.T) {
 	accept := func(name string) bool { return strings.HasSuffix(name, ".go") }
 	if files, err := SourceFiles(root, accept); !errors.Is(err, ErrWalkUnrepresentable) {
 		t.Fatalf("SourceFiles = %v, %v; want ErrWalkUnrepresentable", files, err)
+	}
+}
+
+// TestReachedUnitIDsIncludeDeclaredReadScopeReaders keeps the delta unit
+// denominator aligned with Select: a unit reached only through its declared
+// read scope (AFP-V0-023) is both selected and in the reached universe.
+func TestReachedUnitIDsIncludeDeclaredReadScopeReaders(t *testing.T) {
+	scoped := chain()
+	scoped.units[3].ReadScoped = true
+	scoped.units[3].ReadScope = []string{"docs/"}
+	graph, err := Build(t.TempDir(), scoped)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dirty := []string{"docs/guide.md"}
+	reached := graph.ReachedUnitIDs(dirty)
+	for _, selected := range Select(graph, dirty).Selected {
+		if !slices.Contains(reached, selected.UnitID) {
+			t.Fatalf("selected %s outside reached universe %v", selected.UnitID, reached)
+		}
+	}
+	if !slices.Contains(reached, "x:solo") {
+		t.Fatalf("read-scoped reader missing from %v", reached)
 	}
 }
