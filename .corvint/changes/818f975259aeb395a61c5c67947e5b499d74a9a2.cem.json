@@ -1,0 +1,184 @@
+{
+  "baseRevision": "3e9d1bda8d261a979cdb37a1eeab8e063dbbb7f6",
+  "evidence": [
+    {
+      "blobOid": "647b3e716e93df82c9a625eaaf2a7a7dfe8083c1",
+      "id": "evidence:sha256:767404a18e58bdd4b5ef82ad6a905869fa2c2435d000174d80b070af87d53c5b",
+      "path": "docs/specs/immutable-delta-v0.md",
+      "span": {
+        "end": 2289,
+        "start": 1620
+      },
+      "spanSha256": "b8669388f49d4ee5303dd901b90d99a88ef1b541cdd2c13a0ac876a50d1a849c"
+    },
+    {
+      "blobOid": "647b3e716e93df82c9a625eaaf2a7a7dfe8083c1",
+      "id": "evidence:sha256:cbe49db7cd78fe9e7b57db21f29ce76a0759662b3701a66bb50681cccf259b41",
+      "path": "docs/specs/immutable-delta-v0.md",
+      "span": {
+        "end": 4928,
+        "start": 4647
+      },
+      "spanSha256": "03c9eae6c5820f42639bb5ec7b01408d7bc0dbc82dbe0b716a356e818ece9b59"
+    },
+    {
+      "blobOid": "647b3e716e93df82c9a625eaaf2a7a7dfe8083c1",
+      "id": "evidence:sha256:ed3bf9f5fbca0726af01c2188daacec568fa52ca328edb22be534994c37a4b2d",
+      "path": "docs/specs/immutable-delta-v0.md",
+      "span": {
+        "end": 4045,
+        "start": 3689
+      },
+      "spanSha256": "3200c5e2b28261488169d00fb477249d14e35b90c94c1c37494e8051126cfbf0"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:767404a18e58bdd4b5ef82ad6a905869fa2c2435d000174d80b070af87d53c5b",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:cbe49db7cd78fe9e7b57db21f29ce76a0759662b3701a66bb50681cccf259b41",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1e95af92a26a04cb582039c01e6ab132b04ccbdab584d80b13a35ebfe1d3ec69",
+      "newRange": {
+        "count": 10,
+        "start": 66
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 66
+      },
+      "path": "docs/specs/immutable-delta-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:767404a18e58bdd4b5ef82ad6a905869fa2c2435d000174d80b070af87d53c5b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0a2972a30d9fe32c8ed09562dde43ef90c19cd809a1c5592635fd87565682480",
+      "newRange": {
+        "count": 7,
+        "start": 141
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 139
+      },
+      "path": "docs/specs/immutable-delta-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:767404a18e58bdd4b5ef82ad6a905869fa2c2435d000174d80b070af87d53c5b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:819507d12ffc0de0483e0f4639f0683e1491e75b49a86012ea76652f46eeeecc",
+      "newRange": {
+        "count": 9,
+        "start": 431
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 431
+      },
+      "path": "internal/cem/gitauth/object.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:767404a18e58bdd4b5ef82ad6a905869fa2c2435d000174d80b070af87d53c5b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:637d0ff54e1b382396282a6edc3ce96fe691b96061e974d2f70aeee44c05acdc",
+      "newRange": {
+        "count": 9,
+        "start": 443
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 440
+      },
+      "path": "internal/cem/gitauth/object.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:767404a18e58bdd4b5ef82ad6a905869fa2c2435d000174d80b070af87d53c5b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b7f8a9adf16d392c7eca547da359d6af30dbb7f08d2df776f1d875e16a3d447a",
+      "newRange": {
+        "count": 104,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/cem/gitauth/tree_entry_name_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:cbe49db7cd78fe9e7b57db21f29ce76a0759662b3701a66bb50681cccf259b41",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a66935f7217f6d21801ba91bc335e5ddc42644e903224febe960e6943ce3bc37",
+      "newRange": {
+        "count": 11,
+        "start": 24
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 24
+      },
+      "path": "internal/delta/compile.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ed3bf9f5fbca0726af01c2188daacec568fa52ca328edb22be534994c37a4b2d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e5b954a936f9b728870fb4d9570d91b6077c1a020775e3b453468bd0d1c82d68",
+      "newRange": {
+        "count": 12,
+        "start": 148
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 148
+      },
+      "path": "internal/delta/schema_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "f898361da586c6a368e81ba4903b69e62be0642f797b3506fea24b8e249f406a",
+  "spec": "cem/0.2"
+}

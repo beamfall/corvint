@@ -1,0 +1,336 @@
+{
+  "baseRevision": "4b10a02144faed4a77b36eba4b0d1cbc315706d3",
+  "evidence": [
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3118,
+        "start": 2775
+      },
+      "spanSha256": "46e69c5e97297b36c204ff585b335a484633ade4ec166dbc695fd46e7c6dc76c"
+    },
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:0e749dc28b4e8cb4b3a3ef2618fd638e51456b97708df865c2ae7d97d8da2aef",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 2774,
+        "start": 2288
+      },
+      "spanSha256": "a5ef358e5716557d5f42d57c7271d3289afdc8ff20143da2026e5fd075f876f4"
+    },
+    {
+      "blobOid": "1862a80fbf50b3376a2dfdb17a05a3a31b0d3a29",
+      "id": "evidence:sha256:9fdf7806a7db789859d6647e8f9f9c1b07d340288b5a9338eee04da54a7f5129",
+      "path": "docs/SPEC-DRIVEN-DEVELOPMENT.md",
+      "span": {
+        "end": 3612,
+        "start": 3283
+      },
+      "spanSha256": "247689027b4076f3fd7876a4475b92e90168a53dd5223bd78a26e6ab3fc6fceb"
+    },
+    {
+      "blobOid": "1862a80fbf50b3376a2dfdb17a05a3a31b0d3a29",
+      "id": "evidence:sha256:cb99cfe708190d8e65ecf4f521cbf6b66e9cc85de1391396f10a8267a35c0e83",
+      "path": "docs/SPEC-DRIVEN-DEVELOPMENT.md",
+      "span": {
+        "end": 4106,
+        "start": 3085
+      },
+      "spanSha256": "bca65692f9db82c44304138cf494db6ecfb4e7a37e41718d6ad0bbe1e491fe2c"
+    },
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:ad37f040c4aff933ebf084ed6a05dd8af9f864759899feedcfa07ca92e63b861",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 2259,
+        "start": 1971
+      },
+      "spanSha256": "29bf8bf25de6e19c57bfee2b1fc98c3d85cbeabf2157578740a5eae467b3c916"
+    },
+    {
+      "blobOid": "902a54be4369822c04879be447e73d49a159ec00",
+      "id": "evidence:sha256:7882f1643fc604a3de6ce4c5d860f422b8cb50ce530068278ac69d5d81aaebf6",
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "span": {
+        "end": 56047,
+        "start": 55692
+      },
+      "spanSha256": "fc6e3bf80ebec6f8327e1d72b29d6534f4e21f545463f3c2559658e76561416d"
+    },
+    {
+      "blobOid": "377b6ea1882422273fd51625550121f844b10493",
+      "id": "evidence:sha256:2f1f9b32908454b422af87d786da7b7a3c27b760cd26c58bcce5adace43102c7",
+      "path": "internal/tasks/wire/parse.go",
+      "span": {
+        "end": 582,
+        "start": 202
+      },
+      "spanSha256": "30a0b3df36828f43d5189015f922a2f5af0c22f1bc7538b0bdc219e2a7581b6e"
+    },
+    {
+      "blobOid": "6217db8119cc36eab59296d1f84d8f76c760d326",
+      "id": "evidence:sha256:e1067dc724fece305570ab7405a2594917f6dc3aab1add7a1d7c9b9e7f96971b",
+      "path": "internal/tasks/wire/identity.go",
+      "span": {
+        "end": 304,
+        "start": 59
+      },
+      "spanSha256": "777501444f8d507aee0fa1bd6983f46084500eb5215eecc119e3c07e5ede998e"
+    },
+    {
+      "blobOid": "1862a80fbf50b3376a2dfdb17a05a3a31b0d3a29",
+      "id": "evidence:sha256:bf2fa1c3d650ef503c0d3c8355f4c900851c5e8ebc84740d41d169747806400d",
+      "path": "docs/SPEC-DRIVEN-DEVELOPMENT.md",
+      "span": {
+        "end": 4643,
+        "start": 4349
+      },
+      "spanSha256": "760b7ba277169eb34f5741e7167bcadc171e6fb635a3bb48c996beb1ff21c033"
+    },
+    {
+      "blobOid": "902a54be4369822c04879be447e73d49a159ec00",
+      "id": "evidence:sha256:7477db632b559482397446d944b6453c0668c95e0a2aef80d767d6f87af61613",
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "span": {
+        "end": 13194,
+        "start": 12675
+      },
+      "spanSha256": "c4d9de4b279cd1b042913f8ad9b4b80860ad80f1c2ab62ab9ca9ecadecfeb075"
+    },
+    {
+      "blobOid": "902a54be4369822c04879be447e73d49a159ec00",
+      "id": "evidence:sha256:a924989e2955e404a3b1b5ed80a6177fb0b4a58425bbf56275e273f089cf25f5",
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "span": {
+        "end": 14132,
+        "start": 13769
+      },
+      "spanSha256": "0a9e559e4da4394c0cd3325182592df376536dcd79154072b7a2e0ce76e5da51"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:fd8917a13286c3c0f25e593c11fd6945e02fa32922ca1a359c8eb165adb1d683",
+      "newRange": {
+        "count": 84,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-04-issue502-escalation-foundation.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0e749dc28b4e8cb4b3a3ef2618fd638e51456b97708df865c2ae7d97d8da2aef",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1a1d4204fe57a5c8edc4969b8264309075fa13bbb9ad22fb71ecca5314f5d17a",
+      "newRange": {
+        "count": 23,
+        "start": 642
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 642
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0e749dc28b4e8cb4b3a3ef2618fd638e51456b97708df865c2ae7d97d8da2aef",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:74044ab419d63514e8d35a538b4026e3c340f7b02bb31065508913bd5c5e88de",
+      "newRange": {
+        "count": 7,
+        "start": 29
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 29
+      },
+      "path": "docs/specs/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0e749dc28b4e8cb4b3a3ef2618fd638e51456b97708df865c2ae7d97d8da2aef",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:9fdf7806a7db789859d6647e8f9f9c1b07d340288b5a9338eee04da54a7f5129",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:84dd3c528dc79fd71c750d2a2795b71ca341756561b96f031e83c31b6b4e9a58",
+      "newRange": {
+        "count": 17,
+        "start": 1015
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 1015
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:cb99cfe708190d8e65ecf4f521cbf6b66e9cc85de1391396f10a8267a35c0e83",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:ad37f040c4aff933ebf084ed6a05dd8af9f864759899feedcfa07ca92e63b861",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:7882f1643fc604a3de6ce4c5d860f422b8cb50ce530068278ac69d5d81aaebf6",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c5c50db5d2dfa7c97ed946af5bfcc6eb0838cc0790c55b985cf3a21e98d42a19",
+      "newRange": {
+        "count": 151,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/specs/corvint-tasks-escalations-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:7882f1643fc604a3de6ce4c5d860f422b8cb50ce530068278ac69d5d81aaebf6",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:2f1f9b32908454b422af87d786da7b7a3c27b760cd26c58bcce5adace43102c7",
+          "relation": "implementation"
+        },
+        {
+          "evidenceId": "evidence:sha256:e1067dc724fece305570ab7405a2594917f6dc3aab1add7a1d7c9b9e7f96971b",
+          "relation": "implementation"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:faf6b5166eb93ed162475c14c47480862a8995ed353c4c3afa1dd61320c3349c",
+      "newRange": {
+        "count": 538,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/tasks/ticket/escalation.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:7882f1643fc604a3de6ce4c5d860f422b8cb50ce530068278ac69d5d81aaebf6",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:bf2fa1c3d650ef503c0d3c8355f4c900851c5e8ebc84740d41d169747806400d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2a1e3935391cca246639025f96d3571d532e9788eb9f3020514779b3fa30e063",
+      "newRange": {
+        "count": 162,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/tasks/ticket/escalation_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:7477db632b559482397446d944b6453c0668c95e0a2aef80d767d6f87af61613",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:a924989e2955e404a3b1b5ed80a6177fb0b4a58425bbf56275e273f089cf25f5",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:7882f1643fc604a3de6ce4c5d860f422b8cb50ce530068278ac69d5d81aaebf6",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:216803a4a5b825323abd1aa266d9053eaeca921e551350c98fd28bffea2db457",
+      "newRange": {
+        "count": 554,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/tasks/transaction/escalation.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:7882f1643fc604a3de6ce4c5d860f422b8cb50ce530068278ac69d5d81aaebf6",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:bf2fa1c3d650ef503c0d3c8355f4c900851c5e8ebc84740d41d169747806400d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:98de5efd1f7119c7656f4458febb15e924d276fe053e97a4b83f992482495c4c",
+      "newRange": {
+        "count": 413,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/tasks/transaction/escalation_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "83803c7a417858444d3e6e8675ed4ae81b182fdbdabb1207db5b7e11122eaa9d",
+  "spec": "cem/0.2"
+}

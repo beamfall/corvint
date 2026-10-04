@@ -94,7 +94,12 @@ type buildLayout struct {
 
 // Units observes every Kotlin source and resolves static first-party imports.
 func (language Language) Units(root string) (affected.Result, error) {
-	files, err := affected.SourceFiles(root, func(name string) bool {
+	return language.UnitsSource(affected.DiskSource(root))
+}
+
+// UnitsSource reads only the explicitly supplied source universe.
+func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {
+	files, err := root.Files(func(name string) bool {
 		return language.Owns(name) || strings.HasSuffix(name, ".java")
 	})
 	if err != nil {
@@ -112,7 +117,7 @@ func (language Language) Units(root string) (affected.Result, error) {
 			frontier[FrontierJVMSiblingSource] = true
 			continue
 		}
-		body, readErr := affected.ReadSource(root, relative)
+		body, readErr := root.Read(relative)
 		if readErr != nil {
 			frontier[FrontierUnparsedSource] = true
 			continue
@@ -140,8 +145,8 @@ func (language Language) Units(root string) (affected.Result, error) {
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
 }
 
-func observeBuildLayout(root string) (buildLayout, error) {
-	manifests, err := affected.SourceFiles(root, func(name string) bool {
+func observeBuildLayout(root *affected.Source) (buildLayout, error) {
+	manifests, err := root.Files(func(name string) bool {
 		switch name {
 		case "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts", "pom.xml":
 			return true
@@ -157,7 +162,7 @@ func observeBuildLayout(root string) (buildLayout, error) {
 		name := path.Base(manifest)
 		layout.gradle = layout.gradle || strings.HasSuffix(name, ".gradle") || strings.HasSuffix(name, ".gradle.kts")
 		layout.maven = layout.maven || name == "pom.xml"
-		body, readErr := affected.ReadSource(root, manifest)
+		body, readErr := root.Read(manifest)
 		if readErr != nil {
 			layout.projectMapped = true
 			continue
