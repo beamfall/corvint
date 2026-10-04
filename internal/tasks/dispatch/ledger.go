@@ -54,6 +54,16 @@ type Worker struct {
 	Fingerprint     string    `json:"fingerprint"`
 	BaseFingerprint string    `json:"baseFingerprint,omitempty"`
 	ProgressDigest  string    `json:"progressDigest,omitempty"`
+	Tier            int       `json:"tier,omitempty"`
+	Model           string    `json:"model,omitempty"`
+}
+
+// EscalationState is the CAL-V0-057 ladder record of one ticket: the
+// trailing count of finished sessions without progress, and the tier each
+// escalating role last launched at.
+type EscalationState struct {
+	Streak int            `json:"streak"`
+	Tiers  map[string]int `json:"tiers,omitempty"`
 }
 
 // Backoff is the CAL-V0-057 per-key no-progress record.
@@ -84,6 +94,8 @@ type Ledger struct {
 	Backoff   map[string]*BackoffState    `json:"backoff"`
 	Seen      *Seen                       `json:"seen,omitempty"`
 	Progress  map[string]*ProgressHistory `json:"progress,omitempty"`
+	// Escalation is present only while the configuration has a ladder.
+	Escalation map[string]*EscalationState `json:"escalation,omitempty"`
 }
 
 const maxProgressPerKey, maxProgressProgram = 256, 8192
@@ -132,6 +144,9 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	if err := l.validateProgress(); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
 	}
+	if err := l.validateEscalation(); err != nil {
+		return nil, fmt.Errorf("dispatch state: %w", err)
+	}
 	if l.Backoff == nil {
 		l.Backoff = map[string]*BackoffState{}
 	}
@@ -172,9 +187,9 @@ func strictProgressJSON(raw []byte) bool {
 			var fields []string
 			switch schema {
 			case "ledger":
-				fields = []string{"profile", "program", "launchSeq", "eventSeq", "workers", "backoff", "seen", "progress"}
+				fields = []string{"profile", "program", "launchSeq", "eventSeq", "workers", "backoff", "seen", "progress", "escalation"}
 			case "worker":
-				fields = []string{"id", "role", "host", "slot", "key", "ticket", "pool", "member", "pid", "leaderIdentity", "members", "started", "lastActive", "logBytes", "activityPaths", "activityMtime", "state", "killReason", "killDeadline", "fingerprint", "baseFingerprint", "progressDigest"}
+				fields = []string{"id", "role", "host", "slot", "key", "ticket", "pool", "member", "pid", "leaderIdentity", "members", "started", "lastActive", "logBytes", "activityPaths", "activityMtime", "state", "killReason", "killDeadline", "fingerprint", "baseFingerprint", "progressDigest", "tier", "model"}
 			case "backoff-state":
 				fields = []string{"noProgress", "cooldownUntil", "parked", "fingerprint", "baseFingerprint", "progressDigest"}
 			case "proc":
@@ -183,6 +198,8 @@ func strictProgressJSON(raw []byte) bool {
 				fields = []string{"tickets", "claims", "lanes"}
 			case "history":
 				fields = []string{"current", "seen"}
+			case "escalation-state":
+				fields = []string{"streak", "tiers"}
 			}
 			seen := map[string]bool{}
 			for d.More() {
@@ -195,7 +212,7 @@ func strictProgressJSON(raw []byte) bool {
 				child := ""
 				switch schema {
 				case "ledger":
-					if key == "workers" || key == "backoff" || key == "seen" || key == "progress" {
+					if key == "workers" || key == "backoff" || key == "seen" || key == "progress" || key == "escalation" {
 						child = key
 					}
 				case "worker":
@@ -206,6 +223,8 @@ func strictProgressJSON(raw []byte) bool {
 					child = "backoff-state"
 				case "progress":
 					child = "history"
+				case "escalation":
+					child = "escalation-state"
 				}
 				if !value(depth+1, child) {
 					return false
@@ -293,6 +312,27 @@ func (l *Ledger) validateProgress() error {
 	return nil
 }
 
+// validateEscalation bounds the ladder records: ticket keys, a
+// non-negative streak, and role tiers 1..8.
+func (l *Ledger) validateEscalation() error {
+	for key, e := range l.Escalation {
+		if _, err := wire.ParseTicketID("escalation key", key); err != nil || e == nil || e.Streak < 0 || len(e.Tiers) > 32 {
+			return errors.New("invalid escalation record")
+		}
+		for role, tier := range e.Tiers {
+			if !ValidName(role) || tier < 1 || tier > 8 {
+				return errors.New("invalid escalation tier")
+			}
+		}
+	}
+	for _, w := range l.Workers {
+		if w != nil && (w.Tier < 0 || w.Tier > 8 || w.Tier > 0 && w.Model == "") {
+			return errors.New("invalid worker tier")
+		}
+	}
+	return nil
+}
+
 func (l *Ledger) save(dir string) error {
 	raw, err := json.MarshalIndent(l, "", "  ")
 	if err != nil {
@@ -352,7 +392,7 @@ type Event struct {
 }
 
 // EventKinds is the closed CAL-V0-058 event vocabulary.
-var EventKinds = []string{"started", "stopped", "adopted", "launched", "launch-failed", "finished", "killing", "killed", "handoff", "handoff-refused", "reaped", "state", "claim", "release", "lane", "cooldown", "parked", "unparked", "alert", "needs-owner"}
+var EventKinds = []string{"started", "stopped", "adopted", "launched", "launch-failed", "finished", "killing", "killed", "handoff", "handoff-refused", "reaped", "state", "claim", "release", "lane", "cooldown", "parked", "unparked", "alert", "needs-owner", "escalated"}
 
 // appendEvent writes one event line, rotating the log once at 16 MiB.
 func appendEvent(dir string, e Event) error {

@@ -54,16 +54,17 @@ type Queue interface {
 	Reap(ctx context.Context, a Attempt, requestID string) error
 }
 
-// Assignment is one roster decision: a role slot bound to one work key.
+// Assignment is one roster decision: a role slot bound to one work key at
+// one CAL-V0-057 escalation tier (0 is the base model).
 type Assignment struct {
 	Role, Key, Ticket, Local, State, Pool, Member string
-	Slot                                          int
+	Slot, Tier                                    int
 }
 
-// Busy is a running worker's claim on a role slot and a work key.
+// Busy is a running worker's claim on a role slot, a work key and a tier.
 type Busy struct {
-	Role, Key string
-	Slot      int
+	Role, Key  string
+	Slot, Tier int
 }
 
 func laneKey(pool, member string) string { return "lane:" + pool + "/" + member }
@@ -86,6 +87,13 @@ func liveAttempts(obs *Observation) map[string]Attempt {
 // Roster is the CAL-V0-054 pure roster: the same configuration,
 // observation, running set and skip set always produce the same assignments.
 func Roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool) []Assignment {
+	return RosterTiers(c, obs, busy, skip, nil)
+}
+
+// RosterTiers is Roster with each candidate's escalation tier from the pure
+// tierOf (nil means every tier is 0). A candidate whose tier is at its tier
+// cap waits; it never falls back to a lower tier.
+func RosterTiers(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tierOf func(role, key string) int) []Assignment {
 	type candidate struct {
 		a                    Assignment
 		pin, role, prio, ord int
@@ -146,11 +154,17 @@ func Roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool) []As
 		}
 		return x.ord < y.ord
 	})
-	caps := map[string]int{}
+	caps, tierCaps := map[string]int{}, map[string]int{}
+	tierKey := func(role string, tier int) string { return fmt.Sprintf("%s\x00%d", role, tier) }
 	for _, r := range c.Roles {
 		caps[r.Name] = r.Cap
+		for i, t := range r.Escalate {
+			if t.Cap > 0 {
+				tierCaps[tierKey(r.Name, i+1)] = t.Cap
+			}
+		}
 	}
-	taken, slots, count := map[string]bool{}, map[string]map[int]bool{}, map[string]int{}
+	taken, slots, count, tierCount := map[string]bool{}, map[string]map[int]bool{}, map[string]int{}, map[string]int{}
 	total := 0
 	for _, b := range busy {
 		taken[b.Key] = true
@@ -159,6 +173,7 @@ func Roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool) []As
 		}
 		slots[b.Role][b.Slot] = true
 		count[b.Role]++
+		tierCount[tierKey(b.Role, b.Tier)]++
 		total++
 	}
 	var out []Assignment
@@ -170,6 +185,12 @@ func Roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool) []As
 		if taken[a.Key] || skip[a.Key] || count[a.Role] >= caps[a.Role] {
 			continue
 		}
+		if tierOf != nil {
+			a.Tier = tierOf(a.Role, a.Key)
+		}
+		if n, ok := tierCaps[tierKey(a.Role, a.Tier)]; ok && tierCount[tierKey(a.Role, a.Tier)] >= n {
+			continue
+		}
 		if slots[a.Role] == nil {
 			slots[a.Role] = map[int]bool{}
 		}
@@ -178,6 +199,7 @@ func Roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool) []As
 		slots[a.Role][a.Slot] = true
 		taken[a.Key] = true
 		count[a.Role]++
+		tierCount[tierKey(a.Role, a.Tier)]++
 		total++
 		out = append(out, a)
 	}

@@ -79,6 +79,7 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 		return nil, err
 	}
 	d := &Dispatcher{Program: program, Config: c, Queue: q, Out: out, Now: time.Now, dir: dir, nonce: hex.EncodeToString(nonce[:]), ledger: l, exits: map[string]<-chan int{}, codes: map[string]int{}, lock: lock}
+	d.reconcileEscalation()
 	d.emit(Event{Kind: "started", Message: fmt.Sprintf("dispatcher started for program %s with %d recorded worker(s)", program, len(l.Workers))})
 	for _, w := range l.Workers {
 		msg := fmt.Sprintf("adopted %s worker %s (pid %d) on %s; its exit code will not be observed", w.Role, w.ID, w.PID, d.keyText(w.Key))
@@ -589,6 +590,7 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 		}
 		d.emit(Event{Kind: "finished", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg, Detail: map[string]string{"exitCode": code, "progress": strconv.FormatBool(progress), "killReason": w.KillReason, "runSeconds": strconv.Itoa(int(now.Sub(w.Started).Seconds()))}})
 		d.remove(w.ID)
+		d.account(w.Key, progress)
 		if progress {
 			delete(d.ledger.Backoff, w.Key)
 			continue
@@ -613,6 +615,83 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 		b.CooldownUntil = now.Add(time.Duration(d.Config.Backoff.CooldownSeconds) * time.Second)
 		d.emit(Event{Kind: "cooldown", Ticket: w.Ticket, Message: fmt.Sprintf("%s cools down until %s after a run without progress (%d of %d before parking)", d.keyText(w.Key), b.CooldownUntil.UTC().Format(time.RFC3339), b.NoProgress, d.Config.Backoff.ParkAfter)})
 	}
+	if d.Config.Escalates() {
+		present := map[string]bool{}
+		for _, t := range obs.Tickets {
+			present[t.ID] = true
+		}
+		for key := range d.ledger.Escalation {
+			if !present[key] {
+				delete(d.ledger.Escalation, key)
+			}
+		}
+	}
+}
+
+// account updates the CAL-V0-057 ladder of a ticket after one finished
+// session: no progress extends its streak; progress resets it and returns
+// every deescalating role to its base model.
+func (d *Dispatcher) account(key string, progress bool) {
+	if !d.Config.Escalates() || strings.HasPrefix(key, "lane:") {
+		return
+	}
+	e := d.ledger.Escalation[key]
+	if !progress {
+		if e == nil {
+			e = &EscalationState{}
+			if d.ledger.Escalation == nil {
+				d.ledger.Escalation = map[string]*EscalationState{}
+			}
+			d.ledger.Escalation[key] = e
+		}
+		e.Streak++
+		return
+	}
+	if e == nil {
+		return
+	}
+	e.Streak = 0
+	for role := range e.Tiers {
+		if r := d.role(role); r == nil || r.Deescalates() {
+			delete(e.Tiers, role)
+		}
+	}
+	if len(e.Tiers) == 0 {
+		delete(d.ledger.Escalation, key)
+	}
+}
+
+// reconcileEscalation drops ladder records the configuration no longer
+// supports: all of them without a ladder, and the tiers of roles that no
+// longer escalate or have fewer tiers.
+func (d *Dispatcher) reconcileEscalation() {
+	if !d.Config.Escalates() {
+		d.ledger.Escalation = nil
+		return
+	}
+	for _, e := range d.ledger.Escalation {
+		for role, tier := range e.Tiers {
+			if r := d.role(role); r == nil || len(r.Escalate) == 0 {
+				delete(e.Tiers, role)
+			} else if tier > len(r.Escalate) {
+				e.Tiers[role] = len(r.Escalate)
+			}
+		}
+	}
+}
+
+// LaunchTier is the tier a role launches at on a ticket with this ladder
+// record: the streak's tier, or the role's last tier when it is higher and
+// the role does not deescalate.
+func LaunchTier(r *Role, e *EscalationState) int {
+	if r == nil || len(r.Escalate) == 0 || e == nil {
+		return 0
+	}
+	tier := r.TierFor(e.Streak)
+	if last := e.Tiers[r.Name]; !r.Deescalates() && last > tier {
+		tier = min(last, len(r.Escalate))
+	}
+	return tier
 }
 
 // UnparkRequest is one queued operator request file.
@@ -684,20 +763,22 @@ func (d *Dispatcher) launchRoster(obs *Observation) {
 	now := d.Now()
 	busy := make([]Busy, 0, len(d.ledger.Workers))
 	for _, w := range d.ledger.Workers {
-		busy = append(busy, Busy{Role: w.Role, Key: w.Key, Slot: w.Slot})
+		busy = append(busy, Busy{Role: w.Role, Key: w.Key, Slot: w.Slot, Tier: w.Tier})
 	}
 	skip := map[string]bool{}
 	for k, b := range d.ledger.Backoff {
 		skip[k] = b.Parked || b.CooldownUntil.After(now)
 	}
-	for _, a := range Roster(d.Config, obs, busy, skip) {
+	tierOf := func(role, key string) int { return LaunchTier(d.role(role), d.ledger.Escalation[key]) }
+	for _, a := range RosterTiers(d.Config, obs, busy, skip, tierOf) {
 		role := d.role(a.Role)
 		host := d.Config.Hosts[role.Host]
+		model := role.ModelAt(a.Tier)
 		d.ledger.LaunchSeq++
 		// Program and role names cannot contain '.', so the ID never collides
 		// across programs or roles; the start nonce keeps it unique per run.
 		id := fmt.Sprintf("%s.%s.%d.%s-%d", d.Program, a.Role, a.Slot, d.nonce, d.ledger.LaunchSeq)
-		values := map[string]string{"{program}": d.Program, "{role}": a.Role, "{slot}": strconv.Itoa(a.Slot), "{worker}": id, "{holder}": id, "{ticket}": a.Ticket, "{ticketLocal}": a.Local, "{state}": a.State, "{pool}": a.Pool, "{member}": a.Member, "{workRoot}": d.Config.WorkRoot}
+		values := map[string]string{"{program}": d.Program, "{role}": a.Role, "{slot}": strconv.Itoa(a.Slot), "{worker}": id, "{holder}": id, "{ticket}": a.Ticket, "{ticketLocal}": a.Local, "{state}": a.State, "{pool}": a.Pool, "{member}": a.Member, "{workRoot}": d.Config.WorkRoot, "{model}": model}
 		values["{prompt}"] = Render(role.Prompt, values)
 		argv := make([]string, len(host.Argv))
 		for i, s := range host.Argv {
@@ -725,7 +806,7 @@ func (d *Dispatcher) launchRoster(obs *Observation) {
 			d.emit(Event{Kind: "launch-failed", Ticket: a.Ticket, Role: a.Role, Worker: id, Message: fmt.Sprintf("could not launch %s on %s: %v", a.Role, d.keyText(a.Key), err)})
 			continue
 		}
-		w := &Worker{ID: id, Role: a.Role, Host: role.Host, Slot: a.Slot, Key: a.Key, Ticket: a.Ticket, Pool: a.Pool, Member: a.Member, PID: pid, LeaderIdentity: identity, Members: []Proc{{PID: pid, Identity: identity}}, Started: now, LastActive: now, State: "RUNNING", Fingerprint: Fingerprint(obs, a.Key)}
+		w := &Worker{ID: id, Role: a.Role, Host: role.Host, Slot: a.Slot, Key: a.Key, Ticket: a.Ticket, Pool: a.Pool, Member: a.Member, PID: pid, LeaderIdentity: identity, Members: []Proc{{PID: pid, Identity: identity}}, Started: now, LastActive: now, State: "RUNNING", Fingerprint: Fingerprint(obs, a.Key), Tier: a.Tier, Model: model}
 		if h := d.ledger.Progress[a.Key]; h != nil {
 			w.BaseFingerprint, w.ProgressDigest = baseFingerprint(obs, a.Key), h.Current
 		}
@@ -734,13 +815,65 @@ func (d *Dispatcher) launchRoster(obs *Observation) {
 		}
 		d.ledger.Workers = append(d.ledger.Workers, w)
 		d.exits[id] = exit
+		escalation := d.escalated(role, a, model)
 		// Record the worker before anything else, so a crash cannot leave
 		// an untracked tree.
 		if err := d.ledger.save(d.dir); err != nil {
 			d.emit(Event{Kind: "alert", Worker: id, Message: "ledger unwritable after launch: " + err.Error()})
 		}
-		d.emit(Event{Kind: "launched", Ticket: a.Ticket, Role: a.Role, Worker: id, Message: fmt.Sprintf("launched %s slot %d on %s as %s (%s, pid %d)", a.Role, a.Slot, d.keyText(a.Key), id, role.Host, pid), Detail: map[string]string{"host": role.Host, "pid": strconv.Itoa(pid), "slot": strconv.Itoa(a.Slot), "state": a.State}})
+		if escalation != nil {
+			escalation.Worker = id
+			d.emit(*escalation)
+		}
+		detail := map[string]string{"host": role.Host, "pid": strconv.Itoa(pid), "slot": strconv.Itoa(a.Slot), "state": a.State}
+		if model != "" {
+			detail["model"], detail["tier"] = model, strconv.Itoa(a.Tier)
+		}
+		d.emit(Event{Kind: "launched", Ticket: a.Ticket, Role: a.Role, Worker: id, Message: fmt.Sprintf("launched %s slot %d on %s as %s (%s, pid %d)", a.Role, a.Slot, d.keyText(a.Key), id, role.Host, pid), Detail: detail})
 	}
+}
+
+// escalated records the tier a laddered role launched at and returns the
+// CAL-V0-058 escalated event when it rises.
+func (d *Dispatcher) escalated(r *Role, a Assignment, model string) *Event {
+	if len(r.Escalate) == 0 {
+		return nil
+	}
+	e := d.ledger.Escalation[a.Key]
+	from := 0
+	if e != nil {
+		from = e.Tiers[r.Name]
+	}
+	if a.Tier == from {
+		return nil
+	}
+	if e == nil {
+		e = &EscalationState{}
+		if d.ledger.Escalation == nil {
+			d.ledger.Escalation = map[string]*EscalationState{}
+		}
+		d.ledger.Escalation[a.Key] = e
+	}
+	if e.Tiers == nil {
+		e.Tiers = map[string]int{}
+	}
+	if a.Tier == 0 {
+		delete(e.Tiers, r.Name)
+	} else {
+		e.Tiers[r.Name] = a.Tier
+	}
+	if a.Tier < from {
+		if e.Streak == 0 && len(e.Tiers) == 0 {
+			delete(d.ledger.Escalation, a.Key)
+		}
+		return nil
+	}
+	t := r.Escalate[a.Tier-1]
+	detail := map[string]string{"fromTier": strconv.Itoa(from), "toTier": strconv.Itoa(a.Tier), "fromModel": r.ModelAt(from), "model": model, "streak": strconv.Itoa(e.Streak)}
+	if t.Notes != "" {
+		detail["notes"] = t.Notes
+	}
+	return &Event{Kind: "escalated", Ticket: a.Ticket, Role: r.Name, Message: fmt.Sprintf("escalated %s on %s from %s to %s after %d consecutive session(s) without progress", r.Name, d.keyText(a.Key), r.ModelAt(from), model, e.Streak), Detail: detail}
 }
 
 // diff emits state, claim, release and lane changes against the previous

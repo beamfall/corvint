@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending
 Authoritative inputs: owner request [issue 482](https://github.com/beamfall/corvint/issues/482) (proposed CAL-V0-044/046 compatibility amendment);
 owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
@@ -13,6 +13,7 @@ owner requests [issue 420](https://github.com/beamfall/corvint/issues/420),
 [issue 421](https://github.com/beamfall/corvint/issues/421) and
 [issue 422](https://github.com/beamfall/corvint/issues/422) (CAL-V0-045..047),
 owner request [issue 431](https://github.com/beamfall/corvint/issues/431) (CAL-V0-052..058),
+owner request [issue 499](https://github.com/beamfall/corvint/issues/499) (CAL-V0-052, 054, 055, 057 and 058 escalation ladder),
 owner request [issue 446](https://github.com/beamfall/corvint/issues/446) (CAL-V0-059..061),
 owner request [issue 378](https://github.com/beamfall/corvint/issues/378),
 owner request [issue 370](https://github.com/beamfall/corvint/issues/370), and
@@ -23,7 +24,7 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
 - Read next: Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release); Amendments to TCP-00; Failure modes.
@@ -745,7 +746,10 @@ learning. Live qualification is recorded in `docs/build-log/2026-10-01-tasks-con
 (OpenCode), `docs/build-log/2026-10-01-tasks-dispatch-claude-code.md` (Claude Code) and
 `docs/build-log/2026-10-01-tasks-dispatch-codex.md` (Codex). Gemini CLI summary support is
 derived from the installed CLI source and is not live-qualified; see
-`docs/build-log/2026-10-01-tasks-dispatch-gemini.md`.
+`docs/build-log/2026-10-01-tasks-dispatch-gemini.md`. The escalation ladder amendment to CAL-V0-052,
+054, 055, 057 and 058 comes from owner request
+[issue 499](https://github.com/beamfall/corvint/issues/499); its delivery record is
+`docs/build-log/2026-10-04-dispatch-escalation-ladder.md`.
 
 - `CAL-V0-052`: `dispatch --program ID --config FILE [--once | --ticks N]` MUST decode a closed
   `taskman-dispatch/0` configuration of at most 256 KiB, read without following symlinks, and refuse
@@ -753,9 +757,18 @@ derived from the installed CLI source and is not live-qualified; see
   tickSeconds 1..3600, globalCap 1..64, killGraceSeconds 1..120, 1..8 hosts with absolute
   executables, 1..32 roles, cap 1..64, priority 0..1000, idleSeconds 30..86400,
   wallSeconds 60..604800, cooldownSeconds 0..86400, parkAfter 1..100 and at most 256 pins.
+  A role MAY name a base `model` (`[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,127}`) only when its host's argv
+  or env renders `{model}`, and a host that renders `{model}` MAY serve only roles that name one, so
+  an unsupported model configuration is refused rather than silently ignored. `escalate` (1..8 tiers
+  of `after`, `model`, optional `cap` and `notes`) and `deescalateOnProgress` (default true) require a
+  base model and a match role; `after` is 1..100 and strictly increasing, each tier's model differs
+  from the tier below, a tier `cap` is 0 (role cap only) or 1..role cap, and notes are at most
+  1024 bytes without control characters.
   Host env MUST NOT set `CORVINT_DISPATCH_*`. One exclusive non-blocking lock per program state
   directory MUST refuse a second dispatcher. `dispatch status` and `dispatch unpark` MUST NOT read,
-  lock or write the native store. Status reports workers, parked and cooling keys, the dispatcher's
+  lock or write the native store. Status reports workers (with tier and model when the role names a
+  model), parked and cooling keys, with a ladder the per-ticket no-progress streak and the tier and
+  model each escalating role launches next, the dispatcher's
   liveness (RUNNING, NOT_RUNNING or UNKNOWN, read from the lock file's process identity without
   taking the lock) and the event tail. Unpark writes one atomic request file that the running
   dispatcher consumes. SIGINT, SIGTERM and SIGHUP stop the loop after the current tick without
@@ -772,14 +785,19 @@ derived from the installed CLI source and is not live-qualified; see
   one pool. A ticket with any live attempt is never a candidate; an expired lease becomes free only
   after a reap. Candidates order by pin, role priority, P-rank, plan order, key and role index. The
   global cap, then the per-role cap, bound the result, and each assignment takes the lowest free slot.
-  One key holds at most one worker.
+  One key holds at most one worker. An assignment of an escalating role carries the CAL-V0-057 tier
+  computed from the ledger's escalation record; a tier with a `cap` admits a candidate only while
+  fewer running and newly assigned workers of that role hold that tier, and a candidate at a full
+  tier waits rather than launching at a lower tier.
 - `CAL-V0-055`: Each assignment MUST launch one independent process in its own session, with
   stdout and stderr appended to per-worker logs. The prompt and argv are rendered in a single pass,
   so a substituted value is never re-expanded, and `{prompt}` may appear at most once in argv. The
   worker receives `CORVINT_DISPATCH_PROGRAM`, `_ROLE`, `_SLOT`, `_TICKET` and `_WORKER`. Its holder
   name is the worker ID `<program>.<role>.<slot>.<nonce>-<seq>`. Names cannot contain `.`, and the
   nonce is random per dispatcher start, so IDs never collide across programs or roles, nor repeat
-  after a crash or a deleted state directory. A host's `activityPaths` are rendered per worker. The
+  after a crash or a deleted state directory. A host's `activityPaths` are rendered per worker.
+  `{model}` renders the assignment's tier model (the base model at tier 0), and the worker records its
+  tier and model. The
   worker MUST be saved to the ledger immediately after launch. A launch whose start identity cannot
   be read MUST kill the new session and fail. A launch failure MUST emit `launch-failed` and cool the
   key down for ten ticks while keeping its accumulated no-progress count.
@@ -804,13 +822,24 @@ derived from the installed CLI source and is not live-qualified; see
   clears backoff. An `UNKNOWN` work state is never progress and never unparks a key. No progress MUST
   start a cooldown, and after `parkAfter` consecutive runs MUST
   park the key and emit `needs-owner`. A parked key resumes when its fingerprint changes or on an
-  operator unpark request. A `RETRY_EXHAUSTED` plan entry MUST NOT be readmitted by the dispatcher.
+  operator unpark request. While any role has an `escalate` ladder, the ledger MUST keep, per
+  observed ticket, the streak of consecutive finished sessions without progress (counted from when a
+  ladder is configured) and the tier each escalating role last launched at. Progress resets the
+  streak to 0 and returns every role with `deescalateOnProgress` to its base model; a role with
+  `deescalateOnProgress: false` keeps its reached tier. An operator unpark does not reset the streak.
+  A launch uses the highest tier whose `after` is at most the streak, or the kept tier when higher.
+  A tier whose `after` is at least `parkAfter` is reached only after an operator unpark. Records are
+  dropped for tickets absent from the observation and, with no ladder configured, entirely.
+  A `RETRY_EXHAUSTED` plan entry MUST NOT be readmitted by the dispatcher.
   It emits `needs-owner` naming `ticket reopen` (CAL-V0-043), because readmission is owner
   authority.
 - `CAL-V0-058`: Every decision MUST append one `taskman-dispatch-event/0` line to `events.jsonl`
   and print it to stderr as plain language. The event kinds form a closed vocabulary: started,
   stopped, adopted, launched, launch-failed, finished, killing, killed, handoff, handoff-refused,
-  reaped, state, claim, release, lane, cooldown, parked, unparked, alert and needs-owner. A
+  reaped, state, claim, release, lane, cooldown, parked, unparked, alert, needs-owner and escalated.
+  `escalated` is emitted after the launch that raises a role's tier on a ticket and carries the from
+  and to tier, both models, the streak and the tier notes; `launched` carries the tier and model of a
+  model-naming role. A
   `finished` event carries the exit code (`NOT_OBSERVED` for an adopted worker), whether progress was
   made, and a bounded summary of the worker's last agent message: the final text of a recognized
   host event stream (OpenCode `run --format json`, Codex `exec --json`, Claude Code `-p
@@ -821,7 +850,10 @@ derived from the installed CLI source and is not live-qualified; see
 
 Non-goals: readmitting exhausted tickets; creating or cleaning worktrees; any network, account or
 hosted service; hostile-process containment; enforcing a host's own permission deny-list; Windows
-support (it compiles and refuses); and treating a worker's own report as progress. Failure modes:
+support (it compiles and refuses); treating a worker's own report as progress; judging relative
+model strength (the ladder renders operator-chosen model strings); and the typed top-tier
+NEEDS-OPERATOR worker request, which belongs to the escalation request of
+[issue 502](https://github.com/beamfall/corvint/issues/502). Failure modes:
 a host that ignores SIGTERM is killed after the grace period; a process outside the worker's
 session, group and tree escapes supervision; a broken work-state reader makes every state `UNKNOWN`;
 and a store read failure skips heal, accounting and launches with an alert, while supervision
@@ -833,7 +865,12 @@ Regression witnesses are the CAL-V0-052..058 tests in the traceability table: in
 `TestCALV0054_RosterStatePredicatesAndLanes`, `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0056_HandoffAndReap`,
 `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0056_KillsOrphanedProcessesBySession`,
 `TestCALV0056_IdentityOutageAndUnknownState` and
-`TestCALV0057_FingerprintIgnoresNonDurableAttempts` and `TestCALV0058_SummaryReadsHostFinalText`; and
+`TestCALV0057_FingerprintIgnoresNonDurableAttempts` and `TestCALV0058_SummaryReadsHostFinalText`;
+for the issue 499 ladder, `TestCALV0052_EscalationConfigRefusesUnsupportedModels`,
+`TestCALV0054_RosterTierCapsWaitWithoutDowngrade`, `TestCALV0057_EscalationLadderClimbsAndResetsOnProgress`,
+`TestCALV0057_StickyTierAndOperatorUnparkKeepStreak`, `TestCALV0057_NoLadderKeepsLegacyLedger`
+and `TestCALV0057_LedgerEscalationIsBounded`, with `TestCALV0057_DispatchStatusShowsTierAndStreak`
+in `internal/tasks/cli`; and
 `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`).
 
 ### S12 — Read cost independent of receipt history (issue 446)
@@ -1168,6 +1205,8 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
 | Context index absent or stale | No derivation | The scope is `WHOLE_REPOSITORY`, which serializes that claim as today |
 | Dispatcher crashes or is stopped | Workers keep running unsupervised | The next `dispatch` adopts workers whose recorded identities still match, then supervises and heals them (CAL-V0-056) |
 | Dispatched worker loops without progress | Repeated launches spend host budget | Cooldown, then park and `needs-owner` after `parkAfter` runs (CAL-V0-057) |
+| Escalated tier floods a scarce model | Many tickets launch on the stronger model at once | A tier `cap` holds the excess candidates waiting, never downgraded (CAL-V0-054) |
+| Ladder names a model its host cannot render | The model setting would be silently ignored | The configuration is refused before any launch (CAL-V0-052) |
 | Checkpoint absent, corrupt, oversized, foreign or ahead of the head | A read cannot resume | The read runs the complete audit and reports `FULL`; output is otherwise identical (CAL-V0-061) |
 | Checkpoint disagrees with a receipt, projection, staging or the intent tree | A resumed read would mis-state the store | The resumed path refuses internally and the complete audit decides the reported verdict (CAL-V0-061) |
 | Journal prefix, or a checkpoint entry together with its projection, altered behind a still-matching checkpoint | A resumed read does not see it | `receipt audit` and every mutation run the complete audit and refuse; the read's verdict says `CHECKPOINT_PLUS_TAIL`, not `CONSISTENT` (CAL-V0-061) |
@@ -1233,13 +1272,13 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-045 | `TestCALV0045_RetryPolicyBounds` (`internal/tasks/intent`); `TestCALV0045_PolicyControlsAdmissionAndRecovery`, `TestCALV0045_RecoveryUsesCurrentPolicy` (`internal/tasks/store`); `TestCALV0045_CLIConfiguredRetriesAndNoTreeHandoff` (`internal/tasks/cli`) |
 | CAL-V0-046 | `TestCALV0046_ReleasePreimageCompatibility`, `TestCALV0046_NoTreeEligibilityBindings` (`internal/tasks/transaction`); `TestCALV0046_NoTreeHandoffSchema` (`internal/tasks/snapshot`); `TestCALV0046_NoTreeHandoffAndIntegrate`, `TestCALV0046_NoTreeRefusals` (`internal/tasks/store`); `TestCALV0045_CLIConfiguredRetriesAndNoTreeHandoff`, `TestCALV0046_CLICompatibility`, `TestCALV0046_CLIPoolHandoffQuarantines` (`internal/tasks/cli`) |
 | CAL-V0-047 | `TestCALV0047_AllCommandHelpIsReadOnly`, `TestCALV0047_MalformedInputsStillRefuse` (`internal/tasks/cli`) |
-| CAL-V0-052 | `TestCALV0052_DecodeConfigIsClosedAndBounded`, `TestCALV0052_RenderIsSinglePass` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
+| CAL-V0-052 | `TestCALV0052_DecodeConfigIsClosedAndBounded`, `TestCALV0052_RenderIsSinglePass`, `TestCALV0052_EscalationConfigRefusesUnsupportedModels` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus`, `TestCALV0057_DispatchStatusShowsTierAndStreak` (`internal/tasks/cli`) |
 | CAL-V0-053 | `TestCALV0053_WorkStateReaders` (`internal/tasks/dispatch`) |
-| CAL-V0-054 | `TestCALV0054_RosterIsDeterministicAndCapped`, `TestCALV0054_RosterStatePredicatesAndLanes` (`internal/tasks/dispatch`) |
+| CAL-V0-054 | `TestCALV0054_RosterIsDeterministicAndCapped`, `TestCALV0054_RosterStatePredicatesAndLanes`, `TestCALV0054_RosterTierCapsWaitWithoutDowngrade` (`internal/tasks/dispatch`) |
 | CAL-V0-055 | `TestCALV0055_LaunchFinishBackoffAndPark` (`internal/tasks/dispatch`); live OpenCode run in `docs/build-log/2026-10-01-tasks-continuous-dispatch.md`; live Claude Code and Codex runs in `docs/build-log/2026-10-01-tasks-dispatch-claude-code.md` and `docs/build-log/2026-10-01-tasks-dispatch-codex.md` |
 | CAL-V0-056 | `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0056_KillsOrphanedProcessesBySession`, `TestCALV0056_IdentityOutageAndUnknownState` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
-| CAL-V0-057 | `TestCALV0057_FingerprintIgnoresNonDurableAttempts`, `TestCALV0055_LaunchFinishBackoffAndPark` (`internal/tasks/dispatch`) |
-| CAL-V0-058 | Event assertions in `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0058_SummaryReadsHostFinalText` (`internal/tasks/dispatch`) and `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
+| CAL-V0-057 | `TestCALV0057_FingerprintIgnoresNonDurableAttempts`, `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0057_EscalationLadderClimbsAndResetsOnProgress`, `TestCALV0057_StickyTierAndOperatorUnparkKeepStreak`, `TestCALV0057_NoLadderKeepsLegacyLedger`, `TestCALV0057_LedgerEscalationIsBounded` (`internal/tasks/dispatch`); `TestCALV0057_DispatchStatusShowsTierAndStreak` (`internal/tasks/cli`); live model-host qualification NOT_RUN |
+| CAL-V0-058 | Event assertions in `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0058_SummaryReadsHostFinalText`, `TestCALV0057_EscalationLadderClimbsAndResetsOnProgress` (`internal/tasks/dispatch`) and `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
 | CAL-V0-059 | `TestCALV0059_CheckpointCodecAndDerivation` (`internal/tasks/journal`) |
 | CAL-V0-060 | `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`), including `pending`, which shares the lease audit with writers |
 | CAL-V0-061 | `TestCALV0061_CheckpointTailEqualsFullAudit`, `TestCALV0061_CheckpointFallsBackToFullAudit`, `TestCALV0061_CheckpointScopeAndMovement`, `TestCALV0061_CheckpointLimitsStayWithFullAudit` (`internal/tasks/journal`); `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`); live-store measurement in `docs/build-log/2026-10-01-tasks-read-checkpoint.md` |
