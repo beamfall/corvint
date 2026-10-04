@@ -14,6 +14,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/delta"
 	"github.com/Beamfall/corvint/internal/intake"
 	connector "github.com/Beamfall/corvint/internal/postmergeconnector"
 )
@@ -45,8 +46,9 @@ func newNativeReport() NativeReport {
 	return r
 }
 
-// ReplayNative observes the real connector and intake only. Expected labels
-// never enter author input; missing delta forbids every downstream operation.
+// ReplayNative observes the real connector, intake and delta only. Expected
+// labels never enter author input; a failed delta forbids every downstream
+// operation, and the unintegrated follow-up stage blocks the rest.
 func ReplayNative(ctx context.Context, root, fixtureFile, policyFile, change string) (NativeReport, error) {
 	r := newNativeReport()
 	var retained *nativeRetention
@@ -274,9 +276,55 @@ func ReplayNative(ctx context.Context, root, fixtureFile, policyFile, change str
 	for i := 4; i < len(r.Stages); i++ {
 		r.Stages[i].Reasons = []string{"dependency-delta-blocked"}
 	}
-	// This source slice is based on public1f, where actual delta is unavailable.
-	// A future integrated source must explicitly change and review this capability.
-	return block(3, "actual-delta-unavailable", nil)
+	// The actual immutable delta compiler (#389) runs with only code-fixed
+	// options: no providers, documentation baseline or work-key pattern, so its
+	// record keeps the resulting unknowns and full-suite obligations exactly.
+	// The build label is the operator-pinned source commit, not an attestation.
+	options := delta.Options{Base: m.Product.Base, Head: m.Product.Merge, Build: m.Implementation.SourceCommit}
+	deltaInput, _ := json.Marshal(struct {
+		Root               string   `json:"root"`
+		Base               string   `json:"base"`
+		Head               string   `json:"head"`
+		Build              string   `json:"build"`
+		PreviousGeneration string   `json:"previous_generation"`
+		WorkKeyPattern     string   `json:"work_key_pattern"`
+		Providers          []string `json:"providers"`
+		Checkouts          []string `json:"checkouts"`
+	}{root, options.Base, options.Head, options.Build, "", "", []string{}, []string{}})
+	deltaRef, err := retained.save("delta-input.json", deltaInput)
+	if err != nil {
+		return block(3, "runtime-retention-failed", err)
+	}
+	r.Stages[3].Inputs = []ArtifactRef{deltaRef}
+	if ctx.Err() != nil {
+		return block(3, "runtime-cancelled", ctx.Err())
+	}
+	record, err := delta.Compile(ctx, root, options)
+	if err != nil {
+		return block(3, nativeCallCode(ctx, "native-delta-failed"), err)
+	}
+	if record.Base != m.Product.Base || record.Head != m.Product.Merge || record.Tree != m.Product.Tree {
+		return block(3, "native-delta-failed", fmt.Errorf("delta-binding-mismatch"))
+	}
+	deltaBytes, err := record.Canonical()
+	if err != nil {
+		return block(3, "native-delta-failed", err)
+	}
+	output, err = retained.save("delta-output.json", deltaBytes)
+	if err != nil {
+		return block(3, "runtime-retention-failed", err)
+	}
+	r.Stages[3].Disposition = "observed"
+	r.Stages[3].NativeProfile = delta.Schema
+	deltaOutput := output
+	r.Stages[3].Output = &deltaOutput
+	r.Stages[3].Reasons = []string{}
+	for i := 5; i < len(r.Stages); i++ {
+		r.Stages[i].Reasons = []string{"prior-stage-blocked"}
+	}
+	// No follow-up, author, draft or recording stage is integrated by this
+	// source; connector Build/ValidatePlan/Record stay unreachable from /1.
+	return block(4, "follow-up-not-integrated", nil)
 }
 
 // nativeWithin compares actual protected and ancestor identities, not path

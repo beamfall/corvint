@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/delta"
 	"github.com/Beamfall/corvint/internal/intake"
 	connector "github.com/Beamfall/corvint/internal/postmergeconnector"
 )
@@ -93,7 +94,7 @@ func readNativeRef(t *testing.T, r ArtifactRef) []byte {
 
 // PMR-V1-001/002/007/010: actual pinned native consumers, private exact bytes,
 // no expectation comparison or downstream authority, and mandatory refusal.
-func TestNativeActualIntakeThenDeltaRefusal(t *testing.T) {
+func TestNativeActualIntakeDeltaThenFollowUpRefusal(t *testing.T) {
 	n := nativeSetup(t)
 	before := git(t, n.root, "status", "--porcelain")
 	r, e := ReplayNative(context.Background(), n.root, n.fixture, n.policy, n.f.Connector.Forge.Change.Binding.Change)
@@ -103,7 +104,7 @@ func TestNativeActualIntakeThenDeltaRefusal(t *testing.T) {
 	if len(r.GeneratedMismatches)+len(r.HumanVerifiedMismatches) != 0 {
 		t.Fatal("uncomputed labels treated as comparisons")
 	}
-	for i := 1; i <= 2; i++ {
+	for i := 1; i <= 3; i++ {
 		if r.Stages[i].Disposition != "observed" || r.Stages[i].Output == nil {
 			t.Fatalf("native not observed %+v", r.Stages[i])
 		}
@@ -133,22 +134,44 @@ func TestNativeActualIntakeThenDeltaRefusal(t *testing.T) {
 	if strings.Contains(string(actualIntake), "HOSTILE") || strings.Contains(string(actualIntake), "raw body") || strings.Contains(string(actualIntake), "affected_flows") {
 		t.Fatal("fixture prose/expectations crossed author boundary")
 	}
-	if r.Stages[3].Disposition != "blocked" || r.Stages[3].Reasons[0] != "actual-delta-unavailable" {
-		t.Fatalf("delta %+v", r.Stages[3])
+	actualDelta, e := delta.Compile(context.Background(), n.root, delta.Options{Base: n.m.Product.Base, Head: n.m.Product.Merge, Build: n.m.Implementation.SourceCommit})
+	if e != nil {
+		t.Fatal(e)
+	}
+	deltaBytes, e := actualDelta.Canonical()
+	if e != nil {
+		t.Fatal(e)
+	}
+	if r.Stages[3].NativeProfile != delta.Schema || string(readNativeRef(t, *r.Stages[3].Output)) != string(deltaBytes) {
+		t.Fatal("delta output not its native canonical bytes")
+	}
+	if len(r.Stages[3].Inputs) != 1 || strings.Contains(string(readNativeRef(t, r.Stages[3].Inputs[0])), "affected_flows") {
+		t.Fatalf("delta input not the code-fixed options %+v", r.Stages[3].Inputs)
+	}
+	// The unconfigured providers and baseline stay exact uncertainty, never an
+	// empty no-work record.
+	if actualDelta.Denominators.Complete || len(actualDelta.Unknowns) == 0 || actualDelta.Decision == "no-op" {
+		t.Fatalf("delta uncertainty hidden %+v", actualDelta)
+	}
+	if r.Stages[4].Disposition != "blocked" || r.Stages[4].Reasons[0] != "follow-up-not-integrated" || r.Reasons[0] != "follow-up-not-integrated" {
+		t.Fatalf("follow-up %+v", r.Stages[4])
 	}
 	for i, s := range r.Stages {
-		if i == 1 || i == 2 {
+		if i >= 1 && i <= 4 {
 			continue
 		}
 		if i == 0 && (s.Disposition != "not-run" || s.Reasons[0] != "host-trigger-not-executed") {
 			t.Fatalf("trigger falsely observed %+v", s)
 		}
-		if i >= 4 && (s.Disposition != "not-run" || s.Reasons[0] != "dependency-delta-blocked") {
+		if i >= 5 && (s.Disposition != "not-run" || s.Reasons[0] != "prior-stage-blocked") {
 			t.Fatalf("dependent stage not refused %+v", s)
 		}
 		if s.NativeProfile != "" || s.Output != nil {
 			t.Fatalf("unexecuted native output %+v", s)
 		}
+	}
+	if r.Stages[4].NativeProfile != "" || r.Stages[4].Output != nil {
+		t.Fatalf("follow-up claimed native output %+v", r.Stages[4])
 	}
 	if before != git(t, n.root, "status", "--porcelain") {
 		t.Fatal("product checkout mutated")
@@ -604,6 +627,78 @@ func TestNativeRequiredNestedAdmission(t *testing.T) {
 					t.Fatalf("nested admission created output: %v", e)
 				}
 			})
+		}
+	}
+}
+
+// PMR-V1-002/005: two fresh runs of the same pinned inputs retain byte-identical
+// native connector, intake and delta outputs in separate private bundles.
+func TestNativeDeltaRepeatsExactly(t *testing.T) {
+	n := nativeSetup(t)
+	var outputs [2][]string
+	for run := range outputs {
+		if run > 0 {
+			parent, e := filepath.EvalSymlinks(t.TempDir())
+			if e != nil {
+				t.Fatal(e)
+			}
+			n.m.RetainedOutputRoot = filepath.Join(parent, "retained")
+			n.write(t)
+		}
+		r, e := ReplayNative(context.Background(), n.root, n.fixture, n.policy, n.f.Connector.Forge.Change.Binding.Change)
+		if e == nil || r.Stages[3].Disposition != "observed" || r.Stages[4].Reasons[0] != "follow-up-not-integrated" {
+			t.Fatalf("run %d report %+v error %v", run, r, e)
+		}
+		for i := 1; i <= 3; i++ {
+			outputs[run] = append(outputs[run], string(readNativeRef(t, *r.Stages[i].Output)), string(readNativeRef(t, r.Stages[i].Inputs[len(r.Stages[i].Inputs)-1])))
+		}
+	}
+	for i := range outputs[0] {
+		if outputs[0][i] != outputs[1][i] {
+			t.Fatalf("fresh run artifact %d differs", i)
+		}
+	}
+}
+
+// PMR-V1-002/010: an actual delta refusal blocks the delta stage, privately
+// retains its original code and runs no follow-up or later stage.
+func TestNativeDeltaRefusalBlocksDependents(t *testing.T) {
+	n := nativeSetup(t)
+	// A change nested deeper than the delta tree-walk bound is admitted by the
+	// connector path grammar but refused by the actual delta compiler.
+	deep := strings.Repeat("d/", 129) + "x.txt"
+	if e := os.MkdirAll(filepath.Join(n.root, filepath.Dir(deep)), 0700); e != nil {
+		t.Fatal(e)
+	}
+	if e := os.WriteFile(filepath.Join(n.root, deep), []byte("x\n"), 0600); e != nil {
+		t.Fatal(e)
+	}
+	git(t, n.root, "add", "-A")
+	git(t, n.root, "commit", "-qm", "deep")
+	merge := git(t, n.root, "rev-parse", "HEAD")
+	binding := n.f.Connector.Forge.Change.Binding
+	binding.Merge = merge
+	n.f.Connector.Forge.Change.Binding = binding
+	n.f.Connector.Forge.Change.Files = append(n.f.Connector.Forge.Change.Files, connector.ChangedFile{Path: deep, Status: "A"})
+	n.p.Connector.Expected = binding
+	n.m.Product.Merge = merge
+	n.m.Product.Tree = git(t, n.root, "rev-parse", merge+"^{tree}")
+	n.candidate, _ = json.Marshal(intake.Record{Profile: intake.Profile, Base: binding.Base, Head: merge, Intent: "FEATURE", Behaviours: []intake.Behaviour{{Kind: "CHANGE", Path: "a.txt"}}, Flags: []string{}, Tests: []string{}, Comparison: "UNKNOWN", Concerns: []string{}, WorkItems: []intake.WorkItem{}})
+	n.write(t)
+	r, e := ReplayNative(context.Background(), n.root, n.fixture, n.policy, binding.Change)
+	if e == nil || r.Stages[2].Disposition != "observed" {
+		t.Fatalf("report %+v error %v", r, e)
+	}
+	if r.Stages[3].Disposition != "blocked" || r.Stages[3].Reasons[0] != "native-delta-failed" || r.Stages[3].Output != nil || r.Stages[3].NativeProfile != "" {
+		t.Fatalf("delta %+v", r.Stages[3])
+	}
+	original, e := os.ReadFile(filepath.Join(n.m.RetainedOutputRoot, "delta-error.txt"))
+	if e != nil || string(original) != "delta-change-set-unavailable" {
+		t.Fatalf("original delta refusal %q %v", original, e)
+	}
+	for _, s := range r.Stages[4:] {
+		if s.Disposition != "not-run" || s.Reasons[0] != "dependency-delta-blocked" || s.Output != nil {
+			t.Fatalf("dependent stage not refused %+v", s)
 		}
 	}
 }
