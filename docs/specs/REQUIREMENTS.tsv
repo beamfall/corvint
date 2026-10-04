@@ -1097,17 +1097,17 @@ ERI-V0-003	docs/specs/expanded-range-impact-v0.md	50	Only this profile's path ca
 ERI-V0-004	docs/specs/expanded-range-impact-v0.md	57	Without the new option, the existing range profile, its 100-path refusal, positi
 ERI-V0-005	docs/specs/expanded-range-impact-v0.md	65	The experimental compiler MUST retain one immutable clean base/head snapshot and
 ERI-V0-006	docs/specs/expanded-range-impact-v0.md	69	The prototype repository coordinator MUST select the experimental profile by an
-ESC-V0-001	docs/specs/corvint-tasks-escalations-v0.md	47	`ticket escalate --attempt A --kind decision|infrastructure|scope|blocked --ques
-ESC-V0-002	docs/specs/corvint-tasks-escalations-v0.md	50	Questions MUST be stored as an optional tool-owned `escalations` reference on th
-ESC-V0-003	docs/specs/corvint-tasks-escalations-v0.md	53	Applicability MUST derive from the source acceptance revision versus the current
-ESC-V0-004	docs/specs/corvint-tasks-escalations-v0.md	56	`ticket answer --target T --text TEXT` MUST close exactly one question, either t
-ESC-V0-005	docs/specs/corvint-tasks-escalations-v0.md	59	Claim and claim-next MUST return current same-acceptance answers as an `escalati
-ESC-V0-006	docs/specs/corvint-tasks-escalations-v0.md	62	A current OPEN decision, scope or blocked question MUST produce an explicit `ESC
-ESC-V0-007	docs/specs/corvint-tasks-escalations-v0.md	65	An optional dispatch `infrastructureRetry` policy MUST bound automatic retries p
-ESC-V0-008	docs/specs/corvint-tasks-escalations-v0.md	68	Session classification MUST precede ordinary no-progress parking, and typed cont
-ESC-V0-009	docs/specs/corvint-tasks-escalations-v0.md	71	`ticket escalation list`, show and history MUST be bounded, non-mutating native
-ESC-V0-010	docs/specs/corvint-tasks-escalations-v0.md	74	Escalation writes MUST use the existing writer, receipt and request-index pipeli
-ESC-V0-011	docs/specs/corvint-tasks-escalations-v0.md	77	The pure foundation and the integrated capability MUST keep distinct evidence an
+ESC-V0-001	docs/specs/corvint-tasks-escalations-v0.md	49	`ticket escalate --attempt A --kind decision|infrastructure|scope|blocked --ques
+ESC-V0-002	docs/specs/corvint-tasks-escalations-v0.md	52	Questions MUST be stored as an optional tool-owned `escalations` reference on th
+ESC-V0-003	docs/specs/corvint-tasks-escalations-v0.md	55	Applicability MUST derive from the source acceptance revision versus the current
+ESC-V0-004	docs/specs/corvint-tasks-escalations-v0.md	58	`ticket answer --target T --text TEXT` MUST close exactly one question, either t
+ESC-V0-005	docs/specs/corvint-tasks-escalations-v0.md	61	Claim and claim-next MUST return current same-acceptance answers as an `escalati
+ESC-V0-006	docs/specs/corvint-tasks-escalations-v0.md	64	A current OPEN decision, scope or blocked question MUST produce an explicit `ESC
+ESC-V0-007	docs/specs/corvint-tasks-escalations-v0.md	67	An optional dispatch `infrastructureRetry` policy MUST bound automatic retries p
+ESC-V0-008	docs/specs/corvint-tasks-escalations-v0.md	70	Session classification MUST precede ordinary no-progress parking, and typed cont
+ESC-V0-009	docs/specs/corvint-tasks-escalations-v0.md	73	`ticket escalation list`, show and history MUST be bounded, non-mutating native
+ESC-V0-010	docs/specs/corvint-tasks-escalations-v0.md	76	Escalation writes MUST use the existing writer, receipt and request-index pipeli
+ESC-V0-011	docs/specs/corvint-tasks-escalations-v0.md	79	The pure foundation and the integrated capability MUST keep distinct evidence an
 ESV-V0-001	docs/specs/experimental-source-views-v0.md	236	Bind the bounded canonical packet and exact caller selector to object format,
 ESV-V0-002	docs/specs/experimental-source-views-v0.md	241	Return one exact contiguous immutable source range as JSON `text` whose UTF-8
 ESV-V0-003	docs/specs/experimental-source-views-v0.md	245	Enforce every frozen bound with sanitized, replacement-disabled, non-lazy Git
