@@ -76,6 +76,8 @@ is not earlier than `startedAt`. A released group was reaped, so exactly one of 
 
 The command's stdout and stderr go to the caller's stderr; the one `taskman-command-result/0`
 envelope goes to stdout, as for every other verb except `archive export`.
+When the caller's stderr is not a file, the runner stops copying command output when it returns,
+so output after a `HOLD`, which leaves the leader unreaped, never reaches the caller's writer.
 
 | Case | Exit status | Envelope |
 | --- | --- | --- |

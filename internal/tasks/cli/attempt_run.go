@@ -6,11 +6,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -317,7 +319,13 @@ func (r *attemptRunner) execute(argv []string, interrupts <-chan os.Signal) tran
 	out := transaction.RunOutcome{Profile: transaction.RunOutcomeProfile, RunID: r.runID, AttemptID: r.attemptID, Generation: string(r.generation), ArgvSha256: hex.EncodeToString(sum[:]), TimeoutSeconds: int(r.timeout / time.Second), Cleanup: transaction.CleanupNotStarted}
 	command := exec.Command(argv[0], argv[1:]...)
 	command.Dir = r.env.Cwd
-	command.Stdin, command.Stdout, command.Stderr = r.env.Stdin, r.env.Stderr, r.env.Stderr
+	var output io.Writer = r.env.Stderr
+	if _, ok := output.(*os.File); !ok {
+		gate := &gatedWriter{w: output}
+		defer gate.shut()
+		output = gate
+	}
+	command.Stdin, command.Stdout, command.Stderr = r.env.Stdin, output, output
 	command.WaitDelay = time.Second
 	owner, err := groupreap.StartWith(command, attemptGroupPrimitives)
 	if err != nil {
@@ -408,6 +416,31 @@ func (r *attemptRunner) execute(argv []string, interrupts <-chan os.Signal) tran
 		out.Class = transaction.RunSignal
 	}
 	return out
+}
+
+// gatedWriter carries child output to a writer that is not an *os.File. Such
+// a writer is fed by an os/exec copy goroutine that only the reap joins, and a
+// HOLD leaves the leader unreaped, so the gate is shut before execute returns
+// and any later output is refused instead of reaching the caller's writer.
+type gatedWriter struct {
+	mu     sync.Mutex
+	w      io.Writer
+	closed bool
+}
+
+func (g *gatedWriter) Write(p []byte) (int, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.closed {
+		return 0, io.ErrClosedPipe
+	}
+	return g.w.Write(p)
+}
+
+func (g *gatedWriter) shut() {
+	g.mu.Lock()
+	g.closed = true
+	g.mu.Unlock()
 }
 
 func signalNumber(sig os.Signal) int {
