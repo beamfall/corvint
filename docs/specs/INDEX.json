@@ -642,6 +642,23 @@
     ]
   },
   {
+    "path": "docs/specs/corvint-tasks-escalations-v0.md",
+    "title": "Corvint Tasks typed escalations V0",
+    "reqPrefix": "ESC-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Workers raise typed questions from admitted claims, operators answer them by compare-and-set, and the next same-acceptance claim receives the answers.",
+    "dependsOn": [
+      "docs/specs/corvint-tasks-agent-leases-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/tasks/ticket",
+      "internal/tasks/transaction"
+    ]
+  },
+  {
     "path": "docs/specs/corvint-tasks-store-init-v0.md",
     "title": "Corvint Tasks store initialization V0",
     "reqPrefix": "CTS-V0",
