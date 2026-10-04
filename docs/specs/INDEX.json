@@ -2055,7 +2055,7 @@
     "reqPrefix": "PTF-V0",
     "intent": "proposed technical contract; owner approved the implementation plan",
     "delivery": "experimental",
-    "claim": "A bounded source-direct Playwright profile observes source, serving-process and runtime identity and joins native assertion controls to every baseline repeat.",
+    "claim": "A bounded source-direct Playwright profile observes source/server/runtime identity and joins every planned native control attempt to every baseline repeat.",
     "dependsOn": [
       "docs/specs/new-e2e-test-acceptance-v0.md",
       "docs/specs/playwright-external-provider-v0.md"
