@@ -1,0 +1,78 @@
+{
+  "baseRevision": "211916336638c42e950fa5ec3785cf8eed5a182b",
+  "evidence": [
+    {
+      "blobOid": "faa97c65b13a472d936a7f0b274a62ec4731dd52",
+      "id": "evidence:sha256:bc945822c296dc14c37ca9a7b7f994fb3d80854dcb823fab73bfc582db857dfc",
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "span": {
+        "end": 87893,
+        "start": 86760
+      },
+      "spanSha256": "38a84022f676a2e116c61bffd6e3262ba366dc6b7fd2b3b71ab7973223408ecd"
+    },
+    {
+      "blobOid": "58305a87a942655bb6b07203b2586910ce8e843f",
+      "id": "evidence:sha256:1788932cfcbaae171ee2135fb1a774f3e70cbade736503b84b26d2bbbfb522da",
+      "path": "internal/tasks/store/pool_untouched_test.go",
+      "span": {
+        "end": 5480,
+        "start": 4571
+      },
+      "spanSha256": "788ba3b2bd2bd5181357b5a686fb6c334ef22e6257a6b638bc8c1532181063bf"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:bc945822c296dc14c37ca9a7b7f994fb3d80854dcb823fab73bfc582db857dfc",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:1788932cfcbaae171ee2135fb1a774f3e70cbade736503b84b26d2bbbfb522da",
+          "relation": "implementation"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f57aa37aa78f8201a311f55c7e84646fe60241f3fbab54e12541020101790ffc",
+      "newRange": {
+        "count": 13,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-04-pool-replay-fixture-clock.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:bc945822c296dc14c37ca9a7b7f994fb3d80854dcb823fab73bfc582db857dfc",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:1788932cfcbaae171ee2135fb1a774f3e70cbade736503b84b26d2bbbfb522da",
+          "relation": "implementation"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:16d636bbc332060f97b602a63e35fa41c0b7f813058a58990fc11fa7389aa35b",
+      "newRange": {
+        "count": 7,
+        "start": 107
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 107
+      },
+      "path": "internal/tasks/store/pool_untouched_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "f8ff4770d64801e7ff16331ca56b7647377555ee6823cda17470a318360778f9",
+  "spec": "cem/0.2"
+}

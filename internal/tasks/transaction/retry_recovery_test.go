@@ -59,6 +59,12 @@ func TestCALV0043_RecoveryExaminesEveryAttempt(t *testing.T) {
 				env := &mutation.Envelope{Operation: mutation.OpReopen, TargetID: &rec.TicketID}
 				got := retryRecovery(st, env)
 				eligible := name == "cancelled" || name == "failed"
+				if got.Reason == "" {
+					t.Fatal("missing recovery reason")
+				}
+				if (name == "clean-handoff" || name == "clean-return" || name == "not-exhausted") && got.Reason != "RETRY_BUDGET_NOT_EXHAUSTED" {
+					t.Fatalf("specific retry reason: %+v", got)
+				}
 				if (got.State == ticket.Satisfied) != eligible {
 					t.Fatalf("%s: %+v", name, got)
 				}

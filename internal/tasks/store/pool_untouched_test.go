@@ -107,7 +107,7 @@ func TestPoolLaneUntouched_Replay(t *testing.T) {
 			c.Pool, c.Stage = "db", "review"
 			a := s.lease(t, "claim", c, 0, nil)
 			policy.Obj.Set("policyVersion", str("4"))
-			up, err := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("compatible", "3", wire.EncodeFile(policy)), now(t))
+			up, err := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("compatible", "3", wire.EncodeFile(policy)), s.at(t, 0))
 			if err != nil || up.Outcome.Outcome != mutation.OutcomeCompleted {
 				t.Fatal(up, err)
 			}
