@@ -27,9 +27,21 @@ All three fixes are in `internal/dogfoodflow/change.go` and specified as the pro
     `verify-file-over-bound`;
   - each agent receipt at 4 MiB.
 - **Receipt notes.** A receipt over the bound prints `agent-receipt-over-bound`, one that cannot
-  be opened `agent-receipt-unreadable`, and one that is not JSON `agent-receipt-malformed`.
-  `agent-receipt-tree-unknown` stays for a JSON receipt with no `context.revision`. The notes
+  be opened `agent-receipt-unreadable`, and one that does not decode as a receipt object
+  `agent-receipt-malformed`. `agent-receipt-tree-unknown` stays for a receipt that decodes but names
+  no `context.revision`. The notes
   remain non-blocking under `DCW-V0-031`.
+
+### Review findings applied
+
+- The self-observation ledger (`internal/observations` `validDogfoodReason`) refused the three new
+  step reasons, so `dogfood-observe` dropped their rows silently. They are now admitted, along with
+  the pre-existing `verify-file-unavailable`, which was refused the same way.
+- A plan refused because the map cannot be read stays `citation-plan-map-mismatch`; before, an empty
+  plan in that case reported `empty-citation-plan` with an untrue fix line.
+- The `docs/DOGFOOD.md` failure-class table names the empty-plan refusal, and `DCW-V0-032` defines
+  `agent-receipt-malformed` as the code's "does not decode as a receipt object".
+- `DCW-V0-032` binds `dogfood change` only: `script/dogfood-bind-range.sh` keeps its empty-plan no-op.
 
 ### Narrowed acceptance criterion 1
 

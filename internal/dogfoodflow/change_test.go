@@ -310,8 +310,11 @@ func TestChangeRefusesEmptyPlanAndOverBoundInputs(t *testing.T) {
 		t.Error("an empty plan ran cem cite")
 	}
 	// A map that owes no hunk, as local completion reruns it after strict CEM
-	// status (LCP-V0), still admits the empty plan as a zero-citation pass.
+	// status (LCP-V0), still admits the empty plan as a zero-citation pass, and
+	// inputs of exactly their bound are not over it.
 	prepared = strings.Replace(prepared, `"unknown"`, `"cited"`, 1)
+	options.IntentsFile = write("intents", bytes.Repeat([]byte("a\n"), maxIntentManifestBytes/2))
+	options.VerifyFile = write("verify", bytes.Repeat([]byte("\n"), maxVerifyFileBytes))
 	if _, err := Change(context.Background(), options, &stderr); err != nil {
 		t.Fatal(err)
 	}
@@ -320,6 +323,11 @@ func TestChangeRefusesEmptyPlanAndOverBoundInputs(t *testing.T) {
 	}
 	if want := `{"name": "cem-cite", "status": "PRODUCED", "reason": "none"}`; !bytes.Contains(report, []byte(want)) {
 		t.Errorf("empty plan on a bound map: report lacks %s:\n%s", want, report)
+	}
+	for _, refused := range []string{"intent-manifest-over-bound", "verify-file-over-bound"} {
+		if bytes.Contains(report, []byte(refused)) {
+			t.Errorf("an input of exactly its bound reported %s:\n%s", refused, report)
+		}
 	}
 }
 

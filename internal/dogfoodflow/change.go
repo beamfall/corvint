@@ -421,14 +421,15 @@ func (c *change) citeStep() {
 	_ = os.Chmod(citeOutput, 0o600)
 	status, reason := "PRODUCED", "none"
 	plan, valid := c.validateCitationPlan()
-	matched := valid && c.citationPlanMatchesMap(plan)
+	mismatch := ""
+	if valid {
+		mismatch = c.citationPlanMismatch(plan)
+	}
 	switch {
 	case !valid:
 		status, reason = "NOT_PRODUCED", "invalid-citation-plan"
-	case !matched && len(plan) == 0:
-		status, reason = "NOT_PRODUCED", "empty-citation-plan"
-	case !matched:
-		status, reason = "NOT_PRODUCED", "citation-plan-map-mismatch"
+	case mismatch != "":
+		status, reason = "NOT_PRODUCED", mismatch
 	case c.citationCount > 1 && exists(c.path(c.citationStage)):
 		status, reason = "NOT_PRODUCED", "citation-stage-exists"
 	default:
@@ -591,17 +592,19 @@ func nonEmptyFields(line string, count int) bool {
 
 var ordinal = regexp.MustCompile(`^[1-9][0-9]*$`)
 
-// citationPlanMatchesMap binds a plan to the map prepared in this run
-// (DCW-V0-019): no ordinal may exceed the map's hunk count, a numeric selector
-// must be canonical, and every hunk the map records as unknown must be named by
-// ordinal or full ID unless its path is an intent absent at BASE or more such
-// hunks remain than one 256-row plan can name. An empty plan matches only a map
-// that owes no hunk at all (DCW-V0-032), and only a regular map is read, at
-// most the native 4 MiB map bound.
-func (c *change) citationPlanMatchesMap(plan []byte) bool {
+// citationPlanMismatch binds a plan to the map prepared in this run
+// (DCW-V0-019) and returns "" when it matches: no ordinal may exceed the map's
+// hunk count, a numeric selector must be canonical, and every hunk the map
+// records as unknown must be named by ordinal or full ID unless its path is an
+// intent absent at BASE or more such hunks remain than one 256-row plan can
+// name. An empty plan matches only a map that owes no hunk at all, and is
+// otherwise refused as empty-citation-plan (DCW-V0-032). Only a regular map is
+// read, at most the native 4 MiB map bound.
+func (c *change) citationPlanMismatch(plan []byte) string {
+	const mismatch = "citation-plan-map-mismatch"
 	mapPath := c.path(".corvint/change.cem.json")
 	if !isRegular(mapPath) || isSymlink(mapPath) {
-		return true
+		return ""
 	}
 	bootstrap := map[string]bool{}
 	if c.manifestValid {
@@ -613,11 +616,11 @@ func (c *change) citationPlanMatchesMap(plan []byte) bool {
 	}
 	data, err := readPrefix(mapPath, maxPlanBytes)
 	if err != nil {
-		return false
+		return mismatch
 	}
 	hunks := mapHunks(data)
 	if c.ordinalsMoved(plan, hunks) {
-		return false
+		return mismatch
 	}
 	named := map[string]bool{}
 	for _, line := range textLines(plan) {
@@ -627,10 +630,10 @@ func (c *change) citationPlanMatchesMap(plan []byte) bool {
 	for selector := range named {
 		numeric := ordinal.MatchString(selector)
 		if strings.ContainsAny(selector[:1], "+0123456789") && !numeric {
-			return false
+			return mismatch
 		}
 		if value, err := strconv.Atoi(selector); numeric && (err != nil || value > len(hunks)) {
-			return false
+			return mismatch
 		}
 	}
 	owed := []int{}
@@ -641,14 +644,17 @@ func (c *change) citationPlanMatchesMap(plan []byte) bool {
 	}
 	// More owed hunks than one plan has rows: split plans stay admissible.
 	if len(owed) > 256 && len(plan) > 0 {
-		return true
+		return ""
 	}
 	for _, index := range owed {
 		if !named[strconv.Itoa(index)] && !named[hunks[index-1]["id"]] {
-			return false
+			if len(plan) == 0 {
+				return "empty-citation-plan"
+			}
+			return mismatch
 		}
 	}
-	return true
+	return ""
 }
 
 // citationBinding is the private record of the hunk IDs, in map order, that the

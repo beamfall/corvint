@@ -283,10 +283,12 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `DOGFOOD_VERIFY_FILE` 64 KiB, over which `local-outcome` is NOT_PRODUCED
   `verify-file-over-bound`; and each `DCW-V0-031` agent receipt 4 MiB. Under `DCW-V0-031` a receipt
   over that bound MUST print `NOT_OBSERVED agent-receipt-over-bound`, one that cannot be opened
-  `NOT_OBSERVED agent-receipt-unreadable`, and one that is not a JSON value `NOT_OBSERVED
-  agent-receipt-malformed`; `agent-receipt-tree-unknown` stays for a JSON receipt with no
-  `context.revision`. Each new refusal MUST have its own `fix:` line, and the receipt notes stay
-  non-blocking.
+  `NOT_OBSERVED agent-receipt-unreadable`, and one that does not decode as a receipt object
+  `NOT_OBSERVED agent-receipt-malformed`; `agent-receipt-tree-unknown` stays for a receipt that
+  decodes but names no `context.revision`. A plan refused because the map cannot be read stays
+  `citation-plan-map-mismatch`. Each new refusal MUST have its own `fix:` line, and the receipt
+  notes stay non-blocking. The rule binds `dogfood change` only; the bash range loop
+  (`script/dogfood-bind-range.sh`) keeps its empty-plan no-op.
   Reason: an empty plan on an uncited map was a silent zero-citation pass that only `cem-status`
   caught later, these
   three inputs were read whole before any bound was checked, and a malformed receipt was
@@ -406,7 +408,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-029` (proposed) | `internal/dogfoodflow/change.go` `recordCitationBinding` and `ordinalsMoved`; `TestChangeRefusesAPlanWhoseOrdinalsMoved` and the V1-0239 `swapped-ordinals` case of `script/dogfood-change_test.sh` | implemented; not accepted |
 | `DCW-V0-030` (proposed) | none; `internal/dogfoodflow/check.go` `checkReport` still emits `dogfood-report-drift` for both cases | not implemented; needs an owner decision |
 | `DCW-V0-031` (proposed) | `internal/dogfoodflow/change.go` `noteAgentReceipts`; `TestChangeNotesAbsentOrStaleAgentReceipts`; the absent-receipt lines asserted by `TestDogfoodDailyPath*` and the DCW-V0-025 case of `script/dogfood-change_test.sh` | implemented; not accepted |
-| `DCW-V0-032` (proposed) | `internal/dogfoodflow/change.go` `citeStep`, `validateIntentManifest`, `localOutcome` and `noteAgentReceipt`; `TestChangeRefusesEmptyPlanAndOverBoundInputs` (including the empty plan admitted on a map that owes no hunk), `TestDogfoodFinishRunsFromBinaryInForeignRepository` (finish still completes with its empty plan), the `empty` citation case of `script/dogfood-change_test.sh`, and the malformed and over-bound case of `TestChangeNotesAbsentOrStaleAgentReceipts` | implemented; not accepted |
+| `DCW-V0-032` (proposed) | `internal/dogfoodflow/change.go` `citeStep`, `citationPlanMismatch`, `validateIntentManifest`, `localOutcome` and `noteAgentReceipt`; `TestChangeRefusesEmptyPlanAndOverBoundInputs` (including the empty plan admitted on a map that owes no hunk, and inputs of exactly their bound), `TestDogfoodReasonAdmitsInputRefusals` (the new step reasons reach the self-observation ledger), `TestDogfoodFinishRunsFromBinaryInForeignRepository` (finish still completes with its empty plan), the `empty` citation case of `script/dogfood-change_test.sh`, and the malformed and over-bound case of `TestChangeNotesAbsentOrStaleAgentReceipts` | implemented; not accepted |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 ## Compatibility and rollback
