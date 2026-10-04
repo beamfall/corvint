@@ -10,7 +10,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
-	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -73,21 +72,23 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 	}
 	report.Redone = redone
 
+	// CAL-V0-070: one audit answers the request lookup, supplies the
+	// inventory's digests and the canonical intent records, with the same
+	// refusals in the same order as Lookup, inventory and Audit made apart.
 	reader := journalReader(repo, headState)
-	index := journal.RequestIndex{Reader: reader}
-	entry, found, err := index.Lookup(env.RequestID)
+	audit, err := reader.AuditForMutation(env.RequestID)
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
-	if found {
-		result := replayResult(request, entry)
+	if audit.Found {
+		result := replayResult(request, audit.Entry)
 		report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
 		if result.Kind == "Replay" {
-			report.Ticket = index.TicketID
+			report.Ticket = audit.TicketID
 		}
 		return report, nil
 	}
-	inv, err := inventory(repo)
+	inv, err := inventory(repo, audit.Physical.Files)
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
@@ -97,7 +98,10 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 			paths = append(paths, file.Path)
 		}
 	}
-	canonical, err := reader.Audit(paths...)
+	canonical, reused, err := audit.Canonical(paths...)
+	if !reused {
+		canonical, err = reader.Audit(paths...)
+	}
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}

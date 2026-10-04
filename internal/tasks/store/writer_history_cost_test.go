@@ -223,12 +223,18 @@ func historyStore(tb testing.TB, receipts int) *intent.Repository {
 // BenchmarkCALV0070_MutateAt2000Receipts is the maintained V1-0645 baseline:
 // one complete store.Mutate CREATE on a settled 2,000-receipt history. Each
 // iteration adds one receipt, so run it with a small fixed -benchtime (5x).
+// cpu-ms/op is the process's CPU time per mutation, for comparing runs made
+// under different host load.
 func BenchmarkCALV0070_MutateAt2000Receipts(b *testing.B) {
 	repo := historyStore(b, 2000)
 	b.ReportAllocs()
 	b.ResetTimer()
+	cpu, cpuOK := processCPU()
 	for i := 0; i < b.N; i++ {
 		historyMutate(b, repo, fmt.Sprintf("history-bench-%d", i))
+	}
+	if end, ok := processCPU(); cpuOK && ok {
+		b.ReportMetric(float64(end-cpu)/float64(time.Millisecond)/float64(b.N), "cpu-ms/op")
 	}
 }
 
@@ -256,19 +262,25 @@ func TestCALV0070_WriterHistoryProfile(t *testing.T) {
 		Receipts int
 		SetupMS  float64
 		Phases   map[string]float64
+		// CPUPhases is the process's user plus system CPU time per phase.
+		CPUPhases map[string]float64
 	}
 	var rows []row
 	for _, n := range sizes {
 		setup := time.Now()
 		repo := historyStore(t, n)
-		r := row{Receipts: n, SetupMS: ms(time.Since(setup)), Phases: map[string]float64{}}
-		samples := map[string][]float64{}
+		r := row{Receipts: n, SetupMS: ms(time.Since(setup)), Phases: map[string]float64{}, CPUPhases: map[string]float64{}}
+		samples, cpuSamples := map[string][]float64{}, map[string][]float64{}
 		timed := func(name string, f func() error) {
+			cpu, cpuOK := processCPU()
 			start := time.Now()
 			if err := f(); err != nil {
 				t.Fatalf("%d %s: %v", n, name, err)
 			}
 			samples[name] = append(samples[name], ms(time.Since(start)))
+			if end, ok := processCPU(); cpuOK && ok {
+				cpuSamples[name] = append(cpuSamples[name], ms(end-cpu))
+			}
 		}
 		for rep := 0; rep < reps; rep++ {
 			head, err := writerGuards(repo, "MUTATE")
@@ -299,6 +311,19 @@ func TestCALV0070_WriterHistoryProfile(t *testing.T) {
 			var proof *journal.Result
 			timed("mutate.fullAudit", func() error {
 				proof, err = reader.Audit(paths...)
+				return err
+			})
+			// After CAL-V0-070 Mutate runs these two instead of the three above.
+			var merged *journal.MutationAudit
+			timed("mutate.mergedAudit", func() error {
+				merged, err = reader.AuditForMutation(fmt.Sprintf("history-absent-%d", rep))
+				if err == nil && (merged.Found || merged.Physical.Files == nil) {
+					err = fmt.Errorf("merged audit found %v, published %d", merged.Found, len(merged.Physical.Files))
+				}
+				return err
+			})
+			timed("mutate.observedInventory", func() error {
+				_, err := inventory(repo, merged.Physical.Files)
 				return err
 			})
 			timed("mutate.treeDigest", func() error {
@@ -343,10 +368,14 @@ func TestCALV0070_WriterHistoryProfile(t *testing.T) {
 			sort.Float64s(s)
 			r.Phases[name] = s[len(s)/2]
 		}
+		for name, s := range cpuSamples {
+			sort.Float64s(s)
+			r.CPUPhases[name] = s[len(s)/2]
+		}
 		rows = append(rows, r)
-		t.Logf("receipts=%d setup=%.0fms %v", n, r.SetupMS, r.Phases)
+		t.Logf("receipts=%d setup=%.0fms %v cpu %v", n, r.SetupMS, r.Phases, r.CPUPhases)
 	}
-	report := map[string]any{"ticket": "V1-0645", "requirement": "CAL-V0-070", "fixture": fmt.Sprintf("synthetic: %d created tickets, one request plus one ~%d-byte inline ticket afterimage per receipt; no evidence blobs, attempts or reservations", historyTickets, historyBodySize), "repetitions": reps, "statistic": "median milliseconds", "cpuCount": runtime.NumCPU(), "goVersion": runtime.Version(), "rows": rows, "hostLoad": "NOT_OBSERVED: capture host load externally alongside this run"}
+	report := map[string]any{"ticket": "V1-0645", "requirement": "CAL-V0-070", "fixture": fmt.Sprintf("synthetic: %d created tickets, one request plus one ~%d-byte inline ticket afterimage per receipt; no evidence blobs, attempts or reservations", historyTickets, historyBodySize), "repetitions": reps, "statistic": "median milliseconds: Phases wall time, CPUPhases process user plus system CPU time", "cpuCount": runtime.NumCPU(), "goVersion": runtime.Version(), "rows": rows, "hostLoad": "NOT_OBSERVED: capture host load externally alongside this run"}
 	raw, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
 		t.Fatal(err)

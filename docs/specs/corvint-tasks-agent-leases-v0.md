@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S20 CAL-V0-070 one-pass Mutate and pinned journal reads implemented with focused equivalence tests and a before/after benchmark, writer checkpoint deferred (owner decision pending)
 Authoritative inputs: owner request [issue 482](https://github.com/beamfall/corvint/issues/482) (proposed CAL-V0-044/046 compatibility amendment);
 owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
@@ -26,7 +26,7 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S20 CAL-V0-070 one-pass Mutate and pinned journal reads implemented with focused equivalence tests and a before/after benchmark, writer checkpoint deferred (owner decision pending). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
 - Read next: #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle); Amendments to TCP-00; Failure modes.
@@ -85,7 +85,7 @@ one.
 | S15 | CAL-V0-065 | Opt-in explicit per-claim member exclusions; focused tests and a compiled native fixture |
 | S17 | CAL-V0-067 | Experimental operator-attested untouched release; scoped native/archive/crash fixtures passed, physical facts NOT_OBSERVED |
 | S18 | CAL-V0-068 | Experimental host-pressure launch throttle: hysteresis level caps new non-exempt launches; running workers untouched |
-| S20 | CAL-V0-070 | Proposed writer cost independent of receipt history (V1-0645): baseline benchmark only; implementation NOT_RUN |
+| S20 | CAL-V0-070 | Writer cost against receipt history (V1-0645): one-pass `Mutate` and pinned journal reads implemented with equivalence tests and a before/after benchmark; writer checkpoint proposed, owner decision pending, deferred 2026-10-04 |
 
 CAL-V0-062/063 are defined in S13 (issue 354). CAL-V0-064 (S14, issue 468) is reserved
 by coordinated unlanded work; CAL-V0-066/S16 remains reserved for issue 464 if used.
@@ -1239,20 +1239,31 @@ a ledger that carries the record, so a downgrade first needs one start without `
 fixture parsing only; live Linux sampling and a live multi-agent dispatch under real host saturation are NOT_RUN, and other operating systems are always
 UNKNOWN. Regression witnesses are the CAL-V0-068 and issue-497 tests in the traceability table.
 
-### S20 — Writer cost independent of receipt history (V1-0645, proposed)
+### S20 — Writer cost independent of receipt history (V1-0645; one-pass `Mutate` delivered, writer checkpoint deferred)
 
 Authoritative input: native ticket V1-0645, the writer follow-up named in S12's non-goals,
 owner-prioritised on 2026-10-04 as the root cause behind issues 494 and 545. An uncontended mutation
 costs about 2.9 s at 7,140 live receipts. Ten concurrent writers therefore sit at the 30-second
 admission budget, and a 14-writer wave completed 55 of 70 operations with three LOCK_TIMEOUT
-refusals. Intent status: proposed. This section governs nothing until the owner accepts it. Until
-then, the last sentence of CAL-V0-061 still applies unchanged: every mutation and request lookup
-keeps the complete audit. CAL-V0-070/S20 is provisional: CAL-V0-069/S19 (issue 494) and
-CAL-V0-071..072/S21 (issue 354) are held by unlanded work, and the coordinator confirms the ID.
-Delivered so far: the baseline measurement only. Implementation is NOT_RUN.
+refusals.
 
-Measured cost. The opt-in `TestCALV0070_WriterHistoryProfile` (`internal/tasks/store`) measures
-each writer primitive separately on a settled synthetic store. The store has 50 tickets, and every
+Owner decision 2026-10-04: implement (A), one audit per mutation with its digests reused, and (B),
+each parent directory opened once per scan, now and strictly inside the existing contract, so that
+audit results and refusals are byte-identical to before. Defer (C), the writer checkpoint, until A
+and B have measured before/after numbers. The coordinator confirmed CAL-V0-070/S20: CAL-V0-069/S19
+belongs to issue 494 and CAL-V0-071..072/S21 to issue 354. CAL-V0-070 records A and B. The writer
+checkpoint further below is a proposed design, owner decision pending, deferred 2026-10-04; it
+governs nothing. The last sentence of CAL-V0-061 still applies unchanged: every mutation and
+request lookup keeps the complete audit, which `store.Mutate` now runs once instead of twice.
+
+Delivered: A for `store.Mutate`, B for journal audit reads, their equivalence tests and the
+before/after measurement below. Not delivered: the writer checkpoint; A for release, policy,
+barrier, reconciliation, import and pool sweep, which keep their separate passes; B for the
+inventory's fresh reads, which still resolve every path from `/`. Writer cost stays proportional to
+receipt history.
+
+Measured cost before A and B. The opt-in `TestCALV0070_WriterHistoryProfile`
+(`internal/tasks/store`) measures each writer primitive separately on a settled synthetic store. The store has 50 tickets, and every
 receipt posts one request plus one 4 KiB-padded ticket afterimage (about 6 KB per receipt). It has
 no evidence, attempts or reservations. Conditions: Apple M2 Max, 12 CPUs, Go 1.27.1, darwin/arm64,
 medians of 3, host load average 25–33 from concurrent agents.
@@ -1281,8 +1292,9 @@ CPU profiles of three mutations put most of the time in these passes:
 | 2,000 | 64% | 29% | — |
 | 7,000 | 59% | 37% | under 3% |
 
-Most of that time is per-file `safeopen` work, which descends from `/` for every path (41%
-cumulative in `InRoot` at 2,000 receipts, with flat time mostly in syscalls). SHA-256 is not visible
+Most of that time is per-file `safeopen` work (41% cumulative in `InRoot` at 2,000 receipts, with
+flat time mostly in syscalls): a journal read made three opens and three closes per file, and the
+inventory resolves every path from `/`. SHA-256 is not visible
 in the profile. Each mutation allocates about 1.65 GB, in 9.0 million allocations (receipt and
 record decode/encode). The wall-time remainder of about 0.66 ms per receipt appears as no separate
 CPU step; the likely cause is contention and GC under host load, which is an inference.
@@ -1295,50 +1307,159 @@ Two bounded paths already exist:
 The maintained `BenchmarkCALV0070_MutateAt2000Receipts` records the before number. See
 `docs/build-log/2026-10-04-tasks-writer-history-cost.md`.
 
-- `CAL-V0-070`: A journal writer (`store.Mutate` and lease preparation) MUST make at most one pass
-  over receipt history, and only when its writer checkpoint cannot be used. It MUST NOT otherwise
-  read, hash, open or individually watch the files that history alone retains.
-  1. One pass. Whenever the complete audit runs, it runs once per mutation. The request lookup
-     and the projected records come from that one observation. The inventory reuses the physical
-     digests that observation read, as lease preparation already does.
-  2. Writer checkpoint. The file is `<state directory>.writer-checkpoint.json`, with profile
-     `taskman-writer-checkpoint/0`. It sits beside the journal state directory, never inside it,
-     and is separate from the S12 read checkpoint so that older runtimes neither read nor replace
-     it. Its codec is closed and bounded by the CAL-V0-059 limits. It records:
-     - everything CAL-V0-059 records;
-     - the request index: every `requests/` path with the sequence and digest of its afterimage,
-       path-ordered;
-     - the name sets of `receipts/`, `requests/` and `evidence/`, together with the exact count,
-       byte and archive-manifest-encoding contribution of those write-once files, so that capacity
-       is measured without opening them.
+- `CAL-V0-070`: `store.Mutate` MUST take its request lookup, its inventory digests and its canonical
+  intent records from one complete audit, and a journal audit attempt MUST open each parent
+  directory it reads from at most once. On a store that only writers holding the writer lock
+  change, every outcome, audit result, replay, refusal and refusal order MUST be byte-identical to
+  the separate passes these replace.
+  1. One pass. `Reader.AuditForMutation` runs `RequestIndex.Lookup`'s audit once. That audit also
+     retains the queue, the policy and every observed ticket and release, which is exactly the
+     selection `Mutate` derives from its inventory, and the physical digests it read. Its error is
+     exactly Lookup's. The two refusals that only the later `Audit` of that selection raised, the
+     selection-budget overflow and intent divergence, are deferred. A found request therefore
+     replays as before, and an inventory refusal still comes first. `Canonical` then returns the
+     first deferred refusal, or the Result that `Audit` returned. It answers only for exactly the
+     retained selection, under `Audit`'s own path and count checks; any other selection runs a
+     separate `Audit` as before.
+  2. Reused digests. The physical digests are published only when the audit completed with no
+     deferred refusal. The inventory takes each listed file's digest from them, as lease
+     preparation already does, and reads fresh any listed file they omit. Its directory listing,
+     sizes and refusals are unchanged.
+  3. Pinned parents. A journal audit attempt opens each parent directory it reads from once
+     (`safeopen.PinDir`), by the same no-follow, identity-checked step that began every per-file
+     open. It then opens each file beneath it with one no-follow `openat` (`safeopen.InDir`)
+     instead of three opens and three closes. Errors keep their text, and the descriptors close
+     with the attempt.
 
-     It MUST be derived only from a complete, settled, consistent `FULL` audit, retained by the
-     writer under CAL-V0-060's conditions, and never derived from a resumed observation. A request
-     index that would exceed the codec bound is not retained; writers then keep the complete audit.
-  3. Rebinding. Under the writer lock and after pending-receipt redo, a writer that resumes MUST
-     confirm:
-     - the queue ID, primary worktree, init digest, generation and version digest;
-     - that the head is at or beyond the checkpoint sequence by at most `K` receipts;
-     - that the named receipt still hashes to its recorded digest;
-     - that a names-only listing of each write-once directory equals the checkpoint's names plus
-       the tail's posts.
+Race limit. One observation now stands for the request lookup, the inventory digests and the
+canonical records, so byte-identity is claimed only for a store that changes under the writer lock
+alone. An outside edit made during the mutation is handled differently. An edit to `head.json` or
+to the intent tree is still refused `SNAPSHOT_MOVED` by the existing pre-apply binding, where the
+second pass could have refused it first with another code such as `INTENT_DIVERGED`. An edit to any
+other journal file is seen by the next audit, as an edit after the second pass always was.
 
-     It MUST then:
-     - replay every tail receipt with the unchanged per-receipt validators, including the duplicate
-       request check against the request index;
-     - verify every live projection, staging emptiness, the barrier, reservations and the intent
-       tree exactly as the complete audit does;
-     - verify the target request: for a replay it is present with its indexed digest, and for a
-       new request it is absent from both the index and the listing.
+Measured cost after A and B. The profile and the benchmark now also record the process's CPU time
+(user plus system, all threads): over the same evening, wall time for identical runs varied up to
+fourfold with concurrent agents' load. Each pair runs this change against its base `d4a896bd`,
+with identical measurement code, on the fixture and host above.
 
-     Lease preparation resumes the same way. Its change guard watches the live files and the
-     write-once directories rather than every retained file.
-  4. Equivalence. Wherever the resumed path completes, the outcome, receipt bytes, replay result and
-     capacity cost MUST equal those of the complete-audit path. Any decode error, mismatch, refusal
-     or oversized tail MUST fall back to the complete audit, whose verdict governs. An unusable
-     checkpoint never yields a refusal, a receipt or a capacity verdict that the complete audit
-     would not. Every barrier removal, reconciliation and `receipt audit` keeps the complete audit,
-     and so does every mutation once `K` receipts have landed since the last complete audit.
+Profile, medians of 3, after then base back to back, one-minute host load average 11–12:
+
+| Receipts | `Mutate` total, base → after | `Mutate` CPU, base → after | Lookup + complete audit (base) | Merged audit (after) | Inventory, fresh → observed | Lease observed audit, base → after | S12 checkpoint + tail |
+|---|---|---|---|---|---|---|---|
+| 500 | 1,132 → 565 ms | 1,287 → 648 ms | 699 ms | 321 ms | 204 → 8 ms | 362 → 324 ms | 10 → 7 ms |
+| 2,000 | 4,111 → 1,298 ms | 4,298 → 1,678 ms | 2,475 ms | 939 ms | 892 → 17 ms | 1,334 → 987 ms | 12 → 7 ms |
+| 7,000 | 11,395 → 3,891 ms | 13,883 → 5,209 ms | 6,908 ms | 3,077 ms | 2,990 → 49 ms | 3,385 → 3,239 ms | 10 → 8 ms |
+
+`BenchmarkCALV0070_MutateAt2000Receipts` with `-benchtime 5x -benchmem`, three alternating rounds,
+one-minute host load average falling from 34 to 13:
+
+| Tree | Wall per `Mutate` | CPU per `Mutate` | Allocated | Allocations |
+|---|---|---|---|---|
+| Base | 3.33–3.75 s, median 3.41 s | 4,065–4,421 ms, median 4,178 ms | 1.655 GB | 9.006 million |
+| After A and B | 1.34–1.61 s, median 1.46 s | 1,688–1,945 ms, median 1,793 ms | 0.861 GB | 5.218 million |
+
+A and B cut `Mutate`'s wall and CPU time by about 57–68% at 2,000 and 7,000 receipts, and its
+allocation by 48%. A `Mutate` now costs about one complete audit plus a fixed remainder. That is
+still proportional to history: about 0.5 ms per receipt in wall time at this load, against about
+1.6 ms before. Lease commands, which issues 494 and 545 exercise, already made one pass. B alone
+lowers their observed audit's CPU time by 6–9%. Whether (C) is still needed, chiefly for the lease
+path, remains the pending owner decision. Runs made earlier the same evening at load 41–124 had
+identical allocation counts but wall times that overlapped between trees. The build-log keeps them
+as evidence of load sensitivity, not as the comparison.
+
+Non-goals:
+- any change to the receipt, journal, intent, request, evidence or archive format;
+- writer-retained state that a read mutates;
+- relaxing CAL-V0-061 for reads;
+- lock admission and fairness (issue 494);
+- evidence deduplication;
+- removing the per-read intent-tree passes (V1-0646).
+
+Failure modes of A and B:
+
+| Failure | Handling |
+|---|---|
+| Request found while a deferred refusal is held | Replays as before; the deferred refusal is never raised, because the old flow never audited the selection |
+| Inventory refusal while a deferred refusal is held | No digests are published, so the inventory reads fresh and refuses first, as before |
+| The inventory names a selection the audit did not retain | `Canonical` declines and a separate `Audit` runs, as before |
+| A listed file is absent from the published digests | The inventory reads it fresh |
+| A parent directory is renamed or replaced during an attempt | Reads continue beneath the parent the attempt already retained, as every per-file open did; the attempt's identity checks refuse as before |
+| A platform without the Unix open path | `PinDir` and `InDir` return the same unsupported error as `InRoot` |
+| A defect in the merged audit | The equivalence tests below compare every combination; rollback reverts the change |
+
+Acceptance evidence for A and B (delivered):
+1. `TestCALV0070_MergedMutationAuditEquivalence` (`internal/tasks/journal`), on 24 store states:
+   clean, with the request absent and found; a rebound, rewritten or missing receipt; a missing,
+   corrupt, stray, symlinked or FIFO request file; a request file removed or symlinked between
+   capture and read; an edited, missing, stray or symlinked ticket; an edited queue; the selection
+   budget exceeded, alone, with a found request, before a corrupt request and before an edited
+   ticket; and a pending receipt. For each it compares four flows: separate `Lookup` and `Audit`
+   with per-file opens, the same with pinned opens, and the merged audit with each. The error,
+   found entry, ticket, identity and Result must all be equal. Published digests must equal a fresh
+   read, and a subset, superset or unchecked selection, or a found request, is never answered.
+2. `TestCALV0070_PinnedDirOpensMatchInRoot` (`internal/tasks/safeopen`): for a regular file, an
+   absent name, file and dangling symlinks, a FIFO, a directory, dot, dot-dot, empty, absolute and
+   unclean names, `InDir` opens the same file or returns the same error text as `InRoot`, after the
+   directory's path has been renamed and replaced. It never descends.
+3. `TestCALV0070_MutateAuditSequenceEquivalence` (`internal/tasks/store`): on a store built by
+   `Mutate` with 70 receipts, `Mutate`'s old and new sequences give the same refusal in the same
+   phase, the same inventory and the same canonical Result. The states are: clean with the request
+   absent and found, an edited ticket with the request absent and found, a corrupt request file,
+   a stray state directory, and a stray state directory with an edited ticket. The observed
+   inventory equals a fresh one.
+4. The existing `internal/tasks/journal`, `internal/tasks/safeopen` and `internal/tasks/store`
+   tests, unchanged.
+5. The after measurement above.
+
+Rollback of A and B: revert the change. Nothing is retained, so no store needs repair.
+
+#### Proposed writer checkpoint (owner decision pending, deferred 2026-10-04)
+
+This design is (C). It carries no requirement ID and governs nothing until the owner accepts it,
+which waits on the A and B numbers above. It would let a journal writer (`store.Mutate` and lease
+preparation) make at most one pass over receipt history, and only when its writer checkpoint cannot
+be used, and otherwise not read, hash, open or individually watch the files that history alone
+retains.
+
+1. Writer checkpoint. The file is `<state directory>.writer-checkpoint.json`, with profile
+   `taskman-writer-checkpoint/0`. It sits beside the journal state directory, never inside it,
+   and is separate from the S12 read checkpoint so that older runtimes neither read nor replace
+   it. Its codec is closed and bounded by the CAL-V0-059 limits. It records:
+   - everything CAL-V0-059 records;
+   - the request index: every `requests/` path with the sequence and digest of its afterimage,
+     path-ordered;
+   - the name sets of `receipts/`, `requests/` and `evidence/`, together with the exact count,
+     byte and archive-manifest-encoding contribution of those write-once files, so that capacity
+     is measured without opening them.
+
+   It MUST be derived only from a complete, settled, consistent `FULL` audit, retained by the
+   writer under CAL-V0-060's conditions, and never derived from a resumed observation. A request
+   index that would exceed the codec bound is not retained; writers then keep the complete audit.
+2. Rebinding. Under the writer lock and after pending-receipt redo, a writer that resumes MUST
+   confirm:
+   - the queue ID, primary worktree, init digest, generation and version digest;
+   - that the head is at or beyond the checkpoint sequence by at most `K` receipts;
+   - that the named receipt still hashes to its recorded digest;
+   - that a names-only listing of each write-once directory equals the checkpoint's names plus
+     the tail's posts.
+
+   It MUST then:
+   - replay every tail receipt with the unchanged per-receipt validators, including the duplicate
+     request check against the request index;
+   - verify every live projection, staging emptiness, the barrier, reservations and the intent
+     tree exactly as the complete audit does;
+   - verify the target request: for a replay it is present with its indexed digest, and for a
+     new request it is absent from both the index and the listing.
+
+   Lease preparation resumes the same way. Its change guard watches the live files and the
+   write-once directories rather than every retained file.
+3. Equivalence. Wherever the resumed path completes, the outcome, receipt bytes, replay result and
+   capacity cost MUST equal those of the complete-audit path. Any decode error, mismatch, refusal
+   or oversized tail MUST fall back to the complete audit, whose verdict governs. An unusable
+   checkpoint never yields a refusal, a receipt or a capacity verdict that the complete audit
+   would not. Every barrier removal, reconciliation and `receipt audit` keeps the complete audit,
+   and so does every mutation once `K` receipts have landed since the last complete audit.
 
 Detection limit (the owner trade-off). A resumed writer does not re-read history before the
 checkpoint sequence. An altered prefix receipt, an altered `requests/` or `evidence/` file that the
@@ -1360,15 +1481,7 @@ benchmark and format gate before acceptance:
 - an exact capacity-parity test against the full inventory;
 - a build-log format entry.
 
-Non-goals:
-- any change to the receipt, journal, intent, request, evidence or archive format;
-- writer-retained state that a read mutates;
-- relaxing CAL-V0-061 for reads;
-- lock admission and fairness (issue 494);
-- evidence deduplication;
-- removing the per-read intent-tree passes (V1-0646).
-
-Failure modes:
+Checkpoint failure modes:
 
 | Failure | Handling |
 |---|---|
@@ -1383,7 +1496,7 @@ Failure modes:
 The S12 read checkpoint is then refreshed only on complete audits, so a read replays at most `K`
 receipts.
 
-Acceptance evidence:
+Checkpoint acceptance evidence, if accepted:
 1. `BenchmarkCALV0070_MutateAt2000Receipts` before and after, on the same host and fixture with
    `-benchtime 5x`, recording load.
 2. `TestCALV0070_WriterHistoryProfile` at 500, 2,000 and 7,000 receipts, where the resumed
@@ -1404,14 +1517,15 @@ Acceptance evidence:
 Rollback: delete `<state directory>.writer-checkpoint.json` to force the complete audit until the
 next complete audit retains a new one, or revert the writer option. No retained format changes.
 
-Implementation plan, in order (none of it done):
-- (A) Merge the lookup and complete audits and reuse the observed digests in the inventory. This
-  needs no format change, and the primitives above project about 2.0–2.1 s at 2,000 receipts. That
-  figure is an inference, not a measurement, and the result is still proportional to history.
-  Lease commands already work this way, so step (A) does not help them.
-- (B) Open the state-directory root once per scan instead of descending from `/` for each file,
-  keeping the no-follow and identity checks. This is a constant factor.
-- (C) The writer checkpoint and rebinding above, delivered as its own reviewed slice.
+Implementation plan, in order:
+- (A) Merge the lookup and complete audits and reuse the observed digests in the inventory.
+  Delivered for `store.Mutate` (CAL-V0-070 items 1 and 2). Lease commands already worked this way,
+  so A does not help them.
+- (B) Open each parent directory once per audit attempt instead of three opens per file, keeping
+  the no-follow and identity checks. Delivered for journal audit reads (CAL-V0-070 item 3); the
+  inventory's fresh reads are unchanged.
+- (C) The writer checkpoint and rebinding above, as its own reviewed slice: owner decision
+  pending, deferred 2026-10-04.
 
 ## Amendments to TCP-00
 
@@ -1617,7 +1731,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-042 | `internal/companionrelease/tasks_archive.go`, companion release `-tasks-only`; `TestTasksArchiveAssembly`, `TestTasksArchiveHelpRefusesOldRuntime`; native archive build retained in change evidence |
 
 | CAL-V0-027 | `TestCALV0027_CompiledNonfixtureReleaseLifecycle`, `TestCALV0027_NonfixtureReleaseBindings`, `TestCALV0027_NonfixtureReleaseReadinessRefusals` (`internal/tasks/cli`); `TestCALV0027_ReleaseAfterQualifiedCutover`, `TestCALV0027_ReleaseInterruptionRecovery`, `TestCALV0027_ReleaseActiveStageAndReconciliation`, `TestCALV0027_ReleaseWrongActor`, `TestCALV0027_ActualCompletedStages` (`internal/tasks/store`); `TestCALV0027_NonfixtureStageBinding`, `TestCALV0027_CompletedStageReceiptKinds`, `TestCALV0027_CompletedStageInnerBindings` (`internal/tasks/snapshot`). |
-| CAL-V0-070 | Proposed. Baseline only: `BenchmarkCALV0070_MutateAt2000Receipts` and opt-in `TestCALV0070_WriterHistoryProfile` (`internal/tasks/store`); see `docs/build-log/2026-10-04-tasks-writer-history-cost.md`. Implementation and acceptance tests NOT_RUN |
+| CAL-V0-070 | Implemented for `store.Mutate` and journal audit reads: `TestCALV0070_MergedMutationAuditEquivalence` (`internal/tasks/journal`), `TestCALV0070_PinnedDirOpensMatchInRoot` (`internal/tasks/safeopen`) and `TestCALV0070_MutateAuditSequenceEquivalence` (`internal/tasks/store`); before/after `BenchmarkCALV0070_MutateAt2000Receipts` (median `Mutate` CPU 4,178 → 1,793 ms at 2,000 receipts) and opt-in `TestCALV0070_WriterHistoryProfile` (`internal/tasks/store`); see `docs/build-log/2026-10-04-tasks-writer-history-cost.md` and `docs/build-log/2026-10-04-tasks-writer-one-pass.md`. The proposed writer checkpoint is NOT_RUN (owner decision pending, deferred 2026-10-04); Linux, the live store and the issue 545 waves are NOT_RUN |
 
 ## Holder, retry and policy observation acceptance
 

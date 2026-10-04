@@ -115,6 +115,11 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 		onlyIntent.intentOnly = true
 		result.IntentError = onlyIntent.projections(o, canonical, true)
 	}
+	if r.observedIntent {
+		onlyIntent := r
+		onlyIntent.intentOnly = true
+		result.intentErr = onlyIntent.projections(o, canonical, true)
+	}
 	if o.head == nil {
 		if err := r.validateStage(o, genesisQueue); err != nil {
 			return result, err
@@ -251,14 +256,21 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 			}
 		}
 		canonical[p.Path] = latest{seq: rc.Seq, digest: p.Sha256, pendingPre: rc.Pre[j].Sha256, pending: seq > headSeq}
-		if r.selects(p.Path, selected) {
+		if result.selectErr == nil && r.selects(p.Path, selected) {
 			old := result.Records[p.Path]
 			st.selectedBytes -= len(old.Raw)
 			if len(post) > lim.selected-st.selectedBytes {
-				return wire.Errorf(wire.CodeLimitExceeded, p.Path, "selected canonical bytes exceed aggregate live intent-state budget; select fewer paths")
+				err := wire.Errorf(wire.CodeLimitExceeded, p.Path, "selected canonical bytes exceed aggregate live intent-state budget; select fewer paths")
+				if !r.observedIntent {
+					return err
+				}
+				// A separate Audit would stop here, after the lookup succeeded.
+				// Keep validating so every lookup refusal still comes first.
+				result.selectErr = err
+			} else {
+				st.selectedBytes += len(post)
+				result.Records[p.Path] = Record{Seq: rc.Seq, Sha256: p.Sha256, Raw: post}
 			}
-			st.selectedBytes += len(post)
-			result.Records[p.Path] = Record{Seq: rc.Seq, Sha256: p.Sha256, Raw: post}
 		}
 	}
 	if rc.RequestID != nil && requestCount != 1 {
