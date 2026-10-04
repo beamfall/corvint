@@ -194,10 +194,10 @@ func dispatchAux(env Env, verb string, args []string) *wire.Result {
 	if e != nil {
 		return errorResult(cmd, e)
 	}
-	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{dispatchStatusValue(dir, l, events, time.Now(), c.Pressure)}}
+	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{dispatchStatusValue(c, dir, l, events, time.Now())}}
 }
 
-func dispatchStatusValue(dir string, l *dispatch.Ledger, events []dispatch.Event, now time.Time, pc *dispatch.PressureConfig) wire.Value {
+func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, events []dispatch.Event, now time.Time) wire.Value {
 	str := wire.String
 	ts := func(t time.Time) wire.Value { return str(t.UTC().Format(time.RFC3339)) }
 	sweeps := []wire.Value{}
@@ -223,6 +223,10 @@ func dispatchStatusValue(dir string, l *dispatch.Ledger, events []dispatch.Event
 		o.Set("state", str(w.State))
 		o.Set("started", ts(w.Started))
 		o.Set("lastActive", ts(w.LastActive))
+		if w.Model != "" {
+			o.Set("tier", str(strconv.Itoa(w.Tier)))
+			o.Set("model", str(w.Model))
+		}
 		workers = append(workers, wire.Value{Kind: wire.KindObject, Obj: o})
 	}
 	keys := make([]string, 0, len(l.Backoff))
@@ -267,12 +271,48 @@ func dispatchStatusValue(dir string, l *dispatch.Ledger, events []dispatch.Event
 	o.Set("workers", wire.Value{Kind: wire.KindArray, Arr: workers})
 	o.Set("parked", wire.Strings(parked))
 	o.Set("cooling", wire.Value{Kind: wire.KindArray, Arr: cooling})
+	if c.Escalates() {
+		o.Set("escalation", dispatchEscalationValue(c, l))
+	}
 	if l.Pressure != nil {
-		o.Set("pressure", dispatchPressureValue(l.Pressure, pc))
+		o.Set("pressure", dispatchPressureValue(l.Pressure, c.Pressure))
 	}
 	o.Set("lastEventSeq", str(strconv.FormatUint(l.EventSeq, 10)))
 	o.Set("events", wire.Value{Kind: wire.KindArray, Arr: evs})
 	return wire.Value{Kind: wire.KindObject, Obj: o}
+}
+
+// dispatchEscalationValue is the CAL-V0-057 ladder view: per ticket, the
+// no-progress streak and the tier and model each laddered role launches next.
+func dispatchEscalationValue(c *dispatch.Config, l *dispatch.Ledger) wire.Value {
+	keys := make([]string, 0, len(l.Escalation))
+	for k := range l.Escalation {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	out := []wire.Value{}
+	for _, k := range keys {
+		e := l.Escalation[k]
+		roles := []wire.Value{}
+		for i := range c.Roles {
+			r := &c.Roles[i]
+			if len(r.Escalate) == 0 {
+				continue
+			}
+			tier := dispatch.LaunchTier(r, e)
+			o := wire.NewObject()
+			o.Set("role", wire.String(r.Name))
+			o.Set("tier", wire.String(strconv.Itoa(tier)))
+			o.Set("model", wire.String(r.ModelAt(tier)))
+			roles = append(roles, wire.Value{Kind: wire.KindObject, Obj: o})
+		}
+		o := wire.NewObject()
+		o.Set("key", wire.String(k))
+		o.Set("streak", wire.String(strconv.Itoa(e.Streak)))
+		o.Set("roles", wire.Value{Kind: wire.KindArray, Arr: roles})
+		out = append(out, wire.Value{Kind: wire.KindObject, Obj: o})
+	}
+	return wire.Value{Kind: wire.KindArray, Arr: out}
 }
 
 // dispatchPressureValue is the CAL-V0-068 status view: the recorded level

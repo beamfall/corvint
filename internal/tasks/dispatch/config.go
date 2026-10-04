@@ -72,6 +72,53 @@ type Role struct {
 	Prompt      string `json:"prompt"`
 	IdleSeconds int    `json:"idleSeconds"`
 	WallSeconds int    `json:"wallSeconds"`
+	// Model, Escalate and DeescalateOnProgress are the CAL-V0-057
+	// escalation ladder. The role's host must render {model}.
+	Model                string `json:"model,omitempty"`
+	Escalate             []Tier `json:"escalate,omitempty"`
+	DeescalateOnProgress *bool  `json:"deescalateOnProgress,omitempty"`
+}
+
+// Tier is one escalation step: from After consecutive no-progress sessions
+// on a ticket, the role launches Model. Cap 0 leaves only the role cap.
+type Tier struct {
+	After int    `json:"after"`
+	Model string `json:"model"`
+	Cap   int    `json:"cap,omitempty"`
+	Notes string `json:"notes,omitempty"`
+}
+
+// Deescalates reports whether progress returns the role to its base model
+// (the default).
+func (r *Role) Deescalates() bool { return r.DeescalateOnProgress == nil || *r.DeescalateOnProgress }
+
+// TierFor is the ladder tier for a no-progress streak: 0 is the base model.
+func (r *Role) TierFor(streak int) int {
+	tier := 0
+	for i, t := range r.Escalate {
+		if streak >= t.After {
+			tier = i + 1
+		}
+	}
+	return tier
+}
+
+// ModelAt is the model the role launches at a tier.
+func (r *Role) ModelAt(tier int) string {
+	if tier < 1 || tier > len(r.Escalate) {
+		return r.Model
+	}
+	return r.Escalate[tier-1].Model
+}
+
+// Escalates reports whether any role has a ladder.
+func (c *Config) Escalates() bool {
+	for _, r := range c.Roles {
+		if len(r.Escalate) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // Match is a conjunction; an empty list matches anything. Statuses defaults
@@ -106,12 +153,13 @@ type Heal struct {
 }
 
 // Placeholders are the only substitutions in argv, env and prompts.
-var Placeholders = []string{"{program}", "{role}", "{slot}", "{worker}", "{holder}", "{ticket}", "{ticketLocal}", "{state}", "{pool}", "{member}", "{workRoot}", "{prompt}"}
+var Placeholders = []string{"{program}", "{role}", "{slot}", "{worker}", "{holder}", "{ticket}", "{ticketLocal}", "{state}", "{pool}", "{member}", "{workRoot}", "{prompt}", "{model}"}
 
 var (
 	namePattern  = regexp.MustCompile(`^[a-z][a-z0-9-]{0,23}$`)
 	placeholder  = regexp.MustCompile(`\{[A-Za-z]+\}`)
 	envKeyFormat = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]{0,127}$`)
+	modelFormat  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,127}$`)
 )
 
 // ValidName is the bound on program and role names; worker IDs and holder
@@ -240,6 +288,9 @@ func (c *Config) validate() error {
 		if l := r.Lane; l != nil && (l.Pool == "" || len(l.Pool) > 64) {
 			return fail("role %s lane needs a pool", r.Name)
 		}
+		if err := c.validateLadder(r); err != nil {
+			return fail("role %s %v", r.Name, err)
+		}
 	}
 	if len(c.Pinned) > 256 {
 		return fail("pinned is limited to 256 tickets")
@@ -253,6 +304,66 @@ func (c *Config) validate() error {
 				return fail("pressure exempt role %q is not a configured role", r)
 			}
 		}
+	}
+	return nil
+}
+
+// validateLadder refuses a model the role's host cannot deliver: a role
+// with a model needs a host that renders {model}, and such a host serves
+// only roles that name one.
+func (c *Config) validateLadder(r Role) error {
+	uses := false
+	h := c.Hosts[r.Host]
+	for _, a := range h.Argv {
+		uses = uses || strings.Contains(a, "{model}")
+	}
+	for _, v := range h.Env {
+		uses = uses || strings.Contains(v, "{model}")
+	}
+	// An activity path can name the model but does not deliver it.
+	renders := uses
+	for _, p := range h.ActivityPaths {
+		renders = renders || strings.Contains(p, "{model}")
+	}
+	if r.Model == "" {
+		if len(r.Escalate) > 0 || r.DeescalateOnProgress != nil {
+			return fmt.Errorf("escalate and deescalateOnProgress need a base model")
+		}
+		if renders || strings.Contains(r.Prompt, "{model}") {
+			return fmt.Errorf("uses a {model} placeholder but names no model")
+		}
+		return nil
+	}
+	if !modelFormat.MatchString(r.Model) {
+		return fmt.Errorf("model must match %s", modelFormat)
+	}
+	if !uses {
+		return fmt.Errorf("names a model but host %q renders no {model}: unsupported model configuration", r.Host)
+	}
+	if len(r.Escalate) == 0 {
+		if r.DeescalateOnProgress != nil {
+			return fmt.Errorf("deescalateOnProgress needs escalate")
+		}
+		return nil
+	}
+	if r.Lane != nil || len(r.Escalate) > 8 {
+		return fmt.Errorf("escalate needs a match role and at most 8 tiers")
+	}
+	prev, after := r.Model, 0
+	for i, t := range r.Escalate {
+		if t.After <= after || t.After > 100 {
+			return fmt.Errorf("escalate[%d].after must be 1..100 and strictly increasing", i)
+		}
+		if !modelFormat.MatchString(t.Model) || t.Model == prev {
+			return fmt.Errorf("escalate[%d].model must be a valid model that differs from the tier below", i)
+		}
+		if t.Cap < 0 || t.Cap > r.Cap {
+			return fmt.Errorf("escalate[%d].cap must be 0..%d (0 leaves only the role cap)", i, r.Cap)
+		}
+		if len(t.Notes) > 1024 || strings.IndexFunc(t.Notes, func(c rune) bool { return c < 0x20 || c == 0x7f }) >= 0 {
+			return fmt.Errorf("escalate[%d].notes must be at most 1024 bytes without control characters", i)
+		}
+		prev, after = t.Model, t.After
 	}
 	return nil
 }
