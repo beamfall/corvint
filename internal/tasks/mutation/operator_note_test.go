@@ -129,7 +129,8 @@ func TestIssue501_NoteTransition(t *testing.T) {
 	// unrelated edits advance the ticket and acceptance revisions, the prior
 	// event still resolves and the next note proposes and validates.
 	h := noteContext(t)
-	p = notePropose(t, h, noteRequest(&h, "hist-1", "NOTE_SET", "A", wire.Null(), str("0")))
+	raw = noteRequest(&h, "hist-1", "NOTE_SET", "A", wire.Null(), str("0"))
+	p = notePropose(t, h, raw)
 	noteAdvance(t, &h, p)
 	prior, e := ticket.DecodeOperatorNoteEvent(h.PriorEvent)
 	if e != nil {
@@ -143,7 +144,8 @@ func TestIssue501_NoteTransition(t *testing.T) {
 	edited.AcceptanceRevision = wire.CountOf(edited.AcceptanceRevision.Int() + 2)
 	later := h
 	later.Record = edited
-	p = notePropose(t, later, noteRequest(&later, "hist-2", "NOTE_SET", "B", str(string(edited.Revision)), str("1")))
+	raw = noteRequest(&later, "hist-2", "NOTE_SET", "B", str(string(edited.Revision)), str("1"))
+	p = notePropose(t, later, raw)
 	n, e := ticket.DecodeOperatorNoteEvent(p.Event)
 	if e != nil || n.TicketRevision != wire.CountOf(edited.Revision.Int()+1) || n.AcceptanceRevision != edited.AcceptanceRevision || prior.AcceptanceRevision == edited.AcceptanceRevision {
 		t.Fatal("note after unrelated edits", e)
@@ -171,7 +173,8 @@ func TestIssue501_NoteTransition(t *testing.T) {
 			tc.edit(r)
 			bad := stale
 			bad.Record = r
-			if _, e = mutation.ProposeOperatorNote(bad, noteRequest(&bad, "hist-bad", "NOTE_SET", "C", wire.Null(), str("2"))); e == nil || !strings.Contains(e.Error(), "postdate") {
+			badRaw := noteRequest(&bad, "hist-bad", "NOTE_SET", "C", wire.Null(), str("2"))
+			if _, e = mutation.ProposeOperatorNote(bad, badRaw); e == nil || !strings.Contains(e.Error(), "postdate") {
 				t.Fatal("prior note newer than ticket accepted", e)
 			}
 		})

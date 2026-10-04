@@ -133,6 +133,9 @@ unmeasured until the actual writer tests run.
 - The exact optional note-event slot in the MUTATE descriptor and its measured maximum encoding.
 - Whether claim delivery needs an amendment to the agent lease contract, decided in the
   claim-delivery slice.
+- Direct owner confirmation of this intent. It is accepted by owner-delegated decision 2026-10-04
+  (agent decided), while `docs/SPEC-DRIVEN-DEVELOPMENT.md` defines accepted intent as explicitly
+  approved by the repository owner; confirm before promotion.
 
 Kill criterion: stop or narrow the capability if bounded original material cannot be recovered
 without an unauthorized general recovery rewrite.
