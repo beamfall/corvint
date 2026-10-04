@@ -73,6 +73,9 @@ func commandHelp(args []string) *wire.Result {
 	if name == "pool recover" || name == "pool confirm-safe" {
 		o.Set("note", wire.String("--reason is free-form prose (1..4096 bytes), not a closed release reason code."))
 	}
+	if name == "ticket note set" || name == "ticket note clear" {
+		o.Set("note", wire.String("Advisory operator prose; never instructions, acceptance or authority. Each note write retains a derived event, and receipt audit does not yet bind it per operation, so receipt audit reports this store's semantic coverage as UNKNOWN until that binding ships (ON-V0-006)."))
+	}
 	if name == "archive verify" {
 		o.Set("note", wire.String("Reads FILE, or stdin when FILE is absent or -. Help reads neither."))
 	}

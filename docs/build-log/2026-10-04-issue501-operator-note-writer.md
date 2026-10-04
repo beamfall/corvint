@@ -41,3 +41,22 @@ landed first as a separate commit, `7d2ba3ed7db02a31facd9fc6117d436b11d1532c`.
 - Per-event receipt-audit and redo binding (ON-V0-006). An `evidence/` post still downgrades
   semantic coverage to UNKNOWN.
 - Durable qualification and promotion.
+
+## Independent review fixes
+
+The independent review of `cd70ba0a..b31a06df` returned CHANGES_REQUIRED. The fixes:
+
+- **Import forgery (HIGH).** `ticket.Decode` admitted `operatorNote`, and IMPORT_APPLY never
+  checked it, so an IMPORTER batch could add, rewrite or drop a note reference to an arbitrary
+  digest. `importOperatorNote` now requires an imported record to carry exactly the reference of
+  the record it replaces, and none for a new ticket. The refusal cases are in
+  `TestCTSV0003_ImportApplyRefusals`.
+- **Slot narrowing.** The stage contract sees every mutation verb as MUTATE, so REFINE with an
+  extra content-addressed evidence POST was stage-valid. The Model now posts a derived event only
+  for operations that `mutation.DeclaresDerivedEvent` names (NOTE_SET, NOTE_CLEAR). Any other
+  operation is refused UNSUPPORTED. The spec records that #502 and #504 must bind redo and receipt
+  audit per operation before they are declared.
+- **Coverage warning.** Each note write keeps receipt-audit semantic coverage at UNKNOWN for the
+  whole store until ON-V0-006 binding ships. `ticket note set|clear --help` now says so.
+- **Evidence.** Additional tests cover the Apply-level refusal mapping and the `ticket show`
+  UNAVAILABLE fallback, and the stage-slot cases now assert which refusal fired.

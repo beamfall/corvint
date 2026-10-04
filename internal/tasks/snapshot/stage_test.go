@@ -284,6 +284,14 @@ func TestONV0006_DerivedEventSlotMeasuredAndNarrow(t *testing.T) {
 		t.Fatal("no derived event")
 		return -1
 	}
+	want := map[string]string{
+		"second":    "MALFORMED: stage: derived event count",
+		"queue":     "MALFORMED: stage: derived event count",
+		"request":   "MALFORMED: stage: derived event count",
+		"oversized": "LIMIT_EXCEEDED: stage: artifact bytes",
+		"address":   "MALFORMED: stage: mutation request evidence identity",
+		"operation": "MALFORMED: stage: post outside operation",
+	}
 	for _, name := range []string{"second", "queue", "request", "oversized", "address", "operation"} {
 		t.Run(name, func(t *testing.T) {
 			x := maximalDerivedEventDescriptor()
@@ -313,8 +321,12 @@ func TestONV0006_DerivedEventSlotMeasuredAndNarrow(t *testing.T) {
 			for j := range x.Artifacts {
 				x.Artifacts[j].Slot = stageSlot(j)
 			}
-			if _, err := x.Encode(); err == nil {
+			_, err := x.Encode()
+			if err == nil {
 				t.Fatalf("%s accepted", name)
+			}
+			if err.Error() != want[name] {
+				t.Fatalf("%s refused for the wrong reason: %v, want %s", name, err, want[name])
 			}
 		})
 	}

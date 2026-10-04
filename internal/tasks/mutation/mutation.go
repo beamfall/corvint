@@ -880,3 +880,8 @@ func readNote(op string, r *wire.Reader) *NotePayload {
 	p.Supersedes = r.Field("supersedes").CountOrNull()
 	return p
 }
+
+// DeclaresDerivedEvent names the operations that may carry Plan.DerivedEvent.
+// Only NOTE_SET and NOTE_CLEAR do today. Before another operation is added
+// here, its redo and receipt audit must bind its event (ON-V0-006).
+func DeclaresDerivedEvent(op string) bool { return IsNoteOperation(op) }

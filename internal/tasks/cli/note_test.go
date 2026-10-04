@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
@@ -94,6 +95,12 @@ func TestONV0008_TicketNoteSetShowClearThroughTheCLI(t *testing.T) {
 		t.Fatalf("ticket show hid a missing event: %+v", degraded.res)
 	}
 
+	for _, verb := range []string{"set", "clear"} {
+		help := atm(t, r.Root, nil, "ticket", "note", verb, "--help")
+		if help.res.Outcome != wire.OutcomeOK || !strings.Contains(field(help.res.Items[0], "note").Str, "semantic coverage as UNKNOWN") {
+			t.Fatalf("ticket note %s help does not warn about receipt-audit coverage: %+v", verb, help.res)
+		}
+	}
 	if x := atm(t, r.Root, nil, "ticket", "note", "set", id, "--request-id", "note-4"); x.res.Outcome == wire.OutcomeOK {
 		t.Fatal("note set without text succeeded")
 	}

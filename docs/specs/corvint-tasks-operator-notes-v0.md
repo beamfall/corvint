@@ -46,11 +46,18 @@ existed but nothing called them. The second delivery wires them:
   audited reference head; a missing prior event refuses with MISSING_EVIDENCE.
 - `corvint-tasks ticket note set|clear|show` and the `ticket show` `operatorNote` view render the
   current note as advisory, untrusted operator prose.
+- IMPORT_APPLY refuses any imported record whose `operatorNote` differs from the record it replaces
+  (none for a new ticket), so an import cannot add, rewrite or drop a note reference (ON-V0-004).
+- The transaction Model closes the derived-event slot to operations that declare an event
+  (`mutation.DeclaresDerivedEvent`: NOTE_SET and NOTE_CLEAR). The stage contract sees every
+  mutation verb as MUTATE, so any other operation carrying an event is refused as UNSUPPORTED before
+  staging.
 
 Existing claim admission binds TicketRecordSha256 and acceptanceRevision; claims do not yet deliver
 the note. An `evidence/` post on a receipt still downgrades receipt-audit semantic coverage to
-UNKNOWN, as gate and REOPEN evidence already do; no per-event semantic binding exists yet. Existing
-active-stage redo refusal remains.
+UNKNOWN, as gate and REOPEN evidence already do; no per-event semantic binding exists yet, so a
+store with any note write reports UNKNOWN semantic coverage, and `ticket note set|clear --help` says
+so. Existing active-stage redo refusal remains.
 
 ## Requirements
 
@@ -118,12 +125,12 @@ under "Required integrated evidence" remain NOT_RUN.
 |---|---|---|---|---|
 | ON-V0-001 | NOTE501-001 | ticket/record codecs; Core decode | `TestIssue501_NoteCodec`; `TestONV0001_RecordCodecKeepsLegacyBytes` (legacy bytes unchanged, SET/CLEARED references round-trip); `TestONV0001_CoreReaderAdmitsOnlyTheClosedNoteReference` (Core admits valid references and refuses malformed ones and other unknown members) | archive export/import of noted tickets |
 | ON-V0-002 | NOTE501-002 | ticket event codec; evidence storage | `TestIssue501_NoteCodec`, `TestIssue501_NoteCASAndBounds`; `TestONV0006_NativeNoteSetClearReplayAndAudit` (SET then CLEAR chain stored in evidence and resolved) | history pages over a long chain |
-| ON-V0-003 | NOTE501-003 | mutation payload/Apply; native writer; CLI | `TestIssue501_NoteTransition`, `TestIssue501_NoteMaterialBindings`; `TestONV0006_NativeNoteSetClearReplayAndAudit`, `TestONV0008_TicketNoteSetShowClearThroughTheCLI` (identical replay writes no receipt, stale supersedes is REVISION_CONFLICT) | concurrent CAS between two processes |
-| ON-V0-004 | NOTE501-004 | policy/authorization; indirect writers | `TestIssue501_NoteCASAndBounds`; `TestONV0004_NotePolicyNeedsAnExplicitOperatorRow` (OPERATOR needs an explicit row naming the verb, OWNER default allows, a narrowed OWNER row refuses, a WORKER row naming NOTE_SET does not decode) | import-owned ticket refusal through the writer |
+| ON-V0-003 | NOTE501-003 | mutation payload/Apply; native writer; CLI | `TestIssue501_NoteTransition`, `TestIssue501_NoteMaterialBindings`; `TestONV0006_NativeNoteSetClearReplayAndAudit`, `TestONV0008_TicketNoteSetShowClearThroughTheCLI` (identical replay writes no receipt, stale supersedes is REVISION_CONFLICT); `TestONV0003_ApplyNoteRefusalMapping` (through Apply: missing prior event is MISSING_EVIDENCE, revision capacity is VALIDATION_FAILED/LIMIT_EXCEEDED, ARCHIVED is BLOCKED/TICKET_STATE, a non-null expectedRevision mismatch is REVISION_CONFLICT) | concurrent CAS between two processes |
+| ON-V0-004 | NOTE501-004 | policy/authorization; indirect writers | `TestIssue501_NoteCASAndBounds`; `TestONV0004_NotePolicyNeedsAnExplicitOperatorRow` (OPERATOR needs an explicit row naming the verb, OWNER default allows, a narrowed OWNER row refuses, a WORKER row naming NOTE_SET does not decode); `TestCTSV0003_ImportApplyRefusals` (an IMPORT_APPLY record cannot add, rewrite or drop an operator-note reference) | import-owned ticket refusal through the writer |
 | ON-V0-005 | NOTE501-005 | whole canonical post adapter/finalizer; ADOPT_FILE | `TestONV0006_NativeNoteSetClearReplayAndAudit` (acceptance revision unchanged, REFINE preserves the reference); `TestONV0005_AdoptFileRefusesNoteReferenceChanges` | rehashed unrelated-field attacks in receipt audit |
-| ON-V0-006 | NOTE501-006 | transaction/snapshot/journal/stage/archive | `TestONV0006_DerivedEventSlotMeasuredAndNarrow` (worst case 6/6 artifacts and 1669/1670 bytes; second event, queue, request, oversized, wrong-address and non-MUTATE widenings refuse); `TestONV0006_NativeNoteSetClearReplayAndAudit` (store digest unchanged after replay and conflict) | per-event receipt-audit binding and supported redo |
+| ON-V0-006 | NOTE501-006 | transaction/snapshot/journal/stage/archive | `TestONV0006_DerivedEventSlotMeasuredAndNarrow` (worst case 6/6 artifacts and 1669/1670 bytes; second event, queue, request, oversized, wrong-address and non-MUTATE widenings refuse, each with its named refusal); `TestONV0006_DerivedEventSlotClosedToDeclaringOperations` (REFINE and every other non-note operation carrying a derived event is refused UNSUPPORTED and stages nothing); `TestONV0006_NativeNoteSetClearReplayAndAudit` (store digest unchanged after replay and conflict) | per-event receipt-audit binding and supported redo |
 | ON-V0-007 | NOTE501-007 | lease admission; original receipt materializer | none | replacement between commit/materialization, generation refresh, missing-evidence replay |
-| ON-V0-008 | NOTE501-008 | show/history; CLI | `TestIssue501_NoteTransition`; `TestONV0008_TicketNoteSetShowClearThroughTheCLI` (NONE, CURRENT and CLEARED views; a missing event is MISSING_EVIDENCE in `ticket note show` and JOURNAL_FORKED in `ticket show`, never NONE) | anchored history reads, page bounds, read-only proof over noted stores |
+| ON-V0-008 | NOTE501-008 | show/history; CLI | `TestIssue501_NoteTransition`; `TestONV0008_TicketNoteSetShowClearThroughTheCLI` (NONE, CURRENT and CLEARED views; a missing event is MISSING_EVIDENCE in `ticket note show` and JOURNAL_FORKED in `ticket show`, never NONE); `TestONV0008_TicketShowRendersAnUnresolvableNoteAsUnavailable` (without a journal audit, a missing or mismatched event renders UNAVAILABLE with its code) | anchored history reads, page bounds, read-only proof over noted stores |
 | ON-V0-009 | NOTE501-009 | foundation and dependency layering | the first-delivery pure tests; `ticket` does not import `mutation` | no premature promotion |
 | ON-V0-010 | NOTE501-010 | qualification and delivery | none | exact-source review, integration, evidence and compatible rollback |
 
@@ -136,7 +143,12 @@ under "Required integrated evidence" remain NOT_RUN.
 - Event slot: one content-addressed `evidence/<sha256>` POST whose digest differs from the request
   digest, at most 65536 bytes, at most one per MUTATE, never with the CREATE queue post or the
   mutation-request post. The measured worst case is 6/6 artifacts and 1669/1670 bytes, so the
-  existing MUTATE bounds are unchanged.
+  existing MUTATE bounds are unchanged. Only operations that declare a derived event may carry
+  one; today those are NOTE_SET and NOTE_CLEAR, and the Model refuses any other operation.
+- Slot reuse: before another operation (for example typed escalations, #502, or review verdicts,
+  #504) is declared, its supported redo and receipt audit must bind that operation's event to the
+  transition it records, as ON-V0-006 requires for notes. Declaring the operation alone is not
+  enough.
 - Policy: OPERATOR may write notes only through an explicit `policy.roles.OPERATOR` row naming
   NOTE_SET or NOTE_CLEAR; its default row omits them. OWNER's default row includes them and an
   explicit OWNER row narrows it. No other role may be granted them.
