@@ -282,3 +282,49 @@ func TestCALV0072_MultiRepositoryGatesFailClosed(t *testing.T) {
 		t.Fatalf("refused program reached phase %s with %d gate results", a.Phase, len(a.GateResults))
 	}
 }
+
+// TestCALV0071_RetargetedCheckoutRefusedBeforeWrite proves a declared
+// checkout that is re-cloned, or retargeted by a symlink, after admission
+// keeps its path pin but is refused before Git registers a worktree in, or
+// writes a ref into, the wrong repository (CAL-V0-071).
+func TestCALV0071_RetargetedCheckoutRefusedBeforeWrite(t *testing.T) {
+	for _, mode := range []string{"reclone", "symlink"} {
+		t.Run(mode, func(t *testing.T) {
+			f := newMultiFixture(t)
+			self, err := os.Executable()
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx := context.Background()
+			w, err := store.OpenWorkflow(ctx, f.s.repo, operator(), "program", self, f.config, f.ticketID)
+			if err != nil {
+				t.Fatalf("open: %v", err)
+			}
+			moved := f.extra + "-original"
+			if err = os.Rename(f.extra, moved); err != nil {
+				t.Fatal(err)
+			}
+			other := f.extra
+			if mode == "symlink" {
+				other = filepath.Join(fixture.TempDirOutside(t), "other")
+			}
+			multiGit(t, filepath.Dir(other), "clone", "-q", moved, other)
+			if mode == "symlink" {
+				if err = os.Symlink(other, f.extra); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if _, err = w.RunRole(ctx, "implementer", ""); err == nil || !strings.Contains(err.Error(), "checkout identity differs") {
+				t.Fatalf("retargeted checkout not refused: %v", err)
+			}
+			for _, repo := range []string{moved, other} {
+				if list := multiGit(t, repo, "worktree", "list", "--porcelain"); strings.Count(list, "worktree ") != 1 {
+					t.Fatalf("%s gained a worktree registration:\n%s", repo, list)
+				}
+				if refs := multiGit(t, repo, "for-each-ref", "refs/corvint/"); refs != "" {
+					t.Fatalf("%s gained candidate refs %q", repo, refs)
+				}
+			}
+		})
+	}
+}

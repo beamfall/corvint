@@ -31,11 +31,25 @@ and V1-0756 (OpenCode). They are out of scope here, and S13 records the split.
 - **Fail closed.** No cross-repository landing or crash-recovery contract exists yet. Gates and
   integration of multi-repository programs therefore refuse, and do not approximate a landing.
 - **CAL-V0-062 low fix.** An empty or unknown base `effort` was accepted when `stageEfforts`
-  overrode every stage. It is now refused. A recorded program with an empty base effort is refused
-  at its next stage launch, but `drain` and `cancel` still work.
+  overrode every stage. A new admission now refuses it. A recorded program is re-checked without
+  this rule, so it is not stranded while every stage stays overridden.
 - **ID allocation.** origin/main defines up to CAL-V0-068/S18, and CAL-V0-069/S19 is used by
   coordinated unlanded work (issue 494). This slice takes CAL-V0-071..072/S21 and leaves
   CAL-V0-069..070 and S19..S20 for that work. The coordinator should confirm the allocation.
+
+## Review follow-up (independent review of 034a85a5, CHANGES_REQUIRED)
+
+- **Identity before write.** A stage now checks each extra checkout's common Git identity against
+  the program record before `git worktree add`. A re-clone or symlink retarget therefore writes
+  nothing into the wrong repository (`TestCALV0071_RetargetedCheckoutRefusedBeforeWrite`).
+- **Downgrade.** The downgrade and rollback text was corrected as above.
+- **Base-effort rule.** It applies to new admissions only.
+- **Noted in S21, not changed:**
+  - Gates and integration fail closed only in the store workflow. A direct `gate run` refuses
+    `STALE_TREE`.
+  - The composite tree is unreferenced and may be pruned. Review recomputes it.
+  - Candidate refs can collide across queues that share an extra checkout and a program ID. The
+    collision fails closed.
 
 ## Evidence
 
@@ -49,6 +63,7 @@ and V1-0756 (OpenCode). They are out of scope here, and S13 records the split.
     - `TestCALV0071_WritableRoots`
     - `TestCALV0071_UndeclaredRepositoryRefusedBeforeMutation`
     - `TestCALV0071_ExtraRepositoryPathsAreScoped`
+    - `TestCALV0071_RetargetedCheckoutRefusedBeforeWrite`
     - `TestCALV0072_MultiRepositoryGatesFailClosed`
   - `TestCALV0071_MultiRepositoryProgramFakeHost`, end to end with a pinned fake Codex host and
     Core, the test binary as lane leader, and real Git repositories. It proves:
@@ -84,6 +99,8 @@ and V1-0756 (OpenCode). They are out of scope here, and S13 records the split.
 
 - Removing policy `repositories` refuses every later stage of a multi-repository program.
   Single-repository policy, config and `programs.json` bytes are unchanged.
-- A binary without this slice cannot decode a `programs.json` that records repositories. Drain or
-  cancel those programs before a downgrade.
+- Downgrade is one-way after the first multi-repository program record. A binary without this
+  slice refuses such a `programs.json` (`unknown field`). Its full journal walk revalidates every
+  retained post, so it also refuses the retained history even after those programs are drained or
+  cancelled, unless the reader resumes from a checkpoint after that record.
 - Candidate refs under `refs/corvint/tasks/` and the sibling worktrees are ordinary Git state.

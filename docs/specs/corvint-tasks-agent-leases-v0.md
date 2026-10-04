@@ -1000,8 +1000,9 @@ its host argv already carries any effort flag and its role `wallSeconds` already
   effort overriding `effort` for that stage. A new program MUST be refused, before its runtime read,
   program record, worktree, effect or host process, when its config names an unknown stage or any
   stage effort the policy does not admit, or when its base `effort` is not itself one of `low`,
-`medium` or `high`, even if every stage is overridden. An existing program MUST be re-checked against the current
-  policy before every stage launch, so a later narrowing refuses further stages without blocking
+  `medium` or `high`, even if every stage is overridden. An existing program MUST be re-checked
+  against the current policy before every stage launch, without the base-effort rule, so a program
+  recorded before that rule is not stranded while every stage stays overridden, so a later narrowing refuses further stages without blocking
   `drain` or `cancel`. The admitted stage effort MUST be
   the `model_reasoning_effort` of both new and resumed Codex invocations for that stage.
 - `CAL-V0-063`: The optional policy `supervision.stageWallMinutes` (Count 1..240, the lane
@@ -1018,7 +1019,9 @@ Non-goals: efforts beyond `low|medium|high` (for example Codex `minimal` or `xhi
 models; proof that the provider applied the requested effort, which stays `NOT_OBSERVED` beyond the
 argv the supervisor passed; and any change to token accounting. Failure modes: a policy that admits
 `medium` only for `implement` refuses a config whose default `effort` is `low` (the default applies
-to every stage); a lane cap shorter than `wallSeconds` silently shortens the stage, as before.
+to every stage); a lane cap shorter than `wallSeconds` silently shortens the stage, as before; a
+program recorded with an empty base `effort` keeps running only while `stageEfforts` overrides every
+stage, and a stage it does not override is refused as an effort the policy does not admit.
 Rollback removes `efforts` and `stageWallMinutes` from the policy, which restores the low-only,
 one-hour behaviour for every later dispatch; recorded program configs keep their digests because
 `stageEfforts` is omitted when absent. Regression witnesses: `TestCALV0062_PolicyEffortAllowlist`,
@@ -1288,14 +1291,23 @@ Non-goals: integration into, or pushing, any additional checkout; cross-reposito
 crash recovery; gates over the composite tree; per-repository Core context packets (context stays
 primary-only); submodule semantics in the operator's checkouts (the gitlinks exist only in the
 composite object); Claude Code and OpenCode supervisor hosts (V1-0755, V1-0756); and
-checkpointed continuation beyond WAIT/resume (open under V1-0475). Failure modes: a moved or
-re-cloned checkout no longer matches its pin and is refused; a sibling worktree whose common
+checkpointed continuation beyond WAIT/resume (open under V1-0475). Failure modes: a checkout moved
+to another path no longer matches its pin and is refused; a sibling worktree whose common
 identity, commit or cleanliness differs from the record refuses the stage rather than overwriting
 work; uncommitted edits in the operator's checkout are neither read nor carried, because the
 sibling starts from the recorded commit; an extra repository edit outside the
-declared `@name/` touch paths blocks the program; a binary without this slice cannot decode a
-`programs.json` that records repositories, so a downgrade first drains or cancels those programs.
-Rollback removes `repositories` from the policy, which refuses every later stage of a
+declared `@name/` touch paths blocks the program; a checkout re-cloned or retargeted after
+admission keeps its path pin but is refused by its recorded common identity before Git registers a
+worktree in it; two queues sharing one extra checkout and one program ID collide on its
+`refs/corvint/tasks/` candidate ref, and the second ref write fails closed; the composite tree object
+is referenced by no ref and may be pruned by `git gc`, which is harmless because review recomputes it
+from the recorded per-repository candidates; and the fail-closed gate and integration checks live in
+the store workflow, while a direct `gate run` on such an attempt refuses `STALE_TREE` because no
+ordinary worktree's `HEAD` tree is the composite. Downgrade is one-way: a binary without this slice
+refuses a `programs.json` that records repositories (`unknown field`), and because a full journal
+walk revalidates every retained post, it also refuses the retained history once any
+multi-repository program record is journaled, even after those programs are drained or cancelled,
+unless its reader resumes from a checkpoint after that record. Rollback removes `repositories` from the policy, which refuses every later stage of a
 multi-repository program while leaving single-repository programs and their bytes unchanged; the
 candidate refs and sibling worktrees are ordinary Git state the operator may remove. Regression
 witnesses are the CAL-V0-071 and CAL-V0-072 rows in the traceability table, including the fake-host
@@ -1413,7 +1425,7 @@ The experimental `RUN_OUTCOME` observation verb is amended in by `corvint-tasks-
 | Checkpoint disagrees with a receipt, projection, staging or the intent tree | A resumed read would mis-state the store | The resumed path refuses internally and the complete audit decides the reported verdict (CAL-V0-061) |
 | Journal prefix, or a checkpoint entry together with its projection, altered behind a still-matching checkpoint | A resumed read does not see it | `receipt audit` and every mutation run the complete audit and refuse; the read's verdict says `CHECKPOINT_PLUS_TAIL`, not `CONSISTENT` (CAL-V0-061) |
 | Writer cannot retain the checkpoint (full disk, permissions, crash before rename) | Reads stay at complete-audit cost | The transaction is unaffected; the next successful writer retains one (CAL-V0-060) |
-| Extra repository moved, re-cloned or undeclared | A program would edit an unintended checkout | Admission and every stage refuse unless the policy `supervision.repositories` pin matches the configured path (CAL-V0-071) |
+| Extra repository moved, re-cloned, retargeted or undeclared | A program would edit an unintended checkout | Admission and every stage refuse unless the policy `supervision.repositories` pin matches the configured path, and every stage refuses a checkout whose common Git identity differs from the program record before any Git write (CAL-V0-071) |
 | Extra repository edited outside the ticket's `@name/` touch paths | Candidate widens scope silently | The implement stage blocks `OUT_OF_SCOPE` with no candidate (CAL-V0-071) |
 | Multi-repository program reaches gates or integration | No cross-repository landing or recovery contract exists yet | Review refuses before any gate runs and the integrator refuses before any grant; the composite candidate stays recorded (CAL-V0-072) |
 
@@ -1492,7 +1504,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-063 | `TestCALV0063_PolicyStageWallBound` (`internal/tasks/intent`); `TestCALV0063_CheckProgramConfigStageWall`, `TestCALV0062_OpenWorkflowRefusesBeforeMutation` (`internal/tasks/store`); live stage beyond one hour NOT_RUN |
 | CAL-V0-064 | `TestCALV0064_CommandGrammarAndRoleSeparation`; `TestCALV0064_ChangedFileReplayAndRestart`; `TestCALV0064_CheckedSaveFailureDoesNotGrantOrEscapeThroughClose`; `TestCALV0064_LaterSaveFailureCannotReviveGrantedParking`; `TestCALV0064_ActivePendingUnknownAndSeedAccounting`; `TestCALV0064_FirstSeedIsNotProgressAndCancellationIsNotAdmission`; `TestCALV0064_FirstSeedEndedWorkerAndLaterFailure`; `TestCALV0064_CanceledReobservationCannotAdmitEarlierToken`; `TestCALV0064_PostCommitCancellationPreservesFactsAndStopsEffects`; `TestCALV0064_CapacitySortedAllocationAndStrictLoad`; `TestCALV0064_NoTokenPreservesLegacyLedgerAndFingerprint`; `TestCALV0064_LedgerCanonicalFieldsAndCaseSensitiveKeys`; `TestCALV0064_KeyBoundaryAndOperatorUnparkRetainLifetimeBudget` (`internal/tasks/dispatch`); `TestCALV0064_DispatchCLIFileProgressAndReplay` (`internal/tasks/cli`); manual source/test evidence in `docs/build-log/2026-10-02-dispatch-explicit-progress.md`, optional OCM linkage unassessed |
 | CAL-V0-065 | `TestCALV0065_AbsentPreimage`, `TestCALV0065_RequestShapeAndCurrentMembership`, `TestCALV0065_AllocationPreviewAndPreparedAdmission` (`internal/tasks/transaction`); `TestCALV0065_HealthFiltersEveryRound`, `TestCALV0065_ReplayAfterSuccessorAndPolicyChange`, `TestCALV0065_ClaimNextSelectors` (`internal/tasks/store`); `TestCALV0065_CLIExclusionsAndPreviewPurity`, `TestCALV0065_NativeFixture` (`internal/tasks/cli`); scoped evidence and limits in `docs/build-log/2026-10-02-tasks-member-exclusions.md` |
-| CAL-V0-071 | `TestCALV0071_PolicyRepositories` (`internal/tasks/intent`); `TestCALV0071_ProgramRepositoryRecords` (`internal/tasks/snapshot`); `TestCALV0071_RepositoryBindingImmutable` (`internal/tasks/transaction`); `TestCALV0071_CheckProgramConfigRepositories`, `TestCALV0071_WritableRoots`, `TestCALV0071_UndeclaredRepositoryRefusedBeforeMutation`, `TestCALV0071_ExtraRepositoryPathsAreScoped`, `TestCALV0071_MultiRepositoryProgramFakeHost` (`internal/tasks/store`); live Codex NOT_RUN |
+| CAL-V0-071 | `TestCALV0071_PolicyRepositories` (`internal/tasks/intent`); `TestCALV0071_ProgramRepositoryRecords` (`internal/tasks/snapshot`); `TestCALV0071_RepositoryBindingImmutable` (`internal/tasks/transaction`); `TestCALV0071_CheckProgramConfigRepositories`, `TestCALV0071_WritableRoots`, `TestCALV0071_UndeclaredRepositoryRefusedBeforeMutation`, `TestCALV0071_ExtraRepositoryPathsAreScoped`, `TestCALV0071_RetargetedCheckoutRefusedBeforeWrite`, `TestCALV0071_MultiRepositoryProgramFakeHost` (`internal/tasks/store`); live Codex NOT_RUN |
 | CAL-V0-072 | `TestCALV0071_MultiRepositoryProgramFakeHost` (composite tree, unmoved checkout `HEAD`, review binding, integrator refusal), `TestCALV0072_MultiRepositoryGatesFailClosed` (`internal/tasks/store`); live Codex NOT_RUN |
 | CAL-V0-013 | `TestCALV0013_RetryAsNextGenerationUpToThree` (`internal/tasks/store`) |
 | CAL-V0-014 | `TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan`, `TestCALV0014_SelectedOnlyPlanPreviewIsComplete` (`internal/tasks/cli`); `plan preview` in `TestTMV0008_AS07_ReadsLeaveStoreByteIdentical` (`internal/tasks/cli`) |

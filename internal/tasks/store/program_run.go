@@ -57,7 +57,7 @@ func RunProgram(ctx context.Context, repo *intent.Repository, actor mutation.Bin
 	if e != nil {
 		return p, out, e
 	}
-	if e = CheckProgramConfig(c, policy.Supervision); e != nil {
+	if e = checkNewProgramConfig(c, policy.Supervision); e != nil {
 		return p, out, e
 	}
 	raw, e := supervisor.ReadBounded(c.Executable, 256<<20)
@@ -165,9 +165,6 @@ func (c ProgramConfig) StageEffort(stage string) string {
 // the owner policy does not allow (CAL-V0-062, CAL-V0-063). It runs before
 // any program record, worktree or host process is created.
 func CheckProgramConfig(c ProgramConfig, policy *intent.SupervisionPolicy) error {
-	if !knownEffort(c.Effort) {
-		return fmt.Errorf("effort %q is not a supervised effort", c.Effort)
-	}
 	if e := checkProgramRepositories(c.Repositories, policy); e != nil {
 		return e
 	}
@@ -233,4 +230,15 @@ func checkProgramRepositories(repos []ProgramRepository, policy *intent.Supervis
 		}
 	}
 	return nil
+}
+
+// checkNewProgramConfig is CheckProgramConfig for a new admission, which also
+// requires the default effort to be a supervised effort even when every stage
+// overrides it (CAL-V0-062). A recorded program is re-checked without this
+// rule, so an existing config is never stranded by it.
+func checkNewProgramConfig(c ProgramConfig, policy *intent.SupervisionPolicy) error {
+	if !knownEffort(c.Effort) {
+		return fmt.Errorf("effort %q is not a supervised effort", c.Effort)
+	}
+	return CheckProgramConfig(c, policy)
 }

@@ -96,13 +96,21 @@ func TestCALV0063_CheckProgramConfigStageWall(t *testing.T) {
 func TestCALV0062_BaseEffortRequired(t *testing.T) {
 	all := map[string]string{"implement": "low", "review": "low", "integrate": "low"}
 	for _, effort := range []string{"", "xhigh"} {
-		e := CheckProgramConfig(ProgramConfig{Effort: effort, WallSeconds: 60, StageEfforts: all}, nil)
+		e := checkNewProgramConfig(ProgramConfig{Effort: effort, WallSeconds: 60, StageEfforts: all}, nil)
 		if e == nil || !strings.Contains(e.Error(), "is not a supervised effort") {
 			t.Fatalf("base effort %q accepted: %v", effort, e)
 		}
+		// A recorded program is re-checked without the base rule, so it is
+		// not stranded while every stage stays overridden.
+		if e = CheckProgramConfig(ProgramConfig{Effort: effort, WallSeconds: 60, StageEfforts: all}, nil); e != nil {
+			t.Fatalf("recorded base effort %q stranded: %v", effort, e)
+		}
 	}
-	if e := CheckProgramConfig(ProgramConfig{Effort: "low", WallSeconds: 60, StageEfforts: all}, nil); e != nil {
+	if e := checkNewProgramConfig(ProgramConfig{Effort: "low", WallSeconds: 60, StageEfforts: all}, nil); e != nil {
 		t.Fatalf("low base refused: %v", e)
+	}
+	if e := CheckProgramConfig(ProgramConfig{Effort: "", WallSeconds: 60}, nil); e == nil {
+		t.Fatal("empty effort accepted for a stage it governs")
 	}
 }
 

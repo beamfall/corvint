@@ -582,7 +582,7 @@ func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.B
 		// A new program is refused before its runtime read or first record;
 		// an existing one stays drainable and cancellable after a policy
 		// narrowing, and is re-checked before every stage launch instead.
-		if e = CheckProgramConfig(c, policy.Supervision); e != nil {
+		if e = checkNewProgramConfig(c, policy.Supervision); e != nil {
 			return nil, e
 		}
 	}
@@ -1146,6 +1146,11 @@ func (w *Workflow) extraCommit(r snapshot.RepositoryRecord, primary string) (str
 func (w *Workflow) extraWorktrees(path, primary string, resuming bool) (map[string]string, error) {
 	out := map[string]string{}
 	for _, r := range w.program.Repositories {
+		// Refuse a moved, re-cloned or retargeted checkout before Git writes
+		// a worktree registration into it (CAL-V0-071).
+		if _, _, shared, e := gitIdentities(r.Checkout); e != nil || shared != r.CommonIdentity {
+			return nil, fmt.Errorf("repository %s checkout identity differs from the program record", r.Name)
+		}
 		at := extraPath(path, r.Name)
 		commit, recorded := "", false
 		for _, x := range w.program.Worktrees {
