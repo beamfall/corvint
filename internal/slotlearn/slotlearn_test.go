@@ -24,7 +24,11 @@ func writeLedger(t *testing.T, root, name string, rows []string) {
 }
 
 func unplannedRow(path string, planned bool) string {
-	return fmt.Sprintf(`{"ts":"2026-09-23T00:00:00Z","tool":"Read","path":%q,"bytes":10,"size_known":true,"packet":"sha256:p","planned":%t}`, path, planned)
+	if planned {
+		// The writer blanks a planned row's path and size.
+		return `{"ts":"2026-09-23T00:00:00Z","tool":"Read","bytes":0,"size_known":false,"packet":"sha256:p","planned":true}`
+	}
+	return fmt.Sprintf(`{"ts":"2026-09-23T00:00:00Z","tool":"Read","path":%q,"bytes":10,"size_known":true,"packet":"sha256:p","planned":false}`, path)
 }
 
 func TestLTAV0009ServingSlotTable(t *testing.T) {
@@ -61,6 +65,59 @@ func TestLTAV0009LabelsAreBoundedAndPlannedReadsAreNotLabels(t *testing.T) {
 		if path == "already/in/packet.go" {
 			t.Fatal("a planned re-read became a negative label")
 		}
+	}
+}
+
+// V1-0740: a row neither writer could have produced never becomes a label;
+// the readers count it as rejected and ReadLabels reports the count.
+func TestLTAV0009RowsOutsideTheWriterContractAreNotLabels(t *testing.T) {
+	root := t.TempDir()
+	writeLedger(t, root, "unplanned-reads.jsonl", []string{
+		`{}`,
+		`{"ts":"2026-09-23T00:00:00Z","tool":"Read","path":"../../escape.go","bytes":10,"size_known":true,"packet":"sha256:p","planned":false}`,
+		`{"ts":"2026-09-23T00:00:00Z","tool":"Read","path":"negative.go","bytes":-5,"size_known":true,"packet":"sha256:p","planned":false}`,
+		`{"kind":"forged","tool":"Read","path":"forged.go","bytes":10,"size_known":true,"packet":"sha256:p","planned":false}`,
+		`{"ts":"2026-09-23T00:00:00Z","tool":"Read","path":"","bytes":10,"size_known":true,"packet":"sha256:p","planned":false}`,
+		unplannedRow("kept/read.go", false),
+	})
+	writeLedger(t, root, "self-observations.jsonl", []string{
+		`{}`,
+		`{"kind":"event","event":"file-change","missState":"OBSERVED","touchedPaths":["../../escape.go"],"rankedPaths":[]}`,
+		`{"kind":"event","event":"file-change","missState":"OBSERVED","touchedPaths":["/abs/miss.go"],"rankedPaths":[]}`,
+		`{"kind":"event","event":"file-change","missState":"OBSERVED","touchedPaths":["kept/miss.go"],"rankedPaths":[]}`,
+	})
+	labels, err := ReadLabels(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"kept/miss.go", "kept/read.go"}; !reflect.DeepEqual(labels.Paths, want) {
+		t.Fatalf("labels = %v, want %v", labels.Paths, want)
+	}
+	if labels.RejectedRows != 8 || labels.LedgerCut {
+		t.Fatalf("labels = %+v, want 8 rejected rows and no cut", labels)
+	}
+	if value := labelsValue(labels); value["rejected_rows"] != 8 || value["ledger_cut"] != false {
+		t.Fatalf("labels value = %v", value)
+	}
+}
+
+// V1-0740: a ledger over its byte cap is reported as cut alongside Truncated.
+func TestLTAV0009LedgerCutIsReported(t *testing.T) {
+	root := t.TempDir()
+	rows := []string{}
+	for number := 0; len(strings.Join(rows, "\n")) <= 128*1024; number++ {
+		rows = append(rows, unplannedRow(fmt.Sprintf("pkg/p%04d.go", number%200), false))
+	}
+	writeLedger(t, root, "unplanned-reads.jsonl", rows)
+	labels, err := ReadLabels(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !labels.LedgerCut || labels.Truncated || labels.RejectedRows != 0 {
+		t.Fatalf("labels = %+v, want a cut ledger with no rejected rows", labels)
+	}
+	if labelsValue(labels)["ledger_cut"] != true {
+		t.Fatal("labels value hides the cut ledger")
 	}
 }
 
