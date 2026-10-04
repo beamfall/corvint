@@ -183,8 +183,8 @@ name is exactly what the change's author also wrote and the harness removed.
   stopping condition or outcome qualification.
   Amended 2026-10-04 (V1-0742, proposed): `runCommand` reports the stdout overflow, and a lane
   whose agent stdout reached the capture bound records `stdout_truncated: true`. A cut codex event
-  stream records `tokens` and `tool_calls` as `NOT_OBSERVED`, and a cut `script` reply is
-  `reply_truncated`. A `turn.completed` usage event whose counts are not all finite, non-negative
+  stream records `tokens` and `tool_calls` as `NOT_OBSERVED`, and a cut `script` reply, or a codex
+  reply taken from a cut stream because no reply file was written, is `reply_truncated`. A `turn.completed` usage event whose counts are not all finite, non-negative
   numbers is not a token observation and records `NOT_OBSERVED`.
 - `CRT-V0-012`: Seeded-arm decomposition (proposed 2026-10-01). A seeded run reports
   `summary.seed_coverage` over the seeded lanes that did not error: `gold_items`,

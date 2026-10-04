@@ -910,6 +910,8 @@ func (runner codexAgent) run(ctx context.Context, root, prompt string, timeout t
 	if overflow {
 		// A cut event stream lost its tail, so its usage and tool counts are not observations.
 		result.stdoutTruncated, result.tokens, result.toolCalls = true, notObserved, notObserved
+		// Without a reply file the reply came from the cut stream, which may have lost the final message.
+		result.replyTruncated = readErr != nil
 	}
 	return result, nil
 }

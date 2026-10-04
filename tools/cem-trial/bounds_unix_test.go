@@ -44,12 +44,16 @@ func TestNegativeTokenCountsAreNotObservations(t *testing.T) {
 }
 
 // fakeCodex puts a codex executable first on PATH that writes replyBytes to
-// its -o path and prints events followed by padding bytes of stdout.
+// its -o path (none when replyBytes is negative) and prints events followed by padding bytes of stdout.
 func fakeCodex(t *testing.T, replyBytes int, events string, padding int) {
 	t.Helper()
 	directory := t.TempDir()
+	reply := "head -c " + strconv.Itoa(replyBytes) + " /dev/zero | tr '\\0' y > \"$out\"\n"
+	if replyBytes < 0 {
+		reply = ""
+	}
 	script := "#!/bin/sh\nout=\nwhile [ $# -gt 0 ]; do if [ \"$1\" = -o ]; then out=$2; fi; shift; done\n" +
-		"head -c " + strconv.Itoa(replyBytes) + " /dev/zero | tr '\\0' y > \"$out\"\n" +
+		reply +
 		"printf '%s\\n' '" + events + "'\n" +
 		"head -c " + strconv.Itoa(padding) + " /dev/zero | tr '\\0' z\n"
 	if err := os.WriteFile(filepath.Join(directory, "codex"), []byte(script), 0o755); err != nil {
@@ -82,6 +86,17 @@ func TestCodexRunBoundsTheReplyAndRecordsStdoutTruncation(t *testing.T) {
 	}
 	if result.stdoutTruncated || result.tokens == notObserved {
 		t.Fatalf("an uncut stream lost its usage: truncated %v tokens %v", result.stdoutTruncated, result.tokens)
+	}
+
+	// Without a reply file the reply falls back to the stream's last message,
+	// which a cut stream may have lost, so it is recorded truncated.
+	fakeCodex(t, -1, `{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"early"}}`, maxOutputBytes+1024)
+	result, err = codexAgent{model: "m"}.run(context.Background(), t.TempDir(), "prompt", time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.reply != "early" || !result.replyTruncated || !result.stdoutTruncated {
+		t.Fatalf("fallback reply %q, reply truncated %v, stdout truncated %v", result.reply, result.replyTruncated, result.stdoutTruncated)
 	}
 }
 

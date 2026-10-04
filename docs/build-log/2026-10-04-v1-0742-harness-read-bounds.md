@@ -10,8 +10,12 @@ Human-owned intent: the owner asked to start V1-0742. The ticket covers three de
 
 - **`benchmarks/daily-loop-v1/harness.py` reader.**
   - `read_observations` reads at most 1 MiB and 10,000 rows.
-  - It reports `observations-unparseable` (prose, non-UTF-8 or nesting past the parser),
+  - Rows end at LF only, so a raw U+2028 inside a JSON string does not split a row.
+  - It reports `observations-unparseable` (prose, non-UTF-8, a lone surrogate that could not be
+    written to the run file, or nesting past the parser),
     `observation-not-object` and `observations-over-bound` instead of raising.
+  - A token count too large for a float is `tokens-invalid` instead of raising `OverflowError`
+    after the measurement has run.
   - An invalid file records only its class names. Well-formed rows are projected onto their four
     cost fields, so no operator-supplied extra field reaches the result.
   - Amended in `PCCO-V0-017`.
@@ -19,7 +23,8 @@ Human-owned intent: the owner asked to start V1-0742. The ticket covers three de
   - The codex `-o` reply is read through a prefix reader capped at one byte past the 1 MiB reply bound.
   - `runCommand` now returns the supervisor's `StdoutOverflow`. A cut stream records
     `stdout_truncated: true`. A cut codex event stream makes `tokens` and `tool_calls`
-    `NOT_OBSERVED`, and a cut script reply is `reply_truncated`.
+    `NOT_OBSERVED`, and a cut script reply is `reply_truncated`. So is a codex reply that fell back
+    to the cut stream's last message because no reply file was written.
   - A whitespace-only reply is the new `EMPTY` state. It still scores as an abstention (CWT-V0-002)
     or as cited nothing (CRT-V0-006), so the metric definitions are unchanged.
   - A usage event with any negative, non-finite or non-numeric count is `NOT_OBSERVED`, and
@@ -52,4 +57,9 @@ Human-owned intent: the owner asked to start V1-0742. The ticket covers three de
   file, invalid UTF-8, deep nesting, negative tokens, and a valid file whose extra field was
   dropped. It is not retained.
 - Reused cw-trial records that held an empty reply now rescore with `block_state: EMPTY` instead
-  of `ABSENT`. Their metrics are unchanged.
+  of `ABSENT`. No committed cw-trial result has one. Rescoring the already-invalid
+  `benchmarks/results/cem-reviewer-trial-pilot.json` would move its 28 empty-reply lanes from
+  `reply_state: ABSENT` to `EMPTY`. Metrics are unchanged in both cases.
+- `stdout_truncated` is recorded for the operator; no scorer reads it.
+- An independent review found the four Python and fallback-reply gaps above in the first draft.
+  All were fixed before publication, and the fallback case has a test.

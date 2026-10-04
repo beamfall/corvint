@@ -606,7 +606,8 @@ def read_observations(path):
     if len(data) > MAX_OBSERVATION_BYTES:
         return None, "observations-over-bound"
     try:
-        lines = [l for l in data.decode("utf-8").splitlines() if l.strip()]
+        # JSON Lines rows end at LF only; splitlines would also split inside a string at U+2028.
+        lines = [l for l in data.decode("utf-8").split("\n") if l.strip()]
     except UnicodeDecodeError:
         return None, "observations-unparseable"
     if len(lines) > MAX_OBSERVATION_ROWS:
@@ -614,7 +615,10 @@ def read_observations(path):
     rows = []
     for line in lines:
         try:
-            rows.append(json.loads(line))
+            row = json.loads(line)
+            # A lone surrogate parses but cannot be written to a UTF-8 receipt.
+            json.dumps(row, ensure_ascii=False).encode("utf-8")
+            rows.append(row)
         except (ValueError, RecursionError):
             return None, "observations-unparseable"
     if any(not isinstance(r, dict) for r in rows):
@@ -628,7 +632,12 @@ def cost_row_problem(r):
     if not isinstance(r.get("caseId"), str) or not r["caseId"]:
         return "case-id-missing"
     t = r.get("completeTaskTokens")
-    if isinstance(t, bool) or not isinstance(t, (int, float)) or not math.isfinite(t) or t <= 0:
+    if isinstance(t, bool) or not isinstance(t, (int, float)) or t <= 0:
+        return "tokens-invalid"
+    try:
+        if not math.isfinite(t):
+            return "tokens-invalid"
+    except OverflowError:
         return "tokens-invalid"
     if not isinstance(r.get("humanFailure"), bool):
         return "outcome-missing"

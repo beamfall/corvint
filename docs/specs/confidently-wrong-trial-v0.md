@@ -101,8 +101,8 @@ has committed to nothing and is scored as abstaining.
   event whose counts are not all finite, non-negative numbers is not a token observation and
   records `NOT_OBSERVED`; the report's token totals refuse such a record. When the agent's stdout
   reached the CWT-V0-014 capture bound, the arm records `stdout_truncated: true`; a cut codex
-  event stream records `tokens` and `tool_calls` as `NOT_OBSERVED`, and a cut `script` reply is
-  `reply_truncated`.
+  event stream records `tokens` and `tool_calls` as `NOT_OBSERVED`, and a cut `script` reply, or a
+  codex reply taken from a cut stream because no reply file was written, is `reply_truncated`.
   Under `--access none` only: `--workers N` runs up to N invocations concurrently, each in its own
   empty directory, and changes timings and nothing else because records are written only by their
   own invocation and the report keeps manifest order; `--reuse REPORT` copies the reply and observations of any arm whose prompt
