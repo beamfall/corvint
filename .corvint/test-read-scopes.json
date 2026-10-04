@@ -55,6 +55,14 @@
     "cmd/corvint-corpus-http": [],
     "cmd/corvint-dashboard-snapshot": [],
     "cmd/corvint-docs-mcp": [],
+    "cmd/corvint-go-test-provider": [
+      "cmd/",
+      "conformance/go-live-test-v0/",
+      "go.mod",
+      "go.sum",
+      "internal/",
+      "tools/"
+    ],
     "cmd/corvint-js-test-provider": [],
     "cmd/corvint-lsp": [],
     "cmd/corvint-mcp": [],
@@ -99,6 +107,14 @@
     ],
     "internal/analyzerjs": [
       "cmd/corvint-analyzer-js/"
+    ],
+    "internal/analyzernativebridge": [
+      "cmd/corvint-analyzer-c-jni/",
+      "cmd/corvint-analyzer-java/",
+      "cmd/corvint-analyzer-objective-c/",
+      "docs/BUILD-LOG.md",
+      "go.mod",
+      "tools/native-bridge-pre-review.sh"
     ],
     "internal/analyzerruby": [
       "cmd/corvint-analyzer-ruby/",
@@ -208,6 +224,15 @@
       "docs/specs/"
     ],
     "internal/taskman": [],
+    "internal/tasks/authority": [
+      "go.mod"
+    ],
+    "internal/tasks/intent": [
+      "go.mod"
+    ],
+    "internal/tasks/store": [
+      "go.mod"
+    ],
     "internal/tcq": [],
     "internal/testacceptance": [],
     "internal/testevidence": [],
@@ -223,6 +248,13 @@
       "go.mod",
       "internal/liveverify/",
       "internal/procgroup/"
+    ],
+    "tools/corvint-pr-tests": [
+      "cmd/",
+      "go.mod",
+      "go.sum",
+      "internal/",
+      "tools/"
     ],
     "tools/cw-trial": [
       "benchmarks/results/"

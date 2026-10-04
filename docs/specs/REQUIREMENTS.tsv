@@ -56,7 +56,9 @@ AFP-V0-019	docs/specs/affected-plan-v0.md	394	(proposed technical contract imple
 AFP-V0-020	docs/specs/affected-plan-v0.md	420	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat
 AFP-V0-021	docs/specs/affected-plan-v0.md	431	(accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) wheth
 AFP-V0-022	docs/specs/affected-plan-v0.md	480	(owner-directed experimental profile, 2026-10-01; V1-0616/0617) Full CI SHALL
-AFP-V0-023	docs/specs/affected-plan-v0.md	499	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081) A project MAY commit
+AFP-V0-023	docs/specs/affected-plan-v0.md	509	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081) A project MAY commit
+AFP-V0-024	docs/specs/affected-plan-v0.md	547	(owner-directed, proposed, 2026-10-04; V1-0717) A push to `main` MAY reuse a
+AFP-V0-025	docs/specs/affected-plan-v0.md	573	(owner-directed, proposed, 2026-10-04; V1-0719) The repository SHALL commit
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
