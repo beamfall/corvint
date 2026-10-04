@@ -10,7 +10,8 @@
 //	ci-shard-costs check shard0.log ... shard3.log
 //
 // refresh rewrites the table from the observed terminal package outcomes and
-// records the source run. check exits 1 and prints one line per package whose
+// records the source run; it refuses logs that lack a package the current
+// table lists unless --allow-removed is given. check exits 1 and prints one line per package whose
 // observed time differs from its table entry by more than --factor, that the
 // table is missing, or that the table still lists but the run did not execute.
 package main
@@ -25,7 +26,9 @@ import (
 	"io"
 	"math"
 	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/Beamfall/corvint/.github/cishards"
@@ -52,10 +55,11 @@ func run(mode string, args []string, out io.Writer) (int, error) {
 	runURL := fs.String("run-url", "", "refresh: hosted run that produced the logs")
 	factor := fs.Float64("factor", 2, "check: tolerated ratio between observed and recorded time")
 	floor := fs.Duration("floor", 10*time.Second, "check: ignore differences smaller than this")
+	allowRemoved := fs.Bool("allow-removed", false, "refresh: accept that packages in the current table were not executed")
 	if err := fs.Parse(args); err != nil {
 		return 2, nil
 	}
-	if (mode != "refresh" && mode != "check") || fs.NArg() == 0 || *factor < 1 || *floor < 0 {
+	if (mode != "refresh" && mode != "check") || fs.NArg() == 0 || !(*factor >= 1) || math.IsInf(*factor, 0) || *floor < 0 {
 		return 2, errors.New("usage: ci-shard-costs refresh|check [flags] LOG...")
 	}
 	observed := map[string]int64{}
@@ -73,18 +77,30 @@ func run(mode string, args []string, out io.Writer) (int, error) {
 	if len(observed) == 0 {
 		return 2, errors.New("no terminal package outcome in the logs")
 	}
+	raw, err := os.ReadFile(*table)
+	recorded, ok := cishards.Costs(raw)
 	if mode == "refresh" {
+		// The logs cannot prove they are one complete run. A package the current table
+		// knows but the logs lack is the visible sign of a partial or narrowed input.
+		if !*allowRemoved {
+			for _, line := range drift(recorded, observed, math.MaxFloat64, 0) {
+				if strings.HasPrefix(line, "stale ") {
+					return 2, fmt.Errorf("refused: %s; pass every shard log of one complete run, or --allow-removed", line)
+				}
+			}
+		}
 		raw, err := encode(observed, *revision, *runURL)
 		if err != nil {
 			return 2, err
 		}
-		return 0, os.WriteFile(*table, raw, 0o644)
+		if err := replace(*table, raw); err != nil {
+			return 2, err
+		}
+		return 0, nil
 	}
-	raw, err := os.ReadFile(*table)
 	if err != nil {
 		return 2, err
 	}
-	recorded, ok := cishards.Costs(raw)
 	if !ok {
 		return 2, errors.New("cost table is invalid; CI is using the lexical fallback")
 	}
@@ -96,6 +112,26 @@ func run(mode string, args []string, out io.Writer) (int, error) {
 		return 1, nil
 	}
 	return 0, nil
+}
+
+// replace writes the table through a sibling temporary file so an interrupted
+// refresh cannot leave bytes the partition would reject.
+func replace(path string, raw []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".package-costs-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+	if _, err = tmp.Write(raw); err == nil {
+		err = tmp.Chmod(0o644)
+	}
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), path)
 }
 
 // observe adds each package's terminal outcome from one `go test -json` stream.

@@ -46,6 +46,16 @@ func TestAFPV0022RefreshFromHostedOutcomes(t *testing.T) {
 	if !strings.Contains(string(got), revision) || !strings.Contains(string(got), runURL) {
 		t.Fatal("source run not recorded")
 	}
+	// A subset of one run's logs must not silently replace a complete table.
+	if code, err := run("refresh", []string{"--table", table, "--revision", revision, "--run-url", runURL, raw}, nil); code != 2 || err == nil {
+		t.Fatalf("partial refresh code=%d err=%v", code, err)
+	}
+	if after, _ := os.ReadFile(table); !bytes.Equal(after, got) {
+		t.Fatal("refused partial refresh changed the table")
+	}
+	if code, err := run("refresh", []string{"--table", table, "--allow-removed", "--revision", revision, "--run-url", runURL, raw, hosted}, nil); code != 0 || err != nil {
+		t.Fatalf("allowed refresh code=%d err=%v", code, err)
+	}
 	var out bytes.Buffer
 	if code, err := run("check", []string{"--table", table, raw, hosted}, &out); code != 0 || err != nil || out.Len() != 0 {
 		t.Fatalf("fresh table drifts: code=%d err=%v out=%s", code, err, out.String())
@@ -95,6 +105,11 @@ stale example.org/gone recorded=5000ms
 	out.Reset()
 	if code, _ := run("check", []string{"--table", table, "--factor", "1.5", "--floor", "1s", log}, &out); code != 1 || !strings.Contains(out.String(), "drift example.org/same") || !strings.Contains(out.String(), "drift example.org/tiny") {
 		t.Fatalf("stated bounds not applied: code=%d out:\n%s", code, out.String())
+	}
+	for _, factor := range []string{"NaN", "+Inf", "0.5"} {
+		if code, err := run("check", []string{"--table", table, "--factor", factor, log}, &out); code != 2 || err == nil {
+			t.Fatalf("factor %s code=%d err=%v", factor, code, err)
+		}
 	}
 	if code, err := run("check", []string{"--table", write(t, "bad.json", `{"profile":"bad"}`), log}, &out); code != 2 || err == nil {
 		t.Fatalf("invalid table code=%d err=%v", code, err)

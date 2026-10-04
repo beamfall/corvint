@@ -15,8 +15,8 @@ five minutes above what the same work allows.
 
 - `tools/ci-shard-costs refresh` rebuilds the table from the terminal `go test -json` package
   outcomes of one complete hosted run (raw streams or `gh run view RUN --job JOB --log` output)
-  and records the run and revision. It refuses a failed or repeated package and any table the
-  partition would reject, so a refresh cannot silently put CI on the lexical fallback.
+  and records the run and revision. It refuses a failed or repeated package, logs lacking a package
+  the current table lists (unless `--allow-removed`), and any table the partition would reject, so a refresh cannot silently put CI on the lexical fallback.
 - `tools/ci-shard-costs check` prints `drift`, `missing` and `stale` lines and exits 1 when any
   exist. Default bounds: factor 2, ignoring differences under 10s.
 - `cishards.Costs` exposes the partition's own table admission so the tool and the partition
@@ -26,6 +26,10 @@ five minutes above what the same work allows.
 
 ## Evidence and limits
 
+- Independent review found no correctness defect. Its robustness findings (partial logs accepted,
+  `--factor NaN` suppressing drift, non-atomic table write) are fixed here. One is retained: a log
+  line whose prefix contains `{` before the JSON object is skipped, which `check` later reports
+  as `missing`.
 - Before refresh, `check` on the four shard logs reported 4 `drift` and 42 `missing` lines; after
   refresh it reports none.
 - The balanced sums are a replay of one run's times, not a hosted measurement of the new
