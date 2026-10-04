@@ -148,8 +148,12 @@ func validateSchema(schema map[string]any, value any, at string) error {
 				}
 			}
 		case "anyOf":
+			options, ok := rule.([]any)
+			if !ok || len(options) == 0 {
+				return fmt.Errorf("%s: anyOf has no options", at)
+			}
 			var failures []string
-			for _, option := range rule.([]any) {
+			for _, option := range options {
 				err := validateSchema(option.(map[string]any), value, at)
 				if err == nil {
 					failures = nil

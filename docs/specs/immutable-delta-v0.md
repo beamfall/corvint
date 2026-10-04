@@ -66,8 +66,10 @@ Source blobs: 4 MiB before allocation; existing cumulative Git and affected unit
 Git operations: one compilation declares 1,024 + 2 x 400,000 (`affected.MaxWalkEntries`) =
 801,024 operations within the shared 30-minute wall budget, not the frozen 1,024 default.
 Immutable paths resolve through verified parent listings: one operation per first-listed
-directory plus one per blob read, with verified sizes reused for Stat. Exhaustion stays fail-closed
-as `immutable-graph-unavailable` with the full suite required; it never narrows selection.
+directory plus one per blob read, with verified sizes reused for Stat. Blob bodies are not cached,
+so the 2 x allowance counts provider reads, not distinct paths. A verified tree entry named empty,
+`.` or `..`, or containing `/` or NUL, is an integrity failure (never not-found) for every listing.
+Exhaustion stays fail-closed as `immutable-graph-unavailable` with the full suite required; it never narrows selection.
 Documentation drift admits at most 32 scopes and so runs up to 128 context builds per record.
 Unix input capture's no-follow refusal covers only the final path component; parent directories of
 an explicit input path are trusted to the caller (known limit).
@@ -139,7 +141,7 @@ Each requirement is anchored by exact-ID Go subtests (`t.Run("DLT-V0-NNN ...")`,
 | Requirement | Anchoring tests |
 |---|---|
 | DLT-V0-001 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree, TestDeltaNoOpAndBadRevision; `internal/cem/gitauth`: TestDeltaPathsIncludeCEMAndTypeChanges |
-| DLT-V0-002 | `internal/cem/gitauth`: TestRevisionFSImmutableAndBounds; `internal/delta`: TestDeltaGraphAboveDefaultGitBudget; `internal/liveverify/affected`: TestImmutableAllLanguageParity, TestImmutableNonregularBeforeLanguageFilter, TestImmutableSwallowedReadRefusesGraph, TestSourceReadBoundsAndStickyFailure, TestSourceHiddenWalkRetainsIgnoredFailure |
+| DLT-V0-002 | `internal/cem/gitauth`: TestRevisionFSImmutableAndBounds, TestRevisionFSRefusesUnsafeTreeEntryNames; `internal/delta`: TestDeltaGraphAboveDefaultGitBudget; `internal/liveverify/affected`: TestImmutableAllLanguageParity, TestImmutableNonregularBeforeLanguageFilter, TestImmutableSwallowedReadRefusesGraph, TestSourceReadBoundsAndStickyFailure, TestSourceHiddenWalkRetainsIgnoredFailure |
 | DLT-V0-003 | `internal/cem/gitauth`: TestRevisionFSListingCostScalesWithDirectories_DLT_V0_003, TestBoundedBlobRejectsHeaderWithoutFallback, TestBoundedBlobCumulativeBudgetBeforeBody, TestBoundedBlobCancellationRetiresDescendant, TestBoundedBlobIdentityAndNoMemoBypass, TestBoundedBlobFourMiBBoundary |
 | DLT-V0-004 | `internal/delta`: TestDeltaPreviousGeneration, TestDeltaEmptyChangeBindsPrevious, TestDeltaDocumentationExclusionsAndHTML |
 | DLT-V0-005 | `internal/delta`: TestDeltaFixtureMergeDeterministicSourceFree, TestDeltaIncompleteProviderRequiresFullSuite, TestDeltaCaptureBoundAndTransport, TestDeltaCaptureFIFORefusesWithoutWriter; `internal/extevidence`: TestCapturedSelectionParityAndMutation, TestCapturedFailuresDoNotNarrow |

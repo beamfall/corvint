@@ -24,8 +24,11 @@ type Options struct {
 // Immutable source reads cost one operation per first-listed directory and
 // one per blob read, and every provider walk is capped at
 // affected.MaxWalkEntries, so the frozen 1,024-operation default would refuse
-// any medium repository. Exhaustion stays fail-closed: the graph becomes
-// immutable-graph-unavailable and the record requires the full suite.
+// any medium repository. Blob bodies are not cached (BlobBytesBounded runs
+// on every open), so the 2x allowance counts provider reads, not distinct
+// paths: a blob reread by another provider costs again. Exhaustion stays
+// fail-closed: the graph becomes immutable-graph-unavailable and the record
+// requires the full suite.
 const GitOperations = gitrun.DefaultOperations + 2*affected.MaxWalkEntries
 
 // Refusal is a closed compiler refusal code from the spec's error table.
