@@ -854,7 +854,7 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			return runMigrationRatchet(ctx, profile, stdout, stderr)
 		}
 		if len(arguments) >= 2 && arguments[0] == "adapter" {
-			return runHostAdapter(ctx, arguments[1:], stdin, stdout)
+			return runHostAdapter(ctx, arguments[1:], stdin, adapterStdout(stdout, stderr))
 		}
 		if options, isCorpus, corpusErr := parseCorpusInvocation(arguments); isCorpus {
 			if corpusErr != nil {
@@ -1560,7 +1560,7 @@ func main() {
 	defer cancel()
 	ctx, release := adapterHostKillContext(ctx, os.Args[1:], adapterProcessStart)
 	defer release()
-	os.Exit(runContext(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
+	exitProcess(runContext(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
 }
 
 // sharedIndexedContextFromEnvironment enables the shared bracket only under

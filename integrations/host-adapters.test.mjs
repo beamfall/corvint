@@ -360,6 +360,23 @@ test('Gemini malformed, oversize, version skew input fails before child',async t
  assert.equal(f.captured().length,0)
 })
 
+test('AHI-044 Gemini names empty input, an absent Corvint and a closed stdout, and exits 0',async t=>{
+ const f=fixture(t)
+ for(const raw of ['','{"hook_event_name":']){const {code,output}=await f.gemini('session-start',{},raw);assert.equal(code,0);assert.match(output.systemMessage,/malformed-hook-json/)}
+ assert.equal(f.captured().length,0)
+ const absent=fixture(t,'valid',undefined,{PATH:join(scratchDirectory(t),'empty')})
+ const {code,output}=await absent.gemini('user-prompt');assert.equal(code,0);assert.match(JSON.stringify(output),/corvint-missing/)
+ // The host closed its read end before the hook wrote: the cause goes to stderr and the exit stays 0.
+ const closed=await new Promise((resolve,reject)=>{
+  const child=spawn(process.execPath,[hook,'session-start',`--corvint-test-host-kill-ms=${TEST_HOST_KILL_MS}`],{env:{...process.env,PATH:`${f.dir}:${process.env.PATH}`},stdio:['pipe','pipe','pipe']})
+  child.stdout.destroy();let stderr='';child.stderr.on('data',b=>stderr+=b)
+  const timer=setTimeout(()=>{child.kill('SIGKILL');reject(new Error('hook test deadline'))},TEST_HOST_KILL_MS+HOOK_HANG_GUARD_MS)
+  child.on('error',reject);child.on('close',code=>{clearTimeout(timer);resolve({code,stderr})})
+  child.stdin.end(JSON.stringify({hook_event_name:'SessionStart',cwd:f.root,session_id:'raw-session-secret'}))
+ })
+ assert.equal(closed.code,0);assert.match(closed.stderr,/hook-stdout-unwritable/)
+})
+const scratchDirectory=t=>{const dir=mkdtempSync(join(tmpdir(),'corvint-absent-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));return dir}
 test('AHI-022 decision 0378 OpenCode outside a Git repository registers and invokes nothing',async t=>{
  const f=fixture(t),options={corvintBinary:f.binary,hostVersion:'unknown',...OPEN_TIMEOUTS}
  const outside=await openCode(t,f.dir,options,'/')
