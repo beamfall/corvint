@@ -138,13 +138,14 @@ var poolProbe = func(ctx context.Context, argv ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	cmd.WaitDelay = 250 * time.Millisecond
 	out := &sweepCapture{max: 1 << 20, kill: cancel}
-	cmd.Stdout = sweepWriter{out: false, c: out}
+	cmd.Stdout = sweepWriter{out: true, c: out}
 	cmd.Stderr = sweepWriter{out: false, c: out}
 	e := cmd.Run()
 	if out.overflow {
 		return nil, wire.Errorf(wire.CodeLimitExceeded, "pool probe", "output limit")
 	}
-	return out.stderr.Bytes(), e
+	// Diagnostics never enter the parsed identity/group listing.
+	return out.stdout.Bytes(), e
 }
 
 type poolCommandResult struct {
@@ -201,7 +202,7 @@ func executePoolCaptured(ctx context.Context, def *intent.PoolCommand, root stri
 		result.Timing.CleanupEndedAt = wire.SizeOf(uint64(end.UnixNano()))
 		result.Timing.ExecutionMillis = wire.SizeOf(uint64(waited.Sub(start).Milliseconds()))
 		result.Timing.CleanupMillis = wire.SizeOf(uint64(end.Sub(waited).Milliseconds()))
-		result.Timing.CleanupAllowanceMillis = "5000"
+		result.Timing.CleanupAllowanceMillis = poolCleanupAllowanceMillis
 	}()
 	result = poolCommandResult{Class: "SPAWN_FAILED", Clean: true}
 	if len(def.Argv) == 0 {
@@ -257,7 +258,7 @@ func executePoolCaptured(ctx context.Context, def *intent.PoolCommand, root stri
 			result.Class = "TIMEOUT"
 		}
 	}
-	cleanup, cancelCleanup := context.WithTimeout(context.Background(), 3*time.Second)
+	cleanup, cancelCleanup := context.WithTimeout(context.Background(), poolCleanupAllowance)
 	defer cancelCleanup()
 	live, probeErr := poolGroupLiveContext(cleanup, cmd.Process.Pid)
 	probeUncertain := probeErr != nil

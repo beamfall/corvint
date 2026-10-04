@@ -204,7 +204,7 @@ wait "$child"
 	}
 }
 
-// PSR-V0-007: reach each identity/group probe with a deadline; never infer quiescence from failure.
+// PSR-V0-010: reach each identity/group probe with a deadline; never infer quiescence from failure.
 func TestPSRBoundedProbes(t *testing.T) {
 	original := poolProbe
 	defer func() { poolProbe = original }()
@@ -306,7 +306,7 @@ func TestPSRSignalTiming(t *testing.T) {
 	if r.Class != "SIGNAL" || r.Signal == nil || r.Signal.Int() != int64(syscall.SIGTERM) || r.Exit != nil || !r.Clean {
 		t.Fatalf("signal identity: %+v", r)
 	}
-	if r.Timing.StartedAt.Uint64() == 0 || r.Timing.Deadline.Uint64() <= r.Timing.StartedAt.Uint64() || r.Timing.WaitReturnedAt.Uint64() < r.Timing.StartedAt.Uint64() || r.Timing.CleanupEndedAt.Uint64() < r.Timing.WaitReturnedAt.Uint64() || r.Timing.CleanupAllowanceMillis != "5000" || r.Timing.CleanupMillis.Uint64() > 5000 {
+	if r.Timing.StartedAt.Uint64() == 0 || r.Timing.Deadline.Uint64() <= r.Timing.StartedAt.Uint64() || r.Timing.WaitReturnedAt.Uint64() < r.Timing.StartedAt.Uint64() || r.Timing.CleanupEndedAt.Uint64() < r.Timing.WaitReturnedAt.Uint64() || r.Timing.CleanupAllowanceMillis != poolCleanupAllowanceMillis || r.Timing.CleanupMillis.Uint64() > uint64(poolCleanupAllowance.Milliseconds()) {
 		t.Fatalf("timing: %+v", r.Timing)
 	}
 	if string(r.Stdout) != "out" || string(r.Stderr) != "err" {
@@ -327,4 +327,35 @@ func PSRTestUnknownRunner() (func(), *int) {
 		return original(ctx, argv...)
 	}
 	return func() { poolProbe = original }, &calls
+}
+
+// PSR-V0-007/010: the recorded cleanup allowance is the enforced bound and the
+// value the observation codec accepts; probe diagnostics stay out of parsed output.
+func TestPSRCleanupAllowanceAndProbeStreams(t *testing.T) {
+	if poolCleanupAllowanceMillis != "5000" {
+		t.Fatal("recorded allowance differs from observation codec", poolCleanupAllowanceMillis)
+	}
+	out, e := poolProbe(context.Background(), "/bin/sh", "-c", "printf listing; printf diagnostic >&2")
+	if e != nil || string(out) != "listing" {
+		t.Fatalf("probe streams %q %v", out, e)
+	}
+}
+
+// PSR-V0-004: a Git source observation that hits its bound records TIMEOUT or
+// INTERRUPTED, not SOURCE_CHANGED; any other failure still records SOURCE_CHANGED.
+func TestPSRSweepSourceBoundClass(t *testing.T) {
+	root := t.TempDir()
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	expired, stop := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer stop()
+	for _, tc := range []struct {
+		ctx  context.Context
+		want string
+	}{{cancelled, "INTERRUPTED"}, {expired, "TIMEOUT"}, {context.Background(), "SOURCE_CHANGED"}} {
+		_, _, e := sweepSource(tc.ctx, root)
+		if e == nil || sweepSourceClass(e) != tc.want {
+			t.Fatalf("want %s got %s (%v)", tc.want, sweepSourceClass(e), e)
+		}
+	}
 }

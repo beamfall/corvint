@@ -39,6 +39,11 @@ type sweepMember struct {
 	env    sweepEnvironment
 }
 
+// The recorded cleanup allowance is the enforced post-wait group cleanup bound.
+const poolCleanupAllowance = 5 * time.Second
+
+var poolCleanupAllowanceMillis = wire.CountOf(poolCleanupAllowance.Milliseconds())
+
 func sweepChildID(id string, en snapshot.PoolEntry) string {
 	return poolChildID(id, string(en.AllocationID)+":"+string(en.Sweep.Attempt)+":"+en.Sweep.Phase)
 }
@@ -251,13 +256,23 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 				def = &member.config.SafeReuse.Verify
 			}
 			env, envDigest := member.env.phase(def.Env)
-			revision, tree, sourceErr := sweepSource(attemptCtx, c.Root)
-			result := poolCommandResult{Class: "SOURCE_CHANGED", Clean: true}
-			if sourceErr == nil && revision == en.CommandRevision && tree == en.Sweep.Tree {
-				result = executePoolCaptured(attemptCtx, def, c.Root, env)
-				after, afterTree, err := sweepSource(attemptCtx, c.Root)
-				if err != nil || after != revision || afterTree != tree {
-					result.Class = "SOURCE_CHANGED"
+			// An ALL barrier forbids launching any further phase command; the
+			// owned sweep only publishes its terminal observation.
+			probe, e := snapshot.Probe(repo.StateDir)
+			if e != nil {
+				stopAttempt()
+				return out, e
+			}
+			result := poolCommandResult{Class: "INTERRUPTED", Clean: true}
+			if probe.Barrier == nil || probe.Barrier.Scope != "ALL" {
+				revision, tree, sourceErr := sweepSource(attemptCtx, c.Root)
+				result.Class = sweepSourceClass(sourceErr)
+				if sourceErr == nil && revision == en.CommandRevision && tree == en.Sweep.Tree {
+					result = executePoolCaptured(attemptCtx, def, c.Root, env)
+					after, afterTree, err := sweepSource(attemptCtx, c.Root)
+					if err != nil || after != revision || afterTree != tree {
+						result.Class = sweepSourceClass(err)
+					}
 				}
 			}
 			if attemptCtx.Err() != nil && result.Clean && result.Class != "OUTPUT_LIMIT" {
@@ -282,7 +297,7 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 				if !ok {
 					deadline = at
 				}
-				result.Timing = snapshot.PoolSweepTiming{StartedAt: wire.SizeOf(uint64(at.UnixNano())), Deadline: wire.SizeOf(uint64(deadline.UnixNano())), WaitReturnedAt: wire.SizeOf(uint64(at.UnixNano())), CleanupEndedAt: wire.SizeOf(uint64(at.UnixNano())), ExecutionMillis: "0", CleanupMillis: "0", CleanupAllowanceMillis: "5000"}
+				result.Timing = snapshot.PoolSweepTiming{StartedAt: wire.SizeOf(uint64(at.UnixNano())), Deadline: wire.SizeOf(uint64(deadline.UnixNano())), WaitReturnedAt: wire.SizeOf(uint64(at.UnixNano())), CleanupEndedAt: wire.SizeOf(uint64(at.UnixNano())), ExecutionMillis: "0", CleanupMillis: "0", CleanupAllowanceMillis: poolCleanupAllowanceMillis}
 			}
 			o.Stdout = wire.Sum(result.Stdout)
 			o.Stderr = wire.Sum(result.Stderr)
@@ -352,7 +367,19 @@ func reconcileSweep(ctx context.Context, repo *intent.Repository, actor mutation
 				return out, e
 			}
 			if child == nil || child.Kind != "Replay" || child.Outcome.ReceiptSeq == nil {
-				return out, nil
+				// The phase never committed. The original stays pending while it
+				// still owns the member; once explicit proved-orphan recovery has
+				// released that owner it ends quarantined, never free, citing its
+				// last committed witness or the owner digest when none exists.
+				held, e := sweepOwnerHeld(ctx, repo, selected, owner)
+				if e != nil || held {
+					return out, e
+				}
+				if last == "" {
+					last = owner
+				}
+				complete = true
+				break
 			}
 			after, e := sweepReceiptPools(repo, child.Outcome.ReceiptSeq.Uint64())
 			if e != nil {
@@ -400,6 +427,18 @@ func reconcileSweep(ctx context.Context, repo *intent.Repository, actor mutation
 		return out, err
 	}
 	return sweepHistoricalResult(repo, final)
+}
+func sweepOwnerHeld(ctx context.Context, repo *intent.Repository, selected snapshot.PoolEntry, owner wire.Digest) (bool, error) {
+	_, state, e := poolSnapshot(ctx, repo)
+	if e != nil {
+		return true, e
+	}
+	for _, en := range state.Entries {
+		if en.MemberID == selected.MemberID && en.AllocationID == selected.AllocationID && en.Sweep != nil && en.Sweep.RequestSha256 == owner {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 func sweepHistoricalResult(repo *intent.Repository, final *Report) (*PoolSweepReport, error) {
 	out := &PoolSweepReport{Report: final, Pending: true}
@@ -470,9 +509,30 @@ func sweepGit(ctx context.Context, root string, args ...string) ([]byte, error) 
 	argv := append([]string{git, "-c", "credential.helper=", "-c", "core.fsmonitor=false"}, args...)
 	result := executePoolCaptured(ctx, &intent.PoolCommand{Argv: argv, TimeoutSeconds: "2"}, root, gitEnvironment())
 	if !result.Clean || result.Class != "EXIT_ZERO" {
-		return nil, wire.Errorf(wire.CodeUnsupported, "sweep git", "bounded observation failed: %s", result.Class)
+		e = wire.Errorf(wire.CodeUnsupported, "sweep git", "bounded observation failed: %s", result.Class)
+		if result.Clean && (result.Class == "TIMEOUT" || result.Class == "INTERRUPTED") {
+			return nil, sweepGitBounded{class: result.Class, err: e}
+		}
+		return nil, e
 	}
 	return result.Stdout, nil
+}
+
+// sweepGitBounded marks a Git source observation that hit its bound, so a slow
+// host records TIMEOUT/INTERRUPTED rather than claiming the source changed.
+type sweepGitBounded struct {
+	class string
+	err   error
+}
+
+func (e sweepGitBounded) Error() string { return e.err.Error() }
+func (e sweepGitBounded) Unwrap() error { return e.err }
+func sweepSourceClass(e error) string {
+	var bounded sweepGitBounded
+	if errors.As(e, &bounded) {
+		return bounded.class
+	}
+	return "SOURCE_CHANGED"
 }
 func sweepSource(ctx context.Context, root string) (string, string, error) {
 	raw, e := sweepGit(ctx, root, "rev-parse", "--verify", "--end-of-options", "HEAD^{commit}")

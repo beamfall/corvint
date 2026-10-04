@@ -247,12 +247,20 @@ func (d *Dispatcher) commitPoolSweep(r PoolSweepRecord) error {
 }
 
 func (d *Dispatcher) sweepLaneHeld(pool, member string) bool {
+	if d.sweepJob != nil && d.sweepJob.record.Pool == pool && d.sweepJob.record.Member == member {
+		return true
+	}
+	// Disabling the opt-in releases lanes held only by retained records. The
+	// records stay for a later enable; native sweep ownership still refuses claims.
+	if d.Config.PoolSweep == nil {
+		return false
+	}
 	for _, r := range d.ledger.PoolSweeps {
 		if r.Pool == pool && r.Member == member && sweepPending(r.Phase) {
 			return true
 		}
 	}
-	return d.sweepJob != nil && d.sweepJob.record.Pool == pool && d.sweepJob.record.Member == member
+	return false
 }
 
 // tickPoolSweep runs only on the dispatcher goroutine. The background call owns
@@ -309,7 +317,9 @@ func (d *Dispatcher) tickPoolSweep(ctx context.Context, obs *Observation) (*Obse
 		if r.Actor != actor || r.ActorRole != role {
 			return obs, errors.New("pool sweep original actor differs; reconciliation held")
 		}
-		if !d.sweepTried[r.RequestID] {
+		// Replay of the same identity never re-executes a phase; retry it once
+		// per interval so explicit recovery can end it without a restart.
+		if !d.sweepTried[r.RequestID] || !d.Now().Before(d.sweepNext) {
 			d.startPoolSweep(ctx, q, *r)
 		}
 		return obs, nil

@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// PSR-V0-003: file overrides captured ambient, literal values, phase filtering and snapshot stability.
+// PSR-V0-006: file overrides captured ambient, literal values, phase filtering and snapshot stability.
 func TestPSREnvironmentSnapshot(t *testing.T) {
 	root := t.TempDir()
 	file := filepath.Join(root, "private.env")

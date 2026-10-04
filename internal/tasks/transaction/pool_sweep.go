@@ -136,7 +136,10 @@ func planPoolSweepObserve(c leaseContext, en *snapshot.PoolEntry) leaseOutcome {
 	owner.Previous = &d
 	en.ObservationSha256 = &d
 	en.ChangedSeq = c.seq
-	if o.Passed {
+	// Under ALL only an owned successful verify may still finalize; no further
+	// cleanup/reset/verify command is authorized, so other outcomes end here.
+	all := c.st.barrier != nil && c.st.barrier.Scope == "ALL"
+	if o.Passed && (!all || o.Phase == "verify") {
 		switch o.Phase {
 		case "cleanup":
 			en.CleanupPassed = true
@@ -146,7 +149,7 @@ func planPoolSweepObserve(c leaseContext, en *snapshot.PoolEntry) leaseOutcome {
 		case "verify":
 			owner.Phase = "confirm"
 		}
-	} else if o.GroupClean && (o.Class == "EXIT_NONZERO" || o.Class == "STDOUT_MISMATCH") && owner.Attempt.Int() < safe.MaxAttempts.Int() {
+	} else if !all && o.GroupClean && (o.Class == "EXIT_NONZERO" || o.Class == "STDOUT_MISMATCH") && owner.Attempt.Int() < safe.MaxAttempts.Int() {
 		owner.Attempt = wire.CountOf(owner.Attempt.Int() + 1)
 		owner.Phase = "reset"
 		if p.MemberConfig[en.MemberID].Cleanup != nil {
@@ -156,6 +159,9 @@ func planPoolSweepObserve(c leaseContext, en *snapshot.PoolEntry) leaseOutcome {
 	} else {
 		en.State = "QUARANTINED"
 		en.Reason = o.Class + "; safe reuse failed"
+		if all {
+			en.Reason = o.Class + "; ALL barrier ended sweep before next phase"
+		}
 		if o.GroupClean {
 			en.Sweep = nil
 			en.RunnerPID = "0"
@@ -232,6 +238,16 @@ func planPoolSweepFinish(c leaseContext) leaseOutcome {
 			if f.Path == "evidence/"+string(observation) && f.Sha256 == observation {
 				witness = true
 			}
+		}
+		if !witness && !free && observation == owner {
+			// No phase committed: the owner digest is a placeholder, admitted only
+			// after explicit recovery released that owner. It is never a witness.
+			for _, en := range c.st.pools.Entries {
+				if en.MemberID == member && en.AllocationID == allocation && en.Sweep != nil && en.Sweep.RequestSha256 == owner {
+					return c.refuse(mutation.OutcomeBlocked, wire.CodeQuiescenceUnproved, "original sweep owner still held")
+				}
+			}
+			witness = true
 		}
 		if !witness {
 			return c.fail(malformed("sweep witness absent"))

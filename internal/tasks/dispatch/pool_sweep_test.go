@@ -294,16 +294,93 @@ func TestPSRDispatchStartAndReplay(t *testing.T) {
 			t.Fatal("before-call identity changed")
 		}
 		psrCollect(t, next)
+		next.sweepNext = time.Now().Add(time.Hour)
 		for i := 0; i < 3; i++ {
-			next.sweepNext = time.Time{}
 			if e := next.Tick(context.Background()); e != nil {
 				t.Fatal(e)
 			}
 		}
 		if q.count.Load() != 1 {
-			t.Fatal("pending request spun")
+			t.Fatal("pending request spun within its interval")
+		}
+		// After the interval the same identity is reconciled again (replay never
+		// re-executes), so explicit native recovery can end it without a restart.
+		next.sweepNext = time.Now().Add(-time.Second)
+		if e := next.Tick(context.Background()); e != nil {
+			t.Fatal(e)
+		}
+		if again := psrCall(t, q); again != r.PoolSweepRequest || q.count.Load() != 2 {
+			t.Fatal("pending identity not retried after interval", again)
+		}
+		psrCollect(t, next)
+		if got := next.ledger.PoolSweeps[sweepKey(m.Queue, m.Pool, m.Member)]; got == nil || got.Phase != "PENDING" || got.RequestID != r.RequestID {
+			t.Fatal("pending record changed", got)
 		}
 	})
+	t.Run("retry-reaches-terminal", func(t *testing.T) {
+		var pending atomic.Bool
+		pending.Store(true)
+		d, q := psrDispatch(t, func(context.Context, PoolSweepRequest) (PoolSweepResult, error) {
+			return PoolSweepResult{Pending: pending.Load()}, nil
+		})
+		if e := d.Tick(context.Background()); e != nil {
+			t.Fatal(e)
+		}
+		first := psrCall(t, q)
+		psrCollect(t, d)
+		pending.Store(false)
+		d.sweepNext = time.Now().Add(-time.Second)
+		if e := d.Tick(context.Background()); e != nil {
+			t.Fatal(e)
+		}
+		if again := psrCall(t, q); again != first {
+			t.Fatal("retry changed identity")
+		}
+		psrCollect(t, d)
+		m := q.obs.Members[0]
+		if got := d.ledger.PoolSweeps[sweepKey(m.Queue, m.Pool, m.Member)]; got == nil || got.Phase != "TERMINAL" || d.sweepLaneHeld(m.Pool, m.Member) {
+			t.Fatal("released original did not end lane hold", got)
+		}
+	})
+}
+
+// PSR-V0-010 rollback: disabling the opt-in releases lanes held only by retained
+// records, which stay intact for a later enable; an in-flight job still holds.
+func TestPSRDispatchDisableReleasesLane(t *testing.T) {
+	d, q := psrDispatch(t, func(context.Context, PoolSweepRequest) (PoolSweepResult, error) {
+		return PoolSweepResult{Pending: true}, nil
+	})
+	if e := d.Tick(context.Background()); e != nil {
+		t.Fatal(e)
+	}
+	psrCall(t, q)
+	psrCollect(t, d)
+	m := q.obs.Members[0]
+	key := sweepKey(m.Queue, m.Pool, m.Member)
+	if got := d.ledger.PoolSweeps[key]; got == nil || got.Phase != "PENDING" || !d.sweepLaneHeld(m.Pool, m.Member) {
+		t.Fatal("enabled pending record does not hold lane", got)
+	}
+	config := d.Config.PoolSweep
+	d.Config.PoolSweep = nil
+	if d.sweepLaneHeld(m.Pool, m.Member) {
+		t.Fatal("disabled opt-in still holds lane")
+	}
+	d.sweepNext = time.Time{}
+	if e := d.Tick(context.Background()); e != nil {
+		t.Fatal(e)
+	}
+	if q.count.Load() != 1 || d.ledger.PoolSweeps[key] == nil || d.ledger.PoolSweeps[key].Phase != "PENDING" {
+		t.Fatal("disable invoked or dropped retained record")
+	}
+	d.sweepJob = &poolSweepJob{record: *d.ledger.PoolSweeps[key]}
+	if !d.sweepLaneHeld(m.Pool, m.Member) {
+		t.Fatal("in-flight job released lane")
+	}
+	d.sweepJob = nil
+	d.Config.PoolSweep = config
+	if !d.sweepLaneHeld(m.Pool, m.Member) {
+		t.Fatal("re-enable lost retained hold")
+	}
 }
 func TestPSRDispatchAsyncSupervision(t *testing.T) {
 	release := make(chan struct{})

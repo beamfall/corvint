@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-// PSR-V0-004/006: at the durable before-confirm barrier only the exact owner and predecessor can free it.
+// PSR-V0-003/008: at the durable before-confirm barrier only the exact owner and predecessor can free it.
 func TestPSRBeforeConfirmOwnerPredecessor(t *testing.T) {
 	for _, mode := range []string{"exact", "manual-owner", "wrong-predecessor", "after-reset"} {
 		t.Run(mode, func(t *testing.T) {
@@ -228,6 +228,106 @@ func TestPSRMaxStageMaterial(t *testing.T) {
 			en.Sweep = &snapshot.PoolSweepOwner{RequestSha256: d, Phase: "reset", Attempt: "1", Tree: tree}
 			if bad := planPoolSweepObserve(context, &en); bad.effect != nil || len(bad.posts) != 0 {
 				t.Fatal("overflow manufactured posts")
+			}
+		})
+	}
+}
+
+// PSR-V0-008: under an ALL barrier no further phase command is authorized; only an
+// owned successful verify may still advance to its exact delegated confirmation.
+func TestPSRAllBarrierObserveNoNextPhase(t *testing.T) {
+	for _, tc := range []struct {
+		name, scope, phase, class, wantState, wantPhase string
+	}{
+		{"reset-pass-open", "", "reset", "EXIT_ZERO", "CLEANING", "verify"},
+		{"reset-pass-admission", "ADMISSION", "reset", "EXIT_ZERO", "CLEANING", "verify"},
+		{"reset-pass-all", "ALL", "reset", "EXIT_ZERO", "QUARANTINED", ""},
+		{"reset-retry-open", "", "reset", "EXIT_NONZERO", "CLEANING", "reset"},
+		{"reset-retry-all", "ALL", "reset", "EXIT_NONZERO", "QUARANTINED", ""},
+		{"verify-pass-all", "ALL", "verify", "EXIT_ZERO", "CLEANING", "confirm"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			q, e := intent.DecodeQueue(fixture.QueueBytes())
+			if e != nil {
+				t.Fatal(e)
+			}
+			pv := fixture.PolicyValue()
+			pv.Obj.Set("pools", wire.Array(object("id", s("db"), "members", wire.Strings([]string{"a"}))))
+			policy, e := intent.DecodePolicy(wire.EncodeFile(pv))
+			if e != nil {
+				t.Fatal(e)
+			}
+			policy.Pools[0].MemberConfig["a"] = intent.MemberConfig{SafeReuse: &intent.SafeReuse{MaxAttempts: "2", ExpectExit: "0"}}
+			d := wire.Sum(nil)
+			rev, tree := strings.Repeat("a", 40), strings.Repeat("b", 40)
+			exit := wire.Count("0")
+			if tc.class == "EXIT_NONZERO" {
+				exit = "1"
+			}
+			log := snapshot.EncodePoolSweepLog(nil, nil)
+			o := snapshot.PoolSweepObservation{AllocationID: d, DefinitionSha256: policy.MemberDefinition("db", "a"), Owner: d, Log: wire.Sum(log), Environment: d, EnvFile: d, Phase: tc.phase, Attempt: "1", Revision: rev, Tree: tree, Class: tc.class, Exit: &exit, Passed: tc.class == "EXIT_ZERO", GroupClean: true, Stdout: d, Stderr: d, Timing: snapshot.PoolSweepTiming{StartedAt: "1", Deadline: "2", WaitReturnedAt: "2", CleanupEndedAt: "3", ExecutionMillis: "0", CleanupMillis: "0", CleanupAllowanceMillis: "5000"}}
+			raw := o.Encode()
+			if _, e = snapshot.DecodePoolSweepObservation(raw); e != nil {
+				t.Fatal(e)
+			}
+			en := snapshot.PoolEntry{PoolAllocation: snapshot.PoolAllocation{PoolID: "db", MemberID: "a", AllocationID: d, DefinitionSha256: o.DefinitionSha256, AllocatedSeq: "1"}, State: "CLEANING", Holder: "runner", Stage: "implement", Generation: "0", ChangedSeq: "1", PolicySha256: d, RequestSha256: d, RunnerPID: "1", RunnerStarted: "identity", CommandKind: "sweep", CommandRevision: rev, Sweep: &snapshot.PoolSweepOwner{RequestSha256: d, Phase: tc.phase, Attempt: "1", Tree: tree}}
+			var barrier *snapshot.Barrier
+			if tc.scope != "" {
+				barrier = &snapshot.Barrier{QueueID: q.QueueID, Scope: tc.scope, Reason: "OPERATOR"}
+			}
+			c := leaseContext{l: &LeaseRequest{Verb: LeasePoolObserve, Member: "a", Allocation: string(d), Evidence: string(d)}, in: Input{LeaseFacts: LeaseFacts{Pool: PoolFacts{Observation: raw, SweepLog: log}}}, st: inputState{policy: policy, barrier: barrier, pools: &snapshot.PoolState{QueueID: q.QueueID, Entries: []snapshot.PoolEntry{en}}}, seq: "2"}
+			result := planPoolSweepObserve(c, &en)
+			if result.effect == nil || result.effect.outcome != mutation.OutcomeCompleted {
+				t.Fatalf("observe %+v", result)
+			}
+			state, e := snapshot.DecodePools(result.posts["pools.json"])
+			if e != nil || len(state.Entries) != 1 {
+				t.Fatal(state, e)
+			}
+			got := state.Entries[0]
+			if got.State != tc.wantState {
+				t.Fatalf("state %s want %s", got.State, tc.wantState)
+			}
+			if tc.wantPhase == "" {
+				if got.Sweep != nil || !strings.Contains(got.Reason, "ALL barrier") {
+					t.Fatalf("ALL left owner or unexplained reason %+v", got)
+				}
+			} else if got.Sweep == nil || got.Sweep.Phase != tc.wantPhase {
+				t.Fatalf("phase %+v want %s", got.Sweep, tc.wantPhase)
+			}
+		})
+	}
+}
+
+// PSR-V0-003: an original request whose phase never committed may end with the
+// owner digest as a non-witness placeholder only after its owner was released.
+func TestPSRFinishReleasedOwnerPlaceholder(t *testing.T) {
+	owner := wire.Sum([]byte("owner"))
+	d := wire.Sum(nil)
+	for _, mode := range []string{"released", "held", "free-claim", "foreign-digest"} {
+		t.Run(mode, func(t *testing.T) {
+			free, observation := false, owner
+			en := snapshot.PoolEntry{PoolAllocation: snapshot.PoolAllocation{PoolID: "db", MemberID: "a", AllocationID: d, DefinitionSha256: d, AllocatedSeq: "1"}, State: "QUARANTINED", Holder: "runner", Stage: "implement", Generation: "0", ChangedSeq: "1", PolicySha256: d, RequestSha256: d, RunnerPID: "0", CommandKind: "sweep"}
+			switch mode {
+			case "held":
+				en.State = "CLEANING"
+				en.Sweep = &snapshot.PoolSweepOwner{RequestSha256: owner, Phase: "reset", Attempt: "1", Tree: strings.Repeat("b", 40)}
+			case "free-claim":
+				free = true
+			case "foreign-digest":
+				observation = wire.Sum([]byte("unwitnessed"))
+			}
+			row := wire.ObjectValue(wire.NewObject().Set("member", wire.String("a")).Set("allocation", wire.String(string(d))).Set("free", wire.Bool(free)).Set("observation", wire.String(string(observation))))
+			raw := wire.EncodeFile(wire.ObjectValue(wire.NewObject().Set("profile", wire.String("taskman-pool-sweep-result/0")).Set("owner", wire.String(string(owner))).Set("members", wire.Array(row))))
+			inv, e := NewInventory(nil, []string{"evidence"})
+			if e != nil {
+				t.Fatal(e)
+			}
+			c := leaseContext{r: Request{RequestID: "finish"}, l: &LeaseRequest{Verb: LeasePoolSweepFinish, Evidence: string(owner)}, in: Input{Inventory: inv, LeaseFacts: LeaseFacts{Pool: PoolFacts{SweepResult: raw}}}, st: inputState{pools: &snapshot.PoolState{Entries: []snapshot.PoolEntry{en}}}}
+			result := planPoolSweepFinish(c)
+			completed := result.effect != nil && result.effect.outcome == mutation.OutcomeCompleted
+			if completed != (mode == "released") {
+				t.Fatalf("%s completed=%v %+v", mode, completed, result.result)
 			}
 		})
 	}

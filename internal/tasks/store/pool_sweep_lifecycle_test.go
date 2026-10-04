@@ -5,6 +5,7 @@ package store_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/Beamfall/corvint/internal/tasks/authority"
@@ -53,51 +54,106 @@ func psrAwaitMarker(t *testing.T, path string) {
 	}
 	t.Fatal("command boundary not reached", path)
 }
+
+// PSR-V0-008: once ALL is set an owned sweep launches no further phase command;
+// it only publishes its terminal observation. An owned successful verify may
+// still finalize its exact delegated confirmation.
 func TestPSRAllBarrierTerminal(t *testing.T) {
-	dir := t.TempDir()
-	marker := filepath.Join(dir, "reached")
-	resume := filepath.Join(dir, "resume")
-	s, _ := psrFixture(t, "printf reset > "+marker+"; while [ ! -f "+resume+" ]; do /bin/sleep 0.01; done", "printf verified", "verified", "1", false)
-	done, cancel := psrStart(t, s, "barrier-sweep")
-	joined := false
-	defer func() {
-		cancel()
-		if !joined {
-			select {
-			case <-done:
-			case <-time.After(40 * time.Second):
-				t.Error("sweep unjoined")
+	for _, mode := range []string{"during-reset", "before-verify-launch", "during-verify"} {
+		t.Run(mode, func(t *testing.T) {
+			dir := t.TempDir()
+			marker := filepath.Join(dir, "reached")
+			resume := filepath.Join(dir, "resume")
+			verified := filepath.Join(dir, "verify-ran")
+			wait := "; while [ ! -f " + resume + " ]; do /bin/sleep 0.01; done"
+			reset, verify := "printf reset > "+marker+wait, "printf x > "+verified+"; printf verified"
+			switch mode {
+			case "before-verify-launch":
+				reset = "printf reset > " + marker
+			case "during-verify":
+				reset = "printf reset > " + marker
+				verify = "printf x > " + verified + wait + "; printf verified"
 			}
-		}
-	}()
-	psrAwaitMarker(t, marker)
-	reconciliationBarrier(t, s.repo, "ALL")
-	fresh, e := psrRun(s, "fresh-under-all")
-	if e == nil && fresh.Report != nil && fresh.Report.Outcome.Outcome == mutation.OutcomeCompleted {
-		t.Fatal("fresh owner admitted under ALL")
-	}
-	if e := os.WriteFile(resume, nil, 0600); e != nil {
-		t.Fatal(e)
-	}
-	select {
-	case result := <-done:
-		joined = true
-		if result.err != nil || result.report.Pending || result.report.Report.Outcome.Outcome != mutation.OutcomeCompleted {
-			t.Fatal(result.report, result.err)
-		}
-	case <-time.After(40 * time.Second):
-		t.Fatal("owned sweep failed to terminate")
-	}
-	if len(psrPools(t, s).Entries) != 0 {
-		t.Fatal("owned valid verification did not free allocation")
-	}
-	replay, e := psrRun(s, "barrier-sweep")
-	if e != nil || replay.Pending || replay.Report.Outcome.Outcome != mutation.OutcomeCompleted {
-		t.Fatal(replay, e)
-	}
-	raw, e := os.ReadFile(marker)
-	if e != nil || string(raw) != "reset" {
-		t.Fatal("reset count changed", string(raw), e)
+			s, _ := psrFixture(t, reset, verify, "verified", "1", false)
+			ctx, cancel := context.WithCancel(context.Background())
+			barrier := false
+			if mode == "before-verify-launch" {
+				ctx = store.PSRTestResponseFailure(ctx, func(c store.LeaseChoice, r *store.Report, e error) error {
+					if c.Lease.Verb == transaction.LeasePoolObserve && !barrier && r != nil && r.Outcome.Outcome == mutation.OutcomeCompleted {
+						barrier = true
+						reconciliationBarrier(t, s.repo, "ALL")
+					}
+					return e
+				})
+			}
+			done := make(chan psrOutcome, 1)
+			go func() {
+				r, e := store.PoolSweep(ctx, s.repo, operator(), store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "barrier-sweep", Root: s.root, TimeoutSeconds: "15"})
+				done <- psrOutcome{r, e}
+			}()
+			joined := false
+			defer func() {
+				cancel()
+				if !joined {
+					select {
+					case <-done:
+					case <-time.After(40 * time.Second):
+						t.Error("sweep unjoined")
+					}
+				}
+			}()
+			switch mode {
+			case "during-reset":
+				psrAwaitMarker(t, marker)
+			case "during-verify":
+				psrAwaitMarker(t, verified)
+			}
+			if mode != "before-verify-launch" {
+				reconciliationBarrier(t, s.repo, "ALL")
+				fresh, e := psrRun(s, "fresh-under-all")
+				if e == nil && fresh.Report != nil && fresh.Report.Outcome.Outcome == mutation.OutcomeCompleted {
+					t.Fatal("fresh owner admitted under ALL")
+				}
+				if e := os.WriteFile(resume, nil, 0600); e != nil {
+					t.Fatal(e)
+				}
+			}
+			var result psrOutcome
+			select {
+			case result = <-done:
+				joined = true
+			case <-time.After(40 * time.Second):
+				t.Fatal("owned sweep failed to terminate")
+			}
+			if result.err != nil || result.report.Pending || result.report.Report.Outcome.Outcome != mutation.OutcomeCompleted {
+				t.Fatal(result.report, result.err)
+			}
+			free := mode == "during-verify"
+			if !bytes.Contains(result.report.Result, []byte(`"free":`+strconv.FormatBool(free))) {
+				t.Fatal("terminal row", string(result.report.Result))
+			}
+			pools := psrPools(t, s)
+			if free {
+				if len(pools.Entries) != 0 {
+					t.Fatal("owned valid verification did not free allocation")
+				}
+			} else {
+				if _, e := os.Stat(verified); !os.IsNotExist(e) {
+					t.Fatal("verify launched under ALL", e)
+				}
+				if len(pools.Entries) != 1 || pools.Entries[0].State != "QUARANTINED" || pools.Entries[0].Sweep != nil || !strings.Contains(pools.Entries[0].Reason, "ALL barrier") {
+					t.Fatal("ALL sweep not terminal quarantine", pools)
+				}
+			}
+			replay, e := psrRun(s, "barrier-sweep")
+			if e != nil || replay.Pending || replay.Report.Outcome.Outcome != mutation.OutcomeCompleted || !bytes.Equal(replay.Result, result.report.Result) {
+				t.Fatal(replay, e)
+			}
+			raw, e := os.ReadFile(marker)
+			if e != nil || string(raw) != "reset" {
+				t.Fatal("reset count changed", string(raw), e)
+			}
+		})
 	}
 }
 func TestPSRConcurrentSweeps(t *testing.T) {
@@ -210,15 +266,16 @@ func TestPSRDeadlineRetryMatrix(t *testing.T) {
 				reset += "; exit 1"
 			case "shared-deadline":
 				reset += "; /bin/sleep 0.1"
-				verify += "; /bin/sleep 3"
+				verify += "; /bin/sleep 20"
 			case "total-deadline":
-				reset += "; /bin/sleep 3; exit 1"
+				reset += "; /bin/sleep 20; exit 1"
 			}
 			s, _ := psrFixtureConfigured(t, reset, verify, "verified", "2", cleanup, func(v wire.Value) {
 				member, reuse := psrReuse(v)
 				if mode == "shared-deadline" {
-					reuse.Set("timeoutSeconds", str("2"))
-					member.Set("cleanup", obj("argv", wire.Strings([]string{"/bin/sh", "-c", "echo clean >> " + cleanLog + "; /bin/sleep 0.1"}), "env", wire.Strings(nil), "cwd", str("REPOSITORY"), "timeoutSeconds", str("3")))
+					// Wide enough that loaded Git source observations still reach verify.
+					reuse.Set("timeoutSeconds", str("4"))
+					member.Set("cleanup", obj("argv", wire.Strings([]string{"/bin/sh", "-c", "echo clean >> " + cleanLog + "; /bin/sleep 0.1"}), "env", wire.Strings(nil), "cwd", str("REPOSITORY"), "timeoutSeconds", str("10")))
 				}
 				if mode == "cleanup-failed" {
 					member.Set("cleanup", obj("argv", wire.Strings([]string{"/bin/sh", "-c", "echo clean >> " + cleanLog + "; exit 2"}), "env", wire.Strings(nil), "cwd", str("REPOSITORY"), "timeoutSeconds", str("3")))
@@ -226,14 +283,14 @@ func TestPSRDeadlineRetryMatrix(t *testing.T) {
 			})
 			budget := wire.Count("15")
 			if mode == "total-deadline" {
-				budget = "1"
+				budget = "3"
 			}
 			started := time.Now()
 			out, e := store.PoolSweep(context.Background(), s.repo, operator(), store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "matrix", Root: s.root, TimeoutSeconds: budget})
 			if e != nil || out.Pending {
 				t.Fatal(out, e)
 			}
-			if time.Since(started) > 10*time.Second {
+			if time.Since(started) > 30*time.Second {
 				t.Fatal("unbounded deadline cleanup")
 			}
 			count := func(path string) int {
@@ -503,6 +560,11 @@ func TestPSRRequestConflictAndOrphan(t *testing.T) {
 		if p := psrPools(t, s); len(p.Entries) != 1 || p.Entries[0].Sweep == nil {
 			t.Fatal("unknown proof cleared owner")
 		}
+		c := store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "orphan", Root: s.root, TimeoutSeconds: "30"}
+		held, e := store.PoolSweep(context.Background(), s.repo, operator(), c)
+		if e != nil || !held.Pending {
+			t.Fatal("owned original ended before recovery", held, e)
+		}
 		owned.capture(t)
 		if e = cmd.Process.Kill(); e != nil {
 			t.Fatal(e)
@@ -520,15 +582,33 @@ func TestPSRRequestConflictAndOrphan(t *testing.T) {
 		if len(p.Entries) != 1 || p.Entries[0].State != "QUARANTINED" || p.Entries[0].Sweep != nil || p.Entries[0].CleanupPassed {
 			t.Fatal("gone recovery manufactured safety", p)
 		}
-		c := store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "orphan", Root: s.root, TimeoutSeconds: "30"}
 		oldMarker, _ := os.ReadFile(marker)
+		// Explicit proved-orphan recovery released the owner, so the original ends
+		// quarantined with its owner placeholder; it never runs again or frees.
 		replay, e := store.PoolSweep(context.Background(), s.repo, operator(), c)
-		if e != nil || !replay.Pending {
-			t.Fatal("orphan original no longer pending", replay, e)
+		if e != nil || replay.Pending || replay.Report.Outcome.Outcome != mutation.OutcomeCompleted {
+			t.Fatal("released orphan original did not end", replay, e)
+		}
+		var row struct {
+			Owner   string
+			Members []struct {
+				Free        bool
+				Observation string
+			}
+		}
+		if e = json.Unmarshal(replay.Result, &row); e != nil || len(row.Members) != 1 || row.Members[0].Free || row.Members[0].Observation != row.Owner {
+			t.Fatal("orphan terminal row", string(replay.Result), e)
 		}
 		after, _ := os.ReadFile(marker)
 		if !bytes.Equal(oldMarker, after) {
 			t.Fatal("orphan replay ran command")
+		}
+		if p := psrPools(t, s); len(p.Entries) != 1 || p.Entries[0].State != "QUARANTINED" || p.Entries[0].Sweep != nil {
+			t.Fatal("terminal orphan changed quarantine", p)
+		}
+		again, e := store.PoolSweep(context.Background(), s.repo, operator(), c)
+		if e != nil || again.Pending || !bytes.Equal(again.Result, replay.Result) {
+			t.Fatal("terminal orphan replay differs", again, e)
 		}
 		// A distinct explicit request may try again; the original never does.
 		c.RequestID = "fresh-explicit"
