@@ -49,6 +49,7 @@ type RetryRecovery struct {
 	AcceptanceRevision wire.Count
 	State              ticket.Observation
 	Phase              string
+	Reason             string
 }
 
 // Context carries every fact a mutation depends on. All of it is explicit
@@ -425,7 +426,11 @@ func (ctx *Context) step(work *ticket.Record, p Payload) *refusal {
 				}
 				r := ctx.RetryRecovery
 				if r == nil || r.State != ticket.Satisfied || r.TicketID != work.TicketID.Raw || r.AcceptanceRevision != work.AcceptanceRevision || (r.Phase != "FAILED" && r.Phase != "CANCELLED") {
-					return refuse(OutcomeBlocked, wire.CodeTicketState, "OPEN recovery requires observed exhausted, safely terminal attempts at this acceptanceRevision")
+					reason := "RECOVERY_OBSERVATION_MISSING_OR_MISMATCHED"
+					if r != nil && r.TicketID == work.TicketID.Raw && r.AcceptanceRevision == work.AcceptanceRevision && r.Reason != "" {
+						reason = r.Reason
+					}
+					return refuse(OutcomeBlocked, wire.CodeTicketState, "OPEN recovery refused: %s; requires exhausted, safely terminal attempts at this acceptanceRevision; inspect ticket show claimability", reason)
 				}
 			} else if work.Status != ticket.StatusCompleted {
 				return refuse(OutcomeBlocked, wire.CodeTicketState, "REOPEN requires COMPLETED or an exhausted OPEN ticket (is %s)", work.Status)

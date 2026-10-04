@@ -128,29 +128,69 @@ func planEntry(in PlanInput, rec *ticket.Record) PlanEntry {
 // and retry checks in its order. The coverage blocker is not one, because an
 // undeclared ticket claims WHOLE_REPOSITORY.
 func claimBlockers(in PlanInput, rec *ticket.Record) []ticket.Blocker {
-	out := []ticket.Blocker{}
+	all, _, _ := claimBlockerObservations(in, rec)
+	return all
+}
+
+// Preserve unknown provenance while keeping the planner's original blocker order.
+func claimBlockerObservations(in PlanInput, rec *ticket.Record) (all, known, unknown []ticket.Blocker) {
+	add := func(b ticket.Blocker, observed bool) {
+		all = append(all, b)
+		if observed {
+			known = append(known, b)
+		} else {
+			unknown = append(unknown, b)
+		}
+	}
 	if !poolAvailable(in, rec) {
-		out = append(out, ticket.Blocker{Code: wire.CodeResourceCollision, Detail: "required or requested pool has no eligible member"})
+		add(ticket.Blocker{Code: wire.CodeResourceCollision, Detail: "required or requested pool has no eligible member"}, true)
 	}
 	if in.Barrier {
-		out = append(out, ticket.Blocker{Code: wire.CodePaused})
+		add(ticket.Blocker{Code: wire.CodePaused}, true)
 	}
 	if !in.Queue.Fixture && in.Queue.ExecutionCutover == nil {
-		out = append(out, ticket.Blocker{Code: wire.CodeCutoverMissing})
+		add(ticket.Blocker{Code: wire.CodeCutoverMissing}, true)
 	}
 	if len(in.Policy.RequireEnforcedFields) != 0 {
-		out = append(out, ticket.Blocker{Code: wire.CodeBudgetUnknown})
+		add(ticket.Blocker{Code: wire.CodeBudgetUnknown}, true)
 	}
 	v, _ := in.Tickets.View(rec.TicketID.Raw, ticket.Context{CanonicalWriter: in.Queue.CanonicalWriter, SerialFallback: in.Policy.SerialFallback, Attempts: entryOracle{in.Reservations}})
-	for _, b := range append(v.Blockers, v.Unknowns...) {
+	for _, b := range v.Blockers {
 		if b.Code != wire.CodeCoverageUnknown {
-			out = append(out, b)
+			add(b, true)
+		}
+	}
+	for _, b := range v.Unknowns {
+		if b.Code != wire.CodeCoverageUnknown {
+			add(b, false)
 		}
 	}
 	if retryExhausted(in.Attempts, rec, in.Policy.AdmissionsPerRevision.Int()) {
-		out = append(out, ticket.Blocker{Code: wire.CodeRetryExhausted})
+		add(ticket.Blocker{Code: wire.CodeRetryExhausted}, true)
 	}
-	return out
+	return all, known, unknown
+}
+
+// RecordedClaimability describes the default external-agent plan at this read
+// snapshot, before reap. It does not reserve resources or validate caller inputs.
+func RecordedClaimability(in PlanInput, rec *ticket.Record) (wire.Value, string) {
+	if rec.Status != ticket.StatusOpen && rec.Status != ticket.StatusHeld {
+		return wire.Bool(false), wire.CodeTicketState
+	}
+	_, known, unknown := claimBlockerObservations(in, rec)
+	if len(known) > 0 {
+		return wire.Bool(false), known[0].Code
+	}
+	e := planEntry(in, rec)
+	// Unknown blockers must not hide definite reservation/capacity conflicts.
+	e = choose(in, e, nil)
+	if e.State != PlanSelected {
+		return wire.Bool(false), e.Reason
+	}
+	if len(unknown) > 0 {
+		return wire.Null(), unknown[0].Code
+	}
+	return wire.Bool(true), PlanSelected
 }
 
 // blockerRefs is the sorted, duplicate-free set of blocker codes and the
