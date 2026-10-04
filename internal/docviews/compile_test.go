@@ -70,8 +70,8 @@ func TestCompileProducesOneTruthCorpusAndFiveReferenceOnlyViews(t *testing.T) {
 		}
 	}
 
-	const expectedTruthSHA256 = "ef757ad4092f942fe8496122ddc9bc3b6c13eea260f89867787858f769d22523"
-	const expectedBundleSHA256 = "d042866141f8c4f29c06797e6c330579ea74e11faeb6decf42be91a39639eae5"
+	const expectedTruthSHA256 = "19b97c138db3c9ba3c41a2527bf8d607f3df3492805e4d5cc161d81dba13b600"
+	const expectedBundleSHA256 = "2c875ce8e13905c2b6381ae4f212a87d4c32f3cb2f6405b2da7b2ff05a48409d"
 	if first.TruthSHA256 != expectedTruthSHA256 || digest != expectedBundleSHA256 {
 		t.Fatalf("fixed vector changed: truth=%s bundle=%s", first.TruthSHA256, digest)
 	}
@@ -247,7 +247,7 @@ func TestCompileEnforcesLimitationBoundsAtEdges(t *testing.T) {
 // provably absent.
 func testIndex() *contextindex.Index {
 	sources := map[string]string{
-		"docs/intent.md":      "# Intent\nThe contract requires a bound.\n",
+		"docs/intent.md":      "# Intent\nThe contract requires a bound.\nStatus: accepted\n",
 		"internal/current.go": "package current\n\nfunc Bound() int { return 0 }\n",
 	}
 	index := &contextindex.Index{CommitRevision: strings.Repeat("b", 40), Sources: map[string]contextindex.Source{}, Tracked: map[string]struct{}{}}
@@ -256,6 +256,9 @@ func testIndex() *contextindex.Index {
 		index.Sources[path] = contextindex.Source{Path: path, BlobHash: hex.EncodeToString(digest[:]), Data: []byte(text), Mode: "100644"}
 		index.Tracked[path] = struct{}{}
 	}
+	// The accepted status a Build derives from the intent document's own line.
+	intent := index.Sources["docs/intent.md"]
+	index.Documents = map[string]contextindex.Record{"docs/intent.md": {Kind: "spec", ID: intent.Path, Path: intent.Path, BlobHash: intent.BlobHash, Fields: map[string]any{"status": "accepted"}}}
 	return index
 }
 
