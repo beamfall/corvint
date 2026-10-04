@@ -102,6 +102,40 @@ func TestCALV0054_RosterTierCapsWaitWithoutDowngrade(t *testing.T) {
 	}
 }
 
+// The CAL-V0-057 tier cap is a static fence: a candidate waiting at a full
+// tier neither charges the CAL-V0-068 pressure budget nor is reported held.
+func TestCALV0054_TierCapPrecedesPressureBudget(t *testing.T) {
+	c := ladderConfig(t)
+	c.Roles[0].Cap = 3
+	p := issue497Config()
+	obs := &Observation{Tickets: []Ticket{ticket("t1", "P1", 1), ticket("t2", "P1", 2), ticket("t3", "P1", 3)}}
+	tiers := map[string]int{"ticket:a:q:t1": 2, "ticket:a:q:t2": 2}
+	tierOf := func(role, key string) int { return tiers[key] }
+	plan := func(levelCap int) (out, held []string) {
+		p.LevelCaps = map[string]int{"1": levelCap, "2": levelCap}
+		b, err := NewPressureBudget(&p, PressureState{Level: 2}, nil, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		launches, holds := roster(c, obs, nil, nil, tierOf, b)
+		for _, a := range launches {
+			out = append(out, a.Local+"@"+string(rune('0'+a.Tier)))
+		}
+		for _, a := range holds {
+			held = append(held, a.Local)
+		}
+		return out, held
+	}
+	// Budget 2: t2 waits on the tier-2 cap without consuming budget, so t3 launches.
+	if out, held := plan(2); !reflect.DeepEqual(out, []string{"t1@2", "t3@0"}) || len(held) != 0 {
+		t.Fatalf("budget 2: launches %v held %v", out, held)
+	}
+	// Budget 1: only t3 is held; the tier-capped t2 is waiting, not held.
+	if out, held := plan(1); !reflect.DeepEqual(out, []string{"t1@2"}) || !reflect.DeepEqual(held, []string{"t3"}) {
+		t.Fatalf("budget 1: launches %v held %v", out, held)
+	}
+}
+
 func readModel(t *testing.T, c *Config, w *Worker) string {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join(c.WorkRoot, w.ID+".model"))
