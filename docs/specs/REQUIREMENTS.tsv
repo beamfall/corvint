@@ -167,6 +167,7 @@ AHI-039	docs/specs/agent-harness-integration-v0.md	788	The workbench MUST derive
 AHI-040	docs/specs/agent-harness-integration-v0.md	792	The terminal MUST show OpenCode's observed per-session cost and token/cache tota
 AHI-041	docs/specs/agent-harness-integration-v0.md	799	The terminal MUST show at most 16 members of the current OpenCode session family
 AHI-042	docs/specs/agent-harness-integration-v0.md	815	The owner-approved OpenCode presentation polish (2026-09-30, “ok, update it”, ex
+AHI-043	docs/specs/agent-harness-integration-v0.md	823	For an unchanged committed tree, worktree state, hook input and session key, the
 ALO-V0-001	docs/specs/aggregate-local-outcome-v0.md	43	Activation MUST require the explicit enrolled aggregate selector and exact bound
 ALO-V0-002	docs/specs/aggregate-local-outcome-v0.md	45	Legacy trace, learning, ranking, public fixtures and ordinary /0 behavior MUST
 ALO-V0-003	docs/specs/aggregate-local-outcome-v0.md	47	Candidate and admitted sets MUST use the complete pinned current context-index
