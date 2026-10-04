@@ -184,10 +184,13 @@ func TestIssue500_FiniteRestartDebtAndReset(t *testing.T) {
 	if err == nil || state != "HOLD" || !reflect.DeepEqual(got, before) || len(overflow.Fences) != 0 {
 		t.Fatal("overflow error returned mutated debt")
 	}
-	for _, window := range [][3]uint64{{1000, 10, 20}, {30, 10, 35}} {
+	for _, window := range [][3]uint64{{1000, 10, 20}, {30, 10, 35}, {1000, 0, 20}} {
 		corrupt := five
 		since, last := window[0], window[1]
 		corrupt.HealthySince, corrupt.LastHealthy, corrupt.HealthyGeneration = &since, &last, "live"
+		if last == 0 {
+			corrupt.LastHealthy = nil
+		}
 		o := healthy
 		o.Now = window[2]
 		if got := ObserveHealth(corrupt, o); got.Failures != 5 || got.HealthySince != nil {

@@ -111,6 +111,11 @@ func systemdPathValue(s string) (string, error) {
 }
 func systemdUnit(m Manifest, helper string) ([]byte, error) {
 	args := unitArguments(m, helper)
+	// systemd does not expand variables in the program path, so a doubled
+	// dollar there would name a different file; refuse it instead.
+	if strings.Contains(args[0], "$") {
+		return nil, fmt.Errorf("systemd ExecStart program path must not contain a dollar")
+	}
 	quoted := []string{}
 	for _, a := range args {
 		x, err := systemdExecAtom(a)

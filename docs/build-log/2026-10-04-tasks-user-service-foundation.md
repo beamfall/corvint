@@ -66,11 +66,19 @@ in this change:
   /dev/shm and /run/user.
 - The traceability table was narrowed to what the tests actually assert.
 
+A second independent review of the full change passed with nits and found no HIGH or MED
+defect. Its LOW finding that a doubled dollar in the systemd program path names a different file
+was repaired by refusing a dollar there, and its untested healthy-since-after-now clause gained
+a test.
+
 Open nits, recorded and not fixed: the 128-fence store is never pruned, and its capacity HOLD
 shares the sixth-failure state; the hypothetical systemd plan has no daemon-reload and uninstall
 has no REMOVING journal step; the catalog claim is in present tense; the profile name regex
-duplicates `dispatch.ValidName` instead of calling it. No systemd parser has loaded a rendered
-unit.
+duplicates `dispatch.ValidName` instead of calling it; the launchd plist encoder silently
+replaces U+FFFE/U+FFFF in a path with U+FFFD instead of refusing them; the temporary-root check is
+lexical and case-sensitive, so case variants on case-insensitive macOS volumes pass it until the
+descriptor checks exist; INDEX `dependsOn` omits the deployment-neutral index spec cited as an
+authoritative input. No systemd or launchd parser has loaded a rendered unit.
 
 ## Rollback
 

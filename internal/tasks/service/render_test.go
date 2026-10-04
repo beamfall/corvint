@@ -149,6 +149,12 @@ func TestIssue500_UnitRenderingAndArgumentEscaping(t *testing.T) {
 	if _, err := BuildManifest(p, f); err == nil {
 		t.Fatal("non-ASCII systemd ExecStart word accepted")
 	}
+	p, f, _ = serviceFixture(t, "systemd-user")
+	p.Executable = "/Applications/Corvint$x/bin/corvint-tasks"
+	f.Executable.Path, f.Executable.DeclaredPath = p.Executable, p.Executable
+	if _, err := BuildManifest(p, f); err == nil {
+		t.Fatal("dollar in systemd program path accepted")
+	}
 }
 func TestIssue500_OwnedInstallAndForeignRefusal(t *testing.T) {
 	for _, manager := range []string{"launchd", "systemd-user"} {
