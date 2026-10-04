@@ -324,6 +324,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR]",
 		"corvint-tasks ticket <mutation> --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
 		"corvint-tasks ticket <mutation> --help   (its payload keys)",
+		"corvint-tasks ticket create --template   (canonical CREATE payload with field types, enums and nullability; read-only)",
 		"corvint-tasks release create|update|candidate|record-gate|promote --request-id ID --target RELEASE [--expected-revision N] [--payload JSON] [--role ROLE]",
 		"corvint-tasks release list|show RELEASE|readiness RELEASE",
 		"corvint-tasks claim <ticketId|local> --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate]",
