@@ -10,6 +10,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -612,7 +613,7 @@ func TestReadSkipsOversizedRowAndKeepsReadingBoundedRows(t *testing.T) {
 
 // SOL-V0-005: triage counts only complete strict JSON Lines records; a
 // hand-edited truncated, duplicate-key, invalid-UTF-8, or trailing-value row
-// is malformed rather than a partial observation.
+// is rejected by a closed reason rather than folded as a partial observation.
 func TestRenderSkipsMalformedJSONLinesRows(t *testing.T) {
 	valid := []byte("{\"kind\":\"event\",\"event\":\"user-prompt\"}\n")
 	for name, malformed := range map[string][]byte{
@@ -636,7 +637,12 @@ func TestRenderSkipsMalformedJSONLinesRows(t *testing.T) {
 			if err := Render(root, 120, &output); err != nil {
 				t.Fatal(err)
 			}
-			want := "SELF-OBSERVATIONS events=1 zero-authoritative-rate=1/1 budget-omission-rate=0/1 latency-p50=0ms latency-p95=0ms\n"
+			reason := "malformed-json"
+			if name == "unterminated" {
+				reason = "unterminated-row"
+			}
+			want := "SELF-OBSERVATIONS events=1 zero-authoritative-rate=1/1 budget-omission-rate=0/1 latency-p50=0ms latency-p95=0ms\n" +
+				"REJECTED-ROWS reason=" + reason + " count=1\n"
 			if output.String() != want {
 				t.Fatalf("malformed row was counted:\n%s", output.String())
 			}
@@ -644,8 +650,61 @@ func TestRenderSkipsMalformedJSONLinesRows(t *testing.T) {
 	}
 }
 
+// SOL-V0-005 (V1-0740): Read applies the writer contract, so a negative count
+// or an escaping miss path is rejected, and a ledger over maxFileBytes is
+// reported as cut rather than read as whole.
+func TestReadRejectsContractViolationsAndReportsCut(t *testing.T) {
+	root := t.TempDir()
+	writeIgnore(t, root)
+	if err := os.MkdirAll(filepath.Join(root, ".corvint"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := Append(root, Event{Kind: "event", Event: "user-prompt", LatencyMS: -1}); err == nil {
+		t.Fatal("Append admitted a negative latency")
+	}
+	valid := "{\"kind\":\"event\",\"event\":\"user-prompt\",\"authoritativeResultCount\":1}\n"
+	rows := valid +
+		"{\"kind\":\"event\",\"event\":\"user-prompt\",\"latencyMs\":-3}\n" +
+		"{\"kind\":\"event\",\"event\":\"file-change\",\"missState\":\"OBSERVED\",\"touchedPaths\":[\"../../x\"],\"rankedPaths\":[]}\n" +
+		"{\"kind\":\"forged\"}\n"
+	path := filepath.Join(root, ".corvint", "self-observations.jsonl")
+	if err := os.WriteFile(path, []byte(rows), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	digest, err := Read(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]int{"contract-negative-count": 1, "contract-paths": 1, "contract-kind": 1}
+	if !maps.Equal(digest.Rejected, want) || digest.Events != 1 || len(digest.Misses) != 0 || len(digest.Latencies) != 0 || digest.Truncated {
+		t.Fatalf("digest = %+v", digest)
+	}
+	// JSON whitespace inside the last row fills the file to exactly the cap.
+	exact := strings.Repeat(valid, maxFileBytes/len(valid)-1)
+	exact += valid[:len(valid)-2] + strings.Repeat(" ", maxFileBytes-len(exact)-len(valid)) + "}\n"
+	if err := os.WriteFile(path, []byte(exact), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if digest, err = Read(root); err != nil || digest.Truncated || len(digest.Rejected) != 0 || digest.Events != maxFileBytes/len(valid) {
+		t.Fatalf("a ledger of exactly the cap was cut: %+v, %v", digest, err)
+	}
+	if err := os.WriteFile(path, []byte(strings.Repeat(valid, maxFileBytes/len(valid)+2)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if digest, err = Read(root); err != nil || !digest.Truncated || len(digest.Rejected) != 0 || digest.Events != maxFileBytes/len(valid) {
+		t.Fatalf("digest = %+v, %v", digest, err)
+	}
+	var output bytes.Buffer
+	if err := Render(root, 120, &output); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), "LEDGER-CUT cap-bytes=131072\n") {
+		t.Fatalf("render hides the cut ledger:\n%s", output.String())
+	}
+}
+
 // A hand-edited row whose rendered key carries a line break must not forge a
-// triage line: triage skips it as malformed and keeps reading.
+// triage line: the writer contract rejects it and triage keeps reading.
 func TestRenderSkipsRowWhoseKeyCarriesALineBreak(t *testing.T) {
 	root := t.TempDir()
 	writeIgnore(t, root)
@@ -667,7 +726,11 @@ func TestRenderSkipsRowWhoseKeyCarriesALineBreak(t *testing.T) {
 	if err := Render(root, 120, &output); err != nil {
 		t.Fatal(err)
 	}
-	want := "SELF-OBSERVATIONS events=1 zero-authoritative-rate=0/1 budget-omission-rate=0/1 latency-p50=0ms latency-p95=0ms\n"
+	want := "SELF-OBSERVATIONS events=1 zero-authoritative-rate=0/1 budget-omission-rate=0/1 latency-p50=0ms latency-p95=0ms\n" +
+		"REJECTED-ROWS reason=contract-counts-falsifier count=1\n" +
+		"REJECTED-ROWS reason=contract-degradations count=1\n" +
+		"REJECTED-ROWS reason=contract-paths count=1\n" +
+		"REJECTED-ROWS reason=contract-queryIntent count=1\n"
 	if output.String() != want {
 		t.Fatalf("digest\n%s\nwant\n%s", output.String(), want)
 	}
@@ -682,7 +745,8 @@ func writeIgnore(t *testing.T, root string) {
 
 // TestFalsificationRateCountsJudgedRowsOnly: NOT_RUN and `none` rows are not
 // judgments, so they never move the rate; a proof row with an unknown verdict,
-// a negative or oversized count, or no counts is skipped; the triage lines
+// a negative or oversized count is rejected, one with no counts judges
+// nothing; the triage lines
 // carry the rate over every retained proof and per falsifier, and nothing is
 // drafted.
 func TestFalsificationRateCountsJudgedRowsOnly(t *testing.T) {
@@ -728,6 +792,8 @@ func TestFalsificationRateCountsJudgedRowsOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := "SELF-OBSERVATIONS events=0 zero-authoritative-rate=NOT_OBSERVED budget-omission-rate=NOT_OBSERVED latency-p50=0ms latency-p95=0ms\n" +
+		"REJECTED-ROWS reason=contract-counts-verdict count=1\n" +
+		"REJECTED-ROWS reason=proof-counts count=2\n" +
 		"FALSIFICATION proofs=3 judged=14 failed=4 rate=4/14\n" +
 		"FALSIFIER key=history-consistent judged=10 failed=1 not-run=0 rate=1/10\n" +
 		"FALSIFIER key=none judged=0 failed=0 not-run=4 rate=NOT_OBSERVED\n" +
