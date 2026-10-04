@@ -1734,19 +1734,19 @@ LSO-V0-003	docs/specs/lsp-snapshot-overlay-v0.md	29	Close/reopen and explicit re
 LSO-V0-004	docs/specs/lsp-snapshot-overlay-v0.md	30	URI admission MUST require one lexical local file URI spelling contained below t
 LSO-V0-005	docs/specs/lsp-snapshot-overlay-v0.md	31	Sessions MUST enforce explicit positive document-count, per-document-byte and to
 LTA-V0-001	docs/specs/learned-trace-admission-v0.md	45	`corvint eval` MUST score a baseline arm and a second learned-trace arm over the
-LTA-V0-002	docs/specs/learned-trace-admission-v0.md	55	Before either scored arm runs, the evaluation MUST fail closed when any frozen
-LTA-V0-003	docs/specs/learned-trace-admission-v0.md	59	At an unchanged 1,000 rows, 1,000 files, or 16 MiB cap, `record` MUST reclaim sp
-LTA-V0-004	docs/specs/learned-trace-admission-v0.md	66	The current writer screen (`internal/secretscreen.Pattern`, consumed by `record`
-LTA-V0-005	docs/specs/learned-trace-admission-v0.md	95	(numbered 2026-09-12 by decision 0093; text unchanged from the accepted
-LTA-V0-006	docs/specs/learned-trace-admission-v0.md	103	`corvint skill-export --out DIR` MUST be the only path that exports learned rule
-LTA-V0-007	docs/specs/learned-trace-admission-v0.md	109	An admitted learned rule is a stored row with outcome `passed` that the reader
-LTA-V0-008	docs/specs/learned-trace-admission-v0.md	116	Each exported skill MUST load under the Agent Skills frontmatter contract that
-LTA-V0-009	docs/specs/learned-trace-admission-v0.md	121	(decision 0368, accepted by 0373, experimental) `corvint eval --learn-slot-weigh
-LTA-V0-010	docs/specs/learned-trace-admission-v0.md	136	(decision 0368, accepted by 0373, experimental) Each proposal MUST be scored aga
-LTA-V0-011	docs/specs/learned-trace-admission-v0.md	145	(decision 0368, accepted by 0373, experimental) Only `--admit` with an `improved
-LTA-V0-012	docs/specs/learned-trace-admission-v0.md	163	(decision 0368, accepted by 0373, experimental) `corvint eval --reset-slot-weigh
-LTA-V0-013	docs/specs/learned-trace-admission-v0.md	171	Schema-2 verification defined by `LTPM-V0-013` MUST pass the shared
-LTA-V0-014	docs/specs/learned-trace-admission-v0.md	193	The writer screen MAY skip a top-level branch of `secretscreen.Pattern` for a te
+LTA-V0-002	docs/specs/learned-trace-admission-v0.md	59	Before either scored arm runs, the evaluation MUST fail closed when any frozen
+LTA-V0-003	docs/specs/learned-trace-admission-v0.md	63	At an unchanged 1,000 rows, 1,000 files, or 16 MiB cap, `record` MUST reclaim sp
+LTA-V0-004	docs/specs/learned-trace-admission-v0.md	70	The current writer screen (`internal/secretscreen.Pattern`, consumed by `record`
+LTA-V0-005	docs/specs/learned-trace-admission-v0.md	99	(numbered 2026-09-12 by decision 0093; text unchanged from the accepted
+LTA-V0-006	docs/specs/learned-trace-admission-v0.md	107	`corvint skill-export --out DIR` MUST be the only path that exports learned rule
+LTA-V0-007	docs/specs/learned-trace-admission-v0.md	113	An admitted learned rule is a stored row with outcome `passed` that the reader
+LTA-V0-008	docs/specs/learned-trace-admission-v0.md	120	Each exported skill MUST load under the Agent Skills frontmatter contract that
+LTA-V0-009	docs/specs/learned-trace-admission-v0.md	125	(decision 0368, accepted by 0373, experimental) `corvint eval --learn-slot-weigh
+LTA-V0-010	docs/specs/learned-trace-admission-v0.md	140	(decision 0368, accepted by 0373, experimental) Each proposal MUST be scored aga
+LTA-V0-011	docs/specs/learned-trace-admission-v0.md	149	(decision 0368, accepted by 0373, experimental) Only `--admit` with an `improved
+LTA-V0-012	docs/specs/learned-trace-admission-v0.md	167	(decision 0368, accepted by 0373, experimental) `corvint eval --reset-slot-weigh
+LTA-V0-013	docs/specs/learned-trace-admission-v0.md	175	Schema-2 verification defined by `LTPM-V0-013` MUST pass the shared
+LTA-V0-014	docs/specs/learned-trace-admission-v0.md	197	The writer screen MAY skip a top-level branch of `secretscreen.Pattern` for a te
 LTPM-V0-001	docs/specs/local-trace-producer-migration-v0.md	55	`record_trace` MUST obtain the clean `HEAD` commit and its tree from one reposit
 LTPM-V0-002	docs/specs/local-trace-producer-migration-v0.md	59	The Python reader MUST accept canonical rows only when their filename and row na
 LTPM-V0-003	docs/specs/local-trace-producer-migration-v0.md	64	Dry-run MUST be read-only and bind its plan digest to the stable current commit/
@@ -1761,6 +1761,8 @@ LTPM-V0-011	docs/specs/local-trace-producer-migration-v0.md	254	public `record` 
 LTPM-V0-012	docs/specs/local-trace-producer-migration-v0.md	365	(accepted by the owner 2026-09-27; V1-0144) After an amend or rebase, a trace
 LTPM-V0-013	docs/specs/local-trace-producer-migration-v0.md	115	`record` MUST accept repeatable `--verify-argv-json JSON_ARRAY` (including the
 LTPM-V0-014	docs/specs/local-trace-producer-migration-v0.md	133	All ordinary trace consumers MUST admit validated mixed v1/v2 revision files
+LTPM-V0-015	docs/specs/local-trace-producer-migration-v0.md	405	(owner-selected design 2026-10-04, decision 0429; requirement text proposed)
+LTPM-V0-016	docs/specs/local-trace-producer-migration-v0.md	453	(owner-selected design 2026-10-04, decision 0429; requirement text proposed)
 MCPV0-001	docs/specs/mcp-server-2026-07-28-v0.md	107	The executable MUST run as `corvint-mcp --root ABSOLUTE_ROOT`. It owns exactly o
 MCPV0-002	docs/specs/mcp-server-2026-07-28-v0.md	120	P0 transport is stdio only. Each message is one UTF-8 JSON object followed by LF
 MCPV0-003	docs/specs/mcp-server-2026-07-28-v0.md	126	The decoder MUST reject invalid UTF-8, invalid JSON, duplicate object names at a
@@ -1875,13 +1877,13 @@ OCA-V0-004	docs/specs/observation-corpus-authority-v0.md	36	one owner may label 
 OCA-V0-005	docs/specs/observation-corpus-authority-v0.md	38	corpus output MUST distinguish `PASS`, `FAIL`, `NOT_RUN`, and `NOT_OBSERVED`; a
 OCA-V0-006	docs/specs/observation-corpus-authority-v0.md	42	raw prompts, source bodies, credentials, ambient command output, network upload,
 OCL-V0-001	docs/specs/outcome-calibration-v0.md	58	`corvint [--root PATH] calibrate [--since REV | --window N]
-OCL-V0-002	docs/specs/outcome-calibration-v0.md	65	The verb MUST be read-only (AGENTS.md invariant 4): it reads the committed index
-OCL-V0-003	docs/specs/outcome-calibration-v0.md	71	Every readable record MUST be joined to a stance. A record that carries no
-OCL-V0-004	docs/specs/outcome-calibration-v0.md	76	The report MUST carry the 2x2 of `answered`/`abstained` against
-OCL-V0-005	docs/specs/outcome-calibration-v0.md	80	Where records carry a relevance score, the report MUST bucket them into the ten
-OCL-V0-006	docs/specs/outcome-calibration-v0.md	86	When a proposal is emitted it MUST report the decile edge that would have
-OCL-V0-007	docs/specs/outcome-calibration-v0.md	92	A joined sample smaller than 20 rows MUST set `insufficient_sample: true` and
-OCL-V0-008	docs/specs/outcome-calibration-v0.md	95	Output MUST be deterministic for a fixed store and invocation in both formats:
+OCL-V0-002	docs/specs/outcome-calibration-v0.md	67	The verb MUST be read-only (AGENTS.md invariant 4): it reads the committed index
+OCL-V0-003	docs/specs/outcome-calibration-v0.md	73	Every readable record MUST be joined to a stance. A record that carries no
+OCL-V0-004	docs/specs/outcome-calibration-v0.md	78	The report MUST carry the 2x2 of `answered`/`abstained` against
+OCL-V0-005	docs/specs/outcome-calibration-v0.md	82	Where records carry a relevance score, the report MUST bucket them into the ten
+OCL-V0-006	docs/specs/outcome-calibration-v0.md	88	When a proposal is emitted it MUST report the decile edge that would have
+OCL-V0-007	docs/specs/outcome-calibration-v0.md	94	A joined sample smaller than 20 rows MUST set `insufficient_sample: true` and
+OCL-V0-008	docs/specs/outcome-calibration-v0.md	97	Output MUST be deterministic for a fixed store and invocation in both formats:
 OCM-V0-001	docs/specs/ocm-v0-dogfood.md	42	V0 MUST accept exactly one pinned Markdown intent scope containing one
 OCM-V0-002	docs/specs/ocm-v0-dogfood.md	56	the map MUST bind the full target commit, intent path/blob/span/span digest, exa
 OCM-V0-003	docs/specs/ocm-v0-dogfood.md	59	the map MUST contain exactly one obligation row for every enumerated requirement

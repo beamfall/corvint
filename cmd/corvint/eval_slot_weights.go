@@ -32,6 +32,9 @@ func runSlotWeightsInvocation(ctx context.Context, root string, arguments []stri
 	if err == nil && options.fixture != "" {
 		err = argumentError("argument --trace-fixture: not allowed with --learn-slot-weights")
 	}
+	if err == nil && len(options.exclude) != 0 {
+		err = argumentError("argument --exclude-producer: not allowed with --learn-slot-weights")
+	}
 	if err != nil {
 		return emitSlotWeightsFlagError(stderr, err), true
 	}

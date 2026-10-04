@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/trace"
 	"github.com/Beamfall/corvint/internal/tracerecordrepo"
 )
 
@@ -22,7 +23,7 @@ func calibrateRepository(t *testing.T, records int) string {
 	runIndexForTest(t, root, false)
 	outcomes := []string{"passed", "failed", "blocked"}
 	for index := 0; index < records; index++ {
-		_, err := tracerecordrepo.Record(context.Background(), root, tracerecordrepo.Input{
+		_, err := tracerecordrepo.Record(context.Background(), root, tracerecordrepo.Input{Producer: trace.ProducerCLI,
 			Task:         fmt.Sprintf("Split demux key %d", index),
 			OpenedPaths:  []string{"cache/demux.go"},
 			ChangedPaths: []string{"cache/reader.go"},

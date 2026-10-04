@@ -187,7 +187,7 @@ Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints t
 | paths | `internal/trace` | `internal/trace/migration_test.go:80@77e27ccc` |
 | paths | `internal/doccompiler` | `internal/doccompiler/compiler_test.go:211@b9d5a61d` |
 | symlinks | `internal/contextindex` | `internal/contextindex/index_test.go:235@6bb9aead`, `internal/contextindex/index_test.go:475@22de943f`, `internal/contextindex/blob_shards_open_test.go:91@9e01d46f`, `internal/contextindex/blob_shards_open_test.go:52@137ff6a7`, `internal/contextindex/snapshot_test.go:595@22f1c7f2`, `internal/contextindex/snapshot_test.go:644@ee7924d9` |
-| symlinks | `internal/trace` | `internal/trace/store_test.go:222@ee958993`, `internal/trace/store_test.go:937@69176005` |
+| symlinks | `internal/trace` | `internal/trace/store_test.go:223@ee958993`, `internal/trace/store_test.go:938@69176005` |
 | symlinks | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:105@141529a4` |
 | symlinks | `internal/worktreeimpact` | `internal/worktreeimpact/hostile_unix_test.go:12@0eab7357` |
 | case-folds | `internal/companionrelease` | `internal/companionrelease/companionrelease_test.go:190@4d21a51f`, `internal/companionrelease/companionrelease_test.go:390@7f54b5f5` |
@@ -195,16 +195,16 @@ Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints t
 | case-folds | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:105@141529a4` (`case-alias` subcase) |
 | bounded-output | `internal/procgroup` | `internal/procgroup/process_overflow_test.go:13@8b1b8267`, `internal/procgroup/process_overflow_test.go:93@e6067a5b` |
 | bounded-output | `internal/contextindex` | `internal/contextindex/git_execution_unix_test.go:151@b46f5300`, `internal/contextindex/extractionnote_test.go:63@d2c61a7e` |
-| bounded-output | `internal/trace` | `internal/trace/record_test.go:390@cc18800d` |
+| bounded-output | `internal/trace` | `internal/trace/record_test.go:391@cc18800d` |
 | bounded-output | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:189@0595c93c` |
 | time | `internal/procgroup` | `internal/procgroup/process_test.go:52@028e61d3`, `internal/procgroup/process_test.go:62@704c3abb` |
 | time | `internal/contextindex` | `internal/contextindex/local_completion_context_test.go:193@1bcaa713` |
 | interruption-cleanup | `internal/procgroup` | `internal/procgroup/process_test.go:519@9aa96910`, `internal/procgroup/process_test.go:95@0a8f0be2`, `internal/procgroup/process_hook_test.go:13@f0458815` |
 | interruption-cleanup | `internal/releasecandidate` | `internal/releasecandidate/operations_posix_test.go:18@d8182271`, `internal/releasecandidate/operations_test.go:238@eab69ef3` |
 | interruption-cleanup | `internal/contextindex` | `internal/contextindex/fifo_unix_test.go:36@5098dd43` |
-| interruption-cleanup | `internal/trace` | `internal/trace/store_test.go:497@139a1f88` |
+| interruption-cleanup | `internal/trace` | `internal/trace/store_test.go:498@139a1f88` |
 | secret-screening | `internal/secretscreen` | `internal/secretscreen/secretscreen_test.go:35@ac274de5`, `internal/secretscreen/secretscreen_test.go:164@c325b643` |
-| secret-screening | `internal/trace` | `internal/trace/record_test.go:282@382ada39` |
+| secret-screening | `internal/trace` | `internal/trace/record_test.go:283@382ada39` |
 | secret-screening | `internal/contextindex` | `internal/contextindex/history_test.go:144@b551779f` |
 | corrupted-derived-state | `internal/contextindex` | `internal/contextindex/pack_test.go:206@b2b8420d`, `internal/contextindex/blob_shards_test.go:84@b82cb217`, `internal/contextindex/termtable_test.go:170@263288af`, `internal/contextindex/analyzer_schema_test.go:93@f88f0dea` |
 | memory | `internal/contextindex` | `internal/contextindex/hostile_operations_test.go:15@e9500863` |

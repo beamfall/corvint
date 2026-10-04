@@ -8,6 +8,7 @@ package outcomecal
 import (
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/trace"
 )
@@ -117,6 +118,10 @@ type Report struct {
 	Insufficient  bool
 	ProposalState string
 	Proposal      Proposal
+	// Producers counts every record read, by producer, before exclusion;
+	// ExcludedProducers lists the producers left out of the sample.
+	Producers         map[string]int
+	ExcludedProducers []string
 }
 
 // Build joins the observations into the calibration report. It reads only the
@@ -287,6 +292,20 @@ func (report Report) Payload() map[string]any {
 	if report.Window != 0 {
 		payload["window"] = report.Window
 	}
+	if report.Producers != nil {
+		producers := make(map[string]any, len(report.Producers))
+		for name, count := range report.Producers {
+			producers[name] = count
+		}
+		payload["producers"] = producers
+	}
+	if len(report.ExcludedProducers) != 0 {
+		excluded := make([]any, len(report.ExcludedProducers))
+		for offset, name := range report.ExcludedProducers {
+			excluded[offset] = name
+		}
+		payload["excluded_producers"] = excluded
+	}
 	if report.ProposalState == ProposalProposed {
 		payload["proposal"] = map[string]any{
 			"threshold_tenths": report.Proposal.ThresholdTenths,
@@ -323,6 +342,16 @@ func (report Report) Table() string {
 		text += fmt.Sprintf("bucket [%.1f,%.1f) records %d success_rate %s\n",
 			bucket.Lower, bucket.Upper, bucket.Records, ratioText(
 				bucketRate(bucket), bucket.Records != 0))
+	}
+	if report.Producers != nil {
+		text += "producers"
+		for _, name := range trace.Producers {
+			text += fmt.Sprintf(" %s %d", name, report.Producers[name])
+		}
+		text += "\n"
+	}
+	if len(report.ExcludedProducers) != 0 {
+		text += "excluded_producers " + strings.Join(report.ExcludedProducers, " ") + "\n"
 	}
 	text += "proposal_state " + report.ProposalState + "\n"
 	if report.ProposalState == ProposalProposed {

@@ -102,8 +102,12 @@ func skillDocument(name, digest string, record trace.Record) string {
 	out.WriteString("## Provenance\n\n")
 	out.WriteString("- Admission evidence digest: " + digest + "\n")
 	out.WriteString("- Evaluation: " + Evaluation + "\n")
-	out.WriteString("- Trace: " + record.TraceID + " at revision " + record.Revision + "\n\n")
-	if record.SchemaVersion == trace.SchemaVersionV2 {
+	out.WriteString("- Trace: " + record.TraceID + " at revision " + record.Revision + "\n")
+	if record.SchemaVersion == trace.SchemaVersionV3 {
+		out.WriteString("- Producer: " + record.Producer + "\n")
+	}
+	out.WriteString("\n")
+	if record.TypedVerification != nil {
 		fmt.Fprintf(&out, "The trace opened %d paths, changed %d paths and recorded %d verification entries; ", len(record.OpenedPaths), len(record.ChangedPaths), len(record.TypedVerification))
 	} else {
 		fmt.Fprintf(&out, "The trace opened %d paths, changed %d paths and ran %d verification commands; ", len(record.OpenedPaths), len(record.ChangedPaths), len(record.Verification))
@@ -121,7 +125,7 @@ func referenceDocument(digest string, record trace.Record) string {
 	out.WriteString("- Outcome: " + record.Outcome + "\n")
 	writeList(&out, "Opened paths", record.OpenedPaths)
 	writeList(&out, "Changed paths", record.ChangedPaths)
-	if record.SchemaVersion == trace.SchemaVersionV2 {
+	if record.TypedVerification != nil {
 		out.WriteString("\n## Verification\n\n")
 		for _, entry := range record.TypedVerification {
 			if entry.Kind == "command" {

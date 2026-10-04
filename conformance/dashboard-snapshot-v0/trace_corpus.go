@@ -248,7 +248,7 @@ func scanTraceSource(root *os.Root, source traceConfiguredSource, format, head s
 						break
 					}
 					candidateIDs[traceID] = struct{}{}
-					candidateHasV2 = candidateHasV2 || trace["schema_version"] == json.Number("2")
+					candidateHasV2 = candidateHasV2 || trace["schema_version"] != json.Number("1")
 					candidateOutcomes[trace["outcome"].(string)]++
 				}
 				if result.overrideCode != "" {
@@ -394,17 +394,28 @@ func validateTraceRow(raw []byte, revision string, authority traceRepositoryAuth
 	if err != nil {
 		return nil, err
 	}
-	if err := exactFields(trace, "schema_version", "revision", "trace_id", "task", "opened_paths", "changed_paths", "verification", "outcome"); err != nil {
+	fields := []string{"schema_version", "revision", "trace_id", "task", "opened_paths", "changed_paths", "verification", "outcome"}
+	v3 := trace["schema_version"] == json.Number("3")
+	if v3 {
+		fields = append(fields, "producer")
+	}
+	if err := exactFields(trace, fields...); err != nil {
 		return nil, err
 	}
-	if (trace["schema_version"] != json.Number("1") && trace["schema_version"] != json.Number("2")) || trace["revision"] != revision {
+	if (trace["schema_version"] != json.Number("1") && trace["schema_version"] != json.Number("2") && !v3) || trace["revision"] != revision {
 		return nil, reject(rejectIdentity)
 	}
 	if _, err := enum(trace["outcome"], set("passed", "failed", "blocked")); err != nil {
 		return nil, err
 	}
+	if v3 {
+		if _, err := enum(trace["producer"], set("cli", "dogfood", "pi-tool")); err != nil {
+			return nil, err
+		}
+	}
+	typedRules := trace["schema_version"] == json.Number("2") || v3
 	textScreen, trimTask := traceSecretRE.MatchString, strings.TrimSpace
-	if trace["schema_version"] == json.Number("2") {
+	if typedRules {
 		textScreen, trimTask = typedSecretMatch, trimTypedTask
 	}
 	task, err := stringValue(trace["task"])
@@ -432,7 +443,7 @@ func validateTraceRow(raw []byte, revision string, authority traceRepositoryAuth
 	if err := authority.qualifyPaths(revision, qualifiedPaths); err != nil {
 		return nil, reject(rejectIdentity)
 	}
-	if trace["schema_version"] == json.Number("2") {
+	if trace["schema_version"] == json.Number("2") || v3 && typedTraceEntries(trace["verification"]) {
 		if err := validateTypedTraceVerification(raw, trace); err != nil {
 			return nil, err
 		}
@@ -442,7 +453,7 @@ func validateTraceRow(raw []byte, revision string, authority traceRepositoryAuth
 			return nil, err
 		}
 		for _, command := range commands {
-			if strings.TrimSpace(command) != command || utf8.RuneCountInString(command) > 512 || traceSecretRE.MatchString(command) || !traceSafeCommandRE.MatchString(command) {
+			if strings.TrimSpace(command) != command || utf8.RuneCountInString(command) > 512 || textScreen(command) || !traceSafeCommandRE.MatchString(command) {
 				return nil, reject(rejectPrivacyText)
 			}
 		}
@@ -452,7 +463,7 @@ func validateTraceRow(raw []byte, revision string, authority traceRepositoryAuth
 		return nil, reject(rejectIdentity)
 	}
 	basisBytes, err := canonical(cloneWithout(trace, "trace_id"), false)
-	if trace["schema_version"] == json.Number("2") {
+	if typedRules {
 		basisBytes, err = canonicalTypedTrace(cloneWithout(trace, "trace_id"))
 	}
 	if err != nil {

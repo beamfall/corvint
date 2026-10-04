@@ -408,3 +408,17 @@ no candidate output regenerates historical oracle expectations. All trace consum
 the typed profile, and mixed dashboard snapshots use the distinct `LOD-V0-035` registry.
 Rollback stops new v2 writes while retaining v2 readers. This does not qualify a release or
 prove a retrieval-quality improvement.
+
+## Trace producer extension (V1-0745, decision 0429)
+
+`LTPM-V0-015`/`LTPM-V0-016` make every new local trace row schema 3 with a closed `producer`.
+They also add `--exclude-producer` and producer counts to `calibrate` and `eval`. Neither verb
+is a Core verb, and no CCF-V1-002 identifier, CCF-V1-007 (d) enumeration row or
+cli-parity-pinned byte changes. CCF-V1-007 (b) still holds: this build reads the schema-1 and
+schema-2 rows that N-1 wrote, and those rows read as producer `UNKNOWN`. The reverse direction is
+an explicit release limitation, as it was for schema 2. Once a store holds a schema-3 row, 0.8.1
+and every binary predating this profile refuse that store (observed 2026-10-04 with 1.0.0-rc.1:
+`unsupported-query-trace-state`) rather than misread it. Rollback stops schema-3 writes. Before an
+older binary is used, each whole revision file containing a schema-3 row is moved out of
+`.context-corvint/traces/`. This does not qualify a release.
+

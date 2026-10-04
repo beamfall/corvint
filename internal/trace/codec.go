@@ -23,12 +23,12 @@ func (err *recordJSONError) Unwrap() error { return err.cause }
 
 // Encode returns the exact Python-compatible canonical JSONL bytes for record.
 func Encode(record Record) ([]byte, error) {
-	if record.SchemaVersion == SchemaVersionV2 {
-		if err := validateV2Record(record, record.Revision); err != nil {
+	if typedRecord(record) {
+		if err := validateTypedRecord(record, record.Revision); err != nil {
 			return nil, err
 		}
 	}
-	if record.SchemaVersion != SchemaVersion && record.SchemaVersion != SchemaVersionV2 {
+	if record.SchemaVersion != SchemaVersion && !typedRecord(record) {
 		return nil, fmt.Errorf("unsupported local trace schema")
 	}
 	expected, err := traceID(record)
@@ -113,6 +113,9 @@ func decodeRecord(data []byte) (Record, error) {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return Record{}, &recordJSONError{cause: err}
 	}
+	if strings.TrimSpace(string(raw["schema_version"])) == "3" {
+		return decodeTypedRow(data, SchemaVersionV3)
+	}
 	if raw == nil || len(raw) != len(requiredFields) {
 		return Record{}, fmt.Errorf("invalid local trace fields")
 	}
@@ -122,7 +125,7 @@ func decodeRecord(data []byte) (Record, error) {
 		}
 	}
 	if strings.TrimSpace(string(raw["schema_version"])) == "2" {
-		return decodeV2Record(data)
+		return decodeTypedRow(data, SchemaVersionV2)
 	}
 	schema, err := decodePythonSchema(raw["schema_version"])
 	if err != nil {
@@ -335,6 +338,9 @@ func canonicalRecord(record Record, includeID bool) ([]byte, error) {
 	if err := writePythonString(&output, record.Outcome); err != nil {
 		return nil, err
 	}
+	if err := writeProducer(&output, record); err != nil {
+		return nil, err
+	}
 	writeMemberName(&output, "revision", true)
 	if err := writePythonString(&output, record.Revision); err != nil {
 		return nil, err
@@ -374,6 +380,9 @@ func canonicalSemantic(record Record) ([]byte, error) {
 	if err := writePythonString(&output, record.Outcome); err != nil {
 		return nil, err
 	}
+	if err := writeProducer(&output, record); err != nil {
+		return nil, err
+	}
 	writeMemberName(&output, "schema_version", true)
 	output.WriteString(strconv.Itoa(record.SchemaVersion))
 	writeMemberName(&output, "task", true)
@@ -386,6 +395,16 @@ func canonicalSemantic(record Record) ([]byte, error) {
 	}
 	output.WriteByte('}')
 	return output.Bytes(), nil
+}
+
+// writeProducer emits the schema-3 member in its sorted position; earlier
+// schemas have no producer member, so their identities are unchanged.
+func writeProducer(output *bytes.Buffer, record Record) error {
+	if record.SchemaVersion != SchemaVersionV3 {
+		return nil
+	}
+	writeMemberName(output, "producer", true)
+	return writePythonString(output, record.Producer)
 }
 
 func writeMemberName(output *bytes.Buffer, name string, comma bool) {

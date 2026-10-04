@@ -27,13 +27,14 @@ func TestRecordTypedArgvRoundTripAndRefusal(t *testing.T) {
 		var payload struct {
 			Trace struct {
 				Schema       int                          `json:"schema_version"`
+				Producer     string                       `json:"producer"`
 				Verification []map[string]json.RawMessage `json:"verification"`
 			} `json:"trace"`
 		}
 		if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
 			t.Fatal(err)
 		}
-		if payload.Trace.Schema != 2 || len(payload.Trace.Verification) != 3 {
+		if payload.Trace.Schema != 3 || payload.Trace.Producer != "cli" || len(payload.Trace.Verification) != 3 {
 			t.Fatalf("typed response %s", &stdout)
 		}
 		var actual []string
@@ -61,7 +62,7 @@ func TestRecordTypedArgvRoundTripAndRefusal(t *testing.T) {
 
 func TestQueryTypedArgvAdmissionAndBatchDigest(t *testing.T) {
 	root := queryCLIRepository(t)
-	recorded, err := tracerecordrepo.Record(t.Context(), root, tracerecordrepo.Input{Task: "token parser", ChangedPaths: []string{"internal/parser/token.go"}, Outcome: "passed", VerificationArgv: [][]string{{"printf", "a b", ""}}})
+	recorded, err := tracerecordrepo.Record(t.Context(), root, tracerecordrepo.Input{Producer: trace.ProducerCLI, Task: "token parser", ChangedPaths: []string{"internal/parser/token.go"}, Outcome: "passed", VerificationArgv: [][]string{{"printf", "a b", ""}}})
 	if err != nil {
 		t.Fatal(err)
 	}

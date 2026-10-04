@@ -1497,6 +1497,15 @@ Acceptance: `TestLODV0035MixedTraceSnapshot`, `TestTypedTraceConformance`,
 `FuzzTypedRowsAgreeWithWriter`, and unchanged frozen
 v1 dashboard fixtures. Removing new v2 production preserves mixed-store readers on rollback.
 
+Producer amendment (V1-0745, 2026-10-04, decision 0429; text proposed). `LOD-V0-035` also admits
+schema-3 rows (`LTPM-V0-015`) of either verification shape. Schema-3 rows are validated with
+the same codec and screening, and one admitted schema-2 or schema-3 row selects the v2 adapter,
+profile and verifier above. No new descriptor is added, and neither registry digest changes. A
+v1-only scan keeps its bytes. The stored `producer` is never disclosed, counted or used to select
+anything in a snapshot. Acceptance: `TestLODV0035MixedTraceSnapshot` (v1, legacy v2 and v3 rows
+in one member) and `TestProducerTraceConformance` (the standalone verifier and the actual
+producer agree on a v1/v3 store).
+
 ## Staged deterministic acceptance
 
 ### P0 snapshot compiler

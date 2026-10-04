@@ -62,6 +62,8 @@ statistic, never evidence that the statistic is the right one.
   `--since REV` selects only records already pinned to `REV`; because the local store pins one
   revision, any other revision selects nothing rather than inventing history. Default format is
   `json`.
+  Amendment (V1-0745, 2026-10-04): `LTPM-V0-016` adds the repeatable `--exclude-producer NAME`
+  flag, the `producers` counts and `excluded_producers`; its trace store owner governs them.
 - **`OCL-V0-002`.** The verb MUST be read-only (AGENTS.md invariant 4): it reads the committed index
   and the pinned trace store through `tracerecordrepo.Read` and writes no index, trace, cache, or
   ledger byte on the success path. Its payload declares `mutates: false`. Clarifying amendment
