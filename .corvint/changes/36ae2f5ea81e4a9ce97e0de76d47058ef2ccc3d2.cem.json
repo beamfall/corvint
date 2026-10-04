@@ -1,0 +1,40 @@
+{
+  "baseRevision": "7ea87ec51e8350fe1db754bd79761e2faabc535b",
+  "evidence": [
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3118,
+        "start": 2775
+      },
+      "spanSha256": "46e69c5e97297b36c204ff585b335a484633ade4ec166dbc695fd46e7c6dc76c"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1fa53ca7a5cbae12ea2e62206c43c2534fe21ab32211a36de1de30198d2c5290",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cb1934eef7122f0fdc9f8eba54e5d017f7e823f4fd2444de9dca5ebab3635510",
+      "newRange": {
+        "count": 9,
+        "start": 20
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 20
+      },
+      "path": "docs/build-log/2026-10-04-testacceptance-race-time.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "49ba9abed8bfc7385e5856d5a39591f64872901b573547671d334ac2aad158d3",
+  "spec": "cem/0.2"
+}
