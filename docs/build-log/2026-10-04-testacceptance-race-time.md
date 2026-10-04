@@ -20,8 +20,9 @@ Cause, measured on darwin/arm64 with go1.27.1:
   87,204-byte encoded receipt, 2.15s under race. One `VerifyReceipt` of the 4-attempt fixture
   costs 462ms without race because it screens every retained byte field (raw text, decoded JSON
   strings, key=value pairs) and then the encoded document that carries the same bytes as base64.
-- Each subtest verifies the receipt in the test body and again inside `joinedFreshControl`; the
-  16-attempt bound cases carry 32 native reports.
+- Every subtest verifies the receipt inside `joinedFreshControl`; all but the 14 `Correspondence`
+  subtests also verify it first in the test body. The 16-attempt bound cases carry 32 native
+  reports.
 
 The subtests were serial, so the package used one of the runner's four cores.
 
