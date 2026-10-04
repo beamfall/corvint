@@ -1,0 +1,229 @@
+{
+  "baseRevision": "4b10a02144faed4a77b36eba4b0d1cbc315706d3",
+  "evidence": [
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:31cdfd258aedf9562e18ff1b5dd6c3f9da5283e0e752639eb2447586667f61cd",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3076,
+        "start": 2775
+      },
+      "spanSha256": "66bd3fd68b6179557cabb27f57c3746f487a3177a7f42a6b3c85f843e678d1e9"
+    },
+    {
+      "blobOid": "1862a80fbf50b3376a2dfdb17a05a3a31b0d3a29",
+      "id": "evidence:sha256:c443c5b0a10518b40956aa03af41bd8119b11384e0ab3df8d9a71752e13f00c8",
+      "path": "docs/SPEC-DRIVEN-DEVELOPMENT.md",
+      "span": {
+        "end": 1722,
+        "start": 1547
+      },
+      "spanSha256": "5c5e28f6f61a74f76f9bbcff7ecec54391b636f2f3f79b6508bfc27d164c3adb"
+    },
+    {
+      "blobOid": "1862a80fbf50b3376a2dfdb17a05a3a31b0d3a29",
+      "id": "evidence:sha256:c3c7632e51091520910421564c81b2376fef10da1d6b5ab86cd6a3bdd13d38b0",
+      "path": "docs/SPEC-DRIVEN-DEVELOPMENT.md",
+      "span": {
+        "end": 2338,
+        "start": 1925
+      },
+      "spanSha256": "4cb77f3ec20590087750d1553511ba6abc8e5f8f9c498a0bce456a9cf23b3f78"
+    },
+    {
+      "blobOid": "344ba8ea8feee46d048b4dcaef8351f5bc5ba311",
+      "id": "evidence:sha256:b38c8e28e44513de71eb8a18c5c0c0071bf8b83f1331a077c7d7b2bdc68c3b56",
+      "path": "internal/specindex/index_test.go",
+      "span": {
+        "end": 756,
+        "start": 138
+      },
+      "spanSha256": "e003ed9a0c311aed75974ea924e5a167d354ba264813dc9cc060758075ef92d3"
+    },
+    {
+      "blobOid": "344ba8ea8feee46d048b4dcaef8351f5bc5ba311",
+      "id": "evidence:sha256:8fe710b29ec29d5b270cb1e84a40f19105f1be3cd50613a10f9f31ba191101b3",
+      "path": "internal/specindex/index_test.go",
+      "span": {
+        "end": 2403,
+        "start": 1994
+      },
+      "spanSha256": "5314f6d12f4d94b5022527ba2cd41bc3fdef448e71bf5ba03d4973dedaad27f9"
+    },
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:229110a8aba80cd8bf3460f549065c358718728ebe015488c457eea3d35fb2d4",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 2474,
+        "start": 2288
+      },
+      "spanSha256": "de3e0b2777009ddfb9038d5a0464cd606af86da86e9fa06b990aa669ff5b1ff0"
+    },
+    {
+      "blobOid": "8e9fb36fb6dc1e6c759bcd84ec76271ccf3ab1d7",
+      "id": "evidence:sha256:ce2b8f12e490b7dc1759623e335d26c8a8e34a356e08db23f45f8cb03ea7d5b4",
+      "path": "docs/specs/README.md",
+      "span": {
+        "end": 406,
+        "start": 23
+      },
+      "spanSha256": "b69d8e36166f0c4a4c1caee59089d3724b6278ba32341681524358dfad1b3c33"
+    },
+    {
+      "blobOid": "344ba8ea8feee46d048b4dcaef8351f5bc5ba311",
+      "id": "evidence:sha256:9503197ff5d139e905cff3a48082953b24beff7289fb990a0b1abcaa643d8a18",
+      "path": "internal/specindex/index_test.go",
+      "span": {
+        "end": 2920,
+        "start": 2429
+      },
+      "spanSha256": "8a65ef33542a376f41fb9d7f6795db1a92dd0f7589b7105cc2d7db92e6794799"
+    },
+    {
+      "blobOid": "65c2a74d4731cb25432a43b06d5f75101a9968dd",
+      "id": "evidence:sha256:ce95fa27c9e2c8c94cd13abdc0c02109e27d8d168d223300ce19e8e76dd54c54",
+      "path": "docs/specs/spec-requirement-index-generator-v0.md",
+      "span": {
+        "end": 7347,
+        "start": 6430
+      },
+      "spanSha256": "d061a6ab5508d8cf9dd8fa75b2384ebe764fca19065f048d262a2f9d80b6519b"
+    },
+    {
+      "blobOid": "d6b6e3c67fa938ddfe260db03cf6f1db88797970",
+      "id": "evidence:sha256:428f37cba3784a9fcfec8ca580d18a5d77fc9ea8f4634f740d232def6a60bee0",
+      "path": "Makefile",
+      "span": {
+        "end": 9715,
+        "start": 9428
+      },
+      "spanSha256": "e8c1ba60f4e6b58c3e7ba96ad93fe2c360c4c93c673ac24196133c40dfa53717"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:31cdfd258aedf9562e18ff1b5dd6c3f9da5283e0e752639eb2447586667f61cd",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:c443c5b0a10518b40956aa03af41bd8119b11384e0ab3df8d9a71752e13f00c8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:34b3c059624d5228d41cb1c499d5ba3c62020bddff80116ae885466b369d47fa",
+      "newRange": {
+        "count": 43,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-04-pool-safe-reuse-successor-seed.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c3c7632e51091520910421564c81b2376fef10da1d6b5ab86cd6a3bdd13d38b0",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:b38c8e28e44513de71eb8a18c5c0c0071bf8b83f1331a077c7d7b2bdc68c3b56",
+          "relation": "implementation"
+        },
+        {
+          "evidenceId": "evidence:sha256:8fe710b29ec29d5b270cb1e84a40f19105f1be3cd50613a10f9f31ba191101b3",
+          "relation": "implementation"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:dcc1742d933a361582ed5898499311f1d31d09a2642156ced2f420377b2e74e4",
+      "newRange": {
+        "count": 20,
+        "start": 642
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 642
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:229110a8aba80cd8bf3460f549065c358718728ebe015488c457eea3d35fb2d4",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:ce2b8f12e490b7dc1759623e335d26c8a8e34a356e08db23f45f8cb03ea7d5b4",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:9503197ff5d139e905cff3a48082953b24beff7289fb990a0b1abcaa643d8a18",
+          "relation": "implementation"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8c6930b6a7b77e4dfd0f5fbedb7b3441a884761e44dfd7a06c0f1492cea1bf8d",
+      "newRange": {
+        "count": 7,
+        "start": 29
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 29
+      },
+      "path": "docs/specs/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ce95fa27c9e2c8c94cd13abdc0c02109e27d8d168d223300ce19e8e76dd54c54",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:428f37cba3784a9fcfec8ca580d18a5d77fc9ea8f4634f740d232def6a60bee0",
+          "relation": "implementation"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:eb357f12b9f393a77ba8a628c76a634af847c2858eddc0f8c6193f066c90c167",
+      "newRange": {
+        "count": 16,
+        "start": 1994
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 1994
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:1d0191c7488db28170400b08f1df2833d6e0e49a30db2366c851c34b0d2a6058",
+      "newRange": {
+        "count": 53,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/specs/corvint-tasks-pool-safe-reuse-v0.md",
+      "reason": "no-evidence"
+    }
+  ],
+  "patchSha256": "47b14c8122c3f1b4659280bdf3d4e3d5e1608b72b46c7258dd6a9547bb4f71db",
+  "spec": "cem/0.2"
+}

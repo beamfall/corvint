@@ -580,8 +580,14 @@ Non-fixture release lifecycle (owner request 2026-09-28 to complete the Tasks ta
   reason MAY clear quarantine. Configured cleanup success is necessary but insufficient: the
   confirmation is a local operator attestation of external revocation/reset, not observed physical
   exclusivity. Stale confirmation MUST refuse. There is no TTL or implicit safe reuse.
-  The separately proposed explicit CAL-V0-067 operator-attested release profile is the only
-  proposed exception; it does not apply to ordinary release, expiry/reap or completion.
+  The separate explicit CAL-V0-067 operator-attested release profile (S17, experimental implementation) does not apply to ordinary release, expiry/reap or completion.
+  The accepted PSR-V0-008 optional operator-owned safeReuse profile also permits delegated
+  confirm-safe only for the exact owned successful original allocation/definition observation,
+  durable reset/verify evidence, retired owned process tree and agreeing queue readback.
+  An owned terminal observation may finalize under an audited ALL barrier; fresh preparation
+  and competing control remain refused. Ordinary manual confirmation and quarantine rules
+  otherwise remain unchanged; no physical exclusivity or authenticated operator is inferred.
+
 - `CAL-V0-031`: A configured health command MUST acquire durable PREPARING ownership before
   execution outside the writer lock. Failed members MUST remain quarantined, be reported with
   reason and observation digest, and be skipped for the current claim. A passing health result

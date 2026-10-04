@@ -36,7 +36,11 @@ type Attempt struct {
 }
 
 // Member is one native pool member.
-type Member struct{ Pool, Member, State, Holder, Attempt string }
+type Member struct {
+	Pool, Member, State, Holder, Attempt string
+	Queue, Allocation, Definition        string
+	SafeReuse, Owned                     bool
+}
 
 // Observation is one authoritative read of the native store.
 type Observation struct {

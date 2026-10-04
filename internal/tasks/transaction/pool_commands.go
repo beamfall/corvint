@@ -11,6 +11,10 @@ import (
 // only with the exact durable allocation and unchanged member definition.
 type PoolFacts struct {
 	AllocationID            wire.Digest
+	SweepSelections         []PoolSweepSelection
+	SweepOwner              wire.Digest
+	SweepLog, SweepResult   []byte
+	Tree                    string
 	Observation             []byte
 	RunnerPID               wire.Count
 	RunnerStarted, Revision string
@@ -104,6 +108,9 @@ func planPoolObserve(c leaseContext) leaseOutcome {
 	if en.State != "PREPARING" && en.State != "CLEANING" {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeQuiescenceUnproved, "no pending pool command")
 	}
+	if en.Sweep != nil {
+		return planPoolSweepObserve(c, en)
+	}
 	o, e := c.observation(en)
 	if e != nil {
 		return c.fail(e)
@@ -121,6 +128,9 @@ func planPoolCleanup(c leaseContext) leaseOutcome {
 	en := c.poolEntry()
 	if en == nil {
 		return c.refuse(mutation.OutcomeRevisionConflict, wire.CodeFenced, "allocation differs")
+	}
+	if en.Sweep != nil {
+		return c.refuse(mutation.OutcomeBlocked, wire.CodeResourceCollision, "sweep owns allocation")
 	}
 	if en.State != "QUARANTINED" {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeQuiescenceUnproved, "cleanup requires quarantine")
@@ -149,7 +159,7 @@ func planPoolRecover(c leaseContext) leaseOutcome {
 	if en == nil {
 		return c.refuse(mutation.OutcomeRevisionConflict, wire.CodeFenced, "allocation differs")
 	}
-	if en.State != "PREPARING" && en.State != "CLEANING" {
+	if en.State != "PREPARING" && en.State != "CLEANING" && !(en.State == "QUARANTINED" && en.Sweep != nil) {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeQuiescenceUnproved, "no orphaned pool command")
 	}
 	if !c.in.LeaseFacts.Pool.RunnerGone {
@@ -160,5 +170,6 @@ func planPoolRecover(c leaseContext) leaseOutcome {
 	en.RunnerPID = "0"
 	en.RunnerStarted = ""
 	en.CleanupPassed = false
+	en.Sweep = nil
 	return c.putPool(en, false, nil)
 }
