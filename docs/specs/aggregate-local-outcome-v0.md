@@ -10,7 +10,7 @@ legacy learning recorder's 200-path limit, retaining all evidence and refusing p
 - Claim: Explicitly enrolled changes can preserve a complete bounded nonlearning outcome after a bound legacy admitted-path-limit refusal.
 - Status: proposed; experimental; NOT_QUALIFIED; source candidate implemented, qualification incomplete. Gate A passed the plan only.
 - Exists: legacy 200-path admission and an experimental explicit aggregate candidate with native focused witnesses.
-- Blocked on: remaining native qualification, independent source review, final gates and the held recovery attempt (transport-adapted lane admitted 2026-10-04, unexecuted; adapter cancel/timeout cleanup failed in gitrun/session.go).
+- Blocked on: remaining native qualification, independent source review, final gates and the held recovery attempt (transport-adapted lane admitted 2026-10-04, unexecuted; owner-widened adapter including gitrun/session.go passed cleanup witnesses, awaiting review and the owner's go).
 - Read next: Requirements; Wire and authority; Publication and restart; Bounds and ownership; Acceptance and traceability.
 
 This slice proposes a separate, bounded **nonlearning** outcome and an explicit keyed Finish
@@ -452,7 +452,8 @@ The requirement definition positions above are preserved for the separately owne
   (`adapterPatchSha256`, `historicalRevision`, `historicalTree`, `path`, `sha256`),
   `planDigest`, `profile`, `qualification` and `session`, as `json.Marshal` bytes plus one LF.
   The only admission is #443's key/plan with BASE `406f9dc3`/tree `e0dfeaa5`, HELD
-  `a79439af`/tree `d6d6b890` and the two pinned adapter patch digests; tests link extra rows only
+  `a79439af`/tree `d6d6b890` and the two pinned adapter patch digests (`c610b712`, `6f58ea18`;
+  owner-widened to `internal/cem/gitrun/session.go` on 2026-10-04); tests link extra rows only
   with `-ldflags -X`. Verifiers still run through the `dogfood-verifier-worker` route; their public
   route refuses. Request provenance is returned on stdout, not stored in local-completion state.
   Refusals are `transport-recovery-request-unavailable`, `transport-recovery-request-invalid`,

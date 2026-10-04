@@ -68,16 +68,18 @@ type transportAdaptation struct {
 }
 
 // admittedTransportAdaptations is closed. Only the #443 held recovery admitted
-// by the owner's 2026-10-04 transport-adapter decision is listed.
+// by the owner's 2026-10-04 transport-adapter decision is listed. Its patch
+// digests pin the owner-widened four-file adapter, which also guards
+// internal/cem/gitrun/session.go (owner approval, 2026-10-04).
 var admittedTransportAdaptations = []transportAdaptation{{
 	session:      "b36b7ba8858646e93b1b86ac88933736cb66ad8974542e34ebeead7693f9f989",
 	planDigest:   "3c6bab794327c66c014b7523ff64f278008389f373a288141dbe3b862f3d666c",
 	baseRevision: "406f9dc3cb80d6af527de5f160370e132e324e9a",
 	baseTree:     "e0dfeaa577e32c3793f686662f4a40952ff04109",
-	basePatch:    "sha256:f926ecc6dcd6423e8944ae73d90286f27202cbd1b4a77d80127c22c3c8ff0720",
+	basePatch:    "sha256:c610b712846b044b2c2f2050a08dfe81803a0c90ff909ca1193629316f0dd9b5",
 	heldRevision: "a79439afd1a8dd0650e598b7a1ec51d79c5c6075",
 	heldTree:     "d6d6b89020cf8459e2e019bd4e443e9450926147",
-	heldPatch:    "sha256:c02e535fc08c6b7116c27a73504c21396a233ff5d9f99de37482f64c65bf1d88",
+	heldPatch:    "sha256:6f58ea184aa98edbc7919f1f0ec23259d869517ac992184c9650d82d9f6e0c0c",
 }}
 
 // transportRecoveryTestAdmissions is empty in every product build. Only a test
