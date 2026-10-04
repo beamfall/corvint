@@ -316,7 +316,7 @@ elsewhere are not repeated.
 | `cem-bindings-required` | `internal/localcompletion/finish.go:175` | the public `cem status` run against the plan base and current target returned an error |
 | `check-executable-unavailable` | `internal/localcompletion/storage.go:515` | `exec.LookPath` cannot resolve a check's executable |
 | `completion-evidence-drift` | `internal/localcompletion/finish.go:337` | after finishing, the tree is not clean, the target or tree differs from the pre-finish snapshot, or the saved report is no longer current |
-| `dogfood-coordination-failed` | `internal/localcompletion/finish.go:371` | the in-process `dogfood change` coordination run did not pass (`LCP-V0-014`) |
+| `dogfood-coordination-failed` | `internal/localcompletion/finish.go:411` | the in-process `dogfood change` coordination run did not pass (`LCP-V0-014`) |
 | `dogfood-event-context-drift` | `cmd/corvint/local_completion_event.go:416` | the loaded index commit or tree revision, or the dirty-path digest, differs from the probed repository context |
 | `dogfood-event-deadline` | `cmd/corvint/local_completion_event.go:129` | the event's context deadline expired or was cancelled, or the Git repository probe's own fixed bound expired first (V1-0396) |
 | `dogfood-event-index-snapshot-stale` | `cmd/corvint/local_completion_event.go:81` | the event's deadline expired after the read found no matching index snapshot and fell back to its in-memory build (`AHI-031`, decision 0400); proposed 2026-09-26, not accepted: also reported before that build when the recorded `index` build cost does not fit the time left (`IDX-SNAP-V0-012`) |
@@ -357,7 +357,7 @@ elsewhere are not repeated.
 | `invalid-local-completion-option-value` | `cmd/corvint/local_completion.go:144` | an option value is empty or longer than 4096 bytes |
 | `invalid-local-completion-schema` | `internal/localcompletion/storage.go:58` | strict JSON input parsed and passed the JSON type check, but decoding into the target type with unknown fields disallowed failed; the JSON type check emits the same code at `internal/localcompletion/storage.go:67`, and a required-field read of input that is not an object at `internal/localcompletion/storage.go:342` |
 | `invalid-local-state-directory` | `internal/localcompletion/lifecycle.go:547` | the session's generation path exists and is not a directory |
-| `invalid-public-evidence-result` | `internal/localcompletion/finish.go:199` | a public evidence command exited zero but its stdout is not JSON with `ok: true` |
+| `invalid-public-evidence-result` | `internal/localcompletion/finish.go:220` | a public evidence command exited zero but its stdout is not JSON with `ok: true` |
 | `invalid-report-set-digest` | `internal/localcompletion/lifecycle.go:435` | the review's report-set digest is not 64 lowercase hex |
 | `invalid-review-digest` | `internal/localcompletion/storage.go:334` | a saved review digest is present and not 64 lowercase hex |
 | `invalid-session-key` | `internal/localcompletion/storage.go:34` | the session key is not 64 lowercase hex |
@@ -365,7 +365,7 @@ elsewhere are not repeated.
 | `invalid-verification-exit` | `internal/localcompletion/storage.go:327` | a saved exit is not the canonical decimal of an integer in -1..255 |
 | `invalid-verification-observation` | `internal/localcompletion/storage.go:330` | a saved observation's log paths are not the check's numbered logs, or its target, tree, check digest or content digest is malformed |
 | `invalid-worktree-owner` | `internal/localcompletion/storage.go:400` | the worktree owner file does not hold a 64-hex key |
-| `local-completion-action-required` | `cmd/corvint/local_completion.go:56@df0e82dd` | `local-completion` is given no action argument |
+| `local-completion-action-required` | `cmd/corvint/local_completion.go:57@df0e82dd` | `local-completion` is given no action argument |
 | `local-completion-failed` | `cmd/corvint/local_completion.go:190@e27e19ee` | the failure code to emit contains a character other than `a-z` or `-`, is empty, or is longer than 96 bytes, so it is replaced |
 | `local-completion-option-required` | `cmd/corvint/local_completion.go:154` | the action's required option is missing |
 | `local-completion-option-value-required` | `cmd/corvint/local_completion.go:144` | a non-inline option is the last argument, or its next token is option-like (`GPK-V0-064`, decision 0196) |
@@ -386,7 +386,7 @@ elsewhere are not repeated.
 | `public-command-output-bound` | `internal/localcompletion/finish.go:184` | a public evidence command overflowed its stdout or stderr bound |
 | `public-evidence-command-failed` | `internal/localcompletion/finish.go:196` | a public evidence command exited non-zero without a valid code on stderr |
 | `public-report-path-invalid` | `internal/localcompletion/finish.go:286` | the report path is not an allowed path |
-| `public-report-path-missing` | `internal/localcompletion/finish.go:281` | the result has no string `report` field |
+| `public-report-path-missing` | `internal/localcompletion/finish.go:302` | the result has no string `report` field |
 | `report-set-stale` | `internal/localcompletion/lifecycle.go:461` | at review, the tree is not clean, the saved report is not current, or the report-set digest differs |
 | `repository-identity-changed` | `internal/localcompletion/storage.go:506` | the repository root, Git directory or common directory changed since open |
 | `repository-snapshot-drift` | `internal/localcompletion/lifecycle.go:253` | the target, tree or cleanliness changed during evaluation |
