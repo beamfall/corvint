@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: proposed
+Intent status: proposed overall; Gate A decisions accepted (decision 0428, owner answer 2026-10-04)
 Delivery status: experimental
 
 Authoritative inputs: owner request [issue 502](https://github.com/beamfall/corvint/issues/502)
@@ -10,16 +10,17 @@ Authoritative inputs: owner request [issue 502](https://github.com/beamfall/corv
 during its independent preparation review (not owner acceptance); the existing
 [agent lease contract](corvint-tasks-agent-leases-v0.md); and two neighbouring intents this one
 composes with but does not restate: issue 501's operator notes (claim-snapshot delivery) and issue
-499's dispatch model-escalation tiers. No owner acceptance of this intent has been recorded. The
-owner-delegated decisions of 2026-10-04 adopt the 500 and 501 intents only. Every requirement below
-is therefore proposed, and the Gate A decisions listed under Unresolved decisions still need
-explicit acceptance.
+499's dispatch model-escalation tiers. The owner accepted the Gate A decisions listed under
+Unresolved decisions as written on 2026-10-04 (decision 0428), so the writer and material slice may
+integrate. That acceptance covers those design choices only; every requirement below stays
+proposed until its own acceptance evidence is retained. The owner-delegated decisions of 2026-10-04
+adopt the 500 and 501 intents only.
 
 ## Agent digest
 - Claim: Workers raise typed questions from admitted claims, operators answer them by compare-and-set, and the next same-acceptance claim receives the answers.
-- Status: proposed intent; experimental delivery of the pure four-file foundation only; no installed escalation capability.
+- Status: proposed overall; Gate A decisions accepted (decision 0428, owner answer 2026-10-04); experimental delivery of the pure four-file foundation only; no installed escalation capability.
 - Exists: closed request/event/reference codecs and a pure reducer with answer selection, derived holds, effective work revision, coded refusals and a per-call decode memo, plus focused tests and a near-capacity benchmark. Nothing calls them yet.
-- Blocked on: owner acceptance of the Gate A decisions; native writer/stage/material/replay integration, CLI, native holds, the 501 claim-snapshot path, dispatcher retry and 499 tier composition.
+- Blocked on: native writer/stage/material/replay integration, CLI, native holds, the 501 claim-snapshot path, dispatcher retry and 499 tier composition.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.
 
 ## User and current state
@@ -115,7 +116,7 @@ no row claims delivered native behavior.
 
 ## Unresolved decisions
 
-These Gate A decisions need explicit owner acceptance before integration: admitted-receipt
+The owner accepted these Gate A decisions as written on 2026-10-04 (decision 0428): admitted-receipt
 invocation context for the shorthand with NOT_OBSERVED authentication; one current event per
 question rather than one question per ticket; sole-open-at-commit shorthand next to exact CAS;
 blocked reason defaulting to the explicitly typed question; infrastructure exhaustion as a distinct
@@ -127,8 +128,8 @@ existing StageLease bounds, revise this contract rather than widen the bounds or
 Findings from the independent review of the first delivery and their disposition:
 
 - Stale OPEN questions locked capacity. Fixed in the pure source by counting only same-acceptance
-  OPEN questions toward the 16 bound (agent decision, 2026-10-04, pending the Gate A capacity
-  acceptance above); the alternative, an explicit retirement route, adds a mutation with its own
+  OPEN questions toward the 16 bound (agent decision, 2026-10-04, accepted with the Gate A
+  capacities by decision 0428); the alternative, an explicit retirement route, adds a mutation with its own
   authority and was not chosen. Stale questions stay visible and still count toward the 64
   lifetime entries, so no history is evicted.
 - One supplied policy decision covers every operation. Still open: the reducer does not refuse an

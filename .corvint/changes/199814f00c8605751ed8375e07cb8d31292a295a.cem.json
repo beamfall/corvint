@@ -1,0 +1,246 @@
+{
+  "baseRevision": "9950a00349cfd52fd8d5abff9967ca488cca2e66",
+  "evidence": [
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3265,
+        "start": 2977
+      },
+      "spanSha256": "29bf8bf25de6e19c57bfee2b1fc98c3d85cbeabf2157578740a5eae467b3c916"
+    },
+    {
+      "blobOid": "cc2182f473f4427d508e049b1181d26f9a7fa525",
+      "id": "evidence:sha256:23619deb5ca6df15019ad4ae7ac04324df39e2091c9e3cd2f1d379126490c896",
+      "path": "docs/specs/corvint-tasks-escalations-v0.md",
+      "span": {
+        "end": 21650,
+        "start": 20998
+      },
+      "spanSha256": "bff90c23ccf45e0c54b874a06834fa577093801d1bf82a02911341ef12077661"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:23619deb5ca6df15019ad4ae7ac04324df39e2091c9e3cd2f1d379126490c896",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b12b5713c23f7f1a31deeef17d8c1bfe93ab575bf1ba5efc38a374856982c647",
+      "newRange": {
+        "count": 33,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/decisions/0428-accept-escalation-gate-a-2026-10-04.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:23619deb5ca6df15019ad4ae7ac04324df39e2091c9e3cd2f1d379126490c896",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f2921ffe366a80d67dcaf110c4022a41988161a8de80740fdd2c787ae65edf3f",
+      "newRange": {
+        "count": 6,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 5,
+        "start": 1
+      },
+      "path": "docs/decisions/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:23619deb5ca6df15019ad4ae7ac04324df39e2091c9e3cd2f1d379126490c896",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f7a111363567b21b3a989edbb06f8c2503d3545fd67dbcc10d9c3fa0b2611546",
+      "newRange": {
+        "count": 7,
+        "start": 685
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 685
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:23619deb5ca6df15019ad4ae7ac04324df39e2091c9e3cd2f1d379126490c896",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3c6b02d3bcd592cfd60049249bc44a299785efa348faa10e9a467b23f267e233",
+      "newRange": {
+        "count": 7,
+        "start": 34
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 34
+      },
+      "path": "docs/specs/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:23619deb5ca6df15019ad4ae7ac04324df39e2091c9e3cd2f1d379126490c896",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:37e08103769b03801afb4c241c0fc2ed97a510344816ffe3b7e01482e5832d3d",
+      "newRange": {
+        "count": 17,
+        "start": 1092
+      },
+      "oldRange": {
+        "count": 17,
+        "start": 1092
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:23619deb5ca6df15019ad4ae7ac04324df39e2091c9e3cd2f1d379126490c896",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:813be920b81dad2326a26e6d0c0120814806a42efbf7dbaea13be9c2be3e6673",
+      "newRange": {
+        "count": 7,
+        "start": 2
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 2
+      },
+      "path": "docs/specs/corvint-tasks-escalations-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:23619deb5ca6df15019ad4ae7ac04324df39e2091c9e3cd2f1d379126490c896",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1501a50bac7e2c4930b21adda9391928db977410a5f3946d74a064c29b727dbf",
+      "newRange": {
+        "count": 17,
+        "start": 10
+      },
+      "oldRange": {
+        "count": 16,
+        "start": 10
+      },
+      "path": "docs/specs/corvint-tasks-escalations-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:23619deb5ca6df15019ad4ae7ac04324df39e2091c9e3cd2f1d379126490c896",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b3aa21f988a79ee3ee4e6f1e04e5677dea39cdcb402fa4f2be10abf7bcf595e5",
+      "newRange": {
+        "count": 7,
+        "start": 116
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 115
+      },
+      "path": "docs/specs/corvint-tasks-escalations-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:23619deb5ca6df15019ad4ae7ac04324df39e2091c9e3cd2f1d379126490c896",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3a685cf9d73a104d2fa38be42c3ab2058c74b6fb703b37e3676bbe9472be0d32",
+      "newRange": {
+        "count": 8,
+        "start": 128
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 127
+      },
+      "path": "docs/specs/corvint-tasks-escalations-v0.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "3512d4e6850e170827d148448498282ff69525d43c20eea72b8499ae124d8384",
+  "spec": "cem/0.2"
+}
