@@ -179,17 +179,17 @@ exit 2.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `admitted-path-limit` | `internal/trace/record.go:361@39025b38` | more than 200 candidates were admitted as current source paths |
-| `candidate-limit` | `internal/trace/record.go:347@94f5b6d5` | `AdmissibleCurrentPaths` received more than 200,000 unique changed-path candidates |
-| `changed-path-acquisition-failed` | `internal/tracerecordrepo/adapter.go:98@f49f60cd` | listing the base-to-target changed paths failed |
-| `changed-path-admission-failed` | `internal/tracerecordrepo/adapter.go:104@69bd23b7` | `trace.AdmissibleCurrentPaths` failed with an error `trace.AdmissionFailureReason` maps to no reason |
+| `admitted-path-limit` | `internal/trace/record.go:345@bd1c5902` | more than 200 candidates were admitted as current source paths |
+| `candidate-limit` | `internal/trace/record.go:345@bd1c5902` | `AdmissibleCurrentPaths` received more than 200,000 unique changed-path candidates |
+| `changed-path-acquisition-failed` | `internal/tracerecordrepo/adapter.go:103@f49f60cd` | listing the base-to-target changed paths failed |
+| `changed-path-admission-failed` | `internal/tracerecordrepo/adapter.go:109@69bd23b7` | `trace.AdmissibleCurrentPaths` failed with an error `trace.AdmissionFailureReason` maps to no reason |
 | `dogfood-record-failed` | `cmd/corvint/dogfood_record.go:146@d0afa17b` | the stderr `code` written when the dogfood-record error carries an empty reason |
-| `invalid-base-revision` | `internal/tracerecordrepo/adapter.go:87@8006b57c` | the base argument does not resolve to a commit |
-| `malformed-path` | `internal/trace/record.go:470@c94787ea` | a path is empty or `pythonString` rejects it (its value cannot be decoded as Python string units); also at `internal/trace/record.go:487@c94787ea`, a normalized, unforbidden path that is tracked (or any stored-row path) breaks the `corvint-dashboard-trace-path-witness/0` lexical profile: more than 4,096 bytes, not valid UTF-8 (an encoded surrogate), a Unicode control, a backslash, or an ASCII-letter-colon prefix (decision 0235) |
-| `record-failed` | `internal/tracerecordrepo/adapter.go:154@0416b61a` | the stability check or recording failed for a reason that is neither repository drift nor a verification reason |
-| `record-index-failed` | `internal/tracerecordrepo/adapter.go:83@a87e1e48` | building the record index and tracked set failed |
-| `secret-shaped-path` | `internal/trace/record.go:473@ba12231a` | a path matches the secret screen |
-| `unnormalized-path` | `internal/trace/record.go:476@5e4376e2` | a path is absolute, contains `//`, is not `path.Clean`-equal to itself, or has a `..` part |
+| `invalid-base-revision` | `internal/tracerecordrepo/adapter.go:92@8006b57c` | the base argument does not resolve to a commit |
+| `malformed-path` | `internal/trace/record.go:474@c94787ea` | a path is empty or `pythonString` rejects it (its value cannot be decoded as Python string units); also at `internal/trace/record.go:491@c94787ea`, a normalized, unforbidden path that is tracked (or any stored-row path) breaks the `corvint-dashboard-trace-path-witness/0` lexical profile: more than 4,096 bytes, not valid UTF-8 (an encoded surrogate), a Unicode control, a backslash, or an ASCII-letter-colon prefix (decision 0235) |
+| `record-failed` | `internal/tracerecordrepo/adapter.go:159@0416b61a` | the stability check or recording failed for a reason that is neither repository drift nor a verification reason |
+| `record-index-failed` | `internal/tracerecordrepo/adapter.go:88@a87e1e48` | building the record index and tracked set failed |
+| `secret-shaped-path` | `internal/trace/record.go:477@ba12231a` | a path matches the secret screen |
+| `unnormalized-path` | `internal/trace/record.go:480@5e4376e2` | a path is absolute, contains `//`, is not `path.Clean`-equal to itself, or has a `..` part |
 | `unsupported-verify-syntax` | `internal/trace/record.go:263@e427c406` | a verification command is empty or contains a byte outside ASCII letters, digits, and `_./:@=+, -` |
 
 ## Acceptance matrix
