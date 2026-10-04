@@ -76,10 +76,11 @@ type nativeRead struct {
 	absent   map[string]bool
 	listed   map[string]os.FileInfo
 	closeErr error
+	physical *physicalReads
 }
 
 func newNativeRead(n Native) *nativeRead {
-	return &nativeRead{n, map[string]*os.Root{}, map[string]bool{}, map[string]os.FileInfo{}, nil}
+	return &nativeRead{native: n, roots: map[string]*os.Root{}, absent: map[string]bool{}, listed: map[string]os.FileInfo{}}
 }
 
 var afterReadNames func(string) // deterministic enumeration/metadata race witness
@@ -217,7 +218,12 @@ func (s *nativeRead) Read(p string, max int) (raw []byte, err error) {
 	if e != nil {
 		return nil, e
 	}
-	defer func() { err = s.closed(err, closeReadFile(f)) }()
+	defer func() {
+		err = s.closed(err, closeReadFile(f))
+		if err == nil && s.physical != nil {
+			err = s.physical.add(p, raw)
+		}
+	}()
 	st, e := f.Stat()
 	if e != nil {
 		return nil, e
