@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -237,5 +238,61 @@ func commitDogfoodChange(t *testing.T, root, message string) {
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)
 		}
+	}
+}
+
+func TestDogfoodRecordNativeLegacyPathLimit(t *testing.T) {
+	for _, n := range []int{200, 201} {
+		t.Run(fmt.Sprint(n), func(t *testing.T) {
+			root := newRecordFixtureAt(t, filepath.Join(t.TempDir(), "repository"))
+			base := recordRevision(t, root)
+			want := make([]string, n)
+			for i := range want {
+				want[i] = fmt.Sprintf("source/f%04d.go", i)
+				writeDogfoodChange(t, root, want[i], fmt.Sprintf("package source\nconst V%d = %d\n", i, i))
+			}
+			commitDogfoodChange(t, root, "legacy path boundary")
+			target := recordRevision(t, root)
+			before := traceTreeSnapshot(t, root)
+			result := execute(t, candidateCommand(dogfoodRecordArguments(root, base, target)...))
+			if n == 201 {
+				if result.exit != 2 || len(result.stdout) != 0 || !bytes.Contains(result.stderr, []byte(`"code": "admitted-path-limit"`)) {
+					t.Fatalf("native 201 result=%#v", result)
+				}
+				if after := traceTreeSnapshot(t, root); !reflect.DeepEqual(before, after) {
+					t.Fatal("refusal changed trace store")
+				}
+				return
+			}
+			if result.exit != 0 || len(result.stderr) != 0 {
+				t.Fatalf("native 200 result=%#v", result)
+			}
+			var payload struct {
+				State      string   `json:"state"`
+				Candidates []string `json:"candidates"`
+				Admitted   []string `json:"admitted"`
+				Trace      struct {
+					Changed []string `json:"changed_paths"`
+				} `json:"trace"`
+			}
+			if err := json.Unmarshal(result.stdout, &payload); err != nil {
+				t.Fatal(err)
+			}
+			if payload.State != "recorded" || !reflect.DeepEqual(payload.Candidates, want) || !reflect.DeepEqual(payload.Admitted, want) || !reflect.DeepEqual(payload.Trace.Changed, want) {
+				t.Fatalf("legacy recorded subset: %+v", payload)
+			}
+			after := traceTreeSnapshot(t, root)
+			added := 0
+			for path, digest := range after {
+				if old, ok := before[path]; old != digest || !ok {
+					if filepath.Ext(path) == ".jsonl" {
+						added++
+					}
+				}
+			}
+			if added != 1 {
+				t.Fatalf("expected one learned trace file; got %d", added)
+			}
+		})
 	}
 }

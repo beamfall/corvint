@@ -18,7 +18,7 @@ import (
 func TestAnalyzerSchemaInputs(t *testing.T) {
 	t.Run("IDX-SNAP-V0-017", func(t *testing.T) {
 		const auditedSchema = "corvint-analyzer/101"
-		const auditedSHA256 = "f512402c39e81afa7b4edd3f59e1f8fac982ff07379395d13202e19f17dc2091"
+		const auditedSHA256 = "abcda1556d5fc46dab067be2376562610815c773c409f43e60336604aca383fe" // re-pinned, no bump: ALO-V0-017 budgeted gitRaw success output is byte-identical
 		root := filepath.Join("..", "..")
 		paths := []string{"go.mod"}
 		if _, err := os.Stat(filepath.Join(root, "go.sum")); err == nil {

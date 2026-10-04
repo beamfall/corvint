@@ -3,11 +3,14 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/Beamfall/corvint/internal/groupreap"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/localcompletion"
 )
@@ -573,5 +576,123 @@ func testDogfoodFinishFromBinary(t *testing.T, root, base string, ignoreRules bo
 		if status := cemGit(t, root, "status", "--porcelain", "--untracked-files=all"); status != "" {
 			t.Fatalf("workflow left dirty paths: %s", status)
 		}
+	}
+}
+
+func TestAggregateQualificationPublicWriterRaces(t *testing.T) {
+	binary := os.Getenv("CORVINT_QUAL_CURRENT_BINARY")
+	if binary == "" || !groupreap.OwnerAvailable() {
+		t.Skip("requires pinned native binary")
+	}
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, second := range []string{"public", "enrolled"} {
+		t.Run(second, func(t *testing.T) {
+			root, base := portableDogfoodRepo(t)
+			run := portableRun{binary: binary, env: os.Environ()}
+			key := localcompletion.HashSession(t.Name())
+			plan, _ := json.Marshal(localcompletion.Plan{Base: base, Intents: []string{"intent.md"}, Checks: []localcompletion.Check{{ID: "fixture", Argv: []string{"go", "test", "./fixture"}, TimeoutSeconds: 60}}})
+			planPath := filepath.Join(t.TempDir(), "plan.json")
+			if err := os.WriteFile(planPath, plan, 0600); err != nil {
+				t.Fatal(err)
+			}
+			run.ok(t, root, "dogfood", "begin", "--plan", planPath, "--session-key", key)
+			bin := t.TempDir()
+			ready := filepath.Join(bin, "ready")
+			release := filepath.Join(bin, "release")
+			script := "#!/bin/sh\nif [ -d \"$QUAL_LOCK\" ] && [ ! -f \"$QUAL_READY\" ]; then printf '%s' \"$$\" > \"$QUAL_READY\"; while [ ! -f \"$QUAL_RELEASE\" ]; do /bin/sleep 0.02; done; fi\nexec \"$QUAL_REAL_GIT\" \"$@\"\n"
+			quote := func(v string) string { return "'" + strings.ReplaceAll(v, "'", "'\\''") + "'" }
+			script = strings.NewReplacer("\"$QUAL_LOCK\"", quote(filepath.Join(root, ".git/corvint/local-completion/operation.lock")), "\"$QUAL_READY\"", quote(ready), "\"$QUAL_RELEASE\"", quote(release), "\"$QUAL_REAL_GIT\"", quote(realGit)).Replace(script)
+			if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0755); err != nil {
+				t.Fatal(err)
+			}
+			first := exec.Command(binary, "dogfood", "change", base)
+			first.Dir = root
+			first.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"), "QUAL_LOCK="+filepath.Join(root, ".git/corvint/local-completion/operation.lock"), "QUAL_READY="+ready, "QUAL_RELEASE="+release, "QUAL_REAL_GIT="+realGit)
+			owner, err := groupreap.Start(first)
+			if err != nil {
+				t.Fatal(err)
+			}
+			retired := false
+			defer func() {
+				if retired {
+					return
+				}
+				owner.Stop()
+				bound := time.Now().Add(20 * time.Second)
+				result := owner.FinishBounded(groupreap.RetirementBound{Expired: func() bool { return !time.Now().Before(bound) }})
+				if result.State != groupreap.Released {
+					t.Errorf("race cleanup: %+v", result)
+				}
+			}()
+			deadline := time.Now().Add(5 * time.Second)
+			for {
+				if _, err := os.Stat(ready); err == nil {
+					break
+				}
+				if !time.Now().Before(deadline) {
+					t.Fatal("first writer did not reach locked barrier")
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			snapshot := func() map[string]string {
+				result := map[string]string{}
+				for _, prefix := range []string{".git/corvint", ".corvint"} {
+					_ = filepath.WalkDir(filepath.Join(root, prefix), func(path string, e os.DirEntry, err error) error {
+						if os.IsNotExist(err) {
+							return nil
+						}
+						if err != nil {
+							t.Fatal(err)
+						}
+						if !e.IsDir() {
+							raw, err := os.ReadFile(path)
+							if err != nil {
+								t.Fatal(err)
+							}
+							result[path] = string(raw)
+						}
+						return nil
+					})
+				}
+				return result
+			}
+			before := snapshot()
+			args := []string{"dogfood", "change", base}
+			if second == "enrolled" {
+				args = []string{"dogfood", "finish", "--session-key", key}
+			}
+			code, out, stderr := run.exec(t, root, nil, args...)
+			if code != 2 || !strings.Contains(stderr, "operation-in-progress") {
+				t.Fatalf("second %s admitted: %d %s %s", second, code, out, stderr)
+			}
+			if after := snapshot(); !reflect.DeepEqual(before, after) {
+				t.Fatal("contending process modified artifacts")
+			}
+			if err := os.WriteFile(release, []byte("release"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			// Cancel the first real public CLI after the contention observation.
+			if err := first.Process.Signal(os.Interrupt); err != nil {
+				t.Fatal(err)
+			}
+			select {
+			case <-owner.Exited():
+			case <-time.After(10 * time.Second):
+				t.Fatal("first writer did not stop")
+			}
+			bound := time.Now().Add(20 * time.Second)
+			result := owner.FinishBounded(groupreap.RetirementBound{Expired: func() bool { return !time.Now().Before(bound) }})
+			if result.State != groupreap.Released {
+				t.Fatalf("owned group not retired: %+v", result)
+			}
+			retired = true
+			if _, err := os.Stat(filepath.Join(root, ".git/corvint/local-completion/operation.lock")); !os.IsNotExist(err) {
+				t.Fatalf("lock not released after observed retirement: %v", err)
+			}
+			t.Logf("firstGroup=%d second=%s observed RELEASED", first.Process.Pid, second)
+		})
 	}
 }

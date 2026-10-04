@@ -827,3 +827,26 @@ func TestConsoleNotLinkedIntoDefaultBinary(t *testing.T) {
 		t.Error("cmd/corvint reaches internal/console; the default binary must not link the console")
 	}
 }
+
+func TestConsoleRefusesAggregateDogfoodProfile(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".corvint"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	raw := []byte(`{"profile":"corvint-dogfood-change/1","base":"aaa","target":"bbb","completionState":"complete","aggregateOutcomeProfile":"corvint-dogfood-aggregate-outcome/0","steps":[]}`)
+	if err := os.WriteFile(filepath.Join(root, dogfoodReportPath), raw, 0644); err != nil {
+		t.Fatal(err)
+	}
+	report := ReadDogfood(root)
+	if report.Err == "" {
+		t.Fatal("unsupported aggregate profile was displayed as accepted")
+	}
+	server, err := New(Options{Addr: "127.0.0.1:0", Repo: root, Binary: "atm"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := get(t, server, "/dogfood")
+	if !strings.Contains(body, "profile") {
+		t.Fatalf("unsupported profile not visible: %s", body)
+	}
+}

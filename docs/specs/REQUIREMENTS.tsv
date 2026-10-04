@@ -170,6 +170,32 @@ AHI-040	docs/specs/agent-harness-integration-v0.md	792	The terminal MUST show Op
 AHI-041	docs/specs/agent-harness-integration-v0.md	799	The terminal MUST show at most 16 members of the current OpenCode session family
 AHI-042	docs/specs/agent-harness-integration-v0.md	815	The owner-approved OpenCode presentation polish (2026-09-30, “ok, update it”, ex
 AHI-043	docs/specs/agent-harness-integration-v0.md	823	For an unchanged committed tree, worktree state, hook input and session key, the
+ALO-V0-001	docs/specs/aggregate-local-outcome-v0.md	43	Activation MUST require the explicit enrolled aggregate selector and exact bound
+ALO-V0-002	docs/specs/aggregate-local-outcome-v0.md	45	Legacy trace, learning, ranking, public fixtures and ordinary /0 behavior MUST
+ALO-V0-003	docs/specs/aggregate-local-outcome-v0.md	47	Candidate and admitted sets MUST use the complete pinned current context-index
+ALO-V0-004	docs/specs/aggregate-local-outcome-v0.md	49	Set, byte, task and verification limits MUST be simultaneous and fail closed;
+ALO-V0-005	docs/specs/aggregate-local-outcome-v0.md	51	The aggregate receipt MUST use the exact closed canonical schema in Wire and
+ALO-V0-006	docs/specs/aggregate-local-outcome-v0.md	53	Path, envelope and logical binding hashes MUST use the specified domains and
+ALO-V0-007	docs/specs/aggregate-local-outcome-v0.md	55	Validation MUST compare independently supplied immutable/enrollment expectations
+ALO-V0-008	docs/specs/aggregate-local-outcome-v0.md	57	Aggregate saved state MUST persist its closed discriminator before publication,
+ALO-V0-009	docs/specs/aggregate-local-outcome-v0.md	59	Valid pending states MUST load as active and unsatisfied, and same-selector
+ALO-V0-010	docs/specs/aggregate-local-outcome-v0.md	61	Every positive status, event, early-Finish, coordination and terminal reuse MUST
+ALO-V0-011	docs/specs/aggregate-local-outcome-v0.md	63	Aggregate reports MUST use the closed /1 dispatch, removing legacy complete and
+ALO-V0-012	docs/specs/aggregate-local-outcome-v0.md	65	All supported current shared writers MUST use the same worktree operation lock
+ALO-V0-013	docs/specs/aggregate-local-outcome-v0.md	67	Prior raw evidence MUST be completely preserved and source-checked before any
+ALO-V0-014	docs/specs/aggregate-local-outcome-v0.md	69	History MUST use immutable content-identified snapshots and exclusive bounded
+ALO-V0-015	docs/specs/aggregate-local-outcome-v0.md	71	History, staging and reservations MUST obey both the 64-ordinal and 64-MiB
+ALO-V0-016	docs/specs/aggregate-local-outcome-v0.md	73	Publication MUST issue identities before each per-file atomic rename and stay
+ALO-V0-017	docs/specs/aggregate-local-outcome-v0.md	75	The aggregate sub-operation MUST share one physical-Git budget and original work
+ALO-V0-018	docs/specs/aggregate-local-outcome-v0.md	77	Production and validation MUST run in the contained same-binary worker with
+ALO-V0-019	docs/specs/aggregate-local-outcome-v0.md	79	Owned descendants MUST retire under one original total retirement bound;
+ALO-V0-020	docs/specs/aggregate-local-outcome-v0.md	81	Predecessors MUST refuse genuine aggregate state and canonical /1 completion;
+ALO-V0-021	docs/specs/aggregate-local-outcome-v0.md	83	Qualification MUST execute the frozen fault, reload, compatibility, boundary and
+ALO-V0-022	docs/specs/aggregate-local-outcome-v0.md	85	Promotion and held recovery MUST require separate concrete admission, actual
+ALO-V0-023	docs/specs/aggregate-local-outcome-v0.md	87	Held recovery MAY replace the running binary's verifier roles only through the
+ALO-V0-024	docs/specs/aggregate-local-outcome-v0.md	92	The request MUST be one closed canonical JSON value binding the selected session
+ALO-V0-025	docs/specs/aggregate-local-outcome-v0.md	97	BASE and TREE executables MUST be distinct regular files equal to the request an
+ALO-V0-026	docs/specs/aggregate-local-outcome-v0.md	100	The result names `TRANSPORT_ADAPTED_HISTORICAL` with the request digest. It neve
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,
