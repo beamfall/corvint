@@ -24,18 +24,19 @@ const (
 
 // Config is the closed taskman-dispatch/0 operator configuration.
 type Config struct {
-	Profile          string          `json:"profile"`
-	StateDir         string          `json:"stateDir"`
-	WorkRoot         string          `json:"workRoot"`
-	TickSeconds      int             `json:"tickSeconds"`
-	GlobalCap        int             `json:"globalCap"`
-	KillGraceSeconds int             `json:"killGraceSeconds"`
-	Hosts            map[string]Host `json:"hosts"`
-	WorkState        *WorkState      `json:"workState,omitempty"`
-	Roles            []Role          `json:"roles"`
-	Pinned           []string        `json:"pinned,omitempty"`
-	Backoff          Backoff         `json:"backoff"`
-	Heal             Heal            `json:"heal"`
+	PoolSweep        *PoolSweepConfig `json:"poolSweep,omitempty"`
+	Profile          string           `json:"profile"`
+	StateDir         string           `json:"stateDir"`
+	WorkRoot         string           `json:"workRoot"`
+	TickSeconds      int              `json:"tickSeconds"`
+	GlobalCap        int              `json:"globalCap"`
+	KillGraceSeconds int              `json:"killGraceSeconds"`
+	Hosts            map[string]Host  `json:"hosts"`
+	WorkState        *WorkState       `json:"workState,omitempty"`
+	Roles            []Role           `json:"roles"`
+	Pinned           []string         `json:"pinned,omitempty"`
+	Backoff          Backoff          `json:"backoff"`
+	Heal             Heal             `json:"heal"`
 }
 
 // Host is one worker runtime. argv[0] is an absolute executable; every argv
@@ -120,6 +121,9 @@ func DecodeConfig(raw []byte) (*Config, error) {
 	if len(raw) > MaxConfig {
 		return nil, fmt.Errorf("dispatch config exceeds %d bytes", MaxConfig)
 	}
+	if !strictSweepConfig(raw) {
+		return nil, fmt.Errorf("dispatch config: malformed poolSweep JSON")
+	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	var c Config
@@ -137,6 +141,9 @@ func DecodeConfig(raw []byte) (*Config, error) {
 
 func (c *Config) validate() error {
 	fail := func(f string, a ...any) error { return fmt.Errorf("dispatch config: "+f, a...) }
+	if c.PoolSweep != nil && (c.PoolSweep.TimeoutSeconds < 1 || c.PoolSweep.TimeoutSeconds > 1800 || c.PoolSweep.IntervalSeconds < 1 || c.PoolSweep.IntervalSeconds > 3600) {
+		return fail("poolSweep requires timeoutSeconds 1..1800 and intervalSeconds 1..3600")
+	}
 	if c.Profile != ConfigProfile {
 		return fail("profile must be %s", ConfigProfile)
 	}

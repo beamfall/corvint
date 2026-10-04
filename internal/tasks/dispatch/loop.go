@@ -36,7 +36,13 @@ type Dispatcher struct {
 	codes  map[string]int
 	lock   *os.File
 	// Tests place cancellation exactly across the checked atomic write.
-	progressSave func(*Ledger, string) error
+	progressSave  func(*Ledger, string) error
+	poolSweepSave func(*Ledger, string) error
+	sweepJob      *poolSweepJob
+	sweepTried    map[string]bool
+	sweepNext     time.Time
+	closed        bool
+	closeErr      error
 }
 
 // Open locks the program's state directory, loads the ledger and adopts
@@ -87,14 +93,24 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 		}
 		d.emit(Event{Kind: "adopted", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg})
 	}
-	return d, d.ledger.save(dir)
+	if err := d.ledger.save(dir); err != nil {
+		_ = d.lock.Close()
+		return nil, err
+	}
+	return d, nil
 }
 
 // Close records the stop and releases the lock. Workers keep running and
 // are adopted by the next dispatcher.
 func (d *Dispatcher) Close() error {
+	if d.closed {
+		return d.closeErr
+	}
+	joinedErr := d.stopPoolSweep()
 	d.emit(Event{Kind: "stopped", Message: fmt.Sprintf("dispatcher stopped; %d worker(s) left running for the next dispatcher", len(d.ledger.Workers))})
-	err := d.ledger.save(d.dir)
+	err := errors.Join(joinedErr, d.ledger.save(d.dir))
+	d.closed = true
+	d.closeErr = err
 	_ = d.lock.Truncate(0)
 	d.lock.Close()
 	return err
@@ -152,7 +168,8 @@ func (d *Dispatcher) LastEvent() uint64 { return d.ledger.EventSeq }
 
 // Run ticks until ctx ends or ticks reach the bound (0 is unbounded). A
 // failed tick is an alert, not an exit, so the dispatcher keeps supervising.
-func (d *Dispatcher) Run(ctx context.Context, ticks int) error {
+func (d *Dispatcher) Run(ctx context.Context, ticks int) (result error) {
+	defer func() { result = errors.Join(result, d.stopPoolSweep()) }()
 	var last error
 	for n := 0; ticks == 0 || n < ticks; n++ {
 		if ctx.Err() != nil {
@@ -229,10 +246,11 @@ func (d *Dispatcher) Tick(ctx context.Context) error {
 		return ctx.Err()
 	}
 	d.diff(obs)
+	obs, sweepErr := d.tickPoolSweep(ctx, obs)
 	if ctx.Err() == nil {
 		d.launchRoster(obs)
 	}
-	return nil
+	return sweepErr
 }
 
 func (d *Dispatcher) observe(ctx context.Context) (*Observation, error) {
@@ -689,6 +707,11 @@ func (d *Dispatcher) launchRoster(obs *Observation) {
 	skip := map[string]bool{}
 	for k, b := range d.ledger.Backoff {
 		skip[k] = b.Parked || b.CooldownUntil.After(now)
+	}
+	for _, m := range obs.Members {
+		if d.sweepLaneHeld(m.Pool, m.Member) {
+			skip[laneKey(m.Pool, m.Member)] = true
+		}
 	}
 	for _, a := range Roster(d.Config, obs, busy, skip) {
 		role := d.role(a.Role)
