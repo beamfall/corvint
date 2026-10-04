@@ -3,11 +3,10 @@
 ## Decision
 
 The owner accepted `docs/specs/corvint-tasks-operator-notes-v0.md` (ON-V0) as drafted, with its
-current defaults, on 2026-10-04. The orchestrator session relayed that acceptance; the implementing
-agent did not observe it directly. The spec header, its INDEX entry and its README row now record
-the intent as `accepted (owner decision 2026-10-04, relayed by the orchestrator session)`, and
-`go test ./internal/specindex/` was rerun after the change. Direct confirmation stays an
-unresolved item before promotion.
+current defaults, on 2026-10-04. The owner gave that acceptance directly, through a structured
+question in the orchestrator session. The spec header, its INDEX entry and its README row record
+the intent as `accepted (owner decision 2026-10-04)`, and `go test ./internal/specindex/` was rerun
+after the change.
 
 This slice wires the pure foundation into the native store. Issues 502 (typed escalations) and 504
 (review verdicts as gate results) will reuse the MUTATE derived-event slot. For that reason the slot

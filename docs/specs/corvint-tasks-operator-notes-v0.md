@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted (owner decision 2026-10-04, relayed by the orchestrator session)
+Intent status: accepted (owner decision 2026-10-04)
 Delivery status: experimental
 
 Authoritative inputs: owner request [issue 501](https://github.com/beamfall/corvint/issues/501)
 (native ticket V1-0698); the issue's NOTE501-001..010 preparation intent with its independently
 reviewed precision corrections, adopted with limits by owner-delegated decision 2026-10-04 (agent
-decided); the owner's acceptance of this profile with its drafted defaults on 2026-10-04, relayed
-by the orchestrator session and not directly observed by the implementing agent; and the existing
+decided); the owner's direct acceptance of this profile with its drafted defaults on 2026-10-04,
+given through a structured question in the orchestrator session; and the existing
 [agent lease contract](corvint-tasks-agent-leases-v0.md). The second delivery adds the native writer,
 the record and Core codecs, the `ticket note` CLI and the `ticket show` view; claim delivery,
 anchored history, per-event receipt-audit binding and durable qualification come later. The older TCP-00 task-store recovery contract remains partially
@@ -18,7 +18,7 @@ restates its own required ticket/mutation/receipt boundaries without waiving tha
 
 ## Agent digest
 - Claim: Operators attach one current advisory note to a ticket, retain immutable history, and deliver the exact admitted note with each successful claim.
-- Status: accepted (owner decision 2026-10-04, relayed by the orchestrator session); experimental; native NOTE_SET/NOTE_CLEAR writer, `ticket note set|clear|show` and the `ticket show` operatorNote view exist; claims do not yet deliver notes.
+- Status: accepted (owner decision 2026-10-04); experimental; native NOTE_SET/NOTE_CLEAR writer, `ticket note set|clear|show` and the `ticket show` operatorNote view exist; claims do not yet deliver notes.
 - Exists: closed reference/event codecs, the optional record/Core `operatorNote` reference, one measured MUTATE derived-event slot, explicit OPERATOR policy grants, ADOPT_FILE refusal, CLI and current-note reads with focused and native-store tests.
 - Blocked on: claim-time delivery (ON-V0-007), anchored history pages, per-event receipt-audit and redo binding (ON-V0-006), durable qualification, and the existing TCP-00 active-staging recovery limit.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.
@@ -149,8 +149,6 @@ under "Required integrated evidence" remain NOT_RUN.
 
 - Whether claim delivery needs an amendment to the agent lease contract, decided in the
   claim-delivery slice.
-- The relayed owner acceptance was not directly observed by the implementing agent; confirm before
-  promotion.
 
 Kill criterion: stop or narrow the capability if bounded original material cannot be recovered
 without an unauthorized general recovery rewrite.
