@@ -570,6 +570,27 @@ and container qualification; full fallback remains available.
   hosted reuse path and its effect on completed `main` results are `NOT_OBSERVED` until a
   merge lands with matching records. Rollback removes the `reuse` step, which restores FULL
   for every push.
+- **AFP-V0-025:** (owner-directed, proposed, 2026-10-04; V1-0719) The repository SHALL commit
+  `.corvint/unbounded-readers.json`, the closed object
+  `{"profile":"corvint-unbounded-reader-ceiling/0","ceiling":N,"reasons":{DIR:REASON}}`, at most
+  64 KiB. `N` is the largest admitted number of unbounded test units: units with tests that
+  rule (d) selects on any dirty path because neither a literal nor a declared read scope
+  (AFP-V0-023) bounds their reads. `reasons` records, by test directory, why a package's reads
+  cannot be declared. `tools/unbounded-readers` builds the same unit graph the planner builds
+  and `make unbounded-readers-check`, a `doc-gates` and `make gate` step, MUST fail when the
+  count exceeds `N`, when a `reasons` directory is not an unbounded test unit, or when the
+  record is absent or not exactly this grammar. A count below `N` passes and asks for `N` to
+  be lowered; nothing lowers it automatically. Raising `N` is an ordinary reviewed edit of the
+  record: the check makes growth visible, it does not forbid it. Each full pull-request run
+  SHALL also report, in the step summary of shard 0 and as the `affected-share` artifact
+  (`corvint-ci-selected-share/0`), the estimated time of the packages the advisory AFP-V0-022
+  plan selected as a share of the complete universe, priced with the partition's cost
+  estimates and the median for an unpriced package, with the part held by packages selected
+  only as unbounded readers. The report is a shadow metric: it never narrows what runs, and a
+  missing plan or unreadable estimates only omit it. Limits: the estimates are one retained
+  hosted run, not this run's measured time; the count is of units, not of their cost; a
+  `reasons` entry is a reviewed statement, not a proof that no narrower declaration exists.
+  Rollback removes the make step and the two workflow steps.
 
 ## Non-goals and authority
 
@@ -627,6 +648,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-013 | `tools/corvint-pr-tests` and `.github/workflows/ci.yml` | `TestSelectedFailureAndFallback`, `TestInterruptionLeavesNoLiveDescendant`; trusted pins empty, hosted execution unavailable |
 | AFP-V0-015 | `tools/corvint-pr-tests/container.go` and indexed shadow execution | `TestContainerProfileAndArchive`, `TestColdRuntime`, `TestFrozenRowIndex`, `TestDockerCLIInterruption`, `TestContainerCleanupRefusal`; real Linux row/hosted NOT_RUN |
 | AFP-V0-024 | `tools/ci-reuse-plan`; `docs-plan` and `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0024ReusesOnlyAnExactTreeRecordedByEveryShard`, `TestAFPV0024AnythingElseRunsInFull`; local replay of the push step against the live API returned FULL; hosted reuse `NOT_OBSERVED` |
+| AFP-V0-025 | `tools/unbounded-readers`, `.corvint/unbounded-readers.json`, `make unbounded-readers-check`; `Graph.UnboundedReaders`; `ShareOf` in `.github/cishards/order.go`; `doc-gates` and `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0025RatchetFailsAboveTheRecordedCeiling`, `TestAFPV0025RatchetWithoutARecordRefuses`, `TestAFPV0025ShareReportsSelectedEstimatedTime`; hosted share report `NOT_OBSERVED` until this change's own CI run |
 | AFP-V0-014 | `tools/corvint-pr-tests/shadow.go` | `TestQualificationAndTerminalFailures`, `TestToolIdentityRequiresCurrentGoVersion`; frozen 200-row qualification NOT_RUN |
 | AFP-V0-016 | `.github/workflows/ci-control-plane.yml`; the `main` repository ruleset | `actionlint`; `success` posted on PR #26 (run 35444060752) and PR #24 (run 35446378936); ruleset 23699808 active with the decision 0320 settings; the decision 0390 settings (no bypass, `doc-gates` required) and the admin-status consent path NOT_VERIFIED until the owner applies them; `failure` path NOT_RUN on a real PR |
 | AFP-V0-017 | `.github/workflows/pr-tests-qualification.yml` | `actionlint`; dispatch NOT_RUN (`main` has fewer than 201 first-parent commits) |
