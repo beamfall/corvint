@@ -1,0 +1,380 @@
+{
+  "processContract": "process-types.contract.go + process-policy/proof/preimages schemas + process-verification.md. Concrete postmergeproof verifier solely mints opaque tokens; current samples unsupported.",
+  "profile": "corvint-new-e2e-field-map/2",
+  "rules": [
+    {
+      "field": "body",
+      "semanticSchema": {
+        "$ref": "#/$defs/rendering"
+      },
+      "sourceType": "testacceptance.Report",
+      "verification": "Recompute existing renderBody from this exact verified report and request; compare actual raw Body bytes before projection. No second renderer."
+    },
+    {
+      "field": "native_receipt",
+      "semanticSchema": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/semantic-link"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "sourceType": "testacceptance.Run",
+      "verification": "Hash raw base64-decoded bytes, strict DecodeFreshness, request/row/control closure, then semantic node link. Preserve optional presence."
+    },
+    {
+      "field": "receipt_sha256",
+      "semanticSchema": {
+        "$ref": "#/$defs/semantic-link"
+      },
+      "sourceType": "testacceptance.Run",
+      "verification": "Verify native byte digest and join same provider node; incomplete legacy run refuses."
+    },
+    {
+      "field": "duration_ms",
+      "semanticSchema": {
+        "$ref": "#/$defs/measurement"
+      },
+      "sourceType": "testacceptance.Row",
+      "verification": "Check finite nonnegative raw value, native row equality and recomputed min/max. Retain zero/null/absence states."
+    },
+    {
+      "field": "min_duration_ms",
+      "semanticSchema": {
+        "$ref": "#/$defs/measurement"
+      },
+      "sourceType": "testacceptance.RepeatSummary",
+      "verification": "Recompute from every matched repeat native row; preserve optional presence and zero, attachment keeps raw float."
+    },
+    {
+      "field": "max_duration_ms",
+      "semanticSchema": {
+        "$ref": "#/$defs/measurement"
+      },
+      "sourceType": "testacceptance.RepeatSummary",
+      "verification": "Recompute from every matched repeat native row; preserve optional presence and zero, attachment keeps raw float."
+    },
+    {
+      "field": "durationMs",
+      "semanticSchema": {
+        "$ref": "#/$defs/measurement"
+      },
+      "sourceType": "jstestprovider.TestOutcome",
+      "verification": "Only named elapsed field: no native acceptance predicate reads its magnitude; all timeout/cancel/state/retry facts remain exact. No metrics exception."
+    },
+    {
+      "field": "durationMs",
+      "semanticSchema": {
+        "$ref": "#/$defs/measurement"
+      },
+      "sourceType": "jstestprovider.AttemptDetail",
+      "verification": "Only named elapsed field: no native acceptance predicate reads its magnitude; all timeout/cancel/state/retry facts remain exact. No metrics exception."
+    },
+    {
+      "field": "receipt_digest",
+      "semanticSchema": {
+        "$ref": "#/$defs/semantic-link"
+      },
+      "sourceType": "testacceptance.Control",
+      "verification": "Verify EvidenceReceipt digest and full graph; link exact control semantic node."
+    },
+    {
+      "field": "evidence",
+      "semanticSchema": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/sem.behaviorfalsify.EvidenceReceipt"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "sourceType": "testacceptance.Control",
+      "verification": "VerifyReceipt plus prepared classifyFreshness complete attempt/native joins."
+    },
+    {
+      "field": "digest",
+      "semanticSchema": {
+        "$ref": "#/$defs/native-seal"
+      },
+      "sourceType": "behaviorfalsify.EvidenceReceipt",
+      "verification": "Verify original producer digest recipe and retained preimage; semantic child links and complete typed payload preserve identity. This marker never replaces verification."
+    },
+    {
+      "field": "digest",
+      "semanticSchema": {
+        "$ref": "#/$defs/native-seal"
+      },
+      "sourceType": "behaviorfalsify.Report",
+      "verification": "Verify original producer digest recipe and retained preimage; semantic child links and complete typed payload preserve identity. This marker never replaces verification."
+    },
+    {
+      "field": "digest",
+      "semanticSchema": {
+        "$ref": "#/$defs/native-seal"
+      },
+      "sourceType": "behaviorfalsify.Approval",
+      "verification": "Verify original producer digest recipe and retained preimage; semantic child links and complete typed payload preserve identity. This marker never replaces verification."
+    },
+    {
+      "field": "hook_bytes",
+      "semanticSchema": {
+        "$ref": "#/$defs/semantic-link"
+      },
+      "sourceType": "behaviorfalsify.RawAttempt",
+      "verification": "Verify exact raw preimages and crosslink plan/control/attempt/hook/native; link corresponding fully mapped semantic node."
+    },
+    {
+      "field": "native_bytes",
+      "semanticSchema": {
+        "$ref": "#/$defs/semantic-link"
+      },
+      "sourceType": "behaviorfalsify.RawAttempt",
+      "verification": "Verify exact raw preimages and crosslink plan/control/attempt/hook/native; link corresponding fully mapped semantic node."
+    },
+    {
+      "field": "hook_sha256",
+      "semanticSchema": {
+        "$ref": "#/$defs/semantic-link"
+      },
+      "sourceType": "behaviorfalsify.RawAttempt",
+      "verification": "Verify exact raw preimages and crosslink plan/control/attempt/hook/native; link corresponding fully mapped semantic node."
+    },
+    {
+      "field": "native_sha256",
+      "semanticSchema": {
+        "$ref": "#/$defs/semantic-link"
+      },
+      "sourceType": "behaviorfalsify.RawAttempt",
+      "verification": "Verify exact raw preimages and crosslink plan/control/attempt/hook/native; link corresponding fully mapped semantic node."
+    },
+    {
+      "field": "native_receipt_sha256",
+      "semanticSchema": {
+        "$ref": "#/$defs/semantic-link"
+      },
+      "sourceType": "behaviorfalsify.HookReceipt",
+      "verification": "Verify actual native bytes referenced by this exact hook; link same provider semantic node."
+    },
+    {
+      "field": "stdout_sha256",
+      "semanticSchema": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/semantic-link"
+          },
+          {
+            "$ref": "#/$defs/log-fact"
+          }
+        ]
+      },
+      "sourceType": "behaviorfalsify.ProcessEvidence",
+      "verification": "Stdout must link decoded hook when native hook result; other success logs retain raw bytes and presence. Any log consumed by a rule remains exact or unsupported. Failed process rejects positive."
+    },
+    {
+      "field": "stderr_sha256",
+      "semanticSchema": {
+        "$ref": "#/$defs/log-fact"
+      },
+      "sourceType": "behaviorfalsify.ProcessEvidence",
+      "verification": "Exact raw stderr preimage/hash retained. Only bounded uninterpreted successful stderr maps to absence/empty/present. No stderr semantic-link branch. Consumed/error log exact or positive refused."
+    },
+    {
+      "field": "pid",
+      "semanticSchema": {
+        "$ref": "#/$defs/logical-process"
+      },
+      "sourceType": "jstestprovider.FreshProcessIdentity",
+      "verification": "Qualified host birth/parent/lifetime mapping only; full process pair cannot be projected from PID alone."
+    },
+    {
+      "field": "start",
+      "semanticSchema": {
+        "$ref": "#/$defs/native-seal"
+      },
+      "sourceType": "jstestprovider.FreshProcessIdentity",
+      "verification": "Join same verified birth to logical node. Raw second-granularity observer limitation remains exact, no hostile reuse claim."
+    },
+    {
+      "field": "pid",
+      "semanticSchema": {
+        "$ref": "#/$defs/logical-process"
+      },
+      "sourceType": "procgroup.ObservedProcess",
+      "verification": "Every raw observed pair resolves bijectively to qualified logical role; do not sort PID order into a false logical schedule."
+    },
+    {
+      "field": "parent_pid",
+      "semanticSchema": {
+        "$ref": "#/$defs/native-seal"
+      },
+      "sourceType": "procgroup.ObservedProcess",
+      "verification": "Verify exact physical parent and birth; mapped logical parent already in process node. Missing parent evidence blocks."
+    },
+    {
+      "field": "start",
+      "semanticSchema": {
+        "$ref": "#/$defs/native-seal"
+      },
+      "sourceType": "procgroup.ObservedProcess",
+      "verification": "Verify exact physical parent and birth; mapped logical parent already in process node. Missing parent evidence blocks."
+    },
+    {
+      "field": "id",
+      "semanticSchema": {
+        "$ref": "#/$defs/logical-process"
+      },
+      "sourceType": "jstestprovider.ApplicationInstanceIdentity",
+      "verification": "Only admitted process-backed source-direct instance profile, verified provider output preimage, birth correspondence and freshness before/after/control distinctness. Other instance kinds unsupported."
+    },
+    {
+      "field": "startGeneration",
+      "semanticSchema": {
+        "$ref": "#/$defs/native-seal"
+      },
+      "sourceType": "jstestprovider.ApplicationInstanceIdentity",
+      "verification": "Verify exact raw generation and logical lifetime; keep kind exact."
+    },
+    {
+      "field": "outputDigest",
+      "semanticSchema": {
+        "$ref": "#/$defs/semantic-link"
+      },
+      "sourceType": "jstestprovider.ApplicationAttestationObservation",
+      "verification": "Verify exact raw provider stdout preimage (currently must be added to retention), link full semantic attestation payload."
+    },
+    {
+      "field": "runnerResources",
+      "semanticSchema": {
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "MaxRSSBytes": {
+                "additionalProperties": false,
+                "properties": {
+                  "rule": {
+                    "const": "native-resource-no-acceptance-rule/0"
+                  },
+                  "state": {
+                    "enum": [
+                      "zero",
+                      "measured"
+                    ]
+                  }
+                },
+                "required": [
+                  "state",
+                  "rule"
+                ],
+                "type": "object"
+              },
+              "SystemCPUNs": {
+                "additionalProperties": false,
+                "properties": {
+                  "rule": {
+                    "const": "native-resource-no-acceptance-rule/0"
+                  },
+                  "state": {
+                    "enum": [
+                      "zero",
+                      "measured"
+                    ]
+                  }
+                },
+                "required": [
+                  "state",
+                  "rule"
+                ],
+                "type": "object"
+              },
+              "UserCPUNs": {
+                "additionalProperties": false,
+                "properties": {
+                  "rule": {
+                    "const": "native-resource-no-acceptance-rule/0"
+                  },
+                  "state": {
+                    "enum": [
+                      "zero",
+                      "measured"
+                    ]
+                  }
+                },
+                "required": [
+                  "state",
+                  "rule"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "UserCPUNs",
+              "SystemCPUNs",
+              "MaxRSSBytes"
+            ],
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "sourceType": "jstestprovider.Receipt",
+      "verification": "Raw UserCPUNs/SystemCPUNs/MaxRSSBytes retained; no resource-threshold profile admitted. If policy consumes any value retain exact /2 fact, otherwise this profile blocks that policy."
+    },
+    {
+      "field": "sha256",
+      "semanticSchema": {
+        "oneOf": [
+          {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          {
+            "$ref": "#/$defs/semantic-link"
+          }
+        ]
+      },
+      "sourceType": "behaviorfalsify.Artifact",
+      "verification": "Specific native artifact digest link only when full raw artifact correspondence is independently verified. Other content digests exact; ambiguous/unmapped references block."
+    },
+    {
+      "field": "processes",
+      "semanticSchema": {
+        "anyOf": [
+          {
+            "items": {
+              "$ref": "#/$defs/sem.procgroup.ObservedProcess"
+            },
+            "maxItems": 4096,
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "sourceType": "procgroup.DescendantObservation",
+      "verification": "After every physical birth has an injective qualified logical mapping, sort mapped witness rows by pid.node ASCII bytes. Duplicate logical nodes within one array block. Retain original raw ordering. Never sort native test/run/worker schedules."
+    }
+  ],
+  "semanticLinkContract": "semantic-links.json and semantic-links.md define finite target kinds, canonical nested locators, association/payload preimages and multiplicity; no containing-node or alternate resolver fallback.",
+  "sourceDefault": "All fields, scalar types, optional presence, nulls, array order and map key sets EXACT. No unknown-field fallback. Never rewrite raw /0 or /1 reports.",
+  "specialRules": [
+    "All logical paths identical across fresh admitted host instances; no generic path substitution. Actual mounting identities retained and verified by host.",
+    "Only sem.procgroup.DescendantObservation.processes arrays and top-level verified processes registry sort by unique logical node ASCII bytes, plus derived birth_distinct_from lists as unique ASCII-sorted relations. All raw arrays stay exact retained; every test/run/worker/schedule/probe/attempt array remains original order. Duplicate/ambiguous logical nodes block.",
+    "ProjectIdentity.use is exact manifest-pinned JSON bytes represented base64; require admitted manifest closed schema and compare preimage, do not erase arbitrary keys.",
+    "behaviorfalsify plan_preimage, workspace_before/after, marker and plan digests stay exact. If disposable path causes variation, use identical qualified logical mounts; never strip these digests.",
+    "Native application provider outputs and successful control stderr require actual retained bytes, not hashes alone. Existing schema lacks some preimages; producer retention must add separate attachment artifacts without rewriting existing receipt schema.",
+    "All testvalidity Axis anchors remain exact unless a pinned typed proof-node dependency is specifically admitted. Current source anchors not proven stable stay exact and unequal decisions mismatch.",
+    "Historical metrics durations, timestamps and window inventories exact; no /2 duration stripping there.",
+    "Self-seal marker is computed only after native digest verification, not an externally supplied boolean. Corresponding semantic object and every referenced child is still in the decision, hashes domain-bound at root."
+  ],
+  "status": "PRIVATE_EXECUTABLE_CONTRACT_PROPOSAL",
+  "unimplemented": "Verifier, host qualification, provider output retention, connector admission, /2 runtime and positive historical fixture."
+}
