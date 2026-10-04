@@ -58,7 +58,8 @@ AFP-V0-021	docs/specs/affected-plan-v0.md	431	(accepted, decision 0376; ticket V
 AFP-V0-022	docs/specs/affected-plan-v0.md	480	(owner-directed experimental profile, 2026-10-01; V1-0616/0617) Full CI SHALL
 AFP-V0-023	docs/specs/affected-plan-v0.md	517	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081) A project MAY commit
 AFP-V0-024	docs/specs/affected-plan-v0.md	555	(owner-directed, proposed, 2026-10-04; V1-0717) A push to `main` MAY reuse a
-AFP-V0-025	docs/specs/affected-plan-v0.md	581	(owner-directed, proposed, 2026-10-04; V1-0719) The repository SHALL commit
+AFP-V0-025	docs/specs/affected-plan-v0.md	581	(owner-directed, proposed, 2026-10-04; V1-0719, V1-0752) The repository SHALL
+AFP-V0-026	docs/specs/affected-plan-v0.md	616	(owner-directed, proposed, 2026-10-04; V1-0752) `.github/workflows/ci.yml`
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
@@ -1076,33 +1077,33 @@ EPG-V0-006	docs/specs/eol-policy-gate-v0.md	66	The gate MUST scan the whole list
 EPG-V0-007	docs/specs/eol-policy-gate-v0.md	70	Failure to start or successfully close `git ls-files --eol`, and an unparsable
 EPG-V0-008	docs/specs/eol-policy-gate-v0.md	73	A drift-free run MUST exit 0 and print exactly one summary line containing the
 EPG-V0-009	docs/specs/eol-policy-gate-v0.md	75	`make gate` MUST invoke both `eol-policy-check`, which runs the policy script, a
-ERG-V0-001	docs/specs/corvint-tasks-external-reviews-v0.md	47	A review record MUST distinguish the reviewed subject from the recording actor.
-ERG-V0-002	docs/specs/corvint-tasks-external-reviews-v0.md	56	The reviewed candidate MUST be a closed tagged union bound to the subject.
-ERG-V0-003	docs/specs/corvint-tasks-external-reviews-v0.md	62	Each committed record or resubmission MUST be one immutable canonical `taskman-e
-ERG-V0-004	docs/specs/corvint-tasks-external-reviews-v0.md	74	A ticket MAY carry an optional bounded `externalReviews` map of at most 16 gate
-ERG-V0-005	docs/specs/corvint-tasks-external-reviews-v0.md	80	Records and resubmissions MUST be ordered by exact generation and revision CAS.
-ERG-V0-006	docs/specs/corvint-tasks-external-reviews-v0.md	90	Current routing state MUST become STALE when the acceptance revision, external g
-ERG-V0-007	docs/specs/corvint-tasks-external-reviews-v0.md	97	External review events MUST remain routing evidence only.
-ERG-V0-008	docs/specs/corvint-tasks-external-reviews-v0.md	103	Recovery MUST validate material bindings, not only digests.
-ERG-V0-009	docs/specs/corvint-tasks-external-reviews-v0.md	111	The native writer, policy, reads and workState adapter MUST be installed before
-ERG-V0-010	docs/specs/corvint-tasks-external-reviews-v0.md	124	Promotion and rollback MUST keep the pure seed, full integration and producers d
+ERG-V0-001	docs/specs/corvint-tasks-external-reviews-v0.md	64	A review record MUST distinguish the reviewed subject from the recording actor.
+ERG-V0-002	docs/specs/corvint-tasks-external-reviews-v0.md	73	The reviewed candidate MUST be a closed tagged union bound to the subject.
+ERG-V0-003	docs/specs/corvint-tasks-external-reviews-v0.md	79	Each committed record or resubmission MUST be one immutable canonical `taskman-e
+ERG-V0-004	docs/specs/corvint-tasks-external-reviews-v0.md	91	A ticket MAY carry an optional bounded `externalReviews` map of at most 16 gate
+ERG-V0-005	docs/specs/corvint-tasks-external-reviews-v0.md	97	Records and resubmissions MUST be ordered by exact generation and revision CAS.
+ERG-V0-006	docs/specs/corvint-tasks-external-reviews-v0.md	107	Current routing state MUST become STALE when the acceptance revision, external g
+ERG-V0-007	docs/specs/corvint-tasks-external-reviews-v0.md	114	External review events MUST remain routing evidence only.
+ERG-V0-008	docs/specs/corvint-tasks-external-reviews-v0.md	120	Recovery MUST validate material bindings, not only digests.
+ERG-V0-009	docs/specs/corvint-tasks-external-reviews-v0.md	128	The native writer, policy, reads and workState adapter MUST be installed before
+ERG-V0-010	docs/specs/corvint-tasks-external-reviews-v0.md	144	Promotion and rollback MUST keep the pure seed, full integration and producers d
 ERI-V0-001	docs/specs/expanded-range-impact-v0.md	35	`corvint impact --base FULL_COMMIT_ID --range-profile expanded-256` MUST explici
 ERI-V0-002	docs/specs/expanded-range-impact-v0.md	41	The experimental profile MUST use the complete original base-to-captured-HEAD
 ERI-V0-003	docs/specs/expanded-range-impact-v0.md	50	Only this profile's path capacity changes. The cumulative 10,000-admitted-hunk a
 ERI-V0-004	docs/specs/expanded-range-impact-v0.md	57	Without the new option, the existing range profile, its 100-path refusal, positi
 ERI-V0-005	docs/specs/expanded-range-impact-v0.md	65	The experimental compiler MUST retain one immutable clean base/head snapshot and
 ERI-V0-006	docs/specs/expanded-range-impact-v0.md	69	The prototype repository coordinator MUST select the experimental profile by an
-ESC-V0-001	docs/specs/corvint-tasks-escalations-v0.md	46	`ticket escalate --attempt A --kind decision|infrastructure|scope|blocked --ques
-ESC-V0-002	docs/specs/corvint-tasks-escalations-v0.md	49	Questions MUST be stored as an optional tool-owned `escalations` reference on th
-ESC-V0-003	docs/specs/corvint-tasks-escalations-v0.md	52	Applicability MUST derive from the source acceptance revision versus the current
-ESC-V0-004	docs/specs/corvint-tasks-escalations-v0.md	55	`ticket answer --target T --text TEXT` MUST close exactly one question, either t
-ESC-V0-005	docs/specs/corvint-tasks-escalations-v0.md	58	Claim and claim-next MUST return current same-acceptance answers as an `escalati
-ESC-V0-006	docs/specs/corvint-tasks-escalations-v0.md	61	A current OPEN decision, scope or blocked question MUST produce an explicit `ESC
-ESC-V0-007	docs/specs/corvint-tasks-escalations-v0.md	64	An optional dispatch `infrastructureRetry` policy MUST bound automatic retries p
-ESC-V0-008	docs/specs/corvint-tasks-escalations-v0.md	67	Session classification MUST precede ordinary no-progress parking, and typed cont
-ESC-V0-009	docs/specs/corvint-tasks-escalations-v0.md	70	`ticket escalation list`, show and history MUST be bounded, non-mutating native
-ESC-V0-010	docs/specs/corvint-tasks-escalations-v0.md	73	Escalation writes MUST use the existing writer, receipt and request-index pipeli
-ESC-V0-011	docs/specs/corvint-tasks-escalations-v0.md	76	The pure foundation and the integrated capability MUST keep distinct evidence an
+ESC-V0-001	docs/specs/corvint-tasks-escalations-v0.md	47	`ticket escalate --attempt A --kind decision|infrastructure|scope|blocked --ques
+ESC-V0-002	docs/specs/corvint-tasks-escalations-v0.md	50	Questions MUST be stored as an optional tool-owned `escalations` reference on th
+ESC-V0-003	docs/specs/corvint-tasks-escalations-v0.md	53	Applicability MUST derive from the source acceptance revision versus the current
+ESC-V0-004	docs/specs/corvint-tasks-escalations-v0.md	56	`ticket answer --target T --text TEXT` MUST close exactly one question, either t
+ESC-V0-005	docs/specs/corvint-tasks-escalations-v0.md	59	Claim and claim-next MUST return current same-acceptance answers as an `escalati
+ESC-V0-006	docs/specs/corvint-tasks-escalations-v0.md	62	A current OPEN decision, scope or blocked question MUST produce an explicit `ESC
+ESC-V0-007	docs/specs/corvint-tasks-escalations-v0.md	65	An optional dispatch `infrastructureRetry` policy MUST bound automatic retries p
+ESC-V0-008	docs/specs/corvint-tasks-escalations-v0.md	68	Session classification MUST precede ordinary no-progress parking, and typed cont
+ESC-V0-009	docs/specs/corvint-tasks-escalations-v0.md	71	`ticket escalation list`, show and history MUST be bounded, non-mutating native
+ESC-V0-010	docs/specs/corvint-tasks-escalations-v0.md	74	Escalation writes MUST use the existing writer, receipt and request-index pipeli
+ESC-V0-011	docs/specs/corvint-tasks-escalations-v0.md	77	The pure foundation and the integrated capability MUST keep distinct evidence an
 ESV-V0-001	docs/specs/experimental-source-views-v0.md	236	Bind the bounded canonical packet and exact caller selector to object format,
 ESV-V0-002	docs/specs/experimental-source-views-v0.md	241	Return one exact contiguous immutable source range as JSON `text` whose UTF-8
 ESV-V0-003	docs/specs/experimental-source-views-v0.md	245	Enforce every frozen bound with sanitized, replacement-disabled, non-lazy Git
@@ -2002,16 +2003,16 @@ PMR-V1-007	docs/specs/postmerge-runtime-v1.md	28	Compare actual outcomes against
 PMR-V1-008	docs/specs/postmerge-runtime-v1.md	29	Invoke actual metrics and only the separately triggered applicable approved-docu
 PMR-V1-009	docs/specs/postmerge-runtime-v1.md	30	Qualify only the exact independently pinned recording-only, credential-free cand
 PMR-V1-010	docs/specs/postmerge-runtime-v1.md	31	Retain original errors, exact native input/output bytes, truthful fixed stage di
-PMR-V2-001	docs/specs/postmerge-runtime-v2.md	52	Closed dispatch and authority. Explicit `/2` dispatch admits only independently
-PMR-V2-002	docs/specs/postmerge-runtime-v2.md	53	Producer decision, not adapter reconstruction. The #394 native producer emits a
-PMR-V2-003	docs/specs/postmerge-runtime-v2.md	54	Stable canonical identity. Canonical UTF-8 JSON uses an agreed bounded schema, l
-PMR-V2-004	docs/specs/postmerge-runtime-v2.md	55	Verified fresh proof attachments. Each execution retains a separate immutable at
-PMR-V2-005	docs/specs/postmerge-runtime-v2.md	56	Immutable Evidence URL and connector join. The writer-visible admitted-origin HT
-PMR-V2-006	docs/specs/postmerge-runtime-v2.md	57	Process and time semantics. Fresh numeric PID/parent PID/start-clock values and
-PMR-V2-007	docs/specs/postmerge-runtime-v2.md	58	Compare complete fresh executions. Run the complete applicable workflow twice fr
-PMR-V2-008	docs/specs/postmerge-runtime-v2.md	59	Recording and idempotence. Each execution uses its own ledger and calls Record t
-PMR-V2-009	docs/specs/postmerge-runtime-v2.md	60	Failure, rejection and comparison. Missing/unsupported/unverifiable evidence, un
-PMR-V2-010	docs/specs/postmerge-runtime-v2.md	61	Original outcome and bounded qualification. Acceptance evidence includes a histo
+PMR-V2-001	docs/specs/postmerge-runtime-v2.md	61	Closed dispatch and authority. Explicit `/2` dispatch admits only independently
+PMR-V2-002	docs/specs/postmerge-runtime-v2.md	62	Producer decision, not adapter reconstruction. The #394 native producer emits a
+PMR-V2-003	docs/specs/postmerge-runtime-v2.md	63	Stable canonical identity. Canonical UTF-8 JSON uses an agreed bounded schema, l
+PMR-V2-004	docs/specs/postmerge-runtime-v2.md	64	Verified fresh proof attachments. Each execution retains a separate immutable at
+PMR-V2-005	docs/specs/postmerge-runtime-v2.md	65	Immutable Evidence URL and connector join. The writer-visible admitted-origin HT
+PMR-V2-006	docs/specs/postmerge-runtime-v2.md	66	Process and time semantics. Fresh numeric PID/parent PID/start-clock values and
+PMR-V2-007	docs/specs/postmerge-runtime-v2.md	67	Compare complete fresh executions. Run the complete applicable workflow twice fr
+PMR-V2-008	docs/specs/postmerge-runtime-v2.md	68	Recording and idempotence. Each execution uses its own ledger and calls Record t
+PMR-V2-009	docs/specs/postmerge-runtime-v2.md	69	Failure, rejection and comparison. Missing/unsupported/unverifiable evidence, un
+PMR-V2-010	docs/specs/postmerge-runtime-v2.md	70	Original outcome and bounded qualification. Acceptance evidence includes a histo
 PNC-001	docs/specs/analyzer-python-native-candidate.md	86	The candidate MUST remain separately buildable and unreachable from Core.
 PNC-002	docs/specs/analyzer-python-native-candidate.md	87	The scanner MUST prospectively bound canonical request members before decode or
 PNC-003	docs/specs/analyzer-python-native-candidate.md	88	Accepted closed inputs MUST emit only fully typed, deterministic candidate facts
