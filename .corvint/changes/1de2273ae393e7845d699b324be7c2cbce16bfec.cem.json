@@ -1,0 +1,100 @@
+{
+  "baseRevision": "a5bb0d8fe4f5748f45181f49cb3c9e8e877b3d7d",
+  "evidence": [
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:4ee9b16f6731d0ef7b35415b3e62307f608a0ae85bf3b30e9271e92125316fbb",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 4124,
+        "start": 3781
+      },
+      "spanSha256": "46e69c5e97297b36c204ff585b335a484633ade4ec166dbc695fd46e7c6dc76c"
+    },
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:9ba8eaf06f25e4b7e59aa40ee94ad4be326de5a9119422001fd1fbd8d7354dc3",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3780,
+        "start": 3294
+      },
+      "spanSha256": "a5ef358e5716557d5f42d57c7271d3289afdc8ff20143da2026e5fd075f876f4"
+    },
+    {
+      "blobOid": "97e3e6f5bece49d0fd74878574bf484e9f1f14ff",
+      "id": "evidence:sha256:fc0d5f0f95d7f74561ddb20ede050b4361b53fb0c60da2607689fd97c15dcd6b",
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "span": {
+        "end": 50436,
+        "start": 49768
+      },
+      "spanSha256": "a47b87d03c977b8f8a11ae7b109d9f20d175f755efec31f431fd3a3a78546cb5"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:4ee9b16f6731d0ef7b35415b3e62307f608a0ae85bf3b30e9271e92125316fbb",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:69b0fd158ae919f0bc6865d7ff04c45dea8d666f07351fb05ec47c0e0976d3a5",
+      "newRange": {
+        "count": 21,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-04-gh545-claim-starvation-qualification.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9ba8eaf06f25e4b7e59aa40ee94ad4be326de5a9119422001fd1fbd8d7354dc3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9fd2d3c5f6e1c95afee5503f56287caea4c6370f53ac1422715ef907d4c26603",
+      "newRange": {
+        "count": 8,
+        "start": 1440
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 1440
+      },
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fc0d5f0f95d7f74561ddb20ede050b4361b53fb0c60da2607689fd97c15dcd6b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3c14189f475d14769e3c6fb6497c7bed73bb6bb9fc91669d9a91c9b2d333b61a",
+      "newRange": {
+        "count": 172,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/tasks/store/gh545_contention_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "80e0bdf9f60dae62efef683af857f263c5373e23603a8fa49d1650b727ea49c4",
+  "spec": "cem/0.2"
+}
