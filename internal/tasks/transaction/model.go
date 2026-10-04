@@ -126,6 +126,10 @@ type Input struct {
 	// HandoffPolicy is optional structural history from the writer's additional
 	// full audit. It never changes persistent attempt identities or coverage.
 	HandoffPolicy *HandoffPolicyObservation
+	// PriorNoteEvent is the target's current operator-note event bytes, read
+	// at its reference head; Mutate NOTE_SET/NOTE_CLEAR only (ON-V0-004).
+	// The pure transition re-hashes it against the canonical reference.
+	PriorNoteEvent []byte
 }
 
 type HandoffPolicyObservation struct {
@@ -602,9 +606,15 @@ func Model(r Request, in Input) Result {
 		// second index here could only disagree with that decision.
 		ctx := mutation.Context{Binding: r.Actor, Queue: state.queue, Policy: state.policy, Inventory: state.tickets, Attempts: entryOracle{state.reservations}, Requests: absentIndex{}, Now: in.RecordedAt}
 		ctx.RetryRecovery = retryRecovery(state, env)
+		ctx.PriorNoteEvent = in.PriorNoteEvent
 		applied := mutation.Apply(ctx, env)
 		if !applied.Planned() {
 			return Result{Kind: "Refused", Outcome: applied.Outcome, Coverage: coverage(), Detail: applied.Detail}
+		}
+		if applied.DerivedEvent != nil {
+			// The derived event is content-addressed and posted in the same
+			// MUTATE stage as the ticket that references it.
+			posts["evidence/"+string(wire.Sum(applied.DerivedEvent))] = bytes.Clone(applied.DerivedEvent)
 		}
 		pre, _ := state.tickets.Get(applied.Post.TicketID.Raw)
 		if env.Operation == mutation.OpReopen && pre != nil && pre.Status == ticket.StatusOpen {

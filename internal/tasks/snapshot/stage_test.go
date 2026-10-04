@@ -235,3 +235,87 @@ func TestCALV0043_MutationRequestEvidenceBounds(t *testing.T) {
 		}
 	})
 }
+
+// maximalDerivedEventDescriptor is the worst-case NOTE_SET/NOTE_CLEAR stage:
+// the maximal MUTATE ticket with its inline-overflow EVIDENCE blob, plus one
+// maximal derived event in place of the CREATE queue post (ON-V0-006).
+func maximalDerivedEventDescriptor() StageDescriptor {
+	d := maximalDescriptor(StageMutate)
+	for i, a := range d.Artifacts {
+		if a.Role == "POST" && a.Target == "intent/queue.json" {
+			h := wire.Sum([]byte("derived"))
+			d.Artifacts[i] = StageDescription{Role: "POST", Target: "evidence/" + string(h), Sha256: h, Bytes: wire.SizeOf(MaxDerivedEventBytes)}
+		}
+	}
+	sort.Slice(d.Artifacts, func(i, j int) bool {
+		a, b := d.Artifacts[i], d.Artifacts[j]
+		if a.Role != b.Role {
+			return a.Role < b.Role
+		}
+		return a.Target < b.Target
+	})
+	for i := range d.Artifacts {
+		d.Artifacts[i].Slot = stageSlot(i)
+	}
+	return d
+}
+
+// TestONV0006_DerivedEventSlotMeasuredAndNarrow measures the actual maximal
+// MUTATE descriptor carrying the derived note event (6 artifacts, 1669 of
+// 1670 bytes) and refuses every widening: a second event, an event beside the
+// CREATE queue post or the retained request envelope, an oversized event, a
+// non-content-addressed target, and the slot on another operation.
+func TestONV0006_DerivedEventSlotMeasuredAndNarrow(t *testing.T) {
+	d := maximalDerivedEventDescriptor()
+	raw, err := d.Encode()
+	if err != nil {
+		t.Fatalf("maximal derived-event descriptor: %v", err)
+	}
+	slots, cap := StageLimits(StageMutate)
+	if len(d.Artifacts) != slots || len(raw) != 1669 || len(raw) > cap {
+		t.Fatalf("measured %d bytes / %d artifacts; want 1669 within %d / %d", len(raw), len(d.Artifacts), cap, slots)
+	}
+	derived := func(d *StageDescriptor) int {
+		for i, a := range d.Artifacts {
+			if a.Role == "POST" && strings.HasPrefix(a.Target, "evidence/") {
+				return i
+			}
+		}
+		t.Fatal("no derived event")
+		return -1
+	}
+	for _, name := range []string{"second", "queue", "request", "oversized", "address", "operation"} {
+		t.Run(name, func(t *testing.T) {
+			x := maximalDerivedEventDescriptor()
+			i := derived(&x)
+			switch name {
+			case "second":
+				h := wire.Sum([]byte("second"))
+				x.Artifacts[0] = StageDescription{Role: "POST", Target: "evidence/" + string(h), Sha256: h, Bytes: "1"}
+			case "queue":
+				x.Artifacts[0] = StageDescription{Role: "POST", Target: "intent/queue.json", Sha256: wire.Sum([]byte("q")), Bytes: "1"}
+			case "request":
+				x.Artifacts[0] = StageDescription{Role: "POST", Target: "evidence/" + string(x.RequestSha256), Sha256: x.RequestSha256, Bytes: "1"}
+			case "oversized":
+				x.Artifacts[i].Bytes = wire.SizeOf(MaxDerivedEventBytes + 1)
+			case "address":
+				x.Artifacts[i].Sha256 = wire.Sum([]byte("other"))
+			case "operation":
+				x.Operation = StageAdoptFile
+				x.Artifacts = append(x.Artifacts[:0], x.Artifacts[1:]...)
+			}
+			sort.Slice(x.Artifacts, func(a, b int) bool {
+				if x.Artifacts[a].Role != x.Artifacts[b].Role {
+					return x.Artifacts[a].Role < x.Artifacts[b].Role
+				}
+				return x.Artifacts[a].Target < x.Artifacts[b].Target
+			})
+			for j := range x.Artifacts {
+				x.Artifacts[j].Slot = stageSlot(j)
+			}
+			if _, err := x.Encode(); err == nil {
+				t.Fatalf("%s accepted", name)
+			}
+		})
+	}
+}

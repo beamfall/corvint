@@ -281,11 +281,10 @@ func (d StageDescriptor) shape() error {
 				key = "discard"
 				cap = 131072
 			case strings.HasPrefix(a.Target, "evidence/") && d.Operation == StageMutate:
-				if a.Sha256 != d.RequestSha256 || a.Target != "evidence/"+string(d.RequestSha256) {
+				key, cap = mutateEvidenceSlot(d, a)
+				if key == "" {
 					return stageMalformed("mutation request evidence identity")
 				}
-				key = "mutation-request"
-				cap = wire.MaxMutationEnvelopeBytes
 			case strings.HasPrefix(a.Target, "evidence/") && d.Operation == StageLease:
 				// A gate run posts its captured output and its gate result; a
 				// completion posts its manifest (CAL-V0-016, CAL-V0-017).
@@ -373,8 +372,12 @@ func (d StageDescriptor) shape() error {
 		if counts["mutation-request"] > 1 || (counts["mutation-request"] != 0 && counts["queue"] != 0) {
 			return stageMalformed("mutation request evidence count")
 		}
+		if counts["derived-event"] > 1 || (counts["derived-event"] != 0 && counts["queue"]+counts["mutation-request"] != 0) {
+			return stageMalformed("derived event count")
+		}
 		delete(counts, "mutation-request")
 		delete(counts, "queue")
+		delete(counts, "derived-event")
 	}
 	// A lease transaction posts at most one attempt and one reservation set;
 	// a gate run adds its output and result, and a completion its ticket and
@@ -460,3 +463,22 @@ func stageLimit(detail string) error {
 	return wire.Errorf(wire.CodeLimitExceeded, "stage", "%s", detail)
 }
 func stageSlot(i int) string { return fmt.Sprintf("a%02d", i) }
+
+// MaxDerivedEventBytes bounds the one content-addressed event a MUTATE may
+// derive and post beside its ticket (ON-V0-004: the operator note event). It
+// equals the note event bound and is the shared slot for later derived ticket
+// events.
+const MaxDerivedEventBytes = 65536
+
+// mutateEvidenceSlot classifies a MUTATE evidence POST: the retained request
+// envelope (OPEN recovery) when its digest is the request's, otherwise the
+// single derived event. An empty key is a malformed identity.
+func mutateEvidenceSlot(d StageDescriptor, a StageDescription) (string, uint64) {
+	if a.Target != "evidence/"+string(a.Sha256) {
+		return "", 0
+	}
+	if a.Sha256 == d.RequestSha256 {
+		return "mutation-request", wire.MaxMutationEnvelopeBytes
+	}
+	return "derived-event", MaxDerivedEventBytes
+}
