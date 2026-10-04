@@ -94,6 +94,13 @@ reads retain the no-write invariant. Historical policy is the actual original pr
 retroactively narrowed current policy. Archived and import-owned content cannot bypass native
 ownership with a note reference.
 
+## Non-goals and simpler baseline
+
+The simpler baseline is guidance kept outside the ticket. This profile does not add direct or live
+worker messaging, acceptance overrides, budget or retry grants, a typed request system, actor
+authentication, history used as current guidance, or retroactive guidance to an active attempt.
+It adds no daemon, account, network service or new mutable store.
+
 ## Acceptance evidence and traceability
 
 The first delivery supplies only pure, focused evidence for the parts of ON-V0-001..004,
@@ -102,28 +109,41 @@ is NOT_RUN; no row below claims delivered native behavior.
 
 | Requirement | Parent intent | Implementation boundary | Delivered evidence | Required integrated evidence (NOT_RUN) |
 |---|---|---|---|---|
-| ON-V0-001 | NOTE501-001 | ticket/record codecs; Core decode | `TestIssue501_NoteCodec` (closed reference keys, null/alias/unknown refusal) | legacy bytes through the record codec, ordinary preservation, Core reader |
-| ON-V0-002 | NOTE501-002 | ticket event codec; evidence storage | `TestIssue501_NoteCodec`, `TestIssue501_NoteCASAndBounds` (closed event, SET text bounds, revision 4097 refusal) | measured 65536-byte event bound, evidence storage, SET/CLEAR chain on a native store |
+| ON-V0-001 | NOTE501-001 | ticket/record codecs; Core decode | `TestIssue501_NoteCodec` (closed reference: unknown key, whole-null, zero/4097/overflow revision, uppercase digest, current/head mismatch, wrong-typed members and duplicate keys refuse) | legacy bytes through the record codec, ordinary preservation, Core reader |
+| ON-V0-002 | NOTE501-002 | ticket event codec; evidence storage | `TestIssue501_NoteCodec`, `TestIssue501_NoteCASAndBounds` (closed event keys, CLEAR without text, SET text bounds, codec-level maximum escaped event within 65536 bytes, revision 4097 refusal) | evidence storage, SET/CLEAR chain on a native store |
 | ON-V0-003 | NOTE501-003 | mutation payload/Apply; native writer | `TestIssue501_NoteTransition`, `TestIssue501_NoteCASAndBounds`, `TestIssue501_NoteMaterialBindings` (supersedes and content CAS, request/queue bindings) | identical replay after successors, conflict, concurrent CAS through the writer and CLI |
-| ON-V0-004 | NOTE501-004 | policy/authorization; indirect writers | `TestIssue501_NoteCASAndBounds` (refuses when the caller-supplied grant is absent) | explicit operator row, narrowed owner, state/role/import refusal |
+| ON-V0-004 | NOTE501-004 | policy/authorization; indirect writers | `TestIssue501_NoteCASAndBounds` (absent caller-supplied grant and mismatched binding refuse; ARCHIVED refuses BLOCKED; shadow/import refuses UNAUTHORIZED) | explicit operator row, narrowed owner, state/role/import refusal through the writer |
 | ON-V0-005 | NOTE501-005 | whole canonical post adapter/finalizer | none | normal note-only gates plus rehashed unrelated-field attacks |
-| ON-V0-006 | NOTE501-006 | transaction/snapshot/journal/stage/archive | none | original pre-policy/pre-ticket, no-stage and supported redo, measured descriptor bounds |
+| ON-V0-006 | NOTE501-006 | transaction/snapshot/journal/stage/archive | none; the pure material rebinding in `TestIssue501_NoteMaterialBindings` is supporting input only | original pre-policy/pre-ticket, no-stage and supported redo, measured descriptor bounds |
 | ON-V0-007 | NOTE501-007 | lease admission; original receipt materializer | none | replacement between commit/materialization, generation refresh, missing-evidence replay |
-| ON-V0-008 | NOTE501-008 | show/history; CLI | `TestIssue501_NoteTransition` (historical resolution ignores later ticket revisions) | anchor concurrency, page bounds, corruption refusal, no reads mutate |
+| ON-V0-008 | NOTE501-008 | show/history; CLI | `TestIssue501_NoteTransition` (after unrelated edits advance the ticket and acceptance revisions, the next note still proposes and validates; a prior note newer than the audited ticket refuses) | current/history reads, anchor concurrency, page bounds, corruption refusal, no reads mutate |
 | ON-V0-009 | NOTE501-009 | four-file foundation and dependency layering | `TestIssue501_NoteCodec`, `TestIssue501_NoteTransition`, `TestIssue501_NoteCASAndBounds`, `TestIssue501_NoteMaterialBindings`; `ticket` does not import `mutation` | first native SET/show/replay/audit fixture; no premature promotion |
 | ON-V0-010 | NOTE501-010 | qualification and delivery | none | exact-source review, integration, evidence and compatible rollback |
 
 The pure tests do not supply integrated material-preservation, journal, archive, claim or platform
-evidence. In particular the 1670-byte MUTATE descriptor encoding and worst-case escaped record sizes
-remain unmeasured until the actual writer tests run.
+evidence. The 1670-byte MUTATE descriptor encoding and worst-case escaped ticket record sizes remain
+unmeasured until the actual writer tests run.
+
+## Unresolved decisions
+
+- Outcome mapping at the writer boundary: the pure helpers return the existing REVISION_CONFLICT,
+  UNAUTHORIZED and BLOCKED outcomes, but report note/ticket revision capacity as a wire
+  LIMIT_EXCEEDED error. Whether the writer maps that to the existing CAPACITY_EXHAUSTED outcome is
+  decided in the writer slice.
+- The exact optional note-event slot in the MUTATE descriptor and its measured maximum encoding.
+- Whether claim delivery needs an amendment to the agent lease contract, decided in the
+  claim-delivery slice.
+
+Kill criterion: stop or narrow the capability if bounded original material cannot be recovered
+without an unauthorized general recovery rewrite.
 
 ## Rollout and rollback
 
 This delivery adds unreferenced pure code and intent only; it installs no feature and changes no
-existing byte format, so rollback is reverting the four files and this spec's catalog entries.
-Later slices integrate current-main codecs, writer, material validation, reads, claim delivery and
-CLI under exact source resources, preserve recorded 503 claimability changes, and retain each
-failure/UNKNOWN outcome. Promotion requires the complete evidence matrix and native closeout; stop
-or narrow the implementation if bounded original material cannot be recovered without an
-unauthorized general recovery rewrite. Once writes exist, disabling future writes is reversible;
-deleting immutable history or pretending an older closed reader is compatible is not rollback.
+existing byte format. Rollback reverts the four files, this spec, its INDEX and README entries, its
+generated REQUIREMENTS.tsv rows and the build-log entry. Later slices integrate current-main codecs,
+writer, material validation, reads, claim delivery and CLI under exact source resources, preserve
+recorded 503 claimability changes, and retain each failure/UNKNOWN outcome. Promotion requires the
+complete evidence matrix and native closeout. Once writes exist, disabling future writes is
+reversible; deleting immutable history or pretending an older closed reader is compatible is not
+rollback.

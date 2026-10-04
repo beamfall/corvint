@@ -125,17 +125,56 @@ func TestIssue501_NoteTransition(t *testing.T) {
 	if p.Reference.Revision != "1" || p.Reference.Current != nil {
 		t.Fatal("initial CLEAR")
 	}
-	// Historical note-write revisions are not asserted equal to a later record.
-	old := history[0]
-	n, _ := ticket.DecodeOperatorNoteEvent(old)
-	head := wire.Sum(old)
-	ref := ticket.OperatorNoteReference{Revision: "1", Head: head, Current: &head}
-	later := *c.Record
-	later.Revision = "50"
-	later.AcceptanceRevision = "20"
-	resolved, e := ticket.ResolveOperatorNote(later.TicketID, ref, old)
-	if e != nil || resolved.TicketRevision != n.TicketRevision || resolved.AcceptanceRevision != n.AcceptanceRevision {
-		t.Fatal("historical read changed", e)
+	// Historical note-write revisions are not compared to a later ticket: after
+	// unrelated edits advance the ticket and acceptance revisions, the prior
+	// event still resolves and the next note proposes and validates.
+	h := noteContext(t)
+	p = notePropose(t, h, noteRequest(&h, "hist-1", "NOTE_SET", "A", wire.Null(), str("0")))
+	noteAdvance(t, &h, p)
+	prior, e := ticket.DecodeOperatorNoteEvent(h.PriorEvent)
+	if e != nil {
+		t.Fatal(e)
+	}
+	edited, e := ticket.Decode(h.Record.Encode())
+	if e != nil {
+		t.Fatal(e)
+	}
+	edited.Revision = wire.CountOf(edited.Revision.Int() + 3)
+	edited.AcceptanceRevision = wire.CountOf(edited.AcceptanceRevision.Int() + 2)
+	later := h
+	later.Record = edited
+	p = notePropose(t, later, noteRequest(&later, "hist-2", "NOTE_SET", "B", str(string(edited.Revision)), str("1")))
+	n, e := ticket.DecodeOperatorNoteEvent(p.Event)
+	if e != nil || n.TicketRevision != wire.CountOf(edited.Revision.Int()+1) || n.AcceptanceRevision != edited.AcceptanceRevision || prior.AcceptanceRevision == edited.AcceptanceRevision {
+		t.Fatal("note after unrelated edits", e)
+	}
+	// A prior note that postdates the audited ticket is refused for either
+	// revision: the hist-2 event names edited.Revision+1 and edited's acceptance.
+	stale := later
+	stale.Prior = &p.Reference
+	stale.PriorEvent = p.Event
+	for _, tc := range []struct {
+		name string
+		edit func(*ticket.Record)
+	}{
+		{"ticket-revision", func(r *ticket.Record) {}},
+		{"acceptance-revision", func(r *ticket.Record) {
+			r.Revision = wire.CountOf(r.Revision.Int() + 5)
+			r.AcceptanceRevision = h.Record.AcceptanceRevision
+		}},
+	} {
+		t.Run("postdate-"+tc.name, func(t *testing.T) {
+			r, e := ticket.Decode(edited.Encode())
+			if e != nil {
+				t.Fatal(e)
+			}
+			tc.edit(r)
+			bad := stale
+			bad.Record = r
+			if _, e = mutation.ProposeOperatorNote(bad, noteRequest(&bad, "hist-bad", "NOTE_SET", "C", wire.Null(), str("2"))); e == nil || !strings.Contains(e.Error(), "postdate") {
+				t.Fatal("prior note newer than ticket accepted", e)
+			}
+		})
 	}
 }
 
@@ -215,6 +254,9 @@ func TestIssue501_NoteCASAndBounds(t *testing.T) {
 			out, e := mutation.ProposeOperatorNote(v, raw)
 			if e == nil || out != nil || !bytes.Equal(before, v.Record.Encode()) {
 				t.Fatal("bad context accepted/mutated", e)
+			}
+			if want := map[string]string{"archived": "BLOCKED", "shadow": "UNAUTHORIZED"}[tc.name]; want != "" && !strings.HasPrefix(e.Error(), want+" ") {
+				t.Fatal("wrong state/ownership outcome", e)
 			}
 		})
 	}

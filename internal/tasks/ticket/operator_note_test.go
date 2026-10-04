@@ -162,4 +162,32 @@ func TestIssue501_NoteCodec(t *testing.T) {
 	if _, err = ticket.ResolveOperatorNote(fixture.Ticket("AT-0002").TicketID, ref, blob); err == nil {
 		t.Fatal("cross-ticket resolution accepted")
 	}
+	// Closed event and request shapes: an extra top-level event key and a CLEAR
+	// payload carrying prose both refuse, as do wrong-typed reference members.
+	ev, _ := wire.Parse(blob)
+	ev.Obj.Set("other", wire.Null())
+	if _, err = ticket.DecodeOperatorNoteEvent(wire.EncodeFile(ev)); err == nil {
+		t.Fatal("unknown event key accepted")
+	}
+	clear, _ := wire.Parse(decoded.Request)
+	clear.Obj.Set("operation", noteStr("NOTE_CLEAR"))
+	if _, err = ticket.DecodeOperatorNoteRequest(wire.EncodeFile(clear)); err == nil {
+		t.Fatal("CLEAR payload with text accepted")
+	}
+	for _, key := range []string{"revision", "current", "head"} {
+		v, _ := wire.Parse(refRaw)
+		v.Obj.Set(key, noteObj())
+		if _, e := ticket.OperatorNoteReferenceFromValue(v); e == nil {
+			t.Fatal("wrong-typed reference member accepted", key)
+		}
+	}
+	dup := bytes.Replace(refRaw, []byte(`"revision":"1"`), []byte(`"revision":"1","revision":"1"`), 1)
+	if bytes.Equal(dup, refRaw) {
+		t.Fatal("duplicate-key fixture not built")
+	}
+	if dv, e := wire.Parse(dup); e == nil {
+		if _, e = ticket.OperatorNoteReferenceFromValue(dv); e == nil {
+			t.Fatal("duplicate reference key accepted")
+		}
+	}
 }

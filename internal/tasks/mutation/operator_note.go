@@ -71,8 +71,13 @@ func ProposeOperatorNote(c OperatorNoteContext, raw []byte) (*OperatorNotePropos
 	if q.TicketID.Raw != pre.TicketID.Raw {
 		return nil, wire.Errorf(wire.CodeMalformed, "/request/targetId", "audited ticket mismatch")
 	}
-	if pre.Source.Kind != "NATIVE" || pre.ShadowOverlay || pre.Status == ticket.StatusArchived {
-		return nil, &OperatorNoteRefusal{OutcomeUnauthorized, "/ticketId", "note requires an unarchived native ticket"}
+	// Archived state refuses like the existing writer's tombstone rule; import or
+	// shadow ownership is an authority refusal.
+	if pre.Status == ticket.StatusArchived {
+		return nil, &OperatorNoteRefusal{OutcomeBlocked, "/ticketId", "ticket is ARCHIVED; note requires an unarchived ticket"}
+	}
+	if pre.Source.Kind != "NATIVE" || pre.ShadowOverlay {
+		return nil, &OperatorNoteRefusal{OutcomeUnauthorized, "/ticketId", "note requires a native ticket"}
 	}
 	if q.ExpectedRevision != nil && *q.ExpectedRevision != pre.Revision {
 		return nil, &OperatorNoteRefusal{OutcomeRevisionConflict, "/request/expectedRevision", fmt.Sprintf("expected pre-ticket revision %s", pre.Revision)}
