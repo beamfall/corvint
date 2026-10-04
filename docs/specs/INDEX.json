@@ -3128,5 +3128,60 @@
     "implementation": [
       "internal/tasks/service"
     ]
+  },
+  {
+    "path": "docs/specs/tasks-criterion-binding-v0.md",
+    "title": "Tasks criterion binding V0",
+    "reqPrefix": "TCB-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Native Tasks captures and verifies coherent claim-era criterion bindings; Core consumes only the Tasks wire contract.",
+    "dependsOn": [
+      "docs/specs/cem-criterion-experiments-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/tasks/criterionbinding",
+      "internal/tasks/cli/criterion_binding.go",
+      "internal/criterionexperiment/tasks.go"
+    ]
+  },
+  {
+    "path": "docs/specs/test-runner-execution-v0.md",
+    "title": "Test runner execution V0",
+    "reqPrefix": "TRE-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Optional fixed runner profiles execute trusted local tests and retain bounded native reports with explicit qualification limits.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/testrunner",
+      "cmd/corvint-test-runner"
+    ]
+  },
+  {
+    "path": "docs/specs/cem-stable-v1.md",
+    "title": "CEM stable 1.0",
+    "reqPrefix": "CEM-V1",
+    "intent": "owner scope accepted; technical contract proposed",
+    "delivery": "planned",
+    "claim": "Owner requires portable task-linked execution evidence and all main runners for Corvint1.0; technical contract and stable promotion remain open.",
+    "dependsOn": [
+      "docs/specs/tasks-criterion-binding-v0.md",
+      "docs/specs/test-runner-execution-v0.md",
+      "docs/specs/cem-criterion-experiments-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/cem",
+      "internal/cemcandidate",
+      "internal/groupreap",
+      "interop/cem01-go",
+      "protocol/cem-1.0"
+    ]
   }
 ]

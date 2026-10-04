@@ -217,6 +217,16 @@ func requireClosedKeys(object *Object, required []string) error {
 }
 
 func validateFields(object *Object, result *Map) error {
+	return validateCommonFields(object, result, Canonical(result.Spec))
+}
+
+// validateCommonFields reuses field mechanics without changing profile dispatch.
+func validateCommonFields(object *Object, result *Map, canonicalBinding bool) error {
+	return validateCommonCapabilities(object, result, canonicalBinding, result.Spec == Spec03)
+}
+
+// Private capabilities preserve old profile admission while sharing pure checks.
+func validateCommonCapabilities(object *Object, result *Map, canonicalBinding, fullWitnesses bool) error {
 	base, _ := object.Get("baseRevision")
 	if base.Kind != KindString || !IsGitOid(base.Str) {
 		return fieldError("baseRevision must be a full lowercase Git commit OID")
@@ -227,7 +237,7 @@ func validateFields(object *Object, result *Map) error {
 		return fieldError("patchSha256 must be 64 lowercase hex bytes")
 	}
 	result.PatchSha256 = digest.Str
-	if Canonical(result.Spec) {
+	if canonicalBinding {
 		excluded, _ := object.Get("excludedPath")
 		if excluded.Kind != KindString || excluded.Str != ExcludedCEMPath {
 			return cemcode.New(cemcode.InvalidExcludedPath, "excludedPath must be the exact string %q", ExcludedCEMPath)
@@ -256,7 +266,7 @@ func validateFields(object *Object, result *Map) error {
 		return fieldError("hunks must be an array of at most %d items", MaxHunks)
 	}
 	for _, item := range hunks.Arr {
-		record, err := validateHunk(item, result.Spec)
+		record, err := validateHunkCapabilities(item, result.Spec, fullWitnesses)
 		if err != nil {
 			return err
 		}
@@ -330,17 +340,20 @@ func validateRange(value Value, name string) (Range, error) {
 }
 
 func validateHunk(item Value, spec string) (Hunk, error) {
+	return validateHunkCapabilities(item, spec, spec == Spec03)
+}
+func validateHunkCapabilities(item Value, spec string, fullWitnesses bool) (Hunk, error) {
 	if item.Kind != KindObject {
 		return Hunk{}, fieldError("hunks items must be objects")
 	}
 	keys := []string{"id", "path", "oldRange", "newRange", "disposition", "reason", "basis"}
 	coverageValue, hasCoverage := item.Obj.Get("coverage")
-	witnessed := hasCoverage && spec == Spec03
+	witnessed := hasCoverage && fullWitnesses
 	if witnessed {
 		keys = append(keys, "coverage")
 	}
 	discriminatesValue, hasDiscriminates := item.Obj.Get("discriminates")
-	discriminated := hasDiscriminates && spec == Spec03
+	discriminated := hasDiscriminates && fullWitnesses
 	if discriminated {
 		keys = append(keys, "discriminates")
 	}
@@ -392,7 +405,7 @@ func validateHunk(item Value, spec string) (Hunk, error) {
 	}
 	hunk := Hunk{ID: id.Str, Path: path.Str, OldRange: oldRange, NewRange: newRange,
 		Disposition: disposition.Str, Reason: reason.Str, Basis: bases}
-	if err := validateDisposition(hunk, spec); err != nil {
+	if err := validateDispositionCapabilities(hunk, spec, fullWitnesses); err != nil {
 		return Hunk{}, err
 	}
 	if witnessed {
@@ -506,6 +519,9 @@ func validateBasis(entry Value) (Basis, error) {
 }
 
 func validateDisposition(hunk Hunk, spec string) error {
+	return validateDispositionCapabilities(hunk, spec, spec == Spec03)
+}
+func validateDispositionCapabilities(hunk Hunk, spec string, fullWitnesses bool) error {
 	switch hunk.Disposition {
 	case "supported":
 		if len(hunk.Basis) == 0 {
@@ -519,7 +535,7 @@ func validateDisposition(hunk Hunk, spec string) error {
 			return fieldError("unknown hunks require an empty basis and an unknown reason")
 		}
 	case "mechanical":
-		if len(hunk.Basis) != 0 || !MechanicalReason(spec, hunk.Reason) {
+		if len(hunk.Basis) != 0 || !(mechanicalReasons[hunk.Reason] || fullWitnesses && StructuralReasons[hunk.Reason]) {
 			return fieldError("mechanical hunks require an empty basis and a mechanical reason")
 		}
 	default:

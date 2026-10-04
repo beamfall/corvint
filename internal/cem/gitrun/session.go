@@ -42,6 +42,9 @@ type Session struct {
 	stderr  *limitedBuffer
 	overrun chan struct{}
 	waited  chan error
+	// budget and owner are set only for a session of a stable budget.
+	budget *Budget
+	owner  *groupreap.Owner
 }
 
 type sessionReply struct {
@@ -194,6 +197,10 @@ func (s *Session) release() {
 // Close ends the session: the child sees EOF on stdin and exits; a child that
 // does not exit within DefaultPerOpTimeout is killed with its group.
 func (s *Session) Close() {
+	if s.budget != nil {
+		s.CloseContext(context.Background())
+		return
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.closed = true
@@ -209,4 +216,178 @@ func (s *Session) Close() {
 		killGroupThenReap(s.command, s.waited)
 	}
 	s.release()
+}
+
+// NewSession returns a session whose child is owned by a groupreap.Owner and
+// bounded by this stable budget's one clock.
+func (b *Budget) NewSession() *Session { return &Session{budget: b} }
+
+// ReadReserved is Read for a stable session. The request runs under the
+// absolute deadline of its reservation. ok=false with a nil error means the
+// owned child was retired with observed cleanup and the caller replays the
+// same reservation as a one-shot child; a failed cleanup is an error.
+func (s *Session) ReadReserved(ctx context.Context, reservation Reservation, options Options, args []string, request string, admit func(header string, fields []string, size int) bool) (string, []byte, bool, error) {
+	st := s.budget.stable
+	event := Event{Ordinal: reservation.Ordinal, Session: true}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed || strings.ContainsAny(request, "\n\x00") {
+		return "", nil, false, nil
+	}
+	if st.terminal(ctx) {
+		return "", nil, false, cemcode.New(cemcode.GitCancelled, "Git operation cancelled")
+	}
+	options.Binary, args = st.rewrite(reservation.Ordinal, false, options.Binary, args)
+	started, err := s.startOwned(ctx, options, args, event)
+	if err != nil || !started {
+		return "", nil, false, err
+	}
+	event.Name = "op-start"
+	st.event(event)
+	done := make(chan sessionReply, 1)
+	stdin, reader := s.stdin, s.reader
+	go func() { done <- exchange(stdin, reader, request, admit) }()
+	expired := func() bool { return !st.now().Before(reservation.Deadline) }
+	opExpired, stopWatch := st.until(expired)
+	defer stopWatch()
+	var outer, timedOut bool
+	var pending <-chan sessionReply = done
+	select {
+	case reply := <-done:
+		if _, exceeded := s.stderr.snapshot(); reply.ok && !exceeded {
+			return reply.header, reply.body, true, nil
+		}
+		pending = nil
+		s.owner.Stop()
+	case <-s.overrun:
+		s.owner.Stop()
+	case <-ctx.Done():
+		outer, timedOut = st.retire(ctx, s.owner, event, expired)
+	case <-opExpired:
+		outer, timedOut = st.retire(ctx, s.owner, event, expired)
+	}
+	if err := s.finishOwned(ctx, event, pending); err != nil {
+		return "", nil, false, err
+	}
+	if outer {
+		return "", nil, false, cemcode.New(cemcode.GitCancelled, "Git operation cancelled")
+	}
+	if timedOut {
+		return "", nil, false, cemcode.New(cemcode.GitTimeout, "Git operation timed out")
+	}
+	return "", nil, false, nil
+}
+
+// startOwned is start under an owner. A child running with other parameters
+// is retired first; its unobserved cleanup is an error and nothing is started.
+func (s *Session) startOwned(ctx context.Context, options Options, args []string, event Event) (bool, error) {
+	st := s.budget.stable
+	env := options.Env
+	if env == nil {
+		env = []string{}
+	}
+	if s.command != nil && (s.binary != options.Binary || s.dir != options.Dir || !slices.Equal(s.env, env) || !slices.Equal(s.args, args)) {
+		s.owner.Stop()
+		if err := s.finishOwned(ctx, event, nil); err != nil {
+			return false, err
+		}
+	}
+	if s.command != nil {
+		return true, nil
+	}
+	st.mu.Lock()
+	held := st.held
+	st.mu.Unlock()
+	if held || !groupreap.OwnerAvailable() {
+		return false, containment()
+	}
+	stdinRead, stdinWrite, err := os.Pipe()
+	if err != nil {
+		return false, nil
+	}
+	stdoutRead, stdoutWrite, err := os.Pipe()
+	if err != nil {
+		stdinRead.Close()
+		stdinWrite.Close()
+		return false, nil
+	}
+	stderrLimit := options.StderrLimit
+	if stderrLimit == 0 {
+		stderrLimit = DefaultStderrLimit
+	}
+	overrun := make(chan struct{})
+	var overrunOnce sync.Once
+	command := exec.Command(options.Binary, args...)
+	command.Dir, command.Env = options.Dir, env
+	command.Stdin, command.Stdout = stdinRead, stdoutWrite
+	s.stderr = newLimitedBuffer(stderrLimit, 0, func() { overrunOnce.Do(func() { close(overrun) }) })
+	command.Stderr = s.stderr
+	command.WaitDelay = pipeDrainDelay
+	owner, err := groupreap.StartWith(command, st.primitives(event.Ordinal, true))
+	stdinRead.Close()
+	stdoutWrite.Close()
+	if err != nil {
+		stdinWrite.Close()
+		stdoutRead.Close()
+		return false, nil
+	}
+	s.binary, s.dir, s.env, s.args = options.Binary, options.Dir, slices.Clone(env), slices.Clone(args)
+	s.command, s.owner, s.stdin, s.stdout, s.overrun = command, owner, stdinWrite, stdoutRead, overrun
+	s.reader = bufio.NewReaderSize(stdoutRead, sessionHeaderLimit)
+	return true, nil
+}
+
+// finishOwned completes the owner lifecycle of the session child, closes both
+// pipes so a pending exchange ends, and forgets the child. A HOLD keeps the
+// owner handle inside the owner and is reported as a containment refusal.
+func (s *Session) finishOwned(ctx context.Context, event Event, pending <-chan sessionReply) error {
+	result := s.budget.stable.finish(ctx, s.owner, event)
+	s.stdin.Close()
+	s.stdout.Close()
+	if pending != nil {
+		<-pending
+	}
+	s.release()
+	s.owner = nil
+	if result.State != groupreap.Released {
+		return containment()
+	}
+	return nil
+}
+
+// CloseContext ends a stable session and reports whether its cleanup was
+// observed. The child sees EOF on stdin and may finish within ten seconds of
+// remaining outer time; its still-owned group is then retired and reaped. A
+// caller cancellation or outer expiry moves the close to the single emergency
+// allowance. A legacy session has no cleanup status and returns nil.
+func (s *Session) CloseContext(ctx context.Context) error {
+	if s.budget == nil {
+		s.Close()
+		return nil
+	}
+	st := s.budget.stable
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.closed = true
+	if s.command == nil {
+		if s.budget.Held() {
+			return containment()
+		}
+		return nil
+	}
+	event := Event{Session: true}
+	event.Name = "session-close-start"
+	st.event(event)
+	s.stdin.Close()
+	start := st.now()
+	soft, stop := st.until(func() bool {
+		return st.terminal(ctx) || !st.now().Before(start.Add(DefaultPerOpTimeout))
+	})
+	select {
+	case <-s.owner.Exited():
+	case <-soft:
+		s.owner.Stop()
+	}
+	stop()
+	return s.finishOwned(ctx, event, nil)
 }
