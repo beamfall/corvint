@@ -1,0 +1,1346 @@
+{
+  "acyclicDependencyEdges": [
+    {
+      "from": "/providers/0/receipt",
+      "to": "/providers/0/receipt/applicationAttestation/after/attestation"
+    },
+    {
+      "from": "/providers/0/receipt",
+      "to": "/providers/0/receipt/applicationAttestation/before/attestation"
+    },
+    {
+      "from": "/providers/1/receipt",
+      "to": "/providers/1/receipt/applicationAttestation/after/attestation"
+    },
+    {
+      "from": "/providers/1/receipt",
+      "to": "/providers/1/receipt/applicationAttestation/before/attestation"
+    },
+    {
+      "from": "/providers/2/receipt",
+      "to": "/providers/2/receipt/applicationAttestation/after/attestation"
+    },
+    {
+      "from": "/providers/2/receipt",
+      "to": "/providers/2/receipt/applicationAttestation/before/attestation"
+    },
+    {
+      "from": "/hooks/0/receipt",
+      "to": "/providers/2/receipt"
+    },
+    {
+      "from": "/assessment/controls/0/evidence",
+      "to": "/hooks/0/receipt"
+    },
+    {
+      "from": "/assessment/controls/0/evidence",
+      "to": "/providers/2/receipt"
+    }
+  ],
+  "decision": {
+    "assessment": {
+      "assessments": null,
+      "body": {
+        "present": false,
+        "renderer": "testacceptance.renderBody/1",
+        "verified": true
+      },
+      "build": "",
+      "controls": [
+        {
+          "cleanup": {
+            "cancelled": false,
+            "owned_group": false,
+            "qualification": "",
+            "status": "",
+            "timed_out": false
+          },
+          "evidence": {
+            "approval": {
+              "digest": {
+                "profile": "",
+                "verified": true
+              },
+              "method": "",
+              "plan_digest": "",
+              "schema": ""
+            },
+            "digest": {
+              "profile": "corvint-browser-behavior-evidence/1",
+              "verified": true
+            },
+            "plan_preimage": "",
+            "raw_attempts": [
+              {
+                "attempt": 1,
+                "control_id": "approved-control",
+                "hook_bytes": {
+                  "kind": "hook",
+                  "locator": "/hooks/0/receipt",
+                  "sha256": "37b43a7a31408db39f203d7dc8ab77c5cdc4cc30fb07889fff76fc593dc6d1f2"
+                },
+                "hook_sha256": {
+                  "kind": "hook",
+                  "locator": "/hooks/0/receipt",
+                  "sha256": "37b43a7a31408db39f203d7dc8ab77c5cdc4cc30fb07889fff76fc593dc6d1f2"
+                },
+                "native_bytes": {
+                  "kind": "provider",
+                  "locator": "/providers/2/receipt",
+                  "sha256": "12f76489b966def6b5cda0f61469d7deb506510d04b43833a15aac65cf67eb2f"
+                },
+                "native_sha256": {
+                  "kind": "provider",
+                  "locator": "/providers/2/receipt",
+                  "sha256": "12f76489b966def6b5cda0f61469d7deb506510d04b43833a15aac65cf67eb2f"
+                },
+                "omissions": [],
+                "ordinal": 1
+              }
+            ],
+            "report": {
+              "complete_vocabulary": false,
+              "counts": null,
+              "coverage_gaps": null,
+              "digest": {
+                "profile": "corvint-browser-behavior-falsification-report/0",
+                "verified": true
+              },
+              "executed": 0,
+              "fallback": "",
+              "limitations": null,
+              "mutation_score": {
+                "defined": false,
+                "denominator": 0,
+                "killed": 0
+              },
+              "plan_digest": "",
+              "requested": 0,
+              "results": [
+                {
+                  "attempts": [
+                    {
+                      "attempt": 1,
+                      "cleanup_process": {
+                        "cancelled": false,
+                        "completed": true,
+                        "descendants_gone": true,
+                        "exit": 0,
+                        "overflow": false,
+                        "owned_cleanup": true,
+                        "started": true,
+                        "stderr_sha256": {
+                          "consumer": "retained-uninterpreted-success-log/0",
+                          "state": "empty"
+                        },
+                        "stdout_sha256": {
+                          "consumer": "retained-uninterpreted-success-log/0",
+                          "state": "empty"
+                        },
+                        "timed_out": false
+                      },
+                      "hook_process": {
+                        "cancelled": false,
+                        "completed": true,
+                        "descendants_gone": true,
+                        "exit": 0,
+                        "overflow": false,
+                        "owned_cleanup": true,
+                        "started": true,
+                        "stderr_sha256": {
+                          "consumer": "retained-uninterpreted-success-log/0",
+                          "state": "empty"
+                        },
+                        "stdout_sha256": {
+                          "kind": "hook",
+                          "locator": "/hooks/0/receipt",
+                          "sha256": "37b43a7a31408db39f203d7dc8ab77c5cdc4cc30fb07889fff76fc593dc6d1f2"
+                        },
+                        "timed_out": false
+                      },
+                      "reasons": null,
+                      "receipt": {
+                        "artifacts": [
+                          {
+                            "path": "control-native.json",
+                            "sha256": {
+                              "kind": "provider",
+                              "locator": "/providers/2/receipt",
+                              "sha256": "12f76489b966def6b5cda0f61469d7deb506510d04b43833a15aac65cf67eb2f"
+                            }
+                          }
+                        ],
+                        "attempt": 1,
+                        "native_receipt_sha256": {
+                          "kind": "provider",
+                          "locator": "/providers/2/receipt",
+                          "sha256": "12f76489b966def6b5cda0f61469d7deb506510d04b43833a15aac65cf67eb2f"
+                        },
+                        "perturbation_sha256": "",
+                        "plan_digest": "",
+                        "retry": 0,
+                        "runner": {
+                          "browser": "",
+                          "browser_version": "",
+                          "config_file": "",
+                          "config_sha256": "",
+                          "environment_sha256": "",
+                          "runner": "",
+                          "runner_version": ""
+                        },
+                        "schema": "corvint-browser-behavior-control-run/0",
+                        "setup": null,
+                        "target": {
+                          "application_revision": "",
+                          "assertion_id": "",
+                          "contract_file": "",
+                          "contract_id": "",
+                          "contract_sha256": "",
+                          "criterion_id": "",
+                          "documentation_revision": "",
+                          "project": "",
+                          "test_file": "",
+                          "test_id": "new-test",
+                          "test_line": 0,
+                          "test_revision": "",
+                          "test_title": ""
+                        },
+                        "target_observation": {
+                          "criterion_id": "",
+                          "state": ""
+                        },
+                        "test_outcome": "failed",
+                        "unrelated": null
+                      },
+                      "retained_artifacts": [
+                        {
+                          "path": "control-native.json",
+                          "sha256": {
+                            "kind": "provider",
+                            "locator": "/providers/2/receipt",
+                            "sha256": "12f76489b966def6b5cda0f61469d7deb506510d04b43833a15aac65cf67eb2f"
+                          }
+                        }
+                      ],
+                      "status": "killed",
+                      "workspace_after": "",
+                      "workspace_before": ""
+                    }
+                  ],
+                  "id": "approved-control",
+                  "kind": "changed-fixture-value",
+                  "ordinal": 1,
+                  "reasons": null,
+                  "status": "killed"
+                }
+              ],
+              "schema": "corvint-browser-behavior-falsification-report/0",
+              "supported": 0
+            },
+            "schema": "corvint-browser-behavior-evidence/1",
+            "tool": {
+              "executable_sha256": "",
+              "name": "",
+              "revision": "",
+              "source_dirty": false,
+              "version": ""
+            },
+            "unsupported": null
+          },
+          "id": "new-test",
+          "receipt_digest": {
+            "kind": "control-evidence",
+            "locator": "/assessment/controls/0/evidence",
+            "sha256": "345ad560334674f1c14911360b063294f2743352421873c1876840e80e0c1fdf"
+          },
+          "status": "killed",
+          "unsupported": null
+        }
+      ],
+      "environment": "",
+      "executable_sha256": "",
+      "product": {
+        "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "root": "/product",
+        "tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "reasons": null,
+      "request_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "runs": [
+        {
+          "cleanup": {
+            "cancelled": false,
+            "owned_group": false,
+            "qualification": "",
+            "status": "",
+            "timed_out": false
+          },
+          "kind": "repeat",
+          "native_receipt": {
+            "kind": "provider",
+            "locator": "/providers/0/receipt",
+            "sha256": "8a5cac271908362d3f128f6bb428ccac9ccb9596adae71d2685bdd7ada2adf13"
+          },
+          "ordinal": 1,
+          "reasons": null,
+          "receipt_sha256": {
+            "kind": "provider",
+            "locator": "/providers/0/receipt",
+            "sha256": "8a5cac271908362d3f128f6bb428ccac9ccb9596adae71d2685bdd7ada2adf13"
+          },
+          "requested_files": [
+            "/tests/new.cjs"
+          ],
+          "rows": null
+        },
+        {
+          "cleanup": {
+            "cancelled": false,
+            "owned_group": false,
+            "qualification": "",
+            "status": "",
+            "timed_out": false
+          },
+          "kind": "repeat",
+          "native_receipt": {
+            "kind": "provider",
+            "locator": "/providers/1/receipt",
+            "sha256": "09303d0974aad7e843ba309d5b6a1c3deffcb10d29215b210d1c8a38da02f422"
+          },
+          "ordinal": 2,
+          "reasons": null,
+          "receipt_sha256": {
+            "kind": "provider",
+            "locator": "/providers/1/receipt",
+            "sha256": "09303d0974aad7e843ba309d5b6a1c3deffcb10d29215b210d1c8a38da02f422"
+          },
+          "requested_files": [
+            "/tests/new.cjs"
+          ],
+          "rows": null
+        }
+      ],
+      "schema": "corvint-new-e2e-assessment/1",
+      "test_repository": {
+        "commit": "cccccccccccccccccccccccccccccccccccccccc",
+        "root": "/tests",
+        "tree": "ffffffffffffffffffffffffffffffffffffffff"
+      },
+      "unknowns": null,
+      "verdict": "accepted"
+    },
+    "hooks": [
+      {
+        "attempt": 1,
+        "control_id": "approved-control",
+        "id": "/hooks/0/receipt",
+        "ordinal": 1,
+        "receipt": {
+          "artifacts": [
+            {
+              "path": "control-native.json",
+              "sha256": {
+                "kind": "provider",
+                "locator": "/providers/2/receipt",
+                "sha256": "12f76489b966def6b5cda0f61469d7deb506510d04b43833a15aac65cf67eb2f"
+              }
+            }
+          ],
+          "attempt": 1,
+          "native_receipt_sha256": {
+            "kind": "provider",
+            "locator": "/providers/2/receipt",
+            "sha256": "12f76489b966def6b5cda0f61469d7deb506510d04b43833a15aac65cf67eb2f"
+          },
+          "perturbation_sha256": "",
+          "plan_digest": "",
+          "retry": 0,
+          "runner": {
+            "browser": "",
+            "browser_version": "",
+            "config_file": "",
+            "config_sha256": "",
+            "environment_sha256": "",
+            "runner": "",
+            "runner_version": ""
+          },
+          "schema": "corvint-browser-behavior-control-run/0",
+          "setup": null,
+          "target": {
+            "application_revision": "",
+            "assertion_id": "",
+            "contract_file": "",
+            "contract_id": "",
+            "contract_sha256": "",
+            "criterion_id": "",
+            "documentation_revision": "",
+            "project": "",
+            "test_file": "",
+            "test_id": "new-test",
+            "test_line": 0,
+            "test_revision": "",
+            "test_title": ""
+          },
+          "target_observation": {
+            "criterion_id": "",
+            "state": ""
+          },
+          "test_outcome": "failed",
+          "unrelated": null
+        }
+      }
+    ],
+    "identity": {
+      "draft": {
+        "commit": "dddddddddddddddddddddddddddddddddddddddd",
+        "files": [],
+        "kind": "docs",
+        "parent": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "tree": "9999999999999999999999999999999999999999"
+      },
+      "field_map_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "host": {
+        "implementation_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "logical_mounts": [],
+        "policy_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "profile": "",
+        "qualification_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "manifest_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "product_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "product_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "request_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "source_schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "test_commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "test_tree": "ffffffffffffffffffffffffffffffffffffffff",
+      "tools": []
+    },
+    "limitations": [],
+    "processes": [
+      {
+        "birth_distinct_from": [],
+        "node": "proc/0/host-supervisor/default",
+        "parent": null,
+        "role": "host-supervisor",
+        "run_kind": "workflow",
+        "run_ordinal": 0,
+        "state": "live"
+      },
+      {
+        "birth_distinct_from": [],
+        "node": "proc/0/workflow-root/default",
+        "parent": "proc/0/host-supervisor/default",
+        "role": "workflow-root",
+        "run_kind": "workflow",
+        "run_ordinal": 0,
+        "state": "gone"
+      },
+      {
+        "birth_distinct_from": [],
+        "node": "proc/1/server/default",
+        "parent": "proc/0/workflow-root/default",
+        "role": "server",
+        "run_kind": "repeat",
+        "run_ordinal": 1,
+        "state": "gone"
+      },
+      {
+        "birth_distinct_from": [],
+        "node": "proc/2/server/default",
+        "parent": "proc/0/workflow-root/default",
+        "role": "server",
+        "run_kind": "repeat",
+        "run_ordinal": 2,
+        "state": "gone"
+      },
+      {
+        "birth_distinct_from": [
+          "proc/1/server/default",
+          "proc/2/server/default"
+        ],
+        "node": "proc/3/server/default",
+        "parent": "proc/0/workflow-root/default",
+        "role": "server",
+        "run_kind": "control",
+        "run_ordinal": 1,
+        "state": "gone"
+      }
+    ],
+    "profile": "corvint-new-e2e-decision/2",
+    "providers": [
+      {
+        "attempt": null,
+        "control_id": null,
+        "control_ordinal": null,
+        "id": "/providers/0/receipt",
+        "receipt": {
+          "appBuildAtPublish": {
+            "digest": "",
+            "unknown": false
+          },
+          "appBuildAtStart": {
+            "digest": "",
+            "unknown": false
+          },
+          "applicationAttestation": {
+            "after": {
+              "attestation": {
+                "build": {
+                  "digest": "",
+                  "kind": ""
+                },
+                "configuration": {
+                  "digest": "",
+                  "kind": ""
+                },
+                "health": {
+                  "state": "healthy"
+                },
+                "instance": {
+                  "id": {
+                    "birth_distinct_from": [],
+                    "node": "proc/1/server/default",
+                    "parent": "proc/0/workflow-root/default",
+                    "role": "server",
+                    "run_kind": "repeat",
+                    "run_ordinal": 1,
+                    "state": "gone"
+                  },
+                  "kind": "process",
+                  "startGeneration": {
+                    "profile": "postmerge-process-proof/2",
+                    "verified": true
+                  }
+                },
+                "profile": "corvint-application-attestation/0",
+                "repository": {
+                  "dirtyState": "",
+                  "revision": "",
+                  "rootCommit": "",
+                  "tree": ""
+                }
+              },
+              "outputDigest": {
+                "kind": "attestation",
+                "locator": "/providers/0/receipt/applicationAttestation/after/attestation",
+                "sha256": "bc2eb3ea6d1668b50dd2a6ebf1d2553a19c8b112f932ce724898cd62c914256e"
+              }
+            },
+            "before": {
+              "attestation": {
+                "build": {
+                  "digest": "",
+                  "kind": ""
+                },
+                "configuration": {
+                  "digest": "",
+                  "kind": ""
+                },
+                "health": {
+                  "state": "healthy"
+                },
+                "instance": {
+                  "id": {
+                    "birth_distinct_from": [],
+                    "node": "proc/1/server/default",
+                    "parent": "proc/0/workflow-root/default",
+                    "role": "server",
+                    "run_kind": "repeat",
+                    "run_ordinal": 1,
+                    "state": "gone"
+                  },
+                  "kind": "process",
+                  "startGeneration": {
+                    "profile": "postmerge-process-proof/2",
+                    "verified": true
+                  }
+                },
+                "profile": "corvint-application-attestation/0",
+                "repository": {
+                  "dirtyState": "",
+                  "revision": "",
+                  "rootCommit": "",
+                  "tree": ""
+                }
+              },
+              "outputDigest": {
+                "kind": "attestation",
+                "locator": "/providers/0/receipt/applicationAttestation/before/attestation",
+                "sha256": "051d5e323a81d7bd048ebd4f38ad8c1ff3f7033392915ec357f049234094ef99"
+              }
+            },
+            "expectation": {
+              "build": {
+                "digest": "",
+                "kind": ""
+              },
+              "configuration": {
+                "digest": "",
+                "kind": ""
+              },
+              "instanceKind": "",
+              "repository": {
+                "dirtyPolicy": "",
+                "revision": "",
+                "rootCommit": "",
+                "tree": ""
+              }
+            },
+            "failures": null,
+            "provider": {
+              "argv": null,
+              "configDigest": "",
+              "configPath": "",
+              "environment": null,
+              "executableDigest": "",
+              "executablePath": "",
+              "profile": ""
+            }
+          },
+          "cancelled": false,
+          "freshness": {
+            "artifactAfter": "",
+            "artifactBefore": "",
+            "artifactPath": "",
+            "dependencies": null,
+            "dependencyDigest": "",
+            "documentUrl": "",
+            "environmentAfter": null,
+            "environmentBefore": null,
+            "failures": null,
+            "leader": {
+              "pid": {
+                "birth_distinct_from": [],
+                "node": "proc/1/server/default",
+                "parent": "proc/0/workflow-root/default",
+                "role": "server",
+                "run_kind": "repeat",
+                "run_ordinal": 1,
+                "state": "gone"
+              },
+              "start": {
+                "profile": "postmerge-process-proof/2",
+                "verified": true
+              }
+            },
+            "observer": {
+              "expected": {
+                "argv": null,
+                "entrypointDigest": "",
+                "executableDigest": ""
+              }
+            },
+            "observerConfigAfter": "",
+            "observerConfigBefore": "",
+            "productExpected": {
+              "dirtyState": "",
+              "revision": "",
+              "rootCommit": "",
+              "tree": ""
+            },
+            "runner": {
+              "expected": {
+                "argv": null,
+                "entrypointDigest": "",
+                "executableDigest": ""
+              }
+            },
+            "servedAfter": {
+              "body": "PGh0bWw+ZXhhbXBsZTwvaHRtbD4=",
+              "observerImports": null,
+              "process": {
+                "pid": {
+                  "birth_distinct_from": [],
+                  "node": "proc/1/server/default",
+                  "parent": "proc/0/workflow-root/default",
+                  "role": "server",
+                  "run_kind": "repeat",
+                  "run_ordinal": 1,
+                  "state": "gone"
+                },
+                "start": {
+                  "profile": "postmerge-process-proof/2",
+                  "verified": true
+                }
+              },
+              "serverImports": null,
+              "url": "http://127.0.0.1:4394/"
+            },
+            "servedBefore": {
+              "body": "PGh0bWw+ZXhhbXBsZTwvaHRtbD4=",
+              "observerImports": null,
+              "process": {
+                "pid": {
+                  "birth_distinct_from": [],
+                  "node": "proc/1/server/default",
+                  "parent": "proc/0/workflow-root/default",
+                  "role": "server",
+                  "run_kind": "repeat",
+                  "run_ordinal": 1,
+                  "state": "gone"
+                },
+                "start": {
+                  "profile": "postmerge-process-proof/2",
+                  "verified": true
+                }
+              },
+              "serverImports": null,
+              "url": "http://127.0.0.1:4394/"
+            },
+            "server": {
+              "expected": {
+                "argv": null,
+                "entrypointDigest": "",
+                "executableDigest": ""
+              }
+            },
+            "serverInputDigest": "",
+            "source": "",
+            "sourceDigest": "",
+            "testExpected": {
+              "dirtyState": "",
+              "revision": "",
+              "rootCommit": "",
+              "tree": ""
+            }
+          },
+          "identity": {
+            "argv": null,
+            "configDigest": "",
+            "configFile": "",
+            "environment": null,
+            "nodeVersion": "synthetic-example",
+            "packageDigest": "",
+            "runnerName": "playwright",
+            "runnerVersion": "synthetic-example",
+            "testFileDigests": null
+          },
+          "kind": "playwright",
+          "profile": "corvint-playwright-freshness/0",
+          "staleAppBuild": false,
+          "tests": [
+            {
+              "attempts": [
+                {
+                  "failureKind": "",
+                  "retry": 0,
+                  "state": "passed"
+                }
+              ],
+              "durationMs": {
+                "rule": "native-elapsed-no-acceptance-rule/0",
+                "state": "measured",
+                "thresholds": []
+              },
+              "fullName": "new-test",
+              "id": "observed-new-test",
+              "name": "new-test",
+              "retries": 0,
+              "state": "passed"
+            }
+          ]
+        },
+        "role": "baseline",
+        "run_kind": "repeat",
+        "run_ordinal": 1,
+        "test_ids": [
+          "new-test"
+        ]
+      },
+      {
+        "attempt": null,
+        "control_id": null,
+        "control_ordinal": null,
+        "id": "/providers/1/receipt",
+        "receipt": {
+          "appBuildAtPublish": {
+            "digest": "",
+            "unknown": false
+          },
+          "appBuildAtStart": {
+            "digest": "",
+            "unknown": false
+          },
+          "applicationAttestation": {
+            "after": {
+              "attestation": {
+                "build": {
+                  "digest": "",
+                  "kind": ""
+                },
+                "configuration": {
+                  "digest": "",
+                  "kind": ""
+                },
+                "health": {
+                  "state": "healthy"
+                },
+                "instance": {
+                  "id": {
+                    "birth_distinct_from": [],
+                    "node": "proc/2/server/default",
+                    "parent": "proc/0/workflow-root/default",
+                    "role": "server",
+                    "run_kind": "repeat",
+                    "run_ordinal": 2,
+                    "state": "gone"
+                  },
+                  "kind": "process",
+                  "startGeneration": {
+                    "profile": "postmerge-process-proof/2",
+                    "verified": true
+                  }
+                },
+                "profile": "corvint-application-attestation/0",
+                "repository": {
+                  "dirtyState": "",
+                  "revision": "",
+                  "rootCommit": "",
+                  "tree": ""
+                }
+              },
+              "outputDigest": {
+                "kind": "attestation",
+                "locator": "/providers/1/receipt/applicationAttestation/after/attestation",
+                "sha256": "7afc72f6613b0583681a11f647785c8f2700ab57ba767d58ba9c6ae47501455f"
+              }
+            },
+            "before": {
+              "attestation": {
+                "build": {
+                  "digest": "",
+                  "kind": ""
+                },
+                "configuration": {
+                  "digest": "",
+                  "kind": ""
+                },
+                "health": {
+                  "state": "healthy"
+                },
+                "instance": {
+                  "id": {
+                    "birth_distinct_from": [],
+                    "node": "proc/2/server/default",
+                    "parent": "proc/0/workflow-root/default",
+                    "role": "server",
+                    "run_kind": "repeat",
+                    "run_ordinal": 2,
+                    "state": "gone"
+                  },
+                  "kind": "process",
+                  "startGeneration": {
+                    "profile": "postmerge-process-proof/2",
+                    "verified": true
+                  }
+                },
+                "profile": "corvint-application-attestation/0",
+                "repository": {
+                  "dirtyState": "",
+                  "revision": "",
+                  "rootCommit": "",
+                  "tree": ""
+                }
+              },
+              "outputDigest": {
+                "kind": "attestation",
+                "locator": "/providers/1/receipt/applicationAttestation/before/attestation",
+                "sha256": "74aa0cd0f39ae5d47e6ec199b186e629353292ddad6c30c3d57f23c19abd77ac"
+              }
+            },
+            "expectation": {
+              "build": {
+                "digest": "",
+                "kind": ""
+              },
+              "configuration": {
+                "digest": "",
+                "kind": ""
+              },
+              "instanceKind": "",
+              "repository": {
+                "dirtyPolicy": "",
+                "revision": "",
+                "rootCommit": "",
+                "tree": ""
+              }
+            },
+            "failures": null,
+            "provider": {
+              "argv": null,
+              "configDigest": "",
+              "configPath": "",
+              "environment": null,
+              "executableDigest": "",
+              "executablePath": "",
+              "profile": ""
+            }
+          },
+          "cancelled": false,
+          "freshness": {
+            "artifactAfter": "",
+            "artifactBefore": "",
+            "artifactPath": "",
+            "dependencies": null,
+            "dependencyDigest": "",
+            "documentUrl": "",
+            "environmentAfter": null,
+            "environmentBefore": null,
+            "failures": null,
+            "leader": {
+              "pid": {
+                "birth_distinct_from": [],
+                "node": "proc/2/server/default",
+                "parent": "proc/0/workflow-root/default",
+                "role": "server",
+                "run_kind": "repeat",
+                "run_ordinal": 2,
+                "state": "gone"
+              },
+              "start": {
+                "profile": "postmerge-process-proof/2",
+                "verified": true
+              }
+            },
+            "observer": {
+              "expected": {
+                "argv": null,
+                "entrypointDigest": "",
+                "executableDigest": ""
+              }
+            },
+            "observerConfigAfter": "",
+            "observerConfigBefore": "",
+            "productExpected": {
+              "dirtyState": "",
+              "revision": "",
+              "rootCommit": "",
+              "tree": ""
+            },
+            "runner": {
+              "expected": {
+                "argv": null,
+                "entrypointDigest": "",
+                "executableDigest": ""
+              }
+            },
+            "servedAfter": {
+              "body": "PGh0bWw+ZXhhbXBsZTwvaHRtbD4=",
+              "observerImports": null,
+              "process": {
+                "pid": {
+                  "birth_distinct_from": [],
+                  "node": "proc/2/server/default",
+                  "parent": "proc/0/workflow-root/default",
+                  "role": "server",
+                  "run_kind": "repeat",
+                  "run_ordinal": 2,
+                  "state": "gone"
+                },
+                "start": {
+                  "profile": "postmerge-process-proof/2",
+                  "verified": true
+                }
+              },
+              "serverImports": null,
+              "url": "http://127.0.0.1:4394/"
+            },
+            "servedBefore": {
+              "body": "PGh0bWw+ZXhhbXBsZTwvaHRtbD4=",
+              "observerImports": null,
+              "process": {
+                "pid": {
+                  "birth_distinct_from": [],
+                  "node": "proc/2/server/default",
+                  "parent": "proc/0/workflow-root/default",
+                  "role": "server",
+                  "run_kind": "repeat",
+                  "run_ordinal": 2,
+                  "state": "gone"
+                },
+                "start": {
+                  "profile": "postmerge-process-proof/2",
+                  "verified": true
+                }
+              },
+              "serverImports": null,
+              "url": "http://127.0.0.1:4394/"
+            },
+            "server": {
+              "expected": {
+                "argv": null,
+                "entrypointDigest": "",
+                "executableDigest": ""
+              }
+            },
+            "serverInputDigest": "",
+            "source": "",
+            "sourceDigest": "",
+            "testExpected": {
+              "dirtyState": "",
+              "revision": "",
+              "rootCommit": "",
+              "tree": ""
+            }
+          },
+          "identity": {
+            "argv": null,
+            "configDigest": "",
+            "configFile": "",
+            "environment": null,
+            "nodeVersion": "synthetic-example",
+            "packageDigest": "",
+            "runnerName": "playwright",
+            "runnerVersion": "synthetic-example",
+            "testFileDigests": null
+          },
+          "kind": "playwright",
+          "profile": "corvint-playwright-freshness/0",
+          "staleAppBuild": false,
+          "tests": [
+            {
+              "attempts": [
+                {
+                  "failureKind": "",
+                  "retry": 0,
+                  "state": "passed"
+                }
+              ],
+              "durationMs": {
+                "rule": "native-elapsed-no-acceptance-rule/0",
+                "state": "measured",
+                "thresholds": []
+              },
+              "fullName": "new-test",
+              "id": "observed-new-test",
+              "name": "new-test",
+              "retries": 0,
+              "state": "passed"
+            }
+          ]
+        },
+        "role": "baseline",
+        "run_kind": "repeat",
+        "run_ordinal": 2,
+        "test_ids": [
+          "new-test"
+        ]
+      },
+      {
+        "attempt": 1,
+        "control_id": "approved-control",
+        "control_ordinal": 1,
+        "id": "/providers/2/receipt",
+        "receipt": {
+          "appBuildAtPublish": {
+            "digest": "",
+            "unknown": false
+          },
+          "appBuildAtStart": {
+            "digest": "",
+            "unknown": false
+          },
+          "applicationAttestation": {
+            "after": {
+              "attestation": {
+                "build": {
+                  "digest": "",
+                  "kind": ""
+                },
+                "configuration": {
+                  "digest": "",
+                  "kind": ""
+                },
+                "health": {
+                  "state": "healthy"
+                },
+                "instance": {
+                  "id": {
+                    "birth_distinct_from": [
+                      "proc/1/server/default",
+                      "proc/2/server/default"
+                    ],
+                    "node": "proc/3/server/default",
+                    "parent": "proc/0/workflow-root/default",
+                    "role": "server",
+                    "run_kind": "control",
+                    "run_ordinal": 1,
+                    "state": "gone"
+                  },
+                  "kind": "process",
+                  "startGeneration": {
+                    "profile": "postmerge-process-proof/2",
+                    "verified": true
+                  }
+                },
+                "profile": "corvint-application-attestation/0",
+                "repository": {
+                  "dirtyState": "",
+                  "revision": "",
+                  "rootCommit": "",
+                  "tree": ""
+                }
+              },
+              "outputDigest": {
+                "kind": "attestation",
+                "locator": "/providers/2/receipt/applicationAttestation/after/attestation",
+                "sha256": "942a8f31925d00ee9335383ddf88b6259ce9d51752833fa6e0b8f5b043d11944"
+              }
+            },
+            "before": {
+              "attestation": {
+                "build": {
+                  "digest": "",
+                  "kind": ""
+                },
+                "configuration": {
+                  "digest": "",
+                  "kind": ""
+                },
+                "health": {
+                  "state": "healthy"
+                },
+                "instance": {
+                  "id": {
+                    "birth_distinct_from": [
+                      "proc/1/server/default",
+                      "proc/2/server/default"
+                    ],
+                    "node": "proc/3/server/default",
+                    "parent": "proc/0/workflow-root/default",
+                    "role": "server",
+                    "run_kind": "control",
+                    "run_ordinal": 1,
+                    "state": "gone"
+                  },
+                  "kind": "process",
+                  "startGeneration": {
+                    "profile": "postmerge-process-proof/2",
+                    "verified": true
+                  }
+                },
+                "profile": "corvint-application-attestation/0",
+                "repository": {
+                  "dirtyState": "",
+                  "revision": "",
+                  "rootCommit": "",
+                  "tree": ""
+                }
+              },
+              "outputDigest": {
+                "kind": "attestation",
+                "locator": "/providers/2/receipt/applicationAttestation/before/attestation",
+                "sha256": "d2710e7da4a424426c5bf2e5f3da8e7621b02c7620b95558d8dda02baaf8c7e0"
+              }
+            },
+            "expectation": {
+              "build": {
+                "digest": "",
+                "kind": ""
+              },
+              "configuration": {
+                "digest": "",
+                "kind": ""
+              },
+              "instanceKind": "",
+              "repository": {
+                "dirtyPolicy": "",
+                "revision": "",
+                "rootCommit": "",
+                "tree": ""
+              }
+            },
+            "failures": null,
+            "provider": {
+              "argv": null,
+              "configDigest": "",
+              "configPath": "",
+              "environment": null,
+              "executableDigest": "",
+              "executablePath": "",
+              "profile": ""
+            }
+          },
+          "cancelled": false,
+          "freshness": {
+            "artifactAfter": "",
+            "artifactBefore": "",
+            "artifactPath": "",
+            "dependencies": null,
+            "dependencyDigest": "",
+            "documentUrl": "",
+            "environmentAfter": null,
+            "environmentBefore": null,
+            "failures": null,
+            "leader": {
+              "pid": {
+                "birth_distinct_from": [
+                  "proc/1/server/default",
+                  "proc/2/server/default"
+                ],
+                "node": "proc/3/server/default",
+                "parent": "proc/0/workflow-root/default",
+                "role": "server",
+                "run_kind": "control",
+                "run_ordinal": 1,
+                "state": "gone"
+              },
+              "start": {
+                "profile": "postmerge-process-proof/2",
+                "verified": true
+              }
+            },
+            "observer": {
+              "expected": {
+                "argv": null,
+                "entrypointDigest": "",
+                "executableDigest": ""
+              }
+            },
+            "observerConfigAfter": "",
+            "observerConfigBefore": "",
+            "productExpected": {
+              "dirtyState": "",
+              "revision": "",
+              "rootCommit": "",
+              "tree": ""
+            },
+            "runner": {
+              "expected": {
+                "argv": null,
+                "entrypointDigest": "",
+                "executableDigest": ""
+              }
+            },
+            "servedAfter": {
+              "body": "PGh0bWw+ZXhhbXBsZTwvaHRtbD4=",
+              "observerImports": null,
+              "process": {
+                "pid": {
+                  "birth_distinct_from": [
+                    "proc/1/server/default",
+                    "proc/2/server/default"
+                  ],
+                  "node": "proc/3/server/default",
+                  "parent": "proc/0/workflow-root/default",
+                  "role": "server",
+                  "run_kind": "control",
+                  "run_ordinal": 1,
+                  "state": "gone"
+                },
+                "start": {
+                  "profile": "postmerge-process-proof/2",
+                  "verified": true
+                }
+              },
+              "serverImports": null,
+              "url": "http://127.0.0.1:4394/"
+            },
+            "servedBefore": {
+              "body": "PGh0bWw+ZXhhbXBsZTwvaHRtbD4=",
+              "observerImports": null,
+              "process": {
+                "pid": {
+                  "birth_distinct_from": [
+                    "proc/1/server/default",
+                    "proc/2/server/default"
+                  ],
+                  "node": "proc/3/server/default",
+                  "parent": "proc/0/workflow-root/default",
+                  "role": "server",
+                  "run_kind": "control",
+                  "run_ordinal": 1,
+                  "state": "gone"
+                },
+                "start": {
+                  "profile": "postmerge-process-proof/2",
+                  "verified": true
+                }
+              },
+              "serverImports": null,
+              "url": "http://127.0.0.1:4394/"
+            },
+            "server": {
+              "expected": {
+                "argv": null,
+                "entrypointDigest": "",
+                "executableDigest": ""
+              }
+            },
+            "serverInputDigest": "",
+            "source": "",
+            "sourceDigest": "",
+            "testExpected": {
+              "dirtyState": "",
+              "revision": "",
+              "rootCommit": "",
+              "tree": ""
+            }
+          },
+          "identity": {
+            "argv": null,
+            "configDigest": "",
+            "configFile": "",
+            "environment": null,
+            "nodeVersion": "synthetic-example",
+            "packageDigest": "",
+            "runnerName": "playwright",
+            "runnerVersion": "synthetic-example",
+            "testFileDigests": null
+          },
+          "kind": "playwright",
+          "profile": "corvint-playwright-freshness/0",
+          "staleAppBuild": false,
+          "tests": [
+            {
+              "attempts": [
+                {
+                  "failureKind": "",
+                  "retry": 0,
+                  "state": "failed"
+                }
+              ],
+              "durationMs": {
+                "rule": "native-elapsed-no-acceptance-rule/0",
+                "state": "measured",
+                "thresholds": []
+              },
+              "fullName": "new-test",
+              "id": "observed-new-test",
+              "name": "new-test",
+              "retries": 0,
+              "state": "failed"
+            }
+          ]
+        },
+        "role": "control-native",
+        "run_kind": "control",
+        "run_ordinal": 1,
+        "test_ids": [
+          "new-test"
+        ]
+      }
+    ]
+  },
+  "limitations": [
+    "No actual native/kernel execution proof; no process token; native verifier must refuse positive admission.",
+    "Complete fixed link target/preimage example, not qualification or expected historical outcome."
+  ],
+  "profile": "synthetic-semantic-link-closure-example/1",
+  "referenceCount": 21,
+  "status": "CLOSED_LINK_TOPOLOGY_EXAMPLE_ONLY_NOT_NATIVE_ACCEPTANCE",
+  "targetConstructionOrder": [
+    "/providers/0/receipt/applicationAttestation/before/attestation",
+    "/providers/0/receipt/applicationAttestation/after/attestation",
+    "/providers/0/receipt",
+    "/providers/1/receipt/applicationAttestation/before/attestation",
+    "/providers/1/receipt/applicationAttestation/after/attestation",
+    "/providers/1/receipt",
+    "/providers/2/receipt/applicationAttestation/before/attestation",
+    "/providers/2/receipt/applicationAttestation/after/attestation",
+    "/providers/2/receipt",
+    "/hooks/0/receipt",
+    "/assessment/controls/0/evidence"
+  ],
+  "targetCount": 11
+}
