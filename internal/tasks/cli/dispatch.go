@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -63,7 +64,7 @@ func dispatchCommand(env Env, args []string) *wire.Result {
 	defer cancel()
 	d, e := dispatch.Open(values["--program"], c, dispatchQueue{env: env}, env.Stderr)
 	if e != nil {
-		return errorResult(cmd, e)
+		return dispatchReaderError(cmd, e)
 	}
 	runErr := d.Run(ctx, ticks)
 	closeErr := d.Close()
@@ -74,14 +75,28 @@ func dispatchCommand(env Env, args []string) *wire.Result {
 	o.Set("workersRunning", wire.String(strconv.Itoa(d.Running())))
 	o.Set("lastEventSeq", wire.String(strconv.FormatUint(d.LastEvent(), 10)))
 	o.Set("interrupted", wire.Bool(ctx.Err() != nil))
+	containment, quarantined, diagnostic := dispatch.ReaderContainment(dispatch.ProgramDir(c, values["--program"]), values["--program"])
+	o.Set("readerContainment", wire.String(containment))
+	o.Set("readerQuarantined", wire.Bool(quarantined))
+	o.Set("readerDiagnostic", wire.String(diagnostic))
 	out := &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{{Kind: wire.KindObject, Obj: o}}}
 	for _, e := range []error{runErr, closeErr} {
 		if e != nil {
 			out.Outcome, out.Codes = wire.OutcomeError, []string{wire.CodeOf(e)}
+			if errors.Is(e, dispatch.ErrReaderQuiescence) {
+				out.Codes = []string{wire.CodeQuiescenceUnproved}
+			}
 			out.Warnings = append(out.Warnings, prose(e.Error()))
 		}
 	}
 	return out
+}
+
+func dispatchReaderError(cmd []string, err error) *wire.Result {
+	if errors.Is(err, dispatch.ErrReaderQuiescence) {
+		return errorResult(cmd, wire.Errorf(wire.CodeQuiescenceUnproved, "reader", "%v", err))
+	}
+	return errorResult(cmd, err)
 }
 
 func dispatchFlags(args []string, valued, bare map[string]bool) (map[string]string, string) {
@@ -231,6 +246,10 @@ func dispatchStatusValue(dir string, l *dispatch.Ledger, events []dispatch.Event
 	o.Set("program", str(l.Program))
 	o.Set("stateDir", str(dir))
 	o.Set("dispatcherRunning", str(dispatch.OwnerState(dir)))
+	containment, quarantined, diagnostic := dispatch.ReaderContainment(dir, l.Program)
+	o.Set("readerContainment", str(containment))
+	o.Set("readerQuarantined", wire.Bool(quarantined))
+	o.Set("readerDiagnostic", str(diagnostic))
 	o.Set("workers", wire.Value{Kind: wire.KindArray, Arr: workers})
 	o.Set("parked", wire.Strings(parked))
 	o.Set("cooling", wire.Value{Kind: wire.KindArray, Arr: cooling})
