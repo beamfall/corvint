@@ -188,6 +188,7 @@
       "examples/documentation-corpus/"
     ],
     "internal/docviews": [],
+    "internal/dogfoodflow": [],
     "internal/extevidence": [
       "cmd/corvint-remote-provider/",
       "examples/evidence-provider/",

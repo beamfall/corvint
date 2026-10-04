@@ -412,3 +412,13 @@ evidence-only publication replaces the immutable retained candidate.
 The exact sealed evaluation protocol, native platform tuples and candidate artifact schema must
 be frozen before execution. Missing cost telemetry or an unavailable independent corpus blocks its
 claim, not honest development work. Discontinue promotion on any false complete-evidence result.
+
+
+## Proposed aggregate outcome extension
+
+[Aggregate Local Outcome V0](aggregate-local-outcome-v0.md) owns the experimental, explicit
+aggregate selector, nonlearning receipt, `/1` report and additive pending state discriminator.
+Its source candidate is **NOT_QUALIFIED**. The default `/0` workflow and 200-path learning limit
+remain governed by this existing contract. Aggregate acceptance requires the extension's native
+qualification, independent review and frozen terminal gates; a source patch or focused test pass
+does not satisfy those requirements. The held recovery entrypoint is separately pending.

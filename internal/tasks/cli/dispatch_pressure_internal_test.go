@@ -28,7 +28,7 @@ func TestCALV0068_DispatchStatusPressure(t *testing.T) {
 		Sample: dispatch.PressureSample{SampledAt: now, Source: "sysctl", LoadAverage: 40, CPUs: 10, SwapTotalBytes: 1000, SwapUsedBytes: 950, LoadKnown: true, CPUKnown: true, SwapKnown: true},
 		Held:   []dispatch.HeldLaunch{{Role: "impl", Key: "ticket:a:q:t2", Ticket: "ticket:a:q:t2"}},
 	}}
-	p := pressureField(t, dispatchStatusValue("/s", l, nil, now, pc), "pressure")
+	p := pressureField(t, dispatchStatusValue(&dispatch.Config{Pressure: pc}, "/s", l, nil, now), "pressure")
 	for key, want := range map[string]string{"level": "2", "pendingLevel": "0", "pendingTicks": "1", "sample": "OBSERVED", "sampledAt": "2026-10-04T00:00:00Z", "source": "sysctl", "loadAverage": "40.000", "cpus": "10", "loadPerCpu": "4.000", "swapFraction": "0.950", "swapUsedBytes": "950", "swapTotalBytes": "1000", "cap": "1"} {
 		if got := pressureField(t, p, key).Str; got != want {
 			t.Errorf("%s = %q want %q", key, got, want)
@@ -39,7 +39,7 @@ func TestCALV0068_DispatchStatusPressure(t *testing.T) {
 	}
 	l.Pressure.State = dispatch.PressureState{Level: 0, Unknown: true}
 	l.Pressure.Sample = dispatch.PressureSample{Problems: []string{"swap unavailable"}}
-	p = pressureField(t, dispatchStatusValue("/s", l, nil, now, nil), "pressure")
+	p = pressureField(t, dispatchStatusValue(&dispatch.Config{}, "/s", l, nil, now), "pressure")
 	for key, want := range map[string]string{"sample": "UNKNOWN", "sampledAt": "UNKNOWN", "source": "UNKNOWN", "loadAverage": "UNKNOWN", "cpus": "UNKNOWN", "loadPerCpu": "UNKNOWN", "swapFraction": "UNKNOWN", "swapUsedBytes": "UNKNOWN", "cap": "NONE"} {
 		if got := pressureField(t, p, key).Str; got != want {
 			t.Errorf("unknown %s = %q want %q", key, got, want)
@@ -49,15 +49,15 @@ func TestCALV0068_DispatchStatusPressure(t *testing.T) {
 		t.Fatalf("problems = %+v", problems)
 	}
 	l.Pressure.State.Level = 2
-	if got := pressureField(t, dispatchStatusValue("/s", l, nil, now, nil), "pressure"); pressureField(t, got, "cap").Str != "UNKNOWN" {
+	if got := pressureField(t, dispatchStatusValue(&dispatch.Config{}, "/s", l, nil, now), "pressure"); pressureField(t, got, "cap").Str != "UNKNOWN" {
 		t.Fatal("throttled level without a configuration reported a cap")
 	}
 	l.Pressure.State = dispatch.PressureState{}
-	if got := pressureField(t, dispatchStatusValue("/s", l, nil, now, pc), "pressure"); pressureField(t, got, "cap").Str != "NONE" {
+	if got := pressureField(t, dispatchStatusValue(&dispatch.Config{Pressure: pc}, "/s", l, nil, now), "pressure"); pressureField(t, got, "cap").Str != "NONE" {
 		t.Fatal("calm level reported a cap")
 	}
 	l.Pressure = nil
-	if _, ok := dispatchStatusValue("/s", l, nil, now, pc).Obj.Get("pressure"); ok {
+	if _, ok := dispatchStatusValue(&dispatch.Config{Pressure: pc}, "/s", l, nil, now).Obj.Get("pressure"); ok {
 		t.Fatal("status reported pressure without a record")
 	}
 }

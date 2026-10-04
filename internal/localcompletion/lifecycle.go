@@ -241,7 +241,7 @@ func (repo *repository) evaluate(ctx context.Context, saved *state) (Evaluation,
 			reviewRequired = true
 		}
 	}
-	if saved.Terminal == nil || saved.ReportSet == nil || saved.Terminal.CheckExit != 0 || saved.Terminal.ReportSet != saved.ReportSet.Digest || !repo.terminalCurrent(saved.Terminal) {
+	if saved.Terminal == nil || saved.ReportSet == nil || saved.Terminal.CheckExit != 0 || saved.Terminal.ReportSet != saved.ReportSet.Digest || !repo.terminalCurrentContext(ctx, saved.Terminal) {
 		result.Unmet = append(result.Unmet, "final-check-required")
 	}
 	result.Satisfied = saved.Lifecycle == "satisfied" && len(result.Unmet) == 0
@@ -263,6 +263,9 @@ func (repo *repository) evaluate(ctx context.Context, saved *state) (Evaluation,
 			result.NextActions = [][]string{{"corvint", "dogfood", "review", "--session-key", repo.session, "--report-set", saved.ReportSet.Digest}}
 		default:
 			result.NextActions = [][]string{{"corvint", "dogfood", "finish", "--session-key", repo.session}}
+			if saved.AggregateOutcome != nil {
+				result.NextActions[0] = append(result.NextActions[0], "--aggregate-outcome-profile", saved.AggregateOutcome.Profile)
+			}
 		}
 	}
 	return result, nil
