@@ -685,7 +685,7 @@
     "path": "docs/specs/corvint-tasks-escalations-v0.md",
     "title": "Corvint Tasks typed escalations V0",
     "reqPrefix": "ESC-V0",
-    "intent": "accepted (owner decision 2026-10-04)",
+    "intent": "proposed overall; Gate A decisions accepted (decision 0428, owner answer 2026-10-04)",
     "delivery": "experimental",
     "claim": "Workers raise typed questions from admitted claims, operators answer them by compare-and-set, and the next same-acceptance claim receives the answers.",
     "dependsOn": [
@@ -719,7 +719,7 @@
     "path": "docs/specs/corvint-tasks-external-reviews-v0.md",
     "title": "Corvint Tasks external reviews V0",
     "reqPrefix": "ERG-V0",
-    "intent": "proposed",
+    "intent": "accepted (owner decision 2026-10-04)",
     "delivery": "experimental",
     "claim": "Review verdicts (G1/G2 PASS/RETURN) and author resubmissions become typed, CAS-ordered queue events that route work without parsing Markdown.",
     "dependsOn": [
@@ -729,7 +729,10 @@
     "closableToday": false,
     "implementation": [
       "internal/tasks/snapshot/external_review.go",
-      "internal/tasks/transaction/external_review.go"
+      "internal/tasks/transaction/external_review.go",
+      "internal/tasks/transaction/external_review_read.go",
+      "internal/tasks/dispatch/roster.go",
+      "internal/tasks/dispatch/config.go"
     ]
   },
   {

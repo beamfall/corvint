@@ -1,14 +1,11 @@
-# Typed escalations: owner acceptance and operation-scoped answer grant (issue 502)
+# Typed escalations: operation-scoped answer grant and writer slot (issue 502)
 
-Human-owned intent: GitHub issue 502 (native ticket V1-0699). Owner decision 2026-10-04 accepts
-the ESC-V0 intent as drafted. The acceptance covers the Gate A decisions with their defaults: one
-current event per question, sole-open-at-commit shorthand next to exact CAS, infrastructure
-exhaustion as a visible automation hold, the typed-control `workRevision` exclusion and the
-reference capacities, including the current-acceptance 16-open bound. It also covers the
-stale-OPEN fix that `2026-10-04-issue502-foundation-hardening.md` delivered. The spec header,
-`INDEX.json` and the README row now record `accepted`. Delivery stays `experimental`. The owner
-gave this decision and the slot decision below directly, through structured questions in the
-orchestrating agent session. The orchestrator records the acceptance on V1-0699 in the store.
+Human-owned intent: GitHub issue 502 (native ticket V1-0699). The owner's Gate A acceptance is
+recorded by decision 0428 and is not restated here; the spec header, `INDEX.json` and the README
+row carry its status. This entry records what the slice adds on top: the operation-scoped grant,
+`NO_OPEN_QUESTION`, and a second owner decision of 2026-10-04 that chose the writer slot. The owner
+gave the slot decision directly, through structured questions in the orchestrating agent session.
+Delivery stays `experimental`.
 
 ## Decision
 

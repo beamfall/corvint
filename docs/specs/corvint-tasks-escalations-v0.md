@@ -2,24 +2,25 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted (owner decision 2026-10-04)
+Intent status: proposed overall; Gate A decisions accepted (decision 0428, owner answer 2026-10-04)
 Delivery status: experimental
 
 Authoritative inputs: owner request [issue 502](https://github.com/beamfall/corvint/issues/502)
 (native ticket V1-0699); the issue's ESC502-001..011 preparation intent with the three precision corrections adopted
-during its independent preparation review; the existing
+during its independent preparation review (not owner acceptance); the existing
 [agent lease contract](corvint-tasks-agent-leases-v0.md); and two neighbouring intents this one
 composes with but does not restate: issue 501's operator notes (claim-snapshot delivery) and issue
-499's dispatch model-escalation tiers. Owner decision 2026-10-04 accepts this intent as drafted,
-including every decision and default listed under Gate A decisions and the stale-OPEN capacity fix.
-A second owner decision the same day chose the writer slot (Integration slot). The owner gave both
-decisions directly, through structured questions in the orchestrating agent session.
-Acceptance governs intent only; delivery stays experimental until the integrated witnesses in
-Acceptance evidence pass.
+499's dispatch model-escalation tiers. The owner accepted the Gate A decisions listed under
+Unresolved decisions as written on 2026-10-04 (decision 0428), so the writer and material slice may
+integrate. That acceptance covers those design choices only; every requirement below stays
+proposed until its own acceptance evidence is retained. The owner-delegated decisions of 2026-10-04
+adopt the 500 and 501 intents only. A separate owner decision the same day chose the writer slot
+(Integration slot). The owner gave it directly, through structured questions in the orchestrating
+agent session.
 
 ## Agent digest
 - Claim: Workers raise typed questions from admitted claims, operators answer them by compare-and-set, and the next same-acceptance claim receives the answers.
-- Status: accepted (owner decision 2026-10-04); experimental delivery of the pure four-file foundation only; no installed escalation capability.
+- Status: proposed overall; Gate A decisions accepted (decision 0428, owner answer 2026-10-04); experimental delivery of the pure four-file foundation only; no installed escalation capability.
 - Exists: closed request/event/reference codecs and a pure reducer with answer selection, derived holds, effective work revision, coded refusals, an operation-scoped grant check and a per-call decode memo, plus focused tests and a near-capacity benchmark. Nothing calls them yet.
 - Blocked on: issue 501's derived-event MUTATE slot reaching main; native writer/material/replay integration, CLI, native holds, the 501 claim-snapshot path, dispatcher retry and 499 tier composition.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.
@@ -115,9 +116,9 @@ no row claims delivered native behavior.
 | ESC-V0-010 | ESC502-010 | transaction/stage/material/redo | `TestIssue502_ImmutableClaimAnswerSelection` (rehashed material mismatch); `TestIssue502_SupersessionAndCapacity` (missing and mismatched supersession pair, single atomic proposal); `BenchmarkIssue502_ApplyNearCapacity` (reducer cost at 63 answered questions) | measured descriptor, interrupted paired publication, redo |
 | ESC-V0-011 | ESC502-011 | four-file foundation; layering | `TestIssue502_EscalationCodecAndBounds`, `TestIssue502_AdmissionOriginAndStaleGeneration`, `TestIssue502_QuestionAnswerCASAndReplay`, `TestIssue502_TypedDispositionAndWorkRevision`, `TestIssue502_ImmutableClaimAnswerSelection`, `TestIssue502_SupersessionAndCapacity`, `TestIssue502_StaleOpenReleasesCapacity`, `TestIssue502_ReadersRefuseOpenOverflow`, `TestIssue502_AnswerGrantAndEmptyShorthand`; `ticket` imports only `wire` | full integration matrix, independent integrated review, native completion |
 
-## Gate A decisions
+## Unresolved decisions
 
-Owner decision 2026-10-04 accepts these Gate A decisions with their defaults: admitted-receipt
+The owner accepted these Gate A decisions as written on 2026-10-04 (decision 0428): admitted-receipt
 invocation context for the shorthand with NOT_OBSERVED authentication; one current event per
 question rather than one question per ticket; sole-open-at-commit shorthand next to exact CAS;
 blocked reason defaulting to the explicitly typed question; infrastructure exhaustion as a distinct
@@ -129,8 +130,8 @@ existing StageLease bounds, revise this contract rather than widen the bounds or
 Findings from the independent review of the first delivery and their disposition:
 
 - Stale OPEN questions locked capacity. Fixed in the pure source by counting only same-acceptance
-  OPEN questions toward the 16 bound (accepted with the Gate A capacity decision, owner decision
-  2026-10-04); the alternative, an explicit retirement route, adds a mutation with its own
+  OPEN questions toward the 16 bound (agent decision, 2026-10-04, accepted with the Gate A
+  capacities by decision 0428); the alternative, an explicit retirement route, adds a mutation with its own
   authority and was not chosen. Stale questions stay visible and still count toward the 64
   lifetime entries, so no history is evicted.
 - One supplied policy decision covered every operation. Fixed in the pure source:
