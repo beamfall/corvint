@@ -146,6 +146,7 @@ func (s *escalationView) validate() error {
 	if s.Refs.LastControlTicketRevision.Int() > s.TicketRevision.Int() {
 		return escalationFailure("CONTROL_FROM_FUTURE")
 	}
+	open := 0
 	for _, ref := range s.Refs.Entries {
 		origin, e := s.record(ref.OriginSha256)
 		if e != nil {
@@ -166,6 +167,9 @@ func (s *escalationView) validate() error {
 			if head.Operation != "OPEN" || ref.HeadSha256 != ref.OriginSha256 {
 				return escalationFailure("OPEN_HEAD")
 			}
+			if ref.AcceptanceRevision == s.AcceptanceRevision {
+				open++
+			}
 		case "ANSWERED", "SUPERSEDED":
 			want := "ANSWER"
 			if ref.State == "SUPERSEDED" {
@@ -177,6 +181,11 @@ func (s *escalationView) validate() error {
 				return escalationFailure("TERMINAL_CHAIN")
 			}
 		}
+	}
+	// Readers enforce the writer's current-acceptance open bound too, so an
+	// imported or corrupt reference over it is refused rather than served.
+	if open > 16 {
+		return escalationFailure("OPEN_CAPACITY")
 	}
 	// Supersession has two immutable sides in one proposed transaction. Check
 	// both directions so a missing replacement cannot masquerade as a closed
@@ -233,6 +242,11 @@ func EscalationCapacity(r *ticket.EscalationRefs, acceptance wire.Count, newRequ
 	if !((newRequests == 1 && newEvents == 1 && openDelta == 1) || (newRequests == 1 && newEvents == 2 && openDelta == 0) || (newRequests == 0 && newEvents == 1 && openDelta == -1)) {
 		return escalationFailure("CAPACITY_DELTA")
 	}
+	if a, e := wire.ParseCount("/acceptanceRevision", string(acceptance)); e != nil {
+		return e
+	} else if a.Int() < 1 {
+		return escalationFailure("SNAPSHOT_REVISION")
+	}
 	requests, total, open := 0, 0, 0
 	if r != nil {
 		if e := r.Validate(); e != nil {
@@ -243,6 +257,9 @@ func EscalationCapacity(r *ticket.EscalationRefs, acceptance wire.Count, newRequ
 			return escalationFailure("REVISION_OVERFLOW")
 		}
 		for _, x := range r.Entries {
+			if x.AcceptanceRevision.Int() > acceptance.Int() {
+				return escalationFailure("FUTURE_ACCEPTANCE")
+			}
 			total += int(x.Revision.Int())
 			if x.State == "OPEN" && x.AcceptanceRevision == acceptance {
 				open++
@@ -459,7 +476,8 @@ func computeEscalation(r ticket.EscalationRequest, s EscalationSnapshot, now wir
 			i = find(r.Answer.RequestID)
 		} else {
 			// Shorthand names every current open question when it cannot pick
-			// exactly one; it never answers all of them or the newest.
+			// exactly one; it never answers all of them or the newest. The IDs
+			// are sorted because validate requires strictly increasing RequestID.
 			open := []string{}
 			for j, x := range refs.Entries {
 				if x.State == "OPEN" && x.AcceptanceRevision == s.AcceptanceRevision {

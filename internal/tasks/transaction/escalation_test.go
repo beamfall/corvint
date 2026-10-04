@@ -483,6 +483,46 @@ func TestIssue502_StaleOpenReleasesCapacity(t *testing.T) {
 	esc502Refuse(t, a, ao, "STALE_QUESTION_CAS")
 }
 
+// TestIssue502_ReadersRefuseOpenOverflow crafts a reference the writer would
+// refuse, 17 OPEN questions at the current acceptance revision, from valid
+// event material, and checks that every reader refuses it instead of serving it.
+func TestIssue502_ReadersRefuseOpenOverflow(t *testing.T) {
+	r, o := esc502Fixture()
+	for i := 0; i < 16; i++ {
+		r.RequestID = fmt.Sprintf("q%02d", i)
+		o.Snapshot = esc502Post(o.Snapshot, esc502Apply(t, r, o))
+	}
+	_, extra := esc502Fixture()
+	r.RequestID = "q16"
+	p := esc502Apply(t, r, extra)
+	crafted := esc502Post(o.Snapshot, p)
+	refs := *o.Snapshot.Refs
+	refs.Revision = wire.CountOf(refs.Revision.Int() + 1)
+	refs.Entries = append(append([]ticket.EscalationRef{}, refs.Entries...), p.Refs.Entries[0])
+	crafted.Refs = &refs
+	crafted.TicketRevision = o.Snapshot.TicketRevision
+	if _, _, e := EscalationHolds(o.Snapshot); e != nil {
+		t.Fatalf("control: 16 current open questions are valid: %v", e)
+	}
+	_, _, e := EscalationHolds(crafted)
+	esc502Code(t, e, "OPEN_CAPACITY")
+	_, e = SelectEscalationAnswers(crafted)
+	esc502Code(t, e, "OPEN_CAPACITY")
+	_, e = EffectiveEscalationWorkRevision(crafted)
+	esc502Code(t, e, "OPEN_CAPACITY")
+	// The writer-side check rejects an invalid or older acceptance argument
+	// rather than silently counting no open questions.
+	for _, bad := range []wire.Count{"", "0", "01"} {
+		if EscalationCapacity(o.Snapshot.Refs, bad, 1, 1, 1) == nil {
+			t.Fatalf("acceptance %q must refuse", bad)
+		}
+	}
+	future := *o.Snapshot.Refs
+	future.Entries = append([]ticket.EscalationRef{}, future.Entries...)
+	future.Entries[0].AcceptanceRevision = "2"
+	esc502Code(t, EscalationCapacity(&future, "1", 1, 1, 1), "FUTURE_ACCEPTANCE")
+}
+
 // BenchmarkIssue502_ApplyNearCapacity measures one reducer call over a snapshot
 // at 63 answered questions, the work a native writer would do under its lock.
 func BenchmarkIssue502_ApplyNearCapacity(b *testing.B) {
