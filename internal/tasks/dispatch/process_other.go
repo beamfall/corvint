@@ -25,3 +25,6 @@ func leaderAlive(w *Worker) bool                                    { return fal
 func signal(m Proc, s syscall.Signal)                               {}
 func killTree(w *Worker, grace time.Duration) (bool, error)         { return false, errPlatform }
 func busyChild(w *Worker, procs map[int]proc, ignore []string) bool { return false }
+
+// Marker evidence cannot authorize a reader on an unsupported platform.
+func openReaderMarker(string) (*os.File, error) { return nil, errPlatform }
