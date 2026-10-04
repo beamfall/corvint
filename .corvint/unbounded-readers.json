@@ -1,0 +1,10 @@
+{
+  "profile": "corvint-unbounded-reader-ceiling/0",
+  "ceiling": 45,
+  "reasons": {
+    "cmd/corvint": "TestFlowDocsCLIEndToEnd runs `docs flows`, which opens the filesystem root /; the wrapper cannot grant an ancestor of the repository without granting the repository. Observed 2026-10-04 under Landlock (flowdocs-refused: cannot open filesystem root) with .corvint/, benchmarks/, cmd/, conformance/, docs/, integrations/, internal/, script/, testing/ and tools/ declared",
+    "internal/companionrelease": "TestCurrentExportedTasksSmokeGenerator and TestCurrentTasksSourceArchiveBuildsOffline resolve HEAD and export the repository through git, and AFP-V0-023 never grants .git; observed 2026-10-04 under Landlock with cmd/, internal/, tools/, go.mod and go.sum declared",
+    "internal/contextindex": "TestGoImportsDifferentialAgainstScanner walks every Go file under the repository root",
+    "internal/liveverify/affected": "TestIncrementalSelectionMeetsTheLiveBudget, TestSelectionOnTheLiveDirtyWorktree and TestPythonSelectionNarrowsARealCorpus build the unit graph over the whole repository"
+  }
+}

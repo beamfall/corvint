@@ -92,6 +92,16 @@ by legitimate exploration that no packet could have anticipated.
   any other non-empty `kind` are not reads and are never counted. `Ratio` is unplanned over unplanned-plus-planned to three
   decimals, or `n/a` when nothing is recorded. A malformed row is skipped, never guessed at. A
   ledger refused by `URE-V0-004`'s directory and regular-file condition is an error, never a digest.
+  (amended 2026-10-04, V1-0740) `Read` MUST re-apply the writer's row contract and count each bounded
+  row it refuses by one closed reason, contributing nothing else: `malformed-json` (not one JSON
+  object), `unknown-kind`, `unknown-error-reason` (an error row outside the closed reason set),
+  `unknown-tool` (not `Read`, `Grep`, `Glob` or `Bash`), `negative-bytes`, `planned-row-fields` (a
+  planned row carrying a path, size or `size_known`), `path-not-project-relative` (an unplanned row
+  whose path is empty, absolute, or has an empty, `.` or `..` segment), and `unterminated-row` (a
+  final row without a newline in a ledger under the cap). It MUST report when the ledger exceeded
+  128 KiB and only its first 128 KiB were read; a row ending past that cap is neither folded nor
+  rejected. The digest prints `REJECTED-ROWS reason=<reason> count=<n>` lines in reason order and
+  `LEDGER-CUT cap-bytes=131072`.
 - **URE-V0-006.** `HookPostTool(root, packetPaths, payload)` MUST return `nil` on every path,
   enabled or not, for every payload shape. An append failure of a read or packet row is dropped and
   persisted best-effort as one error row, so a digest rendered by another process reports it as
@@ -166,7 +176,9 @@ by `LTA-V0-009` to `LTA-V0-012`. The non-goals above carry the same clause.
 | marker absent | every write path is a silent no-op | operator runs `reads enable` |
 | row over 2048 bytes | row refused, `row-exceeds-bound` error row appended | none needed; the read is under-counted |
 | file at the 128 KiB cap | oldest rows truncated to half the cap | digest counts only retained rows and says so |
-| malformed or partial row | skipped by the reader | none needed |
+| malformed or partial row | rejected by the reader under a closed reason and counted | none needed |
+| row the writer could not produce (unknown kind or tool, escaping path, negative bytes) | rejected by the reader under a closed reason; never a read, byte count or label | none needed |
+| ledger over 128 KiB | reader reads the first 128 KiB and reports `LEDGER-CUT` | next append rotates it |
 | target size unavailable after containment succeeds | `size_known=false`, bytes `0` | none needed |
 | target containment unresolved or escaping | read abstains, nothing written | none needed |
 | existing path component matched by no stored directory entry | read abstains, nothing written | none needed; the read is under-counted |
@@ -205,7 +217,7 @@ from `cmd/corvint/host_adapter.go`; no other output depends on them.
 | `URE-V0-002` | experimental | `TestBashHeuristic`, `TestBashHeuristicNeverInventsPath`, `TestBashLaterSegmentContext`, `TestHookResolvesRelativeOperandFromPayloadCwd` |
 | `URE-V0-003` | experimental | `TestAppendDisabledIsNoOp`, `TestLedgerRequiresIgnoreEntries` |
 | `URE-V0-004` | experimental | `TestAppendEnabledRotatesAtCap`, `TestSymlinkedLedgerIsRefused`, `TestLedgerRequiresIgnoreEntries` |
-| `URE-V0-005` | experimental | `TestDigestMath`, `TestSymlinkedLedgerIsRefused`, `TestDroppedHookErrorSurfacesAcrossProcesses` |
+| `URE-V0-005` | experimental | `TestDigestMath`, `TestSymlinkedLedgerIsRefused`, `TestDroppedHookErrorSurfacesAcrossProcesses`, `TestReadRejectsRowsOutsideTheWriterContract`, `TestReadReportsLedgerCut` |
 | `URE-V0-006` | experimental | `TestHookPostToolNeverErrors`, `TestDroppedHookErrorSurfacesAcrossProcesses` |
 | `URE-V0-007` | experimental | `TestRunReadsDigestAndToggle`, `TestRunReadsRefusesLimitBesideAToggleInEitherOrder` |
 | `URE-V0-008` | experimental | `TestSessionPacketDenominator`, `TestRefusedPacketAbstains`; `cmd/corvint`: `TestClaudeAdapterUnplannedReadCallSites`, `TestURE008WatchdogSettlesPacketOnce` |

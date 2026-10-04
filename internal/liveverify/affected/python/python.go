@@ -49,7 +49,12 @@ func (Language) Owns(relative string) bool { return strings.HasSuffix(relative, 
 
 // Units observes every Python module in the repository rooted at root.
 func (language Language) Units(root string) (affected.Result, error) {
-	files, err := affected.SourceFiles(root, func(name string) bool {
+	return language.UnitsSource(affected.DiskSource(root))
+}
+
+// UnitsSource reads only the explicitly supplied source universe.
+func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {
+	files, err := root.Files(func(name string) bool {
 		return strings.HasSuffix(name, ".py")
 	})
 	if err != nil {
@@ -69,7 +74,7 @@ func (language Language) Units(root string) (affected.Result, error) {
 			continue
 		}
 		seenUnit[id] = true
-		body, readErr := affected.ReadSource(root, relative)
+		body, readErr := root.Read(relative)
 		if readErr != nil {
 			frontier[FrontierUnreadableSource] = true
 			continue

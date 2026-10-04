@@ -131,7 +131,7 @@ func TestAFPIsolatedBuildIgnoresModuleRedirection(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(source, "go.mod"), []byte(poisoned), 0600); err != nil {
 			t.Fatal(err)
 		}
-		for _, name := range []string{"partition.go", "cmd/main.go", "package-costs.json"} {
+		for _, name := range []string{"partition.go", "order.go", "cmd/main.go", "package-costs.json"} {
 			raw, err := profileFiles.ReadFile(name)
 			if err != nil {
 				t.Fatal(err)

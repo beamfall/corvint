@@ -132,18 +132,7 @@ func Select(graph *Graph, dirty []string) Plan {
 		Excluded:    []Exclusion{},
 		Unknown:     []Unknown{},
 	}
-	seeds, unknown := graph.seed(normalized)
-	changed, traversed, enclosing := graph.goStructure(normalized)
-	mergeWitnesses(seeds, changed)
-	start := make(map[string]Witness, len(seeds)+len(traversed))
-	mergeWitnesses(start, seeds)
-	mergeWitnesses(start, traversed)
-	reached := graph.traverse(start)
-	graph.testUsersOf(reached)
-	mergeWitnesses(reached, enclosing)
-	graph.readers(reached, normalized)
-	graph.unboundedReadersOf(reached, normalized)
-	graph.scopedReadersOf(reached, normalized)
+	reached, seeds, unknown := graph.reach(normalized)
 	plan.Unknown = append(graph.frontierUnknowns(reached, normalized), unknown...)
 	plan.Unknown = append(plan.Unknown, graph.tokenBounds(reached, normalized)...)
 	for _, id := range graph.order {
@@ -175,6 +164,24 @@ func Select(graph *Graph, dirty []string) Plan {
 		plan.Scope = ScopeUnknown
 	}
 	return plan
+}
+
+// reach computes the reached universe once for Select and ReachedUnitIDs, so
+// the delta unit denominator cannot drift from the selected plan.
+func (graph *Graph) reach(normalized []string) (reached, seeds map[string]Witness, unknown []Unknown) {
+	seeds, unknown = graph.seed(normalized)
+	changed, traversed, enclosing := graph.goStructure(normalized)
+	mergeWitnesses(seeds, changed)
+	start := make(map[string]Witness, len(seeds)+len(traversed))
+	mergeWitnesses(start, seeds)
+	mergeWitnesses(start, traversed)
+	reached = graph.traverse(start)
+	graph.testUsersOf(reached)
+	mergeWitnesses(reached, enclosing)
+	graph.readers(reached, normalized)
+	graph.unboundedReadersOf(reached, normalized)
+	graph.scopedReadersOf(reached, normalized)
+	return reached, seeds, unknown
 }
 
 func relativeDirectory(relative string) string {
