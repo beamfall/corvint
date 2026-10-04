@@ -197,6 +197,12 @@ func TestChangeNotesAbsentOrStaleAgentReceipts(t *testing.T) {
 			"dogfood-change: NOTE prechange-query STALE agent-receipt-not-base-tree tree=" + headTree + " base-tree=" + baseTree,
 			"dogfood-change: NOTE prechange-impact NOT_OBSERVED agent-receipt-tree-unknown",
 		}, nil},
+		// V1-0743: a receipt that is not JSON, or exceeds the 4 MiB bound, is
+		// named apart from a well-formed receipt that carries no tree.
+		{"malformed and over bound", "{\"context\":\n", "{}" + strings.Repeat(" ", 4194304) + "\n", []string{
+			"dogfood-change: NOTE prechange-query NOT_OBSERVED agent-receipt-malformed",
+			"dogfood-change: NOTE prechange-impact NOT_OBSERVED agent-receipt-over-bound",
+		}, []string{"agent-receipt-tree-unknown"}},
 		{"base tree", receipt(baseTree), receipt(baseTree), nil, []string{"prechange-query", "prechange-impact"}},
 	}
 	for _, tc := range cases {
@@ -222,11 +228,85 @@ func TestChangeNotesAbsentOrStaleAgentReceipts(t *testing.T) {
 				}
 			}
 			for _, name := range tc.absent {
-				if strings.Contains(stderr.String(), "NOTE "+name+" ") {
-					t.Errorf("a base-tree receipt was noted:\n%s", stderr.String())
+				if strings.Contains(stderr.String(), "NOTE "+name+" ") || strings.Contains(stderr.String(), " "+name+"\n") {
+					t.Errorf("stderr names %s:\n%s", name, stderr.String())
 				}
 			}
 		})
+	}
+}
+
+// V1-0743: an empty citation plan, and an intents or verify file over its
+// bound, each refuse with a named code instead of a silent no-op or an
+// unbounded read; the empty plan cites nothing.
+func TestChangeRefusesEmptyPlanAndOverBoundInputs(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("base\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "add", "a.txt")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("changed\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "commit", "-q", "-am", "change")
+	inputs := t.TempDir()
+	write := func(name string, data []byte) string {
+		path := filepath.Join(inputs, name)
+		if err := os.WriteFile(path, data, 0o666); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	cited := false
+	steps := Runner{Path: "corvint", Run: func(_ context.Context, _ string, args []string, _, _ io.Writer) int {
+		switch {
+		case len(args) > 1 && args[0] == "cem" && args[1] == "prepare":
+			if err := os.MkdirAll(filepath.Join(root, ".corvint"), 0o777); err != nil {
+				return 1
+			}
+			if err := os.WriteFile(filepath.Join(root, ".corvint/change.cem.json"), []byte("{\n  \"hunks\": [\n    {\n      \"disposition\": \"unknown\",\n      \"id\": \"hunk:a\",\n      \"path\": \"a.txt\"\n    }\n  ]\n}\n"), 0o666); err != nil {
+				return 1
+			}
+			return 0
+		case len(args) > 1 && args[0] == "cem" && args[1] == "cite":
+			cited = true
+			return 0
+		}
+		return 1
+	}}
+	options := ChangeOptions{
+		Root: root, Base: base, Steps: steps, Outcome: "passed",
+		Citations:   write("cites.tsv", nil),
+		IntentsFile: write("intents", bytes.Repeat([]byte("a\n"), maxIntentManifestBytes/2+1)),
+		VerifyFile:  write("verify", bytes.Repeat([]byte("\n"), maxVerifyFileBytes+1)),
+	}
+	var stderr bytes.Buffer
+	if _, err := Change(context.Background(), options, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	report, err := os.ReadFile(filepath.Join(root, ".corvint/dogfood-report.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`{"name": "cem-cite", "status": "NOT_PRODUCED", "reason": "empty-citation-plan"}`,
+		`{"name": "ocm-aggregate", "status": "NOT_PRODUCED", "reason": "intent-manifest-over-bound"}`,
+		`{"name": "local-outcome", "status": "NOT_PRODUCED", "reason": "verify-file-over-bound"}`,
+	} {
+		if !bytes.Contains(report, []byte(want)) {
+			t.Errorf("report lacks %s:\n%s", want, report)
+		}
+	}
+	for _, want := range []string{"DOGFOOD_CITATIONS names an empty file", "DOGFOOD_INTENTS_FILE is larger than", "DOGFOOD_VERIFY_FILE is larger than"} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Errorf("stderr lacks the fix %q:\n%s", want, stderr.String())
+		}
+	}
+	if cited {
+		t.Error("an empty plan ran cem cite")
 	}
 }
 
