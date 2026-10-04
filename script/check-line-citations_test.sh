@@ -273,6 +273,29 @@ decision_pin=$(cd "$test_root" && script/check-line-citations.sh --hash internal
 printf '# Decision 9001 - fixture\n\nThe claim rests on `%s`.\n' "$decision_pin" \
   > "$test_root/docs/decisions/9001-fixture.md"
 stage docs/decisions/9001-fixture.md
-run || fail "a pinned citation in a decisions document did not pass"
+run >/dev/null || fail "a pinned citation in a decisions document did not pass"
+
+# 21. DCG-V0-021: an unstaged edit to a cited file still cannot change the result, but the gate
+#     names the file instead of passing silently; an unstaged file the gate never read is not
+#     named, and staging the edit clears the note.
+(cd "$test_root" && git checkout -- script/line-citation-legacy-documents.txt)
+printf '%s\n' 'package other' > "$test_root/internal/demo/other.go"
+stage internal/demo/other.go
+printf '%s\n' 'package other' '' > "$test_root/internal/demo/other.go"
+printf '%s\n' '// moved' >> "$test_root/internal/demo/demo.go"
+output=$(run) || fail "an unstaged edit to a cited file changed the result"
+case $output in
+*'unstaged edits to 1 file(s) it read were not checked'*'internal/demo/demo.go'*) ;;
+*) fail "an unstaged edit to a cited file was not named: $output" ;;
+esac
+case $output in
+*other.go*) fail "an unstaged file the gate never read was named: $output" ;;
+esac
+stage internal/demo/demo.go
+stage internal/demo/other.go
+output=$(run) || fail "staging the edit changed the result"
+case $output in
+*'unstaged edits'*) fail "the note survived staging: $output" ;;
+esac
 
 echo "check-line-citations_test.sh: ok"

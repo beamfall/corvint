@@ -188,6 +188,14 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   under DCG-V0-013. It MUST NOT exempt the file-existence or line-range checks (DCG-V0-002) for a
   waived citation, and a row MUST be removed once the citation is repinned or fixed by whichever
   change owns the document.
+- `DCG-V0-021`: When a file the gate read from the index (a scanned document, a cited file, or one
+  of its own index-read inputs) differs between the worktree and the index, the gate MUST name that
+  file on stderr in a note saying the gate reads the Git index and did not check the unstaged edit.
+  The note MUST NOT change the exit status or any finding, and MUST NOT resolve any citation against
+  the worktree; it reads only `git diff --name-only` without refreshing the index on disk. A file the
+  gate did not read MUST NOT be named. This closes the silent-pass case DCG-V0-013 leaves open: an
+  author who edited a cited file and ran the gate before `git add` saw a pass that never examined
+  the edit (V1-0720).
 
 ## Non-goals and simpler baseline
 
@@ -195,7 +203,7 @@ The simpler baseline is the three structural checks alone, retained for legacy u
 subject to DCG-V0-014 and the DCG-V0-017 ceiling. This gate does not judge whether a citation is relevant, well chosen, or supports the
 sentence around it; an anchor is a staleness detector, not a correctness proof. It does not rewrite
 or repin documents, does not check citations outside the DCG-V0-001 document set, does not resolve a bare
-basename that the index does not track at the repository root, does not read Git history or any revision other than the index, and does not
+basename that the index does not track at the repository root, does not read Git history or any revision other than the index (the DCG-V0-021 note compares the worktree with the index only to name unstaged files, and resolves nothing against the worktree), and does not
 extend to the machine-readable packet, whose equivalent check is FPK-V0-004's `history-consistent`
 against `blob_hash` at the packet revision. `docs/plans`, `docs/reviews`, `docs/BUILD-LOG.md` and
 `docs/build-log`, and nested conformance result READMEs stay outside the set. They are dated
@@ -226,6 +234,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 |---|---|
 | Cited file not tracked in the index | fail, naming the path |
 | Cited file untracked on disk, or tracked and deleted from the worktree | fail and pass respectively, by DCG-V0-013 |
+| Scanned or cited file edited in the worktree but not staged | result unchanged by DCG-V0-013, with a stderr note naming the file, by DCG-V0-021 |
 | Cited line past end | fail, naming the line and the file's length |
 | Cited range reversed (`N-M` with `M` below `N`) | fail, naming both endpoints; `--hash` refuses it too |
 | Cited line blank or bracket-only | fail, naming the line |
@@ -261,6 +270,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-018 | test case 18, an unpinned citation in a new document failing despite an unstaged allowlist edit, then passing once pinned; decision 0176's one-time scope-widening admission of decision 0158, 30 unpinned citations, is manual evidence recorded in that decision, not a fixture case |
 | DCG-V0-019 | decision 0105's `Makefile@3c41cad3` conversion, verified by inspection of the citation-token regex (every alternative requires a trailing `:digit`, so a suffix-less `path@hash` never matches) and by `line-citations-check` passing with that citation present |
 | DCG-V0-020 | `line-citation-drift-waivers.txt`'s decision 0170 rows (pre-existing) and decision 0158 rows (added by decision 0176); `line-citations-check` passing with all 5 rows present |
+| DCG-V0-021 | test case 21, an unstaged edit to a cited file passing with a note naming it, an unstaged file the gate never read left unnamed, and the note gone once the edit is staged |
 
 ## Traceability
 
@@ -280,6 +290,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-018 | `script/line-citation-legacy-documents.txt` and the new-document branch in `check` | case 18; decision 0176's manual admission of decision 0158 |
 | DCG-V0-019 | the citation-token regex in the scanner loop (no alternative matches a suffix-less token) | decision 0105's `Makefile@3c41cad3` conversion; `line-citations-check` |
 | DCG-V0-020 | the drift-waiver loading block and `$waived` gating in `check`, `script/check-line-citations.sh:194-212@5e2147f9` and `:259@851bb9b7` | `script/line-citation-drift-waivers.txt`; `line-citations-check` |
+| DCG-V0-021 | the unstaged-edit note before `close_index` in `script/check-line-citations.sh` | case 21 |
 
 ## Rollout, rollback, and drift
 
