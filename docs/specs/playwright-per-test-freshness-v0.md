@@ -12,10 +12,10 @@ owner message `approved` on 2026-10-02 for plan SHA-256
 `e1efaad50de73efa4aa57b87905b32593df97146934ba98cf616841f00ec0736`.
 
 ## Agent digest
-- Claim: A bounded source-direct Playwright profile observes source, serving-process and runtime identity and joins native assertion controls to every baseline repeat.
-- Status: proposed technical contract; owner approved the implementation plan; experimental. Reviewed source and bounded local consuming-path observations exist; final frozen checks, CEM/OCM, integration and native completion remain pending.
+- Claim: A bounded source-direct Playwright profile observes source/server/runtime identity and joins every planned native control attempt to every baseline repeat.
+- Status: proposed technical contract; owner approved the implementation plan; experimental. Child V1-0556 is integrated and natively completed. Parent complete-attempt source review passed; final parent qualification and delivery remain separate.
 - Exists: separate native freshness profile and request/assessment /1; actual stable assertion/control acceptance, stale product/test/imported-source controls, closed native joins and bounded dependency readers. Old /0 remains unchanged.
-- Blocked on: final registered clean-head checks, CEM/OCM and integration/native completion. Whole #394/V1-0541 remains partial for new-profile surviving Strength and flaky/order qualification; those are separate from V1-0556 freshness.
+- Blocked on: parent V1-0541 final clean-bound standalone N2/N32 checks, CEM/OCM and integration/native completion. Reviewed complete-attempt survival joins do not themselves qualify flaky/order execution.
 - Read next: Requirements; Source-direct observation; Control join; Qualification and rollback.
 
 ## User and verified current state
@@ -63,12 +63,21 @@ inspection of provider and control evidence. The permanently prose-only JS exper
   codec rejects duplicate/unknown fields, wrong profiles, contradictory projections and noncanonical
   encodings, then rederives row identities and projections. Request/assessment /0 remain unchanged
   and negative-only; old envelopes and unsupported retained/MCP/flows consumers reject new fields/profile.
-- `PTF-V0-006`: Decode every required control's retained native payload with the new supported codec,
-  then join exactly one native row to the declared semantic test and registered actual locator
-  assertion failure marker. Validate native bytes/artifact digest, tool, plan/perturbation and raw
-  attempt correspondence. A legacy-verifier-valid kill with opaque or mismatched native test,
-  assertion, product, runtime, environment or configuration identity stays NOT_MEASURED and blocked.
-  Per-run hashed IDs and declared assessment aliases remain distinct.
+- `PTF-V0-006`: First verify the complete generic EvidenceReceipt against its approved plan,
+  tool and digest without stripping Unsupported, CoverageGaps, counts, mutation score or raw results.
+  Join every approved runnable control and each planned generic falsifier attempt exactly once to
+  one retained native payload and verified hook outcome by control ordinal, control ID and attempt.
+  Decode the supported canonical native profile; each selected native row has one actual attempt
+  and zero retries. Validate raw bytes/artifact digest, tool, plan/perturbation, selected semantic
+  test and the complete observed closure against EVERY baseline under PTF-V0-007 and PTF-V0-008.
+  A KILLED attempt requires the registered actual target assertion failure marker; a SURVIVED
+  attempt requires an actual PASSED native row and verified passed hook outcome with no omitted,
+  infrastructure or cancelled execution. Complete all-killed controls yield Strength KILLED.
+  Complete controls containing any survivor yield Strength SURVIVED and preserve rejection.
+  Derive each control status and exact ordered survivor CoverageGaps from the joined attempts,
+  requiring agreement with the generic results. Missing, duplicate, extra, unsupported, invalid,
+  unrun, mismatched or unexplained facts leave Strength NOT_MEASURED; conservative survivor
+  rejection remains. Per-run hashed IDs and declared assessment aliases remain distinct.
 - `PTF-V0-007`: The only supported mutation delta is one ChangedFixtureValue replacement in one
   source-direct HTML response. Its closed definition names artifactPath, sourceSha256, from, to and
   mutantSha256. From actual retained secret-screened source bytes, verify the source hash and one
@@ -175,12 +184,16 @@ behavior or qualification. The two status tokens do not establish execution.
 
 ## Control join
 
-Verify the complete EvidenceReceipt using the existing verifier, without stripping its Unsupported
-list. For each required executed raw attempt, require no omissions and exact native/hash/artifact
-binding. Decode only the new canonical profile and rederive its selected native row and closure.
+Verify the complete EvidenceReceipt using the existing verifier without stripping Unsupported,
+CoverageGaps or raw attempts. Every approved runnable control and every planned falsifier attempt
+must bijectively join its retained native row and verified hook outcome; no omitted or extra row
+qualifies. Decode only the new canonical profile and rederive its selected native row and closure.
+Each native row has one attempt and zero retries, distinct from the generic control attempt count.
 The supported single assertion fixture uses actual `PTF-ASSERTION:<assertion-id>` text followed by
 Playwright's locator assertion failure evidence; an unrelated error or assertion cannot count as a
-kill. Match source hash/path, declaration location, full Name/FullName and Project/Use options semantically.
+kill. An actual PASSED row with a verified passed hook outcome establishes survival only after
+all planned attempts and closures join. Infrastructure failures never establish measured survival.
+Match source hash/path, declaration location, full Name/FullName and Project/Use options semantically.
 The approved dependency manifest/digest, actual before/after complete file inventory and worker
 imports must also match every baseline.
 Normalize only independently verified output/temp-config/selector transport arguments; no other
@@ -200,7 +213,7 @@ semantics, automatic dependency installation in the product, release publication
 |---|---|
 | PTF-V0-001..004 | Unit CURRENT/STALE/UNKNOWN matrix over observed identity fields; real stable and stale source browser runs |
 | PTF-V0-005 | Closed/canonical codec, old-envelope and unsupported-consumer rejection fixtures |
-| PTF-V0-006..008 | Valid legacy killed receipt with opaque/mismatched native evidence stays blocked; actual same-closure target assertion kill joins every repeat and accepts; earlier stale/unknown aggregation fixtures |
+| PTF-V0-006..008 | Complete control/attempt native joins measure KILLED or rejected SURVIVED; missing/duplicate/extra/unsupported/invalid outcomes stay NOT_MEASURED; same-closure target kills join every repeat and accept; stale/unknown aggregation remains |
 | PTF-V0-009 | Foreign occupied port, failure and cancellation observations; owned server/runner/browser descendants retired with limitations retained |
 | PTF-V0-010 | Exact consuming tuple live matrix, focused tests/vet/doc/error ownership, independent review, final CEM/OCM and native gate receipts |
 
@@ -218,6 +231,24 @@ reads. These are source-phase observations, not final registered frozen checks o
 The exact source/review/proof hashes and remaining delivery are recorded in
 `docs/build-log/2026-10-02-per-test-freshness.md`. Whole #394 remains partial: historical legacy
 nonasserting/flaky rejection does not qualify new-profile surviving Strength or mixed order probes.
+
+## Parent complete-attempt implementation and final witness boundary
+
+Child V1-0556 subsequently completed its frozen gates, public integration and native completion
+(receipt 2169, commit `c5685a3389eea49fb0a465c343a6ee6bb37665ec`). The preceding source-phase
+observations remain historical evidence with their original limits.
+
+The parent implements PTF-V0-006 for every planned generic attempt, deriving complete KILLED or
+SURVIVED native strength with exact ordered survivor gaps. Pure synthetic tests cover multiple
+controls, attempt counts 1, 2 and 16, missing/infrastructure/invalid outcomes,
+forged native semantics and mismatched correspondence. Actual earlier N2 RED/GREEN observations
+are retained with an uncovered inner TMPDIR scope finding; they are not retrospectively admitted.
+
+Independent parent source review passed after one bounded repair of absolute Go launch and full
+actual-body proof. Final standalone stable/nonasserting N2 and one immutable flaky N32 must run at
+the clean committed CEM binding. Their actual JSON/body, process and check receipts determine
+qualification; source review and test definitions cannot predict PASS. Failure preserves the batch
+and keeps the parent open. The parent build log records exact review and retained limitations.
 
 ## Qualification, rollout and rollback
 

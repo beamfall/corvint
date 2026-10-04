@@ -449,3 +449,69 @@ func TestNEAV0009ChangeRequestBody(t *testing.T) {
 		}
 	})
 }
+
+func TestV10689BoundedWitnessCleanupCodec(t *testing.T) {
+	const limitation = "Process rows are a bounded witness sample; omitted historical or resident identities are not an exhaustive process list."
+	for _, state := range []string{"absent", "survivor", "failure"} {
+		t.Run(state, func(t *testing.T) {
+			observation := &procgroup.DescendantObservation{Scope: "observed-pid-start-identities", IntervalMS: 20, Absent: true, Processes: []procgroup.ObservedProcess{{PID: 42, ParentPID: 1, Start: "witness", State: "Z"}}, Failures: []string{}, Limitations: []string{limitation}}
+			if state == "survivor" {
+				observation.Absent = false
+			}
+			if state == "failure" {
+				observation.Failures = []string{"resident overflow"}
+			}
+			original := Cleanup{OwnedGroup: true, Descendants: observation}
+			data, err := json.Marshal(original)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var decoded Cleanup
+			if err := Decode(data, &decoded); err != nil {
+				t.Fatal(err)
+			}
+			if decoded.Descendants == nil || len(decoded.Descendants.Processes) != 1 || len(decoded.Descendants.Limitations) != 1 || decoded.Descendants.Limitations[0] != limitation {
+				t.Fatal("bounded witness or omission lost")
+			}
+			want := map[string]string{"absent": "observed-absent", "survivor": "survivors", "failure": "unknown"}[state]
+			if got := cleanupState(decoded); got != want {
+				t.Fatalf("got %s want %s", got, want)
+			}
+		})
+	}
+}
+
+// Exercise the existing aggregate refusal through Execute, without a live
+// provider: cancellation prevents worker launches but does not bypass encoding.
+func TestV10689AggregateReportBound(t *testing.T) {
+	repo := canonicalTemp(t)
+	script := filepath.Join(repo, "runner")
+	write(t, script, "#!/bin/sh\nexit 0\n")
+	for _, p := range []string{"new.spec.js", "config.js", "package.json", "lock.json"} {
+		write(t, filepath.Join(repo, p), "{}\n")
+	}
+	command(t, repo, "git", "init", "-q")
+	command(t, repo, "git", "config", "user.email", "fixture@example.invalid")
+	command(t, repo, "git", "config", "user.name", "Fixture")
+	command(t, repo, "git", "add", ".")
+	command(t, repo, "git", "commit", "-qm", "pinned")
+	pin := Repository{Root: repo, Commit: command(t, repo, "git", "rev-parse", "HEAD"), Tree: command(t, repo, "git", "rev-parse", "HEAD^{tree}")}
+	r := Request{Schema: RequestSchema, Product: pin, TestRepository: pin, Config: filepath.Join(repo, "config.js"), Package: filepath.Join(repo, "package.json"), Lockfile: filepath.Join(repo, "lock.json"), Runner: Command{Argv: []string{script}, ExecutableSHA256: hashFile(t, script)}, Server: Command{Argv: []string{script}, ExecutableSHA256: hashFile(t, script)}, ReadyURL: "http://127.0.0.1:4173/", AppBuildDir: repo, RunnerVersion: "fixture", Environment: "local", Repeat: 2, TimeoutSeconds: 1, Tests: []Test{{ID: "counter", File: filepath.Join(repo, "new.spec.js"), Line: 1, Title: "counter"}}}
+	for _, p := range []string{"new.spec.js", "config.js", "package.json", "lock.json"} {
+		path := filepath.Join(repo, p)
+		r.Inputs = append(r.Inputs, File{Path: path, SHA256: hashFile(t, path)})
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	report, err := Execute(ctx, r, Digest(r), script, "bounded-fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := json.Marshal(report)
+	if err != nil || len(data) > ReportLimit {
+		t.Fatal("fitting aggregate refused")
+	}
+	if _, err := Execute(ctx, r, Digest(r), script, strings.Repeat("b", ReportLimit)); err == nil || err.Error() != "report-bound" {
+		t.Fatalf("oversized aggregate did not refuse: %v", err)
+	}
+}

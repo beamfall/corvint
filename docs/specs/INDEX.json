@@ -1488,6 +1488,7 @@
     "closableToday": false,
     "implementation": [
       "internal/testacceptance",
+      "internal/procgroup",
       "cmd/corvint-tests-accept"
     ]
   },
@@ -2074,7 +2075,7 @@
     "reqPrefix": "PTF-V0",
     "intent": "proposed technical contract; owner approved the implementation plan",
     "delivery": "experimental",
-    "claim": "A bounded source-direct Playwright profile observes source, serving-process and runtime identity and joins native assertion controls to every baseline repeat.",
+    "claim": "A bounded source-direct Playwright profile observes source/server/runtime identity and joins every planned native control attempt to every baseline repeat.",
     "dependsOn": [
       "docs/specs/new-e2e-test-acceptance-v0.md",
       "docs/specs/playwright-external-provider-v0.md"
@@ -2110,7 +2111,7 @@
     "reqPrefix": "PCH-V0",
     "intent": "proposed",
     "delivery": "experimental",
-    "claim": "Reference GitHub Actions templates and a host adapter contract run the post-merge workflow with per-step credentials and no write credential in authoring.",
+    "claim": "Reference CI templates and an optional paired launcher have source conformance; physical isolation and hosted replay remain unqualified.",
     "dependsOn": [
       "docs/specs/authoring-step-scope-v0.md",
       "docs/specs/postmerge-connectors-v0.md"
@@ -2118,6 +2119,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
+      "cmd/corvint-postmerge-host-launcher",
       "internal/postmergehost",
       "protocol/postmerge-host"
     ]

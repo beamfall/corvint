@@ -349,6 +349,22 @@ No new public verb, flag, schema profile or journal/attempt member is added.
   new acceptance resets them. Legacy debt becomes UNKNOWN, never inferred specific reasons.
   reasonHistory is INCOMPLETE while UNKNOWN is nonzero, otherwise COMPLETE; this records cause
   classification, not authenticated physical failures or historical acceptance qualification.
+  Issue 503 adds advisory `remainingMeaning: RETRY_CAPACITY` and `retryAdmissionReason`
+  (`INITIAL_ADMISSION`, `NEW_ACCEPTANCE`, `COMPLETED_ATTEMPT`, `VERIFIED_HANDOFF`,
+  `RETRY_AVAILABLE`, `RETRY_EXHAUSTED`; `NOT_OBSERVED` without a journal). Zero remaining
+  does not itself establish exhaustion: initial admission, a completed latest attempt and a
+  verified clean handoff retain the existing admission exceptions without changing charged debt.
+  `ticket show` and `ticket blockers` MUST expose boolean-or-null `claimable`,
+  `claimabilityReason` and `claimabilityScope: RECORDED_DEFAULT_EXTERNAL_AGENT_PLAN`.
+  The observation is this ticket's recorded default external-agent plan before reap, without
+  earlier proposed selections; it never reserves capacity, validates caller branch/base/holder
+  or scope arguments, proves physical quiescence or promises a future or pool/supervised claim.
+  Unknown-only admission evidence yields null; a known blocker, reservation collision or capacity
+  limit yields false even with unknown evidence. Existing whole-repository coverage fallback
+  remains unchanged. Reasons describe this read profile, not the writer's first refusal ordering.
+  Journal absence yields null claimability and `NOT_OBSERVED`; invalid audited inputs retain read
+  refusal. Recorded expired reservations remain until an explicit reap. Read projections MUST
+  NOT mutate attempts, reservations, retry accounting or queue state.
 
 - `CAL-V0-050`: Read-only `policy show` MUST return effective canonical policy, policyVersion
   and the existing policySha256 content identity from one consistent snapshot, without writing,
@@ -659,6 +675,13 @@ explicit uncertainty is carried unchanged. No inferred context becomes accepted 
   MUST refuse. The pure mutation observation MUST bind the ticket and acceptance revision;
   a missing observation MUST NOT authorize recovery. Existing completed-ticket reopen semantics
   and policy role narrowing remain unchanged.
+  Issue 503 requires OPEN recovery refusals to explain the failed recorded condition:
+  missing/mismatched recovery observation, reservation, ambiguous generation, live attempt,
+  pending effects, unproved quiescence/unknown runtime, absent prior attempt, acceptance mismatch,
+  unexhausted retry budget or a latest phase other than FAILED/CANCELLED. The result retains
+  `TICKET_STATE`; diagnostic detail grants no recovery authority. An unexhausted budget refusal
+  directs the operator to `ticket show` claimability instead of implying that an OPEN ticket
+  needs reopening. Ticket/revision binding, OWNER policy and all recovery predicates stay intact.
   Recovery MUST increment ticket revision and acceptance revision exactly once, preserving the
   acceptance criteria, dependencies, gates, effects, prior records, attempts and gate history.
   A later claim MUST start a fresh attempt with zero retries and remain subject to ordinary
@@ -1247,7 +1270,12 @@ Tests for `CAL-V0-048`: `TestCALV0048_HeartbeatLegacyRoundTrip`,
 `TestCALV0048_HeartbeatCLIReplayAndFence`, `TestCALV0048_HolderObservationBoundaries`.
 Tests for `CAL-V0-049`: `TestCALV0049_ReasonTotalsAndClosedSchema`,
 `TestCALV0049_RetryObservationMatchesAdmission`, `TestCALV0049_ChargeReasonPartition`,
-`TestCALV0049_RetryReadProjections`.
+`TestCALV0049_RetryReadProjections`, `TestIssue503_ZeroRemainingHandoffAdmission`,
+`TestIssue503_JournalAbsentAdmissionUnknown`, `TestIssue503_RecordedAdmissionProvenance`,
+`TestIssue503_RetryExplanation`. `CAL-V0-043` refusal diagnostics are covered by
+`TestIssue503_ReopenReasonDoesNotAuthorize` and `TestCALV0043_RecoveryExaminesEveryAttempt`.
+Rollback of issue 503 removes these additive read fields and diagnostic detail; no stored schema,
+retry charging, migration or acceptance reset changes are required.
 Tests for `CAL-V0-050`: `TestCALV0050_PolicyShowPureAndUpdateHelp` plus existing policy-update refusal/replay tests.
 Tests for `CAL-V0-051`: `TestCALV0051_CreateHelpAndMeaningfulIDs` plus existing allocator/collision tests.
 Failure modes retain stale-generation refusals, expired heartbeat replay, backwards clocks,
