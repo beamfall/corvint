@@ -495,7 +495,7 @@ and container qualification; full fallback remains available.
   reverts partition placement to the previous complete round-robin workflow.
   (V1-0716) Within a full pull-request shard the affected plan MAY order, never select: the
   protected helper's `--order` moves the plan's selected Go packages to the front of the shard
-  (changed units and their dependents, then bounded readers, then unbounded readers, then every
+  (changed units, including a package whose own non-Go file changed, and their dependents, then other bounded witnesses, then unbounded readers, then every
   unselected package), keeping the helper's existing order inside each class. The output SHALL be
   a permutation of the same shard, so no ordering input can add, omit or move a package between
   shards. The planner SHALL be built from the pull-request event base commit, never the tested

@@ -10,7 +10,7 @@ import (
 const MaxPlanBytes = 8 << 20
 
 // Order returns packages with the Go units an affected-plan/0 document selected
-// first: changed units and their dependents, then bounded readers, then unbounded
+// first: changed units and their dependents, then other bounded witnesses, then unbounded
 // readers, then every unselected package. It only permutes its input; a plan it
 // cannot read leaves the order unchanged and reports false.
 func Order(packages []string, plan []byte) ([]string, bool) {
@@ -38,7 +38,7 @@ func Order(packages []string, plan []byte) ([]string, bool) {
 		}
 		r := 1
 		switch u.Witness.Kind {
-		case "DIRECT_SOURCE_CHANGE", "DIRECT_TEST_CHANGE", "DEPENDENCY_PATH":
+		case "DIRECT_SOURCE_CHANGE", "DIRECT_TEST_CHANGE", "ENCLOSING_PACKAGE", "DEPENDENCY_PATH":
 			r = 0
 		case "UNBOUNDED_READER":
 			r = 2

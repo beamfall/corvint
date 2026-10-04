@@ -14,7 +14,7 @@ ran in the helper's lexical order, so a changed package waited behind unrelated 
 ## Change
 
 - `.github/cishards/order.go`: `Order` permutes one shard so the Go units an `affected-plan/0`
-  selected run first: `DIRECT_SOURCE_CHANGE`, `DIRECT_TEST_CHANGE` and `DEPENDENCY_PATH`, then other
+  selected run first: `DIRECT_SOURCE_CHANGE`, `DIRECT_TEST_CHANGE`, `ENCLOSING_PACKAGE` and `DEPENDENCY_PATH`, then other
   bounded witnesses, then `UNBOUNDED_READER`, then unselected packages. The sort is stable. A plan
   that is oversized, unparseable, another profile or not `ok` returns the input order.
 - `ci-shards --order FILE` applies it after partitioning; an unreadable file keeps the order. The
