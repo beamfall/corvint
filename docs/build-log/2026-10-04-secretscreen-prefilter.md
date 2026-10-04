@@ -27,6 +27,10 @@ whole pattern. The three assignment branches and the JWT-shaped branch are the d
 - `Pattern`'s source text is unchanged (digest pinned by `TestLTAV0014PatternSourceIsUnchanged`);
   it is now assembled from the branch list. `StoredV1Pattern` is unchanged (existing digest test).
 
+- The analyzer schema moves to `corvint-analyzer/102`: `secretscreen` is one of the inputs pinned
+  by `TestAnalyzerSchemaInputs`, whose rule is to bump on any change to them. Extracted facts are
+  unchanged; existing analyzer packs are rebuilt once.
+
 Not done: `behaviorfalsify.VerifyReceipt` still screens each retained byte field and then the
 encoded document. Dropping either pass would change what a receipt is refused for, which is a
 detector decision and not an optimization.

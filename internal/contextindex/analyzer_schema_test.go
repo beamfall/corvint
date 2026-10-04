@@ -17,8 +17,8 @@ import (
 // discovered, not an enumerated filename allowlist. Review new imports too.
 func TestAnalyzerSchemaInputs(t *testing.T) {
 	t.Run("IDX-SNAP-V0-017", func(t *testing.T) {
-		const auditedSchema = "corvint-analyzer/101"
-		const auditedSHA256 = "f512402c39e81afa7b4edd3f59e1f8fac982ff07379395d13202e19f17dc2091"
+		const auditedSchema = "corvint-analyzer/102"
+		const auditedSHA256 = "1f1f173dcbb1561c1c7c117e4fdb5b14e9fff4966068ab838a1dfe6522b0a8cf"
 		root := filepath.Join("..", "..")
 		paths := []string{"go.mod"}
 		if _, err := os.Stat(filepath.Join(root, "go.sum")); err == nil {
