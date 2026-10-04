@@ -23,8 +23,9 @@ type ExternalReviewBlob func(wire.Digest) ([]byte, bool)
 // ExternalReviewGates is the pure workState adapter over a ticket's gate map
 // (ERG-V0-009): each view comes from the bound head event and the explicit
 // current binding of the same gate. A missing head, a missing or mismatched
-// binding gives UNKNOWN, never an actionable verdict.
-func ExternalReviewGates(refs map[string]snapshot.ExternalReviewRef, blob ExternalReviewBlob, current map[string]*ExternalReviewBinding) (map[string]ExternalReviewView, error) {
+// binding, or a head event for another ticket or gate gives UNKNOWN, never an
+// actionable verdict.
+func ExternalReviewGates(ticketID string, refs map[string]snapshot.ExternalReviewRef, blob ExternalReviewBlob, current map[string]*ExternalReviewBinding) (map[string]ExternalReviewView, error) {
 	if len(refs) > MaxExternalReviewGates {
 		return nil, fmt.Errorf("external review: more than %d gates", MaxExternalReviewGates)
 	}
@@ -34,8 +35,11 @@ func ExternalReviewGates(refs map[string]snapshot.ExternalReviewRef, blob Extern
 			return nil, err
 		}
 		raw, _ := blob(ref.Head)
+		if e, err := snapshot.CanonicalExternalReviewEvent(raw); err != nil || e.Request.TicketID != ticketID || e.Request.GateID != gate {
+			raw = nil
+		}
 		b := current[gate]
-		if b != nil && b.GateID != gate {
+		if b != nil && (b.GateID != gate || b.TicketID != ticketID) {
 			b = nil
 		}
 		r := ref

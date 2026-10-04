@@ -46,8 +46,16 @@ func TestERGV0009_GatePredicates(t *testing.T) {
 	}
 	m := &Match{Gates: []GateMatch{{Gate: "G1", States: []string{GatePass, GateReturn, GateResubmitted, GateNone}}}}
 	tk := ticket("t1", "P1", 1)
+	if matches(m, tk) || tk.GateState("G1") != StateUnknown {
+		t.Fatal("an unobserved ticket's gate is not UNKNOWN")
+	}
+	tk.Gates = map[string]GateView{"G1": {Status: "CURRENT", Verdict: GateReturn}}
+	if matches(m, tk) {
+		t.Fatal("gates without GatesObserved matched")
+	}
+	tk.Gates, tk.GatesObserved = nil, true
 	if !matches(m, tk) || tk.GateState("G1") != GateNone {
-		t.Fatal("absent record is not NONE")
+		t.Fatal("absent record of an observed ticket is not NONE")
 	}
 	for _, v := range []GateView{{Status: "STALE", Verdict: GateReturn}, {Status: "UNKNOWN"}, {Status: "CURRENT"}, {Status: "CURRENT", Verdict: "MAYBE"}} {
 		tk.Gates = map[string]GateView{"G1": v}

@@ -29,6 +29,10 @@ type Ticket struct {
 	// Gates is the native ERG-V0-009 external review state by gate ID. A
 	// workState program cannot supply it; absent means no record.
 	Gates map[string]GateView
+	// GatesObserved is set only by a native observation that read every
+	// gate of the ticket. While false every gate is UNKNOWN, so no gate
+	// predicate (NONE included) matches an unobserved ticket.
+	GatesObserved bool
 }
 
 // Attempt is the dispatcher's view of one attempt.
@@ -368,6 +372,8 @@ const (
 func (t Ticket) GateState(gate string) string {
 	v, ok := t.Gates[gate]
 	switch {
+	case !t.GatesObserved:
+		return StateUnknown
 	case !ok:
 		return GateNone
 	case v.Status != "CURRENT":

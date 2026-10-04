@@ -11,8 +11,9 @@ Authoritative inputs: owner request [issue 504](https://github.com/beamfall/corv
 independent frozen source review whose one MED finding F1 was repaired, and a same-reviewer PASS of
 that repair). Those reviews were agent reviews. On 2026-10-04 the owner accepted this intent as
 drafted, including its defaults for the derived-event slot shared with issue 501, the EVIDENCE
-artifact-binding wire shape and the issue 394 verdict mapping (see Open decisions). The existing [agent lease contract](corvint-tasks-agent-leases-v0.md)
-and the TCP-00 executable gate rules keep their authority; this profile never amends them.
+artifact-binding wire shape and the issue 394 verdict mapping (see Open decisions). The existing
+[agent lease contract](corvint-tasks-agent-leases-v0.md) and the TCP-00 executable gate rules keep
+their authority; this profile never amends them.
 
 ## Agent digest
 - Claim: Review verdicts (G1/G2 PASS/RETURN) and author resubmissions become typed, CAS-ordered queue events that route work without parsing Markdown.
@@ -47,12 +48,16 @@ binding or a binding for another gate gives UNKNOWN), and `ExternalReviewHistory
 events newest first, anchored at the head reference. It also adds typed gate routing to the
 dispatcher: `dispatch.Ticket.Gates` carries the native `{status,verdict,generation,revision,
 resubmitted,head}` per gate, and a role's `match.gates` is a closed list of at most 16
-`{gate,states}` predicates whose states are 1..4 of PASS, RETURN, RESUBMITTED and NONE. NONE means
-no record for that gate; PASS and RETURN need a CURRENT verdict; RESUBMITTED needs a CURRENT
-resubmission awaiting review; STALE and UNKNOWN match no predicate. A gate head joins the CAL-V0-057
+`{gate,states}` predicates whose states are 1..4 of PASS, RETURN, RESUBMITTED and NONE. PASS and
+RETURN need a CURRENT verdict; RESUBMITTED needs a CURRENT resubmission awaiting review; STALE and
+UNKNOWN match no predicate. NONE (no record for that gate) was proposed by the implementer and
+accepted by the owner on 2026-10-04 as an ERG-V0-009 amendment. It fails closed: until the native
+observation sets `Ticket.GatesObserved`, every gate reads UNKNOWN, so no predicate (NONE included)
+matches and a configuration using `match.gates` routes nothing. A gate head joins the CAL-V0-057
 progress fingerprint, and a ticket without gates fingerprints exactly as before. The workState
 program decoder is unchanged, so a program cannot supply gates. No writer, policy field, ticket field
-or CLI verb exists yet, and the native observation does not yet fill `Ticket.Gates`.
+or CLI verb exists yet, and the native observation does not yet fill `Ticket.Gates` or set
+`GatesObserved`, so the predicates are inert in a live dispatcher.
 
 ## Requirements
 
@@ -129,7 +134,10 @@ or CLI verb exists yet, and the native observation does not yet fill `Ticket.Gat
   `gate record` and `gate resubmit` CLI verbs, bounded anchored history (page at most 50, default 20,
   1 MiB) and a native workState adapter exposing
   `gates[G]={verdict,generation,revision,resubmitted,status,candidate,subject,trust,evidenceSha256}`
-  with closed gate predicates requiring status CURRENT are required. Legacy string and
+  with closed gate predicates are required. A PASS, RETURN or RESUBMITTED predicate requires status
+  CURRENT; a NONE predicate (owner decision 2026-10-04) matches only when the ticket's gates were
+  natively observed and that gate has no record, so an unobserved, STALE or UNKNOWN gate matches no
+  predicate. Legacy string and
   `{state,progress}` workState stays byte-compatible, and arbitrary program-returned gates are not
   native authority.
 
@@ -170,7 +178,7 @@ witness is NOT_RUN; no row claims installed native behavior.
 | ERG-V0-006 | ER504-002, F1 | `TestIssue504HistoricalPreservation`, `TestIssue504ResubmitAndSecondReturn/stale-resubmit-fresh-cycle`, `TestIssue504BoundsAndUnknown` | staleness from real acceptance/submission changes |
 | ERG-V0-007 | ER504-005 | `TestIssue504CanonicalRoundTrip`, `TestIssue504TypedRouting` (GateResult decoder rejects the event) | completion predicates unchanged under native records |
 | ERG-V0-008 | ER504-005, Gate A MED | `TestIssue504MaterialBindings` (rehashed wrong CAS, priorReturn, context, post and subject) | locked staged recovery and crash/redo fixtures |
-| ERG-V0-009 | ER504-001, ER504-005, ER504-006 | `TestIssue504GateAdapter` (16-gate bound, UNKNOWN for missing head or binding, STALE), `TestIssue504AnchoredHistory` (default and maximum page, cursor paging, off-chain cursor, broken link and digest refusals), `TestIssue504DispatchMisroutes` (the three issue misroutes route by typed verdict through adapter and roster), `TestERGV0009_GatePredicates` (closed predicate config, NONE, STALE/UNKNOWN never match, fingerprint compatibility, programs cannot supply gates) | native writer, policy, ticket field, CLI verbs, native observation filling ticket gates, 1670-byte descriptor measurement |
+| ERG-V0-009 | ER504-001, ER504-005, ER504-006 | `TestIssue504GateAdapter` (16-gate bound, UNKNOWN for a missing head or binding or a head for another ticket or gate, STALE), `TestIssue504AnchoredHistory` (default and maximum page, cursor paging, off-chain cursor, broken link and digest refusals), `TestIssue504DispatchMisroutes` (the three issue misroutes route by typed verdict through adapter and roster), `TestERGV0009_GatePredicates` (closed predicate config, NONE only when observed, unobserved gates are UNKNOWN, STALE/UNKNOWN never match, fingerprint compatibility, programs cannot supply gates) | native writer, policy, ticket field, CLI verbs, native observation filling ticket gates, 1670-byte descriptor measurement |
 | ERG-V0-010 | ER504-008, ER504-009 | none | full native fixture set, issue 394 producer, review, integration and native completion |
 
 ## Rollout and rollback
@@ -191,4 +199,5 @@ existing MUTATE transaction on that closed slot, within the six-artifact and 167
 EVIDENCE artifact-binding wire shape (`{kind:"EVIDENCE",sha256,bytes}` admissible only with a prior
 admitted journal-backed artifact link) and the issue 394 verdict mapping (accepted to PASS, rejected
 to RETURN, blocked to no verdict). The issue 501 slot itself is not yet committed; the writer follows
-its committed shape. No open decision remains.
+its committed shape. A second owner decision on 2026-10-04 amended ERG-V0-009 to admit the
+fail-closed NONE predicate. No open decision remains.

@@ -37,7 +37,11 @@ The dispatcher keeps its own small `GateView` and does not import the transactio
 native observation will fill the view from `ExternalReviewGates`.
 
 The predicate names `NONE` explicitly as "no record". This lets a reviewer role select tickets that
-have never been reviewed, without reading prose.
+have never been reviewed, without reading prose. NONE went beyond the accepted ERG-V0-009 wording
+("predicates requiring status CURRENT"); the owner accepted it on 2026-10-04 (orchestrator session),
+and ERG-V0-009 is amended under the same ID to admit it. It fails closed: `Ticket.GatesObserved` is false until the native observation fills the gate map,
+and while it is false every gate reads UNKNOWN. The independent review found that without this flag
+an unfilled map made `{G1:[NONE]}` match every live ticket, so the flag was added.
 
 ### Evidence
 

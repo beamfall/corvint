@@ -10,6 +10,8 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
+const issue504Ticket = "ticket:acme:main:AT-0001"
+
 // issue504Chain records PASS, RETURN, RESUBMIT and a second RETURN on G1 and
 // returns the head reference, the event store, the newest-first events, the
 // current binding and the head reference after each step.
@@ -52,7 +54,7 @@ func issue504Chain(t *testing.T) (snapshot.ExternalReviewRef, map[wire.Digest][]
 func TestIssue504GateAdapter(t *testing.T) {
 	ref, blobs, _, binding, _ := issue504Chain(t)
 	lookup := func(d wire.Digest) ([]byte, bool) { b, ok := blobs[d]; return b, ok }
-	views, err := ExternalReviewGates(map[string]snapshot.ExternalReviewRef{"G1": ref}, lookup, map[string]*ExternalReviewBinding{"G1": &binding})
+	views, err := ExternalReviewGates(issue504Ticket, map[string]snapshot.ExternalReviewRef{"G1": ref}, lookup, map[string]*ExternalReviewBinding{"G1": &binding})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +64,7 @@ func TestIssue504GateAdapter(t *testing.T) {
 	}
 	unknown := func(name string, refs map[string]snapshot.ExternalReviewRef, current map[string]*ExternalReviewBinding, lookup ExternalReviewBlob) {
 		t.Helper()
-		views, err := ExternalReviewGates(refs, lookup, current)
+		views, err := ExternalReviewGates(issue504Ticket, refs, lookup, current)
 		if err != nil {
 			t.Fatal(name, err)
 		}
@@ -75,12 +77,15 @@ func TestIssue504GateAdapter(t *testing.T) {
 	unknown("absent head", map[string]snapshot.ExternalReviewRef{"G1": ref}, map[string]*ExternalReviewBinding{"G1": &binding}, func(wire.Digest) ([]byte, bool) { return nil, false })
 	unknown("no binding", map[string]snapshot.ExternalReviewRef{"G1": ref}, nil, lookup)
 	unknown("gate key differs from head", map[string]snapshot.ExternalReviewRef{"G2": ref}, map[string]*ExternalReviewBinding{"G2": &binding}, lookup)
+	if views, err := ExternalReviewGates("ticket:acme:main:AT-0002", map[string]snapshot.ExternalReviewRef{"G1": ref}, lookup, map[string]*ExternalReviewBinding{"G1": &binding}); err != nil || views["G1"].Status != "UNKNOWN" {
+		t.Fatalf("head for another ticket: %+v %v", views["G1"], err)
+	}
 	other := binding
 	other.GateID = "G2"
 	unknown("binding names another gate", map[string]snapshot.ExternalReviewRef{"G1": ref}, map[string]*ExternalReviewBinding{"G1": &other}, lookup)
 	stale := binding
 	stale.AcceptanceRevision = "2"
-	views, _ = ExternalReviewGates(map[string]snapshot.ExternalReviewRef{"G1": ref}, lookup, map[string]*ExternalReviewBinding{"G1": &stale})
+	views, _ = ExternalReviewGates(issue504Ticket, map[string]snapshot.ExternalReviewRef{"G1": ref}, lookup, map[string]*ExternalReviewBinding{"G1": &stale})
 	if views["G1"].Status != "STALE" {
 		t.Fatalf("acceptance change not stale: %+v", views["G1"])
 	}
@@ -88,7 +93,7 @@ func TestIssue504GateAdapter(t *testing.T) {
 	for i := 0; i <= MaxExternalReviewGates; i++ {
 		many["G"+strings.Repeat("x", i)] = ref
 	}
-	if _, err := ExternalReviewGates(many, lookup, nil); err == nil {
+	if _, err := ExternalReviewGates(issue504Ticket, many, lookup, nil); err == nil {
 		t.Fatal("17 gates accepted")
 	}
 }
@@ -96,7 +101,7 @@ func TestIssue504GateAdapter(t *testing.T) {
 func TestIssue504AnchoredHistory(t *testing.T) {
 	ref, blobs, events, _, _ := issue504Chain(t)
 	lookup := func(d wire.Digest) ([]byte, bool) { b, ok := blobs[d]; return b, ok }
-	const ticket = "ticket:acme:main:AT-0001"
+	const ticket = issue504Ticket
 	all, err := ExternalReviewHistory(ref, lookup, ticket, "G1", nil, 0)
 	if err != nil || all.Next != nil || len(all.Events) != 4 {
 		t.Fatalf("full history %d %v %v", len(all.Events), all.Next, err)

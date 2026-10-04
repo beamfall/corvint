@@ -10,8 +10,9 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// issue504GateView maps an ERG-V0-009 adapter view onto the dispatcher's
-// typed gate state, as the native observation does.
+// issue504GateView is this test's mapping of an ERG-V0-009 adapter view onto
+// the dispatcher's typed gate state. The native observation that will do this
+// in production is not delivered yet.
 func issue504GateView(v ExternalReviewView, head wire.Digest) dispatch.GateView {
 	g := dispatch.GateView{Status: v.Status, Generation: string(v.Generation), Revision: string(v.Revision), Resubmitted: v.Resubmitted, Head: string(head)}
 	if v.Verdict != nil {
@@ -34,7 +35,7 @@ func TestIssue504DispatchMisroutes(t *testing.T) {
 	}, GlobalCap: 2}
 	route := func(gates map[string]dispatch.GateView) []string {
 		t.Helper()
-		obs := &dispatch.Observation{Tickets: []dispatch.Ticket{{ID: "ticket:acme:main:AT-0001", Local: "AT-0001", Status: "OPEN", Priority: "P1", Kind: "TASK", Revision: "1", State: dispatch.StateNone, Gates: gates}}}
+		obs := &dispatch.Observation{Tickets: []dispatch.Ticket{{ID: issue504Ticket, Local: "AT-0001", Status: "OPEN", Priority: "P1", Kind: "TASK", Revision: "1", State: dispatch.StateNone, Gates: gates, GatesObserved: true}}}
 		var roles []string
 		for _, a := range dispatch.Roster(c, obs, nil, nil) {
 			roles = append(roles, a.Role)
@@ -47,7 +48,7 @@ func TestIssue504DispatchMisroutes(t *testing.T) {
 	want := []string{"", "author", "reviewer", "author"} // PASS, RETURN, RESUBMIT, second RETURN
 	var prints []string
 	for i, ref := range heads {
-		views, err := ExternalReviewGates(map[string]snapshot.ExternalReviewRef{"G1": ref}, lookup, map[string]*ExternalReviewBinding{"G1": &binding})
+		views, err := ExternalReviewGates(issue504Ticket, map[string]snapshot.ExternalReviewRef{"G1": ref}, lookup, map[string]*ExternalReviewBinding{"G1": &binding})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -64,11 +65,11 @@ func TestIssue504DispatchMisroutes(t *testing.T) {
 	}
 	stale := binding
 	stale.AcceptanceRevision = "2"
-	views, _ := ExternalReviewGates(map[string]snapshot.ExternalReviewRef{"G1": heads[1]}, lookup, map[string]*ExternalReviewBinding{"G1": &stale})
+	views, _ := ExternalReviewGates(issue504Ticket, map[string]snapshot.ExternalReviewRef{"G1": heads[1]}, lookup, map[string]*ExternalReviewBinding{"G1": &stale})
 	if got := route(map[string]dispatch.GateView{"G1": issue504GateView(views["G1"], heads[1].Head)}); len(got) != 0 {
 		t.Fatalf("stale RETURN routes %v", got)
 	}
-	views, _ = ExternalReviewGates(map[string]snapshot.ExternalReviewRef{"G1": heads[3]}, func(wire.Digest) ([]byte, bool) { return nil, false }, map[string]*ExternalReviewBinding{"G1": &binding})
+	views, _ = ExternalReviewGates(issue504Ticket, map[string]snapshot.ExternalReviewRef{"G1": heads[3]}, func(wire.Digest) ([]byte, bool) { return nil, false }, map[string]*ExternalReviewBinding{"G1": &binding})
 	if got := route(map[string]dispatch.GateView{"G1": issue504GateView(views["G1"], heads[3].Head)}); len(got) != 0 {
 		t.Fatalf("unknown RETURN routes %v", got)
 	}
