@@ -96,6 +96,22 @@ func (r *Repository) BeginObjectSession() (release func()) {
 	}
 }
 
+// BeginCheckedObjectSession is BeginObjectSession for a stable budget: the
+// co-process is owned, and release reports whether its cleanup was observed.
+// A nested scope shares the outer one and reports nothing of its own.
+func (r *Repository) BeginCheckedObjectSession(ctx context.Context) (release func() error) {
+	if r.objects != nil || !r.budget.Stable() {
+		return func() error { return nil }
+	}
+	session := r.budget.NewSession()
+	r.objects = session
+	return func() error {
+		err := session.CloseContext(ctx)
+		r.objects = nil
+		return err
+	}
+}
+
 // batchStdout names which one-shot stdout a session answer reproduces.
 type batchStdout int
 
@@ -120,6 +136,9 @@ func (r *Repository) sessionRead(ctx context.Context, requests []string, stdout 
 	if r.objects == nil || slices.ContainsFunc(requests, lacksObjectID) {
 		return r.gitInput(ctx, limit, stdin, args...)
 	}
+	if r.budget.Stable() {
+		return r.stableSessionRead(ctx, requests, stdout, admit, limit, stdin, args...)
+	}
 	perOp, err := r.budget.ReserveOperation(0)
 	if err != nil {
 		return nil, err
@@ -138,6 +157,33 @@ func (r *Repository) sessionRead(ctx context.Context, requests []string, stdout 
 		}
 		if !ok || !servedBytesVerified(ctx, stdout, header, body) {
 			return gitrun.RunReserved(ctx, perOp, options, append(r.pinnedArgs(), args...)...)
+		}
+		out = appendStdout(out, stdout, header, body)
+	}
+	return out, nil
+}
+
+// stableSessionRead is sessionRead under a stable budget: one reservation
+// carries one absolute deadline, and a replay reuses that reservation and its
+// remaining time instead of starting a fresh per-operation span.
+func (r *Repository) stableSessionRead(ctx context.Context, requests []string, stdout batchStdout, admit func(fields []string, size int) bool, limit int, stdin []byte, args ...string) ([]byte, error) {
+	reservation, err := r.budget.Reserve()
+	if err != nil {
+		return nil, err
+	}
+	options := r.gitOptions(limit, stdin)
+	batch := append(r.pinnedArgs(), "cat-file", "--batch")
+	var out []byte
+	for _, request := range requests {
+		fits := func(header string, fields []string, size int) bool {
+			return admit(fields, size) && len(out)+stdoutLength(stdout, header, fields, size) <= limit
+		}
+		header, body, ok, err := r.objects.ReadReserved(ctx, reservation, options, batch, request, fits)
+		if err != nil {
+			return nil, err
+		}
+		if !ok || !servedBytesVerified(ctx, stdout, header, body) {
+			return gitrun.RunReservation(ctx, r.budget, reservation, options, append(r.pinnedArgs(), args...)...)
 		}
 		out = appendStdout(out, stdout, header, body)
 	}

@@ -1,0 +1,1 @@
+BEGIN; SELECT plan(1); SELECT skip('SQL_SKIP',1); SELECT * FROM finish(); ROLLBACK;

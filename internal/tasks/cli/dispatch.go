@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -63,7 +64,7 @@ func dispatchCommand(env Env, args []string) *wire.Result {
 	defer cancel()
 	d, e := dispatch.Open(values["--program"], c, dispatchQueue{env: env}, env.Stderr)
 	if e != nil {
-		return errorResult(cmd, e)
+		return dispatchReaderError(cmd, e)
 	}
 	runErr := d.Run(ctx, ticks)
 	closeErr := d.Close()
@@ -74,14 +75,28 @@ func dispatchCommand(env Env, args []string) *wire.Result {
 	o.Set("workersRunning", wire.String(strconv.Itoa(d.Running())))
 	o.Set("lastEventSeq", wire.String(strconv.FormatUint(d.LastEvent(), 10)))
 	o.Set("interrupted", wire.Bool(ctx.Err() != nil))
+	containment, quarantined, diagnostic := dispatch.ReaderContainment(dispatch.ProgramDir(c, values["--program"]), values["--program"])
+	o.Set("readerContainment", wire.String(containment))
+	o.Set("readerQuarantined", wire.Bool(quarantined))
+	o.Set("readerDiagnostic", wire.String(diagnostic))
 	out := &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{{Kind: wire.KindObject, Obj: o}}}
 	for _, e := range []error{runErr, closeErr} {
 		if e != nil {
 			out.Outcome, out.Codes = wire.OutcomeError, []string{wire.CodeOf(e)}
+			if errors.Is(e, dispatch.ErrReaderQuiescence) {
+				out.Codes = []string{wire.CodeQuiescenceUnproved}
+			}
 			out.Warnings = append(out.Warnings, prose(e.Error()))
 		}
 	}
 	return out
+}
+
+func dispatchReaderError(cmd []string, err error) *wire.Result {
+	if errors.Is(err, dispatch.ErrReaderQuiescence) {
+		return errorResult(cmd, wire.Errorf(wire.CodeQuiescenceUnproved, "reader", "%v", err))
+	}
+	return errorResult(cmd, err)
 }
 
 func dispatchFlags(args []string, valued, bare map[string]bool) (map[string]string, string) {
@@ -179,10 +194,10 @@ func dispatchAux(env Env, verb string, args []string) *wire.Result {
 	if e != nil {
 		return errorResult(cmd, e)
 	}
-	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{dispatchStatusValue(dir, l, events, time.Now())}}
+	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{dispatchStatusValue(dir, l, events, time.Now(), c.Pressure)}}
 }
 
-func dispatchStatusValue(dir string, l *dispatch.Ledger, events []dispatch.Event, now time.Time) wire.Value {
+func dispatchStatusValue(dir string, l *dispatch.Ledger, events []dispatch.Event, now time.Time, pc *dispatch.PressureConfig) wire.Value {
 	str := wire.String
 	ts := func(t time.Time) wire.Value { return str(t.UTC().Format(time.RFC3339)) }
 	workers := []wire.Value{}
@@ -231,11 +246,87 @@ func dispatchStatusValue(dir string, l *dispatch.Ledger, events []dispatch.Event
 	o.Set("program", str(l.Program))
 	o.Set("stateDir", str(dir))
 	o.Set("dispatcherRunning", str(dispatch.OwnerState(dir)))
+	containment, quarantined, diagnostic := dispatch.ReaderContainment(dir, l.Program)
+	o.Set("readerContainment", str(containment))
+	o.Set("readerQuarantined", wire.Bool(quarantined))
+	o.Set("readerDiagnostic", str(diagnostic))
 	o.Set("workers", wire.Value{Kind: wire.KindArray, Arr: workers})
 	o.Set("parked", wire.Strings(parked))
 	o.Set("cooling", wire.Value{Kind: wire.KindArray, Arr: cooling})
+	if l.Pressure != nil {
+		o.Set("pressure", dispatchPressureValue(l.Pressure, pc))
+	}
 	o.Set("lastEventSeq", str(strconv.FormatUint(l.EventSeq, 10)))
 	o.Set("events", wire.Value{Kind: wire.KindArray, Arr: evs})
+	return wire.Value{Kind: wire.KindObject, Obj: o}
+}
+
+// dispatchPressureValue is the CAL-V0-068 status view: the recorded level
+// and dwell, the newest sample's observed inputs (UNKNOWN when unobserved),
+// the active non-exempt cap under the given configuration, and held work.
+func dispatchPressureValue(r *dispatch.PressureRecord, pc *dispatch.PressureConfig) wire.Value {
+	str := wire.String
+	num := func(x float64, ok bool) wire.Value {
+		if !ok {
+			return str(dispatch.StateUnknown)
+		}
+		return str(strconv.FormatFloat(x, 'f', 3, 64))
+	}
+	s := r.Sample
+	o := wire.NewObject()
+	o.Set("level", str(strconv.Itoa(r.State.Level)))
+	o.Set("pendingLevel", str(strconv.Itoa(r.State.PendingLevel)))
+	o.Set("pendingTicks", str(strconv.Itoa(r.State.PendingTicks)))
+	sample := "OBSERVED"
+	if r.State.Unknown {
+		sample = dispatch.StateUnknown
+	}
+	o.Set("sample", str(sample))
+	sampledAt := dispatch.StateUnknown
+	if !s.SampledAt.IsZero() {
+		sampledAt = s.SampledAt.UTC().Format(time.RFC3339)
+	}
+	o.Set("sampledAt", str(sampledAt))
+	source := dispatch.StateUnknown
+	if s.Source != "" {
+		source = prose(s.Source)
+	}
+	o.Set("source", str(source))
+	o.Set("loadAverage", num(s.LoadAverage, s.LoadKnown))
+	cpus := dispatch.StateUnknown
+	if s.CPUKnown && s.CPUs > 0 {
+		cpus = strconv.Itoa(s.CPUs)
+	}
+	o.Set("cpus", str(cpus))
+	o.Set("loadPerCpu", num(s.LoadPerCPU()))
+	o.Set("swapFraction", num(s.SwapFraction()))
+	swapUsed, swapTotal := dispatch.StateUnknown, dispatch.StateUnknown
+	if s.SwapKnown {
+		swapUsed, swapTotal = strconv.FormatUint(s.SwapUsedBytes, 10), strconv.FormatUint(s.SwapTotalBytes, 10)
+	}
+	o.Set("swapUsedBytes", str(swapUsed))
+	o.Set("swapTotalBytes", str(swapTotal))
+	problems := make([]string, 0, len(s.Problems))
+	for _, p := range s.Problems {
+		problems = append(problems, prose(p))
+	}
+	o.Set("problems", wire.Strings(problems))
+	limit := "NONE"
+	if r.State.Level > 0 {
+		limit = dispatch.StateUnknown
+		if pc != nil {
+			limit = strconv.Itoa(pc.LevelCaps[strconv.Itoa(r.State.Level)])
+		}
+	}
+	o.Set("cap", str(limit))
+	held := []wire.Value{}
+	for _, h := range r.Held {
+		x := wire.NewObject()
+		x.Set("role", str(h.Role))
+		x.Set("key", str(h.Key))
+		held = append(held, wire.Value{Kind: wire.KindObject, Obj: x})
+	}
+	o.Set("held", wire.Value{Kind: wire.KindArray, Arr: held})
 	return wire.Value{Kind: wire.KindObject, Obj: o}
 }
 

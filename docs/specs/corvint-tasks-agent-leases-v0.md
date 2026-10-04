@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle with focused tests and independent review; live Linux sampling NOT_RUN, current-main integration and native completion pending
 Authoritative inputs: owner request [issue 482](https://github.com/beamfall/corvint/issues/482) (proposed CAL-V0-044/046 compatibility amendment);
 owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
@@ -13,6 +13,7 @@ owner requests [issue 420](https://github.com/beamfall/corvint/issues/420),
 [issue 421](https://github.com/beamfall/corvint/issues/421) and
 [issue 422](https://github.com/beamfall/corvint/issues/422) (CAL-V0-045..047),
 owner request [issue 431](https://github.com/beamfall/corvint/issues/431) (CAL-V0-052..058),
+owner request [issue 497](https://github.com/beamfall/corvint/issues/497) (CAL-V0-068),
 owner request [issue 446](https://github.com/beamfall/corvint/issues/446) (CAL-V0-059..061),
 owner request [issue 378](https://github.com/beamfall/corvint/issues/378),
 owner request [issue 370](https://github.com/beamfall/corvint/issues/370), and
@@ -23,10 +24,10 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle with focused tests and independent review; live Linux sampling NOT_RUN, current-main integration and native completion pending. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
-- Read next: Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release); Amendments to TCP-00; Failure modes.
+- Read next: #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle); Amendments to TCP-00; Failure modes.
 
 ## User and boundary
 
@@ -80,10 +81,11 @@ one.
 | S14 | CAL-V0-064 | Proposed explicit command progress; original reviewed source and sealed evidence retained, current-main composition pending |
 | S15 | CAL-V0-065 | Opt-in explicit per-claim member exclusions; focused tests and a compiled native fixture |
 | S17 | CAL-V0-067 | Experimental operator-attested untouched release; scoped native/archive/crash fixtures passed, physical facts NOT_OBSERVED |
+| S18 | CAL-V0-068 | Experimental host-pressure launch throttle: hysteresis level caps new non-exempt launches; running workers untouched |
 
 CAL-V0-062/063 (S13, issue 456) and CAL-V0-064 (S14, issue 468) are reserved
 by coordinated unlanded work; CAL-V0-066/S16 remains reserved for issue 464 if used.
-The coordinator assigned CAL-V0-067/S17 to issue 479. This seed does not claim
+The coordinator assigned CAL-V0-067/S17 to issue 479 and CAL-V0-068/S18 to issue 497. This seed does not claim
 implementation or qualification of the new profile or any reserved slice.
 
 S8 was added by owner decision on 2026-09-27 and lands directly after S3, before S4.
@@ -457,7 +459,8 @@ silently shared.
   `claim --next`, derive only the ticket selected by the existing conservative priority plan,
   bind the facts to that ticket, and recheck collisions; a blocked plan stays blocked.
   Decision 0397's CAL-V0-022 addendum permits only the scope adapter's Core imports and its
-  pack-fixture test import. Standalone source-archive rebuild remains blocked by V1-0456.
+  pack-fixture test import; its separate #464 addendum admits only `internal/tasks/dispatch`
+  importing `internal/groupreap`. Standalone source-archive rebuild remains blocked by V1-0456.
 - `CAL-V0-023`: Two live attempts MUST collide exactly when their resource sets collide under
   TCP-00 §4.2 path normalization; `WHOLE_REPOSITORY` collides with every live entry and every live
   entry collides with it. A colliding `claim` refuses `RESOURCE_COLLISION` naming the other
@@ -485,6 +488,23 @@ silently shared.
   Locked guards bind the prepared result to the unchanged head and monitored bytes before applying
   the bounded writes. A changed observation retries; unavailable monitoring refuses. Pending-receipt
   recovery prepares its full proof outside the lock before bounded redo. This changes no store format.
+
+#### Issue 494: bounded preparation admission
+
+Cooperating lease preparations use a bounded registered-order admission step before the existing `taskman.prepare.lock`. A successfully published registration cannot enter preparation while a smaller continuously live registration exists. Publication order is not CLI arrival order; pre-registration scheduling, mixed-version fairness and universal starvation freedom are not qualified. The default and maximum acquisition wait remain 30 seconds total from acquisition entry across identity resolution, registration, scans, queue wait and the final gate. It must never restart at phase boundaries. Full audits, journal/intent formats, writer authority, request identity, replay and the original shared 180-second qualification context remain unchanged.
+
+The private coordination namespace consists of the inert `taskman.prepare.registry.lock` and 64 fixed `taskman.prepare.slot.00` through `.63` regular files under the pinned Git common directory, outside journal and intent. A slot has 16 bytes: `CPA1`, four zero reserved bytes, unsigned 64-bit big-endian nonzero rank. A live slot is owned by an exclusive nonblocking-flock open description. Registry-held publication chooses one greater than the maximum live rank, or 1 when none are live. Rank overflow and a scan observing 64 live slots refuse LIMIT_EXCEEDED without a receipt. This fixed technical bound includes the serving holder and is independent of lease/reservation capacity. A scan is not an instantaneous-capacity promise. No arbitrary namespace enumeration, durable counter, PID/time-based eviction, daemon, database service or new authority is introduced.
+
+Only a successful lock probe proves an abandoned slot reusable. Held malformed/duplicate-rank state, unknown format, unsafe objects and observed name/root/inode drift refuse. Partial unowned bytes can be overwritten only through the acquired slot descriptor under the registry. The registry must not surround a sleep, final preparation gate, writer work, inventory/audit, monitor teardown or external execution. Slot/registry files are not normally removed or replaced. Scratch bytes are scheduling data, never proof/intent/ranking/attempt authority; read verbs do not create, clean or mutate them. Existing final-gate exclusion remains compatible with older callers, while their bypass of registration leaves mixed-version fairness unqualified.
+
+Preparation owns all registry/slot/probe/gate/root descriptors it obtains. Every locally owned cleanup failure is retained with the primary error. Temporary-root cleanup completes before returning a successful composite handle; if it fails after gate acquisition, gate and slot are retired and the call fails. This does not broaden the public writer helper's cleanup behavior or claim coverage of hidden safeopen traversal ownership. One synchronized composite Close owns retirement: gate first, slot regardless of gate error, aggregate all failures, then deliver one observation. Hold measurement ends at the actual gate-release boundary; observation delivery waits for mandatory slot cleanup. An acquired-but-not-cleanly-released handle cannot be reported as fully released success. Concurrent/double Close returns the recorded result without duplicate cleanup or callback. Close/cancel never requires registry ownership; observers run outside internal locks and never under registry ownership.
+
+Cancellation closes owned references; process-death recovery requires those references actually gone, demonstrated after joined exit. CLOEXEC is mandatory; no descriptor handoff to helpers is permitted. A still-held inherited or leaked reference remains live and is never evicted by age. Process exit may release descriptors at different instants, so transient conservative refusal before joined exit is allowed. Normal machine restart leaves no live owner locks, so stale scheduling bytes convey no authority and need no durable recovery claim. Boundary identity checking is not continuous hostile-filesystem monitoring.
+
+Deterministic proof must acknowledge reached publication/entry/injection boundaries and cover registered non-overtaking, head/middle cancellation, death before/during partial publication and after publication/while registry/while serving, actual independent-open exclusion, exec closed-FD witness, capacity/overflow/malformed/identity refusals, total deadline, locally owned cleanup failures and synchronized composite Close. Canonical fixture initialization/audit precedes injection; journal/intent snapshots and authorized product effects are asserted separately from scheduling scratch. Actual Darwin and Linux execution evidence is required before the corresponding platform claim; cross-compilation is insufficient and an absent runner stays NOT_RUN.
+
+After focused checks and independent source PASS, one unchanged original 5000-receipt/10-worker/30-operation mixed qualification must show 5000→5030 full consistent/agreeing audits, unique completed operations, ten stable identities/generations, all final CANCELLED/FENCED, zero active reservations, exact-ID replays with unchanged digest and after-replay audit 5030, plus bound source/binary and retired owned processes. Retain phase/rank/publication diagnostics on timeout without retries or changed deadlines. A failed wave is preserved and triggers diagnosis, not another automatic wave. The existing original CAL-V0-026 acceptance is not replaced by this test.
+
 
 S7, qualification and execution cutover.
 
@@ -752,7 +772,8 @@ derived from the installed CLI source and is not live-qualified; see
   unknown members, trailing data, unknown placeholders and out-of-range bounds. The bounds are:
   tickSeconds 1..3600, globalCap 1..64, killGraceSeconds 1..120, 1..8 hosts with absolute
   executables, 1..32 roles, cap 1..64, priority 0..1000, idleSeconds 30..86400,
-  wallSeconds 60..604800, cooldownSeconds 0..86400, parkAfter 1..100 and at most 256 pins.
+  wallSeconds 60..604800, cooldownSeconds 0..86400, parkAfter 1..100 and at most 256 pins. The
+  optional `pressure` member has the bounds in CAL-V0-068.
   Host env MUST NOT set `CORVINT_DISPATCH_*`. One exclusive non-blocking lock per program state
   directory MUST refuse a second dispatcher. `dispatch status` and `dispatch unpark` MUST NOT read,
   lock or write the native store. Status reports workers, parked and cooling keys, the dispatcher's
@@ -765,13 +786,14 @@ derived from the installed CLI source and is not live-qualified; see
   `key: value` line in an absolute per-ticket file of at most 64 KiB) or a `command` reader (one JSON
   object of ticket ID or local name to state, at most 1 MiB of output, 60 s timeout). Values are at most
   64 printable bytes. A missing file is `NONE`. Every read failure MUST yield `UNKNOWN` and an alert,
-  never a guessed state. Roles that match states MUST refuse without a reader.
+  never a guessed state. Roles that match states MUST refuse without a reader. See the #464 command-reader lifecycle amendment below.
 - `CAL-V0-054`: The roster MUST be a pure function of the configuration, one observation, the
   running workers and the backoff skip set. Roles match tickets by labels, kinds, an ID glob, work
   states, excluded states, statuses and plan selection, or lane roles match quarantined members of
   one pool. A ticket with any live attempt is never a candidate; an expired lease becomes free only
   after a reap. Candidates order by pin, role priority, P-rank, plan order, key and role index. The
   global cap, then the per-role cap, bound the result, and each assignment takes the lowest free slot.
+  An optional pressure budget (CAL-V0-068) is applied after these fences and only holds candidates.
   One key holds at most one worker.
 - `CAL-V0-055`: Each assignment MUST launch one independent process in its own session, with
   stdout and stderr appended to per-worker logs. The prompt and argv are rendered in a single pass,
@@ -810,7 +832,8 @@ derived from the installed CLI source and is not live-qualified; see
 - `CAL-V0-058`: Every decision MUST append one `taskman-dispatch-event/0` line to `events.jsonl`
   and print it to stderr as plain language. The event kinds form a closed vocabulary: started,
   stopped, adopted, launched, launch-failed, finished, killing, killed, handoff, handoff-refused,
-  reaped, state, claim, release, lane, cooldown, parked, unparked, alert and needs-owner. A
+  reaped, state, claim, release, lane, cooldown, parked, unparked, alert, needs-owner and throttled
+  (CAL-V0-068). A
   `finished` event carries the exit code (`NOT_OBSERVED` for an adopted worker), whether progress was
   made, and a bounded summary of the worker's last agent message: the final text of a recognized
   host event stream (OpenCode `run --format json`, Codex `exec --json`, Claude Code `-p
@@ -1066,6 +1089,60 @@ CEM/OCM frozen checks with truthful unknowns, CI/integration and native completi
 Rollback stops future opt-in use while preserving witness/attestation history and exact replay;
 retain a compatible reader, never strip metadata, silently downgrade or rewrite successors.
 
+### S18 — Host-pressure launch throttle (issue 497)
+
+Authoritative input: owner request [issue 497](https://github.com/beamfall/corvint/issues/497),
+which asks the dispatcher to sample host load and swap each tick, cap new launches by pressure level
+with hysteresis, never stop running workers, keep pinned and explicitly exempt work running, and
+report the level, inputs and held work. The issue's free-form `exempt` list is refined here into two
+explicit identity lists. No role or ticket is inferred to be critical path, review or integration
+from its name. The coordinator assigned CAL-V0-068/S18 to this issue.
+
+- `CAL-V0-068`: The `taskman-dispatch/0` configuration MAY carry one closed `pressure` object:
+  `calmLoadPerCpu < loadPerCpuHigh < loadPerCpuCritical` (finite, non-negative),
+  `calmSwap < swapHigh < swapCritical <= 1` (non-negative), `ticksToChange` 1..3600, `levelCaps`
+  with exactly the levels `"1"` and `"2"` where `0 <= cap2 <= cap1 <= 64`, at most 32 unique
+  `exemptRoles` that name configured roles, and at most 512 unique `exemptTickets` of 1..256 bytes
+  without spaces, control characters or glob characters. When it is present, each tick that reaches
+  launch admission MUST take one bounded host sample: on Linux `/proc/loadavg`, `/proc/stat` and
+  `/proc/meminfo` read with byte limits; on macOS one `/usr/sbin/sysctl vm.loadavg vm.swapusage
+  hw.logicalcpu` with a 2 s timeout and bounded output; on any other OS an UNKNOWN sample. The
+  inputs are the one-minute load average per host-visible CPU and used/total swap, where zero total
+  swap is an observed fraction of zero. The level (0, 1 or 2) is a pure step. Either metric at or
+  above its critical threshold targets level 2, and at or above its high threshold targets at least
+  level 1. Only both metrics at or below their calm thresholds target level 0; otherwise the target is
+  the current level, so a throttle never steps down from 2 to 1 and releases only to 0. The level changes only
+  after `ticksToChange` consecutive ticks target the same new level. A sample with either input
+  UNKNOWN MUST keep the current level, cancel pending dwell, and never count as calm. Above level 0,
+  the roster (CAL-V0-054) MUST admit at most `levelCaps[level]` non-exempt workers, counting the
+  running non-exempt workers. The pressure budget is consulted only after the global cap, the
+  key, skip and per-role fences admit a candidate, so a held candidate consumes no slot and
+  reserves no key. A refused candidate is reported as held only while the role and global caps,
+  charged with earlier launches and holds, would still have admitted it. Pins, `exemptTickets` (by ticket ID or local name) and `exemptRoles` are exempt
+  and are never held. Pressure MUST NOT stop, signal or otherwise change a running worker, and MUST
+  NOT bypass any static cap or native lease check. The level, pending dwell, newest bounded sample
+  (valid UTF-8; source at most 256 bytes, at most 8 problems of at most 200 bytes) and at most 8192 held
+  launches are kept in the private ledger. A restart keeps the recorded level, cancels pending
+  dwell, clears the previous sample and is UNKNOWN until its first sample. If the budget cannot be
+  built, the tick launches nothing and appends an `alert`. Removing `pressure` from the configuration drops the
+  record. `dispatch status` MUST report the level, pending dwell, sample (`OBSERVED` or `UNKNOWN`),
+  each input or `UNKNOWN`, problems, the active cap (`NONE` at level 0, otherwise from the
+  configuration given to `dispatch status`, or `UNKNOWN` without one) and the held launches. One
+  `throttled` event (CAL-V0-058) MUST be appended when the level, the sample's knowledge or the set
+  of held keys changes, naming the level, the inputs and at most ten held tickets.
+
+Non-goals: stopping, pausing or deprioritizing running workers; inferring critical path, review or
+integration roles; memory compression, PSI or OS memory-pressure signals; container or cgroup
+limits; per-role pressure caps; and any network or hosted metric. Failure modes: an unreadable,
+oversized, malformed or timed-out sample is UNKNOWN and keeps the level, so a throttle is never
+released on missing evidence and never raised without it; a saturated host with an all-exempt
+roster keeps launching exempt work; load from processes outside the dispatcher still counts.
+Rollback removes `pressure` from the configuration (the record is dropped at the next start) or
+stops the dispatcher; running workers are unaffected either way. A binary without CAL-V0-068 refuses
+a ledger that carries the record, so a downgrade first needs one start without `pressure`. Linux sampling is covered by
+fixture parsing only; live Linux sampling is NOT_RUN, and other operating systems are always
+UNKNOWN. Regression witnesses are the CAL-V0-068 and issue-497 tests in the traceability table.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -1168,6 +1245,8 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
 | Context index absent or stale | No derivation | The scope is `WHOLE_REPOSITORY`, which serializes that claim as today |
 | Dispatcher crashes or is stopped | Workers keep running unsupervised | The next `dispatch` adopts workers whose recorded identities still match, then supervises and heals them (CAL-V0-056) |
 | Dispatched worker loops without progress | Repeated launches spend host budget | Cooldown, then park and `needs-owner` after `parkAfter` runs (CAL-V0-057) |
+| Host saturated by load or swap while the dispatcher launches | New workers deepen the overload | With `pressure` configured, the level caps new non-exempt launches after its dwell and a `throttled` event names the held work; running workers are untouched (CAL-V0-068) |
+| Host pressure sample unreadable, oversized, malformed or timed out | The level cannot be recomputed | The sample is `UNKNOWN`, the level and its cap are kept and pending dwell restarts; it never counts as calm (CAL-V0-068) |
 | Checkpoint absent, corrupt, oversized, foreign or ahead of the head | A read cannot resume | The read runs the complete audit and reports `FULL`; output is otherwise identical (CAL-V0-061) |
 | Checkpoint disagrees with a receipt, projection, staging or the intent tree | A resumed read would mis-state the store | The resumed path refuses internally and the complete audit decides the reported verdict (CAL-V0-061) |
 | Journal prefix, or a checkpoint entry together with its projection, altered behind a still-matching checkpoint | A resumed read does not see it | `receipt audit` and every mutation run the complete audit and refuse; the read's verdict says `CHECKPOINT_PLUS_TAIL`, not `CONSISTENT` (CAL-V0-061) |
@@ -1233,13 +1312,14 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-045 | `TestCALV0045_RetryPolicyBounds` (`internal/tasks/intent`); `TestCALV0045_PolicyControlsAdmissionAndRecovery`, `TestCALV0045_RecoveryUsesCurrentPolicy` (`internal/tasks/store`); `TestCALV0045_CLIConfiguredRetriesAndNoTreeHandoff` (`internal/tasks/cli`) |
 | CAL-V0-046 | `TestCALV0046_ReleasePreimageCompatibility`, `TestCALV0046_NoTreeEligibilityBindings` (`internal/tasks/transaction`); `TestCALV0046_NoTreeHandoffSchema` (`internal/tasks/snapshot`); `TestCALV0046_NoTreeHandoffAndIntegrate`, `TestCALV0046_NoTreeRefusals` (`internal/tasks/store`); `TestCALV0045_CLIConfiguredRetriesAndNoTreeHandoff`, `TestCALV0046_CLICompatibility`, `TestCALV0046_CLIPoolHandoffQuarantines` (`internal/tasks/cli`) |
 | CAL-V0-047 | `TestCALV0047_AllCommandHelpIsReadOnly`, `TestCALV0047_MalformedInputsStillRefuse` (`internal/tasks/cli`) |
-| CAL-V0-052 | `TestCALV0052_DecodeConfigIsClosedAndBounded`, `TestCALV0052_RenderIsSinglePass` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
-| CAL-V0-053 | `TestCALV0053_WorkStateReaders` (`internal/tasks/dispatch`) |
+| CAL-V0-052 | `TestCALV0052_RunNormalizesShutdown`, `TestCALV0052_DecodeConfigIsClosedAndBounded`, `TestCALV0052_RenderIsSinglePass` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
+| CAL-V0-053 | `TestCALV0053_WorkStateReaders`, `TestCALV0053_ReaderReleased`, `TestCALV0053_ReaderFixedRetirementBound`, `TestCALV0053_ReaderExpiredBeforeRetirement`, `TestCALV0053_ReaderHoldIsSticky`, `TestCALV0053_ReaderMarkerRefusesUnsafeEvidence`, `TestCALV0053_ReaderMarkerIdentityAndSetup`, `TestCALV0053_ReaderLocalTimeout`, `TestCALV0053_ReaderClearFailureQuarantines`, `TestCALV0053_ReaderFilesystemFailures`, `TestCALV0053_ReaderFailedDiagnostic`, `TestCALV0053_ReaderDescendants`, `TestCALV0053_CancelledTickKeepsState`, `TestCALV0053_CancelledReobservationKeepsDurableState`, `TestCALV0053_EndedContextDoesNotObserve` (`internal/tasks/dispatch`); `TestCALV0053_DispatchReaderCLIQuarantineAndStatus`, `TestCALV0053_DispatchReaderCLIClearFailure`, `TestCALV0053_DispatchReaderCLIReleased`, `TestCALV0053_DispatchReaderCLICrashRetainsQuarantine` (`internal/tasks/cli`); #464 evidence and limits below |
 | CAL-V0-054 | `TestCALV0054_RosterIsDeterministicAndCapped`, `TestCALV0054_RosterStatePredicatesAndLanes` (`internal/tasks/dispatch`) |
 | CAL-V0-055 | `TestCALV0055_LaunchFinishBackoffAndPark` (`internal/tasks/dispatch`); live OpenCode run in `docs/build-log/2026-10-01-tasks-continuous-dispatch.md`; live Claude Code and Codex runs in `docs/build-log/2026-10-01-tasks-dispatch-claude-code.md` and `docs/build-log/2026-10-01-tasks-dispatch-codex.md` |
-| CAL-V0-056 | `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0056_KillsOrphanedProcessesBySession`, `TestCALV0056_IdentityOutageAndUnknownState` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
+| CAL-V0-056 | `TestCALV0056_CancelledHealingStopsNextWrite`, `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0056_KillsOrphanedProcessesBySession`, `TestCALV0056_IdentityOutageAndUnknownState` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
 | CAL-V0-057 | `TestCALV0057_FingerprintIgnoresNonDurableAttempts`, `TestCALV0055_LaunchFinishBackoffAndPark` (`internal/tasks/dispatch`) |
 | CAL-V0-058 | Event assertions in `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0058_SummaryReadsHostFinalText` (`internal/tasks/dispatch`) and `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
+| CAL-V0-068 | `TestCALV0068_RosterPressurePrecedence`, `TestCALV0068_HeldRespectsStaticCaps`, `TestCALV0068_ConfigValidation`, `TestCALV0068_DispatcherThrottlesNewLaunchesOnly`, `TestCALV0068_RestartKeepsLevelAndDisableClears`, `TestCALV0068_LedgerPressureRecordValidated`, `TestIssue497_PressureHysteresis`, `TestIssue497_UnknownRetainsLevel`, `TestIssue497_NormalizesHostCPU`, `TestIssue497_MixedMetricTransitions`, `TestIssue497_NonExemptBudget`, `TestIssue497_InvalidConfig`, `TestIssue497_SampleParsing`, `TestIssue497_BoundedFileReads`, `TestIssue497_CommandFixture`, `TestIssue497_CommandLifecycle`, `TestIssue497_LiveSampler` (`internal/tasks/dispatch`); `TestCALV0068_DispatchStatusPressure` (`internal/tasks/cli`); live Linux sampling NOT_RUN |
 | CAL-V0-059 | `TestCALV0059_CheckpointCodecAndDerivation` (`internal/tasks/journal`) |
 | CAL-V0-060 | `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`), including `pending`, which shares the lease audit with writers |
 | CAL-V0-061 | `TestCALV0061_CheckpointTailEqualsFullAudit`, `TestCALV0061_CheckpointFallsBackToFullAudit`, `TestCALV0061_CheckpointScopeAndMovement`, `TestCALV0061_CheckpointLimitsStayWithFullAudit` (`internal/tasks/journal`); `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`); live-store measurement in `docs/build-log/2026-10-01-tasks-read-checkpoint.md` |
@@ -1265,6 +1345,10 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 
 ## Holder, retry and policy observation acceptance
 
+
+Issue 494 preparation admission has focused and independent source review plus ten reached protocol cases on local Darwin/APFS and Linux/arm64 Colima/tmpfs. Source snapshot `82d8d532f7f537e93af2889d2fc1468a7953e9df0ccc39ff8e690e3c499c9e92` binds those protocol runs. The only later source change repairs the mixed harness replay receipt assumption; the tiny `TestGH494CLIResultContract` passed its parent and eight cases with exact captured identities on source snapshot `e716f41b793d1ad6517eeb47d3601fd227c4ee6357500e50b5fe94a07886a77b`. The original mixed Go test remains failed; independent raw readback establishes 30/30 operations, full 5000→5030→5030 audits, ten fenced attempts, empty reservations and exact-ID replay without changed bytes. No repeated mixed wave is implied. Current-source CAL-V0-026 measurement met the original threshold on local macOS with Go 1.27.1 and GOMAXPROCS=2: 3000 tickets, 20 samples per verb, claim p95 108.467584 ms and renew p95 97.003583 ms. All 105 host-load observations were below 12 CPUs. Raw measurement SHA256 `25b0076542c81b7bcce9c62badbc2f0bb9f18732eb821058218e64036830eecd`, host observation SHA256 `3a29706d5f4abee9d20313fd0f499a326a6495bcf26a4d6aef6b09114c54fd33` and source manifest `e716f41b793d1ad6517eeb47d3601fd227c4ee6357500e50b5fe94a07886a77b` bind this result. Linux and default-parallelism performance remain unqualified. Committed pending-receipt redo and the other four selected checks are recorded through the keyed post-commit plan in the build log; their results must be read from receipts bound to the actual commit. Terminal independent review, CEM/check/seal, integration and native completion remain pending. No mixed-version fairness, CLI arrival order or universal starvation freedom is claimed. See `docs/build-log/2026-10-04-gh494-fair-preparation-admission.md`. Rollback retires owned work before reverting code, while preserving store/journal/intent and inert coordination files.
+
+
 Tests for `CAL-V0-048`: `TestCALV0048_HeartbeatLegacyRoundTrip`,
 `TestCALV0048_HeartbeatFenceReplayAndLeaseInvariant`,
 `TestCALV0048_HeartbeatCLIReplayAndFence`, `TestCALV0048_HolderObservationBoundaries`.
@@ -1284,3 +1368,44 @@ Rollback requires a compatible reader/writer for added optional attempt members;
 and request bytes, stop admissions before replacing a writer, and never silently downgrade over
 records an older closed codec cannot read. Focused qualification establishes these disposable
 seams only; repository-wide gate, production process liveness and hosted outcomes remain unclaimed.
+
+## #464 command-reader lifecycle amendment
+
+This records the experimental implementation of the existing CAL-V0-053 repair
+under GitHub #464 / V1-0654. It adds no requirement ID or new acceptance of the
+proposed `process-group-owner-v0.md` contract. The accepted work-state limits and
+UNKNOWN/alert behavior above remain in force. Final integration qualification is
+pending; see `docs/build-log/2026-10-04-dispatch-reader-lifecycle-integration.md`.
+
+A command reader holds one creation-owned process slot through result handling.
+After command exit or cancellation, retirement uses one fixed deadline: the earlier
+of command deadline plus one second and retirement trigger plus one second. Only
+Owner RELEASED permits inspecting output and returning ordinary read results.
+Unproved retirement retains UNKNOWN and poisons the dispatcher invocation;
+subsequent Tick/Run calls stop, including bounded runs and canceled contexts.
+Close releases the lock through the terminal UNKNOWN path without normal ledger
+or event writes. Cancellation also stops subsequent healing writes; it does not
+roll back an already completed mutation.
+
+Before spawning, the locked program directory receives a bounded canonical
+`reader-lifecycle.json` marker with profile `taskman-dispatch-reader-lifecycle/0`,
+program, random run identifier and lifecycle UNKNOWN. It contains no PID authority.
+Restart checks refuse unresolved, malformed, symlink or nonregular evidence before
+owner/ledger/event writes or worker adoption. Only matching file identity and bytes
+are cleared after RELEASED/result handling or a start failure that owns no child.
+Publication or clear failure stops this invocation; failed diagnostics do not clear
+quarantine. A publication failure before creation need not leave a marker because
+no reader was spawned. There is no automatic recovery or marker-clear endpoint.
+
+Read-only status separates `readerContainment`, `readerQuarantined` and
+`readerDiagnostic` from dispatcher PID liveness. Marker absence is NOT_OBSERVED,
+not proof of RELEASED. Exported ReadStates command calls retain the same boundary
+under the private `work-state-reader` program; status-line reads retain their
+existing behavior. Unsupported process-owner platforms refuse before creation.
+
+The marker covers process restart/crash visibility, not power loss. Old binaries,
+manual deletion and alternate state directories can bypass it. No escaped-session
+or host-wide containment, immortal handle retention, Linux amd64 runtime, or
+promotion of the Owner dependency is claimed. Rollback requires quiescing owned
+readers and preserving unresolved markers/evidence; reverting code alone does not
+prove cleanup or make an older reader safe.

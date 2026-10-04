@@ -1,0 +1,160 @@
+{
+  "baseRevision": "07ea04b37708ea1e55ec13c62919cbbc4e81d0ba",
+  "evidence": [
+    {
+      "blobOid": "77a20880cda6c42003c542a16b8d19b4fd61cb4e",
+      "id": "evidence:sha256:4a7d6e20bbdbdc0cf05bb5563db9dc71b0c528494bd37c3c97bcfc911a696c75",
+      "path": "docs/specs/error-code-ownership-gate-v0.md",
+      "span": {
+        "end": 3748,
+        "start": 3563
+      },
+      "spanSha256": "36de434e83a6e3a37473f952508d9dd95cb4b2c386d810c5e693706ec788ceda"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:4a7d6e20bbdbdc0cf05bb5563db9dc71b0c528494bd37c3c97bcfc911a696c75",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c5cbc244084674f0dbdc2eff965190c160799ac03f4f61ef2b212a135c0fcd27",
+      "newRange": {
+        "count": 7,
+        "start": 188
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 188
+      },
+      "path": "conformance/use-cases-v0/ledger.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:4a7d6e20bbdbdc0cf05bb5563db9dc71b0c528494bd37c3c97bcfc911a696c75",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c61979170ad8cd9c2f400d440bd9922c6bebc9bd3ba224490fbe34a559f09e66",
+      "newRange": {
+        "count": 7,
+        "start": 221
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 221
+      },
+      "path": "conformance/use-cases-v0/ledger.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:4a7d6e20bbdbdc0cf05bb5563db9dc71b0c528494bd37c3c97bcfc911a696c75",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:01df770c8578bc3c21fad633e2ffa648ee056f7d82f47462bb8c5d4261904fbe",
+      "newRange": {
+        "count": 7,
+        "start": 254
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 254
+      },
+      "path": "conformance/use-cases-v0/ledger.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:4a7d6e20bbdbdc0cf05bb5563db9dc71b0c528494bd37c3c97bcfc911a696c75",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:bec506443892fa4f449039ca6104d93eec47e5655ab6d9f9fb9a267b5cf21c52",
+      "newRange": {
+        "count": 13,
+        "start": 6
+      },
+      "oldRange": {
+        "count": 13,
+        "start": 6
+      },
+      "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/implementation.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:4a7d6e20bbdbdc0cf05bb5563db9dc71b0c528494bd37c3c97bcfc911a696c75",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2155d92f1aa856f7c3e6f6ecc597f434a810ed361a311699baedfa4b5297e0d6",
+      "newRange": {
+        "count": 13,
+        "start": 8
+      },
+      "oldRange": {
+        "count": 13,
+        "start": 8
+      },
+      "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/implementation.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:4a7d6e20bbdbdc0cf05bb5563db9dc71b0c528494bd37c3c97bcfc911a696c75",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ddf83a01d235097228cbfffea6d00142c2174f9653560f18967499ef9d1f4ff1",
+      "newRange": {
+        "count": 13,
+        "start": 6
+      },
+      "oldRange": {
+        "count": 13,
+        "start": 6
+      },
+      "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/implementation.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:4a7d6e20bbdbdc0cf05bb5563db9dc71b0c528494bd37c3c97bcfc911a696c75",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7e171a9e285782321fce0291d65bf2ba6f2d82f79c127427fb9a2a0547aaeb70",
+      "newRange": {
+        "count": 18,
+        "start": 154
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 154
+      },
+      "path": "docs/specs/cem-stable-v1.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "7c8c379427bae5bad5e3c18ac91b5e2188d64cece6a67fc3e5a9d8f6ff8a334a",
+  "spec": "cem/0.2"
+}

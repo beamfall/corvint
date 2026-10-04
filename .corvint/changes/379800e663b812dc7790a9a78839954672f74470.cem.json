@@ -1,0 +1,252 @@
+{
+  "baseRevision": "1f4b371f0b7b0b6fe985dbf147c65244fa5fe995",
+  "evidence": [
+    {
+      "blobOid": "54219a8d375c61b2cbfb57abdae35fd989a05e9b",
+      "id": "evidence:sha256:951e65ba6be32dd06f9da25cf8f2ace00d06b00f4f11e495788333a33b3243d5",
+      "path": "docs/specs/process-group-owner-v0.md",
+      "span": {
+        "end": 1295,
+        "start": 778
+      },
+      "spanSha256": "d57f7cd780b941df61b9d67e132c0c72b68c8ddc36f2c286c7eab07204fef2e2"
+    },
+    {
+      "blobOid": "73cb556bb58318b820ca4d3b82e514b1b73d2976",
+      "id": "evidence:sha256:a29dc0acd6e21582906ce52a1c8de60b3b1e4c73d3be26f6dcb5a1afd9da18fb",
+      "path": "docs/decisions/0397-corvint-tasks-in-tree-2026-09-25.md",
+      "span": {
+        "end": 5035,
+        "start": 4440
+      },
+      "spanSha256": "82fe0a93fe0451b8af881ff3dbfd5f8192623cc29c8fd4986ad1cbc427f66b4d"
+    },
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:3c44849b5e8d8b61d06230825e2b07fc340fb735a95162898c05d8aeeec03047",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 6140,
+        "start": 5845
+      },
+      "spanSha256": "44c688196ab7536ce3a8adf82b725fa4aef1e561762f005b95c20d55cafb21ca"
+    },
+    {
+      "blobOid": "5ea77e6cc511b1142e467d0741e248827516bbc0",
+      "id": "evidence:sha256:b3e88109543a0438c843fae27505a5cc4c0381442c3d289454df67577bfd1cff",
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "span": {
+        "end": 40069,
+        "start": 39787
+      },
+      "spanSha256": "e7d164e4d803e7a1a1295751ab5a13ed8abac6f3c67a82ed42433374baab2791"
+    },
+    {
+      "blobOid": "73cb556bb58318b820ca4d3b82e514b1b73d2976",
+      "id": "evidence:sha256:372e263d3e4409f2831d155b97a926e41d3b94e39fd4407668a868a082bbff1a",
+      "path": "docs/decisions/0397-corvint-tasks-in-tree-2026-09-25.md",
+      "span": {
+        "end": 5803,
+        "start": 5130
+      },
+      "spanSha256": "7cad6f92ed2845e1b12ac0cfcfa846ea7f0ecab0b86d0c5e7727d8ffc95a2cff"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:951e65ba6be32dd06f9da25cf8f2ace00d06b00f4f11e495788333a33b3243d5",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:a29dc0acd6e21582906ce52a1c8de60b3b1e4c73d3be26f6dcb5a1afd9da18fb",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:264128a2ec013961a3c53ba1ed09bec370a8273460557e3b4e73c6dfb651aa81",
+      "newRange": {
+        "count": 17,
+        "start": 88
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 88
+      },
+      "path": "docs/decisions/0397-corvint-tasks-in-tree-2026-09-25.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:3c44849b5e8d8b61d06230825e2b07fc340fb735a95162898c05d8aeeec03047",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:b3e88109543a0438c843fae27505a5cc4c0381442c3d289454df67577bfd1cff",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cbefd037152611f2d5f4dc381e0bbbbd59fe37d6a8780b832f4ed3fea1d1149d",
+      "newRange": {
+        "count": 31,
+        "start": 291
+      },
+      "oldRange": {
+        "count": 31,
+        "start": 291
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:3c44849b5e8d8b61d06230825e2b07fc340fb735a95162898c05d8aeeec03047",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:b3e88109543a0438c843fae27505a5cc4c0381442c3d289454df67577bfd1cff",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:515a1713c2c56d8bc635cdbe2134d68dc067dece3c3bdf4919c526ad82bfed41",
+      "newRange": {
+        "count": 19,
+        "start": 324
+      },
+      "oldRange": {
+        "count": 19,
+        "start": 324
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a29dc0acd6e21582906ce52a1c8de60b3b1e4c73d3be26f6dcb5a1afd9da18fb",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:951e65ba6be32dd06f9da25cf8f2ace00d06b00f4f11e495788333a33b3243d5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:709c127158173e9791707c495efc2241239a8c8807ed35d3ed3101f679fe9a5d",
+      "newRange": {
+        "count": 8,
+        "start": 457
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 457
+      },
+      "path": "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:372e263d3e4409f2831d155b97a926e41d3b94e39fd4407668a868a082bbff1a",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:951e65ba6be32dd06f9da25cf8f2ace00d06b00f4f11e495788333a33b3243d5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:bc2855a152f8568f54dde450ed252210a98a2da734494b060c1d60406dec03f5",
+      "newRange": {
+        "count": 13,
+        "start": 56
+      },
+      "oldRange": {
+        "count": 12,
+        "start": 56
+      },
+      "path": "internal/companionrelease/export.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a29dc0acd6e21582906ce52a1c8de60b3b1e4c73d3be26f6dcb5a1afd9da18fb",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:951e65ba6be32dd06f9da25cf8f2ace00d06b00f4f11e495788333a33b3243d5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d4d79d5834c886f3bd781d2e988af8814a22930a87a5b6f601889ac1332f5a66",
+      "newRange": {
+        "count": 19,
+        "start": 30
+      },
+      "oldRange": {
+        "count": 14,
+        "start": 30
+      },
+      "path": "internal/tasks/boundary_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a29dc0acd6e21582906ce52a1c8de60b3b1e4c73d3be26f6dcb5a1afd9da18fb",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:951e65ba6be32dd06f9da25cf8f2ace00d06b00f4f11e495788333a33b3243d5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:dc1f143bad5fd3f18a274e5a1b3624f044306bd79b523f462b57ece42043f8b9",
+      "newRange": {
+        "count": 8,
+        "start": 82
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 77
+      },
+      "path": "internal/tasks/boundary_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a29dc0acd6e21582906ce52a1c8de60b3b1e4c73d3be26f6dcb5a1afd9da18fb",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:951e65ba6be32dd06f9da25cf8f2ace00d06b00f4f11e495788333a33b3243d5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:381d4a842b731b5a7b831a806d53c662b4aa00aa14478d181174ae090d11507f",
+      "newRange": {
+        "count": 11,
+        "start": 97
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 90
+      },
+      "path": "internal/tasks/boundary_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "6b3a22428fb2dcc545193fdd1018fa81e87ed8622664edbc253aad82d44f44dc",
+  "spec": "cem/0.2"
+}

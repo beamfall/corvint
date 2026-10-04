@@ -11,12 +11,14 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/groupreap"
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 )
 
@@ -29,14 +31,24 @@ type Dispatcher struct {
 	Out     io.Writer
 	Now     func() time.Time
 
-	dir    string
-	nonce  string
-	ledger *Ledger
-	exits  map[string]<-chan int
-	codes  map[string]int
-	lock   *os.File
+	dir       string
+	nonce     string
+	ledger    *Ledger
+	exits     map[string]<-chan int
+	codes     map[string]int
+	lock      *os.File
+	reader    *readerSlot
+	readerErr error
+	// Tests inject faults through the real creation-owned API.
+	readerStart func(*exec.Cmd) (*groupreap.Owner, error)
 	// Tests place cancellation exactly across the checked atomic write.
 	progressSave func(*Ledger, string) error
+	// pressureSampler reads host pressure once per tick (CAL-V0-068); tests
+	// inject samples. Nil uses the platform sampler.
+	pressureSampler func(context.Context, time.Time) PressureSample
+	// pressureEmitted is the level and sample knowledge last reported by a
+	// throttled event in this run; the zero value is calm and observed.
+	pressureEmitted PressureState
 }
 
 // Open locks the program's state directory, loads the ledger and adopts
@@ -50,7 +62,7 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 		return nil, fmt.Errorf("program name must match [a-z][a-z0-9-]{0,23}")
 	}
 	dir := ProgramDir(c, program)
-	if err := os.MkdirAll(filepath.Join(dir, "requests"), 0o700); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
 	lock, err := os.OpenFile(filepath.Join(dir, "lock"), os.O_RDWR|os.O_CREATE, 0o600)
@@ -60,6 +72,15 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 	if err := lockExclusive(lock); err != nil {
 		lock.Close()
 		return nil, fmt.Errorf("another dispatcher holds %s: %w", dir, err)
+	}
+	// A prior unresolved reader refuses before owner/ledger/event writes or adoption.
+	if err := checkReaderQuarantine(dir, program); err != nil {
+		lock.Close()
+		return nil, err
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "requests"), 0o700); err != nil {
+		lock.Close()
+		return nil, err
 	}
 	if err := writeOwner(lock); err != nil {
 		lock.Close()
@@ -79,6 +100,19 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 		return nil, err
 	}
 	d := &Dispatcher{Program: program, Config: c, Queue: q, Out: out, Now: time.Now, dir: dir, nonce: hex.EncodeToString(nonce[:]), ledger: l, exits: map[string]<-chan int{}, codes: map[string]int{}, lock: lock}
+	// CAL-V0-068: pressure state exists only while configured. A restart
+	// keeps the recorded level, so it cannot bypass a throttle, but cancels
+	// pending dwell and is UNKNOWN until this run's first sample.
+	switch {
+	case c.Pressure == nil:
+		l.Pressure = nil
+	case l.Pressure == nil:
+		l.Pressure = &PressureRecord{State: PressureState{Unknown: true}, Held: []HeldLaunch{}}
+	default:
+		st := &l.Pressure.State
+		st.PendingLevel, st.PendingTicks, st.Unknown = st.Level, 0, true
+		l.Pressure.Sample = PressureSample{}
+	}
 	d.emit(Event{Kind: "started", Message: fmt.Sprintf("dispatcher started for program %s with %d recorded worker(s)", program, len(l.Workers))})
 	for _, w := range l.Workers {
 		msg := fmt.Sprintf("adopted %s worker %s (pid %d) on %s; its exit code will not be observed", w.Role, w.ID, w.PID, d.keyText(w.Key))
@@ -93,6 +127,15 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 // Close records the stop and releases the lock. Workers keep running and
 // are adopted by the next dispatcher.
 func (d *Dispatcher) Close() error {
+	if d.readerErr != nil {
+		// Terminal UNKNOWN permits releasing the lock, not recovery. The
+		// pre-spawn marker survives even when this diagnostic cannot be written.
+		if d.Out != nil {
+			_, _ = fmt.Fprintln(d.Out, d.readerErr)
+		}
+		_ = d.lock.Close()
+		return d.readerErr
+	}
 	d.emit(Event{Kind: "stopped", Message: fmt.Sprintf("dispatcher stopped; %d worker(s) left running for the next dispatcher", len(d.ledger.Workers))})
 	err := d.ledger.save(d.dir)
 	_ = d.lock.Truncate(0)
@@ -153,12 +196,19 @@ func (d *Dispatcher) LastEvent() uint64 { return d.ledger.EventSeq }
 // Run ticks until ctx ends or ticks reach the bound (0 is unbounded). A
 // failed tick is an alert, not an exit, so the dispatcher keeps supervising.
 func (d *Dispatcher) Run(ctx context.Context, ticks int) error {
+	if d.readerErr != nil {
+		return d.readerErr
+	}
 	var last error
 	for n := 0; ticks == 0 || n < ticks; n++ {
 		if ctx.Err() != nil {
 			return nil
 		}
-		if last = d.Tick(ctx); last != nil && ctx.Err() == nil {
+		last = d.Tick(ctx)
+		if d.readerErr != nil {
+			return d.readerErr
+		}
+		if last != nil && ctx.Err() == nil {
 			d.emit(Event{Kind: "alert", Message: "tick failed: " + last.Error()})
 		}
 		if ctx.Err() != nil {
@@ -181,13 +231,23 @@ func (d *Dispatcher) Run(ctx context.Context, ticks int) error {
 // wall and orphan enforcement runs even when the store is unreadable; ended
 // workers then stay recorded and are accounted on the next readable tick.
 func (d *Dispatcher) Tick(ctx context.Context) error {
+	if d.readerErr != nil {
+		return d.readerErr
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	// Admission publishes a new ledger only after its checked write. Resolve
 	// this receiver at return so an old pointer cannot overwrite that commit.
-	defer func() { _ = d.ledger.save(d.dir) }()
+	defer func() {
+		if d.readerErr == nil {
+			_ = d.ledger.save(d.dir)
+		}
+	}()
 	obs, err := d.observe(ctx)
+	if d.readerErr != nil {
+		return d.readerErr
+	}
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
@@ -230,7 +290,7 @@ func (d *Dispatcher) Tick(ctx context.Context) error {
 	}
 	d.diff(obs)
 	if ctx.Err() == nil {
-		d.launchRoster(obs)
+		d.launchRoster(ctx, obs)
 	}
 	return nil
 }
@@ -243,7 +303,12 @@ func (d *Dispatcher) observe(ctx context.Context) (*Observation, error) {
 	if err != nil {
 		return nil, err
 	}
-	alerts := ReadStates(ctx, d.Config, obs.Tickets)
+	alerts := readStates(ctx, d.Config, obs.Tickets, d.stateCommand)
+	if d.readerErr != nil {
+		return nil, d.readerErr
+	}
+	// An interrupted read is not an observation. In particular, its
+	// synthetic UNKNOWN states must not replace the last good baseline.
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
@@ -505,6 +570,9 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 	if d.Config.Heal.Handoff {
 		for _, w := range ended {
 			for _, a := range obs.Attempts {
+				if ctx.Err() != nil {
+					return wrote
+				}
 				if !a.Live || a.Holder != w.ID {
 					continue
 				}
@@ -528,6 +596,9 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 	if d.Config.Heal.Reap {
 		now := d.Now()
 		for _, a := range obs.Attempts {
+			if ctx.Err() != nil {
+				return wrote
+			}
 			if !a.Live || done[a.ID] || a.LeaseExpires.IsZero() || a.LeaseExpires.After(now) || d.worker(a.Holder) != nil {
 				continue
 			}
@@ -680,7 +751,7 @@ func ticketOf(key string) string {
 }
 
 // launchRoster starts every roster assignment as an independent worker.
-func (d *Dispatcher) launchRoster(obs *Observation) {
+func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 	now := d.Now()
 	busy := make([]Busy, 0, len(d.ledger.Workers))
 	for _, w := range d.ledger.Workers {
@@ -690,7 +761,13 @@ func (d *Dispatcher) launchRoster(obs *Observation) {
 	for k, b := range d.ledger.Backoff {
 		skip[k] = b.Parked || b.CooldownUntil.After(now)
 	}
-	for _, a := range Roster(d.Config, obs, busy, skip) {
+	budget, ok := d.pressureBudget(ctx, obs)
+	if !ok {
+		return
+	}
+	launches, held := RosterWithPressure(d.Config, obs, busy, skip, budget)
+	d.recordHeld(obs, held)
+	for _, a := range launches {
 		role := d.role(a.Role)
 		host := d.Config.Hosts[role.Host]
 		d.ledger.LaunchSeq++
@@ -835,6 +912,113 @@ func (d *Dispatcher) emit(e Event) {
 	if d.Out != nil {
 		fmt.Fprintf(d.Out, "%s %s %s\n", e.At, e.Kind, e.Message)
 	}
+}
+
+// pressureBudget samples host pressure once and advances its hysteresis
+// (CAL-V0-068). It returns a nil budget when pressure is not configured and
+// false, so nothing launches, when the context ended during sampling or the
+// budget cannot be built (with an alert).
+func (d *Dispatcher) pressureBudget(ctx context.Context, obs *Observation) (*PressureBudget, bool) {
+	c, rec := d.Config.Pressure, d.ledger.Pressure
+	if c == nil || rec == nil {
+		return nil, true
+	}
+	sampler := d.pressureSampler
+	if sampler == nil {
+		sampler = samplePressure
+	}
+	sample := boundPressureSample(sampler(ctx, d.Now().UTC()))
+	if ctx.Err() != nil {
+		return nil, false
+	}
+	next, err := StepPressure(*c, rec.State, sample)
+	if err != nil {
+		// Unreachable for a validated config and a ledger normalized by
+		// Open; keep the level as an UNKNOWN sample would.
+		next = PressureState{Level: rec.State.Level, PendingLevel: rec.State.Level, Unknown: true}
+	}
+	rec.Sample, rec.State = sample, next
+	running := make([]Assignment, 0, len(d.ledger.Workers))
+	for _, w := range d.ledger.Workers {
+		a := Assignment{Role: w.Role, Key: w.Key, Ticket: w.Ticket}
+		if w.Ticket != "" {
+			a.Local = d.local(obs, w.Ticket)
+		}
+		running = append(running, a)
+	}
+	b, err := NewPressureBudget(c, next, running, d.Config.Pinned)
+	if err != nil {
+		d.emit(Event{Kind: "alert", Message: "pressure budget unavailable; launches withheld: " + err.Error()})
+		return nil, false
+	}
+	return b, true
+}
+
+// recordHeld stores the held set and emits one throttled event when the
+// level, sample knowledge or held keys changed since the previous tick.
+func (d *Dispatcher) recordHeld(obs *Observation, held []Assignment) {
+	rec := d.ledger.Pressure
+	if rec == nil {
+		return
+	}
+	next := make([]HeldLaunch, 0, len(held))
+	for _, a := range held {
+		if len(next) == maxPressureHeld {
+			break
+		}
+		next = append(next, HeldLaunch{Role: a.Role, Key: a.Key, Ticket: a.Ticket})
+	}
+	prevKeys, nextKeys := make([]string, 0, len(rec.Held)), make([]string, 0, len(next))
+	for _, h := range rec.Held {
+		prevKeys = append(prevKeys, h.Key)
+	}
+	for _, h := range next {
+		nextKeys = append(nextKeys, h.Key)
+	}
+	sort.Strings(prevKeys)
+	sort.Strings(nextKeys)
+	changed := strings.Join(prevKeys, "\n") != strings.Join(nextKeys, "\n")
+	st := rec.State
+	rec.Held = next
+	if !changed && st.Level == d.pressureEmitted.Level && st.Unknown == d.pressureEmitted.Unknown {
+		return
+	}
+	d.pressureEmitted = st
+	detail := map[string]string{"level": strconv.Itoa(st.Level), "sample": "OBSERVED", "held": strconv.Itoa(len(held))}
+	if st.Unknown {
+		detail["sample"] = StateUnknown
+	}
+	load, swap := StateUnknown, StateUnknown
+	if x, ok := rec.Sample.LoadPerCPU(); ok {
+		load = strconv.FormatFloat(x, 'f', 3, 64)
+	}
+	if x, ok := rec.Sample.SwapFraction(); ok {
+		swap = strconv.FormatFloat(x, 'f', 3, 64)
+	}
+	detail["loadPerCpu"], detail["swapFraction"] = load, swap
+	names := make([]string, 0, 10)
+	for _, h := range next {
+		if len(names) == 10 {
+			break
+		}
+		if h.Ticket != "" {
+			names = append(names, d.local(obs, h.Ticket))
+		} else {
+			names = append(names, d.keyText(h.Key))
+		}
+	}
+	list := "none"
+	if len(names) > 0 {
+		list = strings.Join(names, ", ")
+		if len(held) > len(names) {
+			list += fmt.Sprintf(" and %d more", len(held)-len(names))
+		}
+	}
+	msg := fmt.Sprintf("host pressure level %d (load per CPU %s, swap %s); holding %d new launch(es): %s", st.Level, load, swap, len(held), list)
+	if st.Unknown {
+		msg = fmt.Sprintf("host pressure sample UNKNOWN; keeping level %d; holding %d new launch(es): %s", st.Level, len(held), list)
+	}
+	d.emit(Event{Kind: "throttled", Message: msg, Detail: detail})
 }
 
 func (d *Dispatcher) workerDir(id string) string { return filepath.Join(d.dir, "workers", id) }

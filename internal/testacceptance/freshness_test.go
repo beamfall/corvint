@@ -239,6 +239,7 @@ func TestPTFV0ParentCompleteAttemptOutcome(t *testing.T) {
 		{"survivor-unsupported-control", [][]behaviorfalsify.Status{{s, s}, {behaviorfalsify.StatusNotSupported}}, testvalidity.StrengthNotMeasured},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			r, c, baselines := parentJoinFixture(t, tc.states, 2)
 			if err := behaviorfalsify.VerifyReceipt(*c.Evidence, c.PlanDigest, c.Evidence.Tool.Executable); err != nil {
 				t.Fatalf("generic transcript must verify: %v", err)
@@ -260,6 +261,7 @@ func TestPTFV0ParentCompleteAttemptOutcomeBounds(t *testing.T) {
 	for _, attempts := range []int{1, 16} {
 		for _, survives := range []bool{false, true} {
 			t.Run(fmt.Sprintf("attempts-%d-survives-%v", attempts, survives), func(t *testing.T) {
+				t.Parallel()
 				states := make([][]behaviorfalsify.Status, 2)
 				for i := range states {
 					states[i] = make([]behaviorfalsify.Status, attempts)
@@ -333,6 +335,7 @@ func TestPTFV0ParentCompleteAttemptOutcomeNativeForgery(t *testing.T) {
 		{"opaque", nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			k, s := behaviorfalsify.StatusKilled, behaviorfalsify.StatusSurvived
 			r, c, base := parentJoinFixture(t, [][]behaviorfalsify.Status{{s, s}, {k, k}}, 2)
 			data := []byte("opaque native evidence")
@@ -387,6 +390,7 @@ func TestPTFV0ParentCompleteAttemptOutcomeCorrespondence(t *testing.T) {
 		{"caller-plan-mismatch", func(r *Request, _ *Control) { r.Tests[0].Control.Request.Attempts = 1 }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			k, s := behaviorfalsify.StatusKilled, behaviorfalsify.StatusSurvived
 			r, c, base := parentJoinFixture(t, [][]behaviorfalsify.Status{{k, k}, {k, s}}, 2)
 			tc.change(&r, &c)
