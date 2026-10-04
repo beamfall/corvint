@@ -56,7 +56,9 @@ AFP-V0-019	docs/specs/affected-plan-v0.md	394	(proposed technical contract imple
 AFP-V0-020	docs/specs/affected-plan-v0.md	420	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat
 AFP-V0-021	docs/specs/affected-plan-v0.md	431	(accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) wheth
 AFP-V0-022	docs/specs/affected-plan-v0.md	480	(owner-directed experimental profile, 2026-10-01; V1-0616/0617) Full CI SHALL
-AFP-V0-023	docs/specs/affected-plan-v0.md	499	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081) A project MAY commit
+AFP-V0-023	docs/specs/affected-plan-v0.md	509	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081) A project MAY commit
+AFP-V0-024	docs/specs/affected-plan-v0.md	547	(owner-directed, proposed, 2026-10-04; V1-0717) A push to `main` MAY reuse a
+AFP-V0-025	docs/specs/affected-plan-v0.md	573	(owner-directed, proposed, 2026-10-04; V1-0719) The repository SHALL commit
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
@@ -801,6 +803,16 @@ DIRTY-CACHE-010	docs/specs/revision-cache-dirty-worktree-v0.md	63	the implementa
 DIRTY-CACHE-011	docs/specs/revision-cache-dirty-worktree-v0.md	69	each index build MUST resolve the repository storage object format and exact
 DIRTY-CACHE-012	docs/specs/revision-cache-dirty-worktree-v0.md	76	the separate `working-tree-untracked` impact authority profile (`GPK-V0-029`)
 DIRTY-CACHE-013	docs/specs/revision-cache-dirty-worktree-v0.md	83	the native disk snapshot store (`index-snapshot-v0`) MUST live at
+DLT-V0-001	docs/specs/immutable-delta-v0.md	27	Delta MUST bind full lowercase base/head commit OIDs, head tree, complete
+DLT-V0-002	docs/specs/immutable-delta-v0.md	30	The affected graph MUST read every participating provider's source, config,
+DLT-V0-003	docs/specs/immutable-delta-v0.md	34	Git blob bodies MUST be admitted before allocation by expected OID/type/size,
+DLT-V0-004	docs/specs/immutable-delta-v0.md	37	Documentation drift MUST reuse flowdocs identity/check rules and report stale,
+DLT-V0-005	docs/specs/immutable-delta-v0.md	41	External records MUST be captured once with bounded safe regular-file reads.
+DLT-V0-006	docs/specs/immutable-delta-v0.md	45	Only fresh verified explicit path-to-path asserts relations MAY establish a
+DLT-V0-007	docs/specs/immutable-delta-v0.md	49	Optional bounded work-key extraction MUST use only self-hashed head commit
+DLT-V0-008	docs/specs/immutable-delta-v0.md	52	Output MUST be deterministic canonical JSON containing only validated paths,
+DLT-V0-009	docs/specs/immutable-delta-v0.md	56	The complete record MUST expose sorted uncertainty and a downstream decision
+DLT-V0-010	docs/specs/immutable-delta-v0.md	59	The command MUST be R0: no network, state, tracing, object/ref/index writes or
 DNAS-V0-001	docs/specs/dotnet-affected-selection-v0.md	35	`Name` MUST be `dotnet`; `Owns` MUST accept `.cs` case-insensitively and MUST NO
 DNAS-V0-002	docs/specs/dotnet-affected-selection-v0.md	37	Framework discovery MUST require both project evidence and matching source
 DNAS-V0-003	docs/specs/dotnet-affected-selection-v0.md	41	One statically addressable test unit MUST own one `.cs` file and have identity
@@ -1045,6 +1057,17 @@ ERI-V0-003	docs/specs/expanded-range-impact-v0.md	50	Only this profile's path ca
 ERI-V0-004	docs/specs/expanded-range-impact-v0.md	57	Without the new option, the existing range profile, its 100-path refusal, positi
 ERI-V0-005	docs/specs/expanded-range-impact-v0.md	65	The experimental compiler MUST retain one immutable clean base/head snapshot and
 ERI-V0-006	docs/specs/expanded-range-impact-v0.md	69	The prototype repository coordinator MUST select the experimental profile by an
+ESC-V0-001	docs/specs/corvint-tasks-escalations-v0.md	46	`ticket escalate --attempt A --kind decision|infrastructure|scope|blocked --ques
+ESC-V0-002	docs/specs/corvint-tasks-escalations-v0.md	49	Questions MUST be stored as an optional tool-owned `escalations` reference on th
+ESC-V0-003	docs/specs/corvint-tasks-escalations-v0.md	52	Applicability MUST derive from the source acceptance revision versus the current
+ESC-V0-004	docs/specs/corvint-tasks-escalations-v0.md	55	`ticket answer --target T --text TEXT` MUST close exactly one question, either t
+ESC-V0-005	docs/specs/corvint-tasks-escalations-v0.md	58	Claim and claim-next MUST return current same-acceptance answers as an `escalati
+ESC-V0-006	docs/specs/corvint-tasks-escalations-v0.md	61	A current OPEN decision, scope or blocked question MUST produce an explicit `ESC
+ESC-V0-007	docs/specs/corvint-tasks-escalations-v0.md	64	An optional dispatch `infrastructureRetry` policy MUST bound automatic retries p
+ESC-V0-008	docs/specs/corvint-tasks-escalations-v0.md	67	Session classification MUST precede ordinary no-progress parking, and typed cont
+ESC-V0-009	docs/specs/corvint-tasks-escalations-v0.md	70	`ticket escalation list`, show and history MUST be bounded, non-mutating native
+ESC-V0-010	docs/specs/corvint-tasks-escalations-v0.md	73	Escalation writes MUST use the existing writer, receipt and request-index pipeli
+ESC-V0-011	docs/specs/corvint-tasks-escalations-v0.md	76	The pure foundation and the integrated capability MUST keep distinct evidence an
 ESV-V0-001	docs/specs/experimental-source-views-v0.md	236	Bind the bounded canonical packet and exact caller selector to object format,
 ESV-V0-002	docs/specs/experimental-source-views-v0.md	241	Return one exact contiguous immutable source range as JSON `text` whose UTF-8
 ESV-V0-003	docs/specs/experimental-source-views-v0.md	245	Enforce every frozen bound with sanitized, replacement-disabled, non-lazy Git
@@ -1360,34 +1383,34 @@ HDCV0-021	docs/specs/human-documentation-compiler-v0.md	733	Offline-plugin confi
 HDCV0-022	docs/specs/human-documentation-compiler-v0.md	738	Strict validation is the resolved MkDocs 1.6+ configuration plus the mandatory C
 HDCV0-023	docs/specs/human-documentation-compiler-v0.md	745	Every output clause MUST have a stable clause ID (1..256 bytes of UTF-8 with no
 HDCV0-024	docs/specs/human-documentation-compiler-v0.md	759	Authority is artifact-class-specific. An anchor `authority` is exactly
-HDCV0-025	docs/specs/human-documentation-compiler-v0.md	770	Tests and build output establish only the exact observed behavior at the pinned
-HDCV0-026	docs/specs/human-documentation-compiler-v0.md	776	Model-generated prose is a candidate transformation only. Each behavioral senten
-HDCV0-027	docs/specs/human-documentation-compiler-v0.md	781	The plan profile is `corvint-human-documentation-plan/0`. It is closed and conta
-HDCV0-028	docs/specs/human-documentation-compiler-v0.md	788	An operation is exactly `create_file`, `insert_after`, or `edit_nav`. It names o
-HDCV0-029	docs/specs/human-documentation-compiler-v0.md	801	P0 does not replace existing accepted prose. `edit_nav` under `HDCV0-030` is the
-HDCV0-030	docs/specs/human-documentation-compiler-v0.md	808	`edit_nav` MUST bind both the exact config-source bytes and the authority snapsh
-HDCV0-031	docs/specs/human-documentation-compiler-v0.md	814	The output root contains only `plan.json`, `proposal.patch`, `draft/`, `build/si
-HDCV0-032	docs/specs/human-documentation-compiler-v0.md	819	P0 MUST NOT expose an apply mode. It MUST perform no repository write, Git opera
-HDCV0-033	docs/specs/human-documentation-compiler-v0.md	826	The candidate snapshot MUST be created from the frozen manifest outside the repo
-HDCV0-034	docs/specs/human-documentation-compiler-v0.md	831	The build argv is an argument vector, never a shell string: the exact pinned MkD
-HDCV0-035	docs/specs/human-documentation-compiler-v0.md	836	Build environment is constructed from an allowlist, not inherited wholesale. It
-HDCV0-036	docs/specs/human-documentation-compiler-v0.md	842	One aggregate deadline covers identity probe, config authority load, candidate c
-HDCV0-037	docs/specs/human-documentation-compiler-v0.md	848	Exit zero is necessary but insufficient for `BUILD_STRICT_PASS`. Corvint MUST al
-HDCV0-038	docs/specs/human-documentation-compiler-v0.md	853	`OFFLINE_QUALIFIED=PASS` requires an independently identified external network-d
-HDCV0-039	docs/specs/human-documentation-compiler-v0.md	860	If executable JavaScript, custom templates, plugins, hooks, or extensions can co
-HDCV0-040	docs/specs/human-documentation-compiler-v0.md	866	The receipt profile is `corvint-human-documentation-receipt/0`. It MUST bind the
-HDCV0-041	docs/specs/human-documentation-compiler-v0.md	872	Canonical JSON is valid UTF-8: exactly one JSON value, no insignificant whitespa
-HDCV0-042	docs/specs/human-documentation-compiler-v0.md	883	Receipt limits, failures, `NOT_RUN`, `NOT_OBSERVED`, `UNKNOWN`, contradictions,
-HDCV0-043	docs/specs/human-documentation-compiler-v0.md	944	Unit and conformance suites MUST cover canonical plan/receipt bytes, closed sche
-HDCV0-044	docs/specs/human-documentation-compiler-v0.md	951	Config hostility MUST cover duplicate keys, tags, aliases, merges, recursive and
-HDCV0-045	docs/specs/human-documentation-compiler-v0.md	956	Material fixtures MUST cover minimal `theme.name: material`; exact `site_url`; a
-HDCV0-046	docs/specs/human-documentation-compiler-v0.md	962	Process hostility MUST cover pre-cancellation, timeout, endless stdout/stderr, o
-HDCV0-047	docs/specs/human-documentation-compiler-v0.md	968	Evidence hostility MUST cover stale Git blobs, dirty sources, out-of-range and o
-HDCV0-048	docs/specs/human-documentation-compiler-v0.md	972	Offline/privacy hostility MUST include a local network canary reached by a plugi
-HDCV0-049	docs/specs/human-documentation-compiler-v0.md	977	Verification for implementation promotion MUST pass focused Go tests after each
-HDCV0-050	docs/specs/human-documentation-compiler-v0.md	984	The first real delivery evidence MUST use a Corvint-contained Material corpus an
-HDCV0-051	docs/specs/human-documentation-compiler-v0.md	989	The implementation core and optional CLI MUST use Go 1.27 and its standard libra
-HDCV0-052	docs/specs/human-documentation-compiler-v0.md	995	Machine failures use exactly one primary code from `INVALID_REQUEST`,
+HDCV0-025	docs/specs/human-documentation-compiler-v0.md	781	Tests and build output establish only the exact observed behavior at the pinned
+HDCV0-026	docs/specs/human-documentation-compiler-v0.md	787	Model-generated prose is a candidate transformation only. Each behavioral senten
+HDCV0-027	docs/specs/human-documentation-compiler-v0.md	792	The plan profile is `corvint-human-documentation-plan/0`. It is closed and conta
+HDCV0-028	docs/specs/human-documentation-compiler-v0.md	799	An operation is exactly `create_file`, `insert_after`, or `edit_nav`. It names o
+HDCV0-029	docs/specs/human-documentation-compiler-v0.md	812	P0 does not replace existing accepted prose. `edit_nav` under `HDCV0-030` is the
+HDCV0-030	docs/specs/human-documentation-compiler-v0.md	819	`edit_nav` MUST bind both the exact config-source bytes and the authority snapsh
+HDCV0-031	docs/specs/human-documentation-compiler-v0.md	825	The output root contains only `plan.json`, `proposal.patch`, `draft/`, `build/si
+HDCV0-032	docs/specs/human-documentation-compiler-v0.md	830	P0 MUST NOT expose an apply mode. It MUST perform no repository write, Git opera
+HDCV0-033	docs/specs/human-documentation-compiler-v0.md	837	The candidate snapshot MUST be created from the frozen manifest outside the repo
+HDCV0-034	docs/specs/human-documentation-compiler-v0.md	842	The build argv is an argument vector, never a shell string: the exact pinned MkD
+HDCV0-035	docs/specs/human-documentation-compiler-v0.md	847	Build environment is constructed from an allowlist, not inherited wholesale. It
+HDCV0-036	docs/specs/human-documentation-compiler-v0.md	853	One aggregate deadline covers identity probe, config authority load, candidate c
+HDCV0-037	docs/specs/human-documentation-compiler-v0.md	859	Exit zero is necessary but insufficient for `BUILD_STRICT_PASS`. Corvint MUST al
+HDCV0-038	docs/specs/human-documentation-compiler-v0.md	864	`OFFLINE_QUALIFIED=PASS` requires an independently identified external network-d
+HDCV0-039	docs/specs/human-documentation-compiler-v0.md	871	If executable JavaScript, custom templates, plugins, hooks, or extensions can co
+HDCV0-040	docs/specs/human-documentation-compiler-v0.md	877	The receipt profile is `corvint-human-documentation-receipt/0`. It MUST bind the
+HDCV0-041	docs/specs/human-documentation-compiler-v0.md	883	Canonical JSON is valid UTF-8: exactly one JSON value, no insignificant whitespa
+HDCV0-042	docs/specs/human-documentation-compiler-v0.md	894	Receipt limits, failures, `NOT_RUN`, `NOT_OBSERVED`, `UNKNOWN`, contradictions,
+HDCV0-043	docs/specs/human-documentation-compiler-v0.md	955	Unit and conformance suites MUST cover canonical plan/receipt bytes, closed sche
+HDCV0-044	docs/specs/human-documentation-compiler-v0.md	962	Config hostility MUST cover duplicate keys, tags, aliases, merges, recursive and
+HDCV0-045	docs/specs/human-documentation-compiler-v0.md	967	Material fixtures MUST cover minimal `theme.name: material`; exact `site_url`; a
+HDCV0-046	docs/specs/human-documentation-compiler-v0.md	973	Process hostility MUST cover pre-cancellation, timeout, endless stdout/stderr, o
+HDCV0-047	docs/specs/human-documentation-compiler-v0.md	979	Evidence hostility MUST cover stale Git blobs, dirty sources, out-of-range and o
+HDCV0-048	docs/specs/human-documentation-compiler-v0.md	983	Offline/privacy hostility MUST include a local network canary reached by a plugi
+HDCV0-049	docs/specs/human-documentation-compiler-v0.md	988	Verification for implementation promotion MUST pass focused Go tests after each
+HDCV0-050	docs/specs/human-documentation-compiler-v0.md	995	The first real delivery evidence MUST use a Corvint-contained Material corpus an
+HDCV0-051	docs/specs/human-documentation-compiler-v0.md	1000	The implementation core and optional CLI MUST use Go 1.27 and its standard libra
+HDCV0-052	docs/specs/human-documentation-compiler-v0.md	1006	Machine failures use exactly one primary code from `INVALID_REQUEST`,
 HDCV0-CAP-001	docs/specs/human-documentation-compiler-v0.md	263	`corvint-human-documentation-request/0` remains the request profile. Its
 HDCV0-CAP-002	docs/specs/human-documentation-compiler-v0.md	309	The request additionally binds the existing repository/config/intent/output/limi
 HDCV0-CAP-003	docs/specs/human-documentation-compiler-v0.md	319	Admission requires a native Linux host, kernel 5.12 or newer, systemd exactly 26
@@ -1684,10 +1707,10 @@ LTA-V0-006	docs/specs/learned-trace-admission-v0.md	103	`corvint skill-export --
 LTA-V0-007	docs/specs/learned-trace-admission-v0.md	109	An admitted learned rule is a stored row with outcome `passed` that the reader
 LTA-V0-008	docs/specs/learned-trace-admission-v0.md	116	Each exported skill MUST load under the Agent Skills frontmatter contract that
 LTA-V0-009	docs/specs/learned-trace-admission-v0.md	121	(decision 0368, accepted by 0373, experimental) `corvint eval --learn-slot-weigh
-LTA-V0-010	docs/specs/learned-trace-admission-v0.md	132	(decision 0368, accepted by 0373, experimental) Each proposal MUST be scored aga
-LTA-V0-011	docs/specs/learned-trace-admission-v0.md	141	(decision 0368, accepted by 0373, experimental) Only `--admit` with an `improved
-LTA-V0-012	docs/specs/learned-trace-admission-v0.md	159	(decision 0368, accepted by 0373, experimental) `corvint eval --reset-slot-weigh
-LTA-V0-013	docs/specs/learned-trace-admission-v0.md	167	Schema-2 verification defined by `LTPM-V0-013` MUST pass the shared
+LTA-V0-010	docs/specs/learned-trace-admission-v0.md	136	(decision 0368, accepted by 0373, experimental) Each proposal MUST be scored aga
+LTA-V0-011	docs/specs/learned-trace-admission-v0.md	145	(decision 0368, accepted by 0373, experimental) Only `--admit` with an `improved
+LTA-V0-012	docs/specs/learned-trace-admission-v0.md	163	(decision 0368, accepted by 0373, experimental) `corvint eval --reset-slot-weigh
+LTA-V0-013	docs/specs/learned-trace-admission-v0.md	171	Schema-2 verification defined by `LTPM-V0-013` MUST pass the shared
 LTPM-V0-001	docs/specs/local-trace-producer-migration-v0.md	55	`record_trace` MUST obtain the clean `HEAD` commit and its tree from one reposit
 LTPM-V0-002	docs/specs/local-trace-producer-migration-v0.md	59	The Python reader MUST accept canonical rows only when their filename and row na
 LTPM-V0-003	docs/specs/local-trace-producer-migration-v0.md	64	Dry-run MUST be read-only and bind its plan digest to the stable current commit/
@@ -2378,11 +2401,11 @@ SOL-V0-002	docs/specs/self-observation-ledger-v0.md	41	Rows MUST contain no task
 SOL-V0-003	docs/specs/self-observation-ledger-v0.md	43	Each row is at most 2 KiB; the ledger is at most 128 KiB. On overflow, the write
 SOL-V0-004	docs/specs/self-observation-ledger-v0.md	50	Rows MAY report support, freshness, degradation codes, uncertainty, omitted and
 SOL-V0-005	docs/specs/self-observation-ledger-v0.md	53	Triage MUST be read-only and stdout-only. Its bounded digest reports degradation
-SOL-V0-006	docs/specs/self-observation-ledger-v0.md	60	A degradation present in at least 90% of recorded events MUST be labelled
-SOL-V0-007	docs/specs/self-observation-ledger-v0.md	62	Every emitted `unsupported-*` CLI failure SHOULD be recorded with only
-SOL-V0-008	docs/specs/self-observation-ledger-v0.md	100	**Accepted 2026-09-01.** `corvint dogfood-observe` is the one additional bounded
-SOL-V0-009	docs/specs/self-observation-ledger-v0.md	106	`corvint prove-observe` is the second bounded internal process writer surface.
-SOL-V0-010	docs/specs/self-observation-ledger-v0.md	113	The `codex` and `claude-code` host adapters (`corvint adapter`) MUST attempt one
+SOL-V0-006	docs/specs/self-observation-ledger-v0.md	70	A degradation present in at least 90% of recorded events MUST be labelled
+SOL-V0-007	docs/specs/self-observation-ledger-v0.md	72	Every emitted `unsupported-*` CLI failure SHOULD be recorded with only
+SOL-V0-008	docs/specs/self-observation-ledger-v0.md	110	**Accepted 2026-09-01.** `corvint dogfood-observe` is the one additional bounded
+SOL-V0-009	docs/specs/self-observation-ledger-v0.md	116	`corvint prove-observe` is the second bounded internal process writer surface.
+SOL-V0-010	docs/specs/self-observation-ledger-v0.md	123	The `codex` and `claude-code` host adapters (`corvint adapter`) MUST attempt one
 SOP-V0-001	docs/specs/stable-operations-v0.md	76	The install-lifecycle check MUST accept either one release archive whose single
 SOP-V0-002	docs/specs/stable-operations-v0.md	80	The check MUST create a committed fixture repository in its own temporary direct
 SOP-V0-003	docs/specs/stable-operations-v0.md	84	An upgrade MUST install into a second store beside the first and run `corvint
@@ -2630,10 +2653,10 @@ URE-V0-002	docs/specs/unplanned-read-events-v0.md	46	The recognized tools are `R
 URE-V0-003	docs/specs/unplanned-read-events-v0.md	65	`Append(root, event)` MUST be a no-op returning `nil` unless the opt-in marker
 URE-V0-004	docs/specs/unplanned-read-events-v0.md	71	When enabled, `Append` and `RecordPacket` MUST write one JSON row per line to
 URE-V0-005	docs/specs/unplanned-read-events-v0.md	88	`Read(root)` MUST be read-only and return the count of unplanned and planned
-URE-V0-006	docs/specs/unplanned-read-events-v0.md	95	`HookPostTool(root, packetPaths, payload)` MUST return `nil` on every path,
-URE-V0-007	docs/specs/unplanned-read-events-v0.md	100	`corvint [--root PATH] reads [--limit N]` MUST print the digest and write
-URE-V0-008	docs/specs/unplanned-read-events-v0.md	106	After a Claude Code `user-prompt` event renders a delivered context,
-URE-V0-009	docs/specs/unplanned-read-events-v0.md	120	`corvint host-adapter claude-code post-tool` MUST call
+URE-V0-006	docs/specs/unplanned-read-events-v0.md	105	`HookPostTool(root, packetPaths, payload)` MUST return `nil` on every path,
+URE-V0-007	docs/specs/unplanned-read-events-v0.md	110	`corvint [--root PATH] reads [--limit N]` MUST print the digest and write
+URE-V0-008	docs/specs/unplanned-read-events-v0.md	116	After a Claude Code `user-prompt` event renders a delivered context,
+URE-V0-009	docs/specs/unplanned-read-events-v0.md	130	`corvint host-adapter claude-code post-tool` MUST call
 VAF-001	docs/specs/verified-absence-frontier-v0.md	58	every result MUST bind the repository identity, base revision, target revision,
 VAF-002	docs/specs/verified-absence-frontier-v0.md	60	Corvint MUST distinguish `missing`, `stale`, `unobserved`, and `out-of-scope`. I
 VAF-003	docs/specs/verified-absence-frontier-v0.md	62	a closed frontier MUST be scoped to a named, finite obligation universe. The CLI

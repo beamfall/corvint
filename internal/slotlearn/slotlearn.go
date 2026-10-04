@@ -40,13 +40,19 @@ type Labels struct {
 	ObservedMisses int
 	PlannedReads   int
 	SkippedRows    int
-	Truncated      bool
-	Classes        map[string]int
+	// RejectedRows counts the rows either reader refused under its writer
+	// contract, and LedgerCut reports that either ledger exceeded its byte cap,
+	// so a label set read from a partial ledger is never presented as whole.
+	RejectedRows int
+	LedgerCut    bool
+	Truncated    bool
+	Classes      map[string]int
 }
 
 // ReadLabels reads both ledgers through their bounded readers. Unplanned
 // reads and observed misses are labels; planned re-reads are disclosed as a
-// count only, because the packet already carried those paths.
+// count only, because the packet already carried those paths. A path that is
+// empty or not project-relative never becomes a label.
 func ReadLabels(root string) (Labels, error) {
 	unplanned, err := unplannedread.Read(root)
 	if err != nil {
@@ -58,10 +64,21 @@ func ReadLabels(root string) (Labels, error) {
 	}
 	distinct := map[string]struct{}{}
 	for _, entry := range unplanned.TopPaths {
-		distinct[entry.Path] = struct{}{}
+		if unplannedread.ProjectRelative(entry.Path) {
+			distinct[entry.Path] = struct{}{}
+		}
 	}
 	for path := range observed.Misses {
-		distinct[path] = struct{}{}
+		if unplannedread.ProjectRelative(path) {
+			distinct[path] = struct{}{}
+		}
+	}
+	rejected := 0
+	for _, count := range unplanned.Rejected {
+		rejected += count
+	}
+	for _, count := range observed.Rejected {
+		rejected += count
 	}
 	paths := make([]string, 0, len(distinct))
 	for path := range distinct {
@@ -71,6 +88,7 @@ func ReadLabels(root string) (Labels, error) {
 	labels := Labels{
 		UnplannedPaths: len(unplanned.TopPaths), ObservedMisses: len(observed.Misses),
 		PlannedReads: unplanned.Planned, SkippedRows: unplanned.SkippedRows,
+		RejectedRows: rejected, LedgerCut: unplanned.Truncated || observed.Truncated,
 		Truncated: len(paths) > MaxLabelPaths, Paths: paths[:min(MaxLabelPaths, len(paths))],
 		Classes: map[string]int{},
 	}
@@ -169,7 +187,8 @@ func labelsValue(labels Labels) map[string]any {
 	return map[string]any{
 		"label_paths": len(labels.Paths), "unplanned_paths": labels.UnplannedPaths,
 		"observed_misses": labels.ObservedMisses, "planned_reads": labels.PlannedReads,
-		"skipped_rows": labels.SkippedRows, "truncated": labels.Truncated, "classes": classes,
+		"skipped_rows": labels.SkippedRows, "rejected_rows": labels.RejectedRows, "ledger_cut": labels.LedgerCut,
+		"truncated": labels.Truncated, "classes": classes,
 		"max_label_paths": MaxLabelPaths,
 	}
 }

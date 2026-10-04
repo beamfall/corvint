@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	json "encoding/json/v2"
 	"fmt"
+	"io/fs"
 	"sort"
 )
 
@@ -65,7 +66,38 @@ type digestUnit struct {
 // Plugins are observed in the order given but the resulting graph is
 // order-independent: identities, paths, and edges are all canonically sorted
 // before the digest is taken.
+// SourceLanguage observes the same unit contract through an explicit reader.
+type SourceLanguage interface {
+	Language
+	UnitsSource(*Source) (Result, error)
+}
+
+// BuildFS composes a graph exclusively from the supplied source filesystem.
+// A provider without an immutable reader refuses rather than reading ambient files.
+func BuildFS(source fs.FS, languages ...Language) (*Graph, error) {
+	if source == nil {
+		return nil, ErrInvalidLanguage
+	}
+	reader := FSSource(source)
+	return build(languages, func(language Language) (Result, error) {
+		explicit, ok := language.(SourceLanguage)
+		if !ok {
+			return Result{}, fmt.Errorf("%w: no source reader for %s", ErrInvalidLanguage, language.Name())
+		}
+		result, err := explicit.UnitsSource(reader)
+		if fatal := reader.Err(); fatal != nil {
+			return Result{}, fatal
+		}
+		return result, err
+	})
+}
+
 func Build(root string, languages ...Language) (*Graph, error) {
+	defer holdWalks(root)()
+	return build(languages, func(language Language) (Result, error) { return language.Units(root) })
+}
+
+func build(languages []Language, observe func(Language) (Result, error)) (*Graph, error) {
 	if len(languages) == 0 {
 		return nil, fmt.Errorf("%w: no language plugins", ErrInvalidLanguage)
 	}
@@ -79,7 +111,6 @@ func Build(root string, languages ...Language) (*Graph, error) {
 	}
 	seenLanguage := make(map[string]bool, len(languages))
 	frontier := make(map[string]bool)
-	defer holdWalks(root)()
 	for _, language := range languages {
 		name := language.Name()
 		if name == "" || seenLanguage[name] {
@@ -88,7 +119,7 @@ func Build(root string, languages ...Language) (*Graph, error) {
 		seenLanguage[name] = true
 		graph.claimants[name] = language
 		graph.languages = append(graph.languages, name)
-		result, err := language.Units(root)
+		result, err := observe(language)
 		if err != nil {
 			return nil, fmt.Errorf("language %s: %w", name, err)
 		}
@@ -245,6 +276,11 @@ func (graph *Graph) Frontier() []string { return append([]string(nil), graph.fro
 // UnitIDs lists every unit identity, sorted.
 func (graph *Graph) UnitIDs() []string { return append([]string(nil), graph.order...) }
 
+// UnboundedReaders lists, sorted, every unit whose reads no literal or declared
+// scope bounds: the units rule (d) selects on any dirty path (AFP-V0-012,
+// AFP-V0-023).
+func (graph *Graph) UnboundedReaders() []string { return append([]string(nil), graph.unbounded...) }
+
 // Unit returns one unit by identity.
 func (graph *Graph) Unit(id string) (Unit, bool) {
 	unit, ok := graph.units[id]
@@ -297,4 +333,17 @@ func sortedKeys(set map[string]bool) []string {
 	}
 	sort.Strings(values)
 	return values
+}
+
+// ReachedUnitIDs names the complete reached universe before Select filters out
+// units with no tests. Keep this walk aligned with Select; witness chains alone
+// enumerate only one path and cannot establish the denominator of a diamond.
+func (graph *Graph) ReachedUnitIDs(dirty []string) []string {
+	reached, _, _ := graph.reach(NormalizePaths(dirty))
+	ids := make([]string, 0, len(reached))
+	for id := range reached {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
 }
