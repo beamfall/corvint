@@ -81,6 +81,10 @@ as V1-0734 (labels `agent-memory`, `bugs`).
 - `TestAHI044HookAdaptersFailOpen` passed three times in a row (`-count=3`, 231 subtests), and
   again after the review fixes.
 - Both scratch tests pass, including under `-race`.
+- After merging `origin/main`, a run at load average about 35 with `-parallel 48` failed one healthy
+  cold start, which named `repository-probe-timeout`. The cold-start and unavailable-index cases now
+  accept that code and any deadline code as load-derived (decision 0082). The matrix then passed
+  three times at load average about 50.
 - Healthy Git spawn counts per invocation:
 
   | Invocation | Git spawns |

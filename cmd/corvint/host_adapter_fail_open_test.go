@@ -105,7 +105,7 @@ func TestAHI044HookAdaptersFailOpen(t *testing.T) {
 	})
 	cases := []failOpenCase{
 		{name: "cold start without snapshot", check: func(t *testing.T, invocation failOpenInvocation, run failOpenRun) {
-			if namesDegradation(run.stdout) && !strings.Contains(run.stdout, "deadline") {
+			if namesDegradation(run.stdout) && !loadDerived(run.stdout) {
 				t.Fatalf("a healthy cold start degraded: %s", run.stdout)
 			}
 		}},
@@ -117,7 +117,7 @@ func TestAHI044HookAdaptersFailOpen(t *testing.T) {
 			}
 		}},
 		{name: "index unavailable", staleIndex: true, check: func(t *testing.T, invocation failOpenInvocation, run failOpenRun) {
-			if invocation.usesIndex && !strings.Contains(run.stdout, "index-snapshot-stale") && !strings.Contains(run.stdout, "deadline") {
+			if invocation.usesIndex && !strings.Contains(run.stdout, "index-snapshot-stale") && !loadDerived(run.stdout) {
 				t.Fatalf("an unavailable index produced no named degradation: %s", run.stdout)
 			}
 		}},
@@ -234,6 +234,12 @@ func namesDelay(spawnedOnly bool) func(*testing.T, failOpenInvocation, failOpenR
 // adapter faults, "Corvint fallback: <code>" for a rejected Corvint event.
 func namesDegradation(stdout string) bool {
 	return strings.Contains(stdout, "FALLBACK degraded: ") || strings.Contains(stdout, "Corvint fallback: ")
+}
+
+// loadDerived reports a degradation that host load alone can cause: a missed deadline or a
+// timed-out repository probe. A healthy run may name one under load (decision 0082).
+func loadDerived(stdout string) bool {
+	return strings.Contains(stdout, "deadline") || strings.Contains(stdout, "repository-probe-timeout")
 }
 
 func runFailOpenCase(t *testing.T, binary, realGit string, invocation failOpenInvocation, test failOpenCase) failOpenRun {
