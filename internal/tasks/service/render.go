@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 func xmlElement(e *xml.Encoder, name string, value any) error {
@@ -73,32 +74,52 @@ func unitArguments(m Manifest, helper string) []string {
 	return a
 }
 
-// systemdAtom is directive-specific: ExecStart expands both dollar and percent;
-// path directives expand percent only. Semicolon patterns are not admitted.
-func systemdAtom(s string, exec bool) (string, error) {
+// systemdExecAtom quotes one ExecStart word. ExecStart expands both percent
+// and dollar. Words are limited to printable ASCII, where strconv.Quote and
+// systemd's C-style unquoting agree (only backslash and double quote are
+// escaped); other bytes and semicolons are refused rather than re-encoded.
+func systemdExecAtom(s string) (string, error) {
 	if err := serviceText(s); err != nil {
 		return "", err
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < 0x20 || s[i] > 0x7e {
+			return "", fmt.Errorf("systemd ExecStart word must be printable ASCII")
+		}
 	}
 	if strings.Contains(s, ";") {
 		return "", fmt.Errorf("semicolon unsupported")
 	}
 	s = strings.ReplaceAll(s, "%", "%%")
-	if exec {
-		s = strings.ReplaceAll(s, "$", "$$")
-	}
+	s = strings.ReplaceAll(s, "$", "$$")
 	return strconv.Quote(s), nil
+}
+
+// systemdPathValue renders an unquoted path directive value. systemd does not
+// unquote WorkingDirectory and expands percent only, so whitespace, quotes,
+// backslashes and control characters are refused instead of escaped.
+func systemdPathValue(s string) (string, error) {
+	if err := servicePath(s); err != nil {
+		return "", err
+	}
+	for _, c := range s {
+		if unicode.IsSpace(c) || unicode.IsControl(c) || c == '"' || c == '\'' || c == '\\' {
+			return "", fmt.Errorf("systemd path value must not contain whitespace, quotes, backslashes or control characters")
+		}
+	}
+	return strings.ReplaceAll(s, "%", "%%"), nil
 }
 func systemdUnit(m Manifest, helper string) ([]byte, error) {
 	args := unitArguments(m, helper)
 	quoted := []string{}
 	for _, a := range args {
-		x, err := systemdAtom(a, true)
+		x, err := systemdExecAtom(a)
 		if err != nil {
 			return nil, err
 		}
 		quoted = append(quoted, x)
 	}
-	cwd, err := systemdAtom(m.CanonicalStore, false)
+	cwd, err := systemdPathValue(m.CanonicalStore)
 	if err != nil {
 		return nil, err
 	}
@@ -379,6 +400,7 @@ func cloneDebt(d Debt) Debt {
 }
 func ChargeFailure(d Debt, o FailureObservation) (Debt, string, error) {
 	d = cloneDebt(d)
+	prior := cloneDebt(d)
 	if d.Failures > 6 || len(d.Fences) > 128 {
 		return d, "HOLD", fmt.Errorf("debt record bound")
 	}
@@ -418,7 +440,7 @@ func ChargeFailure(d Debt, o FailureObservation) (Debt, string, error) {
 	delays := []uint64{30, 60, 120, 240, 300}
 	d.Delay = delays[d.Failures-1]
 	if o.Now > math.MaxUint64-d.Delay {
-		return d, "HOLD", fmt.Errorf("monotonic overflow")
+		return prior, "HOLD", fmt.Errorf("monotonic overflow")
 	}
 	d.EligibleAfter = o.Now + d.Delay
 	return d, "BACKOFF", nil
@@ -456,7 +478,10 @@ type HealthObservation struct {
 func ObserveHealth(d Debt, o HealthObservation) Debt {
 	d = cloneDebt(d)
 	valid := d.Failures < 6 && o.TimeKnown && o.BootID != "" && o.BootID == d.BootID && o.Generation != "" && o.Desired == "RUNNING" && o.State == "HEALTHY" && o.PinnedValid && o.PulseTimely && o.TickHealthy && o.OwnershipSettled
-	if !valid {
+	// A recorded window that starts after now or after its last healthy
+	// observation is corrupt; it is cleared and cannot certify a reset.
+	corrupt := d.HealthySince != nil && (*d.HealthySince > o.Now || (d.LastHealthy != nil && *d.HealthySince > *d.LastHealthy))
+	if !valid || corrupt {
 		d.HealthySince = nil
 		d.LastHealthy = nil
 		d.HealthyGeneration = ""

@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
+	"math"
 	"reflect"
 	"strings"
 	"testing"
@@ -70,6 +71,13 @@ func TestIssue500_ProfileClosedAndBounded(t *testing.T) {
 				t.Fatal("invalid profile")
 			}
 		})
+	}
+	for _, root := range []string{"/var/folders/xy/T/site", "/private/var/folders/xy/T/site", "/private/var/tmp/site", "/dev/shm/site", "/run/user/501/site"} {
+		q, _, _ := serviceFixture(t, "launchd")
+		q.WorkRoot = root
+		if _, err := q.Encode(); err == nil {
+			t.Fatalf("temporary root %s accepted", root)
+		}
 	}
 	for name, spoil := range map[string]func(*InstallationFacts){"manager": func(f *InstallationFacts) { f.ManagerReachable = false }, "root": func(f *InstallationFacts) { f.RootsSafe = false }, "domain": func(f *InstallationFacts) { f.Domain = "system" }, "owner": func(f *InstallationFacts) { f.Executable.Owner = "999" }, "writable": func(f *InstallationFacts) { f.DispatchConfig.Mode = 0666 }, "symlink": func(f *InstallationFacts) { f.Executable.NoReplacementSymlink = false }, "store": func(f *InstallationFacts) { f.ConfigWorkRoot = "/other" }} {
 		t.Run(name, func(t *testing.T) {
@@ -168,6 +176,23 @@ func TestIssue500_FiniteRestartDebtAndReset(t *testing.T) {
 				t.Fatal("unproved healthy reset")
 			}
 		})
+	}
+	overflow := debtFixture()
+	overflow.Failures = 2
+	before := cloneDebt(overflow)
+	got, state, err := ChargeFailure(overflow, FailureObservation{Generation: "max", Outcome: "FAILED", BootID: "boot", Termination: "PROVED_TERMINATED", Now: math.MaxUint64, TimeKnown: true, IdentityKnown: true})
+	if err == nil || state != "HOLD" || !reflect.DeepEqual(got, before) || len(overflow.Fences) != 0 {
+		t.Fatal("overflow error returned mutated debt")
+	}
+	for _, window := range [][3]uint64{{1000, 10, 20}, {30, 10, 35}} {
+		corrupt := five
+		since, last := window[0], window[1]
+		corrupt.HealthySince, corrupt.LastHealthy, corrupt.HealthyGeneration = &since, &last, "live"
+		o := healthy
+		o.Now = window[2]
+		if got := ObserveHealth(corrupt, o); got.Failures != 5 || got.HealthySince != nil {
+			t.Fatalf("corrupt health window %v certified or kept", window)
+		}
 	}
 	newBoot, state := Eligibility(five, "new-boot", 10, true)
 	if state != "BACKOFF" || newBoot.EligibleAfter != 310 || newBoot.Failures != 5 {

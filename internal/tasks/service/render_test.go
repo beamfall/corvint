@@ -32,6 +32,10 @@ func TestIssue500_UnitRenderingAndArgumentEscaping(t *testing.T) {
 		t.Run(manager, func(t *testing.T) {
 			p, f, _ := helperFixture(t, manager)
 			p.WorkRoot = "/Users/alice/Unicode-é space \\\"%$"
+			if manager == "systemd-user" {
+				// systemd does not unquote WorkingDirectory; only percent is escaped.
+				p.WorkRoot = "/Users/alice/work%dir-é"
+			}
 			f.CanonicalStore = p.WorkRoot
 			f.ConfigWorkRoot = p.WorkRoot
 			f.ManifestPath = "/Users/alice/state/manifest \\\"%$.json"
@@ -98,6 +102,15 @@ func TestIssue500_UnitRenderingAndArgumentEscaping(t *testing.T) {
 						value = strings.ReplaceAll(strings.ReplaceAll(value, "%%", "%"), "$$", "$")
 						actual = append(actual, value)
 					}
+					wantExec := `ExecStart="/Applications/Corvint/bin/corvint-tasks" "service" "run" "--program" "site" "--manifest" "/Users/alice/state/manifest \\\"%%$$.json"`
+					if u.HelperID != "" {
+						wantExec = `ExecStart="/Applications/Corvint/bin/corvint-tasks" "service" "run-helper" "--program" "site" "--manifest" "/Users/alice/state/manifest \\\"%%$$.json" "--helper" "health"`
+					}
+					for _, want := range []string{wantExec, "WorkingDirectory=/Users/alice/work%%dir-é"} {
+						if !strings.Contains(string(u.Raw), "\n"+want+"\n") {
+							t.Fatalf("rendered line missing: %s\n%s", want, u.Raw)
+						}
+					}
 					kill := "KillMode=process"
 					if u.HelperID != "" {
 						kill = "KillMode=control-group"
@@ -119,8 +132,22 @@ func TestIssue500_UnitRenderingAndArgumentEscaping(t *testing.T) {
 			}
 		})
 	}
-	if _, err := systemdAtom(";", true); err == nil {
-		t.Fatal("unsupported delimiter accepted")
+	for _, word := range []string{";", "é", "tab\tword", "\x7f"} {
+		if _, err := systemdExecAtom(word); err == nil {
+			t.Fatalf("ExecStart word %q accepted", word)
+		}
+	}
+	for _, root := range []string{"/Users/alice/a b", "/Users/alice/a\"b", "/Users/alice/a'b", "/Users/alice/a\\b", "/Users/alice/a\u00a0b"} {
+		p, f, _ := serviceFixture(t, "systemd-user")
+		p.WorkRoot, f.CanonicalStore, f.ConfigWorkRoot = root, root, root
+		if _, err := BuildManifest(p, f); err == nil {
+			t.Fatalf("systemd WorkingDirectory %q accepted", root)
+		}
+	}
+	p, f, _ := serviceFixture(t, "systemd-user")
+	f.ManifestPath = "/Users/alice/state/site/manifest-é.json"
+	if _, err := BuildManifest(p, f); err == nil {
+		t.Fatal("non-ASCII systemd ExecStart word accepted")
 	}
 }
 func TestIssue500_OwnedInstallAndForeignRefusal(t *testing.T) {

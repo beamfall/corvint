@@ -21,8 +21,8 @@ uninstall and rollback plans, and launch-fence, legacy-latch, restart-debt and r
 imports only the Tasks wire package, nothing imports it, and it performs no filesystem, process,
 manager or queue operation.
 
-The four files are byte-identical to the reviewed repaired source from the prior preparation.
-Their SHA-256 values match its manifest:
+The four files start from the reviewed repaired source of the prior preparation, whose
+manifest SHA-256 values were:
 
 | File | SHA-256 |
 |---|---|
@@ -35,7 +35,9 @@ That preparation's plan review passed after its H1/M1/M2 findings closed. Its so
 passed after F1 (resume replay preserves later failure debt), F2 (uninstall needs the exact
 current manifest) and F3 (rollback cleans only the published subset under same-lineage
 restoration) closed. Those reviews ran against base 9770fc6334a08f9d1e00508c396d62bae2563446.
-The package directory is new on current main, so the bytes apply unchanged.
+The package directory is new on current main, so those bytes applied unchanged. The repairs
+below then changed all four files, so the delivered bytes are pinned by this change's commit,
+not by that manifest.
 
 ## Evidence and limits
 
@@ -48,14 +50,27 @@ journal recovery, OpenControlled fencing, #464 helper ownership, launchd/systemd
 manager operations, login/boot scope, and Darwin/Linux runtime qualification. Model and renderer
 results do not qualify a service. Native ticket completion remains open.
 
-## Independent review of this delivery
+## Independent review repairs
 
-PASS with nits. Open source findings, left unfixed so the reviewed bytes stay unchanged: the
-systemd WorkingDirectory value is quoted (MED; inferred unit load failure, not run on Linux);
-ObserveHealth accepts a healthy-since time after now; a ChargeFailure overflow error returns
-mutated debt; temporary-root rejection omits /var/folders, /dev/shm and /run/user; the 128-fence
-store has no pruning. Each must close, with re-review, before any integration slice uses the
-package. The traceability table was narrowed to what the tests actually assert.
+The first independent review of the applied source passed with nits. Its findings were repaired
+in this change:
+
+- MED: the systemd WorkingDirectory value was Go-quoted, which systemd does not unquote. It is
+  now an unquoted absolute path with percent doubled; whitespace, quotes, backslashes and control
+  characters are refused. ExecStart words are limited to printable ASCII, where Go quoting and
+  systemd C-style unquoting agree, and other bytes are refused. Tests assert the exact lines.
+- LOW: ObserveHealth clears, and never certifies, a window that starts after now or after its
+  last healthy observation.
+- LOW: a ChargeFailure overflow error returns the prior debt unchanged.
+- LOW: temporary-root refusal adds /private/var/tmp, /var/folders, /private/var/folders,
+  /dev/shm and /run/user.
+- The traceability table was narrowed to what the tests actually assert.
+
+Open nits, recorded and not fixed: the 128-fence store is never pruned, and its capacity HOLD
+shares the sixth-failure state; the hypothetical systemd plan has no daemon-reload and uninstall
+has no REMOVING journal step; the catalog claim is in present tense; the profile name regex
+duplicates `dispatch.ValidName` instead of calling it. No systemd parser has loaded a rendered
+unit.
 
 ## Rollback
 

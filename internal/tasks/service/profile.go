@@ -54,8 +54,18 @@ func under(path, root string) bool {
 	rel, err := filepath.Rel(root, path)
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
+
+// temporaryRoots are host temporary or volatile roots: macOS per-user
+// temporary folders and Linux tmpfs/runtime directories included.
+var temporaryRoots = []string{"/tmp", "/private/tmp", "/var/tmp", "/private/var/tmp", "/var/folders", "/private/var/folders", "/dev/shm", "/run/user"}
+
 func nonTemporary(s string) bool {
-	return !under(s, "/tmp") && !under(s, "/private/tmp") && !under(s, "/var/tmp")
+	for _, root := range temporaryRoots {
+		if under(s, root) {
+			return false
+		}
+	}
+	return true
 }
 func (p Profile) Validate() error {
 	for _, v := range []string{p.Executable, p.DispatchConfig, p.WorkRoot} {
