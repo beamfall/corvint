@@ -9,8 +9,8 @@ Authoritative inputs: human issue #395 and native V1-0542 AC4; unchanged accepte
 ## Agent digest
 - Claim: Explicit /1 binds actual native stage observations and refuses missing evidence; /0 remains unchanged.
 - Status: proposed; experimental native refusal slice; qualification NOT_OBSERVED.
-- Exists: Optional /0 companion and explicit /1 admission, actual connector.Read and BuildAuthorInput with retained bytes, then delta BLOCKED/CLI2.
-- Blocked on: Positive wire decision, delta/author/proof integration and host qualification; complete recording/local+CI outcome remains NOT_PRODUCED.
+- Exists: Optional /0 companion and explicit /1 admission, actual connector.Read, BuildAuthorInput and provider-free delta.Compile with retained bytes, then follow-up BLOCKED/CLI2.
+- Blocked on: Positive wire decision, follow-up/author/proof integration, provider-backed delta and host qualification; complete recording/local+CI outcome remains NOT_PRODUCED.
 - Read next: Requirements; partial wire; acceptance and rollback.
 
 ## User and measurable job
@@ -20,7 +20,7 @@ The owner replays immutable historical merges with recorded outward requests, ba
 ## Requirements
 
 - `PMR-V1-001`: Independently pin full binding, input snapshots, source/tool/runtime/profile and host policy; admit only closed exact-version inputs. Fixture expectations cannot select commands, destinations, applicability or authority. The first slice implements the reviewed generated-only candidate admission; unsupported human/operational profiles block, preserving /0.
-- `PMR-V1-002`: Execute real connector/intake/delta joins, retain exact native inputs/outputs and incomplete selections, gaps, denominators and full-suite obligations. Missing or not-integrated delta blocks dependent stages; no empty no-work observation may replace it. First slice executes only native connector.Read and BuildAuthorInput on an independently pinned closed reader candidate; it does not claim actual raw-reader execution.
+- `PMR-V1-002`: Execute real connector/intake/delta joins, retain exact native inputs/outputs and incomplete selections, gaps, denominators and full-suite obligations. Missing or not-integrated delta blocks dependent stages; no empty no-work observation may replace it. First slice executes only native connector.Read and BuildAuthorInput on an independently pinned closed reader candidate; it does not claim actual raw-reader execution. The delta slice additionally executes native delta.Compile with code-fixed options only (see Delta slice); a delta refusal blocks every dependent stage.
 - `PMR-V1-003`: Each applicable real author step requires enforced credential/network/filesystem boundaries and complete native same-content scope/admin verification. A missing host/author/proof dependency is BLOCKED/NOT_RUN, never an observed adapter digest. First slice executes no author or scope observer.
 - `PMR-V1-004`: Run actual trusted validation and qualified same-test repeats/falsification/validity/cleanup; preserve exact IDs, revisions, selection/control/order/isolation/cleanup facts and full raw proof edges. Blocked/rejected/unknown evidence cannot become accepted. First slice executes no tests/validation/projection; current native Report.Body and repeat summaries including duration/presence remain exact without a new exception.
 - `PMR-V1-005`: Trusted collection verifies real draft parent/tree/path/mode/blob identity and exact test/product/proof joins before native connector Build/ValidatePlan/Record, all using one private per-run verification root. Re-record the same plan idempotently and compare canonical JSONL across complete fresh runs. Missing draft objects/proof/evidence identity block; first slice performs no draft or recording calls.
@@ -59,17 +59,28 @@ Reuse existing fixture/JSON limits: 4MiB input, depth64, executable128MiB, IDs12
 
 Artifact reference fields have exact semantics: path is the absolute operator-owned retained regular file; sha256 is SHA-256 of its exact original bytes; bytes is a nonnegative integer byte count. Contents remain in private retained files and are never echoed as raw prose through stdout. Reject negative/fractional/overflow counts, unsafe paths or changed files; output=null is distinct from an empty file. All original bounds remain.
 
-Fixed stage array order: trigger, connector-intake, intake, delta, follow-up, docs-author, docs-scope, docs-validation, tests-author, tests-scope, tests-validation, draft-requests, findings, metrics, approved-republish, recording. Only connector-intake and intake may become observed here, exclusively after their actual native calls and successful byte retention. Their native_profile values are respectively postmerge-connector/0 and corvint-intake/0. All unexecuted stages have native_profile="", output=null, no claimed native execution, and fixed reasons. Trigger is NOT_RUN/host-trigger-not-executed; delta is BLOCKED with the reason selected from the admitted immutable source evidence; dependent stages are NOT_RUN/dependency-delta-blocked, including follow-up and recording. Earlier pin/native failure may terminate before a later call and must preserve truthful prior observations, with subsequent stages NOT_RUN/prior-stage-blocked. Never infer a future native schema from a stage name.
+Fixed stage array order: trigger, connector-intake, intake, delta, follow-up, docs-author, docs-scope, docs-validation, tests-author, tests-scope, tests-validation, draft-requests, findings, metrics, approved-republish, recording. Only connector-intake and intake may become observed here, exclusively after their actual native calls and successful byte retention. Their native_profile values are respectively postmerge-connector/0 and corvint-intake/0. The delta slice below also lets delta become observed, with native_profile corvint-delta/0, under the same rule. All unexecuted stages have native_profile="", output=null, no claimed native execution, and fixed reasons. Trigger is NOT_RUN/host-trigger-not-executed. In the first slice, delta is BLOCKED with the reason selected from the admitted immutable source evidence, and dependent stages are NOT_RUN/dependency-delta-blocked, including follow-up and recording. The Delta slice section governs current builds: a delta refusal keeps that dependent rule, while an observed delta makes follow-up BLOCKED/follow-up-not-integrated and later stages NOT_RUN/prior-stage-blocked. Earlier pin/native failure may terminate before a later call and must preserve truthful prior observations, with subsequent stages NOT_RUN/prior-stage-blocked. Never infer a future native schema from a stage name.
 
-Reviewed base1f lacks actual delta: source-bound reason actual-delta-unavailable. At source admission refresh the immutable base and owning source inventory. If actual delta lands but this first slice does not integrate it, use delta-not-integrated. The implementation pins this refusal disposition as a build-slice capability, not a dynamic filesystem guess or claim that all future sources lack delta. Root selects/finalizes the correct immutable reason before first enrollment; tests check against that bound capability evidence.
+Reviewed base1f lacks actual delta: source-bound reason actual-delta-unavailable (first-slice builds only; superseded by the delta slice below, which never emits it). At source admission refresh the immutable base and owning source inventory. If actual delta lands but this first slice does not integrate it, use delta-not-integrated. The implementation pins this refusal disposition as a build-slice capability, not a dynamic filesystem guess or claim that all future sources lack delta. Root selects/finalizes the correct immutable reason before first enrollment; tests check against that bound capability evidence.
 
 ### Native execution order
 
 1. Validate selected closed profile/schema and operator pins; bind actual executable/product/input bytes; reject overlap, changed pins or unsafe output. No dynamic executable arguments are provided by fixture.
 2. Call actual connector.Read(ctx, productRoot, fixture.Connector, policy.Connector, source_item), retain its original encoded native result/full immutable binding privately. Native rejection returns BLOCKED with original fixed reason.
 3. Read exact pinned reader_candidate bytes into a bounded snapshot. Call actual intake.BuildAuthorInput(ctx, hostProductRoot, hostBase, hostMerge, candidate). Retain exact native input and output bytes; no claim a raw reader ran. No expected labels, raw prose or entire connector intake result is an input to BuildAuthorInput.
-4. Record successful earlier stage observations, then delta BLOCKED with actual-delta-unavailable. Every dependent author/scope/validation/draft/findings/metrics/approved-republish stage is NOT_RUN with its concrete dependency reason. No empty flow/gap/no-work records. No connector.Build, ValidatePlan or Record for draft output; this slice does not produce any recording. No optional scope wiring in the first slice, avoiding a second unreviewed identity transition. Native rejected/blocked results never become an accepted proof.
+4. Record successful earlier stage observations, then delta BLOCKED with actual-delta-unavailable (first slice; the delta slice replaces this step as described below). Every dependent author/scope/validation/draft/findings/metrics/approved-republish stage is NOT_RUN with its concrete dependency reason. No empty flow/gap/no-work records. No connector.Build, ValidatePlan or Record for draft output; this slice does not produce any recording. No optional scope wiring in the first slice, avoiding a second unreviewed identity transition. Native rejected/blocked results never become an accepted proof.
 5. Emit the retained BLOCKED report and deliberately CLI exit2 even if construction succeeded. Existing CLI success fallthrough cannot apply to this profile. Legacy /0 exits remain unchanged.
+
+### Delta slice (2026-10-04)
+
+#389 landed `corvint delta` (`internal/delta`). This experimental slice replaces native step 4:
+
+1. After intake is observed, retain `delta-input.json`: the product `root` plus the exact `delta.Options` value passed to Compile, encoded from that same value. Base and head are the admitted product base and merge. Build is the operator-pinned implementation source commit; it is a label, not a source-build attestation. Previous generation and work-key pattern are empty; providers and checkouts are absent (encoded as null). No fixture, expectation or label selects any option.
+2. Call actual `delta.Compile(ctx, productRoot, options)`. A native refusal, cancellation, a record whose base/head/tree differs from the admitted binding (`delta-binding-mismatch`), or a canonical-encoding failure blocks delta with `native-delta-failed` (or `runtime-cancelled`). The original error is retained privately in `delta-error.txt`, and `delta-input.json` stays referenced. Every later stage is NOT_RUN/dependency-delta-blocked. The binding-mismatch check is defensive: Compile resolves the admitted pinned commits, so no fixture reaches it and it has no test.
+3. On success, retain the exact canonical record bytes as `delta-output.json`. Delta becomes observed with native_profile `corvint-delta/0`. Its unknowns, incomplete selections and full-suite obligations remain exactly as compiled. No decision value, including `no-op`, replaces a dependent stage observation.
+4. Follow-up is BLOCKED with `follow-up-not-integrated`, and every later stage is NOT_RUN/prior-stage-blocked. No author, scope, validation, draft, connector Build/ValidatePlan/Record, metrics or republish call is reachable. The report stays BLOCKED with CLI exit 2.
+
+Two runs over the same admitted inputs retain byte-identical delta input and output records. This is native conformance on a disposable fixture, not historical, provider or host qualification.
 
 ## Acceptance and traceability
 
@@ -79,13 +90,13 @@ First slice tests: unchanged /0; strict closed admission/pins/path/tree; actual 
 | First-slice requirements | Executable evidence | Retained limitation |
 |---|---|---|
 | PMR-V1-001 | `TestNativeAdmissionFailures`, `TestNativeStrictInputsAndRetention`, `TestNativeAdmissionDoesNotEchoInvalidIdentity`, `TestNativeFilesystemAliasAdmission`, `TestNativeRequiredNestedAdmission` | Source IDs are operator provenance; no source-build attestation |
-| PMR-V1-002 | `TestNativeActualIntakeThenDeltaRefusal`, `TestNativeIntakeRejectsInvalidCandidate` | No raw reader or actual delta execution |
+| PMR-V1-002 | `TestNativeActualIntakeDeltaThenFollowUpRefusal`, `TestNativeDeltaRepeatsExactly`, `TestNativeDeltaRefusalBlocksDependents`, `TestNativeIntakeRejectsInvalidCandidate` | No raw reader; delta runs without providers, baseline or work keys |
 | PMR-V1-003, PMR-V1-004 | `TestNativeAdmissionFailures` | Author/scope/test/proof stages not executed |
-| PMR-V1-005, PMR-V1-006 | `TestNativeActualIntakeThenDeltaRefusal` | Recording/projection not executed; no positive equivalence evidence |
-| PMR-V1-007 | `TestNativeActualIntakeThenDeltaRefusal`, `TestNativeCLIExitTwo` | Comparison NOT_RUN; mismatch arrays uncomputed |
-| PMR-V1-008 | `TestNativeActualIntakeThenDeltaRefusal` | Metrics/approved-republish not executed |
+| PMR-V1-005, PMR-V1-006 | `TestNativeActualIntakeDeltaThenFollowUpRefusal`, `TestNativeDeltaRepeatsExactly` | Recording/projection not executed; no positive equivalence evidence |
+| PMR-V1-007 | `TestNativeActualIntakeDeltaThenFollowUpRefusal`, `TestNativeCLIExitTwo` | Comparison NOT_RUN; mismatch arrays uncomputed |
+| PMR-V1-008 | `TestNativeActualIntakeDeltaThenFollowUpRefusal` | Metrics/approved-republish not executed |
 | PMR-V1-009 | `TestNativeCLIExitTwo`, `TestNativeAdmissionFailures` | Synthetic candidate conformance; operational qualification unavailable |
-| PMR-V1-010 | `TestNativeIntakeRejectsInvalidCandidate`, `TestNativeStrictInputsAndRetention`, `TestNativeRetentionRejectsChangedEvidence`, `TestNonregularInputDoesNotBlock` | No adversarial concurrent-host or whole-workflow qualification |
+| PMR-V1-010 | `TestNativeDeltaRefusalBlocksDependents`, `TestNativeIntakeRejectsInvalidCandidate`, `TestNativeStrictInputsAndRetention`, `TestNativeRetentionRejectsChangedEvidence`, `TestNonregularInputDoesNotBlock` | No adversarial concurrent-host or whole-workflow qualification |
 
 ### Fixed refusal reasons
 
@@ -97,8 +108,8 @@ The native route owns these fixed report reasons: `runtime-cancelled`, `runtime-
 `executable-pin-mismatch`, `runtime-candidate-invalid`, `runtime-candidate-pin-mismatch`,
 `product-root-invalid`, `runtime-product-pin-invalid`, `runtime-output-invalid`,
 `runtime-retention-failed`, `native-connector-failed`, `native-intake-failed`,
-`actual-delta-unavailable`, `host-trigger-not-executed`, `prior-stage-blocked`, and
-`dependency-delta-blocked`. `delta-not-integrated` is reserved for an explicitly reviewed future
+`actual-delta-unavailable` (first-slice builds only), `native-delta-failed`, `follow-up-not-integrated`,
+`host-trigger-not-executed`, `prior-stage-blocked`, and `dependency-delta-blocked`. `delta-not-integrated` is reserved for an explicitly reviewed future
 source capability change, not dynamically selected by this build.
 
 Invalid identity strings remain private inputs: assign report binding only after bounded ID/OID and
@@ -108,12 +119,12 @@ are never echoed in refusal JSON.
 Before emitting any blocked report, recheck retained directory identity and every original saved
 file's size/hash. Changed retained evidence invalidates affected observed claims and produces
 `runtime-retention-failed`. Available original native error text is privately retained in
-`connector-intake-error.txt` or `intake-error.txt`; it is not a successful native output or a stdout
+`connector-intake-error.txt`, `intake-error.txt` or `delta-error.txt`; it is not a successful native output or a stdout
 reason. Files left by a failed write remain private failure evidence and never gain an artifact
 reference. On admission failure before a private output root exists, only the fixed public reason
 is retained by the report. No success, comparison or qualification follows from these refusals.
 
-Whole-issue acceptance still needs real complete stages, authored docs/tests and findings, exact draft/proof/writer-visible URL joins, qualified #394 raw graph/map, actual #389 delta, metrics and applicable #397/#399 approval route, two fresh complete historical runs with identical canonical recording and per-run Record idempotence, plus actual #398 local/CI boundary evidence. It is not closed by zero-work/deferred/refusal reports.
+Whole-issue acceptance still needs real complete stages, authored docs/tests and findings, exact draft/proof/writer-visible URL joins, qualified #394 raw graph/map, provider-backed #389 delta (the provider-free native delta stage now exists), metrics and applicable #397/#399 approval route, two fresh complete historical runs with identical canonical recording and per-run Record idempotence, plus actual #398 local/CI boundary evidence. It is not closed by zero-work/deferred/refusal reports.
 
 ## Non-goals and rollback
 

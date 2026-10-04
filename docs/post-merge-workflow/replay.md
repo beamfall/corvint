@@ -77,8 +77,11 @@ execution, host isolation or semantic correctness. Expected labels are never aut
 only generated labels are admitted. `operational` mode and human-verified labels refuse.
 
 Every `/1` run reports `BLOCKED` and exits 2. Successful connector/intake observations are followed
-by `delta` blocked with `actual-delta-unavailable`, bound to this source slice. Subsequent author,
-scope, test, draft, findings, metrics, approved-republish and recording stages are not run. The
+by actual `delta.Compile` between the admitted base and merge, with no providers, documentation
+baseline or work-key pattern. Its exact request and canonical `corvint-delta/0` record are retained
+privately, unknowns included. A delta refusal blocks with `native-delta-failed`. After an observed
+delta, `follow-up` blocks with `follow-up-not-integrated`. Subsequent author, scope, test, draft,
+findings, metrics, approved-republish and recording stages are not run. The
 report contains exact private artifact path/hash/byte references, `comparison_status: NOT_RUN`,
 empty uncomputed mismatch arrays and `workflow_qualification: NOT_OBSERVED`. Original native
 errors stay in private retained files; stdout contains fixed reasons. No draft, ledger recording,
