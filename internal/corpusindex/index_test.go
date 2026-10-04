@@ -123,6 +123,34 @@ func TestIndexedCorpusReproductionAndProvenance(t *testing.T) {
 		if _, e = Open(context.Background(), fake, pinned); e == nil {
 			t.Fatal("self-consistent forged provenance bypassed operator pin")
 		}
+		t.Run("DCP-V1-040 altered posting alone reaches rederivation guard", func(t *testing.T) {
+			copy := *r.artifact
+			index := *copy.Index
+			index.Paths = make(map[string][]doccorpus.RecordRef, len(copy.Index.Paths))
+			for path, refs := range copy.Index.Paths {
+				index.Paths[path] = append([]doccorpus.RecordRef{}, refs...)
+			}
+			copy.Index = &index
+			unchanged, err := Encode(copy)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Open(context.Background(), unchanged, doccorpus.Digest(unchanged)); err != nil {
+				t.Fatal("unchanged copied postings refused", err)
+			}
+			if len(index.Paths["F00000"]) == 0 {
+				t.Fatal("symbol posting control missing")
+			}
+			index.Paths["F00000"] = []doccorpus.RecordRef{}
+			altered, err := Encode(copy)
+			if err != nil || bytes.Equal(altered, unchanged) {
+				t.Fatal("posting control did not change canonical bytes", err)
+			}
+			_, err = Open(context.Background(), altered, doccorpus.Digest(altered))
+			if err == nil || err.Error() != "indexed offsets or postings differ from corpus" {
+				t.Fatal("posting-only control missed rederivation guard", err)
+			}
+		})
 		tampered := *r.artifact
 		idx := *tampered.Index
 		idx.IDs = map[string]doccorpus.RecordRef{}
@@ -507,6 +535,44 @@ func TestIndexedCorpusByteAdmissionBounds(t *testing.T) {
 		}
 		if _, err := ReadFile(path, MaxBytes); err == nil || err.Error() != "unsafe or oversized input" {
 			t.Fatal("oversized file did not reach byte guard", err)
+		}
+	})
+}
+
+func TestIndexedVerifiedCorpusIsolation(t *testing.T) {
+	t.Run("DCP-V1-040 RCP-V0-007 source-validated token and unchanged ordinary cold oracle", func(t *testing.T) {
+		ctx := context.Background()
+		root, corpus := fixture(t, 8, 3)
+		verified, err := doccorpus.OpenVerified(ctx, root, corpus)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cold, err := Build(ctx, root, corpus)
+		if err != nil {
+			t.Fatal(err)
+		}
+		actual, err := BuildVerified(ctx, verified)
+		if err != nil || !bytes.Equal(actual, cold) {
+			t.Fatal("verified index differs from cold source oracle", err)
+		}
+		if _, err := BuildVerified(ctx, doccorpus.VerifiedCorpus{}); err == nil {
+			t.Fatal("zero token admitted")
+		}
+		snapshot, _ := verified.Snapshot()
+		snapshot.Subjects[0].Name = "caller supplied fake corpus"
+		copy, _ := verified.Bytes()
+		copy[0] = '['
+		after, err := BuildVerified(ctx, verified)
+		if err != nil || !bytes.Equal(after, actual) {
+			t.Fatal("caller mutated indexed token", err)
+		}
+		reader, err := Open(ctx, actual, doccorpus.Digest(actual))
+		if err != nil {
+			t.Fatal(err)
+		}
+		receipt, err := reader.Query(ctx, doccorpus.Request{Operation: "inventory", Limit: 1})
+		if err != nil || receipt.Envelope == nil || receipt.Envelope.SourceValidation != "index-digest-validated; source-revalidation-unavailable" {
+			t.Fatal("consumer trust upgraded", err)
 		}
 	})
 }

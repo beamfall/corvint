@@ -480,6 +480,25 @@ func TestGraphDigestIsTheDomainTaggedProjection_V1_0299(t *testing.T) {
 			t.Fatalf("projection lacks %s: %s", member, body)
 		}
 	}
+	if strings.Contains(string(body), `"readScope`) {
+		t.Fatalf("an undeclared graph projects a read scope: %s", body)
+	}
+	scoped := chain()
+	scoped.units[3].ReadScoped = true
+	scoped.units[3].ReadScope = []string{"docs/"}
+	declared, err := Build(t.TempDir(), scoped)
+	if err != nil {
+		t.Fatal(err)
+	}
+	declaredBody, err := declared.Canonical()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, member := range []string{`"readScoped":true`, `"readScope":["docs/"]`} {
+		if !strings.Contains(string(declaredBody), member) {
+			t.Fatalf("declared projection lacks %s: %s", member, declaredBody)
+		}
+	}
 	unitFields := reflect.VisibleFields(reflect.TypeFor[Unit]())
 	projectedFields := reflect.VisibleFields(reflect.TypeFor[digestUnit]())
 	if len(unitFields) != len(projectedFields) {

@@ -2,6 +2,7 @@ package doccorpus
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -34,100 +35,16 @@ func (c *compiler) importRecords(p Provider) error {
 	return nil
 }
 func (c *compiler) importRecord(p Provider) error {
-	_, ok := c.sources[inputKey(p.Revision, p.Record)]
-	if !ok {
-		return &Error{Code: "corpus-provider-unavailable", Message: "declared provider record missing"}
-	}
-	declared := false
-	for _, in := range c.manifest.Inputs {
-		if in.Provider == p.ID && in.Purpose == "provider" && in.Path == p.Record && in.Revision == p.Revision {
-			declared = true
-		}
-	}
-	if !declared {
-		return fail("provider input purpose mismatch")
-	}
-	record, ok := c.providerRecords[p.ID+":"+inputKey(p.Revision, p.Record)]
-	if !ok {
-		return fail("provider was not preloaded")
+	record, err := c.normalizedRecord(p)
+	if err != nil {
+		return err
 	}
 	if record.Schema == BehaviorProviderSchemaV2 {
-		if record.ID != p.ID || record.Version != p.Version || record.Source != c.manifest.Repository {
-			return fail("provider revision, version or repository mismatch")
-		}
 		return c.importBehaviorV2(record)
-	}
-	validSchema := record.Schema == AdoptionProviderSchema && c.manifest.Schema == ManifestSchemaV2 && record.BehaviorContracts == nil || record.Schema == ProviderSchema && record.BehaviorContracts == nil || record.Schema == BehaviorProviderSchema && record.BehaviorContracts != nil && record.BehaviorContracts.Stability == nil || record.Schema == BehaviorStabilityProviderSchema && record.BehaviorContracts != nil && record.BehaviorContracts.Stability != nil
-	if !validSchema || record.ID != p.ID || record.Version != p.Version || record.Source != c.manifest.Repository {
-		return fail("provider revision, version or repository mismatch")
-	}
-	limit, journeys := MaxRecords, 128
-	if record.Schema == AdoptionProviderSchema {
-		limit, journeys = MaxCorpusRecords, MaxCorpusJourneys
-	}
-	if len(record.Subjects) > limit || len(record.Claims) > limit || len(record.Relations) > limit || len(record.Observations) > MaxRecords || len(record.Journeys) > journeys {
-		return fail("provider record bound exceeded")
-	}
-	if len(record.Subjects) > c.manifest.recordLimit()-len(c.artifact.Subjects) || len(record.Claims) > c.manifest.recordLimit()-len(c.artifact.Claims) || len(record.Relations) > c.manifest.recordLimit()-len(c.artifact.Relations) || len(record.Journeys) > c.manifest.journeyLimit()-len(c.artifact.Journeys) || len(record.Observations) > MaxRecords-len(c.artifact.Observations) {
-		return fail("aggregate corpus record bound exceeded")
 	}
 	if record.Schema == AdoptionProviderSchema {
 		if err := c.importAdoption(record); err != nil {
 			return err
-		}
-	}
-	declaredCaps := map[string]bool{}
-	for _, cap := range record.Capabilities {
-		if !words(strings.Join(capabilityNames, " "))[cap.Name] || declaredCaps[cap.Name] || !words("present absent unsupported not-collected")[cap.State] || !textOK(cap.Reason) {
-			return fail("invalid or duplicate capability declaration")
-		}
-		declaredCaps[cap.Name] = true
-	}
-	counts := map[string]int{"subjects": len(record.Subjects), "claims": len(record.Claims), "relations": len(record.Relations), "journeys": len(record.Journeys), "observations": len(record.Observations)}
-	for name, count := range counts {
-		if count == 0 {
-			continue
-		}
-		present := false
-		for _, cap := range record.Capabilities {
-			if cap.Name == name && cap.State == "present" {
-				present = true
-			}
-		}
-		if !present {
-			return fail("provider records lack a present capability declaration")
-		}
-	}
-	for i := range record.Subjects {
-		if err := c.importEvidence(p.ID, record.Subjects[i].ID, record.Subjects[i].Provider, &record.Subjects[i].Evidence); err != nil {
-			return err
-		}
-	}
-	for i := range record.Claims {
-		if err := c.importEvidence(p.ID, record.Claims[i].ID, record.Claims[i].Provider, &record.Claims[i].Evidence); err != nil {
-			return err
-		}
-	}
-	for i := range record.Relations {
-		if err := c.importEvidence(p.ID, record.Relations[i].ID, record.Relations[i].Provider, &record.Relations[i].Evidence); err != nil {
-			return err
-		}
-	}
-	for i := range record.Journeys {
-		j := &record.Journeys[i]
-		if err := c.importEvidence(p.ID, j.ID, j.Provider, &j.Evidence); err != nil {
-			return err
-		}
-		if len(j.Steps) > 128 {
-			return fail("journey step bound exceeded")
-		}
-		if j.Status == "verified" {
-			return fail("provider cannot self-declare a verified journey")
-		}
-		for n := range j.Steps {
-			if err := c.checkEvidence(&j.Steps[n].Evidence, true); err != nil {
-				return err
-			}
 		}
 	}
 	c.artifact.Subjects = append(c.artifact.Subjects, record.Subjects...)
@@ -149,6 +66,119 @@ func (c *compiler) importRecord(p Provider) error {
 		return c.importBehavior(p, record.BehaviorContracts)
 	}
 	return nil
+}
+
+// normalizedRecord applies every source admission predicate without materializing
+// a shard contribution. Warm reuse must compare these complete source-bound values.
+func (c *compiler) normalizedRecord(p Provider) (ProviderRecord, error) {
+	_, ok := c.sources[inputKey(p.Revision, p.Record)]
+	if !ok {
+		return ProviderRecord{}, &Error{Code: "corpus-provider-unavailable", Message: "declared provider record missing"}
+	}
+	declared := false
+	for _, in := range c.manifest.Inputs {
+		if in.Provider == p.ID && in.Purpose == "provider" && in.Path == p.Record && in.Revision == p.Revision {
+			declared = true
+		}
+	}
+	if !declared {
+		return ProviderRecord{}, fail("provider input purpose mismatch")
+	}
+	record, ok := c.providerRecords[p.ID+":"+inputKey(p.Revision, p.Record)]
+	if !ok {
+		return ProviderRecord{}, fail("provider was not preloaded")
+	}
+	if record.Schema == BehaviorProviderSchemaV2 {
+		if record.ID != p.ID || record.Version != p.Version || record.Source != c.manifest.Repository {
+			return ProviderRecord{}, fail("provider revision, version or repository mismatch")
+		}
+		return record, nil
+	}
+	validSchema := record.Schema == AdoptionProviderSchema && c.manifest.Schema == ManifestSchemaV2 && record.BehaviorContracts == nil || record.Schema == ProviderSchema && record.BehaviorContracts == nil || record.Schema == BehaviorProviderSchema && record.BehaviorContracts != nil && record.BehaviorContracts.Stability == nil || record.Schema == BehaviorStabilityProviderSchema && record.BehaviorContracts != nil && record.BehaviorContracts.Stability != nil
+	if !validSchema || record.ID != p.ID || record.Version != p.Version || record.Source != c.manifest.Repository {
+		return ProviderRecord{}, fail("provider revision, version or repository mismatch")
+	}
+	limit, journeys := MaxRecords, 128
+	if record.Schema == AdoptionProviderSchema {
+		limit, journeys = MaxCorpusRecords, MaxCorpusJourneys
+	}
+	if len(record.Subjects) > limit || len(record.Claims) > limit || len(record.Relations) > limit || len(record.Observations) > MaxRecords || len(record.Journeys) > journeys {
+		return ProviderRecord{}, fail("provider record bound exceeded")
+	}
+	if len(record.Subjects) > c.manifest.recordLimit()-len(c.artifact.Subjects) || len(record.Claims) > c.manifest.recordLimit()-len(c.artifact.Claims) || len(record.Relations) > c.manifest.recordLimit()-len(c.artifact.Relations) || len(record.Journeys) > c.manifest.journeyLimit()-len(c.artifact.Journeys) || len(record.Observations) > MaxRecords-len(c.artifact.Observations) {
+		return ProviderRecord{}, fail("aggregate corpus record bound exceeded")
+	}
+	if record.Schema == AdoptionProviderSchema {
+		if err := c.validateAdoption(record); err != nil {
+			return ProviderRecord{}, err
+		}
+	}
+	// Normalize a private copy so cached/source records never share mutable evidence.
+	record.Subjects = slices.Clone(record.Subjects)
+	record.Claims = slices.Clone(record.Claims)
+	record.Relations = slices.Clone(record.Relations)
+	record.Journeys = slices.Clone(record.Journeys)
+	declaredCaps := map[string]bool{}
+	for _, cap := range record.Capabilities {
+		if !words(strings.Join(capabilityNames, " "))[cap.Name] || declaredCaps[cap.Name] || !words("present absent unsupported not-collected")[cap.State] || !textOK(cap.Reason) {
+			return ProviderRecord{}, fail("invalid or duplicate capability declaration")
+		}
+		declaredCaps[cap.Name] = true
+	}
+	counts := map[string]int{"subjects": len(record.Subjects), "claims": len(record.Claims), "relations": len(record.Relations), "journeys": len(record.Journeys), "observations": len(record.Observations)}
+	for name, count := range counts {
+		if count == 0 {
+			continue
+		}
+		present := false
+		for _, cap := range record.Capabilities {
+			if cap.Name == name && cap.State == "present" {
+				present = true
+			}
+		}
+		if !present {
+			return ProviderRecord{}, fail("provider records lack a present capability declaration")
+		}
+	}
+	for i := range record.Subjects {
+		record.Subjects[i].Evidence.Limitations = slices.Clone(record.Subjects[i].Evidence.Limitations)
+		if err := c.importEvidence(p.ID, record.Subjects[i].ID, record.Subjects[i].Provider, &record.Subjects[i].Evidence); err != nil {
+			return ProviderRecord{}, err
+		}
+	}
+	for i := range record.Claims {
+		record.Claims[i].Evidence.Limitations = slices.Clone(record.Claims[i].Evidence.Limitations)
+		if err := c.importEvidence(p.ID, record.Claims[i].ID, record.Claims[i].Provider, &record.Claims[i].Evidence); err != nil {
+			return ProviderRecord{}, err
+		}
+	}
+	for i := range record.Relations {
+		record.Relations[i].Evidence.Limitations = slices.Clone(record.Relations[i].Evidence.Limitations)
+		if err := c.importEvidence(p.ID, record.Relations[i].ID, record.Relations[i].Provider, &record.Relations[i].Evidence); err != nil {
+			return ProviderRecord{}, err
+		}
+	}
+	for i := range record.Journeys {
+		j := &record.Journeys[i]
+		j.Evidence.Limitations = slices.Clone(j.Evidence.Limitations)
+		j.Steps = slices.Clone(j.Steps)
+		if err := c.importEvidence(p.ID, j.ID, j.Provider, &j.Evidence); err != nil {
+			return ProviderRecord{}, err
+		}
+		if len(j.Steps) > 128 {
+			return ProviderRecord{}, fail("journey step bound exceeded")
+		}
+		if j.Status == "verified" {
+			return ProviderRecord{}, fail("provider cannot self-declare a verified journey")
+		}
+		for n := range j.Steps {
+			j.Steps[n].Evidence.Limitations = slices.Clone(j.Steps[n].Evidence.Limitations)
+			if err := c.checkEvidence(&j.Steps[n].Evidence, true); err != nil {
+				return ProviderRecord{}, err
+			}
+		}
+	}
+	return record, nil
 }
 func (c *compiler) importEvidence(provider, id, owner string, e *Evidence) error {
 	if owner != provider || !strings.HasPrefix(id, provider+":") {

@@ -41,7 +41,9 @@ type digestBody struct {
 	Units     []digestUnit `json:"units"`
 }
 
-// digestUnit projects one Unit; every member is always present.
+// digestUnit projects one Unit; every member is always present except the
+// declared read scope, which appears only for a declared unit so that graphs
+// without a declaration keep their digest.
 type digestUnit struct {
 	ID                string   `json:"id"`
 	Sources           []string `json:"sources"`
@@ -53,6 +55,8 @@ type digestUnit struct {
 	Embeds            bool     `json:"embeds"`
 	UnboundedReads    string   `json:"unboundedReads"`
 	LocatesRoot       bool     `json:"locatesRoot"`
+	ReadScoped        bool     `json:"readScoped,omitzero"`
+	ReadScope         []string `json:"readScope,omitempty"`
 	Frontier          []string `json:"frontier"`
 }
 
@@ -151,7 +155,8 @@ func (graph *Graph) finish() {
 // unboundedReaders lists, in id order, every unit whose reads no literal
 // bounds (AFP-V0-012 rule (d)): its own UnboundedReads, or a dependency whose
 // non-test code locates the root and so reads from it when this unit's code
-// or tests call it.
+// or tests call it. A unit whose reads are declared is left out, whatever the
+// cause (AFP-V0-023): its declared scope bounds the whole test process.
 func (graph *Graph) unboundedReaders() []string {
 	locators := make(map[string]Witness)
 	own := make([]string, 0)
@@ -171,7 +176,9 @@ func (graph *Graph) unboundedReaders() []string {
 	}
 	ids := make([]string, 0, len(reached))
 	for id := range reached {
-		ids = append(ids, id)
+		if !graph.units[id].ReadScoped {
+			ids = append(ids, id)
+		}
 	}
 	sort.Strings(ids)
 	return ids
@@ -277,6 +284,8 @@ func projectUnit(unit Unit) digestUnit {
 		Embeds:            unit.Embeds,
 		UnboundedReads:    unit.UnboundedReads,
 		LocatesRoot:       unit.LocatesRoot,
+		ReadScoped:        unit.ReadScoped,
+		ReadScope:         unit.ReadScope,
 		Frontier:          unit.Frontier,
 	}
 }

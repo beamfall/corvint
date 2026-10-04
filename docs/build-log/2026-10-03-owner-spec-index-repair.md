@@ -1,0 +1,9 @@
+# Owner extraction spec-index metadata repair
+
+PR496's completed shard2 run failed `internal/specindex.TestIndexCoversSpecsAndHeaders` on the extracted Owner spec. The retained raw log has SHA256 `4d46b0f246df1746fbc9f3fc771219bc2300a1813c78c9df3d49ae4f32fc71a1`. Its diagnostics identify inconsistent delivery/README metadata and an unread digest: the blank after `## Agent digest` made the parser observe no fields.
+
+The bounded repair uses the existing proposed intent and experimental delivery consistently, supplies the five required contiguous digest fields, and prefixes the README row with the existing Claim. Requirement line positions, INDEX/REQUIREMENTS bytes, and all six reviewed Owner source files are preserved. No new acceptance, runtime behavior or broader qualification is claimed.
+
+Repair verification: the improved `make spec-requirements-check` first failed on all six original metadata diagnostics, then passed after the repair (specindex package 0.257s). A separate explicit JSON run passed `TestIndexCoversSpecsAndHeaders` (0.01s). Both used the declared private cache and joined owned groups with no observed survivors. The original four bound checks and normal CEM/report/check/seal continuation remain pending at this source snapshot. The prior CI failure remains retained. Hosted Linux amd64 and the full V1-0668 criteria remain separate obligations; a metadata repair does not satisfy them.
+
+The preventive repair adds the existing `$(GO_TEST_COMMAND) ./internal/specindex` to `spec-requirements-check`, preserving its requirement comparison and the canonical timeout/cache flags. The focused-docs route removes the redundant separate invocation. This addresses existing V1-0515; no new checker or CI workflow is introduced. The negative and positive Make-target witnesses were actually observed as described above; no empty selector or fixture failure substituted for the real metadata path.

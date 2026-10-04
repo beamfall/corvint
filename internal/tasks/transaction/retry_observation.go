@@ -58,5 +58,18 @@ func RetryObservation(attempts map[string]*snapshot.Attempt, rec *ticket.Record,
 	if reasons["UNKNOWN"].Int() > 0 {
 		history = "INCOMPLETE"
 	}
-	return wire.ObjectValue(wire.NewObject().Set("charged", wire.String(string(wire.CountOf(charged)))).Set("limit", wire.String(string(wire.CountOf(limit)))).Set("remaining", wire.String(string(wire.CountOf(remaining)))).Set("exhausted", wire.Bool(retryExhausted(attempts, rec, limit))).Set("byReason", snapshot.RetryReasonsValue(reasons)).Set("reasonHistory", wire.String(history)))
+	reason := "RETRY_AVAILABLE"
+	switch {
+	case a == nil:
+		reason = "INITIAL_ADMISSION"
+	case a.TicketRevision != rec.AcceptanceRevision:
+		reason = "NEW_ACCEPTANCE"
+	case a.Phase == "COMPLETED":
+		reason = "COMPLETED_ATTEMPT"
+	case cleanHandoff(a):
+		reason = "VERIFIED_HANDOFF"
+	case retryExhausted(attempts, rec, limit):
+		reason = "RETRY_EXHAUSTED"
+	}
+	return wire.ObjectValue(wire.NewObject().Set("remainingMeaning", wire.String("RETRY_CAPACITY")).Set("retryAdmissionReason", wire.String(reason)).Set("charged", wire.String(string(wire.CountOf(charged)))).Set("limit", wire.String(string(wire.CountOf(limit)))).Set("remaining", wire.String(string(wire.CountOf(remaining)))).Set("exhausted", wire.Bool(retryExhausted(attempts, rec, limit))).Set("byReason", snapshot.RetryReasonsValue(reasons)).Set("reasonHistory", wire.String(history)))
 }

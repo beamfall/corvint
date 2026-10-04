@@ -1,0 +1,100 @@
+{
+  "baseRevision": "94a78df0ccd88ceac499d3d37ab2923d78fecd24",
+  "evidence": [
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:0f36f5f78ab68015f337336033897f6c4db05724f5e13ec202c39d8e5a7db0f2",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 5438,
+        "start": 5176
+      },
+      "spanSha256": "0294635150b1c444569f5d317846f8403e01f3a644c3fe0dda1dc90ca3520eac"
+    },
+    {
+      "blobOid": "b0f44d656c067226550686cbd428b0b5489d3b5f",
+      "id": "evidence:sha256:eaa7d87a70d917d65e18787c234bb44d4f13b78669b00a2796cd386a9a985275",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 5175,
+        "start": 4394
+      },
+      "spanSha256": "a3f922c2750b9f59a1ffd2953276640c3a9346add6290f70eb30af2d2cb822f2"
+    },
+    {
+      "blobOid": "920a953643392586fa346d61b7f183124fc1f6d0",
+      "id": "evidence:sha256:42d8b45e49d0ac517cbf4aabc75481d4f19f108e6977888b8b8dfc17349e4fab",
+      "path": "docs/DOGFOOD.md",
+      "span": {
+        "end": 25479,
+        "start": 24847
+      },
+      "spanSha256": "2b11d9b7b7b1e4441f76a6962c6a9990247daada37ff0e346316b13424c759c2"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0f36f5f78ab68015f337336033897f6c4db05724f5e13ec202c39d8e5a7db0f2",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3dd22c151223f0913fb284271e7ab595040ea759f1dc920503cf4db9162a26fc",
+      "newRange": {
+        "count": 7,
+        "start": 308
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 308
+      },
+      "path": ".github/workflows/ci.yml",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:eaa7d87a70d917d65e18787c234bb44d4f13b78669b00a2796cd386a9a985275",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:75bef77c0a34e29dfd0ae5d3dc123684000c6fdd99d1dca02e7a5273048a18e2",
+      "newRange": {
+        "count": 34,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-02-cem-interop-ci-floor.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:42d8b45e49d0ac517cbf4aabc75481d4f19f108e6977888b8b8dfc17349e4fab",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a738726efe54fa1edc5452ee430245fcbbd665ca47103f18c97dc6eedfce87df",
+      "newRange": {
+        "count": 9,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-02-pr483-current-main-integration.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "539f32e57ff1edb60bce2bff1006f0605307258a5da9b568358a20c80b2fb821",
+  "spec": "cem/0.2"
+}

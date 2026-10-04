@@ -11,6 +11,79 @@ import (
 	"testing"
 )
 
+// Pure predicates consume hypothetical observations; actual provenance is
+// established by the full-audit store regressions, not these supplied values.
+func TestCALV0044_HistoryBindingRefusesMissingOrMismatchedEvidence(t *testing.T) {
+	for _, name := range []string{"ok", "missing", "interval", "head", "receipt", "generation", "policy-path", "policy-body-digest", "original-zero", "original-malformed", "first-malformed", "first-before-policy", "first-future", "first-path", "first-policy", "first-config", "first-capability", "missing-receipt", "allocation", "current-relevant"} {
+		t.Run(name, func(t *testing.T) {
+			rec := fixture.Ticket("AT-01")
+			q, _ := wire.ParseQueueID("", rec.TicketID.QueueID())
+			tickets, _ := ticket.NewInventory(q, []*ticket.Record{rec})
+			original := fixture.PolicyBytes()
+			v, _ := wire.Parse(original)
+			v.Obj.Set("policyVersion", wire.String("2"))
+			if name == "current-relevant" {
+				v.Obj.Set("cemRequired", wire.Bool(true))
+			}
+			current, err := intent.DecodePolicy(wire.EncodeFile(v))
+			if err != nil {
+				t.Fatal(err)
+			}
+			head, receipt := []byte("hypothetical head"), []byte("hypothetical receipt")
+			a := &snapshot.Attempt{AttemptID: "attempt:acme:main:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Generation: "1", TicketID: rec.TicketID, TicketRevision: rec.AcceptanceRevision, PolicySha256: wire.Sum(original), ConfigSha256: wire.Sum(original), CapabilityProfileSha256: wire.Sum(original), RuntimeID: snapshot.RuntimeExternalAgent, Stage: "review", Phase: "RUNNING", ScopeCheck: "UNKNOWN", RetryAccounting: &snapshot.RetryAccounting{Disposition: "NONE"}}
+			h := &HandoffPolicyObservation{AttemptID: a.AttemptID, Generation: "1", LastSeq: "5", HeadSha256: wire.Sum(head), LastReceiptSha256: wire.Sum(receipt), FinalPolicySha256: wire.Sum(current.Raw), OriginalPath: "intent/policy.json", OriginalSeq: "1", OriginalSha256: wire.Sum(original), OriginalRaw: original, OriginalReceiptSha256: wire.Sum([]byte("original receipt")), FirstAttemptPath: attemptPath(a.AttemptID), FirstAttemptSeq: "2", FirstAttemptSha256: wire.Sum([]byte("first afterimage")), FirstAttemptReceiptSha256: wire.Sum([]byte("first receipt")), FirstPolicySha256: a.PolicySha256, FirstConfigSha256: a.ConfigSha256, FirstCapabilitySha256: a.CapabilityProfileSha256, FirstAllocationSha256: wire.Sum(wire.EncodeFile(wire.Null())), Compatible: true}
+			switch name {
+			case "missing":
+				h = nil
+			case "interval":
+				h.Compatible = false
+			case "head":
+				h.HeadSha256 = wire.Sum(nil)
+			case "receipt":
+				h.LastReceiptSha256 = wire.Sum(nil)
+			case "generation":
+				h.Generation = "2"
+			case "policy-path":
+				h.OriginalPath = "intent/queue.json"
+			case "policy-body-digest":
+				p, _ := intent.DecodePolicy(original)
+				h.OriginalSha256 = p.PolicySha256()
+			case "original-zero":
+				h.OriginalSeq = "0"
+			case "original-malformed":
+				h.OriginalSeq = "01"
+			case "first-malformed":
+				h.FirstAttemptSeq = "02"
+			case "first-before-policy":
+				h.FirstAttemptSeq = "1"
+			case "first-future":
+				h.FirstAttemptSeq = "6"
+			case "first-path":
+				h.FirstAttemptPath = attemptPath("other")
+			case "first-policy":
+				h.FirstPolicySha256 = wire.Sum(nil)
+			case "first-config":
+				h.FirstConfigSha256 = wire.Sum(nil)
+			case "first-capability":
+				h.FirstCapabilitySha256 = wire.Sum(nil)
+			case "missing-receipt":
+				h.OriginalReceiptSha256 = ""
+			case "allocation":
+				h.FirstAllocationSha256 = wire.Sum(nil)
+			}
+			c := leaseContext{st: inputState{tickets: tickets, policy: current, head: &snapshot.Head{LastSeq: "5"}}, in: Input{Head: head, HeadReceipt: receipt, HandoffPolicy: h}, l: &LeaseRequest{Reason: wire.CodeHandoff, Evidence: "local:external"}}
+			got := c.verifyHandoff(a)
+			if name == "ok" {
+				if got != nil {
+					t.Fatalf("valid bound projection refused: %+v", got)
+				}
+			} else if got == nil || !got.result.Outcome.HasCode(wire.CodeStalePolicy) {
+				t.Fatalf("unbound history gained a clean handoff: %+v", got)
+			}
+		})
+	}
+}
+
 func TestCALV0046_ReleasePreimageCompatibility(t *testing.T) {
 	q, _ := wire.ParseQueueID("", fixture.QueueID)
 	l := LeaseRequest{Verb: LeaseRelease, AttemptID: "attempt:acme:main:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Generation: "1", Reason: wire.CodeHandoff}

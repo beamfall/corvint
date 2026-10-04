@@ -402,7 +402,7 @@ func TestGoTestKeysResolvedPackagesPerPackage(t *testing.T) {
 		"reader/reader_test.go": "package reader\n\nvar guide = \"docs/guide.md\"\n",
 		"docs/guide.md":         "guide\n",
 	}
-	for _, name := range []string{"main.go", "readers.go"} {
+	for _, name := range []string{"main.go", "readers.go", "readscopes.go"} {
 		data, err := os.ReadFile(filepath.Join("..", "gate-affected-select", name))
 		if err != nil {
 			t.Fatal(err)

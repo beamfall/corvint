@@ -96,52 +96,11 @@ func (c *compiler) importAdoption(p ProviderRecord) error {
 		c.adoptionProviders = map[string]bool{}
 	}
 	c.adoptionProviders[p.ID] = true
-	kinds := map[string]string{}
-	relations := map[string]Relation{}
-	for _, s := range p.Subjects {
-		if s.Kind == "finding" {
-			return fail("restricted findings require their separate local-only family")
-		}
-		kinds[s.ID] = s.Kind
-	}
-	for _, claim := range p.Claims {
-		kinds[claim.ID] = "claim"
-	}
-	for _, rel := range p.Relations {
-		kinds[rel.ID] = "relation"
-		relations[rel.ID] = rel
-	}
-	if len(p.Details) > MaxCorpusRecords-len(c.artifact.Details) {
-		return fail("typed detail bound exceeded")
-	}
 	if c.artifact.Details == nil {
 		c.artifact.Details = map[string]RecordDetails{}
 	}
 	for id, d := range p.Details {
-		if !strings.HasPrefix(id, p.ID+":") || kinds[id] == "" {
-			return fail("typed detail has no owned normalized record")
-		}
-		if _, exists := c.artifact.Details[id]; exists {
-			return fail("duplicate typed detail")
-		}
-		if err := validateRecordDetails(kinds[id], d, relations[id]); err != nil {
-			return err
-		}
 		c.artifact.Details[id] = d
-	}
-	for _, s := range p.Subjects {
-		if adoptionSubjectKinds[s.Kind] && s.Kind != "variation" && s.Kind != "inventory" {
-			if _, ok := p.Details[s.ID]; !ok {
-				return fail("typed subject requires details")
-			}
-		}
-	}
-	for _, r := range p.Relations {
-		if adoptionRelationKinds[r.Type] && r.Type != "retired_to" {
-			if _, ok := p.Details[r.ID]; !ok {
-				return fail("test relationship requires typed join details")
-			}
-		}
 	}
 	counts := map[string]int{}
 	for _, s := range p.Subjects {
@@ -169,6 +128,55 @@ func (c *compiler) importAdoption(p ProviderRecord) error {
 		c.artifact.ImportParity = append(c.artifact.ImportParity, ImportParity{Provider: p.ID, SourceKind: k, RecordsIn: counts[k], Admitted: counts[k], Reasons: []string{}})
 	}
 
+	return nil
+}
+
+// validateAdoption preserves the original detail/ownership predicates for both
+// cold imports and source-bound warm correspondence, without producing records.
+func (c *compiler) validateAdoption(p ProviderRecord) error {
+	kinds := map[string]string{}
+	relations := map[string]Relation{}
+	for _, s := range p.Subjects {
+		if s.Kind == "finding" {
+			return fail("restricted findings require their separate local-only family")
+		}
+		kinds[s.ID] = s.Kind
+	}
+	for _, claim := range p.Claims {
+		kinds[claim.ID] = "claim"
+	}
+	for _, rel := range p.Relations {
+		kinds[rel.ID] = "relation"
+		relations[rel.ID] = rel
+	}
+	if len(p.Details) > MaxCorpusRecords-len(c.artifact.Details) {
+		return fail("typed detail bound exceeded")
+	}
+	for id, d := range p.Details {
+		if !strings.HasPrefix(id, p.ID+":") || kinds[id] == "" {
+			return fail("typed detail has no owned normalized record")
+		}
+		if _, exists := c.artifact.Details[id]; exists {
+			return fail("duplicate typed detail")
+		}
+		if err := validateRecordDetails(kinds[id], d, relations[id]); err != nil {
+			return err
+		}
+	}
+	for _, s := range p.Subjects {
+		if adoptionSubjectKinds[s.Kind] && s.Kind != "variation" && s.Kind != "inventory" {
+			if _, ok := p.Details[s.ID]; !ok {
+				return fail("typed subject requires details")
+			}
+		}
+	}
+	for _, r := range p.Relations {
+		if adoptionRelationKinds[r.Type] && r.Type != "retired_to" {
+			if _, ok := p.Details[r.ID]; !ok {
+				return fail("test relationship requires typed join details")
+			}
+		}
+	}
 	return nil
 }
 
