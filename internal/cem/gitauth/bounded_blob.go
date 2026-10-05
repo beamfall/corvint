@@ -12,10 +12,21 @@ import (
 // Unlike BlobBytes, this source-reader path deliberately does not reuse the
 // shared memo: the consumer byte bound applies before every body allocation.
 func (r *Repository) BlobBytesBounded(ctx context.Context, oid string, limit int) ([]byte, error) {
-	return r.boundedObject(ctx, oid, "blob", limit)
+	return r.boundedObject(ctx, oid, "blob", limit, nil)
 }
 
-func (r *Repository) boundedObject(ctx context.Context, oid, kind string, limit int) ([]byte, error) {
+// BlobBytesWithin is BlobBytesBounded for a consumer that owns its own refusal code:
+// a blob whose admitted header exceeds limit returns over=true and no error, before
+// any body allocation. Every other failure is returned exactly as BlobBytesBounded does.
+func (r *Repository) BlobBytesWithin(ctx context.Context, oid string, limit int) (data []byte, over bool, err error) {
+	data, err = r.boundedObject(ctx, oid, "blob", limit, &over)
+	if over {
+		return nil, true, nil
+	}
+	return data, false, err
+}
+
+func (r *Repository) boundedObject(ctx context.Context, oid, kind string, limit int, over *bool) ([]byte, error) {
 	if !wire.IsGitOid(oid) || limit < 1 || limit > MaxBlobBytes {
 		return nil, cemcode.New(cemcode.InvalidArguments, "bounded blob needs full lowercase OID and supported byte bound")
 	}
@@ -30,7 +41,13 @@ func (r *Repository) boundedObject(ctx context.Context, oid, kind string, limit 
 	}
 	options := r.gitOptions(limit, nil)
 	admit := func(_ string, fields []string, size int) bool {
-		if len(fields) != 3 || fields[0] != oid || fields[1] != kind || size < 0 || size > limit {
+		if len(fields) != 3 || fields[0] != oid || fields[1] != kind || size < 0 {
+			return false
+		}
+		if size > limit {
+			if over != nil {
+				*over = true
+			}
 			return false
 		}
 		return r.chargedOids[oid] || int64(size) <= MaxTotalBlobBytes-r.blobBytes

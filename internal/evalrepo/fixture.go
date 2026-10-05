@@ -40,8 +40,26 @@ type loadedFixture struct {
 	traces       []contextindex.QueryTrace
 }
 
+// readFixture refuses a fixture larger than the trace store bound after reading one
+// byte past it, instead of allocating the whole file (V1-0747).
+func readFixture(path string) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	raw, err := io.ReadAll(io.LimitReader(f, trace.MaxTraceStoreBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) > trace.MaxTraceStoreBytes {
+		return nil, fmt.Errorf("fixture exceeds %d bytes", trace.MaxTraceStoreBytes)
+	}
+	return raw, nil
+}
+
 func loadTraceFixture(path string, index *contextindex.Index, cases []goldenCase) (loadedFixture, error) {
-	raw, err := os.ReadFile(path)
+	raw, err := readFixture(path)
 	if err != nil {
 		return loadedFixture{}, fmt.Errorf("invalid learned trace fixture: %v", err)
 	}
