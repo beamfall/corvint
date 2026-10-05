@@ -132,7 +132,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   hunk while more of them remain than one 256-row plan can name, so split plans stay usable. The plan format does not change: its first field already accepts a
   full hunk ID, which is derived from the hunk's content, and `cem cite` refuses an ID the map lacks
   as `unknown-hunk-id`. An empty plan remains a zero-citation no-op only on a map that owes no hunk
-(`DCW-V0-032`, proposed), and a hunk already cited or
+(`DCW-V0-032`, accepted), and a hunk already cited or
   marked in a resumed map needs no row. (proposed 2026-09-25, V1-0228, not accepted) A map hunk
   path is compared with an intent path after JSON unescaping, and when `cem-prepare` is
   NOT_PRODUCED no map was prepared in the run, so `cem-cite` MUST be NOT_PRODUCED
@@ -271,7 +271,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   stale one stays non-blocking unless an owner decision makes it blocking.
   Reason: after `DCW-V0-026` the coordinator no longer overwrote the agent receipts, but a missing
   receipt or one written against another tree was no more visible than before.
-- `DCW-V0-032`: (proposed 2026-10-04, V1-0743, not accepted) An empty `DOGFOOD_CITATIONS` file
+- `DCW-V0-032`: (accepted 2026-10-04, decision 0430; V1-0743) An empty `DOGFOOD_CITATIONS` file
   on a map that still records an `unknown` hunk outside the `DCW-V0-019` bootstrap omission MUST
   report `cem-cite` NOT_PRODUCED `empty-citation-plan` and run no `cem cite`, as an empty
   `DOGFOOD_OCM_LINKS` plan reports `empty-ocm-link-plan` under `DCW-V0-018`; the 256-row split-plan
@@ -315,7 +315,7 @@ Base anchoring, refused by every subverb:
   plan was given, its path is not a regular file, or its rows are malformed.
 - `empty-citation-plan`, `intent-manifest-over-bound`, `verify-file-over-bound`: the citation plan
   is empty while the map still owes a hunk, or the intents or verify file exceeds its bound
-  (`DCW-V0-032`, proposed).
+  (`DCW-V0-032`, accepted).
 - `citation-stage-exists`, `citation-stage-cleanup-failed`: a staged citation file from an earlier
   pass is still present, or could not be removed.
 - `cem-map-not-produced`: `cem-prepare` failed in this run or left no `.corvint/change.cem.json`,
@@ -408,7 +408,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-029` (proposed) | `internal/dogfoodflow/change.go` `recordCitationBinding` and `ordinalsMoved`; `TestChangeRefusesAPlanWhoseOrdinalsMoved` and the V1-0239 `swapped-ordinals` case of `script/dogfood-change_test.sh` | implemented; not accepted |
 | `DCW-V0-030` (proposed) | none; `internal/dogfoodflow/check.go` `checkReport` still emits `dogfood-report-drift` for both cases | not implemented; needs an owner decision |
 | `DCW-V0-031` (proposed) | `internal/dogfoodflow/change.go` `noteAgentReceipts`; `TestChangeNotesAbsentOrStaleAgentReceipts`; the absent-receipt lines asserted by `TestDogfoodDailyPath*` and the DCW-V0-025 case of `script/dogfood-change_test.sh` | implemented; not accepted |
-| `DCW-V0-032` (proposed) | `internal/dogfoodflow/change.go` `citeStep`, `citationPlanMismatch`, `validateIntentManifest`, `localOutcome` and `noteAgentReceipt`; `TestChangeRefusesEmptyPlanAndOverBoundInputs` (including the empty plan admitted on a map that owes no hunk, and inputs of exactly their bound), `TestDogfoodReasonAdmitsInputRefusals` (the new step reasons reach the self-observation ledger), `TestDogfoodFinishRunsFromBinaryInForeignRepository` (finish still completes with its empty plan), the `empty` citation case of `script/dogfood-change_test.sh`, and the malformed and over-bound case of `TestChangeNotesAbsentOrStaleAgentReceipts` | implemented; not accepted |
+| `DCW-V0-032` (accepted, decision 0430) | `internal/dogfoodflow/change.go` `citeStep`, `citationPlanMismatch`, `validateIntentManifest`, `localOutcome` and `noteAgentReceipt`; `TestChangeRefusesEmptyPlanAndOverBoundInputs` (including the empty plan admitted on a map that owes no hunk, and inputs of exactly their bound), `TestDogfoodReasonAdmitsInputRefusals` (the new step reasons reach the self-observation ledger), `TestDogfoodFinishRunsFromBinaryInForeignRepository` (finish still completes with its empty plan), the `empty` citation case of `script/dogfood-change_test.sh`, and the malformed and over-bound case of `TestChangeNotesAbsentOrStaleAgentReceipts` | implemented; not accepted |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 ## Compatibility and rollback

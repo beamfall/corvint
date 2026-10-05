@@ -491,7 +491,7 @@ ordinal row's hunk ID now sits at another ordinal refuses `citation-plan-map-mis
 use full hunk IDs when a later commit may reorder or edit hunks. Rows end in LF; other control bytes are invalid. The local coordinator freezes
 and validates the whole file before citing, with independent limits of 4 MiB and 256 rows. An empty
 file refuses `cem-cite: empty-citation-plan` and cites nothing while the map still owes a hunk
-(`DCW-V0-032`, proposed); on a map that owes none it is a zero-citation no-op. Unset
+(`DCW-V0-032`, accepted); on a map that owes none it is a zero-citation no-op. Unset
 `DOGFOOD_CITATIONS` to prepare the map without citing. Larger jobs
 require separate explicit bounded plans, without automatic splitting or invented citations.
 
