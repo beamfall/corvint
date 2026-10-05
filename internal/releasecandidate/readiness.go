@@ -145,17 +145,26 @@ func fixedRule(id, decision, reason string) readinessRule {
 	return readinessRule{id: id, fixed: true, missing: ReadinessRow{ID: id, Status: "NOT_RUN", Decision: decision, Reason: reason}}
 }
 
-// readinessRules returns the catalogue for one version. Decision 0420 fixes
-// 1.0.0-rc.1 signing as "No signing"; every other version records its own
-// selection.
+// signingDecisions names the owner decision that fixes "No signing" for a
+// version: 0420 for 1.0.0-rc.1, 0433 for 1.0.0-rc.2 and 1.0.0. Every other
+// version records its own selection.
+var signingDecisions = map[string]string{
+	firstStableCandidate: readinessDecision,
+	"1.0.0-rc.2":         "0433",
+	"1.0.0":              "0433",
+}
+
+// readinessRules returns the catalogue for one version, with the signing row
+// fixed when an owner decision selects it for that version.
 func readinessRules(version string) []readinessRule {
 	rules := append([]readinessRule(nil), readinessCatalogue...)
-	if version != firstStableCandidate {
+	decision, fixed := signingDecisions[version]
+	if !fixed {
 		return rules
 	}
 	for index := range rules {
 		if rules[index].id == "policy/signing" {
-			rules[index] = fixedRule("policy/signing", readinessDecision, "No signing: SHA256SUMS only; publisher identity NOT_VERIFIED")
+			rules[index] = fixedRule("policy/signing", decision, "No signing: SHA256SUMS only; publisher identity NOT_VERIFIED")
 		}
 	}
 	return rules

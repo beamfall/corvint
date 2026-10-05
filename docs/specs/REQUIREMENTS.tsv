@@ -2094,23 +2094,23 @@ PPI-V0-006	docs/specs/protected-pi-runtime-v0.md	42	Reuse protected computation 
 PPI-V0-007	docs/specs/protected-pi-runtime-v0.md	43	Independent runtime admission MUST bind full image SHA256, live mapped CDHash, C
 PPI-V0-008	docs/specs/protected-pi-runtime-v0.md	44	FULL requires independently completed exact-image TUI and RPC qualification: all
 PPI-V0-009	docs/specs/protected-pi-runtime-v0.md	45	Rollback removes/revokes only the optional Pi campaign/admission/runtime and res
-PRS-V1-001	docs/specs/corvint-1.0-product-and-release-v1.md	278	Corvint 1.0 Core MUST be exactly the surfaces labelled Core in this spec: the lo
-PRS-V1-002	docs/specs/corvint-1.0-product-and-release-v1.md	281	Only Core surfaces carry the 1.0 stability promise (frozen contracts, N-1 reader
-PRS-V1-003	docs/specs/corvint-1.0-product-and-release-v1.md	284	Every gate on the Core critical path to 1.0 MUST be closable by the owner withou
-PRS-V1-004	docs/specs/corvint-1.0-product-and-release-v1.md	286	Core platforms MUST be darwin/arm64 and linux/amd64 native binaries. A Core
-PRS-V1-005	docs/specs/corvint-1.0-product-and-release-v1.md	289	A Core release candidate MUST NOT require companion input. Companions keep their
-PRS-V1-006	docs/specs/corvint-1.0-product-and-release-v1.md	292	Core host scope MUST be the plain CLI, plus the exact-version Codex CLI and Clau
-PRS-V1-007	docs/specs/corvint-1.0-product-and-release-v1.md	295	Corvint 1.0 MUST NOT claim CEM, OCM or frontier interoperability unless V1-0014
-PRS-V1-008	docs/specs/corvint-1.0-product-and-release-v1.md	297	The 1.0 Core candidate MUST pass the three Core jobs on Corvint, Beamfall and on
-PRS-V1-009	docs/specs/corvint-1.0-product-and-release-v1.md	299	Core installed qualification MUST be the native archive lifecycle of
-PRS-V1-010	docs/specs/corvint-1.0-product-and-release-v1.md	302	Any new shipped verb, binary or integration tree MUST be added to the
-PRS-V1-011	docs/specs/corvint-1.0-product-and-release-v1.md	304	This spec amends `public-release-v0.md` prospectively for the 1.0 Core candidate
-PRS-V1-012	docs/specs/corvint-1.0-product-and-release-v1.md	306	This spec has no authority until a numbered decision records the owner's
-PRS-V1-013	docs/specs/corvint-1.0-product-and-release-v1.md	310	Stable 1.0 MUST include qualified Flows, safe application navigation,
-PRS-V1-014	docs/specs/corvint-1.0-product-and-release-v1.md	313	Tasks MUST replace Beamfall's active roadmap workflow through native ticket
-PRS-V1-015	docs/specs/corvint-1.0-product-and-release-v1.md	317	Automatic developer and user-facing flow documentation MUST use revision-pinned
-PRS-V1-016	docs/specs/corvint-1.0-product-and-release-v1.md	321	Before Beamfall production activation, the migration MUST reconcile active work,
-PRS-V1-017	docs/specs/corvint-1.0-product-and-release-v1.md	325	The expanded capabilities MUST retain exact-candidate acceptance evidence and
+PRS-V1-001	docs/specs/corvint-1.0-product-and-release-v1.md	289	Corvint 1.0 Core MUST be exactly the surfaces labelled Core in this spec: the lo
+PRS-V1-002	docs/specs/corvint-1.0-product-and-release-v1.md	292	Only Core surfaces carry the 1.0 stability promise (frozen contracts, N-1 reader
+PRS-V1-003	docs/specs/corvint-1.0-product-and-release-v1.md	295	Every gate on the Core critical path to 1.0 MUST be closable by the owner withou
+PRS-V1-004	docs/specs/corvint-1.0-product-and-release-v1.md	297	Core platforms MUST be darwin/arm64 and linux/amd64 native binaries. A Core
+PRS-V1-005	docs/specs/corvint-1.0-product-and-release-v1.md	300	A Core release candidate MUST NOT require companion input. Companions keep their
+PRS-V1-006	docs/specs/corvint-1.0-product-and-release-v1.md	303	Core host scope MUST be the plain CLI, plus the exact-version Codex CLI and Clau
+PRS-V1-007	docs/specs/corvint-1.0-product-and-release-v1.md	306	Corvint 1.0 MUST NOT claim CEM, OCM or frontier interoperability unless V1-0014
+PRS-V1-008	docs/specs/corvint-1.0-product-and-release-v1.md	308	The 1.0 Core candidate MUST pass the three Core jobs on Corvint, Beamfall and on
+PRS-V1-009	docs/specs/corvint-1.0-product-and-release-v1.md	310	Core installed qualification MUST be the native archive lifecycle of
+PRS-V1-010	docs/specs/corvint-1.0-product-and-release-v1.md	313	Any new shipped verb, binary or integration tree MUST be added to the
+PRS-V1-011	docs/specs/corvint-1.0-product-and-release-v1.md	315	This spec amends `public-release-v0.md` prospectively for the 1.0 Core candidate
+PRS-V1-012	docs/specs/corvint-1.0-product-and-release-v1.md	317	This spec has no authority until a numbered decision records the owner's
+PRS-V1-013	docs/specs/corvint-1.0-product-and-release-v1.md	321	Stable 1.0 MUST include qualified Flows, safe application navigation,
+PRS-V1-014	docs/specs/corvint-1.0-product-and-release-v1.md	324	Tasks MUST replace Beamfall's active roadmap workflow through native ticket
+PRS-V1-015	docs/specs/corvint-1.0-product-and-release-v1.md	328	Automatic developer and user-facing flow documentation MUST use revision-pinned
+PRS-V1-016	docs/specs/corvint-1.0-product-and-release-v1.md	332	Before Beamfall production activation, the migration MUST reconcile active work,
+PRS-V1-017	docs/specs/corvint-1.0-product-and-release-v1.md	336	The expanded capabilities MUST retain exact-candidate acceptance evidence and
 PSL-V0-001	docs/specs/pulse-snapshot-lease-v0.md	199	The coordinator MUST be one client-owned local Go process over stdio, one serial
 PSL-V0-002	docs/specs/pulse-snapshot-lease-v0.md	202	Requests and responses MUST use `corvint-pulse-snapshot/0`, strict bounded canon
 PSL-V0-003	docs/specs/pulse-snapshot-lease-v0.md	204	Initialization MUST create a fresh unpredictable session ID. Restart, disconnect
@@ -2178,7 +2178,7 @@ PTF-V0-007	docs/specs/playwright-per-test-freshness-v0.md	81	The only supported 
 PTF-V0-008	docs/specs/playwright-per-test-freshness-v0.md	88	Join the control's observed semantic/runtime/source closure to EVERY baseline re
 PTF-V0-009	docs/specs/playwright-per-test-freshness-v0.md	95	Readiness failure, attestation failure, execution failure and cancellation all c
 PTF-V0-010	docs/specs/playwright-per-test-freshness-v0.md	99	Qualify the named consuming path on the exact tuple with actual stable positive/
-PUB-V0-001	docs/specs/public-release-v0.md	135	The current version tuple MUST move together to `1.0.0-rc.1`, including native
+PUB-V0-001	docs/specs/public-release-v0.md	135	The current version tuple MUST move together to `1.0.0-rc.2`, including native
 PUB-V0-002	docs/specs/public-release-v0.md	138	The existing native CLI archive gate MUST remain independent. An optional
 PUB-V0-003	docs/specs/public-release-v0.md	145	Companion build output MUST be outside the source checkouts, include exact
 PUB-V0-004	docs/specs/public-release-v0.md	160	The first companion target is macOS arm64. Qualification MUST exercise the
@@ -2529,9 +2529,9 @@ SRR-V1-006	docs/specs/stable-readiness-record-v1.md	79	PASS and FAIL MUST carry 
 SRR-V1-007	docs/specs/stable-readiness-record-v1.md	83	A platform row without native lifecycle evidence MUST be FALLBACK (PRS-V1-004) a
 SRR-V1-008	docs/specs/stable-readiness-record-v1.md	87	The vulnerability section MUST record three things: decision 0420, the number of
 SRR-V1-009	docs/specs/stable-readiness-record-v1.md	95	For version `1.0.0-rc.1`, `policy/signing` MUST be the fixed row NOT_RUN, decisi
-SRR-V1-010	docs/specs/stable-readiness-record-v1.md	100	`owner/tag`, `owner/publication` and `owner/promotion` MUST be fixed NOT_RUN
-SRR-V1-011	docs/specs/stable-readiness-record-v1.md	103	Building and verifying MUST NOT write to the candidate, the source root or the
-SRR-V1-012	docs/specs/stable-readiness-record-v1.md	110	(command shape accepted by decision 0422) A new operator binary,
+SRR-V1-010	docs/specs/stable-readiness-record-v1.md	101	`owner/tag`, `owner/publication` and `owner/promotion` MUST be fixed NOT_RUN
+SRR-V1-011	docs/specs/stable-readiness-record-v1.md	104	Building and verifying MUST NOT write to the candidate, the source root or the
+SRR-V1-012	docs/specs/stable-readiness-record-v1.md	111	(command shape accepted by decision 0422) A new operator binary,
 TAT-V0-001	docs/specs/test-attack-v0.md	27	`prove --base FULL_SHA --mutate --attack-tests` MUST be an explicit opt-in. The
 TAT-V0-002	docs/specs/test-attack-v0.md	28	The attack MUST reuse the immutable range export and changed-line spans, evaluat
 TAT-V0-003	docs/specs/test-attack-v0.md	29	Every judged mutation row MUST expose an additive `attack` object with `mutants`

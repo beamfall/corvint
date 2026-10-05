@@ -16,7 +16,7 @@ scope, `PUB-V0-001..026` and the 2026-09-16 Core release scope amendment),
 - Claim: 1.0 requires Core change evidence, Flows, safe navigation, docs, MCP, full Beamfall roadmap takeover by Tasks and automatic documentation.
 - Status: accepted (decisions 0373 and 0426, V1-0001 and V1-0461) / partial; expanded 1.0 qualification pending
 - Exists: this spec, decision 0373 with the eleven owner answers, and the prospective amendment section in `public-release-v0.md`; the candidate reader and installer admit a Core-only profile (V1-0125), and `corvint-release-candidate` assembles one when `-companion-dir` is omitted (V1-0229).
-- Blocked on: V1-0019 external validation and V1-0020 qualification of the next candidate. `1.0.0-rc.1` (build 163, `b967f6bb`) is published as a prerelease with V1-0019 run-001 as a known issue (decision 0425): orientation FAIL on go-chi/chi (3 of 20) and beamfall/core (1 of 20), consequence and completion PASS on both, and the Corvint run aborted (V1-0431..V1-0433). The next run uses spf13/cobra in place of go-chi/chi (decision 0425); the native linux/amd64 host is a GitHub-hosted `ubuntu-24.04` runner (decision 0420).
+- Blocked on: V1-0019 external validation and V1-0020 qualification of the next candidate. `1.0.0-rc.1` (build 163, `b967f6bb`) is published as a prerelease with V1-0019 run-001 as a known issue (decision 0425): orientation FAIL on go-chi/chi (3 of 20) and beamfall/core (1 of 20), consequence and completion PASS on both, and the Corvint run aborted (V1-0431..V1-0433). The next run uses urfave/cli (decision 0432): the previously selected cobra pin was already scored in development, so its untouched-repository admission is superseded; the native linux/amd64 host is a GitHub-hosted `ubuntu-24.04` runner (decision 0420).
 - Read next: Expanded 1.0 product scope; Classification of shipped surfaces; Externally dependent gates.
 
 ## Human intent
@@ -214,9 +214,19 @@ accepted by decision 0373 and the amendment it requires are stated.
     preregistration digest `27625e854faf7dfb2379f59d38c7c082aeea19758e744874a52b20f200551e29`.
     Decision 0425 keeps run-001 as evidence and does not rerun it, so its preregistration keeps
     harness `f24533a1`.
-  - spf13/cobra (decision 0425), held out for the `1.0.0-rc.2` run: pinned at
+  - spf13/cobra (decision 0425), originally reserved for the `1.0.0-rc.2` run but disqualified
+    from repository-level untouched admission by decision 0432: pinned at
     `adbc8813901bba65827259daa8e22ff94ec1f30e` in `benchmarks/untouched-repository-v1/cobra/`,
     preregistration digest `9631e4ce822d4d17443e5c3bfe98e82c4685a70d6289f854ae5b8c730b98e5a4`.
+    Its original corpus and seal remain unchanged; retained development results already scored
+    that exact repository pin. New cases do not erase that prior use.
+  - urfave/cli (owner selection, decision 0432): pinned at
+    `7389061eb0182169c496021a09729735ac2b797b` in `benchmarks/untouched-repository-v1/urfave/`,
+    preregistration digest `eedf799f9444014e64f1bab1cf5d3296ea06f784e4e88930d385a990b230a185`,
+    corpus digest `b9cf140717e58ab1656111dd962240e37866fa0b4356402a221d4d33a5ed48cc`. The existing harness
+    derives 20 first-parent cases with no new exclusions; 20 are orientation-eligible and 18 are
+    consequence-eligible. Independent preregistration review and public integration must precede
+    execution. No Corvint output or qualification result exists from this preparation.
   - Corvint, a development repository: pinned at the first `1.0.0-rc.1` candidate commit
     `94ca556f52c0349c0a48e0c3a3274f8a0b5e6db3` in `benchmarks/untouched-repository-v1/corvint/`,
     with loop target `a5a7412c91857773ccc3e61bf197bc22725ac57c`. Preregistration digest
@@ -241,8 +251,9 @@ accepted by decision 0373 and the amendment it requires are stated.
     `43fbcdfd0800724b8944caaca3ed6a65dd5cf3d2433ac7706efa0e8c751b3f8b`.
   - Corvint: aborted before scoring (V1-0432, V1-0433); only
     `benchmarks/untouched-repository-v1/corvint/runs/run-001.started.json` exists.
-  - spf13/cobra replaces go-chi/chi as the held-out repository for the next run, with its cases
-    frozen and published first (decision 0425). All three preregistrations now name
+  - urfave/cli replaces the ineligible cobra selection for the next run (decision 0432), with
+    independently reviewed cases sealed and published first. The retained Corvint, Beamfall,
+    cobra and prospective urfave preregistrations name
     `1.0.0-rc.2` and harness `b67cc95abd92ffffeef9bf1bccfce4d0316e270716d6cd065948e802994f9eb2`.
 
 ### Host FULL and authority tuples

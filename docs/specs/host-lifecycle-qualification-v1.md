@@ -14,7 +14,7 @@ decision 0373 (items 5 and 6), and `AGENTS.md` invariants 2, 4 and 7.
 - Claim: Each Core host tuple passes nine lifecycle cases on exact versions in isolated host homes, and a result binds only the tuple that produced it.
 - Status: accepted intent (decision 0381 item 1), experimental delivery; the host scope it qualifies is accepted in decision 0373
 - Exists: this contract and `conformance/host-lifecycle-v1`; all three tuples PASS on darwin/arm64 with the corvint `1.0.0-rc.1` candidate build, reports retained (see Results)
-- Blocked on: linux tuples and live model-session cases are NOT_RUN; each result is stale at the next release (`HLQ-V1-008`)
+- Blocked on: linux tuples and live model-session cases are NOT_RUN; each result is stale at the next release (`HLQ-V1-008`), so all three tuples are unqualified for `1.0.0-rc.2` until rerun against its build
 - Read next: Requirements; Results; Known gaps
 
 ## Intent and scope

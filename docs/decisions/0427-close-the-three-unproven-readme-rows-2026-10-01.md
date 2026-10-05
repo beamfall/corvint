@@ -120,6 +120,13 @@ development data, the transplant probes are a diagnostic, and the sealed partiti
 needs do not exist yet. The analyzer schema advances from 100 to 101 because the audit pins every
 contextindex production source.
 
+## Tickets created
+
+Created natively on 2026-10-05 from `.agent-evidence/decision-0427-tickets/`: V1-0834 (rc.2 Core
+jobs), V1-0835 (blind-v7), V1-0836 (three-arm CEM trial), V1-0837 (development decoys) and V1-0838
+(reviewer projection and human leg). V1-0834 names urfave/cli instead of spf13/cobra under decision
+0432; the other four payloads were filed unchanged.
+
 ## Rollback
 
 Each amendment reverts alone: the counterpart rule and the anchor default in
