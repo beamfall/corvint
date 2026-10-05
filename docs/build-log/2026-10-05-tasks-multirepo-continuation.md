@@ -178,8 +178,8 @@ Decisions:
     `error-code-ownership-check`, `unbounded-readers-check`, `use-case-receipts-check` and
     `use-case-receipts-test`
 - **Affected plan.** `corvint affected --base d524530f` (Corvint 1.0.0-rc.1 build 163) selected 181
-  units with scope `UNKNOWN` and 24 `LANGUAGE_FRONTIER` unknowns. Most were reached through the
-  documentation edits. Units outside `internal/tasks/...` and `internal/specindex` are `NOT_RUN`,
+  units with scope `UNKNOWN` and 25 unknowns on the final implementation paths (19
+  `LANGUAGE_FRONTIER`, 6 `UNOWNED_DIRTY_PATH`). Most were reached through the documentation edits. Units outside `internal/tasks/...` and `internal/specindex` are `NOT_RUN`,
   per the owner's focused-test preference. `cmd/corvint/main.go` is unchanged, so no use-case
   receipt repin was needed.
 
