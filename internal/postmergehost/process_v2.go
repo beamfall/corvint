@@ -528,26 +528,29 @@ var retireTreeListedV2 func(member int, children []procBirthV2) []procBirthV2
 
 // retireTreeV2 is the owned cleanup boundary of a failed launch. It freezes
 // the leader and then every descendant reachable through PPID links, and
-// signals each one only through a pidfd whose process still has the listed
-// birth, so a recycled PID is never signalled or walked. A member counts as
-// frozen only when every one of its threads is stopped: a frozen member
-// cannot fork, and its exited children stay unreaped, so its listed children
-// are stable. The walk repeats until a pass finds every member frozen and no
-// new child. It then kills the members and waits, within a bound, until none
-// is still running. Any member that exited or changed before its freeze was
-// confirmed may have had children that were reparented away; that, a
-// recycled PID or a member still running is reported as unresolved. A
-// descendant already reparented away before the walk, such as a double
-// fork, is outside the boundary, as it is for the final sweep.
+// signals each one only through a pidfd whose process was confirmed to have
+// the listed birth, so a recycled PID is never signalled or walked. A member
+// counts as frozen only when every one of its threads is stopped: a frozen
+// member cannot fork, and its exited children stay unreaped, so its listed
+// children are stable. Only frozen members are walked, and the walk repeats
+// until a pass finds every member frozen and no new child. It then kills
+// every confirmed handle, frozen or not, and waits, within its own bound,
+// until none is still running. A member that exited or changed before its
+// freeze was confirmed may have had children that were reparented away; that,
+// a member never confirmed frozen, a recycled PID or a member still running
+// is reported as unresolved. A descendant already reparented away before the
+// walk, such as a double fork, is outside the boundary, as it is for the
+// final sweep.
 func retireTreeV2(leader int) error {
 	if !procfs.Supported {
 		return nil
 	}
 	deadline := time.Now().Add(processSettleV2)
 	var unresolved []string
-	members := map[procBirthV2]int{}
+	handles := map[procBirthV2]int{}
+	members := map[procBirthV2]bool{}
 	defer func() {
-		for _, fd := range members {
+		for _, fd := range handles {
 			_ = syscall.Close(fd)
 		}
 	}()
@@ -564,19 +567,22 @@ func retireTreeV2(leader int) error {
 		}
 		for _, birth := range queue {
 			fd, err := freezeMemberV2(birth, -1, deadline)
+			if fd >= 0 {
+				handles[birth] = fd
+			}
 			if err != nil {
 				unresolved = append(unresolved, err.Error())
 				continue
 			}
-			members[birth] = fd
+			members[birth] = true
 		}
 		queue, settled = nil, true
-		for birth, fd := range members {
+		for birth := range members {
+			fd := handles[birth]
 			if !frozenV2(fd, birth) {
 				settled = false
 				if _, err := freezeMemberV2(birth, fd, deadline); err != nil {
 					unresolved = append(unresolved, err.Error())
-					_ = syscall.Close(fd)
 					delete(members, birth)
 					continue
 				}
@@ -597,12 +603,12 @@ func retireTreeV2(leader int) error {
 			}
 		}
 	}
-	for _, fd := range members {
+	for _, fd := range handles {
 		_ = signalProcessV2(fd, syscall.SIGKILL)
 	}
 	running := func() []string {
 		var out []string
-		for birth, fd := range members {
+		for birth, fd := range handles {
 			if state, ok := observeMemberV2(fd, birth); ok && state != 'Z' && state != 'X' {
 				out = append(out, strconv.Itoa(birth.pid))
 			}
@@ -610,7 +616,7 @@ func retireTreeV2(leader int) error {
 		slices.Sort(out)
 		return out
 	}
-	if err := waitProcessV2(context.Background(), max(time.Until(deadline), processPollV2), "member exit", func() bool {
+	if err := waitProcessV2(context.Background(), processSettleV2, "member exit", func() bool {
 		return len(running()) == 0
 	}); err != nil {
 		unresolved = append(unresolved, "still running: "+strings.Join(running(), ","))
@@ -624,30 +630,29 @@ func retireTreeV2(leader int) error {
 
 // freezeMemberV2 opens a pidfd for birth when fd is negative, confirms the
 // birth through it, stops the process and waits until all its threads are
-// stopped. It returns the pidfd, or an error naming why the member could not
-// be confirmed frozen; the pidfd is then closed when this call opened it.
+// stopped. It returns an error naming why the member could not be confirmed
+// frozen. It returns the pidfd whenever the birth was confirmed through it,
+// even with an error, so the caller can still kill that process; a pidfd it
+// opened for a birth it could not confirm is closed.
 func freezeMemberV2(birth procBirthV2, fd int, deadline time.Time) (int, error) {
 	name := "pid " + strconv.Itoa(birth.pid)
-	opened := fd < 0
-	if opened {
+	if fd < 0 {
 		var err error
 		if fd, err = openProcessV2(birth.pid); errors.Is(err, syscall.ESRCH) {
 			return -1, errors.New(name + " exited before its freeze was confirmed")
 		} else if err != nil {
 			return -1, errors.New(name + " could not be opened: " + err.Error())
 		}
+		if _, ok := observeMemberV2(fd, birth); !ok {
+			_ = syscall.Close(fd)
+			return -1, errors.New(name + " is no longer its listed birth")
+		}
 	}
 	fail := func(detail string) (int, error) {
-		if opened {
-			_ = syscall.Close(fd)
-		}
-		return -1, errors.New(name + " " + detail)
+		return fd, errors.New(name + " " + detail)
 	}
 	state, ok := observeMemberV2(fd, birth)
-	if !ok {
-		return fail("is no longer its listed birth")
-	}
-	if state == 'Z' || state == 'X' {
+	if !ok || state == 'Z' || state == 'X' {
 		return fail("exited before its freeze was confirmed")
 	}
 	if err := signalProcessV2(fd, syscall.SIGSTOP); err != nil {

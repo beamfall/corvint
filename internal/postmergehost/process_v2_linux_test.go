@@ -16,6 +16,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -408,7 +410,9 @@ func TestProcessCollectorV2CleanupReportsAutoReapedChild(t *testing.T) {
 
 // A child that forks a grandchild and exits after it was listed but before
 // it was frozen leaves the grandchild reparented outside the tree. Cleanup
-// reports that unresolved instead of success.
+// reports that unresolved instead of success. The test holds the FIFO open
+// read-write, so the reader's open never blocks, the release write fits the
+// pipe buffer, and the reader is identified on the FIFO before cleanup.
 func TestProcessCollectorV2CleanupReportsForkAndExit(t *testing.T) {
 	c, err := NewProcessCollectorV2(context.Background(), "fork-exit", "g", "p", ObserverCommandV2{Path: "/proc/self/exe"}, memRetainV2{})
 	if err != nil {
@@ -418,8 +422,28 @@ func TestProcessCollectorV2CleanupReportsForkAndExit(t *testing.T) {
 	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cmd := shellV2(t, `sh -c 'read x <"$0"; sleep 31.3 & exit 0' `+fifo+` & sleep 30.5 & wait`)
+	release, err := os.OpenFile(fifo, os.O_RDWR, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release.Close()
+	script := `read x <"$0"; sleep 31.3 & exit 0`
+	cmd := shellV2(t, `sh -c '`+script+`' `+fifo+` & sleep 30.5 & wait`)
 	p := startOwnedV2(t, c, cmd)
+	reader, ok := findProcessV2("sh", "-c", script, fifo)
+	if !ok {
+		t.Fatal("no FIFO reader")
+	}
+	t.Cleanup(func() { killBirthV2(reader) })
+	ready := false
+	for deadline := time.Now().Add(processSettleV2); time.Now().Before(deadline) && !ready; time.Sleep(processPollV2) {
+		target, _ := os.Readlink("/proc/" + strconv.Itoa(reader.pid) + "/fd/0")
+		_, ppid, _, _ := processStatV2(reader.pid)
+		ready = target == fifo && ppid == p.pid
+	}
+	if !ready {
+		t.Fatal("the FIFO reader is not a child of the leader reading the FIFO")
+	}
 	var grandchild procBirthV2
 	var released bool
 	t.Cleanup(func() { killBirthV2(grandchild) })
@@ -428,16 +452,21 @@ func TestProcessCollectorV2CleanupReportsForkAndExit(t *testing.T) {
 			return children
 		}
 		released = true
-		if err := os.WriteFile(fifo, []byte("go\n"), 0o600); err != nil {
+		if !slices.Contains(children, reader) {
+			t.Error("the FIFO reader was not listed")
+			return children
+		}
+		if err := release.SetWriteDeadline(time.Now().Add(processSettleV2)); err != nil {
+			t.Error(err)
+		}
+		if _, err := release.Write([]byte("go\n")); err != nil {
 			t.Error(err)
 			return children
 		}
-		grandchild, _ = findProcessV2("sleep", "31.3")
 		for deadline := time.Now().Add(processSettleV2); time.Now().Before(deadline); time.Sleep(processPollV2) {
-			for _, child := range children {
-				if state, _, _, _ := processStatV2(child.pid); state == 'Z' {
-					return children
-				}
+			if state, _, _, _ := processStatV2(reader.pid); state == 'Z' {
+				grandchild, _ = findProcessV2("sleep", "31.3")
+				return children
 			}
 		}
 		t.Error("the released child did not exit")
@@ -450,27 +479,43 @@ func TestProcessCollectorV2CleanupReportsForkAndExit(t *testing.T) {
 }
 
 // TestProcessHelperV2 is a multithreaded Go process for the cleanup tests;
-// it runs only when re-executed with the helper argument.
+// it runs only when re-executed with a helper argument. The subreaper mode
+// adopts orphaned descendants and starts a shell with one sleeping child.
 func TestProcessHelperV2(t *testing.T) {
-	if flag.Arg(0) != "process-helper-sleep" {
+	switch flag.Arg(0) {
+	case "process-helper-sleep":
+	case "process-helper-subreaper":
+		// 36 is PR_SET_CHILD_SUBREAPER.
+		if _, _, errno := syscall.RawSyscall(syscall.SYS_PRCTL, 36, 1, 0); errno != 0 {
+			t.Fatal(errno)
+		}
+		if err := exec.Command("/bin/sh", "-c", "sleep 31.5 & wait").Start(); err != nil {
+			t.Fatal(err)
+		}
+	default:
 		t.Skip("helper process only")
 	}
 	time.Sleep(30 * time.Second)
 }
 
-// A multithreaded member counts as frozen only once every thread is
-// stopped, and such a member is still retired cleanly.
-func TestProcessCollectorV2CleanupFreezesAllThreads(t *testing.T) {
+func helperV2(t *testing.T, mode string) *exec.Cmd {
+	t.Helper()
 	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
 	}
+	cmd := exec.Command(self, "-test.run=^TestProcessHelperV2$", "--", mode)
+	cmd.Env = shellV2(t, "").Env
+	return cmd
+}
+
+// A multithreaded member whose threads all stop is retired cleanly.
+func TestProcessCollectorV2CleanupFreezesAllThreads(t *testing.T) {
 	c, err := NewProcessCollectorV2(context.Background(), "threads", "g", "p", ObserverCommandV2{Path: "/proc/self/exe"}, memRetainV2{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(self, "-test.run=^TestProcessHelperV2$", "--", "process-helper-sleep")
-	cmd.Env = []string{}
+	cmd := helperV2(t, "process-helper-sleep")
 	p := startOwnedV2(t, c, cmd)
 	threads := 0
 	for deadline := time.Now().Add(processSettleV2); time.Now().Before(deadline) && threads < 2; time.Sleep(processPollV2) {
@@ -485,6 +530,136 @@ func TestProcessCollectorV2CleanupFreezesAllThreads(t *testing.T) {
 	}
 	if cmd.ProcessState == nil {
 		t.Fatal("leader not reaped")
+	}
+}
+
+// A member counts as frozen only once every thread is stopped. One thread of
+// a multithreaded member is seized with ptrace and resumed from each group
+// stop, so the leader stops while that thread still runs: the walk never
+// lists the member's children, reports it unresolved and still kills it
+// through its confirmed handle when its freeze times out.
+func TestProcessCollectorV2CleanupKillsPartlyStoppedMember(t *testing.T) {
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := NewProcessCollectorV2(context.Background(), "partial", "g", "p", ObserverCommandV2{Path: "/proc/self/exe"}, memRetainV2{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := shellV2(t, `"$0" -test.run='^TestProcessHelperV2$' -- process-helper-sleep & wait`)
+	cmd.Args = append(cmd.Args, self)
+	p := startOwnedV2(t, c, cmd)
+	helper, ok := findProcessV2(self, "-test.run=^TestProcessHelperV2$", "--", "process-helper-sleep")
+	if !ok {
+		t.Fatal("no helper")
+	}
+	t.Cleanup(func() { killBirthV2(helper) })
+	tid := 0
+	for deadline := time.Now().Add(processSettleV2); time.Now().Before(deadline) && tid == 0; time.Sleep(processPollV2) {
+		tasks, _ := os.ReadDir("/proc/" + strconv.Itoa(helper.pid) + "/task")
+		for _, task := range tasks {
+			if n, _ := strconv.Atoi(task.Name()); n != helper.pid {
+				tid = n
+			}
+		}
+	}
+	if tid == 0 {
+		t.Fatal("helper is not multithreaded")
+	}
+	seized, traced := make(chan error, 1), make(chan struct{})
+	go func() {
+		defer close(traced)
+		// ptrace binds the tracee to this thread, which exits with the
+		// goroutine. 0x4206 is PTRACE_SEIZE, which does not stop the thread.
+		runtime.LockOSThread()
+		if _, _, errno := syscall.Syscall6(syscall.SYS_PTRACE, 0x4206, uintptr(tid), 0, 0, 0, 0); errno != 0 {
+			seized <- errno
+			return
+		}
+		seized <- nil
+		for {
+			var ws syscall.WaitStatus
+			if _, err := syscall.Wait4(tid, &ws, syscall.WALL, nil); err != nil || !ws.Stopped() {
+				return
+			}
+			sig := 0
+			if uint32(ws)>>16 == 0 { // a signal-delivery stop: deliver the signal; a group stop: resume
+				sig = int(ws.StopSignal())
+			}
+			if syscall.PtraceCont(tid, sig) != nil {
+				return
+			}
+		}
+	}()
+	if err := <-seized; err != nil {
+		t.Skip("NOT_OBSERVED: ptrace seize refused: " + err.Error())
+	}
+	var listed []int
+	listedHookV2(t, func(member int, children []procBirthV2) []procBirthV2 {
+		listed = append(listed, member)
+		return children
+	})
+	expectUnresolvedV2(t, c.abandonFailed(p, errors.New("test cleanup")), "pid "+strconv.Itoa(helper.pid)+" was not confirmed frozen")
+	if slices.Contains(listed, helper.pid) {
+		t.Fatal("the walk listed the children of a partly stopped member")
+	}
+	if runningV2(helper) {
+		t.Fatal("the member whose freeze timed out was not killed")
+	}
+	select {
+	case <-traced:
+	case <-time.After(processSettleV2):
+		t.Fatal("the tracer did not observe the member's exit")
+	}
+}
+
+// A child that a frozen member gains after it was listed, here an orphan the
+// subreaper member adopts when its parent dies, is found by a later pass of
+// the walk and killed; the parent that died first is reported unresolved.
+func TestProcessCollectorV2CleanupWalksLateChild(t *testing.T) {
+	c, err := NewProcessCollectorV2(context.Background(), "late", "g", "p", ObserverCommandV2{Path: "/proc/self/exe"}, memRetainV2{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := startOwnedV2(t, c, helperV2(t, "process-helper-subreaper"))
+	parent, ok := findProcessV2("/bin/sh", "-c", "sleep 31.5 & wait")
+	if !ok {
+		t.Fatal("no shell child")
+	}
+	orphan, ok := findProcessV2("sleep", "31.5")
+	if !ok {
+		t.Fatal("no sleep grandchild")
+	}
+	t.Cleanup(func() { killBirthV2(parent); killBirthV2(orphan) })
+	var adopted, relisted bool
+	listedHookV2(t, func(member int, children []procBirthV2) []procBirthV2 {
+		if member != p.pid {
+			return children
+		}
+		if adopted {
+			relisted = relisted || slices.Contains(children, orphan)
+			return children
+		}
+		adopted = true
+		if !slices.Contains(children, parent) || slices.Contains(children, orphan) {
+			t.Errorf("first listing %v: want the shell and not the sleep", children)
+		}
+		_ = syscall.Kill(parent.pid, syscall.SIGKILL)
+		for deadline := time.Now().Add(processSettleV2); time.Now().Before(deadline); time.Sleep(processPollV2) {
+			if _, ppid, _, _ := processStatV2(orphan.pid); ppid == p.pid {
+				return children
+			}
+		}
+		t.Error("the subreaper did not adopt the orphan")
+		return children
+	})
+	expectUnresolvedV2(t, c.abandonFailed(p, errors.New("test cleanup")), "pid "+strconv.Itoa(parent.pid)+" exited before its freeze was confirmed")
+	if !relisted {
+		t.Fatal("no later pass listed the adopted child")
+	}
+	if runningV2(orphan) {
+		t.Fatal("the adopted child escaped cleanup")
 	}
 }
 
