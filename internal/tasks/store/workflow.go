@@ -1111,9 +1111,10 @@ func (w *Workflow) claimAndAttach(ctx context.Context, ticketID string) error {
 }
 
 // noExecHook, when set by a test, runs at a named point of a cancelling
-// NO_EXEC settlement: "cancel" after the quiescent program is recorded and
-// before the cancel, "release" after the cancel and before the owner is
-// released. It is nil in the product.
+// NO_EXEC settlement: "stopped" after the attempt stops and before the
+// quiescent program is recorded, "cancel" after that record and before the
+// cancel, "release" after the cancel and before the owner is released. It is
+// nil in the product.
 var noExecHook func(point string) error
 
 // noExec settles the dispatched stage as NO_EXEC. With cancel, the program is
@@ -1140,6 +1141,9 @@ func (w *Workflow) noExec(reason string, cancel bool) error {
 	w.program.ResultClass = "NO_EXEC"
 	w.program.ResultSHA256 = supervisor.Digest(nil)
 	if cancel {
+		if e := w.noExecPoint("stopped"); e != nil {
+			return e
+		}
 		if e := w.persist("FINISHED"); e != nil {
 			return e
 		}

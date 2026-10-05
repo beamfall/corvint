@@ -462,9 +462,11 @@ func TestCALV0074_NoExecCrashChild(t *testing.T) {
 // process takes over after the original owner exits: before the cancel the
 // replacement cancels the stopped attempt and the ticket is reclaimable;
 // after the cancel but before the release the replacement reassigns the
-// program and claims the ticket again.
+// program and claims the ticket again. It also pins the known limit: an owner
+// dying after the attempt stops and before the program is recorded FINISHED
+// leaves a STOPPING program that a replacement is refused, keeping the claim.
 func TestCALV0074_NoExecCrashTakeover(t *testing.T) {
-	for _, point := range []string{"cancel", "release"} {
+	for _, point := range []string{"stopped", "cancel", "release"} {
 		t.Run(point, func(t *testing.T) {
 			ctx := context.Background()
 			f := newClaudeFixture(t, supervisor.HostClaudeCode)
@@ -488,7 +490,7 @@ func TestCALV0074_NoExecCrashTakeover(t *testing.T) {
 				t.Fatal(err)
 			}
 			old := attempts["program"]
-			want := map[string]string{"cancel": "WAITING", "release": "CANCELLED"}[point]
+			want := map[string]string{"stopped": "WAITING", "cancel": "WAITING", "release": "CANCELLED"}[point]
 			if old == nil || old.Supervision == nil || old.Supervision.Worker || old.Quiescence != "PROVED" || old.Phase != want {
 				t.Fatalf("interrupted attempt %+v", old)
 			}
@@ -500,6 +502,20 @@ func TestCALV0074_NoExecCrashTakeover(t *testing.T) {
 				t.Fatal(err)
 			}
 			again, err := store.OpenWorkflow(ctx, f.s.repo, operator(), "program", self, f.config, f.ticketID)
+			if point == "stopped" {
+				// Known limit (CAL-V0-074): STOPPING is not a safe takeover
+				// phase and the stopped attempt has no worker to recover.
+				if err == nil || !strings.Contains(err.Error(), "not proved stopped") {
+					t.Fatalf("takeover of a STOPPING program: %v", err)
+				}
+				if q := f.program(t, "program"); q.Phase != "STOPPING" || q.OwnerPID != p.OwnerPID || q.Epoch != p.Epoch {
+					t.Fatalf("refused takeover changed the program: %+v", q)
+				}
+				if _, err = store.OpenWorkflow(ctx, f.s.repo, operator(), "next", self, f.config, f.ticketID); err == nil || !strings.Contains(err.Error(), "ATTEMPT_LIVE") {
+					t.Fatalf("the stopped attempt's claim was not held: %v", err)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("takeover: %v", err)
 			}

@@ -230,3 +230,28 @@ cancel-before-release order. It found one P2, confirmed by mutation before the f
     now checks both windows in one process: the program is `FINISHED` and unreleased, the attempt is
     `WAITING` and then `CANCELLED`, and a competing owner is refused as live-owned.
 
+### Review round 5
+
+Codex reviewed `6a86d6c9..83944dba`. It confirmed that both tested interruption points are sound,
+that live-owner fencing holds, and that the non-cancelling `noExec` paths are unchanged. It found one
+P2, confirmed by test before the decision.
+
+- P2, interruption before the `FINISHED` record. `STOPPED` and the program `FINISHED` record are
+  separate writes. An owner that dies between them leaves a `STOPPING` program with a stopped,
+  worker-free attempt. A replacement is refused, because `STOPPING` is not a safe takeover phase
+  and recovery evidence covers only worker attempts. Earlier windows behave the same, because
+  recovering a worker attempt needs the leader's boot record and a refused launch never writes
+  one. That earlier window predates this lane: it applies to any owner death between dispatch and
+  the leader's boot. Closing either window needs a combined attempt and program transition, or a
+  takeover rule that admits a bound, stopped and quiescent attempt from `STOPPING`. Both change the
+  transaction contract, and the second also touches the usage-derivation rule for
+  `STOPPING` to `FINISHED`. Per the coordinator's instruction, it is recorded as a known limit in
+  S22 rather than fixed here, and the coordinator files the follow-up. The spec and failure table
+  no longer claim recovery before the `FINISHED` record.
+  - Witness: `TestCALV0074_NoExecCrashTakeover/stopped` exits the child owner at the new `stopped`
+    hook point. The replacement is refused with "prior program owner not proved stopped". The
+    program is unchanged, and another program's claim is refused with `ATTEMPT_LIVE`.
+- Unrelated: `TestPSRSweepSuccessReplaySuccessor` failed in the round 3 full store run, with "not
+  freed". The same test fails when run alone on base `ce4ae150`, in two of three runs, so the
+  failure predates this lane.
+
