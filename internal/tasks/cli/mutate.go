@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"slices"
@@ -75,6 +73,9 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 		return usage(cmd, "--request-id is required: it is the idempotency key of this mutation")
 	}
 	payload, err := readPayload(env, flags)
+	if err == nil {
+		payload, err = mutation.CanonicalPayload(operation, payload)
+	}
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -148,11 +149,12 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 	return f, nil
 }
 
+// readPayload reads the caller's payload as any valid JSON value (V1-0750):
+// whitespace, key order and escape form are the caller's choice, and the
+// envelope re-encodes the value canonically, so the request digest of a
+// pretty-printed payload equals that of its canonical form. Array order is
+// kept; mutation payloads sort their set arrays in mutation.CanonicalPayload.
 func readPayload(env Env, f mutateFlags) (wire.Value, error) {
-	return readPayloadWithWhitespace(env, f, false)
-}
-
-func readPayloadWithWhitespace(env Env, f mutateFlags, compact bool) (wire.Value, error) {
 	raw := f.payload
 	if f.payloadFromStdin {
 		data, err := io.ReadAll(io.LimitReader(env.Stdin, int64(wire.MaxTicketFileBytes)+1))
@@ -165,21 +167,9 @@ func readPayloadWithWhitespace(env Env, f mutateFlags, compact bool) (wire.Value
 		raw = string(data)
 	}
 	if strings.TrimSpace(raw) == "" {
-		return wire.Value{}, wire.Errorf(wire.CodeMalformed, "payload", "no payload: pass --payload or --payload-stdin (canonical JSON: keys sorted, no extra whitespace)")
+		return wire.Value{}, wire.Errorf(wire.CodeMalformed, "payload", "no payload: pass a JSON object with --payload or --payload-stdin")
 	}
-	if compact {
-		var buf bytes.Buffer
-		if err := json.Compact(&buf, []byte(raw)); err != nil {
-			return wire.Value{}, wire.Errorf(wire.CodeMalformed, "payload", "invalid JSON: %v", err)
-		}
-		raw = buf.String()
-	}
-	// The payload is a fragment, not a file: supply the framing LF the parser
-	// requires. Canonicality is still enforced on the whole envelope.
-	if !strings.HasSuffix(raw, "\n") {
-		raw += "\n"
-	}
-	return wire.Parse([]byte(raw))
+	return wire.ParseInput([]byte(raw))
 }
 
 // buildEnvelope composes the closed §3.3 envelope. targetId and
@@ -233,7 +223,7 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 		usageText += "; corvint-tasks " + strings.Join(cmd, " ") + " --template"
 	}
 	o.Set("usage", wire.String(usageText))
-	o.Set("note", wire.String("the payload is canonical JSON with exactly these keys: sorted object keys, no insignificant whitespace, literal UTF-8 instead of non-ASCII escape forms, and canonical-byte-sorted set arrays such as touchPaths; do not sort ordered arrays such as argv; CREATE may add localToken, and REFINE takes a non-empty subset; see docs/TASKS-EXTERNAL-AGENTS.md"))
+	o.Set("note", wire.String("the payload is a JSON object with exactly these keys; CREATE may add localToken, and REFINE takes a non-empty subset. The CLI canonicalizes it before the request digest (sorted keys, compact separators, literal UTF-8): whitespace, object key order and escape form are free, set arrays such as labels and touchPaths are sorted (duplicates refuse), and ordered arrays such as acceptanceCriteria and dependencies keep the order given; see docs/TASKS-EXTERNAL-AGENTS.md"))
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 
