@@ -712,7 +712,9 @@
     "closableToday": false,
     "implementation": [
       "internal/tasks/cli/note.go",
+      "internal/tasks/journal/operator_note.go",
       "internal/tasks/mutation/operator_note.go",
+      "internal/tasks/store/claim_delivery.go",
       "internal/tasks/ticket/operator_note.go"
     ]
   },

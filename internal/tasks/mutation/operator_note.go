@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -182,3 +183,37 @@ func (c Context) note(plan *Plan, env *Envelope) *Plan {
 	plan.DerivedEvent = prop.Event
 	return plan.completed(work)
 }
+
+// ReplayOperatorNote re-derives one committed NOTE_SET/NOTE_CLEAR from audited
+// historical pre-state through the ordinary Apply path (ON-V0-006). Receipt
+// audit, and the supported redo that audit authorizes, compare the returned
+// canonical post-ticket and event bytes with what the receipt posted, so a
+// rehashed receipt that also changed approvals, gates or acceptance fails
+// whole-record equality. policy must be the receipt's actual pre-policy, never
+// the current one; binding and recordedAt come from the receipt. Replay
+// classification belongs to the request afterimage the caller binds, so the
+// request index here is empty.
+func ReplayOperatorNote(queue wire.QueueID, policy *intent.Policy, pre *ticket.Record, priorEvent []byte, binding Binding, request []byte, recordedAt wire.Timestamp) (post, event []byte, err error) {
+	env, err := Decode(request)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !IsNoteOperation(env.Operation) {
+		return nil, nil, wire.Errorf(wire.CodeMalformed, "/operation", "%s is not a note operation", env.Operation)
+	}
+	inv, err := ticket.NewInventory(queue, []*ticket.Record{pre})
+	if err != nil {
+		return nil, nil, err
+	}
+	ctx := Context{Binding: binding, Queue: &intent.Queue{QueueID: queue}, Policy: policy, Inventory: inv, Requests: noRequests{}, Now: recordedAt, PriorNoteEvent: priorEvent}
+	plan := Apply(ctx, env)
+	if !plan.Planned() || plan.DerivedEvent == nil {
+		return nil, nil, wire.Errorf(wire.CodeMalformed, "/operation", "note transition does not replay: %s %v %s", plan.Outcome.Outcome, plan.Outcome.Codes, plan.Detail)
+	}
+	return plan.Post.Encode(), plan.DerivedEvent, nil
+}
+
+// noRequests is an empty, present request index.
+type noRequests struct{}
+
+func (noRequests) Lookup(string) (IndexEntry, bool, error) { return IndexEntry{}, false, nil }

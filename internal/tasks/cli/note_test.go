@@ -97,8 +97,8 @@ func TestONV0008_TicketNoteSetShowClearThroughTheCLI(t *testing.T) {
 
 	for _, verb := range []string{"set", "clear"} {
 		help := atm(t, r.Root, nil, "ticket", "note", verb, "--help")
-		if help.res.Outcome != wire.OutcomeOK || !strings.Contains(field(help.res.Items[0], "note").Str, "semantic coverage as UNKNOWN") {
-			t.Fatalf("ticket note %s help does not warn about receipt-audit coverage: %+v", verb, help.res)
+		if help.res.Outcome != wire.OutcomeOK || !strings.Contains(field(help.res.Items[0], "note").Str, "receipt audit and redo bind") {
+			t.Fatalf("ticket note %s help does not describe the receipt-audit binding: %+v", verb, help.res)
 		}
 	}
 	if x := atm(t, r.Root, nil, "ticket", "note", "set", id, "--request-id", "note-4"); x.res.Outcome == wire.OutcomeOK {
