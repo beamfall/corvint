@@ -9,6 +9,9 @@ import (
 
 const platformSupported = true
 
+// noFollow refuses a final symlink on open.
+const noFollow = syscall.O_NOFOLLOW
+
 func fileOwner(fi os.FileInfo) (uint32, bool) {
 	st, ok := fi.Sys().(*syscall.Stat_t)
 	if !ok {

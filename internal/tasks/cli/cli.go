@@ -70,7 +70,7 @@ var ReadVerbs = []string{
 	"submit", "gate run", "complete", "health", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe",
 	"ticket note set", "ticket note clear", "ticket note show",
 	"gate record", "gate resubmit", "gate history",
-	"service install", "service status", "service uninstall", "service stop", "service resume", "service run",
+	"service install", "service status", "service uninstall", "service stop", "service resume", "service run", "service run-helper",
 	"ticket escalate", "ticket answer", "ticket escalation list", "ticket escalation show", "ticket escalation history",
 }
 

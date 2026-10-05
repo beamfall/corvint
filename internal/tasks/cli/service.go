@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -19,12 +20,13 @@ import (
 // serviceVerbs are the `service` verbs and their flags (SERVICE500-001):
 // valued flags map to true, bare flags to false.
 var serviceVerbs = map[string]map[string]bool{
-	"install":   {"--program": true, "--config": true, "--request-id": true, "--replace": false},
-	"status":    {"--program": true},
-	"uninstall": {"--program": true, "--request-id": true},
-	"stop":      {"--program": true, "--request-id": true, "--drain": false},
-	"resume":    {"--program": true, "--request-id": true},
-	"run":       {"--program": true, "--manifest": true},
+	"install":    {"--program": true, "--config": true, "--request-id": true, "--replace": false},
+	"status":     {"--program": true},
+	"uninstall":  {"--program": true, "--request-id": true},
+	"stop":       {"--program": true, "--request-id": true, "--drain": false},
+	"resume":     {"--program": true, "--request-id": true},
+	"run":        {"--program": true, "--manifest": true},
+	"run-helper": {"--program": true, "--manifest": true, "--helper": true},
 }
 
 // serviceHost is the live per-user host: HOME, the real uid and the fixed
@@ -48,10 +50,10 @@ func serviceQueueID(workRoot string) (string, error) {
 	return st.Queue.QueueID.Raw, nil
 }
 
-// serviceCommand routes `service install|status|uninstall|stop|resume|run`.
+// serviceCommand routes `service install|status|uninstall|stop|resume|run|run-helper`.
 func serviceCommand(env Env, args []string) *wire.Result {
 	if len(args) == 0 || serviceVerbs[args[0]] == nil {
-		return usage([]string{"service"}, "service needs a verb: install, status, uninstall, stop, resume or run")
+		return usage([]string{"service"}, "service needs a verb: install, status, uninstall, stop, resume, run or run-helper")
 	}
 	verb := args[0]
 	cmd := []string{"service", verb}
@@ -109,6 +111,8 @@ func serviceCommand(env Env, args []string) *wire.Result {
 		o, err = h.Resume(program, values["--request-id"])
 	case "run":
 		return serviceRun(env, cmd, h, program, values["--manifest"])
+	case "run-helper":
+		return serviceRunHelper(env, cmd, h, program, values["--manifest"], values["--helper"])
 	}
 	return serviceResult(cmd, o, err)
 }
@@ -140,10 +144,10 @@ func serviceRun(env Env, cmd []string, h service.Host, program, manifest string)
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer cancel()
-	open := func(p string, c *dispatch.Config, control dispatch.LaunchControl) (service.Controller, error) {
+	open := func(p string, c *dispatch.Config, control dispatch.LaunchControl, out io.Writer) (service.Controller, error) {
 		queueEnv := env
 		queueEnv.Cwd = c.WorkRoot
-		d, err := dispatch.OpenControlled(p, c, dispatchQueue{env: queueEnv}, env.Stderr, control)
+		d, err := dispatch.OpenControlled(p, c, dispatchQueue{env: queueEnv}, out, control)
 		if err != nil {
 			return nil, err
 		}
@@ -153,5 +157,25 @@ func serviceRun(env Env, cmd []string, h service.Host, program, manifest string)
 		return errorResult(cmd, err)
 	}
 	o := wire.NewObject().Set("profile", wire.String("taskman-user-service-run/0")).Set("program", wire.String(program)).Set("interrupted", wire.Bool(ctx.Err() != nil))
+	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{wire.ObjectValue(o)}}
+}
+
+// serviceRunHelper is the manager-started foreground helper wrapper
+// (SERVICE500-007): it runs one registered helper under the shared launch
+// fence with owned, retired-before-restart descendants.
+func serviceRunHelper(env Env, cmd []string, h service.Host, program, manifest, helper string) *wire.Result {
+	exe, err := os.Executable()
+	if err == nil {
+		exe, err = filepath.EvalSymlinks(exe)
+	}
+	if err != nil {
+		return errorResult(cmd, wire.Errorf(wire.CodeCapabilityUnavailable, "/executable", "executable path is not observable: %v", err))
+	}
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+	defer cancel()
+	if err := service.RunHelper(ctx, service.HelperOptions{RunOptions: service.RunOptions{Host: h, Program: program, Manifest: manifest, Executable: exe, Out: env.Stderr}, Helper: helper}); err != nil {
+		return errorResult(cmd, err)
+	}
+	o := wire.NewObject().Set("profile", wire.String("taskman-user-service-run-helper/0")).Set("program", wire.String(program)).Set("helper", wire.String(helper)).Set("interrupted", wire.Bool(ctx.Err() != nil))
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{wire.ObjectValue(o)}}
 }

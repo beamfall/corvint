@@ -9,6 +9,8 @@ import (
 
 const platformSupported = false
 
+const noFollow = 0
+
 func fileOwner(os.FileInfo) (uint32, bool) { return 0, false }
 
 func tryLock(*os.File) error { return fmt.Errorf("user service unsupported on this platform") }

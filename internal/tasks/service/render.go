@@ -136,7 +136,8 @@ func systemdUnit(m Manifest, helper string) ([]byte, error) {
 }
 
 // RenderUnits returns bytes only. Helpers' arbitrary argv/env are deliberately
-// not executable unit text; a future foreground wrapper consumes the manifest.
+// not executable unit text; each helper unit runs `service run-helper`, whose
+// foreground wrapper reads the helper's argv/env from the bound manifest.
 func RenderUnits(m Manifest, p Profile) ([]Unit, error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
@@ -374,15 +375,18 @@ func PlanRollback(next Manifest, f OperationFacts) ([]Action, error) {
 
 // Lifecycle models below consume explicit observations, never elapsed wall time.
 type Debt struct {
-	Failures                  uint8
-	Delay, EligibleAfter      uint64
-	BootID                    string
-	Fences                    map[string]string
-	HealthySince, LastHealthy *uint64
-	HealthyGeneration         string
+	Failures      uint8             `json:"failures"`
+	Delay         uint64            `json:"delay"`
+	EligibleAfter uint64            `json:"eligibleAfter"`
+	BootID        string            `json:"bootId"`
+	Fences        map[string]string `json:"fences"`
+	HealthySince  *uint64           `json:"healthySince"`
+	LastHealthy   *uint64           `json:"lastHealthy"`
+	// HealthyGeneration is the generation of the open healthy window.
+	HealthyGeneration string `json:"healthyGeneration"`
 	// FenceFloor is the highest pruned decimal generation: every decimal
 	// generation at or below it is settled history whose fence was removed.
-	FenceFloor uint64
+	FenceFloor uint64 `json:"fenceFloor"`
 }
 type FailureObservation struct {
 	Generation, Outcome, BootID, Termination string
