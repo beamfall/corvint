@@ -65,6 +65,50 @@ type Worker struct {
 type EscalationState struct {
 	Streak int            `json:"streak"`
 	Tiers  map[string]int `json:"tiers,omitempty"`
+	// RetainTiers keeps every recorded tier as a launch floor after an
+	// ESC-V0-008 infrastructure session, which counts as unknown progress:
+	// it resets the streak but cannot lower the selected tier. Progress
+	// clears it.
+	RetainTiers bool `json:"retainTiers,omitempty"`
+}
+
+// Infrastructure retry episode states (ESC-V0-007). READY has no pending
+// retry; RETRY_WAIT waits for nextEligible; RETRYING has reserved or
+// launched its retry; RECOVERED saw checked work progress; EXHAUSTED and
+// UNKNOWN hold automatic retries until progress or a new acceptance.
+const (
+	InfraReady     = "READY"
+	InfraWait      = "RETRY_WAIT"
+	InfraRetrying  = "RETRYING"
+	InfraRecovered = "RECOVERED"
+	InfraExhausted = "EXHAUSTED"
+	InfraUnknown   = "UNKNOWN"
+)
+
+const maxInfraSessions = 32
+
+// InfraRetry is the ESC-V0-007 infrastructure retry episode of one ticket
+// and acceptance revision, shared across roles and request IDs. Count is the
+// number of charged retry ordinals; Sessions are the ended infrastructure
+// sessions already counted, so a session counts once.
+type InfraRetry struct {
+	AcceptanceRevision string            `json:"acceptanceRevision"`
+	State              string            `json:"state"`
+	Count              int               `json:"count"`
+	Sessions           []string          `json:"sessions"`
+	Requests           []string          `json:"requests,omitempty"`
+	NextEligible       time.Time         `json:"nextEligible,omitempty"`
+	Reason             string            `json:"reason,omitempty"`
+	Fingerprint        string            `json:"fingerprint,omitempty"`
+	Pending            *InfraReservation `json:"pending,omitempty"`
+}
+
+// InfraReservation is a retry launch reserved before it is issued: its exact
+// worker identity, charged ordinal and the deadline it waited for.
+type InfraReservation struct {
+	Worker   string    `json:"worker"`
+	Ordinal  int       `json:"ordinal"`
+	Deadline time.Time `json:"deadline"`
 }
 
 // Backoff is the CAL-V0-057 per-key no-progress record.
@@ -105,6 +149,9 @@ type Ledger struct {
 	Pressure   *PressureRecord             `json:"pressure,omitempty"`
 	// Escalation is present only while the configuration has a ladder.
 	Escalation map[string]*EscalationState `json:"escalation,omitempty"`
+	// InfraRetry holds the ESC-V0-007 infrastructure retry episode of each
+	// ticket key.
+	InfraRetry map[string]*InfraRetry `json:"infraRetry,omitempty"`
 }
 
 const maxPressureHeld, maxPressureProblems, maxPressureProblem = 8192, 8, 200
@@ -206,7 +253,7 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	// Detect aliases before struct decoding: encoding/json folds field names,
 	// so an uppercase-only member must not fall back to legacy loading.
 	for name := range members {
-		if strings.EqualFold(name, "progress") || strings.EqualFold(name, "poolSweeps") {
+		if strings.EqualFold(name, "progress") || strings.EqualFold(name, "poolSweeps") || strings.EqualFold(name, "infraRetry") {
 			if bytes.Equal(bytes.TrimSpace(members[name]), []byte("null")) || !validScalarJSON(raw) || !strictProgressJSON(raw) {
 				return nil, errors.New("dispatch state: malformed progress JSON")
 			}
@@ -240,6 +287,9 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 		return nil, fmt.Errorf("dispatch state: %w", err)
 	}
 	if err := l.validateSeenLoops(); err != nil {
+		return nil, fmt.Errorf("dispatch state: %w", err)
+	}
+	if err := l.validateInfraRetry(); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
 	}
 	if l.Pressure != nil {
@@ -287,7 +337,7 @@ func strictProgressJSON(raw []byte) bool {
 			var fields []string
 			switch schema {
 			case "ledger":
-				fields = []string{"profile", "program", "launchSeq", "eventSeq", "workers", "backoff", "seen", "progress", "poolSweeps", "pressure", "escalation"}
+				fields = []string{"profile", "program", "launchSeq", "eventSeq", "workers", "backoff", "seen", "progress", "poolSweeps", "pressure", "escalation", "infraRetry"}
 			case "sweep-record":
 				fields = []string{"workRoot", "program", "queue", "pool", "member", "allocation", "definition", "requestId", "actor", "actorRole", "configDigest", "timeoutSeconds", "phase", "started", "observed", "result", "reason"}
 			case "sweep-result":
@@ -305,7 +355,11 @@ func strictProgressJSON(raw []byte) bool {
 			case "history":
 				fields = []string{"current", "seen"}
 			case "escalation-state":
-				fields = []string{"streak", "tiers"}
+				fields = []string{"streak", "tiers", "retainTiers"}
+			case "infra-retry":
+				fields = []string{"acceptanceRevision", "state", "count", "sessions", "requests", "nextEligible", "reason", "fingerprint", "pending"}
+			case "infra-pending":
+				fields = []string{"worker", "ordinal", "deadline"}
 			}
 			seen := map[string]bool{}
 			for d.More() {
@@ -318,7 +372,7 @@ func strictProgressJSON(raw []byte) bool {
 				child := ""
 				switch schema {
 				case "ledger":
-					if key == "workers" || key == "backoff" || key == "seen" || key == "progress" || key == "poolSweeps" || key == "escalation" {
+					if key == "workers" || key == "backoff" || key == "seen" || key == "progress" || key == "poolSweeps" || key == "escalation" || key == "infraRetry" {
 						child = key
 					}
 				case "worker":
@@ -340,6 +394,12 @@ func strictProgressJSON(raw []byte) bool {
 					child = "sweep-scalar"
 				case "escalation":
 					child = "escalation-state"
+				case "infraRetry":
+					child = "infra-retry"
+				case "infra-retry":
+					if key == "pending" {
+						child = "infra-pending"
+					}
 				case "seen":
 					if key == "loops" {
 						child = key
@@ -536,6 +596,43 @@ func (l *Ledger) validateEscalation() error {
 	for _, w := range l.Workers {
 		if w != nil && (w.Tier < 0 || w.Tier > 8 || w.Tier > 0 && w.Model == "") {
 			return errors.New("invalid worker tier")
+		}
+	}
+	return nil
+}
+
+// Infrastructure retry hold reasons (ESC-V0-007): dispatcher observations,
+// not native codes.
+const (
+	InfraRetryDisabled    = "INFRA_RETRY_DISABLED"
+	InfraRetryExhausted   = "INFRA_RETRY_EXHAUSTED"
+	NativeRetryExhausted  = "NATIVE_RETRY_EXHAUSTED"
+	SpawnAmbiguous        = "SPAWN_AMBIGUOUS"
+	ReservationUnresolved = "RESERVATION_UNRESOLVED"
+)
+
+var infraReasons = map[string]bool{"": true, InfraRetryDisabled: true, InfraRetryExhausted: true, NativeRetryExhausted: true, SpawnAmbiguous: true, ReservationUnresolved: true}
+
+func (l *Ledger) validateInfraRetry() error {
+	states := map[string]bool{InfraReady: true, InfraWait: true, InfraRetrying: true, InfraRecovered: true, InfraExhausted: true, InfraUnknown: true}
+	for key, e := range l.InfraRetry {
+		if _, err := wire.ParseTicketID("infraRetry key", key); err != nil || e == nil || !states[e.State] || !infraReasons[e.Reason] || e.Count < 0 || e.Count > 10 || len(e.Sessions) > maxInfraSessions || len(e.Requests) > 64 || len(e.AcceptanceRevision) == 0 || len(e.AcceptanceRevision) > 32 || (e.Fingerprint != "" && !validProgressDigest(e.Fingerprint)) {
+			return errors.New("invalid infrastructure retry episode")
+		}
+		if (e.State == InfraRetrying && e.Pending == nil) || (e.Pending != nil && e.State != InfraRetrying && e.State != InfraWait && e.State != InfraUnknown) {
+			return errors.New("invalid infrastructure retry reservation")
+		}
+		if p := e.Pending; p != nil && (p.Worker == "" || len(p.Worker) > 128 || p.Ordinal < 1 || p.Ordinal != e.Count) {
+			return errors.New("invalid infrastructure retry reservation")
+		}
+		for _, ids := range [][]string{e.Sessions, e.Requests} {
+			seen := map[string]bool{}
+			for _, id := range ids {
+				if id == "" || len(id) > 128 || seen[id] {
+					return errors.New("invalid infrastructure retry identity")
+				}
+				seen[id] = true
+			}
 		}
 	}
 	return nil

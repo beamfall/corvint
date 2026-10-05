@@ -1,0 +1,262 @@
+# 2026-10-05: issue 502 bounded infrastructure retry, park classification and escalation material
+
+## Intent
+
+Owner request 2026-10-05 for [issue 502](https://github.com/beamfall/corvint/issues/502) (ticket
+V1-0699): finish typed worker escalations so the issue can close. This slice covers the rest after
+PR #592 (base `d524530fc9f53e62a14a3918a760b6df9d80f66e`). The owner decision binding V1-0791 is
+unchanged: that escalation stays a dispatcher `needs-owner` event acknowledged only by
+`ticket reopen`, and `loopEscalations` is not touched.
+
+## Requirements
+
+`ESC-V0-005`, `ESC-V0-007`, `ESC-V0-008` and `ESC-V0-010` in
+`docs/specs/corvint-tasks-escalations-v0.md`. That spec's Acceptance evidence, findings, Integration
+slot and Rollout sections are updated in this change.
+
+## Change
+
+- **ESC-V0-005 (claim delivery):** already on main through PR #592. Verified on this base by
+  `TestESCV0005_*` in the full tasks package run. No code change.
+- **ESC-V0-007 (bounded infrastructure retry):** the optional dispatch config is
+  `infrastructureRetry {maxRetries, cooldownSeconds, maxCooldownSeconds}`. The optional ledger
+  member is `infraRetry`, keyed by ticket and holding the acceptance revision, state, charged
+  count, sessions, requests, next eligible time, reason, fingerprint and the pending reservation.
+  - A retry is reserved and saved before launch. A failed save launches nothing that tick.
+  - On restart, a reservation with no worker directory is reused without a new charge. Any other
+    reservation is UNKNOWN (`RESERVATION_UNRESOLVED`).
+  - An ambiguous spawn is UNKNOWN (`SPAWN_AMBIGUOUS`).
+  - Exhaustion is named `INFRA_RETRY_EXHAUSTED`, `INFRA_RETRY_DISABLED` or
+    `NATIVE_RETRY_EXHAUSTED`. The native request stays OPEN.
+  - `dispatch status` lists the episodes as `infrastructureRetry`.
+  - Existing debt, native exhaustion and ownership rules stay authoritative: a native
+    `RETRY_EXHAUSTED` plan reason always wins.
+- **ESC-V0-008 (park classification):** the native observation now carries each ticket's
+  acceptance revision and its typed requests: kind, state, audited source holder and open time.
+  Unreadable material is `EscalationUnknown`. Session classification runs before no-progress
+  parking:
+  - A session that raised a decision, scope or blocked request is held. It leaves the ladder,
+    count and backoff untouched.
+  - A session that raised an infrastructure request charges its retry episode. It resets only the
+    proved failure streak and keeps the reached 499 tier as a floor (`retainTiers`).
+  - Neither kind of session parks.
+- **ESC-V0-010 (typed-event stage, material branch):** `internal/tasks/journal/escalation_audit.go`
+  binds every receipt that carries escalation events, in receipt audit and redo. The receipt must
+  be the exact shape the native writer commits:
+  - The target ticket is replayed from its audited pre-record. Only the reference, revision,
+    previous-record digest and update stamp may change.
+  - Revision, control and work arithmetic must match the reducer.
+  - Each new or terminal entry must be explained by exactly one event. That event's identity,
+    actor, time, request, chain, origin and source must agree with the receipt.
+  - Any other receipt must leave every walked ticket's reference byte-identical.
+  - The events now earn per-post semantic coverage.
+
+## Decisions (agent, fail-closed; raised as owner questions)
+
+- **Absent policy:** an absent `infrastructureRetry` policy is treated as disabled. The first
+  infrastructure session holds as `INFRA_RETRY_DISABLED` instead of retrying.
+- **No reset command:** EXHAUSTED and UNKNOWN episodes clear only through:
+  - checked progress;
+  - an outside change of the work fingerprint;
+  - an acceptance change;
+  - the ticket leaving the observation.
+
+  An operator answer is not progress.
+- **Classification scope:** a session matches requests only by the holder recorded in the request's
+  audited source, on the current acceptance revision, and only while the request is OPEN or
+  ANSWERED. A ticket with no observed acceptance revision gets ordinary accounting.
+- **LEASE route kept:** ESC-V0-010's text names issue 501's MUTATE slot, with supersession
+  deferred. The writer already ships on the LEASE stage with supersession. This slice binds that
+  route's material in the journal. It does not widen any StageLease bound and adds no distinct
+  stage operation. The owner must decide whether to accept the LEASE route and amend the text, or
+  move the writer to the MUTATE slot.
+
+## Limits
+
+- **Claim admission bound by the walk (round 5):** the journal records each walked completed ADMIT
+  receipt's source and requires an OPEN's source to equal it. An admission before a checkpoint
+  falls back to the full audit.
+- **Coverage stays UNKNOWN in lease stores:** ADMIT receipts' `attempts/` and `reservations.json`
+  posts keep store-level semantic coverage UNKNOWN. That predates this slice. Event coverage is
+  asserted at the journal level.
+- **Checkpoint tail:** a checkpoint-resumed read does not compare the first tail post of a ticket
+  whose reference predates the checkpoint; the complete `receipt audit` does.
+- **Status gap (ESC-V0-009):** open request kinds and ages are not yet in `dispatch status`. Its
+  retry state is.
+
+## Evidence
+
+- **New tests**, all passing:
+  - `TestESCV0007_*`: 14 tests in `internal/tasks/dispatch/issue502_retry_test.go` and
+    `internal/tasks/cli/dispatch_escalation_pending_internal_test.go`.
+  - `TestESCV0008_*`: 6 tests across dispatch and cli.
+  - `TestESCV0010_*`: 10 tests in `internal/tasks/journal` and `internal/tasks/store`.
+- **Mutation check:** disabling `escalations.bind` in `journal/records.go` failed 10 subtests and
+  tests (every forgery, the redo and the checkpoint case). The original was then restored.
+- **Package run:** the full `./internal/tasks/... ./cmd/corvint-tasks/...` run is retained in the
+  lane TMPDIR. `gofmt` and `go vet ./internal/tasks/...` are clean.
+- **`corvint affected`:** it selected the exhaustive gate. Per the owner's standing preference for
+  scoped issue work, focused package tests ran instead and `make gate` is NOT_RUN.
+
+## Codex review
+
+Round 1 (`codex exec -m gpt-6-astra -s read-only` over `d524530f..44d7facf`) reported three P2
+findings. All three were verified against the code and fixed with regressions that fail without the
+fix:
+
+- **Reserved retry over a narrowed policy:** a reservation saved before a reload was relaunched even
+  when the new policy no longer allowed its ordinal. `reserveInfra` now checks the reserved
+  ordinal against the current bound and holds it (`INFRA_RETRY_EXHAUSTED`, or `INFRA_RETRY_DISABLED`
+  at 0), keeping the charged count. Regression: `TestESCV0007_NarrowedPolicyHoldsAReservedRetry`.
+- **Event request not bound to the receipt request:** an event's `OriginalRequest` could be
+  rewritten (an answer's text, say) with the event, evidence path and ticket head rehashed, and the
+  audit accepted it. The journal now hashes the retained request, restates the LEASE request digest
+  preimage, and requires it to equal the receipt entry's mutation digest. It also binds
+  `ResolvedRequestID` and `ResolvedPreviousRevision`, and the request's operation, selector,
+  expected revision and replacement to the event.
+- **Terminal source not bound to the question's source:** a terminal event could carry a source
+  other than the one its question was opened with. The audit now keeps each opened question's
+  source and refuses a terminal step that changes it; an origin before a checkpoint falls back to
+  the full audit.
+
+Regression for the last two: `TestESCV0010_ConsistentlyRehashedEventIsJournalForked`. With the
+pre-fix `escalation_audit.go` both subtests' forgeries audit clean.
+
+Round 2 (over `d524530f..3d4b9023`) reported three P2 findings. Two were verified and fixed with
+regressions that fail without the fix; one is declined:
+
+- **Stale backoff recovered an episode:** `unpark` recovered the infrastructure episode whenever a
+  non-parked backoff's fingerprint differed from the current one. A backoff left at an older
+  fingerprint by an ordinary failure therefore cleared every later infrastructure episode on the
+  next tick, so the retry bound never held. `unpark` no longer recovers episodes; `reconcileInfra`
+  compares the episode's own baseline. Regression: `TestESCV0007_StaleBackoffDoesNotRecoverAnEpisode`.
+- **First progress token recovered an episode:** first-token admission rewrapped the worker and
+  backoff baselines but not the episode's, so the token alone looked like progress. The episode
+  baseline is now rewrapped in the same staged ledger. Regression:
+  `TestESCV0007_FirstProgressTokenDoesNotRecover`.
+- **Declined: checkpoint tail does not compare a pre-checkpoint reference.** In a
+  checkpoint-resumed read, the first ordinary post of a ticket last posted before the checkpoint is
+  not compared against its earlier reference, because that reference lives in the prefix the
+  checkpoint read must not open. Returning `errCheckpoint` there would send every ordinary edit
+  tail to the complete audit and break the accepted operator-note contract, which mirrors this
+  rule (`internal/tasks/journal/operator_note.go`; `TestONV0006_CheckpointTailNeverReadsThePrefix` keeps a REFINE tail in
+  checkpoint mode). `receipt audit` never resumes from a checkpoint and refuses the forgery.
+  Raised as an owner question: carry walked reference digests in the checkpoint, or accept the
+  read-path limit for notes and escalations alike.
+
+Round 3 (over `d524530f..02f4b9c9`) reported two P2 findings. Both were verified against the
+writer (`computeEscalation`) and fixed in `escalation_audit.go`:
+
+- **Shorthand answer not counted:** an answer with an empty selector was accepted without checking
+  that exactly one current OPEN question existed, so a forged history could record an answer the
+  writer refuses as `AMBIGUOUS_OPEN_QUESTIONS`. The audit now counts the pre-ticket's current OPEN
+  entries. A selected answer or supersession must now name its question at exactly its
+  pre-revision.
+- **Ticket CAS not compared:** the request's `expectedTicketRevision` was never compared with the
+  audited pre-ticket revision, so a stale CAS the writer refuses as `STALE_TICKET_CAS` audited
+  clean. It is now compared.
+
+Regression: `TestESCV0010_RetainedRequestPreconditionsAreAudited`. It forges the answer event and
+also rebinds the receipt's retained request entry to the forged request's LEASE digest, so only the
+new checks can refuse it. Against the round-2 `escalation_audit.go` both subtests audit clean.
+
+Round 4 (over `d524530f..e4b4a6ae`) reported one P2 and one P3 finding. Both were verified and
+fixed with regressions that fail without the fix:
+
+- **P2, policy grant not audited:** the audit never checked the receipt role's `ESCALATE` or
+  `ANSWER` grant against the historical policy, so an OWNER answer consistently rewritten to
+  OPERATOR (refused by the writer as NOT_ALLOWED under the default policy) audited clean. The
+  audit now reads the audited pre-policy, as the operator-note audit does, and applies the
+  writer's `escalationGrant` rule. A checkpoint-resumed read that has not walked the policy falls
+  back to the full audit. Regression: the `role without the policy grant` subtest of
+  `TestESCV0010_RetainedRequestPreconditionsAreAudited`.
+- **P3, cooldown overflow:** `cooldownSeconds: 9223372037` overflowed `time.Duration` negative and
+  passed validation. The raw seconds are now bounded before conversion. Regression: the
+  `cooldown overflows` and `cap overflows` cases of `TestESCV0007_ConfigBounds`; the first fails
+  without the fix.
+
+Round 5 (over `d524530f..ae436923`) reported two P2 findings. Both were verified and fixed with
+regressions that fail without the fix:
+
+- **P2, unknown material launched:** a ticket with `EscalationUnknown` kept its raw revision but
+  was still assigned, so its worker fingerprinted the raw revision; when the material became
+  readable the effective revision differed and counted as progress, clearing backoff and
+  recovering the episode. The roster now holds such a ticket. Regression: the extended
+  `TestESCV0008_UnknownMaterialIsNotProgress`, which fails with one running worker without the fix.
+- **P2, OPEN admission not validated:** an OPEN's source receipt digest, POST attempt digest and
+  generation were never bound to a historical admission, so a consistently rewritten source
+  audited clean and could authorize pending-receipt redo. The walk now records each completed
+  ADMIT receipt's source, as the writer's `auditedClaim` reads it from the POST attempt, and an
+  OPEN's source must equal it and be unsupervised. The record is bounded by the receipt scan.
+  Regression: `TestESCV0010_OpenSourceIsARecordedAdmission`; all four subtests audit clean
+  without the fix.
+
+Round 6 (over `d524530f..51fbac6a`) reported three P2 findings. All were verified and fixed with
+regressions that fail without the fix:
+
+- **P2, OPEN fence not restated:** the audit checked the original admission only, so an OPEN
+  consistently rewritten to a time after its lease expired audited clean although the writer
+  refuses `EXPIRED_ADMISSION`. The audit now reads the source attempt and `reservations.json`
+  pre-state afterimages and requires a live, unsupervised attempt under the source's generation,
+  holder and ticket record, a matching reservation and a lease that expires after the event's
+  time. Regression: the `lease expired` subtest of `TestESCV0010_OpenFenceIsAudited`, which
+  rewrites the event, receipt and ticket post time together. The not-current and
+  reservation branches have no forged-history regression; producing one needs a receipt moved
+  past a release.
+- **P2, unknown material at session end:** a session ending while its material was unknown was
+  classified from an empty request list, so an infrastructure session was accounted as an
+  ordinary failure and could park. Its accounting and reservation are now deferred with the ended
+  worker, as declared progress already is. Regression:
+  `TestESCV0008_UnknownMaterialDefersSessionAccounting` (a cooldown without the fix).
+- **P2, blocked relation not audited:** an OPEN rebound to a blocked relation naming an absent
+  ticket or undefined gate audited clean, while the writer refuses `BLOCKED_RELATION_UNKNOWN`. The
+  audit now checks both against the pre-state and pre-policy. Regression: the
+  `absent blocked ticket` and `undefined gate` subtests of `TestESCV0010_OpenFenceIsAudited`.
+
+Round 7 (over `d524530f..5204e37f`) reported one P2 finding, verified and fixed with a regression
+that fails without the fix:
+
+- **P2, guidance capacity not audited:** the writer refuses any proposal whose post-state answer
+  array encodes past 256 KiB (`GUIDANCE_CAPACITY`), but the audit never restated that bound, so a
+  committed answer consistently rewritten to a longer text audited clean. An answer receipt now
+  rebuilds the current acceptance revision's encoded guidance from each answered entry's origin
+  and head events (posted in the receipt, or read back as audited afterimages) and refuses
+  `JOURNAL_FORKED` past the bound, now shared as `wire.EscalationMaxGuidanceBytes`. Only an answer
+  grows the array, so other receipts skip the check. Regression:
+  `TestESCV0010_AnswerGuidanceCapacityIsAudited`, which audits clean without the fix.
+
+Round 8 (over `d524530f..31118365`) reported no actionable P0-P3 findings. It restated the open
+ruling on a distinct typed-event stage (the writer still uses LEASE). The review was static only:
+its read-only sandbox blocked Go tests and Corvint context generation.
+
+## NOT_RUN
+
+- a live dispatcher and compiled-binary witness
+- interrupted paired publication at each artifact
+- a distinct typed-event stage operation
+- open kinds and ages in `dispatch status`
+- `make gate`
+
+## Rollback
+
+See the spec's Rollout and rollback section:
+
+- The ledger members `infraRetry` and `retainTiers` and the config key `infrastructureRetry` are
+  removed with `jq` after a backup.
+- The journal binding is a plain revert of `escalation_audit.go` and its call sites.
+
+## Owner acceptance
+
+On 2026-10-05 the owner accepted #502 with qualification `NOT_RUN` and closed it. V1-0699 completes on
+this basis.
+
+The owner delegated the lane's six open choices to the orchestrator. It accepted the delivered LEASE
+route for ESC-V0-010 for this closure, without amending the requirement, and kept the other
+fail-closed defaults. The spec's Integration slot records the decision.
+
+The `NOT_RUN` list above, together with the route reconciliation and the forged-history regressions
+for the `currentClaim` attempt and reservation branches, is tracked by follow-up V1-0823.
+
+The loaded store failures (CALV0077, the CALV0078 refresh-GRANT and gate-record cases, ATRV0004) pass
+alone. They are the known flake classes V1-0771 and V1-0768. This acceptance claims no full
+store-package pass.
