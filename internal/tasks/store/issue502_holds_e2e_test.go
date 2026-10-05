@@ -27,8 +27,9 @@ func TestIssue502_WriterReferenceHoldsAndReleases(t *testing.T) {
 		t.Fatalf("direct claim detail %q", direct.Detail)
 	}
 	next := s.lease(t, "next-2", claimNext, 3, nil)
-	if next.Outcome.Outcome != mutation.OutcomeBlocked || next.AttemptID != "" {
-		t.Fatalf("claim-next took a held ticket: %+v", next)
+	refusedWith(t, next, mutation.OutcomeBlocked, wire.CodeEscalationPending)
+	if next.AttemptID != "" || next.Detail != "no ticket is SELECTED; the first of 1 planned tickets, "+id+", is BLOCKED ESCALATION_PENDING on q-1" {
+		t.Fatalf("claim-next took or misreported a held ticket: %+v", next)
 	}
 	if storeDigest(t, s.repo) != before {
 		t.Fatal("a refused claim wrote")

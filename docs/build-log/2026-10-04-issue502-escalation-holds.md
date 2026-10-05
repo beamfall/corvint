@@ -28,8 +28,10 @@ sorted, deduplicated and bounded to `wire.EscalationMaxCurrentOpen` (16), with t
   ledger (`seen.escalations`), even when a pool, pause or ordinary hold is the primary plan reason.
 
 `ESCALATION_PENDING` amends TCP-00 §11's closed code set to 72, following the leases spec's A17
-precedent. A reader built before this change refuses the code; only a writer-produced reference
-can make it appear, and no writer exists yet.
+precedent. A reader built before this change refuses the code, and only a writer-produced
+reference can make it appear. When this slice was written no writer existed. The store writer
+(`store.Escalate` and `store.AnswerEscalation`) has since merged into this branch from a9df0e4a and
+ec81e4cd; the `escalate`/`answer` CLI commands are still not delivered.
 
 ## Owner decision
 
@@ -59,6 +61,27 @@ skips held tickets before role matching, and keeps the hold in the ledger apart 
 
 Revert the change. Core's planner then blocks such tickets as `TICKET_STATE` again, and native
 claims stop honouring the hold. No native store byte format changes. The dispatcher ledger gains
-the optional `seen.escalations` key; a dispatcher built before the change refuses a ledger saved
-while a hold was observed, so after rollback remove that program's ledger `state.json` or wait for a
-save with no hold before downgrading.
+the optional `seen.escalations` key, and a dispatcher built before the change refuses any ledger
+that carries it. Do not delete the ledger: it holds worker tracking, backoff, parking and cooldown,
+progress replay, pool sweeps, pressure and escalation tiers. Instead, before downgrading:
+
+1. Stop that program's dispatcher.
+2. Back up `<stateDir>/<program>/state.json`.
+3. Remove only that member, for example
+   `jq 'del(.seen.escalations)' state.json > state.json.tmp && mv state.json.tmp state.json`.
+4. Confirm the older binary's `dispatch status` loads the file, then restart.
+
+Checked on 2026-10-04: the base (874444cb) `LoadLedger` refused a ledger with progress, backoff and
+`seen.escalations` ("malformed progress JSON"), and loaded it with all other members intact after
+that one deletion.
+
+## Ledger schema correction (Codex round 2)
+
+The holds commit added `seen.escalations` to the ledger struct but not to the strict member
+allowlist that `LoadLedger` applies once `progress` or `poolSweeps` is present. A dispatcher with
+either then saved a ledger its own binary refused. The allowlist now includes it, and `LoadLedger`
+admits only the shape `diff` writes: a ticket-ID key with 1 to 16 strictly sorted request
+identifiers. `TestIssue502_LedgerKeepsEscalationsBesideProgress`,
+`TestIssue502_LedgerKeepsEscalationsBesidePoolSweeps` and
+`TestIssue502_DispatchStatusLoadsHoldBesideStrictMembers` cover save, load, restart and status. All
+three fail with the allowlist entry removed.

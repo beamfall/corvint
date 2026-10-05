@@ -228,6 +228,9 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	if err := l.validateEscalation(); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
 	}
+	if err := l.validateSeenEscalations(); err != nil {
+		return nil, fmt.Errorf("dispatch state: %w", err)
+	}
 	if l.Pressure != nil {
 		if err := l.Pressure.validate(); err != nil {
 			return nil, fmt.Errorf("dispatch state: %w", err)
@@ -285,7 +288,7 @@ func strictProgressJSON(raw []byte) bool {
 			case "proc":
 				fields = []string{"pid", "identity"}
 			case "seen":
-				fields = []string{"tickets", "claims", "lanes"}
+				fields = []string{"tickets", "claims", "lanes", "escalations"}
 			case "history":
 				fields = []string{"current", "seen"}
 			case "escalation-state":
@@ -702,4 +705,23 @@ func textOf(v map[string]any) string {
 		}
 	}
 	return ""
+}
+
+// validateSeenEscalations admits only what diff records for ESC-V0-006: per
+// held ticket, 1 to 16 strictly sorted request identifiers.
+func (l *Ledger) validateSeenEscalations() error {
+	if l.Seen == nil {
+		return nil
+	}
+	for key, ids := range l.Seen.Escalations {
+		if _, err := wire.ParseTicketID("escalations key", key); err != nil || len(ids) == 0 || len(ids) > wire.EscalationMaxCurrentOpen {
+			return errors.New("invalid escalation hold")
+		}
+		for i, id := range ids {
+			if _, err := wire.ParseIdentifier("escalation request", id); err != nil || (i > 0 && ids[i-1] >= id) {
+				return errors.New("invalid escalation hold")
+			}
+		}
+	}
+	return nil
 }
