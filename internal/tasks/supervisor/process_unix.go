@@ -188,9 +188,19 @@ func Run(ctx context.Context, self, dir string, c Capsule, journal Journal) (out
 	waited := false
 	stopped := make(chan error, 1)
 	go func() { stopped <- cmd.Wait() }()
+	// A detached host's escaped groups are observed while the host runs,
+	// since an escape orphaned by its parent's exit is no longer reachable.
+	vocabulary, _ := HostVocabulary(c.Host)
+	escaped := newEscapes(owned.group)
 	// Always retire the owned group, including failed boot/ack paths.
 	defer func() {
+		if vocabulary.Detached {
+			escaped.scan()
+		}
 		out.Clean = owned.drain()
+		if vocabulary.Detached && !escaped.drain() {
+			out.Clean = false
+		}
 		if startErr != nil {
 			out.Clean = false
 		}
@@ -202,11 +212,17 @@ func Run(ctx context.Context, self, dir string, c Capsule, journal Journal) (out
 				out.Clean = false
 			}
 		}
+		// For a detached host, end of file on both pipes is the proof that no
+		// process outside the drained groups still holds the host output.
+		quiesce := time.Second
+		if vocabulary.Detached {
+			quiesce = detachedQuiesce
+		}
 		readDone := make(chan struct{})
 		go func() { readers.Wait(); close(readDone) }()
 		select {
 		case <-readDone:
-		case <-time.After(time.Second):
+		case <-time.After(quiesce):
 			out.Clean = false
 			r1.Close()
 			r2.Close()
@@ -215,8 +231,7 @@ func Run(ctx context.Context, self, dir string, c Capsule, journal Journal) (out
 		out.Stdout = stdout.b
 		out.Stderr = stderr.b
 		out.OutputSHA256 = Digest(out.Stdout)
-		host, _ := HostVocabulary(c.Host)
-		out.SessionID = host.Session(out.Stdout)
+		out.SessionID = vocabulary.Session(out.Stdout)
 		if stdout.overflow || stderr.overflow {
 			out.Class = "OUTPUT_LIMIT"
 			if err == nil {
@@ -225,7 +240,7 @@ func Run(ctx context.Context, self, dir string, c Capsule, journal Journal) (out
 		}
 		if out.Class == "EXIT_ZERO" {
 			var parseErr error
-			out.SessionID, out.Result, parseErr = host.Decode(out.Stdout)
+			out.SessionID, out.Result, parseErr = vocabulary.Decode(out.Stdout)
 			if parseErr != nil {
 				out.Class = "INVALID_RESULT"
 				if err == nil {
@@ -271,6 +286,7 @@ func Run(ctx context.Context, self, dir string, c Capsule, journal Journal) (out
 	}
 	tick := time.NewTicker(10 * time.Millisecond)
 	defer tick.Stop()
+	lastScan := time.Time{}
 waitHost:
 	for {
 		select {
@@ -284,6 +300,10 @@ waitHost:
 			err = ctx.Err()
 			break waitHost
 		case <-tick.C:
+			if vocabulary.Detached && time.Since(lastScan) >= escapeScanEvery {
+				escaped.scan()
+				lastScan = time.Now()
+			}
 			raw, re := ReadBounded(filepath.Join(dir, "exit"), MaxCapsule)
 			if os.IsNotExist(re) {
 				continue

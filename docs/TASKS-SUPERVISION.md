@@ -52,15 +52,19 @@ contained. Live Claude Code qualification is NOT_RUN; see
 OpenCode host: set `"host": "opencode"` in the policy `supervision` object and the config, pin the
 OpenCode executable the same way, and give `model` as one `provider/model` without a `#variant`
 (each stage appends its effort as the variant). Multi-repository OpenCode programs are refused
-`UNSUPPORTED`. Stages run `opencode run --standalone --format json`, resuming with `--session`, so
-the session server and every in-process plugin stay in the supervised process group. The run never
+`UNSUPPORTED`. Stages run `opencode run --standalone --format json`, resuming with
+`--session S --fork`. OpenCode starts its session server and tool processes in process groups of
+their own; the supervisor observes those escapes while the host runs, drains them at stop, and
+reports a clean stop only when the server-held standard error (`OPENCODE_PRINT_LOGS=1`, error
+level) reaches end of file. The run never
 passes `--auto`; an inline `OPENCODE_CONFIG_CONTENT` permission set denies sub-agents and directories
 outside the worktree in every stage and edits in review and integrate, project configuration is
 disabled and self-update is off. The last text part inside a step that finished with reason `stop`
-must decode to the handoff; any host `error` event, a changed session, or a resumed stage answered
-from a different session is refused. Usage sums every finished step's disjoint counters or stays
-NOT_OBSERVED. Plugins loaded from user configuration still run with host privileges and are not
-contained. Live OpenCode qualification is NOT_RUN; see
+must decode to the handoff; any host `error` event or a changed session is refused, and a resumed
+stage advances only from a new forked session, otherwise it stays WAITING. Usage sums every
+finished step's disjoint counters only when accounting is complete (no open step, a final `stop`,
+output under the cap), or stays NOT_OBSERVED. Plugins loaded from user configuration still run
+with host privileges and are not contained (a known limit). Live OpenCode qualification is NOT_RUN; see
 [S23](specs/corvint-tasks-agent-leases-v0.md#s23--opencode-supervised-host-v1-0756-split-from-issue-354).
 
 ```sh

@@ -14,7 +14,7 @@ the configuration flags). No model run was made. The fake host in
 
 Decisions:
 
-- Process boundary. OpenCode extensions are in-process plugins loaded by its session server, not
+- Process boundary (superseded by the review fixes below). OpenCode extensions are in-process plugins loaded by its session server, not
   hooks (AHI-044). By default `opencode run` attaches to a shared background service. Every stage
   passes `--standalone`. That answers the V1-0755 build-log question of whether a plugin host can
   give the lane leader a foreground process to own and reap: it can. The owned process is
@@ -40,7 +40,7 @@ Decisions:
   `stop`, with the handoff in the last text part before it. Usage sums the disjoint counters of
   every finished step (input + cache read + cache write; output + reasoning). Otherwise it is
   NOT_OBSERVED.
-- Resume. `--session S` silently creates S when it no longer exists, and the answer then comes from
+- Resume (superseded by the review fixes below). `--session S` silently creates S when it no longer exists, and the answer then comes from
   a different session. The S22 `Vocabulary.Decode(raw)` seam does not receive the expected session,
   so the check sits in the store right after `supervisor.Run`. Such a stage stops with the
   resumable-handoff question instead of advancing. Its journaled result class stays the decoder's
@@ -57,3 +57,66 @@ Not run or unmeasured: live OpenCode qualification on a disposable program (`NOT
 tool-heavy stages exceed the 16 KiB output cap through verbose `tool_use` events; provider variant
 support; whether inline permission precedence holds over every project configuration source; and
 how OpenCode token totals compare with billed usage.
+
+## Review fixes (Codex CHANGES_REQUIRED on 7117ded2..3516d73d)
+
+An independent Codex review found three defects. Each was checked against the OpenCode 2.0.21
+bundle (binary SHA-256 `0b2b68c1efaf20a29aaf636c2ffccc1abb56243a82f48cce45e257d232e03442`) and
+confirmed.
+
+- P1, a recreated session passed the resume check. `--session S` on a missing S calls
+  `session.create({id: S})`, so the answer comes from the same ID with no history, and the
+  ID-equality check accepted it. Fix: a resume passes `--session S --fork`. In the bundle, `--fork`
+  on a missing S throws "Session not found" (an `error` line with an empty session, exit 1), and on
+  an existing S forks it to a new ID that carries its history. The store now advances a resumed
+  stage only when the decoded session is non-empty and differs from S. Otherwise the attempt stays
+  `WAITING` with S kept as its resume target. `TestCALV0077_OpenCodeResumeRequiresFork` covers a
+  missing session and a same-ID recreation. It reads the durable attempt back with
+  `store.AttemptRecord`, independently of the returned error. That the fork carries the history is
+  read from the bundle, not observed live.
+- P1, the standalone server left the owned process group. The bundle's process spawner defaults to
+  `detached: true`. The standalone server spawn, the `bash` tool spawn and a pty daemon do not
+  override that default, and the server is killed with `process.kill(-pid)`. So the server and the
+  tool processes lead groups and sessions of their own. The first delivery called this
+  "not observed"; it was observable.
+  - Option (a), a launch path that keeps the server in the group, does not exist: no flag or
+    environment entry changes the spawn options.
+  - Option (b) was taken. `Vocabulary.Detached` marks the host. Its capsule must carry
+    `OPENCODE_PRINT_LOGS=1` as the last assignment of the key, which makes the server inherit the
+    stage's standard error. `OPENCODE_LOG_LEVEL=ERROR` keeps that output small.
+  - While the host runs, the supervisor scans `ps` every 200 ms, and once more before cleanup. It
+    records, by PID and start identity, every process whose parent is in the owned group or in a
+    known escape but whose group differs. An escape that does not lead its own group is
+    uncertainty.
+  - Cleanup drains the owned group, then each escaped group: children first, then its leader with
+    `SIGTERM` and, after 5 s, `SIGKILL`.
+  - A clean stop also needs end of file on both pipes within 5 s. Because the server holds standard
+    error, that end of file proves no server survived, including one orphaned before any scan
+    found it. `TestCALV0077_DetachedOrphanFailsClosed` covers that case.
+  - Recovery (`RecoverHost`) of a detached host is proved only when a host process other than the
+    leader is still alive to observe escapes through. Otherwise it fails closed.
+  - Residual: a non-server escape that is orphaned between two scans and does not hold standard
+    error is not detected.
+  - Supervisor tests use a `perl` `setsid` fake server: timeout, forced kill of a `SIGTERM`-ignoring
+    server, host crash by `SIGKILL`, the undiscovered orphan, uncertain observation, and recovery
+    with the host alive or gone. A mutation that skipped the escape drain made the timeout,
+    forced-kill and crash tests fail.
+- P2, partial usage was reported as known. Usage summed every finished step even when a later
+  `step_start` never finished, or when the output was cut at the cap on a line boundary. Usage is
+  now known only when accounting is complete: no step is left open, the last finish has reason
+  `stop`, and the retained output is shorter than the 16 KiB cap.
+  - The cap rule sits in the vocabulary, not the workflow, because the native transition re-derives
+    usage from the retained bytes. A first attempt keyed on the `OUTPUT_LIMIT` class in the
+    workflow was refused `MALFORMED` ("usage must derive from retained host output").
+  - Tests: `TestCALV0077_OpenCodeUsageIncompleteAccounting` covers an interrupted step, a cut
+    mid-line, a cut at a line boundary, and a stream exactly at the cap.
+    `TestCALV0077_OpenCodeOutputLimitUsageUnknown` checks the same end to end.
+
+Owner decisions (2026-10-04):
+1. OUTPUT_LIMIT stays at 16 KiB, and overflow fails closed.
+2. Plugins from the operator's user configuration are an explicit known limit of this slice,
+   recorded in the S23 non-goals and plugin boundary. They are not contained here.
+
+Still not run: live OpenCode qualification, including the fork resume, escape draining against
+the real server, stderr volume at error level, and the cost of `ps` scans on a busy host
+(`NOT_RUN`).

@@ -87,7 +87,7 @@ one.
 | S18 | CAL-V0-068 | Experimental host-pressure launch throttle: hysteresis level caps new non-exempt launches; running workers untouched |
 | S21 | CAL-V0-071..072 | Multi-repository supervised programs: policy-pinned extra checkouts, sibling worktrees, composite candidate and review binding; gates and integration fail closed |
 | S22 | CAL-V0-074..075 | Claude Code supervised host: policy-selected host, named pin refusals, Claude Code argv and result vocabulary; live Claude Code qualification NOT_RUN |
-| S23 | CAL-V0-076..077 | OpenCode supervised host: standalone in-process plugin boundary, inline stage permissions, OpenCode argv, event-stream vocabulary and resume-session check; live OpenCode qualification NOT_RUN |
+| S23 | CAL-V0-076..077 | OpenCode supervised host: detached-host escape drain, inline stage permissions, OpenCode argv, event-stream vocabulary with complete-accounting usage, and forked resume check; live OpenCode qualification NOT_RUN |
 
 CAL-V0-062/063 are defined in S13 (issue 354). CAL-V0-064 (S14, issue 468) is reserved
 by coordinated unlanded work; CAL-V0-066/S16 remains reserved for issue 464 if used.
@@ -1428,16 +1428,21 @@ OpenCode as one more entry on the S22 host seam. Lifecycle, process-group owners
 output caps, WAIT and resume, review independence, gates and integration binding stay those of S10,
 S13 and S22.
 
-OpenCode differs from Codex and Claude Code in one way that matters here. Its extensions are
+OpenCode differs from Codex and Claude Code in two ways that matter here. Its extensions are
 in-process plugins loaded by its session server, not hooks run as separate commands (AHI-044), and
 `opencode run` attaches by default to a persistent shared background service. A supervised stage
 therefore defines its own process and lifecycle boundary. The foreground process that the lane
 leader owns and reaps is `opencode run --standalone`. That process starts its private session
-server as its own child, from the same executable over standard I/O, with a kill signal and a
-readiness check. The plugins load in that server. So the server and its plugins sit inside the
-supervisor-owned process group of the stage unless they leave it themselves. Whether the server
-child is spawned detached was not observed. Nothing a plugin does is a supervisor input. The contract below was read from OpenCode 2.0.21 (`opencode run --help` in an
-isolated home, and its `run` module); no live model run was made.
+server as its own child, from the same executable, over standard I/O (`serve --stdio`), with
+`SIGTERM` and a forced kill after 3 seconds when the run ends. The plugins load in that server.
+OpenCode's process spawner defaults to `detached`, and neither the server spawn nor its tool
+(`bash`) spawns override it, so the server and every tool process start in a process group and
+session of their own, outside the supervisor-owned group. No flag or environment entry keeps them
+in. OpenCode is therefore a detached host: the supervisor discovers, drains and proves gone those
+escaped groups itself (CAL-V0-077). Nothing a plugin does is a supervisor input. The contract
+below was read from OpenCode 2.0.21 (`opencode run --help` in an isolated home, and its bundled
+`run`, standalone-endpoint, process-spawner and session modules, binary SHA-256
+`0b2b68c1efaf20a29aaf636c2ffccc1abb56243a82f48cce45e257d232e03442`); no live model run was made.
 
 - `CAL-V0-076`: The policy `supervision.host` and the config `host` of CAL-V0-074 MAY also be
   `opencode`, and `--host opencode` is admitted where `--host` is. Every CAL-V0-074 rule applies
@@ -1453,22 +1458,44 @@ isolated home, and its `run` module); no live model run was made.
   input and this argv:
   1. `run --standalone --format json --model M#E`, where E is the stage's configured effort
      (CAL-V0-062). `--standalone` runs a private session server for this invocation instead of
-     attaching to the shared background service. `--server`, `--continue`, `--fork`, `--auto` and
-     the permission-skipping flags are never passed.
-  2. `--session S` when the stage continues the recorded WAIT session S.
+     attaching to the shared background service. `--server`, `--continue`, `--auto` and the
+     permission-skipping flags are never passed.
+  2. `--session S --fork` when the stage continues the recorded WAIT session S. With `--fork`,
+     OpenCode refuses a session that does not exist (`Session not found`, exit 1) instead of
+     creating it under the same ID, and continues an existing one in a new session forked from
+     its history.
 
   The stage environment is the S10 inherited set plus exactly these entries:
   - `OPENCODE_DISABLE_AUTOUPDATE=1`, so the pinned binary is never replaced mid-program;
   - `OPENCODE_DISABLE_PROJECT_CONFIG=1`, so configuration and plugins in the untrusted stage
     worktree are not loaded;
+  - `OPENCODE_PRINT_LOGS=1` and `OPENCODE_LOG_LEVEL=ERROR`, so the detached server inherits the
+    stage's standard error (at error level only) instead of discarding it;
   - `OPENCODE_CONFIG_CONTENT` carrying an inline `permission` object that denies `task` (sub-agents)
     and `external_directory` in every stage, and also `edit` in `review` and `integrate`. Rules
     that would ask are rejected, because `--auto` is never passed.
 
+  The process boundary: the capsule of a detached host MUST carry, as the last assignment of its
+  key, every entry its vocabulary requires (`OPENCODE_PRINT_LOGS=1`), or the supervisor and the
+  lane leader refuse it before any spawn. While the host runs, the supervisor MUST observe, at
+  least every 200 ms and once more before cleanup, every live process whose parent belongs to the
+  owned group or to an escape already found but whose own group differs. Such an escape MUST lead
+  its own group and is retained by PID and start identity; an escape that joined another group, or
+  an observation that fails, is uncertainty. At cleanup the owned group is drained as in S10, then
+  each escaped group is drained children first and its leader with `SIGTERM` and, after a bound,
+  `SIGKILL`. The stop is clean only when no observation was uncertain, every group is gone, and
+  both host output pipes reach end of file within a bound. Because the server holds the stage's
+  standard error, that end of file is the proof that no server outlived the run, including one
+  orphaned before any observation found it. Recovery after a lost supervisor (CAL-V0-033) of a
+  detached host drains the retained leader group and the escapes it can observe, and is proved
+  only when a host process other than the leader was alive to observe them through; otherwise
+  quiescence stays uncertain.
+
   The plugin boundary: plugins from the operator's own configuration under `HOME` still load,
-  in-process, inside the stage's process group. They are bounded by that group's ownership and
-  cleanup, the stage wall and the output caps, like any other host code. The supervisor reads only
-  the stage's standard output and exit status. No plugin, server endpoint or shared service is a
+  in-process, in the detached server. This is a known limit of this slice (owner decision
+  2026-10-04): they are not contained, audited or allowlisted. They are bounded only by the
+  escaped-group drain above, the stage wall and the output caps. The supervisor reads only the
+  stage's standard output and exit status. No plugin, server endpoint or shared service is a
   supervisor channel, and no plugin output is evidence.
 
   The capsule MUST record `host`. On a zero exit, every standard-output line MUST be a JSON object
@@ -1481,27 +1508,40 @@ isolated home, and its `run` module); no live model run was made.
   - the last `text` event comes before that final `step_finish`, has `part.type` `text`, and its
     `part.text` strictly decodes to the S10 minimum handoff object.
 
-  Any other output is `INVALID_RESULT`. When the stage continues the recorded session S and the
-  decoded session is another one, the stage MUST NOT advance. `--session` creates a session that
-  does not exist, so such an answer lacks the WAIT question it continues. The stage stops with the
-  S10 resumable-handoff question instead of its expected kind, with the candidate preserved as for
-  any stopped implement stage. Its result class stays the one the host-neutral decoder recorded,
-  because the S22 vocabulary seam does not receive S. Token usage is `OBSERVED` only when every `step_finish` carries nonnegative integer
-  `tokens.input`, `tokens.output`, `tokens.reasoning`, `tokens.cache.read` and
-  `tokens.cache.write`, and the stream has no `error` event. These counters are disjoint, so input
-  is input plus cache read plus cache write, and output is output plus reasoning, each summed over
-  all steps with overflow refusal. Otherwise the turn is `NOT_OBSERVED`. Program and attempt usage
-  are re-derived from the retained output in this vocabulary (CAL-V0-075).
+  Any other output is `INVALID_RESULT`. When the stage continues the recorded session S, it MUST
+  advance only on positive evidence that S and its history existed: a run that decodes a session
+  other than S, which under `--fork` exists only as a fork of an existing S. A run that names no
+  session (the fork failed, for example because S is missing) or names S itself (a same-ID
+  recreation without the history) MUST NOT advance, whatever its exit. The stage stops with the
+  S10 resumable-handoff question instead of its expected kind, the attempt stays `WAITING` with S
+  retained as its resume target, and the candidate is preserved as for any stopped implement
+  stage. Its result class stays the one the host-neutral decoder recorded, because the S22
+  vocabulary seam does not receive S. That the fork carries S's history is read from the bundle,
+  not observed live.
+
+  Token usage is `OBSERVED` only when accounting is complete: every `step_finish` carries
+  nonnegative integer `tokens.input`, `tokens.output`, `tokens.reasoning`, `tokens.cache.read`
+  and `tokens.cache.write`; the stream has no `error` event; every `step_start` has a later
+  `step_finish`; the last `step_finish` has reason `stop`; and the retained output is shorter than
+  the 16 KiB cap, since output that fills it may have been cut. These counters are disjoint, so
+  input is input plus cache read plus cache write, and output is output plus reasoning, each
+  summed over all steps with overflow refusal. Otherwise the turn is `NOT_OBSERVED`, never the
+  partial sum. Program and attempt usage are re-derived from the retained output in this
+  vocabulary (CAL-V0-075).
 
 Non-goals:
 - Running or qualifying a live OpenCode model; this slice uses a pinned fake host only.
 - Supervising through the shared background service, `--server`, or an attached TUI.
-- A plugin-based supervisor channel, and loading, auditing or allowlisting operator plugins.
+- A plugin-based supervisor channel, and loading, auditing, allowlisting or otherwise containing
+  operator (user-configuration) plugins: a known limit of this slice (owner decision 2026-10-04).
+- Keeping the standalone server or tool processes inside the owned process group; OpenCode 2.0.21
+  offers no way to, so they are drained as escapes instead.
 - An OS sandbox. OpenCode has none, so `bash` stays governed by OpenCode's defaults in every stage,
   and read-only stages rely on the `edit` denial plus the existing check, after the host exits, that
   the tree is unchanged.
 - Multi-repository programs on this host; mixed hosts within one policy or program (S22).
-- Raising the 16 KiB output cap, `--format default` output, and `--thinking`.
+- Raising the 16 KiB output cap (owner decision 2026-10-04: overflow fails closed as
+  `OUTPUT_LIMIT`), `--format default` output, and `--thinking`.
 - Provider-specific variant names beyond the S13 effort set; the `RunProgram` qualification
   helper, which refuses a non-Codex host.
 
@@ -1512,17 +1552,24 @@ Failure modes:
 - The model's provider does not offer the effort as a variant, or ignores it: unverified until live
   qualification. A rejected variant makes the run fail, which is `EXIT_NONZERO` or
   `INVALID_RESULT`.
-- A plugin double-forks out of the process group or detaches with `setsid`: S10 descendant cleanup
-  cannot reach it. This is the same residual risk as any host child, and is not detected.
+- The server, a tool or a plugin starts a process in its own group: it is an escape, observed
+  through its live parent and drained (CAL-V0-077). An escape that is orphaned before any
+  observation finds it is not reachable. If it holds the stage's standard error, as the server
+  does, the stop is not clean (`BLOCKED_RECOVERY`). If it does not, it is not detected; this
+  residual risk is the same as for any host child.
+- The supervisor is lost and recovery finds the host gone: escapes can no longer be observed
+  through it, so recovery refuses as quiescence uncertain and the operator must clear it.
+- OpenCode's own stderr logs at error level exceed the 16 KiB cap: `OUTPUT_LIMIT`, retained and
+  recoverable as in S10.
 - `OPENCODE_DISABLE_PROJECT_CONFIG` does not cover a project-level configuration source in some
   OpenCode version: that configuration could widen permissions. The permission object still
   arrives inline, but its precedence over project sources is unverified.
 - The handoff is wrapped in prose or a Markdown fence, the final step ends for `length` or
-  `tool-calls`, or the host reports an `error`: `INVALID_RESULT` on a zero exit, or
-  `EXIT_NONZERO` (OpenCode exits 1) otherwise.
-- The recorded session no longer exists when a WAIT stage resumes: OpenCode creates a fresh one,
-  and the session check stops the stage with a resumable-handoff question instead of accepting an
-  answer without its question.
+  `tool-calls`, a step is left open, or the host reports an `error`: `INVALID_RESULT` on a zero
+  exit, or `EXIT_NONZERO` (OpenCode exits 1) otherwise; usage is `NOT_OBSERVED`.
+- The recorded session no longer exists when a WAIT stage resumes: the fork fails, and the session
+  check keeps the attempt `WAITING` with S retained. A host that ignored `--fork` and recreated S
+  under the same ID is refused the same way.
 - OpenCode's `tokens` totals differ from billed usage: unverified until live qualification.
 - The OpenCode binary is upgraded or replaced: its digest differs, and CAL-V0-074 refuses
   `CAPABILITY_UNAVAILABLE`.
@@ -1655,9 +1702,10 @@ The experimental `RUN_OUTCOME` observation verb is amended in by `corvint-tasks-
 | Pinned Claude Code or Codex executable missing, replaced or re-moded | An unqualified binary would run | Refused `CAPABILITY_UNAVAILABLE` before any program record or lease (CAL-V0-074) |
 | Claude Code result is not one exact success object with a strict handoff | A host claim would be invented from prose | The stage is `INVALID_RESULT`; missing usage counters stay `NOT_OBSERVED` (CAL-V0-075) |
 | OpenCode program names a variant model or extra repositories | The stage effort or the worktree boundary would be silently overridden | Admission and every stage refuse `UNSUPPORTED` before any record (CAL-V0-076) |
-| OpenCode stream reports an error, changes session, or ends without a stop-finished step carrying a strict handoff | A host claim would be invented from a partial or failed turn | The stage is `INVALID_RESULT`; usage stays `NOT_OBSERVED` unless every step carries integer counters (CAL-V0-077) |
-| Resumed OpenCode stage answers from a fresh session | An answer would be accepted without the WAIT question it continues | The stage stops with a resumable-handoff question instead of advancing (CAL-V0-077) |
-| OpenCode plugin or project configuration in the worktree | Untrusted code or permissions would load into the stage | Project configuration is disabled, permissions arrive inline, and the session server runs `--standalone` inside the stage process group; user-configured plugins remain uncontained (CAL-V0-077) |
+| OpenCode stream reports an error, changes session, leaves a step open, is cut at the output cap, or ends without a stop-finished step carrying a strict handoff | A host claim or partial usage would be invented from a partial or failed turn | The stage is `INVALID_RESULT` (or `OUTPUT_LIMIT`); usage stays `NOT_OBSERVED` unless accounting is complete (CAL-V0-077) |
+| Resumed OpenCode stage fails the fork or answers from the same session ID | An answer would be accepted without the history of the WAIT question it continues | The attempt stays `WAITING` with the original session retained (CAL-V0-077) |
+| OpenCode standalone server or tool process leaves the owned process group | A host process would outlive a stage reported clean | Escapes are observed through their live parent and drained; the server holds the stage's standard error, so a survivor blocks end of file and the stop is not clean (CAL-V0-077) |
+| OpenCode plugin or project configuration in the worktree | Untrusted code or permissions would load into the stage | Project configuration is disabled and permissions arrive inline; user-configured plugins are a known, uncontained limit (owner decision 2026-10-04) (CAL-V0-077) |
 
 ## Acceptance and rollback
 
@@ -1739,7 +1787,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-074 | `TestCALV0074_PolicyHost` (`internal/tasks/intent`); `TestCALV0074_CapsuleHost` (`internal/tasks/supervisor`); `TestCALV0074_CheckProgramConfigHost`, `TestCALV0074_OpenWorkflowRefusesHostBeforeMutation` (`internal/tasks/store`); `TestCALV0074_RunHostFlag` (`internal/tasks/cli`) |
 | CAL-V0-075 | `TestCALV0075_ClaudeResultVocabulary`, `TestCALV0075_ClaudeUsageObservedOrUnknown` (`internal/tasks/supervisor`); `TestCALV0075_ClaudeStageArgv`, `TestCALV0075_ClaudeCodeProgramFakeHost` (`internal/tasks/store`); live Claude Code NOT_RUN |
 | CAL-V0-076 | `TestCALV0076_PolicyHostOpenCode` (`internal/tasks/intent`); `TestCALV0076_OpenCodeVocabularySelected` (`internal/tasks/supervisor`); `TestCALV0076_CheckOpenCodeConfig`, `TestCALV0076_CheckProgramConfigOpenCodeHost` (`internal/tasks/store`); `TestCALV0076_ConfigHostFlag` (`internal/tasks/cli`) |
-| CAL-V0-077 | `TestCALV0077_OpenCodeResultVocabulary`, `TestCALV0077_OpenCodeUsageObservedOrUnknown` (`internal/tasks/supervisor`); `TestCALV0077_OpenCodeStageArgv`, `TestCALV0077_OpenCodeProgramFakeHost`, `TestCALV0077_OpenCodeResumeRefusesFreshSession` (`internal/tasks/store`); live OpenCode NOT_RUN |
+| CAL-V0-077 | `TestCALV0077_OpenCodeResultVocabulary`, `TestCALV0077_OpenCodeUsageObservedOrUnknown` (`internal/tasks/supervisor`); `TestCALV0077_OpenCodeUsageIncompleteAccounting`, `TestCALV0077_DetachedHostEnvRequired`, `TestCALV0077_DetachedServerTimeout`, `TestCALV0077_DetachedServerForcedKill`, `TestCALV0077_DetachedServerHostCrash`, `TestCALV0077_DetachedOrphanFailsClosed`, `TestCALV0077_EscapeObservationUncertain`, `TestCALV0077_RecoverDetachedHost` (`internal/tasks/supervisor`); `TestCALV0077_OpenCodeStageArgv`, `TestCALV0077_OpenCodeProgramFakeHost`, `TestCALV0077_OpenCodeResumeRequiresFork`, `TestCALV0077_OpenCodeOutputLimitUsageUnknown` (`internal/tasks/store`); live OpenCode NOT_RUN |
 | CAL-V0-013 | `TestCALV0013_RetryAsNextGenerationUpToThree` (`internal/tasks/store`) |
 | CAL-V0-014 | `TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan`, `TestCALV0014_SelectedOnlyPlanPreviewIsComplete` (`internal/tasks/cli`); `plan preview` in `TestTMV0008_AS07_ReadsLeaveStoreByteIdentical` (`internal/tasks/cli`) |
 | CAL-V0-015 | `TestCALV0015_SubmitRecordsTheCandidateTree` (`internal/tasks/store`) |

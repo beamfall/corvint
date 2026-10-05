@@ -18,6 +18,9 @@ type ownedGroup struct {
 	inventory func(int) (map[int]string, error)
 	exists    func(int) (bool, error)
 	signal    func(map[int]string, syscall.Signal) error
+	// force, when set, also retires the group leader: SIGTERM until force
+	// elapses, then SIGKILL. The supervisor's own leader is never forced.
+	force time.Duration
 }
 
 func groupExists(group int) (bool, error) {
@@ -102,6 +105,9 @@ func (g *ownedGroup) observe() error {
 }
 func (g *ownedGroup) drain() bool {
 	forceAt := time.Now().Add(10 * time.Second)
+	if g.force > 0 {
+		forceAt = time.Now().Add(g.force)
+	}
 	deadline := forceAt.Add(5 * time.Second)
 	for time.Now().Before(deadline) {
 		live, e := g.exists(g.group)
@@ -131,6 +137,17 @@ func (g *ownedGroup) drain() bool {
 				}
 				children[pid] = id
 			}
+		}
+		if len(children) == 0 && g.force > 0 {
+			sig := syscall.SIGTERM
+			if time.Now().After(forceAt) {
+				sig = syscall.SIGKILL
+			}
+			if e = g.signal(map[int]string{g.group: g.members[g.group]}, sig); e != nil {
+				return false
+			}
+			time.Sleep(20 * time.Millisecond)
+			continue
 		}
 		if len(children) == 0 {
 			if e = g.signal(map[int]string{g.group: g.members[g.group]}, syscall.SIGTERM); e != nil {

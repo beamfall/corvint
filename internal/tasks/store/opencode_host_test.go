@@ -14,7 +14,7 @@ func TestCALV0077_OpenCodeStageArgv(t *testing.T) {
 	c := ProgramConfig{Model: "local/probe", Effort: "low", StageEfforts: map[string]string{"review": "high"}}
 	for _, tc := range []struct{ stage, session, want string }{
 		{"implement", "", "run --standalone --format json --model local/probe#low"},
-		{"implement", "ses_1", "run --standalone --format json --model local/probe#low --session ses_1"},
+		{"implement", "ses_1", "run --standalone --format json --model local/probe#low --session ses_1 --fork"},
 		{"review", "", "run --standalone --format json --model local/probe#high"},
 		{"integrate", "", "run --standalone --format json --model local/probe#low"},
 	} {
@@ -24,15 +24,15 @@ func TestCALV0077_OpenCodeStageArgv(t *testing.T) {
 	}
 	for _, stage := range []string{"implement", "review", "integrate"} {
 		env := opencodeStageEnv([]string{"HOME=/h"}, stage)
-		if len(env) != 4 || env[0] != "HOME=/h" || env[1] != "OPENCODE_DISABLE_AUTOUPDATE=1" || env[2] != "OPENCODE_DISABLE_PROJECT_CONFIG=1" {
+		if len(env) != 6 || env[0] != "HOME=/h" || env[1] != "OPENCODE_DISABLE_AUTOUPDATE=1" || env[2] != "OPENCODE_DISABLE_PROJECT_CONFIG=1" || env[3] != "OPENCODE_PRINT_LOGS=1" || env[4] != "OPENCODE_LOG_LEVEL=ERROR" {
 			t.Fatalf("%s env %q", stage, env)
 		}
-		content, ok := strings.CutPrefix(env[3], "OPENCODE_CONFIG_CONTENT=")
+		content, ok := strings.CutPrefix(env[5], "OPENCODE_CONFIG_CONTENT=")
 		var config struct {
 			Permission map[string]string `json:"permission"`
 		}
 		if !ok || json.Unmarshal([]byte(content), &config) != nil {
-			t.Fatalf("%s config %q", stage, env[3])
+			t.Fatalf("%s config %q", stage, env[5])
 		}
 		want := map[string]string{"external_directory": "deny", "task": "deny"}
 		if stage != "implement" {

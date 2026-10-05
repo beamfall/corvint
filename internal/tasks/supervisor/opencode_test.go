@@ -116,6 +116,49 @@ func TestCALV0077_OpenCodeUsageObservedOrUnknown(t *testing.T) {
 	}
 }
 
+// TestCALV0077_OpenCodeUsageIncompleteAccounting: usage is known only when
+// every started step finished and the turn ended with "stop". An interrupted
+// step, or a stream cut at the output limit mid-line or at a line boundary,
+// is incomplete accounting and leaves usage unobserved and the turn refused.
+func TestCALV0077_OpenCodeUsageIncompleteAccounting(t *testing.T) {
+	s := "ses_1"
+	start := ocLine(t, "step_start", s, map[string]any{"part": map[string]any{"type": "step-start"}})
+	first := start + ocFinish(t, s, "tool-calls", ocTokens(10, 2, 0, 0, 0))
+	whole := first + start + ocText(t, s, ocHandoff) + ocFinish(t, s, "stop", ocTokens(5, 1, 0, 0, 0))
+	if i, o, known := ObservedOpenCodeUsage([]byte(whole)); !known || i != 15 || o != 3 {
+		t.Fatalf("complete accounting %d %d %v", i, o, known)
+	}
+	incomplete := map[string]string{
+		"interrupted step":       first + start + ocLine(t, "tool_use", s, map[string]any{"part": map[string]any{"type": "tool", "tool": "bash"}}),
+		"interrupted after stop": start + ocText(t, s, ocHandoff) + ocFinish(t, s, "stop", ocTokens(1, 1, 0, 0, 0)) + start,
+		"cut at line boundary":   first,
+		"cut mid-line":           whole[:len(whole)-7],
+		"cut inside next step":   first + start + ocText(t, s, ocHandoff),
+	}
+	for name, raw := range incomplete {
+		if _, _, known := ObservedOpenCodeUsage([]byte(raw)); known {
+			t.Errorf("%s: partial usage reported as known", name)
+		}
+		if _, _, e := DecodeOpenCodeEvents([]byte(raw)); e == nil {
+			t.Errorf("%s: incomplete turn admitted", name)
+		}
+	}
+	// A retained stream cut exactly at the output limit, on a line boundary
+	// after a stop step, is still possibly partial accounting.
+	tail := start + ocText(t, s, ocHandoff) + ocFinish(t, s, "stop", ocTokens(5, 1, 0, 0, 0))
+	pad := MaxHostOutput - len(tail) - len(ocLine(t, "reasoning", s, map[string]any{"part": map[string]any{"type": "reasoning", "text": ""}}))
+	full := ocLine(t, "reasoning", s, map[string]any{"part": map[string]any{"type": "reasoning", "text": strings.Repeat("r", pad)}}) + tail
+	if len(full) != MaxHostOutput {
+		t.Fatalf("boundary fixture is %d bytes", len(full))
+	}
+	if _, _, known := ObservedOpenCodeUsage([]byte(full)); known {
+		t.Error("stream filling the output limit reported as known usage")
+	}
+	if _, _, known := ObservedOpenCodeUsage([]byte(full[len(full)-len(tail):])); !known {
+		t.Error("the same complete stream under the limit left usage unknown")
+	}
+}
+
 func TestCALV0076_OpenCodeVocabularySelected(t *testing.T) {
 	s := "ses_1"
 	raw := []byte(ocText(t, s, ocHandoff) + ocFinish(t, s, "stop", ocTokens(1, 2, 0, 0, 0)))

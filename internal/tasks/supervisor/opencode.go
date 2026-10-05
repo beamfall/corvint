@@ -23,6 +23,9 @@ type openCodeStream struct {
 	final      string
 	lastText   int
 	failed     bool
+	// open is true while a step_start has no step_finish yet: the host was
+	// interrupted mid-step, so its accounting is incomplete.
+	open bool
 }
 
 // readOpenCodeEvents admits only JSON-object lines of the qualified event
@@ -52,7 +55,9 @@ func readOpenCodeEvents(raw []byte) (openCodeStream, error) {
 		}
 		s.session = ev.SessionID
 		switch ev.Type {
-		case "step_start", "reasoning", "tool_use", "error":
+		case "step_start":
+			s.open = true
+		case "reasoning", "tool_use", "error":
 		case "text":
 			var part struct {
 				Type string `json:"type"`
@@ -65,6 +70,7 @@ func readOpenCodeEvents(raw []byte) (openCodeStream, error) {
 		case "step_finish":
 			s.finishes = append(s.finishes, ev.Part)
 			s.lastFinish = i
+			s.open = false
 		default:
 			return s, fmt.Errorf("unqualified event %q", ev.Type)
 		}
@@ -85,14 +91,7 @@ func DecodeOpenCodeEvents(raw []byte) (string, HostResult, error) {
 	if s.failed {
 		return s.session, result, fmt.Errorf("host reported failure")
 	}
-	if s.session == "" || len(s.finishes) == 0 || s.final == "" || s.lastText > s.lastFinish {
-		return s.session, result, fmt.Errorf("incomplete host turn")
-	}
-	var finish struct {
-		Type   string `json:"type"`
-		Reason string `json:"reason"`
-	}
-	if e := json.Unmarshal(s.finishes[len(s.finishes)-1], &finish); e != nil || finish.Type != "step-finish" || finish.Reason != "stop" {
+	if s.session == "" || s.final == "" || s.lastText > s.lastFinish || !s.complete() {
 		return s.session, result, fmt.Errorf("incomplete host turn")
 	}
 	if e := decode([]byte(s.final), &result); e != nil {
@@ -102,6 +101,20 @@ func DecodeOpenCodeEvents(raw []byte) (string, HostResult, error) {
 		return s.session, result, fmt.Errorf("invalid minimum handoff result")
 	}
 	return s.session, result, nil
+}
+
+// complete reports a finished turn: at least one step, no step left open,
+// and a last step that finished with reason "stop". A step that finished with
+// "tool-calls" is followed by another step, so a stream ending there was cut.
+func (s openCodeStream) complete() bool {
+	if s.open || len(s.finishes) == 0 {
+		return false
+	}
+	var finish struct {
+		Type   string `json:"type"`
+		Reason string `json:"reason"`
+	}
+	return json.Unmarshal(s.finishes[len(s.finishes)-1], &finish) == nil && finish.Type == "step-finish" && finish.Reason == "stop"
 }
 
 // ObservedOpenCodeSession is the one bounded session an OpenCode stream
@@ -116,12 +129,20 @@ func ObservedOpenCodeSession(raw []byte) string {
 
 // ObservedOpenCodeUsage sums the token counters of every finished step. The
 // counters are disjoint, so input is input plus cache read and cache write,
-// and output is output plus reasoning. A stream with a host error (whose
-// failed step reports no tokens), no finished step, a missing or non-integer
-// counter, or an overflow leaves usage unobserved.
+// and output is output plus reasoning. Usage is known only when accounting is
+// complete: a stream with a host error (whose failed step reports no tokens),
+// a step started but never finished (an interrupted or truncated run), a last
+// step that did not finish with "stop", a missing or non-integer counter, an
+// overflow, or output that fills the retained bound (the host may have
+// written more than was kept, even if the kept prefix ends on a stop step)
+// leaves usage unobserved. Only the retained bytes decide, so the store and
+// the native transition derive the same usage.
 func ObservedOpenCodeUsage(raw []byte) (uint64, uint64, bool) {
+	if len(raw) >= MaxHostOutput {
+		return 0, 0, false
+	}
 	s, e := readOpenCodeEvents(raw)
-	if e != nil || s.failed || len(s.finishes) == 0 {
+	if e != nil || s.failed || !s.complete() {
 		return 0, 0, false
 	}
 	var input, output uint64

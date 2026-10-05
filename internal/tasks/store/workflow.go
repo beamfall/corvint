@@ -501,8 +501,16 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 	}()
 	calledRun = true
 	out, runErr := supervisor.Run(deadline, w.self, dir, capsule, journal)
-	if runErr == nil && w.cfg.Host == supervisor.HostOpenCode && session != "" && out.SessionID != session {
-		runErr = fmt.Errorf("resumed opencode session changed")
+	// A forked OpenCode resume must answer from a new session ID: a missing
+	// session fails the fork, and an unchanged ID is a same-ID recreation
+	// without the original history (CAL-V0-077). A refused resume waits with
+	// the original session retained as its resume target.
+	if w.cfg.Host == supervisor.HostOpenCode && session != "" && (out.SessionID == "" || out.SessionID == session) {
+		if runErr == nil {
+			runErr = fmt.Errorf("resumed opencode session did not fork")
+		}
+		out.SessionID = session
+		w.program.SessionID = session
 	}
 	close(watcherStop)
 	<-watcherDone

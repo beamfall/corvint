@@ -17,10 +17,17 @@ const (
 
 // Vocabulary reads one supervised host's retained standard output: the
 // handoff result of a zero exit, the host session, and token usage.
+//
+// A Detached host starts helper processes in process groups of their own,
+// outside the supervisor-owned group (CAL-V0-077). Its capsule must carry
+// every DetachedEnv entry, and Run discovers, drains and proves gone those
+// groups before it reports a clean stop.
 type Vocabulary struct {
-	Decode  func([]byte) (string, HostResult, error)
-	Session func([]byte) string
-	Usage   func([]byte) (uint64, uint64, bool)
+	Decode      func([]byte) (string, HostResult, error)
+	Session     func([]byte) string
+	Usage       func([]byte) (uint64, uint64, bool)
+	Detached    bool
+	DetachedEnv []string
 }
 
 // HostVocabulary returns the vocabulary of host; "" is Codex. An unknown host
@@ -32,7 +39,10 @@ func HostVocabulary(host string) (Vocabulary, bool) {
 	case HostClaudeCode:
 		return Vocabulary{Decode: DecodeClaudeResult, Session: ObservedClaudeSession, Usage: ObservedClaudeUsage}, true
 	case HostOpenCode:
-		return Vocabulary{Decode: DecodeOpenCodeEvents, Session: ObservedOpenCodeSession, Usage: ObservedOpenCodeUsage}, true
+		// OPENCODE_PRINT_LOGS=1 makes the detached standalone server inherit
+		// the host standard error, so end of file on that pipe proves no
+		// server outlived the run.
+		return Vocabulary{Decode: DecodeOpenCodeEvents, Session: ObservedOpenCodeSession, Usage: ObservedOpenCodeUsage, Detached: true, DetachedEnv: []string{"OPENCODE_PRINT_LOGS=1"}}, true
 	}
 	return Vocabulary{}, false
 }

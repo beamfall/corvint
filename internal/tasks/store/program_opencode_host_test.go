@@ -26,8 +26,12 @@ type openCodeFixture struct {
 // host and a pinned fake Core CLI under an opencode supervision policy. The
 // host asks one WAIT question, implements hello.txt on the resumed session,
 // then accepts every claim in an independent session. Each run is two steps
-// whose disjoint counters total input 7 and output 3. When the scripts
-// directory holds new-session, a resumed run answers from a fresh session.
+// whose disjoint counters total input 7 and output 3. A resume must pass
+// --session ses_implement --fork and answers from the fork ses_fork. When the
+// scripts directory holds missing, the resume fails as OpenCode does for a
+// missing session; when it holds recreate, the resume answers from the same
+// ID, as a host that recreated the session empty would. When it holds noisy,
+// a fresh run writes more standard output than the output limit keeps.
 func newOpenCodeFixture(t *testing.T) *openCodeFixture {
 	t.Helper()
 	s := newLeaseStore(t)
@@ -53,21 +57,32 @@ emit() {
   printf '{"type":"step_finish","timestamp":5,"sessionID":"%s","part":{"type":"step-finish","reason":"stop","cost":0,"tokens":{"input":1,"output":1,"reasoning":1,"cache":{"read":0,"write":1}}}}\n' "$1"
 }
 case " $* " in
-*" --session ses_implement "*)
+*" --session ses_implement --fork "*)
   printf '%s\n' "$*" > "`+scripts+`/resume-args"
+  if [ -f "`+scripts+`/missing" ]; then
+    printf '{"type":"error","timestamp":1,"sessionID":"","error":{"type":"unknown","message":"Session not found"}}\n'
+    exit 1
+  fi
   printf 'changed\n' > hello.txt
-  session=ses_implement
-  if [ -f "`+scripts+`/new-session" ]; then session=ses_fresh; fi
+  session=ses_fork
+  if [ -f "`+scripts+`/recreate" ]; then session=ses_implement; fi
   emit "$session" '{\"kind\":\"BUILT\",\"summary\":\"implemented\",\"nextAction\":\"review\"}'
   ;;
 *)
+  if [ -f "`+scripts+`/noisy" ]; then
+    emit ses_implement '{\"kind\":\"WAIT\",\"question\":\"which greeting?\",\"summary\":\"needs input\",\"nextAction\":\"answer\"}'
+    printf '{"type":"reasoning","timestamp":6,"sessionID":"ses_implement","part":{"type":"reasoning","text":"'
+    head -c 20000 /dev/zero | tr '\0' 'r'
+    printf '"}}\n'
+    exit 0
+  fi
   case "$OPENCODE_CONFIG_CONTENT" in
   *'"edit"'*)
-    printf '%s\n%s|%s|%s\n' "$*" "$OPENCODE_DISABLE_AUTOUPDATE" "$OPENCODE_DISABLE_PROJECT_CONFIG" "$OPENCODE_CONFIG_CONTENT" > "`+scripts+`/review-args"
+    printf '%s\n%s|%s|%s|%s|%s\n' "$*" "$OPENCODE_DISABLE_AUTOUPDATE" "$OPENCODE_DISABLE_PROJECT_CONFIG" "$OPENCODE_PRINT_LOGS" "$OPENCODE_LOG_LEVEL" "$OPENCODE_CONFIG_CONTENT" > "`+scripts+`/review-args"
     emit ses_review '{\"kind\":\"REVIEW\",\"accepted\":true,\"claims\":[\"`+claim+`\"],\"summary\":\"verified\",\"nextAction\":\"integrate\"}'
     ;;
   *)
-    printf '%s\n%s|%s|%s\n' "$*" "$OPENCODE_DISABLE_AUTOUPDATE" "$OPENCODE_DISABLE_PROJECT_CONFIG" "$OPENCODE_CONFIG_CONTENT" > "`+scripts+`/implement-args"
+    printf '%s\n%s|%s|%s|%s|%s\n' "$*" "$OPENCODE_DISABLE_AUTOUPDATE" "$OPENCODE_DISABLE_PROJECT_CONFIG" "$OPENCODE_PRINT_LOGS" "$OPENCODE_LOG_LEVEL" "$OPENCODE_CONFIG_CONTENT" > "`+scripts+`/implement-args"
     emit ses_implement '{\"kind\":\"WAIT\",\"question\":\"which greeting?\",\"summary\":\"needs input\",\"nextAction\":\"answer\"}'
     ;;
   esac
@@ -96,8 +111,8 @@ esac
 }
 
 // waitThenAnswer runs the first implement stage to its WAIT question and
-// answers it.
-func (f *openCodeFixture) waitThenAnswer(t *testing.T, w *store.Workflow) {
+// answers it, returning the attempt ID.
+func (f *openCodeFixture) waitThenAnswer(t *testing.T, w *store.Workflow) string {
 	t.Helper()
 	a, err := w.RunRole(context.Background(), "implementer", "")
 	if err != nil {
@@ -109,12 +124,13 @@ func (f *openCodeFixture) waitThenAnswer(t *testing.T, w *store.Workflow) {
 	if err = w.Answer(a.Supervision.QuestionID, "hello", a.TicketRevision); err != nil {
 		t.Fatalf("answer: %v", err)
 	}
+	return a.AttemptID
 }
 
 // TestCALV0077_OpenCodeProgramFakeHost drives one opencode program through
 // the pinned fake host: implement asks a WAIT question under the
-// implement permissions, the operator answers, implement continues the exact
-// session and builds, an independent review session with edits denied
+// implement permissions, the operator answers, implement forks the recorded
+// session and builds from the fork, an independent review session with edits denied
 // accepts every claim, and usage is re-derived in the OpenCode vocabulary.
 func TestCALV0077_OpenCodeProgramFakeHost(t *testing.T) {
 	f := newOpenCodeFixture(t)
@@ -129,17 +145,17 @@ func TestCALV0077_OpenCodeProgramFakeHost(t *testing.T) {
 	}
 	f.waitThenAnswer(t, w)
 	args, err := os.ReadFile(filepath.Join(f.scripts, "implement-args"))
-	if err != nil || string(args) != "run --standalone --format json --model local/probe#low\n1|1|{\"permission\":{\"external_directory\":\"deny\",\"task\":\"deny\"}}\n" {
+	if err != nil || string(args) != "run --standalone --format json --model local/probe#low\n1|1|1|ERROR|{\"permission\":{\"external_directory\":\"deny\",\"task\":\"deny\"}}\n" {
 		t.Fatalf("implement argv and env %q %v", args, err)
 	}
 	a, err := w.RunRole(ctx, "implementer", "")
 	if err != nil {
 		t.Fatalf("resume: %v", err)
 	}
-	if a.Phase != "BUILT" || a.CandidateTreeOid == nil {
-		t.Fatalf("resume phase %s", a.Phase)
+	if a.Phase != "BUILT" || a.CandidateTreeOid == nil || a.Supervision.AuthorSession != "ses_fork" {
+		t.Fatalf("resume phase %s author %q", a.Phase, a.Supervision.AuthorSession)
 	}
-	if args, err = os.ReadFile(filepath.Join(f.scripts, "resume-args")); err != nil || strings.TrimSpace(string(args)) != "run --standalone --format json --model local/probe#low --session ses_implement" {
+	if args, err = os.ReadFile(filepath.Join(f.scripts, "resume-args")); err != nil || strings.TrimSpace(string(args)) != "run --standalone --format json --model local/probe#low --session ses_implement --fork" {
 		t.Fatalf("resume argv %q %v", args, err)
 	}
 	if body := multiGit(t, f.s.repo.PrimaryWorktree, "show", *a.CandidateTreeOid+":hello.txt"); body != "changed" {
@@ -151,7 +167,7 @@ func TestCALV0077_OpenCodeProgramFakeHost(t *testing.T) {
 	if a.Phase != "READY_FOR_INTEGRATION" || a.Supervision.ReviewTree != *a.CandidateTreeOid {
 		t.Fatalf("review phase %s question %q", a.Phase, a.Supervision.Question)
 	}
-	if args, err = os.ReadFile(filepath.Join(f.scripts, "review-args")); err != nil || string(args) != "run --standalone --format json --model local/probe#low\n1|1|{\"permission\":{\"edit\":\"deny\",\"external_directory\":\"deny\",\"task\":\"deny\"}}\n" {
+	if args, err = os.ReadFile(filepath.Join(f.scripts, "review-args")); err != nil || string(args) != "run --standalone --format json --model local/probe#low\n1|1|1|ERROR|{\"permission\":{\"edit\":\"deny\",\"external_directory\":\"deny\",\"task\":\"deny\"}}\n" {
 		t.Fatalf("review argv and env %q %v", args, err)
 	}
 	entries, err := store.ProgramRecords(ctx, f.s.repo)
@@ -172,13 +188,55 @@ func TestCALV0077_OpenCodeProgramFakeHost(t *testing.T) {
 	}
 }
 
-// TestCALV0077_OpenCodeResumeRefusesFreshSession proves a resumed WAIT stage
-// answered from a session other than the recorded one is not accepted as
-// the build, because --session creates a session that does not exist.
-func TestCALV0077_OpenCodeResumeRefusesFreshSession(t *testing.T) {
+// TestCALV0077_OpenCodeResumeRequiresFork proves a resumed WAIT stage is
+// accepted only with positive evidence that the recorded session existed: a
+// forked new ID. A missing session (the fork fails) and a same-ID recreation
+// (the ID is unchanged) both leave the durable attempt WAITING with the
+// original session as its resume target, read back independently of the
+// returned error.
+func TestCALV0077_OpenCodeResumeRequiresFork(t *testing.T) {
+	for _, flag := range []string{"missing", "recreate"} {
+		t.Run(flag, func(t *testing.T) {
+			f := newOpenCodeFixture(t)
+			self, err := os.Executable()
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx := context.Background()
+			w, err := store.OpenWorkflow(ctx, f.s.repo, operator(), "program", self, f.config, f.ticketID)
+			if err != nil {
+				t.Fatalf("open: %v", err)
+			}
+			attempt := f.waitThenAnswer(t, w)
+			if err = os.WriteFile(filepath.Join(f.scripts, flag), nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, runErr := w.RunRole(ctx, "implementer", "")
+			if args, e := os.ReadFile(filepath.Join(f.scripts, "resume-args")); e != nil || !strings.Contains(string(args), "--session ses_implement --fork") {
+				t.Fatalf("resume argv %q %v", args, e)
+			}
+			a, err := store.AttemptRecord(ctx, f.s.repo, attempt)
+			if err != nil {
+				t.Fatalf("durable attempt: %v (run error %v)", err, runErr)
+			}
+			if a.Phase != "WAITING" || a.Supervision.SessionID != "ses_implement" || a.Supervision.Question == "" || a.Supervision.Answer != "" || a.CandidateTreeOid != nil {
+				t.Fatalf("durable attempt phase %s session %q question %q answer %q (run error %v)", a.Phase, a.Supervision.SessionID, a.Supervision.Question, a.Supervision.Answer, runErr)
+			}
+		})
+	}
+}
+
+// TestCALV0077_OpenCodeOutputLimitUsageUnknown proves output cut at the limit
+// is never complete accounting: the run's standard output overflows after
+// whole steps, so the program reports usage unknown rather than the partial
+// sums of the steps it kept.
+func TestCALV0077_OpenCodeOutputLimitUsageUnknown(t *testing.T) {
 	f := newOpenCodeFixture(t)
 	self, err := os.Executable()
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(filepath.Join(f.scripts, "noisy"), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	ctx := context.Background()
@@ -186,12 +244,21 @@ func TestCALV0077_OpenCodeResumeRefusesFreshSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	f.waitThenAnswer(t, w)
-	if err = os.WriteFile(filepath.Join(f.scripts, "new-session"), nil, 0o600); err != nil {
+	a, runErr := w.RunRole(ctx, "implementer", "")
+	if runErr == nil || a == nil || a.Phase != "WAITING" {
+		t.Fatalf("overflowed run %+v %v", a, runErr)
+	}
+	entries, err := store.ProgramRecords(ctx, f.s.repo)
+	if err != nil {
 		t.Fatal(err)
 	}
-	a, err := w.RunRole(ctx, "implementer", "")
-	if err == nil && a.Phase == "BUILT" {
-		t.Fatalf("fresh session accepted: phase %s session %q", a.Phase, a.Supervision.SessionID)
+	for _, p := range entries {
+		if p.ID == "program" {
+			if p.ResultClass != "OUTPUT_LIMIT" || p.UsageKnown {
+				t.Fatalf("program phase %s class %q known %v (run error %v)", p.Phase, p.ResultClass, p.UsageKnown, runErr)
+			}
+			return
+		}
 	}
+	t.Fatal("program record absent")
 }

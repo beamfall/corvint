@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -113,8 +114,14 @@ func ValidateCapsule(c Capsule) error {
 	if c.Profile != "taskman-codex-supervisor/0" || len(c.Effect) != 64 || !filepath.IsAbs(c.Executable) || !filepath.IsAbs(c.Directory) || len(c.Argv) > 64 || len(c.Env) > 64 || len(c.Prompt) > MaxCapsule/2 {
 		return fmt.Errorf("capsule profile/bounds")
 	}
-	if _, ok := HostVocabulary(c.Host); !ok || c.Host == HostCodex {
+	host, ok := HostVocabulary(c.Host)
+	if !ok || c.Host == HostCodex {
 		return fmt.Errorf("capsule host unsupported")
+	}
+	for _, want := range host.DetachedEnv {
+		if !lastEnv(c.Env, want) {
+			return fmt.Errorf("detached host environment absent")
+		}
 	}
 	st, e := os.Lstat(c.Executable)
 	if e != nil {
@@ -131,6 +138,19 @@ func ValidateCapsule(c Capsule) error {
 		return fmt.Errorf("runtime executable digest changed")
 	}
 	return nil
+}
+
+// lastEnv reports whether the effective (last) assignment of want's key in
+// env is exactly want.
+func lastEnv(env []string, want string) bool {
+	key, _, _ := strings.Cut(want, "=")
+	got := ""
+	for _, kv := range env {
+		if k, _, _ := strings.Cut(kv, "="); k == key {
+			got = kv
+		}
+	}
+	return got == want
 }
 func await(ctx context.Context, path string, v any) error {
 	tick := time.NewTicker(20 * time.Millisecond)
