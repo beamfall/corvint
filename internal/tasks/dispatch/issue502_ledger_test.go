@@ -10,6 +10,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 // issue502Reload loads the saved ledger and requires the recorded hold.
@@ -123,7 +125,7 @@ func TestIssue502_LedgerRefusesMalformedEscalations(t *testing.T) {
 		"unsorted":  strings.Replace(valid, `"q-a",`, `"q-c",`, 1),
 		"repeated":  strings.Replace(valid, `"q-b"`, `"q-a"`, 1),
 		"empty":     strings.Replace(strings.Replace(valid, `"q-a",`, ``, 1), `"q-b"`, ``, 1),
-		"bad-id":    strings.Replace(valid, `"q-b"`, `"q b"`, 1),
+		"bad-id":    strings.Replace(valid, `"q-b"`, `"`+strings.Repeat("x", wire.MaxIdentifierBytes+1)+`"`, 1),
 		"bad-key":   strings.Replace(valid, `"ticket:a:q:t": [`, `"t": [`, 1),
 	} {
 		t.Run(name, func(t *testing.T) {
