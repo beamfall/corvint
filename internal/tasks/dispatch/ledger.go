@@ -399,6 +399,8 @@ func strictProgressJSON(raw []byte) bool {
 					child = "escalation-state"
 				case "infraRetry":
 					child = "infra-episode"
+				case "infra-episode":
+					child = "infra-scalar"
 				case "seen":
 					if key == "loops" {
 						child = key
@@ -423,6 +425,15 @@ func strictProgressJSON(raw []byte) bool {
 			}
 			if schema == "sweep-result" && !seen["pending"] {
 				return false
+			}
+			// Every episode member but launch is written, so an omitted
+			// one cannot decode as zero debt or an elapsed deadline.
+			if schema == "infra-episode" {
+				for _, key := range fields {
+					if key != "launch" && !seen[key] {
+						return false
+					}
+				}
 			}
 			end, err := d.Token()
 			return err == nil && end == json.Delim('}')
@@ -449,6 +460,8 @@ func strictProgressJSON(raw []byte) bool {
 			switch schema {
 			case "loops", "loop-hold", "infraRetry", "infra-episode":
 				return false // these maps and their records are objects
+			case "infra-scalar":
+				return token != nil // a null would decode as zero
 			case "loop-pending":
 				return token == true // written only as true
 			}
@@ -978,8 +991,9 @@ const MaxLoopGenerations = 1024
 const maxInfraEpisodes = 8192
 
 // validateInfraRetry admits only episodes the dispatcher writes: canonical
-// ticket keys and acceptance revisions, a known state, bounded counts and a
-// launch identity exactly while one is reserved or running.
+// ticket keys and acceptance revisions, a known state, bounded counts, a
+// launch identity exactly while one is reserved or running, and a charged
+// retry with its deadline while one waits, is reserved or runs.
 func (l *Ledger) validateInfraRetry() error {
 	if l.InfraRetry != nil && len(l.InfraRetry) == 0 || len(l.InfraRetry) > maxInfraEpisodes {
 		return errors.New("invalid infraRetry episodes")
@@ -991,8 +1005,14 @@ func (l *Ledger) validateInfraRetry() error {
 		if _, err := wire.ParseCount("infraRetry acceptance revision", e.AcceptanceRevision); err != nil {
 			return errors.New("invalid infraRetry episode")
 		}
-		if e.Sessions < 1 || e.Sessions > 1024 || e.Charged < 0 || e.Charged > 10 || e.Limit < 0 || e.Limit > 10 {
+		if e.Sessions < 1 || e.Sessions > 1024 || e.Charged < 0 || e.Charged > 10 || e.Charged > e.Sessions || e.Limit < 0 || e.Limit > 10 {
 			return errors.New("invalid infraRetry counts")
+		}
+		switch e.State {
+		case InfraWaiting, InfraReserved, InfraRunning:
+			if e.Charged < 1 || e.CooldownUntil.IsZero() || e.State == InfraWaiting && e.Charged > e.Limit {
+				return errors.New("invalid infraRetry retry")
+			}
 		}
 		switch e.State {
 		case InfraReserved, InfraRunning:

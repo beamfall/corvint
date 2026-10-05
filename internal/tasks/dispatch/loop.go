@@ -930,8 +930,19 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		ep := d.infraDue(obs, a.Key)
 		if ep != nil {
 			retried[a.Key] = true
-			if strings.HasPrefix(ep.Launch, d.launchPrefix(a.Role, a.Slot)) {
-				id = ep.Launch
+			if ep.Launch != "" {
+				// The saved identity names its role and slot: it launches
+				// only as that assignment, never under a new identity.
+				slot, ok := d.reservedSlot(ep.Launch, a.Role)
+				if !ok {
+					ep.State, ep.Launch = InfraUnknown, ""
+					d.emit(Event{Kind: "needs-owner", Ticket: a.Ticket, Message: fmt.Sprintf("%s is held: its reserved infrastructure retry was not for role %s, which the roster now selects. Run `corvint-tasks dispatch unpark --program %s --config FILE --key %s` to let it launch again; its retry count is kept", d.keyText(a.Key), a.Role, d.Program, a.Key), Detail: map[string]string{"kind": "infrastructure", "code": "INFRA_RETRY_UNKNOWN", "acceptanceRevision": ep.AcceptanceRevision}})
+					continue
+				}
+				if slot != a.Slot && slotBusy(d.ledger.Workers, launches, a.Role, slot) {
+					continue // its slot is still in use; it waits
+				}
+				a.Slot, id = slot, ep.Launch
 			}
 			ep.Launch, ep.State = id, InfraReserved
 			if err := d.ledger.save(d.dir); err != nil {

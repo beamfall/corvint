@@ -8,14 +8,17 @@ import (
 	"slices"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 // Session classes of an ended worker (ESC-V0-008), in precedence order:
-// checked progress, the worker's own infrastructure request under the
-// ESC-V0-007 policy, a typed decision, scope or blocked hold, and ordinary
-// no-progress.
+// checked progress, a current typed decision, scope or blocked hold, the
+// worker's own infrastructure request under the ESC-V0-007 policy, and
+// ordinary no-progress. A hold outranks infrastructure, so a session that
+// raised both spends no retry and leaves no infrastructure hold behind the
+// owner's answer.
 const (
 	SessionProgress       = "progress"
 	SessionInfrastructure = "infrastructure"
@@ -43,10 +46,10 @@ func (d *Dispatcher) classify(t *Ticket, w *Worker, progress bool) string {
 		return SessionProgress
 	case t == nil:
 		return SessionNoProgress
-	case d.Config.InfrastructureRetry != nil && !t.EscalationUnknown && slices.Contains(t.Infrastructure, w.ID):
-		return SessionInfrastructure
 	case len(t.EscalationPending) > 0:
 		return SessionHeld
+	case d.Config.InfrastructureRetry != nil && !t.EscalationUnknown && slices.Contains(t.Infrastructure, w.ID):
+		return SessionInfrastructure
 	}
 	return SessionNoProgress
 }
@@ -241,7 +244,31 @@ func (d *Dispatcher) releaseInfra(key string) bool {
 	return false
 }
 
-// launchPrefix is the worker ID prefix of a role slot in this program.
-func (d *Dispatcher) launchPrefix(role string, slot int) string {
-	return d.Program + "." + role + "." + strconv.Itoa(slot) + "."
+// reservedSlot returns the slot of a reserved launch identity when it was
+// reserved for role in this program. Program and role names cannot contain
+// '.', so the identity's role and slot are its second and third fields.
+func (d *Dispatcher) reservedSlot(id, role string) (int, bool) {
+	rest, ok := strings.CutPrefix(id, d.Program+"."+role+".")
+	if !ok {
+		return 0, false
+	}
+	n, _, _ := strings.Cut(rest, ".")
+	slot, err := strconv.Atoi(n)
+	return slot, err == nil && slot > 0 && strconv.Itoa(slot) == n
+}
+
+// slotBusy reports whether a live worker or another launch of this tick
+// holds the role's slot.
+func slotBusy(workers []*Worker, launches []Assignment, role string, slot int) bool {
+	for _, w := range workers {
+		if w.Role == role && w.Slot == slot {
+			return true
+		}
+	}
+	for _, a := range launches {
+		if a.Role == role && a.Slot == slot {
+			return true
+		}
+	}
+	return false
 }

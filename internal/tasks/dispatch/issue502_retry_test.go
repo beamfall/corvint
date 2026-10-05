@@ -5,6 +5,7 @@ package dispatch
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -280,6 +281,41 @@ func TestIssue502_HeldSessionIsNotFailureParked(t *testing.T) {
 	}
 }
 
+// A typed hold outranks the session's own infrastructure request: a retry
+// that raised both spends nothing, leaves no exhaustion hold behind the
+// owner's answer, and launches once the hold is answered.
+func TestIssue502_HoldOutranksInfrastructure(t *testing.T) {
+	d, q, now := retryDispatcher(t, &InfraRetryConfig{MaxRetries: intp(1), CooldownSeconds: intp(1), MaxCooldownSeconds: intp(1)})
+	ctx := context.Background()
+	infraSession(t, d, q)
+	*now = now.Add(time.Second)
+	if err := d.Tick(ctx); err != nil || d.Running() != 1 {
+		t.Fatalf("retry: %v running %d", err, d.Running())
+	}
+	retry := d.ledger.Workers[0].ID
+	q.obs.Tickets[0].Infrastructure = append(q.obs.Tickets[0].Infrastructure, retry)
+	q.obs.Tickets[0].EscalationPending = []string{"q-decide"}
+	waitEnded(t, d)
+	if err := d.Tick(ctx); err != nil || d.Running() != 0 {
+		t.Fatalf("held tick: %v running %d", err, d.Running())
+	}
+	if got := lastDetail(t, d, "finished")["session"]; got != SessionHeld {
+		t.Fatalf("finished session = %q", got)
+	}
+	e := d.ledger.InfraRetry[retryKey]
+	if e.State != InfraIdle || e.Sessions != 1 || e.Charged != 1 || e.Launch != "" || d.ledger.Backoff[retryKey] != nil || d.ledger.Escalation[retryKey] != nil {
+		t.Fatalf("held session accounted: episode %+v backoff %+v ladder %+v", e, d.ledger.Backoff[retryKey], d.ledger.Escalation[retryKey])
+	}
+	if hasCode(t, d, "INFRA_RETRY_EXHAUSTED") {
+		t.Fatal("held session left an exhaustion hold")
+	}
+	q.obs.Tickets[0].EscalationPending = nil
+	if err := d.Tick(ctx); err != nil || d.Running() != 1 {
+		t.Fatalf("answered ticket did not launch: %v running %d", err, d.Running())
+	}
+	waitEnded(t, d)
+}
+
 // ESC-V0-008 with CAL-V0-057 tiers: an infrastructure session is unknown
 // progress. It drops the proved failure suffix beyond the selected tier's
 // threshold and keeps that tier, so the next failure does not climb.
@@ -396,6 +432,39 @@ func TestIssue502_InfraReservationAcrossRestart(t *testing.T) {
 			t.Fatalf("UNKNOWN reservation replaced: %v running %d", err, r.Running())
 		}
 	})
+	t.Run("slot churn keeps the reserved slot", func(t *testing.T) {
+		d, q, _ := retryDispatcher(t, policy)
+		infraSession(t, d, q)
+		const reserved = "prog.impl.2.dead0000-97"
+		r := reopen(t, d, func(e *InfraEpisode) {
+			e.State, e.Launch, e.CooldownUntil = InfraReserved, reserved, time.Now().Add(-time.Second)
+		}, policy)
+		// Slot 1 is free and the roster picks it; the launch keeps slot 2.
+		if err := r.Tick(context.Background()); err != nil || r.Running() != 1 || r.ledger.Workers[0].ID != reserved || r.ledger.Workers[0].Slot != 2 {
+			t.Fatalf("republish: %v running %d workers %+v", err, r.Running(), r.ledger.Workers)
+		}
+		if e := r.ledger.InfraRetry[retryKey]; e.State != InfraRunning || e.Charged != 1 {
+			t.Fatalf("republished episode = %+v", e)
+		}
+		waitEnded(t, r)
+	})
+	t.Run("another role holds instead of replacing", func(t *testing.T) {
+		d, q, _ := retryDispatcher(t, policy)
+		infraSession(t, d, q)
+		const reserved = "prog.review.1.dead0000-96"
+		r := reopen(t, d, func(e *InfraEpisode) {
+			e.State, e.Launch, e.CooldownUntil = InfraReserved, reserved, time.Now().Add(-time.Second)
+		}, policy)
+		if err := r.Tick(context.Background()); err != nil || r.Running() != 0 {
+			t.Fatalf("reserved identity replaced: %v running %d", err, r.Running())
+		}
+		if e := r.ledger.InfraRetry[retryKey]; e.State != InfraUnknown || e.Launch != "" || e.Charged != 1 {
+			t.Fatalf("held episode = %+v", e)
+		}
+		if !hasCode(t, r, "INFRA_RETRY_UNKNOWN") {
+			t.Fatal("no named hold")
+		}
+	})
 	t.Run("reload narrows and never refills", func(t *testing.T) {
 		d, q, _ := retryDispatcher(t, policy)
 		infraSession(t, d, q)
@@ -413,6 +482,62 @@ func TestIssue502_InfraReservationAcrossRestart(t *testing.T) {
 			t.Fatalf("absent policy dropped the debt: %+v", e)
 		}
 	})
+}
+
+// reserveWitness reads the saved ledger at the launch fence, after the
+// reservation and before any spawn, then refuses the launch there.
+type reserveWitness struct {
+	dir    string
+	intent string
+	saw    *InfraEpisode
+	err    error
+}
+
+func (w *reserveWitness) Admit(intent string) (func(bool), error) {
+	l, err := LoadLedger(w.dir, "prog")
+	if err == nil {
+		w.saw = l.InfraRetry[retryKey]
+	}
+	w.intent, w.err = intent, err
+	return nil, errors.New("interrupted before spawn")
+}
+
+func (w *reserveWitness) Boundary(bool, bool) bool { return false }
+
+// The reservation is in the saved ledger at the pre-spawn boundary, with
+// its identity, charge and deadline; interrupted there, a reopen proves no
+// spawn and launches that identity under the same charge.
+func TestIssue502_InfraReservationSavedBeforeSpawn(t *testing.T) {
+	d, q, now := retryDispatcher(t, &InfraRetryConfig{CooldownSeconds: intp(1), MaxCooldownSeconds: intp(1)})
+	infraSession(t, d, q)
+	deadline := d.ledger.InfraRetry[retryKey].CooldownUntil
+	*now = now.Add(time.Second)
+	w := &reserveWitness{dir: d.dir}
+	d.control = w
+	_ = d.Tick(context.Background())
+	if w.err != nil || w.saw == nil || w.saw.State != InfraReserved || w.saw.Launch != w.intent || w.saw.Charged != 1 || !w.saw.CooldownUntil.Equal(deadline) {
+		t.Fatalf("saved at the fence: %+v intent %q err %v", w.saw, w.intent, w.err)
+	}
+	if d.Running() != 0 {
+		t.Fatal("spawned past a refused fence")
+	}
+	d.control = nil
+	if err := d.Close(); err != nil {
+		t.Fatal(err)
+	}
+	r, err := Open(d.Program, d.Config, d.Queue, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = r.Close() })
+	r.Now = d.Now
+	if err := r.Tick(context.Background()); err != nil || r.Running() != 1 || r.ledger.Workers[0].ID != w.intent {
+		t.Fatalf("republish: %v running %d", err, r.Running())
+	}
+	if e := r.ledger.InfraRetry[retryKey]; e.State != InfraRunning || e.Charged != 1 {
+		t.Fatalf("republished episode = %+v", e)
+	}
+	waitEnded(t, r)
 }
 
 // A reservation that cannot be saved launches nothing; the next tick
@@ -509,5 +634,61 @@ func TestIssue502_LedgerRefusesMalformedInfraRetry(t *testing.T) {
 				t.Fatal("malformed infraRetry admitted")
 			}
 		})
+	}
+	// An omitted or null member, or retry state without its charge or
+	// deadline, would decode as spendable debt or an elapsed cooldown.
+	edited := func(edit func(map[string]any)) string {
+		var doc map[string]any
+		if err := json.Unmarshal(good, &doc); err != nil {
+			t.Fatal(err)
+		}
+		edit(doc["infraRetry"].(map[string]any)[retryKey].(map[string]any))
+		raw, err := json.Marshal(doc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(raw)
+	}
+	cases := map[string]string{
+		"waiting uncharged": edited(func(e map[string]any) { e["state"], e["charged"] = InfraWaiting, 0; delete(e, "launch") }),
+		"waiting over limit": edited(func(e map[string]any) {
+			e["state"], e["charged"], e["sessions"], e["limit"] = InfraWaiting, 3, 3, 2
+			delete(e, "launch")
+		}),
+		"running no deadline":   edited(func(e map[string]any) { e["cooldownUntil"] = "0001-01-01T00:00:00Z" }),
+		"reserved uncharged":    edited(func(e map[string]any) { e["state"], e["charged"] = InfraReserved, 0 }),
+		"charged over sessions": edited(func(e map[string]any) { e["charged"] = 2 }),
+	}
+	for _, field := range []string{"acceptanceRevision", "state", "sessions", "charged", "limit", "cooldownUntil", "launch"} {
+		cases["null "+field] = edited(func(e map[string]any) { e[field] = nil })
+		if field != "launch" {
+			cases["omitted "+field] = edited(func(e map[string]any) { delete(e, field) })
+		}
+	}
+	for name, bad := range cases {
+		t.Run(name, func(t *testing.T) {
+			if err := os.WriteFile(path, []byte(bad), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := LoadLedger(dir, "prog"); err == nil {
+				t.Fatal("malformed infraRetry admitted")
+			}
+		})
+	}
+	// An idle episode keeps debt without a pending retry, and a disabled one
+	// never charged; both load.
+	for name, ok := range map[string]string{
+		"idle": edited(func(e map[string]any) { e["state"] = InfraIdle; delete(e, "launch") }),
+		"disabled": edited(func(e map[string]any) {
+			e["state"], e["charged"], e["limit"], e["cooldownUntil"] = InfraDisabled, 0, 0, "0001-01-01T00:00:00Z"
+			delete(e, "launch")
+		}),
+	} {
+		if err := os.WriteFile(path, []byte(ok), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := LoadLedger(dir, "prog"); err != nil {
+			t.Fatalf("%s episode refused: %v", name, err)
+		}
 	}
 }
