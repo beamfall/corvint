@@ -228,7 +228,7 @@ func TestIssue502_EscalationCLIWritesAndReads(t *testing.T) {
 // binds the request to the session that raised it, and a typed-only control
 // write leaves the observed revision at the work revision, so it is not
 // checked progress. A decision request is a hold, not an infrastructure
-// holder.
+// holder. Both requests carry their kind and OPEN time (ESC-V0-009).
 func TestIssue502_ObserveNamesInfrastructureHolders(t *testing.T) {
 	root, claimed := leaseCLIStore(t, 2, time.Now().UTC().Truncate(time.Second).Add(-11*time.Minute))
 	t.Setenv("CORVINT_TASKS_ACTOR", "holder")
@@ -261,6 +261,17 @@ func TestIssue502_ObserveNamesInfrastructureHolders(t *testing.T) {
 	}
 	if got := after[b.Ticket]; got.Infrastructure != nil || !slices.Equal(got.EscalationPending, []string{"q-dec"}) {
 		t.Fatalf("decision observation = %+v", got)
+	}
+	// ESC-V0-009: every current OPEN request carries its kind and the
+	// audited OPEN time, whether or not it holds.
+	for _, x := range []struct{ ticket, id, kind string }{{a.Ticket, "q-infra", "infrastructure"}, {b.Ticket, "q-dec", "decision"}} {
+		got := after[x.ticket].OpenRequests
+		if len(got) != 1 || got[0].RequestID != x.id || got[0].Kind != x.kind {
+			t.Fatalf("%s open requests = %+v", x.kind, got)
+		}
+		if _, err := wire.ParseTimestamp("recordedAt", got[0].RecordedAt); err != nil {
+			t.Fatalf("%s open time %q: %v", x.kind, got[0].RecordedAt, err)
+		}
 	}
 	for _, id := range []string{a.Ticket, b.Ticket} {
 		if after[id].Revision != before[id].Revision {

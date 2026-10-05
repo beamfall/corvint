@@ -131,6 +131,20 @@ type Seen struct {
 	// Loops keeps each CAL-V0-102 held ticket's loop hold, so status shows
 	// it and diff raises one blocked escalation event per episode.
 	Loops map[string]LoopHold `json:"loops,omitempty"`
+	// Requests keeps each ticket's current OPEN escalation requests, and
+	// RequestsUnknown the sorted tickets whose escalation material could not
+	// be validated, so status shows kinds and ages without reading the
+	// native store (ESC-V0-009).
+	Requests        map[string][]OpenRequest `json:"requests,omitempty"`
+	RequestsUnknown []string                 `json:"requestsUnknown,omitempty"`
+}
+
+// OpenRequest is one current OPEN escalation request: its kind and the
+// RecordedAt of its audited OPEN event.
+type OpenRequest struct {
+	RequestID  string `json:"requestId"`
+	Kind       string `json:"kind"`
+	RecordedAt string `json:"recordedAt"`
 }
 
 // Ledger is the dispatcher's private taskman-dispatch-state/0 file. It is
@@ -297,6 +311,9 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	if err := l.validateSeenLoops(); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
 	}
+	if err := l.validateSeenRequests(); err != nil {
+		return nil, fmt.Errorf("dispatch state: %w", err)
+	}
 	if l.Pressure != nil {
 		if err := l.Pressure.validate(); err != nil {
 			return nil, fmt.Errorf("dispatch state: %w", err)
@@ -354,7 +371,9 @@ func strictProgressJSON(raw []byte) bool {
 			case "proc":
 				fields = []string{"pid", "identity"}
 			case "seen":
-				fields = []string{"tickets", "claims", "lanes", "escalations", "loops"}
+				fields = []string{"tickets", "claims", "lanes", "escalations", "loops", "requests", "requestsUnknown"}
+			case "open-request":
+				fields = []string{"requestId", "kind", "recordedAt"}
 			case "loop-hold":
 				fields = []string{"signal", "acceptanceRevision", "generations", "pending"}
 			case "history":
@@ -402,9 +421,11 @@ func strictProgressJSON(raw []byte) bool {
 				case "infra-episode":
 					child = "infra-scalar"
 				case "seen":
-					if key == "loops" {
+					if key == "loops" || key == "requests" {
 						child = key
 					}
+				case "requests":
+					child = "request-list"
 				case "loops":
 					child = "loop-hold"
 				case "loop-hold":
@@ -443,6 +464,8 @@ func strictProgressJSON(raw []byte) bool {
 				child = "worker"
 			} else if schema == "members" {
 				child = "proc"
+			} else if schema == "request-list" {
+				child = "open-request"
 			}
 			for d.More() {
 				if !value(depth+1, child) {
@@ -458,7 +481,7 @@ func strictProgressJSON(raw []byte) bool {
 				return token != nil
 			}
 			switch schema {
-			case "loops", "loop-hold", "infraRetry", "infra-episode":
+			case "loops", "loop-hold", "infraRetry", "infra-episode", "requests", "open-request":
 				return false // these maps and their records are objects
 			case "infra-scalar":
 				return token != nil // a null would decode as zero
@@ -979,6 +1002,43 @@ func (l *Ledger) validateSeenLoops() error {
 			if _, err := wire.ParseSize("loop generation", g); err != nil {
 				return errors.New("invalid loop hold")
 			}
+		}
+	}
+	return nil
+}
+
+// validateSeenRequests admits only what diff records for ESC-V0-009: per
+// ticket, 1 to 16 strictly sorted requests of a known kind with a canonical
+// OPEN time, and strictly sorted unknown tickets that name no request.
+func (l *Ledger) validateSeenRequests() error {
+	if l.Seen == nil {
+		return nil
+	}
+	bad := errors.New("invalid escalation requests")
+	for key, rs := range l.Seen.Requests {
+		if _, err := wire.ParseTicketID("requests key", key); err != nil || len(rs) == 0 || len(rs) > wire.EscalationMaxCurrentOpen {
+			return bad
+		}
+		for i, r := range rs {
+			if _, err := wire.ParseIdentifier("escalation request", r.RequestID); err != nil || (i > 0 && rs[i-1].RequestID >= r.RequestID) {
+				return bad
+			}
+			if _, err := wire.ParseTimestamp("escalation recordedAt", r.RecordedAt); err != nil {
+				return bad
+			}
+			switch r.Kind {
+			case "decision", "scope", "blocked", "infrastructure":
+			default:
+				return bad
+			}
+		}
+	}
+	for i, key := range l.Seen.RequestsUnknown {
+		if _, err := wire.ParseTicketID("requestsUnknown", key); err != nil || (i > 0 && l.Seen.RequestsUnknown[i-1] >= key) {
+			return bad
+		}
+		if _, ok := l.Seen.Requests[key]; ok {
+			return bad
 		}
 	}
 	return nil
