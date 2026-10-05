@@ -1128,6 +1128,15 @@ func (d *Dispatcher) diff(obs *Observation) {
 			}
 			now.Escalations[t.ID] = append([]string(nil), t.EscalationPending...)
 		}
+		switch {
+		case t.EscalationUnknown:
+			now.RequestsUnknown = append(now.RequestsUnknown, t.ID)
+		case len(t.OpenRequests) > 0:
+			if now.Requests == nil {
+				now.Requests = map[string][]OpenRequest{}
+			}
+			now.Requests[t.ID] = append([]OpenRequest(nil), t.OpenRequests...)
+		}
 		if t.Loop != nil && len(t.Loop.Generations) > 0 {
 			if now.Loops == nil {
 				now.Loops = map[string]LoopHold{}
@@ -1135,6 +1144,7 @@ func (d *Dispatcher) diff(obs *Observation) {
 			now.Loops[t.ID] = LoopHold{Signal: t.Loop.Signal, AcceptanceRevision: t.Loop.AcceptanceRevision, Generations: append([]string(nil), t.Loop.Generations...)}
 		}
 	}
+	sort.Strings(now.RequestsUnknown)
 	for _, a := range obs.Attempts {
 		if a.Live {
 			now.Claims[a.ID] = strings.Join([]string{a.Ticket, a.Holder, a.Phase, a.Stage}, "|")

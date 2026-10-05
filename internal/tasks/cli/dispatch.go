@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -281,6 +282,9 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 	o.Set("cooling", wire.Value{Kind: wire.KindArray, Arr: cooling})
 	if held := dispatchEscalationPending(l); len(held) > 0 {
 		o.Set("escalationPending", wire.Value{Kind: wire.KindArray, Arr: held})
+	}
+	if open := dispatchEscalationRequests(l, now); len(open) > 0 {
+		o.Set("escalationRequests", wire.Value{Kind: wire.KindArray, Arr: open})
 	}
 	if held := dispatchLoopDetected(l); len(held) > 0 {
 		o.Set("loopDetected", wire.Value{Kind: wire.KindArray, Arr: held})
@@ -560,6 +564,41 @@ func dispatchEscalationPending(l *dispatch.Ledger) []wire.Value {
 	return held
 }
 
+// dispatchEscalationRequests lists, sorted by ticket then request, each
+// current OPEN escalation request in the dispatcher's last native
+// observation with its kind, original OPEN time, a nonnegative age that is
+// clockUncertain when the local clock is behind that time, and whether it
+// is an ESC-V0-006 hold (ESC-V0-009). A ticket whose material could not be
+// validated shows UNKNOWN material and no request. It reads only the
+// dispatcher's ledger: no native store, no evidence and no write.
+func dispatchEscalationRequests(l *dispatch.Ledger, now time.Time) []wire.Value {
+	if l.Seen == nil {
+		return nil
+	}
+	ids := make([]string, 0, len(l.Seen.Requests)+len(l.Seen.RequestsUnknown))
+	for id := range l.Seen.Requests {
+		ids = append(ids, id)
+	}
+	ids = append(ids, l.Seen.RequestsUnknown...)
+	sort.Strings(ids)
+	out := []wire.Value{}
+	for _, id := range ids {
+		rs, known := l.Seen.Requests[id]
+		if !known {
+			out = append(out, wire.ObjectValue(wire.NewObject().Set("ticket", wire.String(id)).Set("material", wire.String("UNKNOWN"))))
+			continue
+		}
+		for _, r := range rs {
+			x := wire.NewObject().Set("ticket", wire.String(id)).Set("requestId", wire.String(r.RequestID)).Set("kind", wire.String(r.Kind))
+			x.Set("holds", wire.Bool(slices.Contains(l.Seen.Escalations[id], r.RequestID)))
+			x.Set("recordedAt", wire.String(r.RecordedAt))
+			setEscalationAge(x, r.RecordedAt, now)
+			out = append(out, wire.ObjectValue(x))
+		}
+	}
+	return out
+}
+
 // dispatchLoopDetected lists, by ticket, each CAL-V0-102 LOOP_DETECTED hold
 // in the dispatcher's last native observation, kept apart from the plan
 // reason like the ESC-V0-006 hold.
@@ -586,9 +625,10 @@ func dispatchLoopDetected(l *dispatch.Ledger) []wire.Value {
 }
 
 // observeEscalations validates one ticket's escalation material and records
-// the holders of its current infrastructure requests (ESC-V0-007). Material
-// that cannot be validated leaves the ticket's binding UNKNOWN, never progress
-// (ESC-V0-008).
+// the holders of its current infrastructure requests (ESC-V0-007) and the
+// kind and original OPEN time of each current OPEN request (ESC-V0-009).
+// Material that cannot be validated leaves the ticket's binding UNKNOWN,
+// never progress (ESC-V0-008), and names no request.
 func observeEscalations(repo *intent.Repository, queueID string, r *ticket.Record, t *dispatch.Ticket) {
 	m := loadEscalations(repo, queueID, r)
 	if m.err != nil {
@@ -596,17 +636,26 @@ func observeEscalations(repo *intent.Repository, queueID string, r *ticket.Recor
 		return
 	}
 	for _, ref := range r.Escalations.Entries {
-		if ref.Kind != "infrastructure" || ref.AcceptanceRevision != r.AcceptanceRevision || (ref.State != "OPEN" && ref.State != "ANSWERED") {
+		if ref.AcceptanceRevision != r.AcceptanceRevision || (ref.State != "OPEN" && ref.State != "ANSWERED") {
+			continue
+		}
+		if ref.Kind != "infrastructure" && ref.State != "OPEN" {
 			continue
 		}
 		origin, err := ticket.DecodeEscalationEvent(m.blobs[ref.OriginSha256])
 		if err != nil {
-			t.EscalationUnknown, t.Infrastructure = true, nil
+			t.EscalationUnknown, t.Infrastructure, t.OpenRequests = true, nil, nil
 			return
 		}
-		t.Infrastructure = append(t.Infrastructure, origin.Source.Holder)
+		if ref.Kind == "infrastructure" {
+			t.Infrastructure = append(t.Infrastructure, origin.Source.Holder)
+		}
+		if ref.State == "OPEN" {
+			t.OpenRequests = append(t.OpenRequests, dispatch.OpenRequest{RequestID: ref.RequestID, Kind: ref.Kind, RecordedAt: string(origin.RecordedAt)})
+		}
 	}
 	sort.Strings(t.Infrastructure)
+	sort.Slice(t.OpenRequests, func(i, j int) bool { return t.OpenRequests[i].RequestID < t.OpenRequests[j].RequestID })
 }
 
 // dispatchTickets is the ticket half of the native observation: each

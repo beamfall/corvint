@@ -423,6 +423,19 @@ func escalationReadError(err error) error {
 	return wire.Errorf(code, "/escalations", "escalation material refused %s", r.Code)
 }
 
+// setEscalationAge sets a nonnegative ageSeconds since recordedAt and
+// clockUncertain, true with age 0 when the local clock is behind it or the
+// time does not parse.
+func setEscalationAge(o *wire.Object, recordedAt string, now time.Time) {
+	age, uncertain := int64(0), true
+	if at, err := time.Parse("2006-01-02T15:04:05Z", recordedAt); err == nil {
+		if d := now.Sub(at); d >= 0 {
+			age, uncertain = int64(d/time.Second), false
+		}
+	}
+	o.Set("ageSeconds", wire.String(string(wire.CountOf(age)))).Set("clockUncertain", wire.Bool(uncertain))
+}
+
 // escalationEntryValue renders one entry with honest age and provenance: the
 // original OPEN time, a nonnegative age that is clockUncertain when the local
 // clock is behind it, applicability from acceptance revisions, and the
@@ -452,13 +465,7 @@ func escalationEntryValue(rec *ticket.Record, ref ticket.EscalationRef, m escala
 	open := origin.OriginalRequest.Open
 	o.Set("question", wire.String(open.Question)).Set("options", wire.Strings(append([]string{}, open.Options...)))
 	o.Set("recordedAt", wire.String(string(origin.RecordedAt)))
-	age, uncertain := int64(0), true
-	if at, err := time.Parse("2006-01-02T15:04:05Z", string(origin.RecordedAt)); err == nil {
-		if d := now.Sub(at); d >= 0 {
-			age, uncertain = int64(d/time.Second), false
-		}
-	}
-	o.Set("ageSeconds", wire.String(string(wire.CountOf(age)))).Set("clockUncertain", wire.Bool(uncertain))
+	setEscalationAge(o, string(origin.RecordedAt), now)
 	s := origin.Source
 	src := wire.NewObject().Set("attemptId", wire.String(s.AttemptID)).Set("generation", wire.String(string(s.Generation))).Set("holder", wire.String(s.Holder))
 	src.Set("receiptSequence", wire.String(string(s.ReceiptSequence))).Set("acceptanceRevision", wire.String(string(s.AcceptanceRevision)))
