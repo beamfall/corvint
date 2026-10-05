@@ -20,6 +20,9 @@ import { ENVELOPE_COLLISION, frameRepositoryData } from "./envelope.js"
 import { promptQuery, trimSpace } from "./prompt-bound.js"
 
 const MAX_TRACKED_PATHS = 256
+// AHI-022 (V1-0773): one file-change batch never exceeds Core's impact bound (maxImpactPaths in
+// internal/contextindex/index.go), which refuses a larger batch without a code.
+const MAX_FILE_CHANGE_PATHS = 100
 const MAX_SESSIONS = 128
 const MAX_ADDITION_BYTES = 8_000
 const MAX_IN_FLIGHT = 16
@@ -127,7 +130,7 @@ async function setup(ctx) {
       batch = { paths: new Set(), sessionIdSha256: key || undefined }
       pendingFileChanges.set(key, batch)
     }
-    if (batch.paths.size < MAX_TRACKED_PATHS) batch.paths.add(changed)
+    if (batch.paths.size < MAX_FILE_CHANGE_PATHS) batch.paths.add(changed)
     else if (!batch.paths.has(changed) && !batch.truncated) {
       batch.truncated = true
       record("changed-paths-truncated", "file-change")
