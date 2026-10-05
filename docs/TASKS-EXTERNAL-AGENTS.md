@@ -328,7 +328,8 @@ Operator notes (experimental, `corvint-tasks-operator-notes-v0.md`): `ticket not
 an opaque cursor anchored to the head the first page read. A dispatcher role prompt may include
 `{operatorNote}`; it renders nothing for a never-noted ticket and otherwise a launch-time copy of
 the current note, labelled advisory. The claim result's `operatorNote` remains the authoritative
-note for the admitted attempt. The placeholder is refused in host argv, env and activity paths.
+note for the admitted attempt. The placeholder is refused in host argv, env and activity paths, and a role using it needs a host
+that passes `{prompt}` as one whole argv element (not inside a string, not after a shell `-c`).
 
 When every external review gate the policy declares or the ticket references is a CURRENT PASS and
 nothing else blocks an OPEN ticket, `ticket show`, `ticket blockers` and the `plan preview` entry

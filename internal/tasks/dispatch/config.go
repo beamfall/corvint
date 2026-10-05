@@ -310,6 +310,11 @@ func (c *Config) validate() error {
 		if err := placeholdersKnown(r.Prompt); err != nil || strings.Contains(r.Prompt, "{prompt}") {
 			return fail("role %s prompt: unknown placeholder or {prompt}", r.Name)
 		}
+		if strings.Contains(r.Prompt, operatorNotePlaceholder) {
+			if err := noteSafeHost(c.Hosts[r.Host]); err != nil {
+				return fail("role %s uses {operatorNote} but host %q %v", r.Name, r.Host, err)
+			}
+		}
 		if m := r.Match; m != nil {
 			if m.IDGlob != "" {
 				if _, err := filepath.Match(m.IDGlob, ""); err != nil {
@@ -464,6 +469,32 @@ func validGates(gates []GateMatch) error {
 				return fmt.Errorf("gate %s state %q is not PASS, RETURN, RESUBMITTED or NONE, or is repeated", g.Gate, s)
 			}
 			states[s] = true
+		}
+	}
+	return nil
+}
+
+// noteSafeHost admits a host for a role prompt carrying {operatorNote}
+// (ON-V0-011) only when the rendered prompt reaches it as one whole argv
+// element that does not follow a shell-style -c option, and never inside an
+// activity path, so untrusted note prose is passed as data rather than spliced
+// into a command string. A program that itself evaluates its argument as code
+// remains outside what this check can see.
+func noteSafeHost(h Host) error {
+	for i, a := range h.Argv {
+		if !strings.Contains(a, "{prompt}") {
+			continue
+		}
+		if a != "{prompt}" {
+			return fmt.Errorf("embeds {prompt} inside argv element %d", i)
+		}
+		if prev := h.Argv[i-1]; strings.HasPrefix(prev, "-") && !strings.HasPrefix(prev, "--") && strings.Contains(prev, "c") {
+			return fmt.Errorf("passes {prompt} as the %s command string", prev)
+		}
+	}
+	for _, p := range h.ActivityPaths {
+		if strings.Contains(p, "{prompt}") {
+			return fmt.Errorf("renders {prompt} into an activity path")
 		}
 	}
 	return nil

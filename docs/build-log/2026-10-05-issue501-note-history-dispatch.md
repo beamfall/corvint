@@ -40,6 +40,12 @@ needs the remaining ON-V0-010 evidence and owner acceptance.
     that placeholders are the only substitutions.
   - The placeholder is refused in host argv, env and activity paths, so note prose never reaches a
     command line or an environment variable.
+  - Codex round 1 (P1) showed that a host such as `/bin/sh -c "printf '%s' \"{prompt}\""` still
+    splices the rendered prompt, and so the note, into shell code. A role whose prompt uses
+    `{operatorNote}` now needs a host that passes `{prompt}` only as one whole argv element that
+    does not follow a shell-style `-c` option (any single-dash option containing `c`), and never in
+    an activity path. This is fail-closed and may refuse some harmless options. A program that
+    evaluates its own argument as code is outside what config validation can see.
 
 ## Limits
 

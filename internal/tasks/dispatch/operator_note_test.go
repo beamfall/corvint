@@ -102,6 +102,43 @@ func TestONV0011_OperatorNotePlaceholderIsPromptOnly(t *testing.T) {
 			t.Fatalf("{operatorNote} in host %s admitted", name)
 		}
 	}
+	// A note-bearing prompt must reach the host as one whole argv element,
+	// never spliced into a command string or a shell -c script.
+	for name, argv := range map[string][]string{
+		"embedded":  {"/bin/sh", "-c", "printf '%s' \"{prompt}\""},
+		"shell -c":  {"/bin/sh", "-c", "{prompt}"},
+		"shell -lc": {"/bin/zsh", "-lc", "{prompt}"},
+		"suffixed":  {"/usr/bin/agent", "--prompt={prompt}"},
+	} {
+		c := testConfig(t, "true")
+		c.Roles[0].Prompt = "work {operatorNote}"
+		c.Hosts["sh"] = Host{Argv: argv}
+		raw, _ := json.Marshal(c)
+		if _, err := DecodeConfig(raw); err == nil || !strings.Contains(err.Error(), "{operatorNote}") {
+			t.Fatalf("%s host admitted a note-bearing prompt: %v", name, err)
+		}
+		c.Roles[0].Prompt = "work"
+		raw, _ = json.Marshal(c)
+		if _, err := DecodeConfig(raw); err != nil {
+			t.Fatalf("%s host without {operatorNote} refused: %v", name, err)
+		}
+	}
+	c := testConfig(t, "true")
+	c.Roles[0].Prompt = "work {operatorNote}"
+	c.Hosts["sh"] = Host{Argv: []string{"/bin/sh", "-c", `exec agent "$1"`, "sh", "{prompt}"}}
+	raw, _ := json.Marshal(c)
+	if _, err := DecodeConfig(raw); err != nil {
+		t.Fatalf("whole-element {prompt} after a script refused: %v", err)
+	}
+	h := c.Hosts["sh"]
+	h.ActivityPaths = []string{"/tmp/{prompt}"}
+	c.Hosts["sh"] = h
+	raw, _ = json.Marshal(c)
+	if _, err := DecodeConfig(raw); err == nil {
+		t.Fatal("{prompt} activity path admitted for a note-bearing prompt")
+	} else if !strings.Contains(err.Error(), "activity path") {
+		t.Fatalf("activity path refused for another reason: %v", err)
+	}
 	if got := RenderOperatorNote("t", nil); got != "" {
 		t.Fatalf("nil note renders %q", got)
 	}
