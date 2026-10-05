@@ -280,6 +280,8 @@ var PayloadKeys = map[string][]string{
 	OpRevokeApproval:  {"grantId", "reason"},
 	OpNoteSet:         {"text", "supersedes"},
 	OpNoteClear:       {"supersedes"},
+	OpReviewRecord:    {"request"},
+	OpReviewResubmit:  {"request"},
 }
 
 // Decode parses and validates one mutation envelope (canonical bytes with
@@ -333,7 +335,7 @@ func Decode(data []byte) (*Envelope, error) {
 		if env.TargetID == nil {
 			return nil, wire.Errorf(wire.CodeMalformed, "/targetId", "%s requires a targetId", env.Operation)
 		}
-		if env.ExpectedRevision == nil && !IsNoteOperation(env.Operation) {
+		if env.ExpectedRevision == nil && !IsNoteOperation(env.Operation) && !IsReviewOperation(env.Operation) {
 			return nil, wire.Errorf(wire.CodeMalformed, "/expectedRevision", "%s requires an expectedRevision", env.Operation)
 		}
 		if env.TargetID.QueueID() != env.QueueID.Raw {
@@ -437,6 +439,8 @@ func decodePayload(op string, r *wire.Reader) (Payload, error) {
 		p = &RevokeApprovalPayload{GrantID: r.Field("grantId").Label(), Reason: r.Field("reason").Prose(0, wire.MaxProseBytes)}
 	case OpNoteSet, OpNoteClear:
 		p = readNote(op, r)
+	case OpReviewRecord, OpReviewResubmit:
+		p = readReview(op, r)
 	default:
 		return nil, wire.Errorf(wire.CodeMalformed, r.Where(), "unknown operation %q", op)
 	}
@@ -803,6 +807,8 @@ func PayloadValue(p Payload) wire.Value {
 			o.Set("text", wire.String(p.Text))
 		}
 		o.Set("supersedes", countOrNull(p.Supersedes))
+	case *ReviewPayload:
+		o.Set("request", p.Request)
 	}
 	return wire.ObjectValue(o)
 }
@@ -895,7 +901,9 @@ func readNote(op string, r *wire.Reader) *NotePayload {
 	return p
 }
 
-// DeclaresDerivedEvent names the operations that may carry Plan.DerivedEvent.
-// Only NOTE_SET and NOTE_CLEAR do today. Before another operation is added
-// here, its redo and receipt audit must bind its event (ON-V0-006).
-func DeclaresDerivedEvent(op string) bool { return IsNoteOperation(op) }
+// DeclaresDerivedEvent names the operations that may carry Plan.DerivedEvent:
+// NOTE_SET and NOTE_CLEAR (ON-V0-006) and REVIEW_RECORD and REVIEW_RESUBMIT,
+// whose event the receipt audit binds to its ticket post (ERG-V0-009). Before
+// another operation is added here, its redo and receipt audit must bind its
+// event.
+func DeclaresDerivedEvent(op string) bool { return IsNoteOperation(op) || IsReviewOperation(op) }

@@ -78,6 +78,9 @@ func redoPending(repo *intent.Repository, session *authority.Session) (bool, err
 	if receipt.Prev == nil || head.LastReceiptSha256 == nil || *receipt.Prev != *head.LastReceiptSha256 {
 		return false, wire.Errorf(wire.CodeJournalForked, receiptPath(last+1), "pending receipt does not chain to the head")
 	}
+	if err = redoReviewBinding(repo, receipt, raw); err != nil {
+		return false, err
+	}
 	if err = redoPosts(repo, session, receipt); err != nil {
 		return false, err
 	}

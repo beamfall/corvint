@@ -81,6 +81,7 @@ func TestIssue502_RecordEscalationsKey(t *testing.T) {
 	rec.RequiredRoles = map[string][]string{"implement": {"BUILDER"}, "review": {"REVIEWER"}, "integrate": {"VERIFIER"}}
 	note := wire.Sum([]byte("note"))
 	rec.OperatorNote = &ticket.OperatorNoteReference{Revision: "1", Current: &note, Head: note}
+	rec.ExternalReviews = map[string]ticket.ExternalReviewRef{"codex-review": {Generation: "1", Revision: "1", Head: wire.Sum([]byte("review"))}}
 	file, err := os.ReadFile(issue502RecordFixture)
 	if err != nil {
 		t.Fatal(err)

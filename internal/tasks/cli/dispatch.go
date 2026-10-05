@@ -19,6 +19,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -405,6 +406,24 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 			return err
 		}
 		obs.Tickets = dispatchTickets(in)
+		// The review binding fold runs once, and only when a gate exists; a
+		// fold that refuses leaves every gate unobserved (ERG-V0-009).
+		var fold *transaction.ExternalReviewReceiptAudit
+		folded := false
+		for i := range obs.Tickets {
+			r, _ := in.Tickets.Get(obs.Tickets[i].ID)
+			// ERG-V0-009: a gate set that cannot be read stays unobserved
+			// (every gate UNKNOWN) instead of failing the whole observation.
+			if len(r.ExternalReviews) > 0 && !folded {
+				folded = true
+				fold, _ = store.FoldExternalReviews(rc.repo, rc.snap.Head.LastSeq.Uint64(), nil)
+			}
+			if len(r.ExternalReviews) == 0 || fold != nil {
+				if gates, err := externalReviewGateViews(rc.repo, r, in.Policy, in.Attempts, fold); err == nil {
+					obs.Tickets[i].Gates, obs.Tickets[i].GatesObserved = gates, true
+				}
+			}
+		}
 		for _, a := range in.Attempts {
 			x := dispatch.Attempt{ID: a.AttemptID, Ticket: a.TicketID.Raw, Phase: a.Phase, Stage: a.Stage, Generation: string(a.Generation), Live: a.Live(), Gates: len(a.GateResults), Reviews: len(a.Reviews)}
 			if a.CandidateTreeOid != nil {
