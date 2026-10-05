@@ -115,6 +115,12 @@ func TestONV0011_OperatorNotePlaceholderIsPromptOnly(t *testing.T) {
 		"--eval=":         {"/usr/bin/tool", "--eval={prompt}"},
 		"--command":       {"/usr/bin/tool", "--command", "{prompt}"},
 		"suffixed":        {"/usr/bin/agent", "--prompt={prompt}"},
+		"shell +c":        {"/bin/sh", "+c", "{prompt}"},
+		"wrapper +ec":     {"/usr/bin/agent", "+ec", "{prompt}"},
+		"env sh":          {"/usr/bin/env", "sh", "{prompt}"},
+		"bash script":     {"/bin/bash", "/opt/run.sh", "{prompt}"},
+		"python3.12":      {"/usr/bin/python3.12", "/opt/run.py", "{prompt}"},
+		"nice sh":         {"/usr/bin/nice", "/bin/sh", "{prompt}"},
 	} {
 		c := testConfig(t, "true")
 		c.Roles[0].Prompt = "work {operatorNote}"

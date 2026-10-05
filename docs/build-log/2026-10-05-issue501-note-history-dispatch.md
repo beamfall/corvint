@@ -48,7 +48,14 @@ needs the remaining ON-V0-010 evidence and owner acceptance.
     note-bearing role's host argv: a single-dash cluster containing `c` or `e`, or `--command`,
     `--eval`, `--exec` or `--execute`. It also refuses `{prompt}` in an activity path. A host that
     needs a shell uses a wrapper executable. This is fail-closed and may refuse some harmless
-    options, such as `-v -e`. A program that
+    options, such as `-v -e`.
+  - Codex round 3 (P1) showed that `/bin/sh +c {prompt}` passed, because the check matched only
+    `-` options. The rule now also refuses `+` clusters containing `c` or `e`. It further refuses
+    any argv element whose base name, with any version suffix trimmed, is a shell or script
+    interpreter (`sh`, `bash`, `zsh`, `dash`, `ksh`, `fish`, `env`, `xargs`, `python`, `node`,
+    `perl`, `ruby` and similar), so spelling variants of interpreter options no longer matter.
+    The option denylist alone was not a sound boundary. A program that is not on the list but
+    evaluates its argument as code is a recorded limit. A program that
     evaluates its own argument as code is outside what config validation can see.
 
 ## Limits

@@ -476,16 +476,20 @@ func validGates(gates []GateMatch) error {
 
 // noteSafeHost admits a host for a role prompt carrying {operatorNote}
 // (ON-V0-011) only when the rendered prompt reaches it as one whole argv
-// element, no argv element takes a code-string option (a single-dash cluster
-// containing c or e, or --command, --eval, --exec, --execute), and no activity
-// path renders it. Untrusted note prose is then passed as data rather than
-// spliced into, or offered as, a command string. A host that needs a shell
-// uses a wrapper executable. A program that evaluates a plain argument as
-// code remains outside what this check can see.
+// element, no argv element names a shell or script interpreter or takes a
+// code-string option (a single-dash or single-plus cluster containing c or e,
+// or --command, --eval, --exec, --execute), and no activity path renders it.
+// Untrusted note prose is then passed as data rather than spliced into, or
+// offered as, a command string; a host that needs a shell uses a wrapper
+// executable. A program that evaluates a plain argument as code remains
+// outside what this check can see.
 func noteSafeHost(h Host) error {
 	for i, a := range h.Argv {
 		if a != "{prompt}" && strings.Contains(a, "{prompt}") {
 			return fmt.Errorf("embeds {prompt} inside argv element %d", i)
+		}
+		if interpreters[strings.TrimRight(filepath.Base(a), "0123456789.")] {
+			return fmt.Errorf("runs the interpreter %s", a)
 		}
 		if i > 0 && codeOption(a) {
 			return fmt.Errorf("takes the code-string option %s", a)
@@ -499,9 +503,14 @@ func noteSafeHost(h Host) error {
 	return nil
 }
 
+// interpreters are argv names (version suffix trimmed) that run their
+// arguments as code, directly or through another program.
+var interpreters = map[string]bool{"sh": true, "bash": true, "zsh": true, "dash": true, "ksh": true, "mksh": true, "fish": true, "csh": true, "tcsh": true, "busybox": true, "env": true, "xargs": true, "eval": true, "exec": true,
+	"python": true, "node": true, "deno": true, "bun": true, "perl": true, "ruby": true, "php": true, "lua": true, "osascript": true, "awk": true, "gawk": true, "pwsh": true, "powershell": true, "cmd": true}
+
 func codeOption(a string) bool {
 	if name, _, _ := strings.Cut(a, "="); name == "--command" || name == "--eval" || name == "--exec" || name == "--execute" {
 		return true
 	}
-	return len(a) > 1 && a[0] == '-' && a[1] != '-' && strings.ContainsAny(a[1:], "ce")
+	return len(a) > 1 && (a[0] == '-' || a[0] == '+') && a[1] != '-' && strings.ContainsAny(a[1:], "ce")
 }
