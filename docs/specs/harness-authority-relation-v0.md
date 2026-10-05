@@ -85,8 +85,8 @@ its finding is that the action is not currently available.
   `internal/witness` is a rendering package for the `witness` command, not an attestation root.
 - **The harness does not consult Frontier at all.** `internal/gokernel/harness.go` contains no import
   of `internal/frontier`; the degradation is the literal `degradations := []any{
-  "frontier-authority-unavailable"}` at `internal/gokernel/harness.go:396@a4869098`, appended to **every**
-  event, and the `stop` block at `:436-440@e567ed2d` is a hardcoded constant map. This matters here: even an
+  "frontier-authority-unavailable"}` at `internal/gokernel/harness.go:439@a4869098`, appended to **every**
+  event, and the `stop` block at `:479-483@e567ed2d` is a hardcoded constant map. This matters here: even an
   accepted closing relation would not change one byte of a harness receipt until that wiring exists.
 
 ## Definitions

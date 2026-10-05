@@ -1,6 +1,6 @@
 # Decision 0429: record trace producer provenance as schema 3
 
-Date: 2026-10-04. Status: owner-selected design; requirement text proposed. The owner chose
+Date: 2026-10-04. Status: owner-selected design; requirement text accepted 2026-10-04 (decision 0430). The owner chose
 "Schema v3 field" from the V1-0745 design options on 2026-10-04.
 Ticket: V1-0745. Contract: `docs/specs/local-trace-producer-migration-v0.md`
 (`LTPM-V0-015`, `LTPM-V0-016`).

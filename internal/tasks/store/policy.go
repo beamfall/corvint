@@ -26,7 +26,8 @@ type PolicyRequest struct {
 // PolicyUpdate commits the next policy version through the §5.2 writer. The
 // receipt's pre/post entries for intent/policy.json carry the old and new
 // policy digests.
-func PolicyUpdate(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice PolicyRequest, now wire.Timestamp) (*Report, error) {
+func PolicyUpdate(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice PolicyRequest, now wire.Timestamp) (out *Report, outErr error) {
+	defer func() { out, outErr = intentFix(repo, out, outErr) }()
 	return policyUpdate(ctx, repo, actor, choice, now, nil)
 }
 

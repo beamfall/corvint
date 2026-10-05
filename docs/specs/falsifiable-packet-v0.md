@@ -432,9 +432,9 @@ above stands with that substitution.
   naming handles that MUST survive; `unknowns` and `failed_approaches`, free text; `verification`,
   `[{command, observed_status, provenance}]`; and `provenance` `{receiptId?, packet_sha256?}`.
   Keys are snake_case with one compatibility exception: `receiptId` keeps the camelCase spelling of
-  the accepted harness response key it mirrors (`internal/gokernel/harness.go:460@cc998e6b`); every other
+  the accepted harness response key it mirrors (`internal/gokernel/harness.go:503@cc998e6b`); every other
   key, `packet_sha256` included, is snake_case. A `receiptId` is a request-identity hash, not proof
-  of possession (`internal/gokernel/harness.go:446-450@a9b1d3f6`); a checkpoint MUST NOT claim it establishes
+  of possession (`internal/gokernel/harness.go:489-493@a9b1d3f6`); a checkpoint MUST NOT claim it establishes
   that a handle was read. `repository.dirty_paths_sha256` is the lowercase hex SHA-256 of the
   canonical-JSON encoding of the sorted dirty path list `affected.DirtyPaths` returns
   (`internal/liveverify/affected/dirty.go:46@abebde5b` is the entry point; the deduplication and sort happen

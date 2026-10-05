@@ -25,7 +25,7 @@ func createTemplate(env Env, cmd []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	st, err := intent.Load(repo.PrimaryWorktree)
+	st, err := intent.Load(repo.IntentRoot())
 	if err != nil {
 		return errorResult(cmd, err)
 	}

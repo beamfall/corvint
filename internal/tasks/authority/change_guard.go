@@ -104,7 +104,7 @@ func WatchChanges(repo *intent.Repository) (_ *ChangeGuard, err error) {
 		}
 		return nil
 	}
-	for _, root := range []string{repo.StateDir, filepath.Join(repo.PrimaryWorktree, intent.Dir)} {
+	for _, root := range []string{repo.StateDir, filepath.Join(repo.IntentRoot(), intent.Dir)} {
 		if err := ancestor(filepath.Dir(root)); err != nil {
 			return nil, err
 		}

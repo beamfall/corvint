@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -98,6 +99,9 @@ type fixtureSession struct {
 	stages   map[*fixtureStage]bool
 	closed   bool
 	closeErr error
+	// worktree is the retained root holding `.taskman`: "primary", or
+	// "worktree" when CTW-V0-002 selected a linked intent worktree.
+	worktree string
 	// Per-session deterministic syscall boundaries; tests do not swap globals.
 	before    func(string) error
 	write     func(*os.File, []byte) (int, error)
@@ -261,10 +265,10 @@ func newFixtureSession(repo *intent.Repository, lock *Lock) (_ *fixtureSession, 
 	if err != nil {
 		return nil, err
 	}
-	if again.CommonDir != repo.CommonDir || again.StateDir != repo.StateDir || again.LockPath != repo.LockPath || again.PrimaryWorktree != repo.PrimaryWorktree {
+	if again.CommonDir != repo.CommonDir || again.StateDir != repo.StateDir || again.LockPath != repo.LockPath || again.PrimaryWorktree != repo.PrimaryWorktree || again.IntentRoot() != repo.IntentRoot() || again.IntentHEAD() != repo.IntentHEAD() {
 		return nil, fixtureRefused
 	}
-	s := &fixtureSession{lock: lock, repo: *again, parents: map[string]*fixtureParent{}, stages: map[*fixtureStage]bool{}, write: (*os.File).Write, closeFile: (*os.File).Close, closeRoot: (*os.Root).Close, observe: fixtureObserveMount}
+	s := &fixtureSession{lock: lock, repo: *again, parents: map[string]*fixtureParent{}, stages: map[*fixtureStage]bool{}, write: (*os.File).Write, closeFile: (*os.File).Close, closeRoot: (*os.Root).Close, observe: fixtureObserveMount, worktree: "primary"}
 	defer func() {
 		if err != nil {
 			err = errors.Join(err, s.closeHandles())
@@ -280,6 +284,11 @@ func newFixtureSession(repo *intent.Repository, lock *Lock) (_ *fixtureSession, 
 	}
 	if err = s.retain("primary", "", "", root); err != nil {
 		return nil, err
+	}
+	if again.IntentLinked() {
+		if err = s.retainWorktree(); err != nil {
+			return nil, err
+		}
 	}
 	for _, key := range []string{"common", "state", "staging", "receipts", "evidence", "pinned", "requests", "intent", "tickets", "releases", "attempts"} {
 		if err = s.pinExisting(key); err != nil {
@@ -317,11 +326,92 @@ func (s *fixtureSession) retain(key, parent, name string, root *os.Root) (err er
 	s.parents[key] = &fixtureParent{root, f, info, mount, parent, name}
 	return nil
 }
+
+// retainWorktree pins a linked intent worktree as a second root. Intent
+// publication links from staging under the common dir, so the root must be on
+// the primary's mount (CTW-V0-008); retain refuses any other mount.
+func (s *fixtureSession) retainWorktree() error {
+	root, err := safeopen.Root(s.repo.IntentRoot())
+	if err != nil {
+		return err
+	}
+	if err = s.retain("worktree", "", "", root); err != nil {
+		if errors.Is(err, fixtureRefused) {
+			return wire.Errorf(wire.CodeUnsupportedFilesystem, s.repo.IntentRoot(), "the linked intent worktree must be a local directory on the primary worktree's mount (CTW-V0-008)")
+		}
+		return err
+	}
+	p := s.parents["worktree"]
+	if err = s.sameWorktree(p.root, p.info); err != nil {
+		delete(s.parents, "worktree")
+		refusal := wire.Errorf(wire.CodeUnsupportedFilesystem, s.repo.IntentRoot(), "the pinned linked intent worktree is not the directory admission validated (CTW-V0-008): %v", err)
+		if closeErr := errors.Join(s.closeFile(p.file), s.closeRoot(p.root)); closeErr != nil {
+			return errors.Join(refusal, closeErr)
+		}
+		return refusal
+	}
+	s.worktree = "worktree"
+	return nil
+}
+
+// sameWorktree checks that a pinned linked intent worktree is the directory
+// admission validated: its path still names the pinned directory, and the
+// `.git` file read through the pinned root points back to the admitted
+// registration (CTW-V0-004). Admission compares paths; this closes the window
+// in which the path is swapped before the root is opened.
+func (s *fixtureSession) sameWorktree(root *os.Root, info os.FileInfo) error {
+	now, err := os.Lstat(s.repo.IntentRoot())
+	if err != nil {
+		return err
+	}
+	if !os.SameFile(now, info) {
+		return errors.New("the worktree path names a different directory than the pinned one")
+	}
+	f, err := safeopen.InRoot(root, ".git", os.O_RDONLY, 0, false)
+	if err != nil {
+		return err
+	}
+	raw, err := io.ReadAll(io.LimitReader(f, 4*wire.KiB+1))
+	if err = errors.Join(err, s.closeFile(f)); err != nil {
+		return err
+	}
+	back := strings.TrimRight(string(raw), "\r\n")
+	if len(raw) > 4*wire.KiB || !strings.HasPrefix(back, "gitdir: ") || strings.ContainsAny(back, "\r\n") {
+		return errors.New("the pinned worktree .git file is not a single gitdir: line")
+	}
+	back = strings.TrimPrefix(back, "gitdir: ")
+	if !filepath.IsAbs(back) {
+		back = filepath.Join(s.repo.IntentRoot(), back)
+	}
+	got, err := os.Lstat(filepath.Clean(back))
+	if err != nil {
+		return err
+	}
+	admin, err := os.Lstat(s.repo.IntentGitDir)
+	if err != nil {
+		return err
+	}
+	if !os.SameFile(got, admin) {
+		return errors.New("the pinned worktree .git file points to a different registration")
+	}
+	return nil
+}
+
+// parentKey names the retained parent of a directory key: `.taskman` lives in
+// the linked intent worktree when one is retained, otherwise in the primary.
+func (s *fixtureSession) parentKey(key, parent string) string {
+	if key == "intent" {
+		return s.worktree
+	}
+	return parent
+}
+
 func (s *fixtureSession) pinExisting(key string) error {
 	parent, name, ok := fixtureDirectory(key)
 	if !ok {
 		return fixtureRefused
 	}
+	parent = s.parentKey(key, parent)
 	p := s.parents[parent]
 	if p == nil {
 		return nil
@@ -374,6 +464,11 @@ func (s *fixtureSession) check() (err error) {
 	if err != nil || !os.SameFile(info, s.parents["primary"].info) {
 		return fixtureRefused
 	}
+	if s.worktree == "worktree" {
+		if err = s.checkWorktree(); err != nil {
+			return err
+		}
+	}
 	for _, p := range s.parents {
 		if p.parent != "" {
 			cur, e := s.parents[p.parent].root.Lstat(p.name)
@@ -395,6 +490,21 @@ func (s *fixtureSession) check() (err error) {
 	}
 	cur, err := s.parents["common"].root.Lstat(LockFileName)
 	if err != nil || !cur.Mode().IsRegular() || !os.SameFile(cur, held) || !os.SameFile(held, s.lockInfo) {
+		return fixtureRefused
+	}
+	return nil
+}
+
+// checkWorktree reopens the linked intent worktree by path and requires the
+// retained root, as check does for the primary.
+func (s *fixtureSession) checkWorktree() (err error) {
+	root, err := safeopen.Root(s.repo.IntentRoot())
+	if err != nil {
+		return err
+	}
+	defer func() { err = errors.Join(err, s.closeRoot(root)) }()
+	info, err := root.Stat(".")
+	if err != nil || !os.SameFile(info, s.parents["worktree"].info) {
 		return fixtureRefused
 	}
 	return nil
@@ -966,6 +1076,7 @@ func (s *fixtureSession) mkdir(key string) error {
 	if !ok || key == "common" {
 		return fixtureRefused
 	}
+	parent = s.parentKey(key, parent)
 	return s.operation(func() (err error) {
 		p := s.parents[parent]
 		if p == nil || s.parents[key] != nil {

@@ -134,7 +134,7 @@ test('OpenCode boundedTask trims Go strings.TrimSpace whitespace before the boun
 })
 test('CRB-V0-012 Gemini exact transport and only normalized task/path fields',async t=>{
  const f=fixture(t);const start=await f.gemini('session-start');assert.equal(start.output.continue,true);assert.equal(start.output.hookSpecificOutput?.hookEventName,'SessionStart',start.output.systemMessage ?? JSON.stringify(start.output));const [row]=f.captured();noSecret(row)
- assert.deepEqual(row.argv,['--root',f.root,'harness','event','--host','gemini-cli','--host-version','unknown','--surface','extension','--adapter-version','0.1.0','--event','session-start','--input','-','--budget-bytes','8000'])
+ assert.deepEqual(row.argv,['--root',f.root,'harness','event','--host','gemini-cli','--host-version','unknown','--surface','extension','--adapter-version','0.2.6','--event','session-start','--input','-','--budget-bytes','8000'])
  assert.deepEqual(row.input,{sessionIdSha256:sha('raw-session-secret')})
  await f.gemini('user-prompt',{messages:[{secret:'hidden'}]});const prompt=f.captured().at(-1);assert.deepEqual(prompt.input,{sessionIdSha256:sha('raw-session-secret'),task:'repair the parser'})
  await f.gemini('after-tool',{tool_name:'write_file',tool_input:{file_path:join(f.root,'src/../src/parser.py'),content:'hidden'},tool_response:{success:true}})
@@ -425,6 +425,84 @@ test('AHI-022 decision 0379 OpenCode lifecycle against the real binary writes no
  assert.deepEqual(infos.flatMap(codes).filter(code=>!expected.has(code)),[])
  assert.ok(!JSON.stringify({answered,recorded}).includes('invalid-arguments'))
 })
+test('SOL-V0-010 AHI-022 V1-0767 OpenCode path abstentions reach the self-observation ledger against the real binary',async t=>{
+ const binary=process.env.CORVINT_TEST_REAL_BINARY
+ assert.ok(binary&&existsSync(binary),'Run through TestHostAdapterJavaScriptHosts with the real corvint binary')
+ const dir=mkdtempSync(join(tmpdir(),'corvint-opencode-ledger-'));t.after(()=>rmSync(dir,{recursive:true,force:true}))
+ const repo=join(dir,'repo');mkdirSync(join(repo,'src'),{recursive:true})
+ writeFileSync(join(repo,'.gitignore'),'.corvint/\n');writeFileSync(join(repo,'src/parse.go'),'package src\n')
+ const git=(...args)=>execFileSync('git',['-C',repo,'-c','user.name=fixture','-c','user.email=fixture@example.invalid','-c','commit.gpgsign=false',...args])
+ git('init','-q');git('add','.');git('commit','-qm','fixture')
+ const warnings=spyConsole(t,'warn');spyConsole(t,'info')
+ const host=await openCode(t,repo,{corvintBinary:binary,hostVersion:'unknown',...OPEN_TIMEOUTS})
+ await host.emit('session.created',{sessionID:'session-a'})
+ const patched=(id,targets)=>({tool:'patch',sessionID:'session-a',id,status:'completed',input:{},result:{output:{applied:targets.map(target=>({target}))}}})
+ const files=offset=>Array.from({length:200},(_,i)=>join(repo,`dir/f${offset+i}.go`))
+ // Both calls queue before the drain starts, so the file-change batch and the session set pass 256.
+ await Promise.all([host.hooks['execute.after'](patched('call-1',files(0))),host.hooks['execute.after'](patched('call-2',files(200)))])
+ const truncatedPhase=warnings.length
+ await host.hooks['execute.after'](patched('call-3',['/elsewhere/outside-secret.go']))
+ await host.hooks['execute.after'](patched('call-4',['/elsewhere/outside-secret.go']))
+ const outsidePhase=warnings.length
+ await host.cleanup()
+ // afterTool awaits its file-change drain and post-tool, so each warning belongs to its own phase.
+ const warned=warnings.map(row=>JSON.parse(row.slice('[corvint/opencode] '.length)))
+ const timeouts=(from,to,event)=>warned.slice(from,to).filter(row=>row.event===event&&row.code.split(',').includes('timeout')).length
+ const excused={
+  'opencode file-change changed-paths-truncated':timeouts(0,truncatedPhase,'file-change')>0,
+  'opencode post-tool changed-paths-truncated':timeouts(0,truncatedPhase,'post-tool')>0,
+  // Either out-of-project call writes this row, so only both timing out can lose it.
+  'opencode post-tool post-tool-path-not-project-relative':timeouts(truncatedPhase,outsidePhase,'post-tool')===2,
+ }
+ const raw=readFileSync(join(repo,'.corvint/self-observations.jsonl'),'utf8')
+ const rows=raw.split('\n').slice(0,-1).map(JSON.parse).filter(row=>row.kind==='adapter-degradation')
+ const seen=rows.map(row=>`${row.host} ${row.event} ${row.adapterCodes.join(',')}`).sort()
+ const expected=['opencode file-change changed-paths-truncated','opencode post-tool changed-paths-truncated','opencode post-tool post-tool-path-not-project-relative']
+ // Two identical out-of-project calls leave one row: the Go adapters' per-window dedup.
+ assert.equal(new Set(seen).size,seen.length,seen.join('; '))
+ assert.deepEqual(seen.filter(row=>!expected.includes(row)),[])
+ // A disclosed deadline under host load (AHI-012) may lose only the row of the call it cut short.
+ for(const row of expected)if(!excused[row])assert.ok(seen.includes(row),row)
+ for(const leak of ['dir/','outside-secret','elsewhere',repo,'session-a','execute.after','patch'])assert.ok(!JSON.stringify(rows).includes(leak),leak)
+ assert.ok(!raw.includes('outside-secret')&&!raw.includes('dir/f'))
+ // V1-0773: the batch stops at Core's 100-path impact bound, so no file-change refusal is a warning.
+ assert.deepEqual(warnings.filter(row=>!row.includes('timeout')),[])
+})
+test('AHI-022 V1-0773 OpenCode file-change of 101 to 256 paths stays within Core\'s impact bound against the real binary',async t=>{
+ const binary=process.env.CORVINT_TEST_REAL_BINARY
+ assert.ok(binary&&existsSync(binary),'Run through TestHostAdapterJavaScriptHosts with the real corvint binary')
+ const attempt=async n=>{
+  const dir=mkdtempSync(join(tmpdir(),'corvint-opencode-bound-'));t.after(()=>rmSync(dir,{recursive:true,force:true}))
+  const repo=join(dir,'repo');mkdirSync(join(repo,'src'),{recursive:true})
+  writeFileSync(join(repo,'.gitignore'),'.corvint/\n');writeFileSync(join(repo,'src/parse.go'),'package src\n')
+  const git=(...args)=>execFileSync('git',['-C',repo,'-c','user.name=fixture','-c','user.email=fixture@example.invalid','-c','commit.gpgsign=false',...args])
+  git('init','-q');git('add','.');git('commit','-qm','fixture')
+  const warnings=[],infos=[],warn=console.warn,info=console.info
+  console.warn=v=>warnings.push(v);console.info=v=>infos.push(v)
+  try{
+   const host=await openCode(t,repo,{corvintBinary:binary,hostVersion:'unknown',...OPEN_TIMEOUTS})
+   await host.emit('session.created',{sessionID:`session-${n}`})
+   // 150 paths pass Core's 100-path bound but not the plugin's 256-path post-tool cap.
+   await host.hooks['execute.after']({tool:'patch',sessionID:`session-${n}`,id:'call-1',status:'completed',input:{},result:{output:{applied:Array.from({length:150},(_,i)=>({target:join(repo,`dir/f${i}.go`)}))}}})
+   await host.cleanup()
+  }finally{console.warn=warn;console.info=info}
+  const parse=row=>JSON.parse(row.slice('[corvint/opencode] '.length))
+  const ledger=join(repo,'.corvint/self-observations.jsonl')
+  const rows=existsSync(ledger)?readFileSync(ledger,'utf8').split('\n').slice(0,-1).map(JSON.parse).filter(row=>row.kind==='adapter-degradation'):[]
+  return {warned:warnings.map(parse),infos:infos.map(parse),seen:rows.map(row=>`${row.host} ${row.event} ${row.adapterCodes.join(',')}`)}
+ }
+ // A disclosed file-change deadline under host load (AHI-012) observes nothing about Core, so it is
+ // retried; only an invocation Core completed can pass.
+ let observed
+ for(let n=0;n<3&&!observed;n++){
+  const result=await attempt(n)
+  assert.deepEqual(result.warned.filter(row=>row.code.split(',').some(code=>code!=='timeout')),[])
+  if(!result.warned.some(row=>row.event==='file-change'))observed=result
+ }
+ assert.ok(observed,'inconclusive: every file-change invocation hit the automatic deadline')
+ assert.deepEqual(observed.infos.filter(row=>row.code==='changed-paths-truncated').map(row=>row.event),['file-change'])
+ assert.deepEqual(observed.seen,['opencode file-change changed-paths-truncated'])
+})
 test('CRB-V0-010 CRB-V0-011 OpenCode loaded plugin keeps exact aliases, option precedence, session isolation, payload bounds and repeat-stop suppression',async t=>{
  const f=fixture(t)
  const infos=spyConsole(t,'info')
@@ -468,14 +546,24 @@ test('AHI-022 V1-0746 OpenCode names the path cap and an out-of-project path at 
  const codes=infos.map(v=>JSON.parse(v.slice('[corvint/opencode] '.length))).filter(n=>n.code==='changed-paths-truncated').map(n=>n.event).sort()
  assert.deepEqual(codes,['file-change','post-tool']);assert.deepEqual(warnings,[])
  const rows=f.captured(),event=r=>r.argv[r.argv.indexOf('--event')+1]
- assert.equal(rows.find(r=>event(r)==='file-change').input.paths.length,256)
+ // V1-0773: a file-change batch stops at Core's 100-path impact bound.
+ assert.equal(rows.find(r=>event(r)==='file-change').input.paths.length,100)
+ // V1-0767: each named abstention also reaches Core as a closed adapter code, never as a path.
+ const posted=()=>f.captured().filter(r=>event(r)==='post-tool')
+ assert.deepEqual(rows.find(r=>event(r)==='file-change').input.adapterCodes,['changed-paths-truncated'])
+ assert.deepEqual(posted().map(r=>r.input.adapterCodes).filter(Boolean),[['changed-paths-truncated']])
  assert.equal(infos.filter(v=>v.includes('post-tool-path-not-project-relative')).length,0)
  await host.hooks['execute.after']({...patched('call-3',[]),result:{output:{applied:[{target:'/elsewhere/outside.js'}]}}})
  assert.equal(infos.filter(v=>v.includes('post-tool-path-not-project-relative')).length,1);assert.deepEqual(warnings,[])
- // A single call past the per-call bound is named too, although its session set and batch hold exactly 256.
- const truncations=()=>infos.filter(v=>v.includes('changed-paths-truncated')).length,before=truncations()
+ assert.deepEqual(posted().at(-1).input.adapterCodes,['post-tool-path-not-project-relative'])
+ assert.ok(!JSON.stringify(posted().at(-1).input).includes('elsewhere'))
+ // A single call past the per-call bound is named too, although its session set holds exactly 256;
+ // its file-change batch is named separately at Core's 100-path bound.
+ const truncations=event=>infos.filter(v=>v.includes(`"code":"changed-paths-truncated","event":"${event}"`)).length,before=truncations('post-tool')
  await host.hooks['execute.after']({...patched('call-4',Array.from({length:300},(_,i)=>`big/f${i}.js`)),sessionID:'session-big'})
- assert.equal(truncations(),before+1);assert.deepEqual(warnings,[])
+ assert.equal(truncations('post-tool'),before+1);assert.deepEqual(warnings,[])
+ assert.deepEqual(posted().at(-1).input.adapterCodes,['changed-paths-truncated'])
+ assert.deepEqual(f.captured().filter(r=>event(r)==='file-change').at(-1).input.adapterCodes,['changed-paths-truncated'])
  await host.emit('session.execution.succeeded',{sessionID:'session-cap'})
  assert.equal(f.captured().filter(r=>event(r)==='stop').at(-1).input.changedPaths.length,256)
 })

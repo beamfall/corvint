@@ -415,7 +415,7 @@ func withStore(env Env, body func(rc *readCtx) error) (*readCtx, error) {
 	}
 	rc := &readCtx{repo: repo}
 	rd := snapshot.Reader{StateDir: repo.StateDir, IntentTree: func() (wire.Digest, error) {
-		t, err := intent.TreeDigest(repo.PrimaryWorktree)
+		t, err := intent.TreeDigest(repo.IntentRoot())
 		if err != nil {
 			return "", err
 		}
@@ -425,7 +425,7 @@ func withStore(env Env, body func(rc *readCtx) error) (*readCtx, error) {
 		if s.Head.PrimaryWorktree != repo.PrimaryWorktree {
 			return wire.Errorf(wire.CodeUnsupportedFilesystem, repo.StateDir, "head.primaryWorktree %q differs from the resolved primary worktree %q (repository relocation is unsupported in this preview)", s.Head.PrimaryWorktree, repo.PrimaryWorktree)
 		}
-		st, err := intent.LoadExpecting(repo.PrimaryWorktree, s.IntentTree)
+		st, err := intent.LoadExpecting(repo.IntentRoot(), s.IntentTree)
 		if err != nil {
 			return err
 		}
@@ -446,6 +446,10 @@ func withStore(env Env, body func(rc *readCtx) error) (*readCtx, error) {
 }
 
 func failure(cmd []string, rc *readCtx, err error) *wire.Result {
+	if rc != nil && rc.repo != nil {
+		// A read refused for intent location names its repair (CTW-V0-007).
+		err = rc.repo.WithIntentRepair(err)
+	}
 	code := wire.CodeOf(err)
 	res := &wire.Result{Command: cmd, Outcome: outcomeFor(code), Codes: []string{code}, Warnings: []string{prose(err.Error())}}
 	if rc != nil && rc.snap != nil && rc.snap.Head != nil {

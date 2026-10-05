@@ -10,7 +10,7 @@ came back `insufficient_evidence`.
 timings (oracle p95 358.8 ms, candidate p95 95.9 ms) while `harness-stop` and `harness-post-tool`
 reported `valid`. The same task was `valid` in seven runs on 2026-08-28 and 2026-08-29.
 
-The cause is not the kernel. `internal/gokernel/harness.go:472@23c153ec` appends one advisory row to
+The cause is not the kernel. `internal/gokernel/harness.go:515@23c153ec` appends one advisory row to
 `<root>/.corvint/self-observations.jsonl` for exactly three events — `session-start`, `user-prompt`
 and `file-change` — which is precisely the set that failed, and `stop` and `post-tool`, which are
 not in that set, passed. `conformance/perf-v0/corpus.go`'s `digestCorpus` hashed the whole worktree
