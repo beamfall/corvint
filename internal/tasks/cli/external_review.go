@@ -100,12 +100,11 @@ func (o *completionOffers) offer(v *ticket.View) {
 	v.OfferCompletion(o.evidence(v.Record))
 }
 
-// externalReviewReceiptBinding folds every retained receipt through the pure
-// ERG-V0-009 binding audit, so `receipt audit` refuses a review event that
-// does not record its receipt's transition.
-func externalReviewReceiptBinding(repo *intent.Repository, last wire.Size) error {
-	_, err := store.FoldExternalReviews(repo, last.Uint64(), nil)
-	return err
+// receiptMaterialBindings folds every retained receipt through the pure
+// ERG-V0-009 review and ESC-V0-010 escalation binding audits, so `receipt
+// audit` refuses an event that does not record its receipt's transition.
+func receiptMaterialBindings(repo *intent.Repository, last wire.Size) error {
+	return store.FoldReceiptBindings(repo, last.Uint64(), nil)
 }
 
 type reviewFlags struct {

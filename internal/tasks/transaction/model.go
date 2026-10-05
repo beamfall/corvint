@@ -1202,7 +1202,13 @@ func freeze(r Request, d wire.Digest, now wire.Timestamp, inv *Inventory, base *
 		}
 		return arts[i].Target < arts[j].Target
 	})
-	desc := Descriptor{QueueID: r.QueueID, Operation: r.Operation, RequestID: r.RequestID, RequestSha256: d, RecordedAt: now}
+	// A committed typed escalation stages under its own closed shape
+	// (ESC-V0-010); its refusals are unrecorded, so none reaches here.
+	stageOp := r.Operation
+	if r.Operation == Lease && r.Lease != nil && (r.Lease.Verb == LeaseEscalate || r.Lease.Verb == LeaseAnswer) {
+		stageOp = snapshot.StageEscalation
+	}
+	desc := Descriptor{QueueID: r.QueueID, Operation: stageOp, RequestID: r.RequestID, RequestSha256: d, RecordedAt: now}
 	if base != nil {
 		desc.Base = &Base{LastSeq: base.LastSeq, LastReceiptSha256: *base.LastReceiptSha256}
 	}

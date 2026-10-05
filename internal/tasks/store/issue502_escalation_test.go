@@ -3,6 +3,7 @@ package store_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -97,10 +98,13 @@ func committed(t *testing.T, report *store.Report, ops ...string) {
 	if report.Outcome.Outcome != mutation.OutcomeCompleted || len(report.EscalationEvents) != len(ops) {
 		t.Fatalf("want committed %v, got %+v", ops, report)
 	}
-	for i, op := range ops {
-		if report.EscalationEvents[i].Operation != op {
-			t.Fatalf("event %d: %s, want %s", i, report.EscalationEvents[i].Operation, op)
-		}
+	// Events are reported in receipt post order, which is digest order.
+	got := []string{}
+	for _, e := range report.EscalationEvents {
+		got = append(got, e.Operation)
+	}
+	if !slices.Equal(slices.Sorted(slices.Values(got)), slices.Sorted(slices.Values(ops))) {
+		t.Fatalf("events %v, want %v", got, ops)
 	}
 }
 
@@ -176,7 +180,8 @@ func TestIssue502_OpenAnswerCommitsTicketAndEvents(t *testing.T) {
 }
 
 // TestIssue502_SupersedePostsBothEvents: a supersession posts the ticket and
-// two events in the one lease stage, inside its existing artifact bound.
+// two events in one stage frozen under the closed ESCALATION operation, inside
+// its measured bound (ESC-V0-010).
 func TestIssue502_SupersedePostsBothEvents(t *testing.T) {
 	s, id, src := escalationClaim(t)
 	first := escalate(t, s, holder, openRequest(t, "q-1", src, "", ""), 1)
@@ -187,23 +192,28 @@ func TestIssue502_SupersedePostsBothEvents(t *testing.T) {
 		published = append(published, a.Description)
 		return nil
 	})
+	defer restore()
 	next := escalate(t, s, holder, openRequest(t, "q-2", src, "q-1", string(refs["q-1"].Revision)), 2)
 	restore()
 	if next.Outcome.Outcome != mutation.OutcomeCompleted || len(next.EscalationEvents) != 2 {
 		t.Fatalf("supersede %+v", next)
 	}
 	// The maximal escalation stage (request, ticket, two events, receipt and
-	// head) re-encoded from the published descriptions with a same-length
-	// request digest stays inside the StageLease bound (ESC-V0-010).
+	// head), re-encoded from the published descriptions with a same-length
+	// request digest, is a valid closed ESCALATION descriptor inside that
+	// operation's measured bound (ESC-V0-010).
 	sort.Slice(published, func(i, j int) bool { return published[i].Slot < published[j].Slot })
-	desc := snapshot.StageDescriptor{QueueID: fixture.QueueID, Operation: transaction.Lease, RequestID: "q-2", RequestSha256: wire.Sum(nil), RecordedAt: s.at(t, 2),
+	desc := snapshot.StageDescriptor{QueueID: fixture.QueueID, Operation: snapshot.StageEscalation, RequestID: "q-2", RequestSha256: wire.Sum(nil), RecordedAt: s.at(t, 2),
 		Base: &snapshot.StageBase{LastSeq: *first.Outcome.ReceiptSeq, LastReceiptSha256: wire.Sum(nil)}, Artifacts: published}
 	raw, err := desc.Encode()
 	if err != nil {
 		t.Fatalf("descriptor: %v", err)
 	}
+	if _, err := snapshot.DecodeStageDescriptor(raw); err != nil {
+		t.Fatalf("descriptor round trip: %v", err)
+	}
 	t.Logf("supersession stage: %d artifacts, %d descriptor bytes", len(published), len(raw))
-	if limit, bytes := snapshot.StageLimits(transaction.Lease); len(published) > limit || len(raw) > bytes {
+	if limit, bytes := snapshot.StageLimits(snapshot.StageEscalation); len(published) > limit || len(raw) > bytes {
 		t.Fatalf("stage %d artifacts, %d descriptor bytes", len(published), len(raw))
 	}
 	if _, refs := escalationRefs(t, s, id); refs["q-1"].State != "SUPERSEDED" || refs["q-2"].State != "OPEN" {
@@ -464,5 +474,445 @@ func TestIssue502_OperatorAnswersThroughExplicitGrant(t *testing.T) {
 	q, _ := wire.ParseQueueID("queueId", fixture.QueueID)
 	if _, err := (journal.Reader{Source: journal.Native{StateDir: s.repo.StateDir, PrimaryWorktree: s.repo.PrimaryWorktree}, QueueID: q, PrimaryWorktree: s.repo.PrimaryWorktree}).Audit(); err == nil || !strings.Contains(err.Error(), "operation for OPERATOR") {
 		t.Fatalf("audit without the grant: %v", err)
+	}
+}
+
+// TestIssue502_InterruptedSupersessionRedoes: a supersession interrupted
+// before each of its published artifacts is finished by the retry: before
+// the receipt it commits afresh, after it the pending receipt is redone, and
+// either way both events, the references and the audit agree (ESC-V0-010).
+func TestIssue502_InterruptedSupersessionRedoes(t *testing.T) {
+	probe, probeID, probeSrc := escalationClaim(t)
+	committed(t, escalate(t, probe, holder, openRequest(t, "q-1", probeSrc, "", ""), 1), "OPEN")
+	_, probeRefs := escalationRefs(t, probe, probeID)
+	var all []transaction.Description
+	restore := store.SetPublishFaultForTest(func(a transaction.Artifact) error { all = append(all, a.Description); return nil })
+	defer restore()
+	committed(t, escalate(t, probe, holder, openRequest(t, "q-2", probeSrc, "q-1", string(probeRefs["q-1"].Revision)), 2), "OPEN", "SUPERSEDE")
+	restore()
+	if len(all) == 0 {
+		t.Fatal("no artifact was published")
+	}
+	injected := errors.New("publication interrupted")
+	for k, at := range all {
+		t.Run(fmt.Sprintf("%02d-%s-%s", k, at.Role, strings.SplitN(at.Target, "/", 2)[0]), func(t *testing.T) {
+			s, id, src := escalationClaim(t)
+			committed(t, escalate(t, s, holder, openRequest(t, "q-1", src, "", ""), 1), "OPEN")
+			_, refs := escalationRefs(t, s, id)
+			req := openRequest(t, "q-2", src, "q-1", string(refs["q-1"].Revision))
+			n := 0
+			restore := store.SetPublishFaultForTest(func(transaction.Artifact) error {
+				n++
+				if n == k+1 {
+					return injected
+				}
+				return nil
+			})
+			defer restore()
+			_, err := store.Escalate(context.Background(), s.repo, holder, fixture.QueueID, req, s.at(t, 2))
+			restore()
+			if err == nil {
+				t.Fatalf("fault at artifact %d not injected", k)
+			}
+			again := escalate(t, s, holder, req, 2)
+			committed(t, again, "OPEN", "SUPERSEDE")
+			afterReceipt := false
+			for _, d := range all[:k] {
+				afterReceipt = afterReceipt || d.Role == "RECEIPT"
+			}
+			if again.Redone != afterReceipt {
+				t.Fatalf("redone %v, want %v: %+v", again.Redone, afterReceipt, again)
+			}
+			if _, refs := escalationRefs(t, s, id); refs["q-1"].State != "SUPERSEDED" || refs["q-2"].State != "OPEN" {
+				t.Fatalf("refs %+v", refs)
+			}
+			auditOK(t, s.repo)
+			if err := store.FoldReceiptBindings(s.repo, again.Outcome.ReceiptSeq.Uint64(), nil); err != nil {
+				t.Fatalf("binding fold: %v", err)
+			}
+		})
+	}
+}
+
+// escReceiptForge rewrites receipt seq so that it posts forged instead of
+// its escalation event: the forged event is published under its own digest,
+// and the receipt's evidence entries and ticket post (question references)
+// are rehashed to name it. Every byte stays self-consistent; only the
+// escalation transition is untrue. It returns the forged receipt bytes and
+// the forged ticket record bytes.
+func escReceiptForge(t *testing.T, repo *intent.Repository, seq uint64, forge func(*ticket.EscalationEvent)) (receipt, record []byte) {
+	t.Helper()
+	name, err := snapshot.ReceiptName(seq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(repo.StateDir, "receipts", name)
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rv, err := wire.Parse(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	posts, _ := rv.Obj.Get("post")
+	var old, forged wire.Digest
+	for _, p := range posts.Arr {
+		at, _ := p.Obj.Get("path")
+		if !strings.HasPrefix(at.Str, "evidence/") {
+			continue
+		}
+		old = wire.Digest(strings.TrimPrefix(at.Str, "evidence/"))
+		event, err := os.ReadFile(filepath.Join(repo.StateDir, "evidence", string(old)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		e, err := ticket.DecodeEscalationEvent(event)
+		if err != nil {
+			t.Fatal(err)
+		}
+		forge(&e)
+		if e.RequestSha256, err = requestSum(e.OriginalRequest); err != nil {
+			t.Fatal(err)
+		}
+		if event, err = ticket.EncodeEscalationEvent(e); err != nil {
+			t.Fatal(err)
+		}
+		forged = wire.Sum(event)
+		fixture.Write(t, filepath.Join(repo.StateDir, "evidence", string(forged)), event)
+		p.Obj.Set("path", wire.String("evidence/"+string(forged))).Set("sha256", wire.String(string(forged))).Set("blobSha256", wire.String(string(forged)))
+	}
+	if old == "" {
+		t.Fatalf("receipt %d posts no escalation event", seq)
+	}
+	pres, _ := rv.Obj.Get("pre")
+	for _, p := range pres.Arr {
+		if at, _ := p.Obj.Get("path"); at.Str == "evidence/"+string(old) {
+			p.Obj.Set("path", wire.String("evidence/"+string(forged)))
+		}
+	}
+	for _, p := range posts.Arr {
+		at, _ := p.Obj.Get("path")
+		if !strings.HasPrefix(at.Str, "intent/tickets/") {
+			continue
+		}
+		rec, _ := p.Obj.Get("record")
+		escalations, _ := rec.Obj.Get("escalations")
+		entries, _ := escalations.Obj.Get("entries")
+		for _, ref := range entries.Arr {
+			for _, key := range []string{"originSha256", "headSha256"} {
+				if v, _ := ref.Obj.Get(key); v.Str == string(old) {
+					ref.Obj.Set(key, wire.String(string(forged)))
+				}
+			}
+		}
+		record = wire.EncodeFile(rec)
+		p.Obj.Set("sha256", wire.String(string(wire.Sum(record))))
+	}
+	receipt = wire.EncodeFile(rv)
+	fixture.Write(t, path, receipt)
+	return receipt, record
+}
+
+func requestSum(r ticket.EscalationRequest) (wire.Digest, error) {
+	raw, err := ticket.EncodeEscalationRequest(r)
+	return wire.Sum(raw), err
+}
+
+// TestIssue502_ForgedEventRefusesAsJournalDamage: a rehashed OPEN event
+// whose time, question or actor does not reproduce its receipt's
+// transition passes the generic journal audit but refuses redo as
+// JOURNAL_FORKED with the projection unchanged, and once settled refuses the
+// receipt binding fold that receipt audit runs (ESC-V0-010).
+func TestIssue502_ForgedEventRefusesAsJournalDamage(t *testing.T) {
+	cases := []struct {
+		name, detail string
+		forge        func(*ticket.EscalationEvent)
+	}{
+		{"control", "", nil},
+		{"recorded-at", "the posted events are not the replayed events", func(e *ticket.EscalationEvent) { e.RecordedAt = "2026-01-01T00:00:00Z" }},
+		{"question", "the request entry does not bind the typed request", func(e *ticket.EscalationEvent) { e.OriginalRequest.Open.Question = "another question?" }},
+		{"actor", "does not name this receipt's request, actor or ticket", func(e *ticket.EscalationEvent) {
+			e.Actor, e.OriginalRequest.Actor = "someone-else", "someone-else"
+			e.Source.Holder, e.OriginalRequest.Open.Source.Holder = "someone-else", "someone-else"
+		}},
+	}
+	for _, tc := range cases {
+		for _, settled := range []bool{false, true} {
+			t.Run(tc.name+map[bool]string{false: "/pending", true: "/settled"}[settled], func(t *testing.T) {
+				s, id, src := escalationClaim(t)
+				parsed, _ := wire.ParseTicketID("id", id)
+				headPath := filepath.Join(s.repo.StateDir, "head.json")
+				ticketPath := filepath.Join(s.repo.PrimaryWorktree, ".taskman", "tickets", parsed.Local+".json")
+				preHead, _ := os.ReadFile(headPath)
+				preTicket, _ := os.ReadFile(ticketPath)
+				open := openRequest(t, "q-1", src, "", "")
+				first := escalate(t, s, holder, open, 1)
+				committed(t, first, "OPEN")
+				seq := first.Outcome.ReceiptSeq.Uint64()
+				var receipt, record []byte
+				if tc.forge != nil {
+					receipt, record = escReceiptForge(t, s.repo, seq, tc.forge)
+				}
+				if settled {
+					if tc.forge != nil {
+						editJSON(t, headPath, func(v wire.Value) { v.Obj.Set("lastReceiptSha256", wire.String(string(wire.Sum(receipt)))) })
+						fixture.Write(t, ticketPath, record)
+					}
+					auditOK(t, s.repo)
+					err := store.FoldReceiptBindings(s.repo, seq, nil)
+					forkedWith(t, err, tc.detail)
+					return
+				}
+				// Crash after the receipt: rewind head and the projection.
+				fixture.Write(t, headPath, preHead)
+				fixture.Write(t, ticketPath, preTicket)
+				report, err := store.Escalate(context.Background(), s.repo, holder, fixture.QueueID, open, s.at(t, 2))
+				if err == nil && tc.forge != nil {
+					t.Fatalf("a forged pending event was redone: %+v", report)
+				}
+				if tc.forge == nil {
+					if err != nil || !report.Redone {
+						t.Fatalf("control redo: %+v %v", report, err)
+					}
+					return
+				}
+				forkedWith(t, err, tc.detail)
+				for path, want := range map[string][]byte{headPath: preHead, ticketPath: preTicket} {
+					if got, err := os.ReadFile(path); err != nil || !bytes.Equal(got, want) {
+						t.Fatalf("%s changed on a refused redo", path)
+					}
+				}
+			})
+		}
+	}
+}
+
+func forkedWith(t *testing.T, err error, detail string) {
+	t.Helper()
+	if detail == "" {
+		if err != nil {
+			t.Fatalf("control: %v", err)
+		}
+		return
+	}
+	if wire.CodeOf(err) != wire.CodeJournalForked || !strings.Contains(err.Error(), "escalation binding: ") || !strings.Contains(err.Error(), detail) {
+		t.Fatalf("want JOURNAL_FORKED %q, got %v", detail, err)
+	}
+}
+
+// TestIssue502_EscalationBindingFoldRefusals drives the receipt binding fold
+// over a real history with one receipt altered in memory: question
+// references may change only in one completed escalation transition that
+// posts its request entry, under a recoverable grant, from a retained claim
+// admission, and are never dropped (ESC-V0-010); an unreferenced event blob
+// is accepted.
+func TestIssue502_EscalationBindingFoldRefusals(t *testing.T) {
+	s, _, src := escalationClaim(t)
+	first := escalate(t, s, holder, openRequest(t, "q-1", src, "", ""), 1)
+	committed(t, first, "OPEN")
+	open := first.Outcome.ReceiptSeq.Uint64()
+	history, sums := receiptHistory(t, s, open)
+	ticketPost := func(rc *snapshot.Receipt) snapshot.PostEntry {
+		for _, p := range rc.Post {
+			if strings.HasPrefix(p.Path, "intent/tickets/") {
+				return p
+			}
+		}
+		t.Fatal("no ticket post")
+		return snapshot.PostEntry{}
+	}
+	// between inserts, just before the OPEN, a receipt that removes path.
+	between := func(rcs []*snapshot.Receipt, removal snapshot.PostEntry) []*snapshot.Receipt {
+		gap := *rcs[open-2]
+		gap.Kind, gap.Post = "MUTATION", []snapshot.PostEntry{removal}
+		return slices.Insert(rcs, int(open-1), &gap)
+	}
+	cases := []struct {
+		name, detail string
+		alter        func(rcs []*snapshot.Receipt) []*snapshot.Receipt
+	}{
+		{"control", "", func(rcs []*snapshot.Receipt) []*snapshot.Receipt { return rcs }},
+		{"not-a-transition", "changed question references outside one escalation transition", func(rcs []*snapshot.Receipt) []*snapshot.Receipt {
+			rcs[open-1].Kind = "MUTATION"
+			return rcs
+		}},
+		{"no-request-entry", "the transition posts no request entry", func(rcs []*snapshot.Receipt) []*snapshot.Receipt {
+			rcs[open-1].Post = slices.DeleteFunc(rcs[open-1].Post, func(p snapshot.PostEntry) bool { return strings.HasPrefix(p.Path, "requests/") })
+			return rcs
+		}},
+		{"no-policy", "the grant cannot be recovered", func(rcs []*snapshot.Receipt) []*snapshot.Receipt {
+			for _, rc := range rcs[:open-1] {
+				rc.Post = slices.DeleteFunc(rc.Post, func(p snapshot.PostEntry) bool { return p.Path == "intent/policy.json" })
+			}
+			return rcs
+		}},
+		{"unretained-admission", "the question's source is not a retained claim admission", func(rcs []*snapshot.Receipt) []*snapshot.Receipt {
+			rcs[src.ReceiptSequence.Uint64()-1].Kind = "TRANSITION"
+			return rcs
+		}},
+		{"extra-post", "the transition posts intent/policy.json", func(rcs []*snapshot.Receipt) []*snapshot.Receipt {
+			for _, rc := range rcs[:open-1] {
+				for _, p := range rc.Post {
+					if p.Path == "intent/policy.json" && p.Sha256 != nil {
+						rcs[open-1].Post = append(rcs[open-1].Post, p)
+						return rcs
+					}
+				}
+			}
+			t.Fatal("no policy post")
+			return nil
+		}},
+		{"source-gone", "the question's source is not the current admission", func(rcs []*snapshot.Receipt) []*snapshot.Receipt {
+			return between(rcs, snapshot.PostEntry{Path: "attempts/" + src.AttemptID + ".json"})
+		}},
+		{"no-reservation", "the question's source holds no matching reservation", func(rcs []*snapshot.Receipt) []*snapshot.Receipt {
+			return between(rcs, snapshot.PostEntry{Path: "reservations.json"})
+		}},
+		{"expired", "the question's source lease had expired", func(rcs []*snapshot.Receipt) []*snapshot.Receipt {
+			rcs[open-1].RecordedAt = "2999-01-01T00:00:00Z"
+			return rcs
+		}},
+		// An event blob that no reference change binds is opaque evidence,
+		// as a gate capturing identical bytes would post it.
+		{"unreferenced-event", "", func(rcs []*snapshot.Receipt) []*snapshot.Receipt {
+			post := ticketPost(rcs[open-1])
+			for _, rc := range slices.Backward(rcs[:open-1]) {
+				for _, p := range rc.Post {
+					if p.Path == post.Path {
+						for j := range rcs[open-1].Post {
+							if rcs[open-1].Post[j].Path == p.Path {
+								rcs[open-1].Post[j] = p
+							}
+						}
+						return rcs
+					}
+				}
+			}
+			t.Fatal("no preceding ticket post")
+			return nil
+		}},
+		{"dropped", "dropped its question references", func(rcs []*snapshot.Receipt) []*snapshot.Receipt {
+			drop := *rcs[open-1]
+			drop.Seq = wire.SizeOf(open + 1)
+			drop.Post = []snapshot.PostEntry{{Path: ticketPost(rcs[open-1]).Path}}
+			return append(rcs, &drop)
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rcs := make([]*snapshot.Receipt, len(history))
+			for i, rc := range history {
+				c := *rc
+				c.Post = slices.Clone(rc.Post)
+				rcs[i] = &c
+			}
+			rcs = tc.alter(rcs)
+			fold := &transaction.EscalationReceiptAudit{}
+			var err error
+			for _, rc := range rcs {
+				sum := wire.Sum([]byte("synthetic"))
+				if i := slices.IndexFunc(history, func(h *snapshot.Receipt) bool {
+					return h.Seq == rc.Seq && h.Kind == rc.Kind && len(h.Post) == len(rc.Post)
+				}); i >= 0 {
+					sum = sums[i]
+				}
+				if err = fold.Step(rc, sum, store.ExternalReviewBlob(s.repo)); err != nil {
+					break
+				}
+			}
+			forkedWith(t, err, tc.detail)
+		})
+	}
+}
+
+// receiptHistory decodes receipts 1..last with their digests.
+func receiptHistory(t *testing.T, s *leaseStore, last uint64) ([]*snapshot.Receipt, []wire.Digest) {
+	t.Helper()
+	var history []*snapshot.Receipt
+	var sums []wire.Digest
+	for seq := uint64(1); seq <= last; seq++ {
+		name, _ := snapshot.ReceiptName(seq)
+		raw, err := os.ReadFile(filepath.Join(s.repo.StateDir, "receipts", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		rc, err := snapshot.DecodeReceipt(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		history, sums = append(history, rc), append(sums, wire.Sum(raw))
+	}
+	return history, sums
+}
+
+// TestIssue502_SupervisedSinceClaimFoldRefuses: an OPEN whose source attempt
+// some receipt between the claim and the OPEN posted with supervision is
+// refused by the binding fold, though the claim's own POST is unsupervised.
+// The history is the real one with the ATTACH receipt's attempt post moved
+// ahead of the OPEN (ESC-V0-010).
+func TestIssue502_SupervisedSinceClaimFoldRefuses(t *testing.T) {
+	s := newLeaseStore(t)
+	v := fixture.PolicyValue()
+	v.Obj.Set("policyVersion", str("3"))
+	health := obj("argv", wire.Strings([]string{"/bin/sh", "-c", "exit 0"}), "cwd", str("REPOSITORY"), "env", wire.Array(), "timeoutSeconds", str("3"))
+	v.Obj.Set("pools", wire.Array(obj("id", str("db"), "members", wire.Strings([]string{"a"}), "memberConfig", obj("a", obj("health", health)))))
+	b, _ := v.Obj.Get("budgets")
+	b.Obj.Set("requireEnforcedFields", wire.Array())
+	digest := string(wire.Sum(nil))
+	v.Obj.Set("runtimes", wire.Array(obj("runtimeId", str(snapshot.SupervisedProfile), "executable", obj("pathSha256", str(digest), "fileSha256", str(digest), "mode", str("0755")), "argvPrefix", wire.Array(), "capabilityProfileSha256", str(digest), "observedBudgetFields", wire.Array(), "roles", wire.Strings([]string{"BUILDER"}), "maxWorkers", str("1"), "enabled", wire.Bool(true))))
+	if r, e := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("supervised-policy", "2", wire.EncodeFile(v)), now(t)); e != nil || r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("policy %+v %v", r, e)
+	}
+	id := s.ticket(t, "supervised")
+	c := claimOf(id, "path")
+	c.Stage, c.Pool = "implement", "db"
+	claim := s.lease(t, "supervised-claim", c, 0, nil)
+	receipt, _ := os.ReadFile(filepath.Join(s.repo.StateDir, "receipts", claim.Receipt))
+	post, _ := os.ReadFile(filepath.Join(s.repo.StateDir, "attempts", claim.AttemptID+".json"))
+	a := s.attempt(t, claim.AttemptID)
+	src := ticket.EscalationSource{QueueID: fixture.QueueID, TicketID: id, AttemptID: claim.AttemptID, Generation: claim.Generation, Holder: "agent-1",
+		AcceptanceRevision: a.TicketRevision, ReceiptSequence: *claim.Outcome.ReceiptSeq, ReceiptSha256: wire.Sum(receipt), PostAttemptSha256: wire.Sum(post), TicketRecordSha256: a.TicketRecordSha256}
+	// The program and supervisor writers stamp wall time, so the OPEN does too.
+	first, err := store.Escalate(context.Background(), s.repo, holder, fixture.QueueID, openRequest(t, "q-1", src, "", ""), now(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	committed(t, first, "OPEN")
+	open := first.Outcome.ReceiptSeq.Uint64()
+	p := snapshot.Program{CurrentAttempt: claim.AttemptID, CurrentGeneration: string(claim.Generation), Assignment: 1, ID: "program", Profile: snapshot.SupervisedProfile, OwnerPID: 99, OwnerStarted: "observed-test-identity", Epoch: 1, ConfigSHA256: digest, Phase: "ADMITTED", Base: "0123456789012345678901234567890123456789", Worktree: "/fixture"}
+	if r, e := store.ProgramTransition(context.Background(), s.repo, operator(), fixture.QueueID, "program-admit", p); e != nil || r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("program %+v %v", r, e)
+	}
+	attach, e := store.SupervisorTransition(context.Background(), s.repo, operator(), fixture.QueueID, "step-attach", claim.AttemptID, claim.Generation, transaction.SupervisorChange{Action: "ATTACH", Pool: "db", ProgramID: p.ID, OwnerPID: p.OwnerPID, OwnerStarted: p.OwnerStarted})
+	if e != nil || attach.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("attach %+v %v", attach, e)
+	}
+	history, sums := receiptHistory(t, s, attach.Outcome.ReceiptSeq.Uint64())
+	moved := *history[len(history)-1]
+	moved.Post = slices.DeleteFunc(slices.Clone(moved.Post), func(p snapshot.PostEntry) bool { return !strings.HasPrefix(p.Path, "attempts/") })
+	for _, order := range []struct {
+		name   string
+		before bool
+	}{{"after", false}, {"before", true}} {
+		t.Run(order.name, func(t *testing.T) {
+			fold := &transaction.EscalationReceiptAudit{}
+			var err error
+			for i, rc := range history[:open] {
+				if order.before && uint64(i+1) == open {
+					if err = fold.Step(&moved, wire.Sum([]byte("moved")), store.ExternalReviewBlob(s.repo)); err != nil {
+						break
+					}
+				}
+				if err = fold.Step(rc, sums[i], store.ExternalReviewBlob(s.repo)); err != nil {
+					break
+				}
+			}
+			if order.before {
+				forkedWith(t, err, "the question's source attempt was supervised")
+			} else {
+				forkedWith(t, err, "")
+			}
+		})
 	}
 }
