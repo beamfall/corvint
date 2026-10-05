@@ -133,7 +133,8 @@ func (c leaseContext) liveOn(ticketID string) string {
 // coverage blocker (a non-QUALIFIED ticket claims WHOLE_REPOSITORY) and the
 // live-attempt blocker, which the claim decides after reaping.
 func (c leaseContext) eligibility(id string) *leaseOutcome {
-	v, _ := c.st.tickets.View(id, ticket.Context{CanonicalWriter: c.st.queue.CanonicalWriter, SerialFallback: c.st.policy.SerialFallback, Attempts: entryOracle{c.st.reservations}, Stage: c.l.Stage})
+	rec, _ := c.st.tickets.Get(id)
+	v, _ := c.st.tickets.View(id, ticket.Context{CanonicalWriter: c.st.queue.CanonicalWriter, SerialFallback: c.st.policy.SerialFallback, Attempts: entryOracle{c.st.reservations}, Stage: c.l.Stage, Loop: LoopHoldOf(c.st.attempts, rec, c.st.policy)})
 	skip := map[string]bool{wire.CodeCoverageUnknown: true, wire.CodeAttemptLive: true}
 	for _, b := range append(v.Blockers, v.Unknowns...) {
 		if !skip[b.Code] {
@@ -252,7 +253,13 @@ func (c leaseContext) admitted(rec *ticket.Record, prior *snapshot.Attempt, sc *
 		reason := chargedReason(prior)
 		a.RetryReasons[reason] = wire.CountOf(a.RetryReasons[reason].Int() + 1)
 	}
-	a.PriorGenerations = append(append([]snapshot.PriorGeneration{}, prior.PriorGenerations...), snapshot.PriorGeneration{Generation: prior.Generation, Quiescence: prior.Quiescence, ProvedSeq: prior.PhaseSinceSeq, History: endedHistory(prior)})
+	history := endedHistory(prior)
+	if history != nil && c.st.policy.LoopDetection != nil {
+		// CAL-V0-102: only an opted-in policy records the ended generation's
+		// work evidence, so a claim under any other policy keeps its bytes.
+		history.Loop = snapshot.LoopEvidenceOf(prior)
+	}
+	a.PriorGenerations = append(append([]snapshot.PriorGeneration{}, prior.PriorGenerations...), snapshot.PriorGeneration{Generation: prior.Generation, Quiescence: prior.Quiescence, ProvedSeq: prior.PhaseSinceSeq, History: history})
 	return a, nil
 }
 
@@ -363,6 +370,8 @@ func (p TicketPlan) refusal() (string, string) {
 		detail += " on " + strings.Join(first.Ticket.EscalationPending(), ",")
 	case first.Reason == wire.CodePrerequisiteUnsatisfied:
 		detail += ": " + strings.Join(first.prerequisites, "; ")
+	case first.Reason == wire.CodeLoopDetected && first.Loop != nil:
+		detail += ": " + first.Loop.Detail()
 	case first.Detail != "":
 		detail += ": " + first.Detail
 	}

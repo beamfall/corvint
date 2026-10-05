@@ -13,8 +13,9 @@ V1-0756 and V1-0781 branches, so this change uses the first ID none of them clai
 ### Decision
 
 - One table, `wire.RetryOf` (`internal/tasks/wire/retry.go`), classifies all 71 §11 codes from
-  their in-tree producers, not their names. The batch merge added `ESCALATION_PENDING` and
-  `PREREQUISITE_UNSATISFIED` from other lanes as owner- or state-gated (not retryable), for 73. Retryable: `LOCK_TIMEOUT`, `SNAPSHOT_MOVED`,
+  their in-tree producers, not their names. The batch merges added `ESCALATION_PENDING`,
+  `PREREQUISITE_UNSATISFIED` and `LOOP_DETECTED` from other lanes as owner- or state-gated (not
+  retryable), for 74. Retryable: `LOCK_TIMEOUT`, `SNAPSHOT_MOVED`,
   `REDO_PENDING`; every producer reports them before anything is decided or written. Everything
   else is false with a recorded reason: fencing codes always; mixed, capacity or uncertain codes
   (`LIMIT_EXCEEDED`, `JOURNAL_SATURATED`, `UNSUPPORTED_FILESYSTEM`) by the fail-closed rule; 19

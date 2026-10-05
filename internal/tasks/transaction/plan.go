@@ -60,6 +60,9 @@ type PlanEntry struct {
 	Authors *AuthorExclusion
 	// yieldTo is the waiting ticket a priority-yield deferral names (CAL-V0-101).
 	yieldTo string
+	// Loop is the CAL-V0-102 hold behind a LOOP_DETECTED blocker, nil
+	// otherwise, so plan and a claim-next refusal name its evidence.
+	Loop *ticket.LoopHold
 }
 
 // TicketPlan is a taskman-priority-first/0 plan without its snapshot header.
@@ -196,8 +199,11 @@ func planEntry(in PlanInput, rec *ticket.Record) PlanEntry {
 	if len(blockers) > 0 {
 		e.State, e.Reason, e.Blockers = PlanBlocked, blockers[0].Code, blockerRefs(blockers)
 		for _, b := range blockers {
-			if b.Code == wire.CodePrerequisiteUnsatisfied {
+			switch b.Code {
+			case wire.CodePrerequisiteUnsatisfied:
 				e.prerequisites = append(e.prerequisites, b.Detail)
+			case wire.CodeLoopDetected:
+				e.Loop = LoopHoldOf(in.Attempts, rec, in.Policy)
 			}
 		}
 		if in.ExcludeAuthors != "" {
@@ -261,7 +267,7 @@ func ClaimBlockerObservations(in PlanInput, rec *ticket.Record) []ObservedBlocke
 	if len(in.Policy.RequireEnforcedFields) != 0 {
 		add(ticket.Blocker{Code: wire.CodeBudgetUnknown}, true)
 	}
-	ctx := ticket.Context{CanonicalWriter: in.Queue.CanonicalWriter, SerialFallback: in.Policy.SerialFallback, Stage: in.Stage}
+	ctx := ticket.Context{CanonicalWriter: in.Queue.CanonicalWriter, SerialFallback: in.Policy.SerialFallback, Stage: in.Stage, Loop: LoopHoldOf(in.Attempts, rec, in.Policy)}
 	if in.Reservations != nil {
 		ctx.Attempts = entryOracle{in.Reservations}
 	}

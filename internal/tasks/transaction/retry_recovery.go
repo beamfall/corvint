@@ -84,7 +84,9 @@ func retryRecovery(st inputState, env *mutation.Envelope) *mutation.RetryRecover
 		observation.Reason = "NO_PRIOR_ATTEMPT"
 	case last.TicketRevision != rec.AcceptanceRevision:
 		observation.Reason = "ACCEPTANCE_REVISION_MISMATCH"
-	case !exhaustedAttempt(last, st.policy.AdmissionsPerRevision.Int()):
+	case !exhaustedAttempt(last, st.policy.AdmissionsPerRevision.Int()) && LoopHoldOf(st.attempts, rec, st.policy) == nil:
+		// CAL-V0-103: a LOOP_DETECTED hold is the other automation stop the
+		// owner reopen acknowledges.
 		observation.Reason = "RETRY_BUDGET_NOT_EXHAUSTED"
 	case last.Phase != "FAILED" && last.Phase != "CANCELLED":
 		observation.Reason = "LATEST_ATTEMPT_NOT_FAILED_OR_CANCELLED"

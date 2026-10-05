@@ -119,8 +119,23 @@ type Policy struct {
 	// ExternalReviews are the optional routing-only review gate definitions
 	// (ERG-V0-009); absent means no external review gate exists.
 	ExternalReviews []ExternalReviewDefinition
-	Raw             []byte
+	// LoopDetection is the optional CAL-V0-102 no-progress loop policy;
+	// nil (the key absent) disables loop detection.
+	LoopDetection *LoopDetection
+	Raw           []byte
 }
+
+// LoopDetection bounds the CAL-V0-102 no-progress loop signals: the
+// consecutive no-progress clean hand-offs and the alternating
+// implement/REVIEW_RETURNED pairs one acceptance revision may record before
+// a derived LOOP_DETECTED hold. Each bound is 1..MaxLoopDetectionBound.
+type LoopDetection struct {
+	MaxNoProgressGenerations wire.Count
+	MaxAlternatingReturns    wire.Count
+}
+
+// MaxLoopDetectionBound caps both loopDetection bounds.
+const MaxLoopDetectionBound = 256
 
 // GateIDs returns the set of defined gate ids.
 func (p *Policy) GateIDs() map[string]bool {
@@ -196,7 +211,7 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	r := wire.NewReader(v, "/")
 	r.Closed(wire.OptionalKeys(v, []string{"profile", "policyVersion", "roles", "capacity", "budgets", "retries", "retention", "gates",
 		"serialFallback", "integrationRequiredKinds", "allowEmptyObligationsKinds", "reviewLane", "docsLane",
-		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews")...)
+		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -354,6 +369,14 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	}
 	if wire.Has(v, "externalReviews") {
 		p.ExternalReviews = readExternalReviews(r.Field("externalReviews"), gateIDs)
+		if err := r.Err(); err != nil {
+			return nil, err
+		}
+	}
+	if wire.Has(v, "loopDetection") {
+		l := r.Field("loopDetection")
+		l.Closed("maxNoProgressGenerations", "maxAlternatingReturns")
+		p.LoopDetection = &LoopDetection{MaxNoProgressGenerations: boundCount(l.Field("maxNoProgressGenerations"), 1, MaxLoopDetectionBound), MaxAlternatingReturns: boundCount(l.Field("maxAlternatingReturns"), 1, MaxLoopDetectionBound)}
 		if err := r.Err(); err != nil {
 			return nil, err
 		}

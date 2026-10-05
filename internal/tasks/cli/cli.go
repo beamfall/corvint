@@ -1019,7 +1019,6 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 		if err != nil {
 			return err
 		}
-		v, _ := rc.store.Inventory.View(id, ctx)
 		attempts := map[string]*snapshot.Attempt{}
 		var in transaction.PlanInput
 		if !rc.journalAbsent {
@@ -1029,7 +1028,11 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 				return e
 			}
 			attempts = in.Attempts
+			// CAL-V0-102: eligibility shows the derived loop hold.
+			rec, _ := rc.store.Inventory.Get(id)
+			ctx.Loop = transaction.LoopHoldOf(attempts, rec, in.Policy)
 		}
+		v, _ := rc.store.Inventory.View(id, ctx)
 		// ERG-V0-011: a read-only complete-manual offer when every required
 		// external review gate is a CURRENT PASS; never a write.
 		offers := completionOffers{rc: rc, in: in}

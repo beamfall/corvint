@@ -77,6 +77,32 @@ type GenerationHistory struct {
 	// HandoffTo and HandoffReason are the CAL-V0-082 recorded hand-off of
 	// the ended generation; empty when it recorded none.
 	HandoffTo, HandoffReason string
+	// Loop is the CAL-V0-102 work evidence of the ended generation, recorded
+	// only by a claim whose policy carries loopDetection; nil otherwise.
+	Loop *LoopEvidence
+}
+
+// LoopEvidence is the optional CAL-V0-102 `loopEvidence` member of a prior
+// generation: its retry-accounting disposition, candidate tree and the
+// number of gate results and external reviews it recorded.
+type LoopEvidence struct {
+	Disposition          string
+	CandidateTreeOid     *string
+	GateResults, Reviews wire.Count
+}
+
+// LoopEvidenceOf copies the CAL-V0-102 work evidence of an ended
+// external-agent generation; nil when it recorded no retry accounting.
+func LoopEvidenceOf(a *Attempt) *LoopEvidence {
+	if a == nil || a.RuntimeID != RuntimeExternalAgent || a.RetryAccounting == nil {
+		return nil
+	}
+	e := &LoopEvidence{Disposition: a.RetryAccounting.Disposition, GateResults: wire.CountOf(int64(len(a.GateResults))), Reviews: wire.CountOf(int64(len(a.Reviews)))}
+	if a.CandidateTreeOid != nil {
+		tree := *a.CandidateTreeOid
+		e.CandidateTreeOid = &tree
+	}
+	return e
 }
 
 // historyKeys are the CAL-V0-096 keys a prior generation carries together.
@@ -336,10 +362,11 @@ func EscalationAnswersValue(refs []EscalationAnswerRef) wire.Value {
 func readPriorGenerations(r *wire.Reader) []PriorGeneration {
 	out := []PriorGeneration{}
 	for _, p := range r.Array(-1, true) {
-		p.Closed(wire.OptionalKeys(p.Value(), []string{"generation", "quiescence", "provedSeq"}, append(append([]string{}, historyKeys...), "handoffTo", "handoffReason")...)...)
+		p.Closed(wire.OptionalKeys(p.Value(), []string{"generation", "quiescence", "provedSeq"}, append(append([]string{}, historyKeys...), "handoffTo", "handoffReason", "loopEvidence")...)...)
 		g := PriorGeneration{Generation: p.Field("generation").Size(), Quiescence: p.Field("quiescence").Enum("PROVED", "FENCED"), ProvedSeq: p.Field("provedSeq").Size()}
 		g.History = readGenerationHistory(p)
 		readPriorHandoff(p, g.History)
+		readPriorLoop(p, g.History)
 		out = append(out, g)
 	}
 	return out
@@ -370,6 +397,34 @@ func readPriorHandoff(p *wire.Reader, h *GenerationHistory) {
 			p.Fail(wire.CodeMalformed, "%s", err.Error())
 		}
 	}
+}
+
+// readPriorLoop reads the optional CAL-V0-102 loopEvidence of one prior
+// generation. It needs recorded history; a recorded hand-off target needs a
+// clean HANDOFF or REVIEW_RETURNED disposition.
+func readPriorLoop(p *wire.Reader, h *GenerationHistory) {
+	if !wire.Has(p.Value(), "loopEvidence") {
+		return
+	}
+	if h == nil {
+		p.Fail(wire.CodeMalformed, "loopEvidence requires a recorded stage")
+		return
+	}
+	x := p.Field("loopEvidence")
+	x.Closed("disposition", "candidateTreeOid", "gateResults", "reviews")
+	e := &LoopEvidence{Disposition: x.Field("disposition").Enum("NONE", wire.CodeHandoff, wire.CodeReviewReturned), CandidateTreeOid: x.Field("candidateTreeOid").StringOrNull((*wire.Reader).OID), GateResults: x.Field("gateResults").Count(), Reviews: x.Field("reviews").Count()}
+	if p.Err() != nil {
+		return
+	}
+	if h.HandoffTo != "" && e.Disposition == "NONE" {
+		p.Fail(wire.CodeMalformed, "a prior handoff target requires a HANDOFF or REVIEW_RETURNED loopEvidence disposition")
+		return
+	}
+	if e.Disposition == wire.CodeReviewReturned && (h.Stage == nil || *h.Stage != "review") {
+		p.Fail(wire.CodeMalformed, "a REVIEW_RETURNED generation held review")
+		return
+	}
+	h.Loop = e
 }
 
 // readGenerationHistory reads the CAL-V0-096 keys of one prior generation:
@@ -636,6 +691,9 @@ func priorValue(ps []PriorGeneration) wire.Value {
 			}
 			if h.HandoffReason != "" {
 				o.Set("handoffReason", wire.String(h.HandoffReason))
+			}
+			if e := h.Loop; e != nil {
+				o.Set("loopEvidence", wire.ObjectValue(wire.NewObject().Set("disposition", wire.String(e.Disposition)).Set("candidateTreeOid", wire.StringOrNull(e.CandidateTreeOid)).Set("gateResults", wire.String(string(e.GateResults))).Set("reviews", wire.String(string(e.Reviews)))))
 			}
 		}
 		vs = append(vs, wire.ObjectValue(o))
