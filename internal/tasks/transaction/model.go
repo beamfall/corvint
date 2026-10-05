@@ -126,6 +126,10 @@ type Input struct {
 	// HandoffPolicy is optional structural history from the writer's additional
 	// full audit. It never changes persistent attempt identities or coverage.
 	HandoffPolicy *HandoffPolicyObservation
+	// PriorNoteEvent is the target's current operator-note event bytes, read
+	// at its reference head; Mutate NOTE_SET/NOTE_CLEAR only (ON-V0-004).
+	// The pure transition re-hashes it against the canonical reference.
+	PriorNoteEvent []byte
 }
 
 type HandoffPolicyObservation struct {
@@ -604,9 +608,13 @@ func Model(r Request, in Input) Result {
 		// second index here could only disagree with that decision.
 		ctx := mutation.Context{Binding: r.Actor, Queue: state.queue, Policy: state.policy, Inventory: state.tickets, Attempts: entryOracle{state.reservations}, Requests: absentIndex{}, Now: in.RecordedAt}
 		ctx.RetryRecovery = retryRecovery(state, env)
+		ctx.PriorNoteEvent = in.PriorNoteEvent
 		applied := mutation.Apply(ctx, env)
 		if !applied.Planned() {
 			return Result{Kind: "Refused", Outcome: applied.Outcome, Coverage: coverage(), Detail: applied.Detail}
+		}
+		if e := derivedEventPost(env.Operation, applied.DerivedEvent, posts); e != nil {
+			return failed(r.RequestID, e)
 		}
 		pre, _ := state.tickets.Get(applied.Post.TicketID.Raw)
 		if env.Operation == mutation.OpReopen && pre != nil && pre.Status == ticket.StatusOpen {
@@ -977,6 +985,9 @@ func importChain(post, pre *ticket.Record, inv *Inventory) error {
 	if post.Source.Kind != "IMPORT" || !post.ShadowOverlay || post.Source.SourceRevisionSha256 == nil {
 		return wire.Errorf(wire.CodeMalformed, where, "an imported record is a shadow IMPORT record with a source revision")
 	}
+	if e := importOperatorNote(post, pre, where); e != nil {
+		return e
+	}
 	path := "intent/tickets/" + post.TicketID.Local + ".json"
 	if pre == nil {
 		if _, exists := inv.files[path]; exists {
@@ -1196,4 +1207,39 @@ func supportedRuntimes(p *intent.Policy) bool {
 		}
 	}
 	return true
+}
+
+// importOperatorNote keeps an IMPORT batch from adding, rewriting or dropping
+// an operator-note reference (ON-V0-004): the reference changes only through
+// NOTE_SET/NOTE_CLEAR, so an imported record carries exactly the reference of
+// the record it replaces, and none when it creates the ticket.
+func importOperatorNote(post, pre *ticket.Record, where string) error {
+	var want, got []byte
+	if pre != nil && pre.OperatorNote != nil {
+		want = wire.Encode(pre.OperatorNote.Value())
+	}
+	if post.OperatorNote != nil {
+		got = wire.Encode(post.OperatorNote.Value())
+	}
+	if !bytes.Equal(want, got) {
+		return wire.Errorf(wire.CodeMalformed, where+"/operatorNote", "an imported record cannot add, rewrite or drop the operator-note reference")
+	}
+	return nil
+}
+
+// derivedEventPost adds the one content-addressed derived event a mutation
+// may carry, in the same MUTATE stage as the ticket that references it. The
+// stage contract cannot tell mutation verbs apart, so the slot is closed here
+// to the operations that declare an event (mutation.DeclaresDerivedEvent):
+// any other operation, whose redo and receipt audit would not bind the event,
+// is refused rather than staged.
+func derivedEventPost(operation string, event []byte, posts map[string][]byte) error {
+	if event == nil {
+		return nil
+	}
+	if !mutation.DeclaresDerivedEvent(operation) {
+		return wire.Errorf(wire.CodeUnsupported, "/operation", "%s declares no derived event", operation)
+	}
+	posts["evidence/"+string(wire.Sum(event))] = bytes.Clone(event)
+	return nil
 }

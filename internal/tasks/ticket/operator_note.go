@@ -1,7 +1,8 @@
 package ticket
 
-// Experimental operator-note codecs. These standalone types are not installed
-// in Record: writer, recovery, import and claim integration remain separate work.
+// Experimental operator-note codecs. Record carries the optional reference and
+// the native MUTATE writer posts the event; claim delivery, anchored history
+// and active-stage recovery remain separate work.
 import (
 	"strings"
 

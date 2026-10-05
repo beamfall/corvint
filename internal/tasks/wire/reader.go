@@ -16,7 +16,8 @@ type Reader struct {
 }
 
 type readerState struct {
-	err *Error
+	err      *Error
+	sortSets bool
 }
 
 // NewReader starts a reader at the document root (or any sub-value).
@@ -25,6 +26,18 @@ func NewReader(v Value, where string) *Reader {
 		where = "/"
 	}
 	return &Reader{v: v, where: where, st: &readerState{}}
+}
+
+// NewSetSortingReader is NewReader for the CLI input boundary (V1-0750):
+// every array a decoder reads as a set (Array with semantic false) is sorted
+// by canonical bytes in place, in the value the reader was created over,
+// instead of being refused as unsorted; a duplicate element is still refused.
+// Semantic (ordered) arrays are never touched. The caller re-encodes that
+// value, and the authoritative decoder later re-checks it under NewReader.
+func NewSetSortingReader(v Value, where string) *Reader {
+	r := NewReader(v, where)
+	r.st.sortSets = true
+	return r
 }
 
 // Err returns the first failure, or nil.
@@ -401,7 +414,14 @@ func (r *Reader) Array(max int, semantic bool) []*Reader {
 		r.Fail(CodeLimitExceeded, "array longer than %d elements (%d)", max, len(r.v.Arr))
 		return nil
 	}
-	if !semantic {
+	if !semantic && r.st.sortSets {
+		sorted, err := SortedSet(r.where, r.v.Arr)
+		if err != nil {
+			r.adopt(err)
+			return nil
+		}
+		copy(r.v.Arr, sorted.Arr)
+	} else if !semantic {
 		if err := CheckSortedUnique(r.where, r.v.Arr); err != nil {
 			r.adopt(err)
 			return nil

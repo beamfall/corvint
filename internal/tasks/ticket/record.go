@@ -145,6 +145,9 @@ type Record struct {
 	CreatedAt            wire.Timestamp
 	UpdatedAt            wire.Timestamp
 	UpdatedBy            string
+	// OperatorNote is the optional advisory note reference (ON-V0-001). It is
+	// not acceptance-relevant and is changed only by NOTE_SET/NOTE_CLEAR.
+	OperatorNote *OperatorNoteReference
 }
 
 var recordKeys = wire.TicketRecordKeys
@@ -173,6 +176,13 @@ func FromValue(v wire.Value) (*Record, error) {
 		return nil, err
 	}
 	rec := &Record{}
+	if wire.Has(v, "operatorNote") {
+		note, err := OperatorNoteReferenceFromValue(r.Field("operatorNote").Value())
+		if err != nil {
+			return nil, err
+		}
+		rec.OperatorNote = note
+	}
 	if wire.Has(v, "requiredRoles") {
 		rec.RequiredRoles = ReadStageRoles(r.Field("requiredRoles"))
 	}
@@ -471,6 +481,9 @@ func (rec *Record) Value() wire.Value {
 	}
 	if rec.Escalations != nil {
 		o.Set("escalations", escalationRefsValue(rec.Escalations))
+	}
+	if rec.OperatorNote != nil {
+		o.Set("operatorNote", rec.OperatorNote.Value())
 	}
 	o.Set("owner", wire.StringOrNull(rec.Owner))
 	o.Set("milestone", wire.StringOrNull(rec.Milestone))

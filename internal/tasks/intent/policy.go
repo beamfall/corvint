@@ -15,7 +15,7 @@ var Operations = []string{
 	"CREATE", "REFINE", "PRIORITIZE", "SET_DEPENDENCIES", "SET_GATES", "SET_EFFECTS",
 	"HOLD", "RELEASE_HOLD", "REOPEN", "ARCHIVE", "RESTORE", "COMPLETE_MANUAL", "GRANT_APPROVAL", "REVOKE_APPROVAL",
 	"RELEASE_CREATE", "RELEASE_UPDATE", "RELEASE_CANDIDATE", "RELEASE_EXTERNAL_ATTEST", "RELEASE_MANUAL_ATTEST", "RELEASE_PROMOTE",
-	"ESCALATE", "ANSWER",
+	"ESCALATE", "ANSWER", "NOTE_SET", "NOTE_CLEAR",
 }
 
 // TicketKinds mirrors ticket.Kinds for policy kind lists.
@@ -221,7 +221,7 @@ func DecodePolicy(data []byte) (*Policy, error) {
 				break
 			}
 			ops := roles.Field(role).Strings(-1, false, func(c *wire.Reader) string { return c.Enum(Operations...) })
-			subsetOf(roles.Field(role), ops, DefaultRoleMatrix[role], "operation for "+role)
+			subsetOf(roles.Field(role), ops, PolicyGrantable(role), "operation for "+role)
 			p.Roles[role] = ops
 		}
 	}
@@ -372,4 +372,16 @@ func (p *Policy) PolicySha256() wire.Digest {
 		body = body[:len(body)-1]
 	}
 	return wire.ContentID("policy", ProfilePolicy, body)
+}
+
+// ExplicitGrantOperations are operations a policy row may name for a role
+// although that role's default row omits them (ON-V0-004): an OPERATOR gets a
+// note verb only through an explicit policy.roles.OPERATOR row, never by
+// default. No other role may be granted them.
+var ExplicitGrantOperations = map[string][]string{"OPERATOR": {"NOTE_SET", "NOTE_CLEAR"}}
+
+// PolicyGrantable is the closed set a policy row for role may list: its
+// default row plus its explicit-only grants.
+func PolicyGrantable(role string) []string {
+	return append(append([]string{}, DefaultRoleMatrix[role]...), ExplicitGrantOperations[role]...)
 }
