@@ -68,7 +68,7 @@ var ReadVerbs = []string{
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
 	"dispatch", "dispatch status", "dispatch unpark",
 	"submit", "gate run", "complete", "health", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe",
-	"ticket note set", "ticket note clear", "ticket note show",
+	"ticket note set", "ticket note clear", "ticket note show", "ticket note history",
 	"gate record", "gate resubmit", "gate history",
 	"service install", "service status", "service uninstall", "service stop", "service resume", "service run",
 	"ticket escalate", "ticket answer", "ticket escalation list", "ticket escalation show", "ticket escalation history",

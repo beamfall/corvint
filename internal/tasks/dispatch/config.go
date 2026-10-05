@@ -183,7 +183,12 @@ type Heal struct {
 }
 
 // Placeholders are the only substitutions in argv, env and prompts.
-var Placeholders = []string{"{program}", "{role}", "{slot}", "{worker}", "{holder}", "{ticket}", "{ticketLocal}", "{state}", "{pool}", "{member}", "{workRoot}", "{prompt}", "{model}", "{nextStage}"}
+// {operatorNote} renders untrusted operator prose, so only a role prompt may
+// use it (ON-V0-011).
+var Placeholders = []string{"{program}", "{role}", "{slot}", "{worker}", "{holder}", "{ticket}", "{ticketLocal}", "{state}", "{pool}", "{member}", "{workRoot}", "{prompt}", "{model}", "{nextStage}", "{operatorNote}"}
+
+// operatorNotePlaceholder is refused in host argv, env and activity paths.
+const operatorNotePlaceholder = "{operatorNote}"
 
 var (
 	namePattern  = regexp.MustCompile(`^[a-z][a-z0-9-]{0,23}$`)
@@ -245,8 +250,8 @@ func (c *Config) validate() error {
 		}
 		prompt := 0
 		for _, a := range h.Argv {
-			if err := placeholdersKnown(a); err != nil {
-				return fail("host %q argv: %v", name, err)
+			if err := placeholdersKnown(a); err != nil || strings.Contains(a, operatorNotePlaceholder) {
+				return fail("host %q argv: unknown placeholder or {operatorNote}", name)
 			}
 			prompt += strings.Count(a, "{prompt}")
 		}
@@ -257,12 +262,12 @@ func (c *Config) validate() error {
 			if !envKeyFormat.MatchString(k) || strings.HasPrefix(k, "CORVINT_DISPATCH_") {
 				return fail("host %q env key %q is invalid or reserved", name, k)
 			}
-			if err := placeholdersKnown(v); err != nil || strings.Contains(v, "{prompt}") {
-				return fail("host %q env %s: unknown placeholder or {prompt}", name, k)
+			if err := placeholdersKnown(v); err != nil || strings.Contains(v, "{prompt}") || strings.Contains(v, operatorNotePlaceholder) {
+				return fail("host %q env %s: unknown placeholder, {prompt} or {operatorNote}", name, k)
 			}
 		}
 		for _, p := range h.ActivityPaths {
-			if !clean(p) {
+			if !clean(p) || strings.Contains(p, operatorNotePlaceholder) {
 				return fail("host %q activityPaths must be clean absolute paths", name)
 			}
 		}

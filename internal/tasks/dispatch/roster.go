@@ -46,6 +46,10 @@ type Ticket struct {
 	// implement, review, integrate, STALE, or NONE when none is observed.
 	// It comes from the native queue, never from a workState program.
 	NextStage string
+	// OperatorNote is the ticket's ON-V0-011 note as read at observation,
+	// nil when the ticket was never noted. Only a native observation sets
+	// it; a workState program cannot supply it.
+	OperatorNote *NoteView
 }
 
 // LoopHold is a CAL-V0-102 hold as the dispatcher records it: the signal,
@@ -102,6 +106,9 @@ type Assignment struct {
 	Role, Key, Ticket, Local, State, Pool, Member string
 	NextStage                                     string
 	Slot, Tier                                    int
+	// OperatorNote is the ticket's observed note, rendered only through the
+	// {operatorNote} role-prompt placeholder (ON-V0-011).
+	OperatorNote *NoteView
 }
 
 // Busy is a running worker's claim on a role slot, a work key and a tier.
@@ -204,7 +211,7 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 			if !ok {
 				prio = len(priorityRank)
 			}
-			cands = append(cands, candidate{a: Assignment{Role: r.Name, Key: t.ID, Ticket: t.ID, Local: t.Local, State: t.State, NextStage: t.NextStage, Pool: t.RequiresPool}, pin: pin, role: r.Priority, prio: prio, ord: ri, order: t.Order})
+			cands = append(cands, candidate{a: Assignment{Role: r.Name, Key: t.ID, Ticket: t.ID, Local: t.Local, State: t.State, NextStage: t.NextStage, Pool: t.RequiresPool, OperatorNote: t.OperatorNote}, pin: pin, role: r.Priority, prio: prio, ord: ri, order: t.Order})
 		}
 	}
 	sort.SliceStable(cands, func(i, j int) bool {

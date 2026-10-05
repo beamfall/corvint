@@ -20,6 +20,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/store"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -421,6 +422,7 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 		folded := false
 		for i := range obs.Tickets {
 			r, _ := in.Tickets.Get(obs.Tickets[i].ID)
+			obs.Tickets[i].OperatorNote = dispatchOperatorNote(rc, r)
 			// ERG-V0-009: a gate set that cannot be read stays unobserved
 			// (every gate UNKNOWN) instead of failing the whole observation.
 			if len(r.ExternalReviews) > 0 && !folded {
@@ -536,6 +538,28 @@ func dispatchLoopDetected(l *dispatch.Ledger) []wire.Value {
 		held = append(held, wire.Value{Kind: wire.KindObject, Obj: x})
 	}
 	return held
+}
+
+// dispatchOperatorNote reads a noted ticket's current note for the
+// {operatorNote} launch placeholder (ON-V0-011): nil when never noted, and
+// an unresolvable event is UNAVAILABLE with its code, never no note. It
+// reads only the referenced event and writes nothing.
+func dispatchOperatorNote(rc *readCtx, r *ticket.Record) *dispatch.NoteView {
+	ref := r.OperatorNote
+	if ref == nil {
+		return nil
+	}
+	n := &dispatch.NoteView{State: "UNAVAILABLE", Revision: string(ref.Revision), Head: string(ref.Head)}
+	event, request, err := store.ReadOperatorNote(rc.repo, r.TicketID, *ref)
+	if err != nil {
+		n.Code = noteErrCode(err)
+		return n
+	}
+	n.State, n.RecordedAt, n.ActorID, n.ActorRole = "CLEARED", string(event.RecordedAt), event.ActorID, event.ActorRole
+	if ref.Current != nil {
+		n.State, n.Text = "CURRENT", request.Text
+	}
+	return n
 }
 
 // dispatchTickets is the ticket half of the native observation: each

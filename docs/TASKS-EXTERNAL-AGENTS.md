@@ -323,6 +323,13 @@ dispatcher) when none is observed, and `STALE` after the acceptance revision cha
 advisory; claims for another stage are not refused. Older binaries refuse attempt records that
 contain the new keys, so do not downgrade a store after recording a target.
 
+Operator notes (experimental, `corvint-tasks-operator-notes-v0.md`): `ticket note history <ticket>
+[--limit 1..50] [--cursor C]` reads superseded and cleared notes newest first as a pure read, with
+an opaque cursor anchored to the head the first page read. A dispatcher role prompt may include
+`{operatorNote}`; it renders nothing for a never-noted ticket and otherwise a launch-time copy of
+the current note, labelled advisory. The claim result's `operatorNote` remains the authoritative
+note for the admitted attempt. The placeholder is refused in host argv, env and activity paths.
+
 When every external review gate the policy declares or the ticket references is a CURRENT PASS and
 nothing else blocks an OPEN ticket, `ticket show`, `ticket blockers` and the `plan preview` entry
 report `nextAction: complete-manual` with the review heads as `suggestedEvidence` (ERG-V0-011). The
