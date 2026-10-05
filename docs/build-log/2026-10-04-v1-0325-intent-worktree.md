@@ -47,6 +47,11 @@ wording of TCP-00 §3.1 ("primary worktree only") and `TM-V0-007` in the externa
 - Observed while testing: a refused write still refreshes the derived checkpoint
   `<common>/taskman.checkpoint.json`. That is existing behavior, unchanged here, so the tests
   compare HEAD, index, projections and state-dir content rather than the whole common dir.
+- Integration with V1-0751: `ticket create --template` and `submitMutation` load intent from
+  `repo.IntentRoot()`, so the template agrees with the routed intent root.
+- `make -k gate` on the merge with main (bc87a4dc) is not green. After the gofmt fix in this change,
+  every step passes except failures that reproduce on main without this change: go-test (V1-0766;
+  V1-0778 and V1-0779 in earlier runs), Windows `cross-vet` and `host-package-versions-check`.
 
 ### Review
 
