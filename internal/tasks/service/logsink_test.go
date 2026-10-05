@@ -82,22 +82,59 @@ func TestSERVICE500_LogSinkIOErrorIsReportedNotBlocking(t *testing.T) {
 		t.Fatalf("stats %+v", st)
 	}
 
-	// A wedged writer cannot hold Close beyond its bound; pending bytes are
-	// counted as dropped.
+	// A wedged writer cannot hold Close beyond its bound; pending and
+	// in-flight bytes are counted as dropped, and the late completion of the
+	// in-flight write changes no counter.
 	w := openLogSink(dir, "stdout")
 	gate := make(chan struct{})
 	defer close(gate)
-	w.write = func(f *os.File, b []byte) (int, error) { <-gate; return len(b), nil }
+	released := make(chan struct{})
+	w.write = func(f *os.File, b []byte) (int, error) { <-gate; defer close(released); return len(b), nil }
 	_, _ = w.Write([]byte("first"))
 	waitFor(t, "writer busy", func() bool { return w.pendingLen() == 0 })
 	_, _ = w.Write([]byte("second"))
 	start := time.Now()
 	st = w.Close(50 * time.Millisecond)
-	if time.Since(start) > time.Second || st.Dropped != 6 {
+	if time.Since(start) > time.Second || st.Dropped != 11 || st.Written != 0 {
 		t.Fatalf("bounded close %+v after %v", st, time.Since(start))
 	}
-	if _, err := w.Write([]byte("late")); err != nil || w.Stats().Dropped != 10 {
+	if _, err := w.Write([]byte("late")); err != nil || w.Stats().Dropped != 15 {
 		t.Fatal("a closed sink must drop and count")
+	}
+	gate <- struct{}{}
+	<-released
+	select {
+	case <-w.done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("writer did not exit after its late completion")
+	}
+	if st := w.Stats(); st.Written != 0 || st.Dropped != 15 {
+		t.Fatalf("late completion changed counters %+v", st)
+	}
+}
+
+// A stalled status publication never blocks the supervision loop, and
+// close waits for it at most its bound.
+func TestSERVICE500_LogStatusPublicationNeverBlocks(t *testing.T) {
+	u := openUnitLogs(t.TempDir(), "main", "stderr")
+	u.bound = 50 * time.Millisecond
+	gate := make(chan struct{})
+	defer close(gate)
+	entered := make(chan struct{}, 8)
+	u.put = func(string, []byte) error { entered <- struct{}{}; <-gate; return nil }
+	_, _ = u.streams["stderr"].Write([]byte("x"))
+	waitFor(t, "byte written", func() bool { return u.streams["stderr"].Stats().Written == 1 })
+	u.publish()
+	<-entered
+	start := time.Now()
+	for i := 0; i < 5; i++ {
+		_, _ = u.streams["stderr"].Write([]byte("y"))
+		waitFor(t, "byte written", func() bool { return u.streams["stderr"].Stats().Written == uint64(2+i) })
+		u.publish()
+	}
+	u.close()
+	if d := time.Since(start); d > 2*time.Second {
+		t.Fatalf("a stalled publication blocked supervision for %v", d)
 	}
 }
 

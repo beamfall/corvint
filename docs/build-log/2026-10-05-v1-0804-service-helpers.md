@@ -53,8 +53,11 @@ Platform qualification stays NOT_RUN and belongs to V1-0697. Requirement IDs are
   - **Buffering:** each stream has a 64KiB pending buffer and one writer goroutine.
   - **Drops:** writes never block. Overflow is dropped and counted. An I/O error latches
     `LOG_IO_ERROR` and its bytes are counted as dropped.
-  - **Close:** waits at most 2s and counts unwritten bytes as dropped.
-  - **Counters:** published to `status.json` (4096B bound).
+  - **Close:** streams close concurrently. Each waits at most 2s and counts pending and in-flight bytes
+    as dropped; a write that completes later changes no counter.
+  - **Counters:** one publisher goroutine writes `status.json` (4096B bound), so a stalled filesystem
+    never blocks supervision. Close waits at most 2s for the final counters. Only the wrapper holding
+    the helper lock opens and publishes that helper's logs.
   - **Status:** reports the counters and the byte count of a sanitized no-follow tail excerpt (4KiB
     bound), but withholds the excerpt text.
 - **Routes:** the CLI route `service run-helper --program P --manifest ABS --helper H` and its help. The
@@ -102,6 +105,30 @@ Platform qualification stays NOT_RUN and belongs to V1-0697. Requirement IDs are
   - In that container the full `internal/tasks/service` package passed. The Linux, Helper, LogSink and
     LogStatus tests passed with `-count=3`.
   - Real unit restart, cgroup cleanup and login scope are NOT_RUN (V1-0697).
+
+## Review repair
+
+Codex round 1 (gpt-6-astra, read-only) returned CHANGES_REQUIRED with six findings, all repaired:
+
+1. **P1, stop ACK.** Stop could answer ACKNOWLEDGED while a helper's SPAWNING intent was unresolved.
+   Suppression now counts helper intents under F: RUNNING is a committed effect, while SPAWNING or
+   unreadable is unresolved, which gives PENDING. Witness:
+   TestSERVICE500_StopDoesNotAcknowledgeUnresolvedHelperLaunch.
+2. **P1, log status blocking.** Status publication ran `writeAtomic` synchronously in the supervision
+   loops. It now goes through one publisher goroutine with latest-wins requests and a bounded close.
+   Witness: TestSERVICE500_LogStatusPublicationNeverBlocks.
+3. **P2, interruption during the fence wait.** The spawn now rechecks cancellation after acquiring F.
+   Witness: TestSERVICE500_HelperInterruptedWhileFencedStartsNothing, which fails without the fix.
+4. **P2, start-failure backoff.** Start-failure debt now uses a clock reading taken after the failure.
+   The "retain the first observation through publication retries" part is declined: a retry records
+   a later reading, which only lengthens the backoff, never shortens it.
+5. **P2, in-flight bytes at close.** A bounded close now counts in-flight bytes as dropped, and a late
+   completion changes no counter. Witness: the extended
+   TestSERVICE500_LogSinkIOErrorIsReportedNotBlocking.
+6. **P3, duplicate wrapper logs.** Logs are opened only after U is acquired and are closed before U is
+   released. Witness: the extended TestSERVICE500_HelperSingleController. The managed main has no
+   separate U lock in this slice; a manually started duplicate main can still overwrite main log
+   counters, as it already can its pulse (recorded limit).
 
 ## Owner questions
 

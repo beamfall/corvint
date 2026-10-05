@@ -50,6 +50,11 @@ type logSink struct {
 	stats   LogStats
 	closed  bool
 	done    chan struct{}
+	// inflight is the chunk the writer has taken but not yet settled;
+	// settled marks a Close that reached its bound and counted every
+	// unsettled byte as dropped, so a late completion changes no counter.
+	inflight int
+	settled  bool
 
 	// file I/O, owned by the writer goroutine
 	f    *os.File
@@ -114,8 +119,11 @@ func (s *logSink) Close(bound time.Duration) LogStats {
 	case <-s.done:
 	case <-time.After(bound):
 		s.mu.Lock()
-		s.stats.Dropped += uint64(len(s.pending))
-		s.pending = nil
+		if !s.settled {
+			s.settled = true
+			s.stats.Dropped += uint64(len(s.pending) + s.inflight)
+			s.pending = nil
+		}
 		s.mu.Unlock()
 	}
 	return s.Stats()
@@ -132,19 +140,23 @@ func (s *logSink) run() {
 		s.mu.Lock()
 		chunk := s.pending
 		s.pending = nil
+		s.inflight = len(chunk)
 		closed := s.closed
 		s.mu.Unlock()
 		if len(chunk) > 0 {
-			if err := s.append(chunk); err != nil {
-				s.mu.Lock()
+			err := s.append(chunk)
+			s.mu.Lock()
+			s.inflight = 0
+			switch {
+			case s.settled:
+				// Close already counted this chunk as dropped.
+			case err != nil:
 				s.stats.Dropped += uint64(len(chunk))
 				s.stats.IOError = "LOG_IO_ERROR: " + truncate(describe(err), 512)
-				s.mu.Unlock()
-			} else {
-				s.mu.Lock()
+			default:
 				s.stats.Written += uint64(len(chunk))
-				s.mu.Unlock()
 			}
+			s.mu.Unlock()
 			continue
 		}
 		if closed {
@@ -202,19 +214,35 @@ func (s *logSink) open() error {
 	return nil
 }
 
-// unitLogs is one unit's set of stream sinks.
+// unitLogs is one unit's set of stream sinks plus its counter publisher.
 type unitLogs struct {
 	dir     string
 	streams map[string]*logSink
 	names   []string
-	last    string
+
+	// One publisher goroutine writes status.json, so a stalled filesystem
+	// never blocks the supervision loop that calls publish. want is the
+	// latest requested counters, last the latest written.
+	mu         sync.Mutex
+	want, last string
+	kick, stop chan struct{}
+	done       chan struct{}
+	// put writes status.json; tests replace it to stall publication.
+	put   func(dir string, raw []byte) error
+	bound time.Duration
 }
 
 func openUnitLogs(root, unit string, streams ...string) *unitLogs {
-	u := &unitLogs{dir: filepath.Join(root, logDir, unit), streams: map[string]*logSink{}, names: streams}
+	u := &unitLogs{dir: filepath.Join(root, logDir, unit), streams: map[string]*logSink{}, names: streams, kick: make(chan struct{}, 1), stop: make(chan struct{}), done: make(chan struct{}), bound: logCloseBound, put: func(dir string, raw []byte) error {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return err
+		}
+		return writeAtomic(dir, logStatusFile, raw)
+	}}
 	for _, s := range streams {
 		u.streams[s] = openLogSink(u.dir, s)
 	}
+	go u.publisher()
 	return u
 }
 
@@ -226,24 +254,75 @@ func (u *unitLogs) stats() map[string]LogStats {
 	return out
 }
 
-// publish writes the counters to logs/<unit>/status.json when they changed.
-// It is best effort: a failure is already visible as LOG_IO_ERROR or as an
-// unchanged status, and never blocks supervision.
+// publish requests that the counters be written to logs/<unit>/status.json
+// when they changed. It never blocks: the publisher goroutine writes the
+// latest request. Publication is best effort; a failure leaves the older
+// status, retried on the next request.
 func (u *unitLogs) publish() {
 	raw, err := json.Marshal(u.stats())
-	if err != nil || len(raw) > logStatusMax || string(raw) == u.last {
+	if err != nil || len(raw) > logStatusMax {
 		return
 	}
-	if os.MkdirAll(u.dir, 0o700) == nil && writeAtomic(u.dir, logStatusFile, raw) == nil {
-		u.last = string(raw)
+	u.mu.Lock()
+	changed := string(raw) != u.want
+	u.want = string(raw)
+	u.mu.Unlock()
+	if changed {
+		select {
+		case u.kick <- struct{}{}:
+		default:
+		}
 	}
 }
 
-func (u *unitLogs) close() {
-	for _, n := range u.names {
-		u.streams[n].Close(logCloseBound)
+func (u *unitLogs) publisher() {
+	defer close(u.done)
+	for {
+		select {
+		case <-u.kick:
+			u.write()
+		case <-u.stop:
+			u.write()
+			return
+		}
 	}
+}
+
+func (u *unitLogs) write() {
+	u.mu.Lock()
+	raw := u.want
+	stale := raw != u.last
+	u.mu.Unlock()
+	if !stale {
+		return
+	}
+	err := u.put(u.dir, []byte(raw))
+	u.mu.Lock()
+	if err == nil {
+		u.last = raw
+	} else if u.want == raw {
+		// Forget the request so the next publish retries it.
+		u.want = ""
+	}
+	u.mu.Unlock()
+}
+
+// close closes every stream concurrently, each within the close bound,
+// then requests the final counters and waits at most the close bound for
+// the publisher.
+func (u *unitLogs) close() {
+	var wg sync.WaitGroup
+	for _, n := range u.names {
+		wg.Add(1)
+		go func(s *logSink) { defer wg.Done(); s.Close(u.bound) }(u.streams[n])
+	}
+	wg.Wait()
 	u.publish()
+	close(u.stop)
+	select {
+	case <-u.done:
+	case <-time.After(u.bound):
+	}
 }
 
 // readLogStatus reads one unit's published counters for Status.

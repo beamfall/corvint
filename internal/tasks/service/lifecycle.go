@@ -856,8 +856,9 @@ func (h Host) Stop(program, request string, drain bool) (*wire.Object, error) {
 
 // suppress is Stop's checked control change under F: STOPPED from any
 // state, DRAINING only from RUNNING. A replay changes nothing. acked
-// reports that no launch intent was unresolved under the same F, so every
-// admitted effect is durable (SUPPRESSION_ACKNOWLEDGED).
+// reports that no launch intent, the dispatcher's or a helper's, was
+// unresolved under the same F, so every admitted effect is durable
+// (SUPPRESSION_ACKNOWLEDGED).
 func (h Host) suppress(root, request, desired string) (m *Manifest, ident wire.Digest, next Control, replay, acked bool, err error) {
 	unfence, err := h.fence(root)
 	if err != nil {
@@ -872,10 +873,11 @@ func (h Host) suppress(root, request, desired string) (m *Manifest, ident wire.D
 	if st := h.intentState(root); st != "ABSENT" {
 		intents = append(intents, st)
 	}
+	intents = append(intents, h.helperIntentStates(root)...)
 	hash := wire.Sum([]byte(request + "\n" + desired + "\n" + string(ident)))
 	rs, replay, err := h.controlReplay(root, c, request, hash)
 	if err != nil || replay {
-		return m, ident, *c, replay, len(intents) == 0, err
+		return m, ident, *c, replay, launchesResolved(intents), err
 	}
 	if desired == "DRAINING" && c.Desired != "RUNNING" {
 		return nil, "", Control{}, false, false, wire.Errorf(wire.CodeResourceCollision, "/control", "desired state is %s; drain applies only to RUNNING", c.Desired)
@@ -891,6 +893,17 @@ func (h Host) suppress(root, request, desired string) (m *Manifest, ident wire.D
 		return nil, "", Control{}, false, false, err
 	}
 	return m, ident, p.Control, false, p.State == "SUPPRESSION_ACKNOWLEDGED", nil
+}
+
+// launchesResolved reports whether every launch claim seen under F is a
+// committed effect: none is unresolved or unknown.
+func launchesResolved(states []string) bool {
+	for _, s := range states {
+		if s != "COMMITTED" && s != "PROVED_NO_EFFECT" {
+			return false
+		}
+	}
+	return true
 }
 
 // controlReplay finds request in the control request ledger: the same hash

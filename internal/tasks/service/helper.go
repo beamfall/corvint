@@ -191,6 +191,31 @@ func (h Host) helperIntentIDs(root string) ([]string, error) {
 	return ids, nil
 }
 
+// helperIntentStates is Stop's view, under F, of every helper tree claim
+// for the strong acknowledgement: an acknowledged RUNNING tree is a
+// committed effect that the suppression now retires, while a SPAWNING or
+// unreadable claim is an unresolved launch.
+func (h Host) helperIntentStates(root string) []string {
+	ids, err := h.helperIntentIDs(root)
+	if err != nil {
+		return []string{"UNKNOWN"}
+	}
+	out := []string{}
+	for _, id := range ids {
+		in, _, err := h.readHelperIntent(root, id)
+		switch {
+		case err != nil:
+			out = append(out, "UNKNOWN")
+		case in == nil:
+		case in.State == "RUNNING":
+			out = append(out, "COMMITTED")
+		default:
+			out = append(out, "UNRESOLVED")
+		}
+	}
+	return out
+}
+
 // helperTreesSettled reports whether no helper intent exists: every helper
 // tree that was ever spawned is proved retired. An unreadable directory is
 // not settled.
@@ -315,14 +340,18 @@ func RunHelper(ctx context.Context, o HelperOptions) error {
 	}
 	w := &helperWrapper{o: o, ctx: ctx, root: root, sp: sp}
 	w.self, _ = supervisor.ProcessIdentity(os.Getpid())
-	w.logs = openUnitLogs(root, helperUnit(o.Helper), "stdout", "stderr")
-	defer w.logs.close()
 	return w.loop()
 }
 
 func (w *helperWrapper) loop() error {
 	var unlock func()
+	// Only the wrapper holding U opens and publishes the helper's logs, and
+	// it closes them before releasing U, so a refused duplicate never
+	// overwrites the owner's counters.
 	defer func() {
+		if w.logs != nil {
+			w.logs.close()
+		}
 		if unlock != nil {
 			unlock()
 		}
@@ -340,6 +369,7 @@ func (w *helperWrapper) loop() error {
 				w.hold = "another run-helper controls helper " + w.o.Helper
 			} else {
 				unlock, w.hold = u, ""
+				w.logs = openUnitLogs(w.root, helperUnit(w.o.Helper), "stdout", "stderr")
 			}
 		}
 		if unlock != nil {
@@ -484,6 +514,10 @@ func (w *helperWrapper) spawn(d desiredRun, spec *Helper, path string) {
 		}
 	}
 	defer release()
+	// An interruption that arrived while waiting for F starts nothing.
+	if w.ctx.Err() != nil {
+		return
+	}
 	c, err := w.o.readControl(w.root)
 	if err != nil || c.ManifestIdentity != d.ident || c.Desired != "RUNNING" {
 		return
@@ -559,7 +593,9 @@ func (w *helperWrapper) spawn(d desiredRun, spec *Helper, path string) {
 	if err != nil {
 		reads[0].Close()
 		reads[1].Close()
-		// A failed start executed nothing and left nothing live.
+		// A failed start executed nothing and left nothing live. Its
+		// backoff runs from this observation, after the failure.
+		boot, now, known = w.o.clock()
 		s := &helperSettlement{gen: gen, token: in.Token, exit: describe(err), reason: "helper start failed", charge: true, termination: "PROVED_NO_LIVE_UNEXECUTED"}
 		if err := w.record(s, boot, now, known); err != nil {
 			w.pending = s

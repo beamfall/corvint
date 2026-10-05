@@ -355,7 +355,7 @@ func TestSERVICE500_HelperSpawnsUnderFenceAndAcksAfterVerify(t *testing.T) {
 	// Stop: the tree is retired outside F; until it is, the close stays
 	// PENDING and resume refuses.
 	out, err := s.h.Stop("site", "stop-1", false)
-	if err != nil || field(t, out, "close") != "PENDING" {
+	if err != nil || field(t, out, "close") != "PENDING" || field(t, out, "state") != "ACKNOWLEDGED" {
 		t.Fatalf("stop with a live helper tree: %v %s", err, wire.EncodeFile(wire.ObjectValue(out)))
 	}
 	_, err = s.h.Resume("site", "resume-0")
@@ -495,18 +495,96 @@ func TestSERVICE500_HelperSingleController(t *testing.T) {
 		t.Fatal(err)
 	}
 	tree := &fakeTree{root: root}
-	s.runHelper(t, tree, steppingClock())
+	stop := s.runHelper(t, tree, steppingClock())
 	time.Sleep(60 * time.Millisecond)
+	// The refused duplicate exits without writing any helper state or the
+	// owner's log counters.
+	stop()
 	if starts, _ := tree.count(); starts != 0 {
 		t.Fatal("a second controller spawned")
 	}
-	for _, suffix := range []string{helperIntentSuffix, helperRecordSuffix, helperPulseSuffix} {
-		if _, err := os.Stat(filepath.Join(root, helperFile("web", suffix))); !absent(err) {
-			t.Fatalf("a non-controlling wrapper wrote %s", suffix)
+	for _, name := range []string{helperFile("web", helperIntentSuffix), helperFile("web", helperRecordSuffix), helperFile("web", helperPulseSuffix), filepath.Join(logDir, helperUnit("web"), logStatusFile)} {
+		if _, err := os.Stat(filepath.Join(root, name)); !absent(err) {
+			t.Fatalf("a non-controlling wrapper wrote %s", name)
 		}
 	}
+	s.runHelper(t, tree, steppingClock())
 	f.Close()
 	waitFor(t, "controller takes over", func() bool { return s.helperRecord(t).State == "RUNNING" })
+}
+
+// An interruption that arrives while the wrapper waits for F starts
+// nothing once F is acquired.
+func TestSERVICE500_HelperInterruptedWhileFencedStartsNothing(t *testing.T) {
+	s, _ := newHelperHome(t)
+	if _, err := s.install(t, "install-1", false); err != nil {
+		t.Fatal(err)
+	}
+	root := s.root(t)
+	f, err := os.OpenFile(filepath.Join(root, fenceFile), os.O_RDWR|os.O_CREATE, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tryLock(f); err != nil {
+		t.Fatal(err)
+	}
+	released := false
+	t.Cleanup(func() {
+		if !released {
+			f.Close()
+		}
+	})
+	clocked := make(chan struct{}, 16)
+	base := steppingClock()
+	tree := &fakeTree{root: root}
+	stop := s.runHelper(t, tree, func() (string, uint64, bool) {
+		select {
+		case clocked <- struct{}{}:
+		default:
+		}
+		return base()
+	})
+	select {
+	case <-clocked:
+	case <-time.After(10 * time.Second):
+		t.Fatal("wrapper never reached its spawn")
+	}
+	time.Sleep(50 * time.Millisecond)
+	stopped := make(chan struct{})
+	go func() { stop(); close(stopped) }()
+	time.Sleep(50 * time.Millisecond)
+	f.Close()
+	released = true
+	select {
+	case <-stopped:
+	case <-time.After(10 * time.Second):
+		t.Fatal("wrapper did not stop")
+	}
+	if starts, _ := tree.count(); starts != 0 {
+		t.Fatal("an interrupted wrapper spawned after acquiring F")
+	}
+	if _, err := os.Stat(filepath.Join(root, helperFile("web", helperIntentSuffix))); !absent(err) {
+		t.Fatal("an interrupted wrapper wrote a helper intent")
+	}
+}
+
+// A SPAWNING helper claim seen under F is an unresolved launch: stop saves
+// the suppression but does not acknowledge it, on first answer or replay.
+func TestSERVICE500_StopDoesNotAcknowledgeUnresolvedHelperLaunch(t *testing.T) {
+	s, _ := newHelperHome(t)
+	if _, err := s.install(t, "install-1", false); err != nil {
+		t.Fatal(err)
+	}
+	_, ident := s.manifest(t)
+	if _, err := writeHelperIntent(s.root(t), helperIntent{Helper: "web", ManifestSha256: ident, Token: "00", Generation: 1, State: "SPAWNING"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, request := range []string{"stop-1", "stop-1"} {
+		out, err := s.h.Stop("site", request, false)
+		if err != nil || field(t, out, "state") != "PENDING" || field(t, out, "desired") != "STOPPED" {
+			t.Fatalf("stop over an unresolved helper launch: %v %s", err, wire.EncodeFile(wire.ObjectValue(out)))
+		}
+	}
 }
 
 func TestSERVICE500_HelperRestartDebtChargesAndHolds(t *testing.T) {
