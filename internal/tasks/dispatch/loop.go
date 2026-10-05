@@ -55,6 +55,15 @@ type Dispatcher struct {
 	// pressureEmitted is the level and sample knowledge last reported by a
 	// throttled event in this run; the zero value is calm and observed.
 	pressureEmitted PressureState
+	// control, set only by OpenControlled, admits each new launch and
+	// pool sweep and sees every tick boundary.
+	control LaunchControl
+	// tickSaved reports that the last tick's final ledger save succeeded.
+	tickSaved bool
+	// uncertain holds launches that started but could not be identified:
+	// their trees may outlive the group kill unrecorded, so a controlled
+	// dispatcher never reports its boundaries recorded again.
+	uncertain []*startedError
 }
 
 // Open locks the program's state directory, loads the ledger and adopts
@@ -182,29 +191,8 @@ func writeOwner(f *os.File) error {
 // recorded identity, NOT_RUNNING when no holder is recorded or it is gone,
 // and UNKNOWN when the record cannot be read.
 func OwnerState(dir string) string {
-	raw, err := readBounded(filepath.Join(dir, "lock"), 4096)
-	if errors.Is(err, fs.ErrNotExist) {
-		return "NOT_RUNNING"
-	}
-	if err != nil {
-		return "UNKNOWN"
-	}
-	pid, id, ok := strings.Cut(strings.TrimSpace(string(raw)), " ")
-	if !ok {
-		return "NOT_RUNNING"
-	}
-	n, err := strconv.Atoi(pid)
-	if err != nil {
-		return "UNKNOWN"
-	}
-	live, err := supervisor.ProcessIdentity(n)
-	switch {
-	case err != nil:
-		return "UNKNOWN"
-	case live != "" && live == id:
-		return "RUNNING"
-	}
-	return "NOT_RUNNING"
+	st, _ := OwnerProcess(dir)
+	return st
 }
 
 // Running is the number of supervised workers.
@@ -233,6 +221,9 @@ func (d *Dispatcher) Run(ctx context.Context, ticks int) (result error) {
 		if d.readerErr != nil {
 			return d.readerErr
 		}
+		if d.boundary(ctx, last) {
+			return ErrSettled
+		}
 		if last != nil && ctx.Err() == nil {
 			d.emit(Event{Kind: "alert", Message: "tick failed: " + last.Error()})
 		}
@@ -256,6 +247,7 @@ func (d *Dispatcher) Run(ctx context.Context, ticks int) (result error) {
 // wall and orphan enforcement runs even when the store is unreadable; ended
 // workers then stay recorded and are accounted on the next readable tick.
 func (d *Dispatcher) Tick(ctx context.Context) error {
+	d.tickSaved = false
 	if d.readerErr != nil {
 		return d.readerErr
 	}
@@ -266,7 +258,7 @@ func (d *Dispatcher) Tick(ctx context.Context) error {
 	// this receiver at return so an old pointer cannot overwrite that commit.
 	defer func() {
 		if d.readerErr == nil {
-			_ = d.ledger.save(d.dir)
+			d.tickSaved = d.ledger.save(d.dir) == nil
 		}
 	}()
 	obs, err := d.observe(ctx)
@@ -886,6 +878,10 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 	launches, held := roster(d.Config, obs, busy, skip, tierOf, budget)
 	d.recordHeld(obs, held)
 	for _, a := range launches {
+		// A cancelled dispatcher (service stop) launches nothing further.
+		if ctx.Err() != nil {
+			return
+		}
 		role := d.role(a.Role)
 		host := d.Config.Hosts[role.Host]
 		model := role.ModelAt(a.Tier)
@@ -893,6 +889,12 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		// Program and role names cannot contain '.', so the ID never collides
 		// across programs or roles; the start nonce keeps it unique per run.
 		id := fmt.Sprintf("%s.%s.%d.%s-%d", d.Program, a.Role, a.Slot, d.nonce, d.ledger.LaunchSeq)
+		// A controlled dispatcher holds the fence from its final control read
+		// until the worker is recorded; a refusal launches nothing further.
+		release, ok := d.admit(ctx, id)
+		if !ok {
+			return
+		}
 		values := map[string]string{"{program}": d.Program, "{role}": a.Role, "{slot}": strconv.Itoa(a.Slot), "{worker}": id, "{holder}": id, "{ticket}": a.Ticket, "{ticketLocal}": a.Local, "{state}": a.State, "{pool}": a.Pool, "{member}": a.Member, "{workRoot}": d.Config.WorkRoot, "{model}": model}
 		values["{prompt}"] = Render(role.Prompt, values)
 		argv := make([]string, len(host.Argv))
@@ -918,6 +920,13 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 				d.ledger.Backoff[a.Key] = b
 			}
 			b.CooldownUntil = now.Add(time.Duration(d.Config.TickSeconds) * time.Second * 10)
+			// Only a failure proven before spawn resolves the intent; a
+			// started but unidentified tree keeps it unresolved.
+			var started *startedError
+			if errors.As(err, &started) {
+				d.uncertain = append(d.uncertain, started)
+			}
+			release(started == nil)
 			d.emit(Event{Kind: "launch-failed", Ticket: a.Ticket, Role: a.Role, Worker: id, Message: fmt.Sprintf("could not launch %s on %s: %v", a.Role, d.keyText(a.Key), err)})
 			continue
 		}
@@ -933,9 +942,12 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		escalation := d.escalated(role, a, model)
 		// Record the worker before anything else, so a crash cannot leave
 		// an untracked tree.
-		if err := d.ledger.save(d.dir); err != nil {
-			d.emit(Event{Kind: "alert", Worker: id, Message: "ledger unwritable after launch: " + err.Error()})
+		saveErr := d.ledger.save(d.dir)
+		if saveErr != nil {
+			d.emit(Event{Kind: "alert", Worker: id, Message: "ledger unwritable after launch: " + saveErr.Error()})
 		}
+		// An unsaved worker leaves its launch intent unresolved.
+		release(saveErr == nil)
 		if escalation != nil {
 			escalation.Worker = id
 			d.emit(*escalation)
@@ -1252,3 +1264,137 @@ func (d *Dispatcher) local(obs *Observation, id string) string {
 	}
 	return d.keyText(id)
 }
+
+// LaunchControl links a controlled dispatcher to its service control
+// (SERVICE500-003).
+type LaunchControl interface {
+	// Admit takes the fence and admits one new effect, or refuses it. The
+	// intent names the effect: a worker id, or a pool sweep request id. On
+	// admission the dispatcher calls release once; recorded reports that
+	// the effect's outcome is durable: it is in the saved ledger, or
+	// nothing started.
+	Admit(intent string) (release func(recorded bool), err error)
+	// Boundary runs between ticks, never during one. recorded reports that
+	// the tick's final ledger save succeeded, so every launch this
+	// dispatcher made is in the saved ledger; settled that the tick also
+	// completed with no recorded worker and no pending or in-flight pool
+	// sweep. A true result ends Run with ErrSettled.
+	Boundary(recorded, settled bool) bool
+}
+
+// ErrSettled ends Run when the controlled dispatcher's control settled it.
+var ErrSettled = errors.New("dispatcher settled by its service control")
+
+// OpenControlled is Open for a dispatcher whose every new worker launch and
+// pool sweep native call first passes control. It takes the lifetime lock
+// before the fence; supervision, healing and accounting of recorded workers
+// are never fenced.
+func OpenControlled(program string, c *Config, q Queue, out io.Writer, control LaunchControl) (*Dispatcher, error) {
+	if control == nil {
+		return nil, errors.New("a controlled dispatcher needs a launch control")
+	}
+	d, err := Open(program, c, q, out)
+	if err != nil {
+		return nil, err
+	}
+	d.control = control
+	return d, nil
+}
+
+// OwnerProcess is OwnerState with the recorded holder's PID, which is 0
+// unless the state is RUNNING.
+func OwnerProcess(dir string) (string, int) {
+	raw, err := readBounded(filepath.Join(dir, "lock"), 4096)
+	if errors.Is(err, fs.ErrNotExist) {
+		return "NOT_RUNNING", 0
+	}
+	if err != nil {
+		return "UNKNOWN", 0
+	}
+	pid, id, ok := strings.Cut(strings.TrimSpace(string(raw)), " ")
+	if !ok {
+		return "NOT_RUNNING", 0
+	}
+	n, err := strconv.Atoi(pid)
+	if err != nil {
+		return "UNKNOWN", 0
+	}
+	live, err := supervisor.ProcessIdentity(n)
+	switch {
+	case err != nil:
+		return "UNKNOWN", 0
+	case live != "" && live == id:
+		return "RUNNING", n
+	}
+	return "NOT_RUNNING", 0
+}
+
+// Settled reports a saved ledger with no recorded worker and no pending
+// pool sweep: what a draining service needs before it may stop.
+func Settled(l *Ledger) bool {
+	if len(l.Workers) != 0 {
+		return false
+	}
+	for _, r := range l.PoolSweeps {
+		if sweepPending(r.Phase) {
+			return false
+		}
+	}
+	return true
+}
+
+// Records reports whether a saved ledger records the effect an admission
+// intent named: a worker or a pool sweep request.
+func Records(l *Ledger, intent string) bool {
+	for _, w := range l.Workers {
+		if w.ID == intent {
+			return true
+		}
+	}
+	for _, r := range l.PoolSweeps {
+		if r.RequestID == intent {
+			return true
+		}
+	}
+	return false
+}
+
+// admit passes a controlled dispatcher's fence for intent. A cancel that
+// arrives while the fence is awaited starts nothing. An uncontrolled
+// dispatcher always admits.
+func (d *Dispatcher) admit(ctx context.Context, intent string) (func(bool), bool) {
+	if d.control == nil {
+		return func(bool) {}, true
+	}
+	release, err := d.control.Admit(intent)
+	if err != nil {
+		return nil, false
+	}
+	if ctx.Err() != nil {
+		release(true)
+		return nil, false
+	}
+	return release, true
+}
+
+// boundary reports a completed tick to a controlled dispatcher's control.
+func (d *Dispatcher) boundary(ctx context.Context, last error) bool {
+	if d.control == nil || ctx.Err() != nil {
+		return false
+	}
+	recorded := d.tickSaved && len(d.uncertain) == 0
+	settled := recorded && last == nil && d.sweepJob == nil && Settled(d.ledger)
+	return d.control.Boundary(recorded, settled)
+}
+
+// startedError is a launch that started a process but failed after it, so
+// its effect is uncertain rather than proven absent. It keeps the owned pid
+// and wait channel.
+type startedError struct {
+	pid  int
+	exit <-chan int
+	err  error
+}
+
+func (e *startedError) Error() string { return e.err.Error() }
+func (e *startedError) Unwrap() error { return e.err }

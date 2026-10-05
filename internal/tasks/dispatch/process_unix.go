@@ -97,7 +97,7 @@ func launch(argv, env []string, dir, logDir string) (int, string, <-chan int, er
 	pid := cmd.Process.Pid
 	// Read the identity before anything can reap the leader: until Wait
 	// runs, an exited leader stays a zombie whose identity is still readable.
-	id, err := supervisor.ProcessIdentity(pid)
+	id, err := processIdentity(pid)
 	if err == nil && id == "" {
 		err = fmt.Errorf("pid %d has no start identity", pid)
 	}
@@ -109,7 +109,7 @@ func launch(argv, env []string, dir, logDir string) (int, string, <-chan int, er
 	if err != nil {
 		// An unidentified tree cannot be supervised safely; stop it now.
 		_ = syscall.Kill(-pid, syscall.SIGKILL)
-		return 0, "", nil, fmt.Errorf("worker start identity unreadable: %w", err)
+		return 0, "", nil, &startedError{pid: pid, exit: exit, err: fmt.Errorf("worker start identity unreadable: %w", err)}
 	}
 	return pid, id, exit, nil
 }

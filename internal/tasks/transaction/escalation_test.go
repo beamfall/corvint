@@ -16,7 +16,7 @@ func esc502Fixture() (ticket.EscalationRequest, EscalationObservation) {
 	d := wire.Sum([]byte("admission"))
 	source := ticket.EscalationSource{QueueID: "queue:test:main", TicketID: "ticket:test:main:one", AttemptID: "attempt:test:main:0123456789abcdef0123456789abcdef", Generation: "7", Holder: "worker", AcceptanceRevision: "1", ReceiptSequence: "42", ReceiptSha256: d, PostAttemptSha256: d, TicketRecordSha256: d}
 	r := ticket.EscalationRequest{Profile: ticket.EscalationRequestProfile, QueueID: source.QueueID, TicketID: source.TicketID, RequestID: "q1", Actor: "worker", ActorRole: "OPERATOR", Operation: "OPEN", Open: &ticket.EscalationOpen{Source: source, Kind: "decision", Question: "Choose?", Options: []string{"a", "b"}}}
-	o := EscalationObservation{Snapshot: EscalationSnapshot{QueueID: source.QueueID, TicketID: source.TicketID, TicketRevision: "5", AcceptanceRevision: "1", Blobs: map[wire.Digest][]byte{}}, Actor: r.Actor, ActorRole: r.ActorRole, PolicyDecision: "ALLOWED", Now: "2026-10-04T00:00:00Z", Admission: &EscalationAdmission{OriginState: "AUDITED", ReceiptOperation: "CLAIM", ReceiptOutcome: "OK", ReceiptSource: source, CurrentSource: source, LeaseState: "ACTIVE", ReservationState: "MATCHED", LeaseExpires: "2026-10-04T01:00:00Z"}, Replay: EscalationReplay{State: "ABSENT"}}
+	o := EscalationObservation{Snapshot: EscalationSnapshot{QueueID: source.QueueID, TicketID: source.TicketID, TicketRevision: "5", AcceptanceRevision: "1", Blobs: map[wire.Digest][]byte{}}, Actor: r.Actor, ActorRole: r.ActorRole, PolicyDecision: "ALLOWED", PolicyOperation: "OPEN", Now: "2026-10-04T00:00:00Z", Admission: &EscalationAdmission{OriginState: "AUDITED", ReceiptOperation: "CLAIM", ReceiptOutcome: "OK", ReceiptSource: source, CurrentSource: source, LeaseState: "ACTIVE", ReservationState: "MATCHED", LeaseExpires: "2026-10-04T01:00:00Z"}, Replay: EscalationReplay{State: "ABSENT"}}
 	return r, o
 }
 func esc502Raw(t testing.TB, r ticket.EscalationRequest) []byte {
@@ -56,6 +56,7 @@ func esc502Answer(o EscalationObservation, id, q string) (ticket.EscalationReque
 	r := ticket.EscalationRequest{Profile: ticket.EscalationRequestProfile, QueueID: o.Snapshot.QueueID, TicketID: o.Snapshot.TicketID, RequestID: id, Actor: "owner", ActorRole: "OWNER", Operation: "ANSWER", Answer: a}
 	o.Actor = r.Actor
 	o.ActorRole = r.ActorRole
+	o.PolicyOperation = "ANSWER"
 	o.Admission = nil
 	return r, o
 }
@@ -541,4 +542,31 @@ func BenchmarkIssue502_ApplyNearCapacity(b *testing.B) {
 			b.Fatal(e)
 		}
 	}
+}
+
+// TestIssue502_AnswerGrantAndEmptyShorthand pins the operation-scoped grant and
+// the empty-shorthand refusal: an OPEN grant is not answer authority, shorthand
+// with no current open question refuses NO_OPEN_QUESTION, and an exact unknown
+// request refuses QUESTION_NOT_FOUND.
+func TestIssue502_AnswerGrantAndEmptyShorthand(t *testing.T) {
+	r, o := esc502Fixture()
+	o.Snapshot = esc502Post(o.Snapshot, esc502Apply(t, r, o))
+	a, ao := esc502Answer(o, "a1", "q1")
+	ao.PolicyOperation = "OPEN"
+	esc502Refuse(t, a, ao, "POLICY_NOT_ALLOWED")
+	r2, o2 := esc502Fixture()
+	o2.PolicyOperation = "ANSWER"
+	esc502Refuse(t, r2, o2, "POLICY_NOT_ALLOWED")
+
+	_, empty := esc502Fixture()
+	short, so := esc502Answer(empty, "a1", "")
+	if named := esc502Refuse(t, short, so, "NO_OPEN_QUESTION"); len(named.RequestIDs) != 0 {
+		t.Fatalf("empty shorthand names no questions: %v", named.RequestIDs)
+	}
+	a, ao = esc502Answer(o, "a1", "q1")
+	o.Snapshot = esc502Post(o.Snapshot, esc502Apply(t, a, ao))
+	short, so = esc502Answer(o, "a2", "")
+	esc502Refuse(t, short, so, "NO_OPEN_QUESTION")
+	exact, eo := esc502Answer(o, "a3", "missing")
+	esc502Refuse(t, exact, eo, "QUESTION_NOT_FOUND")
 }
