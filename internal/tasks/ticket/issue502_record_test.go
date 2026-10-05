@@ -87,6 +87,7 @@ func TestIssue502_RecordEscalationsKey(t *testing.T) {
 		{TicketID: fixture.Ticket("AT-03").TicketID, Obligation: "GATE_PASSED", GateID: &gate, Stages: []string{"integrate", "review"}},
 		{TicketID: fixture.Ticket("AT-02").TicketID, Obligation: "COMPLETED", Stages: []string{"integrate"}},
 	}
+	rec.AttachedEvidence = []ticket.AttachedEvidence{{AcceptanceRevision: "1", Actor: "russell", Evidence: []wire.Digest{wire.Sum([]byte("evidence"))}, Reason: "focused test log", RecordedAt: "2026-09-06T13:00:00Z"}}
 	file, err := os.ReadFile(issue502RecordFixture)
 	if err != nil {
 		t.Fatal(err)

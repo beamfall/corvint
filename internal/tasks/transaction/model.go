@@ -1006,6 +1006,9 @@ func importChain(post, pre *ticket.Record, inv *Inventory) error {
 	if e := importOperatorNote(post, pre, where); e != nil {
 		return e
 	}
+	if e := importAttachedEvidence(post, pre, where); e != nil {
+		return e
+	}
 	path := "intent/tickets/" + post.TicketID.Local + ".json"
 	if pre == nil {
 		if _, exists := inv.files[path]; exists {
@@ -1241,6 +1244,20 @@ func importOperatorNote(post, pre *ticket.Record, where string) error {
 	}
 	if !bytes.Equal(want, got) {
 		return wire.Errorf(wire.CodeMalformed, where+"/operatorNote", "an imported record cannot add, rewrite or drop the operator-note reference")
+	}
+	return nil
+}
+
+// importAttachedEvidence keeps an IMPORT batch from adding, rewriting or
+// dropping attached evidence (TEA-V0-001): only ATTACH_EVIDENCE writes it, so
+// an imported record carries exactly the list of the record it replaces.
+func importAttachedEvidence(post, pre *ticket.Record, where string) error {
+	var want []ticket.AttachedEvidence
+	if pre != nil {
+		want = pre.AttachedEvidence
+	}
+	if !wire.Equal(ticket.AttachedEvidenceValue(want), ticket.AttachedEvidenceValue(post.AttachedEvidence)) {
+		return wire.Errorf(wire.CodeMalformed, where+"/attachedEvidence", "an imported record cannot add, rewrite or drop attached evidence")
 	}
 	return nil
 }
