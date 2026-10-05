@@ -47,7 +47,7 @@ after the policy host changes never claims or launches again, and keeps only dra
 live attempt. To switch hosts back, cancel each `claude-code` program with its original config
 while its pin is still in force, then edit the policy; a drained program must still be cancelled,
 because a drain leaves its claim held. The lane leader runs the bytes it verified: a root-owned,
-root-protected path runs in place, and any other runtime runs from a private copy in the stage's
+root-protected path with no ACL runs in place, and any other runtime runs from a private copy in the stage's
 effect directory, so pin a self-contained binary such as `claude.exe`, not a script wrapper.
 Stages run `claude -p --output-format json` with the stage effort, project settings only, no MCP
 servers and no permission prompts; implement accepts edits, review and integrate deny Edit, Write

@@ -178,3 +178,33 @@ additive commit.
 
 Not changed: the earlier `NO_EXEC` paths for a refused stage admission, a failed preparation and a
 failed `cmd.Start` still settle to `WAITING` without cancel. They predate this slice.
+
+### Review round 3
+
+The Codex review of 36627d0f..e620c35b returned CHANGES_REQUIRED with three findings, each
+confirmed by inspection before the fix.
+
+- P1, ACLs. `protectedRuntime` checked owner and mode bits only. On macOS an ACL entry is evaluated
+  before the mode, so a root-owned 0755 runtime could still be writable by a user. The fix: the
+  runtime and every ancestor must carry no ACL. On macOS the probe reads
+  `ATTR_CMN_EXTENDED_SECURITY` with `getattrlist` and counts any entry. On Linux it looks for the
+  POSIX, NFSv4 and richacl extended attributes. A read failure counts as an ACL, so the runtime
+  falls back to the private copy. On the owner's host `/bin/sh`, `/bin`, `/usr` and `/` carry none,
+  and the home directory carries the standard `everyone deny delete` entry.
+  - Witnesses: `TestCALV0074_ACLProbe` sets a real ACL and detects it. `TestCALV0074_RuntimeReplacedAtAck`
+    marks `/bin/sh`, `/bin` and `/` as ACL-bearing in turn and each refuses direct execution; it
+    fails with the ACL check removed.
+- P2, cancel after release. `noExec` released the owner before the separate `CANCEL` write, so a
+  competing owner could take the program in between and fence the cancel. The fix: the cancel now
+  lands before the owner is released. An atomic stop, cancel and release needs a combined attempt
+  and program transition: `SupervisorTransition` and `ProgramTransition` are separate journal
+  mutations over different records, and adding a combined one changes the transaction contract,
+  which is outside this lane. The remaining crash window, after the stop and before the cancel, is
+  recorded as a known limit in S22: the attempt stays stopped and `WAITING` with its claim, and a
+  reopen with the original config cancels it.
+  - Witness: `TestCALV0074_NoExecCancelBeforeRelease` observes the window through a test hook. The
+    owner is unreleased, a competing owner is refused as live-owned, and after a simulated crash a
+    reopen cancels and the ticket is reclaimed. It fails with the old order.
+- P2, root-run test. The test expected `/bin/sh` to be unprotected under UID 0, but the check does
+  not depend on the runner. The expectation now comes from a filesystem oracle. The negative case
+  and the replacement test use a world-writable directory, so they hold for any runner.

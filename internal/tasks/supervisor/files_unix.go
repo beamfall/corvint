@@ -16,11 +16,16 @@ func openExecutable(path string) (*os.File, error) {
 	return os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 }
 
+// aclProbe reports whether a path carries an access control list; tests
+// replace it to show that an ACL alone refuses direct execution.
+var aclProbe = hasACL
+
 // protectedRuntime reports whether the runtime at path, whose descriptor
 // status is st, can be executed by its path without a private copy: path is
 // canonical (no symlink component), names the same file st describes, and it
-// and every ancestor directory are owned by root and writable by neither group
-// nor other. Substituting such a file needs root, so executing the path runs
+// and every ancestor directory are owned by root, writable by neither group
+// nor other, and carry no access control list, which could grant write access
+// the mode does not show. Substituting such a file needs root, so executing the path runs
 // the verified object. Platform binaries, which macOS launch constraints keep
 // from running as a copy, take this branch (CAL-V0-074).
 func protectedRuntime(path string, st os.FileInfo) bool {
@@ -37,7 +42,7 @@ func protectedRuntime(path string, st os.FileInfo) bool {
 			return false
 		}
 		now, ok := info.Sys().(*syscall.Stat_t)
-		if !ok || now.Uid != 0 || info.Mode().Perm()&0o022 != 0 || info.Mode()&os.ModeSymlink != 0 {
+		if !ok || now.Uid != 0 || info.Mode().Perm()&0o022 != 0 || info.Mode()&os.ModeSymlink != 0 || aclProbe(p) {
 			return false
 		}
 		if p == path && (now.Dev != native.Dev || now.Ino != native.Ino) {

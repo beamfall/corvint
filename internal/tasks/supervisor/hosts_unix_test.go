@@ -8,8 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -81,7 +84,12 @@ func TestCALV0074_RuntimeReplacedAtAck(t *testing.T) {
 	for _, host := range []string{"", HostClaudeCode} {
 		for _, mode := range []string{"in place", "rename"} {
 			t.Run(host+" "+mode, func(t *testing.T) {
+				// A world-writable directory keeps the runtime unprotected
+				// for any runner, root included, so it always runs a copy.
 				bin := t.TempDir()
+				if e := os.Chmod(bin, 0o777); e != nil {
+					t.Fatal(e)
+				}
 				exe := filepath.Join(bin, "runtime")
 				if e := os.WriteFile(exe, []byte(original), 0o755); e != nil {
 					t.Fatal(e)
@@ -120,16 +128,24 @@ func TestCALV0074_RuntimeReplacedAtAck(t *testing.T) {
 		}
 	}
 	// Only a canonical, root-owned runtime under root-owned directories that
-	// no group or other can write runs by its path.
+	// no group or other can write, with no ACL, runs by its path. The
+	// expectation comes from the filesystem, never the runner's UID.
 	system, e := filepath.EvalSymlinks("/bin/sh")
 	if e != nil {
 		t.Fatal(e)
 	}
-	user := filepath.Join(t.TempDir(), "runtime")
+	open := filepath.Join(t.TempDir(), "open")
+	if e = os.Mkdir(open, 0o700); e != nil {
+		t.Fatal(e)
+	}
+	if e = os.Chmod(open, 0o777); e != nil {
+		t.Fatal(e)
+	}
+	user := filepath.Join(open, "runtime")
 	if e = os.WriteFile(user, []byte(original), 0o755); e != nil {
 		t.Fatal(e)
 	}
-	for path, want := range map[string]bool{system: os.Getuid() != 0, user: false} {
+	for path, want := range map[string]bool{system: rootProtected(t, system), user: false} {
 		_, st, e := readRuntime(path)
 		if e != nil {
 			t.Fatal(e)
@@ -137,6 +153,75 @@ func TestCALV0074_RuntimeReplacedAtAck(t *testing.T) {
 		if got := protectedRuntime(path, st); got != want {
 			t.Fatalf("protectedRuntime(%s) = %v", path, got)
 		}
+	}
+	// An ACL on the runtime or any ancestor refuses direct execution even
+	// when owner and mode would allow it.
+	_, st, e := readRuntime(system)
+	if e != nil {
+		t.Fatal(e)
+	}
+	for _, marked := range []string{system, filepath.Dir(system), "/"} {
+		restore := aclProbe
+		aclProbe = func(p string) bool { return p == marked }
+		got := protectedRuntime(system, st)
+		aclProbe = restore
+		if got {
+			t.Fatalf("protectedRuntime(%s) ignored an ACL on %s", system, marked)
+		}
+	}
+}
+
+// rootProtected is the test's own oracle for protectedRuntime's ownership
+// rule: every component from path to / is root-owned, not a symlink, not
+// group- or other-writable and carries no ACL.
+func rootProtected(t *testing.T, path string) bool {
+	t.Helper()
+	for p := path; ; p = filepath.Dir(p) {
+		info, e := os.Lstat(p)
+		if e != nil {
+			t.Fatal(e)
+		}
+		st := info.Sys().(*syscall.Stat_t)
+		if st.Uid != 0 || info.Mode().Perm()&0o022 != 0 || info.Mode()&os.ModeSymlink != 0 || hasACL(p) {
+			return false
+		}
+		if p == "/" {
+			return true
+		}
+	}
+}
+
+// TestCALV0074_ACLProbe proves the platform ACL probe sees a write-granting
+// entry that the mode bits do not show.
+func TestCALV0074_ACLProbe(t *testing.T) {
+	dir := t.TempDir()
+	plain, marked := filepath.Join(dir, "plain"), filepath.Join(dir, "marked")
+	for _, p := range []string{plain, marked} {
+		if e := os.WriteFile(p, nil, 0o755); e != nil {
+			t.Fatal(e)
+		}
+	}
+	var cmd *exec.Cmd
+	if runtime.GOOS == "darwin" {
+		cmd = exec.Command("/bin/chmod", "+a", "everyone allow write", marked)
+	} else {
+		tool, e := exec.LookPath("setfacl")
+		if e != nil {
+			t.Skip("setfacl unavailable: ", e)
+		}
+		cmd = exec.Command(tool, "-m", "u:65534:rwx", marked)
+	}
+	if out, e := cmd.CombinedOutput(); e != nil {
+		if runtime.GOOS == "darwin" {
+			t.Fatalf("set ACL: %v %s", e, out)
+		}
+		t.Skipf("filesystem refused an ACL: %v %s", e, out)
+	}
+	if hasACL(plain) {
+		t.Fatal("plain file reported an ACL")
+	}
+	if !hasACL(marked) {
+		t.Fatal("ACL not detected")
 	}
 }
 

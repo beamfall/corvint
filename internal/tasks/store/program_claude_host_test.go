@@ -338,6 +338,81 @@ func TestCALV0074_AdmissionRunsLaunchCheck(t *testing.T) {
 	})
 }
 
+// TestCALV0074_NoExecCancelBeforeRelease proves that a launch refused after
+// admission cancels the attempt while its owner still holds the program. In
+// the window before the cancel the owner is unreleased, so a competing owner
+// is refused and cannot fence the cancel. A failure in that window, standing
+// in for a crash, leaves a stopped attempt that a reopen with the original
+// config cancels, releasing the claim.
+func TestCALV0074_NoExecCancelBeforeRelease(t *testing.T) {
+	ctx := context.Background()
+	f := newClaudeFixture(t, supervisor.HostClaudeCode)
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	w, err := store.OpenWorkflow(ctx, f.s.repo, operator(), "program", self, f.config, f.ticketID)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if err = os.Chmod(f.config.Executable, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	crash := errors.New("simulated crash before cancel")
+	var window snapshot.Program
+	var competing error
+	restore := store.CALTestNoExecCancelHook(func() error {
+		window = f.program(t, "program")
+		other := window
+		other.OwnerPID = os.Getppid()
+		if other.OwnerStarted, competing = supervisor.ProcessIdentity(other.OwnerPID); competing == nil {
+			var r *store.Report
+			r, competing = store.ProgramTransition(ctx, f.s.repo, operator(), "queue:acme:main", "competing-owner", other)
+			if competing == nil && (r == nil || r.Outcome.Outcome != mutation.OutcomeCompleted) {
+				competing = fmt.Errorf("refused: %+v", r)
+			}
+		}
+		return crash
+	})
+	_, err = w.RunRole(ctx, "implementer", "")
+	restore()
+	if !errors.Is(err, crash) {
+		t.Fatalf("want the simulated crash, got %v", err)
+	}
+	if window.OwnerReleased || window.Phase == "FINISHED" {
+		t.Fatalf("owner released before cancel: %+v", window)
+	}
+	if competing == nil || !strings.Contains(competing.Error(), "live owner") {
+		t.Fatalf("competing owner not refused as live-owned: %v", competing)
+	}
+	p := f.program(t, "program")
+	attempts, err := store.ProgramAttempts(ctx, f.s.repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := attempts["program"]
+	if p.OwnerReleased || a == nil || a.Supervision == nil || a.Supervision.Worker || a.Quiescence != "PROVED" || a.Phase != "WAITING" {
+		t.Fatalf("crash window left program %+v attempt %+v", p, a)
+	}
+	// Recovery: reopen with the original config and pin, then cancel.
+	if err = os.Chmod(f.config.Executable, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	again, err := store.OpenWorkflow(ctx, f.s.repo, operator(), "program", self, f.config, f.ticketID)
+	if err != nil {
+		t.Fatalf("reopen: %v", err)
+	}
+	if err = again.Cancel(); err != nil {
+		t.Fatalf("cancel: %v", err)
+	}
+	if again.Attempt().Phase != "CANCELLED" {
+		t.Fatalf("attempt not cancelled: %+v", again.Attempt())
+	}
+	if _, err = store.OpenWorkflow(ctx, f.s.repo, operator(), "next", self, f.config, f.ticketID); err != nil {
+		t.Fatalf("reclaim after recovery: %v", err)
+	}
+}
+
 // TestCALV0074_HostSwitchAndRollback proves the documented rollback with
 // distinct Claude Code and Codex executables. Every program is cancelled, a
 // drained one included, with its original config and pins before the policy

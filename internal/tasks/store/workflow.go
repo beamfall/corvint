@@ -362,7 +362,7 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 		return supervisor.Outcome{}, e
 	}
 	if e = w.step("DISPATCH", transaction.SupervisorChange{Stage: stage, Holder: holder, Worktree: path, Pool: w.cfg.Pool}); e != nil {
-		_ = w.noExec("stage admission refused")
+		_ = w.noExec("stage admission refused", false)
 		return supervisor.Outcome{Class: "NO_EXEC", Clean: true}, e
 	}
 	allocation, _ := json.Marshal(w.attempt.PoolAllocation)
@@ -374,7 +374,7 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 	calledRun := false
 	defer func() {
 		if !calledRun {
-			_ = w.noExec("prelaunch preparation failed")
+			_ = w.noExec("prelaunch preparation failed", false)
 		}
 	}()
 	journal := func(phase string, boot supervisor.Boot, out *supervisor.Outcome) error {
@@ -505,12 +505,10 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 		// Run refused before forking the lane leader (capsule validation or
 		// publication), so no host process exists. Settle the dispatched
 		// stage as NO_EXEC and cancel the attempt, which releases its claim
-		// and reservation. Any other error, even with an empty class, may
-		// follow a spawn and keeps the drained outcome below (CAL-V0-074).
-		if e := w.noExec("launch refused"); e != nil {
-			return out, e
-		}
-		if e := w.step("CANCEL", transaction.SupervisorChange{}); e != nil {
+		// and reservation, before the owner is released. Any other error,
+		// even with an empty class, may follow a spawn and keeps the drained
+		// outcome below (CAL-V0-074).
+		if e := w.noExec("launch refused", true); e != nil {
 			return out, e
 		}
 		return supervisor.Outcome{Class: "NO_EXEC", Clean: true}, wire.Errorf(wire.CodeCapabilityUnavailable, "runtime", "%v", runErr)
@@ -1112,7 +1110,15 @@ func (w *Workflow) claimAndAttach(ctx context.Context, ticketID string) error {
 	return w.step("ATTACH", transaction.SupervisorChange{})
 }
 
-func (w *Workflow) noExec(reason string) error {
+// noExecCancelHook, when set by a test, runs after the stage settles and
+// before its cancel; it is nil in the product.
+var noExecCancelHook func() error
+
+// noExec settles the dispatched stage as NO_EXEC. With cancel, the attempt is
+// cancelled while this owner still holds the program, so no other owner can
+// fence the cancel; the owner is released only after the claim and
+// reservation are (CAL-V0-074).
+func (w *Workflow) noExec(reason string, cancel bool) error {
 	if w.program.Phase == "SPAWNING" {
 		if e := w.persist("STOPPING"); e != nil {
 			return e
@@ -1123,6 +1129,16 @@ func (w *Workflow) noExec(reason string) error {
 			return e
 		}
 		if e := w.step("STOPPED", transaction.SupervisorChange{Clean: true, Question: reason}); e != nil {
+			return e
+		}
+	}
+	if cancel {
+		if noExecCancelHook != nil {
+			if e := noExecCancelHook(); e != nil {
+				return e
+			}
+		}
+		if e := w.step("CANCEL", transaction.SupervisorChange{}); e != nil {
 			return e
 		}
 	}
