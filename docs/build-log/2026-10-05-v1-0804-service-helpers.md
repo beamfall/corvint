@@ -100,6 +100,8 @@ Platform qualification stays NOT_RUN and belongs to V1-0697. Requirement IDs are
 
 - **TOCTOU.** The helper executable hash is checked before exec. A replacement between the check and
   exec is a recorded TOCTOU limit.
+- **Ledger bound.** A superseded resume's marker lives in the request ledger, which keeps the newest
+  256 requests. A retry of that resume after its marker is evicted is treated as a new request.
 - **Wrapper death.** No Pdeathsig is set. If the wrapper itself dies, systemd `KillMode=control-group`
   is the cleanup, and the remaining intent forces the manual HOLD above.
 - **Coverage scope.** The wrapper starts no other children. Processes that a helper hands to another
@@ -110,8 +112,8 @@ Platform qualification stays NOT_RUN and belongs to V1-0697. Requirement IDs are
     not under a systemd user manager:
     - TestSERVICE500_LinuxHelperRetiresEscapedDescendants;
     - TestSERVICE500_LinuxHelperExitLeavesNoOrphan.
-  - In that container the full `internal/tasks/service` package passed. The Linux, Helper, LogSink and
-    LogStatus tests passed with `-count=3`.
+  - In that container the full `internal/tasks/service` package passed with `-race`. The Linux,
+    Helper, Log, Stop and Resume tests passed with `-count=3`.
   - Real unit restart, cgroup cleanup and login scope are NOT_RUN (V1-0697).
 
 ## Review repair
@@ -205,6 +207,11 @@ reserved across verbs, so a stop, install or uninstall could reuse it. Repaired:
 by the operation `journal` check (install, uninstall). Only the original resume, with its own hash,
 may reuse the id; anything else is REQUEST_ID_CONFLICT. The witness test gained stop, uninstall and
 install legs, and removing either check fails it.
+
+Codex round 6 reviewed `d524530f..c93728a7`, found no P0 to P3 findings and returned **APPROVE**.
+Codex could not run Go in its read-only sandbox. The runtime evidence is local: darwin
+`go test -race` of the service package, and in the Linux container, vet, the CLI test, the service
+package with `-race`, and the focused Helper, Log, Linux, Stop and Resume tests with `-count=3`.
 
 ## Owner questions
 
