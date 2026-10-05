@@ -415,6 +415,10 @@ func (d *Dispatcher) admitProgress(ctx context.Context, obs *Observation, ended 
 				b.BaseFingerprint, b.ProgressDigest = b.Fingerprint, digest
 				b.Fingerprint = progressFingerprint(b.BaseFingerprint, digest)
 			}
+			// So does an infrastructure retry episode's baseline (ESC-V0-007).
+			if e := staged.InfraRetry[t.ID]; e != nil && e.Fingerprint != "" {
+				e.Fingerprint = progressFingerprint(e.Fingerprint, digest)
+			}
 		} else {
 			h.Current = digest
 			h.Seen = append(h.Seen, digest)
@@ -840,8 +844,9 @@ func (d *Dispatcher) unpark(obs *Observation) {
 		if stateUnknown(obs, k) || Fingerprint(obs, k) == b.Fingerprint || d.busy(k) {
 			continue
 		}
+		// The episode's own baseline decides infrastructure recovery
+		// (reconcileInfra); this backoff fingerprint may predate it.
 		d.account(k, true)
-		d.infraRecovered(k, "its state changed")
 		if b.Parked {
 			delete(d.ledger.Backoff, k)
 			d.emit(Event{Kind: "unparked", Ticket: ticketOf(k), Message: fmt.Sprintf("unparked %s because its state changed", d.keyText(k))})

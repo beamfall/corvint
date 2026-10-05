@@ -532,3 +532,61 @@ func TestESCV0008_UnknownMaterialIsNotProgress(t *testing.T) {
 		}
 	}
 }
+
+// ESC-V0-007: a non-parked backoff left at an older fingerprint by an
+// ordinary failure never recovers a later infrastructure episode; recovery
+// compares the episode's own baseline, so the retry stays bounded.
+func TestESCV0007_StaleBackoffDoesNotRecoverAnEpisode(t *testing.T) {
+	c := testConfig(t, "exit 0")
+	c.Backoff.CooldownSeconds = 60
+	x := newIssue502(t, c, 3)
+	defer x.d.Close()
+	x.session(nil)
+	x.tick(0) // an ordinary failure: the backoff records fingerprint A and cools down
+	if b := x.d.ledger.Backoff[issue502Key]; b == nil || b.NoProgress != 1 || b.Parked {
+		t.Fatalf("ordinary failure not counted: %+v", b)
+	}
+	x.q.obs.Tickets[0].Revision = "2" // an outside change to B
+	x.tick(0)
+	x.clock = x.clock.Add(61 * time.Second)
+	x.session(func(w *Worker) { x.raise(w, "infrastructure") })
+	for range 3 {
+		x.tick(0)
+		if e := x.episode(); e == nil || e.State != InfraWait || e.Fingerprint == "" {
+			t.Fatalf("stale backoff fingerprint recovered the episode: %+v", e)
+		}
+	}
+}
+
+// ESC-V0-007: a ticket's first progress token rewraps the episode baseline
+// as it does the worker and backoff baselines, so it grants no progress
+// credit and leaves a waiting episode's debt in place.
+func TestESCV0007_FirstProgressTokenDoesNotRecover(t *testing.T) {
+	c := testConfig(t, "exit 0")
+	source := filepath.Join(c.WorkRoot, "states.json")
+	c.WorkState = &WorkState{Kind: "command", Argv: []string{"/bin/cat", source}}
+	state := func(body string) {
+		t.Helper()
+		if err := os.WriteFile(source, []byte(`{"t1":`+body+`}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	state(`{"state":"work"}`)
+	x := newIssue502(t, c, 3)
+	defer x.d.Close()
+	x.session(func(w *Worker) { x.raise(w, "infrastructure") })
+	x.tick(0)
+	if e := x.episode(); e == nil || e.State != InfraWait {
+		t.Fatalf("episode = %+v", e)
+	}
+	state(`{"state":"work","progress":"first"}`)
+	x.tick(0)
+	if e := x.episode(); e.State != InfraWait || e.Fingerprint == "" || x.d.ledger.Progress[issue502Key] == nil {
+		t.Fatalf("first progress token recovered the episode: %+v", e)
+	}
+	state(`{"state":"work","progress":"second"}`)
+	x.tick(1)
+	if e := x.episode(); e.State != InfraRecovered {
+		t.Fatalf("a later token is progress: %+v", e)
+	}
+}

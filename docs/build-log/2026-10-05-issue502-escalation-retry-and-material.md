@@ -79,13 +79,15 @@ slot and Rollout sections are updated in this change.
 - **Coverage stays UNKNOWN in lease stores:** ADMIT receipts' `attempts/` and `reservations.json`
   posts keep store-level semantic coverage UNKNOWN. That predates this slice. Event coverage is
   asserted at the journal level.
+- **Checkpoint tail:** a checkpoint-resumed read does not compare the first tail post of a ticket
+  whose reference predates the checkpoint; the complete `receipt audit` does.
 - **Status gap (ESC-V0-009):** open request kinds and ages are not yet in `dispatch status`. Its
   retry state is.
 
 ## Evidence
 
 - **New tests**, all passing:
-  - `TestESCV0007_*`: 12 tests in `internal/tasks/dispatch/issue502_retry_test.go` and
+  - `TestESCV0007_*`: 14 tests in `internal/tasks/dispatch/issue502_retry_test.go` and
     `internal/tasks/cli/dispatch_escalation_pending_internal_test.go`.
   - `TestESCV0008_*`: 6 tests across dispatch and cli.
   - `TestESCV0010_*`: 6 tests in `internal/tasks/journal` and `internal/tasks/store`.
@@ -119,6 +121,28 @@ fix:
 
 Regression for the last two: `TestESCV0010_ConsistentlyRehashedEventIsJournalForked`. With the
 pre-fix `escalation_audit.go` both subtests' forgeries audit clean.
+
+Round 2 (over `d524530f..3d4b9023`) reported three P2 findings. Two were verified and fixed with
+regressions that fail without the fix; one is declined:
+
+- **Stale backoff recovered an episode:** `unpark` recovered the infrastructure episode whenever a
+  non-parked backoff's fingerprint differed from the current one. A backoff left at an older
+  fingerprint by an ordinary failure therefore cleared every later infrastructure episode on the
+  next tick, so the retry bound never held. `unpark` no longer recovers episodes; `reconcileInfra`
+  compares the episode's own baseline. Regression: `TestESCV0007_StaleBackoffDoesNotRecoverAnEpisode`.
+- **First progress token recovered an episode:** first-token admission rewrapped the worker and
+  backoff baselines but not the episode's, so the token alone looked like progress. The episode
+  baseline is now rewrapped in the same staged ledger. Regression:
+  `TestESCV0007_FirstProgressTokenDoesNotRecover`.
+- **Declined: checkpoint tail does not compare a pre-checkpoint reference.** In a
+  checkpoint-resumed read, the first ordinary post of a ticket last posted before the checkpoint is
+  not compared against its earlier reference, because that reference lives in the prefix the
+  checkpoint read must not open. Returning `errCheckpoint` there would send every ordinary edit
+  tail to the complete audit and break the accepted operator-note contract, which mirrors this
+  rule (`internal/tasks/journal/operator_note.go`; `TestONV0006_CheckpointTailNeverReadsThePrefix` keeps a REFINE tail in
+  checkpoint mode). `receipt audit` never resumes from a checkpoint and refuses the forgery.
+  Raised as an owner question: carry walked reference digests in the checkpoint, or accept the
+  read-path limit for notes and escalations alike.
 
 ## NOT_RUN
 
