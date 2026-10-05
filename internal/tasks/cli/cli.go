@@ -68,6 +68,8 @@ var ReadVerbs = []string{
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
 	"dispatch", "dispatch status", "dispatch unpark",
 	"submit", "gate run", "complete", "health", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe",
+	"ticket note set", "ticket note clear", "ticket note show",
+	"service install", "service status", "service uninstall", "service stop", "service resume", "service run",
 }
 
 // OmittedVerbs are the verb paths the SPEC names that this binary does not
@@ -121,6 +123,8 @@ func Run(env Env) int {
 		return emit(env.Stdout, programRun(env, args[1:]))
 	case "dispatch":
 		return emit(env.Stdout, dispatchCommand(env, args[1:]))
+	case "service":
+		return emit(env.Stdout, serviceCommand(env, args[1:]))
 	case "version", "--version":
 		return emit(env.Stdout, versionResult())
 	case "ticket":
@@ -138,6 +142,9 @@ func Run(env Env) int {
 			return emit(env.Stdout, ticketShow(env, args[2:], false))
 		case "export":
 			return emit(env.Stdout, ticketExport(env, args[2:]))
+		}
+		if args[1] == "note" {
+			return emit(env.Stdout, noteCommand(env, args[2:]))
 		}
 		if _, ok := mutationVerbs[args[1]]; ok {
 			return emit(env.Stdout, mutateCommand(env, args[1], args[2:]))
@@ -343,6 +350,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID",
 		"corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR]",
 		"corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID",
+		"corvint-tasks service install|status|uninstall|stop|resume --program ID [...]   (per-user launchd/systemd --user dispatcher service)",
 		"corvint-tasks version",
 	}))
 	o.Set("note", wire.String("every read takes no lock and writes nothing, and reports journal facts it cannot observe as NOT_OBSERVED; `init`, `policy update` and the fourteen `ticket` mutations commit through the §5.2 writer (TCP-02/TCP-02b); new external-agent queue setup: docs/TASKS-EXTERNAL-AGENTS.md; ticket blockers reports static intent checks, while plan preview reports claim selection; releaseReasonCodes lists every accepted --reason value"))
@@ -999,6 +1007,9 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 				return e
 			}
 			attempts = in.Attempts
+		}
+		if includeRecord {
+			val.Obj.Set("operatorNote", operatorNoteShowValue(rc, v.Record))
 		}
 		val.Obj.Set("retries", retryObservation(rc, attempts, v.Record))
 		val.Obj.Set("claimabilityScope", wire.String("RECORDED_DEFAULT_EXTERNAL_AGENT_PLAN"))

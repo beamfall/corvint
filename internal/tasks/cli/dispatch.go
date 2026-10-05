@@ -194,7 +194,13 @@ func dispatchAux(env Env, verb string, args []string) *wire.Result {
 	if e != nil {
 		return errorResult(cmd, e)
 	}
-	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{dispatchStatusValue(c, dir, l, events, time.Now())}}
+	status := dispatchStatusValue(c, dir, l, events, time.Now())
+	// SERVICE500-008: additive and present only when this program's
+	// installed user service binds this dispatcher state root.
+	if svc, ok := serviceHost().DispatchService(values["--program"], c.StateDir); ok {
+		status.Obj.Set("service", wire.ObjectValue(svc))
+	}
+	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{status}}
 }
 
 func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, events []dispatch.Event, now time.Time) wire.Value {

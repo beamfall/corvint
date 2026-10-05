@@ -886,6 +886,10 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 	launches, held := roster(d.Config, obs, busy, skip, tierOf, budget)
 	d.recordHeld(obs, held)
 	for _, a := range launches {
+		// A cancelled dispatcher (service stop) launches nothing further.
+		if ctx.Err() != nil {
+			return
+		}
 		role := d.role(a.Role)
 		host := d.Config.Hosts[role.Host]
 		model := role.ModelAt(a.Tier)
