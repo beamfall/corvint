@@ -562,7 +562,7 @@ original sources, retained observations and human documentation require no migra
 
 | Requirements | Implementation boundary | Required evidence |
 | --- | --- | --- |
-| DCP-V1-001..011, DCP-V1-018 | `internal/doccorpus`, immutable `internal/contextindex` adapter | Determinism, input closure, anchor/state/receipt/staleness hostile fixtures |
+| DCP-V1-001..011, DCP-V1-018 | `internal/doccorpus`, immutable `internal/contextindex` adapter | Determinism, input closure, anchor/state/receipt/staleness hostile fixtures; `TestLoadInputRefusesOverBoundBlobBeforeBody` (a bound+1 Git blob is refused from its header) |
 | DCP-V1-012..015 | `cmd/corvint`, corpus projection API | CLI and native parity, CEM base/provenance and exact observation joins |
 | DCP-V1-016 | `internal/mcp/corpusbridge`, `cmd/corvint-corpus-mcp` | Capability gating, transport parity and hostile text |
 | DCP-V1-017 | Corpus render and maintenance API | Human byte/permission preservation, malformed/stale/tampered refusal |

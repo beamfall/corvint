@@ -8,7 +8,7 @@ import (
 // DeltaCommitMessage returns only the verified bounded commit's message bytes.
 // Callers must project opaque keys and must never emit this untrusted prose.
 func (r *Repository) DeltaCommitMessage(ctx context.Context, oid string) ([]byte, error) {
-	body, err := r.boundedObject(ctx, oid, "commit", 1<<20)
+	body, err := r.boundedObject(ctx, oid, "commit", 1<<20, nil)
 	if err != nil {
 		return nil, err
 	}
