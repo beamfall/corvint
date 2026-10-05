@@ -257,7 +257,8 @@ func (f *claudeFixture) program(t *testing.T, id string) snapshot.Program {
 // TestCALV0074_AdmissionRunsLaunchCheck proves admission refuses, before any
 // record, claim or lease, a pinned runtime that launch would refuse (a
 // symlink or a file without an execute bit), and that a launch refusal after
-// admission settles the dispatched stage as NO_EXEC instead of leaving it.
+// admission settles the dispatched stage as NO_EXEC and cancels the attempt,
+// leaving no live claim or reservation.
 func TestCALV0074_AdmissionRunsLaunchCheck(t *testing.T) {
 	ctx := context.Background()
 	for _, tc := range []struct {
@@ -320,18 +321,31 @@ func TestCALV0074_AdmissionRunsLaunchCheck(t *testing.T) {
 		if p.Phase != "FINISHED" || p.ResultClass != "NO_EXEC" || !p.OwnerReleased || p.Quiescence != "PROVED" {
 			t.Fatalf("program left %s class %s released %v quiescence %s", p.Phase, p.ResultClass, p.OwnerReleased, p.Quiescence)
 		}
-		if a == nil || a.Supervision == nil || a.Supervision.Worker {
-			t.Fatalf("attempt left with a worker: %+v", a)
+		if a == nil || a.Supervision == nil || a.Supervision.Worker || a.Phase != "CANCELLED" {
+			t.Fatalf("attempt not released: %+v", a)
+		}
+		// No live claim or reservation remains: with the pinned mode
+		// restored, another program claims the same ticket.
+		if err = os.Chmod(f.config.Executable, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = store.OpenWorkflow(ctx, f.s.repo, operator(), "next", self, f.config, f.ticketID); err != nil {
+			t.Fatalf("reclaim after launch refusal: %v", err)
+		}
+		if next := f.program(t, "next"); next.CurrentAttempt != a.AttemptID || next.CurrentGeneration == string(a.Generation) {
+			t.Fatalf("ticket not reclaimed: %+v", next)
 		}
 	})
 }
 
-// TestCALV0074_HostSwitchAndRollback proves the documented rollback: programs
-// are cancelled with their original config and pins before the policy host
-// changes; afterwards an existing program never reassigns, claims or
-// launches under the old host, a live attempt keeps bounded cancel
-// access, the old config cannot be edited in place, and a new
-// program under the new host admits and claims.
+// TestCALV0074_HostSwitchAndRollback proves the documented rollback with
+// distinct Claude Code and Codex executables. Every program is cancelled, a
+// drained one included, with its original config and pins before the policy
+// host and runtime pin change; afterwards an original config is refused
+// before any mutation, the old config cannot be edited in place, and a new
+// Codex program claims the released tickets. A program that was only drained
+// keeps its claim and cannot be reopened under the Codex pin; restoring the
+// Claude Code pin recovers bounded cancel access without a stage launch.
 func TestCALV0074_HostSwitchAndRollback(t *testing.T) {
 	ctx := context.Background()
 	f := newClaudeFixture(t, supervisor.HostClaudeCode)
@@ -339,14 +353,16 @@ func TestCALV0074_HostSwitchAndRollback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	second := createPayload("claude-second")
-	effects, _ := second.Obj.Get("effects")
-	effects.Obj.Set("touchPaths", wire.Strings([]string{"second.txt"}))
-	if r := mutate(t, f.s.repo, envelope("create-second", "CREATE", "", "", second)); r.Outcome.Outcome != mutation.OutcomeCompleted {
-		t.Fatalf("create %+v", r)
+	for _, name := range []string{"second", "third"} {
+		payload := createPayload("claude-" + name)
+		effects, _ := payload.Obj.Get("effects")
+		effects.Obj.Set("touchPaths", wire.Strings([]string{name + ".txt"}))
+		if r := mutate(t, f.s.repo, envelope("create-"+name, "CREATE", "", "", payload)); r.Outcome.Outcome != mutation.OutcomeCompleted {
+			t.Fatalf("create %+v", r)
+		}
 	}
 	waiting := map[string]*store.Workflow{}
-	for _, id := range []string{"done", "late"} {
+	for _, id := range []string{"done", "late", "stranded"} {
 		w, err := store.OpenWorkflow(ctx, f.s.repo, operator(), id, self, f.config, "")
 		if err != nil {
 			t.Fatalf("open %s: %v", id, err)
@@ -359,38 +375,62 @@ func TestCALV0074_HostSwitchAndRollback(t *testing.T) {
 	if _, err = store.OpenWorkflow(ctx, f.s.repo, operator(), "idle", self, f.config, ""); !errors.Is(err, store.ErrProgramIdle) {
 		t.Fatalf("idle open: %v", err)
 	}
-	// Rollback step 1: cancel with the original config and pins in force.
+	// Rollback step 1: with the claude-code policy and its pin in force,
+	// cancel every program; a drained program is cancelled after its drain.
 	if err = waiting["done"].Cancel(); err != nil {
 		t.Fatalf("cancel before switch: %v", err)
 	}
-	third := createPayload("claude-third")
-	if r := mutate(t, f.s.repo, envelope("create-third", "CREATE", "", "", third)); r.Outcome.Outcome != mutation.OutcomeCompleted {
-		t.Fatalf("create %+v", r)
+	if err = waiting["late"].Drain(); err != nil {
+		t.Fatalf("drain before switch: %v", err)
 	}
-	// Step 2: switch the policy host back to Codex (absent).
-	f.setPolicy(t, f.config.Executable, "")
+	if err = waiting["late"].Cancel(); err != nil {
+		t.Fatalf("cancel after drain: %v", err)
+	}
+	// The step this test leaves out: "stranded" is drained, not cancelled.
+	if err = waiting["stranded"].Drain(); err != nil {
+		t.Fatalf("drain stranded: %v", err)
+	}
+	stranded := waiting["stranded"].Attempt()
 
-	for _, id := range []string{"idle", "done"} {
+	// Step 2: remove the policy host and pin a distinct Codex runtime.
+	codexExe := filepath.Join(f.scripts, "codex")
+	codexRaw := multiScript(t, codexExe, "#!/bin/sh\ncat >/dev/null\nexit 1\n")
+	codex := f.config
+	codex.Host = ""
+	codex.Executable = codexExe
+	codex.ExecutableSHA256 = supervisor.Digest(codexRaw)
+	f.setPolicy(t, codexExe, "")
+
+	for _, id := range []string{"idle", "done", "late", "stranded"} {
 		before := f.inventory(t)
 		_, err = store.OpenWorkflow(ctx, f.s.repo, operator(), id, self, f.config, "")
-		if wire.CodeOf(err) != wire.CodeUnsupported {
-			t.Fatalf("reopen %s: want UNSUPPORTED, got %s %v", id, wire.CodeOf(err), err)
+		if wire.CodeOf(err) != wire.CodeCapabilityUnavailable {
+			t.Fatalf("reopen %s under the Codex pin: want CAPABILITY_UNAVAILABLE, got %s %v", id, wire.CodeOf(err), err)
 		}
 		if f.inventory(t) != before {
 			t.Fatalf("reopen %s changed the program or attempt inventory", id)
 		}
 	}
-	codex := f.config
-	codex.Host = ""
 	if _, err = store.OpenWorkflow(ctx, f.s.repo, operator(), "done", self, codex, ""); err == nil || !strings.Contains(err.Error(), "program config differs") {
 		t.Fatalf("edited config: %v", err)
 	}
 
-	// A live attempt left behind keeps bounded cancel access but
-	// never launches under the old host.
-	w, err := store.OpenWorkflow(ctx, f.s.repo, operator(), "late", self, f.config, "")
+	// Step 3: a new Codex program claims a released ticket; the drained
+	// program's ticket is still claimed.
+	cw, err := store.OpenWorkflow(ctx, f.s.repo, operator(), "codex", self, codex, "")
 	if err != nil {
-		t.Fatalf("reopen live: %v", err)
+		t.Fatalf("new codex program: %v", err)
+	}
+	if a := cw.Attempt(); a == nil || a.TicketID == stranded.TicketID {
+		t.Fatalf("new codex program claimed %+v", a)
+	}
+
+	// Recovery of the stranded program: re-pin its Claude Code runtime
+	// (host still Codex); its live attempt reopens for cancel only.
+	f.setPolicy(t, f.config.Executable, "")
+	w, err := store.OpenWorkflow(ctx, f.s.repo, operator(), "stranded", self, f.config, "")
+	if err != nil {
+		t.Fatalf("reopen stranded: %v", err)
 	}
 	before := f.inventory(t)
 	if _, err = w.RunRole(ctx, "implementer", ""); wire.CodeOf(err) != wire.CodeUnsupported {
@@ -400,14 +440,39 @@ func TestCALV0074_HostSwitchAndRollback(t *testing.T) {
 		t.Fatal("refused stage changed the program or attempt inventory")
 	}
 	if err = w.Cancel(); err != nil {
-		t.Fatalf("cancel after switch: %v", err)
+		t.Fatalf("cancel stranded: %v", err)
 	}
+	if a := w.Attempt(); a == nil || a.Phase != "CANCELLED" {
+		t.Fatalf("stranded attempt %+v", a)
+	}
+}
 
-	// Step 3: a new program under the new host admits and claims.
-	if _, err = store.OpenWorkflow(ctx, f.s.repo, operator(), "codex", self, codex, ""); err != nil {
-		t.Fatalf("new codex program: %v", err)
+// TestCALV0074_SpawnedFailureIsNotNoExec proves a failure after the lane
+// leader is spawned is never settled as NO_EXEC, even when Run returns an
+// empty outcome class: a leader whose boot identity is forged is refused
+// after the spawn, its output stays open past the drain, and the stage keeps
+// the unproved cleanup (BLOCKED_RECOVERY) instead of a clean release.
+func TestCALV0074_SpawnedFailureIsNotNoExec(t *testing.T) {
+	ctx := context.Background()
+	f := newClaudeFixture(t, supervisor.HostClaudeCode)
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
 	}
-	if p := f.program(t, "codex"); p.CurrentAttempt == "" {
-		t.Fatal("new codex program claimed nothing")
+	w, err := store.OpenWorkflow(ctx, f.s.repo, operator(), "program", self, f.config, f.ticketID)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	t.Setenv("CORVINT_TEST_LEADER_FAULT", "identity")
+	a, err := w.RunRole(ctx, "implementer", "")
+	if err == nil || wire.CodeOf(err) == wire.CodeCapabilityUnavailable {
+		t.Fatalf("spawned failure: want a non-launch-refusal error, got %s %v", wire.CodeOf(err), err)
+	}
+	p := f.program(t, "program")
+	if p.Phase != "BLOCKED_RECOVERY" || p.ResultClass == "NO_EXEC" || p.OwnerReleased || p.LeaderPID <= 0 {
+		t.Fatalf("spawned failure settled as released: phase %s class %q quiescence %s released %v leader %d", p.Phase, p.ResultClass, p.Quiescence, p.OwnerReleased, p.LeaderPID)
+	}
+	if a == nil || a.Phase == "CANCELLED" || a.Phase == "WAITING" || a.Quiescence == "PROVED" {
+		t.Fatalf("attempt released despite unproved cleanup: %+v", a)
 	}
 }

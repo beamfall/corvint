@@ -500,14 +500,20 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 	out, runErr := supervisor.Run(deadline, w.self, dir, capsule, journal)
 	close(watcherStop)
 	<-watcherDone
-	if runErr != nil && out.Class == "" {
-		// Run refused before its own NO_EXEC boundary (capsule validation or
-		// publication), so no lane leader exists: settle the dispatched stage
-		// as NO_EXEC instead of leaving it SPAWNING.
+	var refused *supervisor.PrelaunchError
+	if errors.As(runErr, &refused) {
+		// Run refused before forking the lane leader (capsule validation or
+		// publication), so no host process exists. Settle the dispatched
+		// stage as NO_EXEC and cancel the attempt, which releases its claim
+		// and reservation. Any other error, even with an empty class, may
+		// follow a spawn and keeps the drained outcome below (CAL-V0-074).
 		if e := w.noExec("launch refused"); e != nil {
 			return out, e
 		}
-		return supervisor.Outcome{Class: "NO_EXEC", Clean: true}, wire.Errorf(wire.CodeCapabilityUnavailable, "runtime", "launch refused: %v", runErr)
+		if e := w.step("CANCEL", transaction.SupervisorChange{}); e != nil {
+			return out, e
+		}
+		return supervisor.Outcome{Class: "NO_EXEC", Clean: true}, wire.Errorf(wire.CodeCapabilityUnavailable, "runtime", "%v", runErr)
 	}
 	if !w.attempt.Supervision.Worker {
 		if w.program.Phase == "SPAWNING" {

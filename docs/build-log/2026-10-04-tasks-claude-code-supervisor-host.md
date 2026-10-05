@@ -125,6 +125,56 @@ before it was fixed:
     `TestCALV0074_CapsuleHost`.
   - Each new test failed with its fix disabled.
 
-Rollback: cancel or drain every `claude-code` program with its original config while the policy pin
-is in force, then remove `host` from the policy, then start new programs from configs without
-`host`. Codex bytes are unchanged.
+Rollback: cancel every `claude-code` program, drained ones included, with its original config
+while the policy pin is in force, then remove `host` from the policy, then start new programs from
+configs without `host`. Codex bytes are unchanged.
+
+### Review round 2
+
+The Codex re-review of 36627d0f returned CHANGES_REQUIRED with six findings. Each is fixed in an
+additive commit.
+
+- P1, check-to-exec race. The lane leader validated the pinned path and then executed it by path
+  after the acknowledgment, so a replacement in between ran unchecked bytes.
+  - The fix: the check opens the path once with `O_NOFOLLOW` and takes type, mode, size (at most
+    256 MiB) and bytes from that descriptor. The leader runs the path in place only when the
+    canonical path matches the descriptor's device and inode and the file and every ancestor are
+    root-owned with no group or other write. Otherwise it writes the verified bytes to a private
+    0500 copy in the effect directory, runs that copy, and removes it when the host exits.
+  - Rejected alternatives: executing through `/dev/fd/N` is refused "permission denied" on this
+    macOS host, and always copying fails because macOS launch constraints SIGKILL (exit 137) a
+    copied platform binary such as `/bin/sh`. Copies of `claude.exe` 2.1.267 and the vendored Codex
+    native binary 0.153.2 ran `--version` from a copy.
+  - Limit: a runtime that loads files relative to its own path, such as Codex's `codex.js`
+    wrapper, runs without them from the copy. Pin a self-contained binary. The copy costs one
+    write of the runtime per unprotected stage launch.
+  - Witness: `TestCALV0074_RuntimeReplacedAtAck` replaces the runtime in place and by rename at
+    the `RUNNING` journal write, for both hosts, and the original bytes run.
+- P1, empty class is not proof of no spawn. Round 1 settled `NO_EXEC` whenever the run returned an
+  error with no outcome class, which also matched failures after the leader forked, such as a boot
+  identity mismatch or a refused `RUNNING` journal write.
+  - The fix: `supervisor.Run` returns `PrelaunchError` only before the fork, and only that error
+    settles `NO_EXEC`. Every other error keeps the drain result, so an unproved drain stays
+    `BLOCKED_RECOVERY`.
+  - Witnesses: `TestCALV0074_PrelaunchErrorOnlyBeforeSpawn`, and
+    `TestCALV0074_SpawnedFailureIsNotNoExec`, in which a test leader forges its boot identity while
+    a session child holds output.
+- P2, `NO_EXEC` kept the claim. The settled attempt stayed `WAITING` with its lease and
+  reservation. The fix: the stage then applies `CANCEL`, so the attempt is `CANCELLED` and the
+  ticket can be reclaimed, under the same attempt ID with a new generation.
+- P2, case aliases. `encoding/json` matches field names case-insensitively, including the Kelvin
+  sign, so `IS_ERROR` could override `is_error` without repeating a member. The fix: the result and
+  handoff objects refuse any member that case-folds to a read name but is not it. Escaped
+  spellings are covered.
+- P2, duplicate handoff kept session and usage. The fix: the result, session and usage readers
+  share one check over the result object and a JSON handoff, and the test exemption is removed.
+- P2, rollback stranded claims. A drained program keeps a `WAITING` attempt that holds its claim,
+  and once the Codex runtime pin replaces the Claude Code one its original config is refused
+  `CAPABILITY_UNAVAILABLE`, so it can no longer be cancelled. The fix: rollback step 1 now requires
+  cancel, drained programs included. A missed program is recovered by re-pinning its Claude Code
+  runtime, then cancelling it, then restoring the Codex pin.
+  - Witness: `TestCALV0074_HostSwitchAndRollback` now uses distinct Claude Code and Codex runtimes,
+    and covers drain-then-cancel, a stranded drained program, and its recovery.
+
+Not changed: the earlier `NO_EXEC` paths for a refused stage admission, a failed preparation and a
+failed `cmd.Start` still settle to `WAITING` without cancel. They predate this slice.

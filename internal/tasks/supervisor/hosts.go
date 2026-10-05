@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 )
 
 // Supervised host names (CAL-V0-074). A capsule, config or policy without a
@@ -45,11 +46,20 @@ type claudeResult struct {
 	Usage     map[string]json.RawMessage `json:"usage"`
 }
 
+// claudeMembers and handoffMembers are the member names the profile reads
+// from the result object and from the handoff it carries.
+var (
+	claudeMembers  = []string{"type", "subtype", "is_error", "result", "session_id", "usage"}
+	handoffMembers = []string{"accepted", "claims", "question", "kind", "summary", "nextAction"}
+)
+
 // readClaudeResult admits exactly one JSON object, optionally followed by
-// whitespace.
+// whitespace. Every reader of the vocabulary (result, session and usage)
+// shares it, so a repeated or aliased member in the object or in a JSON
+// handoff leaves all three unobserved (CAL-V0-075).
 func readClaudeResult(raw []byte) (claudeResult, error) {
 	var r claudeResult
-	if e := uniqueMembers(raw); e != nil {
+	if e := exactMembers(raw, claudeMembers); e != nil {
 		return r, e
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))
@@ -61,6 +71,13 @@ func readClaudeResult(raw []byte) (claudeResult, error) {
 	}
 	if r.Type != "result" {
 		return r, fmt.Errorf("unqualified result type %q", r.Type)
+	}
+	// A result text that is JSON is a handoff and obeys the same member
+	// rule; a prose result (for example an error report) is not one.
+	if r.Result != nil && json.Valid([]byte(*r.Result)) {
+		if e := exactMembers([]byte(*r.Result), handoffMembers); e != nil {
+			return r, e
+		}
 	}
 	return r, nil
 }
@@ -82,9 +99,6 @@ func DecodeClaudeResult(raw []byte) (string, HostResult, error) {
 	}
 	if r.Result == nil || *r.Result == "" {
 		return r.SessionID, result, fmt.Errorf("incomplete host turn")
-	}
-	if e := uniqueMembers([]byte(*r.Result)); e != nil {
-		return r.SessionID, result, e
 	}
 	if e := decode([]byte(*r.Result), &result); e != nil {
 		return r.SessionID, result, e
@@ -141,6 +155,29 @@ func claudeCounter(v json.RawMessage) (uint64, bool) {
 		return 0, false
 	}
 	return n, true
+}
+
+// exactMembers refuses a JSON text that repeats a member name in any object,
+// or whose top-level object carries a member that differs from one of names
+// only by case folding. encoding/json matches struct fields
+// case-insensitively, so "IS_ERROR" or "Usage" would otherwise reach the same
+// field as the exact name; with aliases refused the struct decode is exact.
+func exactMembers(raw []byte, names []string) error {
+	if e := uniqueMembers(raw); e != nil {
+		return e
+	}
+	var top map[string]json.RawMessage
+	if json.Unmarshal(raw, &top) != nil {
+		return nil // not an object: the strict decode refuses it
+	}
+	for k := range top {
+		for _, name := range names {
+			if k != name && strings.EqualFold(k, name) {
+				return fmt.Errorf("JSON member %q aliases %q", k, name)
+			}
+		}
+	}
+	return nil
 }
 
 // uniqueMembers refuses a JSON text in which any object repeats a member
