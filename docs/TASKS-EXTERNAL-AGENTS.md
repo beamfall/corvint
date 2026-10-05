@@ -171,8 +171,11 @@ live attempt are at least as many as the pool's free eligible members; the detai
 shows such a ticket `DEFERRED RESOURCE_COLLISION` with that ticket ID as blocker, and `claim --next`
 never picks it. A competitor whose blockers are unobservable never causes a refusal; `ticket show`
 reports `NOT_OBSERVED` claimability instead. Nothing is stored and there is no waitlist (V1-0785).
-Omit the key (or set `false`) for the old behavior. Before downgrading to a binary without
-CAL-V0-101, remove the key with `policy update`: an older binary refuses a policy that carries it.
+Remove the key (or set `false`) with `policy update` to disable the yield. Once any policy has
+carried the key, older binaries refuse the store even after it is removed, because the journal keeps
+the earlier policy records; roll back only with a compatible reader or a verified pre-change backup.
+A search for the byte string `"priorityAdmission"` in the policy record and `.git/taskman` (journal
+and `evidence/`) tells whether the key was ever written.
 
 To avoid a known member for a particular claim or preview, repeat the single-value
 `--exclude-member` flag:

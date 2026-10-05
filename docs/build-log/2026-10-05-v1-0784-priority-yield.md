@@ -70,6 +70,20 @@ only competitors that are claim-eligible at the moment of the claim; it reserves
 gap where a competitor is briefly blocked, unobservable or between attempts, and the plan shows only
 per-entry blockers, not a per-pool waitlist.
 
-Rollback: an older binary refuses a policy carrying `priorityAdmission` (even `false`) as `MALFORMED`
-through its closed pool decoder. Remove the key with `policy update` on the new binary, then revert
-the code. No store, journal, receipt or pool state depends on the flag.
+Rollback: disabling and downgrading are separate. Disabling is `policy update` on the new binary,
+removing the key or setting it to `false`. A downgrade is not: older binaries refuse the key (even
+`false`) as `MALFORMED`, and journal audit and replay decode every historical `intent/policy.json`
+post strictly (`internal/tasks/journal/records.go`), so an older binary still refuses the store,
+including `receipt audit`, after the key is removed. A downgrade needs a compatible reader, or a
+whole-store restore (intent and state together) from a backup taken before the key was first
+written, verified with `receipt audit` under the older binary, accepting that later transactions
+are lost. A byte search for `"priorityAdmission"` over the policy record and the state directory
+(journal receipts and `evidence/`) shows whether the key was ever written. Otherwise no store,
+journal, receipt or pool state depends on the flag.
+
+### Review round 1
+
+Codex r1 (662051a0..2c8f30eb) returned CHANGES_REQUIRED with one P2: the first rollback text
+(remove the key, then downgrade) left the store unreadable by an older binary, because journal
+replay validates every historical policy post with the strict decoder. The rollback in the spec,
+the operator guide and this entry now separates disabling from downgrading, following V1-0787.

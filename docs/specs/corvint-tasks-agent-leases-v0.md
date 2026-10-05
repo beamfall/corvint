@@ -1423,12 +1423,28 @@ operator confirmation, as for any other failed re-claim; a non-boolean value ref
 to the pre-change transcript digest; `false` equal modulo policy identity),
 `TestCALV0101_PlanClaimAndClaimNextAgree` (400-case property test), and
 `TestCALV0101_UnobservedCompetitorIsNotObserved` (`internal/tasks/transaction`);
-`TestCALV0101_PriorityYieldThroughTheCLI` (`internal/tasks/cli`). Rollback: a binary older than
-this amendment decodes the closed pool object and refuses a policy that carries
-`priorityAdmission`, even `false`, as `MALFORMED`, so every command that reads the policy fails
-until the key is gone. Remove the key with `policy update` on the new binary first, then downgrade.
-No store, journal, receipt or pool state depends on the flag; refusals already recorded keep their
-existing `RESOURCE_COLLISION` code.
+`TestCALV0101_PriorityYieldThroughTheCLI` (`internal/tasks/cli`).
+
+Rollback: disabling admission and downgrading are different operations. To disable priority yield,
+remove the key or set it to `false` with `policy update` on this binary or a later one; admission
+returns to the pre-amendment rule at the next read or claim. Once any policy has carried
+`priorityAdmission`, removing it is not a downgrade. Older binaries decode the policy strictly with
+a closed pool key set and refuse the key, even `false`, as `MALFORMED`. `policy update` changes
+only the current record. The journal keeps every earlier policy afterimage, and journal audit and
+replay validate each historical post, decoding every `intent/policy.json` record through the strict
+policy decoder (`internal/tasks/journal/records.go`). An older binary therefore still refuses the
+store, including `receipt audit`, after the key is removed. Exports that carry the key are refused
+the same way. A downgrade takes one of two routes. Keep a compatible reader: this binary or a later
+one that accepts the key; removing the key then only stops the yield. Or restore the whole store,
+intent and state directory together, from a backup taken before the key was first written, verify
+it with `receipt audit` under the older binary before resuming, and accept that every later
+transaction is lost. To tell whether the key was ever written, search the store for the byte string
+`"priorityAdmission"`: the tracked policy record and the state directory
+(`<git common dir>/taskman`), including journal receipts, which hold inline post records, and
+`evidence/` blobs. Policy records are canonical JSON, so every record that ever carried the key
+contains the string. No match means older binaries still read the store. A policy never written with
+the key is byte-identical to a legacy policy, and no other store, journal, receipt or pool state
+depends on this amendment; refusals already recorded keep their existing `RESOURCE_COLLISION` code.
 
 ## Amendments to TCP-00
 
@@ -1437,7 +1453,9 @@ The experimental `RUN_OUTCOME` observation verb is amended in by `corvint-tasks-
 
 - A20: CAL-V0-101 adds the optional boolean `priorityAdmission` to a policy pool under the A15
   pattern. Omission keeps the existing canonical policy bytes and admission; a reader that predates
-  it refuses a policy that carries it. No attempt, reservation, pool-state or plan member changes.
+  it refuses a policy that carries it, and journal audit keeps refusing after the key is removed
+  because earlier policy afterimages remain. No attempt, reservation, pool-state or plan member
+  changes.
 
 - A19: CAL-V0-097 adds the optional top-level `resourceDeferred` member to `taskman-plan/0` and
   admits a declared pool ID as a `DEFERRED RESOURCE_COLLISION` blocker. Both appear only in a
