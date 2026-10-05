@@ -1004,21 +1004,25 @@ func (h Host) publishResume(root string, m *Manifest, observed Control, rs []con
 			return observed, nil, wire.Errorf(wire.CodeUncertainEffect, "/legacyStopFile", "legacy stop file %s presence is UNKNOWN", *legacy)
 		}
 	}
-	// Resume requires every helper tree proved retired and resets helper
-	// restart debt; a partial reset before the control write is completed
-	// by the retry, and a completed replay never reaches here.
-	reset, err := h.resumeHelpers(root, m)
-	if err != nil {
-		return observed, nil, err
-	}
 	next, err := resumeAfter(*c, request, hash)
 	if err != nil {
 		return observed, nil, wire.Errorf(wire.CodeLimitExceeded, "/control", "%v", err)
+	}
+	// Resume requires every helper tree proved retired and resets helper
+	// restart debt through its durable operation journal: a retry
+	// reconciles a partial reset, and a superseded or changed request is
+	// refused rather than erasing later debt.
+	rs, reset, journal, err := h.resumeHelpers(root, m, *c, rs, request, hash)
+	if err != nil {
+		return observed, nil, err
 	}
 	if err := h.writeControl(root, next); err != nil {
 		return observed, nil, err
 	}
 	if _, err := h.rememberRequest(root, rs, request, hash); err != nil {
+		return observed, nil, err
+	}
+	if err := h.removeExact(filepath.Join(root, resumeOperationFile), journal); err != nil {
 		return observed, nil, err
 	}
 	return next, reset, nil

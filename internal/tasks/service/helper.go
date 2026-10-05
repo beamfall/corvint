@@ -163,15 +163,23 @@ func (h Host) readHelperRecord(root, program, id string) (helperRecord, error) {
 }
 
 func writeHelperRecord(root string, r helperRecord) error {
-	r.Hold, r.LastExit = truncate(r.Hold, 512), truncate(r.LastExit, 256)
-	raw, err := json.Marshal(r)
+	raw, err := encodeHelperRecord(r)
 	if err != nil {
 		return err
 	}
-	if len(raw) > maxHelperRecord {
-		return wire.Errorf(wire.CodeLimitExceeded, "/helperRecord", "helper record exceeds %d bytes", maxHelperRecord)
-	}
 	return writeAtomic(root, helperFile(r.Helper, helperRecordSuffix), raw)
+}
+
+func encodeHelperRecord(r helperRecord) ([]byte, error) {
+	r.Hold, r.LastExit = truncate(r.Hold, 512), truncate(r.LastExit, 256)
+	raw, err := json.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) > maxHelperRecord {
+		return nil, wire.Errorf(wire.CodeLimitExceeded, "/helperRecord", "helper record exceeds %d bytes", maxHelperRecord)
+	}
+	return raw, nil
 }
 
 // helperIntentIDs lists the helper ids whose intent file exists in root,
@@ -835,38 +843,208 @@ func (w *helperWrapper) record(s *helperSettlement, boot string, now uint64, kno
 	return w.o.removeExact(intentPath, wire.Sum(raw))
 }
 
-// resumeHelpers is resume's helper reconciliation under F: it refuses
-// while any helper tree is not proved retired, then resets each declared
-// helper's restart debt and HOLD (a reconciled resume). It returns the
-// helpers whose records changed.
-func (h Host) resumeHelpers(root string, m *Manifest) ([]string, error) {
+// Resume operation journal (SERVICE500-003, SERVICE500-006). Before resume
+// resets any helper record it durably publishes, under F, the operation it
+// is about to apply: the request and its hash, the digest of the control it
+// observed (Before; After is resumeAfter(Before) and is never stored) and,
+// for every declared helper, the digests of its record before and after the
+// reset. A retry of the same request reconciles against that journal: each
+// record must still be its Before (it is then reset) or its After (already
+// reset), and anything else is newer debt, which the retry refuses rather
+// than erases. A retry whose control has changed since is refused. A
+// different resume request that finds an unfinished journal supersedes it:
+// it first records the superseded request in the control request ledger
+// under a marker hash, so a later retry of that request is a
+// REQUEST_ID_CONFLICT and never resets the debt charged after it. The
+// journal is removed after the control and ledger writes.
+const (
+	ResumeOperationName = "taskman-user-service-resume-operation/0"
+
+	resumeOperationFile = "resume-operation.json"
+	maxResumeOperation  = 8 << 10
+)
+
+type resumeHelperReset struct {
+	Helper string      `json:"helper"`
+	Before wire.Digest `json:"before"`
+	After  wire.Digest `json:"after"`
+}
+
+type resumeOperation struct {
+	Profile       string              `json:"profile"`
+	Program       string              `json:"program"`
+	RequestID     string              `json:"requestId"`
+	RequestSha256 wire.Digest         `json:"requestSha256"`
+	BeforeControl wire.Digest         `json:"beforeControl"`
+	At            int64               `json:"at"`
+	Helpers       []resumeHelperReset `json:"helpers"`
+}
+
+// supersededResume is the ledger hash that marks an unfinished resume as
+// superseded: it never equals the request's own hash.
+func supersededResume(op *resumeOperation) wire.Digest {
+	return wire.Sum([]byte("SUPERSEDED\n" + op.RequestID + "\n" + string(op.RequestSha256)))
+}
+
+// helperRecordDigest is the digest of a record's canonical encoding, with
+// the normalization readHelperRecord applies.
+func helperRecordDigest(r helperRecord) (wire.Digest, error) {
+	if r.Debt.Fences == nil {
+		r.Debt.Fences = map[string]string{}
+	}
+	raw, err := encodeHelperRecord(r)
+	if err != nil {
+		return "", err
+	}
+	return wire.Sum(raw), nil
+}
+
+// resumedHelper is the record a reconciled resume publishes: debt and HOLD
+// reset, tree RETIRED, stamped with the operation's time.
+func resumedHelper(rec helperRecord, at int64) (helperRecord, bool) {
+	next := rec
+	next.Debt, next.State, next.Hold = resetDebt(rec.Debt), "RETIRED", ""
+	if next.Debt.Fences == nil {
+		next.Debt.Fences = map[string]string{}
+	}
+	if reflect.DeepEqual(next, rec) {
+		return rec, false
+	}
+	next.At = at
+	return next, true
+}
+
+// readResumeOperation reads the resume journal: nil when verified absent.
+func (h Host) readResumeOperation(root, program string) (*resumeOperation, []byte, error) {
+	raw, err := h.readPrivate(filepath.Join(root, resumeOperationFile), maxResumeOperation)
+	if absent(err) {
+		return nil, nil, nil
+	}
+	if err != nil {
+		return nil, nil, wire.Errorf(wire.CodeUncertainEffect, "/"+resumeOperationFile, "resume operation journal is UNKNOWN: %v", err)
+	}
+	var op resumeOperation
+	if err := decodeStrict(raw, &op); err != nil || op.Profile != ResumeOperationName || op.Program != program || op.RequestID == "" || op.RequestSha256 == "" || op.BeforeControl == "" {
+		return nil, nil, wire.Errorf(wire.CodeUncertainEffect, "/"+resumeOperationFile, "resume operation journal is unreadable")
+	}
+	return &op, raw, nil
+}
+
+// resumeHelpers is resume's helper reconciliation under F. It refuses while
+// any helper tree is not proved retired, binds (or finds) this request's
+// durable operation and applies it, resetting each declared helper's
+// restart debt and HOLD (a reconciled resume). It returns the updated
+// request ledger, the helpers the operation resets and the journal's
+// digest, which the caller removes after publishing control.
+func (h Host) resumeHelpers(root string, m *Manifest, c Control, rs []controlRequest, request string, hash wire.Digest) ([]controlRequest, []string, wire.Digest, error) {
 	ids, err := h.helperIntentIDs(root)
 	if err != nil {
-		return nil, wire.Errorf(wire.CodeUncertainEffect, "/helpers", "helper tree state is UNKNOWN: %v", err)
+		return rs, nil, "", wire.Errorf(wire.CodeUncertainEffect, "/helpers", "helper tree state is UNKNOWN: %v", err)
 	}
 	if len(ids) > 0 {
-		return nil, wire.Errorf(wire.CodeUncertainEffect, "/helpers", "helper trees %s are not proved retired; resume waits until run-helper retires them or an operator verifies that no process remains and removes the intent", strings.Join(ids, ", "))
+		return rs, nil, "", wire.Errorf(wire.CodeUncertainEffect, "/helpers", "helper trees %s are not proved retired; resume waits until run-helper retires them or an operator verifies that no process remains and removes the intent", strings.Join(ids, ", "))
 	}
 	p, err := DecodeProfile(m.ProfileRaw)
 	if err != nil {
-		return nil, err
+		return rs, nil, "", err
 	}
-	reset := []string{}
+	rawControl, err := EncodeControl(c)
+	if err != nil {
+		return rs, nil, "", err
+	}
+	before := wire.Sum(rawControl)
+	op, raw, err := h.readResumeOperation(root, m.Program)
+	if err != nil {
+		return rs, nil, "", err
+	}
+	switch {
+	case op == nil:
+	case op.RequestID == request && op.RequestSha256 != hash:
+		return rs, nil, "", wire.Errorf(wire.CodeRequestIDConflict, "/requestId", "request id was already used for a different resume operation")
+	case op.RequestID == request && op.BeforeControl != before:
+		return rs, nil, "", wire.Errorf(wire.CodeResourceCollision, "/control", "resume request %s was interrupted and control has changed since; it is refused so later debt is kept; issue a new resume request", request)
+	case op.RequestID == request:
+		reset, err := h.applyResume(root, m.Program, p, op)
+		return rs, reset, wire.Sum(raw), err
+	default:
+		// Another request's journal: finished when the ledger binds its
+		// own hash, otherwise superseded (an existing marker is kept).
+		if _, ok := lookupRequest(rs, op.RequestID); !ok {
+			if rs, err = h.rememberRequest(root, rs, op.RequestID, supersededResume(op)); err != nil {
+				return rs, nil, "", err
+			}
+		}
+	}
+	next := &resumeOperation{Profile: ResumeOperationName, Program: m.Program, RequestID: request, RequestSha256: hash, BeforeControl: before, At: h.now().Unix(), Helpers: []resumeHelperReset{}}
 	for _, x := range p.Helpers {
 		rec, err := h.readHelperRecord(root, m.Program, x.ID)
 		if err != nil {
+			return rs, nil, "", err
+		}
+		d0, err := helperRecordDigest(rec)
+		if err != nil {
+			return rs, nil, "", err
+		}
+		post, _ := resumedHelper(rec, next.At)
+		d1, err := helperRecordDigest(post)
+		if err != nil {
+			return rs, nil, "", err
+		}
+		next.Helpers = append(next.Helpers, resumeHelperReset{Helper: x.ID, Before: d0, After: d1})
+	}
+	raw, err = json.Marshal(next)
+	if err != nil {
+		return rs, nil, "", err
+	}
+	if len(raw) > maxResumeOperation {
+		return rs, nil, "", wire.Errorf(wire.CodeLimitExceeded, "/resumeOperation", "resume operation exceeds %d bytes", maxResumeOperation)
+	}
+	if err := writeAtomic(root, resumeOperationFile, raw); err != nil {
+		return rs, nil, "", err
+	}
+	reset, err := h.applyResume(root, m.Program, p, next)
+	return rs, reset, wire.Sum(raw), err
+}
+
+// applyResume publishes op's resets: a record at its Before digest is
+// reset, one at its After digest is already reset, and any other record is
+// newer debt that the operation refuses to erase.
+func (h Host) applyResume(root, program string, p *Profile, op *resumeOperation) ([]string, error) {
+	if len(op.Helpers) != len(p.Helpers) {
+		return nil, wire.Errorf(wire.CodeResourceCollision, "/helpers", "resume operation %s does not bind the declared helpers", op.RequestID)
+	}
+	reset := []string{}
+	for i, x := range p.Helpers {
+		j := op.Helpers[i]
+		if j.Helper != x.ID {
+			return nil, wire.Errorf(wire.CodeResourceCollision, "/helpers", "resume operation %s does not bind the declared helpers", op.RequestID)
+		}
+		rec, err := h.readHelperRecord(root, program, x.ID)
+		if err != nil {
 			return nil, err
 		}
-		next := rec
-		next.Debt, next.State, next.Hold = resetDebt(rec.Debt), "RETIRED", ""
-		if reflect.DeepEqual(next, rec) {
-			continue
-		}
-		next.At = h.now().Unix()
-		if err := writeHelperRecord(root, next); err != nil {
+		d, err := helperRecordDigest(rec)
+		if err != nil {
 			return nil, err
 		}
-		reset = append(reset, x.ID)
+		switch d {
+		case j.After:
+		case j.Before:
+			post, changed := resumedHelper(rec, op.At)
+			if d1, err := helperRecordDigest(post); err != nil || d1 != j.After {
+				return nil, wire.Errorf(wire.CodeResourceCollision, "/helpers/"+x.ID, "helper %s's reset does not match resume operation %s", x.ID, op.RequestID)
+			}
+			if changed {
+				if err := writeHelperRecord(root, post); err != nil {
+					return nil, err
+				}
+			}
+		default:
+			return nil, wire.Errorf(wire.CodeResourceCollision, "/helpers/"+x.ID, "helper %s's record changed after resume operation %s was journaled; the newer debt is kept and the resume is refused; issue a new resume request", x.ID, op.RequestID)
+		}
+		if j.Before != j.After {
+			reset = append(reset, x.ID)
+		}
 	}
 	return reset, nil
 }

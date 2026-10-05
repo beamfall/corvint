@@ -855,3 +855,113 @@ func TestSERVICE500_HelperSettlementRetryKeepsResumedRecord(t *testing.T) {
 		t.Fatalf("a settlement retry overwrote the resumed record:\n%+v\n%+v", again, resumed)
 	}
 }
+
+// resumePartial applies request's helper resets under F and stops before
+// the control write: the state an interrupted or failed resume leaves.
+func (s *serviceHome) resumePartial(t *testing.T, request string) {
+	t.Helper()
+	root := s.root(t)
+	m, ident := s.manifest(t)
+	c := s.control(t)
+	rs, err := s.h.controlRequests(root, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unfence, err := s.h.fence(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unfence()
+	if _, _, _, err := s.h.resumeHelpers(root, m, *c, rs, request, wire.Sum([]byte(request+"\nRESUME\n"+string(ident)))); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func (s *serviceHome) chargeHelper(t *testing.T, failures uint8) {
+	t.Helper()
+	rec := s.helperRecord(t)
+	rec.Generation++
+	rec.Debt.Failures, rec.Debt.EligibleAfter, rec.LastExit = failures, 1000, "exit status 1"
+	if err := writeHelperRecord(s.root(t), rec); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A resume interrupted after its helper resets is reconciled by its own
+// retry, refused when debt or control changed after it, and superseded by
+// a later resume so that its retry never erases debt charged since.
+func TestSERVICE500_ResumeJournalNeverErasesLaterHelperDebt(t *testing.T) {
+	s, _ := newHelperHome(t)
+	if _, err := s.install(t, "install-1", false); err != nil {
+		t.Fatal(err)
+	}
+	root := s.root(t)
+	journal := filepath.Join(root, resumeOperationFile)
+	stop := func(request string) {
+		t.Helper()
+		if _, err := s.h.Stop("site", request, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stop("stop-1")
+	s.chargeHelper(t, 3)
+
+	// Same-request retry completes the partial reset.
+	before := *s.control(t)
+	s.resumePartial(t, "resume-a")
+	if rec := s.helperRecord(t); rec.Debt.Failures != 0 || *s.control(t) != before {
+		t.Fatalf("partial resume: record %+v control %+v", rec, *s.control(t))
+	}
+	if _, err := os.Stat(journal); err != nil {
+		t.Fatalf("partial resume left no journal: %v", err)
+	}
+	out, err := s.h.Resume("site", "resume-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v, _ := out.Get("helperDebtReset"); len(v.Arr) != 1 || v.Arr[0].Str != "web" || field(t, out, "desired") != "RUNNING" {
+		t.Fatalf("reconciled retry %s", wire.EncodeFile(wire.ObjectValue(out)))
+	}
+	if _, err := os.Stat(journal); !os.IsNotExist(err) {
+		t.Fatalf("completed resume kept its journal: %v", err)
+	}
+
+	// Debt charged after the journaled reset is kept and refuses the retry.
+	stop("stop-2")
+	s.chargeHelper(t, 2)
+	s.resumePartial(t, "resume-b")
+	s.chargeHelper(t, 4)
+	_, err = s.h.Resume("site", "resume-b")
+	codeIs(t, err, wire.CodeResourceCollision)
+	if rec := s.helperRecord(t); rec.Debt.Failures != 4 {
+		t.Fatalf("a refused retry changed debt: %+v", rec.Debt)
+	}
+
+	// A retry after control changed is refused.
+	s.chargeHelper(t, 1)
+	s.resumePartial(t, "resume-c")
+	stop("stop-3")
+	_, err = s.h.Resume("site", "resume-c")
+	codeIs(t, err, wire.CodeResourceCollision)
+
+	// A later resume supersedes the unfinished one; after new debt and a
+	// stop, the superseded retry is a conflict and erases nothing.
+	s.chargeHelper(t, 5)
+	s.resumePartial(t, "resume-d")
+	if _, err := s.h.Resume("site", "resume-e"); err != nil {
+		t.Fatal(err)
+	}
+	s.chargeHelper(t, 2)
+	stop("stop-4")
+	_, err = s.h.Resume("site", "resume-d")
+	codeIs(t, err, wire.CodeRequestIDConflict)
+	if rec := s.helperRecord(t); rec.Debt.Failures != 2 {
+		t.Fatalf("a superseded retry erased later debt: %+v", rec.Debt)
+	}
+	if out, err := s.h.Resume("site", "resume-e"); err != nil || field(t, out, "replayed") != "true" {
+		t.Fatalf("completed resume did not replay: %v", err)
+	}
+	if rec := s.helperRecord(t); rec.Debt.Failures != 2 {
+		t.Fatalf("a completed replay erased later debt: %+v", rec.Debt)
+	}
+}

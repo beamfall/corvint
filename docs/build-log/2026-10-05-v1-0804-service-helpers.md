@@ -159,7 +159,7 @@ repaired:
 All three witnesses failed with their fix removed.
 
 Codex round 3 confirmed the round-2 repairs and returned CHANGES_REQUIRED with three P2 findings. Two
-were repaired and one was declined:
+were repaired and the third was declined, then repaired after round 4:
 
 1. **Log writers follow parent symlinks (repaired).** `MkdirAll` and the basename-only no-follow
    open accepted a symlinked `logs/` or `logs/<unit>`. `pinLogDir` now creates both components
@@ -171,20 +171,32 @@ were repaired and one was declined:
    After a proved retirement, and at shutdown before the logs close, `settleDrains` waits at most
    2s for them. It then closes a pipe still held open; its unread bytes stay uncounted, a recorded
    limit. Witness: TestSERVICE500_HelperDrainsSettleBeforeFinalCounters.
-3. **Partial resume and a later retry (declined).** The finding: resume resets helper debt before
-   its control write, so a failed control write leaves an unremembered request R. A later retry of
-   R after new debt would reset that debt. This is declined with rationale:
-   - The partial reset is unobservable. It happens only over STOPPED or DRAINING with every helper
-     tree proved retired, and helpers spawn only under RUNNING, which this slice reaches only
-     through a resume (which resets again) or a replace restoring a RUNNING it suppressed.
-   - An unremembered request id is not a replay. It is a new resume of the current state, and that
-     state's defined effect is the same reset, exactly as under a fresh id. The request hash binds
-     the manifest identity, not the control revision; that is the existing main-control contract.
-   - Journalling R's pre and post debt before the reset would change the request-ledger wire
-     contract for every control verb. That belongs with main-controller debt, which stays
-     NOT_OBSERVED.
+3. **Partial resume and a later retry.** The finding: resume resets helper debt before its control
+   write, so a failed control write leaves an unremembered request R, and a retry of R after newer
+   debt would reset that debt. Round 3 declined it, arguing that an unremembered id is simply a new
+   resume of the current state. Codex round 4 rejected the decline: SERVICE500-003 requires resume
+   to retain its original pre/post operation, reconcile partial resets and never erase later
+   failure debt.
 
-   The spec now states the partial-reset behaviour.
+   Repaired. Under F, before any reset, resume durably writes `resume-operation.json`. It binds the
+   request and its hash, the digest of the control it observed, its timestamp, and, per declared
+   helper, the record digests before and after the reset. The journal is removed after the control
+   and ledger writes.
+   - A retry of the same request reconciles: each record must be at its Before digest (it is then
+     reset) or its After digest (already reset). Any other record is newer debt, and the retry is
+     refused with RESOURCE_COLLISION, keeping the debt.
+   - A retry whose control changed since the journal was written is refused with RESOURCE_COLLISION.
+   - A different resume that finds an unfinished journal (one whose request the ledger does not
+     bind) first records that request in the control ledger under a SUPERSEDED marker hash. A later
+     retry of it is then REQUEST_ID_CONFLICT and erases nothing.
+
+   Witness: TestSERVICE500_ResumeJournalNeverErasesLaterHelperDebt. It covers same-request
+   reconciliation, newer debt, changed control, and supersede followed by new debt, a stop and a
+   retry. Each of the three refusals failed its leg when removed.
+
+   Recorded limit: the superseded marker lives in the bounded ledger (the newest 256 requests). A
+   retry arriving after its eviction is treated as a new request, the existing ledger limit for
+   every control verb.
 
 ## Owner questions
 
@@ -196,6 +208,9 @@ were repaired and one was declined:
 4. **Import edge.** Is the decision 0397 two-file `internal/groupreap` edge acceptable as an agent
    decision?
 5. **Darwin helpers.** Should Darwin helpers stay UNSUPPORTED, or wait for a descendant proof?
+6. **Interrupted resume retries.** The fail-closed choice refuses a same-request retry once its
+   control or a helper record has changed since the journal was written. The operator must then
+   issue a new resume request. Should such a retry instead re-journal against the current state?
 
 ## Rollback
 
