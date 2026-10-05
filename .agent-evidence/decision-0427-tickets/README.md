@@ -14,3 +14,6 @@ done
 
 The payloads are canonical JSON as `ticket create --help` requires. Nothing here is a ticket until
 the native writer commits it.
+
+Created on 2026-10-05 as V1-0834..V1-0838 in payload order; `1-rc2-core-jobs` was retargeted
+from spf13/cobra to urfave/cli under decision 0432 before filing.
