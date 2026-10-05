@@ -38,6 +38,10 @@ type PoolSweepReport struct {
 // Response fault injection is private to package tests; it runs after the real writer.
 type sweepResponseKey struct{}
 
+// Request fault injection is private to package tests; it runs before the real
+// writer, so an injected error leaves nothing committed.
+type sweepRequestKey struct{}
+
 type sweepMember struct {
 	en     snapshot.PoolEntry
 	config intent.MemberConfig
@@ -57,6 +61,11 @@ func sweepWrite(ctx context.Context, repo *intent.Repository, actor mutation.Bin
 	if observe == nil {
 		observe = func(*journal.Result, *transaction.Input) (transaction.LeaseFacts, error) {
 			return transaction.LeaseFacts{Pool: f}, nil
+		}
+	}
+	if hook, ok := ctx.Value(sweepRequestKey{}).(func(LeaseChoice) error); ok {
+		if e := hook(c); e != nil {
+			return nil, e
 		}
 	}
 	report, _, e := administrativeWriteWith(WithClock(ctx, poolClock), repo, req, poolClock(), nil, observe)

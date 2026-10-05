@@ -26,3 +26,11 @@ func SetPoolPreparedFaultForTest(f func() error) func() {
 	poolPreparedFault = f
 	return func() { poolPreparedFault = prev }
 }
+
+// SetGateRecordFaultForTest fails GateRun after its gate program runs and
+// before the result is recorded, until the returned restore is called.
+func SetGateRecordFaultForTest(f func() error) func() {
+	old := gateRecordFault
+	gateRecordFault = f
+	return func() { gateRecordFault = old }
+}

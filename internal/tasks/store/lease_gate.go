@@ -23,6 +23,10 @@ import (
 // output pipe open through a descendant outside its process group.
 const gateWaitDelay = 5 * time.Second
 
+// gateRecordFault, when set by a package test, fails GateRun after the gate
+// program ran and before its result is recorded; it is nil in production.
+var gateRecordFault func() error
+
 // gateRun is one finished gate run: its encoded result and captured output.
 type gateRun struct{ record, output []byte }
 
@@ -70,6 +74,11 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 			return &Report{}, err
 		}
 		choice.gate = &run
+		if gateRecordFault != nil {
+			if err = gateRecordFault(); err != nil {
+				return &Report{}, err
+			}
+		}
 	}
 	now, err := wire.ParseTimestamp("recordedAt", clock().UTC().Format("2006-01-02T15:04:05Z"))
 	if err != nil {

@@ -1,6 +1,7 @@
 package wire
 
 import (
+	"errors"
 	"sort"
 	"strings"
 	"testing"
@@ -128,5 +129,23 @@ func TestCALV0078_EnvelopeRetryableMember(t *testing.T) {
 		if _, err := DecodeResult([]byte(bad)); CodeOf(err) != CodeMalformed {
 			t.Errorf("%s: DecodeResult = %v, want MALFORMED", name, err)
 		}
+	}
+}
+
+// TestCALV0078_WithoutRetryKeepsCode: the mark that carries a non-retryable
+// fact through an error keeps its code and text, leaves the original
+// unmarked, and passes other errors through unchanged.
+func TestCALV0078_WithoutRetryKeepsCode(t *testing.T) {
+	original := Errorf(CodeLockTimeout, "lock", "held")
+	marked := WithoutRetry(original)
+	if CodeOf(marked) != CodeLockTimeout || marked.Error() != original.Error() || !RetryForbidden(marked) {
+		t.Fatalf("marked %#v", marked)
+	}
+	if RetryForbidden(original) || original.NotRetryable {
+		t.Fatal("marking mutated the original")
+	}
+	plain := errors.New("plain")
+	if WithoutRetry(plain) != plain || RetryForbidden(plain) || WithoutRetry(nil) != nil || RetryForbidden(nil) {
+		t.Fatal("non-wire errors changed")
 	}
 }

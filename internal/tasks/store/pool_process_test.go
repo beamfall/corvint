@@ -285,6 +285,12 @@ func TestPSRCapturedOutputLimit(t *testing.T) {
 func PSRTestResponseFailure(ctx context.Context, hook func(LeaseChoice, *Report, error) error) context.Context {
 	return context.WithValue(ctx, sweepResponseKey{}, hook)
 }
+
+// PSRTestRequestFailure fails a sweep write before its writer runs, as
+// contention that commits nothing would.
+func PSRTestRequestFailure(ctx context.Context, hook func(LeaseChoice) error) context.Context {
+	return context.WithValue(ctx, sweepRequestKey{}, hook)
+}
 func PSRTestFirstCleanupProbe(t *testing.T, marker string) *int {
 	t.Helper()
 	original := poolProbe

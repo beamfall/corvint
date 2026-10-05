@@ -779,6 +779,12 @@ func (w *Workflow) RunRole(ctx context.Context, role, grant string) (*snapshot.A
 			choice := LeaseChoice{QueueID: w.queue.QueueID.Raw, RequestID: w.requestID(), Root: w.repo.PrimaryWorktree, Lease: transaction.LeaseRequest{Verb: transaction.LeaseGateRun, AttemptID: w.attempt.AttemptID, Generation: w.attempt.Generation, Gate: id}}
 			r, e := GateRun(ctx, w.repo, w.actor, choice, *w.attempt.WorktreePath, time.Now)
 			if e = transitionOK(r, e); e != nil {
+				// The gate ran and was not recorded: a repeated `run --role
+				// reviewer` skips this CHECKING attempt, so the error carries
+				// GateRun's non-retryable fact to the CLI (CAL-V0-078).
+				if r != nil && r.Unretryable {
+					e = wire.WithoutRetry(e)
+				}
 				return w.attempt, e
 			}
 		}

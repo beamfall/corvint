@@ -129,3 +129,23 @@ func ResultRetryable(outcome string, codes []string) (retryable, present bool) {
 	}
 	return true, true
 }
+
+// WithoutRetry returns err marked so that its result is never retryable
+// (CAL-V0-078), for a caller that carries the fact only through an error. A
+// *Error is copied with NotRetryable set; any other error already reports
+// MALFORMED, which is never retryable, and is returned unchanged.
+func WithoutRetry(err error) error {
+	e, ok := err.(*Error)
+	if !ok {
+		return err
+	}
+	marked := *e
+	marked.NotRetryable = true
+	return &marked
+}
+
+// RetryForbidden reports whether err carries the WithoutRetry mark.
+func RetryForbidden(err error) bool {
+	e, ok := err.(*Error)
+	return ok && e.NotRetryable
+}

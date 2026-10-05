@@ -71,3 +71,26 @@ func TestCALV0078_CommittedSweepIsNotRetryable(t *testing.T) {
 		}
 	}
 }
+
+// TestCALV0078_MarkedErrorIsNotRetryable: an error carrying the store's
+// non-retryable mark (a supervised reviewer's gate that ran but was not
+// recorded) reports retryable false through errorResult, which `program run`
+// uses; the same code unmarked stays retryable.
+func TestCALV0078_MarkedErrorIsNotRetryable(t *testing.T) {
+	contended := wire.Errorf(wire.CodeLockTimeout, "lock", "lock acquisition exceeded 30s")
+	for _, c := range []struct {
+		err  error
+		want string
+	}{
+		{wire.WithoutRetry(contended), `"retryable":false`},
+		{contended, `"retryable":true`},
+	} {
+		raw, err := errorResult([]string{"run"}, c.err).Encode()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := string(raw); !strings.Contains(got, `"codes":["LOCK_TIMEOUT"]`) || !strings.Contains(got, c.want) {
+			t.Fatalf("marked=%v: %s", wire.RetryForbidden(c.err), got)
+		}
+	}
+}

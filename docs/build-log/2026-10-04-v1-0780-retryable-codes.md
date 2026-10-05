@@ -43,6 +43,21 @@ V1-0756 and V1-0781 branches, so this change uses the first ID none of them clai
   (`SetPoolPreparedFaultForTest`) and `LOCK_TIMEOUT` on the first observation write; each checks
   the flag and that a same-request retry neither runs the program again nor finishes the step.
   Both fail with the fix removed.
+- A third review found the supervised path dropped that fact: `Workflow.RunRole` passed the
+  `GateRun` report through `transitionOK`, which returns only the error, so `run --role reviewer`
+  reported a recording `LOCK_TIMEOUT` retryable although a repeat skips the now-`CHECKING` attempt
+  and returns `OK` without finishing its gates. A `wire.Error.NotRetryable` mark (`WithoutRetry`)
+  now carries the fact through the error, and `errorResult` maps it to `NotRetryable`. A
+  single-repository fake-host program regression fails the gate record after the gate runs; it
+  fails with the mark removed.
+- The same review noted the sweep regression above simulates a lost response: its hook runs after
+  the real writer commits. It is renamed for that. A request hook before the writer adds two
+  pre-commit cases. Contention before the owner commits leaves no owner and no run, stays
+  retryable, and a same-request retry runs the phase and commits once. Contention before an
+  executed phase's observation commits leaves the observation absent but the owner committed, so
+  it stays not retryable: the same-request retry goes to `reconcileSweep`, stays pending and never
+  reruns the phase or commits that observation. The review expected that case to be retryable with
+  a retry committing once; the code and the regression show the retry cannot.
 - Review also found `CAL-V0-078` defined outside `## Requirements`, where the OCM reader
   (`internal/lrfrepo` `requirementsFromBlob`) does not enumerate it. The normative text now sits in
   a Requirements subsection; a scratch enumeration of the spec lists it. `CAL-V0-073` (V1-0751)
