@@ -16,6 +16,13 @@ owner acceptance 2026-10-05 recorded on V1-0545 (rev 17, receipts 2745 and 2746)
 - Blocked on: the merge replay set (#395), a hosted dry-run of that set, delta consumption by later steps and native completion.
 - Read next: Requirements; Trust boundary; Acceptance evidence.
 
+On 2026-10-05 the owner accepted the delivered scope of #398 and closed it (with #395 and parent #388)
+with the remaining qualification items recorded as `NOT_RUN`: the hosted dry-run of the replay set
+(blocked on #395, which has no historical replay set) and physical isolation `PCH-V0-011` and
+`PCH-V0-014`, which stay unqualified. Native ticket V1-0545 keeps tracking #398. This decision accepts
+no unrun witness and marks no `PCH-V0` witness as passed. See
+`docs/build-log/2026-10-05-postmerge-issues-accepted-not-run.md`.
+
 ## User and measurable job
 
 A CI maintainer adopts the post-merge workflow on their own host without designing the credential
