@@ -1009,27 +1009,38 @@ func (d *Dispatcher) escalated(r *Role, a Assignment, model string) *Event {
 }
 
 // loopEscalations raises the CAL-V0-102 typed blocked escalation once per
-// LOOP_DETECTED episode: when the dispatcher first observes a hold, including
-// in its baseline observation, or a hold whose newest counted generation
-// differs from the one it last recorded, or one still pending. The
-// persisted Seen state keeps a restart from raising an episode twice. An
-// episode whose event cannot be appended stays pending, so the next tick
-// or a restart raises it again (CAL-V0-103). The native escalation writer
+// LOOP_DETECTED episode (ticket, signal, acceptance revision and newest
+// counted generation): when the dispatcher first observes a hold, including
+// in its baseline observation, a new episode, or one still pending. The
+// persisted Seen state keeps a restart from raising an episode twice. It
+// skips the append when the readable log already holds the episode's
+// event, so a failure after the bytes landed, or a crash before the ledger
+// save, raises no duplicate. An episode whose event cannot be appended
+// stays pending, so the next tick or a restart raises it again
+// (CAL-V0-103). The native escalation writer
 // needs the worker's live claim, so this is a dispatcher event only.
 func (d *Dispatcher) loopEscalations(obs *Observation, old, now *Seen) {
 	for _, id := range slices.Sorted(maps.Keys(now.Loops)) {
 		h := now.Loops[id]
 		if old != nil {
-			if was, ok := old.Loops[id]; ok && !was.Pending && len(was.Generations) > 0 && was.Generations[len(was.Generations)-1] == h.Generations[len(h.Generations)-1] {
+			if was, ok := old.Loops[id]; ok && !was.Pending && sameLoopEpisode(was, h) {
 				continue
 			}
 		}
+		if loopEventRecorded(d.dir, id, h) {
+			continue
+		}
 		gens := strings.Join(h.Generations, ",")
-		if err := d.record(Event{Kind: "needs-owner", Ticket: id, Message: fmt.Sprintf("%s is held LOOP_DETECTED (%s) over generations %s; only the owner can acknowledge it with `corvint-tasks ticket reopen` (CAL-V0-103)", d.local(obs, id), h.Signal, gens), Detail: map[string]string{"kind": "blocked", "code": "LOOP_DETECTED", "signal": h.Signal, "generations": gens}}); err != nil {
+		if err := d.record(Event{Kind: "needs-owner", Ticket: id, Message: fmt.Sprintf("%s is held LOOP_DETECTED (%s) over generations %s; only the owner can acknowledge it with `corvint-tasks ticket reopen` (CAL-V0-103)", d.local(obs, id), h.Signal, gens), Detail: map[string]string{"kind": "blocked", "code": "LOOP_DETECTED", "signal": h.Signal, "acceptanceRevision": h.AcceptanceRevision, "generations": gens}}); err != nil {
 			h.Pending = true
 			now.Loops[id] = h
 		}
 	}
+}
+
+// sameLoopEpisode reports whether two recorded holds are one episode.
+func sameLoopEpisode(a, b LoopHold) bool {
+	return a.Signal == b.Signal && a.AcceptanceRevision == b.AcceptanceRevision && len(a.Generations) > 0 && len(b.Generations) > 0 && a.Generations[len(a.Generations)-1] == b.Generations[len(b.Generations)-1]
 }
 
 // diff emits state, claim, release and lane changes against the previous
@@ -1048,7 +1059,7 @@ func (d *Dispatcher) diff(obs *Observation) {
 			if now.Loops == nil {
 				now.Loops = map[string]LoopHold{}
 			}
-			now.Loops[t.ID] = LoopHold{Signal: t.Loop.Signal, Generations: append([]string(nil), t.Loop.Generations...)}
+			now.Loops[t.ID] = LoopHold{Signal: t.Loop.Signal, AcceptanceRevision: t.Loop.AcceptanceRevision, Generations: append([]string(nil), t.Loop.Generations...)}
 		}
 	}
 	for _, a := range obs.Attempts {

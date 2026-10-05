@@ -2675,15 +2675,22 @@ optional policy key, an optional prior-generation key and one closed detail code
   writer (CAL-V0-043), which bumps the acceptance revision and readmits the ticket with a fresh
   attempt. Reopen MUST admit a loop-held ticket as it admits a retry-exhausted one; a ticket that
   is neither still refuses `RETRY_BUDGET_NOT_EXHAUSTED`. The dispatcher MUST raise one typed #502
-  `needs-owner` event with detail `{kind: blocked, code: LOOP_DETECTED, signal, generations}` per
-  episode, an episode being the ticket, signal and newest counted generation, and persist the
-  episode in the optional dispatch-ledger member `seen.loops` so that a restart does not raise it
-  again; a cleared hold drops the member and a recurrence raises again. An episode whose event
-  cannot be appended to the event log MUST stay recorded with `pending: true` and be raised again on
-  the next tick or after a restart until the append succeeds. The ledger reader is closed whenever
+  `needs-owner` event with detail
+  `{kind: blocked, code: LOOP_DETECTED, signal, acceptanceRevision, generations}` per episode, an
+  episode being the ticket, signal, acceptance revision and newest counted generation, and persist
+  the episode in the optional dispatch-ledger member `seen.loops` so that a restart does not raise
+  it again; a cleared hold drops the member and a recurrence raises again. An episode whose event
+  append fails MUST stay recorded with `pending: true` and be raised again on the next tick or after
+  a restart until the append succeeds. Before raising an episode, the dispatcher MUST skip the
+  append and record the episode when the readable tail of the current or rotated event log already
+  holds that episode's event, so an append whose line landed before its error, or a crash between
+  the append and the ledger save, raises no duplicate. Every event append MUST first end a trailing
+  unterminated fragment, which a part-way failed append can leave, with a newline, so the appended
+  line parses; a well-formed log receives exactly the line. The ledger reader is closed whenever
   `seen.loops` is present, with or without progress members, and refuses an alias, a duplicate or
-  unknown member, a `null` map or hold, an unknown signal, a malformed or empty generation list, a
-  `pending` other than `true`, or a bad ticket key. A ledger without holds keeps its bytes.
+  unknown member, a `null` map or hold, an unknown signal, a malformed acceptance revision, a
+  malformed or empty generation list, a `pending` other than `true`, or a bad ticket key. A ledger
+  without holds keeps its bytes.
 
 Non-goals: a new acknowledgement verb or a lighter operator acknowledgement (reopen is reused);
 a native escalation record (the ESC-V0-010 writer opens a question only under a live claim, so the
@@ -2698,13 +2705,17 @@ earlier is detected only after enough newly recorded generations; a hand-off tha
 work outside the candidate tree, gates and reviews counts as no progress, and the owner's reopen is
 the release valve; reopen also restarts the retry budget through the fresh attempt; the dispatcher
 raises its event when it first observes a hold, including at its baseline observation after a
-start; a ledger save failure after an event leaves the episode unrecorded, so the event may repeat
-once; an unwritable event log keeps the episode pending, so the event is delayed, not lost; a malformed `loopEvidence` or `seen.loops` refuses as `MALFORMED` rather than being ignored.
+start; a ledger save failure or crash after an event leaves the episode unrecorded, and the
+duplicate is suppressed while the event stays in the readable log tail (the newest 1 MiB of the
+current and rotated logs), so it can repeat once only when that log is unreadable or the event has
+left the scanned tail; an unwritable event log keeps the episode pending, so the event is delayed,
+not lost; a part-way failed append leaves an unparseable fragment line, which the next append
+terminates and readers skip; a malformed `loopEvidence` or `seen.loops` refuses as `MALFORMED` rather than being ignored.
 
 | Requirement | Evidence |
 | --- | --- |
 | CAL-V0-102 | `TestCALV0102_PolicyLoopDetectionOptIn` (`internal/tasks/intent`); `TestCALV0102_PriorLoopEvidenceRoundTrip`, `TestCALV0102_LoopEvidenceOf` (`internal/tasks/snapshot`); `TestCALV0102_LoopHoldSignals`, `TestCALV0102_ClaimHonoursLoopHold`, `TestCALV0102_PolicyAbsentMatchesNMinusOne` (D8 digest pinned to the pre-change source), `TestCALV0102_NMinusOneScenarioOptsIn` (`internal/tasks/transaction`); `TestCALV0102_StoreLoopHoldAndOwnerReopen` (`internal/tasks/store`); `TestCALV0102_CLILoopHoldSurfaces`, `TestCALV0102_DispatchStatusShowsLoopDetected` (`internal/tasks/cli`); `TestCALV0102_DispatcherSkipsAndEscalatesLoopOnce` (`internal/tasks/dispatch`); `TestTMV0002_AS01_CommandResultEnvelope` code count 74 (`internal/tasks/wire`); `TestAgentLeasesSpecEnumeratesCALV0102` (`internal/lrfrepo`) |
-| CAL-V0-103 | `TestCALV0102_StoreLoopHoldAndOwnerReopen`, `TestCALV0103_ReopenRefusesUnheldTicket` (`internal/tasks/store`); `TestCALV0102_CLILoopHoldSurfaces` (`internal/tasks/cli`); `TestCALV0102_DispatcherSkipsAndEscalatesLoopOnce`, `TestCALV0102_LedgerLoopsAreClosedAndOptional`, `TestCALV0103_LedgerLoopsStrictWithoutProgress`, `TestCALV0103_LoopEscalationSurvivesEventAppendFailure` (`internal/tasks/dispatch`); `TestAgentLeasesSpecEnumeratesCALV0102` (`internal/lrfrepo`) |
+| CAL-V0-103 | `TestCALV0102_StoreLoopHoldAndOwnerReopen`, `TestCALV0103_ReopenRefusesUnheldTicket` (`internal/tasks/store`); `TestCALV0102_CLILoopHoldSurfaces` (`internal/tasks/cli`); `TestCALV0102_DispatcherSkipsAndEscalatesLoopOnce`, `TestCALV0102_LedgerLoopsAreClosedAndOptional`, `TestCALV0103_LedgerLoopsStrictWithoutProgress`, `TestCALV0103_LoopEscalationSurvivesEventAppendFailure`, `TestCALV0103_LoopEscalationSurvivesPartialEventWrite`, `TestCALV0103_LoopEscalationNotDuplicatedAfterCloseFailure`, `TestCALV0103_LoopEscalationNotDuplicatedAfterUnsavedLedger` (`internal/tasks/dispatch`); `TestAgentLeasesSpecEnumeratesCALV0102` (`internal/lrfrepo`) |
 
 Rollback: to disable detection, remove `loopDetection` with `policy update`; the hold disappears
 at the next read and claims stop recording `loopEvidence`. Downgrading is different. An older

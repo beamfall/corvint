@@ -48,12 +48,14 @@ type Ticket struct {
 	NextStage string
 }
 
-// LoopHold is a CAL-V0-102 hold as the dispatcher records it: the signal
-// and the counted generations, oldest first. The newest generation names
-// the episode.
+// LoopHold is a CAL-V0-102 hold as the dispatcher records it: the signal,
+// the acceptance revision it is bound to and the counted generations,
+// oldest first. The ticket, signal, acceptance revision and newest
+// generation name the episode.
 type LoopHold struct {
-	Signal      string   `json:"signal"`
-	Generations []string `json:"generations"`
+	Signal             string   `json:"signal"`
+	AcceptanceRevision string   `json:"acceptanceRevision"`
+	Generations        []string `json:"generations"`
 	// Pending marks, in the ledger only, an episode whose needs-owner event
 	// is not yet appended to the event log, so the next tick and a restart
 	// retry it (CAL-V0-103).

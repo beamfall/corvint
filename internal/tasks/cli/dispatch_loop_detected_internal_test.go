@@ -19,11 +19,11 @@ func TestCALV0102_DispatchStatusShowsLoopDetected(t *testing.T) {
 			t.Fatal("a ledger with no observation shows loop holds")
 		}
 		l.Seen = &dispatch.Seen{Tickets: map[string]string{}, Loops: map[string]dispatch.LoopHold{
-			"ticket:a:q:t2": {Signal: "ALTERNATING_RETURNS", Generations: []string{"4", "5", "6", "7", "8", "9"}},
-			"ticket:a:q:t1": {Signal: "NO_PROGRESS", Generations: []string{"1", "2", "3"}},
+			"ticket:a:q:t2": {Signal: "ALTERNATING_RETURNS", AcceptanceRevision: "2", Generations: []string{"4", "5", "6", "7", "8", "9"}},
+			"ticket:a:q:t1": {Signal: "NO_PROGRESS", AcceptanceRevision: "0", Generations: []string{"1", "2", "3"}},
 		}}
 		held, ok := statusField(t, dispatchStatusValue(&dispatch.Config{}, t.TempDir(), l, nil, now), "loopDetected")
-		if want := `[{"generations":["1","2","3"],"signal":"NO_PROGRESS","ticket":"ticket:a:q:t1"},{"generations":["4","5","6","7","8","9"],"signal":"ALTERNATING_RETURNS","ticket":"ticket:a:q:t2"}]`; !ok || string(wire.Encode(held)) != want {
+		if want := `[{"acceptanceRevision":"0","generations":["1","2","3"],"signal":"NO_PROGRESS","ticket":"ticket:a:q:t1"},{"acceptanceRevision":"2","generations":["4","5","6","7","8","9"],"signal":"ALTERNATING_RETURNS","ticket":"ticket:a:q:t2"}]`; !ok || string(wire.Encode(held)) != want {
 			t.Fatalf("loopDetected = %s", wire.Encode(held))
 		}
 		l.Seen.Loops = nil

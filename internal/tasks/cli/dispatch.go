@@ -531,6 +531,7 @@ func dispatchLoopDetected(l *dispatch.Ledger) []wire.Value {
 		x := wire.NewObject()
 		x.Set("ticket", wire.String(id))
 		x.Set("signal", wire.String(h.Signal))
+		x.Set("acceptanceRevision", wire.String(h.AcceptanceRevision))
 		x.Set("generations", wire.Strings(h.Generations))
 		held = append(held, wire.Value{Kind: wire.KindObject, Obj: x})
 	}
@@ -555,7 +556,7 @@ func dispatchTickets(in transaction.PlanInput) []dispatch.Ticket {
 		}
 		t.EscalationPending = r.EscalationPending()
 		if h := transaction.LoopHoldOf(in.Attempts, r, in.Policy); h != nil {
-			t.Loop = &dispatch.LoopHold{Signal: h.Signal, Generations: h.Generations}
+			t.Loop = &dispatch.LoopHold{Signal: h.Signal, AcceptanceRevision: string(h.AcceptanceRevision), Generations: h.Generations}
 		}
 		t.NextStage = dispatch.StateNone
 		if s := transaction.NextStage(in.Attempts, r); s.Kind == wire.KindString {

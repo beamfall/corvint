@@ -301,7 +301,7 @@ func strictProgressJSON(raw []byte) bool {
 			case "seen":
 				fields = []string{"tickets", "claims", "lanes", "escalations", "loops"}
 			case "loop-hold":
-				fields = []string{"signal", "generations", "pending"}
+				fields = []string{"signal", "acceptanceRevision", "generations", "pending"}
 			case "history":
 				fields = []string{"current", "seen"}
 			case "escalation-state":
@@ -614,7 +614,13 @@ type Event struct {
 var EventKinds = []string{"started", "stopped", "adopted", "launched", "launch-failed", "finished", "killing", "killed", "handoff", "handoff-refused", "reaped", "state", "claim", "release", "lane", "cooldown", "parked", "unparked", "alert", "needs-owner", "throttled", "escalated"}
 
 // appendEvent writes one event line, rotating the log once at 16 MiB.
-func appendEvent(dir string, e Event) error {
+// Tests replace it to inject partial writes and close failures.
+var appendEvent = appendEventLog
+
+// appendEventLog first ends a trailing unterminated fragment, which an
+// append that failed part-way can leave, so the new line parses on its own
+// (CAL-V0-103); a well-formed log receives exactly the line.
+func appendEventLog(dir string, e Event) error {
 	path := filepath.Join(dir, "events.jsonl")
 	if st, err := os.Stat(path); err == nil && st.Size() > maxEventsBytes {
 		if err := os.Rename(path, path+".1"); err != nil {
@@ -625,15 +631,56 @@ func appendEvent(dir string, e Event) error {
 	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o600)
 	if err != nil {
 		return err
 	}
-	if _, err := f.Write(append(raw, '\n')); err != nil {
+	line := append(raw, '\n')
+	st, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return err
+	}
+	if st.Size() > 0 {
+		last := make([]byte, 1)
+		if _, err := f.ReadAt(last, st.Size()-1); err != nil {
+			f.Close()
+			return err
+		}
+		if last[0] != '\n' {
+			line = append([]byte{'\n'}, line...)
+		}
+	}
+	if _, err := f.Write(line); err != nil {
 		f.Close()
 		return err
 	}
 	return f.Close()
+}
+
+// loopEventRecorded reports whether the readable tail of the current or
+// rotated event log already holds the CAL-V0-103 needs-owner event of this
+// loop episode: the ticket, signal, acceptance revision and newest counted
+// generation.
+func loopEventRecorded(dir, ticketID string, h LoopHold) bool {
+	newest := func(gens string) string { return gens[strings.LastIndexByte(gens, ',')+1:] }
+	want := newest(strings.Join(h.Generations, ","))
+	for _, name := range []string{"events.jsonl", "events.jsonl.1"} {
+		raw, err := readTail(filepath.Join(dir, name), 1<<20)
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(raw), "\n") {
+			var e Event
+			if json.Unmarshal([]byte(line), &e) != nil || e.Profile != EventProfile || e.Kind != "needs-owner" || e.Ticket != ticketID {
+				continue
+			}
+			if e.Detail["code"] == "LOOP_DETECTED" && e.Detail["signal"] == h.Signal && e.Detail["acceptanceRevision"] == h.AcceptanceRevision && newest(e.Detail["generations"]) == want {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // ReadEvents returns the last n events of the current log.
@@ -851,6 +898,9 @@ func (l *Ledger) validateSeenLoops() error {
 	}
 	for key, h := range l.Seen.Loops {
 		if _, err := wire.ParseTicketID("loops key", key); err != nil || (h.Signal != "NO_PROGRESS" && h.Signal != "ALTERNATING_RETURNS") || len(h.Generations) == 0 || len(h.Generations) > MaxLoopGenerations {
+			return errors.New("invalid loop hold")
+		}
+		if _, err := wire.ParseSize("loop acceptance revision", h.AcceptanceRevision); err != nil {
 			return errors.New("invalid loop hold")
 		}
 		for _, g := range h.Generations {

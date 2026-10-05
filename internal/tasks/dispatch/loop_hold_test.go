@@ -3,7 +3,10 @@
 package dispatch
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -20,7 +23,7 @@ func TestCALV0102_DispatcherSkipsAndEscalatesLoopOnce(t *testing.T) {
 	t.Run("CAL-V0-102 CAL-V0-103 DispatcherSkipsAndEscalatesLoopOnce", func(t *testing.T) {
 		c := testConfig(t, "exit 0")
 		held, free := ticket("h", "P0", 1), ticket("f", "P1", 2)
-		held.Loop = &LoopHold{Signal: "NO_PROGRESS", Generations: []string{"1", "2", "3"}}
+		held.Loop = &LoopHold{Signal: "NO_PROGRESS", AcceptanceRevision: "0", Generations: []string{"1", "2", "3"}}
 		q := &fakeQueue{obs: Observation{Tickets: []Ticket{held, free}}}
 		d, err := Open("prog", c, q, io.Discard)
 		if err != nil {
@@ -67,7 +70,7 @@ func TestCALV0102_DispatcherSkipsAndEscalatesLoopOnce(t *testing.T) {
 		d = issue502Restart(t, d)
 		count(d, 1)
 
-		q.obs.Tickets[0].Loop = &LoopHold{Signal: "ALTERNATING_RETURNS", Generations: []string{"4", "5", "6", "7", "8", "9"}}
+		q.obs.Tickets[0].Loop = &LoopHold{Signal: "ALTERNATING_RETURNS", AcceptanceRevision: "0", Generations: []string{"4", "5", "6", "7", "8", "9"}}
 		tick(d)
 		count(d, 2)
 		if e := eventsOf(t, d, "needs-owner"); e[len(e)-1].Detail["generations"] != "4,5,6,7,8,9" || e[len(e)-1].Detail["signal"] != "ALTERNATING_RETURNS" {
@@ -78,7 +81,7 @@ func TestCALV0102_DispatcherSkipsAndEscalatesLoopOnce(t *testing.T) {
 		if len(d.ledger.Seen.Loops) != 0 {
 			t.Fatalf("cleared hold kept: %+v", d.ledger.Seen.Loops)
 		}
-		q.obs.Tickets[0].Loop = &LoopHold{Signal: "NO_PROGRESS", Generations: []string{"10", "11", "12"}}
+		q.obs.Tickets[0].Loop = &LoopHold{Signal: "NO_PROGRESS", AcceptanceRevision: "0", Generations: []string{"10", "11", "12"}}
 		tick(d)
 		count(d, 3)
 	})
@@ -109,7 +112,7 @@ func TestCALV0102_LedgerLoopsAreClosedAndOptional(t *testing.T) {
 		a := progressDigest("A")
 		l := &Ledger{Profile: StateProfile, Program: "prog", Workers: []*Worker{}, Backoff: map[string]*BackoffState{},
 			Progress: map[string]*ProgressHistory{"ticket:a:q:t": {Current: a, Seen: []string{a}}},
-			Seen:     &Seen{Tickets: map[string]string{}, Claims: map[string]string{}, Lanes: map[string]string{}, Loops: map[string]LoopHold{"ticket:a:q:t": {Signal: "NO_PROGRESS", Generations: []string{"7", "8", "9"}}}}}
+			Seen:     &Seen{Tickets: map[string]string{}, Claims: map[string]string{}, Lanes: map[string]string{}, Loops: map[string]LoopHold{"ticket:a:q:t": {Signal: "NO_PROGRESS", AcceptanceRevision: "0", Generations: []string{"7", "8", "9"}}}}}
 		good, err := ledgerBytes(l)
 		if err != nil {
 			t.Fatal(err)
@@ -126,6 +129,8 @@ func TestCALV0102_LedgerLoopsAreClosedAndOptional(t *testing.T) {
 			"unknown member": strings.Replace(valid, `"signal":`, `"extra": 1, "signal":`, 1),
 			"bad signal":     strings.Replace(valid, `"NO_PROGRESS"`, `"STUCK"`, 1),
 			"bad generation": strings.Replace(valid, `"8"`, `"x"`, 1),
+			"bad revision":   strings.Replace(valid, `"acceptanceRevision": "0"`, `"acceptanceRevision": "x"`, 1),
+			"no revision":    strings.Replace(valid, `"acceptanceRevision": "0",`, ``, 1),
 			"empty":          strings.Replace(strings.Replace(strings.Replace(valid, `"7",`, ``, 1), `"8",`, ``, 1), `"9"`, ``, 1),
 			"bad key":        strings.Replace(valid, `"ticket:a:q:t"`, `"t"`, 1), // seen precedes progress,
 		} {
@@ -156,7 +161,7 @@ func TestCALV0103_LedgerLoopsStrictWithoutProgress(t *testing.T) {
 		dir := t.TempDir()
 		path := filepath.Join(dir, "state.json")
 		l := &Ledger{Profile: StateProfile, Program: "prog", Workers: []*Worker{}, Backoff: map[string]*BackoffState{},
-			Seen: &Seen{Tickets: map[string]string{}, Claims: map[string]string{}, Lanes: map[string]string{}, Loops: map[string]LoopHold{"ticket:a:q:t": {Signal: "NO_PROGRESS", Generations: []string{"7", "8", "9"}}}}}
+			Seen: &Seen{Tickets: map[string]string{}, Claims: map[string]string{}, Lanes: map[string]string{}, Loops: map[string]LoopHold{"ticket:a:q:t": {Signal: "NO_PROGRESS", AcceptanceRevision: "0", Generations: []string{"7", "8", "9"}}}}}
 		good, err := ledgerBytes(l)
 		if err != nil {
 			t.Fatal(err)
@@ -179,7 +184,7 @@ func TestCALV0103_LedgerLoopsStrictWithoutProgress(t *testing.T) {
 			"alias":            strings.Replace(valid, `"loops":`, `"Loops":`, 1),
 			"seen alias":       strings.Replace(valid, `"seen":`, `"Seen":`, 1),
 			"duplicate loops":  strings.Replace(valid, `"loops":`, `"loops":{},"loops":`, 1),
-			"duplicate hold":   strings.Replace(valid, `"ticket:a:q:t":`, `"ticket:a:q:t":{"signal":"NO_PROGRESS","generations":["1"]},"ticket:a:q:t":`, 1),
+			"duplicate hold":   strings.Replace(valid, `"ticket:a:q:t":`, `"ticket:a:q:t":{"signal":"NO_PROGRESS","acceptanceRevision":"0","generations":["1"]},"ticket:a:q:t":`, 1),
 			"duplicate signal": strings.Replace(valid, `"signal":`, `"signal":"NO_PROGRESS","signal":`, 1),
 			"duplicate seen":   strings.Replace(valid, `"seen":`, `"seen":{"loops":{}},"seen":`, 1),
 			"null loops":       `{"profile":"` + StateProfile + `","program":"prog","workers":[],"backoff":{},"seen":{"tickets":{},"claims":{},"lanes":{},"loops":null}}`,
@@ -209,7 +214,7 @@ func TestCALV0103_LoopEscalationSurvivesEventAppendFailure(t *testing.T) {
 	t.Run("CAL-V0-103 LoopEscalationSurvivesEventAppendFailure", func(t *testing.T) {
 		c := testConfig(t, "exit 0")
 		held := ticket("h", "P0", 1)
-		held.Loop = &LoopHold{Signal: "NO_PROGRESS", Generations: []string{"1", "2", "3"}}
+		held.Loop = &LoopHold{Signal: "NO_PROGRESS", AcceptanceRevision: "0", Generations: []string{"1", "2", "3"}}
 		q := &fakeQueue{obs: Observation{Tickets: []Ticket{held}}}
 		d, err := Open("prog", c, q, io.Discard)
 		if err != nil {
@@ -256,6 +261,192 @@ func TestCALV0103_LoopEscalationSurvivesEventAppendFailure(t *testing.T) {
 		r = issue502Restart(t, r)
 		if n := loops(r); n != 1 {
 			t.Fatalf("recorded episode raised again: %d", n)
+		}
+	})
+}
+
+// loopFaultDispatcher opens a dispatcher over one NO_PROGRESS hold and
+// counts its readable LOOP_DETECTED events.
+func loopFaultDispatcher(t *testing.T) (*Dispatcher, *fakeQueue, func(*Dispatcher) int) {
+	t.Helper()
+	held := ticket("h", "P0", 1)
+	held.Loop = &LoopHold{Signal: "NO_PROGRESS", AcceptanceRevision: "0", Generations: []string{"1", "2", "3"}}
+	q := &fakeQueue{obs: Observation{Tickets: []Ticket{held}}}
+	d, err := Open("prog", testConfig(t, "exit 0"), q, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { appendEvent = appendEventLog })
+	return d, q, func(d *Dispatcher) int {
+		t.Helper()
+		n := 0
+		for _, e := range eventsOf(t, d, "needs-owner") {
+			if e.Detail["code"] == "LOOP_DETECTED" && e.Ticket == held.ID {
+				n++
+			}
+		}
+		return n
+	}
+}
+
+// loopPending reloads the closed dispatcher's ledger and reports whether
+// the hold's episode is still pending.
+func loopPending(t *testing.T, d *Dispatcher) bool {
+	t.Helper()
+	if err := d.Close(); err != nil {
+		t.Fatal(err)
+	}
+	l, err := LoadLedger(d.dir, d.Program)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, ok := l.Seen.Loops[ticket("h", "P0", 1).ID]
+	if !ok {
+		t.Fatal("hold not recorded")
+	}
+	return h.Pending
+}
+
+// CAL-V0-103: an append that fails part-way leaves an unterminated
+// fragment; the next append ends it first, so the lines after it and the
+// retried escalation parse, the escalation is readable exactly once, and a
+// well-formed log receives exactly each line.
+func TestCALV0103_LoopEscalationSurvivesPartialEventWrite(t *testing.T) {
+	t.Run("CAL-V0-103 LoopEscalationSurvivesPartialEventWrite", func(t *testing.T) {
+		d, _, loops := loopFaultDispatcher(t)
+		events := filepath.Join(d.dir, "events.jsonl")
+		appendEvent = func(dir string, e Event) error {
+			if e.Detail["code"] != "LOOP_DETECTED" {
+				return appendEventLog(dir, e)
+			}
+			raw, err := json.Marshal(e)
+			if err != nil {
+				return err
+			}
+			f, err := os.OpenFile(events, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
+			if err != nil {
+				return err
+			}
+			_, _ = f.Write(raw[:len(raw)/2])
+			_ = f.Close()
+			return errors.New("short write")
+		}
+		if err := d.Tick(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		if n := loops(d); n != 0 {
+			t.Fatalf("fragment read as %d events", n)
+		}
+		if !loopPending(t, d) {
+			t.Fatal("partially written episode not pending")
+		}
+		torn, err := os.ReadFile(events)
+		if err != nil || !bytes.Contains(torn, []byte("over generations 1,2,\n")) {
+			t.Fatalf("fault left no fragment: %q %v", torn, err)
+		}
+		if len(eventsOf(t, d, "stopped")) != 1 {
+			t.Fatal("the line after the fragment does not parse")
+		}
+		appendEvent = appendEventLog
+		r := issue502Restart(t, d)
+		if n := loops(r); n != 1 {
+			t.Fatalf("loop escalations after the retry %d, want 1", n)
+		}
+		if r.ledger.Seen.Loops[ticket("h", "P0", 1).ID].Pending {
+			t.Fatal("retried episode still pending")
+		}
+		if err := r.Tick(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		r = issue502Restart(t, r)
+		if n := loops(r); n != 1 {
+			t.Fatalf("retried episode raised again: %d", n)
+		}
+
+		dir := t.TempDir()
+		line := func(n int) []byte {
+			raw, err := json.Marshal(Event{Profile: EventProfile, Seq: uint64(n), Kind: "started"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			return append(raw, '\n')
+		}
+		for n := 1; n <= 2; n++ {
+			if err := appendEventLog(dir, Event{Profile: EventProfile, Seq: uint64(n), Kind: "started"}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if got, _ := os.ReadFile(filepath.Join(dir, "events.jsonl")); !bytes.Equal(got, append(line(1), line(2)...)) {
+			t.Fatalf("well-formed log bytes changed: %q", got)
+		}
+	})
+}
+
+// CAL-V0-103: an append whose line landed but whose close failed leaves the
+// episode pending; the retry finds the readable event and clears pending
+// without a duplicate.
+func TestCALV0103_LoopEscalationNotDuplicatedAfterCloseFailure(t *testing.T) {
+	t.Run("CAL-V0-103 LoopEscalationNotDuplicatedAfterCloseFailure", func(t *testing.T) {
+		d, _, loops := loopFaultDispatcher(t)
+		appendEvent = func(dir string, e Event) error {
+			if err := appendEventLog(dir, e); err != nil || e.Detail["code"] != "LOOP_DETECTED" {
+				return err
+			}
+			return errors.New("close failed")
+		}
+		if err := d.Tick(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		if n := loops(d); n != 1 {
+			t.Fatalf("landed escalations %d, want 1", n)
+		}
+		if !loopPending(t, d) {
+			t.Fatal("episode with a failed close not pending")
+		}
+		appendEvent = appendEventLog
+		r := issue502Restart(t, d)
+		if n := loops(r); n != 1 {
+			t.Fatalf("retry duplicated the readable escalation: %d", n)
+		}
+		if r.ledger.Seen.Loops[ticket("h", "P0", 1).ID].Pending {
+			t.Fatal("recorded episode still pending")
+		}
+	})
+}
+
+// CAL-V0-103: a crash between the event append and the ledger save loses
+// the recorded episode; the restart finds the readable event and raises no
+// duplicate, while a new acceptance revision is a new episode.
+func TestCALV0103_LoopEscalationNotDuplicatedAfterUnsavedLedger(t *testing.T) {
+	t.Run("CAL-V0-103 LoopEscalationNotDuplicatedAfterUnsavedLedger", func(t *testing.T) {
+		d, q, loops := loopFaultDispatcher(t)
+		if err := d.Tick(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		if loopPending(t, d) {
+			t.Fatal("recorded episode pending")
+		}
+		l, err := LoadLedger(d.dir, d.Program)
+		if err != nil {
+			t.Fatal(err)
+		}
+		delete(l.Seen.Loops, ticket("h", "P0", 1).ID) // the save the crash lost
+		if err := l.save(d.dir); err != nil {
+			t.Fatal(err)
+		}
+		r := issue502Restart(t, d)
+		if n := loops(r); n != 1 {
+			t.Fatalf("unsaved episode raised again: %d", n)
+		}
+		if _, ok := r.ledger.Seen.Loops[ticket("h", "P0", 1).ID]; !ok {
+			t.Fatal("restart did not record the episode")
+		}
+		q.obs.Tickets[0].Loop = &LoopHold{Signal: "NO_PROGRESS", AcceptanceRevision: "1", Generations: []string{"1", "2", "3"}}
+		if err := r.Tick(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		if n := loops(r); n != 2 {
+			t.Fatalf("new acceptance revision raised %d escalations, want 2", n)
 		}
 	})
 }

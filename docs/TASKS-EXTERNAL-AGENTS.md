@@ -352,7 +352,7 @@ the ticket is held `LOOP_DETECTED`: `ticket show`, `ticket blockers`, `plan prev
 next action `reopen`; a held `plan preview` entry also carries
 `loop {signal, acceptanceRevision, generations, limit}`. The dispatcher skips the ticket and emits
 one `needs-owner` event (`kind: blocked`) per episode, retrying it while the event log is
-unwritable. Generations recorded without evidence (before the opt-in, legacy
+unwritable and skipping it when the log already holds it. Generations recorded without evidence (before the opt-in, legacy
 or supervised) are UNKNOWN and never count. The ticket status is not changed.
 
 The hold clears when the acceptance revision changes, for example through the owner's

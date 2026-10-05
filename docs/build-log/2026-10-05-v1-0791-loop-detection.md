@@ -28,7 +28,8 @@ taken by V1-0780 in the same batch).
   claimability, `plan preview`, `ticket show` and `ticket blockers` report `LOOP_DETECTED` with the
   counted generations and next action `reopen`. The dispatcher observation carries it, the roster
   skips the ticket, `dispatch status` lists `loopDetected`, and the dispatcher emits one
-  `needs-owner` event `{kind: blocked, code: LOOP_DETECTED, signal, generations}` per episode,
+  `needs-owner` event `{kind: blocked, code: LOOP_DETECTED, signal, generations}` per episode
+  (review round 2 added `acceptanceRevision`),
   remembered in the optional closed ledger member `seen.loops`.
 - Clearing: an acceptance-revision change; the owner's existing `ticket reopen` (CAL-V0-043) now
   also admits a loop-held ticket. A ticket that is neither exhausted nor held still refuses
@@ -51,6 +52,28 @@ Codex r1 returned three P2 findings, all fixed with regression tests:
   so an unwritable event log lost the event for good. An episode whose append fails is now kept
   with the optional ledger member `pending: true` and retried on the next tick or after a restart
   (`TestCALV0103_LoopEscalationSurvivesEventAppendFailure`).
+
+### Review round 2
+
+Codex r2 confirmed the r1 fixes and returned one P2: a failed append could leave bytes behind.
+A part-way write left an unterminated fragment, so the retried line merged with it and was dropped
+as unparseable; a complete write followed by a close or sync error left the episode pending beside
+a readable event, so the retry duplicated it. Fixed with fault-injection tests through a test seam
+on the append helper:
+
+- Every event append first ends a trailing unterminated fragment with a newline, so the appended
+  line parses. This is in the shared helper rather than only the loop retry, because any event
+  appended after a fragment, such as `stopped`, otherwise merges with it; a well-formed log
+  receives exactly the same bytes (`TestCALV0103_LoopEscalationSurvivesPartialEventWrite`).
+- Before raising an episode the dispatcher looks for its event in the readable 1 MiB tails of the
+  current and rotated logs and, when found, records the episode without appending
+  (`TestCALV0103_LoopEscalationNotDuplicatedAfterCloseFailure`). The episode key, and therefore the
+  event detail, the `seen.loops` hold and the `dispatch status` rows, gained `acceptanceRevision`,
+  because after a reopen the newest generation alone need not distinguish two episodes.
+- The check runs before every raise, not only a pending retry, so a crash between the append and
+  the ledger save also raises no duplicate while the log is readable
+  (`TestCALV0103_LoopEscalationNotDuplicatedAfterUnsavedLedger`). The recorded limit narrows to an
+  unreadable log or an event that has left the scanned tail.
 
 ### Decisions and limits
 
