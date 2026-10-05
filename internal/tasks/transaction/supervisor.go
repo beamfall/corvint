@@ -3,6 +3,7 @@ package transaction
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
@@ -284,7 +285,7 @@ func planSupervisor(c leaseContext) leaseOutcome {
 			}
 			turns := wire.SizeOf(uint64(next.Supervision.Turns.Int()))
 			next.Budget["turns"] = snapshot.BudgetField{State: "OBSERVED", Value: &turns}
-			input, output, known := supervisor.ObservedUsage(f.Handoff)
+			input, output, known := policyHostUsage(c.st.policy, f.Handoff)
 			for name, value := range map[string]uint64{"inputTokens": input, "outputTokens": output} {
 				next.Budget[name] = cumulativeTokens(a.Budget[name], value, known, a.Supervision.Turns.Int() <= 1)
 			}
@@ -549,4 +550,19 @@ func supervisedIntentCode(a *snapshot.Attempt, rec *ticket.Record, policy []byte
 		return wire.CodeStalePolicy
 	}
 	return ""
+}
+
+// policyHostUsage re-derives one supervised turn's usage from retained host
+// output in the vocabulary of the policy's supervised host (CAL-V0-075); an
+// absent policy or host is Codex.
+func policyHostUsage(policy *intent.Policy, raw []byte) (uint64, uint64, bool) {
+	var supervision *intent.SupervisionPolicy
+	if policy != nil {
+		supervision = policy.Supervision
+	}
+	vocabulary, ok := supervisor.HostVocabulary(supervision.SupervisedHost())
+	if !ok {
+		return 0, 0, false
+	}
+	return vocabulary.Usage(raw)
 }

@@ -17,6 +17,10 @@ import (
 )
 
 // Leader may run the runtime only after the exact immutable acknowledgment.
+// It executes the object it verified: a root-protected runtime by its path,
+// otherwise a private copy of the verified bytes written before boot into the
+// private protocol directory, so replacing or rewriting the pinned path while
+// the supervisor acknowledges cannot change what runs (CAL-V0-074).
 func Leader(ctx context.Context, dir, hash string) error {
 	raw, e := ReadBounded(filepath.Join(dir, "capsule"), MaxCapsule)
 	if e != nil {
@@ -29,9 +33,19 @@ func Leader(ctx context.Context, dir, hash string) error {
 	if e = decode(raw, &c); e != nil {
 		return e
 	}
-	if e = ValidateCapsule(c); e != nil {
+	verified, st, e := validateCapsule(c)
+	if e != nil {
 		return e
 	}
+	runtime := c.Executable
+	if !protectedRuntime(c.Executable, st) {
+		runtime = filepath.Join(dir, "runtime")
+		if e = writeRuntime(runtime, verified); e != nil {
+			return e
+		}
+		defer os.Remove(runtime)
+	}
+	verified = nil
 	if syscall.Getpgrp() != os.Getpid() {
 		return fmt.Errorf("leader is not isolated session group")
 	}
@@ -52,13 +66,17 @@ func Leader(ctx context.Context, dir, hash string) error {
 	if !ack.Accepted || ack.Boot != boot {
 		return fmt.Errorf("ack not accepted for this leader")
 	}
-	cmd := exec.Command(c.Executable, c.Argv...)
+	cmd := exec.Command(runtime, c.Argv...)
 	cmd.Dir = c.Directory
 	cmd.Env = c.Env
 	cmd.Stdin = strings.NewReader(c.Prompt)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	runErr := cmd.Run()
+	// The supervisor ends this leader by signal, so remove a copy now.
+	if runtime != c.Executable {
+		_ = os.Remove(runtime)
+	}
 	if e = Publish(dir, "exit", hostExit{Boot: boot, Passed: runErr == nil}); e != nil {
 		return e
 	}
@@ -129,19 +147,21 @@ func signalMembers(m map[int]string, s syscall.Signal) error {
 }
 
 // Run commits SPAWNING before fork and RUNNING before immutable ack:true.
+// A refusal before the fork is a *PrelaunchError with an empty outcome; any
+// later error, including one with an empty class, may follow a spawn.
 func Run(ctx context.Context, self, dir string, c Capsule, journal Journal) (out Outcome, err error) {
-	if err = ValidateCapsule(c); err != nil {
-		return
+	if e := ValidateCapsule(c); e != nil {
+		return out, &PrelaunchError{e}
 	}
-	if err = Publish(dir, "capsule", c); err != nil {
-		return
+	if e := Publish(dir, "capsule", c); e != nil {
+		return out, &PrelaunchError{e}
 	}
 	raw, e := ReadBounded(filepath.Join(dir, "capsule"), MaxCapsule)
 	if e != nil {
-		return out, e
+		return out, &PrelaunchError{e}
 	}
-	if err = journal("SPAWNING", Boot{}, nil); err != nil {
-		return
+	if e := journal("SPAWNING", Boot{}, nil); e != nil {
+		return out, &PrelaunchError{e}
 	}
 	spawned := false
 	defer func() {
@@ -215,7 +235,8 @@ func Run(ctx context.Context, self, dir string, c Capsule, journal Journal) (out
 		out.Stdout = stdout.b
 		out.Stderr = stderr.b
 		out.OutputSHA256 = Digest(out.Stdout)
-		out.SessionID = ObservedSession(out.Stdout)
+		host, _ := HostVocabulary(c.Host)
+		out.SessionID = host.Session(out.Stdout)
 		if stdout.overflow || stderr.overflow {
 			out.Class = "OUTPUT_LIMIT"
 			if err == nil {
@@ -224,7 +245,7 @@ func Run(ctx context.Context, self, dir string, c Capsule, journal Journal) (out
 		}
 		if out.Class == "EXIT_ZERO" {
 			var parseErr error
-			out.SessionID, out.Result, parseErr = DecodeEvents(out.Stdout)
+			out.SessionID, out.Result, parseErr = host.Decode(out.Stdout)
 			if parseErr != nil {
 				out.Class = "INVALID_RESULT"
 				if err == nil {
