@@ -173,6 +173,9 @@ type Result struct {
 	Expired    []ExpiredLease
 	// Escalation is the typed refusal of an ESCALATE or ANSWER.
 	Escalation *EscalationRefusal
+	// AuthorExclusion is the CAL-V0-098 derivation a refused fresh claim
+	// applied before allocation failed, nil otherwise.
+	AuthorExclusion *AuthorExclusion
 }
 
 // Plan is immutable; accessors return copies. Its bytes remain hypothetical.
