@@ -301,5 +301,5 @@ executable gate without an observed PASS does not withhold the ERG-V0-011 offer:
 observe executable gate results (`gateResults: NOT_OBSERVED`), withholding on NOT_OBSERVED would make
 the offer unreachable in a queue with required executable gates, and `complete-manual` still needs
 its own evidence. `queue status` and `roadmap` do not carry the offer; `ticket show` and `plan
-preview` do. The required set is the review gates the ticket references, not every policy-declared
-gate.
+preview` do. The required set stays as delivered in ERG-V0-011: every review gate the policy declares
+plus every review gate the ticket references.

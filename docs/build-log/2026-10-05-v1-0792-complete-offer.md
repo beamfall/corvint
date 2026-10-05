@@ -39,8 +39,8 @@ Requirements: `ERG-V0-011` in `docs/specs/corvint-tasks-external-reviews-v0.md`,
   render exactly as before. The CLI test compares the encoded bytes.
 - Executable gate results are not part of the offer predicate. They stay NOT_OBSERVED in these
   reads. The owner decided on 2026-10-05, in the spec's Open decisions, that they do not withhold
-  the offer, that `queue status` and `roadmap` do not carry it, and that the required set is the
-  review gates the ticket references. Withholding on NOT_OBSERVED would make the offer unreachable
+  the offer, that `queue status` and `roadmap` do not carry it, and that the required set stays
+  every review gate the policy declares plus every one the ticket references. Withholding on NOT_OBSERVED would make the offer unreachable
   in a queue with required executable gates.
 - A DEFERRED plan entry may still offer. A resource collision with other work or the attempt limit
   is not a fact about the ticket, and it does not block a manual completion.
