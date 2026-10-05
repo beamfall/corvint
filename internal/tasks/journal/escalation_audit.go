@@ -2,8 +2,10 @@ package journal
 
 import (
 	"bytes"
+	"slices"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -27,6 +29,8 @@ type escalationAudit struct {
 	tickets []notePost
 	events  [][]byte
 	policy  bool
+	// grants is the audited pre-policy, read when the receipt is bound.
+	grants *intent.Policy
 	// others counts posts that are neither a ticket, the policy, an
 	// escalation event nor a request-index afterimage.
 	others int
@@ -155,6 +159,16 @@ func (a *escalationAudit) bindEvents(req *snapshot.Request, target *ticket.Recor
 	if !walked {
 		return errCheckpoint(t.path, "escalation pre-state precedes the checkpoint")
 	}
+	if !a.st.notes.policyWalked {
+		return errCheckpoint(t.path, "escalation pre-policy precedes the checkpoint")
+	}
+	policyRaw, err := a.r.priorPost(a.st.canonical["intent/policy.json"], "intent/policy.json")
+	if err != nil {
+		return err
+	}
+	if a.grants, err = intent.DecodePolicy(policyRaw); err != nil {
+		return err
+	}
 	preRaw, err := a.r.priorPost(t.prior, t.path)
 	if err != nil {
 		return err
@@ -270,6 +284,15 @@ func (a *escalationAudit) bindRefs(req *snapshot.Request, pre, post *ticket.Reco
 	}
 	if escalationLeaseDigest(a.r.QueueID.Raw, *rc.RequestID, rc.ActorID, rc.ActorRole, verb, requestSha) != req.Entry.MutationSha256 {
 		return escalationForked(path, "events carry a request other than the retained request")
+	}
+	// The writer's operation-scoped grant (transaction.escalationGrant): the
+	// role's policy row, or its default row when policy names none.
+	ops, named := a.grants.Roles[rc.ActorRole]
+	if !named {
+		ops = intent.DefaultRoleMatrix[rc.ActorRole]
+	}
+	if !slices.Contains(ops, verb) {
+		return escalationForked(path, "audited pre-policy does not grant %s to role %s", verb, rc.ActorRole)
 	}
 	if request.ExpectedTicketRevision != nil && *request.ExpectedTicketRevision != pre.Revision {
 		return escalationForked(path, "request's expected ticket revision differs from the audited pre-ticket")

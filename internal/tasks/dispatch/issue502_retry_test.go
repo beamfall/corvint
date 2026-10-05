@@ -305,6 +305,9 @@ func TestESCV0007_ConfigBounds(t *testing.T) {
 		"cap below cooldown": `{"cooldownSeconds":60,"maxCooldownSeconds":30}`,
 		"cap too long":       `{"maxCooldownSeconds":86401}`,
 		"unknown field":      `{"maxRetries":1,"jitter":true}`,
+		// Seconds that overflow time.Duration must be refused before conversion.
+		"cooldown overflows": `{"cooldownSeconds":9223372037}`,
+		"cap overflows":      `{"cooldownSeconds":60,"maxCooldownSeconds":9223372037}`,
 	} {
 		c := testConfig(t, "exit 0")
 		raw, _ := json.Marshal(c)

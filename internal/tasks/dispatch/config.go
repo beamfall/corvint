@@ -282,7 +282,9 @@ func (c *Config) validate() error {
 	}
 	if r := c.InfrastructureRetry; r != nil {
 		maxRetries, cd, maxCd := r.Limits()
-		if maxRetries < 0 || maxRetries > 10 || r.CooldownSeconds < 0 || cd > time.Hour || r.MaxCooldownSeconds < 0 || maxCd < cd || maxCd > 24*time.Hour {
+		// The raw seconds are bounded before Limits converts them, so a huge
+		// value cannot overflow time.Duration into an accepted negative one.
+		if r.CooldownSeconds < 0 || r.CooldownSeconds > 3600 || r.MaxCooldownSeconds < 0 || r.MaxCooldownSeconds > 86400 || maxRetries < 0 || maxRetries > 10 || cd > time.Hour || maxCd < cd || maxCd > 24*time.Hour {
 			return fail("infrastructureRetry needs maxRetries 0..10, cooldownSeconds 1..3600 and maxCooldownSeconds from cooldownSeconds to 86400")
 		}
 	}

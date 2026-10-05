@@ -267,9 +267,10 @@ func TestESCV0010_ConsistentlyRehashedEventIsJournalForked(t *testing.T) {
 
 // TestESCV0010_RetainedRequestPreconditionsAreAudited: a forged answer whose
 // retained request entry is rebound to it, so the LEASE digest agrees, is
-// still refused when the request carries a stale ticket CAS or a shorthand
-// selector the writer would refuse: AMBIGUOUS_OPEN_QUESTIONS with two current
-// OPEN questions.
+// still refused when the request carries a stale ticket CAS, a role the
+// audited pre-policy does not grant the operation, or a shorthand selector
+// the writer would refuse: AMBIGUOUS_OPEN_QUESTIONS with two current OPEN
+// questions.
 func TestESCV0010_RetainedRequestPreconditionsAreAudited(t *testing.T) {
 	t.Run("stale ticket CAS", func(t *testing.T) {
 		s, _, receipts := escalationHistory(t)
@@ -278,6 +279,22 @@ func TestESCV0010_RetainedRequestPreconditionsAreAudited(t *testing.T) {
 		_, err := noteAudit(t, s.repo)
 		if wire.CodeOf(err) != wire.CodeJournalForked || !strings.Contains(err.Error(), "expected ticket revision") {
 			t.Fatalf("audit after forgery = %v, want JOURNAL_FORKED naming the expected ticket revision", err)
+		}
+	})
+	t.Run("role without the policy grant", func(t *testing.T) {
+		// The default policy names no OPERATOR row, and the default OPERATOR
+		// row lacks ANSWER, so the writer refuses this answer as NOT_ALLOWED.
+		s, _, receipts := escalationHistory(t)
+		forgeEvent(t, s, receipts[2], true, func(ev *ticket.EscalationEvent) {
+			ev.ActorRole, ev.OriginalRequest.ActorRole = "OPERATOR", "OPERATOR"
+		})
+		forgeReceiptWith(t, s.repo, receipts[2], func(string, wire.Value) (wire.Value, bool) { return wire.Value{}, true }, func(v wire.Value) {
+			actor, _ := v.Obj.Get("actor")
+			actor.Obj.Set("role", str("OPERATOR"))
+		})
+		_, err := noteAudit(t, s.repo)
+		if wire.CodeOf(err) != wire.CodeJournalForked || !strings.Contains(err.Error(), "does not grant ANSWER") {
+			t.Fatalf("audit after forgery = %v, want JOURNAL_FORKED naming the missing grant", err)
 		}
 	})
 	t.Run("ambiguous shorthand answer", func(t *testing.T) {

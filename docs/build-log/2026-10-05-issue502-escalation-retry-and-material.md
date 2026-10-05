@@ -160,6 +160,21 @@ Regression: `TestESCV0010_RetainedRequestPreconditionsAreAudited`. It forges the
 also rebinds the receipt's retained request entry to the forged request's LEASE digest, so only the
 new checks can refuse it. Against the round-2 `escalation_audit.go` both subtests audit clean.
 
+Round 4 (over `d524530f..e4b4a6ae`) reported one P2 and one P3 finding. Both were verified and
+fixed with regressions that fail without the fix:
+
+- **P2, policy grant not audited:** the audit never checked the receipt role's `ESCALATE` or
+  `ANSWER` grant against the historical policy, so an OWNER answer consistently rewritten to
+  OPERATOR (refused by the writer as NOT_ALLOWED under the default policy) audited clean. The
+  audit now reads the audited pre-policy, as the operator-note audit does, and applies the
+  writer's `escalationGrant` rule. A checkpoint-resumed read that has not walked the policy falls
+  back to the full audit. Regression: the `role without the policy grant` subtest of
+  `TestESCV0010_RetainedRequestPreconditionsAreAudited`.
+- **P3, cooldown overflow:** `cooldownSeconds: 9223372037` overflowed `time.Duration` negative and
+  passed validation. The raw seconds are now bounded before conversion. Regression: the
+  `cooldown overflows` and `cap overflows` cases of `TestESCV0007_ConfigBounds`; the first fails
+  without the fix.
+
 ## NOT_RUN
 
 - a live dispatcher and compiled-binary witness
