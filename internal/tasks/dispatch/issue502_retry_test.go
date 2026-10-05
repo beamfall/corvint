@@ -597,3 +597,30 @@ func TestESCV0007_FirstProgressTokenDoesNotRecover(t *testing.T) {
 		t.Fatalf("a later token is progress: %+v", e)
 	}
 }
+
+// ESC-V0-008: a session that ends while its escalation material is UNKNOWN is
+// not classified from an empty request list. Its accounting and reservation
+// are deferred with the ended worker until the material is readable, then it
+// is classified by its own typed requests.
+func TestESCV0008_UnknownMaterialDefersSessionAccounting(t *testing.T) {
+	x := newIssue502(t, testConfig(t, "exit 0"), 3)
+	defer x.d.Close()
+	w := x.session(func(w *Worker) { x.raise(w, "infrastructure") })
+	readable := x.q.obs.Tickets[0].Requests
+	x.q.obs.Tickets[0].Requests, x.q.obs.Tickets[0].EscalationUnknown = nil, true
+	x.tick(1) // the ended worker is kept, not accounted
+	if len(eventsOf(t, x.d, "finished")) != 0 || x.d.ledger.Backoff[issue502Key] != nil {
+		t.Fatalf("session accounted while its material was unknown: backoff %+v", x.d.ledger.Backoff[issue502Key])
+	}
+	x.q.obs.Tickets[0].Requests, x.q.obs.Tickets[0].EscalationUnknown = readable, false
+	x.tick(0)
+	if got := x.finishedSession(w); got != "infrastructure" {
+		t.Fatalf("session %q, want infrastructure", got)
+	}
+	if b := x.d.ledger.Backoff[issue502Key]; b != nil && b.NoProgress != 0 {
+		t.Fatalf("infrastructure session counted toward parking: %+v", b)
+	}
+	if e := x.episode(); e == nil || e.State != InfraWait {
+		t.Fatalf("episode %+v, want an infrastructure wait", e)
+	}
+}

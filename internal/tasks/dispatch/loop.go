@@ -659,6 +659,13 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 			d.emit(Event{Kind: "alert", Ticket: w.Ticket, Worker: w.ID, Message: "declared progress accounting deferred until a known work state"})
 			continue
 		}
+		if escalationUnknown(obs, w.Key) {
+			// ESC-V0-008: the session's typed requests cannot be read, so it
+			// is not classified from an empty list. The ended worker and its
+			// reservation are kept until a later tick can classify it.
+			d.emit(Event{Kind: "alert", Ticket: w.Ticket, Worker: w.ID, Message: "session accounting deferred until its escalation material is readable"})
+			continue
+		}
 		if current := d.worker(w.ID); current != nil {
 			w = current // first-token seeding published a cloned baseline
 		}
@@ -878,6 +885,16 @@ func (d *Dispatcher) unpark(obs *Observation) {
 		}
 		os.Remove(path)
 	}
+}
+
+// escalationUnknown reports a ticket key whose escalation material is UNKNOWN.
+func escalationUnknown(obs *Observation, key string) bool {
+	for _, t := range obs.Tickets {
+		if t.ID == key {
+			return t.EscalationUnknown
+		}
+	}
+	return false
 }
 
 // stateUnknown reports a ticket key whose program work state is UNKNOWN.

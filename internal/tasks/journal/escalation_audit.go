@@ -421,6 +421,12 @@ func (a *escalationAudit) bindRefs(req *snapshot.Request, pre, post *ticket.Reco
 			if err := a.admittedSource(path, e.RequestID, ev.Source); err != nil {
 				return err
 			}
+			if err := a.currentClaim(path, e.RequestID, ev.Source, ev.RecordedAt); err != nil {
+				return err
+			}
+			if err := a.blockedRelation(path, e.RequestID, request.Open.BlockedBy); err != nil {
+				return err
+			}
 			opened[e.RequestID] = ev.Source
 		}
 		used++
@@ -456,6 +462,76 @@ func (a *escalationAudit) admittedSource(path, id string, src ticket.EscalationS
 		return escalationForked(path, "request %s source is not a recorded claim admission", id)
 	case adm.supervised:
 		return escalationForked(path, "request %s source is a supervised claim", id)
+	}
+	return nil
+}
+
+// preRecord reads a path's audited pre-state afterimage, or nil when the path
+// is absent or deleted. One posted before the first walked receipt falls back
+// to the complete audit.
+func (a *escalationAudit) preRecord(path string) ([]byte, error) {
+	prior := a.st.canonical[path]
+	if prior.seq == "" || prior.digest == nil {
+		return nil, nil
+	}
+	if prior.seq.Uint64() < a.st.escalations.from {
+		return nil, errCheckpoint(path, "escalation pre-state precedes the checkpoint")
+	}
+	return a.r.priorPost(prior, path)
+}
+
+// currentClaim restates the writer's fresh-OPEN fence against the audited
+// pre-state: the source attempt is live and unsupervised under the source's
+// generation, holder and ticket record, its reservation matches, and its
+// lease outlives the event.
+func (a *escalationAudit) currentClaim(path, id string, src ticket.EscalationSource, at wire.Timestamp) error {
+	raw, err := a.preRecord("attempts/" + src.AttemptID + ".json")
+	if err != nil {
+		return err
+	}
+	if raw == nil {
+		return escalationForked(path, "request %s source attempt is not current", id)
+	}
+	cur, err := snapshot.DecodeAttempt(raw)
+	if err != nil {
+		return err
+	}
+	if cur.Supervision != nil || !cur.Live() || cur.Lease == nil || cur.TicketID.Raw != src.TicketID || cur.Generation != src.Generation || cur.Lease.Holder != src.Holder || cur.TicketRecordSha256 != src.TicketRecordSha256 {
+		return escalationForked(path, "request %s source is not the current claim", id)
+	}
+	if cur.Lease.ExpiresAt <= at {
+		return escalationForked(path, "request %s opened after its lease expired", id)
+	}
+	if raw, err = a.preRecord("reservations.json"); err != nil {
+		return err
+	}
+	if raw != nil {
+		set, err := snapshot.DecodeReservations(raw)
+		if err != nil {
+			return err
+		}
+		for _, en := range set.Entries {
+			if en.AttemptID == cur.AttemptID && en.Generation == cur.Generation && en.TicketID.Raw == cur.TicketID.Raw && en.TicketRevision == cur.TicketRevision {
+				return nil
+			}
+		}
+	}
+	return escalationForked(path, "request %s source has no matching reservation", id)
+}
+
+// blockedRelation restates the writer's BLOCKED_RELATION_UNKNOWN check: a
+// named blocked-by ticket exists in the audited pre-state and a named gate is
+// a gate of the audited pre-policy.
+func (a *escalationAudit) blockedRelation(path, id string, b *ticket.EscalationBlockedBy) error {
+	if b == nil {
+		return nil
+	}
+	tid, err := wire.ParseTicketID("/blockedBy/ticketId", b.TicketID)
+	if err != nil {
+		return err
+	}
+	if prior := a.st.canonical["intent/tickets/"+tid.Local+".json"]; prior.seq == "" || prior.digest == nil || (b.Gate != "" && !a.grants.GateIDs()[b.Gate]) {
+		return escalationForked(path, "request %s names an unknown blocked relation", id)
 	}
 	return nil
 }

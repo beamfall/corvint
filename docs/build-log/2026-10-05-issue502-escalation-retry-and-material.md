@@ -90,7 +90,7 @@ slot and Rollout sections are updated in this change.
   - `TestESCV0007_*`: 14 tests in `internal/tasks/dispatch/issue502_retry_test.go` and
     `internal/tasks/cli/dispatch_escalation_pending_internal_test.go`.
   - `TestESCV0008_*`: 6 tests across dispatch and cli.
-  - `TestESCV0010_*`: 8 tests in `internal/tasks/journal` and `internal/tasks/store`.
+  - `TestESCV0010_*`: 9 tests in `internal/tasks/journal` and `internal/tasks/store`.
 - **Mutation check:** disabling `escalations.bind` in `journal/records.go` failed 10 subtests and
   tests (every forgery, the redo and the checkpoint case). The original was then restored.
 - **Package run:** the full `./internal/tasks/... ./cmd/corvint-tasks/...` run is retained in the
@@ -190,6 +190,28 @@ regressions that fail without the fix:
   OPEN's source must equal it and be unsupervised. The record is bounded by the receipt scan.
   Regression: `TestESCV0010_OpenSourceIsARecordedAdmission`; all four subtests audit clean
   without the fix.
+
+Round 6 (over `d524530f..51fbac6a`) reported three P2 findings. All were verified and fixed with
+regressions that fail without the fix:
+
+- **P2, OPEN fence not restated:** the audit checked the original admission only, so an OPEN
+  consistently rewritten to a time after its lease expired audited clean although the writer
+  refuses `EXPIRED_ADMISSION`. The audit now reads the source attempt and `reservations.json`
+  pre-state afterimages and requires a live, unsupervised attempt under the source's generation,
+  holder and ticket record, a matching reservation and a lease that expires after the event's
+  time. Regression: the `lease expired` subtest of `TestESCV0010_OpenFenceIsAudited`, which
+  rewrites the event, receipt and ticket post time together. The not-current and
+  reservation branches have no forged-history regression; producing one needs a receipt moved
+  past a release.
+- **P2, unknown material at session end:** a session ending while its material was unknown was
+  classified from an empty request list, so an infrastructure session was accounted as an
+  ordinary failure and could park. Its accounting and reservation are now deferred with the ended
+  worker, as declared progress already is. Regression:
+  `TestESCV0008_UnknownMaterialDefersSessionAccounting` (a cooldown without the fix).
+- **P2, blocked relation not audited:** an OPEN rebound to a blocked relation naming an absent
+  ticket or undefined gate audited clean, while the writer refuses `BLOCKED_RELATION_UNKNOWN`. The
+  audit now checks both against the pre-state and pre-policy. Regression: the
+  `absent blocked ticket` and `undefined gate` subtests of `TestESCV0010_OpenFenceIsAudited`.
 
 ## NOT_RUN
 

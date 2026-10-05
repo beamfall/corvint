@@ -347,6 +347,63 @@ func TestESCV0010_OpenSourceIsARecordedAdmission(t *testing.T) {
 	}
 }
 
+// TestESCV0010_OpenFenceIsAudited: an OPEN consistently rewritten, with its
+// request entry rebound, is refused when the writer's fresh-OPEN fence would
+// refuse it against the audited pre-state: an event recorded after the
+// source lease expired (EXPIRED_ADMISSION), or a blocked relation naming an
+// absent ticket or a gate the pre-policy does not define
+// (BLOCKED_RELATION_UNKNOWN).
+func TestESCV0010_OpenFenceIsAudited(t *testing.T) {
+	cases := map[string]struct {
+		edit func(*ticket.EscalationEvent)
+		want string
+	}{
+		"lease expired": {func(ev *ticket.EscalationEvent) { ev.RecordedAt = "9999-12-31T23:59:59Z" }, "opened after its lease expired"},
+		"absent blocked ticket": {func(ev *ticket.EscalationEvent) {
+			id, _ := wire.ParseTicketID("id", ev.TicketID)
+			ev.OriginalRequest.Open.BlockedBy.TicketID = "ticket:" + id.Authority + ":" + id.Queue + ":absent"
+		}, "unknown blocked relation"},
+		"undefined gate": {func(ev *ticket.EscalationEvent) { ev.OriginalRequest.Open.BlockedBy.Gate = "no-such-gate" }, "unknown blocked relation"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			s, _, src := escalationClaim(t)
+			other := s.ticket(t, "blocker")
+			q, err := ticket.DecodeEscalationRequest(openRequest(t, "q-1", src, "", ""))
+			if err != nil {
+				t.Fatal(err)
+			}
+			q.Open.Kind, q.Open.BlockedBy = "blocked", &ticket.EscalationBlockedBy{TicketID: other}
+			raw, err := ticket.EncodeEscalationRequest(q)
+			if err != nil {
+				t.Fatal(err)
+			}
+			open := escalate(t, s, holder, raw, 1)
+			committed(t, open, "OPEN")
+			if _, err := noteAudit(t, s.repo); err != nil {
+				t.Fatalf("audit before forgery: %v", err)
+			}
+			forgeEvent(t, s, open.Receipt, true, c.edit)
+			if name == "lease expired" {
+				// The event, receipt and ticket post carry one time.
+				forgeReceiptWith(t, s.repo, open.Receipt, func(path string, rec wire.Value) (wire.Value, bool) {
+					if !strings.HasPrefix(path, "intent/tickets/") {
+						return wire.Value{}, true
+					}
+					rec.Obj.Set("updatedAt", str("9999-12-31T23:59:59Z"))
+					return rec, true
+				}, func(v wire.Value) {
+					v.Obj.Set("recordedAt", str("9999-12-31T23:59:59Z"))
+				})
+			}
+			_, err = noteAudit(t, s.repo)
+			if wire.CodeOf(err) != wire.CodeJournalForked || !strings.Contains(err.Error(), c.want) {
+				t.Fatalf("audit after forgery = %v, want JOURNAL_FORKED naming %q", err, c.want)
+			}
+		})
+	}
+}
+
 // TestESCV0010_RedoBindsAPendingEscalationReceipt: a linked-in OPEN whose head
 // and projection were not yet published is refused for redo when its ticket
 // post was forged, and nothing is published (the unforged redo is
