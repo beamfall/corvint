@@ -69,16 +69,27 @@ locked writer re-derives every reducer observation from the audited inventory (a
 definition and policy digests, the current gate head, the subject's BUILT transition receipt linked
 into the audited chain and posting the attempt record, subject currency, and live leases), posts the
 ticket and the one event, advances only the ticket revision, and refuses with REVISION_CONFLICT,
-UNAUTHORIZED, STALE_TICKET, STALE_TREE, LIMIT_EXCEEDED or MISSING_EVIDENCE before any effect. Redo is
-the existing digest-bound redo of staged artifacts. To satisfy the slot-reuse rule, `receipt audit`
-folds every receipt through `ExternalReviewReceiptAudit`, which refuses (JOURNAL_FORKED) a gate
-reference that is dropped, changes outside one single-gate MUTATION receipt, or whose head event
-does not record that receipt's sequence, request, actor, time, ticket, gate, predecessor and
-acceptance revision. `gate record`, `gate resubmit` and `gate history` (newest first, at most 50,
-default 20, `--cursor` from the truncation warning) are the CLI. The dispatcher's native
-observation now fills `Ticket.Gates` and sets `GatesObserved` for each ticket whose gates it reads;
-a gate set it cannot read stays unobserved (UNKNOWN). A subject stays current while no later BUILT
-author-stage attempt of the ticket exists, so a newer submission stales a verdict.
+UNAUTHORIZED, STALE_TICKET, STALE_TREE, LIMIT_EXCEEDED or MISSING_EVIDENCE before any effect. To
+satisfy the slot-reuse rule, `store.FoldExternalReviews` folds receipts through
+`ExternalReviewReceiptAudit`, which refuses (JOURNAL_FORKED) a gate reference that is dropped or
+changes outside one single-gate MUTATION receipt, and replays each head event's material transition
+through the reducer (`ValidateExternalReviewRecovery`) against the preceding reference and event:
+the expected counters, generation, predecessor, prior RETURN, actor, trust source, time, sequence
+and request must reproduce the posted event, and the subject must be a retained BUILT submission
+receipt of the same ticket that no later submission superseded. Every consumer runs that fold:
+`receipt audit`, the dispatcher observation (a refused fold leaves gates unobserved), and redo of a
+pending receipt that posts a ticket record, which refuses before publishing any post. The replay is
+structural: it does not re-judge historical policy, lease liveness or stage membership. `gate
+record`, `gate resubmit` and `gate history` (newest first, at most 50, default 20, `--cursor` from
+the truncation warning) are the CLI; a `record|resubmit` retry whose request id names an event on
+the gate's chain and whose inputs match it resubmits the retained request bytes, so with the same
+`--issued-at` it replays after a head, policy or lease change, while a changed input remains a
+REQUEST_ID_CONFLICT. The dispatcher's native observation fills `Ticket.Gates` and sets
+`GatesObserved` for each ticket whose gates it reads; a gate set it cannot read stays unobserved
+(UNKNOWN). Subject currency comes from durable submission history: a subject is current while no
+later receipt posts a BUILT author-stage attempt of the ticket (the writer streams and chain-checks
+the receipts after the subject; readers use the fold), so a newer submission stales a verdict even
+after that attempt leaves BUILT.
 
 This slice admits only OWNER and OPERATOR actors, because the existing writer guard and mutation
 model accept only those roles: an OWNER/OPERATOR record without a reviewer lease is
@@ -203,10 +214,10 @@ native evidence for the OWNER/OPERATOR slice. The last column stays NOT_RUN.
 | ERG-V0-003 | ER504-003 | `TestIssue504CanonicalRoundTrip`, `TestIssue504BoundsAndUnknown` in snapshot; `TestIssue504TypedRouting` (prose cannot change state) | measured worst-case event size; evidence storage |
 | ERG-V0-004 | ER504-003 | `TestIssue504CanonicalRoundTrip` (closed per-gate reference codec only), `TestIssue504BoundsAndUnknown` (event revision 4097 refuses); `TestERGV0009_TicketReviewReferencesCodec` (16-gate map, legacy byte identity), `TestERGV0009_CoreReaderAdmitsOnlyTheClosedReviewReferences` | preservation by every non-review writer |
 | ERG-V0-005 | ER504-004 | `TestIssue504ResubmitAndSecondReturn`, `TestIssue504ReplayAndAuthority`, `TestIssue504BoundsAndUnknown` in transaction (same-CAS single winner over pure state); `TestERGV0009_NativeVerdictsThroughTheCLI` (stale counters refuse with REVISION_CONFLICT) | two-writer CAS and replay through the native request index |
-| ERG-V0-006 | ER504-002, F1 | `TestIssue504HistoricalPreservation`, `TestIssue504ResubmitAndSecondReturn/stale-resubmit-fresh-cycle`, `TestIssue504BoundsAndUnknown`; `TestERGV0009_NativeVerdictsThroughTheCLI` (a newer submission stales a PASS and refuses a verdict on the old subject) | staleness from a real acceptance change |
+| ERG-V0-006 | ER504-002, F1 | `TestIssue504HistoricalPreservation`, `TestIssue504ResubmitAndSecondReturn/stale-resubmit-fresh-cycle`, `TestIssue504BoundsAndUnknown`; `TestERGV0009_NativeVerdictsThroughTheCLI` (a newer submission stales a PASS and refuses a verdict on the old subject, also after the newer attempt is released) | staleness from a real acceptance change |
 | ERG-V0-007 | ER504-005 | `TestIssue504CanonicalRoundTrip`, `TestIssue504TypedRouting` (GateResult decoder rejects the event) | completion predicates unchanged under native records |
 | ERG-V0-008 | ER504-005, Gate A MED | `TestIssue504MaterialBindings` (rehashed wrong CAS, priorReturn, context, post and subject) | locked staged recovery and crash/redo fixtures |
-| ERG-V0-009 | ER504-001, ER504-005, ER504-006 | `TestIssue504GateAdapter` (16-gate bound, UNKNOWN for a missing head or binding or a head for another ticket or gate, STALE), `TestIssue504AnchoredHistory` (default and maximum page, cursor paging, off-chain cursor, broken link and digest refusals), `TestIssue504DispatchMisroutes` (the three issue misroutes route by typed verdict through adapter and roster), `TestERGV0009_GatePredicates` (closed predicate config, NONE only when observed, unobserved gates are UNKNOWN, STALE/UNKNOWN never match, fingerprint compatibility, programs cannot supply gates), `TestERGV0009_PolicyExternalReviewsGrantNothingByDefault`, `TestERGV0009_NativeVerdictsThroughTheCLI` (native writer, CLI verbs, history paging, observation filling ticket gates, receipt-audit binding refusing a forged receipt), `TestONV0006_DerivedEventSlotClosedToDeclaringOperations` | REVIEWER actors, the full `gates[G]` field set, crash/redo fixture, 1670-byte descriptor measurement |
+| ERG-V0-009 | ER504-001, ER504-005, ER504-006 | `TestIssue504GateAdapter` (16-gate bound, UNKNOWN for a missing head or binding or a head for another ticket or gate, STALE), `TestIssue504AnchoredHistory` (default and maximum page, cursor paging, off-chain cursor, broken link and digest refusals), `TestIssue504DispatchMisroutes` (the three issue misroutes route by typed verdict through adapter and roster), `TestERGV0009_GatePredicates` (closed predicate config, NONE only when observed, unobserved gates are UNKNOWN, STALE/UNKNOWN never match, fingerprint compatibility, programs cannot supply gates), `TestERGV0009_PolicyExternalReviewsGrantNothingByDefault`, `TestERGV0009_NativeVerdictsThroughTheCLI` (native writer, CLI verbs, history paging, observation filling ticket gates, receipt-audit binding refusing a forged receipt), `TestERGV0009_ForgedReviewEventsRefuseAtRecovery` (rehashed events with a forged actor, counters or prior RETURN refuse redo as JOURNAL_FORKED with the projection unchanged, and once settled leave gates unobserved), `TestERGV0009_ReviewRetriesReplay` (retries replay after head, policy and lease changes; a changed input is a request-id conflict), `TestONV0006_DerivedEventSlotClosedToDeclaringOperations` | REVIEWER actors, the full `gates[G]` field set, two-writer fixture, 1670-byte descriptor measurement |
 | ERG-V0-010 | ER504-008, ER504-009 | none | full native fixture set, issue 394 producer, review, integration and native completion |
 
 ## Rollout and rollback

@@ -136,6 +136,9 @@ type Input struct {
 	// (ERG-V0-009). The pure transition re-hashes both.
 	ExternalReviewPriorEvent []byte
 	ExternalReviewSubject    [][]byte
+	// ExternalReviewLater is the chain-verified submission history after the
+	// subject; nil means unobserved, and the subject is then not current.
+	ExternalReviewLater *ExternalSubmissionHistory
 }
 
 type HandoffPolicyObservation struct {

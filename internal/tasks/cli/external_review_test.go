@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -25,8 +26,19 @@ const ergGate = "g1-review"
 func ergStore(t *testing.T) (root, tree string) {
 	t.Helper()
 	root, _ = leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	ergPolicyUpdate(t, root, "2")
+	raw, err := exec.Command("git", "-C", root, "rev-parse", "HEAD^{tree}").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root, strings.TrimSpace(string(raw))
+}
+
+// ergPolicyUpdate installs the review policy at version (from version-1).
+func ergPolicyUpdate(t *testing.T, root, version string) {
+	t.Helper()
 	policy := fixture.PolicyValue()
-	policy.Obj.Set("policyVersion", wire.String("2"))
+	policy.Obj.Set("policyVersion", wire.String(version))
 	budgets, _ := policy.Obj.Get("budgets")
 	budgets.Obj.Set("requireEnforcedFields", wire.Strings(nil))
 	capacity := wire.NewObject().Set("classes", wire.Array()).Set("maxActiveAttempts", wire.String("4")).Set("maxWorkersTotal", wire.String("4"))
@@ -39,16 +51,12 @@ func ergStore(t *testing.T) (root, tree string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(dir, "policy-2.json")
+	path := filepath.Join(dir, "policy-"+version+".json")
 	fixture.Write(t, path, wire.EncodeFile(policy))
-	if x := atm(t, root, nil, "policy", "update", "--request-id", "policy-2", "--expected-policy-version", "1", "--file", path); x.res.Outcome != wire.OutcomeOK {
+	prev, _ := wire.ParseCount("version", version)
+	if x := atm(t, root, nil, "policy", "update", "--request-id", "policy-"+version, "--expected-policy-version", strconv.FormatInt(prev.Int()-1, 10), "--file", path); x.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("policy update: %s", x.stdout)
 	}
-	raw, err := exec.Command("git", "-C", root, "rev-parse", "HEAD^{tree}").Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-	return root, strings.TrimSpace(string(raw))
 }
 
 func ergGateView(t *testing.T, root, id string) (dispatch.GateView, string) {
@@ -157,6 +165,19 @@ func TestERGV0009_NativeVerdictsThroughTheCLI(t *testing.T) {
 	}
 	runOK("receipt", "audit")
 
+	// Currency comes from the submission history, not from the newer
+	// attempt's phase: once B leaves BUILT, A's PASS stays STALE and A's
+	// subject cannot take a new current verdict (ERG-V0-006).
+	runOK("release", "--attempt", field(c.res.Items[0], "attemptId").Str, "--generation", field(c.res.Items[0], "generation").Str,
+		"--reason", wire.CodeHandoff, "--request-id", "release-b")
+	if _, state := ergGateView(t, root, id); state != "STALE" {
+		t.Fatalf("releasing the newer candidate revived the PASS: %s", state)
+	}
+	if x := record("review-6", "PASS", "2", "3"); x.res.Outcome == wire.OutcomeOK {
+		t.Fatalf("a verdict on the superseded subject was accepted after release: %s", x.stdout)
+	}
+	runOK("receipt", "audit")
+
 	// The pure binding fold accepts the real receipts and refuses one whose
 	// actor no longer matches the event it posts.
 	repo, err := intent.Resolve(root)
@@ -190,10 +211,56 @@ func TestERGV0009_NativeVerdictsThroughTheCLI(t *testing.T) {
 			if forge && rc.RequestID != nil && *rc.RequestID == "review-4" {
 				rc.ActorID = "someone-else"
 			}
-			refused = fold.Step(rc, blob)
+			refused = fold.Step(rc, wire.Sum(raw), blob)
 		}
 		if forge != (refused != nil) || (forge && wire.CodeOf(refused) != wire.CodeJournalForked) {
 			t.Fatalf("forge=%t: %v", forge, refused)
 		}
 	}
+}
+
+// TestERGV0009_ReviewRetriesReplay retries `gate record|resubmit` with the
+// same request id and --issued-at: the CLI resubmits the retained request, so
+// the retry replays even after the head moved (the default prior RETURN), the
+// policy changed and the author lease ended; a changed input is refused.
+func TestERGV0009_ReviewRetriesReplay(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	t.Setenv("ATM_ACTOR", "tester")
+	root, tree := ergStore(t)
+	id := planTicket(t, root, "reviewed", "P1", `["src/"]`)
+	runOK := func(args ...string) run {
+		t.Helper()
+		r := atm(t, root, nil, args...)
+		if r.res.Outcome != wire.OutcomeOK {
+			t.Fatalf("%v: %s", args, r.stdout)
+		}
+		return r
+	}
+	c := runOK("claim", id, "--holder", "tester", "--stage", "implement", "--request-id", "claim-a")
+	attempt, generation := field(c.res.Items[0], "attemptId").Str, field(c.res.Items[0], "generation").Str
+	runOK("submit", "--attempt", attempt, "--generation", generation, "--tree", tree, "--request-id", "submit-a")
+	subject := field(runOK("receipt", "audit").res.Items[0], "headSeq").Str
+	record := []string{"gate", "record", id, "--gate", ergGate, "--verdict", "RETURN", "--subject-receipt", subject,
+		"--expected-generation", "0", "--expected-revision", "0", "--request-id", "review-1", "--reason", "TESTS:missing case", "--issued-at", "2026-10-04T12:00:00Z"}
+	resubmit := []string{"gate", "resubmit", id, "--gate", ergGate, "--author-attempt", attempt, "--subject-receipt", subject,
+		"--expected-generation", "1", "--expected-revision", "1", "--reason", "FIXED:added the case", "--request-id", "resubmit-1", "--issued-at", "2026-10-04T12:01:00Z"}
+	runOK(record...)
+	runOK(resubmit...)
+	replayed := func(name string, args []string) {
+		t.Helper()
+		if x := runOK(args...); !field(x.res.Items[0], "replayed").Bool {
+			t.Fatalf("%s: the retry was not a replay: %s", name, x.stdout)
+		}
+	}
+	replayed("immediate resubmit", resubmit)
+	replayed("record after the head moved", record)
+	changed := append(append([]string{}, resubmit[:len(resubmit)-6]...), "--reason", "FIXED:a different fix", "--request-id", "resubmit-1", "--issued-at", "2026-10-04T12:01:00Z")
+	if x := atm(t, root, nil, changed...); x.res.Outcome == wire.OutcomeOK || field(x.res.Items[0], "outcome").Str != mutation.OutcomeRequestIDConflict {
+		t.Fatalf("a changed retry was not a request-id conflict: %s", x.stdout)
+	}
+
+	ergPolicyUpdate(t, root, "3")
+	runOK("release", "--attempt", attempt, "--generation", generation, "--reason", wire.CodeHandoff, "--request-id", "release-a")
+	replayed("resubmit after policy and lease change", resubmit)
+	replayed("record after policy change", record)
 }

@@ -170,7 +170,7 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
-	priorReview, reviewSubject, err := reviewInputs(repo, env, canonical.Records, canonical.Head)
+	priorReview, reviewSubject, reviewLater, err := reviewInputs(repo, env, canonical.Records, canonical.Head)
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
@@ -195,6 +195,7 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 
 			ExternalReviewPriorEvent: priorReview,
 			ExternalReviewSubject:    reviewSubject,
+			ExternalReviewLater:      reviewLater,
 		},
 	)
 	report.Outcome = result.Outcome

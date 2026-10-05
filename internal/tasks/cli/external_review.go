@@ -11,33 +11,24 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// externalReviewBlob reads one retained event by digest from evidence/. The
-// pure readers re-hash every byte, so an absent or altered file is UNKNOWN.
-func externalReviewBlob(repo *intent.Repository) transaction.ExternalReviewBlob {
-	return func(d wire.Digest) ([]byte, bool) {
-		if _, err := wire.ParseDigest("head", string(d)); err != nil {
-			return nil, false
-		}
-		raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "evidence", string(d)), wire.MaxReceiptFileBytes)
-		return raw, err == nil
-	}
-}
-
 // externalReviewGateViews is the native workState observation of one
 // ticket's external review gates (ERG-V0-009): every gate reference on the
-// record, read through the pure adapter against its current binding.
-func externalReviewGateViews(repo *intent.Repository, rec *ticket.Record, policy *intent.Policy, attempts map[string]*snapshot.Attempt) (map[string]dispatch.GateView, error) {
+// record, read through the pure adapter against its current binding. fold is
+// the receipt history's binding audit (store.FoldExternalReviews); it names
+// the submissions that superseded a subject (ERG-V0-006).
+func externalReviewGateViews(repo *intent.Repository, rec *ticket.Record, policy *intent.Policy, attempts map[string]*snapshot.Attempt, fold *transaction.ExternalReviewReceiptAudit) (map[string]dispatch.GateView, error) {
 	refs := map[string]snapshot.ExternalReviewRef{}
 	for gate, ref := range rec.ExternalReviews {
 		refs[gate] = snapshot.ExternalReviewRef{Generation: ref.Generation, Revision: ref.Revision, Head: ref.Head}
 	}
-	blob := externalReviewBlob(repo)
-	views, err := transaction.ExternalReviewGates(rec.TicketID.Raw, refs, blob, transaction.ExternalReviewCurrentBindings(rec, policy, attempts, blob))
+	blob := store.ExternalReviewBlob(repo)
+	views, err := transaction.ExternalReviewGates(rec.TicketID.Raw, refs, blob, transaction.ExternalReviewCurrentBindings(rec, policy, attempts, blob, fold.Superseded))
 	if err != nil {
 		return nil, err
 	}
@@ -56,26 +47,8 @@ func externalReviewGateViews(repo *intent.Repository, rec *ticket.Record, policy
 // ERG-V0-009 binding audit, so `receipt audit` refuses a review event that
 // does not record its receipt's transition.
 func externalReviewReceiptBinding(repo *intent.Repository, last wire.Size) error {
-	blob := externalReviewBlob(repo)
-	var fold transaction.ExternalReviewReceiptAudit
-	for seq := uint64(1); seq <= last.Uint64(); seq++ {
-		name, err := snapshot.ReceiptName(seq)
-		if err != nil {
-			return err
-		}
-		raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "receipts", name), wire.MaxReceiptFileBytes)
-		if err != nil {
-			return err
-		}
-		rc, err := snapshot.DecodeReceipt(raw)
-		if err != nil {
-			return err
-		}
-		if err = fold.Step(rc, blob); err != nil {
-			return err
-		}
-	}
-	return nil
+	_, err := store.FoldExternalReviews(repo, last.Uint64(), nil)
+	return err
 }
 
 type reviewFlags struct {
@@ -138,7 +111,12 @@ func gateReviewCommand(env Env, verb string, args []string) *wire.Result {
 	}
 	var request wire.Value
 	rc, err := withStore(env, func(rc *readCtx) error {
-		v, err := composeReviewRequest(rc, operation, actor, f)
+		v, retained, err := retainedReviewRequest(rc, operation, actor, f)
+		if err != nil || retained {
+			request = v
+			return err
+		}
+		v, err = composeReviewRequest(rc, operation, actor, f)
 		request = v
 		return err
 	})
@@ -147,6 +125,76 @@ func gateReviewCommand(env Env, verb string, args []string) *wire.Result {
 	}
 	payload := wire.NewObject().Set("request", request)
 	return submitMutation(env, cmd, operation, actor, f.mutateFlags, wire.ObjectValue(payload))
+}
+
+// retainedReviewRequest makes a retry reproducible (ERG-V0-009): when the
+// gate's retained chain already holds an event for --request-id whose
+// request matches every caller input (action, counters, subject, verdict,
+// reasons, leases, prior RETURN when given, actor), the retained request
+// bytes are resubmitted instead of a fresh composition, so a later policy,
+// lease or head change cannot alter a retry's envelope. A mismatching input
+// falls through to fresh composition, which the writer then refuses as a
+// request-id conflict or on its own checks.
+func retainedReviewRequest(rc *readCtx, operation string, actor mutation.Binding, f reviewFlags) (wire.Value, bool, error) {
+	id, err := resolveTicketArg(rc, f.target)
+	if err != nil {
+		return wire.Value{}, false, err
+	}
+	rec, ok := rc.store.Inventory.Get(id)
+	if !ok {
+		return wire.Value{}, false, nil
+	}
+	ref, ok := rec.ExternalReviews[f.gate]
+	if !ok {
+		return wire.Value{}, false, nil
+	}
+	blob := store.ExternalReviewBlob(rc.repo)
+	at := &ref.Head
+	for n := 0; at != nil && n < snapshot.MaxExternalReviewEvents; n++ {
+		raw, ok := blob(*at)
+		if !ok || wire.Sum(raw) != *at {
+			return wire.Value{}, false, nil
+		}
+		e, err := snapshot.CanonicalExternalReviewEvent(raw)
+		if err != nil || e.Request.TicketID != id || e.Request.GateID != f.gate {
+			return wire.Value{}, false, nil
+		}
+		if e.Request.RequestID == f.requestID {
+			if !retainedReviewMatches(e, operation, actor, f) {
+				return wire.Value{}, false, nil
+			}
+			body, err := e.Request.Encode()
+			if err != nil {
+				return wire.Value{}, false, err
+			}
+			v, err := wire.Parse(body)
+			return v, err == nil, err
+		}
+		at = e.Previous
+	}
+	return wire.Value{}, false, nil
+}
+
+func retainedReviewMatches(e *snapshot.ExternalReviewEvent, operation string, actor mutation.Binding, f reviewFlags) bool {
+	q := e.Request
+	if e.ActorID != actor.ID || e.ActorRole != actor.Role || string(q.ExpectedGeneration) != f.expectedGeneration || string(q.ExpectedRevision) != f.expectedRevision ||
+		string(q.Subject.ReceiptSeq) != f.subject || len(q.Reasons) != len(f.reasons) {
+		return false
+	}
+	for i, r := range q.Reasons {
+		if r.Code+":"+r.Text != f.reasons[i] {
+			return false
+		}
+	}
+	if operation == mutation.OpReviewRecord {
+		reviewer := ""
+		if q.ReviewerLease != nil {
+			reviewer = q.ReviewerLease.AttemptID
+		}
+		return q.Action == "RECORD" && q.Verdict != nil && *q.Verdict == f.verdict && reviewer == f.reviewer
+	}
+	return q.Action == "RESUBMIT" && q.AuthorLease != nil && q.AuthorLease.AttemptID == f.author &&
+		(f.priorReturn == "" || (q.PriorReturn != nil && string(*q.PriorReturn) == f.priorReturn))
 }
 
 func composeReviewRequest(rc *readCtx, operation string, actor mutation.Binding, f reviewFlags) (wire.Value, error) {
@@ -305,7 +353,7 @@ func gateHistory(env Env, args []string) *wire.Result {
 			page = transaction.ExternalReviewPage{}
 			return nil
 		}
-		page, err = transaction.ExternalReviewHistory(snapshot.ExternalReviewRef{Generation: ref.Generation, Revision: ref.Revision, Head: ref.Head}, externalReviewBlob(rc.repo), id, gate, at, n)
+		page, err = transaction.ExternalReviewHistory(snapshot.ExternalReviewRef{Generation: ref.Generation, Revision: ref.Revision, Head: ref.Head}, store.ExternalReviewBlob(rc.repo), id, gate, at, n)
 		if err != nil {
 			return wire.Errorf(wire.CodeMissingEvidence, "gate history", "%v", err)
 		}

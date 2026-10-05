@@ -33,14 +33,33 @@ gate state, without Markdown parsing. Its contract is the updated current-state 
   plan digest and the store guard refuse every other role, and widening them is a separate change.
 - **Evidence references.** Non-empty evidence references refuse as an unknown observation until the
   EVIDENCE producer exists.
-- **Subject currency.** A subject is current while no later BUILT author-stage attempt of the
-  ticket exists. A newer submission makes the verdict STALE.
+- **Subject currency.** A subject is current while no later receipt posts a BUILT author-stage
+  attempt of the ticket. A newer submission makes the verdict STALE, and it stays STALE after that
+  attempt leaves BUILT.
 - **Unchanged slot rules.** The `ticket note` slot and its limits are unchanged.
+
+## Review repair (Codex CHANGES_REQUIRED at 3fe36ab4)
+
+- **P1-1, currency.** Currency was derived from current attempt phases, so a released or checking
+  newer attempt revived an obsolete PASS. It now comes from durable submission history: the writer
+  streams the receipts after the subject, chain-checked one at a time, and readers use the fold.
+- **P1-2, consumers.** The binding fold moved to `store.FoldExternalReviews`. `receipt audit`, the
+  dispatcher observation and redo of a pending ticket-posting receipt all run it, so a rehashed
+  untrue event refuses as JOURNAL_FORKED before redo publishes anything.
+- **P1-3, counters.** The fold replays each head event through `ValidateExternalReviewRecovery`
+  against the preceding reference and event, which checks expected counters and the prior RETURN.
+- **P2-4, retries.** A retry whose request id and inputs match a retained event resubmits that
+  event's request bytes, so it replays after a head, policy or lease change.
+- **Cost (V1-0645).** REVIEW_* writes keep one extra full audit and add an O(receipts after the
+  subject) scan; redo of a ticket-posting receipt and the dispatcher observation add an O(receipts)
+  fold. The writer hunks in `store/mutate.go` and `store/redo.go` stay at three lines each.
 
 ## Evidence
 
 Focused tests (all passing):
 - `TestERGV0009_NativeVerdictsThroughTheCLI`;
+- `TestERGV0009_ForgedReviewEventsRefuseAtRecovery`;
+- `TestERGV0009_ReviewRetriesReplay`;
 - `TestERGV0009_PolicyExternalReviewsGrantNothingByDefault`;
 - `TestERGV0009_TicketReviewReferencesCodec`;
 - `TestERGV0009_CoreReaderAdmitsOnlyTheClosedReviewReferences`;
@@ -48,7 +67,7 @@ Focused tests (all passing):
   by the note and review operations only.
 
 NOT_RUN:
-- crash/redo and two-writer fixtures;
+- the two-writer fixture;
 - the 1670-byte descriptor measurement for review operations;
 - REVIEWER actors;
 - the full `gates[G]` field set;
