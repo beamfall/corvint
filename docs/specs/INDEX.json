@@ -725,7 +725,7 @@
     "path": "docs/specs/corvint-tasks-evidence-attachments-v0.md",
     "title": "Corvint Tasks evidence attachments V0",
     "reqPrefix": "TEA-V0",
-    "intent": "proposed",
+    "intent": "accepted",
     "delivery": "experimental",
     "claim": "Writers attach sha256 evidence digests and a reason to an OPEN native ticket in one receipt-backed write that leaves acceptance, status and gates unchanged.",
     "dependsOn": [

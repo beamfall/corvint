@@ -55,3 +55,22 @@ previousRecordSha256.
   conflated the foreign importer with native archive export), fixed in the spec and this entry.
 - Codex review round 2 (static, `d524530f..da04e5ad`): APPROVED, no P0-P3 findings.
 - `make gate` and `go test ./...`: NOT_RUN (lane rule; `corvint affected` lists them as mandatory).
+
+## Owner acceptance
+
+On 2026-10-05 the owner accepted V1-0808 with qualification `NOT_RUN` and delegated its open design
+questions to the orchestrator. The orchestrator accepted the drafted defaults and marked the spec's
+intent accepted.
+- HELD tickets refuse attachments.
+- OPERATOR needs an explicit row.
+- The 32/16/512 bounds stand.
+- TEA-V0 stays a separate profile.
+- The foreign importer does not carry the member.
+
+`NOT_RUN`, tracked by follow-up V1-0813: the native archive round trip, the concurrent two-process
+CAS, interrupted-commit redo, `make gate` and `go test ./...`. V1-0808 completes on this basis.
+
+The full `internal/tasks/store` run failed four PSR pool-sweep tests while other lanes loaded the
+host. The lane reran them alone at head and three of the four passed. `live-unknown-gone` also fails
+at base d524530f (1 of 4 runs) and passed 4 of 4 at head; it is the existing suspected flake V1-0779
+(V1-0724 covers load sensitivity). This acceptance claims no store-package pass.
