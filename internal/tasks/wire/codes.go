@@ -27,6 +27,7 @@ const CodeDirtyWorktree = "DIRTY_WORKTREE"
 const CodeDocsMissing = "DOCS_MISSING"
 const CodeDuplicateID = "DUPLICATE_ID"
 const CodeEffectOwned = "EFFECT_OWNED"
+const CodeEscalationPending = "ESCALATION_PENDING"
 const CodeExternalUnbounded = "EXTERNAL_UNBOUNDED"
 const CodeFenced = "FENCED"
 const CodeGateFailed = "GATE_FAILED"
@@ -83,7 +84,7 @@ var Codes = []string{
 	CodeCapabilityUnavailable, CodeCemMissing, CodeContaminated, CodeCoverageUnknown,
 	CodeCutoverInProgress, CodeCutoverMissing, CodeCycle, CodeDependencyMissing,
 	CodeDependencyUnsatisfied, CodeDevelopmentMode, CodeDirtyWorktree, CodeDocsMissing,
-	CodeDuplicateID, CodeEffectOwned, CodeExternalUnbounded, CodeFenced, CodeGateFailed,
+	CodeDuplicateID, CodeEffectOwned, CodeEscalationPending, CodeExternalUnbounded, CodeFenced, CodeGateFailed,
 	CodeGateStale, CodeGateUnknown, CodeHandoff, CodeIndependenceUnverified, CodeIntentBranchMismatch,
 	CodeIntentDiverged, CodeInvalidPriority, CodeJournalForked, CodeJournalSaturated,
 	CodeLimitExceeded, CodeLockTimeout, CodeMalformed, CodeMissingEvidence, CodeMissingGate,

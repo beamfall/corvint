@@ -33,6 +33,10 @@ type Ticket struct {
 	// gate of the ticket. While false every gate is UNKNOWN, so no gate
 	// predicate (NONE included) matches an unobserved ticket.
 	GatesObserved bool
+	// EscalationPending is the native ESC-V0-006 derived hold: the sorted
+	// request IDs of current OPEN decision, scope or blocked questions. A
+	// workState program cannot supply it. A held ticket is never rostered.
+	EscalationPending []string
 }
 
 // Attempt is the dispatcher's view of one attempt.
@@ -153,6 +157,9 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 		for _, t := range obs.Tickets {
 			if _, held := live[t.ID]; held {
 				continue // a lease, an expired lease awaiting reap, or another supervisor holds it
+			}
+			if len(t.EscalationPending) > 0 {
+				continue // ESC-V0-006: a session cannot claim it until the questions are answered
 			}
 			if !matches(r.Match, t) {
 				continue

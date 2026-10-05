@@ -151,16 +151,17 @@ func escalationRefs(v wire.Value, revision, acceptance uint64) error {
 	return nil
 }
 
-// escalationHeld reports a current OPEN decision, scope or blocked question,
-// the ESCALATION_PENDING derived hold (ESC-V0-006). Infrastructure questions
-// do not hold admission.
-func escalationHeld(t ticket) bool {
+// escalationPending returns the sorted request IDs of the ESCALATION_PENDING
+// derived hold (ESC-V0-006): current OPEN decision, scope or blocked
+// questions, through the predicate the native Tasks reader shares (decision
+// 0397). Infrastructure and stale questions do not hold admission.
+func escalationPending(t ticket) []string {
+	var entries []taskswire.EscalationHoldEntry
 	for _, x := range value(value(t.raw, "escalations"), "entries").Arr {
-		if stringAt(x, "state") == "OPEN" && stringAt(x, "acceptanceRevision") == t.revision && stringAt(x, "kind") != "infrastructure" {
-			return true
-		}
+		entries = append(entries, taskswire.EscalationHoldEntry{RequestID: stringAt(x, "requestId"), AcceptanceRevision: stringAt(x, "acceptanceRevision"), Kind: stringAt(x, "kind"), State: stringAt(x, "state")})
 	}
-	return false
+	ids, _ := taskswire.EscalationPending(t.revision, entries)
+	return ids
 }
 func boolField(v wire.Value, k string) error {
 	if value(v, k).Kind != wire.KindBool {

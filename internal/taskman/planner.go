@@ -188,8 +188,11 @@ func nativeClosure(t ticket, index *contextindex.Index, source workqueue.Collisi
 	return normalized(r), complete
 }
 func blocker(t ticket, all map[string]ticket, c captured) string {
-	if t.status != "OPEN" || len(value(t.raw, "holds").Arr) > 0 || escalationHeld(t) {
+	if t.status != "OPEN" || len(value(t.raw, "holds").Arr) > 0 {
 		return "TICKET_STATE"
+	}
+	if len(escalationPending(t)) != 0 {
+		return "ESCALATION_PENDING"
 	}
 	if !c.observed.complete {
 		return "MISSING_EVIDENCE"

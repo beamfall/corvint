@@ -1009,6 +1009,12 @@ func (d *Dispatcher) diff(obs *Observation) {
 	now := &Seen{Tickets: map[string]string{}, Claims: map[string]string{}, Lanes: map[string]string{}}
 	for _, t := range obs.Tickets {
 		now.Tickets[t.ID] = strings.Join([]string{t.Status, t.State, t.Plan, t.PlanReason}, "|")
+		if len(t.EscalationPending) > 0 {
+			if now.Escalations == nil {
+				now.Escalations = map[string][]string{}
+			}
+			now.Escalations[t.ID] = append([]string(nil), t.EscalationPending...)
+		}
 	}
 	for _, a := range obs.Attempts {
 		if a.Live {
