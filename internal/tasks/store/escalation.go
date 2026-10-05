@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -131,4 +133,52 @@ func escalationEvents(repo *intent.Repository, report *Report) error {
 		report.EscalationEvents = append(report.EscalationEvents, ev)
 	}
 	return nil
+}
+
+// ClaimSource resolves an OPEN's origin from the worker's invocation context:
+// the claim receipt sequence and attempt the claim returned (ESC-V0-001). It
+// reads that immutable ADMIT receipt and its POST attempt, never the latest
+// attempt projection, because a retry reuses the attempt ID and a renew moves
+// the lease's granted sequence. ok is false when the receipt is absent, is not
+// a completed admission of the attempt, or its POST attempt is missing or
+// differs; the writer re-audits the source under its lock either way.
+func ClaimSource(repo *intent.Repository, queueID, attemptID string, seq uint64) (src ticket.EscalationSource, ok bool, err error) {
+	raw, err := readReceiptBytes(repo, seq)
+	if errors.Is(err, fs.ErrNotExist) {
+		return src, false, nil
+	}
+	if err != nil {
+		return src, false, err
+	}
+	rc, err := snapshot.DecodeReceipt(raw)
+	if err != nil || rc.Kind != "ADMIT" || rc.Outcome != mutation.OutcomeCompleted || rc.AttemptID == nil || *rc.AttemptID != attemptID || rc.Generation == nil {
+		return src, false, nil
+	}
+	for _, p := range rc.Post {
+		if p.Path != "attempts/"+attemptID+".json" || p.Sha256 == nil {
+			continue
+		}
+		var post []byte
+		switch {
+		case p.Record != nil:
+			post = wire.EncodeFile(*p.Record)
+		case p.BlobSha256 != nil:
+			post, err = intent.ReadFile(filepath.Join(repo.StateDir, "evidence", string(*p.BlobSha256)), wire.MaxAttemptRecordBytes)
+			if errors.Is(err, fs.ErrNotExist) {
+				return src, false, nil
+			}
+			if err != nil {
+				return src, false, err
+			}
+		}
+		if post == nil || wire.Sum(post) != *p.Sha256 {
+			return src, false, nil
+		}
+		a, err := snapshot.DecodeAttempt(post)
+		if err != nil || a.AttemptID != attemptID || a.Generation != *rc.Generation || a.Lease == nil {
+			return src, false, nil
+		}
+		return ticket.EscalationSource{QueueID: queueID, TicketID: a.TicketID.Raw, AttemptID: attemptID, Generation: a.Generation, Holder: a.Lease.Holder, AcceptanceRevision: a.TicketRevision, ReceiptSequence: rc.Seq, ReceiptSha256: wire.Sum(raw), PostAttemptSha256: *p.Sha256, TicketRecordSha256: a.TicketRecordSha256}, true, nil
+	}
+	return src, false, nil
 }
