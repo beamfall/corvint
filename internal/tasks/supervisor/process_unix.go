@@ -191,7 +191,7 @@ func Run(ctx context.Context, self, dir string, c Capsule, journal Journal) (out
 	// A detached host's escaped groups are observed while the host runs,
 	// since an escape orphaned by its parent's exit is no longer reachable.
 	vocabulary, _ := HostVocabulary(c.Host)
-	escaped := newEscapes(owned.group)
+	escaped := newEscapes(Boot{PID: cmd.Process.Pid, Started: start})
 	// Always retire the owned group, including failed boot/ack paths.
 	defer func() {
 		if vocabulary.Detached {

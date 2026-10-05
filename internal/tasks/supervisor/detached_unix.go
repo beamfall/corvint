@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -57,46 +58,100 @@ func processRows() ([]processRow, error) {
 // group: a live process whose parent belongs to the owned group (or to an
 // escape already found) but whose own group differs. An escape must lead its
 // own group; anything else, or an observation that fails, is uncertainty.
+//
+// Numeric group membership is never trusted on its own (CAL-V0-077): a group
+// is expanded only through its leader identity, recorded before the process
+// snapshot and still live, still leading that group, after it. A candidate is
+// recorded only when a later snapshot still shows it, with the identity read
+// before that snapshot, as a child of such an anchored group.
 type escapes struct {
-	owned     int
+	owned     Boot
 	groups    map[int]string
 	uncertain bool
 	rows      func() ([]processRow, error)
 	identity  func(int) (string, error)
+	groupOf   func(int) (int, error)
 	exists    func(int) (bool, error)
+	newGroup  func(Boot) *ownedGroup
 }
 
-func newEscapes(owned int) *escapes {
-	return &escapes{owned: owned, groups: map[int]string{}, rows: processRows, identity: ProcessIdentity, exists: groupExists}
+// maxEscapeRounds bounds the snapshots of one scan; each recorded escape
+// level needs two (candidate, then confirmation).
+const maxEscapeRounds = 16
+
+func newEscapes(owned Boot) *escapes {
+	return &escapes{owned: owned, groups: map[int]string{}, rows: processRows, identity: ProcessIdentity, groupOf: syscall.Getpgid, exists: groupExists, newGroup: newOwnedGroup}
 }
 
 func (x *escapes) known(group int) bool {
 	_, ok := x.groups[group]
-	return group == x.owned || ok
+	return group == x.owned.PID || ok
 }
 
-// scan records every escape visible now. It returns whether a member of the
-// owned group other than its leader (the host itself) was alive, the
-// positive evidence that every escape still has a live, observable parent.
-func (x *escapes) scan() bool {
-	rows, e := x.rows()
+// anchor reports whether group is still led by the identity recorded for it.
+// A leader PID now held by another live process proves the recorded group
+// ended, since a PID is not reused while its process group exists; a missing
+// leader with a live group is uncertainty.
+func (x *escapes) anchor(group int, id string) (anchored, gone bool) {
+	now, e := x.identity(group)
 	if e != nil {
 		x.uncertain = true
-		return false
+		return false, false
 	}
-	groupOf := map[int]int{}
-	host := false
-	for _, r := range rows {
-		groupOf[r.pid] = r.pgid
-		if r.pgid == x.owned && r.pid != x.owned && !r.zombie {
-			host = true
+	if id != "" && now == id {
+		pg, e := x.groupOf(group)
+		again, e2 := x.identity(group)
+		if e == nil && e2 == nil && pg == group && again == id {
+			return true, false
 		}
+		x.uncertain = true
+		return false, false
 	}
-	for found := true; found; {
-		found = false
+	if now != "" {
+		return false, true
+	}
+	live, e := x.exists(group)
+	if e != nil || live {
+		x.uncertain = true
+		return false, false
+	}
+	return false, true
+}
+
+// scan records every escape it can prove, taking snapshots until one shows
+// nothing new.
+func (x *escapes) scan() {
+	pending := map[int]string{}
+	for round := 0; ; round++ {
+		if round == maxEscapeRounds {
+			x.uncertain = true
+			return
+		}
+		rows, e := x.rows()
+		if e != nil {
+			x.uncertain = true
+			return
+		}
+		anchored := map[int]bool{}
+		if ok, _ := x.anchor(x.owned.PID, x.owned.Started); ok {
+			anchored[x.owned.PID] = true
+		}
+		for g, id := range x.groups {
+			ok, gone := x.anchor(g, id)
+			anchored[g] = ok
+			if gone {
+				delete(x.groups, g)
+			}
+		}
+		groupOf := map[int]int{}
+		for _, r := range rows {
+			groupOf[r.pid] = r.pgid
+		}
+		seen := map[int]bool{}
+		found := false
 		for _, r := range rows {
 			parent, ok := groupOf[r.ppid]
-			if r.zombie || x.known(r.pgid) || !ok || !x.known(parent) {
+			if r.zombie || x.known(r.pgid) || !ok || !anchored[parent] {
 				continue
 			}
 			if r.pgid != r.pid {
@@ -116,20 +171,45 @@ func (x *escapes) scan() bool {
 				}
 				continue
 			}
-			x.groups[r.pid] = id
+			seen[r.pid] = true
 			found = true
+			if pending[r.pid] == id {
+				x.groups[r.pid] = id
+				delete(pending, r.pid)
+			} else {
+				pending[r.pid] = id
+			}
+		}
+		for pid, id := range pending {
+			if seen[pid] {
+				continue
+			}
+			delete(pending, pid)
+			// No longer a child of an anchored group: unprovable while it,
+			// or a group under its PID, may still live.
+			now, e := x.identity(pid)
+			if e != nil || now == id {
+				x.uncertain = true
+			} else if now == "" {
+				if live, e := x.exists(pid); e != nil || live {
+					x.uncertain = true
+				}
+			}
+		}
+		if !found {
+			return
 		}
 	}
-	return host
 }
 
 // drain retires every recorded escape group: children first, then the group
-// leader with SIGTERM and, after escapeForceAfter, SIGKILL. It is true only
-// when no observation was uncertain and every group is gone.
+// leader with SIGTERM and, after escapeForceAfter, SIGKILL. Each drain
+// revalidates the leader identity before it signals. It is true only when no
+// observation was uncertain and every group is gone.
 func (x *escapes) drain() bool {
 	clean := !x.uncertain
 	for pid, id := range x.groups {
-		g := newOwnedGroup(Boot{PID: pid, Started: id})
+		g := x.newGroup(Boot{PID: pid, Started: id})
 		g.force = escapeForceAfter
 		if !g.drain() {
 			clean = false
@@ -138,10 +218,16 @@ func (x *escapes) drain() bool {
 	return clean
 }
 
-// RecoverHost drains a prior run's retained leader group (CAL-V0-077). For a
-// detached host it first requires the host itself to be alive, so that every
-// escape is still discoverable through its parent, then drains the leader
-// group and each escape; otherwise quiescence stays uncertain.
+// afterRecoveryScan runs between discovery and drain in RecoverHost; tests
+// use it to start an escape in that window.
+var afterRecoveryScan = func() {}
+
+// RecoverHost drains a prior run's retained leader group (CAL-V0-077). A
+// detached host's recovery is never proved: an escape started after the
+// discovery snapshot, or orphaned before it, has no link to the retained
+// group, and no witness that survives the supervisor's crash (the host output
+// pipes are gone with it) proves its absence. Recovery still drains every
+// escape it can observe, then reports quiescence uncertain.
 func RecoverHost(dir string, boot Boot) bool {
 	if boot.PID <= 0 || boot.Started == "" {
 		return false
@@ -161,11 +247,12 @@ func RecoverHost(dir string, boot Boot) bool {
 	if !host.Detached {
 		return Recover(boot)
 	}
-	if id, e := ProcessIdentity(boot.PID); e != nil || id != boot.Started {
-		return false
+	if id, e := ProcessIdentity(boot.PID); e == nil && id == boot.Started {
+		x := newEscapes(boot)
+		x.scan()
+		afterRecoveryScan()
+		Recover(boot)
+		x.drain()
 	}
-	x := newEscapes(boot.PID)
-	alive := x.scan()
-	owned := Recover(boot)
-	return x.drain() && owned && alive
+	return false
 }

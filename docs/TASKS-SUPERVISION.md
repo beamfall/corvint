@@ -56,7 +56,8 @@ OpenCode executable the same way, and give `model` as one `provider/model` witho
 `--session S --fork`. OpenCode starts its session server and tool processes in process groups of
 their own; the supervisor observes those escapes while the host runs, drains them at stop, and
 reports a clean stop only when the server-held standard error (`OPENCODE_PRINT_LOGS=1`, error
-level) reaches end of file. The run never
+level) reaches end of file. Escape groups are trusted only through a live recorded leader identity,
+and recovery after a lost supervisor never proves a detached host quiet. The run never
 passes `--auto`; an inline `OPENCODE_CONFIG_CONTENT` permission set denies sub-agents and directories
 outside the worktree in every stage and edits in review and integrate, project configuration is
 disabled and self-update is off. The last text part inside a step that finished with reason `stop`

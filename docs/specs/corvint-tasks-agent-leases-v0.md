@@ -1481,15 +1481,22 @@ below was read from OpenCode 2.0.21 (`opencode run --help` in an isolated home, 
   least every 200 ms and once more before cleanup, every live process whose parent belongs to the
   owned group or to an escape already found but whose own group differs. Such an escape MUST lead
   its own group and is retained by PID and start identity; an escape that joined another group, or
-  an observation that fails, is uncertainty. At cleanup the owned group is drained as in S10, then
+  an observation that fails, is uncertainty. A numeric group is never trusted on its own: a group
+  is expanded only while its leader still holds the start identity recorded before the process
+  snapshot, checked after that snapshot, and a candidate is retained only when a later snapshot
+  still shows it, under the identity read before that snapshot, as a child of such a group. A
+  leader PID now held by another process retires the recorded group, since a PID is not reused
+  while its group exists, and nothing in a reused group is adopted or signalled. At cleanup the owned group is drained as in S10, then
   each escaped group is drained children first and its leader with `SIGTERM` and, after a bound,
   `SIGKILL`. The stop is clean only when no observation was uncertain, every group is gone, and
   both host output pipes reach end of file within a bound. Because the server holds the stage's
   standard error, that end of file is the proof that no server outlived the run, including one
   orphaned before any observation found it. Recovery after a lost supervisor (CAL-V0-033) of a
-  detached host drains the retained leader group and the escapes it can observe, and is proved
-  only when a host process other than the leader was alive to observe them through; otherwise
-  quiescence stays uncertain.
+  detached host drains the retained leader group and the escapes it can observe, but MUST NOT
+  prove quiescence: an escape started after its discovery snapshot, or orphaned before it, has no
+  link to the retained group, and no witness of absence survives the supervisor (the output pipes
+  end with it). Detached recovery therefore always refuses as quiescence uncertain, and the
+  operator must clear it.
 
   The plugin boundary: plugins from the operator's own configuration under `HOME` still load,
   in-process, in the detached server. This is a known limit of this slice (owner decision
@@ -1557,8 +1564,13 @@ Failure modes:
   observation finds it is not reachable. If it holds the stage's standard error, as the server
   does, the stop is not clean (`BLOCKED_RECOVERY`). If it does not, it is not detected; this
   residual risk is the same as for any host child.
-- The supervisor is lost and recovery finds the host gone: escapes can no longer be observed
-  through it, so recovery refuses as quiescence uncertain and the operator must clear it.
+- The supervisor is lost: recovery drains what it can observe, but a late or orphaned escape could
+  survive with no witness, so detached recovery always refuses as quiescence uncertain and the
+  operator must clear it. This is a known limit of the slice; a crash-surviving witness is not
+  defined.
+- An escape exits and its PGID is reused by an unrelated process: the recorded leader identity no
+  longer matches, so the group is retired and neither the reused group nor its children are
+  adopted or signalled.
 - OpenCode's own stderr logs at error level exceed the 16 KiB cap: `OUTPUT_LIMIT`, retained and
   recoverable as in S10.
 - `OPENCODE_DISABLE_PROJECT_CONFIG` does not cover a project-level configuration source in some
@@ -1787,7 +1799,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-074 | `TestCALV0074_PolicyHost` (`internal/tasks/intent`); `TestCALV0074_CapsuleHost` (`internal/tasks/supervisor`); `TestCALV0074_CheckProgramConfigHost`, `TestCALV0074_OpenWorkflowRefusesHostBeforeMutation` (`internal/tasks/store`); `TestCALV0074_RunHostFlag` (`internal/tasks/cli`) |
 | CAL-V0-075 | `TestCALV0075_ClaudeResultVocabulary`, `TestCALV0075_ClaudeUsageObservedOrUnknown` (`internal/tasks/supervisor`); `TestCALV0075_ClaudeStageArgv`, `TestCALV0075_ClaudeCodeProgramFakeHost` (`internal/tasks/store`); live Claude Code NOT_RUN |
 | CAL-V0-076 | `TestCALV0076_PolicyHostOpenCode` (`internal/tasks/intent`); `TestCALV0076_OpenCodeVocabularySelected` (`internal/tasks/supervisor`); `TestCALV0076_CheckOpenCodeConfig`, `TestCALV0076_CheckProgramConfigOpenCodeHost` (`internal/tasks/store`); `TestCALV0076_ConfigHostFlag` (`internal/tasks/cli`) |
-| CAL-V0-077 | `TestCALV0077_OpenCodeResultVocabulary`, `TestCALV0077_OpenCodeUsageObservedOrUnknown` (`internal/tasks/supervisor`); `TestCALV0077_OpenCodeUsageIncompleteAccounting`, `TestCALV0077_DetachedHostEnvRequired`, `TestCALV0077_DetachedServerTimeout`, `TestCALV0077_DetachedServerForcedKill`, `TestCALV0077_DetachedServerHostCrash`, `TestCALV0077_DetachedOrphanFailsClosed`, `TestCALV0077_EscapeObservationUncertain`, `TestCALV0077_RecoverDetachedHost` (`internal/tasks/supervisor`); `TestCALV0077_OpenCodeStageArgv`, `TestCALV0077_OpenCodeProgramFakeHost`, `TestCALV0077_OpenCodeResumeRequiresFork`, `TestCALV0077_OpenCodeOutputLimitUsageUnknown` (`internal/tasks/store`); live OpenCode NOT_RUN |
+| CAL-V0-077 | `TestCALV0077_OpenCodeResultVocabulary`, `TestCALV0077_OpenCodeUsageObservedOrUnknown` (`internal/tasks/supervisor`); `TestCALV0077_OpenCodeUsageIncompleteAccounting`, `TestCALV0077_DetachedHostEnvRequired`, `TestCALV0077_DetachedServerTimeout`, `TestCALV0077_DetachedServerForcedKill`, `TestCALV0077_DetachedServerHostCrash`, `TestCALV0077_DetachedOrphanFailsClosed`, `TestCALV0077_EscapeObservationUncertain`, `TestCALV0077_EscapeGroupReuse`, `TestCALV0077_RecoverDetachedHost`, `TestCALV0077_RecoverDetachedLateEscape` (`internal/tasks/supervisor`); `TestCALV0077_OpenCodeStageArgv`, `TestCALV0077_OpenCodeProgramFakeHost`, `TestCALV0077_OpenCodeResumeRequiresFork`, `TestCALV0077_OpenCodeOutputLimitUsageUnknown` (`internal/tasks/store`); live OpenCode NOT_RUN |
 | CAL-V0-013 | `TestCALV0013_RetryAsNextGenerationUpToThree` (`internal/tasks/store`) |
 | CAL-V0-014 | `TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan`, `TestCALV0014_SelectedOnlyPlanPreviewIsComplete` (`internal/tasks/cli`); `plan preview` in `TestTMV0008_AS07_ReadsLeaveStoreByteIdentical` (`internal/tasks/cli`) |
 | CAL-V0-015 | `TestCALV0015_SubmitRecordsTheCandidateTree` (`internal/tasks/store`) |

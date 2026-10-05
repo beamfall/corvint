@@ -94,7 +94,8 @@ confirmed.
     error, that end of file proves no server survived, including one orphaned before any scan
     found it. `TestCALV0077_DetachedOrphanFailsClosed` covers that case.
   - Recovery (`RecoverHost`) of a detached host is proved only when a host process other than the
-    leader is still alive to observe escapes through. Otherwise it fails closed.
+    leader is still alive to observe escapes through. Otherwise it fails closed. (Superseded by
+    the second review below: detached recovery now always fails closed.)
   - Residual: a non-server escape that is orphaned between two scans and does not hold standard
     error is not detected.
   - Supervisor tests use a `perl` `setsid` fake server: timeout, forced kill of a `SIGTERM`-ignoring
@@ -116,6 +117,36 @@ Owner decisions (2026-10-04):
 1. OUTPUT_LIMIT stays at 16 KiB, and overflow fails closed.
 2. Plugins from the operator's user configuration are an explicit known limit of this slice,
    recorded in the S23 non-goals and plugin boundary. They are not contained here.
+
+## Second review fixes (Codex CHANGES_REQUIRED on 3516d73d..13300460)
+
+Codex confirmed the forked resume, the usage accounting and the CAL-V0-076/077 traceability, and
+found two P1 defects in the escape handling (`internal/tasks/supervisor/detached_unix.go`).
+
+- P1, recovery could prove quiescence while a detached server survived. Recovery scanned once,
+  then drained; a live host could start its server after that snapshot and before the drain, and
+  recovery had no end-of-file witness, so it could return proved.
+  - No witness of absence survives the supervisor: the output pipes end with it. Detached recovery
+    now drains the escapes it can observe and always refuses as quiescence uncertain. The operator
+    clears it. This is recorded in S23 as a known limit rather than adding a new witness.
+  - `TestCALV0077_RecoverDetachedLateEscape` starts the server through a hook between discovery
+    and drain, asserts that the server survived the drain (so the window was exercised), and that
+    recovery did not prove quiescence. `TestCALV0077_RecoverDetachedHost` now expects refusal with
+    the host alive or gone, and still checks that an observed escape is drained. Restoring the old
+    return value made both fail.
+- P1, numeric PGID membership was trusted without the retained start identity. If an escape exited
+  and its PGID was reused, a child of the unrelated reused group could be adopted and signalled.
+  - Each scan round takes a snapshot, then expands only from groups whose leader still holds the
+    identity recorded before the snapshot and still leads the group, checked after it. A
+    candidate is retained only when a later snapshot still shows it as a child of such a group
+    and its identity, read before that snapshot, is unchanged after it. A leader PID held by
+    another process retires the group, since a PID is not reused while its group exists. A
+    missing leader with a live group stays uncertainty. Escape drains already revalidate the
+    leader identity before signalling.
+  - `TestCALV0077_EscapeGroupReuse` uses a synthetic process table: reuse before the snapshot,
+    reuse completing as the snapshot is taken, and a candidate PID changing owner between
+    snapshots. It asserts that no reused group or child is adopted and nothing is signalled.
+    Expanding from unvalidated groups made it fail.
 
 Still not run: live OpenCode qualification, including the fork resume, escape draining against
 the real server, stderr volume at error level, and the cost of `ps` scans on a busy host
