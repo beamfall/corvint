@@ -44,7 +44,7 @@
       "validation": "installed-lifecycle-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.2.5",
+      "adapterVersion": "0.2.6",
       "documentedAgainstHostVersion": "0.55.1",
       "fullSupport": "external-dependent",
       "host": "gemini-cli",
@@ -62,7 +62,7 @@
       "validation": "native-static-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.7.7",
+      "adapterVersion": "0.7.8",
       "documentedAgainstHostVersion": "2.0.18",
       "fullSupport": "external-dependent",
       "host": "opencode",

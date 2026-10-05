@@ -126,7 +126,7 @@ func criterionCapture(env Env, ticketID, attemptID string, identity wire.Criteri
 		if e != nil {
 			return wire.CriterionCapture{}, wire.CriterionVerification{}, e
 		}
-		store, e := intent.LoadExpecting(repo.PrimaryWorktree, *s.IntentTreeSha256)
+		store, e := intent.LoadExpecting(repo.IntentRoot(), *s.IntentTreeSha256)
 		if e != nil {
 			last = e
 			continue
@@ -214,7 +214,7 @@ func criterionClaimedTicket(env Env, c wire.CriterionCapture, attemptID string) 
 	_, e = withStore(env, func(rc *readCtx) error {
 		path := "intent/tickets/" + a.TicketID.Local + ".json"
 		attemptPath := "attempts/" + attemptID + ".json"
-		source := &claimedTicketSource{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, path: path, digest: a.TicketRecordSha256}
+		source := &claimedTicketSource{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}, path: path, digest: a.TicketRecordSha256}
 		audit, e := (journal.Reader{Source: source, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree}).Audit(path, attemptPath)
 		if e != nil {
 			return e

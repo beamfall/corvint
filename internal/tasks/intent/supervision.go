@@ -32,7 +32,7 @@ type SupervisionPolicy struct {
 	// checkout path. Empty means single-repository programs only.
 	Repositories map[string]wire.Digest
 	// Host is the owner-selected supervised host the pinned runtime speaks
-	// (CAL-V0-074): "claude-code", or empty for Codex.
+	// (CAL-V0-074, CAL-V0-076): "claude-code", "opencode", or empty for Codex.
 	Host string
 }
 
@@ -101,7 +101,7 @@ func readSupervisionPolicy(r *wire.Reader) *SupervisionPolicy {
 		p.Repositories = readSupervisedRepositories(r.Field("repositories"))
 	}
 	if wire.Has(r.Value(), "host") {
-		if p.Host = r.Field("host").String(); p.Host != SupervisedHostClaudeCode {
+		if p.Host = r.Field("host").String(); p.Host != SupervisedHostClaudeCode && p.Host != SupervisedHostOpenCode {
 			r.Fail(wire.CodeUnsupported, "supervision host %q", p.Host)
 		}
 	}
@@ -151,9 +151,13 @@ func readSupervisedRepositories(r *wire.Reader) map[string]wire.Digest {
 	return out
 }
 
-// SupervisedHostClaudeCode is the only non-default supervised host a policy
-// may select (CAL-V0-074); an absent host is Codex.
-const SupervisedHostClaudeCode = "claude-code"
+// SupervisedHostClaudeCode and SupervisedHostOpenCode are the non-default
+// supervised hosts a policy may select (CAL-V0-074, CAL-V0-076); an absent
+// host is Codex.
+const (
+	SupervisedHostClaudeCode = "claude-code"
+	SupervisedHostOpenCode   = "opencode"
+)
 
 // SupervisedHost is the policy's supervised host; a nil policy or an absent
 // host is Codex ("").

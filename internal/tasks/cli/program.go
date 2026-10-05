@@ -248,5 +248,5 @@ func configHost(flag, host string) bool {
 	if host == "" {
 		host = supervisor.HostCodex
 	}
-	return (flag == supervisor.HostCodex || flag == supervisor.HostClaudeCode) && flag == host
+	return (flag == supervisor.HostCodex || flag == supervisor.HostClaudeCode || flag == supervisor.HostOpenCode) && flag == host
 }

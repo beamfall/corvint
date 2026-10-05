@@ -259,7 +259,7 @@ func submitMutation(env Env, cmd []string, operation string, actor mutation.Bind
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	store0, err := intent.Load(repo.PrimaryWorktree)
+	store0, err := intent.Load(repo.IntentRoot())
 	if err != nil {
 		return errorResult(cmd, err)
 	}

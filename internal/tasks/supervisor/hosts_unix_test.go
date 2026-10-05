@@ -28,7 +28,7 @@ func TestCALV0074_CapsuleHost(t *testing.T) {
 		t.Fatal(e)
 	}
 	base := Capsule{Profile: "taskman-codex-supervisor/0", Effect: strings.Repeat("b", 64), Executable: exe, ExecutableSHA256: Digest(binary), Directory: t.TempDir(), Env: []string{"PATH=/usr/bin:/bin"}}
-	for _, host := range []string{HostCodex, "opencode", "CLAUDE-CODE"} {
+	for _, host := range []string{HostCodex, "gemini-cli", "CLAUDE-CODE"} {
 		c := base
 		c.Host = host
 		if e := ValidateCapsule(c); e == nil {

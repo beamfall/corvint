@@ -51,7 +51,7 @@ func ProgramTransition(ctx context.Context, repo *intent.Repository, actor mutat
 						if err != nil {
 							return nil, fmt.Errorf("recovery boot unavailable: %w", err)
 						}
-						if !supervisor.Recover(boot) {
+						if !supervisor.RecoverHost(old.EffectDirectory, boot) {
 							return nil, fmt.Errorf("prior program worker quiescence remains uncertain")
 						}
 						change.PreviousWorkerClean = true

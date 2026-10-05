@@ -342,6 +342,9 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 	if w.cfg.Host == supervisor.HostClaudeCode {
 		argv = claudeStageArgv(w.cfg, stage, session, extras)
 	}
+	if w.cfg.Host == supervisor.HostOpenCode {
+		argv, env = opencodeStageArgv(w.cfg, stage, session), opencodeStageEnv(env, stage)
+	}
 	dir, e := os.MkdirTemp(filepath.Dir(path), "effect-")
 	if e != nil {
 		return supervisor.Outcome{}, e
@@ -512,6 +515,17 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 			return out, e
 		}
 		return supervisor.Outcome{Class: "NO_EXEC", Clean: true}, wire.Errorf(wire.CodeCapabilityUnavailable, "runtime", "%v", runErr)
+	}
+	// A forked OpenCode resume must answer from a new session ID: a missing
+	// session fails the fork, and an unchanged ID is a same-ID recreation
+	// without the original history (CAL-V0-077). A refused resume waits with
+	// the original session retained as its resume target.
+	if w.cfg.Host == supervisor.HostOpenCode && session != "" && (out.SessionID == "" || out.SessionID == session) {
+		if runErr == nil {
+			runErr = fmt.Errorf("resumed opencode session did not fork")
+		}
+		out.SessionID = session
+		w.program.SessionID = session
 	}
 	if !w.attempt.Supervision.Worker {
 		if w.program.Phase == "SPAWNING" {

@@ -22,7 +22,7 @@ func TestCALV0074_PolicyHost(t *testing.T) {
 		t.Fatal("nil supervision host is not Codex")
 	}
 	// Codex is only ever the absent host, so a Codex policy has one encoding.
-	for _, host := range []string{`"codex"`, `"opencode"`, `"Claude-Code"`, `""`, `null`, `{}`} {
+	for _, host := range []string{`"codex"`, `"gemini-cli"`, `"Claude-Code"`, `""`, `null`, `{}`} {
 		_, e := supervisionPolicy(t, `"host":`+host+`,`)
 		if e == nil {
 			t.Fatalf("host %s admitted", host)

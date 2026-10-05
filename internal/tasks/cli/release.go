@@ -37,7 +37,7 @@ func releaseCommand(env Env, verb string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	st, err := intent.Load(repo.PrimaryWorktree)
+	st, err := intent.Load(repo.IntentRoot())
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -102,7 +102,7 @@ func releaseRead(env Env, verb string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	st, err := intent.Load(repo.PrimaryWorktree)
+	st, err := intent.Load(repo.IntentRoot())
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -129,7 +129,7 @@ func releaseRead(env Env, verb string, args []string) *wire.Result {
 	if verb == "show" {
 		return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{releaseDetail(target)}}
 	}
-	head, _, source, err := store.ObserveSource(repo.PrimaryWorktree, false)
+	head, _, source, err := store.ObserveSource(repo.IntentRoot(), false)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

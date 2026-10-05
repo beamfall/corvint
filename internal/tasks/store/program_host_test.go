@@ -28,7 +28,7 @@ func TestCALV0074_CheckProgramConfigHost(t *testing.T) {
 		{"config claude-code without policy", nil, "claude-code", "differs from policy host"},
 		{"codex config under claude-code policy", claude, "", `differs from policy host "claude-code"`},
 		{"explicit codex is not canonical", codex, "codex", `host "codex" is unsupported`},
-		{"unknown host", claude, "opencode", `host "opencode" is unsupported`},
+		{"unknown host", claude, "gemini-cli", `host "gemini-cli" is unsupported`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

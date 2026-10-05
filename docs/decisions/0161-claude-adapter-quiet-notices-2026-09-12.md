@@ -48,10 +48,10 @@ paths, and the Codex, Gemini CLI and OpenCode adapters are unchanged.
 
 - In-root `post-tool` receipt: `PostToolUse` additionalContext (`claudeReceiptOutput`,
   `cmd/corvint/host_adapter.go:705@d197ebb5`). `post-tool` is not a `SOL-V0-001` ledger event
-  (`internal/gokernel/harness.go:468@3f2d8101`), so the Claude Code transcript is its only record.
+  (`internal/gokernel/harness.go:511@3f2d8101`), so the Claude Code transcript is its only record.
 - `file-change` receipt: `harness event` appends a row with its receipt ID and degradations to
-  `.corvint/self-observations.jsonl` (`internal/gokernel/harness.go:468-472@54ec26c7`, row fields at
-  `internal/gokernel/harness.go:478@ea1571be`).
+  `.corvint/self-observations.jsonl` (`internal/gokernel/harness.go:511-515@54ec26c7`, row fields at
+  `internal/gokernel/harness.go:521@ea1571be`).
 - Expected degradations on `session-start`, `user-prompt`, `post-tool`: additionalContext
   (`claudeDegradedOutput`, `cmd/corvint/host_adapter.go:776@695e4ab7`). A Claude `user-prompt` runs
   `dogfood event`, which owns no observations (`LCP-V0-003`), and `prompt-over-query-bound` is

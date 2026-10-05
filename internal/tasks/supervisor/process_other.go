@@ -16,3 +16,5 @@ func Run(context.Context, string, string, Capsule, Journal) (Outcome, error) {
 }
 
 func Recover(Boot) bool { return false }
+
+func RecoverHost(string, Boot) bool { return false }
