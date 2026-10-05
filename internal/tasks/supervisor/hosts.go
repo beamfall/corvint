@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 )
 
 // Supervised host names (CAL-V0-074, CAL-V0-076). A capsule, config or
@@ -58,10 +59,22 @@ type claudeResult struct {
 	Usage     map[string]json.RawMessage `json:"usage"`
 }
 
+// claudeMembers and handoffMembers are the member names the profile reads
+// from the result object and from the handoff it carries.
+var (
+	claudeMembers  = []string{"type", "subtype", "is_error", "result", "session_id", "usage"}
+	handoffMembers = []string{"accepted", "claims", "question", "kind", "summary", "nextAction"}
+)
+
 // readClaudeResult admits exactly one JSON object, optionally followed by
-// whitespace.
+// whitespace. Every reader of the vocabulary (result, session and usage)
+// shares it, so a repeated or aliased member in the object or in a JSON
+// handoff leaves all three unobserved (CAL-V0-075).
 func readClaudeResult(raw []byte) (claudeResult, error) {
 	var r claudeResult
+	if e := exactMembers(raw, claudeMembers); e != nil {
+		return r, e
+	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	if e := d.Decode(&r); e != nil {
 		return r, e
@@ -71,6 +84,13 @@ func readClaudeResult(raw []byte) (claudeResult, error) {
 	}
 	if r.Type != "result" {
 		return r, fmt.Errorf("unqualified result type %q", r.Type)
+	}
+	// A result text that is JSON is a handoff and obeys the same member
+	// rule; a prose result (for example an error report) is not one.
+	if r.Result != nil && json.Valid([]byte(*r.Result)) {
+		if e := exactMembers([]byte(*r.Result), handoffMembers); e != nil {
+			return r, e
+		}
 	}
 	return r, nil
 }
@@ -148,6 +168,85 @@ func claudeCounter(v json.RawMessage) (uint64, bool) {
 		return 0, false
 	}
 	return n, true
+}
+
+// exactMembers refuses a JSON text that repeats a member name in any object,
+// or whose top-level object carries a member that differs from one of names
+// only by case folding. encoding/json matches struct fields
+// case-insensitively, so "IS_ERROR" or "Usage" would otherwise reach the same
+// field as the exact name; with aliases refused the struct decode is exact.
+func exactMembers(raw []byte, names []string) error {
+	if e := uniqueMembers(raw); e != nil {
+		return e
+	}
+	var top map[string]json.RawMessage
+	if json.Unmarshal(raw, &top) != nil {
+		return nil // not an object: the strict decode refuses it
+	}
+	for k := range top {
+		for _, name := range names {
+			if k != name && strings.EqualFold(k, name) {
+				return fmt.Errorf("JSON member %q aliases %q", k, name)
+			}
+		}
+	}
+	return nil
+}
+
+// uniqueMembers refuses a JSON text in which any object repeats a member
+// name. encoding/json keeps the last duplicate and merges a repeated object,
+// so without this an is_error true could be overridden, or two partial usage
+// objects could combine into an apparently complete observation (CAL-V0-075).
+func uniqueMembers(raw []byte) error {
+	type frame struct {
+		keys      map[string]bool
+		object    bool
+		expectKey bool
+	}
+	var stack []*frame
+	d := json.NewDecoder(bytes.NewReader(raw))
+	d.UseNumber()
+	for {
+		t, e := d.Token()
+		if e == io.EOF {
+			return nil
+		}
+		if e != nil {
+			return e
+		}
+		var top *frame
+		if len(stack) > 0 {
+			top = stack[len(stack)-1]
+		}
+		switch v := t.(type) {
+		case json.Delim:
+			switch v {
+			case '{', '[':
+				if top != nil && top.object {
+					top.expectKey = true
+				}
+				stack = append(stack, &frame{keys: map[string]bool{}, object: v == '{', expectKey: v == '{'})
+			default:
+				stack = stack[:len(stack)-1]
+			}
+		case string:
+			if top != nil && top.object && top.expectKey {
+				if top.keys[v] {
+					return fmt.Errorf("duplicate JSON member %q", v)
+				}
+				top.keys[v] = true
+				top.expectKey = false
+				continue
+			}
+			if top != nil && top.object {
+				top.expectKey = true
+			}
+		default:
+			if top != nil && top.object {
+				top.expectKey = true
+			}
+		}
+	}
 }
 
 func validHandoff(r HostResult) bool {

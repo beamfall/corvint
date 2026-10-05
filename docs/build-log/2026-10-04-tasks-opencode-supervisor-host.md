@@ -148,6 +148,19 @@ found two P1 defects in the escape handling (`internal/tasks/supervisor/detached
     snapshots. It asserts that no reused group or child is adopted and nothing is signalled.
     Expanding from unvalidated groups made it fail.
 
+## Merge of V1-0755 (b8b8d8af)
+
+V1-0755's approved head was merged with `--no-ff`; its CAL-V0-074/075 IDs are kept unchanged.
+
+- `ValidateCapsule` now has V1-0755's single-descriptor runtime read, with the detached-host
+  environment rule added to it.
+- The OpenCode fork check in the stage workflow runs after V1-0755's pre-fork refusal branch. A
+  launch refused before the fork therefore settles as `NO_EXEC` and is not treated as a failed
+  resume.
+- S23 notes that the verified-runtime copy path applies. The pinned OpenCode 2.0.21 binary is
+  self-contained, at 180 MiB, and not root-protected on the owner's host. Starting a copy of it
+  is unverified.
+
 Still not run: live OpenCode qualification, including the fork resume, escape draining against
 the real server, stderr volume at error level, and the cost of `ps` scans on a busy host
 (`NOT_RUN`).

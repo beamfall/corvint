@@ -40,11 +40,20 @@ Claude Code host: set `"host": "claude-code"` in both the policy `supervision` o
 config, and pin the Claude Code executable as the same `taskman-codex-supervisor/0` runtime (one
 host per policy; absent means Codex). A config host that differs from the policy host, or an
 unknown host, is refused `UNSUPPORTED` before any record; `--host` must match the config host. A
-missing, unreadable or unpinned executable of either host is refused `CAPABILITY_UNAVAILABLE`.
+missing, unreadable, unpinned, non-executable or symlinked executable of either host is refused
+`CAPABILITY_UNAVAILABLE` before any record or claim; pin the symlink's regular target instead (for
+example the `claude.exe` that `/opt/homebrew/bin/claude` points to). An existing program reopened
+after the policy host changes never claims or launches again, and keeps only drain and cancel on a
+live attempt. To switch hosts back, cancel each `claude-code` program with its original config
+while its pin is still in force, then edit the policy; a drained program must still be cancelled,
+because a drain leaves its claim held. The lane leader runs the bytes it verified: a root-owned,
+root-protected path with no ACL runs in place, and any other runtime runs from a private copy in the stage's
+effect directory, so pin a self-contained binary such as `claude.exe`, not a script wrapper.
 Stages run `claude -p --output-format json` with the stage effort, project settings only, no MCP
 servers and no permission prompts; implement accepts edits, review and integrate deny Edit, Write
 and NotebookEdit, and every stage adds the sibling worktrees with `--add-dir`. The single result
-object must succeed and carry the handoff object as its `result`; usage is observed from its
+object must succeed and carry the handoff object as its `result`, with no repeated member and no
+member that differs from a read one only by case; usage is observed from its
 integer token counters or stays NOT_OBSERVED. Bash is governed by project permission rules, not
 contained. Live Claude Code qualification is NOT_RUN; see
 [S22](specs/corvint-tasks-agent-leases-v0.md#s22--claude-code-supervised-host-v1-0755-split-from-issue-354).

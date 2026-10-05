@@ -119,3 +119,56 @@ func TestCALV0075_ClaudeUsageObservedOrUnknown(t *testing.T) {
 		}
 	}
 }
+
+// TestCALV0075_ClaudeDuplicateMembers proves a repeated member anywhere in the
+// result object, its usage or the handoff string, or a member that aliases a
+// read name by case folding (encoding/json matches struct fields
+// case-insensitively), is refused rather than resolved last-wins, and that
+// the result, session and usage readers all leave it unobserved.
+func TestCALV0075_ClaudeDuplicateMembers(t *testing.T) {
+	host, _ := HostVocabulary(HostClaudeCode)
+	handoff := `"{\"kind\":\"BUILT\",\"summary\":\"done\",\"nextAction\":\"review\"}"`
+	usage := `{"input_tokens":4,"output_tokens":2}`
+	head := `{"type":"result","subtype":"success","is_error":false,"session_id":"s",`
+	cases := map[string]string{
+		"is_error true then false":  `{"type":"result","subtype":"success","is_error":true,"is_error":false,"session_id":"s","result":` + handoff + `,"usage":` + usage + `}`,
+		"escaped repeated is_error": `{"type":"result","subtype":"success","is_error":true,"\u0069s_error":false,"session_id":"s","result":` + handoff + `,"usage":` + usage + `}`,
+		"repeated usage objects":    head + `"result":` + handoff + `,"usage":{"input_tokens":4},"usage":{"output_tokens":2}}`,
+		"repeated usage counter":    head + `"result":` + handoff + `,"usage":{"input_tokens":4,"output_tokens":2,"input_tokens":9}}`,
+		"repeated session":          `{"type":"result","subtype":"success","is_error":false,"session_id":"s","session_id":"t","result":` + handoff + `,"usage":` + usage + `}`,
+		"repeated handoff member":   head + `"result":"{\"kind\":\"WAIT\",\"kind\":\"BUILT\",\"summary\":\"done\",\"nextAction\":\"review\"}","usage":` + usage + `}`,
+		"nested repeated member":    head + `"result":` + handoff + `,"usage":` + usage + `,"extra":[{"a":1,"a":2}]}`,
+		"is_error case alias":       `{"type":"result","subtype":"success","is_error":true,"IS_ERROR":false,"session_id":"s","result":` + handoff + `,"usage":` + usage + `}`,
+		"escaped is_error alias":    `{"type":"result","subtype":"success","is_error":true,"\u0049S_error":false,"session_id":"s","result":` + handoff + `,"usage":` + usage + `}`,
+		"usage case alias":          head + `"result":` + handoff + `,"usage":{"input_tokens":4},"Usage":{"output_tokens":2}}`,
+		"session case alias":        head + `"Session_ID":"t","result":` + handoff + `,"usage":` + usage + `}`,
+		"handoff kind alias":        head + `"result":"{\"kind\":\"WAIT\",\"Kind\":\"BUILT\",\"summary\":\"done\",\"nextAction\":\"review\"}","usage":` + usage + `}`,
+		"escaped handoff alias":     head + `"result":"{\"kind\":\"WAIT\",\"\\u004bind\":\"BUILT\",\"summary\":\"done\",\"nextAction\":\"review\"}","usage":` + usage + `}`,
+		"handoff kelvin-sign alias": head + `"result":"{\"kind\":\"WAIT\",\"\\u212aind\":\"BUILT\",\"summary\":\"done\",\"nextAction\":\"review\"}","usage":` + usage + `}`,
+		"escaped repeated handoff":  head + `"result":"{\"kind\":\"WAIT\",\"\\u006bind\":\"BUILT\",\"summary\":\"done\",\"nextAction\":\"review\"}","usage":` + usage + `}`,
+	}
+	for name, raw := range cases {
+		if !json.Valid([]byte(raw)) {
+			t.Fatalf("%s: fixture is not JSON", name)
+		}
+		if session, _, e := host.Decode([]byte(raw)); e == nil || session != "" {
+			t.Fatalf("%s: decoded (session %q, %v)", name, session, e)
+		}
+		if _, _, ok := host.Usage([]byte(raw)); ok {
+			t.Fatalf("%s: usage observed", name)
+		}
+		if got := host.Session([]byte(raw)); got != "" {
+			t.Fatalf("%s: session observed as %q", name, got)
+		}
+	}
+	// A prose result (an error report, not a handoff) keeps its session and
+	// usage observable.
+	prose := `{"type":"result","subtype":"error_max_turns","is_error":true,"session_id":"s","result":"ran out of turns","usage":` + usage + `}`
+	if _, _, ok := host.Usage([]byte(prose)); !ok || host.Session([]byte(prose)) != "s" {
+		t.Fatal("prose error result left unobserved")
+	}
+	distinct := `{"type":"result","subtype":"success","is_error":false,"session_id":"s","result":` + handoff + `,"usage":` + usage + `,"extra":[{"a":1},{"a":2}],"nested":{"a":{"a":1}}}`
+	if _, _, e := host.Decode([]byte(distinct)); e != nil {
+		t.Fatalf("same name in distinct objects refused: %v", e)
+	}
+}
