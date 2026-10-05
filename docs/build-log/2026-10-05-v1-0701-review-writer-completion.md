@@ -75,6 +75,11 @@ Already on main before this change, and not redone here:
     Fixed in `externalProducedAtCandidate`. Regression: the dirty and moved gates in
     `TestERGV0002_EvidenceCandidatesNeedAnArtifactLink`, each verified to fail without its check.
   - P3: the docs gave `--from-acceptance SHA:BYTES`, but the flag takes a report path. Docs fixed.
+- Codex round 2 confirmed both fixes and found one more issue:
+  - P2: the settled-forgery check rejected only an observed RETURN. A forged PASS exposed by the
+    dispatcher, an observation error or a missing ticket would have passed. Both forgery tests now
+    require a successful observation that holds the ticket with its gates unobserved. Verified by
+    forcing the dispatcher to ignore a refused fold: all three settled cases fail.
 
 ## NOT_RUN
 

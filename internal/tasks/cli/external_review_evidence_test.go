@@ -293,14 +293,28 @@ func TestERGV0002_ForgedArtifactEventsRefuseAtRecovery(t *testing.T) {
 							}
 						}
 					}
+					// The observation succeeds and holds the ticket; a refused
+					// fold leaves its gates unobserved rather than exposing
+					// the forged verdict, whatever that verdict is.
 					tickets, err := cli.ObserveTickets(root)
-					if tc.forge == nil && err != nil {
+					if err != nil {
 						t.Fatal(err)
 					}
+					found := false
 					for _, x := range tickets {
-						if x.ID == id && (tc.forge == nil) != (x.GatesObserved && x.GateState(ergGate) == dispatch.GateReturn) {
-							t.Fatalf("settled observation: %+v", x)
+						if x.ID != id {
+							continue
 						}
+						found = true
+						if tc.forge == nil && (!x.GatesObserved || x.GateState(ergGate) != dispatch.GateReturn) {
+							t.Fatalf("control: the real RETURN is not observed: %+v", x)
+						}
+						if tc.forge != nil && x.GatesObserved {
+							t.Fatalf("a forged settled verdict is observable: %+v", x)
+						}
+					}
+					if !found {
+						t.Fatalf("the observation lost ticket %s", id)
 					}
 					if x := atm(t, root, nil, "receipt", "audit"); (x.res.Outcome == wire.OutcomeOK) != (tc.forge == nil) {
 						t.Fatalf("receipt audit: %s", x.stdout)
