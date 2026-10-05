@@ -1158,6 +1158,8 @@ func queueStatus(env Env, args []string) *wire.Result {
 	if err != nil {
 		return failure(cmd, rc, err)
 	}
+	// A separate racy observation outside the store snapshot (CAL-V0-095).
+	item.Obj.Set("preparationAdmission", preparationAdmission(rc.repo))
 	res := success(cmd, rc)
 	res.Items = []wire.Value{item}
 	return res
