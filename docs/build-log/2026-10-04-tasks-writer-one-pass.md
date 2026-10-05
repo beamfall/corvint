@@ -25,8 +25,9 @@ checkpoint stays in S20 as a proposed design, owner decision pending, deferred 2
   - `MutationAudit.Canonical` answers only for exactly the retained selection under `Audit`'s own
     path checks; anything else falls back to a separate `Audit`.
   - `store.Mutate` uses it, and its inventory reuses the observed digests through the existing
-    lease-path `scanWithReader` hook.
-  - A change watch guards the reuse (added after review, below).
+    lease-path `scanWithReader` hook. The second review fix withdrew this digest reuse (below).
+  - A change watch guards the reuse (added after review, below), and since the second review fix,
+    a content check against a fresh inventory.
 - (B) The journal's native reader opens each parent directory once per audit attempt
   (`safeopen.PinDir`, the same first step `InRoot` made) and opens each file with one no-follow
   `openat` beneath it (`safeopen.InDir`). Before, each file cost three opens and three closes.
@@ -222,19 +223,159 @@ about twice the low-load figures above (34, 112 and 509 ms on the after tree). M
 it costs 5–10% of the after-change `Mutate`. At this load it costs 8–11%. `Check` is a
 non-blocking poll and is not timed separately.
 
+## Second review fix: content check
+
+Codex re-reviewed 78fb8383..4ba43576 and returned CHANGES_REQUIRED with two findings. Both were
+verified before fixing.
+
+P1: the watch does not see a write through a shared writable mapping, so a reused inventory digest
+could be stale. `Mutate` could then publish where the separate passes refuse `JOURNAL_FORKED`.
+- A scratch probe, not kept, changed one byte of a watched file through a shared mapping and then
+  read the file and called the watch's `Check`. Reads returned the new byte at once on both
+  platforms.
+- On this host's APFS (kqueue), the watch reported the write after `msync` (`MS_ASYNC` or
+  `MS_SYNC`), but not without `msync` and not on `munmap`.
+- In a Linux arm64 container (`golang:1.27.1` under colima, tmpfs, inotify), it reported none of
+  the four variants. A plain `write` was reported, as `SNAPSHOT_MOVED`.
+- Through the real `Mutate`, with the reuse accepted regardless of content, a request projection
+  changed through the mapping after the merged audit was committed on both platforms.
+
+Fix. Codex asked for reuse to be disabled on Linux until content validation covers such writes,
+and kept on macOS only if the watch can be shown to see them. It cannot be, because macOS reports
+nothing until `msync`, so reuse is restricted on both platforms by content validation:
+- `scan.go` returns to its base `d4a896bd`, and the inventory is read fresh again;
+- `readUnchanged` requires every file the merged audit read to be listed in that inventory with
+  the same digest and size;
+- only then, and only if `Canonical` answers and the watch's `Check` is clean, do the merged
+  audit's records stand in for the second `Audit`. Otherwise the watch is closed and the inventory
+  and the second `Audit` run again, as before.
+
+The digests vouch for content and the watch for names, types and modes. The saving left is the
+second `Audit`: the inventory's digests are no longer reused, so the earlier 8–59 ms observed
+inventory is again a full read (measured below).
+
+Residual window. A mapped write made after the inventory read a file is seen by neither check. It
+is not a new acceptance, for this reason. The merged audit read the file before the inventory did,
+and both returned the same bytes, so every read `Mutate` made of it predates the write. The outcome
+is therefore the one the separate passes give when the same write follows their second pass, which
+the pre-apply binding and the model handle as before. A write between the two reads is refused,
+with the separate passes' code. The content check does not depend on which writes a filesystem
+reports. `Mutate` qualifies the Git common dir against the §5.1 allowlist first. Only APFS and
+tmpfs were probed; that bears on the watch's own reports, not on the content check.
+
+Rejected:
+- Disabling reuse on Linux alone. The macOS probe shows the same gap without `msync`.
+- A stat-identity check. POSIX lets a mapped write update `st_mtime` at any time before the next
+  `msync`, so it has the watch's gap.
+
+P2: no test distinguished the descriptor-exhaustion retry. The previous entry recorded this as not
+injected. `TestCALV0070_MutateRetriesAuditWithoutWatch` now runs `Mutate` in a child test process
+under a controlled `RLIMIT_NOFILE`. Every gap below the highest open descriptor is filled with
+`/dev/null`, so exactly the stated number remain free.
+- Clean store, 70 receipts. A search finds the fewest free descriptors with which the merged audit
+  completes: 137, on every run on both platforms. That need does not depend on read order, because
+  the audit keeps every parent it read pinned until it ends.
+- At the test-only `watched` stage, the limit leaves 137 free descriptors less the watch's, or none
+  if the watch holds more. That is none on macOS, where the watch holds 276 (one per watched path),
+  and 136 on Linux, where it holds 1. Closing the watch alone gives the audit enough.
+- The merged audit must fail for want of descriptors. The new `retry: <error>` stage must find
+  exactly the watch's descriptors released, and `Mutate` must complete through the fresh passes.
+- Corrupt request projection. The refusing audit's need varied from 79 to 90 between runs, with
+  map read order, so it gets no free descriptor while the watch is held and no limit after the
+  retry. `Mutate` must refuse with the separate passes' `lookup: JOURNAL_FORKED` text, and must not
+  project the request.
+- No descriptor may stay open afterwards.
+
+`TestCALV0070_MutateRefusesMappedWriteAfterMergedAudit` maps a request projection and a ticket
+before `Mutate` starts. It first confirms that the watch does not report a write through the
+mapping that reads see. It then flips one byte through the mapping, without `msync`, at the
+`audited` stage. `Mutate` must refuse with the separate passes' code (`JOURNAL_FORKED`,
+`INTENT_DIVERGED`) after the stages `watched`, `audited`, `observed` and `fresh`. It must publish
+nothing and project nothing. Both tests are in `mutation_audit_unix_test.go`.
+
+Mutation checks, not maintained, with the source restored afterwards. Both were run on macOS and in
+the Linux container:
+- with `readUnchanged` forced true, the mapped request projection committed and the test failed;
+- with the retry removed, both descriptor cases failed.
+
+Tests run:
+- In the Linux arm64 container, on the final source, `go vet` of `store` and `authority` passed.
+  Every `CALV0070` test passed in `store`, `journal` and `safeopen`, and the probe ran in
+  `authority`. The clean descriptor case logged the watch holding 1 descriptor and the audit
+  needing 137.
+- On macOS, the `store`, `journal`, `safeopen` and `authority` packages ran one at a time and all
+  passed. `store` took 620 s at load 37–68.
+- `go vet ./internal/tasks/...` passed for darwin and linux, as did `GOOS=windows go build ./...`
+  and `gofmt -l`.
+
+Descriptor observation, not changed here: B keeps one pinned directory per parent read, in
+addition to the `os.Root` each parent already retains. A clean merged audit therefore needs 137 free
+descriptors at 70 receipts.
+
+Suspected, not reproduced, and outside this change's scope: lease preparation also takes its
+inventory digests from its audit (`guardedLeaseInventory` with `observation.Files`, `lease_write.go`
+line 156). Under the lock, it relies on the watch's `Check` and the head digest (lines 397 and
+436). A mapped write in that window would be seen by neither. It is reported for filing, not fixed:
+lease code belongs to concurrent issue 494 work.
+
+### Measurement after the second review fix
+
+The pair was run again on macOS, 21:59–22:14, against the same base and with the same commands. The
+one-minute load average was 34–52, falling to 15 during the last base profile. CPU per `Mutate` for
+each benchmark round, after then base:
+
+| Round | After the second fix | Base |
+|---|---|---|
+| 1 | 2,857 ms | 4,081 ms |
+| 2 | 3,151 ms | 5,644 ms |
+| 3 | 3,725 ms | 5,494 ms |
+
+The medians are 3,151 and 5,494 ms, a 43% cut; paired, the cuts were 30%, 44% and 32%. Every after
+run allocated 1.035 GB in 5.618 million allocations, against 0.868 GB and 5.277 million with the
+digests reused. The base allocated 1.655 GB in 9.006 million.
+
+Profile pair, CPU medians in milliseconds:
+
+| Receipts | `Mutate`, base → after | Merged audit | Fresh inventory and content check | Base: lookup, complete audit, inventory |
+|---|---|---|---|---|
+| 500 | 1,796 → 1,337 | 537 | 466 | 564, 563, 391 |
+| 2,000 | 4,895 → 3,751 | 1,562 | 1,488 | 1,812, 1,763, 1,186 |
+| 7,000 | 14,032 → 10,733 | 4,528 | 4,624 | 4,809, 4,883, 3,731 |
+
+A `Mutate` now saves one complete audit. The inventory is again a full read, as in the base, and
+the content check adds no read. The profile's cut, 23–26%, is likely understated: the base profile
+ran as load fell, and its inventory phase came out 75, 302 and 893 ms cheaper than the after tree's
+same read. Inferred, not measured: at low load the saving should be about the base's
+complete-audit share, roughly a third, less the watch's 5–10%.
+
+Linux, 22:14–22:17: the same benchmark in an arm64 container (`golang:1.27.1` under colima, 6
+virtual CPUs, tmpfs), with both trees streamed in. Host load was 12–25, and container load under
+1.3. CPU, then wall, per `Mutate`:
+
+| Round | After the second fix | Base |
+|---|---|---|
+| 1 | 2,159 ms, 1.50 s | 3,855 ms, 2.72 s |
+| 2 | 3,105 ms, 2.52 s | 4,938 ms, 3.93 s |
+| 3 | 2,547 ms, 1.78 s | 4,019 ms, 2.80 s |
+
+The medians are 2,547 and 4,019 ms CPU, a 37% cut; paired, the cuts were 44%, 37% and 37%. After
+allocated 1.000 GB in 5.679 million allocations, and the base 1.621 GB in 9.070 million. The
+Linux profile was not run, nor any Linux measurement of the digest-reusing design.
+
 ## Limits
 
 - A covers `store.Mutate` only. Release, policy, barrier, reconciliation, import and pool sweep
   keep their separate passes. Lease preparation already made one pass.
 - B covers journal audit reads only. The inventory's fresh reads still resolve every path from `/`.
+  Since the second review fix every `Mutate` takes that full inventory, so pinning its reads is
+  now worth measuring; the earlier rejection assumed it read only files the audit had not.
 - Cost stays proportional to receipt history. Only (C), or something like it, would bound it.
 
 Not run:
 - the writer checkpoint;
-- a low-load measurement after the review fix;
-- descriptor exhaustion injected between the watch and the merged audit (the retry without the
-  watch is covered only by the refusals it repeats);
-- Linux;
+- a low-load measurement after either review fix;
+- the Linux profile, and filesystems other than APFS and tmpfs (Linux ran the focused tests and
+  the benchmark only);
 - the live-store measurement and the issue 545 waves;
 - the full affected-package plan (173 packages, scope UNKNOWN);
 - `make gate` and the dogfood change evidence.

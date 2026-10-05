@@ -192,20 +192,10 @@ func TestCALV0070_MutateAuditSequenceEquivalence(t *testing.T) {
 			}
 			if tc.physical && !tc.found {
 				fresh, err := inventory(repo)
-				observed, observedErr := inventory(repo, audit.Physical.Files)
-				if err != nil || observedErr != nil || !reflect.DeepEqual(fresh, observed) {
-					t.Fatalf("observed inventory differs: %v %v", err, observedErr)
+				if err != nil || !readUnchanged(fresh, audit.Physical.Files) {
+					t.Fatalf("fresh inventory does not match the merged audit's reads: %v", err)
 				}
-				reused := 0
-				for _, f := range fresh.Files() {
-					if _, ok := audit.Physical.Files[f.Path]; ok {
-						reused++
-					}
-				}
-				if reused == 0 {
-					t.Fatal("no inventory digest reused")
-				}
-				t.Logf("inventory digests reused: %d of %d", reused, len(fresh.Files()))
+				t.Logf("merged audit read %d of the inventory's %d files", len(audit.Physical.Files), len(fresh.Files()))
 			}
 		})
 	}
@@ -219,14 +209,7 @@ func TestCALV0070_MutateAuditSequenceEquivalence(t *testing.T) {
 func TestCALV0070_MutateRefusesChangesAfterMergedAudit(t *testing.T) {
 	repo := historyStore(t, 70)
 	stateFile := func(rel string) string { return filepath.Join(repo.StateDir, rel) }
-	requestFile, _ := snapshot.RequestPath("history-60")
-	requestFile = stateFile(requestFile)
-	tickets := filepath.Join(repo.PrimaryWorktree, intent.Dir, "tickets")
-	entries, err := os.ReadDir(tickets)
-	if err != nil || len(entries) == 0 {
-		t.Fatalf("tickets: %v", err)
-	}
-	ticketFile := filepath.Join(tickets, entries[0].Name())
+	requestFile, ticketFile := mutationBoundaryFiles(t, repo)
 	rewrite := func(t *testing.T, p string, raw []byte) func() {
 		old, err := os.ReadFile(p)
 		if err != nil {
@@ -269,18 +252,7 @@ func TestCALV0070_MutateRefusesChangesAfterMergedAudit(t *testing.T) {
 		historyWrite(t, p, []byte("{}\n"))
 		return func() { os.Remove(p) }
 	}
-	published := func(t *testing.T) string {
-		head, err := os.ReadFile(stateFile("head.json"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		receipts, err := os.ReadDir(stateFile("receipts"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		_, stagingErr := os.Lstat(stateFile("staging"))
-		return fmt.Sprintf("head %s, %d receipts, staging %v", wire.Sum(head), len(receipts), !os.IsNotExist(stagingErr))
-	}
+	published := func(t *testing.T) string { return mutationPublished(t, repo) }
 	cases := []struct {
 		name, stage, want string
 		change            func(*testing.T) func()
@@ -315,7 +287,7 @@ func TestCALV0070_MutateRefusesChangesAfterMergedAudit(t *testing.T) {
 				t.Fatalf("Mutate: %v (report %+v); separate passes: %s", err, rep, oracle.Err)
 			}
 			t.Logf("refused %s, as the separate passes: %s", code, oracle.Err)
-			if want := []string{"audited", "observed", "fresh"}; !reflect.DeepEqual(stages, want) {
+			if want := []string{"watched", "audited", "observed", "fresh"}; !reflect.DeepEqual(stages, want) {
 				t.Fatalf("stages %v, want %v", stages, want)
 			}
 			if after := published(t); after != before {
@@ -334,8 +306,8 @@ func TestCALV0070_MutateRefusesChangesAfterMergedAudit(t *testing.T) {
 		stages []string
 		change func(*testing.T) func()
 	}{
-		{"request-overwritten-before", nil, func(t *testing.T) func() { return rewrite(t, requestFile, []byte("{}\n")) }},
-		{"ticket-edited-before", []string{"audited", "observed", "fresh"}, appendLine(ticketFile)},
+		{"request-overwritten-before", []string{"watched", "retry: "}, func(t *testing.T) func() { return rewrite(t, requestFile, []byte("{}\n")) }},
+		{"ticket-edited-before", []string{"watched", "audited", "observed", "fresh"}, appendLine(ticketFile)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			id := "boundary-" + tc.name
@@ -351,7 +323,7 @@ func TestCALV0070_MutateRefusesChangesAfterMergedAudit(t *testing.T) {
 				t.Fatalf("Mutate: %v (report %+v); separate passes: %s", err, rep, oracle.Err)
 			}
 			t.Logf("refused %s, as the separate passes: %s", wire.CodeOf(err), oracle.Err)
-			if !reflect.DeepEqual(stages, tc.stages) {
+			if !stagesMatch(stages, tc.stages) {
 				t.Fatalf("stages %v, want %v", stages, tc.stages)
 			}
 			if after := published(t); after != before {
@@ -369,10 +341,52 @@ func TestCALV0070_MutateRefusesChangesAfterMergedAudit(t *testing.T) {
 		if err != nil || rep.Outcome.Outcome != mutation.OutcomeCompleted {
 			t.Fatalf("mutate: %+v %v", rep, err)
 		}
-		if want := []string{"audited", "observed"}; !reflect.DeepEqual(stages, want) {
+		if want := []string{"watched", "audited", "observed"}; !reflect.DeepEqual(stages, want) {
 			t.Fatalf("stages %v, want %v", stages, want)
 		}
 	})
+}
+
+// mutationBoundaryFiles is the request projection and the first ticket file
+// that the CAL-V0-070 boundary tests change.
+func mutationBoundaryFiles(t *testing.T, repo *intent.Repository) (request, ticket string) {
+	t.Helper()
+	request, _ = snapshot.RequestPath("history-60")
+	tickets := filepath.Join(repo.PrimaryWorktree, intent.Dir, "tickets")
+	entries, err := os.ReadDir(tickets)
+	if err != nil || len(entries) == 0 {
+		t.Fatalf("tickets: %v", err)
+	}
+	return filepath.Join(repo.StateDir, request), filepath.Join(tickets, entries[0].Name())
+}
+
+// mutationPublished is what a refused Mutate must leave as it was.
+func mutationPublished(t *testing.T, repo *intent.Repository) string {
+	t.Helper()
+	head, err := os.ReadFile(filepath.Join(repo.StateDir, "head.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipts, err := os.ReadDir(filepath.Join(repo.StateDir, "receipts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, stagingErr := os.Lstat(filepath.Join(repo.StateDir, "staging"))
+	return fmt.Sprintf("head %s, %d receipts, staging %v", wire.Sum(head), len(receipts), !os.IsNotExist(stagingErr))
+}
+
+// stagesMatch compares Mutate's stages with want, where a "retry: " entry
+// matches a retry stage with any refusal.
+func stagesMatch(stages, want []string) bool {
+	if len(stages) != len(want) {
+		return false
+	}
+	for i, w := range want {
+		if stages[i] != w && !(w == "retry: " && strings.HasPrefix(stages[i], w)) {
+			return false
+		}
+	}
+	return true
 }
 
 func fileExists(p string) bool {

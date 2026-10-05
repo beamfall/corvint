@@ -313,7 +313,8 @@ func TestCALV0070_WriterHistoryProfile(t *testing.T) {
 				proof, err = reader.Audit(paths...)
 				return err
 			})
-			// After CAL-V0-070 Mutate runs these two instead of the three above.
+			// After CAL-V0-070 Mutate runs the merged audit and a fresh
+			// inventory checked against its reads instead of the three above.
 			var merged *journal.MutationAudit
 			timed("mutate.mergedAudit", func() error {
 				merged, err = reader.AuditForMutation(fmt.Sprintf("history-absent-%d", rep))
@@ -322,8 +323,11 @@ func TestCALV0070_WriterHistoryProfile(t *testing.T) {
 				}
 				return err
 			})
-			timed("mutate.observedInventory", func() error {
-				_, err := inventory(repo, merged.Physical.Files)
+			timed("mutate.checkedInventory", func() error {
+				inv, err := inventory(repo)
+				if err == nil && !readUnchanged(inv, merged.Physical.Files) {
+					err = fmt.Errorf("inventory differs from the merged audit's reads")
+				}
 				return err
 			})
 			timed("mutate.treeDigest", func() error {

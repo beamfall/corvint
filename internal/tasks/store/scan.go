@@ -29,10 +29,9 @@ var scanDirectories = []string{"receipts", "requests", "evidence", "pinned", "at
 // directories that exist. It reports what is on disk and interprets nothing;
 // a file outside the §3.4 layout is refused rather than skipped, so an
 // unrecognized path can never be silently dropped from a capacity or
-// projection check. observed, when given, is one settled audit's physical
-// digests; a listed file absent from it is read fresh (CAL-V0-070).
-func inventory(repo *intent.Repository, observed ...map[string]journal.PhysicalFile) (*transaction.Inventory, error) {
-	files, dirs, err := scanWithReader(repo, intent.ReadFile, observed...)
+// projection check.
+func inventory(repo *intent.Repository) (*transaction.Inventory, error) {
+	files, dirs, err := scanWithReader(repo, intent.ReadFile)
 	if err != nil {
 		return nil, err
 	}
