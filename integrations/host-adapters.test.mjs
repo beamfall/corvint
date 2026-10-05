@@ -471,27 +471,37 @@ test('SOL-V0-010 AHI-022 V1-0767 OpenCode path abstentions reach the self-observ
 test('AHI-022 V1-0773 OpenCode file-change of 101 to 256 paths stays within Core\'s impact bound against the real binary',async t=>{
  const binary=process.env.CORVINT_TEST_REAL_BINARY
  assert.ok(binary&&existsSync(binary),'Run through TestHostAdapterJavaScriptHosts with the real corvint binary')
- const dir=mkdtempSync(join(tmpdir(),'corvint-opencode-bound-'));t.after(()=>rmSync(dir,{recursive:true,force:true}))
- const repo=join(dir,'repo');mkdirSync(join(repo,'src'),{recursive:true})
- writeFileSync(join(repo,'.gitignore'),'.corvint/\n');writeFileSync(join(repo,'src/parse.go'),'package src\n')
- const git=(...args)=>execFileSync('git',['-C',repo,'-c','user.name=fixture','-c','user.email=fixture@example.invalid','-c','commit.gpgsign=false',...args])
- git('init','-q');git('add','.');git('commit','-qm','fixture')
- const warnings=spyConsole(t,'warn'),infos=spyConsole(t,'info')
- const host=await openCode(t,repo,{corvintBinary:binary,hostVersion:'unknown',...OPEN_TIMEOUTS})
- await host.emit('session.created',{sessionID:'session-a'})
- // 150 paths pass Core's 100-path bound but not the plugin's 256-path post-tool cap.
- await host.hooks['execute.after']({tool:'patch',sessionID:'session-a',id:'call-1',status:'completed',input:{},result:{output:{applied:Array.from({length:150},(_,i)=>({target:join(repo,`dir/f${i}.go`)}))}}})
- await host.cleanup()
- const warned=warnings.map(row=>JSON.parse(row.slice('[corvint/opencode] '.length)))
- assert.deepEqual(warned.filter(row=>row.code.split(',').some(code=>code!=='timeout')),[])
- const truncated=infos.map(row=>JSON.parse(row.slice('[corvint/opencode] '.length))).filter(row=>row.code==='changed-paths-truncated').map(row=>row.event)
- assert.deepEqual(truncated,['file-change'])
- const ledger=join(repo,'.corvint/self-observations.jsonl')
- const rows=existsSync(ledger)?readFileSync(ledger,'utf8').split('\n').slice(0,-1).map(JSON.parse).filter(row=>row.kind==='adapter-degradation'):[]
- const seen=rows.map(row=>`${row.host} ${row.event} ${row.adapterCodes.join(',')}`)
- // A disclosed deadline under host load (AHI-012) may lose the row of the call it cut short.
- if(!warned.some(row=>row.event==='file-change'))assert.deepEqual(seen,['opencode file-change changed-paths-truncated'])
- else assert.deepEqual(seen.filter(row=>row!=='opencode file-change changed-paths-truncated'),[])
+ const attempt=async n=>{
+  const dir=mkdtempSync(join(tmpdir(),'corvint-opencode-bound-'));t.after(()=>rmSync(dir,{recursive:true,force:true}))
+  const repo=join(dir,'repo');mkdirSync(join(repo,'src'),{recursive:true})
+  writeFileSync(join(repo,'.gitignore'),'.corvint/\n');writeFileSync(join(repo,'src/parse.go'),'package src\n')
+  const git=(...args)=>execFileSync('git',['-C',repo,'-c','user.name=fixture','-c','user.email=fixture@example.invalid','-c','commit.gpgsign=false',...args])
+  git('init','-q');git('add','.');git('commit','-qm','fixture')
+  const warnings=[],infos=[],warn=console.warn,info=console.info
+  console.warn=v=>warnings.push(v);console.info=v=>infos.push(v)
+  try{
+   const host=await openCode(t,repo,{corvintBinary:binary,hostVersion:'unknown',...OPEN_TIMEOUTS})
+   await host.emit('session.created',{sessionID:`session-${n}`})
+   // 150 paths pass Core's 100-path bound but not the plugin's 256-path post-tool cap.
+   await host.hooks['execute.after']({tool:'patch',sessionID:`session-${n}`,id:'call-1',status:'completed',input:{},result:{output:{applied:Array.from({length:150},(_,i)=>({target:join(repo,`dir/f${i}.go`)}))}}})
+   await host.cleanup()
+  }finally{console.warn=warn;console.info=info}
+  const parse=row=>JSON.parse(row.slice('[corvint/opencode] '.length))
+  const ledger=join(repo,'.corvint/self-observations.jsonl')
+  const rows=existsSync(ledger)?readFileSync(ledger,'utf8').split('\n').slice(0,-1).map(JSON.parse).filter(row=>row.kind==='adapter-degradation'):[]
+  return {warned:warnings.map(parse),infos:infos.map(parse),seen:rows.map(row=>`${row.host} ${row.event} ${row.adapterCodes.join(',')}`)}
+ }
+ // A disclosed file-change deadline under host load (AHI-012) observes nothing about Core, so it is
+ // retried; only an invocation Core completed can pass.
+ let observed
+ for(let n=0;n<3&&!observed;n++){
+  const result=await attempt(n)
+  assert.deepEqual(result.warned.filter(row=>row.code.split(',').some(code=>code!=='timeout')),[])
+  if(!result.warned.some(row=>row.event==='file-change'))observed=result
+ }
+ assert.ok(observed,'inconclusive: every file-change invocation hit the automatic deadline')
+ assert.deepEqual(observed.infos.filter(row=>row.code==='changed-paths-truncated').map(row=>row.event),['file-change'])
+ assert.deepEqual(observed.seen,['opencode file-change changed-paths-truncated'])
 })
 test('CRB-V0-010 CRB-V0-011 OpenCode loaded plugin keeps exact aliases, option precedence, session isolation, payload bounds and repeat-stop suppression',async t=>{
  const f=fixture(t)

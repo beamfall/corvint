@@ -28,9 +28,10 @@ post-tool was observed to succeed against the real binary.
 - **Reproduction** against a binary built from the base: 100 paths were answered with a coded refusal
   (`unsupported-impact-repository`), and 101 paths with the refusal that has no code.
 - **New test:** `AHI-022 V1-0773 OpenCode file-change of 101 to 256 paths stays within Core's impact
-  bound against the real binary`. A 150-path patch raises no warning except a disclosed timeout, and
-  names truncation only for `file-change`. It leaves exactly one `opencode file-change
-  changed-paths-truncated` ledger row, unless that call timed out.
+  bound against the real binary`. A 150-path patch raises no warning except a disclosed timeout. A
+  file-change timeout observes nothing about Core, so that attempt is retried, up to three times. The
+  test passes only on an invocation Core completed. That invocation names truncation only for
+  `file-change` and leaves exactly one `opencode file-change changed-paths-truncated` ledger row.
 - **Tolerance removed:** the V1-0767 real-binary test no longer tolerates the file-change
   `corvint-command-failed` warning.
 - **Updated tests:** the fixture tests now expect a 100-path batch, and a separately named batch for
@@ -46,8 +47,15 @@ post-tool was observed to succeed against the real binary.
   names `MAX_FILE_CHANGE_PATHS` and the new test instead.
 - The JS constant duplicates the Go constant. If Core lowers its bound, the real-binary test fails.
   If Core raises it, the plugin keeps the smaller cap.
+- If all three attempts time out, the test fails as inconclusive. It does not pass.
 - Live OpenCode qualification: NOT_OBSERVED.
+
+## Package version
+
+The package version moves from 0.7.7 to 0.7.8 in `package.json`, `runtime.js` and
+`compatibility.json` (`AHI-020`). This also covers the unbumped V1-0767 `adapterCodes` change below
+this commit. `hostVersionEvidenceAdapterVersion` stays 0.7.3, because no new native qualification ran.
 
 ## Rollback
 
-Revert the commit. Batches go back to 256 paths and the warning returns above 100 paths.
+Revert the commits. Batches go back to 256 paths and the warning returns above 100 paths.
