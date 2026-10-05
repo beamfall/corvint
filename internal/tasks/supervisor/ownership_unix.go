@@ -10,6 +10,12 @@ import (
 
 // ownedGroup never adopts a numeric group without a retained live identity.
 // A disappeared anchor plus a nonempty group is uncertainty, not ownership.
+// drain treats EPERM from the group probe as neither gone nor observable:
+// Darwin answers it for a group whose only members are unreaped zombies (the
+// lane leader before Run's Wait reaps it, which load delays), and for a group
+// holding a process this user may not signal. drain re-probes until the
+// deadline instead of reporting survivors at once, and never counts EPERM as
+// gone (V1-0772).
 type ownedGroup struct {
 	group     int
 	members   map[int]string
@@ -111,6 +117,10 @@ func (g *ownedGroup) drain() bool {
 	deadline := forceAt.Add(5 * time.Second)
 	for time.Now().Before(deadline) {
 		live, e := g.exists(g.group)
+		if e == syscall.EPERM {
+			time.Sleep(20 * time.Millisecond)
+			continue
+		}
 		if e != nil {
 			return false
 		}
@@ -156,6 +166,10 @@ func (g *ownedGroup) drain() bool {
 			until := deadline
 			for time.Now().Before(until) {
 				live, e = g.exists(g.group)
+				if e == syscall.EPERM {
+					time.Sleep(20 * time.Millisecond)
+					continue
+				}
 				if e != nil {
 					return false
 				}

@@ -22,13 +22,16 @@ func TestCALV0071_ProgramRepositoryRecords(t *testing.T) {
 		t.Fatalf("single-repository bytes changed: %s", raw)
 	}
 	docs := snapshot.RepositoryRecord{Name: "docs", Checkout: "/work/docs", CommonIdentity: "dev:1", Base: base}
-	site := snapshot.RepositoryRecord{Name: "site", Checkout: "/work/site", CommonIdentity: "dev:2", Base: base, Candidate: base}
+	site := snapshot.RepositoryRecord{Name: "site", Checkout: "/work/site", CommonIdentity: "dev:2", Base: base, Candidate: base, IntegrationBranch: "main", IntegrationIdentity: "dev:3"}
 	raw, e = program([]snapshot.RepositoryRecord{docs, site}, snapshot.WorktreeRecord{Path: "/w/implement-1@docs", Commit: base, Repository: "docs"}).Encode()
 	if e != nil {
 		t.Fatal(e)
 	}
+	if !bytes.Contains(raw, []byte(`"integrationBranch":"main","integrationIdentity":"dev:3","name":"site"`)) || bytes.Count(raw, []byte(`"integrationIdentity":"`)) != 2 {
+		t.Fatalf("integration designation not recorded once: %s", raw)
+	}
 	decoded, e := snapshot.DecodePrograms(raw)
-	if e != nil || len(decoded.Entries[0].Repositories) != 2 || decoded.Entries[0].Worktrees[0].Repository != "docs" {
+	if e != nil || len(decoded.Entries[0].Repositories) != 2 || decoded.Entries[0].Worktrees[0].Repository != "docs" || decoded.Entries[0].Repositories[1].IntegrationIdentity != "dev:3" {
 		t.Fatalf("round trip %+v %v", decoded, e)
 	}
 	nine := []snapshot.RepositoryRecord{}
@@ -50,6 +53,9 @@ func TestCALV0071_ProgramRepositoryRecords(t *testing.T) {
 		"no checkout":         program(bad(func(r *snapshot.RepositoryRecord) { r.Checkout = "" })),
 		"no identity":         program(bad(func(r *snapshot.RepositoryRecord) { r.CommonIdentity = "" })),
 		"no base":             program(bad(func(r *snapshot.RepositoryRecord) { r.Base = "" })),
+		"branch only":         program(bad(func(r *snapshot.RepositoryRecord) { r.IntegrationBranch = "main" })),
+		"identity only":       program(bad(func(r *snapshot.RepositoryRecord) { r.IntegrationIdentity = "dev:3" })),
+		"invalid branch":      program(bad(func(r *snapshot.RepositoryRecord) { r.IntegrationBranch, r.IntegrationIdentity = "ma\nin", "dev:3" })),
 		"undeclared worktree": program([]snapshot.RepositoryRecord{docs}, snapshot.WorktreeRecord{Path: "/w/x@site", Commit: base, Repository: "site"}),
 	} {
 		if _, e := p.Encode(); e == nil {

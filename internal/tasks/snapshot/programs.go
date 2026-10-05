@@ -155,13 +155,19 @@ func EncodeProgramJSON(value any) ([]byte, error) {
 
 // RepositoryRecord binds one extra repository of a multi-repository program
 // (CAL-V0-071, CAL-V0-072): its policy name, checkout, shared Git identity,
-// assignment base commit and the newest preserved candidate commit.
+// assignment base commit and the newest preserved candidate commit, which is
+// the base itself when the stage left the repository unchanged. An
+// integration designation (CAL-V0-087) names the branch the checkout must
+// have checked out and the checkout's directory identity at admission; both
+// are absent for a repository that cannot integrate a changed candidate.
 type RepositoryRecord struct {
-	Name           string `json:"name"`
-	Checkout       string `json:"checkout"`
-	CommonIdentity string `json:"commonIdentity"`
-	Base           string `json:"base"`
-	Candidate      string `json:"candidate,omitempty"`
+	Name                string `json:"name"`
+	Checkout            string `json:"checkout"`
+	CommonIdentity      string `json:"commonIdentity"`
+	Base                string `json:"base"`
+	Candidate           string `json:"candidate,omitempty"`
+	IntegrationBranch   string `json:"integrationBranch,omitempty"`
+	IntegrationIdentity string `json:"integrationIdentity,omitempty"`
 }
 
 func checkRepositoryRecords(x Program) error {
@@ -172,6 +178,14 @@ func checkRepositoryRecords(x Program) error {
 	for i, r := range x.Repositories {
 		if !intent.ValidRepositoryName(r.Name) || (i > 0 && x.Repositories[i-1].Name >= r.Name) || r.Checkout == "" || r.CommonIdentity == "" || r.Base == "" {
 			return fmt.Errorf("program repository record")
+		}
+		if (r.IntegrationBranch == "") != (r.IntegrationIdentity == "") {
+			return fmt.Errorf("program repository integration designation")
+		}
+		if r.IntegrationBranch != "" {
+			if _, e := wire.ParseLabel("integrationBranch", r.IntegrationBranch); e != nil {
+				return e
+			}
 		}
 		names[r.Name] = true
 	}
