@@ -70,6 +70,7 @@ var ReadVerbs = []string{
 	"submit", "gate run", "complete", "health", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe",
 	"ticket note set", "ticket note clear", "ticket note show",
 	"service install", "service status", "service uninstall", "service stop", "service resume", "service run",
+	"ticket escalate", "ticket answer", "ticket escalation list", "ticket escalation show", "ticket escalation history",
 }
 
 // OmittedVerbs are the verb paths the SPEC names that this binary does not
@@ -145,6 +146,14 @@ func Run(env Env) int {
 		}
 		if args[1] == "note" {
 			return emit(env.Stdout, noteCommand(env, args[2:]))
+		}
+		switch args[1] {
+		case "escalate":
+			return emit(env.Stdout, escalateCommand(env, args[2:]))
+		case "answer":
+			return emit(env.Stdout, answerCommand(env, args[2:]))
+		case "escalation":
+			return emit(env.Stdout, escalationReadCommand(env, args[2:]))
 		}
 		if _, ok := mutationVerbs[args[1]]; ok {
 			return emit(env.Stdout, mutateCommand(env, args[1], args[2:]))
