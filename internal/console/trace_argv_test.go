@@ -10,7 +10,7 @@ import (
 func TestConsoleTypedArgv(t *testing.T) {
 	t.Run("LAC-V0-038 typed literal trace display", func(t *testing.T) {
 		revision := strings.Repeat("a", 40)
-		record, err := trace.NewRecord(trace.Input{Revision: revision, Task: "typed task", Outcome: "passed", VerificationArgv: [][]string{{"printf", "a b", "", "<script>", ";"}}}, nil)
+		record, err := trace.NewRecord(trace.Input{Producer: trace.ProducerCLI, Revision: revision, Task: "typed task", Outcome: "passed", VerificationArgv: [][]string{{"printf", "a b", "", "<script>", ";"}}}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

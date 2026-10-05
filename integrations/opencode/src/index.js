@@ -126,6 +126,10 @@ async function setup(ctx) {
       pendingFileChanges.set(key, batch)
     }
     if (batch.paths.size < MAX_TRACKED_PATHS) batch.paths.add(changed)
+    else if (!batch.paths.has(changed) && !batch.truncated) {
+      batch.truncated = true
+      record("changed-paths-truncated", "file-change")
+    }
     if (!fileChangeDrain) {
       fileChangeDrain = drainFileChanges().finally(() => {
         fileChangeDrain = undefined
@@ -209,6 +213,8 @@ async function setup(ctx) {
     return content
   }
 
+  const outsideProject = (value) => typeof value === "string" && value !== "" && !normalizeRepositoryPath(root, value)
+
   const rememberPath = (value, rawSessionId) => {
     const normalized = normalizeRepositoryPath(root, value)
     if (!normalized) return undefined
@@ -216,6 +222,10 @@ async function setup(ctx) {
     if (bound) {
       if (bound.state.changedPaths.size < MAX_TRACKED_PATHS) {
         bound.state.changedPaths.add(normalized)
+      } else if (!bound.state.changedPaths.has(normalized) && !bound.state.pathsTruncated) {
+        // V1-0746: stop and session-end now carry an incomplete path set; say so once per session.
+        bound.state.pathsTruncated = true
+        record("changed-paths-truncated", "post-tool")
       }
       bound.state.stopArmed = true
     }
@@ -327,7 +337,17 @@ async function setup(ctx) {
       const targets = call.status === "completed" ? (CHANGED_TARGETS[call.tool]?.(call) ?? []) : []
       const edited = boundedPaths(root, targets)
       const metadata = call.result?.metadata
-      const changedPaths = boundedPaths(root, [...edited, ...boundedPaths(root, metadata?.corvint?.changedPaths)])
+      const reported = Array.isArray(metadata?.corvint?.changedPaths) ? metadata.corvint.changedPaths : []
+      const reportedPaths = boundedPaths(root, reported)
+      const changedPaths = boundedPaths(root, [...edited, ...reportedPaths])
+      // V1-0746: dropped host-reported paths are named at info level. boundedPaths examines at
+      // most MAX_TRACKED_PATHS entries per list, so only those entries are scanned for an outside path.
+      if ([...targets.slice(0, MAX_TRACKED_PATHS), ...reported.slice(0, MAX_TRACKED_PATHS)].some(outsideProject)) {
+        record("post-tool-path-not-project-relative", "post-tool")
+      }
+      if (targets.length > MAX_TRACKED_PATHS || reported.length > MAX_TRACKED_PATHS || new Set([...edited, ...reportedPaths]).size > changedPaths.length) {
+        record("changed-paths-truncated", "post-tool")
+      }
       for (const changed of changedPaths) rememberPath(changed, call.sessionID)
       let drained
       for (const changed of edited) drained = queueFileChange(changed, bound?.key)

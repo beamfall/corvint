@@ -126,7 +126,7 @@ func TestRecordUnignoredUnsafeArtifactsRefuseWithoutMutation(t *testing.T) {
 			tc.prepare(t, root, commit)
 			before := privateRecordSnapshot(t, root)
 			status := gitAdapterFixture(t, root, "status", "--porcelain=v1", "-z", "--untracked-files=all")
-			_, err := Record(context.Background(), root, Input{Task: "record", ChangedPaths: []string{"internal/value.go"}, Verification: []string{"true"}, Outcome: "passed"})
+			_, err := Record(context.Background(), root, Input{Producer: trace.ProducerCLI, Task: "record", ChangedPaths: []string{"internal/value.go"}, Verification: []string{"true"}, Outcome: "passed"})
 			if err == nil {
 				t.Fatal("unsafe artifact accepted")
 			}
@@ -251,7 +251,7 @@ func TestRecordLivePrivateStatusPhases(t *testing.T) {
 			}
 			// Status admission intentionally does not validate canonical content: Record must.
 			before := privateRecordSnapshot(t, root)
-			if _, err := Record(context.Background(), root, Input{Task: "record", ChangedPaths: []string{"internal/value.go"}, Outcome: "passed"}); err == nil {
+			if _, err := Record(context.Background(), root, Input{Producer: trace.ProducerCLI, Task: "record", ChangedPaths: []string{"internal/value.go"}, Outcome: "passed"}); err == nil {
 				t.Fatal("status classification bypassed row validation")
 			}
 			if after := privateRecordSnapshot(t, root); !reflect.DeepEqual(before, after) {
@@ -269,7 +269,7 @@ func TestDogfoodRecordFreshUnignoredRepeat(t *testing.T) {
 		gitAdapterFixture(t, root, "add", "internal/value.go")
 		gitAdapterFixture(t, root, "commit", "-qm", "change")
 		target := gitAdapterFixture(t, root, "rev-parse", "HEAD")
-		input := Input{Task: "record change", Verification: []string{"true"}, Outcome: "passed"}
+		input := Input{Producer: trace.ProducerCLI, Task: "record change", Verification: []string{"true"}, Outcome: "passed"}
 		first, err := RecordDogfood(context.Background(), root, base, target, input)
 		if err != nil {
 			t.Fatal(err)

@@ -407,16 +407,23 @@ func parseTraceRow(data []byte, revision string) (traceRow, AdapterIssueCode) {
 		}
 		return traceRow{}, IssueSourceInvalidSchema
 	}
-	if len(raw) != len(traceFields) {
+	// Schema 3 adds only the closed producer member, which a snapshot never
+	// discloses; the typed codec owns its validation.
+	v3 := string(raw["schema_version"]) == "3"
+	fieldCount := len(traceFields)
+	if v3 {
+		fieldCount++
+	}
+	if len(raw) != fieldCount {
 		return traceRow{}, IssueSourceInvalidSchema
 	}
 	for name := range raw {
-		if _, ok := traceFields[name]; !ok {
+		if _, ok := traceFields[name]; !ok && (!v3 || name != "producer") {
 			return traceRow{}, IssueSourceInvalidSchema
 		}
 	}
-	if string(raw["schema_version"]) == "2" {
-		record, err := trace.DecodeV2(data, revision)
+	if string(raw["schema_version"]) == "2" || v3 {
+		record, err := trace.DecodeTyped(data, revision)
 		if err != nil {
 			return traceRow{}, IssueVerifierRejected
 		}

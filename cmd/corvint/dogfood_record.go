@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/trace"
 	"github.com/Beamfall/corvint/internal/tracerecordrepo"
 )
 
@@ -108,7 +109,7 @@ func runDogfoodRecord(ctx context.Context, root string, arguments []string, stdo
 		return 2
 	}
 	result, err := tracerecordrepo.RecordDogfood(ctx, root, options.base, options.target, tracerecordrepo.Input{
-		Task: options.task, Verification: options.verification, Outcome: options.outcome,
+		Producer: trace.ProducerDogfood, Task: options.task, Verification: options.verification, Outcome: options.outcome,
 	})
 	if err != nil {
 		emitDogfoodRecordError(stderr, tracerecordrepo.DogfoodFailureReason(err), err)

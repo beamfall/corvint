@@ -11,12 +11,14 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/trace"
 	"github.com/Beamfall/corvint/internal/tracerecordrepo"
 )
 
@@ -95,7 +97,14 @@ type scoredEnvelope struct {
 
 // Evaluate returns the Python-compatible eval report for one pinned corpus.
 func Evaluate(ctx context.Context, root, goldenPath string, fixturePaths ...string) (map[string]any, error) {
-	report, _, err := evaluate(ctx, root, goldenPath, PurposeScore, fixturePaths)
+	return EvaluateExcludingProducers(ctx, root, goldenPath, nil, fixturePaths...)
+}
+
+// EvaluateExcludingProducers is Evaluate with the named trace producers left
+// out of the learned traces it reads (LTPM-V0-016). The report still counts
+// every trace read by producer; neither the store nor the fixture changes.
+func EvaluateExcludingProducers(ctx context.Context, root, goldenPath string, excluded []string, fixturePaths ...string) (map[string]any, error) {
+	report, _, err := evaluate(ctx, root, goldenPath, PurposeScore, fixturePaths, excluded)
 	return report, err
 }
 
@@ -103,7 +112,7 @@ func Evaluate(ctx context.Context, root, goldenPath string, fixturePaths ...stri
 // read, plus the REC-V0 comparability block for the baseline arm. For
 // PurposeScore the report is identical to Evaluate's.
 func EvaluateComparable(ctx context.Context, root, goldenPath string, purpose Purpose, fixturePaths ...string) (map[string]any, map[string]any, error) {
-	report, run, err := evaluate(ctx, root, goldenPath, purpose, fixturePaths)
+	report, run, err := evaluate(ctx, root, goldenPath, purpose, fixturePaths, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -115,7 +124,7 @@ type baselineRun struct {
 	withheld int
 }
 
-func evaluate(ctx context.Context, root, goldenPath string, purpose Purpose, fixturePaths []string) (map[string]any, baselineRun, error) {
+func evaluate(ctx context.Context, root, goldenPath string, purpose Purpose, fixturePaths []string, excluded []string) (map[string]any, baselineRun, error) {
 	if len(fixturePaths) > 1 {
 		return nil, baselineRun{}, fmt.Errorf("eval accepts at most one learned trace fixture")
 	}
@@ -152,6 +161,14 @@ func evaluate(ctx context.Context, root, goldenPath string, purpose Purpose, fix
 		if fixtureErr != nil {
 			return nil, baselineRun{}, fixtureErr
 		}
+		producerCounts := trace.CountProducers(fixture.producers)
+		kept := make([]contextindex.QueryTrace, 0, len(fixture.traces))
+		for offset, record := range fixture.traces {
+			if !slices.Contains(excluded, fixture.producers[offset]) {
+				kept = append(kept, record)
+			}
+		}
+		fixture.traces = kept
 		absent, snapshotErr := contextindex.NewQueryTraceSnapshot("absent", nil)
 		if snapshotErr != nil {
 			return nil, baselineRun{}, snapshotErr
@@ -181,6 +198,7 @@ func evaluate(ctx context.Context, root, goldenPath string, purpose Purpose, fix
 		baseline := baselineCounts.report(resolvedGolden == canonicalGolden, canonicalGolden, goldenBytes, head, revision, "absent", 0, started)
 		learnedArm := learnedCounts.report(resolvedGolden == canonicalGolden, canonicalGolden, goldenBytes, head, revision, "ready", passed, fixtureStarted)
 		learnedArm["trace_fixture"] = map[string]any{"path": fixture.path, "sha256": fixture.sha256}
+		addProducerCounts(learnedArm, producerCounts, excluded)
 		baseline["learned_trace_arm"] = learnedArm
 		baseline["learned_trace_delta"] = scoreDeltas(baselineCounts, learnedCounts)
 		return baseline, baselineRun{counts: baselineCounts, withheld: withheld}, nil
@@ -200,9 +218,10 @@ func evaluate(ctx context.Context, root, goldenPath string, purpose Purpose, fix
 	if err != nil {
 		return nil, baselineRun{}, err
 	}
+	producerCounts := trace.CountProducers(trace.RecordProducers(traces))
 	passedTraces := 0
-	for _, trace := range traces {
-		if trace.Outcome == "passed" {
+	for _, record := range trace.WithoutProducers(traces, excluded) {
+		if record.Outcome == "passed" {
 			passedTraces++
 		}
 	}
@@ -210,7 +229,31 @@ func evaluate(ctx context.Context, root, goldenPath string, purpose Purpose, fix
 		return nil, baselineRun{}, fmt.Errorf("native Go eval trace replay is not implemented")
 	}
 	result := counts.report(resolvedGolden == canonicalGolden, canonicalGolden, goldenBytes, head, revision, traceState, passedTraces, started)
+	// An empty store without an exclusion keeps the existing baseline bytes
+	// (LTA-V0-001).
+	if len(traces) != 0 || len(excluded) != 0 {
+		addProducerCounts(result, producerCounts, excluded)
+	}
 	return result, baselineRun{counts: counts, withheld: withheld}, nil
+}
+
+// addProducerCounts discloses every trace read by producer and, when any were
+// excluded, which producers the scored arm left out (LTPM-V0-016).
+func addProducerCounts(report map[string]any, counts map[string]int, excluded []string) {
+	producers := make(map[string]any, len(counts))
+	for name, count := range counts {
+		producers[name] = count
+	}
+	report["trace_producers"] = producers
+	var names []any
+	for _, name := range trace.Producers {
+		if slices.Contains(excluded, name) {
+			names = append(names, name)
+		}
+	}
+	if len(names) != 0 {
+		report["excluded_producers"] = names
+	}
 }
 
 // evaluateCases scores every case against one shared, already-built index.

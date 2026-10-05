@@ -116,7 +116,9 @@ Payloads use sorted object keys, compact JSON, literal UTF-8 (not `\u00a7` for `
 deduplicated set arrays such as `touchPaths`. Preserve ordered arrays such as gate argv and
 acceptance criteria. For Python, serialize using `ensure_ascii=False, sort_keys=True,
 separators=(',', ':')`, then add one LF; sort only fields documented as sets. Each mutation's
-`--help` lists its closed payload keys.
+`--help` lists its closed payload keys. `ticket create --template` prints a canonical CREATE payload for
+this queue (`.items[0].payload`) plus a `fields` table of types, enum values and null-able keys;
+fill in `title`, `body` and `acceptanceCriteria`, then submit it with `--payload-stdin`.
 
 Linked worktrees share the primary checkout's `.git/taskman` journal. A fresh clone has no such
 journal: current `queue status`, `roadmap`, `ticket show` and `ticket search` can read the

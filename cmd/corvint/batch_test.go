@@ -959,7 +959,7 @@ func TestPossessionReplayAtBoundQuintuple_SBQ010f(t *testing.T) {
 			t.Fatalf("wanted %s drift, got %s", member, got)
 		}
 	}
-	_, err := tracerecordrepo.Record(context.Background(), root, tracerecordrepo.Input{
+	_, err := tracerecordrepo.Record(context.Background(), root, tracerecordrepo.Input{Producer: trace.ProducerCLI,
 		Task: "Split demux", OpenedPaths: []string{"cache/demux.go"}, ChangedPaths: []string{"cache/reader.go"}, Verification: []string{"go test ./..."}, Outcome: "passed",
 	})
 	if err != nil {
@@ -1085,7 +1085,7 @@ func TestBatchTraceCaptureBetweenOperationsAndFailure_SBQ010f(t *testing.T) {
 	if first["ok"] != true {
 		t.Fatal(first)
 	}
-	_, err = tracerecordrepo.Record(context.Background(), root, tracerecordrepo.Input{Task: "Split demux", OpenedPaths: []string{"cache/demux.go"}, ChangedPaths: []string{"cache/reader.go"}, Verification: []string{"go test ./..."}, Outcome: "passed"})
+	_, err = tracerecordrepo.Record(context.Background(), root, tracerecordrepo.Input{Producer: trace.ProducerCLI, Task: "Split demux", OpenedPaths: []string{"cache/demux.go"}, ChangedPaths: []string{"cache/reader.go"}, Verification: []string{"go test ./..."}, Outcome: "passed"})
 	if err != nil {
 		t.Fatal(err)
 	}

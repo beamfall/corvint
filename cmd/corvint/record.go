@@ -156,7 +156,7 @@ func runRecord(ctx context.Context, root string, arguments []string, stdout, std
 		return 2
 	}
 	result, err := tracerecordrepo.Record(ctx, root, tracerecordrepo.Input{
-		Task: options.task, OpenedPaths: options.opened, ChangedPaths: options.changed,
+		Producer: trace.ProducerCLI, Task: options.task, OpenedPaths: options.opened, ChangedPaths: options.changed,
 		Verification: options.verification, VerificationArgv: options.verificationArgv, Outcome: options.outcome,
 	})
 	if err != nil {
@@ -184,11 +184,15 @@ func recordPayload(result tracerecordrepo.Result) map[string]any {
 }
 
 func recordMap(record trace.Record) map[string]any {
-	return map[string]any{
+	row := map[string]any{
 		"schema_version": record.SchemaVersion, "revision": record.Revision, "trace_id": record.TraceID,
 		"task": record.Task, "opened_paths": record.OpenedPaths, "changed_paths": record.ChangedPaths,
 		"verification": record.VerificationValue(), "outcome": record.Outcome,
 	}
+	if record.SchemaVersion == trace.SchemaVersionV3 {
+		row["producer"] = record.Producer
+	}
+	return row
 }
 
 // emitRecordError renders a trace-record refusal. A verification-command
