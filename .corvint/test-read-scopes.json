@@ -237,7 +237,9 @@
     "internal/specindex": [
       "docs/specs/"
     ],
-    "internal/taskman": [],
+    "internal/taskman": [
+      "internal/tasks/ticket/testdata/issue502-escalation-hold-cases.json"
+    ],
     "internal/tasks/archive": [],
     "internal/tasks/authority": [
       "go.mod"
