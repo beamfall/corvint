@@ -67,22 +67,22 @@ func TestPoolAllocationTupleCorrespondence(t *testing.T) {
 func TestPoolPlanConsumesEligibleSlots(t *testing.T) {
 	policy := &intent.Policy{MaxActiveAttempts: "4", Pools: []intent.Pool{{ID: "db", Members: []string{"integrate", "open", "review"}, ReservedFor: map[string]string{"integrate": "integrate", "review": "review"}}}}
 	in := PlanInput{Policy: policy, Pool: "db", Stage: "review", Reservations: &snapshot.ReservationSet{}}
-	first := choose(in, PlanEntry{}, nil)
+	first := choose(in, PlanEntry{}, nil, nil)
 	if first.State != PlanSelected {
 		t.Fatalf("first %+v", first)
 	}
 	// Disjoint empty scopes isolate the pool cardinality from ordinary reservations.
-	second := choose(in, PlanEntry{}, []PlanEntry{first})
+	second := choose(in, PlanEntry{}, []PlanEntry{first}, nil)
 	t.Run("CAL-V0-034 preview capacity uses claim eligibility", func(t *testing.T) {
 		if second.State != PlanSelected {
 			t.Fatalf("fallback slot %+v", second)
 		}
-		third := choose(in, PlanEntry{}, []PlanEntry{first, second})
+		third := choose(in, PlanEntry{}, []PlanEntry{first, second}, nil)
 		if third.State != PlanDeferred || third.Reason != wire.CodeResourceCollision {
 			t.Fatalf("overallocated %+v", third)
 		}
 		in.Stage = ""
-		if noStage := choose(in, PlanEntry{}, []PlanEntry{first}); noStage.State != PlanDeferred || noStage.Reason != wire.CodeResourceCollision {
+		if noStage := choose(in, PlanEntry{}, []PlanEntry{first}, nil); noStage.State != PlanDeferred || noStage.Reason != wire.CodeResourceCollision {
 			t.Fatalf("reserved member admitted without stage %+v", noStage)
 		}
 	})
