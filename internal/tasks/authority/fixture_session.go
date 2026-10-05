@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -336,7 +337,59 @@ func (s *fixtureSession) retainWorktree() error {
 		}
 		return err
 	}
+	p := s.parents["worktree"]
+	if err = s.sameWorktree(p.root, p.info); err != nil {
+		delete(s.parents, "worktree")
+		refusal := wire.Errorf(wire.CodeUnsupportedFilesystem, s.repo.IntentRoot(), "the pinned linked intent worktree is not the directory admission validated (CTW-V0-008): %v", err)
+		if closeErr := errors.Join(s.closeFile(p.file), s.closeRoot(p.root)); closeErr != nil {
+			return errors.Join(refusal, closeErr)
+		}
+		return refusal
+	}
 	s.worktree = "worktree"
+	return nil
+}
+
+// sameWorktree checks that a pinned linked intent worktree is the directory
+// admission validated: its path still names the pinned directory, and the
+// `.git` file read through the pinned root points back to the admitted
+// registration (CTW-V0-004). Admission compares paths; this closes the window
+// in which the path is swapped before the root is opened.
+func (s *fixtureSession) sameWorktree(root *os.Root, info os.FileInfo) error {
+	now, err := os.Lstat(s.repo.IntentRoot())
+	if err != nil {
+		return err
+	}
+	if !os.SameFile(now, info) {
+		return errors.New("the worktree path names a different directory than the pinned one")
+	}
+	f, err := safeopen.InRoot(root, ".git", os.O_RDONLY, 0, false)
+	if err != nil {
+		return err
+	}
+	raw, err := io.ReadAll(io.LimitReader(f, 4*wire.KiB+1))
+	if err = errors.Join(err, s.closeFile(f)); err != nil {
+		return err
+	}
+	back := strings.TrimRight(string(raw), "\r\n")
+	if len(raw) > 4*wire.KiB || !strings.HasPrefix(back, "gitdir: ") || strings.ContainsAny(back, "\r\n") {
+		return errors.New("the pinned worktree .git file is not a single gitdir: line")
+	}
+	back = strings.TrimPrefix(back, "gitdir: ")
+	if !filepath.IsAbs(back) {
+		back = filepath.Join(s.repo.IntentRoot(), back)
+	}
+	got, err := os.Lstat(filepath.Clean(back))
+	if err != nil {
+		return err
+	}
+	admin, err := os.Lstat(s.repo.IntentGitDir)
+	if err != nil {
+		return err
+	}
+	if !os.SameFile(got, admin) {
+		return errors.New("the pinned worktree .git file points to a different registration")
+	}
 	return nil
 }
 

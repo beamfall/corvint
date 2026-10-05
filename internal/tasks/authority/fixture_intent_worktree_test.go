@@ -4,6 +4,7 @@ package authority
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -108,4 +109,56 @@ func TestCTWV0008_LinkedIntentWorktreeOnAnotherMountIsRefused(t *testing.T) {
 	if s.parents["worktree"] != nil {
 		t.Error("a refused worktree was retained")
 	}
+}
+
+// TestCTWV0008_SwappedLinkedIntentWorktreeIsRefused: admission compares paths,
+// so the pin verifies the opened directory is the admitted one. A directory
+// swapped in at the admitted path whose `.git` points to another registration,
+// or a path that no longer names the pinned directory, is refused
+// UNSUPPORTED_FILESYSTEM and nothing is retained.
+func TestCTWV0008_SwappedLinkedIntentWorktreeIsRefused(t *testing.T) {
+	s, linked := fixtureIntentWorktree(t)
+	retained := s.parents["worktree"]
+	delete(s.parents, "worktree")
+	t.Cleanup(func() { s.parents["worktree"] = retained })
+
+	other := filepath.Join(s.repo.CommonDir, "worktrees", "other")
+	fixtureMust(t, os.MkdirAll(other, 0700))
+	fixtureMust(t, os.Rename(linked, linked+".moved"))
+	fixture.Write(t, filepath.Join(linked, ".git"), []byte("gitdir: "+other+"\n"))
+	err := s.retainWorktree()
+	if wire.CodeOf(err) != wire.CodeUnsupportedFilesystem {
+		t.Fatalf("swapped .git: err = %v, want UNSUPPORTED_FILESYSTEM", err)
+	}
+	if s.parents["worktree"] != nil {
+		t.Error("a swapped worktree was retained")
+	}
+	fixtureMust(t, os.RemoveAll(linked))
+	fixtureMust(t, os.Rename(linked+".moved", linked))
+
+	old, swapped := s.observe, false
+	s.observe = func(f *os.File, held fixtureMount) (fixtureMount, error) {
+		m, err := old(f, held)
+		if !swapped {
+			swapped = true
+			fixtureMust(t, os.Rename(linked, linked+".moved"))
+			fixtureMust(t, os.MkdirAll(linked, 0700))
+		}
+		return m, err
+	}
+	t.Cleanup(func() { s.observe = old })
+	err = s.retainWorktree()
+	if wire.CodeOf(err) != wire.CodeUnsupportedFilesystem {
+		t.Fatalf("swapped path: err = %v, want UNSUPPORTED_FILESYSTEM", err)
+	}
+	if s.parents["worktree"] != nil {
+		t.Error("a swapped worktree was retained")
+	}
+	s.observe = old
+	fixtureMust(t, os.RemoveAll(linked))
+	fixtureMust(t, os.Rename(linked+".moved", linked))
+	fixtureMust(t, s.retainWorktree())
+	fresh := s.parents["worktree"]
+	s.parents["worktree"] = retained
+	fixtureMust(t, errors.Join(s.closeFile(fresh.file), s.closeRoot(fresh.root)))
 }

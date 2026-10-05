@@ -50,7 +50,7 @@ func TestCTWV0002_TicketCreateFromAFeatureBranch(t *testing.T) {
 		t.Fatalf("feature-branch create without an intent worktree: %+v", refused.res)
 	}
 	linked := r.Root + "-main"
-	if want := `worktree add \"` + linked + `\" main`; !strings.Contains(string(refused.stdout), want) {
+	if want := `worktree add '` + linked + `' 'main'`; !strings.Contains(string(refused.stdout), want) {
 		t.Fatalf("refusal lacks the fix %s:\n%s", want, refused.stdout)
 	}
 

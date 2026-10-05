@@ -186,7 +186,7 @@ func TestCTWV0005_MissingIntentWorktreeRefusesWithTheFix(t *testing.T) {
 	before := untouched(t, repo, "")
 	report, err := store.Mutate(context.Background(), repo, operator(), envelope("refused", mutation.OpCreate, "", "", createPayload("must not commit")), now(t))
 	text := refusalText(t, report, err, wire.CodeIntentBranchMismatch)
-	want := `run "git -C "` + repo.PrimaryWorktree + `" worktree add "` + repo.PrimaryWorktree + `-main" main", or switch the primary checkout to main, then retry from any checkout (CTW-V0-005)`
+	want := `run "git -C '` + repo.PrimaryWorktree + `' worktree add '` + repo.PrimaryWorktree + `-main' 'main'", or switch the primary checkout to main, then retry from any checkout (CTW-V0-005)`
 	if !strings.Contains(text, want) {
 		t.Errorf("refusal %q lacks the fix %q", text, want)
 	}

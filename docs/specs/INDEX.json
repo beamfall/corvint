@@ -736,7 +736,7 @@
     "path": "docs/specs/corvint-tasks-intent-worktree-v0.md",
     "title": "Corvint Tasks intent worktree V0",
     "reqPrefix": "CTW-V0",
-    "intent": "proposed (owner request 2026-10-04: close V1-0720 follow-ups)",
+    "intent": "accepted (owner decision 2026-10-04)",
     "delivery": "experimental",
     "claim": "An agent on a feature branch files a ticket through one linked worktree on the intent branch, without switching the primary checkout.",
     "dependsOn": [

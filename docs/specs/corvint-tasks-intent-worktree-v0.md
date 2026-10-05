@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: proposed (owner request 2026-10-04: close V1-0720 follow-ups)
+Intent status: accepted (owner decision 2026-10-04)
 Delivery status: experimental
 Authoritative inputs: owner request 2026-10-04 to close the V1-0720 follow-ups, ticket V1-0325,
 `docs/build-log/2026-10-04-v1-0720-memory-workaround-layers.md` (row 3), the Corvint Tasks contract
@@ -13,9 +13,9 @@ sources under `internal/tasks/intent`, `internal/tasks/store`, `internal/tasks/a
 
 ## Agent digest
 - Claim: An agent on a feature branch files a ticket through one linked worktree on the intent branch, without switching the primary checkout.
-- Status: proposed (owner request 2026-10-04: close V1-0720 follow-ups); experimental. CTW-V0-001 through CTW-V0-011 are implemented and tested; owner acceptance is pending.
+- Status: accepted (owner decision 2026-10-04); experimental. CTW-V0-001 through CTW-V0-009 are implemented and tested; CTW-V0-010 and CTW-V0-011 are design and code-review requirements without runtime tests.
 - Exists: intent-root resolution in `internal/tasks/intent`, the store and CLI redirection, the fixture-session pin of the linked root, repair text on the two intent refusals, and fixture plus real-Git tests.
-- Blocked on: owner acceptance of this amendment and the matching edit to the external TCP-00 `docs/SPEC.md` §3.1 and `TM-V0-007` wording.
+- Blocked on: the matching edit to the external TCP-00 `docs/SPEC.md` §3.1 and `TM-V0-007` wording.
 - Read next: Requirements; Failure modes; Acceptance evidence; Rollback.
 
 ## User and boundary
@@ -33,7 +33,8 @@ worktree that is on it receives the projection instead. It changes no identity, 
 format, no error code and no behavior from an intent-branch primary. It amends TCP-00 §3.1 and
 `TM-V0-007` by replacing "the primary worktree" with "the intent root (CTW-V0-001)" wherever those
 clauses name the checkout holding `.taskman/` or the HEAD the branch guard reads. Their IDs and every
-other clause are unchanged. The external `docs/SPEC.md` text is edited only after owner acceptance.
+other clause are unchanged. The owner accepted this amendment on 2026-10-04; the external
+`docs/SPEC.md` text is edited to match in its own change.
 
 ## Requirements
 
@@ -68,13 +69,18 @@ other clause are unchanged. The external `docs/SPEC.md` text is edited only afte
   `INTENT_DIVERGED` when the projection audit refuses first). Its message gains a fix naming the
   primary's branch (or a detached or unreadable HEAD), the intent branch, any entry refused by
   `CTW-V0-004` together with `git worktree prune` or `git worktree repair`, and the exact command
-  `git -C "<primary>" worktree add "<primary>-<branch>" <branch>`, where `/` in the branch becomes
-  `-` in the path, or switching the primary to the intent branch.
+  `git -C '<primary>' worktree add '<primary>-<branch>' '<branch>'`, where `/` in the branch becomes
+  `-` in the path, or switching the primary to the intent branch. Paths and the branch in a repair
+  command are POSIX single-quoted shell words (each `'` becomes `'\''`), so `$`, backticks and
+  spaces paste literally.
 - `CTW-V0-006`: When two or more admitted linked worktrees hold the intent branch, none is selected
-  and the intent root stays the primary. The refusal fix names every candidate root and
-  `git worktree remove`.
+  and the intent root stays the primary. The refusal fix names every candidate root, quoted as in
+  `CTW-V0-005`, and `git worktree remove`.
 - `CTW-V0-007`: Repair text is appended only to `INTENT_BRANCH_MISMATCH` and `INTENT_DIVERGED`
-  refusals: to a writer's error or report detail, and to a read's warning. The code, location and
+  refusals: to the error or report detail of the store writers `Init`, `Mutate` (ticket
+  mutations), `PolicyUpdate`, `Release` and `Lease` (every lease command, claim included), and to
+  a read's warning. Other writers (cutover, execution cutover, reconcile, import, barrier, lease
+  recovery and redo) keep their refusal text without the fix. The code, location and
   original message are kept, with the fix after `; `. For `INTENT_DIVERGED` at a linked intent root
   the fix names the linked `.taskman` path, carrying or committing the changes, and
   `corvint-tasks reconcile inspect`. A dirty intent worktree, whose projection no longer equals the
@@ -84,7 +90,10 @@ other clause are unchanged. The external `docs/SPEC.md` text is edited only afte
   It pins `.taskman/` under that root, and on every check reopens it by path and requires the same
   directory. It refuses `UNSUPPORTED_FILESYSTEM` when the linked root's mount differs from the
   primary's, because publication links from staging under the common dir. Re-resolution under the
-  lock must yield the same intent root and HEAD path, or the session refuses.
+  lock must yield the same intent root and HEAD path, or the session refuses. Because that
+  comparison is by path, the pin then requires the path to still name the opened root directory
+  and the `.git` file read through the opened root to point to the admitted registration by file
+  identity, or it refuses `UNSUPPORTED_FILESYSTEM` and retains nothing.
 - `CTW-V0-009`: When the primary's HEAD names the intent branch, or `CTW-V0-003` yields no hint,
   the intent root is the primary. Every read, write, refusal code and message, receipt, journal
   byte and projection byte is then identical to the behavior before this amendment, whatever
@@ -96,8 +105,14 @@ other clause are unchanged. The external `docs/SPEC.md` text is edited only afte
   layouts. The canonical checks (`TM-V0-007` divergence, `TM-V0-006` request IDs and actor roles)
   remain the authority.
 - `CTW-V0-011`: Program and workflow runs, claim and lease Git observation, archive identity, and
-  the `primaryWorktreeSha256` snapshot field keep using the primary worktree. Only the intent
-  projection moves.
+  the `primaryWorktreeSha256` snapshot field keep the checkout they used before this amendment;
+  the intent root never changes them. Only the intent projection moves. In particular a lease
+  command reads Git from the caller's working directory, falling back to the primary only when
+  none is given (`internal/tasks/cli/lease.go` passes the cwd as the lease root;
+  `internal/tasks/store/lease.go` `leaseRoot` and `claimFacts`). A claim's base commit is
+  `--base`, default `HEAD`, resolved there: run from an admitted linked intent worktree it is that
+  worktree's intent-branch commit, and run from a feature-branch primary it is the feature HEAD.
+  The intent root does not pin or rewrite the claim base.
 
 Non-goals: moving or relocating the primary identity, a new error code or wire field, a journal or
 receipt format change, running Git to resolve worktrees, cross-filesystem intent worktrees,
@@ -118,6 +133,9 @@ from.
 | Linked projection edited or behind the journal | `INTENT_DIVERGED` naming the linked `.taskman` path; nothing written (`CTW-V0-007`). |
 | Linked worktree on another mount | `UNSUPPORTED_FILESYSTEM`; nothing published (`CTW-V0-008`). |
 | Linked worktree replaced during a transaction | The session check refuses (`CTW-V0-008`). |
+| Linked worktree path swapped between lock-time re-resolution and the pin | The pin requires the path to name the opened directory and that directory's `.git` to point to the admitted registration; otherwise `UNSUPPORTED_FILESYSTEM` and nothing is retained (`CTW-V0-008`). |
+| `git switch` in the linked intent worktree between the branch check and publication | Not closed by this amendment. The same race exists today for a `git switch` in an intent-branch primary: the session pins directories, not HEAD, so the branch guard is not re-read at publication (`CTW-V0-002`, `CTW-V0-009`). |
+| Claim run from the linked intent worktree while the primary is on a feature branch | The claim base is resolved in the caller's checkout, so it is the intent-branch commit; pass `--base` to claim on another commit (`CTW-V0-011`). |
 | Primary queue manifest unreadable | No routing; the existing refusals apply (`CTW-V0-003`). |
 | More than 256 registrations | Only the first 256 in name order are examined, and the fix says so (`CTW-V0-004`). |
 
@@ -151,8 +169,8 @@ format changed, so no migration or repair is needed.
 | `CTW-V0-004` | `TestCTWV0004_StaleOrForeignIntentWorktreeIsNotAdmitted`, `TestCTWV0004_StaleIntentWorktreeRefusesWithTheFix` |
 | `CTW-V0-005` | `TestCTWV0005_NoIntentWorktreeNamesTheFix`, `TestCTWV0005_MissingIntentWorktreeRefusesWithTheFix`, `TestCTWV0002_TicketCreateFromAFeatureBranch` |
 | `CTW-V0-006` | `TestCTWV0006_TwoIntentWorktreesAreAmbiguous` |
-| `CTW-V0-007` | `TestCTWV0007_DirtyIntentWorktreeRefusesWithTheFix`, `TestCTWV0005_NoIntentWorktreeNamesTheFix` |
-| `CTW-V0-008` | `TestCTWV0008_SessionPinsTheLinkedIntentWorktree`, `TestCTWV0008_LinkedIntentWorktreeOnAnotherMountIsRefused` |
-| `CTW-V0-009` | `TestCTWV0009_IntentBranchPrimaryKeepsThePrimaryRoot`, `TestCTWV0009_IntentBranchPrimaryRefusalsAreUnchanged`, `TestTMV0007_AS29_LinkedCallerUsesPrimaryHEAD` |
+| `CTW-V0-007` | `TestCTWV0007_DirtyIntentWorktreeRefusesWithTheFix`, `TestCTWV0005_NoIntentWorktreeNamesTheFix`, `TestCTWV0007_RepairCommandsUseShellQuoting` |
+| `CTW-V0-008` | `TestCTWV0008_SessionPinsTheLinkedIntentWorktree`, `TestCTWV0008_LinkedIntentWorktreeOnAnotherMountIsRefused`, `TestCTWV0008_SwappedLinkedIntentWorktreeIsRefused` |
+| `CTW-V0-009` | `TestCTWV0009_IntentBranchPrimaryKeepsThePrimaryRoot`, `TestCTWV0009_IntentBranchPrimaryRefusalsAreUnchanged`, `TestTMV0007_AS29_LinkedCallerUsesPrimaryHEAD` (the refusal test checks that repair text is absent, not byte equality of the whole message) |
 | `CTW-V0-010` | Design statement; no runtime test asserts a trust boundary. |
 | `CTW-V0-011` | Code review of the unchanged program, workflow and lease call sites; existing program and lease suites pass. |

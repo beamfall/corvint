@@ -114,7 +114,7 @@ func TestCTWV0005_NoIntentWorktreeNamesTheFix(t *testing.T) {
 	if repo.IntentRoot() != r.Root || repo.IntentLinked() {
 		t.Fatalf("root = %q, want the primary", repo.IntentRoot())
 	}
-	want := `run "git -C "` + r.Root
+	want := `run "git -C '` + r.Root + `' worktree add '` + r.Root + `-main' 'main'"`
 	for _, part := range []string{`branch "feature"`, `intent branch "main"`, "no linked worktree holds it", want, "worktree add", "CTW-V0-005"} {
 		if !strings.Contains(repo.IntentFix, part) {
 			t.Errorf("fix %q lacks %q", repo.IntentFix, part)
@@ -206,7 +206,7 @@ func TestCTWV0006_TwoIntentWorktreesAreAmbiguous(t *testing.T) {
 	if repo.IntentRoot() != r.Root {
 		t.Fatalf("an ambiguous worktree became the root: %q", repo.IntentRoot())
 	}
-	for _, part := range []string{"2 linked worktrees hold it", a, b, "git worktree remove", "CTW-V0-006"} {
+	for _, part := range []string{"2 linked worktrees hold it", intent.ShellQuote(a), intent.ShellQuote(b), "git worktree remove", "CTW-V0-006"} {
 		if !strings.Contains(repo.IntentFix, part) {
 			t.Errorf("fix %q lacks %q", repo.IntentFix, part)
 		}
@@ -225,5 +225,21 @@ func TestCTWV0003_NoHintKeepsThePrimary(t *testing.T) {
 	repo := resolve(t, r.Root)
 	if repo.IntentRoot() != r.Root || repo.IntentFix != "" {
 		t.Fatalf("root=%q fix=%q, want the primary and no fix", repo.IntentRoot(), repo.IntentFix)
+	}
+}
+
+// TestCTWV0007_RepairCommandsUseShellQuoting: repair commands quote paths and
+// branches as single POSIX shell words, so `$`, backticks, spaces and single
+// quotes paste literally.
+func TestCTWV0007_RepairCommandsUseShellQuoting(t *testing.T) {
+	for in, want := range map[string]string{
+		"/a/b":         `'/a/b'`,
+		"/a $HOME/`x`": "'/a $HOME/`x`'",
+		"/it's":        `'/it'\''s'`,
+		"":             `''`,
+	} {
+		if got := intent.ShellQuote(in); got != want {
+			t.Errorf("ShellQuote(%q) = %s, want %s", in, got, want)
+		}
 	}
 }

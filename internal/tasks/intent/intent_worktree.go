@@ -111,7 +111,7 @@ func resolveIntentWorktree(r *Repository) {
 	if len(found) > 1 {
 		roots := make([]string, len(found))
 		for i, c := range found {
-			roots[i] = fmt.Sprintf("%q", c.root)
+			roots[i] = ShellQuote(c.root)
 		}
 		r.IntentFix = fmt.Sprintf("the primary checkout is on %s, not the intent branch %q, and %d linked worktrees hold it (%s): run \"git worktree remove <path>\" until one remains, then retry (CTW-V0-006)", on, hint.branch, len(found), strings.Join(roots, ", "))
 		return
@@ -126,7 +126,14 @@ func resolveIntentWorktree(r *Repository) {
 		fix += ":"
 	}
 	suggested := r.PrimaryWorktree + "-" + strings.ReplaceAll(hint.branch, "/", "-")
-	r.IntentFix = fix + fmt.Sprintf(" run \"git -C %q worktree add %q %s\", or switch the primary checkout to %s, then retry from any checkout (CTW-V0-005)", r.PrimaryWorktree, suggested, hint.branch, hint.branch)
+	r.IntentFix = fix + fmt.Sprintf(" run \"git -C %s worktree add %s %s\", or switch the primary checkout to %s, then retry from any checkout (CTW-V0-005)", ShellQuote(r.PrimaryWorktree), ShellQuote(suggested), ShellQuote(hint.branch), hint.branch)
+}
+
+// ShellQuote quotes s as one POSIX shell word: it is wrapped in single quotes
+// and each embedded single quote becomes '\''. Repair commands quote paths and
+// branches this way so `$`, backticks and spaces are pasted literally.
+func ShellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 // readIntentHint reads the intent branch and queue named by the primary's
