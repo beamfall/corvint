@@ -40,7 +40,7 @@ func TestDogfoodRecordAdmitsNestedGitignoreWithoutIndexingIt(t *testing.T) {
 		}
 	}
 
-	result, err := RecordDogfood(context.Background(), root, base, target, Input{Task: "gitignore", Outcome: "passed"})
+	result, err := RecordDogfood(context.Background(), root, base, target, Input{Producer: trace.ProducerCLI, Task: "gitignore", Outcome: "passed"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func TestDogfoodRecordAdmitsNestedGitignoreWithoutIndexingIt(t *testing.T) {
 		t.Fatalf("admitted digest=%q", result.AdmittedSHA256)
 	}
 
-	recorded, err := Record(context.Background(), root, Input{Task: "direct gitignore", ChangedPaths: want, Outcome: "passed"})
+	recorded, err := Record(context.Background(), root, Input{Producer: trace.ProducerCLI, Task: "direct gitignore", ChangedPaths: want, Outcome: "passed"})
 	if err != nil || !reflect.DeepEqual(recorded.Record.ChangedPaths, want) {
 		t.Fatalf("record=%+v error=%v", recorded, err)
 	}
@@ -68,7 +68,7 @@ func TestDogfoodRecordStillRejectsUnrelatedNonSourcePath(t *testing.T) {
 	gitAdapterFixture(t, root, "commit", "-qm", "readme")
 	target := gitAdapterFixture(t, root, "rev-parse", "HEAD")
 
-	result, err := RecordDogfood(context.Background(), root, base, target, Input{Task: "readme", Outcome: "passed"})
+	result, err := RecordDogfood(context.Background(), root, base, target, Input{Producer: trace.ProducerCLI, Task: "readme", Outcome: "passed"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -375,7 +375,7 @@ func TestRecordResultDisclosesTruncatedAncestryCount(t *testing.T) {
 	gitAdapterFixture(t, root, "add", "internal/value.go")
 	gitAdapterFixture(t, root, "commit", "-qm", "advance")
 
-	result, err := Record(context.Background(), root, Input{Task: "disclose truncated ancestry", Outcome: "passed"})
+	result, err := Record(context.Background(), root, Input{Producer: trace.ProducerCLI, Task: "disclose truncated ancestry", Outcome: "passed"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -427,7 +427,7 @@ func TestRecordReclaimsAtCapUnreachableFileWhileReadRemainsStrict(t *testing.T) 
 	unreachablePath := filepath.ToSlash(filepath.Join(".context-corvint", "traces", unreachable+".jsonl"))
 	var rows strings.Builder
 	for index := 0; index < trace.MaxTraces; index++ {
-		record, err := trace.NewRecord(trace.Input{
+		record, err := trace.NewRecord(trace.Input{Producer: trace.ProducerCLI,
 			Revision: unreachable, Task: fmt.Sprintf("stale trace %d", index), Outcome: "passed",
 		}, nil)
 		if err != nil {
@@ -449,7 +449,7 @@ func TestRecordReclaimsAtCapUnreachableFileWhileReadRemainsStrict(t *testing.T) 
 		t.Fatal("Read() accepted an unreachable trace revision")
 	}
 
-	result, err := Record(context.Background(), root, Input{Task: "reclaim stale trace", Outcome: "passed"})
+	result, err := Record(context.Background(), root, Input{Producer: trace.ProducerCLI, Task: "reclaim stale trace", Outcome: "passed"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -474,7 +474,7 @@ func TestRecordRecoversInterruptedRetentionBeforeCandidateDiscovery(t *testing.T
 			gitAdapterFixture(t, root, "add", "internal/value.go")
 			gitAdapterFixture(t, root, "commit", "-qm", "target")
 			target := gitAdapterFixture(t, root, "rev-parse", "HEAD")
-			old, err := trace.NewRecord(trace.Input{Revision: target, Task: "old target row", Outcome: "passed"}, nil)
+			old, err := trace.NewRecord(trace.Input{Producer: trace.ProducerCLI, Revision: target, Task: "old target row", Outcome: "passed"}, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -482,7 +482,7 @@ func TestRecordRecoversInterruptedRetentionBeforeCandidateDiscovery(t *testing.T
 			if err != nil {
 				t.Fatal(err)
 			}
-			interrupted, err := trace.NewRecord(trace.Input{Revision: target, Task: "interrupted target row", Outcome: "passed"}, nil)
+			interrupted, err := trace.NewRecord(trace.Input{Producer: trace.ProducerCLI, Revision: target, Task: "interrupted target row", Outcome: "passed"}, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -490,7 +490,7 @@ func TestRecordRecoversInterruptedRetentionBeforeCandidateDiscovery(t *testing.T
 			if err != nil {
 				t.Fatal(err)
 			}
-			candidateRecord, err := trace.NewRecord(trace.Input{Revision: candidate, Task: "staged candidate", Outcome: "failed"}, nil)
+			candidateRecord, err := trace.NewRecord(trace.Input{Producer: trace.ProducerCLI, Revision: candidate, Task: "staged candidate", Outcome: "failed"}, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -516,14 +516,14 @@ func TestRecordRecoversInterruptedRetentionBeforeCandidateDiscovery(t *testing.T
 			if _, _, err := Read(context.Background(), root, index); err == nil {
 				t.Fatal("Read() accepted interrupted retention residue")
 			}
-			if _, err := Record(context.Background(), root, Input{Task: " ", Outcome: "passed"}); err == nil {
+			if _, err := Record(context.Background(), root, Input{Producer: trace.ProducerCLI, Task: " ", Outcome: "passed"}); err == nil {
 				t.Fatal("Record() accepted an invalid task")
 			}
 			oversizedPaths := make([]string, trace.MaxTracePaths)
 			for pathIndex := range oversizedPaths {
 				oversizedPaths[pathIndex] = fmt.Sprintf("internal/%03d-%s.go", pathIndex, strings.Repeat("x", 1_500))
 			}
-			if _, err := recordWithIndex(context.Background(), root, index, oversizedPaths, func() error { return nil }, nil, Input{
+			if _, err := recordWithIndex(context.Background(), root, index, oversizedPaths, func() error { return nil }, nil, Input{Producer: trace.ProducerCLI,
 				Task: "oversized encoded row", OpenedPaths: oversizedPaths, Outcome: "passed",
 			}); err == nil || !strings.Contains(err.Error(), "row exceeds") {
 				t.Fatalf("recordWithIndex() oversized error=%v, want row bound", err)
@@ -541,7 +541,7 @@ func TestRecordRecoversInterruptedRetentionBeforeCandidateDiscovery(t *testing.T
 					t.Fatalf("invalid record mutated staged target: error=%v got=%q", err, got)
 				}
 			}
-			result, err := Record(context.Background(), root, Input{Task: "record after recovery", Outcome: "passed"})
+			result, err := Record(context.Background(), root, Input{Producer: trace.ProducerCLI, Task: "record after recovery", Outcome: "passed"})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -592,7 +592,7 @@ func TestRecordReclaimsAfterExactCapRecoveryLeavesOperationLockOverage(t *testin
 		t.Fatalf("strict CandidateRevisions() error=%v, want exact-cap refusal", err)
 	}
 
-	result, err := Record(context.Background(), root, Input{Task: "record after exact-cap recovery", Outcome: "passed"})
+	result, err := Record(context.Background(), root, Input{Producer: trace.ProducerCLI, Task: "record after exact-cap recovery", Outcome: "passed"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -608,7 +608,7 @@ func TestRecordReclaimsAfterExactCapRecoveryLeavesOperationLockOverage(t *testin
 func TestRecordPreservesStoreErrorPrecedenceWithoutRecoveryResidue(t *testing.T) {
 	root := newAdapterFixture(t)
 	writeAdapterFixture(t, root, ".context-corvint/traces/not-a-revision.jsonl", "")
-	_, err := Record(context.Background(), root, Input{Task: " ", Outcome: "passed"})
+	_, err := Record(context.Background(), root, Input{Producer: trace.ProducerCLI, Task: " ", Outcome: "passed"})
 	if err == nil || !strings.Contains(err.Error(), "invalid local trace revision filename") {
 		t.Fatalf("Record() error=%v, want store validation before task validation", err)
 	}

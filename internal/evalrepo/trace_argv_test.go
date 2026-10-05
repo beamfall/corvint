@@ -13,7 +13,7 @@ import (
 
 func TestTypedTraceFixtureAdmission(t *testing.T) {
 	revision, scored := strings.Repeat("a", 40), strings.Repeat("b", 40)
-	row, err := trace.NewRecord(trace.Input{Revision: revision, Task: "prior task", Outcome: "passed", VerificationArgv: [][]string{{"printf", "a b"}}}, nil)
+	row, err := trace.NewRecord(trace.Input{Producer: trace.ProducerCLI, Revision: revision, Task: "prior task", Outcome: "passed", VerificationArgv: [][]string{{"printf", "a b"}}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

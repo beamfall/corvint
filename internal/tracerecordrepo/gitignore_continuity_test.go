@@ -24,7 +24,7 @@ func TestGitignoreRecordReadContinuity(t *testing.T) {
 					writeAdapterFixture(t, root, path, ".context-corvint/\n*.tmp\n")
 					gitAdapterFixture(t, root, "add", path)
 					gitAdapterFixture(t, root, "commit", "-qm", "ignore rules")
-					result, err := Record(ctx, root, Input{Task: "ignore rules", ChangedPaths: []string{path}, Outcome: "passed"})
+					result, err := Record(ctx, root, Input{Producer: trace.ProducerCLI, Task: "ignore rules", ChangedPaths: []string{path}, Outcome: "passed"})
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -91,7 +91,7 @@ func TestGitignoreLegacyMigrationContinuity(t *testing.T) {
 		commit := gitAdapterFixture(t, root, "rev-parse", "HEAD")
 		tree := gitAdapterFixture(t, root, "rev-parse", "HEAD^{tree}")
 		paths := []string{".gitignore", "nested/.gitignore"}
-		input := trace.Input{Revision: tree, TreeRevision: tree, Task: "legacy ignore rules", ChangedPaths: paths, Outcome: "passed"}
+		input := trace.Input{Producer: trace.ProducerCLI, Revision: tree, TreeRevision: tree, Task: "legacy ignore rules", ChangedPaths: paths, Outcome: "passed"}
 		legacy, err := trace.NewRecord(input, paths)
 		if err != nil {
 			t.Fatal(err)

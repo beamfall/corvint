@@ -16,7 +16,7 @@ const testRevision = "0123456789abcdef0123456789abcdef01234567"
 
 func newRecord(t *testing.T, task, outcome string) trace.Record {
 	t.Helper()
-	record, err := trace.NewRecord(trace.Input{
+	record, err := trace.NewRecord(trace.Input{Producer: trace.ProducerCLI,
 		Revision:     testRevision,
 		Task:         task,
 		OpenedPaths:  []string{"cache/demux.go"},

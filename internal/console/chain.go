@@ -550,14 +550,17 @@ func traceEdges(path, change, raw string, axes Axes) []ChainEdge {
 
 func traceEdge(path, change string, number int, line string, axes Axes) ChainEdge {
 	edge := ChainEdge{Artifact: path, Field: "line " + strconv.Itoa(number) + " revision", Axes: axes}
-	if trace.IsV2JSON([]byte(line)) {
-		row, err := trace.DecodeV2([]byte(line), change)
+	if trace.IsTypedJSON([]byte(line)) {
+		row, err := trace.DecodeTyped([]byte(line), change)
 		if err != nil {
-			edge.Gap, edge.Reason = GapUnsupported, "the schema_version 2 row failed trace validation"
+			edge.Gap, edge.Reason = GapUnsupported, "the typed (schema_version 2 or 3) row failed trace validation"
 			return edge
 		}
 		edge.Target, edge.Pin = row.TraceID, row.Revision
 		edge.Detail = "recorded outcome " + strconv.Quote(row.Outcome) + " for task " + strconv.Quote(row.Task) + "; recorded verification: " + strings.Join(row.VerificationDisplay(), " · ")
+		if row.SchemaVersion == trace.SchemaVersionV3 {
+			edge.Detail += "; producer " + row.Producer
+		}
 		return edge
 	}
 	var row wireTrace

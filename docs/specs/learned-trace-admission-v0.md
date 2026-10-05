@@ -52,6 +52,10 @@ screens shared the assignment-pattern vocabulary, which did not include `credent
   without a fixture MUST retain the existing baseline bytes, and an unfixtured live store holding a
   passed trace MUST retain its refusal. Learned-path score constants MAY change only after this gate
   reports no harmful delta and the development precision floor holds under both engines.
+  Amendment (V1-0745, 2026-10-04): under `LTPM-V0-016`, `--exclude-producer` removes those
+  producers' traces from the traces a read admits. An excluded passed trace therefore does not
+  trigger the refusal, the report names the exclusion, and an empty store without an exclusion
+  keeps the baseline bytes.
 - `LTA-V0-002`: Before either scored arm runs, the evaluation MUST fail closed when any frozen
   fixture trace has the same canonical task as a scored case or names the scored repository's
   outcome commit as its revision. The fixture path and digest MUST be registered and verified; a

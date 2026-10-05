@@ -147,31 +147,31 @@ AHI-016	docs/specs/agent-harness-integration-v0.md	195	A native wrapper that rec
 AHI-017	docs/specs/agent-harness-integration-v0.md	208	A native adapter that runs as a host-killed process MUST derive every Corvint de
 AHI-018	docs/specs/agent-harness-integration-v0.md	228	A test harness that stands in for the host MAY state a longer host kill only thr
 AHI-019	docs/specs/agent-harness-integration-v0.md	235	A Claude Code `post-tool` event whose Edit/Write/NotebookEdit target (the
-AHI-020	docs/specs/agent-harness-integration-v0.md	252	Each host package's own manifest version (`integrations/claude-code/plugins/corv
-AHI-021	docs/specs/agent-harness-integration-v0.md	263	The Claude Code adapter MUST NOT emit a user-visible `systemMessage` for a routi
-AHI-022	docs/specs/agent-harness-integration-v0.md	295	The Gemini CLI and OpenCode adapters MUST apply the `AHI-021` split. A routine
-AHI-023	docs/specs/agent-harness-integration-v0.md	335	An adapter MUST report the host version its host actually provides, and MUST NOT
-AHI-024	docs/specs/agent-harness-integration-v0.md	354	The experimental Pi extension MUST use runtime-provided version `0.99.1`, adapte
-AHI-025	docs/specs/agent-harness-integration-v0.md	431	The owner-requested complete Pi integration MUST expose native model-callable
-AHI-026	docs/specs/agent-harness-integration-v0.md	468	The Claude Code plugin MUST register the compaction hook events the installed ho
-AHI-027	docs/specs/agent-harness-integration-v0.md	478	`pre-compact` MUST emit, as plain stdout the host joins verbatim into the compac
-AHI-028	docs/specs/agent-harness-integration-v0.md	492	`post-compact` MUST re-read the last pin the untrusted `compact_summary` preserv
-AHI-029	docs/specs/agent-harness-integration-v0.md	505	Neither compaction event writes repository, index, trace, or store state; the on
-AHI-030	docs/specs/agent-harness-integration-v0.md	507	Every compact `SessionStart` context MUST begin with a fixed trusted disclosure
-AHI-031	docs/specs/agent-harness-integration-v0.md	511	(accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot
-AHI-032	docs/specs/agent-harness-integration-v0.md	547	At the owner’s request (2026-09-28), stock OpenCode native integration qualifica
-AHI-033	docs/specs/agent-harness-integration-v0.md	633	The owner-approved first OpenCode UI slice (2026-09-28, “looks good. build it”
-AHI-034	docs/specs/agent-harness-integration-v0.md	688	The owner-approved change cockpit (2026-09-28, “do it” after the change
-AHI-035	docs/specs/agent-harness-integration-v0.md	738	At the owner's request (2026-09-29), the OpenCode 2 terminal integration MUST
-AHI-036	docs/specs/agent-harness-integration-v0.md	768	At the owner's request (2026-09-29, “do all 6”), the optional OpenCode 2 workben
-AHI-037	docs/specs/agent-harness-integration-v0.md	775	The workbench MUST show each selected ticket criterion alongside only explicitly
-AHI-038	docs/specs/agent-harness-integration-v0.md	783	An explicit qualification doctor MUST display the installed host version, adapte
-AHI-039	docs/specs/agent-harness-integration-v0.md	788	The workbench MUST derive at most five next actions from recorded ticket blocker
-AHI-040	docs/specs/agent-harness-integration-v0.md	792	The terminal MUST show OpenCode's observed per-session cost and token/cache tota
-AHI-041	docs/specs/agent-harness-integration-v0.md	799	The terminal MUST show at most 16 members of the current OpenCode session family
-AHI-042	docs/specs/agent-harness-integration-v0.md	815	The owner-approved OpenCode presentation polish (2026-09-30, “ok, update it”, ex
-AHI-043	docs/specs/agent-harness-integration-v0.md	823	For an unchanged committed tree, worktree state, hook input and session key, the
-AHI-044	docs/specs/agent-harness-integration-v0.md	840	Every shipped hook adapter MUST fail open under the faults a host or machine can
+AHI-020	docs/specs/agent-harness-integration-v0.md	253	Each host package's own manifest version (`integrations/claude-code/plugins/corv
+AHI-021	docs/specs/agent-harness-integration-v0.md	264	The Claude Code adapter MUST NOT emit a user-visible `systemMessage` for a routi
+AHI-022	docs/specs/agent-harness-integration-v0.md	296	The Gemini CLI and OpenCode adapters MUST apply the `AHI-021` split. A routine
+AHI-023	docs/specs/agent-harness-integration-v0.md	341	An adapter MUST report the host version its host actually provides, and MUST NOT
+AHI-024	docs/specs/agent-harness-integration-v0.md	360	The experimental Pi extension MUST use runtime-provided version `0.99.1`, adapte
+AHI-025	docs/specs/agent-harness-integration-v0.md	437	The owner-requested complete Pi integration MUST expose native model-callable
+AHI-026	docs/specs/agent-harness-integration-v0.md	474	The Claude Code plugin MUST register the compaction hook events the installed ho
+AHI-027	docs/specs/agent-harness-integration-v0.md	484	`pre-compact` MUST emit, as plain stdout the host joins verbatim into the compac
+AHI-028	docs/specs/agent-harness-integration-v0.md	498	`post-compact` MUST re-read the last pin the untrusted `compact_summary` preserv
+AHI-029	docs/specs/agent-harness-integration-v0.md	511	Neither compaction event writes repository, index, trace, or store state; the on
+AHI-030	docs/specs/agent-harness-integration-v0.md	513	Every compact `SessionStart` context MUST begin with a fixed trusted disclosure
+AHI-031	docs/specs/agent-harness-integration-v0.md	517	(accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot
+AHI-032	docs/specs/agent-harness-integration-v0.md	553	At the owner’s request (2026-09-28), stock OpenCode native integration qualifica
+AHI-033	docs/specs/agent-harness-integration-v0.md	639	The owner-approved first OpenCode UI slice (2026-09-28, “looks good. build it”
+AHI-034	docs/specs/agent-harness-integration-v0.md	694	The owner-approved change cockpit (2026-09-28, “do it” after the change
+AHI-035	docs/specs/agent-harness-integration-v0.md	744	At the owner's request (2026-09-29), the OpenCode 2 terminal integration MUST
+AHI-036	docs/specs/agent-harness-integration-v0.md	774	At the owner's request (2026-09-29, “do all 6”), the optional OpenCode 2 workben
+AHI-037	docs/specs/agent-harness-integration-v0.md	781	The workbench MUST show each selected ticket criterion alongside only explicitly
+AHI-038	docs/specs/agent-harness-integration-v0.md	789	An explicit qualification doctor MUST display the installed host version, adapte
+AHI-039	docs/specs/agent-harness-integration-v0.md	794	The workbench MUST derive at most five next actions from recorded ticket blocker
+AHI-040	docs/specs/agent-harness-integration-v0.md	798	The terminal MUST show OpenCode's observed per-session cost and token/cache tota
+AHI-041	docs/specs/agent-harness-integration-v0.md	805	The terminal MUST show at most 16 members of the current OpenCode session family
+AHI-042	docs/specs/agent-harness-integration-v0.md	821	The owner-approved OpenCode presentation polish (2026-09-30, “ok, update it”, ex
+AHI-043	docs/specs/agent-harness-integration-v0.md	829	For an unchanged committed tree, worktree state, hook input and session key, the
+AHI-044	docs/specs/agent-harness-integration-v0.md	846	Every shipped hook adapter MUST fail open under the faults a host or machine can
 ALO-V0-001	docs/specs/aggregate-local-outcome-v0.md	43	Activation MUST require the explicit enrolled aggregate selector and exact bound
 ALO-V0-002	docs/specs/aggregate-local-outcome-v0.md	45	Legacy trace, learning, ranking, public fixtures and ordinary /0 behavior MUST
 ALO-V0-003	docs/specs/aggregate-local-outcome-v0.md	47	Candidate and admitted sets MUST use the complete pinned current context-index
@@ -380,6 +380,7 @@ CAL-V0-067	docs/specs/corvint-tasks-agent-leases-v0.md	1140	RELEASE MAY accept a
 CAL-V0-068	docs/specs/corvint-tasks-agent-leases-v0.md	1205	The `taskman-dispatch/0` configuration MAY carry one closed `pressure` object:
 CAL-V0-071	docs/specs/corvint-tasks-agent-leases-v0.md	1259	The optional policy `supervision` object MAY carry `repositories`, a closed obje
 CAL-V0-072	docs/specs/corvint-tasks-agent-leases-v0.md	1277	After `implement`, each repository with changes MUST receive a candidate commit
+CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	1604	`corvint-tasks ticket create --template` MUST return, in one
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla
@@ -1738,19 +1739,19 @@ LSO-V0-003	docs/specs/lsp-snapshot-overlay-v0.md	29	Close/reopen and explicit re
 LSO-V0-004	docs/specs/lsp-snapshot-overlay-v0.md	30	URI admission MUST require one lexical local file URI spelling contained below t
 LSO-V0-005	docs/specs/lsp-snapshot-overlay-v0.md	31	Sessions MUST enforce explicit positive document-count, per-document-byte and to
 LTA-V0-001	docs/specs/learned-trace-admission-v0.md	45	`corvint eval` MUST score a baseline arm and a second learned-trace arm over the
-LTA-V0-002	docs/specs/learned-trace-admission-v0.md	55	Before either scored arm runs, the evaluation MUST fail closed when any frozen
-LTA-V0-003	docs/specs/learned-trace-admission-v0.md	59	At an unchanged 1,000 rows, 1,000 files, or 16 MiB cap, `record` MUST reclaim sp
-LTA-V0-004	docs/specs/learned-trace-admission-v0.md	66	The current writer screen (`internal/secretscreen.Pattern`, consumed by `record`
-LTA-V0-005	docs/specs/learned-trace-admission-v0.md	95	(numbered 2026-09-12 by decision 0093; text unchanged from the accepted
-LTA-V0-006	docs/specs/learned-trace-admission-v0.md	103	`corvint skill-export --out DIR` MUST be the only path that exports learned rule
-LTA-V0-007	docs/specs/learned-trace-admission-v0.md	109	An admitted learned rule is a stored row with outcome `passed` that the reader
-LTA-V0-008	docs/specs/learned-trace-admission-v0.md	116	Each exported skill MUST load under the Agent Skills frontmatter contract that
-LTA-V0-009	docs/specs/learned-trace-admission-v0.md	121	(decision 0368, accepted by 0373, experimental) `corvint eval --learn-slot-weigh
-LTA-V0-010	docs/specs/learned-trace-admission-v0.md	136	(decision 0368, accepted by 0373, experimental) Each proposal MUST be scored aga
-LTA-V0-011	docs/specs/learned-trace-admission-v0.md	145	(decision 0368, accepted by 0373, experimental) Only `--admit` with an `improved
-LTA-V0-012	docs/specs/learned-trace-admission-v0.md	163	(decision 0368, accepted by 0373, experimental) `corvint eval --reset-slot-weigh
-LTA-V0-013	docs/specs/learned-trace-admission-v0.md	171	Schema-2 verification defined by `LTPM-V0-013` MUST pass the shared
-LTA-V0-014	docs/specs/learned-trace-admission-v0.md	193	The writer screen MAY skip a top-level branch of `secretscreen.Pattern` for a te
+LTA-V0-002	docs/specs/learned-trace-admission-v0.md	59	Before either scored arm runs, the evaluation MUST fail closed when any frozen
+LTA-V0-003	docs/specs/learned-trace-admission-v0.md	63	At an unchanged 1,000 rows, 1,000 files, or 16 MiB cap, `record` MUST reclaim sp
+LTA-V0-004	docs/specs/learned-trace-admission-v0.md	70	The current writer screen (`internal/secretscreen.Pattern`, consumed by `record`
+LTA-V0-005	docs/specs/learned-trace-admission-v0.md	99	(numbered 2026-09-12 by decision 0093; text unchanged from the accepted
+LTA-V0-006	docs/specs/learned-trace-admission-v0.md	107	`corvint skill-export --out DIR` MUST be the only path that exports learned rule
+LTA-V0-007	docs/specs/learned-trace-admission-v0.md	113	An admitted learned rule is a stored row with outcome `passed` that the reader
+LTA-V0-008	docs/specs/learned-trace-admission-v0.md	120	Each exported skill MUST load under the Agent Skills frontmatter contract that
+LTA-V0-009	docs/specs/learned-trace-admission-v0.md	125	(decision 0368, accepted by 0373, experimental) `corvint eval --learn-slot-weigh
+LTA-V0-010	docs/specs/learned-trace-admission-v0.md	140	(decision 0368, accepted by 0373, experimental) Each proposal MUST be scored aga
+LTA-V0-011	docs/specs/learned-trace-admission-v0.md	149	(decision 0368, accepted by 0373, experimental) Only `--admit` with an `improved
+LTA-V0-012	docs/specs/learned-trace-admission-v0.md	167	(decision 0368, accepted by 0373, experimental) `corvint eval --reset-slot-weigh
+LTA-V0-013	docs/specs/learned-trace-admission-v0.md	175	Schema-2 verification defined by `LTPM-V0-013` MUST pass the shared
+LTA-V0-014	docs/specs/learned-trace-admission-v0.md	197	The writer screen MAY skip a top-level branch of `secretscreen.Pattern` for a te
 LTPM-V0-001	docs/specs/local-trace-producer-migration-v0.md	55	`record_trace` MUST obtain the clean `HEAD` commit and its tree from one reposit
 LTPM-V0-002	docs/specs/local-trace-producer-migration-v0.md	59	The Python reader MUST accept canonical rows only when their filename and row na
 LTPM-V0-003	docs/specs/local-trace-producer-migration-v0.md	64	Dry-run MUST be read-only and bind its plan digest to the stable current commit/
@@ -1765,6 +1766,8 @@ LTPM-V0-011	docs/specs/local-trace-producer-migration-v0.md	254	public `record` 
 LTPM-V0-012	docs/specs/local-trace-producer-migration-v0.md	365	(accepted by the owner 2026-09-27; V1-0144) After an amend or rebase, a trace
 LTPM-V0-013	docs/specs/local-trace-producer-migration-v0.md	115	`record` MUST accept repeatable `--verify-argv-json JSON_ARRAY` (including the
 LTPM-V0-014	docs/specs/local-trace-producer-migration-v0.md	133	All ordinary trace consumers MUST admit validated mixed v1/v2 revision files
+LTPM-V0-015	docs/specs/local-trace-producer-migration-v0.md	405	(owner-selected design 2026-10-04, decision 0429; requirement text proposed)
+LTPM-V0-016	docs/specs/local-trace-producer-migration-v0.md	453	(owner-selected design 2026-10-04, decision 0429; requirement text proposed)
 MCPV0-001	docs/specs/mcp-server-2026-07-28-v0.md	107	The executable MUST run as `corvint-mcp --root ABSOLUTE_ROOT`. It owns exactly o
 MCPV0-002	docs/specs/mcp-server-2026-07-28-v0.md	120	P0 transport is stdio only. Each message is one UTF-8 JSON object followed by LF
 MCPV0-003	docs/specs/mcp-server-2026-07-28-v0.md	126	The decoder MUST reject invalid UTF-8, invalid JSON, duplicate object names at a
@@ -1879,13 +1882,13 @@ OCA-V0-004	docs/specs/observation-corpus-authority-v0.md	36	one owner may label 
 OCA-V0-005	docs/specs/observation-corpus-authority-v0.md	38	corpus output MUST distinguish `PASS`, `FAIL`, `NOT_RUN`, and `NOT_OBSERVED`; a
 OCA-V0-006	docs/specs/observation-corpus-authority-v0.md	42	raw prompts, source bodies, credentials, ambient command output, network upload,
 OCL-V0-001	docs/specs/outcome-calibration-v0.md	58	`corvint [--root PATH] calibrate [--since REV | --window N]
-OCL-V0-002	docs/specs/outcome-calibration-v0.md	65	The verb MUST be read-only (AGENTS.md invariant 4): it reads the committed index
-OCL-V0-003	docs/specs/outcome-calibration-v0.md	71	Every readable record MUST be joined to a stance. A record that carries no
-OCL-V0-004	docs/specs/outcome-calibration-v0.md	76	The report MUST carry the 2x2 of `answered`/`abstained` against
-OCL-V0-005	docs/specs/outcome-calibration-v0.md	80	Where records carry a relevance score, the report MUST bucket them into the ten
-OCL-V0-006	docs/specs/outcome-calibration-v0.md	86	When a proposal is emitted it MUST report the decile edge that would have
-OCL-V0-007	docs/specs/outcome-calibration-v0.md	92	A joined sample smaller than 20 rows MUST set `insufficient_sample: true` and
-OCL-V0-008	docs/specs/outcome-calibration-v0.md	95	Output MUST be deterministic for a fixed store and invocation in both formats:
+OCL-V0-002	docs/specs/outcome-calibration-v0.md	67	The verb MUST be read-only (AGENTS.md invariant 4): it reads the committed index
+OCL-V0-003	docs/specs/outcome-calibration-v0.md	73	Every readable record MUST be joined to a stance. A record that carries no
+OCL-V0-004	docs/specs/outcome-calibration-v0.md	78	The report MUST carry the 2x2 of `answered`/`abstained` against
+OCL-V0-005	docs/specs/outcome-calibration-v0.md	82	Where records carry a relevance score, the report MUST bucket them into the ten
+OCL-V0-006	docs/specs/outcome-calibration-v0.md	88	When a proposal is emitted it MUST report the decile edge that would have
+OCL-V0-007	docs/specs/outcome-calibration-v0.md	94	A joined sample smaller than 20 rows MUST set `insufficient_sample: true` and
+OCL-V0-008	docs/specs/outcome-calibration-v0.md	97	Output MUST be deterministic for a fixed store and invocation in both formats:
 OCM-V0-001	docs/specs/ocm-v0-dogfood.md	42	V0 MUST accept exactly one pinned Markdown intent scope containing one
 OCM-V0-002	docs/specs/ocm-v0-dogfood.md	56	the map MUST bind the full target commit, intent path/blob/span/span digest, exa
 OCM-V0-003	docs/specs/ocm-v0-dogfood.md	59	the map MUST contain exactly one obligation row for every enumerated requirement

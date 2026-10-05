@@ -36,7 +36,10 @@ var mutationVerbs = map[string]string{
 type mutateFlags struct {
 	role, requestID, target, expected, payload string
 	issuedAt                                   string
-	payloadFromStdin, help                     bool
+	payloadFromStdin, help, template           bool
+	// others counts the flags passed besides --help and --template, so
+	// --template refuses any flag by presence, not by value.
+	others int
 }
 
 // mutateCommand runs one ticket mutation against the real journal. The
@@ -52,6 +55,15 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 	}
 	if flags.help {
 		return mutationHelp(cmd, operation)
+	}
+	if flags.template {
+		if operation != mutation.OpCreate {
+			return usage(cmd, "--template is available only for ticket create")
+		}
+		if flags.others != 0 {
+			return usage(cmd, "--template takes no other flag")
+		}
+		return createTemplate(env, cmd)
 	}
 	actor, err := initActor(flags.role)
 	if err != nil {
@@ -80,10 +92,15 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 	for i := 0; i < len(args); i++ {
 		if args[i] == "--payload-stdin" {
 			f.payloadFromStdin = true
+			f.others++
 			continue
 		}
 		if args[i] == "--help" {
 			f.help = true
+			continue
+		}
+		if args[i] == "--template" {
+			f.template = true
 			continue
 		}
 		dest, ok := set[args[i]]
@@ -95,6 +112,7 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 		}
 		i++
 		*dest = args[i]
+		f.others++
 	}
 	if f.payload != "" && f.payloadFromStdin {
 		return f, usage(cmd, "--payload and --payload-stdin are exclusive")
@@ -172,8 +190,13 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 		target = ""
 		o.Set("localToken", wire.String("Optional payload member localToken chooses the queue-local ID, e.g. \"localToken\":\"BT-002\". It uses the existing LocalToken grammar and refuses collisions (including case-fold collisions). Omit it for automatic allocation. CREATE forbids --target and --expected-revision."))
 		o.Set("optionalPayloadKeys", wire.Strings([]string{"localToken"}))
+		o.Set("template", wire.String("corvint-tasks ticket create --template prints a canonical CREATE payload for this queue with each field's type, enum values and nullability; fill title, body and acceptanceCriteria and submit it with --payload-stdin. It reads only the intent store and writes nothing."))
 	}
-	o.Set("usage", wire.String("corvint-tasks "+strings.Join(cmd, " ")+" --request-id ID (--payload JSON | --payload-stdin)"+target+" [--issued-at TS] [--role ROLE]"))
+	usageText := "corvint-tasks " + strings.Join(cmd, " ") + " --request-id ID (--payload JSON | --payload-stdin)" + target + " [--issued-at TS] [--role ROLE]"
+	if operation == mutation.OpCreate {
+		usageText += "; corvint-tasks " + strings.Join(cmd, " ") + " --template"
+	}
+	o.Set("usage", wire.String(usageText))
 	o.Set("note", wire.String("the payload is a JSON object with exactly these keys; CREATE may add localToken, and REFINE takes a non-empty subset. The CLI canonicalizes it before the request digest (sorted keys, compact separators, literal UTF-8): whitespace, object key order and escape form are free, set arrays such as labels and touchPaths are sorted (duplicates refuse), and ordered arrays such as acceptanceCriteria and dependencies keep the order given; see docs/TASKS-EXTERNAL-AGENTS.md"))
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }

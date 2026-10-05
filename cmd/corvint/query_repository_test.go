@@ -292,7 +292,7 @@ func TestRepositoryTraceGateFollowsTheOracleByIntent(t *testing.T) {
 
 func recordRepositoryQueryTrace(t *testing.T, root, task, outcome string) tracerecordrepo.Result {
 	t.Helper()
-	result, err := tracerecordrepo.Record(context.Background(), root, tracerecordrepo.Input{
+	result, err := tracerecordrepo.Record(context.Background(), root, tracerecordrepo.Input{Producer: trace.ProducerCLI,
 		Task: task, OpenedPaths: []string{"AGENTS.md"}, ChangedPaths: []string{"internal/parser/token.go"},
 		Verification: []string{"go test ./...", "git diff --check"}, Outcome: outcome,
 	})

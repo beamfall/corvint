@@ -233,7 +233,7 @@ Usage:
     [--exclude-prefix PATH] [--full-receipt]
   corvint [--root PATH] query --task TASK [--limit N] [--budget-bytes N]
   corvint [--root PATH] feature FEATURE_ID [--limit N] [--budget-bytes N]
-  corvint [--root PATH] eval [--goldens FILE] [--trace-fixture FILE]
+  corvint [--root PATH] eval [--goldens FILE] [--trace-fixture FILE] [--exclude-producer NAME]...
   corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N] [--lsp gopls|off]
   corvint [--root PATH] impact [--limit N] [--working-tree-untracked] PATH...
   corvint [--root PATH] impact --base FULL_COMMIT_ID [--limit N]
@@ -498,7 +498,7 @@ for a typed unsupported result. See docs/specs/go-production-kernel-migration-v0
 const evalHelp = `Evaluate a frozen retrieval corpus through the native candidate.
 
 Usage:
-  corvint [--root PATH] eval [--goldens FILE] [--trace-fixture FILE]
+  corvint [--root PATH] eval [--goldens FILE] [--trace-fixture FILE] [--exclude-producer NAME]...
   corvint [--root PATH] eval --learn-slot-weights [--goldens FILE] [--admit]
   corvint [--root PATH] eval --reset-slot-weights
 
@@ -506,6 +506,10 @@ Without --goldens, use the repository's .corvint/eval.json or
 testing/context-retrieval-goldens.json when available. --trace-fixture adds the
 explicit learned-trace comparison arm; ordinary persisted trace replay is not
 implemented. The command reads without mutating repository or trace state.
+The report counts the traces it read by producer (cli, dogfood, pi-tool, or
+UNKNOWN for rows written before producer provenance); --exclude-producer NAME
+leaves that producer's traces out of the read, repeatable, without changing
+the store or the fixture.
 Select the owning spec's registered development or frozen evaluation inputs;
 never open a sealed holdout or infer promotion from an unregistered run. Preserve
 both arms, failures and unknowns. A routine explicit outcome record does not
