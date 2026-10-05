@@ -41,6 +41,9 @@ type PlanEntry struct {
 	ClosureComplete bool
 	State, Reason   string
 	Blockers        []string
+	// prerequisites are the CAL-V0-099 blocker details naming each
+	// unsatisfied execution prerequisite, so a claim-next refusal names it.
+	prerequisites []string
 }
 
 // TicketPlan is a taskman-priority-first/0 plan without its snapshot header.
@@ -119,6 +122,11 @@ func planEntry(in PlanInput, rec *ticket.Record) PlanEntry {
 	blockers := claimBlockers(in, rec)
 	if len(blockers) > 0 {
 		e.State, e.Reason, e.Blockers = PlanBlocked, blockers[0].Code, blockerRefs(blockers)
+		for _, b := range blockers {
+			if b.Code == wire.CodePrerequisiteUnsatisfied {
+				e.prerequisites = append(e.prerequisites, b.Detail)
+			}
+		}
 	}
 	return e
 }

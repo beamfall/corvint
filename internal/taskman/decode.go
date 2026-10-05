@@ -193,6 +193,9 @@ func decodeTicket(v wire.Value) (ticket, error) {
 			return t, fmt.Errorf("%s: %w", k, e)
 		}
 	}
+	if e = prerequisiteOwner(t.id, value(v, "executionPrerequisites")); e != nil {
+		return t, fmt.Errorf("executionPrerequisites: %w", e)
+	}
 	t.order, e = number(value(v, "order"), 2147483647)
 	if e != nil {
 		return t, e

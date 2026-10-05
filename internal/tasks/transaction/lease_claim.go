@@ -314,6 +314,9 @@ func (p TicketPlan) refusal() (string, string) {
 	if first.Reason == wire.CodeEscalationPending {
 		detail += " on " + strings.Join(first.Ticket.EscalationPending(), ",")
 	}
+	if first.Reason == wire.CodePrerequisiteUnsatisfied {
+		detail += ": " + strings.Join(first.prerequisites, "; ")
+	}
 	return first.Reason, detail
 }
 

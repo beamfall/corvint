@@ -127,7 +127,9 @@ A ticket that only some stages must wait for carries optional `executionPrerequi
 prerequisite; other stages are unaffected, and a read without `--stage` applies every entry.
 `ticket blockers` explains the block. A `GATE_PASSED` prerequisite stays `NOT_OBSERVED` (unknown)
 on native reads, so its stages stay refused until the entry is removed. Unlike `dependencies`, the
-key takes no part in cycles, completion or `requiredGates` (CAL-V0-099).
+key takes no part in cycles, completion or `requiredGates` (CAL-V0-099). Once any record has
+carried the key, older binaries refuse the store even after it is cleared, because the journal keeps
+the earlier records; roll back only with a compatible reader or a verified pre-change backup.
 
 Linked worktrees share the primary checkout's `.git/taskman` journal. A fresh clone has no such
 journal: current `queue status`, `roadmap`, `ticket show` and `ticket search` can read the

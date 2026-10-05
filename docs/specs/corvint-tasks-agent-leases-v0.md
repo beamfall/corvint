@@ -1980,18 +1980,24 @@ such orderings. A prerequisite blocks claims and plans for the stages it lists a
        `NOT_OBSERVED`, which leaves eligibility `UNKNOWN`. The native reader has no gate oracle, so
        today it always reports this unknown.
      - Each blocker or unknown names the prerequisite ticket. Its detail names the stages it gates.
-       Its next action is `wait-dependency`. The view echoes `executionPrerequisites` so that
-       `ticket blockers` explains the block.
+       The next action is `wait-dependency` for a blocker and also for an unknown, because
+       admission refuses both; the view never recommends `admit` while a prerequisite is unknown.
+       The view echoes `executionPrerequisites` so that `ticket blockers` explains the block.
      - `claim` and `claim-next` refuse `BLOCKED/PREREQUISITE_UNSATISFIED` on such a blocker or
-       unknown. `plan` reports the entry `BLOCKED` with that reason and the prerequisite ticket.
-       Recorded claimability is `false` for a blocker and `null` for an unknown.
+       unknown. When `claim-next` selects nothing and its first planned entry is blocked by
+       prerequisites, the refusal detail names each prerequisite ticket and its stages. `plan`
+       reports the entry `BLOCKED` with that reason and the prerequisite ticket. Recorded
+       claimability is `false` for a blocker and `null` for an unknown.
      - A claim or plan for an unlisted stage is unaffected.
   5. Writers. `ticket refine` sets the key with an array and clears it with `null`. `ADOPT_FILE`
      treats it as a routine field composed through `REFINE`. An import export item MAY carry the
      key; when a re-import omits it, the record's existing set is kept. `CREATE` does not accept
      the key.
-  6. Core. The Core decoder (`internal/taskman`) admits the key under the same shape rules. The
-     Core planner is stageless. It reports `GATE_UNKNOWN` for a `GATE_PASSED` prerequisite and
+  6. Core. The Core decoder (`internal/taskman`) admits the key under the same shape and edge
+     rules: each `ticketId` is a well-formed ticket ID, in the record's queue and not the record
+     itself, and each `(ticketId, obligation, gateId)` appears once. Both readers MUST refuse every
+     case in the shared fixture `cal-v0-099-prerequisite-refusals.json`. The Core planner is
+     stageless. It reports `GATE_UNKNOWN` for a `GATE_PASSED` prerequisite and
      `PREREQUISITE_UNSATISFIED` for a missing or uncompleted `COMPLETED` prerequisite.
   7. Code. `PREREQUISITE_UNSATISFIED` joins TCP-00 §11's closed detail codes (A19).
 
@@ -2015,16 +2021,32 @@ Failure modes:
 Acceptance evidence is listed in the table below. Focused package tests ran on the change; live
 store qualification is `NOT_RUN`.
 
-Rollback: remove the key from each record with `ticket refine` (`"executionPrerequisites": null`)
-before installing an older binary. Older binaries decode ticket records strictly with a closed key
-set. On that strict-decode path they refuse any record that carries `executionPrerequisites`, and
-any journal record or export that holds one. They also do not know the `PREREQUISITE_UNSATISFIED`
-code. Records written without the key are byte-identical to legacy records, and no other store,
-journal or wire state depends on this amendment.
+Rollback: once any record has carried `executionPrerequisites`, clearing current records is not a
+rollback. Older binaries decode ticket records strictly with a closed key set and do not know the
+`PREREQUISITE_UNSATISFIED` code. `ticket refine` with `"executionPrerequisites": null` changes only
+the current record. The journal keeps every earlier ticket afterimage, and journal audit and replay
+decode each historical ticket record through the strict ticket decoder
+(`internal/tasks/journal/records.go`). An older binary therefore still refuses the store after the
+key is cleared. Exports that carry the key are refused the same way. Rollback takes one of two
+routes:
+
+- Keep a compatible reader: this binary or a later one that accepts the key. Clearing the key then
+  only stops the gating.
+- Restore the whole store, intent and state directory together, from a backup taken before the key
+  was first written. Verify it with `receipt audit` under the older binary before resuming. Every
+  later transaction is lost.
+
+To tell whether the key was ever written, search the store for the byte string
+`"executionPrerequisites"`. Search the tracked ticket records and the state directory
+(`<git common dir>/taskman`), including journal receipts, which hold inline post records, and
+`evidence/` blobs. Ticket records are canonical JSON, so every record that ever carried the key
+contains the string. No match means older binaries still read the store. Records never written
+with the key are byte-identical to legacy records, and no other store, journal or wire state
+depends on this amendment.
 
 | Requirement | Evidence |
 | --- | --- |
-| CAL-V0-099 | `TestCALV0099_RecordKeyRoundTrip`, `TestCALV0099_RecordKeyRefusals`, `TestCALV0099_StageScopedView`, `TestIssue502_RecordEscalationsKey` (`internal/tasks/ticket`); `TestCALV0099_RefineSetsAndClearsPrerequisites`, `TestCALV0099_CompletingPrerequisiteChangesNoOtherRecord`, `TestCALV0099_AdoptComposesPrerequisites` (`internal/tasks/mutation`); `TestCALV0099_ImportAcceptsAndPreservesPrerequisites` (`internal/tasks/importer`); `TestCALV0099_ClaimAndPlanAreStageScoped` (`internal/tasks/transaction`); `TestCALV0099_CoreReaderValidatesExecutionPrerequisites`, `TestCALV0099_CorePlannerAppliesEveryPrerequisite` (`internal/taskman`); `TestTMV0002_AS01_CommandResultEnvelope` (`internal/tasks/wire`, 73 closed codes) |
+| CAL-V0-099 | `TestCALV0099_RecordKeyRoundTrip`, `TestCALV0099_RecordKeyRefusals`, `TestCALV0099_SharedRefusals`, `TestCALV0099_StageScopedView`, `TestIssue502_RecordEscalationsKey` (`internal/tasks/ticket`); `TestCALV0099_RefineSetsAndClearsPrerequisites`, `TestCALV0099_CompletingPrerequisiteChangesNoOtherRecord`, `TestCALV0099_AdoptComposesPrerequisites` (`internal/tasks/mutation`); `TestCALV0099_ImportAcceptsAndPreservesPrerequisites` (`internal/tasks/importer`); `TestCALV0099_ClaimAndPlanAreStageScoped`, `TestCALV0099_ClaimNextRefusalNamesPrerequisite` (`internal/tasks/transaction`); `TestCALV0099_CoreReaderValidatesExecutionPrerequisites`, `TestCALV0099_CoreSharedRefusals`, `TestCALV0099_CorePlannerAppliesEveryPrerequisite` (`internal/taskman`); `TestTMV0002_AS01_CommandResultEnvelope` (`internal/tasks/wire`, 73 closed codes) |
 
 ## Amendments to TCP-00
 

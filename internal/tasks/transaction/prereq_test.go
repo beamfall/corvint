@@ -70,3 +70,36 @@ func contains(xs []string, s string) bool {
 	}
 	return false
 }
+
+// TestCALV0099_ClaimNextRefusalNamesPrerequisite: when nothing is
+// selectable, the claim-next refusal names the unsatisfied prerequisite and
+// its stages, not only the candidate and reason.
+func TestCALV0099_ClaimNextRefusalNamesPrerequisite(t *testing.T) {
+	rec, pre := fixture.Ticket("AT-01"), fixture.Ticket("AT-02")
+	pre.Status = ticket.StatusHeld
+	pre.Holds = []ticket.Hold{{HoldID: "hold", Actor: "owner", Reason: "hold", PlacedAt: timestamp}}
+	rec.ExecutionPrerequisites = []ticket.Prerequisite{{TicketID: pre.TicketID, Obligation: "COMPLETED", Stages: []string{"integrate"}}}
+	c := issue502ClaimContext(t, LeaseClaimNext, "", rec, pre)
+	c.l.Stage = "integrate"
+	code, detail := issue502Refused(planClaimNext(c))
+	if code != wire.CodePrerequisiteUnsatisfied || !strings.Contains(detail, rec.TicketID.Raw+", is BLOCKED "+wire.CodePrerequisiteUnsatisfied) || !strings.Contains(detail, "prerequisite "+pre.TicketID.Raw+" is HELD") || !strings.Contains(detail, "stages integrate") {
+		t.Fatalf("claim-next %s %q", code, detail)
+	}
+	// A GATE_PASSED prerequisite with no gate oracle is refused as an
+	// unknown, and the refusal still names the prerequisite and its gate.
+	gated := fixture.Ticket("AT-01")
+	gated.ExecutionPrerequisites = []ticket.Prerequisite{{TicketID: pre.TicketID, Obligation: "GATE_PASSED", GateID: strPtr("verify"), Stages: []string{"integrate"}}}
+	c = issue502ClaimContext(t, LeaseClaimNext, "", gated, pre)
+	c.l.Stage = "integrate"
+	if code, detail := issue502Refused(planClaimNext(c)); code != wire.CodePrerequisiteUnsatisfied || !strings.Contains(detail, "prerequisite gate verify of "+pre.TicketID.Raw) {
+		t.Fatalf("claim-next gate %s %q", code, detail)
+	}
+	// The unlisted stage admits the same ticket.
+	c = issue502ClaimContext(t, LeaseClaimNext, "", rec, pre)
+	c.l.Stage = "implement"
+	if out := planClaimNext(c); out.result != nil || out.effect == nil {
+		t.Fatalf("claim-next of unlisted stage refused %+v", out.result)
+	}
+}
+
+func strPtr(s string) *string { return &s }

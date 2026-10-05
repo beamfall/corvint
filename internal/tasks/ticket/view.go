@@ -250,7 +250,7 @@ func (inv *Inventory) View(id string, ctx Context) (View, bool) {
 		v.IntentChecks = "FAILED"
 		v.Eligibility = EligibilityBlocked
 	}
-	v.NextAction = nextAction(rec, blockers)
+	v.NextAction = nextAction(rec, blockers, unknowns)
 	return v, true
 }
 
@@ -282,7 +282,10 @@ func holdIDs(rec *Record) string {
 }
 
 // nextAction names the next permitted operation as a literal verb label.
-func nextAction(rec *Record, blockers []Blocker) string {
+// An unknown execution prerequisite (CAL-V0-099: a GATE_PASSED obligation
+// whose gate is NOT_OBSERVED) refuses admission like a blocker, so it waits
+// on the prerequisite rather than recommending an admission that must fail.
+func nextAction(rec *Record, blockers, unknowns []Blocker) string {
 	switch rec.Status {
 	case StatusDraft:
 		return "refine"
@@ -294,6 +297,11 @@ func nextAction(rec *Record, blockers []Blocker) string {
 		return "restore"
 	}
 	if len(blockers) == 0 {
+		for _, u := range unknowns {
+			if u.Code == wire.CodePrerequisiteUnsatisfied {
+				return "wait-dependency"
+			}
+		}
 		// Intent checks passed; admission itself needs the journal (TCP-02)
 		// to observe attempts and gates, so the next action is that check.
 		return "admit"

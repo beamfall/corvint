@@ -1,6 +1,7 @@
 package taskman
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -95,5 +96,34 @@ func TestCALV0099_CorePlannerAppliesEveryPrerequisite(t *testing.T) {
 	all["ticket:acme:main:AT-02"] = ticket{id: "ticket:acme:main:AT-02", status: "COMPLETED", raw: base()}
 	if got := blocker(x, all, c); got == "PREREQUISITE_UNSATISFIED" || got == "GATE_UNKNOWN" {
 		t.Fatalf("completed prerequisite still blocks: %q", got)
+	}
+}
+
+// TestCALV0099_CoreSharedRefusals: Core's reader refuses every shared case
+// the native codec refuses (internal/tasks/ticket TestCALV0099_SharedRefusals
+// reads a byte-identical copy): duplicate (ticketId, obligation, gateId)
+// edges whose stages differ, self and other-queue prerequisites, and ticket
+// IDs that only look like one.
+func TestCALV0099_CoreSharedRefusals(t *testing.T) {
+	raw, e := os.ReadFile("testdata/cal-v0-099-prerequisite-refusals.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	doc, e := document(raw, 1<<20)
+	if e != nil {
+		t.Fatal(e)
+	}
+	cases := value(doc, "cases").Arr
+	if len(cases) < 9 {
+		t.Fatalf("shared fixture has %d cases", len(cases))
+	}
+	for _, c := range cases {
+		t.Run(stringAt(c, "name"), func(t *testing.T) {
+			v := issue502Record(t)
+			setMember(v, "executionPrerequisites", value(c, "executionPrerequisites"))
+			if _, e := decodeTicket(v); e == nil || !strings.Contains(e.Error(), "executionPrerequisites") {
+				t.Fatalf("decoded with %v; want an executionPrerequisites refusal (native %s)", e, stringAt(c, "nativeCode"))
+			}
+		})
 	}
 }

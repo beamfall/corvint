@@ -2,6 +2,7 @@ package ticket_test
 
 import (
 	"bytes"
+	"os"
 	"strings"
 	"testing"
 
@@ -143,6 +144,15 @@ func TestCALV0099_StageScopedView(t *testing.T) {
 	if len(v.Blockers) != 0 || v.Eligibility != ticket.EligibilityUnknown {
 		t.Fatalf("unobserved gate prerequisite became a blocker: %+v", v.Blockers)
 	}
+	// Admission must refuse the unknown, so the next action waits on the
+	// prerequisite instead of recommending an admission that must fail.
+	if v.NextAction != "wait-dependency" {
+		t.Fatalf("unknown gate prerequisite nextAction = %q", v.NextAction)
+	}
+	// An unlisted stage carries no prerequisite unknown and still admits.
+	if v := view("review", ginv); v.NextAction != "admit" {
+		t.Fatalf("unlisted stage nextAction = %q", v.NextAction)
+	}
 	found := false
 	for _, u := range v.Unknowns {
 		if u.Code == wire.CodePrerequisiteUnsatisfied && u.TicketID == fixture.TicketID("P") && strings.Contains(u.Detail, "NOT_OBSERVED") {
@@ -173,5 +183,50 @@ func TestCALV0099_StageScopedView(t *testing.T) {
 	plain, _ := inventory(t, fixture.Ticket("P")).View(fixture.TicketID("P"), ctx)
 	if _, ok := plain.Value(false).Obj.Get("executionPrerequisites"); ok {
 		t.Fatal("view of a ticket without prerequisites gained the key")
+	}
+}
+
+// prerequisiteRefusalsFixture is shared with Core's reader test
+// (internal/taskman holds a byte-identical copy): each case is a
+// prerequisite set both readers must refuse.
+const prerequisiteRefusalsFixture = "testdata/cal-v0-099-prerequisite-refusals.json"
+
+// TestCALV0099_SharedRefusals: the native codec refuses every shared case,
+// spliced into the issue 502 record, with the code the fixture names.
+func TestCALV0099_SharedRefusals(t *testing.T) {
+	base, err := os.ReadFile(issue502RecordFixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec, err := ticket.Decode(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	orig := `"executionPrerequisites":` + string(wire.Encode(ticket.PrerequisitesValue(rec.ExecutionPrerequisites)))
+	if !bytes.Contains(base, []byte(orig)) {
+		t.Fatalf("base fixture does not carry %s", orig)
+	}
+	raw, err := os.ReadFile(prerequisiteRefusalsFixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := wire.Parse(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases, _ := doc.Obj.Get("cases")
+	if len(cases.Arr) < 9 {
+		t.Fatalf("shared fixture has %d cases", len(cases.Arr))
+	}
+	for _, c := range cases.Arr {
+		name, _ := c.Obj.Get("name")
+		want, _ := c.Obj.Get("nativeCode")
+		set, _ := c.Obj.Get("executionPrerequisites")
+		t.Run(name.Str, func(t *testing.T) {
+			spliced := bytes.Replace(base, []byte(orig), []byte(`"executionPrerequisites":`+string(wire.Encode(set))), 1)
+			if _, err := ticket.Decode(spliced); code(err) != want.Str {
+				t.Fatalf("decoded with %v; want %s", err, want.Str)
+			}
+		})
 	}
 }

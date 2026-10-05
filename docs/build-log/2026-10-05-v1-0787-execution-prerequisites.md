@@ -39,7 +39,7 @@ amendment A19. CAL-V0-073..098 belong to other lanes.
   - CREATE does not accept the key.
   - `CanonicalPayload` now makes two set-sorting passes, so the outer set is ordered by the inner
     sorted stages.
-- Core (`internal/taskman`). `decode.go` validates the key's shape. The stageless planner reports
+- Core (`internal/taskman`). `decode.go` validates the key's shape and the native edge rules. The stageless planner reports
   `GATE_UNKNOWN` for a `GATE_PASSED` prerequisite, and `PREREQUISITE_UNSATISFIED` for a missing or
   uncompleted one.
 - Wire. `PREREQUISITE_UNSATISFIED` is added to `wire.Codes`, which now holds 73 codes.
@@ -68,6 +68,28 @@ The following were `NOT_RUN`:
 - live store qualification;
 - independent review;
 - dogfood bind and seal.
+
+### Review repair
+
+An independent Codex review of `4e5c53bf..7ce4ab24` returned `CHANGES_REQUIRED` with four P2
+findings. All four are repaired in a follow-up commit, each with a regression test that failed
+before the repair:
+
+- Core accepted prerequisite sets that native Tasks refuses: duplicate `(ticketId, obligation,
+  gateId)` edges with different stages, self and other-queue prerequisites, and ticket IDs that
+  only had the `ticket:` prefix. Core now applies `ParseTicketID` and the native edge rules. The
+  shared fixture `cal-v0-099-prerequisite-refusals.json` holds nine cases that both readers must
+  refuse (`TestCALV0099_SharedRefusals`, `TestCALV0099_CoreSharedRefusals`). The native and Core
+  copies are byte-identical.
+- The documented rollback was wrong. Clearing the key keeps earlier ticket afterimages in the
+  journal, which audit decodes strictly, so an older binary still refuses the store. The rollback
+  now requires a compatible reader or a verified restore from a pre-change backup. It keeps a byte
+  search that tells an operator whether the key was ever written.
+- `claim-next` dropped the prerequisite identity when nothing was selectable. The plan entry now
+  keeps the prerequisite details, and the refusal names each prerequisite and its stages
+  (`TestCALV0099_ClaimNextRefusalNamesPrerequisite`, through `planClaimNext`).
+- A ticket whose only issue was an unknown `GATE_PASSED` prerequisite reported `nextAction: admit`.
+  Prerequisite unknowns now yield `wait-dependency` (`TestCALV0099_StageScopedView`).
 
 ### Open owner questions
 
