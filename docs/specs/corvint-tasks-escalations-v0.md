@@ -186,9 +186,11 @@ with the key would then refuse it as an unknown key. That cannot happen before t
 The writer slice adds the store entry points, the LEASE planner and the `ESCALATE`/`ANSWER` grants.
 It is the first change that can write the key; rolling it back reverts only the writer files and
 the two grants, and leaves the record-key slice in place so readers keep accepting a record that
-already carries a reference. The grants also widen the operation enum that the policy decoder
-accepts: once an accepted policy names `ESCALATE` or `ANSWER`, a reverted binary refuses that policy
-as an unknown operation, so a rollback first restores a policy that names neither.
+already carries a reference. The grants also widen the policy vocabulary: the operation enum and
+OPERATOR's explicit grants. Full journal audit decodes every historical policy POST, so once an
+accepted policy names `ESCALATE` or `ANSWER`, a binary without that vocabulary fails audit even
+after a later policy drops them. Before any policy names them, a plain revert is safe. After that,
+rollback keeps the vocabulary and the readers and disables only the writer entry points.
 Later slices rebase onto current main and integrate in order: codecs, writer and material, holds,
 CLI and reads, 501 claim delivery, then dispatcher retry with 499 composition. Once writes exist,
 rollback disables new mutations and automation but keeps readers, references, questions, answers

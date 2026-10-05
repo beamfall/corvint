@@ -53,7 +53,7 @@ Native store tests against real claim receipts:
 `TestIssue502_ActorBindingBeforeReplay`, `TestIssue502_OpenAuditsTheClaim`,
 `TestIssue502_AnswerRaceHasOneWinner`, `TestIssue502_RedoRepublishesTheTicket`,
 `TestIssue502_SupervisedAttemptIsUnsupported`, `TestIssue502_DeletedEventIsJournalDamage` and
-`TestIssue502_ShorthandAnswerReplaysAfterLaterOpen` and `TestIssue502_OperatorAnswersThroughExplicitGrant` (reverting the grant makes its OPERATOR policy refused). Not run: a `MaxTicketFileBytes` overflow
+`TestIssue502_ShorthandAnswerReplaysAfterLaterOpen` and `TestIssue502_OperatorAnswersThroughExplicitGrant` (reverting the grant makes its OPERATOR policy refused; after a revoking policy, audit with the grant removed still refuses the historical OPERATOR row, the rollback hazard the review found). Not run: a `MaxTicketFileBytes` overflow
 witness, `STALE_ADMISSION`, policy narrowing of the two grants, an OPERATOR-bound claimer escalating, a stage with a blob-posted ticket,
 interrupted paired publication at each artifact, the CLI, holds, claim delivery and dispatcher
 retry. `corvint affected` selected the repository-wide gate; it is NOT_RUN under the owner's
@@ -61,6 +61,8 @@ focused-test preference, and the Tasks packages ran in full.
 
 ## Rollback
 
-Restore a policy that names neither `ESCALATE` nor `ANSWER`, then revert the writer files and the
-grants; a reverted binary refuses a policy naming them. Keep the record-key slice, so readers
-still accept a record that already carries a reference.
+Before any accepted policy names `ESCALATE` or `ANSWER`, revert the writer files and the grants.
+After one has, full audit decodes that historical policy, so a binary without the vocabulary fails
+audit even once a later policy drops the verbs; rollback then keeps the operation enum, the OPERATOR
+explicit grants and the readers and disables only the writer entry points. Keep the record-key
+slice in every case, so readers still accept a record that already carries a reference.
