@@ -232,13 +232,28 @@ func canonical(raw []byte) error {
 	return nil
 }
 
+// ActorAdmitted reports whether the invoking role may enter the transaction
+// model. OWNER and OPERATOR may; REVIEWER and WORKER may only for a
+// REVIEW_RECORD or REVIEW_RESUBMIT mutation, whose authority is the external
+// review reducer's recorder roles and live leases, never the role matrix
+// (ERG-V0-001).
+func ActorAdmitted(r Request) bool {
+	switch r.Actor.Role {
+	case "OWNER", "OPERATOR":
+		return true
+	case "REVIEWER", "WORKER":
+		return reviewMutation(r)
+	}
+	return false
+}
+
 // Digest computes the closed administrative preimage. ADOPT delegates its exact
 // digest to the existing reducer; timestamps and head state never enter it.
 func Digest(r Request) (wire.Digest, error) {
 	if _, e := wire.ParseLabel("actor", r.Actor.ID); e != nil {
 		return "", e
 	}
-	if r.Actor.Role != "OWNER" && r.Actor.Role != "OPERATOR" {
+	if !ActorAdmitted(r) {
 		return "", wire.Errorf(wire.CodeUnsupported, "actor", "outside hypothetical administrative role subset")
 	}
 	q, e := wire.ParseQueueID("queueId", r.QueueID)
@@ -451,7 +466,7 @@ func Model(r Request, in Input) Result {
 	if _, e := wire.ParseLabel("actor", r.Actor.ID); e != nil {
 		return refused(r.RequestID, mutation.OutcomeUnauthorized, "", "hypothetical actor malformed")
 	}
-	if r.Actor.Role != "OWNER" && r.Actor.Role != "OPERATOR" {
+	if !ActorAdmitted(r) {
 		return refused(r.RequestID, mutation.OutcomeUnauthorized, "", "outside hypothetical role subset")
 	}
 	if r.Operation == Mutate {

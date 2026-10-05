@@ -27,13 +27,15 @@ func externalRefOf(r ticket.ExternalReviewRef) *snapshot.ExternalReviewRef {
 	return &snapshot.ExternalReviewRef{Generation: r.Generation, Revision: r.Revision, Head: r.Head}
 }
 
-// externalSubjectCurrent reports whether a BUILT subject is still the
-// ticket's current author candidate: its attempt keeps the subject generation
-// and tree, and the durable submission history holds no later author-stage
-// submission of the ticket (superseded). Missing facts are not current.
-func externalSubjectCurrent(attempts map[string]*snapshot.Attempt, ticketID string, s snapshot.ExternalReviewSubject, tree string, superseded bool) bool {
-	a := attempts[s.AttemptID]
-	return !superseded && a != nil && a.TicketID.Raw == ticketID && a.Generation == s.Generation && a.CandidateTreeOid != nil && *a.CandidateTreeOid == tree && (a.Phase != "BUILT" || a.PhaseSinceSeq == s.ReceiptSeq)
+// externalSubjectCurrent reports whether a verified BUILT subject is still
+// the ticket's current author candidate: the durable submission history
+// holds no later author-stage submission of the ticket (ERG-V0-006). The
+// ticket's one attempt record is not consulted: a later claim of the ticket,
+// such as a reviewer's review-stage lease or the author's repair lease, takes
+// a new generation without submitting, and that changes neither the subject
+// nor its candidate (2026-10-05, ticket V1-0701).
+func externalSubjectCurrent(superseded bool) bool {
+	return !superseded
 }
 
 // ExternalSubmissionHistory is the store's scan of the receipts after a
@@ -92,7 +94,7 @@ func externalReviewSubject(in Input, st inputState, q *snapshot.ExternalReviewRe
 		return none, "subject is not an author-stage BUILT attempt with a candidate tree"
 	}
 	superseded := in.ExternalReviewLater == nil || ExternalSuperseded(in.ExternalReviewLater.Built, q.TicketID, def.AuthorStages, s.ReceiptSeq)
-	if !externalSubjectCurrent(st.attempts, q.TicketID, s, *a.CandidateTreeOid, superseded) {
+	if !externalSubjectCurrent(superseded) {
 		return none, "subject is no longer the ticket's current author candidate"
 	}
 	return snapshot.ExternalReviewCandidate{Kind: "TREE", TreeOID: *a.CandidateTreeOid}, ""
@@ -200,11 +202,11 @@ func externalReviewPost(r Request, in Input, st inputState, env *mutation.Envelo
 // ExternalReviewCurrentBindings derives each declared gate's current binding
 // for the read side (ERG-V0-009 workState): acceptance revision and
 // definition from the ticket and policy, and the head event's subject only
-// while it is still the current author candidate. A changed subject keeps
-// the attempt identity but cannot equal the event's, so the view is STALE;
-// an undeclared gate has no binding and reads UNKNOWN. superseded answers
-// from the durable submission history (ExternalReviewReceiptAudit).
-func ExternalReviewCurrentBindings(rec *ticket.Record, policy *intent.Policy, attempts map[string]*snapshot.Attempt, blob ExternalReviewBlob, superseded func(ticketID string, stages []string, seq wire.Size) bool) map[string]*ExternalReviewBinding {
+// while it is still the current author candidate; a superseded subject's
+// binding cannot equal the event's, so the view is STALE. An undeclared gate
+// has no binding and reads UNKNOWN. superseded answers from the durable
+// submission history (ExternalReviewReceiptAudit).
+func ExternalReviewCurrentBindings(rec *ticket.Record, policy *intent.Policy, blob ExternalReviewBlob, superseded func(ticketID string, stages []string, seq wire.Size) bool) map[string]*ExternalReviewBinding {
 	out := map[string]*ExternalReviewBinding{}
 	if rec == nil || policy == nil {
 		return out
@@ -220,7 +222,7 @@ func ExternalReviewCurrentBindings(rec *ticket.Record, policy *intent.Policy, at
 			continue
 		}
 		b := &ExternalReviewBinding{GateID: gate, TicketID: rec.TicketID.Raw, AcceptanceRevision: rec.AcceptanceRevision, DefinitionSha256: def.Sha256, PolicySha256: wire.Sum(policy.Raw), Subject: e.Request.Subject, Candidate: e.Request.Candidate}
-		if e.Request.Candidate.Kind != "TREE" || superseded == nil || !externalSubjectCurrent(attempts, rec.TicketID.Raw, e.Request.Subject, e.Request.Candidate.TreeOID, superseded(rec.TicketID.Raw, def.AuthorStages, e.Request.Subject.ReceiptSeq)) {
+		if e.Request.Candidate.Kind != "TREE" || superseded == nil || !externalSubjectCurrent(superseded(rec.TicketID.Raw, def.AuthorStages, e.Request.Subject.ReceiptSeq)) {
 			b.Subject.ReceiptSha256 = ""
 		}
 		out[gate] = b

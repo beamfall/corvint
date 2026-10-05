@@ -35,7 +35,7 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 		return report, err
 	}
 	request := transaction.Request{Operation: transaction.Mutate, QueueID: env.QueueID.Raw, RequestID: env.RequestID, Actor: actor, Envelope: envelope}
-	if env.Actor.ID != actor.ID || env.Actor.Role != actor.Role || (actor.Role != "OWNER" && actor.Role != "OPERATOR") {
+	if env.Actor.ID != actor.ID || env.Actor.Role != actor.Role || !transaction.ActorAdmitted(request) {
 		result := transaction.Model(request, transaction.Input{})
 		report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
 		return report, nil

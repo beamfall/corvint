@@ -428,7 +428,7 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 				fold, _ = store.FoldExternalReviews(rc.repo, rc.snap.Head.LastSeq.Uint64(), nil)
 			}
 			if len(r.ExternalReviews) == 0 || fold != nil {
-				if gates, err := externalReviewGateViews(rc.repo, r, in.Policy, in.Attempts, fold); err == nil {
+				if gates, err := externalReviewGateViews(rc.repo, r, in.Policy, fold); err == nil {
 					obs.Tickets[i].Gates, obs.Tickets[i].GatesObserved = gates, true
 				}
 			}

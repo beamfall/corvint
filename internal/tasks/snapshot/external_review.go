@@ -55,6 +55,12 @@ type ExternalReviewEvent struct {
 	ReceiptSeq                      wire.Size
 }
 
+// Value is the candidate's canonical closed object.
+func (c ExternalReviewCandidate) Value() wire.Value { return externalCandidateValue(c) }
+
+// Value is the subject's canonical closed object.
+func (s ExternalReviewSubject) Value() wire.Value { return externalSubjectValue(s) }
+
 func externalCandidateValue(c ExternalReviewCandidate) wire.Value {
 	o := wire.NewObject().Set("kind", wire.String(c.Kind))
 	if c.Kind == "TREE" {

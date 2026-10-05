@@ -51,6 +51,12 @@ func ergPolicyUpdateStages(t *testing.T, root, version string, authorStages []st
 // author and review stages and its reviewer-lease requirement.
 func ergPolicyUpdateLease(t *testing.T, root, version string, authorStages, reviewStages []string, requireLease bool) {
 	t.Helper()
+	ergPolicyUpdateRoles(t, root, version, authorStages, reviewStages, []string{"OPERATOR", "OWNER"}, requireLease)
+}
+
+// ergPolicyUpdateRoles is ergPolicyUpdateLease with the gate's recorder roles.
+func ergPolicyUpdateRoles(t *testing.T, root, version string, authorStages, reviewStages, recorderRoles []string, requireLease bool) {
+	t.Helper()
 	policy := fixture.PolicyValue()
 	policy.Obj.Set("policyVersion", wire.String(version))
 	budgets, _ := policy.Obj.Get("budgets")
@@ -59,7 +65,7 @@ func ergPolicyUpdateLease(t *testing.T, root, version string, authorStages, revi
 	policy.Obj.Set("capacity", wire.ObjectValue(capacity))
 	if len(authorStages) != 0 {
 		def := wire.NewObject().Set("authorStages", wire.Strings(authorStages)).Set("gateId", wire.String(ergGate)).
-			Set("purpose", wire.String("ROUTING_ONLY")).Set("recorderRoles", wire.Strings([]string{"OPERATOR", "OWNER"})).
+			Set("purpose", wire.String("ROUTING_ONLY")).Set("recorderRoles", wire.Strings(recorderRoles)).
 			Set("requireReviewerLease", wire.Bool(requireLease)).Set("reviewStages", wire.Strings(reviewStages))
 		policy.Obj.Set("externalReviews", wire.Array(wire.ObjectValue(def)))
 	}
