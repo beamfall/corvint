@@ -37,6 +37,9 @@ type escalationAudit struct {
 // and never reads a receipt before its checkpoint (CAL-V0-061).
 type escalationState struct {
 	refs map[string][]byte
+	// sources is each walked question's immutable source, bound when its
+	// OPEN event was audited.
+	sources map[string]map[string]ticket.EscalationSource
 }
 
 func (r Reader) escalationAudit(st *chain, rc *snapshot.Receipt) *escalationAudit {
@@ -83,7 +86,7 @@ func encodedRefs(rec *ticket.Record) ([]byte, error) {
 // post, reused rather than decoded again.
 func (a *escalationAudit) bind(req *snapshot.Request, target *ticket.Record) error {
 	if a.st.escalations == nil {
-		a.st.escalations = &escalationState{refs: map[string][]byte{}}
+		a.st.escalations = &escalationState{refs: map[string][]byte{}, sources: map[string]map[string]ticket.EscalationSource{}}
 	}
 	posts := make([][]byte, len(a.tickets))
 	for i, t := range a.tickets {
@@ -124,6 +127,7 @@ func (a *escalationAudit) bind(req *snapshot.Request, target *ticket.Record) err
 	for i, t := range a.tickets {
 		if t.raw == nil {
 			delete(a.st.escalations.refs, t.path)
+			delete(a.st.escalations.sources, t.path)
 			continue
 		}
 		a.st.escalations.refs[t.path] = posts[i]
@@ -182,7 +186,35 @@ func (a *escalationAudit) bindEvents(req *snapshot.Request, target *ticket.Recor
 	if !bytes.Equal(replayed.Encode(), t.raw) {
 		return escalationForked(t.path, "posted ticket differs from the replayed reference write")
 	}
-	return a.bindRefs(pre, target)
+	return a.bindRefs(req, pre, target)
+}
+
+// escalationLeaseDigest restates transaction.Digest for the writer's LEASE
+// request, whose only lease input is the escalation request digest
+// (transaction imports journal, so it cannot be called here). The audit of a
+// writer-produced history fails if the two preimages drift.
+func escalationLeaseDigest(queueID, requestID, actor, role, verb string, evidence wire.Digest) wire.Digest {
+	null := wire.Null()
+	lease := wire.NewObject()
+	lease.Set("verb", wire.String(verb))
+	for _, k := range []string{"ticketId", "holder", "leaseMinutes", "branch", "base", "scope"} {
+		lease.Set(k, null)
+	}
+	lease.Set("wholeRepository", wire.Bool(false))
+	for _, k := range []string{"attemptId", "generation", "reason"} {
+		lease.Set(k, null)
+	}
+	lease.Set("evidence", wire.String(string(evidence)))
+	who := wire.NewObject()
+	who.Set("id", wire.String(actor))
+	who.Set("role", wire.String(role))
+	o := wire.NewObject()
+	o.Set("actor", wire.ObjectValue(who))
+	o.Set("operation", wire.String(snapshot.StageLease))
+	o.Set("queueId", wire.String(queueID))
+	o.Set("requestId", wire.String(requestID))
+	o.Set("lease", wire.ObjectValue(lease))
+	return wire.Sum(wire.EncodeFile(wire.ObjectValue(o)))
 }
 
 // bindRefs checks the posted reference against the pre-reference and the
@@ -190,7 +222,7 @@ func (a *escalationAudit) bindEvents(req *snapshot.Request, target *ticket.Recor
 // control and work revisions, unchanged untouched entries, one terminal step
 // per ANSWER or SUPERSEDE and one new entry per OPEN, each explained by
 // exactly one event.
-func (a *escalationAudit) bindRefs(pre, post *ticket.Record) error {
+func (a *escalationAudit) bindRefs(req *snapshot.Request, pre, post *ticket.Record) error {
 	rc, path := a.rc, "intent/tickets/"+post.TicketID.Local+".json"
 	got := post.Escalations
 	want := ticket.EscalationRefs{Revision: "1", LastControlTicketRevision: post.Revision, WorkRevision: pre.Revision}
@@ -212,8 +244,12 @@ func (a *escalationAudit) bindRefs(pre, post *ticket.Record) error {
 		if err != nil {
 			return err
 		}
-		if ev.QueueID != a.r.QueueID.Raw || ev.TicketID != rc.TicketID.Raw || ev.Actor != rc.ActorID || ev.ActorRole != rc.ActorRole || ev.RecordedAt != rc.RecordedAt || ev.OriginalRequest.RequestID != *rc.RequestID {
+		q := ev.OriginalRequest
+		if ev.QueueID != a.r.QueueID.Raw || ev.TicketID != rc.TicketID.Raw || ev.Actor != rc.ActorID || ev.ActorRole != rc.ActorRole || ev.RecordedAt != rc.RecordedAt || q.RequestID != *rc.RequestID || q.QueueID != ev.QueueID || q.TicketID != ev.TicketID || q.Actor != ev.Actor || q.ActorRole != ev.ActorRole {
 			return escalationForked(path, "event %s identity, actor or time differs from the receipt", ev.EscalationID)
+		}
+		if ev.ResolvedRequestID != ev.EscalationID || ev.ResolvedPreviousRevision.Int() != ev.Revision.Int()-1 {
+			return escalationForked(path, "event %s resolution differs from its revision", ev.EscalationID)
 		}
 		if request != nil && ev.RequestSha256 != requestSha {
 			return escalationForked(path, "events carry different requests")
@@ -226,6 +262,17 @@ func (a *escalationAudit) bindRefs(pre, post *ticket.Record) error {
 		r := ev.OriginalRequest
 		request, requestSha = &r, ev.RequestSha256
 	}
+	// The events must carry the very request the receipt's request entry
+	// retains: its canonical digest is the LEASE evidence input.
+	verb := map[string]string{"OPEN": "ESCALATE", "ANSWER": "ANSWER"}[request.Operation]
+	if enc, err := ticket.EncodeEscalationRequest(*request); err != nil || wire.Sum(enc) != requestSha || verb == "" || (request.Operation == "OPEN") != (request.Open != nil) || (request.Operation == "ANSWER") != (request.Answer != nil) {
+		return escalationForked(path, "events carry a request that does not encode to their digest")
+	}
+	if escalationLeaseDigest(a.r.QueueID.Raw, *rc.RequestID, rc.ActorID, rc.ActorRole, verb, requestSha) != req.Entry.MutationSha256 {
+		return escalationForked(path, "events carry a request other than the retained request")
+	}
+	sources := a.st.escalations.sources[path]
+	opened := map[string]ticket.EscalationSource{}
 	expected := 1
 	if request.Operation == "OPEN" && request.Open.Supersedes != "" {
 		expected = 2
@@ -258,13 +305,41 @@ func (a *escalationAudit) bindRefs(pre, post *ticket.Record) error {
 			if state == "" || old.State != "OPEN" || old.AcceptanceRevision != pre.AcceptanceRevision || ev.PreviousSha256 == nil || *ev.PreviousSha256 != old.HeadSha256 || ev.QuestionOriginSha256 == nil || *ev.QuestionOriginSha256 != old.OriginSha256 || ev.Revision.Int() != old.Revision.Int()+1 || e != next {
 				return escalationForked(path, "request %s terminal step differs from its event chain", e.RequestID)
 			}
+			origin, known := sources[e.RequestID]
+			if !known {
+				return errCheckpoint(path, "escalation origin precedes the checkpoint")
+			}
+			if ev.Source != origin {
+				return escalationForked(path, "request %s terminal step changes its immutable source", e.RequestID)
+			}
+			var selected string
+			var expectedRevision wire.Count
+			replacement := ""
+			if ev.Operation == "ANSWER" {
+				if request.Operation != "ANSWER" {
+					return escalationForked(path, "request %s answered by a %s request", e.RequestID, request.Operation)
+				}
+				selected, expectedRevision = request.Answer.RequestID, request.Answer.ExpectedRevision
+			} else {
+				if request.Operation != "OPEN" || request.Open.Supersedes != e.RequestID || request.Open.Source != origin {
+					return escalationForked(path, "request %s superseded by a request that does not name it", e.RequestID)
+				}
+				selected, expectedRevision, replacement = request.Open.Supersedes, request.Open.ExpectedRevision, request.RequestID
+			}
+			if (selected != "" && selected != e.RequestID) || (expectedRevision != "" && expectedRevision != old.Revision) || ev.ReplacementID != replacement {
+				return escalationForked(path, "request %s terminal step differs from its request selector", e.RequestID)
+			}
 		default:
 			if !changed || ev.Operation != "OPEN" || ev.Source.QueueID != a.r.QueueID.Raw || ev.Source.TicketID != rc.TicketID.Raw || ev.Source.AcceptanceRevision != pre.AcceptanceRevision || ev.Source.Holder != ev.Actor || ev.Source.ReceiptSequence.Uint64() >= rc.Seq.Uint64() {
 				return escalationForked(path, "request %s appeared without its OPEN event", e.RequestID)
 			}
+			if request.Operation != "OPEN" || e.RequestID != request.RequestID || ev.Revision != "1" || ev.PreviousSha256 != nil || ev.QuestionOriginSha256 != nil || ev.ReplacementID != "" || ev.Source != request.Open.Source {
+				return escalationForked(path, "request %s OPEN event differs from its request", e.RequestID)
+			}
 			if e != (ticket.EscalationRef{RequestID: e.RequestID, OriginSha256: d, HeadSha256: d, Revision: "1", AcceptanceRevision: pre.AcceptanceRevision, Kind: request.Open.Kind, State: "OPEN"}) {
 				return escalationForked(path, "request %s entry differs from its OPEN event", e.RequestID)
 			}
+			opened[e.RequestID] = ev.Source
 		}
 		used++
 	}
@@ -273,6 +348,15 @@ func (a *escalationAudit) bindRefs(pre, post *ticket.Record) error {
 	}
 	if used != len(events) {
 		return escalationForked(path, "an event names no reference entry")
+	}
+	if len(opened) > 0 {
+		if sources == nil {
+			sources = map[string]ticket.EscalationSource{}
+			a.st.escalations.sources[path] = sources
+		}
+		for id, src := range opened {
+			sources[id] = src
+		}
 	}
 	return nil
 }

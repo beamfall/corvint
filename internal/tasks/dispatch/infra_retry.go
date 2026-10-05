@@ -210,22 +210,29 @@ func (d *Dispatcher) reserveInfra(key, id string) (ok bool) {
 		return e == nil || (e.State != InfraRetrying && e.State != InfraExhausted && e.State != InfraUnknown)
 	}
 	prior := *e
-	if e.Pending == nil {
-		maxRetries, _, _ := d.Config.InfrastructureRetry.Limits()
-		n := e.Count + 1
-		if n > maxRetries {
-			// A narrowed policy holds the retry; the count is kept.
-			e.State, e.Reason, e.NextEligible = InfraExhausted, InfraRetryExhausted, time.Time{}
-			if maxRetries == 0 {
-				e.Reason = InfraRetryDisabled
-			}
-			d.emit(d.infraEvent(key, e, "the policy allows no further retry"))
-			return false
-		}
-		e.Count = n
-		e.Pending = &InfraReservation{Worker: id, Ordinal: n, Deadline: e.NextEligible}
-	} else if e.Pending.Worker != id {
+	maxRetries, _, _ := d.Config.InfrastructureRetry.Limits()
+	if e.Pending != nil && e.Pending.Worker != id {
 		return false
+	}
+	ordinal := e.Count + 1
+	if e.Pending != nil {
+		ordinal = e.Pending.Ordinal
+	}
+	if ordinal > maxRetries {
+		// A narrowed or removed policy holds the retry, including one already
+		// reserved; the charged count is kept and the unlaunched reservation
+		// is dropped.
+		e.Pending = nil
+		e.State, e.Reason, e.NextEligible = InfraExhausted, InfraRetryExhausted, time.Time{}
+		if maxRetries == 0 {
+			e.Reason = InfraRetryDisabled
+		}
+		d.emit(d.infraEvent(key, e, "the policy allows no further retry"))
+		return false
+	}
+	if e.Pending == nil {
+		e.Count = ordinal
+		e.Pending = &InfraReservation{Worker: id, Ordinal: ordinal, Deadline: e.NextEligible}
 	}
 	e.State = InfraRetrying
 	if err := d.ledger.save(d.dir); err != nil {

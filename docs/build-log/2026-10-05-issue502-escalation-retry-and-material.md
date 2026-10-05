@@ -85,16 +85,40 @@ slot and Rollout sections are updated in this change.
 ## Evidence
 
 - **New tests**, all passing:
-  - `TestESCV0007_*`: 11 tests in `internal/tasks/dispatch/issue502_retry_test.go` and
+  - `TestESCV0007_*`: 12 tests in `internal/tasks/dispatch/issue502_retry_test.go` and
     `internal/tasks/cli/dispatch_escalation_pending_internal_test.go`.
   - `TestESCV0008_*`: 6 tests across dispatch and cli.
-  - `TestESCV0010_*`: 5 tests in `internal/tasks/journal` and `internal/tasks/store`.
+  - `TestESCV0010_*`: 6 tests in `internal/tasks/journal` and `internal/tasks/store`.
 - **Mutation check:** disabling `escalations.bind` in `journal/records.go` failed 10 subtests and
   tests (every forgery, the redo and the checkpoint case). The original was then restored.
 - **Package run:** the full `./internal/tasks/... ./cmd/corvint-tasks/...` run is retained in the
   lane TMPDIR. `gofmt` and `go vet ./internal/tasks/...` are clean.
 - **`corvint affected`:** it selected the exhaustive gate. Per the owner's standing preference for
   scoped issue work, focused package tests ran instead and `make gate` is NOT_RUN.
+
+## Codex review
+
+Round 1 (`codex exec -m gpt-6-astra -s read-only` over `d524530f..44d7facf`) reported three P2
+findings. All three were verified against the code and fixed with regressions that fail without the
+fix:
+
+- **Reserved retry over a narrowed policy:** a reservation saved before a reload was relaunched even
+  when the new policy no longer allowed its ordinal. `reserveInfra` now checks the reserved
+  ordinal against the current bound and holds it (`INFRA_RETRY_EXHAUSTED`, or `INFRA_RETRY_DISABLED`
+  at 0), keeping the charged count. Regression: `TestESCV0007_NarrowedPolicyHoldsAReservedRetry`.
+- **Event request not bound to the receipt request:** an event's `OriginalRequest` could be
+  rewritten (an answer's text, say) with the event, evidence path and ticket head rehashed, and the
+  audit accepted it. The journal now hashes the retained request, restates the LEASE request digest
+  preimage, and requires it to equal the receipt entry's mutation digest. It also binds
+  `ResolvedRequestID` and `ResolvedPreviousRevision`, and the request's operation, selector,
+  expected revision and replacement to the event.
+- **Terminal source not bound to the question's source:** a terminal event could carry a source
+  other than the one its question was opened with. The audit now keeps each opened question's
+  source and refuses a terminal step that changes it; an origin before a checkpoint falls back to
+  the full audit.
+
+Regression for the last two: `TestESCV0010_ConsistentlyRehashedEventIsJournalForked`. With the
+pre-fix `escalation_audit.go` both subtests' forgeries audit clean.
 
 ## NOT_RUN
 

@@ -3,6 +3,7 @@ package store_test
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -124,6 +125,101 @@ func TestESCV0010_ForgedEscalationHistoryIsJournalForked(t *testing.T) {
 			_, err := noteAudit(t, s.repo)
 			if wire.CodeOf(err) != wire.CodeJournalForked || !strings.Contains(err.Error(), "escalation") {
 				t.Fatalf("audit after forgery = %v, want JOURNAL_FORKED from the escalation binding", err)
+			}
+		})
+	}
+}
+
+// forgeEvent rewrites the one event of an escalation receipt and rehashes
+// everything that names it consistently: the evidence path and file, the
+// ticket's head digest, the ticket post and the outer chain. Only the
+// receipt's retained request entry and the immutable origin stay as written.
+func forgeEvent(t *testing.T, s *leaseStore, name string, edit func(*ticket.EscalationEvent)) {
+	t.Helper()
+	forgeReceiptWith(t, s.repo, name, func(string, wire.Value) (wire.Value, bool) { return wire.Value{}, true }, func(v wire.Value) {
+		pre, _ := v.Obj.Get("pre")
+		post, _ := v.Obj.Get("post")
+		var oldDigest, newDigest wire.Digest
+		for i, p := range post.Arr {
+			dest, _ := p.Obj.Get("path")
+			if !strings.HasPrefix(dest.Str, "evidence/") {
+				continue
+			}
+			ev, err := ticket.DecodeEscalationEvent(mustRead(t, filepath.Join(s.repo.StateDir, dest.Str)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			edit(&ev)
+			req, err := ticket.EncodeEscalationRequest(ev.OriginalRequest)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ev.RequestSha256 = wire.Sum(req)
+			raw, err := ticket.EncodeEscalationEvent(ev)
+			if err != nil {
+				t.Fatal(err)
+			}
+			oldDigest, newDigest = wire.Digest(strings.TrimPrefix(dest.Str, "evidence/")), wire.Sum(raw)
+			p.Obj.Set("path", str("evidence/"+string(newDigest))).Set("sha256", str(string(newDigest))).Set("blobSha256", str(string(newDigest)))
+			pre.Arr[i].Obj.Set("path", str("evidence/"+string(newDigest)))
+			fixture.Write(t, filepath.Join(s.repo.StateDir, "evidence", string(newDigest)), raw)
+		}
+		if newDigest == "" {
+			t.Fatal("no event to forge")
+		}
+		for _, p := range post.Arr {
+			dest, _ := p.Obj.Get("path")
+			if !strings.HasPrefix(dest.Str, "intent/tickets/") {
+				continue
+			}
+			rec, _ := p.Obj.Get("record")
+			next := withRefs(t, rec, func(r *ticket.EscalationRefs) {
+				for i := range r.Entries {
+					if r.Entries[i].HeadSha256 == oldDigest {
+						r.Entries[i].HeadSha256 = newDigest
+					}
+					if r.Entries[i].OriginSha256 == oldDigest {
+						r.Entries[i].OriginSha256 = newDigest
+					}
+				}
+			})
+			b := wire.EncodeFile(next)
+			p.Obj.Set("record", next).Set("sha256", str(string(wire.Sum(b))))
+			fixture.Write(t, filepath.Join(s.repo.PrimaryWorktree, ".taskman", strings.TrimPrefix(dest.Str, "intent/")), b)
+		}
+		order := make([]int, len(post.Arr))
+		for i := range order {
+			order[i] = i
+		}
+		pathOf := func(i int) string { d, _ := post.Arr[i].Obj.Get("path"); return d.Str }
+		sort.SliceStable(order, func(a, b int) bool { return pathOf(order[a]) < pathOf(order[b]) })
+		var sortedPre, sortedPost []wire.Value
+		for _, i := range order {
+			sortedPre, sortedPost = append(sortedPre, pre.Arr[i]), append(sortedPost, post.Arr[i])
+		}
+		v.Obj.Set("pre", wire.Array(sortedPre...)).Set("post", wire.Array(sortedPost...))
+	})
+}
+
+// TestESCV0010_ConsistentlyRehashedEventIsJournalForked: an answer whose text
+// or immutable source is rewritten, with every digest that names it rehashed,
+// is refused because the event no longer carries the retained request or the
+// question's audited source.
+func TestESCV0010_ConsistentlyRehashedEventIsJournalForked(t *testing.T) {
+	cases := map[string]struct {
+		edit func(*ticket.EscalationEvent)
+		want string
+	}{
+		"answer text":       {func(ev *ticket.EscalationEvent) { ev.OriginalRequest.Answer.Text = "forged answer" }, "other than the retained request"},
+		"source generation": {func(ev *ticket.EscalationEvent) { ev.Source.Generation = wire.Size("9") }, "changes its immutable source"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			s, _, receipts := escalationHistory(t)
+			forgeEvent(t, s, receipts[2], c.edit)
+			_, err := noteAudit(t, s.repo)
+			if wire.CodeOf(err) != wire.CodeJournalForked || !strings.Contains(err.Error(), c.want) {
+				t.Fatalf("audit after forgery = %v, want JOURNAL_FORKED naming %q", err, c.want)
 			}
 		})
 	}

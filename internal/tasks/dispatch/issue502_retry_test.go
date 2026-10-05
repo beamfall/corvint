@@ -407,6 +407,26 @@ func TestESCV0007_RestartResolvesReservations(t *testing.T) {
 	}
 }
 
+// ESC-V0-007: a reservation restored after a restart is held by a policy
+// narrowed below its ordinal; it launches nothing and keeps its charge.
+func TestESCV0007_NarrowedPolicyHoldsAReservedRetry(t *testing.T) {
+	x := newIssue502(t, testConfig(t, "exit 0"), 3)
+	id := "prog.impl.1.old-7"
+	x.d.ledger.InfraRetry = map[string]*InfraRetry{issue502Key: {AcceptanceRevision: "1", State: InfraRetrying, Count: 2, Sessions: []string{"prog.impl.1.old-1"}, Requests: []string{"r1"}, Pending: &InfraReservation{Worker: id, Ordinal: 2, Deadline: x.clock}}}
+	if err := x.d.ledger.save(x.d.dir); err != nil {
+		t.Fatal(err)
+	}
+	x.d.Close()
+	zero := 0
+	x.c.InfrastructureRetry.MaxRetries = &zero
+	x.open()
+	defer x.d.Close()
+	x.tick(0)
+	if e := x.episode(); e.State != InfraExhausted || e.Reason != InfraRetryDisabled || e.Count != 2 || e.Pending != nil {
+		t.Fatalf("narrowed reservation = %+v", e)
+	}
+}
+
 // ESC-V0-007: progress (in a session or outside one) marks the episode
 // RECOVERED and resets its debt; an acceptance change starts a new one.
 func TestESCV0007_ProgressRecoversAndAcceptanceResets(t *testing.T) {
