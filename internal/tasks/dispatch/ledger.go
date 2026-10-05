@@ -281,8 +281,12 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	}
 	// CAL-V0-103: a recorded loop hold is closed whether or not the ledger
 	// carries progress, so its presence alone requires the strict reader.
-	if seenCarriesLoops(raw) && (!validScalarJSON(raw) || !strictProgressJSON(raw)) {
+	if seenCarries(raw, "loops") && (!validScalarJSON(raw) || !strictProgressJSON(raw)) {
 		return nil, errors.New("dispatch state: malformed loops JSON")
+	}
+	// ESC-V0-009: recorded open requests are likewise closed on their own.
+	if seenCarries(raw, "requests", "requestsUnknown") && (!validScalarJSON(raw) || !strictProgressJSON(raw)) {
+		return nil, errors.New("dispatch state: malformed requests JSON")
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
@@ -498,11 +502,11 @@ func strictProgressJSON(raw []byte) bool {
 	return d.Decode(&extra) == io.EOF
 }
 
-// seenCarriesLoops reports whether any member named like "seen", including
-// a duplicate, holds a member named like "loops", folding case as the
+// seenCarries reports whether any member named like "seen", including a
+// duplicate, holds a member named like one of names, folding case as the
 // struct decoder does. Malformed JSON reports true, so the strict reader
 // decides.
-func seenCarriesLoops(raw []byte) bool {
+func seenCarries(raw []byte, names ...string) bool {
 	d := json.NewDecoder(bytes.NewReader(raw))
 	skip := func() bool {
 		depth := 0
@@ -548,7 +552,7 @@ func seenCarriesLoops(raw []byte) bool {
 			if err != nil {
 				return true
 			}
-			if name, _ := k.(string); strings.EqualFold(name, "loops") {
+			if name, _ := k.(string); slices.ContainsFunc(names, func(n string) bool { return strings.EqualFold(name, n) }) {
 				return true
 			}
 			if !skip() {

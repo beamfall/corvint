@@ -24,8 +24,9 @@ Agent decision, 2026-10-05, under the owner's in-task delegation; the owner may 
   empty, so an existing status shape is unchanged. An ANSWERED infrastructure request still binds
   its holder for retry but is not an open request.
 - The ledger validator admits only the shape diff writes (ticket keys, 1 to 16 strictly sorted
-  requests of a known kind with a canonical time, sorted unknown tickets that name no request), and
-  the strict reader closes the request object's members.
+  requests of a known kind with a canonical time, sorted unknown tickets that name no request).
+  Either request member alone engages the strict reader, as a loop hold does, so a duplicate or
+  case-aliased member refuses the ledger even when it carries no progress or retry state.
 
 ## Evidence
 
@@ -33,7 +34,9 @@ Focused tests: `TestIssue502_DispatchStatusShowsEscalationRequests` (including t
 witness), `TestIssue502_DispatchStatusRequestsFromLedgerWithoutWrite`,
 `TestIssue502_DispatchLedgerRequestsValidated` and the extended
 `TestIssue502_ObserveNamesInfrastructureHolders`. Disabling the validator makes all eight refused
-ledger shapes load, so the validation test detects it.
+ledger shapes load, so the validation test detects it. The independent review found that a
+request-only ledger bypassed the strict reader; with that trigger disabled, six of the seven
+duplicate, alias, null and trailing cases load without progress, and the fix refuses all of them.
 
 ## Limits
 

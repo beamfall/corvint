@@ -151,8 +151,34 @@ func TestIssue502_DispatchLedgerRequestsValidated(t *testing.T) {
 			t.Errorf("%s: loaded", name)
 		}
 	}
-	extra := func(s string) string { return strings.Replace(s, `"kind":"decision"`, `"kind":"decision","age":"5"`, 1) }
+	extra := func(s string) string {
+		return strings.Replace(s, `"kind":"decision"`, `"kind":"decision","age":"5"`, 1)
+	}
 	if _, err := dispatch.LoadLedger(write(t, good(), true, extra), "prog"); err == nil {
 		t.Error("strict reader admitted an unknown request member")
+	}
+	// The request members alone engage the strict reader: with no progress,
+	// pool sweep, retry or loop member, a duplicate or case-aliased member
+	// still refuses the ledger instead of showing the last value.
+	for name, patch := range map[string]func(string) string{
+		"duplicate kind": func(s string) string {
+			return strings.Replace(s, `"kind":"decision"`, `"kind":"decision","kind":"scope"`, 1)
+		},
+		"kind alias":     func(s string) string { return strings.Replace(s, `"kind":"decision"`, `"Kind":"decision"`, 1) },
+		"requests alias": func(s string) string { return strings.Replace(s, `"requests":`, `"Requests":`, 1) },
+		"duplicate unknown": func(s string) string {
+			return strings.Replace(s, `"requestsUnknown":`, `"requestsUnknown":[],"requestsUnknown":`, 1)
+		},
+		"null request": func(s string) string { return strings.Replace(s, `{"requestId":"q-b"`, `null,{"requestId":"q-b"`, 1) },
+		"null requests": func(s string) string {
+			return strings.Replace(s, `{"ticket:a:q:t":[{"requestId":"q-a","kind":"decision","recordedAt":"2026-10-05T11:00:00Z"},{"requestId":"q-b","kind":"infrastructure","recordedAt":"2026-10-05T11:00:00Z"}]}`, `null`, 1)
+		},
+		"trailing": func(s string) string { return s + `{}` },
+	} {
+		for _, progress := range []bool{false, true} {
+			if _, err := dispatch.LoadLedger(write(t, good(), progress, patch), "prog"); err == nil {
+				t.Errorf("%s progress=%v: loaded", name, progress)
+			}
+		}
 	}
 }
