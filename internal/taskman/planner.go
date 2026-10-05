@@ -188,7 +188,7 @@ func nativeClosure(t ticket, index *contextindex.Index, source workqueue.Collisi
 	return normalized(r), complete
 }
 func blocker(t ticket, all map[string]ticket, c captured) string {
-	if t.status != "OPEN" || len(value(t.raw, "holds").Arr) > 0 {
+	if t.status != "OPEN" || len(value(t.raw, "holds").Arr) > 0 || escalationHeld(t) {
 		return "TICKET_STATE"
 	}
 	if !c.observed.complete {
@@ -229,7 +229,9 @@ func blocker(t ticket, all map[string]ticket, c captured) string {
 			return "DEPENDENCY_UNSATISFIED"
 		}
 	}
-	if len(value(t.raw, "capabilities").Arr) > 0 {
+	// The planner observes no worker pools or roles, so it cannot satisfy a
+	// pool or stage-role requirement.
+	if len(value(t.raw, "capabilities").Arr) > 0 || value(t.raw, "requiresPool").Kind != wire.KindNull || value(t.raw, "requiredRoles").Kind != wire.KindNull {
 		return "CAPABILITY_UNAVAILABLE"
 	}
 	if len(value(value(c.policy, "capacity"), "classes").Arr) > 0 {
