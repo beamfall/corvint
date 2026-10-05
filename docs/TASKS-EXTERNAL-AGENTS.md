@@ -329,7 +329,7 @@ an opaque cursor anchored to the head the first page read. A dispatcher role pro
 `{operatorNote}`; it renders nothing for a never-noted ticket and otherwise a launch-time copy of
 the current note, labelled advisory. The claim result's `operatorNote` remains the authoritative
 note for the admitted attempt. The placeholder is refused in host argv, env and activity paths, and a role using it needs a host
-that passes `{prompt}` as one whole argv element, names no shell or interpreter (`sh`, `bash`,
+that passes `{prompt}` as one whole argv element, has no other placeholder in argv, names no shell or interpreter (`sh`, `bash`,
 `env`, `python`, `node` and similar) and takes no code-string option such as `-c`, `+c`, `-e`,
 `--eval` or `--command`; use a wrapper executable when a shell is needed.
 

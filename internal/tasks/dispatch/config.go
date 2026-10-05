@@ -476,7 +476,8 @@ func validGates(gates []GateMatch) error {
 
 // noteSafeHost admits a host for a role prompt carrying {operatorNote}
 // (ON-V0-011) only when the rendered prompt reaches it as one whole argv
-// element, no argv element names a shell or script interpreter or takes a
+// element, every other argv element is literal (no placeholder, so the
+// checks below see the launched argv), no argv element names a shell or script interpreter or takes a
 // code-string option (a single-dash or single-plus cluster containing c or e,
 // or --command, --eval, --exec, --execute), and no activity path renders it.
 // Untrusted note prose is then passed as data rather than spliced into, or
@@ -485,8 +486,8 @@ func validGates(gates []GateMatch) error {
 // outside what this check can see.
 func noteSafeHost(h Host) error {
 	for i, a := range h.Argv {
-		if a != "{prompt}" && strings.Contains(a, "{prompt}") {
-			return fmt.Errorf("embeds {prompt} inside argv element %d", i)
+		if a != "{prompt}" && placeholder.MatchString(a) {
+			return fmt.Errorf("argv element %d holds a placeholder other than a whole {prompt}", i)
 		}
 		if interpreters[strings.TrimRight(filepath.Base(a), "0123456789.")] {
 			return fmt.Errorf("runs the interpreter %s", a)

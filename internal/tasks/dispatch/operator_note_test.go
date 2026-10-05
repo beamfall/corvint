@@ -115,6 +115,8 @@ func TestONV0011_OperatorNotePlaceholderIsPromptOnly(t *testing.T) {
 		"--eval=":         {"/usr/bin/tool", "--eval={prompt}"},
 		"--command":       {"/usr/bin/tool", "--command", "{prompt}"},
 		"suffixed":        {"/usr/bin/agent", "--prompt={prompt}"},
+		"rendered shell":  {"/bin/{model}", "-{program}", "{prompt}"},
+		"whole model":     {"/usr/bin/agent", "{model}", "{prompt}"},
 		"shell +c":        {"/bin/sh", "+c", "{prompt}"},
 		"wrapper +ec":     {"/usr/bin/agent", "+ec", "{prompt}"},
 		"env sh":          {"/usr/bin/env", "sh", "{prompt}"},
@@ -124,6 +126,9 @@ func TestONV0011_OperatorNotePlaceholderIsPromptOnly(t *testing.T) {
 	} {
 		c := testConfig(t, "true")
 		c.Roles[0].Prompt = "work {operatorNote}"
+		if strings.Contains(strings.Join(argv, " "), "{model}") {
+			c.Roles[0].Model = "sh"
+		}
 		c.Hosts["sh"] = Host{Argv: argv}
 		raw, _ := json.Marshal(c)
 		if _, err := DecodeConfig(raw); err == nil || !strings.Contains(err.Error(), "{operatorNote}") {

@@ -55,7 +55,13 @@ needs the remaining ON-V0-010 evidence and owner acceptance.
     interpreter (`sh`, `bash`, `zsh`, `dash`, `ksh`, `fish`, `env`, `xargs`, `python`, `node`,
     `perl`, `ruby` and similar), so spelling variants of interpreter options no longer matter.
     The option denylist alone was not a sound boundary. A program that is not on the list but
-    evaluates its argument as code is a recorded limit. A program that
+    evaluates its argument as code is a recorded limit.
+  - Codex round 4 (P1) found that the checks inspected unrendered argv. A host
+    `["/bin/{model}", "-{program}", "{prompt}"]` passed the checks and rendered to
+    `/bin/sh -c <prompt>`. Every argv element of a note-bearing host other than a whole
+    `{prompt}` must now be literal, so validation sees the argv that launches. A consequence is
+    that such a host cannot use `{model}` in argv; the model ladder needs a wrapper executable or
+    a role without `{operatorNote}` (owner question 4). A program that
     evaluates its own argument as code is outside what config validation can see.
 
 ## Limits
@@ -98,3 +104,7 @@ needs the remaining ON-V0-010 evidence and owner acceptance.
    `{operatorNote}` placeholder?
 3. Is a per-tick head read for every noted ticket acceptable, or should the observation skip
    terminal tickets?
+4. Is it acceptable that a note-bearing role's host must have literal argv apart from a whole
+   `{prompt}`, with no shells or interpreters? This excludes `{model}` in argv and inline shell
+   wrappers. The alternative is to move note delivery out of argv, for example into a file the
+   worker reads, which needs a design decision.
