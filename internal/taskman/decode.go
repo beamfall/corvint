@@ -408,7 +408,15 @@ func covers(resources []Resource, required Resource) bool {
 }
 func decodePlan(v wire.Value) (Plan, error) {
 	p := Plan{}
-	if e := object(v, "profile planningProfile queueId policySha256 headSeq intentTreeSha256 reservationSetSha256 capacity entries mutationAuthority"); e != nil {
+	keys := "profile planningProfile queueId policySha256 headSeq intentTreeSha256 reservationSetSha256 capacity entries mutationAuthority"
+	if hasMember(v, "resourceDeferred") {
+		keys += " resourceDeferred"
+	}
+	if e := object(v, keys); e != nil {
+		return p, e
+	}
+	pools, e := planPools(v)
+	if e != nil {
 		return p, e
 	}
 	if stringAt(v, "profile") != "taskman-plan/0" || stringAt(v, "planningProfile") != "taskman-priority-first/0" || value(v, "mutationAuthority").Kind != wire.KindBool || boolAt(v, "mutationAuthority") {
@@ -469,7 +477,8 @@ func decodePlan(v wire.Value) (Plan, error) {
 			return p, err
 		}
 		for _, blocker := range blockers {
-			if !oneOf(blocker, nativeCodes) && !nativeID(blocker, "ticket", queue) {
+			poolWait := pools[blocker] && stringAt(entry, "state") == "DEFERRED" && stringAt(entry, "reason") == "RESOURCE_COLLISION"
+			if !oneOf(blocker, nativeCodes) && !nativeID(blocker, "ticket", queue) && !poolWait {
 				return p, errors.New("history blocker")
 			}
 		}
@@ -482,6 +491,56 @@ func decodePlan(v wire.Value) (Plan, error) {
 // with Core's own primitives: revision 1..4096, head a digest, current null or
 // equal to head. Absence is valid; a whole-null reference is not
 // (ON-V0-001).
+func hasMember(v wire.Value, k string) bool {
+	if v.Kind != wire.KindObject {
+		return false
+	}
+	_, ok := v.Obj.Values[k]
+	return ok
+}
+
+// planPools validates a default plan's optional resourceDeferred rows
+// (CAL-V0-097) and returns their pool IDs: the only labels a DEFERRED
+// RESOURCE_COLLISION entry may name as its blocker.
+func planPools(v wire.Value) (map[string]bool, error) {
+	pools := map[string]bool{}
+	if !hasMember(v, "resourceDeferred") {
+		return pools, nil
+	}
+	rows, e := array(value(v, "resourceDeferred"), 1000)
+	if e != nil {
+		return nil, e
+	}
+	for _, row := range rows {
+		if e := object(row, "poolId availability freeEligibleMembers selected deferred"); e != nil {
+			return nil, e
+		}
+		id := stringAt(row, "poolId")
+		if _, e := taskswire.ParseLabel("/resourceDeferred/poolId", id); e != nil || value(row, "poolId").Kind != wire.KindString || pools[id] {
+			return nil, errors.New("history resource pool")
+		}
+		pools[id] = true
+		free := value(row, "freeEligibleMembers")
+		switch stringAt(row, "availability") {
+		case "OBSERVED":
+			if _, e := number(free, 2147483647); e != nil {
+				return nil, errors.New("history resource availability")
+			}
+		case "NOT_OBSERVED":
+			if free.Kind != wire.KindNull {
+				return nil, errors.New("history resource availability")
+			}
+		default:
+			return nil, errors.New("history resource availability")
+		}
+		for _, k := range []string{"selected", "deferred"} {
+			if _, e := number(value(row, k), 2147483647); e != nil {
+				return nil, e
+			}
+		}
+	}
+	return pools, nil
+}
 func operatorNote(n wire.Value, _, _ uint64) error {
 	if e := object(n, "revision current head"); e != nil {
 		return errors.New("operator note reference")

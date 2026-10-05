@@ -314,7 +314,7 @@ func planClaimNext(c leaseContext) leaseOutcome {
 		return out
 	}
 	plan := PriorityFirst(PlanInput{Pool: c.l.Pool, Stage: c.l.Stage, ExcludeMembers: c.l.ExcludeMembers, Pools: c.st.pools, Prepared: c.in.LeaseFacts.Pool.AllocationID, Queue: c.st.queue, Policy: c.st.policy, Tickets: c.st.tickets, Reservations: c.st.reservations, Attempts: c.st.attempts})
-	chosen := plan.Selected()
+	chosen := plan.ClaimNext(c.l.Pool)
 	if chosen == nil {
 		code, detail := plan.refusal()
 		return c.refuse(mutation.OutcomeBlocked, code, detail)
@@ -325,11 +325,16 @@ func planClaimNext(c leaseContext) leaseOutcome {
 	return planClaim(c)
 }
 
-// refusal names why a plan selected nothing: the first entry's reason, or
-// TICKET_STATE when no ticket is OPEN or HELD.
+// refusal names why CLAIM_NEXT found no entry: RESOURCE_COLLISION when every
+// SELECTED entry requires an unrequested pool, otherwise the first entry's
+// reason, or TICKET_STATE when no ticket is OPEN or HELD.
 func (p TicketPlan) refusal() (string, string) {
 	if len(p.Entries) == 0 {
 		return wire.CodeTicketState, "no ticket is OPEN or HELD"
+	}
+	if s := p.Selected(); s != nil {
+		// Every SELECTED entry requires a pool this claim did not request (CAL-V0-097).
+		return wire.CodeResourceCollision, "no SELECTED ticket is claimable without --pool; the first, " + s.Ticket.TicketID.Raw + ", requires pool " + s.Ticket.RequiresPool
 	}
 	first := p.Entries[0]
 	detail := "no ticket is SELECTED; the first of " + string(wire.CountOf(int64(len(p.Entries)))) + " planned tickets, " + first.Ticket.TicketID.Raw + ", is " + first.State + " " + first.Reason

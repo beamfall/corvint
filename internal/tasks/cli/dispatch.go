@@ -63,7 +63,7 @@ func dispatchCommand(env Env, args []string) *wire.Result {
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer cancel()
-	d, e := dispatch.Open(values["--program"], c, dispatchQueue{env: env}, env.Stderr)
+	d, e := dispatch.Open(values["--program"], c, dispatchQueue{env: env, pools: c.TicketPools()}, env.Stderr)
 	if e != nil {
 		return dispatchReaderError(cmd, e)
 	}
@@ -396,7 +396,12 @@ func dispatchPressureValue(r *dispatch.PressureRecord, pc *dispatch.PressureConf
 
 // dispatchQueue is the native store boundary of the dispatcher: one pure
 // read per observation and the existing fenced release/reap transactions.
-type dispatchQueue struct{ env Env }
+// dispatchQueue observes and heals the store for one dispatcher. pools is
+// its config's TicketPools; nil plans as plan preview does.
+type dispatchQueue struct {
+	env   Env
+	pools []string
+}
 
 func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, error) {
 	obs := &dispatch.Observation{}
@@ -405,6 +410,7 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 		if err != nil {
 			return err
 		}
+		in.ClaimablePools = q.pools // pool tickets no role can claim never use the window (CAL-V0-097)
 		obs.Tickets = dispatchTickets(in)
 		// The review binding fold runs once, and only when a gate exists; a
 		// fold that refuses leaves every gate unobserved (ERG-V0-009).
@@ -516,7 +522,7 @@ func dispatchTickets(in transaction.PlanInput) []dispatch.Ticket {
 	var out []dispatch.Ticket
 	for _, id := range in.Tickets.IDs() {
 		r, _ := in.Tickets.Get(id)
-		t := dispatch.Ticket{ID: r.TicketID.Raw, Local: r.TicketID.Local, Status: r.Status, Priority: r.Priority, Kind: r.Kind, Revision: string(r.Revision), Order: uint64(r.Order.Int()), Labels: r.Labels}
+		t := dispatch.Ticket{ID: r.TicketID.Raw, Local: r.TicketID.Local, Status: r.Status, Priority: r.Priority, Kind: r.Kind, Revision: string(r.Revision), Order: uint64(r.Order.Int()), Labels: r.Labels, RequiresPool: r.RequiresPool}
 		if e, ok := planned[id]; ok {
 			t.Plan, t.PlanReason = e.State, e.Reason
 		}

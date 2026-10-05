@@ -122,6 +122,10 @@ func planInput(rc *readCtx) (transaction.PlanInput, wire.Digest, error) {
 		if e != nil {
 			return in, "", e
 		}
+		// The audited state proves pools.json absent when no member was
+		// ever occupied; that is the empty pool state a claim reads, so
+		// the default plan observes every member free (CAL-V0-097).
+		in.Pools = &snapshot.PoolState{QueueID: rc.snap.Head.QueueID, Entries: []snapshot.PoolEntry{}}
 		if raw := proofPools.Records["pools.json"].Raw; len(raw) > 0 {
 			in.Pools, e = snapshot.DecodePools(raw)
 			if e != nil {
@@ -176,8 +180,34 @@ func planValue(rc *readCtx, reservations wire.Digest, plan transaction.TicketPla
 	o.Set("reservationSetSha256", wire.String(string(reservations)))
 	o.Set("capacity", wire.ObjectValue(capacity))
 	o.Set("entries", wire.Array(entries...))
+	if plan.Pools != nil {
+		o.Set("resourceDeferred", resourceDeferredValue(plan.Pools))
+	}
 	o.Set("mutationAuthority", wire.Bool(false))
 	return wire.ObjectValue(o), nil
+}
+
+// resourceDeferredValue is the default plan's additive per-pool summary
+// (CAL-V0-097), present only when the policy declares pools and no --pool
+// was requested: free eligible members (null when member state is
+// NOT_OBSERVED), and the entries requiring each pool that were selected or
+// deferred for want of a free member.
+func resourceDeferredValue(pools []transaction.PoolSelection) wire.Value {
+	rows := make([]wire.Value, 0, len(pools))
+	for _, p := range pools {
+		availability, free := "OBSERVED", wire.String(string(wire.CountOf(int64(p.Free))))
+		if !p.Observed {
+			availability, free = "NOT_OBSERVED", wire.Null()
+		}
+		o := wire.NewObject()
+		o.Set("poolId", wire.String(p.PoolID))
+		o.Set("availability", wire.String(availability))
+		o.Set("freeEligibleMembers", free)
+		o.Set("selected", wire.String(string(wire.CountOf(int64(p.Selected)))))
+		o.Set("deferred", wire.String(string(wire.CountOf(int64(p.Deferred)))))
+		rows = append(rows, wire.ObjectValue(o))
+	}
+	return wire.Array(rows...)
 }
 
 func planEntryValue(e transaction.PlanEntry) (wire.Value, error) {
