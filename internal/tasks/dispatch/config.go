@@ -14,7 +14,6 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -43,49 +42,6 @@ type Config struct {
 	Heal             Heal             `json:"heal"`
 	// Pressure is the optional CAL-V0-068 host-pressure launch throttle.
 	Pressure *PressureConfig `json:"pressure,omitempty"`
-	// InfrastructureRetry is the optional ESC-V0-007 retry bound. Absent,
-	// a session that raised a typed infrastructure request is never retried
-	// automatically (INFRA_RETRY_DISABLED).
-	InfrastructureRetry *InfrastructureRetry `json:"infrastructureRetry,omitempty"`
-}
-
-// InfrastructureRetry bounds automatic retries after sessions that raised
-// a typed infrastructure request (ESC-V0-007). Omitted fields take their
-// defaults: maxRetries 3, cooldownSeconds 30, maxCooldownSeconds 300.
-type InfrastructureRetry struct {
-	MaxRetries         *int `json:"maxRetries,omitempty"`
-	CooldownSeconds    int  `json:"cooldownSeconds,omitempty"`
-	MaxCooldownSeconds int  `json:"maxCooldownSeconds,omitempty"`
-}
-
-// Limits are the effective bounds; an absent policy allows no retry.
-func (r *InfrastructureRetry) Limits() (maxRetries int, cooldown, maxCooldown time.Duration) {
-	if r == nil {
-		return 0, 0, 0
-	}
-	maxRetries, cd, maxCd := 3, 30, 300
-	if r.MaxRetries != nil {
-		maxRetries = *r.MaxRetries
-	}
-	if r.CooldownSeconds != 0 {
-		cd = r.CooldownSeconds
-	}
-	if r.MaxCooldownSeconds != 0 {
-		maxCd = r.MaxCooldownSeconds
-	} else if cd > maxCd {
-		maxCd = cd
-	}
-	return maxRetries, time.Duration(cd) * time.Second, time.Duration(maxCd) * time.Second
-}
-
-// RetryCooldown is the wait before retry ordinal n (n >= 1):
-// min(maxCooldown, cooldown * 2^(n-1)), saturating instead of overflowing.
-func (r *InfrastructureRetry) RetryCooldown(n int) time.Duration {
-	_, d, limit := r.Limits()
-	for i := 1; i < n && d < limit; i++ {
-		d *= 2
-	}
-	return min(d, limit)
 }
 
 // Host is one worker runtime. argv[0] is an absolute executable; every argv
@@ -284,14 +240,6 @@ func (c *Config) validate() error {
 	}
 	if c.Backoff.CooldownSeconds < 0 || c.Backoff.CooldownSeconds > 86400 || c.Backoff.ParkAfter < 1 || c.Backoff.ParkAfter > 100 {
 		return fail("backoff needs cooldownSeconds 0..86400 and parkAfter 1..100")
-	}
-	if r := c.InfrastructureRetry; r != nil {
-		maxRetries, cd, maxCd := r.Limits()
-		// The raw seconds are bounded before Limits converts them, so a huge
-		// value cannot overflow time.Duration into an accepted negative one.
-		if r.CooldownSeconds < 0 || r.CooldownSeconds > 3600 || r.MaxCooldownSeconds < 0 || r.MaxCooldownSeconds > 86400 || maxRetries < 0 || maxRetries > 10 || cd > time.Hour || maxCd < cd || maxCd > 24*time.Hour {
-			return fail("infrastructureRetry needs maxRetries 0..10, cooldownSeconds 1..3600 and maxCooldownSeconds from cooldownSeconds to 86400")
-		}
 	}
 	if len(c.Hosts) == 0 || len(c.Hosts) > 8 {
 		return fail("hosts needs 1..8 entries")

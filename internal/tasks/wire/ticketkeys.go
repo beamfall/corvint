@@ -31,8 +31,3 @@ const (
 	AttachedEvidenceMaxDigests     = 16
 	AttachedEvidenceMaxReasonBytes = 512
 )
-
-// EscalationMaxGuidanceBytes bounds the encoded answer array delivered to a
-// claim (ESC-V0-005). The writer refuses a proposal past it and the journal
-// audit restates that refusal (ESC-V0-010).
-const EscalationMaxGuidanceBytes = 256 * 1024

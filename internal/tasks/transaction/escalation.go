@@ -612,7 +612,7 @@ func (s *escalationView) guidance(pinned []snapshot.EscalationAnswerRef) ([]Esca
 }
 
 // MaxEscalationGuidanceBytes bounds the delivered answer array (ESC-V0-005).
-const MaxEscalationGuidanceBytes = wire.EscalationMaxGuidanceBytes
+const MaxEscalationGuidanceBytes = 256 * 1024
 
 // EscalationHolds derives typed request IDs only, never ticket status or prose.
 // Infrastructure IDs are observations for a later qualified dispatcher adapter.

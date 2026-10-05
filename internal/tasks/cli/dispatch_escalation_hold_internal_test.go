@@ -207,23 +207,3 @@ func TestIssue502_DispatchStatusKeepsHoldBehindOtherBlockers(t *testing.T) {
 		})
 	}
 }
-
-// TestESCV0008_ObserveMissingMaterialIsUnknown: a record whose escalation
-// material cannot be read keeps its raw revision, carries no requests and is
-// EscalationUnknown, which the dispatcher treats as unknown state, never as
-// progress; readable material substitutes the work revision.
-func TestESCV0008_ObserveMissingMaterialIsUnknown(t *testing.T) {
-	rec := issue502DispatchRecord(t, "AT-01", 0, nil, issue502DispatchRef("q-a", "infrastructure", "OPEN", "2"))
-	in := issue502DispatchInput(t, rec)
-	x := dispatchTickets(in)[0]
-	observeEscalations(&intent.Repository{StateDir: t.TempDir()}, in.Queue.QueueID.Raw, rec, &x)
-	if !x.EscalationUnknown || x.Requests != nil || x.Revision != string(rec.Revision) || x.AcceptanceRevision != "2" {
-		t.Fatalf("missing material observed as %+v", x)
-	}
-	plain := issue502DispatchRecord(t, "AT-02", 1, nil)
-	y := dispatchTickets(issue502DispatchInput(t, plain))[0]
-	observeEscalations(&intent.Repository{StateDir: t.TempDir()}, in.Queue.QueueID.Raw, plain, &y)
-	if y.EscalationUnknown || y.Requests != nil || y.AcceptanceRevision != "2" {
-		t.Fatalf("plain ticket observed as %+v", y)
-	}
-}

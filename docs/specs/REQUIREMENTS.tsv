@@ -1143,9 +1143,9 @@ ESC-V0-005	docs/specs/corvint-tasks-escalations-v0.md	61	Claim and claim-next MU
 ESC-V0-006	docs/specs/corvint-tasks-escalations-v0.md	64	A current OPEN decision, scope or blocked question MUST produce an explicit `ESC
 ESC-V0-007	docs/specs/corvint-tasks-escalations-v0.md	69	An optional dispatch `infrastructureRetry` policy MUST bound automatic retries p
 ESC-V0-008	docs/specs/corvint-tasks-escalations-v0.md	72	Session classification MUST precede ordinary no-progress parking, and typed cont
-ESC-V0-009	docs/specs/corvint-tasks-escalations-v0.md	76	`ticket escalation list`, show and history MUST be bounded, non-mutating native
-ESC-V0-010	docs/specs/corvint-tasks-escalations-v0.md	79	Escalation writes MUST use the existing writer, receipt and request-index pipeli
-ESC-V0-011	docs/specs/corvint-tasks-escalations-v0.md	83	The pure foundation and the integrated capability MUST keep distinct evidence an
+ESC-V0-009	docs/specs/corvint-tasks-escalations-v0.md	75	`ticket escalation list`, show and history MUST be bounded, non-mutating native
+ESC-V0-010	docs/specs/corvint-tasks-escalations-v0.md	78	Escalation writes MUST use the existing writer, receipt and request-index pipeli
+ESC-V0-011	docs/specs/corvint-tasks-escalations-v0.md	81	The pure foundation and the integrated capability MUST keep distinct evidence an
 ESV-V0-001	docs/specs/experimental-source-views-v0.md	236	Bind the bounded canonical packet and exact caller selector to object format,
 ESV-V0-002	docs/specs/experimental-source-views-v0.md	241	Return one exact contiguous immutable source range as JSON `text` whose UTF-8
 ESV-V0-003	docs/specs/experimental-source-views-v0.md	245	Enforce every frozen bound with sanitized, replacement-disabled, non-lazy Git
