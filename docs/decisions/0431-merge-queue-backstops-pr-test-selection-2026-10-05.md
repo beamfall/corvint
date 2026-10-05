@@ -115,7 +115,9 @@ commit that becomes `main`.
    queue commit. A pass classifies it `FLAKY`, but the queue verdict stays failure. A row whose
    inputs are missing or unreadable is `INCOMPLETE`: it is neither clean nor a miss. The row is
    the `corvint-pr-forward-row/0` artifact, at most 64 KiB, named
-   `ci-forward-<CLEAN|MISS|INCOMPLETE>-pr<N>-<queue sha>`, under the default artifact retention.
+   `ci-forward-<CLEAN|FLAKY|MISS|INCOMPLETE>-pr<N>-<queue sha>`, under the default artifact
+   retention. The class is the worst in the row: `MISS` when any missed package failed its rerun,
+   `FLAKY` when every missed package passed it, so the name alone carries what item 8 counts.
    Rows never feed ranking, selection or learning. Only item 7 reads them, and it can only
    widen to FULL.
 7. **Shadow first.** Items 1, 2 and 6 go live with PR runs still FULL, while the driver computes
@@ -125,14 +127,16 @@ commit that becomes `main`.
    at least 5 of them with one or more failing packages, and none of them has a miss other than
    `FLAKY`.
 8. **Kill switch (`AFP-V0-030`).** PR runs return to FULL, with the reason
-   `forward-qualification-tripped`, when any of these holds in the latest 20 complete rows:
-   - a miss a reviewer has classified `CHANGE_CAUSED`;
-   - 2 or more misses not classified `FLAKY`;
+   `forward-qualification-tripped`, when either holds in the latest 20 rows of the current epoch,
+   counting `INCOMPLETE` rows in that window:
+   - 2 or more `MISS` rows;
    - 3 or more `INCOMPLETE` rows.
 
    The PR job evaluates this from artifact names, which it lists as `AFP-V0-024` does, without
    downloading. A listing failure means FULL. Separately, a repository variable
    `CORVINT_PR_NARROWING=off` forces FULL at once. It is admin-settable and can only disable.
+   A reviewer who classifies a single `MISS` row as `CHANGE_CAUSED` trips the switch by setting
+   that variable; the classification is a human judgment that no artifact name can carry.
    Re-arming takes a reviewed `.github/` change that advances a `CORVINT_PR_FORWARD_EPOCH` pin,
    so that earlier rows leave the window, with a build-log entry that names the review. A miss
    can never reach `main`, because the queue fails and ejects the PR. The switch protects what
@@ -226,7 +230,7 @@ Speedup on batch PRs is not claimed.
    always-FULL never narrowed on the replay.
 2. **Shadow bar:** 20 rows with at least 5 failing, or narrow immediately? Recommended: the bar,
    which costs nothing extra because PR runs are full today.
-3. **Kill switch:** 1 confirmed miss, or 2 non-flaky misses, or 3 incomplete rows in 20?
+3. **Kill switch:** 2 `MISS` rows or 3 `INCOMPLETE` rows in the latest 20, plus the variable for one reviewer-confirmed `CHANGE_CAUSED` miss?
    Recommended: yes, as written.
 4. **V1-0760 before narrowing,** and group size 1? Recommended: yes to both, so that no merge
    pays three suite runs and every row has one owner.
