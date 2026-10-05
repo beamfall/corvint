@@ -128,3 +128,18 @@ positive controls for the two admitted edges. Rule 5 needs no change because `in
 is already in the source-archive subset. This approves the boundary only; the attempt-runner
 profile stays experimental. Rollback is reverting the attempt runner and removing this two-file
 edge; the #464 edge and the archive prefix stay.
+
+## V1-0804 addendum — service helper process-group Owner
+
+Agent decision, 2026-10-05, made while delivering the owner-requested issue #500 follow-up
+(native V1-0804, SERVICE500-007); it is not a direct owner statement and is listed as an owner
+question in that change. The optional user-service helper wrapper (`service run-helper`,
+`docs/specs/corvint-tasks-user-service-v0.md`) starts each helper through the same #464 Owner
+instead of reimplementing group ownership. Rule 2 gains one more exact edge, limited to two files:
+`internal/tasks/service/descendants_linux.go` and `internal/tasks/service/descendants_linux_test.go`
+may import `internal/groupreap`. The rest of `internal/tasks/service` stays refused, and these
+files admit no other Core package. `TestImportViolationControls` keeps a negative control for
+another service file importing `internal/groupreap` and for another Core package imported from the
+admitted file, and positive controls for the two admitted edges. Rule 5 needs no change because
+`internal/groupreap` is already in the source-archive subset. Rollback is reverting the helper
+wrapper and removing this two-file edge; the #464 and #481 edges stay.

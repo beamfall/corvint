@@ -90,6 +90,9 @@ func (h Host) journal(root, request string, sum wire.Digest, limit int) (*Operat
 	if prior, ok := lookupRequest(rs, request); ok && prior != sum {
 		return nil, wire.Errorf(wire.CodeRequestIDConflict, "/requestId", "request id was already used for a different service request")
 	}
+	if err := h.pendingResumeConflict(root, request, sum); err != nil {
+		return nil, err
+	}
 	for _, o := range ops {
 		if !o.finished() {
 			return nil, wire.Errorf(wire.CodeResourceCollision, "/operations", "operation %s is unfinished (%s); rerun it with its own request id first", o.RequestID, o.Phase)
@@ -122,8 +125,8 @@ func (h Host) readProfile(path string) (*Profile, []byte, error) {
 	if err != nil {
 		return nil, nil, wire.Errorf(wire.CodeMalformed, "/config", "%v", err)
 	}
-	if len(p.Helpers) != 0 {
-		return nil, nil, wire.Errorf(wire.CodeUnsupported, "/config", "helpers are not supported by this service runtime yet")
+	if len(p.Helpers) != 0 && !HelperProfileSupported(h.GOOS) {
+		return nil, nil, wire.Errorf(wire.CodeUnsupported, "/config/helpers", "the helper profile is unsupported on %s: detached helper descendants cannot be proved retired there", h.GOOS)
 	}
 	return p, raw, nil
 }
@@ -160,10 +163,18 @@ func (h Host) facts(program, root string, p *Profile, gen wire.Size, prev *wire.
 	if err := h.unitDir(unitRoot, true); err != nil {
 		return InstallationFacts{}, err
 	}
+	helpers := map[string]FileFacts{}
+	for _, x := range p.Helpers {
+		facts, _, err := h.observeFile(x.Argv[0], 0)
+		if err != nil {
+			return InstallationFacts{}, err
+		}
+		helpers[x.ID] = facts
+	}
 	if !h.reachable(&Manifest{Manager: manager, Domain: domain}) {
 		return InstallationFacts{}, wire.Errorf(wire.CodeCapabilityUnavailable, "/manager", "the %s user manager for %s is not reachable", manager, domain)
 	}
-	return InstallationFacts{State: "VERIFIED", Manager: manager, Domain: domain, Program: program, QueueID: queue, ConfigRoot: filepath.Dir(p.DispatchConfig), StateRoot: root, UnitRoot: unitRoot, ManifestPath: filepath.Join(root, manifestFile), DispatchStateRoot: c.StateDir, CanonicalStore: p.WorkRoot, UID: wire.SizeOf(uint64(h.UID)), Generation: gen, Previous: prev, Executable: exeFacts, DispatchConfig: cfgFacts, RootsSafe: true, ManagerReachable: true, ConfigWorkRoot: c.WorkRoot, ConfigStateRoot: c.StateDir, HelperExecutables: map[string]FileFacts{}}, nil
+	return InstallationFacts{State: "VERIFIED", Manager: manager, Domain: domain, Program: program, QueueID: queue, ConfigRoot: filepath.Dir(p.DispatchConfig), StateRoot: root, UnitRoot: unitRoot, ManifestPath: filepath.Join(root, manifestFile), DispatchStateRoot: c.StateDir, CanonicalStore: p.WorkRoot, UID: wire.SizeOf(uint64(h.UID)), Generation: gen, Previous: prev, Executable: exeFacts, DispatchConfig: cfgFacts, RootsSafe: true, ManagerReachable: true, ConfigWorkRoot: c.WorkRoot, ConfigStateRoot: c.StateDir, HelperExecutables: helpers}, nil
 }
 
 func build(p *Profile, f InstallationFacts) (*Manifest, []byte, error) {
@@ -563,11 +574,16 @@ func (h Host) suppressFor(root string, op *Operation) error {
 		return err
 	}
 	// F is released before the wait.
+	// Helper wrappers retire their trees on STOPPED; every helper tree must
+	// be proved retired (its intent removed) before units change.
 	for i := 0; i < 15; i++ {
-		if st, _ := h.pulseState(root, ""); st != "RUNNING" {
+		if st, _ := h.pulseState(root, ""); st != "RUNNING" && h.helperTreesSettled(root) {
 			return nil
 		}
 		h.sleep(time.Second)
+	}
+	if !h.helperTreesSettled(root) {
+		return wire.Errorf(wire.CodeUncertainEffect, "/helpers", "a helper tree is not proved retired after STOPPED was saved")
 	}
 	return wire.Errorf(wire.CodeUncertainEffect, "/control", "the controller still reports RUNNING after STOPPED was saved")
 }
@@ -807,7 +823,8 @@ func dispatchDir(m *Manifest) string {
 // the dispatcher owner is absent or is the fenced managed main, whose
 // admitted launch completes its worker record before F is released.
 // PENDING means an unfenced or unobservable owner. close is OBSERVED only
-// when no dispatcher owner and no RUNNING pulse remain after the save; a
+// when no dispatcher owner, no RUNNING pulse and no unretired helper tree
+// remain after the save; a
 // drain's close stays PENDING until the managed main settles it STOPPED.
 // Workers are always preserved.
 func (h Host) Stop(program, request string, drain bool) (*wire.Object, error) {
@@ -834,7 +851,7 @@ func (h Host) Stop(program, request string, drain bool) (*wire.Object, error) {
 		state = "PENDING"
 	}
 	closed := "PENDING"
-	if pulse, _ := h.pulseState(root, ident); next.Desired == "STOPPED" && owner == "NOT_RUNNING" && pulse != "RUNNING" {
+	if pulse, _ := h.pulseState(root, ident); next.Desired == "STOPPED" && owner == "NOT_RUNNING" && pulse != "RUNNING" && h.helperTreesSettled(root) {
 		closed = "OBSERVED"
 	}
 	return wire.NewObject().Set("profile", wire.String(StopResultName)).Set("program", wire.String(program)).Set("requestId", wire.String(request)).Set("drain", wire.Bool(drain)).Set("desired", wire.String(next.Desired)).Set("revision", wire.String(string(next.Revision))).Set("replayed", wire.Bool(replay)).Set("state", wire.String(state)).Set("close", wire.String(closed)).Set("workers", wire.String("PRESERVED")), nil
@@ -842,8 +859,9 @@ func (h Host) Stop(program, request string, drain bool) (*wire.Object, error) {
 
 // suppress is Stop's checked control change under F: STOPPED from any
 // state, DRAINING only from RUNNING. A replay changes nothing. acked
-// reports that no launch intent was unresolved under the same F, so every
-// admitted effect is durable (SUPPRESSION_ACKNOWLEDGED).
+// reports that no launch intent, the dispatcher's or a helper's, was
+// unresolved under the same F, so every admitted effect is durable
+// (SUPPRESSION_ACKNOWLEDGED).
 func (h Host) suppress(root, request, desired string) (m *Manifest, ident wire.Digest, next Control, replay, acked bool, err error) {
 	unfence, err := h.fence(root)
 	if err != nil {
@@ -858,10 +876,11 @@ func (h Host) suppress(root, request, desired string) (m *Manifest, ident wire.D
 	if st := h.intentState(root); st != "ABSENT" {
 		intents = append(intents, st)
 	}
+	intents = append(intents, h.helperIntentStates(root)...)
 	hash := wire.Sum([]byte(request + "\n" + desired + "\n" + string(ident)))
 	rs, replay, err := h.controlReplay(root, c, request, hash)
 	if err != nil || replay {
-		return m, ident, *c, replay, len(intents) == 0, err
+		return m, ident, *c, replay, launchesResolved(intents), err
 	}
 	if desired == "DRAINING" && c.Desired != "RUNNING" {
 		return nil, "", Control{}, false, false, wire.Errorf(wire.CodeResourceCollision, "/control", "desired state is %s; drain applies only to RUNNING", c.Desired)
@@ -879,6 +898,17 @@ func (h Host) suppress(root, request, desired string) (m *Manifest, ident wire.D
 	return m, ident, p.Control, false, p.State == "SUPPRESSION_ACKNOWLEDGED", nil
 }
 
+// launchesResolved reports whether every launch claim seen under F is a
+// committed effect: none is unresolved or unknown.
+func launchesResolved(states []string) bool {
+	for _, s := range states {
+		if s != "COMMITTED" && s != "PROVED_NO_EFFECT" {
+			return false
+		}
+	}
+	return true
+}
+
 // controlReplay finds request in the control request ledger: the same hash
 // is a replay, any other binding (including a journaled install or
 // uninstall) is a conflict.
@@ -892,6 +922,9 @@ func (h Host) controlReplay(root string, c *Control, request string, hash wire.D
 			return nil, false, wire.Errorf(wire.CodeRequestIDConflict, "/requestId", "request id was already used for a different control change")
 		}
 		return rs, true, nil
+	}
+	if err := h.pendingResumeConflict(root, request, hash); err != nil {
+		return nil, false, err
 	}
 	ops, err := h.operations(root)
 	if err != nil {
@@ -926,7 +959,7 @@ func (h Host) Resume(program, request string) (*wire.Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	next := *c
+	next, reset := *c, []string{}
 	if !replay {
 		switch c.Desired {
 		case "STOPPED":
@@ -940,53 +973,65 @@ func (h Host) Resume(program, request string) (*wire.Object, error) {
 		if err := h.pinsValid(m); err != nil {
 			return nil, err
 		}
-		if next, err = h.publishResume(root, m, *c, rs, request, hash); err != nil {
+		if next, reset, err = h.publishResume(root, m, *c, rs, request, hash); err != nil {
 			return nil, err
 		}
 	}
-	return wire.NewObject().Set("profile", wire.String(ResumeResultName)).Set("program", wire.String(program)).Set("requestId", wire.String(request)).Set("desired", wire.String(next.Desired)).Set("revision", wire.String(string(next.Revision))).Set("replayed", wire.Bool(replay)).Set("restartDebt", wire.String("NOT_OBSERVED")), nil
+	return wire.NewObject().Set("profile", wire.String(ResumeResultName)).Set("program", wire.String(program)).Set("requestId", wire.String(request)).Set("desired", wire.String(next.Desired)).Set("revision", wire.String(string(next.Revision))).Set("replayed", wire.Bool(replay)).Set("restartDebt", wire.String("NOT_OBSERVED")).Set("helperDebtReset", wire.Strings(reset)), nil
 }
 
 // publishResume re-reads control under F, requires it unchanged since
-// observed and a fresh ABSENT legacy stop file, then publishes RUNNING.
+// observed, a fresh ABSENT legacy stop file and every helper tree retired,
+// resets helper restart debt, then publishes RUNNING.
 // The request ledger rs is stable under O: the managed main never writes
 // it.
-func (h Host) publishResume(root string, m *Manifest, observed Control, rs []controlRequest, request string, hash wire.Digest) (Control, error) {
+func (h Host) publishResume(root string, m *Manifest, observed Control, rs []controlRequest, request string, hash wire.Digest) (Control, []string, error) {
 	unfence, err := h.fence(root)
 	if err != nil {
-		return observed, err
+		return observed, nil, err
 	}
 	defer unfence()
 	c, err := h.readControl(root)
 	if err != nil {
-		return observed, wire.Errorf(wire.CodeUncertainEffect, "/control", "control is UNKNOWN: %v", err)
+		return observed, nil, wire.Errorf(wire.CodeUncertainEffect, "/control", "control is UNKNOWN: %v", err)
 	}
 	if *c != observed {
-		return observed, wire.Errorf(wire.CodeResourceCollision, "/control", "control changed while resume observed its pins; retry")
+		return observed, nil, wire.Errorf(wire.CodeResourceCollision, "/control", "control changed while resume observed its pins; retry")
 	}
 	legacy, err := legacyPath(m)
 	if err != nil {
-		return observed, err
+		return observed, nil, err
 	}
 	if legacy != nil {
 		switch h.legacyPresence(*legacy) {
 		case "PRESENT":
-			return observed, wire.Errorf(wire.CodeResourceCollision, "/legacyStopFile", "legacy stop file %s is present; remove it before resume", *legacy)
+			return observed, nil, wire.Errorf(wire.CodeResourceCollision, "/legacyStopFile", "legacy stop file %s is present; remove it before resume", *legacy)
 		case "UNKNOWN":
-			return observed, wire.Errorf(wire.CodeUncertainEffect, "/legacyStopFile", "legacy stop file %s presence is UNKNOWN", *legacy)
+			return observed, nil, wire.Errorf(wire.CodeUncertainEffect, "/legacyStopFile", "legacy stop file %s presence is UNKNOWN", *legacy)
 		}
 	}
 	next, err := resumeAfter(*c, request, hash)
 	if err != nil {
-		return observed, wire.Errorf(wire.CodeLimitExceeded, "/control", "%v", err)
+		return observed, nil, wire.Errorf(wire.CodeLimitExceeded, "/control", "%v", err)
+	}
+	// Resume requires every helper tree proved retired and resets helper
+	// restart debt through its durable operation journal: a retry
+	// reconciles a partial reset, and a superseded or changed request is
+	// refused rather than erasing later debt.
+	rs, reset, journal, err := h.resumeHelpers(root, m, *c, rs, request, hash)
+	if err != nil {
+		return observed, nil, err
 	}
 	if err := h.writeControl(root, next); err != nil {
-		return observed, err
+		return observed, nil, err
 	}
 	if _, err := h.rememberRequest(root, rs, request, hash); err != nil {
-		return observed, err
+		return observed, nil, err
 	}
-	return next, nil
+	if err := h.removeExact(filepath.Join(root, resumeOperationFile), journal); err != nil {
+		return observed, nil, err
+	}
+	return next, reset, nil
 }
 
 // pinsValid requires the executable and dispatch config bytes bound by the
@@ -1014,7 +1059,13 @@ func (h Host) pinsValid(m *Manifest) error {
 // bound to ident (any identity when ident is empty) and its process still
 // has the recorded identity; STALE, ABSENT or UNKNOWN otherwise.
 func (h Host) pulseState(root string, ident wire.Digest) (string, *Pulse) {
-	raw, err := h.readPrivate(filepath.Join(root, pulseFile), maxPulse)
+	return h.pulseStateAt(root, pulseFile, ident)
+}
+
+// pulseStateAt is pulseState for the pulse file name (the main's or a
+// helper wrapper's).
+func (h Host) pulseStateAt(root, name string, ident wire.Digest) (string, *Pulse) {
+	raw, err := h.readPrivate(filepath.Join(root, name), maxPulse)
 	if absent(err) {
 		return "ABSENT", nil
 	}
@@ -1092,7 +1143,24 @@ func (h Host) Status(program string) (*wire.Object, error) {
 		o.Set("operations", wire.String(strconv.Itoa(len(ops)))).Set("unfinished", wire.Strings(unfinished))
 	}
 	o.Set("launchIntent", wire.String(h.intentState(root)))
-	o.Set("notObserved", wire.Strings([]string{"bootLoginScope", "completedTick", "helpers", "restartDebt"}))
+	o.Set("logs", h.logStatus(root, "main", "stderr"))
+	if ids, err := h.helperIntentIDs(root); err != nil {
+		o.Set("helperTrees", wire.String("UNKNOWN"))
+	} else {
+		o.Set("helperTrees", wire.Strings(ids))
+	}
+	if m != nil {
+		if p, err := DecodeProfile(m.ProfileRaw); err == nil {
+			helpers := []wire.Value{}
+			for _, x := range p.Helpers {
+				helpers = append(helpers, wire.ObjectValue(h.helperStatus(root, program, x.ID, ident)))
+			}
+			o.Set("helpers", wire.Array(helpers...))
+		} else {
+			o.Set("helpers", wire.String("UNKNOWN"))
+		}
+	}
+	o.Set("notObserved", wire.Strings([]string{"bootLoginScope", "completedTick", "restartDebt"}))
 	return o, nil
 }
 
