@@ -12,7 +12,7 @@
   "steps": [
     {"id": "trigger", "order": 1, "after": [], "credentials": ["dispatch"], "commands": [], "attestation": "none"},
     {"id": "intake", "order": 2, "after": ["trigger"], "credentials": ["agent-model", "forge-read", "tracker-read"], "commands": ["corvint-intake reader-check", "corvint-intake validate", "corvint-postmerge-connect read-intake"], "attestation": "none"},
-    {"id": "delta", "order": 3, "after": ["trigger"], "credentials": [], "commands": [], "pendingCommands": ["corvint delta"], "attestation": "none"},
+    {"id": "delta", "order": 3, "after": ["trigger"], "credentials": [], "commands": ["corvint delta"], "attestation": "none"},
     {"id": "follow-up-item", "order": 4, "after": ["delta", "intake"], "credentials": ["tracker-read", "tracker-write"], "commands": ["corvint-postmerge-connect plan", "corvint-postmerge-connect write"], "attestation": "none"},
     {"id": "authoring", "order": 5, "after": ["delta", "intake"], "credentials": ["agent-model"], "commands": ["corvint step env-check", "corvint step snapshot", "corvint step verify"], "attestation": "required"},
     {"id": "trusted-validation", "order": 6, "after": ["authoring"], "credentials": ["forge-read", "tracker-read"], "commands": ["corvint-postmerge-connect plan", "corvint-tests-accept accept", "corvint-tests-accept plan"], "attestation": "none"},

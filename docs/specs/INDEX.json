@@ -2204,7 +2204,7 @@
     "path": "docs/specs/postmerge-ci-host-v0.md",
     "title": "Post-merge CI Host V0",
     "reqPrefix": "PCH-V0",
-    "intent": "proposed",
+    "intent": "accepted",
     "delivery": "experimental",
     "claim": "Reference CI templates and an optional paired launcher have source conformance; physical isolation and hosted replay remain unqualified.",
     "dependsOn": [
