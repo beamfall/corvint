@@ -7,11 +7,12 @@ import (
 	"io"
 )
 
-// Supervised host names (CAL-V0-074). A capsule, config or policy without a
-// host is Codex, so Codex bytes stay unchanged.
+// Supervised host names (CAL-V0-074, CAL-V0-076). A capsule, config or
+// policy without a host is Codex, so Codex bytes stay unchanged.
 const (
 	HostCodex      = "codex"
 	HostClaudeCode = "claude-code"
+	HostOpenCode   = "opencode"
 )
 
 // Vocabulary reads one supervised host's retained standard output: the
@@ -30,6 +31,8 @@ func HostVocabulary(host string) (Vocabulary, bool) {
 		return Vocabulary{Decode: DecodeEvents, Session: ObservedSession, Usage: ObservedUsage}, true
 	case HostClaudeCode:
 		return Vocabulary{Decode: DecodeClaudeResult, Session: ObservedClaudeSession, Usage: ObservedClaudeUsage}, true
+	case HostOpenCode:
+		return Vocabulary{Decode: DecodeOpenCodeEvents, Session: ObservedOpenCodeSession, Usage: ObservedOpenCodeUsage}, true
 	}
 	return Vocabulary{}, false
 }

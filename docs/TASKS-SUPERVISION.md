@@ -49,6 +49,20 @@ integer token counters or stays NOT_OBSERVED. Bash is governed by project permis
 contained. Live Claude Code qualification is NOT_RUN; see
 [S22](specs/corvint-tasks-agent-leases-v0.md#s22--claude-code-supervised-host-v1-0755-split-from-issue-354).
 
+OpenCode host: set `"host": "opencode"` in the policy `supervision` object and the config, pin the
+OpenCode executable the same way, and give `model` as one `provider/model` without a `#variant`
+(each stage appends its effort as the variant). Multi-repository OpenCode programs are refused
+`UNSUPPORTED`. Stages run `opencode run --standalone --format json`, resuming with `--session`, so
+the session server and every in-process plugin stay in the supervised process group. The run never
+passes `--auto`; an inline `OPENCODE_CONFIG_CONTENT` permission set denies sub-agents and directories
+outside the worktree in every stage and edits in review and integrate, project configuration is
+disabled and self-update is off. The last text part inside a step that finished with reason `stop`
+must decode to the handoff; any host `error` event, a changed session, or a resumed stage answered
+from a different session is refused. Usage sums every finished step's disjoint counters or stays
+NOT_OBSERVED. Plugins loaded from user configuration still run with host privileges and are not
+contained. Live OpenCode qualification is NOT_RUN; see
+[S23](specs/corvint-tasks-agent-leases-v0.md#s23--opencode-supervised-host-v1-0756-split-from-issue-354).
+
 ```sh
 corvint-tasks run --program migration --config supervisor.json --role implementer --count 3 --host codex
 corvint-tasks run --program migration --config supervisor.json --role reviewer --count 2 --host codex

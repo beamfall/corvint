@@ -171,6 +171,11 @@ func CheckProgramConfig(c ProgramConfig, policy *intent.SupervisionPolicy) error
 	if e := checkProgramHost(c.Host, policy); e != nil {
 		return e
 	}
+	if c.Host == supervisor.HostOpenCode {
+		if e := checkOpenCodeConfig(c); e != nil {
+			return e
+		}
+	}
 	if e := checkProgramRepositories(c.Repositories, policy); e != nil {
 		return e
 	}

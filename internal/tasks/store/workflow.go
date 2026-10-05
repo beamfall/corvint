@@ -342,6 +342,9 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 	if w.cfg.Host == supervisor.HostClaudeCode {
 		argv = claudeStageArgv(w.cfg, stage, session, extras)
 	}
+	if w.cfg.Host == supervisor.HostOpenCode {
+		argv, env = opencodeStageArgv(w.cfg, stage, session), opencodeStageEnv(env, stage)
+	}
 	dir, e := os.MkdirTemp(filepath.Dir(path), "effect-")
 	if e != nil {
 		return supervisor.Outcome{}, e
@@ -498,6 +501,9 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 	}()
 	calledRun = true
 	out, runErr := supervisor.Run(deadline, w.self, dir, capsule, journal)
+	if runErr == nil && w.cfg.Host == supervisor.HostOpenCode && session != "" && out.SessionID != session {
+		runErr = fmt.Errorf("resumed opencode session changed")
+	}
 	close(watcherStop)
 	<-watcherDone
 	if !w.attempt.Supervision.Worker {

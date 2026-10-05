@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; S22 CAL-V0-074..075 Claude Code supervised host with focused and fake-host tests, live Claude Code qualification NOT_RUN
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; S22 CAL-V0-074..075 Claude Code supervised host with focused and fake-host tests, live Claude Code qualification NOT_RUN; S23 CAL-V0-076..077 OpenCode supervised host with focused and fake-host tests, live OpenCode qualification NOT_RUN
 Authoritative inputs: owner request [issue 482](https://github.com/beamfall/corvint/issues/482) (proposed CAL-V0-044/046 compatibility amendment);
 owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
@@ -16,7 +16,7 @@ owner request [issue 431](https://github.com/beamfall/corvint/issues/431) (CAL-V
 owner request [issue 499](https://github.com/beamfall/corvint/issues/499) (CAL-V0-052, 054, 055, 057 and 058 escalation ladder),
 owner request [issue 497](https://github.com/beamfall/corvint/issues/497) (CAL-V0-068),
 owner request [issue 446](https://github.com/beamfall/corvint/issues/446) (CAL-V0-059..061),
-owner request [issue 354](https://github.com/beamfall/corvint/issues/354) (CAL-V0-062..063, 071..072; owner scope split 2026-10-04) and its split native ticket V1-0755 (CAL-V0-074..075),
+owner request [issue 354](https://github.com/beamfall/corvint/issues/354) (CAL-V0-062..063, 071..072; owner scope split 2026-10-04) and its split native tickets V1-0755 (CAL-V0-074..075) and V1-0756 (CAL-V0-076..077),
 owner request [issue 378](https://github.com/beamfall/corvint/issues/378),
 owner request [issue 370](https://github.com/beamfall/corvint/issues/370), and
 owner choice on 2026-09-28 to quarantine environments until confirmed safe reuse; owner request [issue 336](https://github.com/beamfall/corvint/issues/336), the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
@@ -25,11 +25,11 @@ owner choice on 2026-09-28 to quarantine environments until confirmed safe reuse
 sources under `internal/tasks`.
 
 ## Agent digest
-- Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex or Claude Code supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; S22 CAL-V0-074..075 Claude Code supervised host with focused and fake-host tests, live Claude Code qualification NOT_RUN. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex, Claude Code or OpenCode supervisor.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; S22 CAL-V0-074..075 Claude Code supervised host with focused and fake-host tests, live Claude Code qualification NOT_RUN; S23 CAL-V0-076..077 OpenCode supervised host with focused and fake-host tests, live OpenCode qualification NOT_RUN. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
-- Read next: #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle; S21 multi-repository programs; S22 Claude Code supervised host); Amendments to TCP-00; Failure modes.
+- Read next: #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle; S21 multi-repository programs; S22 Claude Code supervised host; S23 OpenCode supervised host); Amendments to TCP-00; Failure modes.
 
 ## User and boundary
 
@@ -87,10 +87,11 @@ one.
 | S18 | CAL-V0-068 | Experimental host-pressure launch throttle: hysteresis level caps new non-exempt launches; running workers untouched |
 | S21 | CAL-V0-071..072 | Multi-repository supervised programs: policy-pinned extra checkouts, sibling worktrees, composite candidate and review binding; gates and integration fail closed |
 | S22 | CAL-V0-074..075 | Claude Code supervised host: policy-selected host, named pin refusals, Claude Code argv and result vocabulary; live Claude Code qualification NOT_RUN |
+| S23 | CAL-V0-076..077 | OpenCode supervised host: standalone in-process plugin boundary, inline stage permissions, OpenCode argv, event-stream vocabulary and resume-session check; live OpenCode qualification NOT_RUN |
 
 CAL-V0-062/063 are defined in S13 (issue 354). CAL-V0-064 (S14, issue 468) is reserved
 by coordinated unlanded work; CAL-V0-066/S16 remains reserved for issue 464 if used.
-The coordinator assigned CAL-V0-067/S17 to issue 479 and CAL-V0-068/S18 to issue 497. CAL-V0-071..072/S21 extend issue 354 (CAL-V0-069..070 and S19..S20 are left to coordinated unlanded work). CAL-V0-074..075/S22 deliver native ticket V1-0755, split from issue 354 (CAL-V0-073 is left to coordinated unlanded work). This seed does not claim
+The coordinator assigned CAL-V0-067/S17 to issue 479 and CAL-V0-068/S18 to issue 497. CAL-V0-071..072/S21 extend issue 354 (CAL-V0-069..070 and S19..S20 are left to coordinated unlanded work). CAL-V0-074..075/S22 deliver native ticket V1-0755, split from issue 354 (CAL-V0-073 is left to coordinated unlanded work). CAL-V0-076..077/S23 deliver native ticket V1-0756, split from issue 354. This seed does not claim
 implementation or qualification of the new profile or any reserved slice.
 
 S8 was added by owner decision on 2026-09-27 and lands directly after S3, before S4.
@@ -1328,9 +1329,9 @@ slot, not the vendor of the pinned binary. The host seam added here is a vocabul
 argv builder, a result decoder, a session reader and a usage reader, selected by one host name. A
 later host such as OpenCode (V1-0756) adds one entry; it does not change the lifecycle.
 
-- `CAL-V0-074`: The optional policy `supervision` object MAY carry `host`, whose only admitted
-  value is `claude-code`; absent means Codex. The supervisor config MAY carry `host` with the same
-  single value and meaning. A program MUST be refused with `UNSUPPORTED` before its runtime read,
+- `CAL-V0-074`: The optional policy `supervision` object MAY carry `host`, whose admitted
+  values are `claude-code` and, per CAL-V0-076, `opencode`; absent means Codex. The supervisor
+  config MAY carry `host` with the same values and meaning. A program MUST be refused with `UNSUPPORTED` before its runtime read,
   program record, claim, lease, worktree, effect or host process when either of these holds:
   - the config `host` is another value;
   - the config `host` differs from the policy host.
@@ -1380,7 +1381,7 @@ later host such as OpenCode (V1-0756) adds one entry; it does not change the lif
 Non-goals:
 - Mixed hosts within one policy or program. The transaction layer has one supervised runtime slot,
   and per-host runtime IDs, roles and worker caps need a multi-runtime inventory.
-- The OpenCode host (V1-0756).
+- The OpenCode host (V1-0756), delivered in S23.
 - Claude Code `stream-json` output.
 - Efforts beyond the S13 set.
 - Blocking Claude Code subagents beyond the prompt instruction.
@@ -1417,6 +1418,124 @@ stay available. Regression witnesses are the CAL-V0-074 and CAL-V0-075 rows in t
 table, including the fake-host end-to-end `TestCALV0075_ClaudeCodeProgramFakeHost`. Live Claude
 Code qualification on a disposable program is `NOT_RUN`; see
 `docs/build-log/2026-10-04-tasks-claude-code-supervisor-host.md`.
+
+### S23 — OpenCode supervised host (V1-0756, split from issue 354)
+
+Authoritative input: owner request [issue 354](https://github.com/beamfall/corvint/issues/354), which asks for host adapters
+beyond Codex; the owner scope decision of 2026-10-04 recorded in S13, which moved the OpenCode
+supervisor host to native ticket V1-0756; and V1-0756's acceptance criteria. This slice adds
+OpenCode as one more entry on the S22 host seam. Lifecycle, process-group ownership, the 16 KiB
+output caps, WAIT and resume, review independence, gates and integration binding stay those of S10,
+S13 and S22.
+
+OpenCode differs from Codex and Claude Code in one way that matters here. Its extensions are
+in-process plugins loaded by its session server, not hooks run as separate commands (AHI-044), and
+`opencode run` attaches by default to a persistent shared background service. A supervised stage
+therefore defines its own process and lifecycle boundary. The foreground process that the lane
+leader owns and reaps is `opencode run --standalone`. That process starts its private session
+server as its own child, from the same executable over standard I/O, with a kill signal and a
+readiness check. The plugins load in that server. So the server and its plugins sit inside the
+supervisor-owned process group of the stage unless they leave it themselves. Whether the server
+child is spawned detached was not observed. Nothing a plugin does is a supervisor input. The contract below was read from OpenCode 2.0.21 (`opencode run --help` in an
+isolated home, and its `run` module); no live model run was made.
+
+- `CAL-V0-076`: The policy `supervision.host` and the config `host` of CAL-V0-074 MAY also be
+  `opencode`, and `--host opencode` is admitted where `--host` is. Every CAL-V0-074 rule applies
+  unchanged: refusal with `UNSUPPORTED` on a host mismatch, the host-neutral
+  `CAPABILITY_UNAVAILABLE` executable pin, the config digest binding the host, and unchanged bytes
+  when `host` is absent. An `opencode` program MUST additionally be refused with `UNSUPPORTED`,
+  at the same point and again at every later stage launch, when either of these holds:
+  - the config `model` is not one `provider/model` reference with nonempty parts and no `#`,
+    because the stage effort becomes the model variant;
+  - the config names `repositories`, because every OpenCode stage denies directories outside its
+    worktree (CAL-V0-077), so S21 programs are not supported on this host.
+- `CAL-V0-077`: An `opencode` stage MUST invoke the pinned executable with the prompt on standard
+  input and this argv:
+  1. `run --standalone --format json --model M#E`, where E is the stage's configured effort
+     (CAL-V0-062). `--standalone` runs a private session server for this invocation instead of
+     attaching to the shared background service. `--server`, `--continue`, `--fork`, `--auto` and
+     the permission-skipping flags are never passed.
+  2. `--session S` when the stage continues the recorded WAIT session S.
+
+  The stage environment is the S10 inherited set plus exactly these entries:
+  - `OPENCODE_DISABLE_AUTOUPDATE=1`, so the pinned binary is never replaced mid-program;
+  - `OPENCODE_DISABLE_PROJECT_CONFIG=1`, so configuration and plugins in the untrusted stage
+    worktree are not loaded;
+  - `OPENCODE_CONFIG_CONTENT` carrying an inline `permission` object that denies `task` (sub-agents)
+    and `external_directory` in every stage, and also `edit` in `review` and `integrate`. Rules
+    that would ask are rejected, because `--auto` is never passed.
+
+  The plugin boundary: plugins from the operator's own configuration under `HOME` still load,
+  in-process, inside the stage's process group. They are bounded by that group's ownership and
+  cleanup, the stage wall and the output caps, like any other host code. The supervisor reads only
+  the stage's standard output and exit status. No plugin, server endpoint or shared service is a
+  supervisor channel, and no plugin output is evidence.
+
+  The capsule MUST record `host`. On a zero exit, every standard-output line MUST be a JSON object
+  whose `type` is `step_start`, `text`, `reasoning`, `tool_use`, `step_finish` or `error`. The
+  stream as a whole MUST meet all of the following:
+  - every line carries one nonempty `sessionID` of at most 128 bytes, constant across the stream;
+  - there is no `error` event;
+  - there is at least one `step_finish`, and the last one has `part.type` `step-finish` and
+    `part.reason` `stop`;
+  - the last `text` event comes before that final `step_finish`, has `part.type` `text`, and its
+    `part.text` strictly decodes to the S10 minimum handoff object.
+
+  Any other output is `INVALID_RESULT`. When the stage continues the recorded session S and the
+  decoded session is another one, the stage MUST NOT advance. `--session` creates a session that
+  does not exist, so such an answer lacks the WAIT question it continues. The stage stops with the
+  S10 resumable-handoff question instead of its expected kind, with the candidate preserved as for
+  any stopped implement stage. Its result class stays the one the host-neutral decoder recorded,
+  because the S22 vocabulary seam does not receive S. Token usage is `OBSERVED` only when every `step_finish` carries nonnegative integer
+  `tokens.input`, `tokens.output`, `tokens.reasoning`, `tokens.cache.read` and
+  `tokens.cache.write`, and the stream has no `error` event. These counters are disjoint, so input
+  is input plus cache read plus cache write, and output is output plus reasoning, each summed over
+  all steps with overflow refusal. Otherwise the turn is `NOT_OBSERVED`. Program and attempt usage
+  are re-derived from the retained output in this vocabulary (CAL-V0-075).
+
+Non-goals:
+- Running or qualifying a live OpenCode model; this slice uses a pinned fake host only.
+- Supervising through the shared background service, `--server`, or an attached TUI.
+- A plugin-based supervisor channel, and loading, auditing or allowlisting operator plugins.
+- An OS sandbox. OpenCode has none, so `bash` stays governed by OpenCode's defaults in every stage,
+  and read-only stages rely on the `edit` denial plus the existing check, after the host exits, that
+  the tree is unchanged.
+- Multi-repository programs on this host; mixed hosts within one policy or program (S22).
+- Raising the 16 KiB output cap, `--format default` output, and `--thinking`.
+- Provider-specific variant names beyond the S13 effort set; the `RunProgram` qualification
+  helper, which refuses a non-Codex host.
+
+Failure modes:
+- OpenCode's JSON stream includes full tool output in `tool_use` events, so a tool-heavy stage can
+  exceed 16 KiB: the stage is `OUTPUT_LIMIT`, retained and recoverable as in S10. This is the
+  likeliest live failure and is unmeasured until live qualification.
+- The model's provider does not offer the effort as a variant, or ignores it: unverified until live
+  qualification. A rejected variant makes the run fail, which is `EXIT_NONZERO` or
+  `INVALID_RESULT`.
+- A plugin double-forks out of the process group or detaches with `setsid`: S10 descendant cleanup
+  cannot reach it. This is the same residual risk as any host child, and is not detected.
+- `OPENCODE_DISABLE_PROJECT_CONFIG` does not cover a project-level configuration source in some
+  OpenCode version: that configuration could widen permissions. The permission object still
+  arrives inline, but its precedence over project sources is unverified.
+- The handoff is wrapped in prose or a Markdown fence, the final step ends for `length` or
+  `tool-calls`, or the host reports an `error`: `INVALID_RESULT` on a zero exit, or
+  `EXIT_NONZERO` (OpenCode exits 1) otherwise.
+- The recorded session no longer exists when a WAIT stage resumes: OpenCode creates a fresh one,
+  and the session check stops the stage with a resumable-handoff question instead of accepting an
+  answer without its question.
+- OpenCode's `tokens` totals differ from billed usage: unverified until live qualification.
+- The OpenCode binary is upgraded or replaced: its digest differs, and CAL-V0-074 refuses
+  `CAPABILITY_UNAVAILABLE`.
+- Downgrade: a binary with S22 but without this slice refuses a policy or config whose host is
+  `opencode` with `UNSUPPORTED`, and a capsule whose host it does not know; an older binary
+  refuses as S22 describes.
+
+Rollback: remove `host` from the policy and the config, or set both back to another admitted host.
+An `opencode` program then refuses its next stage, and drain and cancel stay available. No Codex or
+Claude Code bytes change. Regression witnesses are the CAL-V0-076 and CAL-V0-077 rows in the
+traceability table, including the fake-host end-to-end `TestCALV0077_OpenCodeProgramFakeHost`.
+Live OpenCode qualification on a disposable program is `NOT_RUN`; see
+`docs/build-log/2026-10-04-tasks-opencode-supervisor-host.md`.
 
 ## Amendments to TCP-00
 
@@ -1535,6 +1654,10 @@ The experimental `RUN_OUTCOME` observation verb is amended in by `corvint-tasks-
 | Supervisor config host differs from the policy host, or names an unknown host | A program would speak the wrong vocabulary to the pinned binary | Admission and every stage refuse `UNSUPPORTED` before any record, lease or host process (CAL-V0-074) |
 | Pinned Claude Code or Codex executable missing, replaced or re-moded | An unqualified binary would run | Refused `CAPABILITY_UNAVAILABLE` before any program record or lease (CAL-V0-074) |
 | Claude Code result is not one exact success object with a strict handoff | A host claim would be invented from prose | The stage is `INVALID_RESULT`; missing usage counters stay `NOT_OBSERVED` (CAL-V0-075) |
+| OpenCode program names a variant model or extra repositories | The stage effort or the worktree boundary would be silently overridden | Admission and every stage refuse `UNSUPPORTED` before any record (CAL-V0-076) |
+| OpenCode stream reports an error, changes session, or ends without a stop-finished step carrying a strict handoff | A host claim would be invented from a partial or failed turn | The stage is `INVALID_RESULT`; usage stays `NOT_OBSERVED` unless every step carries integer counters (CAL-V0-077) |
+| Resumed OpenCode stage answers from a fresh session | An answer would be accepted without the WAIT question it continues | The stage stops with a resumable-handoff question instead of advancing (CAL-V0-077) |
+| OpenCode plugin or project configuration in the worktree | Untrusted code or permissions would load into the stage | Project configuration is disabled, permissions arrive inline, and the session server runs `--standalone` inside the stage process group; user-configured plugins remain uncontained (CAL-V0-077) |
 
 ## Acceptance and rollback
 
@@ -1615,6 +1738,8 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-072 | `TestCALV0071_MultiRepositoryProgramFakeHost` (composite tree, unmoved checkout `HEAD`, review binding, integrator refusal), `TestCALV0072_MultiRepositoryGatesFailClosed` (`internal/tasks/store`); live Codex NOT_RUN |
 | CAL-V0-074 | `TestCALV0074_PolicyHost` (`internal/tasks/intent`); `TestCALV0074_CapsuleHost` (`internal/tasks/supervisor`); `TestCALV0074_CheckProgramConfigHost`, `TestCALV0074_OpenWorkflowRefusesHostBeforeMutation` (`internal/tasks/store`); `TestCALV0074_RunHostFlag` (`internal/tasks/cli`) |
 | CAL-V0-075 | `TestCALV0075_ClaudeResultVocabulary`, `TestCALV0075_ClaudeUsageObservedOrUnknown` (`internal/tasks/supervisor`); `TestCALV0075_ClaudeStageArgv`, `TestCALV0075_ClaudeCodeProgramFakeHost` (`internal/tasks/store`); live Claude Code NOT_RUN |
+| CAL-V0-076 | `TestCALV0076_PolicyHostOpenCode` (`internal/tasks/intent`); `TestCALV0076_OpenCodeVocabularySelected` (`internal/tasks/supervisor`); `TestCALV0076_CheckOpenCodeConfig`, `TestCALV0076_CheckProgramConfigOpenCodeHost` (`internal/tasks/store`); `TestCALV0076_ConfigHostFlag` (`internal/tasks/cli`) |
+| CAL-V0-077 | `TestCALV0077_OpenCodeResultVocabulary`, `TestCALV0077_OpenCodeUsageObservedOrUnknown` (`internal/tasks/supervisor`); `TestCALV0077_OpenCodeStageArgv`, `TestCALV0077_OpenCodeProgramFakeHost`, `TestCALV0077_OpenCodeResumeRefusesFreshSession` (`internal/tasks/store`); live OpenCode NOT_RUN |
 | CAL-V0-013 | `TestCALV0013_RetryAsNextGenerationUpToThree` (`internal/tasks/store`) |
 | CAL-V0-014 | `TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan`, `TestCALV0014_SelectedOnlyPlanPreviewIsComplete` (`internal/tasks/cli`); `plan preview` in `TestTMV0008_AS07_ReadsLeaveStoreByteIdentical` (`internal/tasks/cli`) |
 | CAL-V0-015 | `TestCALV0015_SubmitRecordsTheCandidateTree` (`internal/tasks/store`) |

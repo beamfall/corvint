@@ -109,7 +109,7 @@ func TestCALV0074_OpenWorkflowRefusesHostBeforeMutation(t *testing.T) {
 	}{
 		{"codex config under claude-code policy", f, func(c *store.ProgramConfig) { c.Host = "" }, wire.CodeUnsupported},
 		{"claude-code config under codex policy", codexPolicy, func(c *store.ProgramConfig) {}, wire.CodeUnsupported},
-		{"unknown host", f, func(c *store.ProgramConfig) { c.Host = "opencode" }, wire.CodeUnsupported},
+		{"unknown host", f, func(c *store.ProgramConfig) { c.Host = "gemini-cli" }, wire.CodeUnsupported},
 		{"missing executable", f, func(c *store.ProgramConfig) { c.Executable = filepath.Join(f.scripts, "absent") }, wire.CodeCapabilityUnavailable},
 		{"unpinned executable", f, func(c *store.ProgramConfig) { c.Executable = unpinned }, wire.CodeCapabilityUnavailable},
 		{"config digest differs", f, func(c *store.ProgramConfig) { c.ExecutableSHA256 = supervisor.Digest([]byte("other")) }, wire.CodeCapabilityUnavailable},

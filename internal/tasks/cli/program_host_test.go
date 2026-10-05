@@ -61,7 +61,7 @@ func TestCALV0074_RunHostFlag(t *testing.T) {
 		}
 	}
 	help := atm(t, root, nil, "help")
-	if !strings.Contains(string(help.stdout), "Codex or Claude Code") || !strings.Contains(string(help.stdout), "--host codex|claude-code") {
+	if !strings.Contains(string(help.stdout), "Codex, Claude Code or OpenCode") || !strings.Contains(string(help.stdout), "--host codex|claude-code|opencode") {
 		t.Fatalf("help does not name the Claude Code host: %s", help.stdout)
 	}
 }
