@@ -252,8 +252,28 @@ func (c leaseContext) admitted(rec *ticket.Record, prior *snapshot.Attempt, sc *
 		reason := chargedReason(prior)
 		a.RetryReasons[reason] = wire.CountOf(a.RetryReasons[reason].Int() + 1)
 	}
-	a.PriorGenerations = append(append([]snapshot.PriorGeneration{}, prior.PriorGenerations...), snapshot.PriorGeneration{Generation: prior.Generation, Quiescence: prior.Quiescence, ProvedSeq: prior.PhaseSinceSeq})
+	a.PriorGenerations = append(append([]snapshot.PriorGeneration{}, prior.PriorGenerations...), snapshot.PriorGeneration{Generation: prior.Generation, Quiescence: prior.Quiescence, ProvedSeq: prior.PhaseSinceSeq, History: endedHistory(prior)})
 	return a, nil
+}
+
+// endedHistory copies the stage and pool member an ended external-agent
+// generation held (CAL-V0-096). A supervised generation spans several
+// stages and releases its allocation when a stage stops, so a single
+// stage and member would be a guess and nothing is recorded.
+func endedHistory(prior *snapshot.Attempt) *snapshot.GenerationHistory {
+	if prior.RuntimeID != snapshot.RuntimeExternalAgent {
+		return nil
+	}
+	h := &snapshot.GenerationHistory{}
+	if prior.Stage != "" {
+		stage := prior.Stage
+		h.Stage = &stage
+	}
+	if x := prior.PoolAllocation; x != nil {
+		pool, member := x.PoolID, x.MemberID
+		h.PoolID, h.MemberID = &pool, &member
+	}
+	return h
 }
 
 // noExecutionCutover names the execution cutover (CAL-V0-020), not the S2
