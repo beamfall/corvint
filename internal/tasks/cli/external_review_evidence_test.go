@@ -45,7 +45,13 @@ func TestERGV0002_EvidenceCandidatesNeedAnArtifactLink(t *testing.T) {
 	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
 	t.Setenv("ATM_ACTOR", "tester")
 	root, tree := ergStore(t)
-	dir, err := filepath.EvalSymlinks(t.TempDir())
+	// A gate argv entry is at most 128 bytes, which this test's TempDir path
+	// under the default macOS TMPDIR exceeds.
+	dir, err := os.MkdirTemp("", "erg")
+	if err == nil {
+		t.Cleanup(func() { os.RemoveAll(dir) })
+		dir, err = filepath.EvalSymlinks(dir)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
