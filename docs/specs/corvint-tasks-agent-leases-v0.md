@@ -1309,9 +1309,9 @@ The maintained `BenchmarkCALV0070_MutateAt2000Receipts` records the before numbe
 
 - `CAL-V0-070`: `store.Mutate` MUST take its request lookup, its inventory digests and its canonical
   intent records from one complete audit, and a journal audit attempt MUST open each parent
-  directory it reads from at most once. On a store that only writers holding the writer lock
-  change, every outcome, audit result, replay, refusal and refusal order MUST be byte-identical to
-  the separate passes these replace.
+  directory it reads from at most once. Every outcome, audit result and replay MUST be
+  byte-identical, and every refusal MUST carry the same code, as the separate passes these replace
+  give under some interleaving of the same outside edits.
   1. One pass. `Reader.AuditForMutation` runs `RequestIndex.Lookup`'s audit once. That audit also
      retains the queue, the policy and every observed ticket and release, which is exactly the
      selection `Mutate` derives from its inventory, and the physical digests it read. Its error is
@@ -1330,13 +1330,32 @@ The maintained `BenchmarkCALV0070_MutateAt2000Receipts` records the before numbe
      open. It then opens each file beneath it with one no-follow `openat` (`safeopen.InDir`)
      instead of three opens and three closes. Errors keep their text, and the descriptors close
      with the attempt.
+  4. Change watch. Before the merged audit reads anything, `Mutate` registers
+     `authority.WatchChanges` over the state directory and the intent tree, the watch lease
+     preparation already uses. Items 1 and 2 stand in for the inventory and the second `Audit` only
+     if both succeed and, once both are taken, the watch's `Check` reports no change. Otherwise,
+     and whenever the watch cannot be registered, `Mutate` closes the watch, takes a fresh
+     inventory and runs the second `Audit` as before. Every refusal therefore comes from the
+     passes that raised it before. The watch's descriptors share the process limit with the
+     audit's reads, so a refusal of the merged audit itself is taken again with the watch closed.
+     On success the watch closes after the writer lock is released.
 
-Race limit. One observation now stands for the request lookup, the inventory digests and the
-canonical records, so byte-identity is claimed only for a store that changes under the writer lock
-alone. An outside edit made during the mutation is handled differently. An edit to `head.json` or
-to the intent tree is still refused `SNAPSHOT_MOVED` by the existing pre-apply binding, where the
-second pass could have refused it first with another code such as `INTENT_DIVERGED`. An edit to any
-other journal file is seen by the next audit, as an edit after the second pass always was.
+Race limit. Under the writer lock only an outside actor can change the store. An outside edit made
+after the merged audit and before the watch's check makes the inventory and the second `Audit` run
+fresh, so it is refused as the separate passes refused an edit made after their lookup. An
+overwritten request projection, an edited `reservations.json` or a stray `barrier.json` is refused
+`JOURNAL_FORKED`, a projection replaced by a symlink `UNSUPPORTED_FILESYSTEM`, and an edited ticket
+`INTENT_DIVERGED`. An edit after the check meets what an edit after the old second pass met. The
+pre-apply binding refuses a changed `head.json` or intent tree `SNAPSHOT_MOVED`. `barrier.json`
+and `reservations.json` are re-read for the model, which validates them. An edit to any other
+journal file is seen by the next audit. Only the refusal code is claimed: with two or more diverged
+files, the path a refusal names follows Go map order, before this change as after it.
+
+The watch is not free: on macOS it holds one descriptor per watched path, and registering and
+closing it costs 5–11% of an after-change `Mutate`'s CPU time, growing with history (see below).
+Where it cannot be registered (a platform other than macOS or Linux, the entry bound, a path that
+is neither a regular file nor a directory, or an exhausted watch limit), `Mutate` runs the separate
+passes at their old cost.
 
 Measured cost after A and B. The profile and the benchmark now also record the process's CPU time
 (user plus system, all threads): over the same evening, wall time for identical runs varied up to
@@ -1368,6 +1387,24 @@ path, remains the pending owner decision. Runs made earlier the same evening at 
 identical allocation counts but wall times that overlapped between trees. The build-log keeps them
 as evidence of load sensitivity, not as the comparison.
 
+Measured cost with the change watch (item 4). The pair was run again after the review fix, against
+the same base, at one-minute host load average 27–59 from concurrent agents. Wall times are not
+comparable at that load, and CPU times are inflated on both sides. Profile medians of 3, CPU time,
+base → after:
+
+| Receipts | `Mutate` | Watch setup and close (after) |
+|---|---|---|
+| 500 | 1,888 → 960 ms | 73 ms |
+| 2,000 | 5,836 → 2,503 ms | 231 ms |
+| 7,000 | 16,610 → 6,769 ms | 714 ms |
+
+The benchmark, three alternating rounds, gave a median of 5,381 → 2,299 ms CPU per `Mutate`
+(ranges 5,323–5,688 and 2,059–2,325 ms). Allocation fell from 1.655 to 0.868 GB, and from 9.006 to
+5.277 million allocations. At 2,000 receipts the cut in CPU time stays at 57%. The watch adds
+0.007 GB and 0.059 million allocations to each `Mutate`. In the low-load profile above, the
+watch's setup and close took 34, 112 and 509 ms of CPU time: 5%, 7% and 10% of the after-change
+`Mutate`.
+
 Non-goals:
 - any change to the receipt, journal, intent, request, evidence or archive format;
 - writer-retained state that a read mutates;
@@ -1386,6 +1423,11 @@ Failure modes of A and B:
 | A listed file is absent from the published digests | The inventory reads it fresh |
 | A parent directory is renamed or replaced during an attempt | Reads continue beneath the parent the attempt already retained, as every per-file open did; the attempt's identity checks refuse as before |
 | A platform without the Unix open path | `PinDir` and `InDir` return the same unsupported error as `InRoot` |
+| An outside edit after the merged audit, before the watch's check | The check reports it; the inventory and the second `Audit` run fresh and refuse as before |
+| The merged audit refuses while the watch is held | The watch is closed and the audit runs again, as `Lookup` ran, so descriptors the watch holds cannot cause a refusal the separate passes did not raise |
+| The observed inventory or `Canonical` refuses | The watch is closed and the fresh inventory and second `Audit` raise the refusal, as before |
+| An outside edit after the watch's check | Handled as an edit after the old second pass (see the race limit) |
+| The watch cannot be registered, or reports a change made by the merged audit's own reads | No reuse: the separate passes run as before, at their old cost. `TestCALV0070_MutateRefusesChangesAfterMergedAudit` fails if an unchanged store is observed twice |
 | A defect in the merged audit | The equivalence tests below compare every combination; rollback reverts the change |
 
 Acceptance evidence for A and B (delivered):
@@ -1406,11 +1448,27 @@ Acceptance evidence for A and B (delivered):
    `Mutate` with 70 receipts, `Mutate`'s old and new sequences give the same refusal in the same
    phase, the same inventory and the same canonical Result. The states are: clean with the request
    absent and found, an edited ticket with the request absent and found, a corrupt request file,
-   a stray state directory, and a stray state directory with an edited ticket. The observed
-   inventory equals a fresh one.
-4. The existing `internal/tasks/journal`, `internal/tasks/safeopen` and `internal/tasks/store`
+   an edited `reservations.json`, a stray state directory, and a stray state directory with an
+   edited ticket. The new sequence runs `Mutate`'s own `observeMutation` under a change watch. It
+   fails if an unchanged store that it accepts is observed twice, or if a refusal does not come
+   from the fresh passes. The observed inventory equals a fresh one.
+4. `TestCALV0070_MutateRefusesChangesAfterMergedAudit` (`internal/tasks/store`) changes the store
+   through the real `Mutate`, at a fixed point after the merged audit or after the inventory and
+   `Canonical`, before the watch's check. The changes are an overwritten request projection (at
+   both points), a request projection replaced by a symlink, an edited ticket (at both points), an
+   edited `reservations.json` and a stray `barrier.json`. Each must be refused with the code the
+   separate passes raise when the same change follows their lookup, after a fresh inventory and
+   audit. Head, receipts and staging must be unchanged, and the request must not be projected. An
+   overwritten projection and an edited ticket made before `Mutate` starts must be refused with the
+   separate passes' code, the ticket by the fresh passes. An unchanged store must commit without a
+   fresh pass. With the check's result ignored, the overwritten and symlinked projections
+   committed, the edited tickets were refused `SNAPSHOT_MOVED`, and the `reservations.json` and
+   `barrier.json` edits failed validation. Returning a refusal from the reuse instead of the fresh
+   passes failed the stage checks. Descriptor exhaustion between the watch and the audit is not
+   injected.
+5. The existing `internal/tasks/journal`, `internal/tasks/safeopen` and `internal/tasks/store`
    tests, unchanged.
-5. The after measurement above.
+6. The after measurement above.
 
 Rollback of A and B: revert the change. Nothing is retained, so no store needs repair.
 
@@ -1731,7 +1789,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-042 | `internal/companionrelease/tasks_archive.go`, companion release `-tasks-only`; `TestTasksArchiveAssembly`, `TestTasksArchiveHelpRefusesOldRuntime`; native archive build retained in change evidence |
 
 | CAL-V0-027 | `TestCALV0027_CompiledNonfixtureReleaseLifecycle`, `TestCALV0027_NonfixtureReleaseBindings`, `TestCALV0027_NonfixtureReleaseReadinessRefusals` (`internal/tasks/cli`); `TestCALV0027_ReleaseAfterQualifiedCutover`, `TestCALV0027_ReleaseInterruptionRecovery`, `TestCALV0027_ReleaseActiveStageAndReconciliation`, `TestCALV0027_ReleaseWrongActor`, `TestCALV0027_ActualCompletedStages` (`internal/tasks/store`); `TestCALV0027_NonfixtureStageBinding`, `TestCALV0027_CompletedStageReceiptKinds`, `TestCALV0027_CompletedStageInnerBindings` (`internal/tasks/snapshot`). |
-| CAL-V0-070 | Implemented for `store.Mutate` and journal audit reads: `TestCALV0070_MergedMutationAuditEquivalence` (`internal/tasks/journal`), `TestCALV0070_PinnedDirOpensMatchInRoot` (`internal/tasks/safeopen`) and `TestCALV0070_MutateAuditSequenceEquivalence` (`internal/tasks/store`); before/after `BenchmarkCALV0070_MutateAt2000Receipts` (median `Mutate` CPU 4,178 → 1,793 ms at 2,000 receipts) and opt-in `TestCALV0070_WriterHistoryProfile` (`internal/tasks/store`); see `docs/build-log/2026-10-04-tasks-writer-history-cost.md` and `docs/build-log/2026-10-04-tasks-writer-one-pass.md`. The proposed writer checkpoint is NOT_RUN (owner decision pending, deferred 2026-10-04); Linux, the live store and the issue 545 waves are NOT_RUN |
+| CAL-V0-070 | Implemented for `store.Mutate` and journal audit reads: `TestCALV0070_MergedMutationAuditEquivalence` (`internal/tasks/journal`), `TestCALV0070_PinnedDirOpensMatchInRoot` (`internal/tasks/safeopen`), `TestCALV0070_MutateAuditSequenceEquivalence` and `TestCALV0070_MutateRefusesChangesAfterMergedAudit` (`internal/tasks/store`); before/after `BenchmarkCALV0070_MutateAt2000Receipts` (median `Mutate` CPU 4,178 → 1,793 ms at 2,000 receipts; with the change watch, 5,381 → 2,299 ms at load 27–59) and opt-in `TestCALV0070_WriterHistoryProfile` (`internal/tasks/store`); see `docs/build-log/2026-10-04-tasks-writer-history-cost.md` and `docs/build-log/2026-10-04-tasks-writer-one-pass.md`. The proposed writer checkpoint is NOT_RUN (owner decision pending, deferred 2026-10-04); Linux, the live store and the issue 545 waves are NOT_RUN |
 
 ## Holder, retry and policy observation acceptance
 

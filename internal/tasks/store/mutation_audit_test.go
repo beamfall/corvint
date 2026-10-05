@@ -1,17 +1,21 @@
 package store
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 // mutateAuditOutcome is what Mutate takes from its request lookup, inventory
@@ -25,18 +29,9 @@ type mutateAuditOutcome struct {
 	Canonical *journal.Result
 }
 
-func mutateSelection(inv *transaction.Inventory) []string {
-	paths := []string{"intent/queue.json", "intent/policy.json"}
-	for _, file := range inv.Files() {
-		if strings.HasPrefix(file.Path, "intent/tickets/") || strings.HasPrefix(file.Path, "intent/releases/") {
-			paths = append(paths, file.Path)
-		}
-	}
-	return paths
-}
-
-// separateMutateAudits is Mutate's sequence before CAL-V0-070.
-func separateMutateAudits(t *testing.T, repo *intent.Repository, id string) mutateAuditOutcome {
+// separateMutateAudits is Mutate's sequence before CAL-V0-070. afterLookup,
+// when given, runs between the lookup and the inventory.
+func separateMutateAudits(t *testing.T, repo *intent.Repository, id string, afterLookup ...func()) mutateAuditOutcome {
 	t.Helper()
 	head, err := writerGuards(repo, transaction.Mutate)
 	if err != nil {
@@ -54,17 +49,23 @@ func separateMutateAudits(t *testing.T, repo *intent.Repository, id string) muta
 		out.Found, out.Entry, out.Ticket = true, entry, index.TicketID
 		return out
 	}
+	for _, f := range afterLookup {
+		f()
+	}
 	if out.Inventory, err = inventory(repo); err != nil {
 		out.Err, out.Inventory = "inventory: "+err.Error(), nil
 		return out
 	}
-	if out.Canonical, err = reader.Audit(mutateSelection(out.Inventory)...); err != nil {
+	if out.Canonical, err = reader.Audit(mutationSelection(out.Inventory)...); err != nil {
 		out.Err, out.Canonical = "audit: "+err.Error(), nil
 	}
 	return out
 }
 
-// mergedMutateAudits is Mutate's sequence after CAL-V0-070.
+// mergedMutateAudits is Mutate's sequence after CAL-V0-070: a change watch,
+// the merged audit, then observeMutation. It fails if an unchanged store that
+// observeMutation accepts was observed again instead of reused, or if a
+// refusal there did not come from the fresh passes.
 func mergedMutateAudits(t *testing.T, repo *intent.Repository, id string) (mutateAuditOutcome, *journal.MutationAudit) {
 	t.Helper()
 	head, err := writerGuards(repo, transaction.Mutate)
@@ -72,6 +73,11 @@ func mergedMutateAudits(t *testing.T, repo *intent.Repository, id string) (mutat
 		t.Fatal(err)
 	}
 	reader := journalReader(repo, head)
+	watch, err := authority.WatchChanges(repo)
+	if err != nil {
+		t.Fatalf("change watch: %v", err)
+	}
+	defer watch.Close()
 	var out mutateAuditOutcome
 	audit, err := reader.AuditForMutation(id)
 	if err != nil {
@@ -82,17 +88,27 @@ func mergedMutateAudits(t *testing.T, repo *intent.Repository, id string) (mutat
 		out.Found, out.Entry, out.Ticket = true, audit.Entry, audit.TicketID
 		return out, audit
 	}
-	if out.Inventory, err = inventory(repo, audit.Physical.Files); err != nil {
-		out.Err, out.Inventory = "inventory: "+err.Error(), nil
+	var stages []string
+	ctx := context.WithValue(context.Background(), mutationStageKey{}, func(stage string) { stages = append(stages, stage) })
+	inv, paths, canonical, err := observeMutation(ctx, repo, reader, audit, watch)
+	want := "audited,observed"
+	if err != nil {
+		want += ",fresh"
+	}
+	if got := strings.Join(stages, ","); got != want {
+		t.Fatalf("stages %s, want %s", got, want)
+	}
+	if inv == nil {
+		out.Err = "inventory: " + err.Error()
 		return out, audit
 	}
-	canonical, reused, err := audit.Canonical(mutateSelection(out.Inventory)...)
-	if !reused {
-		t.Fatal("Mutate's own selection was not reused")
-	}
+	out.Inventory = inv
 	if err != nil {
 		out.Err = "audit: " + err.Error()
 		return out, audit
+	}
+	if _, reused, _ := audit.Canonical(paths...); !reused {
+		t.Fatal("Mutate's own selection was not reused")
 	}
 	out.Canonical = canonical
 	return out, audit
@@ -146,6 +162,9 @@ func TestCALV0070_MutateAuditSequenceEquivalence(t *testing.T) {
 			p, _ := snapshot.RequestPath("history-60")
 			return rewriteFile(t, filepath.Join(repo.StateDir, p), func([]byte) []byte { return []byte("{}\n") })
 		}},
+		{name: "reservations-edited", id: "absent", want: "lookup: JOURNAL_FORKED", edit: func(t *testing.T) func() {
+			return rewriteFile(t, filepath.Join(repo.StateDir, "reservations.json"), func(raw []byte) []byte { return append(raw, '\n') })
+		}},
 		{name: "unexpected-state-dir", id: "absent", edit: unexpectedDir, want: "lookup: "},
 		{name: "unexpected-state-dir-and-ticket-edited", id: "absent", want: "lookup: ", edit: func(t *testing.T) func() {
 			undoDir, undoTicket := unexpectedDir(t), editTicket(t)
@@ -190,4 +209,173 @@ func TestCALV0070_MutateAuditSequenceEquivalence(t *testing.T) {
 			}
 		})
 	}
+}
+
+// CAL-V0-070: an outside change made after Mutate's merged audit, at either
+// observeMutation stage before its change check, is refused through the real
+// Mutate with the code the separate passes raise on the changed store, and
+// nothing is published. Reusing the audit there would have accepted a stale
+// projection digest, or reached the pre-apply binding's SNAPSHOT_MOVED.
+func TestCALV0070_MutateRefusesChangesAfterMergedAudit(t *testing.T) {
+	repo := historyStore(t, 70)
+	stateFile := func(rel string) string { return filepath.Join(repo.StateDir, rel) }
+	requestFile, _ := snapshot.RequestPath("history-60")
+	requestFile = stateFile(requestFile)
+	tickets := filepath.Join(repo.PrimaryWorktree, intent.Dir, "tickets")
+	entries, err := os.ReadDir(tickets)
+	if err != nil || len(entries) == 0 {
+		t.Fatalf("tickets: %v", err)
+	}
+	ticketFile := filepath.Join(tickets, entries[0].Name())
+	rewrite := func(t *testing.T, p string, raw []byte) func() {
+		old, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		historyWrite(t, p, raw)
+		return func() { historyWrite(t, p, old) }
+	}
+	appendLine := func(p string) func(*testing.T) func() {
+		return func(t *testing.T) func() {
+			old, err := os.ReadFile(p)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return rewrite(t, p, append(old, '\n'))
+		}
+	}
+	symlinkRequest := func(t *testing.T) func() {
+		old, err := os.ReadFile(requestFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		target := filepath.Join(t.TempDir(), "request.json")
+		historyWrite(t, target, old)
+		if err = os.Remove(requestFile); err != nil {
+			t.Fatal(err)
+		}
+		if err = os.Symlink(target, requestFile); err != nil {
+			t.Fatal(err)
+		}
+		return func() {
+			if err := os.Remove(requestFile); err != nil {
+				t.Fatal(err)
+			}
+			historyWrite(t, requestFile, old)
+		}
+	}
+	strayBarrier := func(t *testing.T) func() {
+		p := stateFile("barrier.json")
+		historyWrite(t, p, []byte("{}\n"))
+		return func() { os.Remove(p) }
+	}
+	published := func(t *testing.T) string {
+		head, err := os.ReadFile(stateFile("head.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		receipts, err := os.ReadDir(stateFile("receipts"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, stagingErr := os.Lstat(stateFile("staging"))
+		return fmt.Sprintf("head %s, %d receipts, staging %v", wire.Sum(head), len(receipts), !os.IsNotExist(stagingErr))
+	}
+	cases := []struct {
+		name, stage, want string
+		change            func(*testing.T) func()
+	}{
+		{"request-overwritten", "audited", "JOURNAL_FORKED", func(t *testing.T) func() { return rewrite(t, requestFile, []byte("{}\n")) }},
+		{"request-overwritten-after-observation", "observed", "JOURNAL_FORKED", func(t *testing.T) func() { return rewrite(t, requestFile, []byte("{}\n")) }},
+		{"request-symlinked", "audited", "UNSUPPORTED_FILESYSTEM", symlinkRequest},
+		{"ticket-edited", "audited", "INTENT_DIVERGED", appendLine(ticketFile)},
+		{"ticket-edited-after-observation", "observed", "INTENT_DIVERGED", appendLine(ticketFile)},
+		{"reservations-edited", "audited", "JOURNAL_FORKED", appendLine(stateFile("reservations.json"))},
+		{"barrier-stray", "observed", "JOURNAL_FORKED", strayBarrier},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			id := "boundary-" + tc.name
+			before := published(t)
+			var stages []string
+			undo := func() {}
+			ctx := context.WithValue(context.Background(), mutationStageKey{}, func(stage string) {
+				stages = append(stages, stage)
+				if stage == tc.stage {
+					undo = tc.change(t)
+				}
+			})
+			rep, err := Mutate(ctx, repo, historyActor, historyCreate(id, "boundary "+tc.name), WallClock())
+			undo()
+			code := wire.CodeOf(err)
+			// The separate passes with the same change made after their lookup.
+			oracle := separateMutateAudits(t, repo, id, func() { undo = tc.change(t) })
+			undo()
+			if err == nil || (tc.want != "" && code != tc.want) || !strings.HasPrefix(oracle.Err, "inventory: "+code) && !strings.HasPrefix(oracle.Err, "audit: "+code) {
+				t.Fatalf("Mutate: %v (report %+v); separate passes: %s", err, rep, oracle.Err)
+			}
+			t.Logf("refused %s, as the separate passes: %s", code, oracle.Err)
+			if want := []string{"audited", "observed", "fresh"}; !reflect.DeepEqual(stages, want) {
+				t.Fatalf("stages %v, want %v", stages, want)
+			}
+			if after := published(t); after != before {
+				t.Fatalf("published: %s, before %s", after, before)
+			}
+			if p, _ := snapshot.RequestPath(id); fileExists(stateFile(p)) {
+				t.Fatal("refused request was projected")
+			}
+		})
+	}
+	// A store changed before Mutate starts: the merged audit's refusal is
+	// taken again without the watch, and a refusal it defers is raised by the
+	// fresh passes.
+	for _, tc := range []struct {
+		name   string
+		stages []string
+		change func(*testing.T) func()
+	}{
+		{"request-overwritten-before", nil, func(t *testing.T) func() { return rewrite(t, requestFile, []byte("{}\n")) }},
+		{"ticket-edited-before", []string{"audited", "observed", "fresh"}, appendLine(ticketFile)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			id := "boundary-" + tc.name
+			before := published(t)
+			undo := tc.change(t)
+			defer undo()
+			var stages []string
+			ctx := context.WithValue(context.Background(), mutationStageKey{}, func(stage string) { stages = append(stages, stage) })
+			rep, err := Mutate(ctx, repo, historyActor, historyCreate(id, "boundary "+tc.name), WallClock())
+			oracle := separateMutateAudits(t, repo, id)
+			_, oracleErr, _ := strings.Cut(oracle.Err, ": ")
+			if err == nil || oracleErr == "" || !strings.HasPrefix(oracleErr, wire.CodeOf(err)+":") {
+				t.Fatalf("Mutate: %v (report %+v); separate passes: %s", err, rep, oracle.Err)
+			}
+			t.Logf("refused %s, as the separate passes: %s", wire.CodeOf(err), oracle.Err)
+			if !reflect.DeepEqual(stages, tc.stages) {
+				t.Fatalf("stages %v, want %v", stages, tc.stages)
+			}
+			if after := published(t); after != before {
+				t.Fatalf("published: %s, before %s", after, before)
+			}
+			if p, _ := snapshot.RequestPath(id); fileExists(stateFile(p)) {
+				t.Fatal("refused request was projected")
+			}
+		})
+	}
+	t.Run("unchanged-reuses", func(t *testing.T) {
+		var stages []string
+		ctx := context.WithValue(context.Background(), mutationStageKey{}, func(stage string) { stages = append(stages, stage) })
+		rep, err := Mutate(ctx, repo, historyActor, historyCreate("boundary-unchanged", "boundary unchanged"), WallClock())
+		if err != nil || rep.Outcome.Outcome != mutation.OutcomeCompleted {
+			t.Fatalf("mutate: %+v %v", rep, err)
+		}
+		if want := []string{"audited", "observed"}; !reflect.DeepEqual(stages, want) {
+			t.Fatalf("stages %v, want %v", stages, want)
+		}
+	})
+}
+
+func fileExists(p string) bool {
+	_, err := os.Lstat(p)
+	return err == nil
 }
