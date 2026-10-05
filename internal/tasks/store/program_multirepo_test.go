@@ -111,7 +111,15 @@ func buildProgramFixture(t *testing.T, keepGates, multi bool, gates []string, to
 	claim := string(wire.Sum([]byte("it exists")))
 	codex := filepath.Join(scripts, "codex")
 	codexRaw := multiScript(t, codex, `#!/bin/sh
-cat >/dev/null
+case "$(cat)" in
+*"Read-only integration verification"*)
+  echo '{"type":"thread.started","thread_id":"integrate-session"}'
+  echo '{"type":"turn.started"}'
+  echo '{"type":"item.completed","item":{"type":"agent_message","text":"{\"kind\":\"HANDOFF\",\"summary\":\"verified\",\"nextAction\":\"integrate\"}"}}'
+  echo '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
+  exit 0
+  ;;
+esac
 case " $* " in
 *" workspace-write "*)
   printf '%s\n' "$*" > "`+scripts+`/implement-args"
@@ -156,7 +164,7 @@ echo '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
 	budgets, _ := v.Obj.Get("budgets")
 	budgets.Obj.Set("requireEnforcedFields", wire.Strings(nil))
 	digest := string(wire.Sum(nil))
-	v.Obj.Set("runtimes", wire.Array(obj("runtimeId", str(snapshot.SupervisedProfile), "executable", obj("pathSha256", str(string(wire.Sum([]byte(codex)))), "fileSha256", str(string(wire.Sum(codexRaw))), "mode", str("0755")), "argvPrefix", wire.Array(), "capabilityProfileSha256", str(digest), "observedBudgetFields", wire.Array(), "roles", wire.Strings([]string{"BUILDER", "REVIEWER"}), "maxWorkers", str("1"), "enabled", wire.Bool(true))))
+	v.Obj.Set("runtimes", wire.Array(obj("runtimeId", str(snapshot.SupervisedProfile), "executable", obj("pathSha256", str(string(wire.Sum([]byte(codex)))), "fileSha256", str(string(wire.Sum(codexRaw))), "mode", str("0755")), "argvPrefix", wire.Array(), "capabilityProfileSha256", str(digest), "observedBudgetFields", wire.Array(), "roles", wire.Strings([]string{"BUILDER", "REVIEWER", "VERIFIER"}), "maxWorkers", str("1"), "enabled", wire.Bool(true))))
 	supervision := obj("profile", str(snapshot.SupervisedProfile), "contextRequired", wire.Bool(true), "maxRepairCycles", str("1"),
 		"program", obj("turns", str("8"), "wallClockMinutes", str("600"), "inputTokens", str("0"), "outputTokens", str("0")))
 	if multi {

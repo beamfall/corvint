@@ -1334,10 +1334,12 @@ Source, classification table, limits and evidence: the V1-0780 retryable result 
   whose `codes` is non-empty MUST carry `retryable`, true only when every code is retryable. The
   commands that run a program a retry would run again MUST report false whatever their codes:
   `attempt run` once its child has run, `gate run` once its gate program has started, and a
-  supervised `run --role` once one of its supervisor transitions has committed (from the stage
-  dispatch on, including a failed refresh or program record afterwards), because a repeated run
-  no longer selects the attempt. A batch with `--count` reports false when any lane's failure is
-  not retryable. A
+  supervised `run --role` once its stage dispatch has committed (including a failed refresh or
+  program record afterwards), because a repeated run no longer selects the attempt. This lasts
+  until a committed `STOPPED` is read back in a phase the role selects again, as integration's
+  `READY_FOR_INTEGRATION` is. A `GRANT` and integration recovery leave the attempt selectable, so
+  their failures keep their codes' classification. A batch with `--count` reports false when any
+  failed lane is not retryable, by its mark or its code. A
   command that commits a first step it may then fail to finish MUST also report false, because a
   same-request retry replays that step without finishing it: `health` and `pool cleanup` once
   their preparation or cleanup receipt commits, and `pool sweep` once a fresh sweep commits its
@@ -1733,4 +1735,4 @@ read every envelope again, and no store, journal or receipt state depends on it.
 
 | Requirement | Evidence |
 | --- | --- |
-| CAL-V0-078 | `TestCALV0078_ClassificationCoversEveryCode`, `TestCALV0078_FencingNeverRetryable`, `TestCALV0078_ResultRetryablePresence`, `TestCALV0078_EnvelopeRetryableMember`, `TestCALV0078_WithoutRetryKeepsCode` (`internal/tasks/wire`); `TestCALV0078_RedoPendingReadIsRetryable`, `TestCALV0078_UnrecordedRunIsNotRetryable`, `TestCALV0078_ExecutedGateRunIsNotRetryable`, `TestCALV0078_CommittedSweepIsNotRetryable`, `TestCALV0078_MarkedErrorIsNotRetryable`, `TestCALV0078_AnyMarkedLaneMakesBatchNotRetryable` (`internal/tasks/cli`); `TestCALV0078_GateRunContentionAfterExecutionIsReported`, `TestCALV0078_PoolCommandReportsExecution`, `TestCALV0078_PreparedPoolCommandIsNotRetryable`, `TestCALV0078_SweepResponseLossAfterExecutionIsNotRetryable`, `TestCALV0078_SweepContentionBeforeOwnerCommitIsRetryable`, `TestCALV0078_SweepContentionBeforeObservationCommitIsNotRetryable`, `TestCALV0078_SupervisedGateRecordFailureIsNotRetryable`, `TestCALV0078_SupervisedCheckingFailureIsNotRetryable`, `TestCALV0078_SupervisedRunAfterCommitIsNotRetryable` (`internal/tasks/store`) |
+| CAL-V0-078 | `TestCALV0078_ClassificationCoversEveryCode`, `TestCALV0078_FencingNeverRetryable`, `TestCALV0078_ResultRetryablePresence`, `TestCALV0078_EnvelopeRetryableMember`, `TestCALV0078_WithoutRetryKeepsCode` (`internal/tasks/wire`); `TestCALV0078_RedoPendingReadIsRetryable`, `TestCALV0078_UnrecordedRunIsNotRetryable`, `TestCALV0078_ExecutedGateRunIsNotRetryable`, `TestCALV0078_CommittedSweepIsNotRetryable`, `TestCALV0078_MarkedErrorIsNotRetryable`, `TestCALV0078_AnyMarkedLaneMakesBatchNotRetryable` (`internal/tasks/cli`); `TestCALV0078_GateRunContentionAfterExecutionIsReported`, `TestCALV0078_PoolCommandReportsExecution`, `TestCALV0078_PreparedPoolCommandIsNotRetryable`, `TestCALV0078_SweepResponseLossAfterExecutionIsNotRetryable`, `TestCALV0078_SweepContentionBeforeOwnerCommitIsRetryable`, `TestCALV0078_SweepContentionBeforeObservationCommitIsNotRetryable`, `TestCALV0078_SupervisedGateRecordFailureIsNotRetryable`, `TestCALV0078_SupervisedCheckingFailureIsNotRetryable`, `TestCALV0078_SupervisedRunAfterCommitIsNotRetryable`, `TestCALV0078_IntegratorFailureBeforeLeavingSelectionIsRetryable` (`internal/tasks/store`) |

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"strings"
 	"testing"
 
@@ -97,8 +98,9 @@ func TestCALV0078_MarkedErrorIsNotRetryable(t *testing.T) {
 
 // TestCALV0078_AnyMarkedLaneMakesBatchNotRetryable: `program run --count N`
 // reports its first failed lane, but a repeat reruns every lane, so a later
-// lane's non-retryable failure makes the command not retryable even when the
-// reported one is retryable; idle and successful lanes do not.
+// lane's non-retryable failure, by its mark or by its code (an uncoded error is
+// MALFORMED), makes the command not retryable even when the reported one is
+// retryable; idle and successful lanes do not.
 func TestCALV0078_AnyMarkedLaneMakesBatchNotRetryable(t *testing.T) {
 	contended := wire.Errorf(wire.CodeLockTimeout, "lock", "lock acquisition exceeded 30s")
 	marked := wire.WithoutRetry(wire.Errorf(wire.CodeLockTimeout, "lock", "gate ran but was not recorded"))
@@ -109,6 +111,9 @@ func TestCALV0078_AnyMarkedLaneMakesBatchNotRetryable(t *testing.T) {
 	}{
 		{"retryable-then-marked", []error{contended, marked}, `"retryable":false`},
 		{"marked-then-retryable", []error{marked, contended}, `"retryable":false`},
+		{"retryable-then-uncoded", []error{contended, errors.New("program config differs")}, `"retryable":false`},
+		{"retryable-then-fenced", []error{contended, wire.Errorf(wire.CodeFenced, "fence", "attempt supervisor differs")}, `"retryable":false`},
+		{"retryable-then-retryable", []error{contended, wire.Errorf(wire.CodeSnapshotMoved, "head", "snapshot moved")}, `"retryable":true`},
 		{"retryable-then-idle", []error{contended, store.ErrProgramIdle}, `"retryable":true`},
 		{"retryable-then-success", []error{contended, nil}, `"retryable":true`},
 	} {

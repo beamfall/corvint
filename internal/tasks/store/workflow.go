@@ -36,8 +36,8 @@ type Workflow struct {
 	attempt *snapshot.Attempt
 	policy  *intent.Policy
 	record  *ticket.Record
-	// departed reports that a supervisor transition committed during the
-	// current RunRole, so the attempt has left the phase that selected it.
+	// departed reports that, during the current RunRole, the attempt left the
+	// phase that `run --role` selects and has not been seen back in it.
 	departed bool
 }
 
@@ -103,11 +103,33 @@ func (w *Workflow) step(action string, f transaction.SupervisorChange) error {
 	if e = transitionOK(r, e); e != nil {
 		return e
 	}
-	w.departed = true
+	if action == "DISPATCH" {
+		w.departed = true
+	}
 	if e = fault("refresh:" + action); e != nil {
 		return e
 	}
-	return w.refresh(context.Background())
+	if e = w.refresh(context.Background()); e != nil {
+		return e
+	}
+	if action == "STOPPED" {
+		w.departed = !reselected(w.attempt)
+	}
+	return nil
+}
+
+// reselected reports whether `run --role` for the attempt's stage selects it
+// again in its current phase; it mirrors the selection in cli/program.go.
+func reselected(a *snapshot.Attempt) bool {
+	switch a.Stage {
+	case "implement":
+		return !a.Live() || a.Phase == "ADMITTED" || a.Phase == "RETURNED" || a.Phase == "WAITING" && a.Supervision != nil && a.Supervision.Answer != ""
+	case "review":
+		return a.Phase == "BUILT"
+	case "integrate":
+		return a.Phase == "READY_FOR_INTEGRATION"
+	}
+	return false
 }
 func (w *Workflow) context(ctx context.Context, root, revision string) (json.RawMessage, error) {
 	if w.cfg.CoreExecutable == "" {
@@ -753,11 +775,14 @@ func fault(point string) error {
 	return runFault(point)
 }
 
-// RunRole runs one stage of the attempt. Once a supervisor transition of this
-// run has committed (the stage DISPATCH, and every later step), the attempt has
-// left the phase `run --role` selects, so a repeat skips it instead of finishing
-// the stage, its gates or the READY step: every error from then on is not
-// retryable, including a refresh or program-record failure (CAL-V0-078).
+// RunRole runs one stage of the attempt. Once the stage DISPATCH commits, the
+// attempt has left the phase `run --role` selects, so a repeat would skip it
+// instead of finishing the stage, its gates or the READY step: every error from
+// then on is not retryable, including a refresh or program-record failure,
+// unless the committed STOPPED left the attempt in a phase its role selects
+// again (integration returns to READY_FOR_INTEGRATION). A GRANT and integration
+// recovery leave the attempt selectable, so their errors stay as classified
+// (CAL-V0-078).
 func (w *Workflow) RunRole(ctx context.Context, role, grant string) (a *snapshot.Attempt, err error) {
 	w.departed = false
 	defer func() {

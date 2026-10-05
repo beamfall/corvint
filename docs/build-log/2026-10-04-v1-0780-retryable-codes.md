@@ -78,6 +78,19 @@ V1-0756 and V1-0781 branches, so this change uses the first ID none of them clai
   records) drive regressions. A failure before the dispatch commits leaves the attempt `BUILT`
   and stays retryable. With the commit mark removed, every committed case fails and the control
   passes. A two-lane selection test fails when only the first lane is consulted.
+- A sixth review found the round 5 rule too broad, and the batch rule too narrow. Marking on every
+  committed transition also caught an integrator `GRANT`. A `GRANT` only records approval and
+  leaves the attempt in `READY_FOR_INTEGRATION`, so a repeat can safely grant again and continue.
+  The batch rule read only the explicit mark, so an unmarked `MALFORMED` lane, such as a program
+  whose config differs, still left the batch retryable. The mark now starts at the stage dispatch
+  and is recomputed from the attempt read back after a committed `STOPPED`. The comparison
+  mirrors the CLI's per-role selection, so integration, which returns to
+  `READY_FOR_INTEGRATION`, clears it. A failed read-back keeps the mark. A batch now also counts a
+  lane whose code is not retryable. The new integrator regression grants, integrates and fails at
+  five points (after the `GRANT`, both `FINISHED` records, and after the integration intent and
+  completion commits). Each failure stays retryable, and a fresh workflow's retry lands the
+  integration. Restoring the round 5 rule fails all five cases. Without the code check, the batch
+  test fails.
 - Review also found `CAL-V0-078` defined outside `## Requirements`, where the OCM reader
   (`internal/lrfrepo` `requirementsFromBlob`) does not enumerate it. The normative text now sits in
   a Requirements subsection; a scratch enumeration of the spec lists it. `CAL-V0-073` (V1-0751)

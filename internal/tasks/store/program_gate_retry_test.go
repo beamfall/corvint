@@ -8,7 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/store"
+	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -113,9 +115,9 @@ func TestCALV0078_SupervisedCheckingFailureIsNotRetryable(t *testing.T) {
 	}
 }
 
-// TestCALV0078_SupervisedRunAfterCommitIsNotRetryable: once a supervisor
-// transition of a reviewer run commits, a repeated `run --role reviewer` no
-// longer selects the attempt, so a failure after that commit is not retryable:
+// TestCALV0078_SupervisedRunAfterCommitIsNotRetryable: once a reviewer run's
+// stage dispatch commits, a repeated `run --role reviewer` no longer selects
+// the attempt, so a failure after that commit is not retryable:
 // the refresh after DISPATCH or STOPPED, and either FINISHED program record
 // after review left the attempt CHECKING. A failure before DISPATCH commits
 // leaves the attempt BUILT and stays retryable (CAL-V0-078).
@@ -166,6 +168,74 @@ func TestCALV0078_SupervisedRunAfterCommitIsNotRetryable(t *testing.T) {
 			phase := f.s.attempt(t, id).Phase
 			if c.phase != "" && phase != c.phase || c.phase == "" && phase == "BUILT" {
 				t.Fatalf("stored phase after the failure at %s: %s", c.fail, phase)
+			}
+		})
+	}
+}
+
+// TestCALV0078_IntegratorFailureBeforeLeavingSelectionIsRetryable: a GRANT
+// only records approval, and the integration stage's STOPPED returns the
+// attempt to READY_FOR_INTEGRATION, which `run --role integrator` selects
+// again; so a failure after the GRANT or the integration intent commits keeps
+// its code's classification, and the retry finishes the integration
+// (CAL-V0-078).
+func TestCALV0078_IntegratorFailureBeforeLeavingSelectionIsRetryable(t *testing.T) {
+	for _, fail := range []string{"refresh:GRANT", "stage-finished", "role-finished", "refresh:INTEGRATE_INTENT", "refresh:INTEGRATED"} {
+		t.Run(strings.ReplaceAll(fail, ":", "-"), func(t *testing.T) {
+			f := buildProgramFixture(t, false, false, nil)
+			f.config.OwnIntegrationCheckout = true
+			self, err := os.Executable()
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx := context.Background()
+			open := func() *store.Workflow {
+				t.Helper()
+				w, err := store.OpenWorkflow(ctx, f.s.repo, operator(), "program", self, f.config, f.ticketID)
+				if err != nil {
+					t.Fatalf("open: %v", err)
+				}
+				return w
+			}
+			w := open()
+			if a, err := w.RunRole(ctx, "implementer", ""); err != nil || a.Phase != "BUILT" {
+				t.Fatalf("implement: %+v %v", a, err)
+			}
+			a, err := w.RunRole(ctx, "reviewer", "")
+			if err != nil || a.Phase != "READY_FOR_INTEGRATION" {
+				t.Fatalf("review: %+v %v", a, err)
+			}
+			rec := f.s.record(t, f.ticketID)
+			scope := transaction.IntegrationScope(a.BaseCommit, *a.CandidateTreeOid, "main")
+			grant := obj("grantId", str("g"), "actor", str("tester"), "operation", str("INTEGRATE"), "targetRevision", str(string(rec.AcceptanceRevision)), "scope", wire.Strings([]string{scope}))
+			if r := mutate(t, f.s.repo, envelope("grant-integrate", mutation.OpGrantApproval, f.ticketID, string(rec.Revision), grant)); r.Outcome.Outcome != mutation.OutcomeCompleted {
+				t.Fatalf("grant: %+v", r)
+			}
+			hit := 0
+			restore := store.SetRunFaultForTest(func(point string) error {
+				if point == fail {
+					hit++
+					return wire.Errorf(wire.CodeLockTimeout, "lock", "injected contention at %s", point)
+				}
+				return nil
+			})
+			_, err = w.RunRole(ctx, "integrator", "g")
+			restore()
+			if hit != 1 {
+				t.Fatalf("fault point %s reached %d times", fail, hit)
+			}
+			if wire.CodeOf(err) != wire.CodeLockTimeout || wire.RetryForbidden(err) {
+				t.Fatalf("failure at %s: %v (forbidden=%v, want retryable)", fail, err, wire.RetryForbidden(err))
+			}
+			if phase := f.s.attempt(t, a.AttemptID).Phase; phase != "READY_FOR_INTEGRATION" {
+				t.Fatalf("stored phase after the failure at %s: %s", fail, phase)
+			}
+			done, err := open().RunRole(ctx, "integrator", "g")
+			if err != nil {
+				t.Fatalf("retry after %s: %v", fail, err)
+			}
+			if head := multiGit(t, f.s.repo.PrimaryWorktree, "rev-parse", "HEAD"); done.Supervision == nil || done.Supervision.IntegrationCommit != head {
+				t.Fatalf("retry after %s did not integrate: head %s, attempt %+v", fail, head, done)
 			}
 		})
 	}
