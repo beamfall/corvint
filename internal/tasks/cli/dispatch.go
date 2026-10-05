@@ -271,6 +271,9 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 	o.Set("workers", wire.Value{Kind: wire.KindArray, Arr: workers})
 	o.Set("parked", wire.Strings(parked))
 	o.Set("cooling", wire.Value{Kind: wire.KindArray, Arr: cooling})
+	if held := dispatchEscalationPending(l); len(held) > 0 {
+		o.Set("escalationPending", wire.Strings(held))
+	}
 	if c.Escalates() {
 		o.Set("escalation", dispatchEscalationValue(c, l))
 	}
@@ -459,4 +462,22 @@ func leaseOutcome(r *wire.Result) error {
 		return nil
 	}
 	return fmt.Errorf("%s %s: %s", r.Outcome, strings.Join(r.Codes, ","), strings.Join(r.Warnings, "; "))
+}
+
+// dispatchEscalationPending lists, sorted, the tickets the dispatcher's last
+// native plan observation reported as ESCALATION_PENDING (ESC-V0-006). It is
+// the dispatcher's recorded observation, separate from parked keys: status
+// reads no native store, and the native claim path enforces the hold itself.
+func dispatchEscalationPending(l *dispatch.Ledger) []string {
+	if l.Seen == nil {
+		return nil
+	}
+	held := []string{}
+	for id, seen := range l.Seen.Tickets {
+		if f := strings.Split(seen, "|"); len(f) == 4 && f[3] == wire.CodeEscalationPending {
+			held = append(held, id)
+		}
+	}
+	sort.Strings(held)
+	return held
 }

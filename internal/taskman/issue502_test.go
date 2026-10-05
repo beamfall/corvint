@@ -187,9 +187,9 @@ func TestIssue502_PlannerBlocksUnmodelledConstraints(t *testing.T) {
 		{"none", "SELECTED", "", func(*captured) {}},
 		{"pool", "BLOCKED", "CAPABILITY_UNAVAILABLE", func(c *captured) { setMember(c.tickets[0].raw, "requiresPool", value(fixture, "requiresPool")) }},
 		{"roles", "BLOCKED", "CAPABILITY_UNAVAILABLE", func(c *captured) { setMember(c.tickets[0].raw, "requiredRoles", value(fixture, "requiredRoles")) }},
-		{"decision", "BLOCKED", "TICKET_STATE", nil},
-		{"scope", "BLOCKED", "TICKET_STATE", nil},
-		{"blocked", "BLOCKED", "TICKET_STATE", nil},
+		{"decision", "BLOCKED", "ESCALATION_PENDING", nil},
+		{"scope", "BLOCKED", "ESCALATION_PENDING", nil},
+		{"blocked", "BLOCKED", "ESCALATION_PENDING", nil},
 		{"infrastructure", "SELECTED", "", nil},
 		{"stale decision", "SELECTED", "", nil},
 	}
