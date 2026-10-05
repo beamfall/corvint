@@ -33,6 +33,8 @@
 package mutation
 
 import (
+	"strings"
+
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -276,6 +278,8 @@ var PayloadKeys = map[string][]string{
 	OpCompleteManual:  {"reason", "evidence"},
 	OpGrantApproval:   {"grantId", "actor", "operation", "targetRevision", "scope"},
 	OpRevokeApproval:  {"grantId", "reason"},
+	OpNoteSet:         {"text", "supersedes"},
+	OpNoteClear:       {"supersedes"},
 }
 
 // Decode parses and validates one mutation envelope (canonical bytes with
@@ -329,7 +333,7 @@ func Decode(data []byte) (*Envelope, error) {
 		if env.TargetID == nil {
 			return nil, wire.Errorf(wire.CodeMalformed, "/targetId", "%s requires a targetId", env.Operation)
 		}
-		if env.ExpectedRevision == nil {
+		if env.ExpectedRevision == nil && !IsNoteOperation(env.Operation) {
 			return nil, wire.Errorf(wire.CodeMalformed, "/expectedRevision", "%s requires an expectedRevision", env.Operation)
 		}
 		if env.TargetID.QueueID() != env.QueueID.Raw {
@@ -431,6 +435,8 @@ func decodePayload(op string, r *wire.Reader) (Payload, error) {
 	case OpRevokeApproval:
 		r.Closed(PayloadKeys[op]...)
 		p = &RevokeApprovalPayload{GrantID: r.Field("grantId").Label(), Reason: r.Field("reason").Prose(0, wire.MaxProseBytes)}
+	case OpNoteSet, OpNoteClear:
+		p = readNote(op, r)
 	default:
 		return nil, wire.Errorf(wire.CodeMalformed, r.Where(), "unknown operation %q", op)
 	}
@@ -792,6 +798,11 @@ func PayloadValue(p Payload) wire.Value {
 	case *RevokeApprovalPayload:
 		o.Set("grantId", wire.String(p.GrantID))
 		o.Set("reason", wire.String(p.Reason))
+	case *NotePayload:
+		if p.Op == OpNoteSet {
+			o.Set("text", wire.String(p.Text))
+		}
+		o.Set("supersedes", countOrNull(p.Supersedes))
 	}
 	return wire.ObjectValue(o)
 }
@@ -850,3 +861,41 @@ func ticketOrNull(t *wire.TicketID) wire.Value {
 	}
 	return wire.String(t.Raw)
 }
+
+// Operator-note operations (ON-V0-003). Their envelope may carry a null
+// expectedRevision; their payload never carries actor, time or history.
+const (
+	OpNoteSet   = "NOTE_SET"
+	OpNoteClear = "NOTE_CLEAR"
+)
+
+// IsNoteOperation reports whether op is NOTE_SET or NOTE_CLEAR.
+func IsNoteOperation(op string) bool { return op == OpNoteSet || op == OpNoteClear }
+
+// NotePayload is {text,supersedes} for NOTE_SET and {supersedes} for
+// NOTE_CLEAR. Supersedes nil is the unconstrained write; "0" means never noted.
+type NotePayload struct {
+	Op         string
+	Text       string
+	Supersedes *wire.Count
+}
+
+func (p *NotePayload) operation() string { return p.Op }
+
+func readNote(op string, r *wire.Reader) *NotePayload {
+	r.Closed(PayloadKeys[op]...)
+	p := &NotePayload{Op: op}
+	if op == OpNoteSet {
+		p.Text = r.Field("text").Prose(1, ticket.MaxOperatorNoteTextBytes)
+		if r.Err() == nil && strings.TrimSpace(p.Text) == "" {
+			r.Fail(wire.CodeMalformed, "note text must contain non-whitespace prose")
+		}
+	}
+	p.Supersedes = r.Field("supersedes").CountOrNull()
+	return p
+}
+
+// DeclaresDerivedEvent names the operations that may carry Plan.DerivedEvent.
+// Only NOTE_SET and NOTE_CLEAR do today. Before another operation is added
+// here, its redo and receipt audit must bind its event (ON-V0-006).
+func DeclaresDerivedEvent(op string) bool { return IsNoteOperation(op) }

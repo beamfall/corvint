@@ -73,6 +73,9 @@ func commandHelp(args []string) *wire.Result {
 	if name == "pool recover" || name == "pool confirm-safe" {
 		o.Set("note", wire.String("--reason is free-form prose (1..4096 bytes), not a closed release reason code."))
 	}
+	if name == "ticket note set" || name == "ticket note clear" {
+		o.Set("note", wire.String("Advisory operator prose; never instructions, acceptance or authority. Each note write retains a derived event, and receipt audit does not yet bind it per operation, so receipt audit reports this store's semantic coverage as UNKNOWN until that binding ships (ON-V0-006)."))
+	}
 	if name == "archive verify" {
 		o.Set("note", wire.String("Reads FILE, or stdin when FILE is absent or -. Help reads neither."))
 	}
@@ -116,12 +119,12 @@ var commandUsage = map[string]string{
 	"release list":      "corvint-tasks release list",
 	"release show":      "corvint-tasks release show RELEASE",
 	"release readiness": "corvint-tasks release readiness RELEASE",
-	"claim":             "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--role ROLE]",
-	"renew":             "corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N] [--role ROLE]",
-	"release":           "corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--evidence LOCAL_REF] [--lane-untouched] [--role ROLE]; release <create|update|candidate|record-gate|promote|list|show|readiness> --help",
+	"claim":             "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--timing] [--role ROLE]",
+	"renew":             "corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N] [--timing] [--role ROLE]",
+	"release":           "corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--evidence LOCAL_REF] [--lane-untouched] [--timing] [--role ROLE]; release <create|update|candidate|record-gate|promote|list|show|readiness> --help",
 	"reap":              "corvint-tasks reap --request-id ID [--attempt ID --generation G] [--role ROLE]",
 	"widen":             "corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository) [--role ROLE]",
-	"attempt heartbeat": "corvint-tasks attempt heartbeat --attempt ID --generation G --request-id ID [--role ROLE]",
+	"attempt heartbeat": "corvint-tasks attempt heartbeat --attempt ID --generation G --request-id ID [--timing] [--role ROLE]",
 	"attempt show":      "corvint-tasks attempt show <attemptId>",
 	"plan preview":      "corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--selected-only]",
 	"submit":            "corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID [--role ROLE]",
@@ -138,6 +141,12 @@ var commandUsage = map[string]string{
 	"dispatch":          "corvint-tasks dispatch --program ID --config FILE [--once | --ticks N]; dispatch <status|unpark> --help",
 	"dispatch status":   "corvint-tasks dispatch status --program ID --config FILE [--events N]",
 	"dispatch unpark":   "corvint-tasks dispatch unpark --program ID --config FILE --key TICKET|lane:POOL/MEMBER",
+	"service install":   "corvint-tasks service install --program ID --config SERVICE_JSON --request-id ID [--replace]",
+	"service status":    "corvint-tasks service status --program ID",
+	"service uninstall": "corvint-tasks service uninstall --program ID --request-id ID",
+	"service stop":      "corvint-tasks service stop --program ID --request-id ID [--drain]   (--drain is UNSUPPORTED in this slice)",
+	"service resume":    "corvint-tasks service resume --program ID --request-id ID",
+	"service run":       "corvint-tasks service run --program ID --manifest FILE   (manager-started foreground main; not for interactive use)",
 	"config":            "corvint-tasks config (execution NOT_RUN)",
 	"plan record":       "corvint-tasks plan record (execution NOT_RUN)",
 	"receipt show":      "corvint-tasks receipt show (execution NOT_RUN)",
@@ -152,6 +161,9 @@ func init() {
 	for _, verb := range []string{"run", "admit", "resume", "retry", "drain", "cancel", "answer"} {
 		commandUsage[verb] = "corvint-tasks " + verb + " --program ID --config FILE [--role implementer|reviewer|integrator] [--count N] [--ticket ID] [--host codex] [--grant FILE] [--question SHA256] [--revision N] [--answer TEXT]"
 	}
+	commandUsage["ticket note set"] = "corvint-tasks ticket note set <ticketId|local> --request-id ID (--text TEXT | --text-stdin) [--supersedes N] [--expected-revision N] [--issued-at TS] [--role OWNER|OPERATOR]"
+	commandUsage["ticket note clear"] = "corvint-tasks ticket note clear <ticketId|local> --request-id ID [--supersedes N] [--expected-revision N] [--issued-at TS] [--role OWNER|OPERATOR]"
+	commandUsage["ticket note show"] = "corvint-tasks ticket note show <ticketId|local>"
 	commandUsage["run"] += "; corvint-tasks run --attempt ID --generation G --timeout SECONDS [--lease-minutes N] [--role ROLE] -- COMMAND..."
 }
 
