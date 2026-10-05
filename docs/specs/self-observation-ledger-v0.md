@@ -96,7 +96,7 @@ local append-only diagnostic proposal stream and `corvint observations` is its r
   `native-hook`, which runs it) records no `unsupported` row, so no adapter code is admitted here
   (its post-root degradations are `SOL-V0-010` rows): its
   source-view and handoff refusals (`unsupported-text`, `unsupported-requirement`) fall under
-  `ESV-V0-003`, which forbids ledger state, and every `unsupported-hook-event` exit (`AHI-009`)
+  `ESV-V0-003`, which forbids ledger state, and every degraded `unsupported-hook-event` exit (`AHI-009`)
   precedes repository-root resolution, so a row would need a ledger location guessed from the
   process environment (invariant 2). The code already reaches the host in the degraded
   `systemMessage`, and an append would wait on the ledger's blocking lock inside the two-second
@@ -136,7 +136,8 @@ local append-only diagnostic proposal stream and `corvint observations` is its r
   handle stays `{}` and, once its absolute `cwd` lies inside a Git repository, is recorded as event
   `unrecognised` with code `unsupported-hook-event`; the host's event name is never recorded. A
   Claude Code `post-tool` Edit, Write or NotebookEdit target outside the project stays silent
-  (`AHI-019`) and is recorded as `post-tool-path-not-project-relative`, without the path.
+  (`AHI-019`) and is recorded as `post-tool-path-not-project-relative`, without the path, unless
+  its `harness event` call failed, which records that degradation instead.
   `SOL-V0-001`'s ignore and symlink refusals and `SOL-V0-002`/`003`'s
   bounds apply unchanged. The append MUST NOT alter the hook output or exit status and waits no
   longer than the later of the invocation's work deadline and 50 ms, so a

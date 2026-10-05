@@ -285,7 +285,7 @@ func runCodexAdapter(ctx context.Context, payload map[string]any) (hookOutput ma
 	event, ok := events[eventName]
 	if !ok {
 		// An event this adapter does not handle stays non-blocking `{}` (AHI-044), but is
-		// recorded once its cwd resolves to a repository root (SOL-V0-010, V1-0746).
+		// recorded once its absolute cwd lies inside a repository (SOL-V0-010, V1-0746).
 		if root, _ := payload["cwd"].(string); filepath.IsAbs(root) && insideGitRepository(root) {
 			recordAdapterReason(ctx, root, "codex", "unrecognised", "unsupported-hook-event")
 		}
@@ -349,8 +349,9 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 	if event == "file-change" || event == "post-tool" {
 		silent := event == "post-tool" && postToolChangeOutOfRoot(root, payload)
 		output := invokeLegacyClaudeEvent(ctx, root, event, normalized, silent)
-		if silent {
-			// The out-of-root target stays silent (AHI-019) but is ledgered (SOL-V0-010, V1-0746).
+		if silent && len(output) == 0 {
+			// The out-of-root target stays silent (AHI-019) but is ledgered (SOL-V0-010, V1-0746);
+			// a failed receipt is already recorded as its own degradation.
 			recordAdapterReason(ctx, root, "claude-code", event, "post-tool-path-not-project-relative")
 		}
 		return output

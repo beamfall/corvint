@@ -324,9 +324,10 @@ do not reinterpret this Frontier result.
   also expected (decision 0379): the adapter MUST keep that structured code at `console.info`
   rather than emit a warning. Two path abstentions are expected and named at `console.info`
   (V1-0746): `post-tool-path-not-project-relative` when a completed tool call reports a non-empty
-  path that `normalizeRepositoryPath` rejects, and `changed-paths-truncated`, at most once per
-  session for `post-tool` and once per `file-change` batch, when a new path is dropped at the
-  256-path cap. OpenCode has no `SOL-V0-010` writer, so neither is a ledger row. The changed paths of a completed built-in tool call come from its
+  path that `normalizeRepositoryPath` would examine and rejects, and `changed-paths-truncated` when
+  a path is dropped at a 256-path cap: on `post-tool` for each call whose target or
+  `metadata.corvint.changedPaths` list, or their union, exceeds it, at most once per session when
+  the session set is full, and once per `file-change` batch. OpenCode has no `SOL-V0-010` writer, so neither is a ledger row. The changed paths of a completed built-in tool call come from its
   `execute.after` payload: `write` from `result.output.target`, `patch` from
   `result.output.applied[].target`, and `edit` from `input.path` resolved against
   `location.directory`; the code-mode `execute` call is skipped, because each inner tool call fires
@@ -968,7 +969,7 @@ there, which is the whole of what the row asserts.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:950@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
+| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:951@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
 | `canonical-json-failed` | `internal/gokernel/harness.go:458` | "cannot encode receipt basis" |
 | `compaction-block-unavailable` | `cmd/corvint/host_adapter_compaction.go:119@e26bd5d6` | Claude adapter: the compact `session-start` receipt carries no `context.compaction` block, or its revision is not a Git object ID |
 | `compaction-pin-not-preserved` | `cmd/corvint/host_adapter_compaction.go:88@5fbc4775` | Claude adapter: `compact_summary` holds no pin line whose every field re-validates |
@@ -981,7 +982,7 @@ there, which is the whole of what the row asserts.
 | `invalid-harness-adapter` | `internal/gokernel/harness.go:70` | "invalid <label>" |
 | `invalid-harness-budget` | `internal/gokernel/harness.go:340` | "harness budget must be at least <value> bytes" |
 | `invalid-repository-root` | `internal/gokernel/harness.go:376` | "cannot resolve repository root" |
-| `malformed-corvint-output` | `cmd/corvint/host_adapter.go:669@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
+| `malformed-corvint-output` | `cmd/corvint/host_adapter.go:670@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
 | `project-root-unavailable` | `cmd/corvint/host_adapter.go:332@2100b4c9` | Claude adapter: the project root (`CLAUDE_PROJECT_DIR`, else the working directory) cannot be made absolute; the degraded `systemMessage` names this reason |
 | `qualification-in-progress` | `internal/opencodequalification/record.go:406` | AHI-032: the producer atomically writes the active record as `INCOMPLETE` after preserving any previous record; integration support stays `UNQUALIFIED` until complete passing evidence replaces it |
 | `repository-identity-malformed` | `internal/gokernel/repository.go:178` | "Git object identity is malformed" |

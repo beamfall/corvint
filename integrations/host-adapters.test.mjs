@@ -472,6 +472,10 @@ test('AHI-022 V1-0746 OpenCode names the path cap and an out-of-project path at 
  assert.equal(infos.filter(v=>v.includes('post-tool-path-not-project-relative')).length,0)
  await host.hooks['execute.after']({...patched('call-3',[]),result:{output:{applied:[{target:'/elsewhere/outside.js'}]}}})
  assert.equal(infos.filter(v=>v.includes('post-tool-path-not-project-relative')).length,1);assert.deepEqual(warnings,[])
+ // A single call past the per-call bound is named too, although its session set and batch hold exactly 256.
+ const truncations=()=>infos.filter(v=>v.includes('changed-paths-truncated')).length,before=truncations()
+ await host.hooks['execute.after']({...patched('call-4',Array.from({length:300},(_,i)=>`big/f${i}.js`)),sessionID:'session-big'})
+ assert.equal(truncations(),before+1);assert.deepEqual(warnings,[])
  await host.emit('session.execution.succeeded',{sessionID:'session-cap'})
  assert.equal(f.captured().filter(r=>event(r)==='stop').at(-1).input.changedPaths.length,256)
 })

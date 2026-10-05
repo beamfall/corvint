@@ -18,13 +18,15 @@ The fail-open policy (`AHI-044`, V1-0711) is unchanged: every output stays non-b
   now records `post-tool-path-not-project-relative`, without the path.
   - Both cases go through `recordAdapterReason`, which was split out of
     `recordAdapterDegradation` so a code can be recorded without a degraded hook output. The
-    append keeps that function's deadline and deduplication bounds.
+    append keeps that function's deadline and deduplication bounds. A failed `harness event` call
+    on an out-of-project target records only its own degradation.
   - `internal/observations` admits the new event label and both codes.
 - **OpenCode.** The plugin now names two codes at `console.info` (`AHI-022`):
   - `post-tool-path-not-project-relative` when a completed tool call reports a non-empty path
     that `normalizeRepositoryPath` rejects;
-  - `changed-paths-truncated` when a new path is dropped at the 256-path cap, at most once per
-    session (`post-tool`) and once per `file-change` batch.
+  - `changed-paths-truncated` when a path is dropped at a 256-path cap: on each call whose own
+    path lists or their union exceed it, at most once per session when the session set is full,
+    and once per `file-change` batch.
 - Specs amended in place: `SOL-V0-010` (with its failure-modes row), `AHI-019` and `AHI-022`.
 
 ### Evidence
@@ -40,13 +42,17 @@ The fail-open policy (`AHI-044`, V1-0711) is unchanged: every output stays non-b
   - each truncation is named once;
   - there are no warnings;
   - the batch and the stop input carry exactly 256 paths;
-  - an outside target is named once.
+  - an outside target is named once;
+  - a single 300-target call is named once more, although its session set and batch hold
+    exactly 256.
 
 ### Limits
 
 - OpenCode is an in-process JavaScript plugin with no `SOL-V0-010` writer. Its two codes reach the
   OpenCode server log, not the self-observation ledger. A ledger row for OpenCode would need a new
   Core input and is NOT_PRODUCED here.
-- `boundedPaths` still drops entries past its own 256-item slice of a single call without a code.
-  Only paths it admitted but that the session set or batch cannot hold are reported.
+- AC1 is met for the Go adapters only. OpenCode's abstentions are named, but not ledgered; the
+  ledger input it would need is a follow-up ticket.
+- Entries past the 256-item slice of one list are counted as truncation without being examined,
+  so a duplicate or invalid entry past the slice also triggers `changed-paths-truncated`.
 - Real hosts remain NOT_OBSERVED.
