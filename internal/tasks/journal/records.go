@@ -189,7 +189,7 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 	var boundRequest *snapshot.Request
 	var target *ticket.Record
 	notes := r.noteAudit(st, rc)
-	escalations := r.escalationAudit(st, rc)
+	escalations := r.escalationAudit(st, rc, digest)
 	for j, p := range rc.Post {
 		prior := canonical[p.Path]
 		if strings.HasPrefix(p.Path, "requests/") && prior.seq != "" {

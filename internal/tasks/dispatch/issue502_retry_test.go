@@ -512,8 +512,9 @@ func TestESCV0007_LedgerInfraRetryIsStrict(t *testing.T) {
 }
 
 // ESC-V0-008: unreadable escalation material is UNKNOWN, never progress: a
-// changed revision under it neither recovers the episode nor counts as a
-// session's progress.
+// changed revision under it does not recover the episode, and the ticket is
+// not launched while it lasts, so no worker captures the raw revision as its
+// baseline and later counts the material's recovery as progress.
 func TestESCV0008_UnknownMaterialIsNotProgress(t *testing.T) {
 	x := newIssue502(t, testConfig(t, "exit 0"), 3)
 	defer x.d.Close()
@@ -525,7 +526,10 @@ func TestESCV0008_UnknownMaterialIsNotProgress(t *testing.T) {
 		t.Fatalf("unknown material recovered the episode: %+v", e)
 	}
 	x.clock = x.clock.Add(10 * time.Second)
-	x.session(nil)
+	x.tick(0) // held: no launch while the material is unknown
+	x.q.obs.Tickets[0].Revision, x.q.obs.Tickets[0].EscalationUnknown = "1", false
+	x.tick(1)
+	waitEnded(t, x.d)
 	if err := x.d.Tick(context.Background()); err != nil {
 		t.Fatal(err)
 	}

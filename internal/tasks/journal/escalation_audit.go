@@ -31,6 +31,11 @@ type escalationAudit struct {
 	policy  bool
 	// grants is the audited pre-policy, read when the receipt is bound.
 	grants *intent.Policy
+	// digest is the receipt's own digest; admitted and admittedSha are a
+	// claim admission's POST attempt and its digest.
+	digest      wire.Digest
+	admitted    []byte
+	admittedSha wire.Digest
 	// others counts posts that are neither a ticket, the policy, an
 	// escalation event nor a request-index afterimage.
 	others int
@@ -44,10 +49,22 @@ type escalationState struct {
 	// sources is each walked question's immutable source, bound when its
 	// OPEN event was audited.
 	sources map[string]map[string]ticket.EscalationSource
+	// from is the first walked receipt sequence; admissions is each walked
+	// successful claim admission by sequence. Receipts are bounded by the
+	// store scan, so admissions are too.
+	from       uint64
+	admissions map[uint64]admission
 }
 
-func (r Reader) escalationAudit(st *chain, rc *snapshot.Receipt) *escalationAudit {
-	return &escalationAudit{r: r, st: st, rc: rc}
+// admission is the source a walked ADMIT receipt proves, as the writer's
+// auditedClaim reads it from the POST attempt.
+type admission struct {
+	source     ticket.EscalationSource
+	supervised bool
+}
+
+func (r Reader) escalationAudit(st *chain, rc *snapshot.Receipt, digest wire.Digest) *escalationAudit {
+	return &escalationAudit{r: r, st: st, rc: rc, digest: digest}
 }
 
 // isEscalationEvent reports an evidence post that decodes as a typed
@@ -62,6 +79,9 @@ func isEscalationEvent(p string, raw []byte) bool {
 }
 
 func (a *escalationAudit) observe(j int, p snapshot.PostEntry, prior latest, raw []byte) {
+	if a.rc.Kind == "ADMIT" && a.rc.AttemptID != nil && p.Path == "attempts/"+*a.rc.AttemptID+".json" && p.Sha256 != nil && raw != nil {
+		a.admitted, a.admittedSha = raw, *p.Sha256
+	}
 	switch {
 	case strings.HasPrefix(p.Path, "intent/tickets/"):
 		a.tickets = append(a.tickets, notePost{path: p.Path, index: j, prior: prior, raw: raw})
@@ -90,8 +110,9 @@ func encodedRefs(rec *ticket.Record) ([]byte, error) {
 // post, reused rather than decoded again.
 func (a *escalationAudit) bind(req *snapshot.Request, target *ticket.Record) error {
 	if a.st.escalations == nil {
-		a.st.escalations = &escalationState{refs: map[string][]byte{}, sources: map[string]map[string]ticket.EscalationSource{}}
+		a.st.escalations = &escalationState{refs: map[string][]byte{}, sources: map[string]map[string]ticket.EscalationSource{}, from: a.rc.Seq.Uint64(), admissions: map[uint64]admission{}}
 	}
+	a.admit()
 	posts := make([][]byte, len(a.tickets))
 	for i, t := range a.tickets {
 		if t.raw == nil {
@@ -137,6 +158,22 @@ func (a *escalationAudit) bind(req *snapshot.Request, target *ticket.Record) err
 		a.st.escalations.refs[t.path] = posts[i]
 	}
 	return nil
+}
+
+// admit records a completed claim admission (ADMIT is written only by CLAIM
+// and CLAIM_NEXT) with the source the writer reads from its POST attempt. An
+// attempt that does not decode as the receipt's attempt records nothing, so
+// no OPEN can name it.
+func (a *escalationAudit) admit() {
+	rc := a.rc
+	if a.admitted == nil || rc.Outcome != mutation.OutcomeCompleted || rc.Generation == nil {
+		return
+	}
+	at, err := snapshot.DecodeAttempt(a.admitted)
+	if err != nil || at.AttemptID != *rc.AttemptID || at.Generation != *rc.Generation || at.Lease == nil {
+		return
+	}
+	a.st.escalations.admissions[rc.Seq.Uint64()] = admission{supervised: at.Supervision != nil, source: ticket.EscalationSource{QueueID: a.r.QueueID.Raw, TicketID: at.TicketID.Raw, AttemptID: at.AttemptID, Generation: at.Generation, Holder: at.Lease.Holder, AcceptanceRevision: at.TicketRevision, ReceiptSequence: rc.Seq, ReceiptSha256: a.digest, PostAttemptSha256: a.admittedSha, TicketRecordSha256: at.TicketRecordSha256}}
 }
 
 // bindEvents proves the one escalation receipt shape the native writer
@@ -381,6 +418,9 @@ func (a *escalationAudit) bindRefs(req *snapshot.Request, pre, post *ticket.Reco
 			if e != (ticket.EscalationRef{RequestID: e.RequestID, OriginSha256: d, HeadSha256: d, Revision: "1", AcceptanceRevision: pre.AcceptanceRevision, Kind: request.Open.Kind, State: "OPEN"}) {
 				return escalationForked(path, "request %s entry differs from its OPEN event", e.RequestID)
 			}
+			if err := a.admittedSource(path, e.RequestID, ev.Source); err != nil {
+				return err
+			}
 			opened[e.RequestID] = ev.Source
 		}
 		used++
@@ -399,6 +439,23 @@ func (a *escalationAudit) bindRefs(req *snapshot.Request, pre, post *ticket.Reco
 		for id, src := range opened {
 			sources[id] = src
 		}
+	}
+	return nil
+}
+
+// admittedSource proves an OPEN's source is a walked successful claim
+// admission, exactly as the writer audited it, of an unsupervised attempt. An
+// admission before the first walked receipt falls back to the complete audit.
+func (a *escalationAudit) admittedSource(path, id string, src ticket.EscalationSource) error {
+	seq := src.ReceiptSequence.Uint64()
+	adm, ok := a.st.escalations.admissions[seq]
+	switch {
+	case !ok && seq < a.st.escalations.from:
+		return errCheckpoint(path, "escalation admission precedes the checkpoint")
+	case !ok || adm.source != src:
+		return escalationForked(path, "request %s source is not a recorded claim admission", id)
+	case adm.supervised:
+		return escalationForked(path, "request %s source is a supervised claim", id)
 	}
 	return nil
 }

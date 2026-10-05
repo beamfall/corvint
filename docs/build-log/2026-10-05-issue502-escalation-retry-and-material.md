@@ -73,9 +73,9 @@ slot and Rollout sections are updated in this change.
 
 ## Limits
 
-- **Claim receipt not re-read:** the journal does not re-read the claim receipt to verify its
-  digest; the writer verified it before commit. The journal checks the source's queue, ticket,
-  acceptance and holder, and that the source sequence precedes the receipt.
+- **Claim admission bound by the walk (round 5):** the journal records each walked completed ADMIT
+  receipt's source and requires an OPEN's source to equal it. An admission before a checkpoint
+  falls back to the full audit.
 - **Coverage stays UNKNOWN in lease stores:** ADMIT receipts' `attempts/` and `reservations.json`
   posts keep store-level semantic coverage UNKNOWN. That predates this slice. Event coverage is
   asserted at the journal level.
@@ -90,7 +90,7 @@ slot and Rollout sections are updated in this change.
   - `TestESCV0007_*`: 14 tests in `internal/tasks/dispatch/issue502_retry_test.go` and
     `internal/tasks/cli/dispatch_escalation_pending_internal_test.go`.
   - `TestESCV0008_*`: 6 tests across dispatch and cli.
-  - `TestESCV0010_*`: 7 tests in `internal/tasks/journal` and `internal/tasks/store`.
+  - `TestESCV0010_*`: 8 tests in `internal/tasks/journal` and `internal/tasks/store`.
 - **Mutation check:** disabling `escalations.bind` in `journal/records.go` failed 10 subtests and
   tests (every forgery, the redo and the checkpoint case). The original was then restored.
 - **Package run:** the full `./internal/tasks/... ./cmd/corvint-tasks/...` run is retained in the
@@ -173,6 +173,22 @@ fixed with regressions that fail without the fix:
 - **P3, cooldown overflow:** `cooldownSeconds: 9223372037` overflowed `time.Duration` negative and
   passed validation. The raw seconds are now bounded before conversion. Regression: the
   `cooldown overflows` and `cap overflows` cases of `TestESCV0007_ConfigBounds`; the first fails
+  without the fix.
+
+Round 5 (over `d524530f..ae436923`) reported two P2 findings. Both were verified and fixed with
+regressions that fail without the fix:
+
+- **P2, unknown material launched:** a ticket with `EscalationUnknown` kept its raw revision but
+  was still assigned, so its worker fingerprinted the raw revision; when the material became
+  readable the effective revision differed and counted as progress, clearing backoff and
+  recovering the episode. The roster now holds such a ticket. Regression: the extended
+  `TestESCV0008_UnknownMaterialIsNotProgress`, which fails with one running worker without the fix.
+- **P2, OPEN admission not validated:** an OPEN's source receipt digest, POST attempt digest and
+  generation were never bound to a historical admission, so a consistently rewritten source
+  audited clean and could authorize pending-receipt redo. The walk now records each completed
+  ADMIT receipt's source, as the writer's `auditedClaim` reads it from the POST attempt, and an
+  OPEN's source must equal it and be unsupervised. The record is bounded by the receipt scan.
+  Regression: `TestESCV0010_OpenSourceIsARecordedAdmission`; all four subtests audit clean
   without the fix.
 
 ## NOT_RUN

@@ -316,6 +316,37 @@ func TestESCV0010_RetainedRequestPreconditionsAreAudited(t *testing.T) {
 	})
 }
 
+// TestESCV0010_OpenSourceIsARecordedAdmission: an OPEN whose source and
+// retained request are consistently rewritten, with every digest that names
+// them rehashed and the request entry rebound, is refused unless the source is
+// exactly a walked completed claim admission, as the writer audits it.
+func TestESCV0010_OpenSourceIsARecordedAdmission(t *testing.T) {
+	cases := map[string]func(*ticket.EscalationSource){
+		"receipt digest":      func(src *ticket.EscalationSource) { src.ReceiptSha256 = wire.Sum([]byte("forged")) },
+		"post attempt digest": func(src *ticket.EscalationSource) { src.PostAttemptSha256 = wire.Sum([]byte("forged")) },
+		"generation":          func(src *ticket.EscalationSource) { src.Generation = wire.Size("9") },
+		"not an admission":    func(src *ticket.EscalationSource) { src.ReceiptSequence = wire.Size("1") },
+	}
+	for name, edit := range cases {
+		t.Run(name, func(t *testing.T) {
+			s, _, src := escalationClaim(t)
+			open := escalate(t, s, holder, openRequest(t, "q-1", src, "", ""), 1)
+			committed(t, open, "OPEN")
+			if _, err := noteAudit(t, s.repo); err != nil {
+				t.Fatalf("audit before forgery: %v", err)
+			}
+			forgeEvent(t, s, open.Receipt, true, func(ev *ticket.EscalationEvent) {
+				edit(&ev.Source)
+				ev.OriginalRequest.Open.Source = ev.Source
+			})
+			_, err := noteAudit(t, s.repo)
+			if wire.CodeOf(err) != wire.CodeJournalForked || !strings.Contains(err.Error(), "not a recorded claim admission") {
+				t.Fatalf("audit after forgery = %v, want JOURNAL_FORKED naming the admission", err)
+			}
+		})
+	}
+}
+
 // TestESCV0010_RedoBindsAPendingEscalationReceipt: a linked-in OPEN whose head
 // and projection were not yet published is refused for redo when its ticket
 // post was forged, and nothing is published (the unforged redo is

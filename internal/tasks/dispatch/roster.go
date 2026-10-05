@@ -56,7 +56,8 @@ type Ticket struct {
 	Requests []EscalationRequest
 	// EscalationUnknown marks a ticket whose escalation material could not
 	// be validated: its revision is the raw content revision and its
-	// sessions classify as unknown, never as progress (ESC-V0-008).
+	// sessions classify as unknown, never as progress, and the roster does
+	// not assign it until the material is readable again (ESC-V0-008).
 	EscalationUnknown bool
 }
 
@@ -322,6 +323,12 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 }
 
 func matches(m *Match, t Ticket) bool {
+	if t.EscalationUnknown {
+		// Held while the escalation material is unreadable: a worker launched
+		// now would fingerprint the raw revision and count the material's
+		// later recovery as progress (ESC-V0-008).
+		return false
+	}
 	if t.RequiresPool != m.Pool {
 		return false // a worker claiming without the ticket's pool is refused (CAL-V0-097)
 	}
