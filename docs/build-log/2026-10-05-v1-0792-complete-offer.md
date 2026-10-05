@@ -44,8 +44,9 @@ Requirements: `ERG-V0-011` in `docs/specs/corvint-tasks-external-reviews-v0.md`,
   queue with required executable gates.
 - A DEFERRED plan entry may still offer. A resource collision with other work or the attempt limit
   is not a fact about the ticket, and it does not block a manual completion.
-- `queue status`, `roadmap` and `plan preview --selected-only` are unchanged and still report
-  `admit` for an offered ticket.
+- `queue status` and `roadmap` are unchanged and still report `admit` for an offered ticket. The
+  `plan preview --selected-only` projection is also unchanged; it lists selected IDs and counts and
+  has no per-ticket `nextAction`.
 
 ### Evidence
 
