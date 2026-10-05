@@ -26,6 +26,7 @@ type chain struct {
 	genesisQueue  []byte
 	selectedBytes int
 	notes         *noteState
+	escalations   *escalationState
 }
 
 // statePath names the private mutable state SelectState retains.
@@ -188,6 +189,7 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 	var boundRequest *snapshot.Request
 	var target *ticket.Record
 	notes := r.noteAudit(st, rc)
+	escalations := r.escalationAudit(st, rc)
 	for j, p := range rc.Post {
 		prior := canonical[p.Path]
 		if strings.HasPrefix(p.Path, "requests/") && prior.seq != "" {
@@ -201,6 +203,7 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 			return err
 		}
 		notes.observe(j, p, prior, post)
+		escalations.observe(j, p, prior, post)
 		if post != nil {
 			coverage, descriptor, err := r.validateRecord(p.Path, post, rc)
 			if err != nil {
@@ -283,6 +286,9 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 		return err
 	}
 	if err := notes.bind(boundRequest, target); err != nil {
+		return err
+	}
+	if err := escalations.bind(boundRequest, target); err != nil {
 		return err
 	}
 	if seq == 1 {
@@ -392,7 +398,7 @@ func (r Reader) validateRecord(p string, raw []byte, rc *snapshot.Receipt) (bool
 		return true, nil, nil
 	}
 	if strings.HasPrefix(p, "evidence/") {
-		return isOperatorNoteEvent(p, raw), nil, nil
+		return isOperatorNoteEvent(p, raw) || isEscalationEvent(p, raw), nil, nil
 	}
 	v, err := wire.Parse(raw)
 	if err != nil {

@@ -46,6 +46,27 @@ type Ticket struct {
 	// implement, review, integrate, STALE, or NONE when none is observed.
 	// It comes from the native queue, never from a workState program.
 	NextStage string
+	// AcceptanceRevision keys the ESC-V0-007 infrastructure retry episode.
+	// Only the native observation supplies it.
+	AcceptanceRevision string
+	// Requests are the ESC-V0-008 typed escalation requests of the current
+	// acceptance revision that are OPEN or ANSWERED, each with the holder
+	// that raised it, from validated native material. A workState program
+	// cannot supply them.
+	Requests []EscalationRequest
+	// EscalationUnknown marks a ticket whose escalation material could not
+	// be validated: its revision is the raw content revision and its
+	// sessions classify as unknown, never as progress (ESC-V0-008).
+	EscalationUnknown bool
+}
+
+// EscalationRequest is one typed escalation request as the dispatcher
+// classifies sessions by it: its ID, kind (decision, infrastructure, scope
+// or blocked), state, the holder of the attempt that raised it and when it
+// was opened.
+type EscalationRequest struct {
+	ID, Kind, State, Holder string
+	Opened                  time.Time
 }
 
 // LoopHold is a CAL-V0-102 hold as the dispatcher records it: the signal,
