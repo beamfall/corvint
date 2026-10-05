@@ -36,8 +36,10 @@ amendment A19. The ID is at least three above CAL-V0-073, the highest on
 `taskman-plan/0` gains an optional member and a pool-ID blocker in `DEFERRED` entries. Neither
 appears unless the policy declares pools and the plan is the default one, so existing plan bytes
 are unchanged. Following the A9/A15 additive /0 pattern there is no profile bump (A19). Core's
-closed history decoder (`internal/taskman/decode.go` `decodePlan`) refuses such plans rather than
-dropping fields, so it fails closed. This needs owner confirmation.
+closed history decoder (`internal/taskman/decode.go` `decodePlan`) refused such plans in the first
+revision (4ee27f86), which was recorded as needing owner confirmation. That limitation is resolved:
+the round-two fix (b4aa8599) teaches `decodePlan` the optional member and pool blockers; see Core
+compatibility below.
 
 ### Non-goals
 
