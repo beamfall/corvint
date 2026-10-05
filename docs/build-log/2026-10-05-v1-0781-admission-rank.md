@@ -182,6 +182,17 @@ These checks pass under a private TMPDIR:
   and the cli tests `TestCALV0095`.
 - The four Linux container configurations.
 
+### Review outcome (Codex round 4)
+
+On head 9e5cdb0e, Codex returned APPROVE with no findings. It confirmed two things:
+
+- `commonDirStillNamed` rejects both a replacement by a fresh directory and a replacement by a
+  symlink.
+- Every successful observation reaches that check.
+
+The `syscall.Dup2` linux/arm64 build failure seen in `internal/postmergehost` comes from the base
+and is outside this change. The V1-0645 Dup3 change (7d2918ae) fixes it in the batch.
+
 ### NOT_RUN and limits
 
 - Not run:
@@ -192,7 +203,7 @@ These checks pass under a private TMPDIR:
   - Linux filesystems other than overlayfs and tmpfs, and network filesystems;
   - an initial-namespace reader observing a real writer in another PID namespace;
   - Darwin OFD-style locks, which are unqualified;
-  - the Codex re-review, and the CEM bind and seal, which the orchestrator runs.
+  - a Codex review of the CEM bind and seal commits themselves.
 
 Rollback: remove the `preparationAdmission` field and the `preparation_observe*` files. No store,
 wire profile or coordination file depends on them.
