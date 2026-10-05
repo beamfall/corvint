@@ -158,6 +158,22 @@ only helps tickets that record `requiresPool`: a ticket that waits for an enviro
 declaring it is planned as lane-free and still fills the window (open bugs V1-0754, V1-0758 and
 V1-0759). Record `requiresPool` on create or refine for every ticket that needs a member.
 
+A pool may opt into priority-yield admission (CAL-V0-101) with `"priorityAdmission":true`:
+
+```json
+{"pools":[{"id":"test-env","members":["env-0","env-1"],"priorityAdmission":true}]}
+```
+
+Then an explicit `claim <ticket> --pool test-env` is refused `BLOCKED RESOURCE_COLLISION` when the
+higher-priority `OPEN` tickets that record `requiresPool:"test-env"`, have no claim blocker and no
+live attempt are at least as many as the pool's free eligible members; the detail ends
+`yields to <ticketId>`, naming the first of them in plan order. Plan preview (default and `--pool`)
+shows such a ticket `DEFERRED RESOURCE_COLLISION` with that ticket ID as blocker, and `claim --next`
+never picks it. A competitor whose blockers are unobservable never causes a refusal; `ticket show`
+reports `NOT_OBSERVED` claimability instead. Nothing is stored and there is no waitlist (V1-0785).
+Omit the key (or set `false`) for the old behavior. Before downgrading to a binary without
+CAL-V0-101, remove the key with `policy update`: an older binary refuses a policy that carries it.
+
 To avoid a known member for a particular claim or preview, repeat the single-value
 `--exclude-member` flag:
 

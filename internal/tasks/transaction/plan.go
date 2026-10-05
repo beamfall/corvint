@@ -48,6 +48,8 @@ type PlanEntry struct {
 	State, Reason   string
 	Blockers        []string
 	poolDeferred    bool
+	// yieldTo is the waiting ticket a priority-yield deferral names (CAL-V0-101).
+	yieldTo string
 }
 
 // TicketPlan is a taskman-priority-first/0 plan without its snapshot header.
@@ -76,13 +78,19 @@ type PoolSelection struct {
 func PriorityFirst(in PlanInput) TicketPlan {
 	plan := TicketPlan{MaxActiveAttempts: in.Policy.MaxActiveAttempts, AvailableWorkers: availableWorkers(in), Entries: []PlanEntry{}}
 	selected := []PlanEntry{}
+	// waiting holds, per required pool, the OPEN unblocked entries planned so
+	// far: priorityWaiting for every later entry (CAL-V0-101).
+	waiting := map[string][]string{}
 	for _, rec := range planTickets(in.Tickets) {
 		e := planEntry(in, rec)
 		if e.State == "" {
-			e = choose(in, e, selected)
+			e = choose(in, e, selected, waiting)
 		}
 		if e.State == PlanSelected {
 			selected = append(selected, e)
+		}
+		if e.State != PlanBlocked && rec.Status == ticket.StatusOpen && rec.RequiresPool != "" {
+			waiting[rec.RequiresPool] = append(waiting[rec.RequiresPool], rec.TicketID.Raw)
 		}
 		plan.Entries = append(plan.Entries, e)
 	}
@@ -240,14 +248,22 @@ func RecordedClaimability(in PlanInput, rec *ticket.Record) (wire.Value, string)
 		return wire.Bool(false), known[0].Code
 	}
 	e := planEntry(in, rec)
+	var waiting, unobserved []string
+	if pool := rec.RequiresPool; pool != "" {
+		waiting, unobserved = priorityWaiting(in, rec, pool)
+	}
 	// Unknown blockers must not hide definite reservation/capacity conflicts.
-	e = choose(in, e, nil)
+	e = choose(in, e, nil, map[string][]string{rec.RequiresPool: waiting})
 	if e.poolDeferred && in.Pools == nil {
 		// Unobserved member state is never reported as a definite refusal.
 		return wire.Null(), string(ticket.NotObserved)
 	}
 	if e.State != PlanSelected {
 		return wire.Bool(false), e.Reason
+	}
+	if free, _ := defaultPoolFree(in, rec.RequiresPool); len(unobserved) > 0 && priorityYield(in.Policy, rec.RequiresPool, free, append(waiting, unobserved...)) != "" {
+		// A competitor whose eligibility is unknown would decide the yield.
+		return wire.Null(), string(ticket.NotObserved)
 	}
 	if len(unknown) > 0 {
 		return wire.Null(), unknown[0].Code
@@ -280,11 +296,23 @@ func blockerRefs(blockers []ticket.Blocker) []string {
 // eligible members, or when P's member state was not observed
 // (CAL-V0-097), or when the plan's consumer cannot claim P. A deferred entry is not a selection, so it never counts
 // against maxActiveAttempts.
-func choose(in PlanInput, e PlanEntry, selected []PlanEntry) PlanEntry {
+//
+// When the claimed pool opts into priority admission, an entry that an
+// explicit claim would yield is deferred naming the first waiting ticket
+// before any cap applies, so the plan and the claim agree (CAL-V0-101).
+// waiting maps each pool to its priorityWaiting tickets ahead of e.
+func choose(in PlanInput, e PlanEntry, selected []PlanEntry, waiting map[string][]string) PlanEntry {
 	e.State, e.Reason = PlanDeferred, wire.CodeResourceCollision
-	if in.Pool != "" && len(selected) >= poolSlots(in) {
-		e.Blockers = []string{wire.CodeResourceCollision}
-		return e
+	if in.Pool != "" {
+		slots := poolSlots(in)
+		if to := priorityYield(in.Policy, in.Pool, slots, waiting[in.Pool]); to != "" {
+			e.Blockers, e.yieldTo = []string{to}, to
+			return e
+		}
+		if len(selected) >= slots {
+			e.Blockers = []string{wire.CodeResourceCollision}
+			return e
+		}
 	}
 	if in.Pool == "" && e.Ticket != nil && e.Ticket.RequiresPool != "" {
 		pool := e.Ticket.RequiresPool
@@ -295,7 +323,15 @@ func choose(in PlanInput, e PlanEntry, selected []PlanEntry) PlanEntry {
 				using++
 			}
 		}
-		if !observed || using >= free || (in.ClaimablePools != nil && !slices.Contains(in.ClaimablePools, pool)) {
+		if !observed || (in.ClaimablePools != nil && !slices.Contains(in.ClaimablePools, pool)) {
+			e.Blockers, e.poolDeferred = []string{pool}, true
+			return e
+		}
+		if to := priorityYield(in.Policy, pool, free, waiting[pool]); to != "" {
+			e.Blockers, e.poolDeferred, e.yieldTo = []string{to}, true, to
+			return e
+		}
+		if using >= free {
 			e.Blockers, e.poolDeferred = []string{pool}, true
 			return e
 		}

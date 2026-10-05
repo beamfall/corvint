@@ -3,8 +3,8 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; S22 CAL-V0-097 resource-aware default selection implemented with focused tests, live dispatcher qualification NOT_RUN
-Authoritative inputs: owner request [issue 584](https://github.com/beamfall/corvint/issues/584) with owner answer 2026-10-05 (D1) (CAL-V0-097); owner request [issue 482](https://github.com/beamfall/corvint/issues/482) (proposed CAL-V0-044/046 compatibility amendment);
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; S22 CAL-V0-097 resource-aware default selection implemented with focused tests, live dispatcher qualification NOT_RUN; V1-0784 CAL-V0-101 priority-yield admission implemented with focused and property tests, live qualification NOT_RUN
+Authoritative inputs: owner request [issue 583](https://github.com/beamfall/corvint/issues/583) (V1-0784, CAL-V0-101); owner request [issue 584](https://github.com/beamfall/corvint/issues/584) with owner answer 2026-10-05 (D1) (CAL-V0-097); owner request [issue 482](https://github.com/beamfall/corvint/issues/482) (proposed CAL-V0-044/046 compatibility amendment);
 owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
 and [issue 430](https://github.com/beamfall/corvint/issues/430), explicitly commissioned 2026-10-01 (CAL-V0-048..051); owner request [issue 342](https://github.com/beamfall/corvint/issues/342),
@@ -26,7 +26,7 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; S22 CAL-V0-097 resource-aware default selection implemented with focused tests, live dispatcher qualification NOT_RUN. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; S22 CAL-V0-097 resource-aware default selection implemented with focused tests, live dispatcher qualification NOT_RUN; V1-0784 CAL-V0-101 priority-yield admission implemented with focused and property tests, live qualification NOT_RUN. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
 - Read next: #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle; S21 multi-repository programs; S22 resource-aware default selection); Amendments to TCP-00; Failure modes.
@@ -90,7 +90,7 @@ one.
 
 CAL-V0-062/063 are defined in S13 (issue 354). CAL-V0-064 (S14, issue 468) is reserved
 by coordinated unlanded work; CAL-V0-066/S16 remains reserved for issue 464 if used.
-The coordinator assigned CAL-V0-067/S17 to issue 479 and CAL-V0-068/S18 to issue 497. CAL-V0-071..072/S21 extend issue 354 (CAL-V0-069..070 and S19..S20 are left to coordinated unlanded work). CAL-V0-073 is the V1-0751 CREATE payload template amendment. CAL-V0-097/S22 is issue 584 (CAL-V0-074..077 are left to coordinated unlanded work). This seed does not claim
+The coordinator assigned CAL-V0-067/S17 to issue 479 and CAL-V0-068/S18 to issue 497. CAL-V0-071..072/S21 extend issue 354 (CAL-V0-069..070 and S19..S20 are left to coordinated unlanded work). CAL-V0-073 is the V1-0751 CREATE payload template amendment. CAL-V0-097/S22 is issue 584 (CAL-V0-074..077 are left to coordinated unlanded work). CAL-V0-101 is the V1-0784 priority-yield amendment (issue 583), defined after S22. This seed does not claim
 implementation or qualification of the new profile or any reserved slice.
 
 S8 was added by owner decision on 2026-09-27 and lands directly after S3, before S4.
@@ -624,7 +624,8 @@ Non-fixture release lifecycle (owner request 2026-09-28 to complete the Tasks ta
   default plan's per-pool cap under the same rule.
 
 The optional policy shape is `pools:[{id,members:[MEMBER],reservedFor:{MEMBER:STAGE},
-memberConfig:{MEMBER:{configRef:{revision,path,blob},health:COMMAND,cleanup:COMMAND}}}]`.
+memberConfig:{MEMBER:{configRef:{revision,path,blob},health:COMMAND,cleanup:COMMAND}},
+priorityAdmission:BOOL}]` (`priorityAdmission` is CAL-V0-101's opt-in priority yield).
 Each map is closed over declared member names; each nested addition is optional. A command is
 `{argv:[ARG],cwd:"REPOSITORY",env:[NAME],timeoutSeconds:"N"}`. Git references return only identity,
 never configuration bodies. Duplicate identical configuration references refuse; differently named
@@ -1373,10 +1374,70 @@ the planner, the `claim --next` filter, the `resourceDeferred` member, the dispa
 routing and `match.pool`, and the Core decoder rows together; no store, journal or wire state
 depends on them, and pool tickets return to `BLOCKED` in the default plan.
 
+### V1-0784 priority-yield admission amendment (issue 583)
+
+Human-owned input: [issue 583](https://github.com/beamfall/corvint/issues/583) (native ticket
+V1-0784) reports that an explicit `claim <ticket> --pool P` takes P's last free member even when a
+higher-priority ticket that needs P is waiting, so the lower-priority ticket starves the
+higher-priority one. The owner directed an opt-in, derived priority yield for explicit pooled
+claims with no new state, no new result code and no waitlist (V1-0785 stays separate).
+
+- `CAL-V0-101`: A policy pool MAY set the optional boolean `priorityAdmission`; omission and
+  `false` mean today's admission. When it is `true`, an explicit `claim <ticket> --pool P` MUST be
+  refused `BLOCKED RESOURCE_COLLISION` when P has at least one free eligible member and the
+  competing tickets are at least as many as those free members. Free eligible members are the
+  claim's own CAL-V0-029 ordered eligibility for its `--stage`, its CAL-V0-065 exclusions and the
+  occupancy in `pools.json`; a prepared allocation of the claim counts as free. A competing ticket
+  is `OPEN`, precedes the claimed ticket in plan order (priority, order, ticket ID), records
+  `requiresPool` P, and has no claim blocker, which includes a live attempt (`ATTEMPT_LIVE`). The
+  detail names the pool, the competitor and free counts, and the first competitor in plan order
+  (`yields to <ticketId>`). The check runs after the claimed ticket's own state and live-attempt
+  checks and before scope collision, capacity, retry, health preparation and member allocation, so
+  a yielded claim posts nothing, prepares no member and runs no command. A claim without `--pool`,
+  on a pool without the flag, or with no free eligible member is unaffected. Plan preview MUST
+  apply the same rule in plan order: with `--pool P`, and in the default plan for an entry that
+  requires P, an entry the rule would refuse is `DEFERRED RESOURCE_COLLISION` with blockers
+  `[<ticketId yielded to>]` before the pool cap, outside `maxActiveAttempts`, and the default
+  plan's `resourceDeferred` row counts it as deferred. `claim --next` claims a `SELECTED` entry of
+  that plan, so it never claims a ticket an explicit claim would refuse. A competitor whose only
+  blockers are unobservable (`NOT_OBSERVED`, for example a `GATE_PASSED` dependency) MUST NOT cause
+  a refusal or a deferral; it stays its own `BLOCKED` plan entry, and `ticket show` reports the
+  claimed ticket's claimability as `null` with reason `NOT_OBSERVED` when counting it would yield.
+  The rule is derived from the plan inputs on every read and claim; it adds no store, journal or
+  wire state, and plan preview stays a pure read with no lock, write or probe (CAL-V0-034).
+
+Non-goals: a durable waitlist, reservation hand-off or re-claim grace for a competitor that is
+briefly blocked or unobservable (V1-0785); new result or detail codes; changing `claim --next`,
+pool health or cleanup; the supervisor's stage-transition member allocation, which is not a claim;
+aging or fairness between equal-priority tickets beyond plan order; any Core change (Core reads only
+`policySha256`, and its `taskman-plan/0` decoder already admits a ticket ID blocker on a `DEFERRED
+RESOURCE_COLLISION` entry). Failure modes: a competitor that collides on scope with a live
+reservation is still claim-eligible and still counts, so a lower-priority ticket can yield to a
+ticket that cannot run yet; a competitor that becomes blocked or unobservable stops counting at the
+next read, so its member can be taken (V1-0785); an operator who wants a lower-priority claim to
+proceed must claim the competitor, change priorities or drop the flag; a claim is checked before
+health preparation, but if a competitor becomes eligible between preparation and the re-claim, the
+re-claim yields and the existing observation path leaves the prepared member `QUARANTINED` until
+operator confirmation, as for any other failed re-claim; a non-boolean value refuses the policy `MALFORMED`. Acceptance evidence:
+`TestCALV0101_ExplicitPooledClaimYields`, `TestCALV0101_FlagOffMatchesNMinusOne` (absent flag pinned
+to the pre-change transcript digest; `false` equal modulo policy identity),
+`TestCALV0101_PlanClaimAndClaimNextAgree` (400-case property test), and
+`TestCALV0101_UnobservedCompetitorIsNotObserved` (`internal/tasks/transaction`);
+`TestCALV0101_PriorityYieldThroughTheCLI` (`internal/tasks/cli`). Rollback: a binary older than
+this amendment decodes the closed pool object and refuses a policy that carries
+`priorityAdmission`, even `false`, as `MALFORMED`, so every command that reads the policy fails
+until the key is gone. Remove the key with `policy update` on the new binary first, then downgrade.
+No store, journal, receipt or pool state depends on the flag; refusals already recorded keep their
+existing `RESOURCE_COLLISION` code.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
 The experimental `RUN_OUTCOME` observation verb is amended in by `corvint-tasks-attempt-runner-v0.md` (ATR-V0-005), not here.
+
+- A20: CAL-V0-101 adds the optional boolean `priorityAdmission` to a policy pool under the A15
+  pattern. Omission keeps the existing canonical policy bytes and admission; a reader that predates
+  it refuses a policy that carries it. No attempt, reservation, pool-state or plan member changes.
 
 - A19: CAL-V0-097 adds the optional top-level `resourceDeferred` member to `taskman-plan/0` and
   admits a declared pool ID as a `DEFERRED RESOURCE_COLLISION` blocker. Both appear only in a
@@ -1590,6 +1651,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 
 | CAL-V0-027 | `TestCALV0027_CompiledNonfixtureReleaseLifecycle`, `TestCALV0027_NonfixtureReleaseBindings`, `TestCALV0027_NonfixtureReleaseReadinessRefusals` (`internal/tasks/cli`); `TestCALV0027_ReleaseAfterQualifiedCutover`, `TestCALV0027_ReleaseInterruptionRecovery`, `TestCALV0027_ReleaseActiveStageAndReconciliation`, `TestCALV0027_ReleaseWrongActor`, `TestCALV0027_ActualCompletedStages` (`internal/tasks/store`); `TestCALV0027_NonfixtureStageBinding`, `TestCALV0027_CompletedStageReceiptKinds`, `TestCALV0027_CompletedStageInnerBindings` (`internal/tasks/snapshot`). |
 | CAL-V0-097 | `TestCALV0097_PoolWaitingTicketsDoNotConsumeWindow`, `TestCALV0097_CapAtFreeEligibleMembers`, `TestCALV0097_UnobservedPoolStateDefers`, `TestCALV0097_UndeclaredPoolBlocks`, `TestCALV0097_PoolPlanUnchanged`, `TestCALV0097_UnclaimablePoolsDoNotConsumeWindow` (`internal/tasks/transaction`); `TestCALV0097_DefaultPreviewIsResourceAware`, `TestCALV0097_DispatchRoutesPoolTicketsAndKeepsLaneFreeProgress` (`internal/tasks/cli`); `TestCALV0097_RosterRoutesPoolTicketsToMatchingRole` (`internal/tasks/dispatch`); `TestCALV0097_CoreDecodesResourceDeferredPlan` (`internal/taskman`); `TestAgentLeasesSpecEnumeratesCALV0097` (`internal/lrfrepo`) |
+| CAL-V0-101 | `TestCALV0101_ExplicitPooledClaimYields`, `TestCALV0101_FlagOffMatchesNMinusOne`, `TestCALV0101_PlanClaimAndClaimNextAgree`, `TestCALV0101_UnobservedCompetitorIsNotObserved` (`internal/tasks/transaction`); `TestCALV0101_PriorityYieldThroughTheCLI` (`internal/tasks/cli`) |
 
 ## Holder, retry and policy observation acceptance
 

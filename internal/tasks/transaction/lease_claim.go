@@ -241,7 +241,9 @@ func (c leaseContext) admitted(rec *ticket.Record, prior *snapshot.Attempt, sc *
 const noExecutionCutover = "a non-fixture queue admits no claim before its execution cutover"
 
 // planClaim admits one external-agent attempt by TCP-00 §4.1 steps 1, 2,
-// 5, 6 and 8 (CAL-V0-002, CAL-V0-007, CAL-V0-021, CAL-V0-023).
+// 5, 6 and 8 (CAL-V0-002, CAL-V0-007, CAL-V0-021, CAL-V0-023), yielding an
+// explicit pooled claim to higher-priority waiting tickets when the pool
+// opts in (CAL-V0-101).
 func planClaim(c leaseContext) leaseOutcome {
 	if c.st.barrier != nil {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodePaused, "an admission barrier is present")
@@ -324,6 +326,9 @@ func (c leaseContext) admit(rec *ticket.Record, sc *snapshot.Scope) leaseOutcome
 	}
 	if live := c.liveOn(rec.TicketID.Raw); live != "" {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeAttemptLive, "attempt "+live+" is live")
+	}
+	if refusal := c.yieldRefusal(rec); refusal != nil {
+		return *refusal
 	}
 	if other := c.collision(sc.Resources, ""); other != "" {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeResourceCollision, "scope collides with live attempt "+other)
