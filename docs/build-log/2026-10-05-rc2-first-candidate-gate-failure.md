@@ -15,7 +15,7 @@ A fresh candidate will be cut from main once the fixes below merge, and the runb
 
 ## Defects
 
-Neither defect changes product behavior; both are test-only.
+No defect changes product behavior; all three are test-only.
 
 1. **Windows cross-vet (ubuntu full-gate).** Untagged test files use helpers that are defined only
    in `unix` or `darwin || linux` tagged test files:
@@ -34,7 +34,12 @@ Neither defect changes product behavior; both are test-only.
 
    The tests now resolve their temp dir, as `lifecycle_test.go` already did, and the wedged-writer
    send is bounded so a failed open fails fast. Ubuntu runners and resolved private TMPDIRs hide
-   this defect, which is why the PR CI passed. V1-0753 is the same class in `internal/tasks/store`.
+   this defect, which is why the PR CI passed.
+3. **Symlinked TMPDIR in `internal/tasks/store` (V1-0753).** This defect is in the same class as
+   defect 2: 22 PSR and lifecycle tests fail `UNSUPPORTED_FILESYSTEM` under the macOS default
+   TMPDIR. Neither darwin gate reached the package, because it runs in the unresolved tree-key group
+   after the failed per-package group. The package's `TestMain` now resolves `TMPDIR` before running
+   tests.
 
 ## Gate order note
 

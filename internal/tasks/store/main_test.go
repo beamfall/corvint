@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -30,6 +31,12 @@ func TestMain(m *testing.M) {
 			os.Exit(1)
 		}
 		os.Exit(0)
+	}
+	// safeopen refuses symlinked ancestors, and the macOS default temp root
+	// sits under /var -> /private/var, so test dirs come from its resolved
+	// path (V1-0753).
+	if dir, err := filepath.EvalSymlinks(os.TempDir()); err == nil {
+		os.Setenv("TMPDIR", dir)
 	}
 	os.Exit(m.Run())
 }
