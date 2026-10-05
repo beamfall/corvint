@@ -126,6 +126,16 @@ func (inv *Inventory) findCycles() {
 	}
 }
 
+// CycleKey names the dependency cycle that contains id by its smallest
+// member, without copying the component; ok is false outside a cycle.
+func (inv *Inventory) CycleKey(id string) (key string, ok bool) {
+	comp, ok := inv.inCycle[id]
+	if !ok {
+		return "", false
+	}
+	return comp[0], true
+}
+
 // CycleMembers returns the sorted members of the dependency cycle (strongly
 // connected component) that contains id, or nil when id is in no cycle.
 func (inv *Inventory) CycleMembers(id string) []string {

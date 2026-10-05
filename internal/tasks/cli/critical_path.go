@@ -24,9 +24,11 @@ type cpEdge struct {
 	to, kind, obligation, observation string
 }
 
+// cpNode is a compact closure record. Blockers are derived only for the
+// bounded output, never for every closure node (CAL-V0-080).
 type cpNode struct {
 	id    string
-	view  ticket.View
+	rec   *ticket.Record
 	edges []cpEdge
 	via   []string // cycle members first reached from this node
 	dist  int      // nodes on the longest root-to-node path
@@ -40,6 +42,8 @@ type criticalPath struct {
 	topo     []string // root first, every node before its dependencies
 	frontier []string // nodes the closure follows no edge from
 	cycles   [][]string
+	blockers func(*ticket.Record) []transaction.ObservedBlocker
+	memo     map[string][]transaction.ObservedBlocker
 }
 
 // criticalPathCommand is `corvint-tasks critical-path <ticket>`: a pure read
@@ -62,19 +66,26 @@ func criticalPathCommand(env Env, args []string) *wire.Result {
 			notFound = id
 			return nil
 		}
-		ctx, err := ticketContext(rc)
-		if err != nil {
-			return err
-		}
+		// Edge observation needs only the gate oracle; blockers come from
+		// the planner input below.
+		ctx := rc.store.Context()
+		// The planner input: with no journal there is no barrier, attempt
+		// or pool record, and a nil reservation set keeps attempt liveness
+		// NOT_OBSERVED.
+		in := transaction.PlanInput{Queue: rc.store.Queue, Policy: rc.store.Policy, Tickets: rc.store.Inventory}
 		var attempts map[string]*snapshot.Attempt // by ticket; nil = NOT_OBSERVED
 		if !rc.journalAbsent {
-			in, _, e := planInput(rc)
-			if e != nil {
+			var e error
+			if in, _, e = planInput(rc); e != nil {
 				return e
 			}
 			attempts = liveAttemptsByTicket(in)
 		}
-		v := computeCriticalPath(rc.store.Inventory, ctx, id).value(rc.store.Queue.QueueID.Raw, attempts)
+		cp := computeCriticalPath(rc.store.Inventory, ctx, id)
+		cp.blockers = func(rec *ticket.Record) []transaction.ObservedBlocker {
+			return transaction.ClaimBlockerObservations(in, rec)
+		}
+		v := cp.value(rc.store.Queue.QueueID.Raw, attempts)
 		item = &v
 		return nil
 	})
@@ -142,22 +153,16 @@ func computeCriticalPath(inv *ticket.Inventory, ctx ticket.Context, root string)
 	var visit func(id string)
 	visit = func(id string) {
 		rec, _ := inv.Get(id)
-		view, _ := inv.View(id, ctx)
-		n := &cpNode{id: id, view: view}
+		n := &cpNode{id: id, rec: rec}
 		cp.nodes[id] = n
-		cycle := inv.CycleMembers(id)
-		inCycle := map[string]bool{}
-		for _, m := range cycle {
-			inCycle[m] = true
-		}
-		if len(cycle) > 0 && !seenCycle[cycle[0]] {
-			seenCycle[cycle[0]] = true
-			cp.cycles = append(cp.cycles, cycle)
-		}
+		key, inCycle := inv.CycleKey(id)
 		for _, d := range rec.Dependencies {
 			dep, ok := inv.Get(d.TicketID.Raw)
-			if !ok || inCycle[d.TicketID.Raw] {
-				continue // DEPENDENCY_MISSING / CYCLE stay node blockers
+			if !ok {
+				continue // DEPENDENCY_MISSING stays a node blocker
+			}
+			if k, ok := inv.CycleKey(d.TicketID.Raw); inCycle && ok && k == key {
+				continue // CYCLE stays a node blocker
 			}
 			obs := edgeObservation(ctx, d, dep)
 			if obs == ticket.Satisfied {
@@ -171,11 +176,17 @@ func computeCriticalPath(inv *ticket.Inventory, ctx ticket.Context, root string)
 				visit(e.to)
 			}
 		}
-		// Every other member of a reached cycle is part of the closure too.
-		for _, m := range cycle {
-			if _, seen := cp.nodes[m]; !seen {
-				n.via = append(n.via, m)
-				visit(m)
+		// The first member reached of a cycle brings in the rest, once, so a
+		// large cycle costs linear work and one copy of its member list.
+		if inCycle && !seenCycle[key] {
+			seenCycle[key] = true
+			members := inv.CycleMembers(id)
+			cp.cycles = append(cp.cycles, members)
+			for _, m := range members {
+				if _, seen := cp.nodes[m]; !seen {
+					n.via = append(n.via, m)
+					visit(m)
+				}
 			}
 		}
 		post = append(post, id)
@@ -305,19 +316,40 @@ func (cp *criticalPath) value(queueID string, attempts map[string]*snapshot.Atte
 	o.Set("chains", wire.Array(chains...))
 	o.Set("nodes", wire.Array(nodes...))
 	o.Set("cycles", wire.Array(cycles...))
+	o.Set("blockerScope", wire.String("RECORDED_DEFAULT_EXTERNAL_AGENT_PLAN"))
 	o.Set("estimate", wire.String(notObserved))
 	o.Set("human", wire.Strings(human))
 	o.Set("mutationAuthority", wire.Bool(false))
 	return wire.ObjectValue(o)
 }
 
-// nodeBlockers merges certain blockers and NOT_OBSERVED unknowns in view
-// order. Codes form an open set: later derived blockers (execution
+// nodeBlockers is the planner's claim-blocker derivation for one node
+// (transaction.ClaimBlockerObservations), memoized and derived only for
+// rendered nodes. Codes form an open set: later derived blockers (execution
 // prerequisites, LOOP_DETECTED, ESCALATION_PENDING holds) arrive as further
 // entries of this same shape.
-func nodeBlockers(v ticket.View) []wire.Value {
-	var out []wire.Value
-	add := func(b ticket.Blocker, obs string) {
+func (cp *criticalPath) nodeBlockers(id string) []transaction.ObservedBlocker {
+	if bs, ok := cp.memo[id]; ok {
+		return bs
+	}
+	if cp.memo == nil {
+		cp.memo = map[string][]transaction.ObservedBlocker{}
+	}
+	var bs []transaction.ObservedBlocker
+	if cp.blockers != nil {
+		bs = cp.blockers(cp.nodes[id].rec)
+	}
+	cp.memo[id] = bs
+	return bs
+}
+
+func blockerValues(bs []transaction.ObservedBlocker) []wire.Value {
+	out := make([]wire.Value, 0, len(bs))
+	for _, b := range bs {
+		obs := "CERTAIN"
+		if !b.Observed {
+			obs = notObserved
+		}
 		o := wire.NewObject().Set("code", wire.String(b.Code)).Set("observation", wire.String(obs))
 		if b.TicketID == "" {
 			o.Set("ticketId", wire.Null())
@@ -326,22 +358,42 @@ func nodeBlockers(v ticket.View) []wire.Value {
 		}
 		out = append(out, wire.ObjectValue(o))
 	}
-	for _, b := range v.Blockers {
-		add(b, "CERTAIN")
-	}
-	for _, b := range v.Unknowns {
-		add(b, notObserved)
-	}
 	return out
+}
+
+// firstBlocker is the index of the first certain blocker, else of the first
+// NOT_OBSERVED one, else -1: the order RecordedClaimability reports.
+func firstBlocker(bs []transaction.ObservedBlocker) int {
+	for i, b := range bs {
+		if b.Observed {
+			return i
+		}
+	}
+	if len(bs) > 0 {
+		return 0
+	}
+	return -1
+}
+
+// eligibility follows the ticket view's rule: any certain blocker is
+// BLOCKED; otherwise the honest answer is UNKNOWN, never ELIGIBLE.
+func eligibility(bs []transaction.ObservedBlocker) string {
+	for _, b := range bs {
+		if b.Observed {
+			return ticket.EligibilityBlocked
+		}
+	}
+	return ticket.EligibilityUnknown
 }
 
 func (cp *criticalPath) nodeValue(id string, attempts map[string]*snapshot.Attempt) wire.Value {
 	n := cp.nodes[id]
-	rec := n.view.Record
-	blockers := nodeBlockers(n.view)
+	rec := n.rec
+	bs := cp.nodeBlockers(id)
+	blockers := blockerValues(bs)
 	first := wire.Null()
-	if len(blockers) > 0 {
-		first = blockers[0]
+	if i := firstBlocker(bs); i >= 0 {
+		first = blockers[i]
 	}
 	edges := make([]wire.Value, 0, len(n.edges))
 	for _, e := range n.edges {
@@ -355,7 +407,7 @@ func (cp *criticalPath) nodeValue(id string, attempts map[string]*snapshot.Attem
 	o.Set("ticketId", wire.String(id))
 	o.Set("status", wire.String(rec.Status))
 	o.Set("priority", wire.String(rec.Priority))
-	o.Set("eligibility", wire.String(n.view.Eligibility))
+	o.Set("eligibility", wire.String(eligibility(bs)))
 	o.Set("depth", count(n.dist))
 	o.Set("firstBlocker", first)
 	o.Set("blockers", wire.Array(blockers...))
@@ -408,11 +460,13 @@ func attemptFacts(id string, attempts map[string]*snapshot.Attempt) wire.Value {
 // blocker code and, when live, the attempt holder.
 func (cp *criticalPath) humanNode(id string, attempts map[string]*snapshot.Attempt) string {
 	n := cp.nodes[id]
-	s := n.view.Record.TicketID.Local + "(" + n.view.Record.Status
-	if len(n.view.Blockers) > 0 {
-		s += " " + n.view.Blockers[0].Code
-	} else if len(n.view.Unknowns) > 0 {
-		s += " " + n.view.Unknowns[0].Code + "?"
+	s := n.rec.TicketID.Local + "(" + n.rec.Status
+	if bs := cp.nodeBlockers(id); firstBlocker(bs) >= 0 {
+		b := bs[firstBlocker(bs)]
+		s += " " + b.Code
+		if !b.Observed {
+			s += "?"
+		}
 	}
 	if a, ok := attempts[id]; ok {
 		s += " attempt " + a.AttemptID

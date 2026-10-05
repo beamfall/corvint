@@ -1315,6 +1315,54 @@ witnesses are the CAL-V0-071 and CAL-V0-072 rows in the traceability table, incl
 end-to-end `TestCALV0071_MultiRepositoryProgramFakeHost`. Live Codex qualification is `NOT_RUN`;
 see `docs/build-log/2026-10-04-tasks-multirepo-programs.md`.
 
+### V1-0793 critical-path read (issue 588)
+
+Authority: owner answer 2026-10-05 (D8), profile `taskman-critical-path/0`.
+
+- `CAL-V0-079`: `corvint-tasks critical-path <ticketId|local>` MUST return one
+  `taskman-critical-path/0` item for any ticket (a gate ticket is an ordinary ticket). The closure
+  starts at that ticket and follows, transitively, every dependency obligation that is not
+  satisfied: `COMPLETED` unless the dependency is `COMPLETED` or archived from `COMPLETED`, and
+  `GATE_PASSED` unless the gate oracle observes it satisfied (an unobservable gate result is
+  followed with observation `NOT_OBSERVED`, never treated as satisfied). `chains` holds, for each
+  frontier node (a closure node the walk follows no edge from), the longest root-to-frontier path,
+  root first; chains are ordered longest first, then by the frontier's planning order. Each
+  `nodes` entry carries `ticketId`, `status`, `priority`, `eligibility`, `depth` (nodes on its
+  longest path from the root), `firstBlocker`, `blockers`, `holds`, `waitingOn` and `attempt`.
+  `attempt` carries `observation` (`LIVE`, `NONE`, or `NOT_OBSERVED` when the journal is absent)
+  and `attemptId`, `phase`, `holder` (lease holder), `stage`, `member` (pool member),
+  `lastProgressSeq` (the attempt's `phaseSinceSeq`) and `lastProgressAt` (its recorded
+  `lastHeartbeatAt`); each is the string `NOT_OBSERVED` when the reader did not observe it. The
+  item also carries `estimate`, which is always `NOT_OBSERVED` in v0, and `human`, a short human
+  form: one header line, one line per returned chain and one line per cycle.
+- `CAL-V0-080`: The item MUST report `bounds` (`maxNodes` 256, `maxChains` 32), `nodesTotal`,
+  `nodesReturned`, `chainsTotal` and `chainsReturned`, and `truncated: true` when either bound is
+  exceeded. At most 256 nodes are returned (nodes on returned chains first, in chain order, then
+  the rest of the closure root-first) and at most 32 chains, each with `length` and at most 256
+  `ticketIds` (`truncated: true` on a cut chain). Edges between members of one dependency cycle are
+  not followed, so the walk terminates; every reached cycle is listed once in `cycles` with the
+  existing code `CYCLE` and its sorted members, the members appear as nodes with their `CYCLE`
+  blocker, and a member first reached through its cycle is placed one step after the member that
+  reached it. Cycle membership is computed once per component, the walk keeps only compact node
+  records, and node details and blockers are derived only for returned nodes and human chain
+  nodes, so the read stays linear in the closure even for a large cycle.
+- `CAL-V0-081`: The verb MUST be a pure read over the TM-V0-008 snapshot used by `ticket show`
+  (journal-absent stores use the same inventory projection): it takes no lock, writes no file,
+  ledger or journal record, and carries `mutationAuthority: false` (product invariant 4).
+  `blockers` is the planner's claim-blocker derivation for the recorded default external-agent
+  plan (`blockerScope: RECORDED_DEFAULT_EXTERNAL_AGENT_PLAN`), in planner order: pool collision,
+  pause barrier, cutover, enforced-budget, ticket-view blockers and unknowns except
+  `COVERAGE_UNKNOWN`, then `RETRY_EXHAUSTED`; certain entries carry `observation: CERTAIN` and
+  unknowns `NOT_OBSERVED`. `firstBlocker` is the first certain entry, else the first unknown, else
+  null, which matches the reason `plan preview` reports; `eligibility` is `BLOCKED` with a certain
+  blocker and otherwise `UNKNOWN` when blockers remain. A journal-absent store observes no barrier,
+  attempt or pool, so attempt liveness stays `NOT_OBSERVED`. Blocker codes are
+  an open set and `waitingOn` entries carry `kind` (`DEPENDENCY` in v0): execution prerequisites
+  (V1-0787), `LOOP_DETECTED` (V1-0791) and derived `ESCALATION_PENDING` holds MUST appear later as
+  further `blockers` entries or `waitingOn` kinds of the same shape, without a profile change.
+  Readers MUST treat an unknown code or kind as an opaque blocker. `critical-path` is listed in
+  the command verb inventory and answers `--help` without I/O (CAL-V0-047).
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -1644,41 +1692,8 @@ circulated a wrong path to a gate because finding the real open dependencies too
 `ticket show` walks. This amendment adds one read verb. It changes no record, journal, writer,
 plan or existing wire profile.
 
-- `CAL-V0-079`: `corvint-tasks critical-path <ticketId|local>` MUST return one
-  `taskman-critical-path/0` item for any ticket (a gate ticket is an ordinary ticket). The closure
-  starts at that ticket and follows, transitively, every dependency obligation that is not
-  satisfied: `COMPLETED` unless the dependency is `COMPLETED` or archived from `COMPLETED`, and
-  `GATE_PASSED` unless the gate oracle observes it satisfied (an unobservable gate result is
-  followed with observation `NOT_OBSERVED`, never treated as satisfied). `chains` holds, for each
-  frontier node (a closure node the walk follows no edge from), the longest root-to-frontier path,
-  root first; chains are ordered longest first, then by the frontier's planning order. Each
-  `nodes` entry carries `ticketId`, `status`, `priority`, `eligibility`, `depth` (nodes on its
-  longest path from the root), `firstBlocker`, `blockers`, `holds`, `waitingOn` and `attempt`.
-  `attempt` carries `observation` (`LIVE`, `NONE`, or `NOT_OBSERVED` when the journal is absent)
-  and `attemptId`, `phase`, `holder` (lease holder), `stage`, `member` (pool member),
-  `lastProgressSeq` (the attempt's `phaseSinceSeq`) and `lastProgressAt` (its recorded
-  `lastHeartbeatAt`); each is the string `NOT_OBSERVED` when the reader did not observe it. The
-  item also carries `estimate`, which is always `NOT_OBSERVED` in v0, and `human`, a short human
-  form: one header line, one line per returned chain and one line per cycle.
-- `CAL-V0-080`: The item MUST report `bounds` (`maxNodes` 256, `maxChains` 32), `nodesTotal`,
-  `nodesReturned`, `chainsTotal` and `chainsReturned`, and `truncated: true` when either bound is
-  exceeded. At most 256 nodes are returned (nodes on returned chains first, in chain order, then
-  the rest of the closure root-first) and at most 32 chains, each with `length` and at most 256
-  `ticketIds` (`truncated: true` on a cut chain). Edges between members of one dependency cycle are
-  not followed, so the walk terminates; every reached cycle is listed once in `cycles` with the
-  existing code `CYCLE` and its sorted members, the members appear as nodes with their `CYCLE`
-  blocker, and a member first reached through its cycle is placed one step after the member that
-  reached it.
-- `CAL-V0-081`: The verb MUST be a pure read over the TM-V0-008 snapshot used by `ticket show`
-  (journal-absent stores use the same inventory projection): it takes no lock, writes no file,
-  ledger or journal record, and carries `mutationAuthority: false` (product invariant 4).
-  `blockers` merges the ticket view's certain blockers (`observation: CERTAIN`) and unknowns
-  (`NOT_OBSERVED`) in view order, and `firstBlocker` is its first entry or null. Blocker codes are
-  an open set and `waitingOn` entries carry `kind` (`DEPENDENCY` in v0): execution prerequisites
-  (V1-0787), `LOOP_DETECTED` (V1-0791) and derived `ESCALATION_PENDING` holds MUST appear later as
-  further `blockers` entries or `waitingOn` kinds of the same shape, without a profile change.
-  Readers MUST treat an unknown code or kind as an opaque blocker. `critical-path` is listed in
-  the command verb inventory and answers `--help` without I/O (CAL-V0-047).
+The normative requirements CAL-V0-079 to CAL-V0-081 are defined in the Requirements section under
+"V1-0793 critical-path read (issue 588)"; this amendment records their scope and evidence.
 
 Non-goals: duration or completion-time estimates (D8 defers them; `estimate` stays
 `NOT_OBSERVED`), dispatcher-private progress tokens (CAL-V0-064 history is not read), execution
@@ -1695,5 +1710,5 @@ journal or wire state depends on it.
 | Requirement | Evidence |
 | --- | --- |
 | CAL-V0-079 | `TestCALV0079_CriticalPathChainsAndNodeFacts`, `TestCALV0079_CriticalPathLiveAttemptFacts` (`internal/tasks/cli`) |
-| CAL-V0-080 | `TestCALV0080_CriticalPathBoundsAndCycles` (`internal/tasks/cli`) |
-| CAL-V0-081 | `TestCALV0079_CriticalPathChainsAndNodeFacts` (purity and journal-absent `NOT_OBSERVED`), `TestCALV0079_CriticalPathLiveAttemptFacts` (purity with a live journal), `TestCALV0047_AllCommandHelpIsReadOnly` (`internal/tasks/cli`) |
+| CAL-V0-080 | `TestCALV0080_CriticalPathBoundsAndCycles`, `TestCALV0080_CriticalPathLargeCycleIsBounded` (10,000-ticket ring) (`internal/tasks/cli`) |
+| CAL-V0-081 | `TestCALV0081_CriticalPathBlockersMatchPlanner` (pool, coverage, gate observation, archived completion, budget; `plan preview` parity), `TestCALV0081_CriticalPathRetryAndPauseMatchPlanner`, `TestCALV0079_CriticalPathChainsAndNodeFacts` (purity and journal-absent `NOT_OBSERVED`), `TestCALV0079_CriticalPathLiveAttemptFacts` (purity with a live journal), `TestCALV0047_AllCommandHelpIsReadOnly` (`internal/tasks/cli`) |

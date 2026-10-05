@@ -2,6 +2,8 @@ package cli_test
 
 import (
 	"fmt"
+	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -31,12 +33,23 @@ func cpNode(t *testing.T, item wire.Value, local string) wire.Value {
 
 func cpWrite(t *testing.T, r *fixture.Repo, journal bool, recs ...*ticket.Record) {
 	t.Helper()
+	// No enforced budget fields, so queue-wide BUDGET_UNKNOWN does not mask
+	// each node's own first blocker.
+	policy := fixture.PolicyValue()
+	budgets, _ := policy.Obj.Get("budgets")
+	budgets.Obj.Set("requireEnforcedFields", wire.Strings(nil))
+	cpWritePolicy(t, r, journal, policy, recs...)
+}
+
+func cpWritePolicy(t *testing.T, r *fixture.Repo, journal bool, policy wire.Value, recs ...*ticket.Record) {
+	t.Helper()
 	if journal {
 		fixture.WriteState(t, r)
 	}
 	fixture.WriteIntent(t, r, recs...)
+	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), wire.EncodeFile(policy))
 	if journal {
-		posts := map[string][]byte{}
+		posts := map[string][]byte{"intent/policy.json": wire.EncodeFile(policy)}
 		for _, rec := range recs {
 			posts["intent/tickets/"+rec.TicketID.Local+".json"] = rec.Encode()
 		}
@@ -209,4 +222,187 @@ func TestCALV0079_CriticalPathLiveAttemptFacts(t *testing.T) {
 	if !strings.Contains(strings.Join(cpIDs(field(x.res.Items[0], "human")), "\n"), "holder builder") {
 		t.Fatalf("human: %s", x.stdout)
 	}
+}
+
+// cpBlockerRefs is the plan-preview blocker reference set of a node: its
+// blocker codes plus the tickets they name.
+func cpBlockerRefs(n wire.Value) []string {
+	set := map[string]bool{}
+	for _, b := range field(n, "blockers").Arr {
+		set[field(b, "code").Str] = true
+		if id := field(b, "ticketId"); id.Kind == wire.KindString {
+			set[id.Str] = true
+		}
+	}
+	out := []string{}
+	for k := range set {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// cpPlanParity checks every OPEN or HELD node against `plan preview`: a
+// BLOCKED entry has the node's first blocker as its reason and the node's
+// blockers as its references, and any other entry has no node blocker.
+func cpPlanParity(t *testing.T, r *fixture.Repo, item wire.Value) {
+	t.Helper()
+	p := atm(t, r.Root, nil, "plan", "preview")
+	if p.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("plan preview: %s", p.stdout)
+	}
+	entries := map[string]wire.Value{}
+	for _, e := range field(p.res.Items[0], "entries").Arr {
+		entries[field(e, "ticketId").Str] = e
+	}
+	for _, n := range field(item, "nodes").Arr {
+		id := field(n, "ticketId").Str
+		if s := field(n, "status").Str; s != ticket.StatusOpen && s != ticket.StatusHeld {
+			continue
+		}
+		e, ok := entries[id]
+		if !ok {
+			t.Fatalf("%s missing from plan", id)
+		}
+		refs := cpBlockerRefs(n)
+		if field(e, "state").Str != "BLOCKED" {
+			if len(refs) != 0 {
+				t.Errorf("%s: plan %s but critical-path blockers %v", id, field(e, "state").Str, refs)
+			}
+			continue
+		}
+		if field(e, "reason").Str != field(field(n, "firstBlocker"), "code").Str || strings.Join(cpIDs(field(e, "blockers")), ",") != strings.Join(refs, ",") {
+			t.Errorf("%s: plan %s %v, critical-path %s", id, wire.Encode(e), cpIDs(field(e, "blockers")), wire.Encode(n))
+		}
+	}
+}
+
+func cpHasBlocker(n wire.Value, code, observation, ticketID string) bool {
+	for _, b := range field(n, "blockers").Arr {
+		tid := ""
+		if v := field(b, "ticketId"); v.Kind == wire.KindString {
+			tid = v.Str
+		}
+		if field(b, "code").Str == code && field(b, "observation").Str == observation && tid == ticketID {
+			return true
+		}
+	}
+	return false
+}
+
+// CAL-V0-081: node blockers are the planner's claim blockers, so they agree
+// with `plan preview` for a required pool, an excluded COVERAGE_UNKNOWN and
+// enforced budgets; a GATE_PASSED edge this reader cannot observe is followed
+// as NOT_OBSERVED; a dependency archived from COMPLETED is satisfied and one
+// archived otherwise is not.
+func TestCALV0081_CriticalPathBlockersMatchPlanner(t *testing.T) {
+	r := fixture.TempRepo(t)
+	root := fixture.Ticket("ROOT")
+	pool, cov, gate, done, dropped := fixture.Ticket("POOLED"), fixture.Ticket("COV"), fixture.Ticket("GATED"), fixture.Ticket("DONE"), fixture.Ticket("DROPPED")
+	root.Dependencies = []ticket.Dependency{fixture.Dep("POOLED"), fixture.Dep("COV"), fixture.GateDep("GATED", "verify"), fixture.Dep("DONE"), fixture.Dep("DROPPED")}
+	pool.RequiresPool = "db"
+	cov.Effects.Coverage = "UNKNOWN"
+	completed, open := ticket.StatusCompleted, ticket.StatusOpen
+	reason := "done"
+	done.Status, done.ArchivedFrom = ticket.StatusArchived, &completed
+	done.Completion = &ticket.Completion{Kind: "MANUAL", Actor: fixture.Actor, Reason: &reason, Evidence: []wire.Digest{}, RecordedAt: fixture.Timestamp}
+	dropped.Status, dropped.ArchivedFrom = ticket.StatusArchived, &open
+	recs := []*ticket.Record{root, pool, cov, gate, done, dropped}
+	cpWrite(t, r, true, recs...)
+	x := atm(t, r.Root, nil, "critical-path", "ROOT")
+	if x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("critical-path: %s", x.stdout)
+	}
+	it := x.res.Items[0]
+	if field(it, "blockerScope").Str != "RECORDED_DEFAULT_EXTERNAL_AGENT_PLAN" || field(it, "nodesTotal").Str != "5" {
+		t.Fatalf("closure: %s", wire.Encode(it))
+	}
+	for _, n := range field(it, "nodes").Arr {
+		if field(n, "ticketId").Str == fixture.TicketID("DONE") {
+			t.Fatal("dependency archived from COMPLETED was followed")
+		}
+		if cpHasBlocker(n, wire.CodeCoverageUnknown, "CERTAIN", "") || cpHasBlocker(n, wire.CodeCoverageUnknown, "NOT_OBSERVED", "") {
+			t.Fatalf("planner-excluded COVERAGE_UNKNOWN reported: %s", wire.Encode(n))
+		}
+	}
+	if s := atm(t, r.Root, nil, "ticket", "show", "COV"); !strings.Contains(string(s.stdout), wire.CodeCoverageUnknown) {
+		t.Fatalf("fixture does not exercise COVERAGE_UNKNOWN: %s", s.stdout)
+	}
+	if n := cpNode(t, it, "POOLED"); field(field(n, "firstBlocker"), "code").Str != wire.CodeResourceCollision {
+		t.Fatalf("pool: %s", wire.Encode(n))
+	}
+	if n := cpNode(t, it, "COV"); len(field(n, "blockers").Arr) != 0 || field(n, "firstBlocker").Kind != wire.KindNull || field(n, "eligibility").Str != ticket.EligibilityUnknown {
+		t.Fatalf("coverage: %s", wire.Encode(n))
+	}
+	if n := cpNode(t, it, "DROPPED"); field(field(n, "firstBlocker"), "code").Str != wire.CodeTicketState {
+		t.Fatalf("archived from OPEN: %s", wire.Encode(n))
+	}
+	rn := cpNode(t, it, "ROOT")
+	var gateEdge wire.Value
+	for _, e := range field(rn, "waitingOn").Arr {
+		if field(e, "ticketId").Str == fixture.TicketID("GATED") {
+			gateEdge = e
+		}
+	}
+	if field(gateEdge, "obligation").Str != "GATE_PASSED" || field(gateEdge, "observation").Str != "NOT_OBSERVED" || !cpHasBlocker(rn, wire.CodeDependencyUnsatisfied, "NOT_OBSERVED", fixture.TicketID("GATED")) {
+		t.Fatalf("gate observation: %s", wire.Encode(rn))
+	}
+	cpPlanParity(t, r, it)
+
+	// Enforced budget fields refuse every claim with BUDGET_UNKNOWN.
+	b := fixture.TempRepo(t)
+	cpWritePolicy(t, b, true, fixture.PolicyValue(), recs...)
+	budget := atm(t, b.Root, nil, "critical-path", "ROOT").res.Items[0]
+	if field(field(cpNode(t, budget, "COV"), "firstBlocker"), "code").Str != wire.CodeBudgetUnknown {
+		t.Fatalf("budget: %s", wire.Encode(budget))
+	}
+	cpPlanParity(t, b, budget)
+}
+
+// CAL-V0-081: retry exhaustion and an admission barrier appear as they do in
+// `plan preview`.
+func TestCALV0081_CriticalPathRetryAndPauseMatchPlanner(t *testing.T) {
+	r := exclusionCLIRepo(t)
+	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatal(x.res)
+	}
+	dep := planTicket(t, r.Root, "dep", "P2", `["dep"]`)
+	payload := strings.NewReplacer(`"dependencies":[]`, `"dependencies":[{"gateId":null,"obligation":"COMPLETED","ticketId":"`+dep+`"}]`, `"title":"Console ticket"`, `"title":"root"`).Replace(createPayloadJSON)
+	created := atm(t, r.Root, nil, "ticket", "create", "--request-id", "create-root", "--issued-at", "2026-09-27T12:00:00Z", "--payload", payload)
+	if created.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("create root: %s", created.stdout)
+	}
+	root := field(created.res.Items[0], "ticketId").Str
+	// The initial admission is free; three charged retries exhaust the limit.
+	for i := 1; i <= 4; i++ {
+		a := atm(t, r.Root, nil, "claim", dep, "--holder", "agent", "--request-id", fmt.Sprintf("retry-%d", i))
+		if a.res.Outcome != wire.OutcomeOK {
+			t.Fatalf("claim %d: %s", i, a.stdout)
+		}
+		it := a.res.Items[0]
+		if x := atm(t, r.Root, nil, "release", "--attempt", field(it, "attemptId").Str, "--generation", field(it, "generation").Str, "--request-id", fmt.Sprintf("cancel-%d", i)); x.res.Outcome != wire.OutcomeOK {
+			t.Fatalf("release %d: %s", i, x.stdout)
+		}
+	}
+	it := atm(t, r.Root, nil, "critical-path", root).res.Items[0]
+	var dn wire.Value
+	for _, n := range field(it, "nodes").Arr {
+		if field(n, "ticketId").Str == dep {
+			dn = n
+		}
+	}
+	if dn.Kind != wire.KindObject || field(dn, "firstBlocker").Kind != wire.KindObject || field(field(dn, "firstBlocker"), "code").Str != wire.CodeRetryExhausted || field(dn, "eligibility").Str != ticket.EligibilityBlocked {
+		t.Fatalf("retry: %s\nplan: %s", wire.Encode(it), atm(t, r.Root, nil, "plan", "preview").stdout)
+	}
+	cpPlanParity(t, r, it)
+	if p := atm(t, r.Root, nil, "pause", "--request-id", "pause"); p.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("pause: %s", p.stdout)
+	}
+	paused := atm(t, r.Root, nil, "critical-path", root).res.Items[0]
+	for _, n := range field(paused, "nodes").Arr {
+		if field(field(n, "firstBlocker"), "code").Str != wire.CodePaused {
+			t.Fatalf("paused: %s", wire.Encode(n))
+		}
+	}
+	cpPlanParity(t, r, paused)
 }
