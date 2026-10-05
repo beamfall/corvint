@@ -18,7 +18,8 @@ it. No writer sets it.
   future acceptance revision, and it enforces the current-acceptance OPEN bound
   (`EscalationMaxCurrentOpen`, now shared with the transaction reducer).
 - **One optional-key list.** `wire.TicketRecordOptionalKeys` names `requiresPool`,
-  `requiredRoles` and `escalations`. The Tasks codec and Core's read-only planner both admit
+  `requiredRoles` and `escalations`; merging main added issue 501's `operatorNote`, which Core
+  validates through the same table. The Tasks codec and Core's read-only planner both admit
   exactly that list. Before this change Core's reader required the exact base key count and
   refused any record that carried `requiresPool` or `requiredRoles` (V1-0754). Core now validates
   each optional member, and a shared key with no Core validator is refused rather than passed
