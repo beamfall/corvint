@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S19 CAL-V0-069 opt-in lease `--timing` phase breakdown and timed-out claim replay implemented with focused tests and independent review; live fleet timing and Linux NOT_RUN, native completion pending; S20 CAL-V0-070 one-pass Mutate and pinned journal reads implemented with focused equivalence tests and a before/after benchmark, writer checkpoint deferred (owner decision pending); S19 CAL-V0-069 opt-in lease `--timing` phase breakdown and timed-out claim replay implemented with focused tests and independent review; live fleet timing and Linux NOT_RUN, native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; S22 CAL-V0-074..075 Claude Code supervised host with focused and fake-host tests, live Claude Code qualification NOT_RUN; S23 CAL-V0-076..077 OpenCode supervised host with focused and fake-host tests, live OpenCode qualification NOT_RUN; V1-0793 CAL-V0-079..081 read-only critical-path report implemented with focused fixture tests and independent review; V1-0788 CAL-V0-096 prior-generation stage and member, claim-result allocation and claim-event member implemented with focused tests; V1-0790 CAL-V0-082..085 recorded hand-off target and derived `nextStage` implemented with focused tests; S24 CAL-V0-097 resource-aware default selection implemented with focused tests, live dispatcher qualification NOT_RUN; V1-0784 CAL-V0-101 priority-yield admission implemented with focused and property tests, live qualification NOT_RUN; V1-0781 CAL-V0-095 experimental lock-free preparation-admission pressure in queue status with focused Darwin and Linux container tests; V1-0787 CAL-V0-099 stage-scoped execution prerequisites implemented with focused tests, live store qualification NOT_RUN; V1-0789 CAL-V0-098 review and integrate implement-author exclusion implemented with focused tests, live qualification NOT_RUN; V1-0780 CAL-V0-078 explicit result retryability implemented with focused wire and CLI tests; V1-0791 CAL-V0-102..103 opt-in no-progress loop detection hold implemented with focused tests and an N-1 digest, live dispatcher qualification NOT_RUN
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S19 CAL-V0-069 opt-in lease `--timing` phase breakdown and timed-out claim replay implemented with focused tests and independent review; live fleet timing and Linux NOT_RUN, native completion pending; S20 CAL-V0-070 one-pass Mutate and pinned journal reads implemented with focused equivalence tests and a before/after benchmark, writer checkpoint deferred (owner decision pending); S21 CAL-V0-071..072 and 087..088 multi-repository programs (policy declarations, sibling worktrees, composite candidate, review and gate binding, designated per-repository integration with exactly-once recovery, per-repository Core context) implemented with focused and fake-host tests, undesignated changed repositories fail closed, live Codex qualification NOT_RUN; S21 CAL-V0-089 policy-bounded checkpointed stage continuation for Codex and OpenCode implemented with fake-host tests, Claude Code and token-capped policies refused `UNSUPPORTED`, live host qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; S22 CAL-V0-074..075 Claude Code supervised host with focused and fake-host tests, live Claude Code qualification NOT_RUN; S23 CAL-V0-076..077 OpenCode supervised host with focused and fake-host tests, live OpenCode qualification NOT_RUN; V1-0793 CAL-V0-079..081 read-only critical-path report implemented with focused fixture tests and independent review; V1-0788 CAL-V0-096 prior-generation stage and member, claim-result allocation and claim-event member implemented with focused tests; V1-0790 CAL-V0-082..085 recorded hand-off target and derived `nextStage` implemented with focused tests; S24 CAL-V0-097 resource-aware default selection implemented with focused tests, live dispatcher qualification NOT_RUN; V1-0784 CAL-V0-101 priority-yield admission implemented with focused and property tests, live qualification NOT_RUN; V1-0781 CAL-V0-095 experimental lock-free preparation-admission pressure in queue status with focused Darwin and Linux container tests; V1-0787 CAL-V0-099 stage-scoped execution prerequisites implemented with focused tests, live store qualification NOT_RUN; V1-0789 CAL-V0-098 review and integrate implement-author exclusion implemented with focused tests, live qualification NOT_RUN; V1-0780 CAL-V0-078 explicit result retryability implemented with focused wire and CLI tests; V1-0791 CAL-V0-102..103 opt-in no-progress loop detection hold implemented with focused tests and an N-1 digest, live dispatcher qualification NOT_RUN; V1-0772 CAL-V0-086 supervised stage worktree PathText bound, unproved-stop `SURVIVORS` and drain `EPERM` re-probe implemented with focused tests
 Authoritative inputs: owner request [issue 583](https://github.com/beamfall/corvint/issues/583) (V1-0784, CAL-V0-101); owner request [issue 584](https://github.com/beamfall/corvint/issues/584) with owner answer 2026-10-05 (D1) (CAL-V0-097); owner request [issue 482](https://github.com/beamfall/corvint/issues/482) (proposed CAL-V0-044/046 compatibility amendment);
 owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
@@ -36,10 +36,10 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex, Claude Code or OpenCode supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S19 CAL-V0-069 opt-in lease `--timing` phase breakdown and timed-out claim replay implemented with focused tests and independent review; live fleet timing and Linux NOT_RUN, native completion pending; S20 CAL-V0-070 one-pass Mutate and pinned journal reads implemented with focused equivalence tests and a before/after benchmark, writer checkpoint deferred (owner decision pending); S19 CAL-V0-069 opt-in lease `--timing` phase breakdown and timed-out claim replay implemented with focused tests and independent review; live fleet timing and Linux NOT_RUN, native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; S22 CAL-V0-074..075 Claude Code supervised host with focused and fake-host tests, live Claude Code qualification NOT_RUN; S23 CAL-V0-076..077 OpenCode supervised host with focused and fake-host tests, live OpenCode qualification NOT_RUN; V1-0793 CAL-V0-079..081 read-only critical-path report implemented with focused fixture tests and independent review; V1-0788 CAL-V0-096 prior-generation stage and member, claim-result allocation and claim-event member implemented with focused tests; V1-0790 CAL-V0-082..085 recorded hand-off target and derived `nextStage` implemented with focused tests; S24 CAL-V0-097 resource-aware default selection implemented with focused tests, live dispatcher qualification NOT_RUN; V1-0784 CAL-V0-101 priority-yield admission implemented with focused and property tests, live qualification NOT_RUN; V1-0781 CAL-V0-095 experimental lock-free preparation-admission pressure in queue status with focused Darwin and Linux container tests; V1-0787 CAL-V0-099 stage-scoped execution prerequisites implemented with focused tests, live store qualification NOT_RUN; V1-0789 CAL-V0-098 review and integrate implement-author exclusion implemented with focused tests, live qualification NOT_RUN; V1-0780 CAL-V0-078 explicit result retryability implemented with focused wire and CLI tests; V1-0791 CAL-V0-102..103 opt-in no-progress loop detection hold implemented with focused tests and an N-1 digest, live dispatcher qualification NOT_RUN. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S19 CAL-V0-069 opt-in lease `--timing` phase breakdown and timed-out claim replay implemented with focused tests and independent review; live fleet timing and Linux NOT_RUN, native completion pending; S20 CAL-V0-070 one-pass Mutate and pinned journal reads implemented with focused equivalence tests and a before/after benchmark, writer checkpoint deferred (owner decision pending); S21 CAL-V0-071..072 and 087..088 multi-repository programs (policy declarations, sibling worktrees, composite candidate, review and gate binding, designated per-repository integration with exactly-once recovery, per-repository Core context) implemented with focused and fake-host tests, undesignated changed repositories fail closed, live Codex qualification NOT_RUN; S21 CAL-V0-089 policy-bounded checkpointed stage continuation for Codex and OpenCode implemented with fake-host tests, Claude Code and token-capped policies refused `UNSUPPORTED`, live host qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; S22 CAL-V0-074..075 Claude Code supervised host with focused and fake-host tests, live Claude Code qualification NOT_RUN; S23 CAL-V0-076..077 OpenCode supervised host with focused and fake-host tests, live OpenCode qualification NOT_RUN; V1-0793 CAL-V0-079..081 read-only critical-path report implemented with focused fixture tests and independent review; V1-0788 CAL-V0-096 prior-generation stage and member, claim-result allocation and claim-event member implemented with focused tests; V1-0790 CAL-V0-082..085 recorded hand-off target and derived `nextStage` implemented with focused tests; S24 CAL-V0-097 resource-aware default selection implemented with focused tests, live dispatcher qualification NOT_RUN; V1-0784 CAL-V0-101 priority-yield admission implemented with focused and property tests, live qualification NOT_RUN; V1-0781 CAL-V0-095 experimental lock-free preparation-admission pressure in queue status with focused Darwin and Linux container tests; V1-0787 CAL-V0-099 stage-scoped execution prerequisites implemented with focused tests, live store qualification NOT_RUN; V1-0789 CAL-V0-098 review and integrate implement-author exclusion implemented with focused tests, live qualification NOT_RUN; V1-0780 CAL-V0-078 explicit result retryability implemented with focused wire and CLI tests; V1-0791 CAL-V0-102..103 opt-in no-progress loop detection hold implemented with focused tests and an N-1 digest, live dispatcher qualification NOT_RUN; V1-0772 CAL-V0-086 supervised stage worktree PathText bound, unproved-stop `SURVIVORS` and drain `EPERM` re-probe implemented with focused tests. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
-- Read next: V1-0780 retryable result amendment (which codes a caller may retry); #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle; S19 lease timing and timed-out claim recovery; S19 lease timing and timed-out claim recovery; S21 multi-repository programs; S22 Claude Code supervised host; S23 OpenCode supervised host; V1-0793 critical-path read; S24 resource-aware default selection; V1-0781 admission pressure amendment; V1-0787 stage-scoped execution prerequisites; V1-0789 implement-author exclusion; V1-0791 no-progress loop detection); Amendments to TCP-00; Failure modes.
+- Read next: V1-0780 retryable result amendment (which codes a caller may retry); #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle; S19 lease timing and timed-out claim recovery; S19 lease timing and timed-out claim recovery; S21 multi-repository programs; S22 Claude Code supervised host; S23 OpenCode supervised host; V1-0793 critical-path read; S24 resource-aware default selection; V1-0781 admission pressure amendment; V1-0787 stage-scoped execution prerequisites; V1-0789 implement-author exclusion; V1-0791 no-progress loop detection; V1-0772 supervised stage worktree bound and unproved stops); Amendments to TCP-00; Failure modes.
 
 ## User and boundary
 
@@ -55,7 +55,7 @@ supervisor: `admit` reserves the ticket, a supervisor forks a `lane-leader`, a `
 handshake proves whether the runtime ran, and process-group liveness decides when a reservation may
 be released (§6.2 to §6.4). None of that is built in tree: the only reservations are S3's
 `external-agent` leases, `cutover` requires an empty reservation set
-(`internal/tasks/transaction/model.go:598@afae0d34`), and until S1 the writer refused every queue
+(`internal/tasks/transaction/model.go:613@afae0d34`), and until S1 the writer refused every queue
 that was not a fixture.
 
 The agents that use these queues are not processes corvint-tasks starts. They are interactive or
@@ -97,17 +97,17 @@ one.
 | S18 | CAL-V0-068 | Experimental host-pressure launch throttle: hysteresis level caps new non-exempt launches; running workers untouched |
 | S19 | CAL-V0-069 | Issue 494 opt-in `--timing` phase breakdown for claim, renew, heartbeat and release; timed-out claim replay pinned by test |
 | S20 | CAL-V0-070 | Writer cost against receipt history (V1-0645): one-pass `Mutate` and pinned journal reads implemented with equivalence tests and a before/after benchmark; writer checkpoint proposed, owner decision pending, deferred 2026-10-04 |
-| S19 | CAL-V0-069 | Issue 494 opt-in `--timing` phase breakdown for claim, renew, heartbeat and release; timed-out claim replay pinned by test |
-| S21 | CAL-V0-071..072 | Multi-repository supervised programs: policy-pinned extra checkouts, sibling worktrees, composite candidate and review binding; gates and integration fail closed |
+| S21 | CAL-V0-071..072, 087..089 | Multi-repository supervised programs: policy-pinned extra checkouts, sibling worktrees, composite candidate, review and gate binding, designated per-repository integration with exactly-once recovery, per-repository Core context; policy-bounded checkpointed stage continuation on hosts that report an interrupted session |
 | S22 | CAL-V0-074..075 | Claude Code supervised host: policy-selected host, named pin refusals, Claude Code argv and result vocabulary; live Claude Code qualification NOT_RUN |
 | S23 | CAL-V0-076..077 | OpenCode supervised host: detached-host escape drain, inline stage permissions, OpenCode argv, event-stream vocabulary with complete-accounting usage, and forked resume check; live OpenCode qualification NOT_RUN |
 | S24 | CAL-V0-097 | Resource-aware default plan: pool-needing selections capped at free eligible members, the excess deferred outside the window; dispatcher pool routing (`match.pool`) and Core plan decoding; focused tests |
 | V1-0789 | CAL-V0-098 | Opt-in review/integrate exclusion of recorded implement-generation authors; unverifiable history refuses; focused tests |
 | V1-0791 | CAL-V0-102..103 | Opt-in derived `LOOP_DETECTED` hold over audited no-progress and alternating-return generations; owner reopen clears it; dispatcher raises one blocked event per episode; focused tests |
+| V1-0772 | CAL-V0-086 | Supervised stage worktree path recorded as PathText (4096 bytes), refused before mutation when longer; an unproved stage drain ends the role `SURVIVORS` instead of `FINISHED`; drain re-probes `EPERM`; bounded watcher read tolerance; focused tests |
 
 CAL-V0-062/063 are defined in S13 (issue 354). CAL-V0-064 (S14, issue 468) is reserved
 by coordinated unlanded work; CAL-V0-066/S16 remains reserved for issue 464 if used.
-The coordinator assigned CAL-V0-067/S17 to issue 479 and CAL-V0-068/S18 to issue 497. CAL-V0-069/S19 is issue 494 and CAL-V0-071..072/S21 extend issue 354 (CAL-V0-070 and S20 are left to coordinated unlanded work). CAL-V0-073 is the V1-0751 CREATE payload template amendment. CAL-V0-074..075/S22 deliver native ticket V1-0755, split from issue 354. CAL-V0-076..077/S23 deliver native ticket V1-0756, split from issue 354. CAL-V0-079..081 are the V1-0793 critical-path read. CAL-V0-095 is the V1-0781 preparation-admission pressure amendment. CAL-V0-096 is the V1-0788 prior-generation stage and member amendment. CAL-V0-097/S24 is issue 584. CAL-V0-098 is the V1-0789 implement-author exclusion. CAL-V0-099 is the V1-0787 stage-scoped execution prerequisites amendment. CAL-V0-101 is the V1-0784 priority-yield amendment (issue 583). CAL-V0-078 is the V1-0780 retryable result amendment (issue 494 follow-up). CAL-V0-102..103 are the V1-0791 loop-detection amendment. This seed does not claim
+The coordinator assigned CAL-V0-067/S17 to issue 479 and CAL-V0-068/S18 to issue 497. CAL-V0-069/S19 is issue 494 and CAL-V0-071..072/S21 extend issue 354 (CAL-V0-070 and S20 are left to coordinated unlanded work). CAL-V0-073 is the V1-0751 CREATE payload template amendment. CAL-V0-074..075/S22 deliver native ticket V1-0755, split from issue 354. CAL-V0-076..077/S23 deliver native ticket V1-0756, split from issue 354. CAL-V0-079..081 are the V1-0793 critical-path read. CAL-V0-095 is the V1-0781 preparation-admission pressure amendment. CAL-V0-096 is the V1-0788 prior-generation stage and member amendment. CAL-V0-097/S24 is issue 584. CAL-V0-098 is the V1-0789 implement-author exclusion. CAL-V0-099 is the V1-0787 stage-scoped execution prerequisites amendment. CAL-V0-101 is the V1-0784 priority-yield amendment (issue 583). CAL-V0-078 is the V1-0780 retryable result amendment (issue 494 follow-up). CAL-V0-102..103 are the V1-0791 loop-detection amendment. CAL-V0-086 is the V1-0772 supervised stage worktree bound and unproved-stop amendment (issue 354). CAL-V0-087..089 complete S21 for issue 354 (V1-0475). This seed does not claim
 implementation or qualification of the new profile or any reserved slice.
 
 S8 was added by owner decision on 2026-09-27 and lands directly after S3, before S4.
@@ -1025,8 +1025,8 @@ policy-bounded stage wall for the existing `taskman-codex-supervisor/0` Codex su
 Owner scope decision 2026-10-04: issue 354 closes on multi-repository programs and Codex
 continuation across longer runs, using the effort delivered here; Claude Code and OpenCode
 supervisor hosts move to separate native tickets V1-0755 and V1-0756 and are non-goals of this spec's issue 354 slices.
-Multi-repository programs are delivered partially in S21; checkpointed continuation beyond the
-existing WAIT/resume path, and multi-repository gates and integration, remain open under V1-0475. The continuous dispatcher (S11) is unchanged:
+Multi-repository programs, gates and integration are delivered in S21 (CAL-V0-071..072, 087..088),
+and checkpointed continuation of a stage past its wall in S21 (CAL-V0-089). The continuous dispatcher (S11) is unchanged:
 its host argv already carries any effort flag and its role `wallSeconds` already reach seven days.
 
 - `CAL-V0-062`: The optional policy `supervision` object MAY carry `efforts`, a closed object whose
@@ -1699,14 +1699,18 @@ Implementation plan, in order:
 - (C) The writer checkpoint and rebinding above, as its own reviewed slice: owner decision
   pending, deferred 2026-10-04.
 
-### S21 — Multi-repository supervised programs (issue 354, partial)
+### S21 — Multi-repository supervised programs (issue 354)
 
 Authoritative input: owner request [issue 354](https://github.com/beamfall/corvint/issues/354) and
 the owner scope decision of 2026-10-04 recorded in S13; native ticket V1-0475. This slice lets one
 `taskman-codex-supervisor/0` program carry candidate changes in up to eight additional,
 operator-declared Git checkouts beside the queue repository, and binds them into one reviewable
-candidate. It does not integrate them: multi-repository gates and integration fail closed until a
-later slice defines cross-repository landing and crash recovery.
+candidate (CAL-V0-071..072). CAL-V0-087 evaluates required gates over that composite candidate and
+integrates each changed repository only into its own operator-designated checkout, exactly once
+across interruption and restart; a changed repository without a designation still fails closed.
+CAL-V0-088 gives every stage a Core context packet for each repository. CAL-V0-089 lets any
+supervised program, with one repository or several, continue a stage that its own stage wall stopped,
+resuming the same host session in the same preserved worktree a policy-bounded number of times.
 
 - `CAL-V0-071`: The optional policy `supervision` object MAY carry `repositories`, a closed object of
   1..8 entries keyed by a name (a lowercase ASCII letter followed by lowercase letters, digits or
@@ -1733,17 +1737,99 @@ later slice defines cross-repository landing and crash recovery.
   repository candidate (or base when unchanged); a primary changed path beginning with `@` returns
   the question `ambiguous multi-repository path` instead of a tree. Review MUST recompute the
   composite from the recorded candidates and refuse any mismatch, so `READY_FOR_INTEGRATION` binds
-  every repository's exact commit. Until a later slice is accepted, an integrator stage MUST refuse
-  `multi-repository integration is not yet supported` before any grant or checkout mutation, and a
-  reviewed program whose ticket or policy requires gates MUST refuse `multi-repository gate
-  evaluation is not yet supported` before any gate runs, so it never reaches
-  `READY_FOR_INTEGRATION`.
+  every repository's exact commit. CAL-V0-087 governs gates over, and integration of, that
+  composite candidate.
+- `CAL-V0-087`: A config `repositories` entry MAY carry `integrationBranch`, a label naming the
+  branch of that checkout that receives the repository's candidate. When the config also sets
+  `ownIntegrationCheckout`, admission MUST record each such entry's `integrationBranch` and the
+  checkout's directory identity as `integrationIdentity` in its `programs.json` repository record
+  (both or neither), as part of the immutable repository binding; without `ownIntegrationCheckout`
+  no designation is recorded. Then:
+  1. Each required gate of a multi-repository attempt MUST run in the primary stage worktree with
+     every sibling `<worktree>@<name>` present, and MUST observe the composite of the worktree's
+     `HEAD` tree and each sibling's `HEAD` commit, clean only when every worktree is clean. A
+     sibling that is absent or not of its recorded repository refuses `STALE_TREE`; an
+     uncommitted or untracked change in any of them refuses `DIRTY_WORKTREE`; the gate result's
+     candidate and executed tree are composites. A direct `gate run` on such an attempt observes
+     the same composite.
+  2. With repositories, the INTEGRATE grant scope MUST be `taskman-integration:` followed by the
+     SHA-256 of the base commit, candidate tree and queue intent branch joined by NUL, followed,
+     for each repository in name order, by NUL, its name, NUL and its `integrationBranch` (empty
+     when undesignated). A grant whose scope is the single-repository formula, or names other
+     branches, is refused `APPROVAL_MISSING`.
+  3. Before a grant is recorded, the integrator MUST refuse `UNSUPPORTED` (`repository <name>
+     changed but has no integration designation`) when any repository's candidate differs from
+     its base and the record carries no designation; and for each designated changed repository
+     MUST refuse unless its checkout is the recorded directory of the recorded repository, on
+     `refs/heads/<integrationBranch>`, clean and at its base (`designated checkout branch differs`,
+     `TARGET_ADVANCED: repository <name> advanced`). A repository whose candidate equals its base
+     needs no designation and is never moved.
+  4. After `INTEGRATE_INTENT` and under the store lock, the supervisor MUST re-check every target,
+     then fast-forward each changed repository's designated checkout to its candidate in name
+     order, with hooks disabled, before fast-forwarding the queue checkout. A checkout already at
+     its candidate is not landed again.
+  5. A restarted integrator with a pending integration effect MUST resume: with the queue checkout
+     at its base it repeats item 4, skipping landed repositories; with the queue checkout at the
+     candidate it MUST find every changed repository's candidate on its integration branch, or
+     stop `BLOCKED_RECOVERY`, before recording `INTEGRATED` and native completion once.
+  6. Native completion MUST compare the composite of the integrated commit and each repository
+     candidate with the candidate tree, and MUST find each changed repository's candidate on its
+     designated integration branch.
+  7. Worktree cleanup after proved completion MUST remove each repository's sibling stage
+     worktrees from that repository's own worktree registry.
+- `CAL-V0-088`: Every stage of a multi-repository program MUST obtain, besides the primary packet,
+  one Core context packet per repository, queried in that repository's sibling worktree at its
+  `HEAD` and held to the same READY, fresh and revision checks; any failure refuses the stage
+  `repository <name>: CONTEXT_UNAVAILABLE` before the host is launched. The packets reach the host
+  prompt as `repositoryContext`, keyed by repository name, beside `repositories`.
+- `CAL-V0-089`: The optional policy `supervision` object MAY carry `continuations`, a canonical
+  decimal count from 1 to 16; absent means none, and 0, a count above 16 or a noncanonical value is
+  refused. With `continuations` present:
+  1. A new program, before its runtime read, program record, worktree, effect or host process, and
+     every later stage launch, MUST refuse `UNSUPPORTED` when the configured host does not report
+     the session of a turn stopped before its final result (Claude Code, whose session appears
+     only in that result), or when the lane or the program declares a nonzero input or output
+     token cap, because no supported host reports the token usage of an interrupted turn and
+     DISPATCH would refuse every continuation as `lane token usage unknown`.
+  2. A stage is continuable only when its supervised run was stopped by that stage's own wall while
+     the caller's context was live: not by the program wall, a program control, a lost heartbeat,
+     a failed watch read or the caller. It must then have stopped cleanly into `WAITING` on the same
+     stage, unanswered, with a recorded host session, its preserved worktree, no live worker and
+     proved quiescence. An `implement` stage stopped at its wall still commits its partial work
+     as a per-turn candidate ref before it waits.
+  3. In the same role invocation, the supervisor MUST then answer the recorded question with
+     `checkpointed continuation <n> of <N>` and launch the stage again, resuming the recorded
+     session in the same worktree (Codex `exec resume`; OpenCode `--session` with `--fork`,
+     CAL-V0-077), at most N times. Each continuation is an ordinary ANSWER and DISPATCH, so ticket
+     and policy revision fencing, the lane turn cap and the shared program turn and wall caps still
+     apply. The supervisor MUST NOT start one when the lane turn cap, the program group's turn cap
+     or its wall leaves no room, or when a program control is pending; the attempt then stays
+     `WAITING` with the question unanswered, the program `FINISHED` with its owner released, and the
+     role returns the stage's deadline error. A continuation's admission, its first program write,
+     MUST refuse `FENCED` when the program revision it replaces carries a control, so a drain or
+     cancel recorded after that check starts no host turn: the program stays `FINISHED` with its
+     owner released and the control recorded, and the attempt stays `WAITING` with the continuation
+     answer recorded until an operator resumes the program. A control recorded after admission stops
+     the running turn through the stage watcher, as for any stage.
+  4. An integrate-stage continuation MUST reuse the grant recorded before the wait, not record
+     another, and the queue checkout MUST NOT move until `INTEGRATE_INTENT`, so integration
+     happens once after the last continuation.
+  5. No unanswered checkpoint is continued automatically by `run`. An explicit operator `retry`
+     answers it and resumes the same session and worktree, refused by the same caps. An answered
+     integrate-stage wait resumes under its recorded grant; a different nonempty grant is refused
+     `APPROVAL_MISSING`.
 
-Non-goals: integration into, or pushing, any additional checkout; cross-repository atomic landing or
-crash recovery; gates over the composite tree; per-repository Core context packets (context stays
-primary-only); submodule semantics in the operator's checkouts (the gitlinks exist only in the
-composite object); Claude Code and OpenCode supervisor hosts (V1-0755, V1-0756); and
-checkpointed continuation beyond WAIT/resume (open under V1-0475). Failure modes: a checkout moved
+  Absent `continuations`, policy and program bytes and every stage's behavior are unchanged.
+
+Non-goals: pushing any checkout; atomicity against Git writers outside the store lock (see the
+partial-landing failure mode below); integration of a changed repository that has no designation;
+a repository whose Core index is unavailable (the stage refuses rather than degrading to
+primary-only context); submodule semantics in the operator's checkouts (the gitlinks exist only in the
+composite object); Claude Code and OpenCode supervisor hosts (V1-0755, V1-0756); continuation on a
+host that does not report an interrupted session (Claude Code would need its session fixed at
+launch or a streamed session event), continuation under a token cap, a single turn longer than
+the stage wall, automatic continuation after the owning process exits, and the writer checkpoint
+(V1-0645). Failure modes: a checkout moved
 to another path no longer matches its pin and is refused; a sibling worktree whose common
 identity, commit or cleanliness differs from the record refuses the stage rather than overwriting
 work; uncommitted edits in the operator's checkout are neither read nor carried, because the
@@ -1752,19 +1838,46 @@ declared `@name/` touch paths blocks the program; a checkout re-cloned or retarg
 admission keeps its path pin but is refused by its recorded common identity before Git registers a
 worktree in it; two queues sharing one extra checkout and one program ID collide on its
 `refs/corvint/tasks/` candidate ref, and the second ref write fails closed; the composite tree object
-is referenced by no ref and may be pruned by `git gc`, which is harmless because review recomputes it
-from the recorded per-repository candidates; and the fail-closed gate and integration checks live in
-the store workflow, while a direct `gate run` on such an attempt refuses `STALE_TREE` because no
-ordinary worktree's `HEAD` tree is the composite. Downgrade is one-way: a binary without this slice
+is referenced by no ref and may be pruned by `git gc`, which is harmless because review, gates and
+completion recompute it from the recorded per-repository candidates; a designated checkout that
+another writer advances after an earlier repository landed stops integration `TARGET_ADVANCED` with
+that earlier landing kept and never repeated, and the attempt stays `READY_FOR_INTEGRATION` with its
+pending effect until the operator returns the advanced checkout to its base or candidate (CAL-V0-087);
+a continuation resumes the host's own record of the session, so a host that discarded or corrupted
+that session fails the resumed turn and leaves the preserved worktree and its per-turn refs for the
+operator; an owner process killed during a continuation leaves the attempt to the existing stale
+owner recovery, never a second concurrent continuation; the stage watcher polls once a second, so a
+control recorded just after a continuation's admission lets the resumed host run until the next
+poll before it is drained, as for any stage (CAL-V0-089).
+Downgrade is one-way: a binary without this slice
 refuses a `programs.json` that records repositories (`unknown field`), and because a full journal
 walk revalidates every retained post, it also refuses the retained history once any
 multi-repository program record is journaled, even after those programs are drained or cancelled,
-unless its reader resumes from a checkpoint after that record. Rollback removes `repositories` from the policy, which refuses every later stage of a
+unless its reader resumes from a checkpoint after that record; the same holds for a record that
+carries `integrationBranch` against a binary without CAL-V0-087. Rollback removes `repositories` from the policy, which refuses every later stage of a
 multi-repository program while leaving single-repository programs and their bytes unchanged; the
-candidate refs and sibling worktrees are ordinary Git state the operator may remove. Regression
-witnesses are the CAL-V0-071 and CAL-V0-072 rows in the traceability table, including the fake-host
-end-to-end `TestCALV0071_MultiRepositoryProgramFakeHost`. Live Codex qualification is `NOT_RUN`;
-see `docs/build-log/2026-10-04-tasks-multirepo-programs.md`.
+candidate refs and sibling worktrees are ordinary Git state the operator may remove; dropping
+`integrationBranch` from a config makes a later program's changed repositories refuse integration
+again; removing `continuations` returns every wall stop to the operator `retry` path, and a binary
+without CAL-V0-089 refuses a policy that carries it (`unknown field`). Regression witnesses are the
+CAL-V0-071, CAL-V0-072, CAL-V0-087, CAL-V0-088 and CAL-V0-089 rows in the traceability table,
+including the fake-host end-to-end `TestCALV0071_MultiRepositoryProgramFakeHost`,
+`TestCALV0087_DesignatedMultiRepositoryIntegration` and
+`TestCALV0089_CodexContinuationResumesPreservedSession`. Live Codex and OpenCode qualification is
+`NOT_RUN`; see
+`docs/build-log/2026-10-04-tasks-multirepo-programs.md` and
+`docs/build-log/2026-10-05-tasks-multirepo-continuation.md`.
+
+Decided 2026-10-05 (ticket V1-0475, issue 354): the owner accepted S21 (CAL-V0-071..072 and
+087..089) and CAL-V0-086 with live host qualification `NOT_RUN`. Under the owner's delegation the
+orchestrator kept every fail-closed implementation choice: the 4096-byte `worktreePath` PathText
+with its one-way downgrade, the 30-second watcher read tolerance and drain `EPERM` re-probe, Core
+context required for every repository, `integrationBranch` validated only as a label, an earlier
+repository staying landed when a later one refuses `TARGET_ADVANCED`, a continuation ceiling of 16,
+continuation refused under token caps and for Claude Code, and `continuable` failing closed on a
+transient read error. The CAL-V0-086..089 allocation stands. Live Codex, Claude Code and OpenCode
+qualification, live multi-repository integration, Linux and `make gate` are `NOT_RUN` and tracked
+with the remaining questions by follow-up V1-0824; writer checkpoint part C stays deferred (V1-0645).
 
 ### S22 — Claude Code supervised host (V1-0755, split from issue 354)
 
@@ -2774,6 +2887,52 @@ carries `seen.loops`; delete only that member while no hold is current, or start
 ledger. Older readers also refuse a record or plan carrying `LOOP_DETECTED`; the code appears only
 in derived output and in dispatcher events, never in a stored ticket record.
 
+### V1-0772 supervised stage worktree bound and unproved stops (issue 354)
+
+Human-owned input: owner request [issue 354](https://github.com/beamfall/corvint/issues/354)
+(2026-10-05: finish the remaining code), native suspected bugs V1-0772 and V1-0771. Root cause, on
+base `d524530f`: a supervised stage worktree is `<work root>/<program>/<assignment>/<generation>/<stage>-<turn>`,
+and the attempt decoded `worktreePath` as a 128-byte Identifier. With a fixture work root under a
+resolved `TMPDIR` longer than about 81 bytes (an agent scratchpad, for example), the path exceeded
+128 bytes and DISPATCH refused `LIMIT_EXCEEDED` (`/worktreePath: Identifier longer than 128 bytes`)
+after the worktree and its program records existed. That part is deterministic, not load-dependent.
+Two further failures appeared only under concurrent host load (V1-0771). First, on Darwin,
+`kill(-group, 0)` answers `EPERM` for a process group whose only member is an unreaped zombie. The
+lane leader is one until `Run`'s `Wait` reaps it, so the drain reported survivors. The role then
+journaled the program `FINISHED` over `BLOCKED_RECOVERY` and was refused
+`MALFORMED: program transition`. Second, the stage watcher cancelled a running stage on one
+failed unlocked program read. That read had raced a concurrent writer's journal staging
+(`MALFORMED: staging/aNN: unassigned stage slot`).
+
+- `CAL-V0-086`: An attempt's `worktreePath` MUST decode as an absolute PathText of at most 4096
+  bytes, not an Identifier. A path that is empty, relative, contains a control character or exceeds
+  4096 bytes MUST still be refused with its code. Before any directory, program record or Git worktree
+  exists, the supervisor MUST refuse a stage worktree path, or a `<path>@<name>` sibling path, that
+  is not such a PathText. DISPATCH MUST refuse it as well. A stage whose drain does not prove
+  quiescence MUST end its role with a non-retryable `SURVIVORS` error, which takes precedence over
+  the stage's own failure (a wall timeout, nonzero exit or invalid result) and keeps its text. The
+  classification MUST precede any candidate preservation or read-only candidate check, so a stage
+  over an existing candidate that also changed its worktree is still `SURVIVORS`, never left
+  `STOPPING`. The program and attempt then stay `BLOCKED_RECOVERY`, the program quiescence is
+  recorded `UNKNOWN`, and the owner stays unreleased. Such a stage MUST NOT journal `FINISHED`, and a
+  role MUST NOT go on to gates, `READY` or integration after it. The drain MUST treat `EPERM` from the process-group
+  probe as neither gone nor observable. It re-probes until the group is proved gone (`ESRCH`) or the drain deadline passes,
+  and it never signals on, or counts as gone, an `EPERM` answer. The stage watcher MUST tolerate
+  failing unlocked program reads for at most 30 seconds of continuous failure before it stops the
+  stage, and a successful read resets that window. A heartbeat refusal still stops the stage at once.
+
+Non-goals: fixing the journal reader's transient `unassigned stage slot` refusal itself (filed
+separately), and a longer drain deadline. Failure modes: a group that keeps answering `EPERM` (for
+example, a member this user may not signal) is still unclean once the deadline passes. Program
+reads that fail for 30 seconds still stop the stage, so a drain or cancel control is observed up to
+30 seconds late while reads fail. Downgrade is one-way: a binary without this amendment refuses an
+attempt whose recorded `worktreePath` is longer than 128 bytes (`LIMIT_EXCEEDED`). Because a full
+journal walk revalidates every retained post, it then refuses the retained history, unless its reader
+resumes from a checkpoint after that record. Attempts with shorter paths keep identical bytes.
+Rollback reverts the decoder and the workflow together; the drain and watcher changes write no new
+bytes. Regression witnesses are in the CAL-V0-086 traceability row; see
+`docs/build-log/2026-10-05-tasks-multirepo-continuation.md`.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -2918,7 +3077,17 @@ The `ESCALATION_PENDING` detail code (72 codes after A17) is amended in by `corv
 | Writer cannot retain the checkpoint (full disk, permissions, crash before rename) | Reads stay at complete-audit cost | The transaction is unaffected; the next successful writer retains one (CAL-V0-060) |
 | Extra repository moved, re-cloned, retargeted or undeclared | A program would edit an unintended checkout | Admission and every stage refuse unless the policy `supervision.repositories` pin matches the configured path, and every stage refuses a checkout whose common Git identity differs from the program record before any Git write (CAL-V0-071) |
 | Extra repository edited outside the ticket's `@name/` touch paths | Candidate widens scope silently | The implement stage blocks `OUT_OF_SCOPE` with no candidate (CAL-V0-071) |
-| Multi-repository program reaches gates or integration | No cross-repository landing or recovery contract exists yet | Review refuses before any gate runs and the integrator refuses before any grant; the composite candidate stays recorded (CAL-V0-072) |
+| Extra repository sibling worktree dirty or retargeted when a gate runs | A gate result would certify a tree other than the composite candidate | The gate refuses `DIRTY_WORKTREE` or `STALE_TREE` and records no result; the attempt does not reach `READY_FOR_INTEGRATION` (CAL-V0-087) |
+| Changed extra repository has no integration designation | Its candidate would land in an unintended checkout or nowhere | The integrator refuses `UNSUPPORTED` before any grant or Git write; the composite candidate stays recorded (CAL-V0-087) |
+| Integration grant omits a repository or its branch | A grant for one landing would authorize another | Its scope differs from the multi-repository formula and the grant is refused `APPROVAL_MISSING` (CAL-V0-087) |
+| Designated checkout advanced, switched branch or dirty before integration | A fast-forward would fail mid-landing or land on the wrong branch | Refused before the grant (`TARGET_ADVANCED`, `designated checkout branch differs`) and re-checked under the lock before the first landing (CAL-V0-087) |
+| Supervisor interrupted between repository landings, or before `INTEGRATED` | A restart would land a candidate twice or complete over a missing landing | A landed checkout is skipped; recovery requires every candidate on its branch or stops `BLOCKED_RECOVERY` (CAL-V0-087) |
+| Outside writer advances a later designated checkout after an earlier one landed | Integration is not atomic against writers outside the store lock | Integration stops `TARGET_ADVANCED` with the earlier landing kept and never repeated; the operator restores the advanced checkout (known limit, CAL-V0-087) |
+| Extra repository has no READY, fresh Core index | The host would edit a repository without its context | The stage refuses `repository <name>: CONTEXT_UNAVAILABLE` before launch (CAL-V0-088) |
+| Stage stopped by its wall with `continuations` configured | Work past one wall would be lost or need an operator | The stage resumes its recorded session in the preserved worktree up to the policy bound, each as an ordinary ANSWER and DISPATCH under every cap (CAL-V0-089) |
+| Continuation would exceed the lane or program turn cap, the program wall, or meets a pending drain or cancel | A continuation would overrun a bound or race the control | No continuation starts; the attempt waits unanswered for an operator `retry`, which the same caps refuse (CAL-V0-089) |
+| Drain or cancel recorded after the continuation check, before its admission | The control returns as settled and another host turn launches anyway | The continuation's first program write refuses `FENCED` against the revision it replaces; the program stays `FINISHED` and released with the control recorded, and no host turn starts (CAL-V0-089) |
+| `continuations` with Claude Code, or with a lane or program token cap | The stage could not resume, or every continuation would be refused as usage unknown | Program admission and every stage launch refuse `UNSUPPORTED` before mutation (CAL-V0-089) |
 | Supervisor config host differs from the policy host, or names an unknown host | A program would speak the wrong vocabulary to the pinned binary | Admission and every stage refuse `UNSUPPORTED` before any record, lease or host process (CAL-V0-074) |
 | Pinned Claude Code or Codex executable missing, replaced or re-moded | An unqualified binary would run | Refused `CAPABILITY_UNAVAILABLE` before any program record or lease (CAL-V0-074) |
 | Pinned executable is a symlink or lacks an execute bit | Admission takes a lease for a stage that launch refuses, leaving the worker unresolved | Admission runs the launch-time check and refuses `CAPABILITY_UNAVAILABLE` before any record; a later refusal before the leader fork settles the stage `NO_EXEC` and cancels the attempt (CAL-V0-074) |
@@ -2937,6 +3106,10 @@ The `ESCALATION_PENDING` detail code (72 codes after A17) is amended in by `corv
 | Resumed OpenCode stage fails the fork or answers from the same session ID | An answer would be accepted without the history of the WAIT question it continues | The attempt stays `WAITING` with the original session retained (CAL-V0-077) |
 | OpenCode standalone server or tool process leaves the owned process group | A host process would outlive a stage reported clean | Escapes are observed through their live parent and drained; the server holds the stage's standard error, so a survivor blocks end of file and the stop is not clean (CAL-V0-077) |
 | OpenCode plugin or project configuration in the worktree | Untrusted code or permissions would load into the stage | Project configuration is disabled and permissions arrive inline; user-configured plugins are a known, uncontained limit (owner decision 2026-10-04) (CAL-V0-077) |
+| Supervised stage worktree path longer than 128 bytes (deep work root or agent `TMPDIR`) | DISPATCH would refuse `LIMIT_EXCEEDED` after the worktree and program records exist | The attempt records the path as PathText up to 4096 bytes; a longer or invalid path is refused before any directory, record or Git worktree (CAL-V0-086) |
+| Stage drain cannot prove quiescence (a host process escaped, or the probe never answers gone) | The role would journal `FINISHED` over `BLOCKED_RECOVERY` and be refused `MALFORMED`, report a wall timeout, nonzero exit or invalid result as `MALFORMED`, or (over an existing candidate it changed) refuse `read-only stage changed candidate` with the attempt left `STOPPING` | The role ends with non-retryable `SURVIVORS`, keeping any stage failure's text; program and attempt stay `BLOCKED_RECOVERY`, program quiescence `UNKNOWN`, owner unreleased (CAL-V0-086) |
+| Darwin answers `EPERM` for a zombie-only process group before its leader is reaped | A finished stage would be reported unclean under load | The drain re-probes until `ESRCH` or its deadline and never counts `EPERM` as gone (CAL-V0-086) |
+| Unlocked program read fails while a concurrent writer stages its journal | The watcher would cancel a healthy stage | Reads may fail for up to 30 seconds of continuous failure before the stage stops; heartbeat refusals still stop it at once (CAL-V0-086) |
 
 ## Acceptance and rollback
 
@@ -3015,7 +3188,10 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-064 | `TestCALV0064_CommandGrammarAndRoleSeparation`; `TestCALV0064_ChangedFileReplayAndRestart`; `TestCALV0064_CheckedSaveFailureDoesNotGrantOrEscapeThroughClose`; `TestCALV0064_LaterSaveFailureCannotReviveGrantedParking`; `TestCALV0064_ActivePendingUnknownAndSeedAccounting`; `TestCALV0064_FirstSeedIsNotProgressAndCancellationIsNotAdmission`; `TestCALV0064_FirstSeedEndedWorkerAndLaterFailure`; `TestCALV0064_CanceledReobservationCannotAdmitEarlierToken`; `TestCALV0064_PostCommitCancellationPreservesFactsAndStopsEffects`; `TestCALV0064_CapacitySortedAllocationAndStrictLoad`; `TestCALV0064_NoTokenPreservesLegacyLedgerAndFingerprint`; `TestCALV0064_LedgerCanonicalFieldsAndCaseSensitiveKeys`; `TestCALV0064_KeyBoundaryAndOperatorUnparkRetainLifetimeBudget` (`internal/tasks/dispatch`); `TestCALV0064_DispatchCLIFileProgressAndReplay` (`internal/tasks/cli`); manual source/test evidence in `docs/build-log/2026-10-02-dispatch-explicit-progress.md`, optional OCM linkage unassessed |
 | CAL-V0-065 | `TestCALV0065_AbsentPreimage`, `TestCALV0065_RequestShapeAndCurrentMembership`, `TestCALV0065_AllocationPreviewAndPreparedAdmission` (`internal/tasks/transaction`); `TestCALV0065_HealthFiltersEveryRound`, `TestCALV0065_ReplayAfterSuccessorAndPolicyChange`, `TestCALV0065_ClaimNextSelectors` (`internal/tasks/store`); `TestCALV0065_CLIExclusionsAndPreviewPurity`, `TestCALV0065_NativeFixture` (`internal/tasks/cli`); scoped evidence and limits in `docs/build-log/2026-10-02-tasks-member-exclusions.md` |
 | CAL-V0-071 | `TestCALV0071_PolicyRepositories` (`internal/tasks/intent`); `TestCALV0071_ProgramRepositoryRecords` (`internal/tasks/snapshot`); `TestCALV0071_RepositoryBindingImmutable` (`internal/tasks/transaction`); `TestCALV0071_CheckProgramConfigRepositories`, `TestCALV0071_WritableRoots`, `TestCALV0071_UndeclaredRepositoryRefusedBeforeMutation`, `TestCALV0071_ExtraRepositoryPathsAreScoped`, `TestCALV0071_RetargetedCheckoutRefusedBeforeWrite`, `TestCALV0071_MultiRepositoryProgramFakeHost` (`internal/tasks/store`); live Codex NOT_RUN |
-| CAL-V0-072 | `TestCALV0071_MultiRepositoryProgramFakeHost` (composite tree, unmoved checkout `HEAD`, review binding, integrator refusal), `TestCALV0072_MultiRepositoryGatesFailClosed` (`internal/tasks/store`); live Codex NOT_RUN |
+| CAL-V0-072 | `TestCALV0071_MultiRepositoryProgramFakeHost` (composite tree, unmoved checkout `HEAD`, review binding), `TestCALV0072_MultiRepositoryGatesFailClosed` (dirty sibling refuses its gate) (`internal/tasks/store`); live Codex NOT_RUN |
+| CAL-V0-087 | `TestCALV0071_ProgramRepositoryRecords` (designation record) (`internal/tasks/snapshot`); `TestCALV0071_CheckProgramConfigRepositories` (designation label), `TestCALV0071_MultiRepositoryProgramFakeHost` (undesignated `UNSUPPORTED`), `TestCALV0072_MultiRepositoryGatesFailClosed`, `TestCALV0087_DesignatedMultiRepositoryIntegration`, `TestCALV0087_ExtraWorktreeCleanup`, `TestCALV0087_GrantMustNameEveryTarget`, `TestCALV0087_DesignatedTargetChecked`, `TestCALV0087_InterruptedIntegrationLandsOnce`, `TestCALV0087_UnchangedRepositoryNeedsNoDesignation` (`internal/tasks/store`); live Codex NOT_RUN |
+| CAL-V0-088 | `TestCALV0088_ExtraRepositoryContextRequired`, `TestCALV0087_DesignatedMultiRepositoryIntegration` (`internal/tasks/store`); live Codex NOT_RUN |
+| CAL-V0-089 | `TestCALV0089_PolicyContinuationsBound` (`internal/tasks/intent`); `TestCALV0089_InterruptedSessionCapability` (`internal/tasks/supervisor`); `TestCALV0089_StageRechecksContinuations`, `TestCALV0089_CodexContinuationResumesPreservedSession`, `TestCALV0089_OpenCodeContinuationForksPreservedSession`, `TestCALV0089_ContinuationBoundThenOperatorRestart`, `TestCALV0089_TurnCapsBoundContinuation`, `TestCALV0089_DrainStopsContinuation`, `TestCALV0089_ProgramWallExpiryEndsContinuation`, `TestCALV0089_IntegrateCheckpointRestartKeepsGrant`, `TestCALV0089_UnsupportedContinuationRefusedBeforeMutation` (`internal/tasks/store`); live Codex and OpenCode NOT_RUN |
 | CAL-V0-074 | `TestCALV0074_PolicyHost` (`internal/tasks/intent`); `TestCALV0074_CapsuleHost`, `TestCALV0074_RuntimeReplacedAtAck`, `TestCALV0074_ACLProbe`, `TestCALV0074_PrelaunchErrorOnlyBeforeSpawn` (`internal/tasks/supervisor`); `TestCALV0074_CheckProgramConfigHost`, `TestCALV0074_OpenWorkflowRefusesHostBeforeMutation`, `TestCALV0074_AdmissionRunsLaunchCheck`, `TestCALV0074_SpawnedFailureIsNotNoExec`, `TestCALV0074_NoExecCancelBeforeRelease`, `TestCALV0074_NoExecCrashTakeover`, `TestCALV0074_HostSwitchAndRollback` (`internal/tasks/store`); `TestCALV0074_RunHostFlag` (`internal/tasks/cli`) |
 | CAL-V0-075 | `TestCALV0075_ClaudeResultVocabulary`, `TestCALV0075_ClaudeUsageObservedOrUnknown`, `TestCALV0075_ClaudeDuplicateMembers` (`internal/tasks/supervisor`); `TestCALV0075_ClaudeStageArgv`, `TestCALV0075_ClaudeCodeProgramFakeHost` (`internal/tasks/store`); live Claude Code NOT_RUN |
 | CAL-V0-076 | `TestCALV0076_PolicyHostOpenCode` (`internal/tasks/intent`); `TestCALV0076_OpenCodeVocabularySelected` (`internal/tasks/supervisor`); `TestCALV0076_CheckOpenCodeConfig`, `TestCALV0076_CheckProgramConfigOpenCodeHost`, `TestCALV0076_OpenCodeHostRollback` (`internal/tasks/store`); `TestCALV0076_ConfigHostFlag` (`internal/tasks/cli`) |
@@ -3043,6 +3219,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-101 | `TestCALV0101_ExplicitPooledClaimYields`, `TestCALV0101_FlagOffMatchesNMinusOne`, `TestCALV0101_PlanClaimAndClaimNextAgree`, `TestCALV0101_UnobservedCompetitorIsNotObserved` (`internal/tasks/transaction`); `TestCALV0101_PriorityYieldThroughTheCLI` (`internal/tasks/cli`) |
 | CAL-V0-102 | See the V1-0791 amendment table: intent, snapshot, transaction (including the pinned N-1 digest), store, cli, dispatch, wire and lrfrepo tests |
 | CAL-V0-103 | See the V1-0791 amendment table: owner reopen in store and cli tests; dispatcher once-per-episode event and closed ledger member in dispatch tests |
+| CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance
 

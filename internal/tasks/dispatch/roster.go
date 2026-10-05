@@ -62,6 +62,10 @@ type Ticket struct {
 	// implement, review, integrate, STALE, or NONE when none is observed.
 	// It comes from the native queue, never from a workState program.
 	NextStage string
+	// OperatorNote is the ticket's ON-V0-011 note as read at observation,
+	// nil when the ticket was never noted. Only a native observation sets
+	// it; a workState program cannot supply it.
+	OperatorNote *NoteView
 }
 
 // LoopHold is a CAL-V0-102 hold as the dispatcher records it: the signal,
@@ -118,6 +122,9 @@ type Assignment struct {
 	Role, Key, Ticket, Local, State, Pool, Member string
 	NextStage                                     string
 	Slot, Tier                                    int
+	// OperatorNote is the ticket's observed note, rendered only through the
+	// {operatorNote} role-prompt placeholder (ON-V0-011).
+	OperatorNote *NoteView
 }
 
 // Busy is a running worker's claim on a role slot, a work key and a tier.
@@ -220,7 +227,7 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 			if !ok {
 				prio = len(priorityRank)
 			}
-			cands = append(cands, candidate{a: Assignment{Role: r.Name, Key: t.ID, Ticket: t.ID, Local: t.Local, State: t.State, NextStage: t.NextStage, Pool: t.RequiresPool}, pin: pin, role: r.Priority, prio: prio, ord: ri, order: t.Order})
+			cands = append(cands, candidate{a: Assignment{Role: r.Name, Key: t.ID, Ticket: t.ID, Local: t.Local, State: t.State, NextStage: t.NextStage, Pool: t.RequiresPool, OperatorNote: t.OperatorNote}, pin: pin, role: r.Priority, prio: prio, ord: ri, order: t.Order})
 		}
 	}
 	sort.SliceStable(cands, func(i, j int) bool {
@@ -412,7 +419,29 @@ type GateView struct {
 	Generation, Revision string
 	Resubmitted          bool
 	Head                 string
+	// Candidate, Subject, Trust and EvidenceSha256 complete the ERG-V0-009
+	// field set. Each is read from the head event, so the progress
+	// fingerprint, which already carries Head, is unchanged. EvidenceSha256
+	// is the head event's digest; all four are empty without a head.
+	Candidate      GateCandidate
+	Subject        GateSubject
+	Trust          GateTrust
+	EvidenceSha256 string
 }
+
+// GateCandidate is the reviewed candidate: Kind TREE with TreeOID, or Kind
+// EVIDENCE with Sha256 and Bytes.
+type GateCandidate struct{ Kind, TreeOID, Sha256, Bytes string }
+
+// GateSubject is the author's reviewed submission.
+type GateSubject struct {
+	AttemptID, Generation, ReceiptSeq, ReceiptSha256, AttemptSha256 string
+}
+
+// GateTrust is the head event's trust: Source LEASE_BOUND or
+// OPERATOR_ATTESTED; actor authentication and independence are always
+// NOT_OBSERVED (ERG-V0-001).
+type GateTrust struct{ ActorAuthentication, Independence, Source string }
 
 // Gate predicate states. NONE is a gate with no record; the others need a
 // CURRENT head, so a STALE or UNKNOWN gate matches no predicate.

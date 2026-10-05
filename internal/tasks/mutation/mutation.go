@@ -59,6 +59,9 @@ const (
 	OpCompleteManual  = "COMPLETE_MANUAL"
 	OpGrantApproval   = "GRANT_APPROVAL"
 	OpRevokeApproval  = "REVOKE_APPROVAL"
+	// OpAttachEvidence records evidence digests and a reason on an OPEN
+	// ticket without changing its acceptance (TEA-V0-001).
+	OpAttachEvidence = "ATTACH_EVIDENCE"
 )
 
 // Actor is the envelope's untrusted actor claim. It is compared against the
@@ -252,6 +255,16 @@ type RevokeApprovalPayload struct {
 
 func (*RevokeApprovalPayload) operation() string { return OpRevokeApproval }
 
+// AttachEvidencePayload is {evidence, reason} (TEA-V0-001): 1..16 sorted
+// unique digests and a nonblank reason of at most 512 bytes. The entry's
+// actor, time and acceptance revision come from the writer, never from here.
+type AttachEvidencePayload struct {
+	Evidence []wire.Digest
+	Reason   string
+}
+
+func (*AttachEvidencePayload) operation() string { return OpAttachEvidence }
+
 var envelopeKeys = []string{
 	"profile", "requestId", "actor", "queueId", "targetId", "expectedRevision", "operation", "payload", "issuedAt",
 }
@@ -281,6 +294,7 @@ var PayloadKeys = map[string][]string{
 	OpCompleteManual:  {"reason", "evidence"},
 	OpGrantApproval:   {"grantId", "actor", "operation", "targetRevision", "scope"},
 	OpRevokeApproval:  {"grantId", "reason"},
+	OpAttachEvidence:  {"evidence", "reason"},
 	OpNoteSet:         {"text", "supersedes"},
 	OpNoteClear:       {"supersedes"},
 	OpReviewRecord:    {"request"},
@@ -446,6 +460,9 @@ func decodePayload(op string, r *wire.Reader) (Payload, error) {
 	case OpRevokeApproval:
 		r.Closed(PayloadKeys[op]...)
 		p = &RevokeApprovalPayload{GrantID: r.Field("grantId").Label(), Reason: r.Field("reason").Prose(0, wire.MaxProseBytes)}
+	case OpAttachEvidence:
+		r.Closed(PayloadKeys[op]...)
+		p = &AttachEvidencePayload{Evidence: ticket.ReadEvidenceDigests(r.Field("evidence")), Reason: ticket.ReadEvidenceReason(r.Field("reason"))}
 	case OpNoteSet, OpNoteClear:
 		p = readNote(op, r)
 	case OpReviewRecord, OpReviewResubmit:
@@ -820,6 +837,9 @@ func PayloadValue(p Payload) wire.Value {
 		o.Set("scope", wire.Strings(p.Scope))
 	case *RevokeApprovalPayload:
 		o.Set("grantId", wire.String(p.GrantID))
+		o.Set("reason", wire.String(p.Reason))
+	case *AttachEvidencePayload:
+		o.Set("evidence", ticket.DigestsValue(p.Evidence))
 		o.Set("reason", wire.String(p.Reason))
 	case *NotePayload:
 		if p.Op == OpNoteSet {

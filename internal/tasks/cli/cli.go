@@ -52,7 +52,7 @@ type Env struct {
 // TM-V0-008 reads over the intent store and the state-dir snapshot; the
 // inventory-only reads (`ticket search|export`, `roadmap`, `gate list|show`)
 // report every journal-dependent fact as NOT_OBSERVED rather than omitting
-// the verb (§3.3 "Read verb inputs and items"). `init` and the fourteen
+// the verb (§3.3 "Read verb inputs and items"). `init` and the fifteen
 // `ticket` mutations write: they commit through the §5.2 journal writer.
 var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
@@ -62,13 +62,13 @@ var ReadVerbs = []string{
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
 	"ticket archive", "ticket restore", "ticket complete-manual", "ticket grant-approval",
-	"ticket revoke-approval",
+	"ticket revoke-approval", "ticket attach-evidence",
 	"release create", "release update", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
 	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview",
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
 	"dispatch", "dispatch status", "dispatch unpark",
 	"submit", "gate run", "complete", "health", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe",
-	"ticket note set", "ticket note clear", "ticket note show",
+	"ticket note set", "ticket note clear", "ticket note show", "ticket note history",
 	"gate record", "gate resubmit", "gate history",
 	"service install", "service status", "service uninstall", "service stop", "service resume", "service run", "service run-helper",
 	"ticket escalate", "ticket answer", "ticket escalation list", "ticket escalation show", "ticket escalation history",
@@ -209,7 +209,7 @@ func Run(env Env) int {
 		return emit(env.Stdout, planCommand(env, args[1:]))
 	case "gate":
 		if len(args) < 2 {
-			return emit(env.Stdout, usage([]string{"gate"}, "gate needs a verb: list, show <gateId>, run, record, resubmit, history"))
+			return emit(env.Stdout, usage([]string{"gate"}, "gate needs a verb: list, show <gateId>, run, record, resubmit, history, state"))
 		}
 		switch args[1] {
 		case "list":
@@ -222,6 +222,8 @@ func Run(env Env) int {
 			return emit(env.Stdout, gateReviewCommand(env, args[1], args[2:]))
 		case "history":
 			return emit(env.Stdout, gateHistory(env, args[2:]))
+		case "state":
+			return emit(env.Stdout, gateState(env, args[2:]))
 		}
 		return emit(env.Stdout, usage([]string{"gate"}, "unknown gate verb"))
 

@@ -17,9 +17,9 @@ their authority; this profile never amends them.
 
 ## Agent digest
 - Claim: Review verdicts (G1/G2 PASS/RETURN) and author resubmissions become typed, CAS-ordered queue events that route work without parsing Markdown.
-- Status: accepted (owner decision 2026-10-04); experimental: pure seed, read adapter/history, dispatcher gate predicates and a first native slice (OWNER/OPERATOR recorders, TREE candidates).
-- Exists: closed codecs, a pure reducer, gate adapter and history reader; policy `externalReviews`, the ticket `externalReviews` field (Tasks and Core readers), the locked REVIEW_RECORD/REVIEW_RESUBMIT writer on the derived-event slot with a receipt-audit binding, `gate record|resubmit|history`, native dispatcher gate observation, and the read-only `nextAction: complete-manual` offer when every required gate is a CURRENT PASS (ERG-V0-011).
-- Blocked on: REVIEWER/WORKER-actor admission in the writer, EVIDENCE candidates and evidence references, the issue 394 producer, crash/redo and two-writer fixtures, descriptor measurement, the full `gates[G]` field set, promotion.
+- Status: accepted (owner decision 2026-10-04); experimental: pure seed, read adapter/history, dispatcher gate predicates and the native writer (OWNER/OPERATOR/REVIEWER recorders, WORKER resubmissions, TREE and EVIDENCE candidates, evidence references, the issue 394 acceptance mapping).
+- Exists: closed codecs, a pure reducer, gate adapter and history reader; policy `externalReviews`, the ticket `externalReviews` field (Tasks and Core readers), the locked REVIEW_RECORD/REVIEW_RESUBMIT writer on the derived-event slot with a receipt-audit binding, `gate record|resubmit|history|state`, REVIEWER/WORKER actor admission, journal-backed EVIDENCE candidates and evidence references with the issue 394 acceptance mapping (`--from-acceptance`), the full `gates[G]` field set, native dispatcher gate observation, two-writer, crash/redo and descriptor-measurement fixtures, and the read-only `nextAction: complete-manual` offer when every required gate is a CURRENT PASS (ERG-V0-011).
+- Blocked on: promotion (ERG-V0-010): independent review, current-main integration, live qualification of the issue 394 connection with a real `corvint tests accept` report, and native completion.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.
 
 ## User and current state
@@ -101,8 +101,8 @@ This slice admits only OWNER and OPERATOR actors, because the existing writer gu
 model accept only those roles: an OWNER/OPERATOR record without a reviewer lease is
 OPERATOR_ATTESTED (only when the definition does not require a lease), with a holder-matched
 review-stage lease it is LEASE_BOUND, and a resubmission needs the actor's holder-matched live
-author-stage lease. REVIEWER and WORKER actors, EVIDENCE candidates and evidence references (which
-refuse as an unknown observation) remain later work.
+author-stage lease. The fifth delivery (below) admits REVIEWER and WORKER actors and EVIDENCE
+candidates and evidence references.
 
 The fourth delivery (native ticket V1-0792, issue 587 part 3, 2026-10-05) answers the issue's
 report that accepted tickets stayed OPEN until someone noticed and ran `complete-manual` by hand.
@@ -113,6 +113,28 @@ The offer is derived per read in `transaction.ExternalReviewCompletionOffer` and
 `ticket.View.OfferCompletion`; it writes nothing, adds no result code, and completion stays the
 operator's `complete-manual` disposition, so ERG-V0-007 is unchanged.
 
+The fifth delivery (native ticket V1-0701, issue 504, 2026-10-05) completes the native writer.
+Actors: a REVIEWER records only with its own holder-matched live review-stage lease (LEASE_BOUND) and
+never resubmits; a WORKER never records and resubmits only with its own live author-stage lease;
+neither role enters any other mutation; OWNER and OPERATOR keep the third delivery's rules. Subject
+currency is judged from submission history only, so a re-claim or a review-stage submission does
+not stale a verdict. Artifact link: an EVIDENCE candidate or an evidence reference `{label,sha256,
+bytes}` is admitted only when it is an evidence entry of an executable GateResult that names the
+subject attempt, generation and candidate tree, that GateResult being listed by an attempt record
+posted in the same receipt that posts the artifact fresh under `evidence/<sha256>`, and whose process
+exited (outcome EXIT) in a clean worktree at that candidate tree; its exit code and state are not
+judged, so a failing run at the candidate links its report while output from a worktree the gate
+dirtied or a tree it moved does not. The writer scans links in receipts after the subject; the receipt fold
+checks the same link at replay. When an EVIDENCE candidate artifact parses as an issue 394 report
+(`corvint-new-e2e-assessment/0|1`), accepted admits only PASS, rejected only RETURN, blocked no
+verdict (MISSING_EVIDENCE), and any other verdict refuses as MALFORMED; the writer and the fold both
+enforce it. `gate record --candidate-evidence SHA:BYTES`, `--from-acceptance REPORT_PATH` (which reads
+the report file, takes its digest as the candidate and its verdict as the request's) and repeatable `--evidence LABEL=SHA:BYTES` are the CLI. `gate state
+TICKET` exposes the full `gates[G]` field set (gate, verdict, status, generation, revision,
+resubmitted, head, evidenceSha256, subject, candidate, trust). Measured: a maximal review record
+descriptor uses 5 of 6 artifacts and 1342 of 1670 bytes; a blob-backed ticket post adds one EVIDENCE
+artifact and stays within the generic maximal derived-event descriptor of 1669 bytes.
+
 ## Requirements
 
 - `ERG-V0-001`: A review record MUST distinguish the reviewed subject from the recording actor.
@@ -122,13 +144,20 @@ operator's `complete-manual` disposition, so ERG-V0-007 is unchanged.
   never inferred from the subject. Recorder roles come only from the trusted native actor binding, never
   from the payload. WORKER cannot record a verdict. OWNER or OPERATOR may record without a reviewer
   lease only when policy does not require one, and that event is marked OPERATOR_ATTESTED; otherwise it
-  is LEASE_BOUND. Actor authentication and independence are always recorded as NOT_OBSERVED.
+  is LEASE_BOUND. A REVIEWER records only LEASE_BOUND with its own holder-matched review-stage lease
+  and cannot resubmit; a WORKER resubmits only with its own author-stage lease. Actor authentication
+  and independence are always recorded as NOT_OBSERVED.
 
 - `ERG-V0-002`: The reviewed candidate MUST be a closed tagged union bound to the subject.
   `{kind:"TREE",treeOid}` or `{kind:"EVIDENCE",sha256,bytes}`; inactive members are refused. TREE must
   equal the bound successful SUBMIT receipt's candidate tree. EVIDENCE is admissible only with a prior
   admitted, journal-backed artifact link to that subject generation; without such a producer EVIDENCE
-  recording refuses rather than accepting a raw path or caller digest.
+  recording refuses rather than accepting a raw path or caller digest. The link is an evidence entry
+  of an executable GateResult for the subject attempt, generation and candidate tree whose process
+  exited in a clean worktree at that tree, posted fresh in the receipt whose attempt record lists that
+  GateResult. Each evidence reference needs the same link.
+  An EVIDENCE artifact that is an issue 394 acceptance report admits only its mapped verdict
+  (accepted PASS, rejected RETURN, blocked none); a contradiction refuses.
 
 - `ERG-V0-003`: Each committed record or resubmission MUST be one immutable canonical `taskman-external-review-event/0` blob of at most 65536 bytes.
   Closed keys: profile, ticketId, acceptanceRevision, gateId, definitionSha256, policySha256,
@@ -188,7 +217,7 @@ operator's `complete-manual` disposition, so ERG-V0-007 is unchanged.
   `gate record` and `gate resubmit` CLI verbs, bounded anchored history (page at most 50, default 20,
   1 MiB) and a native workState adapter exposing
   `gates[G]={verdict,generation,revision,resubmitted,status,candidate,subject,trust,evidenceSha256}`
-  with closed gate predicates are required. A PASS, RETURN or RESUBMITTED predicate requires status
+  with closed gate predicates are required; `gate state TICKET` reads that field set. A PASS, RETURN or RESUBMITTED predicate requires status
   CURRENT; a NONE predicate (owner decision 2026-10-04) matches only when the ticket's gates were
   natively observed and that gate has no record, so an unobserved, STALE or UNKNOWN gate matches no
   predicate. Legacy string and
@@ -251,20 +280,21 @@ declaring review gates. A wrong offer can only suggest an operator disposition; 
 ## Acceptance evidence and traceability
 
 The first two deliveries supply pure and dispatcher-level focused evidence; the third adds focused
-native evidence for the OWNER/OPERATOR slice. The last column stays NOT_RUN.
+native evidence for the OWNER/OPERATOR slice and the fifth for REVIEWER/WORKER actors, EVIDENCE
+links, two writers and the descriptor. The last column stays NOT_RUN.
 
 | Requirement | Parent proposal | Delivered evidence (pure seed, read slice and first native slice) | Required integrated evidence (NOT_RUN) |
 |---|---|---|---|
-| ERG-V0-001 | ER504-001 | `TestIssue504ReplayAndAuthority` (recorder roles, reviewer lease, operator attestation), `TestIssue504ResubmitAndSecondReturn` (author lease distinct from reviewer); `TestERGV0009_NativeVerdictsThroughTheCLI` (OPERATOR-attested record and holder-matched author lease through the native writer) | REVIEWER-actor admission, policy-required lease refusal through the CLI |
-| ERG-V0-002 | ER504-002 | `TestIssue504BoundsAndUnknown` (EVIDENCE union encodes; an unproved candidate link refuses), `TestIssue504MaterialBindings` (subject receipt binding), `TestIssue504HistoricalPreservation` (candidate change); `TestERGV0009_NativeVerdictsThroughTheCLI` (real SUBMIT receipt lookup) | inactive-member refusal test; EVIDENCE artifact producer |
+| ERG-V0-001 | ER504-001 | `TestIssue504ReplayAndAuthority` (recorder roles, reviewer lease, operator attestation), `TestIssue504ResubmitAndSecondReturn` (author lease distinct from reviewer); `TestERGV0009_NativeVerdictsThroughTheCLI` (OPERATOR-attested record and holder-matched author lease through the native writer); `TestERGV0001_ReviewerAndWorkerActors` (policy-required lease refuses an OPERATOR attestation; REVIEWER records LEASE_BOUND only on its own lease and never resubmits; WORKER never records and resubmits on its own author lease; neither enters another mutation; the reviewer's review-stage submission does not stale the verdict) | operator use in a live queue |
+| ERG-V0-002 | ER504-002 | `TestIssue504BoundsAndUnknown` (EVIDENCE union encodes; an unproved candidate link refuses), `TestIssue504MaterialBindings` (subject receipt binding), `TestIssue504HistoricalPreservation` (candidate change); `TestERGV0009_NativeVerdictsThroughTheCLI` (real SUBMIT receipt lookup); `TestERGV0002_EvidenceCandidatesNeedAnArtifactLink` (an unlinked candidate or evidence reference refuses; a linked issue 394 report records RETURN and, after resubmission, PASS from `--from-acceptance`; a blocked report and a contradicted verdict refuse; retries replay; a report printed by a gate that dirtied its worktree or moved its tree while running does not link), `TestERGV0002_ForgedArtifactEventsRefuseAtRecovery` (rehashed events with an unlinked candidate, an unlinked evidence reference or a verdict the report contradicts refuse redo as JOURNAL_FORKED with the projection unchanged, and once settled fail the receipt audit and leave gates unobserved) | inactive-member refusal test; live `corvint tests accept` report |
 | ERG-V0-003 | ER504-003 | `TestIssue504CanonicalRoundTrip`, `TestIssue504BoundsAndUnknown` in snapshot; `TestIssue504TypedRouting` (prose cannot change state) | measured worst-case event size; evidence storage |
 | ERG-V0-004 | ER504-003 | `TestIssue504CanonicalRoundTrip` (closed per-gate reference codec only), `TestIssue504BoundsAndUnknown` (event revision 4097 refuses); `TestERGV0009_TicketReviewReferencesCodec` (16-gate map, legacy byte identity), `TestERGV0009_CoreReaderAdmitsOnlyTheClosedReviewReferences` | preservation by every non-review writer |
-| ERG-V0-005 | ER504-004 | `TestIssue504ResubmitAndSecondReturn`, `TestIssue504ReplayAndAuthority`, `TestIssue504BoundsAndUnknown` in transaction (same-CAS single winner over pure state); `TestERGV0009_NativeVerdictsThroughTheCLI` (stale counters refuse with REVISION_CONFLICT) | two-writer CAS and replay through the native request index |
+| ERG-V0-005 | ER504-004 | `TestIssue504ResubmitAndSecondReturn`, `TestIssue504ReplayAndAuthority`, `TestIssue504BoundsAndUnknown` in transaction (same-CAS single winner over pure state); `TestERGV0009_NativeVerdictsThroughTheCLI` (stale counters refuse with REVISION_CONFLICT); `TestERGV0005_TwoWritersOneWinner` (two concurrent writers with equal expectations: exactly one commits, the loser refuses REVISION_CONFLICT, the head and history hold one event and the winner's retry replays) | none beyond promotion |
 | ERG-V0-006 | ER504-002, F1 | `TestIssue504HistoricalPreservation`, `TestIssue504ResubmitAndSecondReturn/stale-resubmit-fresh-cycle`, `TestIssue504BoundsAndUnknown`; `TestERGV0009_NativeVerdictsThroughTheCLI` (a newer submission stales a PASS and refuses a verdict on the old subject, also after the newer attempt is released), `TestERGV0006_BlobBackedSubmissionSupersedes` (a blob-backed newer submission stales the PASS and refuses a verdict on the old subject; the indexed fold answers supersession within a fixed bound across a 256-fold longer history), `TestERGV0006_RecoveryChecksEveryAuthorStage` (redo refuses a rehashed verdict superseded by a newer submission in another author stage or a blob-backed one, and admits one whose newer submission is outside the author stages), `TestERGV0006_BuiltPostsNeverSkipUnreadable` (an absent, unretained, mismatched, non-record or malformed attempt post, whatever phase it claims, is JOURNAL_FORKED, never skipped) | staleness from a real acceptance change |
 | ERG-V0-007 | ER504-005 | `TestIssue504CanonicalRoundTrip`, `TestIssue504TypedRouting` (GateResult decoder rejects the event) | completion predicates unchanged under native records |
 | ERG-V0-008 | ER504-005, Gate A MED | `TestIssue504MaterialBindings` (rehashed wrong CAS, priorReturn, context, post and subject) | locked staged recovery and crash/redo fixtures |
-| ERG-V0-009 | ER504-001, ER504-005, ER504-006 | `TestIssue504GateAdapter` (16-gate bound, UNKNOWN for a missing head or binding or a head for another ticket or gate, STALE), `TestIssue504AnchoredHistory` (default and maximum page, cursor paging, off-chain cursor, broken link and digest refusals), `TestIssue504DispatchMisroutes` (the three issue misroutes route by typed verdict through adapter and roster), `TestERGV0009_GatePredicates` (closed predicate config, NONE only when observed, unobserved gates are UNKNOWN, STALE/UNKNOWN never match, fingerprint compatibility, programs cannot supply gates), `TestERGV0009_PolicyExternalReviewsGrantNothingByDefault`, `TestERGV0009_NativeVerdictsThroughTheCLI` (native writer, CLI verbs, history paging, observation filling ticket gates, receipt-audit binding refusing a forged receipt), `TestERGV0009_ForgedReviewEventsRefuseAtRecovery` (rehashed events with a forged actor, counters, prior RETURN, subject generation or candidate tree, or a lease-bound record stripped to an operator attestation under a lease-required policy, refuse redo as JOURNAL_FORKED with the projection unchanged, and once settled leave gates unobserved), `TestERGV0009_ReviewRetriesReplay` (retries replay after head, policy and lease changes; a changed input is a request-id conflict, also after a policy change or with the gate undeclared, and so is a retry on another gate or ticket or reusing another operation's request id), `TestONV0006_DerivedEventSlotClosedToDeclaringOperations` | REVIEWER actors, the full `gates[G]` field set, two-writer fixture, 1670-byte descriptor measurement |
-| ERG-V0-010 | ER504-008, ER504-009 | none | full native fixture set, issue 394 producer, review, integration and native completion |
+| ERG-V0-009 | ER504-001, ER504-005, ER504-006 | `TestIssue504GateAdapter` (16-gate bound, UNKNOWN for a missing head or binding or a head for another ticket or gate, STALE), `TestIssue504AnchoredHistory` (default and maximum page, cursor paging, off-chain cursor, broken link and digest refusals), `TestIssue504DispatchMisroutes` (the three issue misroutes route by typed verdict through adapter and roster), `TestERGV0009_GatePredicates` (closed predicate config, NONE only when observed, unobserved gates are UNKNOWN, STALE/UNKNOWN never match, fingerprint compatibility, programs cannot supply gates), `TestERGV0009_PolicyExternalReviewsGrantNothingByDefault`, `TestERGV0009_NativeVerdictsThroughTheCLI` (native writer, CLI verbs, history paging, observation filling ticket gates, receipt-audit binding refusing a forged receipt), `TestERGV0009_ForgedReviewEventsRefuseAtRecovery` (rehashed events with a forged actor, counters, prior RETURN, subject generation or candidate tree, or a lease-bound record stripped to an operator attestation under a lease-required policy, refuse redo as JOURNAL_FORKED with the projection unchanged, and once settled leave gates unobserved), `TestERGV0009_ReviewRetriesReplay` (retries replay after head, policy and lease changes; a changed input is a request-id conflict, also after a policy change or with the gate undeclared, and so is a retry on another gate or ticket or reusing another operation's request id), `TestONV0006_DerivedEventSlotClosedToDeclaringOperations` ; `TestERGV0001_ReviewerAndWorkerActors` (`gate state` and the observation expose the full `gates[G]` field set), `TestERGV0009_ReviewDescriptorMeasured` (maximal review record descriptor: 5 of 6 artifacts, 1342 of 1670 bytes, within the 1669-byte generic maximum) | operator use in a live queue |
+| ERG-V0-010 | ER504-008, ER504-009 | the native fixture set above (two-writer CAS, replay, crash/redo refusal and control redo, capacity, legacy omission, read-no-mutation) and the issue 394 mapping | independent review, current-main integration, live qualification of the issue 394 connection, native completion |
 | ERG-V0-011 | issue 587 part 3, D7(a) | `TestERGV0011_CompletionOfferNeedsEveryRequiredGateCurrentPass` (missing, STALE, UNKNOWN, RETURN, resubmitted, unbound and undeclared gates, and a policy without gates, give no offer; heads are sorted), `TestERGV0011_OfferReplacesOnlyAnUnblockedAdmit` (only an OPEN unblocked admit with nothing NOT_OBSERVED is replaced; every other view renders byte-identically), `TestERGV0011_CompletionOfferThroughTheCLI` (native RETURN, resubmission, live-attempt PASS, a queue pause with a BLOCKED/PAUSED plan entry, undeclared gate and STALE PASS give no offer; unpausing restores it; a CURRENT PASS offers through `ticket show`, `ticket blockers` and `plan preview` without advancing the journal or completing; an unreviewed ticket's show item and plan entry stay byte-identical) | a two-gate native fixture; operator use in a live queue |
 
 ## Rollout and rollback
@@ -303,3 +333,12 @@ the offer unreachable in a queue with required executable gates, and `complete-m
 its own evidence. `queue status` and `roadmap` do not carry the offer; `ticket show` and `plan
 preview` do. The required set stays as delivered in ERG-V0-011: every review gate the policy declares
 plus every review gate the ticket references.
+
+Decided 2026-10-05 (ticket V1-0701): the owner accepted issue #504 with qualification `NOT_RUN`
+and delegated these choices to the orchestrator, which kept the fail-closed defaults: a REVIEWER
+cannot resubmit; subject currency follows submission history only, so a re-claim does not stale a
+verdict; an artifact link needs a GateResult of the subject attempt, generation and tree that exited
+clean at that tree, but not a PASSED one; the issue 394 mapping applies whenever an EVIDENCE artifact parses as such a report,
+with no policy switch; the blob read bound for EVIDENCE artifacts is the 16 MiB gate-output bound;
+and the writer admits links only from receipts after the subject while the fold admits any linked
+receipt, so the writer is the stricter of the two.

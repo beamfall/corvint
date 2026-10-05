@@ -73,6 +73,26 @@ func TestCALV0062_StageRechecksCurrentPolicy(t *testing.T) {
 	}
 }
 
+// TestCALV0089_StageRechecksContinuations proves every stage launch, not only
+// program admission, refuses a continuation policy that the host or the token
+// caps cannot support, before any record or host process.
+func TestCALV0089_StageRechecksContinuations(t *testing.T) {
+	for _, tc := range []struct {
+		host   string
+		policy *intent.Policy
+		refuse string
+	}{
+		{"claude-code", &intent.Policy{Supervision: &intent.SupervisionPolicy{Host: "claude-code", Continuations: wire.CountOf(2)}}, "reports its session only in its final result"},
+		{"", &intent.Policy{Supervision: &intent.SupervisionPolicy{Continuations: wire.CountOf(2)}, Lane: intent.LaneBudget{OutputTokens: wire.SizeOf(5)}}, "token usage of an interrupted turn"},
+		{"", &intent.Policy{Supervision: &intent.SupervisionPolicy{Continuations: wire.CountOf(2), InputTokens: wire.SizeOf(5)}}, "token usage of an interrupted turn"},
+	} {
+		w := &Workflow{cfg: ProgramConfig{Effort: "low", WallSeconds: 60, Host: tc.host}, policy: tc.policy}
+		if _, e := w.stage(context.Background(), "implement"); wire.CodeOf(e) != wire.CodeUnsupported || !strings.Contains(e.Error(), tc.refuse) {
+			t.Fatalf("host %q continuation policy reached launch: %v", tc.host, e)
+		}
+	}
+}
+
 func TestCALV0063_CheckProgramConfigStageWall(t *testing.T) {
 	long := &intent.SupervisionPolicy{StageWallMinutes: wire.CountOf(240)}
 	for _, tc := range []struct {
@@ -123,14 +143,16 @@ func TestCALV0071_CheckProgramConfigRepositories(t *testing.T) {
 		refuse string
 	}{
 		{policy, nil, ""},
-		{policy, []ProgramRepository{{"docs", docs}, {"site", site}}, ""},
-		{nil, []ProgramRepository{{"docs", docs}}, "not declared by policy"},
-		{policy, []ProgramRepository{{"wiki", docs}}, "not declared by policy"},
-		{policy, []ProgramRepository{{"site", site}, {"docs", docs}}, "sorted by unique name"},
-		{policy, []ProgramRepository{{"docs", docs}, {"docs", docs}}, "sorted by unique name"},
-		{policy, []ProgramRepository{{"docs", "work/docs"}}, "absolute clean path"},
-		{policy, []ProgramRepository{{"docs", "/work/../work/docs"}}, "absolute clean path"},
-		{policy, []ProgramRepository{{"docs", site}}, "differs from the policy path pin"},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: docs}, {Name: "site", Checkout: site}}, ""},
+		{nil, []ProgramRepository{{Name: "docs", Checkout: docs}}, "not declared by policy"},
+		{policy, []ProgramRepository{{Name: "wiki", Checkout: docs}}, "not declared by policy"},
+		{policy, []ProgramRepository{{Name: "site", Checkout: site}, {Name: "docs", Checkout: docs}}, "sorted by unique name"},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: docs}, {Name: "docs", Checkout: docs}}, "sorted by unique name"},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: "work/docs"}}, "absolute clean path"},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: "/work/../work/docs"}}, "absolute clean path"},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: site}}, "differs from the policy path pin"},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: docs, IntegrationBranch: "main"}}, ""},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: docs, IntegrationBranch: "ma\nin"}}, "integrationBranch is not a branch label"},
 	} {
 		e := CheckProgramConfig(ProgramConfig{Effort: "low", WallSeconds: 60, Repositories: tc.repos}, tc.policy)
 		if tc.refuse == "" && e != nil {

@@ -15,6 +15,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -53,7 +54,7 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 	if err != nil {
 		return &Report{}, err
 	}
-	a, policy, err := unlockedAttempt(ctx, repo, choice.Lease.AttemptID)
+	a, policy, proof, err := unlockedAttemptProof(ctx, repo, choice.Lease.AttemptID)
 	if err != nil {
 		return &Report{}, err
 	}
@@ -62,11 +63,15 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 		if err != nil {
 			return &Report{}, err
 		}
-		if err = atCandidate(worktree, *a.CandidateTreeOid); err != nil {
+		repos, err := attemptRepositories(proof, a)
+		if err != nil {
+			return &Report{}, err
+		}
+		if err = atCandidate(worktree, *a.CandidateTreeOid, repos); err != nil {
 			return &Report{}, err
 		}
 		executed = true
-		run, err := runGate(ctx, def, policy, a, worktree, clock)
+		run, err := runGate(ctx, def, policy, a, worktree, repos, clock)
 		if err != nil {
 			return &Report{}, err
 		}
@@ -94,21 +99,52 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 // unlockedAttempt reads the attempt and policy without the store lock; the
 // prepared model and locked guard recheck both before committing.
 func unlockedAttempt(ctx context.Context, repo *intent.Repository, attemptID string) (*snapshot.Attempt, *intent.Policy, error) {
+	a, policy, _, err := unlockedAttemptProof(ctx, repo, attemptID)
+	return a, policy, err
+}
+
+// unlockedAttemptProof is unlockedAttempt that also returns the read it
+// decoded both from.
+func unlockedAttemptProof(ctx context.Context, repo *intent.Repository, attemptID string) (*snapshot.Attempt, *intent.Policy, *journal.Result, error) {
 	path := "attempts/" + attemptID + ".json"
 	proof, err := readLeaseProof(ctx, repo)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	record, ok := proof.Records[path]
 	if !ok || record.Sha256 == nil {
-		return nil, nil, wire.Errorf(wire.CodeMalformed, "attemptId", "attempt does not exist")
+		return nil, nil, nil, wire.Errorf(wire.CodeMalformed, "attemptId", "attempt does not exist")
 	}
 	a, err := snapshot.DecodeAttempt(record.Raw)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	policy, err := intent.DecodePolicy(proof.Records["intent/policy.json"].Raw)
-	return a, policy, err
+	return a, policy, proof, err
+}
+
+// attemptRepositories returns the extra repositories of the supervised
+// program whose current attempt is a, or nil for an unsupervised or
+// single-repository attempt (CAL-V0-087). An attempt its program no longer
+// names gets nil, so a composite candidate fails closed as a stale tree.
+func attemptRepositories(proof *journal.Result, a *snapshot.Attempt) ([]snapshot.RepositoryRecord, error) {
+	if a.Supervision == nil || a.Supervision.ProgramID == "" {
+		return nil, nil
+	}
+	record, ok := proof.Records["programs.json"]
+	if !ok || record.Sha256 == nil {
+		return nil, nil
+	}
+	ps, err := snapshot.DecodePrograms(record.Raw)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range ps.Entries {
+		if p.ID == a.Supervision.ProgramID && p.CurrentAttempt == a.AttemptID && p.CurrentGeneration == string(a.Generation) {
+			return p.Repositories, nil
+		}
+	}
+	return nil, nil
 }
 
 // runnable says the model could record a run of this attempt: the command's
@@ -159,10 +195,42 @@ func worktreeTree(worktree string) (string, bool, error) {
 	return tree, len(status) == 0, nil
 }
 
-// atCandidate refuses a worktree whose HEAD tree is not the candidate or
-// that has any change or untracked file.
-func atCandidate(worktree, candidate string) error {
+// observedCandidate is the candidate tree a gate observes in worktree and
+// whether it is clean. With extra repositories it is the composite of the
+// worktree's HEAD tree and each sibling worktree's HEAD commit, clean only
+// when every worktree is, and each sibling must belong to its declared
+// repository (CAL-V0-087).
+func observedCandidate(worktree string, repos []snapshot.RepositoryRecord) (string, bool, error) {
 	tree, clean, err := worktreeTree(worktree)
+	if err != nil || len(repos) == 0 {
+		return tree, clean, err
+	}
+	commits := map[string]string{}
+	for _, r := range repos {
+		at := extraPath(filepath.Clean(worktree), r.Name)
+		if _, _, shared, err := gitIdentities(at); err != nil || shared != r.CommonIdentity {
+			return "", false, wire.Errorf(wire.CodeStaleTree, "worktree", "repository %s worktree %s is absent or not that repository", r.Name, at)
+		}
+		head, err := resolveObject(at, "HEAD", "commit")
+		if err != nil {
+			return "", false, err
+		}
+		_, ok, err := worktreeTree(at)
+		if err != nil {
+			return "", false, err
+		}
+		clean = clean && ok
+		commits[r.Name] = head
+	}
+	composite, err := compositeTree(worktree, tree, commits)
+	return composite, clean, err
+}
+
+// atCandidate refuses a worktree whose HEAD tree (or, with extra
+// repositories, composite candidate) is not the candidate or that has any
+// change or untracked file.
+func atCandidate(worktree, candidate string, repos []snapshot.RepositoryRecord) error {
+	tree, clean, err := observedCandidate(worktree, repos)
 	if err != nil {
 		return err
 	}
@@ -275,13 +343,13 @@ func gateState(run execution, expected wire.Count, clean, atCandidate bool) stri
 	return "PASSED"
 }
 
-func runGate(ctx context.Context, def *intent.GateDefinition, policy *intent.Policy, a *snapshot.Attempt, worktree string, clock func() time.Time) (gateRun, error) {
+func runGate(ctx context.Context, def *intent.GateDefinition, policy *intent.Policy, a *snapshot.Attempt, worktree string, repos []snapshot.RepositoryRecord, clock func() time.Time) (gateRun, error) {
 	env, envDigest := gateEnvironment(def.Env)
 	out := &cappedOutput{}
 	started := clock()
 	run := execute(ctx, def, worktree, env, out)
 	ended := clock()
-	tree, clean, err := worktreeTree(worktree)
+	tree, clean, err := observedCandidate(worktree, repos)
 	if err != nil {
 		return gateRun{}, err
 	}
@@ -386,7 +454,11 @@ func changedPaths(root, from, to string) ([]string, error) {
 }
 
 // completeFacts observes the completing commit's tree and whether the
-// intent branch contains it, plus the attempt's gate results.
+// intent branch contains it, plus the attempt's gate results. For a
+// multi-repository attempt the tree is the composite of that commit's tree
+// and each extra repository's candidate, and the candidate is reachable only
+// when every changed extra repository's designated integration branch also
+// contains its candidate (CAL-V0-087).
 func completeFacts(repo *intent.Repository, root string, proof *journal.Result, l transaction.LeaseRequest) (transaction.LeaseFacts, error) {
 	results, err := attemptGateResults(repo, proof, l.AttemptID)
 	if err != nil {
@@ -404,7 +476,60 @@ func completeFacts(repo *intent.Repository, root string, proof *journal.Result, 
 		return transaction.LeaseFacts{}, err
 	}
 	reachable, err := isAncestor(root, l.Commit, "refs/heads/"+q.IntentBranch)
-	return transaction.GateFacts(nil, nil, nil, tree, reachable, results), err
+	if err != nil {
+		return transaction.LeaseFacts{}, err
+	}
+	var repos []snapshot.RepositoryRecord
+	if a, ok := lockedAttempt(proof, l.AttemptID); ok {
+		if repos, err = attemptRepositories(proof, a); err != nil {
+			return transaction.LeaseFacts{}, err
+		}
+	}
+	if len(repos) > 0 {
+		if tree, err = compositeTree(root, tree, candidateCommits(repos)); err != nil {
+			return transaction.LeaseFacts{}, err
+		}
+		for _, r := range repos {
+			if !reachable {
+				break
+			}
+			if reachable, err = repositoryIntegrated(r); err != nil {
+				return transaction.LeaseFacts{}, err
+			}
+		}
+	}
+	return transaction.GateFacts(nil, nil, nil, tree, reachable, results), nil
+}
+
+// candidateCommits maps each extra repository to its candidate commit.
+func candidateCommits(repos []snapshot.RepositoryRecord) map[string]string {
+	out := map[string]string{}
+	for _, r := range repos {
+		out[r.Name] = r.Candidate
+	}
+	return out
+}
+
+// repositoryIntegrated reports whether an extra repository's candidate is
+// integrated: trivially for an unchanged repository, otherwise only in the
+// admitted designated checkout whose integration branch contains it.
+func repositoryIntegrated(r snapshot.RepositoryRecord) (bool, error) {
+	if r.Candidate == "" {
+		return false, wire.Errorf(wire.CodeMissingEvidence, "repositories", "repository %s candidate absent", r.Name)
+	}
+	if r.Candidate == r.Base {
+		return true, nil
+	}
+	if r.IntegrationBranch == "" {
+		return false, nil
+	}
+	if id, err := supervisor.DirectoryIdentity(r.Checkout); err != nil || id != r.IntegrationIdentity {
+		return false, nil
+	}
+	if _, _, shared, err := gitIdentities(r.Checkout); err != nil || shared != r.CommonIdentity {
+		return false, nil
+	}
+	return isAncestor(r.Checkout, r.Candidate, "refs/heads/"+r.IntegrationBranch)
 }
 
 // isAncestor runs git merge-base --is-ancestor, whose exit status 1 means

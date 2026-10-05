@@ -12,16 +12,17 @@ decided); the owner's direct acceptance of this profile with its drafted default
 given through a structured question in the orchestrator session; and the existing
 [agent lease contract](corvint-tasks-agent-leases-v0.md). The second delivery adds the native writer,
 the record and Core codecs, the `ticket note` CLI and the `ticket show` view. The third delivery
-adds claim delivery (ON-V0-007) and per-event receipt-audit and redo binding (ON-V0-006); anchored
-history and durable qualification come later. The older TCP-00 task-store recovery contract remains partially
+adds claim delivery (ON-V0-007) and per-event receipt-audit and redo binding (ON-V0-006). The fourth
+delivery adds the anchored history read (ON-V0-008) and dispatch rendering (ON-V0-011); durable
+qualification comes later. The older TCP-00 task-store recovery contract remains partially
 unrecovered; it is not the unrelated `task-context-packet-v0.md`/TCP-V0 spec. This extension
 restates its own required ticket/mutation/receipt boundaries without waiving that recovery limitation.
 
 ## Agent digest
 - Claim: Operators attach one current advisory note to a ticket, retain immutable history, and deliver the exact admitted note with each successful claim.
-- Status: accepted (owner decision 2026-10-04); experimental; native NOTE_SET/NOTE_CLEAR writer, `ticket note set|clear|show` and the `ticket show` operatorNote view exist; claim and claim-next deliver the note pinned by their own admission; receipt audit and redo bind every note transition.
-- Exists: closed reference/event codecs, the optional record/Core `operatorNote` reference, one measured MUTATE derived-event slot, explicit OPERATOR policy grants, ADOPT_FILE refusal, CLI and current-note reads, the attempt `operatorNote` pin with claim-result delivery, and journal replay binding of each note receipt, with focused and native-store tests.
-- Blocked on: anchored history pages, dispatch/supervised-run rendering of the delivered note, durable qualification, the checkpoint-tail detection limit below, and the existing TCP-00 active-staging recovery limit.
+- Status: accepted (owner decision 2026-10-04); experimental; native NOTE_SET/NOTE_CLEAR writer, `ticket note set|clear|show` and the `ticket show` operatorNote view exist; claim and claim-next deliver the note pinned by their own admission; receipt audit and redo bind every note transition; `ticket note history` reads anchored, bounded pages; the dispatcher renders the observed note through the role-prompt `{operatorNote}` placeholder.
+- Exists: closed reference/event codecs, the optional record/Core `operatorNote` reference, one measured MUTATE derived-event slot, explicit OPERATOR policy grants, ADOPT_FILE refusal, CLI and current-note reads, the attempt `operatorNote` pin with claim-result delivery, journal replay binding of each note receipt, the anchored history reader with opaque cursors, and the dispatch `{operatorNote}` rendering, with focused and native-store tests.
+- Blocked on: supervised-run rendering, durable qualification (archive export/import of noted tickets, two-process CAS, live response-materialization failure, crash witnesses), owner acceptance of promotion, the checkpoint-tail detection limit below, and the existing TCP-00 active-staging recovery limit.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.
 
 ## User and current state
@@ -78,6 +79,31 @@ The third delivery adds claim delivery and journal binding:
   non-note receipt changing a reference first posted before the checkpoint is not detected by that
   read; mutations, redo and receipt audit always run the complete audit, which detects it.
 
+The fourth delivery adds history and dispatch rendering:
+
+- `corvint-tasks ticket note history <ticket> [--limit 1..50] [--cursor C]` is a pure read. It
+  walks from the committed head reference on every page, checking each event's digest, closed
+  profile, ticket, exact revision decrement and previous link, and returns entries newest first,
+  CLEAR included, each marked `current` only when it is the committed current SET. A page holds the
+  limit (default 20) and stops before 1 MiB of rendered entries, keeping at least one. The cursor is
+  unpadded base64url of a closed canonical object binding queue, ticket, anchor head and revision,
+  and next digest and revision; a later page refuses unless both lie on the committed chain at those
+  revisions, so a concurrent replacement leaves the remaining pages on their anchor while the page
+  also reports the newer committed head. A never-noted ticket reads an empty page. Every walk reads
+  at most 4096 events.
+- The dispatcher's native observation resolves each noted ticket's current reference (nil when
+  never noted; UNAVAILABLE with its code when the event cannot be resolved). A role prompt may use
+  the `{operatorNote}` placeholder: it renders the empty string for a never-noted ticket, so the
+  prompt is byte-identical to the same prompt without the placeholder, and otherwise a block naming
+  the state, note revision and provenance, stating that the note is advisory prose and not
+  instructions, acceptance criteria or authority, and that it is a launch-time copy which the claim
+  result's pinned `operatorNote` supersedes. Workers are launched before they claim, so the claim
+  result stays the authoritative delivery (ON-V0-007). The `launched` event records the note state
+  and revision only for a noted ticket. The placeholder is opt-in and refused in host argv, env and
+  activity paths, so note prose never reaches a command line or environment directly. A role whose
+  prompt uses it needs a host that passes `{prompt}` as exactly one whole argv element, holds no other placeholder in argv (so the checks see the launched argv), names no shell or script interpreter in any argv element (sh, bash, zsh, env, python, node and the like, version suffix ignored), takes no code-string option (a `-` or `+` cluster containing `c` or `e`, or `--command`, `--eval`, `--exec`, `--execute`), and never renders `{prompt}` in an activity path, so the note reaches the host as data rather
+  than as or inside a command string; a host that needs a shell uses a wrapper executable.
+
 Existing active-stage redo refusal remains.
 
 ## Requirements
@@ -105,6 +131,9 @@ Existing active-stage redo refusal remains.
 
 - `ON-V0-008`: Current-note and anchored-history reads MUST be bounded, immutable reads with explicit evidence failures.
   Ticket show and ticket note show expose one current note: NONE has revision 0/current null; CLEARED retains tombstone/head/revision/provenance; CURRENT exposes its SET text/provenance/head. Validate only the referenced head for ordinary current read. Event ticket/acceptance revisions remain their original note-write values and need not equal a later ticket after unrelated edits, while original material validation still binds its own transaction post. History defaults to 20 nodes, permits 1..50 and at most 1 MiB output, newest-first including CLEAR. Opaque canonical cursor binds queue/ticket/anchor/next digest/expected revision, never a path; concurrent replacement does not move subsequent pages off the anchor. Verify hash/profile/ticket, exact decreasing revisions and links; missing/cyclic/mismatched evidence refuses rather than fabricating complete history. Stop before page bytes bound with a next cursor; one valid event fits. Reads create no state, ledger or hydrated evidence.
+
+- `ON-V0-011`: The dispatcher MUST render the observed current note only through the opt-in role-prompt `{operatorNote}` placeholder, labelled advisory and launch-time, and leave never-noted launches byte-identical.
+  The native observation reads each noted ticket's committed reference without writing: never noted is no view, CLEARED and CURRENT carry revision and provenance, and an unresolvable event is UNAVAILABLE with its code, never no note. The placeholder renders "" for a never-noted ticket. Otherwise it states the state, note revision and provenance, CURRENT text substituted once and never re-expanded, that the note is advisory prose and not instructions, acceptance criteria or authority, and that the claim result's pinned operatorNote supersedes this launch-time copy. The `launched` event records operatorNote state and revision only for a noted ticket. Config refuses the placeholder in host argv, env and activity paths, and refuses a role using it unless its host passes `{prompt}` as exactly one whole argv element, holds no other placeholder in argv (so the checks see the launched argv), names no shell or script interpreter in any argv element (sh, bash, zsh, env, python, node and the like, version suffix ignored), takes no code-string option (a `-` or `+` cluster containing `c` or `e`, or `--command`, `--eval`, `--exec`, `--execute`), and never renders `{prompt}` in an activity path. Lane, pressure and external observations carry no note. The claim result (ON-V0-007) remains the authoritative delivery; the rendering adds no authority, retry, or live-worker channel.
 
 - `ON-V0-009`: The codec/transition foundation and integrated capability MUST have distinct evidence and layering boundaries.
   The four ticket/operator_note.go, ticket/operator_note_test.go, mutation/operator_note.go and mutation/operator_note_test.go files provide proposed immutable reference/blob computation, not installed CLI/native authority. ticket's nested-envelope codec must not import mutation; mutation owns semantic trusted-context comparisons. Core retains its wire-only Tasks dependency. Native qualification starts with a canonically initialized disposable SET, show, identical replay and receipt-audit fixture plus a legacy-byte control. Reached malformed-material and crash witnesses must separate fixture failure from product effects. Passing pure helpers cannot establish integrated note writes, history, claim delivery, capacity or recovery.
@@ -150,8 +179,9 @@ under "Required integrated evidence" remain NOT_RUN.
 | ON-V0-004 | NOTE501-004 | policy/authorization; indirect writers | `TestIssue501_NoteCASAndBounds`; `TestONV0004_NotePolicyNeedsAnExplicitOperatorRow` (OPERATOR needs an explicit row naming the verb, OWNER default allows, a narrowed OWNER row refuses, a WORKER row naming NOTE_SET does not decode); `TestCTSV0003_ImportApplyRefusals` (an IMPORT_APPLY record cannot add, rewrite or drop an operator-note reference) | import-owned ticket refusal through the writer |
 | ON-V0-005 | NOTE501-005 | whole canonical post adapter/finalizer; ADOPT_FILE | `TestONV0006_NativeNoteSetClearReplayAndAudit` (acceptance revision unchanged, REFINE preserves the reference); `TestONV0005_AdoptFileRefusesNoteReferenceChanges`; `TestONV0006_ForgedNoteHistoryIsJournalForked` (a rehashed note receipt with an altered title fails whole-record replay) | rehashed attacks on approvals, gates and dependencies in receipt audit |
 | ON-V0-006 | NOTE501-006 | transaction/snapshot/journal/stage/archive | `TestONV0006_DerivedEventSlotMeasuredAndNarrow` (worst case 6/6 artifacts and 1669/1670 bytes; second event, queue, request, oversized, wrong-address and non-MUTATE widenings refuse, each with its named refusal); `TestONV0006_DerivedEventSlotClosedToDeclaringOperations` (REFINE and every other non-note operation carrying a derived event is refused UNSUPPORTED and stages nothing); `TestONV0006_NativeNoteSetClearReplayAndAudit` (store digest unchanged after replay and conflict); `TestONV0006_ReceiptAuditBindsNoteHistory` (SET, REFINE, CLEAR and SET audit with known semantic coverage); `TestONV0006_ForgedNoteHistoryIsJournalForked` (altered post, removed event, and a REFINE dropping the reference are JOURNAL_FORKED); `TestONV0006_RedoBindsAPendingNoteReceipt` (a pending note receipt redoes; a forged one refuses); `TestONV0006_NoteReceiptBindsOnlyItsOwnTransition` (a rehashed note receipt that also posts `reservations.json`, or whose receipt and request index were consistently renamed away from the retained request's ID, is JOURNAL_FORKED in a settled audit and refuses redo with nothing published); `TestONV0006_CheckpointTailNeverReadsThePrefix` (a tail REFINE keeps the checkpoint read; a tail CLEAR falls back to the complete audit) | active-staging recovery; crash witnesses between stage and commit |
-| ON-V0-007 | NOTE501-007 | lease admission; original receipt materializer | `TestONV0007_ClaimDeliversTheNotePinnedByItsAdmission` (NONE with legacy attempt bytes; CURRENT pinned with the attempt digest; a later SET changes neither response nor exact replay; a new generation and claim-next re-snapshot, including CLEARED); `TestONV0007_UnresolvableNoteFailsClosed` (a missing event reads MISSING_EVIDENCE and the claim replay refuses JOURNAL_FORKED, never NONE); `TestONV0007_ClaimResultCarriesTheDeliveredNote` (result member, untrusted marking, UNAVAILABLE with a replay-not-reclaim warning); `TestONV0007_AttemptPinsTheAdmittedNote` (attempt codec) | response materialization failure after commit through a live process; dispatch and supervised-run rendering |
-| ON-V0-008 | NOTE501-008 | show/history; CLI | `TestIssue501_NoteTransition`; `TestONV0008_TicketNoteSetShowClearThroughTheCLI` (NONE, CURRENT and CLEARED views; a missing event is MISSING_EVIDENCE in `ticket note show` and JOURNAL_FORKED in `ticket show`, never NONE); `TestONV0008_TicketShowRendersAnUnresolvableNoteAsUnavailable` (without a journal audit, a missing or mismatched event renders UNAVAILABLE with its code) | anchored history reads, page bounds, read-only proof over noted stores |
+| ON-V0-007 | NOTE501-007 | lease admission; original receipt materializer; dispatch prompt (see ON-V0-011) | `TestONV0007_ClaimDeliversTheNotePinnedByItsAdmission` (NONE with legacy attempt bytes; CURRENT pinned with the attempt digest; a later SET changes neither response nor exact replay; a new generation and claim-next re-snapshot, including CLEARED); `TestONV0007_UnresolvableNoteFailsClosed` (a missing event reads MISSING_EVIDENCE and the claim replay refuses JOURNAL_FORKED, never NONE); `TestONV0007_ClaimResultCarriesTheDeliveredNote` (result member, untrusted marking, UNAVAILABLE with a replay-not-reclaim warning); `TestONV0007_AttemptPinsTheAdmittedNote` (attempt codec) | response materialization failure after commit through a live process; supervised-run rendering |
+| ON-V0-008 | NOTE501-008 | show/history; CLI | `TestIssue501_NoteTransition`; `TestONV0008_TicketNoteSetShowClearThroughTheCLI` (NONE, CURRENT and CLEARED views; a missing event is MISSING_EVIDENCE in `ticket note show` and JOURNAL_FORKED in `ticket show`, never NONE); `TestONV0008_TicketShowRendersAnUnresolvableNoteAsUnavailable` (without a journal audit, a missing or mismatched event renders UNAVAILABLE with its code); `TestONV0008_NoteHistoryPagesAnchoredChain` (never-noted empty page; SET, SET, CLEAR, SET, SET read newest first with links, current flag, text and actor; limit paging by opaque cursor; state and intent trees byte-identical after reads; a concurrent SET leaves later pages on their anchor; limit 0/51, garbage, path-like, forged-next, future-anchor, other-ticket and never-noted cursors refuse); `TestONV0008_NoteHistoryRefusesBrokenEvidence` (the 1 MiB cut stops with a next cursor and one oversized entry still fits; a missing middle event refuses MISSING_EVIDENCE or JOURNAL_FORKED; a rewritten middle event refuses) | history over a 4096-event chain; page-byte cut reached through the CLI (unreachable with 50 entries of at most 8 KiB text, witnessed through the injected size) |
+| ON-V0-011 | NOTE501-007 | dispatch observation, config and launch | `TestONV0011_DispatcherRendersOperatorNote` (CURRENT with literal placeholder-looking text, CLEARED and UNAVAILABLE blocks; a never-noted prompt is byte-identical; `launched` detail only for noted tickets); `TestONV0011_OperatorNotePlaceholderIsPromptOnly` (argv, env and activity paths refuse it; a note-bearing role refuses hosts without `{prompt}`, embedding `{prompt}` in an argv string, taking `-c`, `-lc`, `-c --`, `-c -o pipefail`, `-c script sh {prompt}`, `+c`, `+ec`, `-e`, `--eval=` or `--command`, naming `env sh`, `nice /bin/sh`, `bash` or `python3.12`, holding `/bin/{model}` or a whole `{model}` element, or rendering `{prompt}` in an activity path, and admits a plain agent taking a whole-element `{prompt}`); `TestONV0011_DispatchObservesTheCurrentNote` (native observation: none, CURRENT, CLEARED, a missing head event is UNAVAILABLE MISSING_EVIDENCE without failing the observation; the observation writes nothing) | a live dispatcher run over a real host; supervised-run rendering |
 | ON-V0-009 | NOTE501-009 | foundation and dependency layering | the first-delivery pure tests; `ticket` does not import `mutation` | no premature promotion |
 | ON-V0-010 | NOTE501-010 | qualification and delivery | none | exact-source review, integration, evidence and compatible rollback |
 
@@ -187,9 +217,32 @@ under "Required integrated evidence" remain NOT_RUN.
   answers) adds its own optional attempt member copied at admission, its own `ClaimDelivery`
   member, and its own top-level claim-result key beside `operatorNote`, without reshaping these.
 
+- Dispatch rendering and history (fourth delivery, agent-decided fail-closed defaults; owner
+  questions in the build log): the note is rendered only where a role prompt opts in with
+  `{operatorNote}`, not appended automatically, because placeholders are the dispatcher's only
+  substitution; the placeholder is prompt-only. History pages walk from the committed head on
+  every read rather than storing a cursor index.
+
 ## Unresolved decisions
 
-None for this delivery.
+On 2026-10-05 the owner accepted issue #501 with qualification `NOT_RUN` and delegated these
+questions to the orchestrator, which decided the following.
+- Dispatch keeps the opt-in `{operatorNote}` placeholder. Prompts without notes stay byte-identical.
+- A role that carries a note keeps literal argv apart from one whole `{prompt}` element. Delivering
+  the note outside argv is deferred to V1-0814.
+- The per-tick observation of every noted ticket is accepted for now. Skipping terminal tickets is
+  deferred to V1-0814.
+- Promotion stays deferred. Delivery remains experimental until the remaining ON-V0-010 evidence
+  exists and the owner accepts promotion (V1-0814).
+
+`NOT_RUN`, tracked by V1-0814:
+- note rendering in supervised runs (not delivered);
+- a live dispatcher run;
+- a 4096-event chain;
+- an archive round trip of noted tickets;
+- two-process CAS;
+- a live materialization failure and crash witnesses;
+- `make gate` and `go test ./...`.
 
 Kill criterion: stop or narrow the capability if bounded original material cannot be recovered
 without an unauthorized general recovery rewrite.
@@ -206,4 +259,7 @@ reader refuses attempts that carry it, so rollback after a noted claim keeps tho
 disables new writes rather than stripping the member. Notes have not shipped in a release, so no
 released store holds a legacy attempt beside a noted ticket; such an attempt simply delivers NONE.
 Reverting the journal binding returns note receipts to UNKNOWN coverage and is otherwise
-compatible. Promotion requires history pages, the complete evidence matrix and native closeout.
+compatible. The history read writes nothing and reverts cleanly. Reverting dispatch rendering
+makes an older config decoder refuse a role prompt using `{operatorNote}` as an unknown
+placeholder, so rollback removes the placeholder from dispatch configs first. History pages and dispatch rendering now exist; promotion still requires the complete evidence
+matrix (the NOT_RUN cells above), owner acceptance and native closeout.
