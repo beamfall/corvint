@@ -8,6 +8,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
+	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"io"
 	"os"
@@ -67,8 +68,8 @@ func programCommand(env Env, verb string, args []string) *wire.Result {
 	ctx, cancel := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	if values["--host"] != "" && values["--host"] != "codex" {
-		return usage(cmd, "only codex host is qualified")
+	if host := values["--host"]; host != "" && !configHost(host, c.Host) {
+		return errorResult(cmd, wire.Errorf(wire.CodeUnsupported, "host", "--host %s differs from the config host", host))
 	}
 	count := 1
 	if values["--count"] != "" {
@@ -239,4 +240,13 @@ func programCommand(env Env, verb string, args []string) *wire.Result {
 		}
 	}
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: allItems, Warnings: []string{"foreground batch bound reached; pending work retained"}}
+}
+
+// configHost reports whether a --host value names the config's supervised
+// host (CAL-V0-074); a config without host is Codex.
+func configHost(flag, host string) bool {
+	if host == "" {
+		host = supervisor.HostCodex
+	}
+	return (flag == supervisor.HostCodex || flag == supervisor.HostClaudeCode) && flag == host
 }

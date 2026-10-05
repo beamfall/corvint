@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S19 CAL-V0-069 opt-in lease `--timing` phase breakdown and timed-out claim replay implemented with focused tests and independent review; live fleet timing and Linux NOT_RUN, native completion pending; S20 CAL-V0-070 one-pass Mutate and pinned journal reads implemented with focused equivalence tests and a before/after benchmark, writer checkpoint deferred (owner decision pending); S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S19 CAL-V0-069 opt-in lease `--timing` phase breakdown and timed-out claim replay implemented with focused tests and independent review; live fleet timing and Linux NOT_RUN, native completion pending; S20 CAL-V0-070 one-pass Mutate and pinned journal reads implemented with focused equivalence tests and a before/after benchmark, writer checkpoint deferred (owner decision pending); S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; S22 CAL-V0-074..075 Claude Code supervised host with focused and fake-host tests, live Claude Code qualification NOT_RUN
 Authoritative inputs: owner request [issue 482](https://github.com/beamfall/corvint/issues/482) (proposed CAL-V0-044/046 compatibility amendment);
 owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
@@ -17,7 +17,7 @@ owner request [issue 499](https://github.com/beamfall/corvint/issues/499) (CAL-V
 owner request [issue 497](https://github.com/beamfall/corvint/issues/497) (CAL-V0-068),
 owner request [issue 494](https://github.com/beamfall/corvint/issues/494) (CAL-V0-069),
 owner request [issue 446](https://github.com/beamfall/corvint/issues/446) (CAL-V0-059..061),
-owner request [issue 354](https://github.com/beamfall/corvint/issues/354) (CAL-V0-062..063, 071..072; owner scope split 2026-10-04),
+owner request [issue 354](https://github.com/beamfall/corvint/issues/354) (CAL-V0-062..063, 071..072; owner scope split 2026-10-04) and its split native ticket V1-0755 (CAL-V0-074..075),
 owner request [issue 378](https://github.com/beamfall/corvint/issues/378),
 owner request [issue 370](https://github.com/beamfall/corvint/issues/370), and
 owner choice on 2026-09-28 to quarantine environments until confirmed safe reuse; owner request [issue 336](https://github.com/beamfall/corvint/issues/336), the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
@@ -26,11 +26,11 @@ owner choice on 2026-09-28 to quarantine environments until confirmed safe reuse
 sources under `internal/tasks`.
 
 ## Agent digest
-- Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S19 CAL-V0-069 opt-in lease `--timing` phase breakdown and timed-out claim replay implemented with focused tests and independent review; live fleet timing and Linux NOT_RUN, native completion pending; S20 CAL-V0-070 one-pass Mutate and pinned journal reads implemented with focused equivalence tests and a before/after benchmark, writer checkpoint deferred (owner decision pending); S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex or Claude Code supervisor.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S19 CAL-V0-069 opt-in lease `--timing` phase breakdown and timed-out claim replay implemented with focused tests and independent review; live fleet timing and Linux NOT_RUN, native completion pending; S20 CAL-V0-070 one-pass Mutate and pinned journal reads implemented with focused equivalence tests and a before/after benchmark, writer checkpoint deferred (owner decision pending); S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; S22 CAL-V0-074..075 Claude Code supervised host with focused and fake-host tests, live Claude Code qualification NOT_RUN. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
-- Read next: #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle; S19 lease timing and timed-out claim recovery; S21 multi-repository programs); Amendments to TCP-00; Failure modes.
+- Read next: #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle; S19 lease timing and timed-out claim recovery; S21 multi-repository programs; S22 Claude Code supervised host); Amendments to TCP-00; Failure modes.
 
 ## User and boundary
 
@@ -89,10 +89,11 @@ one.
 | S19 | CAL-V0-069 | Issue 494 opt-in `--timing` phase breakdown for claim, renew, heartbeat and release; timed-out claim replay pinned by test |
 | S20 | CAL-V0-070 | Writer cost against receipt history (V1-0645): one-pass `Mutate` and pinned journal reads implemented with equivalence tests and a before/after benchmark; writer checkpoint proposed, owner decision pending, deferred 2026-10-04 |
 | S21 | CAL-V0-071..072 | Multi-repository supervised programs: policy-pinned extra checkouts, sibling worktrees, composite candidate and review binding; gates and integration fail closed |
+| S22 | CAL-V0-074..075 | Claude Code supervised host: policy-selected host, named pin refusals, Claude Code argv and result vocabulary; live Claude Code qualification NOT_RUN |
 
 CAL-V0-062/063 are defined in S13 (issue 354). CAL-V0-064 (S14, issue 468) is reserved
 by coordinated unlanded work; CAL-V0-066/S16 remains reserved for issue 464 if used.
-The coordinator assigned CAL-V0-067/S17 to issue 479 and CAL-V0-068/S18 to issue 497. CAL-V0-069/S19 is issue 494 and CAL-V0-071..072/S21 extend issue 354 (CAL-V0-070 and S20 are left to coordinated unlanded work). CAL-V0-073 is the V1-0751 CREATE payload template amendment. This seed does not claim
+The coordinator assigned CAL-V0-067/S17 to issue 479 and CAL-V0-068/S18 to issue 497. CAL-V0-069/S19 is issue 494 and CAL-V0-071..072/S21 extend issue 354 (CAL-V0-070 and S20 are left to coordinated unlanded work). CAL-V0-073 is the V1-0751 CREATE payload template amendment. CAL-V0-074..075/S22 deliver native ticket V1-0755, split from issue 354. This seed does not claim
 implementation or qualification of the new profile or any reserved slice.
 
 S8 was added by owner decision on 2026-09-27 and lands directly after S3, before S4.
@@ -1746,6 +1747,199 @@ witnesses are the CAL-V0-071 and CAL-V0-072 rows in the traceability table, incl
 end-to-end `TestCALV0071_MultiRepositoryProgramFakeHost`. Live Codex qualification is `NOT_RUN`;
 see `docs/build-log/2026-10-04-tasks-multirepo-programs.md`.
 
+### S22 — Claude Code supervised host (V1-0755, split from issue 354)
+
+Authoritative input: owner request [issue 354](https://github.com/beamfall/corvint/issues/354), which asks for host adapters
+beyond Codex and names a Claude Code adapter as the next one; the owner scope decision of
+2026-10-04 recorded in S13, which moved the Claude Code and OpenCode supervisor hosts to native
+tickets V1-0755 and V1-0756; and V1-0755's acceptance criteria. This slice lets an owner-enabled
+`taskman-codex-supervisor/0` program drive a pinned Claude Code executable in place of Codex. It
+uses the same S10 lifecycle, S13 effort and stage wall, and S21 repository bounds. The profile and
+runtime ID keep their names: they identify the supervisor protocol and the single policy runtime
+slot, not the vendor of the pinned binary. The host seam added here is a vocabulary, meaning an
+argv builder, a result decoder, a session reader and a usage reader, selected by one host name. A
+later host such as OpenCode (V1-0756) adds one entry; it does not change the lifecycle.
+
+- `CAL-V0-074`: The optional policy `supervision` object MAY carry `host`, whose only admitted
+  value is `claude-code`; absent means Codex. The supervisor config MAY carry `host` with the same
+  single value and meaning. A program MUST be refused with `UNSUPPORTED` before its runtime read,
+  program record, claim, lease, worktree, effect or host process when either of these holds:
+  - the config `host` is another value;
+  - the config `host` differs from the policy host.
+
+  This check runs for a new program and again at every later stage launch, as in CAL-V0-062. An
+  existing program also repeats it on every reopen whose current attempt is absent, terminal or
+  unsupervised, before it reassigns, claims or attaches work. A live supervised attempt keeps only
+  drain and cancel after a host change. The config digest binds `host`, so a recorded program
+  cannot change hosts. `run`, `admit`, `resume`,
+  `retry`, `answer`, `drain` and `cancel` MAY pass `--host codex` or `--host claude-code`. When
+  given, the value MUST equal the config host, or the command is refused `UNSUPPORTED` before any
+  store mutation.
+
+  The pinned-executable check is host-neutral, and admission applies the launch-time check itself.
+  A program MUST be refused with `CAPABILITY_UNAVAILABLE` before any program record, claim or
+  lease in any of these cases:
+  - its executable path is not absolute, is missing or unreadable, or is not a regular file;
+  - the path is a symlink;
+  - the file has no execute bit;
+  - it does not match an enabled policy `runtimes` entry for the profile on path digest, content
+    digest and mode;
+  - its digest differs from the config `executableSha256`.
+
+  A symlink is refused rather than resolved, and the refusal names its target to pin instead. The
+  evidence: on the owner's host, `/opt/homebrew/bin/claude` and `/opt/homebrew/bin/codex` are
+  package-manager symlinks to regular executables that a package update retargets, so a pinned path
+  could change meaning without its pin changing. The lane leader's capsule validation already
+  refused symlinks and non-regular files. The check opens the path once without following a final
+  symlink, and takes the file type, mode and bytes from that one descriptor.
+
+  The lane leader MUST execute the object it verified, not a second lookup of the path. A runtime
+  whose canonical path and every ancestor directory are owned by root, writable by neither group
+  nor other, and carry no access control list runs by its path, because substituting it needs root.
+  An ACL entry can grant write access that the mode does not show, so any ACL, or a failure to read
+  one, sends the runtime to the copy path. Any other runtime runs from a
+  private copy of the verified bytes, which the leader writes before boot into the private effect
+  directory and removes when the host exits. Replacing or rewriting the pinned path while the
+  supervisor acknowledges the boot therefore cannot change what runs. Two limits follow:
+  - A runtime that loads files relative to its own path runs without them from the copy, so pin a
+    self-contained binary. On the owner's host this means the Claude Code `claude.exe` binary, and
+    not a script wrapper such as Codex's `codex.js`.
+  - macOS launch constraints kill a copied platform binary such as `/bin/sh`. Those binaries are
+    root-protected, so they run by path.
+
+  Each stage launch of an unprotected runtime writes one copy of up to 256 MiB beside the stage
+  worktree. If the leader is killed while the host runs, the copy stays in the retained effect
+  directory.
+
+  If launch is refused after admission, for example because the file changed in between, only a
+  refusal made before the lane leader is forked counts. The dispatched stage then settles as
+  `NO_EXEC` with quiescence proved and the program is recorded `FINISHED` while its owner still
+  holds it. The attempt is then cancelled, which releases its claim and reservation, and only then
+  is the owner released. While the owner is live and unreleased no other owner can take the
+  program, so none can fence the cancel. The stage returns `CAPABILITY_UNAVAILABLE`.
+  The stop, the `FINISHED` record, the cancel and the owner release are separate journal writes,
+  because the attempt and program records have no combined transition. If the owner dies after
+  the `FINISHED` record, a replacement process may take the program over once the owner is gone.
+  Before the cancel the attempt stays `WAITING`, stopped and quiescent, with its claim and
+  reservation, and a replacement that reopens the program with its original config and pin and
+  cancels it releases them. After the cancel the claim is already released and a reopen reassigns
+  the program.
+  Known limit: an owner that dies before the `FINISHED` record leaves the program `SPAWNING`, if it
+  dies before the settlement starts, or `STOPPING` after that. Neither is a safe takeover phase, and
+  recovery evidence covers only an attempt that still has a worker and a retained leader boot
+  record, which a refused launch never writes. A replacement is therefore refused, and the attempt
+  keeps its claim and reservation. Closing this
+  window needs a combined attempt and program transition, or a takeover rule that admits a bound,
+  stopped and quiescent attempt; both change the transaction contract. A failure after the
+  fork never settles as `NO_EXEC`, even when it carries no outcome class: it keeps the drain result,
+  and an unproved drain leaves the attempt in `BLOCKED_RECOVERY`. This also names the existing Codex
+  refusal, which was previously the unnamed `MALFORMED`. The Core
+  CLI requirement, `requireEnforcedFields`, roles, worker limits and budgets are unchanged. When
+  `host` is absent, the policy, config, capsule, argv and `programs.json` bytes are unchanged.
+- `CAL-V0-075`: A `claude-code` stage MUST invoke the pinned executable with the prompt on
+  standard input. Its argv is:
+  1. `-p --output-format json --model M --effort E --setting-sources project --strict-mcp-config --permission-prompts none`, where E is the stage's configured
+     effort (CAL-V0-062).
+  2. The permission flags: `--permission-mode acceptEdits` for `implement`; for `review` and
+     `integrate`, `--permission-mode dontAsk --disallowedTools Edit,Write,NotebookEdit`.
+  3. `--resume S` only when the stage continues the answered WAIT session S. For either host, a
+     later stage of the same attempt starts a fresh session, so review never resumes the
+     author's session.
+  4. When any exist, `--add-dir` followed by the sorted S21 sibling worktrees. This applies in
+     every stage, because Claude Code confines its file tools to its working directories.
+
+  The capsule MUST record `host`, so that the lane leader and the supervisor apply one result
+  vocabulary. On a zero exit, standard output MUST be exactly one JSON object, optionally followed
+  by whitespace, with all of the following:
+  - `type` `result`, `subtype` `success` and `is_error` false;
+  - a nonempty `session_id` of at most 128 bytes;
+  - a nonempty string `result` that strictly decodes to the S10 minimum handoff object: kind
+    `HANDOFF`, `BUILT`, `REVIEW` or `WAIT`, with a nonempty summary and nextAction.
+
+  No object in the result, its `usage` or the decoded handoff may repeat a member name. Neither the
+  result object nor the handoff may carry a member that differs from one the profile reads only by
+  case folding, such as `IS_ERROR`, `Usage` or `Kind`, because Go's decoder would match it to the
+  same field. Escaped spellings count as the names they decode to. Without these rules a later
+  `is_error` false could override an earlier true, and two partial `usage` objects could merge into
+  one that looks complete. Any other output is `INVALID_RESULT`. The result, session and usage
+  readers share these rules, so a repeated or aliased member in the object or in a JSON handoff
+  leaves all three unobserved. A prose `result`, such as an error report, is not a handoff and
+  keeps its session and usage observable. Token usage is `OBSERVED` only when the object's `usage`
+  carries integer `input_tokens` and `output_tokens`. Input then adds any present integer
+  `cache_creation_input_tokens` and `cache_read_input_tokens`, so it counts all input as Codex's
+  counter does. A missing or non-integer counter, or an overflow, makes the turn `NOT_OBSERVED`.
+  Program and attempt usage are re-derived from the retained output in the vocabulary of the
+  policy's host, so no counter is invented. Lifecycle, process-group ownership, the 16 KiB output
+  caps, WAIT and resume, review independence, gates and integration binding are those of S10, S13
+  and S21, unchanged.
+
+Non-goals:
+- Mixed hosts within one policy or program. The transaction layer has one supervised runtime slot,
+  and per-host runtime IDs, roles and worker caps need a multi-runtime inventory.
+- The OpenCode host (V1-0756).
+- Claude Code `stream-json` output.
+- Efforts beyond the S13 set.
+- Blocking Claude Code subagents beyond the prompt instruction.
+- Containing Bash in any stage. Project permission rules govern Bash, and read-only stages stay
+  subject to the existing check, made after the host exits, that the tree is unchanged.
+- Host authentication.
+- The unused `RunProgram` qualification helper, which refuses a non-Codex host.
+
+Failure modes:
+- Config and policy hosts differ, or the config names an unknown host: refused `UNSUPPORTED` before
+  any mutation. This includes reopening an existing idle or completed program after the policy host
+  changed.
+- The pinned path is a symlink or lacks an execute bit: admission refuses
+  `CAPABILITY_UNAVAILABLE` before any record. A launch refusal after admission and before the lane
+  leader is forked settles the stage `NO_EXEC` and cancels the attempt, instead of leaving it
+  `SPAWNING` or holding its claim.
+- The pinned path is replaced or rewritten after the leader's check and before the acknowledgment:
+  the leader runs the verified bytes, from a private copy unless the runtime is root-protected.
+- The leader fails after it is forked, for example a boot identity mismatch or a refused `RUNNING`
+  journal write, and its drain is not proved: the attempt stays in `BLOCKED_RECOVERY`, never `NO_EXEC`.
+- The result object repeats a member, such as `is_error` or `usage`, or aliases one by case, such as
+  `IS_ERROR`: `INVALID_RESULT`, with session and usage `NOT_OBSERVED`. The same holds for the
+  handoff.
+- The Claude Code binary is upgraded or replaced: its digest differs, so admission refuses
+  `CAPABILITY_UNAVAILABLE` and an existing program refuses its next stage. Re-pinning is an owner
+  policy change.
+- Result text is wrapped in prose or a Markdown fence, or the object reports `is_error` or a
+  non-success subtype such as a turn or budget limit: the stage is `INVALID_RESULT` on a zero exit,
+  or `EXIT_NONZERO` otherwise. The retained output and S10's invalid-result path apply.
+- The result object exceeds 16 KiB, for example because of a long `permission_denials` list: the
+  stage is `OUTPUT_LIMIT`.
+- The owner changes the policy host while a stage runs: the stage's finish transition is refused,
+  because usage no longer derives from the retained output in the policy host's vocabulary. The
+  program is left to S10 recovery until the policy host is restored, and the config host check
+  refuses every later stage.
+- Claude Code's `usage` totals differ from billed usage: this is unverified until live
+  qualification.
+- Downgrade: a binary without this slice refuses a policy that carries `supervision.host` (closed
+  keys), a config that carries `host` (unknown field) and a capsule that carries `host`. Its full
+  journal walk also refuses retained history that includes such a policy, unless its reader resumes
+  from a checkpoint after that record.
+
+Rollback: the config digest binds `host`, so an existing program can be reopened only with its
+original config, and a config with `host` removed is refused with `program config differs`.
+Rollback therefore takes three steps:
+1. While the `claude-code` policy and its runtime pin are still in force, cancel every
+   `claude-code` program using its original config, for example
+   `corvint-tasks cancel --program P --config ORIGINAL`. A program drained first MUST still be
+   cancelled: a drain leaves a live `WAITING` attempt that holds its claim and reservation.
+2. Only then remove `host` from the policy, and re-pin the Codex runtime if it differs.
+3. Start new programs from configs without `host`.
+
+Codex policy and config bytes are unchanged by this slice. Once the Codex runtime pin replaces the
+Claude Code one, every original `claude-code` config is refused `CAPABILITY_UNAVAILABLE` on reopen.
+A program missed in step 1 therefore keeps its claim and cannot be cancelled through its own
+workflow. To recover it, re-pin its Claude Code runtime with `host` still absent, reopen it with its
+original config, cancel it, and restore the Codex pin. Its live supervised attempt then keeps drain
+and cancel access but never launches another stage. An idle or completed program is refused on
+reopen and holds no claim. Regression witnesses are the CAL-V0-074 and CAL-V0-075 rows in the traceability
+table, including the fake-host end-to-end `TestCALV0075_ClaudeCodeProgramFakeHost`. Live Claude
+Code qualification on a disposable program is `NOT_RUN`; see
+`docs/build-log/2026-10-04-tasks-claude-code-supervisor-host.md`.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -1861,6 +2055,17 @@ The `ESCALATION_PENDING` detail code (72 codes after A17) is amended in by `corv
 | Extra repository moved, re-cloned, retargeted or undeclared | A program would edit an unintended checkout | Admission and every stage refuse unless the policy `supervision.repositories` pin matches the configured path, and every stage refuses a checkout whose common Git identity differs from the program record before any Git write (CAL-V0-071) |
 | Extra repository edited outside the ticket's `@name/` touch paths | Candidate widens scope silently | The implement stage blocks `OUT_OF_SCOPE` with no candidate (CAL-V0-071) |
 | Multi-repository program reaches gates or integration | No cross-repository landing or recovery contract exists yet | Review refuses before any gate runs and the integrator refuses before any grant; the composite candidate stays recorded (CAL-V0-072) |
+| Supervisor config host differs from the policy host, or names an unknown host | A program would speak the wrong vocabulary to the pinned binary | Admission and every stage refuse `UNSUPPORTED` before any record, lease or host process (CAL-V0-074) |
+| Pinned Claude Code or Codex executable missing, replaced or re-moded | An unqualified binary would run | Refused `CAPABILITY_UNAVAILABLE` before any program record or lease (CAL-V0-074) |
+| Pinned executable is a symlink or lacks an execute bit | Admission takes a lease for a stage that launch refuses, leaving the worker unresolved | Admission runs the launch-time check and refuses `CAPABILITY_UNAVAILABLE` before any record; a later refusal before the leader fork settles the stage `NO_EXEC` and cancels the attempt (CAL-V0-074) |
+| Pinned executable replaced between the leader's check and its acknowledgment | Unchecked bytes would run | The leader runs the verified object: a root-protected path with no ACL on it or any ancestor, or a private copy of the verified bytes (CAL-V0-074) |
+| Owner dies after a launch refusal's `FINISHED` record and before its owner release | The program stays `FINISHED` and unreleased; before the cancel the stopped attempt keeps its claim and reservation | A replacement process takes over the `FINISHED` program once the owner is gone, then cancels the attempt or, after the cancel, reassigns the program (CAL-V0-074) |
+| Owner dies after a launch refusal's dispatch and before its `FINISHED` record | The program stays `SPAWNING` (before the settlement starts) or `STOPPING`, and the attempt keeps its claim and reservation | Known limit: a replacement is refused, because neither phase is safe for takeover and no leader boot record exists to recover; closing it needs a transaction contract change (CAL-V0-074) |
+| Leader fails after the fork with no outcome class, and its drain is unproved | A spawned host would be recorded as never run and its claim released | Only a pre-fork refusal settles `NO_EXEC`; the attempt stays in `BLOCKED_RECOVERY` (CAL-V0-074) |
+| Policy host changes under an existing idle or completed program | A reopen would reassign and claim work under the old host | Reopen refuses `UNSUPPORTED` before reassignment, claim or attach; a live attempt keeps drain and cancel only (CAL-V0-074) |
+| Runtime pin changes while a drained `claude-code` attempt is live | Its claim and reservation would be stranded behind a config the new pin refuses | Rollback cancels every program, drained ones included, before the pin changes; a missed one is recovered by re-pinning its runtime to cancel it (CAL-V0-074) |
+| Claude Code result is not one exact success object with a strict handoff | A host claim would be invented from prose | The stage is `INVALID_RESULT`; missing usage counters stay `NOT_OBSERVED` (CAL-V0-075) |
+| Claude Code result or handoff repeats a JSON member, or aliases one by case | Last-wins or case-insensitive decoding would turn an error into success or merge partial usage | `INVALID_RESULT`, with session and usage `NOT_OBSERVED` (CAL-V0-075) |
 
 ## Acceptance and rollback
 
@@ -1940,6 +2145,8 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-065 | `TestCALV0065_AbsentPreimage`, `TestCALV0065_RequestShapeAndCurrentMembership`, `TestCALV0065_AllocationPreviewAndPreparedAdmission` (`internal/tasks/transaction`); `TestCALV0065_HealthFiltersEveryRound`, `TestCALV0065_ReplayAfterSuccessorAndPolicyChange`, `TestCALV0065_ClaimNextSelectors` (`internal/tasks/store`); `TestCALV0065_CLIExclusionsAndPreviewPurity`, `TestCALV0065_NativeFixture` (`internal/tasks/cli`); scoped evidence and limits in `docs/build-log/2026-10-02-tasks-member-exclusions.md` |
 | CAL-V0-071 | `TestCALV0071_PolicyRepositories` (`internal/tasks/intent`); `TestCALV0071_ProgramRepositoryRecords` (`internal/tasks/snapshot`); `TestCALV0071_RepositoryBindingImmutable` (`internal/tasks/transaction`); `TestCALV0071_CheckProgramConfigRepositories`, `TestCALV0071_WritableRoots`, `TestCALV0071_UndeclaredRepositoryRefusedBeforeMutation`, `TestCALV0071_ExtraRepositoryPathsAreScoped`, `TestCALV0071_RetargetedCheckoutRefusedBeforeWrite`, `TestCALV0071_MultiRepositoryProgramFakeHost` (`internal/tasks/store`); live Codex NOT_RUN |
 | CAL-V0-072 | `TestCALV0071_MultiRepositoryProgramFakeHost` (composite tree, unmoved checkout `HEAD`, review binding, integrator refusal), `TestCALV0072_MultiRepositoryGatesFailClosed` (`internal/tasks/store`); live Codex NOT_RUN |
+| CAL-V0-074 | `TestCALV0074_PolicyHost` (`internal/tasks/intent`); `TestCALV0074_CapsuleHost`, `TestCALV0074_RuntimeReplacedAtAck`, `TestCALV0074_ACLProbe`, `TestCALV0074_PrelaunchErrorOnlyBeforeSpawn` (`internal/tasks/supervisor`); `TestCALV0074_CheckProgramConfigHost`, `TestCALV0074_OpenWorkflowRefusesHostBeforeMutation`, `TestCALV0074_AdmissionRunsLaunchCheck`, `TestCALV0074_SpawnedFailureIsNotNoExec`, `TestCALV0074_NoExecCancelBeforeRelease`, `TestCALV0074_NoExecCrashTakeover`, `TestCALV0074_HostSwitchAndRollback` (`internal/tasks/store`); `TestCALV0074_RunHostFlag` (`internal/tasks/cli`) |
+| CAL-V0-075 | `TestCALV0075_ClaudeResultVocabulary`, `TestCALV0075_ClaudeUsageObservedOrUnknown`, `TestCALV0075_ClaudeDuplicateMembers` (`internal/tasks/supervisor`); `TestCALV0075_ClaudeStageArgv`, `TestCALV0075_ClaudeCodeProgramFakeHost` (`internal/tasks/store`); live Claude Code NOT_RUN |
 | CAL-V0-013 | `TestCALV0013_RetryAsNextGenerationUpToThree` (`internal/tasks/store`) |
 | CAL-V0-014 | `TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan`, `TestCALV0014_SelectedOnlyPlanPreviewIsComplete` (`internal/tasks/cli`); `plan preview` in `TestTMV0008_AS07_ReadsLeaveStoreByteIdentical` (`internal/tasks/cli`) |
 | CAL-V0-015 | `TestCALV0015_SubmitRecordsTheCandidateTree` (`internal/tasks/store`) |

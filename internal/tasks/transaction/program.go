@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
-	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"sort"
 	"time"
@@ -140,7 +139,7 @@ func planProgram(c leaseContext) leaseOutcome {
 			return c.fail(malformed("unproved lane cleanup"))
 		}
 		if old.Phase == "STOPPING" && (next.Phase == "FINISHED" || next.Phase == "BLOCKED_RECOVERY") && next.ResultClass != "NO_EXEC" {
-			i, o, known := supervisor.ObservedUsage(change.Output)
+			i, o, known := policyHostUsage(c.st.policy, change.Output)
 			if next.InputTokens != old.InputTokens+i || next.OutputTokens != old.OutputTokens+o || next.UsageKnown != (old.UsageKnown && known) {
 				return c.fail(malformed("usage must derive from retained host output"))
 			}

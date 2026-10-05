@@ -37,12 +37,15 @@ type ProgramConfig struct {
 	// program spans (CAL-V0-071), sorted by name; absent keeps single-repo
 	// config bytes and digests unchanged.
 	Repositories []ProgramRepository `json:"repositories,omitempty"`
+	// Host optionally selects the supervised host vocabulary (CAL-V0-074):
+	// "claude-code", or absent for Codex, which keeps config bytes unchanged.
+	Host string `json:"host,omitempty"`
 }
 
 func RunProgram(ctx context.Context, repo *intent.Repository, actor mutation.Binding, id, self string, c ProgramConfig) (snapshot.Program, supervisor.Outcome, error) {
 	p := snapshot.Program{}
 	out := supervisor.Outcome{}
-	if c.Profile != snapshot.SupervisedProfile || c.Model == "" || !filepath.IsAbs(c.WorkRoot) {
+	if c.Profile != snapshot.SupervisedProfile || c.Model == "" || !filepath.IsAbs(c.WorkRoot) || c.Host != "" {
 		return p, out, fmt.Errorf("unsupported program config")
 	}
 	proof, e := readLeaseProof(ctx, repo)
@@ -60,9 +63,9 @@ func RunProgram(ctx context.Context, repo *intent.Repository, actor mutation.Bin
 	if e = checkNewProgramConfig(c, policy.Supervision); e != nil {
 		return p, out, e
 	}
-	raw, e := supervisor.ReadBounded(c.Executable, 256<<20)
+	raw, _, e := supervisor.LaunchableExecutable(c.Executable)
 	if e != nil {
-		return p, out, e
+		return p, out, wire.Errorf(wire.CodeCapabilityUnavailable, "runtime", "pinned executable is not launchable: %v", e)
 	}
 	pinned := false
 	for _, r := range policy.Runtimes {
@@ -165,6 +168,9 @@ func (c ProgramConfig) StageEffort(stage string) string {
 // the owner policy does not allow (CAL-V0-062, CAL-V0-063). It runs before
 // any program record, worktree or host process is created.
 func CheckProgramConfig(c ProgramConfig, policy *intent.SupervisionPolicy) error {
+	if e := checkProgramHost(c.Host, policy); e != nil {
+		return e
+	}
 	if e := checkProgramRepositories(c.Repositories, policy); e != nil {
 		return e
 	}
@@ -241,4 +247,17 @@ func checkNewProgramConfig(c ProgramConfig, policy *intent.SupervisionPolicy) er
 		return fmt.Errorf("effort %q is not a supervised effort", c.Effort)
 	}
 	return CheckProgramConfig(c, policy)
+}
+
+// checkProgramHost refuses a config host other than the policy's supervised
+// host, or one no vocabulary speaks (CAL-V0-074). Codex is only ever the
+// absent host, so Codex config bytes stay canonical.
+func checkProgramHost(host string, policy *intent.SupervisionPolicy) error {
+	if _, ok := supervisor.HostVocabulary(host); !ok || host == supervisor.HostCodex {
+		return wire.Errorf(wire.CodeUnsupported, "host", "supervisor config host %q is unsupported", host)
+	}
+	if want := policy.SupervisedHost(); host != want {
+		return wire.Errorf(wire.CodeUnsupported, "host", "supervisor config host %q differs from policy host %q", host, want)
+	}
+	return nil
 }
