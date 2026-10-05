@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -125,6 +126,8 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 		return nil, err
 	}
 	p := &preparedLease{guard: g}
+	timing, start, readEnd := leaseTimingOf(ctx), time.Now(), time.Time{}
+	defer func() { timing.prepared(start, readEnd) }()
 	defer func() {
 		if err != nil || len(p.fatalCleanup) > 0 {
 			p.failure = err
@@ -170,6 +173,7 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 	}
 	var cleanup error
 	p.proof, err, cleanup = leaseAuditObserved(repo, g, inv, head, supplied, hooks.audit)
+	readEnd = time.Now()
 	if cleanup != nil {
 		p.recordCleanup("journal audit close", cleanup)
 		return p, err
@@ -297,7 +301,10 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 	// from discarding other lease writers' full inventory/audit work. This gate is
 	// not writer authority: noncooperating writers and settlement still require
 	// every existing guarded observation and locked rebind below.
+	timing, admission := leaseTimingOf(ctx), time.Now()
+	timing.Transactions++
 	preparation, err := authority.AcquirePreparation(ctx, repo, authority.LockOptions{})
+	timing.AdmissionWait += time.Since(admission)
 	if err != nil {
 		return report, nil, err
 	}
@@ -316,15 +323,21 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 		if err := ctx.Err(); err != nil {
 			return report, nil, err
 		}
+		timing.Rounds++
+		guards := time.Now()
 		// Guard-before-recovery is preserved; clean stores take no extra lock.
 		head, err := writerGuards(repo, guardOperation(request))
 		if err != nil {
+			timing.Guards += time.Since(guards)
 			return guardFailureAudit(report, request.RequestID, err)
 		}
 		if head.QueueID.Raw != request.QueueID {
+			timing.Guards += time.Since(guards)
 			return report, nil, wire.Errorf(wire.CodeOutOfScope, "queueId", "request queue differs")
 		}
-		if err := clearLeaseOrphans(ctx, repo, guardOperation(request)); err != nil {
+		err = clearLeaseOrphans(ctx, repo, guardOperation(request))
+		timing.Guards += time.Since(guards)
+		if err != nil {
 			return guardFailureAudit(report, request.RequestID, err)
 		}
 		p, err := prepareLease(ctx, repo, request, now, facts)
@@ -340,7 +353,9 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 			return guardFailureAudit(report, request.RequestID, err)
 		}
 		err = commitLease(ctx, repo, request, p, report, beforeCommit)
+		monitor := time.Now()
 		closeErr := hooks.closeGuard(p.guard) // thousands of descriptors, always unlocked
+		timing.MonitorClose += time.Since(monitor)
 		if len(p.fatalCleanup) > 0 {
 			terminal = p
 			p.recordCleanup("change guard close", closeErr)
@@ -373,12 +388,17 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	if len(p.fatalCleanup) > 0 {
 		return p.fatalError()
 	}
+	timing, wait := leaseTimingOf(ctx), time.Now()
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})
+	timing.LockWait += time.Since(wait)
 	if err != nil {
 		return err
 	}
+	held := time.Now()
 	defer func() {
-		if cleanup := lock.Close(); cleanup != nil {
+		cleanup := lock.Close()
+		timing.LockHold += time.Since(held)
+		if cleanup != nil {
 			err = errors.Join(err, cleanup)
 		}
 	}()
@@ -418,12 +438,16 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 		setLeaseReport(report, p.result)
 		return nil
 	}
+	write := time.Now()
 	session, err := authority.NewSession(repo, lock)
 	if err != nil {
+		timing.wrote(write, 0)
 		return err
 	}
 	defer func() {
-		if cleanup := session.Close(); cleanup != nil {
+		cleanup := session.Close()
+		timing.wrote(write, session.SyncDuration())
+		if cleanup != nil {
 			err = errors.Join(err, cleanup)
 		}
 	}()

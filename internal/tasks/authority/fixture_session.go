@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/safeopen"
@@ -107,6 +108,9 @@ type fixtureSession struct {
 	closeFile func(*os.File) error
 	closeRoot func(*os.Root) error
 	observe   func(*os.File, fixtureMount) (fixtureMount, error)
+	// syncTime sums the session's file and directory sync calls (issue 494
+	// diagnostics only); guarded by mu like every other session field.
+	syncTime time.Duration
 }
 
 func fixtureDirectory(key string) (parent, name string, ok bool) {
@@ -545,7 +549,7 @@ func (s *fixtureSession) syncParent(key string, checks ...func() error) error {
 			return err
 		}
 	}
-	return syncDirectory(s.parents[key].file)
+	return s.timedSync(func() error { return syncDirectory(s.parents[key].file) })
 }
 func (s *fixtureSession) absent(key, name string) error {
 	_, err := s.parents[key].root.Lstat(name)
@@ -677,7 +681,7 @@ func (s *fixtureSession) prepare(slot fixtureSlot, role fixtureRole, data []byte
 		if err = s.checkStageFile(owned, f); err != nil {
 			return err
 		}
-		if err = syncFile(f); err != nil {
+		if err = s.timedSync(func() error { return syncFile(f) }); err != nil {
 			return err
 		}
 		if err = s.syncParent("staging", func() error { return s.checkStageFile(owned, f) }); err != nil {
@@ -873,7 +877,7 @@ func (s *fixtureSession) replace(stage *fixtureStage, t fixtureTarget, expected 
 			if err = s.checkCurrent(key, name, dest, info, digest); err != nil {
 				return err
 			}
-			if err = syncFile(dest); err != nil {
+			if err = s.timedSync(func() error { return syncFile(dest) }); err != nil {
 				return err
 			}
 			return s.syncParent(key, func() error { return s.checkCurrent(key, name, dest, info, digest) })
@@ -1100,4 +1104,13 @@ func (s *fixtureSession) mkdir(key string) error {
 		}
 		return errors.Join(s.syncParent(key), s.syncParent(parent))
 	})
+}
+
+// timedSync runs one durability call and adds its wall time to the session's
+// issue 494 diagnostic sum. The caller holds mu.
+func (s *fixtureSession) timedSync(sync func() error) error {
+	start := time.Now()
+	err := sync()
+	s.syncTime += time.Since(start)
+	return err
 }

@@ -1,6 +1,8 @@
 package authority
 
 import (
+	"time"
+
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -140,4 +142,12 @@ func (s *Session) RemoveOrphanStages() (int, error) { return s.inner.removeOrpha
 // UNPAUSE receipt. An already absent barrier is synced as an idempotent removal.
 func (s *Session) RemoveBarrier(expected wire.Digest) error {
 	return s.inner.removeBarrier(fixtureTarget{fixtureBarrier, "barrier.json"}, expected)
+}
+
+// SyncDuration is the wall time this session has spent in file and directory
+// sync calls so far. It is an issue 494 diagnostic, never proof or authority.
+func (s *Session) SyncDuration() time.Duration {
+	s.inner.mu.Lock()
+	defer s.inner.mu.Unlock()
+	return s.inner.syncTime
 }
