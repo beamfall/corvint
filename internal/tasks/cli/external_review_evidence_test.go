@@ -19,10 +19,14 @@ import (
 
 // acceptGate is an executable COMMAND gate that prints the report file, the
 // way a G2 gate runs `corvint tests accept` and captures its report.
-func acceptGate(report string) wire.Value {
+func acceptGate(report string) wire.Value { return commandGate("accept", "/bin/cat", report) }
+
+// commandGate is an executable COMMAND gate gateId running argv in the
+// worktree and expecting exit 0.
+func commandGate(gateID string, argv ...string) wire.Value {
 	expected := wire.NewObject().Set("exitCode", wire.String("0")).Set("reducer", wire.Null())
-	return wire.ObjectValue(wire.NewObject().Set("gateId", wire.String("accept")).Set("kind", wire.String("COMMAND")).
-		Set("argv", wire.Strings([]string{"/bin/cat", report})).Set("cwd", wire.String("WORKTREE")).Set("env", wire.Strings(nil)).
+	return wire.ObjectValue(wire.NewObject().Set("gateId", wire.String(gateID)).Set("kind", wire.String("COMMAND")).
+		Set("argv", wire.Strings(argv)).Set("cwd", wire.String("WORKTREE")).Set("env", wire.Strings(nil)).
 		Set("timeoutSeconds", wire.String("30")).Set("expected", wire.ObjectValue(expected)).Set("evidence", wire.Strings(nil)).
 		Set("inputs", wire.Strings(nil)).Set("sharedResource", wire.Null()).Set("reusable", wire.Bool(false)).Set("required", wire.Bool(false)))
 }
@@ -46,7 +50,11 @@ func TestERGV0002_EvidenceCandidatesNeedAnArtifactLink(t *testing.T) {
 		t.Fatal(err)
 	}
 	gated := filepath.Join(dir, "gate-output.json")
-	ergPolicyUpdateRoles(t, root, "3", []string{"implement"}, []string{"review"}, []string{"OPERATOR", "OWNER"}, false, acceptGate(gated))
+	ergPolicyUpdateRoles(t, root, "3", []string{"implement"}, []string{"review"}, []string{"OPERATOR", "OWNER"}, false, acceptGate(gated),
+		// These gates print the report and then dirty the worktree or move
+		// its tree while they run, which `gate run` cannot refuse up front.
+		commandGate("accept-dirty", "/bin/sh", "-c", `cat "$0"; : > dirtied`, gated),
+		commandGate("accept-moved", "/bin/sh", "-c", `cat "$0"; echo x > moved; /usr/bin/git add moved; /usr/bin/git commit -qm moved`, gated))
 	id := planTicket(t, root, "accepted", "P1", `["src/"]`)
 	runOK := func(args ...string) run {
 		t.Helper()
@@ -81,7 +89,7 @@ func TestERGV0002_EvidenceCandidatesNeedAnArtifactLink(t *testing.T) {
 	// a clean linked worktree at the candidate.
 	clean := filepath.Join(dir, "clean")
 	git(t, root, "worktree", "add", "--detach", clean, "HEAD")
-	gateRun := func(req, path string) {
+	gateRunIn := func(worktree, gate, req, path string) {
 		t.Helper()
 		raw, err := os.ReadFile(path)
 		if err == nil {
@@ -90,8 +98,9 @@ func TestERGV0002_EvidenceCandidatesNeedAnArtifactLink(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		runOK("gate", "run", "--attempt", attempt, "--generation", gen, "--gate", "accept", "--request-id", req, "--worktree", clean)
+		runOK("gate", "run", "--attempt", attempt, "--generation", gen, "--gate", gate, "--request-id", req, "--worktree", worktree)
 	}
+	gateRun := func(req, path string) { t.Helper(); gateRunIn(clean, "accept", req, path) }
 	record := func(req, generation, revision string, extra ...string) []string {
 		return append([]string{"gate", "record", id, "--gate", ergGate, "--subject-receipt", subject,
 			"--expected-generation", generation, "--expected-revision", revision, "--request-id", req}, extra...)
@@ -129,14 +138,28 @@ func TestERGV0002_EvidenceCandidatesNeedAnArtifactLink(t *testing.T) {
 	refused("a blocked report through the CLI", wire.CodeMissingEvidence, record("blocked-cli", "1", "1", "--from-acceptance", blocked)...)
 	refused("a verdict on a linked blocked report", wire.CodeMissingEvidence, record("blocked-writer", "1", "1", "--verdict", "PASS", "--candidate-evidence", blockedArtifact)...)
 
-	// A new report is a new candidate: the RETURN on the old one needs the
-	// author's explicit resubmission on the new linked artifact (ERG-V0-006).
-	gateRun("run-accepted", accepted)
 	resubmit := func(req, artifact string) []string {
 		return []string{"gate", "resubmit", id, "--gate", ergGate, "--author-attempt", attempt, "--subject-receipt", subject,
 			"--expected-generation", "1", "--expected-revision", "1", "--reason", "FIXED:control now killed", "--request-id", req,
 			"--candidate-evidence", artifact}
 	}
+	// Output the gate produced in a worktree it left dirty or at a tree it
+	// moved is not a link, whatever it says: an accepted report from there
+	// never reaches a PASS on the candidate. (`gate run` refuses a dirty or
+	// moved worktree up front, so the gates change it while they run.)
+	for _, g := range []string{"dirty", "moved"} {
+		wt := filepath.Join(dir, g)
+		git(t, root, "worktree", "add", "--detach", wt, "HEAD")
+		git(t, wt, "config", "user.name", "t")
+		git(t, wt, "config", "user.email", "t@example.invalid")
+		path, artifact := report(g, "accepted\",\"note\":\""+g)
+		gateRunIn(wt, "accept-"+g, "run-"+g, path)
+		refused("a report produced by a gate that "+g+" its worktree", wire.CodeMissingEvidence, resubmit("g2-resubmit-"+g, artifact)...)
+	}
+
+	// A new report is a new candidate: the RETURN on the old one needs the
+	// author's explicit resubmission on the new linked artifact (ERG-V0-006).
+	gateRun("run-accepted", accepted)
 	refused("a resubmission on an unlinked artifact", wire.CodeMissingEvidence, resubmit("g2-resubmit-x", string(wire.Sum([]byte("x")))+":1")...)
 	runOK(resubmit("g2-resubmit", acceptedArtifact)...)
 	pass := record("g2-pass", "2", "2", "--from-acceptance", accepted, "--evidence", "earlier="+rejectedArtifact, "--issued-at", "2026-10-05T12:00:00Z")

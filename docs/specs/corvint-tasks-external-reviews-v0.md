@@ -121,13 +121,15 @@ currency is judged from submission history only, so a re-claim or a review-stage
 not stale a verdict. Artifact link: an EVIDENCE candidate or an evidence reference `{label,sha256,
 bytes}` is admitted only when it is an evidence entry of an executable GateResult that names the
 subject attempt, generation and candidate tree, that GateResult being listed by an attempt record
-posted in the same receipt that posts the artifact fresh under `evidence/<sha256>` (the GateResult's
-own status is not judged). The writer scans links in receipts after the subject; the receipt fold
+posted in the same receipt that posts the artifact fresh under `evidence/<sha256>`, and whose process
+exited (outcome EXIT) in a clean worktree at that candidate tree; its exit code and state are not
+judged, so a failing run at the candidate links its report while output from a worktree the gate
+dirtied or a tree it moved does not. The writer scans links in receipts after the subject; the receipt fold
 checks the same link at replay. When an EVIDENCE candidate artifact parses as an issue 394 report
 (`corvint-new-e2e-assessment/0|1`), accepted admits only PASS, rejected only RETURN, blocked no
 verdict (MISSING_EVIDENCE), and any other verdict refuses as MALFORMED; the writer and the fold both
-enforce it. `gate record --candidate-evidence SHA:BYTES`, `--from-acceptance SHA:BYTES` (which takes
-the verdict from the report) and repeatable `--evidence LABEL=SHA:BYTES` are the CLI. `gate state
+enforce it. `gate record --candidate-evidence SHA:BYTES`, `--from-acceptance REPORT_PATH` (which reads
+the report file, takes its digest as the candidate and its verdict as the request's) and repeatable `--evidence LABEL=SHA:BYTES` are the CLI. `gate state
 TICKET` exposes the full `gates[G]` field set (gate, verdict, status, generation, revision,
 resubmitted, head, evidenceSha256, subject, candidate, trust). Measured: a maximal review record
 descriptor uses 5 of 6 artifacts and 1342 of 1670 bytes; a blob-backed ticket post adds one EVIDENCE
@@ -151,8 +153,9 @@ artifact and stays within the generic maximal derived-event descriptor of 1669 b
   equal the bound successful SUBMIT receipt's candidate tree. EVIDENCE is admissible only with a prior
   admitted, journal-backed artifact link to that subject generation; without such a producer EVIDENCE
   recording refuses rather than accepting a raw path or caller digest. The link is an evidence entry
-  of an executable GateResult for the subject attempt, generation and candidate tree, posted fresh in
-  the receipt whose attempt record lists that GateResult. Each evidence reference needs the same link.
+  of an executable GateResult for the subject attempt, generation and candidate tree whose process
+  exited in a clean worktree at that tree, posted fresh in the receipt whose attempt record lists that
+  GateResult. Each evidence reference needs the same link.
   An EVIDENCE artifact that is an issue 394 acceptance report admits only its mapped verdict
   (accepted PASS, rejected RETURN, blocked none); a contradiction refuses.
 
@@ -283,7 +286,7 @@ links, two writers and the descriptor. The last column stays NOT_RUN.
 | Requirement | Parent proposal | Delivered evidence (pure seed, read slice and first native slice) | Required integrated evidence (NOT_RUN) |
 |---|---|---|---|
 | ERG-V0-001 | ER504-001 | `TestIssue504ReplayAndAuthority` (recorder roles, reviewer lease, operator attestation), `TestIssue504ResubmitAndSecondReturn` (author lease distinct from reviewer); `TestERGV0009_NativeVerdictsThroughTheCLI` (OPERATOR-attested record and holder-matched author lease through the native writer); `TestERGV0001_ReviewerAndWorkerActors` (policy-required lease refuses an OPERATOR attestation; REVIEWER records LEASE_BOUND only on its own lease and never resubmits; WORKER never records and resubmits on its own author lease; neither enters another mutation; the reviewer's review-stage submission does not stale the verdict) | operator use in a live queue |
-| ERG-V0-002 | ER504-002 | `TestIssue504BoundsAndUnknown` (EVIDENCE union encodes; an unproved candidate link refuses), `TestIssue504MaterialBindings` (subject receipt binding), `TestIssue504HistoricalPreservation` (candidate change); `TestERGV0009_NativeVerdictsThroughTheCLI` (real SUBMIT receipt lookup); `TestERGV0002_EvidenceCandidatesNeedAnArtifactLink` (an unlinked candidate or evidence reference refuses; a linked issue 394 report records RETURN and, after resubmission, PASS from `--from-acceptance`; a blocked report and a contradicted verdict refuse; retries replay), `TestERGV0002_ForgedArtifactEventsRefuseAtRecovery` (rehashed events with an unlinked candidate, an unlinked evidence reference or a verdict the report contradicts refuse redo as JOURNAL_FORKED with the projection unchanged, and once settled fail the receipt audit and leave gates unobserved) | inactive-member refusal test; live `corvint tests accept` report |
+| ERG-V0-002 | ER504-002 | `TestIssue504BoundsAndUnknown` (EVIDENCE union encodes; an unproved candidate link refuses), `TestIssue504MaterialBindings` (subject receipt binding), `TestIssue504HistoricalPreservation` (candidate change); `TestERGV0009_NativeVerdictsThroughTheCLI` (real SUBMIT receipt lookup); `TestERGV0002_EvidenceCandidatesNeedAnArtifactLink` (an unlinked candidate or evidence reference refuses; a linked issue 394 report records RETURN and, after resubmission, PASS from `--from-acceptance`; a blocked report and a contradicted verdict refuse; retries replay; a report printed by a gate that dirtied its worktree or moved its tree while running does not link), `TestERGV0002_ForgedArtifactEventsRefuseAtRecovery` (rehashed events with an unlinked candidate, an unlinked evidence reference or a verdict the report contradicts refuse redo as JOURNAL_FORKED with the projection unchanged, and once settled fail the receipt audit and leave gates unobserved) | inactive-member refusal test; live `corvint tests accept` report |
 | ERG-V0-003 | ER504-003 | `TestIssue504CanonicalRoundTrip`, `TestIssue504BoundsAndUnknown` in snapshot; `TestIssue504TypedRouting` (prose cannot change state) | measured worst-case event size; evidence storage |
 | ERG-V0-004 | ER504-003 | `TestIssue504CanonicalRoundTrip` (closed per-gate reference codec only), `TestIssue504BoundsAndUnknown` (event revision 4097 refuses); `TestERGV0009_TicketReviewReferencesCodec` (16-gate map, legacy byte identity), `TestERGV0009_CoreReaderAdmitsOnlyTheClosedReviewReferences` | preservation by every non-review writer |
 | ERG-V0-005 | ER504-004 | `TestIssue504ResubmitAndSecondReturn`, `TestIssue504ReplayAndAuthority`, `TestIssue504BoundsAndUnknown` in transaction (same-CAS single winner over pure state); `TestERGV0009_NativeVerdictsThroughTheCLI` (stale counters refuse with REVISION_CONFLICT); `TestERGV0005_TwoWritersOneWinner` (two concurrent writers with equal expectations: exactly one commits, the loser refuses REVISION_CONFLICT, the head and history hold one event and the winner's retry replays) | none beyond promotion |
@@ -332,8 +335,8 @@ policy-declared gate should be required of every ticket that references any revi
 
 Chosen fail-closed by the fifth delivery and open for owner review (ticket V1-0701): a REVIEWER
 cannot resubmit; subject currency follows submission history only, so a re-claim does not stale a
-verdict; an artifact link needs a GateResult of the subject attempt, generation and tree but not a
-PASSED one; the issue 394 mapping applies whenever an EVIDENCE artifact parses as such a report,
+verdict; an artifact link needs a GateResult of the subject attempt, generation and tree that exited
+clean at that tree, but not a PASSED one; the issue 394 mapping applies whenever an EVIDENCE artifact parses as such a report,
 with no policy switch; the blob read bound for EVIDENCE artifacts is the 16 MiB gate-output bound;
 and the writer admits links only from receipts after the subject while the fold admits any linked
 receipt, so the writer is the stricter of the two.

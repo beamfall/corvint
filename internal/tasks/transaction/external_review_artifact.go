@@ -62,7 +62,7 @@ func ExternalArtifactPosts(rc *snapshot.Receipt, blob ExternalReviewBlob) []Exte
 				continue
 			}
 			g, err := snapshot.DecodeGateResult(rec)
-			if err != nil || g.AttemptID != a.AttemptID || g.Generation != a.Generation || g.CandidateTreeOid != *a.CandidateTreeOid {
+			if err != nil || g.AttemptID != a.AttemptID || g.Generation != a.Generation || g.CandidateTreeOid != *a.CandidateTreeOid || !externalProducedAtCandidate(g) {
 				continue
 			}
 			for _, e := range g.Evidence {
@@ -71,6 +71,18 @@ func ExternalArtifactPosts(rc *snapshot.Receipt, blob ExternalReviewBlob) []Exte
 		}
 	}
 	return out
+}
+
+// externalProducedAtCandidate reports whether g's output was produced by a
+// process that exited, in a clean worktree, at the candidate tree: the
+// record-level half of the PASSED predicate without its exit-code check, so a
+// failing gate run at the candidate still links its output (a rejected
+// acceptance report supports RETURN), while output from another tree, a dirty
+// worktree, a timeout, a signal or an unknown end never links.
+func externalProducedAtCandidate(g *snapshot.GateResult) bool {
+	return g.OutcomeClass == "EXIT" && g.ExitCode != nil &&
+		g.PorcelainClean != nil && *g.PorcelainClean &&
+		g.ExecutedTreeOid != nil && *g.ExecutedTreeOid == g.CandidateTreeOid
 }
 
 // externalLinked reports whether links hold an artifact {sha,bytes} of the

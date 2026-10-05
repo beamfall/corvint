@@ -20,8 +20,9 @@ Already on main before this change, and not redone here:
   never resubmits. WORKER never records, and resubmits only on its own author-stage lease. Neither
   role is admitted to any other mutation.
 - **Artifact link.** `transaction.ExternalArtifactPosts` derives links from receipts. A link is an
-  evidence entry of an executable GateResult for the subject attempt, generation and candidate tree,
-  posted fresh in the same receipt as the attempt record that lists it. The writer
+  evidence entry of an executable GateResult for the subject attempt, generation and candidate tree
+  whose process exited (EXIT) in a clean worktree at that tree. It must be posted fresh in the same
+  receipt as the attempt record that lists it. The writer
   (`externalArtifactStates`) and the receipt fold (`ExternalReviewReceiptAudit`) both require a link
   for an EVIDENCE candidate and for every evidence reference.
 - **Issue 394 connection.** When an EVIDENCE candidate artifact parses as a
@@ -31,11 +32,11 @@ Already on main before this change, and not redone here:
   - blocked admits no verdict (MISSING_EVIDENCE);
   - any other value is MALFORMED.
 
-  The rule is enforced at write time and at replay. `--from-acceptance SHA:BYTES` takes the verdict
+  The rule is enforced at write time and at replay. `--from-acceptance REPORT_PATH` takes the verdict
   from the report. Tasks restates the two schema names rather than importing the browser-executing
   producer.
 - **CLI.**
-  - `gate record --candidate-evidence SHA:BYTES`, `--from-acceptance SHA:BYTES` and repeatable
+  - `gate record --candidate-evidence SHA:BYTES`, `--from-acceptance REPORT_PATH` and repeatable
     `--evidence LABEL=SHA:BYTES`.
   - `gate state TICKET` exposes the full `gates[G]` field set. The dispatcher `GateView` also gains
     the candidate, subject, trust and evidenceSha256 fields.
@@ -45,8 +46,8 @@ Already on main before this change, and not redone here:
 - A REVIEWER cannot resubmit.
 - Subject currency follows submission history only. A re-claim or a review-stage submission does
   not stale a verdict.
-- A link does not require a PASSED GateResult. A rejected acceptance report is produced by a failing
-  gate and must still support RETURN.
+- A link does not require a PASSED GateResult, only a clean exit at the candidate tree. A rejected
+  acceptance report is produced by a failing gate and must still support RETURN.
 - The acceptance mapping is detected from content and has no policy switch.
 - The read bound for EVIDENCE artifacts is the 16 MiB gate-output bound.
 - The writer admits links only from receipts after the subject. The fold accepts any linked receipt,
@@ -65,6 +66,15 @@ Already on main before this change, and not redone here:
   under the generic 1669-byte maximum (`TestONV0006`).
 - Focused suite: `go test ./internal/tasks/... ./cmd/corvint-tasks/...`; gofmt and `go vet
   ./internal/tasks/...`.
+
+## Review
+
+- Codex round 1 (gpt-6-astra, read-only, `d524530f..93ca49f1`):
+  - P2: links ignored the executed tree and worktree cleanliness, so a gate that moved its tree or
+    dirtied its worktree mid-run could link an accepted report as a PASS on the wrong candidate.
+    Fixed in `externalProducedAtCandidate`. Regression: the dirty and moved gates in
+    `TestERGV0002_EvidenceCandidatesNeedAnArtifactLink`, each verified to fail without its check.
+  - P3: the docs gave `--from-acceptance SHA:BYTES`, but the flag takes a report path. Docs fixed.
 
 ## NOT_RUN
 
