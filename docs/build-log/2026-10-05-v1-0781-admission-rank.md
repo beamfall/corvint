@@ -136,6 +136,29 @@ The full test list is in the spec's evidence table.
    `lrfrepo.requirementsFromBlob` enumerated CAL-V0-095 among 70 requirements; the scratch file
    was removed.
 
+### Review repair (Codex round 2, one P2 finding)
+
+Post-open disappearance escaped drift detection. If a slot was unlinked or replaced after the
+open and before the descriptor stat, both compared identities described the original inode, so
+the read reported RACY with zero writers for a vanished slot. The finding was reproduced before
+the fix: with revalidation disabled, the new subtest read one registered writer and no reason.
+After the lock query, and after the record read for a live slot, the observer now runs `Lstat` on
+the pathname again and requires it to name the opened descriptor. This applies to both the
+unlocked and live branches and to the registry. A mismatch or absence is identity drift.
+
+- The `drift-after-open-not-observed` subtest unlinks the file, or renames a replacement over it,
+  through a nil-in-production seam between open and stat. It does this for an unheld slot and for
+  a slot held by the test.
+- `registry-drift-after-open-not-observed` does the same for the registry.
+
+The checks below ran under a private TMPDIR:
+
+- Darwin, with `-count=3`:
+  - authority `TestCALV0095|TestGH494PreparationAdmission$`;
+  - cli `TestCALV0095`.
+- The four Linux container configurations: overlayfs and tmpfs, each in a container and a
+  host-PID namespace.
+
 ### NOT_RUN and limits
 
 - Not run:

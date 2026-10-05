@@ -1339,7 +1339,8 @@ section below.
   in that procfs mount; otherwise the read abstains. A slot without an observed owner is stale
   scheduling bytes and is not counted. The read MUST NOT register, `flock`, create, truncate or
   write any coordination, journal or intent file. If the lock query, an incomplete lock table, an
-  unsafe object, a file that disappears or is replaced after its first stat, or the common
+  unsafe object, a file that disappears or is replaced after its first stat (the read
+  revalidates each pathname against its opened descriptor after the lock query), or the common
   directory prevents observation, then `snapshot`, `method` and every count are `NOT_OBSERVED`,
   `notObservedReason` names the cause and `registryActive` is null. A file absent at its first
   stat is absent. A live slot without a valid record also makes `wouldBeRank` `NOT_OBSERVED`. The
@@ -1704,8 +1705,8 @@ registered writers and would-be rank six. Every coordination file keeps identica
 modification time, and the fixture journal and intent audits are unchanged. Retired slots with
 stale records count zero. A registration held by another process is counted. A partial live
 record hides the rank. An unsafe slot object, an unavailable lock query, an incomplete Linux lock
-table, a Darwin record lock, and a slot that disappears or is replaced after its first stat each
-report `NOT_OBSERVED`. Linux POSIX and OFD record locks on stale slots count zero. The status read creates no registry file. Rollback removes the observation and
+table, a Darwin record lock, and a slot or registry that disappears or is replaced after its
+first stat or after its open each report `NOT_OBSERVED`. Linux POSIX and OFD record locks on stale slots count zero. The status read creates no registry file. Rollback removes the observation and
 the field; no store, wire profile or coordination file depends on it.
 
 | Requirement | Evidence |

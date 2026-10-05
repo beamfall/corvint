@@ -121,6 +121,11 @@ func observePreparationQueue(repo *intent.Repository) (PreparationQueue, error) 
 // prove that drift refuses rather than reads as absence. Nil in production.
 var observeAfterLstat func(name string)
 
+// Private seam: tests unlink or replace a file after its open and before its
+// descriptor stat, so both compared identities describe the original inode.
+// Nil in production.
+var observeAfterOpen func(name string)
+
 // observeInert opens an existing fixed coordination file read-only. It
 // returns nil for a file absent at its first stat, and refuses a non-regular
 // file or one that disappears or is replaced after that stat.
@@ -142,6 +147,9 @@ func observeInert(root *os.Root, name string) (*os.File, os.FileInfo, error) {
 	if err != nil {
 		return nil, nil, errors.New("preparation file " + name + " is not readable")
 	}
+	if observeAfterOpen != nil {
+		observeAfterOpen(name)
+	}
 	st, err := f.Stat()
 	if err != nil || !os.SameFile(pre, st) {
 		f.Close()
@@ -150,13 +158,31 @@ func observeInert(root *os.Root, name string) (*os.File, os.FileInfo, error) {
 	return f, st, nil
 }
 
+// stillNamed revalidates, after the lock query and any read, that the
+// pathname still names the opened descriptor. A file unlinked or replaced
+// while it was observed is drift, never an unlocked or absent slot.
+func stillNamed(root *os.Root, name string, st os.FileInfo) error {
+	now, err := root.Lstat(name)
+	if err != nil || !os.SameFile(now, st) {
+		return errors.New("preparation file " + name + " identity drift")
+	}
+	return nil
+}
+
 func observeRegistry(root *os.Root, view preparationLockView) (bool, error) {
 	f, st, err := observeInert(root, preparationRegistryName)
 	if f == nil || err != nil {
 		return false, err
 	}
 	defer f.Close()
-	return view.held(f, st)
+	live, err := view.held(f, st)
+	if err != nil {
+		return false, err
+	}
+	if err := stillNamed(root, preparationRegistryName, st); err != nil {
+		return false, err
+	}
+	return live, nil
 }
 
 // observeSlot reports liveness and, for a live slot, its rank, or zero when
@@ -168,18 +194,31 @@ func observeSlot(root *os.Root, name string, view preparationLockView) (bool, ui
 	}
 	defer f.Close()
 	live, err := view.held(f, st)
-	if err != nil || !live {
+	if err != nil {
 		return false, 0, err
 	}
+	var rank uint64
+	if live {
+		rank = slotRank(f)
+	}
+	if err := stillNamed(root, name, st); err != nil {
+		return false, 0, err
+	}
+	return live, rank, nil
+}
+
+// slotRank reads a live slot's record, or zero when it is absent, partial or
+// malformed at the read instant.
+func slotRank(f *os.File) uint64 {
 	var raw [17]byte
 	n, err := f.ReadAt(raw[:], 0)
 	if err != nil && err != io.EOF {
-		return true, 0, nil
+		return 0
 	}
 	if n != 16 || string(raw[:4]) != "CPA1" || binary.BigEndian.Uint32(raw[4:8]) != 0 {
-		return true, 0, nil
+		return 0
 	}
-	return true, binary.BigEndian.Uint64(raw[8:16]), nil
+	return binary.BigEndian.Uint64(raw[8:16])
 }
 
 // preparationLockView answers whether another open file description holds a

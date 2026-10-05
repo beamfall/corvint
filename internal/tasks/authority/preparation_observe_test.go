@@ -232,6 +232,73 @@ func TestCALV0095_PreparationQueueObservation(t *testing.T) {
 		}
 	})
 
+	t.Run("drift-after-open-not-observed", func(t *testing.T) {
+		for _, held := range []bool{false, true} {
+			for _, replace := range []bool{false, true} {
+				_, repo := preparationOpenFixture(t)
+				heldSlot(t, repo.CommonDir, 0, admissionRecord(1))
+				target := preparationSlotName(2)
+				p := filepath.Join(repo.CommonDir, target)
+				if held {
+					heldSlot(t, repo.CommonDir, 2, admissionRecord(4))
+				} else if err := os.WriteFile(p, admissionRecord(4), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				// The unlink or replacement lands after the open and before
+				// the descriptor stat, so both compared identities describe
+				// the original inode; only the post-observation revalidation
+				// can see the drift.
+				observeAfterOpen = func(name string) {
+					if name != target {
+						return
+					}
+					if !replace {
+						if err := os.Remove(p); err != nil {
+							t.Error(err)
+						}
+						return
+					}
+					tmp := p + ".replacement"
+					if err := os.WriteFile(tmp, admissionRecord(4), 0o644); err != nil {
+						t.Error(err)
+					}
+					if err := os.Rename(tmp, p); err != nil {
+						t.Error(err)
+					}
+				}
+				q := ObservePreparationQueue(repo)
+				observeAfterOpen = nil
+				if q.NotObserved != "preparation file "+target+" identity drift" || q.Registered != 0 {
+					t.Fatalf("held=%t replace=%t: %+v", held, replace, q)
+				}
+				if _, ok := q.WouldBeRank(); ok {
+					t.Fatalf("held=%t replace=%t: rank reported after drift", held, replace)
+				}
+			}
+		}
+	})
+
+	t.Run("registry-drift-after-open-not-observed", func(t *testing.T) {
+		_, repo := preparationOpenFixture(t)
+		heldSlot(t, repo.CommonDir, 0, admissionRecord(1))
+		p := filepath.Join(repo.CommonDir, preparationRegistryName)
+		if err := os.WriteFile(p, nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		observeAfterOpen = func(name string) {
+			if name == preparationRegistryName {
+				if err := os.Remove(p); err != nil {
+					t.Error(err)
+				}
+			}
+		}
+		q := ObservePreparationQueue(repo)
+		observeAfterOpen = nil
+		if q.NotObserved != "preparation file "+preparationRegistryName+" identity drift" || q.Registered != 0 {
+			t.Fatalf("%+v", q)
+		}
+	})
+
 	t.Run("lock-query-unavailable-not-observed", func(t *testing.T) {
 		_, repo := preparationOpenFixture(t)
 		old := preparationLockViewLoad
