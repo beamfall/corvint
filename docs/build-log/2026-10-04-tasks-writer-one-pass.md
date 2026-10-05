@@ -315,7 +315,7 @@ descriptors at 70 receipts.
 Suspected, not reproduced, and outside this change's scope: lease preparation also takes its
 inventory digests from its audit (`guardedLeaseInventory` with `observation.Files`, `lease_write.go`
 line 156). Under the lock, it relies on the watch's `Check` and the head digest (lines 397 and
-436). A mapped write in that window would be seen by neither. It is reported for filing, not fixed:
+436). A mapped write in that window would be seen by neither. It is filed as V1-0775, not fixed:
 lease code belongs to concurrent issue 494 work.
 
 ### Measurement after the second review fix
@@ -330,7 +330,7 @@ each benchmark round, after then base:
 | 2 | 3,151 ms | 5,644 ms |
 | 3 | 3,725 ms | 5,494 ms |
 
-The medians are 3,151 and 5,494 ms, a 43% cut; paired, the cuts were 30%, 44% and 32%. Every after
+The medians are 3,151 and 5,494 ms, a 42.6% cut; paired, the cuts were 30%, 44% and 32%. Every after
 run allocated 1.035 GB in 5.618 million allocations, against 0.868 GB and 5.277 million with the
 digests reused. The base allocated 1.655 GB in 9.006 million.
 
@@ -358,9 +358,24 @@ virtual CPUs, tmpfs), with both trees streamed in. Host load was 12–25, and co
 | 2 | 3,105 ms, 2.52 s | 4,938 ms, 3.93 s |
 | 3 | 2,547 ms, 1.78 s | 4,019 ms, 2.80 s |
 
-The medians are 2,547 and 4,019 ms CPU, a 37% cut; paired, the cuts were 44%, 37% and 37%. After
+The medians are 2,547 and 4,019 ms CPU, a 36.6% cut; paired, the cuts were 44%, 37% and 37%. After
 allocated 1.000 GB in 5.679 million allocations, and the base 1.621 GB in 9.070 million. The
 Linux profile was not run, nor any Linux measurement of the digest-reusing design.
+
+## Third review
+
+Codex approved `4ba43576..e9001205` with no P1 or P2 finding. Its one P3: the failure-mode row for
+an edit before the watch's check claimed any such edit is detected. A write through a shared mapping
+after the inventory read the file escapes both checks, so the row now covers only an edit the watch
+or the content check detects, and points to the shared-mapping rows. Codex's medians, 42.6% on
+macOS and 36.6% on Linux, replace the rounded figures.
+
+Running CI's full doc-gates list then failed `unbounded-readers-check`, which the earlier rounds
+had not run. `TestCALV0070_PinnedDirOpensMatchInRoot` (from A+B) passes the literal `".."` as a
+name that `InRoot` and `InDir` must refuse, and AFP-V0-012 rule (d) reads a test literal made only
+of `..` components as reaching the repository root. The package's tests read only `t.TempDir`
+trees, so `internal/tasks/safeopen` is declared with an empty read scope (AFP-V0-023), as
+`internal/dogfoodflow` was. CI's Landlock confinement checks that declaration.
 
 ## Limits
 
@@ -368,7 +383,8 @@ Linux profile was not run, nor any Linux measurement of the digest-reusing desig
   keep their separate passes. Lease preparation already made one pass.
 - B covers journal audit reads only. The inventory's fresh reads still resolve every path from `/`.
   Since the second review fix every `Mutate` takes that full inventory, so pinning its reads is
-  now worth measuring; the earlier rejection assumed it read only files the audit had not.
+  now worth measuring (V1-0776); the earlier rejection assumed it read only files the audit had
+  not.
 - Cost stays proportional to receipt history. Only (C), or something like it, would bound it.
 
 Not run:

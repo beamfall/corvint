@@ -1326,7 +1326,8 @@ The maintained `BenchmarkCALV0070_MutateAt2000Receipts` records the before numbe
      only when the audit completed with no deferred refusal. Its records stand in for the second
      `Audit` only if every file it read is listed in that inventory with the same digest and size.
      (Until the second review fix the inventory took its digests from the audit, as lease
-     preparation does; that left a write through a shared mapping unseen, see the race limit.)
+     preparation does; that left a write through a shared mapping unseen, see the race limit. The
+     lease path's exposure is V1-0775.)
   3. Pinned parents. A journal audit attempt opens each parent directory it reads from once
      (`safeopen.PinDir`), by the same no-follow, identity-checked step that began every per-file
      open. It then opens each file beneath it with one no-follow `openat` (`safeopen.InDir`)
@@ -1438,20 +1439,20 @@ Profile medians of 3, CPU time, base → after:
 | 2,000 | 4,895 → 3,751 ms | 1,562 ms | 1,488 ms |
 | 7,000 | 14,032 → 10,733 ms | 4,528 ms | 4,624 ms |
 
-The benchmark, three alternating rounds, gave a median of 5,494 → 3,151 ms CPU per `Mutate`
-(ranges 4,081–5,644 and 2,857–3,725 ms; paired cuts 30%, 44% and 32%). Allocation fell from 1.655
-to 1.035 GB, and from 9.006 to 5.618 million allocations. The fresh inventory adds 0.167 GB and
-0.341 million allocations to the digest-reusing version.
+The benchmark, three alternating rounds, gave a median of 5,494 → 3,151 ms CPU per `Mutate`, a 42.6%
+cut (ranges 4,081–5,644 and 2,857–3,725 ms; paired cuts 30%, 44% and 32%). Allocation fell from
+1.655 to 1.035 GB, and from 9.006 to 5.618 million allocations. The fresh inventory adds 0.167 GB
+and 0.341 million allocations to the digest-reusing version.
 
-A `Mutate` now saves one complete audit, not an audit and an inventory: about 23–44% of its CPU
-time at this load, against 57% with the digests reused. The profile's cut, 23–26%, is likely
-understated, because the base profile ran as load fell.
+A `Mutate` now saves one complete audit, not an audit and an inventory: a 42.6% median cut at this
+load, against 57% with the digests reused. The profile's cut, 23–26%, is likely understated, because
+the base profile ran as load fell.
 
 On Linux, the benchmark ran in an arm64 container (`golang:1.27.1`, 6 virtual CPUs, tmpfs) on the
 same host, at host load 12–25, three alternating rounds. It gave a median of 4,019 → 2,547 ms CPU
-per `Mutate` (ranges 3,855–4,938 and 2,159–3,105 ms; paired cuts 44%, 37% and 37%), and 2.80 →
-1.78 s wall. Allocation fell from 1.621 to 1.000 GB, and from 9.070 to 5.679 million allocations.
-The Linux profile and the earlier designs on Linux were not measured.
+per `Mutate`, a 36.6% cut (ranges 3,855–4,938 and 2,159–3,105 ms; paired cuts 44%, 37% and 37%), and
+2.80 → 1.78 s wall. Allocation fell from 1.621 to 1.000 GB, and from 9.070 to 5.679 million
+allocations. The Linux profile and the earlier designs on Linux were not measured.
 
 Non-goals:
 - any change to the receipt, journal, intent, request, evidence or archive format;
@@ -1473,7 +1474,7 @@ Failure modes of A and B:
 | A write through a shared mapping after the inventory read the file | Neither check sees it; every read already returned the earlier content, so it is handled as an edit after the old second pass |
 | A parent directory is renamed or replaced during an attempt | Reads continue beneath the parent the attempt already retained, as every per-file open did; the attempt's identity checks refuse as before |
 | A platform without the Unix open path | `PinDir` and `InDir` return the same unsupported error as `InRoot` |
-| An outside edit after the merged audit, before the watch's check | The check reports it; the inventory and the second `Audit` run fresh and refuse as before |
+| An edit detected by the watch or the content check, made after the merged audit and before the watch's check | The inventory and the second `Audit` run fresh and refuse as before. A write through a shared mapping after the inventory read the file is detected by neither; the shared-mapping rows above give that residual window |
 | The merged audit refuses while the watch is held | The watch is closed and the audit runs again, as `Lookup` ran, so descriptors the watch holds cannot cause a refusal the separate passes did not raise (`TestCALV0070_MutateRetriesAuditWithoutWatch`) |
 | The inventory or `Canonical` refuses | The watch is closed and the fresh inventory and second `Audit` raise the refusal, as before |
 | An outside edit after the watch's check | Handled as an edit after the old second pass (see the race limit) |
@@ -1857,7 +1858,7 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-042 | `internal/companionrelease/tasks_archive.go`, companion release `-tasks-only`; `TestTasksArchiveAssembly`, `TestTasksArchiveHelpRefusesOldRuntime`; native archive build retained in change evidence |
 
 | CAL-V0-027 | `TestCALV0027_CompiledNonfixtureReleaseLifecycle`, `TestCALV0027_NonfixtureReleaseBindings`, `TestCALV0027_NonfixtureReleaseReadinessRefusals` (`internal/tasks/cli`); `TestCALV0027_ReleaseAfterQualifiedCutover`, `TestCALV0027_ReleaseInterruptionRecovery`, `TestCALV0027_ReleaseActiveStageAndReconciliation`, `TestCALV0027_ReleaseWrongActor`, `TestCALV0027_ActualCompletedStages` (`internal/tasks/store`); `TestCALV0027_NonfixtureStageBinding`, `TestCALV0027_CompletedStageReceiptKinds`, `TestCALV0027_CompletedStageInnerBindings` (`internal/tasks/snapshot`). |
-| CAL-V0-070 | Implemented for `store.Mutate` and journal audit reads: `TestCALV0070_MergedMutationAuditEquivalence` (`internal/tasks/journal`), `TestCALV0070_PinnedDirOpensMatchInRoot` (`internal/tasks/safeopen`), `TestCALV0070_MutateAuditSequenceEquivalence`, `TestCALV0070_MutateRefusesChangesAfterMergedAudit`, `TestCALV0070_MutateRefusesMappedWriteAfterMergedAudit` and `TestCALV0070_MutateRetriesAuditWithoutWatch` (`internal/tasks/store`, the last two also in a Linux arm64 container); before/after `BenchmarkCALV0070_MutateAt2000Receipts` (median `Mutate` CPU 4,178 → 1,793 ms at 2,000 receipts; with the change watch, 5,381 → 2,299 ms at load 27–59; with the content check, 5,494 → 3,151 ms on macOS at load 34–52 and 4,019 → 2,547 ms in a Linux arm64 container) and opt-in `TestCALV0070_WriterHistoryProfile` (`internal/tasks/store`); see `docs/build-log/2026-10-04-tasks-writer-history-cost.md` and `docs/build-log/2026-10-04-tasks-writer-one-pass.md`. The proposed writer checkpoint is NOT_RUN (owner decision pending, deferred 2026-10-04); the Linux profile, the live store and the issue 545 waves are NOT_RUN |
+| CAL-V0-070 | Implemented for `store.Mutate` and journal audit reads: `TestCALV0070_MergedMutationAuditEquivalence` (`internal/tasks/journal`), `TestCALV0070_PinnedDirOpensMatchInRoot` (`internal/tasks/safeopen`), `TestCALV0070_MutateAuditSequenceEquivalence`, `TestCALV0070_MutateRefusesChangesAfterMergedAudit`, `TestCALV0070_MutateRefusesMappedWriteAfterMergedAudit` and `TestCALV0070_MutateRetriesAuditWithoutWatch` (`internal/tasks/store`, the last two also in a Linux arm64 container); before/after `BenchmarkCALV0070_MutateAt2000Receipts` (median `Mutate` CPU 4,178 → 1,793 ms at 2,000 receipts; with the change watch, 5,381 → 2,299 ms at load 27–59; with the content check, 5,494 → 3,151 ms (42.6%) on macOS at load 34–52 and 4,019 → 2,547 ms (36.6%) in a Linux arm64 container) and opt-in `TestCALV0070_WriterHistoryProfile` (`internal/tasks/store`); see `docs/build-log/2026-10-04-tasks-writer-history-cost.md` and `docs/build-log/2026-10-04-tasks-writer-one-pass.md`. The proposed writer checkpoint is NOT_RUN (owner decision pending, deferred 2026-10-04); the Linux profile, the live store and the issue 545 waves are NOT_RUN |
 
 ## Holder, retry and policy observation acceptance
 
