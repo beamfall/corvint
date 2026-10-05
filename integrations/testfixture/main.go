@@ -67,8 +67,10 @@ func main() {
 		if child.Start() != nil {
 			os.Exit(2)
 		}
+		// V1-0783: publish by rename. os.WriteFile creates before it writes, so a reader polling
+		// for the file could copy an empty PID while the harness was still running.
 		pid, _ := json.Marshal(child.Process.Pid)
-		if os.WriteFile(config.ChildPID, pid, 0600) != nil {
+		if os.WriteFile(config.ChildPID+".tmp", pid, 0600) != nil || os.Rename(config.ChildPID+".tmp", config.ChildPID) != nil {
 			_ = child.Process.Kill()
 			_ = child.Wait()
 			os.Exit(2)
