@@ -2736,6 +2736,11 @@ retry budget; evaluating the hold in `ticket list`, `roadmap` or `queue status`;
 change. Core's closed policy reader already refuses a policy carrying `loopDetection`, as it does
 for `pools`, `supervision` and `externalReviews`, and Core does not evaluate the hold.
 
+Owner decision (2026-10-05, ticket V1-0791): both open questions keep the delivered behavior.
+The owner's `ticket reopen` stays the only acknowledgement, with no lighter operator verb, and the
+loop escalation stays a dispatcher `needs-owner` event, with no dispatcher- or operator-origin OPEN
+that would relax the ESC-V0-010 live-claim requirement.
+
 Failure modes: history recorded before the policy opted in is UNKNOWN, so a loop that began
 earlier is detected only after enough newly recorded generations; a hand-off that changed the
 work outside the candidate tree, gates and reviews counts as no progress, and the owner's reopen is
