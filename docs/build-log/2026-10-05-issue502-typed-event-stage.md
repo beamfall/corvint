@@ -55,6 +55,14 @@ no matching reservation, an expired lease, and an unreferenced event accepted) a
 `TestIssue502_SupervisedSinceClaimFoldRefuses`. The existing writer, CLI and dispatcher escalation
 tests pass unchanged.
 
+Verification (`-count=1 -timeout 30m`): the `snapshot`, `transaction`, `wire`, `ticket`, `cli`,
+`store` and `dispatch` packages under `internal/tasks/`, plus `internal/taskman` and
+`internal/specindex`, pass, and `go run ./conformance/use-cases-v0` exits 0. One earlier run on a
+loaded host failed `TestCALV0078_SupervisedRunAfterCommitIsNotRetryable/refresh-STOPPED` before its
+fault point: the implementer attempt ended `BLOCKED_RECOVERY` with survivors. It passed with
+`-count=3` in isolation and in the final run, so it is filed as a suspected flake, not attributed
+to this change.
+
 ## Review
 
 One independent read-only Codex review of `b1e37605..3f062ecb` found no blocker, four major
