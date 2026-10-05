@@ -28,7 +28,7 @@ func TestPythonOracleCanonicalRows(t *testing.T) {
 	}{
 		{
 			name: "BMP and astral strings",
-			input: Input{Revision: testRevision, Task: "café ☃ 😀", OpenedPaths: []string{"z.go", "a.go", "a.go"},
+			input: Input{Producer: ProducerCLI, Revision: testRevision, Task: "café ☃ 😀", OpenedPaths: []string{"z.go", "a.go", "a.go"},
 				ChangedPaths: []string{"a.go"}, Verification: []string{"go test ./...", "git diff --check"}, Outcome: "passed"},
 			tracked: []string{"a.go", "z.go"},
 			wantID:  "5be94b69b7df0706b2aa769fcfc9d46d1fd439d7845023521681cd22ce0951bf",
@@ -36,7 +36,7 @@ func TestPythonOracleCanonicalRows(t *testing.T) {
 		},
 		{
 			name:   "DEL HTML and controls",
-			input:  Input{Revision: zeroRevision, Task: "edge <&> \x7f \b\f\n\r\t end", Outcome: "blocked"},
+			input:  Input{Producer: ProducerCLI, Revision: zeroRevision, Task: "edge <&> \x7f \b\f\n\r\t end", Outcome: "blocked"},
 			wantID: "a5b758b689435fbac4221e2acb0c7eb93b4aa1ee938a3066d44b4465b45ad611",
 			want:   "{\"changed_paths\":[],\"opened_paths\":[],\"outcome\":\"blocked\",\"revision\":\"0000000000000000000000000000000000000000\",\"schema_version\":1,\"task\":\"edge <&> \\u007f \\b\\f\\n\\r\\t end\",\"trace_id\":\"a5b758b689435fbac4221e2acb0c7eb93b4aa1ee938a3066d44b4465b45ad611\",\"verification\":[]}\n",
 		},
@@ -45,7 +45,7 @@ func TestPythonOracleCanonicalRows(t *testing.T) {
 			// trimming and sealed ["z","a","a"] (trace ID 96f14057...), a row DecodeStore
 			// refuses. Only this case pinned that ID. The ID is the sha256 of the basis.
 			name:   "trim before command sort",
-			input:  Input{Revision: zeroRevision, Task: "task", Verification: []string{" z", "a ", "a"}, Outcome: "passed"},
+			input:  Input{Producer: ProducerCLI, Revision: zeroRevision, Task: "task", Verification: []string{" z", "a ", "a"}, Outcome: "passed"},
 			wantID: "183c0fc18b04145f0f25a0c8e1c85521a8daaabf04b17f2cfa7c235ce467cbb3",
 			want:   "{\"changed_paths\":[],\"opened_paths\":[],\"outcome\":\"passed\",\"revision\":\"0000000000000000000000000000000000000000\",\"schema_version\":1,\"task\":\"task\",\"trace_id\":\"183c0fc18b04145f0f25a0c8e1c85521a8daaabf04b17f2cfa7c235ce467cbb3\",\"verification\":[\"a\",\"z\"]}\n",
 		},
@@ -56,6 +56,7 @@ func TestPythonOracleCanonicalRows(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			record = asLegacy(t, record)
 			if record.TraceID != test.wantID {
 				basis, _ := canonicalRecord(record, false)
 				t.Fatalf("TraceID = %s, want %s; basis=%q", record.TraceID, test.wantID, basis)
@@ -75,7 +76,7 @@ func TestPythonOracleCanonicalRows(t *testing.T) {
 // and deduplicating them, so the row it writes is one DecodeStore accepts.
 func TestNewRecordWritesAStoreAcceptedRowInOnePass(t *testing.T) {
 	for _, verification := range [][]string{{" go test ./b", "go test ./a"}, {" go test ./a", "go test ./a"}} {
-		record, err := NewRecord(Input{Revision: testRevision, Task: "task", Verification: verification, Outcome: "passed"}, nil)
+		record, err := NewRecord(Input{Producer: ProducerCLI, Revision: testRevision, Task: "task", Verification: verification, Outcome: "passed"}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -94,7 +95,7 @@ func TestNewRecordWritesAStoreAcceptedRowInOnePass(t *testing.T) {
 // reader refuses the escaped-surrogate row the retired Python writer produced.
 func TestTraceTaskMustBeValidUTF8(t *testing.T) {
 	for _, task := range []string{"lone-\xed\xa0\x80", "lone-\xed\xb2\x98"} {
-		if _, err := NewRecord(Input{Revision: testRevision, Task: task, Outcome: "blocked"}, nil); err == nil || !strings.Contains(err.Error(), "valid UTF-8") {
+		if _, err := NewRecord(Input{Producer: ProducerCLI, Revision: testRevision, Task: task, Outcome: "blocked"}, nil); err == nil || !strings.Contains(err.Error(), "valid UTF-8") {
 			t.Fatalf("NewRecord(%q) error = %v, want a valid UTF-8 refusal", task, err)
 		}
 	}
@@ -127,21 +128,21 @@ func TestNewRecordValidationBounds(t *testing.T) {
 		tracked []string
 		wantErr string
 	}{
-		{"task boundary", Input{Revision: testRevision, Task: strings.Repeat("é", MaxTaskCharacters), Outcome: "passed"}, nil, ""},
-		{"task overflow", Input{Revision: testRevision, Task: strings.Repeat("é", MaxTaskCharacters+1), Outcome: "passed"}, nil, "exceeds 2000"},
-		{"path boundary", Input{Revision: testRevision, Task: "task", OpenedPaths: paths200, Outcome: "passed"}, paths200, ""},
-		{"path overflow", Input{Revision: testRevision, Task: "task", OpenedPaths: paths201, Outcome: "passed"}, paths201, "exceeds 200 paths"},
-		{"command boundary count", Input{Revision: testRevision, Task: "task", Verification: commands50, Outcome: "passed"}, nil, ""},
-		{"command overflow count", Input{Revision: testRevision, Task: "task", Verification: commands51, Outcome: "passed"}, nil, "exceeds 50 commands"},
-		{"command character boundary", Input{Revision: testRevision, Task: "task", Verification: []string{strings.Repeat("a", MaxCommandCharacters)}, Outcome: "passed"}, nil, ""},
-		{"command character overflow", Input{Revision: testRevision, Task: "task", Verification: []string{strings.Repeat("a", MaxCommandCharacters+1)}, Outcome: "passed"}, nil, "exceeds 512"},
-		{"secret task", Input{Revision: testRevision, Task: "token=abcdefghijklmnopqrstuvwxyz", Outcome: "passed"}, nil, "secret-shaped"},
-		{"unicode-space secret", Input{Revision: testRevision, Task: "token\u00a0=\u2003abcdefghijklmnopqrstuvwxyz", Outcome: "passed"}, nil, "secret-shaped"},
-		{"secret path", Input{Revision: testRevision, Task: "task", OpenedPaths: []string{"token=abcdefghijklmnopqrstuvwxyz"}, Outcome: "passed"}, []string{"token=abcdefghijklmnopqrstuvwxyz"}, "secret-shaped"},
-		{"forbidden path", Input{Revision: testRevision, Task: "task", OpenedPaths: []string{".git/config"}, Outcome: "passed"}, []string{".git/config"}, "forbidden path"},
-		{"untracked path", Input{Revision: testRevision, Task: "task", OpenedPaths: []string{"a.go"}, Outcome: "passed"}, nil, "not tracked"},
-		{"unsafe command", Input{Revision: testRevision, Task: "task", Verification: []string{"go test; false"}, Outcome: "passed"}, nil, `unsupported shell syntax: byte 7 ';' is outside the admitted set of ASCII letters, digits, and "_./:@=+, -"`},
-		{"bad outcome", Input{Revision: testRevision, Task: "task", Outcome: "unknown"}, nil, "one of"},
+		{"task boundary", Input{Producer: ProducerCLI, Revision: testRevision, Task: strings.Repeat("é", MaxTaskCharacters), Outcome: "passed"}, nil, ""},
+		{"task overflow", Input{Producer: ProducerCLI, Revision: testRevision, Task: strings.Repeat("é", MaxTaskCharacters+1), Outcome: "passed"}, nil, "exceeds 2000"},
+		{"path boundary", Input{Producer: ProducerCLI, Revision: testRevision, Task: "task", OpenedPaths: paths200, Outcome: "passed"}, paths200, ""},
+		{"path overflow", Input{Producer: ProducerCLI, Revision: testRevision, Task: "task", OpenedPaths: paths201, Outcome: "passed"}, paths201, "exceeds 200 paths"},
+		{"command boundary count", Input{Producer: ProducerCLI, Revision: testRevision, Task: "task", Verification: commands50, Outcome: "passed"}, nil, ""},
+		{"command overflow count", Input{Producer: ProducerCLI, Revision: testRevision, Task: "task", Verification: commands51, Outcome: "passed"}, nil, "exceeds 50 commands"},
+		{"command character boundary", Input{Producer: ProducerCLI, Revision: testRevision, Task: "task", Verification: []string{strings.Repeat("a", MaxCommandCharacters)}, Outcome: "passed"}, nil, ""},
+		{"command character overflow", Input{Producer: ProducerCLI, Revision: testRevision, Task: "task", Verification: []string{strings.Repeat("a", MaxCommandCharacters+1)}, Outcome: "passed"}, nil, "exceeds 512"},
+		{"secret task", Input{Producer: ProducerCLI, Revision: testRevision, Task: "token=abcdefghijklmnopqrstuvwxyz", Outcome: "passed"}, nil, "secret-shaped"},
+		{"unicode-space secret", Input{Producer: ProducerCLI, Revision: testRevision, Task: "token\u00a0=\u2003abcdefghijklmnopqrstuvwxyz", Outcome: "passed"}, nil, "secret-shaped"},
+		{"secret path", Input{Producer: ProducerCLI, Revision: testRevision, Task: "task", OpenedPaths: []string{"token=abcdefghijklmnopqrstuvwxyz"}, Outcome: "passed"}, []string{"token=abcdefghijklmnopqrstuvwxyz"}, "secret-shaped"},
+		{"forbidden path", Input{Producer: ProducerCLI, Revision: testRevision, Task: "task", OpenedPaths: []string{".git/config"}, Outcome: "passed"}, []string{".git/config"}, "forbidden path"},
+		{"untracked path", Input{Producer: ProducerCLI, Revision: testRevision, Task: "task", OpenedPaths: []string{"a.go"}, Outcome: "passed"}, nil, "not tracked"},
+		{"unsafe command", Input{Producer: ProducerCLI, Revision: testRevision, Task: "task", Verification: []string{"go test; false"}, Outcome: "passed"}, nil, `unsupported shell syntax: byte 7 ';' is outside the admitted set of ASCII letters, digits, and "_./:@=+, -"`},
+		{"bad outcome", Input{Producer: ProducerCLI, Revision: testRevision, Task: "task", Outcome: "unknown"}, nil, "one of"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -182,7 +183,7 @@ func TestTracePathScreenIsTheIndexScreen(t *testing.T) {
 		if got := contextindex.ForbiddenPathReason(test.value) != ""; got != test.forbidden {
 			t.Fatalf("IDX-SNAP-V0-018 screen(%q) = %v, want %v", test.value, got, test.forbidden)
 		}
-		_, recordErr := NewRecord(Input{Revision: testRevision, Task: "task", OpenedPaths: []string{test.value}, Outcome: "passed"}, []string{test.value})
+		_, recordErr := NewRecord(Input{Producer: ProducerCLI, Revision: testRevision, Task: "task", OpenedPaths: []string{test.value}, Outcome: "passed"}, []string{test.value})
 		_, storedErr := normalizeStoredPaths([]string{test.value}, "opened_paths")
 		for surface, err := range map[string]error{"record": recordErr, "stored": storedErr} {
 			if got := err != nil && strings.Contains(err.Error(), "forbidden path"); got != test.forbidden {
@@ -266,10 +267,10 @@ func TestStoredV1RowsRemainValidAfterWriterSecretScreenExpansion(t *testing.T) {
 	}
 
 	writes := []Input{
-		{Revision: testRevision, Task: record.Task, Outcome: "passed"},
-		{Revision: testRevision, Task: "task", OpenedPaths: record.OpenedPaths, Outcome: "passed"},
-		{Revision: testRevision, Task: "task", ChangedPaths: record.ChangedPaths, Outcome: "passed"},
-		{Revision: testRevision, Task: "task", Verification: record.Verification, Outcome: "passed"},
+		{Producer: ProducerCLI, Revision: testRevision, Task: record.Task, Outcome: "passed"},
+		{Producer: ProducerCLI, Revision: testRevision, Task: "task", OpenedPaths: record.OpenedPaths, Outcome: "passed"},
+		{Producer: ProducerCLI, Revision: testRevision, Task: "task", ChangedPaths: record.ChangedPaths, Outcome: "passed"},
+		{Producer: ProducerCLI, Revision: testRevision, Task: "task", Verification: record.Verification, Outcome: "passed"},
 	}
 	for index, input := range writes {
 		if _, err := NewRecord(input, tracked); err == nil || !strings.Contains(err.Error(), "secret-shaped") {
@@ -290,7 +291,7 @@ func TestLTAV0004RecordRefusesWriterOnlySecretShapes(t *testing.T) {
 		"https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
 		"AKIAABCDEFGHIJKLMNOP abcdefghijklmnopqrstuvwxyz0123456789ABCD",
 	} {
-		input := Input{Revision: testRevision, Task: task, Outcome: "passed"}
+		input := Input{Producer: ProducerCLI, Revision: testRevision, Task: task, Outcome: "passed"}
 		if _, err := NewRecord(input, nil); err == nil || !strings.Contains(err.Error(), "secret-shaped") {
 			t.Errorf("NewRecord(%q) error=%v, want secret-shaped rejection", task, err)
 		}
@@ -301,7 +302,7 @@ func TestLTAV0004RecordRefusesWriterOnlySecretShapes(t *testing.T) {
 func TestQuotedCredentialsRejectNewRecordsButRetainStoredV1(t *testing.T) {
 	t.Run("EAF-V0-001", func(t *testing.T) {
 		for _, task := range []string{`{"password":"synthetic-example-value"}`, `{"api_key":"synthetic-example-value"}`, `{"password":"top secret value"}`, `{"password":"top \"secret\" value"}`, `{"password":"top secret value`, `{"password":"top secret value\`} {
-			input := Input{Revision: testRevision, Task: task, Outcome: "passed"}
+			input := Input{Producer: ProducerCLI, Revision: testRevision, Task: task, Outcome: "passed"}
 			if _, err := NewRecord(input, nil); err == nil || !strings.Contains(err.Error(), "secret-shaped") {
 				t.Errorf("NewRecord(%q) error=%v, want secret-shaped rejection", task, err)
 			}
@@ -324,7 +325,7 @@ func TestQuotedCredentialsRejectNewRecordsButRetainStoredV1(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		if _, err := NewRecord(Input{Revision: testRevision, Task: `{"task":"repair config"}`, Outcome: "passed"}, nil); err != nil {
+		if _, err := NewRecord(Input{Producer: ProducerCLI, Revision: testRevision, Task: `{"task":"repair config"}`, Outcome: "passed"}, nil); err != nil {
 			t.Fatalf("benign JSON rejected: %v", err)
 		}
 	})
@@ -364,7 +365,7 @@ func TestDecodeStoreRejectsMalformedInput(t *testing.T) {
 func TestTracePathsFollowTheDashboardWitnessProfile(t *testing.T) {
 	longest := strings.Repeat("a", 4_096)
 	for _, value := range []string{"a\x7f.go", "a\u0085.go", "a\xed\xa0\x80.go", `a\b.go`, "C:a.go", longest + "a"} {
-		_, err := NewRecord(Input{Revision: testRevision, Task: "task", OpenedPaths: []string{value}, Outcome: "passed"}, []string{value})
+		_, err := NewRecord(Input{Producer: ProducerCLI, Revision: testRevision, Task: "task", OpenedPaths: []string{value}, Outcome: "passed"}, []string{value})
 		if AdmissionFailureReason(err) != "malformed-path" {
 			t.Fatalf("NewRecord(%q) error = %v, want malformed-path", value, err)
 		}
@@ -382,7 +383,7 @@ func TestTracePathsFollowTheDashboardWitnessProfile(t *testing.T) {
 			t.Fatalf("DecodeStore accepted planted path %q: %v", value, err)
 		}
 	}
-	if _, err := NewRecord(Input{Revision: testRevision, Task: "task", OpenedPaths: []string{longest}, Outcome: "passed"}, []string{longest}); err != nil {
+	if _, err := NewRecord(Input{Producer: ProducerCLI, Revision: testRevision, Task: "task", OpenedPaths: []string{longest}, Outcome: "passed"}, []string{longest}); err != nil {
 		t.Fatalf("4,096-byte path refused: %v", err)
 	}
 }
@@ -438,7 +439,7 @@ func TestMigrationTransformRejectsExpandedTargetStore(t *testing.T) {
 	}
 	var source bytes.Buffer
 	for index := 0; index < 75; index++ {
-		record := mustRecord(t, Input{Revision: treeRevision, Task: "task " + commandSuffix(index), OpenedPaths: trackedPaths, Outcome: "passed"}, trackedPaths)
+		record := mustRecord(t, Input{Producer: ProducerCLI, Revision: treeRevision, Task: "task " + commandSuffix(index), OpenedPaths: trackedPaths, Outcome: "passed"}, trackedPaths)
 		row, err := Encode(record)
 		if err != nil {
 			t.Fatal(err)

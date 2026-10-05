@@ -121,7 +121,7 @@ func aggregateExpectedValid(expected AggregateExpected) error {
 	}
 	// This pure constructor reuses exactly the current secret/text/command grammar;
 	// it opens no store. Empty changed paths avoid borrowing a larger trace limit.
-	normalized, err := trace.NewRecord(trace.Input{Revision: expected.Target, TreeRevision: expected.Tree,
+	normalized, err := trace.NewRecord(trace.Input{Producer: trace.ProducerDogfood, Revision: expected.Target, TreeRevision: expected.Tree,
 		Task: expected.Task, Verification: expected.Verification, Outcome: expected.Outcome}, nil)
 	if err != nil {
 		return err

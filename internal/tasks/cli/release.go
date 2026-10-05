@@ -47,7 +47,7 @@ func releaseCommand(env Env, verb string, args []string) *wire.Result {
 	} else if verb == "promote" && f.payload == "" && !f.payloadFromStdin {
 		payload = wire.ObjectValue(wire.NewObject())
 	} else {
-		payload, err = readPayloadWithWhitespace(env, f, true)
+		payload, err = readPayload(env, f)
 		if err != nil {
 			return errorResult(cmd, err)
 		}

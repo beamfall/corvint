@@ -43,6 +43,8 @@ const (
 
 // Input is the public record command payload after argument parsing.
 type Input struct {
+	// Producer is the closed writer label stored in every new row (LTPM-V0-015).
+	Producer         string
 	Task             string
 	OpenedPaths      []string
 	ChangedPaths     []string
@@ -127,6 +129,7 @@ func RecordDogfood(ctx context.Context, root, baseArg, targetArg string, input I
 		return result, nil
 	}
 	input.ChangedPaths = admitted
+	input.Producer = trace.ProducerDogfood
 	recorded, err := recordWithIndex(ctx, root, index, tracked, stable, stagingStabilityCheck(ctx, root, index, authority), input)
 	if err != nil {
 		return DogfoodResult{}, dogfoodRecordFailure(err)
@@ -188,7 +191,7 @@ func recordIndex(ctx context.Context, root string) (*contextindex.Index, []strin
 
 func recordWithIndex(ctx context.Context, root string, index *contextindex.Index, tracked []string, stable func() error, stagedStable func(string) error, input Input) (Result, error) {
 	validated, err := trace.NewRecord(trace.Input{
-		Revision: index.CommitRevision, TreeRevision: index.Revision,
+		Producer: input.Producer, Revision: index.CommitRevision, TreeRevision: index.Revision,
 		Task: "record validation", Verification: input.Verification, VerificationArgv: input.VerificationArgv, Outcome: "passed",
 	}, tracked)
 	if err != nil {
@@ -201,7 +204,7 @@ func recordWithIndex(ctx context.Context, root string, index *contextindex.Index
 	recordValidated := false
 	validateRecord := func() error {
 		built, err := trace.NewRecord(trace.Input{
-			Revision: index.CommitRevision, TreeRevision: index.Revision,
+			Producer: input.Producer, Revision: index.CommitRevision, TreeRevision: index.Revision,
 			Task: input.Task, OpenedPaths: input.OpenedPaths, ChangedPaths: input.ChangedPaths,
 			Verification: validated.VerificationCommands(), VerificationArgv: validated.VerificationArgv(), Outcome: input.Outcome,
 		}, tracked)

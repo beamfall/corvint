@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -14,10 +15,11 @@ import (
 )
 
 type calibrateInvocation struct {
-	root   string
-	since  string
-	window int
-	format string
+	root    string
+	since   string
+	window  int
+	format  string
+	exclude []string
 }
 
 // calibrateInvoked reports whether the argument vector selects the calibrate
@@ -60,7 +62,7 @@ func parseCalibrateInvocation(arguments []string) (calibrateInvocation, error) {
 	}
 	for index++; index < len(arguments); index++ {
 		name, value, inline := strings.Cut(arguments[index], "=")
-		if name != "--since" && name != "--window" && name != "--format" {
+		if name != "--since" && name != "--window" && name != "--format" && name != "--exclude-producer" {
 			return invocation, argumentError("unrecognized arguments: " + arguments[index])
 		}
 		if !inline {
@@ -92,6 +94,13 @@ func (invocation *calibrateInvocation) apply(name, value string) error {
 			return argumentError("invalid --window")
 		}
 		invocation.window = parsed
+	case "--exclude-producer":
+		if !trace.ReportableProducer(value) {
+			return argumentError("argument --exclude-producer: invalid choice: " + pythonRepr(value) + " (choose from 'cli', 'dogfood', 'pi-tool', 'UNKNOWN')")
+		}
+		if !slices.Contains(invocation.exclude, value) {
+			invocation.exclude = append(invocation.exclude, value)
+		}
 	default:
 		if value != "json" && value != "table" {
 			return argumentError("argument --format: invalid choice: " + pythonRepr(value) + " (choose from 'json', 'table')")
@@ -137,14 +146,23 @@ func runCalibrate(ctx context.Context, arguments []string, stdout, stderr io.Wri
 	return writeCalibrate(report, invocation.format, stdout, stderr)
 }
 
+// calibrateReport counts every record read by producer, then drops excluded
+// producers before --since/--window select the sample (LTPM-V0-016). The
+// exclusion filters this read only; the store is never rewritten.
 func calibrateReport(records []trace.Record, state string, invocation calibrateInvocation) outcomecal.Report {
-	selected := selectCalibrateRecords(records, invocation)
+	selected := selectCalibrateRecords(trace.WithoutProducers(records, invocation.exclude), invocation)
 	observations := make([]outcomecal.Observation, len(selected))
 	for offset, record := range selected {
 		observations[offset] = outcomecal.Observe(record)
 	}
 	report := outcomecal.Build(observations, state)
 	report.Since, report.Window = invocation.since, invocation.window
+	report.Producers = trace.CountProducers(trace.RecordProducers(records))
+	for _, name := range trace.Producers {
+		if slices.Contains(invocation.exclude, name) {
+			report.ExcludedProducers = append(report.ExcludedProducers, name)
+		}
+	}
 	return report
 }
 
@@ -188,13 +206,19 @@ func writeCalibrate(report outcomecal.Report, format string, stdout, stderr io.W
 const calibrateHelp = `
 Outcome calibration (experimental, OCL-V0 proposed), read-only, JSON/text:
 
-  corvint [--root PATH] calibrate [--since REV | --window N] [--format json|table]
+  corvint [--root PATH] calibrate [--since REV | --window N]
+                                  [--exclude-producer NAME]... [--format json|table]
 
 Compares the packet stance recorded before each local outcome with the outcome
 that followed, and reports where the stance and the result disagree.
 
   --since REV      Select only records bound to that revision.
   --window N       Select the newest N records.
+  --exclude-producer NAME
+                   Leave out records from cli, dogfood, pi-tool or UNKNOWN
+                   (rows written before producer provenance) before
+                   selecting; repeatable. The report always counts every
+                   record read by producer.
   --format FORMAT  json (default) or table.
 
 It reads the pinned local trace store and the committed index only. A proposed

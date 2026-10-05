@@ -26,12 +26,14 @@ const (
 	MaxTaskCharacters       = 2_000
 )
 
-// Record holds either the immutable schema-v1 command list or schema-v2 typed entries.
-// Slices are always normalized to non-nil values by constructors and decoders.
+// Record holds either the immutable schema-v1 command list or schema-v2 typed
+// entries; schema-v3 holds one of the two shapes plus its producer. Slices are
+// always normalized to non-nil values by constructors and decoders.
 type Record struct {
 	SchemaVersion     int
 	Revision          string
 	TraceID           string
+	Producer          string
 	Task              string
 	OpenedPaths       []string
 	ChangedPaths      []string
@@ -50,10 +52,15 @@ type Input struct {
 	Verification     []string
 	VerificationArgv [][]string
 	Outcome          string
+	Producer         string
 }
 
 // NewRecord applies the Python writer's normalization and computes TraceID.
+// Every new record is schema 3 and names its producer.
 func NewRecord(input Input, trackedPaths []string) (Record, error) {
+	if !ValidProducer(input.Producer) {
+		return Record{}, fmt.Errorf("trace producer must be one of: cli, dogfood, pi-tool")
+	}
 	tracked := stringSet(trackedPaths)
 	task, err := validTask(safeText(input.Task, "trace task", MaxTaskCharacters))
 	if err != nil {
@@ -75,8 +82,9 @@ func NewRecord(input Input, trackedPaths []string) (Record, error) {
 		return Record{}, fmt.Errorf("trace outcome must be one of: blocked, failed, passed")
 	}
 	record := Record{
-		SchemaVersion: SchemaVersion,
+		SchemaVersion: SchemaVersionV3,
 		Revision:      input.Revision,
+		Producer:      input.Producer,
 		Task:          task,
 		OpenedPaths:   opened,
 		ChangedPaths:  changed,
@@ -98,7 +106,7 @@ func NewRecord(input Input, trackedPaths []string) (Record, error) {
 		if err != nil {
 			return Record{}, err
 		}
-		record.SchemaVersion, record.Verification = SchemaVersionV2, nil
+		record.Verification = nil
 	}
 	record.TraceID, err = traceID(record)
 	if err != nil {
@@ -108,8 +116,8 @@ func NewRecord(input Input, trackedPaths []string) (Record, error) {
 }
 
 func normalizeStoredRecord(record Record, expectedRevision string, tracked map[string]struct{}) (Record, error) {
-	if record.SchemaVersion == SchemaVersionV2 {
-		if err := validateV2Record(record, expectedRevision); err != nil {
+	if typedRecord(record) {
+		if err := validateTypedRecord(record, expectedRevision); err != nil {
 			return Record{}, err
 		}
 		if _, err := normalizeHistoricalPaths(record.OpenedPaths, "opened_paths", expectedRevision, tracked); err != nil {
@@ -166,8 +174,8 @@ func normalizeStoredRecord(record Record, expectedRevision string, tracked map[s
 }
 
 func validateUnreachableRecord(record Record, expectedRevision string) error {
-	if record.SchemaVersion == SchemaVersionV2 {
-		return validateV2Record(record, expectedRevision)
+	if typedRecord(record) {
+		return validateTypedRecord(record, expectedRevision)
 	}
 	if record.SchemaVersion != SchemaVersion {
 		return fmt.Errorf("unsupported local trace schema")
@@ -217,7 +225,7 @@ func validateUnreachableRecord(record Record, expectedRevision string) error {
 }
 
 func validateAppendRecord(record Record, tracked map[string]struct{}) error {
-	if record.SchemaVersion == SchemaVersionV2 {
+	if typedRecord(record) {
 		_, err := normalizeStoredRecord(record, record.Revision, tracked)
 		return err
 	}
@@ -271,6 +279,11 @@ func validateAppendRecord(record Record, tracked map[string]struct{}) error {
 		return fmt.Errorf("local trace digest mismatch")
 	}
 	return nil
+}
+
+// typedRecord selects the strict json/v2 validator shared by schemas 2 and 3.
+func typedRecord(record Record) bool {
+	return record.SchemaVersion == SchemaVersionV2 || record.SchemaVersion == SchemaVersionV3
 }
 
 func traceID(record Record) (string, error) {

@@ -264,7 +264,10 @@ output, and environment maps are never sent. A completed built-in `write`, `edit
 reports its target files as a session-scoped `file-change`; the adapter serializes those
 subprocesses and coalesces duplicate paths for one session so an edit burst cannot overlap Corvint
 invocations. An `unsupported-impact-path-suffix` or `unsupported-impact-repository` refusal from that
-best-effort event is recorded at info level instead of as a warning. Opened in a directory outside
+best-effort event is recorded at info level instead of as a warning. So are
+`post-tool-path-not-project-relative`, when a tool call reports a path outside the project,
+and `changed-paths-truncated`, when a call, session or file-change batch passes its 256-path
+cap. Opened in a directory outside
 any Git repository, the plugin registers no hooks or tools and runs no Corvint command (decision
 0378). OpenCode 2 exposes plugin tools to the model through its code-mode `execute` tool; that outer
 call is not reported, its inner tool calls are. The

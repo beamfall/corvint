@@ -38,10 +38,29 @@ type fixtureTrace struct {
 type loadedFixture struct {
 	path, sha256 string
 	traces       []contextindex.QueryTrace
+	producers    []string
+}
+
+// readFixture refuses a fixture larger than the trace store bound after reading one
+// byte past it, instead of allocating the whole file (V1-0747).
+func readFixture(path string) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	raw, err := io.ReadAll(io.LimitReader(f, trace.MaxTraceStoreBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) > trace.MaxTraceStoreBytes {
+		return nil, fmt.Errorf("fixture exceeds %d bytes", trace.MaxTraceStoreBytes)
+	}
+	return raw, nil
 }
 
 func loadTraceFixture(path string, index *contextindex.Index, cases []goldenCase) (loadedFixture, error) {
-	raw, err := os.ReadFile(path)
+	raw, err := readFixture(path)
 	if err != nil {
 		return loadedFixture{}, fmt.Errorf("invalid learned trace fixture: %v", err)
 	}
@@ -78,8 +97,8 @@ func loadTraceFixture(path string, index *contextindex.Index, cases []goldenCase
 			if err := json.Unmarshal(rawRow, &header); err != nil {
 				return loadedFixture{}, fmt.Errorf("invalid learned trace fixture: %v", err)
 			}
-			if header.SchemaVersion == trace.SchemaVersionV2 {
-				if _, err := trace.DecodeV2(rawRow, header.Revision); err != nil {
+			if header.SchemaVersion == trace.SchemaVersionV2 || header.SchemaVersion == trace.SchemaVersionV3 {
+				if _, err := trace.DecodeTyped(rawRow, header.Revision); err != nil {
 					return loadedFixture{}, fmt.Errorf("invalid learned trace fixture: %v", err)
 				}
 			} else {
@@ -114,6 +133,7 @@ func loadTraceFixture(path string, index *contextindex.Index, cases []goldenCase
 	}
 	queries := make([]contextindex.QueryTrace, 0, len(selected.Traces))
 	traceIDs := make(map[string]struct{}, len(selected.Traces))
+	producers := make([]string, 0, len(selected.Traces))
 	for _, rawRow := range selected.Traces {
 		var header struct {
 			SchemaVersion int    `json:"schema_version"`
@@ -123,10 +143,10 @@ func loadTraceFixture(path string, index *contextindex.Index, cases []goldenCase
 			return loadedFixture{}, fmt.Errorf("invalid learned trace fixture: %v", err)
 		}
 		row := []byte(rawRow)
-		if header.SchemaVersion == trace.SchemaVersionV2 {
+		if header.SchemaVersion == trace.SchemaVersionV2 || header.SchemaVersion == trace.SchemaVersionV3 {
 			// Validate the original object before canonicalizing it for JSONL;
 			// fixtures may indent rows, but duplicate members must still refuse.
-			record, err := trace.DecodeV2(rawRow, header.Revision)
+			record, err := trace.DecodeTyped(rawRow, header.Revision)
 			if err != nil {
 				return loadedFixture{}, fmt.Errorf("invalid learned trace fixture: %v", err)
 			}
@@ -164,13 +184,14 @@ func loadTraceFixture(path string, index *contextindex.Index, cases []goldenCase
 		if _, contaminated := scoredTasks[contextindex.TrimPythonSpace(record.Task)]; contaminated {
 			return loadedFixture{}, fmt.Errorf("learned trace fixture trace shares a scored task: %s", record.Task)
 		}
+		producers = append(producers, record.ProducerName())
 		queries = append(queries, contextindex.QueryTrace{
 			TraceID: record.TraceID, Task: record.Task, Outcome: record.Outcome, Revision: record.Revision,
 			OpenedPaths: record.OpenedPaths, ChangedPaths: record.ChangedPaths,
 		})
 	}
 	digest := sha256.Sum256(raw)
-	return loadedFixture{path: path, sha256: fmt.Sprintf("%x", digest), traces: queries}, nil
+	return loadedFixture{path: path, sha256: fmt.Sprintf("%x", digest), traces: queries, producers: producers}, nil
 }
 
 func scoredTask(item goldenCase) string {

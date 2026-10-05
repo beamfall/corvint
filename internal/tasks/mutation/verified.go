@@ -28,3 +28,22 @@ func CompleteVerified(ctx Context, pre *ticket.Record, evidence []wire.Digest, m
 	}
 	return work, nil
 }
+
+// SetEscalations is the issue 502 writer's pass: it replaces the tool-owned
+// question reference and nothing else. It is not an envelope operation; the
+// caller has already reduced the typed request and proves the result is the
+// reducer's ticket revision. acceptanceRevision is unchanged (ESC-V0-003).
+func SetEscalations(ctx Context, pre *ticket.Record, refs ticket.EscalationRefs) (*ticket.Record, error) {
+	work, err := clone(pre)
+	if err != nil {
+		return nil, err
+	}
+	refs.Entries = append([]ticket.EscalationRef{}, refs.Entries...)
+	work.Escalations = &refs
+	if r := ctx.finalize(pre, work, false); r != nil && r.code != "" {
+		return nil, wire.Errorf(r.code, "/", "%s", r.detail)
+	} else if r != nil {
+		return nil, wire.Errorf(wire.CodeMalformed, "/", "%s", r.detail)
+	}
+	return work, nil
+}

@@ -106,8 +106,12 @@ type Completion struct {
 
 // Record is a validated taskman-ticket/0 record.
 type Record struct {
-	RequiredRoles        map[string][]string
-	RequiresPool         string
+	RequiredRoles map[string][]string
+	RequiresPool  string
+	// Escalations is the tool-owned issue 502 question reference
+	// (ESC-V0-002). Only the escalation writer sets it; every other
+	// mutation carries it through unchanged.
+	Escalations          *EscalationRefs
 	TicketID             wire.TicketID
 	Revision             wire.Count
 	AcceptanceRevision   wire.Count
@@ -141,6 +145,9 @@ type Record struct {
 	CreatedAt            wire.Timestamp
 	UpdatedAt            wire.Timestamp
 	UpdatedBy            string
+	// OperatorNote is the optional advisory note reference (ON-V0-001). It is
+	// not acceptance-relevant and is changed only by NOTE_SET/NOTE_CLEAR.
+	OperatorNote *OperatorNoteReference
 }
 
 var recordKeys = wire.TicketRecordKeys
@@ -161,7 +168,7 @@ func Decode(data []byte) (*Record, error) {
 // FromValue validates a parsed value as a ticket record.
 func FromValue(v wire.Value) (*Record, error) {
 	r := wire.NewReader(v, "/")
-	r.Closed(wire.OptionalKeys(v, recordKeys, "requiresPool", "requiredRoles")...)
+	r.Closed(wire.OptionalKeys(v, recordKeys, wire.TicketRecordOptionalKeys...)...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -169,6 +176,13 @@ func FromValue(v wire.Value) (*Record, error) {
 		return nil, err
 	}
 	rec := &Record{}
+	if wire.Has(v, "operatorNote") {
+		note, err := OperatorNoteReferenceFromValue(r.Field("operatorNote").Value())
+		if err != nil {
+			return nil, err
+		}
+		rec.OperatorNote = note
+	}
 	if wire.Has(v, "requiredRoles") {
 		rec.RequiredRoles = ReadStageRoles(r.Field("requiredRoles"))
 	}
@@ -307,6 +321,13 @@ func FromValue(v wire.Value) (*Record, error) {
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
+	if f, ok := v.Obj.Get("escalations"); ok {
+		refs, err := DecodeEscalationRefs(wire.EncodeFile(f))
+		if err != nil {
+			return nil, wire.Errorf(wire.CodeMalformed, "/escalations", "%v", err)
+		}
+		rec.Escalations = &refs
+	}
 	if err := rec.validate(); err != nil {
 		return nil, err
 	}
@@ -417,6 +438,11 @@ func (rec *Record) validate() error {
 		}
 		gseen[a.GrantID] = true
 	}
+	if rec.Escalations != nil {
+		if err := rec.validateEscalations(); err != nil {
+			return err
+		}
+	}
 	// §3.1 supersession is a reference to another ticket in the same queue.
 	for name, ref := range map[string]*wire.TicketID{"supersedes": rec.Supersedes, "supersededBy": rec.SupersededBy} {
 		if ref == nil {
@@ -452,6 +478,12 @@ func (rec *Record) Value() wire.Value {
 	}
 	if rec.RequiresPool != "" {
 		o.Set("requiresPool", wire.String(rec.RequiresPool))
+	}
+	if rec.Escalations != nil {
+		o.Set("escalations", escalationRefsValue(rec.Escalations))
+	}
+	if rec.OperatorNote != nil {
+		o.Set("operatorNote", rec.OperatorNote.Value())
 	}
 	o.Set("owner", wire.StringOrNull(rec.Owner))
 	o.Set("milestone", wire.StringOrNull(rec.Milestone))

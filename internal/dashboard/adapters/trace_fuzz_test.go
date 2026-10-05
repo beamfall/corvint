@@ -26,14 +26,14 @@ func FuzzTraceRowsCountEveryRowTheRecorderWrites(f *testing.F) {
 		if slices.ContainsFunc(tracked, func(value string) bool { return !gitStorablePath(value) }) {
 			return
 		}
-		validated, err := trace.NewRecord(trace.Input{
+		validated, err := trace.NewRecord(trace.Input{Producer: trace.ProducerCLI,
 			Revision: testRevision, TreeRevision: testRevision, Task: "record validation",
 			Verification: fuzzLines(verification), Outcome: "passed",
 		}, tracked)
 		if err != nil {
 			return
 		}
-		record, err := trace.NewRecord(trace.Input{
+		record, err := trace.NewRecord(trace.Input{Producer: trace.ProducerCLI,
 			Revision: testRevision, TreeRevision: testRevision, Task: task, OpenedPaths: openedPaths,
 			ChangedPaths: changedPaths, Verification: validated.Verification,
 			Outcome: [3]string{"passed", "failed", "blocked"}[int(outcome)%3],

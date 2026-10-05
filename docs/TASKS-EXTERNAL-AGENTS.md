@@ -62,6 +62,11 @@ the canonical writer to NATIVE before this execution cutover.
 Copy `ticket-create.json` outside `.taskman/tickets/`, adjust its source queue ID and actual
 acceptance criteria, then use `ticket create --request-id ID --payload-stdin < FILE`.
 The example deliberately retains `effects.coverage:INCOMPLETE` and requires `verify`.
+A mutation payload (`--payload` or `--payload-stdin`) may be any valid JSON for the verb's closed
+keys: the CLI canonicalizes whitespace, key order and escape form, and sorts set arrays such as
+`labels`, `requirementRefs` and `touchPaths`, before the request digest. Ordered arrays such as
+`acceptanceCriteria` and `dependencies` keep the order given; duplicate set elements refuse.
+Files written into `.taskman/` (policy, queue) still must be canonical.
 
 To choose a board ID, add optional `"localToken":"BT-002"` to the canonical CREATE payload.
 `BT-002`, `F0-5` and `FL-016.matrix` use the existing queue-local token grammar. The resulting
@@ -111,7 +116,9 @@ Payloads use sorted object keys, compact JSON, literal UTF-8 (not `\u00a7` for `
 deduplicated set arrays such as `touchPaths`. Preserve ordered arrays such as gate argv and
 acceptance criteria. For Python, serialize using `ensure_ascii=False, sort_keys=True,
 separators=(',', ':')`, then add one LF; sort only fields documented as sets. Each mutation's
-`--help` lists its closed payload keys.
+`--help` lists its closed payload keys. `ticket create --template` prints a canonical CREATE payload for
+this queue (`.items[0].payload`) plus a `fields` table of types, enum values and null-able keys;
+fill in `title`, `body` and `acceptanceCriteria`, then submit it with `--payload-stdin`.
 
 Linked worktrees share the primary checkout's `.git/taskman` journal. A fresh clone has no such
 journal: current `queue status`, `roadmap`, `ticket show` and `ticket search` can read the

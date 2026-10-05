@@ -1128,9 +1128,12 @@ rm -f "$citation_repo/.corvint/direct.cem.json"
 run_citation_case one "$citation_artifacts/one.tsv" 1 1
 assert_cited_uncommitted
 rg -q '^\.corvint/change.cem.json\t\.corvint/change.cem.json\t' "$citation_case/cites.tsv"
-run_citation_case empty "$citation_artifacts/empty.tsv" 0 0
+# DCW-V0-032 (proposed): an empty plan on a map that still owes an unknown hunk is refused,
+# not a silent zero-citation pass, and cites nothing.
+run_citation_case empty "$citation_artifacts/empty.tsv" 1 0
 cmp "$citation_artifacts/prepared.json" "$citation_case/final.json"
-rg -q '"name": "cem-cite", "status": "PRODUCED", "reason": "none"' "$citation_case/report.json"
+rg -q '"name": "cem-cite", "status": "NOT_PRODUCED", "reason": "empty-citation-plan"' "$citation_case/report.json"
+rg -Fxq -- '    fix: DOGFOOD_CITATIONS names an empty file but .corvint/change.cem.json still has unknown hunks; write one row per unknown hunk, or unset DOGFOOD_CITATIONS to prepare the map without citing' "$citation_case/stderr"
 
 cat "$citation_artifacts/one.tsv" > "$citation_artifacts/unstable.tsv"
 printf '2\tdocs/specs/intent-b.md\tunstable\tspecification\n' >> "$citation_artifacts/unstable.tsv"

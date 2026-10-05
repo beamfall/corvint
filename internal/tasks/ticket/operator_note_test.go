@@ -191,3 +191,24 @@ func TestIssue501_NoteCodec(t *testing.T) {
 		}
 	}
 }
+
+// TestONV0001_RecordCodecKeepsLegacyBytes: a never-noted ticket keeps its
+// exact bytes and spells no operatorNote; SET and CLEARED references
+// round-trip byte-identically through the record codec.
+func TestONV0001_RecordCodecKeepsLegacyBytes(t *testing.T) {
+	raw := fixture.Ticket("NOTE-1").Encode()
+	back, err := ticket.Decode(raw)
+	if err != nil || !bytes.Equal(back.Encode(), raw) || back.OperatorNote != nil || bytes.Contains(raw, []byte("operatorNote")) {
+		t.Fatalf("legacy bytes did not round-trip: %v", err)
+	}
+	head := wire.Sum([]byte("event"))
+	for _, ref := range []ticket.OperatorNoteReference{{Revision: "1", Current: &head, Head: head}, {Revision: "2", Head: head}} {
+		noted := fixture.Ticket("NOTE-1")
+		noted.OperatorNote = &ref
+		b := noted.Encode()
+		back, err := ticket.Decode(b)
+		if err != nil || !bytes.Equal(back.Encode(), b) || back.OperatorNote == nil || back.OperatorNote.Revision != ref.Revision {
+			t.Fatalf("noted ticket did not round-trip: %v", err)
+		}
+	}
+}
