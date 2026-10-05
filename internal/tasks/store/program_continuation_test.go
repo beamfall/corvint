@@ -486,7 +486,9 @@ func TestCALV0089_TurnCapsBoundContinuation(t *testing.T) {
 // TestCALV0089_DrainStopsContinuation proves a program drain stops
 // continuation both when it is requested while a stage runs, which stops the
 // stage before its wall, and when it arrives as the stage stops at its wall,
-// which leaves the checkpoint waiting unanswered.
+// which leaves the checkpoint waiting unanswered, and when it is recorded
+// after the continuation check but before admission, which the fenced
+// admission refuses FENCED with no host turn.
 func TestCALV0089_DrainStopsContinuation(t *testing.T) {
 	t.Run("while running", func(t *testing.T) {
 		f := newContinuationFixture(t, continuationOptions{continuations: "3", wallSeconds: 20})
@@ -552,6 +554,42 @@ func TestCALV0089_DrainStopsContinuation(t *testing.T) {
 		f.assertWaitingCheckpoint(t, a.AttemptID, "implement-session", 1)
 		if args := f.lines(t, "resume-args"); len(args) != 0 {
 			t.Fatalf("stage drained at its wall continued: %q", args)
+		}
+	})
+	// A drain recorded after the continuation check, here once the
+	// continuation answer is recorded, finds the program already finished
+	// and released, so the request returns at once; the continuation's
+	// fenced admission must then refuse rather than launch another turn.
+	t.Run("before admission", func(t *testing.T) {
+		f := newContinuationFixture(t, continuationOptions{continuations: "3"})
+		f.touch(t, "stall-implement")
+		w := f.open(t)
+		var drained error
+		requested := false
+		defer store.SetRunFaultForTest(func(point string) error {
+			if point != "refresh:ANSWER" || requested {
+				return nil
+			}
+			requested = true
+			drained = f.requestDrain()
+			return nil
+		})()
+		a, err := w.RunRole(context.Background(), "implementer", "")
+		if !requested || drained != nil {
+			t.Fatalf("drain before admission: requested %v error %v", requested, drained)
+		}
+		if wire.CodeOf(err) != wire.CodeFenced {
+			t.Fatalf("continuation admitted under a pending drain: want %s, got %v", wire.CodeFenced, err)
+		}
+		if args := f.lines(t, "resume-args"); len(args) != 0 {
+			t.Fatalf("continuation launched under a pending drain: %q", args)
+		}
+		stored := f.s.attempt(t, a.AttemptID)
+		if stored.Phase != "WAITING" || stored.Supervision.Answer == "" || stored.Supervision.Turns.Int() != 1 || stored.Supervision.Worker || stored.Quiescence != "PROVED" {
+			t.Fatalf("fenced continuation attempt phase %s answer %q turns %d worker %v quiescence %s", stored.Phase, stored.Supervision.Answer, stored.Supervision.Turns.Int(), stored.Supervision.Worker, stored.Quiescence)
+		}
+		if p := f.program(t); p.Phase != "FINISHED" || !p.OwnerReleased || p.Quiescence != "PROVED" || p.Control != "DRAIN" || p.Turns != 1 {
+			t.Fatalf("fenced continuation program phase %s released %v quiescence %s control %q turns %d", p.Phase, p.OwnerReleased, p.Quiescence, p.Control, p.Turns)
 		}
 	})
 }

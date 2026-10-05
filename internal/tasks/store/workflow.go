@@ -43,6 +43,9 @@ type Workflow struct {
 	// wall elapsed: not the program wall, a control, a lost heartbeat, a
 	// failed watch read, or the caller's context (CAL-V0-089).
 	wallStop bool
+	// continuing reports that the current stage is a checkpointed
+	// continuation, whose admission is fenced on pending controls.
+	continuing bool
 }
 
 var ErrProgramIdle = errors.New("no eligible stage work")
@@ -61,7 +64,11 @@ func programID(id string) bool {
 func (w *Workflow) requestID() string {
 	return w.program.ID + "-" + strconv.FormatInt(time.Now().UnixNano(), 10)
 }
-func (w *Workflow) persist(phase string) error {
+func (w *Workflow) persist(phase string) error { return w.persistFenced(phase, false) }
+
+// persistFenced is persist that, when fenced, refuses while a control is
+// pending and then reloads the recorded program (CAL-V0-089).
+func (w *Workflow) persistFenced(phase string, fenced bool) error {
 	entries, _ := ProgramRecords(context.Background(), w.repo)
 	for _, p := range entries {
 		if p.ID == w.program.ID {
@@ -69,8 +76,16 @@ func (w *Workflow) persist(phase string) error {
 		}
 	}
 	w.program.Phase = phase
-	r, e := ProgramTransition(context.Background(), w.repo, w.actor, w.queue.QueueID.Raw, w.requestID(), w.program)
-	return transitionOK(r, e)
+	r, e := programTransition(context.Background(), w.repo, w.actor, w.queue.QueueID.Raw, w.requestID(), w.program, fenced)
+	if e = transitionOK(r, e); e != nil && fenced {
+		entries, _ := ProgramRecords(context.Background(), w.repo)
+		for _, p := range entries {
+			if p.ID == w.program.ID {
+				w.program = p
+			}
+		}
+	}
+	return e
 }
 func transitionOK(r *Report, e error) error {
 	if e != nil {
@@ -339,8 +354,11 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 		if commit == "" {
 			commit = w.program.WorktreeCommit
 		}
+		// A checkpointed continuation is admitted by this READY, which a
+		// control recorded before it refuses and leaves the program
+		// FINISHED and released (CAL-V0-089).
 		if e = w.bindWorktree(path, commit); e == nil {
-			e = w.persist("READY")
+			e = w.persistFenced("READY", w.continuing)
 		}
 	} else if w.program.Phase == "WORKTREE_ADD" || w.program.Phase == "READY" {
 		path = w.program.Worktree
@@ -686,9 +704,14 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 	}
 	// An unproved drain left the program and attempt BLOCKED_RECOVERY; the
 	// role must not go on to finish them as if the stage had stopped cleanly
-	// (V1-0772).
-	if !out.Clean && runErr == nil {
-		runErr = wire.Errorf(wire.CodeSurvivors, "supervisor", "%s stage stopped without proved quiescence; the program and attempt remain BLOCKED_RECOVERY", stage)
+	// (V1-0772). SURVIVORS takes precedence over the stage's own failure,
+	// whose text it keeps.
+	if !out.Clean {
+		detail := ""
+		if runErr != nil {
+			detail = " after " + runErr.Error()
+		}
+		runErr = wire.Errorf(wire.CodeSurvivors, "supervisor", "%s stage stopped without proved quiescence%s; the program and attempt remain BLOCKED_RECOVERY", stage, detail)
 	}
 	if out.Clean {
 		w.program.OwnerReleased = true
@@ -981,7 +1004,9 @@ func (w *Workflow) RunRole(ctx context.Context, role, grant string) (a *snapshot
 		if ae := w.Answer(w.attempt.Supervision.QuestionID, answer, w.attempt.TicketRevision); ae != nil {
 			return w.attempt, fmt.Errorf("checkpointed continuation %d refused: %w", n, ae)
 		}
+		w.continuing = true
 		_, e = w.stage(ctx, stage)
+		w.continuing = false
 	}
 	if e != nil {
 		return w.attempt, e

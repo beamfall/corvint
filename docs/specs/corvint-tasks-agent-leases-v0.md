@@ -1806,7 +1806,12 @@ resuming the same host session in the same preserved worktree a policy-bounded n
      apply. The supervisor MUST NOT start one when the lane turn cap, the program group's turn cap
      or its wall leaves no room, or when a program control is pending; the attempt then stays
      `WAITING` with the question unanswered, the program `FINISHED` with its owner released, and the
-     role returns the stage's deadline error.
+     role returns the stage's deadline error. A continuation's admission, its first program write,
+     MUST refuse `FENCED` when the program revision it replaces carries a control, so a drain or
+     cancel recorded after that check starts no host turn: the program stays `FINISHED` with its
+     owner released and the control recorded, and the attempt stays `WAITING` with the continuation
+     answer recorded until an operator resumes the program. A control recorded after admission stops
+     the running turn through the stage watcher, as for any stage.
   4. An integrate-stage continuation MUST reuse the grant recorded before the wait, not record
      another, and the queue checkout MUST NOT move until `INTEGRATE_INTENT`, so integration
      happens once after the last continuation.
@@ -1842,7 +1847,9 @@ pending effect until the operator returns the advanced checkout to its base or c
 a continuation resumes the host's own record of the session, so a host that discarded or corrupted
 that session fails the resumed turn and leaves the preserved worktree and its per-turn refs for the
 operator; an owner process killed during a continuation leaves the attempt to the existing stale
-owner recovery, never a second concurrent continuation (CAL-V0-089).
+owner recovery, never a second concurrent continuation; the stage watcher polls once a second, so a
+control recorded just after a continuation's admission lets the resumed host run until the next
+poll before it is drained, as for any stage (CAL-V0-089).
 Downgrade is one-way: a binary without this slice
 refuses a `programs.json` that records repositories (`unknown field`), and because a full journal
 walk revalidates every retained post, it also refuses the retained history once any
@@ -2887,11 +2894,12 @@ failed unlocked program read. That read had raced a concurrent writer's journal 
   4096 bytes MUST still be refused with its code. Before any directory, program record or Git worktree
   exists, the supervisor MUST refuse a stage worktree path, or a `<path>@<name>` sibling path, that
   is not such a PathText. DISPATCH MUST refuse it as well. A stage whose drain does not prove
-  quiescence MUST end its role with a non-retryable `SURVIVORS` error. The program and attempt then
-  stay `BLOCKED_RECOVERY`, the program quiescence is recorded `UNKNOWN`, and the owner stays
-  unreleased. Such a stage MUST NOT journal `FINISHED`, and a role MUST NOT go on to gates, `READY`
-  or integration after it. The drain MUST treat `EPERM` from the process-group probe as neither gone
-  nor observable. It re-probes until the group is proved gone (`ESRCH`) or the drain deadline passes,
+  quiescence MUST end its role with a non-retryable `SURVIVORS` error, which takes precedence over
+  the stage's own failure (a wall timeout, nonzero exit or invalid result) and keeps its text. The
+  program and attempt then stay `BLOCKED_RECOVERY`, the program quiescence is recorded `UNKNOWN`,
+  and the owner stays unreleased. Such a stage MUST NOT journal `FINISHED`, and a role MUST NOT go
+  on to gates, `READY` or integration after it. The drain MUST treat `EPERM` from the process-group
+  probe as neither gone nor observable. It re-probes until the group is proved gone (`ESRCH`) or the drain deadline passes,
   and it never signals on, or counts as gone, an `EPERM` answer. The stage watcher MUST tolerate
   failing unlocked program reads for at most 30 seconds of continuous failure before it stops the
   stage, and a successful read resets that window. A heartbeat refusal still stops the stage at once.
@@ -3061,6 +3069,7 @@ The `ESCALATION_PENDING` detail code (72 codes after A17) is amended in by `corv
 | Extra repository has no READY, fresh Core index | The host would edit a repository without its context | The stage refuses `repository <name>: CONTEXT_UNAVAILABLE` before launch (CAL-V0-088) |
 | Stage stopped by its wall with `continuations` configured | Work past one wall would be lost or need an operator | The stage resumes its recorded session in the preserved worktree up to the policy bound, each as an ordinary ANSWER and DISPATCH under every cap (CAL-V0-089) |
 | Continuation would exceed the lane or program turn cap, the program wall, or meets a pending drain or cancel | A continuation would overrun a bound or race the control | No continuation starts; the attempt waits unanswered for an operator `retry`, which the same caps refuse (CAL-V0-089) |
+| Drain or cancel recorded after the continuation check, before its admission | The control returns as settled and another host turn launches anyway | The continuation's first program write refuses `FENCED` against the revision it replaces; the program stays `FINISHED` and released with the control recorded, and no host turn starts (CAL-V0-089) |
 | `continuations` with Claude Code, or with a lane or program token cap | The stage could not resume, or every continuation would be refused as usage unknown | Program admission and every stage launch refuse `UNSUPPORTED` before mutation (CAL-V0-089) |
 | Supervisor config host differs from the policy host, or names an unknown host | A program would speak the wrong vocabulary to the pinned binary | Admission and every stage refuse `UNSUPPORTED` before any record, lease or host process (CAL-V0-074) |
 | Pinned Claude Code or Codex executable missing, replaced or re-moded | An unqualified binary would run | Refused `CAPABILITY_UNAVAILABLE` before any program record or lease (CAL-V0-074) |
@@ -3081,7 +3090,7 @@ The `ESCALATION_PENDING` detail code (72 codes after A17) is amended in by `corv
 | OpenCode standalone server or tool process leaves the owned process group | A host process would outlive a stage reported clean | Escapes are observed through their live parent and drained; the server holds the stage's standard error, so a survivor blocks end of file and the stop is not clean (CAL-V0-077) |
 | OpenCode plugin or project configuration in the worktree | Untrusted code or permissions would load into the stage | Project configuration is disabled and permissions arrive inline; user-configured plugins are a known, uncontained limit (owner decision 2026-10-04) (CAL-V0-077) |
 | Supervised stage worktree path longer than 128 bytes (deep work root or agent `TMPDIR`) | DISPATCH would refuse `LIMIT_EXCEEDED` after the worktree and program records exist | The attempt records the path as PathText up to 4096 bytes; a longer or invalid path is refused before any directory, record or Git worktree (CAL-V0-086) |
-| Stage drain cannot prove quiescence (a host process escaped, or the probe never answers gone) | The role would journal `FINISHED` over `BLOCKED_RECOVERY` and be refused `MALFORMED` | The role ends with non-retryable `SURVIVORS`; program and attempt stay `BLOCKED_RECOVERY`, program quiescence `UNKNOWN`, owner unreleased (CAL-V0-086) |
+| Stage drain cannot prove quiescence (a host process escaped, or the probe never answers gone) | The role would journal `FINISHED` over `BLOCKED_RECOVERY` and be refused `MALFORMED`, or report a wall timeout, nonzero exit or invalid result as `MALFORMED` | The role ends with non-retryable `SURVIVORS`, keeping any stage failure's text; program and attempt stay `BLOCKED_RECOVERY`, program quiescence `UNKNOWN`, owner unreleased (CAL-V0-086) |
 | Darwin answers `EPERM` for a zombie-only process group before its leader is reaped | A finished stage would be reported unclean under load | The drain re-probes until `ESRCH` or its deadline and never counts `EPERM` as gone (CAL-V0-086) |
 | Unlocked program read fails while a concurrent writer stages its journal | The watcher would cancel a healthy stage | Reads may fail for up to 30 seconds of continuous failure before the stage stops; heartbeat refusals still stop it at once (CAL-V0-086) |
 

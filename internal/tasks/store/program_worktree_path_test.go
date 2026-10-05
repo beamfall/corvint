@@ -81,36 +81,55 @@ func TestCALV0086_OverlongWorktreeRefusedBeforeMutation(t *testing.T) {
 // attempt BLOCKED_RECOVERY and the owner unreleased. Before the fix the role
 // went on to journal the program FINISHED and was refused MALFORMED
 // ("program transition BLOCKED_RECOVERY -> FINISHED"), the load failure that
-// masked V1-0772.
+// masked V1-0772. SURVIVORS also takes precedence over the stage's own
+// failure, here its stage wall, whose text the error keeps; before that fix
+// the wall's context deadline reached the caller as MALFORMED.
 func TestCALV0086_UnprovedStopIsNotFinished(t *testing.T) {
-	f := buildProgramFixture(t, false, false, nil)
-	if err := os.WriteFile(filepath.Join(f.scripts, "escape"), nil, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	self, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx := context.Background()
-	w, err := store.OpenWorkflow(ctx, f.s.repo, operator(), "program", self, f.config, f.ticketID)
-	if err != nil {
-		t.Fatalf("open: %v", err)
-	}
-	a, err := w.RunRole(ctx, "implementer", "")
-	if wire.CodeOf(err) != wire.CodeSurvivors || !wire.RetryForbidden(err) {
-		t.Fatalf("unproved stop: want non-retryable %s, got %s %v", wire.CodeSurvivors, wire.CodeOf(err), err)
-	}
-	if a == nil || a.Phase != "BLOCKED_RECOVERY" || a.Quiescence != "SURVIVORS" {
-		t.Fatalf("attempt after unproved stop: %+v", a)
-	}
-	entries, err := store.ProgramRecords(ctx, f.s.repo)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, p := range entries {
-		if p.ID == "program" && (p.Phase != "BLOCKED_RECOVERY" || p.OwnerReleased || p.Quiescence == "PROVED") {
-			t.Fatalf("program after unproved stop: phase %s released %v quiescence %s", p.Phase, p.OwnerReleased, p.Quiescence)
-		}
+	for _, tc := range []struct {
+		name  string
+		files []string
+		wall  int
+		cause string
+	}{
+		{name: "after a clean exit", files: []string{"escape"}},
+		{name: "after the stage wall", files: []string{"escape", "slow"}, wall: 2, cause: context.DeadlineExceeded.Error()},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := buildProgramFixture(t, false, false, nil)
+			for _, name := range tc.files {
+				if err := os.WriteFile(filepath.Join(f.scripts, name), nil, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if tc.wall != 0 {
+				f.config.WallSeconds = tc.wall
+			}
+			self, err := os.Executable()
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx := context.Background()
+			w, err := store.OpenWorkflow(ctx, f.s.repo, operator(), "program", self, f.config, f.ticketID)
+			if err != nil {
+				t.Fatalf("open: %v", err)
+			}
+			a, err := w.RunRole(ctx, "implementer", "")
+			if wire.CodeOf(err) != wire.CodeSurvivors || !wire.RetryForbidden(err) || !strings.Contains(err.Error(), tc.cause) {
+				t.Fatalf("unproved stop: want non-retryable %s keeping %q, got %s %v", wire.CodeSurvivors, tc.cause, wire.CodeOf(err), err)
+			}
+			if a == nil || a.Phase != "BLOCKED_RECOVERY" || a.Quiescence != "SURVIVORS" {
+				t.Fatalf("attempt after unproved stop: %+v", a)
+			}
+			entries, err := store.ProgramRecords(ctx, f.s.repo)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, p := range entries {
+				if p.ID == "program" && (p.Phase != "BLOCKED_RECOVERY" || p.OwnerReleased || p.Quiescence == "PROVED") {
+					t.Fatalf("program after unproved stop: phase %s released %v quiescence %s", p.Phase, p.OwnerReleased, p.Quiescence)
+				}
+			}
+		})
 	}
 }
 

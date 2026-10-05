@@ -140,7 +140,7 @@ Decisions:
     - `TestCALV0089_OpenCodeContinuationForksPreservedSession`
     - `TestCALV0089_ContinuationBoundThenOperatorRestart`
     - `TestCALV0089_TurnCapsBoundContinuation` (program and lane)
-    - `TestCALV0089_DrainStopsContinuation` (while running, and at the wall)
+    - `TestCALV0089_DrainStopsContinuation` (while running, at the wall, and before admission)
     - `TestCALV0089_ProgramWallExpiryEndsContinuation`
     - `TestCALV0089_IntegrateCheckpointRestartKeepsGrant`: a stuck integrate turn checkpoints with
       the grant and no effect; after restart, `retry` resumes `integrate-session`, lands exactly one
@@ -183,6 +183,31 @@ Decisions:
   per the owner's focused-test preference. `cmd/corvint/main.go` is unchanged, so no use-case
   receipt repin was needed.
 
+## Review
+
+**Codex round 1** (`codex exec -s read-only`, `gpt-6-astra`, diff `d524530f..92702b02`) found no P0
+or P1 and two P2 findings. Both were verified and repaired.
+
+1. **A pending drain or cancel could race automatic continuation.** A control recorded after
+   `continuable` read the program did not stop the continuation's ANSWER, admission or DISPATCH.
+   - Verified: without the repair, the new subtest's drain, recorded once the continuation answer
+     is recorded, returned success at once because the program was already `FINISHED` and
+     released. The continuation then launched, and the resumed host built to completion.
+   - Repair: the continuation's admission, the `READY` its resumed stage writes first, goes through
+     a fenced program transition. That transition refuses `FENCED` when the `programs.json` revision
+     it replaces carries a control. It binds the same revision as its expected digest, so the check
+     and the write are atomic against a concurrent control request. A control recorded after
+     admission is the ordinary running-stage case, which the watcher sees within one poll; this is
+     documented as a failure mode.
+   - Test: `TestCALV0089_DrainStopsContinuation/before_admission`.
+   - Mutations: forcing the fence flag off, and dropping the guard in `programTransition`. Both
+     were killed.
+2. **A failed execution masked an unproved drain.** A wall timeout together with an escaped
+   `setsid` process reached the caller as `MALFORMED context deadline exceeded`.
+   - Repair: `SURVIVORS` now takes precedence and keeps the stage error's text.
+   - Test: `TestCALV0086_UnprovedStopIsNotFinished/after_the_stage_wall`.
+   - Mutation: restoring the `runErr == nil` condition was killed.
+
 ## Live qualification (NOT_RUN)
 
 No live hosted-agent run was made. Steps for the owner, on darwin/arm64, with the hosts installed
@@ -221,6 +246,12 @@ here: Codex CLI 0.153.2, Claude Code 2.1.267 and OpenCode 2.0.21.
 6. `gate run` requires an unexpired lease after an idle gap.
 7. Program transition refusals are plain errors, so their wire code is lost to `wire.CodeOf`.
 8. The `retry` usage text says `--grant FILE`, but the value is a grant ID.
+9. **Suspected, not reproduced.** The owner's phase writes do not fence on a control. `persist` and
+   the run journal callback copy `Control` from an unlocked read, but `ProgramTransition` binds the
+   revision it reads later. A control recorded between those two reads is overwritten with the
+   stale value. `RequestProgramControl` then reports `control superseded`, which fails loudly but
+   loses the control. The continuation admission fence above covers only the continuation's first
+   write. The pattern predates this branch (`persist` at `d524530f`).
 
 ## Owner questions
 
