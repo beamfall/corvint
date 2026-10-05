@@ -443,18 +443,21 @@ test('SOL-V0-010 AHI-022 V1-0767 OpenCode path abstentions reach the self-observ
  await host.hooks['execute.after'](patched('call-3',['/elsewhere/outside-secret.go']))
  await host.hooks['execute.after'](patched('call-4',['/elsewhere/outside-secret.go']))
  await host.cleanup()
- const timedOut=warnings.some(row=>row.includes('timeout'))
+ const warned=warnings.map(row=>JSON.parse(row.slice('[corvint/opencode] '.length)))
+ const timedOut=new Set(warned.filter(row=>row.code.split(',').includes('timeout')).map(row=>row.event))
  const raw=readFileSync(join(repo,'.corvint/self-observations.jsonl'),'utf8')
  const rows=raw.split('\n').slice(0,-1).map(JSON.parse).filter(row=>row.kind==='adapter-degradation')
  const seen=rows.map(row=>`${row.host} ${row.event} ${row.adapterCodes.join(',')}`).sort()
- // A disclosed deadline under host load (AHI-012) may lose an event; every row present is still exact.
- if(!timedOut)assert.deepEqual(seen,['opencode file-change changed-paths-truncated','opencode post-tool changed-paths-truncated','opencode post-tool post-tool-path-not-project-relative'])
- assert.ok(rows.length>0&&rows.every(row=>row.host==='opencode'))
+ const expected=['opencode file-change changed-paths-truncated','opencode post-tool changed-paths-truncated','opencode post-tool post-tool-path-not-project-relative']
  // Two identical out-of-project calls leave one row: the Go adapters' per-window dedup.
+ assert.equal(new Set(seen).size,seen.length,seen.join('; '))
+ assert.deepEqual(seen.filter(row=>!expected.includes(row)),[])
+ // A disclosed deadline under host load (AHI-012) may lose only the row of the event it cut short.
+ for(const row of expected)if(!timedOut.has(row.split(' ')[1]))assert.ok(seen.includes(row),row)
  for(const leak of ['dir/','outside-secret','elsewhere',repo,'session-a','execute.after','patch'])assert.ok(!JSON.stringify(rows).includes(leak),leak)
  assert.ok(!raw.includes('outside-secret')&&!raw.includes('dir/f'))
  // Core's 100-path impact bound refuses the 256-path batch after its row is ledgered; that existing
- // mismatch is a separate open bug, so only that one file-change warning is tolerated here.
+ // mismatch is open bug V1-0773, so only that one file-change warning is tolerated here.
  assert.deepEqual(warnings.filter(row=>!row.includes('timeout')&&!row.includes('{"code":"corvint-command-failed","event":"file-change"')),[])
 })
 test('CRB-V0-010 CRB-V0-011 OpenCode loaded plugin keeps exact aliases, option precedence, session isolation, payload bounds and repeat-stop suppression',async t=>{

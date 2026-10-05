@@ -126,7 +126,7 @@ local append-only diagnostic proposal stream and `corvint observations` is its r
   from the hook input's `cwd` when it is absolute (decision 0169). An `opencode` `harness event` on
   `file-change` or `post-tool` whose input carries `adapterCodes` MUST attempt the same append once
   per code, with that event, after resolving `--root` and whether or not the event then succeeds
-  (V1-0767). The row MUST carry only `host` (`claude-code`, `codex` or `opencode`), `event` (the adapter event), `adapterCodes`, `window` (the UTC hour
+  (V1-0767), waiting for it no longer than a fixed 250 ms bound. The row MUST carry only `host` (`claude-code`, `codex` or `opencode`), `event` (the adapter event), `adapterCodes`, `window` (the UTC hour
   as `YYYY-MM-DDTHHZ`), and `corvintVersion`; never prompt text, paths, tool input, session identity,
   or repository content. `adapterCodes` is a sorted, duplicate-free set of one to eight codes from
   the closed registry in `internal/observations/observations.go`. A `corvint-event-rejected:<code>`
@@ -185,6 +185,7 @@ the existing agent-memory convention.
 | same adapter row already retained in its hour window | no write |
 | OpenCode `adapterCodes` with another host, event or code, or unsorted, duplicated or empty | refuse the event as `invalid-harness-input`; no row |
 | OpenCode `adapterCodes` append fails (ledger not ignored, cap reached) | no row; the event and its receipt are unchanged |
+| OpenCode `adapterCodes` append waits on a held ledger lock | the event returns after the 250 ms bound with its response unchanged; the abandoned append lands once the lock frees or is lost with the process |
 
 ## Acceptance evidence and traceability
 
@@ -198,7 +199,7 @@ that OCM enumerates all ten clauses from this document; it does not validate the
 | SOL-V0-007 | unsupported aggregation test; `TestUnsupportedByDesignCodeIsReportedSeparately`; `TestOCMUnsupportedRefusalAppendsOneObservation`; `TestLRFCEMAndDogfoodOCMUnsupportedRefusalsAppendOneObservationEach`; `TestIndexBuildingCommandsRecordUnsupportedRefusal`; `TestRunFrontierUnsupportedRefusalLeavesRepositoryUnchanged` (exclusion); `TestRecordUnsupportedVerifySyntaxAppendsOneObservation`; `TestRecordUnsupportedSkipsObservationBehindAnOversizedIgnoreFile`; `TestDogfoodRecordUnsupportedVerifySyntaxAppendsOneObservation`; `TestRefusalSnapshotExceptsOnlyTheIgnoredLedger` (conformance refusal snapshot); `TestHostAdapterUnsupportedHookEventRecordsNoObservation` (exclusion); `TestBatchRefusesWithoutSnapshot` (exclusion); `TestCLIReadVerbsLeaveTheRepositoryByteIdentical` (adapter codex/claude-code CLI-level exclusion) |
 | SOL-V0-008 | bounded writer CLI test, report-row integration test, append concurrency tests, and `TestDogfoodReasonAdmitsEveryRegisteredCEMCode` |
 | SOL-V0-009 | `TestFalsificationRateCountsJudgedRowsOnly`, `TestProveObserveRecordsOnlyTheVerdictCounts`, `TestProveObserveRejectsWhatIsNotAProof` |
-| SOL-V0-010 | `TestAdapterDegradationRowCarriesNoContentFields`, `TestAdapterDegradationAdmitsCompactionEventsAndCodes`, `TestAdapterDegradationDeduplicatesWithinWindow`, `TestAdapterDegradationRowsHonorLedgerCap`, `TestRenderTalliesAdapterDegradations`, `TestClaudeAdapterQuietDegradationIsLedgered`, `TestAdapterDegradationRecordedPastExpiredWorkDeadline`, `TestAdapterSilentAbstentionsAreLedgered`, `TestOpenCodeAdapterCodesAreLedgeredOutsideTheReceipt`, `TestAdapterCodesAreClosedToOpenCodePathEvents`, and under `TestHostAdapterJavaScriptHosts` `SOL-V0-010 AHI-022 V1-0767 OpenCode path abstentions reach the self-observation ledger against the real binary`; `TestCLIReadVerbsLeaveTheRepositoryByteIdentical` (adapter paths touch nothing but the ledger) |
+| SOL-V0-010 | `TestAdapterDegradationRowCarriesNoContentFields`, `TestAdapterDegradationAdmitsCompactionEventsAndCodes`, `TestAdapterDegradationDeduplicatesWithinWindow`, `TestAdapterDegradationRowsHonorLedgerCap`, `TestRenderTalliesAdapterDegradations`, `TestClaudeAdapterQuietDegradationIsLedgered`, `TestAdapterDegradationRecordedPastExpiredWorkDeadline`, `TestAdapterSilentAbstentionsAreLedgered`, `TestOpenCodeAdapterCodesAreLedgeredOutsideTheReceipt`, `TestAdapterCodesAreClosedToOpenCodePathEvents`, `TestOpenCodeAdapterCodesDoNotWaitOnAHeldLedgerLock`, and under `TestHostAdapterJavaScriptHosts` `SOL-V0-010 AHI-022 V1-0767 OpenCode path abstentions reach the self-observation ledger against the real binary`; `TestCLIReadVerbsLeaveTheRepositoryByteIdentical` (adapter paths touch nothing but the ledger) |
 
 Rollback is deletion of the gitignored ledger and removal of its post-receipt best-effort call; no
 repository evidence or authority depends on it. `SOL-V0-010` rolls back by removing the adapter's

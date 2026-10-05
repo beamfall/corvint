@@ -40,20 +40,37 @@ would cost one more process spawn per abstention for the same closed row.
   - two identical coded events leave exactly one content-free row per code.
 - `TestAdapterCodesAreClosedToOpenCodePathEvents`: another host, another event, an unknown code,
   unsorted, duplicate, empty and non-list input are all refused, and `.corvint` is untouched.
+- `TestOpenCodeAdapterCodesDoNotWaitOnAHeldLedgerLock`: with the ledger directory lock held, a
+  coded `post-tool` returns within the 250 ms append bound with its response unchanged, and the row
+  lands after the lock is released. With the bound removed, the same test hangs until the Go test
+  timeout.
 - `AHI-022 V1-0746 OpenCode names the path cap and an out-of-project path at info level` now also
   asserts the `adapterCodes` each captured event carries, and that no path reaches them.
 - `SOL-V0-010 AHI-022 V1-0767 OpenCode path abstentions reach the self-observation ledger against
   the real binary`. Against a real `cmd/corvint` build it asserts:
   - three `opencode` rows (`file-change`/`changed-paths-truncated`, and `post-tool` with each code);
-  - two identical out-of-project calls deduplicated to one row;
+  - two identical out-of-project calls deduplicated to one row (always asserted);
+  - no row outside the expected three (always asserted), and each expected row present unless a
+    disclosed timeout cut short that row's own event;
   - no path, session or host event name in the rows;
   - no warning except the one below.
+
+### Independent review
+
+Codex (gpt-6-astra, read-only) reviewed bf459f25 and raised two P2 findings, both fixed:
+
+- The coded append ran synchronously under the ledger's blocking lock, so contention could turn a
+  post-tool event into a host timeout. It now waits at most 250 ms (`recordAdapterCodes`).
+- Any timeout warning skipped the real-binary test's exact-row assertion. Dedup and the closed row
+  set are now unconditional; a timeout excuses only its own event's row.
+
+It found no field-validation, receipt-exclusion, privacy or plugin-collection defect.
 
 ### Limits and follow-up
 
 - Core refuses a `file-change` batch over 100 paths ("impact paths exceed 100-path bound"), with
   no code, while the plugin batches up to 256. The plugin warns `corvint-command-failed` for such a
-  batch. This predates V1-0767 and is filed separately; the real-binary test tolerates only that
+  batch. This predates V1-0767 and is filed as V1-0773; the real-binary test tolerates only that
   warning. The truncation row is written before the refusal.
 - A new plugin against an older Core gets `invalid-harness-input` (a warning) on the rare coded
   event, because older Core refuses the unknown field. The plugin and Core ship together, and no
