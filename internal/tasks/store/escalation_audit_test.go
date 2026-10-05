@@ -9,7 +9,9 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
+	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -132,14 +134,16 @@ func TestESCV0010_ForgedEscalationHistoryIsJournalForked(t *testing.T) {
 
 // forgeEvent rewrites the one event of an escalation receipt and rehashes
 // everything that names it consistently: the evidence path and file, the
-// ticket's head digest, the ticket post and the outer chain. Only the
-// receipt's retained request entry and the immutable origin stay as written.
-func forgeEvent(t *testing.T, s *leaseStore, name string, edit func(*ticket.EscalationEvent)) {
+// ticket's head digest, the ticket post and the outer chain. The immutable
+// origin stays as written; the receipt's retained request entry is rebound
+// to the edited request's LEASE digest only when rebind is set.
+func forgeEvent(t *testing.T, s *leaseStore, name string, rebind bool, edit func(*ticket.EscalationEvent)) {
 	t.Helper()
 	forgeReceiptWith(t, s.repo, name, func(string, wire.Value) (wire.Value, bool) { return wire.Value{}, true }, func(v wire.Value) {
 		pre, _ := v.Obj.Get("pre")
 		post, _ := v.Obj.Get("post")
 		var oldDigest, newDigest wire.Digest
+		var forged ticket.EscalationRequest
 		for i, p := range post.Arr {
 			dest, _ := p.Obj.Get("path")
 			if !strings.HasPrefix(dest.Str, "evidence/") {
@@ -150,6 +154,7 @@ func forgeEvent(t *testing.T, s *leaseStore, name string, edit func(*ticket.Esca
 				t.Fatal(err)
 			}
 			edit(&ev)
+			forged = ev.OriginalRequest
 			req, err := ticket.EncodeEscalationRequest(ev.OriginalRequest)
 			if err != nil {
 				t.Fatal(err)
@@ -166,6 +171,9 @@ func forgeEvent(t *testing.T, s *leaseStore, name string, edit func(*ticket.Esca
 		}
 		if newDigest == "" {
 			t.Fatal("no event to forge")
+		}
+		if rebind {
+			rebindRequest(t, s, post, forged)
 		}
 		for _, p := range post.Arr {
 			dest, _ := p.Obj.Get("path")
@@ -201,6 +209,38 @@ func forgeEvent(t *testing.T, s *leaseStore, name string, edit func(*ticket.Esca
 	})
 }
 
+// rebindRequest rewrites the receipt's request entry post, and its published
+// file, so its mutation digest is the LEASE digest of the forged request.
+func rebindRequest(t *testing.T, s *leaseStore, post wire.Value, q ticket.EscalationRequest) {
+	t.Helper()
+	raw, err := ticket.EncodeEscalationRequest(q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	verb := map[string]string{"OPEN": transaction.LeaseEscalate, "ANSWER": transaction.LeaseAnswer}[q.Operation]
+	digest, err := transaction.Digest(transaction.Request{Operation: transaction.Lease, QueueID: q.QueueID, RequestID: q.RequestID, Actor: mutation.Binding{ID: q.Actor, Role: q.ActorRole}, Lease: &transaction.LeaseRequest{Verb: verb, Evidence: string(wire.Sum(raw))}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range post.Arr {
+		dest, _ := p.Obj.Get("path")
+		if !strings.HasPrefix(dest.Str, "requests/") {
+			continue
+		}
+		rec, _ := p.Obj.Get("record")
+		rec.Obj.Set("mutationSha256", str(string(digest)))
+		b := wire.EncodeFile(rec)
+		p.Obj.Set("record", rec).Set("sha256", str(string(wire.Sum(b))))
+		if file := filepath.Join(s.repo.StateDir, dest.Str); published(file) {
+			fixture.Write(t, file, b)
+		}
+		return
+	}
+	t.Fatal("no request entry to rebind")
+}
+
+func published(path string) bool { _, err := os.Lstat(path); return err == nil }
+
 // TestESCV0010_ConsistentlyRehashedEventIsJournalForked: an answer whose text
 // or immutable source is rewritten, with every digest that names it rehashed,
 // is refused because the event no longer carries the retained request or the
@@ -216,13 +256,47 @@ func TestESCV0010_ConsistentlyRehashedEventIsJournalForked(t *testing.T) {
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
 			s, _, receipts := escalationHistory(t)
-			forgeEvent(t, s, receipts[2], c.edit)
+			forgeEvent(t, s, receipts[2], false, c.edit)
 			_, err := noteAudit(t, s.repo)
 			if wire.CodeOf(err) != wire.CodeJournalForked || !strings.Contains(err.Error(), c.want) {
 				t.Fatalf("audit after forgery = %v, want JOURNAL_FORKED naming %q", err, c.want)
 			}
 		})
 	}
+}
+
+// TestESCV0010_RetainedRequestPreconditionsAreAudited: a forged answer whose
+// retained request entry is rebound to it, so the LEASE digest agrees, is
+// still refused when the request carries a stale ticket CAS or a shorthand
+// selector the writer would refuse: AMBIGUOUS_OPEN_QUESTIONS with two current
+// OPEN questions.
+func TestESCV0010_RetainedRequestPreconditionsAreAudited(t *testing.T) {
+	t.Run("stale ticket CAS", func(t *testing.T) {
+		s, _, receipts := escalationHistory(t)
+		stale := wire.Count("1")
+		forgeEvent(t, s, receipts[2], true, func(ev *ticket.EscalationEvent) { ev.OriginalRequest.ExpectedTicketRevision = &stale })
+		_, err := noteAudit(t, s.repo)
+		if wire.CodeOf(err) != wire.CodeJournalForked || !strings.Contains(err.Error(), "expected ticket revision") {
+			t.Fatalf("audit after forgery = %v, want JOURNAL_FORKED naming the expected ticket revision", err)
+		}
+	})
+	t.Run("ambiguous shorthand answer", func(t *testing.T) {
+		s, id, src := escalationClaim(t)
+		committed(t, escalate(t, s, holder, openRequest(t, "q-1", src, "", ""), 1), "OPEN")
+		committed(t, escalate(t, s, holder, openRequest(t, "q-2", src, "", ""), 2), "OPEN")
+		ans := answer(t, s, holder, answerRequest(t, "a-1", id, holder, "q-2", "1"), 3)
+		committed(t, ans, "ANSWER")
+		if _, err := noteAudit(t, s.repo); err != nil {
+			t.Fatalf("audit before forgery: %v", err)
+		}
+		forgeEvent(t, s, ans.Receipt, true, func(ev *ticket.EscalationEvent) {
+			ev.OriginalRequest.Answer.RequestID, ev.OriginalRequest.Answer.ExpectedRevision = "", ""
+		})
+		_, err := noteAudit(t, s.repo)
+		if wire.CodeOf(err) != wire.CodeJournalForked || !strings.Contains(err.Error(), "exactly one current open question") {
+			t.Fatalf("audit after forgery = %v, want JOURNAL_FORKED naming the shorthand selector", err)
+		}
+	})
 }
 
 // TestESCV0010_RedoBindsAPendingEscalationReceipt: a linked-in OPEN whose head

@@ -90,7 +90,7 @@ slot and Rollout sections are updated in this change.
   - `TestESCV0007_*`: 14 tests in `internal/tasks/dispatch/issue502_retry_test.go` and
     `internal/tasks/cli/dispatch_escalation_pending_internal_test.go`.
   - `TestESCV0008_*`: 6 tests across dispatch and cli.
-  - `TestESCV0010_*`: 6 tests in `internal/tasks/journal` and `internal/tasks/store`.
+  - `TestESCV0010_*`: 7 tests in `internal/tasks/journal` and `internal/tasks/store`.
 - **Mutation check:** disabling `escalations.bind` in `journal/records.go` failed 10 subtests and
   tests (every forgery, the redo and the checkpoint case). The original was then restored.
 - **Package run:** the full `./internal/tasks/... ./cmd/corvint-tasks/...` run is retained in the
@@ -143,6 +143,22 @@ regressions that fail without the fix; one is declined:
   checkpoint mode). `receipt audit` never resumes from a checkpoint and refuses the forgery.
   Raised as an owner question: carry walked reference digests in the checkpoint, or accept the
   read-path limit for notes and escalations alike.
+
+Round 3 (over `d524530f..02f4b9c9`) reported two P2 findings. Both were verified against the
+writer (`computeEscalation`) and fixed in `escalation_audit.go`:
+
+- **Shorthand answer not counted:** an answer with an empty selector was accepted without checking
+  that exactly one current OPEN question existed, so a forged history could record an answer the
+  writer refuses as `AMBIGUOUS_OPEN_QUESTIONS`. The audit now counts the pre-ticket's current OPEN
+  entries. A selected answer or supersession must now name its question at exactly its
+  pre-revision.
+- **Ticket CAS not compared:** the request's `expectedTicketRevision` was never compared with the
+  audited pre-ticket revision, so a stale CAS the writer refuses as `STALE_TICKET_CAS` audited
+  clean. It is now compared.
+
+Regression: `TestESCV0010_RetainedRequestPreconditionsAreAudited`. It forges the answer event and
+also rebinds the receipt's retained request entry to the forged request's LEASE digest, so only the
+new checks can refuse it. Against the round-2 `escalation_audit.go` both subtests audit clean.
 
 ## NOT_RUN
 

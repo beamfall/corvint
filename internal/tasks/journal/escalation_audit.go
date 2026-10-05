@@ -271,6 +271,9 @@ func (a *escalationAudit) bindRefs(req *snapshot.Request, pre, post *ticket.Reco
 	if escalationLeaseDigest(a.r.QueueID.Raw, *rc.RequestID, rc.ActorID, rc.ActorRole, verb, requestSha) != req.Entry.MutationSha256 {
 		return escalationForked(path, "events carry a request other than the retained request")
 	}
+	if request.ExpectedTicketRevision != nil && *request.ExpectedTicketRevision != pre.Revision {
+		return escalationForked(path, "request's expected ticket revision differs from the audited pre-ticket")
+	}
 	sources := a.st.escalations.sources[path]
 	opened := map[string]ticket.EscalationSource{}
 	expected := 1
@@ -326,7 +329,23 @@ func (a *escalationAudit) bindRefs(req *snapshot.Request, pre, post *ticket.Reco
 				}
 				selected, expectedRevision, replacement = request.Open.Supersedes, request.Open.ExpectedRevision, request.RequestID
 			}
-			if (selected != "" && selected != e.RequestID) || (expectedRevision != "" && expectedRevision != old.Revision) || ev.ReplacementID != replacement {
+			if selected == "" {
+				// Shorthand answers the sole current OPEN question only.
+				open := 0
+				if pre.Escalations != nil {
+					for _, x := range pre.Escalations.Entries {
+						if x.State == "OPEN" && x.AcceptanceRevision == pre.AcceptanceRevision {
+							open++
+						}
+					}
+				}
+				if ev.Operation != "ANSWER" || open != 1 {
+					return escalationForked(path, "request %s shorthand answer without exactly one current open question", e.RequestID)
+				}
+			} else if selected != e.RequestID || expectedRevision != old.Revision {
+				return escalationForked(path, "request %s terminal step differs from its request selector", e.RequestID)
+			}
+			if ev.ReplacementID != replacement {
 				return escalationForked(path, "request %s terminal step differs from its request selector", e.RequestID)
 			}
 		default:
