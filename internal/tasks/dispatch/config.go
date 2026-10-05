@@ -14,6 +14,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -42,6 +43,43 @@ type Config struct {
 	Heal             Heal             `json:"heal"`
 	// Pressure is the optional CAL-V0-068 host-pressure launch throttle.
 	Pressure *PressureConfig `json:"pressure,omitempty"`
+	// InfrastructureRetry is the optional ESC-V0-007 infrastructure retry
+	// policy. Without it an infrastructure session is ordinary no-progress.
+	InfrastructureRetry *InfraRetryConfig `json:"infrastructureRetry,omitempty"`
+}
+
+// InfraRetryConfig bounds automatic retries of a ticket's infrastructure
+// sessions per acceptance revision. An absent member takes its default.
+type InfraRetryConfig struct {
+	MaxRetries         *int `json:"maxRetries,omitempty"`
+	CooldownSeconds    *int `json:"cooldownSeconds,omitempty"`
+	MaxCooldownSeconds *int `json:"maxCooldownSeconds,omitempty"`
+}
+
+// Limits returns maxRetries, cooldownSeconds and maxCooldownSeconds with
+// the enabled defaults 3, 30 and 300.
+func (r *InfraRetryConfig) Limits() (maxRetries, cooldown, maxCooldown int) {
+	maxRetries, cooldown, maxCooldown = 3, 30, 300
+	if r.MaxRetries != nil {
+		maxRetries = *r.MaxRetries
+	}
+	if r.CooldownSeconds != nil {
+		cooldown = *r.CooldownSeconds
+	}
+	if r.MaxCooldownSeconds != nil {
+		maxCooldown = *r.MaxCooldownSeconds
+	}
+	return maxRetries, cooldown, maxCooldown
+}
+
+// RetryCooldown is the cooldown before retry ordinal n (1-based):
+// min(maxCooldown, cooldown*2^(n-1)), saturating.
+func RetryCooldown(cooldown, maxCooldown, n int) time.Duration {
+	wait := cooldown
+	for i := 1; i < n && wait < maxCooldown; i++ {
+		wait *= 2
+	}
+	return time.Duration(min(wait, maxCooldown)) * time.Second
 }
 
 // Host is one worker runtime. argv[0] is an absolute executable; every argv
@@ -232,6 +270,12 @@ func (c *Config) validate() error {
 	}
 	if c.TickSeconds < 1 || c.TickSeconds > 3600 || c.GlobalCap < 1 || c.GlobalCap > 64 || c.KillGraceSeconds < 1 || c.KillGraceSeconds > 120 {
 		return fail("tickSeconds 1..3600, globalCap 1..64 and killGraceSeconds 1..120 are required")
+	}
+	if r := c.InfrastructureRetry; r != nil {
+		n, cool, maxCool := r.Limits()
+		if n < 0 || n > 10 || cool < 1 || cool > 3600 || maxCool < cool || maxCool > 86400 {
+			return fail("infrastructureRetry needs maxRetries 0..10, cooldownSeconds 1..3600 and maxCooldownSeconds cooldownSeconds..86400")
+		}
 	}
 	if c.Backoff.CooldownSeconds < 0 || c.Backoff.CooldownSeconds > 86400 || c.Backoff.ParkAfter < 1 || c.Backoff.ParkAfter > 100 {
 		return fail("backoff needs cooldownSeconds 0..86400 and parkAfter 1..100")

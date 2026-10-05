@@ -139,6 +139,7 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 		}
 		d.emit(Event{Kind: "adopted", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg})
 	}
+	d.reconcileInfraRetry()
 	if err := d.ledger.save(dir); err != nil {
 		_ = d.lock.Close()
 		return nil, err
@@ -674,13 +675,29 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 			fp = w.Fingerprint
 		}
 		progress := granted[w.ID] || fp != w.Fingerprint
+		t := observed(obs, w.Key)
+		class := d.classify(t, w, progress)
 		summary := Summary(d.workerDir(w.ID))
-		msg := fmt.Sprintf("%s worker %s finished on %s (exit %s, %s)", w.Role, w.ID, d.keyText(w.Key), code, map[bool]string{true: "progress recorded", false: "no progress"}[progress])
+		msg := fmt.Sprintf("%s worker %s finished on %s (exit %s, %s)", w.Role, w.ID, d.keyText(w.Key), code, map[string]string{SessionProgress: "progress recorded", SessionInfrastructure: "infrastructure session", SessionHeld: "held by a typed escalation", SessionNoProgress: "no progress"}[class])
 		if summary != "" {
 			msg += ": " + summary
 		}
-		d.emit(Event{Kind: "finished", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg, Detail: map[string]string{"exitCode": code, "progress": strconv.FormatBool(progress), "killReason": w.KillReason, "runSeconds": strconv.Itoa(int(now.Sub(w.Started).Seconds()))}})
+		d.emit(Event{Kind: "finished", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg, Detail: map[string]string{"exitCode": code, "progress": strconv.FormatBool(progress), "session": class, "killReason": w.KillReason, "runSeconds": strconv.Itoa(int(now.Sub(w.Started).Seconds()))}})
 		d.remove(w.ID)
+		// ESC-V0-008: classification precedes no-progress parking. An
+		// infrastructure session is unknown progress for the ladder and a
+		// held session is the typed policy's, so neither counts or parks.
+		if class == SessionInfrastructure && d.chargeInfra(t, w) {
+			d.accountUnknown(w.Key)
+			continue
+		}
+		d.infraEnded(w.Key, w.ID, progress)
+		if class == SessionHeld {
+			continue
+		}
+		if t != nil && t.EscalationUnknown && d.Config.InfrastructureRetry != nil {
+			d.emit(Event{Kind: "alert", Ticket: w.Ticket, Worker: w.ID, Message: "escalation material of " + d.keyText(w.Key) + " is UNKNOWN; the session is accounted as ordinary no-progress"})
+		}
 		d.account(w.Key, progress)
 		if progress {
 			delete(d.ledger.Backoff, w.Key)
@@ -706,6 +723,7 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 		b.CooldownUntil = now.Add(time.Duration(d.Config.Backoff.CooldownSeconds) * time.Second)
 		d.emit(Event{Kind: "cooldown", Ticket: w.Ticket, Message: fmt.Sprintf("%s cools down until %s after a run without progress (%d of %d before parking)", d.keyText(w.Key), b.CooldownUntil.UTC().Format(time.RFC3339), b.NoProgress, d.Config.Backoff.ParkAfter)})
 	}
+	d.pruneInfra(obs)
 	if d.Config.Escalates() {
 		present := map[string]bool{}
 		for _, t := range obs.Tickets {
@@ -831,9 +849,14 @@ func (d *Dispatcher) unpark(obs *Observation) {
 		}
 		if err != nil {
 			d.emit(Event{Kind: "alert", Message: fmt.Sprintf("discarded unpark request %s: %v", e.Name(), err)})
-		} else if _, ok := d.ledger.Backoff[r.Unpark]; ok {
-			delete(d.ledger.Backoff, r.Unpark)
-			d.emit(Event{Kind: "unparked", Ticket: ticketOf(r.Unpark), Message: fmt.Sprintf("unparked %s at the operator's request", d.keyText(r.Unpark))})
+		} else {
+			if _, ok := d.ledger.Backoff[r.Unpark]; ok {
+				delete(d.ledger.Backoff, r.Unpark)
+				d.emit(Event{Kind: "unparked", Ticket: ticketOf(r.Unpark), Message: fmt.Sprintf("unparked %s at the operator's request", d.keyText(r.Unpark))})
+			}
+			if d.releaseInfra(r.Unpark) {
+				d.emit(Event{Kind: "unparked", Ticket: ticketOf(r.Unpark), Message: fmt.Sprintf("released the infrastructure retry hold of %s at the operator's request; its retry count is kept", d.keyText(r.Unpark))})
+			}
 		}
 		os.Remove(path)
 	}
@@ -843,7 +866,7 @@ func (d *Dispatcher) unpark(obs *Observation) {
 func stateUnknown(obs *Observation, key string) bool {
 	for _, t := range obs.Tickets {
 		if t.ID == key {
-			return t.State == StateUnknown
+			return t.State == StateUnknown || t.EscalationUnknown
 		}
 	}
 	return false
@@ -867,6 +890,11 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 	for k, b := range d.ledger.Backoff {
 		skip[k] = b.Parked || b.CooldownUntil.After(now)
 	}
+	for k := range d.ledger.InfraRetry {
+		if d.infraHolds(obs, k) {
+			skip[k] = true
+		}
+	}
 	for _, m := range obs.Members {
 		if d.sweepLaneHeld(m.Pool, m.Member) {
 			skip[laneKey(m.Pool, m.Member)] = true
@@ -879,10 +907,15 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 	tierOf := func(role, key string) int { return LaunchTier(d.role(role), d.ledger.Escalation[key]) }
 	launches, held := roster(d.Config, obs, busy, skip, tierOf, budget)
 	d.recordHeld(obs, held)
+	retried := map[string]bool{}
 	for _, a := range launches {
 		// A cancelled dispatcher (service stop) launches nothing further.
 		if ctx.Err() != nil {
 			return
+		}
+		// A retry is one launch: other roles wait for its session to end.
+		if retried[a.Key] {
+			continue
 		}
 		role := d.role(a.Role)
 		host := d.Config.Hosts[role.Host]
@@ -891,10 +924,29 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		// Program and role names cannot contain '.', so the ID never collides
 		// across programs or roles; the start nonce keeps it unique per run.
 		id := fmt.Sprintf("%s.%s.%d.%s-%d", d.Program, a.Role, a.Slot, d.nonce, d.ledger.LaunchSeq)
+		// ESC-V0-007: a due retry writes its launch identity into the
+		// checked ledger before anything can spawn, and a republish after
+		// a proved no-spawn reuses that identity without another charge.
+		ep := d.infraDue(obs, a.Key)
+		if ep != nil {
+			retried[a.Key] = true
+			if strings.HasPrefix(ep.Launch, d.launchPrefix(a.Role, a.Slot)) {
+				id = ep.Launch
+			}
+			ep.Launch, ep.State = id, InfraReserved
+			if err := d.ledger.save(d.dir); err != nil {
+				ep.State = InfraWaiting
+				d.emit(Event{Kind: "alert", Ticket: a.Ticket, Worker: id, Message: "infrastructure retry not launched: its reservation could not be saved: " + err.Error()})
+				continue
+			}
+		}
 		// A controlled dispatcher holds the fence from its final control read
 		// until the worker is recorded; a refusal launches nothing further.
 		release, ok := d.admit(ctx, id)
 		if !ok {
+			if ep != nil {
+				ep.State = InfraWaiting // nothing spawned; the identity is kept
+			}
 			return
 		}
 		values := map[string]string{"{program}": d.Program, "{role}": a.Role, "{slot}": strconv.Itoa(a.Slot), "{worker}": id, "{holder}": id, "{ticket}": a.Ticket, "{ticketLocal}": a.Local, "{state}": a.State, "{pool}": a.Pool, "{member}": a.Member, "{workRoot}": d.Config.WorkRoot, "{model}": model, "{nextStage}": a.NextStage}
@@ -928,6 +980,13 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			if errors.As(err, &started) {
 				d.uncertain = append(d.uncertain, started)
 			}
+			if ep != nil && started != nil {
+				// An ambiguous spawn consumes the reservation and holds.
+				ep.State, ep.Launch = InfraUnknown, ""
+				d.emit(Event{Kind: "needs-owner", Ticket: a.Ticket, Worker: id, Message: fmt.Sprintf("%s is held UNKNOWN: its infrastructure retry may have started. Inspect it, then run `corvint-tasks dispatch unpark --program %s --config FILE --key %s`", d.keyText(a.Key), d.Program, a.Key), Detail: map[string]string{"kind": "infrastructure", "code": "INFRA_RETRY_UNKNOWN", "acceptanceRevision": ep.AcceptanceRevision}})
+			} else if ep != nil {
+				ep.State = InfraWaiting // proved before spawn; the identity is kept
+			}
 			release(started == nil)
 			d.emit(Event{Kind: "launch-failed", Ticket: a.Ticket, Role: a.Role, Worker: id, Message: fmt.Sprintf("could not launch %s on %s: %v", a.Role, d.keyText(a.Key), err)})
 			continue
@@ -941,6 +1000,9 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		}
 		d.ledger.Workers = append(d.ledger.Workers, w)
 		d.exits[id] = exit
+		if ep != nil {
+			ep.State = InfraRunning
+		}
 		escalation := d.escalated(role, a, model)
 		// Record the worker before anything else, so a crash cannot leave
 		// an untracked tree.
