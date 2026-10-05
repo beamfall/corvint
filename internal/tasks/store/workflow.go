@@ -681,7 +681,10 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 				return out, e
 			}
 		}
-	} else if w.attempt.CandidateTreeOid != nil {
+	} else if out.Clean && w.attempt.CandidateTreeOid != nil {
+		// An unproved stop is classified SURVIVORS by STOPPED before any
+		// candidate check: a survivor may still be writing the worktree, and
+		// a dirty tree must not leave the attempt STOPPING (CAL-V0-086).
 		result.Tree = *w.attempt.CandidateTreeOid
 		if _, clean, e := worktreeTree(path); e != nil || !clean {
 			return out, fmt.Errorf("read-only stage changed candidate")

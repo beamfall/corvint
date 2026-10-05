@@ -75,12 +75,13 @@ func newMultiFixture(t *testing.T, touch ...string) *multiFixture {
 // non-nil gates replaces the policy's gates with one required gate per id,
 // each a command that exits 0. While the file "escape" exists in scripts,
 // the implement stage leaves a setsid process holding the host output past
-// the drain, so the stage stops without proved quiescence; while "slow"
-// exists, the implement stage runs for three seconds; while "docs-unchanged"
-// exists, it leaves the docs repository unchanged; while "no-docs-context"
-// exists, the fake Core refuses a query from a docs worktree. The implement
-// stage records its argv in "implement-args" and its prompt in
-// "implement-prompt".
+// the drain, so the stage stops without proved quiescence; while
+// "review-escape" exists, the review stage does the same after editing the
+// candidate worktree; while "slow" exists, the implement stage runs for three
+// seconds; while "docs-unchanged" exists, it leaves the docs repository
+// unchanged; while "no-docs-context" exists, the fake Core refuses a query
+// from a docs worktree. The implement stage records its argv in
+// "implement-args" and its prompt in "implement-prompt".
 func buildProgramFixture(t *testing.T, keepGates, multi bool, gates []string, touch ...string) *multiFixture {
 	t.Helper()
 	s := newLeaseStore(t)
@@ -135,6 +136,7 @@ case " $* " in
   ;;
 *)
   printf '%s\n' "$*" > "`+scripts+`/review-args"
+  if [ -f "`+scripts+`/review-escape" ]; then perl -e 'use POSIX; POSIX::setsid(); sleep 5' & printf 'reviewed\n' > hello.txt; fi
   echo '{"type":"thread.started","thread_id":"review-session"}'
   echo '{"type":"turn.started"}'
   echo '{"type":"item.completed","item":{"type":"agent_message","text":"{\"kind\":\"REVIEW\",\"accepted\":true,\"claims\":[\"`+claim+`\"],\"summary\":\"verified\",\"nextAction\":\"integrate\"}"}}'

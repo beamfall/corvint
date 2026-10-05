@@ -208,6 +208,24 @@ or P1 and two P2 findings. Both were verified and repaired.
    - Test: `TestCALV0086_UnprovedStopIsNotFinished/after_the_stage_wall`.
    - Mutation: restoring the `runErr == nil` condition was killed.
 
+**Codex round 2** (diff `d524530f..e9292377`) confirmed the continuation fence and found no P0 or
+P1 and one P2, verified and repaired.
+
+3. **An unproved stop over an existing candidate was checked as a read-only stage first.** A stage
+   whose attempt already carries a candidate tree (review, or an implement repair) ran the
+   read-only candidate check before `STOPPED`. When that stage both changed the worktree and left
+   an escaped process, the role returned `read-only stage changed candidate` with the attempt left
+   `STOPPING`, losing the `SURVIVORS` diagnosis. The same branch structure is on `d524530f`.
+   - Repair: the candidate check runs only after a proved drain; an unproved stop goes straight to
+     `STOPPED`, which classifies it `SURVIVORS` and ignores the tree.
+   - Test: `TestCALV0086_UnprovedStopIsNotFinished/over_a_candidate_it_changed`, driven by a new
+     fake-host `review-escape` switch that edits the candidate and leaves a `setsid` process.
+   - Mutation: dropping the `out.Clean` condition was killed (`MALFORMED read-only stage changed
+     candidate`).
+
+**Codex round 3** (diff `d524530f..a23e098f`) reported no P0 to P3 findings. Its sandbox could not
+run Go tests or Corvint impact checks, so that round is source review only.
+
 ## Live qualification (NOT_RUN)
 
 No live hosted-agent run was made. Steps for the owner, on darwin/arm64, with the hosts installed
@@ -252,6 +270,12 @@ here: Codex CLI 0.153.2, Claude Code 2.1.267 and OpenCode 2.0.21.
    stale value. `RequestProgramControl` then reports `control superseded`, which fails loudly but
    loses the control. The continuation admission fence above covers only the continuation's first
    write. The pattern predates this branch (`persist` at `d524530f`).
+10. **Reproduced with a scratch probe (not retained).** A review stage that exits cleanly after
+    changing the candidate worktree returns `read-only stage changed candidate` as a plain,
+    retryable `MALFORMED` error. It leaves the attempt `STOPPING` with its worker flag set, and a
+    rerun of `run --role reviewer` is refused `RESOURCE_COLLISION`. Expected: a non-retryable
+    typed refusal and a recoverable or blocked attempt. No test covers this clean path. The branch
+    structure predates this branch (`d524530f`).
 
 ## Owner questions
 

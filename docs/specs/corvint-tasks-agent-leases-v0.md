@@ -2896,9 +2896,11 @@ failed unlocked program read. That read had raced a concurrent writer's journal 
   is not such a PathText. DISPATCH MUST refuse it as well. A stage whose drain does not prove
   quiescence MUST end its role with a non-retryable `SURVIVORS` error, which takes precedence over
   the stage's own failure (a wall timeout, nonzero exit or invalid result) and keeps its text. The
-  program and attempt then stay `BLOCKED_RECOVERY`, the program quiescence is recorded `UNKNOWN`,
-  and the owner stays unreleased. Such a stage MUST NOT journal `FINISHED`, and a role MUST NOT go
-  on to gates, `READY` or integration after it. The drain MUST treat `EPERM` from the process-group
+  classification MUST precede any candidate preservation or read-only candidate check, so a stage
+  over an existing candidate that also changed its worktree is still `SURVIVORS`, never left
+  `STOPPING`. The program and attempt then stay `BLOCKED_RECOVERY`, the program quiescence is
+  recorded `UNKNOWN`, and the owner stays unreleased. Such a stage MUST NOT journal `FINISHED`, and a
+  role MUST NOT go on to gates, `READY` or integration after it. The drain MUST treat `EPERM` from the process-group
   probe as neither gone nor observable. It re-probes until the group is proved gone (`ESRCH`) or the drain deadline passes,
   and it never signals on, or counts as gone, an `EPERM` answer. The stage watcher MUST tolerate
   failing unlocked program reads for at most 30 seconds of continuous failure before it stops the
@@ -3090,7 +3092,7 @@ The `ESCALATION_PENDING` detail code (72 codes after A17) is amended in by `corv
 | OpenCode standalone server or tool process leaves the owned process group | A host process would outlive a stage reported clean | Escapes are observed through their live parent and drained; the server holds the stage's standard error, so a survivor blocks end of file and the stop is not clean (CAL-V0-077) |
 | OpenCode plugin or project configuration in the worktree | Untrusted code or permissions would load into the stage | Project configuration is disabled and permissions arrive inline; user-configured plugins are a known, uncontained limit (owner decision 2026-10-04) (CAL-V0-077) |
 | Supervised stage worktree path longer than 128 bytes (deep work root or agent `TMPDIR`) | DISPATCH would refuse `LIMIT_EXCEEDED` after the worktree and program records exist | The attempt records the path as PathText up to 4096 bytes; a longer or invalid path is refused before any directory, record or Git worktree (CAL-V0-086) |
-| Stage drain cannot prove quiescence (a host process escaped, or the probe never answers gone) | The role would journal `FINISHED` over `BLOCKED_RECOVERY` and be refused `MALFORMED`, or report a wall timeout, nonzero exit or invalid result as `MALFORMED` | The role ends with non-retryable `SURVIVORS`, keeping any stage failure's text; program and attempt stay `BLOCKED_RECOVERY`, program quiescence `UNKNOWN`, owner unreleased (CAL-V0-086) |
+| Stage drain cannot prove quiescence (a host process escaped, or the probe never answers gone) | The role would journal `FINISHED` over `BLOCKED_RECOVERY` and be refused `MALFORMED`, report a wall timeout, nonzero exit or invalid result as `MALFORMED`, or (over an existing candidate it changed) refuse `read-only stage changed candidate` with the attempt left `STOPPING` | The role ends with non-retryable `SURVIVORS`, keeping any stage failure's text; program and attempt stay `BLOCKED_RECOVERY`, program quiescence `UNKNOWN`, owner unreleased (CAL-V0-086) |
 | Darwin answers `EPERM` for a zombie-only process group before its leader is reaped | A finished stage would be reported unclean under load | The drain re-probes until `ESRCH` or its deadline and never counts `EPERM` as gone (CAL-V0-086) |
 | Unlocked program read fails while a concurrent writer stages its journal | The watcher would cancel a healthy stage | Reads may fail for up to 30 seconds of continuous failure before the stage stops; heartbeat refusals still stop it at once (CAL-V0-086) |
 

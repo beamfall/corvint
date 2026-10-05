@@ -83,24 +83,24 @@ func TestCALV0086_OverlongWorktreeRefusedBeforeMutation(t *testing.T) {
 // ("program transition BLOCKED_RECOVERY -> FINISHED"), the load failure that
 // masked V1-0772. SURVIVORS also takes precedence over the stage's own
 // failure, here its stage wall, whose text the error keeps; before that fix
-// the wall's context deadline reached the caller as MALFORMED.
+// the wall's context deadline reached the caller as MALFORMED. A stage over an
+// existing candidate (review, here) that also dirtied the worktree is
+// classified the same way, before any candidate check; before that fix it
+// returned "read-only stage changed candidate" and left the attempt STOPPING.
 func TestCALV0086_UnprovedStopIsNotFinished(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
+		role  string
 		files []string
 		wall  int
 		cause string
 	}{
-		{name: "after a clean exit", files: []string{"escape"}},
-		{name: "after the stage wall", files: []string{"escape", "slow"}, wall: 2, cause: context.DeadlineExceeded.Error()},
+		{name: "after a clean exit", role: "implementer", files: []string{"escape"}},
+		{name: "after the stage wall", role: "implementer", files: []string{"escape", "slow"}, wall: 2, cause: context.DeadlineExceeded.Error()},
+		{name: "over a candidate it changed", role: "reviewer", files: []string{"review-escape"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := buildProgramFixture(t, false, false, nil)
-			for _, name := range tc.files {
-				if err := os.WriteFile(filepath.Join(f.scripts, name), nil, 0o600); err != nil {
-					t.Fatal(err)
-				}
-			}
 			if tc.wall != 0 {
 				f.config.WallSeconds = tc.wall
 			}
@@ -113,7 +113,17 @@ func TestCALV0086_UnprovedStopIsNotFinished(t *testing.T) {
 			if err != nil {
 				t.Fatalf("open: %v", err)
 			}
-			a, err := w.RunRole(ctx, "implementer", "")
+			if tc.role == "reviewer" {
+				if a, err := w.RunRole(ctx, "implementer", ""); err != nil || a.Phase != "BUILT" {
+					t.Fatalf("implement: %+v %v", a, err)
+				}
+			}
+			for _, name := range tc.files {
+				if err := os.WriteFile(filepath.Join(f.scripts, name), nil, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			a, err := w.RunRole(ctx, tc.role, "")
 			if wire.CodeOf(err) != wire.CodeSurvivors || !wire.RetryForbidden(err) || !strings.Contains(err.Error(), tc.cause) {
 				t.Fatalf("unproved stop: want non-retryable %s keeping %q, got %s %v", wire.CodeSurvivors, tc.cause, wire.CodeOf(err), err)
 			}
