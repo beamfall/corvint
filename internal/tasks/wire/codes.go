@@ -42,6 +42,10 @@ const CodeJournalForked = "JOURNAL_FORKED"
 const CodeJournalSaturated = "JOURNAL_SATURATED"
 const CodeLimitExceeded = "LIMIT_EXCEEDED"
 const CodeLockTimeout = "LOCK_TIMEOUT"
+
+// CodeLoopDetected names the CAL-V0-102 derived no-progress loop hold of an
+// opt-in loopDetection policy (TCP-00 amendment A23).
+const CodeLoopDetected = "LOOP_DETECTED"
 const CodeMalformed = "MALFORMED"
 const CodeMissingEvidence = "MISSING_EVIDENCE"
 const CodeMissingGate = "MISSING_GATE"
@@ -91,7 +95,7 @@ var Codes = []string{
 	CodeDuplicateID, CodeEffectOwned, CodeEscalationPending, CodeExternalUnbounded, CodeFenced, CodeGateFailed,
 	CodeGateStale, CodeGateUnknown, CodeHandoff, CodeIndependenceUnverified, CodeIntentBranchMismatch,
 	CodeIntentDiverged, CodeInvalidPriority, CodeJournalForked, CodeJournalSaturated,
-	CodeLimitExceeded, CodeLockTimeout, CodeMalformed, CodeMissingEvidence, CodeMissingGate,
+	CodeLimitExceeded, CodeLockTimeout, CodeLoopDetected, CodeMalformed, CodeMissingEvidence, CodeMissingGate,
 	CodeNoexec, CodeOcmMissing, CodeOutOfScope, CodePaused, CodePlanStale, CodePrerequisiteUnsatisfied,
 	CodeQuiescenceUnproved, CodeRedoPending, CodeRequestIDConflict, CodeResourceCollision,
 	CodeRestored, CodeRestoreIncomplete, CodeRetryExhausted, CodeReviewIncomplete,

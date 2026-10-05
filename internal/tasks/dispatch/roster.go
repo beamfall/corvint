@@ -39,10 +39,27 @@ type Ticket struct {
 	// request IDs of current OPEN decision, scope or blocked questions. A
 	// workState program cannot supply it. A held ticket is never rostered.
 	EscalationPending []string
+	// Loop is the native CAL-V0-102 LOOP_DETECTED hold, nil when none. A
+	// workState program cannot supply it. A held ticket is never rostered.
+	Loop *LoopHold
 	// NextStage is the advisory CAL-V0-084 recorded hand-off target:
 	// implement, review, integrate, STALE, or NONE when none is observed.
 	// It comes from the native queue, never from a workState program.
 	NextStage string
+}
+
+// LoopHold is a CAL-V0-102 hold as the dispatcher records it: the signal,
+// the acceptance revision it is bound to and the counted generations,
+// oldest first. The ticket, signal, acceptance revision and newest
+// generation name the episode.
+type LoopHold struct {
+	Signal             string   `json:"signal"`
+	AcceptanceRevision string   `json:"acceptanceRevision"`
+	Generations        []string `json:"generations"`
+	// Pending marks, in the ledger only, an episode whose needs-owner event
+	// is not yet appended to the event log, so the next tick and a restart
+	// retry it (CAL-V0-103).
+	Pending bool `json:"pending,omitempty"`
 }
 
 // Attempt is the dispatcher's view of one attempt.
@@ -170,6 +187,9 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 			}
 			if len(t.EscalationPending) > 0 {
 				continue // ESC-V0-006: a session cannot claim it until the questions are answered
+			}
+			if t.Loop != nil {
+				continue // CAL-V0-102: a session cannot claim it until the owner reopens it
 			}
 			if !matches(r.Match, t) {
 				continue

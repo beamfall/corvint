@@ -237,3 +237,22 @@ func TestAgentLeasesSpecEnumeratesCALV0101(t *testing.T) {
 		t.Fatalf("OCM enumerates %v; want CAL-V0-101", requirements)
 	}
 }
+
+// CAL-V0-102..103 (V1-0791) are defined inside the agent-leases
+// Requirements section, so an OCM over that spec enumerates them.
+func TestAgentLeasesSpecEnumeratesCALV0102(t *testing.T) {
+	path := "docs/specs/corvint-tasks-agent-leases-v0.md"
+	data, err := os.ReadFile("../../" + path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, requirements, _, err := requirementsFromBlob(path, "fixture-blob", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"CAL-V0-102", "CAL-V0-103"} {
+		if !slices.Contains(requirements, id) {
+			t.Fatalf("OCM enumerates %v; want %s", requirements, id)
+		}
+	}
+}

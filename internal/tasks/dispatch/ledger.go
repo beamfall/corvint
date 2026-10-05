@@ -85,6 +85,9 @@ type Seen struct {
 	// Escalations keeps each ESC-V0-006 held ticket's request IDs, apart from
 	// its plan reason, so status shows a hold behind another blocker.
 	Escalations map[string][]string `json:"escalations,omitempty"`
+	// Loops keeps each CAL-V0-102 held ticket's loop hold, so status shows
+	// it and diff raises one blocked escalation event per episode.
+	Loops map[string]LoopHold `json:"loops,omitempty"`
 }
 
 // Ledger is the dispatcher's private taskman-dispatch-state/0 file. It is
@@ -210,6 +213,11 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 			break
 		}
 	}
+	// CAL-V0-103: a recorded loop hold is closed whether or not the ledger
+	// carries progress, so its presence alone requires the strict reader.
+	if seenCarriesLoops(raw) && (!validScalarJSON(raw) || !strictProgressJSON(raw)) {
+		return nil, errors.New("dispatch state: malformed loops JSON")
+	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	var l Ledger
@@ -229,6 +237,9 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 		return nil, fmt.Errorf("dispatch state: %w", err)
 	}
 	if err := l.validateSeenEscalations(); err != nil {
+		return nil, fmt.Errorf("dispatch state: %w", err)
+	}
+	if err := l.validateSeenLoops(); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
 	}
 	if l.Pressure != nil {
@@ -288,7 +299,9 @@ func strictProgressJSON(raw []byte) bool {
 			case "proc":
 				fields = []string{"pid", "identity"}
 			case "seen":
-				fields = []string{"tickets", "claims", "lanes", "escalations"}
+				fields = []string{"tickets", "claims", "lanes", "escalations", "loops"}
+			case "loop-hold":
+				fields = []string{"signal", "acceptanceRevision", "generations", "pending"}
 			case "history":
 				fields = []string{"current", "seen"}
 			case "escalation-state":
@@ -327,6 +340,16 @@ func strictProgressJSON(raw []byte) bool {
 					child = "sweep-scalar"
 				case "escalation":
 					child = "escalation-state"
+				case "seen":
+					if key == "loops" {
+						child = key
+					}
+				case "loops":
+					child = "loop-hold"
+				case "loop-hold":
+					if key == "pending" {
+						child = "loop-pending"
+					}
 				}
 				if !value(depth+1, child) {
 					return false
@@ -364,6 +387,12 @@ func strictProgressJSON(raw []byte) bool {
 			if strings.HasPrefix(schema, "sweep-") || schema == "poolSweeps" {
 				return token != nil
 			}
+			switch schema {
+			case "loops", "loop-hold":
+				return false // a loops map and each recorded hold are objects
+			case "loop-pending":
+				return token == true // written only as true
+			}
 			return true
 		}
 	}
@@ -372,6 +401,70 @@ func strictProgressJSON(raw []byte) bool {
 	}
 	var extra any
 	return d.Decode(&extra) == io.EOF
+}
+
+// seenCarriesLoops reports whether any member named like "seen", including
+// a duplicate, holds a member named like "loops", folding case as the
+// struct decoder does. Malformed JSON reports true, so the strict reader
+// decides.
+func seenCarriesLoops(raw []byte) bool {
+	d := json.NewDecoder(bytes.NewReader(raw))
+	skip := func() bool {
+		depth := 0
+		for {
+			t, err := d.Token()
+			if err != nil {
+				return false
+			}
+			switch t {
+			case json.Delim('{'), json.Delim('['):
+				depth++
+			case json.Delim('}'), json.Delim(']'):
+				depth--
+			}
+			if depth == 0 {
+				return true
+			}
+		}
+	}
+	if t, err := d.Token(); err != nil || t != json.Delim('{') {
+		return true
+	}
+	for d.More() {
+		k, err := d.Token()
+		if err != nil {
+			return true
+		}
+		if name, _ := k.(string); !strings.EqualFold(name, "seen") {
+			if !skip() {
+				return true
+			}
+			continue
+		}
+		t, err := d.Token()
+		if err != nil {
+			return true
+		}
+		if t != json.Delim('{') {
+			continue
+		}
+		for d.More() {
+			k, err := d.Token()
+			if err != nil {
+				return true
+			}
+			if name, _ := k.(string); strings.EqualFold(name, "loops") {
+				return true
+			}
+			if !skip() {
+				return true
+			}
+		}
+		if _, err := d.Token(); err != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func (l *Ledger) validateProgress() error {
@@ -521,7 +614,13 @@ type Event struct {
 var EventKinds = []string{"started", "stopped", "adopted", "launched", "launch-failed", "finished", "killing", "killed", "handoff", "handoff-refused", "reaped", "state", "claim", "release", "lane", "cooldown", "parked", "unparked", "alert", "needs-owner", "throttled", "escalated"}
 
 // appendEvent writes one event line, rotating the log once at 16 MiB.
-func appendEvent(dir string, e Event) error {
+// Tests replace it to inject partial writes and close failures.
+var appendEvent = appendEventLog
+
+// appendEventLog first ends a trailing unterminated fragment, which an
+// append that failed part-way can leave, so the new line parses on its own
+// (CAL-V0-103); a well-formed log receives exactly the line.
+func appendEventLog(dir string, e Event) error {
 	path := filepath.Join(dir, "events.jsonl")
 	if st, err := os.Stat(path); err == nil && st.Size() > maxEventsBytes {
 		if err := os.Rename(path, path+".1"); err != nil {
@@ -532,15 +631,56 @@ func appendEvent(dir string, e Event) error {
 	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o600)
 	if err != nil {
 		return err
 	}
-	if _, err := f.Write(append(raw, '\n')); err != nil {
+	line := append(raw, '\n')
+	st, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return err
+	}
+	if st.Size() > 0 {
+		last := make([]byte, 1)
+		if _, err := f.ReadAt(last, st.Size()-1); err != nil {
+			f.Close()
+			return err
+		}
+		if last[0] != '\n' {
+			line = append([]byte{'\n'}, line...)
+		}
+	}
+	if _, err := f.Write(line); err != nil {
 		f.Close()
 		return err
 	}
 	return f.Close()
+}
+
+// loopEventRecorded reports whether the readable tail of the current or
+// rotated event log already holds the CAL-V0-103 needs-owner event of this
+// loop episode: the ticket, signal, acceptance revision and newest counted
+// generation.
+func loopEventRecorded(dir, ticketID string, h LoopHold) bool {
+	newest := func(gens string) string { return gens[strings.LastIndexByte(gens, ',')+1:] }
+	want := newest(strings.Join(h.Generations, ","))
+	for _, name := range []string{"events.jsonl", "events.jsonl.1"} {
+		raw, err := readTail(filepath.Join(dir, name), 1<<20)
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(raw), "\n") {
+			var e Event
+			if json.Unmarshal([]byte(line), &e) != nil || e.Profile != EventProfile || e.Kind != "needs-owner" || e.Ticket != ticketID {
+				continue
+			}
+			if e.Detail["code"] == "LOOP_DETECTED" && e.Detail["signal"] == h.Signal && e.Detail["acceptanceRevision"] == h.AcceptanceRevision && newest(e.Detail["generations"]) == want {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // ReadEvents returns the last n events of the current log.
@@ -749,3 +889,28 @@ func (l *Ledger) validateSeenEscalations() error {
 	}
 	return nil
 }
+
+// validateSeenLoops admits only what diff records for CAL-V0-102: per held
+// ticket, a known signal and 1 to MaxLoopGenerations generations.
+func (l *Ledger) validateSeenLoops() error {
+	if l.Seen == nil {
+		return nil
+	}
+	for key, h := range l.Seen.Loops {
+		if _, err := wire.ParseTicketID("loops key", key); err != nil || (h.Signal != "NO_PROGRESS" && h.Signal != "ALTERNATING_RETURNS") || len(h.Generations) == 0 || len(h.Generations) > MaxLoopGenerations {
+			return errors.New("invalid loop hold")
+		}
+		if _, err := wire.ParseSize("loop acceptance revision", h.AcceptanceRevision); err != nil {
+			return errors.New("invalid loop hold")
+		}
+		for _, g := range h.Generations {
+			if _, err := wire.ParseSize("loop generation", g); err != nil {
+				return errors.New("invalid loop hold")
+			}
+		}
+	}
+	return nil
+}
+
+// MaxLoopGenerations bounds the generations one recorded loop hold names.
+const MaxLoopGenerations = 1024

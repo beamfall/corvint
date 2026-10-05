@@ -284,11 +284,25 @@ func planEntryValue(e transaction.PlanEntry, authors bool, offer []wire.Digest) 
 		o.Set("detail", optionalText(e.Detail))
 		o.Set("excludedAuthors", authorsValue(e.Authors))
 	}
+	if e.Loop != nil {
+		o.Set("loop", loopHoldValue(e.Loop))
+	}
 	if offer != nil {
 		o.Set("nextAction", wire.String(ticket.NextActionCompleteManual))
 		o.Set("suggestedEvidence", ticket.DigestsValue(offer))
 	}
 	return wire.ObjectValue(o), nil
+}
+
+// loopHoldValue is a held entry's CAL-V0-102 evidence: the signal, the
+// acceptance revision, the counted generations and the policy bound.
+func loopHoldValue(h *ticket.LoopHold) wire.Value {
+	o := wire.NewObject()
+	o.Set("signal", wire.String(h.Signal))
+	o.Set("acceptanceRevision", wire.String(string(h.AcceptanceRevision)))
+	o.Set("generations", wire.Strings(h.Generations))
+	o.Set("limit", wire.String(string(h.Limit)))
+	return wire.ObjectValue(o)
 }
 
 func optionalText(s string) wire.Value {

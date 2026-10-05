@@ -79,6 +79,7 @@ var retries = map[string]Retry{
 	CodeJournalForked:           {false, whyActor},
 	CodeEscalationPending:       {false, whyActor},
 	CodePrerequisiteUnsatisfied: {false, whyActor},
+	CodeLoopDetected:            {false, whyActor},
 
 	CodeNoexec:    {false, whyResult},
 	CodeSurvivors: {false, whyResult},

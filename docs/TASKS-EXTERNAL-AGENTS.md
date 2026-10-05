@@ -345,6 +345,33 @@ or physical pool reuse. Issue 482 was integrated at public commit `094700bfbc7b6
 and natively completed at receipt 2173. Qualification remains scoped to disposable fixtures;
 actor authentication, runtime qualification, history and liveness remain NOT_OBSERVED.
 
+### Detect no-progress loops
+
+A policy may opt into loop detection (CAL-V0-102..103) with a top-level `loopDetection` object:
+
+```json
+{"loopDetection":{"maxAlternatingReturns":"2","maxNoProgressGenerations":"2"}}
+```
+
+Both counts are required and 1..256. While the key is present, each re-claim records the ended
+generation's disposition, candidate tree and gate and review counts as `loopEvidence` in its
+`priorGenerations[]` entry. When more consecutive generations than `maxNoProgressGenerations`
+ended in a clean `HANDOFF` with no new candidate tree, no gate result and no external review, or
+more implement-`HANDOFF`/review-`REVIEW_RETURNED` pairs than `maxAlternatingReturns` alternate,
+the ticket is held `LOOP_DETECTED`: `ticket show`, `ticket blockers`, `plan preview`, `claim`,
+`claim --next` and `dispatch status` (`loopDetected`) report it with the counted generations and
+next action `reopen`; a held `plan preview` entry also carries
+`loop {signal, acceptanceRevision, generations, limit}`. The dispatcher skips the ticket and emits
+one `needs-owner` event (`kind: blocked`) per episode, retrying it while the event log is
+unwritable and skipping it when the log already holds it. Generations recorded without evidence (before the opt-in, legacy
+or supervised) are UNKNOWN and never count. The ticket status is not changed.
+
+The hold clears when the acceptance revision changes, for example through the owner's
+`corvint-tasks ticket reopen --role OWNER`, which acknowledges the loop and readmits the ticket with
+a fresh attempt. Remove the key with `policy update` to stop detection. Older binaries refuse a
+store whose policy history ever carried `loopDetection` or whose attempts carry `loopEvidence`;
+search the policy record and `.git/taskman` for those byte strings before a downgrade.
+
 ### Explicit operator-attested untouched pool release
 
 ```sh

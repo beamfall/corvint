@@ -48,6 +48,26 @@ type Context struct {
 	// prerequisites listing it apply; "" (a stageless claim, plan, show or
 	// blockers read) fails closed and applies every prerequisite.
 	Stage string
+	// Loop is the CAL-V0-102 no-progress loop hold of the one ticket this
+	// context views, derived by the caller from audited attempt history
+	// under an opt-in policy; nil when absent or not evaluated.
+	Loop *LoopHold
+}
+
+// LoopHold is a derived CAL-V0-102 LOOP_DETECTED hold. Signal is
+// NO_PROGRESS or ALTERNATING_RETURNS; Generations are the counted
+// generations, oldest first, at AcceptanceRevision; Limit is the policy
+// bound they exceed.
+type LoopHold struct {
+	Signal             string
+	AcceptanceRevision wire.Count
+	Generations        []string
+	Limit              wire.Count
+}
+
+// Detail renders the hold for a blocker or refusal.
+func (h *LoopHold) Detail() string {
+	return "no-progress loop " + h.Signal + " at acceptanceRevision " + string(h.AcceptanceRevision) + ": generations " + strings.Join(h.Generations, ",") + " exceed the policy bound " + string(h.Limit)
 }
 
 // Blocker is one reason a ticket is not eligible.
@@ -163,6 +183,10 @@ func (inv *Inventory) View(id string, ctx Context) (View, bool) {
 	// ESC-V0-006: current OPEN decision, scope or blocked questions hold.
 	if ids := rec.EscalationPending(); len(ids) != 0 {
 		add(wire.CodeEscalationPending, "", "escalation questions pending: "+strings.Join(ids, ","))
+	}
+	// CAL-V0-102: the caller's derived no-progress loop hold.
+	if ctx.Loop != nil && ctx.Loop.AcceptanceRevision == rec.AcceptanceRevision {
+		add(wire.CodeLoopDetected, "", ctx.Loop.Detail())
 	}
 	// TM-V0-005 structure: missing dependencies and cycles.
 	for _, p := range inv.Problems(id) {
@@ -352,6 +376,8 @@ func nextAction(rec *Record, blockers, unknowns []Blocker) string {
 		return "wait-attempt"
 	case wire.CodeEscalationPending:
 		return "answer"
+	case wire.CodeLoopDetected:
+		return "reopen"
 	}
 	return "refine"
 }
