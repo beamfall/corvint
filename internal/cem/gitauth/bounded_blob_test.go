@@ -152,3 +152,23 @@ func testBoundedBlobCancellationRetiresDescendant(t *testing.T) {
 	}
 	t.Fatal(fmt.Sprintf("descendant %d remains", pid))
 }
+
+func TestBlobBytesWithinReportsOverBoundHeader(t *testing.T) {
+	t.Run("DLT-V0-003 V1-0747 consumer-owned refusal before body", func(t *testing.T) {
+		root, _, head := makeRepo(t)
+		r := open(t, root)
+		entry, _, err := r.LookupTreeEntry(context.Background(), head, "f.go")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if body, over, err := r.BlobBytesWithin(context.Background(), entry.OID, len(bodyV2)-1); err != nil || !over || body != nil {
+			t.Fatalf("bound+1 blob: %q over=%v %v", body, over, err)
+		}
+		if body, over, err := r.BlobBytesWithin(context.Background(), entry.OID, len(bodyV2)); err != nil || over || string(body) != bodyV2 {
+			t.Fatalf("exact-bound blob: %q over=%v %v", body, over, err)
+		}
+		if _, over, err := r.BlobBytesWithin(context.Background(), "not-an-oid", 1024); err == nil || over {
+			t.Fatalf("invalid OID: over=%v %v", over, err)
+		}
+	})
+}

@@ -15,15 +15,12 @@ import (
 func fileURL(p string) string { return (&url.URL{Scheme: "file", Path: p}).String() }
 func quoted(s string) string  { return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'" }
 func readRows(path string) ([]Object, error) {
-	b, e := os.ReadFile(path)
+	b, e := readBounded(path, maxEvidenceBytes)
 	if os.IsNotExist(e) {
 		return []Object{}, nil
 	}
 	if e != nil {
 		return nil, e
-	}
-	if len(b) > 16<<20 {
-		return nil, errors.New("evidence stream exceeds bound")
 	}
 	out := []Object{}
 	for _, line := range strings.Split(string(b), "\n") {

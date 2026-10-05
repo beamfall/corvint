@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
@@ -327,7 +328,11 @@ func (p TicketPlan) refusal() (string, string) {
 		return wire.CodeTicketState, "no ticket is OPEN or HELD"
 	}
 	first := p.Entries[0]
-	return first.Reason, "no ticket is SELECTED; the first of " + string(wire.CountOf(int64(len(p.Entries)))) + " planned tickets, " + first.Ticket.TicketID.Raw + ", is " + first.State + " " + first.Reason
+	detail := "no ticket is SELECTED; the first of " + string(wire.CountOf(int64(len(p.Entries)))) + " planned tickets, " + first.Ticket.TicketID.Raw + ", is " + first.State + " " + first.Reason
+	if first.Reason == wire.CodeEscalationPending {
+		detail += " on " + strings.Join(first.Ticket.EscalationPending(), ",")
+	}
+	return first.Reason, detail
 }
 
 func (c leaseContext) admit(rec *ticket.Record, sc *snapshot.Scope) leaseOutcome {

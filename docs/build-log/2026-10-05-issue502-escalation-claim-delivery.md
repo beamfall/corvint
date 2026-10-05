@@ -38,7 +38,8 @@ These were agent design choices under the owner's request; none changes an accep
 
 - `TestESCV0005_ClaimDeliversTheAnswersPinnedByItsAdmission` runs the native writer and lease
   store: a no-answer claim without the pin, two questions with one answered, a claim that delivers
-  only the answer, a later answer that changes neither the live claim nor its exact replay, and a
+  only the answer while an infrastructure question stays open (it holds no claim under the merged
+  `ESCALATION_PENDING` holds), a later answer that changes neither the live claim nor its exact replay, and a
   claim-next that delivers both.
 - `TestESCV0005_ClaimPinsAndResolvesAnswers` covers admission filtering and resolver parity with
   the reducer, plus missing, swapped, cross-bound, wrong-ticket and rehashed broken-chain material.
@@ -67,7 +68,7 @@ test run could not start in the read-only sandbox; the tests above ran outside i
   only at the resolver and renderer.
 - A 1 MiB output witness, a compiled-binary claim, and the repository-wide gate, under the owner's
   focused-test preference.
-- Native holds, dispatcher retry, the distinct ESC-V0-010 stage and the `dispatch status` section.
+- Dispatcher retry, the distinct ESC-V0-010 stage and kinds and ages in the `dispatch status` section.
 
 ## Rollback
 

@@ -58,10 +58,11 @@ func planEscalation(c leaseContext) leaseOutcome {
 		return c.fail(malformed("physical projection differs from canonical record"))
 	}
 	obs := EscalationObservation{
-		Snapshot:        c.escalationSnapshot(rec, f.Blobs),
-		Actor:           c.r.Actor.ID,
-		ActorRole:       c.r.Actor.Role,
-		PolicyDecision:  escalationGrant(c.st.policy, c.r.Actor.Role, c.l.Verb),
+		Snapshot:       c.escalationSnapshot(rec, f.Blobs),
+		Actor:          c.r.Actor.ID,
+		ActorRole:      c.r.Actor.Role,
+		PolicyDecision: escalationGrant(c.st.policy, c.r.Actor.Role, c.l.Verb),
+		// The grant was checked for this lease verb only (ESC-V0-004).
 		PolicyOperation: escalationOperation[c.l.Verb],
 		Now:             c.in.RecordedAt,
 		Replay:          EscalationReplay{State: "ABSENT"},

@@ -1334,6 +1334,7 @@ see `docs/build-log/2026-10-04-tasks-multirepo-programs.md`.
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
 The experimental `RUN_OUTCOME` observation verb is amended in by `corvint-tasks-attempt-runner-v0.md` (ATR-V0-005), not here.
+The `ESCALATION_PENDING` detail code (72 codes after A17) is amended in by `corvint-tasks-escalations-v0.md` (ESC-V0-006; owner-accepted 2026-10-05), not here.
 
 - A18: CAL-V0-045 raises the admitted retry bound to 16 without changing legacy value-3
   semantics. CAL-V0-046 adds absent-only optional `handoffEvidence` to the closed attempt codec

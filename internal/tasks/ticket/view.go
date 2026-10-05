@@ -1,6 +1,8 @@
 package ticket
 
 import (
+	"strings"
+
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -122,6 +124,10 @@ func (inv *Inventory) View(id string, ctx Context) (View, bool) {
 		add(wire.CodeTicketHeld, "", "ticket is HELD by "+holdIDs(rec))
 	default:
 		add(wire.CodeTicketState, "", "status "+rec.Status+" is not OPEN")
+	}
+	// ESC-V0-006: current OPEN decision, scope or blocked questions hold.
+	if ids := rec.EscalationPending(); len(ids) != 0 {
+		add(wire.CodeEscalationPending, "", "escalation questions pending: "+strings.Join(ids, ","))
 	}
 	// TM-V0-005 structure: missing dependencies and cycles.
 	for _, p := range inv.Problems(id) {
@@ -270,6 +276,8 @@ func nextAction(rec *Record, blockers []Blocker) string {
 		return "cutover"
 	case wire.CodeAttemptLive:
 		return "wait-attempt"
+	case wire.CodeEscalationPending:
+		return "answer"
 	}
 	return "refine"
 }
@@ -322,4 +330,20 @@ func (v View) Value(includeRecord bool) wire.Value {
 		o.Set("record", wire.Null())
 	}
 	return wire.ObjectValue(o)
+}
+
+// EscalationPending returns the sorted, bounded request IDs of the record's
+// ESCALATION_PENDING derived hold (ESC-V0-006), or nil when nothing holds.
+// It reads only the tool-owned `escalations` reference through the predicate
+// Core's planner shares, and never writes the hold.
+func (rec *Record) EscalationPending() []string {
+	if rec.Escalations == nil {
+		return nil
+	}
+	entries := make([]wire.EscalationHoldEntry, 0, len(rec.Escalations.Entries))
+	for _, e := range rec.Escalations.Entries {
+		entries = append(entries, wire.EscalationHoldEntry{RequestID: e.RequestID, AcceptanceRevision: string(e.AcceptanceRevision), Kind: e.Kind, State: e.State})
+	}
+	ids, _ := wire.EscalationPending(string(rec.AcceptanceRevision), entries)
+	return ids
 }

@@ -1,6 +1,7 @@
 package store_test
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"slices"
@@ -50,7 +51,10 @@ func TestESCV0005_ClaimDeliversTheAnswersPinnedByItsAdmission(t *testing.T) {
 	}
 
 	committed(t, escalate(t, s, holder, openRequest(t, "q-1", src, "", ""), 2), "OPEN")
-	committed(t, escalate(t, s, holder, openRequest(t, "q-2", src, "", ""), 3), "OPEN")
+	// An open infrastructure question holds no claim (ESC-V0-006), so the
+	// next claim is admitted while it is open and must not deliver it.
+	infra := bytes.Replace(openRequest(t, "q-2", src, "", ""), []byte(`"kind":"decision"`), []byte(`"kind":"infrastructure"`), 1)
+	committed(t, escalate(t, s, holder, infra, 3), "OPEN")
 	committed(t, answer(t, s, operator(), answerRequest(t, "a-1", id, operator(), "q-1", "1"), 4), "ANSWER")
 	if r := s.lease(t, "release-1", releaseOf(first), 5, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
 		t.Fatalf("release = %+v %s", r.Outcome, r.Detail)

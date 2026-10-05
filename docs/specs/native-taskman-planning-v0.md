@@ -103,7 +103,8 @@ capacity exhaustion LIMIT_EXCEEDED, absent reservations MISSING_EVIDENCE, unsupp
 classes UNSUPPORTED, unavailable gates GATE_UNKNOWN and unavailable capabilities CAPABILITY_UNAVAILABLE.
 The planner observes no worker pools or roles, so a `requiresPool` or `requiredRoles` requirement is
 also CAPABILITY_UNAVAILABLE. A current OPEN decision, scope or blocked typed-escalation question
-(`corvint-tasks-escalations-v0.md` ESC-V0-006) is a derived hold and blocks as TICKET_STATE.
+(`corvint-tasks-escalations-v0.md` ESC-V0-006) is a derived hold and blocks as ESCALATION_PENDING, through the shared `internal/tasks/wire` predicate the
+native Tasks reader uses.
 History rejects invalid native IDs, unknown codes, zero/future ticket revisions and deferral
 sequences beyond their plan head. Native Identifier and Path bounds remain 128 and 512 bytes. Resource keys use the bound
 sibling Resource decoder's Identifier (128), including its extra Path check for PATH; a longer
