@@ -16,7 +16,7 @@ preserves the audited record) and the ticket/mutation/receipt boundaries of the
 - Claim: Writers attach sha256 evidence digests and a reason to an OPEN native ticket in one receipt-backed write that leaves acceptance, status and gates unchanged.
 - Status: proposed; experimental; the native `ticket attach-evidence` writer (operation `ATTACH_EVIDENCE`), the optional record/Core `attachedEvidence` member and the `ticket show` listing exist with focused tests.
 - Exists: closed payload and record codecs, Core reader validation, Apply/finalize through the existing mutation path, OWNER default and explicit OPERATOR grant, ADOPT_FILE and IMPORT_APPLY refusal, CLI help, replay and receipt-audit witnesses.
-- Blocked on: owner acceptance of the resolved defaults; archive export/import of tickets that carry attachments (refused fail-closed today); durable qualification.
+- Blocked on: owner acceptance of the resolved defaults; an untested native archive round trip of tickets that carry attachments; durable qualification.
 - Read next: Requirements; Resolved decisions; Acceptance evidence and traceability; Rollout and rollback.
 
 ## User and current state
@@ -77,14 +77,16 @@ derived event, lock or recovery path exists.
   can explain it.
 - No attachments on DRAFT, HELD, COMPLETED, ARCHIVED or IMPORT tickets.
 - No change to completion, gates, criterion binding, release or dispatch semantics.
-- No archive export/import carrier: an export whose ticket carries the member is refused by the
-  closed importer key set, unchanged.
+- No foreign-import carrier: the closed key set of the foreign-ticket importer (`ticket import`)
+  still refuses an export item that carries the member. Native archive export captures ticket
+  files verbatim, so an attachment-bearing record should survive an archive round trip, but that
+  round trip is untested here.
 
 ## Acceptance evidence and traceability
 
 | Requirement | Ticket acceptance | Implementation boundary | Delivered evidence | Required integrated evidence (NOT_RUN) |
 |---|---|---|---|---|
-| TEA-V0-001 | V1-0808 criteria 1-4 | `internal/tasks/mutation` (payload, Apply, adopt); `internal/tasks/ticket` (record codec, view); `internal/tasks/intent` (policy grant); `internal/tasks/transaction` (import guard); `internal/taskman` (Core reader); `internal/tasks/cli` (verb, help) | `TestTEAV0001_AttachEvidenceLeavesTheRecordUnchanged` (whole-record comparison; acceptanceRevision, status and gates unchanged; live attempt does not block; same digest admitted again after the acceptance revision moves); `TestTEAV0001_AttachEvidenceRefusals` (DRAFT/HELD/COMPLETED/ARCHIVED and IMPORT BLOCKED/TICKET_STATE; malformed payloads; 17 digests; 33rd entry LIMIT_EXCEEDED; DUPLICATE_ID; every non-OWNER default role UNAUTHORIZED; explicit OPERATOR row admits; a WORKER row naming the verb does not decode; stale CAS REVISION_CONFLICT); `TestTEAV0001_RecordCodecRefusals`; `TestTEAV0001_AdoptFileRefusesAttachedEvidence`; `TestTEAV0001_ImportApplyNeverCarriesAttachedEvidence`; `TestTEAV0001_ReaderAttachedEvidence` and `TestIssue502_ReaderAdmitsSharedOptionalKeys` (Core reader over the shared fixture); `TestTEAV0001_TicketAttachEvidenceThroughTheCLI` (receipt, unchanged acceptance revision, `ticket show` listing, record unchanged member by member, replay, DUPLICATE_ID, receipt audit CONSISTENT/AGREES, help) | archive carrier; concurrent two-process CAS; durable qualification |
+| TEA-V0-001 | V1-0808 criteria 1-4 | `internal/tasks/mutation` (payload, Apply, adopt); `internal/tasks/ticket` (record codec, view); `internal/tasks/intent` (policy grant); `internal/tasks/transaction` (import guard); `internal/taskman` (Core reader); `internal/tasks/cli` (verb, help) | `TestTEAV0001_AttachEvidenceLeavesTheRecordUnchanged` (whole-record comparison; acceptanceRevision, status and gates unchanged; live attempt does not block; same digest admitted again after the acceptance revision moves); `TestTEAV0001_AttachEvidenceRefusals` (DRAFT/HELD/COMPLETED/ARCHIVED and IMPORT BLOCKED/TICKET_STATE; malformed payloads; 17 digests; 33rd entry LIMIT_EXCEEDED; DUPLICATE_ID; every non-OWNER default role UNAUTHORIZED; explicit OPERATOR row admits; a WORKER row naming the verb does not decode; stale CAS REVISION_CONFLICT); `TestTEAV0001_RecordCodecRefusals`; `TestTEAV0001_AdoptFileRefusesAttachedEvidence`; `TestTEAV0001_ImportApplyNeverCarriesAttachedEvidence`; `TestTEAV0001_ReaderAttachedEvidence` and `TestIssue502_ReaderAdmitsSharedOptionalKeys` (Core reader over the shared fixture); `TestTEAV0001_TicketAttachEvidenceThroughTheCLI` (receipt, unchanged acceptance revision, `ticket show` listing, record unchanged member by member, replay, DUPLICATE_ID, receipt audit CONSISTENT/AGREES, help) | native archive round trip of an attachment-bearing store; concurrent two-process CAS; interrupted-commit redo of an attachment receipt; durable qualification |
 
 ## Resolved decisions (drafted defaults, owner acceptance pending)
 
@@ -120,7 +122,7 @@ derived event, lock or recovery path exists.
 - Should OPERATOR receive the verb by default instead of by explicit row?
 - Are the 32/16/512 bounds right?
 - Should this live in its own profile (TEA-V0) or fold into an existing Tasks profile?
-- Archive export/import carrier for the member.
+- Should the foreign-ticket importer carry the member?
 
 ## Rollout and rollback
 

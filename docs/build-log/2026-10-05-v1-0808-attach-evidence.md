@@ -38,7 +38,10 @@ previousRecordSha256.
 ## Limits
 
 - Digests are unverified claims; nothing reads the member for gates, criteria or completion.
-- Archive export/import has no carrier for the member; the closed importer key set refuses it.
+- The foreign-ticket importer's closed key set still refuses the member. Native archive export
+  carries ticket files verbatim; an attachment-bearing archive round trip is untested.
+- No direct witness of concurrent two-process CAS or interrupted-commit redo for an attachment
+  receipt; both reuse the ordinary mutation path.
 - No remove/edit verb.
 
 ## Evidence
@@ -48,4 +51,6 @@ previousRecordSha256.
   clean.
 - Negative controls: disabling the OPEN guard, the IMPORT_APPLY guard or the ADOPT_FILE protected
   entry each makes the matching `TestTEAV0001_*` test fail.
+- Codex review round 1 (gpt-6-astra, read-only): no P0-P2; one P3 (the archive limitation
+  conflated the foreign importer with native archive export), fixed in the spec and this entry.
 - `make gate` and `go test ./...`: NOT_RUN (lane rule; `corvint affected` lists them as mandatory).
