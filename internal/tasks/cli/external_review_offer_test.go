@@ -113,6 +113,22 @@ func TestERGV0011_CompletionOfferThroughTheCLI(t *testing.T) {
 		t.Fatalf("a plan entry without reviews changed:\n%s\n%s", baseEntry, got)
 	}
 
+	// A queue pause is a planner blocker the ticket view cannot see: the
+	// plan entry is BLOCKED (PAUSED), show reports the pause through its
+	// claimability, and neither offers. Unpausing restores the offer.
+	runOK("pause", "--request-id", "pause-1")
+	noOffer("queue paused", "admit")
+	if e := entry(id); field(e, "state").Str != "BLOCKED" || field(e, "reason").Str != wire.CodePaused {
+		t.Fatalf("paused plan entry is not BLOCKED/PAUSED: %s", wire.Encode(e))
+	}
+	if v := show(id); field(v, "claimabilityReason").Str != wire.CodePaused {
+		t.Fatalf("paused show does not report PAUSED: %s", wire.Encode(v))
+	}
+	runOK("unpause", "--request-id", "unpause-1")
+	if field(show(id), "nextAction").Str != "complete-manual" || field(entry(id), "nextAction").Str != "complete-manual" {
+		t.Fatal("unpausing did not restore the offer")
+	}
+
 	// A gate the policy no longer declares reads UNKNOWN: no offer.
 	ergPolicyUpdateStages(t, root, "3", nil)
 	noOffer("undeclared gate", "admit")

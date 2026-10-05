@@ -1032,7 +1032,7 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 		}
 		// ERG-V0-011: a read-only complete-manual offer when every required
 		// external review gate is a CURRENT PASS; never a write.
-		offers := completionOffers{rc: rc, attempts: attempts}
+		offers := completionOffers{rc: rc, in: in}
 		offers.offer(&v)
 		val := v.Value(includeRecord)
 		if includeRecord {

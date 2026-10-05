@@ -328,8 +328,11 @@ nothing else blocks an OPEN ticket, `ticket show`, `ticket blockers` and the `pl
 report `nextAction: complete-manual` with the review heads as `suggestedEvidence` (ERG-V0-011). The
 offer is read-only: nothing completes the ticket automatically, and an operator who accepts it
 passes those digests as the `complete-manual` evidence. STALE, UNKNOWN, RETURN or resubmitted
-reviews, a live attempt or any unknown give no offer, and both members are absent then.
-Executable gate results are not part of the offer; they remain NOT_OBSERVED in these reads.
+reviews, a live attempt, any unknown, or a planner blocker such as a queue pause give no offer.
+`ticket show` and `ticket blockers` then keep their existing `nextAction` (for example `admit` or
+`wait-attempt`) without `suggestedEvidence`; a `plan preview` entry carries neither member.
+Executable gate results are not part of the offer; they remain NOT_OBSERVED in these reads, and
+whether they should withhold it is an open owner question.
 
 The reviewed experimental issue 482 writer adds a narrow clean-release exception: only
 policyVersion and reservedFor entries for other members in the exact allocated pool may differ.

@@ -52,16 +52,17 @@ func externalReviewViews(repo *intent.Repository, rec *ticket.Record, policy *in
 }
 
 // completionOffers derives the ERG-V0-011 read-only completion offer for
-// tickets of one read. It is pure: it reads the audited attempts, retained
+// tickets of one read. It is pure: it reads the audited plan input, retained
 // review events and receipts only, folds the receipts at most once and only
 // for a ticket that carries a review reference under a policy declaring
-// review gates, and gives no offer (nil) when the journal is absent, the fold
-// or a gate view refuses, or any required gate is not a CURRENT PASS.
+// review gates, and gives no offer (nil) when the journal is absent, the
+// planner reports any claim blocker or unknown for the ticket, the fold or a
+// gate view refuses, or any required gate is not a CURRENT PASS.
 type completionOffers struct {
-	rc       *readCtx
-	attempts map[string]*snapshot.Attempt
-	fold     *transaction.ExternalReviewReceiptAudit
-	folded   bool
+	rc     *readCtx
+	in     transaction.PlanInput
+	fold   *transaction.ExternalReviewReceiptAudit
+	folded bool
 }
 
 func (o *completionOffers) evidence(rec *ticket.Record) []wire.Digest {
@@ -76,16 +77,24 @@ func (o *completionOffers) evidence(rec *ticket.Record) []wire.Digest {
 	if o.fold == nil {
 		return nil
 	}
-	views, err := externalReviewViews(o.rc.repo, rec, policy, o.attempts, o.fold)
+	views, err := externalReviewViews(o.rc.repo, rec, policy, o.in.Attempts, o.fold)
 	if err != nil {
 		return nil
 	}
 	return transaction.ExternalReviewCompletionOffer(policy, views)
 }
 
-// offer applies the completion offer to one view.
+// offer applies the completion offer to one view. It is the one predicate
+// `ticket show`, `ticket blockers` and `plan preview` share: the ticket view
+// must be an unblocked admit, and the planner's claim-blocker derivation over
+// the same plan input (queue pause, execution cutover, budget, pool
+// eligibility, retry exhaustion, holds, dependencies and every unknown) must
+// be empty, so an entry the plan would block never offers.
 func (o *completionOffers) offer(v *ticket.View) {
-	if v.NextAction != "admit" || len(v.Blockers) != 0 || len(v.Unknowns) != 0 {
+	if o.rc.journalAbsent || v.Record == nil || v.NextAction != "admit" || len(v.Blockers) != 0 || len(v.Unknowns) != 0 {
+		return
+	}
+	if len(transaction.ClaimBlockerObservations(o.in, v.Record)) != 0 {
 		return
 	}
 	v.OfferCompletion(o.evidence(v.Record))

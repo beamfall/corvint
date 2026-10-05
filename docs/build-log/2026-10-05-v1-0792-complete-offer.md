@@ -18,6 +18,11 @@ Requirements: `ERG-V0-011` in `docs/specs/corvint-tasks-external-reviews-v0.md`,
 - Ticket view: `OfferCompletion` replaces `nextAction: admit` with `complete-manual`, and sets
   `suggestedEvidence`, only on an OPEN ticket that has no blockers and no unknowns. The member is
   rendered only when it is set.
+- Shared predicate: show, blockers and preview all go through `completionOffers.offer`, which also
+  requires the planner's claim-blocker derivation (`transaction.ClaimBlockerObservations`) over the
+  read's plan input to be empty. A queue pause, missing execution cutover, budget unknown, pool
+  ineligibility or retry exhaustion therefore withholds the offer, and a BLOCKED plan entry never
+  carries it. This was added after Codex review r1 found that a paused queue still offered.
 - CLI: `ticket show` and `ticket blockers` apply the offer after the existing derivation. For
   `plan preview`, an entry gets additive `nextAction` and `suggestedEvidence` members only when it
   is offered. The receipt fold runs lazily, at most once per read, and only for tickets that carry
@@ -33,8 +38,12 @@ Requirements: `ERG-V0-011` in `docs/specs/corvint-tasks-external-reviews-v0.md`,
 - Byte identity: tickets without review references, and queues whose policy declares no gates,
   render exactly as before. The CLI test compares the encoded bytes.
 - Executable gate results are not part of the offer predicate. They stay NOT_OBSERVED in these
-  reads. This is an open owner question, because queues with required executable gates would
-  otherwise never see the offer.
+  reads. Whether they should withhold the offer is recorded as an open question in the spec's Open
+  decisions, together with whether `queue status` and `roadmap` should carry the offer and how the
+  required gate set is chosen. Withholding on NOT_OBSERVED would make the offer unreachable in a
+  queue with required executable gates.
+- A DEFERRED plan entry may still offer. A resource collision with other work or the attempt limit
+  is not a fact about the ticket, and it does not block a manual completion.
 - `queue status`, `roadmap` and `plan preview --selected-only` are unchanged and still report
   `admit` for an offered ticket.
 

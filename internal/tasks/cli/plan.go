@@ -180,9 +180,9 @@ func planOffers(rc *readCtx, in transaction.PlanInput, plan transaction.TicketPl
 	}
 	var out map[string][]wire.Digest
 	var ctx *ticket.Context
-	offers := completionOffers{rc: rc, attempts: in.Attempts}
+	offers := completionOffers{rc: rc, in: in}
 	for _, e := range plan.Entries {
-		if len(e.Ticket.ExternalReviews) == 0 {
+		if len(e.Ticket.ExternalReviews) == 0 || e.State == transaction.PlanBlocked {
 			continue
 		}
 		if ctx == nil {
