@@ -10,7 +10,7 @@ import (
 
 // legacyPriorSha256 is the sha256 of accountingAttempt() at generation 3 with
 // two legacy prior generations, as encoded by origin/main ac818777 (before
-// CAL-V0-079). It pins the N-1 bytes the new encoder must still write.
+// CAL-V0-096). It pins the N-1 bytes the new encoder must still write.
 const legacyPriorSha256 = "b93e59bed07b195b8d006d1d3c459edc6932922d9590a755c240df8693629ac0"
 
 func legacyPriorAttempt() *Attempt {
@@ -22,10 +22,10 @@ func legacyPriorAttempt() *Attempt {
 
 func ptr(s string) *string { return &s }
 
-// CAL-V0-079: a legacy prior-generation entry decodes with no history and
+// CAL-V0-096: a legacy prior-generation entry decodes with no history and
 // re-encodes byte-identical to the N-1 encoding.
-func TestCALV0079_LegacyPriorGenerationsRoundTrip(t *testing.T) {
-	t.Run("CAL-V0-079 LegacyPriorGenerationsRoundTrip", func(t *testing.T) {
+func TestCALV0096_LegacyPriorGenerationsRoundTrip(t *testing.T) {
+	t.Run("CAL-V0-096 LegacyPriorGenerationsRoundTrip", func(t *testing.T) {
 		legacy, err := legacyPriorAttempt().Encode()
 		if err != nil {
 			t.Fatal(err)
@@ -52,10 +52,10 @@ func TestCALV0079_LegacyPriorGenerationsRoundTrip(t *testing.T) {
 	})
 }
 
-// CAL-V0-079: recorded history round-trips beside legacy entries; null records
+// CAL-V0-096: recorded history round-trips beside legacy entries; null records
 // an observed absence of a stage or pool member.
-func TestCALV0079_RecordedPriorGenerationsRoundTrip(t *testing.T) {
-	t.Run("CAL-V0-079 RecordedPriorGenerationsRoundTrip", func(t *testing.T) {
+func TestCALV0096_RecordedPriorGenerationsRoundTrip(t *testing.T) {
+	t.Run("CAL-V0-096 RecordedPriorGenerationsRoundTrip", func(t *testing.T) {
 		a := legacyPriorAttempt()
 		a.Generation = "4"
 		a.PriorGenerations = append(a.PriorGenerations, PriorGeneration{Generation: "3", Quiescence: "PROVED", ProvedSeq: "6", History: &GenerationHistory{Stage: ptr("implement"), PoolID: ptr("db"), MemberID: ptr("b")}})
@@ -89,10 +89,10 @@ func TestCALV0079_RecordedPriorGenerationsRoundTrip(t *testing.T) {
 	})
 }
 
-// CAL-V0-079: the closed decoder refuses partial, inconsistent or unknown
+// CAL-V0-096: the closed decoder refuses partial, inconsistent or unknown
 // history rather than guessing.
-func TestCALV0079_MalformedPriorGenerationHistory(t *testing.T) {
-	t.Run("CAL-V0-079 MalformedPriorGenerationHistory", func(t *testing.T) {
+func TestCALV0096_MalformedPriorGenerationHistory(t *testing.T) {
+	t.Run("CAL-V0-096 MalformedPriorGenerationHistory", func(t *testing.T) {
 		legacy, err := legacyPriorAttempt().Encode()
 		if err != nil {
 			t.Fatal(err)

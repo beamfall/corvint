@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; V1-0788 CAL-V0-079 prior-generation stage and member, claim-result allocation and claim-event member implemented with focused tests; V1-0790 CAL-V0-082..085 recorded hand-off target and derived `nextStage` implemented with focused tests
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; V1-0788 CAL-V0-096 prior-generation stage and member, claim-result allocation and claim-event member implemented with focused tests; V1-0790 CAL-V0-082..085 recorded hand-off target and derived `nextStage` implemented with focused tests
 Authoritative inputs: owner request [issue 482](https://github.com/beamfall/corvint/issues/482) (proposed CAL-V0-044/046 compatibility amendment);
 owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
@@ -18,7 +18,7 @@ owner request [issue 497](https://github.com/beamfall/corvint/issues/497) (CAL-V
 owner request [issue 446](https://github.com/beamfall/corvint/issues/446) (CAL-V0-059..061),
 owner request [issue 354](https://github.com/beamfall/corvint/issues/354) (CAL-V0-062..063, 071..072; owner scope split 2026-10-04),
 owner request [issue 378](https://github.com/beamfall/corvint/issues/378),
-owner request [issue 586](https://github.com/beamfall/corvint/issues/586) part 1 (CAL-V0-079),
+owner request [issue 586](https://github.com/beamfall/corvint/issues/586) part 1 (CAL-V0-096),
 owner request [issue 587](https://github.com/beamfall/corvint/issues/587) part 1 (CAL-V0-082..085),
 owner request [issue 370](https://github.com/beamfall/corvint/issues/370), and
 owner choice on 2026-09-28 to quarantine environments until confirmed safe reuse; owner request [issue 336](https://github.com/beamfall/corvint/issues/336), the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
@@ -28,7 +28,7 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; V1-0788 CAL-V0-079 prior-generation stage and member, claim-result allocation and claim-event member implemented with focused tests; V1-0790 CAL-V0-082..085 recorded hand-off target and derived `nextStage` implemented with focused tests. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; V1-0788 CAL-V0-096 prior-generation stage and member, claim-result allocation and claim-event member implemented with focused tests; V1-0790 CAL-V0-082..085 recorded hand-off target and derived `nextStage` implemented with focused tests. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
 - Read next: #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle; S21 multi-repository programs); Amendments to TCP-00; Failure modes.
@@ -91,7 +91,7 @@ one.
 
 CAL-V0-062/063 are defined in S13 (issue 354). CAL-V0-064 (S14, issue 468) is reserved
 by coordinated unlanded work; CAL-V0-066/S16 remains reserved for issue 464 if used.
-The coordinator assigned CAL-V0-067/S17 to issue 479 and CAL-V0-068/S18 to issue 497. CAL-V0-071..072/S21 extend issue 354 (CAL-V0-069..070 and S19..S20 are left to coordinated unlanded work). CAL-V0-073 is the V1-0751 CREATE payload template amendment. CAL-V0-079 is the V1-0788 prior-generation stage and member amendment (CAL-V0-074..078 are left to coordinated unlanded work). This seed does not claim
+The coordinator assigned CAL-V0-067/S17 to issue 479 and CAL-V0-068/S18 to issue 497. CAL-V0-071..072/S21 extend issue 354 (CAL-V0-069..070 and S19..S20 are left to coordinated unlanded work). CAL-V0-073 is the V1-0751 CREATE payload template amendment. CAL-V0-096 is the V1-0788 prior-generation stage and member amendment (CAL-V0-074..095 are left to coordinated unlanded work). This seed does not claim
 implementation or qualification of the new profile or any reserved slice.
 
 S8 was added by owner decision on 2026-09-27 and lands directly after S3, before S4.
@@ -1316,6 +1316,54 @@ witnesses are the CAL-V0-071 and CAL-V0-072 rows in the traceability table, incl
 end-to-end `TestCALV0071_MultiRepositoryProgramFakeHost`. Live Codex qualification is `NOT_RUN`;
 see `docs/build-log/2026-10-04-tasks-multirepo-programs.md`.
 
+### V1-0788 prior-generation stage and member (issue 586)
+
+Authoritative input: owner request [issue 586](https://github.com/beamfall/corvint/issues/586)
+part 1, ticket V1-0788: a retried attempt keeps only `generation`, `quiescence` and `provedSeq`
+for each ended generation, so which pool member and stage ran a failed generation could be
+recovered only from receipts, and neither a claim result nor the dispatcher `claim` event named
+the member. This amendment adds optional keys to the TCP-00 `taskman-attempt/0`
+`priorGenerations[]` entry; the profile name and every other key are unchanged.
+
+- `CAL-V0-096`: When a CLAIM or CLAIM_NEXT admits the next generation of an
+  `external-agent` attempt, the appended `priorGenerations[]` entry MUST carry `stage`, `poolId`
+  and `memberId`, copied from the ended generation's `stage` and `poolAllocation`; each is
+  `null` when that generation had none, and `poolId` and `memberId` are null together. The three
+  keys are present together or absent together; the closed decoder MUST refuse a partial set, an
+  unpaired null, a `stage` outside `implement`, `review` and `integrate`, and any other key. An
+  entry without them (legacy, or a supervised generation) MUST decode with no history and
+  re-encode byte-identical. `attempt show` MUST add `history` to each entry: `RECORDED` when the
+  keys are stored, otherwise `NOT_OBSERVED` with `stage`, `poolId` and `memberId` each rendered
+  `NOT_OBSERVED`, never inferred. Every `claim` result item, a refusal included, MUST include
+  `poolAllocation` (`null` without an allocation; an `ERROR` result carries no item), and the dispatcher `claim` event detail MUST include `pool` and
+  `member` (empty without an allocation). `attempt show` and the other reads write nothing.
+
+Non-goals: excluding a ticket's earlier authors from selection (issue 586 part 2); history for
+supervised generations, which span stages and release their allocation per stage, so a single
+stage and member would be a guess; recovering a legacy entry's member from receipt POST state;
+backfilling existing records; and treating a recorded member label as identity or authority (a
+label proves nothing about who did the work).
+
+Failure modes: a generation ended before this change shows `NOT_OBSERVED` for good. A member
+label may itself be the text `NOT_OBSERVED`; the `history` discriminator, not the value, says
+whether a value was recorded. The claim event names the pool member current when the dispatcher
+observes the claim, which is the claimed allocation unless it changed before that observation.
+
+Rollback and downgrade: the decoders of earlier binaries are closed and refuse a
+`priorGenerations[]` entry carrying the new keys as `MALFORMED`, so after a retry is admitted
+by this version an older binary cannot read that attempt (`attempt show`, claims and other
+commands that decode it). An older `receipt audit` can still succeed, because journal validation
+checks attempt identity and does not run the attempt decoder, so audit success does not
+demonstrate downgrade compatibility.
+Reverting the code is safe only while no attempt record holds the new keys (check each
+`<stateDir>/attempts/*.json` with `jq -e '[.priorGenerations[] | has("stage")] | any'`). Once one does, keep this version; there is no
+supported rewrite of attempt records, and editing them by hand breaks receipt-bound audit. The
+claim result and dispatcher event additions are read-side only and revert with the code.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-096 | `TestCALV0096_LegacyPriorGenerationsRoundTrip` (N-1 bytes pinned from origin/main ac818777), `TestCALV0096_RecordedPriorGenerationsRoundTrip`, `TestCALV0096_MalformedPriorGenerationHistory` (`internal/tasks/snapshot`); `TestCALV0096_EndedHistoryCopiesOnlyExact` (`internal/tasks/transaction`); `TestCALV0096_PriorGenerationRecordsStageAndMember` (`internal/tasks/store`); `TestCALV0096_HistoryObservation`, `TestCALV0096_ClaimAllocationAndPriorHistory` (`internal/tasks/cli`); `TestCALV0096_ClaimEventNamesMember` (`internal/tasks/dispatch`) |
+
 ### V1-0790 recorded hand-off target (issue 587 part 1)
 
 Authoritative input: owner request [issue 587](https://github.com/beamfall/corvint/issues/587)
@@ -1708,48 +1756,3 @@ removes the flag; no store, wire or journal state depends on it.
 | Requirement | Evidence |
 | --- | --- |
 | CAL-V0-073 | `TestCALV0073_CreateTemplateIsReadOnlyAndAccepted`, `TestCALV0073_CreateTemplateNamesEnumsAndNullableKeys`, `TestCALV0073_TemplateRefusesOtherVerbsAndFlags`, `TestCALV0073_TemplateFieldsMatchPayloadNullability` (`internal/tasks/cli`) |
-
-## V1-0788 prior-generation stage and member amendment
-
-Authoritative input: owner request [issue 586](https://github.com/beamfall/corvint/issues/586)
-part 1, ticket V1-0788: a retried attempt keeps only `generation`, `quiescence` and `provedSeq`
-for each ended generation, so which pool member and stage ran a failed generation could be
-recovered only from receipts, and neither a claim result nor the dispatcher `claim` event named
-the member. This amendment adds optional keys to the TCP-00 `taskman-attempt/0`
-`priorGenerations[]` entry; the profile name and every other key are unchanged.
-
-- `CAL-V0-079`: When a CLAIM or CLAIM_NEXT admits the next generation of an
-  `external-agent` attempt, the appended `priorGenerations[]` entry MUST carry `stage`, `poolId`
-  and `memberId`, copied from the ended generation's `stage` and `poolAllocation`; each is
-  `null` when that generation had none, and `poolId` and `memberId` are null together. The three
-  keys are present together or absent together; the closed decoder MUST refuse a partial set, an
-  unpaired null, a `stage` outside `implement`, `review` and `integrate`, and any other key. An
-  entry without them (legacy, or a supervised generation) MUST decode with no history and
-  re-encode byte-identical. `attempt show` MUST add `history` to each entry: `RECORDED` when the
-  keys are stored, otherwise `NOT_OBSERVED` with `stage`, `poolId` and `memberId` each rendered
-  `NOT_OBSERVED`, never inferred. A `claim` result MUST always include `poolAllocation` (`null`
-  without an allocation), and the dispatcher `claim` event detail MUST include `pool` and
-  `member` (empty without an allocation). `attempt show` and the other reads write nothing.
-
-Non-goals: excluding a ticket's earlier authors from selection (issue 586 part 2); history for
-supervised generations, which span stages and release their allocation per stage, so a single
-stage and member would be a guess; recovering a legacy entry's member from receipt POST state;
-backfilling existing records; and treating a recorded member label as identity or authority (a
-label proves nothing about who did the work).
-
-Failure modes: a generation ended before this change shows `NOT_OBSERVED` for good. A member
-label may itself be the text `NOT_OBSERVED`; the `history` discriminator, not the value, says
-whether a value was recorded. The claim event names the pool member current when the dispatcher
-observes the claim, which is the claimed allocation unless it changed before that observation.
-
-Rollback and downgrade: the decoders of earlier binaries are closed and refuse a
-`priorGenerations[]` entry carrying the new keys as `MALFORMED`, so after a retry is admitted
-by this version an older binary cannot read that attempt or audit a store containing it.
-Reverting the code is safe only while no attempt record holds the new keys (check each
-`<stateDir>/attempts/*.json` with `jq -e '[.priorGenerations[] | has("stage")] | any'`). Once one does, keep this version; there is no
-supported rewrite of attempt records, and editing them by hand breaks receipt-bound audit. The
-claim result and dispatcher event additions are read-side only and revert with the code.
-
-| Requirement | Evidence |
-| --- | --- |
-| CAL-V0-079 | `TestCALV0079_LegacyPriorGenerationsRoundTrip` (N-1 bytes pinned from origin/main ac818777), `TestCALV0079_RecordedPriorGenerationsRoundTrip`, `TestCALV0079_MalformedPriorGenerationHistory` (`internal/tasks/snapshot`); `TestCALV0079_EndedHistoryCopiesOnlyExact` (`internal/tasks/transaction`); `TestCALV0079_PriorGenerationRecordsStageAndMember` (`internal/tasks/store`); `TestCALV0079_HistoryObservation`, `TestCALV0079_ClaimAllocationAndPriorHistory` (`internal/tasks/cli`); `TestCALV0079_ClaimEventNamesMember` (`internal/tasks/dispatch`) |

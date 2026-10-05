@@ -1028,7 +1028,7 @@ func (d *Dispatcher) diff(obs *Observation) {
 	for _, id := range sortedKeys(now.Claims) {
 		if _, ok := old.Claims[id]; !ok {
 			c := strings.Split(now.Claims[id], "|")
-			// CAL-V0-079: the claim names its pool member; both are empty
+			// CAL-V0-096: the claim names its pool member; both are empty
 			// for an attempt without a pool allocation.
 			pool, member, on := "", "", ""
 			for _, a := range obs.Attempts {
