@@ -13,8 +13,9 @@ The test failed once under load on 2026-10-04 with `harness ended before descend
 - **JS read:** the `opencode interruption leaves no descendant` test polls `existsSync(f.childPID)`
   and then copies the file into the Go witness. A read inside that window copies an empty PID.
 - **Go side:** the outer Go test parses the PID as 0 and keeps polling.
-- **Ending:** the inner harness is never interrupted. It finishes on the adapter's own 2 s kill
-  timer and exits successfully, so the outer test reports that the harness ended first.
+- **Ending:** the inner harness is never interrupted. It finishes on the adapter's own 4 s query
+  kill timer (`queryTimeoutMs`), rereads the now-populated PID file, passes and exits, so the outer
+  test reports that the harness ended first.
 
 The `-orphan` witness in the same fixture already published by temporary file and rename.
 
@@ -27,14 +28,22 @@ The `-orphan` witness in the same fixture already published by temporary file an
 - **Fix under the same delay:** with the 300 ms delay kept between the temporary write and the
   rename, the test passed 3 of 3.
 - **Assertions unchanged:** the interruption assertion and the witness deadline are not changed.
-- **Side effect:** the JS timeout tests read the same file with `Number(readFileSync(...))`. An
-  empty read there gave `NaN`, and `process.kill(NaN, 0)` throws, so the test read the child as
-  already gone and could pass falsely. Publishing by rename closes that window as well.
+- **Side effect:** the JS timeout tests and fixture teardown read the same file with
+  `Number(readFileSync(...))`. An empty read gives 0, so `process.kill(0, ...)` addresses the test
+  runner's own process group: the timeout check reports it alive and fails, and teardown could
+  signal that group. Publishing by rename closes that window as well.
+- **Diagnostic:** `<nil>` in the original message does not show that the inner harness passed,
+  because `procgroup` reports an ordinary nonzero exit through `ExitStatus`, not `Err`. The failure
+  message now prints `exit=` as well.
 
 ## Limits
 
-- The original failure was not reproduced under natural load. The mechanism was proven by widening
-  the window deterministically.
+- Other paths still end with the same message: a build, startup or JS assertion failure before the
+  PID is published, or the harness ending between two Go polls of the witness after its own 4 s
+  timer. The new `exit=` field tells these apart; none of them were observed here.
+- The original failure was not reproduced under natural load, and its output did not retain the
+  exit status. The mechanism was proven by widening the window deterministically, so the empty-read
+  race is the demonstrated cause, not a unique attribution.
 - `corvint affected` reports scope `UNKNOWN`: the fixture has no selectable test, and unbounded
   readers select broadly. The fixture's only consumer is `host_adapter_javascript_test.go`, and
   that test was run.

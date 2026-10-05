@@ -89,7 +89,7 @@ func TestHostAdapterJavaScriptHarnessInterruption(t *testing.T) {
 		}
 		select {
 		case result := <-done:
-			t.Fatalf("harness ended before descendant witness: %v\n%s\n%s", result.Err, result.Stdout, result.Stderr)
+			t.Fatalf("harness ended before descendant witness: %v exit=%d\n%s\n%s", result.Err, result.ExitStatus, result.Stdout, result.Stderr)
 		case <-ctx.Done():
 			<-done
 			t.Fatal("descendant witness deadline")
