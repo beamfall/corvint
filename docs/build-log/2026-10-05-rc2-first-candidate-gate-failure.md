@@ -18,13 +18,13 @@ A fresh candidate will be cut from main once the fixes below merge, and the runb
 Neither defect changes product behavior; both are test-only.
 
 1. **Windows cross-vet (ubuntu full-gate).** Untagged test files use helpers that are defined only
-   in unix-tagged test files:
+   in `unix` or `darwin || linux` tagged test files:
    - `goRequest` in `internal/criterionexperiment` (V1-0797);
    - `testConfig` in `internal/tasks/dispatch` (V1-0839);
    - `PSRTestResponseFailure`, `psrPools` and `multiCommitted` in `internal/tasks/store` (V1-0765).
 
-   The users now carry the same tag as their helpers. They reached main because hosted CI does not
-   run `cross-vet` (V1-0359, V1-0400).
+   The users now carry the same build tag as the file that defines their helper. They reached main
+   because hosted CI does not run `cross-vet` (V1-0359, V1-0400).
 2. **Symlinked TMPDIR (darwin full-gate).** Four `internal/tasks/service` tests passed a raw
    `t.TempDir()` to `safeopen.Root`. On macOS that path is under `/var -> /private/var`, and
    `safeopen.Root` refuses a symlink anywhere in a path by contract (V1-0840).
@@ -39,5 +39,6 @@ Neither defect changes product behavior; both are test-only.
 ## Gate order note
 
 `make gate` stops at the first failing step. Locally it stopped at `go-test` and on ubuntu at
-`cross-vet`, so the steps after `cross-vet` had not run on this code anywhere. Before merging the fix,
-those steps were run locally with `make -k`.
+`cross-vet`, so neither failed `full-gate` run reached the `make gate` steps after `cross-vet` (the
+hosted interop and focused-docs jobs ran some of them separately). Before merging the fix, those
+steps were run locally with `make -k`.
