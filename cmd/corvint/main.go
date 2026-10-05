@@ -1246,7 +1246,7 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 	result, err := gokernel.HandleEventContext(ctx, gokernel.EventRequest{
 		Root: options.root, Host: options.host, HostVersion: options.hostVersion,
 		Surface: options.surface, AdapterVersion: options.adapterVersion,
-		Event: options.event, Input: input, BudgetBytes: options.budgetBytes,
+		Event: options.event, Input: input, BudgetBytes: options.budgetBytes, CorvintVersion: version,
 		IndexedContext: harnessIndexedContext, SharedIndexedContext: sharedIndexedContextFromEnvironment(),
 	})
 	if err != nil {

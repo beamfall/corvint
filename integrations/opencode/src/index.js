@@ -110,6 +110,8 @@ async function setup(ctx) {
       await runVisible({
         event: "file-change",
         input: {
+          // V1-0767: a truncated batch carries its SOL-V0-010 code to Core's ledger writer.
+          ...(batch.truncated ? { adapterCodes: ["changed-paths-truncated"] } : {}),
           ...(batch.sessionIdSha256 ? { sessionIdSha256: batch.sessionIdSha256 } : {}),
           paths: [...batch.paths],
         },
@@ -215,7 +217,7 @@ async function setup(ctx) {
 
   const outsideProject = (value) => typeof value === "string" && value !== "" && !normalizeRepositoryPath(root, value)
 
-  const rememberPath = (value, rawSessionId) => {
+  const rememberPath = (value, rawSessionId, adapterCodes) => {
     const normalized = normalizeRepositoryPath(root, value)
     if (!normalized) return undefined
     const bound = stateFor(rawSessionId)
@@ -226,6 +228,7 @@ async function setup(ctx) {
         // V1-0746: stop and session-end now carry an incomplete path set; say so once per session.
         bound.state.pathsTruncated = true
         record("changed-paths-truncated", "post-tool")
+        adapterCodes.add("changed-paths-truncated")
       }
       bound.state.stopArmed = true
     }
@@ -342,19 +345,24 @@ async function setup(ctx) {
       const changedPaths = boundedPaths(root, [...edited, ...reportedPaths])
       // V1-0746: dropped host-reported paths are named at info level. boundedPaths examines at
       // most MAX_TRACKED_PATHS entries per list, so only those entries are scanned for an outside path.
+      // V1-0767: each named abstention also reaches Core's SOL-V0-010 writer on this call's post-tool.
+      const adapterCodes = new Set()
       if ([...targets.slice(0, MAX_TRACKED_PATHS), ...reported.slice(0, MAX_TRACKED_PATHS)].some(outsideProject)) {
         record("post-tool-path-not-project-relative", "post-tool")
+        adapterCodes.add("post-tool-path-not-project-relative")
       }
       if (targets.length > MAX_TRACKED_PATHS || reported.length > MAX_TRACKED_PATHS || new Set([...edited, ...reportedPaths]).size > changedPaths.length) {
         record("changed-paths-truncated", "post-tool")
+        adapterCodes.add("changed-paths-truncated")
       }
-      for (const changed of changedPaths) rememberPath(changed, call.sessionID)
+      for (const changed of changedPaths) rememberPath(changed, call.sessionID, adapterCodes)
       let drained
       for (const changed of edited) drained = queueFileChange(changed, bound?.key)
       await drained
       await runVisible({
         event: "post-tool",
         input: {
+          ...(adapterCodes.size > 0 ? { adapterCodes: [...adapterCodes].sort() } : {}),
           ...(bound ? { sessionIdSha256: bound.key } : {}),
           changedPaths,
           observedEvidenceHandles: explicitEvidenceHandles(metadata),

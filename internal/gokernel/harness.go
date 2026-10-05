@@ -58,6 +58,9 @@ type EventRequest struct {
 	BudgetBytes          int
 	IndexedContext       IndexedContext
 	SharedIndexedContext SharedIndexedContext
+	// CorvintVersion stamps the SOL-V0-010 rows an OpenCode event's adapterCodes produce;
+	// without it those rows are refused by the ledger writer.
+	CorvintVersion string
 }
 
 func sha256Hex(value []byte) string {
@@ -170,6 +173,36 @@ func allowedFields(input map[string]any, fields ...string) bool {
 		}
 	}
 	return true
+}
+
+// openCodeAdapterCodes is the closed set of OpenCode plugin abstentions a file-change or
+// post-tool event may carry for SOL-V0-010 (V1-0767).
+var openCodeAdapterCodes = map[string]struct{}{"changed-paths-truncated": {}, "post-tool-path-not-project-relative": {}}
+
+// takeAdapterCodes removes an OpenCode file-change or post-tool event's optional adapterCodes
+// from input: a sorted, duplicate-free, non-empty list of openCodeAdapterCodes. The field stays
+// in input for any other host or event, where validateInput refuses it as unsupported. It is
+// never part of the normalized input, so it changes neither the receipt nor the response.
+func takeAdapterCodes(host, event string, input map[string]any) ([]string, error) {
+	raw, exists := input["adapterCodes"]
+	if !exists || host != "opencode" || (event != "file-change" && event != "post-tool") {
+		return nil, nil
+	}
+	delete(input, "adapterCodes")
+	list, ok := raw.([]any)
+	if !ok || len(list) == 0 || len(list) > len(openCodeAdapterCodes) {
+		return nil, newError("invalid-harness-input", "adapterCodes must be a bounded list")
+	}
+	codes := make([]string, 0, len(list))
+	for _, item := range list {
+		code, ok := item.(string)
+		_, admitted := openCodeAdapterCodes[code]
+		if !ok || !admitted || (len(codes) > 0 && codes[len(codes)-1] >= code) {
+			return nil, newError("invalid-harness-input", "adapterCodes contains an invalid value")
+		}
+		codes = append(codes, code)
+	}
+	return codes, nil
 }
 
 func validateInput(event string, input map[string]any) (map[string]any, error) {
@@ -364,6 +397,10 @@ func HandleEventContext(ctx context.Context, request EventRequest) (map[string]a
 	if err != nil {
 		return nil, err
 	}
+	adapterCodes, err := takeAdapterCodes(request.Host, request.Event, input)
+	if err != nil {
+		return nil, err
+	}
 	normalized, err := validateInput(request.Event, input)
 	if err != nil {
 		return nil, err
@@ -377,6 +414,12 @@ func HandleEventContext(ctx context.Context, request EventRequest) (map[string]a
 	}
 	if resolved, resolveErr := filepath.EvalSymlinks(root); resolveErr == nil {
 		root = resolved
+	}
+	// SOL-V0-010 (V1-0767): the plugin's abstentions happened whatever this event's outcome, so
+	// each is attempted once the root is resolved. Like the SOL-V0-001 row below, the append is
+	// advisory: a refusal or storage failure never affects the event.
+	for _, code := range adapterCodes {
+		_ = observations.Append(root, observations.AdapterDegradationEvent(request.Host, request.Event, code, request.CorvintVersion, time.Now()))
 	}
 	adapter := map[string]any{
 		"adapterVersion": request.AdapterVersion,

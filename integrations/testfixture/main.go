@@ -142,7 +142,14 @@ func main() {
 	if event == "stop" {
 		response["frontier"] = map[string]any{"reason": "frontier-authority-unavailable", "shouldContinue": false, "state": "UNAVAILABLE"}
 	}
-	basis := canonical(map[string]any{"adapter": adapter, "event": event, "input": input, "repository": repository})
+	// Core keeps adapterCodes out of the receipt basis (SOL-V0-010, V1-0767).
+	basisInput := map[string]any{}
+	for key, value := range input {
+		if key != "adapterCodes" {
+			basisInput[key] = value
+		}
+	}
+	basis := canonical(map[string]any{"adapter": adapter, "event": event, "input": basisInput, "repository": repository})
 	digest := sha256.Sum256(basis)
 	response["receiptId"] = "harness-receipt:sha256:" + hex.EncodeToString(digest[:])
 	switch config.Mode {
