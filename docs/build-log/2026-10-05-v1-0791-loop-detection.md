@@ -75,6 +75,12 @@ on the append helper:
   (`TestCALV0103_LoopEscalationNotDuplicatedAfterUnsavedLedger`). The recorded limit narrows to an
   unreadable log or an event that has left the scanned tail.
 
+### Review round 3
+
+Codex r3 approved `ced25d81` with no P1, P2 or P3 findings. Two areas stay unverified: rotation
+recovery, which was inspected in source only and has no dedicated regression test, and power-loss
+durability, which the fault injection (a close failure and lost ledger state) does not establish.
+
 ### Decisions and limits
 
 - Acknowledgement reuses owner `ticket reopen` instead of a new verb. It bumps the acceptance
