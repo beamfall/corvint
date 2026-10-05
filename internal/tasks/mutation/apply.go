@@ -80,6 +80,11 @@ type Context struct {
 	// Now is the logical timestamp recorded as updatedAt, createdAt,
 	// placedAt, grantedAt and recordedAt. Advisory only (§2).
 	Now wire.Timestamp
+	// PriorNoteEvent is the canonical bytes of the target's current operator
+	// note event (ON-V0-004), read by the store at the reference head. It is
+	// consulted only by NOTE_SET/NOTE_CLEAR; a referenced head without bytes
+	// refuses VALIDATION_FAILED/MISSING_EVIDENCE.
+	PriorNoteEvent []byte
 }
 
 // Plan is the pure result of validating and computing one mutation. It is
@@ -95,6 +100,11 @@ type Plan struct {
 	Post           *ticket.Record // non-nil iff Outcome is a fresh COMPLETED
 	QueuePost      *intent.Queue  // non-nil iff CREATE allocated a serial
 	Composed       []string       // ADOPT_FILE: the composed operations in order
+	// DerivedEvent is the canonical bytes of one content-addressed event the
+	// mutation derives (NOTE_SET/NOTE_CLEAR: the operator note event). The
+	// writer posts it as evidence/<sha256> in the same MUTATE stage; it is
+	// non-nil only on a fresh COMPLETED plan.
+	DerivedEvent []byte
 }
 
 // Planned reports whether the plan is a fresh (not replayed) COMPLETED
@@ -137,6 +147,7 @@ func (p *Plan) refused(r *refusal) *Plan {
 	p.Detail = r.detail
 	p.Post = nil
 	p.QueuePost = nil
+	p.DerivedEvent = nil
 	return p
 }
 
@@ -195,6 +206,9 @@ func Apply(ctx Context, env *Envelope) *Plan {
 	}
 	if env.Payload == nil || env.Payload.operation() != env.Operation {
 		return plan.refused(refuse(OutcomeValidationFailed, wire.CodeMalformed, "payload does not belong to operation %s", env.Operation))
+	}
+	if IsNoteOperation(env.Operation) {
+		return ctx.note(plan, env)
 	}
 	pre, ok := ctx.Inventory.Get(env.TargetID.Raw)
 	if !ok {

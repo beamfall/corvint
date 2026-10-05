@@ -51,7 +51,9 @@ skips held tickets before role matching, and keeps the hold in the ledger apart 
 ## Not delivered
 
 - Kinds and ages in dispatch status (ESC-V0-009).
-- End-to-end evidence with a writer-produced reference.
+- A writer-produced reference through Core's planner and a live dispatcher. After the writer slice
+  (a9df0e4a) merged, `TestIssue502_WriterReferenceHoldsAndReleases` holds and releases native direct
+  claim and claim-next over a reference the real writer produced.
 
 ## Rollback
 

@@ -79,6 +79,8 @@ func TestIssue502_RecordEscalationsKey(t *testing.T) {
 	// with every shared optional key present.
 	rec.RequiresPool = "gpu"
 	rec.RequiredRoles = map[string][]string{"implement": {"BUILDER"}, "review": {"REVIEWER"}, "integrate": {"VERIFIER"}}
+	note := wire.Sum([]byte("note"))
+	rec.OperatorNote = &ticket.OperatorNoteReference{Revision: "1", Current: &note, Head: note}
 	file, err := os.ReadFile(issue502RecordFixture)
 	if err != nil {
 		t.Fatal(err)

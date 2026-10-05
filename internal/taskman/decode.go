@@ -31,6 +31,7 @@ func oneOf(s, allowed string) bool {
 // optional key with no entry here, so a key the Tasks codec gains fails this
 // reader closed until it is validated.
 var optionalTicketMembers = map[string]func(v wire.Value, revision, acceptance uint64) error{
+	"operatorNote": operatorNote,
 	"requiresPool": func(v wire.Value, _, _ uint64) error {
 		if v.Kind != wire.KindString {
 			return errors.New("label required")
@@ -474,4 +475,26 @@ func decodePlan(v wire.Value) (Plan, error) {
 	}
 	e = json.NewDecoder(bytes.NewReader(canonical(v))).Decode(&p)
 	return p, e
+}
+
+// operatorNote validates the optional closed {revision,current,head} reference
+// with Core's own primitives: revision 1..4096, head a digest, current null or
+// equal to head. Absence is valid; a whole-null reference is not
+// (ON-V0-001).
+func operatorNote(n wire.Value, _, _ uint64) error {
+	if e := object(n, "revision current head"); e != nil {
+		return errors.New("operator note reference")
+	}
+	if r, e := number(value(n, "revision"), 4096); e != nil || r == 0 {
+		return errors.New("operator note revision")
+	}
+	head := value(n, "head")
+	if head.Kind != wire.KindString || !digest(head.Str) {
+		return errors.New("operator note head")
+	}
+	current := value(n, "current")
+	if current.Kind != wire.KindNull && (current.Kind != wire.KindString || current.Str != head.Str) {
+		return errors.New("operator note current")
+	}
+	return nil
 }

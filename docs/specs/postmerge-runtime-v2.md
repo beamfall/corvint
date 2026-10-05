@@ -3,15 +3,16 @@
 Owner: Russell Lewis
 Date: 2026-10-03
 Intent status: accepted
-Delivery status: not-started
+Delivery status: partial
 Intent basis: accepted /2 direction by direct human receipt; the executable elaboration below passed independent Gate A.
-No /2 runtime implementation or qualified positive replay is claimed.
+Only the PMR-V2-006 process verifier slice is implemented; no /2 workflow runtime, host qualification
+or qualified positive replay is claimed.
 
 ## Agent digest
-- Claim: Accepted /2 contract compares stable producer decisions and canonical requests across fresh verified runs; conformance data only, no runtime.
-- Status: accepted; not-started; frozen conformance data only, qualification NOT_OBSERVED.
-- Exists: This spec and `conformance/postmerge-runtime-v2/`; no /2 code. /0 is unchanged; inherited /1 now observes provider-free native delta, then blocks at follow-up.
-- Blocked on: #394 producer decision (needs PMR-V2-006 process proof), provider-backed delta, Linux procfs tuple qualification and real follow-up/author/scope/validation stages.
+- Claim: Accepted /2 contract compares stable producer decisions and canonical requests across fresh verified runs; only its process verifier slice exists.
+- Status: accepted; partial; PMR-V2-006 process verifier slice only, qualification NOT_OBSERVED.
+- Exists: This spec, `conformance/postmerge-runtime-v2/` and the `internal/postmergeproof` verifier; no /2 workflow. /0 is unchanged; inherited /1 now observes provider-free native delta, then blocks at follow-up.
+- Blocked on: #394 producer decision (needs a qualified PMR-V2-006 process proof), provider-backed delta, Linux procfs tuple qualification and real follow-up/author/scope/validation stages.
 - Read next: Requirements; Closed executable profiles; Remaining work and promotion boundary.
 
 ## Authority
@@ -24,6 +25,9 @@ The frozen executable packet SHA-256 is `00f4536dedff1331f667eb62738af600ff61d74
 Independent repair-1 Gate A PASS SHA-256 is `88f5e73beec92f170c13b3bc3508ceed9f899a6a43e2b5bc5695492813b734da`:
 H1, H2 and M1 closed; no remaining actionable HIGH/MED/LOW in that bounded design review.
 Project authority, the existing /1 runtime and native producer contracts govern all inherited obligations.
+Owner decision 2026-10-04, given through the orchestrator session's question to the owner: the
+process verifier's host tuple identity, SHA-256 over the domain `postmerge-host-tuple/2`, NUL and the
+wire-canonical `HostTupleV2` JSON, is ratified as chosen. The frozen conformance data is unchanged.
 
 This one owning spec registers the producer decision, process proof and connector admission helpers
 because they share the deterministic historical replay outcome and its promotion gate. The provisional
@@ -52,9 +56,39 @@ Current state 2026-10-04 (delta slice; not acceptance evidence for any PMR-V2 re
 runs actual `delta.Compile` without providers, documentation baseline or work keys, retains its exact
 canonical record, then blocks at follow-up (PMR-V1-002). Every /1 report is still BLOCKED/CLI2.
 Every added line of patch `da35448e` is already present on main, and it contains no /2 decision
-emitter. `internal/testacceptance` has no `ExportDecisionV2`/`VerifyDecisionV2`, and
-`internal/postmergeproof` does not exist. The required decision `processes` member therefore has
-no verified source, so the PMR-V2-002 emitter stays NOT_PRODUCED until PMR-V2-006 is implemented.
+emitter. `internal/testacceptance` has no `ExportDecisionV2`/`VerifyDecisionV2`. The PMR-V2-006
+verifier described next mints no token without an admitted qualification, so the required decision
+`processes` member still has no verified source and the PMR-V2-002 emitter stays NOT_PRODUCED until a
+qualified process proof exists.
+
+Since 2026-10-04 the PMR-V2-006 verifier slice (#395) exists in `internal/postmergeproof`.
+`VerifyProcessV2` checks the parent admission, an admitted qualification report, the closed policy and
+the raw proof against retained preimages and an independently constructed graph, and only then mints
+the opaque `VerifiedProcessesV2` token, which no other package can construct. `ValidFor` refuses a
+zero or differently bound token. The `procfs` subpackage reads bracketed Linux birth captures and
+final `/proc` sweeps on amd64 and arm64; other hosts report NOT_OBSERVED with
+`process-observation-unsupported`. No real qualification campaign has been admitted, so every
+production call stays BLOCKED with `process-qualification-unavailable`. No collector, producer,
+workflow or connector consumes the token yet; PMR-V2-009 and PMR-V2-010 are not wired. Retained
+limitations: a double-forked descendant reparented to PID 1 outside the captured tree escapes the
+final sweep, and no token field carries that gap; each proof must use one native start tool, but
+neither policy nor qualification pins it; the host supervisor's state is
+`outside-workload/exit:unknown` because nothing observes its liveness.
+
+Verifier refusals keep their class and never collapse zero, absent and unknown. BLOCKED:
+`process-qualification-unavailable`, `process-host-unsupported`, `process-token-invalid`,
+`process-artifact-unavailable`, `process-bound-exceeded`, `process-graph-invalid`,
+`process-native-source-unsupported`, `process-legacy-sample-unsupported`, `process-role-ambiguous`,
+`process-role-unsupported`, `process-parent-unverified`, `process-native-reference-missing`,
+`process-native-start-unavailable`, `process-cleanup-unknown`, `process-sweep-incomplete`,
+`process-sweep-scope-ambiguous` and `process-verification-cancelled`. REJECTED:
+`process-admission-mismatch`, `process-policy-digest-mismatch`, `process-qualification-invalid`,
+`process-wire-invalid`, `process-graph-substituted`, `process-artifact-digest-mismatch`,
+`process-capture-malformed`, `process-stat-malformed`, `process-birth-changed`,
+`process-bracket-changed`, `process-namespace-mismatch`, `process-executable-mismatch`,
+`process-invocation-mismatch`, `process-retirement-invalid`, `process-trusted-start-mismatch`,
+`process-native-reference-invalid`, `process-cleanup-join-invalid`, `process-cleanup-survivors`,
+`process-sweep-invalid` and `process-sweep-survivor`.
 
 ## Requirements
 
@@ -127,8 +161,9 @@ Complete promotion additionally needs a real historical fixture that triggers ac
 real intake/delta/author/scope/check/metrics/applicable-corpus stages, triageable findings, frozen
 generated/human-verified expectations, two fresh complete attachments and equal decisions/requests.
 Qualify actual local OR CI execution for the exact tuple; neither both nor remote hosting is required.
-Private schema/hash readback and Gate A PASS are design evidence only. All product tests, source review,
-process qualification, full historical workflow and native completion remain NOT_RUN/NOT_PRODUCED.
+Private schema/hash readback and Gate A PASS are design evidence only. The process verifier source
+checks named in Traceability now exist; every other product test, independent source review, process
+qualification, full historical workflow and native completion remain NOT_RUN/NOT_PRODUCED.
 
 ## Rollout, rollback and drift
 
@@ -158,7 +193,7 @@ binding/check/seal. No passed design check is a source-execution authorization.
 | PMR-V2-001, 007, 009, 010 | `internal/postmergeworkflow/v2*.go`, workflow CLI | strict routing, refusal and complete historical replay; NOT_RUN |
 | PMR-V2-002, 003, 004 | `internal/testacceptance/*v2*.go`, provider collector | native rederivation, all source/link tamper cases, fresh graph coverage; NOT_RUN |
 | PMR-V2-005, 008 | `internal/postmergeconnector/*v2*.go` | immutable resolver and actual Git joins, both-call revalidation, idempotent JSONL; NOT_RUN |
-| PMR-V2-006 | `internal/postmergeproof`, `internal/postmergehost`, `internal/procgroup` | concrete token boundary, raw birth/role/cleanup controls and actual tuple qualification; NOT_PRODUCED |
+| PMR-V2-006 | `internal/postmergeproof` (verifier slice delivered), `internal/postmergehost`, `internal/procgroup` | token boundary: TestVerifyProcessMintsBoundToken, TestZeroProcessTokenIsInvalid, TestVerifyProcessAdmissionRefusals, TestQualificationRefusals; raw birth/role/cleanup controls: TestRawProcessProofDerivesLogicalGraph, TestRawProcessRefusals, TestDistinctProcessStates, TestRoleWitnessOrderInvariant, TestProcStatParser, TestPolicyRefusals, TestWireTableMatchesFrozenSchemas; procfs: TestUnsupportedHostIsNotObserved, TestCaptureOwnBirth, TestSweepListsOwnProcess, TestLinuxProcfsOwnedExecution, TestLinuxProcfsSweepFindsSurvivor (Linux arm64 container only; amd64 NOT_RUN); collector integration and actual tuple qualification NOT_PRODUCED |
 | PMR-V2-007, 010 (prerequisite only) | inherited /1 `internal/postmergeworkflow/native.go` delta stage | provider-free actual delta observed and repeated byte-identically (`TestNativeDeltaRepeatsExactly`); provider-backed delta and later stages NOT_PRODUCED |
 
 ## Remaining work and promotion boundary

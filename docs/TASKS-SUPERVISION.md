@@ -21,6 +21,20 @@ Every stage effort must be admitted by the policy: a new program is refused befo
 record, and an existing one is re-checked before each stage launch, so a narrowed policy never
 blocks `drain`. A stage still ends at the minimum of `wallSeconds`, the lane `wallClockMinutes`
 and the program's remaining `wallClockMinutes`; expiry returns a resumable WAIT handoff.
+The config `effort` must itself be `low`, `medium` or `high` even when `stageEfforts` overrides
+every stage.
+
+Multi-repository programs (experimental, partial): declare each extra checkout in the policy as
+`supervision.repositories` `{"<name>": {"pathSha256": "<SHA-256 of the absolute path>"}}` (1..8
+names, lowercase letter first, then `[a-z0-9-]`, at most 32 bytes) and list it in the config as
+`"repositories": [{"name": "<name>", "checkout": "<absolute path>"}]`, sorted by name. The program
+records each checkout's common Git identity and current `HEAD` as its base; implement runs in the
+detached sibling worktree `<worktree>@<name>`, which is the only extra Codex writable root. Ticket
+touch paths address extra repositories as `@<name>/...`. Each changed repository gets a candidate
+commit under its `refs/corvint/tasks/`, and the program candidate is a composite tree (`.queue` plus
+one gitlink per repository) that review binds. Gates and integration of such programs are refused
+until a later slice defines cross-repository landing; operator checkouts are never moved. See
+[S21](specs/corvint-tasks-agent-leases-v0.md#s21--multi-repository-supervised-programs-issue-354-partial).
 
 ```sh
 corvint-tasks run --program migration --config supervisor.json --role implementer --count 3 --host codex

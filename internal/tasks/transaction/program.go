@@ -61,7 +61,7 @@ func planProgram(c leaseContext) leaseOutcome {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeUnsupported, "supervised profile is not enabled in policy")
 	}
 	if at < 0 {
-		if next.Phase != "ADMITTED" || next.Epoch != 1 || next.LeaderPID != 0 {
+		if next.Phase != "ADMITTED" || next.Epoch != 1 || next.LeaderPID != 0 || !freshRepositories(next.Repositories) {
 			return c.fail(malformed("new program admission"))
 		}
 		state.Entries = append(state.Entries, next)
@@ -96,6 +96,9 @@ func planProgram(c leaseContext) leaseOutcome {
 		recovering := old.OwnerPID != next.OwnerPID || old.OwnerStarted != next.OwnerStarted
 		if old.ConfigSHA256 != next.ConfigSHA256 || (!reassign && old.Base != next.Base) || old.Group != next.Group || old.StartedAt != next.StartedAt {
 			return c.recordProgramRefusal("immutable program binding differs")
+		}
+		if !sameRepositories(old.Repositories, next.Repositories, reassign) {
+			return c.recordProgramRefusal("immutable repository binding differs")
 		}
 		if recovering {
 			safePhase := (old.Phase == "FINISHED" || old.Phase == "ADMITTED" || old.Phase == "WORKTREE_ADD" || old.Phase == "READY") && next.Phase == old.Phase
@@ -206,4 +209,34 @@ func planProgram(c leaseContext) leaseOutcome {
 
 func (c leaseContext) recordProgramRefusal(reason string) leaseOutcome {
 	return c.refuse(mutation.OutcomeRevisionConflict, wire.CodeFenced, reason)
+}
+
+// freshRepositories reports whether a newly admitted program's extra
+// repositories carry no candidate yet (CAL-V0-071).
+func freshRepositories(repos []snapshot.RepositoryRecord) bool {
+	for _, r := range repos {
+		if r.Candidate != "" {
+			return false
+		}
+	}
+	return true
+}
+
+// sameRepositories keeps a program's extra repository set, checkouts and Git
+// identities immutable; a base moves only on reassignment, which also clears
+// the candidate (CAL-V0-071, CAL-V0-072).
+func sameRepositories(old, next []snapshot.RepositoryRecord, reassign bool) bool {
+	if len(old) != len(next) {
+		return false
+	}
+	for i := range old {
+		o, n := old[i], next[i]
+		if o.Name != n.Name || o.Checkout != n.Checkout || o.CommonIdentity != n.CommonIdentity {
+			return false
+		}
+		if reassign && n.Candidate != "" || !reassign && o.Base != n.Base {
+			return false
+		}
+	}
+	return true
 }
