@@ -1392,10 +1392,11 @@ later host such as OpenCode (V1-0756) adds one entry; it does not change the lif
   reservation, and a replacement that reopens the program with its original config and pin and
   cancels it releases them. After the cancel the claim is already released and a reopen reassigns
   the program.
-  Known limit: an owner that dies before the `FINISHED` record leaves the program `STOPPING`.
-  `STOPPING` is not a safe takeover phase, and recovery evidence covers only an attempt that still
-  has a worker and a retained leader boot record, which a refused launch never writes. A
-  replacement is therefore refused, and the attempt keeps its claim and reservation. Closing this
+  Known limit: an owner that dies before the `FINISHED` record leaves the program `SPAWNING`, if it
+  dies before the settlement starts, or `STOPPING` after that. Neither is a safe takeover phase, and
+  recovery evidence covers only an attempt that still has a worker and a retained leader boot
+  record, which a refused launch never writes. A replacement is therefore refused, and the attempt
+  keeps its claim and reservation. Closing this
   window needs a combined attempt and program transition, or a takeover rule that admits a bound,
   stopped and quiescent attempt; both change the transaction contract. A failure after the
   fork never settles as `NO_EXEC`, even when it carries no outcome class: it keeps the drain result,
@@ -1626,7 +1627,7 @@ The experimental `RUN_OUTCOME` observation verb is amended in by `corvint-tasks-
 | Pinned executable is a symlink or lacks an execute bit | Admission takes a lease for a stage that launch refuses, leaving the worker unresolved | Admission runs the launch-time check and refuses `CAPABILITY_UNAVAILABLE` before any record; a later refusal before the leader fork settles the stage `NO_EXEC` and cancels the attempt (CAL-V0-074) |
 | Pinned executable replaced between the leader's check and its acknowledgment | Unchecked bytes would run | The leader runs the verified object: a root-protected path with no ACL on it or any ancestor, or a private copy of the verified bytes (CAL-V0-074) |
 | Owner dies after a launch refusal's `FINISHED` record and before its owner release | The program stays `FINISHED` and unreleased; before the cancel the stopped attempt keeps its claim and reservation | A replacement process takes over the `FINISHED` program once the owner is gone, then cancels the attempt or, after the cancel, reassigns the program (CAL-V0-074) |
-| Owner dies after a launch refusal's dispatch and before its `FINISHED` record | The program stays `STOPPING` and the attempt keeps its claim and reservation | Known limit: a replacement is refused, because `STOPPING` is not a safe takeover phase and no leader boot record exists to recover; closing it needs a transaction contract change (CAL-V0-074) |
+| Owner dies after a launch refusal's dispatch and before its `FINISHED` record | The program stays `SPAWNING` (before the settlement starts) or `STOPPING`, and the attempt keeps its claim and reservation | Known limit: a replacement is refused, because neither phase is safe for takeover and no leader boot record exists to recover; closing it needs a transaction contract change (CAL-V0-074) |
 | Leader fails after the fork with no outcome class, and its drain is unproved | A spawned host would be recorded as never run and its claim released | Only a pre-fork refusal settles `NO_EXEC`; the attempt stays in `BLOCKED_RECOVERY` (CAL-V0-074) |
 | Policy host changes under an existing idle or completed program | A reopen would reassign and claim work under the old host | Reopen refuses `UNSUPPORTED` before reassignment, claim or attach; a live attempt keeps drain and cancel only (CAL-V0-074) |
 | Runtime pin changes while a drained `claude-code` attempt is live | Its claim and reservation would be stranded behind a config the new pin refuses | Rollback cancels every program, drained ones included, before the pin changes; a missed one is recovered by re-pinning its runtime to cancel it (CAL-V0-074) |

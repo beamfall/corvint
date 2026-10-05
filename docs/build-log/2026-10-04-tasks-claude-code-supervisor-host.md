@@ -255,3 +255,10 @@ P2, confirmed by test before the decision.
   freed". The same test fails when run alone on base `ce4ae150`, in two of three runs, so the
   failure predates this lane.
 
+### Review round 6
+
+Codex reviewed `83944dba..f6356fd9`. Verdict: `APPROVE_WITH_NITS`. Its one P3 noted that an owner
+that dies after dispatch and before the settlement starts leaves the program `SPAWNING`, not
+`STOPPING`. The S22 known limit and the failure-table row now name both phases. The safety outcome is
+unchanged: the replacement is refused and the claim is held.
+
