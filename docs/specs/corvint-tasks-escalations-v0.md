@@ -20,7 +20,7 @@ adopt the 500 and 501 intents only.
 - Claim: Workers raise typed questions from admitted claims, operators answer them by compare-and-set, and the next same-acceptance claim receives the answers.
 - Status: proposed overall; Gate A decisions accepted (decision 0428, owner answer 2026-10-04); experimental delivery of the pure four-file foundation, the optional record key and derived `ESCALATION_PENDING` admission holds only; no installed escalation capability.
 - Exists: closed request/event/reference codecs and a pure reducer with answer selection, derived holds, effective work revision, coded refusals and a per-call decode memo, plus focused tests and a near-capacity benchmark. The native ticket record carries the optional tool-owned `escalations` key: ordinary mutations and re-import keep it, ADOPT_FILE, CREATE and import cannot set or change it, and Core's read-only planner validates it. A current OPEN decision, scope or blocked question is a derived `ESCALATION_PENDING` hold, computed by one shared `internal/tasks/wire` predicate in native eligibility, direct claim, claim-next, recorded claimability, Core's planner and dispatch status; a refusal names the sorted request IDs (at most 16). Nothing writes the key yet.
-- Blocked on: the native writer with its stage/material/replay integration, CLI, the 501 claim-snapshot path, dispatcher retry, the dispatcher's typed-policy hold and 499 tier composition.
+- Blocked on: the native writer with its stage/material/replay integration, CLI, the 501 claim-snapshot path, dispatcher retry and 499 tier composition.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.
 
 ## User and current state
@@ -100,9 +100,11 @@ StageLease and dispatch ledger limits (16 MiB, 8192 histories).
 The deliveries so far supply focused evidence only. ESC-V0-006's derived hold is applied on the native
 read and claim paths over hand-built records; every witness that needs a native writer is NOT_RUN.
 
-TCP-00 §11 amendment: ESC-V0-006 adds `ESCALATION_PENDING` to the closed detail codes. With the
-71 codes after the leases spec's A17 the extended set contains 72. A reader built before this
-code refuses a record or plan carrying it; only a writer-produced reference can make it appear.
+TCP-00 §11 amendment (owner-accepted 2026-10-05, recorded on V1-0699 at receipt 2749): ESC-V0-006
+adds `ESCALATION_PENDING` to the closed detail codes. With the 71 codes after the leases spec's A17
+the extended set contains 72. The owner also accepted the compatibility cost: a Tasks reader built
+before this code refuses a record or plan carrying it. Only a writer-produced reference can make it
+appear.
 
 | Requirement | Parent intent | Implementation boundary | Delivered evidence | Required integrated evidence (NOT_RUN) |
 |---|---|---|---|---|
@@ -111,7 +113,7 @@ code refuses a record or plan carrying it; only a writer-produced reference can 
 | ESC-V0-003 | ESC502-003 | reducer; native writer | `TestIssue502_SupersessionAndCapacity` (paired supersession, last-slot refusal, cross-source `SUPERSESSION_SOURCE`); `TestIssue502_ImmutableClaimAnswerSelection` (stale acceptance excluded); `TestIssue502_StaleOpenReleasesCapacity` (stale OPEN stays visible, holds nothing, refuses an answer) | acceptance edit yields STALE across show/plan/claim; administrative route |
 | ESC-V0-004 | ESC502-004 | reducer; native writer; CLI | `TestIssue502_QuestionAnswerCASAndReplay` (ambiguous shorthand naming its open questions, exact CAS, Q1-answer then Q2-open shorthand replay, changed-selector conflict) | real writer race with one winner, compiled CLI |
 | ESC-V0-005 | ESC502-005 | lease admission; original-receipt materializer | `TestIssue502_ImmutableClaimAnswerSelection` (pinned selection, guidance capacity) | original claim snapshot after concurrent answers, missing-receipt replay, 1 MiB output |
-| ESC-V0-006 | ESC502-006 | shared wire predicate; native eligibility, claim and claim-next; Core planner; dispatch status | `TestIssue502_TypedDispositionAndWorkRevision` (four kinds, held vs infrastructure IDs); `TestIssue502_EscalationPendingPredicate` (wire predicate: four kinds, stale, answered, superseded, unknown kind, noncanonical revision, sorted and deduplicated, 20 current questions bounded to 16); `TestIssue502_EscalationPendingView` (native eligibility blocks as `ESCALATION_PENDING` naming sorted IDs with next action `answer`; stale, infrastructure, answered and superseded admit; the record is unchanged; writes the shared case fixture); `TestIssue502_ClaimHonoursEscalationHold` (eligibility, direct claim, claim-next, recorded claimability and plan all refuse with sorted IDs and write nothing; admitted cases claim; claim-next passes over a held ticket; sixteen current IDs named); Core `TestIssue502_HoldAgreement` (Core's planner names the same holds as the Tasks reader for every shared case and blocks as `ESCALATION_PENDING`) and `TestIssue502_PlannerBlocksUnmodelledConstraints`; `TestIssue502_DispatchStatusShowsEscalationPending` (status lists held tickets from the dispatcher's own ledger, sorted, apart from parked) | a reference written by the native writer held and released through every path; request IDs, kinds and ages in dispatch status (ESC-V0-009); the dispatcher's own roster hold for roles that do not require a selected plan |
+| ESC-V0-006 | ESC502-006 | shared wire predicate; native eligibility, claim and claim-next; Core planner; dispatcher roster, launch and status | `TestIssue502_TypedDispositionAndWorkRevision` (four kinds, held vs infrastructure IDs); `TestIssue502_EscalationPendingPredicate` (wire predicate: four kinds, stale, answered, superseded, unknown kind, noncanonical revision, sorted and deduplicated, 20 current questions bounded to 16); `TestIssue502_EscalationPendingView` (native eligibility blocks as `ESCALATION_PENDING` naming sorted IDs with next action `answer`; stale, infrastructure, answered and superseded admit; the record is unchanged; writes the shared case fixture); `TestIssue502_ClaimHonoursEscalationHold` (eligibility, direct claim, claim-next, recorded claimability and plan all refuse with sorted IDs and write nothing; admitted cases claim; claim-next passes over a held ticket; sixteen current IDs named); Core `TestIssue502_HoldAgreement` (Core's planner names the same holds as the Tasks reader for every shared case and blocks as `ESCALATION_PENDING`) and `TestIssue502_PlannerBlocksUnmodelledConstraints`; `TestIssue502_DispatchStatusShowsEscalationPending` (status lists held tickets with sorted request IDs from the dispatcher's own ledger, apart from parked); `TestIssue502_DispatchNeverLaunchesForEscalationHold` (the native observation carries decision, scope and blocked holds; no role, with or without a selected-plan requirement, rosters the ticket and no session launches; stale, answered, superseded and infrastructure questions launch); `TestIssue502_DispatchStatusKeepsHoldBehindOtherBlockers` (with pool, pause and ordinary-hold primary reasons, the hold survives the observation, ledger and status and is never rostered) | a reference written by the native writer held and released through every path; kinds and ages in dispatch status (ESC-V0-009) |
 | ESC-V0-007 | ESC502-007 | dispatch ledger, loop and status | none | restart before/after spawn, failed save, duplicate session, final allowed and next exhausted launch, cooldown caps |
 | ESC-V0-008 | ESC502-008 | dispatch roster/fingerprint; 499 tiers | `TestIssue502_TypedDispositionAndWorkRevision` (control vs work revision) | refine/escalate/answer sequence, mixed 499 tier witness |
 | ESC-V0-009 | ESC502-009 | CLI reads; dispatch status | none | pagination, cursors, age and clock, program UNKNOWN, reads do not mutate |
@@ -126,7 +128,9 @@ question rather than one question per ticket; sole-open-at-commit shorthand next
 blocked reason defaulting to the explicitly typed question; infrastructure exhaustion as a distinct
 visible automation hold; the typed-control workRevision exclusion; and the optional-reference
 capacities, including the 16-open bound counting only the current acceptance revision, with a
-specialized StageLease shape. Kill criterion: if the typed-event stage cannot fit
+specialized StageLease shape. On 2026-10-05 the owner also accepted the TCP-00 §11 amendment adding
+`ESCALATION_PENDING` (72 codes) and its reader-compatibility cost (V1-0699 receipt 2749); see
+Acceptance evidence and traceability. Kill criterion: if the typed-event stage cannot fit
 existing StageLease bounds, revise this contract rather than widen the bounds or bypass them.
 
 Findings from the independent review of the first delivery and their disposition:
@@ -158,7 +162,9 @@ without it keeps its exact bytes, so rollback is reverting that change; a store 
 with the key would then refuse it as an unknown key. That cannot happen before the writer slice.
 The holds slice adds the `ESCALATION_PENDING` code and derives it on read and claim paths without
 writing anything; rollback is reverting that change, after which Core's planner again blocks such a
-ticket as `TICKET_STATE` and native claims stop honouring the hold.
+ticket as `TICKET_STATE` and native claims stop honouring the hold. Its dispatcher ledger key
+`seen.escalations` is optional; a dispatcher built before it refuses a ledger saved while a hold was
+observed, so a downgrade first removes that program's ledger `state.json` or waits for a save with no hold.
 Later slices rebase onto current main and integrate in order: codecs, writer and material, holds,
 CLI and reads, 501 claim delivery, then dispatcher retry with 499 composition. Once writes exist,
 rollback disables new mutations and automation but keeps readers, references, questions, answers

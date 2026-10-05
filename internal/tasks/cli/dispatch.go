@@ -272,7 +272,7 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 	o.Set("parked", wire.Strings(parked))
 	o.Set("cooling", wire.Value{Kind: wire.KindArray, Arr: cooling})
 	if held := dispatchEscalationPending(l); len(held) > 0 {
-		o.Set("escalationPending", wire.Strings(held))
+		o.Set("escalationPending", wire.Value{Kind: wire.KindArray, Arr: held})
 	}
 	if c.Escalates() {
 		o.Set("escalation", dispatchEscalationValue(c, l))
@@ -398,19 +398,7 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 		if err != nil {
 			return err
 		}
-		plan := transaction.PriorityFirst(in)
-		planned := map[string]transaction.PlanEntry{}
-		for _, e := range plan.Entries {
-			planned[e.Ticket.TicketID.Raw] = e
-		}
-		for _, id := range rc.store.Inventory.IDs() {
-			r, _ := rc.store.Inventory.Get(id)
-			t := dispatch.Ticket{ID: r.TicketID.Raw, Local: r.TicketID.Local, Status: r.Status, Priority: r.Priority, Kind: r.Kind, Revision: string(r.Revision), Order: uint64(r.Order.Int()), Labels: r.Labels}
-			if e, ok := planned[id]; ok {
-				t.Plan, t.PlanReason = e.State, e.Reason
-			}
-			obs.Tickets = append(obs.Tickets, t)
-		}
+		obs.Tickets = dispatchTickets(in)
 		for _, a := range in.Attempts {
 			x := dispatch.Attempt{ID: a.AttemptID, Ticket: a.TicketID.Raw, Phase: a.Phase, Stage: a.Stage, Generation: string(a.Generation), Live: a.Live(), Gates: len(a.GateResults), Reviews: len(a.Reviews)}
 			if a.CandidateTreeOid != nil {
@@ -464,20 +452,48 @@ func leaseOutcome(r *wire.Result) error {
 	return fmt.Errorf("%s %s: %s", r.Outcome, strings.Join(r.Codes, ","), strings.Join(r.Warnings, "; "))
 }
 
-// dispatchEscalationPending lists, sorted, the tickets the dispatcher's last
-// native plan observation reported as ESCALATION_PENDING (ESC-V0-006). It is
-// the dispatcher's recorded observation, separate from parked keys: status
-// reads no native store, and the native claim path enforces the hold itself.
-func dispatchEscalationPending(l *dispatch.Ledger) []string {
+// dispatchEscalationPending lists, by ticket, the request IDs of each
+// ESC-V0-006 hold in the dispatcher's last native observation. The hold is
+// kept apart from the plan reason, so a ticket first blocked by another
+// reason still shows it; status reads no native store, and both the roster
+// and the native claim path enforce the hold themselves.
+func dispatchEscalationPending(l *dispatch.Ledger) []wire.Value {
 	if l.Seen == nil {
 		return nil
 	}
-	held := []string{}
-	for id, seen := range l.Seen.Tickets {
-		if f := strings.Split(seen, "|"); len(f) == 4 && f[3] == wire.CodeEscalationPending {
-			held = append(held, id)
-		}
+	ids := make([]string, 0, len(l.Seen.Escalations))
+	for id := range l.Seen.Escalations {
+		ids = append(ids, id)
 	}
-	sort.Strings(held)
+	sort.Strings(ids)
+	held := []wire.Value{}
+	for _, id := range ids {
+		x := wire.NewObject()
+		x.Set("ticket", wire.String(id))
+		x.Set("requests", wire.Strings(l.Seen.Escalations[id]))
+		held = append(held, wire.Value{Kind: wire.KindObject, Obj: x})
+	}
 	return held
+}
+
+// dispatchTickets is the ticket half of the native observation: each
+// ticket's plan state and primary reason, plus its ESC-V0-006 hold derived
+// apart from that reason, so a hold behind another blocker still reaches the
+// roster and status.
+func dispatchTickets(in transaction.PlanInput) []dispatch.Ticket {
+	planned := map[string]transaction.PlanEntry{}
+	for _, e := range transaction.PriorityFirst(in).Entries {
+		planned[e.Ticket.TicketID.Raw] = e
+	}
+	var out []dispatch.Ticket
+	for _, id := range in.Tickets.IDs() {
+		r, _ := in.Tickets.Get(id)
+		t := dispatch.Ticket{ID: r.TicketID.Raw, Local: r.TicketID.Local, Status: r.Status, Priority: r.Priority, Kind: r.Kind, Revision: string(r.Revision), Order: uint64(r.Order.Int()), Labels: r.Labels}
+		if e, ok := planned[id]; ok {
+			t.Plan, t.PlanReason = e.State, e.Reason
+		}
+		t.EscalationPending = r.EscalationPending()
+		out = append(out, t)
+	}
+	return out
 }

@@ -82,6 +82,9 @@ type Seen struct {
 	Tickets map[string]string `json:"tickets"`
 	Claims  map[string]string `json:"claims"`
 	Lanes   map[string]string `json:"lanes"`
+	// Escalations keeps each ESC-V0-006 held ticket's request IDs, apart from
+	// its plan reason, so status shows a hold behind another blocker.
+	Escalations map[string][]string `json:"escalations,omitempty"`
 }
 
 // Ledger is the dispatcher's private taskman-dispatch-state/0 file. It is

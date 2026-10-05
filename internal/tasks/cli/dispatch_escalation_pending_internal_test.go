@@ -1,17 +1,17 @@
 package cli
 
 import (
-	"slices"
 	"testing"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// ESC-V0-006: dispatch status names, sorted and apart from parked keys, the
-// tickets its last native plan observation held as ESCALATION_PENDING. It
-// reads only the dispatcher's own ledger, and a ledger with no such ticket
-// keeps the previous status shape.
+// ESC-V0-006: dispatch status names, sorted by ticket and apart from parked
+// keys and plan reasons, the request IDs of each hold the dispatcher's last
+// native observation recorded. It reads only the dispatcher's own ledger,
+// and a ledger with no hold keeps the previous status shape.
 func TestIssue502_DispatchStatusShowsEscalationPending(t *testing.T) {
 	now := time.Now()
 	l := &dispatch.Ledger{Program: "prog", Backoff: map[string]*dispatch.BackoffState{"ticket:a:q:t9": {Parked: true}}}
@@ -19,27 +19,20 @@ func TestIssue502_DispatchStatusShowsEscalationPending(t *testing.T) {
 		t.Fatal("a ledger with no observation shows escalation holds")
 	}
 	l.Seen = &dispatch.Seen{Tickets: map[string]string{
-		"ticket:a:q:t3": "OPEN|ready|BLOCKED|ESCALATION_PENDING",
+		"ticket:a:q:t3": "OPEN|ready|BLOCKED|RESOURCE_COLLISION",
 		"ticket:a:q:t1": "OPEN|ready|BLOCKED|ESCALATION_PENDING",
-		"ticket:a:q:t2": "OPEN|ready|SELECTED|DEVELOPMENT_MODE",
-		"ticket:a:q:t4": "HELD|ready|BLOCKED|TICKET_HELD",
-		"ticket:a:q:t5": "OPEN|UNKNOWN|UNKNOWN|ESCALATION_PENDING|extra",
-	}}
+		"ticket:a:q:t2": "OPEN|ready|BLOCKED|ESCALATION_PENDING",
+	}, Escalations: map[string][]string{"ticket:a:q:t3": {"q-c"}, "ticket:a:q:t1": {"q-a", "q-b"}}}
 	v := dispatchStatusValue(&dispatch.Config{}, t.TempDir(), l, nil, now)
 	held, ok := statusField(t, v, "escalationPending")
-	var got []string
-	for _, x := range held.Arr {
-		got = append(got, x.Str)
-	}
-	if !ok || !slices.Equal(got, []string{"ticket:a:q:t1", "ticket:a:q:t3"}) {
-		t.Fatalf("escalationPending = %v", got)
+	if want := `[{"requests":["q-a","q-b"],"ticket":"ticket:a:q:t1"},{"requests":["q-c"],"ticket":"ticket:a:q:t3"}]`; !ok || string(wire.Encode(held)) != want {
+		t.Fatalf("escalationPending = %s", wire.Encode(held))
 	}
 	parked, _ := statusField(t, v, "parked")
 	if len(parked.Arr) != 1 || parked.Arr[0].Str != "ticket:a:q:t9" {
 		t.Fatalf("parked = %+v", parked)
 	}
-	delete(l.Seen.Tickets, "ticket:a:q:t1")
-	delete(l.Seen.Tickets, "ticket:a:q:t3")
+	l.Seen.Escalations = nil
 	if _, ok := statusField(t, dispatchStatusValue(&dispatch.Config{}, t.TempDir(), l, nil, now), "escalationPending"); ok {
 		t.Fatal("an answered hold still shows")
 	}
