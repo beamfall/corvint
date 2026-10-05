@@ -52,6 +52,7 @@ var leaseValueFlags = map[string]bool{
 	"--pool": true, "--stage": true, "--member": true, "--allocation": true, "--evidence": true,
 	"--request-id": true, "--role": true, "--holder": true, "--lease-minutes": true, "--branch": true,
 	"--base": true, "--attempt": true, "--generation": true, "--reason": true,
+	"--handoff-to": true, "--handoff-reason": true,
 	"--tree": true, "--gate": true, "--commit": true, "--worktree": true,
 }
 
@@ -128,7 +129,7 @@ func (a leaseArgs) request(verb, queueID string) (transaction.LeaseRequest, erro
 	if a.next {
 		verb = transaction.LeaseClaimNext
 	}
-	req := transaction.LeaseRequest{LaneUntouched: a.laneUntouched, Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), ExcludeMembers: scopePaths(a.excluded), WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), Reason: a.values["--reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"]}
+	req := transaction.LeaseRequest{LaneUntouched: a.laneUntouched, Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), ExcludeMembers: scopePaths(a.excluded), WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), Reason: a.values["--reason"], HandoffTo: a.values["--handoff-to"], HandoffReason: a.values["--handoff-reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"]}
 	if verb == transaction.LeaseClaim {
 		if len(a.pos) != 1 {
 			return req, wire.Errorf(wire.CodeMalformed, "argv", "claim takes exactly one ticket id or local token")
@@ -156,6 +157,11 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	}
 	if evidence, supplied := parsed.values["--evidence"]; name == "release" && supplied && evidence == "" {
 		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "evidence", "handoff reference must be a nonempty Identifier"))
+	}
+	for _, flag := range []string{"--handoff-to", "--handoff-reason"} {
+		if value, supplied := parsed.values[flag]; supplied && (name != "release" || value == "") {
+			return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "%s belongs to release and needs a value", flag))
+		}
 	}
 	worktree, hasWorktree := parsed.values["--worktree"]
 	if hasWorktree && name != "gate run" {

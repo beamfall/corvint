@@ -1,6 +1,8 @@
 package snapshot
 
 import (
+	"slices"
+
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -72,10 +74,58 @@ type PriorGeneration struct {
 type GenerationHistory struct {
 	Stage            *string
 	PoolID, MemberID *string
+	// HandoffTo and HandoffReason are the CAL-V0-082 recorded hand-off of
+	// the ended generation; empty when it recorded none.
+	HandoffTo, HandoffReason string
 }
 
 // historyKeys are the CAL-V0-079 keys a prior generation carries together.
 var historyKeys = []string{"stage", "poolId", "memberId"}
+
+// HandoffReasons is the closed CAL-V0-083 `--handoff-reason` set.
+var HandoffReasons = []string{"CHANGES_REQUESTED", "STAGE_COMPLETE", "STAGE_INCOMPLETE"}
+
+// CheckHandoffTarget enforces CAL-V0-082/083 for a clean disposition of a
+// generation that held stage: the target is a stage role, REVIEW_RETURNED
+// targets implement, a reason needs a target, CHANGES_REQUESTED returns
+// another stage's work to implement, STAGE_INCOMPLETE continues the same
+// stage and STAGE_COMPLETE moves to another one.
+func CheckHandoffTarget(where, disposition, stage, to, reason string) error {
+	bad := func(detail string) error { return wire.Errorf(wire.CodeMalformed, where, "%s", detail) }
+	if to == "" {
+		if reason != "" {
+			return bad("a handoff reason requires a handoff target")
+		}
+		return nil
+	}
+	if disposition != wire.CodeHandoff && disposition != wire.CodeReviewReturned {
+		return bad("a handoff target requires a HANDOFF or REVIEW_RETURNED release")
+	}
+	if !slices.Contains(intent.StageRoles, to) {
+		return bad("handoff target is not implement, review or integrate")
+	}
+	if disposition == wire.CodeReviewReturned && to != "implement" {
+		return bad("REVIEW_RETURNED hands off to implement")
+	}
+	switch reason {
+	case "":
+	case "CHANGES_REQUESTED":
+		if to != "implement" || stage == "implement" {
+			return bad("CHANGES_REQUESTED returns review or integrate work to implement")
+		}
+	case "STAGE_INCOMPLETE":
+		if to != stage {
+			return bad("STAGE_INCOMPLETE hands off to the same stage")
+		}
+	case "STAGE_COMPLETE":
+		if to == stage {
+			return bad("STAGE_COMPLETE hands off to another stage")
+		}
+	default:
+		return bad("unknown handoff reason")
+	}
+	return nil
+}
 
 // RetryAccounting records prospective generation-local observations. It is absent
 // from legacy records. Supervised attempts may retain it after attachment, but
@@ -91,6 +141,10 @@ const ProfileRetryAccounting = "taskman-retry-accounting/0"
 type Attempt struct {
 	DirectPoolAdmission      *DirectPoolAdmission
 	LaneUntouchedAttestation *LaneUntouchedAttestation
+
+	// HandoffTo and HandoffReason are the CAL-V0-082/083 recorded target of
+	// a clean terminal hand-off; empty when none was recorded.
+	HandoffTo, HandoffReason string
 
 	LastHeartbeatAt         *wire.Timestamp
 	RetryReasons            map[string]wire.Count
@@ -133,6 +187,22 @@ type Attempt struct {
 	PriorGenerations        []PriorGeneration
 	Lease                   *Lease
 	Scope                   *Scope
+}
+
+// NextStage is the CAL-V0-084 recorded next stage of this generation: the
+// recorded target of a clean terminal hand-off, implement for a
+// REVIEW_RETURNED without one, and empty otherwise.
+func (a *Attempt) NextStage() string {
+	if a.Live() || a.RetryAccounting == nil || (a.RetryAccounting.Disposition != wire.CodeHandoff && a.RetryAccounting.Disposition != wire.CodeReviewReturned) {
+		return ""
+	}
+	if a.HandoffTo != "" {
+		return a.HandoffTo
+	}
+	if a.RetryAccounting.Disposition == wire.CodeReviewReturned {
+		return "implement"
+	}
+	return ""
 }
 
 // Live reports whether the attempt is in a non-terminal phase.
@@ -225,12 +295,40 @@ func readBudget(r *wire.Reader) map[string]BudgetField {
 func readPriorGenerations(r *wire.Reader) []PriorGeneration {
 	out := []PriorGeneration{}
 	for _, p := range r.Array(-1, true) {
-		p.Closed(wire.OptionalKeys(p.Value(), []string{"generation", "quiescence", "provedSeq"}, historyKeys...)...)
+		p.Closed(wire.OptionalKeys(p.Value(), []string{"generation", "quiescence", "provedSeq"}, append(append([]string{}, historyKeys...), "handoffTo", "handoffReason")...)...)
 		g := PriorGeneration{Generation: p.Field("generation").Size(), Quiescence: p.Field("quiescence").Enum("PROVED", "FENCED"), ProvedSeq: p.Field("provedSeq").Size()}
 		g.History = readGenerationHistory(p)
+		readPriorHandoff(p, g.History)
 		out = append(out, g)
 	}
 	return out
+}
+
+// readPriorHandoff reads the optional CAL-V0-082 hand-off keys of one prior
+// generation. They need recorded history, and the decoder cannot see the
+// ended generation's disposition, so only the stage rules are rechecked.
+func readPriorHandoff(p *wire.Reader, h *GenerationHistory) {
+	hasTo, hasReason := wire.Has(p.Value(), "handoffTo"), wire.Has(p.Value(), "handoffReason")
+	if !hasTo && !hasReason {
+		return
+	}
+	if h == nil || h.Stage == nil {
+		p.Fail(wire.CodeMalformed, "a prior handoff target requires a recorded stage")
+		return
+	}
+	if !hasTo {
+		p.Fail(wire.CodeMalformed, "a handoff reason requires a handoff target")
+		return
+	}
+	h.HandoffTo = p.Field("handoffTo").Enum(intent.StageRoles...)
+	if hasReason {
+		h.HandoffReason = p.Field("handoffReason").Enum(HandoffReasons...)
+	}
+	if p.Err() == nil {
+		if err := CheckHandoffTarget(p.Where(), wire.CodeHandoff, *h.Stage, h.HandoffTo, h.HandoffReason); err != nil {
+			p.Fail(wire.CodeMalformed, "%s", err.Error())
+		}
+	}
 }
 
 // readGenerationHistory reads the CAL-V0-079 keys of one prior generation:
@@ -268,7 +366,7 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
-	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation", "supervision", "retryAccounting", "handoffEvidence", "lastHeartbeatAt", "retryReasons", "directPoolAdmission", "laneUntouchedAttestation")...)
+	r.Closed(wire.OptionalKeys(v, attemptFields, "stage", "poolAllocation", "supervision", "retryAccounting", "handoffEvidence", "handoffTo", "handoffReason", "lastHeartbeatAt", "retryReasons", "directPoolAdmission", "laneUntouchedAttestation")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -296,6 +394,12 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 	}
 	if wire.Has(v, "handoffEvidence") {
 		a.HandoffEvidence = r.Field("handoffEvidence").Identifier()
+	}
+	if wire.Has(v, "handoffTo") {
+		a.HandoffTo = r.Field("handoffTo").Enum(intent.StageRoles...)
+	}
+	if wire.Has(v, "handoffReason") {
+		a.HandoffReason = r.Field("handoffReason").Enum(HandoffReasons...)
 	}
 	if wire.Has(v, "retryAccounting") {
 		x := r.Field("retryAccounting")
@@ -392,6 +496,15 @@ func (a *Attempt) check() error {
 			return wire.Errorf(wire.CodeMalformed, "/retryAccounting", "clean disposition differs from terminal handoff facts")
 		}
 	}
+	if a.HandoffTo != "" || a.HandoffReason != "" {
+		disposition := ""
+		if clean {
+			disposition = a.RetryAccounting.Disposition
+		}
+		if err := CheckHandoffTarget("/handoffTo", disposition, a.Stage, a.HandoffTo, a.HandoffReason); err != nil {
+			return err
+		}
+	}
 	external := a.RuntimeID == RuntimeExternalAgent
 	supervised := a.RuntimeID == SupervisedProfile
 	if (external || supervised) != (a.Lease != nil) || (external || supervised) != (a.Scope != nil) {
@@ -467,6 +580,12 @@ func priorValue(ps []PriorGeneration) wire.Value {
 		o := wire.NewObject().Set("generation", wire.String(string(p.Generation))).Set("quiescence", wire.String(p.Quiescence)).Set("provedSeq", wire.String(string(p.ProvedSeq)))
 		if h := p.History; h != nil {
 			o.Set("stage", wire.StringOrNull(h.Stage)).Set("poolId", wire.StringOrNull(h.PoolID)).Set("memberId", wire.StringOrNull(h.MemberID))
+			if h.HandoffTo != "" {
+				o.Set("handoffTo", wire.String(h.HandoffTo))
+			}
+			if h.HandoffReason != "" {
+				o.Set("handoffReason", wire.String(h.HandoffReason))
+			}
 		}
 		vs = append(vs, wire.ObjectValue(o))
 	}
@@ -494,6 +613,12 @@ func (a *Attempt) Encode() ([]byte, error) {
 	}
 	if a.HandoffEvidence != "" {
 		o.Set("handoffEvidence", wire.String(a.HandoffEvidence))
+	}
+	if a.HandoffTo != "" {
+		o.Set("handoffTo", wire.String(a.HandoffTo))
+	}
+	if a.HandoffReason != "" {
+		o.Set("handoffReason", wire.String(a.HandoffReason))
 	}
 	if a.RetryAccounting != nil {
 		x := a.RetryAccounting

@@ -232,6 +232,30 @@ supervised attempts cannot receive this exemption. A `policy update` changes the
 in-flight handoffs refuse STALE_POLICY; do not update policy expecting it to repair those attempts.
 There is no automatic refund or stale-policy bypass.
 
+### Name the next stage
+
+A clean `HANDOFF` or `REVIEW_RETURNED` release may record which stage should run next, with an
+optional reason from a closed set:
+
+```sh
+corvint-tasks release --attempt "$attempt" --generation "$generation" \
+  --request-id handoff-b --reason HANDOFF --handoff-to review --handoff-reason STAGE_COMPLETE
+```
+
+`--handoff-to` takes `implement`, `review` or `integrate`. `--handoff-reason` takes
+`CHANGES_REQUESTED` (back to implement, never from implement), `STAGE_INCOMPLETE` (the same stage)
+or `STAGE_COMPLETE` (a different stage), and needs `--handoff-to`. `REVIEW_RETURNED` may target
+only `implement`, which is also its default. Other combinations, and either flag on any other
+release or verb, refuse MALFORMED. The target is recorded on the terminal attempt as `handoffTo`
+and `handoffReason` and moves into the next generation's `priorGenerations[]` entry. It does not
+change retry accounting.
+
+`ticket show`, `plan preview` and the dispatcher (`{nextStage}` launch placeholder and `launched`
+event) expose the derived `nextStage`: the latest generation's target, `null` (`NONE` in the
+dispatcher) when none is observed, and `STALE` after the acceptance revision changed. It is
+advisory; claims for another stage are not refused. Older binaries refuse attempt records that
+contain the new keys, so do not downgrade a store after recording a target.
+
 The reviewed experimental issue 482 writer adds a narrow clean-release exception: only
 policyVersion and reservedFor entries for other members in the exact allocated pool may differ.
 No-pool attempts permit version changes only. It must fully audit every intervening policy

@@ -893,7 +893,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		// Program and role names cannot contain '.', so the ID never collides
 		// across programs or roles; the start nonce keeps it unique per run.
 		id := fmt.Sprintf("%s.%s.%d.%s-%d", d.Program, a.Role, a.Slot, d.nonce, d.ledger.LaunchSeq)
-		values := map[string]string{"{program}": d.Program, "{role}": a.Role, "{slot}": strconv.Itoa(a.Slot), "{worker}": id, "{holder}": id, "{ticket}": a.Ticket, "{ticketLocal}": a.Local, "{state}": a.State, "{pool}": a.Pool, "{member}": a.Member, "{workRoot}": d.Config.WorkRoot, "{model}": model}
+		values := map[string]string{"{program}": d.Program, "{role}": a.Role, "{slot}": strconv.Itoa(a.Slot), "{worker}": id, "{holder}": id, "{ticket}": a.Ticket, "{ticketLocal}": a.Local, "{state}": a.State, "{pool}": a.Pool, "{member}": a.Member, "{workRoot}": d.Config.WorkRoot, "{model}": model, "{nextStage}": a.NextStage}
 		values["{prompt}"] = Render(role.Prompt, values)
 		argv := make([]string, len(host.Argv))
 		for i, s := range host.Argv {
@@ -941,6 +941,9 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			d.emit(*escalation)
 		}
 		detail := map[string]string{"host": role.Host, "pid": strconv.Itoa(pid), "slot": strconv.Itoa(a.Slot), "state": a.State}
+		if a.NextStage != "" {
+			detail["nextStage"] = a.NextStage
+		}
 		if model != "" {
 			detail["model"], detail["tier"] = model, strconv.Itoa(a.Tier)
 		}

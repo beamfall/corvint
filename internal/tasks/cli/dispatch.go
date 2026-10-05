@@ -406,6 +406,10 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 			if e, ok := planned[id]; ok {
 				t.Plan, t.PlanReason = e.State, e.Reason
 			}
+			t.NextStage = dispatch.StateNone
+			if s := transaction.NextStage(in.Attempts, r); s.Kind == wire.KindString {
+				t.NextStage = s.Str
+			}
 			obs.Tickets = append(obs.Tickets, t)
 		}
 		for _, a := range in.Attempts {

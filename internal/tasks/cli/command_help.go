@@ -4,6 +4,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -57,7 +59,10 @@ func commandHelp(args []string) *wire.Result {
 			"With --evidence: RUNNING with no candidate, no gate results, scope UNKNOWN and no pending effects; reference uses Identifier grammar (1..128 bytes). Evidence is forbidden for other reasons unless --lane-untouched is supplied, and is forbidden for candidate handoffs.",
 			"Relevant or unproved policy changes fence handoffs with STALE_POLICY. Only policyVersion and other members' reservations in the allocated pool may differ across a fully audited interval. Failed/unknown gates remain sticky; no historical refund.",
 			"A reference is inert caller evidence, not proof of work or physical cleanup. Release removes the reservation and quarantines an allocated pool; it does not grant completion, review or integration authority.",
+			"--handoff-to implement|review|integrate (optional --handoff-reason) records advisory next-stage intent on a clean HANDOFF or REVIEW_RETURNED generation only; REVIEW_RETURNED accepts only implement and defaults to it. Other combinations refuse MALFORMED. Claims for another stage are not refused.",
 		}))
+		o.Set("handoffTargets", wire.Strings(intent.StageRoles))
+		o.Set("handoffReasonCodes", wire.Strings(snapshot.HandoffReasons))
 		o.Set("handoffRefusalCodes", wire.Strings([]string{wire.CodeFenced, wire.CodeStaleTicket, wire.CodeStalePolicy, wire.CodeTicketState, wire.CodeMissingEvidence, wire.CodeMalformed}))
 	}
 	if name == "policy update" {
@@ -127,7 +132,7 @@ var commandUsage = map[string]string{
 	"release readiness": "corvint-tasks release readiness RELEASE",
 	"claim":             "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--role ROLE]",
 	"renew":             "corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N] [--role ROLE]",
-	"release":           "corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--evidence LOCAL_REF] [--lane-untouched] [--role ROLE]; release <create|update|candidate|record-gate|promote|list|show|readiness> --help",
+	"release":           "corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--evidence LOCAL_REF] [--handoff-to STAGE [--handoff-reason CODE]] [--lane-untouched] [--role ROLE]; release <create|update|candidate|record-gate|promote|list|show|readiness> --help",
 	"reap":              "corvint-tasks reap --request-id ID [--attempt ID --generation G] [--role ROLE]",
 	"widen":             "corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository) [--role ROLE]",
 	"attempt heartbeat": "corvint-tasks attempt heartbeat --attempt ID --generation G --request-id ID [--role ROLE]",
