@@ -705,7 +705,8 @@ func forkedWith(t *testing.T, err error, detail string) {
 // over a real history with one receipt altered in memory: question
 // references may change only in one completed escalation transition that
 // posts its request entry, under a recoverable grant, from a retained claim
-// admission, and are never dropped (ESC-V0-010).
+// admission, and are never dropped (ESC-V0-010); an unreferenced event blob
+// is accepted.
 func TestIssue502_EscalationBindingFoldRefusals(t *testing.T) {
 	s, _, src := escalationClaim(t)
 	first := escalate(t, s, holder, openRequest(t, "q-1", src, "", ""), 1)
@@ -772,7 +773,9 @@ func TestIssue502_EscalationBindingFoldRefusals(t *testing.T) {
 			rcs[open-1].RecordedAt = "2999-01-01T00:00:00Z"
 			return rcs
 		}},
-		{"event-without-references", "is an escalation event outside one escalation transition", func(rcs []*snapshot.Receipt) []*snapshot.Receipt {
+		// An event blob that no reference change binds is opaque evidence,
+		// as a gate capturing identical bytes would post it.
+		{"unreferenced-event", "", func(rcs []*snapshot.Receipt) []*snapshot.Receipt {
 			post := ticketPost(rcs[open-1])
 			for _, rc := range slices.Backward(rcs[:open-1]) {
 				for _, p := range rc.Post {

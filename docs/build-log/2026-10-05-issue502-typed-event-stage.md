@@ -51,7 +51,7 @@ every published artifact of a supersession; the retry commits once and redoes ex
 receipt was published), `TestIssue502_ForgedEventRefusesAsJournalDamage` (forged time, question and
 actor pass the generic journal audit; the fold refuses them settled, and the pending redo refuses
 `JOURNAL_FORKED` with head and ticket unchanged), `TestIssue502_EscalationBindingFoldRefusals` (including an extra post, a removed source attempt,
-no matching reservation, an expired lease and an event with unchanged references) and
+no matching reservation, an expired lease, and an unreferenced event accepted) and
 `TestIssue502_SupervisedSinceClaimFoldRefuses`. The existing writer, CLI and dispatcher escalation
 tests pass unchanged.
 
@@ -68,14 +68,20 @@ findings and one minor; all were accepted and fixed in a follow-up commit:
   acceptance, unexpired at the receipt's time and matched by the latest folded reservations.
 - A bound transition could carry an extra post, such as a policy, which redo would publish. It now
   posts only its request entry, its ticket and the replayed events.
-- An escalation event posted while the ticket's references stayed unchanged skipped the fold. Any
-  escalation event outside a bound transition is now refused.
+- An escalation event posted while the ticket's references stayed unchanged skipped the fold. A
+  first fix refused any such event; the re-review below withdrew it.
 - The rollout text claimed an older binary refuses an in-flight `ESCALATION` plan. The operation is
   never persisted, so an older binary recovers through its own generic redo and only loses the
   fold's checks; the spec says so now.
 
 Each new refusal names a detail only the fix produces, so the new cases cannot pass without it.
 A supervised generation followed by an unsupervised one of the same attempt ID has no live witness.
+
+A read-only Codex re-review of the fix commit found two issues with the event refusal. It was
+not enforced on redo of a ticketless receipt (P1). It also falsely refused legitimate gate output
+that captured event-shaped bytes, because evidence is content addressed (P2). Bind replays every
+referenced event from the reducer, so an unreferenced event blob installs nothing. The refusal was
+removed, and the test case now asserts that such a blob is accepted. This resolves both findings.
 
 ## NOT_RUN
 

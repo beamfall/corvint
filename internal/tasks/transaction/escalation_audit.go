@@ -27,8 +27,10 @@ import (
 // pure reducer computes from the audited predecessor, its retained origins
 // and heads, and this receipt's time, and the posted ticket the record the
 // writer's finalizer derives from them. A blocked-by relation is not
-// re-observed. A dropped reference, and an escalation event posted by any
-// other receipt, are refused. It is pure: blob returns retained evidence
+// re-observed. A dropped reference is refused. An event blob no reference
+// change binds installs nothing, since every referenced event is replayed,
+// so it stays opaque evidence (a gate may capture identical bytes). It is
+// pure: blob returns retained evidence
 // bytes by digest. It keeps the latest ticket, attempt and reservation
 // posts, so its memory is that of those projections.
 type EscalationReceiptAudit struct {
@@ -75,7 +77,7 @@ func (a *EscalationReceiptAudit) Step(rc *snapshot.Receipt, sum wire.Digest, blo
 		a.attempts = map[string]escalationAttempt{}
 		a.policyErr = "no policy was posted"
 	}
-	tickets, bound := 0, false
+	tickets := 0
 	for _, p := range rc.Post {
 		if strings.HasPrefix(p.Path, "intent/tickets/") {
 			tickets++
@@ -114,21 +116,8 @@ func (a *EscalationReceiptAudit) Step(rc *snapshot.Receipt, sum wire.Digest, blo
 			if err := a.bind(rc, prior.post, p.Path, rec, raw, blob); err != nil {
 				return err
 			}
-			bound = true
 		}
 		a.tickets[p.Path] = escalationTicket{post: p, refs: refs}
-	}
-	if !bound {
-		for _, p := range rc.Post {
-			if !strings.HasPrefix(p.Path, "evidence/") || p.Sha256 == nil {
-				continue
-			}
-			if ev, ok := blob(*p.Sha256); ok && bytes.Contains(ev, []byte(ticket.EscalationEventProfile)) {
-				if _, err := ticket.DecodeEscalationEvent(ev); err == nil {
-					return a.fail(rc, "%s is an escalation event outside one escalation transition", p.Path)
-				}
-			}
-		}
 	}
 	if err := a.admit(rc, sum, blob); err != nil {
 		return err
