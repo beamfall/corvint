@@ -58,7 +58,7 @@ type BudgetField struct {
 }
 
 // PriorGeneration is one closed generation. History is nil for a legacy
-// entry, which records neither stage nor pool member (CAL-V0-079).
+// entry, which records neither stage nor pool member (CAL-V0-096).
 type PriorGeneration struct {
 	Generation wire.Size
 	Quiescence string
@@ -66,7 +66,7 @@ type PriorGeneration struct {
 	History    *GenerationHistory
 }
 
-// GenerationHistory is the stage and pool member a CAL-V0-079 entry copied
+// GenerationHistory is the stage and pool member a CAL-V0-096 entry copied
 // from the ended generation; each is nil when that generation had none.
 // PoolID and MemberID are nil together.
 type GenerationHistory struct {
@@ -74,7 +74,7 @@ type GenerationHistory struct {
 	PoolID, MemberID *string
 }
 
-// historyKeys are the CAL-V0-079 keys a prior generation carries together.
+// historyKeys are the CAL-V0-096 keys a prior generation carries together.
 var historyKeys = []string{"stage", "poolId", "memberId"}
 
 // RetryAccounting records prospective generation-local observations. It is absent
@@ -233,7 +233,7 @@ func readPriorGenerations(r *wire.Reader) []PriorGeneration {
 	return out
 }
 
-// readGenerationHistory reads the CAL-V0-079 keys of one prior generation:
+// readGenerationHistory reads the CAL-V0-096 keys of one prior generation:
 // all absent (legacy) or all present, with poolId and memberId null together.
 func readGenerationHistory(p *wire.Reader) *GenerationHistory {
 	present := 0

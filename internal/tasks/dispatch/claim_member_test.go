@@ -6,10 +6,10 @@ import (
 	"testing"
 )
 
-// CAL-V0-079: the dispatcher claim event names the claim's pool and member,
+// CAL-V0-096: the dispatcher claim event names the claim's pool and member,
 // and leaves both empty for a claim without a pool allocation.
-func TestCALV0079_ClaimEventNamesMember(t *testing.T) {
-	t.Run("CAL-V0-079 ClaimEventNamesMember", func(t *testing.T) {
+func TestCALV0096_ClaimEventNamesMember(t *testing.T) {
+	t.Run("CAL-V0-096 ClaimEventNamesMember", func(t *testing.T) {
 		c := testConfig(t, "exit 0")
 		q := &fakeQueue{obs: Observation{Tickets: []Ticket{ticket("t1", "P1", 1), ticket("t2", "P1", 1)}}}
 		d, err := Open("prog", c, q, io.Discard)

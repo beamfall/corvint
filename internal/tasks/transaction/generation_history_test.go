@@ -6,11 +6,11 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 )
 
-// CAL-V0-079: an ended external-agent generation copies its stage and pool
+// CAL-V0-096: an ended external-agent generation copies its stage and pool
 // member; a supervised generation spans stages and releases its allocation per
 // stage, so no single stage or member is recorded for it.
-func TestCALV0079_EndedHistoryCopiesOnlyExact(t *testing.T) {
-	t.Run("CAL-V0-079 EndedHistoryCopiesOnlyExact", func(t *testing.T) {
+func TestCALV0096_EndedHistoryCopiesOnlyExact(t *testing.T) {
+	t.Run("CAL-V0-096 EndedHistoryCopiesOnlyExact", func(t *testing.T) {
 		alloc := &snapshot.PoolAllocation{PoolID: "db", MemberID: "b"}
 		if h := endedHistory(&snapshot.Attempt{RuntimeID: "supervisor", Stage: "review", PoolAllocation: alloc}); h != nil {
 			t.Fatalf("supervised history guessed: %+v", h)

@@ -11,10 +11,10 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// CAL-V0-079: claim results always carry poolAllocation, a retry's prior
+// CAL-V0-096: claim results always carry poolAllocation, a retry's prior
 // generation records the ended stage and member, and attempt show writes nothing.
-func TestCALV0079_ClaimAllocationAndPriorHistory(t *testing.T) {
-	t.Run("CAL-V0-079 ClaimAllocationAndPriorHistory", func(t *testing.T) {
+func TestCALV0096_ClaimAllocationAndPriorHistory(t *testing.T) {
+	t.Run("CAL-V0-096 ClaimAllocationAndPriorHistory", func(t *testing.T) {
 		root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 		runOK := func(args ...string) run {
 			t.Helper()
@@ -89,5 +89,22 @@ func TestCALV0079_ClaimAllocationAndPriorHistory(t *testing.T) {
 			t.Fatal("attempt show wrote state")
 		}
 		runOK("receipt", "audit")
+
+		// Refusals carry the field too: nothing is eligible for --next, and a
+		// paused queue refuses an explicit claim.
+		refused := func(args ...string) {
+			t.Helper()
+			r := handoffCLI(t, root, args...)
+			if r.res.Outcome == wire.OutcomeOK || r.res.Outcome == wire.OutcomeError || len(r.res.Items) != 1 {
+				t.Fatalf("%v: want a refusal item: %s", args, r.stdout)
+			}
+			if alloc, ok := r.res.Items[0].Obj.Get("poolAllocation"); !ok || alloc.Kind != wire.KindNull {
+				t.Fatalf("%v: refused claim lacks poolAllocation null: %s", args, r.stdout)
+			}
+		}
+		refused("claim", "--next", "--holder", "builder", "--request-id", "next-none")
+		refused("claim", "--next", "--holder", "builder", "--pool", "lanes", "--stage", "implement", "--request-id", "next-pool-none")
+		runOK("pause", "--request-id", "pause")
+		refused("claim", plain, "--holder", "builder", "--request-id", "paused-claim")
 	})
 }
