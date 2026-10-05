@@ -87,3 +87,9 @@ Codex r1 (662051a0..2c8f30eb) returned CHANGES_REQUIRED with one P2: the first r
 (remove the key, then downgrade) left the store unreadable by an older binary, because journal
 replay validates every historical policy post with the strict decoder. The rollback in the spec,
 the operator guide and this entry now separates disabling from downgrading, following V1-0787.
+
+### Review round 2
+
+Codex r2 (662051a0..07aaf789) returned APPROVE with no findings and confirmed the rollback fix in
+the spec, operator guide and build log. It ran no tests because its sandbox denied Go's temporary
+directory; the focused tests and doc gates in the change report are the test evidence.
