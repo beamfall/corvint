@@ -79,6 +79,10 @@ type Result struct {
 	chain         *chain
 	request       *snapshot.Request
 	requestTicket string
+	// Set only by AuditForMutation: the per-observation selection and the
+	// refusals a separate Audit of it would raise after the lookup succeeded.
+	selection            map[string]bool
+	selectErr, intentErr error
 }
 
 // Reader always streams receipt bytes, retaining only bounded path/digest
@@ -102,6 +106,7 @@ type Reader struct {
 	writerCache     bool
 	intentOnly      bool
 	handoffPolicy   *HandoffPolicySelector
+	observedIntent  bool // AuditForMutation: select queue, policy and observed tickets/releases
 }
 
 // AuditForWrite carries one verified snapshot through request lookup and
@@ -280,7 +285,7 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 			}
 			if r.physical != nil {
 				r.physical.Cleanup = cleanup
-				if err == nil && result != nil && result.Mode == ModeFull && !result.Pending && !result.StagingPresent && result.IntentError == nil {
+				if err == nil && result != nil && result.Mode == ModeFull && !result.Pending && !result.StagingPresent && result.IntentError == nil && result.selectErr == nil && result.intentErr == nil {
 					r.physical.Files = native.physical.files
 				}
 			}
@@ -293,11 +298,17 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 	if r.afterCapture != nil {
 		r.afterCapture()
 	}
+	if r.observedIntent {
+		selected = observedSelection(before)
+	}
 	var bodyErr error
 	if cp != nil {
 		result, bodyErr = r.walkTail(before, cp, selected, lim)
 	} else {
 		result, bodyErr = r.walk(before, selected, request, lim, checkIntent)
+	}
+	if result != nil && r.observedIntent {
+		result.selection = selected
 	}
 	after, e := r.capture(lim, cp != nil)
 	if e != nil {
