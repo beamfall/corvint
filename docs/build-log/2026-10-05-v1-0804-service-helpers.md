@@ -59,8 +59,13 @@ Platform qualification stays NOT_RUN and belongs to V1-0697. Requirement IDs are
     never blocks supervision. Close waits at most 2s for the final counters. Only the wrapper holding
     the helper lock opens and publishes that helper's logs, and it keeps the lock until every log
     writer and the publisher have actually exited.
-  - **Opens:** log files are opened no-follow and nonblocking and must be private regular files, so
-    a planted FIFO blocks neither a writer nor status.
+  - **Opens:** `logs/<unit>` is created and pinned without following any symlink. Appends, rotation
+    and status go through the pinned directory. Log files are opened no-follow and nonblocking and
+    must be private regular files, so a planted symlink or FIFO neither redirects nor blocks a writer
+    or status.
+  - **Pipes:** before the final counters the wrapper waits at most 2s for its pipe readers to
+    forward what a retired tree wrote. It then closes any pipe still held open; that pipe's unread
+    bytes are not counted.
   - **Status:** reports the counters and the byte count of a sanitized no-follow tail excerpt (4KiB
     bound), but withholds the excerpt text.
 - **Routes:** the CLI route `service run-helper --program P --manifest ABS --helper H` and its help. The
@@ -152,6 +157,34 @@ repaired:
    TestSERVICE500_LogFIFONeverBlocks.
 
 All three witnesses failed with their fix removed.
+
+Codex round 3 confirmed the round-2 repairs and returned CHANGES_REQUIRED with three P2 findings. Two
+were repaired and one was declined:
+
+1. **Log writers follow parent symlinks (repaired).** `MkdirAll` and the basename-only no-follow
+   open accepted a symlinked `logs/` or `logs/<unit>`. `pinLogDir` now creates both components
+   beneath the pinned state root and pins `logs/<unit>` with `safeopen.Root`, which refuses a
+   symlink in any component. Appends open through `safeopen.InRoot` and rotation renames through
+   the pinned root; status publication uses the same pin. Witness:
+   TestSERVICE500_LogDirectorySymlinkIsRefused.
+2. **Final counters race the pipe readers (repaired).** The drain goroutines are now joined.
+   After a proved retirement, and at shutdown before the logs close, `settleDrains` waits at most
+   2s for them. It then closes a pipe still held open; its unread bytes stay uncounted, a recorded
+   limit. Witness: TestSERVICE500_HelperDrainsSettleBeforeFinalCounters.
+3. **Partial resume and a later retry (declined).** The finding: resume resets helper debt before
+   its control write, so a failed control write leaves an unremembered request R. A later retry of
+   R after new debt would reset that debt. This is declined with rationale:
+   - The partial reset is unobservable. It happens only over STOPPED or DRAINING with every helper
+     tree proved retired, and helpers spawn only under RUNNING, which this slice reaches only
+     through a resume (which resets again) or a replace restoring a RUNNING it suppressed.
+   - An unremembered request id is not a replay. It is a new resume of the current state, and that
+     state's defined effect is the same reset, exactly as under a fresh id. The request hash binds
+     the manifest identity, not the control revision; that is the existing main-control contract.
+   - Journalling R's pre and post debt before the reset would change the request-ledger wire
+     contract for every control verb. That belongs with main-controller debt, which stays
+     NOT_OBSERVED.
+
+   The spec now states the partial-reset behaviour.
 
 ## Owner questions
 

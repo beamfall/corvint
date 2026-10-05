@@ -58,7 +58,9 @@ type logSink struct {
 	inflight int
 	settled  bool
 
-	// file I/O, owned by the writer goroutine
+	// file I/O, owned by the writer goroutine; root pins logs/<unit> so
+	// appends and rotation never leave it
+	root *os.Root
 	f    *os.File
 	size int64
 	// write is the file write; tests replace it to inject I/O failure.
@@ -73,8 +75,6 @@ func openLogSink(dir, stream string) *logSink {
 	go s.run()
 	return s
 }
-
-func (s *logSink) path() string { return filepath.Join(s.dir, s.stream+".log") }
 
 // Write never blocks on I/O and always reports len(p): bytes beyond the
 // pending bound are dropped and counted.
@@ -137,6 +137,9 @@ func (s *logSink) run() {
 		if s.f != nil {
 			s.f.Close()
 		}
+		if s.root != nil {
+			s.root.Close()
+		}
 	}()
 	for {
 		s.mu.Lock()
@@ -179,7 +182,7 @@ func (s *logSink) append(chunk []byte) error {
 	if s.size+int64(len(chunk)) > logFileMax {
 		s.f.Close()
 		s.f = nil
-		if err := os.Rename(s.path(), s.path()+".1"); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := s.root.Rename(s.stream+".log", s.stream+".log.1"); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
 		if err := s.open(); err != nil {
@@ -197,12 +200,16 @@ func (s *logSink) append(chunk []byte) error {
 }
 
 func (s *logSink) open() error {
-	if err := os.MkdirAll(s.dir, 0o700); err != nil {
-		return err
+	if s.root == nil {
+		root, err := pinLogDir(s.dir)
+		if err != nil {
+			return err
+		}
+		s.root = root
 	}
-	// O_NONBLOCK: a FIFO planted at the path fails instead of blocking
-	// the writer before the regular-file check.
-	f, err := os.OpenFile(s.path(), os.O_WRONLY|os.O_APPEND|os.O_CREATE|noFollow|nonBlock, 0o600)
+	// No-follow and nonblocking: a symlink or a FIFO planted at the path
+	// fails instead of redirecting or blocking the writer.
+	f, err := safeopen.InRoot(s.root, s.stream+".log", os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o600, false)
 	if err != nil {
 		return err
 	}
@@ -216,6 +223,24 @@ func (s *logSink) open() error {
 	}
 	s.f, s.size = f, fi.Size()
 	return nil
+}
+
+// pinLogDir creates logs/<unit> beneath the state root without leaving it
+// and pins it: every component of dir, from the absolute root down, must be
+// a real directory, so a symlinked logs/ or logs/<unit> is refused instead
+// of redirecting appends, rotation or status.
+func pinLogDir(dir string) (*os.Root, error) {
+	state, err := safeopen.Root(filepath.Dir(filepath.Dir(dir)))
+	if err != nil {
+		return nil, err
+	}
+	defer state.Close()
+	for _, rel := range []string{logDir, filepath.Join(logDir, filepath.Base(dir))} {
+		if err := state.Mkdir(rel, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
+			return nil, err
+		}
+	}
+	return safeopen.Root(dir)
 }
 
 // unitLogs is one unit's set of stream sinks plus its counter publisher.
@@ -238,9 +263,11 @@ type unitLogs struct {
 
 func openUnitLogs(root, unit string, streams ...string) *unitLogs {
 	u := &unitLogs{dir: filepath.Join(root, logDir, unit), streams: map[string]*logSink{}, names: streams, kick: make(chan struct{}, 1), stop: make(chan struct{}), done: make(chan struct{}), bound: logCloseBound, put: func(dir string, raw []byte) error {
-		if err := os.MkdirAll(dir, 0o700); err != nil {
+		root, err := pinLogDir(dir)
+		if err != nil {
 			return err
 		}
+		root.Close()
 		return writeAtomic(dir, logStatusFile, raw)
 	}}
 	for _, s := range streams {

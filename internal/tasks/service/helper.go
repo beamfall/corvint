@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
@@ -269,6 +270,8 @@ type helperWrapper struct {
 	sp   helperSpawner
 	logs *unitLogs
 	self string
+	// drainBound bounds settleDrains (default logCloseBound).
+	drainBound time.Duration
 
 	stamp, hstamp exeStamp
 	seen          wire.Digest
@@ -281,6 +284,10 @@ type helperWrapper struct {
 	token string
 	// pending is a retirement whose record is not yet published.
 	pending *helperSettlement
+	// drains forwards the current tree's stdout and stderr pipes into the
+	// logs; readers are their read ends.
+	drains  *sync.WaitGroup
+	readers []*os.File
 }
 
 // helperSettlement is one retired generation's outcome awaiting its record.
@@ -367,7 +374,10 @@ func (w *helperWrapper) loop() error {
 	// Only the wrapper holding U opens and publishes the helper's logs, and
 	// it closes them before releasing U, so a refused duplicate never
 	// overwrites the owner's counters.
-	defer func() { releaseHelperLock(w.logs, unlock) }()
+	defer func() {
+		w.settleDrains()
+		releaseHelperLock(w.logs, unlock)
+	}()
 	ticker := time.NewTicker(w.o.Poll)
 	defer ticker.Stop()
 	var pulseAt time.Time
@@ -614,8 +624,7 @@ func (w *helperWrapper) spawn(d desiredRun, spec *Helper, path string) {
 		}
 		return
 	}
-	go drain(reads[0], w.logs.streams["stdout"])
-	go drain(reads[1], w.logs.streams["stderr"])
+	w.startDrains(reads)
 	w.proc, w.gen, w.ident, w.token = proc, gen, d.ident, in.Token
 	identity, err := proc.Verify()
 	if err == nil {
@@ -688,12 +697,52 @@ func drain(r *os.File, sink io.Writer) {
 	_, _ = io.Copy(sink, r)
 }
 
+func (w *helperWrapper) startDrains(reads [2]*os.File) {
+	w.drains, w.readers = &sync.WaitGroup{}, []*os.File{reads[0], reads[1]}
+	for i, stream := range []string{"stdout", "stderr"} {
+		w.drains.Add(1)
+		go func(r *os.File, sink io.Writer) { defer w.drains.Done(); drain(r, sink) }(reads[i], w.logs.streams[stream])
+	}
+}
+
+// settleDrains waits at most the close bound for the pipe readers to
+// forward what a retired tree wrote, so the counters published next (and
+// the final ones) include it. A reader still blocked at the bound, whose
+// pipe some process outside the proved tree holds open, is closed; bytes
+// left unread in that pipe are not counted.
+func (w *helperWrapper) settleDrains() {
+	if w.drains == nil {
+		return
+	}
+	done := make(chan struct{})
+	go func(wg *sync.WaitGroup) { wg.Wait(); close(done) }(w.drains)
+	bound := w.drainBound
+	if bound <= 0 {
+		bound = logCloseBound
+	}
+	select {
+	case <-done:
+	case <-time.After(bound):
+		for _, r := range w.readers {
+			_ = r.Close()
+		}
+		select {
+		case <-done:
+		case <-time.After(bound):
+		}
+	}
+	w.drains, w.readers = nil, nil
+}
+
 // retire kills the owned tree and proves it retired outside F, then
 // leaves the outcome pending for its record. charge marks an unexpected
 // end (an exit or a failed verification); an exit observed after the
 // wrapper was interrupted is an intentional stop.
 func (w *helperWrapper) retire(charge bool, reason string) {
 	exit, err := w.proc.Retire(w.o.RetireBound)
+	if err == nil {
+		w.settleDrains()
+	}
 	w.pending = &helperSettlement{gen: w.gen, token: w.token, exit: exit, reason: reason, err: err, charge: charge && w.ctx.Err() == nil, termination: "PROVED_TERMINATED"}
 	w.proc = nil
 }
