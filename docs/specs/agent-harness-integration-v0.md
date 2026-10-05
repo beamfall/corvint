@@ -879,7 +879,7 @@ do not reinterpret this Frontier result.
     kill table. The two delay cases force each adapter onto its own deadline first. A host that
     kills earlier anyway sends `SIGKILL`, so the exit cleanup cannot run. The status scratch, any
     `.self-observations.*` temporary and running Git children can then remain. That consequence is
-    inferred, not observed. Completing V1-0711 needs explicit acceptance of this disposition.
+    inferred, not observed. The owner accepted this disposition on 2026-10-04 (decision 0430).
   - Elapsed time and how long an abandoned Git child outlives the adapter are logged, not asserted,
     because the parallel matrix runs under load (decision 0082). The watchdog bound itself stays
     under AHI-017. Children outliving the adapter are tracked as V1-0734.

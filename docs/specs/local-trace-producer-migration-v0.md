@@ -402,7 +402,7 @@ additive profile remains experimental. For new writes it supersedes the LTPM-V0-
 the schema follows the presence of argv verification. Schema-1 and schema-2 bytes, IDs,
 screening and acceptance stay unchanged.
 
-- `LTPM-V0-015`: (owner-selected design 2026-10-04, decision 0429; requirement text proposed)
+- `LTPM-V0-015`: (owner-selected design 2026-10-04, decision 0429; requirement text accepted 2026-10-04, decision 0430)
   **Writers.** Every new trace row MUST be schema 3 and MUST store a `producer` from the closed
   set below. Each writer stores its own value:
 
@@ -450,7 +450,7 @@ screening and acceptance stay unchanged.
   containing a schema-3 row rather than misread it; a reader without schema-3 support refuses an
   unsupported schema. This is an explicit release limitation, as LTPM-V0-014 recorded for
   schema 2.
-- `LTPM-V0-016`: (owner-selected design 2026-10-04, decision 0429; requirement text proposed)
+- `LTPM-V0-016`: (owner-selected design 2026-10-04, decision 0429; requirement text accepted 2026-10-04, decision 0430)
   `calibrate` and `eval` MUST accept repeatable `--exclude-producer NAME`, where `NAME` is one of
   `cli`, `dogfood`, `pi-tool` or `UNKNOWN`. Repeats deduplicate. Any other value refuses with the
   `invalid-arguments` shape and exit code 2. This amends the flag list of `OCL-V0-001`.
