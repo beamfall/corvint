@@ -538,7 +538,7 @@ func DecodeAttempt(data []byte) (*Attempt, error) {
 	a.CapabilityProfileSha256 = r.Field("capabilityProfileSha256").Digest()
 	a.BaseCommit = r.Field("baseCommit").OID()
 	a.Branch = r.Field("branch").Label()
-	a.WorktreePath = r.Field("worktreePath").StringOrNull((*wire.Reader).Identifier)
+	a.WorktreePath = r.Field("worktreePath").StringOrNull((*wire.Reader).PathText)
 	a.CandidateTreeOid = r.Field("candidateTreeOid").StringOrNull((*wire.Reader).OID)
 	a.Supervisor = readSupervisor(r.Field("supervisor"))
 	a.Lane = readLane(r.Field("lane"))

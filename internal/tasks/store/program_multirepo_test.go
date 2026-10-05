@@ -79,7 +79,10 @@ func buildMultiFixture(t *testing.T, keepGates bool, touch ...string) *multiFixt
 // buildProgramFixture is buildMultiFixture; without multi it declares no
 // extra repository and the fake host edits only the queue worktree. A
 // non-nil gates replaces the policy's gates with one required gate per id,
-// each a command that exits 0.
+// each a command that exits 0. While the file "escape" exists in scripts,
+// the implement stage leaves a setsid process holding the host output past
+// the drain, so the stage stops without proved quiescence; while "slow"
+// exists, the implement stage runs for three seconds.
 func buildProgramFixture(t *testing.T, keepGates, multi bool, gates []string, touch ...string) *multiFixture {
 	t.Helper()
 	s := newLeaseStore(t)
@@ -123,6 +126,8 @@ esac
 case " $* " in
 *" workspace-write "*)
   printf '%s\n' "$*" > "`+scripts+`/implement-args"
+  if [ -f "`+scripts+`/escape" ]; then perl -e 'use POSIX; POSIX::setsid(); sleep 5' & fi
+  if [ -f "`+scripts+`/slow" ]; then sleep 3; fi
   printf 'changed\n' > hello.txt
 `+docsEdit+`  echo '{"type":"thread.started","thread_id":"implement-session"}'
   echo '{"type":"turn.started"}'

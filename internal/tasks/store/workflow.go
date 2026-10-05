@@ -183,6 +183,16 @@ func (w *Workflow) worktree(stage, commit string) (string, error) {
 	if !filepath.IsAbs(path) {
 		return "", fmt.Errorf("absolute work root required")
 	}
+	// The attempt records the stage worktree as a PathText: refuse a path
+	// it cannot carry before any directory, record or worktree exists.
+	if _, e := wire.ParsePathText("/worktreePath", path); e != nil {
+		return "", e
+	}
+	for _, r := range w.program.Repositories {
+		if _, e := wire.ParsePathText("/worktreePath", extraPath(path, r.Name)); e != nil {
+			return "", e
+		}
+	}
 	if e := os.MkdirAll(filepath.Dir(path), 0700); e != nil {
 		return "", e
 	}
@@ -443,6 +453,9 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 			w.program.ResultSHA256 = out.OutputSHA256
 			w.program.ResultClass = out.Class
 			w.program.SessionID = out.SessionID
+			// An unproved drain must not keep a quiescence an earlier
+			// clean stage proved.
+			w.program.Quiescence = "UNKNOWN"
 			if out.Clean {
 				w.program.Quiescence = "PROVED"
 			}
@@ -500,6 +513,7 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 	go func() {
 		defer close(watcherDone)
 		lastRenew := time.Now()
+		var readFailedSince time.Time
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
 		for {
@@ -510,10 +524,23 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 				return
 			case <-ticker.C:
 				entries, e := ProgramRecords(deadline, w.repo)
-				if e != nil {
-					cancel()
-					return
+				if e == nil {
+					e = fault("watch-read")
 				}
+				if e != nil {
+					// An unlocked read can race a concurrent writer's
+					// staging (V1-0772); only a read that keeps failing
+					// for watchReadTolerance stops the stage.
+					if readFailedSince.IsZero() {
+						readFailedSince = time.Now()
+					}
+					if time.Since(readFailedSince) >= watchReadTolerance {
+						cancel()
+						return
+					}
+					continue
+				}
+				readFailedSince = time.Time{}
 				for _, p := range entries {
 					if p.ID == w.program.ID && p.Control != "" {
 						cancel()
@@ -608,6 +635,12 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 	}
 	if e = w.step("STOPPED", result); e != nil {
 		return out, e
+	}
+	// An unproved drain left the program and attempt BLOCKED_RECOVERY; the
+	// role must not go on to finish them as if the stage had stopped cleanly
+	// (V1-0772).
+	if !out.Clean && runErr == nil {
+		runErr = wire.Errorf(wire.CodeSurvivors, "supervisor", "%s stage stopped without proved quiescence; the program and attempt remain BLOCKED_RECOVERY", stage)
 	}
 	if out.Clean {
 		w.program.OwnerReleased = true
@@ -806,9 +839,14 @@ func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.B
 
 // runFault, when set by a package test, fails a supervised run at a named point
 // ("transition:<action>" and "refresh:<action>" around a supervisor transition's
-// commit, "stage-finished", "role-finished", "gate:<id>" and "ready"); it is
-// nil in production.
+// commit, "stage-finished", "role-finished", "gate:<id>", "ready", and
+// "watch-read" after each stage watcher read, from the watcher goroutine); it
+// is nil in production.
 var runFault func(point string) error
+
+// watchReadTolerance bounds how long the stage watcher tolerates failing
+// unlocked program reads before it stops the stage.
+const watchReadTolerance = 30 * time.Second
 
 func fault(point string) error {
 	if runFault == nil {

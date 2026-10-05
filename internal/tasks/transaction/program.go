@@ -130,7 +130,7 @@ func planProgram(c leaseContext) leaseOutcome {
 			ok = ok || phase == next.Phase
 		}
 		if !ok {
-			return c.fail(malformed("program transition"))
+			return c.fail(malformed("program transition " + old.Phase + " -> " + next.Phase))
 		}
 		if next.Phase == "RUNNING" && (next.LeaderPID <= 0 || next.LeaderStarted == "" || next.Effect != old.Effect) {
 			return c.fail(malformed("running lane lacks bound identity"))

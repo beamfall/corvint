@@ -5,6 +5,7 @@ package supervisor
 import (
 	"syscall"
 	"testing"
+	"time"
 )
 
 func TestSupervisorOwnershipRejectsReusedAndEscapedAnchors(t *testing.T) {
@@ -31,5 +32,29 @@ func TestSupervisorOwnershipRejectsReusedAndEscapedAnchors(t *testing.T) {
 				t.Fatal("adopted new member")
 			}
 		})
+	}
+}
+
+// TestCALV0086_DrainWaitsOutUnprovableGroupProbe pins the V1-0772 drain
+// bound: an EPERM group probe (Darwin's answer for a group of unreaped
+// zombies) is re-probed until the group is proved gone, never signalled or
+// reported as survivors at once, and never itself counted as gone.
+func TestCALV0086_DrainWaitsOutUnprovableGroupProbe(t *testing.T) {
+	g := &ownedGroup{group: 12, members: map[int]string{12: "owned"}, identity: func(int) (string, error) { return "owned", nil }, groupOf: func(int) (int, error) { return 12, nil }, inventory: func(int) (map[int]string, error) { return map[int]string{12: "owned"}, nil }, signal: func(map[int]string, syscall.Signal) error { t.Fatal("signalled an unobservable group"); return nil }}
+	probes := 0
+	g.exists = func(int) (bool, error) {
+		probes++
+		if probes <= 3 {
+			return true, syscall.EPERM
+		}
+		return false, nil
+	}
+	if !g.drain() || probes != 4 {
+		t.Fatalf("a group proved gone after EPERM probes was not clean (%d probes)", probes)
+	}
+	g.force = time.Millisecond
+	g.exists = func(int) (bool, error) { return true, syscall.EPERM }
+	if g.drain() {
+		t.Fatal("a group that never stops answering EPERM was counted gone")
 	}
 }

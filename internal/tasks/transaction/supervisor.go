@@ -217,6 +217,9 @@ func planSupervisor(c leaseContext) leaseOutcome {
 			if f.Worktree == "" {
 				return c.fail(malformed("stage worktree missing"))
 			}
+			if _, e := wire.ParsePathText("/worktree", f.Worktree); e != nil {
+				return c.fail(e)
+			}
 			if a.PoolAllocation == nil {
 				rec, _ := c.st.tickets.Get(a.TicketID.Raw)
 				pool := rec.RequiresPool
