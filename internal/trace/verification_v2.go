@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -183,42 +184,63 @@ func validateEntries(entries []VerificationEntry) error {
 	return nil
 }
 
-func decodeV2Record(data []byte) (Record, error) {
+// decodeTypedRow decodes the strict json/v2 row shapes: schema 2, and schema 3,
+// which adds the closed producer member and admits either verification shape.
+func decodeTypedRow(data []byte, schema int) (Record, error) {
+	fail := typedFailure(schema)
 	if len(data) > MaxTraceRowBytes {
-		return Record{}, argvFailure("row exceeds byte bound")
+		return Record{}, fail("row exceeds byte bound")
 	}
 	var raw map[string]jsontext.Value
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return Record{}, argvFailure("invalid schema-2 JSON")
+		return Record{}, fail(fmt.Sprintf("invalid schema-%d JSON", schema))
 	}
-	if len(raw) != len(requiredFields) {
-		return Record{}, argvFailure("invalid row fields")
+	want := len(requiredFields)
+	if schema == SchemaVersionV3 {
+		want++
+	}
+	if len(raw) != want {
+		return Record{}, fail("invalid row fields")
 	}
 	for key := range raw {
-		if _, ok := requiredFields[key]; !ok {
-			return Record{}, argvFailure("unknown row field")
+		if _, ok := requiredFields[key]; !ok && (schema != SchemaVersionV3 || key != "producer") {
+			return Record{}, fail("unknown row field")
 		}
 	}
-	if string(bytes.TrimSpace(raw["schema_version"])) != "2" {
-		return Record{}, argvFailure("invalid schema version")
+	if string(bytes.TrimSpace(raw["schema_version"])) != strconv.Itoa(schema) {
+		return Record{}, fail("invalid schema version")
 	}
-	record := Record{SchemaVersion: SchemaVersionV2}
-	for key, dst := range map[string]*string{"revision": &record.Revision, "trace_id": &record.TraceID, "task": &record.Task, "outcome": &record.Outcome} {
+	record := Record{SchemaVersion: schema}
+	fields := map[string]*string{"revision": &record.Revision, "trace_id": &record.TraceID, "task": &record.Task, "outcome": &record.Outcome}
+	if schema == SchemaVersionV3 {
+		fields["producer"] = &record.Producer
+	}
+	for key, dst := range fields {
 		if err := json.Unmarshal(raw[key], dst); err != nil || bytes.Equal(raw[key], []byte("null")) {
-			return Record{}, argvFailure("invalid string field")
+			return Record{}, fail("invalid string field")
 		}
 	}
 	for key, dst := range map[string]*[]string{"opened_paths": &record.OpenedPaths, "changed_paths": &record.ChangedPaths} {
 		if err := json.Unmarshal(raw[key], dst); err != nil || *dst == nil {
-			return Record{}, argvFailure("invalid path array")
+			return Record{}, fail("invalid path array")
 		}
 	}
-	var values []map[string]jsontext.Value
-	if err := json.Unmarshal(raw["verification"], &values); err != nil || values == nil || len(values) > MaxVerificationCommands {
-		return Record{}, argvFailure("invalid verification array")
+	var items []jsontext.Value
+	if err := json.Unmarshal(raw["verification"], &items); err != nil || items == nil || len(items) > MaxVerificationCommands {
+		return Record{}, fail("invalid verification array")
 	}
-	for _, value := range values {
-		if len(value) != 2 {
+	if schema == SchemaVersionV3 && (len(items) == 0 || items[0][0] == '"') {
+		record.Verification = make([]string, len(items))
+		for i, item := range items {
+			if item[0] != '"' || json.Unmarshal(item, &record.Verification[i]) != nil {
+				return Record{}, fail("invalid verification command")
+			}
+		}
+		return record, nil
+	}
+	for _, item := range items {
+		var value map[string]jsontext.Value
+		if err := json.Unmarshal(item, &value); err != nil || len(value) != 2 {
 			return Record{}, argvFailure("invalid entry fields")
 		}
 		var kind string
@@ -249,51 +271,91 @@ func decodeV2Record(data []byte) (Record, error) {
 	return record, nil
 }
 
-// DecodeV2 validates a schema-2 row's structure, bounds, screening, canonical
-// values and identity. Repository witnesses remain the caller's responsibility.
-func DecodeV2(data []byte, revision string) (Record, error) {
-	record, err := decodeV2Record(data)
+// typedFailure keeps schema-2 refusals in the argv reason class they always had;
+// schema-3 row-shape refusals are plain unsupported-row errors.
+func typedFailure(schema int) func(string) error {
+	if schema == SchemaVersionV2 {
+		return argvFailure
+	}
+	return func(reason string) error { return fmt.Errorf("schema-3 local trace: %s", reason) }
+}
+
+// DecodeTyped validates a schema-2 or schema-3 row's structure, bounds,
+// screening, canonical values and identity. Repository witnesses remain the
+// caller's responsibility.
+func DecodeTyped(data []byte, revision string) (Record, error) {
+	schema := SchemaVersionV2
+	if typedSchema(data) == SchemaVersionV3 {
+		schema = SchemaVersionV3
+	}
+	record, err := decodeTypedRow(data, schema)
 	if err != nil {
 		return Record{}, err
 	}
-	if err := validateV2Record(record, revision); err != nil {
+	if err := validateTypedRecord(record, revision); err != nil {
 		return Record{}, err
 	}
 	return record, nil
 }
 
-func validateV2Record(record Record, revision string) error {
-	if record.SchemaVersion != SchemaVersionV2 || record.Revision != revision || record.Verification != nil {
-		return argvFailure("schema or revision mismatch")
+func validateTypedRecord(record Record, revision string) error {
+	fail := typedFailure(record.SchemaVersion)
+	switch record.SchemaVersion {
+	case SchemaVersionV2:
+		if record.Producer != "" || record.Verification != nil {
+			return fail("schema or revision mismatch")
+		}
+	case SchemaVersionV3:
+		if !ValidProducer(record.Producer) {
+			return fail("invalid producer")
+		}
+		if (record.Verification == nil) == (record.TypedVerification == nil) {
+			return fail("invalid verification shape")
+		}
+	default:
+		return fail("schema or revision mismatch")
+	}
+	if record.Revision != revision {
+		return fail("schema or revision mismatch")
 	}
 	if !validOutcome(record.Outcome) {
-		return argvFailure("invalid outcome")
+		return fail("invalid outcome")
 	}
 	task, err := validTask(safeText(record.Task, "trace task", MaxTaskCharacters))
 	if err != nil || task != record.Task {
-		return argvFailure("invalid or noncanonical task")
+		return fail("invalid or noncanonical task")
 	}
 	for _, paths := range [][]string{record.OpenedPaths, record.ChangedPaths} {
 		normalized, err := normalizePaths(paths, "trace paths")
 		if err != nil || paths == nil || !equalStrings(normalized, paths) {
-			return argvFailure("invalid or noncanonical paths")
+			return fail("invalid or noncanonical paths")
 		}
 	}
-	if err := validateEntries(record.TypedVerification); err != nil {
-		return err
+	if record.TypedVerification != nil {
+		if err := validateEntries(record.TypedVerification); err != nil {
+			return err
+		}
+	} else {
+		commands, err := normalizeCommands(record.Verification)
+		if err != nil {
+			return err
+		}
+		if !equalStrings(commands, record.Verification) {
+			return fail("verification commands are not normalized")
+		}
 	}
 	expected, err := traceID(record)
 	if err != nil || record.TraceID != expected {
-		return argvFailure("trace digest mismatch")
+		return fail("trace digest mismatch")
 	}
 	return nil
 }
 
 func writeVerification(b *bytes.Buffer, record Record) error {
-	if record.SchemaVersion == SchemaVersion {
+	switch {
+	case record.SchemaVersion == SchemaVersion, record.SchemaVersion == SchemaVersionV3 && record.TypedVerification == nil:
 		return writeStringArray(b, record.Verification)
-	}
-	if record.SchemaVersion != SchemaVersionV2 {
+	case record.SchemaVersion != SchemaVersionV2 && record.SchemaVersion != SchemaVersionV3:
 		return fmt.Errorf("unsupported local trace schema")
 	}
 	b.WriteByte('[')
@@ -314,7 +376,7 @@ func writeVerification(b *bytes.Buffer, record Record) error {
 // VerificationValue exposes the version's exact JSON shape for receipt and
 // batch projections; callers use it only on validated records.
 func (record Record) VerificationValue() any {
-	if record.SchemaVersion != SchemaVersionV2 {
+	if record.TypedVerification == nil {
 		return record.Verification
 	}
 	entries := make([]any, 0, len(record.TypedVerification))
@@ -330,7 +392,7 @@ func (record Record) VerificationValue() any {
 
 // VerificationDisplay keeps argv explicitly labelled as JSON data.
 func (record Record) VerificationDisplay() []string {
-	if record.SchemaVersion != SchemaVersionV2 {
+	if record.TypedVerification == nil {
 		return slices.Clone(record.Verification)
 	}
 	lines := make([]string, 0, len(record.TypedVerification))
@@ -356,9 +418,9 @@ func (record Record) VerificationArgv() [][]string {
 	return result
 }
 
-// VerificationCommands retains command entries when revalidating a v2 input.
+// VerificationCommands retains command entries when revalidating a typed input.
 func (record Record) VerificationCommands() []string {
-	if record.SchemaVersion != SchemaVersionV2 {
+	if record.TypedVerification == nil {
 		return record.Verification
 	}
 	var result []string
@@ -370,8 +432,22 @@ func (record Record) VerificationCommands() []string {
 	return result
 }
 
-// IsV2JSON reports only the exact discriminator; full admission needs DecodeV2.
-func IsV2JSON(data []byte) bool {
+// IsTypedJSON reports only the exact schema-2 or schema-3 discriminator; full
+// admission needs DecodeTyped.
+func IsTypedJSON(data []byte) bool {
+	return typedSchema(data) != 0
+}
+
+func typedSchema(data []byte) int {
 	var raw map[string]jsontext.Value
-	return json.Unmarshal(data, &raw) == nil && strings.TrimSpace(string(raw["schema_version"])) == "2"
+	if json.Unmarshal(data, &raw) != nil {
+		return 0
+	}
+	switch strings.TrimSpace(string(raw["schema_version"])) {
+	case "2":
+		return SchemaVersionV2
+	case "3":
+		return SchemaVersionV3
+	}
+	return 0
 }

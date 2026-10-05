@@ -191,7 +191,7 @@ func TestEvalWithoutFixtureStillRefusesPassedLiveStore(t *testing.T) {
 	if err := os.WriteFile(golden, []byte("{\"schemaVersion\":1,\"cases\":[]}\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := tracerecordrepo.Record(context.Background(), root, tracerecordrepo.Input{
+	if _, err := tracerecordrepo.Record(context.Background(), root, tracerecordrepo.Input{Producer: trace.ProducerCLI,
 		Task: "repair stable value behavior", ChangedPaths: []string{"pkg/main.go"}, Outcome: "passed",
 	}); err != nil {
 		t.Fatal(err)
@@ -226,7 +226,7 @@ func writeEvalGolden(t *testing.T, _ string, task string) string {
 func writeEvalTraceFixture(t *testing.T, _ string, scoredRevision, outcomeRevision, task string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "trace-fixture.json")
-	record, err := trace.NewRecord(trace.Input{
+	record, err := trace.NewRecord(trace.Input{Producer: trace.ProducerCLI,
 		Revision: outcomeRevision, Task: task, ChangedPaths: []string{"pkg/main.go"}, Outcome: "passed",
 	}, []string{"pkg/main.go"})
 	if err != nil {
@@ -239,7 +239,7 @@ func writeEvalTraceFixture(t *testing.T, _ string, scoredRevision, outcomeRevisi
 			"traces": []any{map[string]any{
 				"schema_version": record.SchemaVersion, "trace_id": record.TraceID, "revision": record.Revision,
 				"task": record.Task, "opened_paths": record.OpenedPaths, "changed_paths": record.ChangedPaths,
-				"verification": record.Verification, "outcome": record.Outcome,
+				"verification": record.Verification, "outcome": record.Outcome, "producer": record.Producer,
 			}},
 		}},
 	}

@@ -114,6 +114,17 @@ func validateTypedTraceVerification(raw []byte, row map[string]any) error {
 	return nil
 }
 
+// A schema-3 row uses the typed entry shape exactly when its first entry is an
+// object; otherwise every entry must be a command string.
+func typedTraceEntries(value any) bool {
+	entries, err := array(value)
+	if err != nil || len(entries) == 0 {
+		return false
+	}
+	_, typed := entries[0].(map[string]any)
+	return typed
+}
+
 func typedArgvCredential(argv []string) bool {
 	login, curl, user := false, strings.EqualFold(path.Base(argv[0]), "curl"), false
 	for i, arg := range argv {

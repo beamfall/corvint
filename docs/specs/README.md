@@ -212,3 +212,6 @@ failed or incomplete delivery evidence.
 Typed trace verification (issue 408, accepted 2026-09-30): the existing local-trace producer,
 learned-trace admission, dashboard and console entries above are the single active spec routes
 for `LTPM-V0-013..014`, `LTA-V0-013`, `LOD-V0-035` and `LAC-V0-038`. Delivery remains experimental.
+Trace producer provenance (V1-0745, decision 0429): the same local-trace producer entry is the
+single active spec route for `LTPM-V0-015..016`, with amendment notes in `LOD-V0-035`,
+`OCL-V0-001`, `LTA-V0-001` and the core compatibility freeze. Delivery remains experimental.

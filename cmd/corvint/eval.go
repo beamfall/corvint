@@ -7,10 +7,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/evalrepo"
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/trace"
 )
 
 func runEvalInvocation(ctx context.Context, arguments []string, stdout, stderr io.Writer) (int, bool) {
@@ -37,9 +39,9 @@ func runEvalInvocation(ctx context.Context, arguments []string, stdout, stderr i
 	}
 	var report map[string]any
 	if options.fixture == "" {
-		report, err = evalrepo.Evaluate(ctx, root, options.golden)
+		report, err = evalrepo.EvaluateExcludingProducers(ctx, root, options.golden, options.exclude)
 	} else {
-		report, err = evalrepo.Evaluate(ctx, root, options.golden, options.fixture)
+		report, err = evalrepo.EvaluateExcludingProducers(ctx, root, options.golden, options.exclude, options.fixture)
 	}
 	if err != nil {
 		emitEvalError(stderr, err)
@@ -94,15 +96,19 @@ func parseEvalInvocation(arguments []string) (string, []string, bool, error) {
 	return root, arguments[index+1:], true, nil
 }
 
-type evalFlags struct{ golden, fixture string }
+type evalFlags struct {
+	golden, fixture string
+	exclude         []string
+}
 
 func parseEvalFlags(root string, arguments []string) (evalFlags, error) {
 	requestedGolden, requestedFixture := "", ""
 	goldenSet, fixtureSet := false, false
+	var exclude []string
 	for index := 0; index < len(arguments); {
 		argument := arguments[index]
 		name, value, inline := strings.Cut(argument, "=")
-		if name != "--goldens" && name != "--trace-fixture" {
+		if name != "--goldens" && name != "--trace-fixture" && name != "--exclude-producer" {
 			return evalFlags{}, argumentError("unrecognized arguments: " + argument)
 		}
 		if !inline {
@@ -114,13 +120,20 @@ func parseEvalFlags(root string, arguments []string) (evalFlags, error) {
 		} else {
 			index++
 		}
-		if name == "--goldens" {
+		if name == "--exclude-producer" {
+			if !trace.ReportableProducer(value) {
+				return evalFlags{}, argumentError("argument --exclude-producer: invalid choice: " + pythonRepr(value) + " (choose from 'cli', 'dogfood', 'pi-tool', 'UNKNOWN')")
+			}
+			if !slices.Contains(exclude, value) {
+				exclude = append(exclude, value)
+			}
+		} else if name == "--goldens" {
 			requestedGolden, goldenSet = value, true
 		} else {
 			requestedFixture, fixtureSet = value, true
 		}
 	}
-	options := evalFlags{}
+	options := evalFlags{exclude: exclude}
 	if goldenSet {
 		path := resolveGoldenPath(root, requestedGolden)
 		if regularFile(path) {
