@@ -33,6 +33,10 @@ type ProgramConfig struct {
 	Prompt       string            `json:"prompt"`
 	WorkRoot     string            `json:"workRoot"`
 	WallSeconds  int               `json:"wallSeconds"`
+	// Repositories optionally names policy-declared extra repositories the
+	// program spans (CAL-V0-071), sorted by name; absent keeps single-repo
+	// config bytes and digests unchanged.
+	Repositories []ProgramRepository `json:"repositories,omitempty"`
 }
 
 func RunProgram(ctx context.Context, repo *intent.Repository, actor mutation.Binding, id, self string, c ProgramConfig) (snapshot.Program, supervisor.Outcome, error) {
@@ -53,7 +57,7 @@ func RunProgram(ctx context.Context, repo *intent.Repository, actor mutation.Bin
 	if e != nil {
 		return p, out, e
 	}
-	if e = CheckProgramConfig(c, policy.Supervision); e != nil {
+	if e = checkNewProgramConfig(c, policy.Supervision); e != nil {
 		return p, out, e
 	}
 	raw, e := supervisor.ReadBounded(c.Executable, 256<<20)
@@ -161,6 +165,9 @@ func (c ProgramConfig) StageEffort(stage string) string {
 // the owner policy does not allow (CAL-V0-062, CAL-V0-063). It runs before
 // any program record, worktree or host process is created.
 func CheckProgramConfig(c ProgramConfig, policy *intent.SupervisionPolicy) error {
+	if e := checkProgramRepositories(c.Repositories, policy); e != nil {
+		return e
+	}
 	if c.WallSeconds < 1 || c.WallSeconds > policy.StageWallSeconds() {
 		return fmt.Errorf("wallSeconds outside 1..%d allowed by policy", policy.StageWallSeconds())
 	}
@@ -179,4 +186,59 @@ func CheckProgramConfig(c ProgramConfig, policy *intent.SupervisionPolicy) error
 		}
 	}
 	return nil
+}
+
+// ProgramRepository names one extra repository of a multi-repository
+// supervised program (CAL-V0-071): a policy-declared name and the absolute
+// checkout whose path digest the policy pins.
+type ProgramRepository struct {
+	Name     string `json:"name"`
+	Checkout string `json:"checkout"`
+}
+
+// knownEffort keeps the default effort a supervised effort even when every
+// stage overrides it, so a config never records an empty or unknown default.
+func knownEffort(effort string) bool {
+	for _, e := range intent.SupervisedEfforts {
+		if e == effort {
+			return true
+		}
+	}
+	return false
+}
+
+// checkProgramRepositories refuses config repositories the owner policy does
+// not declare, out of order, duplicated, or at a checkout whose path digest
+// differs from the policy pin (CAL-V0-071).
+func checkProgramRepositories(repos []ProgramRepository, policy *intent.SupervisionPolicy) error {
+	for i, r := range repos {
+		if i > 0 && repos[i-1].Name >= r.Name {
+			return fmt.Errorf("repositories must be sorted by unique name")
+		}
+		pin, ok := wire.Digest(""), false
+		if policy != nil {
+			pin, ok = policy.Repositories[r.Name]
+		}
+		if !ok {
+			return fmt.Errorf("repository %q is not declared by policy supervision.repositories", r.Name)
+		}
+		if !filepath.IsAbs(r.Checkout) || filepath.Clean(r.Checkout) != r.Checkout {
+			return fmt.Errorf("repository %q checkout must be an absolute clean path", r.Name)
+		}
+		if wire.Sum([]byte(r.Checkout)) != pin {
+			return fmt.Errorf("repository %q checkout differs from the policy path pin", r.Name)
+		}
+	}
+	return nil
+}
+
+// checkNewProgramConfig is CheckProgramConfig for a new admission, which also
+// requires the default effort to be a supervised effort even when every stage
+// overrides it (CAL-V0-062). A recorded program is re-checked without this
+// rule, so an existing config is never stranded by it.
+func checkNewProgramConfig(c ProgramConfig, policy *intent.SupervisionPolicy) error {
+	if !knownEffort(c.Effort) {
+		return fmt.Errorf("effort %q is not a supervised effort", c.Effort)
+	}
+	return CheckProgramConfig(c, policy)
 }

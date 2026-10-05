@@ -1,9 +1,10 @@
 package mutation
 
-// Experimental pure foundation only: no ordinary mutation dispatch, writer,
-// role policy, request replay or committed ticket schema is changed here.
+// ProposeOperatorNote is the pure transition; Context.note dispatches
+// NOTE_SET/NOTE_CLEAR through it after Apply's replay and role checks.
 import (
 	"bytes"
+	"errors"
 	"fmt"
 
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -134,4 +135,50 @@ func ValidateOperatorNoteMaterial(c OperatorNoteContext, ref ticket.OperatorNote
 		return wire.Errorf(wire.CodeMalformed, "/operatorNote", "event/reference differs from audited transition")
 	}
 	return nil
+}
+
+// note applies NOTE_SET/NOTE_CLEAR (ON-V0-003/004): the reference changes, the
+// ticket revision advances by one, acceptanceRevision is preserved, and the
+// derived note event rides in Plan.DerivedEvent. A capacity failure maps to
+// VALIDATION_FAILED/LIMIT_EXCEEDED like the ticket-revision overflow; that is
+// the recorded conservative default (ON-V0 open decision 1).
+func (c Context) note(plan *Plan, env *Envelope) *Plan {
+	pre, ok := c.Inventory.Get(env.TargetID.Raw)
+	if !ok {
+		return plan.refused(refuse(OutcomeValidationFailed, wire.CodeMalformed, "target %s does not exist in the queue", env.TargetID.Raw))
+	}
+	plan.Pre = pre
+	if pre.OperatorNote != nil && len(c.PriorNoteEvent) == 0 {
+		return plan.refused(refuse(OutcomeValidationFailed, wire.CodeMissingEvidence, "operator note head %s is unavailable", pre.OperatorNote.Head))
+	}
+	prop, err := ProposeOperatorNote(OperatorNoteContext{
+		Record: pre, Prior: pre.OperatorNote, PriorEvent: c.PriorNoteEvent, Binding: c.Binding,
+		Allowed: true, QueueID: c.Queue.QueueID, RequestID: env.RequestID,
+		RequestSha256: env.Sha256(), RecordedAt: c.Now,
+	}, env.Raw)
+	if err != nil {
+		var nr *OperatorNoteRefusal
+		if errors.As(err, &nr) {
+			code := ""
+			if nr.Outcome == OutcomeBlocked {
+				code = wire.CodeTicketState
+			}
+			return plan.refused(refuse(nr.Outcome, code, "%s: %s", nr.Where, nr.Detail))
+		}
+		return plan.refused(refuseErr(err))
+	}
+	work, err := clone(pre)
+	if err != nil {
+		return plan.refused(refuse(OutcomeValidationFailed, wire.CodeOf(err), "canonical record is not valid: %v", err))
+	}
+	ref := prop.Reference
+	work.OperatorNote = &ref
+	if r := c.finalize(pre, work, false); r != nil {
+		return plan.refused(r)
+	}
+	if work.Revision.Int() != pre.Revision.Int()+1 || work.AcceptanceRevision != pre.AcceptanceRevision {
+		return plan.refused(refuse(OutcomeValidationFailed, wire.CodeMalformed, "note transition must advance only the ticket revision"))
+	}
+	plan.DerivedEvent = prop.Event
+	return plan.completed(work)
 }

@@ -131,7 +131,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   intent path absent at BASE (the bootstrap unknown of `docs/DOGFOOD.md` section 2), and any unknown
   hunk while more of them remain than one 256-row plan can name, so split plans stay usable. The plan format does not change: its first field already accepts a
   full hunk ID, which is derived from the hunk's content, and `cem cite` refuses an ID the map lacks
-  as `unknown-hunk-id`. An empty plan remains a zero-citation no-op, and a hunk already cited or
+  as `unknown-hunk-id`. An empty plan remains a zero-citation no-op only on a map that owes no hunk
+(`DCW-V0-032`, proposed), and a hunk already cited or
   marked in a resumed map needs no row. (proposed 2026-09-25, V1-0228, not accepted) A map hunk
   path is compared with an intent path after JSON unescaping, and when `cem-prepare` is
   NOT_PRODUCED no map was prepared in the run, so `cem-cite` MUST be NOT_PRODUCED
@@ -270,6 +271,28 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   stale one stays non-blocking unless an owner decision makes it blocking.
   Reason: after `DCW-V0-026` the coordinator no longer overwrote the agent receipts, but a missing
   receipt or one written against another tree was no more visible than before.
+- `DCW-V0-032`: (proposed 2026-10-04, V1-0743, not accepted) An empty `DOGFOOD_CITATIONS` file
+  on a map that still records an `unknown` hunk outside the `DCW-V0-019` bootstrap omission MUST
+  report `cem-cite` NOT_PRODUCED `empty-citation-plan` and run no `cem cite`, as an empty
+  `DOGFOOD_OCM_LINKS` plan reports `empty-ocm-link-plan` under `DCW-V0-018`; the 256-row split-plan
+  exemption does not apply to an empty plan. On a map that owes no hunk the empty plan stays the
+  `DCW-V0-019` zero-citation no-op, which `dogfood finish` relies on after strict CEM status
+  (`local-completion-policy-v0.md`). `dogfood change` MUST read each of its file inputs through at
+  most its bound plus one sentinel byte: `DOGFOOD_INTENTS_FILE` 8208 bytes (16 paths of 512 bytes
+  with their LF), over which `ocm-aggregate` is NOT_PRODUCED `intent-manifest-over-bound`;
+  `DOGFOOD_VERIFY_FILE` 64 KiB, over which `local-outcome` is NOT_PRODUCED
+  `verify-file-over-bound`; and each `DCW-V0-031` agent receipt 4 MiB. Under `DCW-V0-031` a receipt
+  over that bound MUST print `NOT_OBSERVED agent-receipt-over-bound`, one that cannot be opened
+  `NOT_OBSERVED agent-receipt-unreadable`, and one that does not decode as a receipt object
+  `NOT_OBSERVED agent-receipt-malformed`; `agent-receipt-tree-unknown` stays for a receipt that
+  decodes but names no `context.revision`. A plan refused because the map cannot be read stays
+  `citation-plan-map-mismatch`. Each new refusal MUST have its own `fix:` line, and the receipt
+  notes stay non-blocking. The rule binds `dogfood change` only; the bash range loop
+  (`script/dogfood-bind-range.sh`) keeps its empty-plan no-op.
+  Reason: an empty plan on an uncited map was a silent zero-citation pass that only `cem-status`
+  caught later, these
+  three inputs were read whole before any bound was checked, and a malformed receipt was
+  indistinguishable from one that names no tree.
 
 ## Code vocabulary
 
@@ -290,6 +313,9 @@ Base anchoring, refused by every subverb:
   `unsupported-impact-repository` or `unsupported-impact-path` envelope (`DCW-V0-025`).
 - `citation-plan-not-provided`, `citation-plan-unavailable`, `invalid-citation-plan`: no citation
   plan was given, its path is not a regular file, or its rows are malformed.
+- `empty-citation-plan`, `intent-manifest-over-bound`, `verify-file-over-bound`: the citation plan
+  is empty while the map still owes a hunk, or the intents or verify file exceeds its bound
+  (`DCW-V0-032`, proposed).
 - `citation-stage-exists`, `citation-stage-cleanup-failed`: a staged citation file from an earlier
   pass is still present, or could not be removed.
 - `cem-map-not-produced`: `cem-prepare` failed in this run or left no `.corvint/change.cem.json`,
@@ -382,6 +408,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-029` (proposed) | `internal/dogfoodflow/change.go` `recordCitationBinding` and `ordinalsMoved`; `TestChangeRefusesAPlanWhoseOrdinalsMoved` and the V1-0239 `swapped-ordinals` case of `script/dogfood-change_test.sh` | implemented; not accepted |
 | `DCW-V0-030` (proposed) | none; `internal/dogfoodflow/check.go` `checkReport` still emits `dogfood-report-drift` for both cases | not implemented; needs an owner decision |
 | `DCW-V0-031` (proposed) | `internal/dogfoodflow/change.go` `noteAgentReceipts`; `TestChangeNotesAbsentOrStaleAgentReceipts`; the absent-receipt lines asserted by `TestDogfoodDailyPath*` and the DCW-V0-025 case of `script/dogfood-change_test.sh` | implemented; not accepted |
+| `DCW-V0-032` (proposed) | `internal/dogfoodflow/change.go` `citeStep`, `citationPlanMismatch`, `validateIntentManifest`, `localOutcome` and `noteAgentReceipt`; `TestChangeRefusesEmptyPlanAndOverBoundInputs` (including the empty plan admitted on a map that owes no hunk, and inputs of exactly their bound), `TestDogfoodReasonAdmitsInputRefusals` (the new step reasons reach the self-observation ledger), `TestDogfoodFinishRunsFromBinaryInForeignRepository` (finish still completes with its empty plan), the `empty` citation case of `script/dogfood-change_test.sh`, and the malformed and over-bound case of `TestChangeNotesAbsentOrStaleAgentReceipts` | implemented; not accepted |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 ## Compatibility and rollback
@@ -399,6 +426,9 @@ Roll back `DCW-V0-024` by reverting its change: the declaration then refuses
 `dogfood check`, so no no-intent change can pass silently on either side.
 Roll back `DCW-V0-025` by reverting its change: the two codes then block `"complete": true` again,
 and a report written under it fails `dogfood check` with `context-abstention-evidence-drift`.
+Roll back `DCW-V0-032` by reverting its change: an empty plan is again a zero-citation no-op on any map,
+the three inputs are read whole, and the receipt notes return to the `DCW-V0-031` codes; no report,
+map or receipt format changes, so evidence from either side stays readable.
 Roll back `DCW-V0-020..023` by restoring `script/dogfood-change.sh` and `script/dogfood-check.sh`
 from `e667812`; the make targets, inputs and artifacts are the same on both sides, so evidence
 from either side stays readable. The subverbs may remain unused.
