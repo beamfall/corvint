@@ -53,4 +53,5 @@ previousRecordSha256.
   entry each makes the matching `TestTEAV0001_*` test fail.
 - Codex review round 1 (gpt-6-astra, read-only): no P0-P2; one P3 (the archive limitation
   conflated the foreign importer with native archive export), fixed in the spec and this entry.
+- Codex review round 2 (static, `d524530f..da04e5ad`): APPROVED, no P0-P3 findings.
 - `make gate` and `go test ./...`: NOT_RUN (lane rule; `corvint affected` lists them as mandatory).
