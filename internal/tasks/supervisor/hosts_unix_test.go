@@ -56,4 +56,14 @@ func TestCALV0074_CapsuleHost(t *testing.T) {
 			t.Fatalf("codex vocabulary admitted a Claude Code result: %+v", out)
 		}
 	}
+	// A duplicate is_error (true then false) is not a successful result.
+	duplicate := `{"type":"result","subtype":"success","is_error":true,"is_error":false,"session_id":"claude-session","result":"{\"kind\":\"BUILT\",\"summary\":\"done\",\"nextAction\":\"review\"}","usage":{"input_tokens":4,"output_tokens":2}}`
+	c := base
+	c.Host = HostClaudeCode
+	c.Effect = Digest([]byte("duplicate"))
+	c.Argv = []string{"-c", "printf '%s\\n' '" + duplicate + "'"}
+	out, _ := Run(context.Background(), os.Args[0], t.TempDir(), c, func(string, Boot, *Outcome) error { return nil })
+	if out.Class != "INVALID_RESULT" || out.Result.Kind != "" {
+		t.Fatalf("duplicate is_error outcome %+v", out)
+	}
 }

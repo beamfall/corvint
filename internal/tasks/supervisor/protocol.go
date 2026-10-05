@@ -116,14 +116,7 @@ func ValidateCapsule(c Capsule) error {
 	if _, ok := HostVocabulary(c.Host); !ok || c.Host == HostCodex {
 		return fmt.Errorf("capsule host unsupported")
 	}
-	st, e := os.Lstat(c.Executable)
-	if e != nil {
-		return e
-	}
-	if !st.Mode().IsRegular() || st.Mode()&0111 == 0 {
-		return fmt.Errorf("runtime is not regular executable")
-	}
-	b, e := ReadBounded(c.Executable, 256<<20)
+	b, _, e := LaunchableExecutable(c.Executable)
 	if e != nil {
 		return e
 	}
@@ -131,6 +124,35 @@ func ValidateCapsule(c Capsule) error {
 		return fmt.Errorf("runtime executable digest changed")
 	}
 	return nil
+}
+
+// LaunchableExecutable is the launch-time check on a pinned runtime path:
+// an absolute path naming a regular file with an execute bit, never a
+// symlink, whose bounded bytes and permission bits it returns. Admission and
+// ValidateCapsule share it, so an admitted program is never refused at launch
+// for the executable's type (CAL-V0-074).
+func LaunchableExecutable(path string) ([]byte, os.FileMode, error) {
+	if !filepath.IsAbs(path) {
+		return nil, 0, fmt.Errorf("runtime path is not absolute")
+	}
+	st, e := os.Lstat(path)
+	if e != nil {
+		return nil, 0, e
+	}
+	if st.Mode()&os.ModeSymlink != 0 {
+		if target, e := filepath.EvalSymlinks(path); e == nil {
+			return nil, 0, fmt.Errorf("runtime %s is a symlink; pin its target %s", path, target)
+		}
+		return nil, 0, fmt.Errorf("runtime %s is a symlink", path)
+	}
+	if !st.Mode().IsRegular() || st.Mode()&0111 == 0 {
+		return nil, 0, fmt.Errorf("runtime is not regular executable")
+	}
+	b, e := ReadBounded(path, 256<<20)
+	if e != nil {
+		return nil, 0, e
+	}
+	return b, st.Mode().Perm(), nil
 }
 func await(ctx context.Context, path string, v any) error {
 	tick := time.NewTicker(20 * time.Millisecond)

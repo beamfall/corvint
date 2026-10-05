@@ -40,7 +40,12 @@ Claude Code host: set `"host": "claude-code"` in both the policy `supervision` o
 config, and pin the Claude Code executable as the same `taskman-codex-supervisor/0` runtime (one
 host per policy; absent means Codex). A config host that differs from the policy host, or an
 unknown host, is refused `UNSUPPORTED` before any record; `--host` must match the config host. A
-missing, unreadable or unpinned executable of either host is refused `CAPABILITY_UNAVAILABLE`.
+missing, unreadable, unpinned, non-executable or symlinked executable of either host is refused
+`CAPABILITY_UNAVAILABLE` before any record or claim; pin the symlink's regular target instead (for
+example the `claude.exe` that `/opt/homebrew/bin/claude` points to). An existing program reopened
+after the policy host changes never claims or launches again, and keeps only drain and cancel on a
+live attempt. To switch hosts back, cancel or drain each `claude-code` program with its original
+config while its pin is still in force, then edit the policy.
 Stages run `claude -p --output-format json` with the stage effort, project settings only, no MCP
 servers and no permission prompts; implement accepts edits, review and integrate deny Edit, Write
 and NotebookEdit, and every stage adds the sibling worktrees with `--add-dir`. The single result

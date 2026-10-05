@@ -1335,17 +1335,33 @@ later host such as OpenCode (V1-0756) adds one entry; it does not change the lif
   - the config `host` is another value;
   - the config `host` differs from the policy host.
 
-  This check runs for a new program and again at every later stage launch, as in CAL-V0-062. The
-  config digest binds `host`, so a recorded program cannot change hosts. `run`, `admit`, `resume`,
+  This check runs for a new program and again at every later stage launch, as in CAL-V0-062. An
+  existing program also repeats it on every reopen whose current attempt is absent, terminal or
+  unsupervised, before it reassigns, claims or attaches work. A live supervised attempt keeps only
+  drain and cancel after a host change. The config digest binds `host`, so a recorded program
+  cannot change hosts. `run`, `admit`, `resume`,
   `retry`, `answer`, `drain` and `cancel` MAY pass `--host codex` or `--host claude-code`. When
   given, the value MUST equal the config host, or the command is refused `UNSUPPORTED` before any
   store mutation.
 
-  The pinned-executable check is host-neutral. A program MUST be refused with
-  `CAPABILITY_UNAVAILABLE` before any program record or lease when its executable is missing or
-  unreadable, or does not match an enabled policy `runtimes` entry for the profile on path digest,
-  content digest and mode, or has a digest that differs from the config `executableSha256`. This
-  also names the existing Codex refusal, which was previously the unnamed `MALFORMED`. The Core
+  The pinned-executable check is host-neutral, and admission applies the launch-time check itself.
+  A program MUST be refused with `CAPABILITY_UNAVAILABLE` before any program record, claim or
+  lease in any of these cases:
+  - its executable path is not absolute, is missing or unreadable, or is not a regular file;
+  - the path is a symlink;
+  - the file has no execute bit;
+  - it does not match an enabled policy `runtimes` entry for the profile on path digest, content
+    digest and mode;
+  - its digest differs from the config `executableSha256`.
+
+  A symlink is refused rather than resolved, and the refusal names its target to pin instead. The
+  evidence: on the owner's host, `/opt/homebrew/bin/claude` and `/opt/homebrew/bin/codex` are
+  package-manager symlinks to regular executables that a package update retargets, so a pinned path
+  could change meaning without its pin changing. The lane leader's capsule validation already
+  refused symlinks and non-regular files. If launch is still refused after admission, for example
+  because the file changed in between, the dispatched stage settles as `NO_EXEC` with quiescence
+  proved and the owner released, and the stage returns `CAPABILITY_UNAVAILABLE`. This also names
+  the existing Codex refusal, which was previously the unnamed `MALFORMED`. The Core
   CLI requirement, `requireEnforcedFields`, roles, worker limits and budgets are unchanged. When
   `host` is absent, the policy, config, capsule, argv and `programs.json` bytes are unchanged.
 - `CAL-V0-075`: A `claude-code` stage MUST invoke the pinned executable with the prompt on
@@ -1368,7 +1384,10 @@ later host such as OpenCode (V1-0756) adds one entry; it does not change the lif
   - a nonempty string `result` that strictly decodes to the S10 minimum handoff object: kind
     `HANDOFF`, `BUILT`, `REVIEW` or `WAIT`, with a nonempty summary and nextAction.
 
-  Any other output is `INVALID_RESULT`. Token usage is `OBSERVED` only when the object's `usage`
+  No object in the result, its `usage` or the decoded handoff may repeat a member name. Without
+  this rule a later `is_error` false could override an earlier true, and two partial `usage`
+  objects could merge into one that looks complete. Any other output is `INVALID_RESULT`, and a
+  duplicate member also leaves usage and session unobserved. Token usage is `OBSERVED` only when the object's `usage`
   carries integer `input_tokens` and `output_tokens`. Input then adds any present integer
   `cache_creation_input_tokens` and `cache_read_input_tokens`, so it counts all input as Codex's
   counter does. A missing or non-integer counter, or an overflow, makes the turn `NOT_OBSERVED`.
@@ -1391,7 +1410,13 @@ Non-goals:
 
 Failure modes:
 - Config and policy hosts differ, or the config names an unknown host: refused `UNSUPPORTED` before
-  any mutation.
+  any mutation. This includes reopening an existing idle or completed program after the policy host
+  changed.
+- The pinned path is a symlink or lacks an execute bit: admission refuses
+  `CAPABILITY_UNAVAILABLE` before any record. A launch refusal after admission settles the stage
+  `NO_EXEC` instead of leaving it `SPAWNING`.
+- The result object repeats a member, such as `is_error` or `usage`: `INVALID_RESULT`, with usage
+  `NOT_OBSERVED`.
 - The Claude Code binary is upgraded or replaced: its digest differs, so admission refuses
   `CAPABILITY_UNAVAILABLE` and an existing program refuses its next stage. Re-pinning is an owner
   policy change.
@@ -1411,9 +1436,19 @@ Failure modes:
   journal walk also refuses retained history that includes such a policy, unless its reader resumes
   from a checkpoint after that record.
 
-Rollback: remove `host` from the policy and from each config. Codex policy and config bytes are
-unchanged by this slice. A `claude-code` program then refuses its next stage, and drain and cancel
-stay available. Regression witnesses are the CAL-V0-074 and CAL-V0-075 rows in the traceability
+Rollback: the config digest binds `host`, so an existing program can be reopened only with its
+original config, and a config with `host` removed is refused with `program config differs`.
+Rollback therefore takes three steps:
+1. While the `claude-code` policy and its runtime pin are still in force, drain or cancel every
+   `claude-code` program using its original config, for example
+   `corvint-tasks cancel --program P --config ORIGINAL`.
+2. Remove `host` from the policy, and re-pin the Codex runtime if it differs.
+3. Start new programs from configs without `host`.
+
+Codex policy and config bytes are unchanged by this slice. A `claude-code` program missed in step 1
+keeps drain and cancel access on its live supervised attempt, provided its pin still matches, but
+never launches another stage. An idle or completed one is refused `UNSUPPORTED` on reopen and
+holds no claim. Regression witnesses are the CAL-V0-074 and CAL-V0-075 rows in the traceability
 table, including the fake-host end-to-end `TestCALV0075_ClaudeCodeProgramFakeHost`. Live Claude
 Code qualification on a disposable program is `NOT_RUN`; see
 `docs/build-log/2026-10-04-tasks-claude-code-supervisor-host.md`.
@@ -1534,7 +1569,10 @@ The experimental `RUN_OUTCOME` observation verb is amended in by `corvint-tasks-
 | Multi-repository program reaches gates or integration | No cross-repository landing or recovery contract exists yet | Review refuses before any gate runs and the integrator refuses before any grant; the composite candidate stays recorded (CAL-V0-072) |
 | Supervisor config host differs from the policy host, or names an unknown host | A program would speak the wrong vocabulary to the pinned binary | Admission and every stage refuse `UNSUPPORTED` before any record, lease or host process (CAL-V0-074) |
 | Pinned Claude Code or Codex executable missing, replaced or re-moded | An unqualified binary would run | Refused `CAPABILITY_UNAVAILABLE` before any program record or lease (CAL-V0-074) |
+| Pinned executable is a symlink or lacks an execute bit | Admission takes a lease for a stage that launch refuses, leaving the worker unresolved | Admission runs the launch-time check and refuses `CAPABILITY_UNAVAILABLE` before any record; a later launch refusal settles the stage `NO_EXEC` (CAL-V0-074) |
+| Policy host changes under an existing idle or completed program | A reopen would reassign and claim work under the old host | Reopen refuses `UNSUPPORTED` before reassignment, claim or attach; a live attempt keeps drain and cancel only (CAL-V0-074) |
 | Claude Code result is not one exact success object with a strict handoff | A host claim would be invented from prose | The stage is `INVALID_RESULT`; missing usage counters stay `NOT_OBSERVED` (CAL-V0-075) |
+| Claude Code result repeats a JSON member | Last-wins decoding would turn an error into success or merge partial usage | `INVALID_RESULT` with usage `NOT_OBSERVED` (CAL-V0-075) |
 
 ## Acceptance and rollback
 
@@ -1613,8 +1651,8 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-065 | `TestCALV0065_AbsentPreimage`, `TestCALV0065_RequestShapeAndCurrentMembership`, `TestCALV0065_AllocationPreviewAndPreparedAdmission` (`internal/tasks/transaction`); `TestCALV0065_HealthFiltersEveryRound`, `TestCALV0065_ReplayAfterSuccessorAndPolicyChange`, `TestCALV0065_ClaimNextSelectors` (`internal/tasks/store`); `TestCALV0065_CLIExclusionsAndPreviewPurity`, `TestCALV0065_NativeFixture` (`internal/tasks/cli`); scoped evidence and limits in `docs/build-log/2026-10-02-tasks-member-exclusions.md` |
 | CAL-V0-071 | `TestCALV0071_PolicyRepositories` (`internal/tasks/intent`); `TestCALV0071_ProgramRepositoryRecords` (`internal/tasks/snapshot`); `TestCALV0071_RepositoryBindingImmutable` (`internal/tasks/transaction`); `TestCALV0071_CheckProgramConfigRepositories`, `TestCALV0071_WritableRoots`, `TestCALV0071_UndeclaredRepositoryRefusedBeforeMutation`, `TestCALV0071_ExtraRepositoryPathsAreScoped`, `TestCALV0071_RetargetedCheckoutRefusedBeforeWrite`, `TestCALV0071_MultiRepositoryProgramFakeHost` (`internal/tasks/store`); live Codex NOT_RUN |
 | CAL-V0-072 | `TestCALV0071_MultiRepositoryProgramFakeHost` (composite tree, unmoved checkout `HEAD`, review binding, integrator refusal), `TestCALV0072_MultiRepositoryGatesFailClosed` (`internal/tasks/store`); live Codex NOT_RUN |
-| CAL-V0-074 | `TestCALV0074_PolicyHost` (`internal/tasks/intent`); `TestCALV0074_CapsuleHost` (`internal/tasks/supervisor`); `TestCALV0074_CheckProgramConfigHost`, `TestCALV0074_OpenWorkflowRefusesHostBeforeMutation` (`internal/tasks/store`); `TestCALV0074_RunHostFlag` (`internal/tasks/cli`) |
-| CAL-V0-075 | `TestCALV0075_ClaudeResultVocabulary`, `TestCALV0075_ClaudeUsageObservedOrUnknown` (`internal/tasks/supervisor`); `TestCALV0075_ClaudeStageArgv`, `TestCALV0075_ClaudeCodeProgramFakeHost` (`internal/tasks/store`); live Claude Code NOT_RUN |
+| CAL-V0-074 | `TestCALV0074_PolicyHost` (`internal/tasks/intent`); `TestCALV0074_CapsuleHost` (`internal/tasks/supervisor`); `TestCALV0074_CheckProgramConfigHost`, `TestCALV0074_OpenWorkflowRefusesHostBeforeMutation`, `TestCALV0074_AdmissionRunsLaunchCheck`, `TestCALV0074_HostSwitchAndRollback` (`internal/tasks/store`); `TestCALV0074_RunHostFlag` (`internal/tasks/cli`) |
+| CAL-V0-075 | `TestCALV0075_ClaudeResultVocabulary`, `TestCALV0075_ClaudeUsageObservedOrUnknown`, `TestCALV0075_ClaudeDuplicateMembers` (`internal/tasks/supervisor`); `TestCALV0075_ClaudeStageArgv`, `TestCALV0075_ClaudeCodeProgramFakeHost` (`internal/tasks/store`); live Claude Code NOT_RUN |
 | CAL-V0-013 | `TestCALV0013_RetryAsNextGenerationUpToThree` (`internal/tasks/store`) |
 | CAL-V0-014 | `TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan`, `TestCALV0014_SelectedOnlyPlanPreviewIsComplete` (`internal/tasks/cli`); `plan preview` in `TestTMV0008_AS07_ReadsLeaveStoreByteIdentical` (`internal/tasks/cli`) |
 | CAL-V0-015 | `TestCALV0015_SubmitRecordsTheCandidateTree` (`internal/tasks/store`) |

@@ -119,3 +119,35 @@ func TestCALV0075_ClaudeUsageObservedOrUnknown(t *testing.T) {
 		}
 	}
 }
+
+// TestCALV0075_ClaudeDuplicateMembers proves a repeated member anywhere in the
+// result object, its usage or the handoff string is refused rather than
+// resolved last-wins, and that usage stays unobserved.
+func TestCALV0075_ClaudeDuplicateMembers(t *testing.T) {
+	host, _ := HostVocabulary(HostClaudeCode)
+	handoff := `"{\"kind\":\"BUILT\",\"summary\":\"done\",\"nextAction\":\"review\"}"`
+	usage := `{"input_tokens":4,"output_tokens":2}`
+	cases := map[string]string{
+		"is_error true then false": `{"type":"result","subtype":"success","is_error":true,"is_error":false,"session_id":"s","result":` + handoff + `,"usage":` + usage + `}`,
+		"repeated usage objects":   `{"type":"result","subtype":"success","is_error":false,"session_id":"s","result":` + handoff + `,"usage":{"input_tokens":4},"usage":{"output_tokens":2}}`,
+		"repeated usage counter":   `{"type":"result","subtype":"success","is_error":false,"session_id":"s","result":` + handoff + `,"usage":{"input_tokens":4,"output_tokens":2,"input_tokens":9}}`,
+		"repeated session":         `{"type":"result","subtype":"success","is_error":false,"session_id":"s","session_id":"t","result":` + handoff + `,"usage":` + usage + `}`,
+		"repeated handoff member":  `{"type":"result","subtype":"success","is_error":false,"session_id":"s","result":"{\"kind\":\"WAIT\",\"kind\":\"BUILT\",\"summary\":\"done\",\"nextAction\":\"review\"}","usage":` + usage + `}`,
+		"nested repeated member":   `{"type":"result","subtype":"success","is_error":false,"session_id":"s","result":` + handoff + `,"usage":` + usage + `,"extra":[{"a":1,"a":2}]}`,
+	}
+	for name, raw := range cases {
+		if _, _, e := host.Decode([]byte(raw)); e == nil {
+			t.Fatalf("%s: decoded", name)
+		}
+		if _, _, ok := host.Usage([]byte(raw)); ok && name != "repeated handoff member" {
+			t.Fatalf("%s: usage observed", name)
+		}
+	}
+	if got := host.Session([]byte(cases["repeated session"])); got != "" {
+		t.Fatalf("repeated session observed as %q", got)
+	}
+	distinct := `{"type":"result","subtype":"success","is_error":false,"session_id":"s","result":` + handoff + `,"usage":` + usage + `,"extra":[{"a":1},{"a":2}],"nested":{"a":{"a":1}}}`
+	if _, _, e := host.Decode([]byte(distinct)); e != nil {
+		t.Fatalf("same name in distinct objects refused: %v", e)
+	}
+}

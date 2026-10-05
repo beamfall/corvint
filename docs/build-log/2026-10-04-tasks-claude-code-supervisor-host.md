@@ -85,4 +85,46 @@ Evidence:
   are shared with review, and the S10 integration binding is unchanged;
 - a comparison of Claude Code `usage` totals against billed usage.
 
-Rollback: remove `host` from the policy and from every config. Codex bytes are unchanged.
+Review round 1 (Codex, `CHANGES_REQUIRED` on ce4ae150..3992d096); each finding was reproduced
+before it was fixed:
+- P1, the pinned symlink. Admission followed symlinks when it read and checked the pin, but the
+  capsule validation at launch used `Lstat` and required a regular file. A pinned symlink was
+  therefore admitted and leased, and then refused at launch. That refusal returned before the
+  lane leader's `NO_EXEC` boundary, so the stage stayed `SPAWNING` with its worker unresolved.
+  - The fix: `supervisor.LaunchableExecutable` is now the shared launch-time check, covering an
+    absolute path, no symlink, a regular file with an execute bit, and the bounded read.
+    Admission and `RunProgram` run it before any record, claim or lease, and refuse
+    `CAPABILITY_UNAVAILABLE`.
+  - A launch refusal after admission now settles the stage as `NO_EXEC`.
+  - The decision is to refuse a symlink and pin its target, not to resolve it. The evidence:
+    `/opt/homebrew/bin/claude` points to
+    `../lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe`, a regular 0755 Mach-O file,
+    and `/opt/homebrew/bin/codex` is likewise a symlink to a regular file. A package update
+    retargets these links, so a pinned link path would change meaning without its pin changing,
+    and the launch contract already refused links. The refusal names the target to pin.
+- P2, the existing program. Reopening an existing program checked only the config digest, so after
+  a policy host change an idle or completed program reassigned and claimed new work before the
+  stage refused. The fix: the reopen now rechecks the host before reassignment, claim or attach,
+  unless the current attempt is live and supervised. That attempt keeps drain and cancel only.
+  Answer is refused after any policy change, because the attempt's policy binding is stale; this
+  behaviour predates the change and does not come from the host check.
+- P2, duplicate members. `encoding/json` keeps the last duplicate member and merges a repeated
+  `usage` object. The Claude Code reader now refuses a repeated member in any object of the result,
+  its usage or the decoded handoff, so the stage is `INVALID_RESULT` with usage unobserved. The
+  Codex event reader is unchanged.
+- P2, rollback. Existing programs bind their original config digest, so the documented rollback
+  now cancels or drains them with that config while the pin is in force, before the policy
+  changes.
+- New witnesses:
+  - `TestCALV0074_AdmissionRunsLaunchCheck`: the symlink and non-executable cases leave the
+    inventory unchanged, and a refusal after admission is cleaned up.
+  - `TestCALV0074_HostSwitchAndRollback`: the idle and completed reopens are refused unchanged,
+    an edited config is refused, a live attempt is refused a stage but cancels, and a new Codex
+    program then claims.
+  - `TestCALV0075_ClaudeDuplicateMembers`, and a duplicate-`is_error` lane-leader run in
+    `TestCALV0074_CapsuleHost`.
+  - Each new test failed with its fix disabled.
+
+Rollback: cancel or drain every `claude-code` program with its original config while the policy pin
+is in force, then remove `host` from the policy, then start new programs from configs without
+`host`. Codex bytes are unchanged.

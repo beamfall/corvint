@@ -49,6 +49,9 @@ type claudeResult struct {
 // whitespace.
 func readClaudeResult(raw []byte) (claudeResult, error) {
 	var r claudeResult
+	if e := uniqueMembers(raw); e != nil {
+		return r, e
+	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	if e := d.Decode(&r); e != nil {
 		return r, e
@@ -79,6 +82,9 @@ func DecodeClaudeResult(raw []byte) (string, HostResult, error) {
 	}
 	if r.Result == nil || *r.Result == "" {
 		return r.SessionID, result, fmt.Errorf("incomplete host turn")
+	}
+	if e := uniqueMembers([]byte(*r.Result)); e != nil {
+		return r.SessionID, result, e
 	}
 	if e := decode([]byte(*r.Result), &result); e != nil {
 		return r.SessionID, result, e
@@ -135,6 +141,62 @@ func claudeCounter(v json.RawMessage) (uint64, bool) {
 		return 0, false
 	}
 	return n, true
+}
+
+// uniqueMembers refuses a JSON text in which any object repeats a member
+// name. encoding/json keeps the last duplicate and merges a repeated object,
+// so without this an is_error true could be overridden, or two partial usage
+// objects could combine into an apparently complete observation (CAL-V0-075).
+func uniqueMembers(raw []byte) error {
+	type frame struct {
+		keys      map[string]bool
+		object    bool
+		expectKey bool
+	}
+	var stack []*frame
+	d := json.NewDecoder(bytes.NewReader(raw))
+	d.UseNumber()
+	for {
+		t, e := d.Token()
+		if e == io.EOF {
+			return nil
+		}
+		if e != nil {
+			return e
+		}
+		var top *frame
+		if len(stack) > 0 {
+			top = stack[len(stack)-1]
+		}
+		switch v := t.(type) {
+		case json.Delim:
+			switch v {
+			case '{', '[':
+				if top != nil && top.object {
+					top.expectKey = true
+				}
+				stack = append(stack, &frame{keys: map[string]bool{}, object: v == '{', expectKey: v == '{'})
+			default:
+				stack = stack[:len(stack)-1]
+			}
+		case string:
+			if top != nil && top.object && top.expectKey {
+				if top.keys[v] {
+					return fmt.Errorf("duplicate JSON member %q", v)
+				}
+				top.keys[v] = true
+				top.expectKey = false
+				continue
+			}
+			if top != nil && top.object {
+				top.expectKey = true
+			}
+		default:
+			if top != nil && top.object {
+				top.expectKey = true
+			}
+		}
+	}
 }
 
 func validHandoff(r HostResult) bool {

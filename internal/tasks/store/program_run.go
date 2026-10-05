@@ -63,9 +63,9 @@ func RunProgram(ctx context.Context, repo *intent.Repository, actor mutation.Bin
 	if e = checkNewProgramConfig(c, policy.Supervision); e != nil {
 		return p, out, e
 	}
-	raw, e := supervisor.ReadBounded(c.Executable, 256<<20)
+	raw, _, e := supervisor.LaunchableExecutable(c.Executable)
 	if e != nil {
-		return p, out, e
+		return p, out, wire.Errorf(wire.CodeCapabilityUnavailable, "runtime", "pinned executable is not launchable: %v", e)
 	}
 	pinned := false
 	for _, r := range policy.Runtimes {
