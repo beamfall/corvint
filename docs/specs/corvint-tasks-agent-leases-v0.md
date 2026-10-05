@@ -1608,7 +1608,11 @@ stage worktree. Whether a copied OpenCode binary starts is unverified until live
   - there is at least one `step_finish`, and the last one has `part.type` `step-finish` and
     `part.reason` `stop`;
   - the last `text` event comes before that final `step_finish`, has `part.type` `text`, and its
-    `part.text` strictly decodes to the S10 minimum handoff object.
+    `part.text` strictly decodes to the S10 minimum handoff object;
+  - no object in any line repeats a member name, and no member of an object the profile reads
+    (the event, a text or step-finish part, its `tokens` and `tokens.cache`) or of a JSON last
+    `part.text` differs from a read name only by case folding, as for Claude Code (CAL-V0-075).
+    Such a stream leaves the result, the session and usage unobserved.
 
   Any other output is `INVALID_RESULT`. When the stage continues the recorded session S, it MUST
   advance only on positive evidence that S and its history existed: a run that decodes a session
@@ -1684,9 +1688,19 @@ Failure modes:
   `opencode` with `UNSUPPORTED`, and a capsule whose host it does not know; an older binary
   refuses as S22 describes.
 
-Rollback: remove `host` from the policy and the config, or set both back to another admitted host.
-An `opencode` program then refuses its next stage, and drain and cancel stay available. No Codex or
-Claude Code bytes change. Regression witnesses are the CAL-V0-076 and CAL-V0-077 rows in the
+Rollback: the config digest binds `host`, so the S22 ordered rollback applies with `opencode` in
+place of `claude-code`:
+1. While the `opencode` policy and its runtime pin are still in force, cancel every `opencode`
+   program using its original config. A program drained first MUST still be cancelled: a drain
+   leaves a live `WAITING` attempt that holds its claim and reservation.
+2. Only then remove or change `host` in the policy, and re-pin the other host's runtime.
+3. Start new programs from configs for that host.
+
+Once the pin changes, an original `opencode` config is refused `CAPABILITY_UNAVAILABLE` on reopen,
+and an edited one `program config differs`. A program missed in step 1 therefore keeps its claim.
+To recover it, re-pin its OpenCode runtime with the policy host unchanged, reopen it with its
+original config, cancel it, and restore the other pin; its stages stay refused `UNSUPPORTED`.
+No Codex or Claude Code bytes change. Regression witnesses are the CAL-V0-076 and CAL-V0-077 rows in the
 traceability table, including the fake-host end-to-end `TestCALV0077_OpenCodeProgramFakeHost`.
 Live OpenCode qualification on a disposable program is `NOT_RUN`; see
 `docs/build-log/2026-10-04-tasks-opencode-supervisor-host.md`.
@@ -1816,6 +1830,8 @@ The experimental `RUN_OUTCOME` observation verb is amended in by `corvint-tasks-
 | Runtime pin changes while a drained `claude-code` attempt is live | Its claim and reservation would be stranded behind a config the new pin refuses | Rollback cancels every program, drained ones included, before the pin changes; a missed one is recovered by re-pinning its runtime to cancel it (CAL-V0-074) |
 | Claude Code result is not one exact success object with a strict handoff | A host claim would be invented from prose | The stage is `INVALID_RESULT`; missing usage counters stay `NOT_OBSERVED` (CAL-V0-075) |
 | Claude Code result or handoff repeats a JSON member, or aliases one by case | Last-wins or case-insensitive decoding would turn an error into success or merge partial usage | `INVALID_RESULT`, with session and usage `NOT_OBSERVED` (CAL-V0-075) |
+| Runtime pin changes while a drained `opencode` attempt is live | Its claim and reservation would be stranded behind a config the new pin refuses | Rollback cancels every program, drained ones included, before the pin changes; a missed one is recovered by re-pinning its runtime to cancel it (CAL-V0-076) |
+| OpenCode stream line or JSON handoff repeats a member, or aliases a read one by case | Last-wins or case-insensitive decoding would mask a host error, accept a refused review or merge partial counters | `INVALID_RESULT`, with session and usage `NOT_OBSERVED` (CAL-V0-077) |
 | OpenCode program names a variant model or extra repositories | The stage effort or the worktree boundary would be silently overridden | Admission and every stage refuse `UNSUPPORTED` before any record (CAL-V0-076) |
 | OpenCode stream reports an error, changes session, leaves a step open, is cut at the output cap, or ends without a stop-finished step carrying a strict handoff | A host claim or partial usage would be invented from a partial or failed turn | The stage is `INVALID_RESULT` (or `OUTPUT_LIMIT`); usage stays `NOT_OBSERVED` unless accounting is complete (CAL-V0-077) |
 | Resumed OpenCode stage fails the fork or answers from the same session ID | An answer would be accepted without the history of the WAIT question it continues | The attempt stays `WAITING` with the original session retained (CAL-V0-077) |
@@ -1901,8 +1917,8 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-072 | `TestCALV0071_MultiRepositoryProgramFakeHost` (composite tree, unmoved checkout `HEAD`, review binding, integrator refusal), `TestCALV0072_MultiRepositoryGatesFailClosed` (`internal/tasks/store`); live Codex NOT_RUN |
 | CAL-V0-074 | `TestCALV0074_PolicyHost` (`internal/tasks/intent`); `TestCALV0074_CapsuleHost`, `TestCALV0074_RuntimeReplacedAtAck`, `TestCALV0074_ACLProbe`, `TestCALV0074_PrelaunchErrorOnlyBeforeSpawn` (`internal/tasks/supervisor`); `TestCALV0074_CheckProgramConfigHost`, `TestCALV0074_OpenWorkflowRefusesHostBeforeMutation`, `TestCALV0074_AdmissionRunsLaunchCheck`, `TestCALV0074_SpawnedFailureIsNotNoExec`, `TestCALV0074_NoExecCancelBeforeRelease`, `TestCALV0074_NoExecCrashTakeover`, `TestCALV0074_HostSwitchAndRollback` (`internal/tasks/store`); `TestCALV0074_RunHostFlag` (`internal/tasks/cli`) |
 | CAL-V0-075 | `TestCALV0075_ClaudeResultVocabulary`, `TestCALV0075_ClaudeUsageObservedOrUnknown`, `TestCALV0075_ClaudeDuplicateMembers` (`internal/tasks/supervisor`); `TestCALV0075_ClaudeStageArgv`, `TestCALV0075_ClaudeCodeProgramFakeHost` (`internal/tasks/store`); live Claude Code NOT_RUN |
-| CAL-V0-076 | `TestCALV0076_PolicyHostOpenCode` (`internal/tasks/intent`); `TestCALV0076_OpenCodeVocabularySelected` (`internal/tasks/supervisor`); `TestCALV0076_CheckOpenCodeConfig`, `TestCALV0076_CheckProgramConfigOpenCodeHost` (`internal/tasks/store`); `TestCALV0076_ConfigHostFlag` (`internal/tasks/cli`) |
-| CAL-V0-077 | `TestCALV0077_OpenCodeResultVocabulary`, `TestCALV0077_OpenCodeUsageObservedOrUnknown` (`internal/tasks/supervisor`); `TestCALV0077_OpenCodeUsageIncompleteAccounting`, `TestCALV0077_DetachedHostEnvRequired`, `TestCALV0077_DetachedServerTimeout`, `TestCALV0077_DetachedServerForcedKill`, `TestCALV0077_DetachedServerHostCrash`, `TestCALV0077_DetachedOrphanFailsClosed`, `TestCALV0077_EscapeObservationUncertain`, `TestCALV0077_EscapeGroupReuse`, `TestCALV0077_RecoverDetachedHost`, `TestCALV0077_RecoverDetachedLateEscape` (`internal/tasks/supervisor`); `TestCALV0077_OpenCodeStageArgv`, `TestCALV0077_OpenCodeProgramFakeHost`, `TestCALV0077_OpenCodeResumeRequiresFork`, `TestCALV0077_OpenCodeOutputLimitUsageUnknown` (`internal/tasks/store`); live OpenCode NOT_RUN |
+| CAL-V0-076 | `TestCALV0076_PolicyHostOpenCode` (`internal/tasks/intent`); `TestCALV0076_OpenCodeVocabularySelected` (`internal/tasks/supervisor`); `TestCALV0076_CheckOpenCodeConfig`, `TestCALV0076_CheckProgramConfigOpenCodeHost`, `TestCALV0076_OpenCodeHostRollback` (`internal/tasks/store`); `TestCALV0076_ConfigHostFlag` (`internal/tasks/cli`) |
+| CAL-V0-077 | `TestCALV0077_OpenCodeResultVocabulary`, `TestCALV0077_OpenCodeUsageObservedOrUnknown`, `TestCALV0077_OpenCodeDuplicateMembers` (`internal/tasks/supervisor`); `TestCALV0077_OpenCodeUsageIncompleteAccounting`, `TestCALV0077_DetachedHostEnvRequired`, `TestCALV0077_DetachedServerTimeout`, `TestCALV0077_DetachedServerForcedKill`, `TestCALV0077_DetachedServerHostCrash`, `TestCALV0077_DetachedOrphanFailsClosed`, `TestCALV0077_EscapeObservationUncertain`, `TestCALV0077_EscapeGroupReuse`, `TestCALV0077_RecoverDetachedHost`, `TestCALV0077_RecoverDetachedLateEscape` (`internal/tasks/supervisor`); `TestCALV0077_OpenCodeStageArgv`, `TestCALV0077_OpenCodeProgramFakeHost`, `TestCALV0077_OpenCodeResumeRequiresFork`, `TestCALV0077_OpenCodeOutputLimitUsageUnknown` (`internal/tasks/store`); live OpenCode NOT_RUN |
 | CAL-V0-013 | `TestCALV0013_RetryAsNextGenerationUpToThree` (`internal/tasks/store`) |
 | CAL-V0-014 | `TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan`, `TestCALV0014_SelectedOnlyPlanPreviewIsComplete` (`internal/tasks/cli`); `plan preview` in `TestTMV0008_AS07_ReadsLeaveStoreByteIdentical` (`internal/tasks/cli`) |
 | CAL-V0-015 | `TestCALV0015_SubmitRecordsTheCandidateTree` (`internal/tasks/store`) |

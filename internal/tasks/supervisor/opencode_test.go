@@ -179,3 +179,77 @@ func TestCALV0076_OpenCodeVocabularySelected(t *testing.T) {
 		}
 	}
 }
+
+// TestCALV0077_OpenCodeDuplicateMembers proves a repeated member anywhere in
+// an event line, or a member aliasing a read name by case folding in the
+// event, its text or step-finish part, the token counters or the JSON
+// handoff, is refused rather than resolved last-wins, and that the result,
+// session and usage readers all leave it unobserved.
+func TestCALV0077_OpenCodeDuplicateMembers(t *testing.T) {
+	s := "ses_1"
+	text := func(part string) string {
+		return `{"type":"text","timestamp":1,"sessionID":"ses_1","part":` + part + "}\n"
+	}
+	finish := func(part string) string {
+		return `{"type":"step_finish","timestamp":2,"sessionID":"ses_1","part":` + part + "}\n"
+	}
+	handoff := text(`{"type":"text","text":"{\"kind\":\"BUILT\",\"summary\":\"done\",\"nextAction\":\"review\"}"}`)
+	tokens := `{"input":1,"output":1,"reasoning":0,"cache":{"read":0,"write":0}}`
+	stop := finish(`{"type":"step-finish","reason":"stop","tokens":` + tokens + `}`)
+	review := func(h string) string { return text(`{"type":"text","text":"`+h+`"}`) + stop }
+	if _, _, e := DecodeOpenCodeEvents([]byte(handoff + stop)); e != nil {
+		t.Fatalf("baseline refused: %v", e)
+	}
+	if _, _, known := ObservedOpenCodeUsage([]byte(handoff + stop)); !known {
+		t.Fatal("baseline usage unobserved")
+	}
+	cases := map[string]string{
+		"error masked by type":      `{"type":"error","type":"step_start","sessionID":"ses_1","part":{"type":"step-start"}}` + "\n" + handoff + stop,
+		"escaped repeated type":     `{"type":"error","\u0074ype":"step_start","sessionID":"ses_1","part":{"type":"step-start"}}` + "\n" + handoff + stop,
+		"repeated session":          `{"type":"text","sessionID":"ses_2","sessionID":"ses_1","part":{"type":"text","text":"x"}}` + "\n" + handoff + stop,
+		"type case alias":           `{"type":"error","Type":"step_start","sessionID":"ses_1","part":{"type":"step-start"}}` + "\n" + handoff + stop,
+		"session case alias":        `{"type":"text","sessionID":"ses_1","SessionID":"ses_2","part":{"type":"text","text":"x"}}` + "\n" + handoff + stop,
+		"repeated part":             text(`{"type":"text","text":"x"},"part":{"type":"text","text":"y"}`) + handoff + stop,
+		"repeated text member":      text(`{"type":"text","text":"{\"kind\":\"BUILT\",\"summary\":\"done\",\"nextAction\":\"review\"}","text":"prose"}`) + stop,
+		"text case alias":           text(`{"type":"text","text":"prose","Text":"{\"kind\":\"BUILT\",\"summary\":\"done\",\"nextAction\":\"review\"}"}`) + stop,
+		"repeated reason":           handoff + finish(`{"type":"step-finish","reason":"length","reason":"stop","tokens":`+tokens+`}`),
+		"reason case alias":         handoff + finish(`{"type":"step-finish","reason":"length","Reason":"stop","tokens":`+tokens+`}`),
+		"repeated tokens objects":   handoff + finish(`{"type":"step-finish","reason":"stop","tokens":{"input":1,"output":1},"tokens":{"reasoning":0,"cache":{"read":0,"write":0}}}`),
+		"repeated counter":          handoff + finish(`{"type":"step-finish","reason":"stop","tokens":{"input":1,"output":1,"reasoning":0,"cache":{"read":0,"write":0},"input":9}}`),
+		"repeated cache objects":    handoff + finish(`{"type":"step-finish","reason":"stop","tokens":{"input":1,"output":1,"reasoning":0,"cache":{"read":0},"cache":{"write":0}}}`),
+		"tokens case alias":         handoff + finish(`{"type":"step-finish","reason":"stop","Tokens":`+tokens+`}`),
+		"counter case alias":        handoff + finish(`{"type":"step-finish","reason":"stop","tokens":{"input":1,"Output":1,"output":1,"reasoning":0,"cache":{"read":0,"write":0}}}`),
+		"cache counter alias":       handoff + finish(`{"type":"step-finish","reason":"stop","tokens":{"input":1,"output":1,"reasoning":0,"cache":{"read":0,"Write":0,"write":0}}}`),
+		"nested repeated member":    `{"type":"tool_use","sessionID":"ses_1","part":{"type":"tool","state":{"a":1,"a":2}}}` + "\n" + handoff + stop,
+		"contradictory acceptance":  review(`{\"kind\":\"REVIEW\",\"accepted\":false,\"accepted\":true,\"claims\":[],\"summary\":\"verified\",\"nextAction\":\"integrate\"}`),
+		"escaped repeated accepted": review(`{\"kind\":\"REVIEW\",\"accepted\":false,\"\\u0061ccepted\":true,\"claims\":[],\"summary\":\"verified\",\"nextAction\":\"integrate\"}`),
+		"accepted case alias":       review(`{\"kind\":\"REVIEW\",\"accepted\":false,\"Accepted\":true,\"claims\":[],\"summary\":\"verified\",\"nextAction\":\"integrate\"}`),
+		"handoff kelvin-sign alias": review(`{\"kind\":\"WAIT\",\"\\u212aind\":\"BUILT\",\"summary\":\"done\",\"nextAction\":\"review\"}`),
+		"repeated handoff kind":     review(`{\"kind\":\"WAIT\",\"kind\":\"BUILT\",\"summary\":\"done\",\"nextAction\":\"review\"}`),
+	}
+	for name, raw := range cases {
+		for i, line := range strings.Split(strings.TrimSuffix(raw, "\n"), "\n") {
+			if !json.Valid([]byte(line)) {
+				t.Fatalf("%s: fixture line %d is not JSON", name, i)
+			}
+		}
+		if session, _, e := DecodeOpenCodeEvents([]byte(raw)); e == nil || session != "" {
+			t.Fatalf("%s: decoded (session %q, %v)", name, session, e)
+		}
+		if _, _, known := ObservedOpenCodeUsage([]byte(raw)); known {
+			t.Fatalf("%s: usage observed", name)
+		}
+		if got := ObservedOpenCodeSession([]byte(raw)); got != "" {
+			t.Fatalf("%s: session observed as %q", name, got)
+		}
+	}
+	// The same name in distinct objects, and a prose last text, stay admitted.
+	distinct := `{"type":"tool_use","sessionID":"ses_1","part":{"type":"tool","state":{"a":{"a":1}},"list":[{"a":1},{"a":2}]}}` + "\n" + handoff + stop
+	if _, _, e := DecodeOpenCodeEvents([]byte(distinct)); e != nil {
+		t.Fatalf("same name in distinct objects refused: %v", e)
+	}
+	prose := text(`{"type":"text","text":"ran out of ideas"}`) + stop
+	if got := ObservedOpenCodeSession([]byte(prose)); got != s {
+		t.Fatalf("prose text left the session unobserved: %q", got)
+	}
+}

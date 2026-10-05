@@ -161,6 +161,30 @@ V1-0755's approved head was merged with `--no-ff`; its CAL-V0-074/075 IDs are ke
   self-contained, at 180 MiB, and not root-protected on the owner's host. Starting a copy of it
   is unverified.
 
+## Combined review fixes (r4, over b8b8d8af)
+
+Codex reviewed the combined delta over V1-0755 and required two changes.
+
+- P1, the OpenCode reader did not apply the duplicate and case-alias rules that V1-0755 added for
+  Claude Code. `encoding/json` keeps the last of a repeated member and matches names
+  case-insensitively, so `"accepted":false,"accepted":true` would be accepted. A repeated `type`
+  could hide an `error` event, and repeated token objects would merge into apparently complete
+  usage.
+  - The shared stream reader now refuses any line that repeats a member, and any member that
+    aliases a read name in the event, a text or step-finish part, `tokens` or `tokens.cache`. It
+    applies the Claude Code handoff member rule to a JSON last text. The result, session and usage
+    readers all share the refusal, and a refused stream decodes no session.
+  - `TestCALV0077_OpenCodeDuplicateMembers` covers masked errors, contradictory acceptance,
+    aliases (including escaped and Kelvin-sign spellings) and merged partial counters. Removing
+    the per-line duplicate check, the handoff member check or the step-finish alias check each
+    made it fail.
+- P2, the S23 rollback said drain and cancel stay available after `host` changes. They do not:
+  the config digest binds `host`, and the runtime pin change refuses the original config.
+  - S23 now carries the S22 ordered rollback: cancel every `opencode` program first, drained ones
+    included, then change the policy and the pin. Its recovery path is to re-pin and cancel.
+  - `TestCALV0076_OpenCodeHostRollback` exercises both, using a distinct Codex pin and the fake
+    OpenCode host.
+
 Still not run: live OpenCode qualification, including the fork resume, escape draining against
 the real server, stderr volume at error level, and the cost of `ps` scans on a busy host
 (`NOT_RUN`).

@@ -262,3 +262,109 @@ func TestCALV0077_OpenCodeOutputLimitUsageUnknown(t *testing.T) {
 	}
 	t.Fatal("program record absent")
 }
+
+// TestCALV0076_OpenCodeHostRollback proves S23 inherits the S22 ordered
+// rollback. With the opencode policy and its runtime pin in force, every
+// program is cancelled with its original config, a drained one included;
+// after the policy host and the pin change, an original config is refused
+// before any mutation, an edited config is refused as a different program,
+// and a new Codex program claims a released ticket. A program that was only
+// drained keeps its claim, and restoring the OpenCode pin recovers cancel
+// access to it without a stage launch.
+func TestCALV0076_OpenCodeHostRollback(t *testing.T) {
+	ctx := context.Background()
+	f := newOpenCodeFixture(t)
+	pins := &claudeFixture{s: f.s, scripts: f.scripts, config: f.config, version: 3}
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"second", "third"} {
+		payload := createPayload("opencode-" + name)
+		effects, _ := payload.Obj.Get("effects")
+		effects.Obj.Set("touchPaths", wire.Strings([]string{name + ".txt"}))
+		if r := mutate(t, f.s.repo, envelope("create-"+name, "CREATE", "", "", payload)); r.Outcome.Outcome != mutation.OutcomeCompleted {
+			t.Fatalf("create %+v", r)
+		}
+	}
+	waiting := map[string]*store.Workflow{}
+	for _, id := range []string{"done", "late", "stranded"} {
+		w, err := store.OpenWorkflow(ctx, f.s.repo, operator(), id, self, f.config, "")
+		if err != nil {
+			t.Fatalf("open %s: %v", id, err)
+		}
+		if a, err := w.RunRole(ctx, "implementer", ""); err != nil || a.Phase != "WAITING" {
+			t.Fatalf("%s implement: %v", id, err)
+		}
+		waiting[id] = w
+	}
+	// Step 1: cancel every program under the opencode policy and pin; a
+	// drained program is still cancelled after its drain.
+	if err = waiting["done"].Cancel(); err != nil {
+		t.Fatalf("cancel before switch: %v", err)
+	}
+	if err = waiting["late"].Drain(); err != nil {
+		t.Fatalf("drain before switch: %v", err)
+	}
+	if err = waiting["late"].Cancel(); err != nil {
+		t.Fatalf("cancel after drain: %v", err)
+	}
+	// The step this test leaves out: "stranded" is drained, not cancelled.
+	if err = waiting["stranded"].Drain(); err != nil {
+		t.Fatalf("drain stranded: %v", err)
+	}
+	stranded := waiting["stranded"].Attempt()
+
+	// Step 2: remove the policy host and pin a distinct Codex runtime.
+	codexExe := filepath.Join(f.scripts, "codex")
+	codexRaw := multiScript(t, codexExe, "#!/bin/sh\ncat >/dev/null\nexit 1\n")
+	codex := f.config
+	codex.Host = ""
+	codex.Executable = codexExe
+	codex.ExecutableSHA256 = supervisor.Digest(codexRaw)
+	pins.setPolicy(t, codexExe, "")
+	for _, id := range []string{"done", "late", "stranded"} {
+		before := pins.inventory(t)
+		_, err = store.OpenWorkflow(ctx, f.s.repo, operator(), id, self, f.config, "")
+		if wire.CodeOf(err) != wire.CodeCapabilityUnavailable {
+			t.Fatalf("reopen %s under the Codex pin: want CAPABILITY_UNAVAILABLE, got %s %v", id, wire.CodeOf(err), err)
+		}
+		if pins.inventory(t) != before {
+			t.Fatalf("reopen %s changed the program or attempt inventory", id)
+		}
+	}
+	if _, err = store.OpenWorkflow(ctx, f.s.repo, operator(), "done", self, codex, ""); err == nil || !strings.Contains(err.Error(), "program config differs") {
+		t.Fatalf("edited config: %v", err)
+	}
+
+	// Step 3: a new Codex program claims a released ticket; the drained
+	// program's ticket is still claimed.
+	cw, err := store.OpenWorkflow(ctx, f.s.repo, operator(), "codex", self, codex, "")
+	if err != nil {
+		t.Fatalf("new codex program: %v", err)
+	}
+	if a := cw.Attempt(); a == nil || a.TicketID == stranded.TicketID {
+		t.Fatalf("new codex program claimed %+v", a)
+	}
+
+	// Recovery: re-pin the OpenCode runtime with the policy host still
+	// Codex; the stranded program reopens for cancel only.
+	pins.setPolicy(t, f.config.Executable, "")
+	w, err := store.OpenWorkflow(ctx, f.s.repo, operator(), "stranded", self, f.config, "")
+	if err != nil {
+		t.Fatalf("reopen stranded: %v", err)
+	}
+	before := pins.inventory(t)
+	if _, err = w.RunRole(ctx, "implementer", ""); wire.CodeOf(err) != wire.CodeUnsupported {
+		t.Fatalf("stage under switched host: want UNSUPPORTED, got %s %v", wire.CodeOf(err), err)
+	}
+	if pins.inventory(t) != before {
+		t.Fatal("refused stage changed the program or attempt inventory")
+	}
+	if err = w.Cancel(); err != nil {
+		t.Fatalf("cancel stranded: %v", err)
+	}
+	if a := w.Attempt(); a == nil || a.Phase != "CANCELLED" {
+		t.Fatalf("stranded attempt %+v", a)
+	}
+}

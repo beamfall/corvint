@@ -28,17 +28,69 @@ type openCodeStream struct {
 	open bool
 }
 
+// memberTree names the members the profile reads from one JSON object and
+// the nested objects it reads below them.
+type memberTree struct {
+	names  []string
+	nested map[string]memberTree
+}
+
+// The OpenCode objects this profile reads: the event line, a text part, and a
+// step-finish part with its token counters.
+var (
+	openCodeEventMembers  = memberTree{names: []string{"type", "sessionID", "part"}}
+	openCodeTextMembers   = memberTree{names: []string{"type", "text"}}
+	openCodeFinishMembers = memberTree{names: []string{"type", "reason", "tokens"}, nested: map[string]memberTree{
+		"tokens": {names: []string{"input", "output", "reasoning", "cache"}, nested: map[string]memberTree{
+			"cache": {names: []string{"read", "write"}},
+		}},
+	}}
+)
+
+// check refuses a member of raw, or of a nested object the tree reads, that
+// aliases a read name by case folding. Repeated members are refused for the
+// whole line by uniqueMembers before any object is checked.
+func (m memberTree) check(raw []byte) error {
+	if e := aliasFree(raw, m.names); e != nil {
+		return e
+	}
+	var top map[string]json.RawMessage
+	if len(m.nested) == 0 || json.Unmarshal(raw, &top) != nil {
+		return nil
+	}
+	for name, sub := range m.nested {
+		if v, ok := top[name]; ok {
+			if e := sub.check(v); e != nil {
+				return e
+			}
+		}
+	}
+	return nil
+}
+
 // readOpenCodeEvents admits only JSON-object lines of the qualified event
 // types, all naming one bounded session. A host `error` line may carry an
 // empty session (a run error reported before the session exists); it marks
-// the stream failed instead of naming a session.
+// the stream failed instead of naming a session. Every reader of the
+// vocabulary (result, session and usage) shares it, so a repeated member in
+// any line, a member aliasing a read name by case, or either in a JSON last
+// text leaves all three unobserved (CAL-V0-077): encoding/json keeps the last
+// duplicate and matches names case-insensitively, so an error could
+// otherwise be masked, a refusal accepted or partial counters merged.
 func readOpenCodeEvents(raw []byte) (openCodeStream, error) {
 	s := openCodeStream{lastFinish: -1, lastText: -1}
 	scanner := bufio.NewScanner(bytes.NewReader(raw))
 	scanner.Buffer(make([]byte, 4096), 1<<20)
 	for i := 0; scanner.Scan(); i++ {
+		line := scanner.Bytes()
+		if e := uniqueMembers(line); e != nil {
+			return s, e
+		}
+		if e := openCodeEventMembers.check(line); e != nil {
+			return s, e
+		}
 		var ev openCodeEvent
-		if e := json.Unmarshal(scanner.Bytes(), &ev); e != nil {
+		if e := json.Unmarshal(line, &ev); e != nil {
 			return s, e
 		}
 		if ev.Type == "error" {
@@ -63,11 +115,17 @@ func readOpenCodeEvents(raw []byte) (openCodeStream, error) {
 				Type string `json:"type"`
 				Text string `json:"text"`
 			}
+			if e := openCodeTextMembers.check(ev.Part); e != nil {
+				return s, e
+			}
 			if e := json.Unmarshal(ev.Part, &part); e != nil || part.Type != "text" {
 				return s, fmt.Errorf("unqualified text part")
 			}
 			s.final, s.lastText = part.Text, i
 		case "step_finish":
+			if e := openCodeFinishMembers.check(ev.Part); e != nil {
+				return s, e
+			}
 			s.finishes = append(s.finishes, ev.Part)
 			s.lastFinish = i
 			s.open = false
@@ -75,7 +133,17 @@ func readOpenCodeEvents(raw []byte) (openCodeStream, error) {
 			return s, fmt.Errorf("unqualified event %q", ev.Type)
 		}
 	}
-	return s, scanner.Err()
+	if e := scanner.Err(); e != nil {
+		return s, e
+	}
+	// A last text that is JSON is the handoff and obeys the same member rule;
+	// a prose text is not one.
+	if json.Valid([]byte(s.final)) {
+		if e := exactMembers([]byte(s.final), handoffMembers); e != nil {
+			return s, e
+		}
+	}
+	return s, nil
 }
 
 // DecodeOpenCodeEvents decodes an OpenCode run (CAL-V0-077): one constant
@@ -86,7 +154,7 @@ func DecodeOpenCodeEvents(raw []byte) (string, HostResult, error) {
 	result := HostResult{}
 	s, e := readOpenCodeEvents(raw)
 	if e != nil {
-		return s.session, result, e
+		return "", result, e
 	}
 	if s.failed {
 		return s.session, result, fmt.Errorf("host reported failure")

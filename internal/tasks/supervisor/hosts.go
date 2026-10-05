@@ -179,6 +179,13 @@ func exactMembers(raw []byte, names []string) error {
 	if e := uniqueMembers(raw); e != nil {
 		return e
 	}
+	return aliasFree(raw, names)
+}
+
+// aliasFree refuses a JSON object carrying a member that differs from one of
+// names only by case folding. A text that is not an object is left to the
+// strict decode.
+func aliasFree(raw []byte, names []string) error {
 	var top map[string]json.RawMessage
 	if json.Unmarshal(raw, &top) != nil {
 		return nil // not an object: the strict decode refuses it
