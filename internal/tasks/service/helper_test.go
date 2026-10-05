@@ -731,7 +731,7 @@ func listTree(t *testing.T, dir string) []string {
 }
 
 func TestSERVICE500_HelperRecordIsBounded(t *testing.T) {
-	root := t.TempDir()
+	root := resolvedTempDir(t)
 	r := helperRecord{Profile: HelperRecordName, Program: "site", Helper: "web", State: "HOLD", Hold: strings.Repeat("h", 20000), LastExit: strings.Repeat("x", 20000), Debt: Debt{Fences: map[string]string{}}}
 	if err := writeHelperRecord(root, r); err != nil {
 		t.Fatal(err)

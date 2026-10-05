@@ -14,7 +14,7 @@ import (
 // A FIFO planted at a stream log path neither blocks status nor the
 // stream writer: both refuse it as a non-regular file.
 func TestSERVICE500_LogFIFONeverBlocks(t *testing.T) {
-	root := t.TempDir()
+	root := resolvedTempDir(t)
 	dir := filepath.Join(root, logDir, "main")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
@@ -52,7 +52,7 @@ func TestSERVICE500_LogFIFONeverBlocks(t *testing.T) {
 // status never leave the pinned state root.
 func TestSERVICE500_LogDirectorySymlinkIsRefused(t *testing.T) {
 	for _, link := range []string{logDir, filepath.Join(logDir, "main")} {
-		root, outside := t.TempDir(), t.TempDir()
+		root, outside := resolvedTempDir(t), resolvedTempDir(t)
 		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, link)), 0o700); err != nil {
 			t.Fatal(err)
 		}
@@ -74,7 +74,7 @@ func TestSERVICE500_LogDirectorySymlinkIsRefused(t *testing.T) {
 // a retired tree left in its pipes is counted; a pipe held open beyond the
 // bound is closed instead of holding shutdown.
 func TestSERVICE500_HelperDrainsSettleBeforeFinalCounters(t *testing.T) {
-	w := &helperWrapper{logs: openUnitLogs(t.TempDir(), helperUnit("web"), "stdout", "stderr"), drainBound: 2 * time.Second}
+	w := &helperWrapper{logs: openUnitLogs(resolvedTempDir(t), helperUnit("web"), "stdout", "stderr"), drainBound: 2 * time.Second}
 	outR, outW, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -96,7 +96,7 @@ func TestSERVICE500_HelperDrainsSettleBeforeFinalCounters(t *testing.T) {
 		t.Fatalf("final counters missed the tree's last output: %+v", st)
 	}
 
-	held := &helperWrapper{logs: openUnitLogs(t.TempDir(), helperUnit("web"), "stdout", "stderr"), drainBound: 50 * time.Millisecond}
+	held := &helperWrapper{logs: openUnitLogs(resolvedTempDir(t), helperUnit("web"), "stdout", "stderr"), drainBound: 50 * time.Millisecond}
 	heldR, heldW, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
