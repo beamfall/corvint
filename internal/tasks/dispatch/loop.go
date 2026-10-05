@@ -898,7 +898,11 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			return
 		}
 		values := map[string]string{"{program}": d.Program, "{role}": a.Role, "{slot}": strconv.Itoa(a.Slot), "{worker}": id, "{holder}": id, "{ticket}": a.Ticket, "{ticketLocal}": a.Local, "{state}": a.State, "{pool}": a.Pool, "{member}": a.Member, "{workRoot}": d.Config.WorkRoot, "{model}": model, "{nextStage}": a.NextStage}
-		values["{prompt}"] = Render(role.Prompt, values)
+		// {operatorNote} renders only into the role prompt (ON-V0-011); argv,
+		// env and activity paths never see the operator prose directly.
+		promptValues := maps.Clone(values)
+		promptValues["{operatorNote}"] = RenderOperatorNote(a.Ticket, a.OperatorNote)
+		values["{prompt}"] = Render(role.Prompt, promptValues)
 		argv := make([]string, len(host.Argv))
 		for i, s := range host.Argv {
 			argv[i] = Render(s, values)
@@ -960,6 +964,9 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		}
 		if model != "" {
 			detail["model"], detail["tier"] = model, strconv.Itoa(a.Tier)
+		}
+		if n := a.OperatorNote; n != nil {
+			detail["operatorNote"], detail["operatorNoteRevision"] = n.State, n.Revision
 		}
 		d.emit(Event{Kind: "launched", Ticket: a.Ticket, Role: a.Role, Worker: id, Message: fmt.Sprintf("launched %s slot %d on %s as %s (%s, pid %d)", a.Role, a.Slot, d.keyText(a.Key), id, role.Host, pid), Detail: detail})
 	}

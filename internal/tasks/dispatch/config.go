@@ -183,7 +183,12 @@ type Heal struct {
 }
 
 // Placeholders are the only substitutions in argv, env and prompts.
-var Placeholders = []string{"{program}", "{role}", "{slot}", "{worker}", "{holder}", "{ticket}", "{ticketLocal}", "{state}", "{pool}", "{member}", "{workRoot}", "{prompt}", "{model}", "{nextStage}"}
+// {operatorNote} renders untrusted operator prose, so only a role prompt may
+// use it (ON-V0-011).
+var Placeholders = []string{"{program}", "{role}", "{slot}", "{worker}", "{holder}", "{ticket}", "{ticketLocal}", "{state}", "{pool}", "{member}", "{workRoot}", "{prompt}", "{model}", "{nextStage}", "{operatorNote}"}
+
+// operatorNotePlaceholder is refused in host argv, env and activity paths.
+const operatorNotePlaceholder = "{operatorNote}"
 
 var (
 	namePattern  = regexp.MustCompile(`^[a-z][a-z0-9-]{0,23}$`)
@@ -245,8 +250,8 @@ func (c *Config) validate() error {
 		}
 		prompt := 0
 		for _, a := range h.Argv {
-			if err := placeholdersKnown(a); err != nil {
-				return fail("host %q argv: %v", name, err)
+			if err := placeholdersKnown(a); err != nil || strings.Contains(a, operatorNotePlaceholder) {
+				return fail("host %q argv: unknown placeholder or {operatorNote}", name)
 			}
 			prompt += strings.Count(a, "{prompt}")
 		}
@@ -257,12 +262,12 @@ func (c *Config) validate() error {
 			if !envKeyFormat.MatchString(k) || strings.HasPrefix(k, "CORVINT_DISPATCH_") {
 				return fail("host %q env key %q is invalid or reserved", name, k)
 			}
-			if err := placeholdersKnown(v); err != nil || strings.Contains(v, "{prompt}") {
-				return fail("host %q env %s: unknown placeholder or {prompt}", name, k)
+			if err := placeholdersKnown(v); err != nil || strings.Contains(v, "{prompt}") || strings.Contains(v, operatorNotePlaceholder) {
+				return fail("host %q env %s: unknown placeholder, {prompt} or {operatorNote}", name, k)
 			}
 		}
 		for _, p := range h.ActivityPaths {
-			if !clean(p) {
+			if !clean(p) || strings.Contains(p, operatorNotePlaceholder) {
 				return fail("host %q activityPaths must be clean absolute paths", name)
 			}
 		}
@@ -304,6 +309,11 @@ func (c *Config) validate() error {
 		}
 		if err := placeholdersKnown(r.Prompt); err != nil || strings.Contains(r.Prompt, "{prompt}") {
 			return fail("role %s prompt: unknown placeholder or {prompt}", r.Name)
+		}
+		if strings.Contains(r.Prompt, operatorNotePlaceholder) {
+			if err := noteSafeHost(c.Hosts[r.Host]); err != nil {
+				return fail("role %s uses {operatorNote} but host %q %v", r.Name, r.Host, err)
+			}
 		}
 		if m := r.Match; m != nil {
 			if m.IDGlob != "" {
@@ -462,4 +472,49 @@ func validGates(gates []GateMatch) error {
 		}
 	}
 	return nil
+}
+
+// noteSafeHost admits a host for a role prompt carrying {operatorNote}
+// (ON-V0-011) only when the rendered prompt reaches it as one whole argv
+// element, every other argv element is literal (no placeholder, so the
+// checks below see the launched argv), no argv element names a shell or script interpreter or takes a
+// code-string option (a single-dash or single-plus cluster containing c or e,
+// or --command, --eval, --exec, --execute), and no activity path renders it.
+// Untrusted note prose is then passed as data rather than spliced into, or
+// offered as, a command string; a host that needs a shell uses a wrapper
+// executable. A program that evaluates a plain argument as code remains
+// outside what this check can see.
+func noteSafeHost(h Host) error {
+	if !slices.Contains(h.Argv, "{prompt}") {
+		return fmt.Errorf("never passes {prompt}, so the note would be dropped")
+	}
+	for i, a := range h.Argv {
+		if a != "{prompt}" && placeholder.MatchString(a) {
+			return fmt.Errorf("argv element %d holds a placeholder other than a whole {prompt}", i)
+		}
+		if interpreters[strings.TrimRight(filepath.Base(a), "0123456789.")] {
+			return fmt.Errorf("runs the interpreter %s", a)
+		}
+		if i > 0 && codeOption(a) {
+			return fmt.Errorf("takes the code-string option %s", a)
+		}
+	}
+	for _, p := range h.ActivityPaths {
+		if strings.Contains(p, "{prompt}") {
+			return fmt.Errorf("renders {prompt} into an activity path")
+		}
+	}
+	return nil
+}
+
+// interpreters are argv names (version suffix trimmed) that run their
+// arguments as code, directly or through another program.
+var interpreters = map[string]bool{"sh": true, "bash": true, "zsh": true, "dash": true, "ksh": true, "mksh": true, "fish": true, "csh": true, "tcsh": true, "busybox": true, "env": true, "xargs": true, "eval": true, "exec": true,
+	"python": true, "node": true, "deno": true, "bun": true, "perl": true, "ruby": true, "php": true, "lua": true, "osascript": true, "awk": true, "gawk": true, "pwsh": true, "powershell": true, "cmd": true}
+
+func codeOption(a string) bool {
+	if name, _, _ := strings.Cut(a, "="); name == "--command" || name == "--eval" || name == "--exec" || name == "--execute" {
+		return true
+	}
+	return len(a) > 1 && (a[0] == '-' || a[0] == '+') && a[1] != '-' && strings.ContainsAny(a[1:], "ce")
 }
