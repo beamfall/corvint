@@ -294,7 +294,7 @@ func emit(w io.Writer, res *wire.Result) int {
 		fallback := &wire.Result{Command: res.Command, Outcome: wire.OutcomeError, Codes: []string{wire.CodeOf(err)}, Warnings: []string{prose(err.Error())}}
 		data, err = fallback.Encode()
 		if err != nil {
-			data = []byte(`{"codes":["MALFORMED"],"command":["help"],"items":[],"mutation":null,"outcome":"ERROR","page":null,"profile":"taskman-command-result/0","snapshot":null,"untrusted":[],"warnings":["envelope could not be encoded"]}` + "\n")
+			data = []byte(`{"codes":["MALFORMED"],"command":["help"],"items":[],"mutation":null,"outcome":"ERROR","page":null,"profile":"taskman-command-result/0","retryable":false,"snapshot":null,"untrusted":[],"warnings":["envelope could not be encoded"]}` + "\n")
 		}
 		res = fallback
 	}

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
@@ -377,4 +378,50 @@ func TestCALV0017_CompletionNeedsEveryRequiredGateAndApproval(t *testing.T) {
 	s.passes(t, "gate-1", gateOf(plain, "verify"), 6)
 	s.passes(t, "gate-2", gateOf(plain, "fails"), 6)
 	refusedWith(t, s.lease(t, "complete-plain", completeOf(plain, commit), 7, nil), mutation.OutcomeBlocked, wire.CodeGateFailed)
+}
+
+// TestCALV0078_GateRunContentionAfterExecutionIsReported: a gate run whose
+// program already ran and whose recording then meets lock contention returns
+// LOCK_TIMEOUT with Unretryable set, so the CLI marks it not retryable (a retry
+// would run the program again). A refusal before the program starts does not.
+func TestCALV0078_GateRunContentionAfterExecutionIsReported(t *testing.T) {
+	// The markers live under .git so the worktree stays clean; argv is bounded.
+	s := newLeaseStore(t, commandGate("verify", ": > .git/r; while [ ! -e .git/h ]; do /bin/sleep 0.05; done; printf ok", "120", true))
+	ran, held := filepath.Join(s.root, ".git", "r"), filepath.Join(s.root, ".git", "h")
+	claim, _ := s.submitted(t, s.ticket(t, "one"), "src", 0)
+	if report, err := s.gate(t, "gate-0", gateOf(claim, "absent"), 1); wire.CodeOf(err) != wire.CodeGateUnknown || report == nil || report.Unretryable {
+		t.Fatalf("refused before running: %+v %v", report, err)
+	}
+	// Once the program has run, hold the store lock until the recording gives up.
+	locked := make(chan func() error, 1)
+	go func() {
+		for {
+			if _, err := os.Stat(ran); err == nil {
+				break
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+		lock, err := authority.AcquireLock(context.Background(), s.repo, authority.LockOptions{})
+		if err != nil {
+			locked <- func() error { return err }
+			return
+		}
+		locked <- lock.Close
+		if err := os.WriteFile(held, nil, 0o600); err != nil {
+			t.Error(err)
+		}
+	}()
+	report, err := s.gate(t, "gate-1", gateOf(claim, "verify"), 2)
+	if _, e := os.Stat(ran); e != nil {
+		t.Fatalf("program did not run: %v %v", e, err)
+	}
+	if e := (<-locked)(); e != nil {
+		t.Fatal(e)
+	}
+	if wire.CodeOf(err) != wire.CodeLockTimeout || report == nil || !report.Unretryable {
+		t.Fatalf("contended recording: %+v %v", report, err)
+	}
+	if results := s.results(t, claim.AttemptID); len(results) != 0 {
+		t.Fatalf("contended run recorded: %v", results)
+	}
 }

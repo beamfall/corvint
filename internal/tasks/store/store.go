@@ -61,6 +61,11 @@ type Report struct {
 	// Redone reports that this call completed a receipt an earlier call had
 	// committed but not finished publishing (§5.2 crash point C2).
 	Redone bool
+	// Unretryable reports that this call started an external program or
+	// committed a first step it then could not finish: a retry of the same
+	// request would run that program again or replay the step without finishing
+	// it, so the result is never retryable (CAL-V0-078).
+	Unretryable bool
 	// Ticket is the ticket a committed mutation wrote, read back from the
 	// receipt rather than from the request: a CREATE that allocated a serial
 	// learns its own id here and nowhere else.

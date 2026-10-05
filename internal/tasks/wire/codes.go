@@ -118,6 +118,10 @@ type Error struct {
 	Code  string
 	Where string
 	Msg   string
+	// NotRetryable marks an error from a call that already ran a program or
+	// committed a step a same-request retry would not finish; its result is
+	// never retryable whatever the code (CAL-V0-078). See WithoutRetry.
+	NotRetryable bool
 }
 
 func (e *Error) Error() string {

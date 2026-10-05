@@ -36,6 +36,9 @@ type Workflow struct {
 	attempt *snapshot.Attempt
 	policy  *intent.Policy
 	record  *ticket.Record
+	// departed reports that, during the current RunRole, the attempt left the
+	// phase that `run --role` selects and has not been seen back in it.
+	departed bool
 }
 
 var ErrProgramIdle = errors.New("no eligible stage work")
@@ -93,11 +96,40 @@ func (w *Workflow) step(action string, f transaction.SupervisorChange) error {
 	f.ProgramID = w.program.ID
 	f.OwnerPID = w.program.OwnerPID
 	f.OwnerStarted = w.program.OwnerStarted
+	if e := fault("transition:" + action); e != nil {
+		return e
+	}
 	r, e := SupervisorTransition(context.Background(), w.repo, w.actor, w.queue.QueueID.Raw, w.requestID(), w.attempt.AttemptID, w.attempt.Generation, f)
 	if e = transitionOK(r, e); e != nil {
 		return e
 	}
-	return w.refresh(context.Background())
+	if action == "DISPATCH" {
+		w.departed = true
+	}
+	if e = fault("refresh:" + action); e != nil {
+		return e
+	}
+	if e = w.refresh(context.Background()); e != nil {
+		return e
+	}
+	if action == "STOPPED" {
+		w.departed = !reselected(w.attempt)
+	}
+	return nil
+}
+
+// reselected reports whether `run --role` for the attempt's stage selects it
+// again in its current phase; it mirrors the selection in cli/program.go.
+func reselected(a *snapshot.Attempt) bool {
+	switch a.Stage {
+	case "implement":
+		return !a.Live() || a.Phase == "ADMITTED" || a.Phase == "RETURNED" || a.Phase == "WAITING" && a.Supervision != nil && a.Supervision.Answer != ""
+	case "review":
+		return a.Phase == "BUILT"
+	case "integrate":
+		return a.Phase == "READY_FOR_INTEGRATION"
+	}
+	return false
 }
 func (w *Workflow) context(ctx context.Context, root, revision string) (json.RawMessage, error) {
 	if w.cfg.CoreExecutable == "" {
@@ -579,6 +611,9 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 	}
 	if out.Clean {
 		w.program.OwnerReleased = true
+		if e = fault("stage-finished"); e != nil {
+			return out, e
+		}
 		if e = w.persist("FINISHED"); e != nil {
 			return out, e
 		}
@@ -768,7 +803,35 @@ func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.B
 	}
 	return w, nil
 }
-func (w *Workflow) RunRole(ctx context.Context, role, grant string) (*snapshot.Attempt, error) {
+
+// runFault, when set by a package test, fails a supervised run at a named point
+// ("transition:<action>" and "refresh:<action>" around a supervisor transition's
+// commit, "stage-finished", "role-finished", "gate:<id>" and "ready"); it is
+// nil in production.
+var runFault func(point string) error
+
+func fault(point string) error {
+	if runFault == nil {
+		return nil
+	}
+	return runFault(point)
+}
+
+// RunRole runs one stage of the attempt. Once the stage DISPATCH commits, the
+// attempt has left the phase `run --role` selects, so a repeat would skip it
+// instead of finishing the stage, its gates or the READY step: every error from
+// then on is not retryable, including a refresh or program-record failure,
+// unless the committed STOPPED left the attempt in a phase its role selects
+// again (integration returns to READY_FOR_INTEGRATION). A GRANT and integration
+// recovery leave the attempt selectable, so their errors stay as classified
+// (CAL-V0-078).
+func (w *Workflow) RunRole(ctx context.Context, role, grant string) (a *snapshot.Attempt, err error) {
+	w.departed = false
+	defer func() {
+		if err != nil && w.departed {
+			err = wire.WithoutRetry(err)
+		}
+	}()
 	stage := map[string]string{"implementer": "implement", "reviewer": "review", "integrator": "integrate"}[role]
 	if stage == "" {
 		return w.attempt, fmt.Errorf("unknown role")
@@ -801,6 +864,9 @@ func (w *Workflow) RunRole(ctx context.Context, role, grant string) (*snapshot.A
 	if e != nil {
 		return w.attempt, e
 	}
+	if e = fault("role-finished"); e != nil {
+		return w.attempt, e
+	}
 	if e = w.persist("FINISHED"); e != nil {
 		return w.attempt, e
 	}
@@ -823,11 +889,17 @@ func (w *Workflow) RunRole(ctx context.Context, role, grant string) (*snapshot.A
 			return w.attempt, fmt.Errorf("multi-repository gate evaluation is not yet supported")
 		}
 		for _, id := range list {
+			if e = fault("gate:" + id); e != nil {
+				return w.attempt, e
+			}
 			choice := LeaseChoice{QueueID: w.queue.QueueID.Raw, RequestID: w.requestID(), Root: w.repo.PrimaryWorktree, Lease: transaction.LeaseRequest{Verb: transaction.LeaseGateRun, AttemptID: w.attempt.AttemptID, Generation: w.attempt.Generation, Gate: id}}
 			r, e := GateRun(ctx, w.repo, w.actor, choice, *w.attempt.WorktreePath, time.Now)
 			if e = transitionOK(r, e); e != nil {
 				return w.attempt, e
 			}
+		}
+		if e = fault("ready"); e != nil {
+			return w.attempt, e
 		}
 		if e = w.step("READY", transaction.SupervisorChange{}); e != nil {
 			return w.attempt, e
