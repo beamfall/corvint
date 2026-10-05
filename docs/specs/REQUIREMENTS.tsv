@@ -1941,19 +1941,20 @@ PCCO-V0-015	docs/specs/proof-carrying-context-optimization-v0.md	115	(proposed f
 PCCO-V0-016	docs/specs/proof-carrying-context-optimization-v0.md	125	(proposed for V1-0012, not accepted) Each run MUST emit one result binding the
 PCCO-V0-017	docs/specs/proof-carrying-context-optimization-v0.md	130	(proposed for V1-0012, not accepted) A cost-reduction claim is retained only whe
 PCH-V0-001	docs/specs/postmerge-ci-host-v0.md	33	Publish a host-neutral workflow graph, `protocol/postmerge-host/workflow-graph.j
-PCH-V0-002	docs/specs/postmerge-ci-host-v0.md	40	Document the host adapter contract in `protocol/postmerge-host/README.md`:
-PCH-V0-003	docs/specs/postmerge-ci-host-v0.md	47	Ship a reference pipeline that processes one merged change by full commit id:
-PCH-V0-004	docs/specs/postmerge-ci-host-v0.md	55	Ship a source trigger. It runs on push to the merged branch only, never on a cha
-PCH-V0-005	docs/specs/postmerge-ci-host-v0.md	59	Ship scheduled reconciliation that re-dispatches recent first-parent merges, so
-PCH-V0-006	docs/specs/postmerge-ci-host-v0.md	62	Pin every action to a full commit and check out with `persist-credentials: false
-PCH-V0-007	docs/specs/postmerge-ci-host-v0.md	71	Provide an audit, `internal/postmergehost.Audit`, over a restricted YAML subset.
-PCH-V0-008	docs/specs/postmerge-ci-host-v0.md	115	The README gives a porting guide that maps markers, credential classes, isolatio
-PCH-V0-009	docs/specs/postmerge-ci-host-v0.md	123	An optional operator-owned launcher accepts only the exact final paired profile/
-PCH-V0-010	docs/specs/postmerge-ci-host-v0.md	124	Native Snapshot/Preflight/Verify observe the same canonical host product worktre
-PCH-V0-011	docs/specs/postmerge-ci-host-v0.md	125	A pinned fixed Linux internal shim from the same optional command clears and obs
-PCH-V0-012	docs/specs/postmerge-ci-host-v0.md	126	Durable exact run ownership exists before engine create. Independent bounded cle
-PCH-V0-013	docs/specs/postmerge-ci-host-v0.md	127	The selected Add fixture uses actual native intake/BuildAuthorInput, source-deri
-PCH-V0-014	docs/specs/postmerge-ci-host-v0.md	128	Candidate limits, actual immutable image/tool/source/shim/author pins, observed
+PCH-V0-002	docs/specs/postmerge-ci-host-v0.md	41	Document the host adapter contract in `protocol/postmerge-host/README.md`:
+PCH-V0-003	docs/specs/postmerge-ci-host-v0.md	48	Ship a reference pipeline that processes one merged change by full commit id:
+PCH-V0-004	docs/specs/postmerge-ci-host-v0.md	61	Ship a source trigger. It runs on push to the merged branch only, never on a cha
+PCH-V0-005	docs/specs/postmerge-ci-host-v0.md	65	Ship scheduled reconciliation that re-dispatches recent first-parent merges, so
+PCH-V0-006	docs/specs/postmerge-ci-host-v0.md	68	Pin every action to a full commit and check out with `persist-credentials: false
+PCH-V0-007	docs/specs/postmerge-ci-host-v0.md	77	Provide an audit, `internal/postmergehost.Audit`, over a restricted YAML subset.
+PCH-V0-008	docs/specs/postmerge-ci-host-v0.md	121	The README gives a porting guide that maps markers, credential classes, isolatio
+PCH-V0-009	docs/specs/postmerge-ci-host-v0.md	129	An optional operator-owned launcher accepts only the exact final paired profile/
+PCH-V0-010	docs/specs/postmerge-ci-host-v0.md	130	Native Snapshot/Preflight/Verify observe the same canonical host product worktre
+PCH-V0-011	docs/specs/postmerge-ci-host-v0.md	131	A pinned fixed Linux internal shim from the same optional command clears and obs
+PCH-V0-012	docs/specs/postmerge-ci-host-v0.md	132	Durable exact run ownership exists before engine create. Independent bounded cle
+PCH-V0-013	docs/specs/postmerge-ci-host-v0.md	133	The selected Add fixture uses actual native intake/BuildAuthorInput, source-deri
+PCH-V0-014	docs/specs/postmerge-ci-host-v0.md	134	Candidate limits, actual immutable image/tool/source/shim/author pins, observed
+PCH-V0-015	docs/specs/postmerge-ci-host-v0.md	135	Local template conformance runs the reference pipeline's `resolve` and `delta`
 PGO-V0-001	docs/specs/process-group-owner-v0.md	32	Own a process group through its unreaped leader; send at most one real group sig
 PGO-V0-002	docs/specs/process-group-owner-v0.md	33	Preserve Darwin quiet-first retirement and Linux ReapAfterSuccessfulSignal retir
 PGO-V0-003	docs/specs/process-group-owner-v0.md	34	Check the original retirement allowance before new primitives and before accepti

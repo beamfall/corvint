@@ -20,8 +20,10 @@ or network dependency. Intent is proposed and delivery is experimental under PCH
 implements. Its nine steps run in this order: trigger, intake, delta, follow-up-item, authoring,
 trusted-validation, draft-change-requests, findings, metrics. `after` lists the steps that must
 finish first. `credentials` lists the only credential classes the step may hold. `commands` lists
-the only Corvint commands it may run. `pendingCommands` names a command that is not published yet.
-The delta step is `NOT_PRODUCED` until `corvint delta` exists.
+the only Corvint commands it may run. `pendingCommands` names a command that is not published yet;
+the shipped graph lists none. The delta step runs `corvint delta` against the merged change's first
+parent, holds no secret, and uploads only the canonical `corvint-delta/0` record. No later step
+consumes that record yet.
 
 Only the authoring step runs an author with write access to a worktree. It carries attestation
 `required`, which means `corvint step snapshot`, `env-check` and `verify` (ASS-V0) bracket it. It
@@ -115,4 +117,7 @@ item from its own export, not from author output.
   dispatched change value. It only selects a queue: a malformed value gets a queue of its own, and
   the `resolve` job then refuses it before any checkout or step uses it.
 - Attestation on the same virtual machine is not confinement.
-- No template has run on a hosted runner, and no replay set has run in dry-run mode.
+- No template has run on a hosted runner, and no replay set has run in dry-run mode. Only the
+  `resolve` and `delta` step scripts have run locally, against a fixture merge (PCH-V0-015).
+- The pinned install builds without link-time flags, so the delta record's `build` field is the
+  binary's default label. The pin binds through the digest file, not through the record.

@@ -135,16 +135,48 @@ jobs:
           path: ${{ runner.temp }}/admitted/author-input.json
           retention-days: 7
 
+  # Holds no secret. Reads only immutable Git objects of the merged change and
+  # its first parent; the record names paths and digests, never source text.
   delta:
     needs: resolve
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions: {}
+    timeout-minutes: 15
+    permissions:
+      contents: read
     env:
       CORVINT_PM_STEP: delta
+      CHANGE: ${{ needs.resolve.outputs.change }}
     steps:
-      - name: Record the pending delta step
-        run: echo "delta NOT_PRODUCED corvint-delta-not-yet-published"
+      - name: Check out trusted configuration
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: config
+          persist-credentials: false
+      - name: Check out the merged change as data
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.resolve.outputs.change }}
+          path: product
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.1"
+          cache: false
+      - name: Build and verify pinned Corvint
+        run: config/postmerge/install-pinned.sh corvint
+      - name: Compile the immutable delta of the merged change
+        run: |
+          set -eu
+          mkdir -m 700 "$RUNNER_TEMP/delta"
+          base=$(git -C product rev-parse --verify --end-of-options "$CHANGE^1^{commit}")
+          corvint --root "$GITHUB_WORKSPACE/product" delta --base "$base" --head "$CHANGE" \
+            > "$RUNNER_TEMP/delta/delta.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: delta
+          path: ${{ runner.temp }}/delta/delta.json
+          retention-days: 7
 
   authoring:
     needs: [resolve, intake, delta]
