@@ -551,7 +551,7 @@ func retireTreeV2(leader int) error {
 	members := map[procBirthV2]bool{}
 	defer func() {
 		for _, fd := range handles {
-			_ = syscall.Close(fd)
+			closeProcessV2(fd)
 		}
 	}()
 	_, _, start, ok := processStatV2(leader)
@@ -644,7 +644,7 @@ func freezeMemberV2(birth procBirthV2, fd int, deadline time.Time) (int, error) 
 			return -1, errors.New(name + " could not be opened: " + err.Error())
 		}
 		if _, ok := observeMemberV2(fd, birth); !ok {
-			_ = syscall.Close(fd)
+			closeProcessV2(fd)
 			return -1, errors.New(name + " is no longer its listed birth")
 		}
 	}
@@ -655,7 +655,7 @@ func freezeMemberV2(birth procBirthV2, fd int, deadline time.Time) (int, error) 
 	if !ok || state == 'Z' || state == 'X' {
 		return fail("exited before its freeze was confirmed")
 	}
-	if err := signalProcessV2(fd, syscall.SIGSTOP); err != nil {
+	if err := stopProcessV2(fd); err != nil {
 		return fail("could not be stopped: " + err.Error())
 	}
 	var exited bool

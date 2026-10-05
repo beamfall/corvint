@@ -33,3 +33,9 @@ func signalProcessV2(fd int, sig syscall.Signal) error {
 	}
 	return nil
 }
+
+// stopProcessV2 freezes the pidfd's process with SIGSTOP.
+func stopProcessV2(fd int) error { return signalProcessV2(fd, syscall.SIGSTOP) }
+
+// closeProcessV2 releases a pidfd from openProcessV2.
+func closeProcessV2(fd int) { _ = syscall.Close(fd) }
