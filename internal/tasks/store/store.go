@@ -39,6 +39,9 @@ type Report struct {
 	PoolAllocation *snapshot.PoolAllocation
 	// Delivery is what a claim or claim-next delivers from its admission.
 	Delivery *ClaimDelivery
+	// AuthorExclusion is the model's CAL-V0-098 derivation on a refused
+	// fresh claim, which health preparation must respect.
+	AuthorExclusion *transaction.AuthorExclusion
 	// Outcome is the model's outcome, unchanged.
 	Outcome mutation.Outcome
 	// Coverage is the model's coverage, unchanged: an axis stays

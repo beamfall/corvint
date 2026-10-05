@@ -44,6 +44,10 @@ type Context struct {
 	SerialFallback  string // policy.serialFallback
 	Gates           GateOracle
 	Attempts        AttemptOracle
+	// Stage is the claim or plan stage (CAL-V0-099). Execution
+	// prerequisites listing it apply; "" (a stageless claim, plan, show or
+	// blockers read) fails closed and applies every prerequisite.
+	Stage string
 }
 
 // Blocker is one reason a ticket is not eligible.
@@ -158,6 +162,37 @@ func (inv *Inventory) View(id string, ctx Context) (View, bool) {
 			}
 		}
 	}
+	// CAL-V0-099 stage-scoped execution prerequisites, after dependencies and
+	// with the same three-valued gate reading; never part of Problems.
+	for _, p := range rec.ExecutionPrerequisites {
+		if !PrerequisiteApplies(p, ctx.Stage) {
+			continue
+		}
+		scope := " (execution prerequisite for stages " + strings.Join(p.Stages, ",") + ")"
+		pre, ok := inv.byID[p.TicketID.Raw]
+		if !ok {
+			add(wire.CodePrerequisiteUnsatisfied, p.TicketID.Raw, "prerequisite "+p.TicketID.Raw+" does not exist in the queue"+scope)
+			continue
+		}
+		switch p.Obligation {
+		case "COMPLETED":
+			if !(pre.Status == StatusCompleted || (pre.Status == StatusArchived && pre.ArchivedFrom != nil && *pre.ArchivedFrom == StatusCompleted)) {
+				add(wire.CodePrerequisiteUnsatisfied, pre.TicketID.Raw, "prerequisite "+pre.TicketID.Raw+" is "+pre.Status+", obligation COMPLETED"+scope)
+			}
+		case "GATE_PASSED":
+			gate := ""
+			if p.GateID != nil {
+				gate = *p.GateID
+			}
+			switch ctx.gates().GatePassed(pre.TicketID, gate, pre.AcceptanceRevision) {
+			case Satisfied:
+			case Unsatisfied:
+				add(wire.CodePrerequisiteUnsatisfied, pre.TicketID.Raw, "prerequisite gate "+gate+" of "+pre.TicketID.Raw+" has no PASSED result at acceptanceRevision "+string(pre.AcceptanceRevision)+scope)
+			default:
+				unknown(wire.CodePrerequisiteUnsatisfied, pre.TicketID.Raw, "prerequisite gate "+gate+" of "+pre.TicketID.Raw+": result NOT_OBSERVED (no journal evidence available to this reader)"+scope)
+			}
+		}
+	}
 	// §3.2 execution class and approvals at the current acceptanceRevision.
 	switch rec.ExecutionClass {
 	case "AUTONOMOUS":
@@ -215,7 +250,7 @@ func (inv *Inventory) View(id string, ctx Context) (View, bool) {
 		v.IntentChecks = "FAILED"
 		v.Eligibility = EligibilityBlocked
 	}
-	v.NextAction = nextAction(rec, blockers)
+	v.NextAction = nextAction(rec, blockers, unknowns)
 	return v, true
 }
 
@@ -247,7 +282,10 @@ func holdIDs(rec *Record) string {
 }
 
 // nextAction names the next permitted operation as a literal verb label.
-func nextAction(rec *Record, blockers []Blocker) string {
+// An unknown execution prerequisite (CAL-V0-099: a GATE_PASSED obligation
+// whose gate is NOT_OBSERVED) refuses admission like a blocker, so it waits
+// on the prerequisite rather than recommending an admission that must fail.
+func nextAction(rec *Record, blockers, unknowns []Blocker) string {
 	switch rec.Status {
 	case StatusDraft:
 		return "refine"
@@ -259,6 +297,11 @@ func nextAction(rec *Record, blockers []Blocker) string {
 		return "restore"
 	}
 	if len(blockers) == 0 {
+		for _, u := range unknowns {
+			if u.Code == wire.CodePrerequisiteUnsatisfied {
+				return "wait-dependency"
+			}
+		}
 		// Intent checks passed; admission itself needs the journal (TCP-02)
 		// to observe attempts and gates, so the next action is that check.
 		return "admit"
@@ -266,7 +309,7 @@ func nextAction(rec *Record, blockers []Blocker) string {
 	switch blockers[0].Code {
 	case wire.CodeDependencyMissing, wire.CodeCycle:
 		return "set-dependencies"
-	case wire.CodeDependencyUnsatisfied:
+	case wire.CodeDependencyUnsatisfied, wire.CodePrerequisiteUnsatisfied:
 		return "wait-dependency"
 	case wire.CodeApprovalMissing, wire.CodeApprovalRevoked:
 		return "grant-approval"
@@ -314,6 +357,9 @@ func (v View) Value(includeRecord bool) wire.Value {
 	o.Set("requiredGates", wire.Strings(rec.RequiredGates))
 	if rec.RequiredRoles != nil {
 		o.Set("requiredRoles", StageRolesValue(rec.RequiredRoles))
+	}
+	if len(rec.ExecutionPrerequisites) > 0 {
+		o.Set("executionPrerequisites", PrerequisitesValue(rec.ExecutionPrerequisites))
 	}
 	o.Set("gateResults", wire.String(string(v.GateResults)))
 	o.Set("currentAttempt", wire.String(string(v.CurrentAttempt)))

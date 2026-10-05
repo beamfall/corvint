@@ -133,7 +133,7 @@ func (c leaseContext) liveOn(ticketID string) string {
 // coverage blocker (a non-QUALIFIED ticket claims WHOLE_REPOSITORY) and the
 // live-attempt blocker, which the claim decides after reaping.
 func (c leaseContext) eligibility(id string) *leaseOutcome {
-	v, _ := c.st.tickets.View(id, ticket.Context{CanonicalWriter: c.st.queue.CanonicalWriter, SerialFallback: c.st.policy.SerialFallback, Attempts: entryOracle{c.st.reservations}})
+	v, _ := c.st.tickets.View(id, ticket.Context{CanonicalWriter: c.st.queue.CanonicalWriter, SerialFallback: c.st.policy.SerialFallback, Attempts: entryOracle{c.st.reservations}, Stage: c.l.Stage})
 	skip := map[string]bool{wire.CodeCoverageUnknown: true, wire.CodeAttemptLive: true}
 	for _, b := range append(v.Blockers, v.Unknowns...) {
 		if !skip[b.Code] {
@@ -331,7 +331,7 @@ func planClaimNext(c leaseContext) leaseOutcome {
 		out.result.Expired = reap
 		return out
 	}
-	plan := PriorityFirst(PlanInput{Pool: c.l.Pool, Stage: c.l.Stage, ExcludeMembers: c.l.ExcludeMembers, Pools: c.st.pools, Prepared: c.in.LeaseFacts.Pool.AllocationID, Queue: c.st.queue, Policy: c.st.policy, Tickets: c.st.tickets, Reservations: c.st.reservations, Attempts: c.st.attempts})
+	plan := PriorityFirst(PlanInput{Pool: c.l.Pool, Stage: c.l.Stage, ExcludeMembers: c.l.ExcludeMembers, ExcludeAuthors: c.l.ExcludeAuthors, Pools: c.st.pools, Prepared: c.in.LeaseFacts.Pool.AllocationID, Queue: c.st.queue, Policy: c.st.policy, Tickets: c.st.tickets, Reservations: c.st.reservations, Attempts: c.st.attempts})
 	chosen := plan.ClaimNext(c.l.Pool)
 	if chosen == nil {
 		code, detail := plan.refusal()
@@ -356,8 +356,13 @@ func (p TicketPlan) refusal() (string, string) {
 	}
 	first := p.Entries[0]
 	detail := "no ticket is SELECTED; the first of " + string(wire.CountOf(int64(len(p.Entries)))) + " planned tickets, " + first.Ticket.TicketID.Raw + ", is " + first.State + " " + first.Reason
-	if first.Reason == wire.CodeEscalationPending {
+	switch {
+	case first.Reason == wire.CodeEscalationPending:
 		detail += " on " + strings.Join(first.Ticket.EscalationPending(), ",")
+	case first.Reason == wire.CodePrerequisiteUnsatisfied:
+		detail += ": " + strings.Join(first.prerequisites, "; ")
+	case first.Detail != "":
+		detail += ": " + first.Detail
 	}
 	return first.Reason, detail
 }
@@ -381,9 +386,15 @@ func (c leaseContext) admit(rec *ticket.Record, sc *snapshot.Scope) leaseOutcome
 	if refusal != nil {
 		return *refusal
 	}
+	if c.authors, refusal = c.authorExclusion(rec.TicketID.Raw); refusal != nil {
+		return *refusal
+	}
 	a, e := c.admitted(rec, prior, sc)
 	if e != nil {
-		return c.fail(e)
+		out := c.fail(e)
+		// The store's health preparation probes only members this derivation leaves eligible.
+		out.result.AuthorExclusion = c.authors
+		return out
 	}
 	entry := snapshot.ReservationEntry{AttemptID: a.AttemptID, Generation: a.Generation, TicketID: a.TicketID, TicketRevision: a.TicketRevision, Resources: sc.Resources, CapacityUses: []snapshot.CapacityUse{}, Workers: "0", State: "ACTIVE", CreatedSeq: c.seq, Coverage: entryCoverage(sc)}
 	return c.write(a, append(c.entries(), entry), "ADMIT", true)

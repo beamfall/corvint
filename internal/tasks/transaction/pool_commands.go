@@ -2,6 +2,8 @@ package transaction
 
 import (
 	"bytes"
+	"slices"
+
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -69,6 +71,17 @@ func planPoolPrepare(c leaseContext) leaseOutcome {
 	}
 	if stage := p.ReservedFor[c.l.Member]; stage != "" && stage != c.l.Stage {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeResourceCollision, "member reserved for another stage")
+	}
+	if c.l.ExcludeAuthors != "" {
+		// CAL-V0-098: rederive at this snapshot, so a member that became an
+		// author after the claim's refusal is never prepared or probed.
+		x, why := DeriveAuthors(c.st.attempts, c.l.TicketID, c.l.ExcludeAuthors, c.l.Pool, nil)
+		if x == nil {
+			return c.refuse(mutation.OutcomeBlocked, wire.CodeIndependenceUnverified, why)
+		}
+		if slices.Contains(x.Excluded, c.l.Member) {
+			return c.refuse(mutation.OutcomeBlocked, wire.CodeResourceCollision, "member "+c.l.Member+" is an excluded implement author; "+x.AuthorsDetail())
+		}
 	}
 	digest, e := wire.ParseDigest("claim binding", c.l.Evidence)
 	if e != nil {

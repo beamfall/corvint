@@ -32,6 +32,10 @@ var TicketKeys = []string{
 	"supersededBy", "supersedes", "title",
 }
 
+// OptionalTicketKeys are the export item ticket keys the exporter may omit:
+// the stage-scoped execution prerequisites (CAL-V0-099).
+var OptionalTicketKeys = []string{"executionPrerequisites"}
+
 // Item is one foreign ticket: its primary ID, verbatim block and mapping.
 type Item struct {
 	SourceItemID string
@@ -83,7 +87,7 @@ func Decode(raw []byte) (*Export, error) {
 		r.Closed("sourceItemId", "block", "ticket")
 		item := Item{SourceItemID: r.Field("sourceItemId").Identifier(), Block: r.Field("block").Prose(1, wire.MaxBodyBytes)}
 		t := r.Field("ticket")
-		t.Closed(TicketKeys...)
+		t.Closed(wire.OptionalKeys(t.Value(), TicketKeys, OptionalTicketKeys...)...)
 		item.Ticket = t.Value()
 		if err = r.Err(); err != nil {
 			return nil, err
@@ -182,6 +186,14 @@ func record(sourceQueue string, item Item, st Store, current map[string]*ticket.
 	for _, k := range TicketKeys {
 		v, _ := item.Ticket.Obj.Get(k)
 		o.Set(k, v)
+	}
+	// CAL-V0-099: an export that carries executionPrerequisites maps them;
+	// one that omits them keeps the record's set, so a re-import from an
+	// exporter that cannot express the key never silently drops it.
+	if v, ok := item.Ticket.Obj.Get("executionPrerequisites"); ok {
+		o.Set("executionPrerequisites", v)
+	} else if pre != nil && len(pre.ExecutionPrerequisites) > 0 {
+		o.Set("executionPrerequisites", ticket.PrerequisitesValue(pre.ExecutionPrerequisites))
 	}
 	o.Set("profile", wire.String(ticket.Profile))
 	o.Set("ticketId", wire.String(id.Raw))
@@ -313,6 +325,14 @@ func references(rec *ticket.Record, inv *ticket.Inventory, gates map[string]bool
 		}
 		if d.GateID != nil && !gates[*d.GateID] {
 			return wire.Errorf(wire.CodeGateUnknown, rec.TicketID.Raw, "dependency gate %q is not declared by policy", *d.GateID)
+		}
+	}
+	for _, p := range rec.ExecutionPrerequisites {
+		if _, ok := inv.Get(p.TicketID.Raw); !ok {
+			return wire.Errorf(wire.CodeDependencyMissing, rec.TicketID.Raw, "execution prerequisite %s is in neither the export nor the store", p.TicketID.Raw)
+		}
+		if p.GateID != nil && !gates[*p.GateID] {
+			return wire.Errorf(wire.CodeGateUnknown, rec.TicketID.Raw, "execution prerequisite gate %q is not declared by policy", *p.GateID)
 		}
 	}
 	for _, g := range rec.RequiredGates {

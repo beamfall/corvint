@@ -82,6 +82,11 @@ func TestIssue502_RecordEscalationsKey(t *testing.T) {
 	note := wire.Sum([]byte("note"))
 	rec.OperatorNote = &ticket.OperatorNoteReference{Revision: "1", Current: &note, Head: note}
 	rec.ExternalReviews = map[string]ticket.ExternalReviewRef{"codex-review": {Generation: "1", Revision: "1", Head: wire.Sum([]byte("review"))}}
+	gate := "ci"
+	rec.ExecutionPrerequisites = []ticket.Prerequisite{
+		{TicketID: fixture.Ticket("AT-03").TicketID, Obligation: "GATE_PASSED", GateID: &gate, Stages: []string{"integrate", "review"}},
+		{TicketID: fixture.Ticket("AT-02").TicketID, Obligation: "COMPLETED", Stages: []string{"integrate"}},
+	}
 	file, err := os.ReadFile(issue502RecordFixture)
 	if err != nil {
 		t.Fatal(err)
