@@ -17,6 +17,16 @@ content unchanged. The sealed `urfave/preregistration.json` (deviation 1, `decis
 `urfave/admission.json` keep the reserved label `0427`; in those two files it means this decision.
 They are not edited, so the preregistration digest below stays valid.
 
+Sequencing deviation: item 4 required the independent review before the `.sha256` seal was
+written, and no review of the draft digests was retained before commit `b436fadd` wrote it. On
+2026-10-05 an independent read-only Codex review of the published files confirmed the three digests
+(preregistration `eedf799f...`, corpus `b9cf1407...`, harness `b67cc95a...`), the unchanged
+measurements, thresholds and invalidation rules, and the corpus's internal consistency, and returned
+the missing pre-seal record as its only blocking finding. The owner then accepted the seal as it
+stands ("you have my explicit approval", 2026-10-05). No Corvint invocation had run against these
+cases, so the property the order protects, no observation before the seal, holds; the seal is not
+rewritten.
+
 The old choice does not meet the repository-independence premise in PRS-V1-008's protocol:
 `benchmarks/manifest.json` already pins spf13/cobra at
 `adbc8813901bba65827259daa8e22ff94ec1f30e`, and retained `benchmarks/results/v4-development.json`
