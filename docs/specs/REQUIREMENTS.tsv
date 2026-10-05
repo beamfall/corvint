@@ -1977,21 +1977,21 @@ PCCO-V0-014	docs/specs/proof-carrying-context-optimization-v0.md	113	Profiles ar
 PCCO-V0-015	docs/specs/proof-carrying-context-optimization-v0.md	115	(proposed for V1-0012, not accepted) A correctness or cost comparison of the dai
 PCCO-V0-016	docs/specs/proof-carrying-context-optimization-v0.md	125	(proposed for V1-0012, not accepted) Each run MUST emit one result binding the
 PCCO-V0-017	docs/specs/proof-carrying-context-optimization-v0.md	130	(proposed for V1-0012, not accepted) A cost-reduction claim is retained only whe
-PCH-V0-001	docs/specs/postmerge-ci-host-v0.md	41	Publish a host-neutral workflow graph, `protocol/postmerge-host/workflow-graph.j
-PCH-V0-002	docs/specs/postmerge-ci-host-v0.md	49	Document the host adapter contract in `protocol/postmerge-host/README.md`:
-PCH-V0-003	docs/specs/postmerge-ci-host-v0.md	56	Ship a reference pipeline that processes one merged change by full commit id:
-PCH-V0-004	docs/specs/postmerge-ci-host-v0.md	69	Ship a source trigger. It runs on push to the merged branch only, never on a cha
-PCH-V0-005	docs/specs/postmerge-ci-host-v0.md	73	Ship scheduled reconciliation that re-dispatches recent first-parent merges, so
-PCH-V0-006	docs/specs/postmerge-ci-host-v0.md	76	Pin every action to a full commit and check out with `persist-credentials: false
-PCH-V0-007	docs/specs/postmerge-ci-host-v0.md	85	Provide an audit, `internal/postmergehost.Audit`, over a restricted YAML subset.
-PCH-V0-008	docs/specs/postmerge-ci-host-v0.md	129	The README gives a porting guide that maps markers, credential classes, isolatio
-PCH-V0-009	docs/specs/postmerge-ci-host-v0.md	137	An optional operator-owned launcher accepts only the exact final paired profile/
-PCH-V0-010	docs/specs/postmerge-ci-host-v0.md	138	Native Snapshot/Preflight/Verify observe the same canonical host product worktre
-PCH-V0-011	docs/specs/postmerge-ci-host-v0.md	139	A pinned fixed Linux internal shim from the same optional command clears and obs
-PCH-V0-012	docs/specs/postmerge-ci-host-v0.md	140	Durable exact run ownership exists before engine create. Independent bounded cle
-PCH-V0-013	docs/specs/postmerge-ci-host-v0.md	141	The selected Add fixture uses actual native intake/BuildAuthorInput, source-deri
-PCH-V0-014	docs/specs/postmerge-ci-host-v0.md	142	Candidate limits, actual immutable image/tool/source/shim/author pins, observed
-PCH-V0-015	docs/specs/postmerge-ci-host-v0.md	143	Local template conformance runs the reference pipeline's `resolve` and `delta`
+PCH-V0-001	docs/specs/postmerge-ci-host-v0.md	42	Publish a host-neutral workflow graph, `protocol/postmerge-host/workflow-graph.j
+PCH-V0-002	docs/specs/postmerge-ci-host-v0.md	50	Document the host adapter contract in `protocol/postmerge-host/README.md`:
+PCH-V0-003	docs/specs/postmerge-ci-host-v0.md	57	Ship a reference pipeline that processes one merged change by full commit id:
+PCH-V0-004	docs/specs/postmerge-ci-host-v0.md	70	Ship a source trigger. It runs on push to the merged branch only, never on a cha
+PCH-V0-005	docs/specs/postmerge-ci-host-v0.md	74	Ship scheduled reconciliation that re-dispatches recent first-parent merges, so
+PCH-V0-006	docs/specs/postmerge-ci-host-v0.md	77	Pin every action to a full commit and check out with `persist-credentials: false
+PCH-V0-007	docs/specs/postmerge-ci-host-v0.md	86	Provide an audit, `internal/postmergehost.Audit`, over a restricted YAML subset.
+PCH-V0-008	docs/specs/postmerge-ci-host-v0.md	130	The README gives a porting guide that maps markers, credential classes, isolatio
+PCH-V0-009	docs/specs/postmerge-ci-host-v0.md	138	An optional operator-owned launcher accepts only the exact final paired profile/
+PCH-V0-010	docs/specs/postmerge-ci-host-v0.md	139	Native Snapshot/Preflight/Verify observe the same canonical host product worktre
+PCH-V0-011	docs/specs/postmerge-ci-host-v0.md	140	A pinned fixed Linux internal shim from the same optional command clears and obs
+PCH-V0-012	docs/specs/postmerge-ci-host-v0.md	141	Durable exact run ownership exists before engine create. Independent bounded cle
+PCH-V0-013	docs/specs/postmerge-ci-host-v0.md	142	The selected Add fixture uses actual native intake/BuildAuthorInput, source-deri
+PCH-V0-014	docs/specs/postmerge-ci-host-v0.md	143	Candidate limits, actual immutable image/tool/source/shim/author pins, observed
+PCH-V0-015	docs/specs/postmerge-ci-host-v0.md	144	Local template conformance runs the reference pipeline's `resolve` and `delta`
 PGO-V0-001	docs/specs/process-group-owner-v0.md	32	Own a process group through its unreaped leader; send at most one real group sig
 PGO-V0-002	docs/specs/process-group-owner-v0.md	33	Preserve Darwin quiet-first retirement and Linux ReapAfterSuccessfulSignal retir
 PGO-V0-003	docs/specs/process-group-owner-v0.md	34	Check the original retirement allowance before new primitives and before accepti
@@ -2025,15 +2025,15 @@ PMM-V0-004	docs/specs/postmerge-metrics-v0.md	31	Process full retained eligible 
 PMM-V0-005	docs/specs/postmerge-metrics-v0.md	35	Validate contiguous per-class sequence inventories starting at 1 and independent
 PMM-V0-006	docs/specs/postmerge-metrics-v0.md	38	Produce byte-identical reports from the same validated policy, records, immutabl
 PMM-V0-007	docs/specs/postmerge-metrics-v0.md	41	Expose `corvint-postmerge-metrics report --policy FILE --records FILE --from UTC
-PMR-V0-001	docs/specs/postmerge-replay-v0.md	35	Decode a bounded closed fixture containing immutable connector identity and
-PMR-V0-002	docs/specs/postmerge-replay-v0.md	39	Use a separate host-owned policy to pin the connector binding, executable bytes,
-PMR-V0-003	docs/specs/postmerge-replay-v0.md	42	Admit human labels only when one separate pinned registry entry matches full imm
-PMR-V0-004	docs/specs/postmerge-replay-v0.md	45	Execute the pinned adapter bytes in two fresh private directories with bounded
-PMR-V0-005	docs/specs/postmerge-replay-v0.md	49	Require a result bound to the complete fixture digest, runtime digest and change
-PMR-V0-006	docs/specs/postmerge-replay-v0.md	57	Build and validate the actual connector plan, record it twice in each run and pr
-PMR-V0-007	docs/specs/postmerge-replay-v0.md	60	Emit a separate report with fixture/policy/binding identities, canonical JSONL,
-PMR-V0-008	docs/specs/postmerge-replay-v0.md	66	Provide local/CI invocation `corvint-postmerge-workflow replay --change ID --dry
-PMR-V0-009	docs/specs/postmerge-replay-v0.md	73	Replay does not parse or reimplement the issue #389 delta record. The adapter
+PMR-V0-001	docs/specs/postmerge-replay-v0.md	36	Decode a bounded closed fixture containing immutable connector identity and
+PMR-V0-002	docs/specs/postmerge-replay-v0.md	40	Use a separate host-owned policy to pin the connector binding, executable bytes,
+PMR-V0-003	docs/specs/postmerge-replay-v0.md	43	Admit human labels only when one separate pinned registry entry matches full imm
+PMR-V0-004	docs/specs/postmerge-replay-v0.md	46	Execute the pinned adapter bytes in two fresh private directories with bounded
+PMR-V0-005	docs/specs/postmerge-replay-v0.md	50	Require a result bound to the complete fixture digest, runtime digest and change
+PMR-V0-006	docs/specs/postmerge-replay-v0.md	58	Build and validate the actual connector plan, record it twice in each run and pr
+PMR-V0-007	docs/specs/postmerge-replay-v0.md	61	Emit a separate report with fixture/policy/binding identities, canonical JSONL,
+PMR-V0-008	docs/specs/postmerge-replay-v0.md	67	Provide local/CI invocation `corvint-postmerge-workflow replay --change ID --dry
+PMR-V0-009	docs/specs/postmerge-replay-v0.md	74	Replay does not parse or reimplement the issue #389 delta record. The adapter
 PMR-V1-001	docs/specs/postmerge-runtime-v1.md	22	Independently pin full binding, input snapshots, source/tool/runtime/profile and
 PMR-V1-002	docs/specs/postmerge-runtime-v1.md	23	Execute real connector/intake/delta joins, retain exact native inputs/outputs an
 PMR-V1-003	docs/specs/postmerge-runtime-v1.md	24	Each applicable real author step requires enforced credential/network/filesystem

@@ -18,8 +18,9 @@ native V1-0542 revision 5; decision 0373; `AGENTS.md`; contracts `postmerge-conn
 On 2026-10-05 the owner accepted the delivered scope of #395 and closed it (and parent #388) with the
 remaining qualification items recorded as `NOT_RUN`: no historical replay set exists, the
 qualification campaign is `NOT_RUN`, and the author and draft stages are owner-deferred, not delivered.
-Native ticket V1-0542 keeps tracking #395; V1-0535 tracks the final rerun of gap checks (a) to (d) for
-#388, which is `NOT_RUN`. This decision accepts no unrun witness; whole-workflow qualification stays
+The owner also directed that V1-0542 and V1-0535 complete on this basis. Follow-up V1-0805 tracks the
+author and draft stages, the replay set and the campaign; V1-0807 tracks the final rerun of gap checks
+(a) to (d) for #388, which is `NOT_RUN`. This decision accepts no unrun witness; whole-workflow qualification stays
 `NOT_OBSERVED`. See `docs/build-log/2026-10-05-postmerge-issues-accepted-not-run.md`.
 
 ## User and measurable job

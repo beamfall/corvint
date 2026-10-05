@@ -8,12 +8,13 @@ adapter contract) and #388 (post-merge maintenance workflow epic), and closed th
 
 - #395 closes with the delivered replay slice (fixture `basis`, `replay --change --dry-run`, identical
   second run, reports split by basis). No historical replay set exists and the qualification campaign is
-  `NOT_RUN`. The author and draft stages are owner-deferred, not delivered. V1-0542 keeps tracking it.
+  `NOT_RUN`. The author and draft stages are owner-deferred, not delivered. V1-0542 completes on this basis;
+  follow-up V1-0805 tracks the rest.
 - #398 closes with PCH-V0-001..008 and PCH-V0-015 delivered. The hosted dry-run of the replay set
   (blocked on #395's set) is `NOT_RUN`, and physical isolation (`PCH-V0-011`, `PCH-V0-014`) is
-  unqualified (`NOT_RUN`). V1-0545 keeps tracking it.
+  unqualified (`NOT_RUN`). V1-0545 completes on this basis; follow-up V1-0806 tracks both.
 - #388 closes together with #395 and #398. The final rerun of gap checks (a) to (d) is `NOT_RUN` and
-  stays tracked by V1-0535.
+  is tracked by follow-up V1-0807; V1-0535 completes on this basis.
 - Spec notes added to `postmerge-replay-v0.md` and `postmerge-ci-host-v0.md`; no requirement ID or
   behavior changes.
 

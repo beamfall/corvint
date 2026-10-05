@@ -19,7 +19,8 @@ owner acceptance 2026-10-05 recorded on V1-0545 (rev 17, receipts 2745 and 2746)
 On 2026-10-05 the owner accepted the delivered scope of #398 and closed it (with #395 and parent #388)
 with the remaining qualification items recorded as `NOT_RUN`: the hosted dry-run of the replay set
 (blocked on #395, which has no historical replay set) and physical isolation `PCH-V0-011` and
-`PCH-V0-014`, which stay unqualified. Native ticket V1-0545 keeps tracking #398. This decision accepts
+`PCH-V0-014`, which stay unqualified. The owner also directed that V1-0545 complete on this basis;
+follow-up V1-0806 tracks both items. This decision accepts
 no unrun witness and marks no `PCH-V0` witness as passed. See
 `docs/build-log/2026-10-05-postmerge-issues-accepted-not-run.md`.
 
