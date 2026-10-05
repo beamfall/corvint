@@ -589,6 +589,11 @@ func (s *escalationView) guidance(pinned []snapshot.EscalationAnswerRef) ([]Esca
 		if origin.Operation != "OPEN" || origin.EscalationID != ref.RequestID || head.Operation != "ANSWER" || head.EscalationID != ref.RequestID || head.QuestionOriginSha256 == nil || *head.QuestionOriginSha256 != ref.OriginSha256 || head.Source != origin.Source || origin.OriginalRequest.Open == nil || head.OriginalRequest.Answer == nil {
 			return nil, wire.Value{}, escalationFailure("ANSWER_BINDING")
 		}
+		// The same terminal-chain rule validate applies: a claim pin resolves
+		// without the ticket's references, so it must not admit a rehashed answer.
+		if head.Revision != "2" || head.PreviousSha256 == nil || *head.PreviousSha256 != ref.OriginSha256 {
+			return nil, wire.Value{}, escalationFailure("TERMINAL_CHAIN")
+		}
 		v := EscalationAnswerView{ref.RequestID, ref.OriginSha256, ref.HeadSha256, origin.OriginalRequest.Open.Question, append([]string{}, origin.OriginalRequest.Open.Options...), origin.OriginalRequest.Open.Kind, origin.Source, head.OriginalRequest.Answer.Text, head.Actor, head.ActorRole, head.RecordedAt, head.Revision}
 		out = append(out, v)
 

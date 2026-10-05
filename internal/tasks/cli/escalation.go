@@ -396,7 +396,7 @@ func loadEscalations(repo *intent.Repository, queueID string, rec *ticket.Record
 				continue
 			}
 			if err != nil {
-				return escalationMaterial{err: err}
+				return escalationMaterial{err: escalationReadError(err)}
 			}
 			blobs[d] = raw
 		}
@@ -409,12 +409,13 @@ func loadEscalations(repo *intent.Repository, queueID string, rec *ticket.Record
 }
 
 func escalationReadError(err error) error {
+	// The record already decoded, so anything but an absent blob is stored
+	// material that disagrees with it (a refusal, an undecodable or oversized
+	// event, an unreadable file): journal damage, never malformed caller input.
 	var r *transaction.EscalationRefusal
 	if !errors.As(err, &r) {
-		return err
+		return wire.Errorf(wire.CodeJournalForked, "/escalations", "escalation material unreadable: %v", err)
 	}
-	// The record already decoded, so every other refusal is stored material
-	// that disagrees with it: journal damage, never malformed caller input.
 	code := wire.CodeJournalForked
 	if r.Code == "MISSING_EVIDENCE" {
 		code = wire.CodeMissingEvidence

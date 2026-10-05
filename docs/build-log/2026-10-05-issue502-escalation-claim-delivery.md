@@ -18,9 +18,11 @@ the owner accepted as written on 2026-10-04 (decision 0428). The owner asked for
   the claim nor its exact replay, and claim-next takes its own snapshot.
 - `ResolveEscalationAnswers` is pure and shares one encoder and the 256 KiB guidance bound with the
   reducer's answer selection. It checks that each origin is the request's OPEN event and that each
-  head is that request's ANSWER, bound to the origin by digest and source. Missing material is
-  `MISSING_EVIDENCE`; any other refusal is stored material that disagrees with the pin and renders
-  as `JOURNAL_FORKED`.
+  head is that request's ANSWER, bound to the origin by digest and source, with the same
+  terminal-chain rule the reducer applies (revision 2, previous event the origin). Missing material
+  is `MISSING_EVIDENCE`. Any other failure, whether a refusal or an event that no longer decodes or
+  reads back within its bound, is stored material that disagrees with the pin and renders as
+  `JOURNAL_FORKED`. The CLI list and show reads share that mapping.
 - The claim result always carries `escalationAnswers` beside `operatorNote`. It is `CURRENT` with
   the answer array (empty when nothing was pinned), or `UNAVAILABLE` with its code and the pinned
   references, plus a warning to replay the exact claim and never claim again. Delivery consumes
@@ -39,9 +41,24 @@ These were agent design choices under the owner's request; none changes an accep
   only the answer, a later answer that changes neither the live claim nor its exact replay, and a
   claim-next that delivers both.
 - `TestESCV0005_ClaimPinsAndResolvesAnswers` covers admission filtering and resolver parity with
-  the reducer, plus missing, swapped, cross-bound and wrong-ticket material.
+  the reducer, plus missing, swapped, cross-bound, wrong-ticket and rehashed broken-chain material.
 - `TestESCV0005_AttemptPinsTheAdmittedAnswers` covers codec round trip and refusals.
-  `TestESCV0005_ClaimResultCarriesPinnedAnswers` covers rendering.
+  `TestESCV0005_ClaimResultCarriesPinnedAnswers` covers rendering, including an oversized event.
+
+## Review
+
+Independent read-only Codex review (gpt-6-astra) of `432d9207..6eed7feb` found no blocker or major
+finding, and two minor ones, both fixed here:
+
+- The standalone resolver did not apply the reducer's terminal-chain check, so a rehashed ANSWER
+  with a matching origin binding but a different previous event or revision resolved. It now
+  refuses `TERMINAL_CHAIN`, and the guard was confirmed load-bearing by removing it.
+- A pinned event that no longer read back within its bound rendered `LIMIT_EXCEEDED`, outside the
+  contract's `MISSING_EVIDENCE` / `JOURNAL_FORKED` set. Non-refusal read failures now map to
+  `JOURNAL_FORKED`.
+
+The reviewer judged the 256 KiB argument sound and found no 1 MiB overflow path. Its own focused
+test run could not start in the read-only sandbox; the tests above ran outside it.
 
 ## NOT_RUN
 

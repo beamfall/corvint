@@ -635,4 +635,28 @@ func TestESCV0005_ClaimPinsAndResolvesAnswers(t *testing.T) {
 	esc502Code(t, e, "ANSWER_BINDING")
 	_, _, e = ResolveEscalationAnswers(pinned.QueueID, pinned.TicketID+"9", refs, latest.Blobs)
 	esc502Code(t, e, "EVENT_IDENTITY")
+
+	// A rehashed answer that keeps its origin and source binding but breaks
+	// the terminal chain (previous event or revision) is refused, as validate
+	// refuses it for the ticket's own references.
+	for name, edit := range map[string]func(*wire.Object){
+		"previous": func(o *wire.Object) { o.Set("previousSha256", wire.String(string(nextHead))) },
+		"revision": func(o *wire.Object) {
+			o.Set("revision", wire.String("3")).Set("resolvedPreviousRevision", wire.String("2"))
+		},
+	} {
+		v, err := wire.Parse(latest.Blobs[refs[0].HeadSha256])
+		if err != nil {
+			t.Fatal(err)
+		}
+		edit(v.Obj)
+		raw := wire.EncodeFile(v)
+		blobs := map[wire.Digest][]byte{refs[0].OriginSha256: latest.Blobs[refs[0].OriginSha256], wire.Sum(raw): raw}
+		rehashed := []snapshot.EscalationAnswerRef{{RequestID: refs[0].RequestID, OriginSha256: refs[0].OriginSha256, HeadSha256: wire.Sum(raw)}}
+		_, _, e = ResolveEscalationAnswers(pinned.QueueID, pinned.TicketID, rehashed, blobs)
+		if e == nil {
+			t.Fatalf("%s: rehashed answer resolved", name)
+		}
+		esc502Code(t, e, "TERMINAL_CHAIN")
+	}
 }

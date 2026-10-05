@@ -120,4 +120,11 @@ func TestESCV0005_ClaimResultCarriesPinnedAnswers(t *testing.T) {
 	if objectString(answers, "code") != wire.CodeJournalForked {
 		t.Fatalf("mismatched material = %+v", answers)
 	}
+	// A pinned event that no longer reads back within its bound is stored
+	// damage too, never the reader's own LIMIT_EXCEEDED.
+	grown := leaseResult([]string{"claim"}, &store.Report{Kind: "Claim", Outcome: ok, Delivery: &store.ClaimDelivery{TicketRecordSha256: digest, EscalationAnswers: store.ClaimedAnswers{Refs: refs, Err: wire.Errorf(wire.CodeLimitExceeded, "/", "event over its bound")}}})
+	answers, _ = grown.Items[0].Obj.Get("escalationAnswers")
+	if objectString(answers, "code") != wire.CodeJournalForked || !containsWarning(grown.Warnings, "escalation answers unavailable (JOURNAL_FORKED)") {
+		t.Fatalf("oversized material = %+v warnings=%v", answers, grown.Warnings)
+	}
 }
