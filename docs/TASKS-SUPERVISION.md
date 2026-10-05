@@ -36,6 +36,19 @@ one gitlink per repository) that review binds. Gates and integration of such pro
 until a later slice defines cross-repository landing; operator checkouts are never moved. See
 [S21](specs/corvint-tasks-agent-leases-v0.md#s21--multi-repository-supervised-programs-issue-354-partial).
 
+Claude Code host: set `"host": "claude-code"` in both the policy `supervision` object and the
+config, and pin the Claude Code executable as the same `taskman-codex-supervisor/0` runtime (one
+host per policy; absent means Codex). A config host that differs from the policy host, or an
+unknown host, is refused `UNSUPPORTED` before any record; `--host` must match the config host. A
+missing, unreadable or unpinned executable of either host is refused `CAPABILITY_UNAVAILABLE`.
+Stages run `claude -p --output-format json` with the stage effort, project settings only, no MCP
+servers and no permission prompts; implement accepts edits, review and integrate deny Edit, Write
+and NotebookEdit, and every stage adds the sibling worktrees with `--add-dir`. The single result
+object must succeed and carry the handoff object as its `result`; usage is observed from its
+integer token counters or stays NOT_OBSERVED. Bash is governed by project permission rules, not
+contained. Live Claude Code qualification is NOT_RUN; see
+[S22](specs/corvint-tasks-agent-leases-v0.md#s22--claude-code-supervised-host-v1-0755-split-from-issue-354).
+
 ```sh
 corvint-tasks run --program migration --config supervisor.json --role implementer --count 3 --host codex
 corvint-tasks run --program migration --config supervisor.json --role reviewer --count 2 --host codex

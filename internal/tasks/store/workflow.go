@@ -331,11 +331,17 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 			env = append(env, key+"="+v)
 		}
 	}
+	// Only the stage that continues an answered WAIT resumes its session; a
+	// later stage of the same attempt (review, integrate) starts a fresh one,
+	// so an answer never carries the author session into review.
 	session := ""
-	if w.attempt.Supervision.Answer != "" {
+	if resuming {
 		session = w.attempt.Supervision.SessionID
 	}
 	argv := withWritableRoots(codexStageArgv(w.cfg, stage, session), stage, extras)
+	if w.cfg.Host == supervisor.HostClaudeCode {
+		argv = claudeStageArgv(w.cfg, stage, session, extras)
+	}
 	dir, e := os.MkdirTemp(filepath.Dir(path), "effect-")
 	if e != nil {
 		return supervisor.Outcome{}, e
@@ -344,7 +350,7 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 	w.program.LeaderStarted = ""
 	w.program.EffectDirectory = dir
 	w.program.Effect = supervisor.Digest([]byte(dir))
-	capsule := supervisor.Capsule{Profile: w.cfg.Profile, Effect: w.program.Effect, Executable: w.cfg.Executable, ExecutableSHA256: w.cfg.ExecutableSHA256, Argv: argv, Env: env, Directory: path, Prompt: instruction + "\n" + string(prompt)}
+	capsule := supervisor.Capsule{Profile: w.cfg.Profile, Effect: w.program.Effect, Executable: w.cfg.Executable, ExecutableSHA256: w.cfg.ExecutableSHA256, Argv: argv, Env: env, Directory: path, Prompt: instruction + "\n" + string(prompt), Host: w.cfg.Host}
 	w.program.Turns++
 	if e = w.persist("SPAWNING"); e != nil {
 		entries, _ := ProgramRecords(ctx, w.repo)
@@ -389,7 +395,10 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 		}
 		var output []byte
 		if out != nil && (phase == "FINISHED" || phase == "BLOCKED_RECOVERY") {
-			i, o, known := supervisor.ObservedUsage(out.Stdout)
+			i, o, known := uint64(0), uint64(0), false
+			if vocabulary, ok := supervisor.HostVocabulary(w.cfg.Host); ok {
+				i, o, known = vocabulary.Usage(out.Stdout)
+			}
 			if out.Class != "NO_EXEC" {
 				w.program.InputTokens += i
 				w.program.OutputTokens += o
@@ -588,11 +597,11 @@ func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.B
 	}
 	runtimeBytes, e := supervisor.ReadBounded(c.Executable, 256<<20)
 	if e != nil {
-		return nil, e
+		return nil, wire.Errorf(wire.CodeCapabilityUnavailable, "runtime", "pinned executable unreadable: %v", e)
 	}
 	st, e := os.Stat(c.Executable)
 	if e != nil {
-		return nil, e
+		return nil, wire.Errorf(wire.CodeCapabilityUnavailable, "runtime", "pinned executable unreadable: %v", e)
 	}
 	pinned := false
 	for _, r := range policy.Runtimes {
@@ -601,7 +610,7 @@ func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.B
 		}
 	}
 	if !pinned || supervisor.Digest(runtimeBytes) != c.ExecutableSHA256 {
-		return nil, fmt.Errorf("runtime pin mismatch")
+		return nil, wire.Errorf(wire.CodeCapabilityUnavailable, "runtime", "runtime pin mismatch")
 	}
 	for _, field := range policy.RequireEnforcedFields {
 		if field != "turns" && field != "wallClockMinutes" {
@@ -1383,4 +1392,30 @@ func withWritableRoots(argv []string, stage string, extras map[string]string) []
 	out := append([]string{}, argv[:len(argv)-1]...)
 	out = append(out, extra...)
 	return append(out, argv[len(argv)-1])
+}
+
+// claudeStageArgv is the pinned Claude Code invocation for one supervised
+// stage (CAL-V0-075). Edits are accepted only in implement; review and
+// integrate deny the file-editing tools. Every stage adds the sorted sibling
+// worktrees as working directories, since Claude Code confines its file tools
+// to them; --add-dir is variadic, so it comes last.
+func claudeStageArgv(c ProgramConfig, stage, session string, extras map[string]string) []string {
+	argv := []string{"-p", "--output-format", "json", "--model", c.Model, "--effort", c.StageEffort(stage), "--setting-sources", "project", "--strict-mcp-config", "--permission-prompts", "none"}
+	if stage == "implement" {
+		argv = append(argv, "--permission-mode", "acceptEdits")
+	} else {
+		argv = append(argv, "--permission-mode", "dontAsk", "--disallowedTools", "Edit,Write,NotebookEdit")
+	}
+	if session != "" {
+		argv = append(argv, "--resume", session)
+	}
+	if len(extras) > 0 {
+		dirs := []string{}
+		for _, p := range extras {
+			dirs = append(dirs, p)
+		}
+		sort.Strings(dirs)
+		argv = append(append(argv, "--add-dir"), dirs...)
+	}
+	return argv
 }

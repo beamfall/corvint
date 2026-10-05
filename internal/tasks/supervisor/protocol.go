@@ -24,6 +24,9 @@ type Capsule struct {
 	Env              []string `json:"env"`
 	Directory        string   `json:"directory"`
 	Prompt           string   `json:"prompt"`
+	// Host selects the result vocabulary (CAL-V0-074); absent is Codex, so
+	// Codex capsule bytes are unchanged.
+	Host string `json:"host,omitempty"`
 }
 type Boot struct {
 	Effect  string `json:"effect"`
@@ -109,6 +112,9 @@ func Publish(dir, name string, v any) error {
 func ValidateCapsule(c Capsule) error {
 	if c.Profile != "taskman-codex-supervisor/0" || len(c.Effect) != 64 || !filepath.IsAbs(c.Executable) || !filepath.IsAbs(c.Directory) || len(c.Argv) > 64 || len(c.Env) > 64 || len(c.Prompt) > MaxCapsule/2 {
 		return fmt.Errorf("capsule profile/bounds")
+	}
+	if _, ok := HostVocabulary(c.Host); !ok || c.Host == HostCodex {
+		return fmt.Errorf("capsule host unsupported")
 	}
 	st, e := os.Lstat(c.Executable)
 	if e != nil {
