@@ -20,10 +20,7 @@ func (r *Repository) BlobBytesBounded(ctx context.Context, oid string, limit int
 // any body allocation. Every other failure is returned exactly as BlobBytesBounded does.
 func (r *Repository) BlobBytesWithin(ctx context.Context, oid string, limit int) (data []byte, over bool, err error) {
 	data, err = r.boundedObject(ctx, oid, "blob", limit, &over)
-	if over {
-		return nil, true, nil
-	}
-	return data, false, err
+	return data, over, err
 }
 
 func (r *Repository) boundedObject(ctx context.Context, oid, kind string, limit int, over *bool) ([]byte, error) {
@@ -40,14 +37,13 @@ func (r *Repository) boundedObject(ctx context.Context, oid, kind string, limit 
 		defer session.Close()
 	}
 	options := r.gitOptions(limit, nil)
+	overHeader := false
 	admit := func(_ string, fields []string, size int) bool {
 		if len(fields) != 3 || fields[0] != oid || fields[1] != kind || size < 0 {
 			return false
 		}
 		if size > limit {
-			if over != nil {
-				*over = true
-			}
+			overHeader = true
 			return false
 		}
 		return r.chargedOids[oid] || int64(size) <= MaxTotalBlobBytes-r.blobBytes
@@ -55,6 +51,11 @@ func (r *Repository) boundedObject(ctx context.Context, oid, kind string, limit 
 	_, body, ok, err := session.Read(ctx, perOp, options, append(r.pinnedArgs(), "cat-file", "--batch"), oid, admit)
 	if err != nil {
 		return nil, err
+	}
+	if !ok && overHeader && over != nil {
+		// Only a completed refusal is reported as over; a session error above wins.
+		*over = true
+		return nil, nil
 	}
 	if !ok {
 		return nil, unavailable("immutable source object header is unavailable or exceeds its admitted bound")
