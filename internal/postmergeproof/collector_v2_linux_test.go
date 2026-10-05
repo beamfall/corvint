@@ -31,9 +31,14 @@ import (
 type collectorStore struct {
 	mu   sync.Mutex
 	data map[string][]byte
+	// fail is one artifact ID whose retention fails.
+	fail string
 }
 
 func (s *collectorStore) RetainProcessArtifactV2(id string, data []byte) (postmergeproof.ArtifactRefV2, error) {
+	if id == s.fail {
+		return postmergeproof.ArtifactRefV2{}, errors.New("retention unavailable for " + id)
+	}
 	return s.put(id, data), nil
 }
 
@@ -87,9 +92,14 @@ type collectorRun struct {
 	graph     postmergeproof.GraphBindingV2
 	proof     postmergeproof.ProcessProofV2
 	bytes     []byte
+	// sweepErr and proofErr are set when failID made the final sweep fail.
+	sweepErr, proofErr error
 }
 
-func collect(t *testing.T, name string, retireRunner bool) *collectorRun {
+// collect runs one owned execution. A non-empty failID names one artifact
+// whose retention fails during the final sweep; collect then returns the
+// sweep and proof errors instead of a proof.
+func collect(t *testing.T, name string, retireRunner bool, failID string) *collectorRun {
 	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -102,7 +112,7 @@ func collect(t *testing.T, name string, retireRunner bool) *collectorRun {
 	if err != nil {
 		t.Skip("NOT_OBSERVED: no sleep: " + err.Error())
 	}
-	r := &collectorRun{store: &collectorStore{data: map[string][]byte{}}}
+	r := &collectorRun{store: &collectorStore{data: map[string][]byte{}, fail: failID}}
 	exe := map[string]postmergeproof.ArtifactRefV2{"self": fileArtifact(t, r.store, "/proc/self/exe"),
 		"sh": fileArtifact(t, r.store, sh), "sleep": fileArtifact(t, r.store, sleep)}
 	release, err := os.ReadFile("/proc/sys/kernel/osrelease")
@@ -158,7 +168,9 @@ func collect(t *testing.T, name string, retireRunner bool) *collectorRun {
 		t.Fatal(err)
 	}
 	env := []string{"PATH=" + filepath.Dir(sleep) + ":/usr/bin:/bin"}
-	rootCmd := exec.Command(sh, "-c", "sleep 30 & wait")
+	// dash exports PWD to its children, so the runner gets exactly the
+	// invocation environment through env -i.
+	rootCmd := exec.Command(sh, "-c", `env -i PATH="$PATH" sleep 30 & wait`)
 	rootCmd.Env = env
 	root, err := c.Start(ctx, rootCmd, postmergehost.OwnedLaunchSpecV2{Purpose: "workflow-root", Parent: c.SupervisorCapture(), Phase: "start-barrier"}, nil)
 	if err != nil {
@@ -195,7 +207,15 @@ func collect(t *testing.T, name string, retireRunner bool) *collectorRun {
 			DescendantsPresent: true, Absent: true, Qualification: "process-group", Scope: "session", IntervalMS: 20,
 			Failures: []string{}, Limitations: []string{}}})
 	if err := c.FinalSweep(ctx); err != nil {
-		t.Fatal(err)
+		if failID == "" {
+			t.Fatal(err)
+		}
+		r.sweepErr = err
+		_, r.proofErr = c.Proof()
+		return r
+	}
+	if failID != "" {
+		t.Fatal("a failed final sweep retention was not reported")
 	}
 	if _, err := c.Start(ctx, exec.Command(sleep, "1"), postmergehost.OwnedLaunchSpecV2{Purpose: "runner", Parent: root.Capture, Phase: "during-run"}, nil); err == nil {
 		t.Fatal("a launch after the final sweep was accepted")
@@ -231,7 +251,7 @@ func killChild(parent int) error {
 }
 
 func TestHostCollectorV2OwnedExecution(t *testing.T) {
-	r := collect(t, "collector-owned", true)
+	r := collect(t, "collector-owned", true, "")
 	logical, err := postmergeproof.VerifyRawLogicalForTestV2(context.Background(), r.policy, r.policyRef.SHA256, r.graph, r.bytes, r.store)
 	if err != nil {
 		t.Fatal(err)
@@ -262,7 +282,7 @@ func TestHostCollectorV2OwnedExecution(t *testing.T) {
 }
 
 func TestHostCollectorV2SweepFindsSurvivor(t *testing.T) {
-	r := collect(t, "collector-survivor", false)
+	r := collect(t, "collector-survivor", false, "")
 	_, err := postmergeproof.VerifyRawLogicalForTestV2(context.Background(), r.policy, r.policyRef.SHA256, r.graph, r.bytes, r.store)
 	expectProcessRefusal(t, err, "REJECTED", "process-sweep-survivor")
 }
@@ -273,4 +293,12 @@ func expectProcessRefusal(t *testing.T, err error, outcome, code string) {
 	if !errors.As(err, &refusal) || refusal.Outcome != outcome || refusal.Code != code {
 		t.Fatalf("got %v, want %s %s", err, outcome, code)
 	}
+}
+
+// A final sweep whose retention fails leaves the collection sealed but
+// unswept: Proof must refuse instead of returning bytes.
+func TestHostCollectorV2FailedSweepEmitsNoProof(t *testing.T) {
+	r := collect(t, "collector-failed-sweep", true, "collector-failed-sweep/absence-sweep")
+	expectProcessRefusal(t, r.sweepErr, "BLOCKED", "process-collection-failed")
+	expectProcessRefusal(t, r.proofErr, "BLOCKED", "process-collection-failed")
 }

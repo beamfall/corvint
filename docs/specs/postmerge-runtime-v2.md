@@ -28,6 +28,11 @@ Project authority, the existing /1 runtime and native producer contracts govern 
 Owner decision 2026-10-04, given through the orchestrator session's question to the owner: the
 process verifier's host tuple identity, SHA-256 over the domain `postmerge-host-tuple/2`, NUL and the
 wire-canonical `HostTupleV2` JSON, is ratified as chosen. The frozen conformance data is unchanged.
+Owner decisions 2026-10-05, given through the orchestrator session: the pinned process observer is
+accepted as a mode of the host launcher binary (`--internal-process-observer`), not a second pinned
+executable. The owner also authorized the PMR-V2-006 qualification campaign in local disposable Linux
+containers, prerequisites first; admission remains a separate later step on the actual evidence.
+That authorization is not a run, a qualification or an admission; none has happened.
 
 This one owning spec registers the producer decision, process proof and connector admission helpers
 because they share the deterministic historical replay outcome and its promotion gate. The provisional
@@ -96,6 +101,24 @@ parent, launch after the sweep, proof before trusted start and sweep) is BLOCKED
 stdin or failed sweep is BLOCKED `process-observer-refused`. Retained limitations: the collector is
 not yet wired into the native producer run or host launcher request path, artifact retention is
 the caller's `ProcessRetainerV2` with no protected on-disk store, and provenance stays trusted-local.
+
+The collector's own lifecycle is fail-closed. `AwaitChild` refuses a parent whose launch it already
+reaped or a retirement-phase capture, and requires the parent to still hold its captured birth (PID
+and stat start time, not a zombie) before discovery and after the child capture, with both child stat
+brackets naming that parent; a reused parent PID therefore cannot donate a child. Every owned launch's
+`/proc/PID/environ` must equal its declared invocation environment, in `Start` and `AwaitChild`.
+After a launch has started, any failure runs an owned cleanup boundary: the leader is stopped, its
+descendants are walked through stopped members only (a stopped process cannot fork and its exited
+children stay unreaped), all matching births are killed, and the cleanup waits within a bound until
+none is still running. Stdin delivery honours cancellation by closing the pipe. The observer reads
+its input against a context that the launcher derives from SIGTERM and interrupt, and refuses
+`process-observer-refused` when cancelled. The observer mode is routed only from the first argument.
+The first failure is retained, a successful final sweep is tracked separately, and `Proof` refuses
+`process-collection-failed` after any failed step, so a failed sweep never yields proof bytes.
+Retained limits: the environ check is a collector-side guard, not retained proof evidence; the
+verifier trusts the invocation preimage, so producer wiring must establish that the preimages
+describe the launch. A descendant that double-forked and was reparented before the cleanup walk is
+outside the cleanup boundary, as it is outside the final sweep.
 
 Verifier refusals keep their class and never collapse zero, absent and unknown. BLOCKED:
 `process-qualification-unavailable`, `process-host-unsupported`, `process-token-invalid`,
@@ -215,7 +238,7 @@ binding/check/seal. No passed design check is a source-execution authorization.
 | PMR-V2-001, 007, 009, 010 | `internal/postmergeworkflow/v2*.go`, workflow CLI | strict routing, refusal and complete historical replay; NOT_RUN |
 | PMR-V2-002, 003, 004 | `internal/testacceptance/*v2*.go`, provider collector | native rederivation, all source/link tamper cases, fresh graph coverage; NOT_RUN |
 | PMR-V2-005, 008 | `internal/postmergeconnector/*v2*.go` | immutable resolver and actual Git joins, both-call revalidation, idempotent JSONL; NOT_RUN |
-| PMR-V2-006 | `internal/postmergeproof` (verifier slice delivered), `internal/postmergehost` (collector slice delivered) | token boundary: TestVerifyProcessMintsBoundToken, TestZeroProcessTokenIsInvalid, TestVerifyProcessAdmissionRefusals, TestQualificationRefusals; raw birth/role/cleanup controls: TestRawProcessProofDerivesLogicalGraph, TestRawProcessRefusals, TestDistinctProcessStates, TestRoleWitnessOrderInvariant, TestProcStatParser, TestPolicyRefusals, TestWireTableMatchesFrozenSchemas; procfs: TestUnsupportedHostIsNotObserved, TestCaptureOwnBirth, TestSweepListsOwnProcess, TestLinuxProcfsOwnedExecution, TestLinuxProcfsSweepFindsSurvivor (Linux arm64 container only; amd64 NOT_RUN); host collector and observer (`internal/postmergehost/process_v2.go`, `process_observer_v2.go`, launcher `--internal-process-observer`): TestHostCollectorV2OwnedExecution, TestHostCollectorV2SweepFindsSurvivor, TestProcessCollectorV2RefusesMisuse, TestProcessObserverV2Modes (Linux arm64 container only; amd64 NOT_RUN), TestProcessCollectorV2UnsupportedHostIsNotObserved, TestInvocationEnvironmentV2Allowlist, TestInternalProcessObserverRefusesUnknownMode; producer-run wiring, protected retention, native process locators and actual tuple qualification NOT_PRODUCED |
+| PMR-V2-006 | `internal/postmergeproof` (verifier slice delivered), `internal/postmergehost` (collector slice delivered) | token boundary: TestVerifyProcessMintsBoundToken, TestZeroProcessTokenIsInvalid, TestVerifyProcessAdmissionRefusals, TestQualificationRefusals; raw birth/role/cleanup controls: TestRawProcessProofDerivesLogicalGraph, TestRawProcessRefusals, TestDistinctProcessStates, TestRoleWitnessOrderInvariant, TestProcStatParser, TestPolicyRefusals, TestWireTableMatchesFrozenSchemas; procfs: TestUnsupportedHostIsNotObserved, TestCaptureOwnBirth, TestSweepListsOwnProcess, TestLinuxProcfsOwnedExecution, TestLinuxProcfsSweepFindsSurvivor (Linux arm64 container only; amd64 NOT_RUN); host collector and observer (`internal/postmergehost/process_v2.go`, `process_observer_v2.go`, launcher `--internal-process-observer`): TestHostCollectorV2OwnedExecution, TestHostCollectorV2SweepFindsSurvivor, TestProcessCollectorV2RefusesMisuse, TestProcessObserverV2Modes, TestProcessCollectorV2AwaitChildRefusesReusedParent, TestProcessCollectorV2FailedLaunchRetiresDescendants, TestProcessCollectorV2CancelledDeliveryRetires, TestProcessObserverV2CancelledInput, TestProcessCollectorV2OwnsObserverCommand, TestHostCollectorV2FailedSweepEmitsNoProof, TestInternalProcessObserverStopsOnSIGTERM (Linux arm64 container only; amd64 NOT_RUN), TestProcessCollectorV2UnsupportedHostIsNotObserved, TestInvocationEnvironmentV2Allowlist, TestInternalProcessObserverRefusesUnknownMode, TestInternalProcessObserverRoutingBoundary; producer-run wiring, protected retention, native process locators and actual tuple qualification NOT_PRODUCED |
 | PMR-V2-007, 010 (prerequisite only) | inherited /1 `internal/postmergeworkflow/native.go` delta stage | provider-free actual delta observed and repeated byte-identically (`TestNativeDeltaRepeatsExactly`); provider-backed delta and later stages NOT_PRODUCED |
 
 ## Remaining work and promotion boundary
@@ -223,8 +246,10 @@ binding/check/seal. No passed design check is a source-execution authorization.
 Remaining PMR-V2-006 work after the collector slice: wire `ProcessCollectorV2` into the native
 producer run and host launcher request path with protected on-disk retention; native process
 locators and references (fresh-process, app-instance, descendant); the `playwright-node-worker/0`
-and `chromium-switch-role` roles; and the actual exact-tuple qualification campaign with its
-owner/root admission. Only then can the PMR-V2-002 decision emitter consume a verified token.
+and `chromium-switch-role` roles; and the actual exact-tuple qualification campaign (owner-authorized
+2026-10-05 for local disposable Linux containers, prerequisites first, NOT_RUN) followed by its
+separate admission on that actual evidence. Only then can the PMR-V2-002 decision emitter consume a
+verified token.
 
 Root must admit the seed and implementation resource scopes, actual base, own-object repositories,
 closed environment/cache/process effects and shared GEN lane before execution. The first producer/

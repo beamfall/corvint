@@ -10,9 +10,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"io"
+	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/postmergeproof"
 )
@@ -100,5 +105,194 @@ func TestProcessObserverV2Modes(t *testing.T) {
 	var sweep postmergeproof.AbsenceSweepDocumentV2
 	if err := json.Unmarshal(out.Bytes(), &sweep); err != nil || sweep.ExecutionID != "x" || len(sweep.Processes) == 0 {
 		t.Fatalf("absence sweep: %v %+v", err, sweep.ExecutionID)
+	}
+}
+
+// hookRetainV2 runs before on one artifact ID and then fails or retains it.
+type hookRetainV2 struct {
+	memRetainV2
+	id     string
+	before func()
+	fail   bool
+}
+
+func (h hookRetainV2) RetainProcessArtifactV2(id string, data []byte) (postmergeproof.ArtifactRefV2, error) {
+	if id == h.id {
+		h.before()
+		if h.fail {
+			return postmergeproof.ArtifactRefV2{}, errors.New("retention unavailable for " + id)
+		}
+	}
+	return h.memRetainV2.RetainProcessArtifactV2(id, data)
+}
+
+func shellV2(t *testing.T, script string) *exec.Cmd {
+	t.Helper()
+	sleep, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Skip("NOT_OBSERVED: no sleep: " + err.Error())
+	}
+	cmd := exec.Command("/bin/sh", "-c", script)
+	cmd.Env = []string{"PATH=" + sleep[:strings.LastIndexByte(sleep, '/')] + ":/usr/bin:/bin"}
+	return cmd
+}
+
+// findProcessV2 waits for the process whose argv is exactly argv.
+func findProcessV2(argv ...string) (procBirthV2, bool) {
+	want := argvBytesV2(argv)
+	for deadline := time.Now().Add(processSettleV2); time.Now().Before(deadline); time.Sleep(processPollV2) {
+		entries, _ := os.ReadDir("/proc")
+		for _, entry := range entries {
+			pid, err := strconv.Atoi(entry.Name())
+			if err != nil {
+				continue
+			}
+			if cmdline, _ := os.ReadFile("/proc/" + entry.Name() + "/cmdline"); bytes.Equal(cmdline, want) {
+				if state, _, start, ok := processStatV2(pid); ok && state != 'Z' {
+					return procBirthV2{pid: pid, start: start}, true
+				}
+			}
+		}
+	}
+	return procBirthV2{}, false
+}
+
+func runningV2(b procBirthV2) bool {
+	state, _, start, ok := processStatV2(b.pid)
+	return ok && start == b.start && state != 'Z' && state != 'X'
+}
+
+// A parent the collector reaped, a retirement capture and a PID that names
+// another birth (the controlled PID-reuse case: the parent capture's
+// starttime no longer matches the live PID) are never awaited parents.
+func TestProcessCollectorV2AwaitChildRefusesReusedParent(t *testing.T) {
+	ctx := context.Background()
+	c, err := NewProcessCollectorV2(ctx, "reuse", "g", "p", ObserverCommandV2{Path: "/proc/self/exe"}, memRetainV2{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sleep, _ := exec.LookPath("sleep")
+	exited := shellV2(t, "read x; exit 0")
+	p, err := c.Start(ctx, exited, OwnedLaunchSpecV2{Purpose: "workflow-root", Parent: c.SupervisorCapture(), Phase: "start-barrier"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Retire(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	retirement := *c.proof.Launches[p.Launch].RetirementCaptureIndex
+	for _, parent := range []int{p.Capture, retirement} {
+		_, err := c.AwaitChild(ctx, sleep, []string{"sleep", "30"}, exited.Env, nil, OwnedLaunchSpecV2{Purpose: "runner", ContextIndex: 1, Parent: parent, Phase: "during-run"})
+		expectProcessCode(t, err, "BLOCKED", "process-collection-refused")
+	}
+
+	live := shellV2(t, "sleep 32.5 & wait")
+	q, err := c.Start(ctx, live, OwnedLaunchSpecV2{Purpose: "workflow-root", Parent: c.SupervisorCapture(), Phase: "start-barrier"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	child, ok := findProcessV2("sleep", "32.5")
+	if !ok {
+		t.Fatal("no sleep child")
+	}
+	stat := c.proof.Captures[q.Capture].StatBefore
+	end := bytes.LastIndexByte(stat, ')')
+	fields := strings.Fields(string(stat[end+1:]))
+	start, _ := strconv.ParseUint(fields[19], 10, 64)
+	fields[19] = strconv.FormatUint(start+1, 10)
+	c.proof.Captures[q.Capture].StatBefore = []byte(string(stat[:end+1]) + " " + strings.Join(fields, " ") + "\n")
+	_, err = c.AwaitChild(ctx, sleep, []string{"sleep", "32.5"}, live.Env, nil, OwnedLaunchSpecV2{Purpose: "runner", ContextIndex: 1, Parent: q.Capture, Phase: "during-run"})
+	expectProcessCode(t, err, "BLOCKED", "process-collection-failed")
+	if len(c.proof.Launches) != 3 {
+		t.Fatalf("a refused child was recorded: %+v", c.proof.Launches)
+	}
+
+	// The owned cleanup boundary retires the live tree, descendants first.
+	_ = c.abandonFailed(q, errors.New("test cleanup"))
+	if live.ProcessState == nil || runningV2(child) {
+		t.Fatal("owned tree survived its cleanup")
+	}
+	_, err = c.Proof()
+	expectProcessCode(t, err, "BLOCKED", "process-collection-failed")
+}
+
+// A retention failure after the launched shell forked retires the forked
+// descendant as well as the leader, and Start returns no handle.
+func TestProcessCollectorV2FailedLaunchRetiresDescendants(t *testing.T) {
+	ctx := context.Background()
+	var child procBirthV2
+	var found bool
+	retain := hookRetainV2{memRetainV2: memRetainV2{}, id: "fork/launch/1/invocation", fail: true,
+		before: func() { child, found = findProcessV2("sleep", "31.5") }}
+	c, err := NewProcessCollectorV2(ctx, "fork", "g", "p", ObserverCommandV2{Path: "/proc/self/exe"}, retain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := shellV2(t, "sleep 31.5 & wait")
+	p, err := c.Start(ctx, cmd, OwnedLaunchSpecV2{Purpose: "workflow-root", Parent: c.SupervisorCapture(), Phase: "start-barrier"}, nil)
+	expectProcessCode(t, err, "BLOCKED", "process-collection-failed")
+	if p != nil || !found {
+		t.Fatalf("handle %v, forked child found %v", p, found)
+	}
+	if cmd.ProcessState == nil || runningV2(child) {
+		t.Fatal("failed launch left its leader or forked descendant running")
+	}
+	_, err = c.Proof()
+	expectProcessCode(t, err, "BLOCKED", "process-collection-failed")
+}
+
+// Cancellation ends a stdin delivery that a child never reads and retires
+// the child within the cleanup bound.
+func TestProcessCollectorV2CancelledDeliveryRetires(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	retain := hookRetainV2{memRetainV2: memRetainV2{}, id: "blocked/launch/1/invocation",
+		before: func() { time.AfterFunc(200*time.Millisecond, cancel) }}
+	c, err := NewProcessCollectorV2(context.Background(), "blocked", "g", "p", ObserverCommandV2{Path: "/proc/self/exe"}, retain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sleep, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Skip("NOT_OBSERVED: no sleep: " + err.Error())
+	}
+	cmd := exec.Command(sleep, "30")
+	cmd.Env = []string{}
+	began := time.Now()
+	p, err := c.Start(ctx, cmd, OwnedLaunchSpecV2{Purpose: "workflow-root", Parent: c.SupervisorCapture(), Phase: "start-barrier"},
+		bytes.Repeat([]byte("x"), processStdinLimitV2))
+	expectProcessCode(t, err, "BLOCKED", "process-collection-failed")
+	if p != nil || cmd.ProcessState == nil || time.Since(began) > processSettleV2 {
+		t.Fatalf("blocked delivery: handle %v, reaped %v, after %s", p, cmd.ProcessState != nil, time.Since(began))
+	}
+}
+
+// A cancelled context, which the launcher derives from SIGTERM, ends an
+// observer blocked on its stdin.
+func TestProcessObserverV2CancelledInput(t *testing.T) {
+	for _, args := range [][]string{{"trusted-start"}, {"absence-sweep", "x"}} {
+		reader, writer := io.Pipe()
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		var out bytes.Buffer
+		err := RunProcessObserverV2(ctx, args, reader, &out)
+		cancel()
+		_ = writer.Close()
+		expectProcessCode(t, err, "BLOCKED", "process-observer-refused")
+		if out.Len() != 0 {
+			t.Fatalf("%v wrote output", args)
+		}
+	}
+}
+
+// The observer command is parent-owned: the collector keeps its own copy.
+func TestProcessCollectorV2OwnsObserverCommand(t *testing.T) {
+	args := []string{"--internal-process-observer"}
+	c, err := NewProcessCollectorV2(context.Background(), "owned-observer", "g", "p", ObserverCommandV2{Path: "/proc/self/exe", Args: args}, memRetainV2{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	args[0] = "--internal-envelope"
+	if c.observer.Args[0] != "--internal-process-observer" {
+		t.Fatal("observer argv follows caller mutation")
 	}
 }

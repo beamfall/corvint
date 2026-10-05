@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 
@@ -28,13 +29,18 @@ func observerRefusedV2(detail string) error {
 //
 // The observer derives no role, owner or absence fact; the offline verifier
 // does. On a host without the Linux procfs profile it reports NOT_OBSERVED.
+// A cancelled ctx, which the launcher derives from SIGTERM and interrupt,
+// ends a blocked stdin read with a refusal.
 func RunProcessObserverV2(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) error {
 	if !procfs.Supported {
 		return procfs.UnsupportedError{}
 	}
 	switch {
 	case len(args) == 1 && args[0] == "trusted-start":
-		data, err := io.ReadAll(io.LimitReader(stdin, processStdinLimitV2+1))
+		data, err := readObserverInputV2(ctx, stdin, processStdinLimitV2+1)
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return observerRefusedV2("observer cancelled before its input closed")
+		}
 		if err != nil || len(data) > processStdinLimitV2 {
 			return observerRefusedV2("trusted start input is unreadable or exceeds its bound")
 		}
@@ -50,7 +56,11 @@ func RunProcessObserverV2(ctx context.Context, args []string, stdin io.Reader, s
 	case len(args) == 2 && args[0] == "absence-sweep" && args[1] != "":
 		// The parent closes stdin only after it captured this birth, so the
 		// sweep cannot precede its own observer capture.
-		if n, err := io.Copy(io.Discard, io.LimitReader(stdin, 1)); err != nil || n != 0 {
+		data, err := readObserverInputV2(ctx, stdin, 1)
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return observerRefusedV2("observer cancelled before its input closed")
+		}
+		if err != nil || len(data) != 0 {
 			return observerRefusedV2("absence sweep stdin must be empty")
 		}
 		sweep, err := procfs.SweepProcesses(ctx, processSweepLimitV2)
@@ -66,6 +76,26 @@ func RunProcessObserverV2(ctx context.Context, args []string, stdin io.Reader, s
 			Processes: rows, ReadFailures: sweep.ReadFailures})
 	}
 	return observerRefusedV2("unknown observer mode")
+}
+
+// readObserverInputV2 reads at most limit bytes until EOF or ctx ends. On
+// cancellation the read is left to the exiting process.
+func readObserverInputV2(ctx context.Context, stdin io.Reader, limit int64) ([]byte, error) {
+	type result struct {
+		data []byte
+		err  error
+	}
+	done := make(chan result, 1)
+	go func() {
+		data, err := io.ReadAll(io.LimitReader(stdin, limit))
+		done <- result{data, err}
+	}()
+	select {
+	case r := <-done:
+		return r.data, r.err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 func writeObserverV2(stdout io.Writer, value any) error {

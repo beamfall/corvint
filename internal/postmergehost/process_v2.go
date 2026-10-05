@@ -73,6 +73,20 @@ type ProcessCollectorV2 struct {
 	trusted     *OwnedProcessV2
 	sweeper     *OwnedProcessV2
 	sealed      bool
+	swept       bool
+	// reaped holds the births the collector itself reaped; a later launch
+	// may not name one as its parent.
+	reaped map[procBirthV2]bool
+	// failed is the first failure after a process started or the proof
+	// changed; a failed collection emits no proof.
+	failed error
+}
+
+// procBirthV2 is a PID with its starttime, which a reused PID cannot repeat
+// while the original process exists.
+type procBirthV2 struct {
+	pid   int
+	start uint64
 }
 
 type pendingInvocationV2 struct {
@@ -115,6 +129,7 @@ func NewProcessCollectorV2(ctx context.Context, executionID, graphSHA256, policy
 		return nil, processRefusedV2("execution, retention and observer are required")
 	}
 	c := &ProcessCollectorV2{executionID: executionID, retain: retain, refs: map[string]postmergeproof.ArtifactRefV2{},
+		reaped:   map[procBirthV2]bool{},
 		observer: ObserverCommandV2{Path: observer.Path, Args: slices.Clone(observer.Args)},
 		proof: postmergeproof.ProcessProofV2{Profile: "postmerge-process-proof/2", ExecutionID: executionID,
 			GraphBindingSHA256: graphSHA256, PolicySHA256: policySHA256, Captures: []postmergeproof.ProcCaptureV2{},
@@ -154,13 +169,18 @@ func (c *ProcessCollectorV2) Start(ctx context.Context, cmd *exec.Cmd, spec Owne
 	if err != nil {
 		return nil, err
 	}
-	return p, c.deliver(p, stdin)
+	if err := c.deliver(ctx, p, stdin); err != nil {
+		return nil, c.abandonFailed(p, err)
+	}
+	return p, nil
 }
 
 // AwaitChild waits for a child of the parent capture whose argv is exactly
 // argv and records it as an owned launch of an approved invocation: path is
 // its approved executable and env and stdin its approved preimages. The child
-// is reaped by its own parent, so it never has a collector retirement.
+// is reaped by its own parent, so it never has a collector retirement. The
+// parent must still be its captured birth before discovery and after the
+// child's capture, and the child's actual environment must equal env.
 func (c *ProcessCollectorV2) AwaitChild(ctx context.Context, path string, argv, env []string, stdin []byte, spec OwnedLaunchSpecV2) (*OwnedProcessV2, error) {
 	if err := c.checkSpec(spec); err != nil {
 		return nil, err
@@ -172,14 +192,18 @@ func (c *ProcessCollectorV2) AwaitChild(ctx context.Context, path string, argv, 
 	if len(argv) == 0 {
 		return nil, processRefusedV2("awaited child has no argv")
 	}
+	parent, err := c.liveParentV2(spec.Parent)
+	if err != nil {
+		return nil, err
+	}
 	executable, err := c.retainExecutable(path)
 	if err != nil {
 		return nil, err
 	}
-	parent, want := c.pids[spec.Parent], argvBytesV2(argv)
+	want := argvBytesV2(argv)
 	var pid int
-	if err := waitProcessV2(ctx, 0, "child of "+strconv.Itoa(parent), func() bool {
-		pid = childProcessV2(parent, want)
+	if err := waitProcessV2(ctx, 0, "child of "+strconv.Itoa(parent.pid), func() bool {
+		pid = childProcessV2(parent.pid, want)
 		return pid != 0
 	}); err != nil {
 		return nil, err
@@ -188,14 +212,48 @@ func (c *ProcessCollectorV2) AwaitChild(ctx context.Context, path string, argv, 
 	if err != nil {
 		return nil, err
 	}
+	// The parent is still its captured birth after the child's capture, so
+	// its PID named that one process throughout discovery: a PID is never
+	// reused while its holder exists. Both child stats name that parent.
+	if err := sameBirthV2(parent); err != nil {
+		return nil, c.fail(err)
+	}
+	child := c.proof.Captures[index]
+	for _, stat := range [][]byte{child.StatBefore, child.StatAfter} {
+		if _, ppid, _, ok := statFieldsV2(stat); !ok || ppid != parent.pid {
+			return nil, c.fail(processFailedV2("awaited child "+strconv.Itoa(pid)+" is not a child of its captured parent", nil))
+		}
+	}
+	if err := environmentMatchesV2(pid, sorted); err != nil {
+		return nil, c.fail(err)
+	}
 	launch, err := c.addLaunch(spec.Purpose, spec.ContextIndex, &spec.Parent, index, executable, argv, sorted)
 	if err != nil {
-		return nil, err
+		return nil, c.fail(err)
 	}
 	if err := c.finishInvocation(launch, stdin); err != nil {
-		return nil, err
+		return nil, c.fail(err)
 	}
 	return &OwnedProcessV2{Launch: launch, Capture: index, pid: pid}, nil
+}
+
+// liveParentV2 returns the birth of a parent capture that is neither a
+// retirement nor a birth the collector reaped and that its PID still names.
+func (c *ProcessCollectorV2) liveParentV2(index int) (procBirthV2, error) {
+	_, _, start, ok := statFieldsV2(c.proof.Captures[index].StatBefore)
+	birth := procBirthV2{pid: c.pids[index], start: start}
+	if !ok || c.proof.Captures[index].Phase == "retirement" || c.reaped[birth] {
+		return procBirthV2{}, processRefusedV2("parent capture " + strconv.Itoa(index) + " is not a live owned process")
+	}
+	return birth, sameBirthV2(birth)
+}
+
+// sameBirthV2 refuses a PID that no longer names its captured live birth.
+func sameBirthV2(birth procBirthV2) error {
+	if state, _, start, ok := processStatV2(birth.pid); !ok || start != birth.start || state == 'Z' || state == 'X' {
+		return processFailedV2("process "+strconv.Itoa(birth.pid)+" is no longer its captured birth", nil)
+	}
+	return nil
 }
 
 // Capture records one more birth capture of an owned process, for example a
@@ -226,11 +284,14 @@ func (c *ProcessCollectorV2) Retire(ctx context.Context, p *OwnedProcessV2) erro
 		return processRefusedV2("stdin has not been delivered")
 	}
 	if err := waitProcessV2(ctx, -1, "zombie "+strconv.Itoa(p.pid), func() bool { return processZombieV2(p.pid) }); err != nil {
-		return err
+		return c.abandonFailed(p, err)
 	}
 	index, err := c.capture(ctx, "retirement", p.pid)
 	if err != nil {
-		return err
+		return c.abandonFailed(p, err)
+	}
+	if _, _, start, ok := statFieldsV2(c.proof.Captures[p.Capture].StatBefore); ok {
+		c.reaped[procBirthV2{pid: p.pid, start: start}] = true
 	}
 	_ = p.Cmd.Wait()
 	capture := &c.proof.Captures[index]
@@ -280,15 +341,15 @@ func (c *ProcessCollectorV2) CompleteTrustedStart(ctx context.Context, p *OwnedP
 	if err != nil {
 		return processFailedV2("trusted start encoding", err)
 	}
-	if err := c.deliver(p, data); err != nil {
-		return err
+	if err := c.deliver(ctx, p, data); err != nil {
+		return c.abandonFailed(p, err)
 	}
 	stdout, err := c.retireObserver(ctx, p)
 	if err != nil {
-		return err
+		return c.fail(err)
 	}
 	if c.proof.TrustedStartStdout, err = c.retainDocument("trusted-start", stdout); err != nil {
-		return err
+		return c.fail(err)
 	}
 	c.proof.TrustedStartInvocation = c.proof.Launches[p.Launch].Invocation
 	return nil
@@ -308,31 +369,36 @@ func (c *ProcessCollectorV2) FinalSweep(ctx context.Context) error {
 		return err
 	}
 	c.sealed, c.sweeper = true, p
-	if err := c.deliver(p, nil); err != nil {
-		return err
+	if err := c.deliver(ctx, p, nil); err != nil {
+		return c.abandonFailed(p, err)
 	}
 	stdout, err := c.retireObserver(ctx, p)
 	if err != nil {
-		return err
+		return c.fail(err)
 	}
 	var document postmergeproof.AbsenceSweepDocumentV2
 	if err := json.Unmarshal(stdout, &document); err != nil {
-		return processFailedV2("absence sweep output", err)
+		return c.fail(processFailedV2("absence sweep output", err))
 	}
 	ref, err := c.retainDocument("absence-sweep", stdout)
 	if err != nil {
-		return err
+		return c.fail(err)
 	}
 	c.proof.FinalSweep = postmergeproof.AbsenceSweepV2{ObserverInvocation: c.proof.Launches[p.Launch].Invocation, ObserverStdout: ref,
 		BootIDBytes: document.BootIDBytes, NamespaceLinkBytes: document.NamespaceLinkBytes, PIDDirectoryBytes: document.PIDDirectoryBytes,
 		Processes: document.Processes, ReadFailures: document.ReadFailures}
+	c.swept = true
 	return nil
 }
 
-// Proof returns the exact postmerge-process-proof/2 bytes. It refuses before
-// the trusted start and final sweep exist or while any invocation is pending.
+// Proof returns the exact postmerge-process-proof/2 bytes. It refuses after
+// any failed collection step, before the trusted start and a successful final
+// sweep exist and while any invocation is pending.
 func (c *ProcessCollectorV2) Proof() ([]byte, error) {
-	if !c.sealed || c.proof.TrustedStartInvocation == (postmergeproof.ArtifactRefV2{}) {
+	if c.failed != nil {
+		return nil, processFailedV2("an earlier collection step failed", c.failed)
+	}
+	if !c.swept || c.proof.TrustedStartInvocation == (postmergeproof.ArtifactRefV2{}) {
 		return nil, processRefusedV2("proof needs the trusted start and final sweep")
 	}
 	for i, pending := range c.pending {
@@ -391,31 +457,110 @@ func (c *ProcessCollectorV2) start(ctx context.Context, cmd *exec.Cmd, spec Owne
 		cmdline, _ := os.ReadFile("/proc/" + strconv.Itoa(p.pid) + "/cmdline")
 		return bytes.Equal(cmdline, want)
 	}); err != nil {
-		c.abandon(p)
-		return nil, err
+		return nil, c.abandonFailed(p, err)
+	}
+	if err := environmentMatchesV2(p.pid, env); err != nil {
+		return nil, c.abandonFailed(p, err)
 	}
 	index, err := c.capture(ctx, spec.Phase, p.pid)
 	if err != nil {
-		c.abandon(p)
-		return nil, err
+		return nil, c.abandonFailed(p, err)
 	}
 	p.Capture = index
 	if p.Launch, err = c.addLaunch(spec.Purpose, spec.ContextIndex, &spec.Parent, index, executable, slices.Clone(cmd.Args), env); err != nil {
-		c.abandon(p)
-		return nil, err
+		return nil, c.abandonFailed(p, err)
 	}
 	return p, nil
 }
 
-// abandon kills and reaps a process whose launch could not be recorded.
-func (c *ProcessCollectorV2) abandon(p *OwnedProcessV2) {
-	_ = p.stdin.Close()
-	_ = p.Cmd.Process.Kill()
-	_ = p.Cmd.Wait()
+// fail records the first failure after a process started or the proof
+// changed and returns err.
+func (c *ProcessCollectorV2) fail(err error) error {
+	if c.failed == nil {
+		c.failed = err
+	}
+	return err
+}
+
+// abandonFailed retires the owned tree of a collector-started process after
+// a failed step, reaps its leader and records the failure. A cleanup that
+// leaves a descendant running is part of the returned failure.
+func (c *ProcessCollectorV2) abandonFailed(p *OwnedProcessV2, err error) error {
+	if p.stdin != nil {
+		_ = p.stdin.Close()
+		p.stdin = nil
+	}
+	cleanup := retireTreeV2(p.pid)
+	if p.Cmd.ProcessState == nil {
+		_ = p.Cmd.Process.Kill()
+		_ = p.Cmd.Wait()
+	}
+	if cleanup != nil {
+		err = processFailedV2(err.Error()+"; owned cleanup", cleanup)
+	}
+	return c.fail(err)
+}
+
+// retireTreeV2 is the owned cleanup boundary of a failed launch. It stops
+// the leader and then every live descendant reachable through PPID links,
+// reading a member's children only once that member is stopped: a stopped
+// member cannot fork, and its exited children stay unreaped zombies, so no
+// child PID can be reused during the walk. It then kills the descendants and
+// the leader and waits, within a bound, until no descendant birth is still
+// running. A descendant already reparented away before the walk, such as a
+// double fork, is outside the boundary, as it is for the final sweep.
+func retireTreeV2(leader int) error {
+	deadline := time.Now().Add(processSettleV2)
+	_, _, start, ok := processStatV2(leader)
+	if !ok {
+		return nil
+	}
+	members := map[int]uint64{leader: start}
+	_ = syscall.Kill(leader, syscall.SIGSTOP)
+	var failure error
+	for queue := []int{leader}; len(queue) > 0 && failure == nil; queue = queue[1:] {
+		pid := queue[0]
+		if failure = waitProcessV2(context.Background(), max(time.Until(deadline), processPollV2), "stop of "+strconv.Itoa(pid), func() bool {
+			state, _, start, ok := processStatV2(pid)
+			return !ok || start != members[pid] || state == 'T' || state == 't' || state == 'Z' || state == 'X'
+		}); failure != nil {
+			break
+		}
+		for _, child := range childBirthsV2(pid) {
+			if _, seen := members[child.pid]; !seen {
+				members[child.pid] = child.start
+				_ = syscall.Kill(child.pid, syscall.SIGSTOP)
+				queue = append(queue, child.pid)
+			}
+		}
+	}
+	for pid, start := range members {
+		if _, _, now, ok := processStatV2(pid); ok && now == start {
+			_ = syscall.Kill(pid, syscall.SIGKILL)
+		}
+	}
+	running := func() []string {
+		var out []string
+		for pid, start := range members {
+			if state, _, now, ok := processStatV2(pid); pid != leader && ok && now == start && state != 'Z' && state != 'X' {
+				out = append(out, strconv.Itoa(pid))
+			}
+		}
+		slices.Sort(out)
+		return out
+	}
+	if err := waitProcessV2(context.Background(), max(time.Until(deadline), processPollV2), "descendant exit", func() bool {
+		return len(running()) == 0
+	}); err != nil {
+		return errors.New("descendants still running: " + strings.Join(running(), ","))
+	}
+	return failure
 }
 
 // deliver retains and writes stdin, closes it and finishes the invocation.
-func (c *ProcessCollectorV2) deliver(p *OwnedProcessV2, stdin []byte) error {
+// A cancelled ctx closes the pipe, so a child that never reads stdin cannot
+// stall delivery; the caller then retires the child.
+func (c *ProcessCollectorV2) deliver(ctx context.Context, p *OwnedProcessV2, stdin []byte) error {
 	if p.stdin == nil {
 		return processRefusedV2("stdin already delivered")
 	}
@@ -424,7 +569,18 @@ func (c *ProcessCollectorV2) deliver(p *OwnedProcessV2, stdin []byte) error {
 	}
 	pipe := p.stdin
 	p.stdin = nil
-	_, err := pipe.Write(stdin)
+	written := make(chan error, 1)
+	go func() {
+		_, err := pipe.Write(stdin)
+		written <- err
+	}()
+	var err error
+	select {
+	case err = <-written:
+	case <-ctx.Done():
+		_ = pipe.Close()
+		return processFailedV2("deliver stdin", ctx.Err())
+	}
 	if closeErr := pipe.Close(); err == nil {
 		err = closeErr
 	}
@@ -638,45 +794,85 @@ func waitProcessV2(ctx context.Context, bound time.Duration, what string, done f
 	return nil
 }
 
-// processStatV2 returns the state and parent of a live /proc entry.
-func processStatV2(pid int) (state byte, ppid int, ok bool) {
-	data, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
-	if err != nil {
-		return 0, 0, false
-	}
+// statFieldsV2 parses state (field 3), PPID (4) and starttime (22) from raw
+// /proc stat bytes.
+func statFieldsV2(data []byte) (state byte, ppid int, start uint64, ok bool) {
 	end := bytes.LastIndexByte(data, ')')
 	if end < 0 {
-		return 0, 0, false
+		return 0, 0, 0, false
 	}
 	fields := strings.Fields(string(data[end+1:]))
-	if len(fields) < 2 || len(fields[0]) != 1 {
-		return 0, 0, false
+	if len(fields) < 20 || len(fields[0]) != 1 {
+		return 0, 0, 0, false
 	}
-	ppid, err = strconv.Atoi(fields[1])
-	return fields[0][0], ppid, err == nil
+	ppid, err := strconv.Atoi(fields[1])
+	if err != nil {
+		return 0, 0, 0, false
+	}
+	if start, err = strconv.ParseUint(fields[19], 10, 64); err != nil {
+		return 0, 0, 0, false
+	}
+	return fields[0][0], ppid, start, true
+}
+
+// processStatV2 returns the state, parent and starttime of a /proc entry.
+func processStatV2(pid int) (state byte, ppid int, start uint64, ok bool) {
+	data, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
+	if err != nil {
+		return 0, 0, 0, false
+	}
+	return statFieldsV2(data)
 }
 
 func processZombieV2(pid int) bool {
-	state, _, ok := processStatV2(pid)
+	state, _, _, ok := processStatV2(pid)
 	return ok && state == 'Z'
 }
 
-// childProcessV2 finds the live child of parent whose argv is exactly argv.
-func childProcessV2(parent int, argv []byte) int {
+// childBirthsV2 lists the live (non-zombie) children of parent.
+func childBirthsV2(parent int) []procBirthV2 {
+	var out []procBirthV2
 	entries, _ := os.ReadDir("/proc")
 	for _, entry := range entries {
 		pid, err := strconv.Atoi(entry.Name())
 		if err != nil {
 			continue
 		}
-		if state, ppid, ok := processStatV2(pid); !ok || ppid != parent || state == 'Z' {
-			continue
+		if state, ppid, start, ok := processStatV2(pid); ok && ppid == parent && state != 'Z' && state != 'X' {
+			out = append(out, procBirthV2{pid: pid, start: start})
 		}
-		if cmdline, _ := os.ReadFile("/proc/" + entry.Name() + "/cmdline"); bytes.Equal(cmdline, argv) {
-			return pid
+	}
+	return out
+}
+
+// childProcessV2 finds the live child of parent whose argv is exactly argv.
+func childProcessV2(parent int, argv []byte) int {
+	for _, child := range childBirthsV2(parent) {
+		if cmdline, _ := os.ReadFile("/proc/" + strconv.Itoa(child.pid) + "/cmdline"); bytes.Equal(cmdline, argv) {
+			return child.pid
 		}
 	}
 	return 0
+}
+
+// environmentMatchesV2 refuses a process whose actual initial environment is
+// not exactly the sorted invocation environment.
+func environmentMatchesV2(pid int, sorted []string) error {
+	data, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/environ")
+	if err != nil {
+		return processFailedV2("environment of "+strconv.Itoa(pid), err)
+	}
+	actual := []string{}
+	for _, entry := range strings.Split(string(data), "\x00") {
+		if entry != "" {
+			actual = append(actual, entry)
+		}
+	}
+	slices.Sort(actual)
+	if !slices.Equal(actual, sorted) {
+		return processFailedV2("environment of "+strconv.Itoa(pid)+" differs from its invocation", nil)
+	}
+	return nil
 }
 
 // limitedBufferV2 keeps at most limit bytes of observer stdout.
