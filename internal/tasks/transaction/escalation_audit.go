@@ -17,22 +17,27 @@ import (
 // differ from the folded predecessor must be the one ticket of a completed
 // TRANSITION receipt whose request entry is the typed lease request's
 // digest, rebuilt from the posted events' original request and this
-// receipt's actor. The actor's role must hold the verb's grant in the policy
-// the history had posted, and an OPEN's source must be exactly a folded
-// completed ADMIT receipt of an unsupervised attempt. The posted events must
-// then be byte for byte the ones the pure reducer computes from the audited
-// predecessor, its retained origins and heads, and this receipt's time, and
-// the posted ticket the record the writer's finalizer derives from them.
-// Lease liveness, reservations and a blocked-by relation are not
-// re-observed. A dropped reference is refused. It is pure: blob returns
-// retained evidence bytes by digest. It keeps the latest ticket post per
-// path, so its memory is that of the ticket projection.
+// receipt's actor, and that receipt posts nothing but its request entry,
+// that ticket and the replayed events. The actor's role must hold the
+// verb's grant in the policy the history had posted. An OPEN's source must
+// be exactly a folded completed ADMIT receipt, and, as the writer observes
+// it, the folded attempt must still be that unsupervised generation and
+// holder, live, unexpired at this receipt's time and matched by the folded
+// reservations. The posted events must then be byte for byte the ones the
+// pure reducer computes from the audited predecessor, its retained origins
+// and heads, and this receipt's time, and the posted ticket the record the
+// writer's finalizer derives from them. A blocked-by relation is not
+// re-observed. A dropped reference, and an escalation event posted by any
+// other receipt, are refused. It is pure: blob returns retained evidence
+// bytes by digest. It keeps the latest ticket, attempt and reservation
+// posts, so its memory is that of those projections.
 type EscalationReceiptAudit struct {
 	tickets map[string]escalationTicket
 	admits  map[uint64]escalationAdmit
-	// supervised names every attempt posted with supervision so far: an
-	// attempt supervised at its claim or since cannot escalate.
-	supervised map[string]bool
+	// attempts is the latest folded attempt per ID, and reservations the
+	// latest reservations.json post (Sha256 nil when absent).
+	attempts     map[string]escalationAttempt
+	reservations snapshot.PostEntry
 	// policy is the newest retained intent/policy.json; policyErr is why it
 	// is unavailable (never posted, unreadable or undecodable).
 	policy    *intent.Policy
@@ -42,6 +47,15 @@ type EscalationReceiptAudit struct {
 type escalationTicket struct {
 	post snapshot.PostEntry
 	refs []byte // canonical references, nil when the record has none
+}
+
+// escalationAttempt is what an OPEN's currency check reads from an attempt.
+type escalationAttempt struct {
+	source         ticket.EscalationSource // Holder is empty when unleased
+	ticketRevision wire.Count
+	expires        wire.Timestamp
+	live           bool
+	supervised     bool
 }
 
 type escalationAdmit struct {
@@ -58,10 +72,10 @@ func (a *EscalationReceiptAudit) Step(rc *snapshot.Receipt, sum wire.Digest, blo
 	if a.tickets == nil {
 		a.tickets = map[string]escalationTicket{}
 		a.admits = map[uint64]escalationAdmit{}
-		a.supervised = map[string]bool{}
+		a.attempts = map[string]escalationAttempt{}
 		a.policyErr = "no policy was posted"
 	}
-	tickets := 0
+	tickets, bound := 0, false
 	for _, p := range rc.Post {
 		if strings.HasPrefix(p.Path, "intent/tickets/") {
 			tickets++
@@ -97,11 +111,24 @@ func (a *EscalationReceiptAudit) Step(rc *snapshot.Receipt, sum wire.Digest, blo
 			if !known || rc.Kind != "TRANSITION" || rc.Outcome != mutation.OutcomeCompleted || rc.RequestID == nil || tickets != 1 {
 				return a.fail(rc, "%s changed question references outside one escalation transition", p.Path)
 			}
-			if err := a.bind(rc, prior.post, rec, raw, blob); err != nil {
+			if err := a.bind(rc, prior.post, p.Path, rec, raw, blob); err != nil {
 				return err
 			}
+			bound = true
 		}
 		a.tickets[p.Path] = escalationTicket{post: p, refs: refs}
+	}
+	if !bound {
+		for _, p := range rc.Post {
+			if !strings.HasPrefix(p.Path, "evidence/") || p.Sha256 == nil {
+				continue
+			}
+			if ev, ok := blob(*p.Sha256); ok && bytes.Contains(ev, []byte(ticket.EscalationEventProfile)) {
+				if _, err := ticket.DecodeEscalationEvent(ev); err == nil {
+					return a.fail(rc, "%s is an escalation event outside one escalation transition", p.Path)
+				}
+			}
+		}
 	}
 	if err := a.admit(rc, sum, blob); err != nil {
 		return err
@@ -126,12 +153,20 @@ func (a *EscalationReceiptAudit) Step(rc *snapshot.Receipt, sum wire.Digest, blo
 }
 
 // admit retains the source a completed ADMIT receipt grants, read from its
-// POST attempt exactly as the writer's admission audit reads it, and notes
-// every attempt any receipt posts with supervision.
+// POST attempt exactly as the writer's admission audit reads it, and folds
+// the latest attempt and reservation posts.
 func (a *EscalationReceiptAudit) admit(rc *snapshot.Receipt, sum wire.Digest, blob ExternalReviewBlob) error {
 	admitted := rc.Kind == "ADMIT" && rc.Outcome == mutation.OutcomeCompleted && rc.AttemptID != nil && rc.Generation != nil
 	for _, p := range rc.Post {
-		if !strings.HasPrefix(p.Path, "attempts/") || p.Sha256 == nil {
+		if p.Path == "reservations.json" {
+			a.reservations = p
+		}
+		if !strings.HasPrefix(p.Path, "attempts/") {
+			continue
+		}
+		id := strings.TrimSuffix(strings.TrimPrefix(p.Path, "attempts/"), ".json")
+		delete(a.attempts, id)
+		if p.Sha256 == nil {
 			continue
 		}
 		raw, err := externalPostBytes(p, blob)
@@ -142,9 +177,12 @@ func (a *EscalationReceiptAudit) admit(rc *snapshot.Receipt, sum wire.Digest, bl
 		if err != nil {
 			continue
 		}
-		if at.Supervision != nil {
-			a.supervised[at.AttemptID] = true
+		cur := escalationAttempt{ticketRevision: at.TicketRevision, live: at.Live(), supervised: at.Supervision != nil,
+			source: ticket.EscalationSource{TicketID: at.TicketID.Raw, AttemptID: at.AttemptID, Generation: at.Generation, TicketRecordSha256: at.TicketRecordSha256}}
+		if at.Lease != nil {
+			cur.source.Holder, cur.expires = at.Lease.Holder, at.Lease.ExpiresAt
 		}
+		a.attempts[id] = cur
 		if !admitted || p.Path != attemptPath(*rc.AttemptID) || at.AttemptID != *rc.AttemptID || at.Generation != *rc.Generation || at.Lease == nil {
 			continue
 		}
@@ -157,7 +195,7 @@ func (a *EscalationReceiptAudit) admit(rc *snapshot.Receipt, sum wire.Digest, bl
 
 // bind replays one escalation transition: pre is the folded predecessor post
 // of rec's path and raw is rec's posted bytes.
-func (a *EscalationReceiptAudit) bind(rc *snapshot.Receipt, prePost snapshot.PostEntry, rec *ticket.Record, raw []byte, blob ExternalReviewBlob) error {
+func (a *EscalationReceiptAudit) bind(rc *snapshot.Receipt, prePost snapshot.PostEntry, path string, rec *ticket.Record, raw []byte, blob ExternalReviewBlob) error {
 	preRaw, err := externalPostBytes(prePost, blob)
 	if err != nil {
 		return a.fail(rc, "preceding ticket post: %v", err)
@@ -209,6 +247,13 @@ func (a *EscalationReceiptAudit) bind(rc *snapshot.Receipt, prePost snapshot.Pos
 	if err := a.requestEntry(rc, r.RequestID, d, blob); err != nil {
 		return err
 	}
+	// The request path is valid: requestEntry found its entry.
+	requestPath, _ := snapshot.RequestPath(r.RequestID)
+	for _, p := range rc.Post {
+		if p.Path != path && p.Path != requestPath && !strings.HasPrefix(p.Path, "evidence/") {
+			return a.fail(rc, "the transition posts %s", p.Path)
+		}
+	}
 	if a.policy == nil {
 		return a.fail(rc, "the grant cannot be recovered: %s", a.policyErr)
 	}
@@ -220,8 +265,12 @@ func (a *EscalationReceiptAudit) bind(rc *snapshot.Receipt, prePost snapshot.Pos
 		if !ok || adm.source != r.Open.Source {
 			return a.fail(rc, "the question's source is not a retained claim admission")
 		}
-		if adm.supervised || a.supervised[adm.source.AttemptID] {
+		cur, ok := a.attempts[adm.source.AttemptID]
+		if adm.supervised || cur.supervised {
 			return a.fail(rc, "the question's source attempt was supervised")
+		}
+		if err := a.current(rc, adm.source, cur, ok, pre.AcceptanceRevision, blob); err != nil {
+			return err
 		}
 	}
 	s := EscalationSnapshot{QueueID: queue, TicketID: pre.TicketID.Raw, TicketRevision: pre.Revision, AcceptanceRevision: pre.AcceptanceRevision, Refs: pre.Escalations, Blobs: map[wire.Digest][]byte{}}
@@ -259,6 +308,37 @@ func (a *EscalationReceiptAudit) bind(rc *snapshot.Receipt, prePost snapshot.Pos
 		return a.fail(rc, "the posted ticket is not the replayed record")
 	}
 	return nil
+}
+
+// current requires the folded attempt to be the source as the writer
+// observes it: the same generation, holder, ticket record and acceptance,
+// live, unexpired at this receipt's time, and matched by the folded
+// reservations.
+func (a *EscalationReceiptAudit) current(rc *snapshot.Receipt, src ticket.EscalationSource, cur escalationAttempt, ok bool, acceptance wire.Count, blob ExternalReviewBlob) error {
+	want := cur.source
+	want.QueueID, want.AcceptanceRevision, want.ReceiptSequence, want.ReceiptSha256, want.PostAttemptSha256 = src.QueueID, acceptance, src.ReceiptSequence, src.ReceiptSha256, src.PostAttemptSha256
+	if !ok || !cur.live || want != src {
+		return a.fail(rc, "the question's source is not the current admission")
+	}
+	if cur.expires <= rc.RecordedAt {
+		return a.fail(rc, "the question's source lease had expired")
+	}
+	if a.reservations.Sha256 != nil {
+		raw, err := externalPostBytes(a.reservations, blob)
+		if err != nil {
+			return a.fail(rc, "reservations post: %v", err)
+		}
+		set, err := snapshot.DecodeReservations(raw)
+		if err != nil {
+			return a.fail(rc, "reservations post: %v", err)
+		}
+		for _, en := range set.Entries {
+			if en.AttemptID == src.AttemptID && en.Generation == src.Generation && en.TicketID.Raw == src.TicketID && en.TicketRevision == cur.ticketRevision {
+				return nil
+			}
+		}
+	}
+	return a.fail(rc, "the question's source holds no matching reservation")
 }
 
 // requestEntry requires the receipt's request entry to bind d at its own

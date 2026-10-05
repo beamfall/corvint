@@ -721,6 +721,12 @@ func TestIssue502_EscalationBindingFoldRefusals(t *testing.T) {
 		t.Fatal("no ticket post")
 		return snapshot.PostEntry{}
 	}
+	// between inserts, just before the OPEN, a receipt that removes path.
+	between := func(rcs []*snapshot.Receipt, removal snapshot.PostEntry) []*snapshot.Receipt {
+		gap := *rcs[open-2]
+		gap.Kind, gap.Post = "MUTATION", []snapshot.PostEntry{removal}
+		return slices.Insert(rcs, int(open-1), &gap)
+	}
 	cases := []struct {
 		name, detail string
 		alter        func(rcs []*snapshot.Receipt) []*snapshot.Receipt
@@ -744,6 +750,45 @@ func TestIssue502_EscalationBindingFoldRefusals(t *testing.T) {
 			rcs[src.ReceiptSequence.Uint64()-1].Kind = "TRANSITION"
 			return rcs
 		}},
+		{"extra-post", "the transition posts intent/policy.json", func(rcs []*snapshot.Receipt) []*snapshot.Receipt {
+			for _, rc := range rcs[:open-1] {
+				for _, p := range rc.Post {
+					if p.Path == "intent/policy.json" && p.Sha256 != nil {
+						rcs[open-1].Post = append(rcs[open-1].Post, p)
+						return rcs
+					}
+				}
+			}
+			t.Fatal("no policy post")
+			return nil
+		}},
+		{"source-gone", "the question's source is not the current admission", func(rcs []*snapshot.Receipt) []*snapshot.Receipt {
+			return between(rcs, snapshot.PostEntry{Path: "attempts/" + src.AttemptID + ".json"})
+		}},
+		{"no-reservation", "the question's source holds no matching reservation", func(rcs []*snapshot.Receipt) []*snapshot.Receipt {
+			return between(rcs, snapshot.PostEntry{Path: "reservations.json"})
+		}},
+		{"expired", "the question's source lease had expired", func(rcs []*snapshot.Receipt) []*snapshot.Receipt {
+			rcs[open-1].RecordedAt = "2999-01-01T00:00:00Z"
+			return rcs
+		}},
+		{"event-without-references", "is an escalation event outside one escalation transition", func(rcs []*snapshot.Receipt) []*snapshot.Receipt {
+			post := ticketPost(rcs[open-1])
+			for _, rc := range slices.Backward(rcs[:open-1]) {
+				for _, p := range rc.Post {
+					if p.Path == post.Path {
+						for j := range rcs[open-1].Post {
+							if rcs[open-1].Post[j].Path == p.Path {
+								rcs[open-1].Post[j] = p
+							}
+						}
+						return rcs
+					}
+				}
+			}
+			t.Fatal("no preceding ticket post")
+			return nil
+		}},
 		{"dropped", "dropped its question references", func(rcs []*snapshot.Receipt) []*snapshot.Receipt {
 			drop := *rcs[open-1]
 			drop.Seq = wire.SizeOf(open + 1)
@@ -762,9 +807,11 @@ func TestIssue502_EscalationBindingFoldRefusals(t *testing.T) {
 			rcs = tc.alter(rcs)
 			fold := &transaction.EscalationReceiptAudit{}
 			var err error
-			for i, rc := range rcs {
-				sum := wire.Sum([]byte("appended"))
-				if i < len(sums) {
+			for _, rc := range rcs {
+				sum := wire.Sum([]byte("synthetic"))
+				if i := slices.IndexFunc(history, func(h *snapshot.Receipt) bool {
+					return h.Seq == rc.Seq && h.Kind == rc.Kind && len(h.Post) == len(rc.Post)
+				}); i >= 0 {
 					sum = sums[i]
 				}
 				if err = fold.Step(rc, sum, store.ExternalReviewBlob(s.repo)); err != nil {

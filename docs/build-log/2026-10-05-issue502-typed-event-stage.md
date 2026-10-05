@@ -30,7 +30,7 @@ Agent decision, 2026-10-05, under the owner's in-task delegation; the owner may 
   receipt audit and both redo paths (`FoldReceiptBindings`).
 
 The native store never persists the stage operation: it lives in the frozen plan and is validated
-when the plan freezes. Only in-flight plans therefore care about it.
+when the plan freezes, so no stored byte changes.
 
 ## Findings fixed in this slice
 
@@ -38,8 +38,8 @@ when the plan freezes. Only in-flight plans therefore care about it.
   so an interrupted escalation with a self-consistent forged event would have been republished.
   It now runs the fold before republishing posts.
 - ADMIT receipts name no ticket, so the fold reads the admission's queue from the admitted attempt.
-- Supervision posted after the claim is now tracked across receipts, matching the writer's
-  current-attempt check.
+- Supervision posted after the claim is now read from the latest folded attempt, as the writer
+  reads it.
 
 ## Evidence
 
@@ -50,13 +50,32 @@ event) and `TestTMV0002_AS10_StageCodecActualMaxima` (measured maximum). Store p
 every published artifact of a supersession; the retry commits once and redoes exactly when the
 receipt was published), `TestIssue502_ForgedEventRefusesAsJournalDamage` (forged time, question and
 actor pass the generic journal audit; the fold refuses them settled, and the pending redo refuses
-`JOURNAL_FORKED` with head and ticket unchanged), `TestIssue502_EscalationBindingFoldRefusals` and
+`JOURNAL_FORKED` with head and ticket unchanged), `TestIssue502_EscalationBindingFoldRefusals` (including an extra post, a removed source attempt,
+no matching reservation, an expired lease and an event with unchanged references) and
 `TestIssue502_SupervisedSinceClaimFoldRefuses`. The existing writer, CLI and dispatcher escalation
 tests pass unchanged.
 
 ## Review
 
-REVIEW_PLACEHOLDER
+One independent read-only Codex review of `b1e37605..3f062ecb` found no blocker, four major
+findings and one minor; all were accepted and fixed in a follow-up commit:
+
+- Supervision was a never-cleared flag per attempt ID, so a later unsupervised generation of the
+  same ID could not escalate in audit. The fold now keeps the latest attempt per ID and reads
+  supervision from it, as the writer does.
+- The fold accepted a fenced or expired source: it checked only that the admission existed. It now
+  requires the latest folded attempt to be the source's live generation, holder, ticket record and
+  acceptance, unexpired at the receipt's time and matched by the latest folded reservations.
+- A bound transition could carry an extra post, such as a policy, which redo would publish. It now
+  posts only its request entry, its ticket and the replayed events.
+- An escalation event posted while the ticket's references stayed unchanged skipped the fold. Any
+  escalation event outside a bound transition is now refused.
+- The rollout text claimed an older binary refuses an in-flight `ESCALATION` plan. The operation is
+  never persisted, so an older binary recovers through its own generic redo and only loses the
+  fold's checks; the spec says so now.
+
+Each new refusal names a detail only the fix produces, so the new cases cannot pass without it.
+A supervised generation followed by an unsupervised one of the same attempt ID has no live witness.
 
 ## NOT_RUN
 
@@ -66,7 +85,6 @@ REVIEW_PLACEHOLDER
 
 ## Rollback
 
-No stored byte format changes. A binary built before this slice refuses an in-flight `ESCALATION`
-plan as an unknown operation, so downgrade with no escalation in flight. Otherwise revert the
-change; the fold is a pure audit, and removing it returns audit and redo to the generic journal
-checks.
+No stored byte format changes and the stage operation is never persisted, so an older binary
+recovers any interrupted write through its own generic redo. Revert the change; the fold is a pure
+audit, and removing it returns audit and redo to the generic journal checks.
