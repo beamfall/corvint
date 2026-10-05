@@ -85,6 +85,9 @@ type Seen struct {
 	// Escalations keeps each ESC-V0-006 held ticket's request IDs, apart from
 	// its plan reason, so status shows a hold behind another blocker.
 	Escalations map[string][]string `json:"escalations,omitempty"`
+	// Loops keeps each CAL-V0-102 held ticket's loop hold, so status shows
+	// it and diff raises one blocked escalation event per episode.
+	Loops map[string]LoopHold `json:"loops,omitempty"`
 }
 
 // Ledger is the dispatcher's private taskman-dispatch-state/0 file. It is
@@ -231,6 +234,9 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	if err := l.validateSeenEscalations(); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
 	}
+	if err := l.validateSeenLoops(); err != nil {
+		return nil, fmt.Errorf("dispatch state: %w", err)
+	}
 	if l.Pressure != nil {
 		if err := l.Pressure.validate(); err != nil {
 			return nil, fmt.Errorf("dispatch state: %w", err)
@@ -288,7 +294,9 @@ func strictProgressJSON(raw []byte) bool {
 			case "proc":
 				fields = []string{"pid", "identity"}
 			case "seen":
-				fields = []string{"tickets", "claims", "lanes", "escalations"}
+				fields = []string{"tickets", "claims", "lanes", "escalations", "loops"}
+			case "loop-hold":
+				fields = []string{"signal", "generations"}
 			case "history":
 				fields = []string{"current", "seen"}
 			case "escalation-state":
@@ -327,6 +335,12 @@ func strictProgressJSON(raw []byte) bool {
 					child = "sweep-scalar"
 				case "escalation":
 					child = "escalation-state"
+				case "seen":
+					if key == "loops" {
+						child = key
+					}
+				case "loops":
+					child = "loop-hold"
 				}
 				if !value(depth+1, child) {
 					return false
@@ -749,3 +763,25 @@ func (l *Ledger) validateSeenEscalations() error {
 	}
 	return nil
 }
+
+// validateSeenLoops admits only what diff records for CAL-V0-102: per held
+// ticket, a known signal and 1 to MaxLoopGenerations generations.
+func (l *Ledger) validateSeenLoops() error {
+	if l.Seen == nil {
+		return nil
+	}
+	for key, h := range l.Seen.Loops {
+		if _, err := wire.ParseTicketID("loops key", key); err != nil || (h.Signal != "NO_PROGRESS" && h.Signal != "ALTERNATING_RETURNS") || len(h.Generations) == 0 || len(h.Generations) > MaxLoopGenerations {
+			return errors.New("invalid loop hold")
+		}
+		for _, g := range h.Generations {
+			if _, err := wire.ParseSize("loop generation", g); err != nil {
+				return errors.New("invalid loop hold")
+			}
+		}
+	}
+	return nil
+}
+
+// MaxLoopGenerations bounds the generations one recorded loop hold names.
+const MaxLoopGenerations = 1024

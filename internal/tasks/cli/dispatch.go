@@ -281,6 +281,9 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 	if held := dispatchEscalationPending(l); len(held) > 0 {
 		o.Set("escalationPending", wire.Value{Kind: wire.KindArray, Arr: held})
 	}
+	if held := dispatchLoopDetected(l); len(held) > 0 {
+		o.Set("loopDetected", wire.Value{Kind: wire.KindArray, Arr: held})
+	}
 	if c.Escalates() {
 		o.Set("escalation", dispatchEscalationValue(c, l))
 	}
@@ -510,6 +513,30 @@ func dispatchEscalationPending(l *dispatch.Ledger) []wire.Value {
 	return held
 }
 
+// dispatchLoopDetected lists, by ticket, each CAL-V0-102 LOOP_DETECTED hold
+// in the dispatcher's last native observation, kept apart from the plan
+// reason like the ESC-V0-006 hold.
+func dispatchLoopDetected(l *dispatch.Ledger) []wire.Value {
+	if l.Seen == nil {
+		return nil
+	}
+	ids := make([]string, 0, len(l.Seen.Loops))
+	for id := range l.Seen.Loops {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	held := []wire.Value{}
+	for _, id := range ids {
+		h := l.Seen.Loops[id]
+		x := wire.NewObject()
+		x.Set("ticket", wire.String(id))
+		x.Set("signal", wire.String(h.Signal))
+		x.Set("generations", wire.Strings(h.Generations))
+		held = append(held, wire.Value{Kind: wire.KindObject, Obj: x})
+	}
+	return held
+}
+
 // dispatchTickets is the ticket half of the native observation: each
 // ticket's plan state and primary reason, plus its ESC-V0-006 hold derived
 // apart from that reason, so a hold behind another blocker still reaches the
@@ -527,6 +554,9 @@ func dispatchTickets(in transaction.PlanInput) []dispatch.Ticket {
 			t.Plan, t.PlanReason = e.State, e.Reason
 		}
 		t.EscalationPending = r.EscalationPending()
+		if h := transaction.LoopHoldOf(in.Attempts, r, in.Policy); h != nil {
+			t.Loop = &dispatch.LoopHold{Signal: h.Signal, Generations: h.Generations}
+		}
 		t.NextStage = dispatch.StateNone
 		if s := transaction.NextStage(in.Attempts, r); s.Kind == wire.KindString {
 			t.NextStage = s.Str

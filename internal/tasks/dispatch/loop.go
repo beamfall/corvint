@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1006,6 +1008,25 @@ func (d *Dispatcher) escalated(r *Role, a Assignment, model string) *Event {
 	return &Event{Kind: "escalated", Ticket: a.Ticket, Role: r.Name, Message: fmt.Sprintf("escalated %s on %s from %s to %s after %d consecutive session(s) without progress", r.Name, d.keyText(a.Key), r.ModelAt(from), model, e.Streak), Detail: detail}
 }
 
+// loopEscalations raises the CAL-V0-102 typed blocked escalation once per
+// LOOP_DETECTED episode: when the dispatcher first observes a hold, including
+// in its baseline observation, or a hold whose newest counted generation
+// differs from the one it last recorded. The persisted Seen state keeps a
+// restart from raising an episode twice. The native escalation writer
+// needs the worker's live claim, so this is a dispatcher event only.
+func (d *Dispatcher) loopEscalations(obs *Observation, old, now *Seen) {
+	for _, id := range slices.Sorted(maps.Keys(now.Loops)) {
+		h := now.Loops[id]
+		if old != nil {
+			if was, ok := old.Loops[id]; ok && len(was.Generations) > 0 && was.Generations[len(was.Generations)-1] == h.Generations[len(h.Generations)-1] {
+				continue
+			}
+		}
+		gens := strings.Join(h.Generations, ",")
+		d.emit(Event{Kind: "needs-owner", Ticket: id, Message: fmt.Sprintf("%s is held LOOP_DETECTED (%s) over generations %s; only the owner can acknowledge it with `corvint-tasks ticket reopen` (CAL-V0-103)", d.local(obs, id), h.Signal, gens), Detail: map[string]string{"kind": "blocked", "code": "LOOP_DETECTED", "signal": h.Signal, "generations": gens}})
+	}
+}
+
 // diff emits state, claim, release and lane changes against the previous
 // observation. The first observation only records a baseline.
 func (d *Dispatcher) diff(obs *Observation) {
@@ -1018,6 +1039,12 @@ func (d *Dispatcher) diff(obs *Observation) {
 			}
 			now.Escalations[t.ID] = append([]string(nil), t.EscalationPending...)
 		}
+		if t.Loop != nil && len(t.Loop.Generations) > 0 {
+			if now.Loops == nil {
+				now.Loops = map[string]LoopHold{}
+			}
+			now.Loops[t.ID] = LoopHold{Signal: t.Loop.Signal, Generations: append([]string(nil), t.Loop.Generations...)}
+		}
 	}
 	for _, a := range obs.Attempts {
 		if a.Live {
@@ -1029,6 +1056,7 @@ func (d *Dispatcher) diff(obs *Observation) {
 	}
 	old := d.ledger.Seen
 	d.ledger.Seen = now
+	d.loopEscalations(obs, old, now)
 	if old == nil {
 		return
 	}

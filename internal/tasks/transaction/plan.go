@@ -261,7 +261,7 @@ func ClaimBlockerObservations(in PlanInput, rec *ticket.Record) []ObservedBlocke
 	if len(in.Policy.RequireEnforcedFields) != 0 {
 		add(ticket.Blocker{Code: wire.CodeBudgetUnknown}, true)
 	}
-	ctx := ticket.Context{CanonicalWriter: in.Queue.CanonicalWriter, SerialFallback: in.Policy.SerialFallback, Stage: in.Stage}
+	ctx := ticket.Context{CanonicalWriter: in.Queue.CanonicalWriter, SerialFallback: in.Policy.SerialFallback, Stage: in.Stage, Loop: LoopHoldOf(in.Attempts, rec, in.Policy)}
 	if in.Reservations != nil {
 		ctx.Attempts = entryOracle{in.Reservations}
 	}
