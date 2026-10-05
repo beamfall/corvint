@@ -115,6 +115,7 @@ func TestONV0011_OperatorNotePlaceholderIsPromptOnly(t *testing.T) {
 		"--eval=":         {"/usr/bin/tool", "--eval={prompt}"},
 		"--command":       {"/usr/bin/tool", "--command", "{prompt}"},
 		"suffixed":        {"/usr/bin/agent", "--prompt={prompt}"},
+		"no prompt":       {"/usr/bin/agent", "--print"},
 		"rendered shell":  {"/bin/{model}", "-{program}", "{prompt}"},
 		"whole model":     {"/usr/bin/agent", "{model}", "{prompt}"},
 		"shell +c":        {"/bin/sh", "+c", "{prompt}"},

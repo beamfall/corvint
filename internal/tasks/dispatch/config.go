@@ -485,6 +485,9 @@ func validGates(gates []GateMatch) error {
 // executable. A program that evaluates a plain argument as code remains
 // outside what this check can see.
 func noteSafeHost(h Host) error {
+	if !slices.Contains(h.Argv, "{prompt}") {
+		return fmt.Errorf("never passes {prompt}, so the note would be dropped")
+	}
 	for i, a := range h.Argv {
 		if a != "{prompt}" && placeholder.MatchString(a) {
 			return fmt.Errorf("argv element %d holds a placeholder other than a whole {prompt}", i)

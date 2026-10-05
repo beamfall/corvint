@@ -61,7 +61,9 @@ needs the remaining ON-V0-010 evidence and owner acceptance.
     `/bin/sh -c <prompt>`. Every argv element of a note-bearing host other than a whole
     `{prompt}` must now be literal, so validation sees the argv that launches. A consequence is
     that such a host cannot use `{model}` in argv; the model ladder needs a wrapper executable or
-    a role without `{operatorNote}` (owner question 4). A program that
+    a role without `{operatorNote}` (owner question 4).
+  - Codex round 5 (P2): a note-bearing host without `{prompt}` would silently drop the note. Such a
+    host is now refused. A program that
     evaluates its own argument as code is outside what config validation can see.
 
 ## Limits
