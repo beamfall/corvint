@@ -1,8 +1,12 @@
 package cli
 
 import (
+	"context"
 	"errors"
+	"io"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 )
 
 // SetAttemptBeatInterval shortens the attempt runner's heartbeat interval for
@@ -28,4 +32,14 @@ func SetAttemptGroupSignalFault() func() {
 	was := attemptGroupPrimitives
 	attemptGroupPrimitives.KillGroup = func(int) error { return errors.New("injected group signal failure") }
 	return func() { attemptGroupPrimitives = was }
+}
+
+// ObserveTickets runs the native dispatcher observation at cwd and returns
+// its ticket views (ERG-V0-009 gate exposure).
+func ObserveTickets(cwd string) ([]dispatch.Ticket, error) {
+	o, err := dispatchQueue{env: Env{Cwd: cwd, Stdout: io.Discard, Stderr: io.Discard}}.Observe(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	return o.Tickets, nil
 }

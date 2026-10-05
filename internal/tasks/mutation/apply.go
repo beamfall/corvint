@@ -85,6 +85,9 @@ type Context struct {
 	// consulted only by NOTE_SET/NOTE_CLEAR; a referenced head without bytes
 	// refuses VALIDATION_FAILED/MISSING_EVIDENCE.
 	PriorNoteEvent []byte
+	// ExternalReview is the transaction layer's audited review result for
+	// REVIEW_RECORD/REVIEW_RESUBMIT (ERG-V0-009); nil refuses those operations.
+	ExternalReview *ExternalReviewPost
 }
 
 // Plan is the pure result of validating and computing one mutation. It is
@@ -194,7 +197,10 @@ func Apply(ctx Context, env *Envelope) *Plan {
 		plan.Outcome = *out
 		return plan
 	}
-	if r := ctx.checkRole(env.Operation); r != nil {
+	// A review's authority is its policy definition's recorder roles and the
+	// live leases the transaction layer checked, never the role matrix
+	// (ERG-V0-009: no default grant).
+	if r := ctx.checkRole(env.Operation); r != nil && !IsReviewOperation(env.Operation) {
 		return plan.refused(r)
 	}
 	if env.Operation == OpCreate {
@@ -209,6 +215,9 @@ func Apply(ctx Context, env *Envelope) *Plan {
 	}
 	if IsNoteOperation(env.Operation) {
 		return ctx.note(plan, env)
+	}
+	if IsReviewOperation(env.Operation) {
+		return ctx.review(plan, env)
 	}
 	pre, ok := ctx.Inventory.Get(env.TargetID.Raw)
 	if !ok {

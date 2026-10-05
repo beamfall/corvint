@@ -733,7 +733,10 @@
       "internal/tasks/transaction/external_review.go",
       "internal/tasks/transaction/external_review_read.go",
       "internal/tasks/dispatch/roster.go",
-      "internal/tasks/dispatch/config.go"
+      "internal/tasks/dispatch/config.go",
+      "internal/tasks/transaction/external_review_write.go",
+      "internal/tasks/transaction/external_review_audit.go",
+      "internal/tasks/cli/external_review.go"
     ]
   },
   {

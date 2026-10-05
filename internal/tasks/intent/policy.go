@@ -15,7 +15,7 @@ var Operations = []string{
 	"CREATE", "REFINE", "PRIORITIZE", "SET_DEPENDENCIES", "SET_GATES", "SET_EFFECTS",
 	"HOLD", "RELEASE_HOLD", "REOPEN", "ARCHIVE", "RESTORE", "COMPLETE_MANUAL", "GRANT_APPROVAL", "REVOKE_APPROVAL",
 	"RELEASE_CREATE", "RELEASE_UPDATE", "RELEASE_CANDIDATE", "RELEASE_EXTERNAL_ATTEST", "RELEASE_MANUAL_ATTEST", "RELEASE_PROMOTE",
-	"NOTE_SET", "NOTE_CLEAR",
+	"NOTE_SET", "NOTE_CLEAR", "REVIEW_RECORD", "REVIEW_RESUBMIT",
 }
 
 // TicketKinds mirrors ticket.Kinds for policy kind lists.
@@ -116,7 +116,10 @@ type Policy struct {
 	OcmRequired                bool
 	Runtimes                   []RuntimeEntry
 	AllowedEnvKeys             []string
-	Raw                        []byte
+	// ExternalReviews are the optional routing-only review gate definitions
+	// (ERG-V0-009); absent means no external review gate exists.
+	ExternalReviews []ExternalReviewDefinition
+	Raw             []byte
 }
 
 // GateIDs returns the set of defined gate ids.
@@ -193,7 +196,7 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	r := wire.NewReader(v, "/")
 	r.Closed(wire.OptionalKeys(v, []string{"profile", "policyVersion", "roles", "capacity", "budgets", "retries", "retention", "gates",
 		"serialFallback", "integrationRequiredKinds", "allowEmptyObligationsKinds", "reviewLane", "docsLane",
-		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision")...)
+		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -349,6 +352,12 @@ func DecodePolicy(data []byte) (*Policy, error) {
 			return nil, err
 		}
 	}
+	if wire.Has(v, "externalReviews") {
+		p.ExternalReviews = readExternalReviews(r.Field("externalReviews"), gateIDs)
+		if err := r.Err(); err != nil {
+			return nil, err
+		}
+	}
 	return p, nil
 }
 
@@ -384,4 +393,63 @@ var ExplicitGrantOperations = map[string][]string{"OPERATOR": {"NOTE_SET", "NOTE
 // default row plus its explicit-only grants.
 func PolicyGrantable(role string) []string {
 	return append(append([]string{}, DefaultRoleMatrix[role]...), ExplicitGrantOperations[role]...)
+}
+
+// MaxExternalReviewDefinitions bounds policy externalReviews (ERG-V0-009).
+const MaxExternalReviewDefinitions = 16
+
+// ExternalReviewRecorderRoles are the roles a definition may let record a
+// verdict. WORKER is never a recorder (ERG-V0-001).
+var ExternalReviewRecorderRoles = []string{"OWNER", "OPERATOR", "REVIEWER"}
+
+// ExternalReviewDefinition is one routing-only external review gate
+// (ERG-V0-009). It grants nothing by default: a gate absent from policy
+// refuses every record, and only the listed roles and stages are admitted.
+type ExternalReviewDefinition struct {
+	GateID                     string
+	RecorderRoles              []string
+	ReviewStages, AuthorStages []string
+	RequireReviewerLease       bool
+	// Sha256 is the definitionSha256: the digest of the canonical bytes of
+	// this entry in the policy's externalReviews array.
+	Sha256 wire.Digest
+}
+
+// ExternalReview returns the definition of gateID, or nil.
+func (p *Policy) ExternalReview(gateID string) *ExternalReviewDefinition {
+	for i := range p.ExternalReviews {
+		if p.ExternalReviews[i].GateID == gateID {
+			return &p.ExternalReviews[i]
+		}
+	}
+	return nil
+}
+
+func readExternalReviews(r *wire.Reader, executable map[string]bool) []ExternalReviewDefinition {
+	var out []ExternalReviewDefinition
+	seen := map[string]bool{}
+	items := r.Array(-1, true)
+	if r.Err() == nil && (len(items) < 1 || len(items) > MaxExternalReviewDefinitions) {
+		r.Fail(wire.CodeLimitExceeded, "externalReviews must hold 1..%d definitions", MaxExternalReviewDefinitions)
+		return nil
+	}
+	for _, e := range items {
+		e.Closed("gateId", "purpose", "recorderRoles", "reviewStages", "authorStages", "requireReviewerLease")
+		d := ExternalReviewDefinition{GateID: e.Field("gateId").Label()}
+		if e.Err() == nil && (seen[d.GateID] || executable[d.GateID]) {
+			e.Field("gateId").Fail(wire.CodeDuplicateID, "duplicate gateId %q", d.GateID)
+		}
+		seen[d.GateID] = true
+		e.Field("purpose").Exact("ROUTING_ONLY")
+		d.RecorderRoles = e.Field("recorderRoles").Strings(-1, false, func(c *wire.Reader) string { return c.Enum(ExternalReviewRecorderRoles...) })
+		d.ReviewStages = e.Field("reviewStages").Strings(-1, false, func(c *wire.Reader) string { return c.Enum(StageRoles...) })
+		d.AuthorStages = e.Field("authorStages").Strings(-1, false, func(c *wire.Reader) string { return c.Enum(StageRoles...) })
+		d.RequireReviewerLease = e.Field("requireReviewerLease").Bool()
+		if e.Err() == nil && (len(d.RecorderRoles) < 1 || len(d.AuthorStages) < 1) {
+			e.Fail(wire.CodeMalformed, "recorderRoles and authorStages must be non-empty")
+		}
+		d.Sha256 = wire.Sum(wire.EncodeFile(e.Value()))
+		out = append(out, d)
+	}
+	return out
 }

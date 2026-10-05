@@ -130,6 +130,9 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 			}
 		}
 	}
+	if paths, canonical, err = reviewAudit(reader, inv, env, paths, canonical); err != nil {
+		return guardFailure(report, env.RequestID, err)
+	}
 	queue := canonical.Records["intent/queue.json"].Raw
 	policy := canonical.Records["intent/policy.json"].Raw
 	q, err := intent.DecodeQueue(queue)
@@ -167,6 +170,10 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
+	priorReview, reviewSubject, err := reviewInputs(repo, env, canonical.Records, canonical.Head)
+	if err != nil {
+		return guardFailure(report, env.RequestID, err)
+	}
 	result := transaction.Model(
 		request,
 		transaction.Input{
@@ -185,6 +192,9 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 			Replay:            transaction.ReplayObservation{State: "ABSENT"},
 			RecordedAt:        now,
 			PriorNoteEvent:    priorNote,
+
+			ExternalReviewPriorEvent: priorReview,
+			ExternalReviewSubject:    reviewSubject,
 		},
 	)
 	report.Outcome = result.Outcome

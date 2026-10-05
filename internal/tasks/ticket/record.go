@@ -144,6 +144,9 @@ type Record struct {
 	// OperatorNote is the optional advisory note reference (ON-V0-001). It is
 	// not acceptance-relevant and is changed only by NOTE_SET/NOTE_CLEAR.
 	OperatorNote *OperatorNoteReference
+	// ExternalReviews is the optional per-gate review head map (ERG-V0-004),
+	// omitted until first use and changed only by REVIEW_RECORD/RESUBMIT.
+	ExternalReviews map[string]ExternalReviewRef
 }
 
 var recordKeys = wire.TicketRecordKeys
@@ -164,7 +167,7 @@ func Decode(data []byte) (*Record, error) {
 // FromValue validates a parsed value as a ticket record.
 func FromValue(v wire.Value) (*Record, error) {
 	r := wire.NewReader(v, "/")
-	r.Closed(wire.OptionalKeys(v, recordKeys, "requiresPool", "requiredRoles", "operatorNote")...)
+	r.Closed(wire.OptionalKeys(v, recordKeys, "requiresPool", "requiredRoles", "operatorNote", "externalReviews")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -178,6 +181,13 @@ func FromValue(v wire.Value) (*Record, error) {
 			return nil, err
 		}
 		rec.OperatorNote = note
+	}
+	if wire.Has(v, "externalReviews") {
+		reviews, err := ExternalReviewsFromValue(r.Field("externalReviews").Value())
+		if err != nil {
+			return nil, err
+		}
+		rec.ExternalReviews = reviews
 	}
 	if wire.Has(v, "requiredRoles") {
 		rec.RequiredRoles = ReadStageRoles(r.Field("requiredRoles"))
@@ -465,6 +475,9 @@ func (rec *Record) Value() wire.Value {
 	}
 	if rec.OperatorNote != nil {
 		o.Set("operatorNote", rec.OperatorNote.Value())
+	}
+	if len(rec.ExternalReviews) > 0 {
+		o.Set("externalReviews", ExternalReviewsValue(rec.ExternalReviews))
 	}
 	o.Set("owner", wire.StringOrNull(rec.Owner))
 	o.Set("milestone", wire.StringOrNull(rec.Milestone))

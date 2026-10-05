@@ -412,6 +412,11 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 			if e, ok := planned[id]; ok {
 				t.Plan, t.PlanReason = e.State, e.Reason
 			}
+			// ERG-V0-009: a gate set that cannot be read stays unobserved
+			// (every gate UNKNOWN) instead of failing the whole observation.
+			if gates, err := externalReviewGateViews(rc.repo, r, in.Policy, in.Attempts); err == nil {
+				t.Gates, t.GatesObserved = gates, true
+			}
 			obs.Tickets = append(obs.Tickets, t)
 		}
 		for _, a := range in.Attempts {

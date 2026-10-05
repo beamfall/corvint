@@ -38,6 +38,9 @@ func decodeTicket(v wire.Value) (ticket, error) {
 	if e := operatorNote(v); e != nil {
 		return t, e
 	}
+	if e := externalReviews(v); e != nil {
+		return t, e
+	}
 	if stringAt(v, "profile") != "taskman-ticket/0" || !strings.HasPrefix(t.id, "ticket:") {
 		return t, errors.New("ticket identity")
 	}
@@ -335,13 +338,18 @@ func decodePlan(v wire.Value) (Plan, error) {
 	return p, e
 }
 
-// ticketObjectKeys admits only the optional operatorNote reference beyond the
-// closed mandatory set (ON-V0-001); arbitrary unknown members still refuse.
+// ticketObjectKeys admits only the optional operatorNote (ON-V0-001) and
+// externalReviews (ERG-V0-009) references beyond the closed mandatory set;
+// arbitrary unknown members still refuse.
 func ticketObjectKeys(v wire.Value) string {
 	if v.Kind == wire.KindObject {
-		if _, ok := v.Obj.Values["operatorNote"]; ok {
-			return ticketKeys + " operatorNote"
+		keys := ticketKeys
+		for _, k := range []string{"operatorNote", "externalReviews"} {
+			if _, ok := v.Obj.Values[k]; ok {
+				keys += " " + k
+			}
 		}
+		return keys
 	}
 	return ticketKeys
 }
@@ -367,6 +375,37 @@ func operatorNote(v wire.Value) error {
 	current := value(n, "current")
 	if current.Kind != wire.KindNull && (current.Kind != wire.KindString || current.Str != head.Str) {
 		return errors.New("operator note current")
+	}
+	return nil
+}
+
+// externalReviews validates the optional ERG-V0-009 gate reference map: 1..16
+// label keys, each a closed {generation,revision,head} with
+// 1 <= generation <= revision <= 4096 and head a digest. Absence is valid.
+func externalReviews(v wire.Value) error {
+	m, ok := v.Obj.Values["externalReviews"]
+	if !ok {
+		return nil
+	}
+	if m.Kind != wire.KindObject || len(m.Obj.Keys) == 0 || len(m.Obj.Keys) > 16 {
+		return errors.New("external review references")
+	}
+	for _, gate := range m.Obj.Keys {
+		if _, e := taskswire.ParseLabel("externalReviews", gate); e != nil {
+			return errors.New("external review gate")
+		}
+		ref := m.Obj.Values[gate]
+		if e := object(ref, "generation revision head"); e != nil {
+			return errors.New("external review reference")
+		}
+		g, e1 := number(value(ref, "generation"), 4096)
+		r, e2 := number(value(ref, "revision"), 4096)
+		if e1 != nil || e2 != nil || g == 0 || g > r {
+			return errors.New("external review counters")
+		}
+		if head := value(ref, "head"); head.Kind != wire.KindString || !digest(head.Str) {
+			return errors.New("external review head")
+		}
 	}
 	return nil
 }

@@ -136,7 +136,7 @@ func buildEnvelope(operation, queueID string, actor mutation.Binding, f mutateFl
 			return nil, wire.Errorf(wire.CodeMalformed, "targetId", "CREATE names no target or expected revision")
 		}
 	} else {
-		if f.target == "" || (f.expected == "" && !mutation.IsNoteOperation(operation)) {
+		if f.target == "" || (f.expected == "" && !mutation.DeclaresDerivedEvent(operation)) {
 			return nil, wire.Errorf(wire.CodeMalformed, "targetId", "%s needs --target and --expected-revision", operation)
 		}
 		target = wire.String(qualifyTicket(queueID, f.target))

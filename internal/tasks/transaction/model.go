@@ -130,6 +130,12 @@ type Input struct {
 	// at its reference head; Mutate NOTE_SET/NOTE_CLEAR only (ON-V0-004).
 	// The pure transition re-hashes it against the canonical reference.
 	PriorNoteEvent []byte
+	// ExternalReviewPriorEvent is the target gate's head review event bytes
+	// and ExternalReviewSubject the request's subject receipt followed by its
+	// successor unless it is the head receipt; Mutate REVIEW_* only
+	// (ERG-V0-009). The pure transition re-hashes both.
+	ExternalReviewPriorEvent []byte
+	ExternalReviewSubject    [][]byte
 }
 
 type HandoffPolicyObservation struct {
@@ -607,6 +613,9 @@ func Model(r Request, in Input) Result {
 		ctx := mutation.Context{Binding: r.Actor, Queue: state.queue, Policy: state.policy, Inventory: state.tickets, Attempts: entryOracle{state.reservations}, Requests: absentIndex{}, Now: in.RecordedAt}
 		ctx.RetryRecovery = retryRecovery(state, env)
 		ctx.PriorNoteEvent = in.PriorNoteEvent
+		if mutation.IsReviewOperation(env.Operation) {
+			ctx.ExternalReview = externalReviewPost(r, in, state, env)
+		}
 		applied := mutation.Apply(ctx, env)
 		if !applied.Planned() {
 			return Result{Kind: "Refused", Outcome: applied.Outcome, Coverage: coverage(), Detail: applied.Detail}
@@ -922,7 +931,7 @@ func validateInput(r Request, in Input) (inputState, error) {
 	if e = release.ValidateGraph(all); e != nil {
 		return st, e
 	}
-	if (r.Operation == Lease || openRetryRecovery(r, st)) && st.head != nil {
+	if (r.Operation == Lease || openRetryRecovery(r, st) || reviewMutation(r)) && st.head != nil {
 		st.attempts, e = loadAttempts(in, st.reservations)
 	}
 	if e == nil && (r.Operation == Lease || r.Operation == PolicyUpdate) {
@@ -982,6 +991,9 @@ func importChain(post, pre *ticket.Record, inv *Inventory) error {
 	where := "/tickets/" + post.TicketID.Raw
 	if post.Source.Kind != "IMPORT" || !post.ShadowOverlay || post.Source.SourceRevisionSha256 == nil {
 		return wire.Errorf(wire.CodeMalformed, where, "an imported record is a shadow IMPORT record with a source revision")
+	}
+	if e := importExternalReviews(post, pre, where); e != nil {
+		return e
 	}
 	if e := importOperatorNote(post, pre, where); e != nil {
 		return e
