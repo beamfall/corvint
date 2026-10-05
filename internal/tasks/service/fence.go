@@ -1,6 +1,10 @@
 package service
 
 import (
+	"bytes"
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -73,32 +77,161 @@ func legacyPath(m *Manifest) (*string, error) {
 
 var errAdmission = errors.New("launch admission refused")
 
-// admitter is the managed main's dispatch.LaunchFence for one opened
-// dispatcher: it takes F and admits a launch only while control is RUNNING
-// and bound to ident and any legacy stop file is ABSENT. An admitted
-// launch keeps F until the dispatcher releases it after recording the
-// worker.
-func (o RunOptions) admitter(root string, ident wire.Digest, legacy *string) dispatch.LaunchFence {
-	return func() (func(), error) {
-		unlock, err := o.fence(root)
-		if err != nil {
-			return nil, err
-		}
-		c, err := o.readControl(root)
-		if err != nil || c.ManifestIdentity != ident || c.Desired != "RUNNING" || (legacy != nil && o.legacyPresence(*legacy) != "ABSENT") {
-			unlock()
-			return nil, errAdmission
-		}
-		return unlock, nil
-	}
+// intentFile is the durable pre-spawn launch intent (SERVICE500-003): it
+// names the admitted worker or pool sweep and the dispatcher instance that
+// admitted it, and is written under F before the effect starts. It is
+// removed only once the effect's outcome is durable (in the saved ledger,
+// or nothing started); while it exists no launch is admitted, a stop is not
+// acknowledged and a drain does not settle.
+const intentFile = "launch-intent.json"
+
+const maxIntent = 4096
+
+type launchIntent struct {
+	Intent string `json:"intent"`
+	Token  string `json:"token"`
 }
 
-// govern applies the managed main's own control transitions under F for
-// an observation that may run: a present legacy stop file latches RUNNING
-// R to DRAINING R+1, and a DRAINING control whose dispatcher ledger records
-// no worker and no pending pool sweep moves to STOPPED. An UNKNOWN legacy
-// presence holds new opens; an opened dispatcher keeps supervising while
-// its fence refuses launches.
+// readIntent reads the launch intent marker: nil when verified absent.
+func (h Host) readIntent(root string) (*launchIntent, []byte, error) {
+	raw, err := h.readPrivate(filepath.Join(root, intentFile), maxIntent)
+	if absent(err) {
+		return nil, nil, nil
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	var li launchIntent
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&li); err != nil || li.Intent == "" || li.Token == "" {
+		return nil, nil, wire.Errorf(wire.CodeUncertainEffect, "/"+intentFile, "launch intent is unreadable")
+	}
+	return &li, raw, nil
+}
+
+// intentState is the marker as Status and Stop report it: ABSENT,
+// UNRESOLVED (an admitted effect whose outcome is not yet durable) or
+// UNKNOWN.
+func (h Host) intentState(root string) string {
+	li, _, err := h.readIntent(root)
+	switch {
+	case err != nil:
+		return "UNKNOWN"
+	case li == nil:
+		return "ABSENT"
+	}
+	return "UNRESOLVED"
+}
+
+// launchControl is the managed main's dispatch.LaunchControl for one opened
+// dispatcher, identified by its random token.
+type launchControl struct {
+	o      RunOptions
+	root   string
+	ident  wire.Digest
+	legacy *string
+	token  string
+}
+
+func (o RunOptions) control(root string, ident wire.Digest, legacy *string) (*launchControl, error) {
+	var nonce [16]byte
+	if _, err := rand.Read(nonce[:]); err != nil {
+		return nil, err
+	}
+	return &launchControl{o: o, root: root, ident: ident, legacy: legacy, token: hex.EncodeToString(nonce[:])}, nil
+}
+
+// Admit takes F and admits one effect only while control is RUNNING and
+// bound, no launch intent is unresolved and any legacy stop file is ABSENT.
+// A PRESENT legacy stop file latches RUNNING R to DRAINING R+1 under the
+// same F. An admitted effect's intent is durable before Admit returns, and
+// F is kept until the dispatcher releases it.
+func (l *launchControl) Admit(intent string) (func(bool), error) {
+	unlock, err := l.o.fence(l.root)
+	if err != nil {
+		return nil, err
+	}
+	refuse := func() (func(bool), error) {
+		unlock()
+		return nil, errAdmission
+	}
+	if li, _, err := l.o.readIntent(l.root); err != nil || li != nil {
+		return refuse()
+	}
+	c, err := l.o.readControl(l.root)
+	if err != nil || c.ManifestIdentity != l.ident || c.Desired != "RUNNING" {
+		return refuse()
+	}
+	if l.legacy != nil {
+		if st := l.o.legacyPresence(*l.legacy); st != "ABSENT" {
+			if st == "PRESENT" {
+				_ = l.o.latchLegacy(l.root, c)
+			}
+			return refuse()
+		}
+	}
+	raw, err := json.Marshal(launchIntent{Intent: intent, Token: l.token})
+	if err != nil || writeAtomic(l.root, intentFile, raw) != nil {
+		return refuse()
+	}
+	sum := wire.Sum(raw)
+	return func(recorded bool) {
+		if recorded {
+			_ = l.o.removeExact(filepath.Join(l.root, intentFile), sum)
+		}
+		unlock()
+	}, nil
+}
+
+// Boundary runs between dispatcher ticks under F. A recorded tick resolves
+// this dispatcher's own unresolved intent; a settled tick of a bound
+// DRAINING control with no unresolved intent saves STOPPED at R+1 and ends
+// the dispatcher.
+func (l *launchControl) Boundary(recorded, settled bool) bool {
+	unlock, err := l.o.fence(l.root)
+	if err != nil {
+		return false
+	}
+	defer unlock()
+	li, raw, err := l.o.readIntent(l.root)
+	if err != nil {
+		return false
+	}
+	if li != nil {
+		if !recorded || li.Token != l.token || l.o.removeExact(filepath.Join(l.root, intentFile), wire.Sum(raw)) != nil {
+			return false
+		}
+	}
+	if !settled {
+		return false
+	}
+	c, err := l.o.readControl(l.root)
+	if err != nil || c.ManifestIdentity != l.ident || c.Desired != "DRAINING" {
+		return false
+	}
+	next := *c
+	next.Revision = wire.CountOf(c.Revision.Int() + 1)
+	next.Desired = "STOPPED"
+	return l.o.writeControl(l.root, next) == nil
+}
+
+// latchLegacy saves the legacy stop file's RUNNING R to DRAINING R+1 under
+// a held F.
+func (h Host) latchLegacy(root string, c *Control) *Control {
+	request := "legacy-stop-r" + strconv.FormatInt(c.Revision.Int()+1, 10)
+	p := LegacyLatch(*c, "MAIN", request, ControlFacts{FenceHeld: true, Fresh: true, ObservedRevision: c.Revision, Legacy: "PRESENT"})
+	if p.Control.Desired != "DRAINING" || h.writeControl(root, p.Control) != nil {
+		return nil
+	}
+	return &p.Control
+}
+
+// govern applies the managed main's legacy latch under F for an
+// observation that may run: a present legacy stop file latches RUNNING R to
+// DRAINING R+1. An UNKNOWN legacy presence holds new opens; an opened
+// dispatcher keeps supervising while its control refuses launches. Drain
+// settlement is the dispatcher's tick boundary (launchControl.Boundary).
 func (o RunOptions) govern(root string, d desiredRun) desiredRun {
 	unlock, err := o.fence(root)
 	if err != nil {
@@ -116,50 +249,36 @@ func (o RunOptions) govern(root string, d desiredRun) desiredRun {
 		case st == "UNKNOWN":
 			d.hold = "legacy stop file presence is UNKNOWN"
 		case st == "PRESENT" && c.Desired == "RUNNING":
-			request := "legacy-stop-r" + strconv.FormatInt(c.Revision.Int()+1, 10)
-			p := LegacyLatch(*c, "MAIN", request, ControlFacts{FenceHeld: true, Fresh: true, ObservedRevision: c.Revision, Legacy: st})
-			if p.Control.Desired == "DRAINING" {
-				if err := o.writeControl(root, p.Control); err != nil {
-					d.hold = "legacy latch: " + describe(err)
-					return d
-				}
-				c = &p.Control
+			next := o.latchLegacy(root, c)
+			if next == nil {
+				d.hold = "legacy latch: control write failed"
+				return d
 			}
+			c = next
 		}
 	}
 	d.desired = c.Desired
-	if c.Desired == "DRAINING" && drainSettled(d.config, o.Program) {
-		next := *c
-		next.Revision = wire.CountOf(c.Revision.Int() + 1)
-		next.Desired = "STOPPED"
-		if err := o.writeControl(root, next); err != nil {
-			d.hold = "drain settlement: " + describe(err)
-			return d
-		}
-		d.run, d.desired = false, "STOPPED"
-	}
 	return d
-}
-
-// drainSettled reads the dispatcher's saved ledger: settled means no
-// recorded worker and no pending pool sweep. An unreadable ledger is not
-// settled.
-func drainSettled(c *dispatch.Config, program string) bool {
-	l, err := dispatch.LoadLedger(dispatch.ProgramDir(c, program), program)
-	return err == nil && dispatch.Settled(l)
 }
 
 // boundAfterOpen re-reads control under F after Open took dispatcher
 // ownership (L→F): a suppression saved before then is seen here, and one
-// saved later is enforced by the launch fence.
-func (o RunOptions) boundAfterOpen(root string, ident wire.Digest) bool {
+// saved later is enforced by the launch control. Holding L, it resolves a
+// launch intent left by an earlier dispatcher whose effect the saved ledger
+// records; any other left intent stays UNRESOLVED.
+func (o RunOptions) boundAfterOpen(root string, ident wire.Digest, c *dispatch.Config) bool {
 	unlock, err := o.fence(root)
 	if err != nil {
 		return false
 	}
 	defer unlock()
-	c, err := o.readControl(root)
-	return err == nil && c.ManifestIdentity == ident && (c.Desired == "RUNNING" || c.Desired == "DRAINING")
+	if li, raw, err := o.readIntent(root); err == nil && li != nil {
+		if l, err := dispatch.LoadLedger(dispatch.ProgramDir(c, o.Program), o.Program); err == nil && dispatch.Records(l, li.Intent) {
+			_ = o.removeExact(filepath.Join(root, intentFile), wire.Sum(raw))
+		}
+	}
+	ctl, err := o.readControl(root)
+	return err == nil && ctl.ManifestIdentity == ident && (ctl.Desired == "RUNNING" || ctl.Desired == "DRAINING")
 }
 
 // fencedOwner reports whether the dispatcher owner is this program's

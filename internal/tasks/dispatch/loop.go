@@ -55,8 +55,11 @@ type Dispatcher struct {
 	// pressureEmitted is the level and sample knowledge last reported by a
 	// throttled event in this run; the zero value is calm and observed.
 	pressureEmitted PressureState
-	// fence, set only by OpenControlled, admits each new launch.
-	fence LaunchFence
+	// control, set only by OpenControlled, admits each new launch and
+	// pool sweep and sees every tick boundary.
+	control LaunchControl
+	// tickSaved reports that the last tick's final ledger save succeeded.
+	tickSaved bool
 }
 
 // Open locks the program's state directory, loads the ledger and adopts
@@ -214,6 +217,9 @@ func (d *Dispatcher) Run(ctx context.Context, ticks int) (result error) {
 		if d.readerErr != nil {
 			return d.readerErr
 		}
+		if d.boundary(ctx, last) {
+			return ErrSettled
+		}
 		if last != nil && ctx.Err() == nil {
 			d.emit(Event{Kind: "alert", Message: "tick failed: " + last.Error()})
 		}
@@ -237,6 +243,7 @@ func (d *Dispatcher) Run(ctx context.Context, ticks int) (result error) {
 // wall and orphan enforcement runs even when the store is unreadable; ended
 // workers then stay recorded and are accounted on the next readable tick.
 func (d *Dispatcher) Tick(ctx context.Context) error {
+	d.tickSaved = false
 	if d.readerErr != nil {
 		return d.readerErr
 	}
@@ -247,7 +254,7 @@ func (d *Dispatcher) Tick(ctx context.Context) error {
 	// this receiver at return so an old pointer cannot overwrite that commit.
 	defer func() {
 		if d.readerErr == nil {
-			_ = d.ledger.save(d.dir)
+			d.tickSaved = d.ledger.save(d.dir) == nil
 		}
 	}()
 	obs, err := d.observe(ctx)
@@ -871,16 +878,6 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		if ctx.Err() != nil {
 			return
 		}
-		// A controlled dispatcher holds the fence from its final control read
-		// until the worker is recorded; a refusal launches nothing further.
-		release := func() {}
-		if d.fence != nil {
-			r, err := d.fence()
-			if err != nil {
-				return
-			}
-			release = r
-		}
 		role := d.role(a.Role)
 		host := d.Config.Hosts[role.Host]
 		model := role.ModelAt(a.Tier)
@@ -888,6 +885,12 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		// Program and role names cannot contain '.', so the ID never collides
 		// across programs or roles; the start nonce keeps it unique per run.
 		id := fmt.Sprintf("%s.%s.%d.%s-%d", d.Program, a.Role, a.Slot, d.nonce, d.ledger.LaunchSeq)
+		// A controlled dispatcher holds the fence from its final control read
+		// until the worker is recorded; a refusal launches nothing further.
+		release, ok := d.admit(ctx, id)
+		if !ok {
+			return
+		}
 		values := map[string]string{"{program}": d.Program, "{role}": a.Role, "{slot}": strconv.Itoa(a.Slot), "{worker}": id, "{holder}": id, "{ticket}": a.Ticket, "{ticketLocal}": a.Local, "{state}": a.State, "{pool}": a.Pool, "{member}": a.Member, "{workRoot}": d.Config.WorkRoot, "{model}": model}
 		values["{prompt}"] = Render(role.Prompt, values)
 		argv := make([]string, len(host.Argv))
@@ -913,7 +916,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 				d.ledger.Backoff[a.Key] = b
 			}
 			b.CooldownUntil = now.Add(time.Duration(d.Config.TickSeconds) * time.Second * 10)
-			release()
+			release(true)
 			d.emit(Event{Kind: "launch-failed", Ticket: a.Ticket, Role: a.Role, Worker: id, Message: fmt.Sprintf("could not launch %s on %s: %v", a.Role, d.keyText(a.Key), err)})
 			continue
 		}
@@ -929,10 +932,12 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		escalation := d.escalated(role, a, model)
 		// Record the worker before anything else, so a crash cannot leave
 		// an untracked tree.
-		if err := d.ledger.save(d.dir); err != nil {
-			d.emit(Event{Kind: "alert", Worker: id, Message: "ledger unwritable after launch: " + err.Error()})
+		saveErr := d.ledger.save(d.dir)
+		if saveErr != nil {
+			d.emit(Event{Kind: "alert", Worker: id, Message: "ledger unwritable after launch: " + saveErr.Error()})
 		}
-		release()
+		// An unsaved worker leaves its launch intent unresolved.
+		release(saveErr == nil)
 		if escalation != nil {
 			escalation.Worker = id
 			d.emit(*escalation)
@@ -1250,25 +1255,39 @@ func (d *Dispatcher) local(obs *Observation, id string) string {
 	return d.keyText(id)
 }
 
-// LaunchFence is a controlled dispatcher's pre-spawn fence (SERVICE500-003).
-// It takes the fence and admits one launch, or refuses it. On admission the
-// dispatcher calls release once, after the launched worker is recorded in
-// the saved ledger or the launch failed.
-type LaunchFence func() (release func(), err error)
+// LaunchControl links a controlled dispatcher to its service control
+// (SERVICE500-003).
+type LaunchControl interface {
+	// Admit takes the fence and admits one new effect, or refuses it. The
+	// intent names the effect: a worker id, or a pool sweep request id. On
+	// admission the dispatcher calls release once; recorded reports that
+	// the effect's outcome is durable: it is in the saved ledger, or
+	// nothing started.
+	Admit(intent string) (release func(recorded bool), err error)
+	// Boundary runs between ticks, never during one. recorded reports that
+	// the tick's final ledger save succeeded, so every launch this
+	// dispatcher made is in the saved ledger; settled that the tick also
+	// completed with no recorded worker and no pending or in-flight pool
+	// sweep. A true result ends Run with ErrSettled.
+	Boundary(recorded, settled bool) bool
+}
+
+// ErrSettled ends Run when the controlled dispatcher's control settled it.
+var ErrSettled = errors.New("dispatcher settled by its service control")
 
 // OpenControlled is Open for a dispatcher whose every new worker launch and
-// new pool sweep first passes fence. It takes the lifetime lock before the
-// fence; supervision, healing and accounting of recorded workers are never
-// fenced.
-func OpenControlled(program string, c *Config, q Queue, out io.Writer, fence LaunchFence) (*Dispatcher, error) {
-	if fence == nil {
-		return nil, errors.New("a controlled dispatcher needs a launch fence")
+// pool sweep native call first passes control. It takes the lifetime lock
+// before the fence; supervision, healing and accounting of recorded workers
+// are never fenced.
+func OpenControlled(program string, c *Config, q Queue, out io.Writer, control LaunchControl) (*Dispatcher, error) {
+	if control == nil {
+		return nil, errors.New("a controlled dispatcher needs a launch control")
 	}
 	d, err := Open(program, c, q, out)
 	if err != nil {
 		return nil, err
 	}
-	d.fence = fence
+	d.control = control
 	return d, nil
 }
 
@@ -1312,4 +1331,47 @@ func Settled(l *Ledger) bool {
 		}
 	}
 	return true
+}
+
+// Records reports whether a saved ledger records the effect an admission
+// intent named: a worker or a pool sweep request.
+func Records(l *Ledger, intent string) bool {
+	for _, w := range l.Workers {
+		if w.ID == intent {
+			return true
+		}
+	}
+	for _, r := range l.PoolSweeps {
+		if r.RequestID == intent {
+			return true
+		}
+	}
+	return false
+}
+
+// admit passes a controlled dispatcher's fence for intent. A cancel that
+// arrives while the fence is awaited starts nothing. An uncontrolled
+// dispatcher always admits.
+func (d *Dispatcher) admit(ctx context.Context, intent string) (func(bool), bool) {
+	if d.control == nil {
+		return func(bool) {}, true
+	}
+	release, err := d.control.Admit(intent)
+	if err != nil {
+		return nil, false
+	}
+	if ctx.Err() != nil {
+		release(true)
+		return nil, false
+	}
+	return release, true
+}
+
+// boundary reports a completed tick to a controlled dispatcher's control.
+func (d *Dispatcher) boundary(ctx context.Context, last error) bool {
+	if d.control == nil || ctx.Err() != nil {
+		return false
+	}
+	settled := d.tickSaved && last == nil && d.sweepJob == nil && Settled(d.ledger)
+	return d.control.Boundary(d.tickSaved, settled)
 }

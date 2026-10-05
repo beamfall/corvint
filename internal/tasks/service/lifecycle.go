@@ -820,7 +820,7 @@ func (h Host) Stop(program, request string, drain bool) (*wire.Object, error) {
 	if drain {
 		desired = "DRAINING"
 	}
-	m, ident, next, replay, err := h.suppress(root, request, desired)
+	m, ident, next, replay, acked, err := h.suppress(root, request, desired)
 	if err != nil {
 		return nil, err
 	}
@@ -830,7 +830,7 @@ func (h Host) Stop(program, request string, drain bool) (*wire.Object, error) {
 	switch {
 	case drain && next.Desired == "RUNNING", !drain && next.Desired != "STOPPED":
 		state = "SUPERSEDED"
-	case owner != "NOT_RUNNING" && !fenced:
+	case owner != "NOT_RUNNING" && !fenced, !acked:
 		state = "PENDING"
 	}
 	closed := "PENDING"
@@ -841,36 +841,42 @@ func (h Host) Stop(program, request string, drain bool) (*wire.Object, error) {
 }
 
 // suppress is Stop's checked control change under F: STOPPED from any
-// state, DRAINING only from RUNNING. A replay changes nothing.
-func (h Host) suppress(root, request, desired string) (*Manifest, wire.Digest, Control, bool, error) {
+// state, DRAINING only from RUNNING. A replay changes nothing. acked
+// reports that no launch intent was unresolved under the same F, so every
+// admitted effect is durable (SUPPRESSION_ACKNOWLEDGED).
+func (h Host) suppress(root, request, desired string) (m *Manifest, ident wire.Digest, next Control, replay, acked bool, err error) {
 	unfence, err := h.fence(root)
 	if err != nil {
-		return nil, "", Control{}, false, err
+		return nil, "", Control{}, false, false, err
 	}
 	defer unfence()
 	m, ident, c, err := h.controlled(root)
 	if err != nil {
-		return nil, "", Control{}, false, err
+		return nil, "", Control{}, false, false, err
+	}
+	intents := []string{}
+	if st := h.intentState(root); st != "ABSENT" {
+		intents = append(intents, st)
 	}
 	hash := wire.Sum([]byte(request + "\n" + desired + "\n" + string(ident)))
 	rs, replay, err := h.controlReplay(root, c, request, hash)
 	if err != nil || replay {
-		return m, ident, *c, replay, err
+		return m, ident, *c, replay, len(intents) == 0, err
 	}
 	if desired == "DRAINING" && c.Desired != "RUNNING" {
-		return nil, "", Control{}, false, wire.Errorf(wire.CodeResourceCollision, "/control", "desired state is %s; drain applies only to RUNNING", c.Desired)
+		return nil, "", Control{}, false, false, wire.Errorf(wire.CodeResourceCollision, "/control", "desired state is %s; drain applies only to RUNNING", c.Desired)
 	}
-	p, err := Suppress(*c, request, desired, ControlFacts{FenceHeld: true, Fresh: true, Published: true, ObservedRevision: c.Revision, IntentStates: []string{}})
+	p, err := Suppress(*c, request, desired, ControlFacts{FenceHeld: true, Fresh: true, Published: true, ObservedRevision: c.Revision, IntentStates: intents})
 	if err != nil {
-		return nil, "", Control{}, false, wire.Errorf(wire.CodeResourceCollision, "/control", "%v", err)
+		return nil, "", Control{}, false, false, wire.Errorf(wire.CodeResourceCollision, "/control", "%v", err)
 	}
 	if err := h.writeControl(root, p.Control); err != nil {
-		return nil, "", Control{}, false, err
+		return nil, "", Control{}, false, false, err
 	}
 	if _, err := h.rememberRequest(root, rs, request, hash); err != nil {
-		return nil, "", Control{}, false, err
+		return nil, "", Control{}, false, false, err
 	}
-	return m, ident, p.Control, false, nil
+	return m, ident, p.Control, false, p.State == "SUPPRESSION_ACKNOWLEDGED", nil
 }
 
 // controlReplay finds request in the control request ledger: the same hash
@@ -1085,6 +1091,7 @@ func (h Host) Status(program string) (*wire.Object, error) {
 		sort.Strings(unfinished)
 		o.Set("operations", wire.String(strconv.Itoa(len(ops)))).Set("unfinished", wire.Strings(unfinished))
 	}
+	o.Set("launchIntent", wire.String(h.intentState(root)))
 	o.Set("notObserved", wire.Strings([]string{"bootLoginScope", "completedTick", "helpers", "restartDebt"}))
 	return o, nil
 }

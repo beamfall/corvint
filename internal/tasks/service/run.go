@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -25,9 +26,9 @@ type RunOptions struct {
 	Program, Manifest string
 	// Executable is this process's resolved executable path.
 	Executable string
-	// Open takes dispatcher ownership with fence as its pre-spawn launch
-	// fence (dispatch.OpenControlled).
-	Open func(program string, c *dispatch.Config, fence dispatch.LaunchFence) (Controller, error)
+	// Open takes dispatcher ownership with control as its launch control
+	// (dispatch.OpenControlled).
+	Open func(program string, c *dispatch.Config, control dispatch.LaunchControl) (Controller, error)
 	// Poll is the control/pin observation interval; Pulse the liveness
 	// write interval; Retry the delay after a failed or busy Open.
 	Poll, Pulse, Retry time.Duration
@@ -58,8 +59,9 @@ type exeStamp struct {
 // Run is the foreground managed main. It runs the existing dispatcher
 // in-process only while control is RUNNING or DRAINING and bound to the
 // installed manifest, and the pinned executable and dispatch config bytes
-// match. Every new launch passes the fence (admitter); a settled drain
-// becomes STOPPED (govern).
+// match. Every new launch passes the launch control (launchControl.Admit);
+// a settled drain becomes STOPPED at a dispatcher tick boundary
+// (launchControl.Boundary), which ends the dispatcher with ErrSettled.
 // Any other observation idles or holds without exiting, so the manager's
 // keepalive never becomes a restart loop. It returns when ctx ends.
 func Run(ctx context.Context, o RunOptions) error {
@@ -113,8 +115,12 @@ func Run(ctx context.Context, o RunOptions) error {
 			case err := <-done:
 				_ = ctl.Close()
 				ctl, cancel, done = nil, nil, nil
-				d.hold = "dispatcher ended: " + describe(err)
-				retryAt = o.now().Add(o.Retry)
+				if errors.Is(err, dispatch.ErrSettled) {
+					d.run = false
+				} else {
+					d.hold = "dispatcher ended: " + describe(err)
+					retryAt = o.now().Add(o.Retry)
+				}
 			default:
 				if !d.run || d.ident != runIdent {
 					stop()
@@ -122,8 +128,12 @@ func Run(ctx context.Context, o RunOptions) error {
 			}
 		}
 		if ctl == nil && d.run && d.hold == "" && !o.now().Before(retryAt) {
-			c, err := o.Open(o.Program, d.config, o.admitter(root, d.ident, d.legacy))
-			if err == nil && !o.boundAfterOpen(root, d.ident) {
+			var c Controller
+			lc, err := o.control(root, d.ident, d.legacy)
+			if err == nil {
+				c, err = o.Open(o.Program, d.config, lc)
+			}
+			if err == nil && !o.boundAfterOpen(root, d.ident, d.config) {
 				// A stop saved before Open took ownership is seen here; one
 				// saved later is enforced by the launch fence.
 				_ = c.Close()

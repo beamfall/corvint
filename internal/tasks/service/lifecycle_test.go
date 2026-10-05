@@ -752,7 +752,7 @@ func TestSERVICE500_ManagedMainFollowsControlAndPins(t *testing.T) {
 	// until stop has answered; without it a loaded host can let the main
 	// publish IDLE first, and stop then rightly reports close OBSERVED.
 	gate := make(chan struct{})
-	open := func(program string, c *dispatch.Config, _ dispatch.LaunchFence) (Controller, error) {
+	open := func(program string, c *dispatch.Config, _ dispatch.LaunchControl) (Controller, error) {
 		if program != "site" || c.WorkRoot != s.work {
 			return nil, errors.New("wrong binding")
 		}
@@ -865,7 +865,7 @@ func TestSERVICE500_ManagedMainRechecksControlAfterOpen(t *testing.T) {
 	}
 	root := s.root(t)
 	ran, closed := make(chan struct{}, 8), make(chan struct{}, 8)
-	open := func(string, *dispatch.Config, dispatch.LaunchFence) (Controller, error) {
+	open := func(string, *dispatch.Config, dispatch.LaunchControl) (Controller, error) {
 		if _, err := s.h.Stop("site", "stop-1", false); err != nil {
 			return nil, err
 		}

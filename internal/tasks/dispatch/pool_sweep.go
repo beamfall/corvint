@@ -320,7 +320,19 @@ func (d *Dispatcher) tickPoolSweep(ctx context.Context, obs *Observation) (*Obse
 		// Replay of the same identity never re-executes a phase; retry it once
 		// per interval so explicit recovery can end it without a restart.
 		if !d.sweepTried[r.RequestID] || !d.Now().Before(d.sweepNext) {
+			// A STARTING or UNKNOWN record has no proven native admission, so
+			// its replay may be a first execution: a controlled dispatcher
+			// runs it only under an admitted fence.
+			release := func(bool) {}
+			if r.Phase == "STARTING" || r.Phase == "UNKNOWN" {
+				rel, ok := d.admit(ctx, r.RequestID)
+				if !ok {
+					return obs, ctx.Err()
+				}
+				release = rel
+			}
 			d.startPoolSweep(ctx, q, *r)
+			release(true)
 		}
 		return obs, nil
 	}
@@ -357,23 +369,19 @@ func (d *Dispatcher) tickPoolSweep(ctx context.Context, obs *Observation) (*Obse
 		if prior != nil && prior.Allocation == m.Allocation {
 			continue
 		}
-		// A controlled dispatcher starts a new sweep only under its fence.
-		release := func() {}
-		if d.fence != nil {
-			rel, err := d.fence()
-			if err != nil {
-				return obs, nil
-			}
-			release = rel
-		}
 		now := d.Now().UTC()
 		r := PoolSweepRecord{PoolSweepRequest: PoolSweepRequest{WorkRoot: d.Config.WorkRoot, Program: d.Program, Queue: m.Queue, Pool: m.Pool, Member: m.Member, Allocation: m.Allocation, Definition: m.Definition, RequestID: sweepID(d.Program, m.Queue, m.Allocation), Actor: actor, ActorRole: role, ConfigDigest: hex.EncodeToString(configDigest[:]), TimeoutSeconds: d.Config.PoolSweep.TimeoutSeconds}, Phase: "STARTING", Started: now, Observed: now}
+		// A controlled dispatcher starts a new sweep only under its fence.
+		release, ok := d.admit(ctx, r.RequestID)
+		if !ok {
+			return obs, ctx.Err()
+		}
 		if e = d.commitPoolSweep(r); e != nil {
-			release()
+			release(true)
 			return obs, e
 		}
 		d.startPoolSweep(ctx, q, r)
-		release()
+		release(true)
 		break
 	}
 	return obs, nil
