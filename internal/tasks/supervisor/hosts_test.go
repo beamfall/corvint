@@ -76,7 +76,7 @@ func TestCALV0075_ClaudeResultVocabulary(t *testing.T) {
 	if _, _, e := codex.Decode([]byte(claudeObject(t, nil))); e == nil {
 		t.Fatal("codex vocabulary decoded a Claude Code result")
 	}
-	for _, unknown := range []string{"opencode", "Claude-Code", " claude-code"} {
+	for _, unknown := range []string{"gemini-cli", "Claude-Code", " claude-code"} {
 		if _, ok := HostVocabulary(unknown); ok {
 			t.Fatalf("unknown host %q has a vocabulary", unknown)
 		}
