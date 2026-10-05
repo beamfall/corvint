@@ -93,38 +93,48 @@ func ergReceiptForge(t *testing.T, repo *intent.Repository, seq uint64, forge fu
 
 // TestERGV0009_ForgedReviewEventsRefuseAtRecovery covers the crash boundary
 // and the dispatcher read: a rehashed review event whose actor, counters,
-// prior RETURN, subject generation or candidate tree do not reproduce its
-// receipt's transition refuses redo as JOURNAL_FORKED with the projection
-// unchanged, and once settled leaves the dispatcher's gates unobserved
-// rather than actionable (ERG-V0-006/-009).
+// prior RETURN, subject generation, candidate tree or reviewer lease do not
+// reproduce its receipt's transition refuses redo as JOURNAL_FORKED with the
+// projection unchanged, and once settled leaves the dispatcher's gates
+// unobserved rather than actionable (ERG-V0-006/-009). The lease cases run
+// under a policy that requires a reviewer lease: a lease-bound record is the
+// control, and stripping its lease to an operator attestation is a forgery.
 func TestERGV0009_ForgedReviewEventsRefuseAtRecovery(t *testing.T) {
 	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
 	t.Setenv("ATM_ACTOR", "tester")
 	cases := []struct {
 		name  string
 		forge func(*snapshot.ExternalReviewEvent)
+		lease bool
 	}{
-		{"control", nil},
-		{"actor", func(e *snapshot.ExternalReviewEvent) { e.ActorID = "someone-else" }},
+		{"control", nil, false},
+		{"actor", func(e *snapshot.ExternalReviewEvent) { e.ActorID = "someone-else" }, false},
 		// Self-consistent request and event counters that skip the prior
 		// reference (1,1): the ticket reference is rewritten to match.
 		{"counters", func(e *snapshot.ExternalReviewEvent) {
 			e.Request.ExpectedGeneration, e.Request.ExpectedRevision = "2", "2"
 			e.ReviewGeneration, e.EventRevision = "2", "3"
-		}},
+		}, false},
 		{"prior-return", func(e *snapshot.ExternalReviewEvent) {
 			d := wire.Sum([]byte("not the prior RETURN"))
 			e.Request.PriorReturn = &d
-		}},
+		}, false},
 		// The subject's generation and TREE candidate must be the retained
 		// BUILT submission's, not whatever the request states.
-		{"subject-generation", func(e *snapshot.ExternalReviewEvent) { e.Request.Subject.Generation = "7" }},
-		{"candidate-tree", func(e *snapshot.ExternalReviewEvent) { e.Request.Candidate.TreeOID = strings.Repeat("ab", 20) }},
+		{"subject-generation", func(e *snapshot.ExternalReviewEvent) { e.Request.Subject.Generation = "7" }, false},
+		{"candidate-tree", func(e *snapshot.ExternalReviewEvent) { e.Request.Candidate.TreeOID = strings.Repeat("ab", 20) }, false},
+		{"lease-control", nil, true},
+		{"dropped-lease", func(e *snapshot.ExternalReviewEvent) {
+			e.Request.ReviewerLease, e.TrustSource = nil, "OPERATOR_ATTESTED"
+		}, true},
 	}
 	for _, tc := range cases {
 		for _, settled := range []bool{false, true} {
 			t.Run(tc.name+map[bool]string{false: "/pending", true: "/settled"}[settled], func(t *testing.T) {
 				root, tree := ergStore(t)
+				if tc.lease {
+					ergPolicyUpdateLease(t, root, "3", []string{"implement"}, []string{"implement"}, true)
+				}
 				id := planTicket(t, root, "reviewed", "P1", `["src/"]`)
 				local, err := wire.ParseTicketID("", id)
 				if err != nil {
@@ -153,6 +163,9 @@ func TestERGV0009_ForgedReviewEventsRefuseAtRecovery(t *testing.T) {
 				target := []string{"gate", "record", id, "--gate", ergGate, "--verdict", "RETURN", "--subject-receipt", subject,
 					"--expected-generation", "0", "--expected-revision", "0", "--request-id", "review-1", "--reason", "TESTS:missing case",
 					"--issued-at", "2026-10-04T12:00:00Z"}
+				if tc.lease {
+					target = append(target, "--reviewer-attempt", attempt)
+				}
 				switch tc.name {
 				case "counters":
 					runOK(target...)

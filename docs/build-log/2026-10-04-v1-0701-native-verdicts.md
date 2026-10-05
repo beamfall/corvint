@@ -84,7 +84,27 @@ gate state, without Markdown parsing. Its contract is the updated current-state 
   O(receipts) pass for each consumer. V1-0645's writer-cost work should treat the fold as one more
   full pass to cache or amortise.
 
-## Evidence
+## Third review repair (Codex CHANGES_REQUIRED at d500620a)
+
+- **P1-1, reviewer lease.** The replay observations copied the definition's recorder roles but
+  not `requireReviewerLease`, which defaulted to false. Under a lease-required policy, a
+  lease-bound RECORD rewritten to an operator attestation and rehashed therefore replayed. Replay
+  now carries the retained requirement. The forge test adds a lease-bound control and a
+  dropped-lease forgery, each in pending and settled form. The forgery was redone before the fix.
+- **P1-2, malformed attempts.** `ExternalBuiltPosts` checked the raw phase before decoding, so a
+  hash-consistent object with missing or mistyped attempt fields was skipped. Every attempt post is
+  now fully decoded before filtering, and a failure is JOURNAL_FORKED. Three valid-JSON malformed
+  cases were added, and they fail against d500620a.
+- **P2-3, changed-target retries.** A retry on another gate or ticket missed the gate-chain lookup
+  and failed on fresh composition (GATE_UNKNOWN or MALFORMED). A request id is now resolved
+  through `journal.RequestIndex` before composition:
+  - the afterimage path is probed first, so a fresh id costs no audit;
+  - a completed request off the selected chain, or any retained request for another ticket, is
+    REQUEST_ID_CONFLICT;
+  - an uncompleted one on the same ticket falls through to the writer.
+
+  The chain walk covers every event a gate can hold (4096). Tests cover the undeclared-gate,
+  other-ticket and other-operation retries.
 
 Focused tests (all passing):
 - `TestERGV0009_NativeVerdictsThroughTheCLI`;
@@ -92,7 +112,8 @@ Focused tests (all passing):
 - `TestERGV0009_ReviewRetriesReplay`;
 - `TestERGV0006_BlobBackedSubmissionSupersedes`, `TestERGV0006_RecoveryChecksEveryAuthorStage` and
   `TestERGV0006_BuiltPostsNeverSkipUnreadable`. Each of these, and the new forged and retry cases,
-  failed when its fix was temporarily reverted;
+  failed when its fix was temporarily reverted, as did the third repair's lease, malformed-attempt
+  and changed-target cases;
 - `TestERGV0009_PolicyExternalReviewsGrantNothingByDefault`;
 - `TestERGV0009_TicketReviewReferencesCodec`;
 - `TestERGV0009_CoreReaderAdmitsOnlyTheClosedReviewReferences`;

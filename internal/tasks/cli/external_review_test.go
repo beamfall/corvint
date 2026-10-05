@@ -44,6 +44,13 @@ func ergPolicyUpdate(t *testing.T, root, version string) {
 // gate's author stages; no stages leaves the gate undeclared.
 func ergPolicyUpdateStages(t *testing.T, root, version string, authorStages []string) {
 	t.Helper()
+	ergPolicyUpdateLease(t, root, version, authorStages, []string{"review"}, false)
+}
+
+// ergPolicyUpdateLease installs the review policy at version with the gate's
+// author and review stages and its reviewer-lease requirement.
+func ergPolicyUpdateLease(t *testing.T, root, version string, authorStages, reviewStages []string, requireLease bool) {
+	t.Helper()
 	policy := fixture.PolicyValue()
 	policy.Obj.Set("policyVersion", wire.String(version))
 	budgets, _ := policy.Obj.Get("budgets")
@@ -53,7 +60,7 @@ func ergPolicyUpdateStages(t *testing.T, root, version string, authorStages []st
 	if len(authorStages) != 0 {
 		def := wire.NewObject().Set("authorStages", wire.Strings(authorStages)).Set("gateId", wire.String(ergGate)).
 			Set("purpose", wire.String("ROUTING_ONLY")).Set("recorderRoles", wire.Strings([]string{"OPERATOR", "OWNER"})).
-			Set("requireReviewerLease", wire.Bool(false)).Set("reviewStages", wire.Strings([]string{"review"}))
+			Set("requireReviewerLease", wire.Bool(requireLease)).Set("reviewStages", wire.Strings(reviewStages))
 		policy.Obj.Set("externalReviews", wire.Array(wire.ObjectValue(def)))
 	}
 	dir, err := filepath.EvalSymlinks(t.TempDir())
@@ -275,6 +282,24 @@ func TestERGV0009_ReviewRetriesReplay(t *testing.T) {
 	}
 	conflict("changed resubmit", changedResubmit)
 	conflict("changed record", changedRecord)
+	// The queue-wide request index decides a retry whose ticket, gate or
+	// operation changed: a fresh composition would refuse as GATE_UNKNOWN or
+	// on the subject, never as a conflict.
+	retarget := func(args []string, from, to string) []string {
+		out := append([]string{}, args...)
+		for i := range out {
+			if out[i] == from {
+				out[i] = to
+			}
+		}
+		return out
+	}
+	other := planTicket(t, root, "other", "P1", `["src/"]`)
+	conflict("record retried on an undeclared gate", retarget(record, ergGate, "g2-undeclared"))
+	conflict("resubmit retried on an undeclared gate", retarget(resubmit, ergGate, "g2-undeclared"))
+	conflict("record retried on another ticket", retarget(record, id, other))
+	conflict("resubmit retried on another ticket", retarget(resubmit, id, other))
+	conflict("record reusing a claim's request id", retarget(record, "review-1", "claim-a"))
 
 	ergPolicyUpdate(t, root, "3")
 	runOK("release", "--attempt", attempt, "--generation", generation, "--reason", wire.CodeHandoff, "--request-id", "release-a")
@@ -289,4 +314,5 @@ func TestERGV0009_ReviewRetriesReplay(t *testing.T) {
 	ergPolicyUpdateStages(t, root, "4", nil)
 	conflict("changed record after the gate was undeclared", changedRecord)
 	conflict("changed resubmit after the gate was undeclared", changedResubmit)
+	conflict("record retried on another ticket after the gate was undeclared", retarget(record, id, other))
 }

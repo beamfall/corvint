@@ -3,12 +3,14 @@ package cli
 import (
 	"errors"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
@@ -134,12 +136,55 @@ func gateReviewCommand(env Env, verb string, args []string) *wire.Result {
 // bytes are resubmitted instead of a fresh composition, so a later policy,
 // lease or head change cannot alter a retry's envelope. A retained event for
 // --request-id whose request differs in any caller input refuses at once as
-// REQUEST_ID_CONFLICT, before any fresh composition or policy lookup.
+// REQUEST_ID_CONFLICT, before any fresh composition or policy lookup; so does
+// a request id the queue-wide request index retains for another ticket, gate
+// or operation.
 func retainedReviewRequest(rc *readCtx, operation string, actor mutation.Binding, f reviewFlags) (wire.Value, bool, error) {
 	id, err := resolveTicketArg(rc, f.target)
 	if err != nil {
 		return wire.Value{}, false, err
 	}
+	v, found, err := retainedChainRequest(rc, id, operation, actor, f)
+	if err != nil || found {
+		return v, found, err
+	}
+	return wire.Value{}, false, retainedElsewhere(rc, id, f)
+}
+
+// retainedElsewhere refuses a request id the queue already retains outside
+// the selected gate's chain. The chain walk covers every event a gate can
+// hold, so a completed request that is not on it was another ticket, gate
+// or operation; so was any retained request for another ticket. A request
+// left uncompleted on the same ticket falls through to the writer, which
+// replays or refuses it by its mutation digest. The afterimage path is
+// probed first, so a fresh request id costs no extra journal audit; an
+// absent afterimage the journal still binds is the writer's to refuse.
+func retainedElsewhere(rc *readCtx, id string, f reviewFlags) error {
+	path, err := snapshot.RequestPath(f.requestID)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Lstat(filepath.Join(rc.repo.StateDir, path)); errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree}}
+	entry, found, err := idx.Lookup(f.requestID)
+	if err != nil {
+		return err
+	}
+	if idx.Identity.HeadSha256 != rc.snap.HeadSha256 {
+		return wire.Errorf(wire.CodeSnapshotMoved, "--request-id", "journal and outer snapshot differ")
+	}
+	if !found || (idx.TicketID == id && entry.Outcome.Outcome != mutation.OutcomeCompleted) {
+		return nil
+	}
+	return wire.Errorf(wire.CodeRequestIDConflict, "--request-id", "request %s is retained for another ticket, gate or operation", f.requestID)
+}
+
+// retainedChainRequest walks the selected gate's event chain for
+// --request-id: a matching retained request is returned for resubmission and
+// a mismatching one is REQUEST_ID_CONFLICT.
+func retainedChainRequest(rc *readCtx, id, operation string, actor mutation.Binding, f reviewFlags) (wire.Value, bool, error) {
 	rec, ok := rc.store.Inventory.Get(id)
 	if !ok {
 		return wire.Value{}, false, nil

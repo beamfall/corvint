@@ -47,8 +47,9 @@ func externalPostBytes(p snapshot.PostEntry, blob ExternalReviewBlob) ([]byte, e
 }
 
 // ExternalBuiltPosts returns the attempt records rc posts, inline or
-// blob-backed, whose phase enters BUILT at rc's own sequence. An attempt post
-// whose bytes cannot be read or decoded is an error, never a skipped entry.
+// blob-backed, whose phase enters BUILT at rc's own sequence. Every attempt
+// post is read and fully decoded first: one that cannot be is JOURNAL_FORKED,
+// never a skipped entry.
 func ExternalBuiltPosts(rc *snapshot.Receipt, blob ExternalReviewBlob) ([]ExternalBuilt, error) {
 	var out []ExternalBuilt
 	for _, p := range rc.Post {
@@ -59,18 +60,15 @@ func ExternalBuiltPosts(rc *snapshot.Receipt, blob ExternalReviewBlob) ([]Extern
 		if err != nil {
 			return nil, err
 		}
-		v, err := wire.Parse(raw)
-		if err != nil || v.Obj == nil {
-			return nil, wire.Errorf(wire.CodeJournalForked, p.Path, "attempt post is not a record")
-		}
-		phase, _ := v.Obj.Get("phase")
-		since, _ := v.Obj.Get("phaseSinceSeq")
-		if phase.Str != "BUILT" || since.Str != string(rc.Seq) {
-			continue
-		}
+		// Every attempt post is decoded before it is filtered, so a
+		// hash-consistent record with missing or mistyped fields cannot drop
+		// out of the submission history.
 		a, err := snapshot.DecodeAttempt(raw)
 		if err != nil {
-			return nil, err
+			return nil, wire.Errorf(wire.CodeJournalForked, p.Path, "attempt post is not an attempt record: %v", err)
+		}
+		if a.Phase != "BUILT" || a.PhaseSinceSeq != rc.Seq {
+			continue
 		}
 		b := ExternalBuilt{TicketID: a.TicketID.Raw, Stage: a.Stage, AttemptID: a.AttemptID, Seq: rc.Seq, Generation: a.Generation, AttemptSha256: *p.Sha256}
 		if a.CandidateTreeOid != nil {
@@ -301,7 +299,7 @@ func (a *ExternalReviewReceiptAudit) subject(q snapshot.ExternalReviewRequest) (
 // pure transition reproduces a retained event: the receipt's actor, time and
 // sequence, the audited preceding reference and its head event, the binding
 // derived from the retained BUILT submission and policy, and the retained
-// definition's recorder roles. Lease liveness and lease stages cannot be
+// definition's recorder roles and reviewer-lease requirement. Lease liveness and lease stages cannot be
 // re-observed from history, so the request's leases are taken as live in a
 // stage both lease checks admit; the replay checks the material transition.
 func externalReplayObservations(rc *snapshot.Receipt, q snapshot.ExternalReviewRequest, binding ExternalReviewBinding, def *intent.ExternalReviewDefinition, prior *snapshot.ExternalReviewRef, priorEvent []byte) ExternalReviewObservations {
@@ -324,7 +322,7 @@ func externalReplayObservations(rc *snapshot.Receipt, q snapshot.ExternalReviewR
 		Actor:       mutation.Binding{ID: rc.ActorID, Role: rc.ActorRole},
 		PolicyState: "VERIFIED", SubjectState: "VERIFIED", CandidateLinkState: "VERIFIED", EvidenceState: "VERIFIED",
 		Binding:      binding,
-		Policy:       ExternalReviewPolicy{RecorderRoles: def.RecorderRoles, ReviewStages: []string{stage}, AuthorStages: []string{stage}},
+		Policy:       ExternalReviewPolicy{RecorderRoles: def.RecorderRoles, ReviewStages: []string{stage}, AuthorStages: []string{stage}, RequireReviewerLease: def.RequireReviewerLease},
 		Reviewer:     lease(q.ReviewerLease),
 		Author:       lease(q.AuthorLease),
 		Current:      prior,
