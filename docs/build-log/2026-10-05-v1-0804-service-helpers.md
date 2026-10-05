@@ -10,6 +10,10 @@ V1-0804 (2026-10-05). It delivers SERVICE500-007 of `docs/specs/corvint-tasks-us
 - bounded service logging;
 - helper runtime restart-debt charging.
 
+The owner first recorded this work as deferred to V1-0804, with install refusing helpers
+([2026-10-05 deferral](2026-10-05-issue500-helpers-deferred.md)). This entry is that deferred
+delivery; it was merged with the deferral record, and platform qualification stays with V1-0697.
+
 Platform qualification stays NOT_RUN and belongs to V1-0697. Requirement IDs are unchanged.
 
 ## Change

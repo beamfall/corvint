@@ -296,9 +296,10 @@ fail-closed NONE predicate. Owner decision D7 (2026-10-05, ticket V1-0792) chose
 read-only `complete-manual` offer of ERG-V0-011, and declined an opt-in completion policy, so
 ERG-V0-007 stands.
 
-Open (raised with the owner 2026-10-05, ticket V1-0792): whether a policy-required executable gate
-without an observed PASS should withhold the ERG-V0-011 offer. These reads do not observe executable
-gate results (`gateResults: NOT_OBSERVED`), so the delivered predicate excludes them; withholding
-on NOT_OBSERVED would make the offer unreachable in a queue with required executable gates. Also
-open: whether `queue status` and `roadmap` should carry the offer, and whether every
-policy-declared gate should be required of every ticket that references any review gate.
+Decided (owner, 2026-10-05, ticket V1-0792), keeping the delivered behavior. A policy-required
+executable gate without an observed PASS does not withhold the ERG-V0-011 offer: these reads do not
+observe executable gate results (`gateResults: NOT_OBSERVED`), withholding on NOT_OBSERVED would make
+the offer unreachable in a queue with required executable gates, and `complete-manual` still needs
+its own evidence. `queue status` and `roadmap` do not carry the offer; `ticket show` and `plan
+preview` do. The required set stays as delivered in ERG-V0-011: every review gate the policy declares
+plus every review gate the ticket references.

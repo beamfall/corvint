@@ -8,8 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/tasks/cli"
+	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -217,5 +220,51 @@ func TestIssue502_EscalationCLIWritesAndReads(t *testing.T) {
 	}
 	if !strings.HasPrefix(a.Receipt, "0") {
 		t.Fatalf("claim receipt name %q is not the padded form", a.Receipt)
+	}
+}
+
+// TestIssue502_ObserveNamesInfrastructureHolders: the dispatcher observation
+// names the holder of each current infrastructure request, so ESC-V0-008
+// binds the request to the session that raised it, and a typed-only control
+// write leaves the observed revision at the work revision, so it is not
+// checked progress. A decision request is a hold, not an infrastructure
+// holder.
+func TestIssue502_ObserveNamesInfrastructureHolders(t *testing.T) {
+	root, claimed := leaseCLIStore(t, 2, time.Now().UTC().Truncate(time.Second).Add(-11*time.Minute))
+	t.Setenv("CORVINT_TASKS_ACTOR", "holder")
+	a, b := claimed[0], claimed[1]
+	observe := func() map[string]dispatch.Ticket {
+		t.Helper()
+		obs, err := cli.ObserveTickets(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := map[string]dispatch.Ticket{}
+		for _, x := range obs {
+			out[x.ID] = x
+		}
+		return out
+	}
+	before := observe()
+	for _, x := range []struct {
+		c        *store.Report
+		kind, id string
+	}{{a, "infrastructure", "q-infra"}, {b, "decision", "q-dec"}} {
+		if r := atm(t, root, nil, "ticket", "escalate", "--attempt", x.c.AttemptID, "--claim-receipt", x.c.Receipt,
+			"--kind", x.kind, "--question", "?", "--request-id", x.id); r.res.Outcome != wire.OutcomeOK {
+			t.Fatalf("escalate %s: %+v", x.kind, r.res)
+		}
+	}
+	after := observe()
+	if got := after[a.Ticket]; !slices.Equal(got.Infrastructure, []string{"holder"}) || got.EscalationUnknown || got.AcceptanceRevision == "" {
+		t.Fatalf("infrastructure observation = %+v", got)
+	}
+	if got := after[b.Ticket]; got.Infrastructure != nil || !slices.Equal(got.EscalationPending, []string{"q-dec"}) {
+		t.Fatalf("decision observation = %+v", got)
+	}
+	for _, id := range []string{a.Ticket, b.Ticket} {
+		if after[id].Revision != before[id].Revision {
+			t.Fatalf("%s: a typed write moved the observed revision %s -> %s", id, before[id].Revision, after[id].Revision)
+		}
 	}
 }
