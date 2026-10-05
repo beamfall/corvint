@@ -1,0 +1,258 @@
+{
+  "baseRevision": "a9df0e4a9d7d7840f27b99058ea5e98209fa61f3",
+  "evidence": [
+    {
+      "blobOid": "6332dd11648a27987a686eca2d96e39958cbbe11",
+      "id": "evidence:sha256:b926d004120b278bd30ae8d7020a6e242301c546bfd6d25a27e14d2396fbfcf1",
+      "path": "docs/specs/corvint-tasks-escalations-v0.md",
+      "span": {
+        "end": 9474,
+        "start": 8301
+      },
+      "spanSha256": "b46e066fdefb0f00624187428fa11b37d462851cb011cc8f7c410ae1f1aaceb8"
+    },
+    {
+      "blobOid": "6332dd11648a27987a686eca2d96e39958cbbe11",
+      "id": "evidence:sha256:28671013b8d4053a6092c32fd3f5b06c937e702b2b749f9b0da39671754f53f3",
+      "path": "docs/specs/corvint-tasks-escalations-v0.md",
+      "span": {
+        "end": 5572,
+        "start": 4096
+      },
+      "spanSha256": "1210cb28a1f75912ccaa655278d0ab965ecd4ee951d24fb402c9335b51c991a4"
+    },
+    {
+      "blobOid": "6332dd11648a27987a686eca2d96e39958cbbe11",
+      "id": "evidence:sha256:1d7e80d29d4b6fc988bfb883c6b8db12a05197c53f8e368060d469f66d55832e",
+      "path": "docs/specs/corvint-tasks-escalations-v0.md",
+      "span": {
+        "end": 28809,
+        "start": 28592
+      },
+      "spanSha256": "c25f46615065e3b233644c8e69a0191940dc75e266ac6001fdf7c01981a40fa9"
+    },
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3265,
+        "start": 2977
+      },
+      "spanSha256": "29bf8bf25de6e19c57bfee2b1fc98c3d85cbeabf2157578740a5eae467b3c916"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b926d004120b278bd30ae8d7020a6e242301c546bfd6d25a27e14d2396fbfcf1",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:28671013b8d4053a6092c32fd3f5b06c937e702b2b749f9b0da39671754f53f3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:70fac9e30ae057c4437fc9dd940d9d3b8470bbe1fcc11d1125f78f7be6e1a67b",
+      "newRange": {
+        "count": 10,
+        "start": 17
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 17
+      },
+      "path": "docs/build-log/2026-10-04-issue502-escalation-writer.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b926d004120b278bd30ae8d7020a6e242301c546bfd6d25a27e14d2396fbfcf1",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:1d7e80d29d4b6fc988bfb883c6b8db12a05197c53f8e368060d469f66d55832e",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:bf94f4e452c0b3c6813174673135d2ffda5ca01900e64b82775fb10c583b85ac",
+      "newRange": {
+        "count": 16,
+        "start": 53
+      },
+      "oldRange": {
+        "count": 14,
+        "start": 52
+      },
+      "path": "docs/build-log/2026-10-04-issue502-escalation-writer.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:28671013b8d4053a6092c32fd3f5b06c937e702b2b749f9b0da39671754f53f3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d10492f3015ca49c649303b36a9faeb99947a3ee42e36dcf5957996b96d2767b",
+      "newRange": {
+        "count": 7,
+        "start": 20
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 20
+      },
+      "path": "docs/specs/corvint-tasks-escalations-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b926d004120b278bd30ae8d7020a6e242301c546bfd6d25a27e14d2396fbfcf1",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:660470ffc659fea73e99da47e06a2473ff85f828782fa57c98f6782ade541c9a",
+      "newRange": {
+        "count": 7,
+        "start": 106
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 106
+      },
+      "path": "docs/specs/corvint-tasks-escalations-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b926d004120b278bd30ae8d7020a6e242301c546bfd6d25a27e14d2396fbfcf1",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:28671013b8d4053a6092c32fd3f5b06c937e702b2b749f9b0da39671754f53f3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3f36fd335c12efa56288ac819f84f792d6bb1929ded5da4eb7da5c83be793904",
+      "newRange": {
+        "count": 12,
+        "start": 136
+      },
+      "oldRange": {
+        "count": 12,
+        "start": 136
+      },
+      "path": "docs/specs/corvint-tasks-escalations-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1d7e80d29d4b6fc988bfb883c6b8db12a05197c53f8e368060d469f66d55832e",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:5f59283bae08b22055f38da52bca02564592741f8df5f7a31fdf19d0ea9df489",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:dc0d5a6a4e5816c3fc073b84e69767aa9521ba34e221ede4adf09f938e39d54a",
+      "newRange": {
+        "count": 11,
+        "start": 186
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 186
+      },
+      "path": "docs/specs/corvint-tasks-escalations-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b926d004120b278bd30ae8d7020a6e242301c546bfd6d25a27e14d2396fbfcf1",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:28671013b8d4053a6092c32fd3f5b06c937e702b2b749f9b0da39671754f53f3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:082865c2f33c8fb8b5288898f5dee550c335cc1ba6f3f077d1e122e17ab48591",
+      "newRange": {
+        "count": 11,
+        "start": 375
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 375
+      },
+      "path": "internal/tasks/intent/policy.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b926d004120b278bd30ae8d7020a6e242301c546bfd6d25a27e14d2396fbfcf1",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a139b2ad67675a593b833f5e7cf024c7346cd34a42d5e8ab1dc58f8e8ad59668",
+      "newRange": {
+        "count": 18,
+        "start": 3
+      },
+      "oldRange": {
+        "count": 13,
+        "start": 3
+      },
+      "path": "internal/tasks/store/issue502_escalation_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b926d004120b278bd30ae8d7020a6e242301c546bfd6d25a27e14d2396fbfcf1",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:1d7e80d29d4b6fc988bfb883c6b8db12a05197c53f8e368060d469f66d55832e",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:80795ee68e15b1639454509bce0c135546e15e757ef339974e860c1a405c8444",
+      "newRange": {
+        "count": 54,
+        "start": 415
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 410
+      },
+      "path": "internal/tasks/store/issue502_escalation_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "62222f8cb0d45789d77784ead8ace028f188dff29725a2f756574551fd7785bf",
+  "spec": "cem/0.2"
+}

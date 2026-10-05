@@ -72,6 +72,8 @@ type LeaseFacts struct {
 	DerivationSha256                       wire.Digest
 	// RunOutcome is the outcome document a RUN_OUTCOME posts (ATR-V0-005).
 	RunOutcome []byte
+	// Escalation is an ESCALATE or ANSWER request and its audit facts.
+	Escalation *EscalationFacts
 	gateFacts
 }
 
@@ -128,6 +130,8 @@ var leaseShapes = map[string]leaseShape{
 	LeaseGateRun:         {fieldAttempt | fieldGeneration | fieldGate, fieldAttempt | fieldGeneration | fieldGate},
 	LeaseComplete:        {fieldAttempt | fieldGeneration | fieldCommit, fieldAttempt | fieldGeneration | fieldCommit},
 	LeaseRunOutcome:      {fieldAttempt | fieldGeneration | fieldEvidence, fieldAttempt | fieldGeneration | fieldEvidence},
+	LeaseEscalate:        {fieldEvidence, fieldEvidence},
+	LeaseAnswer:          {fieldEvidence, fieldEvidence},
 }
 
 func (l *LeaseRequest) present() int {
@@ -233,7 +237,7 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 		if _, e := wire.ParseIdentifier("evidence", l.Evidence); e != nil {
 			return e
 		}
-		if l.Verb == LeaseRunOutcome {
+		if l.Verb == LeaseRunOutcome || l.Verb == LeaseEscalate || l.Verb == LeaseAnswer {
 			if _, e := wire.ParseDigest("evidence", l.Evidence); e != nil {
 				return e
 			}
@@ -338,7 +342,7 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 	if l.Verb == LeaseRelease && l.Evidence != "" {
 		v.Obj.Set("evidence", s(l.Evidence))
 	}
-	if l.Verb == LeaseProgram || l.Verb == LeaseSupervisor || l.Verb == LeaseRunOutcome {
+	if l.Verb == LeaseProgram || l.Verb == LeaseSupervisor || l.Verb == LeaseRunOutcome || l.Verb == LeaseEscalate || l.Verb == LeaseAnswer {
 		v.Obj.Set("evidence", s(l.Evidence))
 	}
 	if l.Verb == LeasePoolSafe || l.Verb == LeasePoolPrepare || l.Verb == LeasePoolObserve || l.Verb == LeasePoolCleanup || l.Verb == LeasePoolRecover {
@@ -411,6 +415,9 @@ var leasePlanners = map[string]func(leaseContext) leaseOutcome{
 	LeaseComplete:  planComplete,
 	// ATR-V0-005: an observation-only outcome post.
 	LeaseRunOutcome: planRunOutcome,
+	// ESC-V0-010: a typed question or answer posts the ticket and its events.
+	LeaseEscalate: planEscalation,
+	LeaseAnswer:   planEscalation,
 }
 
 func planLease(r Request, in Input, st inputState) leaseOutcome {
