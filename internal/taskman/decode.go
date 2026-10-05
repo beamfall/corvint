@@ -32,7 +32,10 @@ func boolField(v wire.Value, k string) error {
 }
 func decodeTicket(v wire.Value) (ticket, error) {
 	t := ticket{raw: v, id: stringAt(v, "ticketId"), revision: stringAt(v, "acceptanceRevision"), status: stringAt(v, "status"), priority: stringAt(v, "priority")}
-	if e := object(v, ticketKeys); e != nil {
+	if e := object(v, ticketObjectKeys(v)); e != nil {
+		return t, e
+	}
+	if e := operatorNote(v); e != nil {
 		return t, e
 	}
 	if stringAt(v, "profile") != "taskman-ticket/0" || !strings.HasPrefix(t.id, "ticket:") {
@@ -330,4 +333,40 @@ func decodePlan(v wire.Value) (Plan, error) {
 	}
 	e = json.NewDecoder(bytes.NewReader(canonical(v))).Decode(&p)
 	return p, e
+}
+
+// ticketObjectKeys admits only the optional operatorNote reference beyond the
+// closed mandatory set (ON-V0-001); arbitrary unknown members still refuse.
+func ticketObjectKeys(v wire.Value) string {
+	if v.Kind == wire.KindObject {
+		if _, ok := v.Obj.Values["operatorNote"]; ok {
+			return ticketKeys + " operatorNote"
+		}
+	}
+	return ticketKeys
+}
+
+// operatorNote validates the optional closed {revision,current,head} reference
+// with Core's own primitives: revision 1..4096, head a digest, current null or
+// equal to head. Absence is valid; a whole-null reference is not.
+func operatorNote(v wire.Value) error {
+	n, ok := v.Obj.Values["operatorNote"]
+	if !ok {
+		return nil
+	}
+	if e := object(n, "revision current head"); e != nil {
+		return errors.New("operator note reference")
+	}
+	if r, e := number(value(n, "revision"), 4096); e != nil || r == 0 {
+		return errors.New("operator note revision")
+	}
+	head := value(n, "head")
+	if head.Kind != wire.KindString || !digest(head.Str) {
+		return errors.New("operator note head")
+	}
+	current := value(n, "current")
+	if current.Kind != wire.KindNull && (current.Kind != wire.KindString || current.Str != head.Str) {
+		return errors.New("operator note current")
+	}
+	return nil
 }

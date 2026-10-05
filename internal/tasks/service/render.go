@@ -380,6 +380,9 @@ type Debt struct {
 	Fences                    map[string]string
 	HealthySince, LastHealthy *uint64
 	HealthyGeneration         string
+	// FenceFloor is the highest pruned decimal generation: every decimal
+	// generation at or below it is settled history whose fence was removed.
+	FenceFloor uint64
 }
 type FailureObservation struct {
 	Generation, Outcome, BootID, Termination string
@@ -411,6 +414,9 @@ func ChargeFailure(d Debt, o FailureObservation) (Debt, string, error) {
 	}
 	if o.Generation == "" || o.Outcome == "" {
 		return d, "HOLD", fmt.Errorf("generation outcome required")
+	}
+	if seq, ok := generationSeq(o.Generation); ok && seq <= d.FenceFloor {
+		return d, "HOLD", fmt.Errorf("generation below pruned fence floor")
 	}
 	if old, ok := d.Fences[o.Generation]; ok {
 		if old != o.Outcome {
@@ -503,8 +509,37 @@ func ObserveHealth(d Debt, o HealthObservation) Debt {
 		d.Failures = 0
 		d.Delay = 0
 		d.EligibleAfter = 0
+		// Every earlier generation ended before this one ran healthy for
+		// 600s, so their fences are settled history.
+		if seq, ok := generationSeq(o.Generation); ok {
+			pruneFences(&d, seq-1)
+		}
 	}
 	return d
+}
+
+// generationSeq parses a positive decimal generation without leading zero.
+// Opaque generations are never pruned.
+func generationSeq(g string) (uint64, bool) {
+	if g == "" || g[0] == '0' || len(g) > 20 {
+		return 0, false
+	}
+	n, err := strconv.ParseUint(g, 10, 64)
+	return n, err == nil
+}
+
+// pruneFences removes the fences of decimal generations at or below through
+// and raises the floor, so the 128-fence capacity bounds only unsettled
+// history; a later outcome for a pruned generation holds, never recharges.
+func pruneFences(d *Debt, through uint64) {
+	for g := range d.Fences {
+		if seq, ok := generationSeq(g); ok && seq <= through {
+			delete(d.Fences, g)
+		}
+	}
+	if through > d.FenceFloor {
+		d.FenceFloor = through
+	}
 }
 
 type Control struct {
@@ -633,6 +668,14 @@ func resetDebt(d Debt) Debt {
 	d = cloneDebt(d)
 	d.Failures, d.Delay, d.EligibleAfter = 0, 0, 0
 	d.HealthySince, d.LastHealthy, d.HealthyGeneration = nil, nil, ""
+	// A reconciled resume proved every recorded generation retired.
+	var through uint64
+	for g := range d.Fences {
+		if seq, ok := generationSeq(g); ok && seq > through {
+			through = seq
+		}
+	}
+	pruneFences(&d, through)
 	return d
 }
 func resumeAfter(c Control, request string, hash wire.Digest) (Control, error) {
