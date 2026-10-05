@@ -25,3 +25,10 @@ func TestClosedLauncherInvocation(t *testing.T) {
 		t.Fatal("invalid internal mode ran")
 	}
 }
+
+func TestInternalProcessObserverRefusesUnknownMode(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if code := run(context.Background(), []string{"--internal-process-observer", "replay"}, io.NopCloser(strings.NewReader("")), &stdout, &stderr); code != 2 || stdout.Len() != 0 || stderr.Len() == 0 {
+		t.Fatalf("unknown observer mode ran: code %d stdout %q", code, stdout.String())
+	}
+}

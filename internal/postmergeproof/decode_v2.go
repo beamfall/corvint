@@ -527,3 +527,25 @@ func GraphBindingSHA256V2(graph GraphBindingV2) (string, error) {
 func HostTupleSHA256V2(host HostTupleV2) (string, error) {
 	return canonicalWireSHA256("postmerge-host-tuple/2", "HostTupleV2", host)
 }
+
+// DecodeTrustedStartV2 strictly decodes one TrustedStartV2 preimage under the
+// closed wire table. The trusted-start observer uses it; it grants nothing.
+func DecodeTrustedStartV2(data []byte) (TrustedStartV2, error) {
+	var start TrustedStartV2
+	if len(data) > maxDocumentBytes {
+		return start, blocked("process-bound-exceeded", "trusted start exceeds its byte bound")
+	}
+	if err := decodeWire(data, "TrustedStartV2", &start); err != nil {
+		return start, err
+	}
+	if start.Profile != "postmerge-trusted-start/2" {
+		return start, rejected("process-wire-invalid", "TrustedStartV2: unsupported profile")
+	}
+	return start, nil
+}
+
+// InvocationEnvironmentKeysV2 returns a copy of the fixed sorted invocation
+// environment allowlist that the verifier enforces.
+func InvocationEnvironmentKeysV2() []string {
+	return append([]string(nil), environmentKeys...)
+}
