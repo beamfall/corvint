@@ -5,6 +5,7 @@ package store_test
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/store"
@@ -16,7 +17,7 @@ import (
 // LOCK_TIMEOUT marked not retryable, because a repeated `run --role reviewer`
 // skips the CHECKING attempt instead of finishing its gates (CAL-V0-078).
 func TestCALV0078_SupervisedGateRecordFailureIsNotRetryable(t *testing.T) {
-	f := buildProgramFixture(t, true, false)
+	f := buildProgramFixture(t, true, false, nil)
 	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -44,5 +45,68 @@ func TestCALV0078_SupervisedGateRecordFailureIsNotRetryable(t *testing.T) {
 	}
 	if a == nil || a.Phase != "CHECKING" || len(a.GateResults) != 0 {
 		t.Fatalf("attempt after the unrecorded gate: %+v", a)
+	}
+}
+
+// TestCALV0078_SupervisedCheckingFailureIsNotRetryable: once review leaves the
+// attempt CHECKING, a repeated `run --role reviewer` (which selects only BUILT
+// attempts) skips it, so every later error is not retryable: a READY step that
+// fails after a gate passed, a later gate refused after an earlier one ran,
+// and a first gate refused before any ran (CAL-V0-078).
+func TestCALV0078_SupervisedCheckingFailureIsNotRetryable(t *testing.T) {
+	for _, c := range []struct {
+		name   string
+		gates  []string
+		fail   string
+		seen   []string
+		passed []string
+	}{
+		{"ready-after-gate-passed", []string{"verify"}, "ready", []string{"gate:verify", "ready"}, []string{"verify"}},
+		{"later-gate-after-earlier-ran", []string{"check", "verify"}, "gate:verify", []string{"gate:check", "gate:verify"}, []string{"check"}},
+		{"first-gate-before-any-ran", []string{"check", "verify"}, "gate:check", []string{"gate:check"}, nil},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			f := buildProgramFixture(t, true, false, c.gates)
+			self, err := os.Executable()
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx := context.Background()
+			w, err := store.OpenWorkflow(ctx, f.s.repo, operator(), "program", self, f.config, f.ticketID)
+			if err != nil {
+				t.Fatalf("open: %v", err)
+			}
+			if a, err := w.RunRole(ctx, "implementer", ""); err != nil || a.Phase != "BUILT" {
+				t.Fatalf("implement: %+v %v", a, err)
+			}
+			seen := []string{}
+			restore := store.SetReviewCheckingFaultForTest(func(point string) error {
+				seen = append(seen, point)
+				if point == c.fail {
+					return wire.Errorf(wire.CodeLockTimeout, "lock", "injected contention at %s", point)
+				}
+				return nil
+			})
+			a, err := w.RunRole(ctx, "reviewer", "")
+			restore()
+			if strings.Join(seen, ",") != strings.Join(c.seen, ",") {
+				t.Fatalf("points reached %v, want %v", seen, c.seen)
+			}
+			if wire.CodeOf(err) != wire.CodeLockTimeout || !wire.RetryForbidden(err) {
+				t.Fatalf("CHECKING failure reported retryable: %v (forbidden=%v)", err, wire.RetryForbidden(err))
+			}
+			if a == nil || a.Phase != "CHECKING" {
+				t.Fatalf("attempt after the failure: %+v", a)
+			}
+			results := f.s.results(t, a.AttemptID)
+			if len(results) != len(c.passed) {
+				t.Fatalf("recorded gates %v, want passed %v", results, c.passed)
+			}
+			for _, id := range c.passed {
+				if g := results[id]; g == nil || g.State != "PASSED" {
+					t.Fatalf("gate %s did not pass before the failure: %+v", id, g)
+				}
+			}
+		})
 	}
 }

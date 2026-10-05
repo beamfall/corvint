@@ -726,6 +726,12 @@ func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.B
 	}
 	return w, nil
 }
+
+// reviewCheckingFault, when set by a package test, fails a reviewer run at a
+// named point of its CHECKING block ("gate:<id>" before that gate, "ready"
+// before the READY step); it is nil in production.
+var reviewCheckingFault func(point string) error
+
 func (w *Workflow) RunRole(ctx context.Context, role, grant string) (*snapshot.Attempt, error) {
 	stage := map[string]string{"implementer": "implement", "reviewer": "review", "integrator": "integrate"}[role]
 	if stage == "" {
@@ -775,21 +781,29 @@ func (w *Workflow) RunRole(ctx context.Context, role, grant string) (*snapshot.A
 		if len(list) > 0 && len(w.program.Repositories) > 0 {
 			return w.attempt, fmt.Errorf("multi-repository gate evaluation is not yet supported")
 		}
+		// The attempt is CHECKING: a repeated `run --role reviewer` selects only
+		// BUILT attempts, so it skips this one instead of finishing its gates or
+		// the READY step, and every error from here is not retryable, including
+		// one after an earlier gate already ran (CAL-V0-078).
 		for _, id := range list {
+			if reviewCheckingFault != nil {
+				if e = reviewCheckingFault("gate:" + id); e != nil {
+					return w.attempt, wire.WithoutRetry(e)
+				}
+			}
 			choice := LeaseChoice{QueueID: w.queue.QueueID.Raw, RequestID: w.requestID(), Root: w.repo.PrimaryWorktree, Lease: transaction.LeaseRequest{Verb: transaction.LeaseGateRun, AttemptID: w.attempt.AttemptID, Generation: w.attempt.Generation, Gate: id}}
 			r, e := GateRun(ctx, w.repo, w.actor, choice, *w.attempt.WorktreePath, time.Now)
 			if e = transitionOK(r, e); e != nil {
-				// The gate ran and was not recorded: a repeated `run --role
-				// reviewer` skips this CHECKING attempt, so the error carries
-				// GateRun's non-retryable fact to the CLI (CAL-V0-078).
-				if r != nil && r.Unretryable {
-					e = wire.WithoutRetry(e)
-				}
-				return w.attempt, e
+				return w.attempt, wire.WithoutRetry(e)
+			}
+		}
+		if reviewCheckingFault != nil {
+			if e = reviewCheckingFault("ready"); e != nil {
+				return w.attempt, wire.WithoutRetry(e)
 			}
 		}
 		if e = w.step("READY", transaction.SupervisorChange{}); e != nil {
-			return w.attempt, e
+			return w.attempt, wire.WithoutRetry(e)
 		}
 	}
 	if stage == "integrate" && w.attempt.Phase == "READY_FOR_INTEGRATION" {

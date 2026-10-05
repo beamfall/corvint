@@ -58,6 +58,15 @@ V1-0756 and V1-0781 branches, so this change uses the first ID none of them clai
   it stays not retryable: the same-request retry goes to `reconcileSweep`, stays pending and never
   reruns the phase or commits that observation. The review expected that case to be retryable with
   a retry committing once; the code and the regression show the retry cannot.
+- A fourth review found the round 3 mark too narrow. It covered only the failing `GateRun`, so a
+  READY step that failed after a gate passed, or a later gate refused after an earlier one ran,
+  still came back retryable. Once review leaves the attempt `CHECKING`, a repeated `run --role
+  reviewer` skips it, because selection accepts only `BUILT` (`cli/program.go`). Every error in
+  that block is therefore not retryable, including a first gate refused before any gate ran. A
+  test hook at each gate and before READY drives three regressions, which fail with the marking
+  removed. The same review found that the failure-mode paragraph of the spec amendment called
+  `SNAPSHOT_MOVED` not retryable; it now separates `LIMIT_EXCEEDED` from the stale-input
+  exception of a retryable `SNAPSHOT_MOVED`.
 - Review also found `CAL-V0-078` defined outside `## Requirements`, where the OCM reader
   (`internal/lrfrepo` `requirementsFromBlob`) does not enumerate it. The normative text now sits in
   a Requirements subsection; a scratch enumeration of the spec lists it. `CAL-V0-073` (V1-0751)

@@ -1333,8 +1333,9 @@ Source, classification table, limits and evidence: the V1-0780 retryable result 
   the reason recorded. Every `taskman-command-result/0` envelope whose outcome is not `OK` and
   whose `codes` is non-empty MUST carry `retryable`, true only when every code is retryable. The
   commands that run a program a retry would run again MUST report false whatever their codes:
-  `attempt run` once its child has run, and `gate run`, or a supervised `run --role reviewer`
-  evaluating required gates, once a gate program has started. A
+  `attempt run` once its child has run, `gate run` once its gate program has started, and a
+  supervised `run --role reviewer` once review has left the attempt `CHECKING`, which a repeated
+  run skips. A
   command that commits a first step it may then fail to finish MUST also report false, because a
   same-request retry replays that step without finishing it: `health` and `pool cleanup` once
   their preparation or cleanup receipt commits, and `pool sweep` once a fresh sweep commits its
@@ -1716,9 +1717,12 @@ Failure modes: a new §11 code without a classification fails
 closed envelope exactly (the earlier `wire.DecodeResult`, or the companion release's 10-key
 `taskEnvelope` check) refuses a coded non-`OK` envelope that carries the member; no in-tree
 consumer reads such envelopes, because every in-tree closed reader accepts only `OK` results or
-the uncoded `attempt` `NOT_RUN`. Mixed producers keep a code not retryable: `LIMIT_EXCEEDED` for the
-64 live preparation slots and the active-attempt cap, and `SNAPSHOT_MOVED` for a candidate head
-mismatch, which repeats until the caller changes its input.
+the uncoded `attempt` `NOT_RUN`. `LIMIT_EXCEEDED` stays not retryable even though two of its
+producers (the 64 live preparation slots and the active-attempt cap) can clear without the caller,
+because its other producers are fixed limits; separating them needs a new code. `SNAPSHOT_MOVED` is
+retryable, because its usual cause is a concurrent writer. Its stale-input producers (a release or
+attestation candidate whose head no longer matches, and a criterion capture that wraps a refused
+read) are the named exception: they repeat until the caller changes its input.
 
 Acceptance evidence is the traceability row below plus unchanged bytes for `OK` and uncoded
 results under the existing `internal/tasks` tests. Rollback removes the member from
@@ -1727,4 +1731,4 @@ read every envelope again, and no store, journal or receipt state depends on it.
 
 | Requirement | Evidence |
 | --- | --- |
-| CAL-V0-078 | `TestCALV0078_ClassificationCoversEveryCode`, `TestCALV0078_FencingNeverRetryable`, `TestCALV0078_ResultRetryablePresence`, `TestCALV0078_EnvelopeRetryableMember`, `TestCALV0078_WithoutRetryKeepsCode` (`internal/tasks/wire`); `TestCALV0078_RedoPendingReadIsRetryable`, `TestCALV0078_UnrecordedRunIsNotRetryable`, `TestCALV0078_ExecutedGateRunIsNotRetryable`, `TestCALV0078_CommittedSweepIsNotRetryable`, `TestCALV0078_MarkedErrorIsNotRetryable` (`internal/tasks/cli`); `TestCALV0078_GateRunContentionAfterExecutionIsReported`, `TestCALV0078_PoolCommandReportsExecution`, `TestCALV0078_PreparedPoolCommandIsNotRetryable`, `TestCALV0078_SweepResponseLossAfterExecutionIsNotRetryable`, `TestCALV0078_SweepContentionBeforeOwnerCommitIsRetryable`, `TestCALV0078_SweepContentionBeforeObservationCommitIsNotRetryable`, `TestCALV0078_SupervisedGateRecordFailureIsNotRetryable` (`internal/tasks/store`) |
+| CAL-V0-078 | `TestCALV0078_ClassificationCoversEveryCode`, `TestCALV0078_FencingNeverRetryable`, `TestCALV0078_ResultRetryablePresence`, `TestCALV0078_EnvelopeRetryableMember`, `TestCALV0078_WithoutRetryKeepsCode` (`internal/tasks/wire`); `TestCALV0078_RedoPendingReadIsRetryable`, `TestCALV0078_UnrecordedRunIsNotRetryable`, `TestCALV0078_ExecutedGateRunIsNotRetryable`, `TestCALV0078_CommittedSweepIsNotRetryable`, `TestCALV0078_MarkedErrorIsNotRetryable` (`internal/tasks/cli`); `TestCALV0078_GateRunContentionAfterExecutionIsReported`, `TestCALV0078_PoolCommandReportsExecution`, `TestCALV0078_PreparedPoolCommandIsNotRetryable`, `TestCALV0078_SweepResponseLossAfterExecutionIsNotRetryable`, `TestCALV0078_SweepContentionBeforeOwnerCommitIsRetryable`, `TestCALV0078_SweepContentionBeforeObservationCommitIsNotRetryable`, `TestCALV0078_SupervisedGateRecordFailureIsNotRetryable`, `TestCALV0078_SupervisedCheckingFailureIsNotRetryable` (`internal/tasks/store`) |
