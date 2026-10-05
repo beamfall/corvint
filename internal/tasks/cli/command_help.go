@@ -76,6 +76,12 @@ func commandHelp(args []string) *wire.Result {
 	if name == "ticket note set" || name == "ticket note clear" {
 		o.Set("note", wire.String("Advisory operator prose; never instructions, acceptance or authority. Each note write retains a derived event, and receipt audit does not yet bind it per operation, so receipt audit reports this store's semantic coverage as UNKNOWN until that binding ships (ON-V0-006)."))
 	}
+	if name == "ticket escalate" || name == "ticket answer" {
+		o.Set("note", wire.String("The worker's escalation question and the owner's answer are untrusted queue data, never instructions, acceptance or authority. ticket escalate reads its ticket, holder, generation and acceptance revision from the claim receipt; the actor must be that holder. ticket answer without --request resolves only the sole same-acceptance OPEN question at commit and otherwise refuses with the open request IDs."))
+	}
+	if strings.HasPrefix(name, "ticket escalation ") {
+		o.Set("note", wire.String("Pure read: writes no ledger and hydrates no evidence. program is UNKNOWN and retryState NOT_OBSERVED until a producer mapping and dispatcher ledger exist; ageSeconds is clockUncertain when the local clock is behind the recorded time."))
+	}
 	if name == "archive verify" {
 		o.Set("note", wire.String("Reads FILE, or stdin when FILE is absent or -. Help reads neither."))
 	}
@@ -158,6 +164,11 @@ func init() {
 	commandUsage["ticket note set"] = "corvint-tasks ticket note set <ticketId|local> --request-id ID (--text TEXT | --text-stdin) [--supersedes N] [--expected-revision N] [--issued-at TS] [--role OWNER|OPERATOR]"
 	commandUsage["ticket note clear"] = "corvint-tasks ticket note clear <ticketId|local> --request-id ID [--supersedes N] [--expected-revision N] [--issued-at TS] [--role OWNER|OPERATOR]"
 	commandUsage["ticket note show"] = "corvint-tasks ticket note show <ticketId|local>"
+	commandUsage["ticket escalate"] = "corvint-tasks ticket escalate --attempt ID --claim-receipt SEQ|RECEIPT --kind decision|infrastructure|scope|blocked --question TEXT [--options A,B] [--supersedes REQUEST --expected-request-revision N] [--blocked-by TICKET [--gate GATE]] [--expected-revision N] --request-id ID [--role ROLE]"
+	commandUsage["ticket answer"] = "corvint-tasks ticket answer --target TICKET --text TEXT [--request REQUEST --expected-request-revision N] [--expected-revision N] --request-id ID [--role ROLE]"
+	commandUsage["ticket escalation list"] = "corvint-tasks ticket escalation list [--kind KIND] [--state OPEN|ANSWERED|SUPERSEDED] [--target TICKET] [--program NAME] [--limit 1..50] [--cursor ORIGIN_SHA256]"
+	commandUsage["ticket escalation show"] = "corvint-tasks ticket escalation show <ticketId|local> <requestId>"
+	commandUsage["ticket escalation history"] = "corvint-tasks ticket escalation history <ticketId|local> <requestId> [--limit 1..50] [--cursor EVENT_SHA256]"
 	commandUsage["run"] += "; corvint-tasks run --attempt ID --generation G --timeout SECONDS [--lease-minutes N] [--role ROLE] -- COMMAND..."
 }
 

@@ -18,9 +18,9 @@ adopt the 500 and 501 intents only.
 
 ## Agent digest
 - Claim: Workers raise typed questions from admitted claims, operators answer them by compare-and-set, and the next same-acceptance claim receives the answers.
-- Status: proposed overall; Gate A decisions accepted (decision 0428, owner answer 2026-10-04); experimental delivery of the pure four-file foundation only; no installed escalation capability.
-- Exists: closed request/event/reference codecs and a pure reducer with answer selection, derived holds, effective work revision, coded refusals and a per-call decode memo, plus focused tests and a near-capacity benchmark. Nothing calls them yet.
-- Blocked on: native writer/stage/material/replay integration, CLI, native holds, the 501 claim-snapshot path, dispatcher retry and 499 tier composition.
+- Status: proposed overall; Gate A decisions accepted (decision 0428, owner answer 2026-10-04); experimental delivery of the pure four-file foundation, the optional record key, the native writer and the CLI writes and reads; no native holds or claim delivery, so no installed escalation capability.
+- Exists: closed request/event/reference codecs and a pure reducer with answer selection, derived holds, effective work revision, coded refusals and a per-call decode memo, plus focused tests and a near-capacity benchmark. The native ticket record carries the optional tool-owned `escalations` key: ordinary mutations and re-import keep it, ADOPT_FILE, CREATE and import cannot set or change it, and Core's read-only planner validates it and blocks a ticket with a current OPEN decision, scope or blocked question. The native writer (`store.Escalate`, `store.AnswerEscalation`) commits OPEN, supersession and ANSWER as LEASE transactions that audit the claim receipt, bind the actor before replay and check operation-scoped `ESCALATE`/`ANSWER` grants. `ticket escalate` reads the origin from the claim receipt and attempt the claim returned, `ticket answer` takes `--target`, and `ticket escalation list|show|history` are pure, paged reads with honest age and provenance.
+- Blocked on: a distinct typed-event stage and material branch (ESC-V0-010), the `dispatch status` escalation section, native holds, the 501 claim-snapshot path, dispatcher retry and 499 tier composition.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.
 
 ## User and current state
@@ -97,21 +97,22 @@ StageLease and dispatch ledger limits (16 MiB, 8192 histories).
 
 ## Acceptance evidence and traceability
 
-The first delivery supplies pure, focused evidence only. Every integrated witness is NOT_RUN, and
-no row claims delivered native behavior.
+The pure deliveries supply focused evidence only. The writer slice adds native store tests that run
+the real writer against real claim receipts; every other integrated witness is NOT_RUN, and no row
+claims an installed capability.
 
 | Requirement | Parent intent | Implementation boundary | Delivered evidence | Required integrated evidence (NOT_RUN) |
 |---|---|---|---|---|
-| ESC-V0-001 | ESC502-001 | CLI producer; receipt/grant adapter; writer fences | `TestIssue502_EscalationCodecAndBounds` (question/options bounds); `TestIssue502_AdmissionOriginAndStaleGeneration` (missing context, stale generation/holder/receipt/acceptance, expiry, actor and policy binding, unknown replay) | real claim receipt, forged/wrong-queue origins, compiled CLI, supervised UNSUPPORTED |
-| ESC-V0-002 | ESC502-002 | ticket record and Core codecs; evidence store | `TestIssue502_EscalationCodecAndBounds` (closed shapes, noncanonical framing, question bound, 64-revision history cap; the 65536-byte event cap is untested); `TestIssue502_SupersessionAndCapacity` (transaction vs event counts); `TestIssue502_StaleOpenReleasesCapacity` (16-open bound counts the current acceptance revision only); `TestIssue502_ReadersRefuseOpenOverflow` (readers refuse a crafted 17-open reference; the capacity check refuses an invalid or older acceptance argument) | legacy bytes through the record codec, import/CREATE injection refusal, Core reader |
-| ESC-V0-003 | ESC502-003 | reducer; native writer | `TestIssue502_SupersessionAndCapacity` (paired supersession, last-slot refusal, cross-source `SUPERSESSION_SOURCE`); `TestIssue502_ImmutableClaimAnswerSelection` (stale acceptance excluded); `TestIssue502_StaleOpenReleasesCapacity` (stale OPEN stays visible, holds nothing, refuses an answer) | acceptance edit yields STALE across show/plan/claim; administrative route |
-| ESC-V0-004 | ESC502-004 | reducer; native writer; CLI | `TestIssue502_QuestionAnswerCASAndReplay` (ambiguous shorthand naming its open questions, exact CAS, Q1-answer then Q2-open shorthand replay, changed-selector conflict) | real writer race with one winner, compiled CLI |
+| ESC-V0-001 | ESC502-001 | CLI producer; receipt/grant adapter; writer fences | `TestIssue502_EscalationCodecAndBounds` (question/options bounds); `TestIssue502_AdmissionOriginAndStaleGeneration` (missing context, stale generation/holder/receipt/acceptance, expiry, actor and policy binding, unknown replay); native `TestIssue502_OpenAnswerCommitsTicketAndEvents` (real claim receipt), `TestIssue502_OpenAuditsTheClaim` (forged receipt digest abstains, expiry fences), `TestIssue502_ActorBindingBeforeReplay` (actor bound before and after commit, OPERATOR without a grant refused), `TestIssue502_SupervisedAttemptIsUnsupported` (attempt supervised after its claim); CLI `TestIssue502_EscalationCLIWritesAndReads` (origin from the claim receipt name or sequence, identical retry replays, a receipt that does not admit the attempt abstains `MISSING_ADMISSION_CONTEXT` without writing) | wrong-queue origin, compiled-binary run |
+| ESC-V0-002 | ESC502-002 | ticket record and Core codecs; evidence store | `TestIssue502_EscalationCodecAndBounds` (closed shapes, noncanonical framing, question bound, 64-revision history cap; the 65536-byte event cap is untested); `TestIssue502_SupersessionAndCapacity` (transaction vs event counts); `TestIssue502_StaleOpenReleasesCapacity` (16-open bound counts the current acceptance revision only); `TestIssue502_ReadersRefuseOpenOverflow` (readers refuse a crafted 17-open reference; the capacity check refuses an invalid or older acceptance argument); `TestIssue502_RecordEscalationsKey` (legacy record bytes unchanged, carrier round trip, member equals the reference codec); `TestIssue502_RecordEscalationsRefusals` (control or acceptance revision after the record's, 17 current OPEN, near-miss key); `TestIssue502_MutationsPreserveEscalations`; `TestIssue502_AdoptRefusesEscalationEdits`; `TestIssue502_CreateCannotCarryEscalations`; `TestIssue502_ReimportKeepsEscalations`; `TestIssue502_ExportCannotCarryEscalations`; Core `TestIssue502_ReaderAdmitsSharedOptionalKeys`, `TestIssue502_ReaderRefusesMalformedOptionalKeys` and `TestIssue502_ReaderMatchesCodecBounds` (shared fixture written by the Tasks codec; Core enforces the 16-open bound, event capacity and native identifier rules) | a reference written by the native writer through every reader, evidence blobs in the store |
+| ESC-V0-003 | ESC502-003 | reducer; native writer | `TestIssue502_SupersessionAndCapacity` (paired supersession, last-slot refusal, cross-source `SUPERSESSION_SOURCE`); `TestIssue502_ImmutableClaimAnswerSelection` (stale acceptance excluded); `TestIssue502_StaleOpenReleasesCapacity` (stale OPEN stays visible, holds nothing, refuses an answer); native `TestIssue502_OpenAnswerCommitsTicketAndEvents` (OPEN and ANSWER leave the acceptance revision unchanged and the attempt renewable) | acceptance edit yields STALE across show/plan/claim |
+| ESC-V0-004 | ESC502-004 | reducer; native writer; CLI | `TestIssue502_QuestionAnswerCASAndReplay` (ambiguous shorthand naming its open questions, exact CAS, Q1-answer then Q2-open shorthand replay, changed-selector conflict); native `TestIssue502_AnswerRaceHasOneWinner` (two CAS answers through the store lock, one winner, the other `STALE_QUESTION_CAS`) and `TestIssue502_OpenAnswerCommitsTicketAndEvents` (shorthand answer reports its resolved target), `TestIssue502_ShorthandAnswerReplaysAfterLaterOpen` (a shorthand answer replays its original target after a later OPEN), `TestIssue502_OperatorAnswersThroughExplicitGrant` (OPERATOR refused by default, answers under an explicit row; a WORKER row naming ANSWER is refused); CLI `TestIssue502_EscalationCLIWritesAndReads` (ambiguous shorthand names both open request IDs, stale `--expected-revision` refuses `STALE_TICKET`, exact and shorthand answers report their resolved request) | compiled-binary run |
 | ESC-V0-005 | ESC502-005 | lease admission; original-receipt materializer | `TestIssue502_ImmutableClaimAnswerSelection` (pinned selection, guidance capacity) | original claim snapshot after concurrent answers, missing-receipt replay, 1 MiB output |
-| ESC-V0-006 | ESC502-006 | native eligibility; dispatch status | `TestIssue502_TypedDispositionAndWorkRevision` (four kinds, held vs infrastructure IDs) | hold parity across direct claim, claim-next and plan |
+| ESC-V0-006 | ESC502-006 | native eligibility; dispatch status | `TestIssue502_TypedDispositionAndWorkRevision` (four kinds, held vs infrastructure IDs); Core `TestIssue502_PlannerBlocksUnmodelledConstraints` (read-only plan blocks current decision, scope and blocked questions as `TICKET_STATE`, not infrastructure or stale ones) | hold parity across direct claim and claim-next; a distinct `ESCALATION_PENDING` plan code |
 | ESC-V0-007 | ESC502-007 | dispatch ledger, loop and status | none | restart before/after spawn, failed save, duplicate session, final allowed and next exhausted launch, cooldown caps |
 | ESC-V0-008 | ESC502-008 | dispatch roster/fingerprint; 499 tiers | `TestIssue502_TypedDispositionAndWorkRevision` (control vs work revision) | refine/escalate/answer sequence, mixed 499 tier witness |
-| ESC-V0-009 | ESC502-009 | CLI reads; dispatch status | none | pagination, cursors, age and clock, program UNKNOWN, reads do not mutate |
-| ESC-V0-010 | ESC502-010 | transaction/stage/material/redo | `TestIssue502_ImmutableClaimAnswerSelection` (rehashed material mismatch); `TestIssue502_SupersessionAndCapacity` (missing and mismatched supersession pair, single atomic proposal); `BenchmarkIssue502_ApplyNearCapacity` (reducer cost at 63 answered questions) | measured descriptor, interrupted paired publication, redo |
+| ESC-V0-009 | ESC502-009 | CLI reads; dispatch status | CLI `TestIssue502_EscalationCLIWritesAndReads` (list filters by kind, state, target and program, `program` UNKNOWN with a warning for a named program, origin-digest cursor and offset, limit 51 refused; show with answer and blockedBy, missing request refused; history newest first with a chain cursor; the state directory is byte-identical across every read; a deleted origin marks list entries UNAVAILABLE and refuses show `MISSING_EVIDENCE`; history rows carry the question's age and source; a rewritten answer event refuses show and history `JOURNAL_FORKED`) | the `dispatch status` section, a clock-behind witness, the 1 MiB page cut, a forked history chain |
+| ESC-V0-010 | ESC502-010 | transaction/stage/material/redo | `TestIssue502_ImmutableClaimAnswerSelection` (rehashed material mismatch); `TestIssue502_SupersessionAndCapacity` (missing and mismatched supersession pair, single atomic proposal); `BenchmarkIssue502_ApplyNearCapacity` (reducer cost at 63 answered questions); native `TestIssue502_SupersedePostsBothEvents` (one LEASE transaction posts the ticket and both events: 6 artifacts and 1421 descriptor bytes against 11 and 2658; replay after a later question returns the original OPEN) and `TestIssue502_RedoRepublishesTheTicket` (crash point C2 redo, then replay) and `TestIssue502_DeletedEventIsJournalDamage` (a missing event refuses `JOURNAL_FORKED`) | a distinct typed-event stage and material branch, interrupted paired publication at each artifact |
 | ESC-V0-011 | ESC502-011 | four-file foundation; layering | `TestIssue502_EscalationCodecAndBounds`, `TestIssue502_AdmissionOriginAndStaleGeneration`, `TestIssue502_QuestionAnswerCASAndReplay`, `TestIssue502_TypedDispositionAndWorkRevision`, `TestIssue502_ImmutableClaimAnswerSelection`, `TestIssue502_SupersessionAndCapacity`, `TestIssue502_StaleOpenReleasesCapacity`, `TestIssue502_ReadersRefuseOpenOverflow`; `ticket` imports only `wire` | full integration matrix, independent integrated review, native completion |
 
 ## Unresolved decisions
@@ -132,9 +133,39 @@ Findings from the independent review of the first delivery and their disposition
   capacities by decision 0428); the alternative, an explicit retirement route, adds a mutation with its own
   authority and was not chosen. Stale questions stay visible and still count toward the 64
   lifetime entries, so no history is evicted.
-- One supplied policy decision covers every operation. Still open: the reducer does not refuse an
-  answer by the question's own source holder, so the answer-grant separation of ESC-V0-004 must be
-  enforced by an operation-scoped grant in the writer slice.
+- One supplied policy decision covers every operation. Fixed in the writer slice: the writer
+  checks an operation-scoped grant, `ESCALATE` for OPEN and `ANSWER` for ANSWER, from the policy's
+  role row or the default matrix, where only OWNER holds them. A source holder answers only with
+  its own role's `ANSWER` grant. OPERATOR gets either verb only through an explicit
+  `policy.roles.OPERATOR` row that names it (the issue 559 explicit grant list, ON-V0-004's
+  mechanism); no other non-owner role may name them. Under the default matrix the only role that
+  can escalate is OWNER, which also holds `ANSWER`, so an OWNER-bound claimer can answer its own
+  question (as ESC-V0-004 permits). Separating workers from answerers needs a policy that narrows
+  OWNER or grants OPERATOR explicitly.
+
+Findings from the writer slice and their disposition:
+
+- ESC-V0-010 is not delivered at the stage level. The writer uses the existing LEASE stage and
+  request-index pipeline, adds no stage permission and stays inside the StageLease bounds, but its
+  event POSTs use the lease stage's existing evidence allowance (the gate-output key, at most two),
+  and stage material validation is the generic request-afterimage and receipt binding. A distinct
+  closed typed-event stage and material branch remains a later slice; until then the planner, not
+  the stage classifier, is what checks the escalation material.
+- The actor is part of the request digest, so the store binds the invoking actor to the request
+  before its replay lookup: another actor retrying a committed request gets `ACTOR_BINDING`, not
+  `REQUEST_ID_CONFLICT`.
+- A program attaches supervision after the claim, so the claim receipt's POST attempt is never
+  supervised. The writer also checks the current attempt and refuses `UNSUPPORTED` when either is
+  supervised.
+- Events are retained evidence published before the commit point. A redo republishes the ticket
+  and head and reads the events back; a missing event file is journal damage (`JOURNAL_FORKED`),
+  not something the redo recreates.
+- Events are written in receipt POST order, which follows their digests, so a supersession's
+  OPEN and SUPERSEDE events are not in operation order.
+- No native witness yet: the `MaxTicketFileBytes` overflow path (`CAPACITY_EXHAUSTED`/
+  `LIMIT_EXCEEDED`); `STALE_ADMISSION` for a reclaimed generation, holder or reservation; policy
+  narrowing of `ESCALATE` and `ANSWER`; and a stage whose ticket exceeds the inline POST bound and
+  so takes another evidence slot (the measured supersession used a small ticket).
 - Refusals of ambiguous shorthand now name the open questions in the reducer
   (`EscalationRefusal.RequestIDs`); rendering them is left to the CLI slice.
 - Reducer refusal tests now assert exact codes through `EscalationRefusal.Code`. Ticket codec
@@ -149,6 +180,20 @@ Findings from the independent review of the first delivery and their disposition
 
 This delivery adds unreferenced pure code and intent only. It installs no feature and changes no
 existing byte format, so rollback is reverting the four files and this spec's catalog entries.
+The record-key slice adds the optional `escalations` record key. No writer sets it, and a record
+without it keeps its exact bytes, so rollback is reverting that change; a store holding a record
+with the key would then refuse it as an unknown key. That cannot happen before the writer slice.
+The writer slice adds the store entry points, the LEASE planner and the `ESCALATE`/`ANSWER` grants.
+It is the first change that can write the key; rolling it back reverts only the writer files and
+the two grants, and leaves the record-key slice in place so readers keep accepting a record that
+already carries a reference. The grants also widen the policy vocabulary: the operation enum and
+OPERATOR's explicit grants. Full journal audit decodes every historical policy POST, so once an
+accepted policy names `ESCALATE` or `ANSWER`, a binary without that vocabulary fails audit even
+after a later policy drops them. Before any policy names them, a plain revert is safe. After that,
+rollback keeps the vocabulary and the readers and disables only the writer entry points.
+The CLI slice adds `ticket escalate`, `ticket answer` and the three reads over the writer and adds no
+byte format; rolling it back removes the verbs and leaves the writer and every stored question
+readable by the store.
 Later slices rebase onto current main and integrate in order: codecs, writer and material, holds,
 CLI and reads, 501 claim delivery, then dispatcher retry with 499 composition. Once writes exist,
 rollback disables new mutations and automation but keeps readers, references, questions, answers

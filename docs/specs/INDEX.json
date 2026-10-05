@@ -694,6 +694,8 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
+      "internal/tasks/mutation",
+      "internal/tasks/store",
       "internal/tasks/ticket",
       "internal/tasks/transaction"
     ]

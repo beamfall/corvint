@@ -15,6 +15,9 @@ const EscalationEventProfile = "taskman-escalation-event/0"
 const EscalationRequestProfile = "taskman-escalation-request/0"
 const EscalationMaxEventBytes = 65536
 
+// EscalationMaxCurrentOpen is the shared current-acceptance OPEN bound.
+const EscalationMaxCurrentOpen = wire.EscalationMaxCurrentOpen
+
 // EscalationSource identifies an immutable successful admission, not the latest
 // projection of an attempt (whose identifier may be reused across generations).
 type EscalationSource struct {
@@ -536,4 +539,51 @@ func DecodeEscalationRefs(b []byte) (EscalationRefs, error) {
 		return r, e
 	}
 	return r, r.Validate()
+}
+
+// escalationRefsValue renders a reference as the record's `escalations`
+// member. It builds the same canonical object EncodeEscalationRefs encodes.
+func escalationRefsValue(r *EscalationRefs) wire.Value {
+	entries := make([]wire.Value, 0, len(r.Entries))
+	for _, e := range r.Entries {
+		eo := wire.NewObject()
+		eo.Set("requestId", wire.String(e.RequestID))
+		eo.Set("originSha256", wire.String(string(e.OriginSha256)))
+		eo.Set("headSha256", wire.String(string(e.HeadSha256)))
+		eo.Set("revision", wire.String(string(e.Revision)))
+		eo.Set("acceptanceRevision", wire.String(string(e.AcceptanceRevision)))
+		eo.Set("kind", wire.String(e.Kind))
+		eo.Set("state", wire.String(e.State))
+		entries = append(entries, wire.ObjectValue(eo))
+	}
+	o := wire.NewObject()
+	o.Set("revision", wire.String(string(r.Revision)))
+	o.Set("lastControlTicketRevision", wire.String(string(r.LastControlTicketRevision)))
+	o.Set("workRevision", wire.String(string(r.WorkRevision)))
+	o.Set("entries", wire.Array(entries...))
+	return wire.ObjectValue(o)
+}
+
+// validateEscalations checks the reference against the record that carries
+// it: no control write after the record's own revision, no question from a
+// future acceptance revision, and the current-acceptance OPEN bound. Event
+// chains need the evidence blobs and stay with the transaction readers.
+func (rec *Record) validateEscalations() error {
+	r := rec.Escalations
+	if r.LastControlTicketRevision.Int() > rec.Revision.Int() {
+		return wire.Errorf(wire.CodeMalformed, "/escalations/lastControlTicketRevision", "control revision %s exceeds record revision %s", r.LastControlTicketRevision, rec.Revision)
+	}
+	open := 0
+	for i, e := range r.Entries {
+		if e.AcceptanceRevision.Int() > rec.AcceptanceRevision.Int() {
+			return wire.Errorf(wire.CodeMalformed, "/escalations/entries/"+idx(i)+"/acceptanceRevision", "question acceptance revision %s exceeds record acceptance revision %s", e.AcceptanceRevision, rec.AcceptanceRevision)
+		}
+		if e.State == "OPEN" && e.AcceptanceRevision == rec.AcceptanceRevision {
+			open++
+		}
+	}
+	if open > EscalationMaxCurrentOpen {
+		return wire.Errorf(wire.CodeMalformed, "/escalations/entries", "%d OPEN questions at the current acceptance revision exceed %d", open, EscalationMaxCurrentOpen)
+	}
+	return nil
 }

@@ -323,7 +323,7 @@ repaired by silently changing the oracle after evaluation.
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | `LTA-V0-001` | `internal/evalrepo`, `cmd/corvint`, `benchmarks/run.py` | focused eval repository, CLI, and benchmark-runner tests |
-| `LTA-V0-002` | `internal/evalrepo`, frozen trace fixture registration | focused task-contamination, outcome-commit-contamination, and digest-drift tests |
+| `LTA-V0-002` | `internal/evalrepo`, frozen trace fixture registration | focused task-contamination, outcome-commit-contamination, and digest-drift tests; `TestTraceFixtureRefusesOverBoundFile` (a fixture over the 16 MiB trace-store bound is refused after bound+1 bytes) |
 | `LTA-V0-003` | `internal/trace`, `internal/tracerecordrepo` | focused cap-order, whole-file, append-target, and bounded-ancestry tests |
 | `LTA-V0-004` | `internal/secretscreen.Pattern`, consumed by `internal/trace` record admission and `internal/contextindex` `containsSecret` | `TestSecretPatternParityCorpus` (writer-only rows, stored-v1 non-match, and length-floor, bare-`pass` and hyphenated-host curl non-matches), `TestGoVerbosePassMarkerBoundary`, `TestScreenConsumesWholeQuotedAssignmentValue`, `TestScreenRedactsAWSSecretAdjacentToItsKeyID`, `TestScreenRedactsCredentialAfterAuthorizationScheme`, `TestScreenRedactsWholePasswordContainingAtSign`, `TestCredentialedURLPasswordStopsAtQueryFragmentOrQuote`, `TestLTAV0004RecordRefusesWriterOnlySecretShapes`, `TestSecretPatternMatchesHistorySecretShapes` |
 | `LTA-V0-005` | `internal/tracerecordrepo` | `TestReadBoundsTraceReplayWithoutRefusingLargeRepositories` (subtest `candidate outside bounded replay`) |
