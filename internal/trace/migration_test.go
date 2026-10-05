@@ -68,7 +68,7 @@ func migrationAtCandidateLimitFixture(t *testing.T) (string, MigrationAuthority,
 	authority.TreeRevision = legacy
 	authority.Commits[target] = Revision{TreeRevision: legacy}
 	authority.Trees[legacy] = []string{target}
-	record := mustRecord(t, Input{Revision: legacy, Task: "migrate at candidate limit", Outcome: "passed"}, nil)
+	record := mustRecord(t, Input{Producer: ProducerCLI, Revision: legacy, Task: "migrate at candidate limit", Outcome: "passed"}, nil)
 	row, err := Encode(record)
 	if err != nil {
 		t.Fatal(err)
@@ -132,7 +132,7 @@ func TestMigrationCandidateDriftCheckCoversWholePlan(t *testing.T) {
 		},
 	}
 	for _, revision := range []string{first, second} {
-		record := mustRecord(t, Input{Revision: revision, Task: revision, Outcome: "passed"}, nil)
+		record := mustRecord(t, Input{Producer: ProducerCLI, Revision: revision, Task: revision, Outcome: "passed"}, nil)
 		row, err := Encode(record)
 		if err != nil {
 			t.Fatal(err)
@@ -290,7 +290,7 @@ func strandedTraceFixture(t *testing.T) (string, MigrationAuthority, string, []b
 		Commits: map[string]Revision{head: {TreeRevision: tree}}, Trees: map[string][]string{tree: {head}},
 		CommitObject: func(id string) (bool, error) { return id == stranded, nil },
 	}
-	record := mustRecord(t, Input{Revision: stranded, Task: "amended away", Outcome: "passed"}, nil)
+	record := mustRecord(t, Input{Producer: ProducerCLI, Revision: stranded, Task: "amended away", Outcome: "passed"}, nil)
 	row, err := Encode(record)
 	if err != nil {
 		t.Fatal(err)

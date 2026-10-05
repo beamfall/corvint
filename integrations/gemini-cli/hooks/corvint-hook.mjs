@@ -7,7 +7,7 @@ import path from "node:path";
 
 import { promptQuery, trimSpace } from "./prompt-bound.mjs";
 
-const ADAPTER_VERSION = "0.1.0";
+const ADAPTER_VERSION = "0.2.6";
 const CORVINT_OUTPUT_LIMIT = 8000;
 // AHI-017: every Corvint deadline is derived from the host kill declared for each hook in
 // ./hooks.json (timeoutsMs.host in ../compatibility.json), never from a free constant.

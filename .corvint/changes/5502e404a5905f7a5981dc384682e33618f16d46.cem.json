@@ -1,0 +1,80 @@
+{
+  "baseRevision": "c34a8a5c36e01352132649fea27787a7b3dd816b",
+  "evidence": [
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:82a0635ed559df3803c113a5db4c3e2bd37dbc1206d94624a7258b2d0122b337",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 1299,
+        "start": 1217
+      },
+      "spanSha256": "53a4db67021ff07928ece85fb85cefb57fcae6233044002dc559d053aecb0d3a"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:82a0635ed559df3803c113a5db4c3e2bd37dbc1206d94624a7258b2d0122b337",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:172d5545f67b0d9c65e2b850167e2206a48e87783462427aa934ed9c7a16feea",
+      "newRange": {
+        "count": 7,
+        "start": 89
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 89
+      },
+      "path": "cmd/corvint/host_adapter_javascript_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:82a0635ed559df3803c113a5db4c3e2bd37dbc1206d94624a7258b2d0122b337",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cf0bb7c46655dead332b8611d5d459756f8459391c03534d4e2b71909e2f8120",
+      "newRange": {
+        "count": 9,
+        "start": 13
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 13
+      },
+      "path": "docs/build-log/2026-10-05-v1-0783-host-fixture-pid-publish.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:82a0635ed559df3803c113a5db4c3e2bd37dbc1206d94624a7258b2d0122b337",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f4a3784b9668bb8a092126e06fecdaa3a1ec08b2a89e9135f38a6d00647dd8f7",
+      "newRange": {
+        "count": 22,
+        "start": 28
+      },
+      "oldRange": {
+        "count": 14,
+        "start": 27
+      },
+      "path": "docs/build-log/2026-10-05-v1-0783-host-fixture-pid-publish.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "26c881db8be173bc6ccd647a264cf3389587b307c2823f9310092fb77706e4a3",
+  "spec": "cem/0.2"
+}

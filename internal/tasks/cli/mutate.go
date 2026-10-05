@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"slices"
@@ -38,7 +36,10 @@ var mutationVerbs = map[string]string{
 type mutateFlags struct {
 	role, requestID, target, expected, payload string
 	issuedAt                                   string
-	payloadFromStdin, help                     bool
+	payloadFromStdin, help, template           bool
+	// others counts the flags passed besides --help and --template, so
+	// --template refuses any flag by presence, not by value.
+	others int
 }
 
 // mutateCommand runs one ticket mutation against the real journal. The
@@ -55,6 +56,15 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 	if flags.help {
 		return mutationHelp(cmd, operation)
 	}
+	if flags.template {
+		if operation != mutation.OpCreate {
+			return usage(cmd, "--template is available only for ticket create")
+		}
+		if flags.others != 0 {
+			return usage(cmd, "--template takes no other flag")
+		}
+		return createTemplate(env, cmd)
+	}
 	actor, err := initActor(flags.role)
 	if err != nil {
 		return errorResult(cmd, err)
@@ -63,39 +73,13 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 		return usage(cmd, "--request-id is required: it is the idempotency key of this mutation")
 	}
 	payload, err := readPayload(env, flags)
+	if err == nil {
+		payload, err = mutation.CanonicalPayload(operation, payload)
+	}
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	repo, err := intent.Resolve(env.Cwd)
-	if err != nil {
-		return errorResult(cmd, err)
-	}
-	store0, err := intent.Load(repo.PrimaryWorktree)
-	if err != nil {
-		return errorResult(cmd, err)
-	}
-	now, err := wire.ParseTimestamp("recordedAt", time.Now().UTC().Format("2006-01-02T15:04:05Z"))
-	if err != nil {
-		return errorResult(cmd, err)
-	}
-	// The request digest is the digest of the envelope bytes, and issuedAt is
-	// one of them, so a retry replays only when it reproduces the same
-	// timestamp. A first issue defaults to now; a retry passes --issued-at.
-	issued := now
-	if flags.issuedAt != "" {
-		if issued, err = wire.ParseTimestamp("issuedAt", flags.issuedAt); err != nil {
-			return errorResult(cmd, err)
-		}
-	}
-	envelope, err := buildEnvelope(operation, store0.Queue.QueueID.Raw, actor, flags, payload, issued)
-	if err != nil {
-		return errorResult(cmd, err)
-	}
-	report, err := store.Mutate(writerContext(), repo, actor, envelope, now)
-	if err != nil {
-		return errorResult(cmd, err)
-	}
-	return mutateResult(cmd, report)
+	return submitMutation(env, cmd, operation, actor, flags, payload)
 }
 
 func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
@@ -108,10 +92,15 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 	for i := 0; i < len(args); i++ {
 		if args[i] == "--payload-stdin" {
 			f.payloadFromStdin = true
+			f.others++
 			continue
 		}
 		if args[i] == "--help" {
 			f.help = true
+			continue
+		}
+		if args[i] == "--template" {
+			f.template = true
 			continue
 		}
 		dest, ok := set[args[i]]
@@ -123,6 +112,7 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 		}
 		i++
 		*dest = args[i]
+		f.others++
 	}
 	if f.payload != "" && f.payloadFromStdin {
 		return f, usage(cmd, "--payload and --payload-stdin are exclusive")
@@ -130,11 +120,12 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 	return f, nil
 }
 
+// readPayload reads the caller's payload as any valid JSON value (V1-0750):
+// whitespace, key order and escape form are the caller's choice, and the
+// envelope re-encodes the value canonically, so the request digest of a
+// pretty-printed payload equals that of its canonical form. Array order is
+// kept; mutation payloads sort their set arrays in mutation.CanonicalPayload.
 func readPayload(env Env, f mutateFlags) (wire.Value, error) {
-	return readPayloadWithWhitespace(env, f, false)
-}
-
-func readPayloadWithWhitespace(env Env, f mutateFlags, compact bool) (wire.Value, error) {
 	raw := f.payload
 	if f.payloadFromStdin {
 		data, err := io.ReadAll(io.LimitReader(env.Stdin, int64(wire.MaxTicketFileBytes)+1))
@@ -147,25 +138,14 @@ func readPayloadWithWhitespace(env Env, f mutateFlags, compact bool) (wire.Value
 		raw = string(data)
 	}
 	if strings.TrimSpace(raw) == "" {
-		return wire.Value{}, wire.Errorf(wire.CodeMalformed, "payload", "no payload: pass --payload or --payload-stdin (canonical JSON: keys sorted, no extra whitespace)")
+		return wire.Value{}, wire.Errorf(wire.CodeMalformed, "payload", "no payload: pass a JSON object with --payload or --payload-stdin")
 	}
-	if compact {
-		var buf bytes.Buffer
-		if err := json.Compact(&buf, []byte(raw)); err != nil {
-			return wire.Value{}, wire.Errorf(wire.CodeMalformed, "payload", "invalid JSON: %v", err)
-		}
-		raw = buf.String()
-	}
-	// The payload is a fragment, not a file: supply the framing LF the parser
-	// requires. Canonicality is still enforced on the whole envelope.
-	if !strings.HasSuffix(raw, "\n") {
-		raw += "\n"
-	}
-	return wire.Parse([]byte(raw))
+	return wire.ParseInput([]byte(raw))
 }
 
 // buildEnvelope composes the closed §3.3 envelope. targetId and
-// expectedRevision are null exactly for CREATE, which names no prior record.
+// expectedRevision are null for CREATE, which names no prior record; a note
+// operation may also leave expectedRevision null (ON-V0-003).
 func buildEnvelope(operation, queueID string, actor mutation.Binding, f mutateFlags, payload wire.Value, now wire.Timestamp) ([]byte, error) {
 	target := wire.Null()
 	expected := wire.Null()
@@ -174,11 +154,13 @@ func buildEnvelope(operation, queueID string, actor mutation.Binding, f mutateFl
 			return nil, wire.Errorf(wire.CodeMalformed, "targetId", "CREATE names no target or expected revision")
 		}
 	} else {
-		if f.target == "" || f.expected == "" {
+		if f.target == "" || (f.expected == "" && !mutation.IsNoteOperation(operation)) {
 			return nil, wire.Errorf(wire.CodeMalformed, "targetId", "%s needs --target and --expected-revision", operation)
 		}
 		target = wire.String(qualifyTicket(queueID, f.target))
-		expected = wire.String(f.expected)
+		if f.expected != "" {
+			expected = wire.String(f.expected)
+		}
 	}
 	o := wire.NewObject()
 	o.Set("profile", wire.String(mutation.Profile))
@@ -208,9 +190,14 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 		target = ""
 		o.Set("localToken", wire.String("Optional payload member localToken chooses the queue-local ID, e.g. \"localToken\":\"BT-002\". It uses the existing LocalToken grammar and refuses collisions (including case-fold collisions). Omit it for automatic allocation. CREATE forbids --target and --expected-revision."))
 		o.Set("optionalPayloadKeys", wire.Strings([]string{"localToken"}))
+		o.Set("template", wire.String("corvint-tasks ticket create --template prints a canonical CREATE payload for this queue with each field's type, enum values and nullability; fill title, body and acceptanceCriteria and submit it with --payload-stdin. It reads only the intent store and writes nothing."))
 	}
-	o.Set("usage", wire.String("corvint-tasks "+strings.Join(cmd, " ")+" --request-id ID (--payload JSON | --payload-stdin)"+target+" [--issued-at TS] [--role ROLE]"))
-	o.Set("note", wire.String("the payload is canonical JSON with exactly these keys: sorted object keys, no insignificant whitespace, literal UTF-8 instead of non-ASCII escape forms, and canonical-byte-sorted set arrays such as touchPaths; do not sort ordered arrays such as argv; CREATE may add localToken, and REFINE takes a non-empty subset; see docs/TASKS-EXTERNAL-AGENTS.md"))
+	usageText := "corvint-tasks " + strings.Join(cmd, " ") + " --request-id ID (--payload JSON | --payload-stdin)" + target + " [--issued-at TS] [--role ROLE]"
+	if operation == mutation.OpCreate {
+		usageText += "; corvint-tasks " + strings.Join(cmd, " ") + " --template"
+	}
+	o.Set("usage", wire.String(usageText))
+	o.Set("note", wire.String("the payload is a JSON object with exactly these keys; CREATE may add localToken, and REFINE takes a non-empty subset. The CLI canonicalizes it before the request digest (sorted keys, compact separators, literal UTF-8): whitespace, object key order and escape form are free, set arrays such as labels and touchPaths are sorted (duplicates refuse), and ordered arrays such as acceptanceCriteria and dependencies keep the order given; see docs/TASKS-EXTERNAL-AGENTS.md"))
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 
@@ -263,4 +250,39 @@ func nullableCount(c *wire.Count) wire.Value {
 		return wire.Null()
 	}
 	return wire.String(string(*c))
+}
+
+// submitMutation composes the envelope around an already-read payload and
+// commits it through the §5.2 writer; mutateCommand and `ticket note` share it.
+func submitMutation(env Env, cmd []string, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value) *wire.Result {
+	repo, err := intent.Resolve(env.Cwd)
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	store0, err := intent.Load(repo.IntentRoot())
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	now, err := wire.ParseTimestamp("recordedAt", time.Now().UTC().Format("2006-01-02T15:04:05Z"))
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	// The request digest is the digest of the envelope bytes, and issuedAt is
+	// one of them, so a retry replays only when it reproduces the same
+	// timestamp. A first issue defaults to now; a retry passes --issued-at.
+	issued := now
+	if flags.issuedAt != "" {
+		if issued, err = wire.ParseTimestamp("issuedAt", flags.issuedAt); err != nil {
+			return errorResult(cmd, err)
+		}
+	}
+	envelope, err := buildEnvelope(operation, store0.Queue.QueueID.Raw, actor, flags, payload, issued)
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	report, err := store.Mutate(writerContext(), repo, actor, envelope, now)
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	return mutateResult(cmd, report)
 }

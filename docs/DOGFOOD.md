@@ -172,7 +172,7 @@ produces `"complete": true` or `dogfood-check: PASS`.
 |---|---|---|---|
 | Dirty | modified tracked or untracked file after the change | runs; the recorder reports `local-outcome: record-index-failed` | `REFUSE dirty-worktree` (exit 2) with the required-order line |
 | Stale | commit after the last `dogfood-change` | the rerun returns to step 3 until the sidecar is recommitted | `FAIL dogfood-report-drift`, `fix:` names another base or head |
-| Unknown | hunk not cited by `DOGFOOD_CITATIONS` | `cem-status: not-ready`; a nonempty plan also refuses `cem-cite: citation-plan-map-mismatch` | `FAIL dogfood-report-drift`, `fix:` names an incomplete report |
+| Unknown | hunk not cited by `DOGFOOD_CITATIONS` | `cem-status: not-ready`; a nonempty plan also refuses `cem-cite: citation-plan-map-mismatch`, an empty one `cem-cite: empty-citation-plan` | `FAIL dogfood-report-drift`, `fix:` names an incomplete report |
 | Interrupted | `SIGTERM` during a run | exit 143, no report written, no citation stage left, sidecar unchanged | `FAIL dogfood-report-missing`, or `dogfood-report-drift` when an older report exists |
 | Interrupted | `SIGINT` (Ctrl-C) | NOT_OBSERVED | NOT_OBSERVED |
 | Unsupported | run from a subdirectory of the worktree (reproduced for V1-0236) | `REFUSE not-repository-root` (exit 2) | `REFUSE not-repository-root` (exit 2) |
@@ -490,7 +490,9 @@ ordinal row's hunk ID now sits at another ordinal refuses `citation-plan-map-mis
 (`DCW-V0-029`). A hunk whose content or range changed gets a new ID and is not caught this way, so
 use full hunk IDs when a later commit may reorder or edit hunks. Rows end in LF; other control bytes are invalid. The local coordinator freezes
 and validates the whole file before citing, with independent limits of 4 MiB and 256 rows. An empty
-file is a zero-citation no-op; normal CEM status still checks the map's completeness. Larger jobs
+file refuses `cem-cite: empty-citation-plan` and cites nothing while the map still owes a hunk
+(`DCW-V0-032`, accepted); on a map that owes none it is a zero-citation no-op. Unset
+`DOGFOOD_CITATIONS` to prepare the map without citing. Larger jobs
 require separate explicit bounded plans, without automatic splitting or invented citations.
 
 After preparation, a multiple-row plan applies its earlier rows to a unique private staging map.

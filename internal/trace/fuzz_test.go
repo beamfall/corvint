@@ -13,9 +13,9 @@ import (
 func FuzzDecodeStoreRoundTripsEncode(f *testing.F) {
 	tracked := []string{"a.go", "z.go"}
 	inputs := []Input{
-		{Revision: testRevision, Task: "café ☃ \U0001F600 <&>", OpenedPaths: []string{"z.go", "a.go"},
+		{Producer: ProducerCLI, Revision: testRevision, Task: "café ☃ \U0001F600 <&>", OpenedPaths: []string{"z.go", "a.go"},
 			ChangedPaths: []string{"a.go"}, Verification: []string{"go test ./...", "git diff --check"}, Outcome: "passed"},
-		{Revision: testRevision, Task: "edge \x7f \b\f\n\r\t end", Outcome: "blocked"},
+		{Producer: ProducerCLI, Revision: testRevision, Task: "edge \x7f \b\f\n\r\t end", Outcome: "blocked"},
 	}
 	var store []byte
 	for _, input := range inputs {

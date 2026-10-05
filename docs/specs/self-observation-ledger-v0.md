@@ -96,7 +96,7 @@ local append-only diagnostic proposal stream and `corvint observations` is its r
   `native-hook`, which runs it) records no `unsupported` row, so no adapter code is admitted here
   (its post-root degradations are `SOL-V0-010` rows): its
   source-view and handoff refusals (`unsupported-text`, `unsupported-requirement`) fall under
-  `ESV-V0-003`, which forbids ledger state, and every `unsupported-hook-event` exit (`AHI-009`)
+  `ESV-V0-003`, which forbids ledger state, and every degraded `unsupported-hook-event` exit (`AHI-009`)
   precedes repository-root resolution, so a row would need a ledger location guessed from the
   process environment (invariant 2). The code already reaches the host in the degraded
   `systemMessage`, and an append would wait on the ledger's blocking lock inside the two-second
@@ -123,21 +123,35 @@ local append-only diagnostic proposal stream and `corvint observations` is its r
 - `SOL-V0-010`: The `codex` and `claude-code` host adapters (`corvint adapter`) MUST attempt one
   best-effort append with kind `adapter-degradation` whenever they return a degradation after
   resolving the project root: Claude Code from `CLAUDE_PROJECT_DIR` or the working directory, Codex
-  from the hook input's `cwd` when it is absolute (decision 0169). The row MUST carry only `host`
-  (`claude-code` or `codex`), `event` (the adapter event), `adapterCodes`, `window` (the UTC hour
+  from the hook input's `cwd` when it is absolute (decision 0169). An `opencode` `harness event` on
+  `file-change` or `post-tool` whose input carries `adapterCodes` MUST attempt the same append once
+  per code, with that event, after resolving `--root` and whether or not the event then succeeds
+  (V1-0767), waiting for it no longer than a fixed 500 ms bound. The row MUST carry only `host` (`claude-code`, `codex` or `opencode`), `event` (the adapter event), `adapterCodes`, `window` (the UTC hour
   as `YYYY-MM-DDTHHZ`), and `corvintVersion`; never prompt text, paths, tool input, session identity,
   or repository content. `adapterCodes` is a sorted, duplicate-free set of one to eight codes from
   the closed registry in `internal/observations/observations.go`. A `corvint-event-rejected:<code>`
   reason keeps its code only when the `dogfood event`, dogfood error, or unsupported registry
   names it, and is otherwise recorded as `corvint-event-rejected`. The writer MUST NOT append a row
   byte-identical to one the ledger retains, so a host, event, code set and version is recorded at
-  most once per hour window. `SOL-V0-001`'s ignore and symlink refusals and `SOL-V0-002`/`003`'s
+  most once per hour window. Two silent abstentions attempt the same append, with the same
+  bounds, while their output stays unchanged (V1-0746). A Codex hook event the adapter does not
+  handle stays `{}` and, once its absolute `cwd` lies inside a Git repository, is recorded as event
+  `unrecognised` with code `unsupported-hook-event`; the host's event name is never recorded. A
+  Claude Code `post-tool` Edit, Write or NotebookEdit target outside the project stays silent
+  (`AHI-019`) and is recorded as `post-tool-path-not-project-relative`, without the path, unless
+  its `harness event` call failed, which records that degradation instead. OpenCode's
+  `adapterCodes` is a sorted, duplicate-free list of one or both of `changed-paths-truncated` and
+  `post-tool-path-not-project-relative`; any other value, host or event refuses the whole event as
+  `invalid-harness-input` before anything is written. Core removes the field before input
+  validation, so it reaches neither the receipt basis, the response nor the trace, and the plugin's
+  receipt check leaves it out of the basis too (`AHI-022`).
+  `SOL-V0-001`'s ignore and symlink refusals and `SOL-V0-002`/`003`'s
   bounds apply unchanged. The append MUST NOT alter the hook output or exit status and waits no
   longer than the later of the invocation's work deadline and 50 ms, so a
   `dogfood-event-deadline` row, even one returned after that deadline has expired, is still attempted;
   the Claude Code `adapter-host-kill-deadline` row is attempted after the watchdog fires, waits at
   most 50 ms, and is abandoned past it. A reason
-  returned before root resolution (`unsupported-hook-event`, `hook-input-too-large`,
+  returned before root resolution (Claude Code's `unsupported-hook-event`, `hook-input-too-large`,
   `malformed-hook-json`, `missing-cwd`, `project-root-unavailable`), `corvint-output-too-large` at
   emission, the Codex kill deadline, and `claude-source-handoff` and `source-view` (`ESV-V0-003`)
   record nothing. Triage prints one `ADAPTER-DEGRADATION windows=N key=HOST/EVENT/CODE
@@ -165,9 +179,13 @@ the existing agent-memory convention.
 | ledger over 128 KiB | triage reads the first 128 KiB and reports `LEDGER-CUT` |
 | unsupported code lacks owning spec | print an explicit DRAFT capability gap, never invent ownership |
 | adapter degradation before root resolution, or Codex kill deadline | no row; the hook output is unchanged |
+| unhandled Codex event or out-of-project Claude Code post-tool target | one row with its named code; the silent hook output is unchanged |
 | adapter rejection code outside the closed registries | record bare `corvint-event-rejected`, never the unregistered code |
 | adapter append exceeds its deadline or lock is held | abandon the append; the hook output is unchanged |
 | same adapter row already retained in its hour window | no write |
+| OpenCode `adapterCodes` with another host, event or code, or unsorted, duplicated or empty | refuse the event as `invalid-harness-input`; no row |
+| OpenCode `adapterCodes` append fails (ledger not ignored, cap reached) | no row; the event and its receipt are unchanged |
+| OpenCode `adapterCodes` append waits on a held ledger lock | the coded append stops being awaited after the 500 ms bound and the response is unchanged (a `file-change` event's own `SOL-V0-001` append still waits on the lock); the abandoned append lands once the lock frees or is lost with the process |
 
 ## Acceptance evidence and traceability
 
@@ -181,9 +199,12 @@ that OCM enumerates all ten clauses from this document; it does not validate the
 | SOL-V0-007 | unsupported aggregation test; `TestUnsupportedByDesignCodeIsReportedSeparately`; `TestOCMUnsupportedRefusalAppendsOneObservation`; `TestLRFCEMAndDogfoodOCMUnsupportedRefusalsAppendOneObservationEach`; `TestIndexBuildingCommandsRecordUnsupportedRefusal`; `TestRunFrontierUnsupportedRefusalLeavesRepositoryUnchanged` (exclusion); `TestRecordUnsupportedVerifySyntaxAppendsOneObservation`; `TestRecordUnsupportedSkipsObservationBehindAnOversizedIgnoreFile`; `TestDogfoodRecordUnsupportedVerifySyntaxAppendsOneObservation`; `TestRefusalSnapshotExceptsOnlyTheIgnoredLedger` (conformance refusal snapshot); `TestHostAdapterUnsupportedHookEventRecordsNoObservation` (exclusion); `TestBatchRefusesWithoutSnapshot` (exclusion); `TestCLIReadVerbsLeaveTheRepositoryByteIdentical` (adapter codex/claude-code CLI-level exclusion) |
 | SOL-V0-008 | bounded writer CLI test, report-row integration test, append concurrency tests, and `TestDogfoodReasonAdmitsEveryRegisteredCEMCode` |
 | SOL-V0-009 | `TestFalsificationRateCountsJudgedRowsOnly`, `TestProveObserveRecordsOnlyTheVerdictCounts`, `TestProveObserveRejectsWhatIsNotAProof` |
-| SOL-V0-010 | `TestAdapterDegradationRowCarriesNoContentFields`, `TestAdapterDegradationAdmitsCompactionEventsAndCodes`, `TestAdapterDegradationDeduplicatesWithinWindow`, `TestAdapterDegradationRowsHonorLedgerCap`, `TestRenderTalliesAdapterDegradations`, `TestClaudeAdapterQuietDegradationIsLedgered`, `TestAdapterDegradationRecordedPastExpiredWorkDeadline`; `TestCLIReadVerbsLeaveTheRepositoryByteIdentical` (adapter paths touch nothing but the ledger) |
+| SOL-V0-010 | `TestAdapterDegradationRowCarriesNoContentFields`, `TestAdapterDegradationAdmitsCompactionEventsAndCodes`, `TestAdapterDegradationDeduplicatesWithinWindow`, `TestAdapterDegradationRowsHonorLedgerCap`, `TestRenderTalliesAdapterDegradations`, `TestClaudeAdapterQuietDegradationIsLedgered`, `TestAdapterDegradationRecordedPastExpiredWorkDeadline`, `TestAdapterSilentAbstentionsAreLedgered`, `TestOpenCodeAdapterCodesAreLedgeredOutsideTheReceipt`, `TestAdapterCodesAreClosedToOpenCodePathEvents`, `TestOpenCodeAdapterCodesDoNotWaitOnAHeldLedgerLock`, and under `TestHostAdapterJavaScriptHosts` `SOL-V0-010 AHI-022 V1-0767 OpenCode path abstentions reach the self-observation ledger against the real binary`; `TestCLIReadVerbsLeaveTheRepositoryByteIdentical` (adapter paths touch nothing but the ledger) |
 
 Rollback is deletion of the gitignored ledger and removal of its post-receipt best-effort call; no
 repository evidence or authority depends on it. `SOL-V0-010` rolls back by removing the adapter's
-`recordAdapterDegradation` calls; retained `adapter-degradation` rows then age out under the cap,
+`recordAdapterDegradation` and `recordAdapterReason` calls and, for OpenCode, first the plugin's
+`adapterCodes` field and then `takeAdapterCodes` in `internal/gokernel/harness.go` with
+`recordAdapterCodes` in `internal/gokernel/adapter_codes.go` (in that order,
+since Core without it refuses the field as unknown input); retained `adapter-degradation` rows then age out under the cap,
 and triage ignores them once the reader is removed.

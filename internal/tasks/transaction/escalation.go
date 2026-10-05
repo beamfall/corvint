@@ -184,7 +184,7 @@ func (s *escalationView) validate() error {
 	}
 	// Readers enforce the writer's current-acceptance open bound too, so an
 	// imported or corrupt reference over it is refused rather than served.
-	if open > 16 {
+	if open > ticket.EscalationMaxCurrentOpen {
 		return escalationFailure("OPEN_CAPACITY")
 	}
 	// Supersession has two immutable sides in one proposed transaction. Check
@@ -266,7 +266,7 @@ func EscalationCapacity(r *ticket.EscalationRefs, acceptance wire.Count, newRequ
 			}
 		}
 	}
-	if requests+newRequests > 64 || total+newEvents > 4096 || open+openDelta > 16 || open+openDelta < 0 {
+	if requests+newRequests > 64 || total+newEvents > 4096 || open+openDelta > ticket.EscalationMaxCurrentOpen || open+openDelta < 0 {
 		return escalationFailure("CAPACITY_EXCEEDED")
 	}
 	return nil

@@ -578,27 +578,65 @@ and container qualification; full fallback remains available.
   hosted reuse path and its effect on completed `main` results are `NOT_OBSERVED` until a
   merge lands with matching records. Rollback removes the `reuse` step, which restores FULL
   for every push.
-- **AFP-V0-025:** (owner-directed, proposed, 2026-10-04; V1-0719) The repository SHALL commit
-  `.corvint/unbounded-readers.json`, the closed object
-  `{"profile":"corvint-unbounded-reader-ceiling/0","ceiling":N,"reasons":{DIR:REASON}}`, at most
-  64 KiB. `N` is the largest admitted number of unbounded test units: units with tests that
-  rule (d) selects on any dirty path because neither a literal nor a declared read scope
-  (AFP-V0-023) bounds their reads. `reasons` records, by test directory, why a package's reads
-  cannot be declared. `tools/unbounded-readers` builds the same unit graph the planner builds
-  and `make unbounded-readers-check`, a `doc-gates` and `make gate` step, MUST fail when the
-  count exceeds `N`, when a `reasons` directory is not an unbounded test unit, or when the
-  record is absent or not exactly this grammar. A count below `N` passes and asks for `N` to
-  be lowered; nothing lowers it automatically. Raising `N` is an ordinary reviewed edit of the
-  record: the check makes growth visible, it does not forbid it. Each full pull-request run
+- **AFP-V0-025:** (owner-directed, proposed, 2026-10-04; V1-0719, V1-0752) The repository SHALL
+  commit `.corvint/unbounded-readers.json`, the closed object
+  `{"profile":"corvint-unbounded-reader-set/0","units":[DIR...],"reasons":{DIR:REASON}}`, at
+  most 64 KiB. `units` names, strictly ascending, the test directories of the admitted
+  unbounded test units: units with tests that rule (d) selects on any dirty path because
+  neither a literal nor a declared read scope (AFP-V0-023) bounds their reads. `reasons`
+  records, for some of those directories, why a package's reads cannot be declared.
+  `tools/unbounded-readers` builds the same unit graph the planner builds and
+  `make unbounded-readers-check`, a `doc-gates` and `make gate` step, MUST fail, naming the
+  directories, when an unbounded test unit is not in `units` or shares its directory with
+  another, or when the record is absent or not exactly this grammar, which includes a
+  `reasons` directory outside `units`. A `units` directory that is not an unbounded test
+  unit passes and is reported for removal; nothing removes it automatically. Adding a
+  directory to `units` is an ordinary reviewed edit of the record: the check makes growth
+  visible, it does not forbid it. The record is a set and not a count so that it merges the
+  way the tree does (V1-0752): two changes that each add an unbounded package with its
+  entry, or one that adds such a package while another's last check is stale, merge to a
+  record that names both, where two identical edits of a count merged to one increment. Each full pull-request run
   SHALL also report, in the step summary of shard 0 and as the `affected-share` artifact
   (`corvint-ci-selected-share/0`), the estimated time of the packages the advisory AFP-V0-022
   plan selected as a share of the complete universe, priced with the partition's cost
   estimates and the median for an unpriced package, with the part held by packages selected
   only as unbounded readers. The report is a shadow metric: it never narrows what runs, and a
   missing plan or unreadable estimates only omit it. Limits: the estimates are one retained
-  hosted run, not this run's measured time; the count is of units, not of their cost; a
+  hosted run, not this run's measured time; the set is of units, not of their cost; a
   `reasons` entry is a reviewed statement, not a proof that no narrower declaration exists.
+  The set does not remove every merge skew, because a unit is also unbounded when a
+  dependency's non-test code locates the root: a change that makes a package locate the
+  root beside a change that adds a test package importing it, a change whose last check
+  ran before this requirement reached its base, a change to how the graph classifies units,
+  or two changes to one package that disagree about its reads can still merge to a failing
+  record; the push run then fails and names the directories. Only a required up-to-date
+  branch or a merge queue, which are repository settings outside this contract, closes
+  those.
   Rollback removes the make step and the two workflow steps.
+- **AFP-V0-026:** (owner-directed, proposed, 2026-10-04; V1-0752) `.github/workflows/ci.yml`
+  SHALL also run on `merge_group` `checks_requested`, so a merge-queue entry reports the
+  required `go-product` and `doc-gates` checks on the exact commit that becomes `main`. Such a
+  run MUST be FULL: the documentation classifier (DCI-V0), the AFP-V0-013 driver, the
+  AFP-V0-022 order plan and the AFP-V0-024 reuse stay bound to their own events and are off
+  for it. `.github/workflows/ci-control-plane.yml` SHALL post `ci-control-plane` `success` on
+  the head of a completed `merge_group` run of `CI` whose branch begins
+  `gh-readonly-queue/main/pr-`, and post nothing for any other branch; it still never checks
+  out or executes repository code. That status carries no consent of its own: a pull request
+  enters the queue only after the AFP-V0-016 decision on its own head, and a queue commit
+  holds only such pull requests on top of `main`. Limits: enabling the queue is the owner's
+  ruleset change and hosted queue behavior is `NOT_OBSERVED` until then; each merge runs the
+  suite on the queue commit and again on the `main` push unless the pull-request run tested
+  the same tree, because AFP-V0-024 admits only pull-request results; the pull-request run
+  still tests a possibly stale merge, so only the queue run closes the AFP-V0-025 residual
+  skews; the status is posted only after the whole `CI` run completes, so the queue's
+  status-check timeout must exceed that run; the queue-entry precondition, the branch form
+  and `workflow_run` delivery for `merge_group` runs are GitHub behavior assumed here, and a
+  wrong assumption about the latter two posts nothing; the status stays on a queue commit
+  after its entry leaves the queue, so a pull request whose head is that commit shows it
+  until its own `CI` run completes and AFP-V0-016 replaces it, which can admit only
+  `.github/` content already consented to on a queued head. Rollback: disable the queue in the ruleset
+  first, then remove the trigger and the `merge-group` job; removing them while the queue is
+  on leaves every entry waiting for checks that never report.
 
 ## Non-goals and authority
 
@@ -656,7 +694,8 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-013 | `tools/corvint-pr-tests` and `.github/workflows/ci.yml` | `TestSelectedFailureAndFallback`, `TestInterruptionLeavesNoLiveDescendant`; trusted pins empty, hosted execution unavailable |
 | AFP-V0-015 | `tools/corvint-pr-tests/container.go` and indexed shadow execution | `TestContainerProfileAndArchive`, `TestColdRuntime`, `TestFrozenRowIndex`, `TestDockerCLIInterruption`, `TestContainerCleanupRefusal`; real Linux row/hosted NOT_RUN |
 | AFP-V0-024 | `tools/ci-reuse-plan`; `docs-plan` and `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0024ReusesOnlyAnExactTreeRecordedByEveryShard`, `TestAFPV0024AnythingElseRunsInFull`; local replay of the push step against the live API returned FULL; hosted reuse `NOT_OBSERVED` |
-| AFP-V0-025 | `tools/unbounded-readers`, `.corvint/unbounded-readers.json`, `make unbounded-readers-check`; `Graph.UnboundedReaders`; `ShareOf` in `.github/cishards/order.go`; `doc-gates` and `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0025RatchetFailsAboveTheRecordedCeiling`, `TestAFPV0025RatchetWithoutARecordRefuses`, `TestAFPV0025ShareReportsSelectedEstimatedTime`; hosted share report `NOT_OBSERVED` until this change's own CI run |
+| AFP-V0-025 | `tools/unbounded-readers`, `.corvint/unbounded-readers.json`, `make unbounded-readers-check`; `Graph.UnboundedReaders`; `ShareOf` in `.github/cishards/order.go`; `doc-gates` and `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0025RatchetFailsOffTheRecordedSet`, `TestAFPV0025ConcurrentAdditionsMergeToAPassingRecord`, `TestAFPV0025RatchetWithoutARecordRefuses`, `TestAFPV0025ShareReportsSelectedEstimatedTime`; hosted share report `NOT_OBSERVED` until this change's own CI run |
+| AFP-V0-026 | `merge_group` trigger in `.github/workflows/ci.yml`; `merge-group` job in `.github/workflows/ci-control-plane.yml` | `actionlint`; `make ci-least-privilege-check`; hosted merge-queue run `NOT_OBSERVED` until the owner enables the queue |
 | AFP-V0-014 | `tools/corvint-pr-tests/shadow.go` | `TestQualificationAndTerminalFailures`, `TestToolIdentityRequiresCurrentGoVersion`; frozen 200-row qualification NOT_RUN |
 | AFP-V0-016 | `.github/workflows/ci-control-plane.yml`; the `main` repository ruleset | `actionlint`; `success` posted on PR #26 (run 35444060752) and PR #24 (run 35446378936); ruleset 23699808 active with the decision 0320 settings; the decision 0390 settings (no bypass, `doc-gates` required) and the admin-status consent path NOT_VERIFIED until the owner applies them; `failure` path NOT_RUN on a real PR |
 | AFP-V0-017 | `.github/workflows/pr-tests-qualification.yml` | `actionlint`; dispatch NOT_RUN (`main` has fewer than 201 first-parent commits) |

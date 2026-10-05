@@ -68,6 +68,8 @@ var ReadVerbs = []string{
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
 	"dispatch", "dispatch status", "dispatch unpark",
 	"submit", "gate run", "complete", "health", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe",
+	"ticket note set", "ticket note clear", "ticket note show",
+	"ticket escalate", "ticket answer", "ticket escalation list", "ticket escalation show", "ticket escalation history",
 }
 
 // OmittedVerbs are the verb paths the SPEC names that this binary does not
@@ -138,6 +140,17 @@ func Run(env Env) int {
 			return emit(env.Stdout, ticketShow(env, args[2:], false))
 		case "export":
 			return emit(env.Stdout, ticketExport(env, args[2:]))
+		}
+		if args[1] == "note" {
+			return emit(env.Stdout, noteCommand(env, args[2:]))
+		}
+		switch args[1] {
+		case "escalate":
+			return emit(env.Stdout, escalateCommand(env, args[2:]))
+		case "answer":
+			return emit(env.Stdout, answerCommand(env, args[2:]))
+		case "escalation":
+			return emit(env.Stdout, escalationReadCommand(env, args[2:]))
 		}
 		if _, ok := mutationVerbs[args[1]]; ok {
 			return emit(env.Stdout, mutateCommand(env, args[1], args[2:]))
@@ -324,6 +337,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR]",
 		"corvint-tasks ticket <mutation> --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
 		"corvint-tasks ticket <mutation> --help   (its payload keys)",
+		"corvint-tasks ticket create --template   (canonical CREATE payload with field types, enums and nullability; read-only)",
 		"corvint-tasks release create|update|candidate|record-gate|promote --request-id ID --target RELEASE [--expected-revision N] [--payload JSON] [--role ROLE]",
 		"corvint-tasks release list|show RELEASE|readiness RELEASE",
 		"corvint-tasks claim <ticketId|local> --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate]",
@@ -390,7 +404,7 @@ func withStore(env Env, body func(rc *readCtx) error) (*readCtx, error) {
 	}
 	rc := &readCtx{repo: repo}
 	rd := snapshot.Reader{StateDir: repo.StateDir, IntentTree: func() (wire.Digest, error) {
-		t, err := intent.TreeDigest(repo.PrimaryWorktree)
+		t, err := intent.TreeDigest(repo.IntentRoot())
 		if err != nil {
 			return "", err
 		}
@@ -400,7 +414,7 @@ func withStore(env Env, body func(rc *readCtx) error) (*readCtx, error) {
 		if s.Head.PrimaryWorktree != repo.PrimaryWorktree {
 			return wire.Errorf(wire.CodeUnsupportedFilesystem, repo.StateDir, "head.primaryWorktree %q differs from the resolved primary worktree %q (repository relocation is unsupported in this preview)", s.Head.PrimaryWorktree, repo.PrimaryWorktree)
 		}
-		st, err := intent.LoadExpecting(repo.PrimaryWorktree, s.IntentTree)
+		st, err := intent.LoadExpecting(repo.IntentRoot(), s.IntentTree)
 		if err != nil {
 			return err
 		}
@@ -421,6 +435,10 @@ func withStore(env Env, body func(rc *readCtx) error) (*readCtx, error) {
 }
 
 func failure(cmd []string, rc *readCtx, err error) *wire.Result {
+	if rc != nil && rc.repo != nil {
+		// A read refused for intent location names its repair (CTW-V0-007).
+		err = rc.repo.WithIntentRepair(err)
+	}
 	code := wire.CodeOf(err)
 	res := &wire.Result{Command: cmd, Outcome: outcomeFor(code), Codes: []string{code}, Warnings: []string{prose(err.Error())}}
 	if rc != nil && rc.snap != nil && rc.snap.Head != nil {
@@ -999,6 +1017,9 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 				return e
 			}
 			attempts = in.Attempts
+		}
+		if includeRecord {
+			val.Obj.Set("operatorNote", operatorNoteShowValue(rc, v.Record))
 		}
 		val.Obj.Set("retries", retryObservation(rc, attempts, v.Record))
 		val.Obj.Set("claimabilityScope", wire.String("RECORDED_DEFAULT_EXTERNAL_AGENT_PLAN"))

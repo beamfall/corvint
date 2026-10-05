@@ -24,7 +24,8 @@ import (
 // package supplies only the facts a mutation depends on and the §5.2 ordering
 // that makes the result durable. It never authenticates, never edits the
 // envelope. Entry guards refuse unsupported states before the model or recovery runs.
-func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding, envelope []byte, now wire.Timestamp) (*Report, error) {
+func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding, envelope []byte, now wire.Timestamp) (out *Report, outErr error) {
+	defer func() { out, outErr = intentFix(repo, out, outErr) }()
 	report := &Report{}
 	if repo == nil {
 		return report, wire.Errorf(wire.CodeMalformed, "", "no repository authority was resolved")
@@ -163,6 +164,10 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 	if err != nil {
 		return report, err
 	}
+	priorNote, err := priorNoteEvent(repo, env, canonical.Records)
+	if err != nil {
+		return guardFailure(report, env.RequestID, err)
+	}
 	result := transaction.Model(
 		request,
 		transaction.Input{
@@ -180,6 +185,7 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 			Branch:            branch,
 			Replay:            transaction.ReplayObservation{State: "ABSENT"},
 			RecordedAt:        now,
+			PriorNoteEvent:    priorNote,
 		},
 	)
 	report.Outcome = result.Outcome
@@ -253,4 +259,27 @@ func replayResult(request transaction.Request, entry mutation.IndexEntry) transa
 	record.Set("mutationSha256", wire.String(string(entry.MutationSha256)))
 	record.Set("outcome", entry.Outcome.Value())
 	return transaction.Model(request, transaction.Input{Replay: transaction.ReplayObservation{State: "FOUND", Record: wire.EncodeFile(wire.ObjectValue(record))}})
+}
+
+// priorNoteEvent reads the target's current operator-note event at the
+// audited reference head for NOTE_SET/NOTE_CLEAR (ON-V0-004). A missing file
+// returns nil, and the pure transition refuses MISSING_EVIDENCE; the bytes are
+// re-hashed against the reference there, so this read is never trusted alone.
+func priorNoteEvent(repo *intent.Repository, env *mutation.Envelope, records map[string]journal.Record) ([]byte, error) {
+	if !mutation.IsNoteOperation(env.Operation) || env.TargetID == nil {
+		return nil, nil
+	}
+	record, ok := records["intent/tickets/"+env.TargetID.Local+".json"]
+	if !ok {
+		return nil, nil
+	}
+	rec, err := ticket.Decode(record.Raw)
+	if err != nil || rec.OperatorNote == nil {
+		return nil, err
+	}
+	raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "evidence", string(rec.OperatorNote.Head)), ticket.MaxOperatorNoteBytes)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	return raw, err
 }

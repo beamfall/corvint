@@ -18,7 +18,7 @@ func TestStoreReadAbsentAndAppendRoundTrip(t *testing.T) {
 	if err != nil || state != StateAbsent || len(records) != 0 {
 		t.Fatalf("Read() = (%+v, %q, %v)", records, state, err)
 	}
-	record := mustRecord(t, Input{Revision: testRevision, Task: "café ☃ 😀", OpenedPaths: []string{"z.go", "a.go"}, ChangedPaths: []string{"a.go"}, Verification: []string{"go test ./...", "git diff --check"}, Outcome: "passed"}, []string{"a.go", "z.go"})
+	record := mustRecord(t, Input{Producer: ProducerCLI, Revision: testRevision, Task: "café ☃ 😀", OpenedPaths: []string{"z.go", "a.go"}, ChangedPaths: []string{"a.go"}, Verification: []string{"go test ./...", "git diff --check"}, Outcome: "passed"}, []string{"a.go", "z.go"})
 	written, err := store.Append(record)
 	if err != nil || !written {
 		t.Fatalf("Append() = (%v, %v)", written, err)
@@ -31,7 +31,8 @@ func TestStoreReadAbsentAndAppendRoundTrip(t *testing.T) {
 	if err != nil || state != StateReady || len(records) != 1 || records[0].TraceID != record.TraceID {
 		t.Fatalf("Read() = (%+v, %q, %v)", records, state, err)
 	}
-	want := "{\"changed_paths\":[\"a.go\"],\"opened_paths\":[\"a.go\",\"z.go\"],\"outcome\":\"passed\",\"revision\":\"0123456789abcdef0123456789abcdef01234567\",\"schema_version\":1,\"task\":\"caf\\u00e9 \\u2603 \\ud83d\\ude00\",\"trace_id\":\"5be94b69b7df0706b2aa769fcfc9d46d1fd439d7845023521681cd22ce0951bf\",\"verification\":[\"git diff --check\",\"go test ./...\"]}\n"
+	// LTPM-V0-015: the sha256 of the spec-authored schema-3 basis, hashed outside Go.
+	want := "{\"changed_paths\":[\"a.go\"],\"opened_paths\":[\"a.go\",\"z.go\"],\"outcome\":\"passed\",\"producer\":\"cli\",\"revision\":\"0123456789abcdef0123456789abcdef01234567\",\"schema_version\":3,\"task\":\"caf\\u00e9 \\u2603 \\ud83d\\ude00\",\"trace_id\":\"4bee84922cbe210e70da0266505ab53cf23150b613fcc8caa56ed9e276c12df1\",\"verification\":[\"git diff --check\",\"go test ./...\"]}\n"
 	got, err := os.ReadFile(StorePath(root, testRevision))
 	if err != nil || string(got) != want {
 		t.Fatalf("stored bytes = %q, error = %v", got, err)
@@ -93,8 +94,8 @@ func TestStoreReadSortsAndUsesFrozenRevisionSnapshot(t *testing.T) {
 	}
 	store := newTestStore(t, root, revisions, func() error { return nil })
 	revisions[firstRevision] = Revision{TreeRevision: "invalid"}
-	first := mustRecord(t, Input{Revision: firstRevision, Task: "z task", ChangedPaths: []string{"a.go"}, Outcome: "passed"}, []string{"a.go"})
-	second := mustRecord(t, Input{Revision: secondRevision, Task: "a task", ChangedPaths: []string{"b.go"}, Outcome: "failed"}, []string{"b.go"})
+	first := mustRecord(t, Input{Producer: ProducerCLI, Revision: firstRevision, Task: "z task", ChangedPaths: []string{"a.go"}, Outcome: "passed"}, []string{"a.go"})
+	second := mustRecord(t, Input{Producer: ProducerCLI, Revision: secondRevision, Task: "a task", ChangedPaths: []string{"b.go"}, Outcome: "failed"}, []string{"b.go"})
 	if _, err := store.Append(first); err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +138,7 @@ func TestStoreReadTypesCandidateAndFileChangesAsDrift(t *testing.T) {
 			root := t.TempDir()
 			revisions := map[string]Revision{testRevision: {TreeRevision: strings.Repeat("a", 40), TrackedPaths: []string{"a.go"}}}
 			store := newTestStore(t, root, revisions, func() error { return nil })
-			record := mustRecord(t, Input{Revision: testRevision, Task: "task", ChangedPaths: []string{"a.go"}, Outcome: "passed"}, []string{"a.go"})
+			record := mustRecord(t, Input{Producer: ProducerCLI, Revision: testRevision, Task: "task", ChangedPaths: []string{"a.go"}, Outcome: "passed"}, []string{"a.go"})
 			if written, err := store.Append(record); err != nil || !written {
 				t.Fatalf("Append() = (%v, %v)", written, err)
 			}
@@ -166,7 +167,7 @@ func TestStoreReadRejectsWholeStoreViolations(t *testing.T) {
 		{
 			name: "duplicate ids",
 			prepare: func(t *testing.T, root string) {
-				record := mustRecord(t, Input{Revision: canonicalRevision, Task: "task", ChangedPaths: []string{"a.go"}, Outcome: "passed"}, []string{"a.go"})
+				record := mustRecord(t, Input{Producer: ProducerCLI, Revision: canonicalRevision, Task: "task", ChangedPaths: []string{"a.go"}, Outcome: "passed"}, []string{"a.go"})
 				row, _ := Encode(record)
 				writeTraceFixture(t, root, canonicalRevision, append(append([]byte(nil), row...), row...))
 			},
@@ -176,7 +177,7 @@ func TestStoreReadRejectsWholeStoreViolations(t *testing.T) {
 			name: "incomplete legacy migration",
 			prepare: func(t *testing.T, root string) {
 				for _, revision := range []string{legacyRevision, canonicalRevision} {
-					record := mustRecord(t, Input{Revision: revision, Task: "same task", ChangedPaths: []string{"a.go"}, Outcome: "passed"}, []string{"a.go"})
+					record := mustRecord(t, Input{Producer: ProducerCLI, Revision: revision, Task: "same task", ChangedPaths: []string{"a.go"}, Outcome: "passed"}, []string{"a.go"})
 					row, _ := Encode(record)
 					writeTraceFixture(t, root, revision, row)
 				}
@@ -265,7 +266,7 @@ func TestAppendEnforcesGlobalRowBound(t *testing.T) {
 	revision := strings.Repeat("d", 40)
 	rows := make([]byte, 0, MaxTraces*260)
 	for index := 0; index < MaxTraces; index++ {
-		record := mustRecord(t, Input{Revision: revision, Task: fmt.Sprintf("task %d", index), Outcome: "passed"}, nil)
+		record := mustRecord(t, Input{Producer: ProducerCLI, Revision: revision, Task: fmt.Sprintf("task %d", index), Outcome: "passed"}, nil)
 		row, err := Encode(record)
 		if err != nil {
 			t.Fatal(err)
@@ -274,7 +275,7 @@ func TestAppendEnforcesGlobalRowBound(t *testing.T) {
 	}
 	writeTraceFixture(t, root, revision, rows)
 	store := newTestStore(t, root, map[string]Revision{revision: {TreeRevision: strings.Repeat("e", 40)}}, func() error { return nil })
-	next := mustRecord(t, Input{Revision: revision, Task: "one too many", Outcome: "passed"}, nil)
+	next := mustRecord(t, Input{Producer: ProducerCLI, Revision: revision, Task: "one too many", Outcome: "passed"}, nil)
 	written, err := store.Append(next)
 	if err == nil || written || !strings.Contains(err.Error(), "exceeds 1000 rows") {
 		t.Fatalf("Append() = (%v, %v)", written, err)
@@ -299,7 +300,7 @@ func TestAppendEvictsWholeFilesInRetentionOrder(t *testing.T) {
 	}
 	rows := make([]byte, 0, 995*260)
 	for index := 0; index < 995; index++ {
-		record := mustRecord(t, Input{Revision: target, Task: fmt.Sprintf("target task %d", index), Outcome: "passed"}, nil)
+		record := mustRecord(t, Input{Producer: ProducerCLI, Revision: target, Task: fmt.Sprintf("target task %d", index), Outcome: "passed"}, nil)
 		row, err := Encode(record)
 		if err != nil {
 			t.Fatal(err)
@@ -316,7 +317,7 @@ func TestAppendEvictsWholeFilesInRetentionOrder(t *testing.T) {
 		{passedFar, "passed"},
 		{passedNear, "passed"},
 	} {
-		record := mustRecord(t, Input{Revision: fixture.revision, Task: "candidate " + fixture.revision, Outcome: fixture.outcome}, nil)
+		record := mustRecord(t, Input{Producer: ProducerCLI, Revision: fixture.revision, Task: "candidate " + fixture.revision, Outcome: fixture.outcome}, nil)
 		row, err := Encode(record)
 		if err != nil {
 			t.Fatal(err)
@@ -324,7 +325,7 @@ func TestAppendEvictsWholeFilesInRetentionOrder(t *testing.T) {
 		writeTraceFixture(t, root, fixture.revision, row)
 	}
 	store := newTestStore(t, root, revisions, func() error { return nil })
-	fill := mustRecord(t, Input{Revision: target, Task: "fill cap", Outcome: "passed"}, nil)
+	fill := mustRecord(t, Input{Producer: ProducerCLI, Revision: target, Task: "fill cap", Outcome: "passed"}, nil)
 	if written, err := store.Append(fill); err != nil || !written {
 		t.Fatalf("fill Append() = (%v, %v)", written, err)
 	}
@@ -336,7 +337,7 @@ func TestAppendEvictsWholeFilesInRetentionOrder(t *testing.T) {
 	if err := os.WriteFile(StorePath(root, target), rows, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	unreachableRecord := mustRecord(t, Input{
+	unreachableRecord := mustRecord(t, Input{Producer: ProducerCLI,
 		Revision: unreachable, Task: "unreachable candidate", ChangedPaths: []string{"historical.go"}, Outcome: "passed",
 	}, []string{"historical.go"})
 	unreachableRow, err := Encode(unreachableRecord)
@@ -345,7 +346,7 @@ func TestAppendEvictsWholeFilesInRetentionOrder(t *testing.T) {
 	}
 	writeTraceFixture(t, root, unreachable, unreachableRow)
 	for index, revision := range []string{unreachable, noPassedFar, noPassedNear, passedFar, passedNear} {
-		next := mustRecord(t, Input{Revision: target, Task: fmt.Sprintf("reclaim %d", index), Outcome: "passed"}, nil)
+		next := mustRecord(t, Input{Producer: ProducerCLI, Revision: target, Task: fmt.Sprintf("reclaim %d", index), Outcome: "passed"}, nil)
 		if written, err := store.Append(next); err != nil || !written {
 			t.Fatalf("reclaim Append() = (%v, %v)", written, err)
 		}
@@ -356,7 +357,7 @@ func TestAppendEvictsWholeFilesInRetentionOrder(t *testing.T) {
 	if _, err := os.Stat(StorePath(root, target)); err != nil {
 		t.Fatalf("retention evicted append target: %v", err)
 	}
-	overflow := mustRecord(t, Input{Revision: target, Task: "target alone overflow", Outcome: "passed"}, nil)
+	overflow := mustRecord(t, Input{Producer: ProducerCLI, Revision: target, Task: "target alone overflow", Outcome: "passed"}, nil)
 	written, err := store.Append(overflow)
 	if err == nil || written || !strings.Contains(err.Error(), "record at a newer revision or remove the target trace file") {
 		t.Fatalf("target-only Append() = (%v, %v)", written, err)
@@ -379,7 +380,7 @@ func TestAppendRetentionPreservesDirectoryEntryCap(t *testing.T) {
 		t.Fatal(err)
 	}
 	store := newTestStore(t, root, revisions, func() error { return nil })
-	record := mustRecord(t, Input{Revision: target, Task: "new append target", Outcome: "passed"}, nil)
+	record := mustRecord(t, Input{Producer: ProducerCLI, Revision: target, Task: "new append target", Outcome: "passed"}, nil)
 	if written, err := store.Append(record); err != nil || !written {
 		t.Fatalf("Append() = (%v, %v)", written, err)
 	}
@@ -406,7 +407,7 @@ func TestAppendRetentionPublishFailureRestoresCandidateFiles(t *testing.T) {
 	}
 	rows := make([]byte, 0, 998*260)
 	for index := 0; index < 998; index++ {
-		record := mustRecord(t, Input{Revision: target, Task: fmt.Sprintf("target task %d", index), Outcome: "passed"}, nil)
+		record := mustRecord(t, Input{Producer: ProducerCLI, Revision: target, Task: fmt.Sprintf("target task %d", index), Outcome: "passed"}, nil)
 		row, err := Encode(record)
 		if err != nil {
 			t.Fatal(err)
@@ -415,7 +416,7 @@ func TestAppendRetentionPublishFailureRestoresCandidateFiles(t *testing.T) {
 	}
 	writeTraceFixture(t, root, target, rows)
 	for revision, outcome := range map[string]string{failed: "failed", passed: "passed"} {
-		record := mustRecord(t, Input{Revision: revision, Task: "candidate " + revision, Outcome: outcome}, nil)
+		record := mustRecord(t, Input{Producer: ProducerCLI, Revision: revision, Task: "candidate " + revision, Outcome: outcome}, nil)
 		row, err := Encode(record)
 		if err != nil {
 			t.Fatal(err)
@@ -437,7 +438,7 @@ func TestAppendRetentionPublishFailureRestoresCandidateFiles(t *testing.T) {
 		}
 		return root.Rename(oldName, newName)
 	}
-	next := mustRecord(t, Input{Revision: target, Task: "must not publish", Outcome: "passed"}, nil)
+	next := mustRecord(t, Input{Producer: ProducerCLI, Revision: target, Task: "must not publish", Outcome: "passed"}, nil)
 	if written, err := store.Append(next); err == nil || written {
 		t.Fatalf("Append() = (%v, %v)", written, err)
 	}
@@ -456,7 +457,7 @@ func TestAppendRetentionPublishFailureRestoresCandidateFiles(t *testing.T) {
 			t.Fatalf("staged eviction survived rollback: %s", entry.Name())
 		}
 	}
-	collisionRecord := mustRecord(t, Input{Revision: target, Task: "collision must fail closed", Outcome: "passed"}, nil)
+	collisionRecord := mustRecord(t, Input{Producer: ProducerCLI, Revision: target, Task: "collision must fail closed", Outcome: "passed"}, nil)
 	collisionName := stagedEvictionName(target, collisionRecord.TraceID, failed+".jsonl")
 	collisionPath := filepath.Join(root, ".context-corvint", "traces", collisionName)
 	collisionBytes := []byte("pre-existing collision")
@@ -483,7 +484,7 @@ func TestAppendRejectsMalformedUnreachableRows(t *testing.T) {
 	store := newTestStore(t, root, map[string]Revision{
 		target: {TreeRevision: strings.Repeat("1", 40)},
 	}, func() error { return nil })
-	record := mustRecord(t, Input{Revision: target, Task: "must reject malformed unreachable row", Outcome: "passed"}, nil)
+	record := mustRecord(t, Input{Producer: ProducerCLI, Revision: target, Task: "must reject malformed unreachable row", Outcome: "passed"}, nil)
 	written, err := store.Append(record)
 	if err == nil || written || !strings.Contains(err.Error(), "invalid local trace fields") {
 		t.Fatalf("Append() = (%v, %v)", written, err)
@@ -504,17 +505,17 @@ func TestAppendRecoversInterruptedRetention(t *testing.T) {
 				target:    {TreeRevision: strings.Repeat("1", 40)},
 				candidate: {TreeRevision: strings.Repeat("2", 40), AncestryDistance: 1},
 			}
-			old := mustRecord(t, Input{Revision: target, Task: "old target row", Outcome: "passed"}, nil)
+			old := mustRecord(t, Input{Producer: ProducerCLI, Revision: target, Task: "old target row", Outcome: "passed"}, nil)
 			oldRow, err := Encode(old)
 			if err != nil {
 				t.Fatal(err)
 			}
-			interrupted := mustRecord(t, Input{Revision: target, Task: "interrupted row", Outcome: "passed"}, nil)
+			interrupted := mustRecord(t, Input{Producer: ProducerCLI, Revision: target, Task: "interrupted row", Outcome: "passed"}, nil)
 			interruptedRow, err := Encode(interrupted)
 			if err != nil {
 				t.Fatal(err)
 			}
-			candidateRecord := mustRecord(t, Input{Revision: candidate, Task: "eviction candidate", Outcome: "failed"}, nil)
+			candidateRecord := mustRecord(t, Input{Producer: ProducerCLI, Revision: candidate, Task: "eviction candidate", Outcome: "failed"}, nil)
 			candidateRow, err := Encode(candidateRecord)
 			if err != nil {
 				t.Fatal(err)
@@ -538,7 +539,7 @@ func TestAppendRecoversInterruptedRetention(t *testing.T) {
 			if _, _, err := store.Read(); !errors.Is(err, errStagedEvictionResidue) {
 				t.Fatalf("Read() error=%v, want staged residue refusal", err)
 			}
-			retry := mustRecord(t, Input{Revision: target, Task: "recovery append", Outcome: "passed"}, nil)
+			retry := mustRecord(t, Input{Producer: ProducerCLI, Revision: target, Task: "recovery append", Outcome: "passed"}, nil)
 			if written, err := store.Append(retry); err != nil || !written {
 				t.Fatalf("Append() = (%v, %v)", written, err)
 			}
@@ -581,7 +582,7 @@ func TestAppendRecoversInterruptedRetention(t *testing.T) {
 func TestAppendRecoversLoneStagedTarget(t *testing.T) {
 	root := t.TempDir()
 	revision := strings.Repeat("a", 40)
-	staged := mustRecord(t, Input{Revision: revision, Task: "staged before eviction", Outcome: "passed"}, nil)
+	staged := mustRecord(t, Input{Producer: ProducerCLI, Revision: revision, Task: "staged before eviction", Outcome: "passed"}, nil)
 	stagedRow, err := Encode(staged)
 	if err != nil {
 		t.Fatal(err)
@@ -600,7 +601,7 @@ func TestAppendRecoversLoneStagedTarget(t *testing.T) {
 	if got, err := os.ReadFile(temporary); err != nil || !bytes.Equal(got, stagedRow) {
 		t.Fatalf("Read() mutated staged target: error=%v got=%q", err, got)
 	}
-	retry := mustRecord(t, Input{Revision: revision, Task: "retry after lone staging", Outcome: "passed"}, nil)
+	retry := mustRecord(t, Input{Producer: ProducerCLI, Revision: revision, Task: "retry after lone staging", Outcome: "passed"}, nil)
 	if written, err := store.Append(retry); err != nil || !written {
 		t.Fatalf("Append() = (%v, %v)", written, err)
 	}
@@ -614,7 +615,7 @@ func TestAppendRecoversLoneStagedTarget(t *testing.T) {
 func TestAppendRepositoryDriftPreventsInterruptedRecoveryMutation(t *testing.T) {
 	root := t.TempDir()
 	revision := strings.Repeat("a", 40)
-	staged := mustRecord(t, Input{Revision: revision, Task: "staged before drift", Outcome: "passed"}, nil)
+	staged := mustRecord(t, Input{Producer: ProducerCLI, Revision: revision, Task: "staged before drift", Outcome: "passed"}, nil)
 	stagedRow, err := Encode(staged)
 	if err != nil {
 		t.Fatal(err)
@@ -634,7 +635,7 @@ func TestAppendRepositoryDriftPreventsInterruptedRecoveryMutation(t *testing.T) 
 		}
 		return nil
 	})
-	retry := mustRecord(t, Input{Revision: revision, Task: "retry after drift", Outcome: "passed"}, nil)
+	retry := mustRecord(t, Input{Producer: ProducerCLI, Revision: revision, Task: "retry after drift", Outcome: "passed"}, nil)
 	if written, err := store.Append(retry); err == nil || written {
 		t.Fatalf("Append() = (%v, %v), want drift refusal", written, err)
 	}
@@ -648,17 +649,17 @@ func TestAppendInterruptedRecoveryRemainsRetryable(t *testing.T) {
 	root := t.TempDir()
 	target := strings.Repeat("a", 40)
 	candidate := strings.Repeat("b", 40)
-	old := mustRecord(t, Input{Revision: target, Task: "old target row", Outcome: "passed"}, nil)
+	old := mustRecord(t, Input{Producer: ProducerCLI, Revision: target, Task: "old target row", Outcome: "passed"}, nil)
 	oldRow, err := Encode(old)
 	if err != nil {
 		t.Fatal(err)
 	}
-	interrupted := mustRecord(t, Input{Revision: target, Task: "interrupted row", Outcome: "passed"}, nil)
+	interrupted := mustRecord(t, Input{Producer: ProducerCLI, Revision: target, Task: "interrupted row", Outcome: "passed"}, nil)
 	interruptedRow, err := Encode(interrupted)
 	if err != nil {
 		t.Fatal(err)
 	}
-	candidateRecord := mustRecord(t, Input{Revision: candidate, Task: "eviction candidate", Outcome: "failed"}, nil)
+	candidateRecord := mustRecord(t, Input{Producer: ProducerCLI, Revision: candidate, Task: "eviction candidate", Outcome: "failed"}, nil)
 	candidateRow, err := Encode(candidateRecord)
 	if err != nil {
 		t.Fatal(err)
@@ -677,7 +678,7 @@ func TestAppendInterruptedRecoveryRemainsRetryable(t *testing.T) {
 		candidate: {TreeRevision: strings.Repeat("2", 40), AncestryDistance: 1},
 	}, func() error { return nil })
 	store.hooks.afterRecoveryTargetCleanup = func() error { return errors.New("injected recovery interruption") }
-	retry := mustRecord(t, Input{Revision: target, Task: "retry interrupted recovery", Outcome: "passed"}, nil)
+	retry := mustRecord(t, Input{Producer: ProducerCLI, Revision: target, Task: "retry interrupted recovery", Outcome: "passed"}, nil)
 	if written, err := store.Append(retry); err == nil || written || !strings.Contains(err.Error(), "injected recovery interruption") {
 		t.Fatalf("faulted Append() = (%v, %v)", written, err)
 	}
@@ -714,7 +715,7 @@ func TestAppendRetentionPostPublishSyncFailureRecoversOnRetry(t *testing.T) {
 	}
 	rows := make([]byte, 0, 999*260)
 	for index := 0; index < 999; index++ {
-		record := mustRecord(t, Input{Revision: target, Task: fmt.Sprintf("target task %d", index), Outcome: "passed"}, nil)
+		record := mustRecord(t, Input{Producer: ProducerCLI, Revision: target, Task: fmt.Sprintf("target task %d", index), Outcome: "passed"}, nil)
 		row, err := Encode(record)
 		if err != nil {
 			t.Fatal(err)
@@ -722,7 +723,7 @@ func TestAppendRetentionPostPublishSyncFailureRecoversOnRetry(t *testing.T) {
 		rows = append(rows, row...)
 	}
 	writeTraceFixture(t, root, target, rows)
-	candidateRecord := mustRecord(t, Input{Revision: candidate, Task: "eviction candidate", Outcome: "failed"}, nil)
+	candidateRecord := mustRecord(t, Input{Producer: ProducerCLI, Revision: candidate, Task: "eviction candidate", Outcome: "failed"}, nil)
 	candidateRow, err := Encode(candidateRecord)
 	if err != nil {
 		t.Fatal(err)
@@ -730,7 +731,7 @@ func TestAppendRetentionPostPublishSyncFailureRecoversOnRetry(t *testing.T) {
 	writeTraceFixture(t, root, candidate, candidateRow)
 	store := newTestStore(t, root, revisions, func() error { return nil })
 	store.hooks.publishSync = func(*os.File) error { return errors.New("injected post-publish sync failure") }
-	next := mustRecord(t, Input{Revision: target, Task: "published before sync failure", Outcome: "passed"}, nil)
+	next := mustRecord(t, Input{Producer: ProducerCLI, Revision: target, Task: "published before sync failure", Outcome: "passed"}, nil)
 	written, err := store.Append(next)
 	if err == nil || !written || !strings.Contains(err.Error(), "cannot sync local trace directory") {
 		t.Fatalf("Append() = (%v, %v)", written, err)
@@ -821,7 +822,7 @@ func TestAppendRollbackPreservesOldBytes(t *testing.T) {
 			revision := strings.Repeat("f", 40)
 			revisions := map[string]Revision{revision: {TreeRevision: strings.Repeat("a", 40)}}
 			initialStore := newTestStore(t, root, revisions, func() error { return nil })
-			first := mustRecord(t, Input{Revision: revision, Task: "first", Outcome: "passed"}, nil)
+			first := mustRecord(t, Input{Producer: ProducerCLI, Revision: revision, Task: "first", Outcome: "passed"}, nil)
 			if written, err := initialStore.Append(first); err != nil || !written {
 				t.Fatalf("initial Append() = (%v, %v)", written, err)
 			}
@@ -831,7 +832,7 @@ func TestAppendRollbackPreservesOldBytes(t *testing.T) {
 			}
 			store := newTestStore(t, root, revisions, test.check)
 			test.hook(store)
-			second := mustRecord(t, Input{Revision: revision, Task: "second", Outcome: "failed"}, nil)
+			second := mustRecord(t, Input{Producer: ProducerCLI, Revision: revision, Task: "second", Outcome: "failed"}, nil)
 			if written, err := store.Append(second); err == nil || written {
 				t.Fatalf("faulted Append() = (%v, %v)", written, err)
 			}
@@ -851,7 +852,7 @@ func TestAppendRejectsOperationLockPathReplacement(t *testing.T) {
 	revision := strings.Repeat("9", 40)
 	revisions := map[string]Revision{revision: {TreeRevision: strings.Repeat("8", 40)}}
 	store := newTestStore(t, root, revisions, func() error { return nil })
-	first := mustRecord(t, Input{Revision: revision, Task: "first", Outcome: "passed"}, nil)
+	first := mustRecord(t, Input{Producer: ProducerCLI, Revision: revision, Task: "first", Outcome: "passed"}, nil)
 	if written, err := store.Append(first); err != nil || !written {
 		t.Fatalf("initial Append() = (%v, %v)", written, err)
 	}
@@ -870,7 +871,7 @@ func TestAppendRejectsOperationLockPathReplacement(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	second := mustRecord(t, Input{Revision: revision, Task: "second", Outcome: "failed"}, nil)
+	second := mustRecord(t, Input{Producer: ProducerCLI, Revision: revision, Task: "second", Outcome: "failed"}, nil)
 	written, err := store.Append(second)
 	if err == nil || written || !strings.Contains(err.Error(), "pathname changed") {
 		t.Fatalf("Append() = (%v, %v)", written, err)
@@ -897,7 +898,7 @@ func TestAppendFreshValidationFailureRemovesCreatedArtifacts(t *testing.T) {
 		}
 		return nil
 	})
-	record := mustRecord(t, Input{Revision: revision, Task: "task", Outcome: "passed"}, nil)
+	record := mustRecord(t, Input{Producer: ProducerCLI, Revision: revision, Task: "task", Outcome: "passed"}, nil)
 	if written, err := store.Append(record); err == nil || written {
 		t.Fatalf("Append() = (%v, %v)", written, err)
 	}
@@ -911,7 +912,7 @@ func TestAppendRenameFailurePreservesOldBytesAndRemovesTemporary(t *testing.T) {
 	revision := strings.Repeat("6", 40)
 	revisions := map[string]Revision{revision: {TreeRevision: strings.Repeat("5", 40)}}
 	store := newTestStore(t, root, revisions, func() error { return nil })
-	first := mustRecord(t, Input{Revision: revision, Task: "first", Outcome: "passed"}, nil)
+	first := mustRecord(t, Input{Producer: ProducerCLI, Revision: revision, Task: "first", Outcome: "passed"}, nil)
 	if written, err := store.Append(first); err != nil || !written {
 		t.Fatalf("initial Append() = (%v, %v)", written, err)
 	}
@@ -920,7 +921,7 @@ func TestAppendRenameFailurePreservesOldBytesAndRemovesTemporary(t *testing.T) {
 		t.Fatal(err)
 	}
 	store.hooks.rename = func(*os.Root, string, string) error { return errors.New("injected rename failure") }
-	second := mustRecord(t, Input{Revision: revision, Task: "second", Outcome: "failed"}, nil)
+	second := mustRecord(t, Input{Producer: ProducerCLI, Revision: revision, Task: "second", Outcome: "failed"}, nil)
 	if written, err := store.Append(second); err == nil || written {
 		t.Fatalf("faulted Append() = (%v, %v)", written, err)
 	}
@@ -939,7 +940,7 @@ func TestAppendRejectsTemporarySymlinkWithoutOutsideWrite(t *testing.T) {
 	revision := strings.Repeat("5", 40)
 	revisions := map[string]Revision{revision: {TreeRevision: strings.Repeat("4", 40)}}
 	store := newTestStore(t, root, revisions, func() error { return nil })
-	first := mustRecord(t, Input{Revision: revision, Task: "first", Outcome: "passed"}, nil)
+	first := mustRecord(t, Input{Producer: ProducerCLI, Revision: revision, Task: "first", Outcome: "passed"}, nil)
 	if written, err := store.Append(first); err != nil || !written {
 		t.Fatalf("initial Append() = (%v, %v)", written, err)
 	}
@@ -952,7 +953,7 @@ func TestAppendRejectsTemporarySymlinkWithoutOutsideWrite(t *testing.T) {
 	if err := os.Symlink(outside, temporary); err != nil {
 		t.Fatal(err)
 	}
-	second := mustRecord(t, Input{Revision: revision, Task: "second", Outcome: "failed"}, nil)
+	second := mustRecord(t, Input{Producer: ProducerCLI, Revision: revision, Task: "second", Outcome: "failed"}, nil)
 	if written, err := store.Append(second); err == nil || written {
 		t.Fatalf("Append() = (%v, %v)", written, err)
 	}

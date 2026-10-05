@@ -27,6 +27,10 @@ type SupervisionPolicy struct {
 	// StageWallMinutes bounds one supervised stage's configured wall time
 	// (CAL-V0-063); empty means DefaultStageWallMinutes.
 	StageWallMinutes wire.Count
+	// Repositories are the owner-declared extra repositories a supervised
+	// program may span (CAL-V0-071): name -> sha256 of the absolute
+	// checkout path. Empty means single-repository programs only.
+	Repositories map[string]wire.Digest
 }
 
 // AllowsEffort reports whether the policy admits effort for stage. A nil
@@ -52,7 +56,7 @@ func (p *SupervisionPolicy) StageWallSeconds() int {
 }
 
 func readSupervisionPolicy(r *wire.Reader) *SupervisionPolicy {
-	r.Closed(wire.OptionalKeys(r.Value(), []string{"profile", "maxRepairCycles", "contextRequired", "program"}, "efforts", "stageWallMinutes")...)
+	r.Closed(wire.OptionalKeys(r.Value(), []string{"profile", "maxRepairCycles", "contextRequired", "program"}, "efforts", "stageWallMinutes", "repositories")...)
 	if r.Field("profile").String() != "taskman-codex-supervisor/0" || !r.Field("contextRequired").Bool() {
 		r.Fail(wire.CodeUnsupported, "supervision profile/context")
 	}
@@ -90,5 +94,51 @@ func readSupervisionPolicy(r *wire.Reader) *SupervisionPolicy {
 	if wire.Has(r.Value(), "stageWallMinutes") {
 		p.StageWallMinutes = boundCount(r.Field("stageWallMinutes"), 1, MaxStageWallMinutes)
 	}
+	if wire.Has(r.Value(), "repositories") {
+		p.Repositories = readSupervisedRepositories(r.Field("repositories"))
+	}
 	return p
+}
+
+// MaxSupervisedRepositories bounds the extra repositories one policy may
+// declare for supervised multi-repository programs (CAL-V0-071).
+const MaxSupervisedRepositories = 8
+
+// ValidRepositoryName reports whether name is a supervised repository name:
+// a lowercase ASCII letter followed by at most 31 lowercase letters, digits
+// or hyphens. The name becomes a composite tree entry and a worktree suffix.
+func ValidRepositoryName(name string) bool {
+	if len(name) == 0 || len(name) > 32 || name[0] < 'a' || name[0] > 'z' {
+		return false
+	}
+	for i := 1; i < len(name); i++ {
+		c := name[i]
+		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-') {
+			return false
+		}
+	}
+	return true
+}
+
+func readSupervisedRepositories(r *wire.Reader) map[string]wire.Digest {
+	if r.Value().Kind != wire.KindObject {
+		r.Fail(wire.CodeMalformed, "supervision repositories must be an object")
+		return nil
+	}
+	keys := r.Value().Obj.Keys
+	if len(keys) == 0 || len(keys) > MaxSupervisedRepositories {
+		r.Fail(wire.CodeMalformed, "supervision repositories must declare 1..%d repositories", MaxSupervisedRepositories)
+		return nil
+	}
+	out := map[string]wire.Digest{}
+	for _, name := range keys {
+		if !ValidRepositoryName(name) {
+			r.Fail(wire.CodeMalformed, "invalid supervised repository name %q", name)
+			return nil
+		}
+		x := r.Field(name)
+		x.Closed("pathSha256")
+		out[name] = x.Field("pathSha256").Digest()
+	}
+	return out
 }

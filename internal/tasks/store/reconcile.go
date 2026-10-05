@@ -196,7 +196,7 @@ func reconcileRelease(ctx context.Context, repo *intent.Repository, actor mutati
 	if len(choice.File) > wire.MaxReleaseFileBytes {
 		return report, wire.Errorf(wire.CodeLimitExceeded, "file", "release file bound")
 	}
-	resolved, err := intent.Load(repo.PrimaryWorktree)
+	resolved, err := intent.Load(repo.IntentRoot())
 	if err == nil && (resolved.Queue.ImportMapSha256 != nil || (resolved.Queue.Fixture && resolved.Queue.ExecutionCutover != nil)) {
 		return report, wire.Errorf(wire.CodeUnsupported, "queue", "unsupported release queue state")
 	}

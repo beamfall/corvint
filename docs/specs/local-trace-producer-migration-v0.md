@@ -11,7 +11,7 @@ Authoritative inputs: the 2026-08-23 owner delegation; `docs/DOGFOOD.md`;
 
 ## Agent digest
 - Claim: Commit-bound production and digest-bound migration preserve trace identity without automatic legacy mutation; LTPM-V0-011 is implemented experimentally.
-- Status: accepted/experimental; LTPM-V0-011 accepted and implemented experimentally 2026-09-01; LTPM-V0-012 accepted by the owner and implemented experimentally 2026-09-27
+- Status: accepted/experimental; LTPM-V0-011 accepted and implemented experimentally 2026-09-01; LTPM-V0-012 accepted by the owner and implemented experimentally 2026-09-27; LTPM-V0-015/016 (trace producer provenance) owner-selected 2026-10-04, decision 0429, implemented experimentally
 - Exists: the trace producer, bounded legacy reader, explicit migration contract, and exact dogfood changed-path admission.
 - Blocked on: independent migration qualification and promotion; automatic migration remains unauthorized.
 - Read next: User and measurable job; Verified current state; Public commands.
@@ -179,18 +179,18 @@ exit 2.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `admitted-path-limit` | `internal/trace/record.go:345@bd1c5902` | more than 200 candidates were admitted as current source paths |
-| `candidate-limit` | `internal/trace/record.go:345@bd1c5902` | `AdmissibleCurrentPaths` received more than 200,000 unique changed-path candidates |
-| `changed-path-acquisition-failed` | `internal/tracerecordrepo/adapter.go:103@f49f60cd` | listing the base-to-target changed paths failed |
-| `changed-path-admission-failed` | `internal/tracerecordrepo/adapter.go:109@69bd23b7` | `trace.AdmissibleCurrentPaths` failed with an error `trace.AdmissionFailureReason` maps to no reason |
-| `dogfood-record-failed` | `cmd/corvint/dogfood_record.go:146@d0afa17b` | the stderr `code` written when the dogfood-record error carries an empty reason |
-| `invalid-base-revision` | `internal/tracerecordrepo/adapter.go:92@8006b57c` | the base argument does not resolve to a commit |
-| `malformed-path` | `internal/trace/record.go:474@c94787ea` | a path is empty or `pythonString` rejects it (its value cannot be decoded as Python string units); also at `internal/trace/record.go:491@c94787ea`, a normalized, unforbidden path that is tracked (or any stored-row path) breaks the `corvint-dashboard-trace-path-witness/0` lexical profile: more than 4,096 bytes, not valid UTF-8 (an encoded surrogate), a Unicode control, a backslash, or an ASCII-letter-colon prefix (decision 0235) |
-| `record-failed` | `internal/tracerecordrepo/adapter.go:159@0416b61a` | the stability check or recording failed for a reason that is neither repository drift nor a verification reason |
-| `record-index-failed` | `internal/tracerecordrepo/adapter.go:88@a87e1e48` | building the record index and tracked set failed |
-| `secret-shaped-path` | `internal/trace/record.go:477@ba12231a` | a path matches the secret screen |
-| `unnormalized-path` | `internal/trace/record.go:480@5e4376e2` | a path is absolute, contains `//`, is not `path.Clean`-equal to itself, or has a `..` part |
-| `unsupported-verify-syntax` | `internal/trace/record.go:263@e427c406` | a verification command is empty or contains a byte outside ASCII letters, digits, and `_./:@=+, -` |
+| `admitted-path-limit` | `internal/trace/record.go:358@bd1c5902` | more than 200 candidates were admitted as current source paths |
+| `candidate-limit` | `internal/trace/record.go:358@bd1c5902` | `AdmissibleCurrentPaths` received more than 200,000 unique changed-path candidates |
+| `changed-path-acquisition-failed` | `internal/tracerecordrepo/adapter.go:105@f49f60cd` | listing the base-to-target changed paths failed |
+| `changed-path-admission-failed` | `internal/tracerecordrepo/adapter.go:111@69bd23b7` | `trace.AdmissibleCurrentPaths` failed with an error `trace.AdmissionFailureReason` maps to no reason |
+| `dogfood-record-failed` | `cmd/corvint/dogfood_record.go:147@d0afa17b` | the stderr `code` written when the dogfood-record error carries an empty reason |
+| `invalid-base-revision` | `internal/tracerecordrepo/adapter.go:94@8006b57c` | the base argument does not resolve to a commit |
+| `malformed-path` | `internal/trace/record.go:487@c94787ea` | a path is empty or `pythonString` rejects it (its value cannot be decoded as Python string units); also at `internal/trace/record.go:504@c94787ea`, a normalized, unforbidden path that is tracked (or any stored-row path) breaks the `corvint-dashboard-trace-path-witness/0` lexical profile: more than 4,096 bytes, not valid UTF-8 (an encoded surrogate), a Unicode control, a backslash, or an ASCII-letter-colon prefix (decision 0235) |
+| `record-failed` | `internal/tracerecordrepo/adapter.go:162@0416b61a` | the stability check or recording failed for a reason that is neither repository drift nor a verification reason |
+| `record-index-failed` | `internal/tracerecordrepo/adapter.go:90@a87e1e48` | building the record index and tracked set failed |
+| `secret-shaped-path` | `internal/trace/record.go:490@ba12231a` | a path matches the secret screen |
+| `unnormalized-path` | `internal/trace/record.go:493@5e4376e2` | a path is absolute, contains `//`, is not `path.Clean`-equal to itself, or has a `..` part |
+| `unsupported-verify-syntax` | `internal/trace/record.go:271@e427c406` | a verification command is empty or contains a byte outside ASCII letters, digits, and `_./:@=+, -` |
 
 ## Acceptance matrix
 
@@ -394,3 +394,101 @@ read/query status admission changes. Regression witnesses are
 `TestRecordFreshRepositoryWithoutIgnore`, `TestRecordUnignoredUnsafeArtifactsRefuseWithoutMutation`,
 `TestRecorderStabilityKeepsSourceAndCommitDriftVisible`, and
 `TestRecordStagingAdmissionRequiresOwnedAppendPhase`.
+
+## Amendment: trace producer provenance (V1-0745, 2026-10-04)
+
+The owner chose the schema-3 producer field for V1-0745 on 2026-10-04 (decision 0429). This
+additive profile remains experimental. For new writes it supersedes the LTPM-V0-013 rule that
+the schema follows the presence of argv verification. Schema-1 and schema-2 bytes, IDs,
+screening and acceptance stay unchanged.
+
+- `LTPM-V0-015`: (owner-selected design 2026-10-04, decision 0429; requirement text accepted 2026-10-04, decision 0430)
+  **Writers.** Every new trace row MUST be schema 3 and MUST store a `producer` from the closed
+  set below. Each writer stores its own value:
+
+  | `producer` | Writer |
+  |---|---|
+  | `cli` | `record` |
+  | `dogfood` | dogfood recording and the aggregate-outcome validator row |
+  | `pi-tool` | the pi tool adapter |
+
+  A writer given any other value, including `UNKNOWN`, the empty string or a case variant, MUST
+  refuse before mutation.
+
+  **Row shape.** A schema-3 row has the schema-1 fields plus `producer`. Its `verification` keeps
+  one of two shapes:
+  - the schema-1 sorted command-string array, when no argv entry is present;
+  - the LTPM-V0-013 typed entries, when an argv entry is present.
+
+  **Identity.** `producer` occupies its sorted position in the canonical basis, so the trace ID
+  covers it. The same observation recorded by two producers has two distinct IDs.
+
+  **Decoding.** Schema-3 rows use the strict typed decoder, which refuses duplicate members, and
+  report row-shape and producer failures with the `schema-3 local trace:` prefix; a malformed typed
+  verification entry keeps the existing `unsupported-verify-argv` refusal and message. The decoder
+  MUST refuse:
+  - a schema-3 row whose `producer` is missing, non-string, `UNKNOWN` or outside the set;
+  - a schema-1 or schema-2 row that carries `producer`;
+  - an unknown member;
+  - a typed verification without an argv entry;
+  - a mixed verification array;
+  - a producer that is not covered by the stored ID.
+
+  **Reading legacy rows.** Readers MUST report schema-1 and schema-2 rows as producer `UNKNOWN`,
+  a read-side label that is never stored.
+
+  **Consumers.**
+  - Every consumer that LTPM-V0-014 names MUST admit validated mixed v1/v2/v3 revision files under
+    the unchanged row, file and store bounds.
+  - Query, impact and eval ranking MUST NOT use `producer`.
+  - `record` and batch output MUST include `producer` for schema-3 rows.
+  - The console chain detail and skill export MUST label it.
+  - The dashboard MUST NOT disclose it (`LOD-V0-035`).
+  - Migration and stranded-row recovery MUST preserve it.
+
+  **Older binaries.** A binary that predates this profile, including N-1 0.8.1, MUST refuse a store
+  containing a schema-3 row rather than misread it; a reader without schema-3 support refuses an
+  unsupported schema. This is an explicit release limitation, as LTPM-V0-014 recorded for
+  schema 2.
+- `LTPM-V0-016`: (owner-selected design 2026-10-04, decision 0429; requirement text accepted 2026-10-04, decision 0430)
+  `calibrate` and `eval` MUST accept repeatable `--exclude-producer NAME`, where `NAME` is one of
+  `cli`, `dogfood`, `pi-tool` or `UNKNOWN`. Repeats deduplicate. Any other value refuses with the
+  `invalid-arguments` shape and exit code 2. This amends the flag list of `OCL-V0-001`.
+
+  **`calibrate`.**
+  - The report MUST carry `producers`, which counts every record read by producer. All four keys
+    are always present, including zeros.
+  - When any producer is excluded, the report MUST carry `excluded_producers` in the fixed order
+    above.
+  - Exclusion applies before `--since` or `--window` selection.
+  - The table format prints both lines.
+
+  **`eval`.**
+  - The local arm carries the same counts as `trace_producers`, plus `excluded_producers`. It does
+    so only when the store held a trace or an exclusion was requested, so an empty-store evaluation
+    keeps its exact baseline bytes (`LTA-V0-001`).
+  - A fixture's `learned_trace_arm` always carries them.
+  - Exclusion removes those producers' traces from the traces that this read admits: the fixture
+    arm and the live-store passed-trace check. A store whose passed traces all come from excluded
+    producers therefore evaluates instead of refusing. The report names the exclusion, and the
+    unexcluded refusal of `LTA-V0-001` is unchanged.
+  - `--learn-slot-weights` MUST refuse the flag.
+
+  Neither command writes a trace, fixture, index or ledger byte; exclusion never changes stored
+  records.
+
+Acceptance: `TestLTPMV0015ProducerGoldens` (goldens computed independently over spec-authored
+JSON), `TestLTPMV0015ProducerRefusals`, `TestLTPMV0015LegacyRowsReadAsUnknown`, `TestLTPMV0015MigrationKeepsProducer`,
+`TestRecordTypedArgvRoundTripAndRefusal`, `TestLODV0035MixedTraceSnapshot` (v1, legacy v2 and
+v3 rows in one physical member), `TestProducerTraceConformance` (the standalone verifier and the
+actual dashboard producer), `TestCalibrateCountsAndExcludesProducers_LTPM016` and
+`TestEvalCountsAndExcludesProducers_LTPM016`. Live check, 2026-10-04: a schema-3 row written by
+this build made the installed pre-profile binary (1.0.0-rc.1, build 163) refuse both `query` and
+`calibrate` with `unsupported-query-trace-state` ("invalid local trace fields"). Moving that
+revision file aside restored the older binary.
+
+Rollback: revert the change, so that new writes return to schema 1 or schema 2. Existing schema-3
+rows are not rewritten. Before an older binary reads the store, move each whole revision file
+containing a schema-3 row out of `.context-corvint/traces/`; `grep -l '"schema_version":3'` lists
+them. To restore them, move them back under a binary that has this profile. No migration rewrites
+schema-3 rows to an older schema, because the producer is part of each row's identity.

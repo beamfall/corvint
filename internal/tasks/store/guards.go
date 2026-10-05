@@ -15,8 +15,11 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
+// primaryBranch reads the branch of the intent root's HEAD: the primary's
+// HEAD unless CTW-V0-002 selected a linked intent worktree. The messages keep
+// their TM-V0-007 wording so the intent-branch primary is unchanged.
 func primaryBranch(repo *intent.Repository) (string, error) {
-	raw, err := intent.ReadFile(filepath.Join(repo.CommonDir, "HEAD"), 4096)
+	raw, err := intent.ReadFile(repo.IntentHEAD(), 4096)
 	if err != nil {
 		return "", wire.Errorf(wire.CodeIntentBranchMismatch, "HEAD", "primary branch could not be observed: %v", err)
 	}
@@ -92,7 +95,7 @@ func writerGuards(repo *intent.Repository, operation string) (*snapshot.Head, er
 }
 
 func journalReader(repo *intent.Repository, head *snapshot.Head) journal.Reader {
-	return journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: head.QueueID, PrimaryWorktree: repo.PrimaryWorktree}
+	return journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.IntentRoot()}, QueueID: head.QueueID, PrimaryWorktree: repo.PrimaryWorktree}
 }
 
 // retainCheckpoint records what a writer's complete settled audit just
@@ -132,7 +135,7 @@ func bindObservation(repo *intent.Repository, identity journal.Identity, operati
 	if err != nil {
 		return err
 	}
-	tree, err := intent.TreeDigest(repo.PrimaryWorktree)
+	tree, err := intent.TreeDigest(repo.IntentRoot())
 	if err != nil {
 		return err
 	}

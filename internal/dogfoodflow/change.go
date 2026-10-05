@@ -55,6 +55,7 @@ type change struct {
 	queryAbstentionSHA   string
 	bootstrapUnknown     int
 	manifestValid        bool
+	manifestReason       string
 	noIntent             bool
 	intentSnapshot       []byte
 	intents              []string
@@ -128,14 +129,15 @@ func (c *change) run() int {
 	}, "cem", "prepare", "--base", c.base, "--target", c.target) == 0
 	// The manifest is frozen before citation so the plan check knows which
 	// base-absent intent hunks an author may deliberately leave uncited.
-	c.manifestValid = c.validateIntentManifest()
+	c.manifestReason = c.validateIntentManifest()
+	c.manifestValid = c.manifestReason == ""
 	c.citeStep()
 	_ = os.WriteFile(c.path(".corvint/change.ocm-status.json"), nil, 0o666)
 	switch {
 	case c.noIntent:
 		c.declareNoIntent()
 	case !c.manifestValid:
-		c.addStep("ocm-aggregate", "NOT_PRODUCED", "missing-intent-scope")
+		c.addStep("ocm-aggregate", "NOT_PRODUCED", c.manifestReason)
 	case !c.runOCMScopes():
 		c.addStep("ocm-aggregate", "NOT_PRODUCED", "intent-scope-drift")
 	case c.finishOCMAggregate():
@@ -281,7 +283,14 @@ func (c *change) localOutcome(task string) step {
 	case c.options.VerifyFile != "" && !isRegular(c.options.VerifyFile):
 		return step{"local-outcome", "NOT_PRODUCED", "verify-file-unavailable"}
 	case c.options.VerifyFile != "":
-		verify = verifyArguments(readFile(c.options.VerifyFile))
+		data, err := readPrefix(c.options.VerifyFile, maxVerifyFileBytes+1)
+		if err != nil {
+			return step{"local-outcome", "NOT_PRODUCED", "verify-file-unavailable"}
+		}
+		if len(data) > maxVerifyFileBytes {
+			return step{"local-outcome", "NOT_PRODUCED", "verify-file-over-bound"}
+		}
+		verify = verifyArguments(data)
 	case c.options.Verify != "":
 		verify = verifyArguments([]byte(c.options.Verify + "\n"))
 	}
@@ -308,6 +317,10 @@ func (c *change) localOutcome(task string) step {
 	return step{"local-outcome", "NOT_PRODUCED", "invalid-record-admission-output"}
 }
 
+// maxVerifyFileBytes bounds DOGFOOD_VERIFY_FILE well above the recorder's own
+// 50 commands of 512 characters, leaving room for blank lines (DCW-V0-032).
+const maxVerifyFileBytes = 65536
+
 var recordState = regexp.MustCompile(`^.*"state":"([a-z-]*)".*$`)
 
 // verifyArguments passes one --verify per line that is not blank; the recorder
@@ -328,35 +341,42 @@ func verifyArguments(data []byte) []string {
 // empty file still refuses missing-intent-scope.
 var noIntentManifest = []byte("#no-intent-declared\n")
 
+// maxIntentManifestBytes is 16 paths of at most 512 bytes, each with its LF.
+const maxIntentManifestBytes = 16 * 513
+
 // validateIntentManifest freezes DOGFOOD_INTENTS_FILE: 1-16 sorted,
 // LF-terminated, canonical repository-relative paths, or the no-intent
-// declaration.
-func (c *change) validateIntentManifest() bool {
+// declaration. It reads at most the bound plus one sentinel byte and returns
+// the ocm-aggregate refusal code, or "" when the manifest is valid.
+func (c *change) validateIntentManifest() string {
 	source := c.options.IntentsFile
 	if source == "" || !isRegular(source) || isSymlink(source) {
-		return false
+		return "missing-intent-scope"
 	}
-	data, err := os.ReadFile(source)
-	if err != nil || len(data) == 0 || len(data) > 16*513 || data[len(data)-1] != '\n' {
-		return false
+	data, err := readPrefix(source, maxIntentManifestBytes+1)
+	if err == nil && len(data) > maxIntentManifestBytes {
+		return "intent-manifest-over-bound"
+	}
+	if err != nil || len(data) == 0 || data[len(data)-1] != '\n' {
+		return "missing-intent-scope"
 	}
 	if bytes.Equal(data, noIntentManifest) {
 		c.intentSnapshot, c.noIntent = data, true
-		return true
+		return ""
 	}
 	paths := readLines(data)
 	if len(paths) > 16 {
-		return false
+		return "missing-intent-scope"
 	}
 	previous := ""
 	for _, path := range paths {
 		if !canonicalIntentPath(path) || (previous != "" && previous >= path) {
-			return false
+			return "missing-intent-scope"
 		}
 		previous = path
 	}
 	c.intentSnapshot, c.intents = data, paths
-	return true
+	return ""
 }
 
 func canonicalIntentPath(path string) bool {
@@ -401,11 +421,15 @@ func (c *change) citeStep() {
 	_ = os.Chmod(citeOutput, 0o600)
 	status, reason := "PRODUCED", "none"
 	plan, valid := c.validateCitationPlan()
+	mismatch := ""
+	if valid {
+		mismatch = c.citationPlanMismatch(plan)
+	}
 	switch {
 	case !valid:
 		status, reason = "NOT_PRODUCED", "invalid-citation-plan"
-	case !c.citationPlanMatchesMap(plan):
-		status, reason = "NOT_PRODUCED", "citation-plan-map-mismatch"
+	case mismatch != "":
+		status, reason = "NOT_PRODUCED", mismatch
 	case c.citationCount > 1 && exists(c.path(c.citationStage)):
 		status, reason = "NOT_PRODUCED", "citation-stage-exists"
 	default:
@@ -568,16 +592,19 @@ func nonEmptyFields(line string, count int) bool {
 
 var ordinal = regexp.MustCompile(`^[1-9][0-9]*$`)
 
-// citationPlanMatchesMap binds a plan to the map prepared in this run
-// (DCW-V0-019): no ordinal may exceed the map's hunk count, a numeric selector
-// must be canonical, and every hunk the map records as unknown must be named by
-// ordinal or full ID unless its path is an intent absent at BASE or more such
-// hunks remain than one 256-row plan can name. An empty plan stays a no-op, and
-// only a regular map is read, at most the native 4 MiB map bound.
-func (c *change) citationPlanMatchesMap(plan []byte) bool {
+// citationPlanMismatch binds a plan to the map prepared in this run
+// (DCW-V0-019) and returns "" when it matches: no ordinal may exceed the map's
+// hunk count, a numeric selector must be canonical, and every hunk the map
+// records as unknown must be named by ordinal or full ID unless its path is an
+// intent absent at BASE or more such hunks remain than one 256-row plan can
+// name. An empty plan matches only a map that owes no hunk at all, and is
+// otherwise refused as empty-citation-plan (DCW-V0-032). Only a regular map is
+// read, at most the native 4 MiB map bound.
+func (c *change) citationPlanMismatch(plan []byte) string {
+	const mismatch = "citation-plan-map-mismatch"
 	mapPath := c.path(".corvint/change.cem.json")
-	if len(plan) == 0 || !isRegular(mapPath) || isSymlink(mapPath) {
-		return true
+	if !isRegular(mapPath) || isSymlink(mapPath) {
+		return ""
 	}
 	bootstrap := map[string]bool{}
 	if c.manifestValid {
@@ -589,11 +616,11 @@ func (c *change) citationPlanMatchesMap(plan []byte) bool {
 	}
 	data, err := readPrefix(mapPath, maxPlanBytes)
 	if err != nil {
-		return false
+		return mismatch
 	}
 	hunks := mapHunks(data)
 	if c.ordinalsMoved(plan, hunks) {
-		return false
+		return mismatch
 	}
 	named := map[string]bool{}
 	for _, line := range textLines(plan) {
@@ -603,10 +630,10 @@ func (c *change) citationPlanMatchesMap(plan []byte) bool {
 	for selector := range named {
 		numeric := ordinal.MatchString(selector)
 		if strings.ContainsAny(selector[:1], "+0123456789") && !numeric {
-			return false
+			return mismatch
 		}
 		if value, err := strconv.Atoi(selector); numeric && (err != nil || value > len(hunks)) {
-			return false
+			return mismatch
 		}
 	}
 	owed := []int{}
@@ -616,15 +643,18 @@ func (c *change) citationPlanMatchesMap(plan []byte) bool {
 		}
 	}
 	// More owed hunks than one plan has rows: split plans stay admissible.
-	if len(owed) > 256 {
-		return true
+	if len(owed) > 256 && len(plan) > 0 {
+		return ""
 	}
 	for _, index := range owed {
 		if !named[strconv.Itoa(index)] && !named[hunks[index-1]["id"]] {
-			return false
+			if len(plan) == 0 {
+				return "empty-citation-plan"
+			}
+			return mismatch
 		}
 	}
-	return true
+	return ""
 }
 
 // citationBinding is the private record of the hunk IDs, in map order, that the
@@ -971,10 +1001,12 @@ func (c *change) packetCoverage(name string) string {
 var fixHints = []struct{ pattern, hint string }{
 	{"cem-cite:citation-plan-not-provided", "set DOGFOOD_CITATIONS to the path of a TSV plan with one row per hunk of .corvint/change.cem.json"},
 	{"cem-cite:citation-plan-unavailable", "DOGFOOD_CITATIONS must be the path of a TSV file of ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION rows, not the rows themselves"},
+	{"cem-cite:empty-citation-plan", "DOGFOOD_CITATIONS names an empty file but .corvint/change.cem.json still has unknown hunks; write one row per unknown hunk, or unset DOGFOOD_CITATIONS to prepare the map without citing"},
 	{"cem-cite:invalid-citation-plan", "each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows"},
 	{"cem-cite:citation-plan-map-mismatch", "the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); or a row's ordinal now names another hunk than when this plan was first cited (a later commit added or removed a hunk before it); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE"},
 	{"cem-cite:cite-span-not-stable", "plan row {row} cites BASE lines that this change edits or deletes; cite a START:END span the change leaves unchanged"},
 	{"ocm-aggregate:missing-intent-scope", "DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths, or of a file holding the one line #no-intent-declared when no requirements spec governs the change"},
+	{"ocm-aggregate:intent-manifest-over-bound", "DOGFOOD_INTENTS_FILE is larger than 16 paths of 512 bytes can be; list 1-16 repository-relative spec paths, or the one line #no-intent-declared"},
 	{"ocm-prepare-*:invalid-requirements-section", `intent must be a spec that exists at BASE and contains exactly one "## Requirements" heading`},
 	{"ocm-prepare-*:excluded-artifact-mismatch", uncommittedHint},
 	{"coordination-time-impact:unsupported-impact-worktree", uncommittedHint},
@@ -990,6 +1022,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"*:unsupported-object-alternates", "the clone borrows objects through .git/objects/info/alternates (git clone --reference or --shared); run git repack -a -d, delete .git/objects/info/alternates and .git/objects/info/commit-graphs, run git commit-graph write --reachable, then rerun corvint dogfood change {base}"},
 	{"local-outcome:outcome-input-not-provided", "set DOGFOOD_OUTCOME (passed, failed or blocked) and DOGFOOD_VERIFY_FILE (one verification command per line)"},
 	{"local-outcome:verify-file-unavailable", "DOGFOOD_VERIFY_FILE must be the path of a regular file holding one verification command per line, not the commands themselves"},
+	{"local-outcome:verify-file-over-bound", "DOGFOOD_VERIFY_FILE is larger than 64 KiB; keep at most 50 verification commands of at most 512 characters, one per line"},
 	{"local-outcome:unsupported-verify-syntax", "each DOGFOOD_VERIFY_FILE line is one command of ASCII letters, digits and _./:@=+, - only, with no quotes, ^, $, |, parentheses or other shell syntax; write -run TestName instead of -run '^TestName$'"},
 	{"local-outcome:record-failed", "read {evidence}/local-outcome.stderr for the cause; DOGFOOD_VERIFY_FILE holds at most 50 commands of at most 512 characters each, so split a longer command into several lines"},
 }
@@ -1012,7 +1045,8 @@ func (c *change) fixHint(row step) string {
 }
 
 // noteAgentReceipts reports, without blocking, an agent pre-change receipt that
-// is absent or was not written against the base tree (DCW-V0-031).
+// is absent, over the 4 MiB bound, malformed, or was not written against the
+// base tree (DCW-V0-031, DCW-V0-032).
 func (c *change) noteAgentReceipts() {
 	baseTree := c.gitValue("rev-parse", c.base+"^{tree}")
 	for _, name := range []string{"prechange-query", "prechange-impact"} {
@@ -1031,7 +1065,18 @@ func (c *change) noteAgentReceipt(name, baseTree string) {
 			Revision string `json:"revision"`
 		} `json:"context"`
 	}
-	_ = json.Unmarshal(readFile(path), &receipt)
+	data, err := readPrefix(path, maxPlanBytes+1)
+	switch {
+	case err == nil && len(data) > maxPlanBytes:
+		c.say("dogfood-change: NOTE %s NOT_OBSERVED agent-receipt-over-bound\n", name)
+		return
+	case err != nil:
+		c.say("dogfood-change: NOTE %s NOT_OBSERVED agent-receipt-unreadable\n", name)
+		return
+	case json.Unmarshal(data, &receipt) != nil:
+		c.say("dogfood-change: NOTE %s NOT_OBSERVED agent-receipt-malformed\n", name)
+		return
+	}
 	switch tree := receipt.Context.Revision; tree {
 	case baseTree:
 	case "":

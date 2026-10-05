@@ -20,6 +20,9 @@ import { ENVELOPE_COLLISION, frameRepositoryData } from "./envelope.js"
 import { promptQuery, trimSpace } from "./prompt-bound.js"
 
 const MAX_TRACKED_PATHS = 256
+// AHI-022 (V1-0773): one file-change batch never exceeds Core's impact bound (maxImpactPaths in
+// internal/contextindex/index.go), which refuses a larger batch without a code.
+const MAX_FILE_CHANGE_PATHS = 100
 const MAX_SESSIONS = 128
 const MAX_ADDITION_BYTES = 8_000
 const MAX_IN_FLIGHT = 16
@@ -110,6 +113,8 @@ async function setup(ctx) {
       await runVisible({
         event: "file-change",
         input: {
+          // V1-0767: a truncated batch carries its SOL-V0-010 code to Core's ledger writer.
+          ...(batch.truncated ? { adapterCodes: ["changed-paths-truncated"] } : {}),
           ...(batch.sessionIdSha256 ? { sessionIdSha256: batch.sessionIdSha256 } : {}),
           paths: [...batch.paths],
         },
@@ -125,7 +130,11 @@ async function setup(ctx) {
       batch = { paths: new Set(), sessionIdSha256: key || undefined }
       pendingFileChanges.set(key, batch)
     }
-    if (batch.paths.size < MAX_TRACKED_PATHS) batch.paths.add(changed)
+    if (batch.paths.size < MAX_FILE_CHANGE_PATHS) batch.paths.add(changed)
+    else if (!batch.paths.has(changed) && !batch.truncated) {
+      batch.truncated = true
+      record("changed-paths-truncated", "file-change")
+    }
     if (!fileChangeDrain) {
       fileChangeDrain = drainFileChanges().finally(() => {
         fileChangeDrain = undefined
@@ -209,13 +218,20 @@ async function setup(ctx) {
     return content
   }
 
-  const rememberPath = (value, rawSessionId) => {
+  const outsideProject = (value) => typeof value === "string" && value !== "" && !normalizeRepositoryPath(root, value)
+
+  const rememberPath = (value, rawSessionId, adapterCodes) => {
     const normalized = normalizeRepositoryPath(root, value)
     if (!normalized) return undefined
     const bound = stateFor(rawSessionId)
     if (bound) {
       if (bound.state.changedPaths.size < MAX_TRACKED_PATHS) {
         bound.state.changedPaths.add(normalized)
+      } else if (!bound.state.changedPaths.has(normalized) && !bound.state.pathsTruncated) {
+        // V1-0746: stop and session-end now carry an incomplete path set; say so once per session.
+        bound.state.pathsTruncated = true
+        record("changed-paths-truncated", "post-tool")
+        adapterCodes.add("changed-paths-truncated")
       }
       bound.state.stopArmed = true
     }
@@ -327,14 +343,29 @@ async function setup(ctx) {
       const targets = call.status === "completed" ? (CHANGED_TARGETS[call.tool]?.(call) ?? []) : []
       const edited = boundedPaths(root, targets)
       const metadata = call.result?.metadata
-      const changedPaths = boundedPaths(root, [...edited, ...boundedPaths(root, metadata?.corvint?.changedPaths)])
-      for (const changed of changedPaths) rememberPath(changed, call.sessionID)
+      const reported = Array.isArray(metadata?.corvint?.changedPaths) ? metadata.corvint.changedPaths : []
+      const reportedPaths = boundedPaths(root, reported)
+      const changedPaths = boundedPaths(root, [...edited, ...reportedPaths])
+      // V1-0746: dropped host-reported paths are named at info level. boundedPaths examines at
+      // most MAX_TRACKED_PATHS entries per list, so only those entries are scanned for an outside path.
+      // V1-0767: each named abstention also reaches Core's SOL-V0-010 writer on this call's post-tool.
+      const adapterCodes = new Set()
+      if ([...targets.slice(0, MAX_TRACKED_PATHS), ...reported.slice(0, MAX_TRACKED_PATHS)].some(outsideProject)) {
+        record("post-tool-path-not-project-relative", "post-tool")
+        adapterCodes.add("post-tool-path-not-project-relative")
+      }
+      if (targets.length > MAX_TRACKED_PATHS || reported.length > MAX_TRACKED_PATHS || new Set([...edited, ...reportedPaths]).size > changedPaths.length) {
+        record("changed-paths-truncated", "post-tool")
+        adapterCodes.add("changed-paths-truncated")
+      }
+      for (const changed of changedPaths) rememberPath(changed, call.sessionID, adapterCodes)
       let drained
       for (const changed of edited) drained = queueFileChange(changed, bound?.key)
       await drained
       await runVisible({
         event: "post-tool",
         input: {
+          ...(adapterCodes.size > 0 ? { adapterCodes: [...adapterCodes].sort() } : {}),
           ...(bound ? { sessionIdSha256: bound.key } : {}),
           changedPaths,
           observedEvidenceHandles: explicitEvidenceHandles(metadata),

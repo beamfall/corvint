@@ -6,6 +6,11 @@ name: CI control plane
 # `ci-control-plane` on the PR head: failure when the PR changes anything under `.github/`, success
 # otherwise. The main ruleset requires it and has no bypass actor, so such a PR merges only after
 # an admin posts a `ci-control-plane` success status on the exact reviewed head SHA.
+#
+# A merge-queue entry (AFP-V0-026) is a commit GitHub builds from pull requests that each passed
+# this check on their own head before they could be queued. The required context must also
+# report on that commit or the queue never merges, so the second job posts `success` on it,
+# only for a `merge_group` run whose branch is a queue branch of `main`.
 
 on:
   workflow_run:
@@ -59,3 +64,27 @@ jobs:
             gh api -X POST "repos/$REPO/statuses/$HEAD" -f state="$state" \
               -f context=ci-control-plane -f description="$description" -f target_url="$RUN_URL" >/dev/null
           done <<<"$prs"
+
+  merge-group:
+    if: github.event.workflow_run.event == 'merge_group'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Report the control-plane context on the merge-queue commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD: ${{ github.event.workflow_run.head_sha }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+          # Anything else posts nothing, so the queue entry stays blocked.
+          case "$BRANCH" in
+            gh-readonly-queue/main/pr-*) ;;
+            *) echo "ci-control-plane: $BRANCH is not a merge-queue branch of main; no status posted"; exit 0 ;;
+          esac
+          gh api -X POST "repos/$REPO/statuses/$HEAD" -f state=success \
+            -f context=ci-control-plane -f description="merge-queue entry; each queued PR passed this check on its own head" \
+            -f target_url="$RUN_URL" >/dev/null
+          echo "ci-control-plane: success posted on merge-queue commit $HEAD"

@@ -100,19 +100,23 @@ const adapterWindowLayout = "2006-01-02T15Z"
 
 const maxAdapterCodes = 8
 
-var admittedAdapterHosts = codeSet("claude-code", "codex")
+var admittedAdapterHosts = codeSet("claude-code", "codex", "opencode")
 
-var admittedAdapterEvents = codeSet("file-change", "post-compact", "post-tool", "pre-compact", "session-end", "session-start", "stop", "user-prompt")
+// unrecognised labels a Codex hook event the adapter does not handle (V1-0746); the host's
+// event name itself is never recorded.
+var admittedAdapterEvents = codeSet("file-change", "post-compact", "post-tool", "pre-compact", "session-end", "session-start", "stop", "unrecognised", "user-prompt")
 
-// admittedAdapterCodes is the closed set of degradation reasons the codex and
-// claude-code adapters return after resolving the project root.
+// admittedAdapterCodes is the closed set of degradation reasons the codex and claude-code adapters
+// return after resolving the project root, of the silent abstentions they record without changing
+// hook output (V1-0746), and of the OpenCode abstentions `harness event` records (V1-0767).
 var admittedAdapterCodes = codeSet(
-	"adapter-host-kill-deadline", "adapter-internal-error", "compaction-block-unavailable", "compaction-pin-not-preserved",
+	"adapter-host-kill-deadline", "adapter-internal-error", "changed-paths-truncated", "compaction-block-unavailable", "compaction-pin-not-preserved",
 	"compaction-pin-revision-unavailable", "compaction-pin-verification-unavailable",
 	"corvint-degradations-unrecognised", "corvint-envelope-terminator-collision", "corvint-event-rejected",
 	"file-change-path-not-project-relative", "git-unavailable", "invalid-compaction-trigger", "invalid-input",
 	"invalid-session-identity", "invalid-start-source", "invalid-stop-hook-active", "malformed-corvint-output",
-	"missing-prompt", "missing-session-identity", "prompt-over-query-bound",
+	"missing-prompt", "missing-session-identity", "post-tool-path-not-project-relative", "prompt-over-query-bound",
+	"unsupported-hook-event",
 )
 
 // admittedAdapterRejections are the `dogfood event` codes a `corvint-event-rejected:<code>`
@@ -559,9 +563,10 @@ func validDogfoodReason(value string) bool {
 	}
 	switch value {
 	case "cem-map-not-produced", "citation-plan-map-mismatch", "citation-plan-not-provided",
-		"citation-plan-unavailable", "citation-stage-cleanup-failed", "citation-stage-exists", "intent-scope-drift", "invalid-citation-plan",
+		"citation-plan-unavailable", "citation-stage-cleanup-failed", "citation-stage-exists", "empty-citation-plan",
+		"intent-manifest-over-bound", "intent-scope-drift", "invalid-citation-plan",
 		"invalid-record-admission-output", "missing-intent-scope", "no-source-paths", "none",
-		"not-ready", "outcome-input-not-provided":
+		"not-ready", "outcome-input-not-provided", "verify-file-over-bound", "verify-file-unavailable":
 		return true
 	}
 	if admittedDogfoodErrorCodes[value] || admittedUnsupportedCodes[value] {

@@ -13,7 +13,7 @@ func receiptAudit(env Env, args []string) *wire.Result {
 	var observed *journal.Result
 	rc, err := withStore(env, func(rc *readCtx) error {
 		observed = nil
-		reader := journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree}
+		reader := journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree}
 		audited, err := reader.Audit()
 		if err != nil {
 			return err

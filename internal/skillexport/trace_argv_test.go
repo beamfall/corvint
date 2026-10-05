@@ -8,7 +8,7 @@ import (
 
 // LTA-V0-013: exported argv remains labelled JSON, including fence-like data.
 func TestExportTypedArgv(t *testing.T) {
-	record, err := trace.NewRecord(trace.Input{Revision: testRevision, Task: "typed export", Outcome: "passed", VerificationArgv: [][]string{{"printf", "a b", "", "```", ";"}}}, nil)
+	record, err := trace.NewRecord(trace.Input{Producer: trace.ProducerCLI, Revision: testRevision, Task: "typed export", Outcome: "passed", VerificationArgv: [][]string{{"printf", "a b", "", "```", ";"}}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,0 +1,60 @@
+{
+  "baseRevision": "ac818777386bffcbb05290fd9cb97afce86f2a7c",
+  "evidence": [
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:82a0635ed559df3803c113a5db4c3e2bd37dbc1206d94624a7258b2d0122b337",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 1299,
+        "start": 1217
+      },
+      "spanSha256": "53a4db67021ff07928ece85fb85cefb57fcae6233044002dc559d053aecb0d3a"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:82a0635ed559df3803c113a5db4c3e2bd37dbc1206d94624a7258b2d0122b337",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b50a51a92dc3d90f630efc16cf778664611bb98996547c5157a14a1fde0b5f8a",
+      "newRange": {
+        "count": 44,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-10-05-v1-0783-host-fixture-pid-publish.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:82a0635ed559df3803c113a5db4c3e2bd37dbc1206d94624a7258b2d0122b337",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4c2a98a9c9fc0692f18de2adbec996a1f83c7d3f74ac26282fc7a15bb749699f",
+      "newRange": {
+        "count": 10,
+        "start": 67
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 67
+      },
+      "path": "integrations/testfixture/main.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "318f790c3a56e85533508716d1fa5f1f39212c85caf50c22173ae896f4e124eb",
+  "spec": "cem/0.2"
+}

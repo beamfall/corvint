@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"io"
 )
@@ -17,6 +18,9 @@ type WorktreeRecord struct {
 	PrivateIdentity string `json:"privateIdentity"`
 	Commit          string `json:"commit"`
 	Removed         bool   `json:"removed"`
+	// Repository names the extra repository this worktree belongs to
+	// (CAL-V0-071); empty is the queue's own repository.
+	Repository string `json:"repository,omitempty"`
 }
 type Program struct {
 	CurrentAttempt    string `json:"currentAttempt"`
@@ -59,6 +63,10 @@ type Program struct {
 	SessionID           string `json:"sessionId"`
 	ResultSHA256        string `json:"resultSha256"`
 	Quiescence          string `json:"quiescence"`
+
+	// Repositories are the extra repositories of a multi-repository program
+	// (CAL-V0-071), sorted by name; absent keeps single-repository bytes.
+	Repositories []RepositoryRecord `json:"repositories,omitempty"`
 }
 type Programs struct {
 	Profile string    `json:"profile"`
@@ -115,6 +123,9 @@ func DecodePrograms(raw []byte) (*Programs, error) {
 		default:
 			return nil, fmt.Errorf("program phase")
 		}
+		if e := checkRepositoryRecords(x); e != nil {
+			return nil, e
+		}
 	}
 	return &p, nil
 }
@@ -140,4 +151,34 @@ func EncodeProgramJSON(value any) ([]byte, error) {
 		return nil, e
 	}
 	return wire.EncodeFile(parsed), nil
+}
+
+// RepositoryRecord binds one extra repository of a multi-repository program
+// (CAL-V0-071, CAL-V0-072): its policy name, checkout, shared Git identity,
+// assignment base commit and the newest preserved candidate commit.
+type RepositoryRecord struct {
+	Name           string `json:"name"`
+	Checkout       string `json:"checkout"`
+	CommonIdentity string `json:"commonIdentity"`
+	Base           string `json:"base"`
+	Candidate      string `json:"candidate,omitempty"`
+}
+
+func checkRepositoryRecords(x Program) error {
+	if len(x.Repositories) > intent.MaxSupervisedRepositories {
+		return fmt.Errorf("program repository count")
+	}
+	names := map[string]bool{}
+	for i, r := range x.Repositories {
+		if !intent.ValidRepositoryName(r.Name) || (i > 0 && x.Repositories[i-1].Name >= r.Name) || r.Checkout == "" || r.CommonIdentity == "" || r.Base == "" {
+			return fmt.Errorf("program repository record")
+		}
+		names[r.Name] = true
+	}
+	for _, w := range x.Worktrees {
+		if w.Repository != "" && !names[w.Repository] {
+			return fmt.Errorf("program worktree names an undeclared repository")
+		}
+	}
+	return nil
 }

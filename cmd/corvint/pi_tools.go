@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/repoenvelope"
+	"github.com/Beamfall/corvint/internal/trace"
 	"github.com/Beamfall/corvint/internal/tracerecordrepo"
 )
 
@@ -158,7 +159,7 @@ func piToolResult(ctx context.Context, operation string, stdin io.Reader) map[st
 		// A cancellation or write error can occur after atomic publication. Never
 		// claim the store was unchanged without a successful core receipt.
 		result["mutation"] = "unknown"
-		recorded, recordErr := tracerecordrepo.Record(ctx, root, tracerecordrepo.Input{Task: task, OpenedPaths: opened, ChangedPaths: changed, Verification: verification, Outcome: outcome})
+		recorded, recordErr := tracerecordrepo.Record(ctx, root, tracerecordrepo.Input{Producer: trace.ProducerPiTool, Task: task, OpenedPaths: opened, ChangedPaths: changed, Verification: verification, Outcome: outcome})
 		if recordErr != nil {
 			result["fault"] = "record-unavailable"
 			return result
