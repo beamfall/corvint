@@ -16,8 +16,19 @@ func (s *logSink) pendingLen() int {
 	return len(s.pending)
 }
 
+// resolvedTempDir is a test directory without symlinked ancestors:
+// safeopen refuses them, and macOS temp dirs sit under /var -> /private/var.
+func resolvedTempDir(t *testing.T) string {
+	t.Helper()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
 func TestSERVICE500_LogSinkRotatesWithinTwoFiles(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "logs", "main")
+	dir := filepath.Join(resolvedTempDir(t), "logs", "main")
 	s := openLogSink(dir, "stderr")
 	chunk := bytes.Repeat([]byte("x"), logBufferMax)
 	const chunks = 2*logFileMax/logBufferMax + 40
@@ -45,7 +56,7 @@ func TestSERVICE500_LogSinkRotatesWithinTwoFiles(t *testing.T) {
 }
 
 func TestSERVICE500_LogSinkDropsBeyondBufferWithoutBlocking(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "logs", "main")
+	dir := filepath.Join(resolvedTempDir(t), "logs", "main")
 	s := openLogSink(dir, "stderr")
 	gate := make(chan struct{})
 	s.write = func(f *os.File, b []byte) (int, error) {
@@ -72,7 +83,7 @@ func TestSERVICE500_LogSinkDropsBeyondBufferWithoutBlocking(t *testing.T) {
 }
 
 func TestSERVICE500_LogSinkIOErrorIsReportedNotBlocking(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "logs", "main")
+	dir := filepath.Join(resolvedTempDir(t), "logs", "main")
 	s := openLogSink(dir, "stderr")
 	s.write = func(*os.File, []byte) (int, error) { return 0, errors.New("disk full") }
 	_, _ = s.Write([]byte("hello"))
@@ -101,7 +112,11 @@ func TestSERVICE500_LogSinkIOErrorIsReportedNotBlocking(t *testing.T) {
 	if _, err := w.Write([]byte("late")); err != nil || w.Stats().Dropped != 15 {
 		t.Fatal("a closed sink must drop and count")
 	}
-	gate <- struct{}{}
+	select {
+	case gate <- struct{}{}:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the wedged write never started")
+	}
 	<-released
 	select {
 	case <-w.done:
@@ -116,7 +131,7 @@ func TestSERVICE500_LogSinkIOErrorIsReportedNotBlocking(t *testing.T) {
 // A stalled status publication never blocks the supervision loop, and
 // close waits for it at most its bound.
 func TestSERVICE500_LogStatusPublicationNeverBlocks(t *testing.T) {
-	u := openUnitLogs(t.TempDir(), "main", "stderr")
+	u := openUnitLogs(resolvedTempDir(t), "main", "stderr")
 	u.bound = 50 * time.Millisecond
 	gate := make(chan struct{})
 	defer close(gate)
@@ -141,7 +156,7 @@ func TestSERVICE500_LogStatusPublicationNeverBlocks(t *testing.T) {
 // A close that leaves log I/O outstanding keeps the helper lock until that
 // I/O retires, so a successor never shares the files with a late writer.
 func TestSERVICE500_LogStallKeepsHelperLockUntilRetired(t *testing.T) {
-	u := openUnitLogs(t.TempDir(), helperUnit("web"), "stdout", "stderr")
+	u := openUnitLogs(resolvedTempDir(t), helperUnit("web"), "stdout", "stderr")
 	u.bound = 50 * time.Millisecond
 	gate := make(chan struct{})
 	u.streams["stdout"].write = func(f *os.File, b []byte) (int, error) { <-gate; return f.Write(b) }
@@ -165,7 +180,7 @@ func TestSERVICE500_LogStallKeepsHelperLockUntilRetired(t *testing.T) {
 		t.Fatal("U not released after the log writer retired")
 	}
 
-	idle := openUnitLogs(t.TempDir(), helperUnit("web"), "stdout")
+	idle := openUnitLogs(resolvedTempDir(t), helperUnit("web"), "stdout")
 	released := false
 	releaseHelperLock(idle, func() { released = true })
 	if !released {
@@ -174,7 +189,7 @@ func TestSERVICE500_LogStallKeepsHelperLockUntilRetired(t *testing.T) {
 }
 
 func TestSERVICE500_LogStatusAndExcerptAreBounded(t *testing.T) {
-	root := t.TempDir()
+	root := resolvedTempDir(t)
 	u := openUnitLogs(root, "main", "stderr")
 	_, _ = u.streams["stderr"].Write([]byte("boot\n"))
 	u.close()
