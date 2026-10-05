@@ -1,0 +1,100 @@
+{
+  "baseRevision": "cf0b6cf5f1c56cf15b1c1edaf4a1e2ada36469b9",
+  "evidence": [
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:4ee9b16f6731d0ef7b35415b3e62307f608a0ae85bf3b30e9271e92125316fbb",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 4124,
+        "start": 3781
+      },
+      "spanSha256": "46e69c5e97297b36c204ff585b335a484633ade4ec166dbc695fd46e7c6dc76c"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:4ee9b16f6731d0ef7b35415b3e62307f608a0ae85bf3b30e9271e92125316fbb",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f26cf790fabd6713cd363b41fe89655f21b4857e0437dfc2240f501b2690871a",
+      "newRange": {
+        "count": 11,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 1
+      },
+      "path": "docs/decisions/0431-merge-queue-backstops-pr-test-selection-2026-10-05.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:4ee9b16f6731d0ef7b35415b3e62307f608a0ae85bf3b30e9271e92125316fbb",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9336681be1d75ee2a37a981922dbc2bf488394823fdb85556d9817e030f59863",
+      "newRange": {
+        "count": 8,
+        "start": 205
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 204
+      },
+      "path": "docs/decisions/0431-merge-queue-backstops-pr-test-selection-2026-10-05.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:4ee9b16f6731d0ef7b35415b3e62307f608a0ae85bf3b30e9271e92125316fbb",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:33f39af4ea95e4c61d9a81cda93614f12ae930f9fe09a1f7710ac48417a7d68a",
+      "newRange": {
+        "count": 10,
+        "start": 226
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 224
+      },
+      "path": "docs/decisions/0431-merge-queue-backstops-pr-test-selection-2026-10-05.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:4ee9b16f6731d0ef7b35415b3e62307f608a0ae85bf3b30e9271e92125316fbb",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d4c4e8df1738df8108510c8d54eb5d24d3e7d79aac2d584da1ad8d4e3949e9b2",
+      "newRange": {
+        "count": 6,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 1
+      },
+      "path": "docs/decisions/README.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "a86493a75ca417ad4ec01510ce72bec623b07846be9e808af699e6460a65aeba",
+  "spec": "cem/0.2"
+}
