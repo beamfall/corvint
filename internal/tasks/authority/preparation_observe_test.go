@@ -63,7 +63,8 @@ func heldSlot(t *testing.T, dir string, i int, record []byte) {
 	}
 }
 
-func TestCALV0074_PreparationQueueObservation(t *testing.T) {
+func TestCALV0095_PreparationQueueObservation(t *testing.T) {
+	assumeCompleteLockTable(t)
 	t.Run("absent-namespace-creates-nothing", func(t *testing.T) {
 		_, repo := preparationOpenFixture(t)
 		before := preparationNamespace(t, repo.CommonDir)
@@ -191,6 +192,46 @@ func TestCALV0074_PreparationQueueObservation(t *testing.T) {
 		}
 	})
 
+	t.Run("drift-after-stat-not-observed", func(t *testing.T) {
+		for _, replace := range []bool{false, true} {
+			_, repo := preparationOpenFixture(t)
+			heldSlot(t, repo.CommonDir, 0, admissionRecord(1))
+			target := preparationSlotName(2)
+			p := filepath.Join(repo.CommonDir, target)
+			if err := os.WriteFile(p, admissionRecord(4), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			observeAfterLstat = func(name string) {
+				if name != target {
+					return
+				}
+				if !replace {
+					if err := os.Remove(p); err != nil {
+						t.Error(err)
+					}
+					return
+				}
+				// Create the replacement while the original still holds its
+				// inode, so the two identities differ on every filesystem.
+				tmp := p + ".replacement"
+				if err := os.WriteFile(tmp, admissionRecord(4), 0o644); err != nil {
+					t.Error(err)
+				}
+				if err := os.Rename(tmp, p); err != nil {
+					t.Error(err)
+				}
+			}
+			q := ObservePreparationQueue(repo)
+			observeAfterLstat = nil
+			if q.NotObserved != "preparation file "+target+" identity drift" || q.Registered != 0 {
+				t.Fatalf("replace=%t: %+v", replace, q)
+			}
+			if _, ok := q.WouldBeRank(); ok {
+				t.Fatalf("replace=%t: rank reported after drift", replace)
+			}
+		}
+	})
+
 	t.Run("lock-query-unavailable-not-observed", func(t *testing.T) {
 		_, repo := preparationOpenFixture(t)
 		old := preparationLockViewLoad
@@ -209,8 +250,8 @@ func TestCALV0074_PreparationQueueObservation(t *testing.T) {
 
 // The helper holds one real registration in a separate process until its
 // stdin closes, so the lock query is proven against another process's owner.
-func TestCALV0074ProcessHolderHelper(t *testing.T) {
-	root := os.Getenv("CAL074_HOLD_ROOT")
+func TestCALV0095ProcessHolderHelper(t *testing.T) {
+	root := os.Getenv("CAL095_HOLD_ROOT")
 	if root == "" {
 		t.Skip("helper process only")
 	}
@@ -229,10 +270,11 @@ func TestCALV0074ProcessHolderHelper(t *testing.T) {
 	}
 }
 
-func TestCALV0074_PreparationQueueObservationAcrossProcesses(t *testing.T) {
+func TestCALV0095_PreparationQueueObservationAcrossProcesses(t *testing.T) {
+	assumeCompleteLockTable(t)
 	r, repo := preparationOpenFixture(t)
-	cmd := exec.Command(os.Args[0], "-test.run=^TestCALV0074ProcessHolderHelper$")
-	cmd.Env = append(os.Environ(), "CAL074_HOLD_ROOT="+r.Root)
+	cmd := exec.Command(os.Args[0], "-test.run=^TestCALV0095ProcessHolderHelper$")
+	cmd.Env = append(os.Environ(), "CAL095_HOLD_ROOT="+r.Root)
 	in, err := cmd.StdinPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -266,5 +308,69 @@ func TestCALV0074_PreparationQueueObservationAcrossProcesses(t *testing.T) {
 	}
 	if q = ObservePreparationQueue(repo); q.NotObserved != "" || q.Registered != 0 {
 		t.Fatalf("after helper exit: %+v", q)
+	}
+}
+
+// The helper holds one non-flock record lock on a path until stdin closes.
+func TestCALV0095RecordLockHelper(t *testing.T) {
+	path, kind := os.Getenv("CAL095_RECORD_PATH"), os.Getenv("CAL095_RECORD_KIND")
+	if path == "" {
+		t.Skip("helper process only")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if err = holdRecordLock(f, kind); err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout.WriteString("held\n")
+	_, _ = io.Copy(io.Discard, os.Stdin)
+}
+
+// TestCALV0095_RecordLockIsNotARegistration: another process's POSIX or OFD
+// record lock on a retired slot never reads as a registered writer. Linux
+// ignores it (the lock families do not interact there); Darwin abstains,
+// because its query cannot then rule out a coexisting flock.
+func TestCALV0095_RecordLockIsNotARegistration(t *testing.T) {
+	assumeCompleteLockTable(t)
+	for _, kind := range recordLockKinds {
+		_, repo := preparationOpenFixture(t)
+		p := filepath.Join(repo.CommonDir, preparationSlotName(5))
+		if err := os.WriteFile(p, admissionRecord(9), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		cmd := exec.Command(os.Args[0], "-test.run=^TestCALV0095RecordLockHelper$")
+		cmd.Env = append(os.Environ(), "CAL095_RECORD_PATH="+p, "CAL095_RECORD_KIND="+kind)
+		in, err := cmd.StdinPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		out, err := cmd.StdoutPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		line, err := bufio.NewReader(out).ReadString('\n')
+		if err != nil || line != "held\n" {
+			in.Close()
+			_ = cmd.Wait()
+			t.Fatalf("%s helper did not hold: %q %v", kind, line, err)
+		}
+		before := preparationNamespace(t, repo.CommonDir)
+		q := ObservePreparationQueue(repo)
+		after := preparationNamespace(t, repo.CommonDir)
+		in.Close()
+		go io.Copy(io.Discard, out)
+		if err = cmd.Wait(); err != nil {
+			t.Fatalf("%s helper: %v", kind, err)
+		}
+		checkRecordLockObservation(t, kind, q)
+		if !reflect.DeepEqual(before, after) {
+			t.Fatalf("%s: observation changed coordination files", kind)
+		}
 	}
 }

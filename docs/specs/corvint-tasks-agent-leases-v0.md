@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; V1-0781 CAL-V0-074 experimental lock-free preparation-admission pressure in queue status with focused Darwin and Linux container tests
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; V1-0781 CAL-V0-095 experimental lock-free preparation-admission pressure in queue status with focused Darwin and Linux container tests
 Authoritative inputs: owner request [issue 482](https://github.com/beamfall/corvint/issues/482) (proposed CAL-V0-044/046 compatibility amendment);
 owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
@@ -15,7 +15,7 @@ owner requests [issue 420](https://github.com/beamfall/corvint/issues/420),
 owner request [issue 431](https://github.com/beamfall/corvint/issues/431) (CAL-V0-052..058),
 owner request [issue 499](https://github.com/beamfall/corvint/issues/499) (CAL-V0-052, 054, 055, 057 and 058 escalation ladder),
 owner request [issue 497](https://github.com/beamfall/corvint/issues/497) (CAL-V0-068),
-owner comment of 2026-10-05 on [issue 494](https://github.com/beamfall/corvint/issues/494) (CAL-V0-074, ticket V1-0781),
+owner comment of 2026-10-05 on [issue 494](https://github.com/beamfall/corvint/issues/494) (CAL-V0-095, ticket V1-0781),
 owner request [issue 446](https://github.com/beamfall/corvint/issues/446) (CAL-V0-059..061),
 owner request [issue 354](https://github.com/beamfall/corvint/issues/354) (CAL-V0-062..063, 071..072; owner scope split 2026-10-04),
 owner request [issue 378](https://github.com/beamfall/corvint/issues/378),
@@ -27,7 +27,7 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; V1-0781 CAL-V0-074 experimental lock-free preparation-admission pressure in queue status with focused Darwin and Linux container tests. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (audit carried; proportional cost and load condition NOT_MET), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S21 CAL-V0-071..072 partial multi-repository programs (policy declarations, sibling worktrees, composite candidate and review binding) with focused and fake-host tests; multi-repository gates and integration fail closed, live Codex qualification NOT_RUN; V1-0751 CAL-V0-073 read-only CREATE payload template implemented with focused fixture tests; V1-0781 CAL-V0-095 experimental lock-free preparation-admission pressure in queue status with focused Darwin and Linux container tests. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
 - Read next: #464 command-reader lifecycle amendment; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle; S21 multi-repository programs; V1-0781 admission pressure amendment); Amendments to TCP-00; Failure modes.
@@ -90,7 +90,7 @@ one.
 
 CAL-V0-062/063 are defined in S13 (issue 354). CAL-V0-064 (S14, issue 468) is reserved
 by coordinated unlanded work; CAL-V0-066/S16 remains reserved for issue 464 if used.
-The coordinator assigned CAL-V0-067/S17 to issue 479 and CAL-V0-068/S18 to issue 497. CAL-V0-071..072/S21 extend issue 354 (CAL-V0-069..070 and S19..S20 are left to coordinated unlanded work). CAL-V0-073 is the V1-0751 CREATE payload template amendment. CAL-V0-074 is the V1-0781 preparation-admission pressure amendment. This seed does not claim
+The coordinator assigned CAL-V0-067/S17 to issue 479 and CAL-V0-068/S18 to issue 497. CAL-V0-071..072/S21 extend issue 354 (CAL-V0-069..070 and S19..S20 are left to coordinated unlanded work). CAL-V0-073 is the V1-0751 CREATE payload template amendment. CAL-V0-095 is the V1-0781 preparation-admission pressure amendment. This seed does not claim
 implementation or qualification of the new profile or any reserved slice.
 
 S8 was added by owner decision on 2026-09-27 and lands directly after S3, before S4.
@@ -1315,6 +1315,38 @@ witnesses are the CAL-V0-071 and CAL-V0-072 rows in the traceability table, incl
 end-to-end `TestCALV0071_MultiRepositoryProgramFakeHost`. Live Codex qualification is `NOT_RUN`;
 see `docs/build-log/2026-10-04-tasks-multirepo-programs.md`.
 
+### V1-0781 — Preparation admission pressure (issue 494 follow-up)
+
+Intent, non-goals, failure modes, acceptance evidence and rollback are in the V1-0781 amendment
+section below.
+
+- `CAL-V0-095`: `queue status` MUST add one `preparationAdmission` object to its item, observed
+  after and outside the store snapshot. The object names the fixed `capacity` of `64`.
+  `registeredWriters` is the number of live registrations with a valid published record. This
+  count includes any serving holder, whose slot stays live until it closes. `unpublishedSlots`
+  counts live slots without a readable valid record. `wouldBeRank` is the rank a registration
+  published now would receive: the largest observed live rank plus one, or `1` when none is live.
+  The same rank appears in a `LOCK_TIMEOUT` diagnostic. `registryActive` reports a registry lock
+  held at the start or end of the sweep. `snapshot` is `RACY`, and `method` names the lock query.
+  A slot is live only when a lock query that acquires nothing observes a `flock(2)` owner on it,
+  the preparation protocol's only lock. Darwin uses `fcntl(F_GETLK)`, which reports a `flock`
+  owner with `l_pid` -1. Because it names only the first conflicting lock, a POSIX record lock on
+  a coordination file MUST make the read abstain. Linux reads one bounded `/proc/locks` snapshot,
+  keeps only granted `FLOCK` entries and matches the slot's device and inode. POSIX and OFD record
+  locks are ignored there, because on local Linux filesystems they neither conflict with `flock`
+  nor mark a registration. The Linux table omits owners outside the procfs PID namespace, so it
+  MUST be used only when the reader's PID namespace is the initial one and the reader is visible
+  in that procfs mount; otherwise the read abstains. A slot without an observed owner is stale
+  scheduling bytes and is not counted. The read MUST NOT register, `flock`, create, truncate or
+  write any coordination, journal or intent file. If the lock query, an incomplete lock table, an
+  unsafe object, a file that disappears or is replaced after its first stat, or the common
+  directory prevents observation, then `snapshot`, `method` and every count are `NOT_OBSERVED`,
+  `notObservedReason` names the cause and `registryActive` is null. A file absent at its first
+  stat is absent. A live slot without a valid record also makes `wouldBeRank` `NOT_OBSERVED`. The
+  store records no per-mutation writer cost, so `estimatedWait` is `NOT_OBSERVED` with
+  `estimatedWaitBasis` `no recorded per-mutation writer cost`. Any future estimate MUST derive
+  from recorded cost, name its basis and never be presented as a guarantee.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -1644,25 +1676,7 @@ Authoritative input: the owner's 2026-10-05 comment on issue 494, filed as ticke
 back off before they queue. This amendment adds one read-only observation to `queue status`. It
 changes no admission protocol, slot format, writer behavior, journal, intent or existing field.
 
-- `CAL-V0-074`: `queue status` MUST add one `preparationAdmission` object to its item, observed
-  after and outside the store snapshot. The object names the fixed `capacity` of `64`.
-  `registeredWriters` is the number of live registrations with a valid published record. This
-  count includes any serving holder, whose slot stays live until it closes. `unpublishedSlots`
-  counts live slots without a readable valid record. `wouldBeRank` is the rank a registration
-  published now would receive: the largest observed live rank plus one, or `1` when none is live.
-  The same rank appears in a `LOCK_TIMEOUT` diagnostic. `registryActive` reports a registry lock
-  held at the start or end of the sweep. `snapshot` is `RACY`, and `method` names the lock query.
-  A slot is live only when a lock query that acquires nothing observes its owner lock. Darwin uses
-  `fcntl(F_GETLK)`, which reports a `flock(2)` owner. Linux reads one bounded `/proc/locks`
-  snapshot and matches the slot's device and inode. A slot without an observed owner is stale
-  scheduling bytes and is not counted. The read MUST NOT register, `flock`, create, truncate or
-  write any coordination, journal or intent file. If the lock query, an unsafe or drifting
-  object, or the common directory prevents observation, `snapshot`, `method` and every count
-  are `NOT_OBSERVED`, `notObservedReason` names the cause and `registryActive` is null. A live
-  slot without a valid record also makes `wouldBeRank` `NOT_OBSERVED`. The store records no
-  per-mutation writer cost, so `estimatedWait` is `NOT_OBSERVED` with `estimatedWaitBasis`
-  `no recorded per-mutation writer cost`. Any future estimate MUST derive from recorded cost, name
-  its basis and never be presented as a guarantee.
+The normative requirement is `CAL-V0-095` in the Requirements section (V1-0781 subsection).
 
 Non-goals: no change to admission order, fairness, capacity, deadlines or the slot record; no
 wait estimate from inter-receipt timing, host load or guesswork; no counting of older clients
@@ -1672,22 +1686,28 @@ pressure history or ledger; no Windows observation.
 Failure modes: each slot is observed at a different instant. A registrant can publish, or a
 holder can retire, during the sweep. A registry-held scan briefly probes free slots by `flock`,
 so a free slot with a stale record can be counted; `registryActive` flags this window. Older
-clients that take the final gate without registering are invisible. Linux lists only locks whose
-owner is visible in the reader's PID namespace. Readers in a different namespace can therefore
-under-count, and a namespace split is not detected. An entry for the same inode on another
-device refuses as ambiguous rather than reporting absence. A lock table larger than 4 MiB, a
-missing `/proc` or an unsupported platform reports `NOT_OBSERVED`. Darwin observation over
-network filesystems is unqualified.
+clients that take the final gate without registering are invisible. A Linux reader outside the
+initial PID namespace, as in an ordinary container, abstains rather than under-count writers
+in other namespaces. Even in the initial namespace, Linux hides a `flock` whose locking process
+exited while another process still holds the file description. Corvint descriptors are
+close-on-exec and Go does not fork without exec, so a registration cannot outlive its locker that
+way, but a foreign process doing so is not detected. An entry for the same inode on another
+device refuses as ambiguous rather than reporting absence. A Darwin POSIX record lock on a
+coordination file makes the read abstain. Darwin's private OFD-style locks are unqualified and
+may read as `flock`. A lock table larger than 4 MiB, a missing `/proc` or an unsupported
+platform reports `NOT_OBSERVED`. Observation over network filesystems is unqualified.
 
-Acceptance evidence: on Darwin/APFS, and on Linux/arm64 in a Colima container over overlayfs and
-tmpfs, the tests below show the following. Four real waiters queued behind a holder report five
+Acceptance evidence: on Darwin/APFS, and on Linux/arm64 in Colima containers over overlayfs and
+tmpfs, both in a container PID namespace and with the host PID namespace, the tests below show the
+following. Four real waiters queued behind a holder report five
 registered writers and would-be rank six. Every coordination file keeps identical bytes, mode and
 modification time, and the fixture journal and intent audits are unchanged. Retired slots with
 stale records count zero. A registration held by another process is counted. A partial live
-record hides the rank. An unsafe slot object or an unavailable lock query reports
-`NOT_OBSERVED`. The status read creates no registry file. Rollback removes the observation and
+record hides the rank. An unsafe slot object, an unavailable lock query, an incomplete Linux lock
+table, a Darwin record lock, and a slot that disappears or is replaced after its first stat each
+report `NOT_OBSERVED`. Linux POSIX and OFD record locks on stale slots count zero. The status read creates no registry file. Rollback removes the observation and
 the field; no store, wire profile or coordination file depends on it.
 
 | Requirement | Evidence |
 | --- | --- |
-| CAL-V0-074 | `TestCALV0074_PreparationQueueObservation`, `TestCALV0074_PreparationQueueObservationAcrossProcesses`, `TestCALV0074_ProcLocksParse` (Linux) (`internal/tasks/authority`); `TestCALV0074_QueueStatusAdmissionPressure` (`internal/tasks/cli`) |
+| CAL-V0-095 | `TestCALV0095_PreparationQueueObservation`, `TestCALV0095_PreparationQueueObservationAcrossProcesses`, `TestCALV0095_RecordLockIsNotARegistration`, `TestCALV0095_ProcLocksParse` and `TestCALV0095_ProcLocksCompleteness` (Linux) (`internal/tasks/authority`); `TestCALV0095_QueueStatusAdmissionPressure` (`internal/tasks/cli`) |

@@ -13,17 +13,31 @@ import (
 // maxProcLocks bounds the /proc/locks read; a larger table is not observed.
 const maxProcLocks = 4 << 20
 
+// initialPIDNamespace is the nsfs link of the kernel's initial PID namespace
+// (PROC_PID_INIT_INO, fixed since Linux 3.8).
+const initialPIDNamespace = "pid:[4026531836]"
+
 // Linux fcntl(F_GETLK) does not report flock(2) owners, so liveness comes
-// from one read-only /proc/locks snapshot. The kernel lists only locks whose
-// owner is visible in the reader's PID namespace.
+// from one read-only /proc/locks snapshot. The kernel omits every lock whose
+// owner is not visible in the procfs instance's PID namespace, so the table
+// is complete only when that namespace is the initial one.
 type procLocksView struct {
-	// locked maps an inode number to the "major:minor" devices locking it.
+	// locked maps an inode number to the "major:minor" devices whose flock
+	// it carries.
 	locked map[uint64][]string
 }
 
-var procLocksPath = "/proc/locks"
+var (
+	procLocksPath = "/proc/locks"
+	// procSelfPIDNamespace resolves through the same procfs mount as
+	// procLocksPath; it exists only when the reader is visible there.
+	procSelfPIDNamespace = "/proc/self/ns/pid"
+)
 
 func loadPreparationLockView() (preparationLockView, error) {
+	if err := procLocksComplete(); err != nil {
+		return nil, err
+	}
 	raw, err := readProc(procLocksPath, maxProcLocks)
 	if err != nil {
 		return nil, errors.New("lock table is not observable")
@@ -31,28 +45,30 @@ func loadPreparationLockView() (preparationLockView, error) {
 	return parseProcLocks(string(raw))
 }
 
-// parseProcLocks keeps granted FLOCK, POSIX and OFDLCK entries; blocked
-// waiters ("->"), leases and delegations convey no slot ownership.
+// procLocksComplete establishes that /proc/locks lists every live owner: the
+// reader is in the initial PID namespace and visible in this procfs mount,
+// whose namespace is therefore the initial one too. Anything else abstains,
+// since writers in other namespaces would be omitted and read as absent.
+func procLocksComplete() error {
+	ns, err := os.Readlink(procSelfPIDNamespace)
+	if err != nil || ns != initialPIDNamespace {
+		return errors.New("lock table omits owners outside this PID namespace")
+	}
+	return nil
+}
+
+// parseProcLocks keeps granted FLOCK entries only. The preparation protocol
+// is flock(2); on local Linux filesystems POSIX and OFD record locks neither
+// conflict with it nor mark a registration, and blocked waiters ("->"),
+// leases and delegations convey no slot ownership.
 func parseProcLocks(table string) (procLocksView, error) {
 	v := procLocksView{locked: map[uint64][]string{}}
 	for _, line := range strings.Split(table, "\n") {
 		f := strings.Fields(line)
-		if len(f) == 0 {
+		if len(f) < 6 || f[1] != "FLOCK" {
 			continue
 		}
-		if len(f) < 6 || f[1] == "->" {
-			continue
-		}
-		switch f[1] {
-		case "FLOCK", "POSIX", "OFDLCK":
-		default:
-			continue
-		}
-		id := f[5]
-		if id == "<none>" {
-			continue
-		}
-		parts := strings.Split(id, ":")
+		parts := strings.Split(f[5], ":")
 		if len(parts) != 3 {
 			return v, errors.New("lock table entry is malformed")
 		}

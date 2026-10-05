@@ -12,7 +12,7 @@ import (
 )
 
 // PreparationQueue is a racy, lock-free observation of published preparation
-// registrations (CAL-V0-074). It never registers, flocks, creates, truncates
+// registrations (CAL-V0-095). It never registers, flocks, creates, truncates
 // or writes. Liveness comes from a platform lock query that acquires nothing;
 // a slot whose owner lock is not observed is stale scheduling bytes and is
 // ignored. Each slot is observed at a different instant, so counts can
@@ -117,8 +117,13 @@ func observePreparationQueue(repo *intent.Repository) (PreparationQueue, error) 
 	return q, nil
 }
 
+// Private seam: tests replace a file between its first stat and its open to
+// prove that drift refuses rather than reads as absence. Nil in production.
+var observeAfterLstat func(name string)
+
 // observeInert opens an existing fixed coordination file read-only. It
-// returns nil for an absent file and refuses a non-regular or drifting one.
+// returns nil for a file absent at its first stat, and refuses a non-regular
+// file or one that disappears or is replaced after that stat.
 func observeInert(root *os.Root, name string) (*os.File, os.FileInfo, error) {
 	pre, err := root.Lstat(name)
 	if os.IsNotExist(err) {
@@ -127,9 +132,12 @@ func observeInert(root *os.Root, name string) (*os.File, os.FileInfo, error) {
 	if err != nil || !pre.Mode().IsRegular() {
 		return nil, nil, errors.New("preparation file " + name + " is not an observable regular file")
 	}
+	if observeAfterLstat != nil {
+		observeAfterLstat(name)
+	}
 	f, err := safeopen.InRoot(root, name, os.O_RDONLY, 0, false)
 	if errors.Is(err, os.ErrNotExist) {
-		return nil, nil, nil
+		return nil, nil, errors.New("preparation file " + name + " identity drift")
 	}
 	if err != nil {
 		return nil, nil, errors.New("preparation file " + name + " is not readable")

@@ -9,7 +9,7 @@ import (
 )
 
 // preparationAdmission reports writer-admission pressure for queue status
-// (CAL-V0-074). The read takes no lock and writes nothing; unobservable facts
+// (CAL-V0-095). The read takes no lock and writes nothing; unobservable facts
 // are NOT_OBSERVED. No per-mutation writer cost is recorded in the store, so
 // the wait estimate is NOT_OBSERVED rather than invented.
 func preparationAdmission(repo *intent.Repository) wire.Value {

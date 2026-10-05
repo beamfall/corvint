@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"syscall"
 	"testing"
 
@@ -16,11 +17,11 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// TestCALV0074_QueueStatusAdmissionPressure: queue status reports registered
+// TestCALV0095_QueueStatusAdmissionPressure: queue status reports registered
 // preparation writers and the would-be rank from live slots only, names the
 // omitted wait estimate, and leaves the journal, intent and coordination
 // files byte-identical.
-func TestCALV0074_QueueStatusAdmissionPressure(t *testing.T) {
+func TestCALV0095_QueueStatusAdmissionPressure(t *testing.T) {
 	r := fixture.TempRepo(t)
 	fixture.WriteState(t, r)
 	fixture.WriteIntent(t, r)
@@ -37,6 +38,20 @@ func TestCALV0074_QueueStatusAdmissionPressure(t *testing.T) {
 		return field(x.res.Items[0], "preparationAdmission")
 	}
 	a := admission()
+	if runtime.GOOS == "linux" && field(a, "notObservedReason").Str == "lock table omits owners outside this PID namespace" {
+		// A reader outside the initial PID namespace (an ordinary container)
+		// must abstain; the authority tests cover counting there.
+		if field(a, "snapshot").Str != "NOT_OBSERVED" || field(a, "registeredWriters").Str != "NOT_OBSERVED" ||
+			field(a, "wouldBeRank").Str != "NOT_OBSERVED" || field(a, "registryActive").Kind != wire.KindNull {
+			t.Fatalf("incomplete lock table: %s", wire.Encode(a))
+		}
+		state, intended := fixture.TreeSnapshot(t, r.StateDir), fixture.TreeSnapshot(t, r.IntentDir)
+		admission()
+		if !reflect.DeepEqual(state, fixture.TreeSnapshot(t, r.StateDir)) || !reflect.DeepEqual(intended, fixture.TreeSnapshot(t, r.IntentDir)) {
+			t.Fatal("queue status wrote journal or intent bytes")
+		}
+		t.Skip("counts NOT_OBSERVED outside the initial PID namespace; abstention verified")
+	}
 	if field(a, "snapshot").Str != "RACY" || field(a, "method").Str == "NOT_OBSERVED" || field(a, "notObservedReason").Kind != wire.KindNull ||
 		field(a, "registeredWriters").Str != "0" || field(a, "unpublishedSlots").Str != "0" || field(a, "wouldBeRank").Str != "1" ||
 		field(a, "registryActive").Kind != wire.KindBool || field(a, "capacity").Str != "64" ||
