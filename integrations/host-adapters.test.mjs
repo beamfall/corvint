@@ -440,11 +440,20 @@ test('SOL-V0-010 AHI-022 V1-0767 OpenCode path abstentions reach the self-observ
  const files=offset=>Array.from({length:200},(_,i)=>join(repo,`dir/f${offset+i}.go`))
  // Both calls queue before the drain starts, so the file-change batch and the session set pass 256.
  await Promise.all([host.hooks['execute.after'](patched('call-1',files(0))),host.hooks['execute.after'](patched('call-2',files(200)))])
+ const truncatedPhase=warnings.length
  await host.hooks['execute.after'](patched('call-3',['/elsewhere/outside-secret.go']))
  await host.hooks['execute.after'](patched('call-4',['/elsewhere/outside-secret.go']))
+ const outsidePhase=warnings.length
  await host.cleanup()
+ // afterTool awaits its file-change drain and post-tool, so each warning belongs to its own phase.
  const warned=warnings.map(row=>JSON.parse(row.slice('[corvint/opencode] '.length)))
- const timedOut=new Set(warned.filter(row=>row.code.split(',').includes('timeout')).map(row=>row.event))
+ const timeouts=(from,to,event)=>warned.slice(from,to).filter(row=>row.event===event&&row.code.split(',').includes('timeout')).length
+ const excused={
+  'opencode file-change changed-paths-truncated':timeouts(0,truncatedPhase,'file-change')>0,
+  'opencode post-tool changed-paths-truncated':timeouts(0,truncatedPhase,'post-tool')>0,
+  // Either out-of-project call writes this row, so only both timing out can lose it.
+  'opencode post-tool post-tool-path-not-project-relative':timeouts(truncatedPhase,outsidePhase,'post-tool')===2,
+ }
  const raw=readFileSync(join(repo,'.corvint/self-observations.jsonl'),'utf8')
  const rows=raw.split('\n').slice(0,-1).map(JSON.parse).filter(row=>row.kind==='adapter-degradation')
  const seen=rows.map(row=>`${row.host} ${row.event} ${row.adapterCodes.join(',')}`).sort()
@@ -452,8 +461,8 @@ test('SOL-V0-010 AHI-022 V1-0767 OpenCode path abstentions reach the self-observ
  // Two identical out-of-project calls leave one row: the Go adapters' per-window dedup.
  assert.equal(new Set(seen).size,seen.length,seen.join('; '))
  assert.deepEqual(seen.filter(row=>!expected.includes(row)),[])
- // A disclosed deadline under host load (AHI-012) may lose only the row of the event it cut short.
- for(const row of expected)if(!timedOut.has(row.split(' ')[1]))assert.ok(seen.includes(row),row)
+ // A disclosed deadline under host load (AHI-012) may lose only the row of the call it cut short.
+ for(const row of expected)if(!excused[row])assert.ok(seen.includes(row),row)
  for(const leak of ['dir/','outside-secret','elsewhere',repo,'session-a','execute.after','patch'])assert.ok(!JSON.stringify(rows).includes(leak),leak)
  assert.ok(!raw.includes('outside-secret')&&!raw.includes('dir/f'))
  // Core's 100-path impact bound refuses the 256-path batch after its row is ledgered; that existing

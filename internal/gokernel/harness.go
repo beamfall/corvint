@@ -746,29 +746,3 @@ type SharedIndexedContext func(ctx context.Context, root, event string, normaliz
 // It reads no repository state, so the bracket runs it beside its closing
 // observation rather than inside the read stage.
 type IndexedBlock func() (map[string]any, error)
-
-// adapterCodeAppendBound caps how long an event waits for its adapterCodes rows, matching the Go
-// adapters' bounded SOL-V0-010 append; an append still waiting is abandoned, not cancelled.
-const adapterCodeAppendBound = 250 * time.Millisecond
-
-// recordAdapterCodes appends one SOL-V0-010 row per admitted adapter code and waits for them no
-// longer than adapterCodeAppendBound or ctx.
-func recordAdapterCodes(ctx context.Context, root string, request EventRequest, codes []string) {
-	if len(codes) == 0 {
-		return
-	}
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		for _, code := range codes {
-			_ = observations.Append(root, observations.AdapterDegradationEvent(request.Host, request.Event, code, request.CorvintVersion, time.Now()))
-		}
-	}()
-	timer := time.NewTimer(adapterCodeAppendBound)
-	defer timer.Stop()
-	select {
-	case <-done:
-	case <-ctx.Done():
-	case <-timer.C:
-	}
-}

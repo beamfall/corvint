@@ -19,8 +19,10 @@ would cost one more process spawn per abstention for the same closed row.
 - After `--root` resolves, Core appends one row per code through `observations.Append`, whether or
   not the event later succeeds. Rows use host `opencode`, the event, and `corvintVersion` (new
   `EventRequest.CorvintVersion`, set by `cmd/corvint`).
-  - The append is synchronous and fail-open like the `SOL-V0-001` append in the same handler. It
-    is bounded by the plugin's process deadline, not by an adapter-specific one.
+  - The append is fail-open and runs in `recordAdapterCodes`, which waits for it at most 500 ms
+    (or until the request context ends) and then abandons it. A held ledger lock therefore cannot
+    stall a coded `post-tool`. A `file-change` event's own `SOL-V0-001` append still waits on that
+    lock as it did before V1-0767.
   - Rows inherit the writer's content-free contract and per-hour deduplication.
 - `internal/observations` admits host `opencode` and code `changed-paths-truncated`.
 - The plugin sends the codes it names at `console.info`:
@@ -41,7 +43,7 @@ would cost one more process spawn per abstention for the same closed row.
 - `TestAdapterCodesAreClosedToOpenCodePathEvents`: another host, another event, an unknown code,
   unsorted, duplicate, empty and non-list input are all refused, and `.corvint` is untouched.
 - `TestOpenCodeAdapterCodesDoNotWaitOnAHeldLedgerLock`: with the ledger directory lock held, a
-  coded `post-tool` returns within the 250 ms append bound with its response unchanged, and the row
+  coded `post-tool` returns within the 500 ms append bound with its response unchanged, and the row
   lands after the lock is released. With the bound removed, the same test hangs until the Go test
   timeout.
 - `AHI-022 V1-0746 OpenCode names the path cap and an out-of-project path at info level` now also
@@ -51,7 +53,7 @@ would cost one more process spawn per abstention for the same closed row.
   - three `opencode` rows (`file-change`/`changed-paths-truncated`, and `post-tool` with each code);
   - two identical out-of-project calls deduplicated to one row (always asserted);
   - no row outside the expected three (always asserted), and each expected row present unless a
-    disclosed timeout cut short that row's own event;
+    disclosed timeout cut short every call that could write it;
   - no path, session or host event name in the rows;
   - no warning except the one below.
 
@@ -60,11 +62,19 @@ would cost one more process spawn per abstention for the same closed row.
 Codex (gpt-6-astra, read-only) reviewed bf459f25 and raised two P2 findings, both fixed:
 
 - The coded append ran synchronously under the ledger's blocking lock, so contention could turn a
-  post-tool event into a host timeout. It now waits at most 250 ms (`recordAdapterCodes`).
+  post-tool event into a host timeout. It now waits at most 500 ms (`recordAdapterCodes`).
 - Any timeout warning skipped the real-binary test's exact-row assertion. Dedup and the closed row
-  set are now unconditional; a timeout excuses only its own event's row.
+  set are now unconditional; a timeout excuses only the row of the call it cut short.
 
 It found no field-validation, receipt-exclusion, privacy or plugin-collection defect.
+
+A Codex pass over that fix commit (aefcff8b) found three more, all fixed:
+
+- The Go test read the ledger before an abandoned append had finished. Tests now wait on
+  `adapterCodeAppends`.
+- A timeout excused rows by event type rather than by call. The test now attributes timeouts per
+  phase.
+- The wording here and in the failure-mode row was stale.
 
 ### Limits and follow-up
 

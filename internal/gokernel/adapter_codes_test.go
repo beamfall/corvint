@@ -42,6 +42,8 @@ func TestOpenCodeAdapterCodesAreLedgeredOutsideTheReceipt(t *testing.T) {
 			t.Fatalf("adapterCodes reached the response: %s (%v)", encoded, err)
 		}
 	}
+	// An append slower than adapterCodeAppendBound finishes after HandleEvent returns.
+	adapterCodeAppends.Wait()
 	data, err := os.ReadFile(ledger)
 	if err != nil {
 		t.Fatal(err)

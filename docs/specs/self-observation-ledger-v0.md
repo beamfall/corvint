@@ -126,7 +126,7 @@ local append-only diagnostic proposal stream and `corvint observations` is its r
   from the hook input's `cwd` when it is absolute (decision 0169). An `opencode` `harness event` on
   `file-change` or `post-tool` whose input carries `adapterCodes` MUST attempt the same append once
   per code, with that event, after resolving `--root` and whether or not the event then succeeds
-  (V1-0767), waiting for it no longer than a fixed 250 ms bound. The row MUST carry only `host` (`claude-code`, `codex` or `opencode`), `event` (the adapter event), `adapterCodes`, `window` (the UTC hour
+  (V1-0767), waiting for it no longer than a fixed 500 ms bound. The row MUST carry only `host` (`claude-code`, `codex` or `opencode`), `event` (the adapter event), `adapterCodes`, `window` (the UTC hour
   as `YYYY-MM-DDTHHZ`), and `corvintVersion`; never prompt text, paths, tool input, session identity,
   or repository content. `adapterCodes` is a sorted, duplicate-free set of one to eight codes from
   the closed registry in `internal/observations/observations.go`. A `corvint-event-rejected:<code>`
@@ -185,7 +185,7 @@ the existing agent-memory convention.
 | same adapter row already retained in its hour window | no write |
 | OpenCode `adapterCodes` with another host, event or code, or unsorted, duplicated or empty | refuse the event as `invalid-harness-input`; no row |
 | OpenCode `adapterCodes` append fails (ledger not ignored, cap reached) | no row; the event and its receipt are unchanged |
-| OpenCode `adapterCodes` append waits on a held ledger lock | the event returns after the 250 ms bound with its response unchanged; the abandoned append lands once the lock frees or is lost with the process |
+| OpenCode `adapterCodes` append waits on a held ledger lock | the coded append stops being awaited after the 500 ms bound and the response is unchanged (a `file-change` event's own `SOL-V0-001` append still waits on the lock); the abandoned append lands once the lock frees or is lost with the process |
 
 ## Acceptance evidence and traceability
 
@@ -204,6 +204,7 @@ that OCM enumerates all ten clauses from this document; it does not validate the
 Rollback is deletion of the gitignored ledger and removal of its post-receipt best-effort call; no
 repository evidence or authority depends on it. `SOL-V0-010` rolls back by removing the adapter's
 `recordAdapterDegradation` and `recordAdapterReason` calls and, for OpenCode, first the plugin's
-`adapterCodes` field and then `takeAdapterCodes` in `internal/gokernel/harness.go` (in that order,
+`adapterCodes` field and then `takeAdapterCodes` in `internal/gokernel/harness.go` with
+`recordAdapterCodes` in `internal/gokernel/adapter_codes.go` (in that order,
 since Core without it refuses the field as unknown input); retained `adapter-degradation` rows then age out under the cap,
 and triage ignores them once the reader is removed.

@@ -43,13 +43,8 @@ func TestOpenCodeAdapterCodesDoNotWaitOnAHeldLedgerLock(t *testing.T) {
 	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_UN); err != nil {
 		t.Fatal(err)
 	}
-	ledger := filepath.Join(directory, "self-observations.jsonl")
-	for deadline := time.Now().Add(10 * time.Second); ; time.Sleep(10 * time.Millisecond) {
-		if data, _ := os.ReadFile(ledger); bytes.Contains(data, []byte(`"post-tool-path-not-project-relative"`)) {
-			return
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("the abandoned append did not land after the lock was released")
-		}
+	adapterCodeAppends.Wait()
+	if data, _ := os.ReadFile(filepath.Join(directory, "self-observations.jsonl")); !bytes.Contains(data, []byte(`"post-tool-path-not-project-relative"`)) {
+		t.Fatalf("the abandoned append did not land after the lock was released:\n%s", data)
 	}
 }
