@@ -221,6 +221,9 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 	o := res.Items[0].Obj
 	if report.PoolAllocation != nil {
 		o.Set("poolAllocation", snapshot.PoolAllocationValue(report.PoolAllocation))
+	} else if cmd[0] == "claim" && report.AttemptID != "" {
+		// CAL-V0-079: a claim result always names its allocation.
+		o.Set("poolAllocation", wire.Null())
 	}
 	if report.LaneUntouchedAttestation != nil {
 		o.Set("laneUntouchedAttestation", snapshot.LaneUntouchedAttestationValue(report.LaneUntouchedAttestation))
@@ -302,6 +305,7 @@ func readAttempt(env Env, args []string, observations bool) *wire.Result {
 		item, err = wire.Parse(record.Raw)
 		if err == nil && observations {
 			addHolderObservation(item.Obj, a, observedAt)
+			addHistoryObservation(item.Obj)
 		}
 		return err
 	})

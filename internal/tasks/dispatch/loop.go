@@ -1025,7 +1025,15 @@ func (d *Dispatcher) diff(obs *Observation) {
 	for _, id := range sortedKeys(now.Claims) {
 		if _, ok := old.Claims[id]; !ok {
 			c := strings.Split(now.Claims[id], "|")
-			d.emit(Event{Kind: "claim", Ticket: c[0], Message: fmt.Sprintf("%s claimed %s for %s (attempt %s)", c[1], d.local(obs, c[0]), orText(c[3], "work"), id), Detail: map[string]string{"attempt": id, "holder": c[1], "phase": c[2]}})
+			// CAL-V0-079: the claim names its pool member; both are empty
+			// for an attempt without a pool allocation.
+			pool, member, on := "", "", ""
+			for _, a := range obs.Attempts {
+				if a.ID == id && a.Member != "" {
+					pool, member, on = a.Pool, a.Member, fmt.Sprintf(" on %s/%s", a.Pool, a.Member)
+				}
+			}
+			d.emit(Event{Kind: "claim", Ticket: c[0], Message: fmt.Sprintf("%s claimed %s for %s%s (attempt %s)", c[1], d.local(obs, c[0]), orText(c[3], "work"), on, id), Detail: map[string]string{"attempt": id, "holder": c[1], "phase": c[2], "pool": pool, "member": member}})
 		}
 	}
 	for _, id := range sortedKeys(old.Claims) {
