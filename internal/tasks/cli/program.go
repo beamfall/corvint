@@ -225,7 +225,7 @@ func programCommand(env Env, verb string, args []string) *wire.Result {
 				if errors.Is(e, store.ErrProgramIdle) {
 					continue
 				}
-				r := errorResult(cmd, e)
+				r := laneFailureResult(cmd, e, failures)
 				r.Items = append(allItems, items[:i]...)
 				return r
 			}
@@ -239,4 +239,17 @@ func programCommand(env Env, verb string, args []string) *wire.Result {
 		}
 	}
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: allItems, Warnings: []string{"foreground batch bound reached; pending work retained"}}
+}
+
+// laneFailureResult reports the first failed lane of a batch. A repeat runs
+// every lane again, so the command is not retryable when any lane's failure
+// forbids a retry, even if the reported one does not (CAL-V0-078).
+func laneFailureResult(cmd []string, first error, failures []error) *wire.Result {
+	r := errorResult(cmd, first)
+	for _, e := range failures {
+		if e != nil && wire.RetryForbidden(e) {
+			r.NotRetryable = true
+		}
+	}
+	return r
 }

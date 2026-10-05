@@ -357,9 +357,10 @@ bounded backoff:
 Every other code is false, including `FENCED`, `BOOT_FENCED` and `SUPERVISOR_LOST` (the attempt
 really lost; start a new one), `LIMIT_EXCEEDED`, `JOURNAL_SATURATED` and `UNSUPPORTED_FILESYSTEM`.
 `attempt run` and `gate run` report false once their program has started, whatever the code,
-because a retry would run it again. A supervised `run --role reviewer` reports false for any failure after review
-has left the attempt `CHECKING`, because a repeat skips that attempt instead of finishing its
-gates and the `READY` step. `health` and `pool cleanup` report false once their
+because a retry would run it again. A supervised `run --role` reports false for any failure after one of its
+supervisor transitions has committed, because a repeat no longer selects that attempt and would
+leave its stage, gates or `READY` step unfinished; a `--count` batch reports false when any lane
+does. `health` and `pool cleanup` report false once their
 preparation or cleanup receipt commits, and `pool sweep` once a fresh sweep commits its owner,
 because a retry then replays that step without running the program or recording what it saw. `STALE`, `STORAGE_FAILED` and `HEAD_MOVED` are not result codes. The spec's
 "V1-0780 retryable result amendment" lists every code with its reason.

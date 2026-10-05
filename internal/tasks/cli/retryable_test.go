@@ -94,3 +94,30 @@ func TestCALV0078_MarkedErrorIsNotRetryable(t *testing.T) {
 		}
 	}
 }
+
+// TestCALV0078_AnyMarkedLaneMakesBatchNotRetryable: `program run --count N`
+// reports its first failed lane, but a repeat reruns every lane, so a later
+// lane's non-retryable failure makes the command not retryable even when the
+// reported one is retryable; idle and successful lanes do not.
+func TestCALV0078_AnyMarkedLaneMakesBatchNotRetryable(t *testing.T) {
+	contended := wire.Errorf(wire.CodeLockTimeout, "lock", "lock acquisition exceeded 30s")
+	marked := wire.WithoutRetry(wire.Errorf(wire.CodeLockTimeout, "lock", "gate ran but was not recorded"))
+	for _, c := range []struct {
+		name  string
+		lanes []error
+		want  string
+	}{
+		{"retryable-then-marked", []error{contended, marked}, `"retryable":false`},
+		{"marked-then-retryable", []error{marked, contended}, `"retryable":false`},
+		{"retryable-then-idle", []error{contended, store.ErrProgramIdle}, `"retryable":true`},
+		{"retryable-then-success", []error{contended, nil}, `"retryable":true`},
+	} {
+		raw, err := laneFailureResult([]string{"run"}, c.lanes[0], c.lanes).Encode()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := string(raw); !strings.Contains(got, `"codes":["LOCK_TIMEOUT"]`) || !strings.Contains(got, c.want) {
+			t.Fatalf("%s: %s", c.name, got)
+		}
+	}
+}

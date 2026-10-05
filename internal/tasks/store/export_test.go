@@ -35,10 +35,10 @@ func SetGateRecordFaultForTest(f func() error) func() {
 	return func() { gateRecordFault = old }
 }
 
-// SetReviewCheckingFaultForTest fails a supervised reviewer run at a named
-// point of its CHECKING block, until the returned restore is called.
-func SetReviewCheckingFaultForTest(f func(point string) error) func() {
-	old := reviewCheckingFault
-	reviewCheckingFault = f
-	return func() { reviewCheckingFault = old }
+// SetRunFaultForTest fails a supervised run at a named point, until the
+// returned restore is called.
+func SetRunFaultForTest(f func(point string) error) func() {
+	old := runFault
+	runFault = f
+	return func() { runFault = old }
 }

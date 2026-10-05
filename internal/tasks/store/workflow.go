@@ -36,6 +36,9 @@ type Workflow struct {
 	attempt *snapshot.Attempt
 	policy  *intent.Policy
 	record  *ticket.Record
+	// departed reports that a supervisor transition committed during the
+	// current RunRole, so the attempt has left the phase that selected it.
+	departed bool
 }
 
 var ErrProgramIdle = errors.New("no eligible stage work")
@@ -93,8 +96,15 @@ func (w *Workflow) step(action string, f transaction.SupervisorChange) error {
 	f.ProgramID = w.program.ID
 	f.OwnerPID = w.program.OwnerPID
 	f.OwnerStarted = w.program.OwnerStarted
+	if e := fault("transition:" + action); e != nil {
+		return e
+	}
 	r, e := SupervisorTransition(context.Background(), w.repo, w.actor, w.queue.QueueID.Raw, w.requestID(), w.attempt.AttemptID, w.attempt.Generation, f)
 	if e = transitionOK(r, e); e != nil {
+		return e
+	}
+	w.departed = true
+	if e = fault("refresh:" + action); e != nil {
 		return e
 	}
 	return w.refresh(context.Background())
@@ -543,6 +553,9 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 	}
 	if out.Clean {
 		w.program.OwnerReleased = true
+		if e = fault("stage-finished"); e != nil {
+			return out, e
+		}
 		if e = w.persist("FINISHED"); e != nil {
 			return out, e
 		}
@@ -727,12 +740,31 @@ func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.B
 	return w, nil
 }
 
-// reviewCheckingFault, when set by a package test, fails a reviewer run at a
-// named point of its CHECKING block ("gate:<id>" before that gate, "ready"
-// before the READY step); it is nil in production.
-var reviewCheckingFault func(point string) error
+// runFault, when set by a package test, fails a supervised run at a named point
+// ("transition:<action>" and "refresh:<action>" around a supervisor transition's
+// commit, "stage-finished", "role-finished", "gate:<id>" and "ready"); it is
+// nil in production.
+var runFault func(point string) error
 
-func (w *Workflow) RunRole(ctx context.Context, role, grant string) (*snapshot.Attempt, error) {
+func fault(point string) error {
+	if runFault == nil {
+		return nil
+	}
+	return runFault(point)
+}
+
+// RunRole runs one stage of the attempt. Once a supervisor transition of this
+// run has committed (the stage DISPATCH, and every later step), the attempt has
+// left the phase `run --role` selects, so a repeat skips it instead of finishing
+// the stage, its gates or the READY step: every error from then on is not
+// retryable, including a refresh or program-record failure (CAL-V0-078).
+func (w *Workflow) RunRole(ctx context.Context, role, grant string) (a *snapshot.Attempt, err error) {
+	w.departed = false
+	defer func() {
+		if err != nil && w.departed {
+			err = wire.WithoutRetry(err)
+		}
+	}()
 	stage := map[string]string{"implementer": "implement", "reviewer": "review", "integrator": "integrate"}[role]
 	if stage == "" {
 		return w.attempt, fmt.Errorf("unknown role")
@@ -760,6 +792,9 @@ func (w *Workflow) RunRole(ctx context.Context, role, grant string) (*snapshot.A
 	if e != nil {
 		return w.attempt, e
 	}
+	if e = fault("role-finished"); e != nil {
+		return w.attempt, e
+	}
 	if e = w.persist("FINISHED"); e != nil {
 		return w.attempt, e
 	}
@@ -781,29 +816,21 @@ func (w *Workflow) RunRole(ctx context.Context, role, grant string) (*snapshot.A
 		if len(list) > 0 && len(w.program.Repositories) > 0 {
 			return w.attempt, fmt.Errorf("multi-repository gate evaluation is not yet supported")
 		}
-		// The attempt is CHECKING: a repeated `run --role reviewer` selects only
-		// BUILT attempts, so it skips this one instead of finishing its gates or
-		// the READY step, and every error from here is not retryable, including
-		// one after an earlier gate already ran (CAL-V0-078).
 		for _, id := range list {
-			if reviewCheckingFault != nil {
-				if e = reviewCheckingFault("gate:" + id); e != nil {
-					return w.attempt, wire.WithoutRetry(e)
-				}
+			if e = fault("gate:" + id); e != nil {
+				return w.attempt, e
 			}
 			choice := LeaseChoice{QueueID: w.queue.QueueID.Raw, RequestID: w.requestID(), Root: w.repo.PrimaryWorktree, Lease: transaction.LeaseRequest{Verb: transaction.LeaseGateRun, AttemptID: w.attempt.AttemptID, Generation: w.attempt.Generation, Gate: id}}
 			r, e := GateRun(ctx, w.repo, w.actor, choice, *w.attempt.WorktreePath, time.Now)
 			if e = transitionOK(r, e); e != nil {
-				return w.attempt, wire.WithoutRetry(e)
+				return w.attempt, e
 			}
 		}
-		if reviewCheckingFault != nil {
-			if e = reviewCheckingFault("ready"); e != nil {
-				return w.attempt, wire.WithoutRetry(e)
-			}
+		if e = fault("ready"); e != nil {
+			return w.attempt, e
 		}
 		if e = w.step("READY", transaction.SupervisorChange{}); e != nil {
-			return w.attempt, wire.WithoutRetry(e)
+			return w.attempt, e
 		}
 	}
 	if stage == "integrate" && w.attempt.Phase == "READY_FOR_INTEGRATION" {

@@ -80,8 +80,10 @@ func TestCALV0078_SupervisedCheckingFailureIsNotRetryable(t *testing.T) {
 				t.Fatalf("implement: %+v %v", a, err)
 			}
 			seen := []string{}
-			restore := store.SetReviewCheckingFaultForTest(func(point string) error {
-				seen = append(seen, point)
+			restore := store.SetRunFaultForTest(func(point string) error {
+				if strings.HasPrefix(point, "gate:") || point == "ready" {
+					seen = append(seen, point)
+				}
 				if point == c.fail {
 					return wire.Errorf(wire.CodeLockTimeout, "lock", "injected contention at %s", point)
 				}
@@ -106,6 +108,64 @@ func TestCALV0078_SupervisedCheckingFailureIsNotRetryable(t *testing.T) {
 				if g := results[id]; g == nil || g.State != "PASSED" {
 					t.Fatalf("gate %s did not pass before the failure: %+v", id, g)
 				}
+			}
+		})
+	}
+}
+
+// TestCALV0078_SupervisedRunAfterCommitIsNotRetryable: once a supervisor
+// transition of a reviewer run commits, a repeated `run --role reviewer` no
+// longer selects the attempt, so a failure after that commit is not retryable:
+// the refresh after DISPATCH or STOPPED, and either FINISHED program record
+// after review left the attempt CHECKING. A failure before DISPATCH commits
+// leaves the attempt BUILT and stays retryable (CAL-V0-078).
+func TestCALV0078_SupervisedRunAfterCommitIsNotRetryable(t *testing.T) {
+	for _, c := range []struct {
+		fail      string
+		forbidden bool
+		phase     string
+	}{
+		{"transition:DISPATCH", false, "BUILT"},
+		{"refresh:DISPATCH", true, ""},
+		{"refresh:STOPPED", true, "CHECKING"},
+		{"stage-finished", true, "CHECKING"},
+		{"role-finished", true, "CHECKING"},
+	} {
+		t.Run(strings.ReplaceAll(c.fail, ":", "-"), func(t *testing.T) {
+			f := buildProgramFixture(t, true, false, nil)
+			self, err := os.Executable()
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx := context.Background()
+			w, err := store.OpenWorkflow(ctx, f.s.repo, operator(), "program", self, f.config, f.ticketID)
+			if err != nil {
+				t.Fatalf("open: %v", err)
+			}
+			a, err := w.RunRole(ctx, "implementer", "")
+			if err != nil || a.Phase != "BUILT" {
+				t.Fatalf("implement: %+v %v", a, err)
+			}
+			id := a.AttemptID
+			hit := 0
+			restore := store.SetRunFaultForTest(func(point string) error {
+				if point == c.fail {
+					hit++
+					return wire.Errorf(wire.CodeLockTimeout, "lock", "injected contention at %s", point)
+				}
+				return nil
+			})
+			_, err = w.RunRole(ctx, "reviewer", "")
+			restore()
+			if hit != 1 {
+				t.Fatalf("fault point %s reached %d times", c.fail, hit)
+			}
+			if wire.CodeOf(err) != wire.CodeLockTimeout || wire.RetryForbidden(err) != c.forbidden {
+				t.Fatalf("failure at %s: %v (forbidden=%v, want %v)", c.fail, err, wire.RetryForbidden(err), c.forbidden)
+			}
+			phase := f.s.attempt(t, id).Phase
+			if c.phase != "" && phase != c.phase || c.phase == "" && phase == "BUILT" {
+				t.Fatalf("stored phase after the failure at %s: %s", c.fail, phase)
 			}
 		})
 	}

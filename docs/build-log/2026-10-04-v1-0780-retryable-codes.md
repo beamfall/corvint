@@ -67,6 +67,17 @@ V1-0756 and V1-0781 branches, so this change uses the first ID none of them clai
   removed. The same review found that the failure-mode paragraph of the spec amendment called
   `SNAPSHOT_MOVED` not retryable; it now separates `LIMIT_EXCEEDED` from the stale-input
   exception of a retryable `SNAPSHOT_MOVED`.
+- A fifth review found two more retryable paths: failures after the reviewer's `STOPPED`
+  transition committed `CHECKING` but before the gate block (the refresh, and the `FINISHED`
+  program record written in the stage and again in `RunRole`), and a `--count` batch that
+  reported only its first lane's error. `RunRole` now records when any supervisor transition of
+  the run commits. That begins with the stage dispatch, after which `run --role` no longer selects
+  the attempt, and every later error is marked not retryable. This replaces the per-site marks of
+  round 4. A batch is not retryable when any lane's failure forbids a retry. Five fault points
+  (before and after the dispatch commit, after the `STOPPED` commit, and at both `FINISHED`
+  records) drive regressions. A failure before the dispatch commits leaves the attempt `BUILT`
+  and stays retryable. With the commit mark removed, every committed case fails and the control
+  passes. A two-lane selection test fails when only the first lane is consulted.
 - Review also found `CAL-V0-078` defined outside `## Requirements`, where the OCM reader
   (`internal/lrfrepo` `requirementsFromBlob`) does not enumerate it. The normative text now sits in
   a Requirements subsection; a scratch enumeration of the spec lists it. `CAL-V0-073` (V1-0751)
