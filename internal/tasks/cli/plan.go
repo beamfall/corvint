@@ -25,7 +25,7 @@ func planCommand(env Env, args []string) *wire.Result {
 // pure read. No plan is pinned, so deferredSinceSeq is null.
 func planPreview(env Env, args []string) *wire.Result {
 	cmd := []string{"plan", "preview"}
-	pool, stage := "", ""
+	pool, stage, authors := "", "", ""
 	var excluded []string
 	selectedOnly := false
 	seen := map[string]bool{}
@@ -34,6 +34,15 @@ func planPreview(env Env, args []string) *wire.Result {
 			return usage(cmd, "duplicate plan flag")
 		}
 		seen[args[i]] = true
+		switch {
+		case args[i] == "--exclude-authors" || strings.HasPrefix(args[i], "--exclude-authors="):
+			mode, err := excludeAuthorsMode(args[i], authors)
+			if err != nil {
+				return usage(cmd, "--exclude-authors takes no value or =all, once")
+			}
+			authors = mode
+			continue
+		}
 		switch args[i] {
 		case "--exclude-member":
 			if i+1 >= len(args) || args[i+1] == "" || strings.HasPrefix(args[i+1], "--") {
@@ -71,8 +80,11 @@ func planPreview(env Env, args []string) *wire.Result {
 		if err != nil {
 			return err
 		}
-		in.Pool, in.Stage, in.ExcludeMembers = pool, stage, scopePaths(excluded)
+		in.Pool, in.Stage, in.ExcludeMembers, in.ExcludeAuthors = pool, stage, scopePaths(excluded), authors
 		if err := transaction.CheckPoolExclusions(pool, in.ExcludeMembers, in.Policy); err != nil {
+			return err
+		}
+		if err := transaction.CheckExcludeAuthors(authors, pool, stage); err != nil {
 			return err
 		}
 		plan := transaction.PriorityFirst(in)
@@ -80,7 +92,7 @@ func planPreview(env Env, args []string) *wire.Result {
 			item = selectedPlanValue(rc, plan)
 			return nil
 		}
-		item, err = planValue(rc, digest, plan)
+		item, err = planValue(rc, digest, plan, authors != "")
 		return err
 	})
 	if err != nil {
@@ -154,10 +166,10 @@ func planInput(rc *readCtx) (transaction.PlanInput, wire.Digest, error) {
 }
 
 // planValue renders a taskman-plan/0 object (TCP-00 §4.3).
-func planValue(rc *readCtx, reservations wire.Digest, plan transaction.TicketPlan) (wire.Value, error) {
+func planValue(rc *readCtx, reservations wire.Digest, plan transaction.TicketPlan, authors bool) (wire.Value, error) {
 	entries := make([]wire.Value, 0, len(plan.Entries))
 	for _, e := range plan.Entries {
-		v, err := planEntryValue(e)
+		v, err := planEntryValue(e, authors)
 		if err != nil {
 			return wire.Value{}, err
 		}
@@ -180,7 +192,7 @@ func planValue(rc *readCtx, reservations wire.Digest, plan transaction.TicketPla
 	return wire.ObjectValue(o), nil
 }
 
-func planEntryValue(e transaction.PlanEntry) (wire.Value, error) {
+func planEntryValue(e transaction.PlanEntry, authors bool) (wire.Value, error) {
 	resources, err := snapshot.ResourcesValue("resources", e.Resources)
 	if err != nil {
 		return wire.Value{}, err
@@ -195,5 +207,34 @@ func planEntryValue(e transaction.PlanEntry) (wire.Value, error) {
 	o.Set("reason", wire.String(e.Reason))
 	o.Set("deferredSinceSeq", wire.Null())
 	o.Set("blockers", wire.Strings(e.Blockers))
+	if authors {
+		o.Set("detail", optionalText(e.Detail))
+		o.Set("excludedAuthors", authorsValue(e.Authors))
+	}
 	return wire.ObjectValue(o), nil
+}
+
+func optionalText(s string) wire.Value {
+	if s == "" {
+		return wire.Null()
+	}
+	return wire.String(s)
+}
+
+// authorsValue renders a CAL-V0-085 derivation: the implement generations
+// whose recorded members were excluded, or null when it was unverified.
+func authorsValue(x *transaction.AuthorExclusion) wire.Value {
+	if x == nil {
+		return wire.Null()
+	}
+	vs := make([]wire.Value, 0, len(x.Authors))
+	for _, a := range x.Authors {
+		o := wire.NewObject()
+		o.Set("attemptId", wire.String(a.AttemptID))
+		o.Set("generation", wire.String(string(a.Generation)))
+		o.Set("poolId", wire.String(a.PoolID))
+		o.Set("memberId", wire.String(a.MemberID))
+		vs = append(vs, wire.ObjectValue(o))
+	}
+	return wire.Array(vs...)
 }

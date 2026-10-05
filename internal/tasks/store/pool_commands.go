@@ -216,8 +216,16 @@ func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutatio
 		for _, en := range state.Entries {
 			busy[en.MemberID] = true
 		}
+		excluded := choice.Lease.ExcludeMembers
+		if choice.Lease.ExcludeAuthors != "" {
+			// CAL-V0-085: probe only what the model's own derivation leaves eligible.
+			if report == nil || report.AuthorExclusion == nil {
+				return report, nil
+			}
+			excluded = report.AuthorExclusion.Excluded
+		}
 		member := ""
-		for _, m := range transaction.OrderedPoolMembers(pool, choice.Lease.Stage, choice.Lease.ExcludeMembers) {
+		for _, m := range transaction.OrderedPoolMembers(pool, choice.Lease.Stage, excluded) {
 			if !busy[m] {
 				member = m
 				break

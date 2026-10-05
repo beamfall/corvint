@@ -309,7 +309,7 @@ func planClaimNext(c leaseContext) leaseOutcome {
 		out.result.Expired = reap
 		return out
 	}
-	plan := PriorityFirst(PlanInput{Pool: c.l.Pool, Stage: c.l.Stage, ExcludeMembers: c.l.ExcludeMembers, Pools: c.st.pools, Prepared: c.in.LeaseFacts.Pool.AllocationID, Queue: c.st.queue, Policy: c.st.policy, Tickets: c.st.tickets, Reservations: c.st.reservations, Attempts: c.st.attempts})
+	plan := PriorityFirst(PlanInput{Pool: c.l.Pool, Stage: c.l.Stage, ExcludeMembers: c.l.ExcludeMembers, ExcludeAuthors: c.l.ExcludeAuthors, Pools: c.st.pools, Prepared: c.in.LeaseFacts.Pool.AllocationID, Queue: c.st.queue, Policy: c.st.policy, Tickets: c.st.tickets, Reservations: c.st.reservations, Attempts: c.st.attempts})
 	chosen := plan.Selected()
 	if chosen == nil {
 		code, detail := plan.refusal()
@@ -328,7 +328,11 @@ func (p TicketPlan) refusal() (string, string) {
 		return wire.CodeTicketState, "no ticket is OPEN or HELD"
 	}
 	first := p.Entries[0]
-	return first.Reason, "no ticket is SELECTED; the first of " + string(wire.CountOf(int64(len(p.Entries)))) + " planned tickets, " + first.Ticket.TicketID.Raw + ", is " + first.State + " " + first.Reason
+	detail := "no ticket is SELECTED; the first of " + string(wire.CountOf(int64(len(p.Entries)))) + " planned tickets, " + first.Ticket.TicketID.Raw + ", is " + first.State + " " + first.Reason
+	if first.Detail != "" {
+		detail += ": " + first.Detail
+	}
+	return first.Reason, detail
 }
 
 func (c leaseContext) admit(rec *ticket.Record, sc *snapshot.Scope) leaseOutcome {
@@ -350,9 +354,15 @@ func (c leaseContext) admit(rec *ticket.Record, sc *snapshot.Scope) leaseOutcome
 	if refusal != nil {
 		return *refusal
 	}
+	if c.authors, refusal = c.authorExclusion(rec.TicketID.Raw); refusal != nil {
+		return *refusal
+	}
 	a, e := c.admitted(rec, prior, sc)
 	if e != nil {
-		return c.fail(e)
+		out := c.fail(e)
+		// The store's health preparation probes only members this derivation leaves eligible.
+		out.result.AuthorExclusion = c.authors
+		return out
 	}
 	entry := snapshot.ReservationEntry{AttemptID: a.AttemptID, Generation: a.Generation, TicketID: a.TicketID, TicketRevision: a.TicketRevision, Resources: sc.Resources, CapacityUses: []snapshot.CapacityUse{}, Workers: "0", State: "ACTIVE", CreatedSeq: c.seq, Coverage: entryCoverage(sc)}
 	return c.write(a, append(c.entries(), entry), "ADMIT", true)

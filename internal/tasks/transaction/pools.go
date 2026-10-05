@@ -82,8 +82,8 @@ func (c leaseContext) allocate(a *snapshot.Attempt) (*snapshot.PoolAllocation, e
 			if en.State != "PREPARING" || en.PoolID != c.l.Pool || en.Holder != c.l.Holder || en.Stage != c.l.Stage || en.RequestSha256 != PoolClaimBinding(c.r.Lease, c.st.queue.QueueID) {
 				return nil, malformed("prepared allocation claim differs")
 			}
-			if !slices.Contains(OrderedPoolMembers(pool, c.l.Stage, c.l.ExcludeMembers), en.MemberID) {
-				return nil, wire.Errorf(wire.CodeResourceCollision, "pool", "prepared member is not eligible")
+			if !slices.Contains(OrderedPoolMembers(pool, c.l.Stage, c.excluded()), en.MemberID) {
+				return nil, wire.Errorf(wire.CodeResourceCollision, "pool", "prepared member is not eligible%s", c.authorsSuffix())
 			}
 			o, e := c.observation(&en)
 			if e != nil {
@@ -97,7 +97,7 @@ func (c leaseContext) allocate(a *snapshot.Attempt) (*snapshot.PoolAllocation, e
 		}
 		return nil, malformed("prepared allocation missing")
 	}
-	for _, member := range OrderedPoolMembers(pool, c.l.Stage, c.l.ExcludeMembers) {
+	for _, member := range OrderedPoolMembers(pool, c.l.Stage, c.excluded()) {
 		occupied := false
 		for _, en := range c.st.pools.Entries {
 			occupied = occupied || en.MemberID == member
@@ -111,7 +111,7 @@ func (c leaseContext) allocate(a *snapshot.Attempt) (*snapshot.PoolAllocation, e
 		}
 		return &snapshot.PoolAllocation{PoolID: pool.ID, MemberID: member, AllocationID: wire.Sum([]byte(c.r.QueueID + ":" + c.r.RequestID + ":" + member)), DefinitionSha256: c.st.policy.MemberDefinition(pool.ID, member), AllocatedSeq: c.seq, ConfigRef: config.ConfigRef}, nil
 	}
-	return nil, wire.Errorf(wire.CodeResourceCollision, "pool", "no eligible free member; occupied and quarantined members unavailable")
+	return nil, wire.Errorf(wire.CodeResourceCollision, "pool", "no eligible free member; occupied and quarantined members unavailable%s", c.authorsSuffix())
 }
 
 // OrderedPoolMembers returns members eligible for stage, preferring an exact

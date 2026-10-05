@@ -164,6 +164,30 @@ and quarantine remain binding. An identical request replays its original allocat
 after release, a successor or a permitted policy change; a changed valid exclusion
 set conflicts under the same request ID.
 
+For a review or integrate claim, `--exclude-authors` derives the exclusions from the ticket's
+recorded history instead (CAL-V0-085). The bare flag excludes the member of the ticket's most recent
+implement generation; `--exclude-authors=all` excludes the member of every recorded implement
+generation:
+
+```sh
+corvint-tasks claim AT-123 --pool test-env --stage review --exclude-authors --holder reviewer --request-id review-123
+corvint-tasks claim --next --pool test-env --stage integrate --exclude-authors=all --holder integrator --request-id integrate-next
+corvint-tasks plan preview --pool test-env --stage review --exclude-authors
+```
+
+It requires an explicit pool and `--stage review` or `--stage integrate`, and it unions with any
+`--exclude-member`. The mode, not the derived member set, is bound into the request, so an identical
+request replays and a changed mode conflicts under the same request ID. Walking the ticket's
+generations newest first, review and integrate generations are skipped; any other generation
+reached must be an implement generation with a recorded pool member. A generation whose member is
+`NOT_OBSERVED` (ended before the V1-0788 prior-generation history, or supervised), one with no recorded stage, an implement
+generation without a pool member, or a ticket with no implement generation refuses the claim with
+`INDEPENDENCE_UNVERIFIED`; it is never silently unfiltered, and nothing is recovered from receipts.
+When no member remains, the claim refuses `RESOURCE_COLLISION` with a detail naming the excluded
+authors. `plan preview` reports the same per ticket, and with this flag adds `detail` and
+`excludedAuthors` to each entry. A recorded member label is not an authenticated identity and
+proves nothing about who did the work or whether two environments are physically distinct.
+
 Retain the returned `poolAllocation` alongside attempt ID and generation. Replays return the original
 receipt-bound allocation, including after a retry has acquired a successor. Release, completion and
 reap free the source scope but quarantine the environment. Reads never probe or clean environments.

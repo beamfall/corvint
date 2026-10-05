@@ -22,6 +22,8 @@ const (
 type PlanInput struct {
 	Pool, Stage    string
 	ExcludeMembers []string
+	// ExcludeAuthors applies CAL-V0-085 per planned ticket.
+	ExcludeAuthors string
 	Pools          *snapshot.PoolState
 	Prepared       wire.Digest
 	Queue          *intent.Queue
@@ -41,6 +43,10 @@ type PlanEntry struct {
 	ClosureComplete bool
 	State, Reason   string
 	Blockers        []string
+	// Detail explains the reason, and Authors is the CAL-V0-085 derivation;
+	// both are set only when the plan excludes authors.
+	Detail  string
+	Authors *AuthorExclusion
 }
 
 // TicketPlan is a taskman-priority-first/0 plan without its snapshot header.
@@ -119,8 +125,20 @@ func planEntry(in PlanInput, rec *ticket.Record) PlanEntry {
 	blockers := claimBlockers(in, rec)
 	if len(blockers) > 0 {
 		e.State, e.Reason, e.Blockers = PlanBlocked, blockers[0].Code, blockerRefs(blockers)
+		if in.ExcludeAuthors != "" {
+			e.Detail = blockers[0].Detail
+		}
+	}
+	if in.ExcludeAuthors != "" {
+		e.Authors, _ = authorPlan(in, rec)
 	}
 	return e
+}
+
+// authorPlan is the CAL-V0-085 derivation for one planned ticket, or the
+// INDEPENDENCE_UNVERIFIED detail.
+func authorPlan(in PlanInput, rec *ticket.Record) (*AuthorExclusion, string) {
+	return DeriveAuthors(in.Attempts, rec.TicketID.Raw, in.ExcludeAuthors, in.Pool, in.ExcludeMembers)
 }
 
 // claimBlockers are the facts that refuse a claim of rec whatever the
@@ -144,6 +162,13 @@ func claimBlockerObservations(in PlanInput, rec *ticket.Record) (all, known, unk
 	}
 	if !poolAvailable(in, rec) {
 		add(ticket.Blocker{Code: wire.CodeResourceCollision, Detail: "required or requested pool has no eligible member"}, true)
+	} else if in.ExcludeAuthors != "" {
+		// CAL-V0-085: the claim's derivation and the same capacity predicate per ticket.
+		if x, why := authorPlan(in, rec); x == nil {
+			add(ticket.Blocker{Code: wire.CodeIndependenceUnverified, Detail: why}, true)
+		} else if poolSlotsExcluding(in, x.Excluded) == 0 {
+			add(ticket.Blocker{Code: wire.CodeResourceCollision, Detail: "requested pool has no eligible member; " + x.AuthorsDetail()}, true)
+		}
 	}
 	if in.Barrier {
 		add(ticket.Blocker{Code: wire.CodePaused}, true)
@@ -267,12 +292,18 @@ func poolAvailable(in PlanInput, rec *ticket.Record) bool {
 	return poolSlots(in) > 0
 }
 func poolSlots(in PlanInput) int {
+	return poolSlotsExcluding(in, in.ExcludeMembers)
+}
+
+// poolSlotsExcluding counts free eligible members after excluded, which is
+// the explicit set or its CAL-V0-085 union with one ticket's authors.
+func poolSlotsExcluding(in PlanInput, excluded []string) int {
 	p := in.Policy.Pool(in.Pool)
 	if CheckPoolExclusions(in.Pool, in.ExcludeMembers, in.Policy) != nil || p == nil {
 		return 0
 	}
 	slots := 0
-	for _, m := range OrderedPoolMembers(p, in.Stage, in.ExcludeMembers) {
+	for _, m := range OrderedPoolMembers(p, in.Stage, excluded) {
 		busy := false
 		if in.Pools != nil {
 			for _, en := range in.Pools.Entries {

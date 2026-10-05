@@ -53,11 +53,14 @@ type LeaseRequest struct {
 	Branch, Base                              string
 	Scope                                     []string
 	ExcludeMembers                            []string
-	WholeRepository                           bool
-	AttemptID                                 string
-	Generation                                wire.Size
-	Reason                                    string
-	Tree, Gate, Commit                        string
+	// ExcludeAuthors is "", ExcludeAuthorsLatest or ExcludeAuthorsAll
+	// (CAL-V0-085).
+	ExcludeAuthors     string
+	WholeRepository    bool
+	AttemptID          string
+	Generation         wire.Size
+	Reason             string
+	Tree, Gate, Commit string
 }
 
 // LeaseFacts are the caller's observations for a CLAIM: the fresh attempt
@@ -105,6 +108,7 @@ const (
 	fieldExclusions
 	fieldLaneUntouched
 	fieldSweepSeconds
+	fieldAuthors
 )
 
 type leaseShape struct{ required, allowed int }
@@ -119,8 +123,8 @@ var leaseShapes = map[string]leaseShape{
 	LeasePoolCleanup:     {fieldMember | fieldAllocation, fieldMember | fieldAllocation},
 	LeasePoolRecover:     {fieldMember | fieldAllocation | fieldReason, fieldMember | fieldAllocation | fieldReason},
 	LeasePoolSafe:        {fieldMember | fieldAllocation | fieldEvidence | fieldReason, fieldMember | fieldAllocation | fieldEvidence | fieldReason},
-	LeaseClaim:           {fieldTicket | fieldHolder | fieldMinutes, fieldTicket | fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage | fieldExclusions},
-	LeaseClaimNext:       {fieldHolder | fieldMinutes, fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage | fieldExclusions},
+	LeaseClaim:           {fieldTicket | fieldHolder | fieldMinutes, fieldTicket | fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage | fieldExclusions | fieldAuthors},
+	LeaseClaimNext:       {fieldHolder | fieldMinutes, fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage | fieldExclusions | fieldAuthors},
 	LeaseHeartbeat:       {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration},
 	LeaseRenew:           {fieldAttempt | fieldGeneration | fieldMinutes, fieldAttempt | fieldGeneration | fieldMinutes},
 	LeaseRelease:         {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldReason | fieldEvidence | fieldLaneUntouched},
@@ -135,7 +139,7 @@ var leaseShapes = map[string]leaseShape{
 }
 
 func (l *LeaseRequest) present() int {
-	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != ""}
+	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldAuthors: l.ExcludeAuthors != "", fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != ""}
 	bits := 0
 	for bit, set := range flags {
 		if set {
@@ -220,6 +224,9 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 		return malformed("lane-untouched requires inert evidence Identifier")
 	}
 	if e := checkExcludedMembers(l.Pool, l.ExcludeMembers); e != nil {
+		return e
+	}
+	if e := CheckExcludeAuthors(l.ExcludeAuthors, l.Pool, l.Stage); e != nil {
 		return e
 	}
 	if !checkPoolStage(l.Stage) {
@@ -338,6 +345,10 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 	if l.ExcludeMembers != nil {
 		v.Obj.Set("excludeMembers", wire.Strings(l.ExcludeMembers))
 	}
+	// CAL-V0-085: likewise omitted when absent.
+	if l.ExcludeAuthors != "" {
+		v.Obj.Set("excludeAuthors", s(l.ExcludeAuthors))
+	}
 	// Keep historical RELEASE preimages byte-identical when evidence is absent.
 	if l.Verb == LeaseRelease && l.Evidence != "" {
 		v.Obj.Set("evidence", s(l.Evidence))
@@ -394,6 +405,9 @@ type leaseContext struct {
 	in  Input
 	st  inputState
 	seq wire.Size
+	// authors is the CAL-V0-085 derivation of a fresh claim, nil without
+	// --exclude-authors.
+	authors *AuthorExclusion
 }
 
 var leasePlanners = map[string]func(leaseContext) leaseOutcome{
