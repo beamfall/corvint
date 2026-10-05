@@ -235,6 +235,8 @@ func composeAdopt(canonical, file *ticket.Record, diff map[string]bool) ([]Paylo
 			refine.EstimateMinutes = copyCount(file.EstimateMinutes)
 		case "supersedes":
 			refine.Supersedes = copyTicket(file.Supersedes)
+		case "executionPrerequisites":
+			refine.ExecutionPrerequisites = copyPrerequisites(file.ExecutionPrerequisites)
 		}
 	}
 	if len(refine.Present) > 0 {

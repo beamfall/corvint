@@ -120,6 +120,17 @@ separators=(',', ':')`, then add one LF; sort only fields documented as sets. Ea
 this queue (`.items[0].payload`) plus a `fields` table of types, enum values and null-able keys;
 fill in `title`, `body` and `acceptanceCriteria`, then submit it with `--payload-stdin`.
 
+A ticket that only some stages must wait for carries optional `executionPrerequisites`, set with
+`ticket refine` (for example `{"executionPrerequisites":[{"gateId":null,"obligation":"COMPLETED",
+"stages":["integrate"],"ticketId":"ticket:acme:main:AT-02"}]}`) and cleared with `null`. A claim,
+`claim-next` or `plan` for a listed stage refuses `PREREQUISITE_UNSATISFIED` naming the
+prerequisite; other stages are unaffected, and a read without `--stage` applies every entry.
+`ticket blockers` explains the block. A `GATE_PASSED` prerequisite stays `NOT_OBSERVED` (unknown)
+on native reads, so its stages stay refused until the entry is removed. Unlike `dependencies`, the
+key takes no part in cycles, completion or `requiredGates` (CAL-V0-099). Once any record has
+carried the key, older binaries refuse the store even after it is cleared, because the journal keeps
+the earlier records; roll back only with a compatible reader or a verified pre-change backup.
+
 Linked worktrees share the primary checkout's `.git/taskman` journal. A fresh clone has no such
 journal: current `queue status`, `roadmap`, `ticket show` and `ticket search` can read the
 unvalidated-history intent projection and report its limits, but cannot claim or complete work.

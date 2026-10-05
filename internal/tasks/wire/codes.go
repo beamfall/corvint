@@ -50,6 +50,10 @@ const CodeOcmMissing = "OCM_MISSING"
 const CodeOutOfScope = "OUT_OF_SCOPE"
 const CodePaused = "PAUSED"
 const CodePlanStale = "PLAN_STALE"
+
+// CodePrerequisiteUnsatisfied names a stage-scoped execution prerequisite
+// (CAL-V0-099) that blocks a claim or plan for a listed stage.
+const CodePrerequisiteUnsatisfied = "PREREQUISITE_UNSATISFIED"
 const CodeQuiescenceUnproved = "QUIESCENCE_UNPROVED"
 const CodeRedoPending = "REDO_PENDING"
 const CodeRequestIDConflict = "REQUEST_ID_CONFLICT"
@@ -88,7 +92,7 @@ var Codes = []string{
 	CodeGateStale, CodeGateUnknown, CodeHandoff, CodeIndependenceUnverified, CodeIntentBranchMismatch,
 	CodeIntentDiverged, CodeInvalidPriority, CodeJournalForked, CodeJournalSaturated,
 	CodeLimitExceeded, CodeLockTimeout, CodeMalformed, CodeMissingEvidence, CodeMissingGate,
-	CodeNoexec, CodeOcmMissing, CodeOutOfScope, CodePaused, CodePlanStale,
+	CodeNoexec, CodeOcmMissing, CodeOutOfScope, CodePaused, CodePlanStale, CodePrerequisiteUnsatisfied,
 	CodeQuiescenceUnproved, CodeRedoPending, CodeRequestIDConflict, CodeResourceCollision,
 	CodeRestored, CodeRestoreIncomplete, CodeRetryExhausted, CodeReviewIncomplete,
 	CodeReviewRejected, CodeReviewReturned, CodeSignalRefusedIdentity, CodeSnapshotMoved, CodeStalePolicy,

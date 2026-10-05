@@ -125,27 +125,30 @@ func (*CreatePayload) operation() string { return OpCreate }
 
 // RefineFields are the keys a REFINE payload may carry (§3.3), sorted.
 var RefineFields = []string{
-	"acceptanceCriteria", "body", "dueDate", "estimateMinutes", "kind", "labels",
+	"acceptanceCriteria", "body", "dueDate", "estimateMinutes", "executionPrerequisites", "kind", "labels",
 	"milestone", "owner", "requirementRefs", "requiredRoles", "requiresPool", "supersedes", "title",
 }
 
 // RefinePayload is a non-empty subset of RefineFields. Present names the
 // keys carried; a typed field is meaningful only when its key is present.
 type RefinePayload struct {
-	RequiredRoles      map[string][]string
-	RequiresPool       *string
-	Present            map[string]bool
-	Title              string
-	Body               *string
-	Kind               string
-	Owner              *string
-	Milestone          *string
-	Labels             []string
-	AcceptanceCriteria []string
-	RequirementRefs    []string
-	DueDate            *string
-	EstimateMinutes    *wire.Count
-	Supersedes         *wire.TicketID
+	// ExecutionPrerequisites replaces the record's set (CAL-V0-099); nil
+	// (from a null value) clears it.
+	ExecutionPrerequisites []ticket.Prerequisite
+	RequiredRoles          map[string][]string
+	RequiresPool           *string
+	Present                map[string]bool
+	Title                  string
+	Body                   *string
+	Kind                   string
+	Owner                  *string
+	Milestone              *string
+	Labels                 []string
+	AcceptanceCriteria     []string
+	RequirementRefs        []string
+	DueDate                *string
+	EstimateMinutes        *wire.Count
+	Supersedes             *wire.TicketID
 }
 
 func (*RefinePayload) operation() string { return OpRefine }
@@ -358,8 +361,14 @@ func Decode(data []byte) (*Envelope, error) {
 // returned value is re-encoded canonically into the envelope, which Decode
 // then checks strictly, so the wire rule and digests are unchanged.
 func CanonicalPayload(op string, v wire.Value) (wire.Value, error) {
-	if _, err := decodePayload(op, wire.NewSetSortingReader(v, "/payload")); err != nil {
-		return wire.Value{}, err
+	// Two passes: a set of objects that themselves hold a set (the
+	// executionPrerequisites stages, CAL-V0-099) is sorted before its inner
+	// sets are, so the second pass re-sorts the outer set by the final
+	// canonical bytes. The second pass is a no-op for every other payload.
+	for pass := 0; pass < 2; pass++ {
+		if _, err := decodePayload(op, wire.NewSetSortingReader(v, "/payload")); err != nil {
+			return wire.Value{}, err
+		}
 	}
 	return v, nil
 }
@@ -528,6 +537,10 @@ func readRefine(r *wire.Reader) *RefinePayload {
 		p.Present[k] = true
 		f := r.Field(k)
 		switch k {
+		case "executionPrerequisites":
+			if !f.IsNull() {
+				p.ExecutionPrerequisites = ticket.ReadPrerequisites(f)
+			}
 		case "requiredRoles":
 			if !f.IsNull() {
 				p.RequiredRoles = ticket.ReadStageRoles(f)
@@ -736,6 +749,12 @@ func PayloadValue(p Payload) wire.Value {
 	case *RefinePayload:
 		for _, k := range p.Keys() {
 			switch k {
+			case "executionPrerequisites":
+				if len(p.ExecutionPrerequisites) == 0 {
+					o.Set(k, wire.Null())
+				} else {
+					o.Set(k, ticket.PrerequisitesValue(p.ExecutionPrerequisites))
+				}
 			case "requiredRoles":
 				if p.RequiredRoles == nil {
 					o.Set(k, wire.Null())

@@ -49,6 +49,9 @@ type PlanEntry struct {
 	State, Reason   string
 	Blockers        []string
 	poolDeferred    bool
+	// prerequisites are the CAL-V0-099 blocker details naming each
+	// unsatisfied execution prerequisite, so a claim-next refusal names it.
+	prerequisites []string
 }
 
 // TicketPlan is a taskman-priority-first/0 plan without its snapshot header.
@@ -178,6 +181,11 @@ func planEntry(in PlanInput, rec *ticket.Record) PlanEntry {
 	blockers := claimBlockers(in, rec)
 	if len(blockers) > 0 {
 		e.State, e.Reason, e.Blockers = PlanBlocked, blockers[0].Code, blockerRefs(blockers)
+		for _, b := range blockers {
+			if b.Code == wire.CodePrerequisiteUnsatisfied {
+				e.prerequisites = append(e.prerequisites, b.Detail)
+			}
+		}
 	}
 	return e
 }
@@ -219,7 +227,7 @@ func ClaimBlockerObservations(in PlanInput, rec *ticket.Record) []ObservedBlocke
 	if len(in.Policy.RequireEnforcedFields) != 0 {
 		add(ticket.Blocker{Code: wire.CodeBudgetUnknown}, true)
 	}
-	ctx := ticket.Context{CanonicalWriter: in.Queue.CanonicalWriter, SerialFallback: in.Policy.SerialFallback}
+	ctx := ticket.Context{CanonicalWriter: in.Queue.CanonicalWriter, SerialFallback: in.Policy.SerialFallback, Stage: in.Stage}
 	if in.Reservations != nil {
 		ctx.Attempts = entryOracle{in.Reservations}
 	}

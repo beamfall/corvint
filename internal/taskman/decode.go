@@ -59,8 +59,9 @@ var optionalTicketMembers = map[string]func(v wire.Value, revision, acceptance u
 		}
 		return nil
 	},
-	"escalations":     escalationRefs,
-	"externalReviews": externalReviews,
+	"escalations":            escalationRefs,
+	"externalReviews":        externalReviews,
+	"executionPrerequisites": executionPrerequisites,
 }
 
 // ticketObject checks the closed ticket record object and returns the
@@ -191,6 +192,9 @@ func decodeTicket(v wire.Value) (ticket, error) {
 		if e = optionalTicketMembers[k](value(v, k), chain, rev); e != nil {
 			return t, fmt.Errorf("%s: %w", k, e)
 		}
+	}
+	if e = prerequisiteOwner(t.id, value(v, "executionPrerequisites")); e != nil {
+		return t, fmt.Errorf("executionPrerequisites: %w", e)
 	}
 	t.order, e = number(value(v, "order"), 2147483647)
 	if e != nil {

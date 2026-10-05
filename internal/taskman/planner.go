@@ -232,6 +232,9 @@ func blocker(t ticket, all map[string]ticket, c captured) string {
 			return "DEPENDENCY_UNSATISFIED"
 		}
 	}
+	if code := prerequisiteBlocker(t, all); code != "" {
+		return code
+	}
 	// The planner observes no worker pools or roles, so it cannot satisfy a
 	// pool or stage-role requirement.
 	if len(value(t.raw, "capabilities").Arr) > 0 || value(t.raw, "requiresPool").Kind != wire.KindNull || value(t.raw, "requiredRoles").Kind != wire.KindNull {
