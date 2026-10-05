@@ -24,7 +24,8 @@ import (
 // package supplies only the facts a mutation depends on and the §5.2 ordering
 // that makes the result durable. It never authenticates, never edits the
 // envelope. Entry guards refuse unsupported states before the model or recovery runs.
-func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding, envelope []byte, now wire.Timestamp) (*Report, error) {
+func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding, envelope []byte, now wire.Timestamp) (out *Report, outErr error) {
+	defer func() { out, outErr = intentFix(repo, out, outErr) }()
 	report := &Report{}
 	if repo == nil {
 		return report, wire.Errorf(wire.CodeMalformed, "", "no repository authority was resolved")

@@ -24,7 +24,7 @@ func withInventoryStore(env Env, body func(*readCtx) error) (*readCtx, error) {
 		if err := requireJournalAbsent(repo.StateDir); err != nil {
 			return rc, err
 		}
-		st, err := intent.Load(repo.PrimaryWorktree)
+		st, err := intent.Load(repo.IntentRoot())
 		if err != nil {
 			return rc, err
 		}
@@ -36,7 +36,7 @@ func withInventoryStore(env Env, body func(*readCtx) error) (*readCtx, error) {
 		if err := requireJournalAbsent(repo.StateDir); err != nil {
 			return rc, err
 		}
-		tree, err := intent.TreeDigest(repo.PrimaryWorktree)
+		tree, err := intent.TreeDigest(repo.IntentRoot())
 		if err != nil {
 			return rc, err
 		}

@@ -141,11 +141,11 @@ func postTarget(path string) (authority.Target, error) {
 }
 
 // destination maps an archive-namespace path to the absolute file it names:
-// intent paths live in the primary worktree's Git-tracked store, everything
-// else under the private state dir (§3.4).
+// intent paths live in the intent root's Git-tracked store (CTW-V0-001),
+// everything else under the private state dir (§3.4).
 func destination(repo *intent.Repository, path string) string {
 	if rest, ok := strings.CutPrefix(path, "intent/"); ok {
-		return filepath.Join(repo.PrimaryWorktree, intent.Dir, rest)
+		return filepath.Join(repo.IntentRoot(), intent.Dir, rest)
 	}
 	return filepath.Join(repo.StateDir, path)
 }
@@ -378,7 +378,7 @@ func parentOf(t authority.Target) (key, dir string) {
 // created by whichever transaction first publishes into it, so a later
 // transaction and a redo both find it present.
 func ensureDir(repo *intent.Repository, session *authority.Session, key, dir string) error {
-	full := filepath.Join(repo.PrimaryWorktree, intent.Dir, strings.TrimPrefix(dir, "intent/"))
+	full := filepath.Join(repo.IntentRoot(), intent.Dir, strings.TrimPrefix(dir, "intent/"))
 	if !strings.HasPrefix(dir, "intent/") {
 		full = filepath.Join(repo.StateDir, dir)
 	}
@@ -468,9 +468,10 @@ func slotName(i int) string {
 // pinned init record and the request index entry, all with null pre).
 //
 // The caller supplies the actor binding; this package neither authenticates
-// nor manufactures one. The queue and policy are read from the primary
-// worktree's Git-tracked intent store, which the operator authored.
-func Init(ctx context.Context, repo *intent.Repository, actor mutation.Binding, requestID string, now wire.Timestamp) (*Report, error) {
+// nor manufactures one. The queue and policy are read from the intent root's
+// Git-tracked intent store (CTW-V0-001), which the operator authored.
+func Init(ctx context.Context, repo *intent.Repository, actor mutation.Binding, requestID string, now wire.Timestamp) (out *Report, outErr error) {
+	defer func() { out, outErr = intentFix(repo, out, outErr) }()
 	report := &Report{}
 	if repo == nil {
 		return report, wire.Errorf(wire.CodeMalformed, "", "no repository authority was resolved")
@@ -490,7 +491,7 @@ func Init(ctx context.Context, repo *intent.Repository, actor mutation.Binding, 
 	// already in the intent store would have no journal afterimage, and every
 	// later read would refuse the store as INTENT_DIVERGED (V1-0323). Refuse
 	// before anything is created (CTS-V0-001).
-	record, err := existingRecord(repo.PrimaryWorktree)
+	record, err := existingRecord(repo.IntentRoot())
 	if err != nil {
 		return guardFailure(report, requestID, err)
 	}
@@ -582,10 +583,10 @@ func Init(ctx context.Context, repo *intent.Repository, actor mutation.Binding, 
 }
 
 // existingRecord names one ticket or release record already in the intent
-// store of the primary worktree, or returns "" when there is none.
-func existingRecord(primaryWorktree string) (string, error) {
+// store under root, or returns "" when there is none.
+func existingRecord(root string) (string, error) {
 	for _, dir := range []string{intent.TicketsDir, intent.ReleasesDir} {
-		name, err := firstEntry(filepath.Join(primaryWorktree, intent.Dir, dir))
+		name, err := firstEntry(filepath.Join(root, intent.Dir, dir))
 		if err != nil {
 			return "", err
 		}
@@ -623,7 +624,7 @@ func firstEntry(dir string) (string, error) {
 // re-encoding of a decoded record. Their absence is the operator's own
 // missing input, reported as such rather than defaulted into existence.
 func readIntent(repo *intent.Repository) (queue, policy []byte, queueID, branch string, err error) {
-	root := filepath.Join(repo.PrimaryWorktree, intent.Dir)
+	root := filepath.Join(repo.IntentRoot(), intent.Dir)
 	queue, err = intent.ReadFile(filepath.Join(root, "queue.json"), wire.MaxQueueFileBytes)
 	if err != nil {
 		return nil, nil, "", "", err

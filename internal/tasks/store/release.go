@@ -23,7 +23,8 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-func Release(ctx context.Context, repo *intent.Repository, actor mutation.Binding, raw []byte, now wire.Timestamp) (*Report, error) {
+func Release(ctx context.Context, repo *intent.Repository, actor mutation.Binding, raw []byte, now wire.Timestamp) (out *Report, outErr error) {
+	defer func() { out, outErr = intentFix(repo, out, outErr) }()
 	report := &Report{}
 	req, err := release.DecodeEnvelope(raw)
 	if err != nil {
@@ -129,7 +130,7 @@ func Release(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 	var headCommit, headTree string
 	var source wire.Digest
 	if req.Operation == release.OpCandidate || req.Operation == release.OpPromote {
-		headCommit, headTree, source, err = ObserveSource(repo.PrimaryWorktree, req.Operation == release.OpCandidate)
+		headCommit, headTree, source, err = ObserveSource(repo.IntentRoot(), req.Operation == release.OpCandidate)
 		if err != nil {
 			return report, err
 		}

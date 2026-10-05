@@ -671,6 +671,17 @@ CTS-V0-003	docs/specs/corvint-tasks-store-init-v0.md	63	(accepted 2026-09-27, ow
 CTS-V0-004	docs/specs/corvint-tasks-store-init-v0.md	77	Store resolution MUST resolve symbolic links in the directories above the primar
 CTS-V0-005	docs/specs/corvint-tasks-store-init-v0.md	83	The external-agent setup guide MUST provide canonical queue, policy and ticket-c
 CTS-V0-006	docs/specs/corvint-tasks-store-init-v0.md	88	(requested 2026-10-01, issue 433) A journal-backed read (`withStore` verbs and
+CTW-V0-001	docs/specs/corvint-tasks-intent-worktree-v0.md	41	The intent root is the checkout whose `.taskman/` is the intent projection. Ever
+CTW-V0-002	docs/specs/corvint-tasks-intent-worktree-v0.md	47	When the primary worktree's HEAD does not name the intent branch from
+CTW-V0-003	docs/specs/corvint-tasks-intent-worktree-v0.md	54	The intent branch and queue ID used for routing are read from the primary worktr
+CTW-V0-004	docs/specs/corvint-tasks-intent-worktree-v0.md	58	A linked worktree is admitted only when all of the following hold. It is among t
+CTW-V0-005	docs/specs/corvint-tasks-intent-worktree-v0.md	67	When the primary is not on the intent branch and no admitted linked worktree hol
+CTW-V0-006	docs/specs/corvint-tasks-intent-worktree-v0.md	76	When two or more admitted linked worktrees hold the intent branch, none is selec
+CTW-V0-007	docs/specs/corvint-tasks-intent-worktree-v0.md	79	Repair text is appended only to `INTENT_BRANCH_MISMATCH` and `INTENT_DIVERGED`
+CTW-V0-008	docs/specs/corvint-tasks-intent-worktree-v0.md	89	A writer's fixture session retains a linked intent root as a second pinned root.
+CTW-V0-009	docs/specs/corvint-tasks-intent-worktree-v0.md	97	When the primary's HEAD names the intent branch, or `CTW-V0-003` yields no hint,
+CTW-V0-010	docs/specs/corvint-tasks-intent-worktree-v0.md	101	The rule is cooperative routing among the operator's own checkouts, not a securi
+CTW-V0-011	docs/specs/corvint-tasks-intent-worktree-v0.md	107	Program and workflow runs, claim and lease Git observation, archive identity, an
 CVI-V0-001	docs/specs/closed-vocabulary-intake-v0.md	27	Publish a versioned schema whose data fields are enums, literal repository paths
 CVI-V0-002	docs/specs/closed-vocabulary-intake-v0.md	31	Validate exact field names and presence, types, enum vocabulary, bounded identif
 CVI-V0-003	docs/specs/closed-vocabulary-intake-v0.md	35	Bind validation to explicit full base/head commit identities. Every behaviour an

@@ -739,6 +739,27 @@
     ]
   },
   {
+    "path": "docs/specs/corvint-tasks-intent-worktree-v0.md",
+    "title": "Corvint Tasks intent worktree V0",
+    "reqPrefix": "CTW-V0",
+    "intent": "accepted (owner decision 2026-10-04)",
+    "delivery": "experimental",
+    "claim": "An agent on a feature branch files a ticket through one linked worktree on the intent branch, without switching the primary checkout.",
+    "dependsOn": [
+      "docs/specs/corvint-tasks-store-init-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/tasks/archive",
+      "internal/tasks/authority",
+      "internal/tasks/cli",
+      "internal/tasks/intent",
+      "internal/tasks/journal",
+      "internal/tasks/store"
+    ]
+  },
+  {
     "path": "docs/specs/corvint-tasks-store-init-v0.md",
     "title": "Corvint Tasks store initialization V0",
     "reqPrefix": "CTS-V0",
