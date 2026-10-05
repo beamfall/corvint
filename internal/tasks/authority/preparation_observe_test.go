@@ -299,6 +299,52 @@ func TestCALV0095_PreparationQueueObservation(t *testing.T) {
 		}
 	})
 
+	t.Run("common-dir-replaced-after-open-not-observed", func(t *testing.T) {
+		for _, viaSymlink := range []bool{false, true} {
+			_, repo := preparationOpenFixture(t)
+			heldSlot(t, repo.CommonDir, 0, admissionRecord(1))
+			heldSlot(t, repo.CommonDir, 1, admissionRecord(2))
+			displaced := repo.CommonDir + ".displaced"
+			target := preparationSlotName(1)
+			// After the root is pinned, rename the common directory away and
+			// put a fresh directory, or a symlink back to the displaced one,
+			// at its pathname. Every per-file check still resolves inside
+			// the pinned original, so only the final pathname revalidation
+			// can see the swap.
+			observeAfterOpen = func(name string) {
+				if name != target {
+					return
+				}
+				if err := os.Rename(repo.CommonDir, displaced); err != nil {
+					t.Error(err)
+					return
+				}
+				if viaSymlink {
+					if err := os.Symlink(displaced, repo.CommonDir); err != nil {
+						t.Error(err)
+					}
+				} else if err := os.Mkdir(repo.CommonDir, 0o755); err != nil {
+					t.Error(err)
+				}
+			}
+			q := ObservePreparationQueue(repo)
+			observeAfterOpen = nil
+			// Restore the original so the fixture's unchanged-store audit holds.
+			if err := os.Remove(repo.CommonDir); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Rename(displaced, repo.CommonDir); err != nil {
+				t.Fatal(err)
+			}
+			if q.NotObserved != "common directory identity drift" || q.Registered != 0 {
+				t.Fatalf("symlink=%t: %+v", viaSymlink, q)
+			}
+			if _, ok := q.WouldBeRank(); ok {
+				t.Fatalf("symlink=%t: rank reported from a displaced namespace", viaSymlink)
+			}
+		}
+	})
+
 	t.Run("lock-query-unavailable-not-observed", func(t *testing.T) {
 		_, repo := preparationOpenFixture(t)
 		old := preparationLockViewLoad

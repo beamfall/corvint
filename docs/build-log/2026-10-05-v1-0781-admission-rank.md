@@ -159,6 +159,29 @@ The checks below ran under a private TMPDIR:
 - The four Linux container configurations: overlayfs and tmpfs, each in a container and a
   host-PID namespace.
 
+### Review repair (Codex round 3, one P2 finding)
+
+Codex accepted the round-2 slot and registry repair. The remaining gap was the common directory.
+If it was renamed away and replaced after `openRoot`, every per-file check still resolved inside
+the original pinned directory, so the read could report RACY counts from a displaced namespace.
+
+This was reproduced before the fix: with the new check disabled, the regression subtest read two
+registered writers and gave no reason. Before reporting, the observer now checks the absolute
+common-directory pathname again, as `preparationScope.check` does: `Lstat` must name the
+originally stat'ed directory, it must not be a symlink, and `intent.CheckNoSymlink` must pass.
+Otherwise the result is `common directory identity drift`, reported as NOT_OBSERVED.
+
+`common-dir-replaced-after-open-not-observed` runs inside the `observeAfterOpen` seam. It renames
+the common directory away, then puts either a fresh directory or a symlink to the displaced
+original at its pathname. The test expects NOT_OBSERVED with no rank, and it restores the original
+afterwards so the fixture's store audit holds.
+
+These checks pass under a private TMPDIR:
+
+- On Darwin, with `-count=3`, the authority tests `TestCALV0095|TestGH494PreparationAdmission$`
+  and the cli tests `TestCALV0095`.
+- The four Linux container configurations.
+
 ### NOT_RUN and limits
 
 - Not run:

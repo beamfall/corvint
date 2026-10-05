@@ -114,7 +114,25 @@ func observePreparationQueue(repo *intent.Repository) (PreparationQueue, error) 
 		}
 	}
 	q.RegistryActive = active || end
+	if err = commonDirStillNamed(repo.CommonDir, intended); err != nil {
+		return q, err
+	}
 	return q, nil
+}
+
+// commonDirStillNamed revalidates, after every per-file observation, that
+// the absolute common-directory pathname still names the pinned root without
+// a symlink. Counts read inside a directory renamed away and replaced belong
+// to a displaced namespace, so they are drift, never a snapshot.
+func commonDirStillNamed(path string, intended os.FileInfo) error {
+	current, err := os.Lstat(path)
+	if err != nil || current.Mode()&os.ModeSymlink != 0 || !os.SameFile(intended, current) {
+		return errors.New("common directory identity drift")
+	}
+	if intent.CheckNoSymlink(path) != nil {
+		return errors.New("common directory identity drift")
+	}
+	return nil
 }
 
 // Private seam: tests replace a file between its first stat and its open to
