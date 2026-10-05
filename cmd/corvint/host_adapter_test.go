@@ -405,6 +405,57 @@ func TestClaudeAdapterQuietDegradationIsLedgered(t *testing.T) {
 	}
 }
 
+// SOL-V0-010, AHI-019, AHI-044 (V1-0746): a Codex event the adapter does not handle and a
+// Claude Code post-tool target outside the project keep their silent, non-blocking output, and
+// each is recorded as a named ledger code that carries neither the host event name nor the path.
+func TestAdapterSilentAbstentionsAreLedgered(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".corvint/\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, arguments := range [][]string{
+		{"init", "-q"}, {"config", "user.email", "corvint@example.test"},
+		{"config", "user.name", "Corvint Test"}, {"add", "."}, {"commit", "-qm", "initial"},
+	} {
+		command := exec.Command("git", arguments...)
+		command.Dir = root
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", arguments, err, output)
+		}
+	}
+	ledger := filepath.Join(root, ".corvint", "self-observations.jsonl")
+	notRepository := t.TempDir()
+	for _, cwd := range []string{"relative/dir", notRepository} {
+		if output := runCodexAdapter(context.Background(), map[string]any{"hook_event_name": "PreToolUse", "cwd": cwd}); len(output) != 0 {
+			t.Fatalf("unresolved cwd %q changed output: %+v", cwd, output)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(notRepository, ".corvint")); !os.IsNotExist(err) {
+		t.Fatalf("a non-repository cwd was ledgered: %v", err)
+	}
+	if output := runCodexAdapter(context.Background(), map[string]any{"hook_event_name": "PreToolUse", "cwd": root}); len(output) != 0 {
+		t.Fatalf("unknown Codex event output = %+v, want {}", output)
+	}
+	data, err := os.ReadFile(ledger)
+	if err != nil || bytes.Count(data, []byte("\n")) != 1 || !bytes.Contains(data, []byte(`"host":"codex","adapterCodes":["unsupported-hook-event"]`)) || !bytes.Contains(data, []byte(`"event":"unrecognised"`)) || bytes.Contains(data, []byte("PreToolUse")) {
+		t.Fatalf("unknown Codex event ledger=%s err=%v", data, err)
+	}
+
+	outside := filepath.Join(t.TempDir(), "outside-secret.go")
+	ctx := adapterEnvContext(context.Background(), map[string]string{"CLAUDE_PROJECT_DIR": root})
+	output := runClaudeAdapter(ctx, "post-tool", map[string]any{
+		"session_id": "s", "tool_name": "Write", "tool_input": map[string]any{"file_path": outside},
+	})
+	if len(output) != 0 {
+		t.Fatalf("out-of-project post-tool output = %+v, want {}", output)
+	}
+	data, err = os.ReadFile(ledger)
+	if err != nil || bytes.Count(data, []byte("\n")) != 2 || !bytes.Contains(data, []byte(`"host":"claude-code","adapterCodes":["post-tool-path-not-project-relative"]`)) || !bytes.Contains(data, []byte(`"event":"post-tool"`)) || bytes.Contains(data, []byte("outside-secret")) {
+		t.Fatalf("out-of-project post-tool ledger=%s err=%v", data, err)
+	}
+}
+
 // SOL-V0-010: a dogfood-event-deadline degradation is returned only once the work deadline
 // has expired, so its append still gets adapterDeadlineRecordBound instead of none.
 func TestAdapterDegradationRecordedPastExpiredWorkDeadline(t *testing.T) {
