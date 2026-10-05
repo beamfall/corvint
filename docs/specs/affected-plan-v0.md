@@ -638,6 +638,20 @@ and container qualification; full fallback remains available.
   first, then remove the trigger and the `merge-group` job; removing them while the queue is
   on leaves every entry waiting for checks that never report.
 
+- **AFP-V0-027:** (owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled
+  `ci:batched` is a constituent whose commits a batch pull request carries and tests; the
+  `go-product-shard` job SHALL NOT start for it, so a constituent push spends no race-shard
+  runner time. The label SHALL only withhold tests, never admit a merge: the skipped shard job
+  makes the required `go-product` check fail with a message naming the label, so armed
+  auto-merge cannot land an untested constituent, and the constituent lands only as part of a
+  batch whose own run (or merge-queue run, AFP-V0-026) tests the combined tree. The label is read
+  from the event payload, so it is off for `push` and `merge_group` events, and removing it takes
+  effect on the next push or reopen, not on a re-run of an earlier event. `doc-gates`,
+  `docs-plan`, `go-interop` and `artifact-integrity` still run. Limits: the label is applied by
+  the batching agent and nothing checks that a batch pull request actually contains the
+  constituent; a mislabelled pull request is blocked, never merged untested. Rollback removes
+  the job condition and the `go-product` message.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -696,6 +710,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-024 | `tools/ci-reuse-plan`; `docs-plan` and `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0024ReusesOnlyAnExactTreeRecordedByEveryShard`, `TestAFPV0024AnythingElseRunsInFull`; local replay of the push step against the live API returned FULL; hosted reuse `NOT_OBSERVED` |
 | AFP-V0-025 | `tools/unbounded-readers`, `.corvint/unbounded-readers.json`, `make unbounded-readers-check`; `Graph.UnboundedReaders`; `ShareOf` in `.github/cishards/order.go`; `doc-gates` and `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0025RatchetFailsOffTheRecordedSet`, `TestAFPV0025ConcurrentAdditionsMergeToAPassingRecord`, `TestAFPV0025RatchetWithoutARecordRefuses`, `TestAFPV0025ShareReportsSelectedEstimatedTime`; hosted share report `NOT_OBSERVED` until this change's own CI run |
 | AFP-V0-026 | `merge_group` trigger in `.github/workflows/ci.yml`; `merge-group` job in `.github/workflows/ci-control-plane.yml` | `actionlint`; `make ci-least-privilege-check`; hosted merge-queue run `NOT_OBSERVED` until the owner enables the queue |
+| AFP-V0-027 | `go-product-shard` job condition and `go-product` message in `.github/workflows/ci.yml` | `actionlint`; `make ci-least-privilege-check`; hosted constituent run with the label `NOT_OBSERVED` until the label exists and a batch uses it |
 | AFP-V0-014 | `tools/corvint-pr-tests/shadow.go` | `TestQualificationAndTerminalFailures`, `TestToolIdentityRequiresCurrentGoVersion`; frozen 200-row qualification NOT_RUN |
 | AFP-V0-016 | `.github/workflows/ci-control-plane.yml`; the `main` repository ruleset | `actionlint`; `success` posted on PR #26 (run 35444060752) and PR #24 (run 35446378936); ruleset 23699808 active with the decision 0320 settings; the decision 0390 settings (no bypass, `doc-gates` required) and the admin-status consent path NOT_VERIFIED until the owner applies them; `failure` path NOT_RUN on a real PR |
 | AFP-V0-017 | `.github/workflows/pr-tests-qualification.yml` | `actionlint`; dispatch NOT_RUN (`main` has fewer than 201 first-parent commits) |
