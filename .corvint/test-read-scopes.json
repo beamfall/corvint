@@ -248,6 +248,7 @@
       "go.mod"
     ],
     "internal/tasks/journal": [],
+    "internal/tasks/safeopen": [],
     "internal/tasks/store": [
       "go.mod"
     ],

@@ -16,3 +16,5 @@ func Root(string) (*os.Root, error)                                     { return
 func SubRoot(*os.Root, string) (*os.Root, error)                        { return nil, unsupported }
 func InRoot(*os.Root, string, int, os.FileMode, bool) (*os.File, error) { return nil, unsupported }
 func File(string) (*os.File, error)                                     { return nil, unsupported }
+func PinDir(*os.Root) (*os.File, error)                                 { return nil, unsupported }
+func InDir(*os.File, string, int, os.FileMode) (*os.File, error)        { return nil, unsupported }
