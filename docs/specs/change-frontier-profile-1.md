@@ -39,10 +39,10 @@ that actually holds the degradation in place:
 
 `internal/gokernel/harness.go` **never consults Frontier.** It contains no import of
 `internal/frontier`. The degradation is the literal
-`degradations := []any{"frontier-authority-unavailable"}` at `internal/gokernel/harness.go:396@a4869098`,
+`degradations := []any{"frontier-authority-unavailable"}` at `internal/gokernel/harness.go:439@a4869098`,
 appended unconditionally to **every** event — `session-start`, `user-prompt`, `file-change`,
 `post-tool`, `stop`, `session-end` alike — and the `stop` response's frontier block at
-`internal/gokernel/harness.go:436-440@e567ed2d` is a hardcoded constant map
+`internal/gokernel/harness.go:479-483@e567ed2d` is a hardcoded constant map
 (`reason: "frontier-authority-unavailable"`, `shouldContinue: false`, `state: "UNAVAILABLE"`).
 
 A Frontier command surface does exist and is wired to real Git-backed adapters
@@ -197,8 +197,8 @@ applies unchanged, with `frontier/0` read as `frontier/1`.
   the `CF-V0-025` violation this whole profile exists to avoid, in the surface where a user will
   actually read it.
 - `CF-V1-020`: **accepting this profile does not remove `frontier-authority-unavailable` from any
-  receipt.** The literal at `internal/gokernel/harness.go:396@a4869098` is unconditional and the `stop` block
-  at `:435-441@2d42b7c2` is a constant; neither consults `internal/frontier`. The degradation is honest today
+  receipt.** The literal at `internal/gokernel/harness.go:439@a4869098` is unconditional and the `stop` block
+  at `:478-484@2d42b7c2` is a constant; neither consults `internal/frontier`. The degradation is honest today
   and remains honest after acceptance. Removing it requires, in order: (a) an accepted
   `harness-execution-attested-v0` root, without which `INTENT_TEST` never closes; (b) a way for a
   stop lifecycle point to obtain the `CF-V0-001` inputs (Q4); (c) the wiring itself; and (d) the
@@ -251,7 +251,7 @@ A rebaseline is therefore not a re-capture, and this is the expensive part:
    `conformingAdapters` as `["claude-code", "codex", "gemini-cli", "opencode"]`; this is a
    compatibility declaration, not evidence that every adapter independently enforces the empty-set
    case. That case remains unqualified pending per-adapter evidence. `host-version-unknown` is appended
-   whenever `hostVersion == "unknown"` (`internal/gokernel/harness.go:403-405`, and independently
+   whenever `hostVersion == "unknown"` (`internal/gokernel/harness.go:446-448`, and independently
    `conformance/harness-event-v0/boundary_corvint.py` (historical Git `9ca27f9a62a2add263ff559fd711feea5cdfd93d`, lines 53-54)), which is the standing case for codex,
    gemini-cli, and opencode, so those three receive a two-element list on every production call and
    an exact-match rule would have refused all of them.

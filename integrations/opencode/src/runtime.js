@@ -258,7 +258,13 @@ function canonicalJson(value) {
 
 function receiptIdentity(value, event, input) {
   try {
-    const basis = canonicalJson({ adapter: value.adapter, event, input, repository: value.repository })
+    // V1-0767: Core ledgers adapterCodes (SOL-V0-010) and keeps them out of the receipt basis.
+    let basisInput = input
+    if (input && typeof input === "object" && Object.hasOwn(input, "adapterCodes")) {
+      basisInput = { ...input }
+      delete basisInput.adapterCodes
+    }
+    const basis = canonicalJson({ adapter: value.adapter, event, input: basisInput, repository: value.repository })
     return RECEIPT_PREFIX + createHash("sha256").update(basis, "utf8").digest("hex")
   } catch {
     return undefined
