@@ -215,7 +215,8 @@ func Run(ctx context.Context, self, dir string, c Capsule, journal Journal) (out
 		out.Stdout = stdout.b
 		out.Stderr = stderr.b
 		out.OutputSHA256 = Digest(out.Stdout)
-		out.SessionID = ObservedSession(out.Stdout)
+		host, _ := HostVocabulary(c.Host)
+		out.SessionID = host.Session(out.Stdout)
 		if stdout.overflow || stderr.overflow {
 			out.Class = "OUTPUT_LIMIT"
 			if err == nil {
@@ -224,7 +225,7 @@ func Run(ctx context.Context, self, dir string, c Capsule, journal Journal) (out
 		}
 		if out.Class == "EXIT_ZERO" {
 			var parseErr error
-			out.SessionID, out.Result, parseErr = DecodeEvents(out.Stdout)
+			out.SessionID, out.Result, parseErr = host.Decode(out.Stdout)
 			if parseErr != nil {
 				out.Class = "INVALID_RESULT"
 				if err == nil {

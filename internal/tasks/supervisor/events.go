@@ -69,7 +69,7 @@ func DecodeEvents(raw []byte) (string, HostResult, error) {
 	if e := decode([]byte(final), &result); e != nil {
 		return session, result, e
 	}
-	if (result.Kind != "HANDOFF" && result.Kind != "BUILT" && result.Kind != "REVIEW" && result.Kind != "WAIT") || result.Summary == "" || result.NextAction == "" {
+	if !validHandoff(result) {
 		return session, result, fmt.Errorf("invalid minimum handoff result")
 	}
 	return session, result, nil
