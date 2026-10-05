@@ -40,6 +40,17 @@ JOURNAL_FORKED from the complete audit, before any delivery. The store read repo
 MISSING_EVIDENCE. The CLI UNAVAILABLE rendering is therefore defensive and is covered by a unit
 test.
 
+## Review repair
+
+The independent review found two gaps in the per-event binding, and both were confirmed in source.
+A rehashed note receipt could post an extra valid state path, such as `reservations.json`, which
+redo would then publish. A receipt and its request index could also be consistently renamed away
+from the request ID inside the retained event. The binding now requires exactly three posts: the
+event, the target ticket and the bound request-index afterimage. It also requires the decoded
+retained request's ID and queue to equal both the receipt's and the index entry's.
+`TestONV0006_NoteReceiptBindsOnlyItsOwnTransition` covers both forgeries in a settled audit and in
+pending redo. It fails on the previous commit.
+
 ## Limits
 
 Still outstanding: history pages, dispatch and supervised-run rendering of the delivered note,

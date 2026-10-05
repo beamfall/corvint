@@ -25,6 +25,9 @@ type noteAudit struct {
 	tickets []notePost
 	events  [][]byte
 	policy  bool
+	// others counts posts that are neither a ticket, the policy, a note
+	// event nor a request-index afterimage.
+	others int
 }
 
 // noteState is what the walk has observed so far: each walked ticket's note
@@ -66,6 +69,9 @@ func (n *noteAudit) observe(j int, p snapshot.PostEntry, prior latest, raw []byt
 		n.policy = true
 	case raw != nil && isOperatorNoteEvent(p.Path, raw):
 		n.events = append(n.events, raw)
+	case strings.HasPrefix(p.Path, "requests/"):
+	default:
+		n.others++
 	}
 }
 
@@ -141,8 +147,11 @@ func (n *noteAudit) bindEvent(req *snapshot.Request, target *ticket.Record, post
 	if rc.Kind != "MUTATION" || rc.RequestID == nil || req == nil || req.Entry.Outcome.Outcome != mutation.OutcomeCompleted || rc.TicketID == nil || target == nil {
 		return noteForked("receipt", "event requires one completed MUTATION request on a ticket")
 	}
-	if len(n.tickets) != 1 || n.tickets[0].raw == nil || n.tickets[0].path != "intent/tickets/"+rc.TicketID.Local+".json" || n.policy {
-		return noteForked("receipt", "event requires exactly the target ticket post and no policy post")
+	// A note receipt posts exactly its event, the target ticket and its one
+	// bound request-index afterimage (step already requires that one), and
+	// nothing else: no other ticket, no policy and no other state path.
+	if len(n.tickets) != 1 || n.tickets[0].raw == nil || n.tickets[0].path != "intent/tickets/"+rc.TicketID.Local+".json" || n.policy || n.others != 0 || len(rc.Post) != 3 {
+		return noteForked("receipt", "event requires exactly the event, target ticket and request posts")
 	}
 	t := n.tickets[0]
 	if t.prior.seq == "" || !equalDigest(rc.Pre[t.index].Sha256, t.prior.digest) {
@@ -157,6 +166,13 @@ func (n *noteAudit) bindEvent(req *snapshot.Request, target *ticket.Record, post
 	}
 	if wire.Sum(event.Request) != req.Entry.MutationSha256 || event.RequestSha256 != req.Entry.MutationSha256 {
 		return noteForked("receipt", "event request differs from the retained request digest")
+	}
+	env, err := mutation.Decode(event.Request)
+	if err != nil {
+		return noteForked("receipt", "retained request does not decode: %v", err)
+	}
+	if env.RequestID != *rc.RequestID || env.RequestID != req.Entry.RequestID || env.QueueID != n.r.QueueID {
+		return noteForked("receipt", "retained request identity differs from the receipt and request index")
 	}
 	preRaw, err := n.r.priorPost(t.prior, t.path)
 	if err != nil {

@@ -1,7 +1,9 @@
 package store_test
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +13,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -130,6 +133,13 @@ func noteAudit(t *testing.T, repo *intent.Repository) (*journal.Result, error) {
 // also written to its projection.
 func forgeReceipt(t *testing.T, repo *intent.Repository, name string, edit func(path string, record wire.Value) (wire.Value, bool)) {
 	t.Helper()
+	forgeReceiptWith(t, repo, name, edit, nil)
+}
+
+// forgeReceiptWith is forgeReceipt plus add, which may rewrite the parsed
+// receipt (its pre/post arrays and identity) before it is re-encoded.
+func forgeReceiptWith(t *testing.T, repo *intent.Repository, name string, edit func(path string, record wire.Value) (wire.Value, bool), add func(receipt wire.Value)) {
+	t.Helper()
 	path := filepath.Join(repo.StateDir, "receipts", name)
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -159,6 +169,9 @@ func forgeReceipt(t *testing.T, repo *intent.Repository, name string, edit func(
 		keptPre, keptPost = append(keptPre, pre.Arr[i]), append(keptPost, p)
 	}
 	v.Obj.Set("pre", wire.Array(keptPre...)).Set("post", wire.Array(keptPost...))
+	if add != nil {
+		add(v)
+	}
 	forged := wire.EncodeFile(v)
 	fixture.Write(t, path, forged)
 	hp := filepath.Join(repo.StateDir, "head.json")
@@ -336,5 +349,99 @@ func TestONV0006_CheckpointTailNeverReadsThePrefix(t *testing.T) {
 	mutate(t, repo, noteEnvelope("req-note-2", mutation.OpNoteClear, created.Ticket, "3", "", "1"))
 	if res := resumed(); res.Mode != journal.ModeFull || res.SemanticCoverage == "UNKNOWN" {
 		t.Fatalf("note tail = %s %s, want the complete audit's verdict", res.Mode, res.SemanticCoverage)
+	}
+}
+
+// TestONV0006_NoteReceiptBindsOnlyItsOwnTransition: a rehashed note receipt
+// that also posts an unrelated state path, or whose request index and receipt
+// were consistently renamed away from the retained request's own ID, fails
+// the note binding both in a settled audit and as a pending receipt offered
+// to redo, which then publishes nothing.
+func TestONV0006_NoteReceiptBindsOnlyItsOwnTransition(t *testing.T) {
+	keep := func(_ string, rec wire.Value) (wire.Value, bool) { return rec, true }
+	extraPost := func(t *testing.T, repo *intent.Repository) func(wire.Value) {
+		genesis, err := wire.Parse(mustRead(t, filepath.Join(repo.StateDir, "receipts", "000000000001.json")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		gp, _ := genesis.Obj.Get("post")
+		var reservations wire.Value
+		for _, p := range gp.Arr {
+			if dest, _ := p.Obj.Get("path"); dest.Str == "reservations.json" {
+				reservations = p
+			}
+		}
+		sum, _ := reservations.Obj.Get("sha256")
+		return func(v wire.Value) {
+			pre, _ := v.Obj.Get("pre")
+			post, _ := v.Obj.Get("post")
+			v.Obj.Set("pre", wire.Array(append(pre.Arr, obj("path", str("reservations.json"), "sha256", sum))...))
+			v.Obj.Set("post", wire.Array(append(post.Arr, reservations)...))
+		}
+	}
+	renamed := func(t *testing.T, repo *intent.Repository) func(wire.Value) {
+		const to = "req-note-renamed"
+		return func(v wire.Value) {
+			newPath, err := snapshot.RequestPath(to)
+			if err != nil {
+				t.Fatal(err)
+			}
+			v.Obj.Set("requestId", str(to))
+			pre, _ := v.Obj.Get("pre")
+			post, _ := v.Obj.Get("post")
+			for i, p := range post.Arr {
+				dest, _ := p.Obj.Get("path")
+				if !strings.HasPrefix(dest.Str, "requests/") {
+					continue
+				}
+				rec, _ := p.Obj.Get("record")
+				outcome, _ := rec.Obj.Get("outcome")
+				rec = withField(rec, "requestId", str(to))
+				rec = withField(rec, "outcome", withField(outcome, "requestId", str(to)))
+				b := wire.EncodeFile(rec)
+				p.Obj.Set("path", str(newPath)).Set("record", rec).Set("sha256", str(string(wire.Sum(b))))
+				pre.Arr[i].Obj.Set("path", str(newPath))
+				if err := os.Remove(filepath.Join(repo.StateDir, filepath.FromSlash(dest.Str))); err != nil && !os.IsNotExist(err) {
+					t.Fatal(err)
+				}
+				fixture.Write(t, filepath.Join(repo.StateDir, filepath.FromSlash(newPath)), b)
+			}
+		}
+	}
+	for name, forge := range map[string]func(*testing.T, *intent.Repository) func(wire.Value){"unrelated post": extraPost, "renamed request": renamed} {
+		for _, pending := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/pending=%v", name, pending), func(t *testing.T) {
+				repo, _ := initialized(t)
+				created := mutate(t, repo, envelope("req-create", mutation.OpCreate, "", "", createPayload("Noted ticket")))
+				head := filepath.Join(repo.StateDir, "head.json")
+				projection := filepath.Join(repo.PrimaryWorktree, intent.Dir, intent.TicketsDir, created.Ticket[len(created.Ticket)-7:]+".json")
+				headBefore, projectionBefore := mustRead(t, head), mustRead(t, projection)
+				reservations := filepath.Join(repo.StateDir, "reservations.json")
+				reservationsBefore := mustRead(t, reservations)
+				set := mutate(t, repo, noteEnvelope("req-note-1", mutation.OpNoteSet, created.Ticket, "", "First.", "0"))
+				if pending {
+					fixture.Write(t, head, headBefore)
+				}
+				forgeReceiptWith(t, repo, set.Receipt, keep, forge(t, repo))
+				if !pending {
+					_, err := noteAudit(t, repo)
+					if wire.CodeOf(err) != wire.CodeJournalForked || !strings.Contains(err.Error(), "operator note") {
+						t.Fatalf("audit = %v, want JOURNAL_FORKED from the note binding", err)
+					}
+					return
+				}
+				fixture.Write(t, projection, projectionBefore)
+				next, err := store.Mutate(context.Background(), repo, operator(), envelope("req-second", mutation.OpCreate, "", "", createPayload("Second")), now(t))
+				if wire.CodeOf(err) != wire.CodeJournalForked || !strings.Contains(err.Error(), "operator note") {
+					t.Fatalf("redo = %+v, %v; want JOURNAL_FORKED from the note binding", next, err)
+				}
+				if after := loadRecord(t, repo, created.Ticket); after.OperatorNote != nil {
+					t.Fatalf("refused redo published the note: %+v", after.OperatorNote)
+				}
+				if !bytes.Equal(mustRead(t, reservations), reservationsBefore) || !bytes.Equal(mustRead(t, head), headBefore) {
+					t.Fatal("refused redo moved reservations or head")
+				}
+			})
+		}
 	}
 }
