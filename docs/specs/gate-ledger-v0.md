@@ -133,6 +133,15 @@ The tool reads the worktree through git, writes a temporary private index and th
 directory, and spawns the step's command. It reads no record as an instruction: a record is a key,
 a tree id, a time, a host and a package list, and only key equality matters.
 
+The record directory is the trust boundary (owner decision 2026-10-04, V1-0744). `GL-V0-006`
+admits only a plain directory owned by the caller with no group or world permission. Any process
+able to write a record there already runs as the owner, including an agent session, and could write
+a complete record as easily as one that carries only `schema` and `key`. A stricter `lookup`
+(strict decoding, a byte bound, or every field required) would therefore reject stray files but
+would not stop forgery, so it is not required. `record` writes by atomic rename, so the tool never
+leaves a partial record of its own. A replayed pass is exactly as trustworthy as the owner's
+account. Records stay out of every product path under `GL-V0-006`.
+
 | Failure | Behavior |
 |---|---|
 | No recorded pass for the key | run, record on exit zero (GL-V0-001, GL-V0-002) |
