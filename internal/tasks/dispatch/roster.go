@@ -45,6 +45,9 @@ type Attempt struct {
 	LeaseExpires                                            time.Time
 	Live                                                    bool
 	Gates, Reviews                                          int
+
+	// Pool and Member name the attempt's pool allocation; empty without one.
+	Pool, Member string
 }
 
 // Member is one native pool member.

@@ -429,6 +429,9 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 			if a.CandidateTreeOid != nil {
 				x.Candidate = *a.CandidateTreeOid
 			}
+			if a.PoolAllocation != nil {
+				x.Pool, x.Member = a.PoolAllocation.PoolID, a.PoolAllocation.MemberID
+			}
 			if a.Lease != nil {
 				x.Holder = a.Lease.Holder
 				if t, e := time.Parse("2006-01-02T15:04:05Z", string(a.Lease.ExpiresAt)); e == nil {

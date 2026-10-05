@@ -57,12 +57,25 @@ type BudgetField struct {
 	State string
 }
 
-// PriorGeneration is one closed generation.
+// PriorGeneration is one closed generation. History is nil for a legacy
+// entry, which records neither stage nor pool member (CAL-V0-096).
 type PriorGeneration struct {
 	Generation wire.Size
 	Quiescence string
 	ProvedSeq  wire.Size
+	History    *GenerationHistory
 }
+
+// GenerationHistory is the stage and pool member a CAL-V0-096 entry copied
+// from the ended generation; each is nil when that generation had none.
+// PoolID and MemberID are nil together.
+type GenerationHistory struct {
+	Stage            *string
+	PoolID, MemberID *string
+}
+
+// historyKeys are the CAL-V0-096 keys a prior generation carries together.
+var historyKeys = []string{"stage", "poolId", "memberId"}
 
 // RetryAccounting records prospective generation-local observations. It is absent
 // from legacy records. Supervised attempts may retain it after attachment, but
@@ -214,10 +227,35 @@ func readBudget(r *wire.Reader) map[string]BudgetField {
 func readPriorGenerations(r *wire.Reader) []PriorGeneration {
 	out := []PriorGeneration{}
 	for _, p := range r.Array(-1, true) {
-		p.Closed("generation", "quiescence", "provedSeq")
-		out = append(out, PriorGeneration{Generation: p.Field("generation").Size(), Quiescence: p.Field("quiescence").Enum("PROVED", "FENCED"), ProvedSeq: p.Field("provedSeq").Size()})
+		p.Closed(wire.OptionalKeys(p.Value(), []string{"generation", "quiescence", "provedSeq"}, historyKeys...)...)
+		g := PriorGeneration{Generation: p.Field("generation").Size(), Quiescence: p.Field("quiescence").Enum("PROVED", "FENCED"), ProvedSeq: p.Field("provedSeq").Size()}
+		g.History = readGenerationHistory(p)
+		out = append(out, g)
 	}
 	return out
+}
+
+// readGenerationHistory reads the CAL-V0-096 keys of one prior generation:
+// all absent (legacy) or all present, with poolId and memberId null together.
+func readGenerationHistory(p *wire.Reader) *GenerationHistory {
+	present := 0
+	for _, k := range historyKeys {
+		if wire.Has(p.Value(), k) {
+			present++
+		}
+	}
+	if present == 0 {
+		return nil
+	}
+	if present != len(historyKeys) {
+		p.Fail(wire.CodeMalformed, "stage, poolId and memberId are present together")
+		return nil
+	}
+	h := &GenerationHistory{Stage: p.Field("stage").StringOrNull(func(x *wire.Reader) string { return x.Enum(intent.StageRoles...) }), PoolID: p.Field("poolId").LabelOrNull(), MemberID: p.Field("memberId").LabelOrNull()}
+	if p.Err() == nil && (h.PoolID == nil) != (h.MemberID == nil) {
+		p.Fail(wire.CodeMalformed, "poolId and memberId are null together")
+	}
+	return h
 }
 
 var attemptFields = []string{"profile", "attemptId", "ticketId", "ticketRevision", "ticketRecordSha256", "generation", "phase", "phaseSinceSeq", "cause", "mode", "planSha256", "policySha256", "configSha256", "runtimeId", "capabilityProfileSha256", "baseCommit", "branch", "worktreePath", "candidateTreeOid", "supervisor", "lane", "quiescence", "noExec", "spawnNoExecCount", "pendingEffects", "retryCount", "repairRound", "budget", "gateResults", "reviews", "manifestSha256", "scopeCheck", "priorGenerations", "lease", "scope"}
@@ -435,7 +473,11 @@ func budgetValue(b map[string]BudgetField) wire.Value {
 func priorValue(ps []PriorGeneration) wire.Value {
 	vs := make([]wire.Value, 0, len(ps))
 	for _, p := range ps {
-		vs = append(vs, wire.ObjectValue(wire.NewObject().Set("generation", wire.String(string(p.Generation))).Set("quiescence", wire.String(p.Quiescence)).Set("provedSeq", wire.String(string(p.ProvedSeq)))))
+		o := wire.NewObject().Set("generation", wire.String(string(p.Generation))).Set("quiescence", wire.String(p.Quiescence)).Set("provedSeq", wire.String(string(p.ProvedSeq)))
+		if h := p.History; h != nil {
+			o.Set("stage", wire.StringOrNull(h.Stage)).Set("poolId", wire.StringOrNull(h.PoolID)).Set("memberId", wire.StringOrNull(h.MemberID))
+		}
+		vs = append(vs, wire.ObjectValue(o))
 	}
 	return wire.Array(vs...)
 }
