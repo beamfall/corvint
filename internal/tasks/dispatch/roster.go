@@ -403,7 +403,29 @@ type GateView struct {
 	Generation, Revision string
 	Resubmitted          bool
 	Head                 string
+	// Candidate, Subject, Trust and EvidenceSha256 complete the ERG-V0-009
+	// field set. Each is read from the head event, so the progress
+	// fingerprint, which already carries Head, is unchanged. EvidenceSha256
+	// is the head event's digest; all four are empty without a head.
+	Candidate      GateCandidate
+	Subject        GateSubject
+	Trust          GateTrust
+	EvidenceSha256 string
 }
+
+// GateCandidate is the reviewed candidate: Kind TREE with TreeOID, or Kind
+// EVIDENCE with Sha256 and Bytes.
+type GateCandidate struct{ Kind, TreeOID, Sha256, Bytes string }
+
+// GateSubject is the author's reviewed submission.
+type GateSubject struct {
+	AttemptID, Generation, ReceiptSeq, ReceiptSha256, AttemptSha256 string
+}
+
+// GateTrust is the head event's trust: Source LEASE_BOUND or
+// OPERATOR_ATTESTED; actor authentication and independence are always
+// NOT_OBSERVED (ERG-V0-001).
+type GateTrust struct{ ActorAuthentication, Independence, Source string }
 
 // Gate predicate states. NONE is a gate with no record; the others need a
 // CURRENT head, so a STALE or UNKNOWN gate matches no predicate.

@@ -209,7 +209,7 @@ func Run(env Env) int {
 		return emit(env.Stdout, planCommand(env, args[1:]))
 	case "gate":
 		if len(args) < 2 {
-			return emit(env.Stdout, usage([]string{"gate"}, "gate needs a verb: list, show <gateId>, run, record, resubmit, history"))
+			return emit(env.Stdout, usage([]string{"gate"}, "gate needs a verb: list, show <gateId>, run, record, resubmit, history, state"))
 		}
 		switch args[1] {
 		case "list":
@@ -222,6 +222,8 @@ func Run(env Env) int {
 			return emit(env.Stdout, gateReviewCommand(env, args[1], args[2:]))
 		case "history":
 			return emit(env.Stdout, gateHistory(env, args[2:]))
+		case "state":
+			return emit(env.Stdout, gateState(env, args[2:]))
 		}
 		return emit(env.Stdout, usage([]string{"gate"}, "unknown gate verb"))
 
