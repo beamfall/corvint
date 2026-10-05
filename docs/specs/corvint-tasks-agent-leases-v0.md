@@ -1999,7 +1999,7 @@ such orderings. A prerequisite blocks claims and plans for the stages it lists a
      case in the shared fixture `cal-v0-099-prerequisite-refusals.json`. The Core planner is
      stageless. It reports `GATE_UNKNOWN` for a `GATE_PASSED` prerequisite and
      `PREREQUISITE_UNSATISFIED` for a missing or uncompleted `COMPLETED` prerequisite.
-  7. Code. `PREREQUISITE_UNSATISFIED` joins TCP-00 §11's closed detail codes (A19).
+  7. Code. `PREREQUISITE_UNSATISFIED` joins TCP-00 §11's closed detail codes (A21).
 
 Non-goals:
 - prerequisites on other queues or repositories;
@@ -2054,7 +2054,7 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
 The experimental `RUN_OUTCOME` observation verb is amended in by `corvint-tasks-attempt-runner-v0.md` (ATR-V0-005), not here.
 The `ESCALATION_PENDING` detail code (72 codes after A17) is amended in by `corvint-tasks-escalations-v0.md` (ESC-V0-006; owner-accepted 2026-10-05), not here.
 
-- A19: CAL-V0-099 adds the optional absent-only ticket record key `executionPrerequisites` and the
+- A21: CAL-V0-099 adds the optional absent-only ticket record key `executionPrerequisites` and the
   closed detail code `PREREQUISITE_UNSATISFIED`; with A17 and ESC-V0-006 the closed set contains 73
   codes. Records without the key keep their bytes; older strict readers refuse a record that
   carries it.

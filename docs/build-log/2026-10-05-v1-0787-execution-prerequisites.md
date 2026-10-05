@@ -9,7 +9,8 @@ claims and plans only for the stages it lists.
 
 Requirement: `CAL-V0-099` in `docs/specs/corvint-tasks-agent-leases-v0.md`, in the "V1-0787
 stage-scoped execution prerequisites amendment" section inside `## Requirements`, with TCP-00
-amendment A19. CAL-V0-073..098 belong to other lanes.
+amendment A21 (A19 and A20 belong to V1-0786 and V1-0784 in the batch). CAL-V0-073..098 belong
+to other lanes.
 
 ### Change
 
@@ -72,8 +73,10 @@ The following were `NOT_RUN`:
 ### Review repair
 
 An independent Codex review of `4e5c53bf..7ce4ab24` returned `CHANGES_REQUIRED` with four P2
-findings. All four are repaired in a follow-up commit, each with a regression test that failed
-before the repair:
+findings. All four are repaired in a follow-up commit. The three behavioural repairs (Core edge
+rules, claim-next detail, unknown next action) have regression assertions that failed before the
+repair. The rollback text was corrected by source inspection of the journal audit path and has no
+regression test:
 
 - Core accepted prerequisite sets that native Tasks refuses: duplicate `(ticketId, obligation,
   gateId)` edges with different stages, self and other-queue prerequisites, and ticket IDs that
@@ -98,4 +101,5 @@ before the repair:
   `NOT_OBSERVED`. This matches dependencies.
 - Self-reference is `MALFORMED`. Dependencies use `CYCLE`, but prerequisites have no cycle notion.
 - CREATE does not accept the key, so it is set by refine.
-- The 73-code count may need renumbering against other lanes that also add codes.
+- The 73-code count holds in the batch: the other lanes add no result codes, and the base already
+  carries `ESCALATION_PENDING` (72 codes).
