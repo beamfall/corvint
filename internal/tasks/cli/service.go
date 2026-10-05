@@ -140,10 +140,10 @@ func serviceRun(env Env, cmd []string, h service.Host, program, manifest string)
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer cancel()
-	open := func(p string, c *dispatch.Config) (service.Controller, error) {
+	open := func(p string, c *dispatch.Config, fence dispatch.LaunchFence) (service.Controller, error) {
 		queueEnv := env
 		queueEnv.Cwd = c.WorkRoot
-		d, err := dispatch.Open(p, c, dispatchQueue{env: queueEnv}, env.Stderr)
+		d, err := dispatch.OpenControlled(p, c, dispatchQueue{env: queueEnv}, env.Stderr, fence)
 		if err != nil {
 			return nil, err
 		}

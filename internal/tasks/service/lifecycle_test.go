@@ -423,12 +423,11 @@ func TestSERVICE500_StopResumeFenceAndConflicts(t *testing.T) {
 	if _, err := s.install(t, "install-1", false); err != nil {
 		t.Fatal(err)
 	}
-	_, err = s.h.Stop("site", "stop-0", true)
-	codeIs(t, err, wire.CodeUnsupported)
 	_, err = s.h.Resume("site", "resume-0")
 	codeIs(t, err, wire.CodeResourceCollision)
 
-	// A live dispatcher owner keeps stop PENDING and blocks resume.
+	// A live dispatcher owner that is not the fenced managed main (no
+	// bound pulse names it) keeps stop PENDING and blocks resume.
 	m, _ := s.manifest(t)
 	dir := dispatchDir(m)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
@@ -443,7 +442,7 @@ func TestSERVICE500_StopResumeFenceAndConflicts(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, err := s.h.Stop("site", "stop-1", false)
-	if err != nil || field(t, out, "state") != "PENDING" || field(t, out, "desired") != "STOPPED" || field(t, out, "workers") != "PRESERVED" {
+	if err != nil || field(t, out, "state") != "PENDING" || field(t, out, "close") != "PENDING" || field(t, out, "desired") != "STOPPED" || field(t, out, "workers") != "PRESERVED" {
 		t.Fatalf("stop with live owner %v", err)
 	}
 	rev := s.control(t).Revision
@@ -454,7 +453,7 @@ func TestSERVICE500_StopResumeFenceAndConflicts(t *testing.T) {
 	codeIs(t, err, wire.CodeResourceCollision)
 	os.Remove(lock)
 	out, err = s.h.Stop("site", "stop-2", false)
-	if err != nil || field(t, out, "state") != "ACKNOWLEDGED" {
+	if err != nil || field(t, out, "state") != "ACKNOWLEDGED" || field(t, out, "close") != "OBSERVED" {
 		t.Fatalf("stop without owner %v", err)
 	}
 	// Resume requires the pinned bytes.
@@ -751,9 +750,9 @@ func TestSERVICE500_ManagedMainFollowsControlAndPins(t *testing.T) {
 	opened, closed := make(chan struct{}, 8), make(chan struct{}, 8)
 	// The gate keeps the first Close, and so the RUNNING pulse, in place
 	// until stop has answered; without it a loaded host can let the main
-	// publish IDLE first, and stop then rightly answers ACKNOWLEDGED.
+	// publish IDLE first, and stop then rightly reports close OBSERVED.
 	gate := make(chan struct{})
-	open := func(program string, c *dispatch.Config) (Controller, error) {
+	open := func(program string, c *dispatch.Config, _ dispatch.LaunchFence) (Controller, error) {
 		if program != "site" || c.WorkRoot != s.work {
 			return nil, errors.New("wrong binding")
 		}
@@ -792,8 +791,10 @@ func TestSERVICE500_ManagedMainFollowsControlAndPins(t *testing.T) {
 		t.Fatalf("pulse state %s", st)
 	}
 	out, err := s.h.Stop("site", "stop-1", false)
-	if err != nil || field(t, out, "state") != "PENDING" {
-		t.Fatalf("stop with a live RUNNING pulse must stay PENDING: %v", err)
+	// Suppression is durable and no fenced launch can follow it, so stop
+	// is ACKNOWLEDGED; the dispatcher's close is not yet observed.
+	if err != nil || field(t, out, "state") != "ACKNOWLEDGED" || field(t, out, "close") != "PENDING" {
+		t.Fatalf("stop with a live RUNNING pulse: %v", err)
 	}
 	close(gate)
 	recv(closed, "dispatcher close after STOPPED")
@@ -864,7 +865,7 @@ func TestSERVICE500_ManagedMainRechecksControlAfterOpen(t *testing.T) {
 	}
 	root := s.root(t)
 	ran, closed := make(chan struct{}, 8), make(chan struct{}, 8)
-	open := func(string, *dispatch.Config) (Controller, error) {
+	open := func(string, *dispatch.Config, dispatch.LaunchFence) (Controller, error) {
 		if _, err := s.h.Stop("site", "stop-1", false); err != nil {
 			return nil, err
 		}

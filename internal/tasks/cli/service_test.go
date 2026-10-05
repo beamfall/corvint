@@ -51,7 +51,11 @@ func TestSERVICE500_CLIRoutesRefusalsAndPureReads(t *testing.T) {
 	if _, err := os.Stat(state); !os.IsNotExist(err) {
 		t.Fatal("service status created state")
 	}
-	refused(wire.CodeUnsupported, "service", "stop", "--program", "site", "--request-id", "s-1", "--drain")
+	// --drain is a supported stop flag; a drain without a request id is
+	// still refused before any state exists.
+	if r := refused("", "service", "stop", "--program", "site", "--drain"); strings.Contains(string(r.stdout), "UNSUPPORTED") {
+		t.Fatalf("drain refused as unsupported: %s", r.stdout)
+	}
 	if _, err := os.Stat(state); !os.IsNotExist(err) {
 		t.Fatal("refused drain created state")
 	}

@@ -144,7 +144,7 @@ var commandUsage = map[string]string{
 	"service install":   "corvint-tasks service install --program ID --config SERVICE_JSON --request-id ID [--replace]",
 	"service status":    "corvint-tasks service status --program ID",
 	"service uninstall": "corvint-tasks service uninstall --program ID --request-id ID",
-	"service stop":      "corvint-tasks service stop --program ID --request-id ID [--drain]   (--drain is UNSUPPORTED in this slice)",
+	"service stop":      "corvint-tasks service stop --program ID --request-id ID [--drain]",
 	"service resume":    "corvint-tasks service resume --program ID --request-id ID",
 	"service run":       "corvint-tasks service run --program ID --manifest FILE   (manager-started foreground main; not for interactive use)",
 	"config":            "corvint-tasks config (execution NOT_RUN)",

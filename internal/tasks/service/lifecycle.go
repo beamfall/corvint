@@ -122,8 +122,8 @@ func (h Host) readProfile(path string) (*Profile, []byte, error) {
 	if err != nil {
 		return nil, nil, wire.Errorf(wire.CodeMalformed, "/config", "%v", err)
 	}
-	if len(p.Helpers) != 0 || p.LegacyStopFile != nil {
-		return nil, nil, wire.Errorf(wire.CodeUnsupported, "/config", "helpers and legacyStopFile are not supported by this service runtime yet")
+	if len(p.Helpers) != 0 {
+		return nil, nil, wire.Errorf(wire.CodeUnsupported, "/config", "helpers are not supported by this service runtime yet")
 	}
 	return p, raw, nil
 }
@@ -559,6 +559,26 @@ func (h Host) publishUnit(m *Manifest, u Unit) error {
 // suppressFor saves STOPPED for the operation's current installation and
 // waits a bounded time for its controller to report it is not running.
 func (h Host) suppressFor(root string, op *Operation) error {
+	if err := h.suppressControl(root, op); err != nil {
+		return err
+	}
+	// F is released before the wait.
+	for i := 0; i < 15; i++ {
+		if st, _ := h.pulseState(root, ""); st != "RUNNING" {
+			return nil
+		}
+		h.sleep(time.Second)
+	}
+	return wire.Errorf(wire.CodeUncertainEffect, "/control", "the controller still reports RUNNING after STOPPED was saved")
+}
+
+// suppressControl is suppressFor's control write under F.
+func (h Host) suppressControl(root string, op *Operation) error {
+	unlock, err := h.fence(root)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	c, err := h.readControl(root)
 	if absent(err) {
 		return nil
@@ -572,17 +592,9 @@ func (h Host) suppressFor(root string, op *Operation) error {
 		next.Desired = "STOPPED"
 		next.LastRequest = op.RequestID
 		next.LastRequestSha256 = requestSum("SUPPRESS", op.RequestID, string(c.ManifestIdentity))
-		if err := h.writeControl(root, next); err != nil {
-			return err
-		}
+		return h.writeControl(root, next)
 	}
-	for i := 0; i < 15; i++ {
-		if st, _ := h.pulseState(root, ""); st != "RUNNING" {
-			return nil
-		}
-		h.sleep(time.Second)
-	}
-	return wire.Errorf(wire.CodeUncertainEffect, "/control", "the controller still reports RUNNING after STOPPED was saved")
+	return nil
 }
 
 // bindControl binds control to the committed manifest identity. A new
@@ -594,6 +606,11 @@ func (h Host) bindControl(root string, op *Operation) error {
 		return err
 	}
 	ident := wire.Sum(raw)
+	unlock, err := h.fence(root)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	c, err := h.readControl(root)
 	if absent(err) {
 		return h.writeControl(root, Control{Program: op.Program, ManifestIdentity: ident, Revision: wire.CountOf(1), Desired: "RUNNING"})
@@ -656,19 +673,31 @@ func (h Host) rollback(root string, op *Operation, cause error) error {
 	if err := h.restoreManifest(root, op); err != nil {
 		return held(err)
 	}
-	if c, err := h.readControl(root); err == nil && op.PriorDesired != "" && c.Desired != op.PriorDesired {
-		next := *c
-		next.Revision = wire.CountOf(c.Revision.Int() + 1)
-		next.Desired = op.PriorDesired
-		if err := h.writeControl(root, next); err != nil {
-			return held(err)
-		}
+	if err := h.restoreDesired(root, op.PriorDesired); err != nil {
+		return held(err)
 	}
 	op.Phase = "ROLLED_BACK"
 	if err := h.saveOperation(root, op); err != nil {
 		return err
 	}
 	return rolledBack(cause)
+}
+
+// restoreDesired republishes the desired state a rollback's operation
+// suppressed, under F.
+func (h Host) restoreDesired(root, prior string) error {
+	unlock, err := h.fence(root)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	if c, err := h.readControl(root); err == nil && prior != "" && c.Desired != prior {
+		next := *c
+		next.Revision = wire.CountOf(c.Revision.Int() + 1)
+		next.Desired = prior
+		return h.writeControl(root, next)
+	}
+	return nil
 }
 
 // rolledBack is the one answer for a ROLLED_BACK install: RESTORED, with
@@ -773,66 +802,75 @@ func dispatchDir(m *Manifest) string {
 	return dispatch.ProgramDir(&dispatch.Config{StateDir: m.DispatchStateRoot}, m.Program)
 }
 
-// Stop saves STOPPED under the service lock. It is ACKNOWLEDGED only when
-// no dispatcher owner and no live RUNNING pulse are observed after the
-// save; otherwise PENDING until the controller observes it.
+// Stop saves STOPPED, or with drain DRAINING, under O and F. ACKNOWLEDGED
+// means the suppression is durable and no launch can be admitted after it:
+// the dispatcher owner is absent or is the fenced managed main, whose
+// admitted launch completes its worker record before F is released.
+// PENDING means an unfenced or unobservable owner. close is OBSERVED only
+// when no dispatcher owner and no RUNNING pulse remain after the save; a
+// drain's close stays PENDING until the managed main settles it STOPPED.
+// Workers are always preserved.
 func (h Host) Stop(program, request string, drain bool) (*wire.Object, error) {
-	if drain {
-		return nil, wire.Errorf(wire.CodeUnsupported, "/drain", "drain is not supported by this service runtime yet; use stop")
-	}
 	root, unlock, err := h.begin(program, request)
 	if err != nil {
 		return nil, err
 	}
 	defer unlock()
-	m, ident, c, err := h.controlled(root)
+	desired := "STOPPED"
+	if drain {
+		desired = "DRAINING"
+	}
+	m, ident, next, replay, err := h.suppress(root, request, desired)
 	if err != nil {
 		return nil, err
 	}
-	hash := wire.Sum([]byte(request + "\nSTOPPED\n" + string(ident)))
-	rs, replay, err := h.controlReplay(root, c, request, hash)
-	if err != nil {
-		return nil, err
-	}
-	next := *c
-	if !replay {
-		running := h.dispatcherLive(root, m, ident)
-		facts := ControlFacts{FenceHeld: true, Fresh: true, Published: true, ObservedRevision: c.Revision, IntentStates: []string{}}
-		if running {
-			facts.IntentStates = []string{"UNSETTLED"}
-		}
-		p, err := Suppress(*c, request, "STOPPED", facts)
-		if err != nil {
-			return nil, wire.Errorf(wire.CodeResourceCollision, "/control", "%v", err)
-		}
-		if err := h.writeControl(root, p.Control); err != nil {
-			return nil, err
-		}
-		if _, err := h.rememberRequest(root, rs, request, hash); err != nil {
-			return nil, err
-		}
-		next = p.Control
-	}
-	// The owner and pulse are read after STOPPED is durable: a controller
-	// that opens later re-reads control before running and sees STOPPED.
+	// The owner and pulse are read after the suppression is durable.
+	owner, fenced := h.fencedOwner(root, m, ident)
 	state := "ACKNOWLEDGED"
 	switch {
-	case next.Desired != "STOPPED":
+	case drain && next.Desired == "RUNNING", !drain && next.Desired != "STOPPED":
 		state = "SUPERSEDED"
-	case h.dispatcherLive(root, m, ident):
+	case owner != "NOT_RUNNING" && !fenced:
 		state = "PENDING"
 	}
-	return wire.NewObject().Set("profile", wire.String(StopResultName)).Set("program", wire.String(program)).Set("requestId", wire.String(request)).Set("desired", wire.String(next.Desired)).Set("revision", wire.String(string(next.Revision))).Set("replayed", wire.Bool(replay)).Set("state", wire.String(state)).Set("workers", wire.String("PRESERVED")), nil
+	closed := "PENDING"
+	if pulse, _ := h.pulseState(root, ident); next.Desired == "STOPPED" && owner == "NOT_RUNNING" && pulse != "RUNNING" {
+		closed = "OBSERVED"
+	}
+	return wire.NewObject().Set("profile", wire.String(StopResultName)).Set("program", wire.String(program)).Set("requestId", wire.String(request)).Set("drain", wire.Bool(drain)).Set("desired", wire.String(next.Desired)).Set("revision", wire.String(string(next.Revision))).Set("replayed", wire.Bool(replay)).Set("state", wire.String(state)).Set("close", wire.String(closed)).Set("workers", wire.String("PRESERVED")), nil
 }
 
-// dispatcherLive reports a dispatcher owner that is not proved stopped, or
-// a fresh RUNNING controller pulse.
-func (h Host) dispatcherLive(root string, m *Manifest, ident wire.Digest) bool {
-	if dispatch.OwnerState(dispatchDir(m)) != "NOT_RUNNING" {
-		return true
+// suppress is Stop's checked control change under F: STOPPED from any
+// state, DRAINING only from RUNNING. A replay changes nothing.
+func (h Host) suppress(root, request, desired string) (*Manifest, wire.Digest, Control, bool, error) {
+	unfence, err := h.fence(root)
+	if err != nil {
+		return nil, "", Control{}, false, err
 	}
-	st, _ := h.pulseState(root, ident)
-	return st == "RUNNING"
+	defer unfence()
+	m, ident, c, err := h.controlled(root)
+	if err != nil {
+		return nil, "", Control{}, false, err
+	}
+	hash := wire.Sum([]byte(request + "\n" + desired + "\n" + string(ident)))
+	rs, replay, err := h.controlReplay(root, c, request, hash)
+	if err != nil || replay {
+		return m, ident, *c, replay, err
+	}
+	if desired == "DRAINING" && c.Desired != "RUNNING" {
+		return nil, "", Control{}, false, wire.Errorf(wire.CodeResourceCollision, "/control", "desired state is %s; drain applies only to RUNNING", c.Desired)
+	}
+	p, err := Suppress(*c, request, desired, ControlFacts{FenceHeld: true, Fresh: true, Published: true, ObservedRevision: c.Revision, IntentStates: []string{}})
+	if err != nil {
+		return nil, "", Control{}, false, wire.Errorf(wire.CodeResourceCollision, "/control", "%v", err)
+	}
+	if err := h.writeControl(root, p.Control); err != nil {
+		return nil, "", Control{}, false, err
+	}
+	if _, err := h.rememberRequest(root, rs, request, hash); err != nil {
+		return nil, "", Control{}, false, err
+	}
+	return m, ident, p.Control, false, nil
 }
 
 // controlReplay finds request in the control request ledger: the same hash
@@ -862,8 +900,11 @@ func (h Host) controlReplay(root string, c *Control, request string, hash wire.D
 }
 
 // Resume publishes RUNNING after STOPPED once the dispatcher is proved not
-// running and the pinned executable and dispatch config are unchanged. A
-// replay reports the current control without changing it.
+// running, or over DRAINING (resume wins; the dispatcher keeps
+// supervising), when the pinned executable and dispatch config are
+// unchanged and any legacy stop file is ABSENT. Pins are observed before F;
+// the change is a CAS under F against the control observed then. A replay
+// reports the current control without changing it.
 func (h Host) Resume(program, request string) (*wire.Object, error) {
 	root, unlock, err := h.begin(program, request)
 	if err != nil {
@@ -881,26 +922,65 @@ func (h Host) Resume(program, request string) (*wire.Object, error) {
 	}
 	next := *c
 	if !replay {
-		if c.Desired != "STOPPED" {
-			return nil, wire.Errorf(wire.CodeResourceCollision, "/control", "desired state is %s; resume applies only to STOPPED", c.Desired)
-		}
-		if st := dispatch.OwnerState(dispatchDir(m)); st != "NOT_RUNNING" {
-			return nil, wire.Errorf(wire.CodeResourceCollision, "/dispatcher", "dispatcher state is %s; resume waits until it is proved NOT_RUNNING", st)
+		switch c.Desired {
+		case "STOPPED":
+			if st := dispatch.OwnerState(dispatchDir(m)); st != "NOT_RUNNING" {
+				return nil, wire.Errorf(wire.CodeResourceCollision, "/dispatcher", "dispatcher state is %s; resume waits until it is proved NOT_RUNNING", st)
+			}
+		case "DRAINING":
+		default:
+			return nil, wire.Errorf(wire.CodeResourceCollision, "/control", "desired state is %s; resume applies only to STOPPED or DRAINING", c.Desired)
 		}
 		if err := h.pinsValid(m); err != nil {
 			return nil, err
 		}
-		if next, err = resumeAfter(*c, request, hash); err != nil {
-			return nil, wire.Errorf(wire.CodeLimitExceeded, "/control", "%v", err)
-		}
-		if err := h.writeControl(root, next); err != nil {
-			return nil, err
-		}
-		if _, err := h.rememberRequest(root, rs, request, hash); err != nil {
+		if next, err = h.publishResume(root, m, *c, rs, request, hash); err != nil {
 			return nil, err
 		}
 	}
 	return wire.NewObject().Set("profile", wire.String(ResumeResultName)).Set("program", wire.String(program)).Set("requestId", wire.String(request)).Set("desired", wire.String(next.Desired)).Set("revision", wire.String(string(next.Revision))).Set("replayed", wire.Bool(replay)).Set("restartDebt", wire.String("NOT_OBSERVED")), nil
+}
+
+// publishResume re-reads control under F, requires it unchanged since
+// observed and a fresh ABSENT legacy stop file, then publishes RUNNING.
+// The request ledger rs is stable under O: the managed main never writes
+// it.
+func (h Host) publishResume(root string, m *Manifest, observed Control, rs []controlRequest, request string, hash wire.Digest) (Control, error) {
+	unfence, err := h.fence(root)
+	if err != nil {
+		return observed, err
+	}
+	defer unfence()
+	c, err := h.readControl(root)
+	if err != nil {
+		return observed, wire.Errorf(wire.CodeUncertainEffect, "/control", "control is UNKNOWN: %v", err)
+	}
+	if *c != observed {
+		return observed, wire.Errorf(wire.CodeResourceCollision, "/control", "control changed while resume observed its pins; retry")
+	}
+	legacy, err := legacyPath(m)
+	if err != nil {
+		return observed, err
+	}
+	if legacy != nil {
+		switch h.legacyPresence(*legacy) {
+		case "PRESENT":
+			return observed, wire.Errorf(wire.CodeResourceCollision, "/legacyStopFile", "legacy stop file %s is present; remove it before resume", *legacy)
+		case "UNKNOWN":
+			return observed, wire.Errorf(wire.CodeUncertainEffect, "/legacyStopFile", "legacy stop file %s presence is UNKNOWN", *legacy)
+		}
+	}
+	next, err := resumeAfter(*c, request, hash)
+	if err != nil {
+		return observed, wire.Errorf(wire.CodeLimitExceeded, "/control", "%v", err)
+	}
+	if err := h.writeControl(root, next); err != nil {
+		return observed, err
+	}
+	if _, err := h.rememberRequest(root, rs, request, hash); err != nil {
+		return observed, err
+	}
+	return next, nil
 }
 
 // pinsValid requires the executable and dispatch config bytes bound by the
@@ -970,6 +1050,9 @@ func (h Host) Status(program string) (*wire.Object, error) {
 		}
 		o.Set("units", wire.Array(units...))
 		o.Set("dispatcher", wire.String(dispatch.OwnerState(dispatchDir(m))))
+		if legacy, err := legacyPath(m); err == nil && legacy != nil {
+			o.Set("legacyStopFile", wire.String(h.legacyPresence(*legacy)))
+		}
 	}
 	ident := wire.Digest("")
 	if m != nil {

@@ -357,12 +357,23 @@ func (d *Dispatcher) tickPoolSweep(ctx context.Context, obs *Observation) (*Obse
 		if prior != nil && prior.Allocation == m.Allocation {
 			continue
 		}
+		// A controlled dispatcher starts a new sweep only under its fence.
+		release := func() {}
+		if d.fence != nil {
+			rel, err := d.fence()
+			if err != nil {
+				return obs, nil
+			}
+			release = rel
+		}
 		now := d.Now().UTC()
 		r := PoolSweepRecord{PoolSweepRequest: PoolSweepRequest{WorkRoot: d.Config.WorkRoot, Program: d.Program, Queue: m.Queue, Pool: m.Pool, Member: m.Member, Allocation: m.Allocation, Definition: m.Definition, RequestID: sweepID(d.Program, m.Queue, m.Allocation), Actor: actor, ActorRole: role, ConfigDigest: hex.EncodeToString(configDigest[:]), TimeoutSeconds: d.Config.PoolSweep.TimeoutSeconds}, Phase: "STARTING", Started: now, Observed: now}
 		if e = d.commitPoolSweep(r); e != nil {
+			release()
 			return obs, e
 		}
 		d.startPoolSweep(ctx, q, r)
+		release()
 		break
 	}
 	return obs, nil

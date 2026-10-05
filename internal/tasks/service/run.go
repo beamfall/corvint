@@ -25,7 +25,9 @@ type RunOptions struct {
 	Program, Manifest string
 	// Executable is this process's resolved executable path.
 	Executable string
-	Open       func(program string, c *dispatch.Config) (Controller, error)
+	// Open takes dispatcher ownership with fence as its pre-spawn launch
+	// fence (dispatch.OpenControlled).
+	Open func(program string, c *dispatch.Config, fence dispatch.LaunchFence) (Controller, error)
 	// Poll is the control/pin observation interval; Pulse the liveness
 	// write interval; Retry the delay after a failed or busy Open.
 	Poll, Pulse, Retry time.Duration
@@ -38,6 +40,10 @@ type desiredRun struct {
 	config *dispatch.Config
 	run    bool
 	hold   string
+	// legacy is the profile's optional legacy stop file; desired the
+	// control state observed under the fence.
+	legacy  *string
+	desired string
 }
 
 type exeStamp struct {
@@ -50,8 +56,10 @@ type exeStamp struct {
 }
 
 // Run is the foreground managed main. It runs the existing dispatcher
-// in-process only while control is RUNNING and bound to the installed
-// manifest, and the pinned executable and dispatch config bytes match.
+// in-process only while control is RUNNING or DRAINING and bound to the
+// installed manifest, and the pinned executable and dispatch config bytes
+// match. Every new launch passes the fence (admitter); a settled drain
+// becomes STOPPED (govern).
 // Any other observation idles or holds without exiting, so the manager's
 // keepalive never becomes a restart loop. It returns when ctx ends.
 func Run(ctx context.Context, o RunOptions) error {
@@ -97,6 +105,9 @@ func Run(ctx context.Context, o RunOptions) error {
 	defer ticker.Stop()
 	for {
 		d := o.observe(root, &stamp)
+		if d.run {
+			d = o.govern(root, d)
+		}
 		if ctl != nil {
 			select {
 			case err := <-done:
@@ -111,14 +122,12 @@ func Run(ctx context.Context, o RunOptions) error {
 			}
 		}
 		if ctl == nil && d.run && d.hold == "" && !o.now().Before(retryAt) {
-			c, err := o.Open(o.Program, d.config)
-			if err == nil {
+			c, err := o.Open(o.Program, d.config, o.admitter(root, d.ident, d.legacy))
+			if err == nil && !o.boundAfterOpen(root, d.ident) {
 				// A stop saved before Open took ownership is seen here; one
-				// saved after it sees the owner and stays PENDING.
-				if again := o.observe(root, &stamp); !again.run || again.ident != d.ident {
-					_ = c.Close()
-					c, d = nil, again
-				}
+				// saved later is enforced by the launch fence.
+				_ = c.Close()
+				c, d.run = nil, false
 			}
 			switch {
 			case err != nil:
@@ -167,7 +176,8 @@ func truncate(s string, n int) string {
 
 // observe reads manifest, control and pins. Any unreadable or drifted
 // input yields run=false with a hold reason; STOPPED yields an idle
-// observation without a hold.
+// observation without a hold. DRAINING may run: its dispatcher supervises
+// while the fence refuses new launches.
 func (o RunOptions) observe(root string, stamp *exeStamp) desiredRun {
 	m, raw, err := o.readManifest(root)
 	if err != nil {
@@ -183,7 +193,7 @@ func (o RunOptions) observe(root string, stamp *exeStamp) desiredRun {
 		d.hold = "control is not bound to the installed manifest"
 		return d
 	}
-	if c.Desired != "RUNNING" {
+	if c.Desired != "RUNNING" && c.Desired != "DRAINING" {
 		return d
 	}
 	if sha, err := o.executableSha(stamp); err != nil || sha != m.ExecutableSha256 {
@@ -205,7 +215,7 @@ func (o RunOptions) observe(root string, stamp *exeStamp) desiredRun {
 		d.hold = "dispatch config does not bind the installed roots"
 		return d
 	}
-	d.config, d.run = cfg, true
+	d.config, d.run, d.legacy = cfg, true, p.LegacyStopFile
 	return d
 }
 

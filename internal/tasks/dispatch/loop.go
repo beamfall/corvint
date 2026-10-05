@@ -55,6 +55,8 @@ type Dispatcher struct {
 	// pressureEmitted is the level and sample knowledge last reported by a
 	// throttled event in this run; the zero value is calm and observed.
 	pressureEmitted PressureState
+	// fence, set only by OpenControlled, admits each new launch.
+	fence LaunchFence
 }
 
 // Open locks the program's state directory, loads the ledger and adopts
@@ -182,29 +184,8 @@ func writeOwner(f *os.File) error {
 // recorded identity, NOT_RUNNING when no holder is recorded or it is gone,
 // and UNKNOWN when the record cannot be read.
 func OwnerState(dir string) string {
-	raw, err := readBounded(filepath.Join(dir, "lock"), 4096)
-	if errors.Is(err, fs.ErrNotExist) {
-		return "NOT_RUNNING"
-	}
-	if err != nil {
-		return "UNKNOWN"
-	}
-	pid, id, ok := strings.Cut(strings.TrimSpace(string(raw)), " ")
-	if !ok {
-		return "NOT_RUNNING"
-	}
-	n, err := strconv.Atoi(pid)
-	if err != nil {
-		return "UNKNOWN"
-	}
-	live, err := supervisor.ProcessIdentity(n)
-	switch {
-	case err != nil:
-		return "UNKNOWN"
-	case live != "" && live == id:
-		return "RUNNING"
-	}
-	return "NOT_RUNNING"
+	st, _ := OwnerProcess(dir)
+	return st
 }
 
 // Running is the number of supervised workers.
@@ -890,6 +871,16 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		if ctx.Err() != nil {
 			return
 		}
+		// A controlled dispatcher holds the fence from its final control read
+		// until the worker is recorded; a refusal launches nothing further.
+		release := func() {}
+		if d.fence != nil {
+			r, err := d.fence()
+			if err != nil {
+				return
+			}
+			release = r
+		}
 		role := d.role(a.Role)
 		host := d.Config.Hosts[role.Host]
 		model := role.ModelAt(a.Tier)
@@ -922,6 +913,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 				d.ledger.Backoff[a.Key] = b
 			}
 			b.CooldownUntil = now.Add(time.Duration(d.Config.TickSeconds) * time.Second * 10)
+			release()
 			d.emit(Event{Kind: "launch-failed", Ticket: a.Ticket, Role: a.Role, Worker: id, Message: fmt.Sprintf("could not launch %s on %s: %v", a.Role, d.keyText(a.Key), err)})
 			continue
 		}
@@ -940,6 +932,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		if err := d.ledger.save(d.dir); err != nil {
 			d.emit(Event{Kind: "alert", Worker: id, Message: "ledger unwritable after launch: " + err.Error()})
 		}
+		release()
 		if escalation != nil {
 			escalation.Worker = id
 			d.emit(*escalation)
@@ -1255,4 +1248,68 @@ func (d *Dispatcher) local(obs *Observation, id string) string {
 		}
 	}
 	return d.keyText(id)
+}
+
+// LaunchFence is a controlled dispatcher's pre-spawn fence (SERVICE500-003).
+// It takes the fence and admits one launch, or refuses it. On admission the
+// dispatcher calls release once, after the launched worker is recorded in
+// the saved ledger or the launch failed.
+type LaunchFence func() (release func(), err error)
+
+// OpenControlled is Open for a dispatcher whose every new worker launch and
+// new pool sweep first passes fence. It takes the lifetime lock before the
+// fence; supervision, healing and accounting of recorded workers are never
+// fenced.
+func OpenControlled(program string, c *Config, q Queue, out io.Writer, fence LaunchFence) (*Dispatcher, error) {
+	if fence == nil {
+		return nil, errors.New("a controlled dispatcher needs a launch fence")
+	}
+	d, err := Open(program, c, q, out)
+	if err != nil {
+		return nil, err
+	}
+	d.fence = fence
+	return d, nil
+}
+
+// OwnerProcess is OwnerState with the recorded holder's PID, which is 0
+// unless the state is RUNNING.
+func OwnerProcess(dir string) (string, int) {
+	raw, err := readBounded(filepath.Join(dir, "lock"), 4096)
+	if errors.Is(err, fs.ErrNotExist) {
+		return "NOT_RUNNING", 0
+	}
+	if err != nil {
+		return "UNKNOWN", 0
+	}
+	pid, id, ok := strings.Cut(strings.TrimSpace(string(raw)), " ")
+	if !ok {
+		return "NOT_RUNNING", 0
+	}
+	n, err := strconv.Atoi(pid)
+	if err != nil {
+		return "UNKNOWN", 0
+	}
+	live, err := supervisor.ProcessIdentity(n)
+	switch {
+	case err != nil:
+		return "UNKNOWN", 0
+	case live != "" && live == id:
+		return "RUNNING", n
+	}
+	return "NOT_RUNNING", 0
+}
+
+// Settled reports a saved ledger with no recorded worker and no pending
+// pool sweep: what a draining service needs before it may stop.
+func Settled(l *Ledger) bool {
+	if len(l.Workers) != 0 {
+		return false
+	}
+	for _, r := range l.PoolSweeps {
+		if sweepPending(r.Phase) {
+			return false
+		}
+	}
+	return true
 }
