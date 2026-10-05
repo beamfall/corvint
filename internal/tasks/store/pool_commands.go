@@ -9,6 +9,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"os"
+	"slices"
 	"strings"
 	"time"
 )
@@ -193,6 +194,9 @@ func PoolCommand(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 	return observePool(context.WithoutCancel(ctx), repo, actor, choice, en, raw)
 }
 
+// healthPrepareHook, when set by a test, runs before each health preparation.
+var healthPrepareHook func(member string)
+
 func healthClaim(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, initial *Report) (*Report, error) {
 	return healthClaimWith(ctx, repo, actor, choice, initial, func(c LeaseChoice) (*Report, error) {
 		return leaseOnce(WithClock(ctx, poolClock), repo, actor, c, poolClock())
@@ -217,12 +221,15 @@ func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutatio
 			busy[en.MemberID] = true
 		}
 		excluded := choice.Lease.ExcludeMembers
+		var authors *transaction.AuthorExclusion
 		if choice.Lease.ExcludeAuthors != "" {
-			// CAL-V0-098: probe only what the model's own derivation leaves eligible.
+			// CAL-V0-098: probe only what the model's own derivation leaves
+			// eligible; preparation rederives it before committing.
 			if report == nil || report.AuthorExclusion == nil {
 				return report, nil
 			}
-			excluded = report.AuthorExclusion.Excluded
+			authors = report.AuthorExclusion
+			excluded = authors.Excluded
 		}
 		member := ""
 		for _, m := range transaction.OrderedPoolMembers(pool, choice.Lease.Stage, excluded) {
@@ -241,9 +248,27 @@ func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutatio
 		prep := choice
 		prep.RequestID = poolChildID(choice.RequestID, member)
 		prep.Lease = transaction.LeaseRequest{Verb: transaction.LeasePoolPrepare, Pool: pool.ID, Member: member, Holder: choice.Lease.Holder, Stage: choice.Lease.Stage, Evidence: string(transaction.PoolClaimBinding(&choice.Lease, state.QueueID))}
+		if authors != nil {
+			prep.Lease.TicketID, prep.Lease.ExcludeAuthors = authors.TicketID, choice.Lease.ExcludeAuthors
+		}
+		if healthPrepareHook != nil {
+			healthPrepareHook(member)
+		}
 		prepared, e := leaseOnce(WithClock(ctx, poolClock), repo, actor, prep, poolClock())
 		if e != nil {
 			return prepared, e
+		}
+		if prepared.Kind != "Transaction" && authors != nil {
+			// The derivation drifted if a fresh claim now excludes this member.
+			fresh, e := execute(choice)
+			if e != nil || !fresh.Outcome.HasCode(wire.CodeQuiescenceUnproved) {
+				return fresh, e
+			}
+			if fresh.AuthorExclusion != nil && slices.Contains(fresh.AuthorExclusion.Excluded, member) {
+				report = fresh
+				continue
+			}
+			report = fresh
 		}
 		if prepared.Kind != "Transaction" {
 			report.Detail = "health preparation unavailable: " + prepared.Detail + "; replay never executes it again"

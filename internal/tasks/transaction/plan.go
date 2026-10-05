@@ -160,15 +160,18 @@ func claimBlockerObservations(in PlanInput, rec *ticket.Record) (all, known, unk
 			unknown = append(unknown, b)
 		}
 	}
-	if !poolAvailable(in, rec) {
+	if rec.RequiresPool != "" && rec.RequiresPool != in.Pool {
 		add(ticket.Blocker{Code: wire.CodeResourceCollision, Detail: "required or requested pool has no eligible member"}, true)
 	} else if in.ExcludeAuthors != "" {
-		// CAL-V0-098: the claim's derivation and the same capacity predicate per ticket.
+		// CAL-V0-098: as in a named claim, the derivation precedes pool
+		// capacity, so its refusal and author names survive an exhausted pool.
 		if x, why := authorPlan(in, rec); x == nil {
 			add(ticket.Blocker{Code: wire.CodeIndependenceUnverified, Detail: why}, true)
 		} else if poolSlotsExcluding(in, x.Excluded) == 0 {
 			add(ticket.Blocker{Code: wire.CodeResourceCollision, Detail: "requested pool has no eligible member; " + x.AuthorsDetail()}, true)
 		}
+	} else if !poolAvailable(in, rec) {
+		add(ticket.Blocker{Code: wire.CodeResourceCollision, Detail: "required or requested pool has no eligible member"}, true)
 	}
 	if in.Barrier {
 		add(ticket.Blocker{Code: wire.CodePaused}, true)

@@ -44,7 +44,8 @@ func TestCALV0098_PreimageBindsMode(t *testing.T) {
 }
 
 // CAL-V0-098: the mode requires an explicit pool and a review or integrate
-// stage, is closed, and is accepted only by CLAIM and CLAIM_NEXT.
+// stage, is closed, and is accepted only by CLAIM, CLAIM_NEXT and the health
+// preparation of such a claim, which binds it together with the ticket.
 func TestCALV0098_RequestShape(t *testing.T) {
 	q, _ := wire.ParseQueueID("", fixture.QueueID)
 	base := LeaseRequest{Verb: LeaseClaim, TicketID: "ticket:acme:main:AT-001", Holder: "builder", LeaseMinutes: "60", Pool: "db", Stage: "review", ExcludeAuthors: ExcludeAuthorsLatest}
@@ -67,6 +68,24 @@ func TestCALV0098_RequestShape(t *testing.T) {
 	l.Stage = "integrate"
 	if _, err := leaseValue(&l, q); err != nil {
 		t.Fatalf("integrate refused: %v", err)
+	}
+	prep := LeaseRequest{Verb: LeasePoolPrepare, Pool: "db", Member: "a", Holder: "builder", Stage: "review", Evidence: string(wire.Sum([]byte("claim"))), TicketID: base.TicketID, ExcludeAuthors: ExcludeAuthorsLatest}
+	if _, err := leaseValue(&prep, q); err != nil {
+		t.Fatalf("bound preparation refused: %v", err)
+	}
+	for name, mutate := range map[string]func(*LeaseRequest){
+		"no ticket": func(l *LeaseRequest) { l.TicketID = "" },
+		"no mode":   func(l *LeaseRequest) { l.ExcludeAuthors = "" },
+	} {
+		l := prep
+		mutate(&l)
+		if _, err := leaseValue(&l, q); err == nil {
+			t.Fatalf("preparation with %s accepted", name)
+		}
+	}
+	prep.TicketID, prep.ExcludeAuthors = "", ""
+	if _, err := leaseValue(&prep, q); err != nil {
+		t.Fatalf("unbound preparation refused: %v", err)
 	}
 }
 

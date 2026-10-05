@@ -26,10 +26,11 @@ type Author struct {
 }
 
 // AuthorExclusion is what one CAL-V0-098 derivation found for a ticket:
-// the implement-generation authors and the effective requested-pool
-// exclusion set, the explicit members unioned with the authors' members in
-// that pool (nil when empty).
+// the ticket, the implement-generation authors and the effective
+// requested-pool exclusion set, the explicit members unioned with the
+// authors' members in that pool (nil when empty).
 type AuthorExclusion struct {
+	TicketID string
 	Authors  []Author
 	Excluded []string
 }
@@ -128,7 +129,7 @@ func DeriveAuthors(attempts map[string]*snapshot.Attempt, ticketID, mode, pool s
 		excluded = append(excluded, m)
 	}
 	sort.Strings(excluded)
-	return &AuthorExclusion{Authors: authors, Excluded: excluded}, ""
+	return &AuthorExclusion{TicketID: ticketID, Authors: authors, Excluded: excluded}, ""
 }
 
 // AuthorsDetail names the excluded authors for a RESOURCE_COLLISION detail.

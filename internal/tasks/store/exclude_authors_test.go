@@ -151,3 +151,52 @@ func TestCALV0098_HealthSkipsAuthor(t *testing.T) {
 		t.Fatal("unverified claim probed a member")
 	}
 }
+
+// CAL-V0-098: when the ticket's implement author changes between the claim's
+// refusal and health preparation, preparation rederives the exclusion and
+// the newly excluded member's health command never runs.
+func TestCALV0098_HealthPrepareRederivesAuthors(t *testing.T) {
+	s := newLeaseStore(t)
+	markers := t.TempDir()
+	touch := func(name string) wire.Value {
+		return obj("health", obj("argv", wire.Strings([]string{"/usr/bin/touch", filepath.Join(markers, name)}), "cwd", str("REPOSITORY"), "env", wire.Array(), "timeoutSeconds", str("3")))
+	}
+	exclusionPolicy(t, s, obj("a", touch("a"), "b", touch("b"), "review", touch("review")))
+	id := s.ticket(t, "drifting-author")
+	s.implementOn(t, id, "a", "b", "review")
+	fired := false
+	restore := store.SetHealthPrepareHookForTest(func(member string) {
+		if fired || member != "b" {
+			return
+		}
+		fired = true
+		// Another caller implements the ticket on b and frees it again.
+		s.t0 = now(t)
+		c := claimOf(id, id)
+		c.Pool, c.Stage, c.ExcludeMembers = "db", "implement", []string{"a", "review"}
+		r := s.lease(t, "drift-implement", c, 0, nil)
+		if r.PoolAllocation == nil || r.PoolAllocation.MemberID != "b" {
+			t.Fatalf("drift implement %+v", r)
+		}
+		s.freeAgain(t, "drift-implement", r)
+		_ = os.Remove(filepath.Join(markers, "b"))
+	})
+	defer restore()
+	for _, m := range []string{"a", "b", "review"} {
+		_ = os.Remove(filepath.Join(markers, m))
+	}
+	r := s.lease(t, "drift-review", reviewOf(id, transaction.ExcludeAuthorsLatest, "review"), 0, nil)
+	if !fired {
+		t.Fatal("preparation of b was never attempted")
+	}
+	if _, err := os.Stat(filepath.Join(markers, "b")); !os.IsNotExist(err) {
+		t.Fatalf("new author's health ran: %v", err)
+	}
+	if r.PoolAllocation == nil || r.PoolAllocation.MemberID != "a" {
+		t.Fatalf("drift review %+v", r)
+	}
+	if _, err := os.Stat(filepath.Join(markers, "a")); err != nil {
+		t.Fatalf("eligible health did not run: %v", err)
+	}
+	auditOK(t, s.repo)
+}

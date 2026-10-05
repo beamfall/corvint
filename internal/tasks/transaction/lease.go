@@ -118,7 +118,7 @@ var leaseShapes = map[string]leaseShape{
 	LeasePoolSweepFinish: {fieldEvidence, fieldEvidence},
 	LeaseSupervisor:      {fieldAttempt | fieldGeneration | fieldEvidence, fieldAttempt | fieldGeneration | fieldEvidence | fieldPool | fieldStage | fieldHolder},
 	LeaseProgram:         {fieldEvidence, fieldEvidence},
-	LeasePoolPrepare:     {fieldPool | fieldMember | fieldHolder | fieldEvidence, fieldPool | fieldMember | fieldHolder | fieldStage | fieldEvidence},
+	LeasePoolPrepare:     {fieldPool | fieldMember | fieldHolder | fieldEvidence, fieldPool | fieldMember | fieldHolder | fieldStage | fieldEvidence | fieldTicket | fieldAuthors},
 	LeasePoolObserve:     {fieldMember | fieldAllocation, fieldMember | fieldAllocation | fieldEvidence},
 	LeasePoolCleanup:     {fieldMember | fieldAllocation, fieldMember | fieldAllocation},
 	LeasePoolRecover:     {fieldMember | fieldAllocation | fieldReason, fieldMember | fieldAllocation | fieldReason},
@@ -228,6 +228,9 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 	}
 	if e := CheckExcludeAuthors(l.ExcludeAuthors, l.Pool, l.Stage); e != nil {
 		return e
+	}
+	if l.Verb == LeasePoolPrepare && (l.TicketID == "") != (l.ExcludeAuthors == "") {
+		return malformed("preparation binds a ticket only with its author-exclusion mode")
 	}
 	if !checkPoolStage(l.Stage) {
 		return malformed("unknown pool stage")

@@ -28,8 +28,14 @@ CAL-V0-074..075 V1-0755, 078 V1-0780, 079..081 V1-0793, 082..085 V1-0790, 095 V1
 - Allocation: the union of explicit and author members feeds the existing CAL-V0-065 predicate in
   allocation, health preparation (via the model's refused-result derivation) and final prepared
   admission. Exhaustion refuses `RESOURCE_COLLISION` naming each author's member, pool and generation.
+- Health preparation (Codex review finding 1): the store's member choice uses the refused claim's
+  derivation, which can go stale before preparation commits. `POOL_PREPARE` now carries the ticket
+  and mode and rederives at its own snapshot, refusing an excluded or unverified member before
+  `PREPARING` is recorded; the store then reruns the claim for a fresh derivation.
 - Plan: the same derivation is a per-ticket blocker in `PriorityFirst`, so `claim --next`, its
-  outside-lock scope deriver and `plan preview` agree. With the flag, preview entries add `detail`
+  outside-lock scope deriver and `plan preview` agree. As in a named claim, it is evaluated before
+  pool capacity (Codex review finding 2), so an exhausted pool keeps `INDEPENDENCE_UNVERIFIED` and
+  the author names. With the flag, preview entries add `detail`
   and `excludedAuthors`; without it the output is unchanged.
 - CLI: `--exclude-authors` and `--exclude-authors=all` on `claim` and `plan preview`; repeats and
   other values are malformed. Help usage and `docs/TASKS-EXTERNAL-AGENTS.md` updated.
