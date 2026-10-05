@@ -1315,6 +1315,30 @@ witnesses are the CAL-V0-071 and CAL-V0-072 rows in the traceability table, incl
 end-to-end `TestCALV0071_MultiRepositoryProgramFakeHost`. Live Codex qualification is `NOT_RUN`;
 see `docs/build-log/2026-10-04-tasks-multirepo-programs.md`.
 
+### V1-0780 retryable command results
+
+Source, classification table, limits and evidence: the V1-0780 retryable result amendment below.
+
+- `CAL-V0-078`: Tasks MUST classify every §11 detail code in `internal/tasks/wire/codes.go` as
+  retryable or not, with a stated condition, in one table (`wire.RetryOf`). A code is retryable
+  only when every in-tree producer reports it before anything was decided or written, and its
+  usual cause is a concurrent writer, so that reissuing the same command with the same
+  `--request-id` after a bounded backoff can succeed once that writer finishes; the producers
+  whose cause is the caller's own stale input are named below and repeat until it changes. The retryable set is exactly `LOCK_TIMEOUT` (the store lock or a
+  preparation admission was held past the wait budget), `SNAPSHOT_MOVED` (the store, head, intent
+  tree or worktree moved during a read or before commit) and `REDO_PENDING` (a writer sits between
+  receipt link-in and head rename; one that outlives the budget is redone by the next mutating
+  command). Fencing codes (`FENCED`, `BOOT_FENCED`, `SUPERVISOR_LOST`) MUST never be retryable,
+  and a code whose producers are mixed, uncertain or absent MUST be classified not retryable, with
+  the reason recorded. Every `taskman-command-result/0` envelope whose outcome is not `OK` and
+  whose `codes` is non-empty MUST carry `retryable`, true only when every code is retryable. The
+  commands that run a program a retry would run again MUST report false whatever their codes:
+  `attempt run` once its child has run, `gate run` once its gate program has started, and
+  `health` or `pool cleanup` once the member's program has started. `OK` and uncoded results MUST NOT carry
+  the member. A decoder MUST accept a coded envelope without the member, and MUST refuse
+  `MALFORMED` a member on an `OK` or uncoded result, a non-boolean value, or `true` beside a code
+  that is not retryable.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -1649,24 +1673,8 @@ FRESH, and the client runner killed healthy runs. Its client now matches a priva
 The owner asked that Tasks document which result codes are retryable and mark each result with an
 explicit `retryable` fact so callers stop pattern-matching codes.
 
-- `CAL-V0-078`: Tasks MUST classify every §11 detail code in `internal/tasks/wire/codes.go` as
-  retryable or not, with a stated condition, in one table (`wire.RetryOf`). A code is retryable
-  only when every in-tree producer reports it before anything was decided or written, and its
-  usual cause is a concurrent writer, so that reissuing the same command with the same
-  `--request-id` after a bounded backoff can succeed once that writer finishes; the producers
-  whose cause is the caller's own stale input are named below and repeat until it changes. The retryable set is exactly `LOCK_TIMEOUT` (the store lock or a
-  preparation admission was held past the wait budget), `SNAPSHOT_MOVED` (the store, head, intent
-  tree or worktree moved during a read or before commit) and `REDO_PENDING` (a writer sits between
-  receipt link-in and head rename; one that outlives the budget is redone by the next mutating
-  command). Fencing codes (`FENCED`, `BOOT_FENCED`, `SUPERVISOR_LOST`) MUST never be retryable,
-  and a code whose producers are mixed, uncertain or absent MUST be classified not retryable, with
-  the reason recorded. Every `taskman-command-result/0` envelope whose outcome is not `OK` and
-  whose `codes` is non-empty MUST carry `retryable`, true only when every code is retryable. A
-  command that already ran an external effect a retry would repeat MUST report false whatever
-  its codes; `attempt run` does so once its child has run. `OK` and uncoded results MUST NOT carry
-  the member. A decoder MUST accept a coded envelope without the member, and MUST refuse
-  `MALFORMED` a member on an `OK` or uncoded result, a non-boolean value, or `true` beside a code
-  that is not retryable.
+The requirement `CAL-V0-078` is defined in the Requirements section (V1-0780 retryable command
+results); this section records its source, classification, limits and evidence.
 
 The classification, as `wire.RetryOf` records it:
 
@@ -1694,7 +1702,8 @@ no `retryable` member.
 Non-goals: no new code, no recoding of an existing producer, no change to `outcomeFor`, exit
 status, `taskman-outcome/0` or the receipt profiles, no retry or backoff inside Tasks, no member on
 `OK` or uncoded results, and no retry budget or deadline advice. `retryable` states that a retry can
-succeed, not that it will, and a retry still reruns any gate or pool command the command executes.
+succeed, not that it will, and a command that ran a program reports false rather than rerun it on retry. A claim that ran pool
+health probes before a later refusal is not covered: a retry of that claim may probe again.
 A renew retried after the lease's `expiresAt` can still be refused or fenced.
 
 Failure modes: a new §11 code without a classification fails
@@ -1709,9 +1718,9 @@ mismatch, which repeats until the caller changes its input.
 
 Acceptance evidence is the traceability row below plus unchanged bytes for `OK` and uncoded
 results under the existing `internal/tasks` tests. Rollback removes the member from
-`Result.Value`, the decoder's optional key and the `attempt run` override; earlier decoders then
+`Result.Value`, the decoder's optional key, `Report.Executed` and the `attempt run` override; earlier decoders then
 read every envelope again, and no store, journal or receipt state depends on it.
 
 | Requirement | Evidence |
 | --- | --- |
-| CAL-V0-078 | `TestCALV0078_ClassificationCoversEveryCode`, `TestCALV0078_FencingNeverRetryable`, `TestCALV0078_ResultRetryablePresence`, `TestCALV0078_EnvelopeRetryableMember` (`internal/tasks/wire`); `TestCALV0078_RedoPendingReadIsRetryable`, `TestCALV0078_UnrecordedRunIsNotRetryable` (`internal/tasks/cli`) |
+| CAL-V0-078 | `TestCALV0078_ClassificationCoversEveryCode`, `TestCALV0078_FencingNeverRetryable`, `TestCALV0078_ResultRetryablePresence`, `TestCALV0078_EnvelopeRetryableMember` (`internal/tasks/wire`); `TestCALV0078_RedoPendingReadIsRetryable`, `TestCALV0078_UnrecordedRunIsNotRetryable`, `TestCALV0078_ExecutedGateRunIsNotRetryable` (`internal/tasks/cli`); `TestCALV0078_GateRunContentionAfterExecutionIsReported`, `TestCALV0078_PoolCommandReportsExecution` (`internal/tasks/store`) |

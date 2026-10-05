@@ -271,3 +271,29 @@ func TestPoolReplayReturnsOriginalAllocation(t *testing.T) {
 		t.Fatalf("stale confirmation %+v", stale)
 	}
 }
+
+// TestCALV0078_PoolCommandReportsExecution: a direct pool health command
+// reports Executed once the member's program ran, so the CLI marks any coded
+// result not retryable; a command refused before running does not.
+func TestCALV0078_PoolCommandReportsExecution(t *testing.T) {
+	s := newLeaseStore(t)
+	v := fixture.PolicyValue()
+	v.Obj.Set("policyVersion", str("3"))
+	v.Obj.Set("capacity", obj("maxActiveAttempts", str("4"), "maxWorkersTotal", str("4"), "classes", wire.Array()))
+	budgets, _ := v.Obj.Get("budgets")
+	budgets.Obj.Set("requireEnforcedFields", wire.Strings(nil))
+	health := obj("argv", wire.Strings([]string{"/bin/sh", "-c", "exit 0"}), "cwd", str("REPOSITORY"), "env", wire.Array(), "timeoutSeconds", str("3"))
+	v.Obj.Set("pools", wire.Array(obj("id", str("db"), "members", wire.Strings([]string{"a"}), "memberConfig", obj("a", obj("health", health)))))
+	if rep, e := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("execution-policy", "2", wire.EncodeFile(v)), now(t)); e != nil || rep.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("policy %+v %v", rep, e)
+	}
+	choice := func(id, member string) store.LeaseChoice {
+		return store.LeaseChoice{QueueID: fixture.QueueID, RequestID: id, Root: s.root, Lease: transaction.LeaseRequest{Member: member}}
+	}
+	if rep, e := store.PoolCommand(context.Background(), s.repo, operator(), choice("probe-none", "absent"), "health"); wire.CodeOf(e) != wire.CodeUnsupported || rep == nil || rep.Executed {
+		t.Fatalf("refused before running: %+v %v", rep, e)
+	}
+	if rep, e := store.PoolCommand(context.Background(), s.repo, operator(), choice("probe-a", "a"), "health"); e != nil || rep == nil || !rep.Executed {
+		t.Fatalf("health ran: %+v %v", rep, e)
+	}
+}

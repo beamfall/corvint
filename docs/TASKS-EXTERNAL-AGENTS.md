@@ -356,8 +356,8 @@ bounded backoff:
 
 Every other code is false, including `FENCED`, `BOOT_FENCED` and `SUPERVISOR_LOST` (the attempt
 really lost; start a new one), `LIMIT_EXCEEDED`, `JOURNAL_SATURATED` and `UNSUPPORTED_FILESYSTEM`.
-`attempt run` reports false once its child has run, whatever the code, because a retry would run
-the child again. `STALE`, `STORAGE_FAILED` and `HEAD_MOVED` are not result codes. The spec's
+`attempt run`, `gate run`, `health` and `pool cleanup` report false once their program has
+started, whatever the code, because a retry would run it again. `STALE`, `STORAGE_FAILED` and `HEAD_MOVED` are not result codes. The spec's
 "V1-0780 retryable result amendment" lists every code with its reason.
 
 ## Observe holders and retry debt

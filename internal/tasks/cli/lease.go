@@ -210,10 +210,23 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 		defer stop()
 		report, err = store.Lease(ctx, repo, actor, choice, now)
 	}
+	return executedResult(cmd, report, err)
+}
+
+// executedResult is the lease command's result. When the call already started
+// a program (a gate run or pool command), a retry would run it again, so the result is never
+// retryable whatever its codes (CAL-V0-078).
+func executedResult(cmd []string, report *store.Report, err error) *wire.Result {
+	var res *wire.Result
 	if err != nil {
-		return errorResult(cmd, err)
+		res = errorResult(cmd, err)
+	} else {
+		res = leaseResult(cmd, report)
 	}
-	return leaseResult(cmd, report)
+	if report != nil && report.Executed {
+		res.NotRetryable = true
+	}
+	return res
 }
 
 func leaseResult(cmd []string, report *store.Report) *wire.Result {

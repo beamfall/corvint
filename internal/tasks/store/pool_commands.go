@@ -186,11 +186,20 @@ func PoolCommand(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 			en = entry
 		}
 	}
+	// From here the member's program runs; a same-request retry replays the
+	// prepare or cleanup transaction and never records this observation, so
+	// the result is never retryable (CAL-V0-078).
+	report.Executed = true
 	raw, e := runPool(ctx, repo, choice, en, def)
 	if e != nil {
 		return report, e
 	}
-	return observePool(context.WithoutCancel(ctx), repo, actor, choice, en, raw)
+	observed, e := observePool(context.WithoutCancel(ctx), repo, actor, choice, en, raw)
+	if observed == nil {
+		observed = &Report{}
+	}
+	observed.Executed = true
+	return observed, e
 }
 
 func healthClaim(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, initial *Report) (*Report, error) {

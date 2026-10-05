@@ -25,6 +25,17 @@ V1-0756 and V1-0781 branches, so this change uses the first ID none of them clai
 - `Result.NotRetryable` lets a command report false despite retryable codes. `attempt run` sets it
   once its child has run, because an unrecorded outcome (`ERROR`/`LOCK_TIMEOUT`, exit 127) would
   otherwise invite a retry that runs the child again.
+- Independent review found the same hazard in `gate run`: the gate program runs before the
+  recording `Lease` call, and lock contention there returned a retryable `LOCK_TIMEOUT`, while a
+  same-request retry reruns the gate before replay detection. `store.Report.Executed` now records
+  that a program started; `GateRun` sets it on every return after the gate starts, `PoolCommand`
+  after the member's program starts (a retry there replays the prepare and never records the
+  observation), and the lease CLI maps it to `NotRetryable`. A regression holds the store lock
+  after the gate program has run and checks `LOCK_TIMEOUT` with `Executed`.
+- Review also found `CAL-V0-078` defined outside `## Requirements`, where the OCM reader
+  (`internal/lrfrepo` `requirementsFromBlob`) does not enumerate it. The normative text now sits in
+  a Requirements subsection; a scratch enumeration of the spec lists it. `CAL-V0-073` (V1-0751)
+  has the same placement and is still not enumerated.
 - `STALE`, `STORAGE_FAILED` and `HEAD_MOVED` from the client list are not §11 codes and cannot be
   classified; `JOURNAL_SATURATED` is deliberately not retryable.
 
@@ -37,6 +48,8 @@ V1-0756 and V1-0781 branches, so this change uses the first ID none of them clai
   changes; recoding them is an owner decision.
 - The transient `LIMIT_EXCEEDED` cases (64 live preparation slots, active-attempt cap) stay not
   retryable until split into their own code.
+- A claim that runs pool health probes before a later refusal is not overridden; a retry of that
+  claim may probe again.
 
-Evidence: `TestCALV0078_*` in `internal/tasks/wire` and `internal/tasks/cli`; focused package runs
+Evidence: `TestCALV0078_*` in `internal/tasks/wire`, `internal/tasks/cli` and `internal/tasks/store`; focused package runs
 recorded in the change evidence.
