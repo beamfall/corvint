@@ -348,6 +348,20 @@ func Decode(data []byte) (*Envelope, error) {
 	return env, nil
 }
 
+// CanonicalPayload validates a caller-supplied payload for op against the
+// closed §3.3 table and sorts, in place, exactly the arrays that table reads
+// as sets (labels, requirementRefs, capabilities, requiredGates, touchPaths,
+// resources, evidence, scope). Ordered arrays such as acceptanceCriteria and
+// dependencies keep their order. It is the CLI input boundary (V1-0750): the
+// returned value is re-encoded canonically into the envelope, which Decode
+// then checks strictly, so the wire rule and digests are unchanged.
+func CanonicalPayload(op string, v wire.Value) (wire.Value, error) {
+	if _, err := decodePayload(op, wire.NewSetSortingReader(v, "/payload")); err != nil {
+		return wire.Value{}, err
+	}
+	return v, nil
+}
+
 // readRequestID validates an Identifier bounded to the §1 requestId limit.
 func readRequestID(r *wire.Reader) string {
 	s := r.Identifier()
