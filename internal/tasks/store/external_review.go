@@ -128,39 +128,61 @@ func ExternalReviewBlob(repo *intent.Repository) transaction.ExternalReviewBlob 
 func FoldExternalReviews(repo *intent.Repository, last uint64, pending []byte) (*transaction.ExternalReviewReceiptAudit, error) {
 	blob := ExternalReviewBlob(repo)
 	fold := &transaction.ExternalReviewReceiptAudit{}
-	step := func(raw []byte) error {
-		rc, err := snapshot.DecodeReceipt(raw)
-		if err != nil {
-			return err
-		}
-		return fold.Step(rc, wire.Sum(raw), blob)
-	}
-	for seq := uint64(1); seq <= last; seq++ {
-		raw, err := readReceiptBytes(repo, seq)
-		if err != nil {
-			return nil, err
-		}
-		if err = step(raw); err != nil {
-			return nil, err
-		}
-	}
-	if pending != nil {
-		if err := step(pending); err != nil {
-			return nil, err
-		}
+	err := foldReceipts(repo, last, pending, func(rc *snapshot.Receipt, sum wire.Digest) error { return fold.Step(rc, sum, blob) })
+	if err != nil {
+		return nil, err
 	}
 	return fold, nil
 }
 
+// FoldReceiptBindings folds receipts 1..last, then pending when it is not
+// nil, through both material binding audits in one pass: the ERG-V0-009
+// review binding and the ESC-V0-010 escalation binding. Receipt audit and
+// redo use it, so a rehashed but untrue review or escalation event refuses
+// as JOURNAL_FORKED.
+func FoldReceiptBindings(repo *intent.Repository, last uint64, pending []byte) error {
+	blob := ExternalReviewBlob(repo)
+	reviews, escalations := &transaction.ExternalReviewReceiptAudit{}, &transaction.EscalationReceiptAudit{}
+	return foldReceipts(repo, last, pending, func(rc *snapshot.Receipt, sum wire.Digest) error {
+		if err := reviews.Step(rc, sum, blob); err != nil {
+			return err
+		}
+		return escalations.Step(rc, sum, blob)
+	})
+}
+
+func foldReceipts(repo *intent.Repository, last uint64, pending []byte, step func(*snapshot.Receipt, wire.Digest) error) error {
+	fold := func(raw []byte) error {
+		rc, err := snapshot.DecodeReceipt(raw)
+		if err != nil {
+			return err
+		}
+		return step(rc, wire.Sum(raw))
+	}
+	for seq := uint64(1); seq <= last; seq++ {
+		raw, err := readReceiptBytes(repo, seq)
+		if err != nil {
+			return err
+		}
+		if err = fold(raw); err != nil {
+			return err
+		}
+	}
+	if pending != nil {
+		return fold(pending)
+	}
+	return nil
+}
+
 // redoReviewBinding refuses redo of a pending receipt that posts a ticket
 // record unless the whole history, the pending receipt included, passes the
-// binding fold: the generic journal audit treats the review event as an
-// opaque blob, so this is where a rehashed but untrue event is caught.
+// review and escalation binding folds: the generic journal audit treats
+// their events as opaque blobs, so this is where a rehashed but untrue event
+// is caught.
 func redoReviewBinding(repo *intent.Repository, receipt *snapshot.Receipt, raw []byte) error {
 	for _, p := range receipt.Post {
 		if strings.HasPrefix(p.Path, "intent/tickets/") {
-			_, err := FoldExternalReviews(repo, receipt.Seq.Uint64()-1, raw)
-			return err
+			return FoldReceiptBindings(repo, receipt.Seq.Uint64()-1, raw)
 		}
 	}
 	return nil

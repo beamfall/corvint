@@ -11,7 +11,7 @@ import (
 
 func maximalDescriptor(op string) StageDescriptor {
 	q := "queue:a:" + strings.Repeat("q", 120)
-	if op == StageKeepJournal || op == StageAdoptFile || op == StageMutate {
+	if op == StageKeepJournal || op == StageAdoptFile || op == StageMutate || op == StageEscalation {
 		q = "queue:a:" + strings.Repeat("q", 54)
 	}
 	// attempts/<attemptId>.json is an Identifier, so a lease queue id is at
@@ -43,7 +43,7 @@ func maximalDescriptor(op string) StageDescriptor {
 	if op == StageInit {
 		requestBytes = 551
 	}
-	if op == StageKeepJournal || op == StageAdoptFile || op == StageMutate || op == StagePolicyUpdate || op == StageAuthoritySwitch || op == StageQualification || op == StageLease {
+	if op == StageKeepJournal || op == StageAdoptFile || op == StageMutate || op == StagePolicyUpdate || op == StageAuthoritySwitch || op == StageQualification || op == StageLease || op == StageEscalation {
 		requestBytes = 579
 	}
 	add("POST", rp, requestBytes, hash)
@@ -91,6 +91,14 @@ func maximalDescriptor(op string) StageDescriptor {
 		add("EVIDENCE", "evidence/"+string(ticketHash), wire.MaxReservationSetBytes, ticketHash)
 		manifest := wire.Sum([]byte("manifest"))
 		add("POST", "evidence/"+string(manifest), wire.MaxGateOutputBytes, manifest)
+	case StageEscalation:
+		// A supersession: the blob-posted ticket and its two events.
+		add("POST", "intent/tickets/"+strings.Repeat("t", 64)+".json", 131072, hash)
+		add("EVIDENCE", "evidence/"+string(hash), 131072, hash)
+		for _, n := range []string{"open", "supersede"} {
+			h := wire.Sum([]byte(n))
+			add("POST", "evidence/"+string(h), MaxEscalationEventBytes, h)
+		}
 	case StageKeepJournal, StageAdoptFile:
 		add("POST", "intent/tickets/"+strings.Repeat("t", 64)+".json", 131072, hash)
 		add("EVIDENCE", "evidence/"+string(hash), 131072, hash)
@@ -140,7 +148,7 @@ func maximalRecoveryDescriptor(op string) StageDescriptor {
 }
 
 func TestTMV0002_AS10_StageCodecActualMaxima(t *testing.T) {
-	for _, op := range []string{StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StagePolicyUpdate, StageAuthoritySwitch, StageLease, StageQualification} {
+	for _, op := range []string{StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StagePolicyUpdate, StageAuthoritySwitch, StageLease, StageQualification, StageEscalation} {
 		d := maximalRecoveryDescriptor(op)
 		raw, e := d.Encode()
 		if e != nil {
@@ -327,6 +335,85 @@ func TestONV0006_DerivedEventSlotMeasuredAndNarrow(t *testing.T) {
 			}
 			if err.Error() != want[name] {
 				t.Fatalf("%s refused for the wrong reason: %v, want %s", name, err, want[name])
+			}
+		})
+	}
+}
+
+// TestESCV0010_EscalationStageNarrow pins the typed-event stage to its
+// closed shape: one request, one ticket, one or two content-addressed events
+// and at most the ticket blob, with no lease artifact admitted.
+func TestESCV0010_EscalationStageNarrow(t *testing.T) {
+	event := func(x *StageDescriptor) int {
+		for i, a := range x.Artifacts {
+			if a.Role == "POST" && strings.HasPrefix(a.Target, "evidence/") {
+				return i
+			}
+		}
+		t.Fatal("no event")
+		return -1
+	}
+	drop := func(x *StageDescriptor, i int) { x.Artifacts = append(x.Artifacts[:i], x.Artifacts[i+1:]...) }
+	want := map[string]string{
+		"none":         "MALFORMED: stage: escalation event count",
+		"three":        "MALFORMED: stage: escalation event count",
+		"attempt":      "MALFORMED: stage: post outside operation",
+		"reservations": "MALFORMED: stage: post outside operation",
+		"address":      "MALFORMED: stage: escalation event identity",
+		"blob":         "MALFORMED: stage: escalation blob is not the ticket record",
+		"ticket":       "MALFORMED: stage: missing/duplicate required artifact",
+		"oversized":    "LIMIT_EXCEEDED: stage: artifact bytes",
+	}
+	for _, name := range []string{"none", "three", "attempt", "reservations", "address", "blob", "ticket", "oversized"} {
+		t.Run(name, func(t *testing.T) {
+			x := maximalDescriptor(StageEscalation)
+			i := event(&x)
+			switch name {
+			case "none":
+				drop(&x, i)
+				drop(&x, event(&x))
+			case "three":
+				for j, a := range x.Artifacts {
+					if a.Role == "EVIDENCE" {
+						h := wire.Sum([]byte("third"))
+						x.Artifacts[j] = StageDescription{Role: "POST", Target: "evidence/" + string(h), Sha256: h, Bytes: "1"}
+					}
+				}
+			case "attempt":
+				x.Artifacts[i].Target = "attempts/attempt:" + strings.Repeat("a", 32) + ".json"
+			case "reservations":
+				x.Artifacts[i].Target = "reservations.json"
+			case "address":
+				x.Artifacts[i].Sha256 = wire.Sum([]byte("other"))
+			case "blob":
+				for j, a := range x.Artifacts {
+					if a.Role == "EVIDENCE" {
+						h := wire.Sum([]byte("not the ticket"))
+						x.Artifacts[j] = StageDescription{Role: "EVIDENCE", Target: "evidence/" + string(h), Sha256: h, Bytes: "1"}
+					}
+				}
+			case "ticket":
+				for j, a := range x.Artifacts {
+					if strings.HasPrefix(a.Target, "intent/tickets/") {
+						drop(&x, j)
+						break
+					}
+				}
+			case "oversized":
+				x.Artifacts[i].Bytes = wire.SizeOf(MaxEscalationEventBytes + 1)
+			}
+			sort.Slice(x.Artifacts, func(a, b int) bool {
+				if x.Artifacts[a].Role != x.Artifacts[b].Role {
+					return x.Artifacts[a].Role < x.Artifacts[b].Role
+				}
+				return x.Artifacts[a].Target < x.Artifacts[b].Target
+			})
+			for j := range x.Artifacts {
+				x.Artifacts[j].Slot = stageSlot(j)
+			}
+			_, err := x.Encode()
+			if err == nil || err.Error() != want[name] {
+				t.Fatalf("%s: got %v, want %s", name, err, want[name])
 			}
 		})
 	}

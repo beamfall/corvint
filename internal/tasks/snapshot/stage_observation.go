@@ -219,6 +219,8 @@ func stageReceiptKind(operation, kind string) bool {
 		return kind == "MUTATION" || kind == "ARCHIVE" || kind == "RESTORE"
 	case StageLease:
 		return kind == "ADMIT" || kind == "TRANSITION" || kind == "GATE_RESULT" || kind == "MANIFEST"
+	case StageEscalation:
+		return kind == "TRANSITION"
 	case StageRelease:
 		return kind == "RELEASE" || kind == "RECONCILE"
 	case StageKeepJournal, StageAdoptFile:
