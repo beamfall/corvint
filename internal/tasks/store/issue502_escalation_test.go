@@ -3,13 +3,18 @@ package store_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
+	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
@@ -408,5 +413,56 @@ func TestIssue502_ShorthandAnswerReplaysAfterLaterOpen(t *testing.T) {
 	}
 	if _, refs := escalationRefs(t, s, id); refs["q-1"].State != "ANSWERED" || refs["q-2"].State != "OPEN" {
 		t.Fatalf("refs %+v", refs)
+	}
+}
+
+// TestIssue502_OperatorAnswersThroughExplicitGrant: OPERATOR may answer only
+// through a policy.roles.OPERATOR row that names ANSWER (ESC-V0-004), and a
+// row for any other non-owner role may not name it at all.
+func TestIssue502_OperatorAnswersThroughExplicitGrant(t *testing.T) {
+	s, id, src := escalationClaim(t)
+	committed(t, escalate(t, s, holder, openRequest(t, "q-1", src, "", ""), 1), "OPEN")
+	op := mutation.Binding{ID: "op-1", Role: "OPERATOR"}
+	refusedEscalation(t, answer(t, s, op, answerRequest(t, "a-1", id, op, "", ""), 2), mutation.OutcomeUnauthorized, "", "POLICY_NOT_ALLOWED")
+
+	policy := func(version, role string, ops []string) []byte {
+		v := fixture.PolicyValue()
+		v.Obj.Set("policyVersion", str(version))
+		v.Obj.Set("capacity", obj("maxActiveAttempts", str("4"), "maxWorkersTotal", str("4"), "classes", wire.Array()))
+		budgets, _ := v.Obj.Get("budgets")
+		budgets.Obj.Set("requireEnforcedFields", wire.Strings(nil))
+		v.Obj.Set("roles", obj(role, wire.Strings(ops)))
+		return wire.EncodeFile(v)
+	}
+	r, e := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("worker-answer", "2", policy("3", "WORKER", []string{"ANSWER", "REFINE"})), s.at(t, 2))
+	if detail := fmt.Sprint(e); e == nil {
+		detail = r.Detail
+		if r.Outcome.Outcome == mutation.OutcomeCompleted || !strings.Contains(detail, "operation for WORKER") {
+			t.Fatalf("a WORKER row naming ANSWER: %+v", r)
+		}
+	} else if !strings.Contains(detail, "operation for WORKER") {
+		t.Fatalf("a WORKER row naming ANSWER: %v", e)
+	}
+	if r, e := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("operator-answer", "2", policy("3", "OPERATOR", []string{"ANSWER"})), s.at(t, 2)); e != nil || r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("policy %+v %v", r, e)
+	}
+	committed(t, answer(t, s, op, answerRequest(t, "a-2", id, op, "", ""), 4), "ANSWER")
+	if _, refs := escalationRefs(t, s, id); refs["q-1"].State != "ANSWERED" {
+		t.Fatalf("q-1 %+v", refs["q-1"])
+	}
+
+	// Full audit decodes every historical policy, so dropping the grant from
+	// policy does not make a revert safe: a binary without the grant still
+	// refuses the journal's earlier OPERATOR row.
+	if r, e := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("operator-revoke", "3", policy("4", "OWNER", slices.Sorted(slices.Values(intent.Operations)))), s.at(t, 5)); e != nil || r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("revoke %+v %v", r, e)
+	}
+	auditOK(t, s.repo)
+	granted := intent.ExplicitGrantOperations
+	defer func() { intent.ExplicitGrantOperations = granted }()
+	intent.ExplicitGrantOperations = map[string][]string{"OPERATOR": {"NOTE_SET", "NOTE_CLEAR"}}
+	q, _ := wire.ParseQueueID("queueId", fixture.QueueID)
+	if _, err := (journal.Reader{Source: journal.Native{StateDir: s.repo.StateDir, PrimaryWorktree: s.repo.PrimaryWorktree}, QueueID: q, PrimaryWorktree: s.repo.PrimaryWorktree}).Audit(); err == nil || !strings.Contains(err.Error(), "operation for OPERATOR") {
+		t.Fatalf("audit without the grant: %v", err)
 	}
 }

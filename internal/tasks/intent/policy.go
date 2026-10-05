@@ -375,10 +375,11 @@ func (p *Policy) PolicySha256() wire.Digest {
 }
 
 // ExplicitGrantOperations are operations a policy row may name for a role
-// although that role's default row omits them (ON-V0-004): an OPERATOR gets a
-// note verb only through an explicit policy.roles.OPERATOR row, never by
-// default. No other role may be granted them.
-var ExplicitGrantOperations = map[string][]string{"OPERATOR": {"NOTE_SET", "NOTE_CLEAR"}}
+// although that role's default row omits them: an OPERATOR gets a note verb
+// (ON-V0-004) or an escalation verb (ESC-V0-001, ESC-V0-004) only through an
+// explicit policy.roles.OPERATOR row, never by default. No other role may be
+// granted them.
+var ExplicitGrantOperations = map[string][]string{"OPERATOR": {"NOTE_SET", "NOTE_CLEAR", "ESCALATE", "ANSWER"}}
 
 // PolicyGrantable is the closed set a policy row for role may list: its
 // default row plus its explicit-only grants.
