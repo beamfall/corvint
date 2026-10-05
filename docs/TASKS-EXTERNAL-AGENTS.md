@@ -329,7 +329,8 @@ an opaque cursor anchored to the head the first page read. A dispatcher role pro
 `{operatorNote}`; it renders nothing for a never-noted ticket and otherwise a launch-time copy of
 the current note, labelled advisory. The claim result's `operatorNote` remains the authoritative
 note for the admitted attempt. The placeholder is refused in host argv, env and activity paths, and a role using it needs a host
-that passes `{prompt}` as one whole argv element (not inside a string, not after a shell `-c`).
+that passes `{prompt}` as one whole argv element and takes no code-string option such as `-c`,
+`-e`, `--eval` or `--command`; use a wrapper executable when a shell is needed.
 
 When every external review gate the policy declares or the ticket references is a CURRENT PASS and
 nothing else blocks an OPEN ticket, `ticket show`, `ticket blockers` and the `plan preview` entry

@@ -476,20 +476,19 @@ func validGates(gates []GateMatch) error {
 
 // noteSafeHost admits a host for a role prompt carrying {operatorNote}
 // (ON-V0-011) only when the rendered prompt reaches it as one whole argv
-// element that does not follow a shell-style -c option, and never inside an
-// activity path, so untrusted note prose is passed as data rather than spliced
-// into a command string. A program that itself evaluates its argument as code
-// remains outside what this check can see.
+// element, no argv element takes a code-string option (a single-dash cluster
+// containing c or e, or --command, --eval, --exec, --execute), and no activity
+// path renders it. Untrusted note prose is then passed as data rather than
+// spliced into, or offered as, a command string. A host that needs a shell
+// uses a wrapper executable. A program that evaluates a plain argument as
+// code remains outside what this check can see.
 func noteSafeHost(h Host) error {
 	for i, a := range h.Argv {
-		if !strings.Contains(a, "{prompt}") {
-			continue
-		}
-		if a != "{prompt}" {
+		if a != "{prompt}" && strings.Contains(a, "{prompt}") {
 			return fmt.Errorf("embeds {prompt} inside argv element %d", i)
 		}
-		if prev := h.Argv[i-1]; strings.HasPrefix(prev, "-") && !strings.HasPrefix(prev, "--") && strings.Contains(prev, "c") {
-			return fmt.Errorf("passes {prompt} as the %s command string", prev)
+		if i > 0 && codeOption(a) {
+			return fmt.Errorf("takes the code-string option %s", a)
 		}
 	}
 	for _, p := range h.ActivityPaths {
@@ -498,4 +497,11 @@ func noteSafeHost(h Host) error {
 		}
 	}
 	return nil
+}
+
+func codeOption(a string) bool {
+	if name, _, _ := strings.Cut(a, "="); name == "--command" || name == "--eval" || name == "--exec" || name == "--execute" {
+		return true
+	}
+	return len(a) > 1 && a[0] == '-' && a[1] != '-' && strings.ContainsAny(a[1:], "ce")
 }

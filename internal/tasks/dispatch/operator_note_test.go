@@ -105,10 +105,16 @@ func TestONV0011_OperatorNotePlaceholderIsPromptOnly(t *testing.T) {
 	// A note-bearing prompt must reach the host as one whole argv element,
 	// never spliced into a command string or a shell -c script.
 	for name, argv := range map[string][]string{
-		"embedded":  {"/bin/sh", "-c", "printf '%s' \"{prompt}\""},
-		"shell -c":  {"/bin/sh", "-c", "{prompt}"},
-		"shell -lc": {"/bin/zsh", "-lc", "{prompt}"},
-		"suffixed":  {"/usr/bin/agent", "--prompt={prompt}"},
+		"embedded":        {"/bin/sh", "-c", "printf '%s' \"{prompt}\""},
+		"shell -c":        {"/bin/sh", "-c", "{prompt}"},
+		"shell -lc":       {"/bin/zsh", "-lc", "{prompt}"},
+		"shell -c --":     {"/bin/sh", "-c", "--", "{prompt}"},
+		"shell -c -o":     {"/bin/sh", "-c", "-o", "pipefail", "{prompt}"},
+		"shell -c script": {"/bin/sh", "-c", `exec agent "$1"`, "sh", "{prompt}"},
+		"node -e":         {"/usr/bin/node", "-e", "{prompt}"},
+		"--eval=":         {"/usr/bin/tool", "--eval={prompt}"},
+		"--command":       {"/usr/bin/tool", "--command", "{prompt}"},
+		"suffixed":        {"/usr/bin/agent", "--prompt={prompt}"},
 	} {
 		c := testConfig(t, "true")
 		c.Roles[0].Prompt = "work {operatorNote}"
@@ -125,10 +131,10 @@ func TestONV0011_OperatorNotePlaceholderIsPromptOnly(t *testing.T) {
 	}
 	c := testConfig(t, "true")
 	c.Roles[0].Prompt = "work {operatorNote}"
-	c.Hosts["sh"] = Host{Argv: []string{"/bin/sh", "-c", `exec agent "$1"`, "sh", "{prompt}"}}
+	c.Hosts["sh"] = Host{Argv: []string{"/usr/bin/agent", "--print", "--verbose", "{prompt}"}}
 	raw, _ := json.Marshal(c)
 	if _, err := DecodeConfig(raw); err != nil {
-		t.Fatalf("whole-element {prompt} after a script refused: %v", err)
+		t.Fatalf("whole-element {prompt} for a plain agent refused: %v", err)
 	}
 	h := c.Hosts["sh"]
 	h.ActivityPaths = []string{"/tmp/{prompt}"}

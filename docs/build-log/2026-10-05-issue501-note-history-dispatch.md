@@ -42,9 +42,13 @@ needs the remaining ON-V0-010 evidence and owner acceptance.
     command line or an environment variable.
   - Codex round 1 (P1) showed that a host such as `/bin/sh -c "printf '%s' \"{prompt}\""` still
     splices the rendered prompt, and so the note, into shell code. A role whose prompt uses
-    `{operatorNote}` now needs a host that passes `{prompt}` only as one whole argv element that
-    does not follow a shell-style `-c` option (any single-dash option containing `c`), and never in
-    an activity path. This is fail-closed and may refuse some harmless options. A program that
+    `{operatorNote}` now needs a host that passes `{prompt}` only as one whole argv element.
+  - Codex round 2 (P1) showed that checking only the element before `{prompt}` is bypassed by
+    `/bin/sh -c -- {prompt}`. The rule now refuses any code-string option anywhere in a
+    note-bearing role's host argv: a single-dash cluster containing `c` or `e`, or `--command`,
+    `--eval`, `--exec` or `--execute`. It also refuses `{prompt}` in an activity path. A host that
+    needs a shell uses a wrapper executable. This is fail-closed and may refuse some harmless
+    options, such as `-v -e`. A program that
     evaluates its own argument as code is outside what config validation can see.
 
 ## Limits
