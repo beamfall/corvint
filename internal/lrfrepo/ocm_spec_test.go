@@ -150,3 +150,23 @@ func TestSessionContextDividendSpecEnumeratesEveryObligation(t *testing.T) {
 		t.Fatalf("registry locates %v in %s; want %v", registered, path, want)
 	}
 }
+
+// TestAgentLeasesSpecEnumeratesExecutionPrerequisites: the V1-0787
+// amendment sits inside ## Requirements, so OCM enumerates CAL-V0-099.
+// Enumeration proves visibility, not implementation.
+func TestAgentLeasesSpecEnumeratesExecutionPrerequisites(t *testing.T) {
+	path := "docs/specs/corvint-tasks-agent-leases-v0.md"
+	data, err := os.ReadFile("../../" + path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, requirements, _, err := requirementsFromBlob(path, "fixture-blob", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"CAL-V0-074", "CAL-V0-075", "CAL-V0-099"} {
+		if !slices.Contains(requirements, id) {
+			t.Errorf("OCM does not enumerate %s: %v", id, requirements)
+		}
+	}
+}

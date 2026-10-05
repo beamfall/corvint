@@ -104,7 +104,9 @@ classes UNSUPPORTED, unavailable gates GATE_UNKNOWN and unavailable capabilities
 The planner observes no worker pools or roles, so a `requiresPool` or `requiredRoles` requirement is
 also CAPABILITY_UNAVAILABLE. A current OPEN decision, scope or blocked typed-escalation question
 (`corvint-tasks-escalations-v0.md` ESC-V0-006) is a derived hold and blocks as ESCALATION_PENDING, through the shared `internal/tasks/wire` predicate the
-native Tasks reader uses.
+native Tasks reader uses. The planner is stageless, so every `executionPrerequisites` entry
+(`corvint-tasks-agent-leases-v0.md` CAL-V0-099) applies: a `GATE_PASSED` prerequisite is
+GATE_UNKNOWN and a missing or uncompleted `COMPLETED` prerequisite is PREREQUISITE_UNSATISFIED.
 History rejects invalid native IDs, unknown codes, zero/future ticket revisions and deferral
 sequences beyond their plan head. Native Identifier and Path bounds remain 128 and 512 bytes. Resource keys use the bound
 sibling Resource decoder's Identifier (128), including its extra Path check for PATH; a longer

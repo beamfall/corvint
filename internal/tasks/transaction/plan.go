@@ -154,7 +154,7 @@ func claimBlockerObservations(in PlanInput, rec *ticket.Record) (all, known, unk
 	if len(in.Policy.RequireEnforcedFields) != 0 {
 		add(ticket.Blocker{Code: wire.CodeBudgetUnknown}, true)
 	}
-	v, _ := in.Tickets.View(rec.TicketID.Raw, ticket.Context{CanonicalWriter: in.Queue.CanonicalWriter, SerialFallback: in.Policy.SerialFallback, Attempts: entryOracle{in.Reservations}})
+	v, _ := in.Tickets.View(rec.TicketID.Raw, ticket.Context{CanonicalWriter: in.Queue.CanonicalWriter, SerialFallback: in.Policy.SerialFallback, Attempts: entryOracle{in.Reservations}, Stage: in.Stage})
 	for _, b := range v.Blockers {
 		if b.Code != wire.CodeCoverageUnknown {
 			add(b, true)

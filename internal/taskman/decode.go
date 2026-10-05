@@ -59,8 +59,9 @@ var optionalTicketMembers = map[string]func(v wire.Value, revision, acceptance u
 		}
 		return nil
 	},
-	"escalations":     escalationRefs,
-	"externalReviews": externalReviews,
+	"escalations":            escalationRefs,
+	"externalReviews":        externalReviews,
+	"executionPrerequisites": executionPrerequisites,
 }
 
 // ticketObject checks the closed ticket record object and returns the

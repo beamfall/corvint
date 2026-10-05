@@ -133,7 +133,7 @@ func (c leaseContext) liveOn(ticketID string) string {
 // coverage blocker (a non-QUALIFIED ticket claims WHOLE_REPOSITORY) and the
 // live-attempt blocker, which the claim decides after reaping.
 func (c leaseContext) eligibility(id string) *leaseOutcome {
-	v, _ := c.st.tickets.View(id, ticket.Context{CanonicalWriter: c.st.queue.CanonicalWriter, SerialFallback: c.st.policy.SerialFallback, Attempts: entryOracle{c.st.reservations}})
+	v, _ := c.st.tickets.View(id, ticket.Context{CanonicalWriter: c.st.queue.CanonicalWriter, SerialFallback: c.st.policy.SerialFallback, Attempts: entryOracle{c.st.reservations}, Stage: c.l.Stage})
 	skip := map[string]bool{wire.CodeCoverageUnknown: true, wire.CodeAttemptLive: true}
 	for _, b := range append(v.Blockers, v.Unknowns...) {
 		if !skip[b.Code] {
