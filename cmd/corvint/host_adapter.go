@@ -284,6 +284,11 @@ func runCodexAdapter(ctx context.Context, payload map[string]any) (hookOutput ma
 	events := map[string]string{"SessionStart": "session-start", "UserPromptSubmit": "user-prompt", "Stop": "stop", "SessionEnd": "session-end"}
 	event, ok := events[eventName]
 	if !ok {
+		// An event this adapter does not handle stays non-blocking `{}` (AHI-044), but is
+		// recorded once its cwd resolves to a repository root (SOL-V0-010, V1-0746).
+		if root, _ := payload["cwd"].(string); filepath.IsAbs(root) && insideGitRepository(root) {
+			recordAdapterReason(ctx, root, "codex", "unrecognised", "unsupported-hook-event")
+		}
 		return map[string]any{}
 	}
 	root, ok := payload["cwd"].(string)
@@ -343,7 +348,12 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 	}
 	if event == "file-change" || event == "post-tool" {
 		silent := event == "post-tool" && postToolChangeOutOfRoot(root, payload)
-		return invokeLegacyClaudeEvent(ctx, root, event, normalized, silent)
+		output := invokeLegacyClaudeEvent(ctx, root, event, normalized, silent)
+		if silent {
+			// The out-of-root target stays silent (AHI-019) but is ledgered (SOL-V0-010, V1-0746).
+			recordAdapterReason(ctx, root, "claude-code", event, "post-tool-path-not-project-relative")
+		}
+		return output
 	}
 	guidance := claudeGuidance(root, normalized["sessionIdSha256"].(string))
 	reserve, _ := json.Marshal(renderClaudeContext(event, "", guidance))
@@ -422,11 +432,13 @@ func adapterDegradationReason(output map[string]any) string {
 // returned only after the work deadline expired; an unadmitted reason, relative root, or
 // unignored ledger records nothing.
 func recordAdapterDegradation(ctx context.Context, root, host, event string, output map[string]any) {
-	reason := adapterDegradationReason(output)
-	if reason == "" {
-		return
-	}
-	if !filepath.IsAbs(root) {
+	recordAdapterReason(ctx, root, host, event, adapterDegradationReason(output))
+}
+
+// recordAdapterReason appends one SOL-V0-010 row for reason under recordAdapterDegradation's
+// bounds. It also records a silent abstention whose hook output carries no degradation.
+func recordAdapterReason(ctx context.Context, root, host, event, reason string) {
+	if reason == "" || !filepath.IsAbs(root) {
 		return
 	}
 	row := observations.AdapterDegradationEvent(host, event, reason, version, time.Now())

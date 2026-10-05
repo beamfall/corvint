@@ -131,13 +131,19 @@ local append-only diagnostic proposal stream and `corvint observations` is its r
   reason keeps its code only when the `dogfood event`, dogfood error, or unsupported registry
   names it, and is otherwise recorded as `corvint-event-rejected`. The writer MUST NOT append a row
   byte-identical to one the ledger retains, so a host, event, code set and version is recorded at
-  most once per hour window. `SOL-V0-001`'s ignore and symlink refusals and `SOL-V0-002`/`003`'s
+  most once per hour window. Two silent abstentions attempt the same append, with the same
+  bounds, while their output stays unchanged (V1-0746). A Codex hook event the adapter does not
+  handle stays `{}` and, once its absolute `cwd` lies inside a Git repository, is recorded as event
+  `unrecognised` with code `unsupported-hook-event`; the host's event name is never recorded. A
+  Claude Code `post-tool` Edit, Write or NotebookEdit target outside the project stays silent
+  (`AHI-019`) and is recorded as `post-tool-path-not-project-relative`, without the path.
+  `SOL-V0-001`'s ignore and symlink refusals and `SOL-V0-002`/`003`'s
   bounds apply unchanged. The append MUST NOT alter the hook output or exit status and waits no
   longer than the later of the invocation's work deadline and 50 ms, so a
   `dogfood-event-deadline` row, even one returned after that deadline has expired, is still attempted;
   the Claude Code `adapter-host-kill-deadline` row is attempted after the watchdog fires, waits at
   most 50 ms, and is abandoned past it. A reason
-  returned before root resolution (`unsupported-hook-event`, `hook-input-too-large`,
+  returned before root resolution (Claude Code's `unsupported-hook-event`, `hook-input-too-large`,
   `malformed-hook-json`, `missing-cwd`, `project-root-unavailable`), `corvint-output-too-large` at
   emission, the Codex kill deadline, and `claude-source-handoff` and `source-view` (`ESV-V0-003`)
   record nothing. Triage prints one `ADAPTER-DEGRADATION windows=N key=HOST/EVENT/CODE
@@ -165,6 +171,7 @@ the existing agent-memory convention.
 | ledger over 128 KiB | triage reads the first 128 KiB and reports `LEDGER-CUT` |
 | unsupported code lacks owning spec | print an explicit DRAFT capability gap, never invent ownership |
 | adapter degradation before root resolution, or Codex kill deadline | no row; the hook output is unchanged |
+| unhandled Codex event or out-of-project Claude Code post-tool target | one row with its named code; the silent hook output is unchanged |
 | adapter rejection code outside the closed registries | record bare `corvint-event-rejected`, never the unregistered code |
 | adapter append exceeds its deadline or lock is held | abandon the append; the hook output is unchanged |
 | same adapter row already retained in its hour window | no write |
@@ -181,9 +188,9 @@ that OCM enumerates all ten clauses from this document; it does not validate the
 | SOL-V0-007 | unsupported aggregation test; `TestUnsupportedByDesignCodeIsReportedSeparately`; `TestOCMUnsupportedRefusalAppendsOneObservation`; `TestLRFCEMAndDogfoodOCMUnsupportedRefusalsAppendOneObservationEach`; `TestIndexBuildingCommandsRecordUnsupportedRefusal`; `TestRunFrontierUnsupportedRefusalLeavesRepositoryUnchanged` (exclusion); `TestRecordUnsupportedVerifySyntaxAppendsOneObservation`; `TestRecordUnsupportedSkipsObservationBehindAnOversizedIgnoreFile`; `TestDogfoodRecordUnsupportedVerifySyntaxAppendsOneObservation`; `TestRefusalSnapshotExceptsOnlyTheIgnoredLedger` (conformance refusal snapshot); `TestHostAdapterUnsupportedHookEventRecordsNoObservation` (exclusion); `TestBatchRefusesWithoutSnapshot` (exclusion); `TestCLIReadVerbsLeaveTheRepositoryByteIdentical` (adapter codex/claude-code CLI-level exclusion) |
 | SOL-V0-008 | bounded writer CLI test, report-row integration test, append concurrency tests, and `TestDogfoodReasonAdmitsEveryRegisteredCEMCode` |
 | SOL-V0-009 | `TestFalsificationRateCountsJudgedRowsOnly`, `TestProveObserveRecordsOnlyTheVerdictCounts`, `TestProveObserveRejectsWhatIsNotAProof` |
-| SOL-V0-010 | `TestAdapterDegradationRowCarriesNoContentFields`, `TestAdapterDegradationAdmitsCompactionEventsAndCodes`, `TestAdapterDegradationDeduplicatesWithinWindow`, `TestAdapterDegradationRowsHonorLedgerCap`, `TestRenderTalliesAdapterDegradations`, `TestClaudeAdapterQuietDegradationIsLedgered`, `TestAdapterDegradationRecordedPastExpiredWorkDeadline`; `TestCLIReadVerbsLeaveTheRepositoryByteIdentical` (adapter paths touch nothing but the ledger) |
+| SOL-V0-010 | `TestAdapterDegradationRowCarriesNoContentFields`, `TestAdapterDegradationAdmitsCompactionEventsAndCodes`, `TestAdapterDegradationDeduplicatesWithinWindow`, `TestAdapterDegradationRowsHonorLedgerCap`, `TestRenderTalliesAdapterDegradations`, `TestClaudeAdapterQuietDegradationIsLedgered`, `TestAdapterDegradationRecordedPastExpiredWorkDeadline`, `TestAdapterSilentAbstentionsAreLedgered`; `TestCLIReadVerbsLeaveTheRepositoryByteIdentical` (adapter paths touch nothing but the ledger) |
 
 Rollback is deletion of the gitignored ledger and removal of its post-receipt best-effort call; no
 repository evidence or authority depends on it. `SOL-V0-010` rolls back by removing the adapter's
-`recordAdapterDegradation` calls; retained `adapter-degradation` rows then age out under the cap,
+`recordAdapterDegradation` and `recordAdapterReason` calls; retained `adapter-degradation` rows then age out under the cap,
 and triage ignores them once the reader is removed.

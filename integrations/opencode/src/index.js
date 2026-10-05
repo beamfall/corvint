@@ -126,6 +126,10 @@ async function setup(ctx) {
       pendingFileChanges.set(key, batch)
     }
     if (batch.paths.size < MAX_TRACKED_PATHS) batch.paths.add(changed)
+    else if (!batch.paths.has(changed) && !batch.truncated) {
+      batch.truncated = true
+      record("changed-paths-truncated", "file-change")
+    }
     if (!fileChangeDrain) {
       fileChangeDrain = drainFileChanges().finally(() => {
         fileChangeDrain = undefined
@@ -209,6 +213,8 @@ async function setup(ctx) {
     return content
   }
 
+  const outsideProject = (value) => typeof value === "string" && value !== "" && !normalizeRepositoryPath(root, value)
+
   const rememberPath = (value, rawSessionId) => {
     const normalized = normalizeRepositoryPath(root, value)
     if (!normalized) return undefined
@@ -216,6 +222,10 @@ async function setup(ctx) {
     if (bound) {
       if (bound.state.changedPaths.size < MAX_TRACKED_PATHS) {
         bound.state.changedPaths.add(normalized)
+      } else if (!bound.state.changedPaths.has(normalized) && !bound.state.pathsTruncated) {
+        // V1-0746: stop and session-end now carry an incomplete path set; say so once per session.
+        bound.state.pathsTruncated = true
+        record("changed-paths-truncated", "post-tool")
       }
       bound.state.stopArmed = true
     }
@@ -327,6 +337,10 @@ async function setup(ctx) {
       const targets = call.status === "completed" ? (CHANGED_TARGETS[call.tool]?.(call) ?? []) : []
       const edited = boundedPaths(root, targets)
       const metadata = call.result?.metadata
+      // V1-0746: a host-reported path outside the project is dropped, but named at info level.
+      if ([...targets, ...(Array.isArray(metadata?.corvint?.changedPaths) ? metadata.corvint.changedPaths : [])].some(outsideProject)) {
+        record("post-tool-path-not-project-relative", "post-tool")
+      }
       const changedPaths = boundedPaths(root, [...edited, ...boundedPaths(root, metadata?.corvint?.changedPaths)])
       for (const changed of changedPaths) rememberPath(changed, call.sessionID)
       let drained

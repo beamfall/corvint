@@ -456,6 +456,26 @@ test('CRB-V0-010 CRB-V0-011 OpenCode loaded plugin keeps exact aliases, option p
  const started=f.captured().at(-1).argv;assert.equal(started[started.indexOf('--host-version')+1],'2.0.18')
 })
 
+test('AHI-022 V1-0746 OpenCode names the path cap and an out-of-project path at info level',async t=>{
+ const f=fixture(t)
+ const warnings=spyConsole(t,'warn'),infos=spyConsole(t,'info')
+ const host=await openCode(t,f.root,{corvintBinary:f.binary,hostVersion:'unknown',...OPEN_TIMEOUTS})
+ await host.emit('session.created',{sessionID:'session-cap'})
+ const patched=(id,files)=>({tool:'patch',sessionID:'session-cap',id,status:'completed',input:{},result:{output:{applied:files.map(file=>({target:join(f.root,file)}))}}})
+ const files=offset=>Array.from({length:200},(_,i)=>`dir/f${offset+i}.js`)
+ // Both calls queue before the drain starts, so one file-change batch and the session set pass 256.
+ await Promise.all([host.hooks['execute.after'](patched('call-1',files(0))),host.hooks['execute.after'](patched('call-2',files(200)))])
+ const codes=infos.map(v=>JSON.parse(v.slice('[corvint/opencode] '.length))).filter(n=>n.code==='changed-paths-truncated').map(n=>n.event).sort()
+ assert.deepEqual(codes,['file-change','post-tool']);assert.deepEqual(warnings,[])
+ const rows=f.captured(),event=r=>r.argv[r.argv.indexOf('--event')+1]
+ assert.equal(rows.find(r=>event(r)==='file-change').input.paths.length,256)
+ assert.equal(infos.filter(v=>v.includes('post-tool-path-not-project-relative')).length,0)
+ await host.hooks['execute.after']({...patched('call-3',[]),result:{output:{applied:[{target:'/elsewhere/outside.js'}]}}})
+ assert.equal(infos.filter(v=>v.includes('post-tool-path-not-project-relative')).length,1);assert.deepEqual(warnings,[])
+ await host.emit('session.execution.succeeded',{sessionID:'session-cap'})
+ assert.equal(f.captured().filter(r=>event(r)==='stop').at(-1).input.changedPaths.length,256)
+})
+
 test('AHI-022 OpenCode routine receipt goes to the info log and a fault keeps its warning',async t=>{
  const f=fixture(t)
  const warnings=spyConsole(t,'warn'),infos=spyConsole(t,'info')
