@@ -226,7 +226,7 @@ func programCommand(env Env, verb string, args []string) *wire.Result {
 				if errors.Is(e, store.ErrProgramIdle) {
 					continue
 				}
-				r := errorResult(cmd, e)
+				r := laneFailureResult(cmd, e, failures)
 				r.Items = append(allItems, items[:i]...)
 				return r
 			}
@@ -249,4 +249,21 @@ func configHost(flag, host string) bool {
 		host = supervisor.HostCodex
 	}
 	return (flag == supervisor.HostCodex || flag == supervisor.HostClaudeCode || flag == supervisor.HostOpenCode) && flag == host
+}
+
+// laneFailureResult reports the first failed lane of a batch. A repeat runs
+// every lane again, so the command is not retryable when any other failed lane
+// is not, by its mark or its code, even if the reported one is (CAL-V0-078).
+// Successful and idle lanes do not count.
+func laneFailureResult(cmd []string, first error, failures []error) *wire.Result {
+	r := errorResult(cmd, first)
+	for _, e := range failures {
+		if e == nil || errors.Is(e, store.ErrProgramIdle) {
+			continue
+		}
+		if wire.RetryForbidden(e) || !wire.RetryOf(wire.CodeOf(e)).Retryable {
+			r.NotRetryable = true
+		}
+	}
+	return r
 }

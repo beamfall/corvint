@@ -138,6 +138,10 @@ func observePool(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 	return leaseOnce(WithClock(ctx, poolClock), repo, actor, choice, poolClock())
 }
 
+// poolPreparedFault, when set by a package test, fails PoolCommand right after
+// its preparation or cleanup receipt commits; it is nil in production.
+var poolPreparedFault func() error
+
 // PoolCommand explicitly probes a free member or cleans a quarantined allocation.
 // The preparation receipt precedes execution; replay never repeats execution.
 func PoolCommand(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, kind string) (*Report, error) {
@@ -178,6 +182,15 @@ func PoolCommand(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 	if e != nil || report.Kind != "Transaction" {
 		return report, e
 	}
+	// The preparation or cleanup receipt is committed. A same-request retry
+	// replays it and neither runs the program nor records an observation, so
+	// from here no result is retryable (CAL-V0-078).
+	report.Unretryable = true
+	if poolPreparedFault != nil {
+		if e = poolPreparedFault(); e != nil {
+			return report, e
+		}
+	}
 	_, state, e = poolSnapshot(ctx, repo)
 	if e != nil {
 		return report, e
@@ -191,7 +204,12 @@ func PoolCommand(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 	if e != nil {
 		return report, e
 	}
-	return observePool(context.WithoutCancel(ctx), repo, actor, choice, en, raw)
+	observed, e := observePool(context.WithoutCancel(ctx), repo, actor, choice, en, raw)
+	if observed == nil {
+		observed = &Report{}
+	}
+	observed.Unretryable = true
+	return observed, e
 }
 
 // healthPrepareHook, when set by a test, runs before each health preparation.

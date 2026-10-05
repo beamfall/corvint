@@ -468,7 +468,9 @@ func (r *attemptRunner) finish(out transaction.RunOutcome) int {
 		}
 	}
 	out.Heartbeats, out.Renewals = r.beats, r.renewals
-	res := &wire.Result{Command: []string{"run"}, Outcome: wire.OutcomeOK, Codes: []string{}, Warnings: []string{}}
+	// The child already ran: reissuing `attempt run` would run it again, so a
+	// coded result here is never retryable whatever its codes (CAL-V0-078).
+	res := &wire.Result{Command: []string{"run"}, Outcome: wire.OutcomeOK, Codes: []string{}, Warnings: []string{}, NotRetryable: true}
 	item := wire.NewObject()
 	receipt, digest := wire.Null(), wire.Null()
 	raw, err := transaction.EncodeRunOutcome(out)

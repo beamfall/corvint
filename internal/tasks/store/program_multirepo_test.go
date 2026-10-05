@@ -73,11 +73,23 @@ func newMultiFixture(t *testing.T, touch ...string) *multiFixture {
 // policy's required `verify` gate.
 func buildMultiFixture(t *testing.T, keepGates bool, touch ...string) *multiFixture {
 	t.Helper()
+	return buildProgramFixture(t, keepGates, true, nil, touch...)
+}
+
+// buildProgramFixture is buildMultiFixture; without multi it declares no
+// extra repository and the fake host edits only the queue worktree. A
+// non-nil gates replaces the policy's gates with one required gate per id,
+// each a command that exits 0.
+func buildProgramFixture(t *testing.T, keepGates, multi bool, gates []string, touch ...string) *multiFixture {
+	t.Helper()
 	s := newLeaseStore(t)
 	payload := createPayload("multi")
 	effects, _ := payload.Obj.Get("effects")
 	if len(touch) == 0 {
 		touch = []string{"@docs/", "hello.txt"}
+		if !multi {
+			touch = []string{"hello.txt"}
+		}
 	}
 	effects.Obj.Set("touchPaths", wire.Strings(touch))
 	report := mutate(t, s.repo, envelope("create-multi", "CREATE", "", "", payload))
@@ -85,23 +97,34 @@ func buildMultiFixture(t *testing.T, keepGates bool, touch ...string) *multiFixt
 		t.Fatalf("create %+v", report)
 	}
 	multiCommitted(t, s.repo.PrimaryWorktree, "hello.txt", "base\n")
-	extra := filepath.Join(fixture.TempDirOutside(t), "docs")
-	if err := os.Mkdir(extra, 0o755); err != nil {
-		t.Fatal(err)
+	extra, docsEdit := "", ""
+	if multi {
+		extra = filepath.Join(fixture.TempDirOutside(t), "docs")
+		if err := os.Mkdir(extra, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		multiCommitted(t, extra, "note.txt", "base\n")
+		docsEdit = "  printf 'changed\\n' > \"$PWD@docs/note.txt\"\n"
 	}
-	multiCommitted(t, extra, "note.txt", "base\n")
 
 	scripts := fixture.TempDirOutside(t)
 	claim := string(wire.Sum([]byte("it exists")))
 	codex := filepath.Join(scripts, "codex")
 	codexRaw := multiScript(t, codex, `#!/bin/sh
-cat >/dev/null
+case "$(cat)" in
+*"Read-only integration verification"*)
+  echo '{"type":"thread.started","thread_id":"integrate-session"}'
+  echo '{"type":"turn.started"}'
+  echo '{"type":"item.completed","item":{"type":"agent_message","text":"{\"kind\":\"HANDOFF\",\"summary\":\"verified\",\"nextAction\":\"integrate\"}"}}'
+  echo '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
+  exit 0
+  ;;
+esac
 case " $* " in
 *" workspace-write "*)
   printf '%s\n' "$*" > "`+scripts+`/implement-args"
   printf 'changed\n' > hello.txt
-  printf 'changed\n' > "$PWD@docs/note.txt"
-  echo '{"type":"thread.started","thread_id":"implement-session"}'
+`+docsEdit+`  echo '{"type":"thread.started","thread_id":"implement-session"}'
   echo '{"type":"turn.started"}'
   echo '{"type":"item.completed","item":{"type":"agent_message","text":"{\"kind\":\"BUILT\",\"summary\":\"edited both repositories\",\"nextAction\":\"review\"}"}}'
   ;;
@@ -122,19 +145,40 @@ echo '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}'
 	if !keepGates {
 		v.Obj.Set("gates", wire.Array())
 	}
+	if gates != nil {
+		base, _ := v.Obj.Get("gates")
+		list := []wire.Value{}
+		for _, id := range gates {
+			g := wire.ObjectValue(wire.NewObject())
+			for _, k := range base.Arr[0].Obj.Keys {
+				member, _ := base.Arr[0].Obj.Get(k)
+				g.Obj.Set(k, member)
+			}
+			g.Obj.Set("gateId", str(id))
+			g.Obj.Set("argv", wire.Strings([]string{"/bin/sh", "-c", "exit 0"}))
+			list = append(list, g)
+		}
+		v.Obj.Set("gates", wire.Array(list...))
+	}
 	v.Obj.Set("capacity", obj("maxActiveAttempts", str("4"), "maxWorkersTotal", str("4"), "classes", wire.Array()))
 	budgets, _ := v.Obj.Get("budgets")
 	budgets.Obj.Set("requireEnforcedFields", wire.Strings(nil))
 	digest := string(wire.Sum(nil))
-	v.Obj.Set("runtimes", wire.Array(obj("runtimeId", str(snapshot.SupervisedProfile), "executable", obj("pathSha256", str(string(wire.Sum([]byte(codex)))), "fileSha256", str(string(wire.Sum(codexRaw))), "mode", str("0755")), "argvPrefix", wire.Array(), "capabilityProfileSha256", str(digest), "observedBudgetFields", wire.Array(), "roles", wire.Strings([]string{"BUILDER", "REVIEWER"}), "maxWorkers", str("1"), "enabled", wire.Bool(true))))
-	v.Obj.Set("supervision", obj("profile", str(snapshot.SupervisedProfile), "contextRequired", wire.Bool(true), "maxRepairCycles", str("1"),
-		"program", obj("turns", str("8"), "wallClockMinutes", str("600"), "inputTokens", str("0"), "outputTokens", str("0")),
-		"repositories", obj("docs", obj("pathSha256", str(string(wire.Sum([]byte(extra))))))))
+	v.Obj.Set("runtimes", wire.Array(obj("runtimeId", str(snapshot.SupervisedProfile), "executable", obj("pathSha256", str(string(wire.Sum([]byte(codex)))), "fileSha256", str(string(wire.Sum(codexRaw))), "mode", str("0755")), "argvPrefix", wire.Array(), "capabilityProfileSha256", str(digest), "observedBudgetFields", wire.Array(), "roles", wire.Strings([]string{"BUILDER", "REVIEWER", "VERIFIER"}), "maxWorkers", str("1"), "enabled", wire.Bool(true))))
+	supervision := obj("profile", str(snapshot.SupervisedProfile), "contextRequired", wire.Bool(true), "maxRepairCycles", str("1"),
+		"program", obj("turns", str("8"), "wallClockMinutes", str("600"), "inputTokens", str("0"), "outputTokens", str("0")))
+	if multi {
+		supervision.Obj.Set("repositories", obj("docs", obj("pathSha256", str(string(wire.Sum([]byte(extra)))))))
+	}
+	v.Obj.Set("supervision", supervision)
 	rep, e := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("multi-policy", "2", wire.EncodeFile(v)), now(t))
 	if e != nil || rep.Outcome.Outcome != mutation.OutcomeCompleted {
 		t.Fatalf("policy %+v %v", rep, e)
 	}
-	c := store.ProgramConfig{Profile: snapshot.SupervisedProfile, Executable: codex, ExecutableSHA256: supervisor.Digest(codexRaw), Model: "pinned-model", Effort: "low", WorkRoot: fixture.TempDirOutside(t), WallSeconds: 600, CoreExecutable: core, CoreSHA256: supervisor.Digest(coreRaw), Repositories: []store.ProgramRepository{{Name: "docs", Checkout: extra}}}
+	c := store.ProgramConfig{Profile: snapshot.SupervisedProfile, Executable: codex, ExecutableSHA256: supervisor.Digest(codexRaw), Model: "pinned-model", Effort: "low", WorkRoot: fixture.TempDirOutside(t), WallSeconds: 600, CoreExecutable: core, CoreSHA256: supervisor.Digest(coreRaw)}
+	if multi {
+		c.Repositories = []store.ProgramRepository{{Name: "docs", Checkout: extra}}
+	}
 	return &multiFixture{s: s, ticketID: report.Ticket, extra: extra, scripts: scripts, config: c}
 }
 

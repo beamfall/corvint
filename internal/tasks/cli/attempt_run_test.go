@@ -539,3 +539,15 @@ func TestATRV0005_OutcomeDocumentIsClosed(t *testing.T) {
 		}
 	}
 }
+
+// TestCALV0078_UnrecordedRunIsNotRetryable: an unrecorded outcome carries the
+// retryable LOCK_TIMEOUT code, but the child already ran, so the envelope
+// reports retryable false (a retry would run the child again).
+func TestCALV0078_UnrecordedRunIsNotRetryable(t *testing.T) {
+	root, a := attemptStore(t)
+	defer cli.SetAttemptWriteFault(failVerb(transaction.LeaseRunOutcome))()
+	r := runAttempt(t, root, a, gen(a), []string{"--timeout", "30"}, "/bin/sh", "-c", "exit 0")
+	if r.code != 127 || !hasCode(r.res, wire.CodeLockTimeout) || !r.res.NotRetryable {
+		t.Fatalf("unrecorded run: code %d %+v", r.code, r.res)
+	}
+}

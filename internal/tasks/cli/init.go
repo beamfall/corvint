@@ -115,5 +115,5 @@ func initCommand(env Env, args []string) *wire.Result {
 // errorResult reports a refusal or failure with its own code, so a caller
 // sees which step did not happen rather than a bare failure.
 func errorResult(cmd []string, err error) *wire.Result {
-	return &wire.Result{Command: cmd, Outcome: wire.OutcomeError, Codes: []string{wire.CodeOf(err)}, Warnings: []string{prose(err.Error())}}
+	return &wire.Result{Command: cmd, Outcome: wire.OutcomeError, Codes: []string{wire.CodeOf(err)}, Warnings: []string{prose(err.Error())}, NotRetryable: wire.RetryForbidden(err)}
 }

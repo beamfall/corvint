@@ -51,6 +51,9 @@ type Result struct {
 	Page      *Page
 	Untrusted bool
 	Warnings  []string
+	// NotRetryable forces retryable false on a coded non-OK result whose
+	// command already ran an effect that a retry would repeat (CAL-V0-078).
+	NotRetryable bool
 }
 
 func sizeOrNull(p *Size) Value {
@@ -88,13 +91,18 @@ func sortedUniqueStrings(ss []string) []string {
 }
 
 // Value renders the envelope. Codes and warnings are non-semantic arrays and
-// are sorted; items keep their semantic order.
+// are sorted; items keep their semantic order. A non-OK result with codes
+// carries the derived retryable member (CAL-V0-078); OK and uncoded results
+// keep their earlier bytes.
 func (r *Result) Value() Value {
 	o := NewObject()
 	o.Set("profile", String(ProfileCommandResult))
 	o.Set("command", Strings(r.Command))
 	o.Set("outcome", String(r.Outcome))
 	o.Set("codes", Strings(sortedUniqueStrings(r.Codes)))
+	if retryable, present := ResultRetryable(r.Outcome, r.Codes); present {
+		o.Set("retryable", Bool(retryable && !r.NotRetryable))
+	}
 	if r.Snapshot == nil {
 		o.Set("snapshot", Null())
 	} else {
@@ -165,14 +173,16 @@ func (r *Result) Encode() ([]byte, error) {
 }
 
 // DecodeResult parses and validates an envelope. Items are kept as opaque
-// values (their kind is verb-specific).
+// values (their kind is verb-specific). The retryable member is optional so
+// earlier bytes still decode; when present it may be true only when every code
+// is retryable, and false there sets NotRetryable (CAL-V0-078).
 func DecodeResult(data []byte) (*Result, error) {
 	v, err := Parse(data)
 	if err != nil {
 		return nil, err
 	}
 	rd := NewReader(v, "/")
-	rd.Closed("profile", "command", "outcome", "codes", "snapshot", "mutation", "items", "page", "untrusted", "warnings")
+	rd.Closed(OptionalKeys(v, []string{"profile", "command", "outcome", "codes", "snapshot", "mutation", "items", "page", "untrusted", "warnings"}, "retryable")...)
 	if err := rd.Err(); err != nil {
 		return nil, err
 	}
@@ -187,6 +197,16 @@ func DecodeResult(data []byte) (*Result, error) {
 		}
 		return s
 	})
+	if Has(v, "retryable") {
+		got := rd.Field("retryable").Bool()
+		want, present := ResultRetryable(res.Outcome, res.Codes)
+		if rd.st.err == nil && !present {
+			rd.Field("retryable").Fail(CodeMalformed, "retryable is present only on a non-OK result with codes")
+		} else if rd.st.err == nil && got && !want {
+			rd.Field("retryable").Fail(CodeMalformed, "retryable is true but a code is not retryable")
+		}
+		res.NotRetryable = present && want && !got
+	}
 	sn := rd.Field("snapshot")
 	if !sn.IsNull() {
 		sn.Closed("headSeq", "headReceiptSha256", "intentTreeSha256", "primaryWorktreeSha256", "pendingRedo", "barrier")
