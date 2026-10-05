@@ -20,9 +20,11 @@ Specified as the extended `PCH-V0-001`/`PCH-V0-003` and the new `PCH-V0-015`.
   - a secret in the delta job;
   - a write permission in the delta job.
 - **Local conformance.** `TestTemplateDeltaReplayConformance` runs the shipped `resolve` and
-  delta scripts unmodified under bash and POSIX sh against a fixture `--no-ff` merge, using a
-  locally built `corvint`. Each step starts in `GITHUB_WORKSPACE`, as on a hosted runner.
-  - The record must be byte-equal to a direct `corvint delta` of the merge's first parent and head.
+  delta scripts unmodified under bash and POSIX sh against a fixture `--no-ff` merge and a
+  non-merge change, using a locally built `corvint`. Each step starts in `GITHUB_WORKSPACE`, as on
+  a hosted runner.
+  - The record must be byte-equal to a direct `corvint delta` of the change's first parent and
+    head.
   - A root commit and an absent change must fail the step and leave no record.
 
 ### Evidence
@@ -35,8 +37,11 @@ Specified as the extended `PCH-V0-001`/`PCH-V0-003` and the new `PCH-V0-015`.
 ### Limits
 
 - No hosted run. The checkout, setup-go and upload actions did not run.
+- A shallow checkout missing the parent and a refusal raised inside `corvint delta` itself are not
+  replayed.
 - No later step consumes the record yet, and the record's `build` field is the binary's default
-  label because `install-pinned.sh` sets no link-time flags.
+  label `"0"`, because `install-pinned.sh` sets no link-time flags (kept by owner decision on
+  2026-10-05; see `2026-10-05-v1-0545-pch-v0-owner-acceptance.md`).
 - Physical isolation, a hosted dry-run of the #395 replay set, and owner acceptance of PCH-V0
   remain pending.
 

@@ -11,9 +11,10 @@ import (
 
 // PCH-V0-015: the reference pipeline's resolve and delta scripts, run
 // unmodified under bash and POSIX sh against a local fixture with a locally
-// built corvint, replay one merged change by its full id into exactly the
-// record that corvint delta emits for its first parent. A change without a
-// first parent or outside the checkout fails the step and leaves no record.
+// built corvint, replay a merged change (merge or not) by its full id into
+// exactly the record that corvint delta emits for its first parent. A change
+// without a first parent or outside the checkout fails the step and leaves no
+// record.
 func TestTemplateDeltaReplayConformance(t *testing.T) {
 	repo, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
@@ -63,22 +64,27 @@ func TestTemplateDeltaReplayConformance(t *testing.T) {
 	git("merge", "--quiet", "--no-ff", "-m", "merge feature", "feature")
 	change := git("rev-parse", "HEAD")
 
-	want := exec.Command(filepath.Join(bin, "corvint"), "--root", product, "delta", "--base", parent, "--head", change)
-	expected, err := want.Output()
-	if err != nil {
-		t.Fatalf("direct corvint delta: %v", err)
+	direct := func(base, head, paths string) []byte {
+		t.Helper()
+		out, err := exec.Command(filepath.Join(bin, "corvint"), "--root", product, "delta", "--base", base, "--head", head).Output()
+		if err != nil {
+			t.Fatalf("direct corvint delta %s..%s: %v", base, head, err)
+		}
+		var record struct {
+			Schema, Base, Head, Tree string
+			ChangedPaths             []string
+		}
+		if err := json.Unmarshal(out, &record); err != nil {
+			t.Fatal(err)
+		}
+		if record.Schema != "corvint-delta/0" || record.Base != base || record.Head != head ||
+			record.Tree != git("rev-parse", head+"^{tree}") || strings.Join(record.ChangedPaths, ",") != paths {
+			t.Fatalf("direct record %s", out)
+		}
+		return out
 	}
-	var record struct {
-		Schema, Base, Head, Tree string
-		ChangedPaths             []string
-	}
-	if err := json.Unmarshal(expected, &record); err != nil {
-		t.Fatal(err)
-	}
-	if record.Schema != "corvint-delta/0" || record.Base != parent || record.Head != change ||
-		record.Tree != git("rev-parse", change+"^{tree}") || strings.Join(record.ChangedPaths, ",") != "calc.go,calc_test.go" {
-		t.Fatalf("direct record %s", expected)
-	}
+	mergeRecord := direct(parent, change, "calc.go,calc_test.go")
+	linearRecord := direct(root, parent, "README.md")
 
 	steps, err := ParseYAML([]byte(template(t, "postmerge.yml")))
 	if err != nil {
@@ -90,11 +96,12 @@ func TestTemplateDeltaReplayConformance(t *testing.T) {
 	path := "PATH=" + bin + string(os.PathListSeparator) + os.Getenv("PATH")
 	for _, tc := range []struct {
 		name, requested string
-		ok              bool
+		expected        []byte
 	}{
-		{"merge", change, true},
-		{"root commit has no first parent", root, false},
-		{"change outside the checkout", strings.Repeat("ab", 20), false},
+		{"merge", change, mergeRecord},
+		{"non-merge change", parent, linearRecord},
+		{"root commit has no first parent", root, nil},
+		{"change outside the checkout", strings.Repeat("ab", 20), nil},
 	} {
 		temp := t.TempDir()
 		output := filepath.Join(temp, "output")
@@ -106,14 +113,14 @@ func TestTemplateDeltaReplayConformance(t *testing.T) {
 				t.Fatalf("%s %s: resolve err %v output %q", tc.name, shell, err, data)
 			}
 			resolved, _, _ = strings.Cut(strings.TrimPrefix(string(data), "change="), "\n")
-		}, "REQUESTED_CHANGE="+tc.requested, "REQUESTED_MODE=dry-run", "GITHUB_OUTPUT="+output)
+		}, "REQUESTED_CHANGE="+tc.requested, "REQUESTED_MODE=dry-run", "GITHUB_OUTPUT="+output, "GITHUB_WORKSPACE="+workspace)
 		runStep(t, "postmerge.yml", "delta", 4, func(shell string, err error) {
 			got, readErr := os.ReadFile(filepath.Join(temp, "delta", "delta.json"))
 			_ = os.RemoveAll(filepath.Join(temp, "delta"))
 			switch {
-			case tc.ok && (err != nil || string(got) != string(expected)):
-				t.Errorf("%s %s: err %v record %q, want %q", tc.name, shell, err, got, expected)
-			case !tc.ok && (err == nil || readErr == nil):
+			case tc.expected != nil && (err != nil || string(got) != string(tc.expected)):
+				t.Errorf("%s %s: err %v record %q, want %q", tc.name, shell, err, got, tc.expected)
+			case tc.expected == nil && (err == nil || readErr == nil):
 				t.Errorf("%s %s: err %v, record present %v", tc.name, shell, err, readErr == nil)
 			}
 		}, "CHANGE="+resolved, "RUNNER_TEMP="+temp, "GITHUB_WORKSPACE="+workspace, path)

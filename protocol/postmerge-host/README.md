@@ -3,7 +3,7 @@
 
 This directory is reference material for operators who run the Corvint post-merge workflow on
 their own CI host. Corvint itself stays a local binary: it ships no hosted service, daemon, account
-or network dependency. Intent is proposed and delivery is experimental under PCH-V0
+or network dependency. Intent is accepted and delivery is experimental under PCH-V0
 (`docs/specs/postmerge-ci-host-v0.md`). Nothing here has run on a hosted runner yet.
 
 | File | Purpose |
@@ -119,5 +119,6 @@ item from its own export, not from author output.
 - Attestation on the same virtual machine is not confinement.
 - No template has run on a hosted runner, and no replay set has run in dry-run mode. Only the
   `resolve` and `delta` step scripts have run locally, against a fixture merge (PCH-V0-015).
-- The pinned install builds without link-time flags, so the delta record's `build` field is the
-  binary's default label. The pin binds through the digest file, not through the record.
+- By owner decision, the pinned install builds without link-time flags, so the delta record's
+  `build` field is the binary's default label `"0"`. The pin binds through the digest file, not
+  through the record.

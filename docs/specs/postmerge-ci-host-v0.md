@@ -2,17 +2,18 @@
 
 Owner: Russell Lewis
 Date: 2026-10-01
-Intent status: proposed
+Intent status: accepted
 Delivery status: experimental
 Authoritative inputs: human request https://github.com/beamfall/corvint/issues/398 (part of #388);
+owner acceptance 2026-10-05 recorded on V1-0545 (rev 17, receipts 2745 and 2746);
 `docs/specs/postmerge-connectors-v0.md`; `docs/specs/authoring-step-scope-v0.md`;
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; `AGENTS.md`.
 
 ## Agent digest
 - Claim: Reference CI templates and an optional paired launcher have source conformance; physical isolation and hosted replay remain unqualified.
-- Status: proposed/experimental; declared-YAML audit, local trigger-to-delta template conformance and bounded paired source conformance. Physical boundary and hosted replay qualification remain pending.
+- Status: accepted/experimental; declared-YAML audit, local trigger-to-delta template conformance and bounded paired source conformance. Physical boundary and hosted replay qualification remain pending.
 - Exists: `protocol/postmerge-host` (graph, templates, installer, adapter contract); `internal/postmergehost` (audit, strict paired wire, fixed Linux shim, bounded launcher and source conformance tests); `cmd/corvint-postmerge-host-launcher` (optional command). Physical host execution is unqualified.
-- Blocked on: the merge replay set (#395), a hosted dry-run of that set, delta consumption by later steps, owner acceptance and native completion.
+- Blocked on: the merge replay set (#395), a hosted dry-run of that set, delta consumption by later steps and native completion.
 - Read next: Requirements; Trust boundary; Acceptance evidence.
 
 ## User and measurable job
@@ -134,19 +135,23 @@ Corvint stays a local binary. The templates are operator reference material, not
 - `PCH-V0-014`: Candidate limits, actual immutable image/tool/source/shim/author pins, observed full image/hold/author environments, mounts/namespaces and lifecycle facts are retained for the exact executed tuple. The candidate has 16MiB private home/temp, not14GiB copied work. No generalized kernel/security/secret absence or filesystem quota claim follows. Hosted qualification preserves PCH-V0-003 separate fresh author-only/trusted jobs and uses a reviewed default-branch experimental scaffold before manual dispatch; full original dry-run replay and audit remain required for completion.
 - `PCH-V0-015`: Local template conformance runs the reference pipeline's `resolve` and `delta`
   step scripts unmodified, under bash and POSIX sh, from the workspace directory, against a local
-  fixture merge and a locally built `corvint`. A full change id replayed through `resolve` yields
-  exactly the record that `corvint delta` emits directly for the merge's first parent and head
-  (schema, base, head, tree and changed paths checked). A root commit or an id absent from the
+  fixture repository and a locally built `corvint`. A full change id, merge or non-merge, replayed
+  through `resolve` yields exactly the record that `corvint delta` emits directly for the change's
+  first parent and head (schema, base, head, tree and changed paths checked). A root commit or an id absent from the
   checkout fails the step and leaves no record. This is local conformance of the declared trigger
   and delta scripts only: it is not a hosted run, does not run checkout, setup or upload actions or
-  `install-pinned.sh`, and does not replay intake, authoring or later steps.
+  `install-pinned.sh`, and does not replay intake, authoring or later steps. A shallow checkout
+  missing the parent and a refusal raised inside `corvint delta` itself are not replayed.
 
 
 ## Non-goals
 
 - A hosted service, daemon, GitHub App, or network dependency in the default local product.
 - Remote live writes, vendor API adapters, or running an agent.
-- A published audit command.
+- A published audit command. The owner declined it on 2026-10-05; the audit stays an internal
+  package exercised by tests.
+- A build label stamped by `install-pinned.sh`. The owner declined it on 2026-10-05; the delta
+  record keeps the default `"0"`.
 - A general YAML parser.
 - Templates for hosts other than GitHub Actions.
 - Authenticating the forge or tracker.
@@ -173,9 +178,10 @@ Corvint stays a local binary. The templates are operator reference material, not
   it (for example an unrepresentable path or an exhausted Git budget). The delta step fails with
   the delta refusal code on stderr and uploads nothing, and authoring, which needs delta, does not
   run. The pipeline abstains rather than authoring without a delta.
-- `install-pinned.sh` builds without link-time flags, so the record's `build` field is the
-  binary's default label, not the pinned source commit. The pin binds through the operator's digest
-  file, not through the record.
+- By owner decision (2026-10-05, V1-0545 receipt 2746), `install-pinned.sh` builds without
+  link-time flags, so the record's `build` field is the binary's default label `"0"`, not the pinned
+  source commit. A consumer must not read that field as provenance; the pin binds through the
+  operator's digest file, not through the record.
 - A ported template uses an unmodelled construct. The restricted YAML parser returns
   `unsupported-yaml` for input outside its audited subset; the audit refuses it rather than
   guessing.
@@ -283,8 +289,8 @@ It checks that:
   40- or 64-hex id and refuses a newline-injected `change=` line, and replay dispatches only whole
   ids, including a final line without a trailing newline;
 - the YAML subset refuses unsupported syntax;
-- the delta job's step scripts replay one merged change from `resolve` through `corvint delta`
-  and match the direct record byte for byte, and refuse a root commit or an absent id with no
+- the delta job's step scripts replay a merge and a non-merge change from `resolve` through
+  `corvint delta` and match the direct record byte for byte, and refuse a root commit or an absent id with no
   record (`TestTemplateDeltaReplayConformance`, PCH-V0-015);
 - `install-pinned.sh` passes `sh -n`, refuses a short or multi-line commit, and refuses companion
   names containing `/`, `.` or a newline before any fetch;
@@ -323,8 +329,7 @@ repair cycles. These checks do not replace the original host replay acceptance i
 ## Qualification and rollback
 
 The material is experimental reference material, audited only against declared text. Promotion
-requires all of the following:
-- owner acceptance;
+requires all of the following (owner acceptance of the intent was recorded on 2026-10-05):
 - a hosted dry-run of the #395 replay set;
 - a hosted run of the delta job, and a later step that consumes its record;
 - a review of each operator's host-level secret scoping.
@@ -620,4 +625,4 @@ URL joins. No normalization or reconstructed chronology is accepted in place of 
 
 The six frozen terminal checks, CEM/OCM binding, publication/integration and native completion are
 separate remaining delivery steps. Raw source tests/review and a source PR cannot close whole #398.
-Preserve proposed/experimental status and all ownership/cleanup holds until actual qualification.
+Preserve experimental delivery status and all ownership/cleanup holds until actual qualification.
