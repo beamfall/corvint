@@ -32,7 +32,7 @@ func addHolderObservation(o *wire.Object, a *snapshot.Attempt, now time.Time) {
 }
 
 // addHistoryObservation marks each prior generation `history` RECORDED or,
-// for a legacy entry without the CAL-V0-079 keys, NOT_OBSERVED with each
+// for a legacy entry without the CAL-V0-096 keys, NOT_OBSERVED with each
 // absent key rendered NOT_OBSERVED rather than guessed.
 func addHistoryObservation(o *wire.Object) {
 	prior, ok := o.Get("priorGenerations")

@@ -221,8 +221,9 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 	o := res.Items[0].Obj
 	if report.PoolAllocation != nil {
 		o.Set("poolAllocation", snapshot.PoolAllocationValue(report.PoolAllocation))
-	} else if cmd[0] == "claim" && report.AttemptID != "" {
-		// CAL-V0-079: a claim result always names its allocation.
+	} else if cmd[0] == "claim" {
+		// CAL-V0-096: every claim result, a refusal included, names its
+		// allocation.
 		o.Set("poolAllocation", wire.Null())
 	}
 	if report.LaneUntouchedAttestation != nil {

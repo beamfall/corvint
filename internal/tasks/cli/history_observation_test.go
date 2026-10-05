@@ -6,10 +6,10 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// CAL-V0-079: attempt show renders a legacy prior generation's absent history
+// CAL-V0-096: attempt show renders a legacy prior generation's absent history
 // as NOT_OBSERVED and leaves recorded values, including null, untouched.
-func TestCALV0079_HistoryObservation(t *testing.T) {
-	t.Run("CAL-V0-079 HistoryObservation", func(t *testing.T) {
+func TestCALV0096_HistoryObservation(t *testing.T) {
+	t.Run("CAL-V0-096 HistoryObservation", func(t *testing.T) {
 		raw := `{"priorGenerations":[{"generation":"1","provedSeq":"2","quiescence":"FENCED"},{"generation":"2","memberId":"NOT_OBSERVED","poolId":"db","provedSeq":"4","quiescence":"PROVED","stage":"implement"},{"generation":"3","memberId":null,"poolId":null,"provedSeq":"6","quiescence":"PROVED","stage":null}]}`
 		v, err := wire.Parse([]byte(raw + "\n"))
 		if err != nil {

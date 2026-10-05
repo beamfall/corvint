@@ -14,10 +14,10 @@ func historyText(s *string) string {
 	return *s
 }
 
-// CAL-V0-079: a retry records the stage and pool member the ended
+// CAL-V0-096: a retry records the stage and pool member the ended
 // external-agent generation held, and null when it held none.
-func TestCALV0079_PriorGenerationRecordsStageAndMember(t *testing.T) {
-	t.Run("CAL-V0-079 PriorGenerationRecordsStageAndMember", func(t *testing.T) {
+func TestCALV0096_PriorGenerationRecordsStageAndMember(t *testing.T) {
+	t.Run("CAL-V0-096 PriorGenerationRecordsStageAndMember", func(t *testing.T) {
 		s := newLeaseStore(t)
 		exclusionPolicy(t, s, wire.Null())
 		pooled := s.ticket(t, "pooled")
