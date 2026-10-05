@@ -82,7 +82,38 @@ type View struct {
 	GateResults    Observation // NOT_OBSERVED in TCP-01
 	Publication    Observation // NOT_OBSERVED in TCP-01 (needs the journal post digest)
 	NextAction     string
-	Untrusted      bool // true when queue prose is embedded (title/body)
+	// SuggestedEvidence is set only by OfferCompletion (ERG-V0-011); nil
+	// leaves the rendered view byte-identical to a view without the offer.
+	SuggestedEvidence []wire.Digest
+	Untrusted         bool // true when queue prose is embedded (title/body)
+}
+
+// NextActionCompleteManual is the ERG-V0-011 read-only completion offer.
+const NextActionCompleteManual = "complete-manual"
+
+// OfferCompletion applies the ERG-V0-011 read-only completion offer. evidence
+// is the sorted head digests of every required external review gate, each a
+// CURRENT PASS (transaction.ExternalReviewCompletionOffer). The offer replaces
+// only the admit action of an OPEN ticket with no blocker and nothing
+// NOT_OBSERVED; any other view, or empty evidence, is left unchanged. It never
+// writes, completes or satisfies a gate: complete-manual stays the operator's
+// disposition (ERG-V0-007).
+func (v *View) OfferCompletion(evidence []wire.Digest) bool {
+	if len(evidence) == 0 || v.Record == nil || v.Record.Status != StatusOpen || v.NextAction != "admit" || len(v.Blockers) != 0 || len(v.Unknowns) != 0 {
+		return false
+	}
+	v.NextAction = NextActionCompleteManual
+	v.SuggestedEvidence = append([]wire.Digest{}, evidence...)
+	return true
+}
+
+// DigestsValue renders digests as a JSON string array.
+func DigestsValue(ds []wire.Digest) wire.Value {
+	out := make([]string, len(ds))
+	for i, d := range ds {
+		out[i] = string(d)
+	}
+	return wire.Strings(out)
 }
 
 func (ctx Context) gates() GateOracle {
@@ -370,6 +401,9 @@ func (v View) Value(includeRecord bool) wire.Value {
 		o.Set("completion", wire.String(rec.Completion.Kind))
 	}
 	o.Set("nextAction", wire.String(v.NextAction))
+	if v.SuggestedEvidence != nil {
+		o.Set("suggestedEvidence", DigestsValue(v.SuggestedEvidence))
+	}
 	if includeRecord {
 		o.Set("record", rec.Value())
 	} else {

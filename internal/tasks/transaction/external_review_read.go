@@ -2,7 +2,9 @@ package transaction
 
 import (
 	"fmt"
+	"sort"
 
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -46,6 +48,34 @@ func ExternalReviewGates(ticketID string, refs map[string]snapshot.ExternalRevie
 		out[gate] = ExternalReviewCurrent(&r, raw, b)
 	}
 	return out, nil
+}
+
+// ExternalReviewCompletionOffer is the ERG-V0-011 read-only completion offer
+// predicate over one ticket's gate views (ExternalReviewGates). The required
+// set is every gate the policy declares plus every gate the ticket references;
+// each must read CURRENT with verdict PASS. It returns their head digests,
+// sorted, as suggested complete-manual evidence, or nil when the policy
+// declares no gate or any required gate is missing, STALE, UNKNOWN, RETURN or
+// a resubmission awaiting review. It writes nothing and satisfies nothing: an
+// external PASS stays routing evidence only (ERG-V0-007).
+func ExternalReviewCompletionOffer(policy *intent.Policy, views map[string]ExternalReviewView) []wire.Digest {
+	if policy == nil || len(policy.ExternalReviews) == 0 {
+		return nil
+	}
+	for _, d := range policy.ExternalReviews {
+		if _, ok := views[d.GateID]; !ok {
+			return nil
+		}
+	}
+	heads := make([]wire.Digest, 0, len(views))
+	for _, v := range views {
+		if v.Status != "CURRENT" || v.Verdict == nil || *v.Verdict != "PASS" || v.Resubmitted || v.EvidenceSha256 == nil {
+			return nil
+		}
+		heads = append(heads, *v.EvidenceSha256)
+	}
+	sort.Slice(heads, func(i, j int) bool { return heads[i] < heads[j] })
+	return heads
 }
 
 // ExternalReviewPage is one newest-first history page. Next names the event

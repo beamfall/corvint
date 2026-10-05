@@ -25,24 +25,70 @@ import (
 // the receipt history's binding audit (store.FoldExternalReviews); it names
 // the submissions that superseded a subject (ERG-V0-006).
 func externalReviewGateViews(repo *intent.Repository, rec *ticket.Record, policy *intent.Policy, attempts map[string]*snapshot.Attempt, fold *transaction.ExternalReviewReceiptAudit) (map[string]dispatch.GateView, error) {
-	refs := map[string]snapshot.ExternalReviewRef{}
-	for gate, ref := range rec.ExternalReviews {
-		refs[gate] = snapshot.ExternalReviewRef{Generation: ref.Generation, Revision: ref.Revision, Head: ref.Head}
-	}
-	blob := store.ExternalReviewBlob(repo)
-	views, err := transaction.ExternalReviewGates(rec.TicketID.Raw, refs, blob, transaction.ExternalReviewCurrentBindings(rec, policy, attempts, blob, fold.Superseded))
+	views, err := externalReviewViews(repo, rec, policy, attempts, fold)
 	if err != nil {
 		return nil, err
 	}
 	out := make(map[string]dispatch.GateView, len(views))
 	for gate, v := range views {
-		g := dispatch.GateView{Status: v.Status, Generation: string(v.Generation), Revision: string(v.Revision), Resubmitted: v.Resubmitted, Head: string(refs[gate].Head)}
+		g := dispatch.GateView{Status: v.Status, Generation: string(v.Generation), Revision: string(v.Revision), Resubmitted: v.Resubmitted, Head: string(rec.ExternalReviews[gate].Head)}
 		if v.Verdict != nil {
 			g.Verdict = *v.Verdict
 		}
 		out[gate] = g
 	}
 	return out, nil
+}
+
+// externalReviewViews reads every gate reference on the record through the
+// pure adapter against its current binding (ERG-V0-009).
+func externalReviewViews(repo *intent.Repository, rec *ticket.Record, policy *intent.Policy, attempts map[string]*snapshot.Attempt, fold *transaction.ExternalReviewReceiptAudit) (map[string]transaction.ExternalReviewView, error) {
+	refs := map[string]snapshot.ExternalReviewRef{}
+	for gate, ref := range rec.ExternalReviews {
+		refs[gate] = snapshot.ExternalReviewRef{Generation: ref.Generation, Revision: ref.Revision, Head: ref.Head}
+	}
+	blob := store.ExternalReviewBlob(repo)
+	return transaction.ExternalReviewGates(rec.TicketID.Raw, refs, blob, transaction.ExternalReviewCurrentBindings(rec, policy, attempts, blob, fold.Superseded))
+}
+
+// completionOffers derives the ERG-V0-011 read-only completion offer for
+// tickets of one read. It is pure: it reads the audited attempts, retained
+// review events and receipts only, folds the receipts at most once and only
+// for a ticket that carries a review reference under a policy declaring
+// review gates, and gives no offer (nil) when the journal is absent, the fold
+// or a gate view refuses, or any required gate is not a CURRENT PASS.
+type completionOffers struct {
+	rc       *readCtx
+	attempts map[string]*snapshot.Attempt
+	fold     *transaction.ExternalReviewReceiptAudit
+	folded   bool
+}
+
+func (o *completionOffers) evidence(rec *ticket.Record) []wire.Digest {
+	policy := o.rc.store.Policy
+	if o.rc.journalAbsent || rec == nil || policy == nil || len(policy.ExternalReviews) == 0 || len(rec.ExternalReviews) == 0 {
+		return nil
+	}
+	if !o.folded {
+		o.folded = true
+		o.fold, _ = store.FoldExternalReviews(o.rc.repo, o.rc.snap.Head.LastSeq.Uint64(), nil)
+	}
+	if o.fold == nil {
+		return nil
+	}
+	views, err := externalReviewViews(o.rc.repo, rec, policy, o.attempts, o.fold)
+	if err != nil {
+		return nil
+	}
+	return transaction.ExternalReviewCompletionOffer(policy, views)
+}
+
+// offer applies the completion offer to one view.
+func (o *completionOffers) offer(v *ticket.View) {
+	if v.NextAction != "admit" || len(v.Blockers) != 0 || len(v.Unknowns) != 0 {
+		return
+	}
+	v.OfferCompletion(o.evidence(v.Record))
 }
 
 // externalReviewReceiptBinding folds every retained receipt through the pure

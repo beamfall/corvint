@@ -740,7 +740,9 @@
       "internal/tasks/dispatch/config.go",
       "internal/tasks/transaction/external_review_write.go",
       "internal/tasks/transaction/external_review_audit.go",
-      "internal/tasks/cli/external_review.go"
+      "internal/tasks/cli/external_review.go",
+      "internal/tasks/cli/plan.go",
+      "internal/tasks/ticket/view.go"
     ]
   },
   {
