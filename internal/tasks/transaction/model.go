@@ -158,6 +158,8 @@ type Result struct {
 	AttemptID  string
 	Generation wire.Size
 	Expired    []ExpiredLease
+	// Escalation is the typed refusal of an ESCALATE or ANSWER.
+	Escalation *EscalationRefusal
 }
 
 // Plan is immutable; accessors return copies. Its bytes remain hypothetical.
@@ -469,8 +471,8 @@ func Model(r Request, in Input) Result {
 			return refused(r.RequestID, mutation.OutcomeRequestIDConflict, wire.CodeRequestIDConflict, "different original request")
 		}
 		if req.Entry.Outcome.Outcome == mutation.OutcomeCompleted {
-			completion := r.Operation == Lease && r.Lease.Verb == LeaseComplete
-			ticketOperation := r.Operation == KeepJournal || r.Operation == AdoptFile || r.Operation == Mutate || completion
+			ticketLease := r.Operation == Lease && (r.Lease.Verb == LeaseComplete || r.Lease.Verb == LeaseEscalate || r.Lease.Verb == LeaseAnswer)
+			ticketOperation := r.Operation == KeepJournal || r.Operation == AdoptFile || r.Operation == Mutate || ticketLease
 			releaseOperation := r.Operation == Release
 			if ticketOperation != (req.Entry.Outcome.ResultingRevision != nil) || releaseOperation != (req.Entry.Outcome.ReleaseID != nil) || len(req.Entry.Outcome.Codes) != 0 {
 				return failed(r.RequestID, malformed("replay outcome shape"))
