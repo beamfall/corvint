@@ -18,7 +18,8 @@ digest is the lease request's evidence field, so a retry replays through the req
   cannot be audited abstains as `MISSING_ADMISSION_CONTEXT`.
 - Grants are per operation: `ESCALATE` and `ANSWER` join the operation vocabulary, and only the
   OWNER row of the default matrix holds them. Policy may narrow them. The OPERATOR explicit grant
-  waits for issue 559's explicit grant list.
+  waits for issue 559's explicit grant list. Until then the separation is per operation, not per
+  role: only OWNER-bound claimers can escalate, and they can answer their own questions.
 - The request digest covers the invoking actor. The store therefore binds the actor to the request
   before replay, so a different actor gets `ACTOR_BINDING` rather than `REQUEST_ID_CONFLICT`.
 - A committed escalation is a ticket-revision lease outcome, so the replay shape check accepts
@@ -40,18 +41,25 @@ digest is the lease request's evidence field, so a retry replays through the req
   material branch remain open, and the spec says so.
 - Events are retained evidence published before the commit point. Crash point C2 redo republishes
   the ticket and head; a deleted event file is refused `JOURNAL_FORKED`, not recreated.
+- The independent review found no blockers. It found that the role separation was overstated, that
+  the rollback missed the policy enum widening, and that three evidence claims had no test. The
+  wording is corrected, and the deleted-event and shorthand-answer replay cases now have tests.
 
 ## Evidence
 
 Native store tests against real claim receipts:
 `TestIssue502_OpenAnswerCommitsTicketAndEvents`, `TestIssue502_SupersedePostsBothEvents`,
 `TestIssue502_ActorBindingBeforeReplay`, `TestIssue502_OpenAuditsTheClaim`,
-`TestIssue502_AnswerRaceHasOneWinner`, `TestIssue502_RedoRepublishesTheTicket` and
-`TestIssue502_SupervisedAttemptIsUnsupported`. Not run: a `MaxTicketFileBytes` overflow witness,
+`TestIssue502_AnswerRaceHasOneWinner`, `TestIssue502_RedoRepublishesTheTicket`,
+`TestIssue502_SupervisedAttemptIsUnsupported`, `TestIssue502_DeletedEventIsJournalDamage` and
+`TestIssue502_ShorthandAnswerReplaysAfterLaterOpen`. Not run: a `MaxTicketFileBytes` overflow
+witness, `STALE_ADMISSION`, policy narrowing of the two grants, a stage with a blob-posted ticket,
 interrupted paired publication at each artifact, the CLI, holds, claim delivery and dispatcher
-retry.
+retry. `corvint affected` selected the repository-wide gate; it is NOT_RUN under the owner's
+focused-test preference, and the Tasks packages ran in full.
 
 ## Rollback
 
-Revert the writer files and the two grants. Keep the record-key slice, so readers still accept a
-record that already carries a reference.
+Restore a policy that names neither `ESCALATE` nor `ANSWER`, then revert the writer files and the
+two grants; a reverted binary refuses a policy naming them. Keep the record-key slice, so readers
+still accept a record that already carries a reference.

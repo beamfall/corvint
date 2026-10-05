@@ -1,6 +1,7 @@
 package store_test
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -262,7 +263,7 @@ func TestIssue502_ActorBindingBeforeReplay(t *testing.T) {
 }
 
 // TestIssue502_OpenAuditsTheClaim: a forged receipt digest abstains, an
-// expired lease is fenced, and a reclaimed generation is stale; none writes.
+// expired lease is fenced; neither writes.
 func TestIssue502_OpenAuditsTheClaim(t *testing.T) {
 	s, _, src := escalationClaim(t)
 	forged := src
@@ -356,5 +357,56 @@ func TestIssue502_SupervisedAttemptIsUnsupported(t *testing.T) {
 	}
 	if post != nil {
 		t.Fatal("the claim receipt posts no attempt")
+	}
+}
+
+// TestIssue502_DeletedEventIsJournalDamage: an event is retained evidence
+// published before the commit point, so a redo or replay that finds it
+// missing refuses JOURNAL_FORKED rather than recreating it.
+func TestIssue502_DeletedEventIsJournalDamage(t *testing.T) {
+	s, _, src := escalationClaim(t)
+	open := openRequest(t, "q-1", src, "", "")
+	committed(t, escalate(t, s, holder, open, 1), "OPEN")
+	dir := filepath.Join(s.repo.StateDir, "evidence")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	removed := 0
+	for _, e := range entries {
+		raw, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err == nil && bytes.Contains(raw, []byte(ticket.EscalationEventProfile)) {
+			if err := os.Remove(filepath.Join(dir, e.Name())); err != nil {
+				t.Fatal(err)
+			}
+			removed++
+		}
+	}
+	if removed != 1 {
+		t.Fatalf("removed %d event files", removed)
+	}
+	report, err := store.Escalate(context.Background(), s.repo, holder, fixture.QueueID, open, s.at(t, 2))
+	if wire.CodeOf(err) != wire.CodeJournalForked {
+		t.Fatalf("replay without its event: %v %+v", err, report)
+	}
+}
+
+// TestIssue502_ShorthandAnswerReplaysAfterLaterOpen: a shorthand answer
+// replays the question it resolved, even after a later OPEN would make the
+// same shorthand resolve another question (ESC-V0-004, ESC-V0-010).
+func TestIssue502_ShorthandAnswerReplaysAfterLaterOpen(t *testing.T) {
+	s, id, src := escalationClaim(t)
+	committed(t, escalate(t, s, holder, openRequest(t, "q-1", src, "", ""), 1), "OPEN")
+	reply := answerRequest(t, "a-1", id, operator(), "", "")
+	first := answer(t, s, operator(), reply, 2)
+	committed(t, first, "ANSWER")
+	committed(t, escalate(t, s, holder, openRequest(t, "q-2", src, "", ""), 3), "OPEN")
+	replay := answer(t, s, operator(), reply, 4)
+	committed(t, replay, "ANSWER")
+	if replay.Kind != "Replay" || replay.EscalationEvents[0].EscalationID != "q-1" || *replay.Outcome.ReceiptSeq != *first.Outcome.ReceiptSeq {
+		t.Fatalf("replay %+v", replay)
+	}
+	if _, refs := escalationRefs(t, s, id); refs["q-1"].State != "ANSWERED" || refs["q-2"].State != "OPEN" {
+		t.Fatalf("refs %+v", refs)
 	}
 }
