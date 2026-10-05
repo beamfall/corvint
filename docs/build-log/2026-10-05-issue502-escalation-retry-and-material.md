@@ -225,6 +225,10 @@ that fails without the fix:
   grows the array, so other receipts skip the check. Regression:
   `TestESCV0010_AnswerGuidanceCapacityIsAudited`, which audits clean without the fix.
 
+Round 8 (over `d524530f..31118365`) reported no actionable P0-P3 findings. It restated the open
+ruling on a distinct typed-event stage (the writer still uses LEASE). The review was static only:
+its read-only sandbox blocked Go tests and Corvint context generation.
+
 ## NOT_RUN
 
 - a live dispatcher and compiled-binary witness
