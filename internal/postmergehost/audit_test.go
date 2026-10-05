@@ -41,8 +41,8 @@ func TestGraphContract(t *testing.T) {
 	if g.Step("authoring").Attestation != "required" {
 		t.Fatal("authoring attestation")
 	}
-	if got := g.Step("delta").PendingCommands; len(got) != 1 || got[0] != "corvint delta" {
-		t.Fatalf("delta pending commands %v", got)
+	if got := g.Step("delta"); len(got.Commands) != 1 || got.Commands[0] != "corvint delta" || len(got.PendingCommands) != 0 || len(got.Credentials) != 0 {
+		t.Fatalf("delta step %+v", got)
 	}
 	original, err := os.ReadFile(filepath.Join(hostDir, "workflow-graph.json"))
 	if err != nil {
@@ -119,6 +119,9 @@ func TestAuditRefusesUnsafeTemplates(t *testing.T) {
 	changeCase := "          case \"${#REQUESTED_CHANGE}\" in\n"
 	replayCase := "            case \"${#change}\" in\n"
 	authorEnv := "      CORVINT_PM_STEP: authoring\n"
+	resolveHead := "    timeout-minutes: 5\n    permissions: {}\n    env:\n      CORVINT_PM_STEP: trigger\n"
+	deltaName := "      - name: Compile the immutable delta of the merged change\n"
+	deltaRun := `mkdir -m 700 "$RUNNER_TEMP/delta"`
 	stepEnv := "        env:\n          CORVINT_PM_AGENT_MODEL_KEY: ${{ secrets.CORVINT_PM_AGENT_MODEL_KEY }}\n"
 	for _, tc := range []struct {
 		name, base, old, new, code string
@@ -132,18 +135,21 @@ func TestAuditRefusesUnsafeTemplates(t *testing.T) {
 		{"workflow-level secret", pipeline, "  CORVINT_PM_WORKFLOW: pipeline\n", "  CORVINT_PM_WORKFLOW: pipeline\n  KEY: ${{ secrets.CORVINT_PM_AGENT_MODEL_KEY }}\n", "WORKFLOW_LEVEL_SECRET"},
 		{"workflow write permission", pipeline, "permissions: {}\n", "permissions:\n  contents: write\n", "WORKFLOW_WRITE_PERMISSION"},
 		{"write-all", pipeline, "permissions: {}\n", "permissions: write-all\n", "WRITE_PERMISSION"},
-		{"missing job permissions", pipeline, "    timeout-minutes: 5\n    permissions: {}\n    env:\n      CORVINT_PM_STEP: delta\n", "    timeout-minutes: 5\n    env:\n      CORVINT_PM_STEP: delta\n", "MISSING_PERMISSIONS"},
+		{"missing job permissions", pipeline, resolveHead, "    timeout-minutes: 5\n    env:\n      CORVINT_PM_STEP: trigger\n", "MISSING_PERMISSIONS"},
 		{"unpinned action", pipeline, "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e", "actions/setup-go@v7", "UNPINNED_ACTION"},
 		{"local action with commit suffix", pipeline, "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e", "./config/evil@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e", "UNPINNED_ACTION"},
 		{"persisted checkout credentials", pipeline, "          path: config\n          persist-credentials: false\n", "          path: config\n", "CHECKOUT_PERSISTS_CREDENTIALS"},
-		{"expression in run", pipeline, `echo "delta NOT_PRODUCED corvint-delta-not-yet-published"`, `echo "${{ inputs.change }}"`, "RUN_EXPRESSION_INTERPOLATION"},
-		{"pending command", pipeline, `echo "delta NOT_PRODUCED corvint-delta-not-yet-published"`, `config/postmerge/install-pinned.sh corvint && corvint delta --base x`, "UNDOCUMENTED_COMMAND"},
+		{"expression in run", pipeline, deltaRun, `echo "${{ inputs.change }}"`, "RUN_EXPRESSION_INTERPOLATION"},
+		{"undocumented delta command", pipeline, deltaRun, `corvint --root product step verify --before x`, "UNDOCUMENTED_COMMAND"},
+		{"delta before pinned install", pipeline, "        run: config/postmerge/install-pinned.sh corvint\n      - name: Compile", "        run: 'true'\n      - name: Compile", "UNPINNED_BINARY"},
+		{"secret in delta", pipeline, "      CORVINT_PM_STEP: delta\n", "      CORVINT_PM_STEP: delta\n      TOKEN: ${{ secrets.CORVINT_PM_FORGE_READ_TOKEN }}\n", "CREDENTIAL_NOT_ALLOWED"},
+		{"write permission in delta", pipeline, "    permissions:\n      contents: read\n    env:\n      CORVINT_PM_STEP: delta\n", "    permissions:\n      contents: write\n    env:\n      CORVINT_PM_STEP: delta\n", "CREDENTIAL_NOT_ALLOWED"},
 		{"command outside step", pipeline, "corvint-postmerge-connect plan --experimental", "corvint-intake validate --experimental", "UNDOCUMENTED_COMMAND"},
 		{"binary before install", pipeline, "        run: config/postmerge/install-pinned.sh corvint\n", "        run: echo skipped\n", "UNPINNED_BINARY"},
 		{"missing step marker", pipeline, "      CORVINT_PM_STEP: delta\n", "      STEP: delta\n", "MISSING_STEP_MARKER"},
 		{"order violation", pipeline, "    needs: [resolve, intake, delta]\n", "    needs: [resolve, intake]\n", "ORDER_VIOLATION"},
 		{"unknown need", pipeline, "    needs: [resolve, intake, delta]\n", "    needs: [resolve, intake, delta, lint]\n", "UNKNOWN_NEED"},
-		{"reusable workflow", pipeline, "    runs-on: ubuntu-latest\n    timeout-minutes: 5\n    permissions: {}\n    env:\n      CORVINT_PM_STEP: delta\n", "    uses: org/repo/.github/workflows/x.yml@main\n    permissions: {}\n    env:\n      CORVINT_PM_STEP: delta\n", "UNMODELLED_KEY"},
+		{"reusable workflow", pipeline, "    runs-on: ubuntu-latest\n" + resolveHead, "    uses: org/repo/.github/workflows/x.yml@main\n    permissions: {}\n    env:\n      CORVINT_PM_STEP: trigger\n", "UNMODELLED_KEY"},
 		{"cancelling concurrency", pipeline, "  cancel-in-progress: false\n", "  cancel-in-progress: true\n", "NO_CHANGE_CONCURRENCY"},
 		{"live mode option", pipeline, "        options: [dry-run, recording]\n", "        options: [dry-run, recording, live]\n", "MODE_INPUT"},
 		{"optional change", pipeline, "        required: true\n        type: string\n", "        required: false\n        type: string\n", "NO_REPLAY_BY_CHANGE"},
@@ -155,10 +161,10 @@ func TestAuditRefusesUnsafeTemplates(t *testing.T) {
 		{"trigger doing work", trigger, "      CORVINT_PM_STEP: trigger\n", "      CORVINT_PM_STEP: trigger,intake\n", "SOURCE_TRIGGER_STEP"},
 		{"line-oriented change check", pipeline, changeCase, "          printf '%s' \"$REQUESTED_CHANGE\" | grep -Eqx '[0-9a-f]{40}|[0-9a-f]{64}'\n" + changeCase, "LINE_ORIENTED_VALIDATION"},
 		{"here-string replay check", reconcile, replayCase, "            grep -Eqx '[0-9a-f]{40}' <<< \"$change\"\n" + replayCase, "LINE_ORIENTED_VALIDATION"},
-		{"custom step shell", pipeline, "      - name: Record the pending delta step\n", "      - name: Record the pending delta step\n        shell: python {0}\n", "UNMODELLED_KEY"},
+		{"custom step shell", pipeline, deltaName, deltaName + "        shell: python {0}\n", "UNMODELLED_KEY"},
 		{"expression in with.script", pipeline, "          go-version: \"1.27.1\"\n", "          go-version: \"1.27.1\"\n          script: ${{ inputs.change }}\n", "RUN_EXPRESSION_INTERPOLATION"},
 		{"workflow default shell", pipeline, "permissions: {}\n", "permissions: {}\ndefaults:\n  run:\n    shell: python {0}\n", "CUSTOM_SHELL"},
-		{"job default shell", pipeline, "    timeout-minutes: 5\n    permissions: {}\n    env:\n      CORVINT_PM_STEP: delta\n", "    timeout-minutes: 5\n    defaults:\n      run:\n        shell: python {0}\n    permissions: {}\n    env:\n      CORVINT_PM_STEP: delta\n", "CUSTOM_SHELL"},
+		{"job default shell", pipeline, resolveHead, "    timeout-minutes: 5\n    defaults:\n      run:\n        shell: python {0}\n    permissions: {}\n    env:\n      CORVINT_PM_STEP: trigger\n", "CUSTOM_SHELL"},
 		{"unmodelled defaults key", pipeline, "permissions: {}\n", "permissions: {}\ndefaults:\n  run:\n    working-directory: config\n  other: x\n", "UNMODELLED_KEY"},
 		{"empty trigger branches", trigger, "    branches: [main]\n", "    branches: []\n", "SOURCE_TRIGGER_BRANCHES"},
 		{"wildcard trigger branch", trigger, "    branches: [main]\n", "    branches: [\"**\"]\n", "SOURCE_TRIGGER_BRANCHES"},
@@ -168,14 +174,14 @@ func TestAuditRefusesUnsafeTemplates(t *testing.T) {
 		{"non-lowercase with key", pipeline, "          go-version: \"1.27.1\"\n", "          Go-Version: \"1.27.1\"\n", "NON_LOWERCASE_INPUT"},
 		{"unmodelled defaults.run key", pipeline, "permissions: {}\n", "permissions: {}\ndefaults:\n  run:\n    working-directory: config\n    other: x\n", "UNMODELLED_KEY"},
 		{"expression in defaults working-directory", pipeline, "permissions: {}\n", "permissions: {}\ndefaults:\n  run:\n    working-directory: ${{ inputs.change }}\n", "WORKING_DIRECTORY"},
-		{"expression in step working-directory", pipeline, "      - name: Record the pending delta step\n", "      - name: Record the pending delta step\n        working-directory: ${{ inputs.change }}\n", "WORKING_DIRECTORY"},
-		{"non-scalar step working-directory", pipeline, "      - name: Record the pending delta step\n", "      - name: Record the pending delta step\n        working-directory: [a, b]\n", "WORKING_DIRECTORY"},
+		{"expression in step working-directory", pipeline, deltaName, deltaName + "        working-directory: ${{ inputs.change }}\n", "WORKING_DIRECTORY"},
+		{"non-scalar step working-directory", pipeline, deltaName, deltaName + "        working-directory: [a, b]\n", "WORKING_DIRECTORY"},
 		{"workflow BASH_ENV", pipeline, "  CORVINT_PM_WORKFLOW: pipeline\n", "  CORVINT_PM_WORKFLOW: pipeline\n  BASH_ENV: config/x.sh\n", "STARTUP_ENV"},
 		{"job LD_PRELOAD", pipeline, authorEnv, authorEnv + "      LD_PRELOAD: /tmp/x.so\n", "STARTUP_ENV"},
 		{"step ENV", pipeline, stepEnv, stepEnv + "          ENV: config/x.sh\n", "STARTUP_ENV"},
 		{"non-mapping step env", pipeline, stepEnv, "        env: ${{ fromJSON(inputs.change) }}\n", "UNMODELLED_KEY"},
-		{"script writes GITHUB_ENV", pipeline, `echo "delta NOT_PRODUCED corvint-delta-not-yet-published"`, `echo "BASH_ENV=x" >> "$GITHUB_ENV"`, "RUNNER_ENV_FILE"},
-		{"script writes GITHUB_PATH", pipeline, `echo "delta NOT_PRODUCED corvint-delta-not-yet-published"`, `echo "$RUNNER_TEMP" >> "$GITHUB_PATH"`, "RUNNER_ENV_FILE"},
+		{"script writes GITHUB_ENV", pipeline, deltaRun, `echo "BASH_ENV=x" >> "$GITHUB_ENV"`, "RUNNER_ENV_FILE"},
+		{"script writes GITHUB_PATH", pipeline, deltaRun, `echo "$RUNNER_TEMP" >> "$GITHUB_PATH"`, "RUNNER_ENV_FILE"},
 		{"expression as step with", pipeline, "        with:\n          go-version: \"1.27.1\"\n          cache: false\n", "        with: ${{ fromJSON(inputs.change) }}\n", "UNMODELLED_KEY"},
 		{"sequence as step with", pipeline, "        with:\n          go-version: \"1.27.1\"\n          cache: false\n", "        with: [a]\n", "UNMODELLED_KEY"},
 		{"dotless-i with key", pipeline, "          go-version: \"1.27.1\"\n", "          go-version: \"1.27.1\"\n          scr\u0131pt: echo hi\n", "NON_LOWERCASE_INPUT"},
@@ -188,14 +194,14 @@ func TestAuditRefusesUnsafeTemplates(t *testing.T) {
 		{"workflow ACTIONS_ALLOW_UNSECURE_COMMANDS", pipeline, "  CORVINT_PM_WORKFLOW: pipeline\n", "  CORVINT_PM_WORKFLOW: pipeline\n  ACTIONS_ALLOW_UNSECURE_COMMANDS: \"true\"\n", "STARTUP_ENV"},
 		{"step ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION", pipeline, stepEnv, stepEnv + "          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: \"true\"\n", "STARTUP_ENV"},
 		{"job FORCE_JAVASCRIPT_ACTIONS_TO_NODE24", pipeline, authorEnv, authorEnv + "      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: \"true\"\n", "STARTUP_ENV"},
-		{"script prints ::set-env", pipeline, `echo "delta NOT_PRODUCED corvint-delta-not-yet-published"`, `echo "::set-env name=BASH_ENV::x"`, "RUNNER_ENV_FILE"},
-		{"script prints ::add-path", pipeline, `echo "delta NOT_PRODUCED corvint-delta-not-yet-published"`, `echo "::add-path::/tmp/x"`, "RUNNER_ENV_FILE"},
-		{"script prints ::SET-ENV", pipeline, `echo "delta NOT_PRODUCED corvint-delta-not-yet-published"`, `echo "::SET-ENV name=BASH_ENV::x"`, "RUNNER_ENV_FILE"},
-		{"script prints ::ADD-PATH", pipeline, `echo "delta NOT_PRODUCED corvint-delta-not-yet-published"`, `echo "::ADD-PATH::/tmp/x"`, "RUNNER_ENV_FILE"},
-		{"script prints legacy set-env", pipeline, `echo "delta NOT_PRODUCED corvint-delta-not-yet-published"`, `echo "##[set-env name=BASH_ENV;]x"`, "RUNNER_ENV_FILE"},
-		{"script prints legacy add-path", pipeline, `echo "delta NOT_PRODUCED corvint-delta-not-yet-published"`, `echo "##[add-path]/tmp/x"`, "RUNNER_ENV_FILE"},
-		{"script prints legacy SET-ENV", pipeline, `echo "delta NOT_PRODUCED corvint-delta-not-yet-published"`, `echo "##[SET-ENV name=BASH_ENV;]x"`, "RUNNER_ENV_FILE"},
-		{"script prints legacy ADD-PATH", pipeline, `echo "delta NOT_PRODUCED corvint-delta-not-yet-published"`, `echo "##[ADD-PATH]/tmp/x"`, "RUNNER_ENV_FILE"},
+		{"script prints ::set-env", pipeline, deltaRun, `echo "::set-env name=BASH_ENV::x"`, "RUNNER_ENV_FILE"},
+		{"script prints ::add-path", pipeline, deltaRun, `echo "::add-path::/tmp/x"`, "RUNNER_ENV_FILE"},
+		{"script prints ::SET-ENV", pipeline, deltaRun, `echo "::SET-ENV name=BASH_ENV::x"`, "RUNNER_ENV_FILE"},
+		{"script prints ::ADD-PATH", pipeline, deltaRun, `echo "::ADD-PATH::/tmp/x"`, "RUNNER_ENV_FILE"},
+		{"script prints legacy set-env", pipeline, deltaRun, `echo "##[set-env name=BASH_ENV;]x"`, "RUNNER_ENV_FILE"},
+		{"script prints legacy add-path", pipeline, deltaRun, `echo "##[add-path]/tmp/x"`, "RUNNER_ENV_FILE"},
+		{"script prints legacy SET-ENV", pipeline, deltaRun, `echo "##[SET-ENV name=BASH_ENV;]x"`, "RUNNER_ENV_FILE"},
+		{"script prints legacy ADD-PATH", pipeline, deltaRun, `echo "##[ADD-PATH]/tmp/x"`, "RUNNER_ENV_FILE"},
 		{"workflow env merge key", pipeline, "  CORVINT_PM_WORKFLOW: pipeline\n", "  CORVINT_PM_WORKFLOW: pipeline\n  <<: x\n", "UNMODELLED_KEY"},
 		{"job env merge key", pipeline, authorEnv, authorEnv + "      <<: x\n", "UNMODELLED_KEY"},
 		{"step env merge key", pipeline, stepEnv, stepEnv + "          <<: x\n", "UNMODELLED_KEY"},
@@ -321,6 +327,12 @@ func runStep(t *testing.T, name, job string, step int, check func(shell string, 
 		}
 		cmd := exec.Command(shell[0], append(shell[1:], script)...)
 		cmd.Env = append(os.Environ(), env...)
+		for _, kv := range env {
+			// A hosted runner starts each step in GITHUB_WORKSPACE.
+			if dir, ok := strings.CutPrefix(kv, "GITHUB_WORKSPACE="); ok {
+				cmd.Dir = dir
+			}
+		}
 		check(shell[0], cmd.Run())
 	}
 }

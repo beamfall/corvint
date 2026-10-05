@@ -21,6 +21,9 @@ func receiptAudit(env Env, args []string) *wire.Result {
 		if audited.Identity.HeadSha256 != rc.snap.HeadSha256 || audited.Identity.IntentTreeSha256 != rc.snap.IntentTree {
 			return wire.Errorf(wire.CodeSnapshotMoved, "receipt audit", "journal and outer snapshot differ")
 		}
+		if err := externalReviewReceiptBinding(rc.repo, audited.LastSeq); err != nil {
+			return err
+		}
 		observed = audited
 		return nil
 	})

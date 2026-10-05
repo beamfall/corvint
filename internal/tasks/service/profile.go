@@ -1,6 +1,10 @@
-// Package service contains experimental, opt-in user-service models. It performs
-// no filesystem, process, manager or queue operations; supplied facts are not
-// authentication, acquired locks, durable publication or platform qualification.
+// Package service is the experimental, opt-in taskman-user-service/0 profile.
+// profile.go and render.go are pure models over supplied facts. store.go,
+// observe.go, manager.go, lifecycle.go and run.go are its local runtime: the
+// private per-user registry, descriptor-anchored observations, the original
+// request operation journal, bounded launchctl/systemctl calls behind the
+// Manager interface, and the foreground managed main. Nothing here is
+// enabled by ordinary dispatch; platform qualification is separate evidence.
 package service
 
 import (

@@ -72,9 +72,12 @@ func (n Native) List(p string, max int) (out Listing, err error) {
 
 // nativeRead lives for exactly one audit attempt. It retains every listed
 // no-follow parent; file reads never reopen the original absolute parent.
+// Each read parent is also pinned once as a descriptor, so a file read is one
+// no-follow openat beneath it (CAL-V0-070).
 type nativeRead struct {
 	native   Native
 	roots    map[string]*os.Root
+	dirs     map[string]*os.File
 	absent   map[string]bool
 	listed   map[string]os.FileInfo
 	closeErr error
@@ -82,15 +85,22 @@ type nativeRead struct {
 }
 
 func newNativeRead(n Native) *nativeRead {
-	return &nativeRead{native: n, roots: map[string]*os.Root{}, absent: map[string]bool{}, listed: map[string]os.FileInfo{}}
+	return &nativeRead{native: n, roots: map[string]*os.Root{}, dirs: map[string]*os.File{}, absent: map[string]bool{}, listed: map[string]os.FileInfo{}}
 }
 
 var afterReadNames func(string) // deterministic enumeration/metadata race witness
+// pinnedReads is false only in the CAL-V0-070 equivalence test, which compares
+// per-file InRoot opens with reads beneath a pinned parent descriptor.
+var pinnedReads = true
 var closeReadRoot = (*os.Root).Close
 var closeReadFile = (*os.File).Close
 
 func (s *nativeRead) close() error {
 	err := s.closeErr
+	for p, d := range s.dirs {
+		err = errors.Join(err, closeReadFile(d))
+		delete(s.dirs, p)
+	}
 	for p, r := range s.roots {
 		err = errors.Join(err, closeReadRoot(r))
 		delete(s.roots, p)
@@ -209,11 +219,12 @@ func (s *nativeRead) Read(p string, max int) (raw []byte, err error) {
 	if _, e := s.native.path(p); e != nil {
 		return nil, e
 	}
-	root, e := s.parent(filepath.ToSlash(filepath.Dir(p)))
+	dir := filepath.ToSlash(filepath.Dir(p))
+	root, e := s.parent(dir)
 	if e != nil {
 		return nil, e
 	}
-	f, e := safeopen.InRoot(root, filepath.Base(p), os.O_RDONLY, 0, false)
+	f, e := s.open(dir, root, filepath.Base(p))
 	if os.IsNotExist(e) && s.listed[p] != nil {
 		return nil, moved(p)
 	}
@@ -247,6 +258,23 @@ func (s *nativeRead) Read(p string, max int) (raw []byte, err error) {
 		return nil, wire.Errorf(wire.CodeLimitExceeded, p, "consumed bytes exceed bound")
 	}
 	return raw, nil
+}
+
+// open is InRoot(root, name, O_RDONLY, 0, false) through the parent's pinned
+// descriptor: the same directory inode, final no-follow openat and errors.
+func (s *nativeRead) open(dir string, root *os.Root, name string) (*os.File, error) {
+	if !pinnedReads {
+		return safeopen.InRoot(root, name, os.O_RDONLY, 0, false)
+	}
+	d := s.dirs[dir]
+	if d == nil {
+		var e error
+		if d, e = safeopen.PinDir(root); e != nil {
+			return nil, e
+		}
+		s.dirs[dir] = d
+	}
+	return safeopen.InDir(d, name, os.O_RDONLY, 0)
 }
 
 func joinReadClose(primary, cleanup error) error {

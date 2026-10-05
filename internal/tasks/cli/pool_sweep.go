@@ -48,7 +48,7 @@ func poolSweepCommand(env Env, args []string) *wire.Result {
 	defer stop()
 	report, e := store.PoolSweep(ctx, repo, actor, store.PoolSweepChoice{QueueID: state, RequestID: values["--request-id"], Root: env.Cwd, Member: values["--member"], TimeoutSeconds: timeout})
 	if e != nil {
-		return errorResult(cmd, e)
+		return sweepErrorResult(cmd, report, e)
 	}
 	result := leaseResult(cmd, report.Report)
 	if report.Pending {
@@ -70,6 +70,17 @@ func poolSweepCommand(env Env, args []string) *wire.Result {
 		result.Items = append(result.Items, v)
 	}
 	return result
+}
+
+// sweepErrorResult is a failed sweep's result. A fresh sweep that committed its
+// owner before failing is never retryable: a retry only reconciles committed
+// receipts and never recovers a lost phase observation (CAL-V0-078).
+func sweepErrorResult(cmd []string, report *store.PoolSweepReport, err error) *wire.Result {
+	res := errorResult(cmd, err)
+	if report != nil && report.Unretryable {
+		res.NotRetryable = true
+	}
+	return res
 }
 
 func snapshotQueueForSweep(repo *intent.Repository) (string, error) {

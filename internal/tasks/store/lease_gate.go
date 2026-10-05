@@ -23,6 +23,10 @@ import (
 // output pipe open through a descendant outside its process group.
 const gateWaitDelay = 5 * time.Second
 
+// gateRecordFault, when set by a package test, fails GateRun after the gate
+// program ran and before its result is recorded; it is nil in production.
+var gateRecordFault func() error
+
 // gateRun is one finished gate run: its encoded result and captured output.
 type gateRun struct{ record, output []byte }
 
@@ -34,7 +38,17 @@ type gateRun struct{ record, output []byte }
 // unsubmitted attempt is not run: the model answers it with no gate facts.
 // Before reading, it settles the journal through guarded recovery, so a gate run
 // retried after a crash recovers as any other writer does (CAL-V0-019).
-func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, worktree string, clock func() time.Time) (*Report, error) {
+func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, worktree string, clock func() time.Time) (report *Report, err error) {
+	// Once the program has started, every return reports it (CAL-V0-078).
+	executed := false
+	defer func() {
+		if executed {
+			if report == nil {
+				report = &Report{}
+			}
+			report.Unretryable = true
+		}
+	}()
 	redone, err := settleLease(ctx, repo)
 	if err != nil {
 		return &Report{}, err
@@ -51,6 +65,7 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 		if err = atCandidate(worktree, *a.CandidateTreeOid); err != nil {
 			return &Report{}, err
 		}
+		executed = true
 		run, err := runGate(ctx, def, policy, a, worktree, clock)
 		if err != nil {
 			return &Report{}, err
@@ -59,12 +74,17 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 			return &Report{}, err
 		}
 		choice.gate = &run
+		if gateRecordFault != nil {
+			if err = gateRecordFault(); err != nil {
+				return &Report{}, err
+			}
+		}
 	}
 	now, err := wire.ParseTimestamp("recordedAt", clock().UTC().Format("2006-01-02T15:04:05Z"))
 	if err != nil {
 		return &Report{}, err
 	}
-	report, err := Lease(ctx, repo, actor, choice, now)
+	report, err = Lease(ctx, repo, actor, choice, now)
 	if report != nil {
 		report.Redone = report.Redone || redone
 	}

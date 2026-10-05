@@ -36,6 +36,47 @@ one gitlink per repository) that review binds. Gates and integration of such pro
 until a later slice defines cross-repository landing; operator checkouts are never moved. See
 [S21](specs/corvint-tasks-agent-leases-v0.md#s21--multi-repository-supervised-programs-issue-354-partial).
 
+Claude Code host: set `"host": "claude-code"` in both the policy `supervision` object and the
+config, and pin the Claude Code executable as the same `taskman-codex-supervisor/0` runtime (one
+host per policy; absent means Codex). A config host that differs from the policy host, or an
+unknown host, is refused `UNSUPPORTED` before any record; `--host` must match the config host. A
+missing, unreadable, unpinned, non-executable or symlinked executable of either host is refused
+`CAPABILITY_UNAVAILABLE` before any record or claim; pin the symlink's regular target instead (for
+example the `claude.exe` that `/opt/homebrew/bin/claude` points to). An existing program reopened
+after the policy host changes never claims or launches again, and keeps only drain and cancel on a
+live attempt. To switch hosts back, cancel each `claude-code` program with its original config
+while its pin is still in force, then edit the policy; a drained program must still be cancelled,
+because a drain leaves its claim held. The lane leader runs the bytes it verified: a root-owned,
+root-protected path with no ACL runs in place, and any other runtime runs from a private copy in the stage's
+effect directory, so pin a self-contained binary such as `claude.exe`, not a script wrapper.
+Stages run `claude -p --output-format json` with the stage effort, project settings only, no MCP
+servers and no permission prompts; implement accepts edits, review and integrate deny Edit, Write
+and NotebookEdit, and every stage adds the sibling worktrees with `--add-dir`. The single result
+object must succeed and carry the handoff object as its `result`, with no repeated member and no
+member that differs from a read one only by case; usage is observed from its
+integer token counters or stays NOT_OBSERVED. Bash is governed by project permission rules, not
+contained. Live Claude Code qualification is NOT_RUN; see
+[S22](specs/corvint-tasks-agent-leases-v0.md#s22--claude-code-supervised-host-v1-0755-split-from-issue-354).
+
+OpenCode host: set `"host": "opencode"` in the policy `supervision` object and the config, pin the
+OpenCode executable the same way, and give `model` as one `provider/model` without a `#variant`
+(each stage appends its effort as the variant). Multi-repository OpenCode programs are refused
+`UNSUPPORTED`. Stages run `opencode run --standalone --format json`, resuming with
+`--session S --fork`. OpenCode starts its session server and tool processes in process groups of
+their own; the supervisor observes those escapes while the host runs, drains them at stop, and
+reports a clean stop only when the server-held standard error (`OPENCODE_PRINT_LOGS=1`, error
+level) reaches end of file. Escape groups are trusted only through a live recorded leader identity,
+and recovery after a lost supervisor never proves a detached host quiet. The run never
+passes `--auto`; an inline `OPENCODE_CONFIG_CONTENT` permission set denies sub-agents and directories
+outside the worktree in every stage and edits in review and integrate, project configuration is
+disabled and self-update is off. The last text part inside a step that finished with reason `stop`
+must decode to the handoff; any host `error` event or a changed session is refused, and a resumed
+stage advances only from a new forked session, otherwise it stays WAITING. Usage sums every
+finished step's disjoint counters only when accounting is complete (no open step, a final `stop`,
+output under the cap), or stays NOT_OBSERVED. Plugins loaded from user configuration still run
+with host privileges and are not contained (a known limit). Live OpenCode qualification is NOT_RUN; see
+[S23](specs/corvint-tasks-agent-leases-v0.md#s23--opencode-supervised-host-v1-0756-split-from-issue-354).
+
 ```sh
 corvint-tasks run --program migration --config supervisor.json --role implementer --count 3 --host codex
 corvint-tasks run --program migration --config supervisor.json --role reviewer --count 2 --host codex
@@ -86,8 +127,10 @@ worker ID as holder, and the dispatcher writes only `release` (HANDOFF) and `rea
 A `taskman-dispatch/0` config names `stateDir`, `workRoot`, `tickSeconds`, `globalCap`,
 `killGraceSeconds`, `hosts` (absolute argv with placeholders such as `{prompt}`, `{ticket}` and
 `{holder}`, plus optional env, `idleIgnore` and `activityPaths`), an optional `workState` reader,
-`roles` (match by labels/kinds/idGlob/states/statuses/planSelected, or a quarantined pool `lane`;
-cap, priority, prompt, idle and wall seconds), `pinned`, `backoff` and `heal`.
+`roles` (match by labels/kinds/idGlob/states/statuses/planSelected/pool, or a quarantined pool
+`lane`; cap, priority, prompt, idle and wall seconds), `pinned`, `backoff` and `heal`. A ticket that
+records `requiresPool` matches only a role whose `match.pool` names that pool, with `{pool}` bound
+for its host's `claim ... --pool {pool}`; other roles never see it (CAL-V0-097).
 
 ```sh
 corvint-tasks dispatch --program night --config dispatch.json

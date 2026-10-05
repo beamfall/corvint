@@ -25,6 +25,7 @@ type chain struct {
 	init          *snapshot.Init
 	genesisQueue  []byte
 	selectedBytes int
+	notes         *noteState
 }
 
 // statePath names the private mutable state SelectState retains.
@@ -115,6 +116,11 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 		onlyIntent.intentOnly = true
 		result.IntentError = onlyIntent.projections(o, canonical, true)
 	}
+	if r.observedIntent {
+		onlyIntent := r
+		onlyIntent.intentOnly = true
+		result.intentErr = onlyIntent.projections(o, canonical, true)
+	}
 	if o.head == nil {
 		if err := r.validateStage(o, genesisQueue); err != nil {
 			return result, err
@@ -181,6 +187,7 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 	requestCount := 0
 	var boundRequest *snapshot.Request
 	var target *ticket.Record
+	notes := r.noteAudit(st, rc)
 	for j, p := range rc.Post {
 		prior := canonical[p.Path]
 		if strings.HasPrefix(p.Path, "requests/") && prior.seq != "" {
@@ -193,6 +200,7 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 		if err != nil {
 			return err
 		}
+		notes.observe(j, p, prior, post)
 		if post != nil {
 			coverage, descriptor, err := r.validateRecord(p.Path, post, rc)
 			if err != nil {
@@ -251,20 +259,30 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 			}
 		}
 		canonical[p.Path] = latest{seq: rc.Seq, digest: p.Sha256, pendingPre: rc.Pre[j].Sha256, pending: seq > headSeq}
-		if r.selects(p.Path, selected) {
+		if result.selectErr == nil && r.selects(p.Path, selected) {
 			old := result.Records[p.Path]
 			st.selectedBytes -= len(old.Raw)
 			if len(post) > lim.selected-st.selectedBytes {
-				return wire.Errorf(wire.CodeLimitExceeded, p.Path, "selected canonical bytes exceed aggregate live intent-state budget; select fewer paths")
+				err := wire.Errorf(wire.CodeLimitExceeded, p.Path, "selected canonical bytes exceed aggregate live intent-state budget; select fewer paths")
+				if !r.observedIntent {
+					return err
+				}
+				// A separate Audit would stop here, after the lookup succeeded.
+				// Keep validating so every lookup refusal still comes first.
+				result.selectErr = err
+			} else {
+				st.selectedBytes += len(post)
+				result.Records[p.Path] = Record{Seq: rc.Seq, Sha256: p.Sha256, Raw: post}
 			}
-			st.selectedBytes += len(post)
-			result.Records[p.Path] = Record{Seq: rc.Seq, Sha256: p.Sha256, Raw: post}
 		}
 	}
 	if rc.RequestID != nil && requestCount != 1 {
 		return wire.Errorf(wire.CodeJournalForked, name, "non-null requestId requires one request afterimage")
 	}
 	if err := bindRevisions(rc, boundRequest, target); err != nil {
+		return err
+	}
+	if err := notes.bind(boundRequest, target); err != nil {
 		return err
 	}
 	if seq == 1 {
@@ -374,7 +392,7 @@ func (r Reader) validateRecord(p string, raw []byte, rc *snapshot.Receipt) (bool
 		return true, nil, nil
 	}
 	if strings.HasPrefix(p, "evidence/") {
-		return false, nil, nil
+		return isOperatorNoteEvent(p, raw), nil, nil
 	}
 	v, err := wire.Parse(raw)
 	if err != nil {

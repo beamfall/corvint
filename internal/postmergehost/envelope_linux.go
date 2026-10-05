@@ -76,7 +76,8 @@ func RunGuestEnvelope(authorSHA string, in io.Reader, out io.Writer) error {
 	if err != nil {
 		return ErrHostInput
 	}
-	if syscall.Dup2(nullFD, 0) != nil {
+	// Dup3 exists on every Linux port; Dup2 is absent on linux/arm64.
+	if nullFD != 0 && syscall.Dup3(nullFD, 0, 0) != nil {
 		_ = syscall.Close(nullFD)
 		return ErrHostInput
 	}

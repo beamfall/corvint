@@ -27,6 +27,7 @@ const CodeDirtyWorktree = "DIRTY_WORKTREE"
 const CodeDocsMissing = "DOCS_MISSING"
 const CodeDuplicateID = "DUPLICATE_ID"
 const CodeEffectOwned = "EFFECT_OWNED"
+const CodeEscalationPending = "ESCALATION_PENDING"
 const CodeExternalUnbounded = "EXTERNAL_UNBOUNDED"
 const CodeFenced = "FENCED"
 const CodeGateFailed = "GATE_FAILED"
@@ -41,6 +42,10 @@ const CodeJournalForked = "JOURNAL_FORKED"
 const CodeJournalSaturated = "JOURNAL_SATURATED"
 const CodeLimitExceeded = "LIMIT_EXCEEDED"
 const CodeLockTimeout = "LOCK_TIMEOUT"
+
+// CodeLoopDetected names the CAL-V0-102 derived no-progress loop hold of an
+// opt-in loopDetection policy (TCP-00 amendment A23).
+const CodeLoopDetected = "LOOP_DETECTED"
 const CodeMalformed = "MALFORMED"
 const CodeMissingEvidence = "MISSING_EVIDENCE"
 const CodeMissingGate = "MISSING_GATE"
@@ -49,6 +54,10 @@ const CodeOcmMissing = "OCM_MISSING"
 const CodeOutOfScope = "OUT_OF_SCOPE"
 const CodePaused = "PAUSED"
 const CodePlanStale = "PLAN_STALE"
+
+// CodePrerequisiteUnsatisfied names a stage-scoped execution prerequisite
+// (CAL-V0-099) that blocks a claim or plan for a listed stage.
+const CodePrerequisiteUnsatisfied = "PREREQUISITE_UNSATISFIED"
 const CodeQuiescenceUnproved = "QUIESCENCE_UNPROVED"
 const CodeRedoPending = "REDO_PENDING"
 const CodeRequestIDConflict = "REQUEST_ID_CONFLICT"
@@ -83,11 +92,11 @@ var Codes = []string{
 	CodeCapabilityUnavailable, CodeCemMissing, CodeContaminated, CodeCoverageUnknown,
 	CodeCutoverInProgress, CodeCutoverMissing, CodeCycle, CodeDependencyMissing,
 	CodeDependencyUnsatisfied, CodeDevelopmentMode, CodeDirtyWorktree, CodeDocsMissing,
-	CodeDuplicateID, CodeEffectOwned, CodeExternalUnbounded, CodeFenced, CodeGateFailed,
+	CodeDuplicateID, CodeEffectOwned, CodeEscalationPending, CodeExternalUnbounded, CodeFenced, CodeGateFailed,
 	CodeGateStale, CodeGateUnknown, CodeHandoff, CodeIndependenceUnverified, CodeIntentBranchMismatch,
 	CodeIntentDiverged, CodeInvalidPriority, CodeJournalForked, CodeJournalSaturated,
-	CodeLimitExceeded, CodeLockTimeout, CodeMalformed, CodeMissingEvidence, CodeMissingGate,
-	CodeNoexec, CodeOcmMissing, CodeOutOfScope, CodePaused, CodePlanStale,
+	CodeLimitExceeded, CodeLockTimeout, CodeLoopDetected, CodeMalformed, CodeMissingEvidence, CodeMissingGate,
+	CodeNoexec, CodeOcmMissing, CodeOutOfScope, CodePaused, CodePlanStale, CodePrerequisiteUnsatisfied,
 	CodeQuiescenceUnproved, CodeRedoPending, CodeRequestIDConflict, CodeResourceCollision,
 	CodeRestored, CodeRestoreIncomplete, CodeRetryExhausted, CodeReviewIncomplete,
 	CodeReviewRejected, CodeReviewReturned, CodeSignalRefusedIdentity, CodeSnapshotMoved, CodeStalePolicy,
@@ -113,6 +122,10 @@ type Error struct {
 	Code  string
 	Where string
 	Msg   string
+	// NotRetryable marks an error from a call that already ran a program or
+	// committed a step a same-request retry would not finish; its result is
+	// never retryable whatever the code (CAL-V0-078). See WithoutRetry.
+	NotRetryable bool
 }
 
 func (e *Error) Error() string {

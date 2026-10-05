@@ -1,6 +1,8 @@
 package ticket
 
 import (
+	"strings"
+
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -42,6 +44,30 @@ type Context struct {
 	SerialFallback  string // policy.serialFallback
 	Gates           GateOracle
 	Attempts        AttemptOracle
+	// Stage is the claim or plan stage (CAL-V0-099). Execution
+	// prerequisites listing it apply; "" (a stageless claim, plan, show or
+	// blockers read) fails closed and applies every prerequisite.
+	Stage string
+	// Loop is the CAL-V0-102 no-progress loop hold of the one ticket this
+	// context views, derived by the caller from audited attempt history
+	// under an opt-in policy; nil when absent or not evaluated.
+	Loop *LoopHold
+}
+
+// LoopHold is a derived CAL-V0-102 LOOP_DETECTED hold. Signal is
+// NO_PROGRESS or ALTERNATING_RETURNS; Generations are the counted
+// generations, oldest first, at AcceptanceRevision; Limit is the policy
+// bound they exceed.
+type LoopHold struct {
+	Signal             string
+	AcceptanceRevision wire.Count
+	Generations        []string
+	Limit              wire.Count
+}
+
+// Detail renders the hold for a blocker or refusal.
+func (h *LoopHold) Detail() string {
+	return "no-progress loop " + h.Signal + " at acceptanceRevision " + string(h.AcceptanceRevision) + ": generations " + strings.Join(h.Generations, ",") + " exceed the policy bound " + string(h.Limit)
 }
 
 // Blocker is one reason a ticket is not eligible.
@@ -76,7 +102,38 @@ type View struct {
 	GateResults    Observation // NOT_OBSERVED in TCP-01
 	Publication    Observation // NOT_OBSERVED in TCP-01 (needs the journal post digest)
 	NextAction     string
-	Untrusted      bool // true when queue prose is embedded (title/body)
+	// SuggestedEvidence is set only by OfferCompletion (ERG-V0-011); nil
+	// leaves the rendered view byte-identical to a view without the offer.
+	SuggestedEvidence []wire.Digest
+	Untrusted         bool // true when queue prose is embedded (title/body)
+}
+
+// NextActionCompleteManual is the ERG-V0-011 read-only completion offer.
+const NextActionCompleteManual = "complete-manual"
+
+// OfferCompletion applies the ERG-V0-011 read-only completion offer. evidence
+// is the sorted head digests of every required external review gate, each a
+// CURRENT PASS (transaction.ExternalReviewCompletionOffer). The offer replaces
+// only the admit action of an OPEN ticket with no blocker and nothing
+// NOT_OBSERVED; any other view, or empty evidence, is left unchanged. It never
+// writes, completes or satisfies a gate: complete-manual stays the operator's
+// disposition (ERG-V0-007).
+func (v *View) OfferCompletion(evidence []wire.Digest) bool {
+	if len(evidence) == 0 || v.Record == nil || v.Record.Status != StatusOpen || v.NextAction != "admit" || len(v.Blockers) != 0 || len(v.Unknowns) != 0 {
+		return false
+	}
+	v.NextAction = NextActionCompleteManual
+	v.SuggestedEvidence = append([]wire.Digest{}, evidence...)
+	return true
+}
+
+// DigestsValue renders digests as a JSON string array.
+func DigestsValue(ds []wire.Digest) wire.Value {
+	out := make([]string, len(ds))
+	for i, d := range ds {
+		out[i] = string(d)
+	}
+	return wire.Strings(out)
 }
 
 func (ctx Context) gates() GateOracle {
@@ -123,6 +180,14 @@ func (inv *Inventory) View(id string, ctx Context) (View, bool) {
 	default:
 		add(wire.CodeTicketState, "", "status "+rec.Status+" is not OPEN")
 	}
+	// ESC-V0-006: current OPEN decision, scope or blocked questions hold.
+	if ids := rec.EscalationPending(); len(ids) != 0 {
+		add(wire.CodeEscalationPending, "", "escalation questions pending: "+strings.Join(ids, ","))
+	}
+	// CAL-V0-102: the caller's derived no-progress loop hold.
+	if ctx.Loop != nil && ctx.Loop.AcceptanceRevision == rec.AcceptanceRevision {
+		add(wire.CodeLoopDetected, "", ctx.Loop.Detail())
+	}
 	// TM-V0-005 structure: missing dependencies and cycles.
 	for _, p := range inv.Problems(id) {
 		add(p.Code, p.TicketID, p.Detail)
@@ -149,6 +214,37 @@ func (inv *Inventory) View(id string, ctx Context) (View, bool) {
 				add(wire.CodeDependencyUnsatisfied, dep.TicketID.Raw, "gate "+gate+" of "+dep.TicketID.Raw+" has no PASSED result at acceptanceRevision "+string(dep.AcceptanceRevision))
 			default:
 				unknown(wire.CodeDependencyUnsatisfied, dep.TicketID.Raw, "gate "+gate+" of "+dep.TicketID.Raw+": result NOT_OBSERVED (no journal evidence available to this reader)")
+			}
+		}
+	}
+	// CAL-V0-099 stage-scoped execution prerequisites, after dependencies and
+	// with the same three-valued gate reading; never part of Problems.
+	for _, p := range rec.ExecutionPrerequisites {
+		if !PrerequisiteApplies(p, ctx.Stage) {
+			continue
+		}
+		scope := " (execution prerequisite for stages " + strings.Join(p.Stages, ",") + ")"
+		pre, ok := inv.byID[p.TicketID.Raw]
+		if !ok {
+			add(wire.CodePrerequisiteUnsatisfied, p.TicketID.Raw, "prerequisite "+p.TicketID.Raw+" does not exist in the queue"+scope)
+			continue
+		}
+		switch p.Obligation {
+		case "COMPLETED":
+			if !(pre.Status == StatusCompleted || (pre.Status == StatusArchived && pre.ArchivedFrom != nil && *pre.ArchivedFrom == StatusCompleted)) {
+				add(wire.CodePrerequisiteUnsatisfied, pre.TicketID.Raw, "prerequisite "+pre.TicketID.Raw+" is "+pre.Status+", obligation COMPLETED"+scope)
+			}
+		case "GATE_PASSED":
+			gate := ""
+			if p.GateID != nil {
+				gate = *p.GateID
+			}
+			switch ctx.gates().GatePassed(pre.TicketID, gate, pre.AcceptanceRevision) {
+			case Satisfied:
+			case Unsatisfied:
+				add(wire.CodePrerequisiteUnsatisfied, pre.TicketID.Raw, "prerequisite gate "+gate+" of "+pre.TicketID.Raw+" has no PASSED result at acceptanceRevision "+string(pre.AcceptanceRevision)+scope)
+			default:
+				unknown(wire.CodePrerequisiteUnsatisfied, pre.TicketID.Raw, "prerequisite gate "+gate+" of "+pre.TicketID.Raw+": result NOT_OBSERVED (no journal evidence available to this reader)"+scope)
 			}
 		}
 	}
@@ -209,7 +305,7 @@ func (inv *Inventory) View(id string, ctx Context) (View, bool) {
 		v.IntentChecks = "FAILED"
 		v.Eligibility = EligibilityBlocked
 	}
-	v.NextAction = nextAction(rec, blockers)
+	v.NextAction = nextAction(rec, blockers, unknowns)
 	return v, true
 }
 
@@ -241,7 +337,10 @@ func holdIDs(rec *Record) string {
 }
 
 // nextAction names the next permitted operation as a literal verb label.
-func nextAction(rec *Record, blockers []Blocker) string {
+// An unknown execution prerequisite (CAL-V0-099: a GATE_PASSED obligation
+// whose gate is NOT_OBSERVED) refuses admission like a blocker, so it waits
+// on the prerequisite rather than recommending an admission that must fail.
+func nextAction(rec *Record, blockers, unknowns []Blocker) string {
 	switch rec.Status {
 	case StatusDraft:
 		return "refine"
@@ -253,6 +352,11 @@ func nextAction(rec *Record, blockers []Blocker) string {
 		return "restore"
 	}
 	if len(blockers) == 0 {
+		for _, u := range unknowns {
+			if u.Code == wire.CodePrerequisiteUnsatisfied {
+				return "wait-dependency"
+			}
+		}
 		// Intent checks passed; admission itself needs the journal (TCP-02)
 		// to observe attempts and gates, so the next action is that check.
 		return "admit"
@@ -260,7 +364,7 @@ func nextAction(rec *Record, blockers []Blocker) string {
 	switch blockers[0].Code {
 	case wire.CodeDependencyMissing, wire.CodeCycle:
 		return "set-dependencies"
-	case wire.CodeDependencyUnsatisfied:
+	case wire.CodeDependencyUnsatisfied, wire.CodePrerequisiteUnsatisfied:
 		return "wait-dependency"
 	case wire.CodeApprovalMissing, wire.CodeApprovalRevoked:
 		return "grant-approval"
@@ -270,6 +374,10 @@ func nextAction(rec *Record, blockers []Blocker) string {
 		return "cutover"
 	case wire.CodeAttemptLive:
 		return "wait-attempt"
+	case wire.CodeEscalationPending:
+		return "answer"
+	case wire.CodeLoopDetected:
+		return "reopen"
 	}
 	return "refine"
 }
@@ -307,6 +415,9 @@ func (v View) Value(includeRecord bool) wire.Value {
 	if rec.RequiredRoles != nil {
 		o.Set("requiredRoles", StageRolesValue(rec.RequiredRoles))
 	}
+	if len(rec.ExecutionPrerequisites) > 0 {
+		o.Set("executionPrerequisites", PrerequisitesValue(rec.ExecutionPrerequisites))
+	}
 	o.Set("gateResults", wire.String(string(v.GateResults)))
 	o.Set("currentAttempt", wire.String(string(v.CurrentAttempt)))
 	o.Set("publication", wire.String(string(v.Publication)))
@@ -316,10 +427,29 @@ func (v View) Value(includeRecord bool) wire.Value {
 		o.Set("completion", wire.String(rec.Completion.Kind))
 	}
 	o.Set("nextAction", wire.String(v.NextAction))
+	if v.SuggestedEvidence != nil {
+		o.Set("suggestedEvidence", DigestsValue(v.SuggestedEvidence))
+	}
 	if includeRecord {
 		o.Set("record", rec.Value())
 	} else {
 		o.Set("record", wire.Null())
 	}
 	return wire.ObjectValue(o)
+}
+
+// EscalationPending returns the sorted, bounded request IDs of the record's
+// ESCALATION_PENDING derived hold (ESC-V0-006), or nil when nothing holds.
+// It reads only the tool-owned `escalations` reference through the predicate
+// Core's planner shares, and never writes the hold.
+func (rec *Record) EscalationPending() []string {
+	if rec.Escalations == nil {
+		return nil
+	}
+	entries := make([]wire.EscalationHoldEntry, 0, len(rec.Escalations.Entries))
+	for _, e := range rec.Escalations.Entries {
+		entries = append(entries, wire.EscalationHoldEntry{RequestID: e.RequestID, AcceptanceRevision: string(e.AcceptanceRevision), Kind: e.Kind, State: e.State})
+	}
+	ids, _ := wire.EscalationPending(string(rec.AcceptanceRevision), entries)
+	return ids
 }

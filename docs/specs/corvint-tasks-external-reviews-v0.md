@@ -17,9 +17,9 @@ their authority; this profile never amends them.
 
 ## Agent digest
 - Claim: Review verdicts (G1/G2 PASS/RETURN) and author resubmissions become typed, CAS-ordered queue events that route work without parsing Markdown.
-- Status: accepted (owner decision 2026-10-04); experimental: pure seed, pure read adapter/history and dispatcher gate predicates; no native writer yet.
-- Exists: closed codecs, a pure reducer, a pure gate adapter and anchored history reader, and closed dispatcher `gates` predicates over typed verdicts, with misroute regression tests.
-- Blocked on: the native locked writer on the issue 501 derived-event slot, policy/ticket optional fields, CLI verbs, the native observation filling ticket gates, the EVIDENCE and issue 394 producers.
+- Status: accepted (owner decision 2026-10-04); experimental: pure seed, read adapter/history, dispatcher gate predicates and a first native slice (OWNER/OPERATOR recorders, TREE candidates).
+- Exists: closed codecs, a pure reducer, gate adapter and history reader; policy `externalReviews`, the ticket `externalReviews` field (Tasks and Core readers), the locked REVIEW_RECORD/REVIEW_RESUBMIT writer on the derived-event slot with a receipt-audit binding, `gate record|resubmit|history`, native dispatcher gate observation, and the read-only `nextAction: complete-manual` offer when every required gate is a CURRENT PASS (ERG-V0-011).
+- Blocked on: REVIEWER/WORKER-actor admission in the writer, EVIDENCE candidates and evidence references, the issue 394 producer, crash/redo and two-writer fixtures, descriptor measurement, the full `gates[G]` field set, promotion.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.
 
 ## User and current state
@@ -55,9 +55,63 @@ accepted by the owner on 2026-10-04 as an ERG-V0-009 amendment. It fails closed:
 observation sets `Ticket.GatesObserved`, every gate reads UNKNOWN, so no predicate (NONE included)
 matches and a configuration using `match.gates` routes nothing. A gate head joins the CAL-V0-057
 progress fingerprint, and a ticket without gates fingerprints exactly as before. The workState
-program decoder is unchanged, so a program cannot supply gates. No writer, policy field, ticket field
-or CLI verb exists yet, and the native observation does not yet fill `Ticket.Gates` or set
-`GatesObserved`, so the predicates are inert in a live dispatcher.
+program decoder is unchanged, so a program cannot supply gates.
+
+The third delivery (native ticket V1-0701, 2026-10-04) installs the first native slice. Policy gains
+optional `externalReviews` (1..16 closed entries: gateId distinct from every executable gate,
+purpose ROUTING_ONLY, non-empty recorderRoles from OWNER/OPERATOR/REVIEWER, reviewStages, non-empty
+authorStages, requireReviewerLease); `definitionSha256` is the digest of the entry's canonical
+bytes, and a gate absent from policy refuses every record (GATE_UNKNOWN). Tickets gain an optional
+`externalReviews` map of at most 16 `{generation,revision,head}` references, omitted until first use
+so a ticket without reviews keeps its legacy bytes; Core's reader admits exactly that closed shape.
+`REVIEW_RECORD` and `REVIEW_RESUBMIT` are MUTATE operations on the issue 501 derived-event slot: the
+locked writer re-derives every reducer observation from the audited inventory (acceptance revision,
+definition and policy digests, the current gate head, the subject's BUILT transition receipt linked
+into the audited chain and posting the attempt record, subject currency, and live leases), posts the
+ticket and the one event, advances only the ticket revision, and refuses with REVISION_CONFLICT,
+UNAUTHORIZED, STALE_TICKET, STALE_TREE, LIMIT_EXCEEDED or MISSING_EVIDENCE before any effect. To
+satisfy the slot-reuse rule, `store.FoldExternalReviews` folds receipts through
+`ExternalReviewReceiptAudit`, which refuses (JOURNAL_FORKED) a gate reference that is dropped or
+changes outside one single-gate MUTATION receipt, and replays each head event's material transition
+through the reducer (`ValidateExternalReviewRecovery`) against the preceding reference and event:
+the expected counters, generation, predecessor, prior RETURN, actor, trust source, time, sequence
+and request must reproduce the posted event under the retained definition's recorder roles and
+reviewer-lease requirement. The definition and policy digests must be those of the
+policy retained in effect at that receipt, and the subject must be a retained BUILT submission
+receipt of the same ticket in one of that definition's author stages, with the event's attempt
+generation and candidate tree, that no later submission in any author stage superseded; the
+binding replayed is built from those retained facts, not from the event. Every consumer runs that fold:
+`receipt audit`, the dispatcher observation (a refused fold leaves gates unobserved), and redo of a
+pending receipt that posts a ticket record, which refuses before publishing any post. The replay does
+not re-judge historical lease liveness. `gate
+record`, `gate resubmit` and `gate history` (newest first, at most 50, default 20, `--cursor` from
+the truncation warning) are the CLI; a `record|resubmit` retry whose request id names an event on
+the gate's chain and whose inputs match it resubmits the retained request bytes, so with the same
+`--issued-at` it replays after a head, policy or lease change, while a changed input refuses as
+REQUEST_ID_CONFLICT before any fresh composition or policy lookup. A request id the queue-wide
+request index retains for another ticket, gate or operation refuses the same way. The dispatcher's native observation fills `Ticket.Gates` and sets
+`GatesObserved` for each ticket whose gates it reads; a gate set it cannot read stays unobserved
+(UNKNOWN). Subject currency comes from durable submission history: a subject is current while no
+later receipt posts a BUILT author-stage attempt of the ticket, inline or blob-backed (the writer streams and chain-checks
+the receipts after the subject; readers use the fold, indexed by ticket and stage, and an attempt
+post they cannot read and fully decode is JOURNAL_FORKED rather than skipped), so a newer submission stales a verdict even
+after that attempt leaves BUILT.
+
+This slice admits only OWNER and OPERATOR actors, because the existing writer guard and mutation
+model accept only those roles: an OWNER/OPERATOR record without a reviewer lease is
+OPERATOR_ATTESTED (only when the definition does not require a lease), with a holder-matched
+review-stage lease it is LEASE_BOUND, and a resubmission needs the actor's holder-matched live
+author-stage lease. REVIEWER and WORKER actors, EVIDENCE candidates and evidence references (which
+refuse as an unknown observation) remain later work.
+
+The fourth delivery (native ticket V1-0792, issue 587 part 3, 2026-10-05) answers the issue's
+report that accepted tickets stayed OPEN until someone noticed and ran `complete-manual` by hand.
+Under owner decision D7 (option a) it adds only a read-only offer (ERG-V0-011): `ticket show`,
+`ticket blockers` and `plan preview` report `nextAction: complete-manual` with the review heads as
+`suggestedEvidence` when every required gate is a CURRENT PASS and nothing else blocks the ticket.
+The offer is derived per read in `transaction.ExternalReviewCompletionOffer` and
+`ticket.View.OfferCompletion`; it writes nothing, adds no result code, and completion stays the
+operator's `complete-manual` disposition, so ERG-V0-007 is unchanged.
 
 ## Requirements
 
@@ -149,11 +203,36 @@ or CLI verb exists yet, and the native observation does not yet fill `Ticket.Gat
   and routing consumption while keeping compatible readers and all stored events; it never strips
   fields or deletes history.
 
+- `ERG-V0-011`: `ticket show`, `ticket blockers` and `plan preview` MUST offer `nextAction: complete-manual` read-only exactly when every required external review gate is a CURRENT PASS and nothing else blocks the ticket.
+  The required set is every gate the policy's `externalReviews` declares plus every gate the ticket
+  references; a policy declaring no gate never offers. Each gate must read CURRENT with verdict PASS
+  through the ERG-V0-009 adapter, so it is bound to the current acceptance revision, definition,
+  subject and candidate (ERG-V0-006); a missing, STALE, UNKNOWN or RETURN gate, or a resubmission
+  awaiting review, gives no offer. The offer replaces only `admit` for an OPEN ticket whose view has
+  no blocker and no unknown: a hold, escalation, dependency, approval, effects, cutover or live-attempt
+  blocker keeps its own action. One predicate serves all three reads: the planner's claim-blocker
+  derivation over the read's plan input (`transaction.ClaimBlockerObservations`: queue pause, missing
+  execution cutover, budget, pool eligibility, retry exhaustion, the reservation-aware view and every
+  unknown) must also be empty, so a `plan preview` entry that is BLOCKED never offers, and `ticket
+  show` withholds the offer under the same facts it reports through `claimabilityReason`. A DEFERRED
+  entry (a resource collision with other work or the attempt limit) is not blocked by a fact about
+  the ticket and may offer. It needs audited journal evidence: an absent journal, a refused receipt
+  fold or an unreadable gate set gives no offer and never fails the read. With an offer, the
+  `ticket show|blockers` item gains `suggestedEvidence` (the review head digests, byte-sorted, usable
+  as `complete-manual` evidence), and the `plan preview` entry gains `nextAction` and
+  `suggestedEvidence`. Without an offer every item is byte-identical to the output before this
+  requirement. The read stays pure (CAL-V0-034): no probe, no write, no new result code and no writer
+  change. It never completes a ticket or satisfies an executable gate, whose results stay
+  `gateResults: NOT_OBSERVED` in the view and are not part of the predicate; ERG-V0-007 is unchanged.
+  `queue status`, `roadmap` and the `plan preview --selected-only` projection are unchanged.
+
 ## Non-goals
 
 No prose interpreter, side database, daemon, network read, automatic reviewer spawning or worker
 messaging. No VERIFIED actor authentication or independence: distinct IDs and holders do not prove
 independent review. No change to executable gates, TCP-00 dispositions, retry charging or completion.
+No automatic completion and no opt-in completion policy (owner decision D7, 2026-10-05): the
+ERG-V0-011 offer is a read-only suggestion, and `complete-manual` stays an operator action.
 
 ## Failure modes and trust
 
@@ -162,34 +241,47 @@ subject, candidate-link, evidence or replay observations refuse rather than defa
 rehashed event whose bytes are well formed but whose counters, prior RETURN, context or subject do
 not match the audited state fails recovery. Reason text and evidence labels are untrusted data. The
 event, history and ticket bounds above, plus the existing 128 KiB ticket and store limits, cap cost.
+The ERG-V0-011 offer fails closed: a missing journal, any planner claim blocker or unknown (for
+example a queue pause), a refused receipt fold, an unreadable gate set or any gate that is not a
+CURRENT PASS gives no offer. `ticket show|blockers` then keeps its existing `nextAction` and adds no
+`suggestedEvidence`; a `plan preview` entry carries neither member. It folds
+the receipts at most once per read and only when a ticket carries a review reference under a policy
+declaring review gates. A wrong offer can only suggest an operator disposition; it cannot complete.
 
 ## Acceptance evidence and traceability
 
-These deliveries supply only pure and dispatcher-level focused evidence. Every integrated native
-witness is NOT_RUN; no row claims installed native behavior.
+The first two deliveries supply pure and dispatcher-level focused evidence; the third adds focused
+native evidence for the OWNER/OPERATOR slice. The last column stays NOT_RUN.
 
-| Requirement | Parent proposal | Delivered evidence (pure seed and read slice) | Required integrated evidence (NOT_RUN) |
+| Requirement | Parent proposal | Delivered evidence (pure seed, read slice and first native slice) | Required integrated evidence (NOT_RUN) |
 |---|---|---|---|
-| ERG-V0-001 | ER504-001 | `TestIssue504ReplayAndAuthority` (recorder roles, reviewer lease, operator attestation), `TestIssue504ResubmitAndSecondReturn` (author lease distinct from reviewer) | trusted native binding, live lease lookup, policy-required lease refusal through the CLI |
-| ERG-V0-002 | ER504-002 | `TestIssue504BoundsAndUnknown` (EVIDENCE union encodes; an unproved candidate link refuses), `TestIssue504MaterialBindings` (subject receipt binding), `TestIssue504HistoricalPreservation` (candidate change) | inactive-member refusal test; real SUBMIT receipt lookup; EVIDENCE artifact producer |
+| ERG-V0-001 | ER504-001 | `TestIssue504ReplayAndAuthority` (recorder roles, reviewer lease, operator attestation), `TestIssue504ResubmitAndSecondReturn` (author lease distinct from reviewer); `TestERGV0009_NativeVerdictsThroughTheCLI` (OPERATOR-attested record and holder-matched author lease through the native writer) | REVIEWER-actor admission, policy-required lease refusal through the CLI |
+| ERG-V0-002 | ER504-002 | `TestIssue504BoundsAndUnknown` (EVIDENCE union encodes; an unproved candidate link refuses), `TestIssue504MaterialBindings` (subject receipt binding), `TestIssue504HistoricalPreservation` (candidate change); `TestERGV0009_NativeVerdictsThroughTheCLI` (real SUBMIT receipt lookup) | inactive-member refusal test; EVIDENCE artifact producer |
 | ERG-V0-003 | ER504-003 | `TestIssue504CanonicalRoundTrip`, `TestIssue504BoundsAndUnknown` in snapshot; `TestIssue504TypedRouting` (prose cannot change state) | measured worst-case event size; evidence storage |
-| ERG-V0-004 | ER504-003 | `TestIssue504CanonicalRoundTrip` (closed per-gate reference codec only), `TestIssue504BoundsAndUnknown` (event revision 4097 refuses) | the 16-gate ticket map, ticket/Core optional-key reader, legacy byte identity, preservation by non-review writers |
-| ERG-V0-005 | ER504-004 | `TestIssue504ResubmitAndSecondReturn`, `TestIssue504ReplayAndAuthority`, `TestIssue504BoundsAndUnknown` in transaction (same-CAS single winner over pure state) | two-writer CAS and replay through the native request index |
-| ERG-V0-006 | ER504-002, F1 | `TestIssue504HistoricalPreservation`, `TestIssue504ResubmitAndSecondReturn/stale-resubmit-fresh-cycle`, `TestIssue504BoundsAndUnknown` | staleness from real acceptance/submission changes |
+| ERG-V0-004 | ER504-003 | `TestIssue504CanonicalRoundTrip` (closed per-gate reference codec only), `TestIssue504BoundsAndUnknown` (event revision 4097 refuses); `TestERGV0009_TicketReviewReferencesCodec` (16-gate map, legacy byte identity), `TestERGV0009_CoreReaderAdmitsOnlyTheClosedReviewReferences` | preservation by every non-review writer |
+| ERG-V0-005 | ER504-004 | `TestIssue504ResubmitAndSecondReturn`, `TestIssue504ReplayAndAuthority`, `TestIssue504BoundsAndUnknown` in transaction (same-CAS single winner over pure state); `TestERGV0009_NativeVerdictsThroughTheCLI` (stale counters refuse with REVISION_CONFLICT) | two-writer CAS and replay through the native request index |
+| ERG-V0-006 | ER504-002, F1 | `TestIssue504HistoricalPreservation`, `TestIssue504ResubmitAndSecondReturn/stale-resubmit-fresh-cycle`, `TestIssue504BoundsAndUnknown`; `TestERGV0009_NativeVerdictsThroughTheCLI` (a newer submission stales a PASS and refuses a verdict on the old subject, also after the newer attempt is released), `TestERGV0006_BlobBackedSubmissionSupersedes` (a blob-backed newer submission stales the PASS and refuses a verdict on the old subject; the indexed fold answers supersession within a fixed bound across a 256-fold longer history), `TestERGV0006_RecoveryChecksEveryAuthorStage` (redo refuses a rehashed verdict superseded by a newer submission in another author stage or a blob-backed one, and admits one whose newer submission is outside the author stages), `TestERGV0006_BuiltPostsNeverSkipUnreadable` (an absent, unretained, mismatched, non-record or malformed attempt post, whatever phase it claims, is JOURNAL_FORKED, never skipped) | staleness from a real acceptance change |
 | ERG-V0-007 | ER504-005 | `TestIssue504CanonicalRoundTrip`, `TestIssue504TypedRouting` (GateResult decoder rejects the event) | completion predicates unchanged under native records |
 | ERG-V0-008 | ER504-005, Gate A MED | `TestIssue504MaterialBindings` (rehashed wrong CAS, priorReturn, context, post and subject) | locked staged recovery and crash/redo fixtures |
-| ERG-V0-009 | ER504-001, ER504-005, ER504-006 | `TestIssue504GateAdapter` (16-gate bound, UNKNOWN for a missing head or binding or a head for another ticket or gate, STALE), `TestIssue504AnchoredHistory` (default and maximum page, cursor paging, off-chain cursor, broken link and digest refusals), `TestIssue504DispatchMisroutes` (the three issue misroutes route by typed verdict through adapter and roster), `TestERGV0009_GatePredicates` (closed predicate config, NONE only when observed, unobserved gates are UNKNOWN, STALE/UNKNOWN never match, fingerprint compatibility, programs cannot supply gates) | native writer, policy, ticket field, CLI verbs, native observation filling ticket gates, 1670-byte descriptor measurement |
+| ERG-V0-009 | ER504-001, ER504-005, ER504-006 | `TestIssue504GateAdapter` (16-gate bound, UNKNOWN for a missing head or binding or a head for another ticket or gate, STALE), `TestIssue504AnchoredHistory` (default and maximum page, cursor paging, off-chain cursor, broken link and digest refusals), `TestIssue504DispatchMisroutes` (the three issue misroutes route by typed verdict through adapter and roster), `TestERGV0009_GatePredicates` (closed predicate config, NONE only when observed, unobserved gates are UNKNOWN, STALE/UNKNOWN never match, fingerprint compatibility, programs cannot supply gates), `TestERGV0009_PolicyExternalReviewsGrantNothingByDefault`, `TestERGV0009_NativeVerdictsThroughTheCLI` (native writer, CLI verbs, history paging, observation filling ticket gates, receipt-audit binding refusing a forged receipt), `TestERGV0009_ForgedReviewEventsRefuseAtRecovery` (rehashed events with a forged actor, counters, prior RETURN, subject generation or candidate tree, or a lease-bound record stripped to an operator attestation under a lease-required policy, refuse redo as JOURNAL_FORKED with the projection unchanged, and once settled leave gates unobserved), `TestERGV0009_ReviewRetriesReplay` (retries replay after head, policy and lease changes; a changed input is a request-id conflict, also after a policy change or with the gate undeclared, and so is a retry on another gate or ticket or reusing another operation's request id), `TestONV0006_DerivedEventSlotClosedToDeclaringOperations` | REVIEWER actors, the full `gates[G]` field set, two-writer fixture, 1670-byte descriptor measurement |
 | ERG-V0-010 | ER504-008, ER504-009 | none | full native fixture set, issue 394 producer, review, integration and native completion |
+| ERG-V0-011 | issue 587 part 3, D7(a) | `TestERGV0011_CompletionOfferNeedsEveryRequiredGateCurrentPass` (missing, STALE, UNKNOWN, RETURN, resubmitted, unbound and undeclared gates, and a policy without gates, give no offer; heads are sorted), `TestERGV0011_OfferReplacesOnlyAnUnblockedAdmit` (only an OPEN unblocked admit with nothing NOT_OBSERVED is replaced; every other view renders byte-identically), `TestERGV0011_CompletionOfferThroughTheCLI` (native RETURN, resubmission, live-attempt PASS, a queue pause with a BLOCKED/PAUSED plan entry, undeclared gate and STALE PASS give no offer; unpausing restores it; a CURRENT PASS offers through `ticket show`, `ticket blockers` and `plan preview` without advancing the journal or completing; an unreviewed ticket's show item and plan entry stay byte-identical) | a two-gate native fixture; operator use in a live queue |
 
 ## Rollout and rollback
 
 The seed and read slice add pure code and an optional dispatcher predicate; they change no existing
 byte format, and a configuration without `match.gates` behaves and fingerprints as before. Rollback
 is reverting those files and this spec's catalog entries; a dispatch configuration that uses
-`match.gates` must drop the predicate first, since the closed decoder would then refuse it. Later
-slices wire the optional fields and native writer after the issue 501 derived-event slot exists, then
-reads, the workState adapter and producers. Once writes exist, disabling new writes is reversible;
-deleting events or pretending an older closed reader is compatible is not rollback.
+`match.gates` must drop the predicate first, since the closed decoder would then refuse it. The native
+slice adds optional policy and ticket fields and two operations. Disabling new records is removing
+the policy `externalReviews` entries (every record then refuses GATE_UNKNOWN) and dropping
+`match.gates` from dispatch configurations; stored references and events stay readable. Reverting
+the code is safe only before any ticket carries `externalReviews`, because an older closed reader
+refuses the field; once writes exist, deleting events or pretending an older closed reader is
+compatible is not rollback.
+The ERG-V0-011 offer stores nothing: rollback is reverting its code and requirement row, after which
+`nextAction` reads `admit` again and the additive `suggestedEvidence` and plan-entry `nextAction`
+members disappear. A consumer of the offer must treat both members as optional.
 
 ## Open decisions
 
@@ -200,4 +292,13 @@ EVIDENCE artifact-binding wire shape (`{kind:"EVIDENCE",sha256,bytes}` admissibl
 admitted journal-backed artifact link) and the issue 394 verdict mapping (accepted to PASS, rejected
 to RETURN, blocked to no verdict). The issue 501 slot itself is not yet committed; the writer follows
 its committed shape. A second owner decision on 2026-10-04 amended ERG-V0-009 to admit the
-fail-closed NONE predicate. No open decision remains.
+fail-closed NONE predicate. Owner decision D7 (2026-10-05, ticket V1-0792) chose option (a), the
+read-only `complete-manual` offer of ERG-V0-011, and declined an opt-in completion policy, so
+ERG-V0-007 stands.
+
+Open (raised with the owner 2026-10-05, ticket V1-0792): whether a policy-required executable gate
+without an observed PASS should withhold the ERG-V0-011 offer. These reads do not observe executable
+gate results (`gateResults: NOT_OBSERVED`), so the delivered predicate excludes them; withholding
+on NOT_OBSERVED would make the offer unreachable in a queue with required executable gates. Also
+open: whether `queue status` and `roadmap` should carry the offer, and whether every
+policy-declared gate should be required of every ticket that references any review gate.

@@ -19,6 +19,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -62,7 +63,7 @@ func dispatchCommand(env Env, args []string) *wire.Result {
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer cancel()
-	d, e := dispatch.Open(values["--program"], c, dispatchQueue{env: env}, env.Stderr)
+	d, e := dispatch.Open(values["--program"], c, dispatchQueue{env: env, pools: c.TicketPools()}, env.Stderr)
 	if e != nil {
 		return dispatchReaderError(cmd, e)
 	}
@@ -194,7 +195,13 @@ func dispatchAux(env Env, verb string, args []string) *wire.Result {
 	if e != nil {
 		return errorResult(cmd, e)
 	}
-	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{dispatchStatusValue(c, dir, l, events, time.Now())}}
+	status := dispatchStatusValue(c, dir, l, events, time.Now())
+	// SERVICE500-008: additive and present only when this program's
+	// installed user service binds this dispatcher state root.
+	if svc, ok := serviceHost().DispatchService(values["--program"], c.StateDir); ok {
+		status.Obj.Set("service", wire.ObjectValue(svc))
+	}
+	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{status}}
 }
 
 func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, events []dispatch.Event, now time.Time) wire.Value {
@@ -271,6 +278,12 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 	o.Set("workers", wire.Value{Kind: wire.KindArray, Arr: workers})
 	o.Set("parked", wire.Strings(parked))
 	o.Set("cooling", wire.Value{Kind: wire.KindArray, Arr: cooling})
+	if held := dispatchEscalationPending(l); len(held) > 0 {
+		o.Set("escalationPending", wire.Value{Kind: wire.KindArray, Arr: held})
+	}
+	if held := dispatchLoopDetected(l); len(held) > 0 {
+		o.Set("loopDetected", wire.Value{Kind: wire.KindArray, Arr: held})
+	}
 	if c.Escalates() {
 		o.Set("escalation", dispatchEscalationValue(c, l))
 	}
@@ -386,7 +399,12 @@ func dispatchPressureValue(r *dispatch.PressureRecord, pc *dispatch.PressureConf
 
 // dispatchQueue is the native store boundary of the dispatcher: one pure
 // read per observation and the existing fenced release/reap transactions.
-type dispatchQueue struct{ env Env }
+// dispatchQueue observes and heals the store for one dispatcher. pools is
+// its config's TicketPools; nil plans as plan preview does.
+type dispatchQueue struct {
+	env   Env
+	pools []string
+}
 
 func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, error) {
 	obs := &dispatch.Observation{}
@@ -395,23 +413,33 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 		if err != nil {
 			return err
 		}
-		plan := transaction.PriorityFirst(in)
-		planned := map[string]transaction.PlanEntry{}
-		for _, e := range plan.Entries {
-			planned[e.Ticket.TicketID.Raw] = e
-		}
-		for _, id := range rc.store.Inventory.IDs() {
-			r, _ := rc.store.Inventory.Get(id)
-			t := dispatch.Ticket{ID: r.TicketID.Raw, Local: r.TicketID.Local, Status: r.Status, Priority: r.Priority, Kind: r.Kind, Revision: string(r.Revision), Order: uint64(r.Order.Int()), Labels: r.Labels}
-			if e, ok := planned[id]; ok {
-				t.Plan, t.PlanReason = e.State, e.Reason
+		in.ClaimablePools = q.pools // pool tickets no role can claim never use the window (CAL-V0-097)
+		obs.Tickets = dispatchTickets(in)
+		// The review binding fold runs once, and only when a gate exists; a
+		// fold that refuses leaves every gate unobserved (ERG-V0-009).
+		var fold *transaction.ExternalReviewReceiptAudit
+		folded := false
+		for i := range obs.Tickets {
+			r, _ := in.Tickets.Get(obs.Tickets[i].ID)
+			// ERG-V0-009: a gate set that cannot be read stays unobserved
+			// (every gate UNKNOWN) instead of failing the whole observation.
+			if len(r.ExternalReviews) > 0 && !folded {
+				folded = true
+				fold, _ = store.FoldExternalReviews(rc.repo, rc.snap.Head.LastSeq.Uint64(), nil)
 			}
-			obs.Tickets = append(obs.Tickets, t)
+			if len(r.ExternalReviews) == 0 || fold != nil {
+				if gates, err := externalReviewGateViews(rc.repo, r, in.Policy, in.Attempts, fold); err == nil {
+					obs.Tickets[i].Gates, obs.Tickets[i].GatesObserved = gates, true
+				}
+			}
 		}
 		for _, a := range in.Attempts {
 			x := dispatch.Attempt{ID: a.AttemptID, Ticket: a.TicketID.Raw, Phase: a.Phase, Stage: a.Stage, Generation: string(a.Generation), Live: a.Live(), Gates: len(a.GateResults), Reviews: len(a.Reviews)}
 			if a.CandidateTreeOid != nil {
 				x.Candidate = *a.CandidateTreeOid
+			}
+			if a.PoolAllocation != nil {
+				x.Pool, x.Member = a.PoolAllocation.PoolID, a.PoolAllocation.MemberID
 			}
 			if a.Lease != nil {
 				x.Holder = a.Lease.Holder
@@ -459,4 +487,82 @@ func leaseOutcome(r *wire.Result) error {
 		return nil
 	}
 	return fmt.Errorf("%s %s: %s", r.Outcome, strings.Join(r.Codes, ","), strings.Join(r.Warnings, "; "))
+}
+
+// dispatchEscalationPending lists, by ticket, the request IDs of each
+// ESC-V0-006 hold in the dispatcher's last native observation. The hold is
+// kept apart from the plan reason, so a ticket first blocked by another
+// reason still shows it; status reads no native store, and both the roster
+// and the native claim path enforce the hold themselves.
+func dispatchEscalationPending(l *dispatch.Ledger) []wire.Value {
+	if l.Seen == nil {
+		return nil
+	}
+	ids := make([]string, 0, len(l.Seen.Escalations))
+	for id := range l.Seen.Escalations {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	held := []wire.Value{}
+	for _, id := range ids {
+		x := wire.NewObject()
+		x.Set("ticket", wire.String(id))
+		x.Set("requests", wire.Strings(l.Seen.Escalations[id]))
+		held = append(held, wire.Value{Kind: wire.KindObject, Obj: x})
+	}
+	return held
+}
+
+// dispatchLoopDetected lists, by ticket, each CAL-V0-102 LOOP_DETECTED hold
+// in the dispatcher's last native observation, kept apart from the plan
+// reason like the ESC-V0-006 hold.
+func dispatchLoopDetected(l *dispatch.Ledger) []wire.Value {
+	if l.Seen == nil {
+		return nil
+	}
+	ids := make([]string, 0, len(l.Seen.Loops))
+	for id := range l.Seen.Loops {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	held := []wire.Value{}
+	for _, id := range ids {
+		h := l.Seen.Loops[id]
+		x := wire.NewObject()
+		x.Set("ticket", wire.String(id))
+		x.Set("signal", wire.String(h.Signal))
+		x.Set("acceptanceRevision", wire.String(h.AcceptanceRevision))
+		x.Set("generations", wire.Strings(h.Generations))
+		held = append(held, wire.Value{Kind: wire.KindObject, Obj: x})
+	}
+	return held
+}
+
+// dispatchTickets is the ticket half of the native observation: each
+// ticket's plan state and primary reason, plus its ESC-V0-006 hold derived
+// apart from that reason, so a hold behind another blocker still reaches the
+// roster and status.
+func dispatchTickets(in transaction.PlanInput) []dispatch.Ticket {
+	planned := map[string]transaction.PlanEntry{}
+	for _, e := range transaction.PriorityFirst(in).Entries {
+		planned[e.Ticket.TicketID.Raw] = e
+	}
+	var out []dispatch.Ticket
+	for _, id := range in.Tickets.IDs() {
+		r, _ := in.Tickets.Get(id)
+		t := dispatch.Ticket{ID: r.TicketID.Raw, Local: r.TicketID.Local, Status: r.Status, Priority: r.Priority, Kind: r.Kind, Revision: string(r.Revision), Order: uint64(r.Order.Int()), Labels: r.Labels, RequiresPool: r.RequiresPool}
+		if e, ok := planned[id]; ok {
+			t.Plan, t.PlanReason = e.State, e.Reason
+		}
+		t.EscalationPending = r.EscalationPending()
+		if h := transaction.LoopHoldOf(in.Attempts, r, in.Policy); h != nil {
+			t.Loop = &dispatch.LoopHold{Signal: h.Signal, AcceptanceRevision: string(h.AcceptanceRevision), Generations: h.Generations}
+		}
+		t.NextStage = dispatch.StateNone
+		if s := transaction.NextStage(in.Attempts, r); s.Kind == wire.KindString {
+			t.NextStage = s.Str
+		}
+		out = append(out, t)
+	}
+	return out
 }

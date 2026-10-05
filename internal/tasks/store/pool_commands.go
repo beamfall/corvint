@@ -9,6 +9,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"os"
+	"slices"
 	"strings"
 	"time"
 )
@@ -137,6 +138,10 @@ func observePool(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 	return leaseOnce(WithClock(ctx, poolClock), repo, actor, choice, poolClock())
 }
 
+// poolPreparedFault, when set by a package test, fails PoolCommand right after
+// its preparation or cleanup receipt commits; it is nil in production.
+var poolPreparedFault func() error
+
 // PoolCommand explicitly probes a free member or cleans a quarantined allocation.
 // The preparation receipt precedes execution; replay never repeats execution.
 func PoolCommand(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, kind string) (*Report, error) {
@@ -177,6 +182,15 @@ func PoolCommand(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 	if e != nil || report.Kind != "Transaction" {
 		return report, e
 	}
+	// The preparation or cleanup receipt is committed. A same-request retry
+	// replays it and neither runs the program nor records an observation, so
+	// from here no result is retryable (CAL-V0-078).
+	report.Unretryable = true
+	if poolPreparedFault != nil {
+		if e = poolPreparedFault(); e != nil {
+			return report, e
+		}
+	}
 	_, state, e = poolSnapshot(ctx, repo)
 	if e != nil {
 		return report, e
@@ -190,8 +204,16 @@ func PoolCommand(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 	if e != nil {
 		return report, e
 	}
-	return observePool(context.WithoutCancel(ctx), repo, actor, choice, en, raw)
+	observed, e := observePool(context.WithoutCancel(ctx), repo, actor, choice, en, raw)
+	if observed == nil {
+		observed = &Report{}
+	}
+	observed.Unretryable = true
+	return observed, e
 }
+
+// healthPrepareHook, when set by a test, runs before each health preparation.
+var healthPrepareHook func(member string)
 
 func healthClaim(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, initial *Report) (*Report, error) {
 	return healthClaimWith(ctx, repo, actor, choice, initial, func(c LeaseChoice) (*Report, error) {
@@ -216,8 +238,19 @@ func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutatio
 		for _, en := range state.Entries {
 			busy[en.MemberID] = true
 		}
+		excluded := choice.Lease.ExcludeMembers
+		var authors *transaction.AuthorExclusion
+		if choice.Lease.ExcludeAuthors != "" {
+			// CAL-V0-098: probe only what the model's own derivation leaves
+			// eligible; preparation rederives it before committing.
+			if report == nil || report.AuthorExclusion == nil {
+				return report, nil
+			}
+			authors = report.AuthorExclusion
+			excluded = authors.Excluded
+		}
 		member := ""
-		for _, m := range transaction.OrderedPoolMembers(pool, choice.Lease.Stage, choice.Lease.ExcludeMembers) {
+		for _, m := range transaction.OrderedPoolMembers(pool, choice.Lease.Stage, excluded) {
 			if !busy[m] {
 				member = m
 				break
@@ -233,9 +266,27 @@ func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutatio
 		prep := choice
 		prep.RequestID = poolChildID(choice.RequestID, member)
 		prep.Lease = transaction.LeaseRequest{Verb: transaction.LeasePoolPrepare, Pool: pool.ID, Member: member, Holder: choice.Lease.Holder, Stage: choice.Lease.Stage, Evidence: string(transaction.PoolClaimBinding(&choice.Lease, state.QueueID))}
+		if authors != nil {
+			prep.Lease.TicketID, prep.Lease.ExcludeAuthors = authors.TicketID, choice.Lease.ExcludeAuthors
+		}
+		if healthPrepareHook != nil {
+			healthPrepareHook(member)
+		}
 		prepared, e := leaseOnce(WithClock(ctx, poolClock), repo, actor, prep, poolClock())
 		if e != nil {
 			return prepared, e
+		}
+		if prepared.Kind != "Transaction" && authors != nil {
+			// The derivation drifted if a fresh claim now excludes this member.
+			fresh, e := execute(choice)
+			if e != nil || !fresh.Outcome.HasCode(wire.CodeQuiescenceUnproved) {
+				return fresh, e
+			}
+			if fresh.AuthorExclusion != nil && slices.Contains(fresh.AuthorExclusion.Excluded, member) {
+				report = fresh
+				continue
+			}
+			report = fresh
 		}
 		if prepared.Kind != "Transaction" {
 			report.Detail = "health preparation unavailable: " + prepared.Detail + "; replay never executes it again"

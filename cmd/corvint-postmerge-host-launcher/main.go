@@ -42,6 +42,13 @@ func run(ctx context.Context, args []string, in io.ReadCloser, out, stderr io.Wr
 		}
 		return 0
 	}
+	if len(args) >= 1 && args[0] == "--internal-process-observer" {
+		if err := postmergehost.RunProcessObserverV2(ctx, args[1:], in, out); err != nil {
+			fmt.Fprintln(stderr, err)
+			return 2
+		}
+		return 0
+	}
 	options, err := parseOptions(args)
 	if err != nil {
 		fmt.Fprintln(stderr, "invalid paired host invocation")

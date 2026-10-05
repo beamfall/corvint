@@ -120,6 +120,17 @@ separators=(',', ':')`, then add one LF; sort only fields documented as sets. Ea
 this queue (`.items[0].payload`) plus a `fields` table of types, enum values and null-able keys;
 fill in `title`, `body` and `acceptanceCriteria`, then submit it with `--payload-stdin`.
 
+A ticket that only some stages must wait for carries optional `executionPrerequisites`, set with
+`ticket refine` (for example `{"executionPrerequisites":[{"gateId":null,"obligation":"COMPLETED",
+"stages":["integrate"],"ticketId":"ticket:acme:main:AT-02"}]}`) and cleared with `null`. A claim,
+`claim-next` or `plan` for a listed stage refuses `PREREQUISITE_UNSATISFIED` naming the
+prerequisite; other stages are unaffected, and a read without `--stage` applies every entry.
+`ticket blockers` explains the block. A `GATE_PASSED` prerequisite stays `NOT_OBSERVED` (unknown)
+on native reads, so its stages stay refused until the entry is removed. Unlike `dependencies`, the
+key takes no part in cycles, completion or `requiredGates` (CAL-V0-099). Once any record has
+carried the key, older binaries refuse the store even after it is cleared, because the journal keeps
+the earlier records; roll back only with a compatible reader or a verified pre-change backup.
+
 Linked worktrees share the primary checkout's `.git/taskman` journal. A fresh clone has no such
 journal: current `queue status`, `roadmap`, `ticket show` and `ticket search` can read the
 unvalidated-history intent projection and report its limits, but cannot claim or complete work.
@@ -145,6 +156,38 @@ corvint-tasks queue status
 corvint-tasks plan preview --pool test-env --stage implement
 ```
 
+The default `plan preview` (no `--pool`) selects a `requiresPool` ticket only while its pool has a
+free eligible member left for it (unreserved members, or those reserved for `--stage` when given).
+It defers the rest `RESOURCE_COLLISION` with the pool as blocker, outside `maxActiveAttempts`, so
+they do not crowd out lane-free work; the plan's `resourceDeferred` rows give each pool's free,
+selected and deferred counts. Unobservable member state reports `NOT_OBSERVED` and defers.
+`claim --next` without `--pool` skips `SELECTED` pool tickets; claim them with their pool. Under
+`corvint-tasks dispatch`, a pool ticket goes only to a role whose `match.pool` names its pool (its
+host should claim with `--pool {pool}`); a pool no role names is deferred in the dispatcher's plan
+so it never takes the window from lane-free roles. This
+only helps tickets that record `requiresPool`: a ticket that waits for an environment without
+declaring it is planned as lane-free and still fills the window (open bugs V1-0754, V1-0758 and
+V1-0759). Record `requiresPool` on create or refine for every ticket that needs a member.
+
+A pool may opt into priority-yield admission (CAL-V0-101) with `"priorityAdmission":true`:
+
+```json
+{"pools":[{"id":"test-env","members":["env-0","env-1"],"priorityAdmission":true}]}
+```
+
+Then an explicit `claim <ticket> --pool test-env` is refused `BLOCKED RESOURCE_COLLISION` when the
+higher-priority `OPEN` tickets that record `requiresPool:"test-env"`, have no claim blocker and no
+live attempt are at least as many as the pool's free eligible members; the detail ends
+`yields to <ticketId>`, naming the first of them in plan order. Plan preview (default and `--pool`)
+shows such a ticket `DEFERRED RESOURCE_COLLISION` with that ticket ID as blocker, and `claim --next`
+never picks it. A competitor whose blockers are unobservable never causes a refusal; `ticket show`
+reports `NOT_OBSERVED` claimability instead. Nothing is stored and there is no waitlist (V1-0785).
+Remove the key (or set `false`) with `policy update` to disable the yield. Once any policy has
+carried the key, older binaries refuse the store even after it is removed, because the journal keeps
+the earlier policy records; roll back only with a compatible reader or a verified pre-change backup.
+A search for the byte string `"priorityAdmission"` in the policy record and `.git/taskman` (journal
+and `evidence/`) tells whether the key was ever written.
+
 To avoid a known member for a particular claim or preview, repeat the single-value
 `--exclude-member` flag:
 
@@ -163,6 +206,30 @@ or prove separate physical environments. Ordinary resource scope, `requiresPool`
 and quarantine remain binding. An identical request replays its original allocation
 after release, a successor or a permitted policy change; a changed valid exclusion
 set conflicts under the same request ID.
+
+For a review or integrate claim, `--exclude-authors` derives the exclusions from the ticket's
+recorded history instead (CAL-V0-098). The bare flag excludes the member of the ticket's most recent
+implement generation; `--exclude-authors=all` excludes the member of every recorded implement
+generation:
+
+```sh
+corvint-tasks claim AT-123 --pool test-env --stage review --exclude-authors --holder reviewer --request-id review-123
+corvint-tasks claim --next --pool test-env --stage integrate --exclude-authors=all --holder integrator --request-id integrate-next
+corvint-tasks plan preview --pool test-env --stage review --exclude-authors
+```
+
+It requires an explicit pool and `--stage review` or `--stage integrate`, and it unions with any
+`--exclude-member`. The mode, not the derived member set, is bound into the request, so an identical
+request replays and a changed mode conflicts under the same request ID. Walking the ticket's
+generations newest first, review and integrate generations are skipped; any other generation
+reached must be an implement generation with a recorded pool member. A generation whose member is
+`NOT_OBSERVED` (ended before the V1-0788 prior-generation history, or supervised), one with no recorded stage, an implement
+generation without a pool member, or a ticket with no implement generation refuses the claim with
+`INDEPENDENCE_UNVERIFIED`; it is never silently unfiltered, and nothing is recovered from receipts.
+When no member remains, the claim refuses `RESOURCE_COLLISION` with a detail naming the excluded
+authors. `plan preview` reports the same per ticket, and with this flag adds `detail` and
+`excludedAuthors` to each entry. A recorded member label is not an authenticated identity and
+proves nothing about who did the work or whether two environments are physically distinct.
 
 Retain the returned `poolAllocation` alongside attempt ID and generation. Replays return the original
 receipt-bound allocation, including after a retry has acquired a successor. Release, completion and
@@ -232,6 +299,41 @@ supervised attempts cannot receive this exemption. A `policy update` changes the
 in-flight handoffs refuse STALE_POLICY; do not update policy expecting it to repair those attempts.
 There is no automatic refund or stale-policy bypass.
 
+### Name the next stage
+
+A clean `HANDOFF` or `REVIEW_RETURNED` release may record which stage should run next, with an
+optional reason from a closed set:
+
+```sh
+corvint-tasks release --attempt "$attempt" --generation "$generation" \
+  --request-id handoff-b --reason HANDOFF --handoff-to review --handoff-reason STAGE_COMPLETE
+```
+
+`--handoff-to` takes `implement`, `review` or `integrate`. `--handoff-reason` takes
+`CHANGES_REQUESTED` (back to implement, never from implement), `STAGE_INCOMPLETE` (the same stage)
+or `STAGE_COMPLETE` (a different stage), and needs `--handoff-to`. `REVIEW_RETURNED` may target
+only `implement`, which is also its default. Other combinations, and either flag on any other
+release or verb, refuse MALFORMED. The target is recorded on the terminal attempt as `handoffTo`
+and `handoffReason` and moves into the next generation's `priorGenerations[]` entry. It does not
+change retry accounting.
+
+`ticket show`, `plan preview` and the dispatcher (`{nextStage}` launch placeholder and `launched`
+event) expose the derived `nextStage`: the latest generation's target, `null` (`NONE` in the
+dispatcher) when none is observed, and `STALE` after the acceptance revision changed. It is
+advisory; claims for another stage are not refused. Older binaries refuse attempt records that
+contain the new keys, so do not downgrade a store after recording a target.
+
+When every external review gate the policy declares or the ticket references is a CURRENT PASS and
+nothing else blocks an OPEN ticket, `ticket show`, `ticket blockers` and the `plan preview` entry
+report `nextAction: complete-manual` with the review heads as `suggestedEvidence` (ERG-V0-011). The
+offer is read-only: nothing completes the ticket automatically, and an operator who accepts it
+passes those digests as the `complete-manual` evidence. STALE, UNKNOWN, RETURN or resubmitted
+reviews, a live attempt, any unknown, or a planner blocker such as a queue pause give no offer.
+`ticket show` and `ticket blockers` then keep their existing `nextAction` (for example `admit` or
+`wait-attempt`) without `suggestedEvidence`; a `plan preview` entry carries neither member.
+Executable gate results are not part of the offer; they remain NOT_OBSERVED in these reads, and
+whether they should withhold it is an open owner question.
+
 The reviewed experimental issue 482 writer adds a narrow clean-release exception: only
 policyVersion and reservedFor entries for other members in the exact allocated pool may differ.
 No-pool attempts permit version changes only. It must fully audit every intervening policy
@@ -242,6 +344,33 @@ This exception does not permit old-generation completion, live stale-holder reap
 or physical pool reuse. Issue 482 was integrated at public commit `094700bfbc7b637bd2d6405cd82ab5508ac4aa20`
 and natively completed at receipt 2173. Qualification remains scoped to disposable fixtures;
 actor authentication, runtime qualification, history and liveness remain NOT_OBSERVED.
+
+### Detect no-progress loops
+
+A policy may opt into loop detection (CAL-V0-102..103) with a top-level `loopDetection` object:
+
+```json
+{"loopDetection":{"maxAlternatingReturns":"2","maxNoProgressGenerations":"2"}}
+```
+
+Both counts are required and 1..256. While the key is present, each re-claim records the ended
+generation's disposition, candidate tree and gate and review counts as `loopEvidence` in its
+`priorGenerations[]` entry. When more consecutive generations than `maxNoProgressGenerations`
+ended in a clean `HANDOFF` with no new candidate tree, no gate result and no external review, or
+more implement-`HANDOFF`/review-`REVIEW_RETURNED` pairs than `maxAlternatingReturns` alternate,
+the ticket is held `LOOP_DETECTED`: `ticket show`, `ticket blockers`, `plan preview`, `claim`,
+`claim --next` and `dispatch status` (`loopDetected`) report it with the counted generations and
+next action `reopen`; a held `plan preview` entry also carries
+`loop {signal, acceptanceRevision, generations, limit}`. The dispatcher skips the ticket and emits
+one `needs-owner` event (`kind: blocked`) per episode, retrying it while the event log is
+unwritable and skipping it when the log already holds it. Generations recorded without evidence (before the opt-in, legacy
+or supervised) are UNKNOWN and never count. The ticket status is not changed.
+
+The hold clears when the acceptance revision changes, for example through the owner's
+`corvint-tasks ticket reopen --role OWNER`, which acknowledges the loop and readmits the ticket with
+a fresh attempt. Remove the key with `policy update` to stop detection. Older binaries refuse a
+store whose policy history ever carried `loopDetection` or whose attempts carry `loopEvidence`;
+search the policy record and `.git/taskman` for those byte strings before a downgrade.
 
 ### Explicit operator-attested untouched pool release
 
@@ -337,6 +466,34 @@ Both outcomes remain `NOT_RUN`, not `ERROR`: nothing was decided, the store was 
 warning names the wait and says the read is retryable. A dispatcher that still sees one should
 retry the read rather than treat it as a failed command; `REDO_PENDING` that outlives the budget
 means a writer crashed inside the window and the next mutating command redoes its receipt.
+
+## Retry by the `retryable` member
+
+Every non-`OK` result that carries a code also carries `retryable` (CAL-V0-078); `OK` and uncoded
+results do not. Branch on that boolean instead of matching codes. It is true only when every code
+is one of these three, and then the same command with the same `--request-id` can succeed after a
+bounded backoff:
+
+- `LOCK_TIMEOUT`: another writer held the store lock or a preparation admission past the wait;
+  nothing was locked or written. This is the `ERROR` a renew or heartbeat reports under heavy
+  concurrency while the lease is still FRESH; retry it before `expiresAt`.
+- `SNAPSHOT_MOVED`: the store, head, intent tree or worktree moved during the read or before commit.
+  A release or attestation candidate whose head no longer matches, and a criterion capture that
+  wraps a refused read, repeat until the caller's input changes.
+- `REDO_PENDING`: a writer is between receipt link-in and head rename. One that outlives the
+  budget crashed there, and the next mutating command redoes its receipt.
+
+Every other code is false, including `FENCED`, `BOOT_FENCED` and `SUPERVISOR_LOST` (the attempt
+really lost; start a new one), `LIMIT_EXCEEDED`, `JOURNAL_SATURATED` and `UNSUPPORTED_FILESYSTEM`.
+`attempt run` and `gate run` report false once their program has started, whatever the code,
+because a retry would run it again. A supervised `run --role` reports false for any failure after its stage
+dispatch has committed, because a repeat no longer selects that attempt and would leave its stage,
+gates or `READY` step unfinished. Integration is the exception: its stage returns the attempt to
+`READY_FOR_INTEGRATION`, and a `GRANT` never leaves it, so a repeat finishes it. A `--count`
+batch reports false when any failed lane is not retryable. `health` and `pool cleanup` report false once their
+preparation or cleanup receipt commits, and `pool sweep` once a fresh sweep commits its owner,
+because a retry then replays that step without running the program or recording what it saw. `STALE`, `STORAGE_FAILED` and `HEAD_MOVED` are not result codes. The spec's
+"V1-0780 retryable result amendment" lists every code with its reason.
 
 ## Observe holders and retry debt
 

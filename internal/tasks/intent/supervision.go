@@ -31,6 +31,9 @@ type SupervisionPolicy struct {
 	// program may span (CAL-V0-071): name -> sha256 of the absolute
 	// checkout path. Empty means single-repository programs only.
 	Repositories map[string]wire.Digest
+	// Host is the owner-selected supervised host the pinned runtime speaks
+	// (CAL-V0-074, CAL-V0-076): "claude-code", "opencode", or empty for Codex.
+	Host string
 }
 
 // AllowsEffort reports whether the policy admits effort for stage. A nil
@@ -56,7 +59,7 @@ func (p *SupervisionPolicy) StageWallSeconds() int {
 }
 
 func readSupervisionPolicy(r *wire.Reader) *SupervisionPolicy {
-	r.Closed(wire.OptionalKeys(r.Value(), []string{"profile", "maxRepairCycles", "contextRequired", "program"}, "efforts", "stageWallMinutes", "repositories")...)
+	r.Closed(wire.OptionalKeys(r.Value(), []string{"profile", "maxRepairCycles", "contextRequired", "program"}, "efforts", "stageWallMinutes", "repositories", "host")...)
 	if r.Field("profile").String() != "taskman-codex-supervisor/0" || !r.Field("contextRequired").Bool() {
 		r.Fail(wire.CodeUnsupported, "supervision profile/context")
 	}
@@ -96,6 +99,11 @@ func readSupervisionPolicy(r *wire.Reader) *SupervisionPolicy {
 	}
 	if wire.Has(r.Value(), "repositories") {
 		p.Repositories = readSupervisedRepositories(r.Field("repositories"))
+	}
+	if wire.Has(r.Value(), "host") {
+		if p.Host = r.Field("host").String(); p.Host != SupervisedHostClaudeCode && p.Host != SupervisedHostOpenCode {
+			r.Fail(wire.CodeUnsupported, "supervision host %q", p.Host)
+		}
 	}
 	return p
 }
@@ -141,4 +149,21 @@ func readSupervisedRepositories(r *wire.Reader) map[string]wire.Digest {
 		out[name] = x.Field("pathSha256").Digest()
 	}
 	return out
+}
+
+// SupervisedHostClaudeCode and SupervisedHostOpenCode are the non-default
+// supervised hosts a policy may select (CAL-V0-074, CAL-V0-076); an absent
+// host is Codex.
+const (
+	SupervisedHostClaudeCode = "claude-code"
+	SupervisedHostOpenCode   = "opencode"
+)
+
+// SupervisedHost is the policy's supervised host; a nil policy or an absent
+// host is Codex ("").
+func (p *SupervisionPolicy) SupervisedHost() string {
+	if p == nil {
+		return ""
+	}
+	return p.Host
 }

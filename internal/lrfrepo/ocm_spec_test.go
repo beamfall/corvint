@@ -150,3 +150,109 @@ func TestSessionContextDividendSpecEnumeratesEveryObligation(t *testing.T) {
 		t.Fatalf("registry locates %v in %s; want %v", registered, path, want)
 	}
 }
+
+// CAL-V0-096 is defined under ## Requirements, so OCM enumerates it.
+// Containment only: other agent-lease clauses are outside this check.
+func TestAgentLeasesSpecEnumeratesCALV0096(t *testing.T) {
+	path := "docs/specs/corvint-tasks-agent-leases-v0.md"
+	data, err := os.ReadFile("../../" + path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, requirements, _, err := requirementsFromBlob(path, "fixture-blob", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(requirements, "CAL-V0-096") {
+		t.Fatalf("OCM enumerates %v; CAL-V0-096 missing", requirements)
+	}
+}
+
+// CAL-V0-097 is defined inside the agent-leases Requirements section, so an
+// OCM over that spec enumerates it.
+func TestAgentLeasesSpecEnumeratesCALV0097(t *testing.T) {
+	path := "docs/specs/corvint-tasks-agent-leases-v0.md"
+	data, err := os.ReadFile("../../" + path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, requirements, _, err := requirementsFromBlob(path, "fixture-blob", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(requirements, "CAL-V0-097") {
+		t.Fatalf("OCM enumerates %v; want CAL-V0-097", requirements)
+	}
+}
+
+// TestAgentLeasesSpecEnumeratesExecutionPrerequisites: the V1-0787
+// amendment sits inside ## Requirements, so OCM enumerates CAL-V0-099.
+// Enumeration proves visibility, not implementation.
+func TestAgentLeasesSpecEnumeratesExecutionPrerequisites(t *testing.T) {
+	path := "docs/specs/corvint-tasks-agent-leases-v0.md"
+	data, err := os.ReadFile("../../" + path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, requirements, _, err := requirementsFromBlob(path, "fixture-blob", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"CAL-V0-074", "CAL-V0-075", "CAL-V0-099"} {
+		if !slices.Contains(requirements, id) {
+			t.Errorf("OCM does not enumerate %s: %v", id, requirements)
+		}
+	}
+}
+
+// CAL-V0-098 (V1-0789) is defined under ## Requirements, so OCM enumerates it.
+func TestAgentLeasesSpecEnumeratesCALV0098(t *testing.T) {
+	path := "docs/specs/corvint-tasks-agent-leases-v0.md"
+	data, err := os.ReadFile("../../" + path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, requirements, _, err := requirementsFromBlob(path, "fixture-blob", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(requirements, "CAL-V0-098") {
+		t.Fatalf("OCM enumerates %v; CAL-V0-098 missing", requirements)
+	}
+}
+
+// CAL-V0-101 is defined inside the agent-leases Requirements section, so an
+// OCM over that spec enumerates it.
+func TestAgentLeasesSpecEnumeratesCALV0101(t *testing.T) {
+	path := "docs/specs/corvint-tasks-agent-leases-v0.md"
+	data, err := os.ReadFile("../../" + path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, requirements, _, err := requirementsFromBlob(path, "fixture-blob", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(requirements, "CAL-V0-101") {
+		t.Fatalf("OCM enumerates %v; want CAL-V0-101", requirements)
+	}
+}
+
+// CAL-V0-102..103 (V1-0791) are defined inside the agent-leases
+// Requirements section, so an OCM over that spec enumerates them.
+func TestAgentLeasesSpecEnumeratesCALV0102(t *testing.T) {
+	path := "docs/specs/corvint-tasks-agent-leases-v0.md"
+	data, err := os.ReadFile("../../" + path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, requirements, _, err := requirementsFromBlob(path, "fixture-blob", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"CAL-V0-102", "CAL-V0-103"} {
+		if !slices.Contains(requirements, id) {
+			t.Fatalf("OCM enumerates %v; want %s", requirements, id)
+		}
+	}
+}

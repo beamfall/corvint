@@ -43,6 +43,7 @@ type leaseArgs struct {
 	values        map[string]string
 	scope         []string
 	excluded      []string
+	authors       string
 	whole         bool
 	next          bool
 	timing        bool
@@ -53,6 +54,7 @@ var leaseValueFlags = map[string]bool{
 	"--pool": true, "--stage": true, "--member": true, "--allocation": true, "--evidence": true,
 	"--request-id": true, "--role": true, "--holder": true, "--lease-minutes": true, "--branch": true,
 	"--base": true, "--attempt": true, "--generation": true, "--reason": true,
+	"--handoff-to": true, "--handoff-reason": true,
 	"--tree": true, "--gate": true, "--commit": true, "--worktree": true,
 }
 
@@ -78,6 +80,12 @@ func parseLeaseArgs(args []string) (leaseArgs, error) {
 			}
 			i++
 			out.excluded = append(out.excluded, args[i])
+		case a == "--exclude-authors" || strings.HasPrefix(a, "--exclude-authors="):
+			mode, err := excludeAuthorsMode(a, out.authors)
+			if err != nil {
+				return out, err
+			}
+			out.authors = mode
 		case a == "--scope":
 			n := scopeRun(args[i+1:])
 			if n == 0 {
@@ -98,6 +106,21 @@ func parseLeaseArgs(args []string) (leaseArgs, error) {
 		}
 	}
 	return out, nil
+}
+
+// excludeAuthorsMode parses one CAL-V0-098 flag: bare for the most recent
+// implement generation, =all for every recorded one; it never repeats.
+func excludeAuthorsMode(flag, prior string) (string, error) {
+	if prior != "" {
+		return "", wire.Errorf(wire.CodeMalformed, "argv", "repeated --exclude-authors")
+	}
+	switch flag {
+	case "--exclude-authors":
+		return transaction.ExcludeAuthorsLatest, nil
+	case "--exclude-authors=all":
+		return transaction.ExcludeAuthorsAll, nil
+	}
+	return "", wire.Errorf(wire.CodeMalformed, "argv", "--exclude-authors takes no value or =all")
 }
 
 func scopeRun(rest []string) int {
@@ -131,7 +154,7 @@ func (a leaseArgs) request(verb, queueID string) (transaction.LeaseRequest, erro
 	if a.next {
 		verb = transaction.LeaseClaimNext
 	}
-	req := transaction.LeaseRequest{LaneUntouched: a.laneUntouched, Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), ExcludeMembers: scopePaths(a.excluded), WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), Reason: a.values["--reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"]}
+	req := transaction.LeaseRequest{LaneUntouched: a.laneUntouched, Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), ExcludeMembers: scopePaths(a.excluded), ExcludeAuthors: a.authors, WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), Reason: a.values["--reason"], HandoffTo: a.values["--handoff-to"], HandoffReason: a.values["--handoff-reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"]}
 	if verb == transaction.LeaseClaim {
 		if len(a.pos) != 1 {
 			return req, wire.Errorf(wire.CodeMalformed, "argv", "claim takes exactly one ticket id or local token")
@@ -163,6 +186,11 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	}
 	if evidence, supplied := parsed.values["--evidence"]; name == "release" && supplied && evidence == "" {
 		return fail(wire.Errorf(wire.CodeMalformed, "evidence", "handoff reference must be a nonempty Identifier"))
+	}
+	for _, flag := range []string{"--handoff-to", "--handoff-reason"} {
+		if value, supplied := parsed.values[flag]; supplied && (name != "release" || value == "") {
+			return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "%s belongs to release and needs a value", flag))
+		}
 	}
 	worktree, hasWorktree := parsed.values["--worktree"]
 	if hasWorktree && name != "gate run" {
@@ -223,10 +251,24 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 		}
 		report, err = store.Lease(ctx, repo, actor, choice, now)
 	}
+	return unretryableResult(cmd, report, err)
+}
+
+// unretryableResult is the lease command's result. When the call already
+// started a program or committed a step it could not finish (store
+// Report.Unretryable), a retry would run the program again or replay the step
+// unfinished, so the result is never retryable whatever its codes (CAL-V0-078).
+func unretryableResult(cmd []string, report *store.Report, err error) *wire.Result {
+	var res *wire.Result
 	if err != nil {
-		return errorResult(cmd, err)
+		res = errorResult(cmd, err)
+	} else {
+		res = leaseResult(cmd, report)
 	}
-	return leaseResult(cmd, report)
+	if report != nil && report.Unretryable {
+		res.NotRetryable = true
+	}
+	return res
 }
 
 func leaseResult(cmd []string, report *store.Report) *wire.Result {
@@ -234,6 +276,10 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 	o := res.Items[0].Obj
 	if report.PoolAllocation != nil {
 		o.Set("poolAllocation", snapshot.PoolAllocationValue(report.PoolAllocation))
+	} else if cmd[0] == "claim" {
+		// CAL-V0-096: every claim result, a refusal included, names its
+		// allocation.
+		o.Set("poolAllocation", wire.Null())
 	}
 	if report.LaneUntouchedAttestation != nil {
 		o.Set("laneUntouchedAttestation", snapshot.LaneUntouchedAttestationValue(report.LaneUntouchedAttestation))
@@ -244,6 +290,9 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 	o.Set("reaped", expiredValue(report.Reaped))
 	if len(report.ReapReceipts) > 0 {
 		o.Set("reapReceipts", reapReceiptsValue(report.ReapReceipts))
+	}
+	if report.Delivery != nil {
+		claimDeliveryResult(res, report.Delivery)
 	}
 	return res
 }
@@ -315,6 +364,7 @@ func readAttempt(env Env, args []string, observations bool) *wire.Result {
 		item, err = wire.Parse(record.Raw)
 		if err == nil && observations {
 			addHolderObservation(item.Obj, a, observedAt)
+			addHistoryObservation(item.Obj)
 		}
 		return err
 	})
@@ -494,4 +544,17 @@ func gateWorktree(cwd, worktree string) string {
 		return worktree
 	}
 	return filepath.Join(cwd, worktree)
+}
+
+// claimDeliveryResult adds what a claim or claim-next delivers from its
+// admission beside the existing members (ON-V0-007); a later delivered field
+// sits beside operatorNote. Delivered prose is untrusted data. An unresolvable
+// note never fails the committed claim: the result keeps its attempt,
+// generation and receipt, and an exact replay retries delivery.
+func claimDeliveryResult(res *wire.Result, d *store.ClaimDelivery) {
+	res.Items[0].Obj.Set("operatorNote", claimedNoteValue(d))
+	res.Untrusted = true
+	if d.OperatorNote.Err != nil {
+		res.Warnings = append(res.Warnings, "operator note unavailable ("+noteErrCode(d.OperatorNote.Err)+"): the claim is committed; replay the exact claim request to retry delivery, never claim again")
+	}
 }

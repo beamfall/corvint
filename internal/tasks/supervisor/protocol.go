@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -24,6 +25,9 @@ type Capsule struct {
 	Env              []string `json:"env"`
 	Directory        string   `json:"directory"`
 	Prompt           string   `json:"prompt"`
+	// Host selects the result vocabulary (CAL-V0-074); absent is Codex, so
+	// Codex capsule bytes are unchanged.
+	Host string `json:"host,omitempty"`
 }
 type Boot struct {
 	Effect  string `json:"effect"`
@@ -106,25 +110,112 @@ func Publish(dir, name string, v any) error {
 	defer d.Close()
 	return d.Sync()
 }
+
+// PrelaunchError is a Run refusal made before the lane leader is forked: no
+// host process exists or can exist for it. Every other Run error may follow a
+// spawn, so only this one lets a caller settle the stage as NO_EXEC
+// (CAL-V0-074).
+type PrelaunchError struct{ Err error }
+
+func (e *PrelaunchError) Error() string { return "launch refused: " + e.Err.Error() }
+func (e *PrelaunchError) Unwrap() error { return e.Err }
+
+// MaxRuntime bounds a pinned runtime's bytes.
+const MaxRuntime = 256 << 20
+
 func ValidateCapsule(c Capsule) error {
+	_, _, e := validateCapsule(c)
+	return e
+}
+
+// validateCapsule returns the verified runtime bytes and the status of the
+// descriptor they were read from, so the lane leader can execute exactly the
+// object it checked.
+func validateCapsule(c Capsule) ([]byte, os.FileInfo, error) {
 	if c.Profile != "taskman-codex-supervisor/0" || len(c.Effect) != 64 || !filepath.IsAbs(c.Executable) || !filepath.IsAbs(c.Directory) || len(c.Argv) > 64 || len(c.Env) > 64 || len(c.Prompt) > MaxCapsule/2 {
-		return fmt.Errorf("capsule profile/bounds")
+		return nil, nil, fmt.Errorf("capsule profile/bounds")
 	}
-	st, e := os.Lstat(c.Executable)
+	host, ok := HostVocabulary(c.Host)
+	if !ok || c.Host == HostCodex {
+		return nil, nil, fmt.Errorf("capsule host unsupported")
+	}
+	for _, want := range host.DetachedEnv {
+		if !lastEnv(c.Env, want) {
+			return nil, nil, fmt.Errorf("detached host environment absent")
+		}
+	}
+	b, st, e := readRuntime(c.Executable)
 	if e != nil {
-		return e
-	}
-	if !st.Mode().IsRegular() || st.Mode()&0111 == 0 {
-		return fmt.Errorf("runtime is not regular executable")
-	}
-	b, e := ReadBounded(c.Executable, 256<<20)
-	if e != nil {
-		return e
+		return nil, nil, e
 	}
 	if Digest(b) != c.ExecutableSHA256 {
-		return fmt.Errorf("runtime executable digest changed")
+		return nil, nil, fmt.Errorf("runtime executable digest changed")
 	}
-	return nil
+	return b, st, nil
+}
+
+// LaunchableExecutable is the launch-time check on a pinned runtime path:
+// an absolute path naming a regular file with an execute bit, never a
+// symlink, whose bounded bytes and permission bits it returns. The type,
+// mode and bytes all come from one descriptor opened without following a
+// final symlink, so no second path lookup can substitute another file.
+// Admission and ValidateCapsule share it, so an admitted program is never
+// refused at launch for the executable's type (CAL-V0-074).
+func LaunchableExecutable(path string) ([]byte, os.FileMode, error) {
+	b, st, e := readRuntime(path)
+	if e != nil {
+		return nil, 0, e
+	}
+	return b, st.Mode().Perm(), nil
+}
+
+func readRuntime(path string) ([]byte, os.FileInfo, error) {
+	if !filepath.IsAbs(path) {
+		return nil, nil, fmt.Errorf("runtime path is not absolute")
+	}
+	f, e := openExecutable(path)
+	if e != nil {
+		// The descriptor refusal decides; the second lookup only names it.
+		if st, le := os.Lstat(path); le == nil && st.Mode()&os.ModeSymlink != 0 {
+			if target, te := filepath.EvalSymlinks(path); te == nil {
+				return nil, nil, fmt.Errorf("runtime %s is a symlink; pin its target %s", path, target)
+			}
+			return nil, nil, fmt.Errorf("runtime %s is a symlink", path)
+		}
+		return nil, nil, e
+	}
+	defer f.Close()
+	st, e := f.Stat()
+	if e != nil {
+		return nil, nil, e
+	}
+	if !st.Mode().IsRegular() || st.Mode()&0111 == 0 {
+		return nil, nil, fmt.Errorf("runtime is not regular executable")
+	}
+	if st.Size() > MaxRuntime {
+		return nil, nil, fmt.Errorf("runtime exceeds %d bytes", MaxRuntime)
+	}
+	b, e := io.ReadAll(io.LimitReader(f, MaxRuntime+1))
+	if e != nil {
+		return nil, nil, e
+	}
+	if len(b) > MaxRuntime {
+		return nil, nil, fmt.Errorf("runtime exceeds %d bytes", MaxRuntime)
+	}
+	return b, st, nil
+}
+
+// lastEnv reports whether the effective (last) assignment of want's key in
+// env is exactly want.
+func lastEnv(env []string, want string) bool {
+	key, _, _ := strings.Cut(want, "=")
+	got := ""
+	for _, kv := range env {
+		if k, _, _ := strings.Cut(kv, "="); k == key {
+			got = kv
+		}
+	}
+	return got == want
 }
 func await(ctx context.Context, path string, v any) error {
 	tick := time.NewTicker(20 * time.Millisecond)

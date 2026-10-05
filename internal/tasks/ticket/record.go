@@ -148,6 +148,13 @@ type Record struct {
 	// OperatorNote is the optional advisory note reference (ON-V0-001). It is
 	// not acceptance-relevant and is changed only by NOTE_SET/NOTE_CLEAR.
 	OperatorNote *OperatorNoteReference
+	// ExternalReviews is the optional per-gate review head map (ERG-V0-004),
+	// omitted until first use and changed only by REVIEW_RECORD/RESUBMIT.
+	ExternalReviews map[string]ExternalReviewRef
+	// ExecutionPrerequisites is the optional stage-scoped prerequisite set
+	// (CAL-V0-099), omitted when empty. It is not acceptance-relevant and is
+	// excluded from cycle detection, completion and requiredGates.
+	ExecutionPrerequisites []Prerequisite
 }
 
 var recordKeys = wire.TicketRecordKeys
@@ -183,8 +190,18 @@ func FromValue(v wire.Value) (*Record, error) {
 		}
 		rec.OperatorNote = note
 	}
+	if wire.Has(v, "externalReviews") {
+		reviews, err := ExternalReviewsFromValue(r.Field("externalReviews").Value())
+		if err != nil {
+			return nil, err
+		}
+		rec.ExternalReviews = reviews
+	}
 	if wire.Has(v, "requiredRoles") {
 		rec.RequiredRoles = ReadStageRoles(r.Field("requiredRoles"))
+	}
+	if wire.Has(v, "executionPrerequisites") {
+		rec.ExecutionPrerequisites = ReadPrerequisites(r.Field("executionPrerequisites"))
 	}
 	rec.TicketID = r.Field("ticketId").TicketID()
 	rec.Revision = r.Field("revision").Count()
@@ -411,6 +428,9 @@ func (rec *Record) validate() error {
 		}
 		seen[key] = true
 	}
+	if err := rec.validatePrerequisites(); err != nil {
+		return err
+	}
 	// §3.1 source: IMPORT names its source item; NATIVE has none.
 	if rec.Source.Kind == "IMPORT" && rec.Source.SourceItemID == nil {
 		return wire.Errorf(wire.CodeMalformed, "/source/sourceItemId", "IMPORT source must name sourceItemId")
@@ -484,6 +504,12 @@ func (rec *Record) Value() wire.Value {
 	}
 	if rec.OperatorNote != nil {
 		o.Set("operatorNote", rec.OperatorNote.Value())
+	}
+	if len(rec.ExternalReviews) > 0 {
+		o.Set("externalReviews", ExternalReviewsValue(rec.ExternalReviews))
+	}
+	if len(rec.ExecutionPrerequisites) > 0 {
+		o.Set("executionPrerequisites", PrerequisitesValue(rec.ExecutionPrerequisites))
 	}
 	o.Set("owner", wire.StringOrNull(rec.Owner))
 	o.Set("milestone", wire.StringOrNull(rec.Milestone))

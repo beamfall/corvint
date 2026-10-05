@@ -59,7 +59,9 @@ var optionalTicketMembers = map[string]func(v wire.Value, revision, acceptance u
 		}
 		return nil
 	},
-	"escalations": escalationRefs,
+	"escalations":            escalationRefs,
+	"externalReviews":        externalReviews,
+	"executionPrerequisites": executionPrerequisites,
 }
 
 // ticketObject checks the closed ticket record object and returns the
@@ -151,16 +153,17 @@ func escalationRefs(v wire.Value, revision, acceptance uint64) error {
 	return nil
 }
 
-// escalationHeld reports a current OPEN decision, scope or blocked question,
-// the ESCALATION_PENDING derived hold (ESC-V0-006). Infrastructure questions
-// do not hold admission.
-func escalationHeld(t ticket) bool {
+// escalationPending returns the sorted request IDs of the ESCALATION_PENDING
+// derived hold (ESC-V0-006): current OPEN decision, scope or blocked
+// questions, through the predicate the native Tasks reader shares (decision
+// 0397). Infrastructure and stale questions do not hold admission.
+func escalationPending(t ticket) []string {
+	var entries []taskswire.EscalationHoldEntry
 	for _, x := range value(value(t.raw, "escalations"), "entries").Arr {
-		if stringAt(x, "state") == "OPEN" && stringAt(x, "acceptanceRevision") == t.revision && stringAt(x, "kind") != "infrastructure" {
-			return true
-		}
+		entries = append(entries, taskswire.EscalationHoldEntry{RequestID: stringAt(x, "requestId"), AcceptanceRevision: stringAt(x, "acceptanceRevision"), Kind: stringAt(x, "kind"), State: stringAt(x, "state")})
 	}
-	return false
+	ids, _ := taskswire.EscalationPending(t.revision, entries)
+	return ids
 }
 func boolField(v wire.Value, k string) error {
 	if value(v, k).Kind != wire.KindBool {
@@ -189,6 +192,9 @@ func decodeTicket(v wire.Value) (ticket, error) {
 		if e = optionalTicketMembers[k](value(v, k), chain, rev); e != nil {
 			return t, fmt.Errorf("%s: %w", k, e)
 		}
+	}
+	if e = prerequisiteOwner(t.id, value(v, "executionPrerequisites")); e != nil {
+		return t, fmt.Errorf("executionPrerequisites: %w", e)
 	}
 	t.order, e = number(value(v, "order"), 2147483647)
 	if e != nil {
@@ -406,7 +412,15 @@ func covers(resources []Resource, required Resource) bool {
 }
 func decodePlan(v wire.Value) (Plan, error) {
 	p := Plan{}
-	if e := object(v, "profile planningProfile queueId policySha256 headSeq intentTreeSha256 reservationSetSha256 capacity entries mutationAuthority"); e != nil {
+	keys := "profile planningProfile queueId policySha256 headSeq intentTreeSha256 reservationSetSha256 capacity entries mutationAuthority"
+	if hasMember(v, "resourceDeferred") {
+		keys += " resourceDeferred"
+	}
+	if e := object(v, keys); e != nil {
+		return p, e
+	}
+	pools, e := planPools(v)
+	if e != nil {
 		return p, e
 	}
 	if stringAt(v, "profile") != "taskman-plan/0" || stringAt(v, "planningProfile") != "taskman-priority-first/0" || value(v, "mutationAuthority").Kind != wire.KindBool || boolAt(v, "mutationAuthority") {
@@ -467,7 +481,8 @@ func decodePlan(v wire.Value) (Plan, error) {
 			return p, err
 		}
 		for _, blocker := range blockers {
-			if !oneOf(blocker, nativeCodes) && !nativeID(blocker, "ticket", queue) {
+			poolWait := pools[blocker] && stringAt(entry, "state") == "DEFERRED" && stringAt(entry, "reason") == "RESOURCE_COLLISION"
+			if !oneOf(blocker, nativeCodes) && !nativeID(blocker, "ticket", queue) && !poolWait {
 				return p, errors.New("history blocker")
 			}
 		}
@@ -480,6 +495,56 @@ func decodePlan(v wire.Value) (Plan, error) {
 // with Core's own primitives: revision 1..4096, head a digest, current null or
 // equal to head. Absence is valid; a whole-null reference is not
 // (ON-V0-001).
+func hasMember(v wire.Value, k string) bool {
+	if v.Kind != wire.KindObject {
+		return false
+	}
+	_, ok := v.Obj.Values[k]
+	return ok
+}
+
+// planPools validates a default plan's optional resourceDeferred rows
+// (CAL-V0-097) and returns their pool IDs: the only labels a DEFERRED
+// RESOURCE_COLLISION entry may name as its blocker.
+func planPools(v wire.Value) (map[string]bool, error) {
+	pools := map[string]bool{}
+	if !hasMember(v, "resourceDeferred") {
+		return pools, nil
+	}
+	rows, e := array(value(v, "resourceDeferred"), 1000)
+	if e != nil {
+		return nil, e
+	}
+	for _, row := range rows {
+		if e := object(row, "poolId availability freeEligibleMembers selected deferred"); e != nil {
+			return nil, e
+		}
+		id := stringAt(row, "poolId")
+		if _, e := taskswire.ParseLabel("/resourceDeferred/poolId", id); e != nil || value(row, "poolId").Kind != wire.KindString || pools[id] {
+			return nil, errors.New("history resource pool")
+		}
+		pools[id] = true
+		free := value(row, "freeEligibleMembers")
+		switch stringAt(row, "availability") {
+		case "OBSERVED":
+			if _, e := number(free, 2147483647); e != nil {
+				return nil, errors.New("history resource availability")
+			}
+		case "NOT_OBSERVED":
+			if free.Kind != wire.KindNull {
+				return nil, errors.New("history resource availability")
+			}
+		default:
+			return nil, errors.New("history resource availability")
+		}
+		for _, k := range []string{"selected", "deferred"} {
+			if _, e := number(value(row, k), 2147483647); e != nil {
+				return nil, e
+			}
+		}
+	}
+	return pools, nil
+}
 func operatorNote(n wire.Value, _, _ uint64) error {
 	if e := object(n, "revision current head"); e != nil {
 		return errors.New("operator note reference")
@@ -494,6 +559,33 @@ func operatorNote(n wire.Value, _, _ uint64) error {
 	current := value(n, "current")
 	if current.Kind != wire.KindNull && (current.Kind != wire.KindString || current.Str != head.Str) {
 		return errors.New("operator note current")
+	}
+	return nil
+}
+
+// externalReviews validates the optional ERG-V0-009 gate reference map: 1..16
+// label keys, each a closed {generation,revision,head} with
+// 1 <= generation <= revision <= 4096 and head a digest. Absence is valid.
+func externalReviews(m wire.Value, _, _ uint64) error {
+	if m.Kind != wire.KindObject || len(m.Obj.Keys) == 0 || len(m.Obj.Keys) > 16 {
+		return errors.New("external review references")
+	}
+	for _, gate := range m.Obj.Keys {
+		if _, e := taskswire.ParseLabel("externalReviews", gate); e != nil {
+			return errors.New("external review gate")
+		}
+		ref := m.Obj.Values[gate]
+		if e := object(ref, "generation revision head"); e != nil {
+			return errors.New("external review reference")
+		}
+		g, e1 := number(value(ref, "generation"), 4096)
+		r, e2 := number(value(ref, "revision"), 4096)
+		if e1 != nil || e2 != nil || g == 0 || g > r {
+			return errors.New("external review counters")
+		}
+		if head := value(ref, "head"); head.Kind != wire.KindString || !digest(head.Str) {
+			return errors.New("external review head")
+		}
 	}
 	return nil
 }

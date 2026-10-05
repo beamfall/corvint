@@ -145,6 +145,31 @@ func InRoot(root *os.Root, rel string, flags int, perm os.FileMode, directory bo
 	return descend(parent, rel, flags, perm)
 }
 
+// PinDir opens the directory root pins as one descriptor, exactly as
+// InRoot's traversal begins. A caller opening many basenames beneath the same
+// root keeps it and uses InDir, paying one no-follow openat per file instead
+// of three (CAL-V0-070). The caller closes it.
+func PinDir(root *os.Root) (*os.File, error) {
+	parent, err := root.Open(".")
+	if err != nil {
+		return nil, err
+	}
+	defer parent.Close()
+	return child(parent, ".", traversalFlags, 0)
+}
+
+// InDir opens one path component beneath a PinDir descriptor with the same
+// validation, flags and errors as InRoot's final step. It never descends.
+func InDir(dir *os.File, name string, flags int, perm os.FileMode) (*os.File, error) {
+	if name != "." && (!filepath.IsLocal(name) || filepath.Clean(name) != name || strings.Contains(name, "\\")) {
+		return nil, fmt.Errorf("unclean relative path %q", name)
+	}
+	if strings.Contains(name, "/") {
+		return nil, fmt.Errorf("pinned directory opens one component, not %q", name)
+	}
+	return child(dir, name, flags, perm)
+}
+
 func SubRoot(root *os.Root, rel string) (*os.Root, error) {
 	dir, err := InRoot(root, rel, os.O_RDONLY, 0, true)
 	if err != nil {

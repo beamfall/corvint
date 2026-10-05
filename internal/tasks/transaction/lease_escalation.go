@@ -62,8 +62,10 @@ func planEscalation(c leaseContext) leaseOutcome {
 		Actor:          c.r.Actor.ID,
 		ActorRole:      c.r.Actor.Role,
 		PolicyDecision: escalationGrant(c.st.policy, c.r.Actor.Role, c.l.Verb),
-		Now:            c.in.RecordedAt,
-		Replay:         EscalationReplay{State: "ABSENT"},
+		// The grant was checked for this lease verb only (ESC-V0-004).
+		PolicyOperation: escalationOperation[c.l.Verb],
+		Now:             c.in.RecordedAt,
+		Replay:          EscalationReplay{State: "ABSENT"},
 	}
 	// Admission is audited only once binding and grant hold, so their
 	// refusals keep the reducer's order (ESC-V0-001).

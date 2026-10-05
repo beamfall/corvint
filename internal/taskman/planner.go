@@ -188,8 +188,11 @@ func nativeClosure(t ticket, index *contextindex.Index, source workqueue.Collisi
 	return normalized(r), complete
 }
 func blocker(t ticket, all map[string]ticket, c captured) string {
-	if t.status != "OPEN" || len(value(t.raw, "holds").Arr) > 0 || escalationHeld(t) {
+	if t.status != "OPEN" || len(value(t.raw, "holds").Arr) > 0 {
 		return "TICKET_STATE"
+	}
+	if len(escalationPending(t)) != 0 {
+		return "ESCALATION_PENDING"
 	}
 	if !c.observed.complete {
 		return "MISSING_EVIDENCE"
@@ -228,6 +231,9 @@ func blocker(t ticket, all map[string]ticket, c captured) string {
 		if dep.status != "COMPLETED" && !(dep.status == "ARCHIVED" && stringAt(dep.raw, "archivedFrom") == "COMPLETED") {
 			return "DEPENDENCY_UNSATISFIED"
 		}
+	}
+	if code := prerequisiteBlocker(t, all); code != "" {
+		return code
 	}
 	// The planner observes no worker pools or roles, so it cannot satisfy a
 	// pool or stage-role requirement.

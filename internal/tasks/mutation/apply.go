@@ -85,6 +85,9 @@ type Context struct {
 	// consulted only by NOTE_SET/NOTE_CLEAR; a referenced head without bytes
 	// refuses VALIDATION_FAILED/MISSING_EVIDENCE.
 	PriorNoteEvent []byte
+	// ExternalReview is the transaction layer's audited review result for
+	// REVIEW_RECORD/REVIEW_RESUBMIT (ERG-V0-009); nil refuses those operations.
+	ExternalReview *ExternalReviewPost
 }
 
 // Plan is the pure result of validating and computing one mutation. It is
@@ -194,7 +197,10 @@ func Apply(ctx Context, env *Envelope) *Plan {
 		plan.Outcome = *out
 		return plan
 	}
-	if r := ctx.checkRole(env.Operation); r != nil {
+	// A review's authority is its policy definition's recorder roles and the
+	// live leases the transaction layer checked, never the role matrix
+	// (ERG-V0-009: no default grant).
+	if r := ctx.checkRole(env.Operation); r != nil && !IsReviewOperation(env.Operation) {
 		return plan.refused(r)
 	}
 	if env.Operation == OpCreate {
@@ -209,6 +215,9 @@ func Apply(ctx Context, env *Envelope) *Plan {
 	}
 	if IsNoteOperation(env.Operation) {
 		return ctx.note(plan, env)
+	}
+	if IsReviewOperation(env.Operation) {
+		return ctx.review(plan, env)
 	}
 	pre, ok := ctx.Inventory.Get(env.TargetID.Raw)
 	if !ok {
@@ -329,6 +338,9 @@ func (ctx *Context) step(work *ticket.Record, p Payload) *refusal {
 	}
 	switch p := p.(type) {
 	case *RefinePayload:
+		if p.Has("executionPrerequisites") {
+			work.ExecutionPrerequisites = copyPrerequisites(p.ExecutionPrerequisites)
+		}
 		if p.Has("requiredRoles") {
 			work.RequiredRoles = p.RequiredRoles
 		}
@@ -575,6 +587,11 @@ func (ctx *Context) checkRecord(pre, work *ticket.Record) *refusal {
 			}
 		}
 	}
+	if pre == nil || fieldChanged(pre, work, "executionPrerequisites") {
+		if r := ctx.checkPrerequisites(work); r != nil {
+			return r
+		}
+	}
 	if pre == nil || fieldChanged(pre, work, "supersedes") {
 		if work.Supersedes != nil {
 			if _, ok := ctx.Inventory.Get(work.Supersedes.Raw); !ok {
@@ -808,6 +825,33 @@ func copyDependencies(ds []ticket.Dependency) []ticket.Dependency {
 		out[i] = ticket.Dependency{TicketID: d.TicketID, Obligation: d.Obligation, GateID: copyString(d.GateID)}
 	}
 	return out
+}
+
+func copyPrerequisites(ps []ticket.Prerequisite) []ticket.Prerequisite {
+	if len(ps) == 0 {
+		return nil
+	}
+	out := make([]ticket.Prerequisite, len(ps))
+	for i, p := range ps {
+		out[i] = ticket.Prerequisite{TicketID: p.TicketID, Obligation: p.Obligation, GateID: copyString(p.GateID), Stages: copyStrings(p.Stages)}
+	}
+	return out
+}
+
+// checkPrerequisites (CAL-V0-099) requires every execution prerequisite to
+// name an existing ticket of the queue and every GATE_PASSED gate to be
+// known to policy. Prerequisites take no part in cycle detection.
+func (ctx *Context) checkPrerequisites(work *ticket.Record) *refusal {
+	known := ctx.Policy.GateIDs()
+	for i, p := range work.ExecutionPrerequisites {
+		if _, ok := ctx.Inventory.Get(p.TicketID.Raw); !ok {
+			return refuse(OutcomeValidationFailed, wire.CodeDependencyMissing, "execution prerequisite %d names %s, which does not exist in the queue", i, p.TicketID.Raw)
+		}
+		if p.GateID != nil && !known[*p.GateID] {
+			return refuse(OutcomeValidationFailed, wire.CodeGateUnknown, "execution prerequisite %d names unknown gate %q", i, *p.GateID)
+		}
+	}
+	return nil
 }
 
 func copySource(s ticket.Source) ticket.Source {

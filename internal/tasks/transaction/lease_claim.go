@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
@@ -132,7 +133,8 @@ func (c leaseContext) liveOn(ticketID string) string {
 // coverage blocker (a non-QUALIFIED ticket claims WHOLE_REPOSITORY) and the
 // live-attempt blocker, which the claim decides after reaping.
 func (c leaseContext) eligibility(id string) *leaseOutcome {
-	v, _ := c.st.tickets.View(id, ticket.Context{CanonicalWriter: c.st.queue.CanonicalWriter, SerialFallback: c.st.policy.SerialFallback, Attempts: entryOracle{c.st.reservations}})
+	rec, _ := c.st.tickets.Get(id)
+	v, _ := c.st.tickets.View(id, ticket.Context{CanonicalWriter: c.st.queue.CanonicalWriter, SerialFallback: c.st.policy.SerialFallback, Attempts: entryOracle{c.st.reservations}, Stage: c.l.Stage, Loop: LoopHoldOf(c.st.attempts, rec, c.st.policy)})
 	skip := map[string]bool{wire.CodeCoverageUnknown: true, wire.CodeAttemptLive: true}
 	for _, b := range append(v.Blockers, v.Unknowns...) {
 		if !skip[b.Code] {
@@ -212,6 +214,7 @@ func (c leaseContext) admitted(rec *ticket.Record, prior *snapshot.Attempt, sc *
 	a.RetryReasons = emptyRetryReasons()
 	a.Stage = c.l.Stage
 	a.RetryAccounting = &snapshot.RetryAccounting{Disposition: "NONE"}
+	a.OperatorNote = rec.OperatorNote
 	a.PoolAllocation, e = c.allocate(a)
 	if e != nil {
 		return nil, e
@@ -232,8 +235,36 @@ func (c leaseContext) admitted(rec *ticket.Record, prior *snapshot.Attempt, sc *
 		reason := chargedReason(prior)
 		a.RetryReasons[reason] = wire.CountOf(a.RetryReasons[reason].Int() + 1)
 	}
-	a.PriorGenerations = append(append([]snapshot.PriorGeneration{}, prior.PriorGenerations...), snapshot.PriorGeneration{Generation: prior.Generation, Quiescence: prior.Quiescence, ProvedSeq: prior.PhaseSinceSeq})
+	history := endedHistory(prior)
+	if history != nil && c.st.policy.LoopDetection != nil {
+		// CAL-V0-102: only an opted-in policy records the ended generation's
+		// work evidence, so a claim under any other policy keeps its bytes.
+		history.Loop = snapshot.LoopEvidenceOf(prior)
+	}
+	a.PriorGenerations = append(append([]snapshot.PriorGeneration{}, prior.PriorGenerations...), snapshot.PriorGeneration{Generation: prior.Generation, Quiescence: prior.Quiescence, ProvedSeq: prior.PhaseSinceSeq, History: history})
 	return a, nil
+}
+
+// endedHistory copies the stage and pool member an ended external-agent
+// generation held (CAL-V0-096). A supervised generation spans several
+// stages and releases its allocation when a stage stops, so a single
+// stage and member would be a guess and nothing is recorded.
+func endedHistory(prior *snapshot.Attempt) *snapshot.GenerationHistory {
+	if prior.RuntimeID != snapshot.RuntimeExternalAgent {
+		return nil
+	}
+	h := &snapshot.GenerationHistory{}
+	if prior.Stage != "" {
+		stage := prior.Stage
+		h.Stage = &stage
+	}
+	if x := prior.PoolAllocation; x != nil {
+		pool, member := x.PoolID, x.MemberID
+		h.PoolID, h.MemberID = &pool, &member
+	}
+	// CAL-V0-082: the ended generation's recorded hand-off moves with it.
+	h.HandoffTo, h.HandoffReason = prior.HandoffTo, prior.HandoffReason
+	return h
 }
 
 // noExecutionCutover names the execution cutover (CAL-V0-020), not the S2
@@ -241,7 +272,9 @@ func (c leaseContext) admitted(rec *ticket.Record, prior *snapshot.Attempt, sc *
 const noExecutionCutover = "a non-fixture queue admits no claim before its execution cutover"
 
 // planClaim admits one external-agent attempt by TCP-00 §4.1 steps 1, 2,
-// 5, 6 and 8 (CAL-V0-002, CAL-V0-007, CAL-V0-021, CAL-V0-023).
+// 5, 6 and 8 (CAL-V0-002, CAL-V0-007, CAL-V0-021, CAL-V0-023), yielding an
+// explicit pooled claim to higher-priority waiting tickets when the pool
+// opts in (CAL-V0-101).
 func planClaim(c leaseContext) leaseOutcome {
 	if c.st.barrier != nil {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodePaused, "an admission barrier is present")
@@ -289,8 +322,8 @@ func planClaimNext(c leaseContext) leaseOutcome {
 		out.result.Expired = reap
 		return out
 	}
-	plan := PriorityFirst(PlanInput{Pool: c.l.Pool, Stage: c.l.Stage, ExcludeMembers: c.l.ExcludeMembers, Pools: c.st.pools, Prepared: c.in.LeaseFacts.Pool.AllocationID, Queue: c.st.queue, Policy: c.st.policy, Tickets: c.st.tickets, Reservations: c.st.reservations, Attempts: c.st.attempts})
-	chosen := plan.Selected()
+	plan := PriorityFirst(PlanInput{Pool: c.l.Pool, Stage: c.l.Stage, ExcludeMembers: c.l.ExcludeMembers, ExcludeAuthors: c.l.ExcludeAuthors, Pools: c.st.pools, Prepared: c.in.LeaseFacts.Pool.AllocationID, Queue: c.st.queue, Policy: c.st.policy, Tickets: c.st.tickets, Reservations: c.st.reservations, Attempts: c.st.attempts})
+	chosen := plan.ClaimNext(c.l.Pool)
 	if chosen == nil {
 		code, detail := plan.refusal()
 		return c.refuse(mutation.OutcomeBlocked, code, detail)
@@ -301,14 +334,30 @@ func planClaimNext(c leaseContext) leaseOutcome {
 	return planClaim(c)
 }
 
-// refusal names why a plan selected nothing: the first entry's reason, or
-// TICKET_STATE when no ticket is OPEN or HELD.
+// refusal names why CLAIM_NEXT found no entry: RESOURCE_COLLISION when every
+// SELECTED entry requires an unrequested pool, otherwise the first entry's
+// reason, or TICKET_STATE when no ticket is OPEN or HELD.
 func (p TicketPlan) refusal() (string, string) {
 	if len(p.Entries) == 0 {
 		return wire.CodeTicketState, "no ticket is OPEN or HELD"
 	}
+	if s := p.Selected(); s != nil {
+		// Every SELECTED entry requires a pool this claim did not request (CAL-V0-097).
+		return wire.CodeResourceCollision, "no SELECTED ticket is claimable without --pool; the first, " + s.Ticket.TicketID.Raw + ", requires pool " + s.Ticket.RequiresPool
+	}
 	first := p.Entries[0]
-	return first.Reason, "no ticket is SELECTED; the first of " + string(wire.CountOf(int64(len(p.Entries)))) + " planned tickets, " + first.Ticket.TicketID.Raw + ", is " + first.State + " " + first.Reason
+	detail := "no ticket is SELECTED; the first of " + string(wire.CountOf(int64(len(p.Entries)))) + " planned tickets, " + first.Ticket.TicketID.Raw + ", is " + first.State + " " + first.Reason
+	switch {
+	case first.Reason == wire.CodeEscalationPending:
+		detail += " on " + strings.Join(first.Ticket.EscalationPending(), ",")
+	case first.Reason == wire.CodePrerequisiteUnsatisfied:
+		detail += ": " + strings.Join(first.prerequisites, "; ")
+	case first.Reason == wire.CodeLoopDetected && first.Loop != nil:
+		detail += ": " + first.Loop.Detail()
+	case first.Detail != "":
+		detail += ": " + first.Detail
+	}
+	return first.Reason, detail
 }
 
 func (c leaseContext) admit(rec *ticket.Record, sc *snapshot.Scope) leaseOutcome {
@@ -320,6 +369,9 @@ func (c leaseContext) admit(rec *ticket.Record, sc *snapshot.Scope) leaseOutcome
 	if live := c.liveOn(rec.TicketID.Raw); live != "" {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeAttemptLive, "attempt "+live+" is live")
 	}
+	if refusal := c.yieldRefusal(rec); refusal != nil {
+		return *refusal
+	}
 	if other := c.collision(sc.Resources, ""); other != "" {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeResourceCollision, "scope collides with live attempt "+other)
 	}
@@ -330,9 +382,15 @@ func (c leaseContext) admit(rec *ticket.Record, sc *snapshot.Scope) leaseOutcome
 	if refusal != nil {
 		return *refusal
 	}
+	if c.authors, refusal = c.authorExclusion(rec.TicketID.Raw); refusal != nil {
+		return *refusal
+	}
 	a, e := c.admitted(rec, prior, sc)
 	if e != nil {
-		return c.fail(e)
+		out := c.fail(e)
+		// The store's health preparation probes only members this derivation leaves eligible.
+		out.result.AuthorExclusion = c.authors
+		return out
 	}
 	entry := snapshot.ReservationEntry{AttemptID: a.AttemptID, Generation: a.Generation, TicketID: a.TicketID, TicketRevision: a.TicketRevision, Resources: sc.Resources, CapacityUses: []snapshot.CapacityUse{}, Workers: "0", State: "ACTIVE", CreatedSeq: c.seq, Coverage: entryCoverage(sc)}
 	return c.write(a, append(c.entries(), entry), "ADMIT", true)

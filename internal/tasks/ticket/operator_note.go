@@ -1,8 +1,8 @@
 package ticket
 
 // Experimental operator-note codecs. Record carries the optional reference and
-// the native MUTATE writer posts the event; claim delivery, anchored history
-// and active-stage recovery remain separate work.
+// the native MUTATE writer posts the event; claim delivery pins it on the
+// attempt. Anchored history and active-stage recovery remain separate work.
 import (
 	"strings"
 

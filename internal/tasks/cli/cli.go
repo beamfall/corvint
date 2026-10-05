@@ -57,7 +57,7 @@ type Env struct {
 var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
 	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket export",
-	"queue status", "roadmap", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "reconcile inspect", "reconcile intent",
+	"queue status", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "reconcile inspect", "reconcile intent",
 	"init", "pause", "unpause", "policy show", "policy update", "import", "cutover",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
@@ -69,6 +69,8 @@ var ReadVerbs = []string{
 	"dispatch", "dispatch status", "dispatch unpark",
 	"submit", "gate run", "complete", "health", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe",
 	"ticket note set", "ticket note clear", "ticket note show",
+	"gate record", "gate resubmit", "gate history",
+	"service install", "service status", "service uninstall", "service stop", "service resume", "service run",
 	"ticket escalate", "ticket answer", "ticket escalation list", "ticket escalation show", "ticket escalation history",
 }
 
@@ -123,6 +125,8 @@ func Run(env Env) int {
 		return emit(env.Stdout, programRun(env, args[1:]))
 	case "dispatch":
 		return emit(env.Stdout, dispatchCommand(env, args[1:]))
+	case "service":
+		return emit(env.Stdout, serviceCommand(env, args[1:]))
 	case "version", "--version":
 		return emit(env.Stdout, versionResult())
 	case "ticket":
@@ -199,11 +203,13 @@ func Run(env Env) int {
 		return emit(env.Stdout, usage([]string{"queue"}, "queue needs the verb status"))
 	case "roadmap":
 		return emit(env.Stdout, roadmap(env, args[1:]))
+	case "critical-path":
+		return emit(env.Stdout, criticalPathCommand(env, args[1:]))
 	case "plan":
 		return emit(env.Stdout, planCommand(env, args[1:]))
 	case "gate":
 		if len(args) < 2 {
-			return emit(env.Stdout, usage([]string{"gate"}, "gate needs a verb: list, show <gateId>, run"))
+			return emit(env.Stdout, usage([]string{"gate"}, "gate needs a verb: list, show <gateId>, run, record, resubmit, history"))
 		}
 		switch args[1] {
 		case "list":
@@ -212,6 +218,10 @@ func Run(env Env) int {
 			return emit(env.Stdout, gateShow(env, args[2:]))
 		case "run":
 			return emit(env.Stdout, leaseCommand(env, "gate run", args[2:]))
+		case "record", "resubmit":
+			return emit(env.Stdout, gateReviewCommand(env, args[1], args[2:]))
+		case "history":
+			return emit(env.Stdout, gateHistory(env, args[2:]))
 		}
 		return emit(env.Stdout, usage([]string{"gate"}, "unknown gate verb"))
 
@@ -284,7 +294,7 @@ func emit(w io.Writer, res *wire.Result) int {
 		fallback := &wire.Result{Command: res.Command, Outcome: wire.OutcomeError, Codes: []string{wire.CodeOf(err)}, Warnings: []string{prose(err.Error())}}
 		data, err = fallback.Encode()
 		if err != nil {
-			data = []byte(`{"codes":["MALFORMED"],"command":["help"],"items":[],"mutation":null,"outcome":"ERROR","page":null,"profile":"taskman-command-result/0","snapshot":null,"untrusted":[],"warnings":["envelope could not be encoded"]}` + "\n")
+			data = []byte(`{"codes":["MALFORMED"],"command":["help"],"items":[],"mutation":null,"outcome":"ERROR","page":null,"profile":"taskman-command-result/0","retryable":false,"snapshot":null,"untrusted":[],"warnings":["envelope could not be encoded"]}` + "\n")
 		}
 		res = fallback
 	}
@@ -315,9 +325,9 @@ func helpResult() *wire.Result {
 	o.Set("statuses", wire.Strings(ticket.Statuses))
 	o.Set("eligibility", wire.Strings([]string{ticket.EligibilityBlocked, ticket.EligibilityUnknown}))
 	o.Set("releaseReasonCodes", wire.Strings(wire.Codes))
-	o.Set("supervisionLimits", wire.Strings([]string{"Codex-only optional policy profile; pinned executable and Core CLI required", "Token usage is observed, not hard-enforced; absent counters remain unknown", "Shared observed cutoffs permit one already-admitted turn per active lane of overshoot", "Explicit clean integration checkout and exact candidate/base grant required; no publication"}))
+	o.Set("supervisionLimits", wire.Strings([]string{"Optional policy profile for one policy-selected host, Codex, Claude Code or OpenCode; pinned executable and Core CLI required", "Token usage is observed, not hard-enforced; absent counters remain unknown", "Shared observed cutoffs permit one already-admitted turn per active lane of overshoot", "Explicit clean integration checkout and exact candidate/base grant required; no publication"}))
 	o.Set("usage", wire.Strings([]string{
-		"corvint-tasks run --program ID --config FILE --role implementer|reviewer|integrator --count N --host codex",
+		"corvint-tasks run --program ID --config FILE --role implementer|reviewer|integrator --count N --host codex|claude-code|opencode",
 		"corvint-tasks run --attempt ID --generation G --timeout SECONDS [--lease-minutes N] [--role ROLE] -- COMMAND...   (command output on stderr; exit status is the command's)",
 		"corvint-tasks admit|resume|retry|drain|cancel --program ID --config FILE",
 		"corvint-tasks answer --program ID --config FILE --question SHA256 --revision N --answer TEXT",
@@ -347,7 +357,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks pool recover --member ID --allocation SHA256 --reason TEXT --request-id ID",
 		"corvint-tasks pool confirm-safe --member ID --allocation SHA256 --evidence REF --reason TEXT --request-id ID",
 		"corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N]",
-		"corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE]",
+		"corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--handoff-to STAGE [--handoff-reason CODE]]",
 		"corvint-tasks reap --request-id ID [--attempt ID --generation G]",
 		"corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository)",
 		"corvint-tasks attempt show <attemptId>",
@@ -356,7 +366,10 @@ func helpResult() *wire.Result {
 		"corvint-tasks cutover --execution --decision REF --qualification FILE",
 		"corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID",
 		"corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR]",
+		"corvint-tasks gate record|resubmit <ticketId|local> --gate GATE --subject-receipt SEQ --expected-generation N --expected-revision N --request-id ID [...]",
+		"corvint-tasks gate history <ticketId|local> --gate GATE [--cursor SHA256] [--limit N]",
 		"corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID",
+		"corvint-tasks service install|status|uninstall|stop|resume --program ID [...]   (per-user launchd/systemd --user dispatcher service)",
 		"corvint-tasks version",
 	}))
 	o.Set("note", wire.String("every read takes no lock and writes nothing, and reports journal facts it cannot observe as NOT_OBSERVED; `init`, `policy update` and the fourteen `ticket` mutations commit through the §5.2 writer (TCP-02/TCP-02b); new external-agent queue setup: docs/TASKS-EXTERNAL-AGENTS.md; ticket blockers reports static intent checks, while plan preview reports claim selection; releaseReasonCodes lists every accepted --reason value"))
@@ -1006,8 +1019,6 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 		if err != nil {
 			return err
 		}
-		v, _ := rc.store.Inventory.View(id, ctx)
-		val := v.Value(includeRecord)
 		attempts := map[string]*snapshot.Attempt{}
 		var in transaction.PlanInput
 		if !rc.journalAbsent {
@@ -1017,11 +1028,22 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 				return e
 			}
 			attempts = in.Attempts
+			// CAL-V0-102: eligibility shows the derived loop hold.
+			rec, _ := rc.store.Inventory.Get(id)
+			ctx.Loop = transaction.LoopHoldOf(attempts, rec, in.Policy)
 		}
+		v, _ := rc.store.Inventory.View(id, ctx)
+		// ERG-V0-011: a read-only complete-manual offer when every required
+		// external review gate is a CURRENT PASS; never a write.
+		offers := completionOffers{rc: rc, in: in}
+		offers.offer(&v)
+		val := v.Value(includeRecord)
 		if includeRecord {
 			val.Obj.Set("operatorNote", operatorNoteShowValue(rc, v.Record))
 		}
 		val.Obj.Set("retries", retryObservation(rc, attempts, v.Record))
+		// CAL-V0-084: null without a journal, since nothing is observed.
+		val.Obj.Set("nextStage", transaction.NextStage(attempts, v.Record))
 		val.Obj.Set("claimabilityScope", wire.String("RECORDED_DEFAULT_EXTERNAL_AGENT_PLAN"))
 		if rc.journalAbsent {
 			val.Obj.Set("claimable", wire.Null()).Set("claimabilityReason", wire.String("NOT_OBSERVED"))
@@ -1143,6 +1165,8 @@ func queueStatus(env Env, args []string) *wire.Result {
 	if err != nil {
 		return failure(cmd, rc, err)
 	}
+	// A separate racy observation outside the store snapshot (CAL-V0-095).
+	item.Obj.Set("preparationAdmission", preparationAdmission(rc.repo))
 	res := success(cmd, rc)
 	res.Items = []wire.Value{item}
 	return res

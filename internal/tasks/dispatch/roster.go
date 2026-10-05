@@ -25,7 +25,9 @@ type Ticket struct {
 	Labels                                      []string
 	Plan, PlanReason                            string
 	State                                       string
-	ProgressToken, ProgressDigest               string
+	// RequiresPool is the pool a claim of the ticket must name, or empty.
+	RequiresPool                  string
+	ProgressToken, ProgressDigest string
 	// Gates is the native ERG-V0-009 external review state by gate ID. A
 	// workState program cannot supply it; absent means no record.
 	Gates map[string]GateView
@@ -33,6 +35,31 @@ type Ticket struct {
 	// gate of the ticket. While false every gate is UNKNOWN, so no gate
 	// predicate (NONE included) matches an unobserved ticket.
 	GatesObserved bool
+	// EscalationPending is the native ESC-V0-006 derived hold: the sorted
+	// request IDs of current OPEN decision, scope or blocked questions. A
+	// workState program cannot supply it. A held ticket is never rostered.
+	EscalationPending []string
+	// Loop is the native CAL-V0-102 LOOP_DETECTED hold, nil when none. A
+	// workState program cannot supply it. A held ticket is never rostered.
+	Loop *LoopHold
+	// NextStage is the advisory CAL-V0-084 recorded hand-off target:
+	// implement, review, integrate, STALE, or NONE when none is observed.
+	// It comes from the native queue, never from a workState program.
+	NextStage string
+}
+
+// LoopHold is a CAL-V0-102 hold as the dispatcher records it: the signal,
+// the acceptance revision it is bound to and the counted generations,
+// oldest first. The ticket, signal, acceptance revision and newest
+// generation name the episode.
+type LoopHold struct {
+	Signal             string   `json:"signal"`
+	AcceptanceRevision string   `json:"acceptanceRevision"`
+	Generations        []string `json:"generations"`
+	// Pending marks, in the ledger only, an episode whose needs-owner event
+	// is not yet appended to the event log, so the next tick and a restart
+	// retry it (CAL-V0-103).
+	Pending bool `json:"pending,omitempty"`
 }
 
 // Attempt is the dispatcher's view of one attempt.
@@ -41,6 +68,9 @@ type Attempt struct {
 	LeaseExpires                                            time.Time
 	Live                                                    bool
 	Gates, Reviews                                          int
+
+	// Pool and Member name the attempt's pool allocation; empty without one.
+	Pool, Member string
 }
 
 // Member is one native pool member.
@@ -70,6 +100,7 @@ type Queue interface {
 // one CAL-V0-057 escalation tier (0 is the base model).
 type Assignment struct {
 	Role, Key, Ticket, Local, State, Pool, Member string
+	NextStage                                     string
 	Slot, Tier                                    int
 }
 
@@ -154,6 +185,12 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 			if _, held := live[t.ID]; held {
 				continue // a lease, an expired lease awaiting reap, or another supervisor holds it
 			}
+			if len(t.EscalationPending) > 0 {
+				continue // ESC-V0-006: a session cannot claim it until the questions are answered
+			}
+			if t.Loop != nil {
+				continue // CAL-V0-102: a session cannot claim it until the owner reopens it
+			}
 			if !matches(r.Match, t) {
 				continue
 			}
@@ -167,7 +204,7 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 			if !ok {
 				prio = len(priorityRank)
 			}
-			cands = append(cands, candidate{a: Assignment{Role: r.Name, Key: t.ID, Ticket: t.ID, Local: t.Local, State: t.State}, pin: pin, role: r.Priority, prio: prio, ord: ri, order: t.Order})
+			cands = append(cands, candidate{a: Assignment{Role: r.Name, Key: t.ID, Ticket: t.ID, Local: t.Local, State: t.State, NextStage: t.NextStage, Pool: t.RequiresPool}, pin: pin, role: r.Priority, prio: prio, ord: ri, order: t.Order})
 		}
 	}
 	sort.SliceStable(cands, func(i, j int) bool {
@@ -264,6 +301,9 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 }
 
 func matches(m *Match, t Ticket) bool {
+	if t.RequiresPool != m.Pool {
+		return false // a worker claiming without the ticket's pool is refused (CAL-V0-097)
+	}
 	statuses := m.Statuses
 	if len(statuses) == 0 {
 		statuses = []string{"OPEN"}

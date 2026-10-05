@@ -49,6 +49,10 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 	if _, err = authority.Qualify(repo.CommonDir); err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
+	// The CAL-V0-070 change watch holds a descriptor per watched path on some
+	// platforms. Like lease preparation's, it closes after the lock is released.
+	var watch *authority.ChangeGuard
+	defer func() { _ = watch.Close() }()
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
@@ -74,31 +78,39 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 	}
 	report.Redone = redone
 
+	// CAL-V0-070: one audit answers the request lookup and supplies the
+	// canonical intent records, with the same refusals as Lookup and Audit made
+	// apart. A watch registered before that audit reads anything, and a fresh
+	// inventory that matches every digest it read, decide whether the second
+	// Audit may reuse it; without a watch, or after a refusal, the inventory
+	// and Audit run fresh, as before.
 	reader := journalReader(repo, headState)
-	index := journal.RequestIndex{Reader: reader}
-	entry, found, err := index.Lookup(env.RequestID)
+	if watch, err = authority.WatchChanges(repo); err != nil {
+		watch = nil
+	} else {
+		mutationStage(ctx, "watched")
+	}
+	audit, err := reader.AuditForMutation(env.RequestID)
+	if err != nil && watch != nil {
+		// The watch's descriptors share the process limit with the audit's
+		// reads, so a refusal is taken again without them, as Lookup took it.
+		_ = watch.Close()
+		watch = nil
+		mutationStage(ctx, "retry: "+err.Error())
+		audit, err = reader.AuditForMutation(env.RequestID)
+	}
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
-	if found {
-		result := replayResult(request, entry)
+	if audit.Found {
+		result := replayResult(request, audit.Entry)
 		report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
 		if result.Kind == "Replay" {
-			report.Ticket = index.TicketID
+			report.Ticket = audit.TicketID
 		}
 		return report, nil
 	}
-	inv, err := inventory(repo)
-	if err != nil {
-		return guardFailure(report, env.RequestID, err)
-	}
-	paths := []string{"intent/queue.json", "intent/policy.json"}
-	for _, file := range inv.Files() {
-		if strings.HasPrefix(file.Path, "intent/tickets/") || strings.HasPrefix(file.Path, "intent/releases/") {
-			paths = append(paths, file.Path)
-		}
-	}
-	canonical, err := reader.Audit(paths...)
+	inv, paths, canonical, err := observeMutation(ctx, repo, reader, audit, watch)
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
@@ -130,6 +142,9 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 				}
 			}
 		}
+	}
+	if paths, canonical, err = reviewAudit(reader, inv, env, paths, canonical); err != nil {
+		return guardFailure(report, env.RequestID, err)
 	}
 	queue := canonical.Records["intent/queue.json"].Raw
 	policy := canonical.Records["intent/policy.json"].Raw
@@ -168,6 +183,10 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
+	priorReview, reviewSubject, reviewLater, err := reviewInputs(repo, env, canonical.Records, canonical.Head)
+	if err != nil {
+		return guardFailure(report, env.RequestID, err)
+	}
 	result := transaction.Model(
 		request,
 		transaction.Input{
@@ -186,6 +205,10 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 			Replay:            transaction.ReplayObservation{State: "ABSENT"},
 			RecordedAt:        now,
 			PriorNoteEvent:    priorNote,
+
+			ExternalReviewPriorEvent: priorReview,
+			ExternalReviewSubject:    reviewSubject,
+			ExternalReviewLater:      reviewLater,
 		},
 	)
 	report.Outcome = result.Outcome
@@ -250,6 +273,91 @@ func optional(path string, bound int) ([]byte, error) {
 		return nil, nil
 	}
 	return raw, err
+}
+
+// mutationStageKey carries a test-only callback that Mutate and
+// observeMutation run at their named stages, so a test can change the store,
+// or the descriptor limit, at a fixed point.
+type mutationStageKey struct{}
+
+func mutationStage(ctx context.Context, stage string) {
+	if hook, ok := ctx.Value(mutationStageKey{}).(func(string)); ok {
+		hook(stage)
+	}
+}
+
+// observeMutation returns Mutate's inventory, its selection and the canonical
+// audit of that selection (CAL-V0-070). The inventory is always read fresh.
+// The merged audit's records stand in for a second Audit only when every file
+// that audit read has the same digest and size in the inventory, and watch,
+// registered before that audit read anything, has seen nothing change in the
+// state directory or the intent tree once both are taken. The digests vouch
+// for content: a write through a shared mapping changes what a read returns
+// with no inotify event at all, and no kqueue event unless msync is called.
+// The watch vouches for names, types and modes, which change only through
+// calls it reports.
+// Otherwise, and without a watch, both run fresh after the watch is closed,
+// so a refusal and any change between the merged audit and the inventory are
+// refused as the separate passes refused them.
+func observeMutation(ctx context.Context, repo *intent.Repository, reader journal.Reader, audit *journal.MutationAudit, watch *authority.ChangeGuard) (*transaction.Inventory, []string, *journal.Result, error) {
+	mutationStage(ctx, "audited")
+	if watch != nil {
+		inv, err := inventory(repo)
+		reuse := err == nil && readUnchanged(inv, audit.Physical.Files)
+		var paths []string
+		var canonical *journal.Result
+		if reuse {
+			paths = mutationSelection(inv)
+			var reused bool
+			if canonical, reused, err = audit.Canonical(paths...); !reused {
+				canonical, err = reader.Audit(paths...)
+			}
+		}
+		mutationStage(ctx, "observed")
+		if reuse && err == nil && watch.Check() == nil {
+			return inv, paths, canonical, nil
+		}
+		_ = watch.Close()
+	}
+	mutationStage(ctx, "fresh")
+	inv, err := inventory(repo)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	paths := mutationSelection(inv)
+	canonical, err := reader.Audit(paths...)
+	return inv, paths, canonical, err
+}
+
+// readUnchanged reports whether every file the merged audit read is listed
+// in inv with the same digest and size. read is nil unless that audit settled
+// with no deferred refusal.
+func readUnchanged(inv *transaction.Inventory, read map[string]journal.PhysicalFile) bool {
+	if read == nil {
+		return false
+	}
+	matched := 0
+	for _, file := range inv.Files() {
+		if r, ok := read[file.Path]; ok {
+			if r.Bytes < 0 || r.Sha256 != file.Sha256 || wire.SizeOf(uint64(r.Bytes)) != file.Bytes {
+				return false
+			}
+			matched++
+		}
+	}
+	return matched == len(read)
+}
+
+// mutationSelection is the queue, the policy and every ticket and release
+// file the inventory lists, in inventory order.
+func mutationSelection(inv *transaction.Inventory) []string {
+	paths := []string{"intent/queue.json", "intent/policy.json"}
+	for _, file := range inv.Files() {
+		if strings.HasPrefix(file.Path, "intent/tickets/") || strings.HasPrefix(file.Path, "intent/releases/") {
+			paths = append(paths, file.Path)
+		}
+	}
+	return paths
 }
 
 func replayResult(request transaction.Request, entry mutation.IndexEntry) transaction.Result {

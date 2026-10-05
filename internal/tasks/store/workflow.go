@@ -36,6 +36,9 @@ type Workflow struct {
 	attempt *snapshot.Attempt
 	policy  *intent.Policy
 	record  *ticket.Record
+	// departed reports that, during the current RunRole, the attempt left the
+	// phase that `run --role` selects and has not been seen back in it.
+	departed bool
 }
 
 var ErrProgramIdle = errors.New("no eligible stage work")
@@ -93,11 +96,40 @@ func (w *Workflow) step(action string, f transaction.SupervisorChange) error {
 	f.ProgramID = w.program.ID
 	f.OwnerPID = w.program.OwnerPID
 	f.OwnerStarted = w.program.OwnerStarted
+	if e := fault("transition:" + action); e != nil {
+		return e
+	}
 	r, e := SupervisorTransition(context.Background(), w.repo, w.actor, w.queue.QueueID.Raw, w.requestID(), w.attempt.AttemptID, w.attempt.Generation, f)
 	if e = transitionOK(r, e); e != nil {
 		return e
 	}
-	return w.refresh(context.Background())
+	if action == "DISPATCH" {
+		w.departed = true
+	}
+	if e = fault("refresh:" + action); e != nil {
+		return e
+	}
+	if e = w.refresh(context.Background()); e != nil {
+		return e
+	}
+	if action == "STOPPED" {
+		w.departed = !reselected(w.attempt)
+	}
+	return nil
+}
+
+// reselected reports whether `run --role` for the attempt's stage selects it
+// again in its current phase; it mirrors the selection in cli/program.go.
+func reselected(a *snapshot.Attempt) bool {
+	switch a.Stage {
+	case "implement":
+		return !a.Live() || a.Phase == "ADMITTED" || a.Phase == "RETURNED" || a.Phase == "WAITING" && a.Supervision != nil && a.Supervision.Answer != ""
+	case "review":
+		return a.Phase == "BUILT"
+	case "integrate":
+		return a.Phase == "READY_FOR_INTEGRATION"
+	}
+	return false
 }
 func (w *Workflow) context(ctx context.Context, root, revision string) (json.RawMessage, error) {
 	if w.cfg.CoreExecutable == "" {
@@ -331,11 +363,20 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 			env = append(env, key+"="+v)
 		}
 	}
+	// Only the stage that continues an answered WAIT resumes its session; a
+	// later stage of the same attempt (review, integrate) starts a fresh one,
+	// so an answer never carries the author session into review.
 	session := ""
-	if w.attempt.Supervision.Answer != "" {
+	if resuming {
 		session = w.attempt.Supervision.SessionID
 	}
 	argv := withWritableRoots(codexStageArgv(w.cfg, stage, session), stage, extras)
+	if w.cfg.Host == supervisor.HostClaudeCode {
+		argv = claudeStageArgv(w.cfg, stage, session, extras)
+	}
+	if w.cfg.Host == supervisor.HostOpenCode {
+		argv, env = opencodeStageArgv(w.cfg, stage, session), opencodeStageEnv(env, stage)
+	}
 	dir, e := os.MkdirTemp(filepath.Dir(path), "effect-")
 	if e != nil {
 		return supervisor.Outcome{}, e
@@ -344,7 +385,7 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 	w.program.LeaderStarted = ""
 	w.program.EffectDirectory = dir
 	w.program.Effect = supervisor.Digest([]byte(dir))
-	capsule := supervisor.Capsule{Profile: w.cfg.Profile, Effect: w.program.Effect, Executable: w.cfg.Executable, ExecutableSHA256: w.cfg.ExecutableSHA256, Argv: argv, Env: env, Directory: path, Prompt: instruction + "\n" + string(prompt)}
+	capsule := supervisor.Capsule{Profile: w.cfg.Profile, Effect: w.program.Effect, Executable: w.cfg.Executable, ExecutableSHA256: w.cfg.ExecutableSHA256, Argv: argv, Env: env, Directory: path, Prompt: instruction + "\n" + string(prompt), Host: w.cfg.Host}
 	w.program.Turns++
 	if e = w.persist("SPAWNING"); e != nil {
 		entries, _ := ProgramRecords(ctx, w.repo)
@@ -356,7 +397,7 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 		return supervisor.Outcome{}, e
 	}
 	if e = w.step("DISPATCH", transaction.SupervisorChange{Stage: stage, Holder: holder, Worktree: path, Pool: w.cfg.Pool}); e != nil {
-		_ = w.noExec("stage admission refused")
+		_ = w.noExec("stage admission refused", false)
 		return supervisor.Outcome{Class: "NO_EXEC", Clean: true}, e
 	}
 	allocation, _ := json.Marshal(w.attempt.PoolAllocation)
@@ -368,7 +409,7 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 	calledRun := false
 	defer func() {
 		if !calledRun {
-			_ = w.noExec("prelaunch preparation failed")
+			_ = w.noExec("prelaunch preparation failed", false)
 		}
 	}()
 	journal := func(phase string, boot supervisor.Boot, out *supervisor.Outcome) error {
@@ -389,7 +430,10 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 		}
 		var output []byte
 		if out != nil && (phase == "FINISHED" || phase == "BLOCKED_RECOVERY") {
-			i, o, known := supervisor.ObservedUsage(out.Stdout)
+			i, o, known := uint64(0), uint64(0), false
+			if vocabulary, ok := supervisor.HostVocabulary(w.cfg.Host); ok {
+				i, o, known = vocabulary.Usage(out.Stdout)
+			}
 			if out.Class != "NO_EXEC" {
 				w.program.InputTokens += i
 				w.program.OutputTokens += o
@@ -491,6 +535,30 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 	out, runErr := supervisor.Run(deadline, w.self, dir, capsule, journal)
 	close(watcherStop)
 	<-watcherDone
+	var refused *supervisor.PrelaunchError
+	if errors.As(runErr, &refused) {
+		// Run refused before forking the lane leader (capsule validation or
+		// publication), so no host process exists. Settle the dispatched
+		// stage as NO_EXEC and cancel the attempt, which releases its claim
+		// and reservation, before the owner is released. Any other error,
+		// even with an empty class, may follow a spawn and keeps the drained
+		// outcome below (CAL-V0-074).
+		if e := w.noExec("launch refused", true); e != nil {
+			return out, e
+		}
+		return supervisor.Outcome{Class: "NO_EXEC", Clean: true}, wire.Errorf(wire.CodeCapabilityUnavailable, "runtime", "%v", runErr)
+	}
+	// A forked OpenCode resume must answer from a new session ID: a missing
+	// session fails the fork, and an unchanged ID is a same-ID recreation
+	// without the original history (CAL-V0-077). A refused resume waits with
+	// the original session retained as its resume target.
+	if w.cfg.Host == supervisor.HostOpenCode && session != "" && (out.SessionID == "" || out.SessionID == session) {
+		if runErr == nil {
+			runErr = fmt.Errorf("resumed opencode session did not fork")
+		}
+		out.SessionID = session
+		w.program.SessionID = session
+	}
 	if !w.attempt.Supervision.Worker {
 		if w.program.Phase == "SPAWNING" {
 			_ = w.persist("STOPPING")
@@ -543,6 +611,9 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 	}
 	if out.Clean {
 		w.program.OwnerReleased = true
+		if e = fault("stage-finished"); e != nil {
+			return out, e
+		}
 		if e = w.persist("FINISHED"); e != nil {
 			return out, e
 		}
@@ -586,22 +657,20 @@ func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.B
 			return nil, e
 		}
 	}
-	runtimeBytes, e := supervisor.ReadBounded(c.Executable, 256<<20)
+	// The launch-time executable check runs here, before any program record,
+	// claim or lease, so admission never accepts what launch would refuse.
+	runtimeBytes, mode, e := supervisor.LaunchableExecutable(c.Executable)
 	if e != nil {
-		return nil, e
-	}
-	st, e := os.Stat(c.Executable)
-	if e != nil {
-		return nil, e
+		return nil, wire.Errorf(wire.CodeCapabilityUnavailable, "runtime", "pinned executable is not launchable: %v", e)
 	}
 	pinned := false
 	for _, r := range policy.Runtimes {
-		if r.RuntimeID == c.Profile && r.Enabled && r.FileSha256 == wire.Sum(runtimeBytes) && r.PathSha256 == wire.Sum([]byte(c.Executable)) && r.Mode == fmt.Sprintf("%04o", st.Mode().Perm()) {
+		if r.RuntimeID == c.Profile && r.Enabled && r.FileSha256 == wire.Sum(runtimeBytes) && r.PathSha256 == wire.Sum([]byte(c.Executable)) && r.Mode == fmt.Sprintf("%04o", mode) {
 			pinned = true
 		}
 	}
 	if !pinned || supervisor.Digest(runtimeBytes) != c.ExecutableSHA256 {
-		return nil, fmt.Errorf("runtime pin mismatch")
+		return nil, wire.Errorf(wire.CodeCapabilityUnavailable, "runtime", "runtime pin mismatch")
 	}
 	for _, field := range policy.RequireEnforcedFields {
 		if field != "turns" && field != "wallClockMinutes" {
@@ -659,6 +728,14 @@ func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.B
 			w.attempt, e = snapshot.DecodeAttempt(rec.Raw)
 			if e != nil || string(w.attempt.Generation) != w.program.CurrentGeneration {
 				return nil, fmt.Errorf("current attempt generation differs")
+			}
+		}
+		// After a policy host change an existing program keeps its bounded
+		// drain and cancel access to a live supervised attempt, but
+		// never reassigns, claims or attaches new work (CAL-V0-074).
+		if w.attempt == nil || !w.attempt.Live() || w.attempt.Supervision == nil {
+			if e = checkProgramHost(c.Host, policy.Supervision); e != nil {
+				return nil, e
 			}
 		}
 		if w.program.OwnerPID != os.Getpid() || w.program.OwnerStarted != started {
@@ -726,7 +803,35 @@ func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.B
 	}
 	return w, nil
 }
-func (w *Workflow) RunRole(ctx context.Context, role, grant string) (*snapshot.Attempt, error) {
+
+// runFault, when set by a package test, fails a supervised run at a named point
+// ("transition:<action>" and "refresh:<action>" around a supervisor transition's
+// commit, "stage-finished", "role-finished", "gate:<id>" and "ready"); it is
+// nil in production.
+var runFault func(point string) error
+
+func fault(point string) error {
+	if runFault == nil {
+		return nil
+	}
+	return runFault(point)
+}
+
+// RunRole runs one stage of the attempt. Once the stage DISPATCH commits, the
+// attempt has left the phase `run --role` selects, so a repeat would skip it
+// instead of finishing the stage, its gates or the READY step: every error from
+// then on is not retryable, including a refresh or program-record failure,
+// unless the committed STOPPED left the attempt in a phase its role selects
+// again (integration returns to READY_FOR_INTEGRATION). A GRANT and integration
+// recovery leave the attempt selectable, so their errors stay as classified
+// (CAL-V0-078).
+func (w *Workflow) RunRole(ctx context.Context, role, grant string) (a *snapshot.Attempt, err error) {
+	w.departed = false
+	defer func() {
+		if err != nil && w.departed {
+			err = wire.WithoutRetry(err)
+		}
+	}()
 	stage := map[string]string{"implementer": "implement", "reviewer": "review", "integrator": "integrate"}[role]
 	if stage == "" {
 		return w.attempt, fmt.Errorf("unknown role")
@@ -746,12 +851,20 @@ func (w *Workflow) RunRole(ctx context.Context, role, grant string) (*snapshot.A
 		if e != nil || head != w.attempt.BaseCommit {
 			return w.attempt, fmt.Errorf("TARGET_ADVANCED: re-admit against new base and repeat review/gates/grant")
 		}
+		// The stage launch re-checks the config; refusing first keeps a grant
+		// from being recorded for a stage that cannot launch.
+		if e = CheckProgramConfig(w.cfg, w.policy.Supervision); e != nil {
+			return w.attempt, e
+		}
 		if e = w.step("GRANT", transaction.SupervisorChange{Grant: grant}); e != nil {
 			return w.attempt, e
 		}
 	}
 	_, e := w.stage(ctx, stage)
 	if e != nil {
+		return w.attempt, e
+	}
+	if e = fault("role-finished"); e != nil {
 		return w.attempt, e
 	}
 	if e = w.persist("FINISHED"); e != nil {
@@ -776,11 +889,17 @@ func (w *Workflow) RunRole(ctx context.Context, role, grant string) (*snapshot.A
 			return w.attempt, fmt.Errorf("multi-repository gate evaluation is not yet supported")
 		}
 		for _, id := range list {
+			if e = fault("gate:" + id); e != nil {
+				return w.attempt, e
+			}
 			choice := LeaseChoice{QueueID: w.queue.QueueID.Raw, RequestID: w.requestID(), Root: w.repo.PrimaryWorktree, Lease: transaction.LeaseRequest{Verb: transaction.LeaseGateRun, AttemptID: w.attempt.AttemptID, Generation: w.attempt.Generation, Gate: id}}
 			r, e := GateRun(ctx, w.repo, w.actor, choice, *w.attempt.WorktreePath, time.Now)
 			if e = transitionOK(r, e); e != nil {
 				return w.attempt, e
 			}
+		}
+		if e = fault("ready"); e != nil {
+			return w.attempt, e
 		}
 		if e = w.step("READY", transaction.SupervisorChange{}); e != nil {
 			return w.attempt, e
@@ -1077,7 +1196,20 @@ func (w *Workflow) claimAndAttach(ctx context.Context, ticketID string) error {
 	return w.step("ATTACH", transaction.SupervisorChange{})
 }
 
-func (w *Workflow) noExec(reason string) error {
+// noExecHook, when set by a test, runs at a named point of a cancelling
+// NO_EXEC settlement: "stopped" after the attempt stops and before the
+// quiescent program is recorded, "cancel" after that record and before the
+// cancel, "release" after the cancel and before the owner is released. It is
+// nil in the product.
+var noExecHook func(point string) error
+
+// noExec settles the dispatched stage as NO_EXEC. With cancel, the program is
+// first recorded FINISHED with proved quiescence while this owner still holds
+// it, so no live competing owner can fence the cancel, yet a replacement owner
+// can take over that safe phase if this one dies. The attempt is then
+// cancelled, releasing its claim and reservation, and only afterwards is the
+// owner released (CAL-V0-074).
+func (w *Workflow) noExec(reason string, cancel bool) error {
 	if w.program.Phase == "SPAWNING" {
 		if e := w.persist("STOPPING"); e != nil {
 			return e
@@ -1094,8 +1226,32 @@ func (w *Workflow) noExec(reason string) error {
 	w.program.Quiescence = "PROVED"
 	w.program.ResultClass = "NO_EXEC"
 	w.program.ResultSHA256 = supervisor.Digest(nil)
+	if cancel {
+		if e := w.noExecPoint("stopped"); e != nil {
+			return e
+		}
+		if e := w.persist("FINISHED"); e != nil {
+			return e
+		}
+		if e := w.noExecPoint("cancel"); e != nil {
+			return e
+		}
+		if e := w.step("CANCEL", transaction.SupervisorChange{}); e != nil {
+			return e
+		}
+		if e := w.noExecPoint("release"); e != nil {
+			return e
+		}
+	}
 	w.program.OwnerReleased = true
 	return w.persist("FINISHED")
+}
+
+func (w *Workflow) noExecPoint(point string) error {
+	if noExecHook == nil {
+		return nil
+	}
+	return noExecHook(point)
 }
 
 // codexStageArgv is the pinned Codex invocation for one supervised stage. A
@@ -1383,4 +1539,30 @@ func withWritableRoots(argv []string, stage string, extras map[string]string) []
 	out := append([]string{}, argv[:len(argv)-1]...)
 	out = append(out, extra...)
 	return append(out, argv[len(argv)-1])
+}
+
+// claudeStageArgv is the pinned Claude Code invocation for one supervised
+// stage (CAL-V0-075). Edits are accepted only in implement; review and
+// integrate deny the file-editing tools. Every stage adds the sorted sibling
+// worktrees as working directories, since Claude Code confines its file tools
+// to them; --add-dir is variadic, so it comes last.
+func claudeStageArgv(c ProgramConfig, stage, session string, extras map[string]string) []string {
+	argv := []string{"-p", "--output-format", "json", "--model", c.Model, "--effort", c.StageEffort(stage), "--setting-sources", "project", "--strict-mcp-config", "--permission-prompts", "none"}
+	if stage == "implement" {
+		argv = append(argv, "--permission-mode", "acceptEdits")
+	} else {
+		argv = append(argv, "--permission-mode", "dontAsk", "--disallowedTools", "Edit,Write,NotebookEdit")
+	}
+	if session != "" {
+		argv = append(argv, "--resume", session)
+	}
+	if len(extras) > 0 {
+		dirs := []string{}
+		for _, p := range extras {
+			dirs = append(dirs, p)
+		}
+		sort.Strings(dirs)
+		argv = append(append(argv, "--add-dir"), dirs...)
+	}
+	return argv
 }

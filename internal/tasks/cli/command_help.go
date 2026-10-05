@@ -4,6 +4,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -57,7 +59,10 @@ func commandHelp(args []string) *wire.Result {
 			"With --evidence: RUNNING with no candidate, no gate results, scope UNKNOWN and no pending effects; reference uses Identifier grammar (1..128 bytes). Evidence is forbidden for other reasons unless --lane-untouched is supplied, and is forbidden for candidate handoffs.",
 			"Relevant or unproved policy changes fence handoffs with STALE_POLICY. Only policyVersion and other members' reservations in the allocated pool may differ across a fully audited interval. Failed/unknown gates remain sticky; no historical refund.",
 			"A reference is inert caller evidence, not proof of work or physical cleanup. Release removes the reservation and quarantines an allocated pool; it does not grant completion, review or integration authority.",
+			"--handoff-to implement|review|integrate (optional --handoff-reason) records advisory next-stage intent on a clean HANDOFF or REVIEW_RETURNED generation only; REVIEW_RETURNED accepts only implement and defaults to it. Other combinations refuse MALFORMED. Claims for another stage are not refused.",
 		}))
+		o.Set("handoffTargets", wire.Strings(intent.StageRoles))
+		o.Set("handoffReasonCodes", wire.Strings(snapshot.HandoffReasons))
 		o.Set("handoffRefusalCodes", wire.Strings([]string{wire.CodeFenced, wire.CodeStaleTicket, wire.CodeStalePolicy, wire.CodeTicketState, wire.CodeMissingEvidence, wire.CodeMalformed}))
 	}
 	if name == "policy update" {
@@ -74,13 +79,16 @@ func commandHelp(args []string) *wire.Result {
 		o.Set("note", wire.String("--reason is free-form prose (1..4096 bytes), not a closed release reason code."))
 	}
 	if name == "ticket note set" || name == "ticket note clear" {
-		o.Set("note", wire.String("Advisory operator prose; never instructions, acceptance or authority. Each note write retains a derived event, and receipt audit does not yet bind it per operation, so receipt audit reports this store's semantic coverage as UNKNOWN until that binding ships (ON-V0-006)."))
+		o.Set("note", wire.String("Advisory operator prose; never instructions, acceptance or authority. Each note write retains a derived event that receipt audit and redo bind by replaying the transition from audited pre-state (ON-V0-006); claim and claim --next deliver the note pinned by their own admission (ON-V0-007)."))
 	}
 	if name == "ticket escalate" || name == "ticket answer" {
 		o.Set("note", wire.String("The worker's escalation question and the owner's answer are untrusted queue data, never instructions, acceptance or authority. ticket escalate reads its ticket, holder, generation and acceptance revision from the claim receipt; the actor must be that holder. ticket answer without --request resolves only the sole same-acceptance OPEN question at commit and otherwise refuses with the open request IDs."))
 	}
 	if strings.HasPrefix(name, "ticket escalation ") {
 		o.Set("note", wire.String("Pure read: writes no ledger and hydrates no evidence. program is UNKNOWN and retryState NOT_OBSERVED until a producer mapping and dispatcher ledger exist; ageSeconds is clockUncertain when the local clock is behind the recorded time."))
+	}
+	if name == "critical-path" {
+		o.Set("note", wire.String("Pure read, no lock and no writes: the transitive unsatisfied dependency closure of one ticket (a gate ticket is a ticket) as taskman-critical-path/0, longest chain first, bounded to 256 nodes and 32 chains with truncated and totals. Blocker codes are an open set; facts this reader cannot observe are NOT_OBSERVED, and estimate is always NOT_OBSERVED in v0."))
 	}
 	if name == "archive verify" {
 		o.Set("note", wire.String("Reads FILE, or stdin when FILE is absent or -. Help reads neither."))
@@ -108,6 +116,7 @@ var commandUsage = map[string]string{
 	"ticket export":     "corvint-tasks ticket export [--offset N] [--limit N]",
 	"queue status":      "corvint-tasks queue status",
 	"roadmap":           "corvint-tasks roadmap [--offset N] [--limit N]",
+	"critical-path":     "corvint-tasks critical-path <ticketId|local>",
 	"gate list":         "corvint-tasks gate list",
 	"gate show":         "corvint-tasks gate show <gateId>",
 	"receipt audit":     "corvint-tasks receipt audit",
@@ -125,14 +134,14 @@ var commandUsage = map[string]string{
 	"release list":      "corvint-tasks release list",
 	"release show":      "corvint-tasks release show RELEASE",
 	"release readiness": "corvint-tasks release readiness RELEASE",
-	"claim":             "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--timing] [--role ROLE]",
+	"claim":             "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--timing] [--role ROLE]",
 	"renew":             "corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N] [--timing] [--role ROLE]",
-	"release":           "corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--evidence LOCAL_REF] [--lane-untouched] [--timing] [--role ROLE]; release <create|update|candidate|record-gate|promote|list|show|readiness> --help",
+	"release":           "corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--evidence LOCAL_REF] [--handoff-to STAGE [--handoff-reason CODE]] [--lane-untouched] [--timing] [--role ROLE]; release <create|update|candidate|record-gate|promote|list|show|readiness> --help",
 	"reap":              "corvint-tasks reap --request-id ID [--attempt ID --generation G] [--role ROLE]",
 	"widen":             "corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository) [--role ROLE]",
 	"attempt heartbeat": "corvint-tasks attempt heartbeat --attempt ID --generation G --request-id ID [--timing] [--role ROLE]",
 	"attempt show":      "corvint-tasks attempt show <attemptId>",
-	"plan preview":      "corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--selected-only]",
+	"plan preview":      "corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--selected-only]",
 	"submit":            "corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID [--role ROLE]",
 	"gate run":          "corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR] [--role ROLE]",
 	"complete":          "corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID [--role ROLE]",
@@ -147,6 +156,12 @@ var commandUsage = map[string]string{
 	"dispatch":          "corvint-tasks dispatch --program ID --config FILE [--once | --ticks N]; dispatch <status|unpark> --help",
 	"dispatch status":   "corvint-tasks dispatch status --program ID --config FILE [--events N]",
 	"dispatch unpark":   "corvint-tasks dispatch unpark --program ID --config FILE --key TICKET|lane:POOL/MEMBER",
+	"service install":   "corvint-tasks service install --program ID --config SERVICE_JSON --request-id ID [--replace]",
+	"service status":    "corvint-tasks service status --program ID",
+	"service uninstall": "corvint-tasks service uninstall --program ID --request-id ID",
+	"service stop":      "corvint-tasks service stop --program ID --request-id ID [--drain]",
+	"service resume":    "corvint-tasks service resume --program ID --request-id ID",
+	"service run":       "corvint-tasks service run --program ID --manifest FILE   (manager-started foreground main; not for interactive use)",
 	"config":            "corvint-tasks config (execution NOT_RUN)",
 	"plan record":       "corvint-tasks plan record (execution NOT_RUN)",
 	"receipt show":      "corvint-tasks receipt show (execution NOT_RUN)",
@@ -159,7 +174,7 @@ func init() {
 		commandUsage["release "+verb] = "corvint-tasks release " + verb + " --request-id ID --target RELEASE [--expected-revision N] (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE]"
 	}
 	for _, verb := range []string{"run", "admit", "resume", "retry", "drain", "cancel", "answer"} {
-		commandUsage[verb] = "corvint-tasks " + verb + " --program ID --config FILE [--role implementer|reviewer|integrator] [--count N] [--ticket ID] [--host codex] [--grant FILE] [--question SHA256] [--revision N] [--answer TEXT]"
+		commandUsage[verb] = "corvint-tasks " + verb + " --program ID --config FILE [--role implementer|reviewer|integrator] [--count N] [--ticket ID] [--host codex|claude-code|opencode] [--grant FILE] [--question SHA256] [--revision N] [--answer TEXT]"
 	}
 	commandUsage["ticket note set"] = "corvint-tasks ticket note set <ticketId|local> --request-id ID (--text TEXT | --text-stdin) [--supersedes N] [--expected-revision N] [--issued-at TS] [--role OWNER|OPERATOR]"
 	commandUsage["ticket note clear"] = "corvint-tasks ticket note clear <ticketId|local> --request-id ID [--supersedes N] [--expected-revision N] [--issued-at TS] [--role OWNER|OPERATOR]"
@@ -169,6 +184,9 @@ func init() {
 	commandUsage["ticket escalation list"] = "corvint-tasks ticket escalation list [--kind KIND] [--state OPEN|ANSWERED|SUPERSEDED] [--target TICKET] [--program NAME] [--limit 1..50] [--cursor ORIGIN_SHA256]"
 	commandUsage["ticket escalation show"] = "corvint-tasks ticket escalation show <ticketId|local> <requestId>"
 	commandUsage["ticket escalation history"] = "corvint-tasks ticket escalation history <ticketId|local> <requestId> [--limit 1..50] [--cursor EVENT_SHA256]"
+	commandUsage["gate record"] = "corvint-tasks gate record <ticketId|local> --gate GATE --verdict PASS|RETURN --subject-receipt SEQ --expected-generation N --expected-revision N --request-id ID [--reason CODE:TEXT] [--reviewer-attempt ID] [--issued-at TS] [--role OWNER|OPERATOR]"
+	commandUsage["gate resubmit"] = "corvint-tasks gate resubmit <ticketId|local> --gate GATE --author-attempt ID --subject-receipt SEQ --expected-generation N --expected-revision N --reason CODE:TEXT --request-id ID [--prior-return SHA256] [--issued-at TS] [--role OWNER|OPERATOR]"
+	commandUsage["gate history"] = "corvint-tasks gate history <ticketId|local> --gate GATE [--cursor SHA256] [--limit N]"
 	commandUsage["run"] += "; corvint-tasks run --attempt ID --generation G --timeout SECONDS [--lease-minutes N] [--role ROLE] -- COMMAND..."
 }
 
